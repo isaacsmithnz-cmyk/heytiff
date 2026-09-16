@@ -124,7 +124,7 @@ function mount(over: { finance?: VehicleFinance[]; documents?: StoredDocument[];
   return { onSaveVehicle, onRecordFinance, onAttachFinance, onAttachInvoice, onBack, user: userEvent.setup() };
 }
 
-const card = (eyebrow: string): HTMLElement => screen.getByText(eyebrow).closest(".vm-card") as HTMLElement;
+const card = (eyebrow: string | RegExp): HTMLElement => screen.getByText(eyebrow).closest(".vm-card") as HTMLElement;
 
 beforeEach(() => {
   uploadFile.mockReset();
@@ -149,7 +149,7 @@ it("shows the agreement as the lender wrote it and where the schedule stands", (
   expect(screen.getByText("$742 / month")).toBeInTheDocument();
   expect(screen.getByText("1 Sep 2027")).toBeInTheDocument(); // ENDS: start plus term
   expect(screen.getByText("48 of 60")).toBeInTheDocument();
-  expect(screen.getByText("~$20,904")).toBeInTheDocument(); // 12 × $742 + $12,000 balloon
+  expect(screen.getByText("$20,904")).toBeInTheDocument(); // 12 × $742 + $12,000 balloon
   expect(screen.getByText(/confirm the payout figure with Macquarie Leasing/)).toBeInTheDocument();
   expect(screen.getByRole("progressbar", { name: "Repayments fallen due" })).toHaveAttribute("aria-valuenow", "48");
   // the purchase grid now reads as financed
@@ -157,12 +157,12 @@ it("shows the agreement as the lender wrote it and where the schedule stands", (
   expect(screen.getByText("Balance financed")).toBeInTheDocument();
   expect(screen.getByText("Deposit + finance")).toBeInTheDocument();
   // a year of repayments in the cost to run — the finance line, and the total it is all of
-  expect(within(card("Cost to run, last 12 months")).getAllByText("$8,904")).toHaveLength(2);
+  expect(within(card(/^Cost to run, /)).getAllByText("$8,904")).toHaveLength(2);
   // and the contract filed under it
   expect(screen.getByText(/Finance-agreement-402193\.pdf/)).toBeInTheDocument();
 });
 
-it("scanning an agreement fills the panel, and Save agreement records it as a scan", async () => {
+it("scanning an agreement fills the panel, and Add agreement records it as a scan", async () => {
   const { onRecordFinance, user } = mount();
   uploadFile.mockResolvedValue({
     ok: true,
@@ -189,7 +189,7 @@ it("scanning an agreement fills the panel, and Save agreement records it as a sc
   expect(screen.getByLabelText("Agreement type")).toHaveValue("loan");
   expect(screen.getByLabelText("Term")).toHaveValue("48");
 
-  await user.click(screen.getByRole("button", { name: "Save agreement" }));
+  await user.click(screen.getByRole("button", { name: "Add agreement" }));
   expect(onRecordFinance).toHaveBeenCalledWith(
     expect.objectContaining({
       lender: "Toyota Finance",
@@ -212,7 +212,7 @@ it("will not save an agreement without a lender and a start date", async () => {
   const { user } = mount();
   await user.click(screen.getByRole("button", { name: "Add finance agreement" }));
   await user.click(screen.getByRole("button", { name: "Enter manually" }));
-  const save = screen.getByRole("button", { name: "Save agreement" });
+  const save = screen.getByRole("button", { name: "Add agreement" });
   expect(save).toBeDisabled();
   await user.type(screen.getByPlaceholderText("e.g. Macquarie Leasing"), "Westpac");
   expect(save).toBeDisabled(); // still no start date

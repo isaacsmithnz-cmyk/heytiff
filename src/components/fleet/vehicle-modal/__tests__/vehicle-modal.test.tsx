@@ -387,7 +387,7 @@ it("the FINANCIALS card is the door to the Financials screen, and Back returns",
   expect(screen.getByText("No finance agreement recorded")).toBeInTheDocument(); // the card's third column
   await user.click(screen.getByRole("button", { name: "Financials" }));
   expect(screen.getByRole("heading", { name: "Financials" })).toBeInTheDocument();
-  expect(screen.getByText("Cost to run, last 12 months")).toBeInTheDocument();
+  expect(screen.getByText(/^Cost to run, /)).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Back" }));
   expect(screen.getByText("Vehicle details")).toBeInTheDocument();
 });
@@ -537,12 +537,12 @@ describe("a refused save keeps the screen, typing intact", () => {
     await user.upload(screen.getByLabelText("Scan document"), pdf("agreement.pdf"));
     await screen.findByText("Scanned");
 
-    await user.click(screen.getByRole("button", { name: "Save agreement" }));
+    await user.click(screen.getByRole("button", { name: "Add agreement" }));
     await waitFor(() => expect(f.recordFinance).toHaveBeenCalledTimes(1));
     expect(screen.getByRole("heading", { name: "Financials" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("Macquarie Leasing")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Save agreement" }));
+    await user.click(screen.getByRole("button", { name: "Add agreement" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument());
   });
 });

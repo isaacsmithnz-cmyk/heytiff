@@ -279,14 +279,6 @@ export function FinancialsScreen({
     else if (current) onAttachFinance(current.id, up.file.documentId);
   };
 
-  const costCaption = [
-    `Fuel and servicing as logged since ${fmtDay(costs.sinceIso)}`,
-    "rego, green slip and insurance from the policies in force, per year",
-    current ? "finance at the agreement’s own schedule" : null,
-  ]
-    .filter(Boolean)
-    .join("; ");
-
   return (
     <>
       <SubHeader
@@ -338,7 +330,7 @@ export function FinancialsScreen({
             ) : (
               <>
                 {valuation && <b>{fmtMoney(vehicle.value)}</b>}
-                <em>Manual, what the fleet total adds up</em>
+                <em>Used in the fleet total</em>
                 <Inline
                   onClick={() => {
                     setValueDraft(String(vehicle.value));
@@ -440,7 +432,7 @@ export function FinancialsScreen({
               <Eyebrow>Finance agreement</Eyebrow>
               <span className="vm-recordtools">
                 <span className="vm-added">{addedText(current)}</span>
-                {!panelOpen && <Inline onClick={() => setPanelOpen(true)}>Update</Inline>}
+                {!panelOpen && <Inline onClick={() => setPanelOpen(true)}>Replace agreement</Inline>}
               </span>
             </div>
             <DetailGrid items={toItems(financeRows(current))} />
@@ -449,7 +441,6 @@ export function FinancialsScreen({
               <div className="vm-position">
                 <div className="vm-poshead">
                   <Eyebrow tone="accent">Estimated position</Eyebrow>
-                  <span className="vm-caption">Assumes every payment made as scheduled</span>
                 </div>
                 <div
                   className="vm-progress"
@@ -462,23 +453,27 @@ export function FinancialsScreen({
                   <span style={{ width: `${Math.round(position.progress * 100)}%` }} />
                 </div>
                 <div className="vm-posgrid">
+                  {/* FALLEN DUE, not made. Nothing here tracks a payment —
+                      the note under the bar says so — and "Payments to date"
+                      read as "payments you have made", which contradicted it. */}
                   <div>
-                    <span className="vm-fl">Payments to date</span>
+                    <span className="vm-fl">Fallen due</span>
                     <b>
                       {position.made} of {position.total}
                     </b>
                   </div>
                   <div>
-                    <span className="vm-fl">Remaining on schedule</span>
+                    <span className="vm-fl">Still to fall due</span>
                     <b>{position.remaining}</b>
                   </div>
                   <div>
                     <span className="vm-fl">Indicative payout</span>
-                    {position.payout != null ? <b>~{fmtMoney(position.payout)}</b> : <b className="faint">—</b>}
+                    {position.payout != null ? <b>{fmtMoney(position.payout)}</b> : <b className="faint">—</b>}
                   </div>
                 </div>
                 <div className="vm-posnote">
-                  Payments aren’t tracked here — confirm the payout figure with {current.lender} before you sell or trade.
+                  This is the schedule, not a payment record — confirm the payout figure with {current.lender} before you
+                  sell or trade.
                 </div>
               </div>
             )}
@@ -512,9 +507,7 @@ export function FinancialsScreen({
                 <div className="vm-statusl">
                   <Eyebrow>Finance</Eyebrow>
                   <span className="vm-headline">No finance agreement recorded</span>
-                  <span className="vm-subline">
-                    If the vehicle is financed, scan the agreement or enter it below. Owned outright? There’s nothing to add.
-                  </span>
+                  <span className="vm-subline">If the vehicle is financed, scan the agreement or enter it.</span>
                 </div>
                 <Btn kind="outline" onClick={() => setPanelOpen(true)}>
                   Add finance agreement
@@ -526,7 +519,7 @@ export function FinancialsScreen({
 
         {panelOpen && (
           <ScanCard<ReadFinanceResult>
-            heading={current ? "Record new agreement" : "Record finance agreement"}
+            heading={current ? "Replace agreement" : "Add finance agreement"}
             prompt="Scan or upload the finance agreement"
             hint="PDF, JPG or photo."
             attachLabel="Optional: attach the agreement"
@@ -613,7 +606,7 @@ export function FinancialsScreen({
             </div>
             <div className="vm-acts">
               <Btn kind="primary" onClick={saveFinance} disabled={!canSave || pending}>
-                {pending ? "Saving…" : "Save agreement"}
+                {pending ? "Saving…" : current ? "Replace agreement" : "Add agreement"}
               </Btn>
             </div>
           </ScanCard>
@@ -672,9 +665,8 @@ export function FinancialsScreen({
         {/* ---- cost to run: actuals, never a forecast ---- */}
         <Card>
           <div className="vm-cardhead">
-            <Eyebrow>Cost to run, last 12 months</Eyebrow>
+            <Eyebrow>Cost to run, since {fmtDay(costs.sinceIso)}</Eyebrow>
           </div>
-          <span className="vm-caption">{costCaption}.</span>
           <div className="vm-costrow">
             <div className="vm-costgrid">
               {costs.items.map((i) => (

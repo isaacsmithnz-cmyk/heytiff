@@ -72,10 +72,17 @@
    go, the well's inset and radius go, and the studio's height math gets back
    the 96px it was leaving for them. Keyed off an attribute on <html> because
    the FULLSCREEN ELEMENT IS THE DOCUMENT — every studio overlay portals to
-   <body>, so fullscreening anything deeper would hide them all. */
+   <body>, so fullscreening anything deeper would hide them all.
+
+   The chrome's rule is its OWN rule, and display-mode-steps-out.test.ts
+   holds it there: when `.framefx` left the frame, deleting its line took
+   this rule's `{ display: none }` with it, and the three selectors above it
+   fell onto `.main`'s padding — the shell stayed on screen in display mode. */
 html[data-ds-display] .fg .side,
 html[data-ds-display] .fg .topbar,
-html[data-ds-display] .fg .gridbg,
+html[data-ds-display] .fg .gridbg {
+  display: none;
+}
 html[data-ds-display] .fg .main {
   padding: 0;
 }
@@ -478,7 +485,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-name-input:focus {
   outline: none;
-  border-color: var(--ink);
+  border-color: var(--paper);
 }
 
 /* ── Start from a ServiceM8 job ───────────────────────────────────────────
@@ -513,7 +520,7 @@ html[data-ds-display] .dstudio.editing {
   transition: border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-sm8-search:focus-within {
-  border-color: var(--ink);
+  border-color: var(--paper);
 }
 .dstudio .ds-sm8-search svg {
   color: var(--on-ink-q);
@@ -570,8 +577,8 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sm8-opt:hover,
 .dstudio .ds-sm8-opt:focus-visible {
   outline: none;
-  background: var(--tint);
-  border-color: var(--ink);
+  background: var(--on-ink-tint-2);
+  border-color: var(--on-ink-line);
 }
 /* A FIXED column, not a shrink-wrapped chip: job numbers run 4 digits with an
    occasional letter ("3077A"), and letting the chip size to its content sets
@@ -695,8 +702,7 @@ html[data-ds-display] .dstudio.editing {
   cursor: pointer;
 }
 .dstudio .ds-opt:hover {
-  background: var(--tint);
-  border-color: var(--ink);
+  background: var(--on-ink-tint-2);
 }
 .dstudio .ds-opt-ic {
   display: flex;
@@ -799,12 +805,11 @@ html[data-ds-display] .dstudio.editing {
   font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
-  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  transition: background-color var(--t-fast) var(--ease);
   cursor: pointer;
 }
 .dstudio .ds-import:hover {
-  border-color: var(--ink);
-  color: var(--paper);
+  background: var(--on-ink-tint-2);
 }
 .dstudio .ds-search {
   flex: 1;
@@ -819,7 +824,7 @@ html[data-ds-display] .dstudio.editing {
   transition: border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-search:focus-within {
-  border-color: var(--ink);
+  border-color: var(--paper);
 }
 .dstudio .ds-search svg {
   color: var(--on-ink-q);
@@ -851,7 +856,7 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 12px;
   padding: 12px 12px;
-  border: 1px solid var(--on-ink-line);
+  border: 1px solid transparent;
   border-radius:var(--r-card);
   background: var(--on-ink-tint);
   cursor: pointer;
@@ -859,9 +864,14 @@ html[data-ds-display] .dstudio.editing {
   text-align: left;
   width: 100%;
 }
+/* LIGHTER UNDER THE POINTER. This screen is ink, so the light well's hover —
+   `--tint` and an `--ink` edge — darkened the row and dropped its edge
+   into the ground, and with every row outlined in the one hairline at rest
+   the list read as all lit but the one you were on. At rest a row is its
+   tint alone; under the pointer it takes the second tint and the hairline. */
 .dstudio .ds-rcard:hover {
-  background: var(--tint);
-  border-color: var(--ink);
+  background: var(--on-ink-tint-2);
+  border-color: var(--on-ink-line);
 }
 
 /* ── the list still loading ──
@@ -884,7 +894,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-rcard.skel:hover {
   transform: none;
   background: var(--on-ink-tint);
-  border-color: var(--on-ink-line);
+  border-color: transparent;
 }
 /* BOTH SPECIFICITIES, one declaration block. `.ds-rthumb` carries its own
    fill and border at (0,2,0) and is written later in this file, so a lone
@@ -932,7 +942,7 @@ html[data-ds-display] .dstudio.editing {
   height: 46px;
   border-radius:var(--r-button);
   background: var(--on-ink-tint);
-  border: 1px solid var(--on-ink-line);
+  border: 1px solid transparent;
   color: var(--paper);
 }
 .dstudio .ds-rbody {
@@ -980,14 +990,23 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 700;
 }
-/* under the five: how many the cap hid, so a long list never reads as
-   lost — the search above reaches them */
+/* under the five: the button that opens the rest in place, and closes them
+   again. Underlined, because the line it replaced looked exactly like this
+   and pressing it did nothing. */
 .dstudio .ds-rmore {
-  padding: 8px 0 0;
+  align-self: center;
+  padding: 4px 8px;
+  border-radius: var(--r-control);
   font-size: 13px;
   font-weight: 500;
-  text-align: center;
   color: var(--on-ink-q);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease);
+}
+.dstudio .ds-rmore:hover {
+  color: var(--paper);
 }
 .dstudio .ds-rempty {
   flex: 1;

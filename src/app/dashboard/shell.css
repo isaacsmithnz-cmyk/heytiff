@@ -8032,10 +8032,15 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 
    Keyed off an attribute on <html> because the FULLSCREEN ELEMENT IS THE
    DOCUMENT: fullscreening the board itself would hide every sheet, modal and
-   toast, all of which portal to <body> (see the portal rules below). */
+   toast, all of which portal to <body> (see the portal rules below).
+
+   The chrome's rule is its OWN rule, and display-mode-steps-out.test.ts
+   holds it there: when `.framefx` left the frame, deleting its line took
+   this rule's `{ display:none }` with it, and the three selectors above it
+   fell onto `.main`'s padding — the shell stayed on screen in display mode. */
 html[data-wb-display] .fg .side,
 html[data-wb-display] .fg .topbar,
-html[data-wb-display] .fg .gridbg,
+html[data-wb-display] .fg .gridbg { display:none; }
 html[data-wb-display] .fg .main { padding:0; }
 html[data-wb-display] .fg .outlet { border-radius:0; }
 

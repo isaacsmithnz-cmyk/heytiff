@@ -1,5 +1,5 @@
-/* The start screen shows the five most recent designs, says how many more
-   there are, and the search still reaches the rest. */
+/* The start screen shows the five most recent designs, opens the rest in
+   place from the button under them, and the search still reaches the rest. */
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -28,7 +28,37 @@ describe("recent designs are capped at five", () => {
     const card = list.closest(".ds-recent") as HTMLElement;
     const names = await within(card).findAllByText(/^Design \d+$/);
     expect(names.map((n) => n.textContent)).toEqual(["Design 7", "Design 6", "Design 5", "Design 4", "Design 3"]);
-    expect(within(card).getByText("2 more designs")).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Show 2 more designs" })).toBeInTheDocument();
+  });
+
+  /* it was a line of text that counted them, and pressing it did nothing */
+  it("the count under the five is a button that opens the rest, and closes them", async () => {
+    const user = userEvent.setup();
+    const local = await seed(7);
+    render(<Studio store={local} />);
+    const card = (await screen.findByText("Recent designs")).closest(".ds-recent") as HTMLElement;
+    expect(await within(card).findAllByText(/^Design \d+$/)).toHaveLength(5);
+
+    const more = within(card).getByRole("button", { name: "Show 2 more designs" });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    await user.click(more);
+    expect(within(card).getAllByText(/^Design \d+$/).map((n) => n.textContent)).toEqual([
+      "Design 7", "Design 6", "Design 5", "Design 4", "Design 3", "Design 2", "Design 1",
+    ]);
+
+    const fewer = within(card).getByRole("button", { name: "Show fewer designs" });
+    expect(fewer).toHaveAttribute("aria-expanded", "true");
+    await user.click(fewer);
+    expect(within(card).getAllByText(/^Design \d+$/)).toHaveLength(5);
+    expect(within(card).getByRole("button", { name: "Show 2 more designs" })).toBeInTheDocument();
+  });
+
+  it("one beyond the five is one design", async () => {
+    const local = await seed(6);
+    render(<Studio store={local} />);
+    const card = (await screen.findByText("Recent designs")).closest(".ds-recent") as HTMLElement;
+    await within(card).findAllByText(/^Design \d+$/);
+    expect(within(card).getByRole("button", { name: "Show 1 more design" })).toBeInTheDocument();
   });
 
   it("says nothing extra when there are five or fewer", async () => {

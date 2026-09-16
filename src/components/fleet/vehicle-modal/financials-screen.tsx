@@ -691,11 +691,7 @@ export function FinancialsScreen({
         </Card>
       </div>
 
-      <div className="fl-foot bar">
-        <Btn kind="outline" onClick={onBack}>
-          Cancel
-        </Btn>
-      </div>
+
     </>
   );
 }

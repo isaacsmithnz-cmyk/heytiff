@@ -263,8 +263,9 @@ it("without a Tiff estimate shows the book value and says how to get one", () =>
   expect(screen.queryByText("Tiff value")).not.toBeInTheDocument();
 });
 
-it("Cancel goes back to the card", async () => {
+it("Back goes to the card, and there is no footer to cancel from — nothing is entered here", async () => {
   const { onBack, user } = mount();
-  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Back" }));
   expect(onBack).toHaveBeenCalled();
 });

@@ -227,7 +227,7 @@ export function VehicleForm({
 
   /* Escape closes the form, except while the certificate or the purchase
      invoice is being read or is in hand: then it does nothing (see
-     scanInProgress). The X and Cancel still close. */
+     scanInProgress). The X still closes. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !scanInProgress()) onClose();
@@ -763,9 +763,6 @@ export function VehicleForm({
         </div>
 
         <div className="fl-foot bar">
-          <Btn kind="outline" onClick={onClose}>
-            Cancel
-          </Btn>
           <Btn kind="primary" onClick={save} disabled={!ready} icon="check">
             {adding ? "Add vehicle" : "Save changes"}
           </Btn>

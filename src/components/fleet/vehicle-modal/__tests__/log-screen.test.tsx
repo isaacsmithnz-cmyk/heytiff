@@ -199,7 +199,7 @@ describe("Log fuel", () => {
     fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
     expect(screen.getByRole("heading", { name: "Log fuel" })).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
   });
 });

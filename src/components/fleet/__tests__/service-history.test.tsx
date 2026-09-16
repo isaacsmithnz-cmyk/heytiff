@@ -186,12 +186,14 @@ it("says none are logged rather than claiming the vehicle was never serviced", (
   expect(screen.getByText("No services logged yet")).toBeInTheDocument();
 });
 
-it("Log service from the services screen is a screen of the card, and Cancel returns to the list", async () => {
+it("Log service from the services screen is a screen of the card, and Back returns to the list", async () => {
   const { user } = services(mixed);
   await user.click(screen.getByRole("button", { name: /log service/i }));
   expect(screen.getByRole("heading", { name: "Log service" })).toBeInTheDocument();
   expect(screen.getByText("Scan or upload the service invoice")).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  // nothing entered, so nothing to save — the footer is not there, and Back is the way out
+  expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Back" }));
   expect(screen.getByRole("heading", { name: "Service" })).toBeInTheDocument();
   expect(screen.getByText("Due at")).toBeInTheDocument();
 });
@@ -268,7 +270,7 @@ it("returns to the service history after logging one, not to the vehicle card", 
   await user.click(screen.getByRole("button", { name: /log service/i }));
   expect(screen.getByRole("heading", { name: "Log service" })).toBeInTheDocument();
 
-  await user.click(screen.getByRole("button", { name: /cancel/i }));
+  await user.click(screen.getByRole("button", { name: "Back" }));
   /* "Due at" only exists in the service history and "Vehicle details" only on
      the vehicle card — the service ROWS render in both, so they cannot tell the
      two apart and are the wrong thing to assert on here. */

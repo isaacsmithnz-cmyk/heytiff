@@ -133,32 +133,45 @@ describe("what the status says", () => {
     expect(checkHeadline(rec({ expiresOn: "2028-03-04" }), TODAY, WARN)).toMatch(/^Expires /);
   });
 
-  it("says what was checked and when, under the headline", () => {
-    expect(checkSubline(rec())).toBe(
-      "482 Temporary Skill Shortage, expires 4 Mar 2028, checked 3 Feb 2026"
-    );
+  /* THE CARD IS THE ANSWER; THE GRID UNDER IT IS THE RECORD. The subline was
+     a summary of the grid — the visa, the expiry and the date, all three
+     printed again under labels below it. It says only what the headline needs
+     to be understood now: what the expiry belongs to, or that there is no
+     visa in this at all. */
+  it("says only what the headline needs to be understood", () => {
+    expect(checkSubline(rec())).toBe("482 Temporary Skill Shortage");
     expect(checkSubline(rec({ status: "Australian citizen", visaType: null, expiresOn: null }))).toBe(
-      "no expiry, checked 3 Feb 2026"
+      "No visa required"
     );
-    expect(checkSubline(null)).toMatch(/Record a check/);
+    expect(checkSubline(null)).toMatch(/Check the right to work/);
+  });
+
+  it("falls back to the status when a visa has no type recorded", () => {
+    expect(checkSubline(rec({ visaType: null }))).toBe("Full working rights (visa)");
   });
 });
 
 describe("the facts grid", () => {
-  it("prints no empty visa rows for someone who has never held a visa", () => {
+  /* No empty visa rows, and no status either: for a citizen the headline
+     above IS the status, so the grid would be printing it twice. What is left
+     is the date, which nothing else says. */
+  it("prints nothing at all for someone who has never held a visa", () => {
     const labels = checkFacts(rec({ status: "Australian citizen", visaType: null, expiresOn: null }), "forever").map(
       (f) => f.label
     );
-    expect(labels).toEqual(["Status", "Checked"]);
+    // the headline says the status, the card's head says the date it was
+    // checked — a citizen's card is its evidence and nothing else
+    expect(labels).toEqual([]);
   });
 
+  /* For a visa the headline is the expiry, so the status is this grid's to
+     say. "VISA" was the only shouted label left on the card. */
   it("prints the visa block for someone who holds one", () => {
     expect(checkFacts(rec(), "ok").map((f) => f.label)).toEqual([
       "Status",
-      "VISA",
+      "Visa",
       "Work condition",
       "Expiry",
-      "Checked",
     ]);
   });
 
@@ -235,7 +248,7 @@ describe("the reminder's words", () => {
 
 describe("the lock", () => {
   it("gives both section-savers one wording to refuse with", () => {
-    expect(WORK_RIGHTS_LOCKED).toMatch(/record a check/i);
+    expect(WORK_RIGHTS_LOCKED).toMatch(/check the right to work/i);
   });
 });
 

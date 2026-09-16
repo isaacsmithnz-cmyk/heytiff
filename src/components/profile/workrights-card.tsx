@@ -4,6 +4,7 @@ import { requiredField } from "@/lib/staff/completeness";
 import { Icon } from "@/components/shell/icon";
 import { type StaffProfile } from "@/lib/staff/profile";
 import { dateInputValue, formatAuDate } from "@/lib/au-dates";
+import { fmtDay } from "@/lib/format/day";
 import { licenceStatus } from "@/lib/staff/licence";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard, type SectionBodyContext } from "./section-card";
@@ -48,6 +49,7 @@ export function WorkRightsCard({
   startEditing,
   focusField,
   checkCount = 0,
+  lastChecked = null,
   onOpenChecks,
   onSave,
 }: {
@@ -71,6 +73,8 @@ export function WorkRightsCard({
      Zero checks — every workspace on the day this ships — leaves the card
      exactly as it has always been. */
   checkCount?: number;
+  /** When the right to work was last looked at — the strip's one fact. */
+  lastChecked?: string | null;
   /** Opens the checks modal. Absent means the caller has not wired it. */
   onOpenChecks?: () => void;
   onSave: SaveSection;
@@ -114,23 +118,28 @@ export function WorkRightsCard({
       {onOpenChecks && (
         <div className="wr-checks">
           <span className="wr-checksl">
-            <b>{checkCount === 0 ? "No checks recorded" : checkCount === 1 ? "1 check on file" : `${checkCount} checks on file`}</b>
-            {/* "VEVO" was the government's name for the visa check, and nobody
-                in the office has heard of it — the words are the documents a
-                person actually holds. A citizen or permanent resident has no
-                visa to check, so the empty state stops asking for one and
-                says what can be kept instead. */}
-            <em>
-              {checkCount > 0
-                ? "The status above is the newest check"
-                : isNoVisa(status)
+            {/* THE DATE IS THE FACT, and the count was not one: "1 check on
+                file" counts rows in a table, and the line under it explained
+                where the status above had come from. What anyone needs to
+                know is when this was last looked at.
+
+                "VEVO" was the government's name for the visa check, and
+                nobody in the office has heard of it — the words are the
+                documents a person actually holds. A citizen or permanent
+                resident has no visa to check, so the empty state stops asking
+                for one and says what can be kept instead. */}
+            <b>{lastChecked ? `Last checked ${fmtDay(lastChecked)}` : "Not checked yet"}</b>
+            {checkCount === 0 && (
+              <em>
+                {isNoVisa(status)
                   ? "Keep the passport or citizenship certificate here as evidence"
                   : "Scan the visa check result or the grant letter to start the record"}
-            </em>
+              </em>
+            )}
           </span>
           <button type="button" className="pbtn" onClick={onOpenChecks}>
             <Icon name="shield" size={15} />
-            {checkCount === 0 ? "Record a check" : "Checks"}
+            {checkCount === 0 ? "Check the right to work" : "Open the record"}
           </button>
         </div>
       )}

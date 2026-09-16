@@ -26,7 +26,15 @@ import {
   type WorkRightsRecord,
 } from "@/lib/staff/work-rights-records";
 import type { SaveResult } from "../types";
-import { CheckFields, SCAN_COPY, checkInput, emptyCheck, type Check } from "./check-fields";
+import {
+  CheckFields,
+  SCAN_COPY,
+  SCAN_COPY_NO_VISA,
+  checkInput,
+  emptyCheck,
+  type Check,
+} from "./check-fields";
+import { isNoVisa } from "@/lib/staff/work-rights";
 
 /* ONE PERSON'S RIGHT TO WORK, as a history of CHECKS.
 
@@ -141,6 +149,10 @@ export function WorkRightsModal({
     });
   };
 
+  /* Which check this is: the one being typed if a status has been chosen,
+     else the record's. A citizen has no site to visit. */
+  const noVisaStatus = isNoVisa(check.status || current?.status || "");
+  const scanCopy = noVisaStatus ? SCAN_COPY_NO_VISA : SCAN_COPY;
   const facts: DetailItem[] = current ? checkFacts(current, state) : [];
   const currentDocs = current ? checkDocuments(documents, current) : [];
   const loose = looseCheckDocuments(documents, records);
@@ -180,21 +192,31 @@ export function WorkRightsModal({
               <span className="vm-headline">{checkHeadline(current, today, warnDays)}</span>
               <span className="vm-subline">{checkSubline(current)}</span>
             </div>
-            {recorded && !panelOpen && (
-              <Btn kind="primary" onClick={() => setPanelOpen(true)}>
-                Record a check
-              </Btn>
-            )}
+            {/* THE ACTION IS IN THE FOOTER, not in here. A status card is a
+                thing you read; this one carried the screen's only black
+                button in its corner, competing with the headline beside it —
+                and the licence modal on the very same tab keeps its action in
+                the footer, so two windows on one screen put the same kind of
+                button in two places. Isaac, on the walk: "looks a bit weird",
+                and then "I don't know what record a check actually means".
+
+                SO THE WORDS CHANGED TOO, everywhere in this window. "A check"
+                is the compliance industry's noun for the row in the table;
+                what a person DOES is check whether someone may work here —
+                look at a passport, or look a visa up — and write down what
+                they saw. Every button and heading is that verb now, and the
+                noun only appears where the verb has already given it its
+                meaning. */}
           </div>
 
           {current && (
             <Card>
               <div className="vm-cardhead">
-                <Eyebrow>Current check</Eyebrow>
+                <Eyebrow>Checked {fmtDay(current.checkedOn)}</Eyebrow>
                 <span className="vm-added">{checkAddedText(current)}</span>
               </div>
-              <DetailGrid items={facts} />
-              <div className="vm-divider">
+              {facts.length > 0 && <DetailGrid items={facts} />}
+              <div className={facts.length > 0 ? "vm-divider" : "vm-divider bare"}>
                 <Eyebrow>Evidence</Eyebrow>
                 <Inline onClick={() => attachInput.current?.click()}>Add document</Inline>
                 <input
@@ -225,12 +247,65 @@ export function WorkRightsModal({
           )}
 
 
+          {/* WHERE THE CHECKING ACTUALLY HAPPENS, and it is not in here.
+              Isaac, on the walk: "You're not actually checking it. You're just
+              updating the visa. Checking it should maybe send you to the
+              website where you check it."
+
+              He is right: this window only ever FILED a result somebody got
+              somewhere else. An employer checks a visa on the Home Affairs
+              site (their name for it is VEVO, which is why that acronym is
+              said here once and nowhere else in the app — it is what the sign
+              on the door reads); a citizen or permanent resident has no visa
+              to look up, so the check is sighting the passport or the
+              citizenship certificate. So the panel opens on the check, and
+              the scan below it files what the check said. Both links were
+              read off immi.homeaffairs.gov.au, not from memory. */}
+          {panelOpen && (
+            <Card>
+              <div className="vm-cardhead">
+                <Eyebrow>{noVisaStatus ? "Sight the document" : "Look the visa up"}</Eyebrow>
+              </div>
+              {noVisaStatus ? (
+                <p className="vm-note">
+                  There is no visa to look up. The evidence is the passport or the citizenship
+                  certificate itself — file it below with the date you saw it.
+                </p>
+              ) : (
+                <>
+                  <p className="vm-note">
+                    Home Affairs checks visas online, on the site they call VEVO. An employer needs
+                    a free organisation account.
+                  </p>
+                  <div className="vm-doors">
+                    <a
+                      className="vm-btn outline"
+                      href="https://online.immi.gov.au/evo/thirdParty"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                    >
+                      Open the Home Affairs check
+                    </a>
+                    <a
+                      className="vm-inline"
+                      href="https://online.immi.gov.au/lusc/register"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                    >
+                      Register an organisation account
+                    </a>
+                  </div>
+                </>
+              )}
+            </Card>
+          )}
+
           {panelOpen && (
             <ScanCard<ReadWorkRightsResult>
-              heading={current ? "Record a new check" : "Record the first check"}
-              prompt={SCAN_COPY.prompt}
-              hint={SCAN_COPY.hint}
-              attachLabel={SCAN_COPY.attach}
+              heading={scanCopy.heading}
+              prompt={scanCopy.prompt}
+              hint={scanCopy.hint}
+              attachLabel={scanCopy.attach}
               docKind={WORK_RIGHTS_DOC_KIND}
               read={(b64, mt) => readWorkRightsDocument(b64, mt, staffId)}
               onRead={(r, id) => {
@@ -254,10 +329,10 @@ export function WorkRightsModal({
 
           <Card className="vm-histcard">
             <div className="vm-cardhead">
-              <Eyebrow>Previous checks</Eyebrow>
+              <Eyebrow>Checked before</Eyebrow>
             </div>
             {history.length === 0 ? (
-              <div className="vm-empty">No previous checks recorded.</div>
+              <div className="vm-empty">Nothing checked before this.</div>
             ) : (
               history.map((r) => {
                 const expanded = openHist === r.id;
@@ -298,7 +373,7 @@ export function WorkRightsModal({
                             disabled={pending}
                             onClick={() => (armed === r.id ? void run(() => onRemoveCheck(r.id)) : setArmed(r.id))}
                           >
-                            {armed === r.id ? "Click again to remove" : "Remove check"}
+                            {armed === r.id ? "Click again to remove" : "Remove this check"}
                           </button>
                         </div>
                       </div>
@@ -313,22 +388,32 @@ export function WorkRightsModal({
             <Card>
               <div className="vm-cardhead">
                 <Eyebrow>Other documents</Eyebrow>
-                <span className="vm-caption">Filed under no check</span>
+                <span className="vm-caption">Not filed under a check</span>
               </div>
               <DocRows docs={loose} openId={openDoc} onOpen={setOpenDoc} />
             </Card>
           )}
         </div>
 
-        <div className="fl-foot bar">
-          <Btn kind="outline" onClick={onClose}>
-            Close
-          </Btn>
-          {showFields && (
-            <Btn kind="primary" onClick={save} disabled={!canSave}>
-              {pending ? "Saving…" : "Save check"}
+        <div className="fl-foot bar spread">
+          {/* left, as "Edit details" sits on the licence modal's footer */}
+          {recorded && !panelOpen ? (
+            <Btn kind="outline" onClick={() => setPanelOpen(true)} icon="shield">
+              Check it again
             </Btn>
+          ) : (
+            <span />
           )}
+          <span className="fl-footright">
+            <Btn kind="outline" onClick={onClose}>
+              Close
+            </Btn>
+            {showFields && (
+              <Btn kind="primary" onClick={save} disabled={!canSave}>
+                {pending ? "Saving…" : "Save what you found"}
+              </Btn>
+            )}
+          </span>
         </div>
       </div>
     </div>,

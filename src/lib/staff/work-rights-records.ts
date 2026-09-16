@@ -117,15 +117,22 @@ export function checkHeadline(record: WorkRightsRecord | null, today: string, wa
   return `Expires ${inLabel(days)}`;
 }
 
-/** The line under the headline: what was checked, and when. */
+/* THE STATUS CARD IS THE ANSWER; THE GRID UNDER IT IS THE RECORD.
+
+   The subline used to be a summary of the grid — the visa, the expiry and the
+   date checked, all three of which the grid then printed again under labels.
+   On a citizen's card it was worse: the headline said "Australian citizen",
+   the subline said "no expiry" (about a visa nobody holds) and "checked 22
+   Jul", and the grid said the status and that same date once more. Three
+   printings of two facts.
+
+   So the subline now says only what the HEADLINE needs to be understood: the
+   thing the expiry belongs to, or, for a citizen or permanent resident, that
+   there is no visa in this at all. */
 export function checkSubline(record: WorkRightsRecord | null): string {
-  if (!record) return "Record a check to start the history.";
-  const bits = [
-    record.visaType?.trim() || (isNoVisa(record.status) ? null : record.status),
-    record.expiresOn ? `expires ${fmtDay(record.expiresOn)}` : "no expiry",
-    `checked ${fmtDay(record.checkedOn)}`,
-  ].filter(Boolean);
-  return bits.join(", ");
+  if (!record) return "Check the right to work to start the record.";
+  if (isNoVisa(record.status)) return "No visa required";
+  return record.visaType?.trim() || record.status;
 }
 
 /* ---- the grid ---- */
@@ -134,16 +141,25 @@ const dash = "—";
 
 export type CheckFact = { label: string; value: string; tone?: "faint" | "warn" };
 
-/** One check's facts. A citizen's record does NOT print empty visa rows: the
-    card has unmounted the visa block for those statuses since it was built,
-    and a grid reading "VISA —" for someone who has never held one answers a
-    question nobody asked. */
+/** One check's facts — the record, under labels, and each fact once.
+
+    A citizen's record does NOT print empty visa rows: the card has unmounted
+    the visa block for those statuses since it was built, and a grid reading
+    "VISA —" for someone who has never held one answers a question nobody
+    asked. It does not print the status either, because for a citizen the
+    headline above IS the status; for a visa the headline is the expiry, so
+    the status is this grid's to say. Nor the date it was checked, which the
+    card's own head carries — a grid reading "Checked 22 Jul 2026" directly
+    under a heading reading "Checked 22 Jul 2026" is the doubling this window
+    was cleaned of. So a citizen's card has no grid at all: it is the
+    evidence, which is the only thing on it nothing else says. */
 export function checkFacts(r: WorkRightsRecord, state: CheckState): CheckFact[] {
   const faint = (v: unknown): CheckFact["tone"] => (v ? undefined : "faint");
-  const facts: CheckFact[] = [{ label: "Status", value: r.status }];
+  const facts: CheckFact[] = [];
   if (!isNoVisa(r.status)) {
+    facts.push({ label: "Status", value: r.status });
     facts.push(
-      { label: "VISA", value: r.visaType ?? dash, tone: faint(r.visaType) },
+      { label: "Visa", value: r.visaType ?? dash, tone: faint(r.visaType) },
       { label: "Work condition", value: r.hoursCondition ?? dash, tone: faint(r.hoursCondition) },
       {
         label: "Expiry",
@@ -152,7 +168,6 @@ export function checkFacts(r: WorkRightsRecord, state: CheckState): CheckFact[] 
       }
     );
   }
-  facts.push({ label: "Checked", value: fmtDay(r.checkedOn) });
   return facts;
 }
 
@@ -255,7 +270,7 @@ export function buildWorkRightsCheckRow(
     than in either action file, so the two cannot drift into two wordings for
     one rule — and so a `"use server"` module never has to import another. */
 export const WORK_RIGHTS_LOCKED =
-  "Right to work is recorded as checks now — open it and record a check instead.";
+  "Right to work is a record of checks now — open it and check the right to work instead.";
 
 /* ---- reminders ---- */
 

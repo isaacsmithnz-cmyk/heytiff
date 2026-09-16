@@ -790,12 +790,16 @@ describe("the words on a ticket", () => {
     return out.join(" ");
   };
 
-  it("says what is on file once a photo is filed against a ticket with no term", async () => {
+  /* The line used to COUNT the documents — "1 document filed against this
+     ticket" — directly above the Documents card that lists them. The card is
+     the count; the line says what the headline cannot. */
+  it("does not count the documents above the card that lists them", async () => {
     const user = userEvent.setup();
     setup({ documents: { L2: [doc()] } });
     await openCard(user, "White card");
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("1 document filed against this ticket")).toBeInTheDocument();
+    expect(within(dialog).queryByText(/document filed against this ticket/)).not.toBeInTheDocument();
+    expect(within(dialog).getByText("No expiry on this ticket.")).toBeInTheDocument();
     expect(within(dialog).queryByText("Scan the card or enter the details below.")).not.toBeInTheDocument();
   });
 

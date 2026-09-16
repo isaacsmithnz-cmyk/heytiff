@@ -17,10 +17,22 @@ import type { WorkRightsCheckInput } from "@/lib/staff/work-rights-records";
    nowhere here to type one because there is nowhere in the table to keep one —
    see lib/staff/work-rights-readers.ts for the whole argument. */
 
+/* THE WORDS FOLLOW THE CHECK THAT WAS MADE. A visa is looked up and the site
+   gives you a result; a citizen's passport is sighted, and the document IS
+   the evidence. One set of words for each — "file what it said" is nonsense
+   about a passport, which said nothing. */
 export const SCAN_COPY = {
-  prompt: "Scan or upload the visa check result or the visa grant letter",
+  heading: "File what it said",
+  prompt: "Scan or upload what the check gave you",
   hint: "PDF, JPG or photo.",
   attach: "Optional: attach the visa check result or the grant letter",
+};
+
+export const SCAN_COPY_NO_VISA = {
+  heading: "File the document",
+  prompt: "Scan or upload the passport or citizenship certificate",
+  hint: "PDF, JPG or photo.",
+  attach: "Optional: attach the passport or citizenship certificate",
 };
 
 export type Check = {

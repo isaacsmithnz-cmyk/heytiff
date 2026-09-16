@@ -19,7 +19,10 @@ const onVisa = {
   vevo_checked_at: "2026-06-01",
 };
 
-function setup(profile = blankProfile, over: { checkCount?: number; onOpenChecks?: () => void } = {}) {
+function setup(
+  profile = blankProfile,
+  over: { checkCount?: number; lastChecked?: string; onOpenChecks?: () => void } = {}
+) {
   const actions = okActions();
   render(
     <WorkRightsCard
@@ -27,6 +30,7 @@ function setup(profile = blankProfile, over: { checkCount?: number; onOpenChecks
       mode="self"
       today={TODAY} warnDays={30}
       checkCount={over.checkCount}
+      lastChecked={over.lastChecked}
       onOpenChecks={over.onOpenChecks}
       onSave={actions.onSave}
     />
@@ -200,16 +204,32 @@ describe("workRightsPayload", () => {
 describe("the checks strip", () => {
   it("is absent entirely until a caller wires the door", () => {
     setup(onVisa);
-    expect(screen.queryByRole("button", { name: /Record a check|Checks/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Check the right to work|Open the record/ })
+    ).not.toBeInTheDocument();
     // and the card still edits, exactly as it always has
     expect(edit()).toBeInTheDocument();
   });
 
-  it("offers to record the first check, and still edits, when none exist", () => {
+  /* "A check" is the compliance industry's noun for the row in the table.
+     What a person does is CHECK whether someone may work here — Isaac, on the
+     walk: "I don't know what record a check actually means". Every button is
+     the verb, and the line beside it is the date, not a count of rows. */
+  it("asks to check the right to work, and still edits, when none exist", () => {
     setup(onVisa, { checkCount: 0, onOpenChecks: jest.fn() });
-    expect(screen.getByText("No checks recorded")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Record a check/ })).toBeInTheDocument();
+    expect(screen.getByText("Not checked yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Check the right to work/ })).toBeInTheDocument();
+    expect(screen.queryByText(/check on file|checks on file/)).not.toBeInTheDocument();
     expect(edit()).toBeInTheDocument();
+  });
+
+  it("says when it was last checked, not how many rows are on file", () => {
+    setup(onVisa, { checkCount: 2, lastChecked: "2026-07-22", onOpenChecks: jest.fn() });
+    expect(screen.getByText("Last checked 22 Jul 2026")).toBeInTheDocument();
+    expect(screen.queryByText("2 checks on file")).not.toBeInTheDocument();
+    // and the line that explained where the status came from is gone
+    expect(screen.queryByText(/newest check/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Open the record/ })).toBeInTheDocument();
   });
 
   /* "VEVO" was the government's name for the visa check and nobody in the
@@ -229,7 +249,7 @@ describe("the checks strip", () => {
       { ...blankProfile, work_rights_status: "Australian citizen" },
       { checkCount: 0, onOpenChecks: jest.fn() }
     );
-    expect(screen.getByText("No checks recorded")).toBeInTheDocument();
+    expect(screen.getByText("Not checked yet")).toBeInTheDocument();
     expect(
       screen.getByText("Keep the passport or citizenship certificate here as evidence")
     ).toBeInTheDocument();
@@ -237,22 +257,16 @@ describe("the checks strip", () => {
   });
 
   it("withdraws the edit cycle once a check exists", () => {
-    setup(onVisa, { checkCount: 2, onOpenChecks: jest.fn() });
-    expect(screen.getByText("2 checks on file")).toBeInTheDocument();
+    setup(onVisa, { checkCount: 2, lastChecked: "2026-07-22", onOpenChecks: jest.fn() });
+    expect(screen.getByText("Last checked 22 Jul 2026")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Edit$/ })).not.toBeInTheDocument();
-    expect(screen.getByText("The status above is the newest check")).toBeInTheDocument();
   });
 
-  it("counts one check without pluralising it", () => {
-    setup(onVisa, { checkCount: 1, onOpenChecks: jest.fn() });
-    expect(screen.getByText("1 check on file")).toBeInTheDocument();
-  });
-
-  it("opens the checks door", async () => {
+  it("opens the record", async () => {
     const user = userEvent.setup();
     const onOpenChecks = jest.fn();
     setup(onVisa, { checkCount: 1, onOpenChecks });
-    await user.click(screen.getByRole("button", { name: /Checks/ }));
+    await user.click(screen.getByRole("button", { name: /Open the record/ }));
     expect(onOpenChecks).toHaveBeenCalled();
   });
 

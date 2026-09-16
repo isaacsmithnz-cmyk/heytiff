@@ -26,7 +26,7 @@ afterEach(cleanup);
 describe("what the server sends", () => {
   it("carries no clock-dependent text — the thing that broke hydration", () => {
     const html = renderToString(<Sm8Chip sm8={health()} />);
-    expect(html).toContain("ServiceM8 synced");
+    expect(html).toContain("Synced");
     /* Any of these in the server markup means the clock got back in. */
     expect(html).not.toMatch(/just now|min ago|hour|over a day/);
   });
@@ -47,7 +47,7 @@ describe("what the server sends", () => {
     const server = renderToString(<Sm8Chip sm8={sm8} />);
     /* `useHydrated` reports false during hydration too, so the first client
        pass produces the server's text — the match React needs. */
-    expect(server).toContain("ServiceM8 synced");
+    expect(server).toContain("Synced");
     expect(server).not.toContain("ago");
   });
 });
@@ -55,7 +55,7 @@ describe("what the server sends", () => {
 describe("once the browser has the clock", () => {
   it("finishes the sentence with how stale the mirror is", () => {
     render(<Sm8Chip sm8={health()} />);
-    expect(screen.getByText("ServiceM8 synced 5 min ago")).toBeInTheDocument();
+    expect(screen.getByText("Synced 5 min ago")).toBeInTheDocument();
   });
 
   it("says nothing about staleness while a sync is running", () => {

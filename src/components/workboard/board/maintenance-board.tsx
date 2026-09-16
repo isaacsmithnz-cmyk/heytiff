@@ -54,6 +54,7 @@ export function MaintenanceBoard({
   connected,
   aiEnabled = false,
   sm8,
+  lead,
   tools,
   searchPanel = null,
   onExitSearch,
@@ -74,6 +75,8 @@ export function MaintenanceBoard({
   /** The page-owned capture pill, docked at the tab row's right end — the
       handoff's spot. Present in Display mode too: that mode mirrors this page
       rather than replacing it, so everything on it stays usable. */
+  /** The screen's own h1, rendered at the head of the tab band. */
+  lead?: ReactNode;
   tools?: ReactNode;
   /* The universal search's answers, which replace this card's content while a
      query is live. Handed in rather than raised here because one box above
@@ -255,7 +258,14 @@ export function MaintenanceBoard({
 
   return (
     <div className="wb2">
-      <div className="wb2-vtabs" ref={rowRef} role="tablist" aria-label="Maintenance board">
+      {/* THE TAB ROW IS THE PAGE HEADER. `lead` is the screen's h1 and
+          `tools` the switcher, the search and Display mode: one 48px band
+          instead of a title row above a tab row saying the same thing
+          twice. `role="tablist"` moves to the inner row, because a
+          tablist may only own tabs and the h1 is not one. */}
+      <div className="wb2-vtabs">
+        {lead}
+        <div className="wb2-vtrow" ref={rowRef} role="tablist" aria-label="Maintenance board">
         {thumb && (
           <span
             className="wb2-vslide"
@@ -276,6 +286,7 @@ export function MaintenanceBoard({
             {TAB_LABEL[t]}
           </button>
         ))}
+        </div>
         <Sm8Chip sm8={sm8} />
         {tools && <div className="wb2-vtcap">{tools}</div>}
       </div>

@@ -686,6 +686,83 @@ export function OverviewScreen({
      token's target follows whichever sheet is open (see `useNoteScopeTarget`)
      and falls back to the board itself, which is the "universal note taker"
      half of the widget. */
+  /* ── THE HEADER IS THE TAB BAND ──────────────────────────────────────
+     The title row and the tab row said the same thing one under the other:
+     "Workboard", then six tabs naming what the Workboard holds, and the rail
+     one column to the left already naming the screen a third time. Measured
+     at 1600x900 the pair stood 128px tall before the board began.
+
+     So the screen's h1 and its tools ride IN the tab row, which already had a
+     right-hand slot for the search and the mirror chip, and the boards take
+     them as `lead` and `tools`. `role="tablist"` sits on the inner row, since
+     a tablist may only own tabs. */
+  const boardLead = <h1 className="wb2-h1">Workboard</h1>;
+  const boardTools = (
+    <>
+      <nav
+        className="wb2-seg"
+        role="tablist"
+        aria-label="Which work"
+        data-on={tab}
+        ref={segRef}
+      >
+        {segThumb && (
+          <span
+            className="wb2-segsl"
+            style={{ transform: `translateX(${segThumb.x}px)`, width: segThumb.w }}
+            aria-hidden="true"
+          />
+        )}
+        {SIDES.map((s) => {
+          const b = badges[s.key];
+          return (
+            <button
+              key={s.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === s.key}
+              data-side={s.key}
+              className={"wb2-segb" + (tab === s.key ? " on" : "")}
+              onClick={() => pickSide(s.key)}
+            >
+              {s.label}
+              {b && (
+                <i
+                  className={b.tone}
+                  title={`${b.n} ${b.n === 1 ? "needs" : "need"} attention`}
+                >
+                  {b.n}
+                </i>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+      {searchField}
+      <div className="wb2-headtools">
+        {display ? (
+          <button
+            className="pbtn ghost"
+            onClick={() => setDisplay(false)}
+            title="Back to the app — Esc does the same"
+          >
+            <Icon name="x" size={16} />
+            Close display mode
+          </button>
+        ) : (
+          <button
+            className="pbtn ghost"
+            onClick={toDisplay}
+            title="Fill the screen — same board, no app frame"
+          >
+            <Icon name="maximize" size={16} />
+            Display mode
+          </button>
+        )}
+      </div>
+    </>
+  );
+
   return (
     /* `wb2-full` is the board asking for the whole well: paper to the dark
        rail and the dark bar, no grey margin, no width cap, no radius. The
@@ -696,70 +773,6 @@ export function OverviewScreen({
     <div className="page in wb2-full">
       <div className="wrap">
         <div className="stg">
-          <header className="wb2-head">
-            <h1>Workboard</h1>
-            <nav
-              className="wb2-seg"
-              role="tablist"
-              aria-label="Which work"
-              data-on={tab}
-              ref={segRef}
-            >
-              {segThumb && (
-                <span
-                  className="wb2-segsl"
-                  style={{ transform: `translateX(${segThumb.x}px)`, width: segThumb.w }}
-                  aria-hidden="true"
-                />
-              )}
-              {SIDES.map((s) => {
-                const b = badges[s.key];
-                return (
-                  <button
-                    key={s.key}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === s.key}
-                    data-side={s.key}
-                    className={"wb2-segb" + (tab === s.key ? " on" : "")}
-                    onClick={() => pickSide(s.key)}
-                  >
-                    {s.label}
-                    {b && (
-                      <i
-                        className={b.tone}
-                        title={`${b.n} ${b.n === 1 ? "needs" : "need"} attention`}
-                      >
-                        {b.n}
-                      </i>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-            <div className="wb2-headtools">
-              {display ? (
-                <button
-                  className="pbtn ghost"
-                  onClick={() => setDisplay(false)}
-                  title="Back to the app — Esc does the same"
-                >
-                  <Icon name="x" size={16} />
-                  Close display mode
-                </button>
-              ) : (
-                <button
-                  className="pbtn ghost"
-                  onClick={toDisplay}
-                  title="Fill the screen — same board, no app frame"
-                >
-                  <Icon name="maximize" size={16} />
-                  Display mode
-                </button>
-              )}
-            </div>
-          </header>
-
           <div className="wb-board">
             {tab === "maintenance" && (
               <MaintenanceBoard
@@ -770,7 +783,8 @@ export function OverviewScreen({
                 connected={connected}
                 aiEnabled={data.aiEnabled}
                 sm8={sm8}
-                tools={searchField}
+                lead={boardLead}
+                tools={boardTools}
                 searchPanel={searchPanel}
                 onExitSearch={clearQuery}
                 openTarget={handoff?.side === "maintenance" ? handoff : null}
@@ -784,7 +798,8 @@ export function OverviewScreen({
                 manage={data.manage}
                 connected={connected}
                 sm8={sm8}
-                tools={searchField}
+                lead={boardLead}
+                tools={boardTools}
                 searchPanel={searchPanel}
                 onExitSearch={clearQuery}
                 openTarget={handoff?.side === "projects" ? handoff : null}
@@ -806,7 +821,8 @@ export function OverviewScreen({
                 aiEnabled={data.aiEnabled}
                 sm8={sm8}
                 onOpenTracked={followTracked}
-                tools={searchField}
+                lead={boardLead}
+                tools={boardTools}
                 searchPanel={searchPanel}
                 onExitSearch={clearQuery}
                 openTarget={handoff?.side === "jobs" ? handoff : null}

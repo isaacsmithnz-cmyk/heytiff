@@ -46,13 +46,23 @@ export function Sm8Chip({ sm8 }: { sm8: Sm8Health | null | undefined }) {
 
   /* Only this branch reads the clock. "needs attention" and "syncing…" are
      facts about the mirror, identical on both sides, and stay server-rendered. */
+  /* THE ROUTINE STATE DROPS THE NAME. This stands in the board's header,
+     beside six tabs that ARE ServiceM8's own statuses and under a switcher
+     that says which half of the mirror you are reading — so "ServiceM8
+     synced 5 min ago" said the word a fourth time, and it was the widest
+     thing in a band that has to hold a title, six tabs, a switcher, a search
+     and Display mode on one line.
+
+     The two EXCEPTIONAL states keep it: "needs attention" and "syncing" have
+     to name what needs attention and what is syncing, and they are rare
+     enough to be allowed the width. */
   const freshness = sm8.attention
     ? "ServiceM8 needs attention"
     : sm8.running
       ? "ServiceM8 syncing…"
       : hydrated
-        ? `ServiceM8 synced ${syncedAgo(sm8.syncedAt)}`
-        : "ServiceM8 synced";
+        ? `Synced ${syncedAgo(sm8.syncedAt)}`
+        : "Synced";
 
   return (
     <span

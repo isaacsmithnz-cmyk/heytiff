@@ -1410,7 +1410,7 @@ describe("the mirror-health chip (D8)", () => {
         sm8={{ attention: false, syncedAt: new Date(Date.now() - 3 * 60_000).toISOString(), running: false }}
       />
     );
-    expect(screen.getByText("ServiceM8 synced 3 min ago")).toBeInTheDocument();
+    expect(screen.getByText("Synced 3 min ago")).toBeInTheDocument();
 
     rerender(
       <MaintenanceBoard

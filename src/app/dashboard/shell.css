@@ -477,7 +477,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    at `fontSize: 44`. Nobody chose 44: every heading the app defines in CSS
    lands on 38, and they are the ones that were designed rather than
    duplicated — `.hm-phead h1` on Home (the most recent redesign),
-   `.wb2-head h1` on the Workboard, `.tpr .rhead h1` on Time & Pay. So moving
+   `.wb2-h1` on the Workboard, `.tpr .rhead h1` on Time & Pay. So moving
    between a rail item at 44 and one at 38 resized the page title, and the
    only reason any of them differed was that a style object travelled by hand.
 
@@ -5287,9 +5287,12 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    grid so the switcher stays centred on the page no matter how long the
    title or the tools get. No lede line: the switcher says what you're
    looking at, and the tabs say it again. */
-.wb2-head { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; padding:2px 0 16px; }
-.wb2-head h1 { font-size:24px; font-weight:700; letter-spacing:-.035em; line-height:1; margin:0; }
-.wb2-headtools { justify-self:end; display:flex; align-items:center; gap:8px; }
+/* The title row is gone: its h1 and its tools ride in the tab band now (see
+   "ONE BAND, NOT TWO" below), so `.wb2-head`, its grid and its narrow-width
+   rewrite went with the markup. `.wb2-h1` is the screen title it carried,
+   unchanged at 24/700/-.035em — the size docs/design.md gives an h1. */
+.wb2-h1 { font-size:var(--fs-6); font-weight:var(--fw-display); letter-spacing:-.035em; line-height:1; margin:0; }
+.wb2-headtools { display:flex; align-items:center; gap:8px; }
 
 /* The switcher: one fill that SLIDES between the two sides and takes that
    side's IDENTITY colour with it — maintenance green, projects cyan. This
@@ -5360,11 +5363,6 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
 .wb2-segb.on i { background:rgba(0,0,0,.24) !important; color:var(--paper) !important; }
 
 @media (max-width:900px) {
-  .wb2-head { grid-template-columns:1fr; justify-items:start; gap:12px; }
-  .wb2-seg, .wb2-headtools { justify-self:stretch; }
-  /* The columns are `1fr` already; all this does is give them the full width
-     to divide instead of the tray's own. The `flex:1` that used to live here
-     went with the flex container it belonged to. */
   .wb2-seg { width:100%; }
 }
 
@@ -5546,6 +5544,13 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
   .wb2-vtcap, .wb2-sm8 + .wb2-vtcap { flex:1 0 100%; margin:0 0 8px; padding-bottom:0; }
   .wb2-find { flex:1 1 auto; }
 }
+/* ── the tabs' own row ──
+   The band that holds them is the page header now (`lead` + tabs + `tools`),
+   and `role="tablist"` may only own tabs — so the tabs get an inner row and
+   the band keeps the h1 and the tools outside it. The thumb is positioned
+   against this row, which is why `position:relative` comes with it. */
+.wb2-vtrow { display:flex; align-items:flex-end; gap:0; position:relative; }
+
 .wb2-vt { position:relative; z-index:1; height:44px; padding:0 24px; border:0; background:transparent; border-radius:var(--r-button) var(--r-button) 0 0;
   font:inherit; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; display:inline-flex; align-items:center; gap:8px;
   transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
@@ -8075,8 +8080,82 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 /* The gutter the wrap used to hand out now belongs to each band, so each one
    can choose its own: the header and the tab row stand in 24px, and whatever
    is inside the card keeps the gutters it already had. */
-.fg .page.wb2-full .wb2-head { padding:16px 24px; }
-.fg .page.wb2-full .wb2-vtabs { padding:0 24px; }
+/* ── ONE BAND, NOT TWO ──
+   The title row and the tab row said the same thing one under the other:
+   "Workboard", then six tabs naming what the Workboard holds, with the rail
+   one column to the left naming the screen a third time. Measured at 1600x900
+   the pair stood 128px tall — 84 of header, 44 of tabs — before the board
+   began, and the header was 84 because the switcher inside it is 52.
+
+   So there is one 48px band: the h1, the tabs, the switcher, the search and
+   Display mode. The boards take the first and the last as `lead` and `tools`,
+   which is the slot the search and the mirror chip already rode in. */
+.fg .page.wb2-full .wb2-vtabs { height:48px; align-items:center; gap:24px; padding:0 24px; }
+.fg .page.wb2-full .wb2-vtrow { align-self:stretch; align-items:stretch; }
+.fg .page.wb2-full .wb2-h1 {
+  white-space:nowrap; flex:none;
+}
+/* the switcher and Display mode come down to the band's own control height —
+   at 52 and 38 they were what made the old title row 84 (law 33, one height
+   per control size) */
+.fg .page.wb2-full .wb2-seg { height:32px; flex:none; }
+
+
+.fg .page.wb2-full .wb2-headtools { flex:none; }
+.fg .page.wb2-full .wb2-headtools .pbtn { height:32px; }
+.fg .page.wb2-full .wb2-find { height:32px; flex:0 1 220px; min-width:150px; }
+/* the right-hand group rides the band rather than standing proud of a tab
+   baseline that no longer exists */
+.fg .page.wb2-full .wb2-vtcap,
+.fg .page.wb2-full .wb2-sm8 + .wb2-vtcap {
+  margin-left:auto; gap:8px; padding-bottom:0; align-items:center;
+  /* `flex:none` is why the search could not give ground: the group it sits in
+     refused to shrink, so the overflow came off the right edge instead of off
+     the one control that still works narrower. */
+  flex:0 1 auto; min-width:0;
+}
+
+/* ── THE BAND'S WIDTH BUDGET ──
+   A title, six tabs, the mirror's freshness, the switcher, the search and
+   Display mode all want one line. Measured at 1600 they wanted 1651 of the
+   1328 the band has, and the search and Display mode hung off the right edge
+   — which is exactly the failure the old 1280px wrap was written for, one row
+   further up. Three things were paying for space they did not use.
+
+   THE SWITCHER WAS AN EQUAL-COLUMN TRAY. `grid-auto-columns:1fr` gave "All
+   jobs" the same 150px as "Maintenance": 463px for three labels. It slides a
+   MEASURED thumb, so the columns never had to match — `auto` costs 282 and
+   the thumb lands exactly where it did.
+
+   ITS BUTTONS WERE 42px TALL inside a 48px band, which is the same arithmetic
+   that made the old title row 84 (law 33: one height per control size).
+
+   AND NOTHING COULD SHRINK. A flex item's `min-width` is `auto`, so the
+   search held its full width and pushed its neighbours out rather than giving
+   ground; `min-width:0` lets it take the squeeze first, which is the right
+   order — it is the only control here that still works narrower.
+
+   (The mirror's own sentence gave up its fourth "ServiceM8" in sm8-chip.tsx,
+   for the same budget and for its own reason.) */
+.fg .page.wb2-full .wb2-vtabs { gap:16px; }
+.fg .page.wb2-full .wb2-seg { grid-auto-columns:auto; }
+.fg .page.wb2-full .wb2-segb { height:24px; padding:0 8px; font-size:var(--fs-2); }
+.fg .page.wb2-full .wb2-segsl { top:4px; bottom:4px; }
+.fg .page.wb2-full .wb2-vt { padding:0 8px; }
+.fg .page.wb2-full .wb2-sm8 { flex:none; }
+.fg .page.wb2-full .wb2-find { min-width:0; }
+
+/* Below this the band genuinely runs out, and it WRAPS rather than clips:
+   the right-hand group takes the line above, full width, the way it did when
+   the tab row was its own row. `wrap-reverse` is what puts it above.
+
+   The rules it overrides are equal specificity — a media query adds none — so
+   this block has to sit after them, not up with the band's own definition. */
+@media (max-width:1500px) {
+  .fg .page.wb2-full .wb2-vtabs { height:auto; min-height:48px; flex-wrap:wrap-reverse; padding-top:8px; }
+  .fg .page.wb2-full .wb2-vtcap,
+  .fg .page.wb2-full .wb2-sm8 + .wb2-vtcap { flex:1 0 100%; margin:0 0 8px; }
+}
 
 /* ONE PAPER SURFACE, SO THE CARD STOPS BEING A CARD, AND THE TABS STOP BEING
    FOLDERS. With the well itself paper, a border and a 16px radius around the
@@ -8101,8 +8180,8 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 .fg .page.wb2-full .wb2-panel { flex:1; min-height:0; display:flex; flex-direction:column; overflow:auto; }
 .fg .page.wb2-full .wb2-vslide { display:none; }
 .fg .page.wb2-full .wb2-vt {
-  border-radius:0; font-weight:500; color:var(--q);
-  border-bottom:2px solid transparent;
+  height:auto; align-self:stretch; border-radius:0;
+  font-weight:500; color:var(--q); border-bottom:2px solid transparent;
 }
 .fg .page.wb2-full .wb2-vt.on { font-weight:600; color:var(--ink); border-bottom-color:var(--ink); }
 .fg .page.wb2-full .wb2-vt:hover:not(.on) { background:transparent; color:var(--ink); }

@@ -131,7 +131,7 @@ export async function listLogs(
   let q = supabaseAdmin
     .from("vehicle_logs")
     .select(
-      "id, vehicle_id, staff_profile_id, kind, logged_on, note, litres, cost, odo, status, source, station, gst, supplier_abn, work_done, edited_at",
+      "id, vehicle_id, staff_profile_id, kind, logged_on, note, litres, cost, odo, status, source, station, gst, supplier_abn, work_done, paid_with, edited_at",
     )
     .eq("org_id", orgId)
     // a corrected-away entry is gone from every screen; the row survives so a

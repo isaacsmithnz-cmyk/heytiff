@@ -276,9 +276,13 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
          a missing receipt photo this is NOT safe to swallow — say so, and say
          it is the claim that failed so nobody logs the fill a second time. */
       refresh();
+      /* NOT "add it under My expenses" — a fuel claim filed there carries no
+         link to this log, so the tank would count twice on the tax export and
+         the person would be paid for it twice. Correcting the entry raises
+         the claim it is missing (`syncFuelReimbursement`). */
       return {
         ok: false,
-        error: "Fuel logged, but the reimbursement claim couldn't be raised — add it under My expenses.",
+        error: "Fuel logged, but the reimbursement claim couldn't be raised — correct the entry and save it again.",
       };
     }
   }
@@ -332,21 +336,80 @@ async function raiseFuelReimbursement(
   log: NewLog,
   spentOn: string,
 ): Promise<boolean> {
-  const where = log.station?.trim();
   const { error } = await supabaseAdmin.from("expense_claims").insert({
     org_id: ctx.orgId,
     staff_profile_id: ctx.staffId,
     vehicle_log_id: logId,
-    expense_date: spentOn,
-    // reads as itself in the claims list, and names where it came from
-    description: where ? `Fuel — ${where}` : "Fuel",
     category: "fuel",
-    amount: log.cost,
-    gst_amount: log.gst ?? null,
-    supplier: where ?? null,
     status: "pending",
+    ...claimFigures({ cost: log.cost, gst: log.gst ?? null, station: log.station, spentOn }),
   });
   return !error;
+}
+
+/** What the reimbursement says about the purchase — the half of the claim that
+    is a copy of the fill, so the raise and the correction can't drift. */
+function claimFigures(fill: {
+  cost: number | undefined;
+  gst: number | null;
+  station: string | null | undefined;
+  spentOn: string;
+}): Record<string, unknown> {
+  const where = fill.station?.trim();
+  return {
+    expense_date: fill.spentOn,
+    // reads as itself in the claims list, and names where it came from
+    description: where ? `Fuel — ${where}` : "Fuel",
+    amount: fill.cost,
+    gst_amount: fill.gst,
+    supplier: where ?? null,
+  };
+}
+
+/* THE REIMBURSEMENT FOLLOWS ITS FILL.
+
+   The claim copies the fill's figures at the moment it is raised, and nothing
+   used to carry a correction across: editing $158.40 to $185.40 moved the tax
+   line and left the payment at the old number, in a claim already in front of
+   an approver. The two halves of one purchase disagreed, and the only way to
+   fix the money was to cancel the claim on another screen.
+
+   ONLY WHILE IT IS STILL PENDING. An approved, paid or declined claim is a
+   decision somebody made about an amount they saw; rewriting it underneath
+   them would be worse than leaving it, and the corrected fill is still the
+   tax line either way. A missing claim is raised — that is the fill whose
+   claim failed to raise when it was logged, which is the one case the old
+   error message told people to go and file by hand on My expenses. */
+async function syncFuelReimbursement(
+  ctx: Ctx,
+  logId: string,
+  fill: { cost: number | undefined; gst: number | null; station: string | null | undefined; spentOn: string },
+): Promise<void> {
+  if (fill.cost === undefined || fill.cost === null) return;
+  const { data } = await supabaseAdmin
+    .from("expense_claims")
+    .select("id, status")
+    .eq("org_id", ctx.orgId)
+    .eq("vehicle_log_id", logId)
+    .maybeSingle();
+
+  if (!data) {
+    await supabaseAdmin.from("expense_claims").insert({
+      org_id: ctx.orgId,
+      staff_profile_id: ctx.staffId,
+      vehicle_log_id: logId,
+      category: "fuel",
+      status: "pending",
+      ...claimFigures(fill),
+    });
+    return;
+  }
+  if (String(data.status) !== "pending") return;
+  await supabaseAdmin
+    .from("expense_claims")
+    .update(claimFigures(fill))
+    .eq("org_id", ctx.orgId)
+    .eq("id", String(data.id));
 }
 
 async function adoptReceipt(ctx: Ctx, logId: string, documentId: string, kind: NewLog["kind"]): Promise<void> {
@@ -434,7 +497,7 @@ export async function attachLogDocument(logId: string, documentId: string): Prom
 async function logYouMayTouch(ctx: Ctx, logId: string) {
   const { data } = await supabaseAdmin
     .from("vehicle_logs")
-    .select("id, vehicle_id, kind, staff_profile_id, cost, deleted_at")
+    .select("id, vehicle_id, kind, staff_profile_id, cost, gst, station, logged_on, paid_with, deleted_at")
     .eq("org_id", ctx.orgId)
     .eq("id", logId)
     .maybeSingle();
@@ -573,6 +636,14 @@ export async function editLog(logId: string, patch: LogEdit): Promise<FleetResul
     .eq("org_id", ctx.orgId)
     .eq("id", logId);
   if (error) return { ok: false, error: "Couldn't save that correction." };
+
+  if (kind === "fuel" && String(row.paid_with ?? "") === "own" && tax?.ok)
+    await syncFuelReimbursement(ctx, logId, {
+      cost,
+      gst: tax.columns.gst,
+      station: patch.station !== undefined ? patch.station : (row.station as string | null),
+      spentOn: tax.columns.logged_on,
+    });
 
   await resyncVehicle(ctx, String(row.vehicle_id));
   refresh();

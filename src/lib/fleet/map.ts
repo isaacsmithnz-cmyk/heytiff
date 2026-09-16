@@ -195,6 +195,7 @@ export function toLog(
     gst: optNum(r.gst),
     abn: typeof r.supplier_abn === "string" && r.supplier_abn ? r.supplier_abn : undefined,
     workDone: typeof r.work_done === "string" && r.work_done ? r.work_done : undefined,
+    paidWith: r.paid_with === "own" || r.paid_with === "company" ? r.paid_with : undefined,
     edited: r.edited_at ? true : undefined,
   };
 }

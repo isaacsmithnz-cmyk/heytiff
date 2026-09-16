@@ -19,6 +19,9 @@ let survivingLogs: Record<string, unknown>[] = [];
    update that ends in maybeSingle). */
 let existingDocument: Record<string, unknown> | null = null;
 let documentRow: Record<string, unknown> | null = null;
+/* The reimbursement a personal-card fill raised, as `syncFuelReimbursement`
+   finds it — null when the claim was never raised. */
+let claimRow: Record<string, unknown> | null = null;
 
 /* The `.eq(column, value)` clauses a chain was built with, oldest first —
    the adoption filter's KIND is the whole point of two document kinds. */
@@ -57,7 +60,9 @@ const table = (name: string) => {
             ? updated
               ? documentRow
               : existingDocument
-            : staffRow,
+            : name === "expense_claims"
+              ? claimRow
+              : staffRow,
     error: null,
   });
   /* A select that is awaited rather than narrowed to one row — the surviving
@@ -105,7 +110,79 @@ beforeEach(() => {
   vehicleRow = { ...VEHICLE };
   staffRow = { id: "staff-1" };
   logRow = null;
+  claimRow = null;
   survivingLogs = [];
+});
+
+/* A CORRECTION IS A CORRECTION OF BOTH HALVES. One personal-card fill is two
+   rows: the vehicle log (the tax line) and the claim (the money back). The
+   claim copies the figures once, when it is raised, and nothing carried an
+   edit across — so correcting $158.40 to $185.40 moved the deduction and left
+   the payment at the old number, in front of an approver who had no way to
+   know. */
+describe("correcting a fill somebody paid for themselves", () => {
+  const OWN_FUEL = {
+    id: "log-1",
+    vehicle_id: "v-1",
+    kind: "fuel",
+    staff_profile_id: "staff-1",
+    cost: 158.4,
+    gst: 14.4,
+    station: "BP Kingsford",
+    logged_on: "2026-07-31",
+    paid_with: "own",
+    deleted_at: null,
+  };
+  const claimUpdate = () =>
+    update.mock.calls.find((c) => c[0] === "expense_claims")?.[1] as Record<string, unknown>;
+  const claimInsert = () =>
+    insert.mock.calls.find((c) => c[0] === "expense_claims")?.[1] as Record<string, unknown>;
+
+  it("carries the new figures onto the claim waiting to be paid", async () => {
+    logRow = { ...OWN_FUEL };
+    claimRow = { id: "claim-1", status: "pending" };
+    const res = await editLog("log-1", { cost: 185.4, gst: 16.85, station: "BP Coburg", purchasedOn: "2026-07-30" });
+    expect(res).toEqual({ ok: true });
+    expect(claimUpdate()).toMatchObject({
+      amount: 185.4,
+      gst_amount: 16.85,
+      supplier: "BP Coburg",
+      description: "Fuel — BP Coburg",
+      expense_date: "2026-07-30",
+    });
+  });
+
+  it("leaves a claim alone once somebody has decided it", async () => {
+    /* Approved, paid or declined is a decision about an amount a person saw.
+       The corrected log is still the tax line either way. */
+    logRow = { ...OWN_FUEL };
+    claimRow = { id: "claim-1", status: "approved" };
+    await editLog("log-1", { cost: 185.4 });
+    expect(update.mock.calls.some((c) => c[0] === "expense_claims")).toBe(false);
+  });
+
+  it("raises the claim a fill never got, instead of sending them to My expenses", async () => {
+    /* The raise can fail while the log saves. The old message told people to
+       file it again under My expenses, where the claim carries no link to the
+       log — so the tank counted twice on the tax export and was paid twice. */
+    logRow = { ...OWN_FUEL };
+    claimRow = null;
+    await editLog("log-1", { cost: 158.4 });
+    expect(claimInsert()).toMatchObject({
+      vehicle_log_id: "log-1",
+      category: "fuel",
+      status: "pending",
+      amount: 158.4,
+    });
+  });
+
+  it("touches no claim when the company card paid", async () => {
+    logRow = { ...OWN_FUEL, paid_with: "company" };
+    claimRow = { id: "claim-1", status: "pending" };
+    await editLog("log-1", { cost: 185.4 });
+    expect(update.mock.calls.some((c) => c[0] === "expense_claims")).toBe(false);
+    expect(insert.mock.calls.some((c) => c[0] === "expense_claims")).toBe(false);
+  });
 });
 
 describe("register actions need assets_all", () => {

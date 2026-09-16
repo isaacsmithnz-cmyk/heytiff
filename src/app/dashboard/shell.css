@@ -5973,8 +5973,76 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 
 .wb2-schload { padding:12px 16px; }
 
+/* ── THE SCHEDULE'S ONE TOOLBAR ──
+   Three bands stood between the card and the first crew — the date with its
+   week stepper, the seven-day strip, and the board's own top rule — 176px at
+   1600x900, on the screen whose whole point is how many crews you can see.
+   One 48px row now: step the week, read the day, reset to today, pick a day,
+   and the day's figures on the right.
+
+   The strip's old rules stay where they are: the capacity window still wears
+   the three-column header (`.wb2-chd .wb2-schhd`) from its own tab, and the
+   maintenance calendar still wears `.wb2-mcsum`. What follows re-dresses
+   `.wb2-schdays` / `.wb2-schday`, which only this row draws now. */
+/* `flex:none` because the panel is a flex COLUMN once the card fills the
+   well: without it a 48px band is a flex item free to shrink, and it was
+   rendering at 29. */
+.wb2-schbar { flex:none; display:flex; align-items:center; gap:12px; height:48px; padding:0 24px;
+  border-bottom:1px solid var(--line); }
+.wb2-schstep { display:flex; align-items:center; gap:2px; flex:none; }
+.wb2-schar { width:24px; height:24px; flex:none; display:grid; place-items:center; padding:0; border:0;
+  border-radius:var(--r-control); background:transparent; color:var(--q); cursor:pointer;
+  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.wb2-schar:hover { background:var(--tint); color:var(--ink); }
+.wb2-schar:focus-visible { outline:none; box-shadow:var(--ring); }
+/* the open day is the row's title — a heading in a section, not a display */
+.wb2-schh2 { flex:none; margin:0; font-size:var(--fs-4); font-weight:var(--fw-heading);
+  white-space:nowrap; }
+/* the one link token: ink, underlined (law 34) */
+.wb2-schtoday { flex:none; padding:0; border:0; background:none; font:inherit; font-size:var(--fs-2);
+  font-weight:var(--fw-label); color:var(--link); text-decoration:underline;
+  text-underline-offset:3px; text-decoration-thickness:1px; cursor:pointer; }
+.wb2-schtoday:hover { text-decoration-thickness:2px; }
+.wb2-schtoday:focus-visible { outline:none; border-radius:var(--r-control); box-shadow:var(--ring); }
+.wb2-schsep { width:1px; height:16px; flex:none; background:var(--line); }
+
+.wb2-schbar .wb2-schdays { display:flex; align-items:center; gap:2px; padding:0; min-width:0; }
+/* one line, not three: the row is what makes these read as a week, so the
+   card each day used to be is a chip that takes the width of its own label */
+.wb2-schbar .wb2-schday { flex:none; flex-direction:row; align-items:center; gap:4px;
+  height:28px; padding:0 8px; border-radius:var(--r-control); }
+.wb2-schbar .wb2-schday .cw,
+.wb2-schbar .wb2-schday .cd { font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q); }
+.wb2-schbar .wb2-schday .cd { font-weight:var(--fw-heading); color:var(--ink); }
+.wb2-schbar .wb2-schday .cn { min-height:0; font-size:var(--fs-1); font-weight:var(--fw-label);
+  color:var(--q); }
+/* SELECTION IS A FILL (law 14). On the old strip the chosen day went white,
+   which was a fill against the grey card — against paper it is nothing. */
+.wb2-schbar .wb2-schday.on { background:var(--tint-2); }
+.wb2-schbar .wb2-schday.on .cw,
+.wb2-schbar .wb2-schday.on .cd,
+.wb2-schbar .wb2-schday.on .cn { color:var(--ink); }
+/* today is its weekday in ink. The trailing middot the card used to carry was
+   a second signal for a strip you read in a column; in a row the ink is it. */
+.wb2-schbar .wb2-schday.today .cw::after { content:none; }
+.wb2-schbar .wb2-schday.past .cd,
+.wb2-schbar .wb2-schday.past .cw { opacity:1; color:var(--q); }
+
+/* the capacity window's grain beside its range — "Four weeks" under
+   "14 Sept – 11 Oct" was the chip that named the window; it is a label now */
+.wb2-schwin { flex:none; font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q);
+  white-space:nowrap; }
+/* the crew control keeps its word and the row's control height */
+.wb2-schbar .wb2-scmcrew { flex:none; height:28px; }
+
+/* the figures are a sentence, not three chips: a chip is for something you
+   tap (law 26), and nobody taps these */
+.wb2-schsum { margin-left:auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q);
+  font-variant-numeric:tabular-nums; }
+
 /* ── the board ── */
-.wb2-schboard { display:flex; margin-top:12px; border-top:1px solid var(--wb2-line2); }
+.wb2-schboard { display:flex; }
 
 /* the frozen name column */
 .wb2-schnames { flex:none; width:148px; border-right:1px solid var(--wb2-line2); background:var(--paper); z-index:2; }

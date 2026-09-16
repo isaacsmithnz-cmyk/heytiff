@@ -353,63 +353,49 @@ export function CapacityView({
 
   const head = (
     <>
-      {/* THE SAME THREE STATIONS AS THE DAY BOARD, to the pixel — the window
-          name on the left, the stepper locked in the middle with its reset
-          pill in the slot beside it, the chips on the right. Two tabs, one
-          header: the arrows you click through weeks with sit in the same
-          place on either, so moving between them moves nothing. */}
-      <div className="wb2-chd wb2-schhd">
-        <div className="wb2-schhla">
-          <span className="wb2-ci blue">
-            <Icon name="calendar" size={19} />
-          </span>
-          <div className="wb2-mchead">
-            <b>{windowWord}</b>
-          </div>
+      {/* ONE ROW, THE DAY BOARD'S OWN. The two tabs shared a three-station
+          header — window name left, stepper locked in the middle, chips right
+          — so that moving between them moved nothing. They still share it;
+          it is `.wb2-schbar` now, and the day board's note says what the
+          three bands cost and why the calendar in a tinted blue square and
+          the figure chips went with them. */}
+      <div className="wb2-schbar">
+        <div className="wb2-schstep" role="group" aria-label="Window">
+          <button
+            className="wb2-schar"
+            aria-label="The week before"
+            onClick={() => showWindow(plusDays(start, -7))}
+          >
+            <Icon name="chevL" size={15} />
+          </button>
+          <button
+            className="wb2-schar"
+            aria-label="The week after"
+            onClick={() => showWindow(plusDays(start, 7))}
+          >
+            <Icon name="chevR" size={15} />
+          </button>
         </div>
-        <div className="wb2-schmid">
-          {!anchored && (
-            <button className="wb2-mcnow" onClick={() => showWindow(mondayOf(today))}>
-              This week
-            </button>
-          )}
-          <div className="wb2-schweek" role="group" aria-label="Window">
-            <button
-              className="wb2-mcarrow"
-              aria-label="The week before"
-              onClick={() => showWindow(plusDays(start, -7))}
-            >
-              <Icon name="chevL" size={15} />
-            </button>
-            <b>{rangeLabel}</b>
-            <button
-              className="wb2-mcarrow"
-              aria-label="The week after"
-              onClick={() => showWindow(plusDays(start, 7))}
-            >
-              <Icon name="chevR" size={15} />
-            </button>
-          </div>
-        </div>
-        <div className="wb2-schhrr">
-          <span className="wb2-mcsum">
-            {manage && current && (
-              <button type="button" className="wb2-scmcrew" onClick={() => setEditing(true)}>
-                <Icon name="users" size={14} />
-                Crew
-              </button>
-            )}
-            {/* ONE chip. It used to name the window as well ("Next four weeks
-                · 69% full") because a bare percentage beside a month answered
-                a question nobody had asked — the window's name is the left
-                station's job now, so the chip says only the number and the
-                thing it measures. */}
-            {scored && total && <span className="wb2-chip">{total.fillPct}% full</span>}
-            {current && !scored && windowBooked > 0 && (
-              <span className="wb2-chip">{fmtHoursShort(windowBooked)} booked</span>
-            )}
-          </span>
-        </div>
+        <h2 className="wb2-schh2">{rangeLabel}</h2>
+        <span className="wb2-schwin">{windowWord}</span>
+        {!anchored && (
+          <button className="wb2-schtoday" onClick={() => showWindow(mondayOf(today))}>
+            This week
+          </button>
+        )}
+        <span className="wb2-schsum">
+          {scored && total
+            ? `${total.fillPct}% full`
+            : current && !scored && windowBooked > 0
+              ? `${fmtHoursShort(windowBooked)} booked`
+              : ""}
+        </span>
+        {manage && current && (
+          <button type="button" className="wb2-scmcrew" onClick={() => setEditing(true)}>
+            <Icon name="users" size={14} />
+            Crew
+          </button>
+        )}
       </div>
     </>
   );

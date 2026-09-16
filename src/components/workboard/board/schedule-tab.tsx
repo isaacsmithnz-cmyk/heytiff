@@ -246,7 +246,12 @@ export function ScheduleTab({
     setStripStart(mondayOf(today));
     show(today);
   };
-  const slide = (dir: 1 | -1) => setStripStart(plusDays(stripStart, dir));
+  /* THE DAY-AT-A-TIME SLIDE WENT WITH THE STRIP'S OWN ARROWS. It moved the
+     window one card without fetching or moving the open day — a free look at
+     tomorrow. Two pairs of arrows cannot both sit on a 48px row, and of the
+     two this was the quieter: the week arrows reach every day it reached, and
+     they are the pair people found. If the free peek is missed, it comes back
+     as a shift-click on these, or as the window sliding instead of stepping. */
 
   /* What the middle of the header calls the window. Named weeks only when the
      window IS a week — once it has been slid off a Monday it spans two, and
@@ -305,57 +310,45 @@ export function ScheduleTab({
      stepper for the same reason — see the notes over .wb2-schhd.
 
      The capacity window wears this header too, from its own tab. */
-  const head = (
-    <div className="wb2-chd wb2-schhd">
-      <div className="wb2-schhla">
-        <span className="wb2-ci blue">
-          <Icon name="calendar" size={19} />
-        </span>
-        <div className="wb2-mchead">
-          <b>{fmtAuWeekdayDayMonth(openDay)}</b>
-        </div>
-      </div>
-      <div className="wb2-schmid">
-        {(openDay !== today || stripStart !== thisMon) && (
-          <button className="wb2-mcnow" onClick={goToday}>
-            Today
-          </button>
-        )}
-        <div className="wb2-schweek" role="group" aria-label="Week">
-          <button className="wb2-mcarrow" aria-label="The week before" onClick={() => goWeek(-1)}>
-            <Icon name="chevL" size={15} />
-          </button>
-          <b>{weekWord}</b>
-          <button className="wb2-mcarrow" aria-label="The week after" onClick={() => goWeek(1)}>
-            <Icon name="chevR" size={15} />
-          </button>
-        </div>
-      </div>
-      <div className="wb2-schhrr">
-        {day && day.totalBookings > 0 && (
-          <span className="wb2-mcsum">
-            <span className="wb2-chip">
-              {day.totalBookings} booked, {fmtHoursShort(day.totalMinutes)}
-            </span>
-            <span className="wb2-chip">{day.lanes.length} on the road</span>
-            <span className="wb2-chip ok">
-              {day.jobCount} {day.jobCount === 1 ? "job" : "jobs"}
-            </span>
-          </span>
-        )}
-      </div>
-    </div>
-  );
+  /* ── ONE TOOLBAR ─────────────────────────────────────────────────────
+     Three bands stood between the card and the first crew: the date with its
+     week stepper, the seven-day strip, and the board's own top rule — 176px
+     at 1600x900, on a screen whose whole point is how many crews you can see.
+     They are one 48px row now: step the week, read the day, reset to today,
+     pick a day, and the day's figures on the right.
 
-  /* ── the seven-day strip, with its own arrows ──
-     The flanking arrows slide the WINDOW one day — click past Sunday and next
-     week's Monday walks in — without touching the open day. Picking a day is
-     still the card's own job. */
-  const strip = (
-    <div className="wb2-schstrip">
-      <button className="wb2-mcarrow" aria-label="The day before" onClick={() => slide(-1)}>
-        <Icon name="chevL" size={15} />
-      </button>
+     WHAT WENT, AND WHY IT COULD.
+     · The strip's own ‹ › slid the window one day. That is a third grain
+       beside the week stepper and picking a chip, and the two that remain
+       reach every day the third did.
+     · The day cards were three stacked lines — weekday, date, count — at 60px
+       tall so the strip could read as cards. On one row they are one line,
+       and the row is what carries them.
+     · The calendar in a tinted blue square is the icon-in-a-tinted-square the
+       design file names as the inherited look, in a blue that is not a state.
+       The date says it is a date.
+     · The three figure chips are a sentence. A chip is for something you tap
+       (law 26), and nobody taps these.
+
+     The capacity window wears this row too, from its own tab. */
+  const head = (
+    <div className="wb2-schbar">
+      <div className="wb2-schstep" role="group" aria-label="Week">
+        <button className="wb2-schar" aria-label="The week before" onClick={() => goWeek(-1)}>
+          <Icon name="chevL" size={15} />
+        </button>
+        <button className="wb2-schar" aria-label="The week after" onClick={() => goWeek(1)}>
+          <Icon name="chevR" size={15} />
+        </button>
+      </div>
+      <h2 className="wb2-schh2">{fmtAuWeekdayDayMonth(openDay)}</h2>
+      <span className="wb2-schwin">{weekWord}</span>
+      {(openDay !== today || stripStart !== thisMon) && (
+        <button className="wb2-schtoday" onClick={goToday}>
+          Today
+        </button>
+      )}
+      <span className="wb2-schsep" aria-hidden="true" />
       <div className="wb2-schdays" role="group" aria-label="Days">
         {week.map((iso) => {
           const n = counts[iso] ?? null;
@@ -377,14 +370,17 @@ export function ScheduleTab({
             >
               <span className="cw">{DOW[dowOfISO(iso)]}</span>
               <span className="cd">{parseInt(iso.slice(8, 10), 10)}</span>
-              <span className="cn">{n === null ? "" : n === 0 ? "clear" : n}</span>
+              {n !== null && <span className="cn">{n === 0 ? "clear" : n}</span>}
             </button>
           );
         })}
       </div>
-      <button className="wb2-mcarrow" aria-label="The day after" onClick={() => slide(1)}>
-        <Icon name="chevR" size={15} />
-      </button>
+      {day && day.totalBookings > 0 && (
+        <span className="wb2-schsum">
+          {day.totalBookings} booked, {fmtHoursShort(day.totalMinutes)}, {day.lanes.length} on the
+          road, {day.jobCount} {day.jobCount === 1 ? "job" : "jobs"}
+        </span>
+      )}
     </div>
   );
 
@@ -488,7 +484,6 @@ export function ScheduleTab({
   return (
     <>
       {head}
-      {strip}
 
       {shelf.length > 0 && (
         <div className="wb2-schshelf">

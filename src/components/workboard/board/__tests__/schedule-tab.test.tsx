@@ -272,25 +272,11 @@ it("names the window in the middle of the header, by its place from today", asyn
   expect(screen.getByText("This week")).toBeInTheDocument();
 });
 
-it("slides the strip a day at a time on its own arrows — the open day stays put", async () => {
-  /* The strip is a WINDOW now: past Sunday, next week's Monday walks in one
-     card at a time. Sliding is looking, not choosing — nothing is fetched
-     and the selection doesn't move. */
-  render(tab());
-  await screen.findByText("Alex Lorenz");
-  expect(screen.getByRole("button", { name: /Mon 10 Aug/ })).toBeInTheDocument();
-  await userEvent.click(screen.getByRole("button", { name: "The day after" }));
-  expect(screen.queryByRole("button", { name: /Mon 10 Aug/ })).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /Mon 17 Aug/ })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /Fri 14 Aug/ })).toHaveAttribute(
-    "aria-pressed",
-    "true"
-  );
-  expect(scheduleDay).toHaveBeenCalledTimes(1);
-  // and back
-  await userEvent.click(screen.getByRole("button", { name: "The day before" }));
-  expect(screen.getByRole("button", { name: /Mon 10 Aug/ })).toBeInTheDocument();
-});
+/* The strip's own day-at-a-time arrows went when the header folded to one
+   row: two pairs of arrows could not both sit on it, and the week arrows
+   above reach every day the day arrows reached. What that pair did — move the
+   window WITHOUT fetching and WITHOUT moving the open day — has no caller
+   now; the note in schedule-tab.tsx says how to give it back. */
 
 it("caches a day — stepping back to it asks the server nothing", async () => {
   scheduleDay.mockImplementation(async (day: string) => payload({ dayISO: day }));

@@ -431,10 +431,17 @@ export interface MultiRoomPick {
 }
 
 export interface MultiConnection {
+  /** one row per served room, for the room list — NOT the set the outdoor is
+      judged on: a room can hold several units */
   rooms: MultiRoomPick[];
-  /** rooms with an indoor unit chosen or placed */
+  /** every indoor unit this system connects, resolved against the pack: each
+      one PLACED (whatever room it sits in, or none — the hallway bulkhead),
+      plus the stored selection for each served room with nothing placed yet.
+      This is the set the book judges. */
+  idus: IndoorUnit[];
+  /** indoor units in the set, including any whose model isn't in the pack */
   iduCount: number;
-  /** Σ chosen indoor sizing capacity — null until any unit resolves a kw */
+  /** Σ connected indoor sizing capacity — null until any unit resolves a kw */
   connectedKw: number | null;
   /** Σ known served-room loads (the outdoor sizing hint) — null until any derive */
   requiredKw: number | null;
@@ -486,10 +493,23 @@ export function multiConnection(
     };
   });
 
-  const chosen = rooms.filter((r) => r.model);
-  const withKw = chosen.filter((r) => r.kw != null);
-  const connectedKw = withKw.length
-    ? withKw.reduce((a, r) => a + (r.kw ?? 0), 0)
+  /* THE SET. `rooms` above keeps one pick per room for the room list, and
+     that was the set the outdoor was judged on: a second unit in a room was
+     left out of the connected kW, the unit count and the book's check, so two
+     7.1 kW bulkhead units in a living area plus three 2.5 kW bedrooms was
+     checked as 71+25+25+25 (listed) instead of 71+71+25+25+25 (refused).
+     Every placed indoor unit counts, wherever it sits; a stored selection
+     stands in only for a served room with nothing placed. */
+  const placedModels = mine
+    .filter((o) => o.props.role === "idu")
+    .map((o) => String(o.props.model ?? ""));
+  const pendingModels = rooms.filter((r) => !r.placed && r.model).map((r) => r.model);
+  const setModels = [...placedModels, ...pendingModels].filter((m) => m);
+  const idus = setModels
+    .map((m) => pack?.indoor_units.find((u) => u.model === m) ?? null)
+    .filter((u): u is IndoorUnit => u != null);
+  const connectedKw = idus.length
+    ? idus.reduce((a, u) => a + sizingCapacityKw(u, basis), 0)
     : null;
 
   const placedOdu = mine.find((o) => o.props.role === "odu") ?? null;
@@ -507,10 +527,9 @@ export function multiConnection(
       ? (connectedKw / oduKw) * 100
       : null;
 
-  const iduSpecs = chosen.map((r) => r.idu).filter((u): u is IndoorUnit => u != null);
   const findings: MultiFinding[] = [];
   if (odu) {
-    if (rule) findings.push(...checkMultiCompatibility(rule, odu, iduSpecs));
+    if (rule) findings.push(...checkMultiCompatibility(rule, odu, idus));
     else
       findings.push({
         severity: "amber",
@@ -521,7 +540,8 @@ export function multiConnection(
 
   return {
     rooms,
-    iduCount: chosen.length,
+    idus,
+    iduCount: setModels.length,
     connectedKw,
     requiredKw,
     unknownRooms,
@@ -530,7 +550,7 @@ export function multiConnection(
     oduKw,
     rule,
     ports: odu?.ports ?? null,
-    portsUsed: chosen.length,
+    portsUsed: setModels.length,
     comboPct,
     oduPlaced: Boolean(placedOdu),
     placedOduId: placedOdu?.id ?? null,

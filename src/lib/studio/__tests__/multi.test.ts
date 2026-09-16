@@ -17,6 +17,7 @@ import {
 } from "../document";
 import { type RoomObj } from "../loads-room";
 import { roomCoverage } from "../coverage";
+import { sizingCapacityKw } from "../loads";
 import { systemComponents } from "../components";
 import {
   multiIduSelections,
@@ -364,6 +365,73 @@ describe("multiConnection", () => {
     expect(conn.portsUsed).toBe(3);
     expect(conn.findings.some((f) => f.code === "over-ports")).toBe(true);
     expect(conn.findings.some((f) => f.code === "over-max-count")).toBe(true);
+  });
+
+  /* The set a multi is judged on is every indoor unit the SYSTEM has — not
+     one per room. Two bulkhead units side by side covering one living area
+     is a normal job, and the book judges both heads. */
+  it("counts every indoor unit in a room, not one per room", () => {
+    const { doc, system, rooms } = docWithRooms();
+    const floorId = doc.floors[0].id;
+    system.settings = {
+      pairOdu: "MXZ-6F120VGD",
+      multiIdus: { [rooms[1].id]: "MSZ-AP25VGD2" },
+    };
+    doc.objects.push(
+      placedUnit("b1", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id),
+      placedUnit("b2", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id)
+    );
+    const kw = (m: string) =>
+      sizingCapacityKw(pack.indoor_units.find((u) => u.model === m)!, basis);
+
+    const conn = multiConnection(doc, pack, system, basis);
+    expect(conn.iduCount).toBe(3);
+    expect(conn.portsUsed).toBe(3);
+    expect(conn.idus.map((u) => u.model).sort()).toEqual([
+      "MSZ-AP25VGD2",
+      "SEZ-M71DA(L)",
+      "SEZ-M71DA(L)",
+    ]);
+    expect(conn.connectedKw).toBeCloseTo(2 * kw("SEZ-M71DA(L)") + kw("MSZ-AP25VGD2"), 5);
+  });
+
+  it("judges the set on the plan: 71+71+25+25+25 is refused though 71+25+25+25 is listed", () => {
+    const { doc, system, rooms } = docWithRooms(4);
+    const floorId = doc.floors[0].id;
+    system.settings = {
+      pairOdu: "MXZ-6F120VGD",
+      multiIdus: Object.fromEntries(rooms.slice(1).map((r) => [r.id, "MSZ-AP25VGD2"])),
+    };
+    // two 7.1 kW bulkhead units in the living area, three 2.5 kW bedrooms
+    doc.objects.push(
+      placedUnit("b1", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id),
+      placedUnit("b2", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id)
+    );
+    const conn = multiConnection(doc, pack, system, basis);
+    expect(conn.iduCount).toBe(5);
+    expect(conn.findings).toEqual([
+      expect.objectContaining({ severity: "red", code: "not-in-combination-table" }),
+    ]);
+  });
+
+  it("a unit placed outside every room still connects to the outdoor", () => {
+    // the hallway bulkhead: the box is not inside the room it serves
+    const { doc, system } = docWithRooms();
+    doc.objects.push(placedUnit("b1", system.id, doc.floors[0].id, "idu", "SEZ-M71DA(L)"));
+    const conn = multiConnection(doc, pack, system, basis);
+    expect(conn.iduCount).toBe(1);
+    expect(conn.idus.map((u) => u.model)).toEqual(["SEZ-M71DA(L)"]);
+  });
+
+  it("a stored selection never doubles a room that already has a unit placed", () => {
+    const { doc, system, rooms } = docWithRooms();
+    system.settings = { multiIdus: { [rooms[0].id]: "MSZ-AP20VGD" } };
+    doc.objects.push(
+      placedUnit("u1", system.id, doc.floors[0].id, "idu", "MSZ-AP25VGD2", rooms[0].id)
+    );
+    const conn = multiConnection(doc, pack, system, basis);
+    expect(conn.idus.map((u) => u.model)).toEqual(["MSZ-AP25VGD2"]);
+    expect(conn.iduCount).toBe(1);
   });
 
   it("degrades honestly: no loads on an uncalibrated floor, no pack rows invented", () => {

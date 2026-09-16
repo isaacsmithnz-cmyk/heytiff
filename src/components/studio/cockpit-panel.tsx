@@ -37,7 +37,7 @@ import type {
   SystemType,
 } from "@/lib/studio/document";
 import { newId } from "@/lib/studio/document";
-import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
+import type { DataPack } from "@/lib/studio/packs/schema";
 import {
   formatMeters,
   polylineLength,
@@ -1425,9 +1425,9 @@ export function OutdoorSection({
     setBrowsing(false);
   };
 
-  const connectedIdus = conn.rooms
-    .map((r) => r.idu)
-    .filter((u): u is IndoorUnit => u != null);
+  // the whole set, not a unit per room — the outdoor is proposed for what is
+  // actually connected
+  const connectedIdus = conn.idus;
 
   return (
     <div className="ds-ck-sub units" style={{ marginTop: 10 }} data-testid="outdoor-section">

@@ -6,6 +6,7 @@ import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { daysBetween } from "@/lib/workboard/board-status";
 import type { BoardAgreement } from "@/lib/workboard/board-query";
 import { cadenceLabel, untilLabel } from "./derive";
+import { Toolbar, ToolbarEnd } from "./toolbar";
 
 /* Service agreements — the ledger, grouped by category. Every row names its
    client (B22), an overdue "next" is called overdue (B10), and rows open the
@@ -95,21 +96,25 @@ export function AgreementsTab({
 
   return (
     <>
-      <div className="wb2-chd">
-        <span className="wb2-ci">
-          <Icon name="file" size={19} />
-        </span>
-        <div>
-          <b>Service agreements</b>
-          <em>The standing work, grouped by how it&apos;s billed.</em>
-        </div>
-        {manage && (
-          <button className="pbtn" onClick={onNew}>
-            <Icon name="plus" size={15} />
-            New agreement
-          </button>
+      {/* THE HEAD IS THE TOOLBAR: how many there are, and the one action.
+          The tab already says "Service agreements", and the caption ("the
+          standing work, grouped by how it's billed") is what the group heads
+          below show. */}
+      <Toolbar>
+        {agreements.length > 0 && (
+          <span className="wb2-tbh2">
+            {agreements.length} {agreements.length === 1 ? "agreement" : "agreements"}
+          </span>
         )}
-      </div>
+        {manage && (
+          <ToolbarEnd>
+            <button className="pbtn" onClick={onNew}>
+              <Icon name="plus" size={15} />
+              New agreement
+            </button>
+          </ToolbarEnd>
+        )}
+      </Toolbar>
 
       {agreements.length === 0 ? (
         <div className="wb2-empty">

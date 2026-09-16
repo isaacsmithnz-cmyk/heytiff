@@ -179,11 +179,6 @@ export function MaintenanceBoard({
     [openVisits, today]
   );
 
-  const doneCount = useMemo(
-    () => data.visits.filter((v) => v.status === "done").length,
-    [data.visits]
-  );
-
   /* ── the sliding tab thumb ── */
   const rowRef = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState<{ x: number; w: number } | null>(null);
@@ -323,7 +318,6 @@ export function MaintenanceBoard({
           {tab === "completed" && (
             <CompletedTab
               visits={data.visits}
-              count={doneCount}
               today={today}
               manage={manage}
               onOpen={(id) => openSheet(id)}

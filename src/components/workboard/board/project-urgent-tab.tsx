@@ -14,6 +14,7 @@ import {
 import type { BoardTech } from "@/lib/workboard/board-query";
 import type { ProjectUrgentRow } from "@/lib/workboard/project-rules";
 import { UrgentBody } from "./urgent-layout";
+import { FilterChips, Toolbar, type FilterOption } from "./toolbar";
 
 /* Urgent, projects side — the same law as the maintenance queue: every row
    is derived, every quick action fixes the row's own fact, and the row
@@ -87,19 +88,15 @@ export function ProjectUrgentTab({
     router.refresh();
   };
 
-  const filterChip = (key: UrgentFilter, label: string, tone: "" | "dan" | "warn") =>
-    (key === "all" || counts[key] > 0) && (
-      <button
-        key={key}
-        type="button"
-        className={"wb2-filter" + (tone ? ` ${tone}` : "") + (filter === key ? " on" : "")}
-        aria-pressed={filter === key}
-        onClick={() => setFilter(filter === key ? "all" : key)}
-      >
-        <b>{counts[key]}</b>
-        {label}
-      </button>
-    );
+  /* A filter with nothing in it is not offered, and choosing the one already
+     chosen goes back to everything — the chips' behaviour before they moved
+     onto the board's toolbar, kept. */
+  const filterOptions = ([
+    { key: "all", label: "Everything", n: counts.all },
+    { key: "trips", label: "Late trips", n: counts.trips, tone: "dan" },
+    { key: "projects", label: "Stuck projects", n: counts.projects, tone: "warn" },
+    { key: "flags", label: "Flags", n: counts.flags, tone: "warn" },
+  ] as FilterOption<UrgentFilter>[]).filter((o) => o.key === "all" || o.n > 0);
 
   function RowAction({ r }: { r: ProjectUrgentRow }) {
     const stop = (e: React.SyntheticEvent) => e.stopPropagation();
@@ -276,21 +273,18 @@ export function ProjectUrgentTab({
      the whole component. */
   return (
     <>
-      <div className="wb2-chd">
-        <span className="wb2-ci dan">
-          <Icon name="zap" size={19} />
-        </span>
-        <div>
-          <b>Needs attention</b>
-          <em>Late trips first, then what&apos;s stuck.</em>
-        </div>
-        <div className="wb2-filters">
-          {filterChip("all", "everything", "")}
-          {filterChip("trips", "trips", "dan")}
-          {filterChip("projects", "stuck projects", "warn")}
-          {filterChip("flags", "flags", "warn")}
-        </div>
-      </div>
+      {/* THE HEAD IS THE TOOLBAR NOW. It said "Needs attention" under a tab
+          that says Urgent, in a zap in a tinted red square, over a caption
+          naming the sort order — which the body's own group heads (Overdue,
+          then the rest) already show. What it carried that the reader uses
+          is the filters, and they are the row. */}
+      <Toolbar>
+        <FilterChips
+          options={filterOptions}
+          value={filter}
+          onChange={(k) => setFilter(filter === k ? "all" : k)}
+        />
+      </Toolbar>
 
       {shown.length === 0 ? (
         <div className="wb2-empty">

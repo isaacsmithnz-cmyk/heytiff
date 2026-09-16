@@ -14,6 +14,7 @@ import {
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
 import { isAwaitingPayment } from "@/lib/workboard/job-money";
 import { Fact, Inspector, Ledger, Reading, Split } from "./inspector";
+import { FilterChips, Toolbar, type FilterOption } from "./toolbar";
 
 /* The three panels of the All jobs side. Rows, not cards: at 500-plus open
    jobs a card per job is a wall, and this list is read by scanning down one
@@ -205,40 +206,27 @@ function Rows({
    is a sentence, not a chip: Quotes has no split the data can make honestly —
    "sent this week" needs a sent date, and the sent flag is absent on every
    quote in the live account — so its row is the sentence alone. */
-type Chip<K extends string> = { key: K; label: string; n: number; tone?: "warn" };
-
+/** The list's toolbar: its filters, or — where the data can make no honest
+    split — the one sentence of what it holds. */
 function ListBar<K extends string>({
   chips,
   value,
   onChange,
   sentence,
 }: {
-  chips?: Chip<K>[];
+  chips?: FilterOption<K>[];
   value?: K;
   onChange?: (k: K) => void;
   sentence?: string;
 }) {
   return (
-    <div className="wb2-tbar">
+    <Toolbar>
       {chips && value !== undefined && onChange ? (
-        <div className="wb2-fchips" role="group" aria-label="Show">
-          {chips.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              className={"wb2-fchip" + (c.key === value ? " on" : "")}
-              aria-pressed={c.key === value}
-              onClick={() => onChange(c.key)}
-            >
-              {c.label}{" "}
-              <i className={c.tone}>{c.n}</i>
-            </button>
-          ))}
-        </div>
+        <FilterChips options={chips} value={value} onChange={onChange} />
       ) : (
         sentence && <span className="wb2-tbh2">{sentence}</span>
       )}
-    </div>
+    </Toolbar>
   );
 }
 
@@ -526,7 +514,7 @@ export function CompletedJobsTab(props: Props) {
   const shown = show === "owed" ? owed : show === "unsuccessful" ? v.unsuccessful : v.completed;
   const sel = useSelection(shown);
 
-  const chips: Chip<"all" | "owed" | "unsuccessful">[] = [
+  const chips: FilterOption<"all" | "owed" | "unsuccessful">[] = [
     { key: "all", label: "All", n: v.completed.length },
   ];
   if (owed.length > 0) chips.push({ key: "owed", label: "Awaiting payment", n: owed.length, tone: "warn" });

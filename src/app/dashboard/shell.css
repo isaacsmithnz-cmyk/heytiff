@@ -435,8 +435,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    against a white card, but `.lv-form` is the only thing under it and that
    sits straight on `.stg` — so the tray was 3% lighter than a ground that is
    already tinted, and came out at 1.075 against it. A `rgba(5,5,5,.05)` tray
-   is 1.114 on ANY light ground, which is what `.hm-calseg`, `.wb2-filters`
-   and `.wb2-ckseg` already do and the reason none of them could drift. */
+   is 1.114 on ANY light ground, which is what `.hm-calseg` and `.wb2-ckseg`
+   already do and the reason neither could drift. */
 .fg .nb-kinds { display:inline-flex; gap:4px; padding:4px; border-radius:var(--r-button); background:var(--tint-2); margin-bottom:4px; }
 .fg .nb-kind { padding:4px 16px; border:0; border-radius:var(--r-button); background:none; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:700; color:var(--gray500); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .nb-kind.on { background:var(--paper); color:var(--ink); }
@@ -2488,7 +2488,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    the grey page by a drop shadow — the right treatment until the screen moved
    onto the board's white card, where a white tile on white is only its own
    1px border and the lift has nothing to lift off. So they take the tint the
-   board gives every inner block (.wb2-ci, .wb2-dnnote) and drop the shadow:
+   board gives every inner block (.wb2-dnnote) and drop the shadow:
    read as recessed INTO the surface rather than floating above it.
 
    `.review` keeps its red edge and is now the only tile with one, which is
@@ -5616,21 +5616,11 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
 @keyframes wb2CardOut { from { opacity:1; transform:none; } to { opacity:0; transform:translateY(-6px); } }
 .wb2-swap { animation:wb2CardIn .32s var(--ease) both; }
 
-/* ── card head (K9: icon tile + title + subtitle + status slot, every tab) ── */
-.wb2-chd { display:flex; align-items:center; gap:12px; padding:16px 16px; border-bottom:1px solid var(--wb2-line2); }
-.wb2-ci { width:38px; height:38px; border-radius:var(--r-button); display:grid; place-items:center; background:var(--tint); color:var(--ink); flex:none; }
-.wb2-ci.blue { background:var(--info-tint); color:var(--ink2); }
-.wb2-ci.dan { background:var(--bad-tint); color:var(--wb2-dan); }
-.wb2-ci.ok { background:var(--ok-tint); color:var(--ok-t); }
-.wb2-chd > div { min-width:0; }
-.wb2-chd b { display:block; font-size:16px; font-weight:700; }
-.wb2-chd em { display:block; font-style:normal; font-size:13px; color:var(--gray500); margin-top:2px; font-weight:500; }
-/* The status slot is pushed to the far right — DIRECT children only. As a
-   descendant selector this also hit the chips INSIDE .wb2-mcsum, so the
-   calendar's own summary got pushed to the right end of ITSELF while the
-   wrapper stayed parked against the subtitle, leaving "2 services" adrift in
-   the middle of the header with nothing either side of it. */
-.wb2-chd > .wb2-chip, .wb2-chd > .pbtn, .wb2-chd > .wb2-mcnav, .wb2-chd > .wb2-mcsum { margin-left:auto; flex:none; }
+/* THE CARD HEAD IS GONE (K9: icon tile, title, subtitle, status slot, every
+   tab). Every tab on all three sides, and the search panel, open on the
+   board's toolbar now (board/toolbar.tsx): the tile was the icon-in-a-tinted-
+   square docs/design.md names as the inherited look, the title restated the
+   tab above it, and the status slot is the row's filters or its sentence. */
 .wb2-sect { font-size:12px; font-weight:500; color:var(--q); }
 .wb2-hint { font-size:13px; color:var(--gray500); font-weight:500; margin:8px 0 0; }
 /* STATE IS A WORD (law 26). The chip was a tinted box at 12/700 in the state
@@ -5826,10 +5816,9 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-mcdone span { display:grid; place-items:center; width:24px; height:24px; border-radius:50%;
   background:var(--wb2-ok); color:var(--paper); box-shadow:none;; }
 .wb2-mcc[data-tone="done"] .wb2-mcdone span { background:var(--ok-t); }
-.wb2-mcsum { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-/* the window label with its own arrows, the way a stepper should read */
-.wb2-mchead { display:flex; align-items:center; gap:8px; }
-.wb2-mchead b { font-size:16px; font-weight:700; }
+/* `.wb2-mcsum` and `.wb2-mchead` went into the toolbar (`.wb2-tbsum`,
+   `.wb2-tbstep` + `.wb2-tbh2`); `.wb2-mcarrow` and `.wb2-mcnow` below stay,
+   because Home's calendar face still wears them. */
 .wb2-mcarrow { width:30px; height:30px; flex:none; display:grid; place-items:center; border-radius:var(--r-button);
   border:1px solid var(--wb2-line); background:var(--paper); color:var(--gray500); cursor:pointer;
   transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
@@ -5922,14 +5911,34 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 
    Capacity wears this row too, from its own tab: the two deliberately shared
    a header to the pixel so that moving between them moved nothing, and they
-   still do. The three-station header and the strip are deleted above; what
-   `.wb2-mcarrow`, `.wb2-mcnow`, `.wb2-mchead` and `.wb2-mcsum` keep is the
-   maintenance calendar's and Home's, which is why those stayed. */
+   still do. The three-station header and the strip are deleted above.
+
+   EVERY TAB ON ALL THREE SIDES WEARS IT NOW (board/toolbar.tsx): the lists,
+   the Gallery, both Urgents, Upcoming, both Calendars, both Completeds,
+   Service agreements and Pipeline. Each had drawn its own head — an icon in a
+   tinted square, the tab's name a second time, a caption explaining the
+   section, a chip of counts. */
 /* `flex:none` because the panel is a flex COLUMN once the card fills the
    well: without it a 48px band is a flex item free to shrink, and it was
    rendering at 29. */
+/* STICKY, because only some tabs have an inspector. Where the board and the
+   panel scroll on their own the row sits outside the scroller and this does
+   nothing; where the whole panel scrolls — Urgent, Upcoming, Completed,
+   Agreements, Pipeline — it keeps the filters in reach instead of taking them
+   off the top with the first row. Paper behind it, so rows pass under cleanly;
+   the sticky layer, because that is what it is (law 19). */
 .wb2-tbar { flex:none; display:flex; align-items:center; gap:12px; height:48px; padding:0 24px;
-  border-bottom:1px solid var(--line); }
+  border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:var(--z-sticky); background:var(--paper); }
+/* the far end of the row: a tab's one action, or the window a list covers */
+.wb2-tbend { margin-left:auto; flex:none; display:flex; align-items:center; gap:8px; }
+/* a button in the row takes the row's control height — the header band's 32 —
+   rather than the page's 42 (law 33). Stated as `.wb2 .wb2-tbar .pbtn` with
+   both states named, because `.wb2 .pbtn:not(.ghost)` is (0,3,0) and sets 38. */
+.wb2 .wb2-tbar .pbtn, .wb2 .wb2-tbar .pbtn.ghost { height:32px; }
+/* a sentence that IS a state — "3 to confirm before Fri 14 Aug" — is set in
+   the state's colour, as a word would be (law 26) */
+.wb2-tbh2.warn, .wb2-tbsum .warn { color:var(--warn-t); }
 .wb2-tbstep { display:flex; align-items:center; gap:2px; flex:none; }
 .wb2-tbarrow { width:24px; height:24px; flex:none; display:grid; place-items:center; padding:0; border:0;
   border-radius:var(--r-control); background:transparent; color:var(--q); cursor:pointer;
@@ -6093,8 +6102,9 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 .wb2-fchip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-fchip i { font-style:normal; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
 .wb2-fchip i.warn { color:var(--warn-t); }
+.wb2-fchip i.dan { color:var(--bad-t); }
 .wb2-fchip.on { background:var(--ink); border-color:var(--ink); color:var(--paper); font-weight:600; }
-.wb2-fchip.on i, .wb2-fchip.on i.warn { color:var(--paper); }
+.wb2-fchip.on i, .wb2-fchip.on i.warn, .wb2-fchip.on i.dan { color:var(--paper); }
 
 /* the list's rows sit under a toolbar now, so their own top gutter goes */
 .wb2-splitm > .wb2-sect:first-child { padding-top:12px; }
@@ -7928,8 +7938,6 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
    the page already speaks: one tray, the active segment lifted onto white,
    the label first and the count riding behind it as a badge that keeps its
    severity colour. */
-.wb2-filters { display:inline-flex; align-items:center; gap:2px; margin-left:auto; padding:4px; flex-wrap:wrap;
-  border-radius:var(--r-button); background:var(--tint-2); border:1px solid var(--line); }
 .wb2-filter { display:inline-flex; align-items:center; gap:8px; height:28px; padding:0 12px; border-radius:var(--r-button);
   border:0; background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500);
   cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
@@ -8115,6 +8123,11 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 .fg .outlet:has(> .page.wb2-full) {
   border-radius:0; overflow:hidden;
   background:var(--paper); background-image:none;
+  /* the frame reserves a scrollbar's width on BOTH edges so pages don't jump
+     when one appears; this outlet never scrolls — the board's own panels do —
+     so on an always-visible scrollbar (Windows, or macOS set to show them)
+     that was 22px of blank paper down the sides for nothing */
+  scrollbar-gutter:auto;
 }
 .fg .page.wb2-full { height:100%; display:flex; flex-direction:column; }
 /* `width:100%` and the killed auto margins are load-bearing: `.wrap` carries
@@ -8284,7 +8297,6 @@ html[data-wb-display] .fg .wb2-panel { flex:1; min-height:0; display:flex; flex-
 /* the tab row and the board's own header bands hold their size; only the
    tab BODY takes the slack */
 html[data-wb-display] .fg .wb2-vtabs,
-html[data-wb-display] .fg .wb2-chd,
 html[data-wb-display] .fg .wb2-mckey,
 html[data-wb-display] .fg .wb2-mcdow { flex:none; }
 

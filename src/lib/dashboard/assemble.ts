@@ -7,6 +7,7 @@ import {
   leaveQueueChip,
   licenceChip,
   orgCredentialChips,
+  profileChip,
   sortChips,
   timesheetChip,
   vehicleChips,
@@ -72,6 +73,12 @@ export type ChipSources = {
   ownSheet: { status: string; periodStart: string; periodLabel: string } | null;
   /** YOUR claims that came back declined recently — the chip windows them. */
   ownDeclinedClaims: { id: string; description: string; amount: number; decidedOn: string | null }[];
+  /** How short YOUR card is of the details the business must hold — the
+      completeness model's count and the first gap's name. Optional so a caller
+      that has not loaded it simply raises no chip. */
+  selfCompleteness?: { requiredMissing: number; firstLabel: string | null } | null;
+  /** YOUR name, for the chip about your own details. */
+  selfName?: string | null;
   ownDeclinedLeave: {
     id: string;
     kind: string;
@@ -114,6 +121,7 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
        did — and the two are the same shape by design. The only way to learn
        your leave was refused was to open My leave and find it in history. */
     for (const r of src.ownDeclinedLeave) push(self, declinedLeaveChip(r, { today: src.today }));
+    push(self, profileChip(src.selfCompleteness, { subject: src.selfName || "Your details" }));
   }
 
   const team: ActionChip[] = [];

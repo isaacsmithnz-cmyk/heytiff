@@ -2,14 +2,14 @@
 
 import { requiredField } from "@/lib/staff/completeness";
 import { IdCard } from "@/components/cards/id-card";
-import type { StaffProfile } from "@/lib/staff/profile";
+import { EMERGENCY_RELATIONSHIPS, type StaffProfile } from "@/lib/staff/profile";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 import { SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 
-const RELATIONSHIPS = ["Partner", "Parent", "Sibling", "Friend", "Other"] as const;
+const RELATIONSHIPS = EMERGENCY_RELATIONSHIPS;
 
 export function emergencyValues(p: StaffProfile | null): Record<string, string> {
   return {

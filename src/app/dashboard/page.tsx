@@ -2,6 +2,7 @@ import { DashboardHome } from "@/components/dashboard/home";
 import { loadDashboard } from "@/lib/dashboard/page-data";
 import { NoteScopeScreen } from "@/components/notes/note-context";
 import { redirectIfSetupPending } from "@/lib/org/setup-gate";
+import { redirectIfOnboardingPending } from "@/lib/staff/onboarding-gate";
 
 /* THE GREETING IS GONE, and with it the viewer's name, the daypart and the
    date line. It said "Good morning, Isaac" at 56px — the largest type in the
@@ -14,6 +15,9 @@ export default async function DashboardHomePage() {
   // read as a broken product. Home only — sign-in lands here, and the gate's
   // header says why it is neither in the proxy nor the (synchronous) layout.
   await redirectIfSetupPending();
+  // And a newly joined staff member to their own first run, once — same
+  // shape, same soft landing (lib/staff/onboarding-gate.ts).
+  await redirectIfOnboardingPending();
 
   const data = await loadDashboard();
 

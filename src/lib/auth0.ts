@@ -2,7 +2,7 @@ import { Auth0Client } from "@auth0/nextjs-auth0/server";
 import type { SdkError } from "@auth0/nextjs-auth0/errors";
 import type { NextResponse } from "next/server";
 import { supabaseAdmin } from "./supabase-server";
-import { splitName } from "./staff/name";
+import { seedNameFor, splitName } from "./staff/name";
 
 /* Make sure the user has a staff card in this org. Best effort, like the
    profiles upsert: a failure here must never block login — /dashboard/profile
@@ -53,11 +53,7 @@ export async function ensureStaffCard(
        the inviter is inviting. This line is the last resort behind it, and it
        is still reached by the founder at /start and by anyone signing in
        without an invitation. */
-    const seedName =
-      personName(knownAs) ??
-      personName(session.user.name) ??
-      session.user.email?.split("@")[0] ??
-      null;
+    const seedName = seedNameFor(session.user, knownAs);
     /* Seed the holiday state from the org so every calendar consumer — the
        presumption, the approver's screen, submit-time materialisation —
        resolves the same public holidays from this person's first day. An
@@ -80,14 +76,6 @@ export async function ensureStaffCard(
   } catch (e) {
     console.error("Failed to ensure staff card:", e);
   }
-}
-
-/** A name is a name — never an address, whatever claim it arrived in. Mirrors
-    `asPersonName` in the invite action; kept local because this module is
-    imported by the Auth0 client itself and must stay free of app actions. */
-function personName(v: unknown): string | null {
-  const s = typeof v === "string" ? v.trim() : "";
-  return !s || s.includes("@") ? null : s;
 }
 
 /* A CALLBACK WITH NO TRANSACTION IS NOT A SERVER ERROR.

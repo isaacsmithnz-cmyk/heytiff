@@ -9,7 +9,7 @@ import {
   isSelfSection,
   type StaffProfile,
 } from "@/lib/staff/profile";
-import { splitName, withDerivedFullName } from "@/lib/staff/name";
+import { seedNameFor, splitName, withDerivedFullName } from "@/lib/staff/name";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
 import { buildLicenceTermRow, splitAddScan, type LicenceScanDetails, type LicenceTermInput } from "@/lib/staff/licence-records";
 import {
@@ -63,14 +63,12 @@ export async function loadMyProfile(): Promise<StaffProfile> {
   if (error) throw new Error(error.message);
   if (data) return data as unknown as StaffProfile;
 
-  // First visit — seed from the Auth0 identity we already have. Auth0 gives us
-  // one `name` claim, so this is the one place a name is split: best effort,
-  // once, and the person can correct both halves on their own card.
+  // First visit — seed from the Auth0 identity we already have, by the ONE
+  // rule in lib/staff/name. This copy used `claim ?? email prefix`, and the
+  // claim of a password sign-up is the address itself, so it wrote an email
+  // into first_name — the bug ensureStaffCard had already been fixed for.
   const session = await auth0.getSession();
-  const seedName =
-    (session?.user.name as string | undefined) ??
-    session?.user.email?.split("@")[0] ??
-    null;
+  const seedName = seedNameFor(session?.user ?? {});
   const seedParts = splitName(seedName);
 
   const { data: created, error: insertError } = await supabaseAdmin

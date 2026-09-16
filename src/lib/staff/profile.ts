@@ -105,6 +105,10 @@ export const SELF_EDITABLE_SECTIONS = {
   licences: ["qualifications"],
 } as const;
 
+/** What an emergency contact is to the person — the Emergency tab's select and
+    the first run's, from one list. */
+export const EMERGENCY_RELATIONSHIPS = ["Partner", "Parent", "Sibling", "Friend", "Other"] as const;
+
 export type SelfSection = keyof typeof SELF_EDITABLE_SECTIONS;
 
 export function isSelfSection(v: unknown): v is SelfSection {

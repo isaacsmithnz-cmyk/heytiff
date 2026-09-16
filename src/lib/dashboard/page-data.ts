@@ -11,6 +11,7 @@ import { approvedInSpan, holidaysInSpan, stateFor } from "@/lib/timepay/leave-qu
 import { assembleChips, type DashboardChips } from "./assemble";
 import { CLAIM_NUDGE_DAYS } from "./chips";
 import { listStaffCompliance, type StaffCompliance } from "./query";
+import { ownDetailsGap } from "@/lib/staff/onboarding";
 import { listOrgCredentials, orgExpiryWindow } from "@/lib/org/query";
 import type { OrgCredential } from "@/lib/org/credentials";
 import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
@@ -397,7 +398,7 @@ async function loadChips(
   /** the Organisation screen admits the owner only — see `assembleChips` */
   isOwner: boolean,
 ): Promise<DashboardChips> {
-  const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv] = await Promise.all([
+  const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv, detailsGap] = await Promise.all([
     viewerStaffId ? listStaffCompliance(orgId, viewerStaffId) : Promise.resolve([]),
     viewerStaffId ? getOwnVehicle(orgId, viewerStaffId) : Promise.resolve(null),
     viewerStaffId ? loadOwnSheet(orgId, viewerStaffId) : Promise.resolve(null),
@@ -408,6 +409,8 @@ async function loadChips(
     viewerStaffId
       ? ownDeclinedLeave(orgId, viewerStaffId, addDays(today, -CLAIM_NUDGE_DAYS))
       : Promise.resolve([]),
+    // your own card's required gaps — the reminder after a skipped first run
+    viewerStaffId ? ownDetailsGap(orgId, viewerStaffId) : Promise.resolve(null),
   ]);
 
   // Team data is only READ when the capability is held — it never reaches here
@@ -441,6 +444,8 @@ async function loadChips(
       ownSheet,
       ownDeclinedClaims: ownDeclined,
       ownDeclinedLeave: ownDeclinedLv,
+      selfCompleteness: detailsGap,
+      selfName: detailsGap?.name || null,
     },
     caps,
   );

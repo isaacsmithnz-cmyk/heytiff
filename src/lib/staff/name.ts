@@ -80,3 +80,46 @@ export function withDerivedFullName<T extends Record<string, unknown>>(
   const last = hasLast ? patch.last_name : current.last_name;
   return { ...patch, full_name: composeFullName(first, last) || null };
 }
+
+/* A NAME IS NEVER AN ADDRESS, whatever column or claim it arrived in.
+
+   Auth0's `name` claim IS the sign-in address for any identity that never set
+   a name — every fresh password sign-up — and `??` only steps past null, so
+   code written as `claim ?? email.split("@")[0]` never reached its fallback
+   and seeded cards with the whole address. The guard is on the VALUE, not the
+   source: anything holding an `@` is refused. */
+export function personName(v: unknown): string | null {
+  const s = str(v);
+  return !s || s.includes("@") ? null : s;
+}
+
+/* THE NAME A BRAND-NEW CARD IS SEEDED WITH, and there is exactly one rule for
+   it. It lived twice — in ensureStaffCard, fixed, and in loadMyProfile's
+   first-visit insert, which still had the `??` bug and would have written an
+   address into first_name for any member who opened My profile before a card
+   existed.
+
+   In order of who decided it: what the org already calls the person (the name
+   typed on their invitation), then a provider claim that is really a name,
+   then the part of the address before the `@`. The last is a handle, not a
+   name — kept because fifteen screens resolve a card through displayNameOf,
+   and two nameless people would otherwise be two identical "Unnamed" rows in
+   every picker. The first run is what replaces it with the real thing. */
+export function seedNameFor(
+  user: { name?: unknown; email?: string | null },
+  knownAs?: unknown
+): string | null {
+  return personName(knownAs) ?? personName(user.name) ?? (user.email?.split("@")[0] || null);
+}
+
+/* WHETHER A STORED FIRST NAME COULD BE SOMEBODY'S NAME, for prefilling a form
+   only. A seed from an address prefix can be `luke` — plausible, so offered
+   back to be corrected — or `isaacsmithnz+test`, which is a handle and would
+   sit in the box looking like a mistake the person has to delete before they
+   can type. Letters, spaces, hyphens, apostrophes and full stops; nothing
+   else. Never used to validate what someone TYPES — people's names are theirs. */
+export function looksLikeAName(v: unknown): boolean {
+  const s = str(v);
+  return s.length > 0 && /^\p{L}[\p{L}\p{M}' .-]*$/u.test(s);
+}
+

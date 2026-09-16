@@ -42,7 +42,8 @@ export type ChipKind =
   | "claim"
   | "leave-queue"
   | "leave-declined"
-  | "profile";
+  | "profile"
+  | "swms";
 
 /** Only actionable states surface as chips; a compliant thing produces none. */
 export type ActionState = Exclude<ChipState, "ok">; // "bad" | "warn"
@@ -70,7 +71,7 @@ export type ActionChip = {
    colour carries urgency, the icon and tag carry the domain, so a mixed list is
    scannable without reading every label. Icons match the ones the nav already
    uses for those areas (Assets is a truck), so the association is pre-taught. */
-export type ChipGroup = "Fleet" | "People" | "Business" | "Pay";
+export type ChipGroup = "Fleet" | "People" | "Business" | "Pay" | "Workboard";
 
 const GROUP_OF: Record<ChipKind, ChipGroup> = {
   licence: "People",
@@ -96,6 +97,9 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   /* Your own details — the same card the licence and work-rights chips open,
      so it files with them. */
   profile: "People",
+  /* A SWMS to sign on to is the job's paperwork, so it files with the board
+     it was issued from, under the nav's own Workboard glyph. */
+  swms: "Workboard",
 };
 
 export const GROUP_ICON: Record<ChipGroup, string> = {
@@ -103,6 +107,7 @@ export const GROUP_ICON: Record<ChipGroup, string> = {
   People: "shield",
   Business: "hexagon",
   Pay: "clock",
+  Workboard: "activity",
 };
 
 export function chipGroup(kind: ChipKind): ChipGroup {
@@ -484,6 +489,36 @@ export function profileChip(
     urgency: urgency("warn", 0),
   };
 }
+
+/** A SWMS you're on and haven't signed on to.
+
+    THE BELL IS THE NOTIFICATION. Nobody is texted: the list is already worked
+    out per person from their own records, so a version that names you is one
+    more thing that needs you, and it leaves the list the moment you sign on —
+    or the moment a newer version replaces it, which asks again.
+
+    Always `warn`: an unsigned SWMS is work to do before the job starts, not a
+    date that has passed. The oldest issue sorts first. */
+export function swmsSignonChip(
+  p: { versionId: string; version: number; jobNumber: string | null; site: string | null; issuedAt: string },
+  ctx: { today: string },
+): ActionChip {
+  const age = Math.max(0, -daysUntil(p.issuedAt.slice(0, 10), ctx.today));
+  const site = p.site?.split(",")[0]?.trim() || null;
+  return {
+    key: `swms:${p.versionId}`,
+    kind: "swms",
+    state: "warn",
+    label: p.version > 1 ? `Sign on to version ${p.version} of the SWMS` : "Sign on to the SWMS",
+    subject: [p.jobNumber ? `Job #${p.jobNumber}` : null, site].filter(Boolean).join(", ") || "A job",
+    href: `/dashboard/swms/${p.versionId}`,
+    urgency: urgency("warn", -age),
+  };
+}
+
+/** Tell an open bell to ask again — sent after something on this screen
+    clears one of its rows, so the badge doesn't wait for the tab to refocus. */
+export const BELL_REFRESH_EVENT = "heytiff:bell-refresh";
 
 /** How long a declined claim keeps nudging. Unlike a sent-back timesheet, a
     declined claim has no state left to change — it stays declined forever — so

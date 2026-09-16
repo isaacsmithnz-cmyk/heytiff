@@ -265,3 +265,28 @@ describe("assembleChips — your own details", () => {
     expect(self).toEqual([]);
   });
 });
+
+/* A SWMS THAT NAMES YOU — the in-app notification in place of a text. It is
+   yours alone, needs no capability, and sits in the same list as everything
+   else that needs you. */
+describe("assembleChips — SWMS sign-on", () => {
+  const signon = { versionId: "v-9", version: 1, jobNumber: "2601", site: "14 Attunga Road, Miranda NSW 2228", issuedAt: "2026-09-16T07:42:00.000Z" };
+
+  it("asks you to sign on, among your own chips, with no capability", () => {
+    const { self, team } = assembleChips({ ...FULL, ownSwmsSignons: [signon] }, caps());
+    expect(self.find((c) => c.kind === "swms")).toMatchObject({
+      label: "Sign on to the SWMS",
+      subject: "Job #2601, 14 Attunga Road",
+      href: "/dashboard/swms/v-9",
+    });
+    expect(team.some((c) => c.kind === "swms")).toBe(false);
+  });
+
+  it("has nobody to ask without a staff record", () => {
+    const { self } = assembleChips(
+      { ...FULL, viewerStaffId: null, self: null, selfVehicle: null, ownSwmsSignons: [signon] },
+      caps(),
+    );
+    expect(self.some((c) => c.kind === "swms")).toBe(false);
+  });
+});

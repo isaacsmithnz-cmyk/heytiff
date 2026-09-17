@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import type { DesignDocument, DesignSystem } from "@/lib/studio/document";
-import type { DataPack, FormFactor, IndoorUnit } from "@/lib/studio/packs/schema";
+import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import type { RoomObj } from "@/lib/studio/loads-room";
 import { polygonCentroid } from "@/lib/studio/geometry";
-import { FIT_RANK, FORM_FACTOR_LABELS, formFactorSummary, unitOptions } from "@/lib/studio/select";
-import { multiCapableIdus, multiFormFactorSummary, multiUnitOptions } from "@/lib/studio/multi";
+import { multiCapableIdus } from "@/lib/studio/multi";
+import { UnitBrowser, type UnitChoice } from "./unit-browser";
 import {
   addMultiHead,
   addSplit,
@@ -28,8 +28,10 @@ import {
 } from "@/lib/studio/builder";
 
 /* The system builder (spec: Studio System Builder, stage 2). It replaces the
-   units window on the builder flag: the unit browser on top, the job's rooms
-   underneath as a schematic, and nothing touches the plan until Continue.
+   units window on the builder flag: the unit browser on top — the same
+   selector the units window was, tabs, search, filters, sections and spec
+   sheet (unit-browser.tsx, embedded) — the job's rooms underneath as a
+   schematic, and nothing touches the plan until Continue.
 
    It edits a DRAFT of the design. Continue hands the draft back as one change
    (one undo step); Discard drops it. Every rule it shows comes from builder.ts
@@ -42,7 +44,7 @@ type Selection =
   | { type: "outdoor"; systemId: string }
   | null;
 
-/** what a card carries through a drag */
+/** what a unit carries through a drag onto a room square */
 type CardPayload =
   | { kind: "split"; iduModel: string; oduModel: string }
   | { kind: "multi"; iduModel: string };
@@ -56,6 +58,26 @@ const WORD_CLASS: Record<RoomWord, string> = {
   Calibrate: "quiet",
   "No units": "quiet",
 };
+
+/** a row of the browser, as the thing it drops into a room */
+const payloadFor = (choice: UnitChoice): CardPayload =>
+  choice.kind === "pair"
+    ? { kind: "split", iduModel: choice.pair.idu.model, oduModel: choice.pair.odu.model }
+    : { kind: "multi", iduModel: choice.idu.model };
+
+/* How much of the window the unit list takes, the schematic the rest —
+   dragged on the edge between them and kept for next time on this device. */
+const SPLIT_KEY = "heytiff.studio.builderSplit";
+const SPLIT_DEFAULT = 58;
+const clampSplit = (pct: number) => Math.min(80, Math.max(25, Math.round(pct)));
+function readSplit(): number {
+  try {
+    const v = Number(window.localStorage.getItem(SPLIT_KEY));
+    return Number.isFinite(v) && v > 0 ? clampSplit(v) : SPLIT_DEFAULT;
+  } catch {
+    return SPLIT_DEFAULT;
+  }
+}
 
 const kwText = (kw: number | null | undefined): string =>
   kw == null ? "" : `${kw.toFixed(1)} kW`;
@@ -107,13 +129,22 @@ function layout(doc: DesignDocument, rooms: RoomObj[]) {
         .filter((a) => a.role === "idu" && a.roomId === roomId && a.model)
         .map((alloc) => ({ sys, alloc }))
     );
+  /* a head whose room is gone — the room deleted on the plan after the unit
+     was built into it — still belongs to its system; it waits in a square of
+     its own for a room to be chosen */
+  const roomIds = new Set(rooms.map((r) => r.id));
+  const homeless = systems.flatMap((sys) =>
+    allocationsOf(sys)
+      .filter((a) => a.role === "idu" && a.model && (!a.roomId || !roomIds.has(a.roomId)))
+      .map((alloc) => ({ sys, alloc }))
+  );
 
-  const maxUnits = Math.max(1, ...rooms.map((r) => unitsIn(r.id).length));
+  const maxUnits = Math.max(1, homeless.length, ...rooms.map((r) => unitsIn(r.id).length));
   const lanes = systems.reduce(
     (n, s) => n + allocationsOf(s).filter((a) => a.role === "idu").length,
     0
   );
-  const roomsTop = OUT_TOP + OUT_H + 24 + Math.max(2, lanes) * 8 + 24;
+  const roomsTop = OUT_TOP + OUT_H + 16 + Math.max(2, lanes) * 8 + 16;
   const roomH = ROOM_HEAD + maxUnits * (UNIT_H + UNIT_GAP) + ROOM_FOOT;
 
   const multiFloor = doc.floors.length > 1;
@@ -121,13 +152,27 @@ function layout(doc: DesignDocument, rooms: RoomObj[]) {
   const unitBoxes: UnitBox[] = [];
   let x = PAD;
   let lastFloor: string | null = null;
+  const placeUnits = (here: { sys: DesignSystem; alloc: Allocation }[], boxX: number) => {
+    const gutter = 8 + here.length * 8;
+    here.forEach(({ sys, alloc }, j) => {
+      unitBoxes.push({
+        sys,
+        alloc,
+        x: boxX + gutter + 4,
+        y: roomsTop + ROOM_HEAD + j * (UNIT_H + UNIT_GAP),
+        w: ROOM_W - gutter - 16,
+        gutterX: boxX + 8 + j * 8,
+      });
+    });
+    return gutter;
+  };
   for (const room of rooms) {
     if (lastFloor != null && room.floorId !== lastFloor) x += FLOOR_GAP - ROOM_GAP;
     const firstOnFloor = room.floorId !== lastFloor;
     lastFloor = room.floorId;
     const floor = doc.floors.find((f) => f.id === room.floorId);
     const here = unitsIn(room.id);
-    const gutter = 8 + here.length * 8;
+    const gutter = placeUnits(here, x);
     roomBoxes.push({
       room,
       x,
@@ -137,16 +182,12 @@ function layout(doc: DesignDocument, rooms: RoomObj[]) {
       textX: x + Math.max(12, gutter + 4),
       floorName: multiFloor && firstOnFloor ? (floor?.name ?? null) : null,
     });
-    here.forEach(({ sys, alloc }, j) => {
-      unitBoxes.push({
-        sys,
-        alloc,
-        x: x + gutter + 4,
-        y: roomsTop + ROOM_HEAD + j * (UNIT_H + UNIT_GAP),
-        w: ROOM_W - gutter - 16,
-        gutterX: x + 8 + j * 8,
-      });
-    });
+    x += ROOM_W + ROOM_GAP;
+  }
+  let homelessBox: Omit<RoomBox, "room" | "floorName"> | null = null;
+  if (homeless.length) {
+    const gutter = placeUnits(homeless, x);
+    homelessBox = { x, y: roomsTop, w: ROOM_W, h: roomH, textX: x + gutter + 4 };
     x += ROOM_W + ROOM_GAP;
   }
 
@@ -174,7 +215,7 @@ function layout(doc: DesignDocument, rooms: RoomObj[]) {
 
   const width = Math.max(x - ROOM_GAP + PAD, right + PAD, 480);
   const height = roomsTop + roomH + PAD;
-  return { roomBoxes, unitBoxes, outBoxes, width, height, roomsTop };
+  return { roomBoxes, homelessBox, unitBoxes, outBoxes, width, height, roomsTop };
 }
 
 /* ─────────────────────────── the window ─────────────────────────── */
@@ -230,7 +271,6 @@ export function SystemBuilder({
     : null;
 
   const [kind, setKind] = useState<Kind>(focusedSystem?.type === "multi-split" ? "multi" : "split");
-  const [formFactor, setFormFactor] = useState<FormFactor | null>(null);
   const [targetRoomId, setTargetRoomId] = useState<string | null>(
     focusedRoom ?? rooms[0]?.id ?? null
   );
@@ -246,10 +286,38 @@ export function SystemBuilder({
 
   const dirty = draft !== start;
 
-  /* Esc closes only when there is nothing to lose */
+  const [split, setSplit] = useState<number>(readSplit);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SPLIT_KEY, String(split));
+    } catch {
+      /* private window: the split just isn't remembered */
+    }
+  }, [split]);
+  const panesRef = useRef<HTMLDivElement>(null);
+  const dragSplit = (e: React.PointerEvent<HTMLDivElement>) => {
+    const panes = panesRef.current;
+    if (!panes) return;
+    e.preventDefault();
+    const edge = e.currentTarget;
+    edge.setPointerCapture(e.pointerId);
+    const box = panes.getBoundingClientRect();
+    const move = (ev: PointerEvent) => setSplit(clampSplit(((ev.clientY - box.top) / box.height) * 100));
+    const up = () => {
+      edge.removeEventListener("pointermove", move);
+      edge.removeEventListener("pointerup", up);
+      edge.removeEventListener("pointercancel", up);
+    };
+    edge.addEventListener("pointermove", move);
+    edge.addEventListener("pointerup", up);
+    edge.addEventListener("pointercancel", up);
+  };
+
+  /* Esc closes only when there is nothing to lose — and never while the
+     browser's comparison is open over it, which Esc closes first */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !dirty) onClose();
+      if (e.key === "Escape" && !dirty && !document.querySelector(".ds-cmp-overlay")) onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -269,39 +337,6 @@ export function SystemBuilder({
   const remainingKw = shortKw != null && shortKw > 0.05 ? shortKw : null;
 
   const multis = draft.systems.filter((s) => s.type === "multi-split" && hasAllocations(s));
-
-  /* ── the cards: ranked against what the target room still needs ── */
-  const forms = useMemo(
-    () =>
-      kind === "split"
-        ? formFactorSummary(pack, remainingKw, basis)
-        : multiFormFactorSummary(pack, remainingKw, basis),
-    [kind, pack, remainingKw, basis]
-  );
-  const cards = useMemo(() => {
-    if (kind === "split") {
-      return unitOptions(pack, { loadKw: remainingKw, basis, formFactor })
-        .map((o) => ({
-          key: `${o.idu.model}+${o.defaultPair.odu.model}`,
-          idu: o.idu,
-          oduModel: o.defaultPair.odu.model,
-          kw: o.defaultPair.capacityKw,
-          fit: o.fit,
-          best: o.bestFit,
-        }))
-        .sort((a, b) => FIT_RANK[a.fit] - FIT_RANK[b.fit] || a.kw - b.kw);
-    }
-    return multiUnitOptions(pack, { loadKw: remainingKw, basis, formFactor })
-      .map((p) => ({
-        key: p.idu.model,
-        idu: p.idu,
-        oduModel: "",
-        kw: p.capacityKw,
-        fit: p.fit,
-        best: p.bestFit,
-      }))
-      .sort((a, b) => FIT_RANK[a.fit] - FIT_RANK[b.fit] || a.kw - b.kw);
-  }, [kind, pack, remainingKw, basis, formFactor]);
 
   /* ── writes ── */
   const add = (roomId: string, payload: CardPayload) => {
@@ -370,158 +405,123 @@ export function SystemBuilder({
               {unitCount === 1 ? "unit" : "units"}
             </p>
           </div>
+          <div className="ds-sb-kind" role="radiogroup" aria-label="System type">
+            {(["split", "multi"] as const).map((k) => (
+              <button
+                key={k}
+                role="radio"
+                aria-checked={kind === k}
+                className={`ds-sb-kind-opt${kind === k ? " on" : ""}`}
+                onClick={() => setKind(k)}
+              >
+                {k === "split" ? "Split" : "Multi"}
+              </button>
+            ))}
+          </div>
+          {target && (
+            <p className="ds-sb-target">
+              {String(target.props.name ?? "Room")}
+              {targetVerdict?.loadKw == null
+                ? ": no heat load yet"
+                : remainingKw != null
+                  ? `: ${remainingKw.toFixed(1)} kW still needed of ${targetVerdict.loadKw.toFixed(1)} kW`
+                  : `: covered, ${targetVerdict.coverKw.toFixed(1)} kW for ${targetVerdict.loadKw.toFixed(1)} kW`}
+            </p>
+          )}
           <button className="ds-sb-x" onClick={onClose} aria-label="Close builder without saving">
             <Icon name="x" size={16} />
           </button>
         </header>
 
-        <section className="ds-sb-browser" aria-label="Units">
-          <div className="ds-sb-bar">
-            <div className="ds-sb-kind" role="radiogroup" aria-label="System type">
-              {(["split", "multi"] as const).map((k) => (
-                <button
-                  key={k}
-                  role="radio"
-                  aria-checked={kind === k}
-                  className={`ds-sb-kind-opt${kind === k ? " on" : ""}`}
-                  onClick={() => {
-                    setKind(k);
-                    setFormFactor(null);
+        <div className="ds-sb-panes" ref={panesRef}>
+          <section className="ds-sb-browser" aria-label="Units" style={{ flexBasis: `${split}%` }}>
+            <UnitBrowser
+              embedded
+              pack={pack}
+              loadKw={remainingKw}
+              basis={basis}
+              mode={kind === "split" ? "pair" : "per-room"}
+              addLabel={target ? `Add to ${String(target.props.name ?? "room")}` : "Add"}
+              onChoose={(choice) => {
+                if (target) add(target.id, payloadFor(choice));
+              }}
+              onDragRow={(choice, transfer) => {
+                transfer.setData(DRAG_TYPE, JSON.stringify(payloadFor(choice)));
+                transfer.effectAllowed = "copy";
+              }}
+            />
+          </section>
+
+          <div
+            className="ds-sb-divider"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="Unit list and schematic"
+            aria-valuenow={split}
+            aria-valuemin={25}
+            aria-valuemax={80}
+            tabIndex={0}
+            onPointerDown={dragSplit}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                e.preventDefault();
+                setSplit((v) => clampSplit(v + (e.key === "ArrowDown" ? 5 : -5)));
+              }
+            }}
+          />
+
+          <div className="ds-sb-work">
+            <section className="ds-sb-schematic" aria-label="Schematic">
+              {rooms.length === 0 ? (
+                <div className="ds-sb-none">
+                  <p>Draw a room on the plan first — each room becomes a square here.</p>
+                </div>
+              ) : (
+                <Schematic
+                  draft={draft}
+                  pack={pack}
+                  boxes={layoutBoxes}
+                  verdicts={verdicts}
+                  basis={basis}
+                  targetRoomId={targetRoomId}
+                  selected={selected}
+                  onTarget={(id) => {
+                    setTargetRoomId(id);
+                    setSelected(null);
                   }}
-                >
-                  {k === "split" ? "Split" : "Multi"}
-                </button>
-              ))}
-            </div>
-            <div className="ds-sb-forms" role="group" aria-label="Unit style">
-              <button
-                className={`ds-sb-style${formFactor == null ? " on" : ""}`}
-                aria-pressed={formFactor == null}
-                onClick={() => setFormFactor(null)}
-              >
-                All styles
-              </button>
-              {forms
-                .filter((f) => f.count > 0)
-                .map((f) => (
-                  <button
-                    key={f.formFactor}
-                    className={`ds-sb-style${formFactor === f.formFactor ? " on" : ""}`}
-                    aria-pressed={formFactor === f.formFactor}
-                    onClick={() => setFormFactor(f.formFactor)}
-                  >
-                    {FORM_FACTOR_LABELS[f.formFactor] ?? f.formFactor}
-                  </button>
-                ))}
-            </div>
-            {target && (
-              <p className="ds-sb-target">
-                {String(target.props.name ?? "Room")}
-                {targetVerdict?.loadKw == null
-                  ? ": no heat load yet"
-                  : remainingKw != null
-                    ? `: ${remainingKw.toFixed(1)} kW still needed of ${targetVerdict.loadKw.toFixed(1)} kW`
-                    : `: covered, ${targetVerdict.coverKw.toFixed(1)} kW for ${targetVerdict.loadKw.toFixed(1)} kW`}
-              </p>
+                  onSelect={setSelected}
+                  onDropRoom={onDropRoom}
+                />
+              )}
+            </section>
+            {selected && selectedSystem && (
+              <aside className="ds-sb-detail" aria-label="Selected">
+                {selected.type === "unit" && selectedAlloc ? (
+                  <UnitDetail
+                    draft={draft}
+                    pack={pack}
+                    basis={basis}
+                    rooms={rooms}
+                    sys={selectedSystem}
+                    alloc={selectedAlloc}
+                    onChange={(d, err) => {
+                      setError(err ?? null);
+                      if (d) setDraft(d);
+                    }}
+                    onRemoved={() => setSelected(null)}
+                  />
+                ) : selected.type === "outdoor" ? (
+                  <OutdoorDetail
+                    draft={draft}
+                    pack={pack}
+                    basis={basis}
+                    sys={selectedSystem}
+                    onChoose={(model) => setDraft(chooseOutdoor(draft, pack, basis, selectedSystem.id, model))}
+                  />
+                ) : null}
+              </aside>
             )}
           </div>
-          <ul className="ds-sb-cards">
-            {cards.map((c) => (
-              <li
-                key={c.key}
-                className="ds-sb-card"
-                draggable
-                onDragStart={(e) => {
-                  const payload: CardPayload =
-                    kind === "split"
-                      ? { kind: "split", iduModel: c.idu.model, oduModel: c.oduModel }
-                      : { kind: "multi", iduModel: c.idu.model };
-                  e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(payload));
-                  e.dataTransfer.effectAllowed = "copy";
-                }}
-              >
-                <span className="ds-sb-card-model">{c.idu.model}</span>
-                <span className="ds-sb-card-fact">
-                  {kwText(c.kw)}, {(FORM_FACTOR_LABELS[c.idu.form_factor] ?? c.idu.form_factor).toLowerCase()}
-                </span>
-                {kind === "split" && <span className="ds-sb-card-fact">with {c.oduModel}</span>}
-                {remainingKw != null && (
-                  <span className={`ds-sb-word ${c.fit === "fits" ? "ok" : c.fit === "oversized" ? "warn" : "bad"}`}>
-                    {c.fit === "fits" ? (c.best ? "Best fit" : "Fits") : c.fit === "oversized" ? "Oversized" : "Undersized"}
-                  </span>
-                )}
-                {target && (
-                  <button
-                    className="ds-sb-add"
-                    onClick={() =>
-                      add(
-                        target.id,
-                        kind === "split"
-                          ? { kind: "split", iduModel: c.idu.model, oduModel: c.oduModel }
-                          : { kind: "multi", iduModel: c.idu.model }
-                      )
-                    }
-                  >
-                    Add to {String(target.props.name ?? "room")}
-                  </button>
-                )}
-              </li>
-            ))}
-            {cards.length === 0 && <li className="ds-sb-empty">No units of this style</li>}
-          </ul>
-        </section>
-
-        <div className="ds-sb-work">
-          <section className="ds-sb-schematic" aria-label="Schematic">
-            {rooms.length === 0 ? (
-              <div className="ds-sb-none">
-                <p>Draw a room on the plan first — each room becomes a square here.</p>
-              </div>
-            ) : (
-              <Schematic
-                draft={draft}
-                pack={pack}
-                boxes={layoutBoxes}
-                verdicts={verdicts}
-                basis={basis}
-                targetRoomId={targetRoomId}
-                selected={selected}
-                onTarget={(id) => {
-                  setTargetRoomId(id);
-                  setSelected(null);
-                }}
-                onSelect={setSelected}
-                onDropRoom={onDropRoom}
-              />
-            )}
-          </section>
-          {selected && selectedSystem && (
-            <aside className="ds-sb-detail" aria-label="Selected">
-              {selected.type === "unit" && selectedAlloc ? (
-                <UnitDetail
-                  draft={draft}
-                  pack={pack}
-                  basis={basis}
-                  rooms={rooms}
-                  sys={selectedSystem}
-                  alloc={selectedAlloc}
-                  onChange={(d, err) => {
-                    setError(err ?? null);
-                    if (d) setDraft(d);
-                  }}
-                  onRemoved={() => setSelected(null)}
-                />
-              ) : selected.type === "outdoor" ? (
-                <OutdoorDetail
-                  draft={draft}
-                  pack={pack}
-                  basis={basis}
-                  sys={selectedSystem}
-                  onChoose={(model) => setDraft(chooseOutdoor(draft, pack, basis, selectedSystem.id, model))}
-                />
-              ) : null}
-            </aside>
-          )}
         </div>
 
         <footer className="ds-sb-foot">
@@ -584,7 +584,7 @@ function Schematic({
   onSelect: (s: Selection) => void;
   onDropRoom: (roomId: string, e: React.DragEvent) => void;
 }) {
-  const { roomBoxes, unitBoxes, outBoxes, width, height } = boxes;
+  const { roomBoxes, homelessBox, unitBoxes, outBoxes, width, height } = boxes;
   const [over, setOver] = useState<string | null>(null);
   const iduRow = (m: string) => pack.indoor_units.find((u) => u.model === m);
   const oduRow = (m: string) => pack.outdoor_units.find((u) => u.model === m);
@@ -666,6 +666,22 @@ function Schematic({
           </g>
         );
       })}
+
+      {homelessBox && (
+        <g className="ds-sb-room homeless">
+          <rect
+            className="ds-sb-room-box"
+            x={homelessBox.x}
+            y={homelessBox.y}
+            width={homelessBox.w}
+            height={homelessBox.h}
+            rx={10}
+          />
+          <text className="ds-sb-room-name" x={homelessBox.textX} y={homelessBox.y + 22}>
+            No room
+          </text>
+        </g>
+      )}
 
       {unitBoxes.map((u) => {
         const row = iduRow(u.alloc.model);
@@ -805,9 +821,14 @@ function UnitDetail({
       <label className="ds-sb-field">
         <span>Room</span>
         <select
-          value={alloc.roomId ?? ""}
+          value={room ? room.id : ""}
           onChange={(e) => onChange(moveAllocation(draft, sys.id, alloc.id, e.target.value))}
         >
+          {!room && (
+            <option value="" disabled>
+              No room
+            </option>
+          )}
           {rooms.map((r) => (
             <option key={r.id} value={r.id}>
               {String(r.props.name ?? "Room")}

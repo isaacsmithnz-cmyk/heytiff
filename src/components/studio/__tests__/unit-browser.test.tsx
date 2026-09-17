@@ -765,4 +765,149 @@ describe("UnitBrowser", () => {
       ).toBeNull();
     });
   });
+
+  describe("search", () => {
+    const search = () => screen.getByRole("searchbox", { name: "Search units" });
+
+    it("reaches every style: tabs count the matches and the table moves to a style that has one", () => {
+      render(
+        <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+      fireEvent.change(search(), { target: { value: "duct" } });
+      // the wall tab has no match, so it goes quiet and the table leaves it
+      expect(screen.getByRole("button", { name: /Wall-mounted/ })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /Ducted\s*2/ }).className).toContain("on");
+      expect(within(tbl()).getByText("DUCT-LOW")).toBeInTheDocument();
+      expect(within(tbl()).queryByText("WALL-25")).not.toBeInTheDocument();
+      // cleared, the style you picked comes back
+      fireEvent.change(search(), { target: { value: "" } });
+      expect(screen.getByRole("button", { name: /Wall-mounted/ }).className).toContain("on");
+    });
+
+    it("ignores case, spaces and dashes", () => {
+      render(
+        <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+      );
+      fireEvent.change(search(), { target: { value: "duct low" } });
+      expect(within(tbl()).getByText("DUCT-LOW")).toBeInTheDocument();
+      expect(within(tbl()).queryByText("DUCT-TALL")).not.toBeInTheDocument();
+    });
+
+    it("names the best fit among what it found", () => {
+      // load 3.4 on the ducted tab: DUCT-LOW (3.5) is the best fit, DUCT-TALL (3.6) fits too
+      render(
+        <UnitBrowser pack={fixturePack()} loadKw={3.4} basis="cooling" onChoose={noop} onClose={noop} />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Ducted/ }));
+      expect(within(rowOf("DUCT-LOW")).getByText("Best fit")).toBeInTheDocument();
+      fireEvent.change(search(), { target: { value: "tall" } });
+      expect(within(rowOf("DUCT-TALL")).getByText("Best fit")).toBeInTheDocument();
+    });
+
+    it("says so when nothing matches anywhere", () => {
+      render(
+        <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+      );
+      fireEvent.change(search(), { target: { value: "zz9" } });
+      expect(within(tbl()).getByText("No unit matches zz9")).toBeInTheDocument();
+    });
+  });
+
+  describe("embedded in the system builder", () => {
+    const transfer = () => {
+      const store: Record<string, string> = {};
+      return {
+        setData: (k: string, v: string) => {
+          store[k] = v;
+        },
+        getData: (k: string) => store[k] ?? "",
+        effectAllowed: "none",
+        dropEffect: "none",
+      };
+    };
+
+    it("renders in place: no overlay, no title bar, and Escape belongs to the host", () => {
+      const onClose = jest.fn();
+      const { container } = render(
+        <UnitBrowser
+          embedded
+          pack={fixturePack()}
+          loadKw={null}
+          basis="worst-of-both"
+          onChoose={noop}
+          onClose={onClose}
+          addLabel="Add to Lounge"
+        />
+      );
+      expect(document.querySelector(".ds-ub-overlay")).toBeNull();
+      expect(container.querySelector(".ds-ub.embedded")).not.toBeNull();
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(screen.getByRole("region", { name: "Choose a unit" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Add to Lounge" })).toBeInTheDocument();
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("moves the selection only while focus is inside it", () => {
+      const onChoose = jest.fn();
+      render(
+        <UnitBrowser embedded pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={onChoose} />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+      // keys elsewhere in the builder never reach it
+      fireEvent.keyDown(window, { key: "ArrowDown" });
+      fireEvent.keyDown(window, { key: "Enter" });
+      expect(onChoose).not.toHaveBeenCalled();
+      // inside, they move and add
+      const scroll = document.querySelector(".ds-ub-scroll") as HTMLElement;
+      fireEvent.keyDown(scroll, { key: "ArrowDown" });
+      expect(rowOf("WALL-35")).toHaveAttribute("aria-selected", "true");
+      fireEvent.keyDown(scroll, { key: "Enter" });
+      expect(onChoose.mock.calls[0][0].pair.idu.model).toBe("WALL-35");
+    });
+
+    it("rows drag in the host's own format", () => {
+      const onDragRow = jest.fn((choice, dt: DataTransfer) => {
+        dt.setData("application/x-test", choice.kind === "pair" ? choice.pair.odu.model : "");
+      });
+      render(
+        <UnitBrowser
+          embedded
+          pack={fixturePack()}
+          loadKw={null}
+          basis="worst-of-both"
+          onChoose={noop}
+          onDragRow={onDragRow}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+      const row = rowOf("WALL-25");
+      expect(row).toHaveAttribute("draggable", "true");
+      const dt = transfer();
+      fireEvent.dragStart(row, { dataTransfer: dt });
+      expect(onDragRow).toHaveBeenCalledTimes(1);
+      expect(onDragRow.mock.calls[0][0].pair.idu.model).toBe("WALL-25");
+      expect(dt.getData("application/x-test")).toBe("OD-25");
+    });
+
+    it("carries Power in its filter row for a split, and none for a multi head", () => {
+      const { unmount } = render(
+        <UnitBrowser embedded pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} />
+      );
+      expect(screen.getByRole("group", { name: "Power" }).closest(".ds-ub-filters")).not.toBeNull();
+      unmount();
+      render(
+        <UnitBrowser
+          embedded
+          mode="per-room"
+          pack={fixturePack()}
+          loadKw={null}
+          basis="worst-of-both"
+          onChoose={noop}
+        />
+      );
+      expect(screen.queryByRole("group", { name: "Power" })).toBeNull();
+    });
+  });
 });

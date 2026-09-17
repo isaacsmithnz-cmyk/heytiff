@@ -192,7 +192,9 @@ Every decision below is made once, here, and a guard test holds each number.
   the well's corners. The board is the handoff's now: a 56px header on one line (the
   title steps out of sight below 1560px, where the rail beside it already
   names the screen), the mirror's freshness at the end of every toolbar,
-  day chips with their counts in figure boxes and the chosen day in ink,
+  day chips that are the day's name alone with the chosen day in ink (the
+  counts beside the dates and the day's sentence of figures went on Isaac's
+  word, the same day),
   two-line 40px blocks in 52px lanes with the cap at the block's edge, the
   day's hours sharing the width rather than scrolling, and a job that did not
   go ahead drawn as closed work with the issue mark. The well keeps the

@@ -91,7 +91,6 @@ const payload = (over: Partial<SchedulePayload> = {}): SchedulePayload => ({
       money: null,
     },
   ],
-  weekCounts: { [TODAY]: 3, "2026-08-15": 6, "2026-08-16": 0 },
   // both techs have clocked on against their own bookings — the ordinary day
   onSite: ["j-3171|s-lorenz", "j-3145|s-hann", "j-3145|s-lorenz"],
   ...over,

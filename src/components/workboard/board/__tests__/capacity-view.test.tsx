@@ -109,7 +109,6 @@ const dayPayload = (): SchedulePayload => ({
       money: null,
     },
   ],
-  weekCounts: { [TODAY]: 3 },
   onSite: [],
 });
 

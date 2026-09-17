@@ -42,8 +42,7 @@ import { Split } from "./inspector";
 
    FETCH-ON-OPEN. This is the fourth tab, not the first; the Workboard page
    already loads three boards, so a day arrives when it is asked for (the
-   JobSheet's pattern) and is cached for the session. The strip's counts ride
-   the same payload — one round trip per day, none per glance.
+   JobSheet's pattern) and is cached for the session.
 
    NO TIME TEXT ON A BLOCK. Its place on the rail already says when; writing
    "7am–3pm" on the card as well is double handling (Isaac's words). The
@@ -161,12 +160,6 @@ export function ScheduleTab({
       of the next week walks in), so it starts on a Monday and then goes where
       it's pushed. The week stepper in the header snaps it back to Mondays. */
   const [stripStart, setStripStart] = useState(() => mondayOf(today));
-  /** Every day-count the session has learned, merged across payloads — the
-      sliding window crosses week boundaries, and a count learned last week is
-      still the count. */
-  const [counts, setCounts] = useState<Record<string, number>>(
-    () => dayCache.current.get(today)?.weekCounts ?? {}
-  );
   const [payload, setPayload] = useState<SchedulePayload | null>(
     () => dayCache.current.get(today) ?? null
   );
@@ -180,7 +173,6 @@ export function ScheduleTab({
     startLoad(async () => {
       const p = await scheduleDay(dayISO);
       dayCache.current.set(dayISO, p);
-      setCounts((c) => ({ ...c, ...p.weekCounts }));
       setPayload(p);
     });
   };
@@ -200,10 +192,10 @@ export function ScheduleTab({
   const openToday = useEffectEvent(() => {
     /* A day the board already holds is not read again — the cache outlives
        this component now that Capacity is a tab of its own, so coming back
-       from it lands on the day that was already on screen. Both that payload
-       and its week counts are seeded in useState above, where a value that is
-       ALREADY KNOWN belongs: setting them here instead is a second render
-       before first paint, and the linter is right to say so.
+       from it lands on the day that was already on screen. That payload is
+       seeded in useState above, where a value that is ALREADY KNOWN belongs:
+       setting it here instead is a second render before first paint, and the
+       linter is right to say so.
 
        Mid-backfill the read is not just wasted, it's WRONG to show: a day
        drawn from half a walk is a diary with people missing from it, which
@@ -234,7 +226,7 @@ export function ScheduleTab({
     [current]
   );
   /* People, not lanes: the unassigned lane is a row on the board and not a
-     crew. The toolbar's "on the road" counts the same people. */
+     crew. */
   const crewCount = day ? day.lanes.filter((l) => l.staffUuid !== "").length : 0;
 
   const week = useMemo(
@@ -393,39 +385,30 @@ export function ScheduleTab({
       )}
       <span className="wb2-tbsep" aria-hidden="true" />
       <div className="wb2-schdays" role="group" aria-label="Days">
-        {week.map((iso) => {
-          const n = counts[iso] ?? null;
-          return (
-            <button
-              key={iso}
-              type="button"
-              className={
-                "wb2-schday" +
-                (iso === openDay ? " on" : "") +
-                (iso === today ? " today" : "") +
-                (isWeekendISO(iso) ? " we" : "")
-              }
-              aria-pressed={iso === openDay}
-              aria-label={`${fmtAuWeekdayDayMonth(iso)}${
-                n === null ? "" : n === 0 ? ", nothing booked" : `, ${n} booked`
-              }`}
-              onClick={() => show(iso)}
-            >
-              <span className="cw">{DOW[dowOfISO(iso)]}</span>
-              <span className="cd">{parseInt(iso.slice(8, 10), 10)}</span>
-              {/* a zero is not a count: a clear day simply carries none */}
-              {n !== null && n > 0 && <span className="cn">{n}</span>}
-            </button>
-          );
-        })}
+        {/* A DAY IS ITS NAME. Each chip carried the day's booking count in a
+            figure box, and the row ended on a sentence of the open day's
+            figures — booked, hours, on the road, jobs — which the board under
+            it already shows by being drawn (Isaac, 2026-09-17: "get rid of
+            number next to date, and this text"). */}
+        {week.map((iso) => (
+          <button
+            key={iso}
+            type="button"
+            className={
+              "wb2-schday" +
+              (iso === openDay ? " on" : "") +
+              (iso === today ? " today" : "") +
+              (isWeekendISO(iso) ? " we" : "")
+            }
+            aria-pressed={iso === openDay}
+            aria-label={fmtAuWeekdayDayMonth(iso)}
+            onClick={() => show(iso)}
+          >
+            <span className="cw">{DOW[dowOfISO(iso)]}</span>
+            <span className="cd">{parseInt(iso.slice(8, 10), 10)}</span>
+          </button>
+        ))}
       </div>
-      {day && day.totalBookings > 0 && (
-        <span className="wb2-tbsum">
-          <b>{day.totalBookings}</b> booked, <b>{fmtHoursShort(day.totalMinutes)}</b>,{" "}
-          <b>{crewCount}</b> on the road, <b>{day.jobCount}</b>{" "}
-          {day.jobCount === 1 ? "job" : "jobs"}
-        </span>
-      )}
       <ToolbarSync />
     </div>
   );

@@ -1,54 +1,40 @@
-/* THE SWMS SCREENS — the wizard over the job card and the sign-on page.
+/* THE SWMS SCREENS — the wizard over the job card, the sign-on page and the
+   template page.
 
-   Its own sheet, like the letterhead's: the wizard renders in the job card's
-   portal, outside `.fg`, and the sign-on page renders inside it, so neither
-   home in shell.css reaches both. Everything here is on the scales in
-   docs/design.md, and the tokens come from tokens.css on :root. */
+   WHAT IS HERE IS ONLY WHAT THE APP DOESN'T ALREADY HAVE. The wizard wears
+   the job card's own band, tabs, fields, buttons, segmented choices and
+   footer (`.wb2-jcband`, ViewTabs, `.wb2-fi`, `.pbtn`, `.seg`, `.wb2-shft` —
+   `.swz` joins the portal roots in shell.css for the last three), and the
+   pages wear the dashboard's cards and buttons. Two dresses for one control
+   on one screen is the first thing a daily user notices, so this sheet holds
+   the frame, the option rows, the signature pad and the reading layout. Held
+   to the scales in docs/design.md; tokens from tokens.css on :root. */
 
 /* ── the wizard's frame ─────────────────────────────────────────────────── */
 
-/* ABOVE THE CARD. The sheet sits on the modal layer; these share it and come
-   later in the same portal, so they paint over it. */
+/* ON THE CARD'S LAYER. The sheet sits on the modal layer; these share it and
+   come later in the same portal, so they paint over it. Held by
+   sheet-overlay-layers.test.ts. */
 .swz-scrim { position:fixed; inset:0; z-index:var(--z-modal); background:var(--scrim); }
+/* SIZED TO WHAT IT HOLDS. A short state — the template waiting, the SWMS
+   issued — is a short panel; only the four screens keep one height, so a
+   tab switch doesn't make the panel jump. */
 .swz { position:fixed; inset:0; margin:auto; z-index:var(--z-modal);
-  width:min(720px, calc(100vw - 32px)); height:min(780px, calc(100vh - 32px));
+  width:min(760px, calc(100vw - 32px)); height:max-content; max-height:calc(100vh - 32px);
   display:flex; flex-direction:column; overflow:hidden;
   background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:var(--r-card);
-  font-size:14px; line-height:1.45; }
-.swz-head { flex:none; display:flex; align-items:flex-start; gap:12px; padding:16px 24px 0; }
-.swz-title { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
-.swz-title em { font-style:normal; font-size:13px; font-weight:500; color:var(--q);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.swz-title h2 { margin:0; font-size:20px; font-weight:600; text-wrap:balance; }
-.swz-tabs { flex:none; display:flex; gap:4px; padding:0 24px; margin-top:12px; border-bottom:1px solid var(--line); overflow-x:auto; }
-.swz-tabs button { flex:none; height:40px; padding:0 8px; margin-bottom:-1px; border:0; border-bottom:2px solid transparent;
-  background:none; font:inherit; font-size:14px; font-weight:500; color:var(--q); cursor:pointer;
-  transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.swz-tabs button:hover { color:var(--ink); }
-.swz-tabs button[aria-current="step"] { color:var(--ink); font-weight:600; border-bottom-color:var(--ink); }
-.swz-tabs button:focus-visible { outline:none; box-shadow:var(--ring); }
-.swz-body { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain;
-  padding:16px 24px 24px; display:flex; flex-direction:column; gap:24px; }
-.swz-foot { flex:none; display:flex; align-items:center; gap:8px; padding:12px 24px; border-top:1px solid var(--line); }
-.swz-foot > span { flex:1; min-width:0; font-size:13px; font-weight:500; color:var(--q); }
+  font-size:14px; line-height:1.45;
+  --wb2-line:var(--line); --wb2-line2:var(--line); }
+.swz.tall { height:min(800px, calc(100vh - 32px)); }
+.swz > .wb2-jcband.bare { padding-bottom:16px; }
+.swz > .swz-body { min-height:0; overflow-y:auto; overscroll-behavior:contain; border-radius:0;
+  display:flex; flex-direction:column; gap:16px; }
+.swz > .wb2-shft { position:static; flex:none; }
+.swz > .wb2-shft > span { flex:1; min-width:0; font-size:13px; font-weight:500; color:var(--q); }
+.swz .wb2-fi, .swz .wb2-sel { width:100%; }
+.swz .wb2-notes { margin-bottom:0; }
 
-/* ── the controls, shared with the sign-on page ─────────────────────────── */
-
-.sw-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:40px; padding:0 16px;
-  border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); color:var(--ink);
-  font:inherit; font-size:14px; font-weight:600; white-space:nowrap; text-decoration:none; cursor:pointer;
-  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.sw-btn:hover { background:var(--tint); }
-.sw-btn.pri { background:var(--ink); border-color:var(--ink); color:var(--paper); }
-.sw-btn.pri:hover { background:var(--ink2); }
-.sw-btn:disabled { background:var(--tint); border-color:transparent; color:var(--q); cursor:not-allowed; }
-.sw-btn:focus-visible { outline:none; box-shadow:var(--ring); }
-.sw-btn.sm { height:32px; padding:0 12px; font-size:13px; }
-
-.sw-x { flex:none; width:32px; height:32px; display:grid; place-items:center; border:0; border-radius:var(--r-button);
-  background:transparent; color:var(--q); cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.sw-x:hover { background:var(--tint); color:var(--ink); }
-.sw-x:focus-visible { outline:none; box-shadow:var(--ring); }
+/* ── groups, questions and option rows, shared with the pages ────────────── */
 
 .sw-grp { display:flex; flex-direction:column; gap:8px; min-width:0; }
 .sw-gh { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; }
@@ -70,26 +56,11 @@
   transition:background var(--t-fast) var(--ease); }
 .sw-opt:hover { background:var(--tint); }
 .sw-opt.on { background:var(--tint-2); }
-.sw-opt.fixed { cursor:default; }
 .sw-opt input, .sw-cat input, .sw-stephd input, .sw-person input { flex:none; width:16px; height:16px; margin:2px 0 0; accent-color:var(--ink); }
 .sw-opt > span { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .sw-opt b { font-size:14px; font-weight:600; }
 .sw-opt em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
 .sw-opt:focus-within { box-shadow:var(--ring); }
-
-.sw-seg { flex:none; display:inline-flex; gap:2px; padding:2px; border:1px solid var(--line); border-radius:var(--r-button); }
-.sw-seg button { height:32px; padding:0 12px; border:0; border-radius:var(--r-control); background:transparent;
-  font:inherit; font-size:13px; font-weight:500; color:var(--q); cursor:pointer; white-space:nowrap;
-  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.sw-seg button:hover { color:var(--ink); }
-.sw-seg button[aria-pressed="true"] { background:var(--ink); color:var(--paper); font-weight:600; }
-.sw-seg button:focus-visible { outline:none; box-shadow:var(--ring); }
-
-.sw-field { width:100%; min-width:0; height:40px; padding:0 12px; border:1px solid var(--line); border-radius:var(--r-control);
-  background:var(--paper); color:var(--ink); font:inherit; font-size:14px; }
-.sw-field:focus { outline:none; box-shadow:var(--ring); }
-textarea.sw-field { height:auto; min-height:64px; padding:8px 12px; resize:vertical; line-height:1.45; }
-.sw-select { width:auto; min-width:0; max-width:100%; }
 
 /* a question and its answer on one line; hairlines between, like a group */
 .sw-qas { display:flex; flex-direction:column; }
@@ -97,16 +68,13 @@ textarea.sw-field { height:auto; min-height:64px; padding:8px 12px; resize:verti
 .sw-qa:last-child { border-bottom:1px solid var(--line); }
 .sw-qa > span, .sw-qa > label { font-size:14px; font-weight:600; }
 .sw-qa em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-.sw-qa > .sw-field:not(select) { width:min(320px, 100%); }
+.swz .sw-qa > .wb2-fi, .swz .sw-qa > .wb2-sel { width:min(320px, 100%); }
 
-/* the eighteen categories — the number, the words, and why it applies */
+/* a category added by hand, from the ones the steps didn't switch on */
 .sw-cats { display:flex; flex-direction:column; }
-.sw-cat { display:grid; grid-template-columns:16px 24px minmax(0,1fr); gap:8px; align-items:start; padding:8px 0;
-  border-top:1px solid var(--line); cursor:pointer; font-size:14px; font-weight:500; color:var(--q); }
+.sw-cat { display:flex; gap:8px; align-items:flex-start; padding:8px 0; border-top:1px solid var(--line);
+  cursor:pointer; font-size:14px; font-weight:500; }
 .sw-cat:last-child { border-bottom:1px solid var(--line); }
-.sw-cat.on { color:var(--ink); font-weight:600; }
-.sw-catn { font-size:13px; font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; }
-.sw-cat em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
 
 /* the steps — one box each, because each one is a thing you tick */
 .sw-steps { display:flex; flex-direction:column; gap:8px; }
@@ -120,7 +88,7 @@ textarea.sw-field { height:auto; min-height:64px; padding:8px 12px; resize:verti
 .sw-ask { display:flex; flex-direction:column; gap:8px; padding-left:24px; }
 .sw-al { font-size:13px; font-weight:500; color:var(--q); }
 
-/* people — the team to tick, and helpers by name */
+/* people — the team to tick, helpers as rows, and a list read back */
 .sw-crew { display:flex; flex-direction:column; }
 .sw-person { display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-top:1px solid var(--line); cursor:pointer; }
 .sw-person:last-child { border-bottom:1px solid var(--line); }
@@ -130,8 +98,10 @@ textarea.sw-field { height:auto; min-height:64px; padding:8px 12px; resize:verti
 .sw-person:not(.on):not(.out) .sw-who b { font-weight:500; color:var(--q); }
 .sw-who em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
 .sw-tickets { display:flex; flex-wrap:wrap; gap:2px 12px; font-size:13px; font-weight:500; color:var(--ink); }
-.sw-addrow { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; gap:8px; }
-@media (max-width:560px) { .sw-addrow { grid-template-columns:minmax(0,1fr); } }
+.sw-outsiders { display:flex; flex-direction:column; gap:8px; }
+.sw-addrow { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 30px; align-items:center; gap:8px; }
+.sw-ask .sw-addrow { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.sw-rowgap { width:30px; }
 
 /* the review — a label and its figure */
 .sw-rev { margin:0; display:flex; flex-direction:column; }
@@ -140,39 +110,45 @@ textarea.sw-field { height:auto; min-height:64px; padding:8px 12px; resize:verti
 .sw-rev dt { font-size:13px; font-weight:500; color:var(--q); }
 .sw-rev dd { margin:0; font-size:16px; font-weight:600; min-width:0; }
 .sw-rev small { display:block; font-size:13px; font-weight:500; color:var(--q); }
-/* Tailwind's preflight takes every list's markers away; these keep theirs */
-.sw-problems { margin:0; padding-left:16px; list-style:disc; display:flex; flex-direction:column; gap:4px; font-size:14px; font-weight:500; color:var(--warn-t); }
+/* what still stands in the way — each one goes to its answer */
+.sw-problems { margin:0; padding-left:16px; list-style:disc; display:flex; flex-direction:column; gap:4px; color:var(--warn-t); }
+.sw-problems button { padding:0; border:0; background:none; font:inherit; font-size:14px; font-weight:500; color:var(--warn-t);
+  text-align:left; text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.sw-problems button:focus-visible { outline:none; box-shadow:var(--ring); }
 
 .sw-issued { display:flex; flex-direction:column; gap:16px; }
-.sw-issued h3 { margin:0; font-size:24px; font-weight:700; text-wrap:balance; }
 
-/* the library, read before it is adopted */
+/* the template, read before it is approved */
 .sw-lib { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; }
 .sw-lib li { display:grid; grid-template-columns:96px minmax(0,1fr); gap:8px; font-size:14px; max-width:80ch; }
 .sw-lib li > span { font-size:13px; font-weight:500; color:var(--q); }
 
 /* ── the job card's Compliance rows ────────────────────────────────────── */
 
-.sw-docrow { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 12px; padding:8px 0; border-top:1px solid var(--line); }
-.sw-docrow:first-of-type { border-top:0; }
-/* the words only — a bare `> span` also caught the actions and stood them in a column */
-.sw-docrow > span:first-child { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.sw-docrow b { font-size:13px; font-weight:600; }
-.sw-docrow em { font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
-.sw-docact { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+/* the same row every document wears, with the SWMS's own two acts beside it */
+.sw-docrow { display:flex; align-items:center; gap:8px; min-width:0; border-top:1px solid var(--wb2-line2, var(--line)); }
+.wb2-jcsec > .sw-docrow:first-of-type { border-top:0; }
+.sw-docrow > .wb2-doc { flex:1; min-width:0; border-top:0; }
+/* the head's one act sits after the count, which already takes the slack */
+.wb2-jcdhead > em + .pbtn { margin-left:12px; }
 
-/* ── the sign-on page ───────────────────────────────────────────────────── */
+/* ── the sign-on and template pages ─────────────────────────────────────── */
 
-.sws { max-width:760px; display:flex; flex-direction:column; gap:24px; color:var(--ink); }
-.sws-head { display:flex; flex-direction:column; gap:4px; }
+.sws { max-width:760px; display:flex; flex-direction:column; gap:16px; color:var(--ink); }
+.sws-head { display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
 .sws-head h1 { margin:0; font-size:24px; font-weight:700; text-wrap:balance; }
 .sws-head p { margin:0; font-size:14px; color:var(--q); }
-.sws-card { display:flex; flex-direction:column; gap:16px; padding:24px; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); }
+.sws-back { align-self:flex-start; margin-bottom:8px; font-size:13px; font-weight:700; color:var(--q); text-decoration:none; }
+.sws-back:hover { color:var(--ink); }
+.sws-back:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .card2.sws-card, .fg .card2.sws-read { display:flex; flex-direction:column; gap:16px; margin-bottom:0; }
 .sws-keys { margin:0; padding-left:24px; list-style:disc; display:flex; flex-direction:column; gap:8px; font-size:14px; max-width:68ch; }
+.sws-keys b { font-weight:600; }
 .sws-pad { position:relative; width:100%; max-width:600px; aspect-ratio:3 / 1; border:1px solid var(--line); border-radius:var(--r-button);
   background:var(--paper); touch-action:none; cursor:crosshair; }
-.sws-pad canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:var(--r-button); }
+.sws-pad canvas { position:absolute; inset:0; width:100%; height:100%; border-radius:var(--r-button); color:var(--ink); }
 .sws-pad > span { position:absolute; inset:0; display:grid; place-items:center; font-size:13px; font-weight:500; color:var(--q); pointer-events:none; }
+.sws-pad .sws-clear { position:absolute; right:8px; bottom:8px; }
 .sws-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .sws-actions > span { flex:1; min-width:0; font-size:13px; font-weight:500; }
 .sws-people { display:flex; flex-direction:column; }
@@ -182,10 +158,3 @@ textarea.sw-field { height:auto; min-height:64px; padding:8px 12px; resize:verti
 .sws-person b { font-size:14px; font-weight:600; }
 .sws-person em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
 .sws-person > span:last-child { font-size:13px; font-weight:500; text-align:right; }
-
-/* the Documents face's head carries its one action at the right; after the
-   count, which already takes the line's slack */
-.wb2-jcdhead > .sw-btn { margin-left:auto; align-self:center; }
-.wb2-jcdhead > em + .sw-btn { margin-left:12px; }
-.sws-pad canvas { color:var(--ink); }
-.sws-pad .sws-clear { position:absolute; right:8px; bottom:8px; }

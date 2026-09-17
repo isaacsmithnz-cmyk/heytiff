@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { signOnSwms } from "@/app/actions/swms";
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
 import { SIGNATURE_VIEWBOX } from "@/lib/swms/input";
-import { HRCW, LEVEL_LABEL } from "@/lib/swms/library";
+import { HRCW } from "@/lib/swms/library";
 import type { SwmsDocument, SwmsPerson } from "@/lib/swms/query";
 import "./swms.css";
 
@@ -101,7 +101,7 @@ function SignaturePad({ onChange, label }: { onChange: (path: string) => void; l
       {empty && <span>Sign here</span>}
       <button
         type="button"
-        className="sw-btn sm sws-clear"
+        className="pbtn ghost sm sws-clear"
         onClick={() => {
           parts.current = [];
           last.current = null;
@@ -153,7 +153,7 @@ function SignOnForm({
   };
 
   return (
-    <div className="sws-card">
+    <div className="card2 sws-card">
       <div className="sw-gh">
         <b>{own ? "Sign on" : `Sign on ${person.name}`}</b>
         {!own && <span>{person.role || "Outside the business"}, on your phone</span>}
@@ -186,7 +186,7 @@ function SignOnForm({
         <span className={error || tooLong ? "sw-state bad" : undefined}>
           {tooLong ? "That signature is too long to keep. Clear it and sign again." : error}
         </span>
-        <button type="button" className="sw-btn pri" disabled={busy || !briefed || !signed || tooLong} onClick={submit}>
+        <button type="button" className="pbtn primary" disabled={busy || !briefed || !signed || tooLong} onClick={submit}>
           {busy ? "Signing on…" : own ? "Sign on" : `Sign on ${person.name}`}
         </button>
       </div>
@@ -203,7 +203,9 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
   const latest = doc.versions[doc.versions.length - 1];
   const c = doc.content;
   const fmtWhen = whenIn(c.jurisdiction);
-  const site = [doc.job?.number ? `Job #${doc.job.number}` : null, doc.job?.address].filter(Boolean).join(", ");
+  /** "Signed on 7:50 am Wed 16 Sept", and which version when a correction carried it. */
+  const signedWhen = (sg: NonNullable<SwmsPerson["signon"]>) =>
+    `${fmtWhen(sg.at)}${sg.version < doc.version ? `, on version ${sg.version}` : ""}`;
 
   const signed = () => {
     setHelper(null);
@@ -217,55 +219,64 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
         <div className="stg">
           <div className="sws">
             <div className="sws-head">
+              {doc.job ? (
+                <Link className="sws-back" href={`/dashboard/workboard?job=${encodeURIComponent(doc.job.uuid)}`}>
+                  {doc.job.number ? `← Job #${doc.job.number}` : "← The job"}
+                </Link>
+              ) : (
+                <Link className="sws-back" href="/dashboard">
+                  ← Home
+                </Link>
+              )}
               <h1>Safe Work Method Statement</h1>
-              <p>{[site || null, `Version ${doc.version}, issued ${fmtWhen(doc.issuedAt)}`, `${doc.responsible} responsible`].filter(Boolean).join(". ")}</p>
+              <p>{doc.job?.address ?? "No address on the job"}</p>
             </div>
 
             {!doc.latest && latest && (
-              <div className="sws-card">
+              <div className="card2 sws-card">
                 <p className="sw-text">{`Version ${latest.version} replaced this one: ${latest.reason}.`}</p>
                 <div className="sws-actions">
                   <span />
-                  <Link className="sw-btn pri" href={`/dashboard/swms/${latest.id}`}>
+                  <Link className="pbtn primary" href={`/dashboard/swms/${latest.id}`}>
                     Open version {latest.version}
                   </Link>
                 </div>
               </div>
             )}
 
-            {doc.latest && mine && !mine.signon && (
-              <SignOnForm person={mine} own responsible={doc.responsible} onSigned={signed} />
-            )}
-            {doc.latest && mine?.signon && <p className="sw-state ok">{`You signed on ${fmtWhen(mine.signon.at)}.`}</p>}
+            {doc.latest && mine?.signon && <p className="sw-state ok">{`You signed on ${signedWhen(mine.signon)}.`}</p>}
 
-            <div className="sws-card">
+            {/* READ FIRST. The page is the briefing on paper: what the work is,
+                how each step is kept safe, and what to do in an emergency —
+                then, below it, the signature that says it was read. */}
+            <div className="card2 sws-card">
               <div className="sw-gh">
                 <b>Before you start</b>
-                <span>{`${c.steps.length} steps`}</span>
+                <span>{`Issued ${fmtWhen(doc.issuedAt)}. ${doc.responsible} is in charge on site.`}</span>
               </div>
               {c.categories.length > 0 && (
                 <div className="sw-grp">
-                  <span className="sw-al">High-risk construction work</span>
+                  <span className="sw-al">High-risk work on this job</span>
                   <ul className="sws-keys">
                     {c.categories.map((k) => (
-                      <li key={k.n}>{`${HRCW.find((h) => h.n === k.n)?.label ?? `Category ${k.n}`}: ${k.reason}`}</li>
+                      <li key={k.n}>
+                        <b>{HRCW.find((h) => h.n === k.n)?.plain ?? `Category ${k.n}`}</b>
+                        {`: ${k.reason}`}
+                      </li>
                     ))}
                   </ul>
                 </div>
               )}
-              {c.steps.map((s, i) => (
-                <div key={s.key} className="sw-grp">
+              {c.steps.map((st, i) => (
+                <div key={st.key} className="sw-grp">
                   <div className="sw-gh">
-                    <b>{`${i + 1}. ${s.title}`}</b>
-                    <span>{s.who}</span>
+                    <b>{`${i + 1}. ${st.title}`}</b>
+                    <span>{st.who}</span>
                   </div>
-                  <p className="sw-note">{s.hazards}</p>
-                  <ul className="sw-lib">
-                    {s.controls.map((k) => (
-                      <li key={k.text}>
-                        <span>{LEVEL_LABEL[k.level]}</span>
-                        {k.text}
-                      </li>
+                  <p className="sw-note">{st.hazards}</p>
+                  <ul className="sws-keys">
+                    {st.controls.map((k) => (
+                      <li key={k.text}>{k.text}</li>
                     ))}
                   </ul>
                 </div>
@@ -288,13 +299,17 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
               </div>
               <div className="sws-actions">
                 <span />
-                <a className="sw-btn" href={`/swms/${doc.versionId}`} target="_blank" rel="noreferrer">
-                  Open the whole SWMS
+                <a className="pbtn ghost" href={`/swms/${doc.versionId}`} target="_blank" rel="noreferrer">
+                  Open the printable SWMS
                 </a>
               </div>
             </div>
 
-            <div className="sws-card">
+            {doc.latest && mine && !mine.signon && (
+              <SignOnForm person={mine} own responsible={doc.responsible} onSigned={signed} />
+            )}
+
+            <div className="card2 sws-card">
               <div className="sw-gh">
                 <b>Who it covers</b>
                 <span>{`${doc.people.filter((p) => p.signon).length} of ${doc.people.length} signed on`}</span>
@@ -307,11 +322,15 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
                       <em>{p.team ? p.role || "Team member" : p.role || "Outside the business"}</em>
                     </span>
                     <span className={p.signon ? "sw-state ok" : undefined}>
-                      {p.signon
-                        ? `Signed on ${fmtWhen(p.signon.at)}${p.signon.onPhoneOf ? `, on ${p.signon.onPhoneOf}'s phone` : ""}`
-                        : doc.latest && onIt && !p.team && helper !== p.id
-                          ? <button type="button" className="sw-btn sm" onClick={() => setHelper(p.id)}>Sign them on</button>
-                          : "Not signed on"}
+                      {p.signon ? (
+                        `Signed on ${signedWhen(p.signon)}${p.signon.onPhoneOf ? `, on ${p.signon.onPhoneOf}'s phone` : ""}`
+                      ) : doc.latest && onIt && !p.team && helper !== p.id ? (
+                        <button type="button" className="pbtn ghost sm" onClick={() => setHelper(p.id)}>
+                          Sign them on
+                        </button>
+                      ) : (
+                        "Not signed on"
+                      )}
                     </span>
                   </div>
                 ))}

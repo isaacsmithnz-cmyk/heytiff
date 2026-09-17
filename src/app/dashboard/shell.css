@@ -5431,12 +5431,13 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    overlay's primary buttons — "Go", "Save these" — had no fill at
    all: dark text on white, indistinguishable from a label. Which is why a
    DISABLED "Save these" read as nothing happening rather than as off. */
-.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost) {
+.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost), .swz .pbtn:not(.ghost) {
   background:var(--wb2-cy, var(--ink)); border:1px solid var(--wb2-cy, var(--ink)); color:var(--paper);
   box-shadow:0 6px 16px -10px rgba(0,127,168,.9); }
 .wb2 .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-sheet .pbtn:not(.ghost):hover:not(:disabled),
-.wb2-capcard .pbtn:not(.ghost):hover:not(:disabled) { background:var(--ink2); border-color:var(--ink); }
+.wb2-capcard .pbtn:not(.ghost):hover:not(:disabled),
+.swz .pbtn:not(.ghost):hover:not(:disabled) { background:var(--ink2); border-color:var(--ink); }
 /* A GHOST STANDING NEXT TO A PRIMARY HAS TO LOOK LIKE ITS PAIR.
 
    This rule set the ghost's height, padding and size and then left its RADIUS
@@ -5452,12 +5453,12 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    first try and came back 2.91; measure this one if you move it. The fill stays white: a filled primary
    beside an outlined secondary is the pair saying which one is the default,
    and two fills would say neither. */
-.wb2 .pbtn.ghost, .wb2-sheet .pbtn.ghost, .wb2-capcard .pbtn.ghost {
+.wb2 .pbtn.ghost, .wb2-sheet .pbtn.ghost, .wb2-capcard .pbtn.ghost, .swz .pbtn.ghost {
   height:38px; padding:0 16px; font-size:13px; border-radius:var(--r-button);
   border:1px solid #89929f; box-shadow:none; }
 .wb2 .pbtn.ghost:hover:not(:disabled), .wb2-sheet .pbtn.ghost:hover:not(:disabled),
-.wb2-capcard .pbtn.ghost:hover:not(:disabled) { background:#f2f4f7; border-color:#6b7583; }
-.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost) {
+.wb2-capcard .pbtn.ghost:hover:not(:disabled), .swz .pbtn.ghost:hover:not(:disabled) { background:#f2f4f7; border-color:#6b7583; }
+.wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost), .swz .pbtn:not(.ghost) {
   height:38px; padding:0 16px; font-size:13px; border-radius:var(--r-button); }
 
 /* OFF has to LOOK off. A 55% fade of a coloured button still reads as a
@@ -5466,11 +5467,11 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    (Isaac). So a disabled button loses its colour entirely, keeps its shape,
    and says so with the cursor. Wins over the fills above by specificity. */
 .wb2 .pbtn:disabled, .wb2-sheet .pbtn:disabled, .wb2-capcard .pbtn:disabled,
-.wb2-daymodal .pbtn:disabled {
+.wb2-daymodal .pbtn:disabled, .swz .pbtn:disabled {
   background:#eef0f4; border-color:#e3e6ec; color:var(--q); box-shadow:none;;
   cursor:not-allowed; opacity:1; }
 .wb2 .pbtn.ghost:disabled, .wb2-sheet .pbtn.ghost:disabled, .wb2-capcard .pbtn.ghost:disabled,
-.wb2-daymodal .pbtn.ghost:disabled { background:var(--tint); color:var(--q); }
+.wb2-daymodal .pbtn.ghost:disabled, .swz .pbtn.ghost:disabled { background:var(--tint); color:var(--q); }
 
 /* ── the view tabs — joined to the card ── */
 /* PADDING-LEFT IS LOAD-BEARING, and it is what finally settled the top-left
@@ -6666,7 +6667,9 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 
    So each portal root restates the ramp and pins its own colour. Keep this
    list in step with the createPortal roots in components/workboard. */
-.wb2-sheet, .wb2-daymodal, .wb2-capcard, .wb2-toasts, .wb2-scrim, .wb2-capdim {
+/* `.swz` is the SWMS wizard (components/swms), which opens inside the job
+   card's portal and wears the card's buttons and segmented choices. */
+.wb2-sheet, .wb2-daymodal, .wb2-capcard, .wb2-toasts, .wb2-scrim, .wb2-capdim, .swz {
   --ink:#050505; --gray400:var(--q); --gray500:var(--q); --gray700:var(--ink);
   color:var(--ink);
 }
@@ -6684,18 +6687,19 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    step with the ramp list above — same roots, same reason. Sizes are NOT
    restated: the wb2 accent block sets those at higher specificity and must
    keep winning. */
-.wb2-sheet .pbtn, .wb2-daymodal .pbtn, .wb2-capcard .pbtn {
+.wb2-sheet .pbtn, .wb2-daymodal .pbtn, .wb2-capcard .pbtn, .swz .pbtn {
   display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:var(--r-button);
   font-size:14px; font-weight:700; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 /* THE OUTLINE IS THE SAME ONE THE IN-PAGE GHOST WEARS, and it has to be:
    this block is later in the sheet than the accent block, so whatever it says
    about the border is what a ghost in a sheet or a modal gets. Left at
    `#e5e7eb` the two diverged — the same class, 1.2:1 here and 3:1 there. */
-.wb2-sheet .pbtn.ghost, .wb2-daymodal .pbtn.ghost, .wb2-capcard .pbtn.ghost {
+.wb2-sheet .pbtn.ghost, .wb2-daymodal .pbtn.ghost, .wb2-capcard .pbtn.ghost, .swz .pbtn.ghost {
   background:#fff; border:1px solid #89929f; color:var(--gray700); box-shadow:none; }
 .wb2-sheet .pbtn.ghost:hover:not(:disabled),
 .wb2-daymodal .pbtn.ghost:hover:not(:disabled),
-.wb2-capcard .pbtn.ghost:hover:not(:disabled) { background:#f2f4f7; border-color:#6b7583; color:var(--ink); }
+.wb2-capcard .pbtn.ghost:hover:not(:disabled),
+.swz .pbtn.ghost:hover:not(:disabled) { background:#f2f4f7; border-color:#6b7583; color:var(--ink); }
 .wb2-sheet .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-daymodal .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-capcard .pbtn:not(.ghost):hover:not(:disabled) { }
@@ -6703,8 +6707,9 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    dead the moment the pointer stops moving */
 .wb2-sheet .pbtn:active:not(:disabled),
 .wb2-daymodal .pbtn:active:not(:disabled),
-.wb2-capcard .pbtn:active:not(:disabled) { transform:translateY(1px); }
-.wb2-sheet .pbtn:focus-visible, .wb2-daymodal .pbtn:focus-visible, .wb2-capcard .pbtn:focus-visible {
+.wb2-capcard .pbtn:active:not(:disabled),
+.swz .pbtn:active:not(:disabled) { transform:translateY(1px); }
+.wb2-sheet .pbtn:focus-visible, .wb2-daymodal .pbtn:focus-visible, .wb2-capcard .pbtn:focus-visible, .swz .pbtn:focus-visible {
   outline:none; box-shadow:var(--ring); }
 /* the shared look for a disabled button lives with the fills it overrides —
    see `.wb2 .pbtn:disabled` up in the accent block */
@@ -6713,7 +6718,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-daymodal .pbtn.ghost.dan:hover:not(:disabled) {
   background:var(--bad-tint); border-color:var(--bad); color:var(--wb2-dan-t, var(--bad-t)); }
 @media (prefers-reduced-motion:reduce) {
-  .wb2-sheet .pbtn:active, .wb2-daymodal .pbtn:active, .wb2-capcard .pbtn:active { transform:none; }
+  .wb2-sheet .pbtn:active, .wb2-daymodal .pbtn:active, .wb2-capcard .pbtn:active, .swz .pbtn:active { transform:none; }
 }
 
 /* ── the sheet — a CENTRED MODAL, two sections to a row ──
@@ -7166,13 +7171,14 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
    including the button ground rules `.fg button` used to supply. */
 .wb2-sheet .me-fshd { display:flex; align-items:center; justify-content:space-between;
   gap:16px; margin:8px 0 0; }
+.swz .seg,
 .wb2-sheet .seg { display:inline-flex; align-self:flex-start; width:fit-content;
   background:#e6eaf1; border:1px solid rgba(10,12,20,.06); border-radius:var(--r-button); padding:4px; gap:4px; }
-.wb2-sheet .seg button { padding:8px 12px; border-radius:var(--r-button); border:0; background:transparent;
+.wb2-sheet .seg button, .swz .seg button { padding:8px 12px; border-radius:var(--r-button); border:0; background:transparent;
   font:inherit; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer;
   transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.wb2-sheet .seg button.on { background:var(--paper); color:var(--ink);box-shadow:var(--shadow-overlay); }
-.wb2-sheet .seg button:focus-visible { outline:none; box-shadow:var(--ring);; }
+.wb2-sheet .seg button.on, .swz .seg button.on { background:var(--paper); color:var(--ink);box-shadow:var(--shadow-overlay); }
+.wb2-sheet .seg button:focus-visible, .swz .seg button:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* the next booking, first over the past visits, in the accent */
 .wb2-nextv { display:flex; flex-direction:column; gap:4px; padding:12px 12px;
   border-radius:var(--r-button); background:var(--info-tint); }
@@ -10139,7 +10145,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* A smaller primary, for the nudge's inline action. Joins the portal-safe
    list rather than relying on `.fg`, which does not reach out here. */
 .wb2 .pbtn.sm, .wb2-sheet .pbtn.sm, .wb2-capcard .pbtn.sm, .wb2-stripopen .pbtn.sm,
-.wb2-nudge .pbtn.sm { height:29px; padding:0 12px; font-size:12px; border-radius:var(--r-button); }
+.wb2-nudge .pbtn.sm, .swz .pbtn.sm, .sws .pbtn.sm { height:29px; padding:0 12px; font-size:12px; border-radius:var(--r-button); }
 
 /* THE TOKEN HAS TO WORK OFF THE BOARD TOO. The fills above are scoped to
    `.wb2` / `.wb2-sheet` / `.wb2-capcard`, which is fine while a control only

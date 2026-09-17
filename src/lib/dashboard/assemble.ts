@@ -10,6 +10,7 @@ import {
   profileChip,
   sortChips,
   swmsSignonChip,
+  swmsTemplateChip,
   timesheetChip,
   vehicleChips,
   vehicleLabel,
@@ -90,6 +91,9 @@ export type ChipSources = {
   /** SWMS versions naming YOU that you haven't signed on to — latest versions
       only. Optional so a caller that has not loaded them raises no chip. */
   ownSwmsSignons?: { versionId: string; version: number; jobNumber: string | null; site: string | null; issuedAt: string }[];
+  /** The SWMS template isn't approved yet — the loader reads it for owners
+      only; `assembleChips` checks `isOwner` again. */
+  swmsTemplatePending?: boolean;
 };
 
 const push = (arr: ActionChip[], chip: ActionChip | null) => {
@@ -127,6 +131,8 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
     for (const r of src.ownDeclinedLeave) push(self, declinedLeaveChip(r, { today: src.today }));
     push(self, profileChip(src.selfCompleteness, { subject: src.selfName || "Your details" }));
     for (const p of src.ownSwmsSignons ?? []) self.push(swmsSignonChip(p, { today: src.today }));
+    /* the template is the owner's to approve, and nobody else can clear it */
+    if (src.isOwner) push(self, swmsTemplateChip(src.swmsTemplatePending));
   }
 
   const team: ActionChip[] = [];

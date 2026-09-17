@@ -290,3 +290,17 @@ describe("assembleChips — SWMS sign-on", () => {
     expect(self.some((c) => c.kind === "swms")).toBe(false);
   });
 });
+
+/* THE TEMPLATE NOBODY COULD APPROVE ON SITE — it waits in the owner's own
+   list until it's done, and nobody else is told to do what only the owner can. */
+describe("assembleChips — the SWMS template", () => {
+  it("asks the owner while it's waiting", () => {
+    const { self } = assembleChips({ ...FULL, isOwner: true, swmsTemplatePending: true }, caps());
+    expect(self.find((c) => c.kind === "swms-template")).toMatchObject({ label: "Approve the SWMS template" });
+  });
+
+  it("asks nobody else, and nobody once it's approved", () => {
+    expect(assembleChips({ ...FULL, isOwner: false, swmsTemplatePending: true }, caps("team")).self.some((c) => c.kind === "swms-template")).toBe(false);
+    expect(assembleChips({ ...FULL, isOwner: true, swmsTemplatePending: false }, caps()).self.some((c) => c.kind === "swms-template")).toBe(false);
+  });
+});

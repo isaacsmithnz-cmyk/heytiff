@@ -1,8 +1,9 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { clockLabel } from "@/lib/workboard/schedule";
-import type { FocusJob } from "@/lib/workboard/focus";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { clockLabel, fmtHoursShort } from "@/lib/workboard/schedule";
+import type { FocusJob, FocusMark } from "@/lib/workboard/focus";
 import { Fact, Inspector, Ledger, Reading } from "./inspector";
 
 /* ONE JOB OFF THE DAY, in the inspector — what the focus stack was, without
@@ -19,25 +20,66 @@ import { Fact, Inspector, Ledger, Reading } from "./inspector";
    swatch mirroring the cap on the board's blocks, which law 14 keeps as that
    board's vocabulary. */
 
+/* THE ONE STATE THE HEAD SAYS, in its colour (law 26): the most telling mark
+   the job wears, in the order a dispatcher needs it — what went wrong before
+   what is merely so. The key below still decodes every mark the blocks draw. */
+const HEAD_STATE: { kind: FocusMark["kind"]; tone: "dan" | "warn" | "ok" | "" }[] = [
+  { kind: "dan", tone: "dan" },
+  { kind: "late", tone: "dan" },
+  { kind: "stale", tone: "warn" },
+  { kind: "done", tone: "ok" },
+  { kind: "on", tone: "ok" },
+  { kind: "idle", tone: "" },
+];
+
 export function FocusInspector({
   job,
+  day,
   onOpen,
   onClose,
   onBack,
 }: {
   job: FocusJob;
+  /** The day the job was read off, for the line under the title. */
+  day?: string;
   onOpen: () => void;
   onClose: () => void;
   /** Present when the job was opened out of a day: puts the day back. */
   onBack?: () => void;
 }) {
   const crew = job.entries.length;
+  const head = HEAD_STATE.map((h) => ({ ...h, mark: job.marks.find((m) => m.kind === h.kind) })).find(
+    (h) => h.mark
+  );
+  /* where and when as one sentence: the site, the day, and the span the job
+     holds on it across everyone booked to it */
+  const start = Math.min(...job.entries.map((e) => e.startMin));
+  const end = Math.max(...job.entries.map((e) => e.endMin));
+  const meta = [
+    job.suburb,
+    day ? fmtAuWeekdayDayMonth(day) : null,
+    `${clockLabel(start)}–${clockLabel(end)}`,
+    fmtHoursShort(end - start),
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <Inspector
       label={`Job ${job.jobNumber ? `#${job.jobNumber} ` : ""}${job.clientName ?? ""}`.trim()}
-      kicker={job.jobNumber ? <b>#{job.jobNumber}</b> : undefined}
+      kicker={
+        <>
+          {job.jobNumber && <b className="wb2-inspno">{job.jobNumber}</b>}
+          <span>{job.label}</span>
+          {head?.mark && (
+            <span className={"wb2-inspword" + (head.tone ? ` ${head.tone}` : "")}>
+              {head.mark.word.split(" — ")[0]}
+            </span>
+          )}
+        </>
+      }
       title={job.clientName ?? "Unnamed client"}
+      meta={meta}
       onClose={onClose}
       actions={
         <>
@@ -70,7 +112,7 @@ export function FocusInspector({
               {job.marks.map((m) => (
                 <span key={m.kind}>
                   <i className={m.kind} aria-hidden="true">
-                    {m.kind === "late" ? "!" : ""}
+                    {m.kind === "late" || m.kind === "dan" ? "!" : ""}
                   </i>
                   {m.word}
                 </span>

@@ -127,7 +127,7 @@ describe("the one block that is actually wrong wears a mark", () => {
     expect(prop(mark[0]!.decls, "background")).toBe("var(--wb2-dan)");
     /* the same geometry as `.done::after`, so "look at this" and "this is
        finished" are read in one place rather than two */
-    expect(prop(mark[0]!.decls, "width")).toBe("14px");
+    expect(prop(mark[0]!.decls, "width")).toBe("16px");
     expect(prop(mark[0]!.decls, "border-radius")).toBe("50%");
     expect(prop(mark[0]!.decls, "right")).toBe("8px");
   });
@@ -170,6 +170,24 @@ describe("the one block that is actually wrong wears a mark", () => {
     // the mark's ink is a token since the wb2 fold (`var(--paper)`); read it through
     const inkOf = (v: string) => { const a = v.match(/^var\(--([a-z0-9-]+)\)$/i); return a ? token(a[1]!) : v; };
     expect(contrastRatio(hex(inkOf(prop(mark[0]!.decls, "color")!)), disc)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("a job that didn't go ahead wears the mark, not a ring", () => {
+  /* The 2px danger ring it wore was the loudest thing on a real day's board —
+     four red rectangles round two jobs that were not happening. It is closed
+     work with something wrong, so it takes the issue disc in the same slot. */
+  it("shares the issue mark's rule", () => {
+    const disc = rulesFor((s) => s === ".wb2-schb.dan::after");
+    expect(disc).toHaveLength(1);
+    expect(disc[0]!.selectors).toContain(".wb2-schb.late::after");
+  });
+
+  it("draws no ring in the danger colour", () => {
+    const rings = rulesFor((s) => isBlock(s) && mentions(s, "dan"))
+      .flatMap((r) => r.decls)
+      .filter((d) => /^(box-shadow|outline|border)\s*:/.test(d) && d.includes("--wb2-dan"));
+    expect(rings).toEqual([]);
   });
 });
 

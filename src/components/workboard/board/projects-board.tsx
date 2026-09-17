@@ -14,7 +14,7 @@ import { ProjectTripSheet } from "./project-trip-sheet";
 import { ProjectSheet } from "./project-sheet";
 import { ProjectDayModal } from "./project-day-modal";
 import { ToastHost, useBoardToasts } from "./toasts";
-import { Sm8Chip, type Sm8Health } from "./sm8-chip";
+import { Sm8HealthContext, type Sm8Health } from "./sm8-chip";
 
 /* The redesigned projects board — four tabs on ONE persistent card, the
    maintenance board's twin (never its fork): same surface rule (E7 — tab
@@ -193,6 +193,7 @@ export function ProjectsBoard({
   };
 
   return (
+    <Sm8HealthContext.Provider value={sm8 ?? null}>
     <div className="wb2">
       {/* THE TAB ROW IS THE PAGE HEADER. `lead` is the screen's h1 and
           `tools` the switcher, the search and Display mode: one 48px band
@@ -223,7 +224,6 @@ export function ProjectsBoard({
           </button>
         ))}
         </div>
-        <Sm8Chip sm8={sm8} />
         {tools && <div className="wb2-vtcap">{tools}</div>}
       </div>
 
@@ -321,5 +321,6 @@ export function ProjectsBoard({
 
       <ToastHost toasts={toasts} onDismiss={dismiss} />
     </div>
+    </Sm8HealthContext.Provider>
   );
 }

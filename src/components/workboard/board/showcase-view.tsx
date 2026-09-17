@@ -23,6 +23,7 @@ import {
 } from "@/app/actions/job-photo-favourites";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { JobMediaViewer } from "./job-media-viewer";
+import { ToolbarSync } from "./sm8-chip";
 
 /* THE GALLERY — the photos somebody starred, and what they are OF.
 
@@ -399,6 +400,7 @@ export function ShowcaseView({
             </div>
           )}
         </div>
+        <ToolbarSync />
       </div>
 
       <div className="wb2-show">

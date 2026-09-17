@@ -3,7 +3,7 @@
 export function PrintButton() {
   return (
     <button type="button" className="swd-print" onClick={() => window.print()}>
-      Print or save as PDF
+      Print / save as PDF
     </button>
   );
 }

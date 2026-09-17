@@ -34,6 +34,7 @@ import { WbModal } from "../wb-modal";
 import { FocusInspector } from "./focus-inspector";
 import { Inspector, Split } from "./inspector";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
+import { ToolbarSync } from "./sm8-chip";
 import { useNowMin } from "./use-now-min";
 import type { ScheduleJobState } from "./schedule-tab";
 
@@ -373,6 +374,7 @@ export function CapacityView({
             Crew
           </button>
         )}
+        <ToolbarSync />
       </div>
     </>
   );
@@ -399,6 +401,7 @@ export function CapacityView({
   const aside = focus ? (
     <FocusInspector
       job={focus}
+      day={openDay ?? undefined}
       onClose={closeDetail}
       onBack={closeFocus}
       onOpen={() => {

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { ToolbarSync } from "./sm8-chip";
 
 /* THE BOARD'S ONE TOOLBAR — the 48px row every tab on all three sides opens
    on (`.wb2-tbar`, dressed in shell.css under "THE SCHEDULE'S ONE TOOLBAR").
@@ -14,10 +15,16 @@ import type { ReactNode } from "react";
    you tap).
 
    Nothing here is layout the tabs cannot see: a tab composes the row from
-   these pieces and its own controls, in reading order. */
+   these pieces and its own controls, in reading order. The row always ends
+   on the mirror's freshness, which the board provides (`Sm8HealthContext`). */
 
 export function Toolbar({ children }: { children: ReactNode }) {
-  return <div className="wb2-tbar">{children}</div>;
+  return (
+    <div className="wb2-tbar">
+      {children}
+      <ToolbarSync />
+    </div>
+  );
 }
 
 /** Pushes what follows it to the far end of the row: the tab's one action. */

@@ -17,7 +17,7 @@ import { DayModal } from "./day-modal";
 import { AgreementSheet } from "./agreement-sheet";
 import { NewAgreementModal } from "./new-agreement-modal";
 import { ToastHost, useBoardToasts } from "./toasts";
-import { Sm8Chip, type Sm8Health } from "./sm8-chip";
+import { Sm8HealthContext, type Sm8Health } from "./sm8-chip";
 
 /* The redesigned maintenance board — five tabs on ONE persistent card.
 
@@ -252,6 +252,7 @@ export function MaintenanceBoard({
     : null;
 
   return (
+    <Sm8HealthContext.Provider value={sm8 ?? null}>
     <div className="wb2">
       {/* THE TAB ROW IS THE PAGE HEADER. `lead` is the screen's h1 and
           `tools` the switcher, the search and Display mode: one 48px band
@@ -282,7 +283,6 @@ export function MaintenanceBoard({
           </button>
         ))}
         </div>
-        <Sm8Chip sm8={sm8} />
         {tools && <div className="wb2-vtcap">{tools}</div>}
       </div>
 
@@ -412,5 +412,6 @@ export function MaintenanceBoard({
 
       <ToastHost toasts={toasts} onDismiss={dismiss} />
     </div>
+    </Sm8HealthContext.Provider>
   );
 }

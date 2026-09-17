@@ -244,13 +244,13 @@ describe("spans", () => {
 });
 
 describe("the rail", () => {
-  it("holds 6am–6pm for an ordinary day", () => {
-    expect(railBoundsOf([{ startMin: 420, endMin: 900 }])).toEqual({ start: 360, end: 1080 });
+  it("holds 6am–5pm for an ordinary day", () => {
+    expect(railBoundsOf([{ startMin: 420, endMin: 900 }])).toEqual({ start: 360, end: 1020 });
   });
 
   it("widens to whole hours for real blocks, never narrows", () => {
     expect(railBoundsOf([{ startMin: 315, endMin: 1170 }])).toEqual({ start: 300, end: 1200 });
-    expect(railBoundsOf([])).toEqual({ start: 360, end: 1080 });
+    expect(railBoundsOf([])).toEqual({ start: 360, end: 1020 });
   });
 });
 

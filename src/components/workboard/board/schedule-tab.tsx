@@ -31,6 +31,7 @@ import {
   type DayClock,
 } from "@/lib/workboard/focus";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
+import { ToolbarSync } from "./sm8-chip";
 import { useNowMin } from "./use-now-min";
 import { FocusInspector } from "./focus-inspector";
 import { Split } from "./inspector";
@@ -50,10 +51,10 @@ import { Split } from "./inspector";
 
    TWO COLOUR CHANNELS, ONE OVERRIDE. Category washes a block and colours its
    cap (the same axis the list rows' catdot uses); status is a second reading —
-   Completed mutes and takes a tick, Unsuccessful takes the danger ring, a
-   Quote takes a dashed edge. And OWNERSHIP OUTRANKS CATEGORY: a job promoted
-   onto one of our boards leaves the palette and wears the tracked blue with
-   the word beside the number, because it isn't pool work any more.
+   Completed mutes and takes a tick, Unsuccessful mutes and takes the issue
+   mark, a Quote takes a dashed edge. And OWNERSHIP OUTRANKS CATEGORY: a job
+   promoted onto one of our boards leaves the palette and wears the tracked
+   blue with the word beside the number, because it isn't pool work any more.
 
    NOTHING GOES WHITE, AND ONE THING GETS A MARK. A booking nobody has clocked
    on to keeps its category and hollows its cap. That is the ORDINARY state of
@@ -64,14 +65,21 @@ import { Split } from "./inspector";
    past its start with nothing recorded — carries a mark in the corner
    instead, in the same slot the done tick uses. */
 
-const PX_PER_HOUR = 110;
-/* A sub-row must HOLD its own type: three lines at 1.3 line-height plus two
-   2px gaps plus 10px of block padding is ~58px, and the first live walk
-   shipped 56 — every suburb line's descenders clipped against the block's
-   overflow:hidden ("bottom of names cut off"). The row owns the arithmetic:
-   66 − 6 (block inset) = 60px of block for ~58px of content. */
-const LANE_ROW_PX = 66;
-const LANE_PAD_PX = 5;
+/* THE DAY FITS THE WIDTH. The rail used to be 110px an hour whatever the
+   screen, so a 1440px laptop showed 6am to 3pm and scrolled for the rest,
+   with a fade saying so. The hours now share the width the rail has; only
+   when that would crush an hour below this does the rail scroll again —
+   the inspector open on a narrow screen. */
+const MIN_PX_PER_HOUR = 64;
+/* A sub-row must HOLD its own type: two lines (13px and 12px at 1.25) and a
+   2px gap are ~34px, in a 40px block. The row owns the arithmetic: a 40px
+   block, 4px between stacked blocks, 6px above and below the lane — so a
+   lane of one is the handoff's 52px row, and the first live walk's lesson
+   (descenders clipped against the block's overflow:hidden) still holds. */
+const BLOCK_PX = 40;
+const LANE_ROW_PX = BLOCK_PX + 4;
+const LANE_PAD_PX = 6;
+const laneHeight = (rows: number) => rows * LANE_ROW_PX - (LANE_ROW_PX - BLOCK_PX) + LANE_PAD_PX * 2;
 /** Below this width a block drops to its number alone — three clipped lines
     say less than one whole one. */
 const TIGHT_PX = 90;
@@ -225,6 +233,9 @@ export function ScheduleTab({
     () => new Map((current?.jobs ?? []).map((j) => [j.remoteId, j])),
     [current]
   );
+  /* People, not lanes: the unassigned lane is a row on the board and not a
+     crew. The toolbar's "on the road" counts the same people. */
+  const crewCount = day ? day.lanes.filter((l) => l.staffUuid !== "").length : 0;
 
   const week = useMemo(
     () => Array.from({ length: 7 }, (_, i) => plusDays(stripStart, i)),
@@ -273,27 +284,54 @@ export function ScheduleTab({
      one hook that owns the rule. */
   const nowMin = useNowMin(today);
 
-  /* ── the rail's scroll: land where the day is, own the edge fade ── */
+  /* ── the rail's width, its scroll, and the edge fade ──
+     The width is MEASURED, because the hours share it: opening the inspector
+     narrows the rail and the day re-lays inside what is left. Measured in a
+     layout effect first, so the first paint is already at the right scale,
+     and observed after, for the inspector and the window. */
   const railRef = useRef<HTMLDivElement>(null);
+  const [railW, setRailW] = useState(0);
   const [atEnd, setAtEnd] = useState(false);
   const judgeEnd = () => {
     const r = railRef.current;
     if (r) setAtEnd(r.scrollLeft + r.clientWidth >= r.scrollWidth - 2);
   };
+  const hasRail = !!day && day.totalBookings > 0;
+  useLayoutEffect(() => {
+    const r = railRef.current;
+    if (!r) return;
+    const measure = () => {
+      setRailW(r.clientWidth);
+      setAtEnd(r.scrollLeft + r.clientWidth >= r.scrollWidth - 2);
+    };
+    measure();
+    /* Feature-checked: jsdom has no ResizeObserver, and the rail still lays
+       out at its floor without one. */
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
+    ro?.observe(r);
+    return () => ro?.disconnect();
+  }, [hasRail]);
+  const hours = day ? (day.railEnd - day.railStart) / 60 : 1;
+  const pxPerHour = Math.max(MIN_PX_PER_HOUR, railW / hours);
+
   const landRail = useEffectEvent(() => {
     const r = railRef.current;
     if (!r || !day || day.totalBookings === 0) return;
     const first = day.lanes.reduce((m, l) => Math.min(m, l.blocks[0].startMin), Infinity);
-    let target = ((first - day.railStart) / 60) * PX_PER_HOUR - 24;
+    let target = ((first - day.railStart) / 60) * pxPerHour - 24;
     if (openDay === today && nowMin !== null && nowMin >= day.railStart && nowMin <= day.railEnd) {
-      target = ((nowMin - day.railStart) / 60) * PX_PER_HOUR - r.clientWidth / 2;
+      target = ((nowMin - day.railStart) / 60) * pxPerHour - r.clientWidth / 2;
     }
     r.scrollLeft = Math.max(0, target);
     judgeEnd();
   });
+  /* Lands once per day, and once more when the width first arrives — never
+     on a later width change, or opening the inspector would scroll the block
+     you just clicked out from under the pointer. */
+  const measured = railW > 0;
   useLayoutEffect(() => {
     landRail();
-  }, [day, openDay]);
+  }, [day, openDay, measured]);
 
   /* ── header ──
      Three stations, and NOTHING IN IT MAY MOVE AS YOU STEP. Left: the open
@@ -342,7 +380,12 @@ export function ScheduleTab({
         </button>
       </div>
       <h2 className="wb2-tbh2">{fmtAuWeekdayDayMonth(openDay)}</h2>
-      <span className="wb2-tbwin">{weekWord}</span>
+      {/* The window's name only when it is not this week — on this week the
+          seven days beside it already say which week it is — and Today only
+          once there is somewhere to come back from. The row is full at a
+          laptop's width, and both were words saying what the filled day
+          chip already shows. */}
+      {stripStart !== thisMon && <span className="wb2-tbwin">{weekWord}</span>}
       {(openDay !== today || stripStart !== thisMon) && (
         <button className="wb2-tbtoday" onClick={goToday}>
           Today
@@ -360,27 +403,30 @@ export function ScheduleTab({
                 "wb2-schday" +
                 (iso === openDay ? " on" : "") +
                 (iso === today ? " today" : "") +
-                (iso < today ? " past" : "") +
-                (isWeekendISO(iso) ? " we" : "") +
-                (n === 0 ? " free" : "")
+                (isWeekendISO(iso) ? " we" : "")
               }
               aria-pressed={iso === openDay}
-              aria-label={`${fmtAuWeekdayDayMonth(iso)}${n !== null ? `, ${n} booked` : ""}`}
+              aria-label={`${fmtAuWeekdayDayMonth(iso)}${
+                n === null ? "" : n === 0 ? ", nothing booked" : `, ${n} booked`
+              }`}
               onClick={() => show(iso)}
             >
               <span className="cw">{DOW[dowOfISO(iso)]}</span>
               <span className="cd">{parseInt(iso.slice(8, 10), 10)}</span>
-              {n !== null && <span className="cn">{n === 0 ? "clear" : n}</span>}
+              {/* a zero is not a count: a clear day simply carries none */}
+              {n !== null && n > 0 && <span className="cn">{n}</span>}
             </button>
           );
         })}
       </div>
       {day && day.totalBookings > 0 && (
         <span className="wb2-tbsum">
-          {day.totalBookings} booked, {fmtHoursShort(day.totalMinutes)}, {day.lanes.length} on the
-          road, {day.jobCount} {day.jobCount === 1 ? "job" : "jobs"}
+          <b>{day.totalBookings}</b> booked, <b>{fmtHoursShort(day.totalMinutes)}</b>,{" "}
+          <b>{crewCount}</b> on the road, <b>{day.jobCount}</b>{" "}
+          {day.jobCount === 1 ? "job" : "jobs"}
         </span>
       )}
+      <ToolbarSync />
     </div>
   );
 
@@ -466,20 +512,9 @@ export function ScheduleTab({
     if (was) blockRefs.current.get(was)?.focus();
   };
 
-  /* The entrance stagger reads left to right across the whole rail. Built as a
-     lookup, not a counter incremented inside the map: React Compiler 1.0
-     cannot lower an update expression on a variable a lambda captures, and a
-     memoised subtree would not re-run one anyway. */
-  const staggerAt = new Map<string, number>();
-  if (day) {
-    let n = 0;
-    for (const lane of day.lanes)
-      for (const row of lane.rows)
-        for (const b of row) {
-          staggerAt.set(b.key, n);
-          n += 1;
-        }
-  }
+  /* THE BLOCKS APPEAR; THEY DO NOT ARRIVE (law 18). They used to rise into
+     place one after another, left to right across the rail — the staggered
+     entrance docs/design.md retires. */
 
   return (
     <>
@@ -494,6 +529,7 @@ export function ScheduleTab({
           focus ? (
             <FocusInspector
               job={focus}
+              day={openDay}
               onClose={closeFocus}
               onOpen={() => {
                 const job = focusJob ? jobById.get(focusJob) : null;
@@ -539,7 +575,10 @@ export function ScheduleTab({
         {day && day.totalBookings > 0 && (
           <div className="wb2-schboard">
             <div className="wb2-schnames">
-              <div className="wb2-schnh" />
+              {/* how many people are out, over the column that lists them */}
+              <div className="wb2-schnh">
+                {crewCount} {crewCount === 1 ? "crew" : "crews"}
+              </div>
               {day.lanes.map((l) => {
                 /* The gates are the block treatment's, unchanged: a day that has
                    begun, and an account that records time at all. An account
@@ -550,7 +589,7 @@ export function ScheduleTab({
                 <div
                   key={l.staffUuid || "unassigned"}
                   className={"wb2-schn" + (l.staffUuid === "" ? " none" : "")}
-                  style={{ height: l.rows.length * LANE_ROW_PX + LANE_PAD_PX * 2 }}
+                  style={{ height: laneHeight(l.rows.length) }}
                 >
                   <b>
                     {/* WHO IS ACTUALLY OUT THERE, before you look at the rail.
@@ -558,10 +597,13 @@ export function ScheduleTab({
                         every state here is already written on the blocks it
                         summarises — hollow ones say "not started", overdue ones
                         say so in their own label. The dot is emphasis, and the
-                        word rides with it for anyone who cannot see it. */}
-                    {presence && (
-                      <span className={"wb2-schpd " + presence} aria-hidden="true" />
-                    )}
+                        word rides with it for anyone who cannot see it. The
+                        dot's seat stays when there is nothing to claim, so every
+                        name starts on the same line. */}
+                    <span
+                      className={"wb2-schpd" + (presence ? " " + presence : "")}
+                      aria-hidden="true"
+                    />
                     <span className="wb2-schnn">{l.name}</span>
                     {presence && (
                       <span className="wb2-sr">
@@ -573,14 +615,12 @@ export function ScheduleTab({
                       </span>
                     )}
                   </b>
+                  {/* The load is the line under the name. The 3px meter under it
+                      said the same hours a second time, as a bar. */}
                   <em>
                     {l.blocks.length} {l.blocks.length === 1 ? "booking" : "bookings"},{" "}
                     {fmtHoursShort(l.minutes)}
                   </em>
-                  {/* utilisation against an 8h day — neutral, a fact not a fault */}
-                  <span className="wb2-schmeter" aria-hidden="true">
-                    <i style={{ width: `${Math.min(100, Math.round((l.minutes / 480) * 100))}%` }} />
-                  </span>
                 </div>
                 );
               })}
@@ -591,16 +631,13 @@ export function ScheduleTab({
                 <div
                   className="wb2-schinner"
                   style={{
-                    width: ((day.railEnd - day.railStart) / 60) * PX_PER_HOUR,
-                    "--hr": `${PX_PER_HOUR}px`,
+                    width: hours * pxPerHour,
+                    "--hr": `${pxPerHour}px`,
                   } as CSSProperties}
                 >
                   <div className="wb2-schhours">
-                    {Array.from(
-                      { length: (day.railEnd - day.railStart) / 60 },
-                      (_, i) => day.railStart + i * 60
-                    ).map((m) => (
-                      <span key={m} className="wb2-schhr" style={{ width: PX_PER_HOUR }}>
+                    {Array.from({ length: hours }, (_, i) => day.railStart + i * 60).map((m) => (
+                      <span key={m} className="wb2-schhr" style={{ width: pxPerHour }}>
                         {clockLabel(m)}
                       </span>
                     ))}
@@ -610,13 +647,13 @@ export function ScheduleTab({
                     <div
                       key={l.staffUuid || "unassigned"}
                       className="wb2-schlane"
-                      style={{ height: l.rows.length * LANE_ROW_PX + LANE_PAD_PX * 2 }}
+                      style={{ height: laneHeight(l.rows.length) }}
                     >
                       {l.rows.flatMap((row, ri) =>
                         row.map((b) => {
-                          const left = ((b.startMin - day.railStart) / 60) * PX_PER_HOUR;
+                          const left = ((b.startMin - day.railStart) / 60) * pxPerHour;
                           const w = Math.max(
-                            ((b.endMin - b.startMin) / 60) * PX_PER_HOUR,
+                            ((b.endMin - b.startMin) / 60) * pxPerHour,
                             46
                           );
                           const { hollow, late } = blockState(b);
@@ -643,10 +680,9 @@ export function ScheduleTab({
                               className={cls}
                               style={{
                                 left,
-                                width: w - 3,
+                                width: w - 4,
                                 top: LANE_PAD_PX + ri * LANE_ROW_PX,
-                                height: LANE_ROW_PX - 6,
-                                animationDelay: `${Math.min((staggerAt.get(b.key) ?? 0) * 14, 400)}ms`,
+                                height: BLOCK_PX,
                                 "--fill": paint.fill,
                                 "--btext": paint.ink,
                                 "--chip": paint.chip,
@@ -662,13 +698,15 @@ export function ScheduleTab({
                                    screen reader, so the state is spoken as well */
                                 b.closure === "stale"
                                   ? ", marked complete in ServiceM8"
-                                  : late
-                                    ? ", nothing recorded yet"
-                                    : hollow
-                                      ? ", not started"
-                                      : b.closure === "done"
-                                        ? ", done"
-                                        : ""
+                                  : b.status === "Unsuccessful"
+                                    ? ", didn't go ahead"
+                                    : late
+                                      ? ", nothing recorded yet"
+                                      : hollow
+                                        ? ", not started"
+                                        : b.closure === "done"
+                                          ? ", done"
+                                          : ""
                               }`}
                               ref={(el) => {
                                 if (el) blockRefs.current.set(b.remoteId, el);
@@ -688,21 +726,27 @@ export function ScheduleTab({
                                   a chip now — still there for cross-referencing
                                   ServiceM8, no longer the headline — and a tight
                                   block drops back to it alone, which is the old
-                                  behaviour unchanged. The second line becomes
-                                  the category IN WORDS, so the hue is never the
-                                  only thing naming one. */}
+                                  behaviour unchanged. The second line is the
+                                  category IN WORDS, so the hue is never the only
+                                  thing naming one, and then where: two lines,
+                                  where there were three, so a lane is 52px. */}
                               <span className="wb2-schbh">
                                 <b>{b.clientName ?? "Unnamed client"}</b>
                                 {b.jobNumber && <u>{b.jobNumber}</u>}
                               </span>
                               <em>
-                                {blockLabel(b)}
-                                {b.status === "Quote" ? ", Quote" : ""}
-                                {/* in words, because an amber ring alone would
-                                    leave a screen reader with a normal booking */}
-                                {b.closure === "stale" ? ", Marked complete in ServiceM8" : ""}
+                                {[
+                                  blockLabel(b),
+                                  b.status === "Quote" ? "Quote" : null,
+                                  b.suburb,
+                                  /* in words, because nothing on the block's paint
+                                     says it, and a screen reader would otherwise
+                                     hear a normal booking */
+                                  b.closure === "stale" ? "Marked complete in ServiceM8" : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(", ")}
                               </em>
-                              {b.suburb && <i>{b.suburb}</i>}
                             </button>
                           );
                         })
@@ -716,7 +760,7 @@ export function ScheduleTab({
                     nowMin <= day.railEnd && (
                       <span
                         className="wb2-schnow"
-                        style={{ left: ((nowMin - day.railStart) / 60) * PX_PER_HOUR }}
+                        style={{ left: ((nowMin - day.railStart) / 60) * pxPerHour }}
                         /* the cap's text — the sheet draws it, so the line and
                            its label can never end up in two different places */
                         data-now={clockLabel(nowMin)}

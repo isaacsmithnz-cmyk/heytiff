@@ -335,7 +335,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
   { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 47 },
   { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 52 },
-  { law: "bars at the left edge — selection is a fill, state is a word; the schedule key mirrors its board's cap", now: leftBars, baseline: 1 },
+  { law: "bars at the left edge — selection is a fill, state is a word; the one left is the cap on the schedule's blocks", now: leftBars, baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 0 },
   { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 0 },

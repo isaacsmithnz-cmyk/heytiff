@@ -217,8 +217,11 @@ describe("clicking a block", () => {
     render(tab());
     await userEvent.click((await screen.findAllByRole("button", { name: /Job #3145/ }))[0]);
     const panel = stack()!;
-    expect(within(panel).getByText("Started")).toBeInTheDocument();
-    expect(within(panel).getByText("Not started")).toBeInTheDocument();
+    // per person, in the list of who is on it — the head carries the job's
+    // one state as well, so the words are read off the list itself
+    const crew = within(panel).getByRole("list");
+    expect(within(crew).getByText("Started")).toBeInTheDocument();
+    expect(within(crew).getByText("Not started")).toBeInTheDocument();
   });
 
   it("closes on its own cross, without opening anything", async () => {
@@ -278,15 +281,19 @@ it("steps a WEEK on the header's stepper, because the strip already picks the da
   expect(scheduleDay).toHaveBeenLastCalledWith("2026-08-07");
 });
 
-it("names the window in the middle of the header, by its place from today", async () => {
+it("names the window once it is not this week, and offers the way back", async () => {
   scheduleDay.mockImplementation(async (dayISO: string) => ({ ...payload(), dayISO }));
   render(tab());
   await screen.findByText("Alex Lorenz");
-  expect(screen.getByText("This week")).toBeInTheDocument();
+  // on today, in this week, the filled day chip already says both — and
+  // there is nowhere to come back from
+  expect(screen.queryByText("This week")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Today" })).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "The week after" }));
   expect(screen.getByText("Next week")).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Today" }));
-  expect(screen.getByText("This week")).toBeInTheDocument();
+  expect(screen.queryByText("Next week")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Today" })).toBeNull();
 });
 
 /* The strip's own day-at-a-time arrows went when the header folded to one
@@ -351,9 +358,10 @@ it("names the category in words, not only in colour", async () => {
   await screen.findByText("Alex Lorenz");
   // #3145 is an Install — twice on the rail, plus once in the day's legend.
   // #3171 has no category at all, and the block says that rather than
-  // leaving a grey rectangle to be interpreted.
-  expect(screen.getAllByText("Install")).toHaveLength(3);
-  expect(screen.getAllByText("No category")).toHaveLength(2);
+  // leaving a grey rectangle to be interpreted. On a block the category
+  // leads the second line, with the suburb after it.
+  expect(screen.getAllByText(/^Install(,|$)/)).toHaveLength(3);
+  expect(screen.getAllByText(/^No category(,|$)/)).toHaveLength(2);
 });
 
 it("hands the block a fill, a label colour and a cap that measure up", async () => {
@@ -489,6 +497,23 @@ describe("nobody has started it", () => {
     render(tab());
     await screen.findByText("Alex Lorenz");
     expect(idle()).toHaveLength(0);
+  });
+
+  it("says a job that didn't go ahead in words, because its mark is only a disc", async () => {
+    /* It wore a 2px danger ring, and on a real day the jobs that fell through
+       were booked across two crews each: the loudest things on the board. It
+       takes closed work's neutral and the issue mark now, so the words have
+       to ride with it. */
+    const p = payload();
+    scheduleDay.mockResolvedValue({
+      ...p,
+      jobs: [p.jobs[0], { ...p.jobs[1], status: "Unsuccessful" }],
+    });
+    render(tab());
+    await screen.findByText("Alex Lorenz");
+    const failed = screen.getAllByRole("button", { name: /didn't go ahead/ });
+    expect(failed.length).toBeGreaterThan(0);
+    for (const b of failed) expect(b).toHaveClass("dan");
   });
 });
 
@@ -626,8 +651,9 @@ describe("the presence dot", () => {
     scheduleDay.mockResolvedValue({ ...payload(), onSite: [] });
     render(tab());
     await screen.findByText("Alex Lorenz");
-    expect(dotFor("Alex Lorenz")).toBeNull();
-    expect(dotFor("David Hann")).toBeNull();
+    // the dot's seat stays, so every name starts on one line — empty of state
+    expect(dotFor("Alex Lorenz")).toHaveAttribute("class", "wb2-schpd");
+    expect(dotFor("David Hann")).toHaveAttribute("class", "wb2-schpd");
   });
 });
 
@@ -640,7 +666,7 @@ it("wears the board's word on a tracked block", async () => {
   await screen.findByText("Alex Lorenz");
   // both of the crew job's blocks name the board that owns it, in words —
   // the tracked blue is never the only thing carrying that
-  expect(screen.getAllByText("Project")).toHaveLength(2);
+  expect(screen.getAllByText(/^Project(,|$)/)).toHaveLength(2);
   expect(screen.getAllByText("3145")).toHaveLength(2);
   expect(screen.getByText("On a board here")).toBeInTheDocument();
 });

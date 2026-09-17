@@ -1,8 +1,9 @@
 "use client";
 
+import { createContext, useContext } from "react";
 import { useHydrated } from "@/lib/use-hydrated";
 
-/* Mirror health, in one chip at the end of the tab row (D8's survival from
+/* Mirror health, at the far end of every tab's toolbar (D8's survival from
    the old board's vitals). It says one thing: can you trust what's on this
    card right now. Both boards carry it, because staleness is a fact about
    the DATA, not about maintenance; standalone orgs get no chip at all
@@ -46,12 +47,10 @@ export function Sm8Chip({ sm8 }: { sm8: Sm8Health | null | undefined }) {
 
   /* Only this branch reads the clock. "needs attention" and "syncing…" are
      facts about the mirror, identical on both sides, and stay server-rendered. */
-  /* THE ROUTINE STATE DROPS THE NAME. This stands in the board's header,
-     beside six tabs that ARE ServiceM8's own statuses and under a switcher
-     that says which half of the mirror you are reading — so "ServiceM8
-     synced 5 min ago" said the word a fourth time, and it was the widest
-     thing in a band that has to hold a title, six tabs, a switcher, a search
-     and Display mode on one line.
+  /* THE ROUTINE STATE DROPS THE NAME. It sits beside six tabs that ARE
+     ServiceM8's own statuses and under a switcher that says which half of the
+     mirror you are reading, so "ServiceM8 synced 5 min ago" said the word a
+     fourth time.
 
      The two EXCEPTIONAL states keep it: "needs attention" and "syncing" have
      to name what needs attention and what is syncing, and they are rare
@@ -64,12 +63,27 @@ export function Sm8Chip({ sm8 }: { sm8: Sm8Health | null | undefined }) {
         ? `Synced ${syncedAgo(sm8.syncedAt)}`
         : "Synced";
 
+  /* the dot is the state, in its colour (law 14 allows a dot); the words say
+     it for anyone who cannot see the colour */
   return (
     <span
-      className={"wb2-sm8" + (sm8.attention ? " dan" : "")}
+      className={"wb2-sm8" + (sm8.attention ? " dan" : sm8.running ? " run" : " synced")}
       title={sm8.timezone ? `Account clock: ${sm8.timezone}` : undefined}
     >
       {freshness}
     </span>
   );
+}
+
+/* WHERE THE MIRROR'S HEALTH IS READ FROM. It stood in the header band beside
+   the tabs, and it was the 112px that stopped the band holding a title, six
+   tabs, the switcher, the search and Display mode on one line at a laptop's
+   width. It rides at the far end of each tab's toolbar now, which is where
+   the handoff put it — so the board provides it once and every toolbar reads
+   it, rather than fifteen tabs each taking a prop to pass one sentence on. */
+export const Sm8HealthContext = createContext<Sm8Health | null>(null);
+
+/** The mirror's freshness, read off the board that holds the toolbar. */
+export function ToolbarSync() {
+  return <Sm8Chip sm8={useContext(Sm8HealthContext)} />;
 }

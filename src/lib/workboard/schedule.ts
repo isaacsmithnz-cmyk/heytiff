@@ -109,7 +109,7 @@ export type ScheduleLane = {
 
 export type ScheduleDay = {
   lanes: ScheduleLane[];
-  /** Rail bounds in minutes, hour-aligned. 6am–6pm unless real blocks push
+  /** Rail bounds in minutes, hour-aligned. 6am–5pm unless real blocks push
       it wider; never wider than the day itself. */
   railStart: number;
   railEnd: number;
@@ -195,9 +195,12 @@ export function closureOf(
   return bookedOn > closedOn ? "stale" : "done";
 }
 
-/** The default drawn window: 6am to 6pm. */
+/** The default drawn window: 6am to 5pm — the booked day, not a day that
+    runs on because clocks do. The hours share the board's width now, so an
+    empty hour at the end is width taken from every block on it; a booking
+    past 5pm still widens the window to fit. */
 const RAIL_DEFAULT_START = 6 * 60;
-const RAIL_DEFAULT_END = 18 * 60;
+const RAIL_DEFAULT_END = 17 * 60;
 const DAY_MIN = 24 * 60;
 /** What a span that cannot be read still draws as. */
 const FALLBACK_SPAN_MIN = 30;
@@ -231,7 +234,7 @@ export function fmtHoursShort(mins: number): string {
   return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, "0")}`;
 }
 
-/** The drawn window: the 6am–6pm default, WIDENED to whole hours to fit real
+/** The drawn window: the 6am–5pm default, WIDENED to whole hours to fit real
     blocks, never narrowed, never past the day's own edges. */
 export function railBoundsOf(blocks: { startMin: number; endMin: number }[]): {
   start: number;

@@ -29,6 +29,7 @@ export function Inspector({
   label,
   kicker,
   title,
+  meta,
   onClose,
   actions,
   children,
@@ -38,6 +39,8 @@ export function Inspector({
   /** The line above the title: the number and the category, or the day's figures. */
   kicker?: ReactNode;
   title: ReactNode;
+  /** The line under the title: where and when, as one sentence. */
+  meta?: ReactNode;
   onClose: () => void;
   /** The pinned foot — one primary action, and at most two others. */
   actions?: ReactNode;
@@ -61,6 +64,7 @@ export function Inspector({
         <div className="wb2-inspt">
           {kicker && <span className="wb2-inspk">{kicker}</span>}
           <h3>{title}</h3>
+          {meta && <span className="wb2-inspm">{meta}</span>}
         </div>
         <button type="button" className="wb2-inspx" aria-label="Close the panel" onClick={onClose}>
           <Icon name="x" size={15} />

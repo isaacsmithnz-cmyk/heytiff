@@ -184,6 +184,21 @@ Every decision below is made once, here, and a guard test holds each number.
   tile; the derived-hours line, the clock's centre line and the hover borders
   stop borrowing the green. The green pair is still Tailwind's until the
   admin screen's tiles fold, because their on-fill inks are tuned to it.
+- **The Workboard wears the handoff's board at a laptop's width** (decided
+  2026-09-17, after "the one you made looks terrible compared to the mock
+  up"). The first build took the handoff's layout but kept the old board in
+  it — lanes of three bold lines at 76px, a red ring round every job that did
+  not go ahead, a header that wrapped to two lines below 1500px — and squared
+  the well's corners. The board is the handoff's now: a 56px header on one line (the
+  title steps out of sight below 1560px, where the rail beside it already
+  names the screen), the mirror's freshness at the end of every toolbar,
+  day chips with their counts in figure boxes and the chosen day in ink,
+  two-line 40px blocks in 52px lanes with the cap at the block's edge, the
+  day's hours sharing the width rather than scrolling, and a job that did not
+  go ahead drawn as closed work with the issue mark. The well keeps the
+  frame's inset and corner, as on every screen. What stays the laws' rather
+  than the handoff's: ink for its teal, sentence case for its caps, words and
+  figure boxes for its pills, commas for its middots.
 - **The job sheet is parked.** A ruled-list job sheet reads as paper but scans
   worse than the row. Nothing in that direction moves until a version keeps the
   row's scannability.
@@ -303,8 +318,9 @@ starts with them.
     State is a word, or a dot, in the state colour. Kind is a label. The nav's
     active item is its white icon and its white label, nothing else (it was
     teal until the ink-and-paper decision). A dot may sit at the left edge; a
-    bar may not. One bar stays: the Schedule key's swatch mirrors the cap on
-    the board's blocks, which is that board's vocabulary, not a state.
+    bar may not. One bar stays: the cap on the Schedule board's blocks, their
+    leading edge in the category's colour, which the board's key mirrors — that
+    board's vocabulary, not a state.
 15. No taglines, and no caption that explains the section. The two shapes:
     three nouns in a row under a title ("splits, ducted, multi") and a line
     that says what the section is for ("What lets the business trade —

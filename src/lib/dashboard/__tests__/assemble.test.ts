@@ -270,7 +270,7 @@ describe("assembleChips — your own details", () => {
    yours alone, needs no capability, and sits in the same list as everything
    else that needs you. */
 describe("assembleChips — SWMS sign-on", () => {
-  const signon = { versionId: "v-9", version: 1, jobNumber: "2601", site: "14 Attunga Road, Miranda NSW 2228", issuedAt: "2026-09-16T07:42:00.000Z" };
+  const signon = { versionId: "v-9", again: false, jobNumber: "2601", site: "14 Attunga Road, Miranda NSW 2228", issuedAt: "2026-09-16T07:42:00.000Z" };
 
   it("asks you to sign on, among your own chips, with no capability", () => {
     const { self, team } = assembleChips({ ...FULL, ownSwmsSignons: [signon] }, caps());

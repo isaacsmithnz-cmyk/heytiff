@@ -8,6 +8,7 @@ import { Letterhead } from "@/components/org/letterhead";
 import { todayInAu } from "@/lib/au-dates";
 import { loadSwmsDocument, loadSwmsTeam } from "@/lib/swms/query";
 import { CONSEQUENCE, HRCW, LEVEL_LABEL, LIKELIHOOD, riskLevel, type Rating } from "@/lib/swms/library";
+import { siteDay, siteWhen } from "@/lib/swms/when";
 import { PrintButton } from "./print-button";
 import "./swms-doc.css";
 
@@ -26,13 +27,6 @@ const REGULATION = {
   QLD: "Work Health and Safety Regulation 2011 (Qld)",
 } as const;
 
-/* Times are the SITE's: Queensland keeps no daylight saving, New South Wales does. */
-const zoneOf = (j: "NSW" | "QLD") => (j === "QLD" ? "Australia/Brisbane" : "Australia/Sydney");
-const dayIn = (tz: string) => (iso: string) =>
-  new Intl.DateTimeFormat("en-AU", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: tz }).format(new Date(iso));
-const whenIn = (tz: string) => (iso: string) =>
-  new Intl.DateTimeFormat("en-AU", { hour: "numeric", minute: "2-digit", day: "numeric", month: "short", year: "numeric", timeZone: tz }).format(new Date(iso));
-
 const score = (r: Rating) => `${r.likelihood} × ${r.consequence} = ${r.likelihood * r.consequence}, ${riskLevel(r)}`;
 
 export default async function SwmsDocumentPage({ params }: { params: Promise<{ versionId: string }> }) {
@@ -50,8 +44,9 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
   const [brand, team] = await Promise.all([orgBrand(orgId), doc.job ? loadSwmsTeam(orgId, doc.job.uuid, todayInAu()) : Promise.resolve([])]);
   const c = doc.content;
   const a = doc.answers;
-  const fmtDay = dayIn(zoneOf(c.jurisdiction));
-  const fmtWhen = whenIn(zoneOf(c.jurisdiction));
+  /* the site's clock, in the app's words, with the year paper outlives */
+  const fmtDay = (iso: string) => siteDay(iso, c.jurisdiction, { year: true });
+  const fmtWhen = (iso: string) => siteWhen(iso, c.jurisdiction, { year: true });
   const on = new Map(c.categories.map((k) => [k.n, k.reason]));
   const id = `SWMS-${doc.job?.number ?? doc.swmsId.slice(0, 8)}-${doc.version}`;
   const business = [brand.name || null, brandContact(brand)[0] ?? null].filter(Boolean).join(", ");
@@ -224,7 +219,7 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
             <thead>
               <tr>
                 <th scope="col">Worker</th>
-                <th scope="col">Held</th>
+                <th scope="col">Licences and tickets on file</th>
               </tr>
             </thead>
             <tbody>
@@ -237,7 +232,7 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
                       <b>{p.name}</b>
                       {p.role && <em>{p.role}</em>}
                     </td>
-                    <td>{p.team ? (held.length ? `${held.join("; ")}, from staff records` : "None on file in staff records") : "Not held on file; outside the business"}</td>
+                    <td>{p.team ? (held.length ? held.join("; ") : "None on file") : "From outside the business, so none on file"}</td>
                   </tr>
                 );
               })}
@@ -273,7 +268,7 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
                 <th scope="col">Version</th>
                 <th scope="col">Issued</th>
                 <th scope="col">Reason and what changed</th>
-                <th scope="col">Signed again</th>
+                <th scope="col">Everyone signed on again</th>
                 <th scope="col">Issued by</th>
               </tr>
             </thead>
@@ -283,7 +278,7 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
                   <td className="swd-num">{v.version}</td>
                   <td>{fmtDay(v.issuedAt)}</td>
                   <td>{v.reason}</td>
-                  <td>{v.version === 1 ? "First issue" : v.material ? "Yes" : "No, a correction"}</td>
+                  <td>{v.version === 1 ? "—" : v.material ? "Yes" : "No, a correction"}</td>
                   <td>{v.issuedBy}</td>
                 </tr>
               ))}
@@ -311,7 +306,8 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
                     <b>{p.name}</b>
                     {p.role && <em>{p.role}</em>}
                   </td>
-                  <td>{p.signon?.briefedBy ?? ""}</td>
+                  {/* the person in charge gives the briefing; nobody briefs them */}
+                  <td>{p.signon ? p.signon.briefedBy ?? (p.staffProfileId === doc.responsibleStaffId ? "Gives the briefing" : "") : ""}</td>
                   <td>
                     {p.signon
                       ? `${fmtWhen(p.signon.at)}${p.signon.version < doc.version ? `, on version ${p.signon.version}` : ""}${

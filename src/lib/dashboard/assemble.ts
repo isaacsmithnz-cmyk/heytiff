@@ -90,7 +90,7 @@ export type ChipSources = {
   }[];
   /** SWMS versions naming YOU that you haven't signed on to — latest versions
       only. Optional so a caller that has not loaded them raises no chip. */
-  ownSwmsSignons?: { versionId: string; version: number; jobNumber: string | null; site: string | null; issuedAt: string }[];
+  ownSwmsSignons?: { versionId: string; again: boolean; jobNumber: string | null; site: string | null; issuedAt: string }[];
   /** The SWMS template isn't approved yet — the loader reads it for owners
       only; `assembleChips` checks `isOwner` again. */
   swmsTemplatePending?: boolean;

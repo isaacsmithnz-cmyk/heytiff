@@ -136,10 +136,10 @@ type TabKey =
   | "documents";
 
 /** A SWMS version as a page the card's viewer can hold — the printable
-    document, which carries its own Print button. */
-const swmsPaper = (versionId: string, version: number): JobMediaItem => ({
+    document, which carries its own Print button and its own version. */
+const swmsPaper = (versionId: string): JobMediaItem => ({
   remoteId: `swms:${versionId}`,
-  name: `Safe Work Method Statement, version ${version}`,
+  name: "Safe Work Method Statement",
   /* the viewer frames paper by its type; the document is a page, framed the same way */
   fileType: "pdf",
   kind: "document",
@@ -261,7 +261,7 @@ export function JobSheet({
     | { kind: "paper"; id: string }
     /* a SWMS is paper HeyTiff writes, so it opens in the same viewer as the
        job's other paper instead of a new tab that loses the card */
-    | { kind: "swms"; id: string; version: number }
+    | { kind: "swms"; id: string }
     | null
   >(null);
   /* Only a REFRESHED paragraph lives in state; the stored one rides the
@@ -1480,7 +1480,7 @@ export function JobSheet({
               truncated={!!media?.truncated}
               onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
               onCreateSwms={() => setSwmsWizard({ revise: null })}
-              onOpenSwms={(s) => setViewer({ kind: "swms", id: s.versionId, version: s.version })}
+              onOpenSwms={(s) => setViewer({ kind: "swms", id: s.versionId })}
               onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
             />
           )}
@@ -1540,9 +1540,9 @@ export function JobSheet({
           reviseVersionId={swmsWizard.revise}
           onClose={() => setSwmsWizard(null)}
           onIssued={reloadSwms}
-          onOpen={(versionId, version) => {
+          onOpen={(versionId) => {
             setSwmsWizard(null);
-            setViewer({ kind: "swms", id: versionId, version });
+            setViewer({ kind: "swms", id: versionId });
           }}
           onSignOn={(versionId) => router.push(`/dashboard/swms/${versionId}`)}
         />
@@ -1550,7 +1550,7 @@ export function JobSheet({
 
       {viewer?.kind === "swms" && (
         <JobMediaViewer
-          items={[swmsPaper(viewer.id, viewer.version)]}
+          items={[swmsPaper(viewer.id)]}
           index={0}
           favourites={null}
           onNav={() => {}}

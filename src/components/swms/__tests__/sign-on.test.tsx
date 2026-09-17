@@ -34,13 +34,13 @@ const doc = (over: Partial<SwmsDocument> = {}): SwmsDocument => ({
   answers,
   content: buildSwms(answers, { work: "Install a split system", electricianName: "Sam Ikpeba", firstAiderName: "Troy Porter" }),
   libraryVersion: "hvac-2026.09",
-  job: { uuid: "job-1", number: "2601", clientName: null, address: "14 Attunga Road, Miranda NSW 2228", description: null, jurisdiction: "NSW" },
+  job: { uuid: "job-1", number: "2601", clientName: null, address: "14 Attunga Road, Miranda NSW 2228", description: null, jurisdiction: "NSW", categoryName: "Install" },
   responsibleStaffId: "troy",
   responsible: "Troy Porter",
   siteCheckedBy: "Troy Porter",
   siteCheckedAt: "2026-09-15T21:40:00.000Z",
   people: [
-    person({ id: "p-troy", staffProfileId: "troy", name: "Troy Porter", role: "Crew lead", signon: { at: "2026-09-15T21:50:00.000Z", onPhoneOf: null, briefedBy: "Troy Porter", issue: null, svg: "<svg/>" } }),
+    person({ id: "p-troy", staffProfileId: "troy", name: "Troy Porter", role: "Crew lead", signon: { at: "2026-09-15T21:50:00.000Z", version: 1, onPhoneOf: null, briefedBy: "Troy Porter", issue: null, svg: "<svg/>" } }),
     person({ id: "p-dane", staffProfileId: "dane", name: "Dane Whitmore" }),
     person({ id: "p-kai", name: "Kai Lindqvist", role: "Lindqvist Plumbing", team: false }),
   ],
@@ -130,10 +130,35 @@ it("points a replaced version at the one that replaced it, and takes no sign-on"
   expect(screen.queryByRole("button", { name: "Sign on" })).toBeNull();
 });
 
-it("reads the SWMS before the sign-on, in the site's own time", () => {
+it("puts the reading before the signature, in plain words, in the site's own time", () => {
   render(<SwmsSignOn doc={doc()} me="dane" />);
+  const reading = screen.getByText("Before you start");
+  const signing = screen.getByRole("button", { name: "Sign on" });
+  /* the SWMS comes first on the page, the signature after it */
+  expect(reading.compareDocumentPosition(signing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.getByText("1. Get onto the roof and set fall protection")).toBeInTheDocument();
   expect(screen.getByText(/Nearest hospital: Sutherland Hospital/)).toBeInTheDocument();
+  /* the category in the words of the site, and no control-level labels */
+  expect(screen.getByText("Falling more than 2 m")).toBeInTheDocument();
+  expect(screen.queryByText("Isolate")).toBeNull();
+  expect(screen.queryByText("Admin")).toBeNull();
   // 21:42 UTC on the 15th is 7:42 am on the 16th in Sydney
-  expect(screen.getByText(/issued Wed, 16 Sept, 7:42[\s\u202f]?am/i)).toBeInTheDocument();
+  expect(screen.getByText(/Issued Wed, 16 Sept, 7:42[\s\u202f]?am/i)).toBeInTheDocument();
+});
+
+it("goes back to the job it came from", () => {
+  render(<SwmsSignOn doc={doc()} me="dane" />);
+  expect(screen.getByRole("link", { name: "← Job #2601" })).toHaveAttribute("href", "/dashboard/workboard?job=job-1");
+});
+
+it("says a sign-on a correction carried was given on the version before", () => {
+  const carried = doc({
+    version: 2,
+    versions: [
+      { id: "v-1", version: 1, issuedAt: "2026-09-15T21:42:00.000Z", reason: "First issue", material: true, issuedBy: "Troy Porter" },
+      { id: "v-2", version: 2, issuedAt: "2026-09-16T01:00:00.000Z", reason: "Hospital name was wrong", material: false, issuedBy: "Troy Porter" },
+    ],
+  });
+  render(<SwmsSignOn doc={carried} me="troy" />);
+  expect(screen.getByText(/^You signed on .*, on version 1\.$/)).toBeInTheDocument();
 });

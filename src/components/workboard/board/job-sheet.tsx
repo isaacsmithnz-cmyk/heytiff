@@ -43,6 +43,7 @@ import { JobDocumentsFace } from "./job-documents-face";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { listSwmsForJob } from "@/app/actions/swms";
 import type { SwmsSummary } from "@/lib/swms/query";
+import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { JobMediaViewer } from "./job-media-viewer";
 import {
   listJobPhotoFavourites,
@@ -133,6 +134,22 @@ type TabKey =
   | "checklist"
   | "photos"
   | "documents";
+
+/** A SWMS version as a page the card's viewer can hold — the printable
+    document, which carries its own Print button. */
+const swmsPaper = (versionId: string, version: number): JobMediaItem => ({
+  remoteId: `swms:${versionId}`,
+  name: `Safe Work Method Statement, version ${version}`,
+  /* the viewer frames paper by its type; the document is a page, framed the same way */
+  fileType: "pdf",
+  kind: "document",
+  origin: null,
+  takenAt: null,
+  url: `/swms/${versionId}`,
+  width: null,
+  height: null,
+  fromClaim: null,
+});
 
 const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
@@ -240,7 +257,12 @@ export function JobSheet({
   /* The shared viewer: a photo (by its place in the photos lens) or one
      PDF's paper. Closing it lands the reader exactly where they were. */
   const [viewer, setViewer] = useState<
-    { kind: "photos"; id: string } | { kind: "paper"; id: string } | null
+    | { kind: "photos"; id: string }
+    | { kind: "paper"; id: string }
+    /* a SWMS is paper HeyTiff writes, so it opens in the same viewer as the
+       job's other paper instead of a new tab that loses the card */
+    | { kind: "swms"; id: string; version: number }
+    | null
   >(null);
   /* Only a REFRESHED paragraph lives in state; the stored one rides the
      record read, so "fresh ?? stored" needs no state mirroring. */
@@ -1458,6 +1480,7 @@ export function JobSheet({
               truncated={!!media?.truncated}
               onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
               onCreateSwms={() => setSwmsWizard({ revise: null })}
+              onOpenSwms={(s) => setViewer({ kind: "swms", id: s.versionId, version: s.version })}
               onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
             />
           )}
@@ -1517,11 +1540,27 @@ export function JobSheet({
           reviseVersionId={swmsWizard.revise}
           onClose={() => setSwmsWizard(null)}
           onIssued={reloadSwms}
+          onOpen={(versionId, version) => {
+            setSwmsWizard(null);
+            setViewer({ kind: "swms", id: versionId, version });
+          }}
+          onSignOn={(versionId) => router.push(`/dashboard/swms/${versionId}`)}
+        />
+      )}
+
+      {viewer?.kind === "swms" && (
+        <JobMediaViewer
+          items={[swmsPaper(viewer.id, viewer.version)]}
+          index={0}
+          favourites={null}
+          onNav={() => {}}
+          onClose={() => setViewer(null)}
         />
       )}
 
       {/* The shared viewer — same portal, same law as the claim modal. */}
       {viewer &&
+        viewer.kind !== "swms" &&
         media &&
         (() => {
           /* THE VIEWER CARRIES ONLY WHAT IT CAN SHOW. A video's bytes stay

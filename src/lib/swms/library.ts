@@ -22,26 +22,31 @@
 export const LIBRARY_VERSION = "hvac-2026.09";
 
 /** High risk construction work, WHS Regulation r 291 — the same 18 in the
-    model regulations, NSW (WHS Regulation 2025) and Queensland (2011). */
-export const HRCW: readonly { n: number; label: string }[] = [
-  { n: 1, label: "Risk of a person falling more than 2 m" },
-  { n: 2, label: "On a telecommunication tower" },
-  { n: 3, label: "Demolition of a load-bearing or structural element" },
-  { n: 4, label: "Likely to involve disturbing asbestos" },
-  { n: 5, label: "Structural alterations or repairs needing temporary support" },
-  { n: 6, label: "In or near a confined space" },
-  { n: 7, label: "In or near a shaft or trench over 1.5 m deep, or a tunnel" },
-  { n: 8, label: "Use of explosives" },
-  { n: 9, label: "On or near pressurised gas mains or piping" },
-  { n: 10, label: "On or near chemical, fuel or refrigerant lines" },
-  { n: 11, label: "On or near energised electrical installations or services" },
-  { n: 12, label: "In an area that may have a contaminated or flammable atmosphere" },
-  { n: 13, label: "Tilt-up or precast concrete" },
-  { n: 14, label: "On or next to a road, railway or other traffic corridor" },
-  { n: 15, label: "In an area with movement of powered mobile plant" },
-  { n: 16, label: "In an area with artificial extremes of temperature" },
-  { n: 17, label: "In or near water or liquid with a drowning risk" },
-  { n: 18, label: "Diving work" },
+    model regulations, NSW (WHS Regulation 2025) and Queensland (2011).
+
+    TWO NAMES EACH. `label` is the regulation's wording and is what PAPER
+    prints, because the document is read against the law. `plain` is what a
+    SCREEN says to the person on site — "In an area with artificial extremes
+    of temperature" is a roof space to everyone who has worked in one. */
+export const HRCW: readonly { n: number; label: string; plain: string }[] = [
+  { n: 1, label: "Risk of a person falling more than 2 m", plain: "Falling more than 2 m" },
+  { n: 2, label: "On a telecommunication tower", plain: "On a telecommunication tower" },
+  { n: 3, label: "Demolition of a load-bearing or structural element", plain: "Demolishing a load-bearing part of a building" },
+  { n: 4, label: "Likely to involve disturbing asbestos", plain: "Disturbing asbestos" },
+  { n: 5, label: "Structural alterations or repairs needing temporary support", plain: "Structural work that needs temporary propping" },
+  { n: 6, label: "In or near a confined space", plain: "In or near a confined space" },
+  { n: 7, label: "In or near a shaft or trench over 1.5 m deep, or a tunnel", plain: "In or near a trench or shaft over 1.5 m deep, or a tunnel" },
+  { n: 8, label: "Use of explosives", plain: "Using explosives" },
+  { n: 9, label: "On or near pressurised gas mains or piping", plain: "On or near gas mains or piping" },
+  { n: 10, label: "On or near chemical, fuel or refrigerant lines", plain: "On or near refrigerant, fuel or chemical lines" },
+  { n: 11, label: "On or near energised electrical installations or services", plain: "On or near live electrical wiring" },
+  { n: 12, label: "In an area that may have a contaminated or flammable atmosphere", plain: "Where the air may be contaminated or flammable" },
+  { n: 13, label: "Tilt-up or precast concrete", plain: "Tilt-up or precast concrete" },
+  { n: 14, label: "On or next to a road, railway or other traffic corridor", plain: "Next to a road, railway or traffic" },
+  { n: 15, label: "In an area with movement of powered mobile plant", plain: "Around moving plant, like a crane or an EWP" },
+  { n: 16, label: "In an area with artificial extremes of temperature", plain: "Extreme heat or cold, like a roof space" },
+  { n: 17, label: "In or near water or liquid with a drowning risk", plain: "In or near water deep enough to drown in" },
+  { n: 18, label: "Diving work", plain: "Diving" },
 ];
 
 export type Jurisdiction = "NSW" | "QLD";
@@ -70,6 +75,23 @@ export const STEP_TITLE: Record<StepKey, string> = {
   power: "Connect power to the system",
   charge: "Release the charge, leak test and commission",
 };
+
+/* A SERVICE OR REPAIR IS NOT AN INSTALL. Lifting a new unit onto the roof,
+   core drilling a new penetration and connecting a new circuit are install
+   work, and their controls say so ("installation wiring by a licensed
+   electrician"), so a service is only ever offered the steps whose controls
+   hold for it. The library still writes every word; this only decides which
+   of its steps a kind of job can use. */
+export const SERVICE_STEPS: readonly StepKey[] = ["roof", "ceiling", "braze", "test", "charge"];
+
+export function stepsFor(kind: "install" | "service"): readonly StepKey[] {
+  return kind === "install" ? STEP_KEYS : SERVICE_STEPS;
+}
+
+/** A step that is ticked AND belongs to this kind of job. */
+export function stepOn(a: { kind: "install" | "service"; steps: Record<StepKey, boolean> }, key: StepKey): boolean {
+  return a.steps[key] && stepsFor(a.kind).includes(key);
+}
 
 export type FallControl = "edge" | "scaffold" | "ewp" | "harness";
 
@@ -119,6 +141,32 @@ export const DEFAULT_ANSWERS: SwmsAnswers = {
   extinguisher: "van",
   riskAppendix: false,
 };
+
+/** Where a new SWMS starts. Every install brazes, tests, connects power and
+    charges; whether it goes on the roof, lifts a unit, drills or runs through
+    the roof space depends on the site, so those start unticked and nothing
+    claims work nobody has described. A service starts with nothing ticked:
+    it needs a SWMS only for high-risk work, which the person on site names. */
+export function startingAnswers(kind: "install" | "service", jurisdiction: Jurisdiction): SwmsAnswers {
+  return {
+    ...DEFAULT_ANSWERS,
+    kind,
+    jurisdiction,
+    steps:
+      kind === "install"
+        ? { roof: false, lift: false, drill: false, ceiling: false, braze: true, test: true, power: true, charge: true }
+        : { roof: false, lift: false, drill: false, ceiling: false, braze: false, test: false, power: false, charge: false },
+  };
+}
+
+/** Install or service, read off the job's own ServiceM8 category. Null when
+    the category doesn't say, and the question is asked instead. */
+export function kindFromCategory(category: string | null): "install" | "service" | null {
+  const c = (category ?? "").toLowerCase();
+  if (/install|replace|supply|new system/.test(c)) return "install";
+  if (/service|repair|maint|fault|breakdown|clean/.test(c)) return "service";
+  return null;
+}
 
 export type SwmsControl = { level: ControlLevel; text: string };
 export type SwmsStep = {
@@ -186,7 +234,7 @@ export function categoriesOf(a: SwmsAnswers): SwmsCategory[] {
   const add = (n: number, reason: string) => {
     if (!on.has(n)) on.set(n, reason);
   };
-  const s = a.steps;
+  const s = Object.fromEntries(STEP_KEYS.map((k) => [k, stepOn(a, k)])) as Record<StepKey, boolean>;
   if (s.roof || s.lift) add(1, "Work on the roof, where a fall would be more than 2 m");
   if (s.drill && a.site.pre1990) add(4, "Drilling a building from before 1990, treated as possible asbestos");
   if (s.charge) add(10, "Work on charged refrigerant lines when releasing the charge and leak testing");
@@ -442,7 +490,7 @@ export function riskLevel(r: Rating): "Low" | "Medium" | "High" | "Extreme" {
 /* ── the document ──────────────────────────────────────────────────────── */
 
 export function buildSwms(a: SwmsAnswers, ctx: BuildContext): SwmsContent {
-  const s = a.steps;
+  const s = Object.fromEntries(STEP_KEYS.map((k) => [k, stepOn(a, k)])) as Record<StepKey, boolean>;
   const steps: SwmsStep[] = [];
   if (s.roof) steps.push(roofStep(a));
   if (s.lift) steps.push(liftStep(a));
@@ -533,38 +581,61 @@ export type IssueFacts = {
   siteChecked: boolean;
 };
 
-/** Everything standing between these answers and version 1, in the order the
-    wizard asks. Empty means it can be issued. */
-export function issueProblems(a: SwmsAnswers, f: IssueFacts): string[] {
-  const out: string[] = [];
-  const s = a.steps;
+/** The answer a problem is about, so a screen can take the reader to it. */
+export type ProblemField =
+  | "steps"
+  | "kind"
+  | "anchor"
+  | "qldFallReason"
+  | "silicaWhy"
+  | "roofPower"
+  | "isolation"
+  | "electrician"
+  | "hospital"
+  | "people"
+  | "responsible"
+  | "siteNotes"
+  | "siteChecked";
+export type IssueProblem = { field: ProblemField; text: string };
+
+/** Everything standing between these answers and an issue, in the order the
+    wizard asks, each with the answer it is about. Empty means it can be issued. */
+export function issueProblemList(a: SwmsAnswers, f: IssueFacts): IssueProblem[] {
+  const out: IssueProblem[] = [];
+  const add = (field: ProblemField, text: string) => out.push({ field, text });
+  const s = Object.fromEntries(STEP_KEYS.map((k) => [k, stepOn(a, k)])) as Record<StepKey, boolean>;
   const anyStep = STEP_KEYS.some((k) => s[k]);
-  if (!anyStep) out.push("Tick at least one step that's happening on this job.");
+  if (!anyStep) add("steps", "Tick at least one step that's happening on this job.");
   if (a.kind === "service" && categoriesOf(a).length === 0) {
-    out.push("A service or repair with no high-risk work doesn't need a SWMS.");
+    add("kind", "A service or repair with no high-risk work doesn't need a SWMS.");
   }
-  if (s.roof && a.fall === "harness" && !a.anchor.trim()) out.push("Name the roof anchor the harness clips to.");
+  if (s.roof && a.fall === "harness" && !a.anchor.trim()) add("anchor", "Name the roof anchor the harness clips to.");
   if (s.roof && a.fall === "harness" && a.jurisdiction === "QLD" && !a.qldFallReason.trim()) {
-    out.push("Say why edge protection, a scaffold or an EWP wasn't reasonably practicable — Queensland requires it for a harness.");
+    add("qldFallReason", "Say why edge protection, a scaffold or an EWP wasn't reasonably practicable — Queensland requires it for a harness.");
   }
-  if (s.drill && a.silica === "low" && !a.silicaWhy.trim()) out.push("Say why the drilling isn't high-risk silica work.");
+  if (s.drill && a.silica === "low" && !a.silicaWhy.trim()) add("silicaWhy", "Say why the drilling isn't high-risk silica work.");
   if (s.ceiling && a.jurisdiction === "QLD" && a.roofPower !== "off") {
-    out.push("In Queensland the mains must be off before anyone enters a house roof space.");
+    add("roofPower", "In Queensland the mains must be off before anyone enters a house roof space.");
   }
-  if (s.power && !a.isolation.trim()) out.push("Name the isolation point.");
-  if (s.power && !f.electricianChosen) out.push("Choose the electrician doing the connection.");
-  if (!a.hospital.trim()) out.push("Name the nearest hospital.");
-  if (f.people === 0) out.push("Choose who this SWMS covers.");
-  if (!f.responsibleChosen) out.push("Choose who's responsible for it on site.");
-  for (const [field, text] of [
-    ["the anchor", a.anchor],
-    ["the Queensland fall reason", a.qldFallReason],
-    ["the silica reason", a.silicaWhy],
-    ["the site notes", a.siteNotes],
+  if (s.power && !a.isolation.trim()) add("isolation", "Name the isolation point.");
+  if (s.power && !f.electricianChosen) add("electrician", "Choose the electrician doing the connection.");
+  if (!a.hospital.trim()) add("hospital", "Name the nearest hospital.");
+  if (f.people === 0) add("people", "Choose who this SWMS covers.");
+  if (!f.responsibleChosen) add("responsible", "Choose who's in charge on site.");
+  for (const [field, name, text] of [
+    ["anchor", "the anchor", a.anchor],
+    ["qldFallReason", "the Queensland fall reason", a.qldFallReason],
+    ["silicaWhy", "the silica reason", a.silicaWhy],
+    ["siteNotes", "the site notes", a.siteNotes],
   ] as const) {
     const hits = vagueWords(text);
-    if (hits.length) out.push(`Replace "${hits[0]}" in ${field} with the exact item, number or person.`);
+    if (hits.length) add(field, `Replace "${hits[0]}" in ${name} with the exact item, number or person.`);
   }
-  if (!f.siteChecked) out.push("Confirm you've walked the site and this SWMS matches it.");
+  if (!f.siteChecked) add("siteChecked", "Confirm you've walked the site and this SWMS matches it.");
   return out;
+}
+
+/** The same, as the words alone. */
+export function issueProblems(a: SwmsAnswers, f: IssueFacts): string[] {
+  return issueProblemList(a, f).map((p) => p.text);
 }

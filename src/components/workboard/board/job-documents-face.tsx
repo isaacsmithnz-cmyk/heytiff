@@ -13,8 +13,10 @@ import "@/components/swms/swms.css";
    Money (invoices, quotes, work orders), From the client (emailed in),
    Video, then the rest. An empty group doesn't render. COMPLIANCE LEADS:
    the SWMS is the one paper HeyTiff writes itself, and the one the crew
-   needs before the work starts, so it is created from this face's head and
-   filed first.
+   needs before the work starts, so it is filed first. It wears the same row
+   as every other document and opens in the same viewer; the head offers to
+   create one only while the job has none, because a second press made a
+   second SWMS where a revision was meant.
 
    A PDF opens IN THE CARD, in the shared viewer's iframe — today every
    file was a new browser tab that lost the job. Files whose bytes aren't
@@ -111,6 +113,7 @@ export function JobDocumentsFace({
   truncated,
   onOpen,
   onCreateSwms,
+  onOpenSwms,
   onReviseSwms,
 }: {
   documents: readonly JobMediaItem[] | null;
@@ -125,6 +128,7 @@ export function JobDocumentsFace({
   truncated: boolean;
   onOpen: (item: JobMediaItem) => void;
   onCreateSwms?: () => void;
+  onOpenSwms?: (swms: SwmsSummary) => void;
   onReviseSwms?: (versionId: string) => void;
 }) {
   const docs = documents ?? [];
@@ -144,8 +148,8 @@ export function JobDocumentsFace({
       <div className="wb2-jcdhead">
         <b>Documents</b>
         {total > 0 && <em>{total === 1 ? "1 file" : `${total} files`}</em>}
-        {onCreateSwms && (
-          <button type="button" className="sw-btn sm" disabled={!canCreateSwms} onClick={onCreateSwms}>
+        {onCreateSwms && swms !== null && statements.length === 0 && (
+          <button type="button" className="pbtn ghost sm" disabled={!canCreateSwms} onClick={onCreateSwms}>
             Create SWMS
           </button>
         )}
@@ -156,25 +160,30 @@ export function JobDocumentsFace({
           <span className="wb2-sect">{`Compliance — ${statements.length}`}</span>
           {statements.map((s) => (
             <div key={s.swmsId} className="sw-docrow">
-              <span>
-                <b>{`Safe Work Method Statement, version ${s.version}`}</b>
-                <em>{`Issued ${editedOn(s.issuedAt)}, ${s.responsible} responsible. ${signedLine(s)}`}</em>
-              </span>
-              <span className="sw-docact">
-                <a className="sw-btn sm" href={`/swms/${s.versionId}`} target="_blank" rel="noreferrer">
-                  Open
-                </a>
-                {s.waitingOn.length > 0 && (
-                  <Link className="sw-btn sm" href={`/dashboard/swms/${s.versionId}`}>
-                    Sign on
-                  </Link>
-                )}
-                {onReviseSwms && (
-                  <button type="button" className="sw-btn sm" onClick={() => onReviseSwms(s.versionId)}>
-                    Revise
-                  </button>
-                )}
-              </span>
+              <button type="button" className="wb2-doc" onClick={() => onOpenSwms?.(s)}>
+                <span className="wb2-doc-ic">
+                  <Icon name="shield" size={15} />
+                </span>
+                <span className="wb2-doc-b">
+                  <b>{`Safe Work Method Statement, version ${s.version}`}</b>
+                  <em>{`Issued ${editedOn(s.issuedAt)}, ${s.responsible} in charge. ${signedLine(s)}`}</em>
+                </span>
+                <span className="wb2-doc-go">
+                  <Icon name="chevR" size={15} />
+                </span>
+              </button>
+              {/* Sign on only for someone with something to sign here —
+                  anyone else would land on a page with nothing to do */}
+              {s.viewerCanSign && (
+                <Link className="pbtn ghost sm" href={`/dashboard/swms/${s.versionId}`}>
+                  Sign on
+                </Link>
+              )}
+              {onReviseSwms && (
+                <button type="button" className="pbtn ghost sm" onClick={() => onReviseSwms(s.versionId)}>
+                  Revise
+                </button>
+              )}
             </div>
           ))}
         </div>

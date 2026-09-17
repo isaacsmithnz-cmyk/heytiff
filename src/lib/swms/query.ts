@@ -8,6 +8,7 @@ import {
   type SwmsAnswers,
   type SwmsContent,
 } from "./library";
+import { effectiveSignons, type ChainPerson, type ChainVersion } from "./signons";
 
 /* THE SWMS READS. Every query is scoped by org_id — an id from a browser names
    a choice, and this decides whether it's real in this workspace. */
@@ -19,6 +20,9 @@ export type SwmsJob = {
   address: string | null;
   description: string | null;
   jurisdiction: Jurisdiction | null;
+  /** The job's ServiceM8 category — "Install", "Service" — which answers
+      whether this is an install without asking. */
+  categoryName: string | null;
 };
 
 export type SwmsTicket = { name: string; expires: string | null; current: boolean };
@@ -34,7 +38,7 @@ export type SwmsTeamMember = {
 export async function loadSwmsJob(orgId: string, jobUuid: string): Promise<SwmsJob | null> {
   const { data } = await supabaseAdmin
     .from("sm8_jobs")
-    .select("uuid, generated_job_id, company_uuid, job_address, geo_state, job_description")
+    .select("uuid, generated_job_id, company_uuid, category_uuid, job_address, geo_state, job_description")
     .eq("org_id", orgId)
     .eq("uuid", jobUuid)
     .eq("active", 1)
@@ -43,22 +47,22 @@ export async function loadSwmsJob(orgId: string, jobUuid: string): Promise<SwmsJ
     uuid: string;
     generated_job_id: string | null;
     company_uuid: string | null;
+    category_uuid: string | null;
     job_address: string | null;
     geo_state: string | null;
     job_description: string | null;
   } | null;
   if (!job) return null;
 
-  let clientName: string | null = null;
-  if (job.company_uuid) {
-    const { data: co } = await supabaseAdmin
-      .from("sm8_companies")
-      .select("name")
-      .eq("org_id", orgId)
-      .eq("uuid", job.company_uuid)
-      .maybeSingle();
-    clientName = (co as { name: string | null } | null)?.name?.trim() || null;
-  }
+  const [{ data: co }, { data: cat }] = await Promise.all([
+    job.company_uuid
+      ? supabaseAdmin.from("sm8_companies").select("name").eq("org_id", orgId).eq("uuid", job.company_uuid).maybeSingle()
+      : Promise.resolve({ data: null }),
+    job.category_uuid
+      ? supabaseAdmin.from("sm8_categories").select("name").eq("org_id", orgId).eq("uuid", job.category_uuid).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const clientName = (co as { name: string | null } | null)?.name?.trim() || null;
 
   const state = (job.geo_state ?? "").toUpperCase();
   return {
@@ -68,6 +72,7 @@ export async function loadSwmsJob(orgId: string, jobUuid: string): Promise<SwmsJ
     address: job.job_address?.trim() || null,
     description: job.job_description?.trim() || null,
     jurisdiction: state === "NSW" || state === "QLD" ? state : jurisdictionFromAddress(job.job_address),
+    categoryName: (cat as { name: string | null } | null)?.name?.trim() || null,
   };
 }
 
@@ -117,13 +122,39 @@ export async function loadSwmsTeam(orgId: string, jobUuid: string, today: string
 }
 
 export async function isLibraryApproved(orgId: string): Promise<boolean> {
+  return (await libraryApproval(orgId)) !== null;
+}
+
+/** Who approved the template at its current version, and when; null until then. */
+export async function libraryApproval(orgId: string): Promise<{ approvedBy: string; approvedAt: string } | null> {
   const { data } = await supabaseAdmin
     .from("swms_library_approvals")
-    .select("id")
+    .select("approved_by_staff_id, approved_at")
     .eq("org_id", orgId)
     .eq("library_version", LIBRARY_VERSION)
     .maybeSingle();
-  return !!data;
+  const row = data as { approved_by_staff_id: string; approved_at: string } | null;
+  if (!row) return null;
+  const names = await profilesOf(orgId, [row.approved_by_staff_id]);
+  return { approvedBy: nameIn(names, row.approved_by_staff_id), approvedAt: row.approved_at };
+}
+
+/** The business's owner, by name — who a blocked crew lead needs to ask. */
+export async function ownerName(orgId: string): Promise<string | null> {
+  const { data: org } = await supabaseAdmin
+    .from("organizations")
+    .select("primary_owner_user_id")
+    .eq("id", orgId)
+    .maybeSingle();
+  const userId = (org as { primary_owner_user_id: string | null } | null)?.primary_owner_user_id;
+  if (!userId) return null;
+  const { data } = await supabaseAdmin
+    .from("staff_profiles")
+    .select(PROFILE_COLUMNS)
+    .eq("org_id", orgId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data ? displayNameOf(data as ProfileRow) : null;
 }
 
 /** Names and job titles for a handful of staff ids, in one read. */
@@ -134,13 +165,101 @@ async function profilesOf(orgId: string, ids: (string | null)[]): Promise<Map<st
   return new Map(((data ?? []) as ProfileRow[]).map((p) => [p.id, { name: displayNameOf(p), role: p.job_title?.trim() || "" }]));
 }
 const nameIn = (m: Map<string, { name: string }>, id: string | null): string => (id ? m.get(id)?.name ?? "—" : "—");
-const nameOrOutside = (m: Map<string, { name: string }>, p: { staff_profile_id: string | null; outside_name: string | null }): string =>
-  p.staff_profile_id ? nameIn(m, p.staff_profile_id) : p.outside_name ?? "—";
+
+/* ── the chain: every version of a SWMS, who each covers, who signed ─────── */
+
+type ChainRows = {
+  versions: (ChainVersion & { swmsId: string; issuedAt: string; reason: string; issuedBy: string; responsible: string })[];
+  people: (ChainPerson & { outsideCompany: string | null })[];
+  signons: {
+    personId: string;
+    signedByStaffId: string | null;
+    briefedByStaffId: string | null;
+    svg: string;
+    issue: string | null;
+    at: string;
+  }[];
+};
+
+/** Every version of these SWMS with their people and sign-ons, in three reads. */
+async function loadChains(orgId: string, swmsIds: string[]): Promise<ChainRows> {
+  if (!swmsIds.length) return { versions: [], people: [], signons: [] };
+  const { data: versionRows } = await supabaseAdmin
+    .from("swms_versions")
+    .select("id, swms_id, version, material, issued_at, reason, issued_by_staff_id, responsible_staff_id")
+    .eq("org_id", orgId)
+    .in("swms_id", swmsIds);
+  const versions = ((versionRows ?? []) as {
+    id: string; swms_id: string; version: number; material: boolean; issued_at: string; reason: string; issued_by_staff_id: string; responsible_staff_id: string;
+  }[]).map((v) => ({
+    id: v.id,
+    swmsId: v.swms_id,
+    version: v.version,
+    /* the first issue is always one everyone signs */
+    material: v.version === 1 ? true : v.material !== false,
+    issuedAt: v.issued_at,
+    reason: v.reason,
+    issuedBy: v.issued_by_staff_id,
+    responsible: v.responsible_staff_id,
+  }));
+  const versionIds = versions.map((v) => v.id);
+  if (!versionIds.length) return { versions, people: [], signons: [] };
+
+  const [{ data: peopleRows }, { data: signonRows }] = await Promise.all([
+    supabaseAdmin
+      .from("swms_people")
+      .select("id, version_id, staff_profile_id, outside_name, outside_company")
+      .eq("org_id", orgId)
+      .in("version_id", versionIds),
+    supabaseAdmin
+      .from("swms_signons")
+      .select("person_id, signed_by_staff_id, briefed_by_staff_id, signature_svg, issue_raised, signed_at")
+      .eq("org_id", orgId)
+      .in("version_id", versionIds),
+  ]);
+  return {
+    versions,
+    people: ((peopleRows ?? []) as { id: string; version_id: string; staff_profile_id: string | null; outside_name: string | null; outside_company: string | null }[]).map((p) => ({
+      id: p.id,
+      versionId: p.version_id,
+      staffProfileId: p.staff_profile_id,
+      outsideName: p.outside_name,
+      outsideCompany: p.outside_company,
+    })),
+    signons: ((signonRows ?? []) as { person_id: string; signed_by_staff_id: string | null; briefed_by_staff_id: string | null; signature_svg: string; issue_raised: string | null; signed_at: string }[]).map((x) => ({
+      personId: x.person_id,
+      signedByStaffId: x.signed_by_staff_id,
+      briefedByStaffId: x.briefed_by_staff_id,
+      svg: x.signature_svg,
+      issue: x.issue_raised,
+      at: x.signed_at,
+    })),
+  };
+}
+
+/** The sign-on standing for each person across one SWMS's versions. */
+function standingSignons(chain: ChainRows, swmsId: string) {
+  const versions = chain.versions.filter((v) => v.swmsId === swmsId);
+  const ids = new Set(versions.map((v) => v.id));
+  const people = chain.people.filter((p) => ids.has(p.versionId));
+  const byPerson = new Map(chain.signons.map((x) => [x.personId, x]));
+  return effectiveSignons(versions, people, (id) => byPerson.get(id) ?? null);
+}
+
+/** Whether a sign-on already stands for this person — their own, or one a
+    correction carried from the version before. */
+export async function hasStandingSignon(orgId: string, swmsId: string, personId: string): Promise<boolean> {
+  const chain = await loadChains(orgId, [swmsId]);
+  return !!standingSignons(chain, swmsId).get(personId);
+}
 
 /* ── one version, as the document and the sign-on screen read it ────────── */
 
 export type SwmsSignon = {
   at: string;
+  /** The version this signature was given on — earlier than the one being
+      read when a correction carried it. */
+  version: number;
   /** For someone outside the business: whose phone they signed on. */
   onPhoneOf: string | null;
   briefedBy: string | null;
@@ -196,7 +315,7 @@ const VERSION_COLUMNS =
 
 /* ONE ORDER FOR THE CREW, decided here. The rows of one issue are inserted in
    one statement, so they share `created_at` and the database hands them back
-   in whatever order it likes: the person responsible, then the team, then
+   in whatever order it likes: the person in charge, then the team, then
    anyone from outside the business, each by name. */
 const byCrewOrder =
   (responsibleId: string) =>
@@ -215,38 +334,20 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
   const v = data as VersionRow | null;
   if (!v) return null;
 
-  const [{ data: swms }, { data: all }, { data: peopleRows }, { data: signonRows }] = await Promise.all([
+  const [{ data: swms }, chain] = await Promise.all([
     supabaseAdmin.from("swms").select("sm8_job_uuid").eq("org_id", orgId).eq("id", v.swms_id).maybeSingle(),
-    supabaseAdmin
-      .from("swms_versions")
-      .select("id, version, issued_at, reason, material, issued_by_staff_id")
-      .eq("org_id", orgId)
-      .eq("swms_id", v.swms_id)
-      .order("version", { ascending: true }),
-    supabaseAdmin
-      .from("swms_people")
-      .select("id, staff_profile_id, outside_name, outside_company, created_at")
-      .eq("org_id", orgId)
-      .eq("version_id", v.id)
-      .order("created_at", { ascending: true }),
-    supabaseAdmin
-      .from("swms_signons")
-      .select("person_id, signed_by_staff_id, briefed_by_staff_id, signature_svg, issue_raised, signed_at")
-      .eq("org_id", orgId)
-      .eq("version_id", v.id),
+    loadChains(orgId, [v.swms_id]),
   ]);
-
-  const versions = (all ?? []) as { id: string; version: number; issued_at: string; reason: string; material: boolean; issued_by_staff_id: string }[];
-  const people = (peopleRows ?? []) as { id: string; staff_profile_id: string | null; outside_name: string | null; outside_company: string | null }[];
-  const signons = (signonRows ?? []) as { person_id: string; signed_by_staff_id: string | null; briefed_by_staff_id: string | null; signature_svg: string; issue_raised: string | null; signed_at: string }[];
-  const bySigned = new Map(signons.map((s) => [s.person_id, s]));
+  const standing = standingSignons(chain, v.swms_id);
+  const versions = [...chain.versions].sort((a, b) => a.version - b.version);
+  const people = chain.people.filter((p) => p.versionId === v.id);
 
   const names = await profilesOf(orgId, [
     v.responsible_staff_id,
     v.site_checked_by_staff_id,
-    ...versions.map((x) => x.issued_by_staff_id),
-    ...people.map((p) => p.staff_profile_id),
-    ...signons.flatMap((s) => [s.signed_by_staff_id, s.briefed_by_staff_id]),
+    ...versions.map((x) => x.issuedBy),
+    ...people.map((p) => p.staffProfileId),
+    ...chain.signons.flatMap((x) => [x.signedByStaffId, x.briefedByStaffId]),
   ]);
   const job = swms ? await loadSwmsJob(orgId, (swms as { sm8_job_uuid: string }).sm8_job_uuid) : null;
   const latest = versions.length ? versions[versions.length - 1].version === v.version : true;
@@ -266,33 +367,36 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
     responsible: nameIn(names, v.responsible_staff_id),
     siteCheckedBy: nameIn(names, v.site_checked_by_staff_id),
     siteCheckedAt: v.site_checked_at,
-    people: people.map((p) => {
-      const s = bySigned.get(p.id);
-      const team = !!p.staff_profile_id;
-      return {
-        id: p.id,
-        staffProfileId: p.staff_profile_id,
-        name: team ? nameIn(names, p.staff_profile_id) : p.outside_name ?? "—",
-        role: team ? names.get(p.staff_profile_id!)?.role ?? "" : p.outside_company ?? "",
-        team,
-        signon: s
-          ? {
-              at: s.signed_at,
-              onPhoneOf: !team && s.signed_by_staff_id ? nameIn(names, s.signed_by_staff_id) : null,
-              briefedBy: s.briefed_by_staff_id ? nameIn(names, s.briefed_by_staff_id) : null,
-              issue: s.issue_raised,
-              svg: s.signature_svg,
-            }
-          : null,
-      };
-    }).sort(byCrewOrder(v.responsible_staff_id)),
+    people: people
+      .map((p) => {
+        const eff = standing.get(p.id) ?? null;
+        const team = !!p.staffProfileId;
+        return {
+          id: p.id,
+          staffProfileId: p.staffProfileId,
+          name: team ? nameIn(names, p.staffProfileId) : p.outsideName ?? "—",
+          role: team ? names.get(p.staffProfileId!)?.role ?? "" : p.outsideCompany ?? "",
+          team,
+          signon: eff
+            ? {
+                at: eff.signon.at,
+                version: eff.version,
+                onPhoneOf: !team && eff.signon.signedByStaffId ? nameIn(names, eff.signon.signedByStaffId) : null,
+                briefedBy: eff.signon.briefedByStaffId ? nameIn(names, eff.signon.briefedByStaffId) : null,
+                issue: eff.signon.issue,
+                svg: eff.signon.svg,
+              }
+            : null,
+        };
+      })
+      .sort(byCrewOrder(v.responsible_staff_id)),
     versions: versions.map((x) => ({
       id: x.id,
       version: x.version,
-      issuedAt: x.issued_at,
+      issuedAt: x.issuedAt,
       reason: x.reason,
       material: x.material,
-      issuedBy: nameIn(names, x.issued_by_staff_id),
+      issuedBy: nameIn(names, x.issuedBy),
     })),
   };
 }
@@ -308,10 +412,13 @@ export type SwmsSummary = {
   signed: number;
   total: number;
   waitingOn: string[];
+  /** The reader has something to sign here: their own sign-on, or a helper
+      on the same SWMS. Anyone else has nothing behind a Sign on button. */
+  viewerCanSign: boolean;
 };
 
 /** The job's SWMS, at its latest version, with who's still to sign. */
-export async function listJobSwms(orgId: string, jobUuid: string): Promise<SwmsSummary[]> {
+export async function listJobSwms(orgId: string, jobUuid: string, viewerStaffId: string | null = null): Promise<SwmsSummary[]> {
   const { data: swmsRows } = await supabaseAdmin
     .from("swms")
     .select("id")
@@ -321,47 +428,35 @@ export async function listJobSwms(orgId: string, jobUuid: string): Promise<SwmsS
   const ids = ((swmsRows ?? []) as { id: string }[]).map((r) => r.id);
   if (!ids.length) return [];
 
-  const { data: versionRows } = await supabaseAdmin
-    .from("swms_versions")
-    .select("id, swms_id, version, issued_at, responsible_staff_id")
-    .eq("org_id", orgId)
-    .in("swms_id", ids)
-    .order("version", { ascending: false });
-  const latest = new Map<string, { id: string; swms_id: string; version: number; issued_at: string; responsible_staff_id: string }>();
-  for (const v of (versionRows ?? []) as { id: string; swms_id: string; version: number; issued_at: string; responsible_staff_id: string }[]) {
-    if (!latest.has(v.swms_id)) latest.set(v.swms_id, v);
-  }
-  const versionIds = [...latest.values()].map((v) => v.id);
-  if (!versionIds.length) return [];
+  const chain = await loadChains(orgId, ids);
+  const names = await profilesOf(orgId, [...chain.people.map((p) => p.staffProfileId), ...chain.versions.map((v) => v.responsible)]);
 
-  const [{ data: peopleRows }, { data: signonRows }] = await Promise.all([
-    supabaseAdmin.from("swms_people").select("id, version_id, staff_profile_id, outside_name").eq("org_id", orgId).in("version_id", versionIds),
-    supabaseAdmin.from("swms_signons").select("person_id").eq("org_id", orgId).in("version_id", versionIds),
-  ]);
-  const people = (peopleRows ?? []) as { id: string; version_id: string; staff_profile_id: string | null; outside_name: string | null }[];
-  const signed = new Set(((signonRows ?? []) as { person_id: string }[]).map((s) => s.person_id));
-  const names = await profilesOf(orgId, [...people.map((p) => p.staff_profile_id), ...[...latest.values()].map((v) => v.responsible_staff_id)]);
-
-  return ids
-    .map((id) => latest.get(id))
-    .filter((v): v is NonNullable<typeof v> => !!v)
-    .map((v) => {
-      const mine = people.filter((p) => p.version_id === v.id);
-      /* team first, then outsiders, each by name — see byCrewOrder */
-      const waiting = mine
-        .filter((p) => !signed.has(p.id))
-        .sort((x, y) => Number(!!y.staff_profile_id) - Number(!!x.staff_profile_id) || nameOrOutside(names, x).localeCompare(nameOrOutside(names, y)));
-      return {
-        swmsId: v.swms_id,
+  return ids.flatMap((id) => {
+    const versions = chain.versions.filter((v) => v.swmsId === id);
+    if (!versions.length) return [];
+    const v = versions.reduce((a, b) => (b.version > a.version ? b : a));
+    const standing = standingSignons(chain, id);
+    const mine = chain.people.filter((p) => p.versionId === v.id);
+    const nameOf = (p: ChainPerson) => (p.staffProfileId ? nameIn(names, p.staffProfileId) : p.outsideName ?? "—");
+    /* team first, then outsiders, each by name — see byCrewOrder */
+    const waiting = mine
+      .filter((p) => !standing.get(p.id))
+      .sort((x, y) => Number(!!y.staffProfileId) - Number(!!x.staffProfileId) || nameOf(x).localeCompare(nameOf(y)));
+    const viewerRow = viewerStaffId ? mine.find((p) => p.staffProfileId === viewerStaffId) : undefined;
+    return [
+      {
+        swmsId: id,
         versionId: v.id,
         version: v.version,
-        issuedAt: v.issued_at,
-        responsible: nameIn(names, v.responsible_staff_id),
+        issuedAt: v.issuedAt,
+        responsible: nameIn(names, v.responsible),
         signed: mine.length - waiting.length,
         total: mine.length,
-        waitingOn: waiting.map((p) => nameOrOutside(names, p)),
-      };
-    });
+        waitingOn: waiting.map(nameOf),
+        viewerCanSign: !!viewerRow && waiting.some((p) => p.id === viewerRow.id || !p.staffProfileId),
+      },
+    ];
+  });
 }
 
 /* ── the bell ──────────────────────────────────────────────────────────── */
@@ -374,45 +469,47 @@ export type PendingSignon = {
   issuedAt: string;
 };
 
-/** Latest versions this team member is on and hasn't signed. A superseded
-    version is never asked for — the next one is. */
+/** Latest versions this team member is on with no sign-on standing for them.
+    A replaced version is never asked for — the next one is — and a correction
+    doesn't ask again of anyone who signed the version it corrects. */
 export async function pendingSignons(orgId: string, staffProfileId: string): Promise<PendingSignon[]> {
   const { data: mine } = await supabaseAdmin
     .from("swms_people")
-    .select("id, version_id")
+    .select("version_id")
     .eq("org_id", orgId)
     .eq("staff_profile_id", staffProfileId);
-  const rows = (mine ?? []) as { id: string; version_id: string }[];
-  if (!rows.length) return [];
+  const versionIds = [...new Set(((mine ?? []) as { version_id: string }[]).map((r) => r.version_id))];
+  if (!versionIds.length) return [];
 
-  const [{ data: signonRows }, { data: versionRows }] = await Promise.all([
-    supabaseAdmin.from("swms_signons").select("person_id").eq("org_id", orgId).in("person_id", rows.map((r) => r.id)),
-    supabaseAdmin.from("swms_versions").select("id, swms_id, version, issued_at").eq("org_id", orgId).in("id", rows.map((r) => r.version_id)),
-  ]);
-  const signed = new Set(((signonRows ?? []) as { person_id: string }[]).map((s) => s.person_id));
-  const versions = (versionRows ?? []) as { id: string; swms_id: string; version: number; issued_at: string }[];
-  const swmsIds = [...new Set(versions.map((v) => v.swms_id))];
+  const { data: onVersions } = await supabaseAdmin
+    .from("swms_versions")
+    .select("swms_id")
+    .eq("org_id", orgId)
+    .in("id", versionIds);
+  const swmsIds = [...new Set(((onVersions ?? []) as { swms_id: string }[]).map((v) => v.swms_id))];
   if (!swmsIds.length) return [];
 
-  const [{ data: newest }, { data: swmsRows }] = await Promise.all([
-    supabaseAdmin.from("swms_versions").select("swms_id, version").eq("org_id", orgId).in("swms_id", swmsIds),
+  const [chain, { data: swmsRows }] = await Promise.all([
+    loadChains(orgId, swmsIds),
     supabaseAdmin.from("swms").select("id, sm8_job_uuid").eq("org_id", orgId).in("id", swmsIds),
   ]);
-  const top = new Map<string, number>();
-  for (const n of (newest ?? []) as { swms_id: string; version: number }[]) top.set(n.swms_id, Math.max(top.get(n.swms_id) ?? 0, n.version));
-  const jobOf = new Map(((swmsRows ?? []) as { id: string; sm8_job_uuid: string }[]).map((s) => [s.id, s.sm8_job_uuid]));
+  const jobOf = new Map(((swmsRows ?? []) as { id: string; sm8_job_uuid: string }[]).map((x) => [x.id, x.sm8_job_uuid]));
 
-  const pending = rows
-    .filter((r) => !signed.has(r.id))
-    .map((r) => versions.find((v) => v.id === r.version_id))
-    .filter((v): v is NonNullable<typeof v> => !!v && top.get(v.swms_id) === v.version);
+  const pending = swmsIds.flatMap((id) => {
+    const versions = chain.versions.filter((v) => v.swmsId === id);
+    if (!versions.length) return [];
+    const latest = versions.reduce((a, b) => (b.version > a.version ? b : a));
+    const me = chain.people.find((p) => p.versionId === latest.id && p.staffProfileId === staffProfileId);
+    if (!me || standingSignons(chain, id).get(me.id)) return [];
+    return [latest];
+  });
 
-  const jobs = await Promise.all(pending.map((v) => loadSwmsJob(orgId, jobOf.get(v.swms_id) ?? "")));
+  const jobs = await Promise.all(pending.map((v) => loadSwmsJob(orgId, jobOf.get(v.swmsId) ?? "")));
   return pending.map((v, i) => ({
     versionId: v.id,
     version: v.version,
     jobNumber: jobs[i]?.number ?? null,
     site: jobs[i]?.address ?? null,
-    issuedAt: v.issued_at,
+    issuedAt: v.issuedAt,
   }));
 }

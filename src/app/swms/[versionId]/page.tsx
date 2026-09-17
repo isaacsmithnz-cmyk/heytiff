@@ -273,6 +273,7 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
                 <th scope="col">Version</th>
                 <th scope="col">Issued</th>
                 <th scope="col">Reason and what changed</th>
+                <th scope="col">Signed again</th>
                 <th scope="col">Issued by</th>
               </tr>
             </thead>
@@ -282,6 +283,7 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
                   <td className="swd-num">{v.version}</td>
                   <td>{fmtDay(v.issuedAt)}</td>
                   <td>{v.reason}</td>
+                  <td>{v.version === 1 ? "First issue" : v.material ? "Yes" : "No, a correction"}</td>
                   <td>{v.issuedBy}</td>
                 </tr>
               ))}
@@ -310,7 +312,13 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
                     {p.role && <em>{p.role}</em>}
                   </td>
                   <td>{p.signon?.briefedBy ?? ""}</td>
-                  <td>{p.signon ? `${fmtWhen(p.signon.at)}${p.signon.onPhoneOf ? `, on ${p.signon.onPhoneOf}'s phone` : ", in HeyTiff"}` : ""}</td>
+                  <td>
+                    {p.signon
+                      ? `${fmtWhen(p.signon.at)}${p.signon.version < doc.version ? `, on version ${p.signon.version}` : ""}${
+                          p.signon.onPhoneOf ? `, on ${p.signon.onPhoneOf}'s phone` : ", in HeyTiff"
+                        }`
+                      : ""}
+                  </td>
                   <td className="swd-sig">
                     {p.signon && (
                       // eslint-disable-next-line @next/next/no-img-element

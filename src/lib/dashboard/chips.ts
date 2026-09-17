@@ -43,7 +43,8 @@ export type ChipKind =
   | "leave-queue"
   | "leave-declined"
   | "profile"
-  | "swms";
+  | "swms"
+  | "swms-template";
 
 /** Only actionable states surface as chips; a compliant thing produces none. */
 export type ActionState = Exclude<ChipState, "ok">; // "bad" | "warn"
@@ -100,6 +101,7 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   /* A SWMS to sign on to is the job's paperwork, so it files with the board
      it was issued from, under the nav's own Workboard glyph. */
   swms: "Workboard",
+  "swms-template": "Workboard",
 };
 
 export const GROUP_ICON: Record<ChipGroup, string> = {
@@ -513,6 +515,26 @@ export function swmsSignonChip(
     subject: [p.jobNumber ? `Job #${p.jobNumber}` : null, site].filter(Boolean).join(", ") || "A job",
     href: `/dashboard/swms/${p.versionId}`,
     urgency: urgency("warn", -age),
+  };
+}
+
+/** The SWMS template, waiting on the owner to approve it.
+
+    Without this the first crew lead to press Create SWMS on a real job met a
+    screen that said the owner had to approve something, and nothing had ever
+    told the owner. It sits in the owner's own list until the template is
+    approved — a setup step that stops a job on site, so it is asked before
+    anyone needs it, not after. */
+export function swmsTemplateChip(pending: boolean | undefined): ActionChip | null {
+  if (!pending) return null;
+  return {
+    key: "swms-template",
+    kind: "swms-template",
+    state: "warn",
+    label: "Approve the SWMS template",
+    subject: "Before the first SWMS",
+    href: "/dashboard/swms/template",
+    urgency: urgency("warn", 0),
   };
 }
 

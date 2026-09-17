@@ -1,5 +1,6 @@
-/* The job's paper, with the SWMS leading under Compliance and created from
-   the face's head. */
+/* The job's paper, with the SWMS leading under Compliance: the same row as
+   every document, a sign-on door only for someone with something to sign,
+   and Create SWMS only while the job has none. */
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -15,6 +16,7 @@ const summary = (over: Partial<SwmsSummary> = {}): SwmsSummary => ({
   signed: 1,
   total: 3,
   waitingOn: ["Dane Whitmore", "Kai Lindqvist"],
+  viewerCanSign: true,
   ...over,
 });
 
@@ -31,39 +33,45 @@ const face = (props: Partial<Parameters<typeof JobDocumentsFace>[0]> = {}) =>
     />
   );
 
-it("files the SWMS under Compliance, with who it's still waiting on", async () => {
+it("files the SWMS under Compliance as a document row that opens it, with who it's still waiting on", async () => {
+  const onOpenSwms = jest.fn();
   const onReviseSwms = jest.fn();
-  face({ swms: [summary()], onReviseSwms, onCreateSwms: () => {}, canCreateSwms: true });
+  face({ swms: [summary()], onOpenSwms, onReviseSwms, onCreateSwms: () => {}, canCreateSwms: true });
 
   expect(screen.getByText("Compliance — 1")).toBeInTheDocument();
-  expect(screen.getByText("Safe Work Method Statement, version 2")).toBeInTheDocument();
+  const open = screen.getByRole("button", { name: /Safe Work Method Statement, version 2/ });
+  expect(open).toHaveClass("wb2-doc");
   expect(
-    screen.getByText("Issued Wed 16 Sept, Troy Porter responsible. 1 of 3 signed on, waiting on Dane Whitmore and Kai Lindqvist")
+    within(open).getByText("Issued Wed 16 Sept, Troy Porter in charge. 1 of 3 signed on, waiting on Dane Whitmore and Kai Lindqvist")
   ).toBeInTheDocument();
-  expect(screen.getByText("1 file")).toBeInTheDocument();
+  await userEvent.click(open);
+  expect(onOpenSwms).toHaveBeenCalledWith(expect.objectContaining({ versionId: "v-2" }));
 
-  const row = screen.getByText("Safe Work Method Statement, version 2").closest(".sw-docrow") as HTMLElement;
-  expect(within(row).getByRole("link", { name: "Open" })).toHaveAttribute("href", "/swms/v-2");
+  const row = open.closest(".sw-docrow") as HTMLElement;
   expect(within(row).getByRole("link", { name: "Sign on" })).toHaveAttribute("href", "/dashboard/swms/v-2");
   await userEvent.click(within(row).getByRole("button", { name: "Revise" }));
   expect(onReviseSwms).toHaveBeenCalledWith("v-2");
 });
 
-it("drops the sign-on door once everyone has signed", () => {
-  face({ swms: [summary({ signed: 3, waitingOn: [] })] });
-  expect(screen.getByText(/3 of 3 signed on$/)).toBeInTheDocument();
+it("offers Sign on only to someone with something to sign", () => {
+  face({ swms: [summary({ viewerCanSign: false })] });
   expect(screen.queryByRole("link", { name: "Sign on" })).toBeNull();
 });
 
-it("creates a SWMS from the head, once the card knows its job", async () => {
+it("offers Create SWMS only while the job has none — a second press was a second SWMS", async () => {
   const onCreateSwms = jest.fn();
-  const { rerender } = face({ onCreateSwms, canCreateSwms: false });
-  expect(screen.getByRole("button", { name: "Create SWMS" })).toBeDisabled();
-  expect(screen.getByText("No documents on this job.")).toBeInTheDocument();
+  const { rerender } = face({ swms: null, onCreateSwms, canCreateSwms: true });
+  /* still reading: no button that might turn out to be wrong */
+  expect(screen.queryByRole("button", { name: "Create SWMS" })).toBeNull();
 
   rerender(
-    <JobDocumentsFace documents={[]} elsewhere={[]} designs={[]} loading={false} truncated={false} onOpen={() => {}} onCreateSwms={onCreateSwms} canCreateSwms />
+    <JobDocumentsFace documents={[]} elsewhere={[]} designs={[]} loading={false} truncated={false} onOpen={() => {}} swms={[]} onCreateSwms={onCreateSwms} canCreateSwms />
   );
   await userEvent.click(screen.getByRole("button", { name: "Create SWMS" }));
   expect(onCreateSwms).toHaveBeenCalled();
+
+  rerender(
+    <JobDocumentsFace documents={[]} elsewhere={[]} designs={[]} loading={false} truncated={false} onOpen={() => {}} swms={[summary()]} onCreateSwms={onCreateSwms} canCreateSwms />
+  );
+  expect(screen.queryByRole("button", { name: "Create SWMS" })).toBeNull();
 });

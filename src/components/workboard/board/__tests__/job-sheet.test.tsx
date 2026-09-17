@@ -2585,6 +2585,25 @@ describe("files on the job", () => {
     expect(dialog.querySelector("iframe")!.getAttribute("src")).toBe("https://signed/d-1.pdf");
   });
 
+  /* THE SWMS IS PAPER TOO. It opened in a new browser tab that lost the job —
+     the exact thing this face's viewer exists to stop. */
+  it("opens a SWMS in the card's own viewer, not a new tab", async () => {
+    const swmsActions = jest.requireMock("@/app/actions/swms") as { listSwmsForJob: jest.Mock };
+    swmsActions.listSwmsForJob.mockResolvedValueOnce([
+      { swmsId: "s-1", versionId: "v-2", version: 2, issuedAt: "2026-09-16T07:42:00", responsible: "Alex Lorenz", signed: 1, total: 2, waitingOn: ["Callum Vrieze"], viewerCanSign: false },
+    ]);
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+
+    await userEvent.click(await face("documents").findByRole("button", { name: /Safe Work Method Statement, version 2/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Safe Work Method Statement, version 2" });
+    expect(dialog.querySelector("iframe")!.getAttribute("src")).toBe("/swms/v-2");
+    /* the job already has its SWMS, so the head doesn't offer a second */
+    expect(face("documents").queryByRole("button", { name: "Create SWMS" })).toBeNull();
+  });
+
   it("files a document that arrived by email under From the client", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(

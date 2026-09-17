@@ -3,11 +3,16 @@ import {
   categoriesOf,
   DEFAULT_ANSWERS,
   HRCW,
+  issueProblemList,
   issueProblems,
   jurisdictionFromAddress,
+  kindFromCategory,
   refrigerantClass,
   riskLevel,
+  SERVICE_STEPS,
+  startingAnswers,
   STEP_KEYS,
+  stepsFor,
   vagueWords,
   type SwmsAnswers,
 } from "../library";
@@ -27,6 +32,17 @@ const text = (a: SwmsAnswers) =>
 const facts = { people: 3, responsibleChosen: true, electricianChosen: true, siteChecked: true };
 
 describe("the 18 categories", () => {
+  it("each has the regulation's words for paper and plain words for the screen", () => {
+    for (const c of HRCW) {
+      expect(c.label.length).toBeGreaterThan(0);
+      expect(c.plain.length).toBeGreaterThan(0);
+    }
+    expect(HRCW.find((c) => c.n === 16)).toMatchObject({
+      label: "In an area with artificial extremes of temperature",
+      plain: "Extreme heat or cold, like a roof space",
+    });
+  });
+
   it("are the regulation's 18, numbered once each", () => {
     expect(HRCW.map((c) => c.n)).toEqual(Array.from({ length: 18 }, (_, i) => i + 1));
   });
@@ -239,7 +255,7 @@ describe("before version 1 can be issued", () => {
     expect(issueProblems(answers({ isolation: "" }), facts)).toContain("Name the isolation point.");
     expect(issueProblems(answers({ hospital: "" }), facts)).toContain("Name the nearest hospital.");
     expect(issueProblems(answers(), { ...facts, people: 0 })).toContain("Choose who this SWMS covers.");
-    expect(issueProblems(answers(), { ...facts, responsibleChosen: false })).toContain("Choose who's responsible for it on site.");
+    expect(issueProblems(answers(), { ...facts, responsibleChosen: false })).toContain("Choose who's in charge on site.");
     expect(issueProblems(answers(), { ...facts, electricianChosen: false })).toContain("Choose the electrician doing the connection.");
     expect(issueProblems(answers(), { ...facts, siteChecked: false })).toContain("Confirm you've walked the site and this SWMS matches it.");
   });
@@ -260,5 +276,63 @@ describe("before version 1 can be issued", () => {
     expect(issueProblems(answers({ siteNotes: "Use appropriate care on the tiles" }), facts)).toContain(
       'Replace "appropriate" in the site notes with the exact item, number or person.'
     );
+  });
+});
+
+describe("where a new SWMS starts", () => {
+  it("an install starts with the steps every install has, and nothing that depends on the site", () => {
+    const a = startingAnswers("install", "QLD");
+    expect(STEP_KEYS.filter((k) => a.steps[k])).toEqual(["braze", "test", "power", "charge"]);
+    expect(a.jurisdiction).toBe("QLD");
+    /* nothing is claimed about the roof, lifting, drilling or the roof space */
+    expect(nums(a).filter((n) => n === 1 || n === 16)).toEqual([]);
+  });
+
+  it("a service starts with nothing ticked", () => {
+    const a = startingAnswers("service", "NSW");
+    expect(STEP_KEYS.filter((k) => a.steps[k])).toEqual([]);
+    expect(a.kind).toBe("service");
+  });
+
+  it("reads install or service off the job's category, and says nothing when it can't tell", () => {
+    expect(kindFromCategory("Install")).toBe("install");
+    expect(kindFromCategory("Supply and Install")).toBe("install");
+    expect(kindFromCategory("Service")).toBe("service");
+    expect(kindFromCategory("Breakdown Repair")).toBe("service");
+    expect(kindFromCategory("Quote")).toBeNull();
+    expect(kindFromCategory(null)).toBeNull();
+  });
+});
+
+describe("a service or repair", () => {
+  it("is only offered the steps whose controls hold for it", () => {
+    expect(stepsFor("install")).toEqual(STEP_KEYS);
+    expect(SERVICE_STEPS).toEqual(["roof", "ceiling", "braze", "test", "charge"]);
+  });
+
+  it("never writes an install-only step, even if one is ticked", () => {
+    const a = answers({ kind: "service" });
+    const keys = buildSwms(a, ctx).steps.map((st) => st.key);
+    expect(keys).not.toContain("lift");
+    expect(keys).not.toContain("drill");
+    expect(keys).not.toContain("power");
+    expect(keys).toContain("roof");
+    /* and the categories follow what is written, not what was ticked */
+    expect(categoriesOf(answers({ kind: "service", steps: { ...DEFAULT_ANSWERS.steps, roof: false, ceiling: false, charge: false } })).map((c) => c.n)).toEqual([]);
+  });
+});
+
+describe("a problem knows which answer it is about", () => {
+  it("names the field for every problem, in the order the wizard asks", () => {
+    const got = issueProblemList(
+      answers({ fall: "harness", isolation: "", hospital: "", siteNotes: "as required" }),
+      { people: 0, responsibleChosen: false, electricianChosen: false, siteChecked: false }
+    ).map((p) => p.field);
+    expect(got).toEqual(["anchor", "isolation", "electrician", "hospital", "people", "responsible", "siteNotes", "siteChecked"]);
+  });
+
+  it("says the same words as issueProblems", () => {
+    const a = answers({ silica: "low", hospital: "" });
+    expect(issueProblemList(a, facts).map((p) => p.text)).toEqual(issueProblems(a, facts));
   });
 });

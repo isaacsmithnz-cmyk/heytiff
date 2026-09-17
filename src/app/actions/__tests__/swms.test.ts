@@ -32,7 +32,7 @@ jest.mock("@/lib/integrations/links", () => ({
   sm8StaffLinkMap: async () => new Map([["sm8-troy", "troy"]]),
 }));
 
-import { approveSwmsLibrary, issueSwms, signOnSwms, swmsWizardContext, type IssueSwmsInput } from "../swms";
+import { approveSwmsLibrary, issueSwms, signOnSwms, swmsPrevious, swmsWizardContext, type IssueSwmsInput } from "../swms";
 
 const ORG = "org-1";
 const staff = (id: string, first: string, last: string, status = "Active", org = ORG) => ({
@@ -57,7 +57,9 @@ beforeEach(() => {
     sm8_job_activities: [{ org_id: ORG, job_uuid: "job-1", staff_uuid: "sm8-troy", active: 1, activity_was_scheduled: 1 }],
     staff_licences: [{ org_id: ORG, staff_profile_id: "troy", type_name: "White Card", expiry_date: null }],
     swms_library_approvals: [{ org_id: ORG, library_version: LIBRARY_VERSION }],
+    organizations: [{ id: ORG, primary_owner_user_id: "auth0|isaac" }],
   });
+  mockDb.tables.staff_profiles.push({ ...staff("isaac", "Isaac", "Smith", "Inactive"), user_id: "auth0|isaac" });
 });
 
 const input = (over: Partial<IssueSwmsInput> = {}): IssueSwmsInput => ({
@@ -84,7 +86,7 @@ describe("swmsWizardContext", () => {
       ["Sam Ikpeba", false],
     ]);
     expect(ctx?.team[0].tickets).toEqual([{ name: "White Card", expires: null, current: true }]);
-    expect(ctx).toMatchObject({ libraryApproved: true, canApprove: false, viewerStaffId: "troy" });
+    expect(ctx).toMatchObject({ libraryApproved: true, canApprove: false, viewerStaffId: "troy", ownerName: "Isaac Smith" });
   });
 
   it("knows nothing about a job outside this workspace", async () => {
@@ -148,7 +150,7 @@ describe("issueSwms", () => {
 
   it("refuses until the owner has adopted the library", async () => {
     mockDb.tables.swms_library_approvals = [];
-    expect(await issueSwms(input())).toEqual({ ok: false, problems: ["The owner needs to adopt the SWMS library first."] });
+    expect(await issueSwms(input())).toEqual({ ok: false, problems: ["The owner needs to approve the SWMS template first."] });
   });
 
   it("refuses a team member who isn't active in this workspace", async () => {
@@ -161,7 +163,7 @@ describe("issueSwms", () => {
   it("needs the electrician and the person responsible to be on it", async () => {
     const res = await issueSwms(input({ staffIds: ["troy", "dane"], electrician: "staff:sam", responsibleStaffId: "sam" }));
     expect(res.ok).toBe(false);
-    expect(!res.ok && res.problems).toEqual(expect.arrayContaining(["Choose the electrician doing the connection.", "Choose who's responsible for it on site."]));
+    expect(!res.ok && res.problems).toEqual(expect.arrayContaining(["Choose the electrician doing the connection.", "Choose who's in charge on site."]));
   });
 
   it("takes an electrician from outside the business", async () => {
@@ -195,6 +197,25 @@ describe("issueSwms", () => {
     ]);
   });
 
+  it("keeps a correction a correction, and a first issue always one everyone signs", async () => {
+    const first = await issueSwms(input({ material: false }));
+    const swmsId = first.ok ? first.swmsId : "";
+    await issueSwms(input({ swmsId, reason: "Hospital name was wrong", material: false }));
+    await issueSwms(input({ swmsId, reason: "Crane instead of a hoist" }));
+    expect(written("swms_versions").map((v) => [v.version, v.material])).toEqual([
+      [1, true],
+      [2, false],
+      [3, true],
+    ]);
+  });
+
+  it("starts a revision with the electrician and first aider the last version named", async () => {
+    const first = await issueSwms(input());
+    const prev = await swmsPrevious(first.ok ? first.versionId : "");
+    expect(prev).toMatchObject({ version: 1, electricianName: "Sam Ikpeba", firstAiderName: "Troy Porter", responsibleStaffId: "troy" });
+    expect(prev?.outsiders).toEqual([{ name: "Kai Lindqvist", company: "Lindqvist Plumbing" }]);
+  });
+
   it("won't revise a SWMS from another job", async () => {
     mockDb.tables.swms = [{ org_id: ORG, id: "other", sm8_job_uuid: "job-2" }];
     expect(await issueSwms(input({ swmsId: "other", reason: "x" }))).toEqual({ ok: false, problems: ["That SWMS isn't on this job."] });
@@ -219,7 +240,7 @@ describe("approveSwmsLibrary", () => {
   it("is the owner's alone", async () => {
     mockDb.tables.swms_library_approvals = [];
     mockRole = "admin";
-    expect(await approveSwmsLibrary()).toEqual({ ok: false, error: "Only the owner can adopt the SWMS library." });
+    expect(await approveSwmsLibrary()).toEqual({ ok: false, error: "Only the owner can approve the SWMS template." });
     expect(written("swms_library_approvals")).toEqual([]);
   });
 });
@@ -275,6 +296,15 @@ describe("signOnSwms", () => {
     const id = personFor("dane");
     await signOnSwms({ personId: id, pathData: drawn, briefed: true });
     expect(await signOnSwms({ personId: id, pathData: drawn, briefed: true })).toEqual({ ok: false, error: "Already signed on." });
+  });
+
+  it("won't sign on again over a sign-on a correction carried", async () => {
+    mockMe = "dane";
+    await signOnSwms({ personId: personFor("dane"), pathData: drawn, briefed: true });
+    const swmsId = written("swms")[0].id as string;
+    await issueSwms(input({ swmsId, reason: "Hospital name was wrong", material: false }));
+    const onV2 = written("swms_people").filter((p) => p.staff_profile_id === "dane").map((p) => p.id as string)[1];
+    expect(await signOnSwms({ personId: onV2, pathData: drawn, briefed: true })).toEqual({ ok: false, error: "Already signed on." });
   });
 
   it("won't sign on to a version a revision has replaced", async () => {

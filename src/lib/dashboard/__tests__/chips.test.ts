@@ -18,6 +18,7 @@ import {
   serviceChip,
   sortChips,
   swmsSignonChip,
+  swmsTemplateChip,
   vehicleChips,
   vehicleLabel,
   workRightsChips,
@@ -262,6 +263,7 @@ describe("chipGroup", () => {
       "leave-declined": true,
       profile: true,
       swms: true,
+      "swms-template": true,
     };
     for (const k of Object.keys(filed) as ChipKind[]) {
       const g = chipGroup(k);
@@ -307,6 +309,23 @@ describe("swmsSignonChip", () => {
 
   it("still names something when the job has no number or site", () => {
     expect(swmsSignonChip({ ...pending, jobNumber: null, site: null }, { today: TODAY }).subject).toBe("A job");
+  });
+});
+
+describe("swmsTemplateChip", () => {
+  it("asks the owner to approve the template, and opens it", () => {
+    expect(swmsTemplateChip(true)).toMatchObject({
+      kind: "swms-template",
+      state: "warn",
+      label: "Approve the SWMS template",
+      href: "/dashboard/swms/template",
+    });
+    expect(chipGroup("swms-template")).toBe("Workboard");
+  });
+
+  it("goes once it's approved", () => {
+    expect(swmsTemplateChip(false)).toBeNull();
+    expect(swmsTemplateChip(undefined)).toBeNull();
   });
 });
 

@@ -14,11 +14,13 @@ import {
 } from "@/lib/swms/library";
 import { normaliseAnswers, normaliseOutsiders, signatureSvg } from "@/lib/swms/input";
 import {
+  hasStandingSignon,
   isLibraryApproved,
   listJobSwms,
   loadSwmsDocument,
   loadSwmsJob,
   loadSwmsTeam,
+  ownerName,
   type SwmsJob,
   type SwmsSummary,
   type SwmsTeamMember,
@@ -48,15 +50,32 @@ export type SwmsPrevious = {
   staffIds: string[];
   outsiders: { name: string; company: string | null }[];
   responsibleStaffId: string;
+  /** Who the last version named, by name, so a revision starts with them chosen. */
+  electricianName: string | null;
+  firstAiderName: string | null;
 };
+
+/** The electrician a version's power step names, read back off its words. */
+function electricianIn(doc: { content: { steps: { key: string; controls: { text: string }[] }[] } }): string | null {
+  const power = doc.content.steps.find((st) => st.key === "power");
+  for (const c of power?.controls ?? []) {
+    const m =
+      /licensed electrician — (.+)\. A restricted electrical licence doesn't cover it\.$/.exec(c.text) ??
+      /licensed electrician — (.+)\.$/.exec(c.text);
+    if (m && m[1] !== "the named electrician") return m[1];
+  }
+  return null;
+}
 
 export type SwmsWizardContext = {
   job: SwmsJob;
   team: SwmsTeamMember[];
   libraryVersion: string;
   libraryApproved: boolean;
-  /** Only an owner can adopt the library. */
+  /** Only an owner can approve the template. */
   canApprove: boolean;
+  /** Who approves it — named to anyone who can't. */
+  ownerName: string | null;
   /** The person issuing — the one who ticks "I've walked this site". */
   viewerStaffId: string | null;
 };
@@ -68,11 +87,12 @@ export async function swmsWizardContext(jobUuid: string): Promise<SwmsWizardCont
   if (!uuid) return null;
   const job = await loadSwmsJob(orgId, uuid);
   if (!job) return null;
-  const [team, libraryApproved, role, viewerStaffId] = await Promise.all([
+  const [team, libraryApproved, role, viewerStaffId, owner] = await Promise.all([
     loadSwmsTeam(orgId, uuid, todayInAu()),
     isLibraryApproved(orgId),
     getDbRole(),
     staffIdFor(orgId, userId),
+    ownerName(orgId),
   ]);
   return {
     job,
@@ -80,16 +100,17 @@ export async function swmsWizardContext(jobUuid: string): Promise<SwmsWizardCont
     libraryVersion: LIBRARY_VERSION,
     libraryApproved,
     canApprove: hasMinRole(role, "owner"),
+    ownerName: owner,
     viewerStaffId,
   };
 }
 
 /** The job's SWMS, for the Documents face. */
 export async function listSwmsForJob(jobUuid: string): Promise<SwmsSummary[]> {
-  const { orgId } = await requireOrg("workboard");
+  const { orgId, userId } = await requireOrg("workboard");
   const uuid = String(jobUuid ?? "").trim().slice(0, 80);
   if (!uuid) return [];
-  return listJobSwms(orgId, uuid);
+  return listJobSwms(orgId, uuid, await staffIdFor(orgId, userId));
 }
 
 /** The latest version's answers and people, for a revision to start from. */
@@ -104,27 +125,30 @@ export async function swmsPrevious(versionId: string): Promise<SwmsPrevious | nu
     staffIds: doc.people.filter((p) => p.staffProfileId).map((p) => p.staffProfileId!),
     outsiders: doc.people.filter((p) => !p.team).map((p) => ({ name: p.name, company: p.role || null })),
     responsibleStaffId: doc.responsibleStaffId,
+    electricianName: electricianIn(doc),
+    firstAiderName: doc.content.emergency.firstAider && doc.content.emergency.firstAider !== "—" ? doc.content.emergency.firstAider : null,
   };
 }
 
 export type ApproveResult = { ok: true } | { ok: false; error: string };
 
-/** The owner adopts the library at its current version. */
+/** The owner approves the template at its current version. */
 export async function approveSwmsLibrary(): Promise<ApproveResult> {
   const { orgId, userId } = await requireOrg();
   if (!hasMinRole(await getDbRole(), "owner")) {
-    return { ok: false, error: "Only the owner can adopt the SWMS library." };
+    return { ok: false, error: "Only the owner can approve the SWMS template." };
   }
   const staffId = await staffIdFor(orgId, userId);
-  if (!staffId) return { ok: false, error: "Your account has no staff card to sign the adoption with." };
+  if (!staffId) return { ok: false, error: "Your account has no staff card to approve it with." };
   const { error } = await supabaseAdmin
     .from("swms_library_approvals")
     .upsert(
       { org_id: orgId, library_version: LIBRARY_VERSION, approved_by_staff_id: staffId },
       { onConflict: "org_id,library_version", ignoreDuplicates: true }
     );
-  if (error) return { ok: false, error: "Couldn't record the adoption. Try again." };
+  if (error) return { ok: false, error: "Couldn't record the approval. Try again." };
   revalidatePath(WB);
+  revalidatePath("/dashboard/swms/template");
   return { ok: true };
 }
 
@@ -140,6 +164,10 @@ export type IssueSwmsInput = {
   swmsId?: string | null;
   /** A revision's reason — what changed and why. */
   reason?: string | null;
+  /** A revision that changes how the work is done: everyone signs on again.
+      False is a correction, and sign-ons carry over. A first issue is always
+      signed by everyone. */
+  material?: boolean;
   answers: unknown;
   staffIds: unknown;
   outsiders: unknown;
@@ -162,7 +190,7 @@ export async function issueSwms(input: IssueSwmsInput): Promise<IssueSwmsResult>
 
   const job = await loadSwmsJob(orgId, String(input.jobUuid ?? "").trim().slice(0, 80));
   if (!job) return fail("That job isn't on this workspace's board.");
-  if (!(await isLibraryApproved(orgId))) return fail("The owner needs to adopt the SWMS library first.");
+  if (!(await isLibraryApproved(orgId))) return fail("The owner needs to approve the SWMS template first.");
 
   const answers = normaliseAnswers(input.answers);
   const outsiders = normaliseOutsiders(input.outsiders);
@@ -256,7 +284,7 @@ export async function issueSwms(input: IssueSwmsInput): Promise<IssueSwmsResult>
       content,
       library_version: LIBRARY_VERSION,
       reason,
-      material: true,
+      material: version === 1 ? true : input.material !== false,
       responsible_staff_id: input.responsibleStaffId,
       site_checked_by_staff_id: issuer,
       site_checked_at: now,
@@ -358,6 +386,9 @@ export async function signOnSwms(input: SignOnInput): Promise<SignOnResult> {
     if (!onIt) return { ok: false, error: "Only someone on this SWMS can sign on a helper." };
   }
 
+  if (await hasStandingSignon(orgId, version.swms_id, person.id)) {
+    return { ok: false, error: "Already signed on." };
+  }
   if (input.briefed !== true) return { ok: false, error: "Tick that the briefing happened first." };
   const svg = signatureSvg(input.pathData);
   if (!svg) return { ok: false, error: "Sign in the box first." };

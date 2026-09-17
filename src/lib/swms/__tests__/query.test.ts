@@ -8,7 +8,7 @@ jest.mock("@/lib/supabase-server", () => ({
 }));
 jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: async () => new Map() }));
 
-import { listJobSwms, loadSwmsDocument, pendingSignons } from "../query";
+import { hasStandingSignon, libraryApproval, listJobSwms, loadSwmsDocument, ownerName, pendingSignons } from "../query";
 
 const ORG = "org-1";
 const person = (id: string, version_id: string, who: { staff?: string; outside?: string }) => ({
@@ -24,10 +24,13 @@ beforeEach(() => {
   mockDb = fakeDb();
   Object.assign(mockDb.tables, {
     sm8_jobs: [
-      { org_id: ORG, uuid: "job-1", generated_job_id: "2601", company_uuid: null, job_address: "14 Attunga Road, Miranda NSW 2228", geo_state: null, job_description: null, active: 1 },
+      { org_id: ORG, uuid: "job-1", generated_job_id: "2601", company_uuid: null, category_uuid: "cat-1", job_address: "14 Attunga Road, Miranda NSW 2228", geo_state: null, job_description: null, active: 1 },
       { org_id: ORG, uuid: "job-2", generated_job_id: "2602", company_uuid: null, job_address: "3 Palm Ave, Coorparoo QLD 4151", geo_state: null, job_description: null, active: 1 },
     ],
+    sm8_categories: [{ org_id: ORG, uuid: "cat-1", name: "Install" }],
+    organizations: [{ id: ORG, primary_owner_user_id: "auth0|isaac" }],
     staff_profiles: [
+      { org_id: ORG, id: "isaac", user_id: "auth0|isaac", first_name: "Isaac", last_name: "Smith", job_title: "Owner", status: "Active" },
       { org_id: ORG, id: "troy", first_name: "Troy", last_name: "Porter", job_title: "Crew lead", status: "Active" },
       { org_id: ORG, id: "dane", first_name: "Dane", last_name: "Whitmore", job_title: null, status: "Active" },
     ],
@@ -70,12 +73,19 @@ describe("pendingSignons", () => {
 describe("listJobSwms", () => {
   it("summarises the job's SWMS at its latest version, with who it's still waiting on", async () => {
     expect(await listJobSwms(ORG, "job-1")).toEqual([
-      { swmsId: "s-1", versionId: "v2", version: 2, issuedAt: "2026-09-12T07:42:00.000Z", responsible: "Troy Porter", signed: 1, total: 3, waitingOn: ["Dane Whitmore", "Kai Lindqvist"] },
+      { swmsId: "s-1", versionId: "v2", version: 2, issuedAt: "2026-09-12T07:42:00.000Z", responsible: "Troy Porter", signed: 1, total: 3, waitingOn: ["Dane Whitmore", "Kai Lindqvist"], viewerCanSign: false },
     ]);
   });
 
   it("is empty for a job with none", async () => {
     expect(await listJobSwms(ORG, "job-9")).toEqual([]);
+  });
+
+  it("offers a sign-on only to someone with something to sign", async () => {
+    const can = async (who: string) => (await listJobSwms(ORG, "job-1", who))[0].viewerCanSign;
+    expect(await can("dane")).toBe(true); // their own
+    expect(await can("troy")).toBe(true); // signed, but a helper on it is waiting
+    expect(await can("isaac")).toBe(false); // not on it
   });
 });
 
@@ -96,11 +106,61 @@ describe("loadSwmsDocument", () => {
     expect((await loadSwmsDocument(ORG, "v1"))?.latest).toBe(false);
   });
 
+  it("reads the job's category, so the wizard doesn't ask what the job already says", async () => {
+    expect((await loadSwmsDocument(ORG, "v2"))?.job?.categoryName).toBe("Install");
+  });
+
   it("reads the site's state from the address when ServiceM8 has none", async () => {
     expect((await loadSwmsDocument(ORG, "w1"))?.job?.jurisdiction).toBe("QLD");
   });
 
   it("knows nothing about another workspace's version", async () => {
     expect(await loadSwmsDocument("org-2", "v2")).toBeNull();
+  });
+});
+
+/* A CORRECTION CARRIES SIGN-ONS. Dane signed version 1; version 2 only
+   corrected it, so nobody asks Dane again and the record says version 1. */
+describe("a correction", () => {
+  beforeEach(() => {
+    mockDb.tables.swms_versions[1].material = false;
+    mockDb.tables.swms_signons.push({
+      org_id: ORG, id: "g-0", version_id: "v1", person_id: "p-old", signed_by_staff_id: "dane", briefed_by_staff_id: "troy", signature_svg: "<svg/>", issue_raised: null, signed_at: "2026-09-11T07:50:00.000Z",
+    });
+  });
+
+  it("doesn't ask again of someone who signed the version it corrects", async () => {
+    expect(await pendingSignons(ORG, "dane")).toEqual([]);
+    expect(await hasStandingSignon(ORG, "s-1", "p-dane")).toBe(true);
+  });
+
+  it("counts them as signed on the job card, still waiting on anyone who wasn't", async () => {
+    expect(await listJobSwms(ORG, "job-1", "dane")).toEqual([
+      expect.objectContaining({ signed: 2, total: 3, waitingOn: ["Kai Lindqvist"], viewerCanSign: true }),
+    ]);
+  });
+
+  it("shows the sign-on on the version it was given", async () => {
+    const dane = (await loadSwmsDocument(ORG, "v2"))?.people.find((p) => p.name === "Dane Whitmore");
+    expect(dane?.signon).toMatchObject({ at: "2026-09-11T07:50:00.000Z", version: 1 });
+    expect((await loadSwmsDocument(ORG, "v2"))?.versions.map((v) => v.material)).toEqual([true, false]);
+  });
+
+  it("carries nothing when the change was to how the work is done", async () => {
+    mockDb.tables.swms_versions[1].material = true;
+    expect(await pendingSignons(ORG, "dane")).toHaveLength(1);
+  });
+});
+
+describe("the template", () => {
+  it("says who approved it and when, and nothing until then", async () => {
+    expect(await libraryApproval(ORG)).toBeNull();
+    mockDb.tables.swms_library_approvals = [{ org_id: ORG, library_version: "hvac-2026.09", approved_by_staff_id: "isaac", approved_at: "2026-09-16T09:00:00.000Z" }];
+    expect(await libraryApproval(ORG)).toEqual({ approvedBy: "Isaac Smith", approvedAt: "2026-09-16T09:00:00.000Z" });
+  });
+
+  it("names the owner, for anyone who needs to ask them", async () => {
+    expect(await ownerName(ORG)).toBe("Isaac Smith");
+    expect(await ownerName("org-2")).toBeNull();
   });
 });

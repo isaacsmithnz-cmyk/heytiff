@@ -1,7 +1,7 @@
 /* A small in-memory stand-in for the Supabase client, enough for the SWMS
    reads and writes: eq / in filters, order, limit, single, maybeSingle,
-   insert (with ids and the columns the database defaults), upsert and delete.
-   Shared by the SWMS suites; lives under fixtures/ so jest never runs it. */
+   insert (with ids and the columns the database defaults), update, upsert and
+   delete. Shared by the SWMS suites; lives under fixtures/ so jest never runs it. */
 
 type Row = Record<string, unknown>;
 
@@ -23,6 +23,7 @@ export function fakeDb(): FakeDb {
     let order: { key: string; asc: boolean } | null = null;
     let limit: number | null = null;
     let deleting = false;
+    let patch: Row | null = null;
 
     const match = (r: Row) => eqs.every(([k, v]) => r[k] === v) && ins.every(([k, vs]) => vs.includes(r[k]));
     const rows = () => {
@@ -46,7 +47,12 @@ export function fakeDb(): FakeDb {
       return r.length === 1 ? { data: r[0], error: null } : { data: null, error: { message: "not one row" } };
     };
     b.delete = () => ((deleting = true), b);
+    b.update = (p: Row) => ((patch = p), b);
     b.then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => {
+      if (patch) {
+        for (const r of (tables[table] ?? []).filter(match)) Object.assign(r, patch);
+        return Promise.resolve({ error: null }).then(res, rej);
+      }
       if (deleting) {
         tables[table] = (tables[table] ?? []).filter((r) => !match(r));
         return Promise.resolve({ error: null }).then(res, rej);

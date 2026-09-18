@@ -8,7 +8,13 @@ import { buildSwms, DEFAULT_ANSWERS } from "@/lib/swms/library";
 import type { SwmsDocument, SwmsPerson } from "@/lib/swms/query";
 
 const signOnSwms = jest.fn(async (..._: unknown[]) => ({ ok: true as const, signedAt: "2026-09-16T07:58:00.000Z" }));
-jest.mock("@/app/actions/swms", () => ({ signOnSwms: (...a: unknown[]) => signOnSwms(...a) }));
+const raiseSwmsIssue = jest.fn(async (..._: unknown[]) => ({ ok: true as const }));
+const clearSwmsIssue = jest.fn(async (..._: unknown[]) => ({ ok: true as const }));
+jest.mock("@/app/actions/swms", () => ({
+  signOnSwms: (...a: unknown[]) => signOnSwms(...a),
+  raiseSwmsIssue: (...a: unknown[]) => raiseSwmsIssue(...a),
+  clearSwmsIssue: (...a: unknown[]) => clearSwmsIssue(...a),
+}));
 const refresh = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 
@@ -23,6 +29,9 @@ const person = (over: Partial<SwmsPerson>): SwmsPerson => ({
   team: true,
   signon: null,
   ...over,
+});
+const withIssue = (issue: string, over: Partial<NonNullable<SwmsPerson["signon"]>> = {}) => ({
+  at: "2026-09-15T21:50:00.000Z", version: 1, onPhoneOf: null, briefedBy: "Troy Porter", issue, issueCleared: null, svg: "<svg/>", ...over,
 });
 const doc = (over: Partial<SwmsDocument> = {}): SwmsDocument => ({
   swmsId: "s-1",
@@ -40,7 +49,7 @@ const doc = (over: Partial<SwmsDocument> = {}): SwmsDocument => ({
   siteCheckedBy: "Troy Porter",
   siteCheckedAt: "2026-09-15T21:40:00.000Z",
   people: [
-    person({ id: "p-troy", staffProfileId: "troy", name: "Troy Porter", role: "Crew lead", signon: { at: "2026-09-15T21:50:00.000Z", version: 1, onPhoneOf: null, briefedBy: "Troy Porter", issue: null, svg: "<svg/>" } }),
+    person({ id: "p-troy", staffProfileId: "troy", name: "Troy Porter", role: "Crew lead", signon: withIssue("") }),
     person({ id: "p-dane", staffProfileId: "dane", name: "Dane Whitmore" }),
     person({ id: "p-kai", name: "Kai Lindqvist", role: "Lindqvist Plumbing", team: false }),
   ],
@@ -137,7 +146,7 @@ it("shows an issue raised at sign-on beside the person who raised it", () => {
   const raised = doc();
   raised.people[1] = {
     ...raised.people[1],
-    signon: { at: "2026-09-15T21:50:00.000Z", version: 1, onPhoneOf: null, briefedBy: "Troy Porter", issue: "No anchor on the rear ridge", svg: "<svg/>" },
+    signon: withIssue("No anchor on the rear ridge"),
   };
   render(<SwmsSignOn doc={raised} me="troy" />);
   expect(screen.getByText("Raised: No anchor on the rear ridge")).toBeInTheDocument();
@@ -198,6 +207,59 @@ it("asks the person in charge to brief everyone, not to have been briefed", asyn
   sign("Your signature");
   await userEvent.click(screen.getByRole("button", { name: "Sign on" }));
   expect(signOnSwms).toHaveBeenCalledWith(expect.objectContaining({ personId: "p-troy" }));
+});
+
+/* THE BELL SENT THE PERSON IN CHARGE HERE FOR THE ISSUE, not for the briefing
+   they wrote themselves — it was a small amber line in the third card. */
+it("leads with the issue for whoever has to answer it, and takes 'sorted on site'", async () => {
+  const raised = doc();
+  raised.people[1] = { ...raised.people[1], signon: withIssue("No anchor on the rear ridge") };
+  render(<SwmsSignOn doc={raised} me="troy" />);
+
+  const card = screen.getByText("An issue was raised").closest(".sws-card") as HTMLElement;
+  expect(within(card).getByText("No anchor on the rear ridge")).toBeInTheDocument();
+  expect(within(card).getByText(/^Dane Whitmore, Wed 16 Sept/)).toBeInTheDocument();
+  expect(within(card).getByRole("link", { name: "Open the job to revise the SWMS" })).toHaveAttribute("href", "/dashboard/workboard?job=job-1");
+  /* above the briefing it is about */
+  expect(card.compareDocumentPosition(screen.getByText("Before you start")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+  await userEvent.click(within(card).getByRole("button", { name: "Sorted on site" }));
+  expect(clearSwmsIssue).toHaveBeenCalledWith("p-dane");
+});
+
+it("shows nobody else the answer-it card, and says who sorted one", () => {
+  const sorted = doc();
+  sorted.people[1] = {
+    ...sorted.people[1],
+    signon: withIssue("No anchor on the rear ridge", { issueCleared: { by: "Troy Porter", at: "2026-09-16T08:05:00.000Z" } }),
+  };
+  render(<SwmsSignOn doc={sorted} me="dane" />);
+  expect(screen.queryByText("An issue was raised")).toBeNull();
+  expect(screen.getByText("Raised: No anchor on the rear ridge — sorted by Troy Porter, Wed 16 Sept, 6:05pm")).toBeInTheDocument();
+});
+
+/* THE ANCHOR IS FOUND RUSTED ON THE ROOF — after the briefing at the truck,
+   when the only door to raising it was inside the sign-on form. */
+it("keeps a door to raise an issue after you've signed", async () => {
+  const signed = doc();
+  signed.people[1] = { ...signed.people[1], signon: withIssue("") };
+  render(<SwmsSignOn doc={signed} me="dane" />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Raise an issue with this SWMS" }));
+  await userEvent.type(screen.getByRole("textbox", { name: "Issue with this SWMS" }), "The anchor is rusted");
+  await userEvent.click(screen.getByRole("button", { name: "Tell the crew lead" }));
+  expect(raiseSwmsIssue).toHaveBeenCalledWith({ personId: "p-dane", issue: "The anchor is rusted" });
+});
+
+/* signed on someone else's phone, the person in charge still signs to THEIR
+   own promise — they give the briefing */
+it("keeps the in-charge words when someone else holds the phone", async () => {
+  const unsigned = doc();
+  unsigned.people[0] = { ...unsigned.people[0], signon: null };
+  render(<SwmsSignOn doc={unsigned} me="dane" />);
+  const troy = screen.getByText("Troy Porter").closest(".sws-person") as HTMLElement;
+  await userEvent.click(within(troy).getByRole("button", { name: "Sign them on" }));
+  expect(screen.getByText(/They'll brief everyone it covers before work starts/)).toBeInTheDocument();
 });
 
 it("goes back to the job it came from", () => {

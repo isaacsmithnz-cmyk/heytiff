@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOnSwms } from "@/app/actions/swms";
+import { clearSwmsIssue, raiseSwmsIssue, signOnSwms } from "@/app/actions/swms";
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
 import { SIGNATURE_VIEWBOX } from "@/lib/swms/input";
 import { HRCW } from "@/lib/swms/library";
@@ -150,7 +150,9 @@ function SignOnForm({
       </div>
       <p className="sw-text">
         {inCharge
-          ? "By signing I confirm I understand this SWMS and I'll follow it. I'll brief everyone it covers before work starts, and if a control can't be followed I'll stop the work."
+          ? own
+            ? "By signing I confirm I understand this SWMS and I'll follow it. I'll brief everyone it covers before work starts, and if a control can't be followed I'll stop the work."
+            : `By signing, ${person.name} confirms they understand this SWMS and will follow it. They'll brief everyone it covers before work starts, and if a control can't be followed they'll stop the work.`
           : own
             ? `By signing I confirm I was consulted and briefed on this SWMS, I understand it, and I'll follow it. If a control can't be followed I'll stop work and tell ${responsible}.`
             : `By signing, ${person.name} confirms they were consulted and briefed on this SWMS, understand it, and will follow it. If a control can't be followed they'll stop work and tell ${responsible}.`}
@@ -161,7 +163,7 @@ function SignOnForm({
           <label className="sw-gh" htmlFor={`issue-${person.id}`}>
             <b>Issue with this SWMS</b>
           </label>
-          <textarea id={`issue-${person.id}`} className="sw-field" rows={2} value={issue} onChange={(e) => setIssue(e.target.value)} />
+          <textarea id={`issue-${person.id}`} className="wb2-notes" rows={2} value={issue} onChange={(e) => setIssue(e.target.value)} />
         </div>
       ) : (
         <button type="button" className="sw-more" onClick={() => setRaising(true)}>
@@ -181,6 +183,89 @@ function SignOnForm({
   );
 }
 
+/** Something noticed after signing — the anchor found rusted on the roof. It
+    rides the sign-on already given, so the register stays one statement. */
+function RaiseIssue({ person, onDone }: { person: SwmsPerson; onDone: () => void }) {
+  const raised = person.signon?.issue ?? null;
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(raised ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await raiseSwmsIssue({ personId: person.id, issue: text });
+      if (res.ok) {
+        setOpen(false);
+        onDone();
+      } else setError(res.error);
+    } catch {
+      setError("Couldn't save the issue. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button type="button" className="sw-more" onClick={() => setOpen(true)}>
+        {raised ? "Change the issue you raised" : "Raise an issue with this SWMS"}
+      </button>
+    );
+  }
+  return (
+    <div className="sw-grp">
+      <label className="sw-gh" htmlFor={`raise-${person.id}`}>
+        <b>Issue with this SWMS</b>
+      </label>
+      <textarea id={`raise-${person.id}`} className="wb2-notes" rows={2} value={text} onChange={(e) => setText(e.target.value)} />
+      <div className="sws-actions">
+        <span className={error ? "sw-state bad" : undefined}>{error}</span>
+        <button type="button" className="pbtn ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+        <button type="button" className="pbtn primary" disabled={busy || !text.trim()} onClick={save}>
+          {busy ? "Saving…" : "Tell the crew lead"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** The person in charge says an issue was sorted on site. The issue itself is
+    never erased — the register keeps what was raised and adds who sorted it. */
+function SortedOnSite({ personId, onDone }: { personId: string; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <span className="sws-sorted">
+      {error && <em className="sw-state bad">{error}</em>}
+      <button
+        type="button"
+        className="pbtn ghost sm"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            const res = await clearSwmsIssue(personId);
+            if (res.ok) onDone();
+            else setError(res.error);
+          } catch {
+            setError("Couldn't record it. Try again.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? "Recording…" : "Sorted on site"}
+      </button>
+    </span>
+  );
+}
+
 export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }) {
   const router = useRouter();
   const [helper, setHelper] = useState<string | null>(null);
@@ -195,6 +280,9 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
      whole document with no word on what was different — the reason was
      written only on the version that had been replaced. */
   const revision = doc.version > 1 ? doc.versions.find((v) => v.version === doc.version) ?? null : null;
+  /* what somebody raised and nobody has answered — the person in charge's to
+     sort on site, or to answer with a new version of the SWMS */
+  const openIssues = doc.people.filter((p) => p.signon?.issue && !p.signon.issueCleared);
   const c = doc.content;
   const inCharge = !!mine && mine.staffProfileId === doc.responsibleStaffId;
   /** "Wed 16 Sept, 7:50am", and "before a correction" when one carried it —
@@ -252,6 +340,33 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
 
             {doc.latest && mine?.signon && <p className="sw-state ok">{`You signed on ${signedWhen(mine.signon)}.`}</p>}
 
+            {/* IT LEADS THE PAGE for whoever has to answer it — the bell sent
+                them here for this, not for the briefing they wrote */}
+            {doc.latest && inCharge && openIssues.length > 0 && (
+              <div className="card2 sws-card">
+                <div className="sw-gh">
+                  <b>{openIssues.length === 1 ? "An issue was raised" : `${openIssues.length} issues were raised`}</b>
+                  <span>Yours to answer</span>
+                </div>
+                <div className="sws-people">
+                  {openIssues.map((p) => (
+                    <div key={p.id} className="sws-person">
+                      <span>
+                        <b>{p.signon!.issue}</b>
+                        <em>{`${p.name}, ${signedWhen(p.signon!)}`}</em>
+                      </span>
+                      <SortedOnSite personId={p.id} onDone={signed} />
+                    </div>
+                  ))}
+                </div>
+                {doc.job && (
+                  <Link className="sw-more" href={`/dashboard/workboard?job=${encodeURIComponent(doc.job.uuid)}`}>
+                    Open the job to revise the SWMS
+                  </Link>
+                )}
+              </div>
+            )}
+
             {/* READ FIRST. The page is the briefing on paper: what the work is,
                 how each step is kept safe, and what to do in an emergency —
                 then, below it, the signature that says it was read. */}
@@ -304,7 +419,9 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
                 </p>
               </div>
               <div className="sws-actions">
-                <span />
+                {/* AFTER SIGNING, TOO: what you find when you get on the roof
+                    is after the briefing at the truck */}
+                <span>{doc.latest && mine?.signon && <RaiseIssue person={mine} onDone={signed} />}</span>
                 <a className="pbtn ghost" href={`/swms/${doc.versionId}`} target="_blank" rel="noreferrer">
                   Open the printable SWMS
                 </a>
@@ -328,7 +445,13 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
                       <em>{p.team ? p.role || "Team member" : p.role || "Outside the business"}</em>
                       {/* what they raised when they signed — the person in charge
                           is told in their bell, and it stands here beside them */}
-                      {p.signon?.issue && <em className="sw-state warn">{`Raised: ${p.signon.issue}`}</em>}
+                      {p.signon?.issue && (
+                        <em className={p.signon.issueCleared ? undefined : "sw-state warn"}>
+                          {p.signon.issueCleared
+                            ? `Raised: ${p.signon.issue} — sorted by ${p.signon.issueCleared.by}, ${siteWhen(p.signon.issueCleared.at, c.jurisdiction)}`
+                            : `Raised: ${p.signon.issue}`}
+                        </em>
+                      )}
                     </span>
                     <span className={p.signon ? "sw-state ok" : undefined}>
                       {p.signon ? (
@@ -351,6 +474,7 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
                 key={helper}
                 person={unsigned.find((p) => p.id === helper)!}
                 own={false}
+                inCharge={unsigned.find((p) => p.id === helper)!.staffProfileId === doc.responsibleStaffId}
                 responsible={doc.responsible}
                 onSigned={signed}
               />

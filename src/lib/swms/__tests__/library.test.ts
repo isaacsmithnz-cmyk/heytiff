@@ -344,10 +344,26 @@ describe("before version 1 can be issued", () => {
     );
   });
 
-  it("sends a service with no high-risk work to something shorter", () => {
+  /* the way out is a step, not calling a service an install */
+  it("sends a service with no high-risk work to its steps, not to the kind of job", () => {
     const none = Object.fromEntries(STEP_KEYS.map((k) => [k, false])) as SwmsAnswers["steps"];
-    const got = issueProblems(answers({ kind: "service", steps: { ...none, braze: true } }), { ...facts, electricianChosen: true });
-    expect(got).toContain("A service or repair with no high-risk work doesn't need a SWMS.");
+    const a = answers({ kind: "service", steps: { ...none, braze: true } });
+    const got = issueProblemList(a, { ...facts, electricianChosen: true }).find((p) => /high-risk work/.test(p.text));
+    expect(got).toEqual({ field: "steps", text: "Nothing ticked here is high-risk work, and a service that has none doesn't need a SWMS." });
+  });
+
+  /* a builder is handed a copy, so the document says who was handed it */
+  it("asks who the builder is, once there is one", () => {
+    const withBuilder = answers({ site: { ...DEFAULT_ANSWERS.site, builder: true } });
+    expect(issueProblems(withBuilder, facts)).toContain("Name the builder running the site — they're handed a copy.");
+    expect(issueProblems({ ...withBuilder, builderName: "Kestrel Constructions" }, facts)).toEqual([]);
+    expect(buildSwms({ ...withBuilder, builderName: "Kestrel Constructions" }, ctx).siteNotes).toContain(
+      "Kestrel Constructions runs the site as principal contractor."
+    );
+  });
+
+  it("says nobody is named rather than printing a dash", () => {
+    expect(buildSwms(answers(), { ...ctx, firstAiderName: null }).emergency.firstAider).toBe("Not named");
   });
 
   it("rejects a vague word typed on site, and says where", () => {

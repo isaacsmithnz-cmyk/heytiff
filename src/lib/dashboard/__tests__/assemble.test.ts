@@ -291,6 +291,19 @@ describe("assembleChips — SWMS sign-on", () => {
   });
 });
 
+describe("assembleChips — an issue raised at sign-on", () => {
+  const raised = { versionId: "v-9", jobNumber: "2601", site: "14 Attunga Road", issues: [{ name: "Dane Whitmore", issue: "No anchor" }] };
+
+  it("puts it in the bell of whoever is in charge of that SWMS", () => {
+    const { self } = assembleChips({ ...FULL, ownSwmsIssues: [raised] }, caps());
+    expect(self.find((c) => c.kind === "swms-issue")).toMatchObject({ label: "Dane Whitmore raised an issue with the SWMS" });
+  });
+
+  it("raises nothing when nobody raised anything", () => {
+    expect(assembleChips({ ...FULL, ownSwmsIssues: [] }, caps()).self.some((c) => c.kind === "swms-issue")).toBe(false);
+  });
+});
+
 /* THE TEMPLATE NOBODY COULD APPROVE ON SITE — it waits in the owner's own
    list until it's done, and nobody else is told to do what only the owner can. */
 describe("assembleChips — the SWMS template", () => {

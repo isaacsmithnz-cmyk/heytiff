@@ -2590,7 +2590,7 @@ describe("files on the job", () => {
   it("opens a SWMS in the card's own viewer, not a new tab", async () => {
     const swmsActions = jest.requireMock("@/app/actions/swms") as { listSwmsForJob: jest.Mock };
     swmsActions.listSwmsForJob.mockResolvedValueOnce([
-      { swmsId: "s-1", versionId: "v-2", version: 2, issuedAt: "2026-09-16T07:42:00", responsible: "Alex Lorenz", signed: 1, total: 2, waitingOn: ["Callum Vrieze"], viewerCanSign: false },
+      { swmsId: "s-1", versionId: "v-2", version: 2, issuedAt: "2026-09-16T07:42:00", responsible: "Alex Lorenz", signed: 1, total: 2, waitingOn: ["Callum Vrieze"], issues: [], viewerCanSign: false },
     ]);
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);

@@ -30,6 +30,7 @@ const context = (over: Partial<SwmsWizardContext> = {}): SwmsWizardContext => ({
     clientName: "M. and J. Rowe",
     address: "14 Attunga Road, Miranda NSW 2228",
     description: "Supply and install a 5.0 kW split system",
+    status: "Work Order",
     state: "NSW",
     jurisdiction: "NSW",
     postcode: "2228",
@@ -92,14 +93,74 @@ describe("what the job already says", () => {
     expect(screen.queryByText(/Step \d of 4/)).toBeNull();
   });
 
-  it("asks the state only when the address doesn't say", async () => {
+  /* A MELBOURNE JOB whose address never spells "VIC" was written to New South
+     Wales rules, because the only two answers offered were NSW and QLD. */
+  it("asks which state when the address doesn't say, and offers every state", async () => {
     swmsWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "14 Attunga Road, Miranda", state: null, jurisdiction: null } }));
     open();
     await ready();
     expect(screen.getByText("The address doesn't say")).toBeInTheDocument();
-    await userEvent.click(within(screen.getByRole("group", { name: "State" })).getByRole("button", { name: "QLD" }));
+    const state = screen.getByLabelText("State") as HTMLSelectElement;
+    expect(state.value).toBe("");
+    expect([...state.options].map((o) => o.textContent)).toEqual([
+      "Choose the state",
+      "New South Wales",
+      "Queensland",
+      "Victoria",
+      "South Australia",
+      "Western Australia",
+      "Tasmania",
+      "Northern Territory",
+      "Australian Capital Territory",
+    ]);
+
+    await tab("Review");
+    expect(screen.getByRole("button", { name: "Choose the state this job is in." })).toBeInTheDocument();
+    await tab("The work");
+    await userEvent.selectOptions(state, "QLD");
     await tab("Review");
     expect(panel("review").getByText("Queensland")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Choose the state this job is in." })).toBeNull();
+  });
+
+  it("stops a SWMS for a state it doesn't cover, and lets the pick be taken back", async () => {
+    swmsWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "8 Lygon Street, Brunswick", state: null, jurisdiction: null } }));
+    open();
+    await ready();
+    await userEvent.selectOptions(screen.getByLabelText("State"), "VIC");
+    expect(panel("work").getByText(/This job is in Victoria\./)).toBeInTheDocument();
+    await tab("Review");
+    expect(screen.getByRole("button", { name: /This job is in Victoria\./ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("checkbox", { name: /walked this site/ }));
+    expect(screen.getByRole("button", { name: "Issue the SWMS" })).toBeDisabled();
+
+    await tab("The work");
+    await userEvent.selectOptions(screen.getByLabelText("State"), "NSW");
+    expect(panel("work").queryByText(/This job is in Victoria/)).toBeNull();
+  });
+
+  /* the builder is handed a copy — the document says who was handed it */
+  it("asks who the builder is, and names them where it says they get a copy", async () => {
+    open();
+    await ready();
+    await userEvent.click(within(screen.getByRole("group", { name: "Builder" })).getByRole("button", { name: "Yes" }));
+    await userEvent.type(screen.getByLabelText("The builder"), "Kestrel Constructions");
+    await tab("Review");
+    expect(panel("review").getByText("Kestrel Constructions gets a copy before work starts")).toBeInTheDocument();
+  });
+
+  /* ONE TAP used to clear every step already ticked, silently */
+  it("keeps the steps someone ticked when the kind of job changes", async () => {
+    open();
+    await ready();
+    await tab("How it's done");
+    await userEvent.click(panel("how").getByRole("checkbox", { name: /Get onto the roof/ }));
+    await tab("The work");
+    await userEvent.click(screen.getByRole("button", { name: "Service or repair" }));
+    await tab("How it's done");
+    expect(panel("how").getByRole("checkbox", { name: /Get onto the roof/ })).toBeChecked();
+    /* and a step a service never does is simply not offered */
+    expect(panel("how").queryByRole("checkbox", { name: /Connect power/ })).toBeNull();
   });
 
   /* a Victorian site was read as "the address doesn't say" and written to NSW rules */
@@ -210,6 +271,8 @@ describe("the review", () => {
     await tab("How it's done");
     await userEvent.click(screen.getByRole("checkbox", { name: /ceiling space/ }));
     await tab("Review");
+    /* the count is what this job has, not a tally against a list no screen shows */
+    expect(panel("review").getByText("3 on this job")).toBeInTheDocument();
     expect(panel("review").getByText("Extreme heat or cold, like a roof space")).toBeInTheDocument();
     expect(panel("review").getByText("Inside an enclosed roof cavity")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Add another category" }));
@@ -217,6 +280,25 @@ describe("the review", () => {
     expect(panel("review").getByText("Ticked on site")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Clear In or near a confined space" }));
     expect(panel("review").queryByText("Ticked on site")).toBeNull();
+  });
+
+  /* a SWMS with nobody named as first aider went out unnoticed: Review never
+     showed the emergency answers at all */
+  it("reads back the emergency, and says when nobody is the first aider", async () => {
+    open();
+    await ready();
+    await tab("Review");
+    const emergency = panel("review").getByText("Emergency").closest("div") as HTMLElement;
+    expect(within(emergency).getByText("Nobody named as first aider")).toBeInTheDocument();
+    expect(within(emergency).getByText(/Nearest hospital: not named yet/)).toBeInTheDocument();
+
+    await tab("Who it covers");
+    await userEvent.selectOptions(screen.getByLabelText("First aider"), "staff:troy");
+    await userEvent.type(screen.getByLabelText("Nearest hospital"), "Sutherland Hospital");
+    await tab("Review");
+    const named = panel("review").getByText("Emergency").closest("div") as HTMLElement;
+    expect(within(named).getByText("Troy Porter")).toBeInTheDocument();
+    expect(panel("review").queryByText("Nobody named as first aider")).toBeNull();
   });
 
   it("takes you from a problem to the field that answers it", async () => {

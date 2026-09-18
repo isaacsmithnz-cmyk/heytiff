@@ -16,6 +16,7 @@ const summary = (over: Partial<SwmsSummary> = {}): SwmsSummary => ({
   signed: 1,
   total: 3,
   waitingOn: ["Dane Whitmore", "Kai Lindqvist"],
+  issues: [],
   viewerCanSign: true,
   ...over,
 });
@@ -58,6 +59,20 @@ it("files the SWMS under Compliance as a document row that opens it, with who it
 it("offers Sign on only to someone with something to sign", () => {
   face({ swms: [summary({ viewerCanSign: false })] });
   expect(screen.queryByRole("link", { name: "Sign on" })).toBeNull();
+});
+
+/* WHAT A WORKER RAISED AT SIGN-ON lived in the printed register alone */
+it("carries an issue raised at sign-on onto the row", () => {
+  face({ swms: [summary({ issues: [{ name: "Dane Whitmore", issue: "No anchor on the rear ridge" }] })] });
+  expect(screen.getByText("Dane Whitmore raised: No anchor on the rear ridge")).toBeInTheDocument();
+});
+
+/* a read that failed offered Create SWMS on a job that may already have one,
+   and a second press was a second SWMS */
+it("says a failed read failed instead of offering to create a second SWMS", () => {
+  face({ swms: null, swmsFailed: true, onCreateSwms: () => {}, canCreateSwms: true });
+  expect(screen.getByText("Couldn't read this job's SWMS. Close the card and open it again.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Create SWMS" })).toBeNull();
 });
 
 it("says a first issue was issued", () => {

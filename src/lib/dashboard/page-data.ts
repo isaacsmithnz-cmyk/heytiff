@@ -12,7 +12,7 @@ import { assembleChips, type DashboardChips } from "./assemble";
 import { CLAIM_NUDGE_DAYS } from "./chips";
 import { listStaffCompliance, type StaffCompliance } from "./query";
 import { ownDetailsGap } from "@/lib/staff/onboarding";
-import { isLibraryApproved, pendingSignons } from "@/lib/swms/query";
+import { isLibraryApproved, pendingSignons, raisedIssues } from "@/lib/swms/query";
 import { listOrgCredentials, orgExpiryWindow } from "@/lib/org/query";
 import type { OrgCredential } from "@/lib/org/credentials";
 import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
@@ -399,7 +399,7 @@ async function loadChips(
   /** the Organisation screen admits the owner only — see `assembleChips` */
   isOwner: boolean,
 ): Promise<DashboardChips> {
-  const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv, detailsGap, swmsSignons, swmsTemplatePending] = await Promise.all([
+  const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv, detailsGap, swmsSignons, swmsIssues, swmsTemplatePending] = await Promise.all([
     viewerStaffId ? listStaffCompliance(orgId, viewerStaffId) : Promise.resolve([]),
     viewerStaffId ? getOwnVehicle(orgId, viewerStaffId) : Promise.resolve(null),
     viewerStaffId ? loadOwnSheet(orgId, viewerStaffId) : Promise.resolve(null),
@@ -415,6 +415,8 @@ async function loadChips(
     // a SWMS that names you and waits for your sign-on; a read that fails
     // raises no chip rather than taking the bell down with it
     viewerStaffId ? pendingSignons(orgId, viewerStaffId).catch(() => []) : Promise.resolve([]),
+    // what a worker raised at sign-on, for whoever is in charge of that SWMS
+    viewerStaffId ? raisedIssues(orgId, viewerStaffId).catch(() => []) : Promise.resolve([]),
     // the SWMS template, for the one person who can approve it; a read that
     // fails says nothing is pending rather than nagging on a guess
     isOwner ? isLibraryApproved(orgId).then((approved) => !approved).catch(() => false) : Promise.resolve(false),
@@ -454,6 +456,7 @@ async function loadChips(
       selfCompleteness: detailsGap,
       selfName: detailsGap?.name || null,
       ownSwmsSignons: swmsSignons,
+      ownSwmsIssues: swmsIssues,
       swmsTemplatePending,
     },
     caps,

@@ -103,11 +103,18 @@ function signedLine(s: SwmsSummary): string {
   return `${count}, waiting on ${names}`;
 }
 
+/** "Dane Whitmore raised: no anchor on the rear ridge" */
+function issueLine(s: SwmsSummary): string {
+  if (s.issues.length === 1) return `${s.issues[0].name} raised: ${s.issues[0].issue}`;
+  return `${s.issues.length} issues raised at sign-on, by ${s.issues.map((i) => i.name).join(" and ")}`;
+}
+
 export function JobDocumentsFace({
   documents,
   elsewhere,
   designs,
   swms = null,
+  swmsFailed = false,
   canCreateSwms = false,
   loading,
   truncated,
@@ -122,6 +129,9 @@ export function JobDocumentsFace({
   designs: MirrorJobDetail["designs"];
   /** The job's SWMS at their latest versions; null until the read lands. */
   swms?: readonly SwmsSummary[] | null;
+  /** The read failed. Saying so beats an empty Compliance group with a
+      Create button — pressing it made a SECOND SWMS on a job that had one. */
+  swmsFailed?: boolean;
   /** False until the card knows which job it is. */
   canCreateSwms?: boolean;
   loading: boolean;
@@ -155,6 +165,8 @@ export function JobDocumentsFace({
         )}
       </div>
 
+      {swmsFailed && <p className="int-hint">Couldn&apos;t read this job&apos;s SWMS. Close the card and open it again.</p>}
+
       {statements.length > 0 && (
         <div className="wb2-jcsec">
           <span className="wb2-sect">{`Compliance — ${statements.length}`}</span>
@@ -169,6 +181,8 @@ export function JobDocumentsFace({
                 <span className="wb2-doc-b">
                   <b>Safe Work Method Statement</b>
                   <em>{`${s.version > 1 ? "Revised" : "Issued"} ${editedOn(s.issuedAt)}, ${s.responsible} in charge. ${signedLine(s)}`}</em>
+                  {/* what someone wrote at sign-on, where the office looks */}
+                  {s.issues.length > 0 && <em className="sw-state warn">{issueLine(s)}</em>}
                 </span>
                 <span className="wb2-doc-go">
                   <Icon name="chevR" size={15} />

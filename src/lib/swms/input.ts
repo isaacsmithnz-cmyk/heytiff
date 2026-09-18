@@ -40,6 +40,7 @@ export function normaliseAnswers(raw: unknown): SwmsAnswers {
       traffic: bool(site.traffic),
       builder: bool(site.builder),
     },
+    builderName: text(r.builderName, 120),
     extraCategories: [...new Set(extra.filter((n): n is number => typeof n === "number" && valid.has(n)))].sort((a, b) => a - b),
     steps: Object.fromEntries(STEP_KEYS.map((k) => [k, bool(steps[k])])) as Record<StepKey, boolean>,
     fall: oneOf<FallControl>(r.fall, ["edge", "scaffold", "ewp", "harness"], DEFAULT_ANSWERS.fall),

@@ -9,6 +9,7 @@ import {
   orgCredentialChips,
   profileChip,
   sortChips,
+  swmsIssueChip,
   swmsSignonChip,
   swmsTemplateChip,
   timesheetChip,
@@ -91,6 +92,8 @@ export type ChipSources = {
   /** SWMS versions naming YOU that you haven't signed on to — latest versions
       only. Optional so a caller that has not loaded them raises no chip. */
   ownSwmsSignons?: { versionId: string; again: boolean; jobNumber: string | null; site: string | null; issuedAt: string }[];
+  /** Issues raised at sign-on on SWMS this viewer is in charge of. */
+  ownSwmsIssues?: { versionId: string; jobNumber: string | null; site: string | null; issues: { name: string; issue: string }[] }[];
   /** The SWMS template isn't approved yet — the loader reads it for owners
       only; `assembleChips` checks `isOwner` again. */
   swmsTemplatePending?: boolean;
@@ -131,6 +134,8 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
     for (const r of src.ownDeclinedLeave) push(self, declinedLeaveChip(r, { today: src.today }));
     push(self, profileChip(src.selfCompleteness, { subject: src.selfName || "Your details" }));
     for (const p of src.ownSwmsSignons ?? []) self.push(swmsSignonChip(p, { today: src.today }));
+    /* what a worker raised at sign-on, for the person in charge of that SWMS */
+    for (const p of src.ownSwmsIssues ?? []) push(self, swmsIssueChip(p));
     /* the template is the owner's to approve, and nobody else can clear it */
     if (src.isOwner) push(self, swmsTemplateChip(src.swmsTemplatePending));
   }

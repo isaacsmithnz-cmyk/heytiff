@@ -236,8 +236,8 @@ describe("issueSwms", () => {
     const first = await issueSwms(input());
     const versionId = first.ok ? first.versionId : "";
     const idOf = (key: string) => written("swms_people").find((p) => (p.staff_profile_id ?? p.outside_name) === key)!.id as string;
-    await signOnSwms({ personId: idOf("troy"), pathData: "M10 20 L30 40 L50 35", briefed: true });
-    await signOnSwms({ personId: idOf("Kai Lindqvist"), pathData: "M10 20 L30 40 L50 35", briefed: true });
+    await signOnSwms({ personId: idOf("troy"), pathData: "M10 20 L30 40 L50 35" });
+    await signOnSwms({ personId: idOf("Kai Lindqvist"), pathData: "M10 20 L30 40 L50 35" });
     const prev = await swmsPrevious(versionId);
     expect(prev).toMatchObject({ version: 1, electricianName: "Sam Ikpeba", firstAiderName: "Troy Porter", responsibleStaffId: "troy" });
     expect(prev?.outsiders).toEqual([{ name: "Kai Lindqvist", company: "Lindqvist Plumbing" }]);
@@ -316,7 +316,7 @@ describe("signOnSwms", () => {
 
   it("signs a team member on as themselves, briefed by the person responsible", async () => {
     mockMe = "dane";
-    const res = await signOnSwms({ personId: personFor("dane"), pathData: drawn, briefed: true, issue: "  " });
+    const res = await signOnSwms({ personId: personFor("dane"), pathData: drawn, issue: "  " });
     expect(res).toEqual({ ok: true, signedAt: "2026-09-16T07:58:00.000Z" });
     expect(written("swms_signons")[0]).toMatchObject({
       person_id: personFor("dane"),
@@ -330,48 +330,47 @@ describe("signOnSwms", () => {
 
   /* the register said the person in charge was briefed by themselves */
   it("records nobody briefing the person in charge", async () => {
-    await signOnSwms({ personId: personFor("troy"), pathData: drawn, briefed: true });
+    await signOnSwms({ personId: personFor("troy"), pathData: drawn });
     expect(written("swms_signons")[0]).toMatchObject({ signed_by_staff_id: "troy", briefed_by_staff_id: null });
   });
 
-  it("won't sign someone else on", async () => {
-    mockMe = "dane";
-    expect(await signOnSwms({ personId: personFor("sam"), pathData: drawn, briefed: true })).toEqual({ ok: false, error: "Only they can sign on for themselves." });
-    expect(written("swms_signons")).toEqual([]);
-  });
-
-  it("signs a helper on the phone of someone on the same SWMS, and nobody else's", async () => {
+  /* THE PHONE THAT IS OUT. A helper from outside the business could always
+     sign on the crew lead's phone; the business's own installer had to find
+     their own. Either way the record says whose phone. */
+  it("signs anyone it covers on the phone of someone else on the same SWMS", async () => {
     mockDb.tables.staff_profiles.push(staff("hugo", "Hugo", "Trimble"));
     mockMe = "hugo";
-    expect(await signOnSwms({ personId: personFor("Kai Lindqvist"), pathData: drawn, briefed: true })).toEqual({ ok: false, error: "Only someone on this SWMS can sign on a helper." });
+    for (const who of ["sam", "Kai Lindqvist"]) {
+      expect(await signOnSwms({ personId: personFor(who), pathData: drawn })).toEqual({ ok: false, error: "Only someone on this SWMS can sign another person on." });
+    }
 
     mockMe = "troy";
-    expect(await signOnSwms({ personId: personFor("Kai Lindqvist"), pathData: drawn, briefed: true })).toMatchObject({ ok: true });
-    expect(written("swms_signons")[0]).toMatchObject({ signed_by_staff_id: "troy" });
+    expect(await signOnSwms({ personId: personFor("sam"), pathData: drawn })).toMatchObject({ ok: true });
+    expect(await signOnSwms({ personId: personFor("Kai Lindqvist"), pathData: drawn })).toMatchObject({ ok: true });
+    expect(written("swms_signons").map((x) => x.signed_by_staff_id)).toEqual(["troy", "troy"]);
   });
 
-  it("needs the briefing ticked and a real signature", async () => {
+  it("needs a real signature, which is the confirmation", async () => {
     mockMe = "dane";
     const id = personFor("dane");
-    expect(await signOnSwms({ personId: id, pathData: drawn, briefed: false })).toEqual({ ok: false, error: "Tick that the briefing happened first." });
-    expect(await signOnSwms({ personId: id, pathData: '"/><script>x</script>', briefed: true })).toEqual({ ok: false, error: "Sign in the box first." });
+    expect(await signOnSwms({ personId: id, pathData: '"/><script>x</script>' })).toEqual({ ok: false, error: "Sign in the box first." });
     expect(written("swms_signons")).toEqual([]);
   });
 
   it("signs on once", async () => {
     mockMe = "dane";
     const id = personFor("dane");
-    await signOnSwms({ personId: id, pathData: drawn, briefed: true });
-    expect(await signOnSwms({ personId: id, pathData: drawn, briefed: true })).toEqual({ ok: false, error: "Already signed on." });
+    await signOnSwms({ personId: id, pathData: drawn });
+    expect(await signOnSwms({ personId: id, pathData: drawn })).toEqual({ ok: false, error: "Already signed on." });
   });
 
   it("won't sign on again over a sign-on a correction carried", async () => {
     mockMe = "dane";
-    await signOnSwms({ personId: personFor("dane"), pathData: drawn, briefed: true });
+    await signOnSwms({ personId: personFor("dane"), pathData: drawn });
     const swmsId = written("swms")[0].id as string;
     await issueSwms(input({ swmsId, reason: "Hospital name was wrong", material: false }));
     const onV2 = written("swms_people").filter((p) => p.staff_profile_id === "dane").map((p) => p.id as string)[1];
-    expect(await signOnSwms({ personId: onV2, pathData: drawn, briefed: true })).toEqual({ ok: false, error: "Already signed on." });
+    expect(await signOnSwms({ personId: onV2, pathData: drawn })).toEqual({ ok: false, error: "Already signed on." });
   });
 
   it("won't sign on to a version a revision has replaced", async () => {
@@ -379,11 +378,11 @@ describe("signOnSwms", () => {
     const old = personFor("dane");
     const swmsId = written("swms")[0].id as string;
     await issueSwms(input({ swmsId, reason: "New isolation point" }));
-    expect(await signOnSwms({ personId: old, pathData: drawn, briefed: true })).toEqual({ ok: false, error: "This version has been replaced. Sign on to the latest one." });
+    expect(await signOnSwms({ personId: old, pathData: drawn })).toEqual({ ok: false, error: "This version has been replaced. Sign on to the latest one." });
   });
 
   it("knows nothing about a sign-on in another workspace", async () => {
     mockDb.tables.swms_people.forEach((p) => (p.org_id = "org-2"));
-    expect(await signOnSwms({ personId: personFor("troy"), pathData: drawn, briefed: true })).toEqual({ ok: false, error: "That sign-on isn't on this workspace." });
+    expect(await signOnSwms({ personId: personFor("troy"), pathData: drawn })).toEqual({ ok: false, error: "That sign-on isn't on this workspace." });
   });
 });

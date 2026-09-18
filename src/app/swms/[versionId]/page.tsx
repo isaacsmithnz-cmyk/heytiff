@@ -94,7 +94,7 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
             </tr>
             <tr>
               <th scope="row">Principal contractor</th>
-              <td>{a.site.builder ? "A builder runs the site; they get a copy before work starts" : "None"}</td>
+              <td>{a.site.builder ? `${a.builderName?.trim() || "A builder"} runs the site and is given a copy before work starts` : "None"}</td>
             </tr>
             <tr>
               <th scope="row">Responsible for compliance on site</th>
@@ -311,7 +311,7 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
                   <td>
                     {p.signon
                       ? `${fmtWhen(p.signon.at)}${p.signon.version < doc.version ? `, on version ${p.signon.version}` : ""}${
-                          p.signon.onPhoneOf ? `, on ${p.signon.onPhoneOf}'s phone` : ", in HeyTiff"
+                          p.signon.onPhoneOf ? `, on ${p.signon.onPhoneOf}'s phone` : ""
                         }`
                       : ""}
                   </td>

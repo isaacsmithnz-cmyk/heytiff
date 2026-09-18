@@ -253,6 +253,7 @@ export function JobSheet({
      version of one (`revise` names the version it replaces). Null until the
      read lands, like the files. */
   const [swms, setSwms] = useState<SwmsSummary[] | null>(null);
+  const [swmsFailed, setSwmsFailed] = useState(false);
   const [swmsWizard, setSwmsWizard] = useState<{ revise: string | null } | null>(null);
   /* The shared viewer: a photo (by its place in the photos lens) or one
      PDF's paper. Closing it lands the reader exactly where they were. */
@@ -415,10 +416,14 @@ export function JobSheet({
     let live = true;
     void listSwmsForJob(cardId)
       .then((list) => {
-        if (live) setSwms(list);
+        if (!live) return;
+        setSwms(list);
+        setSwmsFailed(false);
       })
       .catch(() => {
-        if (live) setSwms([]);
+        /* NOT an empty list: that offered Create SWMS on a job that may
+           already have one, and a second press was a second SWMS */
+        if (live) setSwmsFailed(true);
       });
     return () => {
       live = false;
@@ -429,9 +434,13 @@ export function JobSheet({
     if (!cardId) return;
     void listSwmsForJob(cardId)
       .then((list) => {
-        if (alive.current) setSwms(list);
+        if (!alive.current) return;
+        setSwms(list);
+        setSwmsFailed(false);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive.current) setSwmsFailed(true);
+      });
   };
 
   /* Our OWN material picklist — pushed here from a Studio design. On its own
@@ -1475,6 +1484,7 @@ export function JobSheet({
               elsewhere={media ? media.elsewhere : null}
               designs={detail?.designs ?? []}
               swms={swms}
+              swmsFailed={swmsFailed}
               canCreateSwms={!!cardId}
               loading={media === null}
               truncated={!!media?.truncated}

@@ -13,6 +13,7 @@ import {
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
 import {
   andList,
+  AU_STATES,
   buildSwms,
   categoriesOf,
   HRCW,
@@ -20,9 +21,11 @@ import {
   issueProblemList,
   kindFromCategory,
   methodChanges,
+  jurisdictionOf,
   startingAnswers,
   STATE_NAME,
   stateNotCovered,
+  type AuState,
   STEP_TITLE,
   stepOn,
   stepsFor,
@@ -62,8 +65,10 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 /** Where each problem is answered: the screen, and the field to land on. */
-const FIELD_AT: Record<ProblemField | "reason", { tab: Tab; id: string }> = {
+const FIELD_AT: Record<ProblemField | "reason" | "state", { tab: Tab; id: string }> = {
   kind: { tab: "work", id: "swz-kind" },
+  state: { tab: "work", id: "swz-state" },
+  builderName: { tab: "work", id: "swz-builder" },
   steps: { tab: "how", id: "swz-step-first" },
   anchor: { tab: "how", id: "swz-anchor" },
   qldFallReason: { tab: "how", id: "swz-qldreason" },
@@ -199,6 +204,12 @@ export function SwmsWizard({
   /* Until someone picks one, the first aider is whoever the staff records say
      holds first aid — the person in charge first. */
   const [aiderChosen, setAiderChosen] = useState(false);
+  /* The state, when the address doesn't name one: asked, never assumed — a
+     Melbourne job whose address never spells VIC was written to NSW rules. */
+  const [pickedState, setPickedState] = useState<AuState | "">("");
+  /* Whether the steps are the person's own choices or the template's opener,
+     so changing install/service doesn't throw away what they ticked. */
+  const [stepsTouched, setStepsTouched] = useState(false);
   const [checked, setChecked] = useState(false);
   const [reason, setReason] = useState("");
   const [material, setMaterial] = useState(true);
@@ -308,7 +319,7 @@ export function SwmsWizard({
     setTab(t);
     bodyRef.current?.scrollTo?.({ top: 0 });
   };
-  const jump = (field: ProblemField | "reason") => {
+  const jump = (field: ProblemField | "reason" | "state") => {
     const at = FIELD_AT[field];
     setTab(at.tab);
     focusSoon(at.id);
@@ -320,10 +331,17 @@ export function SwmsWizard({
     touch();
   };
   const setSite = (k: keyof SwmsAnswers["site"], v: boolean) => set({ site: { ...a.site, [k]: v } });
-  const setStepOn = (k: StepKey, v: boolean) => set({ steps: { ...a.steps, [k]: v } });
+  const setStepOn = (k: StepKey, v: boolean) => {
+    setStepsTouched(true);
+    set({ steps: { ...a.steps, [k]: v } });
+  };
+  /* The steps someone has ticked survive a change of kind — one tap on
+     "Service or repair" used to clear them all, silently. Untouched, the
+     kind's own opener applies; `stepOn` hides any step that kind doesn't do
+     and brings it back if the kind changes back. */
   const setKind = (kind: "install" | "service") => {
     if (kind === a.kind) return;
-    set({ kind, steps: startingAnswers(kind, a.jurisdiction).steps });
+    set(stepsTouched ? { kind } : { kind, steps: startingAnswers(kind, a.jurisdiction).steps });
   };
 
   const team = ctx && ctx !== "failed" ? ctx.team : [];
@@ -340,6 +358,16 @@ export function SwmsWizard({
   const autoAider = coveredTeam.find((t) => t.id === responsible && hasFirstAid(t)) ?? coveredTeam.find(hasFirstAid) ?? null;
   const aider = aiderChosen ? firstAider : autoAider ? `staff:${autoAider.id}` : "";
 
+  const job = ctx && ctx !== "failed" ? ctx.job : null;
+
+  /* The site's state: the address's when it names one, otherwise the one the
+     person on site picks — from every state, so a job the template can't
+     write for says so instead of taking New South Wales by default. */
+  const jobState = job?.state ?? null;
+  const siteState = jobState ?? (pickedState || null);
+  const stateCovered = jurisdictionOf(siteState);
+  const pickedOut = !jobState && !!siteState && !stateCovered;
+
   /* A CORRECTION CARRIES the sign-ons and the site walk, so it is offered
      only while how the work is done is unchanged. */
   const changes = prev ? methodChanges(prev.answers, a) : [];
@@ -351,12 +379,14 @@ export function SwmsWizard({
     electricianName: stepOn(a, "power") ? personName(electrician) : null,
     firstAiderName: personName(aider),
   });
-  const problems: { field: ProblemField | "reason"; text: string }[] = issueProblemList(a, {
+  const problems: { field: ProblemField | "reason" | "state"; text: string }[] = issueProblemList(a, {
     people: people.length,
     responsibleChosen: responsibleOk,
     electricianChosen: electricianOk,
     siteChecked: checked || correction,
   });
+  if (pickedOut && siteState) problems.unshift({ field: "state", text: stateNotCovered(siteState) });
+  else if (!siteState) problems.unshift({ field: "state", text: "Choose the state this job is in." });
   if (prev && !reason.trim()) problems.unshift({ field: "reason", text: "Say what changed and why." });
   const version = prev ? prev.version + 1 : 1;
 
@@ -403,7 +433,6 @@ export function SwmsWizard({
     }
   };
 
-  const job = ctx && ctx !== "failed" ? ctx.job : null;
 
   /* ── helpers from outside the business, as rows ──────────────────────────
      A typed name IS a person on the SWMS. There is no "add" to forget: the
@@ -486,10 +515,28 @@ export function SwmsWizard({
         ) : (
           <div className="sw-qa">
             <span>
-              State
+              <label htmlFor="swz-state">State</label>
               <em>The address doesn&apos;t say</em>
             </span>
-            <Seg label="State" value={a.jurisdiction} options={[["NSW", "NSW"], ["QLD", "QLD"]] as const} onChange={(v) => set({ jurisdiction: v, roofPower: v === "QLD" ? "off" : a.roofPower })} />
+            <select
+              id="swz-state"
+              className="wb2-sel"
+              value={pickedState}
+              onChange={(e) => {
+                const picked = e.target.value as AuState | "";
+                setPickedState(picked);
+                const rules = jurisdictionOf(picked || null);
+                if (rules) set({ jurisdiction: rules, roofPower: rules === "QLD" ? "off" : a.roofPower });
+                else touch();
+              }}
+            >
+              <option value="">Choose the state</option>
+              {AU_STATES.map((st) => (
+                <option key={st} value={st}>
+                  {STATE_NAME[st]}
+                </option>
+              ))}
+            </select>
           </div>
         )}
         <div className="sw-qa">
@@ -510,7 +557,15 @@ export function SwmsWizard({
           </span>
           <Seg label="Builder" value={a.site.builder ? "yes" : "no"} options={[["no", "No"], ["yes", "Yes"]] as const} onChange={(v) => setSite("builder", v === "yes")} />
         </div>
+        {/* named, so the document says who was handed a copy */}
+        {a.site.builder && (
+          <div className="sw-qa">
+            <label htmlFor="swz-builder">The builder</label>
+            <input id="swz-builder" className="wb2-fi" placeholder="Their name" value={a.builderName} onChange={(e) => set({ builderName: e.target.value })} />
+          </div>
+        )}
       </div>
+      {pickedOut && siteState && <p className="sw-state bad">{stateNotCovered(siteState)}</p>}
       {a.kind === "service" && (
         <p className="sw-note">A service or repair needs a SWMS only for high-risk work, like going on the roof or into the roof space.</p>
       )}
@@ -829,7 +884,22 @@ export function SwmsWizard({
         </div>
         <div>
           <dt>Builder</dt>
-          <dd>{a.site.builder ? <span className="sw-state warn">Gets a copy before work starts</span> : "No builder on this job"}</dd>
+          <dd>
+            {a.site.builder ? (
+              <span className="sw-state warn">{`${a.builderName.trim() || "The builder"} gets a copy before work starts`}</span>
+            ) : (
+              "No builder on this job"
+            )}
+          </dd>
+        </div>
+        {/* the emergency answers, where the rest of the SWMS is read back —
+            a SWMS with nobody named as first aider went out unnoticed */}
+        <div>
+          <dt>Emergency</dt>
+          <dd>
+            {personName(aider) ?? <span className="sw-state warn">Nobody named as first aider</span>}
+            <small>{`Nearest hospital: ${a.hospital.trim() || "not named yet"}. Fire extinguisher: ${a.extinguisher === "van" ? "in the van" : "on site"}.`}</small>
+          </dd>
         </div>
         <div>
           <dt>Rules</dt>
@@ -843,7 +913,7 @@ export function SwmsWizard({
       <div className="sw-grp">
         <div className="sw-gh">
           <b>High-risk construction work</b>
-          <span>{`${cats.length} of 18`}</span>
+          <span>{cats.length === 1 ? "1 on this job" : `${cats.length} on this job`}</span>
         </div>
         {cats.length === 0 ? (
           <p className="sw-note">None from the steps ticked.</p>
@@ -1008,8 +1078,8 @@ export function SwmsWizard({
       body = (
         <>
           <p className="sw-text">
-            Every SWMS is written from these steps and controls. Anything specific to a site is chosen or typed on site and printed as it
-            was entered. Approve them once, and anyone on the team can issue a SWMS.
+            Every SWMS is written from these steps and controls. Anything specific to a site is typed on site and printed as it was
+            entered. Approve them once, and anyone on the team can issue a SWMS.
           </p>
           <TemplateSteps />
         </>
@@ -1083,7 +1153,9 @@ export function SwmsWizard({
             </div>
           </div>
         )}
-        {a.site.builder && <p className="sw-state warn">Send the builder a copy before work starts.</p>}
+        {a.site.builder && (
+          <p className="sw-state warn">{`${a.builderName.trim() || "The builder"} gets a copy before work starts — open the SWMS and send them the PDF.`}</p>
+        )}
       </div>
     );
     foot = (

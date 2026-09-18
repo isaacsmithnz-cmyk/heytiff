@@ -121,7 +121,6 @@ function SignOnForm({
   onSigned: () => void;
 }) {
   const [path, setPath] = useState("");
-  const [briefed, setBriefed] = useState(false);
   const [raising, setRaising] = useState(false);
   const [issue, setIssue] = useState("");
   const [busy, setBusy] = useState(false);
@@ -133,7 +132,7 @@ function SignOnForm({
     setBusy(true);
     setError(null);
     try {
-      const res = await signOnSwms({ personId: person.id, pathData: path, briefed, issue: raising ? issue : null });
+      const res = await signOnSwms({ personId: person.id, pathData: path, issue: raising ? issue : null });
       if (res.ok) onSigned();
       else setError(res.error);
     } catch {
@@ -154,20 +153,8 @@ function SignOnForm({
           ? "By signing I confirm I understand this SWMS and I'll follow it. I'll brief everyone it covers before work starts, and if a control can't be followed I'll stop the work."
           : own
             ? `By signing I confirm I was consulted and briefed on this SWMS, I understand it, and I'll follow it. If a control can't be followed I'll stop work and tell ${responsible}.`
-            : `${person.name} confirms they were consulted and briefed on this SWMS, understand it, and will follow it. If a control can't be followed they'll stop work and tell ${responsible}.`}
+            : `By signing, ${person.name} confirms they were consulted and briefed on this SWMS, understand it, and will follow it. If a control can't be followed they'll stop work and tell ${responsible}.`}
       </p>
-      <label className={`sw-opt${briefed ? " on" : ""}`}>
-        <input type="checkbox" checked={briefed} onChange={(e) => setBriefed(e.target.checked)} />
-        <span>
-          <b>
-            {inCharge
-              ? "I'll brief everyone on this SWMS and follow it"
-              : own
-                ? "I've been briefed and I'll follow this SWMS"
-                : `${person.name} has been briefed and will follow this SWMS`}
-          </b>
-        </span>
-      </label>
       <SignaturePad onChange={setPath} label={own ? "Your signature" : `${person.name}'s signature`} />
       {raising ? (
         <div className="sw-grp">
@@ -182,10 +169,11 @@ function SignOnForm({
         </button>
       )}
       <div className="sws-actions">
+        {/* a greyed-out button that says nothing leaves the reader hunting */}
         <span className={error || tooLong ? "sw-state bad" : undefined}>
-          {tooLong ? "That signature is too long to keep. Clear it and sign again." : error}
+          {tooLong ? "That signature is too long to keep. Clear it and sign again." : (error ?? (signed ? "" : "Sign in the box to finish."))}
         </span>
-        <button type="button" className="pbtn primary" disabled={busy || !briefed || !signed || tooLong} onClick={submit}>
+        <button type="button" className="pbtn primary" disabled={busy || !signed || tooLong} onClick={submit}>
           {busy ? "Signing on…" : own ? "Sign on" : `Sign on ${person.name}`}
         </button>
       </div>
@@ -198,8 +186,15 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
   const [helper, setHelper] = useState<string | null>(null);
   const mine = doc.people.find((p) => p.staffProfileId === me) ?? null;
   const onIt = !!mine;
-  const outsiders = doc.people.filter((p) => !p.team && !p.signon);
+  /* THE PHONE THAT IS OUT. Anyone the SWMS covers and hasn't signed can sign
+     on it — the business's own installer had a longer road than a stranger,
+     who could always sign on the lead's phone. The record says whose. */
+  const unsigned = doc.people.filter((p) => !p.signon);
   const latest = doc.versions[doc.versions.length - 1];
+  /* WHAT CHANGED LEADS. Someone sent back to sign on again was shown the
+     whole document with no word on what was different — the reason was
+     written only on the version that had been replaced. */
+  const revision = doc.version > 1 ? doc.versions.find((v) => v.version === doc.version) ?? null : null;
   const c = doc.content;
   const inCharge = !!mine && mine.staffProfileId === doc.responsibleStaffId;
   /** "Wed 16 Sept, 7:50am", and "before a correction" when one carried it —
@@ -235,13 +230,23 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
 
             {!doc.latest && latest && (
               <div className="card2 sws-card">
-                <p className="sw-text">{`Version ${latest.version} replaced this one: ${latest.reason}.`}</p>
+                <p className="sw-text">{`A newer SWMS replaced this one: ${latest.reason}.`}</p>
                 <div className="sws-actions">
                   <span />
                   <Link className="pbtn primary" href={`/dashboard/swms/${latest.id}`}>
-                    Open version {latest.version}
+                    Open the current SWMS
                   </Link>
                 </div>
+              </div>
+            )}
+
+            {doc.latest && revision && (
+              <div className="card2 sws-card">
+                <div className="sw-gh">
+                  <b>What changed</b>
+                  <span>{revision.material ? "Everyone signs on again" : "A correction — sign-ons carry over"}</span>
+                </div>
+                <p className="sw-text">{revision.reason}</p>
               </div>
             )}
 
@@ -321,11 +326,14 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
                     <span>
                       <b>{p.name}</b>
                       <em>{p.team ? p.role || "Team member" : p.role || "Outside the business"}</em>
+                      {/* what they raised when they signed — the person in charge
+                          is told in their bell, and it stands here beside them */}
+                      {p.signon?.issue && <em className="sw-state warn">{`Raised: ${p.signon.issue}`}</em>}
                     </span>
                     <span className={p.signon ? "sw-state ok" : undefined}>
                       {p.signon ? (
                         `Signed on ${signedWhen(p.signon)}${p.signon.onPhoneOf ? `, on ${p.signon.onPhoneOf}'s phone` : ""}`
-                      ) : doc.latest && onIt && !p.team && helper !== p.id ? (
+                      ) : doc.latest && onIt && p.staffProfileId !== me && helper !== p.id ? (
                         <button type="button" className="pbtn ghost sm" onClick={() => setHelper(p.id)}>
                           Sign them on
                         </button>
@@ -338,10 +346,10 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
               </div>
             </div>
 
-            {doc.latest && onIt && helper && outsiders.some((p) => p.id === helper) && (
+            {doc.latest && onIt && helper && unsigned.some((p) => p.id === helper) && (
               <SignOnForm
                 key={helper}
-                person={outsiders.find((p) => p.id === helper)!}
+                person={unsigned.find((p) => p.id === helper)!}
                 own={false}
                 responsible={doc.responsible}
                 onSigned={signed}

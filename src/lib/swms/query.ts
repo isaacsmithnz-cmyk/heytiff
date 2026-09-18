@@ -30,6 +30,9 @@ export type SwmsJob = {
   jurisdiction: Jurisdiction | null;
   /** The site's postcode — the area a nearest hospital belongs to. */
   postcode: string | null;
+  /** Where the job is up to in ServiceM8 — a sign-on isn't asked for once
+      the work is over. */
+  status: string | null;
   /** The job's ServiceM8 category — "Install", "Service" — which answers
       whether this is an install without asking. */
   categoryName: string | null;
@@ -48,7 +51,7 @@ export type SwmsTeamMember = {
 export async function loadSwmsJob(orgId: string, jobUuid: string): Promise<SwmsJob | null> {
   const { data } = await supabaseAdmin
     .from("sm8_jobs")
-    .select("uuid, generated_job_id, company_uuid, category_uuid, job_address, geo_state, geo_postcode, job_description")
+    .select("uuid, generated_job_id, company_uuid, category_uuid, status, job_address, geo_state, geo_postcode, job_description")
     .eq("org_id", orgId)
     .eq("uuid", jobUuid)
     .eq("active", 1)
@@ -58,6 +61,7 @@ export async function loadSwmsJob(orgId: string, jobUuid: string): Promise<SwmsJ
     generated_job_id: string | null;
     company_uuid: string | null;
     category_uuid: string | null;
+    status?: string | null;
     job_address: string | null;
     geo_state: string | null;
     geo_postcode?: string | null;
@@ -82,6 +86,7 @@ export async function loadSwmsJob(orgId: string, jobUuid: string): Promise<SwmsJ
     clientName,
     address: job.job_address?.trim() || null,
     description: job.job_description?.trim() || null,
+    status: job.status?.trim() || null,
     state,
     jurisdiction: jurisdictionOf(state),
     postcode: postcodeOf(job.geo_postcode ?? null, job.job_address),
@@ -446,7 +451,11 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
             ? {
                 at: eff.signon.at,
                 version: eff.version,
-                onPhoneOf: !team && eff.signon.signedByStaffId ? nameIn(names, eff.signon.signedByStaffId) : null,
+                /* signed on someone else's phone — a workmate's or the crew lead's */
+                onPhoneOf:
+                  eff.signon.signedByStaffId && eff.signon.signedByStaffId !== p.staffProfileId
+                    ? nameIn(names, eff.signon.signedByStaffId)
+                    : null,
                 /* the person in charge gives the briefing; nobody briefs them */
                 briefedBy:
                   eff.signon.briefedByStaffId && eff.signon.briefedByStaffId !== p.staffProfileId
@@ -472,6 +481,9 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
 
 /* ── the job card's Compliance group ───────────────────────────────────── */
 
+/** Something a worker wrote at sign-on that the person in charge has to know. */
+export type SwmsIssue = { name: string; issue: string };
+
 export type SwmsSummary = {
   swmsId: string;
   versionId: string;
@@ -481,6 +493,9 @@ export type SwmsSummary = {
   signed: number;
   total: number;
   waitingOn: string[];
+  /** Raised at sign-on, by whoever raised it — the reason the SWMS might
+      need changing before the work starts. */
+  issues: SwmsIssue[];
   /** The reader has something to sign here: their own sign-on, or a helper
       on the same SWMS. Anyone else has nothing behind a Sign on button. */
   viewerCanSign: boolean;
@@ -522,9 +537,23 @@ export async function listJobSwms(orgId: string, jobUuid: string, viewerStaffId:
         signed: mine.length - waiting.length,
         total: mine.length,
         waitingOn: waiting.map(nameOf),
+        issues: issuesOn(chain, mine, nameOf),
         viewerCanSign: !!viewerRow && waiting.some((p) => p.id === viewerRow.id || !p.staffProfileId),
       },
     ];
+  });
+}
+
+/** What the people on a version raised when they signed on. */
+function issuesOn(
+  chain: ChainRows,
+  people: readonly ChainPerson[],
+  nameOf: (p: ChainPerson) => string
+): SwmsIssue[] {
+  const byPerson = new Map(chain.signons.map((x) => [x.personId, x]));
+  return people.flatMap((p) => {
+    const raised = byPerson.get(p.id)?.issue?.trim();
+    return raised ? [{ name: nameOf(p), issue: raised }] : [];
   });
 }
 
@@ -541,9 +570,14 @@ export type PendingSignon = {
   issuedAt: string;
 };
 
+/** Jobs ServiceM8 has closed out. A SWMS asks to be signed BEFORE work; once
+    the job is over, asking is noise nobody can act on. */
+const CLOSED = new Set(["Completed", "Unsuccessful"]);
+
 /** Latest versions this team member is on with no sign-on standing for them.
-    A replaced version is never asked for — the next one is — and a correction
-    doesn't ask again of anyone who signed the version it corrects. */
+    A replaced version is never asked for — the next one is — a correction
+    doesn't ask again of anyone who signed the version it corrects, and a job
+    that is finished, unsuccessful or gone from the board asks nobody. */
 export async function pendingSignons(orgId: string, staffProfileId: string): Promise<PendingSignon[]> {
   const { data: mine } = await supabaseAdmin
     .from("swms_people")
@@ -579,12 +613,68 @@ export async function pendingSignons(orgId: string, staffProfileId: string): Pro
   });
 
   const jobs = await Promise.all(pending.map((v) => loadSwmsJob(orgId, jobOf.get(v.swmsId) ?? "")));
-  return pending.map((v, i) => ({
-    versionId: v.id,
-    version: v.version,
-    again: v.again,
-    jobNumber: jobs[i]?.number ?? null,
-    site: jobs[i]?.address ?? null,
-    issuedAt: v.issuedAt,
-  }));
+  return pending.flatMap((v, i) => {
+    const job = jobs[i];
+    if (!job || CLOSED.has(job.status ?? "")) return [];
+    return [
+      {
+        versionId: v.id,
+        version: v.version,
+        again: v.again,
+        jobNumber: job.number,
+        site: job.address,
+        issuedAt: v.issuedAt,
+      },
+    ];
+  });
+}
+
+/* ── an issue somebody raised at sign-on ───────────────────────────────── */
+
+export type RaisedIssues = {
+  versionId: string;
+  jobNumber: string | null;
+  site: string | null;
+  issues: SwmsIssue[];
+};
+
+/** Issues raised on SWMS this person is in charge of, on the latest version
+    of a live job. A worker who writes "no anchor on the rear ridge" at
+    sign-on is telling the person in charge, and telling them is the point:
+    it reaches their bell, not just the printed register. It clears when the
+    SWMS is revised — the answer to a raised issue is a changed SWMS — or
+    when the job leaves the board. */
+export async function raisedIssues(orgId: string, staffProfileId: string): Promise<RaisedIssues[]> {
+  const { data: mine } = await supabaseAdmin
+    .from("swms_versions")
+    .select("id, swms_id")
+    .eq("org_id", orgId)
+    .eq("responsible_staff_id", staffProfileId);
+  const swmsIds = [...new Set(((mine ?? []) as { id: string; swms_id: string }[]).map((v) => v.swms_id))];
+  if (!swmsIds.length) return [];
+
+  const [chain, { data: swmsRows }] = await Promise.all([
+    loadChains(orgId, swmsIds),
+    supabaseAdmin.from("swms").select("id, sm8_job_uuid").eq("org_id", orgId).in("id", swmsIds),
+  ]);
+  const jobOf = new Map(((swmsRows ?? []) as { id: string; sm8_job_uuid: string }[]).map((x) => [x.id, x.sm8_job_uuid]));
+
+  const latest = swmsIds.flatMap((id) => {
+    const versions = chain.versions.filter((v) => v.swmsId === id);
+    if (!versions.length) return [];
+    const top = versions.reduce((a, b) => (b.version > a.version ? b : a));
+    return top.responsible === staffProfileId ? [top] : [];
+  });
+  if (!latest.length) return [];
+
+  const names = await profilesOf(orgId, chain.people.map((p) => p.staffProfileId));
+  const nameOf = (p: ChainPerson) => (p.staffProfileId ? nameIn(names, p.staffProfileId) : p.outsideName ?? "—");
+  const jobs = await Promise.all(latest.map((v) => loadSwmsJob(orgId, jobOf.get(v.swmsId) ?? "")));
+
+  return latest.flatMap((v, i) => {
+    const job = jobs[i];
+    if (!job || CLOSED.has(job.status ?? "")) return [];
+    const issues = issuesOn(chain, chain.people.filter((p) => p.versionId === v.id), nameOf);
+    return issues.length ? [{ versionId: v.id, jobNumber: job.number, site: job.address, issues }] : [];
+  });
 }

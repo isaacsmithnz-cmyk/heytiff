@@ -72,7 +72,8 @@ describe("FaultFinder — walking the tree", () => {
     answer(/Yes, indoor works/);
     expect(screen.getByText("Diagnosis")).toBeInTheDocument();
     expect(container.querySelector(".ffg-outcome h2")).toHaveTextContent(/outdoor unit isn't/i);
-    expect(screen.getByText("What to do")).toBeInTheDocument();
+    // a dead outdoor unit has a fallback (the board), so its list is the best fix
+    expect(screen.getByRole("heading", { name: "Best fix" })).toBeInTheDocument();
     expect(container.querySelectorAll(".ffg-actions li").length).toBeGreaterThanOrEqual(2);
     // no question remains once diagnosed
     expect(screen.queryByText(/^Question /)).not.toBeInTheDocument();
@@ -131,6 +132,35 @@ describe("FaultFinder — multi and VRF", () => {
     expect(container.querySelector(".ffg-outcome h2")).toHaveTextContent(/mode conflict/i);
     // it isn't a fault, so it shouldn't be flagged as specialist work
     expect(container.querySelector(".ffg-outcome .esc")).toBeNull();
+  });
+
+  it("crossed pipework leads with the best fix and flags only the option that needs it", () => {
+    const { container } = render(<FaultFinder />);
+    pickSymptom(/Multi or VRF/);
+    answer(/The wrong room responds/);
+    answer(/only gets cold when another head calls/);
+    expect(screen.getByRole("heading", { name: "Best fix" })).toBeInTheDocument();
+    expect(container.querySelector(".ffg-actions ol")).toHaveTextContent(/move the cables, not the pipes/i);
+    expect(screen.getByRole("heading", { name: "Other options" })).toBeInTheDocument();
+    // routine best fix: no badge on the diagnosis itself
+    expect(container.querySelector(".ffg-outcome .esc")).toBeNull();
+    // the re-pipe is where the specialist word lives, and nowhere else
+    const options = Array.from(container.querySelectorAll(".ffg-alts li"));
+    const flagged = options.filter((li) => li.querySelector(".esc"));
+    expect(flagged).toHaveLength(1);
+    expect(flagged[0]).toHaveTextContent(/re-pipe at the ports/i);
+    // each option says when it's the one to pick
+    for (const li of options) expect(li.querySelector("p")!.textContent!.length).toBeGreaterThan(20);
+  });
+
+  it("keeps 'What to do' where there is nothing to choose between", () => {
+    render(<FaultFinder />);
+    pickSymptom(/Multi or VRF/);
+    answer(/Some heads heat while others want cool/);
+    answer(/Two-pipe, or not sure/);
+    expect(screen.getByRole("heading", { name: "What to do" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Best fix" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Other options" })).not.toBeInTheDocument();
   });
 
   it("a head conditioning while it's off is one question deep", () => {

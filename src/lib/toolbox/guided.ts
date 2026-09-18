@@ -1795,15 +1795,16 @@ export const OUTCOMES: Outcome[] = [
     title: "Pipework crossed at the branch",
     confidence: "likely",
     explain:
-      "The right head answers its own controller, so the comms are correct — but the refrigerant reaching it belongs to a different port. The outdoor unit opens the valve for the head it believes is calling, and the gas turns up somewhere else. That's exactly why it only performs when another room calls.",
+      "The right head answers its own controller, but its pipes and its cable land on different ports. Each port has its own expansion valve, and the unit opens the valve for the port the calling head is wired to — so the refrigerant goes to whichever head is piped there. That's exactly why it only performs when another room calls. Nothing is broken: the pipes and the wiring just disagree, and the wiring is the side that's cheap to move.",
     actions: [
-      "Confirm it: call one head on its own and feel which head's pipes go cold",
-      "Trace each liquid and gas pair from the branch box back to the head it actually serves",
-      "Re-pipe to match the ports, or re-land the comms to match the pipes — whichever is the smaller job",
-      "Every sensor reading has been meaningless until this is fixed, so re-check operation on all heads afterwards",
-      "Re-piping means recovery, braze and recharge — plan the visit for it",
+      "Map it: call each head on its own and write down whose pipes go cold — that's which port really feeds which room",
+      "Before a cable moves, look for a wiring-check mode on the outdoor board — some multis find the mismatch and correct it themselves",
+      "Otherwise move the cables, not the pipes: land each head's cable on the terminals of the port its pipes are on — no recovery, no braze, no recharge",
+      "Re-test every head on its own afterwards — until the two matched, each valve was being driven off another room's sensors",
+      "Label each port with the room it serves while you're in there, so the next visit isn't this visit",
     ],
-    escalate: true,
+    safety:
+      "Isolate the outdoor unit before any cable comes off a terminal — on many multis those terminals carry mains to the heads, not just the signal.",
   },
 
   /* pressures won't split */

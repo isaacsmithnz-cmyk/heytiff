@@ -276,9 +276,20 @@ describe("multi and VRF", () => {
     const [comms, pipes] = q.answers.map((a) => getOutcome(outcomeId(a.next))!);
     expect(comms.title).toMatch(/control wiring crossed/i);
     expect(pipes.title).toMatch(/pipework crossed/i);
-    // re-piping is a recovery-and-recharge job; re-landing comms isn't
-    expect(pipes.escalate).toBe(true);
-    expect(comms.escalate).toBeFalsy();
+  });
+
+  /* Crossed pipes used to end on "re-pipe it — recovery, braze and recharge"
+     under a Specialist badge. The pipes and the cables only have to AGREE, and
+     the cables are the side that moves at a terminal block. */
+  it("corrects crossed pipework by moving the cables, not the pipes", () => {
+    const pipes = getOutcome("vrf-crossed-pipes")!;
+    const actions = pipes.actions.join(" ");
+    expect(actions).toMatch(/move the cables, not the pipes/i);
+    expect(actions).not.toMatch(/re-pip/i);
+    expect(pipes.escalate).toBeFalsy();
+    expect(getOutcome("vrf-crossed-comms")!.escalate).toBeFalsy();
+    // those terminals can carry mains, so it says isolate before a cable comes off
+    expect(pipes.safety).toMatch(/isolate/i);
   });
 });
 

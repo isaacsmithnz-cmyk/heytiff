@@ -66,10 +66,11 @@ import { Split } from "./inspector";
 
 /* THE DAY FITS THE WIDTH. The rail used to be 110px an hour whatever the
    screen, so a 1440px laptop showed 6am to 3pm and scrolled for the rest,
-   with a fade saying so. The hours now share the width the rail has; only
-   when that would crush an hour below this does the rail scroll again —
-   the inspector open on a narrow screen. */
-const MIN_PX_PER_HOUR = 64;
+   with a fade saying so. The hours share the width the rail has now — and
+   the floor is what a NAME needs, not what a rectangle needs: a one-hour
+   booking at 96px holds "Tom Hanaee" where at 64 it held four letters. Below
+   it the rail scrolls again, which is the inspector open on a laptop. */
+const MIN_PX_PER_HOUR = 96;
 /* A sub-row must HOLD its own type: two lines (13px and 12px at 1.25) and a
    2px gap are ~34px, in a 40px block. The row owns the arithmetic: a 40px
    block, 4px between stacked blocks, 6px above and below the lane — so a

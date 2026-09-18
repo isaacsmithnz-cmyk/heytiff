@@ -79,9 +79,14 @@ const BLOCK_PX = 40;
 const LANE_ROW_PX = BLOCK_PX + 4;
 const LANE_PAD_PX = 6;
 const laneHeight = (rows: number) => rows * LANE_ROW_PX - (LANE_ROW_PX - BLOCK_PX) + LANE_PAD_PX * 2;
-/** Below this width a block drops to its number alone — three clipped lines
-    say less than one whole one. */
-const TIGHT_PX = 90;
+/** THE NAME IS THE LAST THING TO GO. A one-hour booking is ~92px on a 1440
+    laptop: 51px of text after the cap and the mark's clearance, and the job
+    number's box was taking 37 of it, so "Tom Hanaee" came out as ten pixels
+    of nothing. Below the first width the number goes (it is in the block's
+    title, its label and the panel); below the second the category line goes
+    too, and the customer holds the block on its own. */
+const TIGHT_PX = 150;
+const BARE_PX = 100;
 /** Indexed by `dowOfISO` (Mon=0 … Sun=6) — the strip's window slides a day at
     a time now, so a card's weekday comes from its own date, never its slot. */
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -650,6 +655,7 @@ export function ScheduleTab({
                             (hollow ? " idle" : "") +
                             (late ? " late" : "") +
                             (w < TIGHT_PX ? " tight" : "") +
+                            (w < BARE_PX ? " bare" : "") +
                           (b.remoteId === focusJob ? " on" : "") +
                             "";
                           /* OWNERSHIP OUTRANKS CATEGORY: a job on one of our

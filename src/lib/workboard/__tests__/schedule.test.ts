@@ -432,6 +432,12 @@ describe("lanePresence", () => {
     expect(lanePresence([b({ status: "Unsuccessful", startMin: 60 })], 600)).toBeNull();
   });
 
+  it("never turns a quoting day's dot red — nobody clocks on to a quote", () => {
+    // the same rule the block treatment states; a day of quotes is a day
+    // that went to plan, not a person to chase
+    expect(lanePresence([b({ status: "Quote", startMin: 60 })], 600)).toBe("wait");
+  });
+
   it("treats a stale booking as open — it is still on the run", () => {
     /* It used to read "late" here. That was the whole of the bug Isaac saw:
        a job ServiceM8 closed when the crew marked an EARLIER visit complete

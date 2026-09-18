@@ -163,9 +163,15 @@ export function lanePresence(
      the lane can still say "not started") but it cannot make anyone late.
      The block treatment draws the same line; this is the same law in the name
      column, where it was turning a person's dot red for a finished job. */
+  /* A QUOTE cannot make anyone late either — nobody clocks on to a sales
+     call, so a day of quoting would turn its owner's dot red every evening.
+     The block treatment states the same rule (lib/workboard/focus.ts). */
   if (
     overdueBefore !== null &&
-    open.some((b) => b.closure !== "stale" && !b.onSite && b.startMin < overdueBefore)
+    open.some(
+      (b) =>
+        b.closure !== "stale" && b.status !== "Quote" && !b.onSite && b.startMin < overdueBefore
+    )
   ) {
     return "late";
   }

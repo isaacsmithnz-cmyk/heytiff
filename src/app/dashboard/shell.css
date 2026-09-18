@@ -5869,12 +5869,12 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
    reason and by the same means — `flex:none` on every station — in a third
    of the height, and the strip's day cards are the chips on it. */
 
-/* THE DAYS, as chips on the toolbar: the weekday quiet, the date in ink, and
-   the day's bookings in a small figure box beside them. A clear day carries
-   no box — a zero is not a count. The chosen day is filled in ink, which is
-   selection as a fill (law 14) and the same ink the filter chips choose with;
-   on it the figure box is paper's own tint. Baseline-aligned, so the smaller
-   weekday sits on the date's line rather than floating in the middle of it. */
+/* THE DAYS, as chips on the toolbar: the weekday quiet and the date in ink,
+   and nothing else — the count that sat beside each date went (Isaac,
+   2026-09-17). The chosen day is filled in ink, which is selection as a fill
+   (law 14) and the same ink the filter chips choose with. Baseline-aligned,
+   so the smaller weekday sits on the date's line rather than floating in the
+   middle of it. */
 /* `flex:none`: the days never give ground — the figures after them do, with
    an ellipsis — or the chips would slide under the sentence beside them */
 .wb2-schdays { flex:none; display:flex; align-items:center; gap:4px; }
@@ -5885,13 +5885,9 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-schday:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-schday .cw { font-size:var(--fs-1); font-weight:var(--fw-label); color:var(--q); }
 .wb2-schday .cd { font-size:var(--fs-2); font-weight:var(--fw-display); color:var(--ink); font-variant-numeric:tabular-nums; }
-.wb2-schday .cn { align-self:center; min-width:18px; height:18px; padding:0 4px; border-radius:var(--r-control);
-  display:inline-grid; place-items:center; background:var(--tint-2); font-size:var(--fs-1);
-  font-weight:var(--fw-heading); line-height:1; color:var(--q); font-variant-numeric:tabular-nums; }
 .wb2-schday.on { background:var(--ink); }
 .wb2-schday.on .cw { color:var(--on-ink-q); }
 .wb2-schday.on .cd { color:var(--paper); }
-.wb2-schday.on .cn { background:var(--on-ink-tint-2); color:var(--paper); }
 
 /* native day-bookings — a shelf, never a lane. A project trip or maintenance
    visit is booked to a DAY, with no clock and mostly no person; laying it on
@@ -5976,7 +5972,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-tbsum { margin-left:auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q);
   font-variant-numeric:tabular-nums; }
-.wb2-tbsum b { font-weight:var(--fw-heading); color:var(--ink); }
 
 /* THE MIRROR'S FRESHNESS closes every toolbar (board/sm8-chip.tsx says why it
    left the header): a quiet line with a dot in its state's colour. It takes

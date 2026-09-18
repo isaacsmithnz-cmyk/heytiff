@@ -21,7 +21,6 @@ const scheduleDay = jest.fn(async (dayISO: string) => ({
   activities: [],
   staff: [],
   jobs: [],
-  weekCounts: {},
 }));
 jest.mock("@/app/actions/workboard", () => ({
   searchAllJobs: (...a: unknown[]) => searchAllJobs(...(a as [])),

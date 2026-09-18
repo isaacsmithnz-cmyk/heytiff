@@ -20,7 +20,6 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { plusDays } from "./dates";
-import { mondayOf } from "./board-status";
 import { sm8CategoryColour, type AllJobsMirrorJob } from "./all-jobs";
 import { onSiteKey, type ScheduleActivity, type ScheduleStaff } from "./schedule";
 
@@ -29,9 +28,6 @@ export type SchedulePayload = {
   activities: ScheduleActivity[];
   staff: ScheduleStaff[];
   jobs: AllJobsMirrorJob[];
-  /** Booking count per day for the Mon–Sun week around dayISO — the strip's
-      numbers, one grouped read instead of seven day loads. */
-  weekCounts: Record<string, number>;
   /** `onSiteKey` values for the job+person pairs that recorded time on this
       day. An ARRAY, not a Set: this payload crosses a server action's
       serialisation boundary, and the component rebuilds the Set on arrival. */
@@ -43,7 +39,6 @@ export const EMPTY_SCHEDULE: SchedulePayload = {
   activities: [],
   staff: [],
   jobs: [],
-  weekCounts: {},
   onSite: [],
 };
 
@@ -59,11 +54,10 @@ function oneLine(text: string | null, max = 160): string | null {
 export async function loadScheduleDay(orgId: string, dayISO: string): Promise<SchedulePayload> {
   const dayFloor = `${dayISO} 00:00:00`;
   const dayCeil = `${plusDays(dayISO, 1)} 00:00:00`;
-  const monday = mondayOf(dayISO);
-  const weekFloor = `${monday} 00:00:00`;
-  const weekCeil = `${plusDays(monday, 7)} 00:00:00`;
 
-  const [{ data: actRows }, { data: weekRows }, { data: onSiteRows }] = await Promise.all([
+  /* The week's per-day booking count was a third read here, for the numbers
+     on the strip's day chips; the chips are the day's name alone now. */
+  const [{ data: actRows }, { data: onSiteRows }] = await Promise.all([
     supabaseAdmin
       .from("sm8_job_activities")
       .select("uuid, job_uuid, staff_uuid, start_date, end_date, activity_was_scheduled")
@@ -73,14 +67,6 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
       .gte("start_date", dayFloor)
       .lt("start_date", dayCeil)
       .order("start_date", { ascending: true }),
-    supabaseAdmin
-      .from("sm8_job_activities")
-      .select("start_date")
-      .eq("org_id", orgId)
-      .eq("active", 1)
-      .eq("activity_was_scheduled", 1)
-      .gte("start_date", weekFloor)
-      .lt("start_date", weekCeil),
     /* THE OTHER HALF OF THE SAME TABLE — the rows the read above excludes.
        `= 0` is time recorded on site, and it is asked for here ONLY to answer
        "did anyone start this booking", never to be laid out. Two columns come
@@ -106,12 +92,6 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
     activity_was_scheduled: number | null;
   }[];
 
-  const weekCounts: Record<string, number> = {};
-  for (const r of (weekRows ?? []) as { start_date: string | null }[]) {
-    const d = r.start_date?.slice(0, 10);
-    if (d) weekCounts[d] = (weekCounts[d] ?? 0) + 1;
-  }
-
   /* One key per job+person pair. A tech clocking on and off a job four times
      is four rows and one key — the set says "started", and how many times is
      not a question this rail asks. */
@@ -135,7 +115,7 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
     }));
 
   if (activities.length === 0) {
-    return { ...EMPTY_SCHEDULE, dayISO, weekCounts };
+    return { ...EMPTY_SCHEDULE, dayISO };
   }
 
   const staffIds = [...new Set(activities.map((a) => a.staffUuid).filter(Boolean) as string[])];
@@ -235,7 +215,6 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
     dayISO,
     activities,
     staff,
-    weekCounts,
     onSite,
     jobs: jobs.map((j) => ({
       remoteId: j.uuid,

@@ -392,6 +392,51 @@ describe("the cheap fix comes before the expensive one", () => {
     expect(all("remote-fault").best).toMatch(/different address/i);
   });
 
+  /* The compressor path, audited the same way. Each of these is a good
+     compressor that the old walk could have condemned, or a cheap fix it
+     never offered. */
+  it("a cold, idle compressor is warmed and retested before low megohms condemn it", () => {
+    for (const id of ["comp-damp", "comp-earthed"]) {
+      const { best } = all(id);
+      expect(best).toMatch(/liquid refrigerant/i);
+      expect(best).toMatch(/crankcase heater or the drive's (own )?preheat/i);
+    }
+    // the drier and the compressor are the fallbacks, not the first move
+    const damp = all("comp-damp");
+    expect(damp.best).not.toMatch(/change the liquid-line drier/i);
+    expect(damp.alts.every((a) => a.escalate)).toBe(true);
+  });
+
+  it("a 'shorted' winding is proved at the posts, because a dead drive reads the same", () => {
+    const { o, alts } = all("comp-short");
+    expect(o.actions[0]).toMatch(/leads off, at the compressor's own posts/i);
+    expect(o.actions[0]).toMatch(/power module/i);
+    expect(alts.map((a) => a.fix)).toContain("Replace the drive board");
+  });
+
+  it("an unbalanced winding gets its posts cleaned before it's condemned", () => {
+    expect(all("comp-unbalanced").best).toMatch(/bright metal/i);
+  });
+
+  it("a sound compressor that won't start has an inverter answer, not just a contactor", () => {
+    const { best, alts } = all("comp-sound");
+    expect(best).toMatch(/Inverter: there's no capacitor, relay or contactor/);
+    expect(best).toMatch(/Fixed-speed three-phase: open the contactor/);
+    const fixes = alts.map((a) => a.fix);
+    expect(fixes).toEqual(expect.arrayContaining(["Add a restart delay", "Fit a hard-start kit", "Replace the drive board"]));
+    expect(alts.find((a) => a.fix === "Fit a hard-start kit")!.when).toMatch(/never on an inverter/i);
+  });
+
+  it("an open overload can be cooled back sooner than hours", () => {
+    expect(all("comp-overload").alts[0].fix).toMatch(/cool the shell/i);
+  });
+
+  it("a mild burnout cleans up on driers; the flush and new pipe are the fallbacks", () => {
+    const { best, alts } = all("oil-burnout");
+    expect(best).toMatch(/mild one cleans up on driers/i);
+    expect(alts.map((a) => a.fix)).toEqual(["Flush the lines", "Replace the lines"]);
+  });
+
   it("crossed comms offers the renaming that needs no tools", () => {
     expect(all("vrf-crossed-comms").alts.map((a) => a.fix).join(" ")).toMatch(/rename/i);
   });
@@ -600,11 +645,12 @@ describe("built for the field, not for a search box", () => {
 
   it("never gives DOL start-component advice as if it were universal", () => {
     // anywhere capacitors or start gear are mentioned, the inverter case
-    // must be distinguished in the same breath — EXCEPT inside the
-    // compressor-proving tree, where the type question has already been
-    // answered before any of these outcomes can be reached
+    // must be distinguished in the same breath. The compressor-proving tree
+    // used to be exempt on the belief that its type question had settled it —
+    // but that question asks single- or three-phase, and an inverter's
+    // compressor is three-phase, so "open the contactor" was reaching motors
+    // that have no contactor. No exemptions.
     for (const o of OUTCOMES) {
-      if (o.id.startsWith("comp-")) continue;
       const lines = [...o.actions, ...(o.alternatives ?? []).map((alt) => `${alt.fix} ${alt.when}`)];
       for (const a of lines) {
         if (/start component|capacitor and/i.test(a)) {

@@ -17,6 +17,7 @@ import {
   regoChip,
   serviceChip,
   sortChips,
+  swmsIssueChip,
   swmsSignonChip,
   swmsTemplateChip,
   vehicleChips,
@@ -263,6 +264,7 @@ describe("chipGroup", () => {
       "leave-declined": true,
       profile: true,
       swms: true,
+      "swms-issue": true,
       "swms-template": true,
     };
     for (const k of Object.keys(filed) as ChipKind[]) {
@@ -312,6 +314,31 @@ describe("swmsSignonChip", () => {
 
   it("still names something when the job has no number or site", () => {
     expect(swmsSignonChip({ ...pending, jobNumber: null, site: null }, { today: TODAY }).subject).toBe("A job");
+  });
+});
+
+/* WHAT A WORKER RAISED AT SIGN-ON — written into the printed register and
+   nowhere else, so the person in charge never saw it. */
+describe("swmsIssueChip", () => {
+  const raised = { versionId: "v-1", jobNumber: "2601", site: "14 Attunga Road, Miranda NSW 2228", issues: [{ name: "Dane Whitmore", issue: "No anchor on the rear ridge" }] };
+
+  it("names who raised it, and opens the SWMS they raised it on", () => {
+    expect(swmsIssueChip(raised)).toMatchObject({
+      key: "swms-issue:v-1",
+      kind: "swms-issue",
+      state: "bad",
+      label: "Dane Whitmore raised an issue with the SWMS",
+      subject: "Job #2601, 14 Attunga Road",
+      href: "/dashboard/swms/v-1",
+    });
+    expect(chipGroup("swms-issue")).toBe("Workboard");
+  });
+
+  it("counts them when there are more than one, and says nothing when there are none", () => {
+    expect(swmsIssueChip({ ...raised, issues: [...raised.issues, { name: "Kai Lindqvist", issue: "Ladder is too short" }] })?.label).toBe(
+      "2 issues raised with the SWMS"
+    );
+    expect(swmsIssueChip({ ...raised, issues: [] })).toBeNull();
   });
 });
 

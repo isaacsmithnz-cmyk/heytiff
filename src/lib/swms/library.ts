@@ -113,6 +113,9 @@ export type SwmsAnswers = {
   kind: "install" | "service";
   jurisdiction: Jurisdiction;
   site: { pre1990: boolean; powerlines: boolean; traffic: boolean; builder: boolean };
+  /** The builder running the site, named — they are handed a copy, and the
+      document names who was handed it. */
+  builderName: string;
   /** Categories ticked by hand on site, beyond what the answers switch on. */
   extraCategories: number[];
   steps: Record<StepKey, boolean>;
@@ -137,6 +140,7 @@ export const DEFAULT_ANSWERS: SwmsAnswers = {
   kind: "install",
   jurisdiction: "NSW",
   site: { pre1990: false, powerlines: false, traffic: false, builder: false },
+  builderName: "",
   extraCategories: [],
   steps: { roof: true, lift: true, drill: true, ceiling: true, braze: true, test: true, power: true, charge: true },
   fall: "edge",
@@ -434,7 +438,7 @@ function brazeStep(a: SwmsAnswers): SwmsStep {
       c("engineering", "Pipe purged with oxygen-free nitrogen before heating, and nitrogen kept flowing at low pressure while brazing."),
       c("engineering", "Flashback arrestors at both the torch and regulator ends of both hoses; cylinders upright and secured."),
       c("isolate", "Combustibles removed from the brazing area or shielded with fire-resistant barriers; fire extinguisher at hand."),
-      ...(a.site.builder ? [c("admin", "Hot work permit obtained from the builder before lighting the torch.")] : []),
+      ...(a.site.builder ? [c("admin", `Hot work permit obtained from ${a.builderName.trim() || "the builder"} before lighting the torch.`)] : []),
       c("admin", "Valves shut and hoses purged after use; the area checked for smouldering before it's left."),
       c("ppe", "Filter-shade eyewear, leather gloves and covered skin."),
     ],
@@ -584,7 +588,7 @@ export function buildSwms(a: SwmsAnswers, ctx: BuildContext): SwmsContent {
     a.site.pre1990 ? "Building from before 1990; material treated as possible asbestos until tested." : null,
     a.site.powerlines ? "Overhead powerlines near the work." : null,
     a.site.traffic ? "Work next to a road or driveway with traffic." : null,
-    a.site.builder ? "A builder runs the site as principal contractor." : null,
+    a.site.builder ? `${a.builderName.trim() || "A builder"} runs the site as principal contractor.` : null,
     a.siteNotes.trim() || null,
   ].filter((x): x is string => !!x);
 
@@ -605,7 +609,7 @@ export function buildSwms(a: SwmsAnswers, ctx: BuildContext): SwmsContent {
     ppe,
     siteNotes,
     emergency: {
-      firstAider: ctx.firstAiderName ?? "—",
+      firstAider: ctx.firstAiderName ?? "Not named",
       hospital: a.hospital.trim(),
       extinguisher: a.extinguisher === "van" ? "In the van" : "On site, marked",
     },
@@ -644,6 +648,7 @@ export type ProblemField =
   | "roofPower"
   | "isolation"
   | "electrician"
+  | "builderName"
   | "hospital"
   | "people"
   | "responsible"
@@ -660,7 +665,8 @@ export function issueProblemList(a: SwmsAnswers, f: IssueFacts): IssueProblem[] 
   const anyStep = STEP_KEYS.some((k) => s[k]);
   if (!anyStep) add("steps", "Tick at least one step that's happening on this job.");
   if (a.kind === "service" && categoriesOf(a).length === 0) {
-    add("kind", "A service or repair with no high-risk work doesn't need a SWMS.");
+    /* the way out is a step, not calling the job an install */
+    add("steps", "Nothing ticked here is high-risk work, and a service that has none doesn't need a SWMS.");
   }
   if (s.roof && a.fall === "harness" && !a.anchor.trim()) add("anchor", "Name the roof anchor the harness clips to.");
   if (s.roof && a.fall === "harness" && a.jurisdiction === "QLD" && !a.qldFallReason.trim()) {
@@ -672,6 +678,7 @@ export function issueProblemList(a: SwmsAnswers, f: IssueFacts): IssueProblem[] 
   }
   if (s.power && !a.isolation.trim()) add("isolation", "Name the isolation point.");
   if (s.power && !f.electricianChosen) add("electrician", "Choose the electrician doing the connection.");
+  if (a.site.builder && !a.builderName.trim()) add("builderName", "Name the builder running the site — they're handed a copy.");
   if (!a.hospital.trim()) add("hospital", "Name the nearest hospital.");
   if (f.people === 0) add("people", "Choose who this SWMS covers.");
   if (!f.responsibleChosen) add("responsible", "Choose who's in charge on site.");
@@ -680,6 +687,7 @@ export function issueProblemList(a: SwmsAnswers, f: IssueFacts): IssueProblem[] 
     ["qldFallReason", "the Queensland fall reason", a.qldFallReason],
     ["silicaWhy", "the silica reason", a.silicaWhy],
     ["siteNotes", "the site notes", a.siteNotes],
+    ["builderName", "the builder's name", a.builderName],
   ] as const) {
     const hits = vagueWords(text);
     if (hits.length) add(field, `Replace "${hits[0]}" in ${name} with the exact item, number or person.`);

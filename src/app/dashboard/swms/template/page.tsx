@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles-shared";
-import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
+import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { libraryApproval, ownerName } from "@/lib/swms/query";
 import { TemplateSteps } from "@/components/swms/template-steps";
 import { ApproveTemplate } from "@/components/swms/approve-template";
@@ -21,7 +21,8 @@ export default async function SwmsTemplatePage() {
 
   const [approval, role, owner] = await Promise.all([libraryApproval(orgId), getDbRole(), ownerName(orgId)]);
   const isOwner = hasMinRole(role, "owner");
-  const when = approval ? fmtAuWeekdayDate(auDayOf(approval.approvedAt)) : null;
+  /* the app's own day, like every other SWMS screen — only paper takes a year */
+  const when = approval ? fmtAuWeekdayDayMonth(auDayOf(approval.approvedAt)) : null;
 
   return (
     <div className="page in">

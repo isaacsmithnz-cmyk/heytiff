@@ -44,6 +44,7 @@ export type ChipKind =
   | "leave-declined"
   | "profile"
   | "swms"
+  | "swms-issue"
   | "swms-template";
 
 /** Only actionable states surface as chips; a compliant thing produces none. */
@@ -101,6 +102,7 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   /* A SWMS to sign on to is the job's paperwork, so it files with the board
      it was issued from, under the nav's own Workboard glyph. */
   swms: "Workboard",
+  "swms-issue": "Workboard",
   "swms-template": "Workboard",
 };
 
@@ -519,6 +521,26 @@ export function swmsSignonChip(
     subject: [p.jobNumber ? `Job #${p.jobNumber}` : null, site].filter(Boolean).join(", ") || "A job",
     href: `/dashboard/swms/${p.versionId}`,
     urgency: urgency("warn", -age),
+  };
+}
+
+/** Something a worker wrote at sign-on, for the person in charge of that SWMS.
+
+    A worker who raises "the anchor point is rusted" has told the crew lead —
+    that is what raising it is for. It was written into the printed register
+    and nowhere else, so the one person who could act on it never saw it. It
+    clears when the SWMS is revised, or when the job leaves the board. */
+export function swmsIssueChip(p: { versionId: string; jobNumber: string | null; site: string | null; issues: { name: string; issue: string }[] }): ActionChip | null {
+  if (!p.issues.length) return null;
+  const site = p.site?.split(",")[0]?.trim() || null;
+  return {
+    key: `swms-issue:${p.versionId}`,
+    kind: "swms-issue",
+    state: "bad",
+    label: p.issues.length === 1 ? `${p.issues[0].name} raised an issue with the SWMS` : `${p.issues.length} issues raised with the SWMS`,
+    subject: [p.jobNumber ? `Job #${p.jobNumber}` : null, site].filter(Boolean).join(", ") || "A job",
+    href: `/dashboard/swms/${p.versionId}`,
+    urgency: urgency("bad", 0),
   };
 }
 

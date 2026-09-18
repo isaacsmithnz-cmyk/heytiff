@@ -8,7 +8,7 @@ jest.mock("@/lib/supabase-server", () => ({
 }));
 jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: async () => new Map() }));
 
-import { hasStandingSignon, libraryApproval, listJobSwms, loadSwmsDocument, loadSwmsJob, nearbyHospital, ownerName, pendingSignons } from "../query";
+import { hasStandingSignon, libraryApproval, listJobSwms, loadSwmsDocument, loadSwmsJob, nearbyHospital, ownerName, pendingSignons, raisedIssues } from "../query";
 
 const ORG = "org-1";
 const person = (id: string, version_id: string, who: { staff?: string; outside?: string }) => ({
@@ -75,12 +75,60 @@ describe("pendingSignons", () => {
     expect(await pendingSignons(ORG, "nobody")).toEqual([]);
     expect(await pendingSignons("org-2", "dane")).toEqual([]);
   });
+
+  /* asking someone to sign on BEFORE work that is already over is a nag
+     nobody can act on — and a job that left the board couldn't even be named */
+  it("stops asking once the job is finished, unsuccessful or gone", async () => {
+    for (const status of ["Completed", "Unsuccessful"]) {
+      mockDb.tables.sm8_jobs[0].status = status;
+      expect(await pendingSignons(ORG, "dane")).toEqual([]);
+    }
+    mockDb.tables.sm8_jobs[0].status = "Work Order";
+    expect(await pendingSignons(ORG, "dane")).toHaveLength(1);
+    mockDb.tables.sm8_jobs[0].active = 0;
+    expect(await pendingSignons(ORG, "dane")).toEqual([]);
+  });
+});
+
+/* AN ISSUE RAISED AT SIGN-ON went into the printed register and nowhere else,
+   so the one person who could act on it never saw it. */
+describe("raisedIssues", () => {
+  beforeEach(() => {
+    mockDb.tables.swms_signons[0].issue_raised = "  No anchor on the rear ridge  ";
+  });
+
+  it("tells whoever is in charge what was raised on their latest version", async () => {
+    expect(await raisedIssues(ORG, "troy")).toEqual([
+      { versionId: "v2", jobNumber: "2601", site: "14 Attunga Road, Miranda NSW 2228", issues: [{ name: "Troy Porter", issue: "No anchor on the rear ridge" }] },
+    ]);
+  });
+
+  it("tells nobody else, and says nothing when nothing was raised", async () => {
+    expect(await raisedIssues(ORG, "dane")).toEqual([]);
+    mockDb.tables.swms_signons[0].issue_raised = null;
+    expect(await raisedIssues(ORG, "troy")).toEqual([]);
+  });
+
+  it("clears when the SWMS is revised, or the job leaves the board", async () => {
+    mockDb.tables.swms_versions.push({ ...version("v3", "s-1", 3), issued_at: "2026-09-13T07:42:00.000Z" });
+    mockDb.tables.swms_people.push(person("p3-troy", "v3", { staff: "troy" }));
+    expect(await raisedIssues(ORG, "troy")).toEqual([]);
+
+    mockDb.tables.swms_versions.pop();
+    mockDb.tables.swms_people.pop();
+    mockDb.tables.sm8_jobs[0].status = "Completed";
+    expect(await raisedIssues(ORG, "troy")).toEqual([]);
+  });
+
+  it("carries the same issue onto the job card", async () => {
+    expect((await listJobSwms(ORG, "job-1"))[0].issues).toEqual([{ name: "Troy Porter", issue: "No anchor on the rear ridge" }]);
+  });
 });
 
 describe("listJobSwms", () => {
   it("summarises the job's SWMS at its latest version, with who it's still waiting on", async () => {
     expect(await listJobSwms(ORG, "job-1")).toEqual([
-      { swmsId: "s-1", versionId: "v2", version: 2, issuedAt: "2026-09-12T07:42:00.000Z", responsible: "Troy Porter", signed: 1, total: 3, waitingOn: ["Dane Whitmore", "Kai Lindqvist"], viewerCanSign: false },
+      { swmsId: "s-1", versionId: "v2", version: 2, issuedAt: "2026-09-12T07:42:00.000Z", responsible: "Troy Porter", signed: 1, total: 3, waitingOn: ["Dane Whitmore", "Kai Lindqvist"], issues: [], viewerCanSign: false },
     ]);
   });
 
@@ -127,6 +175,13 @@ describe("loadSwmsDocument", () => {
   });
 
   /* the register said the person in charge was briefed by themselves */
+  /* a sign-on given on someone else's phone says whose, whoever they are */
+  it("names the phone a sign-on was given on", async () => {
+    mockDb.tables.swms_signons[0].signed_by_staff_id = "dane";
+    const troy = (await loadSwmsDocument(ORG, "v2"))?.people.find((p) => p.name === "Troy Porter");
+    expect(troy?.signon?.onPhoneOf).toBe("Dane Whitmore");
+  });
+
   it("says nobody briefed the person in charge", async () => {
     const people = (await loadSwmsDocument(ORG, "v2"))?.people;
     expect(people?.find((p) => p.name === "Troy Porter")?.signon?.briefedBy).toBeNull();

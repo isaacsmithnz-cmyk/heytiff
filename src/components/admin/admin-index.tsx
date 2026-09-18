@@ -76,6 +76,18 @@ export const SECTIONS: AdminGroup[] = [
         show: owner,
       },
       {
+        /* The one compliance document the business writes itself. Its only
+           door used to be the owner's bell item, which goes the moment they
+           approve it — after that nobody could read the method their own
+           SWMS are written from. */
+        title: "SWMS template",
+        sub: "The steps and controls every SWMS is written from",
+        icon: "shield",
+        accent: "#FF8A00",
+        href: "/dashboard/swms/template",
+        show: anyone,
+      },
+      {
         title: "Compliance",
         sub: "Incidents, corrective actions & QA",
         icon: "shield",

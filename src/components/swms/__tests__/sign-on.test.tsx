@@ -34,7 +34,7 @@ const doc = (over: Partial<SwmsDocument> = {}): SwmsDocument => ({
   answers,
   content: buildSwms(answers, { work: "Install a split system", electricianName: "Sam Ikpeba", firstAiderName: "Troy Porter" }),
   libraryVersion: "hvac-2026.09",
-  job: { uuid: "job-1", number: "2601", clientName: null, address: "14 Attunga Road, Miranda NSW 2228", description: null, state: "NSW", jurisdiction: "NSW", postcode: "2228", categoryName: "Install" },
+  job: { uuid: "job-1", number: "2601", clientName: null, address: "14 Attunga Road, Miranda NSW 2228", description: null, status: "Work Order", state: "NSW", jurisdiction: "NSW", postcode: "2228", categoryName: "Install" },
   responsibleStaffId: "troy",
   responsible: "Troy Porter",
   siteCheckedBy: "Troy Porter",
@@ -63,20 +63,23 @@ const sign = (label: string) => {
   fireEvent.pointerUp(pad, { pointerId: 1 });
 };
 
-it("signs you on once you've ticked the briefing and signed, then clears the bell", async () => {
+/* ONE PROMISE, NOT TWO. The paragraph says what signing means; a tick
+   repeating it was the same promise twice, and a greyed-out button that said
+   nothing left the reader hunting for what was missing. */
+it("signs you on once you've signed, and says so while the box is empty", async () => {
   const bell = jest.fn();
   window.addEventListener(BELL_REFRESH_EVENT, bell);
   render(<SwmsSignOn doc={doc()} me="dane" />);
 
   const button = screen.getByRole("button", { name: "Sign on" });
   expect(button).toBeDisabled();
+  expect(screen.getByText("Sign in the box to finish.")).toBeInTheDocument();
+  expect(screen.queryByRole("checkbox")).toBeNull();
   sign("Your signature");
-  expect(button).toBeDisabled();
-  await userEvent.click(screen.getByRole("checkbox", { name: "I've been briefed and I'll follow this SWMS" }));
   expect(button).toBeEnabled();
 
   await userEvent.click(button);
-  expect(signOnSwms).toHaveBeenCalledWith({ personId: "p-dane", pathData: expect.stringMatching(/^M[\d.]+ [\d.]+( L[\d.]+ [\d.]+){3}$/), briefed: true, issue: null });
+  expect(signOnSwms).toHaveBeenCalledWith({ personId: "p-dane", pathData: expect.stringMatching(/^M[\d.]+ [\d.]+( L[\d.]+ [\d.]+){3}$/), issue: null });
   expect(bell).toHaveBeenCalled();
   expect(refresh).toHaveBeenCalled();
   window.removeEventListener(BELL_REFRESH_EVENT, bell);
@@ -87,22 +90,57 @@ it("sends an issue raised with the sign-on", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Raise an issue with this SWMS" }));
   await userEvent.type(screen.getByRole("textbox", { name: "Issue with this SWMS" }), "No anchor on the rear ridge");
   sign("Your signature");
-  await userEvent.click(screen.getByRole("checkbox", { name: /briefed/ }));
   await userEvent.click(screen.getByRole("button", { name: "Sign on" }));
   expect(signOnSwms).toHaveBeenCalledWith(expect.objectContaining({ issue: "No anchor on the rear ridge" }));
 });
 
-it("shows who's signed on, and lets someone on it sign a helper on their phone", async () => {
+/* THE PHONE THAT IS OUT. A workmate standing at the same briefing had a
+   longer road than a stranger, who could always sign on the lead's phone. */
+it("shows who's signed on, and lets someone on it sign anyone else on their phone", async () => {
   render(<SwmsSignOn doc={doc()} me="troy" />);
   expect(screen.queryByRole("button", { name: "Sign on" })).toBeNull();
   expect(screen.getByText(/^You signed on/)).toBeInTheDocument();
   expect(screen.getByText("1 of 3 signed on")).toBeInTheDocument();
+  expect(screen.getAllByRole("button", { name: "Sign them on" })).toHaveLength(2);
 
-  await userEvent.click(screen.getByRole("button", { name: "Sign them on" }));
+  const kai = screen.getByText("Kai Lindqvist").closest(".sws-person") as HTMLElement;
+  await userEvent.click(within(kai).getByRole("button", { name: "Sign them on" }));
   sign("Kai Lindqvist's signature");
-  await userEvent.click(screen.getByRole("checkbox", { name: "Kai Lindqvist has been briefed and will follow this SWMS" }));
   await userEvent.click(screen.getByRole("button", { name: "Sign on Kai Lindqvist" }));
-  expect(signOnSwms).toHaveBeenCalledWith(expect.objectContaining({ personId: "p-kai", briefed: true }));
+  expect(signOnSwms).toHaveBeenCalledWith(expect.objectContaining({ personId: "p-kai" }));
+});
+
+/* SIGNING AGAIN WITHOUT BEING TOLD WHY. The reason lived only on the version
+   that had been replaced, never on the one being signed. */
+it("leads a revision with what changed", () => {
+  render(
+    <SwmsSignOn
+      doc={doc({
+        version: 2,
+        versions: [
+          { id: "v-1", version: 1, issuedAt: "2026-09-15T21:42:00.000Z", reason: "First issue", material: true, issuedBy: "Troy Porter" },
+          { id: "v-2", version: 2, issuedAt: "2026-09-16T01:00:00.000Z", reason: "Crane lift instead of a hoist", material: true, issuedBy: "Troy Porter" },
+        ],
+      })}
+      me="dane"
+    />
+  );
+  const changed = screen.getByText("What changed");
+  expect(within(changed.closest(".sws-card") as HTMLElement).getByText("Crane lift instead of a hoist")).toBeInTheDocument();
+  expect(screen.getByText("Everyone signs on again")).toBeInTheDocument();
+  /* and it stands above the document it changed */
+  expect(changed.compareDocumentPosition(screen.getByText("Before you start")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+/* what a worker raised reaches the person in charge — the bell, and here */
+it("shows an issue raised at sign-on beside the person who raised it", () => {
+  const raised = doc();
+  raised.people[1] = {
+    ...raised.people[1],
+    signon: { at: "2026-09-15T21:50:00.000Z", version: 1, onPhoneOf: null, briefedBy: "Troy Porter", issue: "No anchor on the rear ridge", svg: "<svg/>" },
+  };
+  render(<SwmsSignOn doc={raised} me="troy" />);
+  expect(screen.getByText("Raised: No anchor on the rear ridge")).toBeInTheDocument();
 });
 
 it("offers someone who isn't on it nothing to sign", () => {
@@ -125,8 +163,8 @@ it("points a replaced version at the one that replaced it, and takes no sign-on"
       me="dane"
     />
   );
-  expect(screen.getByText("Version 2 replaced this one: New isolation point.")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Open version 2" })).toHaveAttribute("href", "/dashboard/swms/v-2");
+  expect(screen.getByText("A newer SWMS replaced this one: New isolation point.")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Open the current SWMS" })).toHaveAttribute("href", "/dashboard/swms/v-2");
   expect(screen.queryByRole("button", { name: "Sign on" })).toBeNull();
 });
 
@@ -154,12 +192,12 @@ it("asks the person in charge to brief everyone, not to have been briefed", asyn
   unsigned.people[0] = { ...unsigned.people[0], signon: null };
   render(<SwmsSignOn doc={unsigned} me="troy" />);
   expect(screen.getByText(/You're in charge on site\.$/)).toBeInTheDocument();
-  expect(screen.queryByRole("checkbox", { name: /I've been briefed/ })).toBeNull();
+  expect(screen.queryByText(/I was consulted and briefed/)).toBeNull();
+  expect(screen.getByText(/I'll brief everyone it covers before work starts/)).toBeInTheDocument();
   expect(screen.queryByText(/and tell Troy Porter/)).toBeNull();
   sign("Your signature");
-  await userEvent.click(screen.getByRole("checkbox", { name: "I'll brief everyone on this SWMS and follow it" }));
   await userEvent.click(screen.getByRole("button", { name: "Sign on" }));
-  expect(signOnSwms).toHaveBeenCalledWith(expect.objectContaining({ personId: "p-troy", briefed: true }));
+  expect(signOnSwms).toHaveBeenCalledWith(expect.objectContaining({ personId: "p-troy" }));
 });
 
 it("goes back to the job it came from", () => {

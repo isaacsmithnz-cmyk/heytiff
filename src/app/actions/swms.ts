@@ -363,14 +363,23 @@ export type SignOnInput = {
   personId: string;
   /** SVG path data from the signature pad. */
   pathData: string;
-  briefed: boolean;
   issue?: string | null;
 };
 
 export type SignOnResult = { ok: true; signedAt: string } | { ok: false; error: string };
 
-/** Sign on to a SWMS version: yourself, or someone from outside the business
-    on your phone when you're on the same SWMS. */
+/** Sign on to a SWMS version: yourself, or anyone else it covers on your
+    phone when you're on the same SWMS.
+
+    THE BRIEFING HAPPENS AT THE TRUCK, and everyone standing there signs on
+    the phone that is out. A helper from outside the business always did;
+    the business's own installer had to find their own phone and their own
+    bell, which is a longer road for the person the business employs than
+    for a stranger. Either way the record says whose phone it was signed on,
+    and the signature is the person's own hand.
+
+    The signature IS the confirmation — the words above the pad say what
+    signing means, and a tick repeating them was the same promise twice. */
 export async function signOnSwms(input: SignOnInput): Promise<SignOnResult> {
   const { orgId, userId } = await requireOrg();
   const viewer = await staffIdFor(orgId, userId);
@@ -406,11 +415,9 @@ export async function signOnSwms(input: SignOnInput): Promise<SignOnResult> {
     return { ok: false, error: "This version has been replaced. Sign on to the latest one." };
   }
 
-  if (person.staff_profile_id) {
-    if (person.staff_profile_id !== viewer) return { ok: false, error: "Only they can sign on for themselves." };
-  } else {
-    /* someone from outside the business signs on the phone of a team member
-       who is on the same SWMS — the one who briefed them */
+  if (person.staff_profile_id !== viewer) {
+    /* someone else's sign-on, on this phone: the phone belongs to a team
+       member the same version covers — the briefing they both stood at */
     const { data: onIt } = await supabaseAdmin
       .from("swms_people")
       .select("id")
@@ -418,13 +425,12 @@ export async function signOnSwms(input: SignOnInput): Promise<SignOnResult> {
       .eq("version_id", version.id)
       .eq("staff_profile_id", viewer)
       .maybeSingle();
-    if (!onIt) return { ok: false, error: "Only someone on this SWMS can sign on a helper." };
+    if (!onIt) return { ok: false, error: "Only someone on this SWMS can sign another person on." };
   }
 
   if (await hasStandingSignon(orgId, version.swms_id, person.id)) {
     return { ok: false, error: "Already signed on." };
   }
-  if (input.briefed !== true) return { ok: false, error: "Tick that the briefing happened first." };
   const svg = signatureSvg(input.pathData);
   if (!svg) return { ok: false, error: "Sign in the box first." };
   const issue = String(input.issue ?? "").trim().slice(0, 600) || null;

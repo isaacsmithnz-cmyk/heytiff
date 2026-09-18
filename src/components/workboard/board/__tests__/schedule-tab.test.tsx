@@ -108,10 +108,8 @@ function tab(over: Partial<Parameters<typeof ScheduleTab>[0]> = {}) {
       tracked={new Map()}
       dayCache={{ current: new Map() }}
       shelfItems={[]}
-      waitingCount={0}
       onOpenJob={noop}
       onOpenTracked={noop}
-      onGoWork={noop}
       {...over}
     />
   );
@@ -342,14 +340,6 @@ it("waits out the first backfill instead of drawing a half-built day", () => {
   expect(screen.getByText("Still bringing the diary across")).toBeInTheDocument();
   expect(screen.queryByText("Connect ServiceM8")).not.toBeInTheDocument();
   expect(scheduleDay).not.toHaveBeenCalled();
-});
-
-it("hands the queue to the tab that owns it", async () => {
-  const onGoWork = jest.fn();
-  render(tab({ waitingCount: 500, onGoWork }));
-  await screen.findByText("Alex Lorenz");
-  await userEvent.click(screen.getByRole("button", { name: /500 work orders are waiting/ }));
-  expect(onGoWork).toHaveBeenCalled();
 });
 
 it("names the category in words, not only in colour", async () => {

@@ -382,10 +382,8 @@ export function AllJobsBoard({
               tracked={trackedByJob}
               dayCache={dayCache}
               shelfItems={shelfItems}
-              waitingCount={view.work.unbooked.length}
               onOpenJob={openJob}
               onOpenTracked={onOpenTracked}
-              onGoWork={() => showTab("work")}
             />
           )}
         </div>

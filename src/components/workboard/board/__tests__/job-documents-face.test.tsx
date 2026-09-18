@@ -39,10 +39,12 @@ it("files the SWMS under Compliance as a document row that opens it, with who it
   face({ swms: [summary()], onOpenSwms, onReviseSwms, onCreateSwms: () => {}, canCreateSwms: true });
 
   expect(screen.getByText("Compliance — 1")).toBeInTheDocument();
-  const open = screen.getByRole("button", { name: /Safe Work Method Statement, version 2/ });
+  const open = screen.getByRole("button", { name: /Safe Work Method Statement/ });
   expect(open).toHaveClass("wb2-doc");
+  /* revised, without a number someone new to the job never saw the start of */
+  expect(within(open).queryByText(/version/)).toBeNull();
   expect(
-    within(open).getByText("Issued Wed 16 Sept, Troy Porter in charge. 1 of 3 signed on, waiting on Dane Whitmore and Kai Lindqvist")
+    within(open).getByText("Revised Wed 16 Sept, Troy Porter in charge. 1 of 3 signed on, waiting on Dane Whitmore and Kai Lindqvist")
   ).toBeInTheDocument();
   await userEvent.click(open);
   expect(onOpenSwms).toHaveBeenCalledWith(expect.objectContaining({ versionId: "v-2" }));
@@ -56,6 +58,11 @@ it("files the SWMS under Compliance as a document row that opens it, with who it
 it("offers Sign on only to someone with something to sign", () => {
   face({ swms: [summary({ viewerCanSign: false })] });
   expect(screen.queryByRole("link", { name: "Sign on" })).toBeNull();
+});
+
+it("says a first issue was issued", () => {
+  face({ swms: [summary({ version: 1 })] });
+  expect(screen.getByText(/^Issued Wed 16 Sept, Troy Porter in charge\./)).toBeInTheDocument();
 });
 
 it("offers Create SWMS only while the job has none — a second press was a second SWMS", async () => {

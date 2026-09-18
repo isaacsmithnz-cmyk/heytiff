@@ -164,9 +164,11 @@ export function JobDocumentsFace({
                 <span className="wb2-doc-ic">
                   <Icon name="shield" size={15} />
                 </span>
+                {/* no version number: someone new to the job never saw version 1 —
+                    "Revised" says there was one, and the paper keeps the count */}
                 <span className="wb2-doc-b">
-                  <b>{`Safe Work Method Statement, version ${s.version}`}</b>
-                  <em>{`Issued ${editedOn(s.issuedAt)}, ${s.responsible} in charge. ${signedLine(s)}`}</em>
+                  <b>Safe Work Method Statement</b>
+                  <em>{`${s.version > 1 ? "Revised" : "Issued"} ${editedOn(s.issuedAt)}, ${s.responsible} in charge. ${signedLine(s)}`}</em>
                 </span>
                 <span className="wb2-doc-go">
                   <Icon name="chevR" size={15} />

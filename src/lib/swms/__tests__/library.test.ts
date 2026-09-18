@@ -1,16 +1,24 @@
 import {
+  andList,
   buildSwms,
   categoriesOf,
   DEFAULT_ANSWERS,
   HRCW,
+  isFirstAidTicket,
   issueProblemList,
   issueProblems,
-  jurisdictionFromAddress,
+  jurisdictionOf,
   kindFromCategory,
+  LEVEL_LABEL,
+  LEVEL_PLAIN,
+  methodChanges,
   refrigerantClass,
   riskLevel,
   SERVICE_STEPS,
   startingAnswers,
+  stateFromAddress,
+  stateFromGeo,
+  stateNotCovered,
   STEP_KEYS,
   stepsFor,
   vagueWords,
@@ -200,11 +208,81 @@ describe("refrigerants and addresses", () => {
     expect(["R32", "R454B", "R290", "R410A", "R32/R410A"].map(refrigerantClass)).toEqual(["A2L", "A2L", "A3", "A1", "A2L"]);
   });
 
-  it("reads NSW or Queensland off an address, and nothing else", () => {
-    expect(jurisdictionFromAddress("14 Attunga Road, Miranda NSW 2228")).toBe("NSW");
-    expect(jurisdictionFromAddress("Coorparoo QLD 4151")).toBe("QLD");
-    expect(jurisdictionFromAddress("Brunswick VIC 3056")).toBeNull();
-    expect(jurisdictionFromAddress(null)).toBeNull();
+  /* A SITE IN VICTORIA WAS READ AS NEW SOUTH WALES. The address named its
+     state; only NSW and Queensland were looked for, so the wizard said "the
+     address doesn't say" and wrote NSW rules. Every state is read now, and
+     one the template doesn't cover is named, never guessed. */
+  it("reads any state off an address, and writes rules only for NSW and Queensland", () => {
+    expect(stateFromAddress("14 Attunga Road, Miranda NSW 2228")).toBe("NSW");
+    expect(stateFromAddress("Coorparoo QLD 4151")).toBe("QLD");
+    expect(stateFromAddress("Brunswick VIC 3056")).toBe("VIC");
+    expect(stateFromAddress("12 Wa Street, Tweed Heads NSW 2485")).toBe("NSW");
+    expect(stateFromAddress("12 Smith Street, Miranda")).toBeNull();
+    expect(stateFromAddress(null)).toBeNull();
+    expect(jurisdictionOf("VIC")).toBeNull();
+    expect(jurisdictionOf("QLD")).toBe("QLD");
+    expect(jurisdictionOf(null)).toBeNull();
+  });
+
+  it("reads ServiceM8's geocoded state by abbreviation or name", () => {
+    expect(stateFromGeo("vic")).toBe("VIC");
+    expect(stateFromGeo("New South Wales")).toBe("NSW");
+    expect(stateFromGeo("")).toBeNull();
+    expect(stateFromGeo(null)).toBeNull();
+  });
+
+  it("names the state it won't write a SWMS for", () => {
+    expect(stateNotCovered("VIC")).toBe(
+      "This job is in Victoria. The SWMS template is written to New South Wales and Queensland rules, so it can't write one for this site."
+    );
+    expect(stateNotCovered("NT")).toMatch(/^This job is in the Northern Territory\./);
+  });
+});
+
+/* "Admin" read as the office. Paper spells the regulation's names out; the
+   template page says what a control of that level does. */
+describe("control levels", () => {
+  it("spells the levels out on paper and says what they do on screen, with no shorthand", () => {
+    expect(Object.values(LEVEL_LABEL)).toEqual(["Elimination", "Substitution", "Isolation", "Engineering", "Administrative", "Protective equipment"]);
+    for (const words of [...Object.values(LEVEL_LABEL), ...Object.values(LEVEL_PLAIN)]) {
+      expect(words).not.toMatch(/^(Admin|PPE|Eliminate|Isolate|Substitute)$/);
+    }
+  });
+});
+
+/* A CORRECTION CARRIES THE SIGN-ONS AND THE SITE WALK, so it can only be one
+   while how the work is done is unchanged. */
+describe("a correction", () => {
+  it("changes nothing about the method when only typed words, emergency details or paperwork change", () => {
+    const before = answers();
+    expect(methodChanges(before, { ...before, hospital: "St George Hospital", isolation: "Main board, laundry", siteNotes: "Dog in the yard", extinguisher: "site", riskAppendix: true })).toEqual([]);
+  });
+
+  it("names every change to how the work is done", () => {
+    const before = answers();
+    expect(methodChanges(before, answers({ lift: "crane" }))).toEqual(["how the unit goes up"]);
+    expect(methodChanges(before, answers({ steps: { ...DEFAULT_ANSWERS.steps, drill: false }, fall: "harness" }))).toEqual(["the steps", "fall protection"]);
+    expect(methodChanges(before, answers({ refrigerant: "R290" }))).toEqual(["the refrigerant"]);
+    expect(methodChanges(before, answers({ site: { ...DEFAULT_ANSWERS.site, builder: true } }))).toEqual(["the site questions"]);
+    expect(methodChanges(before, answers({ jurisdiction: "QLD" }))).toEqual(["the state"]);
+  });
+
+  it("ignores a choice for a step that isn't happening", () => {
+    const noRoof = answers({ steps: { ...DEFAULT_ANSWERS.steps, roof: false } });
+    expect(methodChanges(noRoof, { ...noRoof, fall: "ewp" })).toEqual([]);
+  });
+
+  it("lists in words", () => {
+    expect(andList([])).toBe("");
+    expect(andList(["the steps"])).toBe("the steps");
+    expect(andList(["a", "b", "c"])).toBe("a, b and c");
+  });
+});
+
+describe("first aid on file", () => {
+  it("finds a first aid ticket however it was typed, and not CPR on its own", () => {
+    expect(["First aid", "Senior First Aid", "HLTAID011 Provide First Aid", "hltaid003", "First-aid certificate"].every(isFirstAidTicket)).toBe(true);
+    expect(["CPR", "HLTAID009 Provide CPR", "White card", "ARC licence"].some(isFirstAidTicket)).toBe(false);
   });
 });
 

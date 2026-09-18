@@ -500,9 +500,13 @@ export function profileChip(
     or the moment a newer version replaces it, which asks again.
 
     Always `warn`: an unsigned SWMS is work to do before the job starts, not a
-    date that has passed. The oldest issue sorts first. */
+    date that has passed. The oldest issue sorts first.
+
+    NO VERSION NUMBER. "Sign on to version 2" asked someone new to the job
+    what happened to version 1; someone who was on the SWMS before is told
+    it's the revised one, which is what they need to know. */
 export function swmsSignonChip(
-  p: { versionId: string; version: number; jobNumber: string | null; site: string | null; issuedAt: string },
+  p: { versionId: string; again: boolean; jobNumber: string | null; site: string | null; issuedAt: string },
   ctx: { today: string },
 ): ActionChip {
   const age = Math.max(0, -daysUntil(p.issuedAt.slice(0, 10), ctx.today));
@@ -511,7 +515,7 @@ export function swmsSignonChip(
     key: `swms:${p.versionId}`,
     kind: "swms",
     state: "warn",
-    label: p.version > 1 ? `Sign on to version ${p.version} of the SWMS` : "Sign on to the SWMS",
+    label: p.again ? "Sign on to the revised SWMS" : "Sign on to the SWMS",
     subject: [p.jobNumber ? `Job #${p.jobNumber}` : null, site].filter(Boolean).join(", ") || "A job",
     href: `/dashboard/swms/${p.versionId}`,
     urgency: urgency("warn", -age),

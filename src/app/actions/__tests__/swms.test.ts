@@ -94,6 +94,13 @@ describe("swmsWizardContext", () => {
     expect(await swmsWizardContext("job-1")).toBeNull();
   });
 
+  it("brings the hospital the last SWMS in the same postcode named", async () => {
+    expect((await swmsWizardContext("job-1"))?.hospital).toBeNull();
+    await issueSwms(input());
+    mockDb.tables.sm8_jobs.push({ ...mockDb.tables.sm8_jobs[0], uuid: "job-2", generated_job_id: "2602", job_address: "2 Kiora Road, Miranda NSW 2228" });
+    expect((await swmsWizardContext("job-2"))?.hospital).toEqual({ name: "Sutherland Hospital, Caringbah", jobNumber: "2601" });
+  });
+
   it("is behind the workboard gate", async () => {
     mockCaps = new Set();
     await expect(swmsWizardContext("job-1")).rejects.toThrow("Insufficient permissions");
@@ -139,6 +146,22 @@ describe("issueSwms", () => {
     expect(v.jurisdiction).toBe("NSW");
     expect((v.answers as Record<string, unknown>).content).toBeUndefined();
     expect((v.content as SwmsContent).steps.some((s) => s.key === "roof")).toBe(false);
+  });
+
+  /* a Victorian site was written to NSW rules */
+  it("writes no SWMS for a site in a state the template doesn't cover", async () => {
+    Object.assign(mockDb.tables.sm8_jobs[0], { job_address: "8 Lygon Street, Brunswick VIC 3056", geo_state: "VIC" });
+    expect(await issueSwms(input())).toEqual({
+      ok: false,
+      problems: ["This job is in Victoria. The SWMS template is written to New South Wales and Queensland rules, so it can't write one for this site."],
+    });
+    expect(written("swms")).toEqual([]);
+  });
+
+  it("writes to the rules of the state the address names, whatever was sent", async () => {
+    Object.assign(mockDb.tables.sm8_jobs[0], { job_address: "3 Palm Ave, Coorparoo QLD 4151", geo_state: "QLD" });
+    await issueSwms(input({ answers: { ...(input().answers as object), jurisdiction: "NSW" } }));
+    expect(written("swms_versions")[0]).toMatchObject({ jurisdiction: "QLD" });
   });
 
   it("writes nothing until the site has been walked", async () => {
@@ -209,11 +232,49 @@ describe("issueSwms", () => {
     ]);
   });
 
-  it("starts a revision with the electrician and first aider the last version named", async () => {
+  it("starts a revision with the electrician and first aider the last version named, and who has signed on", async () => {
     const first = await issueSwms(input());
-    const prev = await swmsPrevious(first.ok ? first.versionId : "");
+    const versionId = first.ok ? first.versionId : "";
+    const idOf = (key: string) => written("swms_people").find((p) => (p.staff_profile_id ?? p.outside_name) === key)!.id as string;
+    await signOnSwms({ personId: idOf("troy"), pathData: "M10 20 L30 40 L50 35", briefed: true });
+    await signOnSwms({ personId: idOf("Kai Lindqvist"), pathData: "M10 20 L30 40 L50 35", briefed: true });
+    const prev = await swmsPrevious(versionId);
     expect(prev).toMatchObject({ version: 1, electricianName: "Sam Ikpeba", firstAiderName: "Troy Porter", responsibleStaffId: "troy" });
     expect(prev?.outsiders).toEqual([{ name: "Kai Lindqvist", company: "Lindqvist Plumbing" }]);
+    expect(prev).toMatchObject({ signedStaffIds: ["troy"], signedOutsideNames: ["kai lindqvist"] });
+  });
+
+  /* A CORRECTION MADE FROM THE OFFICE had to tick "I've walked this site" —
+     a false tick, or a fix that couldn't be issued. It stands on the walk the
+     version it corrects was issued on. */
+  it("carries the site walk through a correction, from whoever walked it", async () => {
+    const first = await issueSwms(input());
+    const swmsId = first.ok ? first.swmsId : "";
+    mockMe = "dane";
+    const res = await issueSwms(input({ swmsId, reason: "Hospital name was wrong", material: false, siteChecked: false, answers: { ...(input().answers as object), hospital: "Sutherland Hospital" } }));
+    expect(res).toMatchObject({ ok: true, version: 2 });
+    const [v1, v2] = written("swms_versions");
+    expect(v2).toMatchObject({ material: false, issued_by_staff_id: "dane", site_checked_by_staff_id: "troy", site_checked_at: v1.site_checked_at });
+  });
+
+  it("still needs the site walked for a revision that changes how the work is done", async () => {
+    const first = await issueSwms(input());
+    const swmsId = first.ok ? first.swmsId : "";
+    expect(await issueSwms(input({ swmsId, reason: "Crane instead of a hoist", siteChecked: false, answers: { ...(input().answers as object), lift: "crane" } }))).toEqual({
+      ok: false,
+      problems: ["Confirm you've walked the site and this SWMS matches it."],
+    });
+  });
+
+  it("won't issue a change to how the work is done as a correction", async () => {
+    const first = await issueSwms(input());
+    const swmsId = first.ok ? first.swmsId : "";
+    const res = await issueSwms(input({ swmsId, reason: "Crane", material: false, siteChecked: false, answers: { ...(input().answers as object), lift: "crane" } }));
+    expect(res).toEqual({
+      ok: false,
+      problems: ["How the unit goes up changed, so it can't be issued as a correction.", "Confirm you've walked the site and this SWMS matches it."],
+    });
+    expect(written("swms_versions")).toHaveLength(1);
   });
 
   it("won't revise a SWMS from another job", async () => {
@@ -265,6 +326,12 @@ describe("signOnSwms", () => {
       issue_raised: null,
     });
     expect(String(written("swms_signons")[0].signature_svg)).toContain(`d="${drawn}"`);
+  });
+
+  /* the register said the person in charge was briefed by themselves */
+  it("records nobody briefing the person in charge", async () => {
+    await signOnSwms({ personId: personFor("troy"), pathData: drawn, briefed: true });
+    expect(written("swms_signons")[0]).toMatchObject({ signed_by_staff_id: "troy", briefed_by_staff_id: null });
   });
 
   it("won't sign someone else on", async () => {

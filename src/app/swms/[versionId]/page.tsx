@@ -287,7 +287,7 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
 
           <h2>Worker sign-on</h2>
           <p>
-            {`By signing, each worker confirms they were consulted and briefed on this SWMS, understand it, and will follow it. If a control can't be followed they stop work and tell ${responsible}.`}
+            {`By signing, each worker confirms they were consulted and briefed on this SWMS, understand it, and will follow it. If a control can't be followed they stop work and tell ${responsible}. ${responsible} signs to brief everyone it covers before work starts, and to stop the work if a control can't be followed.`}
           </p>
           <table className="swd-grid swd-signons">
             <thead>

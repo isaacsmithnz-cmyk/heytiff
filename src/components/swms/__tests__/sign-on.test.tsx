@@ -185,6 +185,9 @@ it("puts the reading before the signature, in plain words, in the site's own tim
   expect(reading.compareDocumentPosition(signing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.getByText("1. Get onto the roof and set fall protection")).toBeInTheDocument();
   expect(screen.getByText(/Nearest hospital: Sutherland Hospital/)).toBeInTheDocument();
+  /* the gear the signature says they'll follow, on the screen it's signed on */
+  expect(screen.getByText("Protective equipment")).toBeInTheDocument();
+  expect(screen.getByText(/Fit-checked P2 respirator and hearing protection for drilling/)).toBeInTheDocument();
   /* the category in the words of the site, and no control-level labels */
   expect(screen.getByText("Falling more than 2 m")).toBeInTheDocument();
   expect(screen.queryByText("Isolate")).toBeNull();
@@ -246,7 +249,10 @@ it("keeps a door to raise an issue after you've signed", async () => {
   render(<SwmsSignOn doc={signed} me="dane" />);
 
   await userEvent.click(screen.getByRole("button", { name: "Raise an issue with this SWMS" }));
-  await userEvent.type(screen.getByRole("textbox", { name: "Issue with this SWMS" }), "The anchor is rusted");
+  /* the box takes the card's width under the row, not a slot beside a button */
+  const box = screen.getByRole("textbox", { name: "Issue with this SWMS" });
+  expect(box.closest(".sws-actions")).toBeNull();
+  await userEvent.type(box, "The anchor is rusted");
   await userEvent.click(screen.getByRole("button", { name: "Tell the crew lead" }));
   expect(raiseSwmsIssue).toHaveBeenCalledWith({ personId: "p-dane", issue: "The anchor is rusted" });
 });

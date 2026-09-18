@@ -384,7 +384,7 @@ describe("signOnSwms", () => {
   /* AN ANCHOR IS FOUND RUSTED ON THE ROOF, which is after the briefing at the
      truck — and the only door to raising it was inside the sign-on form. */
   describe("an issue after signing", () => {
-    it("rides the sign-on already given, and only its own signer's", async () => {
+    it("rides the sign-on already given, and belongs to whoever gave it", async () => {
       mockMe = "dane";
       const dane = personFor("dane");
       await signOnSwms({ personId: dane, pathData: drawn });
@@ -394,10 +394,41 @@ describe("signOnSwms", () => {
       mockMe = "sam";
       expect(await raiseSwmsIssue({ personId: dane, issue: "Something else" })).toEqual({
         ok: false,
-        error: "Only the person who signed this on can raise an issue with it.",
+        error: "Only the person who signed on, or whoever signed them on, can raise an issue with it.",
       });
       mockMe = "dane";
       expect(await raiseSwmsIssue({ personId: dane, issue: "   " })).toEqual({ ok: false, error: "Say what the issue is." });
+    });
+
+    /* SIGNING ON A WORKMATE'S PHONE cost you the right to say what you found:
+       the sign-on was the phone-holder's to speak for, not yours. */
+    it("is the signer's own to add to, whichever phone it was signed on", async () => {
+      mockMe = "troy";
+      const dane = personFor("dane");
+      await signOnSwms({ personId: dane, pathData: drawn });
+
+      mockMe = "dane";
+      expect(await raiseSwmsIssue({ personId: dane, issue: "The anchor is rusted" })).toEqual({ ok: true });
+      mockMe = "troy";
+      expect(await raiseSwmsIssue({ personId: dane, issue: "Dane says the anchor is rusted" })).toEqual({ ok: true });
+    });
+
+    /* A CORRECTION CARRIES THE SIGN-ON, so the row that stands belongs to the
+       version before — looking for one on this version found nothing. */
+    it("reaches the sign-on a correction carried, on both doors", async () => {
+      mockMe = "dane";
+      await signOnSwms({ personId: personFor("dane"), pathData: drawn, issue: "No anchor on the rear ridge" });
+      const swmsId = written("swms")[0].id as string;
+      await issueSwms(input({ swmsId, reason: "Hospital name was wrong", material: false, siteChecked: false }));
+      const onV2 = written("swms_people").filter((p) => p.staff_profile_id === "dane").map((p) => p.id as string)[1];
+
+      expect(await raiseSwmsIssue({ personId: onV2, issue: "The anchor is rusted" })).toEqual({ ok: true });
+      expect(written("swms_signons")).toHaveLength(1);
+      expect(written("swms_signons")[0]).toMatchObject({ issue_raised: "The anchor is rusted" });
+
+      mockMe = "troy";
+      expect(await clearSwmsIssue(onV2)).toEqual({ ok: true });
+      expect(written("swms_signons")[0]).toMatchObject({ issue_cleared_by_staff_id: "troy" });
     });
 
     it("is the person in charge's to say is sorted, and nobody else's", async () => {

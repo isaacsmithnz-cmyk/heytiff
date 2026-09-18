@@ -151,7 +151,7 @@ describe("raisedIssues", () => {
 describe("listJobSwms", () => {
   it("summarises the job's SWMS at its latest version, with who it's still waiting on", async () => {
     expect(await listJobSwms(ORG, "job-1")).toEqual([
-      { swmsId: "s-1", versionId: "v2", version: 2, issuedAt: "2026-09-12T07:42:00.000Z", responsible: "Troy Porter", signed: 1, total: 3, waitingOn: ["Dane Whitmore", "Kai Lindqvist"], issues: [], viewerCanSign: false },
+      { swmsId: "s-1", versionId: "v2", version: 2, issuedAt: "2026-09-12T07:42:00.000Z", responsible: "Troy Porter", signed: 1, total: 3, waitingOn: ["Dane Whitmore", "Kai Lindqvist"], issues: [], viewerCanSign: false, viewerSigned: false },
     ]);
   });
 
@@ -174,6 +174,17 @@ describe("listJobSwms", () => {
 
     mockDb.tables.swms_signons.push({ org_id: ORG, id: "g-3", version_id: "v2", person_id: "p-dane", signed_by_staff_id: "dane", briefed_by_staff_id: "troy", signature_svg: "<svg/>", issue_raised: null, signed_at: "2026-09-16T07:59:00.000Z" });
     expect(await can("troy")).toBe(false); // everyone has signed
+  });
+
+  /* the same rule the bell follows: once the work is over, the register is
+     history, not an ask */
+  it("closes the door once the job is finished, and says who has signed", async () => {
+    const row = async (who: string) => (await listJobSwms(ORG, "job-1", who))[0];
+    expect(await row("troy")).toMatchObject({ viewerCanSign: true, viewerSigned: true });
+    expect(await row("dane")).toMatchObject({ viewerCanSign: true, viewerSigned: false });
+
+    mockDb.tables.sm8_jobs[0].status = "Completed";
+    expect(await row("dane")).toMatchObject({ viewerCanSign: false, waitingOn: ["Dane Whitmore", "Kai Lindqvist"] });
   });
 });
 

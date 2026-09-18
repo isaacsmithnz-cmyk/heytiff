@@ -18,6 +18,7 @@ const summary = (over: Partial<SwmsSummary> = {}): SwmsSummary => ({
   waitingOn: ["Dane Whitmore", "Kai Lindqvist"],
   issues: [],
   viewerCanSign: true,
+  viewerSigned: false,
   ...over,
 });
 
@@ -58,6 +59,14 @@ it("files the SWMS under Compliance as a document row that opens it, with who it
 
 it("offers Sign on only to someone with something to sign", () => {
   face({ swms: [summary({ viewerCanSign: false })] });
+  expect(screen.queryByRole("link", { name: "Sign on" })).toBeNull();
+});
+
+/* the door stays open while anyone is waiting, so it has to say what it now
+   does for someone who signed at 7am */
+it("says Sign them on once the reader has signed", () => {
+  face({ swms: [summary({ viewerSigned: true })] });
+  expect(screen.getByRole("link", { name: "Sign them on" })).toHaveAttribute("href", "/dashboard/swms/v-2");
   expect(screen.queryByRole("link", { name: "Sign on" })).toBeNull();
 });
 

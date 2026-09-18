@@ -367,6 +367,7 @@ export function SwmsWizard({
   const cover = (id: string) => setCovers((c) => (c.includes(id) ? c : [...c, id]));
   const electricianOk = !!personName(electrician);
   const responsibleOk = !!responsible && covers.includes(responsible);
+  const noTickets = coveredTeam.filter((t) => !t.tickets.some((k) => k.current));
   const autoAider = coveredTeam.find((t) => t.id === responsible && hasFirstAid(t)) ?? coveredTeam.find(hasFirstAid) ?? null;
   const aider = aiderChosen ? firstAider : autoAider ? `staff:${autoAider.id}` : "";
 
@@ -892,6 +893,11 @@ export function SwmsWizard({
           <dd>
             {people.length === 1 ? "1 person" : `${people.length} people`}
             {people.length > 0 && <small>{people.map((p) => p.name).join(", ")}</small>}
+            {/* the Who screen warns about this in red; the read-back used to
+                let it through in silence, and paper printed "None on file" */}
+            {noTickets.length > 0 && (
+              <small className="sw-state warn">{`${andList(noTickets.map((t) => t.name))} ${noTickets.length === 1 ? "has" : "have"} no current ticket on file`}</small>
+            )}
           </dd>
         </div>
         <div>
@@ -1064,6 +1070,18 @@ export function SwmsWizard({
       )}
     </>
   );
+
+  /* What the last screen's greyed-out button is waiting for: the problems
+     the list shows, counted as the list shows them — the site walk is a tick
+     on the screen, not a line in the list, so it is named rather than counted. */
+  const listed = problems.filter((p) => p.field !== "siteChecked");
+  const waitingFor = listed.length
+    ? listed.length === 1
+      ? listed[0].text
+      : `${listed.length} things to answer above`
+    : problems.length > 0
+      ? problems[0].text
+      : "";
 
   /* ── the frame ───────────────────────────────────────────────────────── */
 
@@ -1238,7 +1256,7 @@ export function SwmsWizard({
         {/* the tabs say which screen this is; the last one says what the
             greyed-out button is still waiting for */}
         <span className={error || (at === 3 && problems.length > 0) ? "sw-state bad" : undefined}>
-          {error ?? (at === 3 && problems.length > 0 ? (problems.length === 1 ? problems[0].text : `${problems.length} things to answer above`) : "")}
+          {error ?? (at === 3 ? waitingFor : "")}
         </span>
         {at > 0 && (
           <button type="button" className="pbtn ghost" onClick={() => go(TABS[at - 1].key)}>

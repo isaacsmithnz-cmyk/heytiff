@@ -211,13 +211,32 @@ function OutcomeCard({
         </section>
       )}
 
+      {/* "Best fix" only when there's something to compare it with — over a
+          lone list it would claim a choice nobody is being offered */}
       <section className="tcard ffg-actions">
-        <h3 className="tct">What to do</h3>
+        <h3 className="tct">{outcome.alternatives ? "Best fix" : "What to do"}</h3>
         <ol>
           {outcome.actions.map((a) => (
             <li key={a}>{a}</li>
           ))}
         </ol>
+        {/* the same decision as the best fix, so a group inside its card rather
+            than a card of its own. Each option carries its own Specialist word:
+            the heavy fallback is flagged, the fix above it isn't */}
+        {outcome.alternatives && (
+          <div className="ffg-alts">
+            <h3 className="tct">Other options</h3>
+            <ul>
+              {outcome.alternatives.map((alt) => (
+                <li key={alt.fix}>
+                  <b>{alt.fix}</b>
+                  {alt.escalate && <span className="esc">Specialist work</span>}
+                  <p>{alt.when}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {outcome.tool && (
           <Link href={outcome.tool.href} className="tbtn ffg-tool">
             {outcome.tool.label}

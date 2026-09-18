@@ -148,6 +148,7 @@ describe("content quality", () => {
   it("no longer sends anyone to a manual it can't open", () => {
     for (const o of OUTCOMES.filter((o) => o.library)) {
       for (const a of o.actions) expect(a).not.toMatch(/service manual/i);
+      for (const alt of o.alternatives ?? []) expect(`${alt.fix} ${alt.when}`).not.toMatch(/service manual/i);
     }
   });
 
@@ -290,6 +291,112 @@ describe("multi and VRF", () => {
     expect(getOutcome("vrf-crossed-comms")!.escalate).toBeFalsy();
     // those terminals can carry mains, so it says isolate before a cable comes off
     expect(pipes.safety).toMatch(/isolate/i);
+    // re-piping is still offered, but as the flagged last resort it is
+    const repipe = pipes.alternatives!.find((a) => /re-pipe/i.test(a.fix))!;
+    expect(repipe.escalate).toBe(true);
+    expect(pipes.alternatives!.indexOf(repipe)).toBe(pipes.alternatives!.length - 1);
+  });
+});
+
+/* The crossed-pipes miss had a shape, and the audit found it again and again:
+   the expensive fix written as THE fix, with the clip-on part, the closed
+   valve or the slipped sensor that would have done it never mentioned. Each
+   pin below is one of those, so a later edit can't quietly put the braze back
+   in front of the spanner. */
+describe("the cheap fix comes before the expensive one", () => {
+  const all = (id: string) => {
+    const o = getOutcome(id)!;
+    return { o, best: o.actions.join(" "), alts: o.alternatives ?? [] };
+  };
+
+  it("a starved head checks its service valves and the valve's coil before the valve", () => {
+    const { o, best, alts } = all("vrf-branch");
+    expect(o.actions[0]).toMatch(/service valves/i);
+    expect(best).toMatch(/pushed fully onto the valve body/i);
+    expect(best).toMatch(/power-cycle/i); // a stepper that lost count re-homes on start-up
+    expect(alts.find((a) => a.fix === "Replace the valve")!.escalate).toBe(true);
+    expect(alts.find((a) => /coil/.test(a.fix))!.escalate).toBeFalsy();
+  });
+
+  it("a creeping valve is power-cycled and its coil checked before it's replaced", () => {
+    const { best, alts } = all("vrf-creep");
+    expect(best).toMatch(/power-cycle/i);
+    expect(best).toMatch(/coil/i);
+    expect(alts.find((a) => a.fix === "Replace the valve")!.escalate).toBe(true);
+  });
+
+  it("an iced outdoor coil checks its defrost sensor before its charge", () => {
+    const { o, best } = all("defrost-fault");
+    expect(best).toMatch(/sensor is clipped tight/i);
+    expect(o.actions.findIndex((a) => /sensor/i.test(a))).toBeLessThan(
+      o.actions.findIndex((a) => /read pressures/i.test(a))
+    );
+  });
+
+  it("no heat checks the reversing valve's coil and its volts before the valve", () => {
+    const { best, alts } = all("heat-none");
+    expect(best).toMatch(/volts at the reversing valve's coil/i);
+    expect(best).toMatch(/clip-on part/i);
+    expect(alts.find((a) => /reversing valve/i.test(a.fix))!.escalate).toBe(true);
+  });
+
+  it("a stuck reversing valve proves its coil before it's cut out", () => {
+    const { best, alts } = all("reversing-valve");
+    expect(best).toMatch(/clip-on part/i);
+    expect(alts.every((a) => a.escalate)).toBe(true);
+  });
+
+  it("a dead unit checks the isolator's insides and the board fuses before an electrician", () => {
+    const { best, alts } = all("no-power");
+    expect(best).toMatch(/volts into and out of the outdoor isolator/i);
+    expect(best).toMatch(/fuses on the outdoor board/i);
+    expect(alts[0].escalate).toBe(true);
+    expect(all("odu-no-power").best).toMatch(/restart delay/i);
+    expect(all("odu-no-power").best).toMatch(/burnt terminal/i);
+  });
+
+  it("an earth fault tests the cheaper parts before the compressor takes the blame", () => {
+    expect(all("short-earth").best).toMatch(/crankcase heater and the fan motors/i);
+    expect(all("rcd-moisture").alts[0].fix).toMatch(/crankcase heater/i);
+  });
+
+  it("a board that's dead to everything gets its plugs reseated and its ants out first", () => {
+    const { best } = all("control-board");
+    expect(best).toMatch(/reseat every plug/i);
+    expect(best).toMatch(/ants/i);
+  });
+
+  it("a remote that's ignored checks its address before anything is ordered", () => {
+    expect(all("remote-fault").best).toMatch(/different address/i);
+  });
+
+  it("crossed comms offers the renaming that needs no tools", () => {
+    expect(all("vrf-crossed-comms").alts.map((a) => a.fix).join(" ")).toMatch(/rename/i);
+  });
+});
+
+describe("best fix and other options", () => {
+  it("every option says what to do AND when it's the one to pick", () => {
+    for (const o of OUTCOMES) {
+      for (const alt of o.alternatives ?? []) {
+        expect(alt.fix.length).toBeGreaterThan(5);
+        expect(alt.when.length).toBeGreaterThan(20);
+        // an option restating a step of the best fix isn't an alternative
+        expect(o.actions).not.toContain(alt.fix);
+      }
+      // never an empty list standing in for "no alternatives"
+      if (o.alternatives) expect(o.alternatives.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("the badge sits on the fix that needs it", () => {
+    // an outcome whose best fix is routine carries no badge, even when its
+    // last resort does — that was the crossed-pipes mistake
+    for (const id of ["vrf-crossed-pipes", "vrf-branch", "vrf-creep", "heat-none", "defrost-fault", "bc-valve"]) {
+      const o = getOutcome(id)!;
+      expect(o.escalate).toBeFalsy();
+      expect(o.alternatives!.some((a) => a.escalate)).toBe(true);
+    }
   });
 });
 
@@ -449,11 +556,14 @@ describe("condensation on surfaces", () => {
   });
 
   it("says plainly that powder coating and anodising do not fix it", () => {
-    const actions = getOutcome("cond-aluminium")!.actions.join(" ");
-    expect(actions).toMatch(/powder coating and anodising do NOT fix it/i);
+    const out = getOutcome("cond-aluminium")!;
+    // the diffuser swap is the permanent fix, offered beside the visit's fix
+    // rather than as step nine of eleven
+    const swap = out.alternatives!.find((a) => /thermal-break/i.test(a.fix))!;
+    expect(swap.when).toMatch(/powder coating and anodising do NOT fix it/i);
     // and leads with the counter-intuitive one that actually works
-    expect(actions).toMatch(/opposite of what most people expect/i);
-    expect(getOutcome("cond-aluminium")!.actions[0]).toMatch(/raise the fan/i);
+    expect(out.actions.join(" ")).toMatch(/opposite of what most people expect/i);
+    expect(out.actions[0]).toMatch(/raise the fan/i);
   });
 });
 
@@ -473,7 +583,8 @@ describe("built for the field, not for a search box", () => {
     // answered before any of these outcomes can be reached
     for (const o of OUTCOMES) {
       if (o.id.startsWith("comp-")) continue;
-      for (const a of o.actions) {
+      const lines = [...o.actions, ...(o.alternatives ?? []).map((alt) => `${alt.fix} ${alt.when}`)];
+      for (const a of lines) {
         if (/start component|capacitor and/i.test(a)) {
           expect(a).toMatch(/inverter/i);
         }
@@ -517,6 +628,7 @@ describe("proving a compressor — taught, not assumed", () => {
     }
     for (const o of OUTCOMES) {
       out.push(o.title, o.explain, o.customer ?? "", o.safety ?? "", ...o.actions);
+      for (const alt of o.alternatives ?? []) out.push(alt.fix, alt.when);
     }
     for (const sy of SYMPTOMS) out.push(sy.label, sy.blurb, sy.safety ?? "");
     return out.filter(Boolean);

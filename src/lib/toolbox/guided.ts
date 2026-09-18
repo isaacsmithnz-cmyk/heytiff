@@ -71,6 +71,17 @@ export interface Question {
   answers: Answer[];
 }
 
+/** Another way to fix it, beside the best one. */
+export interface Alternative {
+  /** the fix itself, said as an instruction */
+  fix: string;
+  /** when this is the one to pick instead, and what it costs — without this
+      a list of fixes reads as do-all-of-these */
+  when: string;
+  /** licensed / specialist work beyond a routine visit */
+  escalate?: boolean;
+}
+
 export interface Outcome {
   id: string;
   title: string;
@@ -78,8 +89,18 @@ export interface Outcome {
   confidence: "likely" | "possible" | "info";
   /** the reasoning, in plain language */
   explain: string;
-  /** ordered next actions */
+  /** ordered next actions. With `alternatives` beside them these are the
+      BEST fix: the one a tech should reach for first on this visit, which is
+      usually the cheapest thing that actually solves it. Crossed pipework used
+      to lead with re-piping — recover, braze, recharge — when moving two
+      cables at a terminal block does the same job, and the audit that found it
+      found the same shape a dozen more times: a clip-on coil, a closed service
+      valve or a slipped sensor sitting behind a Specialist badge. */
   actions: string[];
+  /** Other ways to fix it — quicker, cheaper, temporary, or the heavy job for
+      when the best fix isn't enough — each saying WHEN it's the one to pick.
+      Only where a real alternative exists; never padded to make a pair. */
+  alternatives?: Alternative[];
   /** Plain words to say on site, for the outcomes where explaining it IS
       half the job — the "nothing is broken" calls that get argued about
       because the honest answer sounds like an excuse. */
@@ -87,7 +108,10 @@ export interface Outcome {
   /** safety note specific to acting on this outcome — rendered as the same
       red alert the questions use */
   safety?: string;
-  /** licensed / specialist work beyond a routine visit */
+  /** licensed / specialist work beyond a routine visit — said of the BEST
+      fix. When only a fallback needs it, the alternative carries the flag and
+      the outcome doesn't: a badge over a routine fix sends a tech off to book
+      a job they could have done standing there. */
   escalate?: boolean;
   /** hand-off to another Toolbox tool */
   tool?: { label: string; href: string };
@@ -994,6 +1018,12 @@ export const QUESTIONS: Question[] = [
 const PRESSURES = { label: "Open Running Pressures", href: "/dashboard/toolbox/running-pressures" };
 const HEATLOAD = { label: "Open Heat Load", href: "/dashboard/toolbox/heat-load" };
 
+/* Every outcome that sends a hand to a board. The fuses on an inverter's
+   outdoor board sit beside the capacitors that bite, so checking a fuse is
+   board work too. */
+const DC_BUS =
+  "On inverter equipment the big storage capacitors — the DC bus — hold hundreds of volts after the isolator is off. Wait the time printed on the panel, then prove them dead with a meter on DC volts before touching any board.";
+
 export const OUTCOMES: Outcome[] = [
   /* shared */
   {
@@ -1001,28 +1031,44 @@ export const OUTCOMES: Outcome[] = [
     title: "No power reaching the unit",
     confidence: "likely",
     explain:
-      "Nothing is responding at all, and the supply checks haven't found an obvious switch off. That points at the supply itself rather than the air conditioner.",
+      "Nothing is responding at all, and the supply checks haven't found an obvious switch off. That points at the supply itself — or at what it passes through on the way in, because on many splits the indoor unit is fed through the outdoor one.",
     actions: [
       "Confirm the outdoor isolator and the unit's breaker at the switchboard",
-      "Check for a blown fuse in the isolator where one is fitted",
+      "Check for volts into and out of the outdoor isolator, and its fuse where one is fitted — a burnt isolator, or one that's let water in, can sit in the on position and pass nothing",
+      "Volts through the isolator: open the unit's terminal block for a loose or burnt terminal, then check the fuses on the outdoor board — where the indoor is fed through the outdoor, a break there leaves both dead",
+      "Replace a blown fuse only once you've found what blew it",
       "If the breaker trips again when reset, stop and treat it as an electrical fault",
-      "Hand to electrical fault-finding — testing the supply is licensed work",
     ],
-    escalate: true,
+    alternatives: [
+      {
+        fix: "Replace the isolator, or repair the circuit feeding it",
+        when: "Volts reach the isolator and don't leave it, or never reach it at all. That's the building's wiring, and it's licensed electrical work.",
+        escalate: true,
+      },
+    ],
+    safety: DC_BUS,
   },
   {
     id: "odu-no-power",
     title: "Indoor unit is alive, outdoor unit isn't",
     confidence: "likely",
     explain:
-      "The indoor side has power and is asking for cooling, but the outdoor unit isn't answering. That's either its own supply, the interconnecting control wiring, or the outdoor board.",
+      "The indoor side has power and is calling, but the outdoor unit isn't answering. That's either its own supply, the interconnecting cable, or the outdoor board.",
     actions: [
+      "Give it a few minutes after any start or power-up — most outdoor units sit out a restart delay before they'll run",
       "Check the outdoor isolator is on and its fuse (if fitted) is intact",
       "Check the outdoor unit's breaker at the switchboard",
-      "Look for damage to the interconnecting cable — UV, rodents, mower strike",
-      "If supply is confirmed at the outdoor terminals, hand to board-level diagnosis",
+      "Open both terminal blocks for a loose or burnt terminal on the interconnect, and check the cable for damage — UV, rodents, mower strike",
+      "Check the fuses on the outdoor board — a cheap part, but find what blew one before fitting another",
     ],
-    escalate: true,
+    alternatives: [
+      {
+        fix: "Replace the outdoor board",
+        when: "Supply at its terminals, fuses and connections good, and it still won't answer the indoor unit — the board is what's left.",
+        escalate: true,
+      },
+    ],
+    safety: DC_BUS,
   },
   {
     id: "restore-power",
@@ -1113,10 +1159,24 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "The unit makes cold air but can't pull the space down. Either it's too small for the room, or the cold air isn't getting where it's needed.",
     actions: [
-      "Check the room's load against the unit's capacity",
       "Aim the louvres properly — cold air dumps at the outlet if pointed wrong",
       "Ducted: check zone dampers, balance and any closed-off outlets",
       "Look for leaking or disconnected duct in the roof space",
+      "Then check the room's load against the unit's capacity",
+    ],
+    alternatives: [
+      {
+        fix: "Cut the load",
+        when: "It nearly keeps up: shade the west glass, close off rooms it was never meant to cool, and start it earlier in the day. Cheaper than any new unit.",
+      },
+      {
+        fix: "Add a unit for the room that loses",
+        when: "One room or area drags the rest down. A split of its own there usually costs less than replacing the whole system.",
+      },
+      {
+        fix: "Replace it with a unit sized to the load",
+        when: "The load really is past what it can make. That's a quote, not a repair.",
+      },
     ],
     tool: HEATLOAD,
   },
@@ -1172,12 +1232,24 @@ export const OUTCOMES: Outcome[] = [
       "Frost is expected in heating; solid ice that never clears is not. Either defrost isn't initiating or completing, or the system is short of charge and running colder than it should.",
     actions: [
       "Melt the ice completely before testing — never chip it off",
+      "Check the outdoor coil sensor is clipped tight to its pipe and insulated. One that's slipped off reads the air instead of the coil, so the unit never sees the ice it's meant to clear",
+      "Meter that sensor against its resistance chart at the coil's actual temperature — a drifted one is a cheap part, and no refrigerant work",
       "Check the outdoor coil and fan are clear once thawed",
       "Confirm the drain base isn't frozen solid, holding meltwater against the coil",
-      "Check charge and defrost operation — this usually needs gauges",
+      "Sensor good and it still ices: read pressures — it's charge or the defrost control from here, and gauges decide which",
+    ],
+    alternatives: [
+      {
+        fix: "Lift the unit higher, or fit a base heater where the unit takes one",
+        when: "Meltwater refreezing in the base is what holds the ice. It needs somewhere to drain before it freezes again.",
+      },
+      {
+        fix: "Find the leak, repair it and weigh the charge in",
+        when: "Low suction in heating with a good sensor: a short system runs its coil colder than a defrost can clear.",
+        escalate: true,
+      },
     ],
     tool: PRESSURES,
-    escalate: true,
   },
   {
     id: "heat-capacity",
@@ -1198,15 +1270,32 @@ export const OUTCOMES: Outcome[] = [
     title: "No heat being produced",
     confidence: "likely",
     explain:
-      "It's in heat mode, the outdoor unit is running with a clear coil, and it's still blowing cold. Airflow isn't a candidate here — starved airflow makes weak warm air, never cold air. That points at the reversing valve not shifting, or the system being short of refrigerant.",
+      "It's in heat mode, the outdoor unit is running with a clear coil, and it's still blowing cold. Airflow isn't a candidate here — starved airflow makes weak warm air, never cold air. That points at the reversing valve not shifting — the valve itself, or the valve's coil and the volts that move it — or the system being short of refrigerant.",
     actions: [
       "Feel the discharge line — it should be hot within a few minutes",
-      "Check the reversing valve body temperatures for internal bypass",
-      "Read pressures: heating should show a low suction and a high condensing temperature",
-      "Valve or charge work from here — gauges required",
+      "Measure the volts at the reversing valve's coil in heat, then in cool: they should change when the mode does. If they don't, it's the board or its wiring, not the valve",
+      "Volts changing and the valve won't move? Meter the coil itself, unplugged — an open coil is a clip-on part, no refrigerant work",
+      "Coil good: change modes a few times with it running, tapping the valve body gently as each change is called — a sticky valve will often shift with pressure behind it",
+      "It shifts and still won't heat: read pressures — heating should show a low suction and a high condensing temperature, and a short charge shows here",
+    ],
+    alternatives: [
+      {
+        fix: "Replace the reversing valve",
+        when: "Volts arrive, the coil is good, and it still won't shift, or its four pipes all sit at much the same temperature because it's bypassing inside. Recovery, brazing and a recharge.",
+        escalate: true,
+      },
+      {
+        fix: "Repair the board output that drives the coil",
+        when: "No volts at the coil in the mode that needs them, with the wiring good. That's board work: on an inverter, prove its big capacitors dead before touching it.",
+        escalate: true,
+      },
+      {
+        fix: "Find the leak, repair it and weigh the charge in",
+        when: "The valve shifts and the pressures read short. Never just top it up.",
+        escalate: true,
+      },
     ],
     tool: PRESSURES,
-    escalate: true,
   },
 
   /* power */
@@ -1220,7 +1309,18 @@ export const OUTCOMES: Outcome[] = [
       "Fresh batteries in the remote, correct way round",
       "Point it straight at the receiver from close up",
       "Check the receiver window isn't blocked or sun-washed",
+      "Check the remote hasn't been switched to a different address — heads sharing a room can be set apart, and a remote on the other address is ignored",
       "Try a known-good or universal remote to confirm before ordering parts",
+    ],
+    alternatives: [
+      {
+        fix: "Replace the remote",
+        when: "A known-good remote works the unit. Order the matching one rather than leaving the customer on a universal.",
+      },
+      {
+        fix: "Replace the receiver board",
+        when: "A known-good remote does nothing either. On most heads the receiver is a small board of its own, far cheaper than the main one.",
+      },
     ],
   },
   {
@@ -1257,11 +1357,12 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Confirm supply voltage right at the indoor terminals",
       "Check the transformer output and any onboard fuse",
+      "Reseat every plug on the board — a corroded or half-seated connector looks exactly like a dead board",
       "Look for obvious damage — burnt tracks, swollen capacitors, water ingress, insects",
+      "Ants or moisture but nothing burnt? Clean it out with a dry brush and contact cleaner, let it dry and try again before ordering anything",
       "Board-level diagnosis and replacement from here",
     ],
-    safety:
-      "On inverter equipment the big storage capacitors — the DC bus — hold hundreds of volts after the isolator is off. Wait the time printed on the panel, then prove them dead with a meter on DC volts before touching any board.",
+    safety: DC_BUS,
     escalate: true,
   },
 
@@ -1291,6 +1392,16 @@ export const OUTCOMES: Outcome[] = [
       "Check the discharge line isn't blocked or kinked",
       "Confirm the pump's safety switch stops the unit on failure, so it can't flood next time",
     ],
+    alternatives: [
+      {
+        fix: "Replace the pump",
+        when: "It has power and won't run with the float lifted, even clean.",
+      },
+      {
+        fix: "Re-run the drain to gravity and take the pump out",
+        when: "There's fall to be had after all. The pump is the one part of a drain that fails; without it there's nothing left to fail.",
+      },
+    ],
   },
   {
     id: "tray-or-fall",
@@ -1314,10 +1425,20 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "Below about 15°C outside, condensing pressure falls so far that the evaporator runs below freezing and ices. Standard comfort units aren't built for it — server rooms hit this constantly.",
     actions: [
-      "Confirm the unit is rated for low-ambient cooling",
-      "Fit head-pressure control (fan speed control or a damper) if year-round cooling is needed",
+      "Confirm the lowest outdoor temperature the unit is rated to cool at",
+      "Check whether its maker offers a low-ambient field setting or a bolt-on wind baffle for that model — where one exists, it's the cheapest fix there is",
       "Meanwhile, avoid cooling in cold weather",
-      "For a critical room, quote a unit designed for the duty",
+    ],
+    alternatives: [
+      {
+        fix: "Fit head-pressure control — fan speed control or a damper",
+        when: "No setting or kit exists for it, and it has to cool year-round.",
+        escalate: true,
+      },
+      {
+        fix: "Quote a unit designed for the duty",
+        when: "A critical room. A server room can't be left to a comfort unit's limits.",
+      },
     ],
   },
   {
@@ -1330,6 +1451,7 @@ export const OUTCOMES: Outcome[] = [
       "Let the ice melt completely, then read superheat",
       "High superheat with low suction points at undercharge or a restriction",
       "Check the expansion valve bulb is tight, insulated and correctly located",
+      "Electronic valve: check the valve's coil is pushed fully onto the valve body, and the indoor coil's sensors read right — a misread sensor starves the evaporator on purpose. Neither needs the system opened",
       "Leak-test before adding refrigerant — never just top it up",
     ],
     tool: PRESSURES,
@@ -1360,9 +1482,10 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "Very short runs with no code still suggest a limit being hit — or a supply problem dropping the unit out.",
     actions: [
+      "Clean the condenser and confirm the fan runs the whole time — a fan that stops mid-cycle trips it on head pressure",
       "Measure running current against the nameplate",
+      "Fixed-speed: test the run capacitor — a weak one leaves the compressor labouring on its overload within seconds of starting. An inverter has none; read its check mode instead",
       "Check supply voltage under load, including at the outdoor terminals",
-      "Clean the condenser and confirm the fan runs the whole time",
       "Watch pressures through a full cycle to catch the moment it trips",
     ],
     tool: PRESSURES,
@@ -1379,7 +1502,16 @@ export const OUTCOMES: Outcome[] = [
       "Inverter: it should ramp down and cruise, not stop — one that stop-starts can't turn down far enough for the load, which is the same oversizing story told a different way",
       "Widen the controller deadband if it allows it",
       "Raise fan speed to spread the air and slow the pull-down",
-      "Long term, correct sizing is the real fix",
+    ],
+    alternatives: [
+      {
+        fix: "Give it more of the house",
+        when: "Ducted, or a head that can serve the room next door: more load to work against lets it run instead of stopping.",
+      },
+      {
+        fix: "Replace it with a unit sized to the load",
+        when: "The settings can't hold it and the cycling is costing comfort or the compressor. It's the real fix, and it's a quote, not a repair.",
+      },
     ],
     tool: HEATLOAD,
   },
@@ -1486,6 +1618,7 @@ export const OUTCOMES: Outcome[] = [
       "Isolate and leave it isolated",
       "Do not keep resetting the breaker",
       "Insulation-test the circuit and the compressor windings — the 'Compressor suspect' tile in this tool walks that test terminal by terminal, meter settings included",
+      "Test the crankcase heater and the fan motors to earth as well — either one trips exactly like a dead compressor, and both are cheaper parts",
       "Licensed electrical fault-finding from here",
     ],
     escalate: true,
@@ -1502,8 +1635,17 @@ export const OUTCOMES: Outcome[] = [
       "Measure running amps against the nameplate once it's clean",
       "Read head pressure under load to confirm it has come back down",
     ],
+    alternatives: [
+      {
+        fix: "Replace the fan's capacitor",
+        when: "The fan runs slow, or needs a flick to start, on a fixed-speed unit. Test the capacitor before the motor — it's the cheap part. An inverter's fan has none, so there it's the motor or the board driving it.",
+      },
+      {
+        fix: "Replace the fan motor",
+        when: "The capacitor tests good and the fan still runs slow, stalls, or stops once it's hot.",
+      },
+    ],
     tool: PRESSURES,
-    escalate: true,
   },
   {
     id: "compressor-amps",
@@ -1513,12 +1655,22 @@ export const OUTCOMES: Outcome[] = [
       "The condenser is clean, so the high current is coming from the compressor itself — worn, tight, or a failing start component.",
     actions: [
       "Measure running and locked-rotor current against the nameplate — clamp around ONE conductor only; around the whole cable the fields cancel and it reads zero",
-      "Fixed-speed: check the capacitor and any start components. Inverter: it has neither — high current is the drive working against something, so read target versus actual speed in check mode",
+      "Fixed-speed: check the capacitor and any start components, and replace what's weak on the spot. Inverter: it has neither — high current is the drive working against something, so read target versus actual speed in check mode",
       "Confirm supply voltage holds up under load — low volts raises current",
       "Three-phase: measure all three legs. A lost or unbalanced phase drives the current up on the ones that are left",
-      "Compressor or component replacement from here",
     ],
-    escalate: true,
+    alternatives: [
+      {
+        fix: "Correct the supply",
+        when: "The volts sag under load or a phase is missing. The compressor is only the victim, and the fix is licensed electrical work.",
+        escalate: true,
+      },
+      {
+        fix: "Replace the compressor",
+        when: "Current stays high with good volts, good start gear and a clean coil. Prove the motor first — the 'Compressor suspect' tile walks it.",
+        escalate: true,
+      },
+    ],
   },
   {
     id: "rcd-moisture",
@@ -1532,7 +1684,17 @@ export const OUTCOMES: Outcome[] = [
       "Dry and reseal, then insulation-test to confirm — and if the box and glands come up dry, test the compressor windings to earth: the 'Compressor suspect' tile walks it step by step",
       "Check any crankcase heater circuit, a common culprit",
     ],
-    escalate: true,
+    alternatives: [
+      {
+        fix: "Replace the crankcase heater",
+        when: "The heater reads low to earth. It's a cheap part, and it trips a safety switch exactly like a wet compressor.",
+      },
+      {
+        fix: "Replace the compressor",
+        when: "Everything around it is dry and the windings still read low to earth.",
+        escalate: true,
+      },
+    ],
   },
 
   /* smell */
@@ -1572,7 +1734,12 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Clean and sanitise the coil properly — a rinse won't shift it",
       "Confirm the tray drains fully, so it isn't sitting wet",
-      "Repeat offenders may need a coil coating or UV treatment",
+    ],
+    alternatives: [
+      {
+        fix: "Coat the coil, or fit UV treatment",
+        when: "It keeps coming back after a proper clean. It slows the film down; it doesn't replace the clean.",
+      },
     ],
   },
   {
@@ -1644,11 +1811,20 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Confirm it's the head — check with the whole system off, then with a neighbouring head running",
       "Rule out sunlight, a nearby duct or a leaking damper before condemning a valve",
-      "Check that head's expansion valve drives fully closed, and its coil sensor reads correctly",
-      "Look for debris holding the valve off its seat — the clearances are fine",
-      "The fix is at that branch, not at the outdoor unit",
+      "Power-cycle at the isolator for a full minute. On start-up the board drives every valve hard shut and counts open from there, which re-seats one that's lost its place",
+      "Find that head's valve — inside the outdoor unit on a multi with ports, in the head or its branch box on VRF — and check the valve's coil is pushed fully onto the valve body and the head's coil sensor reads right. A coil that's slipped can't drive the valve shut",
     ],
-    escalate: true,
+    alternatives: [
+      {
+        fix: "Replace the valve's coil",
+        when: "The coil reads open or shorted on the meter. It lifts off the valve body, so there's no refrigerant work.",
+      },
+      {
+        fix: "Replace the valve",
+        when: "It still creeps after a power cycle, with a good coil and good sensors: debris on the seat, or a worn one — it takes very little to hold a valve open. Recovery, brazing and a recharge.",
+        escalate: true,
+      },
+    ],
   },
   {
     id: "mode-conflict",
@@ -1686,11 +1862,21 @@ export const OUTCOMES: Outcome[] = [
       "It won't change over even with the rest of the system off, so the branch controller isn't routing hot gas or liquid to that circuit. That points at the valve set serving this head rather than anything at the head itself.",
     actions: [
       "Identify which branch controller port serves that head",
-      "Check the valve coils energise when the mode is called",
+      "Check the valve coils get their volts when the mode is called, then meter each coil itself, unplugged",
       "Feel the pipes into and out of that port through a changeover",
       "Branch controller work needs the service manual for that system",
     ],
-    escalate: true,
+    alternatives: [
+      {
+        fix: "Replace the valve's coil",
+        when: "Volts arrive and the coil reads open or shorted. It lifts off the valve, so there's no refrigerant work.",
+      },
+      {
+        fix: "Replace the valve",
+        when: "Volts arrive, the coil is good, and the valve still won't shift. Recovery, brazing and a recharge.",
+        escalate: true,
+      },
+    ],
   },
   {
     id: "vrf-comms",
@@ -1713,12 +1899,23 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "The head runs and asks for it, but its pipes stay at room temperature — so the problem is upstream, in the expansion valve or the branch serving that circuit. The rest of the system being fine is exactly what tells you it's local.",
     actions: [
-      "Check the expansion valve for that circuit drives open when the head calls",
-      "At a branch box, confirm the port was connected to the head it was meant for — crossed ports are a common commissioning error",
+      "Confirm the service valves for that circuit are fully open — one left shut after the install or a pump-down starves exactly one head",
+      "Find that head's expansion valve — inside the outdoor unit on a multi with ports, in the head or its branch box on VRF — and check the valve's coil is pushed fully onto the valve body and plugged into that circuit's socket on the board. Coils get knocked off, and plugs get swapped when a board is changed",
       "Check that head's coil and gas-line sensors; a misread sensor closes the valve on purpose",
-      "Confirm the service valves for that branch are fully open",
+      "Power-cycle at the isolator for a full minute. On start-up the board drives every valve shut and counts open from there, which re-seats one that's lost its place",
+      "Pipes go cold only when another head runs? That's crossed ports — start again on 'The wrong room responds'",
     ],
-    escalate: true,
+    alternatives: [
+      {
+        fix: "Replace the valve's coil",
+        when: "The coil reads open or shorted on the meter. It lifts off the valve body, so there's no refrigerant work.",
+      },
+      {
+        fix: "Replace the valve",
+        when: "Service valves open, coil, plug and sensors good, and a power cycle didn't shift it. Recovery, brazing and a recharge.",
+        escalate: true,
+      },
+    ],
   },
   {
     id: "vrf-head-airside",
@@ -1784,10 +1981,19 @@ export const OUTCOMES: Outcome[] = [
       "One room's controller is commanding another room's unit, so the transmission pairs — or the addresses set on the indoor boards — were swapped at install. The refrigerant side may well be perfectly correct.",
     actions: [
       "Map it properly: run each head alone and write down which room actually responds",
-      "Trace the transmission pairs back to the outdoor unit or branch controller and re-land them to match",
-      "Where addressing is set on the indoor boards, correct the switches or settings instead of re-pulling cable",
+      "Correct it where it's cheapest: where addressing is set on the indoor boards, change the switches or settings; otherwise trace the transmission pairs back to the outdoor unit or branch controller and re-land them to match",
       "Re-test every head one at a time before you leave — crossings almost always come in pairs",
       "Label both ends while you're in there, so the next visit isn't this visit",
+    ],
+    alternatives: [
+      {
+        fix: "Rename the rooms on the central controller or app",
+        when: "The heads are right and only the names are wrong — one room's name sits on another room's head. A setting, and nothing unscrewed.",
+      },
+      {
+        fix: "Give one head and its remote a second address",
+        when: "Two heads in one open space on handheld remotes, both answering the same remote. Nothing is crossed at all.",
+      },
     ],
   },
   {
@@ -1798,10 +2004,24 @@ export const OUTCOMES: Outcome[] = [
       "The right head answers its own controller, but its pipes and its cable land on different ports. Each port has its own expansion valve, and the unit opens the valve for the port the calling head is wired to — so the refrigerant goes to whichever head is piped there. That's exactly why it only performs when another room calls. Nothing is broken: the pipes and the wiring just disagree, and the wiring is the side that's cheap to move.",
     actions: [
       "Map it: call each head on its own and write down whose pipes go cold — that's which port really feeds which room",
-      "Before a cable moves, look for a wiring-check mode on the outdoor board — some multis find the mismatch and correct it themselves",
-      "Otherwise move the cables, not the pipes: land each head's cable on the terminals of the port its pipes are on — no recovery, no braze, no recharge",
+      "Move the cables, not the pipes: land each head's cable on the terminals of the port its pipes are on — no recovery, no braze, no recharge",
       "Re-test every head on its own afterwards — until the two matched, each valve was being driven off another room's sensors",
       "Label each port with the room it serves while you're in there, so the next visit isn't this visit",
+    ],
+    alternatives: [
+      {
+        fix: "Run the outdoor board's wiring-check mode",
+        when: "The board has one. Some multis find the mismatch and correct it themselves, with nothing unscrewed — but the terminals still won't match the pipes, so label them anyway.",
+      },
+      {
+        fix: "Set each head's address to the port its pipes are on",
+        when: "The system matches a head to its port by address rather than by terminal. The cable stays put; check any central controller still names the rooms right afterwards.",
+      },
+      {
+        fix: "Re-pipe at the ports to match the wiring",
+        when: "Only if the pipework is coming apart anyway. It's recovery, brazing and a recharge for what the cables give you in minutes.",
+        escalate: true,
+      },
     ],
     safety:
       "Isolate the outdoor unit before any cable comes off a terminal — on many multis those terminals carry mains to the heads, not just the signal.",
@@ -1843,12 +2063,17 @@ export const OUTCOMES: Outcome[] = [
       "A valve stuck between positions lets discharge gas run straight back into the suction line. The compressor works, the pressures equalise, and the system makes neither heat nor cold.",
     actions: [
       "Feel the four pipes at the valve body — when it's bypassing they sit at much the same temperature",
-      "Check the solenoid coil energises, and separate coil from valve by calling a changeover with the coil off",
-      "Tap the body gently while calling a changeover; a valve held on debris will sometimes shift",
-      "A valve that won't seat needs replacing — recovery, braze and recharge",
+      "Measure the volts at its coil through a changeover, then meter the coil itself, unplugged — a dead coil is a clip-on part, no refrigerant work",
+      "Coil good: call a few changeovers with it running, tapping the body gently each time — a valve held on debris will sometimes shift with pressure behind it",
+    ],
+    alternatives: [
+      {
+        fix: "Replace the reversing valve",
+        when: "Volts arrive, the coil is good, and it still won't seat. Recovery, brazing and a recharge.",
+        escalate: true,
+      },
     ],
     tool: PRESSURES,
-    escalate: true,
   },
   {
     id: "not-pumping",
@@ -1924,6 +2149,12 @@ export const OUTCOMES: Outcome[] = [
       "Confirm the controller is calling that zone and hasn't had it disabled in the setup",
       "Check the damper is wired to the zone everyone thinks it is — mislabelled zones are common",
     ],
+    alternatives: [
+      {
+        fix: "Fix the blade open by hand",
+        when: "A stopgap while a motor is on order. Most damper motors come off the blade shaft, so turn the blade open and fix it there — the room gets air today, it just can't be zoned off.",
+      },
+    ],
   },
   {
     id: "zone-duct",
@@ -1972,9 +2203,18 @@ export const OUTCOMES: Outcome[] = [
       "Supply air has to leave the room or it pressurises and stops accepting any more. With the door shut and nowhere to go, a room can have a perfectly good outlet and still never get there.",
     actions: [
       "Shut the door and check the diffuser again — a clear drop in airflow confirms it",
-      "Fit a relief grille or a transfer duct through to the hallway",
-      "Undercutting the door helps but rarely does the job on its own",
+      "Fit a relief grille through to the hallway",
       "Check the main return grille isn't blocked by furniture while you're at it",
+    ],
+    alternatives: [
+      {
+        fix: "Run a transfer duct through the ceiling instead",
+        when: "Bedrooms and offices, where a grille in the wall or door would carry sound and light through with the air.",
+      },
+      {
+        fix: "Undercut the door",
+        when: "The shortfall is small. It helps, but rarely does the job on its own.",
+      },
     ],
   },
   {
@@ -1986,8 +2226,13 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Work that room's load out properly instead of by area",
       "Compare it against what that outlet can actually deliver",
-      "Add an outlet, or up-size the run, where the load justifies it",
-      "Shade the glass — usually cheaper than re-ducting",
+      "Cut the load where it's cheap: shade the west glass and the skylight — usually cheaper than re-ducting",
+    ],
+    alternatives: [
+      {
+        fix: "Add an outlet, or up-size the run",
+        when: "The load is real and can't be cut. It's a duct job, and the extra air comes out of the other rooms' share, so re-balance the rest after.",
+      },
     ],
     tool: HEATLOAD,
   },
@@ -2031,6 +2276,12 @@ export const OUTCOMES: Outcome[] = [
       "Check the trap suits the unit's fan pressure: too shallow and it blows dry, too deep and it never clears",
       "Confirm the indoor unit is level, or sitting very slightly down towards its drain outlet",
       "Re-run the bad section rather than trying to clear a line that was never right",
+    ],
+    alternatives: [
+      {
+        fix: "Fit a condensate pump",
+        when: "Only where fall genuinely can't be had. A pump is one more part that fails, and fall never does.",
+      },
     ],
   },
 
@@ -2124,13 +2375,26 @@ export const OUTCOMES: Outcome[] = [
       "Lift the setpoint a degree or two; it moves the face temperature more than it sounds like it should",
       "Clean the return filter and the coil — anything starving airflow drives the supply air colder",
       "Open more zones, or set up a constant zone. Same lever as the fan, not a competing one: it drops the static so the fan actually moves more air, and it stops the bypass dumping cold supply air back into the return where it drags the coil colder still",
-      "Bring the room's humidity down: shut doors and windows to humid air, make sure wet-area extraction runs and discharges outside, stop washing being dried indoors",
-      "Let it run longer and steadier instead of in short bursts — short cycles cool without dehumidifying, which is exactly the wrong combination",
       "Know the trade-off before you lean on fan speed: more air means less moisture pulled out, so it warms the face while the room's dew point creeps up behind you. Over a short visit the face wins easily. In a genuinely humid room it's a band-aid, and the fix flips — drop the fan or use dry mode to get the moisture out, and solve the grille itself instead of the air",
       "Insulate the back of the grille and its neck right up to the face, and check the flex insulation is pulled over the collar and taped",
-      "Where it keeps coming back, change to a thermal-break or plastic-faced diffuser. Powder coating and anodising do NOT fix it — the coating is microns thick and the metal underneath still conducts",
-      "Fit a closed-cell gasket between the frame and the ceiling so it stops cold-bridging into the plasterboard",
-      "If it persists everywhere, check the system isn't oversized — one that satisfies too fast never gets around to dehumidifying",
+    ],
+    alternatives: [
+      {
+        fix: "Change to a thermal-break or plastic-faced diffuser",
+        when: "It keeps coming back once the air side is right — this is the permanent fix. Powder coating and anodising do NOT fix it: the coating is microns thick and the metal underneath still conducts.",
+      },
+      {
+        fix: "Dry the room instead of warming the grille",
+        when: "The room itself is humid. Shut doors and windows to humid air, make sure wet-area extraction runs and discharges outside, stop washing being dried indoors — and let it run longer and steadier, because short cycles cool without drying.",
+      },
+      {
+        fix: "Fit a closed-cell gasket between the frame and the ceiling",
+        when: "The plasterboard around the grille sweats too: the frame is cold-bridging into it.",
+      },
+      {
+        fix: "Check the system isn't oversized",
+        when: "It persists everywhere. A system that satisfies too fast never gets around to dehumidifying.",
+      },
     ],
     tool: HEATLOAD,
   },

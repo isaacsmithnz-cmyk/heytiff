@@ -511,12 +511,22 @@
 .fg .tool .ffg-outcome h2 { position: relative; font-size: 24px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; margin: 0 0 12px; }
 .fg .tool .ffg-outcome p { position: relative; margin: 0; font-size: 14px; font-weight: 500; line-height: 1.65; color: var(--paper); }
 
-/* what to do */
+/* what to do. The numbers are the point of an ordered list — Tailwind's
+   preflight strips every list's marker, which left the steps as an indented
+   column with the ::marker rule below styling nothing */
 .fg .tool .ffg-actions { margin-top: 16px; }
-.fg .tool .ffg-actions ol { margin: 0; padding-left: 16px; display: grid; gap: 12px; }
+.fg .tool .ffg-actions ol { margin: 0; padding-left: 16px; display: grid; gap: 12px; list-style: decimal; }
 .fg .tool .ffg-actions li { font-size: 14px; font-weight: 500; color: var(--gray700); line-height: 1.6; }
 .fg .tool .ffg-actions li::marker { font-weight: 700; color: var(--gray400); }
 .fg .tool .ffg-tool { margin-top: 16px; text-decoration: none; width: 100%; }
+
+/* other options — a group under the best fix: a hairline, a title, and each
+   option's fix in ink with when-to-pick-it under it in the quiet grey */
+.fg .tool .ffg-alts { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+.fg .tool .ffg-alts ul { margin: 0; padding: 0; display: grid; gap: 16px; }
+.fg .tool .ffg-alts b { font-size: 14px; font-weight: 600; color: var(--ink); }
+.fg .tool .ffg-alts .esc { margin-left: 8px; font-size: 14px; font-weight: 500; color: var(--warn-t); }
+.fg .tool .ffg-alts p { margin: 4px 0 0; font-size: 14px; font-weight: 400; line-height: 1.6; color: var(--gray500); }
 
 /* the code lookup — the outcome's last mile, so it carries the symptom accent
    the same way .ffg-say does rather than arriving as an unrelated white card.

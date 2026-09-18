@@ -271,7 +271,7 @@ function SortedOnSite({ personId, onDone }: { personId: string; onDone: () => vo
           }
         }}
       >
-        {busy ? "Recording…" : "Sorted on site"}
+        {busy ? "Recording…" : "Record it as sorted"}
       </button>
     </span>
   );
@@ -281,8 +281,10 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
   const router = useRouter();
   const [helper, setHelper] = useState<string | null>(null);
   /* the door lives in the card's action row; the box it opens takes the
-     card's width under it, rather than squeezing in beside a button */
-  const [raising, setRaising] = useState(false);
+     card's width under it, rather than squeezing in beside a button. Held by
+     person, because a sign-on given on this phone is one this reader can add
+     to as well — what the helper found after they signed. */
+  const [raising, setRaising] = useState<string | null>(null);
   const mine = doc.people.find((p) => p.staffProfileId === me) ?? null;
   const onIt = !!mine;
   /* THE PHONE THAT IS OUT. Anyone the SWMS covers and hasn't signed can sign
@@ -447,16 +449,16 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
                 {/* AFTER SIGNING, TOO: what you find when you get on the roof
                     is after the briefing at the truck */}
                 <span>
-                  {doc.latest && mine?.signon && !raising && (
-                    <RaiseIssue person={mine} open={false} onOpen={() => setRaising(true)} onClose={() => setRaising(false)} onDone={signed} />
+                  {doc.latest && mine?.signon && raising !== mine.id && (
+                    <RaiseIssue person={mine} open={false} onOpen={() => setRaising(mine.id)} onClose={() => setRaising(null)} onDone={signed} />
                   )}
                 </span>
                 <a className="pbtn ghost" href={`/swms/${doc.versionId}`} target="_blank" rel="noreferrer">
                   Open the printable SWMS
                 </a>
               </div>
-              {doc.latest && mine?.signon && raising && (
-                <RaiseIssue person={mine} open onOpen={() => setRaising(true)} onClose={() => setRaising(false)} onDone={signed} />
+              {doc.latest && mine?.signon && raising === mine.id && (
+                <RaiseIssue person={mine} open onOpen={() => setRaising(mine.id)} onClose={() => setRaising(null)} onDone={signed} />
               )}
             </div>
 
@@ -495,11 +497,28 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
                       ) : (
                         "Not signed on"
                       )}
+                      {/* a sign-on given on this phone is one this reader can
+                          still add to — what the helper found on the roof */}
+                      {doc.latest && p.signon && p.id !== mine?.id && p.signon.signedByStaffId === me && raising !== p.id && (
+                        <RaiseIssue person={p} open={false} onOpen={() => setRaising(p.id)} onClose={() => setRaising(null)} onDone={signed} />
+                      )}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
+
+            {doc.latest && raising && raising !== mine?.id && (
+              <div className="card2 sws-card">
+                <RaiseIssue
+                  person={doc.people.find((p) => p.id === raising)!}
+                  open
+                  onOpen={() => setRaising(raising)}
+                  onClose={() => setRaising(null)}
+                  onDone={signed}
+                />
+              </div>
+            )}
 
             {doc.latest && onIt && helper && unsigned.some((p) => p.id === helper) && (
               <SignOnForm

@@ -6,7 +6,7 @@ import { orgBrand } from "@/lib/org/query";
 import { brandContact, hasBrand } from "@/lib/org/brand";
 import { Letterhead } from "@/components/org/letterhead";
 import { todayInAu } from "@/lib/au-dates";
-import { loadSwmsDocument, loadSwmsTeam } from "@/lib/swms/query";
+import { licencesFor, loadSwmsDocument } from "@/lib/swms/query";
 import { CONSEQUENCE, HRCW, LEVEL_LABEL, LIKELIHOOD, riskLevel, type Rating } from "@/lib/swms/library";
 import { siteDay, siteWhen } from "@/lib/swms/when";
 import { PrintButton } from "./print-button";
@@ -41,7 +41,12 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
   const onIt = !!me && doc.people.some((p) => p.staffProfileId === me);
   if (!onIt && !(await can("workboard"))) redirect("/dashboard");
 
-  const [brand, team] = await Promise.all([orgBrand(orgId), doc.job ? loadSwmsTeam(orgId, doc.job.uuid, todayInAu()) : Promise.resolve([])]);
+  const [brand, tickets] = await Promise.all([
+    orgBrand(orgId),
+    /* the licences of the people this version names — not the live roster of
+       a live job, which lost a ticket the day someone resigned */
+    licencesFor(orgId, doc.people.map((p) => p.staffProfileId), todayInAu()),
+  ]);
   const c = doc.content;
   const a = doc.answers;
   /* the site's clock, in the app's words, with the year paper outlives */
@@ -54,7 +59,8 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
 
   const foot = (
     <p className="swd-foot">
-      {`${id}, version ${doc.version}. Keep with the job until the work is finished, and for 2 years after any notifiable incident.`}
+      {/* the id already ends in the version; saying it again read as two facts */}
+      {`${id}. Keep with the job until the work is finished, and for 2 years after any notifiable incident.`}
     </p>
   );
 
@@ -66,7 +72,7 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
           {hasBrand(brand) ? <Letterhead brand={brand} /> : <span />}
           <p className="swd-id">
             <b>{id}</b>
-            {`Version ${doc.version}, issued ${fmtDay(doc.issuedAt)}`}
+            {`Issued ${fmtDay(doc.issuedAt)}`}
             {!doc.latest && <span className="swd-replaced">Replaced by a later version</span>}
           </p>
         </header>
@@ -224,8 +230,7 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
             </thead>
             <tbody>
               {doc.people.map((p) => {
-                const t = p.staffProfileId ? team.find((m) => m.id === p.staffProfileId) : null;
-                const held = t?.tickets.filter((k) => k.current).map((k) => k.name) ?? [];
+                const held = (p.staffProfileId ? tickets.get(p.staffProfileId) ?? [] : []).filter((k) => k.current).map((k) => k.name);
                 return (
                   <tr key={p.id}>
                     <td>

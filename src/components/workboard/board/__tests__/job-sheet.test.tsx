@@ -9,7 +9,7 @@
    refresh kicks ONCE, only when the story's stamp has left the stored one
    behind. */
 
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { JobDesign, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
@@ -2601,6 +2601,29 @@ describe("files on the job", () => {
     const dialog = await screen.findByRole("dialog", { name: "Safe Work Method Statement" });
     expect(dialog.querySelector("iframe")!.getAttribute("src")).toBe("/swms/v-2");
     /* the job already has its SWMS, so the head doesn't offer a second */
+    expect(face("documents").queryByRole("button", { name: "Create SWMS" })).toBeNull();
+  });
+
+  /* a SWMS is signed BEFORE the work: on a job ServiceM8 has finished, the
+     wizard promised "asked in their bell" for a bell that would never ring */
+  it("offers Create SWMS on a live job, and not on a finished one", async () => {
+    /* jest.setup's stub already answers "no SWMS on this job" */
+    const swmsActions = jest.requireMock("@/app/actions/swms") as { listSwmsForJob: jest.Mock };
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    const { unmount } = render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+    expect(await face("documents").findByRole("button", { name: "Create SWMS" })).toBeEnabled();
+    unmount();
+
+    swmsActions.listSwmsForJob.mockClear();
+    readMirrorJob.mockResolvedValueOnce(card(detail({ status: "Completed" })));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+    /* not a greyed-out button that says nothing: there is nothing to create */
+    await waitFor(() => expect(swmsActions.listSwmsForJob).toHaveBeenCalled());
+    await act(async () => {});
     expect(face("documents").queryByRole("button", { name: "Create SWMS" })).toBeNull();
   });
 

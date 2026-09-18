@@ -86,6 +86,21 @@ describe("normaliseOutsiders", () => {
     expect(normaliseOutsiders("Kai")).toEqual([]);
   });
 
+  /* a name is all that identifies someone with no staff card: twice on the
+     list is two people on the document, and one signature carried onto both */
+  it("keeps one row per name", () => {
+    expect(
+      normaliseOutsiders([
+        { name: "Kai Lindqvist", company: "Lindqvist Plumbing" },
+        { name: " kai lindqvist ", company: "Someone else" },
+        { name: "Ana" },
+      ])
+    ).toEqual([
+      { name: "Kai Lindqvist", company: "Lindqvist Plumbing" },
+      { name: "Ana", company: null },
+    ]);
+  });
+
   it("holds at twenty people", () => {
     expect(normaliseOutsiders(Array.from({ length: 30 }, (_, i) => ({ name: `Helper ${i}` })))).toHaveLength(20);
   });

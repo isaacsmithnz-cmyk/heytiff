@@ -151,6 +151,10 @@ const swmsPaper = (versionId: string): JobMediaItem => ({
   fromClaim: null,
 });
 
+/** Jobs ServiceM8 has closed out — the same two the bell and the card's
+    sign-on door already stand down for. */
+const SWMS_CLOSED = new Set(["Completed", "Unsuccessful"]);
+
 const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
 
@@ -1486,6 +1490,9 @@ export function JobSheet({
               swms={swms}
               swmsFailed={swmsFailed}
               canCreateSwms={!!cardId}
+              /* a SWMS is a before-work document: once ServiceM8 has the job
+                 finished, nobody is asked to sign one and the bell won't ring */
+              swmsClosed={SWMS_CLOSED.has(detail?.status ?? "")}
               loading={media === null}
               truncated={!!media?.truncated}
               onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}

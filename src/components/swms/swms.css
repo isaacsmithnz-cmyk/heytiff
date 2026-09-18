@@ -170,4 +170,8 @@
 .sws-person > span:first-child { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .sws-person b { font-size:14px; font-weight:600; }
 .sws-person em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-.sws-person > span:last-child { font-size:13px; font-weight:500; text-align:right; }
+.sws-person > span:last-child { display:flex; flex-direction:column; align-items:flex-end; gap:4px;
+  font-size:13px; font-weight:500; text-align:right; }
+/* what the person in charge presses, and anything that went wrong with it */
+.sws-sorted { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+.sws-sorted em { font-style:normal; font-size:13px; font-weight:500; }

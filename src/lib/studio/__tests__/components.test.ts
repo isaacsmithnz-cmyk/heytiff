@@ -328,6 +328,49 @@ describe("the isolator follows the outdoor's draw and supply", () => {
     ).toBe("Isolator, 3Ø 20 A");
   });
 
+  it("the picker offers only isolators on the outdoor's own supply", () => {
+    const single = electrical({ pairIdu: "PEAD-M125JAA(D)", pairOdu: "PUZ-ZM125VKA2-A" }, "ducted");
+    expect(single.choice!.options.map((o) => o.id)).toEqual([
+      "isolator-20a-1ph",
+      "isolator-32a-1ph",
+      "none",
+    ]);
+    const three = electrical({ pairIdu: "PLA-M100EA2-A", pairOdu: "PUZ-ZM100YKA3-A" });
+    expect(three.choice!.options.map((o) => o.id)).toEqual([
+      "isolator-20a-3ph",
+      "isolator-32a-3ph",
+      "none",
+    ]);
+  });
+
+  it("a pick on the other supply stays listed as the one chosen, until it is changed", () => {
+    // the old 32 A was labelled 3Ø: it stands on a 1Ø outdoor, and still shows
+    const row = electrical(
+      {
+        pairIdu: "PEAD-M125JAA(D)",
+        pairOdu: "PUZ-ZM125VKA2-A",
+        components: { electrical: "isolator-32a" },
+      },
+      "ducted"
+    );
+    expect(row.choice!.selectedId).toBe("isolator-32a-3ph");
+    expect(row.choice!.options.map((o) => o.id)).toEqual([
+      "isolator-20a-1ph",
+      "isolator-32a-1ph",
+      "isolator-32a-3ph",
+      "none",
+    ]);
+  });
+
+  it("the other choices keep their whole list", () => {
+    const { doc, system } = docWith({ pairIdu: "PLA-M100EA2-A", pairOdu: "PUZ-ZM100YKA3-A" });
+    const rows = systemComponents(doc, pack, system, "cooling");
+    for (const key of ["mounting", "insulation"] as const) {
+      const group = COMPONENT_CHOICES.find((g) => g.key === key)!;
+      expect(rows.find((r) => r.id === key)!.choice!.options).toEqual(group.options);
+    }
+  });
+
   it("every outdoor in the shipped pack with a draw gets the smallest isolator that covers it, on its supply", () => {
     const withDraw = pack.outdoor_units.filter((o) => o.max_amps_a != null);
     expect(withDraw.length).toBeGreaterThan(50);

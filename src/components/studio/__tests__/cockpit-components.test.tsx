@@ -3,7 +3,7 @@
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { SystemCockpit } from "../cockpit-panel";
 import { createDesign, type DesignDocument, type DesignObject, type Floor } from "@/lib/studio/document";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
@@ -79,12 +79,15 @@ describe("Cockpit Components view", () => {
     expect(screen.getByText("Isolator, 1Ø 20 A")).toBeInTheDocument();
   });
 
-  it("expanding a choice row reveals its options", () => {
+  it("expanding a choice row reveals its options, isolators only on the outdoor's supply", () => {
     renderComponents(mkDoc());
     fireEvent.click(screen.getByRole("button", { name: /Electrical/ }));
-    expect(screen.getByRole("button", { name: /Isolator, 1Ø 32 A/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Isolator, 3Ø 32 A/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Supplied by others/ })).toBeInTheDocument();
+    // the option list alone — the row above it carries the default's name too
+    const offered = within(document.querySelector(".ds-ck-opts") as HTMLElement)
+      .getAllByRole("button")
+      .map((b) => b.querySelector(".ds-ck-opt-nm")?.firstChild?.textContent);
+    // SUZ-M25VAD-A is single phase: a three-phase isolator is never offered
+    expect(offered).toEqual(["Isolator, 1Ø 20 A", "Isolator, 1Ø 32 A", "Supplied by others"]);
   });
 
   it("picking an isolator persists its id onto settings.components", () => {

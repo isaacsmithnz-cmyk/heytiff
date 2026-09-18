@@ -322,6 +322,23 @@ function hardDrawnLengthM(doc: DesignDocument, system: DesignSystem): number | n
   return Math.round(total * 10) / 10;
 }
 
+const isIsolator = (o: ComponentChoiceOption): o is IsolatorOption => "isolator" in o;
+
+/** What the picker offers: an isolator only on the outdoor's own supply —
+    one on the other supply is never the right part. The option already
+    picked stays listed whatever its supply, so a pick that stands still
+    shows as the one chosen. */
+function pickable(
+  g: ComponentChoiceGroup,
+  odu: OutdoorUnit,
+  selectedId: string
+): ComponentChoiceOption[] {
+  const supply = supplyOf(odu);
+  return g.options.filter(
+    (o) => !isIsolator(o) || o.isolator.phase === supply || o.id === selectedId
+  );
+}
+
 function choiceRows(doc: DesignDocument, system: DesignSystem, odu: OutdoorUnit): ComponentRow[] {
   const selected = componentChoices(system, odu);
   return COMPONENT_CHOICES.map((g) => {
@@ -342,7 +359,7 @@ function choiceRows(doc: DesignDocument, system: DesignSystem, odu: OutdoorUnit)
       sub: opt.sub,
       value,
       icon: g.icon,
-      choice: { key: g.key, selectedId, options: g.options },
+      choice: { key: g.key, selectedId, options: pickable(g, odu, selectedId) },
     };
   });
 }

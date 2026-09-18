@@ -321,7 +321,20 @@ export default async function SwmsDocumentPage({ params }: { params: Promise<{ v
                       <img alt={`Signature of ${p.name}`} src={`data:image/svg+xml;utf8,${encodeURIComponent(p.signon.svg)}`} />
                     )}
                   </td>
-                  <td>{p.signon ? p.signon.issue ?? "None" : ""}</td>
+                  <td>
+                    {p.signon ? (
+                      p.signon.issue ? (
+                        <>
+                          {p.signon.issue}
+                          {p.signon.issueCleared && <em>{`Sorted on site by ${p.signon.issueCleared.by}, ${fmtWhen(p.signon.issueCleared.at)}`}</em>}
+                        </>
+                      ) : (
+                        "None"
+                      )
+                    ) : (
+                      ""
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

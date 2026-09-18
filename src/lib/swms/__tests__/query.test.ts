@@ -123,6 +123,29 @@ describe("raisedIssues", () => {
   it("carries the same issue onto the job card", async () => {
     expect((await listJobSwms(ORG, "job-1"))[0].issues).toEqual([{ name: "Troy Porter", issue: "No anchor on the rear ridge" }]);
   });
+
+  /* A CORRECTION CHANGES NOTHING ABOUT THE WORK, so it cannot be what answers
+     an open issue — it used to take one off the card and out of the bell. */
+  it("keeps an issue a correction carried, and drops one a new method answered", async () => {
+    mockDb.tables.swms_versions.push({ ...version("v3", "s-1", 3), material: false, issued_at: "2026-09-13T07:42:00.000Z" });
+    mockDb.tables.swms_people.push(person("p3-troy", "v3", { staff: "troy" }));
+    expect((await listJobSwms(ORG, "job-1"))[0].issues).toEqual([{ name: "Troy Porter", issue: "No anchor on the rear ridge" }]);
+    expect(await raisedIssues(ORG, "troy")).toHaveLength(1);
+
+    mockDb.tables.swms_versions[3].material = true;
+    expect((await listJobSwms(ORG, "job-1"))[0].issues).toEqual([]);
+    expect(await raisedIssues(ORG, "troy")).toEqual([]);
+  });
+
+  it("stops asking once the person in charge says it's sorted", async () => {
+    mockDb.tables.swms_signons[0].issue_cleared_at = "2026-09-16T08:05:00.000Z";
+    mockDb.tables.swms_signons[0].issue_cleared_by_staff_id = "troy";
+    expect((await listJobSwms(ORG, "job-1"))[0].issues).toEqual([]);
+    expect(await raisedIssues(ORG, "troy")).toEqual([]);
+    /* and the document still says what was raised, and who sorted it */
+    const troy = (await loadSwmsDocument(ORG, "v2"))?.people.find((p) => p.name === "Troy Porter");
+    expect(troy?.signon).toMatchObject({ issue: "No anchor on the rear ridge", issueCleared: { by: "Troy Porter", at: "2026-09-16T08:05:00.000Z" } });
+  });
 });
 
 describe("listJobSwms", () => {
@@ -136,11 +159,21 @@ describe("listJobSwms", () => {
     expect(await listJobSwms(ORG, "job-9")).toEqual([]);
   });
 
-  it("offers a sign-on only to someone with something to sign", async () => {
+  /* the card's Sign on is the only door to the page from here, and anyone the
+     SWMS covers can sign anyone else on their phone */
+  it("offers a sign-on to anyone on it while anyone is waiting, and to nobody else", async () => {
     const can = async (who: string) => (await listJobSwms(ORG, "job-1", who))[0].viewerCanSign;
     expect(await can("dane")).toBe(true); // their own
-    expect(await can("troy")).toBe(true); // signed, but a helper on it is waiting
+    expect(await can("troy")).toBe(true); // signed, but their crew hasn't
     expect(await can("isaac")).toBe(false); // not on it
+
+    /* the helper has signed and only a team member is waiting: the door used
+       to close on the person holding the phone they'd sign on */
+    mockDb.tables.swms_signons.push({ org_id: ORG, id: "g-4", version_id: "v2", person_id: "p-kai", signed_by_staff_id: "troy", briefed_by_staff_id: "troy", signature_svg: "<svg/>", issue_raised: null, signed_at: "2026-09-16T08:00:00.000Z" });
+    expect(await can("troy")).toBe(true);
+
+    mockDb.tables.swms_signons.push({ org_id: ORG, id: "g-3", version_id: "v2", person_id: "p-dane", signed_by_staff_id: "dane", briefed_by_staff_id: "troy", signature_svg: "<svg/>", issue_raised: null, signed_at: "2026-09-16T07:59:00.000Z" });
+    expect(await can("troy")).toBe(false); // everyone has signed
   });
 });
 

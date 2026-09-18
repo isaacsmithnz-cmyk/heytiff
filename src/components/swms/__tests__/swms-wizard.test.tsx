@@ -131,6 +131,9 @@ describe("what the job already says", () => {
     expect(panel("work").getByText(/This job is in Victoria\./)).toBeInTheDocument();
     await tab("Review");
     expect(screen.getByRole("button", { name: /This job is in Victoria\./ })).toBeInTheDocument();
+    /* and Review never claims New South Wales rules over it */
+    expect(panel("review").getByText("Victoria, which this template doesn't cover")).toBeInTheDocument();
+    expect(panel("review").queryByText("Work Health and Safety Regulation 2025 (NSW)")).toBeNull();
     await userEvent.click(screen.getByRole("checkbox", { name: /walked this site/ }));
     expect(screen.getByRole("button", { name: "Issue the SWMS" })).toBeDisabled();
 
@@ -207,6 +210,16 @@ describe("what the job already says", () => {
     await userEvent.selectOptions(screen.getByLabelText("First aider"), "");
     expect((screen.getByLabelText("First aider") as HTMLSelectElement).value).toBe("");
     expect(screen.queryByText("Has first aid on file")).toBeNull();
+  });
+
+  /* asked where it changes something: the wall being drilled */
+  it("asks about the building's age in the step that drills it", async () => {
+    open();
+    await ready();
+    expect(panel("work").queryByRole("group", { name: "Built before 1990" })).toBeNull();
+    await tab("How it's done");
+    await userEvent.click(panel("how").getByRole("checkbox", { name: /Core drill/ }));
+    expect(panel("how").getByRole("group", { name: "Built before 1990" })).toBeInTheDocument();
   });
 
   it("starts an install with the steps every install has, and the site's steps unticked", async () => {
@@ -350,6 +363,18 @@ describe("the review", () => {
     window.removeEventListener(BELL_REFRESH_EVENT, bell);
   });
 
+  /* the tick is right there, but a greyed-out button that says nothing is
+     what the sign-on screen stopped doing */
+  it("says what the greyed-out Issue button is waiting for", async () => {
+    open();
+    await ready();
+    await fillInstall();
+    await tab("Review");
+    expect(screen.getByText("Confirm you've walked the site and this SWMS matches it.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("checkbox", { name: /walked this site/ }));
+    expect(screen.queryByText("Confirm you've walked the site and this SWMS matches it.")).toBeNull();
+  });
+
   it("sends the helper chosen as electrician by their place among the helpers", async () => {
     open();
     await ready();
@@ -400,6 +425,56 @@ describe("a revision", () => {
       signedStaffIds: ["troy"],
       signedOutsideNames: ["kai lindqvist"],
     }));
+  });
+
+  /* what the last version said stands: the state it was written to, the steps
+     it ticked, and the first aider it named — or didn't */
+  it("starts from what the last version said, and doesn't ask again", async () => {
+    swmsWizardContext.mockImplementation(async () =>
+      context({
+        job: { ...context().job, address: "14 Attunga Road, Miranda", state: null, jurisdiction: null },
+        /* someone the auto-pick would choose, if the last version's answer
+           didn't stand */
+        team: [{ id: "troy", name: "Troy Porter", role: "Crew lead", booked: true, tickets: [{ name: "First aid", expires: "2027-03-01", current: true }] }],
+      })
+    );
+    swmsPrevious.mockImplementation(async () => ({
+      swmsId: "s-1",
+      version: 1,
+      answers: { ...DEFAULT_ANSWERS, jurisdiction: "QLD" as const, isolation: "Main switchboard", hospital: "Sutherland Hospital", steps: { ...DEFAULT_ANSWERS.steps, roof: true } },
+      staffIds: ["troy"],
+      outsiders: [],
+      responsibleStaffId: "troy",
+      electricianName: null,
+      firstAiderName: null,
+      signedStaffIds: [],
+      signedOutsideNames: [],
+    }));
+    open("v-1");
+    await screen.findByRole("heading", { name: "Revise the SWMS" });
+    expect((screen.getByLabelText("State") as HTMLSelectElement).value).toBe("QLD");
+
+    /* the first aider the last version didn't name stays unnamed */
+    await tab("Who it covers");
+    expect((screen.getByLabelText("First aider") as HTMLSelectElement).value).toBe("");
+
+    /* and a change of kind keeps the steps that version ticked */
+    await tab("The work");
+    await userEvent.click(screen.getByRole("button", { name: "Service or repair" }));
+    await tab("How it's done");
+    expect(panel("how").getByRole("checkbox", { name: /Get onto the roof/ })).toBeChecked();
+  });
+
+  /* Revise pressed on a card opened before someone else issued a version:
+     carrying on filed a SECOND SWMS on the job */
+  it("stops when the version it was opened to revise has been replaced", async () => {
+    swmsPrevious.mockImplementation(async () => null);
+    open("v-1");
+    expect(await screen.findByRole("heading", { name: "This SWMS has moved on" })).toBeInTheDocument();
+    expect(screen.getByText(/A newer version was issued while this card was open/)).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("starts from the latest version, with who it named, and needs a reason", async () => {

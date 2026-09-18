@@ -247,6 +247,8 @@ type ChainRows = {
     briefedByStaffId: string | null;
     svg: string;
     issue: string | null;
+    clearedBy: string | null;
+    clearedAt: string | null;
     at: string;
   }[];
 };
@@ -283,7 +285,7 @@ async function loadChains(orgId: string, swmsIds: string[]): Promise<ChainRows> 
       .in("version_id", versionIds),
     supabaseAdmin
       .from("swms_signons")
-      .select("person_id, signed_by_staff_id, briefed_by_staff_id, signature_svg, issue_raised, signed_at")
+      .select("person_id, signed_by_staff_id, briefed_by_staff_id, signature_svg, issue_raised, issue_cleared_by_staff_id, issue_cleared_at, signed_at")
       .eq("org_id", orgId)
       .in("version_id", versionIds),
   ]);
@@ -296,12 +298,17 @@ async function loadChains(orgId: string, swmsIds: string[]): Promise<ChainRows> 
       outsideName: p.outside_name,
       outsideCompany: p.outside_company,
     })),
-    signons: ((signonRows ?? []) as { person_id: string; signed_by_staff_id: string | null; briefed_by_staff_id: string | null; signature_svg: string; issue_raised: string | null; signed_at: string }[]).map((x) => ({
+    signons: ((signonRows ?? []) as {
+      person_id: string; signed_by_staff_id: string | null; briefed_by_staff_id: string | null; signature_svg: string;
+      issue_raised: string | null; issue_cleared_by_staff_id: string | null; issue_cleared_at: string | null; signed_at: string;
+    }[]).map((x) => ({
       personId: x.person_id,
       signedByStaffId: x.signed_by_staff_id,
       briefedByStaffId: x.briefed_by_staff_id,
       svg: x.signature_svg,
       issue: x.issue_raised,
+      clearedBy: x.issue_cleared_by_staff_id,
+      clearedAt: x.issue_cleared_at,
       at: x.signed_at,
     })),
   };
@@ -334,6 +341,8 @@ export type SwmsSignon = {
   onPhoneOf: string | null;
   briefedBy: string | null;
   issue: string | null;
+  /** Who said the issue was sorted on site, and when; null while it stands. */
+  issueCleared: { by: string; at: string } | null;
   svg: string;
 };
 export type SwmsPerson = {
@@ -417,7 +426,7 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
     v.site_checked_by_staff_id,
     ...versions.map((x) => x.issuedBy),
     ...people.map((p) => p.staffProfileId),
-    ...chain.signons.flatMap((x) => [x.signedByStaffId, x.briefedByStaffId]),
+    ...chain.signons.flatMap((x) => [x.signedByStaffId, x.briefedByStaffId, x.clearedBy]),
   ]);
   const job = swms ? await loadSwmsJob(orgId, (swms as { sm8_job_uuid: string }).sm8_job_uuid) : null;
   const latest = versions.length ? versions[versions.length - 1].version === v.version : true;
@@ -461,7 +470,10 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
                   eff.signon.briefedByStaffId && eff.signon.briefedByStaffId !== p.staffProfileId
                     ? nameIn(names, eff.signon.briefedByStaffId)
                     : null,
-                issue: eff.signon.issue,
+                issue: eff.signon.issue?.trim() || null,
+                issueCleared: eff.signon.clearedAt
+                  ? { by: nameIn(names, eff.signon.clearedBy), at: eff.signon.clearedAt }
+                  : null,
                 svg: eff.signon.svg,
               }
             : null,
@@ -496,8 +508,9 @@ export type SwmsSummary = {
   /** Raised at sign-on, by whoever raised it — the reason the SWMS might
       need changing before the work starts. */
   issues: SwmsIssue[];
-  /** The reader has something to sign here: their own sign-on, or a helper
-      on the same SWMS. Anyone else has nothing behind a Sign on button. */
+  /** The reader has something to sign here — their own sign-on, or anyone
+      else's on their phone. Anyone the SWMS doesn't cover has nothing behind
+      a Sign on button. */
   viewerCanSign: boolean;
 };
 
@@ -537,23 +550,26 @@ export async function listJobSwms(orgId: string, jobUuid: string, viewerStaffId:
         signed: mine.length - waiting.length,
         total: mine.length,
         waitingOn: waiting.map(nameOf),
-        issues: issuesOn(chain, mine, nameOf),
-        viewerCanSign: !!viewerRow && waiting.some((p) => p.id === viewerRow.id || !p.staffProfileId),
+        issues: issuesOn(standing, mine, nameOf),
+        viewerCanSign: !!viewerRow && waiting.length > 0,
       },
     ];
   });
 }
 
-/** What the people on a version raised when they signed on. */
+/** What the people on a version raised when they signed on and nobody has
+    sorted yet — READ THROUGH THE CARRY, so a correction, which changes
+    nothing about the work, doesn't take an open issue off the card and out
+    of the bell with it. Only a version everyone signs again clears one. */
 function issuesOn(
-  chain: ChainRows,
+  standing: ReturnType<typeof standingSignons>,
   people: readonly ChainPerson[],
   nameOf: (p: ChainPerson) => string
 ): SwmsIssue[] {
-  const byPerson = new Map(chain.signons.map((x) => [x.personId, x]));
   return people.flatMap((p) => {
-    const raised = byPerson.get(p.id)?.issue?.trim();
-    return raised ? [{ name: nameOf(p), issue: raised }] : [];
+    const signon = standing.get(p.id)?.signon;
+    const raised = signon?.issue?.trim();
+    return raised && !signon?.clearedAt ? [{ name: nameOf(p), issue: raised }] : [];
   });
 }
 
@@ -674,7 +690,7 @@ export async function raisedIssues(orgId: string, staffProfileId: string): Promi
   return latest.flatMap((v, i) => {
     const job = jobs[i];
     if (!job || CLOSED.has(job.status ?? "")) return [];
-    const issues = issuesOn(chain, chain.people.filter((p) => p.versionId === v.id), nameOf);
+    const issues = issuesOn(standingSignons(chain, v.swmsId), chain.people.filter((p) => p.versionId === v.id), nameOf);
     return issues.length ? [{ versionId: v.id, jobNumber: job.number, site: job.address, issues }] : [];
   });
 }

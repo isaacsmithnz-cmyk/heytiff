@@ -32,7 +32,7 @@ jest.mock("@/lib/integrations/links", () => ({
   sm8StaffLinkMap: async () => new Map([["sm8-troy", "troy"]]),
 }));
 
-import { approveSwmsLibrary, issueSwms, signOnSwms, swmsPrevious, swmsWizardContext, type IssueSwmsInput } from "../swms";
+import { approveSwmsLibrary, clearSwmsIssue, issueSwms, raiseSwmsIssue, signOnSwms, swmsPrevious, swmsWizardContext, type IssueSwmsInput } from "../swms";
 
 const ORG = "org-1";
 const staff = (id: string, first: string, last: string, status = "Active", org = ORG) => ({
@@ -379,6 +379,54 @@ describe("signOnSwms", () => {
     const swmsId = written("swms")[0].id as string;
     await issueSwms(input({ swmsId, reason: "New isolation point" }));
     expect(await signOnSwms({ personId: old, pathData: drawn })).toEqual({ ok: false, error: "This version has been replaced. Sign on to the latest one." });
+  });
+
+  /* AN ANCHOR IS FOUND RUSTED ON THE ROOF, which is after the briefing at the
+     truck — and the only door to raising it was inside the sign-on form. */
+  describe("an issue after signing", () => {
+    it("rides the sign-on already given, and only its own signer's", async () => {
+      mockMe = "dane";
+      const dane = personFor("dane");
+      await signOnSwms({ personId: dane, pathData: drawn });
+      expect(await raiseSwmsIssue({ personId: dane, issue: "  No anchor on the rear ridge  " })).toEqual({ ok: true });
+      expect(written("swms_signons")[0]).toMatchObject({ issue_raised: "No anchor on the rear ridge", issue_cleared_at: null });
+
+      mockMe = "sam";
+      expect(await raiseSwmsIssue({ personId: dane, issue: "Something else" })).toEqual({
+        ok: false,
+        error: "Only the person who signed this on can raise an issue with it.",
+      });
+      mockMe = "dane";
+      expect(await raiseSwmsIssue({ personId: dane, issue: "   " })).toEqual({ ok: false, error: "Say what the issue is." });
+    });
+
+    it("is the person in charge's to say is sorted, and nobody else's", async () => {
+      mockMe = "dane";
+      const dane = personFor("dane");
+      await signOnSwms({ personId: dane, pathData: drawn, issue: "No anchor on the rear ridge" });
+      expect(await clearSwmsIssue(dane)).toEqual({ ok: false, error: "Only the person in charge on site can say an issue is sorted." });
+
+      mockMe = "troy";
+      expect(await clearSwmsIssue(dane)).toEqual({ ok: true });
+      expect(written("swms_signons")[0]).toMatchObject({ issue_raised: "No anchor on the rear ridge", issue_cleared_by_staff_id: "troy" });
+      expect(written("swms_signons")[0].issue_cleared_at).toBeTruthy();
+    });
+
+    it("says nothing is there to sort, and won't touch a replaced version", async () => {
+      mockMe = "dane";
+      const dane = personFor("dane");
+      await signOnSwms({ personId: dane, pathData: drawn });
+      mockMe = "troy";
+      expect(await clearSwmsIssue(dane)).toEqual({ ok: false, error: "There's no issue on this sign-on." });
+
+      const swmsId = written("swms")[0].id as string;
+      await issueSwms(input({ swmsId, reason: "New isolation point" }));
+      mockMe = "dane";
+      expect(await raiseSwmsIssue({ personId: dane, issue: "Late" })).toEqual({
+        ok: false,
+        error: "This version has been replaced. Raise it on the latest one.",
+      });
+    });
   });
 
   it("knows nothing about a sign-on in another workspace", async () => {

@@ -194,6 +194,10 @@ export function SwmsWizard({
 }) {
   const [ctx, setCtx] = useState<SwmsWizardContext | null | "failed">(null);
   const [prev, setPrev] = useState<SwmsPrevious | null>(null);
+  /* Revise pressed on a card opened before someone else issued a version:
+     there is no previous to start from, and carrying on would file a SECOND
+     SWMS on the job. */
+  const [stale, setStale] = useState(false);
   const [tab, setTab] = useState<Tab>("work");
   const [a, setA] = useState<SwmsAnswers>(() => startingAnswers("install", "NSW"));
   const [covers, setCovers] = useState<string[]>([]);
@@ -240,6 +244,7 @@ export function SwmsWizard({
         if (!live) return;
         if (!c) return setCtx("failed");
         setCtx(c);
+        if (reviseVersionId && !p) setStale(true);
         const onTeam = (id: string) => c.team.some((t) => t.id === id);
         if (p) {
           const rows = p.outsiders.map((o) => ({ id: `o${++seq.current}`, name: o.name, company: o.company ?? "" }));
@@ -255,13 +260,20 @@ export function SwmsWizard({
           setPrev(p);
           /* the site's rules are its address's, even when an old version guessed */
           setA(c.job.jurisdiction ? { ...p.answers, jurisdiction: c.job.jurisdiction } : p.answers);
+          /* the state the last version was written to, so an address that
+             doesn't name one isn't asked about twice */
+          if (!c.job.state) setPickedState(p.answers.jurisdiction);
           setCovers(covered);
           setOutsiders(rows);
           setResponsible(onTeam(p.responsibleStaffId) ? p.responsibleStaffId : null);
           setElectrician(keyFor(p.electricianName));
-          const aider = keyFor(p.firstAiderName);
-          setFirstAider(aider);
-          setAiderChosen(!!aider);
+          setFirstAider(keyFor(p.firstAiderName));
+          /* what the last version said stands until someone changes it — a
+             correction that quietly added a first aider changed the SWMS */
+          setAiderChosen(true);
+          /* these steps are the last version's choices, not the template's
+             opener, so changing install/service must not clear them */
+          setStepsTouched(true);
         } else {
           const booked = c.team.filter((t) => t.booked).map((t) => t.id);
           const people = booked.length ? booked : c.viewerStaffId && onTeam(c.viewerStaffId) ? [c.viewerStaffId] : [];
@@ -540,10 +552,6 @@ export function SwmsWizard({
           </div>
         )}
         <div className="sw-qa">
-          <span>Built before 1990?</span>
-          <Seg label="Built before 1990" value={a.site.pre1990 ? "yes" : "no"} options={[["no", "No"], ["yes", "Yes or not sure"]] as const} onChange={(v) => setSite("pre1990", v === "yes")} />
-        </div>
-        <div className="sw-qa">
           <span>Overhead powerlines near the work?</span>
           <Seg label="Overhead powerlines" value={a.site.powerlines ? "yes" : "no"} options={[["no", "No"], ["yes", "Yes"]] as const} onChange={(v) => setSite("powerlines", v === "yes")} />
         </div>
@@ -609,6 +617,14 @@ export function SwmsWizard({
     ),
     drill: (
       <div className="sw-ask">
+        {/* asked where it changes something: the wall being drilled */}
+        <span className="sw-al">Built before 1990?</span>
+        <Seg
+          label="Built before 1990"
+          value={a.site.pre1990 ? "yes" : "no"}
+          options={[["no", "No"], ["yes", "Yes or not sure"]] as const}
+          onChange={(v) => setSite("pre1990", v === "yes")}
+        />
         <span className="sw-al">Dust control</span>
         <div className="sw-opts row">
           <Choice name="dust" checked={a.dust === "wet"} onChange={() => set({ dust: "wet" })} title="Wet drilling" />
@@ -904,8 +920,15 @@ export function SwmsWizard({
         <div>
           <dt>Rules</dt>
           <dd>
-            {STATE_NAME[a.jurisdiction]}
-            <small>{REGULATION[a.jurisdiction]}</small>
+            {stateCovered ? (
+              <>
+                {STATE_NAME[stateCovered]}
+                <small>{REGULATION[stateCovered]}</small>
+              </>
+            ) : (
+              /* never assert New South Wales over a site just said to be elsewhere */
+              <span className="sw-state bad">{siteState ? `${STATE_NAME[siteState]}, which this template doesn't cover` : "No state chosen yet"}</span>
+            )}
           </dd>
         </div>
       </dl>
@@ -1061,6 +1084,23 @@ export function SwmsWizard({
         </button>
       </>
     );
+  } else if (stale) {
+    /* the version this was opened to revise has been replaced; carrying on
+       would file a second SWMS on the job */
+    title = "This SWMS has moved on";
+    body = (
+      <p className="sw-text">
+        A newer version was issued while this card was open. Close it and open the job again to revise the current one.
+      </p>
+    );
+    foot = (
+      <>
+        <span />
+        <button type="button" className="pbtn" onClick={onClose}>
+          Close
+        </button>
+      </>
+    );
   } else if (ctx.job.state && !ctx.job.jurisdiction) {
     /* named, and nothing to press: a SWMS to another state's rules is worse than none */
     body = <p className="sw-text">{stateNotCovered(ctx.job.state)}</p>;
@@ -1195,8 +1235,11 @@ export function SwmsWizard({
       </>
     ) : (
       <>
-        {/* the tabs already say which screen this is */}
-        <span className={error ? "sw-state bad" : undefined}>{error}</span>
+        {/* the tabs say which screen this is; the last one says what the
+            greyed-out button is still waiting for */}
+        <span className={error || (at === 3 && problems.length > 0) ? "sw-state bad" : undefined}>
+          {error ?? (at === 3 && problems.length > 0 ? (problems.length === 1 ? problems[0].text : `${problems.length} things to answer above`) : "")}
+        </span>
         {at > 0 && (
           <button type="button" className="pbtn ghost" onClick={() => go(TABS[at - 1].key)}>
             Back

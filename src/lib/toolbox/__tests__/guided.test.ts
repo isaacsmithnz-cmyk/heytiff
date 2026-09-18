@@ -356,8 +356,30 @@ describe("the cheap fix comes before the expensive one", () => {
   });
 
   it("an earth fault tests the cheaper parts before the compressor takes the blame", () => {
-    expect(all("short-earth").best).toMatch(/crankcase heater and the fan motors/i);
+    const earth = all("short-earth").best;
+    expect(earth).toMatch(/crankcase heater, the fan motors, the reversing valve coil and any base heater/i);
+    // the expansion valve's coil is low voltage off the board: named, so
+    // nobody burns an hour meggering it for a switchboard trip
+    expect(earth).toMatch(/expansion valve's coil off that list/i);
+    expect(all("rcd-moisture").best).toMatch(/reversing valve coil/i);
     expect(all("rcd-moisture").alts[0].fix).toMatch(/crankcase heater/i);
+  });
+
+  /* Isaac, on the breaker path: "have you got anywhere about checking the
+     expansion valve?" It had nowhere. A valve stuck open floods the compressor
+     and pulls current exactly like a tight one, so superheat is read before a
+     compressor is condemned for high amps. */
+  it("high amps with a clean condenser reads superheat before the compressor", () => {
+    const { o, best, alts } = all("compressor-amps");
+    expect(o.explain).toMatch(/expansion valve stuck open/i);
+    expect(best).toMatch(/superheat/i);
+    expect(best).toMatch(/bulb is clamped to the suction line/i);
+    expect(best).toMatch(/power-cycle/i);
+    const fixes = alts.map((a) => a.fix);
+    expect(fixes).toContain("Replace the expansion valve");
+    // the compressor is the last option offered, after the valve and the charge
+    expect(fixes[fixes.length - 1]).toBe("Replace the compressor");
+    expect(o.tool!.href).toContain("running-pressures");
   });
 
   it("a board that's dead to everything gets its plugs reseated and its ants out first", () => {

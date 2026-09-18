@@ -1618,7 +1618,8 @@ export const OUTCOMES: Outcome[] = [
       "Isolate and leave it isolated",
       "Do not keep resetting the breaker",
       "Insulation-test the circuit and the compressor windings — the 'Compressor suspect' tile in this tool walks that test terminal by terminal, meter settings included",
-      "Test the crankcase heater and the fan motors to earth as well — either one trips exactly like a dead compressor, and both are cheaper parts",
+      "Test everything else on mains to earth as well: the crankcase heater, the fan motors, the reversing valve coil and any base heater. Any one of them trips exactly like a dead compressor, and they're all cheaper parts",
+      "Leave the expansion valve's coil off that list — on most splits it runs on low voltage from the board, so it can't trip the switchboard. A fault there shows up as a code or a starved coil instead",
       "Licensed electrical fault-finding from here",
     ],
     escalate: true,
@@ -1652,12 +1653,14 @@ export const OUTCOMES: Outcome[] = [
     title: "Compressor drawing too much current",
     confidence: "possible",
     explain:
-      "The condenser is clean, so the high current is coming from the compressor itself — worn, tight, or a failing start component.",
+      "The condenser is clean, so the high current is coming from the compressor or from what it's being made to pump — worn, tight, a failing start component, or liquid coming back to it past an expansion valve stuck open.",
     actions: [
       "Measure running and locked-rotor current against the nameplate — clamp around ONE conductor only; around the whole cable the fields cancel and it reads zero",
       "Fixed-speed: check the capacitor and any start components, and replace what's weak on the spot. Inverter: it has neither — high current is the drive working against something, so read target versus actual speed in check mode",
       "Confirm supply voltage holds up under load — low volts raises current",
       "Three-phase: measure all three legs. A lost or unbalanced phase drives the current up on the ones that are left",
+      "Read suction, head and superheat before the compressor takes the blame. Superheat near zero means liquid is reaching it — an expansion valve stuck open, or an overcharge, loads a healthy compressor exactly like a tight one",
+      "Valve with a bulb: check the bulb is clamped to the suction line and insulated — one that's come loose reads warm and drives the valve wide open. Electronic valve: power-cycle at the isolator to re-home it, and check the valve's coil is pushed fully onto the valve body",
     ],
     alternatives: [
       {
@@ -1666,11 +1669,22 @@ export const OUTCOMES: Outcome[] = [
         escalate: true,
       },
       {
+        fix: "Replace the expansion valve",
+        when: "It still floods with the bulb right, or after a power cycle with a good coil. Recovery, brazing and a recharge.",
+        escalate: true,
+      },
+      {
+        fix: "Recover the charge and weigh it back in",
+        when: "High head with a clean coil, or low superheat with the valve working: it's overcharged, or there's air in it. Weigh it in to the nameplate — never trim it on pressures.",
+        escalate: true,
+      },
+      {
         fix: "Replace the compressor",
-        when: "Current stays high with good volts, good start gear and a clean coil. Prove the motor first — the 'Compressor suspect' tile walks it.",
+        when: "Current stays high with good volts, good start gear, a clean coil and normal superheat. Prove the motor first — the 'Compressor suspect' tile walks it.",
         escalate: true,
       },
     ],
+    tool: PRESSURES,
   },
   {
     id: "rcd-moisture",
@@ -1682,12 +1696,12 @@ export const OUTCOMES: Outcome[] = [
       "Inspect the outdoor terminal box for water ingress and corrosion",
       "Check cable glands, entries and the weatherproofing above them",
       "Dry and reseal, then insulation-test to confirm — and if the box and glands come up dry, test the compressor windings to earth: the 'Compressor suspect' tile walks it step by step",
-      "Check any crankcase heater circuit, a common culprit",
+      "Check the crankcase heater, the reversing valve coil and any base heater — all on mains, all outside in the weather, all common culprits",
     ],
     alternatives: [
       {
-        fix: "Replace the crankcase heater",
-        when: "The heater reads low to earth. It's a cheap part, and it trips a safety switch exactly like a wet compressor.",
+        fix: "Replace the crankcase heater, base heater or valve coil that reads low",
+        when: "One of them reads low to earth on the insulation tester. Cheap parts, and each one trips a safety switch exactly like a wet compressor.",
       },
       {
         fix: "Replace the compressor",

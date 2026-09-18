@@ -6290,9 +6290,14 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    second, darker box inside every quote. */
 .wb2-schb.qt { border:1px dashed var(--bar, var(--q)); border-left:0; }
 
-/* narrow blocks drop to the job number alone rather than clipping */
-.wb2-schb.tight { padding:0 4px 0 8px; }
-.wb2-schb.tight em, .wb2-schb.tight .wb2-schbh b { display:none; }
+/* NARROW BLOCKS KEEP THE CUSTOMER. A one-hour booking is ~92px on a laptop —
+   51px of text once the cap and the mark's clearance are out — and the job
+   number's box was taking 37 of that, leaving the name ten pixels to clip in.
+   The number goes first (it is in the block's title, its label and the panel),
+   then the category line; the name holds the block on its own. */
+.wb2-schb.tight { padding-left:8px; }
+.wb2-schb.tight u { display:none; }
+.wb2-schb.bare em { display:none; }
 .wb2-schb.late.tight, .wb2-schb.dan.tight { padding-right:calc(8px + 16px + 4px); }
 /* THE CREW LINK USED TO BE A HOVER: hovering any block of a multi-person job
    lifted its siblings and rested the rest of the day at opacity .35. It is a

@@ -109,7 +109,13 @@ export function blockState(
   const hollow = dayBegun && clock.tracksTime && open && !b.onSite;
   const startedGone =
     clock.dayISO < clock.today || (clock.nowMin !== null && b.startMin < clock.nowMin);
-  const late = hollow && b.closure !== "stale" && startedGone;
+  /* A QUOTE IS NOT LATE. Nobody clocks on to a quote — it is a sales call,
+     and ServiceM8 records the time against the job it becomes, if it becomes
+     one. Marking them "nothing recorded yet" put a red disc on every quote
+     visit of every quoting day: six bookings in one lane, five of them red,
+     on a run that went exactly as planned (Isaac, 2026-09-18). The dashed
+     edge still says what they are. */
+  const late = hollow && b.closure !== "stale" && b.status !== "Quote" && startedGone;
   const word =
     b.closure === "stale" ? "Marked complete in ServiceM8"
     : b.status === "Unsuccessful" ? "Didn't go ahead"

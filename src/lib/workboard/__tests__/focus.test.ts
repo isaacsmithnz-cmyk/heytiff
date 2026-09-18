@@ -91,6 +91,19 @@ describe("what one block is doing", () => {
     expect(blockState(b, clock({ tracksTime: false }))).toMatchObject({ hollow: false, word: null });
   });
 
+  it("never calls a quote late — nobody clocks on to a sales call", () => {
+    /* Six quote visits in one lane, five of them wearing the red disc, on a
+       run that went exactly as planned (Isaac, 2026-09-18). A quote records
+       its time against the job it becomes, if it becomes one; it is still
+       only booked, so it stays hollow and keeps its dashed edge. */
+    const quote = blockOn([act({ uuid: "a-1" })], [job({ remoteId: "j-1", status: "Quote" })]);
+    expect(blockState(quote, clock())).toMatchObject({
+      hollow: true,
+      late: false,
+      word: "Not started",
+    });
+  });
+
   it("lets the ServiceM8 flag win — a closed booking is never also 'not started'", () => {
     const done = blockOn(
       [act({ uuid: "a-1" })],

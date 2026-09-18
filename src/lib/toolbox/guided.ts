@@ -2460,6 +2460,12 @@ export const OUTCOMES: Outcome[] = [
       "Check the condenser, the charge, the supply voltage and the run capacitor: overloads trip for a reason",
       "If it never comes back once it's genuinely stone cold, then it really is an open winding",
     ],
+    alternatives: [
+      {
+        fix: "Cool the shell to reset it sooner",
+        when: "You can't wait hours on a big one. Still isolated, terminal cover on: a wet rag or a gentle hose on the shell, kept off the terminal box and the electrics, brings the protector back far sooner.",
+      },
+    ],
   },
   {
     id: "comp-open",
@@ -2473,6 +2479,12 @@ export const OUTCOMES: Outcome[] = [
       "Check the terminal posts — a burnt or loose post reads open at the same spot",
       "Once it's proven, condemn and replace — then read the oil out of the old one before the new one goes on. Start this tile again and pick 'It's already out': the oil is the only witness to why it died",
     ],
+    alternatives: [
+      {
+        fix: "Replace the lead or its spade",
+        when: "The winding reads at the posts but not through the lead. The compressor is fine, and it's a part from the van.",
+      },
+    ],
     escalate: true,
   },
   {
@@ -2482,10 +2494,18 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "A reading far below what the winding should be means turns have welded together inside. It pulls big current, trips protection, and it often takes the capacitor or the start gear down with it on the way out.",
     actions: [
+      "Prove it with the leads off, at the compressor's own posts — measured through a drive, a shorted power module reads exactly like shorted turns",
       "Compare against the winding spec if you can get one — 'low' only means something against a number",
       "Insulation-test to earth as well; shorted turns and earthed windings usually travel together",
-      "Test the run capacitor and start gear before the replacement goes in, or the new compressor inherits the same death",
+      "Before the replacement goes in — fixed-speed: test the run capacitor and start gear; inverter: have the drive checked, since a motor that shorted can take the power module with it. Otherwise the new compressor inherits the same death",
       "Replacement is refrigeration work: recovery, braze, driers, evacuation",
+    ],
+    alternatives: [
+      {
+        fix: "Replace the drive board",
+        when: "Inverter: the short reads through the drive but not at the compressor's own posts. It's the power module, not the motor — prove the big capacitors dead before the board comes out.",
+        escalate: true,
+      },
     ],
     escalate: true,
   },
@@ -2497,9 +2517,16 @@ export const OUTCOMES: Outcome[] = [
       "Three-phase windings are identical by construction, so the pairs should read the same. One pair sitting clearly away from the others is a winding partly gone — shorted turns starting, or a joint on the way out — and it doesn't get better.",
     actions: [
       "Zero the leads and measure again — at these resistances the leads themselves can invent an imbalance",
+      "Clean the terminal posts back to bright metal and measure again — a corroded post or a tired spade adds resistance and reads exactly like a winding going",
       "Insulation-test all three to earth while you're connected",
       "Under load, compare the three phase currents — the sick winding shows there too",
       "Plan the replacement; partial winding failures finish the job without warning",
+    ],
+    alternatives: [
+      {
+        fix: "Replace the spades or leads",
+        when: "The imbalance goes away with bright posts and fresh connections. It was the connection, not the winding.",
+      },
     ],
     escalate: true,
   },
@@ -2511,11 +2538,22 @@ export const OUTCOMES: Outcome[] = [
       "Low megohms isn't dead — it's dying. Moisture in the system, acid from an old burnout, or years of heat all drag insulation down, and the number you just took is one point on a curve heading the wrong way.",
     actions: [
       "Dry and clean the terminal box and retest first — a wet plug reads exactly like a sick motor",
+      "Sat idle and cold? Liquid refrigerant settles in the shell and drags the reading down just like failing insulation. Reconnect it, power the unit up but leave it off at the controller for a few hours so the crankcase heater or the drive's own preheat can warm it, then isolate and test again",
       "Record the reading, the date and the ambient: the trend is the diagnosis, not the single number",
       "Acid-test the oil if there's any burnout history on this system — the 'already out' path on this tile walks the test and what the oil is telling you",
-      "Change the liquid-line drier and retest after a good run — still falling means the windings are finished",
     ],
-    escalate: true,
+    alternatives: [
+      {
+        fix: "Change the liquid-line drier and pull a deep vacuum",
+        when: "It still reads low warm and dry: moisture in the system is doing it. Retest after a good run — still falling means the windings are finished.",
+        escalate: true,
+      },
+      {
+        fix: "Plan the compressor",
+        when: "The trend keeps falling after the drier. Better booked than found dead on a hot afternoon.",
+        escalate: true,
+      },
+    ],
   },
   {
     id: "comp-earthed",
@@ -2526,6 +2564,7 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Stop resetting the RCD on it — each reset does more damage",
       "Double-check the finding before condemning: dry the terminal box, leads off, clean earth point, test again",
+      "Cold and idle a while? Reconnect it and power the unit up, left off at the controller. If the safety switch holds, give the crankcase heater or the drive's preheat a few hours to boil liquid refrigerant out of the shell, then test again — a flooded compressor can read under a megohm and come good. One that trips on power-up alone has answered the question",
       "Treat it as a burnout until proven otherwise — read the oil out of the old compressor once it's off, via the 'already out' path on this tile, and plan driers and a flush",
       "Burnt oil is acidic — gloves on when the system gets opened",
     ],
@@ -2542,10 +2581,26 @@ export const OUTCOMES: Outcome[] = [
       "Take at least one capacitor lead off before you measure it: left in circuit you're reading the motor windings in parallel with it, and the number means nothing",
       "Bulged, weeping or well off its rating means replace it — and a bulged one is a fair bet for why the compressor was struggling",
       "Single-phase: check the start relay or PTC starter — burnt contacts, or a rattle when you shake it",
-      "Three-phase: open the contactor and look at the contacts — pitted or welded contacts single-phase the motor",
-      "Measure voltage at the compressor terminals during a start attempt, not at rest — a sagging supply only shows itself under load",
+      "Fixed-speed three-phase: open the contactor and look at the contacts — pitted or welded contacts single-phase the motor",
+      "Measure voltage at the compressor terminals during a start attempt, not at rest — a sagging supply, or a burnt spade on a post, only shows itself under load",
       "Clamp meter on for the start: around ONE conductor only — around the whole cable the fields cancel and it reads zero",
+      "Inverter: there's no capacitor, relay or contactor — the drive starts it. Read the fault it has logged in check mode, and check the three leads and their plug at the board",
       "If it runs but pumps nothing, that's the 'Pressures won't split' path from here",
+    ],
+    alternatives: [
+      {
+        fix: "Add a restart delay",
+        when: "It only fails on a quick restart: the pressures haven't equalised, and a fixed-speed compressor can't start against them. A time-delay relay, or the controller's own restart delay, gives them the few minutes they need.",
+      },
+      {
+        fix: "Fit a hard-start kit",
+        when: "Fixed-speed single-phase that hums and trips at start with a good run capacitor and full volts. A start capacitor and relay get a sound compressor going; they won't save a worn one. Never on an inverter.",
+      },
+      {
+        fix: "Replace the drive board",
+        when: "Inverter compressor sound, leads and plug good, and the drive still won't run it. Board work — prove the big capacitors dead before it comes out.",
+        escalate: true,
+      },
     ],
   },
 
@@ -2576,10 +2631,21 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Acid-test to confirm it and to gauge how far gone it is",
       "Recover the charge separately and don't reuse it",
-      "Flush the lines, or replace them where the burnout is severe — a mild one may clean up on driers alone, a bad one won't",
-      "Fit an oversized liquid-line drier, add a suction-line drier for the clean-up run, then re-test acid after a few hours running and change them again",
+      "A mild one cleans up on driers: fit an oversized liquid-line drier, add a suction-line drier for the clean-up run, then re-test acid after a few hours running and change them again",
       "Keep re-testing until it comes back clean; that's the whole job, not an optional extra",
       "Tell the customer plainly this is a clean-up as well as a compressor — it's why the quote isn't just a part and an hour",
+    ],
+    alternatives: [
+      {
+        fix: "Flush the lines",
+        when: "A bad burnout, or acid that won't clear after two sets of driers. Driers won't get sludge out of the pipework.",
+        escalate: true,
+      },
+      {
+        fix: "Replace the lines",
+        when: "Severe, and the pipework can be got at. New pipe is a surer clean than a flush on a long, trapped run.",
+        escalate: true,
+      },
     ],
     safety:
       "Burnt refrigeration oil is acidic. Gloves and glasses, ventilate the space, and don't breathe the vapour when the system comes apart.",

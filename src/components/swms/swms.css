@@ -61,14 +61,22 @@
 .sw-opt b { font-size:14px; font-weight:600; }
 .sw-opt em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
 .sw-opt:focus-within { box-shadow:var(--ring); }
+/* an option this answer rules out, with why under it */
+.sw-opt.off { cursor:default; }
+.sw-opt.off:hover { background:var(--paper); }
+.sw-opt.off b { font-weight:500; color:var(--q); }
 
 /* a question and its answer on one line; hairlines between, like a group */
 .sw-qas { display:flex; flex-direction:column; }
 .sw-qa { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px; padding:8px 0; border-top:1px solid var(--line); }
 .sw-qa:last-child { border-bottom:1px solid var(--line); }
 .sw-qa > span, .sw-qa > label { font-size:14px; font-weight:600; }
+/* what the job already says, stated where a question would be */
+.sw-qa > b { font-size:14px; font-weight:500; }
 .sw-qa em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
-.swz .sw-qa > .wb2-fi, .swz .sw-qa > .wb2-sel { width:min(320px, 100%); }
+/* a fixed width: a percentage inside an auto track resolved to the field's
+   own intrinsic size, and a hospital's name was cut off at 180px */
+.swz .sw-qa > .wb2-fi, .swz .sw-qa > .wb2-sel { width:320px; max-width:100%; }
 
 /* a category added by hand, from the ones the steps didn't switch on */
 .sw-cats { display:flex; flex-direction:column; }
@@ -120,7 +128,7 @@
 
 /* the template, read before it is approved */
 .sw-lib { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; }
-.sw-lib li { display:grid; grid-template-columns:96px minmax(0,1fr); gap:8px; font-size:14px; max-width:80ch; }
+.sw-lib li { display:grid; grid-template-columns:144px minmax(0,1fr); gap:8px; font-size:14px; max-width:80ch; }
 .sw-lib li > span { font-size:13px; font-weight:500; color:var(--q); }
 
 /* ── the job card's Compliance rows ────────────────────────────────────── */

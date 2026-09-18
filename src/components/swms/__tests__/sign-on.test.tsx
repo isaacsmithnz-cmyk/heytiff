@@ -34,7 +34,7 @@ const doc = (over: Partial<SwmsDocument> = {}): SwmsDocument => ({
   answers,
   content: buildSwms(answers, { work: "Install a split system", electricianName: "Sam Ikpeba", firstAiderName: "Troy Porter" }),
   libraryVersion: "hvac-2026.09",
-  job: { uuid: "job-1", number: "2601", clientName: null, address: "14 Attunga Road, Miranda NSW 2228", description: null, jurisdiction: "NSW", categoryName: "Install" },
+  job: { uuid: "job-1", number: "2601", clientName: null, address: "14 Attunga Road, Miranda NSW 2228", description: null, state: "NSW", jurisdiction: "NSW", postcode: "2228", categoryName: "Install" },
   responsibleStaffId: "troy",
   responsible: "Troy Porter",
   siteCheckedBy: "Troy Porter",
@@ -142,8 +142,24 @@ it("puts the reading before the signature, in plain words, in the site's own tim
   expect(screen.getByText("Falling more than 2 m")).toBeInTheDocument();
   expect(screen.queryByText("Isolate")).toBeNull();
   expect(screen.queryByText("Admin")).toBeNull();
-  // 21:42 UTC on the 15th is 7:42 am on the 16th in Sydney
-  expect(screen.getByText(/Issued Wed, 16 Sept, 7:42[\s\u202f]?am/i)).toBeInTheDocument();
+  /* 21:42 UTC on the 15th is 7:42am on the 16th in Sydney — written the way
+     the job card writes a day and the calendar writes a time */
+  expect(screen.getByText("Issued Wed 16 Sept, 7:42am. Troy Porter is in charge on site.")).toBeInTheDocument();
+});
+
+/* the person in charge ticked "I've been briefed", and the register said
+   they briefed themselves */
+it("asks the person in charge to brief everyone, not to have been briefed", async () => {
+  const unsigned = doc();
+  unsigned.people[0] = { ...unsigned.people[0], signon: null };
+  render(<SwmsSignOn doc={unsigned} me="troy" />);
+  expect(screen.getByText(/You're in charge on site\.$/)).toBeInTheDocument();
+  expect(screen.queryByRole("checkbox", { name: /I've been briefed/ })).toBeNull();
+  expect(screen.queryByText(/and tell Troy Porter/)).toBeNull();
+  sign("Your signature");
+  await userEvent.click(screen.getByRole("checkbox", { name: "I'll brief everyone on this SWMS and follow it" }));
+  await userEvent.click(screen.getByRole("button", { name: "Sign on" }));
+  expect(signOnSwms).toHaveBeenCalledWith(expect.objectContaining({ personId: "p-troy", briefed: true }));
 });
 
 it("goes back to the job it came from", () => {
@@ -151,7 +167,7 @@ it("goes back to the job it came from", () => {
   expect(screen.getByRole("link", { name: "← Job #2601" })).toHaveAttribute("href", "/dashboard/workboard?job=job-1");
 });
 
-it("says a sign-on a correction carried was given on the version before", () => {
+it("says a sign-on a correction carried was given before it, without a version number", () => {
   const carried = doc({
     version: 2,
     versions: [
@@ -160,5 +176,6 @@ it("says a sign-on a correction carried was given on the version before", () => 
     ],
   });
   render(<SwmsSignOn doc={carried} me="troy" />);
-  expect(screen.getByText(/^You signed on .*, on version 1\.$/)).toBeInTheDocument();
+  expect(screen.getByText("You signed on Wed 16 Sept, 7:50am, before a correction.")).toBeInTheDocument();
+  expect(screen.queryByText(/version 1/)).toBeNull();
 });

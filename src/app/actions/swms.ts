@@ -7,9 +7,12 @@ import { hasMinRole } from "@/lib/roles-shared";
 import { staffIdFor } from "@/lib/workboard/projects-query";
 import { todayInAu } from "@/lib/au-dates";
 import {
+  andList,
   buildSwms,
   issueProblems,
   LIBRARY_VERSION,
+  methodChanges,
+  stateNotCovered,
   type SwmsAnswers,
 } from "@/lib/swms/library";
 import { normaliseAnswers, normaliseOutsiders, signatureSvg } from "@/lib/swms/input";
@@ -20,6 +23,7 @@ import {
   loadSwmsDocument,
   loadSwmsJob,
   loadSwmsTeam,
+  nearbyHospital,
   ownerName,
   type SwmsJob,
   type SwmsSummary,
@@ -30,7 +34,8 @@ import {
    the wizard writes from, and signing on.
 
    ONE TIER TO ISSUE: `workboard`. The person standing on the job is the one
-   who walked the site, and the document records that it was them. ADOPTING
+   who walked the site, and the document records that it was them — or, for a
+   correction made from the office, the walk the version it corrects stood on. ADOPTING
    THE LIBRARY is the owner's: it is the business saying these controls are
    its own. SIGNING ON needs only membership — it is your own name on your
    own briefing, the way your own staff card is yours.
@@ -53,6 +58,11 @@ export type SwmsPrevious = {
   /** Who the last version named, by name, so a revision starts with them chosen. */
   electricianName: string | null;
   firstAiderName: string | null;
+  /** Who has a sign-on standing on it — a correction carries theirs, so the
+      screen after issuing one asks only everyone else. Outsiders by name, in
+      lower case, the way a sign-on is carried. */
+  signedStaffIds: string[];
+  signedOutsideNames: string[];
 };
 
 /** The electrician a version's power step names, read back off its words. */
@@ -78,6 +88,8 @@ export type SwmsWizardContext = {
   ownerName: string | null;
   /** The person issuing — the one who ticks "I've walked this site". */
   viewerStaffId: string | null;
+  /** The hospital the last SWMS in this postcode named, for a new one to start with. */
+  hospital: { name: string; jobNumber: string | null } | null;
 };
 
 /** Everything the wizard opens on: the job, the team and the library's state. */
@@ -87,12 +99,13 @@ export async function swmsWizardContext(jobUuid: string): Promise<SwmsWizardCont
   if (!uuid) return null;
   const job = await loadSwmsJob(orgId, uuid);
   if (!job) return null;
-  const [team, libraryApproved, role, viewerStaffId, owner] = await Promise.all([
+  const [team, libraryApproved, role, viewerStaffId, owner, hospital] = await Promise.all([
     loadSwmsTeam(orgId, uuid, todayInAu()),
     isLibraryApproved(orgId),
     getDbRole(),
     staffIdFor(orgId, userId),
     ownerName(orgId),
+    nearbyHospital(orgId, job),
   ]);
   return {
     job,
@@ -102,6 +115,7 @@ export async function swmsWizardContext(jobUuid: string): Promise<SwmsWizardCont
     canApprove: hasMinRole(role, "owner"),
     ownerName: owner,
     viewerStaffId,
+    hospital,
   };
 }
 
@@ -127,6 +141,8 @@ export async function swmsPrevious(versionId: string): Promise<SwmsPrevious | nu
     responsibleStaffId: doc.responsibleStaffId,
     electricianName: electricianIn(doc),
     firstAiderName: doc.content.emergency.firstAider && doc.content.emergency.firstAider !== "—" ? doc.content.emergency.firstAider : null,
+    signedStaffIds: doc.people.filter((p) => p.signon && p.staffProfileId).map((p) => p.staffProfileId!),
+    signedOutsideNames: doc.people.filter((p) => p.signon && !p.team).map((p) => p.name.trim().toLowerCase()),
   };
 }
 
@@ -164,9 +180,10 @@ export type IssueSwmsInput = {
   swmsId?: string | null;
   /** A revision's reason — what changed and why. */
   reason?: string | null;
-  /** A revision that changes how the work is done: everyone signs on again.
-      False is a correction, and sign-ons carry over. A first issue is always
-      signed by everyone. */
+  /** A revision that changes how the work is done: everyone signs on again
+      and the site is walked again. False is a correction, and the sign-ons
+      and the site walk carry over — refused when the method did change. A
+      first issue is always signed by everyone. */
   material?: boolean;
   answers: unknown;
   staffIds: unknown;
@@ -190,9 +207,13 @@ export async function issueSwms(input: IssueSwmsInput): Promise<IssueSwmsResult>
 
   const job = await loadSwmsJob(orgId, String(input.jobUuid ?? "").trim().slice(0, 80));
   if (!job) return fail("That job isn't on this workspace's board.");
+  /* a site the template doesn't cover gets no SWMS written to another state's rules */
+  if (job.state && !job.jurisdiction) return fail(stateNotCovered(job.state));
   if (!(await isLibraryApproved(orgId))) return fail("The owner needs to approve the SWMS template first.");
 
+  /* the site's rules are the address's when it names them, not a choice */
   const answers = normaliseAnswers(input.answers);
+  if (job.jurisdiction) answers.jurisdiction = job.jurisdiction;
   const outsiders = normaliseOutsiders(input.outsiders);
   const wanted = Array.isArray(input.staffIds)
     ? [...new Set(input.staffIds.filter((x): x is string => typeof x === "string" && x.length > 0 && x.length <= 80))]
@@ -219,17 +240,13 @@ export async function issueSwms(input: IssueSwmsInput): Promise<IssueSwmsResult>
   const firstAiderName = nameOf(input.firstAider);
   const responsibleChosen = wanted.includes(String(input.responsibleStaffId ?? ""));
 
-  const problems = issueProblems(answers, {
-    people: wanted.length + outsiders.length,
-    responsibleChosen,
-    electricianChosen: !!electricianName,
-    siteChecked: input.siteChecked === true,
-  });
-
   /* a revision: the SWMS is on this job, and says why it changed */
   let swmsId: string | null = null;
   let version = 1;
   let reason = "First issue";
+  const problems: string[] = [];
+  /** A correction's site walk: the one the version it corrects stands on. */
+  let walked: { by: string; at: string } | null = null;
   if (input.swmsId) {
     const { data: existing } = await supabaseAdmin
       .from("swms")
@@ -242,16 +259,34 @@ export async function issueSwms(input: IssueSwmsInput): Promise<IssueSwmsResult>
     swmsId = (existing as { id: string }).id;
     const { data: top } = await supabaseAdmin
       .from("swms_versions")
-      .select("version")
+      .select("version, answers, site_checked_by_staff_id, site_checked_at")
       .eq("org_id", orgId)
       .eq("swms_id", swmsId)
       .order("version", { ascending: false })
       .limit(1)
       .maybeSingle();
-    version = ((top as { version: number } | null)?.version ?? 0) + 1;
+    const last = top as { version: number; answers: unknown; site_checked_by_staff_id: string; site_checked_at: string } | null;
+    version = (last?.version ?? 0) + 1;
     reason = String(input.reason ?? "").trim().slice(0, 300);
-    if (!reason) problems.unshift("Say what changed and why.");
+    if (!reason) problems.push("Say what changed and why.");
+    if (input.material === false && last) {
+      const changed = methodChanges(normaliseAnswers(last.answers), answers);
+      if (changed.length) {
+        const what = andList(changed);
+        problems.push(`${what[0].toUpperCase()}${what.slice(1)} changed, so it can't be issued as a correction.`);
+      } else {
+        walked = { by: last.site_checked_by_staff_id, at: last.site_checked_at };
+      }
+    }
   }
+  problems.push(
+    ...issueProblems(answers, {
+      people: wanted.length + outsiders.length,
+      responsibleChosen,
+      electricianChosen: !!electricianName,
+      siteChecked: input.siteChecked === true || walked !== null,
+    })
+  );
   if (problems.length) return { ok: false, problems };
 
   const content = buildSwms(answers, {
@@ -286,8 +321,8 @@ export async function issueSwms(input: IssueSwmsInput): Promise<IssueSwmsResult>
       reason,
       material: version === 1 ? true : input.material !== false,
       responsible_staff_id: input.responsibleStaffId,
-      site_checked_by_staff_id: issuer,
-      site_checked_at: now,
+      site_checked_by_staff_id: walked?.by ?? issuer,
+      site_checked_at: walked?.at ?? now,
       issued_by_staff_id: issuer,
     })
     .select("id")
@@ -402,7 +437,8 @@ export async function signOnSwms(input: SignOnInput): Promise<SignOnResult> {
       person_id: person.id,
       signed_by_user_id: userId,
       signed_by_staff_id: viewer,
-      briefed_by_staff_id: version.responsible_staff_id,
+      /* the person in charge gives the briefing; nobody briefs them */
+      briefed_by_staff_id: person.staff_profile_id === version.responsible_staff_id ? null : version.responsible_staff_id,
       signature_svg: svg,
       issue_raised: issue,
     })

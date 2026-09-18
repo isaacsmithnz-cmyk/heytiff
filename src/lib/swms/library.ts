@@ -53,13 +53,26 @@ export type Jurisdiction = "NSW" | "QLD";
 
 /** The hierarchy of controls, strongest first. */
 export type ControlLevel = "eliminate" | "substitute" | "isolate" | "engineering" | "admin" | "ppe";
+
+/* TWO NAMES EACH, like the categories. PAPER spells out the regulation's own
+   names for the levels — "Admin" read as the office, and "PPE" as a code.
+   The TEMPLATE PAGE says what a control of that level does, for the owner
+   reading it before approving. */
 export const LEVEL_LABEL: Record<ControlLevel, string> = {
-  eliminate: "Eliminate",
-  substitute: "Substitute",
-  isolate: "Isolate",
+  eliminate: "Elimination",
+  substitute: "Substitution",
+  isolate: "Isolation",
   engineering: "Engineering",
-  admin: "Admin",
-  ppe: "PPE",
+  admin: "Administrative",
+  ppe: "Protective equipment",
+};
+export const LEVEL_PLAIN: Record<ControlLevel, string> = {
+  eliminate: "Removes the hazard",
+  substitute: "Safer substitute",
+  isolate: "Keeps people clear",
+  engineering: "Equipment",
+  admin: "Procedure",
+  ppe: "Protective gear",
 };
 
 export const STEP_KEYS = ["roof", "lift", "drill", "ceiling", "braze", "test", "power", "charge"] as const;
@@ -219,11 +232,51 @@ export function refrigerantClass(refrigerant: string): "A1" | "A2L" | "A3" {
   return "A1";
 }
 
-/** The state on an Australian address, for the rules — the site's, not the business's. */
-export function jurisdictionFromAddress(address: string | null): Jurisdiction | null {
+/* ── the site's state ──────────────────────────────────────────────────── */
+
+export const AU_STATES = ["NSW", "QLD", "VIC", "SA", "WA", "TAS", "NT", "ACT"] as const;
+export type AuState = (typeof AU_STATES)[number];
+export const STATE_NAME: Record<AuState, string> = {
+  NSW: "New South Wales",
+  QLD: "Queensland",
+  VIC: "Victoria",
+  SA: "South Australia",
+  WA: "Western Australia",
+  TAS: "Tasmania",
+  NT: "Northern Territory",
+  ACT: "Australian Capital Territory",
+};
+
+/** The state on an Australian address — the site's, not the business's. Any
+    state, so a site the template doesn't cover is named rather than read as
+    one it does. The abbreviation before a postcode wins: a street can be
+    called "Wa". */
+export function stateFromAddress(address: string | null): AuState | null {
   if (!address) return null;
-  const m = address.toUpperCase().match(/\b(NSW|QLD)\b/);
-  return m ? (m[1] as Jurisdiction) : null;
+  let last: AuState | null = null;
+  for (const m of address.toUpperCase().matchAll(/\b(NSW|QLD|VIC|SA|WA|TAS|NT|ACT)\b(\s*\d{4}\b)?/g)) {
+    if (m[2]) return m[1] as AuState;
+    last = m[1] as AuState;
+  }
+  return last;
+}
+
+/** A state ServiceM8 geocoded, by abbreviation or name. */
+export function stateFromGeo(geo: string | null): AuState | null {
+  const g = (geo ?? "").trim().toUpperCase();
+  if ((AU_STATES as readonly string[]).includes(g)) return g as AuState;
+  return AU_STATES.find((s) => STATE_NAME[s].toUpperCase() === g) ?? null;
+}
+
+/** The rules the template writes to for a state, or null for one it doesn't cover. */
+export function jurisdictionOf(state: AuState | null): Jurisdiction | null {
+  return state === "NSW" || state === "QLD" ? state : null;
+}
+
+/** Why a site in a state the template doesn't cover gets no SWMS from it. */
+export function stateNotCovered(state: AuState): string {
+  const place = state === "NT" || state === "ACT" ? `the ${STATE_NAME[state]}` : STATE_NAME[state];
+  return `This job is in ${place}. The SWMS template is written to New South Wales and Queensland rules, so it can't write one for this site.`;
 }
 
 /* ── what the answers switch on ────────────────────────────────────────── */
@@ -638,4 +691,45 @@ export function issueProblemList(a: SwmsAnswers, f: IssueFacts): IssueProblem[] 
 /** The same, as the words alone. */
 export function issueProblems(a: SwmsAnswers, f: IssueFacts): string[] {
   return issueProblemList(a, f).map((p) => p.text);
+}
+
+/* ── a correction ──────────────────────────────────────────────────────── */
+
+/* A CORRECTION DOESN'T CHANGE HOW THE WORK IS DONE. Sign-ons and the site
+   walk carry through one, so a revision that changes the method can't be
+   issued as one. Every choice that decides a step or a control is compared;
+   what may differ is what was typed (a name, an isolation point), the
+   emergency details, the people and the paperwork. */
+const METHOD: readonly [string, (a: SwmsAnswers) => string, StepKey?][] = [
+  ["the kind of job", (a) => a.kind],
+  ["the state", (a) => a.jurisdiction],
+  ["the site questions", (a) => [a.site.pre1990, a.site.powerlines, a.site.traffic, a.site.builder].join()],
+  ["the steps", (a) => STEP_KEYS.filter((k) => stepOn(a, k)).join()],
+  ["the high-risk categories", (a) => a.extraCategories.join()],
+  /* a step's own choice, compared only while the step is in both — a step
+     coming or going is already "the steps" */
+  ["fall protection", (a) => a.fall, "roof"],
+  ["how the unit goes up", (a) => a.lift, "lift"],
+  ["dust control", (a) => `${a.dust} ${a.silica}`, "drill"],
+  ["power in the roof space", (a) => a.roofPower, "ceiling"],
+  ["the refrigerant", (a) => a.refrigerant, "charge"],
+];
+
+/** What changed about how the work is done, in words; empty for a correction. */
+export function methodChanges(before: SwmsAnswers, after: SwmsAnswers): string[] {
+  return METHOD.filter(([, of, step]) => (!step || (stepOn(before, step) && stepOn(after, step))) && of(before) !== of(after)).map(
+    ([name]) => name
+  );
+}
+
+/** "the steps", "the steps and fall protection", "a, b and c". */
+export function andList(items: readonly string[]): string {
+  return items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+/* ── the team's tickets ────────────────────────────────────────────────── */
+
+/** A first aid ticket, however it was typed on a staff card. CPR on its own isn't one. */
+export function isFirstAidTicket(name: string): boolean {
+  return /first[\s-]*aid|\bhltaid0(03|11|12|14)\b/i.test(name);
 }

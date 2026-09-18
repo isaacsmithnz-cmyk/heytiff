@@ -278,7 +278,7 @@ describe("chipGroup", () => {
 describe("swmsSignonChip", () => {
   const pending = {
     versionId: "v-1",
-    version: 1,
+    again: false,
     jobNumber: "2601",
     site: "14 Attunga Road, Miranda NSW 2228",
     issuedAt: `${TODAY}T07:42:00.000Z`,
@@ -297,8 +297,11 @@ describe("swmsSignonChip", () => {
     expect(chipGroup(chip.kind)).toBe("Workboard");
   });
 
-  it("says which version when a revision asks again", () => {
-    expect(swmsSignonChip({ ...pending, version: 3 }, { today: TODAY }).label).toBe("Sign on to version 3 of the SWMS");
+  /* someone new to the job never saw version 1, so no number: someone who
+     was on it before is told it's the revised one */
+  it("tells someone who was on it before that it's been revised, and nobody a version number", () => {
+    expect(swmsSignonChip({ ...pending, again: true }, { today: TODAY }).label).toBe("Sign on to the revised SWMS");
+    expect(swmsSignonChip(pending, { today: TODAY }).label).not.toMatch(/version/);
   });
 
   it("sorts an older issue ahead of a newer one", () => {

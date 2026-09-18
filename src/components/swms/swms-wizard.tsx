@@ -12,12 +12,17 @@ import {
 } from "@/app/actions/swms";
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
 import {
+  andList,
   buildSwms,
   categoriesOf,
   HRCW,
+  isFirstAidTicket,
   issueProblemList,
   kindFromCategory,
+  methodChanges,
   startingAnswers,
+  STATE_NAME,
+  stateNotCovered,
   STEP_TITLE,
   stepOn,
   stepsFor,
@@ -25,6 +30,7 @@ import {
   type StepKey,
   type SwmsAnswers,
 } from "@/lib/swms/library";
+import type { SwmsTeamMember } from "@/lib/swms/query";
 import { ApproveTemplate } from "./approve-template";
 import { TemplateSteps } from "./template-steps";
 import "./swms.css";
@@ -92,12 +98,15 @@ const REFRIGERANTS = [
 ] as const;
 type Refrigerant = (typeof REFRIGERANTS)[number][0];
 
-const STATE_NAME = { NSW: "New South Wales", QLD: "Queensland" } as const;
 const REGULATION = {
   NSW: "Work Health and Safety Regulation 2025 (NSW)",
   QLD: "Work Health and Safety Regulation 2011 (Qld)",
 } as const;
 const PLAIN = new Map(HRCW.map((c) => [c.n, c.plain]));
+
+/** A current first aid ticket on their staff card. */
+const hasFirstAid = (t: SwmsTeamMember) => t.tickets.some((k) => k.current && isFirstAidTicket(k.name));
+const capital = (s: string) => `${s.charAt(0).toUpperCase()}${s.slice(1)}`;
 
 function Seg<T extends string>({
   label,
@@ -138,6 +147,7 @@ function Choice({
   sub,
   kind = "radio",
   id,
+  disabled = false,
 }: {
   name: string;
   checked: boolean;
@@ -146,10 +156,11 @@ function Choice({
   sub?: string | null;
   kind?: "radio" | "checkbox";
   id?: string;
+  disabled?: boolean;
 }) {
   return (
-    <label className={`sw-opt${checked ? " on" : ""}`}>
-      <input id={id} type={kind} name={name} checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <label className={`sw-opt${checked ? " on" : ""}${disabled ? " off" : ""}`}>
+      <input id={id} type={kind} name={name} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span>
         <b>{title}</b>
         {sub && <em>{sub}</em>}
@@ -174,7 +185,7 @@ export function SwmsWizard({
   /** Takes the reader to the sign-on for a version. */
   onSignOn: (versionId: string) => void;
   /** Opens a version in the card's own viewer. */
-  onOpen: (versionId: string, version: number) => void;
+  onOpen: (versionId: string) => void;
 }) {
   const [ctx, setCtx] = useState<SwmsWizardContext | null | "failed">(null);
   const [prev, setPrev] = useState<SwmsPrevious | null>(null);
@@ -185,6 +196,9 @@ export function SwmsWizard({
   const [responsible, setResponsible] = useState<string | null>(null);
   const [electrician, setElectrician] = useState("");
   const [firstAider, setFirstAider] = useState("");
+  /* Until someone picks one, the first aider is whoever the staff records say
+     holds first aid — the person in charge first. */
+  const [aiderChosen, setAiderChosen] = useState(false);
   const [checked, setChecked] = useState(false);
   const [reason, setReason] = useState("");
   const [material, setMaterial] = useState(true);
@@ -228,16 +242,23 @@ export function SwmsWizard({
             return o ? `out:${o.id}` : "";
           };
           setPrev(p);
-          setA(p.answers);
+          /* the site's rules are its address's, even when an old version guessed */
+          setA(c.job.jurisdiction ? { ...p.answers, jurisdiction: c.job.jurisdiction } : p.answers);
           setCovers(covered);
           setOutsiders(rows);
           setResponsible(onTeam(p.responsibleStaffId) ? p.responsibleStaffId : null);
           setElectrician(keyFor(p.electricianName));
-          setFirstAider(keyFor(p.firstAiderName));
+          const aider = keyFor(p.firstAiderName);
+          setFirstAider(aider);
+          setAiderChosen(!!aider);
         } else {
           const booked = c.team.filter((t) => t.booked).map((t) => t.id);
           const people = booked.length ? booked : c.viewerStaffId && onTeam(c.viewerStaffId) ? [c.viewerStaffId] : [];
-          setA(startingAnswers(kindFromCategory(c.job.categoryName) ?? "install", c.job.jurisdiction ?? "NSW"));
+          setA({
+            ...startingAnswers(kindFromCategory(c.job.categoryName) ?? "install", c.job.jurisdiction ?? "NSW"),
+            /* the area's hospital, from the last SWMS in the same postcode */
+            hospital: c.hospital?.name ?? "",
+          });
           setCovers(people);
           setResponsible(c.viewerStaffId && people.includes(c.viewerStaffId) ? c.viewerStaffId : people[0] ?? null);
         }
@@ -316,18 +337,25 @@ export function SwmsWizard({
   const cover = (id: string) => setCovers((c) => (c.includes(id) ? c : [...c, id]));
   const electricianOk = !!personName(electrician);
   const responsibleOk = !!responsible && covers.includes(responsible);
+  const autoAider = coveredTeam.find((t) => t.id === responsible && hasFirstAid(t)) ?? coveredTeam.find(hasFirstAid) ?? null;
+  const aider = aiderChosen ? firstAider : autoAider ? `staff:${autoAider.id}` : "";
+
+  /* A CORRECTION CARRIES the sign-ons and the site walk, so it is offered
+     only while how the work is done is unchanged. */
+  const changes = prev ? methodChanges(prev.answers, a) : [];
+  const correction = !!prev && !material && changes.length === 0;
 
   const cats = categoriesOf(a);
   const content = buildSwms(a, {
     work: "",
     electricianName: stepOn(a, "power") ? personName(electrician) : null,
-    firstAiderName: personName(firstAider),
+    firstAiderName: personName(aider),
   });
   const problems: { field: ProblemField | "reason"; text: string }[] = issueProblemList(a, {
     people: people.length,
     responsibleChosen: responsibleOk,
     electricianChosen: electricianOk,
-    siteChecked: checked,
+    siteChecked: checked || correction,
   });
   if (prev && !reason.trim()) problems.unshift({ field: "reason", text: "Say what changed and why." });
   const version = prev ? prev.version + 1 : 1;
@@ -351,13 +379,13 @@ export function SwmsWizard({
         jobUuid,
         swmsId: prev?.swmsId ?? null,
         reason: prev ? reason : null,
-        material: prev ? material : true,
+        material: !correction,
         answers: a,
         staffIds: covers,
         outsiders: named.map((o) => ({ name: o.name.trim(), company: o.company.trim() || null })),
         responsibleStaffId: responsible,
         electrician: stepOn(a, "power") ? serverKey(electrician) : null,
-        firstAider: serverKey(firstAider),
+        firstAider: serverKey(aider),
         siteChecked: checked,
       });
       if (res.ok) {
@@ -392,7 +420,10 @@ export function SwmsWizard({
   const clearOutsider = (id: string) => {
     setOutsiders((rows) => rows.filter((r) => r.id !== id));
     if (electrician === `out:${id}`) setElectrician("");
-    if (firstAider === `out:${id}`) setFirstAider("");
+    if (aider === `out:${id}`) {
+      setFirstAider("");
+      setAiderChosen(false);
+    }
     touch();
   };
   const toggleCover = (id: string, on: boolean) => {
@@ -400,7 +431,10 @@ export function SwmsWizard({
     setCovers(next);
     if (!on && responsible === id) setResponsible(next[0] ?? null);
     if (!on && electrician === `staff:${id}`) setElectrician("");
-    if (!on && firstAider === `staff:${id}`) setFirstAider("");
+    if (!on && aiderChosen && firstAider === `staff:${id}`) {
+      setFirstAider("");
+      setAiderChosen(false);
+    }
     if (on && !responsible) setResponsible(id);
     touch();
   };
@@ -440,13 +474,24 @@ export function SwmsWizard({
           </span>
           <Seg id="swz-kind" label="The job" value={a.kind} options={[["install", "Install or replace"], ["service", "Service or repair"]] as const} onChange={setKind} />
         </div>
-        <div className="sw-qa">
-          <span>
-            State
-            <em>{job?.jurisdiction ? "From the site address" : "The address doesn't say; this template covers NSW and Queensland"}</em>
-          </span>
-          <Seg label="State" value={a.jurisdiction} options={[["NSW", "NSW"], ["QLD", "QLD"]] as const} onChange={(v) => set({ jurisdiction: v, roofPower: v === "QLD" ? "off" : a.roofPower })} />
-        </div>
+        {/* what the address says is a fact, not a question */}
+        {job?.jurisdiction ? (
+          <div className="sw-qa">
+            <span>
+              State
+              <em>From the site address</em>
+            </span>
+            <b>{STATE_NAME[job.jurisdiction]}</b>
+          </div>
+        ) : (
+          <div className="sw-qa">
+            <span>
+              State
+              <em>The address doesn&apos;t say</em>
+            </span>
+            <Seg label="State" value={a.jurisdiction} options={[["NSW", "NSW"], ["QLD", "QLD"]] as const} onChange={(v) => set({ jurisdiction: v, roofPower: v === "QLD" ? "off" : a.roofPower })} />
+          </div>
+        )}
         <div className="sw-qa">
           <span>Built before 1990?</span>
           <Seg label="Built before 1990" value={a.site.pre1990 ? "yes" : "no"} options={[["no", "No"], ["yes", "Yes or not sure"]] as const} onChange={(v) => setSite("pre1990", v === "yes")} />
@@ -618,6 +663,8 @@ export function SwmsWizard({
     </>
   );
 
+  /* the hospital the last SWMS in this postcode named, while it's still the one filled in */
+  const nearby = !prev && ctx && ctx !== "failed" && ctx.hospital && a.hospital === ctx.hospital.name ? ctx.hospital : null;
   const who = (
     <>
       <div className="sw-grp">
@@ -719,13 +766,17 @@ export function SwmsWizard({
         </div>
         <div className="sw-qas">
           <div className="sw-qa">
-            <label htmlFor="swz-aid">First aider</label>
+            <span>
+              <label htmlFor="swz-aid">First aider</label>
+              {!aiderChosen && autoAider && <em>Has first aid on file</em>}
+            </span>
             <select
               id="swz-aid"
               className="wb2-sel"
-              value={firstAider}
+              value={aider}
               onChange={(e) => {
                 setFirstAider(e.target.value);
+                setAiderChosen(true);
                 touch();
               }}
             >
@@ -742,7 +793,10 @@ export function SwmsWizard({
             <Seg label="Fire extinguisher" value={a.extinguisher} options={[["van", "In the van"], ["site", "On site"]] as const} onChange={(v) => set({ extinguisher: v })} />
           </div>
           <div className="sw-qa">
-            <label htmlFor="swz-hosp">Nearest hospital</label>
+            <span>
+              <label htmlFor="swz-hosp">Nearest hospital</label>
+              {nearby && <em>{nearby.jobNumber ? `From job #${nearby.jobNumber}, in the same postcode` : "From a SWMS in the same postcode"}</em>}
+            </span>
             <input id="swz-hosp" className="wb2-fi" value={a.hospital} onChange={(e) => set({ hospital: e.target.value })} />
           </div>
         </div>
@@ -863,23 +917,24 @@ export function SwmsWizard({
           <div className="sw-opts">
             <Choice
               name="material"
-              checked={material}
+              checked={!correction}
               onChange={() => {
                 setMaterial(true);
                 touch();
               }}
               title="It changes how the work is done"
-              sub="Everyone signs on again"
+              sub="Everyone signs on again, and the site is walked again"
             />
             <Choice
               name="material"
-              checked={!material}
+              checked={correction}
+              disabled={changes.length > 0}
               onChange={() => {
                 setMaterial(false);
                 touch();
               }}
               title="It's a correction"
-              sub={`Sign-ons on version ${prev.version} carry over`}
+              sub={changes.length > 0 ? `${capital(andList(changes))} changed, so everyone signs on again` : "Sign-ons and the site walk carry over"}
             />
           </div>
         </div>
@@ -899,18 +954,21 @@ export function SwmsWizard({
         </ul>
       )}
 
-      <Choice
-        id="swz-walked"
-        kind="checkbox"
-        name="checked"
-        checked={checked}
-        onChange={(on) => {
-          setChecked(on);
-          touch();
-        }}
-        title="I've walked this site and this SWMS matches it"
-        sub="Recorded with your name and the time"
-      />
+      {/* a correction stands on the walk the version it corrects was issued on */}
+      {!correction && (
+        <Choice
+          id="swz-walked"
+          kind="checkbox"
+          name="checked"
+          checked={checked}
+          onChange={(on) => {
+            setChecked(on);
+            touch();
+          }}
+          title="I've walked this site and this SWMS matches it"
+          sub="Recorded with your name and the time"
+        />
+      )}
     </>
   );
 
@@ -925,6 +983,17 @@ export function SwmsWizard({
     body = <p className="sw-note">Reading the job and the team…</p>;
   } else if (ctx === "failed") {
     body = <p className="sw-note">Couldn&apos;t open the SWMS for this job. Close it and try again.</p>;
+    foot = (
+      <>
+        <span />
+        <button type="button" className="pbtn" onClick={onClose}>
+          Close
+        </button>
+      </>
+    );
+  } else if (ctx.job.state && !ctx.job.jurisdiction) {
+    /* named, and nothing to press: a SWMS to another state's rules is worse than none */
+    body = <p className="sw-text">{stateNotCovered(ctx.job.state)}</p>;
     foot = (
       <>
         <span />
@@ -971,24 +1040,25 @@ export function SwmsWizard({
       );
     }
   } else if (issued) {
-    const me = coveredTeam.find((t) => t.id === ctx.viewerStaffId);
-    const inBells = coveredTeam.filter((t) => t.id !== ctx.viewerStaffId);
-    const correction = !!prev && !material;
-    const here = correction
-      ? []
-      : [
-          ...(me ? [{ key: "me", name: me.name, sub: "You" }] : []),
-          ...named.map((o) => ({ key: o.id, name: o.name.trim(), sub: o.company.trim() || "Outside the business" })),
-        ];
+    /* who a correction carried is signed on already; everyone else — anyone
+       it added, anyone who hadn't signed — is asked, here or in their bell */
+    const carriedStaff = new Set(correction && prev ? prev.signedStaffIds : []);
+    const carriedOutside = new Set(correction && prev ? prev.signedOutsideNames : []);
+    const me = coveredTeam.find((t) => t.id === ctx.viewerStaffId && !carriedStaff.has(t.id));
+    const inBells = coveredTeam.filter((t) => t.id !== ctx.viewerStaffId && !carriedStaff.has(t.id));
+    const here = [
+      ...(me ? [{ key: "me", name: me.name, sub: "You" }] : []),
+      ...named
+        .filter((o) => !carriedOutside.has(o.name.trim().toLowerCase()))
+        .map((o) => ({ key: o.id, name: o.name.trim(), sub: o.company.trim() || "Outside the business" })),
+    ];
     title = issued.version > 1 ? `Version ${issued.version} is on the job` : "The SWMS is on the job";
     body = (
       <div className="sw-issued">
         <p className="sw-text">
-          {correction
-            ? `Filed under Documents, Compliance. Sign-ons on version ${prev.version} carry over, and anyone who hasn't signed on is asked in their bell.`
-            : "Filed under Documents, Compliance."}
+          {correction ? "Filed under Documents, Compliance. Anyone who signed on before stays signed on." : "Filed under Documents, Compliance."}
         </p>
-        {!correction && inBells.length > 0 && (
+        {inBells.length > 0 && (
           <div className="sw-grp">
             <div className="sw-gh">
               <b>Asked in their bell</b>
@@ -1019,7 +1089,7 @@ export function SwmsWizard({
     foot = (
       <>
         <span />
-        <button type="button" className="pbtn ghost" onClick={() => onOpen(issued.versionId, issued.version)}>
+        <button type="button" className="pbtn ghost" onClick={() => onOpen(issued.versionId)}>
           Open the SWMS
         </button>
         {here.length > 0 ? (
@@ -1053,7 +1123,8 @@ export function SwmsWizard({
       </>
     ) : (
       <>
-        <span className={error ? "sw-state bad" : undefined}>{error ?? `Step ${at + 1} of 4`}</span>
+        {/* the tabs already say which screen this is */}
+        <span className={error ? "sw-state bad" : undefined}>{error}</span>
         {at > 0 && (
           <button type="button" className="pbtn ghost" onClick={() => go(TABS[at - 1].key)}>
             Back

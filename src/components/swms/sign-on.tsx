@@ -8,6 +8,7 @@ import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
 import { SIGNATURE_VIEWBOX } from "@/lib/swms/input";
 import { HRCW } from "@/lib/swms/library";
 import type { SwmsDocument, SwmsPerson } from "@/lib/swms/query";
+import { siteWhen } from "@/lib/swms/when";
 import "./swms.css";
 
 /* THE SIGN-ON — read the SWMS, confirm the briefing, sign in the box.
@@ -19,19 +20,6 @@ import "./swms.css";
 
    A REPLACED VERSION IS READ-ONLY. Its sign-ons stand as history, and the
    screen points at the version that replaced it, which asks again. */
-
-/* THE SITE'S CLOCK, named. Formatting in the runtime's own zone wrote the
-   server's UTC into the first paint and the phone's zone into hydration —
-   two different strings for one moment. */
-const whenIn = (jurisdiction: "NSW" | "QLD") => (iso: string): string =>
-  new Intl.DateTimeFormat("en-AU", {
-    hour: "numeric",
-    minute: "2-digit",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: jurisdiction === "QLD" ? "Australia/Brisbane" : "Australia/Sydney",
-  }).format(new Date(iso));
 
 /* The drawn path as SVG path data in the stored viewBox — moves and lines,
    rounded, with points closer than a pixel of paper dropped so a slow hand
@@ -120,12 +108,15 @@ function SignaturePad({ onChange, label }: { onChange: (path: string) => void; l
 function SignOnForm({
   person,
   own,
+  inCharge = false,
   responsible,
   onSigned,
 }: {
   person: SwmsPerson;
   /** Signing on as yourself, or a helper on your phone. */
   own: boolean;
+  /** You're the person in charge: you give the briefing, nobody gives it you. */
+  inCharge?: boolean;
   responsible: string;
   onSigned: () => void;
 }) {
@@ -159,14 +150,22 @@ function SignOnForm({
         {!own && <span>{person.role || "Outside the business"}, on your phone</span>}
       </div>
       <p className="sw-text">
-        {own
-          ? `By signing I confirm I was consulted and briefed on this SWMS, I understand it, and I'll follow it. If a control can't be followed I'll stop work and tell ${responsible}.`
-          : `${person.name} confirms they were consulted and briefed on this SWMS, understand it, and will follow it. If a control can't be followed they'll stop work and tell ${responsible}.`}
+        {inCharge
+          ? "By signing I confirm I understand this SWMS and I'll follow it. I'll brief everyone it covers before work starts, and if a control can't be followed I'll stop the work."
+          : own
+            ? `By signing I confirm I was consulted and briefed on this SWMS, I understand it, and I'll follow it. If a control can't be followed I'll stop work and tell ${responsible}.`
+            : `${person.name} confirms they were consulted and briefed on this SWMS, understand it, and will follow it. If a control can't be followed they'll stop work and tell ${responsible}.`}
       </p>
       <label className={`sw-opt${briefed ? " on" : ""}`}>
         <input type="checkbox" checked={briefed} onChange={(e) => setBriefed(e.target.checked)} />
         <span>
-          <b>{own ? "I've been briefed and I'll follow this SWMS" : `${person.name} has been briefed and will follow this SWMS`}</b>
+          <b>
+            {inCharge
+              ? "I'll brief everyone on this SWMS and follow it"
+              : own
+                ? "I've been briefed and I'll follow this SWMS"
+                : `${person.name} has been briefed and will follow this SWMS`}
+          </b>
         </span>
       </label>
       <SignaturePad onChange={setPath} label={own ? "Your signature" : `${person.name}'s signature`} />
@@ -202,10 +201,12 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
   const outsiders = doc.people.filter((p) => !p.team && !p.signon);
   const latest = doc.versions[doc.versions.length - 1];
   const c = doc.content;
-  const fmtWhen = whenIn(c.jurisdiction);
-  /** "Signed on 7:50 am Wed 16 Sept", and which version when a correction carried it. */
+  const inCharge = !!mine && mine.staffProfileId === doc.responsibleStaffId;
+  /** "Wed 16 Sept, 7:50am", and "before a correction" when one carried it —
+      a time earlier than the issue needs saying why, and a version number
+      means nothing to someone who joined after it. */
   const signedWhen = (sg: NonNullable<SwmsPerson["signon"]>) =>
-    `${fmtWhen(sg.at)}${sg.version < doc.version ? `, on version ${sg.version}` : ""}`;
+    `${siteWhen(sg.at, c.jurisdiction)}${sg.version < doc.version ? ", before a correction" : ""}`;
 
   const signed = () => {
     setHelper(null);
@@ -252,7 +253,7 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
             <div className="card2 sws-card">
               <div className="sw-gh">
                 <b>Before you start</b>
-                <span>{`Issued ${fmtWhen(doc.issuedAt)}. ${doc.responsible} is in charge on site.`}</span>
+                <span>{`Issued ${siteWhen(doc.issuedAt, c.jurisdiction)}. ${inCharge ? "You're" : `${doc.responsible} is`} in charge on site.`}</span>
               </div>
               {c.categories.length > 0 && (
                 <div className="sw-grp">
@@ -306,7 +307,7 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
             </div>
 
             {doc.latest && mine && !mine.signon && (
-              <SignOnForm person={mine} own responsible={doc.responsible} onSigned={signed} />
+              <SignOnForm person={mine} own inCharge={inCharge} responsible={doc.responsible} onSigned={signed} />
             )}
 
             <div className="card2 sws-card">

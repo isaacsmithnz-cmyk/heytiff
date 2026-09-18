@@ -2,8 +2,11 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { displayNameOf, type NameParts } from "@/lib/staff/name";
 import {
-  jurisdictionFromAddress,
+  jurisdictionOf,
   LIBRARY_VERSION,
+  stateFromAddress,
+  stateFromGeo,
+  type AuState,
   type Jurisdiction,
   type SwmsAnswers,
   type SwmsContent,
@@ -19,7 +22,14 @@ export type SwmsJob = {
   clientName: string | null;
   address: string | null;
   description: string | null;
+  /** The site's state, any state — named, so a site the template doesn't
+      cover is said to be one instead of read as New South Wales. */
+  state: AuState | null;
+  /** The rules the template writes to there; null when the state is unknown
+      or not one it covers. */
   jurisdiction: Jurisdiction | null;
+  /** The site's postcode — the area a nearest hospital belongs to. */
+  postcode: string | null;
   /** The job's ServiceM8 category — "Install", "Service" — which answers
       whether this is an install without asking. */
   categoryName: string | null;
@@ -38,7 +48,7 @@ export type SwmsTeamMember = {
 export async function loadSwmsJob(orgId: string, jobUuid: string): Promise<SwmsJob | null> {
   const { data } = await supabaseAdmin
     .from("sm8_jobs")
-    .select("uuid, generated_job_id, company_uuid, category_uuid, job_address, geo_state, job_description")
+    .select("uuid, generated_job_id, company_uuid, category_uuid, job_address, geo_state, geo_postcode, job_description")
     .eq("org_id", orgId)
     .eq("uuid", jobUuid)
     .eq("active", 1)
@@ -50,6 +60,7 @@ export async function loadSwmsJob(orgId: string, jobUuid: string): Promise<SwmsJ
     category_uuid: string | null;
     job_address: string | null;
     geo_state: string | null;
+    geo_postcode?: string | null;
     job_description: string | null;
   } | null;
   if (!job) return null;
@@ -64,16 +75,70 @@ export async function loadSwmsJob(orgId: string, jobUuid: string): Promise<SwmsJ
   ]);
   const clientName = (co as { name: string | null } | null)?.name?.trim() || null;
 
-  const state = (job.geo_state ?? "").toUpperCase();
+  const state = stateFromGeo(job.geo_state) ?? stateFromAddress(job.job_address);
   return {
     uuid: job.uuid,
     number: job.generated_job_id,
     clientName,
     address: job.job_address?.trim() || null,
     description: job.job_description?.trim() || null,
-    jurisdiction: state === "NSW" || state === "QLD" ? state : jurisdictionFromAddress(job.job_address),
+    state,
+    jurisdiction: jurisdictionOf(state),
+    postcode: postcodeOf(job.geo_postcode ?? null, job.job_address),
     categoryName: (cat as { name: string | null } | null)?.name?.trim() || null,
   };
+}
+
+/** ServiceM8's geocoded postcode, or the one that ends the address. */
+function postcodeOf(geo: string | null, address: string | null): string | null {
+  const g = (geo ?? "").trim();
+  if (/^\d{4}$/.test(g)) return g;
+  return /\b(\d{4})\s*(,\s*australia)?\s*$/i.exec(address ?? "")?.[1] ?? null;
+}
+
+/* THE NEAREST HOSPITAL BELONGS TO THE AREA, not the job. Typed once for a
+   postcode, it is the same for the next job there, so a new SWMS starts with
+   the hospital the last SWMS in that postcode named. Never from further
+   away: a hospital an hour off, filled in and not noticed, is worse than a
+   blank that asks. */
+export async function nearbyHospital(
+  orgId: string,
+  job: SwmsJob
+): Promise<{ name: string; jobNumber: string | null } | null> {
+  if (!job.postcode) return null;
+  const { data: versionRows } = await supabaseAdmin
+    .from("swms_versions")
+    .select("swms_id, answers, issued_at")
+    .eq("org_id", orgId)
+    .order("issued_at", { ascending: false })
+    .limit(200);
+  const named = ((versionRows ?? []) as { swms_id: string; answers: { hospital?: unknown } | null }[])
+    .map((v) => ({ swmsId: v.swms_id, hospital: typeof v.answers?.hospital === "string" ? v.answers.hospital.trim() : "" }))
+    .filter((v) => v.hospital);
+  if (!named.length) return null;
+
+  const { data: swmsRows } = await supabaseAdmin
+    .from("swms")
+    .select("id, sm8_job_uuid")
+    .eq("org_id", orgId)
+    .in("id", [...new Set(named.map((v) => v.swmsId))]);
+  const jobOf = new Map(((swmsRows ?? []) as { id: string; sm8_job_uuid: string }[]).map((x) => [x.id, x.sm8_job_uuid]));
+  const { data: jobRows } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("uuid, generated_job_id, geo_postcode, job_address")
+    .eq("org_id", orgId)
+    .in("uuid", [...new Set(jobOf.values())]);
+  const jobs = new Map(
+    ((jobRows ?? []) as { uuid: string; generated_job_id: string | null; geo_postcode?: string | null; job_address: string | null }[]).map((j) => [j.uuid, j])
+  );
+
+  for (const v of named) {
+    const j = jobs.get(jobOf.get(v.swmsId) ?? "");
+    if (j && postcodeOf(j.geo_postcode ?? null, j.job_address) === job.postcode) {
+      return { name: v.hospital, jobNumber: j.generated_job_id };
+    }
+  }
+  return null;
 }
 
 type ProfileRow = NameParts & { id: string; job_title: string | null; status: string | null };
@@ -382,7 +447,11 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
                 at: eff.signon.at,
                 version: eff.version,
                 onPhoneOf: !team && eff.signon.signedByStaffId ? nameIn(names, eff.signon.signedByStaffId) : null,
-                briefedBy: eff.signon.briefedByStaffId ? nameIn(names, eff.signon.briefedByStaffId) : null,
+                /* the person in charge gives the briefing; nobody briefs them */
+                briefedBy:
+                  eff.signon.briefedByStaffId && eff.signon.briefedByStaffId !== p.staffProfileId
+                    ? nameIn(names, eff.signon.briefedByStaffId)
+                    : null,
                 issue: eff.signon.issue,
                 svg: eff.signon.svg,
               }
@@ -464,6 +533,9 @@ export async function listJobSwms(orgId: string, jobUuid: string, viewerStaffId:
 export type PendingSignon = {
   versionId: string;
   version: number;
+  /** On an earlier version too, so this is the SWMS they knew, revised. Someone
+      new to it never saw version 1, and isn't told there was one. */
+  again: boolean;
   jobNumber: string | null;
   site: string | null;
   issuedAt: string;
@@ -501,13 +573,16 @@ export async function pendingSignons(orgId: string, staffProfileId: string): Pro
     const latest = versions.reduce((a, b) => (b.version > a.version ? b : a));
     const me = chain.people.find((p) => p.versionId === latest.id && p.staffProfileId === staffProfileId);
     if (!me || standingSignons(chain, id).get(me.id)) return [];
-    return [latest];
+    const earlier = new Set(versions.filter((v) => v.version < latest.version).map((v) => v.id));
+    const again = chain.people.some((p) => earlier.has(p.versionId) && p.staffProfileId === staffProfileId);
+    return [{ ...latest, again }];
   });
 
   const jobs = await Promise.all(pending.map((v) => loadSwmsJob(orgId, jobOf.get(v.swmsId) ?? "")));
   return pending.map((v, i) => ({
     versionId: v.id,
     version: v.version,
+    again: v.again,
     jobNumber: jobs[i]?.number ?? null,
     site: jobs[i]?.address ?? null,
     issuedAt: v.issuedAt,

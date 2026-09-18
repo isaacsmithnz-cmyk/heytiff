@@ -30,7 +30,9 @@ const context = (over: Partial<SwmsWizardContext> = {}): SwmsWizardContext => ({
     clientName: "M. and J. Rowe",
     address: "14 Attunga Road, Miranda NSW 2228",
     description: "Supply and install a 5.0 kW split system",
+    state: "NSW",
     jurisdiction: "NSW",
+    postcode: "2228",
     categoryName: "Install",
   },
   team: [
@@ -43,6 +45,7 @@ const context = (over: Partial<SwmsWizardContext> = {}): SwmsWizardContext => ({
   canApprove: false,
   ownerName: "Isaac Smith",
   viewerStaffId: "troy",
+  hospital: null,
   ...over,
 });
 
@@ -79,9 +82,70 @@ describe("what the job already says", () => {
     expect(screen.getByText("14 Attunga Road, Miranda NSW 2228")).toBeInTheDocument();
     expect(screen.getByText("From the job's category, Install")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Install or replace", pressed: true })).toBeInTheDocument();
+    /* the address names the state, so it's stated, not asked */
     expect(screen.getByText("From the site address")).toBeInTheDocument();
+    expect(panel("work").getByText("New South Wales")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "State" })).toBeNull();
     /* no high-risk categories on the first screen — they come from steps not yet ticked */
     expect(panel("work").queryByText(/Falling more than 2 m/)).toBeNull();
+    /* the tabs say which screen this is; the footer doesn't say it again */
+    expect(screen.queryByText(/Step \d of 4/)).toBeNull();
+  });
+
+  it("asks the state only when the address doesn't say", async () => {
+    swmsWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "14 Attunga Road, Miranda", state: null, jurisdiction: null } }));
+    open();
+    await ready();
+    expect(screen.getByText("The address doesn't say")).toBeInTheDocument();
+    await userEvent.click(within(screen.getByRole("group", { name: "State" })).getByRole("button", { name: "QLD" }));
+    await tab("Review");
+    expect(panel("review").getByText("Queensland")).toBeInTheDocument();
+  });
+
+  /* a Victorian site was read as "the address doesn't say" and written to NSW rules */
+  it("names a state the template doesn't cover, and offers nothing but Close", async () => {
+    swmsWizardContext.mockImplementation(async () => context({ job: { ...context().job, address: "8 Lygon Street, Brunswick VIC 3056", state: "VIC", jurisdiction: null } }));
+    open();
+    expect(
+      await screen.findByText("This job is in Victoria. The SWMS template is written to New South Wales and Queensland rules, so it can't write one for this site.")
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+  });
+
+  /* the nearest hospital was typed from scratch on every SWMS */
+  it("starts with the hospital the last SWMS in the same postcode named, and says where it came from", async () => {
+    swmsWizardContext.mockImplementation(async () => context({ hospital: { name: "Sutherland Hospital, Caringbah", jobNumber: "2598" } }));
+    open();
+    await ready();
+    await tab("Who it covers");
+    expect(screen.getByLabelText("Nearest hospital")).toHaveValue("Sutherland Hospital, Caringbah");
+    expect(screen.getByText("From job #2598, in the same postcode")).toBeInTheDocument();
+    await userEvent.clear(screen.getByLabelText("Nearest hospital"));
+    await userEvent.type(screen.getByLabelText("Nearest hospital"), "St George Hospital");
+    expect(screen.queryByText("From job #2598, in the same postcode")).toBeNull();
+  });
+
+  /* the first aider started "Not named" though staff records said who holds first aid */
+  it("names the first aider the staff records show, until someone picks one", async () => {
+    swmsWizardContext.mockImplementation(async () =>
+      context({
+        team: [
+          { id: "troy", name: "Troy Porter", role: "Crew lead", booked: true, tickets: [{ name: "White Card", expires: null, current: true }] },
+          { id: "dane", name: "Dane Whitmore", role: "", booked: true, tickets: [{ name: "HLTAID011 Provide First Aid", expires: "2027-01-01", current: true }] },
+          { id: "sam", name: "Sam Ikpeba", role: "Electrician", booked: false, tickets: [{ name: "First aid", expires: "2020-01-01", current: false }] },
+        ],
+      })
+    );
+    open();
+    await ready();
+    await tab("Who it covers");
+    expect((screen.getByLabelText("First aider") as HTMLSelectElement).value).toBe("staff:dane");
+    expect(screen.getByText("Has first aid on file")).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText("First aider"), "");
+    expect((screen.getByLabelText("First aider") as HTMLSelectElement).value).toBe("");
+    expect(screen.queryByText("Has first aid on file")).toBeNull();
   });
 
   it("starts an install with the steps every install has, and the site's steps unticked", async () => {
@@ -198,7 +262,7 @@ describe("the review", () => {
     expect(onIssued).toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole("button", { name: "Open the SWMS" }));
-    expect(onOpen).toHaveBeenCalledWith("v-1", 1);
+    expect(onOpen).toHaveBeenCalledWith("v-1");
     await userEvent.click(screen.getByRole("button", { name: "Sign on now" }));
     expect(onSignOn).toHaveBeenCalledWith("v-1");
     window.removeEventListener(BELL_REFRESH_EVENT, bell);
@@ -251,6 +315,8 @@ describe("a revision", () => {
       responsibleStaffId: "troy",
       electricianName: "Sam Ikpeba",
       firstAiderName: "Troy Porter",
+      signedStaffIds: ["troy"],
+      signedOutsideNames: ["kai lindqvist"],
     }));
   });
 
@@ -268,15 +334,55 @@ describe("a revision", () => {
     expect(screen.getByRole("button", { name: "Issue version 2" })).toBeDisabled();
   });
 
-  it("sends a correction as one that carries sign-ons", async () => {
+  /* a correction from the office had to tick "I've walked this site" */
+  it("issues a correction on the site walk it corrects, carrying the sign-ons", async () => {
     open("v-1");
     await screen.findByRole("heading", { name: "Revise the SWMS" });
     await tab("Review");
     await userEvent.type(screen.getByLabelText("What changed"), "Hospital name was wrong");
+    expect(screen.getByRole("checkbox", { name: /walked this site/ })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("radio", { name: /It's a correction/ }));
-    await userEvent.click(screen.getByRole("checkbox", { name: /walked this site/ }));
+    expect(screen.getByText("Sign-ons and the site walk carry over")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /walked this site/ })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Issue version 2" }));
     expect(issueSwms).toHaveBeenCalledWith(expect.objectContaining({ swmsId: "s-1", reason: "Hospital name was wrong", material: false, electrician: "staff:sam" }));
+  });
+
+  it("won't offer a correction once how the work is done has changed", async () => {
+    open("v-1");
+    await screen.findByRole("heading", { name: "Revise the SWMS" });
+    await tab("Review");
+    await userEvent.click(screen.getByRole("radio", { name: /It's a correction/ }));
+    await tab("How it's done");
+    await userEvent.click(screen.getByRole("radio", { name: "Scaffold with a stair" }));
+    await tab("Review");
+    const correction = screen.getByRole("radio", { name: /It's a correction/ });
+    expect(correction).toBeDisabled();
+    expect(correction).not.toBeChecked();
+    expect(screen.getByText("Fall protection changed, so everyone signs on again")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /walked this site/ })).toBeInTheDocument();
+  });
+
+  /* a correction that added someone offered no way to sign them on */
+  it("asks, after a correction, everyone it didn't carry a sign-on for", async () => {
+    issueSwms.mockImplementationOnce(async () => ({ ok: true as const, swmsId: "s-1", versionId: "v-2", version: 2 }));
+    open("v-1");
+    await screen.findByRole("heading", { name: "Revise the SWMS" });
+    await tab("Who it covers");
+    await userEvent.click(screen.getByRole("checkbox", { name: /Dane Whitmore/ }));
+    await userEvent.type(screen.getByLabelText("Their name"), "Ali Sparks");
+    await tab("Review");
+    await userEvent.type(screen.getByLabelText("What changed"), "Added Dane and Ali");
+    await userEvent.click(screen.getByRole("radio", { name: /It's a correction/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Issue version 2" }));
+
+    expect(await screen.findByText("Filed under Documents, Compliance. Anyone who signed on before stays signed on.")).toBeInTheDocument();
+    /* Troy and Kai signed version 1; Sam hadn't, and Dane and Ali are new */
+    expect(screen.getByText("Dane Whitmore, Sam Ikpeba")).toBeInTheDocument();
+    expect(screen.getByText("Ali Sparks")).toBeInTheDocument();
+    expect(screen.queryByText("Kai Lindqvist")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Sign on now" }));
+    expect(onSignOn).toHaveBeenCalledWith("v-2");
   });
 });
 

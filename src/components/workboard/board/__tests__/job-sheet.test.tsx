@@ -2597,8 +2597,8 @@ describe("files on the job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    await userEvent.click(await face("documents").findByRole("button", { name: /Safe Work Method Statement, version 2/ }));
-    const dialog = await screen.findByRole("dialog", { name: "Safe Work Method Statement, version 2" });
+    await userEvent.click(await face("documents").findByRole("button", { name: /Safe Work Method Statement/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Safe Work Method Statement" });
     expect(dialog.querySelector("iframe")!.getAttribute("src")).toBe("/swms/v-2");
     /* the job already has its SWMS, so the head doesn't offer a second */
     expect(face("documents").queryByRole("button", { name: "Create SWMS" })).toBeNull();

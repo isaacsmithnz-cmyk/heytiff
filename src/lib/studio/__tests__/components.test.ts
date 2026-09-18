@@ -16,7 +16,9 @@ import {
   pairPipeSizes,
   systemComponents,
   componentChoices,
+  defaultIsolatorId,
   COMPONENT_CHOICES,
+  type IsolatorOption,
 } from "../components";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
@@ -31,15 +33,18 @@ function loadPack(): DataPack {
 }
 const pack = loadPack();
 
-/** a calibrated (10 mm/unit) doc with one split system */
-function docWith(settings: Record<string, unknown>): { doc: DesignDocument; system: DesignSystem } {
+/** a calibrated (10 mm/unit) doc with one system, a split unless told */
+function docWith(
+  settings: Record<string, unknown>,
+  type: DesignSystem["type"] = "split"
+): { doc: DesignDocument; system: DesignSystem } {
   const d = createDesign({ name: "Comp", mode: "blank", now: "2026-07-10T00:00:00.000Z" });
   d.floors = [
     { id: "flr", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] },
   ];
   const system: DesignSystem = {
     id: "sys1",
-    type: "split",
+    type,
     brand: "mitsubishi-electric",
     colour: "#2E68FF",
     name: "System 1",
@@ -160,13 +165,14 @@ describe("systemComponents — charge with pre-charge + run length", () => {
 
 describe("component choice rows", () => {
   it("defaults electrical + mounting when nothing is stored", () => {
+    // SUZ-M25VAD-A: 1Ø, 6.8 A max running current
     const { doc, system } = docWith({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
     const rows = systemComponents(doc, pack, system, "cooling");
     const elec = rows.find((r) => r.id === "electrical")!;
     const mount = rows.find((r) => r.id === "mounting")!;
     expect(elec.kind).toBe("choice");
-    expect(elec.choice!.selectedId).toBe("isolator-20a");
-    expect(elec.name).toBe("Isolator, 20 A");
+    expect(elec.choice!.selectedId).toBe("isolator-20a-1ph");
+    expect(elec.name).toBe("Isolator, 1Ø 20 A");
     expect(mount.choice!.selectedId).toBe("wall-bracket");
     expect(mount.name).toBe("Wall bracket");
   });
@@ -175,10 +181,10 @@ describe("component choice rows", () => {
     const { doc, system } = docWith({
       pairIdu: "SLZ-M25FA-A",
       pairOdu: "SUZ-M25VAD-A",
-      components: { electrical: "isolator-32a", mounting: "roof-mount" },
+      components: { electrical: "isolator-32a-1ph", mounting: "roof-mount" },
     });
     const rows = systemComponents(doc, pack, system, "cooling");
-    expect(rows.find((r) => r.id === "electrical")!.name).toBe("Isolator, 32 A");
+    expect(rows.find((r) => r.id === "electrical")!.name).toBe("Isolator, 1Ø 32 A");
     expect(rows.find((r) => r.id === "mounting")!.name).toBe("Roof frame");
   });
 
@@ -193,9 +199,150 @@ describe("component choice rows", () => {
       name: "S",
       settings: { components: { electrical: "does-not-exist" } },
     };
-    const choices = componentChoices(bad);
-    expect(choices.electrical).toBe("isolator-20a"); // invalid → default
+    const odu = pack.outdoor_units.find((o) => o.model === "SUZ-M25VAD-A")!;
+    const choices = componentChoices(bad, odu);
+    expect(choices.electrical).toBe("isolator-20a-1ph"); // invalid → default
     expect(choices.mounting).toBe("wall-bracket"); // missing → default
+  });
+});
+
+/* ── the isolator is sized to the outdoor it breaks ──
+   The default is the smallest rating at or above the outdoor's max running
+   current (`max_amps_a`), on the outdoor's own supply. Every case reads the
+   REAL pack, and states the pack's figure first, so a data change that moves
+   the premise fails here rather than passing on a stale one. */
+describe("the isolator follows the outdoor's draw and supply", () => {
+  const odu = (model: string) => {
+    const o = pack.outdoor_units.find((u) => u.model === model);
+    if (!o) throw new Error(`${model} is not in the pack`);
+    return o;
+  };
+  const isolators = COMPONENT_CHOICES.find((g) => g.key === "electrical")!.options.filter(
+    (o): o is IsolatorOption => "isolator" in o
+  );
+  const isolatorOf = (id: string) => isolators.find((o) => o.id === id)!.isolator;
+  const electrical = (settings: Record<string, unknown>, type: DesignSystem["type"] = "split") => {
+    const { doc, system } = docWith(settings, type);
+    return systemComponents(doc, pack, system, "cooling").find((r) => r.id === "electrical")!;
+  };
+
+  it("a 28 A single-phase outdoor gets a 1Ø 32 A isolator, not a 20 A", () => {
+    expect(odu("PUZ-ZM125VKA2-A")).toMatchObject({ phase: "1", max_amps_a: 28 });
+    const row = electrical({ pairIdu: "PEAD-M125JAA(D)", pairOdu: "PUZ-ZM125VKA2-A" }, "ducted");
+    expect(row.choice!.selectedId).toBe("isolator-32a-1ph");
+    expect(row.name).toBe("Isolator, 1Ø 32 A");
+    expect(row.value).toBe("1");
+  });
+
+  it("an 18.4 A multi outdoor gets a 1Ø 20 A", () => {
+    expect(odu("MXZ-5F100VGD")).toMatchObject({ phase: "1", max_amps_a: 18.4 });
+    const row = electrical({ pairOdu: "MXZ-5F100VGD" }, "multi-split");
+    expect(row.choice!.selectedId).toBe("isolator-20a-1ph");
+    expect(row.name).toBe("Isolator, 1Ø 20 A");
+  });
+
+  it("the other single-phase outdoors past 20 A get the 1Ø 32 A too", () => {
+    expect(odu("PUZ-M125VKA-A")).toMatchObject({ phase: "1", max_amps_a: 26.5 });
+    expect(
+      electrical({ pairIdu: "PEAD-M125JAA(D)", pairOdu: "PUZ-M125VKA-A" }, "ducted").name
+    ).toBe("Isolator, 1Ø 32 A");
+    expect(odu("MXZ-6F120VGD")).toMatchObject({ phase: "1", max_amps_a: 26.8 });
+    expect(electrical({ pairOdu: "MXZ-6F120VGD" }, "multi-split").name).toBe("Isolator, 1Ø 32 A");
+  });
+
+  it("a draw exactly on a rating takes that rating", () => {
+    expect(odu("PUZ-M100VKA-A")).toMatchObject({ phase: "1", max_amps_a: 20 });
+    expect(defaultIsolatorId(odu("PUZ-M100VKA-A"))).toBe("isolator-20a-1ph");
+    expect(odu("PUZ-ZM250YKA-A")).toMatchObject({ phase: "3", max_amps_a: 20 });
+    expect(defaultIsolatorId(odu("PUZ-ZM250YKA-A"))).toBe("isolator-20a-3ph");
+  });
+
+  it("a three-phase outdoor gets a 3Ø isolator", () => {
+    expect(odu("PUZ-ZM100YKA3-A")).toMatchObject({ phase: "3", max_amps_a: 11.5 });
+    const row = electrical({ pairIdu: "PLA-M100EA2-A", pairOdu: "PUZ-ZM100YKA3-A" });
+    expect(row.choice!.selectedId).toBe("isolator-20a-3ph");
+    expect(row.name).toBe("Isolator, 3Ø 20 A");
+  });
+
+  it("with no max_amps_a in the pack it keeps the 20 A, on the outdoor's supply", () => {
+    expect(odu("PUZ-ZM100VKA2-A").max_amps_a).toBeUndefined();
+    expect(
+      electrical({ pairIdu: "PLA-M100EA2-A", pairOdu: "PUZ-ZM100VKA2-A" }).choice!.selectedId
+    ).toBe("isolator-20a-1ph");
+    expect(odu("PUMY-SP112YKMD2-A")).toMatchObject({ phase: "3" });
+    expect(odu("PUMY-SP112YKMD2-A").max_amps_a).toBeUndefined();
+    expect(electrical({ pairOdu: "PUMY-SP112YKMD2-A" }, "multi-split").name).toBe("Isolator, 3Ø 20 A");
+  });
+
+  it("never sizes from a circuit figure standing in for the draw", () => {
+    // City Multi prints MCA and no max running current: MCA sizes a circuit,
+    // it is not the draw, so the default is the unsized 20 A
+    expect(odu("PUHY-P500YNW-A1")).toMatchObject({ phase: "3", mca_a: 43.7 });
+    expect(odu("PUHY-P500YNW-A1").max_amps_a).toBeUndefined();
+    expect(electrical({ pairOdu: "PUHY-P500YNW-A1" }, "vrf").name).toBe("Isolator, 3Ø 20 A");
+  });
+
+  it("a draw it cannot read, or past every rating, keeps the 20 A rather than guess", () => {
+    const base = odu("PUZ-M140VKA-A");
+    for (const draw of [0, -3, Number.NaN, "28" as unknown as number, 45, 200]) {
+      expect(defaultIsolatorId({ ...base, max_amps_a: draw })).toBe("isolator-20a-1ph");
+    }
+  });
+
+  it("a hand-picked isolator stands, whatever the outdoor draws", () => {
+    const pair = { pairIdu: "PEAD-M125JAA(D)", pairOdu: "PUZ-ZM125VKA2-A" };
+    expect(
+      electrical({ ...pair, components: { electrical: "isolator-20a-1ph" } }, "ducted").name
+    ).toBe("Isolator, 1Ø 20 A");
+    expect(
+      electrical({ ...pair, components: { electrical: "isolator-32a-3ph" } }, "ducted").name
+    ).toBe("Isolator, 3Ø 32 A");
+    const others = electrical({ ...pair, components: { electrical: "none" } }, "ducted");
+    expect(others.name).toBe("Supplied by others");
+    expect(others.value).toBe("—");
+  });
+
+  it("an older catalogue's pick means what it meant, and is never rewritten", () => {
+    // the old 32 A was labelled 3Ø — kept as 3Ø, even on a single-phase outdoor
+    const { doc, system } = docWith(
+      {
+        pairIdu: "PEAD-M125JAA(D)",
+        pairOdu: "PUZ-ZM125VKA2-A",
+        components: { electrical: "isolator-32a" },
+      },
+      "ducted"
+    );
+    const row = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "electrical")!;
+    expect(row.choice!.selectedId).toBe("isolator-32a-3ph");
+    expect(row.name).toBe("Isolator, 3Ø 32 A");
+    expect(system.settings.components).toEqual({ electrical: "isolator-32a" });
+
+    // the old 20 A named no supply: the rating was the pick, the supply is the
+    // outdoor's, and a bigger draw does not bump it
+    const legacy20 = { components: { electrical: "isolator-20a" } };
+    expect(
+      electrical({ pairIdu: "PEAD-M125JAA(D)", pairOdu: "PUZ-ZM125VKA2-A", ...legacy20 }, "ducted").name
+    ).toBe("Isolator, 1Ø 20 A");
+    expect(
+      electrical({ pairIdu: "PEA-M250LAA", pairOdu: "PUZ-ZM250YKA-A", ...legacy20 }, "ducted").name
+    ).toBe("Isolator, 3Ø 20 A");
+  });
+
+  it("every outdoor in the shipped pack with a draw gets the smallest isolator that covers it, on its supply", () => {
+    const withDraw = pack.outdoor_units.filter((o) => o.max_amps_a != null);
+    expect(withDraw.length).toBeGreaterThan(50);
+    const wrong = withDraw.flatMap((o) => {
+      const got = isolatorOf(defaultIsolatorId(o));
+      const smallest = Math.min(
+        ...isolators
+          .filter((i) => i.isolator.phase === o.phase && i.isolator.amps >= o.max_amps_a!)
+          .map((i) => i.isolator.amps)
+      );
+      return got.phase === o.phase && got.amps === smallest
+        ? []
+        : [`${o.model} (${o.phase}Ø, ${o.max_amps_a} A) got ${got.phase}Ø ${got.amps} A`];
+    });
+    expect(wrong).toEqual([]);
   });
 });
 

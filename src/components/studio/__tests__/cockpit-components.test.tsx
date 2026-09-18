@@ -75,15 +75,27 @@ describe("Cockpit Components view", () => {
     expect(screen.getByText("Refrigerant charge")).toBeInTheDocument();
     expect(screen.getByText("Electrical")).toBeInTheDocument();
     expect(screen.getByText("Mounting")).toBeInTheDocument();
-    // default electrical selection
-    expect(screen.getByText("Isolator, 20 A")).toBeInTheDocument();
+    // default electrical selection: SUZ-M25VAD-A is 1Ø and draws 6.8 A
+    expect(screen.getByText("Isolator, 1Ø 20 A")).toBeInTheDocument();
   });
 
   it("expanding a choice row reveals its options", () => {
     renderComponents(mkDoc());
     fireEvent.click(screen.getByRole("button", { name: /Electrical/ }));
-    expect(screen.getByRole("button", { name: /Isolator, 32 A/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Isolator, 1Ø 32 A/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Isolator, 3Ø 32 A/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Supplied by others/ })).toBeInTheDocument();
+  });
+
+  it("picking an isolator persists its id onto settings.components", () => {
+    let next: DesignDocument | undefined;
+    const doc = mkDoc();
+    renderComponents(doc, (fn) => (next = fn(doc)));
+    fireEvent.click(screen.getByRole("button", { name: /Electrical/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Isolator, 1Ø 32 A/ }));
+    expect((next!.systems[0].settings.components as Record<string, string>).electrical).toBe(
+      "isolator-32a-1ph"
+    );
   });
 
   it("picking an option persists it onto settings.components", () => {

@@ -8,14 +8,15 @@
    - CHOICE (electrical, mounting) — the ME pack has no isolator-rating or
      bracket data, so these are picked from a small static catalogue and stored
      on `system.settings.components` (choiceKey → optionId). Defaults stand in
-     until the user overrides. When the pack later grows real fields these turn
-     back into derived rows without reshaping this contract.
+     until the user overrides; the isolator's is sized to the outdoor's own
+     draw and supply. When the pack later grows real fields these turn back
+     into derived rows without reshaping this contract.
 
    Rows appear only once a pairing resolves (placed models, else the chosen
    pair) — before that the Components tab is empty, matching the room flow. */
 
 import type { DesignDocument, DesignSystem } from "./document";
-import type { AdditionalChargeRule, DataPack, OutdoorUnit } from "./packs/schema";
+import type { AdditionalChargeRule, DataPack, OutdoorUnit, Phase } from "./packs/schema";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
 import { systemPairKw } from "./coverage";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
@@ -42,11 +43,18 @@ export interface ComponentChoiceOption {
   value: string;
 }
 
+/** an isolator on the takeoff: its rating and the supply it breaks */
+export interface IsolatorOption extends ComponentChoiceOption {
+  isolator: { amps: number; phase: Phase };
+}
+
 export interface ComponentChoiceGroup {
   key: "electrical" | "mounting" | "insulation";
   role: string;
   icon: ComponentIcon;
-  defaultId: string;
+  /** the option a system gets until somebody picks one — fixed, or read off
+      the system's outdoor where the pack can size it */
+  defaultId: string | ((odu: OutdoorUnit) => string);
   options: ComponentChoiceOption[];
 }
 
@@ -74,17 +82,29 @@ export interface ComponentRow {
 /* ─────────────────────────── choice catalogue ───────────────────────────
    Static, brand-agnostic defaults. No pack data backs these yet (isolator
    ratings and outdoor brackets aren't in the ME pack), so they are sensible
-   placeholders the installer can adjust — persisted per system. */
+   placeholders the installer can adjust — persisted per system. The isolator
+   is the one the pack can still size, off its outdoor's max running current
+   and supply: see defaultIsolatorId. */
+
+/* Standard ratings, enough for every draw in the shipped pack (a test holds
+   that). The supply is in the NAME, not the sub: the picklist sums a
+   component by name and the job card files it by name, so a 1Ø and a 3Ø
+   isolator under one name would be picked as two of whichever came first. */
+const ISOLATORS: IsolatorOption[] = [
+  { id: "isolator-20a-1ph", name: "Isolator, 1Ø 20 A", sub: "Weatherproof IP66", value: "1", isolator: { amps: 20, phase: "1" } },
+  { id: "isolator-32a-1ph", name: "Isolator, 1Ø 32 A", sub: "Weatherproof IP66", value: "1", isolator: { amps: 32, phase: "1" } },
+  { id: "isolator-20a-3ph", name: "Isolator, 3Ø 20 A", sub: "Weatherproof IP66", value: "1", isolator: { amps: 20, phase: "3" } },
+  { id: "isolator-32a-3ph", name: "Isolator, 3Ø 32 A", sub: "Weatherproof IP66", value: "1", isolator: { amps: 32, phase: "3" } },
+];
 
 export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
   {
     key: "electrical",
     role: "Electrical",
     icon: "bolt",
-    defaultId: "isolator-20a",
+    defaultId: defaultIsolatorId,
     options: [
-      { id: "isolator-20a", name: "Isolator, 20 A", sub: "Weatherproof IP66", value: "1" },
-      { id: "isolator-32a", name: "Isolator, 32 A", sub: "3Ø, weatherproof IP66", value: "1" },
+      ...ISOLATORS,
       { id: "none", name: "Supplied by others", sub: "Not in this takeoff", value: "—" },
     ],
   },
@@ -117,8 +137,40 @@ export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
   },
 ];
 
-/** the effective choice selection for a system: persisted overrides ∪ defaults */
-export function componentChoices(system: DesignSystem): Record<string, string> {
+/** the supply as the outdoor row labels it: anything not three phase is single */
+const supplyOf = (odu: OutdoorUnit): Phase => (odu.phase === "3" ? "3" : "1");
+
+/** The isolator a system gets until somebody picks one: the smallest rating
+    at or above the outdoor's max running current, on the outdoor's own
+    supply. A draw the pack doesn't carry, or one past every rating here,
+    keeps the 20 A this catalogue has always started on: a size is read off
+    the pack, never guessed. */
+export function defaultIsolatorId(odu: OutdoorUnit): string {
+  const supply = supplyOf(odu);
+  const draw = odu.max_amps_a;
+  const sized =
+    typeof draw === "number" && Number.isFinite(draw) && draw > 0
+      ? ISOLATORS.filter((o) => o.isolator.phase === supply)
+          .sort((a, b) => a.isolator.amps - b.isolator.amps)
+          .find((o) => o.isolator.amps >= draw)
+      : undefined;
+  return sized?.id ?? `isolator-20a-${supply}ph`;
+}
+
+/** Ids an older catalogue stored, read as the option each still means. The
+    document is never rewritten, so a hand-picked isolator stays the one that
+    was picked: the 32 A was labelled 3Ø, and the 20 A named no supply, so its
+    rating is what was picked and the supply is the outdoor's. */
+function currentIsolatorId(id: string, odu: OutdoorUnit): string {
+  if (id === "isolator-32a") return "isolator-32a-3ph";
+  if (id === "isolator-20a") return `isolator-20a-${supplyOf(odu)}ph`;
+  return id;
+}
+
+/** the effective choice selection for a system: persisted overrides ∪
+    defaults. A pick stands whatever the outdoor draws; only a group nobody
+    has picked for takes the default. */
+export function componentChoices(system: DesignSystem, odu: OutdoorUnit): Record<string, string> {
   const stored =
     system.settings.components && typeof system.settings.components === "object"
       ? (system.settings.components as Record<string, unknown>)
@@ -126,8 +178,13 @@ export function componentChoices(system: DesignSystem): Record<string, string> {
   const out: Record<string, string> = {};
   for (const g of COMPONENT_CHOICES) {
     const v = stored[g.key];
-    const valid = typeof v === "string" && g.options.some((o) => o.id === v);
-    out[g.key] = valid ? (v as string) : g.defaultId;
+    const id = typeof v === "string" && g.key === "electrical" ? currentIsolatorId(v, odu) : v;
+    const valid = typeof id === "string" && g.options.some((o) => o.id === id);
+    out[g.key] = valid
+      ? (id as string)
+      : typeof g.defaultId === "function"
+        ? g.defaultId(odu)
+        : g.defaultId;
   }
   return out;
 }
@@ -265,13 +322,12 @@ function hardDrawnLengthM(doc: DesignDocument, system: DesignSystem): number | n
   return Math.round(total * 10) / 10;
 }
 
-function choiceRows(doc: DesignDocument, system: DesignSystem): ComponentRow[] {
-  const selected = componentChoices(system);
+function choiceRows(doc: DesignDocument, system: DesignSystem, odu: OutdoorUnit): ComponentRow[] {
+  const selected = componentChoices(system, odu);
   return COMPONENT_CHOICES.map((g) => {
     const selectedId = selected[g.key];
-    const opt =
-      g.options.find((o) => o.id === selectedId) ??
-      g.options.find((o) => o.id === g.defaultId)!;
+    // componentChoices only hands back ids from the group's own options
+    const opt = g.options.find((o) => o.id === selectedId)!;
     // insulation's takeoff value is derived: metres of hard-drawn copper
     let value = opt.value;
     if (g.key === "insulation" && selectedId !== "none") {
@@ -316,7 +372,7 @@ export function systemComponents(
     return [
       oduRow(doc, pack, system, basis, odu),
       chargeRow(doc, system, odu, rule?.additional_charge ?? null, null),
-      ...choiceRows(doc, system),
+      ...choiceRows(doc, system, odu),
     ];
   }
 
@@ -334,6 +390,6 @@ export function systemComponents(
   return [
     oduRow(doc, pack, system, basis, odu),
     chargeRow(doc, system, odu, pair?.additional_charge ?? null, pair?.pipe_liquid_mm ?? null),
-    ...choiceRows(doc, system),
+    ...choiceRows(doc, system, odu),
   ];
 }

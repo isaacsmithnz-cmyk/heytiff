@@ -256,7 +256,7 @@ export type SheetGroup = "pipe" | "electrical" | "components";
     block, and repeating them here would double-handle the sheet. */
 export interface SheetLine {
   group: SheetGroup;
-  /** what it is, e.g. "ø6.35 / ø9.52 pair coil", "Isolator · 20 A" */
+  /** what it is, e.g. "ø6.35 / ø9.52 pair coil", "Isolator, 1Ø 20 A" */
   name: string;
   /** qualifier, e.g. "liquid / gas mm", "Weatherproof IP66" */
   sub: string;

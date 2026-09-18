@@ -375,6 +375,26 @@ describe("the review", () => {
     expect(screen.queryByText("Confirm you've walked the site and this SWMS matches it.")).toBeNull();
   });
 
+  /* the tick is a checkbox on the screen, not a line in the problem list, so
+     counting it said "2 things to answer above" over one bullet */
+  it("counts only the problems the list shows", async () => {
+    open();
+    await ready();
+    await tab("Review");
+    const bullets = document.querySelectorAll(".sw-problems li").length;
+    expect(bullets).toBe(3);
+    expect(screen.getByText(`${bullets} things to answer above`)).toBeInTheDocument();
+  });
+
+  /* the Who screen warns about a missing ticket in red; the read-back let it
+     through in silence, and paper printed "None on file" */
+  it("reads back a crew member with no current ticket", async () => {
+    open();
+    await ready();
+    await tab("Review");
+    expect(panel("review").getByText("Dane Whitmore has no current ticket on file")).toBeInTheDocument();
+  });
+
   it("sends the helper chosen as electrician by their place among the helpers", async () => {
     open();
     await ready();

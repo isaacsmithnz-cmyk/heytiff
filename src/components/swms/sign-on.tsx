@@ -185,9 +185,20 @@ function SignOnForm({
 
 /** Something noticed after signing — the anchor found rusted on the roof. It
     rides the sign-on already given, so the register stays one statement. */
-function RaiseIssue({ person, onDone }: { person: SwmsPerson; onDone: () => void }) {
+function RaiseIssue({
+  person,
+  open,
+  onOpen,
+  onClose,
+  onDone,
+}: {
+  person: SwmsPerson;
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onDone: () => void;
+}) {
   const raised = person.signon?.issue ?? null;
-  const [open, setOpen] = useState(false);
   const [text, setText] = useState(raised ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -198,7 +209,7 @@ function RaiseIssue({ person, onDone }: { person: SwmsPerson; onDone: () => void
     try {
       const res = await raiseSwmsIssue({ personId: person.id, issue: text });
       if (res.ok) {
-        setOpen(false);
+        onClose();
         onDone();
       } else setError(res.error);
     } catch {
@@ -210,7 +221,7 @@ function RaiseIssue({ person, onDone }: { person: SwmsPerson; onDone: () => void
 
   if (!open) {
     return (
-      <button type="button" className="sw-more" onClick={() => setOpen(true)}>
+      <button type="button" className="sw-more" onClick={onOpen}>
         {raised ? "Change the issue you raised" : "Raise an issue with this SWMS"}
       </button>
     );
@@ -223,7 +234,7 @@ function RaiseIssue({ person, onDone }: { person: SwmsPerson; onDone: () => void
       <textarea id={`raise-${person.id}`} className="wb2-notes" rows={2} value={text} onChange={(e) => setText(e.target.value)} />
       <div className="sws-actions">
         <span className={error ? "sw-state bad" : undefined}>{error}</span>
-        <button type="button" className="pbtn ghost" onClick={() => setOpen(false)}>
+        <button type="button" className="pbtn ghost" onClick={onClose}>
           Cancel
         </button>
         <button type="button" className="pbtn primary" disabled={busy || !text.trim()} onClick={save}>
@@ -269,6 +280,9 @@ function SortedOnSite({ personId, onDone }: { personId: string; onDone: () => vo
 export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }) {
   const router = useRouter();
   const [helper, setHelper] = useState<string | null>(null);
+  /* the door lives in the card's action row; the box it opens takes the
+     card's width under it, rather than squeezing in beside a button */
+  const [raising, setRaising] = useState(false);
   const mine = doc.people.find((p) => p.staffProfileId === me) ?? null;
   const onIt = !!mine;
   /* THE PHONE THAT IS OUT. Anyone the SWMS covers and hasn't signed can sign
@@ -402,6 +416,17 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
                   </ul>
                 </div>
               ))}
+              {/* signed for on the screen it is signed on, not only on paper */}
+              {c.ppe.length > 0 && (
+                <div className="sw-grp">
+                  <span className="sw-al">Protective equipment</span>
+                  <ul className="sws-keys">
+                    {c.ppe.map((x) => (
+                      <li key={x}>{x}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {c.siteNotes.length > 0 && (
                 <div className="sw-grp">
                   <span className="sw-al">This site</span>
@@ -421,11 +446,18 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
               <div className="sws-actions">
                 {/* AFTER SIGNING, TOO: what you find when you get on the roof
                     is after the briefing at the truck */}
-                <span>{doc.latest && mine?.signon && <RaiseIssue person={mine} onDone={signed} />}</span>
+                <span>
+                  {doc.latest && mine?.signon && !raising && (
+                    <RaiseIssue person={mine} open={false} onOpen={() => setRaising(true)} onClose={() => setRaising(false)} onDone={signed} />
+                  )}
+                </span>
                 <a className="pbtn ghost" href={`/swms/${doc.versionId}`} target="_blank" rel="noreferrer">
                   Open the printable SWMS
                 </a>
               </div>
+              {doc.latest && mine?.signon && raising && (
+                <RaiseIssue person={mine} open onOpen={() => setRaising(true)} onClose={() => setRaising(false)} onDone={signed} />
+              )}
             </div>
 
             {doc.latest && mine && !mine.signon && (

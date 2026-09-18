@@ -242,6 +242,7 @@ type ChainRows = {
   versions: (ChainVersion & { swmsId: string; issuedAt: string; reason: string; issuedBy: string; responsible: string })[];
   people: (ChainPerson & { outsideCompany: string | null })[];
   signons: {
+    id: string;
     personId: string;
     signedByStaffId: string | null;
     briefedByStaffId: string | null;
@@ -285,7 +286,7 @@ async function loadChains(orgId: string, swmsIds: string[]): Promise<ChainRows> 
       .in("version_id", versionIds),
     supabaseAdmin
       .from("swms_signons")
-      .select("person_id, signed_by_staff_id, briefed_by_staff_id, signature_svg, issue_raised, issue_cleared_by_staff_id, issue_cleared_at, signed_at")
+      .select("id, person_id, signed_by_staff_id, briefed_by_staff_id, signature_svg, issue_raised, issue_cleared_by_staff_id, issue_cleared_at, signed_at")
       .eq("org_id", orgId)
       .in("version_id", versionIds),
   ]);
@@ -299,9 +300,10 @@ async function loadChains(orgId: string, swmsIds: string[]): Promise<ChainRows> 
       outsideCompany: p.outside_company,
     })),
     signons: ((signonRows ?? []) as {
-      person_id: string; signed_by_staff_id: string | null; briefed_by_staff_id: string | null; signature_svg: string;
+      id: string; person_id: string; signed_by_staff_id: string | null; briefed_by_staff_id: string | null; signature_svg: string;
       issue_raised: string | null; issue_cleared_by_staff_id: string | null; issue_cleared_at: string | null; signed_at: string;
     }[]).map((x) => ({
+      id: x.id,
       personId: x.person_id,
       signedByStaffId: x.signed_by_staff_id,
       briefedByStaffId: x.briefed_by_staff_id,
@@ -321,6 +323,67 @@ function standingSignons(chain: ChainRows, swmsId: string) {
   const people = chain.people.filter((p) => ids.has(p.versionId));
   const byPerson = new Map(chain.signons.map((x) => [x.personId, x]));
   return effectiveSignons(versions, people, (id) => byPerson.get(id) ?? null);
+}
+
+/* THE SIGN-ON THAT STANDS FOR SOMEONE, and the row it is written in.
+
+   A correction carries a sign-on, which means the signature that stands for
+   the person on the CURRENT version lives on a row belonging to the version
+   before. Anything that writes to that sign-on — an issue raised after
+   signing, an issue sorted on site — has to find it the way the screens read
+   it, or it looks for a row that was never written and says the sign-on isn't
+   on this workspace. */
+export type StandingSignon = {
+  /** The row that holds the signature standing for this person. */
+  signonId: string;
+  /** Whose signature it is — null for someone outside the business. */
+  staffProfileId: string | null;
+  /** Whose phone it was given on. */
+  signedByStaffId: string | null;
+  issue: string | null;
+  cleared: boolean;
+  /** Who is in charge on the SWMS's latest version. */
+  responsibleStaffId: string;
+  /** The person asked about is on that latest version. */
+  onLatest: boolean;
+};
+
+/** The sign-on standing for a person row, wherever it was signed. */
+export async function standingSignonFor(orgId: string, personId: string): Promise<StandingSignon | null> {
+  const { data: personRow } = await supabaseAdmin
+    .from("swms_people")
+    .select("id, version_id, staff_profile_id")
+    .eq("org_id", orgId)
+    .eq("id", String(personId ?? "").slice(0, 80))
+    .maybeSingle();
+  const person = personRow as { id: string; version_id: string; staff_profile_id: string | null } | null;
+  if (!person) return null;
+
+  const { data: versionRow } = await supabaseAdmin
+    .from("swms_versions")
+    .select("swms_id")
+    .eq("org_id", orgId)
+    .eq("id", person.version_id)
+    .maybeSingle();
+  const swmsId = (versionRow as { swms_id: string } | null)?.swms_id;
+  if (!swmsId) return null;
+
+  const chain = await loadChains(orgId, [swmsId]);
+  const versions = chain.versions.filter((v) => v.swmsId === swmsId);
+  if (!versions.length) return null;
+  const latest = versions.reduce((a, b) => (b.version > a.version ? b : a));
+  const eff = standingSignons(chain, swmsId).get(person.id);
+  if (!eff) return null;
+
+  return {
+    signonId: eff.signon.id,
+    staffProfileId: person.staff_profile_id,
+    signedByStaffId: eff.signon.signedByStaffId,
+    issue: eff.signon.issue?.trim() || null,
+    cleared: !!eff.signon.clearedAt,
+    responsibleStaffId: latest.responsible,
+    onLatest: person.version_id === latest.id,
+  };
 }
 
 /** Whether a sign-on already stands for this person — their own, or one a
@@ -493,6 +556,10 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
 
 /* ── the job card's Compliance group ───────────────────────────────────── */
 
+/** Jobs ServiceM8 has closed out. A SWMS asks to be signed BEFORE work; once
+    the job is over, asking is noise nobody can act on. */
+const CLOSED = new Set(["Completed", "Unsuccessful"]);
+
 /** Something a worker wrote at sign-on that the person in charge has to know. */
 export type SwmsIssue = { name: string; issue: string };
 
@@ -510,12 +577,24 @@ export type SwmsSummary = {
   issues: SwmsIssue[];
   /** The reader has something to sign here — their own sign-on, or anyone
       else's on their phone. Anyone the SWMS doesn't cover has nothing behind
-      a Sign on button. */
+      a Sign on button, and nor does anyone once the job is over. */
   viewerCanSign: boolean;
+  /** They have signed: what is left for them is signing somebody else on. */
+  viewerSigned: boolean;
 };
 
 /** The job's SWMS, at its latest version, with who's still to sign. */
 export async function listJobSwms(orgId: string, jobUuid: string, viewerStaffId: string | null = null): Promise<SwmsSummary[]> {
+  /* a job ServiceM8 has closed out is a record, not an ask — the same rule
+     the bell follows */
+  const { data: jobRow } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("status")
+    .eq("org_id", orgId)
+    .eq("uuid", jobUuid)
+    .maybeSingle();
+  const open = !CLOSED.has(((jobRow as { status: string | null } | null)?.status ?? "").trim());
+
   const { data: swmsRows } = await supabaseAdmin
     .from("swms")
     .select("id")
@@ -551,7 +630,8 @@ export async function listJobSwms(orgId: string, jobUuid: string, viewerStaffId:
         total: mine.length,
         waitingOn: waiting.map(nameOf),
         issues: issuesOn(standing, mine, nameOf),
-        viewerCanSign: !!viewerRow && waiting.length > 0,
+        viewerCanSign: open && !!viewerRow && waiting.length > 0,
+        viewerSigned: !!viewerRow && !!standing.get(viewerRow.id),
       },
     ];
   });
@@ -585,10 +665,6 @@ export type PendingSignon = {
   site: string | null;
   issuedAt: string;
 };
-
-/** Jobs ServiceM8 has closed out. A SWMS asks to be signed BEFORE work; once
-    the job is over, asking is noise nobody can act on. */
-const CLOSED = new Set(["Completed", "Unsuccessful"]);
 
 /** Latest versions this team member is on with no sign-on standing for them.
     A replaced version is never asked for — the next one is — a correction

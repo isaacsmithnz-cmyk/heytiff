@@ -24,6 +24,7 @@ import {
   loadSwmsJob,
   loadSwmsTeam,
   nearbyHospital,
+  standingSignonFor,
   ownerName,
   type SwmsJob,
   type SwmsSummary,
@@ -462,53 +463,26 @@ export async function signOnSwms(input: SignOnInput): Promise<SignOnResult> {
 
 export type IssueResult = { ok: true } | { ok: false; error: string };
 
-/** The sign-on an issue rides on, with the version it belongs to, checked
-    against this workspace and against the person asking. */
-async function signonFor(orgId: string, personId: string) {
-  const { data: signon } = await supabaseAdmin
-    .from("swms_signons")
-    .select("id, person_id, version_id, signed_by_staff_id, issue_raised")
-    .eq("org_id", orgId)
-    .eq("person_id", String(personId ?? "").slice(0, 80))
-    .maybeSingle();
-  const row = signon as { id: string; person_id: string; version_id: string; signed_by_staff_id: string | null; issue_raised: string | null } | null;
-  if (!row) return null;
-
-  const { data: versionRow } = await supabaseAdmin
-    .from("swms_versions")
-    .select("id, swms_id, version, responsible_staff_id")
-    .eq("org_id", orgId)
-    .eq("id", row.version_id)
-    .maybeSingle();
-  const version = versionRow as { id: string; swms_id: string; version: number; responsible_staff_id: string } | null;
-  if (!version) return null;
-
-  const { data: top } = await supabaseAdmin
-    .from("swms_versions")
-    .select("version")
-    .eq("org_id", orgId)
-    .eq("swms_id", version.swms_id)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return { row, version, latest: (top as { version: number } | null)?.version === version.version };
-}
-
 /** RAISED AFTER SIGNING, TOO. An anchor is found rusted when someone gets on
     the roof, which is after they signed on at the truck — and the only door
     to "Raise an issue with this SWMS" was inside the sign-on form, which is
-    gone once you've signed. It rides the sign-on it belongs to, so the
-    register still reads as one statement by one person. */
+    gone once you've signed. It rides the sign-on that STANDS for them, which
+    after a correction is the one they gave on the version before, so the
+    register still reads as one statement by one person.
+
+    Theirs to add to whichever phone it was signed on: signing on a workmate's
+    phone can't cost someone the right to say what they found. */
 export async function raiseSwmsIssue(input: { personId: string; issue: string }): Promise<IssueResult> {
   const { orgId, userId } = await requireOrg();
   const viewer = await staffIdFor(orgId, userId);
   if (!viewer) return { ok: false, error: "Your account has no staff card." };
 
-  const found = await signonFor(orgId, String(input.personId ?? ""));
+  const found = await standingSignonFor(orgId, String(input.personId ?? ""));
   if (!found) return { ok: false, error: "That sign-on isn't on this workspace." };
-  if (!found.latest) return { ok: false, error: "This version has been replaced. Raise it on the latest one." };
-  /* your own sign-on, or one you gave on your phone */
-  if (found.row.signed_by_staff_id !== viewer) return { ok: false, error: "Only the person who signed this on can raise an issue with it." };
+  if (!found.onLatest) return { ok: false, error: "This version has been replaced. Raise it on the latest one." };
+  if (found.staffProfileId !== viewer && found.signedByStaffId !== viewer) {
+    return { ok: false, error: "Only the person who signed on, or whoever signed them on, can raise an issue with it." };
+  }
 
   const issue = String(input.issue ?? "").trim().slice(0, 600);
   if (!issue) return { ok: false, error: "Say what the issue is." };
@@ -517,7 +491,7 @@ export async function raiseSwmsIssue(input: { personId: string; issue: string })
     .from("swms_signons")
     .update({ issue_raised: issue, issue_cleared_at: null, issue_cleared_by_staff_id: null })
     .eq("org_id", orgId)
-    .eq("id", found.row.id);
+    .eq("id", found.signonId);
   if (error) return { ok: false, error: "Couldn't save the issue. Try again." };
   revalidatePath(WB);
   return { ok: true };
@@ -532,10 +506,10 @@ export async function clearSwmsIssue(personId: string): Promise<IssueResult> {
   const viewer = await staffIdFor(orgId, userId);
   if (!viewer) return { ok: false, error: "Your account has no staff card." };
 
-  const found = await signonFor(orgId, String(personId ?? ""));
+  const found = await standingSignonFor(orgId, String(personId ?? ""));
   if (!found) return { ok: false, error: "That sign-on isn't on this workspace." };
-  if (!found.row.issue_raised) return { ok: false, error: "There's no issue on this sign-on." };
-  if (found.version.responsible_staff_id !== viewer) {
+  if (!found.issue) return { ok: false, error: "There's no issue on this sign-on." };
+  if (found.responsibleStaffId !== viewer) {
     return { ok: false, error: "Only the person in charge on site can say an issue is sorted." };
   }
 
@@ -543,7 +517,7 @@ export async function clearSwmsIssue(personId: string): Promise<IssueResult> {
     .from("swms_signons")
     .update({ issue_cleared_at: new Date().toISOString(), issue_cleared_by_staff_id: viewer })
     .eq("org_id", orgId)
-    .eq("id", found.row.id);
+    .eq("id", found.signonId);
   if (error) return { ok: false, error: "Couldn't record it. Try again." };
   revalidatePath(WB);
   return { ok: true };

@@ -190,9 +190,11 @@ export function JobDocumentsFace({
               </button>
               {/* Sign on only for someone with something to sign here —
                   anyone else would land on a page with nothing to do */}
+              {/* what is left for a reader who has already signed is signing
+                  somebody else on, and the door should say so */}
               {s.viewerCanSign && (
                 <Link className="pbtn ghost sm" href={`/dashboard/swms/${s.versionId}`}>
-                  Sign on
+                  {s.viewerSigned ? "Sign them on" : "Sign on"}
                 </Link>
               )}
               {onReviseSwms && (

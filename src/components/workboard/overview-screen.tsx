@@ -697,8 +697,13 @@ export function OverviewScreen({
      them as `lead` and `tools`. `role="tablist"` sits on the inner row, since
      a tablist may only own tabs. */
   const boardLead = <h1 className="wb2-h1">Workboard</h1>;
-  const boardTools = (
-    <>
+  /* THE SWITCHER HAS A LINE OF ITS OWN, above the tabs (Isaac, 2026-09-19:
+     "it's congested on that line"). It chooses which half of the book every
+     tab below it reads — the scope, not one more tool beside the search — so
+     it stands over the band rather than in it, and the band gets back the
+     width for the title, the tabs, the search and Display mode. */
+  const scopeLine = (
+    <div className="wb2-scopeline">
       <nav
         className="wb2-seg"
         role="tablist"
@@ -738,6 +743,10 @@ export function OverviewScreen({
           );
         })}
       </nav>
+    </div>
+  );
+  const boardTools = (
+    <>
       {searchField}
       <div className="wb2-headtools">
         {display ? (
@@ -774,6 +783,7 @@ export function OverviewScreen({
       <div className="wrap">
         <div className="stg">
           <div className="wb-board">
+            {scopeLine}
             {tab === "maintenance" && (
               <MaintenanceBoard
                 data={data.board}

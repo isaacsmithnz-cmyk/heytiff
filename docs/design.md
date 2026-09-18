@@ -186,21 +186,23 @@ Every decision below is made once, here, and a guard test holds each number.
   admin screen's tiles fold, because their on-fill inks are tuned to it.
 - **The Workboard wears the handoff's board at a laptop's width** (decided
   2026-09-17, after "the one you made looks terrible compared to the mock
-  up"). The first build took the handoff's layout but kept the old board in
-  it — lanes of three bold lines at 76px, a red ring round every job that did
-  not go ahead, a header that wrapped to two lines below 1500px — and squared
-  the well's corners. The board is the handoff's now: a 56px header on one line (the
-  title steps out of sight below 1560px, where the rail beside it already
-  names the screen), the mirror's freshness at the end of every toolbar,
-  day chips that are the day's name alone with the chosen day in ink (the
-  counts beside the dates and the day's sentence of figures went on Isaac's
-  word, the same day),
-  two-line 40px blocks in 52px lanes with the cap at the block's edge, the
-  day's hours sharing the width rather than scrolling, and a job that did not
-  go ahead drawn as closed work with the issue mark. The well keeps the
-  frame's inset and corner, as on every screen. What stays the laws' rather
-  than the handoff's: ink for its teal, sentence case for its caps, words and
-  figure boxes for its pills, commas for its middots.
+  up", and tuned on the live board over the two days after). The first build
+  took the handoff's layout but kept the old board in it — lanes of three
+  bold lines at 76px, a red ring round every job that did not go ahead, a
+  header that wrapped to two lines below 1500px — and squared the well's
+  corners. What it is now: the switcher on a line of its own over everything
+  it scopes; under it one 56px band of the title, the tabs, the search and
+  Display mode; the mirror's freshness at the end of every toolbar; a week
+  of seven equal day chips across the toolbar, each the day's name alone,
+  the chosen one in ink; cards of three lines in 64px lanes — the customer,
+  the job number with the category, the suburb — so every card carries its
+  number, with the cap at the card's edge; the day drawn 7am–4pm across the
+  rail's width and never under 96px an hour; a job that did not go ahead
+  drawn as closed work with the issue mark, and a quote never marked late.
+  The well keeps the frame's inset and corner, as on every screen. What
+  stays the laws' rather than the handoff's: ink for its teal, sentence case
+  for its caps, words and figure boxes for its pills, commas for its
+  middots. Open: the key under the board holds too much.
 - **The job sheet is parked.** A ruled-list job sheet reads as paper but scans
   worse than the row. Nothing in that direction moves until a version keeps the
   row's scannability.

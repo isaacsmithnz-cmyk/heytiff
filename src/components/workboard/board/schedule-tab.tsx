@@ -71,23 +71,23 @@ import { Split } from "./inspector";
    booking at 96px holds "Tom Hanaee" where at 64 it held four letters. Below
    it the rail scrolls again, which is the inspector open on a laptop. */
 const MIN_PX_PER_HOUR = 96;
-/* A sub-row must HOLD its own type: two lines (13px and 12px at 1.25) and a
-   2px gap are ~34px, in a 40px block. The row owns the arithmetic: a 40px
-   block, 4px between stacked blocks, 6px above and below the lane — so a
-   lane of one is the handoff's 52px row, and the first live walk's lesson
-   (descenders clipped against the block's overflow:hidden) still holds. */
-const BLOCK_PX = 40;
+/* A sub-row must HOLD its own type: three lines — the customer at 13px, the
+   job number's 16px box with the category, the suburb at 12px — at 1.2 with
+   1px between them are ~48px, in a 52px block (Isaac, 2026-09-19: taller
+   cards, so the number shows on every one). The row owns the arithmetic: a
+   52px block, 4px between stacked blocks, 6px above and below the lane — a
+   lane of one is 64px — and the first live walk's lesson (descenders clipped
+   against the block's overflow:hidden) still holds. */
+const BLOCK_PX = 52;
 const LANE_ROW_PX = BLOCK_PX + 4;
 const LANE_PAD_PX = 6;
 const laneHeight = (rows: number) => rows * LANE_ROW_PX - (LANE_ROW_PX - BLOCK_PX) + LANE_PAD_PX * 2;
-/** THE NAME IS THE LAST THING TO GO. A one-hour booking is ~92px on a 1440
-    laptop: 51px of text after the cap and the mark's clearance, and the job
-    number's box was taking 37 of it, so "Tom Hanaee" came out as ten pixels
-    of nothing. Below the first width the number goes (it is in the block's
-    title, its label and the panel); below the second the category line goes
-    too, and the customer holds the block on its own. */
-const TIGHT_PX = 150;
-const BARE_PX = 100;
+/** EVERY CARD CARRIES ITS NUMBER. The number rode beside the customer's name
+    and fought it for the one line's width, so a narrow block dropped one of
+    them; it leads the second line now, before the category, and the name has
+    the first line to itself. Only a block too narrow for the number's own box
+    gives up the words and keeps the number alone. */
+const TIGHT_PX = 64;
 /** Indexed by `dowOfISO` (Mon=0 … Sun=6) — the strip's window slides a day at
     a time now, so a card's weekday comes from its own date, never its slot. */
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -126,12 +126,8 @@ type Props = {
       the other, and coming back here lands on the day you left. */
   dayCache: { current: Map<string, SchedulePayload> };
   shelfItems: ScheduleShelfItem[];
-  /** The Work orders tab's "waiting on a day" count — the dispatch board's
-      unscheduled pane, already answered by the tab that owns the list. */
-  waitingCount: number;
   onOpenJob: (job: AllJobsMirrorJob, state?: ScheduleJobState | null) => void;
   onOpenTracked: (target: { kind: "visit" | "project"; id: string }) => void;
-  onGoWork: () => void;
 };
 
 function blockTitle(b: ScheduleBlock): string {
@@ -155,10 +151,8 @@ export function ScheduleTab({
   tracked,
   dayCache,
   shelfItems,
-  waitingCount,
   onOpenJob,
   onOpenTracked,
-  onGoWork,
 }: Props) {
   const [openDay, setOpenDay] = useState(today);
   /** The first day the strip shows. A WINDOW, not a week: the flanking arrows
@@ -656,7 +650,6 @@ export function ScheduleTab({
                             (hollow ? " idle" : "") +
                             (late ? " late" : "") +
                             (w < TIGHT_PX ? " tight" : "") +
-                            (w < BARE_PX ? " bare" : "") +
                           (b.remoteId === focusJob ? " on" : "") +
                             "";
                           /* OWNERSHIP OUTRANKS CATEGORY: a job on one of our
@@ -709,34 +702,35 @@ export function ScheduleTab({
                               aria-pressed={b.remoteId === focusJob}
                             onClick={() => setFocusJob(b.remoteId)}
                             >
-                              {/* THE CLIENT LEADS. The job number is the one
-                                  thing on this block that means nothing until
-                                  you have looked it up, and it used to be the
-                                  biggest word on it. It rides beside the name as
-                                  a chip now — still there for cross-referencing
-                                  ServiceM8, no longer the headline — and a tight
-                                  block drops back to it alone, which is the old
-                                  behaviour unchanged. The second line is the
-                                  category IN WORDS, so the hue is never the only
-                                  thing naming one, and then where: two lines,
-                                  where there were three, so a lane is 52px. */}
-                              <span className="wb2-schbh">
-                                <b>{b.clientName ?? "Unnamed client"}</b>
+                              {/* THE CLIENT LEADS, the number follows. The name
+                                  has the first line to itself; the second line
+                                  opens on the job number — on every card, for
+                                  cross-referencing ServiceM8 — then the category
+                                  IN WORDS, so the hue is never the only thing
+                                  naming one; the third line is where. A block
+                                  too narrow for words keeps the number alone. */}
+                              <b>{b.clientName ?? "Unnamed client"}</b>
+                              <span className="wb2-schbm">
                                 {b.jobNumber && <u>{b.jobNumber}</u>}
+                                <em>
+                                  {[blockLabel(b), b.status === "Quote" ? "Quote" : null]
+                                    .filter(Boolean)
+                                    .join(", ")}
+                                </em>
                               </span>
-                              <em>
-                                {[
-                                  blockLabel(b),
-                                  b.status === "Quote" ? "Quote" : null,
-                                  b.suburb,
-                                  /* in words, because nothing on the block's paint
-                                     says it, and a screen reader would otherwise
-                                     hear a normal booking */
-                                  b.closure === "stale" ? "Marked complete in ServiceM8" : null,
-                                ]
-                                  .filter(Boolean)
-                                  .join(", ")}
-                              </em>
+                              {(b.suburb || b.closure === "stale") && (
+                                <i>
+                                  {[
+                                    b.suburb,
+                                    /* in words, because nothing on the block's paint
+                                       says it, and a screen reader would otherwise
+                                       hear a normal booking */
+                                    b.closure === "stale" ? "Marked complete in ServiceM8" : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(", ")}
+                                </i>
+                              )}
                             </button>
                           );
                         })
@@ -832,12 +826,6 @@ export function ScheduleTab({
                 </span>
               )}
             </div>
-            {waitingCount > 0 && (
-              <button type="button" className="wb2-schwait" onClick={onGoWork}>
-                {waitingCount} work {waitingCount === 1 ? "order is" : "orders are"} waiting on a
-                day — see Work orders →
-              </button>
-            )}
           </div>
         )}
       </Split>

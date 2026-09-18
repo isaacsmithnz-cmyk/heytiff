@@ -76,6 +76,28 @@ it("carries an issue raised at sign-on onto the row", () => {
   expect(screen.getByText("Dane Whitmore raised: No anchor on the rear ridge")).toBeInTheDocument();
 });
 
+/* once everyone had signed, the row named an open issue in red and gave the
+   person in charge nothing to press */
+it("opens the issue when nobody is left to sign", () => {
+  face({ swms: [summary({ viewerCanSign: false, issues: [{ name: "Dane Whitmore", issue: "No anchor on the rear ridge" }] })] });
+  expect(screen.getByRole("link", { name: "Open the issue" })).toHaveAttribute("href", "/dashboard/swms/v-2");
+});
+
+it("lists several people who raised issues the way a person would", () => {
+  face({
+    swms: [
+      summary({
+        issues: [
+          { name: "Dane Whitmore", issue: "a" },
+          { name: "Kai Lindqvist", issue: "b" },
+          { name: "Piers Montgomery", issue: "c" },
+        ],
+      }),
+    ],
+  });
+  expect(screen.getByText("3 issues raised, by Dane Whitmore, Kai Lindqvist and Piers Montgomery")).toBeInTheDocument();
+});
+
 /* a read that failed offered Create SWMS on a job that may already have one,
    and a second press was a second SWMS */
 it("says a failed read failed instead of offering to create a second SWMS", () => {

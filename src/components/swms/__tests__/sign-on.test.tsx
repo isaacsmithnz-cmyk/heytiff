@@ -31,7 +31,7 @@ const person = (over: Partial<SwmsPerson>): SwmsPerson => ({
   ...over,
 });
 const withIssue = (issue: string, over: Partial<NonNullable<SwmsPerson["signon"]>> = {}) => ({
-  at: "2026-09-15T21:50:00.000Z", version: 1, onPhoneOf: null, briefedBy: "Troy Porter", issue, issueCleared: null, svg: "<svg/>", ...over,
+  at: "2026-09-15T21:50:00.000Z", version: 1, onPhoneOf: null, signedByStaffId: null, briefedBy: "Troy Porter", issue, issueCleared: null, svg: "<svg/>", ...over,
 });
 const doc = (over: Partial<SwmsDocument> = {}): SwmsDocument => ({
   swmsId: "s-1",
@@ -214,7 +214,7 @@ it("asks the person in charge to brief everyone, not to have been briefed", asyn
 
 /* THE BELL SENT THE PERSON IN CHARGE HERE FOR THE ISSUE, not for the briefing
    they wrote themselves — it was a small amber line in the third card. */
-it("leads with the issue for whoever has to answer it, and takes 'sorted on site'", async () => {
+it("leads with the issue for whoever has to answer it, and records it as sorted", async () => {
   const raised = doc();
   raised.people[1] = { ...raised.people[1], signon: withIssue("No anchor on the rear ridge") };
   render(<SwmsSignOn doc={raised} me="troy" />);
@@ -226,7 +226,8 @@ it("leads with the issue for whoever has to answer it, and takes 'sorted on site
   /* above the briefing it is about */
   expect(card.compareDocumentPosition(screen.getByText("Before you start")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-  await userEvent.click(within(card).getByRole("button", { name: "Sorted on site" }));
+  /* a verb and a noun, not a state word sitting where "Signed on" sits */
+  await userEvent.click(within(card).getByRole("button", { name: "Record it as sorted" }));
   expect(clearSwmsIssue).toHaveBeenCalledWith("p-dane");
 });
 
@@ -255,6 +256,27 @@ it("keeps a door to raise an issue after you've signed", async () => {
   await userEvent.type(box, "The anchor is rusted");
   await userEvent.click(screen.getByRole("button", { name: "Tell the crew lead" }));
   expect(raiseSwmsIssue).toHaveBeenCalledWith({ personId: "p-dane", issue: "The anchor is rusted" });
+});
+
+/* A HELPER SIGNED ON THIS PHONE could never have an issue recorded after
+   signing — the door was only ever on the reader's own row. */
+it("lets whoever gave a sign-on on their phone add an issue to it", async () => {
+  const given = doc();
+  given.people[2] = { ...given.people[2], signon: withIssue("", { onPhoneOf: "Troy Porter", signedByStaffId: "troy" }) };
+  render(<SwmsSignOn doc={given} me="troy" />);
+  const kai = screen.getByText("Kai Lindqvist").closest(".sws-person") as HTMLElement;
+  await userEvent.click(within(kai).getByRole("button", { name: "Raise an issue with this SWMS" }));
+  await userEvent.type(screen.getByRole("textbox", { name: "Issue with this SWMS" }), "Kai says the ladder is too short");
+  await userEvent.click(screen.getByRole("button", { name: "Tell the crew lead" }));
+  expect(raiseSwmsIssue).toHaveBeenCalledWith({ personId: "p-kai", issue: "Kai says the ladder is too short" });
+});
+
+it("offers nobody else's row that door", () => {
+  const given = doc();
+  given.people[2] = { ...given.people[2], signon: withIssue("", { onPhoneOf: "Troy Porter", signedByStaffId: "troy" }) };
+  render(<SwmsSignOn doc={given} me="dane" />);
+  const kai = screen.getByText("Kai Lindqvist").closest(".sws-person") as HTMLElement;
+  expect(within(kai).queryByRole("button", { name: /Raise an issue/ })).toBeNull();
 });
 
 /* signed on someone else's phone, the person in charge still signs to THEIR

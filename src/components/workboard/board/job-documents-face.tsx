@@ -5,6 +5,7 @@ import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { documentGroupOf, type JobMediaItem } from "@/lib/workboard/job-media";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
+import { andList } from "@/lib/swms/library";
 import type { SwmsSummary } from "@/lib/swms/query";
 import "@/components/swms/swms.css";
 
@@ -106,7 +107,7 @@ function signedLine(s: SwmsSummary): string {
 /** "Dane Whitmore raised: no anchor on the rear ridge" */
 function issueLine(s: SwmsSummary): string {
   if (s.issues.length === 1) return `${s.issues[0].name} raised: ${s.issues[0].issue}`;
-  return `${s.issues.length} issues raised at sign-on, by ${s.issues.map((i) => i.name).join(" and ")}`;
+  return `${s.issues.length} issues raised, by ${andList(s.issues.map((i) => i.name))}`;
 }
 
 export function JobDocumentsFace({
@@ -116,6 +117,7 @@ export function JobDocumentsFace({
   swms = null,
   swmsFailed = false,
   canCreateSwms = false,
+  swmsClosed = false,
   loading,
   truncated,
   onOpen,
@@ -134,6 +136,9 @@ export function JobDocumentsFace({
   swmsFailed?: boolean;
   /** False until the card knows which job it is. */
   canCreateSwms?: boolean;
+  /** ServiceM8 has finished the job: nobody would be asked to sign a new SWMS
+      and the bell would never ring, so there is no Create to offer. */
+  swmsClosed?: boolean;
   loading: boolean;
   truncated: boolean;
   onOpen: (item: JobMediaItem) => void;
@@ -158,7 +163,7 @@ export function JobDocumentsFace({
       <div className="wb2-jcdhead">
         <b>Documents</b>
         {total > 0 && <em>{total === 1 ? "1 file" : `${total} files`}</em>}
-        {onCreateSwms && swms !== null && statements.length === 0 && (
+        {onCreateSwms && !swmsClosed && swms !== null && statements.length === 0 && (
           <button type="button" className="pbtn ghost sm" disabled={!canCreateSwms} onClick={onCreateSwms}>
             Create SWMS
           </button>
@@ -192,10 +197,18 @@ export function JobDocumentsFace({
                   anyone else would land on a page with nothing to do */}
               {/* what is left for a reader who has already signed is signing
                   somebody else on, and the door should say so */}
-              {s.viewerCanSign && (
+              {s.viewerCanSign ? (
                 <Link className="pbtn ghost sm" href={`/dashboard/swms/${s.versionId}`}>
                   {s.viewerSigned ? "Sign them on" : "Sign on"}
                 </Link>
+              ) : (
+                /* the row names an issue nobody has answered and, once
+                   everyone has signed, gave nothing to press */
+                s.issues.length > 0 && (
+                  <Link className="pbtn ghost sm" href={`/dashboard/swms/${s.versionId}`}>
+                    Open the issue
+                  </Link>
+                )
               )}
               {onReviseSwms && (
                 <button type="button" className="pbtn ghost sm" onClick={() => onReviseSwms(s.versionId)}>

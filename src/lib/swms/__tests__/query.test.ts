@@ -8,7 +8,7 @@ jest.mock("@/lib/supabase-server", () => ({
 }));
 jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: async () => new Map() }));
 
-import { hasStandingSignon, libraryApproval, listJobSwms, loadSwmsDocument, loadSwmsJob, nearbyHospital, ownerName, pendingSignons, raisedIssues } from "../query";
+import { hasStandingSignon, libraryApproval, licencesFor, listJobSwms, loadSwmsDocument, loadSwmsJob, nearbyHospital, ownerName, pendingSignons, raisedIssues } from "../query";
 
 const ORG = "org-1";
 const person = (id: string, version_id: string, who: { staff?: string; outside?: string }) => ({
@@ -297,6 +297,25 @@ describe("nearbyHospital", () => {
     expect(await nearbyHospital(ORG, await job("job-5"))).toBeNull();
     expect(await nearbyHospital(ORG, { ...(await job("job-4")), postcode: null })).toBeNull();
     expect(await nearbyHospital("org-2", await job("job-4"))).toBeNull();
+  });
+});
+
+/* PAPER READ TICKETS OFF THE JOB'S ACTIVE ROSTER, so someone who had left
+   printed as holding nothing — and every worker did, once the job had gone */
+describe("licencesFor", () => {
+  it("reads the named people's tickets, whether or not they're still active", async () => {
+    mockDb.tables.staff_profiles.find((p) => p.id === "dane")!.status = "Inactive";
+    mockDb.tables.staff_licences = [
+      { org_id: ORG, staff_profile_id: "dane", type_name: "ARC licence", expiry_date: "2030-01-01" },
+      { org_id: ORG, staff_profile_id: "dane", type_name: "White card", expiry_date: "2020-01-01" },
+      { org_id: "org-2", staff_profile_id: "dane", type_name: "Someone else's", expiry_date: null },
+    ];
+    const got = await licencesFor(ORG, ["dane", null, "dane"], "2026-09-19");
+    expect(got.get("dane")).toEqual([
+      { name: "ARC licence", expires: "2030-01-01", current: true },
+      { name: "White card", expires: "2020-01-01", current: false },
+    ]);
+    expect(await licencesFor(ORG, [], "2026-09-19")).toEqual(new Map());
   });
 });
 

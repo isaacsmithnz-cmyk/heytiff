@@ -191,6 +191,31 @@ export async function loadSwmsTeam(orgId: string, jobUuid: string, today: string
     .sort((a, b) => Number(b.booked) - Number(a.booked) || a.name.localeCompare(b.name));
 }
 
+/* THE TICKETS OF THE PEOPLE A VERSION NAMES, not of the job's active roster.
+
+   Paper read them off `loadSwmsTeam`, which is scoped to a live job and to
+   staff who are Active today — so a worker who has since left printed as
+   holding nothing, and when the job itself had gone from the mirror every
+   worker on the sheet did. The licence is the person's; the document names
+   the person. */
+export async function licencesFor(orgId: string, staffIds: readonly (string | null)[], today: string): Promise<Map<string, SwmsTicket[]>> {
+  const want = [...new Set(staffIds.filter((x): x is string => !!x))];
+  const out = new Map<string, SwmsTicket[]>();
+  if (!want.length) return out;
+  const { data } = await supabaseAdmin
+    .from("staff_licences")
+    .select("staff_profile_id, type_name, expiry_date")
+    .eq("org_id", orgId)
+    .in("staff_profile_id", want);
+  for (const l of (data ?? []) as { staff_profile_id: string; type_name: string | null; expiry_date: string | null }[]) {
+    if (!l.type_name) continue;
+    const list = out.get(l.staff_profile_id) ?? [];
+    list.push({ name: l.type_name, expires: l.expiry_date, current: !l.expiry_date || l.expiry_date >= today });
+    out.set(l.staff_profile_id, list);
+  }
+  return out;
+}
+
 export async function isLibraryApproved(orgId: string): Promise<boolean> {
   return (await libraryApproval(orgId)) !== null;
 }
@@ -400,8 +425,10 @@ export type SwmsSignon = {
   /** The version this signature was given on — earlier than the one being
       read when a correction carried it. */
   version: number;
-  /** For someone outside the business: whose phone they signed on. */
+  /** Whose phone they signed on, when it wasn't their own. */
   onPhoneOf: string | null;
+  /** The same, by staff id — a reader can act on a sign-on they gave. */
+  signedByStaffId: string | null;
   briefedBy: string | null;
   issue: string | null;
   /** Who said the issue was sorted on site, and when; null while it stands. */
@@ -528,6 +555,7 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
                   eff.signon.signedByStaffId && eff.signon.signedByStaffId !== p.staffProfileId
                     ? nameIn(names, eff.signon.signedByStaffId)
                     : null,
+                signedByStaffId: eff.signon.signedByStaffId,
                 /* the person in charge gives the briefing; nobody briefs them */
                 briefedBy:
                   eff.signon.briefedByStaffId && eff.signon.briefedByStaffId !== p.staffProfileId

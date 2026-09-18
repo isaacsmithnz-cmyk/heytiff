@@ -60,16 +60,26 @@ export function normaliseAnswers(raw: unknown): SwmsAnswers {
   };
 }
 
-/** Someone from outside the business, as typed. Nameless rows are dropped. */
+/** Someone from outside the business, as typed. Nameless rows are dropped,
+    and so is a second row with a name already on the list: a name is the only
+    thing that identifies someone the business has no staff card for, so two
+    rows of it would be two people on the document, two sign-ons to collect,
+    and one signature carried onto both by a correction. */
 export function normaliseOutsiders(raw: unknown): { name: string; company: string | null }[] {
   if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
   return raw
     .map((o) => {
       const r = (o && typeof o === "object" ? o : {}) as Record<string, unknown>;
       const company = text(r.company, 120);
       return { name: text(r.name, 120), company: company || null };
     })
-    .filter((o) => o.name.length > 0)
+    .filter((o) => {
+      const key = o.name.toLowerCase();
+      if (!o.name.length || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .slice(0, 20);
 }
 

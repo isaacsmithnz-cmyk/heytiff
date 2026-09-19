@@ -10128,11 +10128,14 @@ html[data-ds-display] .dstudio.editing {
   color: var(--q);
   flex: none;
 }
+/* the brand sits under the type word, both flush right: the card reads as
+   two columns, names down the left and what they are down the right */
 .dstudio .ds-zp-brand {
   font-size: 12px;
   font-weight: 500;
   color: var(--q);
   margin-top: -4px;
+  text-align: right;
 }
 .dstudio .ds-zp-status {
   font-size: 12px;

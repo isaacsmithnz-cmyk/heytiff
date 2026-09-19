@@ -300,11 +300,14 @@ describe("SystemsPanel — the open card", () => {
     expect(onAddZones).toHaveBeenCalledWith(made.systemId);
   });
 
-  it("Edit system sits in the header once a unit is in, and opens the builder", () => {
+  it("Edit system sits under the figures once a unit is in, and opens the builder", () => {
     const made = fiveHeadMulti(fittedHouse().doc);
     const { onBuild } = mount(made.doc, made.systemId);
     const edit = within(card("System 1")).getByRole("button", { name: "Edit system" });
-    expect(edit.closest(".ds-zp-top")).not.toBeNull();
+    /* not on the name line: that line is the name and its type word, so a
+       long system name has the width (Isaac, 2026-09-20) */
+    expect(edit.closest(".ds-zp-top")).toBeNull();
+    expect(edit.closest(".ds-zp-acts")).not.toBeNull();
     fireEvent.click(edit);
     expect(onBuild).toHaveBeenCalledWith(made.systemId);
   });

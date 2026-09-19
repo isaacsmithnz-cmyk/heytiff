@@ -10052,7 +10052,12 @@ html[data-ds-display] .dstudio.editing {
   transition: background-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-zp-btn:hover { background: var(--tint); }
-.dstudio .ds-zp-edit { margin-left: auto; }
+/* Edit system sits on its own line under the figures, so the name line is
+   only the name and its type word and a long name has the width */
+.dstudio .ds-zp-acts {
+  display: flex;
+  justify-content: flex-end;
+}
 /* the one thing to press when there is no system yet */
 .dstudio .ds-zp-addsys {
   display: flex;
@@ -10110,11 +10115,18 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   cursor: pointer;
   text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+/* the type word takes the far end of the line */
 .dstudio .ds-zp-kind {
+  margin-left: auto;
   font-size: 13px;
   font-weight: 500;
   color: var(--q);
+  flex: none;
 }
 .dstudio .ds-zp-brand {
   font-size: 12px;
@@ -10274,6 +10286,16 @@ html[data-ds-display] .dstudio.editing {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* the zones nobody has claimed: a section of its own, so the list has a
+   start, and a well when it is empty — dropping a zone here is what takes
+   it off its system */
+.dstudio .ds-zp-freewrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
 .dstudio .ds-zp-free {
   display: flex;
   flex-direction: column;
@@ -10284,6 +10306,8 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-zp-row-kw { font-size: 13px; color: var(--q); font-variant-numeric: tabular-nums; }
 .dstudio .ds-zp-none {
   padding: 8px 12px;
+  border: 1px dashed var(--ds-border-s);
+  border-radius: var(--r-button);
   font-size: 13px;
   color: var(--q);
 }

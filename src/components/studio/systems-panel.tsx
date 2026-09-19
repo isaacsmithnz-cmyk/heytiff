@@ -208,6 +208,7 @@ export function SystemsPanel({
             onDrop={drop}
           />
         ))}
+        <div className="ds-zp-freewrap">
         <div className="ds-zp-lbl">Zones without a system</div>
         <div
           className={`ds-zp-free${over === "free" ? " drop" : ""}`}
@@ -233,6 +234,7 @@ export function SystemsPanel({
               <span className="ds-zp-row-kw">{kwText(roomLoadKw(doc, z))}</span>
             </div>
           ))}
+        </div>
         </div>
       </div>
     </div>
@@ -304,11 +306,6 @@ function SystemCard({
           {sys.name}
         </button>
         {kind !== "empty" && <span className="ds-zp-kind">{KIND_WORD[kind]}</span>}
-        {open && kind !== "empty" && (
-          <button className="ds-zp-btn ds-zp-edit" onClick={onBuild}>
-            Edit system
-          </button>
-        )}
       </div>
       {pack && <div className="ds-zp-brand">{brandName(pack, sys.brand)}</div>}
       {!open && <div className={`ds-zp-status ${status.tone}`}>{status.text}</div>}
@@ -370,6 +367,13 @@ function SystemCard({
                 </>
               )}
             </dl>
+          )}
+          {kind !== "empty" && (
+            <div className="ds-zp-acts">
+              <button className="ds-zp-btn" onClick={onBuild}>
+                Edit system
+              </button>
+            </div>
           )}
           {status.tone === "bad" && <div className="ds-zp-status bad">{status.text}</div>}
           <div className="ds-zp-next">

@@ -21,6 +21,7 @@ import { roomCoverage, systemCover, type CoverageStatus } from "./coverage";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
 import { systemComponents } from "./components";
+import { equipmentList, installState } from "./install";
 import { describeUnit } from "./materials";
 import { formFactorLabel } from "./form-factors";
 
@@ -494,19 +495,37 @@ export function buildSummaryModel(
               },
             ]
           : []),
-      ...compRows
-        .filter((c) => c.kind === "choice")
-        .map((c) => ({
-          /* the choice catalogue's own key decides the shelf — an isolator is
-             electrical, a bracket is not, and neither this file nor the sheet
-             gets to re-decide that from the row's wording */
-          group: (c.choice?.key === "electrical"
-            ? "electrical"
-            : "components") as SheetGroup,
-          name: c.name,
-          sub: c.sub ?? "",
-          qty: c.value,
-        })),
+      ...(pack && installState(doc, pack, sys) !== "not-asked"
+        ? /* a system that has answered its install questions takes its
+             equipment list — the parts its answers put there, the pack's
+             accessories and the joint pipes its ports need — in place of the
+             static choices. A provision for the day says so on the line;
+             units are never lines, and an unanswered question has no part yet. */
+          equipmentList(doc, pack, sys)
+            .rows.filter((r) => r.group !== "Units" && !r.waiting && r.value !== "Not drawn")
+            .map((r) => ({
+              group: (r.group === "Electrical"
+                ? "electrical"
+                : r.group === "Pipework"
+                  ? "pipe"
+                  : "components") as SheetGroup,
+              name: r.model && r.model !== r.name ? `${r.name} ${r.model}` : r.name,
+              sub: r.onTheDay ? "Confirm on the day" : (r.why ?? ""),
+              qty: r.value ?? (r.qty != null ? String(r.qty) : "—"),
+            }))
+        : compRows
+            .filter((c) => c.kind === "choice")
+            .map((c) => ({
+              /* the choice catalogue's own key decides the shelf — an isolator is
+                 electrical, a bracket is not, and neither this file nor the sheet
+                 gets to re-decide that from the row's wording */
+              group: (c.choice?.key === "electrical"
+                ? "electrical"
+                : "components") as SheetGroup,
+              name: c.name,
+              sub: c.sub ?? "",
+              qty: c.value,
+            }))),
       ...(topupKg != null && topupKg > 0
         ? [
             {

@@ -29,6 +29,10 @@ export type NextPlacing = {
 export type NextMove =
   | { key: "draw-room"; label: string }
   | { key: "choose-pair"; label: string; roomId: string }
+  /* the zones flow's rungs: a system to add, one to build, one to answer for */
+  | { key: "add-system"; label: string }
+  | { key: "build-system"; label: string; systemId: string }
+  | { key: "install"; label: string; systemId: string }
   | { key: "place-idu"; label: string; placing: NextPlacing }
   | { key: "place-odu"; label: string; placing: NextPlacing }
   | { key: "connect"; label: string }

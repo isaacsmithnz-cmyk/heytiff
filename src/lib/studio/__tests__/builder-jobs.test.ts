@@ -22,23 +22,32 @@ import { roomAtPoint, roomCoverage, systemCover } from "../coverage";
 import { buildSummaryModel } from "../summary";
 import { multiConnection } from "../multi";
 import {
+  addBandUnit,
+  addHead,
   addMultiHead,
   addSplit,
+  addSplitBeside,
   adoptLegacySystem,
   allocationsOf,
   chooseOutdoor,
   moveAllocation,
+  moveZone,
   outdoorsListing,
   placeAllocation,
   placeInRoomSpot,
   releaseSystem,
   removeAllocation,
+  removeZone,
   roomVerdict,
   swapAllocation,
   systemCheck,
   trayItems,
+  useProposal,
   wrongRoomPlacements,
+  zonesToAdd,
 } from "../builder";
+import { claimZone, familyOf, newSystem, systemKind, zoneIdsOf } from "../zones";
+import { combinationWord, connectionRatio, doneReason, systemFindings } from "../verdict";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -615,5 +624,215 @@ describe("the panel and the sheet read one calculation", () => {
     const placed = placeAllocation(r.doc, pack, sys.id, head.id, doc.floors[0].id, { x: 1200, y: 100 });
     const again = buildSummaryModel(placed, pack).picklist.find((p) => p.name === head.model)!;
     expect(again.qty).toBe("1");
+  });
+});
+
+/* ── the zones flow's jobs (docs/studio-zones-and-systems.md) ── */
+
+/** a system with these zones claimed and nothing in it yet */
+function claimed(doc: DesignDocument, zoneIds: string[]): { doc: DesignDocument; systemId: string } {
+  const made = newSystem(doc, pack.meta.version);
+  let d = made.doc;
+  for (const z of zoneIds) d = claimZone(d, made.systemId, z);
+  return { doc: d, systemId: made.systemId };
+}
+const sysOf = (doc: DesignDocument, id: string) => doc.systems.find((s) => s.id === id)!;
+const oduOf = (doc: DesignDocument, id: string) =>
+  allocationsOf(sysOf(doc, id)).find((a) => a.role === "odu")?.model || null;
+
+describe("the five bedrooms on one multi (the mock's System 2)", () => {
+  it("claims the zones first, proposes as heads land, and reads 14.2 kW of cover as valid", () => {
+    const { doc, room } = house();
+    const zones = [room.bed1.id, room.bed2.id, room.master.id, room.study.id, room.living.id];
+    const made = claimed(doc, zones);
+    let d = made.doc;
+    const sys = () => sysOf(d, made.systemId);
+    // five zones claimed: the family starts on multi, and the system is empty
+    expect(familyOf(sys())).toBe("multi");
+    expect(systemKind(d, sys())).toBe("empty");
+    expect(combinationWord(d, pack, sys())).toBeNull();
+    expect(sys().settings.roomIds).toEqual(zones);
+
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: room.master.id, iduModel: "MSZ-AP35VGD2" });
+    // one head under a multi family is proposed a multi outdoor, not a pair
+    expect(oduOf(d, made.systemId)).toBe("MXZ-2F52VGD");
+    expect(sys().type).toBe("multi-split");
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: room.bed1.id, iduModel: "MSZ-AP20VGD" });
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: room.bed2.id, iduModel: "MSZ-AP20VGD" });
+    expect(oduOf(d, made.systemId)).toBe("MXZ-3F54VGD");
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: room.study.id, iduModel: "MSZ-AP42VGD2" });
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: room.living.id, iduModel: "MSZ-AP25VGD2" });
+    expect(oduOf(d, made.systemId)).toBe("MXZ-5F100VGD");
+    expect(systemKind(d, sys())).toBe("multi");
+    expect(combinationWord(d, pack, sys())).toBe("Valid");
+    // the one figure: head ratings, capped per zone at the outdoor, summed
+    expect(systemCover(d, pack, sys(), basis).coverKw).toBeCloseTo(14.2, 5);
+    expect(connectionRatio(pack, sys())).toMatchObject({ connectedKw: 14.2, outdoorKw: 10, pct: 142, heads: 5 });
+    // the rack: six units, none on the plan
+    expect(trayItems(d, pack).filter((t) => t.systemId === made.systemId)).toHaveLength(6);
+  });
+
+  it("the cross on a zone takes its head off and keeps the system; Use the proposal hands a pick back", () => {
+    const { doc, room } = house();
+    const made = claimed(doc, [room.bed1.id, room.bed2.id]);
+    let d = addHead(made.doc, pack, { systemId: made.systemId, zoneId: room.bed1.id, iduModel: "MSZ-AP25VGD2" });
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: room.bed2.id, iduModel: "MSZ-AP35VGD2" });
+    expect(oduOf(d, made.systemId)).toBe("MXZ-2F52VGD");
+    // picked by hand: it stays, whatever the heads do
+    d = chooseOutdoor(d, pack, basis, made.systemId, "MXZ-6F120VGD");
+    d = removeZone(d, pack, made.systemId, room.bed2.id);
+    expect(d.systems).toHaveLength(1);
+    expect(zoneIdsOf(sysOf(d, made.systemId))).toEqual([room.bed1.id]);
+    expect(allocationsOf(sysOf(d, made.systemId)).filter((a) => a.role === "idu")).toHaveLength(1);
+    expect(oduOf(d, made.systemId)).toBe("MXZ-6F120VGD");
+    // handed back: one head under one zone, and a multi outdoor still on it, stays a multi
+    d = useProposal(d, pack, made.systemId);
+    expect(oduOf(d, made.systemId)).toBe("MXZ-2F52VGD");
+    expect(sysOf(d, made.systemId).settings.oduChosen).toBeUndefined();
+    // and with the last head gone the system stays, empty
+    const last = allocationsOf(sysOf(d, made.systemId)).find((a) => a.role === "idu")!;
+    d = removeAllocation(d, made.systemId, last.id, pack);
+    expect(d.systems).toHaveLength(1);
+    expect(systemKind(d, sysOf(d, made.systemId))).toBe("empty");
+  });
+});
+
+describe("a zone that needs two units (the mock's step 7)", () => {
+  it("one 7.8 kW head on a split is short; Add another split puts a second system over the zone", () => {
+    const { doc, room } = house();
+    const made = claimed(doc, [room.living.id]);
+    let d = addHead(made.doc, pack, { systemId: made.systemId, zoneId: room.living.id, iduModel: "MSZ-AP80VGD2" });
+    expect(familyOf(sysOf(d, made.systemId))).toBe("split");
+    expect(sysOf(d, made.systemId).type).toBe("split");
+    expect(oduOf(d, made.systemId)).toBe("MUZ-AP80VG2");
+    expect(roomVerdict(d, pack, basis, room.living).word).toBe("Undersized");
+
+    const beside = addSplitBeside(d, pack, { zoneId: room.living.id, iduModel: "MSZ-AP80VGD2" });
+    d = beside.doc;
+    expect(d.systems).toHaveLength(2);
+    expect(zoneIdsOf(sysOf(d, beside.systemId))).toEqual([room.living.id]);
+    expect(oduOf(d, beside.systemId)).toBe("MUZ-AP80VG2");
+    expect(sysOf(d, beside.systemId).colour).not.toBe(sysOf(d, made.systemId).colour);
+    const verdict = roomVerdict(d, pack, basis, room.living);
+    expect(verdict.coverKw).toBeCloseTo(15.6, 5);
+    expect(verdict.word).not.toBe("Undersized");
+    // each system carries its share of the zone's load
+    const share = systemCover(d, pack, sysOf(d, made.systemId), basis);
+    expect(share.loadKw!).toBeCloseTo(load(d, room.living) / 2, 5);
+  });
+
+  it("a second head dropped on a split's zone makes it a multi on one outdoor", () => {
+    const { doc, room } = house();
+    const made = claimed(doc, [room.living.id]);
+    let d = addHead(made.doc, pack, { systemId: made.systemId, zoneId: room.living.id, iduModel: "MSZ-AP71VGD2" });
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: room.living.id, iduModel: "MSZ-AP71VGD2" });
+    expect(sysOf(d, made.systemId).type).toBe("multi-split");
+    expect(oduOf(d, made.systemId)).toBe("MXZ-4F80VGD");
+    expect(combinationWord(d, pack, sysOf(d, made.systemId))).toBe("Valid");
+    // the zone gets no more than the outdoor gives it
+    expect(roomVerdict(d, pack, basis, room.living).coverKw).toBeCloseTo(8, 5);
+  });
+});
+
+describe("a zone moves with its units (the mock's step 12)", () => {
+  function twoSystems() {
+    const { doc, room } = house();
+    const one = claimed(doc, [room.living.id]);
+    let d = addHead(one.doc, pack, { systemId: one.systemId, zoneId: room.living.id, iduModel: "MSZ-AP80VGD2" });
+    d = chooseOutdoor(d, pack, basis, one.systemId, "MUZ-AP80VG2");
+    const two = claimed(d, [room.bed1.id, room.bed2.id, room.master.id, room.study.id]);
+    d = two.doc;
+    d = addHead(d, pack, { systemId: two.systemId, zoneId: room.bed1.id, iduModel: "MSZ-AP20VGD" });
+    d = addHead(d, pack, { systemId: two.systemId, zoneId: room.bed2.id, iduModel: "MSZ-AP20VGD" });
+    d = addHead(d, pack, { systemId: two.systemId, zoneId: room.master.id, iduModel: "MSZ-AP35VGD2" });
+    d = addHead(d, pack, { systemId: two.systemId, zoneId: room.study.id, iduModel: "MSZ-AP25VGD2" });
+    return { doc: d, room, one: one.systemId, two: two.systemId };
+  }
+
+  it("the head comes too; a hand-picked split outdoor then fails, and Use the proposal fixes it", () => {
+    const t = twoSystems();
+    const before = oduOf(t.doc, t.two);
+    let d = moveZone(t.doc, pack, t.room.study.id, t.two, t.one);
+    expect(zoneIdsOf(sysOf(d, t.one))).toEqual([t.room.living.id, t.room.study.id]);
+    expect(zoneIdsOf(sysOf(d, t.two))).not.toContain(t.room.study.id);
+    const moved = allocationsOf(sysOf(d, t.one)).filter((a) => a.role === "idu");
+    expect(moved.map((a) => [a.model, a.roomId])).toEqual([
+      ["MSZ-AP80VGD2", t.room.living.id],
+      ["MSZ-AP25VGD2", t.room.study.id],
+    ]);
+    // the outdoor picked by hand stays, and says so
+    expect(oduOf(d, t.one)).toBe("MUZ-AP80VG2");
+    expect(combinationWord(d, pack, sysOf(d, t.one))).toBe("Fails");
+    const findings = systemFindings(d, pack, sysOf(d, t.one));
+    expect(findings.map((f) => f.code)).toContain("outdoor-takes-one");
+    expect(doneReason(findings)).toBe("MUZ-AP80VG2 takes one head. Pick an outdoor that takes them all, or take a zone out.");
+    // the system that lost a head is proposed a smaller outdoor
+    expect(oduOf(d, t.two)).not.toBe(before);
+    expect(combinationWord(d, pack, sysOf(d, t.two))).toBe("Valid");
+    // one press: the only outdoor in the pack that takes an 80 and a 25
+    d = useProposal(d, pack, t.one);
+    expect(oduOf(d, t.one)).toBe("MXZ-6F120VGD");
+    expect(combinationWord(d, pack, sysOf(d, t.one))).toBe("Valid");
+    expect(sysOf(d, t.one).type).toBe("multi-split");
+  });
+
+  it("a drawn run moves with the head and comes loose at the old outdoor", () => {
+    const t = twoSystems();
+    const floorId = t.doc.floors[0].id;
+    const head = allocationsOf(sysOf(t.doc, t.two)).find((a) => a.roomId === t.room.study.id)!;
+    const odu = allocationsOf(sysOf(t.doc, t.two)).find((a) => a.role === "odu")!;
+    let d = placeAllocation(t.doc, pack, t.two, head.id, floorId, { x: 1200, y: 600 });
+    d = placeAllocation(d, pack, t.two, odu.id, floorId, { x: 1200, y: 1000 });
+    d = {
+      ...d,
+      objects: [
+        ...d.objects,
+        {
+          id: "run1",
+          type: "pipe-run",
+          systemId: t.two,
+          floorId,
+          plane: "room",
+          geometry: { kind: "polyline", points: [{ x: 1200, y: 600 }, { x: 1200, y: 1000 }] },
+          props: { startAttach: { kind: "unit", id: head.id }, endAttach: { kind: "unit", id: odu.id } },
+        },
+      ],
+    };
+    d = moveZone(d, pack, t.room.study.id, t.two, t.one);
+    const run = d.objects.find((o) => o.id === "run1")!;
+    expect(run.systemId).toBe(t.one);
+    expect(run.props.startAttach).toEqual({ kind: "unit", id: head.id });
+    expect(run.props.endAttach).toBeUndefined();
+    expect(d.objects.find((o) => o.id === head.id)!.systemId).toBe(t.one);
+    // the old system's outdoor stays where it was placed
+    expect(d.objects.find((o) => o.id === odu.id)!.systemId).toBe(t.two);
+  });
+
+  it("Add zone lists the zones without a system first, then the ones it would share", () => {
+    const t = twoSystems();
+    const list = zonesToAdd(t.doc, t.one);
+    expect(list.map((z) => [z.zone.id, z.sharedWith.map((s) => s.id)])).toEqual([
+      [t.room.bed1.id, [t.two]],
+      [t.room.bed2.id, [t.two]],
+      [t.room.master.id, [t.two]],
+      [t.room.study.id, [t.two]],
+    ]);
+  });
+});
+
+describe("a unit on the band serves the whole system", () => {
+  it("a ducted unit makes the system ducted with the book's outdoor, and a stray head fails it", () => {
+    const { doc, room } = house();
+    const made = claimed(doc, [room.bed1.id, room.bed2.id, room.master.id]);
+    let d = addBandUnit(made.doc, pack, { systemId: made.systemId, iduModel: "PEAD-M71JAA(D)" });
+    const sys = () => sysOf(d, made.systemId);
+    expect(sys().type).toBe("ducted");
+    expect(systemKind(d, sys())).toBe("ducted");
+    expect(oduOf(d, made.systemId)).toBe("PUZ-ZM71VHA2-A");
+    expect(combinationWord(d, pack, sys())).toBe("Valid");
+    expect(sys().settings.roomIds).toEqual([room.bed1.id, room.bed2.id, room.master.id]);
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: room.bed1.id, iduModel: "MSZ-AP20VGD" });
+    expect(combinationWord(d, pack, sys())).toBe("Fails");
+    expect(systemFindings(d, pack, sys()).map((f) => f.code)).toContain("outdoor-takes-one");
   });
 });

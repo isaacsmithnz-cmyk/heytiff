@@ -21,7 +21,10 @@ import { checkMultiCompatibility, multiCapableIdus } from "./multi";
 import { outdoorReadiness } from "./packs/ready";
 import { stripAttachesTo } from "./attach";
 import { OVERSIZE_CAP } from "./select";
-import { SYSTEM_COLOURS } from "./modules";
+import { nextSystemColour } from "./modules";
+import { ATTACHED_RUN_TYPES } from "./attach";
+import { attachOf } from "./graph";
+import { claimZone, familyOf, newSystem, systemTypeFor, unclaimZone, zoneIdsOf } from "./zones";
 import type { SizingBasis } from "./loads";
 import type { RoomObj } from "./loads-room";
 import { boundsOfPoints, pointInPolygon, polygonCentroid } from "./geometry";
@@ -57,10 +60,10 @@ function legacyFor(sys: DesignSystem, allocs: Allocation[]): Record<string, unkn
   }
   const odu = allocs.find((a) => a.role === "odu");
   const heads = allocs.filter((a) => a.role === "idu" && a.model);
-  const rooms: string[] = [];
+  const rooms: string[] = [...zoneIdsOf(sys)];
   for (const h of heads) if (h.roomId && !rooms.includes(h.roomId)) rooms.push(h.roomId);
   settings.roomIds = rooms;
-  if (sys.type === "split") {
+  if (sys.type === "split" || sys.type === "ducted") {
     const idu = heads[0];
     if (idu) settings.pairIdu = idu.model;
     if (odu?.model) settings.pairOdu = odu.model;
@@ -77,10 +80,12 @@ function legacyFor(sys: DesignSystem, allocs: Allocation[]): Record<string, unkn
   return settings;
 }
 
-const withAllocations = (sys: DesignSystem, allocs: Allocation[]): DesignSystem => ({
-  ...sys,
-  settings: legacyFor(sys, allocs),
-});
+/** the system with these allocations: its type is what they say it is
+    (zones.ts systemTypeFor), and the older settings follow from that */
+function withAllocations(sys: DesignSystem, allocs: Allocation[], pack: DataPack | null = null): DesignSystem {
+  const typed: DesignSystem = { ...sys, type: systemTypeFor(sys, allocs, pack) };
+  return { ...typed, settings: legacyFor(typed, allocs) };
+}
 
 function mapSystem(
   doc: DesignDocument,
@@ -154,36 +159,55 @@ export function outdoorsListing(pack: DataPack, heads: IndoorUnit[]): OutdoorUni
   return out;
 }
 
-/** R12: keep an outdoor chosen by hand while its book still lists the set;
-    otherwise the smallest outdoor that lists it, or none. */
-function reproposeOutdoor(doc: DesignDocument, pack: DataPack, systemId: string): DesignDocument {
+/** The proposal. A multi takes the smallest outdoor whose book lists its
+    heads; a split or a ducted unit takes its pairing from the book; nothing
+    in the system means no outdoor. A one-head system whose family is multi
+    (two zones claimed) is proposed a multi outdoor, so the set can grow.
+    An outdoor picked by hand stays, listed or not, until Use the proposal
+    hands the choice back (useProposal) — the picker shows Valid or Fails
+    against it instead. */
+function proposeOutdoor(doc: DesignDocument, pack: DataPack, systemId: string): DesignDocument {
   const sys = doc.systems.find((s) => s.id === systemId);
-  if (!sys || sys.type !== "multi-split") return doc;
+  if (!sys || (sys.type !== "multi-split" && sys.type !== "split" && sys.type !== "ducted")) return doc;
   const allocs = allocationsOf(sys);
   const heads = allocs
     .filter((a) => a.role === "idu" && a.model)
     .map((a) => iduRow(pack, a.model))
     .filter((u): u is IndoorUnit => u != null);
-  const listing = outdoorsListing(pack, heads).map((o) => o.model);
   const current = allocs.find((a) => a.role === "odu");
-  const byHand = sys.settings.oduChosen === true;
-  const keep = current?.model && byHand && listing.includes(current.model);
-  const model = keep ? current!.model : (listing[0] ?? "");
+  const byHand = sys.settings.oduChosen === true && Boolean(current?.model);
+  let model = "";
+  if (byHand) {
+    model = current!.model;
+  } else if (heads.length === 0) {
+    model = "";
+  } else if (sys.type !== "ducted" && (heads.length >= 2 || familyOf(sys) === "multi")) {
+    model = outdoorsListing(pack, heads)[0]?.model ?? "";
+  } else {
+    const pair = pairFor(pack, heads[0].model, current ? oduRow(pack, current.model) : null);
+    model = pair?.odu_model ?? "";
+  }
   if (current && current.model === model) return doc;
+  if (!current && !model) return doc;
 
   const odu: Allocation = current
     ? { ...current, model }
     : { id: newId("obj"), role: "odu", model, roomId: null };
-  const next = current
-    ? allocs.map((a) => (a.id === odu.id ? odu : a))
-    : [...allocs, odu];
-  let d = mapSystem(doc, systemId, (s) => {
-    const updated = withAllocations(s, next);
-    if (!keep) delete updated.settings.oduChosen;
-    return updated;
-  });
+  const next = current ? allocs.map((a) => (a.id === odu.id ? odu : a)) : [...allocs, odu];
+  let d = mapSystem(doc, systemId, (s) => withAllocations(s, next, pack));
   if (model) d = restampPlaced(d, pack, odu);
+  else d = { ...d, objects: stripAttachesTo(d.objects.filter((o) => o.id !== odu.id), new Set([odu.id])) };
   return d;
+}
+
+/** hand the outdoor choice back to the proposal */
+export function useProposal(doc: DesignDocument, pack: DataPack, systemId: string): DesignDocument {
+  const d = mapSystem(doc, systemId, (s) => {
+    const settings = { ...s.settings };
+    delete settings.oduChosen;
+    return { ...s, settings };
+  });
+  return proposeOutdoor(d, pack, systemId);
 }
 
 /** pick an outdoor by hand — kept until its book no longer lists the set */
@@ -203,34 +227,181 @@ export function chooseOutdoor(
     : { id: newId("obj"), role: "odu", model, roomId: null };
   const next = current ? allocs.map((a) => (a.id === odu.id ? odu : a)) : [...allocs, odu];
   const d = mapSystem(doc, systemId, (s) => {
-    const updated = withAllocations(s, next);
+    const updated = withAllocations(s, next, pack);
     updated.settings.oduChosen = true;
     return updated;
   });
   return restampPlaced(d, pack, odu);
 }
 
+/* ─────────────────────────── zones and heads ─────────────────────────── */
+
+/** the one door for a head dragged onto a zone card. The zone is claimed if
+    it was not, the head serves it, and the units say what the system is:
+    the first head makes a split with its pairing (or a multi's first head,
+    when the zones say multi); a second head on a split turns it into a multi
+    and the outdoor list to multis; a head on a multi joins it. */
+export function addHead(
+  doc: DesignDocument,
+  pack: DataPack,
+  opts: { systemId: string; zoneId: string; iduModel: string }
+): DesignDocument {
+  const sys = doc.systems.find((s) => s.id === opts.systemId);
+  if (!sys || !iduRow(pack, opts.iduModel)) return doc;
+  const head: Allocation = { id: newId("obj"), role: "idu", model: opts.iduModel, roomId: opts.zoneId };
+  let d = claimZone(doc, sys.id, opts.zoneId);
+  d = mapSystem(d, sys.id, (s) => withAllocations(s, [...allocationsOf(s), head], pack));
+  return proposeOutdoor(withPin(d, pack), pack, sys.id);
+}
+
+/** a unit dropped on the band above the zones serves the whole system: a
+    ducted indoor unit there makes the system ducted, and its outdoor is the
+    book's pairing */
+export function addBandUnit(
+  doc: DesignDocument,
+  pack: DataPack,
+  opts: { systemId: string; iduModel: string }
+): DesignDocument {
+  const sys = doc.systems.find((s) => s.id === opts.systemId);
+  if (!sys || !iduRow(pack, opts.iduModel)) return doc;
+  const unit: Allocation = {
+    id: newId("obj"),
+    role: "idu",
+    model: opts.iduModel,
+    roomId: null,
+    serves: "system",
+  };
+  const d = mapSystem(doc, sys.id, (s) => withAllocations(s, [...allocationsOf(s), unit], pack));
+  return proposeOutdoor(withPin(d, pack), pack, sys.id);
+}
+
+/** the short zone's slot on a split: Add another split. The head dropped
+    there comes with its own outdoor, as a second system over the same zone. */
+export function addSplitBeside(
+  doc: DesignDocument,
+  pack: DataPack,
+  opts: { zoneId: string; iduModel: string }
+): { doc: DesignDocument; systemId: string } {
+  const made = newSystem(doc, pack.meta.version);
+  const d = claimZone(made.doc, made.systemId, opts.zoneId);
+  return { doc: addHead(d, pack, { systemId: made.systemId, zoneId: opts.zoneId, iduModel: opts.iduModel }), systemId: made.systemId };
+}
+
+/** the cross on a zone: the zone leaves the system, and the system's units
+    in it go with it — off the plan, with their pipework's ends let go. The
+    system stays, with whatever zones and units it has left. */
+export function removeZone(
+  doc: DesignDocument,
+  pack: DataPack,
+  systemId: string,
+  zoneId: string
+): DesignDocument {
+  const sys = doc.systems.find((s) => s.id === systemId);
+  if (!sys) return doc;
+  const gone = new Set(
+    allocationsOf(sys)
+      .filter((a) => a.role === "idu" && a.roomId === zoneId)
+      .map((a) => a.id)
+  );
+  let d = unclaimZone(doc, systemId, zoneId);
+  if (gone.size) {
+    d = mapSystem(d, systemId, (s) =>
+      withAllocations(s, allocationsOf(s).filter((a) => !gone.has(a.id)), pack)
+    );
+    d = { ...d, objects: stripAttachesTo(d.objects.filter((o) => !gone.has(o.id)), gone) };
+  }
+  return proposeOutdoor(d, pack, systemId);
+}
+
+/** a zone dragged from one system's card onto another's: it moves with its
+    units and their runs. A run's far end, on the old system's outdoor, comes
+    loose — the run keeps its drawing, in the new system, until it is dragged
+    onto the new outdoor. Both systems have their outdoors proposed again. */
+export function moveZone(
+  doc: DesignDocument,
+  pack: DataPack,
+  zoneId: string,
+  fromSystemId: string,
+  toSystemId: string
+): DesignDocument {
+  if (fromSystemId === toSystemId) return doc;
+  const from = doc.systems.find((s) => s.id === fromSystemId);
+  const to = doc.systems.find((s) => s.id === toSystemId);
+  if (!from || !to) return doc;
+  const moving = allocationsOf(from).filter((a) => a.role === "idu" && a.roomId === zoneId);
+  const movingIds = new Set(moving.map((a) => a.id));
+  let d = claimZone(doc, toSystemId, zoneId);
+  d = unclaimZone(d, fromSystemId, zoneId);
+  d = mapSystem(d, fromSystemId, (s) =>
+    withAllocations(s, allocationsOf(s).filter((a) => !movingIds.has(a.id)), pack)
+  );
+  d = mapSystem(d, toSystemId, (s) => withAllocations(s, [...allocationsOf(s), ...moving], pack));
+  d = {
+    ...d,
+    objects: d.objects.map((o) => {
+      if (movingIds.has(o.id)) return { ...o, systemId: toSystemId };
+      if (o.systemId !== fromSystemId || !ATTACHED_RUN_TYPES.has(o.type)) return o;
+      const start = attachOf(o.props.startAttach);
+      const end = attachOf(o.props.endAttach);
+      const onMoved = (start != null && movingIds.has(start.id)) || (end != null && movingIds.has(end.id));
+      if (!onMoved) return o;
+      const props = { ...o.props };
+      if (start && !movingIds.has(start.id)) delete props.startAttach;
+      if (end && !movingIds.has(end.id)) delete props.endAttach;
+      return { ...o, systemId: toSystemId, props };
+    }),
+  };
+  d = proposeOutdoor(d, pack, fromSystemId);
+  return proposeOutdoor(d, pack, toSystemId);
+}
+
+/** the plan's zones a system does not have yet: the ones without a system
+    first, then zones on another system, which it would share */
+export function zonesToAdd(
+  doc: DesignDocument,
+  systemId: string
+): { zone: RoomObj; sharedWith: DesignSystem[] }[] {
+  const sys = doc.systems.find((s) => s.id === systemId);
+  const mine = new Set(sys ? zoneIdsOf(sys) : []);
+  const out: { zone: RoomObj; sharedWith: DesignSystem[] }[] = [];
+  for (const o of doc.objects) {
+    if (!isRoom(o) || mine.has(o.id)) continue;
+    out.push({ zone: o, sharedWith: doc.systems.filter((s) => s.id !== systemId && zoneIdsOf(s).includes(o.id)) });
+  }
+  return out.sort((a, b) => a.sharedWith.length - b.sharedWith.length);
+}
+
 /* ─────────────────────────── building ─────────────────────────── */
 
-/** a split pair dropped into a room: a new split serving that room */
+/** a split pair dropped into a room: a new split serving that room, or —
+    given a system — that system's pair, replacing whatever it held */
 export function addSplit(
   doc: DesignDocument,
   pack: DataPack,
-  opts: { roomId: string; iduModel: string; oduModel: string }
+  opts: { roomId: string; iduModel: string; oduModel: string; systemId?: string }
 ): { doc: DesignDocument; systemId: string } {
+  const pair: Allocation[] = [
+    { id: newId("obj"), role: "idu", model: opts.iduModel, roomId: opts.roomId },
+    { id: newId("obj"), role: "odu", model: opts.oduModel, roomId: null },
+  ];
+  const existing = opts.systemId ? doc.systems.find((s) => s.id === opts.systemId) : undefined;
+  if (existing) {
+    const gone = new Set(allocationsOf(existing).map((a) => a.id));
+    let d = mapSystem(doc, existing.id, (s) => withAllocations({ ...s, type: "split" }, pair, pack));
+    d = claimZone(d, existing.id, opts.roomId);
+    if (gone.size) d = { ...d, objects: stripAttachesTo(d.objects.filter((o) => !gone.has(o.id)), gone) };
+    return { doc: withPin(d, pack), systemId: existing.id };
+  }
   const id = newId("sys");
   const base: DesignSystem = {
     id,
     type: "split",
     brand: BRAND,
-    colour: SYSTEM_COLOURS[doc.systems.length % SYSTEM_COLOURS.length],
+    colour: nextSystemColour(doc.systems),
     name: systemName(doc),
     settings: {},
   };
-  const sys = withAllocations(base, [
-    { id: newId("obj"), role: "idu", model: opts.iduModel, roomId: opts.roomId },
-    { id: newId("obj"), role: "odu", model: opts.oduModel, roomId: null },
-  ]);
+  const sys = withAllocations(base, pair, pack);
   return { doc: withPin({ ...doc, systems: [...doc.systems, sys] }, pack), systemId: id };
 }
 
@@ -248,27 +419,26 @@ export function addMultiHead(
     model: opts.iduModel,
     roomId: opts.roomId,
   };
-  const existing = opts.systemId
-    ? doc.systems.find((s) => s.id === opts.systemId && s.type === "multi-split")
-    : undefined;
+  /* any system may take a head: a split given a second becomes a multi */
+  const existing = opts.systemId ? doc.systems.find((s) => s.id === opts.systemId) : undefined;
   let d: DesignDocument;
   let systemId: string;
   if (existing) {
     systemId = existing.id;
-    d = mapSystem(doc, systemId, (s) => withAllocations(s, [...allocationsOf(s), head]));
+    d = mapSystem(doc, systemId, (s) => withAllocations(s, [...allocationsOf(s), head], pack));
   } else {
     systemId = newId("sys");
     const base: DesignSystem = {
       id: systemId,
       type: "multi-split",
       brand: BRAND,
-      colour: SYSTEM_COLOURS[doc.systems.length % SYSTEM_COLOURS.length],
+      colour: nextSystemColour(doc.systems),
       name: systemName(doc),
       settings: {},
     };
-    d = withPin({ ...doc, systems: [...doc.systems, withAllocations(base, [head])] }, pack);
+    d = withPin({ ...doc, systems: [...doc.systems, withAllocations(base, [head], pack)] }, pack);
   }
-  return { doc: reproposeOutdoor(d, pack, systemId), systemId };
+  return { doc: proposeOutdoor(d, pack, systemId), systemId };
 }
 
 /** the builder moves a unit to another room */
@@ -312,10 +482,11 @@ export function removeAllocation(
   const gone = allocs.find((a) => a.id === allocationId);
   if (!gone) return doc;
   const rest = allocs.filter((a) => a.id !== allocationId);
-  if (sys.type === "split" || !rest.some((a) => a.role === "idu")) {
+  const zoned = Array.isArray(sys.settings.zoneIds);
+  if (!zoned && (sys.type === "split" || !rest.some((a) => a.role === "idu"))) {
     return releaseSystem(doc, systemId);
   }
-  let d = mapSystem(doc, systemId, (s) => withAllocations(s, rest));
+  let d = mapSystem(doc, systemId, (s) => withAllocations(s, rest, pack ?? null));
   if (d.objects.some((o) => o.id === allocationId)) {
     d = {
       ...d,
@@ -325,7 +496,7 @@ export function removeAllocation(
       ),
     };
   }
-  return pack ? reproposeOutdoor(d, pack, systemId) : d;
+  return pack ? proposeOutdoor(d, pack, systemId) : d;
 }
 
 /** Swap: the same unit, another model. A split's outdoor follows to the
@@ -356,7 +527,7 @@ export function swapAllocation(
     const next = odu
       ? allocs.map((a) => (a.id === idu2.id ? idu2 : a.id === odu2.id ? odu2 : a))
       : [...allocs.map((a) => (a.id === idu2.id ? idu2 : a)), odu2];
-    let d = mapSystem(doc, systemId, (s) => withAllocations(s, next));
+    let d = mapSystem(doc, systemId, (s) => withAllocations(s, next, pack));
     d = restampPlaced(d, pack, idu2);
     d = restampPlaced(d, pack, odu2);
     return { doc: d, ok: true };
@@ -366,11 +537,12 @@ export function swapAllocation(
   let d = mapSystem(doc, systemId, (s) =>
     withAllocations(
       s,
-      allocs.map((a) => (a.id === swapped.id ? swapped : a))
+      allocs.map((a) => (a.id === swapped.id ? swapped : a)),
+      pack
     )
   );
   d = restampPlaced(d, pack, swapped);
-  return { doc: reproposeOutdoor(d, pack, systemId), ok: true };
+  return { doc: proposeOutdoor(d, pack, systemId), ok: true };
 }
 
 /** The outdoor a split indoor unit pairs with: the current outdoor's series
@@ -781,11 +953,10 @@ export function adoptLegacySystem(
   }
 
   const d = mapSystem(doc, systemId, (s) => {
-    const updated = withAllocations(s, allocs);
+    const updated = withAllocations(s, allocs, pack);
     if (s.type === "multi-split" && allocs.some((a) => a.role === "odu")) updated.settings.oduChosen = true;
     return updated;
   });
-  void pack;
   return {
     ...d,
     objects: d.objects.map((o) => (isRoom(o) && o.systemId === systemId ? { ...o, systemId: null } : o)),

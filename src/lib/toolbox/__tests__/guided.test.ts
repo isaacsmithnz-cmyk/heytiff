@@ -437,6 +437,33 @@ describe("the cheap fix comes before the expensive one", () => {
     expect(alts.map((a) => a.fix)).toEqual(["Flush the lines", "Replace the lines"]);
   });
 
+  /* Pressures won't split, audited the same way. */
+  it("an open manifold valve is ruled out before any compressor is suspected", () => {
+    expect(getQuestion("nop.running")!.why).toMatch(/gauge manifold are shut/i);
+    const { o } = all("not-pumping");
+    expect(o.actions[0]).toMatch(/service valves fully open/i);
+    expect(o.actions[0]).toMatch(/manifold shut/i);
+  });
+
+  it("a scroll gets its relief valve reset before it's condemned for not pumping", () => {
+    const { o, best, alts } = all("not-pumping");
+    expect(best).toMatch(/internal relief valve/i);
+    expect(o.escalate).toBeFalsy();
+    expect(alts.find((a) => a.fix === "Replace the compressor")!.escalate).toBe(true);
+  });
+
+  it("a held-back drive checks its settings, its heat sink and the refrigerant before the board", () => {
+    const { best } = all("drive-limited");
+    expect(best).toMatch(/quiet, night or econo modes/i);
+    expect(best).toMatch(/demand-response/i);
+    expect(best).toMatch(/heat sink/i);
+    expect(best).toMatch(/refrigerant side, not the drive/i);
+  });
+
+  it("a stuck reversing valve gets its head raised before the changeovers", () => {
+    expect(all("reversing-valve").best).toMatch(/raise the head first/i);
+  });
+
   it("crossed comms offers the renaming that needs no tools", () => {
     expect(all("vrf-crossed-comms").alts.map((a) => a.fix).join(" ")).toMatch(/rename/i);
   });
@@ -528,7 +555,13 @@ describe("three-phase and a compressor that isn't pumping", () => {
     const out = getOutcome("drive-limited")!;
     expect(out.explain).toMatch(/read it out of the boards/i);
     expect(out.actions[0]).toMatch(/service or check mode/i);
-    expect(out.escalate).toBe(true);
+    // reading the limit, cleaning a coil or a heat sink is routine; the badge
+    // sits on the board and the charge, the options that need it
+    expect(out.escalate).toBeFalsy();
+    const board = out.alternatives!.find((a) => a.fix === "Replace the drive board")!;
+    expect(board.escalate).toBe(true);
+    // a tightening compressor current-limits the drive too: prove it first
+    expect(board.when).toMatch(/Compressor suspect/);
   });
 
   it("a three-phase unit that won't start checks phase protection before the board", () => {

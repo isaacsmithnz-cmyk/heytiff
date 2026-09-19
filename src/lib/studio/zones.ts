@@ -34,8 +34,16 @@ const listOf = (sys: DesignSystem, key: "zoneIds" | "roomIds"): string[] => {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
 };
 
-/** the zones a system has claimed, in the order they were clicked */
-export const zoneIdsOf = (sys: DesignSystem): string[] => listOf(sys, "zoneIds");
+/** the zones a system has claimed, in the order they were clicked. A system
+    from before the flow has no claim list: its zones are the rooms it
+    serves (roomIds), read until its first claim writes the list. */
+export const zoneIdsOf = (sys: DesignSystem): string[] =>
+  Array.isArray(sys.settings.zoneIds) ? listOf(sys, "zoneIds") : listOf(sys, "roomIds");
+
+/** only what was claimed — the writes that rebuild roomIds from the units
+    read this, so an older system's rooms follow its heads as they always did */
+export const claimedZoneIds = (sys: DesignSystem): string[] =>
+  Array.isArray(sys.settings.zoneIds) ? listOf(sys, "zoneIds") : [];
 
 /** whether a system belongs to the zones flow at all (a claim list exists,
     empty or not); older systems have none and keep their older behaviour */

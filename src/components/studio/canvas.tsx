@@ -66,6 +66,7 @@ import {
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { capacityFit, type UnitFit } from "@/lib/studio/fit";
 import { OVERSIZE_CAP } from "@/lib/studio/select";
+import { zoneIdsOf } from "@/lib/studio/zones";
 import { builderEnabled, isAirCapable } from "@/lib/studio/modules";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf } from "@/lib/studio/graph";
@@ -903,10 +904,7 @@ export function StudioCanvas({
     const m = new Map<string, { id: string; colour: string }[]>();
     if (!builder) return m;
     for (const sys of doc.systems) {
-      const ids = sys.settings.zoneIds;
-      if (!Array.isArray(ids)) continue;
-      for (const id of ids) {
-        if (typeof id !== "string") continue;
+      for (const id of zoneIdsOf(sys)) {
         const list = m.get(id) ?? [];
         list.push({ id: sys.id, colour: sys.colour });
         m.set(id, list);

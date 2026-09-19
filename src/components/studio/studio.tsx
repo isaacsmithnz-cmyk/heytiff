@@ -21,6 +21,7 @@ import {
   type DesignDocument,
   type DesignObject,
   type DesignSettings,
+  type DesignSystem,
   type DesignVariantRef,
 } from "@/lib/studio/document";
 import { NOTE_INKS } from "@/lib/studio/notes";
@@ -69,17 +70,18 @@ import { useHintsOn, setHintsOn } from "./hints";
 import { useArmedInk, setArmedInk } from "./note-ink";
 import { pairPipeSizes } from "@/lib/studio/components";
 import { ComponentPalette, PlenumHud } from "./air-tools";
+import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones";
+import { blockingFindings, systemFindings } from "@/lib/studio/verdict";
+import { SystemsPanel } from "./systems-panel";
+import { InstallQuestions } from "./install-questions";
 import { builderEnabled, isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
 import { SystemBuilder } from "./system-builder";
 import {
   allocationsOf,
   hasAllocations,
-  placeAllocation,
-  placeInRoomSpot,
   releaseSystem,
-  trayItems,
-  wrongRoomPlacements,
-  type TrayItem,
+  moveZone,
+  removeZone,
 } from "@/lib/studio/builder";
 import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import {
@@ -1256,6 +1258,10 @@ function Editor({
       : (doc.floors[0]?.id ?? null);
   const [tool, setTool] = useState<CanvasTool>("select");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /* claim mode (the zones flow): the system whose zones are being clicked.
+     It means something only while the claim tool is up — Esc lets go of the
+     tool through the canvas, and that ends the claim with it. */
+  const [claimingId, setClaimingId] = useState<string | null>(null);
   /* reference-sheets viewer — browse the uploaded plan set without placing it */
   const [refOpen, setRefOpen] = useState(false);
   const hasReference = Boolean(doc.planImport?.sources?.length);
@@ -1365,13 +1371,17 @@ function Editor({
   const builder = builderEnabled();
   const [builderOpen, setBuilderOpen] = useState<{
     focus: { systemId: string; allocationId: string } | null;
+    /** the zones flow: the system being built */
+    systemId?: string | null;
+    /** a draft to start from (a zone moved onto a system that cannot take its units) */
+    start?: DesignDocument;
   } | null>(null);
   const openUnits = useCallback(
     (roomId: string) => {
-      if (builder) setBuilderOpen({ focus: null });
+      if (builder) setBuilderOpen({ focus: null, systemId: activeSystemId });
       else setPairBrowse(roomId);
     },
-    [builder]
+    [builder, activeSystemId]
   );
   /* room being configured in the heat-load modal (Slice 2) */
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
@@ -1422,6 +1432,68 @@ function Editor({
     setPlacing(p);
     setTool(p ? "place" : "select");
   }, []);
+
+  /* claim mode: Add zones on a system's card puts the plan here; a click on
+     a zone gives it to the system or takes it back, one undo step each */
+  const startClaim = useCallback((systemId: string) => {
+    setClaimingId(systemId);
+    setActiveSystemId(systemId);
+    setPlacing(null);
+    setTool("claim");
+  }, []);
+  const claiming = tool === "claim" ? claimingId : null;
+  const onClaimToggle = useCallback(
+    (roomId: string) => {
+      if (!claiming) return;
+      mutate((d) => toggleZone(d, claiming, roomId));
+    },
+    [claiming, mutate]
+  );
+
+  /* the systems panel's doors (the zones flow) */
+  const onAddSystem = useCallback(() => {
+    const made = newSystem(docRef.current, packVersion);
+    mutate(() => made.doc);
+    startClaim(made.systemId);
+  }, [mutate, packVersion, startClaim]);
+  const onBuildSystem = useCallback((systemId: string) => {
+    setActiveSystemId(systemId);
+    setBuilderOpen({ focus: null, systemId });
+  }, []);
+  /* the install questions, one system at a time, from its card */
+  const [installOpen, setInstallOpen] = useState<string | null>(null);
+  const onInstallSystem = useCallback((systemId: string) => {
+    setActiveSystemId(systemId);
+    setInstallOpen(systemId);
+  }, []);
+  /* a zone dragged onto another card moves with its units; when they cannot
+     be installed there, the builder opens on the move as a draft, Done off
+     until it can, Discard changes the move undone */
+  const onMoveZone = useCallback(
+    (zoneId: string, from: string, to: string) => {
+      if (!pack) return;
+      const next = moveZone(docRef.current, pack, zoneId, from, to);
+      const target = next.systems.find((s) => s.id === to);
+      if (target && blockingFindings(systemFindings(next, pack, target)).length) {
+        setActiveSystemId(to);
+        setBuilderOpen({ focus: null, systemId: to, start: next });
+        return;
+      }
+      mutate(() => next);
+    },
+    [pack, mutate]
+  );
+  const onClaimZone = useCallback(
+    (zoneId: string, to: string) => mutate((d) => claimZone(d, to, zoneId)),
+    [mutate]
+  );
+  const onRemoveZone = useCallback(
+    (zoneId: string, from: string) => {
+      if (!pack) return;
+      mutate((d) => removeZone(d, pack, from, zoneId));
+    },
+    [pack, mutate]
+  );
 
   /* a unit landed: disarm. Each card is dragged/placed on its own (Slice 3);
      no more auto-chaining IDU→ODU→pipe. */
@@ -1728,12 +1800,12 @@ function Editor({
       return;
     }
     if (builder) {
-      setBuilderOpen({ focus: null });
+      setBuilderOpen({ focus: null, systemId: activeSystemId });
       return;
     }
     if (!unitsV || unitsV.kind === "off") return;
     setPairBrowse(unitsV.roomId);
-  }, [placing, unitsV, armPlace, builder]);
+  }, [placing, unitsV, armPlace, builder, activeSystemId]);
 
   /* the armed pairing's capacity, for the canvas's room tint: pair-flow
      systems rate the pair; per-room modules rate the armed unit itself */
@@ -2176,6 +2248,9 @@ function Editor({
             placingKw={placingKw}
             roomFits={roomFits}
             onPlaced={onPlaced}
+            claiming={claiming}
+            onClaimToggle={onClaimToggle}
+            onClaimDone={() => changeTool("select")}
             onRoomCreated={(id) => {
               setEditingRoomId(id);
             }}
@@ -2224,6 +2299,23 @@ function Editor({
           aria-hidden={step !== 1 ? true : undefined}
           inert={step !== 1 ? true : undefined}
         >
+          {builder ? (
+            <SystemsPanel
+              doc={doc}
+              pack={pack}
+              basis={doc.settings.sizingBasis}
+              activeSystemId={effectiveSystemId}
+              onActivate={setActiveSystemId}
+              onAddSystem={onAddSystem}
+              onAddZones={startClaim}
+              onBuild={onBuildSystem}
+              onInstall={onInstallSystem}
+              onArmPlace={armPlace}
+              onMoveZone={onMoveZone}
+              onClaimZone={onClaimZone}
+              onRemoveZone={onRemoveZone}
+            />
+          ) : (
           <SystemCockpit
             doc={doc}
             pack={pack}
@@ -2251,6 +2343,7 @@ function Editor({
                 : undefined
             }
           />
+          )}
         </aside>
       )}
 
@@ -2291,11 +2384,26 @@ function Editor({
           doc={doc}
           pack={pack}
           focus={builderOpen.focus}
+          systemId={builderOpen.systemId ?? null}
+          start={builderOpen.start}
           onCommit={(built) => {
             mutate(() => built);
             setBuilderOpen(null);
           }}
           onClose={() => setBuilderOpen(null)}
+        />
+      )}
+
+      {installOpen && pack && (
+        <InstallQuestions
+          doc={doc}
+          pack={pack}
+          systemId={installOpen}
+          onCommit={(answered) => {
+            mutate(() => answered);
+            setInstallOpen(null);
+          }}
+          onClose={() => setInstallOpen(null)}
         />
       )}
 
@@ -2829,96 +2937,6 @@ function LensedUnitBrowser({
    here arms on a click: a unit is DRAGGED onto the plan, or Place in room puts
    it in its room straight away. Where it lands never changes its room — a unit
    dropped inside another room is listed at the top, flagged, not moved. */
-function BuilderTray({
-  items,
-  wrong,
-  roomName,
-  onArmPlace,
-  onPlaceInRoom,
-}: {
-  items: TrayItem[];
-  wrong: { allocationId: string; roomId: string; inRoomId: string }[];
-  roomName: (id: string) => string;
-  onArmPlace: (p: PlacingUnit | null) => void;
-  onPlaceInRoom: (item: TrayItem) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  if (items.length === 0 && wrong.length === 0) return null;
-
-  return (
-    <div className="ds-pal-wrap" ref={wrapRef}>
-      <button
-        className={`ds-tool ds-tray-btn${open ? " on" : ""}`}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={
-          items.length ? `Units to place (${items.length})` : `Check rooms (${wrong.length})`
-        }
-        onClick={() => setOpen((v) => !v)}
-      >
-        <Icon name="unit" size={15} />
-        {items.length ? "Units to place" : "Check rooms"}
-        <span className="ds-tray-n">{items.length || wrong.length}</span>
-      </button>
-      {open && (
-        <div
-          className="ds-tray ds-btray"
-          role="dialog"
-          aria-label={items.length ? "Units to place" : "Check rooms"}
-        >
-          {wrong.map((w) => (
-            <p key={w.allocationId} className="ds-btray-flag">
-              {roomName(w.roomId)}&apos;s unit is in {roomName(w.inRoomId)}. It still serves{" "}
-              {roomName(w.roomId)}.
-            </p>
-          ))}
-          {items.map((item) => (
-            <div
-              key={item.key}
-              className={`ds-tray-item ds-btray-item ${item.role}`}
-              draggable
-              onDragStart={(e) => {
-                if (e.dataTransfer) {
-                  e.dataTransfer.setData("text/plain", item.model);
-                  e.dataTransfer.effectAllowed = "copy";
-                }
-                /* the canvas drops whatever is armed; arming on dragstart is
-                   the drag, never a click */
-                onArmPlace(item.placing);
-              }}
-              onDragEnd={() => onArmPlace(null)}
-            >
-              <span className="ds-tray-role">{item.role === "idu" ? "Indoor" : "Outdoor"}</span>
-              <span className="ds-tray-model">{item.model}</span>
-              <span className="ds-tray-room">{item.label}</span>
-              <button className="ds-btray-place" onClick={() => onPlaceInRoom(item)}>
-                Place in room
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ItemsTray({
   items,
   onArmPlace,
@@ -3011,6 +3029,23 @@ function ItemsTray({
   );
 }
 
+/* ── claim mode's bar over the plan: whose zones are being clicked, what to
+   do, and Done with the count. Esc does what Done does. ── */
+function ClaimHud({ system, onDone }: { system: DesignSystem | null; onDone: () => void }) {
+  if (!system) return null;
+  const n = zoneIdsOf(system).length;
+  return (
+    <div className="ds-hud" role="toolbar" aria-label="Claim zones">
+      <span className="ds-hud-dot" style={{ background: system.colour }} aria-hidden="true" />
+      <span className="ds-hud-name">{system.name}</span>
+      <span className="ds-hud-text">Click the zones it serves</span>
+      <button className="ds-hud-done" onClick={onDone}>
+        {n === 1 ? "Done, 1 zone" : `Done, ${n} zones`}
+      </button>
+    </div>
+  );
+}
+
 /* ── the Room tool: ONE bench button; the shape choice (square or drawn)
    appears where the click landed, and picking either arms its draw tool.
    R and G still arm each shape directly from the keyboard. ── */
@@ -3018,10 +3053,13 @@ function RoomTool({
   tool,
   onTool,
   disabled,
+  word = "Room",
 }: {
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
   disabled: boolean;
+  /** what the tool draws: a room, or a zone in the zones flow */
+  word?: "Room" | "Zone";
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -3049,18 +3087,18 @@ function RoomTool({
     <div className="ds-pal-wrap" ref={wrapRef}>
       <button
         className={`ds-tool${on ? " on" : ""}`}
-        aria-label="Room"
+        aria-label={word}
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={disabled}
-        title={disabled ? "Room — pick a system first" : "Room — square or drawn shape"}
+        title={disabled ? `${word} — pick a system first` : `${word} — square or drawn shape`}
         onClick={() => setOpen((v) => !v)}
       >
         <Icon name="square" size={15} />
-        Room
+        {word}
       </button>
       {open && !disabled && (
-        <div className="ds-roomfly" role="menu" aria-label="Room shape">
+        <div className="ds-roomfly" role="menu" aria-label={`${word} shape`}>
           <button role="menuitem" onClick={() => arm("room-rect")}>
             <Icon name="square" size={14} />
             Square
@@ -3808,6 +3846,9 @@ function DesignPanel({
   onLegend,
   onCalibrated,
   builder = false,
+  claiming = null,
+  onClaimToggle,
+  onClaimDone,
 }: {
   doc: DesignDocument;
   activeFloorId: string | null;
@@ -3863,6 +3904,10 @@ function DesignPanel({
   onCalibrated: () => void;
   /** the system builder flag: rooms need no system, units come from its tray */
   builder?: boolean;
+  /** claim mode (the zones flow): the system whose zones are being clicked */
+  claiming?: string | null;
+  onClaimToggle?: (roomId: string) => void;
+  onClaimDone?: () => void;
 }) {
   const floor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
@@ -3872,28 +3917,6 @@ function DesignPanel({
   const toPlace = useMemo(
     () => itemsToPlace(doc, pack, activeSystemId),
     [doc, pack, activeSystemId]
-  );
-  /* the builder's tray: every system's unplaced units, labelled by room */
-  const builderTray = useMemo(
-    () => (builder && pack ? trayItems(doc, pack) : []),
-    [builder, doc, pack]
-  );
-  const wrongRooms = useMemo(
-    () => (builder ? wrongRoomPlacements(doc) : []),
-    [builder, doc]
-  );
-  /** Place in room: the unit lands in the room it serves, with no mode
-      (where exactly: placeInRoomSpot) */
-  const placeInRoom = useCallback(
-    (item: TrayItem) => {
-      if (!pack) return;
-      onMutate((d) => {
-        const spot = placeInRoomSpot(d, pack, item.systemId, item.allocationId);
-        if (!spot) return d;
-        return placeAllocation(d, pack, item.systemId, item.allocationId, spot.floorId, spot.at);
-      });
-    },
-    [pack, onMutate]
   );
   /* the Draw flyout's armed options (pipe form, drain size, cable kind) —
      view state: what the NEXT line is, never what a drawn one was */
@@ -3996,23 +4019,18 @@ function DesignPanel({
             {toolButton(tb("select"))}
             {toolButton(tb("erase"))}
             <span className="ds-tb-sep" aria-hidden="true" />
-            <RoomTool tool={tool} onTool={onTool} disabled={!builder && !activeSystemId} />
+            <RoomTool
+              tool={tool}
+              onTool={onTool}
+              disabled={!builder && !activeSystemId}
+              word={builder ? "Zone" : "Room"}
+            />
             <span className="ds-tb-sep" aria-hidden="true" />
             {/* Units leads the System group — the workflow places before it
                 connects. One verb, three meanings: browse (nothing chosen),
                 arm the next unplaced unit, browse again as a swap. While a
                 unit rides the cursor the button is lit and a press disarms. */}
-            {builder ? (
-              <button
-                className="ds-tool"
-                aria-label="Build systems"
-                title="Build systems"
-                onClick={onUnits}
-              >
-                <Icon name="unit" size={15} />
-                Systems
-              </button>
-            ) : (
+            {builder ? null : (
             <button
               className={`ds-tool${tool === "place" ? " on" : ""}`}
               aria-label="Units"
@@ -4063,21 +4081,7 @@ function DesignPanel({
             {/* last in the system group: it holds what choosing units left to
                 do, so it reads as the end of that run rather than a second
                 thing next to Units */}
-            {builder ? (
-              <BuilderTray
-                /* emptied and refilled, it opens closed */
-                key={builderTray.length + wrongRooms.length > 0 ? "tray" : "empty"}
-                items={builderTray}
-                wrong={wrongRooms}
-                roomName={(id) =>
-                  String(doc.objects.find((o) => o.id === id)?.props.name ?? "a room")
-                }
-                onArmPlace={onArmPlace}
-                onPlaceInRoom={placeInRoom}
-              />
-            ) : (
-              <ItemsTray items={toPlace} onArmPlace={onArmPlace} />
-            )}
+            {builder ? null : <ItemsTray items={toPlace} onArmPlace={onArmPlace} />}
             {/* crop + move-plans live in the Calibrate dropdown now (plan-prep) */}
             <span className="ds-tb-sep" aria-hidden="true" />
             {/* Note gets a group of its own, at the end, because it is the one
@@ -4130,6 +4134,7 @@ function DesignPanel({
             iduSpec={iduSpec}
             oduSpec={oduSpec}
             onRoomCreated={onRoomCreated}
+            onClaimToggle={onClaimToggle}
             onOpenRoom={onOpenRoom}
             remarkRoomId={remarkRoomId}
             reshapeRoomId={reshapeRoomId}
@@ -4167,6 +4172,12 @@ function DesignPanel({
             still says is the tool hint and the crosshair cursor. */}
         {/* options HUD — floating pill strip, top-centre over the canvas,
             while a tool with options is armed (Step 2: the plenum variant) */}
+        {tool === "claim" && claiming && (
+          <ClaimHud
+            system={doc.systems.find((s) => s.id === claiming) ?? null}
+            onDone={() => onClaimDone?.()}
+          />
+        )}
         {tool === "component" && airComp?.kind === "plenum" && (
           <PlenumHud
             stream={airComp.stream}

@@ -314,7 +314,7 @@ function chargeRow(
     same population as the sheet's pair-coil line) minus nothing — soft-drawn
     runs are skipped because the coil arrives pre-insulated. Riser verticals
     count: they are hard pipe. Null while a run crosses an uncalibrated floor. */
-function hardDrawnLengthM(doc: DesignDocument, system: DesignSystem): number | null {
+export function hardDrawnLengthM(doc: DesignDocument, system: DesignSystem): number | null {
   const graph = buildSystemGraph(doc.objects, doc.floors, system.id);
   const byId = new Map(doc.objects.map((o) => [o.id, o]));
   let total = 0;

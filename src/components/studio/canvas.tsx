@@ -253,6 +253,10 @@ export interface ZoomApi {
 }
 
 /** What the place tool drops on the next click (armed by the system panel). */
+/** the rack's own drag type: the placing unit as JSON, so a drop lands even
+    when the arm set on dragstart has not rendered yet (a quick drag) */
+export const RACK_DRAG = "application/x-heytiff-rack";
+
 export interface PlacingUnit {
   role: "idu" | "odu";
   model: string;
@@ -2268,11 +2272,11 @@ export function StudioCanvas({
 
   /* ── Stage-4 document intents ── */
   const addUnit = useCallback(
-    (at: Point) => {
+    (at: Point, armed: PlacingUnit | null = placing) => {
       /* a builder unit from the tray: it keeps its own id, system and room —
          the builder decided the room, so where it lands never changes it */
-      if (placing?.allocationId && placing.systemId) {
-        const p = placing;
+      if (armed?.allocationId && armed.systemId) {
+        const p = armed;
         onMutate((d) => {
           if (d.objects.some((o) => o.id === p.allocationId)) {
             return {
@@ -3304,17 +3308,30 @@ export function StudioCanvas({
 
   /* ── drag-from-card placement (Slice 3): the panel arms `placing` on
      dragstart; dragover tracks the to-scale ghost, drop commits the unit ── */
+  const rackDrag = (e: React.DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes(RACK_DRAG);
   const onDragOver = (e: React.DragEvent<SVGSVGElement>) => {
-    if (!placing) return;
+    if (!placing && !rackDrag(e)) return;
     e.preventDefault(); // allow the drop
     e.dataTransfer.dropEffect = "copy";
     setCursor(toWorld(e));
   };
 
   const onDrop = (e: React.DragEvent<SVGSVGElement>) => {
-    if (!placing || sim) return;
+    if (sim) return;
+    /* the arm set on dragstart is what lands; a drag quicker than a render
+       carries the same unit in its own data, so it lands too */
+    let armed: PlacingUnit | null = placing;
+    if (!armed && rackDrag(e)) {
+      try {
+        const raw = e.dataTransfer.getData(RACK_DRAG);
+        if (raw) armed = JSON.parse(raw) as PlacingUnit;
+      } catch {
+        armed = null;
+      }
+    }
+    if (!armed) return;
     e.preventDefault();
-    addUnit(toWorld(e));
+    addUnit(toWorld(e), armed);
   };
 
   const onDoubleClick = (e: React.MouseEvent<SVGSVGElement>) => {

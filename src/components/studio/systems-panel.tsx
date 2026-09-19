@@ -33,7 +33,7 @@ import { systemCover } from "@/lib/studio/coverage";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { cardStatus } from "@/lib/studio/status";
 import { installState } from "@/lib/studio/install";
-import type { PlacingUnit } from "./canvas";
+import { RACK_DRAG, type PlacingUnit } from "./canvas";
 
 /** a zone on the move between cards: the drag's own type and payload */
 export const ZONE_DRAG = "application/x-heytiff-zone";
@@ -353,6 +353,7 @@ function SystemCard({
                   <dt>Cover</dt>
                   <dd className="num">
                     {cover.coverKw.toFixed(1)} of {cover.loadKw == null ? "—" : cover.loadKw.toFixed(1)} kW
+                    {cover.pct != null && cover.pct > 150 && <span className="warn">, oversized</span>}
                   </dd>
                 </>
               )}
@@ -422,6 +423,7 @@ function Rack({
             onDragStart={(e) => {
               if (e.dataTransfer) {
                 e.dataTransfer.setData("text/plain", item.model);
+                e.dataTransfer.setData(RACK_DRAG, JSON.stringify(item.placing));
                 e.dataTransfer.effectAllowed = "copy";
               }
               /* the canvas drops whatever is armed: arming on dragstart IS the drag */

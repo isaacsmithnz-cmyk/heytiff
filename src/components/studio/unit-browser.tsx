@@ -858,10 +858,7 @@ export function UnitBrowser({
                     : s.grouped
                       ? s.groups.flatMap((g) => [
                           <tr key={`grp-${s.key}-${g.series}`} className="ds-ub-group">
-                            <td colSpan={colSpan}>
-                              {g.series}
-                              <span className="ds-ub-count">{g.items.length}</span>
-                            </td>
+                            <td colSpan={colSpan}>{g.series}</td>
                           </tr>,
                           ...g.items.map(renderRow),
                         ])

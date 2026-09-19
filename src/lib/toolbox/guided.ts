@@ -492,7 +492,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "water.ice",
     ask: "Any ice on the indoor coil?",
-    why: "Ice melts in bursts between cycles and overwhelms the tray, which looks like a drain fault but isn't.",
+    why: "Look while it's RUNNING, or the moment you stop it. Ice melts in bursts between cycles and overwhelms the tray, which looks like a drain fault but isn't — and a coil that ices on the run can be bare ten minutes later, so a late 'no ice' sends you to the tray for a gas fault.",
     answers: [
       { label: "Yes, there's ice", next: "out:icing" },
       { label: "No ice", next: "out:tray-or-fall" },
@@ -1455,11 +1455,19 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "The drain flows and there's no ice, so the water is escaping the tray before it reaches the outlet — a crack, a bad fall, or an air-locking trap.",
     actions: [
-      "Spitting or spraying rather than dripping? Look at the barrel fan and the coil: a fan caked in dust and mould throws water off its blades and out through the louvres, and it reads as a tray leak from the floor",
+      "Spitting or spraying rather than dripping? Two causes, and neither of them is the tray. A barrel fan caked in dust and mould throws water off its blades and out through the louvres. And a coil that ices — short of gas, or starved of air — throws the melt out in bursts as it lets go, which is why that spitting comes and goes",
+      "So look for frost with it running, not after: any on the coil or the suction line and the ice is the fault, not the drain. Work it on the 'Ice on pipes or coil' path — and with the airflow good, short of gas is where that lands",
       "Sight along the drain run for sags or uphill sections",
       "Check the trap: gurgling heads usually mean it's air-locking or dry",
       "Inspect the tray for cracks, corrosion or a displaced seal, and the grommet where the drain leaves it",
       "Confirm the indoor unit is level — a tilted head drains to the wrong corner",
+    ],
+    alternatives: [
+      {
+        fix: "Find the leak, repair it and weigh the charge in",
+        when: "It frosts while it runs with the filters, the fan wheel and the airflow all good. The spitting is melt thrown off that ice, so the gas is the fault and the tray never was.",
+        escalate: true,
+      },
     ],
   },
   /* Water at the OUTDOOR unit had nowhere to go in this tree: the only other

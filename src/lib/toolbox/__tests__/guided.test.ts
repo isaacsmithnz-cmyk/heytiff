@@ -560,8 +560,19 @@ describe("the cheap fix comes before the expensive one", () => {
     expect(alts.map((a) => a.fix)).toEqual(["Fit a capped access tee at the head", "Fit a float switch in the tray or the line"]);
   });
 
-  it("water thrown off a filthy barrel fan is named before the tray is blamed", () => {
-    expect(all("tray-or-fall").o.actions[0]).toMatch(/barrel fan/i);
+  /* Isaac, on the spitting step: "could also be Gas related due to ice." A
+     coil short of gas ices, and the melt is thrown out the louvres in bursts
+     — same symptom, and the tray is innocent either way. */
+  it("water spat from a wall unit names ice and the gas, not just a dirty fan", () => {
+    const { o, best, alts } = all("tray-or-fall");
+    expect(o.actions[0]).toMatch(/barrel fan/i);
+    expect(o.actions[0]).toMatch(/short of gas/i);
+    expect(best).toMatch(/look for frost with it running/i);
+    expect(alts[0].fix).toMatch(/weigh the charge in/i);
+    expect(alts[0].escalate).toBe(true);
+    // and the ice question says to look while it runs, so a late "no ice"
+    // doesn't route a gas fault to the tray
+    expect(getQuestion("water.ice")!.why).toMatch(/bare ten minutes later/i);
   });
 
   it("a silent pump is proved to have power before it's replaced", () => {

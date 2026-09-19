@@ -451,12 +451,13 @@ export const QUESTIONS: Question[] = [
          the right next question. Better than keeping a second, thinner copy
          of those outcomes here. */
       { label: "Pipework or ceiling nearby", next: "cond.where" },
+      { label: "Outside, at the outdoor unit", next: "out:outdoor-water" },
     ],
   },
   {
     id: "water.drain",
     ask: "Is water running out of the drain outlet outside while it's cooling?",
-    why: "Find the drain discharge point and watch it. A healthy system produces a steady trickle in humid weather.",
+    why: "Find the drain discharge point and watch it. A healthy system produces a steady trickle in humid weather — but in dry air it legitimately makes almost none, so check what the room's humidity is doing before you call a dry outlet a blockage.",
     answers: [
       { label: "Nothing, or barely a drip", next: "water.pump" },
       { label: "Yes, flowing normally", next: "water.ice" },
@@ -1405,10 +1406,21 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "It drained fine for years and now it doesn't, so something has closed a path that used to be open. The unit is still producing water, the tray fills, and it spills. Almost always slime and dust at the tray outlet or in the line.",
     actions: [
-      "Clear the line — vacuum from the discharge end or nitrogen from the tray side",
+      "Start where it almost always is: pull the union apart at the head and clear the tray outlet and the first bend. A minute with a bottle brush beats an hour on the line",
+      "Clear the rest by pulling from the discharge end — a wet vacuum outside. Pushing from the tray side finds the weakest joint in the ceiling instead, and that's where the next leak is",
       "Flush it through and confirm a steady flow outside",
       "Clean the tray and treat it",
       "Check the run has continuous fall, no sags, and a correct trap",
+    ],
+    alternatives: [
+      {
+        fix: "Fit a capped access tee at the head",
+        when: "This drain is a repeat customer. A cleaning point turns the next visit into a two-minute job.",
+      },
+      {
+        fix: "Fit a float switch in the tray or the line",
+        when: "The ceiling has already paid for one overflow. The switch stops the unit before the next one, for the price of a part.",
+      },
     ],
   },
   {
@@ -1419,8 +1431,10 @@ export const OUTCOMES: Outcome[] = [
       "The unit makes water, there's a pump, and nothing is coming out the other end. Either the pump has failed or its float isn't telling it to run.",
     actions: [
       "Lift the float by hand — the pump should run",
+      "No sound at all? Prove it has power with the float up. Most are fed off the indoor board, so a blown fuse or a plug half out stops it silently",
       "Clean the pump reservoir and float; they silt up",
-      "Check the discharge line isn't blocked or kinked",
+      "Check the discharge line isn't blocked or kinked, and the non-return valve isn't stuck or fitted the wrong way round",
+      "Running but not lifting: measure the height it's being asked to lift against what the pump is rated for",
       "Confirm the pump's safety switch stops the unit on failure, so it can't flood next time",
     ],
     alternatives: [
@@ -1441,10 +1455,31 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "The drain flows and there's no ice, so the water is escaping the tray before it reaches the outlet — a crack, a bad fall, or an air-locking trap.",
     actions: [
+      "Spitting or spraying rather than dripping? Look at the barrel fan and the coil: a fan caked in dust and mould throws water off its blades and out through the louvres, and it reads as a tray leak from the floor",
       "Sight along the drain run for sags or uphill sections",
       "Check the trap: gurgling heads usually mean it's air-locking or dry",
-      "Inspect the tray for cracks, corrosion or a displaced seal",
+      "Inspect the tray for cracks, corrosion or a displaced seal, and the grommet where the drain leaves it",
       "Confirm the indoor unit is level — a tilted head drains to the wrong corner",
+    ],
+  },
+  /* Water at the OUTDOOR unit had nowhere to go in this tree: the only other
+     answer sent it to the condensation tree, which reads it as sweating
+     pipework in the roof. In heating it is the defrost doing its job, and in
+     cooling it is usually the indoor unit's own drain, run down beside it. */
+  {
+    id: "outdoor-water",
+    title: "Water at the outdoor unit is usually meant to be there",
+    confidence: "info",
+    explain:
+      "In heating the outdoor coil frosts, and every defrost sends that meltwater out of the base — litres of it on a cold morning, steaming as it goes. In cooling the outdoor unit makes no condensate of its own, but plenty of installs run the indoor unit's drain down to discharge beside it. Neither is a fault.",
+    customer:
+      "In winter the outdoor unit ices up, and every so often it melts that ice off — the water on the ground is where it goes, and the steam you've seen is the same thing happening. In summer, water out there is usually the drain from the indoor unit, which has to come out somewhere. Neither one is the system leaking.",
+    actions: [
+      "Work out which mode it was in: meltwater in heating, drain water in cooling",
+      "Follow it to its source — out of the base of the unit, or off the end of a drain hose run down beside it",
+      "Heating: check the base's drain holes are clear and the unit stands high enough for the water to get away, or it refreezes into the coil",
+      "Cooling: if it isn't the drain hose, and the pipework up there is wet, that's sweating insulation — work the 'Sweating surfaces' path",
+      "Water pooling against a wall or across a path is a fair complaint even with the unit working: run it away with a hose or a drain kit",
     ],
   },
 

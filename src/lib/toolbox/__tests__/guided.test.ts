@@ -535,6 +535,41 @@ describe("the cheap fix comes before the expensive one", () => {
     expect(alts[0].fix).toMatch(/remote sensor/i);
   });
 
+  /* Water leaking, audited the same way. */
+  it("water at the outdoor unit is its own answer, not sweating pipework", () => {
+    const where = getQuestion("water.where")!;
+    const outside = where.answers.find((a) => /outdoor unit/i.test(a.label))!;
+    expect(isOutcomeRef(outside.next)).toBe(true);
+    const out = getOutcome(outcomeId(outside.next))!;
+    expect(out.confidence).toBe("info");
+    expect(out.explain).toMatch(/defrost/i);
+    expect(out.customer).toBeTruthy();
+    // and it still says when water out there IS worth chasing
+    expect(out.actions.join(" ")).toMatch(/sweating insulation/i);
+  });
+
+  it("a dry outlet isn't called a blockage before the humidity is checked", () => {
+    expect(getQuestion("water.drain")!.why).toMatch(/dry air it legitimately makes almost none/i);
+  });
+
+  it("a blocked drain is cleared at the tray outlet, by pulling not pushing", () => {
+    const { o, best, alts } = all("drain-blocked");
+    expect(o.actions[0]).toMatch(/union apart at the head/i);
+    expect(best).toMatch(/pulling from the discharge end/i);
+    expect(best).toMatch(/weakest joint in the ceiling/i);
+    expect(alts.map((a) => a.fix)).toEqual(["Fit a capped access tee at the head", "Fit a float switch in the tray or the line"]);
+  });
+
+  it("water thrown off a filthy barrel fan is named before the tray is blamed", () => {
+    expect(all("tray-or-fall").o.actions[0]).toMatch(/barrel fan/i);
+  });
+
+  it("a silent pump is proved to have power before it's replaced", () => {
+    const { best } = all("pump-fault");
+    expect(best).toMatch(/prove it has power/i);
+    expect(best).toMatch(/non-return valve/i);
+  });
+
   it("crossed comms offers the renaming that needs no tools", () => {
     expect(all("vrf-crossed-comms").alts.map((a) => a.fix).join(" ")).toMatch(/rename/i);
   });

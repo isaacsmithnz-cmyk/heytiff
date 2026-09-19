@@ -305,9 +305,11 @@ function SystemCard({
         <button className="ds-zp-name" aria-expanded={open} onClick={open ? onRest : onOpen}>
           {sys.name}
         </button>
-        {kind !== "empty" && <span className="ds-zp-kind">{KIND_WORD[kind]}</span>}
+        <span className="ds-zp-is">
+          {kind !== "empty" && <span className="ds-zp-kind">{KIND_WORD[kind]}</span>}
+          {pack && <span className="ds-zp-brand">{brandName(pack, sys.brand)}</span>}
+        </span>
       </div>
-      {pack && <div className="ds-zp-brand">{brandName(pack, sys.brand)}</div>}
       {!open && <div className={`ds-zp-status ${status.tone}`}>{status.text}</div>}
       {open && (
         <>
@@ -368,26 +370,28 @@ function SystemCard({
               )}
             </dl>
           )}
-          {kind !== "empty" && (
-            <div className="ds-zp-acts">
-              <button className="ds-zp-btn" onClick={onBuild}>
-                Edit system
-              </button>
-            </div>
-          )}
           {status.tone === "bad" && <div className="ds-zp-status bad">{status.text}</div>}
           <div className="ds-zp-next">
             {kind === "empty" ? (
               <button className="ds-zp-primary" onClick={onBuild}>
                 Build system
               </button>
-            ) : rack.length ? (
-              <Rack pack={pack} items={rack} onArmPlace={onArmPlace} />
-            ) : install !== "complete" ? (
-              <button className="ds-zp-primary" onClick={onInstall}>
-                Answer install questions
-              </button>
-            ) : null}
+            ) : (
+              <>
+                {rack.length ? (
+                  <Rack pack={pack} items={rack} onArmPlace={onArmPlace} />
+                ) : install !== "complete" ? (
+                  <button className="ds-zp-primary" onClick={onInstall}>
+                    Answer install questions
+                  </button>
+                ) : null}
+                <div className="ds-zp-acts">
+                  <button className="ds-zp-wide" onClick={onBuild}>
+                    Edit system
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </>
       )}

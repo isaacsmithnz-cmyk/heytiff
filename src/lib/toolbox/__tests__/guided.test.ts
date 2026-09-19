@@ -464,6 +464,49 @@ describe("the cheap fix comes before the expensive one", () => {
     expect(all("reversing-valve").best).toMatch(/raise the head first/i);
   });
 
+  /* Ice on pipes or coil, audited the same way. */
+  it("a frozen coil looks past the filters at the fan wheel and the zones", () => {
+    expect(getQuestion("ice.filters")!.why).toMatch(/fan wheel/i);
+    const { best, alts } = all("airflow-starved");
+    expect(best).toMatch(/barrel behind a wall unit's louvres/i);
+    expect(best).toMatch(/open more zones/i);
+    // a slow fan is a capacitor before it's a motor, and neither is specialist
+    expect(alts.map((a) => a.fix)).toEqual(["Replace the indoor fan's capacitor", "Replace the indoor fan motor"]);
+    expect(alts.every((a) => !a.escalate)).toBe(true);
+  });
+
+  it("a coil starved of refrigerant checks the valves, the frost line and a re-home before the leak", () => {
+    const { o, best, alts } = all("charge-or-valve");
+    expect(best).toMatch(/service valves fully open/i);
+    expect(best).toMatch(/look where the frost starts/i);
+    expect(best).toMatch(/power-cycle at the isolator to re-home it/i);
+    expect(o.escalate).toBeFalsy();
+    expect(alts.every((a) => a.escalate)).toBe(true);
+  });
+
+  it("an iced outdoor coil watches a forced defrost before blaming the charge", () => {
+    const { o, best } = all("defrost-fault");
+    expect(best).toMatch(/force a defrost/i);
+    expect(best).toMatch(/defrost field setting/i);
+    expect(o.actions.findIndex((a) => /force a defrost/i.test(a))).toBeLessThan(
+      o.actions.findIndex((a) => /read pressures/i.test(a))
+    );
+  });
+
+  it("cooling on a cold day asks why it's cooling at all before any hardware", () => {
+    const { o, alts } = all("low-ambient");
+    expect(o.actions[0]).toMatch(/why it's cooling at all/i);
+    expect(alts[0].fix).toMatch(/outside air/i);
+  });
+
+  it("the icing outcome on the other paths offers the fast thaw and the easy checks", () => {
+    const { best, alts } = all("icing");
+    expect(best).toMatch(/service valves fully open/i);
+    expect(best).toMatch(/fan wheel/i);
+    expect(alts[0].fix).toBe("Thaw it in heat mode");
+    expect(alts[0].when).toMatch(/meltwater comes all at once/i);
+  });
+
   it("crossed comms offers the renaming that needs no tools", () => {
     expect(all("vrf-crossed-comms").alts.map((a) => a.fix).join(" ")).toMatch(/rename/i);
   });
@@ -486,7 +529,7 @@ describe("best fix and other options", () => {
   it("the badge sits on the fix that needs it", () => {
     // an outcome whose best fix is routine carries no badge, even when its
     // last resort does — that was the crossed-pipes mistake
-    for (const id of ["vrf-crossed-pipes", "vrf-branch", "vrf-creep", "heat-none", "defrost-fault", "bc-valve"]) {
+    for (const id of ["vrf-crossed-pipes", "vrf-branch", "vrf-creep", "heat-none", "defrost-fault", "bc-valve", "charge-or-valve"]) {
       const o = getOutcome(id)!;
       expect(o.escalate).toBeFalsy();
       expect(o.alternatives!.some((a) => a.escalate)).toBe(true);

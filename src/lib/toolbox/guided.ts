@@ -510,7 +510,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "ice.filters",
     ask: "Once it's thawed — are the filters and coil clean, with the fan on a normal speed?",
-    why: "Starved airflow is the most common cause of a frozen coil. Check for crushed flexible duct on a ducted system.",
+    why: "Starved airflow is the most common cause of a frozen coil. Look past the filters at the fan wheel too — the barrel behind a wall unit's louvres, or a ducted unit's blower — because dust packed on its blades starves the coil with spotless filters. Ducted: check for crushed flexible duct, and how many zones are shut.",
     answers: [
       { label: "Dirty, blocked, or fan on low", next: "out:airflow-starved" },
       { label: "All clean and moving air", next: "ice.ambient" },
@@ -1090,9 +1090,20 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Clean or replace the return-air filters",
       "Clean the indoor coil face — check between the fins, not just the surface",
+      "Clean the fan wheel — the barrel behind a wall unit's louvres, or a ducted unit's blower. Dust and mould packed on its blades starve the coil with spotless filters",
       "Clear the return grille: furniture, curtains, stored boxes",
-      "Ducted: check for crushed, kinked or disconnected flexible duct",
+      "Ducted: check for crushed, kinked or disconnected flexible duct, and open more zones — too many shut starves the coil the same way",
       "Set the fan to a normal speed and retest after any ice has melted",
+    ],
+    alternatives: [
+      {
+        fix: "Replace the indoor fan's capacitor",
+        when: "The fan runs slow on its highest setting, on a fixed-speed motor. Test the capacitor before the motor — it's the cheap part. A DC fan motor has none (most inverter heads run one), so there it's the motor or the board driving it.",
+      },
+      {
+        fix: "Replace the indoor fan motor",
+        when: "The capacitor tests good, or it's a DC motor, and the fan still runs slow on its highest setting.",
+      },
     ],
   },
   {
@@ -1103,9 +1114,21 @@ export const OUTCOMES: Outcome[] = [
       "Ice on the coil or suction line means the evaporator is running below freezing — either it isn't getting enough air across it, or it's short of refrigerant. Airflow is the more common of the two and free to check.",
     actions: [
       "Turn it to fan only and let the ice melt fully — never chip it off",
-      "Check filters, coil and fan speed first",
+      "Check filters, coil, the fan wheel and fan speed first — and on a ducted system, how many zones are shut",
+      "Cold outside, or a comfort unit left cooling through a cold night? That ices a healthy system — the 'Ice on pipes or coil' path covers it",
+      "Service valves fully open — a liquid valve left part-shut after a pump-down starves the coil exactly like a short charge",
       "If airflow is good, measure superheat once it's thawed — high superheat with low suction points at charge",
-      "A leak has to be found and repaired, not just topped up",
+    ],
+    alternatives: [
+      {
+        fix: "Thaw it in heat mode",
+        when: "A heat pump, and you can't wait an hour on fan only: a few minutes of heat clears the coil. Watch the tray — the meltwater comes all at once.",
+      },
+      {
+        fix: "Find the leak, repair it and weigh the charge in",
+        when: "Airflow good, valves open, and superheat high with low suction. Never just top it up.",
+        escalate: true,
+      },
     ],
     tool: PRESSURES,
   },
@@ -1234,6 +1257,8 @@ export const OUTCOMES: Outcome[] = [
       "Melt the ice completely before testing — never chip it off",
       "Check the outdoor coil sensor is clipped tight to its pipe and insulated. One that's slipped off reads the air instead of the coil, so the unit never sees the ice it's meant to clear",
       "Meter that sensor against its resistance chart at the coil's actual temperature — a drifted one is a cheap part, and no refrigerant work",
+      "Force a defrost from the board or check mode and watch it: the reversing valve should shift with a whoosh and the outdoor fan stop. No whoosh? Check the valve's coil gets its volts — a clip-on part — before the valve",
+      "Check its defrost field setting — some units carry a heavier defrost for cold, wet climates that was never switched on",
       "Check the outdoor coil and fan are clear once thawed",
       "Confirm the drain base isn't frozen solid, holding meltwater against the coil",
       "Sensor good and it still ices: read pressures — it's charge or the defrost control from here, and gauges decide which",
@@ -1246,6 +1271,11 @@ export const OUTCOMES: Outcome[] = [
       {
         fix: "Find the leak, repair it and weigh the charge in",
         when: "Low suction in heating with a good sensor: a short system runs its coil colder than a defrost can clear.",
+        escalate: true,
+      },
+      {
+        fix: "Replace the reversing valve",
+        when: "Volts reach a good coil and it still won't shift into defrost. Recovery, brazing and a recharge.",
         escalate: true,
       },
     ],
@@ -1425,11 +1455,16 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "Below about 15°C outside, condensing pressure falls so far that the evaporator runs below freezing and ices. Standard comfort units aren't built for it — server rooms hit this constantly.",
     actions: [
+      "Find out why it's cooling at all: a comfort unit left in cool or dry through a cold night, or auto set too low, only needs its setting changed",
       "Confirm the lowest outdoor temperature the unit is rated to cool at",
       "Check whether its maker offers a low-ambient field setting or a bolt-on wind baffle for that model — where one exists, it's the cheapest fix there is",
       "Meanwhile, avoid cooling in cold weather",
     ],
     alternatives: [
+      {
+        fix: "Let the outside air do it",
+        when: "A comms room or cupboard that only needs cooling because it's shut in. On a cold day a filtered exhaust fan, or an economiser, cools it for the cost of a fan.",
+      },
       {
         fix: "Fit head-pressure control — fan speed control or a damper",
         when: "No setting or kit exists for it, and it has to cool year-round.",
@@ -1449,13 +1484,31 @@ export const OUTCOMES: Outcome[] = [
       "Airflow is good and conditions are normal, so the coil is running cold because refrigerant flow is wrong — short of gas, or a metering device that isn't feeding properly.",
     actions: [
       "Let the ice melt completely, then read superheat",
+      "Service valves fully open — a liquid valve left part-shut after a pump-down starves the coil exactly like a short charge",
+      "Look where the frost starts: a filter-drier or strainer that's cold or frosted on its outlet, or a kinked line at a bend or the wall hole, is a restriction you can see — not a charge problem",
       "High superheat with low suction points at undercharge or a restriction",
       "Check the expansion valve bulb is tight, insulated and correctly located",
-      "Electronic valve: check the valve's coil is pushed fully onto the valve body, and the indoor coil's sensors read right — a misread sensor starves the evaporator on purpose. Neither needs the system opened",
+      "Electronic valve: power-cycle at the isolator to re-home it, check the valve's coil is pushed fully onto the valve body, and check the indoor coil's sensors read right — a misread sensor starves the evaporator on purpose. None of it needs the system opened",
       "Leak-test before adding refrigerant — never just top it up",
     ],
+    alternatives: [
+      {
+        fix: "Find the leak, repair it and weigh the charge in",
+        when: "Valves open, no restriction, the valve feeding properly, and superheat still high with low suction.",
+        escalate: true,
+      },
+      {
+        fix: "Replace the filter-drier or strainer",
+        when: "It's the restriction: a temperature drop across it you can feel, or frost on its outlet.",
+        escalate: true,
+      },
+      {
+        fix: "Replace the expansion valve",
+        when: "Bulb right, or the coil good after a power cycle, and it still starves the coil.",
+        escalate: true,
+      },
+    ],
     tool: PRESSURES,
-    escalate: true,
   },
 
   /* cycling */

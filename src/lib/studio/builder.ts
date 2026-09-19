@@ -24,7 +24,7 @@ import { OVERSIZE_CAP } from "./select";
 import { nextSystemColour } from "./modules";
 import { ATTACHED_RUN_TYPES } from "./attach";
 import { attachOf } from "./graph";
-import { claimZone, familyOf, newSystem, systemTypeFor, unclaimZone, zoneIdsOf } from "./zones";
+import { claimZone, claimedZoneIds, familyOf, newSystem, systemTypeFor, unclaimZone, zoneIdsOf } from "./zones";
 import type { SizingBasis } from "./loads";
 import type { RoomObj } from "./loads-room";
 import { boundsOfPoints, pointInPolygon, polygonCentroid } from "./geometry";
@@ -60,7 +60,7 @@ function legacyFor(sys: DesignSystem, allocs: Allocation[]): Record<string, unkn
   }
   const odu = allocs.find((a) => a.role === "odu");
   const heads = allocs.filter((a) => a.role === "idu" && a.model);
-  const rooms: string[] = [...zoneIdsOf(sys)];
+  const rooms: string[] = [...claimedZoneIds(sys)];
   for (const h of heads) if (h.roomId && !rooms.includes(h.roomId)) rooms.push(h.roomId);
   settings.roomIds = rooms;
   if (sys.type === "split" || sys.type === "ducted") {

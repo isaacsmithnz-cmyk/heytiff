@@ -530,6 +530,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "cyc.howlong",
     ask: "How long does it run before it stops?",
+    why: "Time the compressor, not the indoor fan — listen at the outdoor unit. An inverter winding down to a murmur hasn't stopped, and a head that keeps its fan going between runs is cycling normally. Customers report both as switching off.",
     answers: [
       { label: "Under a couple of minutes", next: "cyc.error" },
       { label: "A few minutes to ten", next: "cyc.reaching" },
@@ -1521,7 +1522,7 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Record the exact code or blink pattern and photograph it",
       "Codes are brand-specific — read it against this unit's own manual",
-      "Clean the condenser and check the fan first; high head causes many of these",
+      "Clean the condenser and the filters, and check both fans, first — high head causes many of these, and a starved indoor coil trips its freeze protection",
       "Read pressures under load to see which limit it's hitting",
     ],
     tool: PRESSURES,
@@ -1535,14 +1536,22 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "Very short runs with no code still suggest a limit being hit — or a supply problem dropping the unit out.",
     actions: [
+      "Clean the filters and check the indoor fan wheel — a starved indoor coil gets cold enough to trip its freeze protection, stops, warms, and starts again, and many units show no code for it",
+      "Ducted or cassette: check the drain and the float switch — a tray that's nearly full lifts the float, cuts it out, drains a little and lets it start again",
       "Clean the condenser and confirm the fan runs the whole time — a fan that stops mid-cycle trips it on head pressure",
       "Measure running current against the nameplate",
       "Fixed-speed: test the run capacitor — a weak one leaves the compressor labouring on its overload within seconds of starting. An inverter has none; read its check mode instead",
       "Check supply voltage under load, including at the outdoor terminals",
       "Watch pressures through a full cycle to catch the moment it trips",
     ],
+    alternatives: [
+      {
+        fix: "Find the leak, repair it and weigh the charge in",
+        when: "It trips on low pressure, with high superheat and the airflow good. Never just top it up.",
+        escalate: true,
+      },
+    ],
     tool: PRESSURES,
-    escalate: true,
   },
   {
     id: "oversized",
@@ -1554,7 +1563,7 @@ export const OUTCOMES: Outcome[] = [
       "Check the unit's capacity against the room's actual load",
       "Inverter: it should ramp down and cruise, not stop — one that stop-starts can't turn down far enough for the load, which is the same oversizing story told a different way",
       "Widen the controller deadband if it allows it",
-      "Raise fan speed to spread the air and slow the pull-down",
+      "Drop the fan a speed: less air over the coil means less sensible capacity, so it runs longer — and pulls more moisture out while it does. Watch the coil doesn't ice",
     ],
     alternatives: [
       {
@@ -1575,10 +1584,18 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "It stops while the room is still warm, so whatever it's measuring isn't representative — usually conditioned air washing straight back over the return sensor.",
     actions: [
+      "Check no sleep or eco mode is on — both lift the setpoint as they go, and the room is left warm on purpose",
       "Check the return sensor isn't in the supply air stream",
       "Redirect louvres so supply air doesn't short-circuit to the return",
       "Ducted: check supply and return grilles aren't too close together",
-      "Switch to the wall controller's sensor if the unit supports it",
+      "Meter the room sensor against its resistance chart at the room's temperature — a drifted one is a cheap part",
+      "Switch to the wall controller's sensor if the unit supports it — and if it's already the sensor, check it isn't in the supply air's path, in sun, or on a cold outside wall",
+    ],
+    alternatives: [
+      {
+        fix: "Fit a remote sensor where people actually sit",
+        when: "Neither the unit's sensor nor the controller can be put anywhere that reads the room. Plenty of units take one as an accessory.",
+      },
     ],
   },
 

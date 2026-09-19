@@ -166,27 +166,32 @@ export function outdoorsListing(pack: DataPack, heads: IndoorUnit[]): OutdoorUni
     An outdoor picked by hand stays, listed or not, until Use the proposal
     hands the choice back (useProposal) — the picker shows Valid or Fails
     against it instead. */
-function proposeOutdoor(doc: DesignDocument, pack: DataPack, systemId: string): DesignDocument {
+/** what the proposal would put on a system, hand pick or not: "" when
+    nothing in it asks for an outdoor */
+export function proposedOutdoorModel(doc: DesignDocument, pack: DataPack, systemId: string): string {
   const sys = doc.systems.find((s) => s.id === systemId);
-  if (!sys || (sys.type !== "multi-split" && sys.type !== "split" && sys.type !== "ducted")) return doc;
+  if (!sys || (sys.type !== "multi-split" && sys.type !== "split" && sys.type !== "ducted")) return "";
   const allocs = allocationsOf(sys);
   const heads = allocs
     .filter((a) => a.role === "idu" && a.model)
     .map((a) => iduRow(pack, a.model))
     .filter((u): u is IndoorUnit => u != null);
   const current = allocs.find((a) => a.role === "odu");
-  const byHand = sys.settings.oduChosen === true && Boolean(current?.model);
-  let model = "";
-  if (byHand) {
-    model = current!.model;
-  } else if (heads.length === 0) {
-    model = "";
-  } else if (sys.type !== "ducted" && (heads.length >= 2 || familyOf(sys) === "multi")) {
-    model = outdoorsListing(pack, heads)[0]?.model ?? "";
-  } else {
-    const pair = pairFor(pack, heads[0].model, current ? oduRow(pack, current.model) : null);
-    model = pair?.odu_model ?? "";
+  if (heads.length === 0) return "";
+  if (sys.type !== "ducted" && (heads.length >= 2 || familyOf(sys) === "multi")) {
+    return outdoorsListing(pack, heads)[0]?.model ?? "";
   }
+  const pair = pairFor(pack, heads[0].model, current ? oduRow(pack, current.model) : null);
+  return pair?.odu_model ?? "";
+}
+
+function proposeOutdoor(doc: DesignDocument, pack: DataPack, systemId: string): DesignDocument {
+  const sys = doc.systems.find((s) => s.id === systemId);
+  if (!sys || (sys.type !== "multi-split" && sys.type !== "split" && sys.type !== "ducted")) return doc;
+  const allocs = allocationsOf(sys);
+  const current = allocs.find((a) => a.role === "odu");
+  const byHand = sys.settings.oduChosen === true && Boolean(current?.model);
+  const model = byHand ? current!.model : proposedOutdoorModel(doc, pack, systemId);
   if (current && current.model === model) return doc;
   if (!current && !model) return doc;
 

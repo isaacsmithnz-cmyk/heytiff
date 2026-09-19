@@ -32,6 +32,7 @@ import {
   zonesToAdd,
   type Allocation,
   type RoomVerdict,
+  proposedOutdoorModel,
 } from "@/lib/studio/builder";
 import {
   claimZone,
@@ -352,15 +353,8 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   }
   candidates.sort((a, b) => a.capacity_cool_kw - b.capacity_cool_kw || a.model.localeCompare(b.model));
   if (oduRow && !candidates.some((o) => o.model === oduRow.model)) candidates = [oduRow, ...candidates];
-  /* the proposal: what the heads would be given, read by handing the choice
-     back on a throwaway draft (the proposer itself is the engine's own) */
-  const proposalModel = empty
-    ? null
-    : oduByHand
-      ? (allocationsOf(proposalHandedBack(draft, pack, sys.id).systems.find((s) => s.id === sys.id)!).find(
-          (a) => a.role === "odu"
-        )?.model ?? null)
-      : (odu?.model ?? null);
+  /* the proposal: what the heads would be given */
+  const proposalModel = empty ? null : oduByHand ? proposedOutdoorModel(draft, pack, sys.id) || null : (odu?.model ?? null);
   const headsKw = headRows.reduce((n, u) => n + u.capacity_cool_kw, 0);
   const outRows: OutRow[] = candidates.map((o) => ({
     odu: o,

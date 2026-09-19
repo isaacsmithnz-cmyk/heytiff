@@ -306,4 +306,30 @@ describe("buildSummaryModel — the merged sheet", () => {
     expect(isolator).toBeDefined();
     expect(isolator?.qty).toBe("1");
   });
+
+  it("picks a 1Ø and a 3Ø isolator as two lines, never one summed under the first", () => {
+    /* the picklist sums a component by NAME, and the job card files it by
+       name — so the supply has to be in the name, or a 3Ø isolator would be
+       picked as a second 1Ø one */
+    const d = splitDoc();
+    d.systems.push({
+      id: "sys3",
+      type: "split",
+      brand: "mitsubishi-electric",
+      colour: "#E4572E",
+      name: "System 3",
+      settings: { pairIdu: "PLA-M100EA2-A", pairOdu: "PUZ-ZM100YKA3-A" },
+    });
+    d.objects.push(
+      unit("i3", "sys3", "f1", "idu", "PLA-M100EA2-A", "r2"),
+      unit("o3", "sys3", "f1", "odu", "PUZ-ZM100YKA3-A")
+    );
+    const isolators = buildSummaryModel(d, pack)
+      .picklist.filter((r) => r.name.startsWith("Isolator"))
+      .map((r) => [r.name, r.qty]);
+    expect(isolators).toEqual([
+      ["Isolator, 1Ø 20 A", "1"], // SUZ-M35VAD-A: 1Ø, 8.5 A
+      ["Isolator, 3Ø 20 A", "1"], // PUZ-ZM100YKA3-A: 3Ø, 11.5 A
+    ]);
+  });
 });

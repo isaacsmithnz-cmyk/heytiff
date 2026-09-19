@@ -507,6 +507,34 @@ describe("the cheap fix comes before the expensive one", () => {
     expect(alts[0].when).toMatch(/meltwater comes all at once/i);
   });
 
+  /* Short cycling, audited the same way. */
+  it("short cycling is timed at the compressor, not the fan", () => {
+    expect(getQuestion("cyc.howlong")!.why).toMatch(/time the compressor, not the indoor fan/i);
+  });
+
+  it("a silent cut-out checks freeze protection and the float before the refrigerant", () => {
+    const { o, best, alts } = all("protection-silent");
+    expect(o.actions[0]).toMatch(/freeze protection/i);
+    expect(best).toMatch(/float switch/i);
+    expect(o.escalate).toBeFalsy();
+    expect(alts.every((a) => a.escalate)).toBe(true);
+    expect(all("protection-coded").best).toMatch(/filters/i);
+  });
+
+  it("an oversized unit drops a fan speed to run longer — raising it was backwards", () => {
+    const { best } = all("oversized");
+    expect(best).toMatch(/drop the fan a speed/i);
+    expect(best).not.toMatch(/raise fan speed/i);
+    expect(best).toMatch(/doesn't ice/i);
+  });
+
+  it("a sensor stopping it early checks sleep modes and meters itself before new hardware", () => {
+    const { o, best, alts } = all("sensor-misread");
+    expect(o.actions[0]).toMatch(/sleep or eco mode/i);
+    expect(best).toMatch(/meter the room sensor/i);
+    expect(alts[0].fix).toMatch(/remote sensor/i);
+  });
+
   it("crossed comms offers the renaming that needs no tools", () => {
     expect(all("vrf-crossed-comms").alts.map((a) => a.fix).join(" ")).toMatch(/rename/i);
   });
@@ -529,7 +557,7 @@ describe("best fix and other options", () => {
   it("the badge sits on the fix that needs it", () => {
     // an outcome whose best fix is routine carries no badge, even when its
     // last resort does — that was the crossed-pipes mistake
-    for (const id of ["vrf-crossed-pipes", "vrf-branch", "vrf-creep", "heat-none", "defrost-fault", "bc-valve", "charge-or-valve"]) {
+    for (const id of ["vrf-crossed-pipes", "vrf-branch", "vrf-creep", "heat-none", "defrost-fault", "bc-valve", "charge-or-valve", "protection-silent"]) {
       const o = getOutcome(id)!;
       expect(o.escalate).toBeFalsy();
       expect(o.alternatives!.some((a) => a.escalate)).toBe(true);

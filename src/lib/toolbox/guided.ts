@@ -750,7 +750,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "nop.running",
     ask: "Is the compressor actually running while you're reading that?",
-    why: "Equalising is exactly what a system does at rest — leave it off a few minutes and the two gauges always meet. It's only a fault if they stay together while the compressor runs.",
+    why: "Equalising is exactly what a system does at rest — leave it off a few minutes and the two gauges always meet. It's only a fault if they stay together while the compressor runs. And check both valves on your gauge manifold are shut: an open one joins the two sides through the gauge set, and a perfectly good compressor reads equal.",
     answers: [
       { label: "No, it's stopped", next: "out:equal-at-rest" },
       { label: "Yes, it's running", next: "nop.type" },
@@ -2078,7 +2078,7 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Feel the four pipes at the valve body — when it's bypassing they sit at much the same temperature",
       "Measure the volts at its coil through a changeover, then meter the coil itself, unplugged — a dead coil is a clip-on part, no refrigerant work",
-      "Coil good: call a few changeovers with it running, tapping the body gently each time — a valve held on debris will sometimes shift with pressure behind it",
+      "Coil good: raise the head first — cover part of the condensing coil for a minute, because the slide needs a pressure difference to move and a bypassing valve has thrown most of it away. Then call a few changeovers, tapping the body gently each time — a valve held on debris will often shift",
     ],
     alternatives: [
       {
@@ -2096,13 +2096,19 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "It runs, the rotation is right and the reversing valve isn't bypassing, so the compressor itself has stopped moving refrigerant — worn scrolls, broken internals, or a failed internal discharge valve. Current usually reads low rather than high, because it isn't doing any work.",
     actions: [
+      "Before condemning anything: service valves fully open, and both valves on the gauge manifold shut — an open one joins high and low through the gauge set, and they read the same",
       "Measure running current — well under the nameplate figure supports this",
-      "Confirm the service valves are fully open before condemning anything",
+      "Scroll: many carry an internal relief valve that opens on a big pressure difference and stays open while it runs. Stop it, let the pressures meet, fix whatever drove the head up — a dead condenser fan, a blocked coil — and restart before you condemn it",
       "Check for a failed internal discharge check valve, and for a compressor terminal fault — the 'Compressor suspect' tile walks the electrical proof of the motor itself",
-      "Compressor replacement from here — find out what killed it before fitting the new one",
+    ],
+    alternatives: [
+      {
+        fix: "Replace the compressor",
+        when: "Valves right, the relief valve given its reset, current still low and the pressures still won't split. Find out what killed it before the new one goes on — the 'already out' path on the 'Compressor suspect' tile reads the oil.",
+        escalate: true,
+      },
     ],
     tool: PRESSURES,
-    escalate: true,
   },
   {
     id: "drive-limited",
@@ -2112,13 +2118,26 @@ export const OUTCOMES: Outcome[] = [
       "An inverter compressor only does what the drive lets it. Starting and then sitting at minimum speed — or winding back every time it tries to climb — is the drive protecting something: current, discharge temperature, a power module running hot, or a condenser that can't reject heat pulling it into current limit. The pressures never split because the compressor never really gets going. The unit knows exactly which limit it's sitting on — read it out of the boards instead of guessing from the gauges.",
     actions: [
       "Put it in service or check mode and read the live data: target versus actual speed, current, discharge temperature — the drive names the limit it's riding",
+      "Check nothing is telling it to hold back: quiet, night or econo modes, a demand limit set in the controller, or a demand-response device limiting it for the power network all cap the compressor on purpose",
       "Clean the condenser and confirm the fan before blaming electronics — on a 40-degree afternoon a dirty coil will current-limit a perfectly healthy compressor",
+      "Riding the power module's temperature limit? Clean its heat sink — the fins sit in the same airflow and clog with the same dust",
+      "Riding the discharge-temperature limit? That's the refrigerant side, not the drive: a short charge, or an expansion valve stuck shut, runs the compressor hot. Work the charge and the valve before the board",
       "Check supply voltage under load at the outdoor terminals; a sagging supply pulls current up and the drive winds back to survive it",
-      "If the drive flags the power module or won't run the compressor at any speed, it's board-level work — model-specific, out with that unit's service manual",
+    ],
+    alternatives: [
+      {
+        fix: "Find the leak, repair it and weigh the charge in",
+        when: "It rides the discharge-temperature limit with high superheat and the valve working: it's short. Never just top it up.",
+        escalate: true,
+      },
+      {
+        fix: "Replace the drive board",
+        when: "The drive flags its power module, or won't run the compressor at any speed, with the heat sink clean and the supply good. Prove the compressor first with the 'Compressor suspect' tile — a motor that's tightening drags the drive into current limit too.",
+        escalate: true,
+      },
     ],
     safety:
       "An inverter drive stores power in big capacitors — the DC bus — and they hold hundreds of volts long after the isolator is off. Isolate, wait the time printed on the panel, then prove them dead with a meter on DC volts before fingers or probes go anywhere near the board.",
-    escalate: true,
     tool: PRESSURES,
   },
   {

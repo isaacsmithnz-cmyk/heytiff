@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -22,6 +21,7 @@ import { createPortal } from "react-dom";
 import { searchPhotos, type PhotoHit } from "@/app/actions/photo-search";
 import { setJobPhotoFavourite } from "@/app/actions/job-photo-favourites";
 import { PHOTO_SEARCH_MIN } from "@/lib/workboard/photo-search";
+import { SideSwitcher, type SideBadge } from "./side-switcher";
 import { MaintenanceBoard } from "./board/maintenance-board";
 import { ProjectsBoard } from "./board/projects-board";
 import { AllJobsBoard } from "./board/all-jobs-board";
@@ -36,12 +36,11 @@ import { WorkSearchField, WorkSearchPanel, type PhotoSearchState } from "./board
    be, and how heavy is the run ahead. Everything on this screen serves one of
    those; anything that served none of them was cut.
 
-   THE SHELL IS THE HANDOFF'S: title left, the side switcher dead centre with
-   each side's needs-you-today count on it, Display mode right, and nothing
-   else on the page but the board card — the schedule lives in the Calendar
-   tab, not in a second card below. The switcher's active side carries the
-   side's own colour (maintenance green, projects cyan, all jobs ink), which
-   is identity, not state — row tones still come only from the status law.
+   THE SHELL IS THE HANDOFF'S: the title left — and the title IS the side
+   switcher (./side-switcher), so it says which half of the book you are
+   reading and opens a menu to change it — then the tabs, the search, and
+   Display mode right. Nothing else is on the page but the board card; the
+   schedule lives in the Schedule tab, not in a second card below.
 
    THREE SIDES, TWO OF THEM DERIVED AND ONE FLAT. Maintenance and Projects
    show work that has been PROMOTED — into an agreement, into a project — and
@@ -85,13 +84,11 @@ const REFRESH_MS = 60_000;
 
    The board OPENS on it too — first side, first tab, which lands you on
    today's diary. It used to open on maintenance for its badges, but a badge
-   is a summons you can see from any side (the switcher carries both counts
-   at all times), while the day's run is only legible from the side that
-   holds it.
+   is a summons you can see from any side (the title's arrow wears a dot
+   while another side is waiting, and its menu says which), while the day's
+   run is only legible from the side that holds it.
 
-   Nothing here is position-keyed, because the thumb measures off
-   `[data-side]` and every side's colour hangs off `[data-on]` — which is
-   also why only a test would notice this order changing. */
+   This order is the menu's order, and nothing else keys off it. */
 const SIDES = [
   { key: "jobs", label: "All jobs" },
   { key: "projects", label: "Projects" },
@@ -541,35 +538,18 @@ export function OverviewScreen({
     });
   }, [data.projectsBoard.visits, data.projectsBoard.projects, data.today, projectFlags]);
 
-  const sideBadge = (rows: { severity: string }[]) => ({
+  const sideBadge = (rows: { severity: string }[]): SideBadge => ({
     n: rows.length,
     tone: rows.some((r) => r.severity === "danger") ? "dan" : rows.length ? "wrn" : "clr",
   });
   /* A side with no badge is a side with no queue — see the header. `null`
      rather than a zero, because a zero badge would say "nothing needs you"
      about a list that was never asking. */
-  const badges: Record<SideKey, { n: number; tone: string } | null> = {
+  const badges: Record<SideKey, SideBadge> = {
     maintenance: sideBadge(maintUrgent),
     projects: sideBadge(projUrgent),
     jobs: null,
   };
-
-  /* ── the switcher's sliding fill — measured, because the sides differ in
-     width; the fill colour is the side's identity (green / cyan) ── */
-  const segRef = useRef<HTMLElement>(null);
-  const [segThumb, setSegThumb] = useState<{ x: number; w: number } | null>(null);
-  useLayoutEffect(() => {
-    const measure = () => {
-      const seg = segRef.current;
-      const on = seg?.querySelector<HTMLButtonElement>(`[data-side="${tab}"]`);
-      if (!seg || !on) return;
-      setSegThumb({ x: on.offsetLeft, w: on.offsetWidth });
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-    // A count changing changes a button's WIDTH, so the thumb must re-measure.
-  }, [tab, badges.maintenance?.n, badges.projects?.n]);
 
   /* THE JOB CARDS a general note can be pinned to on review. Speaking a
      client's name from the board header is the normal case — "Luke needs to
@@ -695,55 +675,19 @@ export function OverviewScreen({
      So the screen's h1 and its tools ride IN the tab row, which already had a
      right-hand slot for the search and the mirror chip, and the boards take
      them as `lead` and `tools`. `role="tablist"` sits on the inner row, since
-     a tablist may only own tabs. */
-  const boardLead = <h1 className="wb2-h1">Workboard</h1>;
-  /* THE SWITCHER HAS A LINE OF ITS OWN, above the tabs (Isaac, 2026-09-19:
-     "it's congested on that line"). It chooses which half of the book every
-     tab below it reads — the scope, not one more tool beside the search — so
-     it stands over the band rather than in it, and the band gets back the
-     width for the title, the tabs, the search and Display mode. */
-  const scopeLine = (
-    <div className="wb2-scopeline">
-      <nav
-        className="wb2-seg"
-        role="tablist"
-        aria-label="Which work"
-        data-on={tab}
-        ref={segRef}
-      >
-        {segThumb && (
-          <span
-            className="wb2-segsl"
-            style={{ transform: `translateX(${segThumb.x}px)`, width: segThumb.w }}
-            aria-hidden="true"
-          />
-        )}
-        {SIDES.map((s) => {
-          const b = badges[s.key];
-          return (
-            <button
-              key={s.key}
-              type="button"
-              role="tab"
-              aria-selected={tab === s.key}
-              data-side={s.key}
-              className={"wb2-segb" + (tab === s.key ? " on" : "")}
-              onClick={() => pickSide(s.key)}
-            >
-              {s.label}
-              {b && (
-                <i
-                  className={b.tone}
-                  title={`${b.n} ${b.n === 1 ? "needs" : "need"} attention`}
-                >
-                  {b.n}
-                </i>
-              )}
-            </button>
-          );
-        })}
-      </nav>
-    </div>
+     a tablist may only own tabs.
+
+     AND THE H1 IS THE SWITCHER (Isaac, 2026-09-20: "go with 1, the title
+     switcher"). The three sides had a line of their own above the band for a
+     release, which cost 48px of board on every tab and named the screen a
+     second time under a rail that already names it. The title says which side
+     you are reading and opens the menu to change it; see ./side-switcher. */
+  const boardLead = (
+    <SideSwitcher
+      sides={SIDES.map((s) => ({ key: s.key, label: s.label, badge: badges[s.key] }))}
+      value={tab}
+      onPick={pickSide}
+    />
   );
   const boardTools = (
     <>
@@ -783,7 +727,6 @@ export function OverviewScreen({
       <div className="wrap">
         <div className="stg">
           <div className="wb-board">
-            {scopeLine}
             {tab === "maintenance" && (
               <MaintenanceBoard
                 data={data.board}

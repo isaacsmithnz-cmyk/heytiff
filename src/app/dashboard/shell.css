@@ -1647,8 +1647,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    happens to sit on — a thousandth above the floor, with no border behind it
    — and 1.03–1.07 on any tinted panel. It is the same generation as the
    `#f4f5f7` that made the timesheet's switch read as one button, and it was
-   one placement away from doing it again. `#e6eaf1` plus `.wb2-seg`'s
-   hairline is 1.207, and it is now the one tray value in the app. */
+   one placement away from doing it again. `#e6eaf1` plus the one hairline is
+   1.207, and it is the one tray value in the app. */
 .fg .seg { display:inline-flex; align-self:flex-start; width:fit-content; background:#e6eaf1; border:1px solid var(--line); border-radius:var(--r-button); padding:4px; gap:4px; }
 .fg .seg button { padding:8px 16px; border-radius:var(--r-button); font-size:13px; font-weight:700; color:var(--gray500); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg .seg button.on { background:var(--paper); color:var(--ink); }
@@ -5293,78 +5293,12 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    unchanged at 24/700/-.035em — the size docs/design.md gives an h1. */
 .wb2-h1 { font-size:24px; font-weight:700; letter-spacing:-.035em; line-height:1; margin:0; }
 .wb2-headtools { display:flex; align-items:center; gap:8px; }
-
-/* The switcher: one fill that SLIDES between the two sides and takes that
-   side's IDENTITY colour with it — maintenance green, projects cyan. This
-   is the one place colour means "which half of the business", not state;
-   the count badge beside it keeps the status law's tones. */
-/* The track has to READ as a track. At #eceff4 it was two points off the
-   well behind it, so the side you AREN'T on looked like a label floating on
-   the page rather than the other half of a control — "it kinda blends into
-   the gray background a bit too much" (Isaac). Darker track, and the resting
-   side gets its own faint slab so there are visibly two positions even before
-   you look at which one is filled. */
-/* ONE tray, ONE thumb. This carried a THIRD grey — a filled seat under the
-   resting side, only just lighter than the track it sat in — which read as
-   an artefact rather than a decision and made the whole block chunky. That
-   seat was scaffolding from the fix before it (the thumb used to be a
-   translucent film and Isaac called it glass); the thumb is a solid colour
-   now, so the seat has no job. Resting side is bare track, moving side is
-   the colour. Same language as the Urgent filter tray. */
-/* THE THREE SIDES ARE ONE WIDTH (Isaac, 2026-08-20: "maintenance is much
-   bigger than projects, and projects is bigger than all jobs. I just wanna
-   have an even spacing"). They were content-sized — 81 / 119 / 149px, because
-   the labels differ in length and two of the three carry a count — so the
-   tray read as three unrelated buttons rather than one switch with three
-   seats.
-
-   Equal columns, not equal padding: a grid whose columns are all `1fr` sizes
-   every seat to the widest of them, which is the only way three different
-   labels come out the same width without clipping one. Measured on prod: all
-   three land on 149.4px and the tray goes 361 → 460.
-
-   `1fr` and NOT `minmax(0,1fr)`: the auto minimum is what stops a squeezed
-   header clipping "Maintenance". Below about 1100px the seats give up being
-   equal one at a time rather than all losing their labels together, which is
-   the right way round — and below 900 the block underneath stretches the
-   tray to the full width, where they are even again. */
-.wb2-seg { position:relative; justify-self:center; display:grid; grid-auto-flow:column;
-  grid-auto-columns:1fr; gap:2px; padding:4px; border-radius:var(--r-card);
-  background:#e6eaf1; border:1px solid rgba(10,12,20,.06); flex:none; }
-.wb2-segsl { position:absolute; top:3px; bottom:3px; left:0; border-radius:var(--r-button); background:var(--paper);
-  transition:transform var(--t-move) var(--ease), width var(--t-move) var(--ease), background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.wb2-seg[data-on="maintenance"] .wb2-segsl { background:var(--ink); }
-.wb2-seg[data-on="projects"] .wb2-segsl { background:var(--ink2); }
-/* ALL JOBS IS INK, NOT A THIRD HUE. Green and cyan name the two halves of the
-   business; a third colour beside them would read as a third kind of work,
-   when what this side actually is is EVERYTHING — including the two already
-   named. Slate says "the whole book" without competing, and it keeps the
-   accent vocabulary at two. */
-.wb2-seg[data-on="jobs"] .wb2-segsl { background:#333d4f; }
-/* Centred, because the seat is now wider than its label — left-aligned text
-   in an equal column puts three labels at three different distances from the
-   thumb that sits under them. */
-.wb2-segb { position:relative; z-index:1; display:inline-flex; align-items:center; justify-content:center;
-  gap:8px; height:42px; padding:0 16px;
-  border:0; background:none; border-radius:var(--r-button); font:inherit; font-size:14px; font-weight:700; color:var(--gray700);
-  cursor:pointer; transition:color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-/* the resting side is TRACK, not a seat — it lifts only under the pointer */
-.wb2-segb:not(.on):hover { background:rgba(255,255,255,.75); color:var(--ink); }
-.wb2-segb.on, .wb2-segb.on:hover { color:var(--paper); background:none; }
-.wb2-segb:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-segb i { min-width:21px; height:21px; padding:0 4px; border-radius:var(--r-control); display:grid; place-items:center;
-  font-size:12px; font-weight:700; font-style:normal; font-variant-numeric:tabular-nums;
-  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-segb i.dan { background:var(--bad-tint); color:var(--bad-t); }
-.wb2-segb i.wrn { background:var(--warn-tint); color:var(--warn-t); }
-.wb2-segb i.clr { background:var(--tint-2); color:var(--ink); }
-/* on the filled side the badge sits on colour — one translucent well, so a
-   count never fights the fill it lives on */
-.wb2-segb.on i { background:rgba(0,0,0,.24) !important; color:var(--paper) !important; }
-
-@media (max-width:900px) {
-  .wb2-seg { width:100%; }
-}
+/* THE SWITCHER'S TRAY IS GONE. `.wb2-seg`, its sliding thumb and its three
+   seats drew the sides in a tray of their own above the band — a line that
+   cost 48px of board on every tab. The title is the switcher now
+   (see "THE TITLE IS THE SWITCHER" below), so the tray has no user: deleted
+   rather than parked, the way `.segsw` was, because an unused block is one
+   placement away from styling something else by accident. */
 
 /* `.segsw` — the sliding-thumb switcher — lived here and had exactly one user,
    My time's Timesheet/Leave nav, which now wears `.tp-tabs` like the team
@@ -5372,9 +5306,10 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    file has already shadowed a live component at equal specificity once.
 
    Its comment claimed it was shared with the Workboard's board switcher. It
-   never was — that is `.wb2-seg`, a separate implementation with a coloured
-   thumb. If a shared segmented control is ever actually wanted, build it from
-   `.wb2-seg` (the one with two real users) rather than reviving this. */
+   never was — that was `.wb2-seg`, a separate implementation with a coloured
+   thumb, and it has gone the same way now that the Workboard's title is its
+   switcher. If a shared segmented control is ever actually wanted, build it
+   from `.fg .seg`, the house tray, rather than reviving either. */
 
 /* the three numbers — and they FILTER, because a number you can't act on is
    decoration. Pressed state is the ring, not a colour swap, so the tone keeps
@@ -8121,22 +8056,17 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 .fg .page.wb2-full .wb-board,
 .fg .page.wb2-full .wb2 { flex:1; min-height:0; display:flex; flex-direction:column; gap:0; }
 
-/* ── THE SCOPE, THEN ONE BAND ──
-   The switcher — all jobs, projects, maintenance — stands on a line of its
-   own above everything it scopes (Isaac, 2026-09-19: "it's congested on that
-   line"). It chooses which half of the book the tabs, the toolbar and the
-   board read, so it sits over them rather than beside the search.
-
-   Under it, one 56px band: the title, the six tabs, the search and Display
+/* ── ONE BAND, AND THE TITLE IS THE SWITCHER ──
+   One 56px band holds the lot: the title, the tabs, the search and Display
    mode. The boards take the h1 and the tools as `lead` and `tools`.
 
    IT WRAPPED ON A LAPTOP, TWICE OVER. Measured only at 1600, the band went to
    two lines below 1500 with the tools above the title; the first fix hid the
-   title below 1560 to make room for the switcher. With the switcher on its
-   own line the band needs ~1000px, which a 1280 screen beside the rail has,
-   so the title is back at every laptop width. The mirror's freshness closes
-   each tab's toolbar (board/sm8-chip.tsx), not this band. */
-.fg .page.wb2-full .wb2-scopeline { flex:none; display:flex; align-items:center; padding:12px 24px 0; }
+   title below 1560 to make room for the switcher's tray. The tray then took a
+   line of its own — 48px of board on every tab — and the title under it said
+   what the rail already says. Now the title IS the switcher (below), so the
+   band needs ~900px and the line above it is gone. The mirror's freshness
+   closes each tab's toolbar (board/sm8-chip.tsx), not this band. */
 .fg .page.wb2-full .wb2-vtabs { height:56px; align-items:center; gap:24px; padding:0 24px; flex-wrap:nowrap; }
 /* the framed board's narrow-screen wrap (the 1280px block with the tab row)
    does not reach this band: it holds one line and gives ground instead */
@@ -8149,21 +8079,51 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
   flex:0 1 auto; min-width:0;
 }
 
-/* THE SWITCHER, THE HANDOFF'S: a 36px tray with the one hairline, seats that
-   take their own label's width, the chosen side filled, and each count in a
-   small figure box. `grid-auto-columns:auto` because the thumb is MEASURED,
-   so the seats never had to match — the equal-column tray gave "All jobs"
-   the same 150px as "Maintenance". The thumb is concentric with the tray:
-   its radius is the tray's less the 3px it sits in (border and padding). */
-.fg .page.wb2-full .wb2-seg { height:36px; flex:none; grid-auto-columns:auto; gap:2px; padding:2px;
-  border-radius:var(--r-button); }
-.fg .page.wb2-full .wb2-segsl { top:2px; bottom:2px; border-radius:calc(10px - 3px); }
-.fg .page.wb2-full .wb2-segb { height:30px; padding:0 12px; gap:8px; border-radius:calc(10px - 3px);
-  font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q); }
-.fg .page.wb2-full .wb2-segb.on { font-weight:var(--fw-heading); color:var(--paper); }
-.fg .page.wb2-full .wb2-segb i { min-width:18px; height:18px; padding:0 4px; font-weight:var(--fw-heading); }
+/* ── THE TITLE IS THE SWITCHER ──
+   The three sides stood in a tray on a line of their own above the band for
+   one release. It cost 48px of board on every tab — a whole crew row — and
+   the line under it said "Workboard", which the rail one column to the left
+   already says. So the title names the side you are reading and opens a menu
+   to change it (components/workboard/side-switcher).
 
-/* the search and Display mode stand at the switcher's height (law 33) */
+   The button wears the h1's own type; the arrow is the quiet colour. What
+   the tray's seats did and this must keep is the SUMMONS — each side's
+   needs-you count, visible from any side — so the arrow carries a dot in the
+   worst tone waiting elsewhere (law 14 allows a dot), and the menu says
+   which side and how many, in words, in the state's colour. */
+/* The menu is the h1's SIBLING, not its child: inside the heading it would
+   inherit the title's display tracking, and a menu is read at body size. */
+.fg .page.wb2-full .wb2-sw { position:relative; flex:none; }
+.fg .page.wb2-full .wb2-ttl { display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 8px; margin:0 -8px;
+  border:0; border-radius:var(--r-button); background:none; font:inherit; line-height:1;
+  color:inherit; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .page.wb2-full .wb2-ttl:hover, .fg .page.wb2-full .wb2-ttl[aria-expanded="true"] { background:var(--tint); }
+.fg .page.wb2-full .wb2-ttl:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .page.wb2-full .wb2-ttlc { position:relative; display:grid; place-items:center; color:var(--q); }
+/* the dot rides the arrow it belongs to; its ring is the paper it sits on */
+.fg .page.wb2-full .wb2-ttldot { position:absolute; top:-2px; right:-3px; width:9px; height:9px; border-radius:50%;
+  border:2px solid var(--paper); background:var(--warn); }
+.fg .page.wb2-full .wb2-ttldot.dan { background:var(--bad); }
+/* It IS the row menu (`.dmenu`): surface, the one hairline, the card corner
+   and the one overlay shadow, already written once. What differs is where it
+   hangs — under the title rather than off a row's right edge — and that it
+   holds three sides rather than four verbs, so it is wider. */
+.fg .page.wb2-full .wb2-ttlmenu { left:-8px; right:auto; top:calc(100% + 8px); min-width:280px; }
+.fg .page.wb2-full .wb2-ttlmi { display:flex; align-items:center; gap:8px; width:100%; height:36px; padding:0 12px 0 8px;
+  border:0; border-radius:var(--r-button); background:none; font-size:var(--fs-3); font-weight:var(--fw-label);
+  color:var(--ink); text-align:left; cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease); }
+.fg .page.wb2-full .wb2-ttlmi:hover { background:var(--tint); }
+.fg .page.wb2-full .wb2-ttlmi:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .page.wb2-full .wb2-ttlmi.on { font-weight:var(--fw-heading); }
+.fg .page.wb2-full .wb2-ttlck { flex:none; width:16px; display:grid; place-items:center; }
+.fg .page.wb2-full .wb2-ttlml { flex:1; min-width:0; }
+/* the count is a word in its state's colour (law 26) */
+.fg .page.wb2-full .wb2-ttlmn { flex:none; font-size:var(--fs-2); font-weight:var(--fw-label); }
+.fg .page.wb2-full .wb2-ttlmn.wrn { color:var(--warn-t); }
+.fg .page.wb2-full .wb2-ttlmn.dan { color:var(--bad-t); }
+
+/* the search and Display mode stand at the band's control height (law 33) */
 .fg .page.wb2-full .wb2-find { height:36px; flex:0 1 240px; min-width:120px; border-radius:var(--r-button); }
 .fg .page.wb2-full .wb2-headtools { flex:none; }
 .fg .page.wb2-full .wb2-headtools .pbtn { height:36px; padding:0 12px; font-size:var(--fs-2); font-weight:var(--fw-heading); }
@@ -8171,14 +8131,12 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    ring of its own, so it came back wearing the browser's blue (law 32) */
 .fg .page.wb2-full .wb2-headtools .pbtn:focus-visible { outline:none; box-shadow:var(--ring); }
 
-/* Narrower than a 1280 laptop the band still holds one line: the title steps
-   out of sight (the rail names the screen beside it; it stays the page's
-   heading to a screen reader) and the tabs scroll inside their own row, the
-   way the staff card's and the organisation card's tab rows already do. */
+/* Narrower than a 1280 laptop the band still holds one line: the tabs scroll
+   inside their own row, the way the staff card's and the organisation card's
+   tab rows already do. THE TITLE STAYS at every width now — it used to step
+   out of sight here, which was fair while it only repeated the rail, and is
+   not while it is the control that chooses the side. */
 @media (max-width:1279px) {
-  html:not([data-wb-display]) .fg .page.wb2-full .wb2-h1 {
-    position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap;
-  }
   .fg .page.wb2-full .wb2-vtabs { gap:16px; }
   .fg .page.wb2-full .wb2-vtrow { flex:0 1 auto; min-width:0; overflow-x:auto; scrollbar-width:none; }
   .fg .page.wb2-full .wb2-vtrow::-webkit-scrollbar { display:none; }

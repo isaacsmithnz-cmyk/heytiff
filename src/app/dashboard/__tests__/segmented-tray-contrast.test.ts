@@ -138,8 +138,9 @@ const FIXED: [string, string, RGBA[]][] = [
   [".fg .seg", "FaceSwitch and the profile Seg, on a white card", []],
   // the diary filter, portalled outside .fg into a white sheet
   [".wb2-sheet .seg", "the diary filter in the portalled sheet", [bgOf(".wb2-sheet")]],
-  // the workboard's own tray, on the page
-  [".wb2-seg", "the workboard's three sides, on the page", [bgOf(".fg .outlet")]],
+  /* The Workboard's own tray was the fourth entry. It is gone: the board's
+     title is its switcher now (components/workboard/side-switcher), so there
+     is no tray on that page to hold to a ground. */
 ];
 
 /** A tray's edge, when it draws one — the `border-color` composited the same

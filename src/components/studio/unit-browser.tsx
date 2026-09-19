@@ -29,7 +29,7 @@ import { multiFormFactorSummary, multiUnitOptions } from "@/lib/studio/multi";
 
 /* one unit staged for comparison — self-contained (brand + option + chosen
    pair) so the comparison survives brand switches and never re-reads a pack */
-type CompareEntry = { key: string; brand: string; option: UnitOption; pair: PairProposal };
+type CompareEntry = { key: string; brand: string; option: UnitOption; pair: PairProposal | null };
 
 /* Unit browser (Stage 5 overhaul) — model-first selection: form factor tabs,
    the whole style on offer with what suits the load leading and everything
@@ -98,6 +98,14 @@ export type BrowserRoom = {
   oduShared?: boolean;
 };
 
+/** "ap35" finds MSZ-AP35VGD2: case, spaces and dashes never matter, and a
+    series name finds its whole range */
+const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+export function unitMatchesQuery(u: IndoorUnit, query: string): boolean {
+  const q = squash(query);
+  return !q || squash(u.model).includes(q) || squash(u.series ?? "").includes(q);
+}
+
 /** The row's sizing flag. Nothing on a unit that suits the load — the
     Recommended heading already said so, and a chip on every row is noise. */
 function FitChip({
@@ -141,13 +149,20 @@ export function UnitBrowser({
   onLens,
   onAssign,
   mode = "pair",
+  embedded = false,
+  addLabel = "Add to plan",
+  onDragRow,
+  formFactor = null,
+  onFormFactor,
+  brandLocked = false,
 }: {
   pack: DataPack;
   loadKw: number | null;
   basis: SizingBasis;
   /** commit the chosen pairing (the host arms placement via its drag cards) */
   onChoose: (choice: UnitChoice) => void;
-  onClose: () => void;
+  /** close the window — never called when embedded, where the host owns it */
+  onClose?: () => void;
   /** open on this form-factor tab while it has options (ducted AHU flow) */
   initialFormFactor?: FormFactor | null;
   /** highlight — never filter — pairs sized within REQUIRED_BAND_CAP of this */
@@ -166,8 +181,28 @@ export function UnitBrowser({
   onAssign?: (choice: UnitChoice, roomId: string) => void;
   /** which flow is driving — see BrowserMode. Defaults to the split's. */
   mode?: BrowserMode;
+  /** set inside another window (the system builder): no overlay and no title
+      bar, and the keys are its own only while focus is inside it */
+  embedded?: boolean;
+  /** what the detail panel's button says it does */
+  addLabel?: string;
+  /** rows become drag sources for the HOST's drop targets: the host writes
+      the choice into the transfer in its own format */
+  onDragRow?: (choice: UnitChoice, transfer: DataTransfer) => void;
+  /** the head type, held by the host (the builder's trail): the list shows
+      this style and the tab strip is not drawn, the crumb being the tab */
+  formFactor?: FormFactor | null;
+  /** under a controlled head type, a search that finds nothing in it but
+      something in another style asks the host to move the crumb there */
+  onFormFactor?: (formFactor: FormFactor) => void;
+  /** the system already has a unit of this brand, so the brand is locked:
+      the brand reads as a dashed, locked control rather than a filter */
+  brandLocked?: boolean;
 }) {
   const [filters, setFilters] = useState<SelectFilters>({});
+  /** the search box — reaches every style, see `searched` */
+  const [query, setQuery] = useState("");
+  const q = squash(query);
   const [sort, setSort] = useState<SelectSort>("capacity");
   /** outdoor supply phase filter — null = any */
   const [phase, setPhase] = useState<Phase | null>(null);
@@ -205,7 +240,7 @@ export function UnitBrowser({
   const compareKey = (model: string) => `${brandName}::${model}`;
   const inCompare = (model: string) => compare.some((c) => c.key === compareKey(model));
   const COMPARE_MAX = 3;
-  const toggleCompare = (o: BrowserRow, pair: PairProposal) =>
+  const toggleCompare = (o: BrowserRow, pair: PairProposal | null) =>
     setCompare((cur) => {
       const key = compareKey(o.idu.model);
       if (cur.some((c) => c.key === key)) return cur.filter((c) => c.key !== key);
@@ -222,12 +257,46 @@ export function UnitBrowser({
     [perRoom, pack, loadKw, basis, phase]
   );
 
+  /* A search reaches every style, not just the open tab: each tab counts
+     the units that match (fits first, as ever), a tab with none goes quiet,
+     and the table moves to a style that has one. Like the counts without a
+     search, the size limits don't enter into it. */
+  const searchedTabs = useMemo(() => {
+    if (!q) return tabs;
+    const rows = perRoom
+      ? multiUnitOptions(pack, { loadKw, basis, formFactor: null })
+      : unitOptions(pack, { loadKw, basis, formFactor: null, phase });
+    const count = new Map<FormFactor, number>();
+    const fitCount = new Map<FormFactor, number>();
+    for (const r of rows) {
+      if (!unitMatchesQuery(r.idu, q)) continue;
+      const ff = r.idu.form_factor;
+      count.set(ff, (count.get(ff) ?? 0) + 1);
+      if (r.fit === "fits") fitCount.set(ff, (fitCount.get(ff) ?? 0) + 1);
+    }
+    return tabs.map((t) => ({
+      ...t,
+      count: count.get(t.formFactor) ?? 0,
+      fitCount: fitCount.get(t.formFactor) ?? 0,
+    }));
+  }, [q, tabs, perRoom, pack, loadKw, basis, phase]);
+
   /** default tab: the caller's requested form factor, else the first tab
       (in prevalence order — wall-mounted leads) holding a clean fit, else
       the best-fit option's tab, else the first tab */
   const [tab, setTab] = useState<FormFactor | null>(initialFormFactor ?? null);
   const activeTab = useMemo(() => {
-    if (tab && tabs.some((t) => t.formFactor === tab && t.count > 0)) return tab;
+    /* a controlled tab is the host's crumb: the list shows that style and
+       only the host moves it (a search that finds nothing in it asks the
+       host to, see the search box) */
+    if (formFactor != null) {
+      return tabs.some((t) => t.formFactor === formFactor) ? formFactor : (tabs[0]?.formFactor ?? formFactor);
+    }
+    if (tab && searchedTabs.some((t) => t.formFactor === tab && t.count > 0)) return tab;
+    if (q) {
+      const hit = searchedTabs.find((t) => t.fitCount > 0) ?? searchedTabs.find((t) => t.count > 0);
+      return hit?.formFactor ?? tab ?? tabs[0]?.formFactor ?? null;
+    }
     /* Open where a person would look first. The old default followed the
        cross-form-factor best fit, but between two exact-capacity fits that
        winner is a ranking tiebreak — it once opened a bedroom split on Floor
@@ -243,13 +312,13 @@ export function UnitBrowser({
       if (rec) return rec.idu.form_factor;
     }
     return tabs[0]?.formFactor ?? null;
-  }, [tab, tabs, pack, loadKw, basis, phase, perRoom]);
+  }, [formFactor, tab, tabs, searchedTabs, q, pack, loadKw, basis, phase, perRoom]);
 
   /* One row shape, two sources. A pair row carries its outdoor pairings; a
      per-room row has none, because a multi's outdoor is chosen once for the
      system rather than per room. */
-  const options = useMemo<BrowserRow[]>(
-    () =>
+  const options = useMemo<BrowserRow[]>(() => {
+    const rows: BrowserRow[] =
       perRoom
         ? multiUnitOptions(pack, {
             loadKw,
@@ -279,9 +348,17 @@ export function UnitBrowser({
             bestFit: o.bestFit,
             pairs: o.pairs,
             defaultPair: o.defaultPair,
-          })),
-    [perRoom, pack, loadKw, basis, activeTab, phase, filters, sort]
-  );
+          }));
+    if (!q) return rows;
+    /* Best fit is the smallest suiting unit ON SCREEN — a search that hides
+       the style's best fit names the best of what it found */
+    const hits = rows.filter((r) => unitMatchesQuery(r.idu, q));
+    let best: BrowserRow | null = null;
+    if (loadKw != null) {
+      for (const r of hits) if (r.fit === "fits" && (!best || r.capacityKw < best.capacityKw)) best = r;
+    }
+    return hits.map((r) => ({ ...r, bestFit: r === best }));
+  }, [perRoom, pack, loadKw, basis, activeTab, phase, filters, sort, q]);
 
   /* the airflow filter belongs to every ducted-airway form, not the "ducted"
      tab alone — bulkhead units are air-capable and carry the same figure */
@@ -303,8 +380,9 @@ export function UnitBrowser({
       (!s.only || (activeTab != null && s.only.includes(activeTab))) &&
       (!perRoom || s.group === "idu")
   );
-  /* per-room: Model + capacity + specs. pair: compare + Model + specs + Outdoor */
-  const colSpan = perRoom ? 1 + 1 + activeSpecs.length : 1 + 1 + activeSpecs.length + 1;
+  /* compare + Model + specs, then the capacity a per-room row is judged on
+     or the pair row's Outdoor: three fixed columns either way */
+  const colSpan = 3 + activeSpecs.length;
 
   /** the option's outdoor pairing: the picked model if it still qualifies
       under the current filters, else the first surviving pairing */
@@ -421,41 +499,70 @@ export function UnitBrowser({
   };
 
   /* Add straight from a comparison column (uses that entry's captured pair) */
-  const chooseEntry = (e: CompareEntry) => onChoose({ kind: "pair", pair: e.pair });
+  const chooseEntry = (e: CompareEntry) =>
+    onChoose(e.pair ? { kind: "pair", pair: e.pair } : { kind: "idu", idu: e.option.idu });
 
+  const onKey = (e: KeyboardEvent) => {
+    if (comparing) return; // the compare overlay owns the keys while open
+    if (e.key === "Escape") {
+      // embedded, Escape belongs to the window around it
+      if (!embedded) onClose?.();
+      return;
+    }
+    const t = e.target as HTMLElement | null;
+    /* a focused button answers Enter itself — embedded, the browser sits
+       among the host's buttons */
+    if (t && (embedded ? /^(INPUT|SELECT|TEXTAREA|BUTTON)$/ : /^(INPUT|SELECT|TEXTAREA)$/).test(t.tagName))
+      return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelected((cur) => {
+        const list = visibleOptions;
+        if (!list.length) return cur;
+        const curModel =
+          cur && list.some((o) => o.idu.model === cur)
+            ? cur
+            : (list.find((o) => o.bestFit) ?? list[0]).idu.model;
+        const idx = list.findIndex((o) => o.idu.model === curModel);
+        const next =
+          list[Math.min(list.length - 1, Math.max(0, idx + (e.key === "ArrowDown" ? 1 : -1)))];
+        return next.idu.model;
+      });
+    } else if (e.key === "Enter" && selectedOption) {
+      e.preventDefault();
+      choose(selectedOption);
+    }
+  };
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (comparing) return; // the compare overlay owns the keys while open
-      if (e.key === "Escape") return onClose();
-      const t = e.target as HTMLElement | null;
-      if (t && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)) return;
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelected((cur) => {
-          const list = visibleOptions;
-          if (!list.length) return cur;
-          const curModel =
-            cur && list.some((o) => o.idu.model === cur)
-              ? cur
-              : (list.find((o) => o.bestFit) ?? list[0]).idu.model;
-          const idx = list.findIndex((o) => o.idu.model === curModel);
-          const next =
-            list[Math.min(list.length - 1, Math.max(0, idx + (e.key === "ArrowDown" ? 1 : -1)))];
-          return next.idu.model;
-        });
-      } else if (e.key === "Enter" && selectedOption) {
-        e.preventDefault();
-        choose(selectedOption);
-      }
-    };
+    if (embedded) return;
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+  /* Under a controlled head type a search still reaches every style: when
+     the style on the crumb has no match and another has, the host is asked
+     to move the crumb there, the way the tab strip moves itself. Asked from
+     the search box, as it is typed, never worked out afterwards. */
+  const followSearch = (value: string) => {
+    if (formFactor == null || !onFormFactor) return;
+    const qq = squash(value);
+    if (!qq) return;
+    const rows = perRoom
+      ? multiUnitOptions(pack, { loadKw, basis, formFactor: null })
+      : unitOptions(pack, { loadKw, basis, formFactor: null, phase });
+    const hits = rows.filter((r) => unitMatchesQuery(r.idu, qq));
+    if (hits.some((r) => r.idu.form_factor === activeTab)) return;
+    const to =
+      tabs.find((t) => hits.some((r) => r.idu.form_factor === t.formFactor && r.fit === "fits")) ??
+      tabs.find((t) => hits.some((r) => r.idu.form_factor === t.formFactor));
+    if (to) onFormFactor(to.formFactor);
+  };
 
   /* attribution by drag is offered only when there is a column to drop onto
      AND a host willing to record it */
   const hasRooms = !!rooms && rooms.length > 0;
   const canAssign = hasRooms && !!onAssign;
+  const canDrag = canAssign || !!onDragRow;
 
   const numInput = (key: keyof SelectFilters, placeholder: string) => (
     <input
@@ -479,18 +586,25 @@ export function UnitBrowser({
         key={o.idu.model}
         className={`${o.bestFit ? "rec" : ""}${isSel ? " sel" : ""}${band ? " band" : ""}${
           o.fit !== "fits" ? ` ${o.fit}` : ""
-        }${canAssign ? " drag" : ""}`}
+        }${canDrag ? " drag" : ""}`}
         aria-selected={isSel}
         onClick={() => setSelected(o.idu.model)}
         /* a row is the drag SOURCE for attribution; without a rooms column to
            drop onto there is nothing to drag to, so it stays inert */
-        draggable={canAssign}
+        draggable={canDrag}
         onDragStart={(e) => {
-          if (!canAssign) return;
+          if (!canDrag) return;
           /* the row is the subject of the drag — highlight it in the table
              the same way the detail panel would */
           setSelected(o.idu.model);
+          /* the row in flight is held before the host is told, so the
+             browser's own record of the drag never lags the host's drop */
           setDragModel(o.idu.model);
+          if (onDragRow) {
+            const choice = choiceFor(o);
+            if (choice && e.dataTransfer) onDragRow(choice, e.dataTransfer);
+            return;
+          }
           if (e.dataTransfer) {
             e.dataTransfer.setData("text/plain", o.idu.model);
             e.dataTransfer.effectAllowed = "copy";
@@ -501,10 +615,9 @@ export function UnitBrowser({
           setDropRoomId(null);
         }}
       >
-        {/* comparison is a pairing-vs-pairing question; a per-room row has
-            no pairing to compare, so the column goes rather than sitting
-            there inert */}
-        {!perRoom && pair && (
+        {/* compare is universal: a pair row compares its pairing, a per-room
+            row the head alone, since its outdoor belongs to the system */}
+        {(perRoom || pair) && (
           <td className="ds-ub-cmpcell" onClick={(e) => e.stopPropagation()}>
             <input
               type="checkbox"
@@ -554,9 +667,42 @@ export function UnitBrowser({
     );
   };
 
-  const body = (
-    <div className="ds-ub-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="ds-ub" role="dialog" aria-modal="true" aria-label="Choose a unit">
+  const powerSeg = (
+    <div className="ds-ub-powerseg" role="group" aria-label="Power">
+      <span className="ds-ub-seglabel">Power</span>
+      <button
+        className={phase === null ? "on" : ""}
+        onClick={() => setPhase(null)}
+        title="Any supply phase"
+      >
+        Any
+      </button>
+      <button
+        className={phase === "1" ? "on" : ""}
+        onClick={() => setPhase("1")}
+        title="Single phase outdoor units only"
+      >
+        1φ
+      </button>
+      <button
+        className={phase === "3" ? "on" : ""}
+        onClick={() => setPhase("3")}
+        title="Three phase outdoor units only"
+      >
+        3φ
+      </button>
+    </div>
+  );
+
+  const panel = (
+    <div
+      className={`ds-ub${embedded ? " embedded" : ""}`}
+      role={embedded ? "region" : "dialog"}
+      aria-modal={embedded ? undefined : true}
+      aria-label="Choose a unit"
+      onKeyDown={embedded ? (e) => onKey(e.nativeEvent) : undefined}
+    >
+      {!embedded && (
         <header className="ds-ub-head">
           <div className="ds-ub-title">
             <b>Choose a unit</b>
@@ -569,318 +715,334 @@ export function UnitBrowser({
               <span>No room selected — full catalogue</span>
             )}
           </div>
-          <div className="ds-ub-powerseg" role="group" aria-label="Power">
-            <span className="ds-ub-seglabel">Power</span>
-            <button
-              className={phase === null ? "on" : ""}
-              onClick={() => setPhase(null)}
-              title="Any supply phase"
-            >
-              Any
-            </button>
-            <button
-              className={phase === "1" ? "on" : ""}
-              onClick={() => setPhase("1")}
-              title="Single phase outdoor units only"
-            >
-              1φ
-            </button>
-            <button
-              className={phase === "3" ? "on" : ""}
-              onClick={() => setPhase("3")}
-              title="Three phase outdoor units only"
-            >
-              3φ
-            </button>
-          </div>
+          {powerSeg}
           <button className="ds-ub-close" onClick={onClose} aria-label="Close">
             <Icon name="x" size={16} />
           </button>
         </header>
+      )}
 
-        <nav className="ds-ub-tabs">
-          {tabs.map((t) => (
-            <button
-              key={t.formFactor}
-              className={t.formFactor === activeTab ? "on" : ""}
-              disabled={t.count === 0}
-              onClick={() => setTab(t.formFactor)}
-              title={
-                loadKw == null
-                  ? `${t.count} ${t.label.toLowerCase()} unit${t.count === 1 ? "" : "s"}`
-                  : `${t.fitCount} of ${t.count} suit a ${loadKw.toFixed(1)} kW load`
-              }
-            >
-              {t.label}
-              {/* the fit count leads — it's the number you're shopping on —
-                  with the full catalogue count behind it so an empty tab still
-                  reads as "there are units here, none of them suit" */}
-              {loadKw != null ? (
-                <span className={`ds-ub-count${t.fitCount === 0 ? " none" : " fit"}`}>
-                  {t.fitCount}
-                  <i>/{t.count}</i>
-                </span>
-              ) : (
-                <span className="ds-ub-count">{t.count}</span>
-              )}
-            </button>
-          ))}
-        </nav>
-
-        <div className="ds-ub-filters">
-          <span className="ds-ub-flabel">Fits within</span>
-          <label>W ≤ {numInput("maxWidthMm", "mm")}</label>
-          <label>D ≤ {numInput("maxDepthMm", "mm")}</label>
-          <label>H ≤ {numInput("maxHeightMm", "mm")}</label>
-          {isDucted && <label>Airflow ≥ {numInput("minAirflowLs", "L/s")}</label>}
-          {Object.values(filters).some((v) => v != null) && (
-            <button className="ds-ub-reset" onClick={() => setFilters({})}>
-              Reset
-            </button>
-          )}
-          <div className="ds-ub-fright">
-            {canGroup && (
-              <label className="ds-ub-groupby">
-                <input
-                  type="checkbox"
-                  checked={groupBySeries}
-                  onChange={(e) => setGroupBySeries(e.target.checked)}
-                />
-                Group by series
-              </label>
+      {formFactor == null && (
+      <nav className="ds-ub-tabs">
+        {searchedTabs.map((t) => (
+          <button
+            key={t.formFactor}
+            className={t.formFactor === activeTab ? "on" : ""}
+            disabled={t.count === 0}
+            onClick={() => setTab(t.formFactor)}
+            title={
+              loadKw == null
+                ? `${t.count} ${t.label.toLowerCase()} unit${t.count === 1 ? "" : "s"}`
+                : `${t.fitCount} of ${t.count} suit a ${loadKw.toFixed(1)} kW load`
+            }
+          >
+            {t.label}
+            {/* the fit count leads — it's the number you're shopping on —
+                with the full catalogue count behind it so an empty tab still
+                reads as "there are units here, none of them suit" */}
+            {loadKw != null ? (
+              <span className={`ds-ub-count${t.fitCount === 0 ? " none" : " fit"}`}>
+                {t.fitCount}
+                <i>/{t.count}</i>
+              </span>
+            ) : (
+              <span className="ds-ub-count">{t.count}</span>
             )}
-            <ColumnsMenu specs={menuSpecs} enabled={columnIds} onToggle={toggleColumn} />
-          </div>
-        </div>
+          </button>
+        ))}
+      </nav>
+      )}
 
-        <div className="ds-ub-body">
-          <div className="ds-ub-main">
-            <div className="ds-ub-scroll">
-              <table className="ds-ub-table">
-                <thead>
-                  <tr>
-                    {!perRoom && <th className="ds-ub-cmpcol" aria-label="Compare" />}
-                    <th>Model</th>
-                    {perRoom && <th>Cooling</th>}
-                    {activeSpecs.map((s) =>
-                      s.sortKey ? (
-                        <th
-                          key={s.id}
-                          className={`sortable${sort === s.sortKey ? " on" : ""}`}
-                          onClick={() => setSort(s.sortKey!)}
-                          title={`Sort by ${s.label.toLowerCase()}`}
-                        >
-                          {s.header}
-                          {sort === s.sortKey && (
-                            <span className="ds-ub-sortmark">
-                              {s.sortKey === "airflow" ? "↓" : "↑"}
-                            </span>
-                          )}
-                        </th>
-                      ) : (
-                        <th key={s.id}>{s.header}</th>
-                      )
-                    )}
-                    {!perRoom && <th>Outdoor</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* with nothing at all in the tab the sections would just be
-                      two empty headings — the single message below says it */}
-                  {(options.length === 0 ? [] : sections).flatMap((s) => [
-                    ...(s.title
-                      ? [
-                          <tr key={`sec-${s.key}`} className={`ds-ub-sec ds-ub-sec-${s.key}`}>
+      <div className="ds-ub-filters">
+        {/* the brand is a filter, not a fork: one pack, so one name, drawn
+            locked once the system has a unit of it */}
+        {embedded && (
+          <span className={`ds-ub-brand${brandLocked ? " locked" : ""}`}>{brandName}</span>
+        )}
+        <input
+          type="search"
+          className="ds-ub-search"
+          placeholder="Search models"
+          aria-label="Search units"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            followSearch(e.target.value);
+          }}
+        />
+        <span className="ds-ub-flabel">Fits within</span>
+        <label>W ≤ {numInput("maxWidthMm", "mm")}</label>
+        <label>D ≤ {numInput("maxDepthMm", "mm")}</label>
+        <label>H ≤ {numInput("maxHeightMm", "mm")}</label>
+        {isDucted && <label>Airflow ≥ {numInput("minAirflowLs", "L/s")}</label>}
+        {Object.values(filters).some((v) => v != null) && (
+          <button className="ds-ub-reset" onClick={() => setFilters({})}>
+            Reset
+          </button>
+        )}
+        <div className="ds-ub-fright">
+          {/* embedded there is no title bar to carry Power; a multi head
+              has no outdoor of its own, so no supply to filter on */}
+          {embedded && !perRoom && powerSeg}
+          {canGroup && (
+            <label className="ds-ub-groupby">
+              <input
+                type="checkbox"
+                checked={groupBySeries}
+                onChange={(e) => setGroupBySeries(e.target.checked)}
+              />
+              Group by series
+            </label>
+          )}
+          <ColumnsMenu specs={menuSpecs} enabled={columnIds} onToggle={toggleColumn} />
+        </div>
+      </div>
+
+      <div className="ds-ub-body">
+        <div className="ds-ub-main">
+          {/* embedded, the list takes focus so its keys stay its own */}
+          <div className="ds-ub-scroll" tabIndex={embedded ? 0 : undefined}>
+            <table className="ds-ub-table">
+              <thead>
+                <tr>
+                  <th className="ds-ub-cmpcol" aria-label="Compare" />
+                  <th>Model</th>
+                  {perRoom && <th>Cooling</th>}
+                  {activeSpecs.map((s) =>
+                    s.sortKey ? (
+                      <th
+                        key={s.id}
+                        className={`sortable${sort === s.sortKey ? " on" : ""}`}
+                        onClick={() => setSort(s.sortKey!)}
+                        title={`Sort by ${s.label.toLowerCase()}`}
+                      >
+                        {s.header}
+                        {sort === s.sortKey && (
+                          <span className="ds-ub-sortmark">
+                            {s.sortKey === "airflow" ? "↓" : "↑"}
+                          </span>
+                        )}
+                      </th>
+                    ) : (
+                      <th key={s.id}>{s.header}</th>
+                    )
+                  )}
+                  {!perRoom && <th>Outdoor</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {/* with nothing at all in the tab the sections would just be
+                    two empty headings — the single message below says it */}
+                {(options.length === 0 ? [] : sections).flatMap((s) => [
+                  ...(s.title
+                    ? [
+                        <tr key={`sec-${s.key}`} className={`ds-ub-sec ds-ub-sec-${s.key}`}>
+                          <td colSpan={colSpan}>
+                            <b>{s.title}</b>
+                            <span className="ds-ub-count">{s.items.length}</span>
+                            {s.hint && <span className="ds-ub-sechint">{s.hint}</span>}
+                          </td>
+                        </tr>,
+                      ]
+                    : []),
+                  ...(s.items.length === 0
+                    ? [
+                        <tr key={`sec-${s.key}-none`}>
+                          <td colSpan={colSpan} className="ds-ub-none">
+                            {Object.values(filters).some((v) => v != null)
+                              ? "Nothing in this style suits the load at these sizes — loosen a fit limit, or take one from below."
+                              : "Nothing in this style suits the load — try another style, or take one from below."}
+                          </td>
+                        </tr>,
+                      ]
+                    : s.grouped
+                      ? s.groups.flatMap((g) => [
+                          <tr key={`grp-${s.key}-${g.series}`} className="ds-ub-group">
                             <td colSpan={colSpan}>
-                              <b>{s.title}</b>
-                              <span className="ds-ub-count">{s.items.length}</span>
-                              {s.hint && <span className="ds-ub-sechint">{s.hint}</span>}
+                              {g.series}
+                              <span className="ds-ub-count">{g.items.length}</span>
                             </td>
                           </tr>,
-                        ]
-                      : []),
-                    ...(s.items.length === 0
-                      ? [
-                          <tr key={`sec-${s.key}-none`}>
-                            <td colSpan={colSpan} className="ds-ub-none">
-                              {Object.values(filters).some((v) => v != null)
-                                ? "Nothing in this style suits the load at these sizes — loosen a fit limit, or take one from below."
-                                : "Nothing in this style suits the load — try another style, or take one from below."}
-                            </td>
-                          </tr>,
-                        ]
-                      : s.grouped
-                        ? s.groups.flatMap((g) => [
-                            <tr key={`grp-${s.key}-${g.series}`} className="ds-ub-group">
-                              <td colSpan={colSpan}>
-                                {g.series}
-                                <span className="ds-ub-count">{g.items.length}</span>
-                              </td>
-                            </tr>,
-                            ...g.items.map(renderRow),
-                          ])
-                        : s.items.map(renderRow)),
-                  ])}
-                  {options.length === 0 && (
-                    <tr>
-                      <td colSpan={colSpan} className="ds-ub-none">
-                        {phase != null
+                          ...g.items.map(renderRow),
+                        ])
+                      : s.items.map(renderRow)),
+                ])}
+                {options.length === 0 && (
+                  <tr>
+                    <td colSpan={colSpan} className="ds-ub-none">
+                      {q && !searchedTabs.some((t) => t.count > 0)
+                        ? `No unit matches ${query.trim()}`
+                        : phase != null
                           ? `No ${phase === "3" ? "three" : "single"}-phase pairings match — set Power to Any or loosen a filter.`
                           : "Nothing matches these filters — loosen a limit."}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-
-          <aside className="ds-ub-detail">
-            {selectedOption ? (
-              <DetailPanel
-                option={selectedOption as unknown as UnitOption}
-                pair={pairFor(selectedOption)}
-                loadKw={loadKw}
-                capacityKw={selectedOption.capacityKw}
-                onPickOdu={(oduModel) =>
-                  setOduPick((m) => ({ ...m, [selectedOption.idu.model]: oduModel }))
-                }
-                onAdd={() => choose(selectedOption)}
-              />
-            ) : (
-              <div className="ds-ub-dempty">Select a unit to see its full spec sheet.</div>
-            )}
-          </aside>
-
-          {/* ── the rooms column: every room on the system, with the size and
-              load you are shopping against. Clicking a card aims the ranking
-              lens at it; dragging a unit onto it attributes the unit to that
-              room WITHOUT closing — the flow is attribute-everything-then-
-              place, so the modal has to survive the whole round. ── */}
-          {hasRooms && (
-            <aside
-              className={`ds-ub-roomcol${dragModel ? " arming" : ""}`}
-              aria-label="Rooms on this system"
-            >
-              <header className="ds-ub-rchead">
-                Rooms
-                <span>{rooms!.length}</span>
-              </header>
-              <div className="ds-ub-rclist">
-                {rooms!.map((r) => {
-                  const isLens = r.id === lensId;
-                  const isTarget = canAssign && dragModel != null;
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      className={`ds-ub-rcard${isLens ? " on" : ""}${
-                        r.served ? " served" : ""
-                      }${r.assignedModel ? " has" : ""}${isTarget ? " target" : ""}${
-                        isTarget && r.id === dropRoomId ? " over" : ""
-                      }`}
-                      aria-pressed={isLens}
-                      onClick={() => onLens?.(r.id)}
-                      onDragOver={(e) => {
-                        if (!isTarget) return;
-                        /* preventDefault is what MAKES this a drop target —
-                           without it the browser refuses the drop silently */
-                        e.preventDefault();
-                        if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-                        setDropRoomId(r.id);
-                      }}
-                      onDragLeave={() =>
-                        setDropRoomId((cur) => (cur === r.id ? null : cur))
-                      }
-                      onDrop={(e) => {
-                        if (!isTarget) return;
-                        e.preventDefault();
-                        const model = e.dataTransfer?.getData("text/plain") || dragModel;
-                        const opt = options.find((o) => o.idu.model === model);
-                        setDragModel(null);
-                        setDropRoomId(null);
-                        const choice = opt ? choiceFor(opt) : null;
-                        if (choice) onAssign!(choice, r.id);
-                      }}
-                      title={
-                        r.loadKw != null
-                          ? `${r.name} — needs ≈${r.loadKw.toFixed(1)} kW`
-                          : `${r.name} — calibrate the floor to size it`
-                      }
-                    >
-                      <span className="ds-ub-rcname">
-                        {r.name}
-                        {r.served && <Icon name="check" size={11} />}
-                      </span>
-                      <span className="ds-ub-rcfig">
-                        {r.areaM2 != null && <b>{r.areaM2.toFixed(1)} m²</b>}
-                        {r.loadKw != null && <i>{r.loadKw.toFixed(1)} kW</i>}
-                      </span>
-                      {/* the slot is the affordance: empty and dashed it reads
-                          as somewhere a unit goes, with no caption saying so */}
-                      <span className="ds-ub-rcslot">
-                        {r.assignedModel ?? ""}
-                      </span>
-                      {/* the outdoor it runs to — a room's pairing is only
-                          half-told by its indoor head */}
-                      {r.assignedModel && r.oduModel && (
-                        <span className="ds-ub-rcodu">
-                          <i>{r.oduShared ? "shared outdoor" : "outdoor"}</i>
-                          {r.oduModel}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </aside>
-          )}
         </div>
 
-        {compare.length > 0 && (
-          <div className="ds-ub-cmpbar">
-            <div className="ds-ub-cmpchips">
-              <span className="ds-ub-cmplabel">Compare</span>
-              {compare.map((c) => (
-                <span key={c.key} className="ds-ub-cmpchip">
-                  {c.option.idu.model}
+        <aside className="ds-ub-detail">
+          {selectedOption ? (
+            <DetailPanel
+              option={selectedOption as unknown as UnitOption}
+              pair={pairFor(selectedOption)}
+              loadKw={loadKw}
+              capacityKw={selectedOption.capacityKw}
+              onPickOdu={(oduModel) =>
+                setOduPick((m) => ({ ...m, [selectedOption.idu.model]: oduModel }))
+              }
+              onAdd={() => choose(selectedOption)}
+              addLabel={addLabel}
+            />
+          ) : (
+            <div className="ds-ub-dempty">Select a unit to see its full spec sheet.</div>
+          )}
+        </aside>
+
+        {/* ── the rooms column: every room on the system, with the size and
+            load you are shopping against. Clicking a card aims the ranking
+            lens at it; dragging a unit onto it attributes the unit to that
+            room WITHOUT closing — the flow is attribute-everything-then-
+            place, so the modal has to survive the whole round. ── */}
+        {hasRooms && (
+          <aside
+            className={`ds-ub-roomcol${dragModel ? " arming" : ""}`}
+            aria-label="Rooms on this system"
+          >
+            <header className="ds-ub-rchead">
+              Rooms
+              <span>{rooms!.length}</span>
+            </header>
+            <div className="ds-ub-rclist">
+              {rooms!.map((r) => {
+                const isLens = r.id === lensId;
+                const isTarget = canAssign && dragModel != null;
+                return (
                   <button
-                    aria-label={`Remove ${c.option.idu.model} from comparison`}
-                    onClick={() =>
-                      setCompare((cur) => cur.filter((x) => x.key !== c.key))
+                    key={r.id}
+                    type="button"
+                    className={`ds-ub-rcard${isLens ? " on" : ""}${
+                      r.served ? " served" : ""
+                    }${r.assignedModel ? " has" : ""}${isTarget ? " target" : ""}${
+                      isTarget && r.id === dropRoomId ? " over" : ""
+                    }`}
+                    aria-pressed={isLens}
+                    onClick={() => onLens?.(r.id)}
+                    onDragOver={(e) => {
+                      if (!isTarget) return;
+                      /* preventDefault is what MAKES this a drop target —
+                         without it the browser refuses the drop silently */
+                      e.preventDefault();
+                      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+                      setDropRoomId(r.id);
+                    }}
+                    onDragLeave={() =>
+                      setDropRoomId((cur) => (cur === r.id ? null : cur))
+                    }
+                    onDrop={(e) => {
+                      if (!isTarget) return;
+                      e.preventDefault();
+                      const model = e.dataTransfer?.getData("text/plain") || dragModel;
+                      const opt = options.find((o) => o.idu.model === model);
+                      setDragModel(null);
+                      setDropRoomId(null);
+                      const choice = opt ? choiceFor(opt) : null;
+                      if (choice) onAssign!(choice, r.id);
+                    }}
+                    title={
+                      r.loadKw != null
+                        ? `${r.name} — needs ≈${r.loadKw.toFixed(1)} kW`
+                        : `${r.name} — calibrate the floor to size it`
                     }
                   >
-                    <Icon name="x" size={11} />
+                    <span className="ds-ub-rcname">
+                      {r.name}
+                      {r.served && <Icon name="check" size={11} />}
+                    </span>
+                    <span className="ds-ub-rcfig">
+                      {r.areaM2 != null && <b>{r.areaM2.toFixed(1)} m²</b>}
+                      {r.loadKw != null && <i>{r.loadKw.toFixed(1)} kW</i>}
+                    </span>
+                    {/* the slot is the affordance: empty and dashed it reads
+                        as somewhere a unit goes, with no caption saying so */}
+                    <span className="ds-ub-rcslot">
+                      {r.assignedModel ?? ""}
+                    </span>
+                    {/* the outdoor it runs to — a room's pairing is only
+                        half-told by its indoor head */}
+                    {r.assignedModel && r.oduModel && (
+                      <span className="ds-ub-rcodu">
+                        <i>{r.oduShared ? "shared outdoor" : "outdoor"}</i>
+                        {r.oduModel}
+                      </span>
+                    )}
                   </button>
-                </span>
-              ))}
+                );
+              })}
             </div>
-            <button className="ds-ub-cmpclear" onClick={() => setCompare([])}>
-              Clear
-            </button>
-            <button
-              className="ds-ub-cmpgo"
-              disabled={compare.length < 2}
-              onClick={() => setComparing(true)}
-            >
-              Compare {compare.length}
-            </button>
-          </div>
+          </aside>
         )}
       </div>
 
-      {comparing && (
-        <CompareOverlay
-          entries={compare}
-          onAdd={chooseEntry}
-          onRemove={(key) => setCompare((cur) => cur.filter((x) => x.key !== key))}
-          onClose={() => setComparing(false)}
-        />
+      {compare.length > 0 && (
+        <div className="ds-ub-cmpbar">
+          <div className="ds-ub-cmpchips">
+            <span className="ds-ub-cmplabel">Compare</span>
+            {compare.map((c) => (
+              <span key={c.key} className="ds-ub-cmpchip">
+                {c.option.idu.model}
+                <button
+                  aria-label={`Remove ${c.option.idu.model} from comparison`}
+                  onClick={() =>
+                    setCompare((cur) => cur.filter((x) => x.key !== c.key))
+                  }
+                >
+                  <Icon name="x" size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+          <button className="ds-ub-cmpclear" onClick={() => setCompare([])}>
+            Clear
+          </button>
+          <button
+            className="ds-ub-cmpgo"
+            disabled={compare.length < 2}
+            onClick={() => setComparing(true)}
+          >
+            Compare {compare.length}
+          </button>
+        </div>
       )}
     </div>
   );
 
-  return createPortal(body, document.body);
+  const compareOverlay = comparing && (
+    <CompareOverlay
+      entries={compare}
+      onAdd={chooseEntry}
+      onRemove={(key) => setCompare((cur) => cur.filter((x) => x.key !== key))}
+      onClose={() => setComparing(false)}
+    />
+  );
+
+  if (embedded) {
+    return (
+      <>
+        {panel}
+        {compareOverlay}
+      </>
+    );
+  }
+  return createPortal(
+    <div className="ds-ub-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
+      {panel}
+      {compareOverlay}
+    </div>,
+    document.body
+  );
 }
 
 /* supply-phase pill — 1φ neutral, 3φ amber so a three-phase unit is never
@@ -947,6 +1109,7 @@ function DetailPanel({
   capacityKw,
   onPickOdu,
   onAdd,
+  addLabel,
 }: {
   option: UnitOption;
   /** null in per-room flow: the outdoor is the SYSTEM's, chosen once, so the
@@ -958,6 +1121,7 @@ function DetailPanel({
   capacityKw: number;
   onPickOdu: (oduModel: string) => void;
   onAdd: () => void;
+  addLabel: string;
 }) {
   const rows = (group: SpecGroup) =>
     specsInGroup(group).map((s) => (
@@ -1009,7 +1173,7 @@ function DetailPanel({
           onClick={onAdd}
           title={pair ? `Add ${option.idu.model} + ${pair.odu.model}` : `Add ${option.idu.model}`}
         >
-          Add to plan
+          {addLabel}
         </button>
       </div>
     </div>
@@ -1037,6 +1201,9 @@ function CompareOverlay({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  /* a per-room head has no pairing: the outdoor and pairing bands are drawn
+     only while some column has one to read */
+  const anyPair = entries.some((e) => e.pair != null);
   const specRow = (s: UnitSpec) => {
     const vals = entries.map((e) => (s.numeric ? s.numeric(e.option, e.pair) : null));
     const nums = vals.filter((v): v is number => v != null);
@@ -1103,20 +1270,30 @@ function CompareOverlay({
               {groupBand(SPEC_GROUP_LABELS.idu)}
               {specsInGroup("idu").map(specRow)}
 
-              {groupBand(SPEC_GROUP_LABELS.odu)}
-              <tr>
-                <th className="ds-cmp-rowh">Model</th>
-                {entries.map((e) => (
-                  <td key={e.key}>
-                    <span className="ds-cmp-odumodel">{e.pair.odu.model}</span>{" "}
-                    <PhaseBadge phase={e.pair.odu.phase} />
-                  </td>
-                ))}
-              </tr>
-              {specsInGroup("odu").map(specRow)}
+              {anyPair && (
+                <>
+                  {groupBand(SPEC_GROUP_LABELS.odu)}
+                  <tr>
+                    <th className="ds-cmp-rowh">Model</th>
+                    {entries.map((e) => (
+                      <td key={e.key}>
+                        {e.pair ? (
+                          <>
+                            <span className="ds-cmp-odumodel">{e.pair.odu.model}</span>{" "}
+                            <PhaseBadge phase={e.pair.odu.phase} />
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                  {specsInGroup("odu").map(specRow)}
 
-              {groupBand(SPEC_GROUP_LABELS.pair)}
-              {specsInGroup("pair").map(specRow)}
+                  {groupBand(SPEC_GROUP_LABELS.pair)}
+                  {specsInGroup("pair").map(specRow)}
+                </>
+              )}
 
               <tr className="ds-cmp-addrow">
                 <th />

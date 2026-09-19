@@ -5170,8 +5170,14 @@ html[data-ds-display] .dstudio.editing {
   min-width: 190px;
   background: var(--paper);
   border: 1px solid #e6e6e4;
-  border-radius:var(--r-button); box-shadow: var(--shadow-overlay);
+  border-radius:var(--r-button);
   padding: 4px;
+}
+/* the one overlay shadow, on everything the builder floats over the page */
+.ds-ub-colsmenu,
+.ds-sb-menu,
+.ds-sb-addzone {
+  box-shadow: var(--shadow-overlay);
 }
 .ds-ub-colshead {
   font-size: 12px;
@@ -8901,26 +8907,103 @@ html[data-ds-display] .dstudio.editing {
   overflow: hidden;
   color: var(--ink);
 }
-/* one row: what this is, which kind of system the list offers, and what the
-   targeted room still needs */
+
+/* the rail: the system's colour and its name, a hairline, then its facts as
+   a label over a value; before the first unit only Zones and Load */
 .ds-sb-head {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--s-3) var(--s-5);
-  padding: var(--s-3) var(--s-6);
+  gap: var(--s-5);
+  height: 72px;
+  padding: 0 var(--s-6);
   border-bottom: 1px solid var(--line);
+  flex: none;
 }
-.ds-sb-titles {
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-3);
+.ds-sb-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+/* a zone nobody has claimed is orange, on the plan and in the Add zone list */
+.ds-sb-dot.unclaimed {
+  background: var(--warn);
 }
 .ds-sb-title {
   margin: 0;
+  min-width: 0;
   font-size: var(--fs-5);
   font-weight: var(--fw-heading);
+  white-space: nowrap;
+}
+/* the name is the rename: a button that reads as the title until pressed */
+.ds-sb-name {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  padding: 0 var(--s-2);
+  margin: 0 calc(-1 * var(--s-2));
+  border-radius: var(--r-control);
+  cursor: text;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-name:hover {
+  background: var(--tint);
+}
+.ds-sb-name-input {
+  font: inherit;
+  font-size: var(--fs-4);
+  color: var(--ink);
+  width: 240px;
+  height: 36px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--paper);
+}
+.ds-sb-rule {
+  width: 1px;
+  height: 40px;
+  background: var(--line);
+  flex: none;
+}
+.ds-sb-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--s-7);
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.ds-sb-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+.ds-sb-stat dt {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+  white-space: nowrap;
+}
+.ds-sb-stat dd {
+  margin: 0;
+  font-size: var(--fs-4);
+  font-weight: var(--fw-heading);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ds-sb-stat dd.ok {
+  color: var(--ok-t);
+}
+.ds-sb-stat dd.bad {
+  color: var(--bad-t);
+}
+.ds-sb-stat dd.quiet {
+  color: var(--q);
 }
 .ds-sb-facts {
   margin: 0;
@@ -8939,6 +9022,7 @@ html[data-ds-display] .dstudio.editing {
   display: grid;
   place-items: center;
   cursor: pointer;
+  flex: none;
   transition: background-color var(--t-fast) var(--ease);
 }
 .ds-sb-x:hover {
@@ -8946,25 +9030,37 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-sb-x:focus-visible,
 .ds-sb-btn:focus-visible,
-.ds-sb-kind-opt:focus-visible,
+.ds-sb-name:focus-visible,
+.ds-sb-name-input:focus-visible,
+.ds-sb-crumb-btn:focus-visible,
+.ds-sb-menu-opt:focus-visible,
+.ds-sb-switch-opt:focus-visible,
+.ds-sb-addzone-opt:focus-visible,
+.ds-sb-field select:focus-visible,
 .ds-sb-size:focus-visible {
   outline: none;
   box-shadow: var(--ring);
 }
 
-/* the unit list over the schematic; the edge between them moves (the list's
-   share is set inline from the builder) */
+/* the picker beside the summary, the schematic under the edge between them
+   (the top's share is set inline from the builder) */
 .ds-sb-panes {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
-.ds-sb-browser {
+.ds-sb-top {
   flex: 0 0 auto;
   min-height: 0;
   display: flex;
+}
+.ds-sb-picker {
+  flex: 1;
+  min-width: 0;
+  display: flex;
   flex-direction: column;
+  border-right: 1px solid var(--line);
 }
 .ds-sb-divider {
   flex: none;
@@ -8993,35 +9089,129 @@ html[data-ds-display] .dstudio.editing {
   outline: none;
   box-shadow: var(--ring);
 }
-.ds-sb-kind {
-  display: inline-flex;
-  padding: var(--s-1);
-  gap: var(--s-1);
-  background: var(--tint-2);
-  border-radius: var(--r-button);
+.ds-sb-none {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-3);
+  color: var(--q);
 }
-.ds-sb-kind-opt {
+.ds-sb-none p {
+  margin: 0;
+}
+
+/* the trail: the family of outdoor, then the head type, both menus; Indoor
+   or Outdoor at the end, a tray with a fill and the chosen one on paper */
+.ds-sb-crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: 52px;
+  padding: 0 var(--s-5);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.ds-sb-crumb {
+  position: relative;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-heading);
+  color: var(--q);
+  white-space: nowrap;
+}
+.ds-sb-crumb.now {
+  color: var(--ink);
+}
+.ds-sb-crumb-btn {
   appearance: none;
   border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-heading);
+  color: var(--q);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 28px;
+  padding: 0 var(--s-2);
+  margin: 0 calc(-1 * var(--s-2));
+  border-radius: var(--r-control);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-crumb-btn.now {
+  color: var(--ink);
+}
+.ds-sb-crumb-btn:hover {
+  background: var(--tint);
+}
+.ds-sb-crumb-sep {
+  display: inline-flex;
+  color: var(--q);
+}
+.ds-sb-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: var(--z-overlay);
+  min-width: 180px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  padding: var(--s-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.ds-sb-menu-opt {
+  appearance: none;
+  border: 0;
+  background: none;
   font: inherit;
   font-size: var(--fs-2);
   font-weight: var(--fw-label);
-  color: var(--q);
+  color: var(--ink);
+  text-align: left;
+  height: 32px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-control);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-menu-opt:hover {
+  background: var(--tint);
+}
+.ds-sb-menu-opt[aria-checked="true"] {
+  background: var(--tint-2);
+}
+.ds-sb-switch {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--s-1);
+  gap: var(--s-1);
+  height: 28px;
+  background: var(--tint-2);
+  border-radius: var(--r-button);
+}
+.ds-sb-switch-opt {
+  appearance: none;
+  border: 0;
   background: none;
-  padding: var(--s-2) var(--s-4);
+  font: inherit;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-heading);
+  color: var(--q);
+  height: 24px;
+  padding: 0 var(--s-4);
   border-radius: var(--r-control);
   cursor: pointer;
   transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
-.ds-sb-kind-opt.on {
+.ds-sb-switch-opt[aria-pressed="true"] {
   background: var(--paper);
   color: var(--ink);
-}
-.ds-sb-target {
-  margin: 0 0 0 auto;
-  font-size: var(--fs-2);
-  font-weight: var(--fw-label);
-  color: var(--q);
+  box-shadow: 0 0 0 1px var(--line);
 }
 
 /* the unit selector inside the builder: the builder is the window, so the
@@ -9036,44 +9226,229 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-filters .ds-ub-search {
   width: 220px;
 }
-
-/* state words: a word in the state colour, never a pill */
-.ds-sb-word {
-  margin: 0;
+/* the brand at the start of the filter row: a filter, not a fork; locked
+   and dashed once the system has a unit of it */
+.ds-ub-brand {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
   font-size: var(--fs-2);
   font-weight: var(--fw-label);
+  color: var(--ink);
+  white-space: nowrap;
 }
-.ds-sb-word.ok {
-  color: var(--ok-t);
-}
-.ds-sb-word.warn {
-  color: var(--warn-t);
-}
-.ds-sb-word.bad {
-  color: var(--bad-t);
-}
-.ds-sb-word.quiet {
+.ds-ub-brand.locked {
+  border-style: dashed;
+  border-color: var(--q);
   color: var(--q);
 }
 
-/* the schematic and the detail pane */
+/* the outdoors of the family: each says Valid or Fails against the heads */
+.ds-sb-outdoors-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ds-sb-outdoors-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: 52px;
+  padding: 0 var(--s-5);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.ds-sb-outdoors-count {
+  margin-left: auto;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--q);
+  white-space: nowrap;
+}
+.ds-sb-outdoors-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.ds-sb-outdoors {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-2);
+}
+.ds-sb-outdoors th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-raised);
+  background: var(--paper);
+  text-align: left;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.ds-sb-outdoors td {
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  color: var(--ink);
+}
+.ds-sb-outdoors th:first-child,
+.ds-sb-outdoors td:first-child {
+  padding-left: var(--s-5);
+}
+.ds-sb-outdoors th:last-child,
+.ds-sb-outdoors td:last-child {
+  padding-right: var(--s-5);
+}
+.ds-sb-outdoors .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ds-sb-outdoors tbody tr {
+  cursor: pointer;
+}
+.ds-sb-outdoors tbody tr:hover td {
+  background: var(--tint);
+}
+.ds-sb-outdoors tbody tr:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+.ds-sb-outdoors tr.sel td,
+.ds-sb-outdoors tr.sel:hover td {
+  background: var(--tint-2);
+}
+.ds-sb-outdoors tr.off td {
+  color: var(--q);
+}
+.ds-sb-outdoors-model {
+  font-weight: var(--fw-heading);
+}
+.ds-sb-outdoors-note {
+  margin-left: var(--s-3);
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+.ds-sb-outdoors td.ok {
+  color: var(--ok-t);
+  font-weight: var(--fw-label);
+}
+.ds-sb-outdoors td.bad,
+.ds-sb-outdoors tr.off td.bad {
+  color: var(--bad-t);
+  font-weight: var(--fw-label);
+}
+.ds-sb-outdoors td.quiet {
+  color: var(--q);
+}
+
+/* the summary: a line per zone, the outdoor with its supply, the pipework */
+.ds-sb-summary {
+  width: 340px;
+  flex: none;
+  padding: var(--s-4) var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  overflow-y: auto;
+}
+.ds-sb-sum-zones {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+}
+.ds-sb-sum-zones th {
+  text-align: left;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+  padding: 0 0 var(--s-2);
+  border-bottom: 1px solid var(--line);
+}
+.ds-sb-sum-zones td {
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+}
+.ds-sb-sum-zones th + th,
+.ds-sb-sum-zones td + td {
+  padding-left: var(--s-3);
+}
+.ds-sb-sum-zones .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ds-sb-sum-zones td.quiet {
+  color: var(--q);
+}
+.ds-sb-sum-zones td.ok {
+  color: var(--ok-t);
+}
+.ds-sb-sum-zones td.bad {
+  color: var(--bad-t);
+}
+.ds-sb-sum-zones td.warn {
+  color: var(--warn-t);
+}
+.ds-sb-sum-sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+}
+.ds-sb-sum-sec h3 {
+  margin: 0;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-heading);
+}
+.ds-sb-kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s-1) var(--s-4);
+  margin: 0;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+}
+.ds-sb-kv dt {
+  color: var(--q);
+}
+.ds-sb-kv dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ds-sb-kv dd.quiet {
+  color: var(--q);
+}
+.ds-sb-kv dd.bad {
+  color: var(--bad-t);
+}
+.ds-sb-detail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+/* the schematic: the outdoor box and the band on top, the zone cards in
+   balanced rows under a bus in the system's colour */
 .ds-sb-work {
   flex: 1 1 0;
   min-height: 0;
-  display: flex;
-}
-.ds-sb-schematic {
-  flex: 1;
-  min-width: 0;
   overflow: auto;
   background: var(--ground);
 }
-.ds-sb-none {
-  height: 100%;
-  display: grid;
-  place-items: center;
-  font-size: var(--fs-3);
-  color: var(--q);
+.ds-sb-schematic {
+  position: relative;
+  width: max-content;
+  margin: 0 auto;
 }
 .ds-sb-svg {
   display: block;
@@ -9081,103 +9456,283 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-sb-line {
   fill: none;
-  stroke-width: 2;
+  stroke: var(--sys);
+  stroke-width: 1.5;
 }
-.ds-sb-room {
-  cursor: pointer;
+.ds-sb-line.quiet {
+  stroke: var(--q);
 }
-/* the square for heads whose room is gone: not a room, so not a target */
-.ds-sb-room.homeless {
-  cursor: default;
+.ds-sb-line.bad {
+  stroke: var(--bad-t);
 }
-.ds-sb-room.homeless .ds-sb-room-box {
-  fill: var(--ground);
-  stroke-dasharray: 4 4;
-}
-.ds-sb-room-box {
-  fill: var(--paper);
-  stroke: var(--line);
-  stroke-width: 1;
-  transition: fill var(--t-fast) var(--ease);
-}
-.ds-sb-room:hover .ds-sb-room-box {
-  fill: var(--tint);
-}
-.ds-sb-room.target .ds-sb-room-box {
-  fill: var(--tint-2);
-  stroke: var(--ink);
-}
-.ds-sb-room.over .ds-sb-room-box {
-  fill: var(--tint-2);
-  stroke: var(--ink);
-  stroke-width: 2;
-}
-.ds-sb-room-name {
-  fill: var(--ink);
-  font-size: var(--fs-2);
-  font-weight: var(--fw-heading);
-}
-.ds-sb-room-load,
-.ds-sb-floor {
-  fill: var(--q);
-  font-size: var(--fs-1);
-  font-weight: var(--fw-label);
-}
-.ds-sb-room-word {
-  font-size: var(--fs-2);
-  font-weight: var(--fw-label);
-}
-.ds-sb-room-word.ok {
-  fill: var(--ok-t);
-}
-.ds-sb-room-word.warn {
-  fill: var(--warn-t);
-}
-.ds-sb-room-word.bad {
-  fill: var(--bad-t);
-}
-.ds-sb-room-word.quiet {
-  fill: var(--q);
-}
-.ds-sb-unit,
-.ds-sb-out {
-  cursor: pointer;
-}
-.ds-sb-unit rect,
-.ds-sb-out rect {
-  fill: var(--paper);
-  stroke-width: 2;
-}
-.ds-sb-unit.sel rect,
-.ds-sb-out.sel rect {
-  fill: var(--tint-2);
-  stroke-width: 3;
-}
-.ds-sb-out.refused rect {
+.ds-sb-line.dashed {
   stroke-dasharray: 6 4;
 }
-.ds-sb-unit-model,
-.ds-sb-out-model {
+.ds-sb-out,
+.ds-sb-band[role="button"],
+.ds-sb-stray,
+.ds-sb-add,
+.ds-sb-head-line[role="button"],
+.ds-sb-zone-x {
+  cursor: pointer;
+}
+.ds-sb-out:focus-visible,
+.ds-sb-band:focus-visible,
+.ds-sb-stray:focus-visible,
+.ds-sb-add:focus-visible,
+.ds-sb-head-line:focus-visible,
+.ds-sb-zone-x:focus-visible {
+  outline: none;
+}
+.ds-sb-out-box,
+.ds-sb-band-box,
+.ds-sb-stray rect {
+  fill: var(--paper);
+  stroke: var(--sys);
+  stroke-width: 2;
+  transition: fill var(--t-fast) var(--ease);
+}
+/* dashed with their word until something lands */
+.ds-sb-out.empty .ds-sb-out-box,
+.ds-sb-band.empty .ds-sb-band-box {
+  fill: var(--ground);
+  stroke: var(--q);
+  stroke-width: 1.5;
+  stroke-dasharray: 7 5;
+}
+.ds-sb-out.fails .ds-sb-out-box {
+  stroke: var(--bad-t);
+}
+.ds-sb-band.sel .ds-sb-band-box,
+.ds-sb-stray.sel rect {
+  fill: var(--tint-2);
+}
+.ds-sb-out-model,
+.ds-sb-zone-name {
   fill: var(--ink);
-  font-size: var(--fs-1);
+  font-size: var(--fs-2);
   font-weight: var(--fw-heading);
 }
-.ds-sb-unit-fact {
+.ds-sb-out.empty .ds-sb-out-model,
+.ds-sb-band.empty .ds-sb-out-model {
+  fill: var(--q);
+}
+.ds-sb-fact {
   fill: var(--q);
   font-size: var(--fs-1);
   font-weight: var(--fw-label);
 }
-.ds-sb-detail {
-  width: 340px;
-  flex: none;
-  border-left: 1px solid var(--line);
-  overflow-y: auto;
+.ds-sb-state {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
 }
+.ds-sb-state.ok {
+  fill: var(--ok-t);
+}
+.ds-sb-state.bad {
+  fill: var(--bad-t);
+}
+.ds-sb-state.warn {
+  fill: var(--warn-t);
+}
+.ds-sb-state.quiet {
+  fill: var(--q);
+}
+.ds-sb-zone-box {
+  fill: var(--paper);
+  stroke: var(--line);
+  stroke-width: 1.5;
+  transition: fill var(--t-fast) var(--ease);
+}
+.ds-sb-zone.mine .ds-sb-zone-box {
+  stroke: var(--sys);
+}
+.ds-sb-zone.cant .ds-sb-zone-box {
+  stroke: var(--bad-t);
+  stroke-width: 2;
+}
+/* a head on a card: its line is the button that opens its swap */
+.ds-sb-head-line rect {
+  fill: transparent;
+  transition: fill var(--t-fast) var(--ease);
+}
+.ds-sb-head-line[role="button"]:hover rect {
+  fill: var(--tint);
+}
+.ds-sb-head-line.sel rect {
+  fill: var(--tint-2);
+}
+.ds-sb-head-line:focus-visible rect {
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.ds-sb-head-model {
+  fill: var(--ink);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-heading);
+}
+.ds-sb-head-model.other {
+  fill: var(--q);
+}
+/* the short zone's slot: another split beside, or another unit on the multi */
+.ds-sb-slot rect {
+  fill: var(--ground);
+  stroke: var(--q);
+  stroke-width: 1.5;
+  stroke-dasharray: 7 5;
+  transition: fill var(--t-fast) var(--ease);
+}
+.ds-sb-slot text {
+  fill: var(--ink);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-heading);
+}
+/* the card's clear cross, shown on hover and on keyboard focus alike */
+.ds-sb-zone-x {
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease);
+}
+.ds-sb-zone:hover .ds-sb-zone-x,
+.ds-sb-zone:focus-within .ds-sb-zone-x {
+  opacity: 1;
+}
+.ds-sb-zone-x rect {
+  fill: var(--paper);
+  stroke: var(--line);
+  transition: fill var(--t-fast) var(--ease);
+}
+.ds-sb-zone-x:hover rect {
+  fill: var(--tint);
+}
+.ds-sb-zone-x:focus-visible rect {
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.ds-sb-zone-x path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+/* Add zone: the last card, dashed, pressed while its list is open */
+.ds-sb-add rect {
+  fill: var(--ground);
+  stroke: var(--q);
+  stroke-opacity: 0.5;
+  stroke-width: 1.5;
+  stroke-dasharray: 7 5;
+  transition: fill var(--t-fast) var(--ease);
+}
+.ds-sb-add text {
+  fill: var(--q);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-heading);
+}
+.ds-sb-add:hover rect {
+  fill: var(--tint);
+}
+.ds-sb-add.on rect {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-opacity: 1;
+  stroke-width: 2;
+  stroke-dasharray: none;
+}
+.ds-sb-add.on text {
+  fill: var(--ink);
+}
+/* while a head is in flight the cards and the band say they take it; while
+   an outdoor is, its box does; the one under the pointer is lit in ink */
+.ds-sb-work.dragging.head .ds-sb-zone-box,
+.ds-sb-work.dragging.head .ds-sb-band-box,
+.ds-sb-work.dragging.outdoor .ds-sb-out-box {
+  stroke: var(--q);
+  stroke-dasharray: 7 5;
+}
+.ds-sb-out.over .ds-sb-out-box,
+.ds-sb-band.over .ds-sb-band-box,
+.ds-sb-zone.over .ds-sb-zone-box,
+.ds-sb-slot.over rect {
+  fill: var(--tint-2);
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
+}
+.ds-sb-out:focus-visible .ds-sb-out-box,
+.ds-sb-band:focus-visible .ds-sb-band-box,
+.ds-sb-stray:focus-visible rect,
+.ds-sb-add:focus-visible rect {
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: none;
+}
+/* the Add zone list, over its card: the plan's zones this system lacks */
+.ds-sb-addzone {
+  position: absolute;
+  z-index: var(--z-overlay);
+  width: 280px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  padding: var(--s-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.ds-sb-addzone-label {
+  margin: 0;
+  padding: var(--s-3) var(--s-3) var(--s-2);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+.ds-sb-addzone-none {
+  margin: 0;
+  padding: var(--s-3);
+  font-size: var(--fs-2);
+  color: var(--q);
+}
+.ds-sb-addzone-opt {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--ink);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-control);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-addzone-opt:hover {
+  background: var(--tint-2);
+}
+.ds-sb-addzone-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ds-sb-addzone-sub {
+  font-size: var(--fs-1);
+  color: var(--q);
+}
+.ds-sb-addzone-load {
+  font-size: var(--fs-1);
+  color: var(--q);
+  font-variant-numeric: tabular-nums;
+}
+
+/* a head's detail, in the summary's place: its zone, its sizes, its remove */
 .ds-sb-pane {
   display: flex;
   flex-direction: column;
   gap: var(--s-4);
-  padding: var(--s-5) var(--s-6);
 }
 .ds-sb-pane-title {
   margin: 0;
@@ -9258,21 +9813,42 @@ html[data-ds-display] .dstudio.editing {
 .ds-sb-size .ds-sb-word {
   grid-column: 1 / -1;
 }
+/* state words: a word in the state colour, never a pill */
+.ds-sb-word {
+  margin: 0;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+}
+.ds-sb-word.ok {
+  color: var(--ok-t);
+}
+.ds-sb-word.warn {
+  color: var(--warn-t);
+}
+.ds-sb-word.bad {
+  color: var(--bad-t);
+}
+.ds-sb-word.quiet {
+  color: var(--q);
+}
 
-/* the footer: the one footer, the buttons name the choice */
+/* the footer: Delete system at the left, the reason Done is off in red
+   beside it, and the buttons name the choice */
 .ds-sb-foot {
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  padding: var(--s-4) var(--s-6);
+  height: 64px;
+  padding: 0 var(--s-6);
   border-top: 1px solid var(--line);
+  flex: none;
 }
 .ds-sb-spring {
   flex: 1;
 }
 .ds-sb-error {
-  margin: 0;
-  font-size: var(--fs-2);
+  margin: 0 var(--s-3) 0 0;
+  font-size: var(--fs-3);
   font-weight: var(--fw-label);
   color: var(--bad-t);
 }
@@ -9288,14 +9864,20 @@ html[data-ds-display] .dstudio.editing {
   background: var(--paper);
   color: var(--ink);
   cursor: pointer;
+  white-space: nowrap;
   transition: background-color var(--t-fast) var(--ease);
 }
 .ds-sb-btn:hover {
   background: var(--tint);
 }
-.ds-sb-btn.on {
-  background: var(--tint-2);
-  border-color: var(--ink);
+.ds-sb-btn.small {
+  height: 28px;
+  padding: 0 var(--s-4);
+  font-size: var(--fs-2);
+}
+.ds-sb-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 .ds-sb-btn.primary {
   background: var(--ink);
@@ -9304,6 +9886,9 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-sb-btn.primary:hover {
   background: var(--ink2);
+}
+.ds-sb-btn.primary:disabled:hover {
+  background: var(--ink);
 }
 
 /* ── the builder's doors on the design screen ── */

@@ -909,5 +909,33 @@ describe("UnitBrowser", () => {
       );
       expect(screen.queryByRole("group", { name: "Power" })).toBeNull();
     });
+
+    it("shows the head type the host holds, with no tab strip, and asks the host to move when a search finds nothing in it", () => {
+      const moved: string[] = [];
+      render(
+        <UnitBrowser
+          embedded
+          pack={fixturePack()}
+          loadKw={null}
+          basis="worst-of-both"
+          onChoose={noop}
+          formFactor="ducted"
+          onFormFactor={(ff) => moved.push(ff)}
+          brandLocked
+        />
+      );
+      // the crumb is the tab: no strip, and the list is the style it names
+      expect(document.querySelector(".ds-ub-tabs")).toBeNull();
+      expect(within(tbl()).getByText("DUCT-LOW")).toBeInTheDocument();
+      expect(within(tbl()).queryByText("WALL-25")).toBeNull();
+      // the brand reads locked once the system has a unit of it
+      expect(document.querySelector(".ds-ub-brand.locked")).toHaveTextContent("Test");
+      // a search with no ducted match asks for the style that has one, as it is typed
+      fireEvent.change(screen.getByRole("searchbox", { name: "Search units" }), { target: { value: "wall-25" } });
+      expect(moved).toEqual(["wall"]);
+      // a search the style answers asks for nothing
+      fireEvent.change(screen.getByRole("searchbox", { name: "Search units" }), { target: { value: "duct" } });
+      expect(moved).toEqual(["wall"]);
+    });
   });
 });

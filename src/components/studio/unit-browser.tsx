@@ -29,7 +29,7 @@ import { multiFormFactorSummary, multiUnitOptions } from "@/lib/studio/multi";
 
 /* one unit staged for comparison — self-contained (brand + option + chosen
    pair) so the comparison survives brand switches and never re-reads a pack */
-type CompareEntry = { key: string; brand: string; option: UnitOption; pair: PairProposal };
+type CompareEntry = { key: string; brand: string; option: UnitOption; pair: PairProposal | null };
 
 /* Unit browser (Stage 5 overhaul) — model-first selection: form factor tabs,
    the whole style on offer with what suits the load leading and everything
@@ -152,6 +152,9 @@ export function UnitBrowser({
   embedded = false,
   addLabel = "Add to plan",
   onDragRow,
+  formFactor = null,
+  onFormFactor,
+  brandLocked = false,
 }: {
   pack: DataPack;
   loadKw: number | null;
@@ -186,6 +189,15 @@ export function UnitBrowser({
   /** rows become drag sources for the HOST's drop targets: the host writes
       the choice into the transfer in its own format */
   onDragRow?: (choice: UnitChoice, transfer: DataTransfer) => void;
+  /** the head type, held by the host (the builder's trail): the list shows
+      this style and the tab strip is not drawn, the crumb being the tab */
+  formFactor?: FormFactor | null;
+  /** under a controlled head type, a search that finds nothing in it but
+      something in another style asks the host to move the crumb there */
+  onFormFactor?: (formFactor: FormFactor) => void;
+  /** the system already has a unit of this brand, so the brand is locked:
+      the brand reads as a dashed, locked control rather than a filter */
+  brandLocked?: boolean;
 }) {
   const [filters, setFilters] = useState<SelectFilters>({});
   /** the search box — reaches every style, see `searched` */
@@ -228,7 +240,7 @@ export function UnitBrowser({
   const compareKey = (model: string) => `${brandName}::${model}`;
   const inCompare = (model: string) => compare.some((c) => c.key === compareKey(model));
   const COMPARE_MAX = 3;
-  const toggleCompare = (o: BrowserRow, pair: PairProposal) =>
+  const toggleCompare = (o: BrowserRow, pair: PairProposal | null) =>
     setCompare((cur) => {
       const key = compareKey(o.idu.model);
       if (cur.some((c) => c.key === key)) return cur.filter((c) => c.key !== key);
@@ -274,6 +286,12 @@ export function UnitBrowser({
       the best-fit option's tab, else the first tab */
   const [tab, setTab] = useState<FormFactor | null>(initialFormFactor ?? null);
   const activeTab = useMemo(() => {
+    /* a controlled tab is the host's crumb: the list shows that style and
+       only the host moves it (a search that finds nothing in it asks the
+       host to, see the search box) */
+    if (formFactor != null) {
+      return tabs.some((t) => t.formFactor === formFactor) ? formFactor : (tabs[0]?.formFactor ?? formFactor);
+    }
     if (tab && searchedTabs.some((t) => t.formFactor === tab && t.count > 0)) return tab;
     if (q) {
       const hit = searchedTabs.find((t) => t.fitCount > 0) ?? searchedTabs.find((t) => t.count > 0);
@@ -294,7 +312,7 @@ export function UnitBrowser({
       if (rec) return rec.idu.form_factor;
     }
     return tabs[0]?.formFactor ?? null;
-  }, [tab, tabs, searchedTabs, q, pack, loadKw, basis, phase, perRoom]);
+  }, [formFactor, tab, tabs, searchedTabs, q, pack, loadKw, basis, phase, perRoom]);
 
   /* One row shape, two sources. A pair row carries its outdoor pairings; a
      per-room row has none, because a multi's outdoor is chosen once for the
@@ -362,8 +380,9 @@ export function UnitBrowser({
       (!s.only || (activeTab != null && s.only.includes(activeTab))) &&
       (!perRoom || s.group === "idu")
   );
-  /* per-room: Model + capacity + specs. pair: compare + Model + specs + Outdoor */
-  const colSpan = perRoom ? 1 + 1 + activeSpecs.length : 1 + 1 + activeSpecs.length + 1;
+  /* compare + Model + specs, then the capacity a per-room row is judged on
+     or the pair row's Outdoor: three fixed columns either way */
+  const colSpan = 3 + activeSpecs.length;
 
   /** the option's outdoor pairing: the picked model if it still qualifies
       under the current filters, else the first surviving pairing */
@@ -480,7 +499,8 @@ export function UnitBrowser({
   };
 
   /* Add straight from a comparison column (uses that entry's captured pair) */
-  const chooseEntry = (e: CompareEntry) => onChoose({ kind: "pair", pair: e.pair });
+  const chooseEntry = (e: CompareEntry) =>
+    onChoose(e.pair ? { kind: "pair", pair: e.pair } : { kind: "idu", idu: e.option.idu });
 
   const onKey = (e: KeyboardEvent) => {
     if (comparing) return; // the compare overlay owns the keys while open
@@ -518,6 +538,25 @@ export function UnitBrowser({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+  /* Under a controlled head type a search still reaches every style: when
+     the style on the crumb has no match and another has, the host is asked
+     to move the crumb there, the way the tab strip moves itself. Asked from
+     the search box, as it is typed, never worked out afterwards. */
+  const followSearch = (value: string) => {
+    if (formFactor == null || !onFormFactor) return;
+    const qq = squash(value);
+    if (!qq) return;
+    const rows = perRoom
+      ? multiUnitOptions(pack, { loadKw, basis, formFactor: null })
+      : unitOptions(pack, { loadKw, basis, formFactor: null, phase });
+    const hits = rows.filter((r) => unitMatchesQuery(r.idu, qq));
+    if (hits.some((r) => r.idu.form_factor === activeTab)) return;
+    const to =
+      tabs.find((t) => hits.some((r) => r.idu.form_factor === t.formFactor && r.fit === "fits")) ??
+      tabs.find((t) => hits.some((r) => r.idu.form_factor === t.formFactor));
+    if (to) onFormFactor(to.formFactor);
+  };
 
   /* attribution by drag is offered only when there is a column to drop onto
      AND a host willing to record it */
@@ -558,12 +597,14 @@ export function UnitBrowser({
           /* the row is the subject of the drag — highlight it in the table
              the same way the detail panel would */
           setSelected(o.idu.model);
+          /* the row in flight is held before the host is told, so the
+             browser's own record of the drag never lags the host's drop */
+          setDragModel(o.idu.model);
           if (onDragRow) {
             const choice = choiceFor(o);
             if (choice && e.dataTransfer) onDragRow(choice, e.dataTransfer);
             return;
           }
-          setDragModel(o.idu.model);
           if (e.dataTransfer) {
             e.dataTransfer.setData("text/plain", o.idu.model);
             e.dataTransfer.effectAllowed = "copy";
@@ -574,10 +615,9 @@ export function UnitBrowser({
           setDropRoomId(null);
         }}
       >
-        {/* comparison is a pairing-vs-pairing question; a per-room row has
-            no pairing to compare, so the column goes rather than sitting
-            there inert */}
-        {!perRoom && pair && (
+        {/* compare is universal: a pair row compares its pairing, a per-room
+            row the head alone, since its outdoor belongs to the system */}
+        {(perRoom || pair) && (
           <td className="ds-ub-cmpcell" onClick={(e) => e.stopPropagation()}>
             <input
               type="checkbox"
@@ -682,6 +722,7 @@ export function UnitBrowser({
         </header>
       )}
 
+      {formFactor == null && (
       <nav className="ds-ub-tabs">
         {searchedTabs.map((t) => (
           <button
@@ -710,15 +751,24 @@ export function UnitBrowser({
           </button>
         ))}
       </nav>
+      )}
 
       <div className="ds-ub-filters">
+        {/* the brand is a filter, not a fork: one pack, so one name, drawn
+            locked once the system has a unit of it */}
+        {embedded && (
+          <span className={`ds-ub-brand${brandLocked ? " locked" : ""}`}>{brandName}</span>
+        )}
         <input
           type="search"
           className="ds-ub-search"
           placeholder="Search models"
           aria-label="Search units"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            followSearch(e.target.value);
+          }}
         />
         <span className="ds-ub-flabel">Fits within</span>
         <label>W ≤ {numInput("maxWidthMm", "mm")}</label>
@@ -755,7 +805,7 @@ export function UnitBrowser({
             <table className="ds-ub-table">
               <thead>
                 <tr>
-                  {!perRoom && <th className="ds-ub-cmpcol" aria-label="Compare" />}
+                  <th className="ds-ub-cmpcol" aria-label="Compare" />
                   <th>Model</th>
                   {perRoom && <th>Cooling</th>}
                   {activeSpecs.map((s) =>
@@ -1151,6 +1201,9 @@ function CompareOverlay({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  /* a per-room head has no pairing: the outdoor and pairing bands are drawn
+     only while some column has one to read */
+  const anyPair = entries.some((e) => e.pair != null);
   const specRow = (s: UnitSpec) => {
     const vals = entries.map((e) => (s.numeric ? s.numeric(e.option, e.pair) : null));
     const nums = vals.filter((v): v is number => v != null);
@@ -1217,20 +1270,30 @@ function CompareOverlay({
               {groupBand(SPEC_GROUP_LABELS.idu)}
               {specsInGroup("idu").map(specRow)}
 
-              {groupBand(SPEC_GROUP_LABELS.odu)}
-              <tr>
-                <th className="ds-cmp-rowh">Model</th>
-                {entries.map((e) => (
-                  <td key={e.key}>
-                    <span className="ds-cmp-odumodel">{e.pair.odu.model}</span>{" "}
-                    <PhaseBadge phase={e.pair.odu.phase} />
-                  </td>
-                ))}
-              </tr>
-              {specsInGroup("odu").map(specRow)}
+              {anyPair && (
+                <>
+                  {groupBand(SPEC_GROUP_LABELS.odu)}
+                  <tr>
+                    <th className="ds-cmp-rowh">Model</th>
+                    {entries.map((e) => (
+                      <td key={e.key}>
+                        {e.pair ? (
+                          <>
+                            <span className="ds-cmp-odumodel">{e.pair.odu.model}</span>{" "}
+                            <PhaseBadge phase={e.pair.odu.phase} />
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                  {specsInGroup("odu").map(specRow)}
 
-              {groupBand(SPEC_GROUP_LABELS.pair)}
-              {specsInGroup("pair").map(specRow)}
+                  {groupBand(SPEC_GROUP_LABELS.pair)}
+                  {specsInGroup("pair").map(specRow)}
+                </>
+              )}
 
               <tr className="ds-cmp-addrow">
                 <th />

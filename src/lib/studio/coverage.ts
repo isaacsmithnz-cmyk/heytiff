@@ -5,6 +5,7 @@ import { sizingCapacityKw, type SizingBasis } from "./loads";
 import { pointInPolygon } from "./geometry";
 import { moduleFor } from "./modules";
 import { allocationsOf, hasAllocations } from "./allocations";
+import { zoneIdsOf } from "./zones";
 
 /* Room coverage (plan step: units → spaces) — pure derivations only.
    Attribution model:
@@ -142,6 +143,23 @@ export function systemPairKw(
 
 /** what one placed IDU is worth: its own catalogue capacity on per-room
     modules (multi / VRF), its system's pair rating everywhere else */
+/** the part of a whole-system unit this zone gets: its load over the loads
+    of every zone the system claims, or an even split while loads are
+    unknown; null when the zone is not the system's */
+function wholeSystemShare(doc: DesignDocument, sys: DesignSystem, roomId: string): number | null {
+  const ids = zoneIdsOf(sys);
+  if (!ids.includes(roomId)) return null;
+  const zones = ids
+    .map((id) => doc.objects.find((o) => o.id === id))
+    .filter((o): o is RoomObj => o != null && o.type === "room" && o.geometry.kind === "polygon");
+  if (!zones.length) return null;
+  const loads = zones.map((z) => roomLoadKw(doc, z));
+  const total = loads.reduce<number>((a, l) => a + (l ?? 0), 0);
+  const mine = loads[zones.findIndex((z) => z.id === roomId)] ?? null;
+  if (total > 0 && mine != null) return mine / total;
+  return 1 / zones.length;
+}
+
 function placedIduKw(
   doc: DesignDocument,
   pack: DataPack,
@@ -199,7 +217,26 @@ export function roomCoverage(
     for (const sys of doc.systems) {
       if (!hasAllocations(sys)) continue;
       for (const a of allocationsOf(sys)) {
-        if (a.role !== "idu" || a.roomId !== room.id || !a.model) continue;
+        if (a.role !== "idu" || !a.model) continue;
+        if (a.serves === "system") {
+          /* a unit serving the whole system (a ducted unit on the band)
+             gives each of its zones the share of its rating that the zone's
+             load is of all its zones' loads — proportional dampers — so every
+             zone reads the same percentage; with no loads, an even share */
+          const share = wholeSystemShare(doc, sys, room.id);
+          if (share == null) continue;
+          const kw = (placedIduKw(doc, pack, sys, a.model, basis) ?? 0) * share;
+          contributors.push({
+            systemId: sys.id,
+            systemName: sys.name,
+            colour: sys.colour,
+            unitId: a.id,
+            model: a.model,
+            kw,
+          });
+          continue;
+        }
+        if (a.roomId !== room.id) continue;
         const kw = placedIduKw(doc, pack, sys, a.model, basis) ?? 0;
         contributors.push({
           systemId: sys.id,

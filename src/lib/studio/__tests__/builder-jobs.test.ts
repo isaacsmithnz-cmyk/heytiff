@@ -831,6 +831,11 @@ describe("a unit on the band serves the whole system", () => {
     expect(oduOf(d, made.systemId)).toBe("PUZ-ZM71VHA2-A");
     expect(combinationWord(d, pack, sys())).toBe("Valid");
     expect(sys().settings.roomIds).toEqual([room.bed1.id, room.bed2.id, room.master.id]);
+    // the unit's rating is shared out by load, so every zone reads the same percentage
+    expect(systemCover(d, pack, sys(), basis).coverKw).toBeCloseTo(7.1, 5);
+    const pcts = [room.bed1, room.bed2, room.master].map((r) => roomCoverage(d, pack, r, basis).pct);
+    expect(new Set(pcts).size).toBe(1);
+    expect(roomVerdict(d, pack, basis, room.bed1).word).not.toBe("No units");
     d = addHead(d, pack, { systemId: made.systemId, zoneId: room.bed1.id, iduModel: "MSZ-AP20VGD" });
     expect(combinationWord(d, pack, sys())).toBe("Fails");
     expect(systemFindings(d, pack, sys()).map((f) => f.code)).toContain("outdoor-takes-one");

@@ -24,8 +24,13 @@ export interface Allocation {
   role: AllocationRole;
   /** "" only for a multi's outdoor while no outdoor lists the set */
   model: string;
-  /** the room an indoor unit serves; always null for an outdoor */
+  /** the room an indoor unit serves; always null for an outdoor, and null for
+      an indoor unit that serves the WHOLE system (see `serves`) */
   roomId: string | null;
+  /** what an indoor unit serves: one zone (the default, with `roomId` set) or
+      the whole system — a ducted air handler, dropped above the zones, with
+      the air branched to every zone the system claims */
+  serves?: "zone" | "system";
 }
 
 /** has this system been through the builder? */
@@ -43,11 +48,16 @@ export function allocationsOf(sys: DesignSystem): Allocation[] {
     const a = raw as Record<string, unknown>;
     if (typeof a.id !== "string" || !a.id) continue;
     if (a.role !== "idu" && a.role !== "odu") continue;
+    const serves = a.role === "idu" && a.serves === "system" ? "system" : "zone";
     out.push({
       id: a.id,
       role: a.role,
       model: typeof a.model === "string" ? a.model : "",
-      roomId: a.role === "idu" && typeof a.roomId === "string" && a.roomId ? a.roomId : null,
+      roomId:
+        a.role === "idu" && serves === "zone" && typeof a.roomId === "string" && a.roomId
+          ? a.roomId
+          : null,
+      ...(a.role === "idu" ? { serves } : {}),
     });
   }
   return out;

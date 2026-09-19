@@ -56,7 +56,7 @@ import {
 } from "@/lib/studio/coverage";
 import type { PairProposal } from "@/lib/studio/split";
 import { formFactorLabel } from "@/lib/studio/unit-specs";
-import { SYSTEM_COLOURS, isAirCapable, moduleFor } from "@/lib/studio/modules";
+import { nextSystemColour, isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { moveAllocation } from "@/lib/studio/builder";
 import {
@@ -240,7 +240,7 @@ export function SystemCockpit({
           id,
           type,
           brand: "mitsubishi-electric",
-          colour: SYSTEM_COLOURS[n % SYSTEM_COLOURS.length],
+          colour: nextSystemColour(d.systems),
           name: `System ${n + 1}`,
           settings: {},
         },

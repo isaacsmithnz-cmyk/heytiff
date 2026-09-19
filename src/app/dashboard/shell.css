@@ -5930,7 +5930,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
    itself, or the toolbar would go with it. */
 .wb2-split { flex:1; min-height:0; display:flex; }
 .wb2-splitm { flex:1; min-width:0; min-height:0; overflow:auto; }
-.fg .page.wb2-full .wb2-panel:has(> .wb2-split) { overflow:hidden; }
+.fg .page.full .wb2-panel:has(> .wb2-split) { overflow:hidden; }
 
 .wb2-insp { flex:none; width:400px; min-height:0; display:flex; flex-direction:column;
   border-left:1px solid var(--line); background:var(--paper); }
@@ -6046,8 +6046,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    heads stand with the rows: the shared `.wb2-sect` sits at 2px, which is
    right heading a strip inside a card and wrong heading a ledger that runs
    to the well's edge. */
-.fg .page.wb2-full .wb2-splitm > .wb2-ajr { padding-left:24px; padding-right:24px; }
-.fg .page.wb2-full .wb2-splitm > .wb2-sect { padding:12px 24px 4px; }
+.fg .page.full .wb2-splitm > .wb2-ajr { padding-left:24px; padding-right:24px; }
+.fg .page.full .wb2-splitm > .wb2-sect { padding:12px 24px 4px; }
 
 /* ── the board ── */
 .wb2-schboard { display:flex; }
@@ -8033,7 +8033,7 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    element, not the route's — and a route cannot reach up. Pure CSS, so it is
    right on the first paint: an attribute set from an effect would flash the
    grey well on every navigation. */
-.fg .outlet:has(> .page.wb2-full) {
+.fg .outlet:has(> .page.full) {
   overflow:hidden;
   background:var(--paper); background-image:none;
   /* the frame reserves a scrollbar's width on BOTH edges so pages don't jump
@@ -8042,19 +8042,19 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
      that was 22px of blank paper down the sides for nothing */
   scrollbar-gutter:auto;
 }
-.fg .page.wb2-full { height:100%; display:flex; flex-direction:column; }
+.fg .page.full { height:100%; display:flex; flex-direction:column; }
 /* `width:100%` and the killed auto margins are load-bearing: `.wrap` carries
    `margin:0 auto`, and an auto CROSS-axis margin on a flex item cancels the
    default stretch, so the wrap would quietly shrink to fit-content and sit in
    the middle of the screen. Display mode learned this the hard way; the note
    is on its block too. */
-.fg .page.wb2-full > .wrap {
+.fg .page.full > .wrap {
   max-width:none; width:100%; margin:0; padding:0;
   flex:1; min-height:0; display:flex; flex-direction:column;
 }
-.fg .page.wb2-full .stg,
-.fg .page.wb2-full .wb-board,
-.fg .page.wb2-full .wb2 { flex:1; min-height:0; display:flex; flex-direction:column; gap:0; }
+.fg .page.full .stg,
+.fg .page.full .wb-board,
+.fg .page.full .wb2 { flex:1; min-height:0; display:flex; flex-direction:column; gap:0; }
 
 /* ── ONE BAND, AND THE TITLE IS THE SWITCHER ──
    One 56px band holds the lot: the title, the tabs, the search and Display
@@ -8067,14 +8067,14 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    what the rail already says. Now the title IS the switcher (below), so the
    band needs ~900px and the line above it is gone. The mirror's freshness
    closes each tab's toolbar (board/sm8-chip.tsx), not this band. */
-.fg .page.wb2-full .wb2-vtabs { height:56px; align-items:center; gap:24px; padding:0 24px; flex-wrap:nowrap; }
+.fg .page.full .wb2-vtabs { height:56px; align-items:center; gap:24px; padding:0 24px; flex-wrap:nowrap; }
 /* the framed board's narrow-screen wrap (the 1280px block with the tab row)
    does not reach this band: it holds one line and gives ground instead */
-.fg .page.wb2-full .wb2-vt:first-of-type { margin-left:0; }
-.fg .page.wb2-full .wb2-vtrow { align-self:stretch; align-items:stretch; flex:none; }
-.fg .page.wb2-full .wb2-h1 { white-space:nowrap; flex:none; }
+.fg .page.full .wb2-vt:first-of-type { margin-left:0; }
+.fg .page.full .wb2-vtrow { align-self:stretch; align-items:stretch; flex:none; }
+.fg .page.full .wb2-h1 { white-space:nowrap; flex:none; }
 /* the right-hand group rides the band's middle line and takes the squeeze */
-.fg .page.wb2-full .wb2-vtcap {
+.fg .page.full .wb2-vtcap {
   margin-left:auto; gap:8px; padding-bottom:0; align-items:center;
   flex:0 1 auto; min-width:0;
 }
@@ -8093,43 +8093,43 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    which side and how many, in words, in the state's colour. */
 /* The menu is the h1's SIBLING, not its child: inside the heading it would
    inherit the title's display tracking, and a menu is read at body size. */
-.fg .page.wb2-full .wb2-sw { position:relative; flex:none; }
-.fg .page.wb2-full .wb2-ttl { display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 8px; margin:0 -8px;
+.fg .page.full .wb2-sw { position:relative; flex:none; }
+.fg .page.full .wb2-ttl { display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 8px; margin:0 -8px;
   border:0; border-radius:var(--r-button); background:none; font:inherit; line-height:1;
   color:inherit; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg .page.wb2-full .wb2-ttl:hover, .fg .page.wb2-full .wb2-ttl[aria-expanded="true"] { background:var(--tint); }
-.fg .page.wb2-full .wb2-ttl:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .page.wb2-full .wb2-ttlc { position:relative; display:grid; place-items:center; color:var(--q); }
+.fg .page.full .wb2-ttl:hover, .fg .page.full .wb2-ttl[aria-expanded="true"] { background:var(--tint); }
+.fg .page.full .wb2-ttl:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .page.full .wb2-ttlc { position:relative; display:grid; place-items:center; color:var(--q); }
 /* the dot rides the arrow it belongs to; its ring is the paper it sits on */
-.fg .page.wb2-full .wb2-ttldot { position:absolute; top:-2px; right:-3px; width:9px; height:9px; border-radius:50%;
+.fg .page.full .wb2-ttldot { position:absolute; top:-2px; right:-3px; width:9px; height:9px; border-radius:50%;
   border:2px solid var(--paper); background:var(--warn); }
-.fg .page.wb2-full .wb2-ttldot.dan { background:var(--bad); }
+.fg .page.full .wb2-ttldot.dan { background:var(--bad); }
 /* It IS the row menu (`.dmenu`): surface, the one hairline, the card corner
    and the one overlay shadow, already written once. What differs is where it
    hangs — under the title rather than off a row's right edge — and that it
    holds three sides rather than four verbs, so it is wider. */
-.fg .page.wb2-full .wb2-ttlmenu { left:-8px; right:auto; top:calc(100% + 8px); min-width:280px; }
-.fg .page.wb2-full .wb2-ttlmi { display:flex; align-items:center; gap:8px; width:100%; height:36px; padding:0 12px 0 8px;
+.fg .page.full .wb2-ttlmenu { left:-8px; right:auto; top:calc(100% + 8px); min-width:280px; }
+.fg .page.full .wb2-ttlmi { display:flex; align-items:center; gap:8px; width:100%; height:36px; padding:0 12px 0 8px;
   border:0; border-radius:var(--r-button); background:none; font-size:var(--fs-3); font-weight:var(--fw-label);
   color:var(--ink); text-align:left; cursor:pointer;
   transition:background-color var(--t-fast) var(--ease); }
-.fg .page.wb2-full .wb2-ttlmi:hover { background:var(--tint); }
-.fg .page.wb2-full .wb2-ttlmi:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .page.wb2-full .wb2-ttlmi.on { font-weight:var(--fw-heading); }
-.fg .page.wb2-full .wb2-ttlck { flex:none; width:16px; display:grid; place-items:center; }
-.fg .page.wb2-full .wb2-ttlml { flex:1; min-width:0; }
+.fg .page.full .wb2-ttlmi:hover { background:var(--tint); }
+.fg .page.full .wb2-ttlmi:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .page.full .wb2-ttlmi.on { font-weight:var(--fw-heading); }
+.fg .page.full .wb2-ttlck { flex:none; width:16px; display:grid; place-items:center; }
+.fg .page.full .wb2-ttlml { flex:1; min-width:0; }
 /* the count is a word in its state's colour (law 26) */
-.fg .page.wb2-full .wb2-ttlmn { flex:none; font-size:var(--fs-2); font-weight:var(--fw-label); }
-.fg .page.wb2-full .wb2-ttlmn.wrn { color:var(--warn-t); }
-.fg .page.wb2-full .wb2-ttlmn.dan { color:var(--bad-t); }
+.fg .page.full .wb2-ttlmn { flex:none; font-size:var(--fs-2); font-weight:var(--fw-label); }
+.fg .page.full .wb2-ttlmn.wrn { color:var(--warn-t); }
+.fg .page.full .wb2-ttlmn.dan { color:var(--bad-t); }
 
 /* the search and Display mode stand at the band's control height (law 33) */
-.fg .page.wb2-full .wb2-find { height:36px; flex:0 1 240px; min-width:120px; border-radius:var(--r-button); }
-.fg .page.wb2-full .wb2-headtools { flex:none; }
-.fg .page.wb2-full .wb2-headtools .pbtn { height:36px; padding:0 12px; font-size:var(--fs-2); font-weight:var(--fw-heading); }
+.fg .page.full .wb2-find { height:36px; flex:0 1 240px; min-width:120px; border-radius:var(--r-button); }
+.fg .page.full .wb2-headtools { flex:none; }
+.fg .page.full .wb2-headtools .pbtn { height:36px; padding:0 12px; font-size:var(--fs-2); font-weight:var(--fw-heading); }
 /* Escape out of display mode hands focus back to this button, and it had no
    ring of its own, so it came back wearing the browser's blue (law 32) */
-.fg .page.wb2-full .wb2-headtools .pbtn:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .page.full .wb2-headtools .pbtn:focus-visible { outline:none; box-shadow:var(--ring); }
 
 /* Narrower than a 1280 laptop the band still holds one line: the tabs scroll
    inside their own row, the way the staff card's and the organisation card's
@@ -8137,11 +8137,11 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    out of sight here, which was fair while it only repeated the rail, and is
    not while it is the control that chooses the side. */
 @media (max-width:1279px) {
-  .fg .page.wb2-full .wb2-vtabs { gap:16px; }
-  .fg .page.wb2-full .wb2-vtrow { flex:0 1 auto; min-width:0; overflow-x:auto; scrollbar-width:none; }
-  .fg .page.wb2-full .wb2-vtrow::-webkit-scrollbar { display:none; }
-  .fg .page.wb2-full .wb2-vtcap { flex:none; }
-  .fg .page.wb2-full .wb2-find { flex:0 0 120px; }
+  .fg .page.full .wb2-vtabs { gap:16px; }
+  .fg .page.full .wb2-vtrow { flex:0 1 auto; min-width:0; overflow-x:auto; scrollbar-width:none; }
+  .fg .page.full .wb2-vtrow::-webkit-scrollbar { display:none; }
+  .fg .page.full .wb2-vtcap { flex:none; }
+  .fg .page.full .wb2-find { flex:0 0 120px; }
 }
 
 /* ONE PAPER SURFACE, SO THE CARD STOPS BEING A CARD, AND THE TABS STOP BEING
@@ -8157,24 +8157,56 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    instead of a second white shape with two radial-gradient corners — and it
    is what leaves the row foldable into the header, which the thumb's
    `offsetLeft` measurement did not. */
-.fg .page.wb2-full .wb2-card {
+.fg .page.full .wb2-card {
   flex:1; min-height:0; display:flex; flex-direction:column;
   border:0; border-radius:0; border-top:1px solid var(--line);
 }
 /* The card fills and the PANEL is what scrolls, because `.outlet` no longer
    can: a full-height board that let the page scroll would take its own header
    and tab row off the top with it. Same arrangement display mode uses. */
-.fg .page.wb2-full .wb2-panel { flex:1; min-height:0; display:flex; flex-direction:column; overflow:auto; }
-.fg .page.wb2-full .wb2-vslide { display:none; }
-.fg .page.wb2-full .wb2-vt {
+.fg .page.full .wb2-panel { flex:1; min-height:0; display:flex; flex-direction:column; overflow:auto; }
+.fg .page.full .wb2-vslide { display:none; }
+.fg .page.full .wb2-vt {
   height:auto; align-self:stretch; padding:0 12px; border-radius:0;
   font-size:var(--fs-3); font-weight:500; color:var(--q); border-bottom:2px solid transparent;
 }
-.fg .page.wb2-full .wb2-vt.on { font-weight:600; color:var(--ink); border-bottom-color:var(--ink); }
-.fg .page.wb2-full .wb2-vt:hover:not(.on) { background:transparent; color:var(--ink); }
+.fg .page.full .wb2-vt.on { font-weight:600; color:var(--ink); border-bottom-color:var(--ink); }
+.fg .page.full .wb2-vt:hover:not(.on) { background:transparent; color:var(--ink); }
 /* the 1.5px rule between two inactive tabs separated folder lids. An
    underline row separates by weight and colour, so it has nothing to do. */
-.fg .page.wb2-full .wb2-vt:not(.on) + .wb2-vt:not(.on):before { content:none; }
+.fg .page.full .wb2-vt:not(.on) + .wb2-vt:not(.on):before { content:none; }
+
+/* ── A TAB'S OWN CONTENT, ON PAPER ────────────────────────────────────
+   Every screen that takes this frame drew its content as a card on the grey
+   well: a hairline, a 16px corner and the width the `.wrap` allowed. On
+   paper that edge is a line between two identical whites, so it goes — and
+   only the edge goes. The padding stays, because a face is already written
+   to sit inside it and that inset is what keeps its content in the band's
+   24px gutter; the width cap goes, because the point of the frame is the
+   screen. The panel above is what scrolls, so a face's own sticky column
+   (the timesheet's) finally has a scroller to stick in.
+
+   Stated once here rather than per screen: the screens differ in which
+   wrapper they use, but they all mean "this is the page". */
+/* `flex:none; display:block` as well as the edge: the frame's own card rule
+   above is not scoped to the page's card (the screens nest theirs under
+   different wrappers), so without this an inner card would become a flex
+   column and re-lay-out the face inside it. */
+.fg .page.full .wb2-panel .wb2-card { flex:none; display:block; border:0; border-radius:0; overflow:visible; }
+.fg .page.full .wb2-panel > section { min-width:0; }
+/* Team's directory and the fleet register draw their list as a `.dir` card
+   rather than a `.wb2-card`; on paper the same edge goes the same way. Its
+   toolbar was inset 16px from the card's own edge — with the edge gone it
+   stands in the band's 24px gutter, with the rows under it. */
+.fg .page.full .wb2-panel > .dir { border:0; border-radius:0; overflow:visible; }
+.fg .page.full .wb2-panel > .dir > .dirtools { padding-left:24px; padding-right:24px; }
+
+/* A WAY BACK KEEPS ITS LINE. A staff card is reached from Team, and an admin
+   section from Admin; that link sat above the title and stays there, on its
+   own line over the band, because it belongs to the screen you came from
+   rather than to the tabs. */
+.fg .page.full .wb2-crumbline { flex:none; display:flex; align-items:center; gap:8px; min-height:36px;
+  padding:12px 24px 0; font-size:var(--fs-2); font-weight:var(--fw-heading); color:var(--gray500); }
 
 /* ── wb2 step 5: the capture pill + overlay, and DISPLAY MODE ──
    Display mode is the SAME light board (decided 2026-08-01 — the old dark

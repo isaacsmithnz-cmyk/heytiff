@@ -41,6 +41,9 @@ export function ProfileTabs({
 }) {
   return (
     <ViewTabs
+      /* The band, with no title in it: the person is named in the card's own
+         identity row, at the one display size on the screen. */
+      band
       ariaLabel="Profile sections"
       idPrefix="pftab"
       panelPrefix="psec"

@@ -191,21 +191,21 @@ export function OrgScreen({
   };
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the title in the tab band, and the way back to
+       Admin on its own line above it (2026-09-20). The 1,040px cap goes with
+       the grey: the point of the frame is the screen. */
+    <div className="page in full">
       <div className="wrap">
-        <div className="stg org-stg">
-          <div className="v2head" style={{ marginBottom: 26 }}>
-            <div>
+        <div className="stg">
+          <div className="orgcard2">
+            <div className="wb2-crumbline">
               <Link href="/dashboard/admin" className="int-back">
                 <Icon name="chevL" size={15} />
                 Admin
               </Link>
-              <h1 style={{ margin: "10px 0 0" }}>Organisation</h1>
             </div>
-          </div>
-
-          <div className="orgcard2">
             <ViewTabs
+              lead={<h1 className="wb2-h1">Organisation</h1>}
               ariaLabel="Organisation sections"
               idPrefix="orgtab"
               panelPrefix="orgsec"
@@ -215,7 +215,7 @@ export function OrgScreen({
             />
 
             <div className="wb2-card">
-              <div className="ppanel2">
+              <div className="wb2-panel"><div className="ppanel2">
                 {/* Keyed for `fallbackSwap`, the recovery remount — NOT for an
                     animation any more. `.psec2` used to fade the panel in on
                     every switch; it stopped when Isaac asked for this card to
@@ -266,7 +266,7 @@ export function OrgScreen({
                     />
                   )}
                 </section>
-              </div>
+              </div></div>
             </div>
           </div>
         </div>

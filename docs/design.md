@@ -210,6 +210,22 @@ Every decision below is made once, here, and a guard test holds each number.
   stays the laws' rather than the handoff's: ink for its teal, sentence case
   for its caps, words and figure boxes for its pills, commas for its
   middots. Open: the key under the board holds too much.
+- **Every screen with tabs wears the Workboard's frame** (decided
+  2026-09-20; Isaac: "my main objective is to remove the gray light well and
+  make use of the full screen inside the shell… and changing the menu
+  selection at the top from the Chrome tabs to what we have in the work
+  board"). Two changes and no others. The grey well and the card on it go:
+  the page is paper to the frame's inset, keeping the frame's 16px corner,
+  with no width cap and the tab's own panel doing the scrolling. And the
+  folder tabs — the strip whose thumb WAS the card's top edge — become the
+  band: the screen's h1, then underline tabs, then whatever the title row
+  used to carry, at the right end. What a tab holds is untouched, only
+  wider: its own card loses its edge and keeps its padding, so the content
+  still stands in the band's 24px gutter. A way back (a staff card's Team, a
+  section's Admin) keeps its own line above the band, because it belongs to
+  the screen you came from. `.page.full` is what asks for it; `ViewTabs`
+  and `BoardTabs` take the title as `lead`. The sheets and the SWMS wizard
+  keep the card-edge strip: they are overlays, not pages.
 - **The job sheet is parked.** A ruled-list job sheet reads as paper but scans
   worse than the row. Nothing in that direction moves until a version keeps the
   row's scannability.

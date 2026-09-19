@@ -208,9 +208,13 @@ export function ProfileScreen({
   const focusField = startEditing > 0 ? editing?.field : undefined;
 
   return (
-    <div className="page in">
-      <div className="prof">
-        <div className="pbar">
+    /* Paper to the frame, and the tabs are the band (2026-09-20). The way
+       back keeps its own line above them: it belongs to Team, not to the
+       card's sections. */
+    <div className="page in full">
+      <div className="wrap">
+        <div className="stg pcard2">
+          <div className="wb2-crumbline">
           <div className="crumb">
             {mode === "self" ? (
               <b>My profile</b>
@@ -226,9 +230,8 @@ export function ProfileScreen({
               </>
             )}
           </div>
-        </div>
+          </div>
 
-        <div className="pcard2">
           <ProfileTabs
             items={available}
             active={active}
@@ -237,6 +240,7 @@ export function ProfileScreen({
           />
 
           <div className="wb2-card">
+            <div className="wb2-panel">
             <div className="ppanel2">
               {/* Keyed on the edit nonce, so "fill this in" remounts the
                   section into edit mode, and on `fallbackSwap` for the
@@ -366,6 +370,7 @@ export function ProfileScreen({
                   />
                 )}
 
+            </div>
             </div>
           </div>
         </div>

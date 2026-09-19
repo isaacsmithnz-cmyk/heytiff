@@ -27,7 +27,7 @@ const RULES: Rule[] = [
 
 /** A rule the Workboard's full-bleed page aims at the frame's well. */
 const aimsAtTheWell = (sel: string) =>
-  sel.includes("wb2-full") && /\.fg \.(outlet|main)\b/.test(sel) && !sel.startsWith("html[data-wb-display]");
+  sel.includes("full") && /\.fg \.(outlet|main)\b/.test(sel) && !sel.startsWith("html[data-wb-display]");
 
 describe("the Workboard's well", () => {
   const onTheWell = RULES.filter((r) => r.selectors.some(aimsAtTheWell));

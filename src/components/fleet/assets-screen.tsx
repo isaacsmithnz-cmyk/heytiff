@@ -90,16 +90,10 @@ export function AssetsScreen({
   const working = vehicles.filter((v) => v.status !== "sold");
 
   return (
-    <div className="page in">
+    /* Paper to the frame, and the title rides the tab band (2026-09-20). */
+    <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h1>
-                Assets
-              </h1>
-            </div>
-          </div>
 
           {staffLens ? (
             /* Unreachable in practice — the page redirects to /my-vehicle
@@ -120,6 +114,7 @@ export function AssetsScreen({
           ) : (
             <div className="wb2">
               <ViewTabs
+                lead={<h1 className="wb2-h1">Assets</h1>}
                 ariaLabel="Assets"
                 idPrefix="ast"
                 panelPrefix="astp"
@@ -137,7 +132,7 @@ export function AssetsScreen({
               />
               {view === "equipment" ? (
                 <div className="wb2-card">
-                  <div className="ppanel2">
+                  <div className="wb2-panel"><div className="ppanel2">
                     {/* No `.psec2`: the four register faces render through
                         FleetRegister's plain `.dir`, so a fade here made
                         Fleet→Equipment the only switch on this strip that
@@ -155,7 +150,7 @@ export function AssetsScreen({
                         <b>No equipment registered</b>
                       </div>
                     </section>
-                  </div>
+                  </div></div>
                 </div>
               ) : (
                 <FleetRegister

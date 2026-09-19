@@ -37,20 +37,18 @@ export function TimepayScreen({
 
   const s = section;
   return (
-    <div className="page in">
+    /* Paper to the frame, and the title in the tab row: the Workboard's
+       frame, on every screen with tabs (2026-09-20). */
+    <div className="page in full">
       <div className="wrap">
         <div className="stg tpr wb2">
-          <div className="rhead">
-            <div>
-              <h1>Time &amp; Pay</h1>
-            </div>
-          </div>
           <ViewTabs
             ariaLabel="Time and Pay"
             idPrefix="tpt"
             panelPrefix="tpp"
             active={tab}
             onGo={(k) => setTab(k as Tab)}
+            lead={<h1 className="wb2-h1">Time &amp; Pay</h1>}
             items={[
               { key: "sheets", label: "Timesheets" },
               { key: "leave", label: "Leave" },
@@ -60,6 +58,8 @@ export function TimepayScreen({
           {/* No `key`, no `.psec2` — see me-screen.tsx: the pair made
               every switch unmount the face and fade it back in, which reads
               as the content flashing. The thumb slide is the only motion. */}
+          <div className="wb2-card">
+            <div className="wb2-panel">
           <section
             id={`tpp-${tab}`}
             role="tabpanel"
@@ -98,6 +98,8 @@ export function TimepayScreen({
               <TeamExpenses claims={s.claims} canApprove={s.canApprove} canPay={s.financials} />
             )}
           </section>
+            </div>
+          </div>
         </div>
       </div>
     </div>

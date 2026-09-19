@@ -61,26 +61,19 @@ export function TaxScreen({
   const missing = totals.count - totals.withReceipt;
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the title in the band with the years, and the way
+       back to Admin on its own line above it (2026-09-20). The lede follows
+       the tabs now — it describes what the list holds, and the band is for
+       the title and the years. */
+    <div className="page in full">
       <div className="wrap">
-        <div className="stg adm-stg">
-          <div className="v2head" style={{ marginBottom: 10 }}>
-            <div>
-              <Link href="/dashboard/admin" className="int-back">
-                <Icon name="chevL" size={15} />
-                Admin
-              </Link>
-              <h1 style={{ margin: "10px 0 0" }}>
-                Tax &amp; EOFY
-              </h1>
-            </div>
+        <div className="stg">
+          <div className="wb2-crumbline">
+            <Link href="/dashboard/admin" className="int-back">
+              <Icon name="chevL" size={15} />
+              Admin
+            </Link>
           </div>
-          <p className="int-lede">
-            Everything the business spent out in the field, filed by financial year with the
-            receipt attached — fuel logged against a vehicle, and expenses staff claimed back.
-            The company&rsquo;s own bills stay in your accounting system; this is the spend that
-            otherwise turns up at tax time in a glovebox.
-          </p>
 
           {/* The year picker — the board's tab row, still links underneath:
               the year is in the URL, so one of these can be sent to an
@@ -88,6 +81,7 @@ export function TaxScreen({
               what the card strip already does everywhere else. */}
           <div className="wb2">
             <BoardTabs
+              lead={<h1 className="wb2-h1">Tax &amp; EOFY</h1>}
               label="Financial year"
               active={String(fy)}
               tabs={choices.map((y) => ({
@@ -102,7 +96,13 @@ export function TaxScreen({
               }))}
             />
             <div className="wb2-card">
-              <div className="ppanel2">
+              <div className="wb2-panel"><div className="ppanel2">
+          <p className="int-lede">
+            Everything the business spent out in the field, filed by financial year with the
+            receipt attached — fuel logged against a vehicle, and expenses staff claimed back.
+            The company&rsquo;s own bills stay in your accounting system; this is the spend that
+            otherwise turns up at tax time in a glovebox.
+          </p>
 
           <div className="tx-sumrow">
             <Stat label="Total spend" value={money.format(totals.amount)} sub={`${totals.count} ${totals.count === 1 ? "item" : "items"}`} />
@@ -180,7 +180,7 @@ export function TaxScreen({
               ))}
             </div>
           )}
-              </div>
+              </div></div>
             </div>
           </div>
         </div>

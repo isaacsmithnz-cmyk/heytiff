@@ -74,6 +74,7 @@ import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones"
 import { blockingFindings, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
 import { InstallQuestions } from "./install-questions";
+import { installState } from "@/lib/studio/install";
 import { builderEnabled, isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
 import { SystemBuilder } from "./system-builder";
 import {
@@ -1568,11 +1569,22 @@ function Editor({
      Clicking ARMS the move — the chip is a control, not a caption. ── */
   const next = useMemo((): NextMove | null => {
     if (!builder) return nextMove(doc, pack, effectiveSystemId);
-    /* with the builder: draw the rooms, build the systems, place the units */
+    /* the zones flow: draw the zones, add a system, build it, place its
+       units (from its card), answer its install questions */
     const rooms = doc.objects.filter((o) => o.type === "room");
-    if (rooms.length === 0) return { key: "draw-room", label: "Draw a room" };
-    if (!doc.systems.some(hasAllocations))
-      return { key: "choose-pair", label: "Build systems", roomId: rooms[0].id };
+    if (rooms.length === 0) return { key: "draw-room", label: "Draw a zone" };
+    if (doc.systems.length === 0) return { key: "add-system", label: "Add a system" };
+    const unbuilt = doc.systems.find((s) => !hasAllocations(s) || !allocationsOf(s).some((a) => a.model));
+    if (unbuilt) return { key: "build-system", label: "Build system", systemId: unbuilt.id };
+    if (pack) {
+      const placed = new Set(doc.objects.map((o) => o.id));
+      const waiting = doc.systems.find(
+        (s) => hasAllocations(s) && allocationsOf(s).some((a) => a.model && !placed.has(a.id))
+      );
+      if (waiting) return null;
+      const asking = doc.systems.find((s) => installState(doc, pack, s) !== "complete");
+      if (asking) return { key: "install", label: "Answer install questions", systemId: asking.id };
+    }
     return null;
   }, [builder, doc, pack, effectiveSystemId]);
 
@@ -1770,6 +1782,15 @@ function Editor({
       case "choose-pair":
         openUnits(next.roomId);
         break;
+      case "add-system":
+        onAddSystem();
+        break;
+      case "build-system":
+        onBuildSystem(next.systemId);
+        break;
+      case "install":
+        onInstallSystem(next.systemId);
+        break;
       case "place-idu":
       case "place-odu":
         armPlace(next.placing);
@@ -1781,7 +1802,7 @@ function Editor({
         onStep(2);
         break;
     }
-  }, [next, changeTool, armPlace, onStep, openUnits]);
+  }, [next, changeTool, armPlace, onStep, openUnits, onAddSystem, onBuildSystem, onInstallSystem]);
 
   /* ── the Units verb (bar, System group): browse → arm IDU → arm ODU →
      browse again as a swap. Pressing it while a unit rides the cursor
@@ -2236,6 +2257,12 @@ function Editor({
               if (builder && id) {
                 const o = doc.objects.find((x) => x.id === id);
                 if (o?.systemId && o.type !== "room") setActiveSystemId(o.systemId);
+                /* picking a zone opens the card of the system that claimed it
+                   (the first, when two share it) */
+                if (o?.type === "room") {
+                  const owner = doc.systems.find((sys) => zoneIdsOf(sys).includes(o.id));
+                  if (owner) setActiveSystemId(owner.id);
+                }
               }
             }}
             onMutate={mutate}

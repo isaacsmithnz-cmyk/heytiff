@@ -702,20 +702,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .thread:hover .th b { color:var(--ink); }
 .fg .thread em { font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
 
-/* ---------------- TOOLBOX ---------------- */
-.fg .tbx-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:48px; gap:24px; flex-wrap:wrap; }
-/* 38/-.035em, like every other page title. #350 swept THIRTEEN inline 44s into
-   `.v2head h1` and missed this one and the tool pages' 40 — both were CSS
-   rules rather than style objects, so a sweep looking for the copied object
-   never saw them, and the commit's "every heading the app declares in CSS
-   lands on 38" was not true when it was written. Toolbox was the loudest
-   title in the app. */
-.fg .tbx-head h1 { font-size:24px; font-weight:700; color:var(--ink); letter-spacing:-.035em; line-height:1; margin:0; }
-.fg .tbx-search { position:relative; width:100%; max-width:384px; }
-.fg .tbx-search svg { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color var(--t-fast) var(--ease); }
-.fg .tbx-search:focus-within svg { color:var(--ink); }
-.fg .tbx-search input { width:100%; padding:12px 16px 12px 48px; background:var(--paper); border-radius:var(--r-control); border:1px solid var(--line); font-size:16px; font-weight:500; outline:none; transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .tbx-search input:focus {  box-shadow:var(--ring); border-color:var(--line); }
+/* ---------------- THE LIBRARY'S CATEGORY CARD ----------------
+   The Toolbox's own head and search stood here until its landing took the
+   Workboard's band (2026-09-20). What is left is `.cat`, which the Library's
+   document screen uses — see the note at the top of toolbox.css. */
 .fg .cat { position:relative; background:var(--paper); border-radius:var(--r-card); border:1px solid var(--paper); transition:box-shadow var(--t-fast) var(--ease); height:100%; }
 .fg .cat:hover { }
 .fg .cat .ctop { position:absolute; top:0; left:0; right:0; height:6px; opacity:.8; z-index:10; border-radius:999px 999px 0 0; }
@@ -8194,6 +8184,9 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    column and re-lay-out the face inside it. */
 .fg .page.full .wb2-panel .wb2-card { flex:none; display:block; border:0; border-radius:0; overflow:visible; }
 .fg .page.full .wb2-panel > section { min-width:0; }
+/* A screen whose content was written against a card's inner padding keeps
+   it: `pad` is that card's 24px, now on the panel itself (shell/screen-band). */
+.fg .page.full .wb2-panel.pad { padding:24px; }
 /* Team's directory and the fleet register draw their list as a `.dir` card
    rather than a `.wb2-card`; on paper the same edge goes the same way. Its
    toolbar was inset 16px from the card's own edge — with the edge gone it
@@ -10527,6 +10520,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-wrap > .stg { flex:1; min-height:0; display:flex; flex-direction:column; }
 .fg .hm-card { flex:1; min-height:0; display:flex; flex-direction:column;
   background:var(--paper); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+/* ON THE FRAME the card IS the screen: the 16px margin around it comes off
+   with `.page.full`'s wrap reset, and an edge drawn on the frame's own inset
+   is two lines a pixel apart (2026-09-20). */
+.fg .page.full .hm-card { border:0; border-radius:0; }
 
 /* ── THE DAY, ACROSS THE TOP ──
    The date is the h1 — the shell's rail already says Home — and the day is

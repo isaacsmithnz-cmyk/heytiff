@@ -9,6 +9,7 @@
 
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { PROVIDERS } from "@/lib/integrations/providers";
 import type { ConnectionView } from "@/lib/integrations/connection";
 
@@ -31,20 +32,23 @@ export function statusLabel(conn: ConnectionView | undefined): {
 
 export function IntegrationsIndex({ connections }: IntegrationsIndexProps) {
   return (
-    <div className="page in">
+    /* Paper to the frame, the title in the band and the way back above it —
+       the same shell the Admin menu that opens this page now wears
+       (2026-09-20). The lede follows the band, where the rest of the page
+       is. */
+    <div className="page in full">
       <div className="wrap">
-        <div className="stg adm-stg">
-          <div className="v2head" style={{ marginBottom: 10 }}>
-            <div>
+        <div className="stg">
+          <ScreenBand
+            crumb={
               <Link href="/dashboard/admin" className="int-back">
                 <Icon name="chevL" size={15} />
                 Admin
               </Link>
-              <h1 style={{ margin: "10px 0 0" }}>
-                Integrations
-              </h1>
-            </div>
-          </div>
+            }
+            title="Integrations"
+          />
+          <ScreenPanel>
           <p className="int-lede">
             Apps this workspace is connected to. Connecting one lets HeyTiff read what it needs
             from a system the business already runs on, instead of asking anyone to keep two sets
@@ -87,6 +91,7 @@ export function IntegrationsIndex({ connections }: IntegrationsIndexProps) {
           <p className="int-foot">
             More apps will appear here as they&apos;re wired up.
           </p>
+          </ScreenPanel>
         </div>
       </div>
     </div>

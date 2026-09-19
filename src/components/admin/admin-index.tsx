@@ -17,6 +17,7 @@
 
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 
 export type AdminViewer = {
   /** owner-intrinsic: organisation settings, plus the owner-only tools */
@@ -258,17 +259,13 @@ export function AdminIndex(viewer: AdminViewer) {
   const anyLive = groups.some((g) => g.rows.length > 0);
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the title in the band, and the menu at the width of
+       the screen rather than a 760px column (2026-09-20). */
+    <div className="page in full">
       <div className="wrap">
-        <div className="stg adm-stg">
-          <div className="v2head" style={{ marginBottom: 32 }}>
-            <div>
-              <h1>
-                Admin
-              </h1>
-            </div>
-          </div>
-
+        <div className="stg">
+          <ScreenBand title="Admin" />
+          <ScreenPanel>
           {anyLive ? (
             groups.map((g) => (
               <div className="adm-group" key={g.label}>
@@ -292,6 +289,7 @@ export function AdminIndex(viewer: AdminViewer) {
               </em>
             </div>
           )}
+          </ScreenPanel>
         </div>
       </div>
     </div>

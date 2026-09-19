@@ -58,7 +58,8 @@ Every decision below is made once, here, and a guard test holds each number.
   the two screens that draw it. Home carries one green of its own (Isaac,
   2026-09-15: "we're missing a little bit of colour"): the part of the day
   that has gone, and the entry being read — two places, and nowhere else. The
-  card fills the well to a 16px edge with no width cap. The rail stands
+  card fills the screen with no width cap — to a 16px edge until 2026-09-20,
+  when the well went and the card became the paper itself (below). The rail stands
   beside the shell's rail on purpose. A booking on the band is a door: it
   opens the job card the Schedule tab opens, over Home, on the same row and
   wearing the same day-state; the card's agreement door lands on the board
@@ -226,6 +227,21 @@ Every decision below is made once, here, and a guard test holds each number.
   the screen you came from. `.page.full` is what asks for it; `ViewTabs`
   and `BoardTabs` take the title as `lead`. The sheets and the SWMS wizard
   keep the card-edge strip: they are overlays, not pages.
+- **A screen with no tabs wears the same band** (decided 2026-09-20). The
+  Admin menu, the Noticeboard, the Toolbox, Integrations and the pages it
+  opens have one title and no tabs, and they sat on the same grey well. They
+  take `ScreenBand` + `ScreenPanel` (`components/shell/screen-band.tsx`): the
+  same 56px row, the same 24px gutter, the same hairline, the same right-hand
+  end for what stood beside the title — the Toolbox's search, the
+  Noticeboard's Post a notice. A list that reads across the screen loses its
+  width cap with the well (the Admin menu, Integrations); a form does not
+  (Xero, ServiceM8 keep their 760 column), because a field is no easier to
+  fill for being 1400px wide.
+- **Home is paper to the frame too** (decided 2026-09-20, retiring the 16px
+  margin this file decided on 2026-09-15). The day's card was the only card
+  on its screen, so the margin drew a second frame 16px inside the first and
+  an edge a pixel from the shell's own. On `.page.full` the card's border and
+  corner come off and it IS the screen.
 - **The job sheet is parked.** A ruled-list job sheet reads as paper but scans
   worse than the row. Nothing in that direction moves until a version keeps the
   row's scannability.

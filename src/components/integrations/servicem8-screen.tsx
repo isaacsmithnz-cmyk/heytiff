@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
 import { useHydrated } from "@/lib/use-hydrated";
 import { providerById, SM8_SCOPES } from "@/lib/integrations/providers";
@@ -128,20 +129,23 @@ export function Servicem8Screen({
   };
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the title in the band and the way back above it
+       (2026-09-20). The 760 column stays: this is a settings page, and a
+       form is no easier to read for being 1400px wide. */
+    <div className="page in full">
       <div className="wrap">
-        <div className="stg" style={{ maxWidth: 760 }}>
-          <div className="v2head" style={{ marginBottom: 18 }}>
-            <div>
+        <div className="stg">
+          <ScreenBand
+            crumb={
               <Link href="/dashboard/admin/integrations" className="int-back">
                 <Icon name="chevL" size={15} />
                 Integrations
               </Link>
-              <h1 style={{ margin: "10px 0 0" }}>
-                ServiceM8
-              </h1>
-            </div>
-          </div>
+            }
+            title="ServiceM8"
+          />
+          <ScreenPanel>
+          <div style={{ maxWidth: 760 }}>
 
           {notice && (
             <div className={"int-note " + (notice.kind === "ok" ? "ok" : "bad")}>{notice.text}</div>
@@ -314,6 +318,8 @@ export function Servicem8Screen({
               })}
             </ul>
           </div>
+          </div>
+          </ScreenPanel>
         </div>
       </div>
     </div>

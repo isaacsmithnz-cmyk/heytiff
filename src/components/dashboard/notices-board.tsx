@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { DateField } from "@/components/ui/date-field";
 import {
   castPollVote,
@@ -896,43 +897,33 @@ export function NoticesBoard({
     (showingEvent && (!eventDate || (!!eventTime && !isEventTime(eventTime))));
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the title in the band, and the way back on its own
+       line above it — the Workboard's frame (2026-09-20). */
+    <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {/* same back affordance the other deep pages use */}
-              <Link
-                href="/dashboard"
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#9ca3af",
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  marginBottom: 12,
-                }}
-              >
-                ← Home
+          <ScreenBand
+            crumb={
+              <Link href="/dashboard" className="int-back">
+                <Icon name="chevL" size={15} />
+                Home
               </Link>
-              <h1>
-                Noticeboard
-              </h1>
-            </div>
-            {canManage && !editingId && (
-              <button
-                className="fl-btn primary"
-                disabled={pending}
-                onClick={() => (open ? reset() : setOpen(true))}
-              >
-                <Icon name="plus" size={14} />
-                Post a notice
-              </button>
-            )}
-          </div>
-
+            }
+            title="Noticeboard"
+            tools={
+              canManage && !editingId ? (
+                <button
+                  className="pbtn primary"
+                  disabled={pending}
+                  onClick={() => (open ? reset() : setOpen(true))}
+                >
+                  <Icon name="plus" size={14} />
+                  Post a notice
+                </button>
+              ) : null
+            }
+          />
+          <ScreenPanel>
           {error && <div className="tp-err">{error}</div>}
 
           {open && (
@@ -1213,6 +1204,7 @@ export function NoticesBoard({
               {showArchive && archived.map((n) => <NoticeCard key={n.id} notice={n} acts={acts} />)}
             </>
           )}
+          </ScreenPanel>
         </div>
       </div>
     </div>

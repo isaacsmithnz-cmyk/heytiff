@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { markFieldNoteReviewed, removeFieldNote } from "@/app/actions/kb-review";
 import type { FieldNoteRow } from "@/lib/tiff/field-notes";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -28,27 +29,29 @@ export function KbQueue({ entries }: { entries: FieldNoteRow[] }) {
   const waiting = entries.filter((e) => !gone.has(e.id));
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the title in the band and the way back above it —
+       the same shell the Admin menu that opens this page now wears
+       (2026-09-20). */
+    <div className="page in full">
       <div className="wrap">
-        <div className="stg adm-stg">
-          <div className="v2head" style={{ marginBottom: 24 }}>
-            <div>
+        <div className="stg">
+          {/* The same words as the Admin row that opens this page —
+              "Knowledge from the field" there landing on "Field-learned
+              knowledge" here read as two different places. */}
+          <ScreenBand
+            crumb={
               <Link href="/dashboard/admin" className="int-back">
                 <Icon name="chevL" size={15} />
                 Admin
               </Link>
-              {/* The same words as the Admin row that opens this page —
-                  "Knowledge from the field" there landing on "Field-learned
-                  knowledge" here read as two different places. */}
-              <h1 style={{ margin: "10px 0 0" }}>
-                Knowledge from the field
-              </h1>
-              <p className="int-lede" style={{ margin: "6px 0 0" }}>
-                These are live in the library now — spoken on the job, ticked by whoever
-                said them. Agree, or take one down.
-              </p>
-            </div>
-          </div>
+            }
+            title="Knowledge from the field"
+          />
+          <ScreenPanel>
+          <p className="int-lede">
+            These are live in the library now — spoken on the job, ticked by whoever
+            said them. Agree, or take one down.
+          </p>
 
           {error && <div className="int-note bad">{error}</div>}
 
@@ -94,6 +97,7 @@ export function KbQueue({ entries }: { entries: FieldNoteRow[] }) {
               ))}
             </div>
           )}
+          </ScreenPanel>
         </div>
       </div>
     </div>

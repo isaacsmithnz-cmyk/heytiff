@@ -114,7 +114,9 @@ export function DashboardHome({ data }: { data: DashboardData }) {
   );
 
   return (
-    <div className="page in">
+    /* `full`: paper to the frame, so the day's card is the screen rather than
+       a card floating on a grey margin (2026-09-20). */
+    <div className="page in full">
       <div className="wrap hm-wrap">
         <div className="stg">
           <div className="hm-card">

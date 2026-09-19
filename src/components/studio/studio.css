@@ -2533,6 +2533,10 @@ html[data-ds-display] .dstudio.editing {
    (Isaac, 2026-08-24). Inline SVG cursor: a tilted rubber with a wear line,
    white-bodied with an ink outline so it reads on plan and blank grid alike;
    hotspot at its bottom-left tip, the corner that rubs. */
+/* claim mode: every zone is a thing to click */
+.dstudio .ds-cur-claim svg {
+  cursor: pointer;
+}
 .dstudio .ds-cur-erase svg {
   cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2222%22%20height%3D%2222%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M16.2%203.6a2%202%200%200%201%202.8%200l1.4%201.4a2%202%200%200%201%200%202.8L10%2018.2a2%202%200%200%201-1.4.6H5.4a1.2%201.2%200%200%201-1.2-1.2v-3.2a2%202%200%200%201%20.6-1.4Z%22%20fill%3D%22white%22%20stroke%3D%22%230A0B10%22%20stroke-width%3D%221.6%22%20stroke-linejoin%3D%22round%22%2F%3E%3Cpath%20d%3D%22m11.6%208.2%204.2%204.2%22%20stroke%3D%22%230A0B10%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E")
       4 18,
@@ -2586,6 +2590,20 @@ html[data-ds-display] .dstudio.editing {
   /* pinned once saved: the plan pans under it. Only the room being sized
      (.loose, below) advertises a move cursor. */
   cursor: default;
+}
+/* the zones flow: a claimed zone wears its system's colour (set inline as
+   --zc / --zc-fill by the canvas); an unclaimed one keeps the orange above.
+   Declared BEFORE .loose and .sel so sizing and selection still win. */
+.dstudio .ds-room.zoned polygon {
+  fill: var(--zc-fill);
+  stroke: var(--zc);
+}
+/* a zone on two systems: a dot per system in its top-left corner */
+.dstudio .ds-zone-dot {
+  stroke: var(--paper);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 /* the room being SIZED — loose on the plan until Save pins it */
 .dstudio .ds-room.loose polygon {
@@ -7632,6 +7650,36 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
 }
 .dstudio .ds-hud-chip:disabled { opacity: 0.4; cursor: not-allowed; }
+/* claim mode's bar: the system's dot and name, what to do, and Done */
+.dstudio .ds-hud-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+.dstudio .ds-hud-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.dstudio .ds-hud-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray500);
+}
+.dstudio .ds-hud-done {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0b0d13;
+  background: var(--paper);
+  border-radius: var(--r-pill);
+  padding: 4px 12px;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-hud-done:hover {
+  background: var(--on-ink-tint-2);
+  color: var(--ink);
+}
 
 /* canvas: plenums — the ceiling-cavity (~85 %) opacity family */
 .dstudio .ds-plenum { opacity: 0.85; }
@@ -9362,3 +9410,498 @@ html[data-ds-display] .dstudio.editing {
   align-items: baseline;
   gap: var(--s-3);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   The systems panel (the zones flow, docs/studio-zones-and-systems.md) —
+   the Design step's right rail with the builder flag on. One card per
+   system on the light well; the open card is the active system's. Classes
+   ds-zp-* (the panel), ds-zn* (a zone on a card, a control you drag or
+   clear). Tokens, radii, spacing and type from docs/design.md.
+   ═══════════════════════════════════════════════════════════════════════ */
+.dstudio .ds-zp {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 12px;
+  padding: 4px var(--ds-ck-pad-r) 0 var(--ds-ck-pad-l);
+}
+.dstudio .ds-zp-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  flex: none;
+}
+.dstudio .ds-zp-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  flex: 1;
+}
+.dstudio .ds-zp-b {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+  padding-bottom: 16px;
+}
+.dstudio .ds-zp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  color: var(--ink);
+  font: 500 13px var(--font);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-zp-btn:hover { background: var(--tint); }
+.dstudio .ds-zp-edit { margin-left: auto; }
+/* the one thing to press when there is no system yet */
+.dstudio .ds-zp-addsys {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--paper);
+  color: var(--ink);
+  font: 600 14px var(--font);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-zp-addsys:hover { background: var(--tint); }
+
+/* a system's card: paper, hairline, 16px; the open one wears an ink ring;
+   a card a zone is dragged over wears its own colour, dashed */
+.dstudio .ds-zp-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--r-card);
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.dstudio .ds-zp-card.open { outline: 2px solid var(--ink); outline-offset: -2px; }
+.dstudio .ds-zp-card.drop,
+.dstudio .ds-zp-free.drop {
+  outline: 2px dashed var(--sc, var(--ink));
+  outline-offset: 4px;
+}
+.dstudio .ds-zp-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+.dstudio .ds-zp-dot,
+.dstudio .ds-zp-unit-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--sc);
+  flex: none;
+}
+.dstudio .ds-zp-name {
+  border: none;
+  background: none;
+  padding: 0;
+  font: 600 16px var(--font);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+.dstudio .ds-zp-kind {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--q);
+}
+.dstudio .ds-zp-brand {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--q);
+  margin-top: -4px;
+}
+.dstudio .ds-zp-status {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--q);
+}
+.dstudio .ds-zp-status.ok { color: var(--ok-t); }
+.dstudio .ds-zp-status.bad { color: var(--bad-t); }
+.dstudio .ds-zp-lbl {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--q);
+  padding-top: 4px;
+}
+
+/* a zone on the open card: a control, so it takes the control's form — a
+   hairline and the 6px radius — and its cross shows on hover and on focus */
+.dstudio .ds-zp-zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.dstudio .ds-zn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--r-control);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: grab;
+  user-select: none;
+}
+.dstudio .ds-zn:active { cursor: grabbing; }
+.dstudio .ds-zn:hover,
+.dstudio .ds-zn:focus-within { background: var(--tint); }
+.dstudio .ds-zn-x {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: none;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  border: 2px solid var(--paper);
+  opacity: 0;
+  cursor: pointer;
+}
+.dstudio .ds-zn:hover .ds-zn-x,
+.dstudio .ds-zn:focus-within .ds-zn-x { opacity: 1; }
+.dstudio .ds-zp-addzones {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: none;
+  border-radius: var(--r-control);
+  outline: 1px dashed var(--ds-border-s);
+  outline-offset: -1px;
+  background: none;
+  color: var(--ink);
+  font: 500 12px var(--font);
+  cursor: pointer;
+}
+.dstudio .ds-zp-addzones:hover { background: var(--tint); }
+
+/* the open card's figures */
+.dstudio .ds-zp-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+.dstudio .ds-zp-facts dt { color: var(--q); font-weight: 500; }
+.dstudio .ds-zp-facts dd { margin: 0; text-align: right; font-weight: 600; color: var(--ink); }
+.dstudio .ds-zp-facts dd.ok { color: var(--ok-t); }
+.dstudio .ds-zp-facts dd.bad { color: var(--bad-t); }
+.dstudio .ds-zp-facts dd.num { font-variant-numeric: tabular-nums; }
+
+/* the last slot is the next step */
+.dstudio .ds-zp-next {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dstudio .ds-zp-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 36px;
+  border: none;
+  border-radius: var(--r-button);
+  background: var(--ink);
+  color: var(--paper);
+  font: 600 14px var(--font);
+  cursor: pointer;
+}
+.dstudio .ds-zp-primary:hover { background: var(--ink2); }
+
+/* the rack: units waiting for the plan, each dragged out by its grip */
+.dstudio .ds-zp-rack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dstudio .ds-zp-unit,
+.dstudio .ds-zp-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 8px 8px;
+  border-radius: var(--r-button);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  cursor: grab;
+  user-select: none;
+}
+.dstudio .ds-zp-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+.dstudio .ds-zp-unit:active,
+.dstudio .ds-zp-row:active { cursor: grabbing; }
+.dstudio .ds-zp-unit:hover,
+.dstudio .ds-zp-row:hover { background: var(--tint); }
+.dstudio .ds-zp-grip { fill: var(--q); flex: none; }
+.dstudio .ds-zp-unit-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--q);
+}
+.dstudio .ds-zp-unit-body b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dstudio .ds-zp-free {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: var(--r-button);
+}
+.dstudio .ds-zp-row-name { font-size: 13px; font-weight: 500; color: var(--ink); }
+.dstudio .ds-zp-row-kw { font-size: 13px; color: var(--q); font-variant-numeric: tabular-nums; }
+.dstudio .ds-zp-none {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--q);
+}
+
+/* ── the install questions (install-questions.tsx): the builder's sheet
+   (.ds-sb, its scrim, foot and buttons) with the questions down the left
+   and the equipment list down the right ── */
+.dstudio .ds-iq { display: flex; flex-direction: column; }
+.dstudio .ds-iq-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 72px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.dstudio .ds-iq-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.dstudio .ds-iq-rule {
+  width: 1px;
+  height: 40px;
+  background: var(--line);
+}
+.dstudio .ds-iq-stats {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  flex: 1;
+  min-width: 0;
+}
+.dstudio .ds-iq-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dstudio .ds-iq-stat .k {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--q);
+  white-space: nowrap;
+}
+.dstudio .ds-iq-stat .v {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.dstudio .ds-iq-stat .v.warn { color: var(--warn-t); }
+.dstudio .ds-iq .num { font-variant-numeric: tabular-nums; }
+.dstudio .ds-iq-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  flex: 1;
+  min-height: 0;
+}
+.dstudio .ds-iq-qs {
+  padding: 4px 24px 16px;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+  min-height: 0;
+}
+.dstudio .ds-iq-gh {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 16px;
+  padding-bottom: 4px;
+}
+.dstudio .ds-iq-gsub {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--q);
+}
+.dstudio .ds-iq-row {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.dstudio .ds-iq-row.sub > div:first-child { padding-left: 24px; }
+.dstudio .ds-iq-q {
+  font-size: 14px;
+  color: var(--ink);
+}
+.dstudio .ds-iq-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--q);
+  margin-top: 2px;
+}
+.dstudio .ds-iq-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dstudio .ds-iq-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+/* an answer is a box you tick, with its word beside it */
+.dstudio .ds-iq-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 12px 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  color: var(--ink);
+  font: 500 13px var(--font);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-iq-choice:hover { background: var(--tint); }
+.dstudio .ds-iq-choice.on { outline: 2px solid var(--ink); outline-offset: -2px; }
+.dstudio .ds-iq-box {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-control);
+  border: 1px solid var(--ds-border-s);
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--paper);
+}
+.dstudio .ds-iq-box.on {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.dstudio .ds-iq-choice-l { display: flex; flex-direction: column; }
+.dstudio .ds-iq-choice-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--q);
+}
+.dstudio .ds-iq-provisions {
+  font-size: 13px;
+  color: var(--ink);
+}
+.dstudio .ds-iq-provisions b {
+  font-weight: 600;
+  color: var(--warn-t);
+}
+.dstudio .ds-iq-eq {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.dstudio .ds-iq-eh {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.dstudio .ds-iq-eg { display: flex; flex-direction: column; gap: 2px; }
+.dstudio .ds-iq-egh {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--q);
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+}
+.dstudio .ds-iq-er {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.dstudio .ds-iq-er.waiting .ds-iq-er-n,
+.dstudio .ds-iq-er.waiting .ds-iq-er-v { color: var(--q); }
+.dstudio .ds-iq-er-v { text-align: right; }
+.dstudio .ds-iq-er-why,
+.dstudio .ds-iq-er-day {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--q);
+}
+.dstudio .ds-iq-er-day { color: var(--warn-t); font-weight: 600; }
+.dstudio .ds-iq-note {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: var(--r-button);
+  background: var(--tint);
+  font-size: 13px;
+  color: var(--ink);
+}
+.dstudio .ds-iq-note b {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.dstudio .ds-iq-note p { margin: 0; }

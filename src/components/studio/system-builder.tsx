@@ -224,6 +224,8 @@ export function SystemBuilder({
   doc,
   pack,
   focus,
+  systemId = null,
+  start: startFrom,
   onCommit,
   onClose,
 }: {
@@ -231,7 +233,13 @@ export function SystemBuilder({
   pack: DataPack;
   /** open on this unit — Swap from the plan (an outdoor opens its detail) */
   focus?: { systemId: string; allocationId: string } | null;
-  /** Continue: the built design, as one change */
+  /** the zones flow: the one system being built (its zones are given) */
+  systemId?: string | null;
+  /** the zones flow: a draft to start from instead of the design — a zone
+      moved onto this system whose units it cannot take, so Done is off until
+      it can and Discard changes undoes the move */
+  start?: DesignDocument;
+  /** Done: the built design, as one change */
   onCommit: (next: DesignDocument) => void;
   onClose: () => void;
 }) {
@@ -240,8 +248,9 @@ export function SystemBuilder({
   /* the draft starts with any split or multi made before the builder turned
      into allocations — placed units keep their ids (adoptLegacySystem) */
   const [start] = useState<DesignDocument>(() =>
-    doc.systems.reduce((d, s) => adoptLegacySystem(d, pack, s.id), doc)
+    (startFrom ?? doc).systems.reduce((d, s) => adoptLegacySystem(d, pack, s.id), startFrom ?? doc)
   );
+  void systemId;
   const [draft, setDraft] = useState<DesignDocument>(start);
   const [error, setError] = useState<string | null>(null);
 

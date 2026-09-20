@@ -729,6 +729,46 @@ describe("the cheap fix comes before the expensive one", () => {
   });
 });
 
+describe("some rooms not others, and the rest of multi and VRF", () => {
+  const all = (id: string) => {
+    const o = getOutcome(id)!;
+    return { o, best: o.actions.join(" "), alts: o.alternatives ?? [] };
+  };
+
+  it("balancing is done with the zones people actually run, and marked", () => {
+    const { best } = all("zone-balance");
+    expect(best).toMatch(/zones the customer actually runs open/i);
+    expect(best).toMatch(/mark what you set/i);
+  });
+
+  it("a minimum-zone rule is set in the controller, not in the customer's habits", () => {
+    expect(all("zone-minimum").best).toMatch(/set it in the controller/i);
+    expect(all("zone-capacity").best).toMatch(/modulating dampers share what there is/i);
+  });
+
+  it("a crushed run looks for the knee-print and the cable tie", () => {
+    const { best } = all("zone-duct");
+    expect(best).toMatch(/knee-print/i);
+    expect(best).toMatch(/cable-tied/i);
+  });
+
+  it("a comms fault checks the terminating resistance and lets it re-address", () => {
+    const { o, best } = all("vrf-comms");
+    expect(best).toMatch(/terminating resistance is set on ONE board only/);
+    expect(best).toMatch(/re-address on the way back up/i);
+    // every step of it is routine now, so the badge goes
+    expect(o.escalate).toBeFalsy();
+  });
+
+  it("diversity carries words for the customer, because it is an argument not a repair", () => {
+    const out = getOutcome("vrf-diversity")!;
+    expect(out.customer).toBeTruthy();
+    expect(out.customer!.length).toBeGreaterThan(80);
+    expect(all("mode-priority").best).toMatch(/fixed master or to first-come/i);
+    expect(all("vrf-head-airside").best).toMatch(/fan wheel/i);
+  });
+});
+
 describe("best fix and other options", () => {
   it("every option says what to do AND when it's the one to pick", () => {
     for (const o of OUTCOMES) {

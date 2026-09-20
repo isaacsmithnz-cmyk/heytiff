@@ -145,9 +145,10 @@
 /* ── the sign-on and template pages ─────────────────────────────────────── */
 
 .sws { max-width:760px; display:flex; flex-direction:column; gap:16px; color:var(--ink); }
-.sws-head { display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
-.sws-head h1 { margin:0; font-size:24px; font-weight:700; text-wrap:balance; }
-.sws-head p { margin:0; font-size:14px; color:var(--q); }
+/* The head block went with the frame (2026-09-20): the band holds the title
+   and the way back rides the crumb line above it. What is left is the line
+   under them, which is a fact about this SWMS and stays with it. */
+.sws-lede { margin:0; font-size:14px; color:var(--q); }
 .sws-back { align-self:flex-start; margin-bottom:8px; font-size:13px; font-weight:700; color:var(--q); text-decoration:none; }
 .sws-back:hover { color:var(--ink); }
 .sws-back:focus-visible { outline:none; box-shadow:var(--ring); }

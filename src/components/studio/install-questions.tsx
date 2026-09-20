@@ -23,13 +23,14 @@ import {
   equipmentList,
   installAnswers,
   installQuestions,
+  NOT_SURE,
   type EquipmentGroup,
   type EquipmentRow,
   type InstallGroup,
   type InstallQuestion,
 } from "@/lib/studio/install";
 
-const GROUPS: InstallGroup[] = ["The house", "Outdoor", "Indoor units"];
+const GROUPS: InstallGroup[] = ["Outdoor", "Indoor units", "Electrical"];
 const EQUIPMENT_GROUPS: EquipmentGroup[] = ["Units", "Mounting", "Controls", "Electrical", "Pipework"];
 
 function BoxGlyph({ on }: { on: boolean }) {
@@ -87,17 +88,23 @@ export function InstallQuestions({
     setDraft((d) => answerInstall(d, sys.id, question.id, next));
   };
 
+  /* What the person is about to stand up or hang on a wall: the model, what
+     it measures and what it weighs, so the bracket and the base are picked
+     against the real thing. All three come off the pack's row. */
   const groupSub = (group: InstallGroup): string => {
-    if (group === "The house") return "Asked once, kept for every system";
+    if (group === "Electrical") return outdoorRow?.phase ? `${outdoorRow.phase} phase` : "";
     if (group === "Outdoor") {
       if (!outdoorRow) return "";
-      return outdoorRow.weight_kg ? `${outdoorRow.model}, ${outdoorRow.weight_kg} kg` : outdoorRow.model;
+      const { width_mm: w, depth_mm: d, height_mm: h, weight_kg: kg } = outdoorRow;
+      const size = w && d && h ? `${w} W × ${d} D × ${h} H mm` : "";
+      return [outdoorRow.model, size, kg ? `${kg} kg` : ""].filter(Boolean).join(", ");
     }
     return headCount === 1 ? "1 indoor unit" : `${headCount} indoor units`;
   };
 
   const renderQuestion = (question: InstallQuestion, depth: number) => {
     const ticks = answers[question.id] ?? [];
+    const notSure = ticks.length === 1 && ticks[0] === NOT_SURE;
     const provisions = question.exclusive && ticks.length >= 2;
     return (
       <div key={question.id} className={depth ? "ds-iq-subw" : "ds-iq-qw"}>
@@ -130,6 +137,11 @@ export function InstallQuestions({
             {provisions && (
               <div className="ds-iq-provisions">
                 Make provisions for both. <b>Confirm on the day.</b>
+              </div>
+            )}
+            {notSure && (
+              <div className="ds-iq-provisions">
+                It stays on the list. <b>Confirm on the day.</b>
               </div>
             )}
           </div>

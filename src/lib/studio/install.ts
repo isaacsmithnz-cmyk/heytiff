@@ -5,10 +5,18 @@
    the system goes in, and every answer puts its parts on the system's
    equipment list as it is given. The questions ask only what the plan and the
    pack cannot answer: the plan says where each unit is, the pack sizes the
-   isolator and names the joint pipe a port needs, the drawn runs say whether
-   the copper is coil or hard drawn. What is left is the house's walls, where
-   the outdoor sits and what it stands on, whether its water is piped away,
-   who supplies the isolator, how the heads are controlled and how they drain.
+   isolator, gives the outdoor's running amps and names the joint pipe a port
+   needs, the drawn runs say whether the copper is coil or hard drawn. What is
+   left is where the outdoor sits and what it stands on, whether its water is
+   piped away, how the heads are controlled, how they drain, what they fix to,
+   and whether the electrical work is ours.
+
+   The questions start at the OUTDOOR. There was a survey of the building
+   first — the outside walls and the inside walls — and it earned one line:
+   the outside walls decided nothing at all, and the inside walls decide the
+   head fixings, so that question now sits with the heads and asks what they
+   fix to. Nothing asks what the building IS: a shop and a warehouse go in the
+   same way a house does, and the answer never reached the list.
 
    Every question takes more than one answer. Where only one can happen in the
    end (the question is EXCLUSIVE), two ticks mean make provisions for both:
@@ -17,8 +25,13 @@
    controls), two ticks mean both are fitted. An option can ask a follow-up,
    which is only asked while the option is ticked and inherits the flag.
 
-   The house's answers are asked once and kept on the design
-   (`doc.settings.install`); a system's are kept on the system
+   Every question also takes NOT SURE YET, which stands alone: it is an
+   answer, not a gap, so it counts as answered and never holds a system back,
+   and it puts the line it decides on the list to confirm on the day. Picking
+   it clears the rest; picking anything else clears it.
+
+   The one answer kept for every system (what the heads fix to) lives on the
+   design (`doc.settings.install`); a system's own live on the system
    (`sys.settings.install`). Both are question id → the option ids ticked.
    Nothing waits on an answer: an unanswered question is a waiting row on the
    list, never a block on Done.
@@ -46,7 +59,7 @@ import { buildSystemGraph, totalPipeLengthM } from "./graph";
 
 export type InstallScope = "house" | "system";
 
-export type InstallGroup = "The house" | "Outdoor" | "Indoor units";
+export type InstallGroup = "Outdoor" | "Indoor units" | "Electrical";
 
 export interface InstallOption {
   id: string;
@@ -156,37 +169,7 @@ interface QuestionSpec {
   options: OptionSpec[];
 }
 
-const HOUSE: QuestionSpec[] = [
-  {
-    id: "outside-walls",
-    scope: "house",
-    group: "The house",
-    text: "What are the outside walls?",
-    exclusive: false,
-    decides: { group: "Mounting", name: "Outside walls" },
-    options: [
-      { id: "brick-veneer", label: "Brick veneer" },
-      { id: "double-brick", label: "Double brick" },
-      { id: "timber", label: "Timber" },
-      { id: "blockwork", label: "Blockwork" },
-    ],
-  },
-  {
-    id: "inside-walls",
-    scope: "house",
-    group: "The house",
-    text: "What are the inside walls?",
-    exclusive: false,
-    decides: { group: "Mounting", name: "Head fixings" },
-    options: [
-      { id: "plasterboard-timber", label: "Plasterboard on timber" },
-      { id: "plasterboard-steel", label: "Plasterboard on steel" },
-      { id: "brick", label: "Brick" },
-    ],
-  },
-];
-
-const OUTDOOR: QuestionSpec[] = [
+const OUTDOOR_SPECS: QuestionSpec[] = [
   {
     id: "outdoor-sits",
     scope: "system",
@@ -295,33 +278,38 @@ const OUTDOOR: QuestionSpec[] = [
       { id: "yes", label: "Yes" },
     ],
   },
-  {
-    id: "isolator-supply",
-    scope: "system",
-    group: "Outdoor",
-    text: "Who supplies the isolator?",
-    exclusive: true,
-    confirm: "who supplies the isolator",
-    decides: { group: "Electrical", name: "Isolator" },
-    options: [
-      { id: "we-do", label: "We do" },
-      { id: "electrician", label: "The electrician" },
-    ],
-  },
 ];
 
-const INDOOR: QuestionSpec[] = [
+const INDOOR_SPECS: QuestionSpec[] = [
   {
     id: "controls",
     scope: "system",
     group: "Indoor units",
     text: "How are they controlled?",
     exclusive: false,
+    confirm: "how the heads are controlled",
     decides: { group: "Controls", name: "Controls" },
     options: [
       { id: "wireless", label: "Wireless remote", sub: "Comes with each head" },
       { id: "wired", label: "Wired" },
       { id: "wifi", label: "Wi-Fi adapter" },
+    ],
+  },
+  {
+    /* what the survey of the building came down to: the fixings under each
+       head. Still answered once and kept for every system — one building has
+       one set of walls — but asked where it is spent. */
+    id: "head-fixings",
+    scope: "house",
+    group: "Indoor units",
+    text: "What do the heads fix to?",
+    exclusive: false,
+    confirm: "what the heads fix to",
+    decides: { group: "Mounting", name: "Head fixings" },
+    options: [
+      { id: "plasterboard-timber", label: "Plasterboard on timber" },
+      { id: "plasterboard-steel", label: "Plasterboard on steel" },
+      { id: "brick", label: "Brick" },
     ],
   },
   {
@@ -340,6 +328,49 @@ const INDOOR: QuestionSpec[] = [
   },
 ];
 
+/* One question for the whole of the electrical, in place of asking who
+   brings the isolator: the isolator is only ever part of it. Yes puts the
+   isolator the pack sizes on the list and, beside it, the current the supply
+   cable has to carry — the outdoor's max running amps, which the pack gives.
+   The SIZE of that cable is the wiring rules' answer and the electrician's
+   to sign for; nothing here invents one. */
+const ELECTRICAL_SPECS: QuestionSpec[] = [
+  {
+    id: "electrical-work",
+    scope: "system",
+    group: "Electrical",
+    text: "Are we doing the electrical work?",
+    exclusive: true,
+    confirm: "who does the electrical work",
+    decides: { group: "Electrical", name: "Electrical work" },
+    options: [
+      { id: "yes", label: "Yes", fragment: "we do it" },
+      { id: "no", label: "No", sub: "The electrician's isolator and cable", fragment: "the electrician does it" },
+    ],
+  },
+];
+
+/** the answer that is not one yet. It stands alone (answerInstall keeps it
+    that way), counts as answered, and leaves the line it decides on the list
+    to settle on the day. */
+export const NOT_SURE = "not-sure";
+const NOT_SURE_OPTION: OptionSpec = { id: NOT_SURE, label: "Not sure yet" };
+
+/** give every question, follow-ups and all, its Not sure yet */
+function askable(specs: QuestionSpec[]): QuestionSpec[] {
+  return specs.map((spec) => ({
+    ...spec,
+    options: [
+      ...spec.options.map((o) => (o.followUps ? { ...o, followUps: askable(o.followUps) } : o)),
+      NOT_SURE_OPTION,
+    ],
+  }));
+}
+
+const OUTDOOR = askable(OUTDOOR_SPECS);
+const INDOOR = askable(INDOOR_SPECS);
+const ELECTRICAL = askable(ELECTRICAL_SPECS);
+
 /** every question, follow-ups included, by id */
 const SPEC_BY_ID = new Map<string, QuestionSpec>();
 function index(specs: QuestionSpec[]): void {
@@ -348,7 +379,7 @@ function index(specs: QuestionSpec[]): void {
     for (const option of spec.options) if (option.followUps) index(option.followUps);
   }
 }
-index([...HOUSE, ...OUTDOOR, ...INDOOR]);
+index([...OUTDOOR, ...INDOOR, ...ELECTRICAL]);
 
 /** the ids of the questions an option asks, all the way down */
 function descendantIds(option: OptionSpec): string[] {
@@ -446,12 +477,14 @@ function contextOf(doc: DesignDocument, pack: DataPack, sys: DesignSystem): Cont
 const iduRow = (pack: DataPack, model: string): IndoorUnit | null =>
   pack.indoor_units.find((u) => u.model === model) ?? null;
 
-/** the top-level questions this system is asked, house first */
+/** the top-level questions this system is asked: the outdoor's, then the
+    heads', then the electrical — each only when the system has the units it
+    asks about */
 function applicableSpecs(context: Context): QuestionSpec[] {
   return [
-    ...HOUSE,
     ...(context.oduAllocation ? OUTDOOR : []),
     ...(context.heads.length ? INDOOR : []),
+    ...(context.oduAllocation ? ELECTRICAL : []),
   ];
 }
 
@@ -510,6 +543,28 @@ function isolatorRows(context: Context): EquipmentRow[] {
   const found = isolatorOption(context);
   if (!found) return [{ group: "Electrical", name: "Isolator", qty: 1, why: `Unsized, ${model} is not in the pack` }];
   return [{ group: "Electrical", name: found.option.name, qty: 1 }];
+}
+
+/** The supply cable's CURRENT, never its size. The pack gives the outdoor's
+    max running amps and nothing else about the supply: the mm² is the wiring
+    rules' answer, against the run, the method and the volt drop, and it is
+    the electrician who signs for it. So the row carries the figure to size
+    against and says where it came from. */
+function supplyCableRows(context: Context): EquipmentRow[] {
+  const model = context.oduAllocation?.model;
+  if (!model) return [];
+  const draw = context.odu?.max_amps_a;
+  if (typeof draw !== "number" || !Number.isFinite(draw) || draw <= 0) {
+    return [{ group: "Electrical", name: "Supply cable", qty: 1, why: `Unsized, ${model} has no running amps in the pack` }];
+  }
+  return [
+    {
+      group: "Electrical",
+      name: "Supply cable",
+      value: `Size for ${draw} A`,
+      why: `${model}'s max running amps, from the pack`,
+    },
+  ];
 }
 
 function isolatorHint(context: Context): string | undefined {
@@ -594,15 +649,15 @@ function pumpParts(context: Context): { rows: EquipmentRow[]; sub: string | unde
 /** the rows one ticked option puts on the list */
 function optionRows(context: Context, question: QuestionSpec, option: OptionSpec): EquipmentRow[] {
   switch (question.id) {
-    case "inside-walls": {
+    case "head-fixings": {
       const name = HEAD_FIXINGS[option.id];
       const count = context.heads.length;
       return name && count ? [{ group: "Mounting", name, qty: count }] : [];
     }
     case "outdoor-drain":
       return option.id === "yes" ? drainSocketRows(context) : [];
-    case "isolator-supply":
-      return option.id === "we-do" ? isolatorRows(context) : [];
+    case "electrical-work":
+      return option.id === "yes" ? [...isolatorRows(context), ...supplyCableRows(context)] : [];
     case "controls":
       if (option.id === "wired") return wiredParts(context).rows;
       if (option.id === "wifi") return wifiParts(context).rows;
@@ -648,7 +703,8 @@ function outdoorWhereabouts(context: Context): string | undefined {
 
 function questionHint(context: Context, question: QuestionSpec): string | undefined {
   if (question.id === "outdoor-sits") return outdoorWhereabouts(context);
-  if (question.id === "isolator-supply") return isolatorHint(context);
+  if (question.id === "electrical-work") return isolatorHint(context);
+  if (question.id === "head-fixings") return "Asked once, kept for every system";
   return undefined;
 }
 
@@ -728,12 +784,27 @@ function walkQuestion(
   walk: Walk
 ): EquipmentRow[] {
   walk.total += 1;
-  const ticks = ticksOf(answers, question);
-  if (!ticks.length) {
+  const stored = ticksOf(answers, question);
+  if (!stored.length) {
     walk.rows.push({ group: question.decides.group, name: question.decides.name, waiting: true });
     return [];
   }
   walk.answered += 1;
+  /* Not sure yet stands alone. answerInstall keeps it that way as answers are
+     given; a stored answer from before it did is read the same, the real
+     options winning. */
+  const ticks = stored.filter((id) => id !== NOT_SURE);
+  if (!ticks.length) {
+    const row: EquipmentRow = {
+      group: question.decides.group,
+      name: question.decides.name,
+      value: "Not sure yet",
+      onTheDay: true,
+    };
+    walk.rows.push(row);
+    walk.notes.push(`Confirm on the day the ${lowerFirst(question.decides.name)}.`);
+    return [row];
+  }
   const provisions = question.exclusive && ticks.length > 1;
   const onTheDay = inheritedOnTheDay || provisions;
   const noteAt = walk.notes.length;
@@ -927,7 +998,20 @@ export function answerInstall(
 ): DesignDocument {
   const question = SPEC_BY_ID.get(questionId);
   if (!question) return doc;
-  const ticks = unique(optionIds.filter((id) => question.options.some((o) => o.id === id)));
+  const picked = unique(optionIds.filter((id) => question.options.some((o) => o.id === id)));
+  /* Not sure yet is the whole answer or none of it: arriving beside the
+     others it clears them, and arriving with them already there it is the one
+     that goes (the tick just given was one of the real options) */
+  const store =
+    question.scope === "house"
+      ? readStore(doc.settings.install)
+      : readStore(doc.systems.find((s) => s.id === systemId)?.settings.install);
+  const ticks =
+    picked.includes(NOT_SURE) && picked.length > 1
+      ? (store[questionId] ?? []).includes(NOT_SURE)
+        ? picked.filter((id) => id !== NOT_SURE)
+        : [NOT_SURE]
+      : picked;
   const dropped = question.options
     .filter((o) => !ticks.includes(o.id))
     .flatMap((o) => descendantIds(o));

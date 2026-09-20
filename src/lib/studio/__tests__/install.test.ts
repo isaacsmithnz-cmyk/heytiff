@@ -20,6 +20,7 @@ import {
   installQuestions,
   installState,
   matchesModelGlob,
+  NOT_SURE,
   type EquipmentRow,
   type InstallQuestion,
 } from "../install";
@@ -175,18 +176,27 @@ describe("a five-head multi on an MXZ-5F100VGD", () => {
     expect(rows.filter((r) => r.name.startsWith("Joint pipe"))).toHaveLength(1);
   });
 
-  it("sizes the isolator from the pack and lists it only when we supply it", () => {
+  it("sizes the isolator and the cable's current from the pack, and lists them only when the electrical is ours", () => {
     let doc = fiveHeadMulti();
-    const question = questionById(installQuestions(doc, pack, sysOf(doc, "multi")), "isolator-supply");
+    const question = questionById(installQuestions(doc, pack, sysOf(doc, "multi")), "electrical-work");
     expect(question.hint).toBe("From the pack: 1Ø 20 A, for its 18.4 A");
 
-    doc = answerInstall(doc, "multi", "isolator-supply", ["we-do"]);
+    doc = answerInstall(doc, "multi", "electrical-work", ["yes"]);
     let rows = equipmentList(doc, pack, sysOf(doc, "multi")).rows;
     expect(rowsNamed(rows, "Isolator, 1Ø 20 A")).toEqual([
       { group: "Electrical", name: "Isolator, 1Ø 20 A", qty: 1 },
     ]);
+    // the cable carries the current to size against, never a size
+    expect(rowsNamed(rows, "Supply cable")).toEqual([
+      {
+        group: "Electrical",
+        name: "Supply cable",
+        value: "Size for 18.4 A",
+        why: "MXZ-5F100VGD's max running amps, from the pack",
+      },
+    ]);
 
-    doc = answerInstall(doc, "multi", "isolator-supply", ["electrician"]);
+    doc = answerInstall(doc, "multi", "electrical-work", ["no"]);
     rows = equipmentList(doc, pack, sysOf(doc, "multi")).rows;
     expect(rows.filter((r) => r.group === "Electrical")).toEqual([]);
   });
@@ -271,15 +281,14 @@ describe("where the outdoor sits, answered two ways", () => {
     doc = answerInstall(doc, "multi", "outdoor-sits", ["ground", "wall"]);
     const asked = askedQuestions(doc, pack, sysOf(doc, "multi")).map((q) => q.id);
     expect(asked).toEqual([
-      "outside-walls",
-      "inside-walls",
       "outdoor-sits",
       "ground-base",
       "wall-bracket",
       "outdoor-drain",
-      "isolator-supply",
       "controls",
+      "head-fixings",
       "condensate",
+      "electrical-work",
     ]);
     // the follow-ups sit under their option on the question itself
     const sits = questionById(installQuestions(doc, pack, sysOf(doc, "multi")), "outdoor-sits");
@@ -350,10 +359,10 @@ describe("where the outdoor sits, answered two ways", () => {
   });
 });
 
-/* ── 3. the house's answers live on the design ── */
+/* ── 3. the one answer kept for every system lives on the design ── */
 
-describe("the house's answers", () => {
-  it("are written on the design, not the system, and read by every system", () => {
+describe("what the heads fix to", () => {
+  it("is written on the design, not the system, and read by every system", () => {
     let doc = fiveHeadMulti();
     doc = withSystem(
       doc,
@@ -362,12 +371,12 @@ describe("the house's answers", () => {
       [{ id: "s-study", model: "MSZ-AP25VGD2", roomId: "study" }],
       "MUZ-AP25VG2"
     );
-    doc = answerInstall(doc, "multi", "inside-walls", ["plasterboard-timber"]);
-    expect(doc.settings.install).toEqual({ "inside-walls": ["plasterboard-timber"] });
+    doc = answerInstall(doc, "multi", "head-fixings", ["plasterboard-timber"]);
+    expect(doc.settings.install).toEqual({ "head-fixings": ["plasterboard-timber"] });
     expect(sysOf(doc, "multi").settings.install).toBeUndefined();
 
     // the second system sees the answer and gets its own fixings count
-    expect(installAnswers(doc, sysOf(doc, "split"))["inside-walls"]).toEqual(["plasterboard-timber"]);
+    expect(installAnswers(doc, sysOf(doc, "split"))["head-fixings"]).toEqual(["plasterboard-timber"]);
     const multiRows = equipmentList(doc, pack, sysOf(doc, "multi")).rows;
     expect(rowsNamed(multiRows, "Head fixings, timber stud")).toEqual([
       { group: "Mounting", name: "Head fixings, timber stud", qty: 5 },
@@ -377,24 +386,23 @@ describe("the house's answers", () => {
       { group: "Mounting", name: "Head fixings, timber stud", qty: 1 },
     ]);
 
-    // two inside walls are both fitted for, nothing flagged: the question is not exclusive
-    doc = answerInstall(doc, "split", "inside-walls", ["plasterboard-timber", "brick"]);
+    // two walls are both fitted for, nothing flagged: the question is not exclusive
+    doc = answerInstall(doc, "split", "head-fixings", ["plasterboard-timber", "brick"]);
     const list = equipmentList(doc, pack, sysOf(doc, "multi"));
     expect(rowsNamed(list.rows, "Head fixings, masonry")).toEqual([
       { group: "Mounting", name: "Head fixings, masonry", qty: 5 },
     ]);
     expect(list.onTheDay).toBe(0);
-    // the house questions come first, with no parts for the outside walls
-    const questions = installQuestions(doc, pack, sysOf(doc, "split"));
-    expect(questions.slice(0, 2).map((q) => [q.id, q.scope, q.group])).toEqual([
-      ["outside-walls", "house", "The house"],
-      ["inside-walls", "house", "The house"],
+    // it is asked with the heads, and says it is kept for every system
+    const fixings = questionById(installQuestions(doc, pack, sysOf(doc, "split")), "head-fixings");
+    expect([fixings.scope, fixings.group, fixings.hint]).toEqual([
+      "house",
+      "Indoor units",
+      "Asked once, kept for every system",
     ]);
-    doc = answerInstall(doc, "split", "outside-walls", ["brick-veneer", "timber"]);
-    expect(doc.settings.install?.["outside-walls"]).toEqual(["brick-veneer", "timber"]);
-    expect(equipmentList(doc, pack, sysOf(doc, "split")).rows.filter((r) => r.group === "Mounting")).toEqual(
-      expect.not.arrayContaining([expect.objectContaining({ name: "Outside walls" })])
-    );
+    // nothing asks what the building is: a shop goes in the way a house does
+    const asked = installQuestions(doc, pack, sysOf(doc, "split")).map((q) => q.text);
+    expect(asked).not.toContain("What are the outside walls?");
   });
 });
 
@@ -407,18 +415,17 @@ describe("install state", () => {
     expect(installState(doc, pack, sys())).toBe("not-asked");
     let list = equipmentList(doc, pack, sys());
     expect(list.complete).toBe(false);
-    expect(list.total).toBe(7);
+    expect(list.total).toBe(6);
     expect(list.answered).toBe(0);
     // every unanswered question waits on the list, named for what it decides,
     // in the list's group order (Mounting, Controls, Electrical)
     expect(list.rows.filter((r) => r.waiting).map((r) => r.name)).toEqual([
-      "Outside walls",
-      "Head fixings",
       "Outdoor base",
       "Outdoor drain",
+      "Head fixings",
       "Condensate drain",
       "Controls",
-      "Isolator",
+      "Electrical work",
     ]);
 
     doc = answerInstall(doc, "multi", "controls", ["wireless"]);
@@ -426,19 +433,18 @@ describe("install state", () => {
     list = equipmentList(doc, pack, sys());
     expect(list.answered).toBe(1);
     expect(list.rows.filter((r) => r.waiting).map((r) => r.name)).not.toContain("Controls");
-    expect(list.rows.filter((r) => r.waiting).map((r) => r.name)).toContain("Isolator");
+    expect(list.rows.filter((r) => r.waiting).map((r) => r.name)).toContain("Electrical work");
 
-    doc = answerInstall(doc, "multi", "outside-walls", ["brick-veneer"]);
-    doc = answerInstall(doc, "multi", "inside-walls", ["plasterboard-timber"]);
+    doc = answerInstall(doc, "multi", "head-fixings", ["plasterboard-timber"]);
     doc = answerInstall(doc, "multi", "outdoor-sits", ["ground"]);
     doc = answerInstall(doc, "multi", "outdoor-drain", ["no"]);
-    doc = answerInstall(doc, "multi", "isolator-supply", ["we-do"]);
+    doc = answerInstall(doc, "multi", "electrical-work", ["yes"]);
     doc = answerInstall(doc, "multi", "condensate", ["gravity"]);
     // the ground's follow-up is now asked and not yet answered
     expect(installState(doc, pack, sys())).toBe("open");
     list = equipmentList(doc, pack, sys());
-    expect(list.total).toBe(8);
-    expect(list.answered).toBe(7);
+    expect(list.total).toBe(7);
+    expect(list.answered).toBe(6);
     expect(list.rows.filter((r) => r.waiting).map((r) => r.name)).toEqual(["Ground base"]);
 
     doc = answerInstall(doc, "multi", "ground-base", ["ground-pad"]);
@@ -462,6 +468,58 @@ describe("install state", () => {
     expect(same).toBe(doc);
     const noSystem = answerInstall(doc, "no-such-system", "controls", ["wired"]);
     expect(noSystem).toBe(doc);
+  });
+});
+
+/* ── 4b. the answer that is not one yet ── */
+
+describe("Not sure yet", () => {
+  it("is offered on every question, follow-ups and all", () => {
+    const doc = fiveHeadMulti();
+    const has = (q: InstallQuestion): boolean =>
+      q.options.some((o) => o.id === NOT_SURE) &&
+      q.options.every((o) => (o.followUps ?? []).every(has));
+    expect(installQuestions(doc, pack, sysOf(doc, "multi")).every(has)).toBe(true);
+    // and it is the last thing offered, after the real answers
+    const sits = questionById(installQuestions(doc, pack, sysOf(doc, "multi")), "outdoor-sits");
+    expect(sits.options.map((o) => o.id)).toEqual(["ground", "wall", "roof", NOT_SURE]);
+  });
+
+  it("answers the question rather than leaving it open, and holds its line for the day", () => {
+    let doc = fiveHeadMulti();
+    doc = answerInstall(doc, "multi", "outdoor-sits", [NOT_SURE]);
+    const list = equipmentList(doc, pack, sysOf(doc, "multi"));
+    expect(installAnswers(doc, sysOf(doc, "multi"))["outdoor-sits"]).toEqual([NOT_SURE]);
+    expect(list.answered).toBe(1);
+    // the line it decides is on the list, flagged, not waiting
+    expect(rowsNamed(list.rows, "Outdoor base")).toEqual([
+      { group: "Mounting", name: "Outdoor base", value: "Not sure yet", onTheDay: true },
+    ]);
+    expect(list.notes).toEqual(["Confirm on the day the outdoor base."]);
+    // and its follow-ups are not asked: nothing was picked to follow
+    expect(askedQuestions(doc, pack, sysOf(doc, "multi")).map((q) => q.id)).not.toContain("ground-base");
+  });
+
+  it("never holds a system back: every question left not sure is still complete", () => {
+    let doc = fiveHeadMulti();
+    for (const id of ["outdoor-sits", "outdoor-drain", "controls", "head-fixings", "condensate", "electrical-work"]) {
+      doc = answerInstall(doc, "multi", id, [NOT_SURE]);
+    }
+    const list = equipmentList(doc, pack, sysOf(doc, "multi"));
+    expect(installState(doc, pack, sysOf(doc, "multi"))).toBe("complete");
+    expect(list.onTheDay).toBe(6);
+    expect(list.rows.some((r) => r.waiting)).toBe(false);
+  });
+
+  it("stands alone: picking it clears the rest, picking anything else clears it", () => {
+    let doc = fiveHeadMulti();
+    doc = answerInstall(doc, "multi", "outdoor-sits", ["ground"]);
+    // ticking Not sure yet beside a real answer leaves only Not sure yet
+    doc = answerInstall(doc, "multi", "outdoor-sits", ["ground", NOT_SURE]);
+    expect(installAnswers(doc, sysOf(doc, "multi"))["outdoor-sits"]).toEqual([NOT_SURE]);
+    // ticking a real answer beside it leaves only the real answer
+    doc = answerInstall(doc, "multi", "outdoor-sits", [NOT_SURE, "wall"]);
+    expect(installAnswers(doc, sysOf(doc, "multi"))["outdoor-sits"]).toEqual(["wall"]);
   });
 });
 
@@ -503,14 +561,20 @@ describe("a split and a ducted pair", () => {
     expect(questionById(questions, "condensate").options.find((o) => o.id === "pump")?.sub).toBe(
       "Built in on PEAD-M125JAA(D)"
     );
-    expect(questionById(questions, "isolator-supply").hint).toBe("From the pack: 1Ø 32 A, for its 28 A");
+    expect(questionById(questions, "electrical-work").hint).toBe("From the pack: 1Ø 32 A, for its 28 A");
 
     doc = answerInstall(doc, "ducted", "condensate", ["pump"]);
-    doc = answerInstall(doc, "ducted", "isolator-supply", ["we-do"]);
+    doc = answerInstall(doc, "ducted", "electrical-work", ["yes"]);
     const { rows } = equipmentList(doc, pack, sysOf(doc, "ducted"));
     expect(rows.some((r) => r.name.startsWith("Condensate pump") || r.name.startsWith("Drain pump"))).toBe(false);
     expect(rows.filter((r) => r.group === "Electrical")).toEqual([
       { group: "Electrical", name: "Isolator, 1Ø 32 A", qty: 1 },
+      {
+        group: "Electrical",
+        name: "Supply cable",
+        value: "Size for 28 A",
+        why: "PUZ-ZM125VKA2-A's max running amps, from the pack",
+      },
     ]);
   });
 

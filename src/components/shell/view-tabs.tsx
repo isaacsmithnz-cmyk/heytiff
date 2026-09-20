@@ -50,6 +50,8 @@ export function ViewTabs({
   idPrefix,
   panelPrefix,
   children,
+  lead,
+  band,
 }: {
   items: readonly ViewTab[];
   active: string;
@@ -61,6 +63,12 @@ export function ViewTabs({
   panelPrefix: string;
   /** Docked at the row's right end, as the board docks its capture pill. */
   children?: React.ReactNode;
+  /** The screen's h1, in the band beside the tabs. */
+  lead?: React.ReactNode;
+  /** Draw the band even with no title — a staff card names the person in the
+      card itself, so its band is tabs alone. The sheets and the SWMS wizard
+      keep the old card-edge strip, which is why this is opt-in. */
+  band?: boolean;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState<{ x: number; w: number } | null>(null);
@@ -126,6 +134,55 @@ export function ViewTabs({
     };
   }, [active, items.length]);
 
+  /* THE BAND: THE SCREEN'S TITLE SITS IN THE TAB ROW (2026-09-20, the
+     Workboard's frame rolled out to every screen with tabs). The title used
+     to stand on a line of its own above the strip, saying what the rail one
+     column to the left had already said, and the strip drew folder tabs on
+     the edge of a card floating on grey. Now the page is paper to the frame
+     and the band holds the lot: the h1 as `lead`, the tabs, and whatever a
+     screen docks at the right end as `children`.
+
+     `role="tablist"` moves to the inner row in the band, because a tablist
+     may only own tabs — the same split the boards make by hand. The sheets
+     and the SWMS wizard still draw the card-edge strip, so the old shape
+     stays for them. */
+  const tabs = items.map((t) => (
+    <Tab
+      key={t.key}
+      tab={t}
+      on={t.key === active}
+      idPrefix={idPrefix}
+      panelPrefix={panelPrefix}
+      onGo={onGo}
+    />
+  ));
+  const slide = thumb ? (
+    <span
+      className="wb2-vslide"
+      style={{ transform: `translateX(${thumb.x}px)`, width: thumb.w }}
+      aria-hidden="true"
+    />
+  ) : null;
+
+  if (lead || band)
+    return (
+      <div className="wb2-vtabs">
+        {lead}
+        <div
+          className="wb2-vtrow"
+          ref={rowRef}
+          role="tablist"
+          aria-label={ariaLabel}
+          data-ovl={edges.l ? "" : undefined}
+          data-ovr={edges.r ? "" : undefined}
+        >
+          {slide}
+          {tabs}
+        </div>
+        {children && <div className="wb2-vtcap">{children}</div>}
+      </div>
+    );
+
   return (
     <div
       className="wb2-vtabs"
@@ -135,23 +192,8 @@ export function ViewTabs({
       data-ovl={edges.l ? "" : undefined}
       data-ovr={edges.r ? "" : undefined}
     >
-      {thumb && (
-        <span
-          className="wb2-vslide"
-          style={{ transform: `translateX(${thumb.x}px)`, width: thumb.w }}
-          aria-hidden="true"
-        />
-      )}
-      {items.map((t) => (
-        <Tab
-          key={t.key}
-          tab={t}
-          on={t.key === active}
-          idPrefix={idPrefix}
-          panelPrefix={panelPrefix}
-          onGo={onGo}
-        />
-      ))}
+      {slide}
+      {tabs}
       {children && <div className="wb2-vtcap">{children}</div>}
     </div>
   );

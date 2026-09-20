@@ -58,20 +58,12 @@ export function MeScreen({ initialTab, data }: { initialTab: Tab; data: MeData }
   const [tab, setTab] = useState<Tab>(initialTab);
 
   return (
-    <div className="page in">
+    /* THE PAGE IS PAPER TO THE FRAME (2026-09-20, the Workboard's frame on
+       every screen with tabs): no grey margin, no card edge, no width cap —
+       `full` is what asks for it, and shell.css does the rest. */
+    <div className="page in full">
       <div className="wrap">
         <div className="stg tpr wb2">
-          <div className="rhead">
-            <div>
-              {/* THE HEADING IS THE ONLY THING IN HERE, and it has to be:
-                  anything a single face adds changes the header's height, so
-                  the card steps down when you land on that face and back up
-                  when you leave. Notes' "Only you can see these" did exactly
-                  that (Isaac, 2026-08-23) and now rides the switch row inside
-                  the panel, where it costs nothing. */}
-              <h1>{TITLE[tab]}</h1>
-            </div>
-          </div>
           <ViewTabs
             ariaLabel="Yours"
             idPrefix="met"
@@ -79,15 +71,30 @@ export function MeScreen({ initialTab, data }: { initialTab: Tab; data: MeData }
             active={tab}
             onGo={(k) => setTab(k as Tab)}
             items={TABS.map((t) => ({ ...t }))}
+            /* THE TITLE RIDES THE TAB ROW. It stood on a line of its own,
+               where anything a single face added to it changed the header's
+               height and stepped the card down (Isaac, 2026-08-23). In the
+               band there is nowhere to add anything: the h1 is the lead and
+               the tabs take the rest. */
+            lead={<h1 className="wb2-h1">{TITLE[tab]}</h1>}
           />
           {/* No `key` and no `.psec2` — the panel swaps in place, like Team's.
               The pair unmounts and rebuilds the face on every click and fades
               it in from opacity 0 with a 12px rise, which on a timesheet grid
               reads as the content flashing (Isaac, 2026-08-22). The thumb
               slide IS the animation. */}
-          <section id={`mep-${tab}`} role="tabpanel" aria-labelledby={`met-${tab}`} tabIndex={-1}>
-            {face(tab, data)}
-          </section>
+          <div className="wb2-card">
+            <div className="wb2-panel">
+              <section
+                id={`mep-${tab}`}
+                role="tabpanel"
+                aria-labelledby={`met-${tab}`}
+                tabIndex={-1}
+              >
+                {face(tab, data)}
+              </section>
+            </div>
+          </div>
         </div>
       </div>
     </div>

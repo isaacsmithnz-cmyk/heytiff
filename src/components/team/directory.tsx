@@ -28,6 +28,9 @@ function hue(name: string) {
 export function TeamDirectory({
   staff,
   pending,
+  /** the Invite staff button, docked at the band's right end — the page owns
+      it because only the server knows which roles this viewer may invite */
+  invite = null,
   /** memberships with no staff card — people the directory could not show at
       all until now, because it reads cards and they have none */
   orphans = [],
@@ -42,6 +45,7 @@ export function TeamDirectory({
   pending: PendingInviteRow[];
   orphans?: MemberWithoutCardRow[];
   canInvite?: boolean;
+  invite?: React.ReactNode;
   appUrl?: string;
   inviteRoles?: string[];
 }) {
@@ -177,6 +181,9 @@ export function TeamDirectory({
         panelPrefix="dirpanel"
         active={view}
         onGo={(k) => setView(k as View)}
+        /* The title and Invite staff stood on a line above this strip; they
+           ride in the band with the tabs now (2026-09-20). */
+        lead={<h1 className="wb2-h1">Team</h1>}
         items={[
           {
             key: "active",
@@ -198,8 +205,12 @@ export function TeamDirectory({
             countLabel: (n) => `${n} awaiting acceptance`,
           },
         ]}
-      />
+      >
+        {invite}
+      </ViewTabs>
 
+      <div className="wb2-card">
+      <div className="wb2-panel">
       {view === "pending" ? (
         <div className="dir" id="dirpanel-pending" role="tabpanel" aria-labelledby="dirtab-pending">
           {inviteError && <div className="invmsg">{inviteError}</div>}
@@ -502,6 +513,8 @@ export function TeamDirectory({
           )}
         </div>
       )}
+      </div>
+      </div>
 
       {invitee && (
         <InviteModal

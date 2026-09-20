@@ -53,18 +53,11 @@ export default async function TeamPage() {
     process.env.APP_BASE_URL ?? (host ? `${proto}://${host}` : "http://localhost:3000");
 
   return (
-    <div className="page in">
+    /* Paper to the frame, and the title and Invite staff ride the tab band
+       inside the directory (2026-09-20, the Workboard's frame everywhere). */
+    <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {/* The fourteenth inline 44. #350 swept thirteen of these into
-                  `.v2head h1`; this one sits inside a nested div and was
-                  missed with it. */}
-              <h1>Team</h1>
-            </div>
-            {canInvite ? <InviteButton roles={invitableAt} /> : null}
-          </div>
 
           {/* THE EMPTY BOX HID THE ONLY THINGS THAT COULD FILL IT.
 
@@ -77,12 +70,31 @@ export default async function TeamPage() {
               the Pending invites tab", and in a brand-new org that tab was not
               on screen. Empty means all three are empty. */}
           {staff.length === 0 && orphans.length === 0 && pending.length === 0 ? (
-            <div className="emptybox">
-              <span className="ei">
-                <Icon name="users" size={24} />
-              </span>
-              <b>No staff yet</b>
-              <em>Invite your team to start building staff profiles.</em>
+            /* Nobody on the books yet: there are no tabs to draw, so the
+               band is the title and the invite alone, and the empty box sits
+               in the panel under it. */
+            <div className="wb2">
+              <div className="wb2-vtabs">
+                <h1 className="wb2-h1">Team</h1>
+                {canInvite ? (
+                  <div className="wb2-vtcap">
+                    <div className="wb2-headtools">
+                      <InviteButton roles={invitableAt} />
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <div className="wb2-card">
+                <div className="wb2-panel pad">
+                  <div className="emptybox">
+                    <span className="ei">
+                      <Icon name="users" size={24} />
+                    </span>
+                    <b>No staff yet</b>
+                    <em>Invite your team to start building staff profiles.</em>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <TeamDirectory
@@ -90,6 +102,7 @@ export default async function TeamPage() {
               orphans={orphans}
               pending={pending}
               canInvite={canInvite}
+              invite={canInvite ? <InviteButton roles={invitableAt} /> : null}
               appUrl={appUrl}
               inviteRoles={invitableAt}
             />

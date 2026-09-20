@@ -131,7 +131,7 @@ it("keeps each face's own pair on an in-panel switch, not a second card strip", 
 it("keeps the same panel node, with no fade class", async () => {
   const user = userEvent.setup();
   const { container } = render(<MeScreen initialTab="timesheet" data={DATA} />);
-  const panel = () => container.querySelector('.stg > [role="tabpanel"]');
+  const panel = () => container.querySelector('.wb2-panel > [role="tabpanel"]');
 
   const before = panel();
   expect(before).not.toHaveClass("psec2");
@@ -159,18 +159,21 @@ it("never writes the path when you change face", async () => {
 /* THE HEADER MUST NOT MOVE. Notes carried "Only you can see these" under the
    card's heading, so landing on Notes stepped the whole page down and leaving
    it stepped back up (Isaac, 2026-08-23). The sentence is not gone — it rides
-   the switch row inside the panel — but the header now holds exactly one
-   thing on every face, and any face that adds a second brings the shift back. */
+   the switch row inside the panel — and since the rollout (2026-09-20) the
+   heading rides the TAB BAND, a fixed 56px row: one h1, the tabs, nothing a
+   face can add. This pins the h1 as the band's lead on every face, which is
+   what keeps the row from growing. */
 it("keeps the header to a heading alone, on every face", async () => {
   const user = userEvent.setup();
   const { container } = render(<MeScreen initialTab="timesheet" data={DATA} />);
-  const head = () => container.querySelector(".rhead") as HTMLElement;
+  const band = () => container.querySelector(".wb2-vtabs") as HTMLElement;
 
   for (const tab of ["Leave", "Expenses", "Vehicle", "Notes", "Timesheet"] as const) {
     await user.click(within(strip()).getByRole("tab", { name: tab }));
-    expect(head().querySelectorAll("h1")).toHaveLength(1);
-    // nothing else in there — no lede, no chip, nothing a single face adds
-    expect(head().textContent).toBe(head().querySelector("h1")!.textContent);
+    expect(band().querySelectorAll("h1")).toHaveLength(1);
+    // the heading leads the band, and the tabs follow it
+    expect(band().firstElementChild!.tagName).toBe("H1");
+    expect(band().children[1]).toHaveClass("wb2-vtrow");
   }
   // …and the sentence still exists, on the surface it describes
   await user.click(within(strip()).getByRole("tab", { name: "Notes" }));

@@ -717,13 +717,13 @@ export function OverviewScreen({
   );
 
   return (
-    /* `wb2-full` is the board asking for the whole well: paper to the dark
+    /* `full` is the board asking for the whole well: paper to the dark
        rail and the dark bar, no grey margin, no width cap, no radius. The
        rules are in shell.css under "THE BOARD IS THE WELL" and reach the
        frame's own `.main` and `.outlet` with `:has()`, because a route cannot
        reach up. It is a class rather than an effect-set attribute so the first
        paint is already right. */
-    <div className="page in wb2-full">
+    <div className="page in full">
       <div className="wrap">
         <div className="stg">
           <div className="wb-board">

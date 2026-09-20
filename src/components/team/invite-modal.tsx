@@ -298,11 +298,9 @@ export function InviteButton({ roles }: { roles: string[] }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        className="pbtn primary"
-        style={{ height: 44, flex: "0 0 auto" }}
-        onClick={() => setOpen(true)}
-      >
+      {/* No inline height any more: the button sits at the end of the tab
+          band now, where `.wb2-headtools .pbtn` gives it the band's 36px. */}
+      <button className="pbtn primary" onClick={() => setOpen(true)}>
         <Icon name="plus" size={16} />
         Invite staff
       </button>

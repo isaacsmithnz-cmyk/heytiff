@@ -209,7 +209,7 @@ export function FleetRegister({
   if (vehicles.length === 0) {
     return (
       <div className="wb2-card">
-        <div className="ppanel2">
+        <div className="wb2-panel pad">
         <div className="emptybox">
           <span className="ei">
             <Icon name="truck" size={24} />
@@ -241,7 +241,8 @@ export function FleetRegister({
   }
 
   return (
-    <div ref={rootRef}>
+    <div className="wb2-card">
+      <div className="wb2-panel" ref={rootRef}>
       <div
         className="dir"
         id="astp-fleet"
@@ -509,6 +510,7 @@ export function FleetRegister({
           onClose={() => setModal({ t: "detail", id: openVehicle.id, screen: logScreen(modal.log.id) })}
         />
       )}
+      </div>
     </div>
   );
 }

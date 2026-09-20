@@ -31,12 +31,17 @@ export function BoardTabs({
   tabs,
   active,
   label,
+  lead,
 }: {
   tabs: readonly BoardTab[];
   /** the key of the tab this screen IS — no match parks the shape off-screen */
   active: string;
   /** what this row navigates, for assistive tech */
   label: string;
+  /** The screen's h1, in the band beside the tabs — the Workboard's frame,
+      on every screen with tabs (2026-09-20). Without it this is the old
+      card-edge row. */
+  lead?: React.ReactNode;
 }) {
   const rowRef = useRef<HTMLElement>(null);
   const [slide, setSlide] = useState<{ x: number; w: number } | null>(null);
@@ -53,26 +58,40 @@ export function BoardTabs({
     return () => window.removeEventListener("resize", measure);
   }, [active]);
 
+  const links = tabs.map((t) => (
+    <Link
+      key={t.key}
+      href={t.href}
+      data-vt={t.key}
+      className={`wb2-vt${active === t.key ? " on" : ""}`}
+      aria-current={active === t.key ? "page" : undefined}
+    >
+      {t.label}
+    </Link>
+  ));
+  const thumb = slide ? (
+    <span
+      className="wb2-vslide"
+      style={{ transform: `translateX(${slide.x}px)`, width: slide.w }}
+      aria-hidden="true"
+    />
+  ) : null;
+
+  if (lead)
+    return (
+      <div className="wb2-vtabs">
+        {lead}
+        <nav className="wb2-vtrow" ref={rowRef} aria-label={label}>
+          {thumb}
+          {links}
+        </nav>
+      </div>
+    );
+
   return (
     <nav className="wb2-vtabs" ref={rowRef} aria-label={label}>
-      {slide && (
-        <span
-          className="wb2-vslide"
-          style={{ transform: `translateX(${slide.x}px)`, width: slide.w }}
-          aria-hidden="true"
-        />
-      )}
-      {tabs.map((t) => (
-        <Link
-          key={t.key}
-          href={t.href}
-          data-vt={t.key}
-          className={`wb2-vt${active === t.key ? " on" : ""}`}
-          aria-current={active === t.key ? "page" : undefined}
-        >
-          {t.label}
-        </Link>
-      ))}
+      {thumb}
+      {links}
     </nav>
   );
 }

@@ -237,6 +237,22 @@ Every decision below is made once, here, and a guard test holds each number.
   width cap with the well (the Admin menu, Integrations); a form does not
   (Xero, ServiceM8 keep their 760 column), because a field is no easier to
   fill for being 1400px wide.
+- **Every screen wears it now, and the exceptions are named** (2026-09-20).
+  With the tabbed screens, the untabbed ones, Action required, Projects and a
+  project, the Library's All documents, the four tool pages and both SWMS
+  screens on `.page.full`, the grey well is gone from the app but for the
+  Studio, which is Isaac's to call. Two kinds of surface keep the old shape on
+  purpose: the sheets and the SWMS wizard, which are overlays rather than
+  pages, and a tool's own body — Heat Load's two-up at 1020, Fault Finder's
+  grid, Running Pressures' sticky rail — because that composition is the
+  tool's design, not the well's. The route loading skeleton takes the band
+  too: it holds the frame a screen is about to fill, with its title block in
+  the title's own seat, so nothing moves when the page lands.
+- **A title that is DATA must be able to give way.** A project's name, a
+  person's, can be any length and the band does not wrap, so a long one used
+  to push the last button past the frame's inset, where `overflow:hidden` ate
+  it. The title ellipsises, and a cap holding only buttons stops shrinking —
+  the board's cap still shrinks, because the search field in it is built to.
 - **Home is paper to the frame too** (decided 2026-09-20, retiring the 16px
   margin this file decided on 2026-09-15). The day's card was the only card
   on its screen, so the margin drew a second frame 16px inside the first and

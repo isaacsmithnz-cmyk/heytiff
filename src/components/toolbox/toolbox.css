@@ -91,8 +91,9 @@
 
 /* ---------- page head ---------- */
 .fg .tool { max-width: 1180px; margin: 0 auto; }
-.fg .tool .thead { margin-bottom: 32px; }
-.fg .tool .trow1 { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+/* The head row went with the frame (2026-09-20): the band holds the title,
+   and the way back rides the crumb line above it. `.tback` keeps its own
+   dress — it is the Toolbox's back link, not the Admin family's. */
 .fg .tool .tback {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 13px; font-weight: 700; color: var(--gray500); text-decoration: none;
@@ -104,14 +105,10 @@
 /* 38/-.035em, the app's one page-title size — see the note on `.tbx-head h1`.
    `.compact` below still overrides it to 26 for the single-viewport tools;
    that is a different kind of header, not a second opinion about this one. */
-.fg .tool .thead h1 { font-size: 24px; font-weight: 700; color: var(--ink); letter-spacing: -0.035em; line-height: 1.05; margin: 0 0 8px; }
-.fg .tool .tsub { font-size: 16px; color: var(--gray500); font-weight: 500; max-width: 640px; line-height: 1.55; margin: 0; }
+.fg .tool .tsub { font-size: 16px; color: var(--gray500); font-weight: 500; max-width: 640px; line-height: 1.55; margin: 0 0 32px; }
 
 /* compact header — single-viewport tools (quick-check calculators) */
-.fg .tool.compact .thead { margin-bottom: 16px; }
-.fg .tool.compact .trow1 { margin-bottom: 8px; }
-.fg .tool.compact .thead h1 { font-size: 24px; margin-bottom: 4px; }
-.fg .tool.compact .tsub { font-size: 13px; }
+.fg .tool.compact .tsub { font-size: 13px; margin-bottom: 16px; }
 
 /* ---------- layout ---------- */
 .fg .tool .tcols { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: start; }

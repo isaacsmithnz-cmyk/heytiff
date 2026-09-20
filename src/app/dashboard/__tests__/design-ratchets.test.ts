@@ -355,7 +355,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      badge selector whose own rule gives it a radius. A state word keeps the
      class name and loses the box, so it stops counting. */
   { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++; return n; }, baseline: 39 },
-  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 32 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 31 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of
      every use (88), then the accent migration named accent-on-state as state

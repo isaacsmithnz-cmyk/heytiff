@@ -262,7 +262,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "cool.mode",
     ask: "Is it set to COOL, with the setpoint below room temperature?",
-    why: "Check the remote or wall controller. Auto mode can sit in heating, fan-only and dry won't pull the room down, and a schedule or eco limit can cap how low the setpoint will go. Five seconds, and it's a top-three cause of a no-cool callout.",
+    why: "Check the remote or wall controller — and watch the unit answer with its beep or its lamp, because a handheld remote shows what the REMOTE thinks: it can sit on COOL while the head never got the message. Auto mode can sit in heating, fan-only and dry won't pull the room down, and a schedule or eco limit can cap how low the setpoint will go. Five seconds, and it's a top-three cause of a no-cool callout.",
     answers: [
       { label: "No — or I'm not sure", next: "out:settings-cool" },
       { label: "Yes, definitely cooling", next: "cool.state" },
@@ -1141,10 +1141,26 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "The outdoor coil is how the heat actually leaves the building. Blocked fins, a failing fan or no clearance and head pressure climbs — capacity falls away and the unit may cut out on protection.",
     actions: [
-      "Clean the outdoor coil thoroughly — between the fins",
+      "Look at it with a torch from behind first — the dust is on the face the air enters, so a coil that looks clean from the front can be packed solid on the inside",
+      "Wash it from the inside out wherever you can get behind it. Hosing it from the front drives the dirt further in",
+      "Straighten flattened fins with a comb — a bent panel chokes it as surely as dirt does",
       "Confirm the fan runs at full speed and turns the right way",
       "Restore clearance: fences, plants, stored gear, anything within a few hundred mm",
       "Check discharge air isn't recirculating back into the intake",
+    ],
+    alternatives: [
+      {
+        fix: "Chemical clean it",
+        when: "Years of dust and grease that a hose won't shift — coil cleaner, and on a wall-hung unit that often means taking it off its bracket to get behind the coil.",
+      },
+      {
+        fix: "Replace the fan's capacitor",
+        when: "The fan runs slow, or needs a flick to start, on a fixed-speed unit. The cheap part before the motor. A DC fan has none, so there it's the motor or the board driving it.",
+      },
+      {
+        fix: "Replace the fan motor",
+        when: "The capacitor tests good, or it's a DC motor, and the fan still runs slow, stalls or stops once it's hot.",
+      },
     ],
   },
   {
@@ -1154,6 +1170,8 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "Mode, airflow and the condenser are all ruled out, so the remaining candidates are charge, the metering device or the compressor — and pressures are what separate them. Everything checkable by eye is behind you.",
     actions: [
+      "Before a hose goes on, take what a clamp thermometer will tell you: the return-to-supply split, and the suction line at the outdoor unit. Every connection costs a little gas, and the temperatures alone rule plenty in and out",
+      "Check the charge label and the pipe run while you're there — a long run that never had its extra charge weighed in reads short for the rest of its life",
       "Let it stabilise 10–15 minutes at a fixed demand before reading",
       "Take suction and discharge, plus line temperatures for superheat and subcooling",
       "Inverter systems: note compressor speed alongside every reading — pressures at an unknown speed prove nothing, and the unit reports its speed in check mode",
@@ -1169,9 +1187,13 @@ export const OUTCOMES: Outcome[] = [
     confidence: "likely",
     explain:
       "It's cooling correctly — the air coming out is cold — but the room is gaining heat as fast as the unit removes it. The machine isn't at fault.",
+    customer:
+      "The unit itself is fine — we've measured what's coming out of it, and it's making cold air the way it should. What's beating it is the heat coming into the room: the sun on that glass, the door standing open, the gear running in here. Shut the room up and shade the window and it will hold the temperature; leave it open and no air conditioner this size would ever catch up.",
     actions: [
+      "Measure the return-to-supply split before you blame the room — around 8–12 K on a stabilised system says the machine is doing its job, and it ends the argument on the spot",
       "Close doors and windows, and shade west-facing glass",
       "Remove or relocate the added heat source where you can",
+      "A ceiling fan makes a room feel two or three degrees cooler for the price of a fan — worth saying before anyone quotes a bigger unit",
       "Let it run 20–30 minutes with the space closed and re-measure",
       "If the load is permanent, check the unit is still the right size for the room",
     ],
@@ -1214,8 +1236,11 @@ export const OUTCOMES: Outcome[] = [
       "Auto mode can sit in heating, fan-only and dry modes won't pull a room down, and schedules or eco limits can cap the setpoint. Worth being certain before walking outside to the condenser.",
     actions: [
       "Set the controller explicitly to COOL, not AUTO or DRY",
+      "Watch the unit answer — a beep, a lamp, the louvre moving. A handheld remote sends the whole state at once, so with weak batteries or a bad angle it sits on COOL while the head stays in fan",
       "Put the setpoint several degrees below room temperature",
-      "Clear any timer, schedule or eco/away limit",
+      "Clear any timer, schedule, sleep, eco or away limit",
+      "Check nothing else is commanding it: a second remote, the phone app, a wall controller in another room, or a building system",
+      "Check for a lock — plenty of controllers can be held to one mode, or to a range of setpoints, and the button just beeps at you",
       "Check the fan isn't stuck on its lowest speed",
       "Give it 15 minutes running before judging it",
     ],

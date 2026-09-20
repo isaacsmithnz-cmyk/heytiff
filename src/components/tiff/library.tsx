@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { Chevron } from "@/components/logo";
 import { KB_CATEGORIES, filterKbDocs, type KbCategoryKey } from "./kb";
 import { UploadDrawer } from "./upload-drawer";
@@ -251,15 +252,41 @@ export function Library({
   const zero = docs.length === 0;
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the title in the band and the way back to Tiff on
+       its own line above it — the Workboard's frame (2026-09-20). The count,
+       the quota and the embedding gap follow the band: they are facts about
+       what is in the library, not a subtitle of the screen. The two head
+       buttons wear the band's own 36px `.pbtn` — `.tk-btn` is 44 and would
+       be the tallest thing on the row. */
+    <div className="page in full">
       <div className="wrap">
-        <div className="tk-head">
-          <div className="stg">
-            <Link href="/dashboard/tiff" className="kbcrumb">
-              <Icon name="chevL" size={14} />
-              Library
-            </Link>
-            <h1 className="tk-h1">All documents</h1>
+        <div className="stg">
+          <ScreenBand
+            crumb={
+              <Link href="/dashboard/tiff" className="kbcrumb">
+                <Icon name="chevL" size={14} />
+                Library
+              </Link>
+            }
+            title="All documents"
+            /* on the empty library the CTA belongs to the sell below, which is
+               the whole screen — two Add buttons on one page is one too many */
+            tools={
+              canManage && !zero ? (
+                <>
+                  <button type="button" className="pbtn ghost" onClick={() => setManaging(true)}>
+                    <Icon name="tag" size={15} />
+                    Tags
+                  </button>
+                  <button type="button" className="pbtn primary" onClick={() => setDrawer(true)}>
+                    <Icon name="plus" size={16} />
+                    Add documents
+                  </button>
+                </>
+              ) : null
+            }
+          />
+          <ScreenPanel>
             <p className="tk-sub">
               {zero
                 ? "Nothing here yet — Tiff answers from what you upload."
@@ -274,23 +301,6 @@ export function Library({
               </p>
             )}
             {canManage && unembedded > 0 && <EmbedGap count={unembedded} />}
-          </div>
-
-          {/* on the empty library the CTA belongs to the sell below, which is
-              the whole screen — two Add buttons on one page is one too many */}
-          {canManage && !zero && (
-            <div className="tk-hact">
-              <button type="button" className="tk-btn ghost" onClick={() => setManaging(true)}>
-                <Icon name="tag" size={15} />
-                Tags
-              </button>
-              <button type="button" className="tk-btn primary" onClick={() => setDrawer(true)}>
-                <Icon name="plus" size={16} />
-                Add documents
-              </button>
-            </div>
-          )}
-        </div>
 
         {!zero && (
           <div className="tk-tools">
@@ -482,6 +492,8 @@ export function Library({
             })}
           </div>
         )}
+          </ScreenPanel>
+        </div>
       </div>
 
       {drawer && canManage && (

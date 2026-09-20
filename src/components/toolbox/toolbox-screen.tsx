@@ -18,6 +18,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import {
   BADGE_COLORS,
   categoryChips,
@@ -74,29 +75,36 @@ export function ToolboxScreen({ today }: { today: string }) {
   const total = chips.reduce((n, c) => n + c.count, 0);
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the title and the search on the band — the
+       Workboard's frame (2026-09-20). */
+    <div className="page in full">
       <div className="wrap tbx2-page">
-        <div className="tbx-head">
-          <div className="stg">
-            <h1>
-              Toolbox
-              {total > 0 && (
-                <span className="tbx2-hcount">
-                  {total} field {total === 1 ? "tool" : "tools"}
-                </span>
-              )}
-            </h1>
-          </div>
-          <div className="tbx-search">
-            <Icon name="search" size={18} />
-            <input
-              placeholder="Search tools…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search tools"
-            />
-          </div>
-        </div>
+        <div className="stg">
+          <ScreenBand
+            title={
+              <>
+                Toolbox
+                {total > 0 && (
+                  <span className="tbx2-hcount">
+                    {total} field {total === 1 ? "tool" : "tools"}
+                  </span>
+                )}
+              </>
+            }
+            tools={
+              <label className="wb2-find">
+                <Icon name="search" size={14} />
+                <input
+                  type="search"
+                  placeholder="Search tools…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  aria-label="Search tools"
+                />
+              </label>
+            }
+          />
+          <ScreenPanel>
         {tiles.length > 0 ? (
           <>
             {/* One chip more than there are categories: All is the way back,
@@ -134,6 +142,8 @@ export function ToolboxScreen({ today }: { today: string }) {
         ) : (
           <div className="tbx2-noresult">No tools match “{query.trim()}”</div>
         )}
+          </ScreenPanel>
+        </div>
       </div>
     </div>
   );

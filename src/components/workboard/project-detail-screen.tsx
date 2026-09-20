@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { NoteToken } from "@/components/notes/note-token";
 import { WbModal } from "./wb-modal";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -151,41 +152,45 @@ export function ProjectDetailScreen({
   });
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the project's name in the band with its status and
+       Edit at the band's end, and the way back to the board on its own line
+       above it (2026-09-20). Who and where follows the band: the band is for
+       the name, and the address is the first fact about the project, not a
+       subtitle of the screen. */
+    <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <div className="v2head" style={{ marginBottom: 14 }}>
-            <div style={{ minWidth: 0 }}>
+          <ScreenBand
+            crumb={
               <Link href="/dashboard/workboard" className="int-back">
                 <Icon name="chevL" size={15} />
                 Workboard
               </Link>
-              <h1 style={{ margin: "10px 0 0" }}>
-                {project.name}
-              </h1>
-              <p className="int-lede" style={{ margin: "6px 0 0" }}>
-                {[project.clientName, project.siteLabel, project.siteAddress]
-                  .filter(Boolean)
-                  .join(", ") || "No client details yet"}
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              {manage && (
-                <StatusCluster
-                  project={project}
-                  busy={busy}
-                  run={run}
-                  onBlock={() => setBlocking(true)}
-                />
-              )}
-              {manage && (
-                <button className="pbtn ghost" onClick={() => setEditingMeta(true)}>
-                  <Icon name="edit" size={15} />
-                  Edit
-                </button>
-              )}
-            </div>
-          </div>
+            }
+            title={project.name}
+            tools={
+              manage ? (
+                <>
+                  <StatusCluster
+                    project={project}
+                    busy={busy}
+                    run={run}
+                    onBlock={() => setBlocking(true)}
+                  />
+                  <button className="pbtn ghost" onClick={() => setEditingMeta(true)}>
+                    <Icon name="edit" size={15} />
+                    Edit
+                  </button>
+                </>
+              ) : null
+            }
+          />
+          <ScreenPanel>
+          <p className="int-lede">
+            {[project.clientName, project.siteLabel, project.siteAddress]
+              .filter(Boolean)
+              .join(", ") || "No client details yet"}
+          </p>
 
           {error && <div className="int-note bad">{error}</div>}
 
@@ -491,6 +496,7 @@ export function ProjectDetailScreen({
             busy={busy}
             onSave={(text) => run(() => updateProjectMeta(project.id, { notes: text }))}
           />
+          </ScreenPanel>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { getDbRole } from "@/lib/permissions-server";
@@ -25,23 +26,29 @@ export default async function SwmsTemplatePage() {
   const when = approval ? fmtAuWeekdayDayMonth(auDayOf(approval.approvedAt)) : null;
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the title in the band and the way back on its own
+       line above it (2026-09-20). Who approved it, and when, follows the band:
+       it is a fact about the template rather than a subtitle of the screen. */
+    <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <div className="sws">
-            <div className="sws-head">
+          <ScreenBand
+            crumb={
               <Link className="sws-back" href="/dashboard">
                 ← Home
               </Link>
-              <h1>SWMS template</h1>
-              <p>
-                {approval
-                  ? `Approved by ${approval.approvedBy} on ${when}. Every SWMS is written from these steps.`
-                  : isOwner
-                    ? "Read the steps and controls, then approve them at the end. No SWMS can be issued until you do."
-                    : `${owner ?? "The owner"} approves the template before the first SWMS can be issued.`}
-              </p>
-            </div>
+            }
+            title="SWMS template"
+          />
+          <ScreenPanel>
+          <div className="sws">
+            <p className="sws-lede">
+              {approval
+                ? `Approved by ${approval.approvedBy} on ${when}. Every SWMS is written from these steps.`
+                : isOwner
+                  ? "Read the steps and controls, then approve them at the end. No SWMS can be issued until you do."
+                  : `${owner ?? "The owner"} approves the template before the first SWMS can be issued.`}
+            </p>
             <div className="card2 sws-read">
               <TemplateSteps />
             </div>
@@ -51,6 +58,7 @@ export default async function SwmsTemplatePage() {
               </div>
             )}
           </div>
+          </ScreenPanel>
         </div>
       </div>
     </div>

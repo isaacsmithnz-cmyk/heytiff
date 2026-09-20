@@ -7,6 +7,7 @@
 
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import "./toolbox.css";
 
 export function ToolPage({
@@ -27,21 +28,29 @@ export function ToolPage({
   children: React.ReactNode;
 }) {
   return (
-    <div className="page in">
+    /* Paper to the frame, the tool's name in the band and the way back to the
+       Toolbox on its own line above it — the Workboard's frame (2026-09-20).
+       The line under the title stays with the tool, where it says what the
+       tool does; the band is for its name. */
+    <div className="page in full">
       <div className="wrap">
         {/* the per-tool accent went with the fold (ink and paper): the page is ink and paper like every other */}
-        <div className={"tool" + (compact ? " compact" : "")}>
-          <div className="thead stg">
-            <div className="trow1">
+        <div className="stg">
+          <ScreenBand
+            crumb={
               <Link href="/dashboard/toolbox" className="tback">
                 <Icon name="chevL" size={15} />
                 Toolbox
               </Link>
+            }
+            title={title}
+          />
+          <ScreenPanel>
+            <div className={"tool" + (compact ? " compact" : "")}>
+              {sub && <p className="tsub">{sub}</p>}
+              {children}
             </div>
-            <h1>{title}</h1>
-            {sub && <p className="tsub">{sub}</p>}
-          </div>
-          {children}
+          </ScreenPanel>
         </div>
       </div>
     </div>

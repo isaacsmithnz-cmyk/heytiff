@@ -281,16 +281,11 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pk-b { display:block; border-radius:6px;
   background:linear-gradient(100deg, rgba(10,12,20,.05) 30%, rgba(10,12,20,.09) 50%, rgba(10,12,20,.05) 70%);
   background-size:200% 100%; animation:pkSweep 1.6s ease-in-out infinite; }
-.fg .pk-head { margin-bottom:32px; }
-.fg .pk-eyebrow { width:118px; height:11px; border-radius:var(--r-control); margin-bottom:16px; }
-.fg .pk-title { width:min(340px, 60%); height:34px; border-radius:var(--r-button); margin-bottom:12px; }
-.fg .pk-sub { width:min(220px, 40%); height:13px; }
-.fg .pk-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:32px; }
-.fg .pk-tile { background:var(--paper); border-radius:var(--r-button); padding:24px; }
-.fg .pk-tk { width:64px; height:10px; border-radius:999px; margin-bottom:16px; }
-.fg .pk-tv { width:88px; height:26px; border-radius:var(--r-button); }
-.fg .pk-card { background:var(--paper); border-radius:var(--r-card); padding:12px 24px; }
+/* the h1's own block, in the h1's own seat — 24px of it, the height of the
+   title that is about to replace it */
+.fg .pk-title { width:180px; height:24px; border-radius:var(--r-control); }
 .fg .pk-row { display:flex; align-items:center; gap:16px; padding:16px 0; border-bottom:1px solid var(--line); }
+.fg .pk-row:first-child { padding-top:0; }
 .fg .pk-row:last-child { border-bottom:none; }
 .fg .pk-dot { width:38px; height:38px; border-radius:50%; flex:0 0 auto; }
 .fg .pk-l1 { flex:0 1 220px; height:13px; }
@@ -702,20 +697,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .thread:hover .th b { color:var(--ink); }
 .fg .thread em { font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
 
-/* ---------------- TOOLBOX ---------------- */
-.fg .tbx-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:48px; gap:24px; flex-wrap:wrap; }
-/* 38/-.035em, like every other page title. #350 swept THIRTEEN inline 44s into
-   `.v2head h1` and missed this one and the tool pages' 40 — both were CSS
-   rules rather than style objects, so a sweep looking for the copied object
-   never saw them, and the commit's "every heading the app declares in CSS
-   lands on 38" was not true when it was written. Toolbox was the loudest
-   title in the app. */
-.fg .tbx-head h1 { font-size:24px; font-weight:700; color:var(--ink); letter-spacing:-.035em; line-height:1; margin:0; }
-.fg .tbx-search { position:relative; width:100%; max-width:384px; }
-.fg .tbx-search svg { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color var(--t-fast) var(--ease); }
-.fg .tbx-search:focus-within svg { color:var(--ink); }
-.fg .tbx-search input { width:100%; padding:12px 16px 12px 48px; background:var(--paper); border-radius:var(--r-control); border:1px solid var(--line); font-size:16px; font-weight:500; outline:none; transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .tbx-search input:focus {  box-shadow:var(--ring); border-color:var(--line); }
+/* ---------------- THE LIBRARY'S CATEGORY CARD ----------------
+   The Toolbox's own head and search stood here until its landing took the
+   Workboard's band (2026-09-20). What is left is `.cat`, which the Library's
+   document screen uses — see the note at the top of toolbox.css. */
 .fg .cat { position:relative; background:var(--paper); border-radius:var(--r-card); border:1px solid var(--paper); transition:box-shadow var(--t-fast) var(--ease); height:100%; }
 .fg .cat:hover { }
 .fg .cat .ctop { position:absolute; top:0; left:0; right:0; height:6px; opacity:.8; z-index:10; border-radius:999px 999px 0 0; }
@@ -8072,12 +8057,24 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    does not reach this band: it holds one line and gives ground instead */
 .fg .page.full .wb2-vt:first-of-type { margin-left:0; }
 .fg .page.full .wb2-vtrow { align-self:stretch; align-items:stretch; flex:none; }
-.fg .page.full .wb2-h1 { white-space:nowrap; flex:none; }
+/* A title that is DATA — a project's name, a person's — can be any length,
+   and the band does not wrap: it would push the buttons past the frame's edge,
+   where `overflow:hidden` eats them. So the title shrinks before anything else
+   does and ends in an ellipsis. A title that is a word ("Projects", "Admin")
+   never reaches this. */
+.fg .page.full .wb2-h1 { white-space:nowrap; flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; }
 /* the right-hand group rides the band's middle line and takes the squeeze */
 .fg .page.full .wb2-vtcap {
   margin-left:auto; gap:8px; padding-bottom:0; align-items:center;
   flex:0 1 auto; min-width:0;
 }
+/* A CAP WITH NO SEARCH FIELD CANNOT GIVE ROOM UP. The board's cap shrinks
+   because the field in it is built to; a cap of buttons has nothing that
+   shrinks, so shrinking it only hangs the last button off the frame's edge,
+   where `overflow:hidden` eats it — which is what a long project name did.
+   The title is the one that gives way: it ellipsises (above). */
+.fg .page.full .wb2-vtcap:not(:has(.wb2-find)) { flex:none; }
+.fg .page.full .wb2-headtools .pbtn { white-space:nowrap; }
 
 /* ── THE TITLE IS THE SWITCHER ──
    The three sides stood in a tray on a line of their own above the band for
@@ -8194,6 +8191,9 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    column and re-lay-out the face inside it. */
 .fg .page.full .wb2-panel .wb2-card { flex:none; display:block; border:0; border-radius:0; overflow:visible; }
 .fg .page.full .wb2-panel > section { min-width:0; }
+/* A screen whose content was written against a card's inner padding keeps
+   it: `pad` is that card's 24px, now on the panel itself (shell/screen-band). */
+.fg .page.full .wb2-panel.pad { padding:24px; }
 /* Team's directory and the fleet register draw their list as a `.dir` card
    rather than a `.wb2-card`; on paper the same edge goes the same way. Its
    toolbar was inset 16px from the card's own edge — with the edge gone it
@@ -9008,12 +9008,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    NO MONOSPACE ANYWHERE, including the kind badge and the page counts —
    Jakarta carries them, per the brief's first hard constraint. */
 
-/* ── the page head: what's here, and the month's allowance ── */
-.fg .tk-head { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:24px; }
-/* The Library's title. A fourteenth 44 — it escaped #350's sweep by wearing a
-   CLASS instead of being an `h1` under a header class, so neither the scan for
-   inline style objects nor a look down the list of `… h1` selectors found it. */
-.fg .tk-h1 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.035em; line-height:1; color:var(--ink); }
+/* ── what's here, and the month's allowance, under the band ──
+   The head row and its own title went when the screen took the frame
+   (2026-09-20): the band holds the title and the two buttons now. */
 .fg .tk-sub { margin:8px 0 0; font-size:14px; font-weight:600; color:var(--gray500); }
 /* a line, not a pill: the figure under the title, in the quiet colour (law 26) */
 .fg .tk-quota { display:inline-flex; align-items:center; gap:8px; margin:12px 0 0; color:var(--q); font-size:13px; font-weight:500; }
@@ -9383,7 +9380,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tgl-more { font-size:12px; font-weight:700; color:var(--gray400); }
 
 /* ── the filter rail ── */
-.fg .tk-hact { display:inline-flex; align-items:center; gap:8px; }
 .fg .tk-trail { display:flex; align-items:flex-start; gap:8px; flex:1 1 100%; padding-top:2px; }
 .fg .tk-tlbl { display:inline-flex; align-items:center; gap:4px; height:38px; flex:none;
   font-size:12px; font-weight:500; color:var(--gray400); }
@@ -10527,6 +10523,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-wrap > .stg { flex:1; min-height:0; display:flex; flex-direction:column; }
 .fg .hm-card { flex:1; min-height:0; display:flex; flex-direction:column;
   background:var(--paper); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+/* ON THE FRAME the card IS the screen: the 16px margin around it comes off
+   with `.page.full`'s wrap reset, and an edge drawn on the frame's own inset
+   is two lines a pixel apart (2026-09-20). */
+.fg .page.full .hm-card { border:0; border-radius:0; }
 
 /* ── THE DAY, ACROSS THE TOP ──
    The date is the h1 — the shell's rail already says Home — and the day is

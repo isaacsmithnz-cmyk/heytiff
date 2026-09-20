@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { ChipTile } from "./chip-tile";
 import type { DashboardChips } from "@/lib/dashboard/assemble";
 
@@ -13,31 +14,21 @@ export function ActionRequiredBoard({ chips }: { chips: DashboardChips }) {
   const total = chips.self.length + chips.team.length;
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the title in the band and the way back on its own
+       line above it — the Workboard's frame (2026-09-20). */
+    <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <Link
-                href="/dashboard"
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#9ca3af",
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  marginBottom: 12,
-                }}
-              >
-                ← Home
+          <ScreenBand
+            crumb={
+              <Link href="/dashboard" className="int-back">
+                <Icon name="chevL" size={15} />
+                Home
               </Link>
-              <h1>
-                Action required
-              </h1>
-            </div>
-          </div>
+            }
+            title="Action required"
+          />
+          <ScreenPanel>
 
           {total === 0 ? (
             <div className="emptybox">
@@ -57,7 +48,10 @@ export function ActionRequiredBoard({ chips }: { chips: DashboardChips }) {
               </em>
             </div>
           ) : (
-            <div className="card2">
+            /* This was a `.card2` — the white card on the grey well. With the
+               well gone it would be a box drawn around the whole page, so the
+               tiles stand on the paper themselves. */
+            <>
               {chips.self.length > 0 && (
                 <>
                   {chips.team.length > 0 && <div className="dash-sub">Yours</div>}
@@ -78,8 +72,9 @@ export function ActionRequiredBoard({ chips }: { chips: DashboardChips }) {
                   </div>
                 </>
               )}
-            </div>
+            </>
           )}
+          </ScreenPanel>
         </div>
       </div>
     </div>

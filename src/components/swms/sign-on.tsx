@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { useRouter } from "next/navigation";
 import { clearSwmsIssue, raiseSwmsIssue, signOnSwms } from "@/app/actions/swms";
 import { BELL_REFRESH_EVENT } from "@/lib/dashboard/chips";
@@ -314,12 +315,17 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
   };
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the title in the band and the way back — to the job
+       it belongs to, or Home — on its own line above it (2026-09-20). The
+       address follows the band: it is the first fact about this SWMS, not a
+       subtitle of the screen. The 760 column stays; this is read and signed
+       on a phone in a yard. */
+    <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <div className="sws">
-            <div className="sws-head">
-              {doc.job ? (
+          <ScreenBand
+            crumb={
+              doc.job ? (
                 <Link className="sws-back" href={`/dashboard/workboard?job=${encodeURIComponent(doc.job.uuid)}`}>
                   {doc.job.number ? `← Job #${doc.job.number}` : "← The job"}
                 </Link>
@@ -327,10 +333,13 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
                 <Link className="sws-back" href="/dashboard">
                   ← Home
                 </Link>
-              )}
-              <h1>Safe Work Method Statement</h1>
-              <p>{doc.job?.address ?? "No address on the job"}</p>
-            </div>
+              )
+            }
+            title="Safe Work Method Statement"
+          />
+          <ScreenPanel>
+          <div className="sws">
+            <p className="sws-lede">{doc.job?.address ?? "No address on the job"}</p>
 
             {!doc.latest && latest && (
               <div className="card2 sws-card">
@@ -531,6 +540,7 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
               />
             )}
           </div>
+          </ScreenPanel>
         </div>
       </div>
     </div>

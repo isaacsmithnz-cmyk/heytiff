@@ -190,9 +190,16 @@ Every decision below is made once, here, and a guard test holds each number.
   took the handoff's layout but kept the old board in it — lanes of three
   bold lines at 76px, a red ring round every job that did not go ahead, a
   header that wrapped to two lines below 1500px — and squared the well's
-  corners. What it is now: the switcher on a line of its own over everything
-  it scopes; under it one 56px band of the title, the tabs, the search and
-  Display mode; the mirror's freshness at the end of every toolbar; a week
+  corners. What it is now: one 56px band of the title, the tabs, the search
+  and Display mode — **and the title is the switcher** (decided 2026-09-20,
+  from six ways drawn side by side at 1440: "go with 1, the title switcher").
+  The three sides stood in a tray on a line of their own for one release,
+  which cost 48px of board on every tab and named the screen under a rail
+  that already names it. The title says which side you are reading, "All
+  jobs", and opens a menu to change it; what the seats did and the menu keeps
+  is the summons — the arrow wears a dot in the worst tone waiting on another
+  side, and the menu says which side and how many, in words. The mirror's
+  freshness at the end of every toolbar; a week
   of seven equal day chips across the toolbar, each the day's name alone,
   the chosen one in ink; cards of three lines in 64px lanes — the customer,
   the job number with the category, the suburb — so every card carries its

@@ -74,6 +74,9 @@ type BoardStub = {
   manage: boolean;
   connected: boolean;
   flags: unknown[];
+  /* the screen's h1 — and since 2026-09-20 the side switcher lives in it, so
+     a stub that dropped it would hide the control every side test presses */
+  lead?: React.ReactNode;
   tools?: React.ReactNode;
   searchPanel?: React.ReactNode;
   openTarget?: { kind: string; id?: string; job?: { remoteId: string } } | null;
@@ -91,6 +94,7 @@ const stubBody = (testid: string, p: BoardStub) => (
     board · manage:{String(p.manage)} · connected:{String(p.connected)} · flags:{p.flags.length} ·
     sm8:
     {p.sm8 ? (p.sm8.attention ? "attention" : "ok") : "none"} · open:{handoffOf(p)}
+    {p.lead}
     {p.tools}
     {p.searchPanel}
   </div>
@@ -114,6 +118,7 @@ jest.mock("../board/all-jobs-board", () => ({
         .join("+") || "none"}
       {", open:"}
       {handoffOf(p)}
+      {p.lead}
       {p.tools}
       {p.searchPanel}
     </div>
@@ -209,11 +214,23 @@ const flag = (over: Partial<BoardFlag> & { id: string }): BoardFlag => ({
   ...over,
 });
 
-const toProjects = () => userEvent.click(screen.getByRole("tab", { name: /Projects/ }));
-/* The board opens on All jobs now, so anything asserting about the two
-   curated boards walks to them first — the same click a person makes. */
-const toMaintenance = () => userEvent.click(screen.getByRole("tab", { name: /Maintenance/ }));
-const seg = () => screen.getByRole("tablist", { name: "Which work" });
+/* THE SIDES ARE A MENU ON THE TITLE (2026-09-20), not a tray of three seats:
+   the title says which side you are reading and opens the menu to change it.
+   So walking to a side is the same two presses a person makes.
+
+   The board opens on All jobs, so anything asserting about the two curated
+   boards walks to them first. */
+const sideButton = () => screen.getByRole("button", { name: /^(All jobs|Projects|Maintenance)\b/ });
+const openSides = async () => {
+  await userEvent.click(sideButton());
+  return screen.getByRole("menu", { name: "Which work" });
+};
+const goSide = async (label: RegExp) => {
+  await openSides();
+  await userEvent.click(screen.getByRole("menuitemradio", { name: label }));
+};
+const toProjects = () => goSide(/^Projects/);
+const toMaintenance = () => goSide(/^Maintenance/);
 
 describe("standalone", () => {
   /* The page itself says NOTHING about being standalone — the offer lives in
@@ -248,15 +265,14 @@ describe("the switcher", () => {
      the only side carrying the whole account's day, and its Schedule tab
      answers the question this board is asked first each morning. Nothing in
      the CSS is position-keyed, so only this test would notice a reshuffle. */
-  it("leads with All jobs, then the two curated sides", () => {
+  it("leads with All jobs, then the two curated sides", async () => {
     render(<OverviewScreen data={base} />);
-    /* firstChild, not textContent: the curated sides append a badge, and the
-       fact that All jobs has none is its own rule, pinned below. */
-    expect(screen.getAllByRole("tab").map((t) => t.firstChild?.textContent)).toEqual([
-      "All jobs",
-      "Projects",
-      "Maintenance",
-    ]);
+    await openSides();
+    /* the label's own span, not the row: a side that is waiting appends the
+       count in words, and the fact that All jobs never does is its own rule. */
+    expect(
+      screen.getAllByRole("menuitemradio").map((t) => t.children[1]?.textContent)
+    ).toEqual(["All jobs", "Projects", "Maintenance"]);
   });
 
   /* The landing side follows the order: first side, first tab, which puts
@@ -281,13 +297,23 @@ describe("the switcher", () => {
     expect(screen.queryByTestId("pboard")).not.toBeInTheDocument();
   });
 
-  it("carries the live side on the element, so the fill takes that side's colour", async () => {
+  /* The side you are on IS the title — the one place it is said, now that the
+     seats are gone. The tick in the menu says it a second time, for the press
+     that changes it. */
+  it("says the live side in the title, and ticks it in the menu", async () => {
     render(<OverviewScreen data={base} />);
-    expect(seg()).toHaveAttribute("data-on", "jobs");
+    expect(sideButton()).toHaveTextContent(/^All jobs/);
     await toProjects();
-    expect(seg()).toHaveAttribute("data-on", "projects");
-    await toMaintenance();
-    expect(seg()).toHaveAttribute("data-on", "maintenance");
+    expect(sideButton()).toHaveTextContent(/^Projects/);
+    await openSides();
+    expect(screen.getByRole("menuitemradio", { name: /^Projects/ })).toHaveAttribute(
+      "aria-checked",
+      "true"
+    );
+    expect(screen.getByRole("menuitemradio", { name: /^All jobs/ })).toHaveAttribute(
+      "aria-checked",
+      "false"
+    );
   });
 
   it("hands both boards their permissions and connection truthfully", async () => {
@@ -313,7 +339,7 @@ describe("the switcher", () => {
    work, each with a queue. All jobs is the whole book, which is a reference
    rather than a to-do list, and the difference has to show. */
 describe("the All jobs side", () => {
-  const toJobs = () => userEvent.click(screen.getByRole("tab", { name: /All jobs/ }));
+  const toJobs = () => goSide(/^All jobs/);
 
   it("swaps in as a whole board, like the other two", async () => {
     render(<OverviewScreen data={base} />);
@@ -323,20 +349,29 @@ describe("the All jobs side", () => {
     expect(screen.queryByTestId("pboard")).not.toBeInTheDocument();
   });
 
-  it("carries its own identity on the element", async () => {
+  it("names itself in the title once you are on it", async () => {
     render(<OverviewScreen data={base} />);
+    await toMaintenance();
     await toJobs();
-    expect(seg()).toHaveAttribute("data-on", "jobs");
+    expect(sideButton()).toHaveTextContent(/^All jobs/);
   });
 
   /* A badge means "this many need you today". A total of everything answers a
      different question, and a number that LOOKS like the others while meaning
      something else is worse than no number. */
-  it("wears no count, where the other two do", () => {
-    render(<OverviewScreen data={base} />);
-    const jobs = screen.getByRole("tab", { name: /All jobs/ });
-    expect(jobs.querySelector("i")).toBeNull();
-    expect(screen.getByRole("tab", { name: /Maintenance/ }).querySelector("i")).not.toBeNull();
+  it("wears no count, where the other two do", async () => {
+    const data: WorkboardData = {
+      ...base,
+      board: { ...base.board, visits: [visitStub({ id: "mv-1", dueDate: "2026-07-01" })] },
+    };
+    render(<OverviewScreen data={data} />);
+    await openSides();
+    expect(screen.getByRole("menuitemradio", { name: /^All jobs/ })).toHaveTextContent(
+      /^All jobs$/
+    );
+    expect(screen.getByRole("menuitemradio", { name: /^Maintenance/ })).toHaveTextContent(
+      "1 needs you"
+    );
   });
 
   it("hands the board the money grant", async () => {
@@ -356,7 +391,9 @@ describe("the All jobs side", () => {
      a third of its board missing with no explanation. */
   it("is offered even with no ServiceM8 connection", async () => {
     render(<OverviewScreen data={base} />);
-    expect(screen.getByRole("tab", { name: /All jobs/ })).toBeInTheDocument();
+    await openSides();
+    expect(screen.getByRole("menuitemradio", { name: /^All jobs/ })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
     await toJobs();
     expect(screen.getByTestId("jboard")).toHaveTextContent("connected:false");
   });
@@ -387,7 +424,8 @@ describe("display mode", () => {
   it("keeps the side switcher live — you can still change boards from inside it", async () => {
     render(<OverviewScreen data={base} />);
     const user = await enter();
-    await user.click(screen.getByRole("tab", { name: /Projects/ }));
+    await user.click(sideButton());
+    await user.click(screen.getByRole("menuitemradio", { name: /^Projects/ }));
     expect(screen.getByTestId("pboard")).toBeInTheDocument();
     // and the mode survived the switch
     expect(document.documentElement).toHaveAttribute("data-wb-display", "on");
@@ -421,33 +459,42 @@ describe("display mode", () => {
   });
 });
 
-/* The count on each side of the switcher is that side's Urgent queue, run
-   through the SAME derivation the tab uses — the number you'd see if you
-   switched. A quiet side reads 0 in the ok tone, never a red 0. */
+/* WHAT THE SEATS SAID, THE MENU SAYS IN WORDS. Each side's count is still
+   that side's Urgent queue, derived the SAME way the tab derives it — the
+   number you would see if you switched. The tray showed every side's figure
+   at all times, including a 0; a menu you have to open cannot, so the count
+   is a sentence in its state's colour, a quiet side says nothing at all (a
+   zero is not a count), and the title's arrow wears a dot while any OTHER
+   side is waiting — the summons the seats were there for. */
 describe("the side counts", () => {
   const overdue = visitStub({ id: "mv-1", dueDate: "2026-07-01" });
+  const dotOf = () => sideButton().querySelector("i");
 
-  it("counts each side's urgent queue on its own button", () => {
+  it("says each side's urgent queue in its menu, in words", async () => {
     const data: WorkboardData = {
       ...base,
       board: { ...base.board, visits: [overdue] },
     };
     render(<OverviewScreen data={data} />);
-    const maint = screen.getByRole("tab", { name: /Maintenance/ });
-    const proj = screen.getByRole("tab", { name: /Projects/ });
-    expect(maint.querySelector("i")).toHaveTextContent("1");
-    expect(proj.querySelector("i")).toHaveTextContent("0");
+    await openSides();
+    expect(screen.getByRole("menuitemradio", { name: /^Maintenance/ })).toHaveTextContent(
+      "1 needs you"
+    );
+    // nothing open on projects, so it says nothing rather than "0"
+    expect(screen.getByRole("menuitemradio", { name: /^Projects/ })).toHaveTextContent(
+      /^Projects$/
+    );
   });
 
-  it("takes its tone from the worst row on that side — clear when nothing is open", () => {
+  it("leaves the title's arrow bare when nothing is waiting anywhere else", () => {
     render(<OverviewScreen data={base} />);
-    expect(screen.getByRole("tab", { name: /Maintenance/ }).querySelector("i")).toHaveClass("clr");
+    expect(dotOf()).toBeNull();
   });
 
-  it("reads danger when something is overdue, warn when it is only unready", () => {
+  it("dots the arrow in danger when something is overdue, warn when it is only unready", () => {
     const dan: WorkboardData = { ...base, board: { ...base.board, visits: [overdue] } };
     const { unmount } = render(<OverviewScreen data={dan} />);
-    expect(screen.getByRole("tab", { name: /Maintenance/ }).querySelector("i")).toHaveClass("dan");
+    expect(dotOf()).toHaveClass("dan");
     unmount();
 
     const warn: WorkboardData = {
@@ -455,19 +502,46 @@ describe("the side counts", () => {
       flags: [flag({ id: "f-1", severity: "warn" })],
     };
     render(<OverviewScreen data={warn} />);
-    expect(screen.getByRole("tab", { name: /Maintenance/ }).querySelector("i")).toHaveClass("wrn");
+    expect(dotOf()).toHaveClass("wrn");
   });
 
-  it("counts a project flag on the PROJECTS side, never both", () => {
+  /* The dot is about the sides you are NOT on: standing on the side that is
+     waiting, its own Urgent tab is the thing saying so. */
+  it("drops the dot once you are on the side that was waiting", async () => {
+    render(<OverviewScreen data={{ ...base, board: { ...base.board, visits: [overdue] } }} />);
+    expect(dotOf()).toHaveClass("dan");
+    await toMaintenance();
+    expect(dotOf()).toBeNull();
+  });
+
+  it("counts a project flag on the PROJECTS side, never both", async () => {
     const data: WorkboardData = {
       ...base,
       flags: [flag({ id: "f-1", targetKind: "project", targetId: "p-1" })],
     };
     render(<OverviewScreen data={data} />);
-    expect(screen.getByRole("tab", { name: /Projects/ }).querySelector("i")).toHaveTextContent("1");
-    expect(screen.getByRole("tab", { name: /Maintenance/ }).querySelector("i")).toHaveTextContent(
-      "0"
+    await openSides();
+    expect(screen.getByRole("menuitemradio", { name: /^Projects/ })).toHaveTextContent(
+      "1 needs you"
     );
+    expect(screen.getByRole("menuitemradio", { name: /^Maintenance/ })).toHaveTextContent(
+      /^Maintenance$/
+    );
+  });
+
+  /* An ARIA menu promises the keyboard: the title opens it, the arrows walk
+     it, Escape closes it and hands focus back to the title. */
+  it("opens, walks and closes from the keyboard", async () => {
+    const user = userEvent.setup();
+    render(<OverviewScreen data={base} />);
+    sideButton().focus();
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitemradio", { name: /^All jobs/ })).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitemradio", { name: /^Projects/ })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByTestId("pboard")).toBeInTheDocument();
+    expect(sideButton()).toHaveFocus();
   });
 });
 

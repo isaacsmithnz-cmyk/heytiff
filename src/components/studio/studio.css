@@ -10429,6 +10429,16 @@ html[data-ds-display] .dstudio.editing {
    quiet size, so it reads as a second half of the question above it rather
    than the next question down the list. */
 .ds-iq-qw { border-bottom: 1px solid var(--line); }
+/* The whole run is on the page, and it still reads as a stepper: what has
+   been answered and the question being asked stand at full strength, and
+   everything past it is greyed and cannot be ticked until its turn comes.
+   Nothing is hidden — you can see the run you are in — and nothing is ever
+   stuck, because every question takes Not sure yet. */
+.ds-iq-qw.ahead,
+.ds-iq-subw.ahead,
+.ds-iq-gh.ahead {
+  opacity: 0.4;
+}
 .ds-iq-row {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
@@ -10482,7 +10492,8 @@ html[data-ds-display] .dstudio.editing {
   cursor: pointer;
   transition: background-color var(--t-fast) var(--ease);
 }
-.ds-iq-choice:hover { background: var(--tint); }
+.ds-iq-choice:hover:not(:disabled) { background: var(--tint); }
+.ds-iq-choice:disabled { cursor: default; }
 .ds-iq-choice.on { outline: 2px solid var(--ink); outline-offset: -2px; }
 .ds-iq-box {
   width: 16px;

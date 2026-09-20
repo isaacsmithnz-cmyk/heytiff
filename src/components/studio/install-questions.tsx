@@ -3,6 +3,13 @@
    in, and every answer puts its parts on the equipment list beside it as it
    is given. The engine is install.ts; this is its screen.
 
+   The whole run is on the page — it is eight short questions, not eight
+   screens — and it is still asked in order: what has been answered and the
+   question being asked stand at full strength, and everything past it is
+   greyed and cannot be ticked until its turn. Nothing is hidden, so you can
+   see the run you are in, and nothing is ever stuck, because every question
+   takes Not sure yet.
+
    Every question takes more than one answer. Where only one can happen in
    the end, two ticks mean make provisions for both: the row says so, both
    lots of parts go on the list marked Confirm on the day, and the installer
@@ -20,6 +27,7 @@ import { KIND_WORD, systemKind } from "@/lib/studio/zones";
 import { brandName } from "@/lib/studio/verdict";
 import {
   answerInstall,
+  askedQuestions,
   equipmentList,
   installAnswers,
   installQuestions,
@@ -76,6 +84,15 @@ export function InstallQuestions({
   const answers = installAnswers(draft, sys);
   const questions = installQuestions(draft, pack, sys);
   const list = equipmentList(draft, pack, sys);
+  /* Where the run is up to. The whole run is on the page, but it is asked in
+     order: the first question with no tick is the one being asked, and the
+     UNANSWERED ones past it are greyed until their turn. An answer already
+     given is never greyed, wherever it sits — going back to change one is
+     the whole reason for keeping the run on the page. */
+  const run = askedQuestions(draft, pack, sys);
+  const asking = run.findIndex((q) => !(answers[q.id] ?? []).length);
+  const ahead = (id: string): boolean =>
+    asking >= 0 && !(answers[id] ?? []).length && run.findIndex((q) => q.id === id) > asking;
   const units = hasAllocations(sys) ? allocationsOf(sys).filter((a) => a.model) : [];
   const kind = systemKind(draft, sys);
   const outdoor = units.find((a) => a.role === "odu");
@@ -106,8 +123,12 @@ export function InstallQuestions({
     const ticks = answers[question.id] ?? [];
     const notSure = ticks.length === 1 && ticks[0] === NOT_SURE;
     const provisions = question.exclusive && ticks.length >= 2;
+    const waits = ahead(question.id);
     return (
-      <div key={question.id} className={depth ? "ds-iq-subw" : "ds-iq-qw"}>
+      <div
+        key={question.id}
+        className={`${depth ? "ds-iq-subw" : "ds-iq-qw"}${waits ? " ahead" : ""}`}
+      >
         <div className={`ds-iq-row${depth ? " sub" : ""}`}>
           <div>
             <div className="ds-iq-q">{question.text}</div>
@@ -123,6 +144,7 @@ export function InstallQuestions({
                     className={`ds-iq-choice${on ? " on" : ""}`}
                     role="checkbox"
                     aria-checked={on}
+                    disabled={waits}
                     onClick={() => toggle(question, option.id)}
                   >
                     <BoxGlyph on={on} />
@@ -207,7 +229,7 @@ export function InstallQuestions({
               const sub = groupSub(group);
               return (
                 <section key={group} className="ds-iq-group" aria-label={group}>
-                  <div className="ds-iq-gh">
+                  <div className={`ds-iq-gh${mine.every((q) => ahead(q.id)) ? " ahead" : ""}`}>
                     {group}
                     {sub && <span className="ds-iq-gsub">{sub}</span>}
                   </div>

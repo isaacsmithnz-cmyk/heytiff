@@ -405,6 +405,10 @@
 .fg .tool .ffg-side { display: grid; gap: 16px; }
 
 /* symptom picker */
+.fg .tool .ffg-pick, .fg .tool .ffg-side > .tcard {
+  background: none; border: 0; border-radius: 0; padding: 0;
+}
+.fg .tool .ffg-side > .tcard + .tcard { margin-top: 0; padding-top: 24px; border-top: 1px solid var(--line); }
 .fg .tool .ffg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 620px) { .fg .tool .ffg-grid { grid-template-columns: 1fr; } }
 .fg .tool .ffg-sym {
@@ -418,10 +422,18 @@
 .fg .tool .ffg-sym b { display: block; font-size: 14px; font-weight: 700; color: var(--ink); }
 .fg .tool .ffg-sym em { font-style: normal; display: block; font-size: 12px; color: var(--gray400); font-weight: 500; margin-top: 2px; }
 
-/* the symptom you're working, with the step counter */
+/* the symptom you're working, with the step counter.
+
+   THE WALK SITS ON PAPER NOW (the frame rollout, 2026-09-20): the grey well
+   it was drawn against is gone, so a white card with a hairline is paper on
+   paper and the edges do nothing. Law 9 sorts it: what you READ is a group —
+   no box, a hairline, space — and what you PRESS keeps its edge. So the
+   strip, the question, the actions and the say-this card become groups; the
+   symptom tiles, the answer buttons and the trail rows stay as they are,
+   because every one of them is a control. */
 .fg .tool .ffg-head {
   display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
-  padding: 12px 12px; border-radius: var(--r-card); background: var(--paper); border: 1px solid var(--line);
+  padding: 0 0 12px; border-bottom: 1px solid var(--line);
 }
 .fg .tool .ffg-head .ic { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; color: var(--ink); }
 .fg .tool .ffg-head b { font-size: 14px; font-weight: 700; color: var(--ink); }
@@ -441,7 +453,7 @@
 .fg .tool .ffg-head .chg:hover { color: var(--ink); }
 
 /* the words to say on site — reads as something you'd speak, not a spec */
-.fg .tool .ffg-say { margin-top: 12px; border-left: 1px solid var(--line); }
+.fg .tool .ffg-say p:first-of-type { margin-top: 0; }
 .fg .tool .ffg-say p {
   margin: 8px 0 0; font-size: 14px; font-weight: 500; line-height: 1.65;
   color: var(--gray600, var(--ink)); font-style: italic;
@@ -465,7 +477,7 @@
    into view with `block: "nearest"` (see fault-finder.tsx), and without a
    margin a card taller than the well lands flush against the edge of it. */
 .fg .tool .ffg-q {
-  background: var(--paper); border-radius: var(--r-card); border: 1px solid var(--line); padding: 24px;
+  padding: 8px 0 0;
   scroll-margin: 16px 0;
 }
 .fg .tool .ffg-q h2 { font-size: 24px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; line-height: 1.28; margin: 0; }
@@ -508,7 +520,10 @@
 /* what to do. The numbers are the point of an ordered list — Tailwind's
    preflight strips every list's marker, which left the steps as an indented
    column with the ::marker rule below styling nothing */
-.fg .tool .ffg-actions { margin-top: 16px; }
+.fg .tool .ffg-actions, .fg .tool .ffg-say, .fg .tool .ffg-look {
+  background: none; border: 0; border-radius: 0; padding: 24px 0 0; margin-top: 24px;
+  border-top: 1px solid var(--line);
+}
 .fg .tool .ffg-actions ol { margin: 0; padding-left: 16px; display: grid; gap: 12px; list-style: decimal; }
 .fg .tool .ffg-actions li { font-size: 14px; font-weight: 500; color: var(--gray700); line-height: 1.6; }
 .fg .tool .ffg-actions li::marker { font-weight: 700; color: var(--gray400); }
@@ -526,7 +541,7 @@
    the same way .ffg-say does rather than arriving as an unrelated white card.
    The field and the button are the toolbox's own .tin/.tbtn: this is one more
    place the tool asks for something, not a new kind of place. */
-.fg .tool .ffg-look { margin-top: 16px; border-left: 1px solid var(--line); }
+
 .fg .tool .ffg-lookf { display: flex; gap: 8px; align-items: center; }
 .fg .tool .ffg-lookf .tin { flex: 1; min-width: 0; }
 .fg .tool .ffg-lookf .tbtn { flex: 0 0 auto; }

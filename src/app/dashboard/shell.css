@@ -8057,12 +8057,24 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    does not reach this band: it holds one line and gives ground instead */
 .fg .page.full .wb2-vt:first-of-type { margin-left:0; }
 .fg .page.full .wb2-vtrow { align-self:stretch; align-items:stretch; flex:none; }
-.fg .page.full .wb2-h1 { white-space:nowrap; flex:none; }
+/* A title that is DATA — a project's name, a person's — can be any length,
+   and the band does not wrap: it would push the buttons past the frame's edge,
+   where `overflow:hidden` eats them. So the title shrinks before anything else
+   does and ends in an ellipsis. A title that is a word ("Projects", "Admin")
+   never reaches this. */
+.fg .page.full .wb2-h1 { white-space:nowrap; flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; }
 /* the right-hand group rides the band's middle line and takes the squeeze */
 .fg .page.full .wb2-vtcap {
   margin-left:auto; gap:8px; padding-bottom:0; align-items:center;
   flex:0 1 auto; min-width:0;
 }
+/* A CAP WITH NO SEARCH FIELD CANNOT GIVE ROOM UP. The board's cap shrinks
+   because the field in it is built to; a cap of buttons has nothing that
+   shrinks, so shrinking it only hangs the last button off the frame's edge,
+   where `overflow:hidden` eats it — which is what a long project name did.
+   The title is the one that gives way: it ellipsises (above). */
+.fg .page.full .wb2-vtcap:not(:has(.wb2-find)) { flex:none; }
+.fg .page.full .wb2-headtools .pbtn { white-space:nowrap; }
 
 /* ── THE TITLE IS THE SWITCHER ──
    The three sides stood in a tray on a line of their own above the band for

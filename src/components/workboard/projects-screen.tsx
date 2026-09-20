@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { WbModal } from "./wb-modal";
 import type { ProjectSummary } from "@/lib/workboard/projects-query";
 import { createProject } from "@/app/actions/workboard";
@@ -30,26 +31,29 @@ export function ProjectsScreen({
   const [creating, setCreating] = useState(false);
 
   return (
-    <div className="page in">
+    /* Paper to the frame, the title in the band and the way back to the board
+       on its own line above it — the Workboard's frame (2026-09-20). */
+    <div className="page in full">
       <div className="wrap">
         <div className="stg">
-          <div className="v2head" style={{ marginBottom: 14 }}>
-            <div>
+          <ScreenBand
+            crumb={
               <Link href="/dashboard/workboard" className="int-back">
                 <Icon name="chevL" size={15} />
                 Workboard
               </Link>
-              <h1 style={{ margin: "10px 0 0" }}>
-                Projects
-              </h1>
-            </div>
-            {manage && (
-              <button className="pbtn primary" onClick={() => setCreating(true)}>
-                <Icon name="plus" size={16} />
-                New project
-              </button>
-            )}
-          </div>
+            }
+            title="Projects"
+            tools={
+              manage ? (
+                <button className="pbtn primary" onClick={() => setCreating(true)}>
+                  <Icon name="plus" size={16} />
+                  New project
+                </button>
+              ) : null
+            }
+          />
+          <ScreenPanel>
 
           {projects.length === 0 ? (
             <div className="card2">
@@ -102,6 +106,7 @@ export function ProjectsScreen({
               ))}
             </div>
           )}
+          </ScreenPanel>
         </div>
       </div>
 

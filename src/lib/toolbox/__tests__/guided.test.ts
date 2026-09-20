@@ -644,6 +644,58 @@ describe("the cheap fix comes before the expensive one", () => {
     expect(best).toMatch(/charge label and the pipe run/i);
   });
 
+  /* Not heating, Won't turn on and the breaker, audited the same way. */
+  it("a heat call is given its warm-up before it's called dead", () => {
+    const { best } = all("settings");
+    expect(best).toMatch(/hold their fan off until the coil is warm/i);
+    expect(best).toMatch(/watch the unit answer/i);
+    expect(getQuestion("heat.mode")!.why).toMatch(/what the REMOTE thinks/);
+    // and a normal defrost gets a number to judge it by
+    expect(all("defrost-normal").best).toMatch(/one every half hour to an hour/i);
+  });
+
+  it("a heat pump short on capacity counts its defrosts and carries a script", () => {
+    const { o, best } = all("heat-capacity");
+    expect(best).toMatch(/count the defrosts/i);
+    expect(best).toMatch(/run it steadily rather than in bursts/i);
+    expect(o.customer).toBeTruthy();
+    expect(o.customer!.length).toBeGreaterThan(80);
+  });
+
+  it("a restored supply asks what switched it, and checks the clock survived", () => {
+    const { best } = all("restore-power");
+    expect(best).toMatch(/what happened before it went off/i);
+    expect(best).toMatch(/clock and its schedule survived/i);
+  });
+
+  it("a schedule holding it off checks the clock before the schedule", () => {
+    const { o, best } = all("timer-holding");
+    expect(o.actions[0]).toMatch(/clock and day first/i);
+    expect(best).toMatch(/demand-response device/i);
+  });
+
+  it("a float lockout meters the float before the drain is blamed twice", () => {
+    const { best } = all("float-tripped");
+    expect(best).toMatch(/meter the float and its plug/i);
+    expect(best).toMatch(/power is cycled/i);
+  });
+
+  it("phase protection reads the relay's own settings before condemning the supply", () => {
+    const { best } = all("phase-protection");
+    expect(best).toMatch(/relay's own settings/i);
+    expect(best).toMatch(/relay's own terminals/i);
+  });
+
+  it("the breaker itself is the last suspect on an instant trip, never the first", () => {
+    const short = all("short-earth");
+    const alt = short.alts.find((a) => /breaker's type and rating/i.test(a.fix))!;
+    expect(alt.escalate).toBe(true);
+    expect(alt.when).toMatch(/LAST thing to look at/);
+    expect(short.o.escalate).toBe(true); // this one keeps its badge: it is a fault
+    // and inverter leakage on a shared safety switch is named on the wet-weather path
+    expect(all("rcd-moisture").alts.map((a) => a.fix).join(" ")).toMatch(/safety switch of its own/i);
+  });
+
   it("crossed comms offers the renaming that needs no tools", () => {
     expect(all("vrf-crossed-comms").alts.map((a) => a.fix).join(" ")).toMatch(/rename/i);
   });

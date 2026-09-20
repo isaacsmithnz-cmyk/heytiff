@@ -334,7 +334,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "heat.mode",
     ask: "Is it actually in HEAT mode with the setpoint above room temperature?",
-    why: "Check the remote or wall controller — auto mode can sit in cooling, and a schedule or eco limit can cap the setpoint.",
+    why: "Check the remote or wall controller, and watch the unit answer with its beep or its lamp — a handheld remote shows what the REMOTE thinks, and can sit on HEAT while the head never got it. Auto mode can sit in cooling, and a schedule or eco limit can cap the setpoint.",
     answers: [
       { label: "No — or I'm not sure", next: "out:settings" },
       { label: "Yes, definitely heating", next: "heat.defrost" },
@@ -1079,6 +1079,9 @@ export const OUTCOMES: Outcome[] = [
     explain: "Something was off or tripped. Restore it and see whether it holds.",
     actions: [
       "Switch it back on and run the system",
+      "Give it a few minutes before judging it — most outdoor units sit out a restart delay after any power interruption",
+      "Ask what happened before it went off: a storm, work in the roof, a new appliance on the circuit. Something switched it, and 'it just tripped' is rarely the whole story",
+      "Check the controller's clock and its schedule survived — a long outage resets both on plenty of units, and that turns up a week later as 'it runs at the wrong times'",
       "If it trips again immediately, stop — don't keep resetting it",
       "A breaker that re-trips is a real electrical fault; use the 'Trips the breaker' path",
     ],
@@ -1255,8 +1258,11 @@ export const OUTCOMES: Outcome[] = [
       "Auto mode can sit in cooling, and schedules or eco limits can cap the setpoint. Worth being certain before chasing anything mechanical.",
     actions: [
       "Set the controller explicitly to HEAT, not AUTO",
+      "Watch the unit answer — a beep, a lamp, the louvre moving. A handheld remote sends the whole state at once, so with weak batteries or a bad angle it sits on HEAT while the head stays in fan",
+      "Give it a few minutes before judging it: most heads hold their fan off until the coil is warm, so the start of a heat call is silent by design and gets reported as nothing happening",
       "Put the setpoint several degrees above room temperature",
-      "Clear any timer, schedule or eco/away limit",
+      "Clear any timer, schedule, sleep, eco or away limit",
+      "Check nothing else is commanding it: a second remote, the phone app, a wall controller in another room, or a building system",
       "Point the louvres down — heat stratifies at the ceiling",
     ],
   },
@@ -1271,6 +1277,7 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Explain the cycle to the customer — it's the single most common 'fault' call in winter",
       "Normal heating resumes within about ten minutes",
+      "Count them before you judge it: one every half hour to an hour in cold, damp weather is the system working. One every ten minutes is not",
       "If it defrosts constantly or never clears the ice, that is a real fault",
     ],
   },
@@ -1314,8 +1321,13 @@ export const OUTCOMES: Outcome[] = [
     confidence: "possible",
     explain:
       "It's producing warm air and the basics are right, so the system is working — just not keeping up. Heat pumps lose output as the outdoor temperature drops, and that's often the whole story.",
+    customer:
+      "A heat pump doesn't make heat, it moves it in from outside — so the colder it gets out there, the less there is to move, and the less it can deliver. It hasn't broken; it's at the edge of what it can do on a morning like this. Running it steadily instead of in bursts is what gets a house like this up, and keeps it there.",
     actions: [
       "Check the outdoor temperature against the unit's rated heating capacity",
+      "Count the defrosts: in cold, damp weather they can eat a third of the running hour, and that is output the room never sees",
+      "Find where the heat is going before deciding it's undersized — an extraction fan left running, an open fireplace, a gappy ceiling hatch",
+      "Tell them to run it steadily rather than in bursts: a heat pump recovering a cold house takes hours, and a setback that deep costs more than it saves",
       "Confirm the room isn't losing heat faster than the unit adds it",
       "Point louvres down and run the fan higher to break up stratification",
       "Compare the room's heat load against the installed capacity",
@@ -1386,9 +1398,11 @@ export const OUTCOMES: Outcome[] = [
     confidence: "likely",
     explain: "The unit is being told not to run. Nothing is broken.",
     actions: [
+      "Check the controller's clock and day first — after a power cut it can be hours or a whole day out, and the schedule then runs at the wrong time. That is what 'it turns itself off' usually is",
       "Clear the timer or weekly schedule on the controller",
       "Turn off eco, away or holiday mode",
       "Check any smart-home or BMS integration isn't overriding it",
+      "Goes off in the afternoon and comes back later? Look for a demand-response device on the supply — the network can be capping or dropping it during a peak, exactly as it was installed to",
       "Show the customer where the setting lives so it doesn't recur",
     ],
   },
@@ -1401,8 +1415,10 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Clear the drain line and flush it through",
       "Dry the safe tray and check the float moves freely",
+      "Dry tray and it's still locked out? Meter the float and its plug — a broken wire or a connector half out holds the unit off with nothing in the tray",
       "Treat the tray to slow the biofilm coming back",
       "Confirm the drain has continuous fall and a correct trap",
+      "Some units hold the lockout until the power is cycled, so restore it properly before deciding the float is still open",
     ],
   },
   {
@@ -1760,6 +1776,13 @@ export const OUTCOMES: Outcome[] = [
       "Leave the expansion valve's coil off that list — on most splits it runs on low voltage from the board, so it can't trip the switchboard. A fault there shows up as a code or a starved coil instead",
       "Licensed electrical fault-finding from here",
     ],
+    alternatives: [
+      {
+        fix: "Have the breaker's type and rating checked against the unit",
+        when: "Every insulation reading comes back good and it still lets go the moment it starts. A breaker on the wrong curve or too small for the inrush trips on a healthy unit — licensed electrical work, and it is the LAST thing to look at, not the first.",
+        escalate: true,
+      },
+    ],
     escalate: true,
   },
   {
@@ -1840,6 +1863,11 @@ export const OUTCOMES: Outcome[] = [
       {
         fix: "Replace the crankcase heater, base heater or valve coil that reads low",
         when: "One of them reads low to earth on the insulation tester. Cheap parts, and each one trips a safety switch exactly like a wet compressor.",
+      },
+      {
+        fix: "Give it a safety switch of its own",
+        when: "Every insulation reading is good and the trips follow load rather than water. Inverter units leak a little to earth by design, and several sharing one safety switch can add up past its threshold. Licensed electrical work.",
+        escalate: true,
       },
       {
         fix: "Replace the compressor",
@@ -2305,6 +2333,8 @@ export const OUTCOMES: Outcome[] = [
       "Measure all three phases at the unit's terminals, phase to phase and phase to neutral",
       "A missing phase is usually a blown fuse, a dropped connection or a utility fault — not the unit",
       "Check the sequence if the site has had switchboard work or a new supply",
+      "Read the relay's own settings before you condemn the supply — an unbalance or under-voltage setting screwed down too tight trips on a supply the unit is perfectly happy with",
+      "Check the relay's own terminals while you're there: a loose connection under one of them reads as the missing phase it's reporting",
       "Compare the unbalance against the relay's setting before deciding the relay is faulty",
       "Supply testing and correction is licensed electrical work",
     ],

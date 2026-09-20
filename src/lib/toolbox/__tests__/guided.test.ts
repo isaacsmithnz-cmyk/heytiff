@@ -581,6 +581,36 @@ describe("the cheap fix comes before the expensive one", () => {
     expect(best).toMatch(/non-return valve/i);
   });
 
+  /* Error light or code, audited the same way. */
+  it("the code is read out of the unit's log, not only off the lamps", () => {
+    expect(getQuestion("code.recorded")!.why).toMatch(/fault history/i);
+    // and the log survives what the power cycle wipes
+    expect(getQuestion("code.persists")!.why).toMatch(/clears the display, not the log/i);
+    const { best } = all("record-first");
+    expect(best).toMatch(/film the lamps/i);
+    expect(best).toMatch(/fault history/i);
+    expect(best).toMatch(/condition IS the fault/i);
+  });
+
+  it("a live code reads its sensors and works the family before anything is ordered", () => {
+    const { o, best, alts } = all("code-persists");
+    expect(o.actions[0]).toMatch(/live sensor data in check mode/i);
+    expect(best).toMatch(/thermistor out of its clip/i);
+    expect(best).toMatch(/two units on one address/i);
+    expect(best).toMatch(/ants, water and a half-seated plug/i);
+    expect(o.escalate).toBeFalsy();
+    expect(alts.find((a) => a.fix === "Replace the sensor")!.escalate).toBeFalsy();
+    expect(alts.find((a) => /Board-level/.test(a.fix))!.escalate).toBe(true);
+    // it still offers the library, which is the whole point of a coded outcome
+    expect(o.library).toBe(true);
+  });
+
+  it("a cleared code asks what the weather and the power were doing", () => {
+    const { best } = all("code-transient");
+    expect(best).toMatch(/weather and the power/i);
+    expect(best).toMatch(/counter beats anyone's memory/i);
+  });
+
   it("crossed comms offers the renaming that needs no tools", () => {
     expect(all("vrf-crossed-comms").alts.map((a) => a.fix).join(" ")).toMatch(/rename/i);
   });
@@ -603,7 +633,7 @@ describe("best fix and other options", () => {
   it("the badge sits on the fix that needs it", () => {
     // an outcome whose best fix is routine carries no badge, even when its
     // last resort does — that was the crossed-pipes mistake
-    for (const id of ["vrf-crossed-pipes", "vrf-branch", "vrf-creep", "heat-none", "defrost-fault", "bc-valve", "charge-or-valve", "protection-silent"]) {
+    for (const id of ["vrf-crossed-pipes", "vrf-branch", "vrf-creep", "heat-none", "defrost-fault", "bc-valve", "charge-or-valve", "protection-silent", "code-persists"]) {
       const o = getOutcome(id)!;
       expect(o.escalate).toBeFalsy();
       expect(o.alternatives!.some((a) => a.escalate)).toBe(true);

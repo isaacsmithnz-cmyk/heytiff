@@ -21,7 +21,7 @@ import { roomCoverage, systemCover, type CoverageStatus } from "./coverage";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
 import { systemComponents } from "./components";
-import { equipmentList, installState } from "./install";
+import { equipmentList, installState, NOT_SURE_VALUE } from "./install";
 import { describeUnit } from "./materials";
 import { formFactorLabel } from "./form-factors";
 
@@ -646,6 +646,13 @@ function buildPicklist(
     for (const l of s.lines) {
       if (l.qty === "—" || l.name.endsWith("pair coil") || l.name === "Pair coil")
         continue;
+      /* A DECISION IS NOT A PART. "Not sure yet" belongs on the sheet, where
+         it tells an installer what is still open, and nowhere near a pick: it
+         has no quantity to parse, so it fell through to the odd-quantity row
+         and pushed to the job card as a tickable line nobody can take off a
+         shelf — and then, once the question WAS answered, it stayed there as
+         an orphan, because a pushed line is never deleted (#424). */
+      if (l.qty === NOT_SURE_VALUE) continue;
       if (l.name === "Additional refrigerant") {
         topups.push({
           group: l.group,

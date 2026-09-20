@@ -14,6 +14,7 @@ import { createDesign, type DesignDocument, type DesignObject } from "../documen
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
 import { buildSummaryModel, formFactorLabel } from "../summary";
+import { answerInstall, NOT_SURE, NOT_SURE_VALUE } from "../install";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -331,5 +332,63 @@ describe("buildSummaryModel — the merged sheet", () => {
       ["Isolator, 1Ø 20 A", "1"], // SUZ-M35VAD-A: 1Ø, 8.5 A
       ["Isolator, 3Ø 20 A", "1"], // PUZ-ZM100YKA3-A: 3Ø, 11.5 A
     ]);
+  });
+});
+
+/* ── a decision is not a part ── */
+
+describe("a question answered Not sure yet", () => {
+  /* an allocations system, the shape the builder writes, so the install
+     questions apply to it at all */
+  const built = (): DesignDocument => {
+    const d = splitDoc();
+    d.systems = [
+      {
+        id: "sys1",
+        type: "split",
+        brand: "mitsubishi-electric",
+        colour: "#2E68FF",
+        name: "System 1",
+        settings: {
+          allocations: [
+            { id: "i1", role: "idu", model: "SLZ-M35FA-A", roomId: "r1" },
+            { id: "o1", role: "odu", model: "SUZ-M35VAD-A", roomId: null },
+          ],
+        },
+      },
+    ];
+    return d;
+  };
+
+  it("says so on the sheet, where an installer needs to see what is still open", () => {
+    const d = answerInstall(built(), "sys1", "outdoor-sits", [NOT_SURE]);
+    const line = buildSummaryModel(d, pack).systems[0].lines.find(
+      (l) => l.name === "Outdoor base"
+    );
+    expect(line).toEqual({
+      group: "components",
+      name: "Outdoor base",
+      sub: "Confirm on the day",
+      qty: NOT_SURE_VALUE,
+    });
+  });
+
+  it("never reaches the picklist, which is a list of things somebody picks", () => {
+    /* it has no quantity to parse, so it fell through to the odd-quantity
+       row and pushed to the job card as a tickable line nobody can take off
+       a shelf — and a pushed line is never deleted (#424), so answering the
+       question afterwards left it there as an orphan */
+    const d = answerInstall(built(), "sys1", "outdoor-sits", [NOT_SURE]);
+    const pick = buildSummaryModel(d, pack).picklist;
+    expect(pick.map((r) => r.qty)).not.toContain(NOT_SURE_VALUE);
+    expect(pick.map((r) => r.name)).not.toContain("Outdoor base");
+  });
+
+  it("puts the real part on the picklist once the question is answered", () => {
+    const d = answerInstall(built(), "sys1", "outdoor-sits", ["ground"]);
+    const answered = answerInstall(d, "sys1", "ground-base", ["ground-pad"]);
+    const pick = buildSummaryModel(answered, pack).picklist;
+    expect(pick.find((r) => r.name === "Ground pad")?.qty).toBe("1");
+    expect(pick.map((r) => r.qty)).not.toContain(NOT_SURE_VALUE);
   });
 });

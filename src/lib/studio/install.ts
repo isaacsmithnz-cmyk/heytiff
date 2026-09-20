@@ -356,6 +356,13 @@ const ELECTRICAL_SPECS: QuestionSpec[] = [
 export const NOT_SURE = "not-sure";
 const NOT_SURE_OPTION: OptionSpec = { id: NOT_SURE, label: "Not sure yet" };
 
+/** What a not-sure line READS as on the equipment list, and the one string
+    that says a line is a decision rather than a part. The design sheet shows
+    it — an installer should see what is still open — but nothing that gets
+    PICKED may carry it, so the picklist matches on this (summary.ts) rather
+    than on the words, which are here and only here. */
+export const NOT_SURE_VALUE = "Not sure yet";
+
 /** give every question, follow-ups and all, its Not sure yet */
 function askable(specs: QuestionSpec[]): QuestionSpec[] {
   return specs.map((spec) => ({
@@ -798,7 +805,7 @@ function walkQuestion(
     const row: EquipmentRow = {
       group: question.decides.group,
       name: question.decides.name,
-      value: "Not sure yet",
+      value: NOT_SURE_VALUE,
       onTheDay: true,
     };
     walk.rows.push(row);

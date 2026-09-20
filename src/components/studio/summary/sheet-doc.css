@@ -776,6 +776,73 @@
 }
 .dsd-close b { font-weight: 800; color: var(--dsd-ink-2); }
 
+/* ── the screen's density ──
+   THE SHEET WAS SPACED FOR PAPER AND READ ON A SCREEN. Every gap below was
+   sized for an A4 page, where white space is what separates one block from
+   the next and a page break does the rest; on a screen the same numbers put a
+   two-system design across nearly five screens (3,360px in a 698px panel at
+   1440), with the whole first screen spent on the letterhead and the first
+   system starting on the second. A person reading it on screen is looking for
+   an answer, not turning pages.
+
+   SCREEN ONLY, so paper is untouched by construction: every rule here sits in
+   `@media screen`, and the print block at the foot of this file never sees
+   it. It sits BEFORE the container queries on purpose — `@media` adds no
+   specificity, so the narrow-width rules below still win where they restate
+   the same property.
+
+   What it moves: the byline and the addressee stand side by side under the
+   title instead of stacked; the gaps between blocks come down to the scale;
+   table and list rows lose their paper leading; and a system's components
+   share the width and flow across it, where one group used to hold a third of
+   the sheet and leave the rest blank. */
+@media screen {
+  .dsd-mast h1 { max-width: 32ch; }
+  .dsd-prep,
+  .dsd-to { margin-top: 16px; }
+  .dsd-figs { margin-top: 24px; padding: 16px 0; }
+  .dsd-figs > div { gap: 4px; }
+  .dsd-sys { padding-top: 32px; }
+  .dsd-band { margin-bottom: 16px; padding: 12px 16px; }
+  .dsd-spec { margin-top: 8px; }
+  .dsd-rt th { padding-bottom: 8px; }
+  .dsd-rt td { padding-top: 8px; padding-bottom: 8px; }
+  .dsd-consum { margin-top: 16px; padding-top: 16px; }
+  .dsd-grp li { padding: 6px 0; }
+  .dsd-pick { margin-top: 48px; padding-top: 32px; }
+  .dsd-pick-h { margin-bottom: 16px; }
+  .dsd-grp.card { padding: 12px 16px 4px; }
+  .dsd-close { margin-top: 48px; padding-top: 24px; }
+
+  @container (min-width: 768px) {
+    /* the title runs the width; under it, who wrote it and who it is for */
+    .dsd-mast-job {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      column-gap: 48px;
+      align-items: start;
+    }
+    .dsd-mast-job > .dsd-eyebrow,
+    .dsd-mast-job > h1 { grid-column: 1 / -1; }
+    /* the groups share the width — one group takes all of it, three take a
+       third each — and a group's lines flow across whatever it was given.
+       Every line closes on its own rule, because a flowed list has no "first
+       in its column" for a `li + li` rule to skip. */
+    .dsd-consum { display: flex; gap: 32px; }
+    .dsd-consum > .dsd-grp { flex: 1 1 0; min-width: 0; }
+    .dsd-consum > .dsd-grp ul {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      column-gap: 32px;
+    }
+    .dsd-consum > .dsd-grp li,
+    .dsd-consum > .dsd-grp li + li {
+      border-top: 0;
+      border-bottom: 1px solid var(--dsd-rule);
+    }
+  }
+}
+
 /* ── responsive ──
    Three breakpoints, each moving ONE thing, because they move at different
    widths: the band loses its side-by-side outdoor first, then the table gives
@@ -784,7 +851,15 @@
    All three are CONTAINER queries — see the note on `container-type` above.
    The number in each is how much room the DOCUMENT has, which is the only
    width any of these decisions actually depends on. */
-@container (max-width: 1100px) {
+/* 1023, WITH THE TABLE, NOT 1100. At 1100 this fired on the owner's own
+   screen: a 1440 window hands the document 1,033px once the sidebar and the
+   frame have taken theirs, so the person who uses this sheet most read its
+   narrow form every day — six figures folded to three, the outdoor stacked
+   under the system's name for a 244px header — on a sheet wide enough for the
+   table. Measured at 1,033px: the six hold one row (the longest label takes
+   two lines, which the row was built for) and the band holds its outdoor
+   beside it. So the wide form and the table now give way together. */
+@container (max-width: 1023px) {
   .dsd-figs { grid-template-columns: repeat(3, 1fr); gap: 26px 22px; }
   .dsd-pick-g { grid-template-columns: repeat(2, 1fr); }
   .dsd-band { grid-template-columns: minmax(0, 1fr); }

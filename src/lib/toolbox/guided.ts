@@ -1692,7 +1692,8 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Tighten the cover screws on both indoor and outdoor units",
       "Re-seat grille clips and any snap-fit trim",
-      "Check the outdoor unit sits square on its feet or brackets",
+      "Find where the pipework touches: a copper line resting on the bracket, or hard against the wall where it passes through, turns the whole wall into a speaker. Pack it and the noise goes",
+      "Check the outdoor unit sits square on its feet or brackets, and that the fan guard is tight",
       "Add anti-vibration mounts if the frame transmits into the building",
     ],
   },
@@ -1706,6 +1707,7 @@ export const OUTCOMES: Outcome[] = [
       "Isolate power before putting hands anywhere near a fan",
       "Clear leaves, twigs and debris from the outdoor unit",
       "Check the indoor barrel fan for dirt clumps that unbalance it",
+      "Check the blade is tight on its shaft — a backed-off grub screw ticks once per turn, and it eats the motor if it's left",
       "Inspect the blades for damage and the shroud for contact",
     ],
   },
@@ -1718,10 +1720,17 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Isolate power, then check for play or roughness in the shaft by hand",
       "Identify which fan — indoor or outdoor — the noise comes from",
-      "Replace the bearing or motor",
-      "Check for water ingress that caused it, so the new one lasts",
+      "Clean the wheel before you condemn anything: a barrel fan packed unevenly with dust whirrs and rumbles exactly like a tired bearing, and it costs nothing to rule out",
+      "Check the motor's own rubbers and mounts — a perished mount hums through the case and reads as bearing noise",
+      "Check for water ingress, so whatever goes in next lasts",
     ],
-    escalate: true,
+    alternatives: [
+      {
+        fix: "Replace the bearing or the motor",
+        when: "The shaft has play or roughness in it by hand, with the wheel clean and the mounts good. It doesn't recover on its own.",
+        escalate: true,
+      },
+    ],
   },
   {
     id: "gurgle-normal",
@@ -1741,6 +1750,7 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "Continuous gurgling while running can mean liquid and vapour moving together where there should be one or the other — often a low charge or a metering device not feeding cleanly.",
     actions: [
+      "Started after someone worked on it? Check the service valves are fully open first — a valve left part-shut flashes gas at the restriction and gurgles for the life of the job",
       "Read pressures and superheat under a steady load",
       "Check for a sight-glass flashing, where one is fitted",
       "Leak-test before adjusting charge",
@@ -1756,6 +1766,7 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Check the compressor mounting grommets aren't perished or over-tightened",
       "Check the outdoor unit is level and firmly fixed",
+      "A wall bracket makes the building the sounding board. Isolators between bracket and wall, or a move to the ground on pads, fixes what no amount of tightening will",
       "Add anti-vibration pads if it transmits into the structure",
       "Thermal creaks generally need no action beyond explaining them",
     ],
@@ -1900,7 +1911,8 @@ export const OUTCOMES: Outcome[] = [
       "A musty smell strongest at start-up is growth on the coil, barrel fan or drain tray — damp surfaces plus dust.",
     actions: [
       "Deep-clean the coil, barrel fan and drain tray",
-      "Treat the tray and confirm the drain runs freely",
+      "Treat the tray and confirm the drain runs freely — a tray that never empties is why it came back",
+      "Turn on the unit's own dry or self-clean setting where it has one: it runs the fan on after every cooling cycle, which is the same advice without anyone having to remember it",
       "Advise running fan-only for a while after cooling to dry the coil",
       "Set a realistic cleaning interval with the customer",
     ],
@@ -1931,6 +1943,7 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Check the drain trap holds a water seal and is correctly formed",
       "Pour water through to re-seal a dried trap",
+      "Look at where the drain discharges: run into a gully or a waste pipe without an air gap and the line breathes sewer air straight back into the room, however good the trap is",
       "Inspect duct and ceiling space for pests or entry points",
       "Remove and sanitise, then seal the way in",
     ],
@@ -2529,7 +2542,7 @@ export const OUTCOMES: Outcome[] = [
       "Look hardest at joints, bends and anywhere it passes through a frame — that's where it gets left open",
       "Check the vapour barrier is continuous and taped; insulation without a sealed barrier just sweats on the inside instead",
       "Check the suction line and the drain line too — both run cold through warm roof space and both get left bare",
-      "Check whether the roof space itself is unusually humid or poorly ventilated",
+      "Check whether the roof space itself is unusually humid or poorly ventilated — and whether the vents it does have are blocked by insulation, which is the cheapest fix on this list",
       "Trace where the water actually lands, so nobody chases the wrong ceiling next visit",
     ],
   },

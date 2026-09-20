@@ -696,6 +696,34 @@ describe("the cheap fix comes before the expensive one", () => {
     expect(all("rcd-moisture").alts.map((a) => a.fix).join(" ")).toMatch(/safety switch of its own/i);
   });
 
+  /* Noisy, Bad smell and Sweating surfaces, audited the same way. */
+  it("a rattle looks at the pipework and the blade's grub screw", () => {
+    expect(all("loose-panels").best).toMatch(/turns the whole wall into a speaker/i);
+    expect(all("fan-debris").best).toMatch(/grub screw/i);
+    expect(all("mounts").best).toMatch(/wall bracket makes the building the sounding board/i);
+  });
+
+  it("a squeal cleans the wheel before it condemns a bearing", () => {
+    const { o, best, alts } = all("bearing-motor");
+    expect(best).toMatch(/clean the wheel before you condemn anything/i);
+    expect(best).toMatch(/motor's own rubbers/i);
+    expect(o.escalate).toBeFalsy();
+    expect(alts[0].escalate).toBe(true);
+  });
+
+  it("a gurgle after a service checks the service valves first", () => {
+    expect(all("gurgle-charge").o.actions[0]).toMatch(/service valves are fully open/i);
+  });
+
+  it("mould is given the unit's own dry cycle, and a sewer smell the discharge point", () => {
+    expect(all("mould").best).toMatch(/dry or self-clean setting/i);
+    expect(all("trap-pest").best).toMatch(/without an air gap/i);
+  });
+
+  it("sweating roof pipework checks the roof's own vents", () => {
+    expect(all("cond-insulation").best).toMatch(/blocked by insulation/i);
+  });
+
   it("crossed comms offers the renaming that needs no tools", () => {
     expect(all("vrf-crossed-comms").alts.map((a) => a.fix).join(" ")).toMatch(/rename/i);
   });

@@ -9008,12 +9008,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    NO MONOSPACE ANYWHERE, including the kind badge and the page counts —
    Jakarta carries them, per the brief's first hard constraint. */
 
-/* ── the page head: what's here, and the month's allowance ── */
-.fg .tk-head { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:24px; }
-/* The Library's title. A fourteenth 44 — it escaped #350's sweep by wearing a
-   CLASS instead of being an `h1` under a header class, so neither the scan for
-   inline style objects nor a look down the list of `… h1` selectors found it. */
-.fg .tk-h1 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.035em; line-height:1; color:var(--ink); }
+/* ── what's here, and the month's allowance, under the band ──
+   The head row and its own title went when the screen took the frame
+   (2026-09-20): the band holds the title and the two buttons now. */
 .fg .tk-sub { margin:8px 0 0; font-size:14px; font-weight:600; color:var(--gray500); }
 /* a line, not a pill: the figure under the title, in the quiet colour (law 26) */
 .fg .tk-quota { display:inline-flex; align-items:center; gap:8px; margin:12px 0 0; color:var(--q); font-size:13px; font-weight:500; }
@@ -9383,7 +9380,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tgl-more { font-size:12px; font-weight:700; color:var(--gray400); }
 
 /* ── the filter rail ── */
-.fg .tk-hact { display:inline-flex; align-items:center; gap:8px; }
 .fg .tk-trail { display:flex; align-items:flex-start; gap:8px; flex:1 1 100%; padding-top:2px; }
 .fg .tk-tlbl { display:inline-flex; align-items:center; gap:4px; height:38px; flex:none;
   font-size:12px; font-weight:500; color:var(--gray400); }

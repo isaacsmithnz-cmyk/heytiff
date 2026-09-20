@@ -6,8 +6,9 @@
    name, type and brand, and one line saying where it is up to. The open card
    shows its zones (each a control: dragged to another card, or cleared with
    its cross), Add zones, the outdoor and the figures, and its last slot is
-   always the next step: Build system, then the units to place, then Answer
-   install questions.
+   always the next step: Build system, then the units to place, then Next:
+   Install questions — the same words the toolbar's next-step chip says, so
+   the two agree. Edit system sits under it, quiet, as the way back in.
 
    Units go on the plan by dragging, nothing else: the rack under the card
    works like a Scrabble rack. A unit dragged onto the plan leaves it, the
@@ -382,7 +383,7 @@ function SystemCard({
                   <Rack pack={pack} items={rack} onArmPlace={onArmPlace} />
                 ) : install !== "complete" ? (
                   <button className="ds-zp-primary" onClick={onInstall}>
-                    Answer install questions
+                    Next: Install questions
                   </button>
                 ) : null}
                 <div className="ds-zp-acts">

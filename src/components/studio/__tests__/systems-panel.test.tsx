@@ -418,13 +418,13 @@ describe("SystemsPanel — the rack", () => {
     expect(rows.map(modelOf)).not.toContain("MSZ-AP35VGD2");
   });
 
-  it("when the last unit is down the rack is gone and Answer install questions is the next step", () => {
+  it("when the last unit is down the rack is gone and the install questions are the next step", () => {
     const made = fiveHeadMulti(fittedHouse().doc);
     const { onInstall } = mount(placeAll(made.doc, made.systemId), made.systemId);
     const el = card("System 1");
     expect(el.querySelector(".ds-zp-rack")).toBeNull();
     expect(within(el).queryByText("Units to place")).toBeNull();
-    const next = within(el).getByRole("button", { name: "Answer install questions" });
+    const next = within(el).getByRole("button", { name: "Next: Install questions" });
     expect(next.closest(".ds-zp-next")).not.toBeNull();
     fireEvent.click(next);
     expect(onInstall).toHaveBeenCalledWith(made.systemId);

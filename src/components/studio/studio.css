@@ -10053,7 +10053,9 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-zp-btn:hover { background: var(--tint); }
 /* Edit system stretches across the card under its hairline, below whatever
-   the next step is, so the figures above it are undisturbed */
+   the next step is, so the figures above it are undisturbed. It is the way
+   BACK into a system that is already right, never the move the card is
+   asking for, so it carries no edge and no fill until it is pointed at. */
 .dstudio .ds-zp-acts {
   display: flex;
   margin-top: 4px;
@@ -10064,10 +10066,10 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 100%;
   height: 36px;
-  border: 1px solid var(--line);
+  border: none;
   border-radius: var(--r-button);
-  background: var(--paper);
-  color: var(--ink);
+  background: none;
+  color: var(--q);
   font: 500 14px var(--font);
   cursor: pointer;
   transition: background-color var(--t-fast) var(--ease);
@@ -10136,27 +10138,36 @@ html[data-ds-display] .dstudio.editing {
   white-space: nowrap;
 }
 /* what the system is, at the far end of the name line: the type word with
-   the brand under it, the two flush with each other */
+   the brand under it. The BLOCK sits right, its two lines start together, so
+   the words stack on one left edge instead of drifting apart as they shorten,
+   and each takes a dot so they read as two facts and not one wrapped line. */
 .dstudio .ds-zp-is {
   margin-left: auto;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   flex: none;
-  text-align: right;
+  text-align: left;
 }
-.dstudio .ds-zp-kind {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--q);
-}
-/* the brand sits under the type word, both flush right: the card reads as
-   two columns, names down the left and what they are down the right */
+.dstudio .ds-zp-kind,
 .dstudio .ds-zp-brand {
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 500;
   color: var(--q);
 }
+.dstudio .ds-zp-kind::before,
+.dstudio .ds-zp-brand::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--q);
+  flex: none;
+}
+.dstudio .ds-zp-kind { font-size: 13px; }
+.dstudio .ds-zp-brand { font-size: 12px; }
 .dstudio .ds-zp-status {
   font-size: 12px;
   font-weight: 500;
@@ -10412,18 +10423,32 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 500;
   color: var(--q);
 }
+/* A question and whatever its answer opened up are ONE thing, so the rule
+   goes round the group, not between a question and its follow-ups: inside a
+   group there is nothing to cross, and a follow-up is indented and set in the
+   quiet size, so it reads as a second half of the question above it rather
+   than the next question down the list. */
+.ds-iq-qw { border-bottom: 1px solid var(--line); }
 .ds-iq-row {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   gap: 16px;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid var(--line);
+}
+.ds-iq-row.sub {
+  padding: 8px 0;
 }
 .ds-iq-row.sub > div:first-child { padding-left: 24px; }
+.ds-iq-subw:last-child > .ds-iq-row.sub { padding-bottom: 12px; }
 .ds-iq-q {
   font-size: 14px;
   color: var(--ink);
+}
+.ds-iq-row.sub .ds-iq-q {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--q);
 }
 .ds-iq-hint {
   font-size: 12px;

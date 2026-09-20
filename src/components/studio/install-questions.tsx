@@ -100,7 +100,7 @@ export function InstallQuestions({
     const ticks = answers[question.id] ?? [];
     const provisions = question.exclusive && ticks.length >= 2;
     return (
-      <div key={question.id}>
+      <div key={question.id} className={depth ? "ds-iq-subw" : "ds-iq-qw"}>
         <div className={`ds-iq-row${depth ? " sub" : ""}`}>
           <div>
             <div className="ds-iq-q">{question.text}</div>

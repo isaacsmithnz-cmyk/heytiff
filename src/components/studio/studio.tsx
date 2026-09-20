@@ -1583,7 +1583,7 @@ function Editor({
       );
       if (waiting) return null;
       const asking = doc.systems.find((s) => installState(doc, pack, s) !== "complete");
-      if (asking) return { key: "install", label: "Answer install questions", systemId: asking.id };
+      if (asking) return { key: "install", label: "Install questions", systemId: asking.id };
     }
     return null;
   }, [builder, doc, pack, effectiveSystemId]);

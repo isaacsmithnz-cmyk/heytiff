@@ -956,22 +956,40 @@ export function installQuestions(doc: DesignDocument, pack: DataPack, sys: Desig
   return applicableSpecs(context).map((question) => materialise(context, question));
 }
 
-/** the questions in front of the person right now, in order: each
-    top-level question, then the follow-ups of its ticked options */
-export function askedQuestions(doc: DesignDocument, pack: DataPack, sys: DesignSystem): InstallQuestion[] {
+/** The questions in front of the person right now, in the order they are
+    asked: each top-level question, then the follow-ups of its ticked options.
+    They are asked ONE AT A TIME, so a follow-up is a step of its own and
+    carries the question it came out of — a step that says where it came from
+    does not need to be indented under it. */
+export interface InstallStep {
+  question: InstallQuestion;
+  /** the question that opened this one, and the answer that did it */
+  from?: { text: string; option: string };
+}
+
+export function installSteps(doc: DesignDocument, pack: DataPack, sys: DesignSystem): InstallStep[] {
   const answers = installAnswers(doc, sys);
-  const out: InstallQuestion[] = [];
-  const visit = (question: InstallQuestion) => {
-    out.push(question);
+  const out: InstallStep[] = [];
+  const visit = (question: InstallQuestion, from?: InstallStep["from"]) => {
+    out.push(from ? { question, from } : { question });
     const ticks = answers[question.id] ?? [];
     for (const option of question.options) {
       if (!ticks.includes(option.id)) continue;
-      for (const followUp of option.followUps ?? []) visit(followUp);
+      for (const followUp of option.followUps ?? []) {
+        visit(followUp, { text: question.text, option: option.label });
+      }
     }
   };
   for (const question of installQuestions(doc, pack, sys)) visit(question);
   return out;
 }
+
+/** the same run, as bare questions */
+export const askedQuestions = (
+  doc: DesignDocument,
+  pack: DataPack,
+  sys: DesignSystem
+): InstallQuestion[] => installSteps(doc, pack, sys).map((step) => step.question);
 
 /** every answer this system sees: the house's from the design, its own
     from the system; question id → the option ids ticked */

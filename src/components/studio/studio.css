@@ -10403,66 +10403,68 @@ html[data-ds-display] .dstudio.editing {
   min-height: 0;
 }
 .ds-iq-qs {
-  padding: 24px;
+  padding: 4px 24px 16px;
   border-right: 1px solid var(--line);
   overflow-y: auto;
   min-height: 0;
 }
-/* ONE QUESTION, alone: the group and what the pack knows about it sit above
-   as the quiet label, the question takes the size a title takes, and the
-   answers stand under it with room to be read. */
-.ds-iq-step {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  max-width: 640px;
-}
 .ds-iq-gh {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--q);
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 16px;
+  padding-bottom: 4px;
 }
 .ds-iq-gsub {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--q);
+}
+/* A question and whatever its answer opened up are ONE thing, so the rule
+   goes round the group, not between a question and its follow-ups: inside a
+   group there is nothing to cross, and a follow-up is indented and set in the
+   quiet size, so it reads as a second half of the question above it rather
+   than the next question down the list. */
+.ds-iq-qw { border-bottom: 1px solid var(--line); }
+.ds-iq-row {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: 12px 0;
+}
+.ds-iq-row.sub {
+  padding: 8px 0;
+}
+.ds-iq-row.sub > div:first-child { padding-left: 24px; }
+.ds-iq-subw:last-child > .ds-iq-row.sub { padding-bottom: 12px; }
+.ds-iq-q {
+  font-size: 14px;
+  color: var(--ink);
+}
+.ds-iq-row.sub .ds-iq-q {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--q);
+}
+.ds-iq-hint {
   font-size: 12px;
   font-weight: 500;
   color: var(--q);
+  margin-top: 2px;
 }
-/* a follow-up says which answer opened it, in place of being tucked under
-   the question it belongs to: one at a time, there is nothing to tuck under */
-.ds-iq-from {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--q);
-}
-.ds-iq-from b {
-  font-weight: 600;
-  color: var(--ink);
-}
-.ds-iq-q {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--ink);
-}
-.ds-iq-hint {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--q);
+.ds-iq-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .ds-iq-choices {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 8px;
-}
-/* where the run is up to, beside the way on */
-.ds-iq-at {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--q);
 }
 /* an answer is a box you tick, with its word beside it */
 .ds-iq-choice {

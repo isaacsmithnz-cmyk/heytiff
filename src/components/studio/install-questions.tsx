@@ -3,20 +3,10 @@
    in, and every answer puts its parts on the equipment list beside it as it
    is given. The engine is install.ts; this is its screen.
 
-   ONE QUESTION AT A TIME, Back and Next: the whole run in front of you was
-   a form to fill in, and a form is read before it is answered. A follow-up
-   is a step of its own, right after the answer that opened it, and says
-   where it came from, so it belongs to that question without being tucked
-   under it. Next is never held back — an unanswered question is a waiting
-   row on the list, never a block — and the last step's Next is Done.
-
    Every question takes more than one answer. Where only one can happen in
-   the end, two ticks mean make provisions for both: the step says so, both
+   the end, two ticks mean make provisions for both: the row says so, both
    lots of parts go on the list marked Confirm on the day, and the installer
-   gets the note. Not sure yet stands alone and holds its line for the day.
-
-   The equipment list stands beside the step the whole way: the point of
-   asking one at a time is watching the list answer back.
+   gets the note. An answer's follow-ups appear under it while it is ticked.
 
    Like the builder it edits a draft: Done applies it as one undo step,
    Discard changes drops it, and nothing waits on an answer. */
@@ -32,7 +22,7 @@ import {
   answerInstall,
   equipmentList,
   installAnswers,
-  installSteps,
+  installQuestions,
   NOT_SURE,
   type EquipmentGroup,
   type EquipmentRow,
@@ -40,6 +30,7 @@ import {
   type InstallQuestion,
 } from "@/lib/studio/install";
 
+const GROUPS: InstallGroup[] = ["Outdoor", "Indoor units", "Electrical"];
 const EQUIPMENT_GROUPS: EquipmentGroup[] = ["Units", "Mounting", "Controls", "Electrical", "Pipework"];
 
 function BoxGlyph({ on }: { on: boolean }) {
@@ -69,18 +60,6 @@ export function InstallQuestions({
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<DesignDocument>(doc);
-  /* the step in hand, held by question id: answering can only add or drop
-     the follow-ups AFTER the current step, never the step itself, so the id
-     always finds its place in the run again */
-  const [atId, setAtId] = useState<string | null>(() => {
-    const sys = doc.systems.find((s) => s.id === systemId);
-    if (!sys) return null;
-    const steps = installSteps(doc, pack, sys);
-    const answers = installAnswers(doc, sys);
-    // come back in where the answers stop, not at the top
-    const open = steps.find((step) => !(answers[step.question.id] ?? []).length);
-    return (open ?? steps[0])?.question.id ?? null;
-  });
   const dirty = draft !== doc;
   const sys = draft.systems.find((s) => s.id === systemId) ?? null;
 
@@ -95,10 +74,7 @@ export function InstallQuestions({
   if (!sys) return null;
 
   const answers = installAnswers(draft, sys);
-  const steps = installSteps(draft, pack, sys);
-  const at = Math.max(0, steps.findIndex((step) => step.question.id === atId));
-  const step = steps[at] ?? null;
-  const last = at >= steps.length - 1;
+  const questions = installQuestions(draft, pack, sys);
   const list = equipmentList(draft, pack, sys);
   const units = hasAllocations(sys) ? allocationsOf(sys).filter((a) => a.model) : [];
   const kind = systemKind(draft, sys);
@@ -126,54 +102,54 @@ export function InstallQuestions({
     return headCount === 1 ? "1 indoor unit" : `${headCount} indoor units`;
   };
 
-  const renderStep = (question: InstallQuestion, from?: { text: string; option: string }) => {
+  const renderQuestion = (question: InstallQuestion, depth: number) => {
     const ticks = answers[question.id] ?? [];
     const notSure = ticks.length === 1 && ticks[0] === NOT_SURE;
     const provisions = question.exclusive && ticks.length >= 2;
-    const sub = groupSub(question.group);
     return (
-      <div className="ds-iq-step">
-        <div className="ds-iq-gh">
-          {question.group}
-          {sub && <span className="ds-iq-gsub">{sub}</span>}
+      <div key={question.id} className={depth ? "ds-iq-subw" : "ds-iq-qw"}>
+        <div className={`ds-iq-row${depth ? " sub" : ""}`}>
+          <div>
+            <div className="ds-iq-q">{question.text}</div>
+            {question.hint && <div className="ds-iq-hint">{question.hint}</div>}
+          </div>
+          <div className="ds-iq-answer">
+            <div className="ds-iq-choices" role="group" aria-label={question.text}>
+              {question.options.map((option) => {
+                const on = ticks.includes(option.id);
+                return (
+                  <button
+                    key={option.id}
+                    className={`ds-iq-choice${on ? " on" : ""}`}
+                    role="checkbox"
+                    aria-checked={on}
+                    onClick={() => toggle(question, option.id)}
+                  >
+                    <BoxGlyph on={on} />
+                    <span className="ds-iq-choice-l">
+                      {option.label}
+                      {option.sub && <span className="ds-iq-choice-sub">{option.sub}</span>}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {provisions && (
+              <div className="ds-iq-provisions">
+                Make provisions for both. <b>Confirm on the day.</b>
+              </div>
+            )}
+            {notSure && (
+              <div className="ds-iq-provisions">
+                It stays on the list. <b>Confirm on the day.</b>
+              </div>
+            )}
+          </div>
         </div>
-        {from && (
-          <div className="ds-iq-from">
-            {from.text} <b>{from.option}</b>
-          </div>
-        )}
-        <div className="ds-iq-q">{question.text}</div>
-        {question.hint && <div className="ds-iq-hint">{question.hint}</div>}
-        <div className="ds-iq-choices" role="group" aria-label={question.text}>
-          {question.options.map((option) => {
-            const on = ticks.includes(option.id);
-            return (
-              <button
-                key={option.id}
-                className={`ds-iq-choice${on ? " on" : ""}`}
-                role="checkbox"
-                aria-checked={on}
-                onClick={() => toggle(question, option.id)}
-              >
-                <BoxGlyph on={on} />
-                <span className="ds-iq-choice-l">
-                  {option.label}
-                  {option.sub && <span className="ds-iq-choice-sub">{option.sub}</span>}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {provisions && (
-          <div className="ds-iq-provisions">
-            Make provisions for both. <b>Confirm on the day.</b>
-          </div>
-        )}
-        {notSure && (
-          <div className="ds-iq-provisions">
-            It stays on the list. <b>Confirm on the day.</b>
-          </div>
-        )}
+        {question.options
+          .filter((option) => ticks.includes(option.id))
+          .flatMap((option) => option.followUps ?? [])
+          .map((followUp) => renderQuestion(followUp, depth + 1))}
       </div>
     );
   };
@@ -224,7 +200,22 @@ export function InstallQuestions({
         </div>
 
         <div className="ds-iq-body">
-          <div className="ds-iq-qs">{step && renderStep(step.question, step.from)}</div>
+          <div className="ds-iq-qs">
+            {GROUPS.map((group) => {
+              const mine = questions.filter((q) => q.group === group);
+              if (!mine.length) return null;
+              const sub = groupSub(group);
+              return (
+                <section key={group} className="ds-iq-group" aria-label={group}>
+                  <div className="ds-iq-gh">
+                    {group}
+                    {sub && <span className="ds-iq-gsub">{sub}</span>}
+                  </div>
+                  {mine.map((q) => renderQuestion(q, 0))}
+                </section>
+              );
+            })}
+          </div>
 
           <aside className="ds-iq-eq" aria-label="Equipment list">
             <div className="ds-iq-eh">Equipment list</div>
@@ -262,23 +253,12 @@ export function InstallQuestions({
         </div>
 
         <div className="ds-sb-foot">
-          <button className="ds-sb-btn" onClick={() => setAtId(steps[at - 1]?.question.id ?? null)} disabled={at === 0}>
-            Back
-          </button>
           <span className="ds-sb-spring" />
-          <span className="ds-iq-at num">
-            {at + 1} of {steps.length}
-          </span>
           <button className="ds-sb-btn" onClick={onClose}>
             Discard changes
           </button>
-          <button
-            className="ds-sb-btn primary"
-            onClick={() =>
-              last ? (dirty ? onCommit(draft) : onClose()) : setAtId(steps[at + 1]?.question.id ?? null)
-            }
-          >
-            {last ? "Done" : "Next"}
+          <button className="ds-sb-btn primary" onClick={() => (dirty ? onCommit(draft) : onClose())}>
+            Done
           </button>
         </div>
       </div>

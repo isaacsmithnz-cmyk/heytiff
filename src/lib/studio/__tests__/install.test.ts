@@ -19,7 +19,6 @@ import {
   installAnswers,
   installQuestions,
   installState,
-  installSteps,
   matchesModelGlob,
   NOT_SURE,
   type EquipmentRow,
@@ -469,36 +468,6 @@ describe("install state", () => {
     expect(same).toBe(doc);
     const noSystem = answerInstall(doc, "no-such-system", "controls", ["wired"]);
     expect(noSystem).toBe(doc);
-  });
-});
-
-/* ── 4a. the run, one question at a time ── */
-
-describe("the steps", () => {
-  it("puts a follow-up straight after the answer that opened it, and says which answer that was", () => {
-    let doc = fiveHeadMulti();
-    expect(installSteps(doc, pack, sysOf(doc, "multi")).every((s) => s.from === undefined)).toBe(true);
-
-    doc = answerInstall(doc, "multi", "outdoor-sits", ["wall"]);
-    const steps = installSteps(doc, pack, sysOf(doc, "multi"));
-    expect(steps.map((s) => s.question.id)).toEqual([
-      "outdoor-sits",
-      "wall-bracket",
-      "outdoor-drain",
-      "controls",
-      "head-fixings",
-      "condensate",
-      "electrical-work",
-    ]);
-    expect(steps[1].from).toEqual({ text: "Where does it sit?", option: "On a wall" });
-    // and only the follow-up came from somewhere
-    expect(steps.filter((s) => s.from).map((s) => s.question.id)).toEqual(["wall-bracket"]);
-  });
-
-  it("is the same run askedQuestions walks", () => {
-    const doc = answerInstall(fiveHeadMulti(), "multi", "outdoor-sits", ["ground"]);
-    const sys = sysOf(doc, "multi");
-    expect(installSteps(doc, pack, sys).map((s) => s.question)).toEqual(askedQuestions(doc, pack, sys));
   });
 });
 

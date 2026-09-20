@@ -611,6 +611,39 @@ describe("the cheap fix comes before the expensive one", () => {
     expect(best).toMatch(/counter beats anyone's memory/i);
   });
 
+  /* Not cooling, audited the same way. */
+  it("a remote sitting on COOL is not proof the head got the message", () => {
+    expect(getQuestion("cool.mode")!.why).toMatch(/what the REMOTE thinks/);
+    const { best } = all("settings-cool");
+    expect(best).toMatch(/watch the unit answer/i);
+    expect(best).toMatch(/second remote, the phone app/i);
+    expect(best).toMatch(/lock/i);
+  });
+
+  it("a room beating the unit is measured first, and comes with words for the customer", () => {
+    const { o, best } = all("load-excess");
+    expect(o.actions[0]).toMatch(/return-to-supply split/i);
+    expect(best).toMatch(/ceiling fan/i);
+    expect(o.customer).toBeTruthy();
+    expect(o.customer!.length).toBeGreaterThan(80);
+  });
+
+  it("a blocked condenser is read from behind and washed the right way", () => {
+    const { o, best, alts } = all("condenser-blocked");
+    expect(o.actions[0]).toMatch(/torch from behind/i);
+    expect(best).toMatch(/from the inside out/i);
+    expect(best).toMatch(/straighten flattened fins/i);
+    expect(alts.map((a) => a.fix)).toContain("Chemical clean it");
+    expect(alts.every((a) => !a.escalate)).toBe(true);
+  });
+
+  it("the gauges come after what a thermometer can answer for free", () => {
+    const { o, best } = all("go-pressures");
+    expect(o.actions[0]).toMatch(/before a hose goes on/i);
+    expect(o.actions[0]).toMatch(/costs a little gas/i);
+    expect(best).toMatch(/charge label and the pipe run/i);
+  });
+
   it("crossed comms offers the renaming that needs no tools", () => {
     expect(all("vrf-crossed-comms").alts.map((a) => a.fix).join(" ")).toMatch(/rename/i);
   });

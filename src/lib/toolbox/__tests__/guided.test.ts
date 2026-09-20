@@ -729,6 +729,45 @@ describe("the cheap fix comes before the expensive one", () => {
   });
 });
 
+describe("the badge has to be earned, and the same shape everywhere", () => {
+  /* Swept across all 93 outcomes once every path had been audited. The badge
+     says "beyond a routine visit", so an outcome may only wear it when
+     something in it IS that: work its own steps name, or an option carrying
+     the flag. Four outcomes wore it over a list of routine checks with the
+     real fix buried in the last line. */
+  it("no outcome wears the badge without something in it that earns one", () => {
+    const unearned: string[] = [];
+    for (const o of OUTCOMES) {
+      if (!o.escalate) continue;
+      // its own steps, or its safety note, which is where reverse rotation
+      // puts "correcting phase sequence is licensed electrical work"
+      const ownWork = /replace|replacement|recovery|recover|braze|licensed|condemn|evacuat|flush|drier/i.test(
+        `${o.actions.join(" ")} ${o.safety ?? ""}`
+      );
+      const flaggedOption = (o.alternatives ?? []).some((a) => a.escalate);
+      if (!ownWork && !flaggedOption) unearned.push(o.id);
+    }
+    expect(unearned).toEqual([]);
+  });
+
+  it("the real fix is an option, not the last line of a checklist", () => {
+    for (const id of ["control-board", "protection-coded", "phase-protection"]) {
+      const o = getOutcome(id)!;
+      expect(o.escalate).toBeFalsy();
+      expect(o.actions.join(" ")).not.toMatch(/ from here/i);
+      expect(o.alternatives!.some((a) => a.escalate)).toBe(true);
+    }
+    // a documented charge that still reads short has gone somewhere
+    expect(getOutcome("vrf-charge")!.alternatives![0].fix).toMatch(/find the leak/i);
+  });
+
+  it("a sound the customer will phone about carries words for them", () => {
+    const gurgle = getOutcome("gurgle-normal")!;
+    expect(gurgle.customer).toBeTruthy();
+    expect(gurgle.customer).toMatch(/sealed loop/i);
+  });
+});
+
 describe("some rooms not others, and the rest of multi and VRF", () => {
   const all = (id: string) => {
     const o = getOutcome(id)!;
@@ -1174,7 +1213,7 @@ describe("reading the oil — the only witness to why it died", () => {
 
 describe("words for the customer", () => {
   it("carries a script wherever explaining it is most of the job", () => {
-    for (const id of ["cond-aluminium", "cond-humidity", "cond-building", "defrost-normal", "mode-conflict"]) {
+    for (const id of ["cond-aluminium", "cond-humidity", "cond-building", "defrost-normal", "mode-conflict", "gurgle-normal", "load-excess", "heat-capacity", "vrf-diversity", "outdoor-water"]) {
       const out = getOutcome(id)!;
       expect(out.customer).toBeTruthy();
       expect(out.customer!.length).toBeGreaterThan(80);

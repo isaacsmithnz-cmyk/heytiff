@@ -620,7 +620,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "code.recorded",
     ask: "Have you recorded the exact code or blink pattern?",
-    why: "Which LEDs, how many flashes, and the pause length. Photograph the controller — the pattern is the whole diagnosis and it's lost once you clear it.",
+    why: "Which LEDs, how many flashes, and the pause length. Photograph the controller — the pattern is the whole diagnosis and it's lost once you clear it. Better still, read it out of the unit: most keep a fault history you can call up on a wired controller or in check mode, which beats counting flashes on a ladder.",
     answers: [
       { label: "Not yet", next: "out:record-first" },
       { label: "Yes, I've got it", next: "code.persists" },
@@ -629,7 +629,7 @@ export const QUESTIONS: Question[] = [
   {
     id: "code.persists",
     ask: "After one power cycle at the isolator, does the code come back?",
-    why: "Isolate for a full minute, restore, and run it under load.",
+    why: "Isolate for a full minute, restore, and run it under load. Read the fault history first where the unit keeps one: the power cycle clears the display, not the log, so you keep the evidence either way.",
     answers: [
       { label: "Yes, it returns", next: "out:code-persists" },
       { label: "No, it's cleared", next: "out:code-transient" },
@@ -1891,8 +1891,11 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "The code is the diagnosis, and power-cycling erases it. Capture it properly before touching anything.",
     actions: [
+      "Film the lamps on your phone rather than counting on a ladder — a long pattern counts easily on the replay, and the video is the record",
       "Photograph the controller or the indoor unit's LEDs",
       "Note which LEDs, how many flashes, and the pause length",
+      "Call up the fault history where the unit keeps one — on a wired controller or in check mode. It names the code, often how many times it has happened, and it survives the power cycle",
+      "Write down what it was doing when it tripped: mode, how long it had run, the weather. Half of these codes are protection, and the condition IS the fault",
       "Record the model and serial from the data plate while you're there",
       "Then press Back and carry on with the code in hand",
     ],
@@ -1904,12 +1907,24 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "It survived a power cycle and returns under load, so it's a live fault rather than a one-off glitch. What it means is specific to this brand and model.",
     actions: [
+      "Read the live sensor data in check mode before you order anything: one reading at an impossible number — far below zero, or up near boiling — names an open or shorted sensor, and that's the cheapest part on the machine",
       "Codes are brand-specific — read it against this unit's own manual",
-      "Check the obvious physical causes for that family of code first",
+      "Then work the family it belongs to, cheapest first. A sensor code is usually a thermistor out of its clip, a chafed lead or a plug half out. A comms code is a loose terminal, a reversed pair or two units on one address. A protection code is a dirty coil, a stopped fan, or the charge",
+      "Open the control box and look: ants, water and a half-seated plug throw codes that no manual will ever name",
       "Don't keep power-cycling it; you'll only lose the evidence",
       "If the manual doesn't cover it, call the manufacturer's technical line with model, serial and code",
     ],
-    escalate: true,
+    alternatives: [
+      {
+        fix: "Replace the sensor",
+        when: "Its reading is impossible, or it's open or shorted against its chart. A clip and a plug — no refrigerant work, and the cheapest end of a code.",
+      },
+      {
+        fix: "Board-level or refrigerant work, once the code is understood",
+        when: "The family points there and the cheap causes are ruled out: a drive, a power module, a valve or the charge.",
+        escalate: true,
+      },
+    ],
     library: true,
   },
   {
@@ -1920,6 +1935,8 @@ export const OUTCOMES: Outcome[] = [
       "It hasn't come back, so it was likely a transient — a supply dip, a one-off protection trip, or a sensor glitch. Worth noting rather than forgetting.",
     actions: [
       "Record the code and the date in the job notes",
+      "Ask what the weather and the power were doing: a 40-degree afternoon or a supply dip throws a protection code that clears and never comes back",
+      "Check the fault history for how many times it has happened — a counter beats anyone's memory of 'once or twice'",
       "Look up what it was warning about — a cleared code still names the circuit",
       "Check the obvious physical causes anyway — filters, condenser, clearance",
       "Tell the customer to note the pattern if it returns",

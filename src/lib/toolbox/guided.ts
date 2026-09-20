@@ -2059,6 +2059,7 @@ export const OUTCOMES: Outcome[] = [
       "It changes over happily on its own, so the head and its branch are both fine. A priority setting or a master controller is making it follow the rest of the system instead of running the mode it's asking for.",
     actions: [
       "Find which controller or head is set as master",
+      "Check whether it's set to a fixed master or to first-come: switching that one setting is often the whole fix",
       "Check the priority setting on the branch controller and on any central controller",
       "Re-assign priority to match how the building is actually used",
       "Confirm the change by calling opposite modes on two heads again",
@@ -2097,10 +2098,11 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Check the transmission terminals at that head for a loose or reversed conductor",
       "Confirm its address or dip-switch setting isn't duplicated with another head",
+      "Check the terminating resistance is set on ONE board only, the way that system wants it — two of them, or none, and the line reads noisy or dead with every wire perfect",
       "Follow the daisy-chain: if everything downstream is out too, the break is upstream of them all",
       "Confirm the shield is earthed at one end only, and the line isn't run alongside power cable",
+      "Power the whole system down for a minute and let it re-address on the way back up — plenty of comms faults are a handshake that never finished",
     ],
-    escalate: true,
   },
   {
     id: "vrf-branch",
@@ -2134,7 +2136,7 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "Its pipes get cold or hot, so the outdoor unit, the branch and the comms are all doing their job for this circuit. Whatever's wrong is inside this head, and from here it diagnoses exactly like a single split.",
     actions: [
-      "Check that head's filters, coil face and fan speed",
+      "Check that head's filters, coil face and fan speed — and its fan wheel, because dust packed on the blades starves a head with spotless filters",
       "Ducted head: check for crushed or disconnected flexible duct on that run",
       "Confirm its louvres and any zone damper are actually open",
       "Compare its supply-air split against a head that's working properly",
@@ -2146,6 +2148,8 @@ export const OUTCOMES: Outcome[] = [
     confidence: "info",
     explain:
       "Multi and VRF outdoor units are deliberately sized below the sum of the heads connected to them, because in a real building they don't all run flat out together. On a design day with every head calling, each one gets less than its nameplate and the whole building drifts.",
+    customer:
+      "One outdoor unit feeds all of these heads, and it was sized on the assumption the whole building never runs flat out at the same moment — which is how every system like this is specified. On a day like today everything is calling at once, so each room gets a share rather than everything it could have. Turn off the rooms nobody is in and the rest come back.",
     actions: [
       "Check the connection ratio: total indoor capacity against the outdoor unit's rating",
       "Watch whether it recovers as heads satisfy and drop out",
@@ -2396,7 +2400,8 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Follow that run in the ceiling from the damper right through to the outlet",
       "Look for a flex pulled off its spigot — a disconnected run air-conditions the roof space instead of the room",
-      "Check where the run crosses a truss or a downlight for crushing",
+      "Check where the run crosses a truss or a downlight for crushing, and look for the knee-print: the commonest crush is where somebody knelt or walked",
+      "Check nobody has cable-tied it to a truss hard enough to choke it — a tie pulled tight does as much as a crush",
       "Re-clamp and tape properly, and support long runs so they can't sag into a trap",
     ],
   },
@@ -2408,7 +2413,9 @@ export const OUTCOMES: Outcome[] = [
       "Air takes the easy path. With nothing set, the short straight runs nearest the indoor unit take more than their share and whatever sits at the end of the longest run lives on the leftovers. Extremely common on systems installed and never commissioned.",
     actions: [
       "Balance it properly: partly close the takeoffs on the rooms that are over-served rather than only opening the poor one",
+      "Balance it with the zones the customer actually runs open, not with the whole house open — otherwise it's right once and wrong every evening",
       "Measure at the diffusers instead of judging by hand",
+      "Mark what you set, on the damper or in the notes, so the next person doesn't undo an afternoon's work in five minutes",
       "Straighten, shorten and support that long run while you're up there — every bend costs air",
       "Check the flex size on that run matches what the outlet actually needs",
     ],
@@ -2475,6 +2482,7 @@ export const OUTCOMES: Outcome[] = [
       "A ducted system needs a minimum amount of duct open to work. Close too many zones and static pressure climbs, the bypass dumps supply air straight back into the return, and even the zones that are open stop getting a useful share — or the unit cuts out on protection.",
     actions: [
       "Find how many zones this system needs open, and whether a constant zone was ever set up",
+      "Set it in the controller rather than in the customer's habits: most zone controllers can be told a minimum number of zones, or which one to hold open as the spill, and then it looks after itself",
       "Leave a constant or dump zone open — a hallway is the usual choice",
       "Set the bypass so it holds static without dumping most of the air",
       "Watch the supply-air temperature: bypassed air returning to the coil drags it back towards room temperature",
@@ -2489,7 +2497,8 @@ export const OUTCOMES: Outcome[] = [
     actions: [
       "Add up the load of all the zones and compare it against the unit's capacity",
       "Check what diversity the system was designed on, if anyone wrote it down",
-      "Stagger zones by time of day rather than running the lot",
+      "Stagger zones by time of day rather than running the lot — and set that in the controller's schedule, where it will still be happening next summer",
+      "Check what the dampers actually do: ones that only open or shut hand everything to whoever is open, while modulating dampers share what there is",
       "If every zone genuinely has to run together, it was specified on the wrong assumption",
     ],
     tool: HEATLOAD,

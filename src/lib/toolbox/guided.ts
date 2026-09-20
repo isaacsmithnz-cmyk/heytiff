@@ -1433,10 +1433,15 @@ export const OUTCOMES: Outcome[] = [
       "Reseat every plug on the board — a corroded or half-seated connector looks exactly like a dead board",
       "Look for obvious damage — burnt tracks, swollen capacitors, water ingress, insects",
       "Ants or moisture but nothing burnt? Clean it out with a dry brush and contact cleaner, let it dry and try again before ordering anything",
-      "Board-level diagnosis and replacement from here",
+    ],
+    alternatives: [
+      {
+        fix: "Replace the board",
+        when: "Supply and transformer output are good at its terminals, the fuse is intact, every plug is seated and nothing is living in it. Model-specific, and often a lead time.",
+        escalate: true,
+      },
     ],
     safety: DC_BUS,
-    escalate: true,
   },
 
   /* water */
@@ -1609,8 +1614,14 @@ export const OUTCOMES: Outcome[] = [
       "Clean the condenser and the filters, and check both fans, first — high head causes many of these, and a starved indoor coil trips its freeze protection",
       "Read pressures under load to see which limit it's hitting",
     ],
+    alternatives: [
+      {
+        fix: "Board-level or refrigerant work, once the code is understood",
+        when: "The code's family points there and the cheap physical causes are ruled out: a drive, a power module, a valve or the charge.",
+        escalate: true,
+      },
+    ],
     tool: PRESSURES,
-    escalate: true,
     library: true,
   },
   {
@@ -1738,6 +1749,8 @@ export const OUTCOMES: Outcome[] = [
     confidence: "info",
     explain:
       "Gurgling and hissing as it starts, stops or defrosts is refrigerant equalising between the high and low sides. Expected.",
+    customer:
+      "That gurgle is the refrigerant moving inside the pipes as the system starts and stops — the same sound a kettle makes settling down. It runs around a sealed loop, so hearing it move doesn't mean any of it is escaping. If it ever turns into a constant hiss while it's running, that's worth a call; the odd gurgle isn't.",
     actions: [
       "Reassure the customer — it's the system settling, not a leak",
       "If it becomes constant while running, that's worth investigating",
@@ -2170,6 +2183,13 @@ export const OUTCOMES: Outcome[] = [
       "Leak-test before adding anything: a missing top-up and a slow leak look identical from here",
       "Weigh the charge in against the calculation — never trim it in on pressure",
     ],
+    alternatives: [
+      {
+        fix: "Find the leak and repair it before anything is weighed in",
+        when: "The label says the extra charge WAS weighed in at commissioning and it still reads short. Then it has gone somewhere, and topping it up just buys the same callout next year.",
+        escalate: true,
+      },
+    ],
     tool: PRESSURES,
     escalate: true,
   },
@@ -2267,6 +2287,8 @@ export const OUTCOMES: Outcome[] = [
       "Restart and confirm the pressures split within a minute and the noise has gone",
       "New install or recent switchboard work? Check the rest of the site — anything else three-phase will be reversed too",
     ],
+    safety:
+      "Every minute of reverse running costs the compressor, so isolate before anything else. Testing and correcting phase sequence is licensed electrical work — the warning on the question is still true here.",
     escalate: true,
   },
   {
@@ -2353,9 +2375,18 @@ export const OUTCOMES: Outcome[] = [
       "Read the relay's own settings before you condemn the supply — an unbalance or under-voltage setting screwed down too tight trips on a supply the unit is perfectly happy with",
       "Check the relay's own terminals while you're there: a loose connection under one of them reads as the missing phase it's reporting",
       "Compare the unbalance against the relay's setting before deciding the relay is faulty",
-      "Supply testing and correction is licensed electrical work",
     ],
-    escalate: true,
+    alternatives: [
+      {
+        fix: "Replace the relay",
+        when: "The supply measures good on all three, the sequence is right, and it still holds the contactor out with its own settings where they should be.",
+      },
+      {
+        fix: "Have the supply repaired",
+        when: "A phase is missing, the sequence is wrong, or the unbalance is real. Testing and correcting it is licensed electrical work, and resetting the relay without it just single-phases the compressor.",
+        escalate: true,
+      },
+    ],
   },
 
   /* ducted zoning */

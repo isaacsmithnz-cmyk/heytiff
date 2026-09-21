@@ -49,7 +49,7 @@ export default async function SwmsTemplatePage() {
                   ? "Read the steps and controls, then approve them at the end. No SWMS can be issued until you do."
                   : `${owner ?? "The owner"} approves the template before the first SWMS can be issued.`}
             </p>
-            <div className="card2 sws-read">
+            <div className="sws-grp">
               <TemplateSteps />
             </div>
             {!approval && isOwner && (

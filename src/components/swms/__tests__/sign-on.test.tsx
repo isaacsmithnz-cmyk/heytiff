@@ -135,7 +135,7 @@ it("leads a revision with what changed", () => {
     />
   );
   const changed = screen.getByText("What changed");
-  expect(within(changed.closest(".sws-card") as HTMLElement).getByText("Crane lift instead of a hoist")).toBeInTheDocument();
+  expect(within(changed.closest(".sws-grp") as HTMLElement).getByText("Crane lift instead of a hoist")).toBeInTheDocument();
   expect(screen.getByText("Everyone signs on again")).toBeInTheDocument();
   /* and it stands above the document it changed */
   expect(changed.compareDocumentPosition(screen.getByText("Before you start")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -219,7 +219,7 @@ it("leads with the issue for whoever has to answer it, and records it as sorted"
   raised.people[1] = { ...raised.people[1], signon: withIssue("No anchor on the rear ridge") };
   render(<SwmsSignOn doc={raised} me="troy" />);
 
-  const card = screen.getByText("An issue was raised").closest(".sws-card") as HTMLElement;
+  const card = screen.getByText("An issue was raised").closest(".sws-grp") as HTMLElement;
   expect(within(card).getByText("No anchor on the rear ridge")).toBeInTheDocument();
   expect(within(card).getByText(/^Dane Whitmore, Wed 16 Sept/)).toBeInTheDocument();
   expect(within(card).getByRole("link", { name: "Open the job to revise the SWMS" })).toHaveAttribute("href", "/dashboard/workboard?job=job-1");

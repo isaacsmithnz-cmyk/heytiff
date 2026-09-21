@@ -152,7 +152,17 @@
 .sws-back { align-self:flex-start; margin-bottom:8px; font-size:13px; font-weight:700; color:var(--q); text-decoration:none; }
 .sws-back:hover { color:var(--ink); }
 .sws-back:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .card2.sws-card, .fg .card2.sws-read { display:flex; flex-direction:column; gap:16px; margin-bottom:0; }
+.fg .card2.sws-card { display:flex; flex-direction:column; gap:16px; margin-bottom:0; }
+/* WHAT YOU READ IS A GROUP; WHAT YOU PRESS KEEPS ITS EDGE (2026-09-21).
+   The frame rollout took the grey well away, so a white card with a hairline
+   on white paper is paper on paper and its edge does nothing — law 9, and the
+   pass the Fault Finder took for the same reason. What changed, Before you
+   start, Who it covers, the issues raised and the template's steps are all
+   read: they group by a hairline and the spacing scale. The two things you
+   act on — the sign-on form and the issue form — are still cards, because a
+   signature is not reading. The rows inside a group keep their own rules and
+   every control keeps its edge. */
+.sws-grp { display:flex; flex-direction:column; gap:16px; padding-top:16px; border-top:1px solid var(--line); }
 .sws-keys { margin:0; padding-left:24px; list-style:disc; display:flex; flex-direction:column; gap:8px; font-size:14px; max-width:68ch; }
 .sws-keys b { font-weight:600; }
 .sws-pad { position:relative; width:100%; max-width:600px; aspect-ratio:3 / 1; border:1px solid var(--line); border-radius:var(--r-button);
@@ -164,7 +174,7 @@
 .sws-actions > span { flex:1; min-width:0; font-size:13px; font-weight:500; }
 /* the app's own note field, which `.sw-field` never was — it had no rules at
    all, so the issue box was a raw browser textarea inside a card */
-.fg .card2.sws-card .wb2-notes { margin-bottom:0; }
+.fg .card2.sws-card .wb2-notes, .fg .sws-grp .wb2-notes { margin-bottom:0; }
 .sws-people { display:flex; flex-direction:column; }
 .sws-person { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 12px; padding:8px 0; border-top:1px solid var(--line); }
 .sws-person:last-child { border-bottom:1px solid var(--line); }

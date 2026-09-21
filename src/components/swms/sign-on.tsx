@@ -342,7 +342,7 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
             <p className="sws-lede">{doc.job?.address ?? "No address on the job"}</p>
 
             {!doc.latest && latest && (
-              <div className="card2 sws-card">
+              <div className="sws-grp">
                 <p className="sw-text">{`A newer SWMS replaced this one: ${latest.reason}.`}</p>
                 <div className="sws-actions">
                   <span />
@@ -354,7 +354,7 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
             )}
 
             {doc.latest && revision && (
-              <div className="card2 sws-card">
+              <div className="sws-grp">
                 <div className="sw-gh">
                   <b>What changed</b>
                   <span>{revision.material ? "Everyone signs on again" : "A correction — sign-ons carry over"}</span>
@@ -368,7 +368,7 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
             {/* IT LEADS THE PAGE for whoever has to answer it — the bell sent
                 them here for this, not for the briefing they wrote */}
             {doc.latest && inCharge && openIssues.length > 0 && (
-              <div className="card2 sws-card">
+              <div className="sws-grp">
                 <div className="sw-gh">
                   <b>{openIssues.length === 1 ? "An issue was raised" : `${openIssues.length} issues were raised`}</b>
                   <span>Yours to answer</span>
@@ -395,7 +395,7 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
             {/* READ FIRST. The page is the briefing on paper: what the work is,
                 how each step is kept safe, and what to do in an emergency —
                 then, below it, the signature that says it was read. */}
-            <div className="card2 sws-card">
+            <div className="sws-grp">
               <div className="sw-gh">
                 <b>Before you start</b>
                 <span>{`Issued ${siteWhen(doc.issuedAt, c.jurisdiction)}. ${inCharge ? "You're" : `${doc.responsible} is`} in charge on site.`}</span>
@@ -475,7 +475,7 @@ export function SwmsSignOn({ doc, me }: { doc: SwmsDocument; me: string | null }
               <SignOnForm person={mine} own inCharge={inCharge} responsible={doc.responsible} onSigned={signed} />
             )}
 
-            <div className="card2 sws-card">
+            <div className="sws-grp">
               <div className="sw-gh">
                 <b>Who it covers</b>
                 <span>{`${doc.people.filter((p) => p.signon).length} of ${doc.people.length} signed on`}</span>

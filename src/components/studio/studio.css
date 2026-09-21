@@ -4643,6 +4643,11 @@ html[data-ds-display] .dstudio.editing {
 
    Paper has always drawn a unit as a white body with a line round it, so the
    plan on screen and the plan on paper are one drawing now. */
+/* NO LIFT UNDER A UNIT, and the reason is the size one is at when it matters.
+   A drop shadow was tried and read well at 134% — and at the zoom a plan is
+   actually worked at, a head is 37 x 10 SCREEN px, where a 2px blur under a
+   1.5px offset is a fifth of the whole object: the unit went soft exactly
+   where it had to be sharp. The line is the edge; nothing behind it. */
 .dstudio .ds-unit rect {
   fill: var(--paper, #fff);
   stroke: var(--ink, #0a0b10);

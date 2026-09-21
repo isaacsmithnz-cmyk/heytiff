@@ -87,6 +87,15 @@ describe("FaultFinder — walking the tree", () => {
     expect(container.querySelector(".ffg-outcome h2")).toHaveTextContent(/short or earth fault/i);
   });
 
+  it("names every Toolbox tool the walk can send you to, with no decoration", () => {
+    const { container } = render(<FaultFinder />);
+    const rail = container.querySelector(".ffg-links")!;
+    const links = Array.from(rail.querySelectorAll("a")).map((a) => a.textContent!.trim());
+    expect(links).toEqual(["Running Pressures", "Heat Load", "Outdoor Unit Placement"]);
+    // the dots were the retired teal and the app's danger red, on a link
+    expect(rail.querySelectorAll(".dot2")).toHaveLength(0);
+  });
+
   it("hands off to Running Pressures when pressures decide it", () => {
     render(<FaultFinder />);
     pickSymptom(/Not cooling/);

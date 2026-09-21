@@ -3477,9 +3477,20 @@ export function StudioCanvas({
       room: roomId
         ? ((rooms.find((r) => r.id === roomId)?.props.name as string | undefined) ?? null)
         : null,
+      /* W × D × H. The plan can only ever SHOW the first two — it is a view
+         from above — so the height is carried here as a note: the figure you
+         need to know whether a unit clears a bulkhead or sits under a window,
+         and the one an elevation would draw if we ever draw one.
+
+         It is read off the PACK rather than the object, because the placed
+         object only ever stored the two dimensions the footprint needs, so
+         every unit placed before today has no height on it to read. */
       size: `${Math.round(Number(u.props.widthMm ?? 0))} × ${Math.round(
         Number(u.props.depthMm ?? 0)
-      )} mm`,
+      )}${spec?.height_mm != null ? ` × ${Math.round(spec.height_mm)}` : ""} mm`,
+      /* named so the card can say which figure is which — three bare numbers
+         on a plan is the one place W×D×H is genuinely ambiguous */
+      sizeAxes: spec?.height_mm != null ? "W × D × H" : "W × D",
     };
   }, [hoverUnitId, units, iduSpec, oduSpec, doc.objects, doc.systems, rooms, sysColour, pointAt]);
 
@@ -5079,7 +5090,7 @@ export function StudioCanvas({
               </div>
             )}
             <div>
-              <dt>Size</dt>
+              <dt>{hoverCard.sizeAxes}</dt>
               <dd>{hoverCard.size}</dd>
             </div>
           </dl>

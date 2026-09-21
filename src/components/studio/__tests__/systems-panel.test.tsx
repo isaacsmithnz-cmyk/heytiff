@@ -164,6 +164,7 @@ function mount(doc: DesignDocument, activeSystemId: string | null = null, pack: 
     onAddZones: jest.fn(),
     onBuild: jest.fn(),
     onInstall: jest.fn(),
+    onDeleteSystem: jest.fn(),
     onArmPlace: jest.fn(),
     onMoveZone: jest.fn(),
     onClaimZone: jest.fn(),
@@ -658,5 +659,23 @@ describe("SystemCockpit — close a system", () => {
     expect(next!.systems.map((s) => s.id)).not.toContain("sys1");
     expect(next!.objects.map((o) => o.id)).not.toContain("u_idu");
     expect(cleared).toContain(null); // active system cleared
+  });
+
+  it("deletes a system from its own card, without opening the builder", () => {
+    const made = fiveHeadMulti(fittedHouse().doc);
+    const { onDeleteSystem, onBuild } = mount(made.doc, made.systemId);
+    const el = card("System 1");
+    const del = within(el).getByRole("button", { name: "Delete System 1" });
+    expect(del.textContent).toBe("Delete system");
+    fireEvent.click(del);
+    expect(onDeleteSystem).toHaveBeenCalledWith(made.systemId);
+    expect(onBuild).not.toHaveBeenCalled();
+  });
+
+  it("offers it on the open card only — a card at rest is a name and a line", () => {
+    const made = fiveHeadMulti(fittedHouse().doc);
+    /* no system is active, so every card is at rest */
+    mount(made.doc, null);
+    expect(screen.queryByRole("button", { name: "Delete System 1" })).toBeNull();
   });
 });

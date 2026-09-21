@@ -96,6 +96,7 @@ export function SystemsPanel({
   onAddZones,
   onBuild,
   onInstall,
+  onDeleteSystem,
   onArmPlace,
   onMoveZone,
   onClaimZone,
@@ -112,6 +113,8 @@ export function SystemsPanel({
   /** Build system, and Edit system once a unit is in */
   onBuild: (systemId: string) => void;
   onInstall: (systemId: string) => void;
+  /** the card's own Delete system — the builder's, without opening it */
+  onDeleteSystem: (systemId: string) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
   onMoveZone: (zoneId: string, from: string, to: string) => void;
   onClaimZone: (zoneId: string, to: string) => void;
@@ -201,6 +204,7 @@ export function SystemsPanel({
             onAddZones={() => onAddZones(sys.id)}
             onBuild={() => onBuild(sys.id)}
             onInstall={() => onInstall(sys.id)}
+            onDelete={() => onDeleteSystem(sys.id)}
             onArmPlace={onArmPlace}
             onRemoveZone={(zoneId) => onRemoveZone(zoneId, sys.id)}
             onDragEnter={enter}
@@ -254,6 +258,7 @@ function SystemCard({
   onAddZones,
   onBuild,
   onInstall,
+  onDelete,
   onArmPlace,
   onRemoveZone,
   onDragEnter,
@@ -272,6 +277,7 @@ function SystemCard({
   onAddZones: () => void;
   onBuild: () => void;
   onInstall: () => void;
+  onDelete: () => void;
   onArmPlace: (p: PlacingUnit | null) => void;
   onRemoveZone: (zoneId: string) => void;
   onDragEnter: (e: DragEvent) => void;
@@ -391,6 +397,13 @@ function SystemCard({
                     Edit system
                   </button>
                 </div>
+                <button
+                  className="ds-zp-del"
+                  onClick={onDelete}
+                  aria-label={`Delete ${sys.name}`}
+                >
+                  Delete system
+                </button>
               </>
             )}
           </div>

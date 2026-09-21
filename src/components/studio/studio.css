@@ -4597,21 +4597,45 @@ html[data-ds-display] .dstudio.editing {
   stroke: #fff;
   stroke-width: 3px;
 }
+/* A UNIT IS THE FIGURE, ITS ZONE IS THE GROUND.
+
+   It was a 14% tint of the system's colour sitting inside a zone filled with
+   the SAME colour at 13% — one part in a hundred between a unit and the floor
+   under it, so a head read as a scratch and, zoomed out, as nothing at all.
+   Only its 1.6px outline said it was there, and that outline is non-scaling,
+   so it never thickened as the plan got smaller.
+
+   So the body is SOLID and the detail is knocked out of it in white, which is
+   the trick this canvas already plays behind a unit's model label. Solid, the
+   unit clears the graphic floor against its own zone on every system colour —
+   measured on the lightest of the six, #17A398, where the raw colour lands at
+   2.72:1 and one stop toward the ink lifts it to 3.29 (the others are 3.8 to
+   6.3). White on that same darkened teal is 3.77:1, so the louvres hold too.
+
+   THE HALO IS THE OUTLINE NOW, and it has a second job: a unit whose own zone
+   is unclaimed, or which overlaps a wall, still has a white edge between it
+   and whatever is under it. `paint-order: stroke` puts it outside the fill.
+
+   Paper is NOT this: plan-figure.tsx keeps a white body and a coloured edge,
+   which is what a printed plan wants and what a photocopier survives. */
 .dstudio .ds-unit rect {
-  fill: color-mix(in srgb, currentColor 14%, #fff);
-  stroke: currentColor;
-  stroke-width: 1.6px;
+  fill: color-mix(in srgb, currentColor 90%, var(--ink, #0a0b10));
+  stroke: #fff;
+  stroke-width: 3px;
+  paint-order: stroke;
   vector-effect: non-scaling-stroke;
 }
-.dstudio .ds-unit.sel rect { stroke-width: 3px; }
-/* the role glyph detail (fan, louvres) — inherits the unit's colour */
+/* selected: the knockout thickens. The body is already a fill, so the one
+   change a selection may make is to the edge around it. */
+.dstudio .ds-unit.sel rect { stroke-width: 5px; }
+/* the role glyph detail (fan, louvres) — knocked out of the solid body */
 .dstudio .ds-unit-detail {
   fill: none;
-  stroke: currentColor;
-  stroke-width: 1.2px;
+  stroke: #fff;
+  stroke-width: 1.4px;
   vector-effect: non-scaling-stroke;
 }
-.dstudio .ds-unit-hub { fill: currentColor; stroke: none; }
+.dstudio .ds-unit-hub { fill: #fff; stroke: none; }
 .dstudio .ds-place-ghost .ds-unit-detail { stroke: var(--teal-d); }
 .dstudio .ds-place-ghost .ds-unit-hub { fill: var(--teal-d); }
 .dstudio .ds-unit-role {
@@ -10075,6 +10099,28 @@ html[data-ds-display] .dstudio.editing {
   transition: background-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-zp-wide:hover { background: var(--tint); }
+/* Delete system, on the card that is open — the builder's own action without
+   having to open the builder to reach it. It is LABELLED, not a cross: a
+   chip's cross clears one zone, and this takes a whole system and its units
+   off the plan, which is too much to say with a mark. It is the quietest
+   thing on the card until it is pointed at, and it costs one undo. */
+.dstudio .ds-zp-del {
+  align-self: center;
+  margin-top: 2px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--r-button);
+  background: none;
+  color: var(--q);
+  font: 500 12px var(--font);
+  cursor: pointer;
+  transition:
+    color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-zp-del:hover {
+  color: var(--bad-t);
+}
 /* the one thing to press when there is no system yet */
 .dstudio .ds-zp-addsys {
   display: flex;

@@ -2337,6 +2337,7 @@ function Editor({
               onAddZones={startClaim}
               onBuild={onBuildSystem}
               onInstall={onInstallSystem}
+              onDeleteSystem={(id) => mutate((d) => releaseSystem(d, id))}
               onArmPlace={armPlace}
               onMoveZone={onMoveZone}
               onClaimZone={onClaimZone}

@@ -72,8 +72,11 @@ describe("FaultFinder — walking the tree", () => {
     answer(/Yes, indoor works/);
     expect(screen.getByText("Diagnosis")).toBeInTheDocument();
     expect(container.querySelector(".ffg-outcome h2")).toHaveTextContent(/outdoor unit isn't/i);
-    // a dead outdoor unit has a fallback (the board), so its list is the best fix
-    expect(screen.getByRole("heading", { name: "Best fix" })).toBeInTheDocument();
+    // its steps rule cheaper causes out, so they are checks, and the board is
+    // what they may point to — never "Best fix" over a list of checks
+    expect(screen.getByRole("heading", { name: "Check first" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Depending on what you find" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Best fix" })).not.toBeInTheDocument();
     expect(container.querySelectorAll(".ffg-actions li").length).toBeGreaterThanOrEqual(2);
     // no question remains once diagnosed
     expect(screen.queryByText(/^Question /)).not.toBeInTheDocument();
@@ -85,6 +88,23 @@ describe("FaultFinder — walking the tree", () => {
     answer(/Instantly, the moment it starts/);
     expect(container.querySelector(".ffg-outcome .esc")).toHaveTextContent(/specialist/i);
     expect(container.querySelector(".ffg-outcome h2")).toHaveTextContent(/short or earth fault/i);
+  });
+
+  it("a compressor that isn't pumping is checked first, and replacing it is what the checks point to", () => {
+    // the screen Isaac sent back: "Best fix" over four checks, with the
+    // compressor as a lone "other option"
+    const { container } = render(<FaultFinder />);
+    pickSymptom(/Pressures won't split/);
+    answer(/Yes, it's running/);
+    answer(/Fixed-speed, single-phase/);
+    answer(/Changes over fine, or it's cooling only/);
+    expect(container.querySelector(".ffg-outcome h2")).toHaveTextContent(/isn't pumping/i);
+    expect(screen.getByRole("heading", { name: "Check first" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Depending on what you find" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Best fix" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Other options" })).not.toBeInTheDocument();
+    const options = Array.from(container.querySelectorAll(".ffg-alts li b")).map((b) => b.textContent);
+    expect(options).toEqual(["Replace the compressor"]);
   });
 
   it("names every Toolbox tool the walk can send you to, with no decoration", () => {

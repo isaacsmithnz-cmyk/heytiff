@@ -503,8 +503,10 @@ describe("the cheap fix comes before the expensive one", () => {
     const { best, alts } = all("icing");
     expect(best).toMatch(/service valves fully open/i);
     expect(best).toMatch(/fan wheel/i);
-    expect(alts[0].fix).toBe("Thaw it in heat mode");
-    expect(alts[0].when).toMatch(/meltwater comes all at once/i);
+    // the fast thaw is a way to do step one, not something you find
+    expect(all("icing").o.actions[0]).toMatch(/heat mode clears it far quicker/i);
+    expect(all("icing").o.actions[0]).toMatch(/meltwater comes all at once/i);
+    expect(alts.map((a) => a.fix)).toEqual(["Find the leak, repair it and weigh the charge in"]);
   });
 
   /* Short cycling, audited the same way. */
@@ -726,6 +728,52 @@ describe("the cheap fix comes before the expensive one", () => {
 
   it("crossed comms offers the renaming that needs no tools", () => {
     expect(all("vrf-crossed-comms").alts.map((a) => a.fix).join(" ")).toMatch(/rename/i);
+  });
+});
+
+describe("the heading says what the list is", () => {
+  /* Isaac, on "Compressor isn't pumping": "what on earth?" The screen read
+     "Best fix: 1. service valves… 2. measure running current…", with "Replace
+     the compressor" underneath as an OTHER option. The label defaulted to
+     "Best fix" wherever options existed, so lists of checks wore the fix's
+     title on about half the outcomes that have options. `plan` makes the
+     author say which kind of list it is, every time. */
+  it("every outcome with options declares its plan, and none without", () => {
+    const undeclared = OUTCOMES.filter((o) => o.alternatives && !o.plan).map((o) => o.id);
+    const stray = OUTCOMES.filter((o) => !o.alternatives && o.plan).map((o) => o.id);
+    expect(undeclared).toEqual([]);
+    expect(stray).toEqual([]);
+  });
+
+  it("a list of checks is never headed as the fix", () => {
+    // the screen that started it, and the ones shaped like it
+    for (const id of ["not-pumping", "control-board", "odu-no-power", "phase-protection", "bearing-motor", "comp-damp", "code-persists", "heat-none"]) {
+      expect(getOutcome(id)!.plan).toBe("check");
+    }
+    // and where the steps ARE the repair, it still says so
+    for (const id of ["vrf-crossed-pipes", "condenser-blocked", "drain-blocked", "cond-aluminium", "zone-return"]) {
+      expect(getOutcome(id)!.plan).toBe("fix");
+    }
+  });
+
+  it("under 'check', the repair is an option and not the last line of the proofs", () => {
+    for (const id of ["comp-open", "comp-short", "comp-unbalanced", "not-pumping"]) {
+      const o = getOutcome(id)!;
+      expect(o.plan).toBe("check");
+      // none of the numbered steps is the replacement itself
+      for (const a of o.actions) expect(a).not.toMatch(/^(once it's proven, condemn|replacement is|plan the replacement)/i);
+      // and the compressor is the LAST option offered, after the cheaper finding
+      const last = o.alternatives![o.alternatives!.length - 1];
+      expect(last.fix).toMatch(/compressor/i);
+      expect(last.escalate).toBe(true);
+    }
+  });
+
+  it("a damper's plug swap names the fault, so the fixes it names are offered", () => {
+    const fixes = getOutcome("zone-damper")!.alternatives!.map((a) => a.fix);
+    expect(fixes[0]).toBe("Replace the damper motor");
+    expect(fixes[1]).toMatch(/wiring/i);
+    expect(fixes[fixes.length - 1]).toMatch(/by hand/i); // the stopgap stays last
   });
 });
 

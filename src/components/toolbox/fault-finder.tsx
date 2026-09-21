@@ -30,6 +30,10 @@ import {
 } from "@/lib/toolbox/guided";
 import "./toolbox.css";
 
+/* What the numbered list is called, and what follows it — see `plan`. */
+const STEPS_TITLE = { fix: "Best fix", check: "Check first" } as const;
+const OPTIONS_TITLE = { fix: "Other options", check: "Depending on what you find" } as const;
+
 const CONFIDENCE_LABEL = {
   likely: "Most likely",
   possible: "Possible",
@@ -211,10 +215,13 @@ function OutcomeCard({
         </section>
       )}
 
-      {/* "Best fix" only when there's something to compare it with — over a
-          lone list it would claim a choice nobody is being offered */}
+      {/* The heading says what the list IS. It used to default to "Best fix"
+          wherever there were options, which put that title over lists of
+          checks — "Best fix: measure the running current", with "Replace the
+          compressor" underneath as an other option. `plan` is decided per
+          outcome in guided.ts; with no options there is no choice to name. */}
       <section className="tcard ffg-actions">
-        <h3 className="tct">{outcome.alternatives ? "Best fix" : "What to do"}</h3>
+        <h3 className="tct">{outcome.alternatives ? STEPS_TITLE[outcome.plan ?? "fix"] : "What to do"}</h3>
         <ol>
           {outcome.actions.map((a) => (
             <li key={a}>{a}</li>
@@ -225,7 +232,7 @@ function OutcomeCard({
             the heavy fallback is flagged, the fix above it isn't */}
         {outcome.alternatives && (
           <div className="ffg-alts">
-            <h3 className="tct">Other options</h3>
+            <h3 className="tct">{OPTIONS_TITLE[outcome.plan ?? "fix"]}</h3>
             <ul>
               {outcome.alternatives.map((alt) => (
                 <li key={alt.fix}>

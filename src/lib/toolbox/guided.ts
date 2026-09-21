@@ -101,6 +101,23 @@ export interface Outcome {
       when the best fix isn't enough — each saying WHEN it's the one to pick.
       Only where a real alternative exists; never padded to make a pair. */
   alternatives?: Alternative[];
+  /** What the steps ARE, which decides what the screen calls them. Required
+      wherever there are alternatives, and decided by hand every time:
+
+      "fix"   — the steps are the repair, and the options are other ways to
+                do it. Heads as "Best fix" / "Other options". Crossed
+                pipework: move the cables; or run the wiring check, or
+                re-pipe.
+      "check" — the steps rule cheaper look-alikes out, and the options are
+                the repairs the findings point to. Heads as "Check first" /
+                "Depending on what you find".
+
+      It exists because the label used to default. "Compressor isn't pumping"
+      read "Best fix: measure the running current", with "Replace the
+      compressor" underneath as an OTHER option — a list of checks wearing
+      the fix's heading, on about half the outcomes that have options
+      (Isaac, on seeing it: "what on earth?"). */
+  plan?: "fix" | "check";
   /** Plain words to say on site, for the outcomes where explaining it IS
       half the job — the "nothing is broken" calls that get argued about
       because the honest answer sounds like an excuse. */
@@ -1041,6 +1058,7 @@ export const OUTCOMES: Outcome[] = [
       "Replace a blown fuse only once you've found what blew it",
       "If the breaker trips again when reset, stop and treat it as an electrical fault",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the isolator, or repair the circuit feeding it",
@@ -1063,6 +1081,7 @@ export const OUTCOMES: Outcome[] = [
       "Open both terminal blocks for a loose or burnt terminal on the interconnect, and check the cable for damage — UV, rodents, mower strike",
       "Check the fuses on the outdoor board — a cheap part, but find what blew one before fitting another",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the outdoor board",
@@ -1100,6 +1119,7 @@ export const OUTCOMES: Outcome[] = [
       "Ducted: check for crushed, kinked or disconnected flexible duct, and open more zones — too many shut starves the coil the same way",
       "Set the fan to a normal speed and retest after any ice has melted",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Replace the indoor fan's capacitor",
@@ -1118,17 +1138,14 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "Ice on the coil or suction line means the evaporator is running below freezing — either it isn't getting enough air across it, or it's short of refrigerant. Airflow is the more common of the two and free to check.",
     actions: [
-      "Turn it to fan only and let the ice melt fully — never chip it off",
+      "Turn it to fan only and let the ice melt fully — never chip it off. On a heat pump a few minutes in heat mode clears it far quicker; watch the tray, because the meltwater comes all at once",
       "Check filters, coil, the fan wheel and fan speed first — and on a ducted system, how many zones are shut",
       "Cold outside, or a comfort unit left cooling through a cold night? That ices a healthy system — the 'Ice on pipes or coil' path covers it",
       "Service valves fully open — a liquid valve left part-shut after a pump-down starves the coil exactly like a short charge",
       "If airflow is good, measure superheat once it's thawed — high superheat with low suction points at charge",
     ],
+    plan: "check",
     alternatives: [
-      {
-        fix: "Thaw it in heat mode",
-        when: "A heat pump, and you can't wait an hour on fan only: a few minutes of heat clears the coil. Watch the tray — the meltwater comes all at once.",
-      },
       {
         fix: "Find the leak, repair it and weigh the charge in",
         when: "Airflow good, valves open, and superheat high with low suction. Never just top it up.",
@@ -1151,6 +1168,7 @@ export const OUTCOMES: Outcome[] = [
       "Restore clearance: fences, plants, stored gear, anything within a few hundred mm",
       "Check discharge air isn't recirculating back into the intake",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Chemical clean it",
@@ -1214,6 +1232,7 @@ export const OUTCOMES: Outcome[] = [
       "Look for leaking or disconnected duct in the roof space",
       "Then check the room's load against the unit's capacity",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Cut the load",
@@ -1297,6 +1316,7 @@ export const OUTCOMES: Outcome[] = [
       "Confirm the drain base isn't frozen solid, holding meltwater against the coil",
       "Sensor good and it still ices: read pressures — it's charge or the defrost control from here, and gauges decide which",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Lift the unit higher, or fit a base heater where the unit takes one",
@@ -1347,6 +1367,7 @@ export const OUTCOMES: Outcome[] = [
       "Coil good: change modes a few times with it running, tapping the valve body gently as each change is called — a sticky valve will often shift with pressure behind it",
       "It shifts and still won't heat: read pressures — heating should show a low suction and a high condensing temperature, and a short charge shows here",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the reversing valve",
@@ -1381,6 +1402,7 @@ export const OUTCOMES: Outcome[] = [
       "Check the remote hasn't been switched to a different address — heads sharing a room can be set apart, and a remote on the other address is ignored",
       "Try a known-good or universal remote to confirm before ordering parts",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the remote",
@@ -1434,6 +1456,7 @@ export const OUTCOMES: Outcome[] = [
       "Look for obvious damage — burnt tracks, swollen capacitors, water ingress, insects",
       "Ants or moisture but nothing burnt? Clean it out with a dry brush and contact cleaner, let it dry and try again before ordering anything",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the board",
@@ -1458,6 +1481,7 @@ export const OUTCOMES: Outcome[] = [
       "Clean the tray and treat it",
       "Check the run has continuous fall, no sags, and a correct trap",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Fit a capped access tee at the head",
@@ -1483,6 +1507,7 @@ export const OUTCOMES: Outcome[] = [
       "Running but not lifting: measure the height it's being asked to lift against what the pump is rated for",
       "Confirm the pump's safety switch stops the unit on failure, so it can't flood next time",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the pump",
@@ -1508,6 +1533,7 @@ export const OUTCOMES: Outcome[] = [
       "Inspect the tray for cracks, corrosion or a displaced seal, and the grommet where the drain leaves it",
       "Confirm the indoor unit is level — a tilted head drains to the wrong corner",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Find the leak, repair it and weigh the charge in",
@@ -1550,6 +1576,7 @@ export const OUTCOMES: Outcome[] = [
       "Check whether its maker offers a low-ambient field setting or a bolt-on wind baffle for that model — where one exists, it's the cheapest fix there is",
       "Meanwhile, avoid cooling in cold weather",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Let the outside air do it",
@@ -1581,6 +1608,7 @@ export const OUTCOMES: Outcome[] = [
       "Electronic valve: power-cycle at the isolator to re-home it, check the valve's coil is pushed fully onto the valve body, and check the indoor coil's sensors read right — a misread sensor starves the evaporator on purpose. None of it needs the system opened",
       "Leak-test before adding refrigerant — never just top it up",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Find the leak, repair it and weigh the charge in",
@@ -1614,6 +1642,7 @@ export const OUTCOMES: Outcome[] = [
       "Clean the condenser and the filters, and check both fans, first — high head causes many of these, and a starved indoor coil trips its freeze protection",
       "Read pressures under load to see which limit it's hitting",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Board-level or refrigerant work, once the code is understood",
@@ -1639,6 +1668,7 @@ export const OUTCOMES: Outcome[] = [
       "Check supply voltage under load, including at the outdoor terminals",
       "Watch pressures through a full cycle to catch the moment it trips",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Find the leak, repair it and weigh the charge in",
@@ -1660,6 +1690,7 @@ export const OUTCOMES: Outcome[] = [
       "Widen the controller deadband if it allows it",
       "Drop the fan a speed: less air over the coil means less sensible capacity, so it runs longer — and pulls more moisture out while it does. Watch the coil doesn't ice",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Give it more of the house",
@@ -1686,6 +1717,7 @@ export const OUTCOMES: Outcome[] = [
       "Meter the room sensor against its resistance chart at the room's temperature — a drifted one is a cheap part",
       "Switch to the wall controller's sensor if the unit supports it — and if it's already the sensor, check it isn't in the supply air's path, in sun, or on a cold outside wall",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Fit a remote sensor where people actually sit",
@@ -1735,6 +1767,7 @@ export const OUTCOMES: Outcome[] = [
       "Check the motor's own rubbers and mounts — a perished mount hums through the case and reads as bearing noise",
       "Check for water ingress, so whatever goes in next lasts",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the bearing or the motor",
@@ -1800,6 +1833,7 @@ export const OUTCOMES: Outcome[] = [
       "Leave the expansion valve's coil off that list — on most splits it runs on low voltage from the board, so it can't trip the switchboard. A fault there shows up as a code or a starved coil instead",
       "Licensed electrical fault-finding from here",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Have the breaker's type and rating checked against the unit",
@@ -1821,6 +1855,7 @@ export const OUTCOMES: Outcome[] = [
       "Measure running amps against the nameplate once it's clean",
       "Read head pressure under load to confirm it has come back down",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Replace the fan's capacitor",
@@ -1847,6 +1882,7 @@ export const OUTCOMES: Outcome[] = [
       "Read suction, head and superheat before the compressor takes the blame. Superheat near zero means liquid is reaching it — an expansion valve stuck open, or an overcharge, loads a healthy compressor exactly like a tight one",
       "Valve with a bulb: check the bulb is clamped to the suction line and insulated — one that's come loose reads warm and drives the valve wide open. Electronic valve: power-cycle at the isolator to re-home it, and check the valve's coil is pushed fully onto the valve body",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Correct the supply",
@@ -1883,6 +1919,7 @@ export const OUTCOMES: Outcome[] = [
       "Dry and reseal, then insulation-test to confirm — and if the box and glands come up dry, test the compressor windings to earth: the 'Compressor suspect' tile walks it step by step",
       "Check the crankcase heater, the reversing valve coil and any base heater — all on mains, all outside in the weather, all common culprits",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the crankcase heater, base heater or valve coil that reads low",
@@ -1940,6 +1977,7 @@ export const OUTCOMES: Outcome[] = [
       "Clean and sanitise the coil properly — a rinse won't shift it",
       "Confirm the tray drains fully, so it isn't sitting wet",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Coat the coil, or fit UV treatment",
@@ -1993,6 +2031,7 @@ export const OUTCOMES: Outcome[] = [
       "Don't keep power-cycling it; you'll only lose the evidence. Where something else on the machine needs a cycle — an expansion valve re-homing, a comms line re-addressing — read the history first and you keep both",
       "If the manual doesn't cover it, call the manufacturer's technical line with model, serial and code",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the sensor",
@@ -2037,6 +2076,7 @@ export const OUTCOMES: Outcome[] = [
       "Power-cycle at the isolator for a full minute. On start-up the board drives every valve hard shut and counts open from there, which re-seats one that's lost its place",
       "Find that head's valve — inside the outdoor unit on a multi with ports, in the head or its branch box on VRF — and check the valve's coil is pushed fully onto the valve body and the head's coil sensor reads right. A coil that's slipped can't drive the valve shut",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the valve's coil",
@@ -2090,6 +2130,7 @@ export const OUTCOMES: Outcome[] = [
       "Feel the pipes into and out of that port through a changeover",
       "Branch controller work needs the service manual for that system",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the valve's coil",
@@ -2130,6 +2171,7 @@ export const OUTCOMES: Outcome[] = [
       "Power-cycle at the isolator for a full minute. On start-up the board drives every valve shut and counts open from there, which re-seats one that's lost its place",
       "Pipes go cold only when another head runs? That's crossed ports — start again on 'The wrong room responds'",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the valve's coil",
@@ -2183,6 +2225,7 @@ export const OUTCOMES: Outcome[] = [
       "Leak-test before adding anything: a missing top-up and a slow leak look identical from here",
       "Weigh the charge in against the calculation — never trim it in on pressure",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Find the leak and repair it before anything is weighed in",
@@ -2219,6 +2262,7 @@ export const OUTCOMES: Outcome[] = [
       "Re-test every head one at a time before you leave — crossings almost always come in pairs",
       "Label both ends while you're in there, so the next visit isn't this visit",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Rename the rooms on the central controller or app",
@@ -2242,6 +2286,7 @@ export const OUTCOMES: Outcome[] = [
       "Re-test every head on its own afterwards — until the two matched, each valve was being driven off another room's sensors",
       "Label each port with the room it serves while you're in there, so the next visit isn't this visit",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Run the outdoor board's wiring-check mode",
@@ -2302,6 +2347,7 @@ export const OUTCOMES: Outcome[] = [
       "Measure the volts at its coil through a changeover, then meter the coil itself, unplugged — a dead coil is a clip-on part, no refrigerant work",
       "Coil good: raise the head first — cover part of the condensing coil for a minute, because the slide needs a pressure difference to move and a bypassing valve has thrown most of it away. Then call a few changeovers, tapping the body gently each time — a valve held on debris will often shift",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the reversing valve",
@@ -2323,6 +2369,7 @@ export const OUTCOMES: Outcome[] = [
       "Scroll: many carry an internal relief valve that opens on a big pressure difference and stays open while it runs. Stop it, let the pressures meet, fix whatever drove the head up — a dead condenser fan, a blocked coil — and restart before you condemn it",
       "Check for a failed internal discharge check valve, and for a compressor terminal fault — the 'Compressor suspect' tile walks the electrical proof of the motor itself",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the compressor",
@@ -2346,6 +2393,7 @@ export const OUTCOMES: Outcome[] = [
       "Riding the discharge-temperature limit? That's the refrigerant side, not the drive: a short charge, or an expansion valve stuck shut, runs the compressor hot. Work the charge and the valve before the board",
       "Check supply voltage under load at the outdoor terminals; a sagging supply pulls current up and the drive winds back to survive it",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Find the leak, repair it and weigh the charge in",
@@ -2376,6 +2424,7 @@ export const OUTCOMES: Outcome[] = [
       "Check the relay's own terminals while you're there: a loose connection under one of them reads as the missing phase it's reporting",
       "Compare the unbalance against the relay's setting before deciding the relay is faulty",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the relay",
@@ -2415,7 +2464,16 @@ export const OUTCOMES: Outcome[] = [
       "Confirm the controller is calling that zone and hasn't had it disabled in the setup",
       "Check the damper is wired to the zone everyone thinks it is — mislabelled zones are common",
     ],
+    plan: "check",
     alternatives: [
+      {
+        fix: "Replace the damper motor",
+        when: "The fault follows the damper when you swap the plugs.",
+      },
+      {
+        fix: "Repair the wiring, or the controller's output for that zone",
+        when: "The fault stays with the zone when you swap the plugs: the damper is fine, and what drives it isn't.",
+      },
       {
         fix: "Fix the blade open by hand",
         when: "A stopgap while a motor is on order. Most damper motors come off the blade shaft, so turn the blade open and fix it there — the room gets air today, it just can't be zoned off.",
@@ -2475,6 +2533,7 @@ export const OUTCOMES: Outcome[] = [
       "Fit a relief grille through to the hallway",
       "Check the main return grille isn't blocked by furniture while you're at it",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Run a transfer duct through the ceiling instead",
@@ -2497,6 +2556,7 @@ export const OUTCOMES: Outcome[] = [
       "Compare it against what that outlet can actually deliver",
       "Cut the load where it's cheap: shade the west glass and the skylight — usually cheaper than re-ducting",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Add an outlet, or up-size the run",
@@ -2548,6 +2608,7 @@ export const OUTCOMES: Outcome[] = [
       "Confirm the indoor unit is level, or sitting very slightly down towards its drain outlet",
       "Re-run the bad section rather than trying to clear a line that was never right",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Fit a condensate pump",
@@ -2649,6 +2710,7 @@ export const OUTCOMES: Outcome[] = [
       "Know the trade-off before you lean on fan speed: more air means less moisture pulled out, so it warms the face while the room's dew point creeps up behind you. Over a short visit the face wins easily. In a genuinely humid room it's a band-aid, and the fix flips — drop the fan or use dry mode to get the moisture out, and solve the grille itself instead of the air",
       "Insulate the back of the grille and its neck right up to the face, and check the flex insulation is pulled over the collar and taped",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Change to a thermal-break or plastic-faced diffuser",
@@ -2717,6 +2779,7 @@ export const OUTCOMES: Outcome[] = [
       "Check the condenser, the charge, the supply voltage and the run capacitor: overloads trip for a reason",
       "If it never comes back once it's genuinely stone cold, then it really is an open winding",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Cool the shell to reset it sooner",
@@ -2734,12 +2797,17 @@ export const OUTCOMES: Outcome[] = [
       "Measure at the compressor terminals themselves, not the ends of the leads — a corroded spade or a broken lead reads identical",
       "Make sure it's actually cold: internal overloads can take hours to reset on a big machine, and three-phase units can carry them too",
       "Check the terminal posts — a burnt or loose post reads open at the same spot",
-      "Once it's proven, condemn and replace — then read the oil out of the old one before the new one goes on. Start this tile again and pick 'It's already out': the oil is the only witness to why it died",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the lead or its spade",
         when: "The winding reads at the posts but not through the lead. The compressor is fine, and it's a part from the van.",
+      },
+      {
+        fix: "Replace the compressor",
+        when: "It reads open at the posts themselves, stone cold. Then read the oil out of the old one before the new one goes on — start this tile again and pick 'It's already out': the oil is the only witness to why it died.",
+        escalate: true,
       },
     ],
     escalate: true,
@@ -2754,13 +2822,17 @@ export const OUTCOMES: Outcome[] = [
       "Prove it with the leads off, at the compressor's own posts — measured through a drive, a shorted power module reads exactly like shorted turns",
       "Compare against the winding spec if you can get one — 'low' only means something against a number",
       "Insulation-test to earth as well; shorted turns and earthed windings usually travel together",
-      "Before the replacement goes in — fixed-speed: test the run capacitor and start gear; inverter: have the drive checked, since a motor that shorted can take the power module with it. Otherwise the new compressor inherits the same death",
-      "Replacement is refrigeration work: recovery, braze, driers, evacuation",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the drive board",
         when: "Inverter: the short reads through the drive but not at the compressor's own posts. It's the power module, not the motor — prove the big capacitors dead before the board comes out.",
+        escalate: true,
+      },
+      {
+        fix: "Replace the compressor",
+        when: "Shorted at its own posts with the leads off. Recovery, braze, driers, evacuation — and before the new one goes in, test the run capacitor and start gear on a fixed-speed unit, or have the drive checked on an inverter, since a motor that shorted can take the power module with it. Otherwise the new compressor inherits the same death.",
         escalate: true,
       },
     ],
@@ -2777,12 +2849,17 @@ export const OUTCOMES: Outcome[] = [
       "Clean the terminal posts back to bright metal and measure again — a corroded post or a tired spade adds resistance and reads exactly like a winding going",
       "Insulation-test all three to earth while you're connected",
       "Under load, compare the three phase currents — the sick winding shows there too",
-      "Plan the replacement; partial winding failures finish the job without warning",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Replace the spades or leads",
         when: "The imbalance goes away with bright posts and fresh connections. It was the connection, not the winding.",
+      },
+      {
+        fix: "Plan the compressor replacement",
+        when: "The imbalance is real with zeroed leads and bright posts. Partial winding failures finish the job without warning, so book it rather than wait for it.",
+        escalate: true,
       },
     ],
     escalate: true,
@@ -2799,6 +2876,7 @@ export const OUTCOMES: Outcome[] = [
       "Record the reading, the date and the ambient: the trend is the diagnosis, not the single number",
       "Acid-test the oil if there's any burnout history on this system — the 'already out' path on this tile walks the test and what the oil is telling you",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Change the liquid-line drier and pull a deep vacuum",
@@ -2844,6 +2922,7 @@ export const OUTCOMES: Outcome[] = [
       "Inverter: there's no capacitor, relay or contactor — the drive starts it. Read the fault it has logged in check mode, and check the three leads and their plug at the board. What it logs is a code, so take it to the 'Error light or code' path rather than reading it twice here",
       "If it runs but pumps nothing, that's the 'Pressures won't split' path from here",
     ],
+    plan: "check",
     alternatives: [
       {
         fix: "Add a restart delay",
@@ -2892,6 +2971,7 @@ export const OUTCOMES: Outcome[] = [
       "Keep re-testing until it comes back clean; that's the whole job, not an optional extra",
       "Tell the customer plainly this is a clean-up as well as a compressor — it's why the quote isn't just a part and an hour",
     ],
+    plan: "fix",
     alternatives: [
       {
         fix: "Flush the lines",

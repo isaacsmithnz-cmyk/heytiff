@@ -719,3 +719,16 @@
 .fg .tool .oup-dia .dim .dim-t { fill: var(--m); font-size: 13px; font-weight: 700; }
 .fg .tool .oup-dia .mk-ok { --m: var(--ink); }
 .fg .tool .oup-dia .mk-bad { --m: #e0264f; }
+
+/* ---------- every tool sits on paper now ----------
+   The frame rollout (2026-09-20) took the grey well away under all four
+   tools, and a white card with a hairline on white paper is a box with
+   nothing to stand on. Law 9: what you READ is a group — no box, a hairline
+   between it and the next one, and the spacing scale — and what you PRESS
+   keeps its edge. Each panel's own padding stays, so nothing reflows. */
+.fg .tool .tcard { background: none; border: 0; border-radius: 0; }
+.fg .tool .tcard + .tcard { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+/* the advanced row is a control — a header you press to open the factors */
+.fg .tool .hl2-adv {
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-card);
+}

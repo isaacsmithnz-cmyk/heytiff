@@ -279,7 +279,7 @@ export function XeroScreen({
           {connected && people && <PeopleImportCard provider="xero" {...people} />}
 
           {/* ── what it powers ── */}
-          <div className="card2">
+          <div className="int-grp">
             <div className="c2h">
               <div>
                 {/* No subtitle — see the same card in ./servicem8-screen:
@@ -299,7 +299,7 @@ export function XeroScreen({
           </div>
 
           {/* ── the ask, in full ── */}
-          <div className="card2">
+          <div className="int-grp">
             <div className="c2h">
               <div>
                 <b>What HeyTiff asks Xero for</b>

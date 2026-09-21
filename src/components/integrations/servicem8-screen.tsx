@@ -269,7 +269,7 @@ export function Servicem8Screen({
           {connected && people && <PeopleImportCard provider="servicem8" {...people} />}
 
           {/* ── what it powers ── */}
-          <div className="card2">
+          <div className="int-grp">
             <div className="c2h">
               <div>
                 {/* NO SUBTITLE. It read "Connecting is step one — each of
@@ -292,7 +292,7 @@ export function Servicem8Screen({
           </div>
 
           {/* ── the ask, in full ── */}
-          <div className="card2">
+          <div className="int-grp">
             <div className="c2h">
               <div>
                 <b>What HeyTiff asks ServiceM8 for</b>
@@ -383,7 +383,7 @@ function MirrorCard({
         : "Waiting for the first sync.";
 
   return (
-    <div className="card2">
+    <div className="int-grp">
       <div className="c2h">
         <div style={{ minWidth: 0 }}>
           <b>What&apos;s been read across</b>

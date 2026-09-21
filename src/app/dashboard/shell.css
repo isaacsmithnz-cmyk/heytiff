@@ -1519,10 +1519,19 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    was repeating it. Heading 600, subtitle 400 in the quiet colour: one thing
    loud. */
 .fg .card2 { background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:24px; margin-bottom:16px; }
-.fg .card2 .c2h { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
-.fg .card2 .c2h b { font-size:16px; font-weight:600; }
-.fg .card2 .c2h em { font-style:normal; display:block; font-size:13px; font-weight:400; color:var(--gray400); margin-top:2px; }
-.fg .card2 .c2h .pill2 { margin-left:auto; }
+/* WHAT YOU READ IS A GROUP, NOT A CARD (2026-09-21) — the pass the Fault
+   Finder took in #774 and the SWMS in #778, here for the integration screens.
+   On paper to the frame a white card with a hairline is paper on paper and
+   its edge does nothing; law 9 says a card is for something you ACT on. So
+   what Xero powers, what HeyTiff asks for and what has been read across group
+   by a hairline and the spacing scale, while connecting, picking which books
+   to use and disconnecting keep their cards — you operate those. The heading
+   is the same heading either way. */
+.fg .int-grp { padding-top:16px; margin-bottom:16px; border-top:1px solid var(--line); }
+.fg .card2 .c2h, .fg .int-grp .c2h { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
+.fg .card2 .c2h b, .fg .int-grp .c2h b { font-size:16px; font-weight:600; }
+.fg .card2 .c2h em, .fg .int-grp .c2h em { font-style:normal; display:block; font-size:13px; font-weight:400; color:var(--gray400); margin-top:2px; }
+.fg .card2 .c2h .pill2, .fg .int-grp .c2h .pill2 { margin-left:auto; }
 .fg .adminpill { display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:14px; font-weight:500; color:var(--bad-t); }
 
 /* form fields */
@@ -9088,7 +9097,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
    THE COLOUR IS SAID ONCE PER GROUP, not three times. The bar, the tile and
    the per-row dot were all carrying the same fact. */
-.fg .tk-list { background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
+/* THE LIST IS NOT A CARD (2026-09-21). It was one box drawn around every
+   document on the screen, which on paper to the frame is a box around the
+   page. The categories already part on a hairline, and a row is a control
+   with its own dress — see law 9 and the same pass on the tool pages. */
+.fg .tk-list { background:none; }
 .fg .tk-cat { position:relative; display:block; }
 .fg .tk-cat + .tk-cat { border-top:1px solid var(--line); }
 .fg .tk-cin { position:relative; z-index:var(--z-raised); padding:16px 16px 12px; }

@@ -729,6 +729,44 @@ describe("the cheap fix comes before the expensive one", () => {
   });
 });
 
+describe("what one path says about another", () => {
+  /* Read across the paths once each had been audited on its own. Every
+     quoted hand-off has to name something that exists, or a rename leaves a
+     tech looking for a tile that isn't there. */
+  const walkText = () => {
+    const out: string[] = [];
+    for (const o of OUTCOMES) {
+      out.push(...o.actions, o.explain, o.customer ?? "");
+      for (const a of o.alternatives ?? []) out.push(a.fix, a.when);
+    }
+    for (const q of QUESTIONS) out.push(q.ask, q.why ?? "", q.safety ?? "");
+    return out.join("\n");
+  };
+
+  it("every 'x' path or tile it names is one that exists", () => {
+    const answers = QUESTIONS.flatMap((q) => q.answers.map((a) => a.label));
+    const known = [...SYMPTOMS.map((s) => s.label), ...answers, "already out"];
+    let text = walkText();
+    for (const name of known) text = text.split(`'${name}'`).join("«ref»");
+    // anything still quoted in front of "path" or "tile" names nothing
+    const dangling = text.match(/'[^\n]{0,40}'\s+(path|tile)/g) ?? [];
+    expect(dangling).toEqual([]);
+  });
+
+  it("the two power-cycle instructions no longer read as a contradiction", () => {
+    // valves re-home on a cycle; a code is lost on one. The coded outcome
+    // says how to have both.
+    expect(getOutcome("code-persists")!.actions.join(" ")).toMatch(/read the history first and you keep both/i);
+    expect(getOutcome("vrf-branch")!.actions.join(" ")).toMatch(/power-cycle at the isolator/i);
+  });
+
+  it("a drive's logged fault is handed to the code path, not read twice", () => {
+    for (const id of ["comp-sound", "drive-limited"]) {
+      expect(getOutcome(id)!.actions.join(" ")).toMatch(/'Error light or code' path/);
+    }
+  });
+});
+
 describe("the badge has to be earned, and the same shape everywhere", () => {
   /* Swept across all 93 outcomes once every path had been audited. The badge
      says "beyond a routine visit", so an outcome may only wear it when

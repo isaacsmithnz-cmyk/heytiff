@@ -1990,7 +1990,7 @@ export const OUTCOMES: Outcome[] = [
       "Codes are brand-specific — read it against this unit's own manual",
       "Then work the family it belongs to, cheapest first. A sensor code is usually a thermistor out of its clip, a chafed lead or a plug half out. A comms code is a loose terminal, a reversed pair or two units on one address. A protection code is a dirty coil, a stopped fan, or the charge",
       "Open the control box and look: ants, water and a half-seated plug throw codes that no manual will ever name",
-      "Don't keep power-cycling it; you'll only lose the evidence",
+      "Don't keep power-cycling it; you'll only lose the evidence. Where something else on the machine needs a cycle — an expansion valve re-homing, a comms line re-addressing — read the history first and you keep both",
       "If the manual doesn't cover it, call the manufacturer's technical line with model, serial and code",
     ],
     alternatives: [
@@ -2339,7 +2339,7 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "An inverter compressor only does what the drive lets it. Starting and then sitting at minimum speed — or winding back every time it tries to climb — is the drive protecting something: current, discharge temperature, a power module running hot, or a condenser that can't reject heat pulling it into current limit. The pressures never split because the compressor never really gets going. The unit knows exactly which limit it's sitting on — read it out of the boards instead of guessing from the gauges.",
     actions: [
-      "Put it in service or check mode and read the live data: target versus actual speed, current, discharge temperature — the drive names the limit it's riding",
+      "Put it in service or check mode and read the live data: target versus actual speed, current, discharge temperature — the drive names the limit it's riding. If it shows a fault code instead of a limit, that's the 'Error light or code' path's job",
       "Check nothing is telling it to hold back: quiet, night or econo modes, a demand limit set in the controller, or a demand-response device limiting it for the power network all cap the compressor on purpose",
       "Clean the condenser and confirm the fan before blaming electronics — on a 40-degree afternoon a dirty coil will current-limit a perfectly healthy compressor",
       "Riding the power module's temperature limit? Clean its heat sink — the fins sit in the same airflow and clog with the same dust",
@@ -2841,7 +2841,7 @@ export const OUTCOMES: Outcome[] = [
       "Fixed-speed three-phase: open the contactor and look at the contacts — pitted or welded contacts single-phase the motor",
       "Measure voltage at the compressor terminals during a start attempt, not at rest — a sagging supply, or a burnt spade on a post, only shows itself under load",
       "Clamp meter on for the start: around ONE conductor only — around the whole cable the fields cancel and it reads zero",
-      "Inverter: there's no capacitor, relay or contactor — the drive starts it. Read the fault it has logged in check mode, and check the three leads and their plug at the board",
+      "Inverter: there's no capacitor, relay or contactor — the drive starts it. Read the fault it has logged in check mode, and check the three leads and their plug at the board. What it logs is a code, so take it to the 'Error light or code' path rather than reading it twice here",
       "If it runs but pumps nothing, that's the 'Pressures won't split' path from here",
     ],
     alternatives: [

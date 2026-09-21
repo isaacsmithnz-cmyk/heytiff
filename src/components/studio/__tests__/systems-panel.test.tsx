@@ -666,7 +666,9 @@ describe("SystemCockpit — close a system", () => {
     const { onDeleteSystem, onBuild } = mount(made.doc, made.systemId);
     const el = card("System 1");
     const del = within(el).getByRole("button", { name: "Delete System 1" });
-    expect(del.textContent).toBe("Delete system");
+    /* the word alone in the row; the aria-label carries which system, because
+       "Delete" beside a card is only unambiguous if you can see the card */
+    expect(del.textContent).toBe("Delete");
     fireEvent.click(del);
     expect(onDeleteSystem).toHaveBeenCalledWith(made.systemId);
     expect(onBuild).not.toHaveBeenCalled();

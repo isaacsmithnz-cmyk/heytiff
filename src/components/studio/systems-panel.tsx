@@ -396,14 +396,14 @@ function SystemCard({
                   <button className="ds-zp-wide" onClick={onBuild}>
                     Edit system
                   </button>
+                  <button
+                    className="ds-zp-del"
+                    onClick={onDelete}
+                    aria-label={`Delete ${sys.name}`}
+                  >
+                    Delete
+                  </button>
                 </div>
-                <button
-                  className="ds-zp-del"
-                  onClick={onDelete}
-                  aria-label={`Delete ${sys.name}`}
-                >
-                  Delete system
-                </button>
               </>
             )}
           </div>

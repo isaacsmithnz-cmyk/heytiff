@@ -10109,8 +10109,12 @@ html[data-ds-display] .dstudio.editing {
    the next step is, so the figures above it are undisturbed. It is the way
    BACK into a system that is already right, never the move the card is
    asking for, so it carries no edge and no fill until it is pointed at. */
+/* the card's two ways back in, on one row: the way you take stands in two
+   thirds of it and the way you cannot undo takes the other third */
 .dstudio .ds-zp-acts {
-  display: flex;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 8px;
   margin-top: 4px;
 }
 .dstudio .ds-zp-wide {
@@ -10134,21 +10138,26 @@ html[data-ds-display] .dstudio.editing {
    off the plan, which is too much to say with a mark. It is the quietest
    thing on the card until it is pointed at, and it costs one undo. */
 .dstudio .ds-zp-del {
-  align-self: center;
-  margin-top: 2px;
-  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 36px;
   border: 0;
   border-radius: var(--r-button);
   background: none;
   color: var(--q);
-  font: 500 12px var(--font);
+  font: 500 14px var(--font);
   cursor: pointer;
   transition:
     color var(--t-fast) var(--ease),
     background-color var(--t-fast) var(--ease);
 }
+/* it says what it does the moment it is pointed at, and only then: the word
+   alone sits with Edit, and the colour arrives with the pointer */
 .dstudio .ds-zp-del:hover {
   color: var(--bad-t);
+  background: var(--bad-f, var(--tint));
 }
 /* the one thing to press when there is no system yet */
 .dstudio .ds-zp-addsys {

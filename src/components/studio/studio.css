@@ -4618,43 +4618,48 @@ html[data-ds-display] .dstudio.editing {
 
    Paper is NOT this: plan-figure.tsx keeps a white body and a coloured edge,
    which is what a printed plan wants and what a photocopier survives. */
-/* A UNIT IS A WHITE OBJECT ON THE PLAN, OUTLINED IN ITS SYSTEM'S COLOUR.
+/* A UNIT IS A WHITE OBJECT DRAWN IN ONE INK, WHATEVER SYSTEM IT IS ON.
 
-   It was a 14% tint of the system's colour sitting inside a zone filled with
+   It was a 14% tint of its system's colour sitting inside a zone filled with
    the SAME colour at 13% — one part in a hundred between the thing and the
    floor under it, so a head read as a scratch and, zoomed out, as nothing.
 
-   THE SEPARATION IS THE KNOCKOUT, NOT THE LUMINANCE. White on a 13% tint is
-   1.15:1 and will never be more than that; what makes the unit read is that
-   its body is OPAQUE — it covers the zone's tint and the grid dots under it,
-   so a real edge appears where the drawing stops — and that a solid coloured
-   line runs round it. That line is the one thing carrying contrast, so it is
-   set one stop toward the ink: raw, the lightest of the six system colours
-   (#17A398) reads 2.7:1 against its own zone and misses the 3:1 graphic
-   floor; darkened it clears at 3.3, and the darkest clears at 5.
+   COLOUR CAME OFF THE UNIT ON PURPOSE. A unit's colour was saying what the
+   drawing already said three other ways: the zone under it is filled in the
+   system's colour, the run to it is drawn in that colour, and the card in the
+   panel carries it. It was the fourth telling, and the only one that had to
+   sit ON that colour's own ground, which is exactly why it failed. Equipment
+   on a drawing is drawn one way; the system is read off what it connects to.
 
-   Same treatment as the printed plan, which has always drawn a unit this way
-   — so the plan on screen and the plan on paper are now one drawing. */
+   One ink also ends the arithmetic: the line clears the 3:1 graphic floor
+   against every zone on the plan by a mile (16:1 and up), rather than each
+   system colour having to clear it against a tint of itself — where the
+   lightest of the six only ever managed 2.7.
+
+   THE SEPARATION IS THE KNOCKOUT, NOT THE LUMINANCE. White on a 13% tint is
+   1.15:1 and never more; what makes the unit read is that its body is OPAQUE,
+   covering the zone's tint and the grid dots beneath it, so a real edge
+   appears where the drawing stops — with the ink line round it.
+
+   Paper has always drawn a unit as a white body with a line round it, so the
+   plan on screen and the plan on paper are one drawing now. */
 .dstudio .ds-unit rect {
   fill: var(--paper, #fff);
-  stroke: color-mix(in srgb, currentColor 90%, var(--ink, #0a0b10));
-  stroke-width: 2.5px;
+  stroke: var(--ink, #0a0b10);
+  stroke-width: 2px;
   vector-effect: non-scaling-stroke;
 }
 /* selected: the outline thickens — it is the only edge the unit has */
-.dstudio .ds-unit.sel rect { stroke-width: 4px; }
-/* the role glyph detail (fan, louvres), drawn on the white body in the same
-   darkened colour, so the whole mark is one ink */
+.dstudio .ds-unit.sel rect { stroke-width: 3.5px; }
+/* the role glyph detail (fan, louvres) — the same ink as the outline, so the
+   whole mark is one drawing rather than an outline with something else in it */
 .dstudio .ds-unit-detail {
   fill: none;
-  stroke: color-mix(in srgb, currentColor 90%, var(--ink, #0a0b10));
-  stroke-width: 1.4px;
+  stroke: var(--ink, #0a0b10);
+  stroke-width: 1.3px;
   vector-effect: non-scaling-stroke;
 }
-.dstudio .ds-unit-hub {
-  fill: color-mix(in srgb, currentColor 90%, var(--ink, #0a0b10));
-  stroke: none;
-}
+.dstudio .ds-unit-hub { fill: var(--ink, #0a0b10); stroke: none; }
 .dstudio .ds-place-ghost .ds-unit-detail { stroke: var(--teal-d); }
 .dstudio .ds-place-ghost .ds-unit-hub { fill: var(--teal-d); }
 .dstudio .ds-unit-role {

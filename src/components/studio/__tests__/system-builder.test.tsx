@@ -91,18 +91,22 @@ const headModels = () =>
 const stat = (label: string) => screen.getByText(label, { selector: "dt" }).nextElementSibling as HTMLElement;
 
 /** drag a unit's row out of the list and drop it on a target of the schematic */
-function dragRow(model: string, target: Element) {
+function dragRow(model: string, target: Element | (() => Element)) {
   const list = screen.getByRole("region", { name: "Choose a unit" });
   fireEvent.change(within(list).getByRole("searchbox", { name: "Search units" }), { target: { value: model } });
+  /* a target given as a function is found AFTER the search: searching moves
+     the head-type crumb, and the band only exists while the crumb is on a
+     style that can serve the whole system */
+  const to = typeof target === "function" ? target() : target;
   const table = list.querySelector(".ds-ub-table tbody") as HTMLElement;
   const row = within(table).getByText(model).closest("tr") as HTMLElement;
   const dt = transfer();
   fireEvent.dragStart(row, { dataTransfer: dt });
   // the payload the drag carries is the row's own model, in the builder's format
   expect(JSON.parse(dt.getData("application/x-heytiff-builder-unit"))).toEqual({ iduModel: model });
-  fireEvent.dragEnter(target, { dataTransfer: dt });
-  fireEvent.dragOver(target, { dataTransfer: dt });
-  fireEvent.drop(target, { dataTransfer: dt });
+  fireEvent.dragEnter(to, { dataTransfer: dt });
+  fireEvent.dragOver(to, { dataTransfer: dt });
+  fireEvent.drop(to, { dataTransfer: dt });
 }
 
 beforeEach(() => window.localStorage.clear());
@@ -196,9 +200,14 @@ describe("SystemBuilder", () => {
     // outdoor, so the family goes to Split and the list to pairs
     fireEvent.click(screen.getByRole("button", { name: /^Family of outdoor/ }));
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Split" }));
+    /* THE BAND IS NOT THERE YET. It is a drop target for a unit that serves
+       the whole system, and nothing in the list is one until the head type
+       says so — an empty Whole system box beside a multi of wall heads is a
+       target for something nobody is holding. */
+    expect(schematic().querySelector(".ds-sb-band")).toBeNull();
     // the search moves the head type crumb to the style that has the unit
+    dragRow("PEAD-M125JAA(D)", () => schematic().querySelector(".ds-sb-band") as HTMLElement);
     const band = schematic().querySelector(".ds-sb-band") as HTMLElement;
-    dragRow("PEAD-M125JAA(D)", band);
 
     expect(stat("Type")).toHaveTextContent("Ducted");
     expect(within(band).getByText("PEAD-M125JAA(D)")).toBeInTheDocument();
@@ -274,5 +283,28 @@ describe("SystemBuilder", () => {
       // the choice is the heads' again, so there is nothing to hand back
       expect(screen.queryByRole("button", { name: "Use the proposal" })).toBeNull();
     });
+  });
+
+  /* ADD ZONE IS A CONTROL, NOT A ZONE. It sits last in the grid so it reads
+     as the next card along, but the system does not serve it: the trunk used
+     to run into it and draw the system as feeding a button. */
+  it("does not wire Add zone into the system", () => {
+    const made = claimed(house(), ["bed1", "study"]);
+    render(<SystemBuilder doc={made.doc} pack={pack} systemId={made.systemId} onCommit={() => {}} onClose={() => {}} />);
+    const add = schematic().querySelector(".ds-sb-add rect") as SVGRectElement;
+    const centre = Number(add.getAttribute("x")) + Number(add.getAttribute("width")) / 2;
+    const top = Number(add.getAttribute("y"));
+    const trunk = schematic().querySelector("path.ds-sb-line")!.getAttribute("d")!;
+    /* the path opens with the stem from the source down to the bus, then the
+       bus, then one drop per wired card FROM the bus: "M<x> <busY> V<top>" */
+    const busY = trunk.match(/^M[\d.]+ [\d.]+ V([\d.]+)/)![1];
+    const drops = [...trunk.matchAll(new RegExp(`M([\\d.]+) ${busY} V`, "g"))].map((m) => Number(m[1]));
+    // one per zone, and the two zones are the only ones
+    expect(drops).toHaveLength(2);
+    expect(drops).not.toContain(centre);
+    // the bus stops short of Add zone rather than running under it
+    const bus = trunk.match(/M[\d.]+ [\d.]+ H([\d.]+)/)!;
+    expect(Number(bus[1])).toBeLessThan(centre);
+    expect(top).toBeGreaterThan(0);
   });
 });

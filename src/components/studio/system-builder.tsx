@@ -487,11 +487,11 @@ function cardHeight(textRows: number, slot: boolean): number {
   return slot ? lastLine + 15 + SLOT_H + 18 : Math.max(82, lastLine + 13);
 }
 
-function layout(cards: number, cardH: number, strays: number) {
+function layout(cards: number, cardH: number, strays: number, withBand: boolean) {
   const rows = gridRows(cards);
   const wide = rows.length ? rows[0] : 1;
   const gridW = wide * CARD_W + (wide - 1) * CARD_GAP;
-  const topW = OUT_W + TOP_GAP + BAND_W;
+  const topW = OUT_W + (withBand ? TOP_GAP + BAND_W : 0);
   const width = Math.max(gridW, topW) + 2 * PAD;
   const topLeft = (width - topW) / 2;
   const out: Box = { x: topLeft, y: OUT_Y, w: OUT_W, h: OUT_H };
@@ -521,25 +521,28 @@ type Layout = ReturnType<typeof layout>;
 /** one trunk from the source, a bus over the first row, a rail down the
     right into a gutter above each later row, and one drop per card: all
     orthogonal, none across a card's words */
-function busPath(l: Layout, fromX: number, fromY: number): string {
+function busPath(l: Layout, fromX: number, fromY: number, wired: CardBox[]): string {
   const parts: string[] = [`M${fromX} ${fromY} V${l.busY}`];
-  if (!l.boxes.length) return parts.join(" ");
+  if (!wired.length) return parts.join(" ");
   const centre = (b: Box) => b.x + b.w / 2;
-  const rowsOf = (r: number) => l.boxes.filter((b) => b.row === r);
+  const rowsOf = (r: number) => wired.filter((b) => b.row === r);
   const row0 = rowsOf(0);
+  if (!row0.length) return parts.join(" ");
   const left0 = centre(row0[0]);
   const right0 = centre(row0[row0.length - 1]);
   const railX = l.gridRight + 20;
-  const later = l.rows.length > 1;
+  const rowCount = wired[wired.length - 1].row + 1;
+  const later = rowCount > 1;
   parts.push(`M${Math.min(left0, fromX)} ${l.busY} H${later ? Math.max(railX, fromX) : Math.max(right0, fromX)}`);
   let prevY = l.busY;
-  for (let r = 1; r < l.rows.length; r++) {
+  for (let r = 1; r < rowCount; r++) {
     const row = rowsOf(r);
+    if (!row.length) continue;
     const gutterY = row[0].y - GUTTER;
     parts.push(`M${Math.max(railX, fromX)} ${prevY} V${gutterY} H${centre(row[0])}`);
     prevY = gutterY;
   }
-  for (const b of l.boxes) parts.push(`M${centre(b)} ${b.row === 0 ? l.busY : b.y - GUTTER} V${b.y}`);
+  for (const b of wired) parts.push(`M${centre(b)} ${b.row === 0 ? l.busY : b.y - GUTTER} V${b.y}`);
   return parts.join(" ");
 }
 
@@ -951,6 +954,7 @@ export function SystemBuilder({
                 pack={pack}
                 view={view}
                 selected={selected}
+                headType={headType}
                 addZoneOpen={addZoneOpen}
                 onSelect={setSelected}
                 onDropHead={dropHead}
@@ -1298,6 +1302,7 @@ function Schematic({
   pack,
   view,
   selected,
+  headType,
   addZoneOpen,
   onSelect,
   onDropHead,
@@ -1314,6 +1319,9 @@ function Schematic({
   pack: DataPack;
   view: SystemView;
   selected: string | null;
+  /** what the browser beside the schematic is offering — the band is only
+      drawn when that could serve the whole system */
+  headType: FormFactor | null;
   addZoneOpen: boolean;
   onSelect: (allocationId: string | null) => void;
   onDropHead: (zoneId: string, iduModel: string) => void;
@@ -1367,10 +1375,18 @@ function Schematic({
   const band = view.bandUnits[0] ?? null;
   const textRows = Math.max(1, ...view.zones.map((z) => (z.lines.length ? z.lines.length + 1 : 1)));
   const cardH = cardHeight(textRows, view.zones.some((z) => z.slot != null));
-  const l = layout(view.zones.length + 1, cardH, view.strays.length);
+  /* the band is drawn when it holds a unit, or when the browser is offering
+     one that could go in it — an empty Whole system box beside a multi of
+     wall heads is a drop target for something nobody is holding */
+  const wholeSystemType = headType === "ducted" || headType === "bulkhead";
+  const showBand = Boolean(band) || wholeSystemType;
+  const l = layout(view.zones.length + 1, cardH, view.strays.length, showBand);
   const addBox = l.boxes[l.boxes.length - 1];
   const source = band ? l.band : l.out;
-  const trunk = busPath(l, source.x + source.w / 2, source.y + source.h);
+  /* ADD ZONE IS NOT WIRED IN. It sits in the grid so it reads as the next
+     card along, but it is a control, not a zone: the trunk ran into it and
+     drew the system as serving a button. Every card but the last is wired. */
+  const trunk = busPath(l, source.x + source.w / 2, source.y + source.h, l.boxes.slice(0, -1));
   const oduModel = view.odu?.model ?? "";
   const valid = view.combination === "Valid";
 
@@ -1483,6 +1499,7 @@ function Schematic({
         </g>
 
         {/* the band: a unit dropped here serves the whole system */}
+        {showBand && (
         <g
           className={`ds-sb-band${band ? "" : " empty"}${over === "band" ? " over" : ""}${
             band && selected === band.id ? " sel" : ""
@@ -1526,6 +1543,7 @@ function Schematic({
             </text>
           )}
         </g>
+        )}
 
         {/* heads with no zone of this system: waiting under the band */}
         {view.strays.map((a, i) => {

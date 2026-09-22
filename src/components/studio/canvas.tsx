@@ -387,6 +387,57 @@ export function unitGlyph(cx: number, cy: number, w: number, h: number, role: st
     </>
   );
 }
+/* WHICH WAY A HEAD BLOWS — a solid arrow laid on the body, pointing out of
+   the discharge face. One per throw: a wall head, floor unit, under-ceiling,
+   ducted box or 1-way cassette throws out its front (+y in its own frame,
+   which turns with the unit); a 4-way cassette throws out all four faces.
+
+   It is SCREEN-sized where it counts. The stem runs the body's depth so the
+   arrow sits ON the unit, but a wall head is ten pixels deep at working zoom,
+   so the arrow is never shorter than a legible minimum and the head is a
+   fixed few pixels — a filled triangle, because a filled shape is the only
+   kind that survives at that size. Four rounds of mock-ups scaled the arrow
+   to the footprint and drew smudges; this is what was measured instead.
+
+   Shared by the placed unit and the placing ghost, so you can see which way
+   a unit will face BEFORE you let go of it. */
+export function throwArrows(
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+  formFactor: string,
+  zoom: number
+) {
+  const four = formFactor === "cassette-4way";
+  const dirs: Array<[number, number]> = four ? [[0, 1], [0, -1], [1, 0], [-1, 0]] : [[0, 1]];
+  const px = (n: number) => n / zoom; // screen px → world units
+  const headLen = px(5);
+  const headHalf = px(3);
+  const minLen = px(16);
+  return dirs.map(([dx, dy]) => {
+    const half = dx ? w / 2 : h / 2; // centre to the face it leaves by
+    // a single throw starts at the back of the body; a 4-way's four start
+    // just off the centre, so they read as four and not a cross
+    const start = four ? px(3) : -(half - px(3));
+    const end = Math.max(half, start + minLen);
+    const x1 = cx + dx * start;
+    const y1 = cy + dy * start;
+    const x2 = cx + dx * end;
+    const y2 = cy + dy * end;
+    // the head sits on the tip; the stem stops where the head begins
+    const bx = x2 - dx * headLen;
+    const by = y2 - dy * headLen;
+    const nx = -dy * headHalf; // across the direction of travel
+    const ny = dx * headHalf;
+    return (
+      <g key={`th-${dx}-${dy}`} className="ds-throw">
+        <line x1={x1} y1={y1} x2={bx} y2={by} />
+        <path d={`M${x2} ${y2} L${bx + nx} ${by + ny} L${bx - nx} ${by - ny} Z`} />
+      </g>
+    );
+  });
+}
 const ANCHOR_SNAP_PX = 16; // screen px to snap a pipe endpoint to an anchor
 const PLENUM_SNAP_PX = 20; // screen px to snap the plenum ghost onto an AHU end
 
@@ -4046,39 +4097,15 @@ export function StudioCanvas({
                 <g transform={rot ? `rotate(${rot} ${at.x} ${at.y})` : undefined}>
                 {unitGlyph(at.x, at.y, fp.w, fp.h, String(u.props.role ?? "idu"), zoom)}
                 {(() => {
-                  /* WHICH WAY IT BLOWS, on every head that blows into the room.
-                     The pattern is the form factor's — one throw out the front
-                     for a wall head, a floor unit or an under-ceiling; four for
-                     a 4-way cassette, one for a 1-way — and it turns with the
-                     unit. The arrow is SCREEN-sized, like a label, not scaled
-                     to the footprint: a wall head is ten pixels deep at
-                     working zoom, and anything proportional to that is a
-                     smudge. It starts a little inside the discharge face and
-                     leaves it, so the meaning is the same at every zoom: air
-                     comes out here. Ducted and bulkhead units blow through
-                     ducts, and their plenums draw that — the block below. */
-                  if (air || String(u.props.role ?? "idu") !== "idu") return null;
+                  /* every head the pack knows carries its throw (throwArrows,
+                     above). An air-capable ducted unit hands over to its own
+                     flow arrow once a plenum has oriented it — the block
+                     below — and carries the plain throw until then. */
+                  if (String(u.props.role ?? "idu") !== "idu") return null;
+                  if (air && ends.some((e) => e.determined)) return null;
                   const ff = iduSpec?.(String(u.props.model ?? ""))?.form_factor;
-                  if (!ff || ff === "ducted" || ff === "bulkhead") return null;
-                  const dirs: Array<[number, number]> =
-                    ff === "cassette-4way" ? [[0, 1], [0, -1], [1, 0], [-1, 0]] : [[0, 1]];
-                  const inside = 4 / zoom;
-                  const out = 11 / zoom;
-                  return dirs.map(([dx, dy]) => {
-                    const fx = at.x + dx * (fp.w / 2);
-                    const fy = at.y + dy * (fp.h / 2);
-                    return (
-                      <line
-                        key={`th-${dx}-${dy}`}
-                        className="ds-throw"
-                        x1={fx - dx * inside}
-                        y1={fy - dy * inside}
-                        x2={fx + dx * out}
-                        y2={fy + dy * out}
-                        markerEnd="url(#ds-flow-arrow)"
-                      />
-                    );
-                  });
+                  if (!ff) return null;
+                  return throwArrows(at.x, at.y, fp.w, fp.h, ff, zoom);
                 })()}
                 {(() => {
                   /* the airflow arrow + face labels appear only ONCE the unit
@@ -4538,9 +4565,14 @@ export function StudioCanvas({
               {(() => {
                 const at = cursor;
                 const fp = footprint(placing.widthMm, placing.depthMm);
+                /* the throw travels with the ghost, so which way the unit
+                   will face is known before it is let go of */
+                const ghostFf =
+                  placing.role === "idu" ? iduSpec?.(placing.model)?.form_factor : undefined;
                 return (
                   <>
                     {unitGlyph(at.x, at.y, fp.w, fp.h, placing.role, zoom)}
+                    {ghostFf && throwArrows(at.x, at.y, fp.w, fp.h, ghostFf, zoom)}
                     <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom}>
                       {placing.role.toUpperCase()}
                     </text>

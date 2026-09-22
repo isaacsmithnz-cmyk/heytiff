@@ -7809,14 +7809,22 @@ html[data-ds-display] .dstudio.editing {
 .dstudio {
   --ds-air: var(--info-t);
 }
-/* a head's throw: the same air colour and the same head as the ducted flow
-   arrow, so there is one way air is drawn on this plan */
-.dstudio .ds-throw {
+/* a head's throw: a solid arrow on the body in the air colour — the stem a
+   line, the head a filled triangle, because a filled shape is the only kind
+   that survives at the few pixels it has at working zoom */
+.dstudio .ds-throw line {
   stroke: var(--ds-air);
   stroke-width: 2px;
-  stroke-linecap: round;
+  stroke-linecap: butt;
   vector-effect: non-scaling-stroke;
 }
+.dstudio .ds-throw path {
+  fill: var(--ds-air);
+  stroke: none;
+}
+/* on the placing ghost it keeps the air colour and is the one solid thing on
+   a dashed outline, so the way the unit will face is the first thing read off
+   it — and air is drawn in one colour wherever it is */
 .dstudio .ds-ahu-flow {
   stroke: var(--ds-air);
   stroke-width: 2.4px;

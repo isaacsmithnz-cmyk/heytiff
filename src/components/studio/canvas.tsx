@@ -42,6 +42,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import type { DesignDocument, DesignObject, Floor, Point } from "@/lib/studio/document";
 import { newId } from "@/lib/studio/document";
@@ -65,7 +66,9 @@ import {
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { capacityFit, type UnitFit } from "@/lib/studio/fit";
 import { OVERSIZE_CAP } from "@/lib/studio/select";
-import { isAirCapable } from "@/lib/studio/modules";
+import { zoneIdsOf } from "@/lib/studio/zones";
+import { builderEnabled, isAirCapable } from "@/lib/studio/modules";
+import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf } from "@/lib/studio/graph";
 import { anchorFloating, dodgeSlot, type Size } from "@/lib/studio/anchor";
 import {
@@ -163,6 +166,24 @@ import {
    floor pixels; one <g> carries pan/zoom; strokes keep constant screen weight
    via vector-effect. */
 
+/** a zone's fill: its system's colour at the strength the orange fill has */
+function zoneFill(hex: string): string {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
+  if (!m) return "rgba(120, 130, 145, 0.12)";
+  return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, 0.13)`;
+}
+
+/** where a zone's corner dots sit */
+function topLeftOf(pts: Point[]): Point {
+  let x = Infinity;
+  let y = Infinity;
+  for (const p of pts) {
+    if (p.x < x) x = p.x;
+    if (p.y < y) y = p.y;
+  }
+  return { x, y };
+}
+
 export type CanvasTool =
   | "select"
   | "room-rect"
@@ -174,6 +195,7 @@ export type CanvasTool =
   | "erase"
   | "arrange"
   | "place" // place a unit (armed from the system panel with a model)
+  | "claim" // claim mode: a click gives a zone to the system being built, or takes it back
   | "pipe" // refrigerant run — endpoints snap to unit/riser anchors
   | "drain" // condensate drain — straight segments, size picked at draw
   | "cable" // power/data cable — dots smoothed into a curve
@@ -231,11 +253,20 @@ export interface ZoomApi {
 }
 
 /** What the place tool drops on the next click (armed by the system panel). */
+/** the rack's own drag type: the placing unit as JSON, so a drop lands even
+    when the arm set on dragstart has not rendered yet (a quick drag) */
+export const RACK_DRAG = "application/x-heytiff-rack";
+
 export interface PlacingUnit {
   role: "idu" | "odu";
   model: string;
   widthMm: number;
   depthMm: number;
+  /** a builder unit from the tray: the dropped object takes this id, this
+      system and this room — never the active system or the room it lands in */
+  allocationId?: string;
+  systemId?: string;
+  roomId?: string | null;
 }
 
 /* ── Air components (Stage 7) — armed from the component palette. The eight
@@ -355,6 +386,57 @@ export function unitGlyph(cx: number, cy: number, w: number, h: number, role: st
       ))}
     </>
   );
+}
+/* WHICH WAY A HEAD BLOWS — a solid arrow laid on the body, pointing out of
+   the discharge face. One per throw: a wall head, floor unit, under-ceiling,
+   ducted box or 1-way cassette throws out its front (+y in its own frame,
+   which turns with the unit); a 4-way cassette throws out all four faces.
+
+   It is SCREEN-sized, and it is BIG, because it is only ever shown while the
+   unit is in hand — placing, moving or turning — when the one question is
+   which way it faces. It starts at the back of the body and runs out past the
+   discharge face as far as it needs to; it does not have to fit the unit.
+   The head is a filled triangle, a third of the arrow, because a filled shape
+   is the only kind that reads at a glance. Four rounds of mock-ups scaled the
+   arrow to the footprint and drew smudges; this is what was measured instead.
+
+   Shared by the placed unit and the placing ghost. */
+export function throwArrows(
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+  formFactor: string,
+  zoom: number
+) {
+  const four = formFactor === "cassette-4way";
+  const dirs: Array<[number, number]> = four ? [[0, 1], [0, -1], [1, 0], [-1, 0]] : [[0, 1]];
+  const px = (n: number) => n / zoom; // screen px → world units
+  const headLen = px(12);
+  const headHalf = px(8);
+  const minLen = px(34);
+  return dirs.map(([dx, dy]) => {
+    const half = dx ? w / 2 : h / 2; // centre to the face it leaves by
+    // a single throw starts at the back of the body; a 4-way's four start
+    // just off the centre, so they read as four and not a cross
+    const start = four ? px(3) : -(half - px(3));
+    const end = Math.max(half, start + minLen);
+    const x1 = cx + dx * start;
+    const y1 = cy + dy * start;
+    const x2 = cx + dx * end;
+    const y2 = cy + dy * end;
+    // the head sits on the tip; the stem stops where the head begins
+    const bx = x2 - dx * headLen;
+    const by = y2 - dy * headLen;
+    const nx = -dy * headHalf; // across the direction of travel
+    const ny = dx * headHalf;
+    return (
+      <g key={`th-${dx}-${dy}`} className="ds-throw">
+        <line x1={x1} y1={y1} x2={bx} y2={by} />
+        <path d={`M${x2} ${y2} L${bx + nx} ${by + ny} L${bx - nx} ${by - ny} Z`} />
+      </g>
+    );
+  });
 }
 const ANCHOR_SNAP_PX = 16; // screen px to snap a pipe endpoint to an anchor
 const PLENUM_SNAP_PX = 20; // screen px to snap the plenum ghost onto an AHU end
@@ -565,7 +647,10 @@ type Drag =
   | { kind: "crop"; sheetId: string; start: Point }
   | { kind: "north-move"; startWorld: Point; orig: { x: number; y: number } }
   | { kind: "north-rotate"; center: { x: number; y: number } }
-  | { kind: "unit-rotate"; id: string; center: Point }
+  /* `offset` is where on the ring the grab landed, as degrees ahead of the
+     unit's own up: the turn follows the pointer from THERE, so grabbing the
+     ring at its side does not snap the unit to face the side */
+  | { kind: "unit-rotate"; id: string; center: Point; offset: number }
   /** the tape measure: a reading, not an object — it lives only for the
       length of the drag and is never written to the document */
   | { kind: "tape"; from: Point }
@@ -634,6 +719,7 @@ export function StudioCanvas({
   iduSpec,
   oduSpec,
   onRoomCreated,
+  onClaimToggle,
   onOpenRoom,
   remarkRoomId = null,
   onRemarkConsumed,
@@ -693,6 +779,9 @@ export function StudioCanvas({
   oduSpec?: (model: string) => OutdoorUnit | null;
   /** a room finished wall-marking — open its configuration modal (Slice 2) */
   onRoomCreated?: (id: string) => void;
+  /** claim mode (the zones flow): a click on a zone. Zones wear their
+      systems' colours whenever this flow is on, from the claims themselves. */
+  onClaimToggle?: (roomId: string) => void;
   /** double-click a room with Select → open that room's modal */
   onOpenRoom?: (id: string) => void;
   /** request to re-enter wall-marking for an existing room (from the modal) */
@@ -809,10 +898,16 @@ export function StudioCanvas({
 
   /* the canvas is scoped to the ACTIVE system — switching systems re-scopes
      the whole canvas ("System 2 resets the canvas"). Rooms, units, risers and
-     runs all belong to a system now. */
+     runs all belong to a system now.
+     With the system builder on, the plan is one house: every system's units
+     and runs show at once, and rooms belong to the plan, not a system. */
+  const builder = builderEnabled();
+  /* rooms are zones in the zones flow */
+  const roomWord = builder ? "zone" : "room";
   const inScope = useCallback(
-    (o: DesignObject) => o.floorId === floor.id && o.systemId === activeSystemId,
-    [floor.id, activeSystemId]
+    (o: DesignObject) =>
+      o.floorId === floor.id && (builder || o.systemId === activeSystemId),
+    [floor.id, activeSystemId, builder]
   );
 
   /* rooms render FLOOR-WIDE (all systems) so another system's spaces are
@@ -837,13 +932,15 @@ export function StudioCanvas({
 
   /** served by the active system (drawn or adopted) — rendered full-strength */
   const roomServed = useCallback(
-    (r: DesignObject) => r.systemId === activeSystemId || adoptedRoomIds.has(r.id),
-    [activeSystemId, adoptedRoomIds]
+    (r: DesignObject) =>
+      builder || r.systemId === activeSystemId || adoptedRoomIds.has(r.id),
+    [activeSystemId, adoptedRoomIds, builder]
   );
-  /** drawn by the active system — the only rooms it may move/reshape/erase */
+  /** drawn by the active system — the only rooms it may move/reshape/erase
+      (with the builder, a room is the plan's and anyone may edit it) */
   const roomEditable = useCallback(
-    (r: DesignObject) => r.systemId === activeSystemId,
-    [activeSystemId]
+    (r: DesignObject) => builder || r.systemId === activeSystemId,
+    [activeSystemId, builder]
   );
 
   const roomPoints = useCallback(
@@ -858,6 +955,21 @@ export function StudioCanvas({
     for (const s of doc.systems) m.set(s.id, s.colour);
     return m;
   }, [doc.systems]);
+
+  /* the zones flow: a zone wears the colour of the system that claimed it,
+     the first system's when two share it, with a dot per system in its corner */
+  const zoneOwners = useMemo(() => {
+    const m = new Map<string, { id: string; colour: string }[]>();
+    if (!builder) return m;
+    for (const sys of doc.systems) {
+      for (const id of zoneIdsOf(sys)) {
+        const list = m.get(id) ?? [];
+        list.push({ id: sys.id, colour: sys.colour });
+        m.set(id, list);
+      }
+    }
+    return m;
+  }, [doc.systems, builder]);
 
   const units = useMemo(
     () =>
@@ -1036,18 +1148,28 @@ export function StudioCanvas({
   type UnitObj = (typeof units)[number];
   const unitRotDeg = (o: UnitObj) =>
     liveRotate?.id === o.id ? liveRotate.deg : o.geometry.rotation ?? 0;
-  /* the rotate knob's world position: local "up" (top of the footprint plus a
-     gap) turned by the unit's current angle — the same sin/-cos the north
-     knob uses, so the grab target tracks the on-screen handle */
-  const unitRotKnob = (o: UnitObj) => {
+  /* THE ROTATE RING: a faint ring round the selected unit's footprint, 8px
+     clear of its corners at any zoom, with one grip on it at the unit's own
+     "up" so the current angle can be read off it. Drag anywhere on the ring
+     to turn. It used to be a leg out of the top face with a knob on the end,
+     and the leg was sized to the GRID: 71px long at 140% with a 6px dot on
+     the end, gone at fit-to-screen — the one thing on a selected unit that
+     was not sized to the screen, and it looked like it. */
+  /* `zoom` is passed in rather than read off `vp` here: this closure is called
+     from render and from the pointer handlers, and closing over the viewport
+     object from up here changed the dependency shape the React Compiler
+     inferred for three unrelated memoized callbacks (it reported it could
+     not preserve their memoization). A number in, nothing captured. */
+  const unitRotKnob = (o: UnitObj, zoomNow: number) => {
     const at = pointAt(o);
     const fp = footprint(Number(o.props.widthMm ?? 800), Number(o.props.depthMm ?? 300));
-    const gap = fp.h / 2 + grid * 0.55;
     const rad = (unitRotDeg(o) * Math.PI) / 180;
+    const r = Math.hypot(fp.w / 2, fp.h / 2) + 8 / zoomNow;
     return {
       at,
-      gap,
-      knob: { x: at.x + Math.sin(rad) * gap, y: at.y - Math.cos(rad) * gap },
+      r,
+      // the grip: local "up" on the ring, turned with the unit
+      knob: { x: at.x + Math.sin(rad) * r, y: at.y - Math.cos(rad) * r },
     };
   };
 
@@ -1800,20 +1922,22 @@ export function StudioCanvas({
     (points: Point[], shape: "rect" | "poly") => {
       const id = newId("obj");
       onMutate((d) => {
-        // rooms belong to the active system (type-first flow); scoped per system
+        // rooms belong to the active system (type-first flow); scoped per
+        // system. With the builder they belong to the plan: no system, and
+        // numbered across the whole design.
         const n =
           d.objects.filter(
-            (o) => o.type === "room" && o.systemId === activeSystemId
+            (o) => o.type === "room" && (builder || o.systemId === activeSystemId)
           ).length + 1;
         const room: DesignObject = {
           id,
           type: "room",
-          systemId: activeSystemId,
+          systemId: builder ? null : activeSystemId,
           floorId: floor.id,
           geometry: { kind: "polygon", points },
           plane: "room",
           props: {
-            name: `Room ${n}`,
+            name: builder ? `Zone ${n}` : `Room ${n}`,
             externalWalls: [],
             hasExternalWalls: false,
             // rectangle-tool rooms stay rectangular when their corners are edited
@@ -1826,7 +1950,7 @@ export function StudioCanvas({
       onSelect(id);
       onToolDone(); // back to select so the corners and body drag
     },
-    [onMutate, floor.id, activeSystemId, onSelect, onToolDone]
+    [onMutate, floor.id, activeSystemId, onSelect, onToolDone, builder]
   );
 
   /** Save: pin the room to the plan. A fresh room goes on to wall-marking; a
@@ -2212,7 +2336,47 @@ export function StudioCanvas({
 
   /* ── Stage-4 document intents ── */
   const addUnit = useCallback(
-    (at: Point) => {
+    (at: Point, armed: PlacingUnit | null = placing) => {
+      /* a builder unit from the tray: it keeps its own id, system and room —
+         the builder decided the room, so where it lands never changes it */
+      if (armed?.allocationId && armed.systemId) {
+        const p = armed;
+        onMutate((d) => {
+          if (d.objects.some((o) => o.id === p.allocationId)) {
+            return {
+              ...d,
+              objects: d.objects.map((o) =>
+                o.id === p.allocationId
+                  ? { ...o, floorId: floor.id, geometry: { kind: "point" as const, at } }
+                  : o
+              ),
+            };
+          }
+          return {
+            ...d,
+            objects: [
+              ...d.objects,
+              {
+                id: p.allocationId!,
+                type: "unit",
+                systemId: p.systemId!,
+                floorId: floor.id,
+                geometry: { kind: "point", at },
+                plane: p.role === "odu" ? "external-ground" : "room",
+                props: {
+                  role: p.role,
+                  model: p.model,
+                  widthMm: p.widthMm,
+                  depthMm: p.depthMm,
+                  ...(p.roomId ? { roomId: p.roomId } : {}),
+                },
+              } satisfies DesignObject,
+            ],
+          };
+        });
+        onPlaced?.();
+        return;
+      }
       if (!placing || !activeSystemId) return;
       onMutate((d) => {
         /* an IDU dropped inside a room is ATTRIBUTED to it (units → spaces);
@@ -2499,9 +2663,20 @@ export function StudioCanvas({
         if (selectedId) {
           const su = units.find((u) => u.id === selectedId);
           if (su) {
-            const ks = worldToScreen(unitRotKnob(su).knob, vp);
-            if (dist(worldToScreen(w, vp), ks) <= 14) {
-              setDrag({ kind: "unit-rotate", id: su.id, center: pointAt(su) });
+            /* anywhere on the ring turns it: a band 8px either side of the
+               ring's line, in screen pixels, so it is as easy to catch zoomed
+               out as in; the grip is on the ring, so it needs no case of its own */
+            const rk = unitRotKnob(su, vp.zoom);
+            const cs = worldToScreen(rk.at, vp);
+            const ps = worldToScreen(w, vp);
+            if (Math.abs(dist(ps, cs) - rk.r * vp.zoom) <= 8) {
+              const grabDeg = ((Math.atan2(ps.x - cs.x, -(ps.y - cs.y)) * 180) / Math.PI + 360) % 360;
+              setDrag({
+                kind: "unit-rotate",
+                id: su.id,
+                center: pointAt(su),
+                offset: grabDeg - unitRotDeg(su),
+              });
               break;
             }
           }
@@ -2582,6 +2757,13 @@ export function StudioCanvas({
       }
       case "place": {
         tap(() => addUnit(w));
+        break;
+      }
+      case "claim": {
+        tap(() => {
+          const hit = hitRoom(w);
+          if (hit) onClaimToggle?.(hit);
+        });
         break;
       }
       case "component": {
@@ -2883,7 +3065,9 @@ export function StudioCanvas({
       case "unit-rotate": {
         const c = worldToScreen(drag.center, vp);
         const s = worldToScreen(w, vp);
-        let deg = ((Math.atan2(s.x - c.x, -(s.y - c.y)) * 180) / Math.PI + 360) % 360;
+        const pointerDeg = ((Math.atan2(s.x - c.x, -(s.y - c.y)) * 180) / Math.PI + 360) % 360;
+        // the unit turns by as much as the pointer has, from wherever it grabbed
+        let deg = (((pointerDeg - drag.offset) % 360) + 360) % 360;
         // Shift snaps to 15° while dragging; 90° steps live on the keyboard
         if (e.shiftKey) deg = (Math.round(deg / 15) * 15) % 360;
         setLiveRotate({ id: drag.id, deg });
@@ -3061,12 +3245,19 @@ export function StudioCanvas({
       if (at.x !== drag.orig.x || at.y !== drag.orig.y) {
         onMutate((d) => {
           const moved = d.objects.find((o) => o.id === id);
+          /* a unit the builder allocated keeps the room it was built for —
+             moving it on the plan only moves it (spec: placing never changes
+             the room) */
+          const movedSys = moved?.systemId ? d.systems.find((s) => s.id === moved.systemId) : undefined;
+          const allocated =
+            movedSys != null && hasAllocations(movedSys) && allocationsOf(movedSys).some((a) => a.id === id);
           /* moving an IDU re-derives its room attribution (unless the user
              pinned it manually via roomLock) — and adopts a foreign room the
              same way a fresh drop does. Outside every room, a split falls
              back to its lens room, so nudging a bulkhead along the hallway
              never silently un-serves the room it was placed for. */
           const restamp =
+            !allocated &&
             moved?.type === "unit" &&
             moved.props.role === "idu" &&
             !moved.props.roomLock;
@@ -3194,17 +3385,30 @@ export function StudioCanvas({
 
   /* ── drag-from-card placement (Slice 3): the panel arms `placing` on
      dragstart; dragover tracks the to-scale ghost, drop commits the unit ── */
+  const rackDrag = (e: React.DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes(RACK_DRAG);
   const onDragOver = (e: React.DragEvent<SVGSVGElement>) => {
-    if (!placing) return;
+    if (!placing && !rackDrag(e)) return;
     e.preventDefault(); // allow the drop
     e.dataTransfer.dropEffect = "copy";
     setCursor(toWorld(e));
   };
 
   const onDrop = (e: React.DragEvent<SVGSVGElement>) => {
-    if (!placing || sim) return;
+    if (sim) return;
+    /* the arm set on dragstart is what lands; a drag quicker than a render
+       carries the same unit in its own data, so it lands too */
+    let armed: PlacingUnit | null = placing;
+    if (!armed && rackDrag(e)) {
+      try {
+        const raw = e.dataTransfer.getData(RACK_DRAG);
+        if (raw) armed = JSON.parse(raw) as PlacingUnit;
+      } catch {
+        armed = null;
+      }
+    }
+    if (!armed) return;
     e.preventDefault();
-    addUnit(toWorld(e));
+    addUnit(toWorld(e), armed);
   };
 
   const onDoubleClick = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -3305,7 +3509,9 @@ export function StudioCanvas({
      every room reads how the armed capacity sits against its OWN load —
      the browser's ranking made spatial — and the room that would take the
      drop (containment, else the split's lens room) carries the verdict. ── */
-  const armedIdu = tool === "place" && placing != null && placing.role === "idu";
+  /* a tray unit already has its room, so no room is painted as its target */
+  const armedIdu =
+    tool === "place" && placing != null && placing.role === "idu" && !placing.allocationId;
   const armedLens = useMemo(
     () => (armedIdu ? lensRoom(doc, activeSystemId) : null),
     [armedIdu, doc, activeSystemId]
@@ -3348,9 +3554,20 @@ export function StudioCanvas({
       room: roomId
         ? ((rooms.find((r) => r.id === roomId)?.props.name as string | undefined) ?? null)
         : null,
+      /* W × D × H. The plan can only ever SHOW the first two — it is a view
+         from above — so the height is carried here as a note: the figure you
+         need to know whether a unit clears a bulkhead or sits under a window,
+         and the one an elevation would draw if we ever draw one.
+
+         It is read off the PACK rather than the object, because the placed
+         object only ever stored the two dimensions the footprint needs, so
+         every unit placed before today has no height on it to read. */
       size: `${Math.round(Number(u.props.widthMm ?? 0))} × ${Math.round(
         Number(u.props.depthMm ?? 0)
-      )} mm`,
+      )}${spec?.height_mm != null ? ` × ${Math.round(spec.height_mm)}` : ""} mm`,
+      /* named so the card can say which figure is which — three bare numbers
+         on a plan is the one place W×D×H is genuinely ambiguous */
+      sizeAxes: spec?.height_mm != null ? "W × D × H" : "W × D",
     };
   }, [hoverUnitId, units, iduSpec, oduSpec, doc.objects, doc.systems, rooms, sysColour, pointAt]);
 
@@ -3494,7 +3711,9 @@ export function StudioCanvas({
           ? "ds-cur-erase"
           : tool === "set-north"
             ? "ds-cur-north"
-            : "ds-cur-cross";
+            : tool === "claim"
+              ? "ds-cur-claim"
+              : "ds-cur-cross";
 
   /* whether this machine still wants to be talked through the armed tool */
   const hintsOn = useHintsOn();
@@ -3520,14 +3739,14 @@ export function StudioCanvas({
          into the cockpit — this and the crosshair are the canvas's whole half
          of the conversation, so Esc has to be named */
       : tool === "room-rect"
-        ? { icon: "square", text: "Drag a rectangle over the room · Esc to cancel" }
+        ? { icon: "square", text: `Drag a rectangle over the ${roomWord} · Esc to cancel` }
       : tool === "room-poly"
         ? {
             icon: "hexagon",
             text:
               draftPoly.length >= 3
-                ? "Click the first point to close the room · Esc to cancel"
-                : "Click each corner of the room · Esc to cancel",
+                ? `Click the first point to close the ${roomWord} · Esc to cancel`
+                : `Click each corner of the ${roomWord} · Esc to cancel`,
           }
       /* the drawn runs: the curved tools are new grammar (dots → curve), so
          the canvas says how a line ENDS — the one thing a first draw can't
@@ -3733,17 +3952,37 @@ export function StudioCanvas({
                 ? capacityFit(placingKw, armLoad, OVERSIZE_CAP)
                 : null;
             const isTarget = armedIdu && dropTargetId === r.id;
+            /* a unit dragged off its system's rack outlines its own zone */
+            const ownZone =
+              tool === "place" && placing?.allocationId != null && placing.roomId === r.id;
             const covFit = roomFits?.[r.id];
+            const owners = zoneOwners.get(r.id) ?? [];
+            const zoneStyle = owners.length
+              ? ({ "--zc": owners[0].colour, "--zc-fill": zoneFill(owners[0].colour) } as CSSProperties)
+              : undefined;
+            const corner = owners.length >= 2 ? topLeftOf(pts) : null;
             return (
               <g
                 key={r.id}
                 className={`ds-room${selected ? " sel" : ""}${ghost ? " ghost" : ""}${
                   loose ? " loose" : ""
                 }${armedIdu ? ` armfit-${armFit ?? "none"}` : ""}${
-                  isTarget ? " droptgt" : ""
-                }`}
+                  isTarget || ownZone ? " droptgt" : ""
+                }${owners.length ? " zoned" : ""}`}
+                style={zoneStyle}
               >
                 <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
+                {corner &&
+                  owners.map((o, i) => (
+                    <circle
+                      key={o.id}
+                      className="ds-zone-dot"
+                      cx={corner.x + (10 + 14 * i) / labelZoom}
+                      cy={corner.y + 10 / labelZoom}
+                      r={5 / labelZoom}
+                      style={{ fill: o.colour }}
+                    />
+                  ))}
                 {layers.labels && (
                   <>
                     <text x={c.x} y={c.y} fontSize={13 / labelZoom} className="ds-room-name">
@@ -3873,7 +4112,7 @@ export function StudioCanvas({
             const sockD = 150 * perMm;
             const builtInD = 350 * perMm; // engine's default plenum depth
             const rot = unitRotDeg(u); // simple units only; AHUs stay at 0
-            const rk = u.id === selectedId ? unitRotKnob(u) : null;
+            const rk = u.id === selectedId ? unitRotKnob(u, zoom) : null;
             return (
               <g
                 key={u.id}
@@ -3883,6 +4122,22 @@ export function StudioCanvas({
                 {/* the glyph and, on AHUs, its whole air side turn together */}
                 <g transform={rot ? `rotate(${rot} ${at.x} ${at.y})` : undefined}>
                 {unitGlyph(at.x, at.y, fp.w, fp.h, String(u.props.role ?? "idu"), zoom)}
+                {(() => {
+                  /* THE THROW SHOWS WHILE THE UNIT IS BEING MOVED OR TURNED,
+                     and not at rest: orientation is the question while you
+                     hold it, and a plan of resting heads each wearing an
+                     arrow was a plan of arrows. An air-capable ducted unit
+                     hands over to its own flow arrow once a plenum has
+                     oriented it — the block below. */
+                  if (String(u.props.role ?? "idu") !== "idu") return null;
+                  const moving =
+                    (drag?.kind === "point" && drag.id === u.id) || liveRotate?.id === u.id;
+                  if (!moving) return null;
+                  if (air && ends.some((e) => e.determined)) return null;
+                  const ff = iduSpec?.(String(u.props.model ?? ""))?.form_factor;
+                  if (!ff) return null;
+                  return throwArrows(at.x, at.y, fp.w, fp.h, ff, zoom);
+                })()}
                 {(() => {
                   /* the airflow arrow + face labels appear only ONCE the unit
                      is determined — the first plenum, or a built-in return
@@ -4032,31 +4287,31 @@ export function StudioCanvas({
                     summary/plan-figure.tsx — and keeps the full labels, because
                     paper can't be hovered.) */}
                 {rk && (() => {
-                  // the handle: a stem from the footprint's turned top edge out
-                  // to a grab knob (drag to spin, Shift snaps 15°; [ / ] step 90°)
-                  const rad = (rot * Math.PI) / 180;
-                  const edge = {
-                    x: at.x + Math.sin(rad) * (fp.h / 2),
-                    y: at.y - Math.cos(rad) * (fp.h / 2),
-                  };
+                  // the handle (drag anywhere on the ring to spin, Shift snaps
+                  // 15°; [ / ] step 90°)
+                  /* the ring: faint and dashed in the system's colour, 8px
+                     clear of the footprint's corners at any zoom, with one
+                     grip on it at the unit's "up". Nothing crosses the face. */
+                  const s = 1 / zoom;
                   return (
                     <g className="ds-rot-knob">
-                      <line
-                        x1={edge.x}
-                        y1={edge.y}
-                        x2={rk.knob.x}
-                        y2={rk.knob.y}
+                      <circle
+                        cx={rk.at.x}
+                        cy={rk.at.y}
+                        r={rk.r}
+                        fill="none"
                         stroke="currentColor"
-                        strokeWidth={1.5 / zoom}
-                        strokeDasharray={`${3 / zoom} ${3 / zoom}`}
+                        strokeWidth={1.2 * s}
+                        strokeDasharray={`${2 * s} ${3 * s}`}
+                        opacity={0.8}
                       />
                       <circle
                         cx={rk.knob.x}
                         cy={rk.knob.y}
-                        r={6 / zoom}
+                        r={5 * s}
                         fill="#fff"
                         stroke="currentColor"
-                        strokeWidth={1.5 / zoom}
+                        strokeWidth={2 * s}
                       />
                     </g>
                   );
@@ -4341,9 +4596,14 @@ export function StudioCanvas({
               {(() => {
                 const at = cursor;
                 const fp = footprint(placing.widthMm, placing.depthMm);
+                /* the throw travels with the ghost, so which way the unit
+                   will face is known before it is let go of */
+                const ghostFf =
+                  placing.role === "idu" ? iduSpec?.(placing.model)?.form_factor : undefined;
                 return (
                   <>
                     {unitGlyph(at.x, at.y, fp.w, fp.h, placing.role, zoom)}
+                    {ghostFf && throwArrows(at.x, at.y, fp.w, fp.h, ghostFf, zoom)}
                     <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom}>
                       {placing.role.toUpperCase()}
                     </text>
@@ -4928,7 +5188,7 @@ export function StudioCanvas({
               </div>
             )}
             <div>
-              <dt>Size</dt>
+              <dt>{hoverCard.sizeAxes}</dt>
               <dd>{hoverCard.size}</dd>
             </div>
           </dl>

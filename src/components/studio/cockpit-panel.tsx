@@ -46,10 +46,19 @@ import {
 } from "@/lib/studio/geometry";
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { roomAreaM2, type RoomObj } from "@/lib/studio/loads-room";
-import { roomsServedBy, roomCoverage, systemPairKw } from "@/lib/studio/coverage";
+import {
+  roomAtPoint,
+  roomsServedBy,
+  roomCoverage,
+  systemCover,
+  systemPairKw,
+  type SystemCover,
+} from "@/lib/studio/coverage";
 import type { PairProposal } from "@/lib/studio/split";
 import { formFactorLabel } from "@/lib/studio/unit-specs";
-import { isAirCapable, moduleFor } from "@/lib/studio/modules";
+import { nextSystemColour, isAirCapable, moduleFor } from "@/lib/studio/modules";
+import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
+import { moveAllocation } from "@/lib/studio/builder";
 import {
   pruneObjects,
   releaseRoomsFromSystems,
@@ -87,7 +96,6 @@ import { UnitBrowser } from "./unit-browser";
 import { MultiOduPicker } from "./multi-browser";
 
 /* one colour per system, cycled on creation (kept from the old SystemsPanel) */
-const SYSTEM_COLOURS = ["#2E68FF", "#E4572E", "#17A398", "#9B5DE5", "#F5A623", "#D63384"];
 
 /* objects dropped when a system changes type — everything type-specific; the
    rooms it serves stay. Covers the five ducted palette types up front (ducted
@@ -178,6 +186,7 @@ export function SystemCockpit({
   onAddVariant,
   onSwitchVariant,
   onRenameVariant,
+  builder,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -204,6 +213,13 @@ export function SystemCockpit({
   onAddVariant: () => void;
   onSwitchVariant: (id: string) => void;
   onRenameVariant: (label: string) => void;
+  /** the system builder's doors, when its flag is on: building and changing
+      systems happen there, and deleting one gives its rooms back */
+  builder?: {
+    onOpen: () => void;
+    onSwap: (systemId: string, allocationId: string) => void;
+    onDeleteSystem: (id: string) => void;
+  };
 }) {
   const [adding, setAdding] = useState(false);
   const [changingType, setChangingType] = useState(false);
@@ -224,7 +240,7 @@ export function SystemCockpit({
           id,
           type,
           brand: "mitsubishi-electric",
-          colour: SYSTEM_COLOURS[n % SYSTEM_COLOURS.length],
+          colour: nextSystemColour(d.systems),
           name: `System ${n + 1}`,
           settings: {},
         },
@@ -267,6 +283,11 @@ export function SystemCockpit({
   };
 
   const deleteSystem = (id: string) => {
+    if (builder) {
+      builder.onDeleteSystem(id);
+      if (id === active?.id) onActivate(null);
+      return;
+    }
     onMutate((d) => {
       // another system's runs must not keep attaches to units that went with
       // this one, and its rooms must not linger in anyone's adopted list
@@ -283,11 +304,21 @@ export function SystemCockpit({
     if (id === active?.id) onActivate(null);
   };
 
-  // no systems yet → the chooser is the whole panel (type-first entry)
+  // no systems yet → the chooser is the whole panel (type-first entry). With
+  // the builder there is no type to pick first: the rooms are the plan's, and
+  // systems are built in the builder.
   if (systems.length === 0) {
     return (
       <div className="ds-ck">
-        <SystemTypeChooser onChoose={createSystem} />
+        {builder ? (
+          <div className="ds-ck-build">
+            <button className="ds-ck-buildbtn" onClick={builder.onOpen}>
+              Build systems
+            </button>
+          </div>
+        ) : (
+          <SystemTypeChooser onChoose={createSystem} />
+        )}
       </div>
     );
   }
@@ -309,6 +340,10 @@ export function SystemCockpit({
       activeId={active?.id ?? null}
       onActivate={onActivate}
       onAdd={() => {
+        if (builder) {
+          builder.onOpen();
+          return;
+        }
         setChangingType(false);
         setAdding(true);
       }}
@@ -370,9 +405,14 @@ export function SystemCockpit({
           systemSelector={systemSelector}
           restControl={restControl}
           onChangeType={() => {
+            if (builder) {
+              builder.onOpen();
+              return;
+            }
             setAdding(false);
             setChangingType(true);
           }}
+          onSwap={builder?.onSwap}
         />
       ) : active && mod && !mod.available ? (
         <>
@@ -669,6 +709,7 @@ function ActiveCockpit({
   onChangeType,
   systemSelector,
   restControl,
+  onSwap,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -683,6 +724,8 @@ function ActiveCockpit({
   onChangeType: () => void;
   systemSelector?: React.ReactNode;
   restControl?: React.ReactNode;
+  /** Swap (builder): open the builder on a selected indoor unit */
+  onSwap?: (systemId: string, allocationId: string) => void;
 }) {
   const [view, setView] = useState<"rooms" | "components">("rooms");
 
@@ -700,7 +743,13 @@ function ActiveCockpit({
     [doc, pack, system, basis]
   );
   const hero = useMemo(
-    () => (ducted || perRoom ? null : computeHero(doc, pack, system, rooms, basis)),
+    () =>
+      /* a builder system reads the design sheet's own figure (systemCover) */
+      hasAllocations(system)
+        ? computeCoverHero(system, systemCover(doc, pack, system, basis))
+        : ducted || perRoom
+          ? null
+          : computeHero(doc, pack, system, rooms, basis),
     [ducted, perRoom, doc, pack, system, rooms, basis]
   );
   const req = useMemo(
@@ -751,7 +800,7 @@ function ActiveCockpit({
           systemSelector={systemSelector}
           restControl={restControl}
         />
-      ) : conn ? (
+      ) : conn && !hasAllocations(system) ? (
         <CockpitHero hero={computeMultiHero(conn)} onChangeType={onChangeType} systemSelector={systemSelector} restControl={restControl} />
       ) : hero ? (
         <CockpitHero hero={hero} onChangeType={onChangeType} systemSelector={systemSelector} restControl={restControl} />
@@ -795,6 +844,14 @@ function ActiveCockpit({
             basis={basis}
             conn={conn}
             onMutate={onMutate}
+            onChangeInBuilder={
+              onSwap && hasAllocations(system)
+                ? () => {
+                    const odu = allocationsOf(system).find((a) => a.role === "odu");
+                    if (odu) onSwap(system.id, odu.id);
+                  }
+                : undefined
+            }
           />
         )}
         <SegWindow view={view}>
@@ -813,6 +870,7 @@ function ActiveCockpit({
             onMutate={onMutate}
             onEditRoom={onEditRoom}
             onFloor={onFloor}
+            onSwap={onSwap}
           />
           <ComponentsView
             doc={doc}
@@ -891,6 +949,18 @@ function donutModel(
     dash: DONUT_CIRC * (1 - Math.min(coverage, 1)),
     over: coverage > 1,
   };
+}
+
+/** a builder system's hero: Required is the load of the rooms it has units in
+    (a room another system also covers counts only the part this one carries),
+    Selected is what it gives them — the same figures the design sheet prints */
+function computeCoverHero(system: DesignSystem, cover: SystemCover): HeroModel {
+  return donutModel(
+    moduleFor(system.type).label,
+    cover.loadKw,
+    cover.rooms.length ? cover.coverKw : null,
+    cover.rooms.length === 0 ? "Not sized" : cover.loadKw == null ? "Calibrate" : "Select units"
+  );
 }
 
 /** capacity-coverage hero: Required (room load) vs Selected (chosen pair kW). */
@@ -1388,14 +1458,19 @@ export function OutdoorSection({
   basis,
   conn,
   onMutate,
+  onChangeInBuilder,
 }: {
   pack: DataPack | null;
   system: DesignSystem;
   basis: SizingBasis;
   conn: MultiConnection;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  /** a builder system: its outdoor is chosen in the builder, never here */
+  onChangeInBuilder?: () => void;
 }) {
-  const [browsing, setBrowsing] = useState(false);
+  const [browsing, setBrowsingState] = useState(false);
+  const setBrowsing = (open: boolean) =>
+    open && onChangeInBuilder ? onChangeInBuilder() : setBrowsingState(open);
   const hasOdu = Boolean(conn.oduModel);
   const oduSpec = conn.odu;
 
@@ -1707,6 +1782,7 @@ function RoomsView({
   onMutate,
   onEditRoom,
   onFloor,
+  onSwap,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -1724,6 +1800,7 @@ function RoomsView({
   /** take the canvas to a floor — selecting a room on another storey should
       show you that storey, not leave you looking at a plan it isn't on */
   onFloor?: (floorId: string) => void;
+  onSwap?: (systemId: string, allocationId: string) => void;
 }) {
   const [adopting, setAdopting] = useState(false);
   /* which floor groups are folded away. View state, like the layer toggles —
@@ -1929,6 +2006,21 @@ function RoomsView({
           <span className="rl">Inspect</span>
         </div>
       )}
+
+      {/* Swap: a builder head changes size in the builder, on the same unit */}
+      {selObj &&
+        onSwap &&
+        selObj.type === "unit" &&
+        selObj.props.role === "idu" &&
+        allocationsOf(system).some((a) => a.id === selObj.id) && (
+          <button
+            className="ds-ck-swap"
+            onClick={() => onSwap(system.id, selObj.id)}
+          >
+            <Glyph name="rotate" size={13} />
+            Swap
+          </button>
+        )}
 
       {selObj ? (
         selObj.type === "plenum" ? (
@@ -2586,8 +2678,16 @@ function ObjectInspectCard({
           ? "Return plenum fitted, no supply yet"
           : "No plenums yet";
     const floorRooms = doc.objects.filter((o) => o.type === "room" && o.floorId === obj.floorId);
+    /* a unit the builder allocated: its room lives on the allocation */
+    const allocated =
+      system != null && hasAllocations(system) && allocationsOf(system).some((a) => a.id === obj.id);
+    const sitsIn =
+      allocated && obj.geometry.kind === "point"
+        ? roomAtPoint(doc.objects, obj.floorId, obj.geometry.at)
+        : null;
     const serveRoom = (roomId: string) =>
       onMutate((d) => {
+        if (allocated && system) return roomId ? moveAllocation(d, system.id, obj.id, roomId) : d;
         const room = d.objects.find((o) => o.id === roomId);
         const foreign = room && obj.systemId && room.systemId !== obj.systemId;
         const sys = foreign ? d.systems.find((s) => s.id === obj.systemId) : null;
@@ -2645,11 +2745,14 @@ function ObjectInspectCard({
             </button>
           </div>
         )}
+        {sitsIn && sitsIn.id !== obj.props.roomId && (
+          <ObjRow k="Sits in" v={String(sitsIn.props.name ?? "Room")} />
+        )}
         {isIdu && (
           <label className="ds-ck-objfield">
             <span>Serves room</span>
             <select value={String(obj.props.roomId ?? "")} onChange={(e) => serveRoom(e.target.value)}>
-              <option value="">— not attributed —</option>
+              {!allocated && <option value="">— not attributed —</option>}
               {floorRooms.map((r) => (
                 <option key={r.id} value={r.id}>
                   {String(r.props.name ?? "Room")}

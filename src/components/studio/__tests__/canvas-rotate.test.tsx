@@ -142,3 +142,45 @@ describe("rotating a simple unit", () => {
     expect(turned(spun.svg)).toBe(true);
   });
 });
+
+/* THE RING. The handle is a ring round the footprint, and you grab it
+   ANYWHERE; the turn follows the hand from wherever it took hold. The first
+   cut set the unit's up to the pointer's absolute angle — right for a knob
+   that sat at the top, and a snap for a ring: taking hold at the side turned
+   the unit 90° before you had moved. Geometry here: 800 x 300 mm at 10 mm a
+   unit is 80 x 30 world, half-diagonal 42.7, ring 8px clear at zoom 0.56 →
+   57.0 world, 31.9 screen px round (400,300). */
+describe("the rotate ring", () => {
+  const RING = 31.9;
+  const left = { clientX: 400 - RING, clientY: 300 };
+
+  it("taking hold at the side does not snap the unit to face the side", () => {
+    let doc = mkDoc([unit("idu", "idu")]);
+    const { svg } = renderCanvas(doc, "idu", (fn) => (doc = fn(doc)));
+    fireEvent.pointerDown(svg, { button: 0, ...left });
+    fireEvent.pointerMove(svg, { clientX: left.clientX, clientY: 301 });
+    fireEvent.pointerUp(svg, { clientX: left.clientX, clientY: 301 });
+    // a pixel down on the left is a degree or two anticlockwise — 358, not a snap to 270
+    const r = rotationOf(doc, "idu") ?? 0;
+    expect(Math.min(r, 360 - r)).toBeLessThan(5);
+  });
+
+  it("turns the unit by as much as the hand went round the ring", () => {
+    let doc = mkDoc([unit("idu", "idu")]);
+    const { svg } = renderCanvas(doc, "idu", (fn) => (doc = fn(doc)));
+    // grab at the left, go a quarter turn clockwise to the top
+    fireEvent.pointerDown(svg, { button: 0, ...left });
+    fireEvent.pointerMove(svg, { clientX: 400, clientY: 300 - RING });
+    fireEvent.pointerUp(svg, { clientX: 400, clientY: 300 - RING });
+    expect(Math.round(rotationOf(doc, "idu")!)).toBe(90);
+  });
+
+  it("grabbing well inside or outside the ring is not a turn", () => {
+    let doc = mkDoc([unit("idu", "idu")]);
+    const { svg } = renderCanvas(doc, "idu", (fn) => (doc = fn(doc)));
+    fireEvent.pointerDown(svg, { button: 0, clientX: 400 - RING - 30, clientY: 300 });
+    fireEvent.pointerMove(svg, { clientX: 400, clientY: 300 - RING - 30 });
+    fireEvent.pointerUp(svg, { clientX: 400, clientY: 300 - RING - 30 });
+    expect(rotationOf(doc, "idu") ?? 0).toBe(0);
+  });
+});

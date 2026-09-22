@@ -263,8 +263,11 @@ function chargeRow(
   const lengthM = totalPipeLengthM(buildSystemGraph(doc.objects, doc.floors, system.id));
 
   const precharge = odu.precharged_kg ?? null;
+  /* a top-up that depends on the run can't be known before a run is drawn —
+     only a rule that never needs one can answer with no pipe on the plan */
+  const notDrawn = charge != null && !hasRuns && charge.method !== "none_required";
   let topupKg: number | null = null;
-  if (charge) {
+  if (charge && !notDrawn) {
     const grams = evaluateAdditionalCharge(charge, {
       liquidLengthM: lengthM ?? 0,
       ...(liquidSizeMm != null ? { liquidSizeMm } : {}),
@@ -283,7 +286,9 @@ function chargeRow(
 
   // sub: describe the pre-charge / top-up situation honestly
   let sub: string;
-  if (charge && hasRuns && lengthM == null) {
+  if (notDrawn) {
+    sub = "Pre-charged, pipe not drawn";
+  } else if (charge && hasRuns && lengthM == null) {
     sub = "Pre-charged, run length unknown";
   } else if (topupKg != null && topupKg > 0) {
     sub = `Pre-charged + ${topupKg.toFixed(2)} kg top-up`;
@@ -309,7 +314,7 @@ function chargeRow(
     same population as the sheet's pair-coil line) minus nothing — soft-drawn
     runs are skipped because the coil arrives pre-insulated. Riser verticals
     count: they are hard pipe. Null while a run crosses an uncalibrated floor. */
-function hardDrawnLengthM(doc: DesignDocument, system: DesignSystem): number | null {
+export function hardDrawnLengthM(doc: DesignDocument, system: DesignSystem): number | null {
   const graph = buildSystemGraph(doc.objects, doc.floors, system.id);
   const byId = new Map(doc.objects.map((o) => [o.id, o]));
   let total = 0;

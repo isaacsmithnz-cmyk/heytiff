@@ -92,6 +92,11 @@ const detailPanel = () => document.querySelector(".ds-ub-detail") as HTMLElement
 const rowOf = (model: string) =>
   within(tbl()).getByText(model).closest("tr") as HTMLElement;
 
+/* comparing is a MODE now: the ticks only exist once Compare is pressed */
+function startCompare() {
+  fireEvent.click(screen.getByRole("button", { name: "Compare", pressed: false }));
+}
+
 beforeEach(() => window.localStorage.clear());
 
 describe("UnitBrowser", () => {
@@ -457,6 +462,7 @@ describe("UnitBrowser", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
 
+    startCompare();
     fireEvent.click(screen.getByRole("checkbox", { name: "Compare WALL-25" }));
     // one selected → the Compare button is present but disabled
     expect(screen.getByRole("button", { name: /Compare 1/ })).toBeDisabled();
@@ -497,6 +503,7 @@ describe("UnitBrowser", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
 
+    startCompare();
     ["WALL-25", "WALL-35", "WALL-45"].forEach((m) =>
       fireEvent.click(screen.getByRole("checkbox", { name: `Compare ${m}` }))
     );
@@ -510,6 +517,7 @@ describe("UnitBrowser", () => {
       <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={onClose} />
     );
     fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+    startCompare();
     fireEvent.click(screen.getByRole("checkbox", { name: "Compare WALL-25" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Compare WALL-35" }));
     fireEvent.click(screen.getByRole("button", { name: /Compare 2/ }));
@@ -764,5 +772,227 @@ describe("UnitBrowser", () => {
         screen.queryByRole("complementary", { name: "Rooms on this system" })
       ).toBeNull();
     });
+  });
+
+  describe("search", () => {
+    const search = () => screen.getByRole("searchbox", { name: "Search units" });
+
+    it("reaches every style: tabs count the matches and the table moves to a style that has one", () => {
+      render(
+        <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+      fireEvent.change(search(), { target: { value: "duct" } });
+      // the wall tab has no match, so it goes quiet and the table leaves it
+      expect(screen.getByRole("button", { name: /Wall-mounted/ })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /Ducted\s*2/ }).className).toContain("on");
+      expect(within(tbl()).getByText("DUCT-LOW")).toBeInTheDocument();
+      expect(within(tbl()).queryByText("WALL-25")).not.toBeInTheDocument();
+      // cleared, the style you picked comes back
+      fireEvent.change(search(), { target: { value: "" } });
+      expect(screen.getByRole("button", { name: /Wall-mounted/ }).className).toContain("on");
+    });
+
+    it("ignores case, spaces and dashes", () => {
+      render(
+        <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+      );
+      fireEvent.change(search(), { target: { value: "duct low" } });
+      expect(within(tbl()).getByText("DUCT-LOW")).toBeInTheDocument();
+      expect(within(tbl()).queryByText("DUCT-TALL")).not.toBeInTheDocument();
+    });
+
+    it("names the best fit among what it found", () => {
+      // load 3.4 on the ducted tab: DUCT-LOW (3.5) is the best fit, DUCT-TALL (3.6) fits too
+      render(
+        <UnitBrowser pack={fixturePack()} loadKw={3.4} basis="cooling" onChoose={noop} onClose={noop} />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Ducted/ }));
+      expect(within(rowOf("DUCT-LOW")).getByText("Best fit")).toBeInTheDocument();
+      fireEvent.change(search(), { target: { value: "tall" } });
+      expect(within(rowOf("DUCT-TALL")).getByText("Best fit")).toBeInTheDocument();
+    });
+
+    it("says so when nothing matches anywhere", () => {
+      render(
+        <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+      );
+      fireEvent.change(search(), { target: { value: "zz9" } });
+      expect(within(tbl()).getByText("No unit matches zz9")).toBeInTheDocument();
+    });
+  });
+
+  describe("embedded in the system builder", () => {
+    const transfer = () => {
+      const store: Record<string, string> = {};
+      return {
+        setData: (k: string, v: string) => {
+          store[k] = v;
+        },
+        getData: (k: string) => store[k] ?? "",
+        effectAllowed: "none",
+        dropEffect: "none",
+      };
+    };
+
+    it("renders in place: no overlay, no title bar, and Escape belongs to the host", () => {
+      const onClose = jest.fn();
+      const { container } = render(
+        <UnitBrowser
+          embedded
+          pack={fixturePack()}
+          loadKw={null}
+          basis="worst-of-both"
+          onChoose={noop}
+          onClose={onClose}
+          addLabel="Add to Lounge"
+        />
+      );
+      expect(document.querySelector(".ds-ub-overlay")).toBeNull();
+      expect(container.querySelector(".ds-ub.embedded")).not.toBeNull();
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(screen.getByRole("region", { name: "Choose a unit" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Add to Lounge" })).toBeInTheDocument();
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("moves the selection only while focus is inside it", () => {
+      const onChoose = jest.fn();
+      render(
+        <UnitBrowser embedded pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={onChoose} />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+      // keys elsewhere in the builder never reach it
+      fireEvent.keyDown(window, { key: "ArrowDown" });
+      fireEvent.keyDown(window, { key: "Enter" });
+      expect(onChoose).not.toHaveBeenCalled();
+      // inside, they move and add
+      const scroll = document.querySelector(".ds-ub-scroll") as HTMLElement;
+      fireEvent.keyDown(scroll, { key: "ArrowDown" });
+      expect(rowOf("WALL-35")).toHaveAttribute("aria-selected", "true");
+      fireEvent.keyDown(scroll, { key: "Enter" });
+      expect(onChoose.mock.calls[0][0].pair.idu.model).toBe("WALL-35");
+    });
+
+    it("rows drag in the host's own format", () => {
+      const onDragRow = jest.fn((choice, dt: DataTransfer) => {
+        dt.setData("application/x-test", choice.kind === "pair" ? choice.pair.odu.model : "");
+      });
+      render(
+        <UnitBrowser
+          embedded
+          pack={fixturePack()}
+          loadKw={null}
+          basis="worst-of-both"
+          onChoose={noop}
+          onDragRow={onDragRow}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+      const row = rowOf("WALL-25");
+      expect(row).toHaveAttribute("draggable", "true");
+      const dt = transfer();
+      fireEvent.dragStart(row, { dataTransfer: dt });
+      expect(onDragRow).toHaveBeenCalledTimes(1);
+      expect(onDragRow.mock.calls[0][0].pair.idu.model).toBe("WALL-25");
+      expect(dt.getData("application/x-test")).toBe("OD-25");
+    });
+
+    it("carries Power in its filter row for a split, and none for a multi head", () => {
+      const { unmount } = render(
+        <UnitBrowser embedded pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} />
+      );
+      expect(screen.getByRole("group", { name: "Power" }).closest(".ds-ub-filters")).not.toBeNull();
+      unmount();
+      render(
+        <UnitBrowser
+          embedded
+          mode="per-room"
+          pack={fixturePack()}
+          loadKw={null}
+          basis="worst-of-both"
+          onChoose={noop}
+        />
+      );
+      expect(screen.queryByRole("group", { name: "Power" })).toBeNull();
+    });
+
+    it("shows the head type the host holds, with no tab strip, and asks the host to move when a search finds nothing in it", () => {
+      const moved: string[] = [];
+      render(
+        <UnitBrowser
+          embedded
+          pack={fixturePack()}
+          loadKw={null}
+          basis="worst-of-both"
+          onChoose={noop}
+          formFactor="ducted"
+          onFormFactor={(ff) => moved.push(ff)}
+          brandLocked
+        />
+      );
+      // the crumb is the tab: no strip, and the list is the style it names
+      expect(document.querySelector(".ds-ub-tabs")).toBeNull();
+      expect(within(tbl()).getByText("DUCT-LOW")).toBeInTheDocument();
+      expect(within(tbl()).queryByText("WALL-25")).toBeNull();
+      // the brand reads locked once the system has a unit of it
+      expect(document.querySelector(".ds-ub-brand.locked")).toHaveTextContent("Test");
+      // a search with no ducted match asks for the style that has one, as it is typed
+      fireEvent.change(screen.getByRole("searchbox", { name: "Search units" }), { target: { value: "wall-25" } });
+      expect(moved).toEqual(["wall"]);
+      // a search the style answers asks for nothing
+      fireEvent.change(screen.getByRole("searchbox", { name: "Search units" }), { target: { value: "duct" } });
+      expect(moved).toEqual(["wall"]);
+    });
+  });
+
+  /* A SERIES IS SHUT UNTIL IT IS ASKED FOR. Wall-mounted opens on its series
+     rather than the units inside them, so the styles are read at a glance. */
+  it("opens on series alone, and a series opens when it is clicked", () => {
+    const p = fixturePack();
+    p.indoor_units.push({ ...idu("AP-25", "wall", 2.5, [820, 240, 290]), series: "AP" });
+    p.outdoor_units.push(odu("OD-AP", 2.5));
+    p.pair_tables.push(pair("AP-25", "OD-AP", 2.5, 20));
+    render(
+      <UnitBrowser pack={p} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+
+    // the doors are shut, and each says how many are behind it
+    // and the column names wait: they name columns nobody can see yet
+    expect(tbl().closest("table")!.querySelector("thead")).toHaveAttribute("hidden");
+    const doors = screen.getAllByRole("button", { expanded: false });
+    expect(doors.length).toBeGreaterThan(0);
+    expect(within(tbl()).queryByText("WALL-25")).toBeNull();
+    expect(within(tbl()).queryByText("AP-25")).toBeNull();
+
+    const t = doors.find((d) => d.textContent?.startsWith("T"))!;
+    fireEvent.click(t);
+    expect(t).toHaveAttribute("aria-expanded", "true");
+    expect(within(tbl()).getByText("WALL-25")).toBeInTheDocument();
+    expect(tbl().closest("table")!.querySelector("thead")).not.toHaveAttribute("hidden");
+    // opening one leaves the others shut
+    expect(within(tbl()).queryByText("AP-25")).toBeNull();
+
+    fireEvent.click(t);
+    expect(within(tbl()).queryByText("WALL-25")).toBeNull();
+  });
+
+  it("a search opens what it finds — searching IS the asking", () => {
+    const p = fixturePack();
+    p.indoor_units.push({ ...idu("AP-25", "wall", 2.5, [820, 240, 290]), series: "AP" });
+    p.outdoor_units.push(odu("OD-AP", 2.5));
+    p.pair_tables.push(pair("AP-25", "OD-AP", 2.5, 20));
+    render(
+      <UnitBrowser pack={p} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+    expect(within(tbl()).queryByText("WALL-25")).toBeNull();
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search units" }), {
+      target: { value: "WALL-25" },
+    });
+    expect(within(tbl()).getByText("WALL-25")).toBeInTheDocument();
   });
 });

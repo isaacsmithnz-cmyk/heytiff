@@ -98,6 +98,9 @@ export interface DesignSettings {
   buildingType: string | null;
   sizingBasis: "cooling" | "heating" | "worst-of-both";
   units: "mm" | "inch";
+  /** the house's install answers, asked once and kept for every system:
+      question id → the option ids ticked (install.ts) */
+  install?: Record<string, string[]>;
 }
 
 export interface DesignMeta {

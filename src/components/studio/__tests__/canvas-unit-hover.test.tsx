@@ -60,6 +60,7 @@ const IDU_ROW = {
   form_factor: "wall",
   capacity_cool_kw: 2.5,
   capacity_heat_kw: 3.2,
+  height_mm: 299,
 } as unknown as IndoorUnit;
 
 const ODU_ROW = {
@@ -160,7 +161,30 @@ describe("the hovered-unit card", () => {
     expect(card.textContent).toContain("Wall-mounted"); // form factor, spelled out
     expect(card.textContent).toContain("2.5 kW cool, 3.2 kW heat");
     expect(card.textContent).toContain("Lounge"); // the room it serves
-    expect(card.textContent).toContain("800 × 300 mm");
+    /* W x D x H, named, because three bare numbers on a plan is the one
+       place the order is genuinely ambiguous. The plan can only DRAW the
+       first two — the height is a note, for a bulkhead or a windowsill. */
+    expect(card.textContent).toContain("W × D × H");
+    expect(card.textContent).toContain("800 × 300 × 299 mm");
+  });
+
+  it("reads the height off the PACK, so a unit placed before it was carried still shows one", () => {
+    /* the placed object only ever stored the two dimensions the footprint
+       needs, so nothing on the plan has a height to read */
+    const doc = mkDoc([unit("u1", "idu")]);
+    const placed = doc.objects.find((o) => o.id === "u1")!;
+    expect(placed.props.heightMm).toBeUndefined();
+    const { container, svg } = renderCanvas(doc);
+    fireEvent.pointerMove(svg, ON_UNIT);
+    expect(container.querySelector(".ds-unitcard")!.textContent).toContain("299");
+  });
+
+  it("says W × D alone when the pack has no height for the model", () => {
+    const { container, svg } = renderCanvas(mkDoc([unit("o1", "odu")]));
+    fireEvent.pointerMove(svg, ON_UNIT);
+    const card = container.querySelector(".ds-unitcard")!;
+    expect(card.textContent).toContain("W × D");
+    expect(card.textContent).not.toContain("W × D × H");
   });
 
   it("names outdoor units too", () => {

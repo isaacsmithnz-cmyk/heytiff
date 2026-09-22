@@ -4,6 +4,8 @@ import { roomLoadKw, type RoomObj } from "./loads-room";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 import { pointInPolygon } from "./geometry";
 import { moduleFor } from "./modules";
+import { allocationsOf, hasAllocations } from "./allocations";
+import { zoneIdsOf } from "./zones";
 
 /* Room coverage (plan step: units → spaces) — pure derivations only.
    Attribution model:
@@ -15,6 +17,10 @@ import { moduleFor } from "./modules";
    Coverage of a room = Σ sizing capacity of every PLACED IDU stamped to it,
    across ALL systems (the user's call: placed-only counts; a chosen-but-
    unplaced pair shows as pending).
+   A system built in the system builder is different: its ALLOCATIONS are the
+   units it has, placed or not (allocations.ts). The builder decides the room,
+   so an allocated unit covers its room before it is on the plan, and a placed
+   one is never counted twice.
    What a placed IDU is WORTH depends on the owning module's unit flow:
    pair/ducted systems rate the IDU via their pair table (systemPairKw);
    per-room systems (multi / VRF) rate each IDU at its own catalogue
@@ -137,6 +143,23 @@ export function systemPairKw(
 
 /** what one placed IDU is worth: its own catalogue capacity on per-room
     modules (multi / VRF), its system's pair rating everywhere else */
+/** the part of a whole-system unit this zone gets: its load over the loads
+    of every zone the system claims, or an even split while loads are
+    unknown; null when the zone is not the system's */
+function wholeSystemShare(doc: DesignDocument, sys: DesignSystem, roomId: string): number | null {
+  const ids = zoneIdsOf(sys);
+  if (!ids.includes(roomId)) return null;
+  const zones = ids
+    .map((id) => doc.objects.find((o) => o.id === id))
+    .filter((o): o is RoomObj => o != null && o.type === "room" && o.geometry.kind === "polygon");
+  if (!zones.length) return null;
+  const loads = zones.map((z) => roomLoadKw(doc, z));
+  const total = loads.reduce<number>((a, l) => a + (l ?? 0), 0);
+  const mine = loads[zones.findIndex((z) => z.id === roomId)] ?? null;
+  if (total > 0 && mine != null) return mine / total;
+  return 1 / zones.length;
+}
+
 function placedIduKw(
   doc: DesignDocument,
   pack: DataPack,
@@ -191,11 +214,45 @@ export function roomCoverage(
 
   const contributors: CoverageContributor[] = [];
   if (pack) {
+    for (const sys of doc.systems) {
+      if (!hasAllocations(sys)) continue;
+      for (const a of allocationsOf(sys)) {
+        if (a.role !== "idu" || !a.model) continue;
+        if (a.serves === "system") {
+          /* a unit serving the whole system (a ducted unit on the band)
+             gives each of its zones the share of its rating that the zone's
+             load is of all its zones' loads — proportional dampers — so every
+             zone reads the same percentage; with no loads, an even share */
+          const share = wholeSystemShare(doc, sys, room.id);
+          if (share == null) continue;
+          const kw = (placedIduKw(doc, pack, sys, a.model, basis) ?? 0) * share;
+          contributors.push({
+            systemId: sys.id,
+            systemName: sys.name,
+            colour: sys.colour,
+            unitId: a.id,
+            model: a.model,
+            kw,
+          });
+          continue;
+        }
+        if (a.roomId !== room.id) continue;
+        const kw = placedIduKw(doc, pack, sys, a.model, basis) ?? 0;
+        contributors.push({
+          systemId: sys.id,
+          systemName: sys.name,
+          colour: sys.colour,
+          unitId: a.id,
+          model: a.model,
+          kw,
+        });
+      }
+    }
     for (const o of doc.objects) {
       if (o.type !== "unit" || o.props.role !== "idu") continue;
       if (o.props.roomId !== room.id) continue;
       const sys = doc.systems.find((s) => s.id === o.systemId);
-      if (!sys) continue;
+      if (!sys || hasAllocations(sys)) continue;
       const kw = placedIduKw(doc, pack, sys, String(o.props.model ?? ""), basis) ?? 0;
       contributors.push({
         systemId: sys.id,
@@ -235,6 +292,7 @@ export function roomCoverage(
   let pendingKw = 0;
   if (pack) {
     for (const sys of doc.systems) {
+      if (hasAllocations(sys)) continue; // allocated units already cover
       if (moduleFor(sys.type).unitFlow === "per-room") {
         const model = multiIduFor(sys, room.id);
         if (!model) continue;
@@ -278,4 +336,62 @@ export function roomCoverage(
     contributors,
     capped,
   };
+}
+
+/* ── one system over the rooms it covers ──
+   The figure the panel's ring and the design sheet both read, so the two can
+   never disagree. A room that two systems cover (two splits doing one big
+   living room) is carried by both: each gets the part of the room's load in
+   proportion to what it gives the room, so the room's load is counted once
+   across the job and each system reads as the room does. */
+
+export interface SystemRoomShare {
+  room: RoomObj;
+  /** the part of the room's load this system carries: all of it when it covers
+      the room alone; null when the room has no load */
+  loadKw: number | null;
+  /** what this system gives the room: its heads' ratings, capped at its outdoor */
+  coverKw: number;
+  /** this system's units in the room */
+  contributors: CoverageContributor[];
+}
+
+export interface SystemCover {
+  /** the rooms this system has a unit in */
+  rooms: SystemRoomShare[];
+  /** Σ the rooms' shares; null while none of them has a load */
+  loadKw: number | null;
+  coverKw: number;
+  /** cover against load; null when the load is unknown */
+  pct: number | null;
+}
+
+export function systemCover(
+  doc: DesignDocument,
+  pack: DataPack | null,
+  sys: DesignSystem,
+  basis: SizingBasis
+): SystemCover {
+  const rooms: SystemRoomShare[] = [];
+  for (const o of doc.objects) {
+    if (!isRoom(o)) continue;
+    const cov = roomCoverage(doc, pack, o, basis);
+    const mine = cov.contributors.filter((c) => c.systemId === sys.id);
+    if (mine.length === 0) continue;
+    const cap = cov.capped.find((c) => c.systemId === sys.id);
+    const coverKw = cap ? cap.oduKw : mine.reduce((a, c) => a + c.kw, 0);
+    const systemsHere = new Set(cov.contributors.map((c) => c.systemId)).size;
+    const loadKw =
+      cov.loadKw == null
+        ? null
+        : cov.coveredKw > 0
+          ? cov.loadKw * (coverKw / cov.coveredKw)
+          : cov.loadKw / systemsHere;
+    rooms.push({ room: o, loadKw, coverKw, contributors: mine });
+  }
+  const loads = rooms.filter((r) => r.loadKw != null);
+  const loadKw = loads.length ? loads.reduce((a, r) => a + (r.loadKw ?? 0), 0) : null;
+  const coverKw = rooms.reduce((a, r) => a + r.coverKw, 0);
+  const pct = loadKw != null && loadKw > 0 ? Math.round((coverKw / loadKw) * 100) : null;
+  return { rooms, loadKw, coverKw, pct };
 }

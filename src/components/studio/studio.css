@@ -10678,12 +10678,14 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-iq-eg:first-of-type .ds-iq-egh { margin-top: 8px; }
 /* one line: the name and its quantity on a baseline, a rule under the pair */
+/* set in by the band's own side padding, so a line's name starts under the
+   heading's first letter and its quantity ends under the band's last */
 .ds-iq-er {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   column-gap: 12px;
   align-items: baseline;
-  padding: 8px 0;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--line);
   font-size: 14px;
   color: var(--ink);

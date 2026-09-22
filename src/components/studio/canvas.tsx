@@ -647,7 +647,10 @@ type Drag =
   | { kind: "crop"; sheetId: string; start: Point }
   | { kind: "north-move"; startWorld: Point; orig: { x: number; y: number } }
   | { kind: "north-rotate"; center: { x: number; y: number } }
-  | { kind: "unit-rotate"; id: string; center: Point }
+  /* `offset` is where on the ring the grab landed, as degrees ahead of the
+     unit's own up: the turn follows the pointer from THERE, so grabbing the
+     ring at its side does not snap the unit to face the side */
+  | { kind: "unit-rotate"; id: string; center: Point; offset: number }
   /** the tape measure: a reading, not an object — it lives only for the
       length of the drag and is never written to the document */
   | { kind: "tape"; from: Point }
@@ -1145,12 +1148,13 @@ export function StudioCanvas({
   type UnitObj = (typeof units)[number];
   const unitRotDeg = (o: UnitObj) =>
     liveRotate?.id === o.id ? liveRotate.deg : o.geometry.rotation ?? 0;
-  /* THE ROTATE BADGE sits just off the footprint's top-right corner — a
-     screen-sized step out from the corner, turned with the unit so the grab
-     target tracks the drawn handle. It used to be a leg out of the top face
-     with a knob on the end, and the leg was sized to the GRID: 71px long at
-     140% with a 6px dot on the end, gone at fit-to-screen. The one thing on a
-     selected unit that was not sized to the screen, and it looked like it. */
+  /* THE ROTATE RING: a faint ring round the selected unit's footprint, 8px
+     clear of its corners at any zoom, with one grip on it at the unit's own
+     "up" so the current angle can be read off it. Drag anywhere on the ring
+     to turn. It used to be a leg out of the top face with a knob on the end,
+     and the leg was sized to the GRID: 71px long at 140% with a 6px dot on
+     the end, gone at fit-to-screen — the one thing on a selected unit that
+     was not sized to the screen, and it looked like it. */
   /* `zoom` is passed in rather than read off `vp` here: this closure is called
      from render and from the pointer handlers, and closing over the viewport
      object from up here changed the dependency shape the React Compiler
@@ -1160,15 +1164,12 @@ export function StudioCanvas({
     const at = pointAt(o);
     const fp = footprint(Number(o.props.widthMm ?? 800), Number(o.props.depthMm ?? 300));
     const rad = (unitRotDeg(o) * Math.PI) / 180;
-    // the corner, then 12px right and 10px up of it, in the unit's own frame
-    const lx = fp.w / 2 + 12 / zoomNow;
-    const ly = -(fp.h / 2 + 10 / zoomNow);
+    const r = Math.hypot(fp.w / 2, fp.h / 2) + 8 / zoomNow;
     return {
       at,
-      knob: {
-        x: at.x + lx * Math.cos(rad) - ly * Math.sin(rad),
-        y: at.y + lx * Math.sin(rad) + ly * Math.cos(rad),
-      },
+      r,
+      // the grip: local "up" on the ring, turned with the unit
+      knob: { x: at.x + Math.sin(rad) * r, y: at.y - Math.cos(rad) * r },
     };
   };
 
@@ -2662,9 +2663,20 @@ export function StudioCanvas({
         if (selectedId) {
           const su = units.find((u) => u.id === selectedId);
           if (su) {
-            const ks = worldToScreen(unitRotKnob(su, vp.zoom).knob, vp);
-            if (dist(worldToScreen(w, vp), ks) <= 14) {
-              setDrag({ kind: "unit-rotate", id: su.id, center: pointAt(su) });
+            /* anywhere on the ring turns it: a band 8px either side of the
+               ring's line, in screen pixels, so it is as easy to catch zoomed
+               out as in; the grip is on the ring, so it needs no case of its own */
+            const rk = unitRotKnob(su, vp.zoom);
+            const cs = worldToScreen(rk.at, vp);
+            const ps = worldToScreen(w, vp);
+            if (Math.abs(dist(ps, cs) - rk.r * vp.zoom) <= 8) {
+              const grabDeg = ((Math.atan2(ps.x - cs.x, -(ps.y - cs.y)) * 180) / Math.PI + 360) % 360;
+              setDrag({
+                kind: "unit-rotate",
+                id: su.id,
+                center: pointAt(su),
+                offset: grabDeg - unitRotDeg(su),
+              });
               break;
             }
           }
@@ -3053,7 +3065,9 @@ export function StudioCanvas({
       case "unit-rotate": {
         const c = worldToScreen(drag.center, vp);
         const s = worldToScreen(w, vp);
-        let deg = ((Math.atan2(s.x - c.x, -(s.y - c.y)) * 180) / Math.PI + 360) % 360;
+        const pointerDeg = ((Math.atan2(s.x - c.x, -(s.y - c.y)) * 180) / Math.PI + 360) % 360;
+        // the unit turns by as much as the pointer has, from wherever it grabbed
+        let deg = (((pointerDeg - drag.offset) % 360) + 360) % 360;
         // Shift snaps to 15° while dragging; 90° steps live on the keyboard
         if (e.shiftKey) deg = (Math.round(deg / 15) * 15) % 360;
         setLiveRotate({ id: drag.id, deg });
@@ -4273,33 +4287,31 @@ export function StudioCanvas({
                     summary/plan-figure.tsx — and keeps the full labels, because
                     paper can't be hovered.) */}
                 {rk && (() => {
-                  // the handle (drag to spin, Shift snaps 15°; [ / ] step 90°)
-                  /* the badge: a white disc with the rotate cursor's curved
-                     arrow on it, in the system's colour, 18px across at any
-                     zoom. No leg — nothing crosses the unit's face. */
+                  // the handle (drag anywhere on the ring to spin, Shift snaps
+                  // 15°; [ / ] step 90°)
+                  /* the ring: faint and dashed in the system's colour, 8px
+                     clear of the footprint's corners at any zoom, with one
+                     grip on it at the unit's "up". Nothing crosses the face. */
                   const s = 1 / zoom;
-                  const r = 5.5 * s;
-                  const kx = rk.knob.x;
-                  const ky = rk.knob.y;
-                  const ax = kx - r * 0.9;
-                  const ay = ky - r * 0.2;
                   return (
                     <g className="ds-rot-knob">
-                      <circle cx={kx} cy={ky} r={9 * s} fill="#fff" stroke="currentColor" strokeWidth={1.5 * s} />
-                      <path
-                        d={`M ${ax} ${ay} A ${r} ${r} 0 1 1 ${kx + r * 0.35} ${ky + r * 0.93}`}
+                      <circle
+                        cx={rk.at.x}
+                        cy={rk.at.y}
+                        r={rk.r}
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth={1.6 * s}
-                        strokeLinecap="round"
+                        strokeWidth={1.2 * s}
+                        strokeDasharray={`${2 * s} ${3 * s}`}
+                        opacity={0.8}
                       />
-                      <path
-                        d={`M ${ax - 2.6 * s} ${ay - 2.2 * s} L ${ax} ${ay} L ${ax + 2.8 * s} ${ay - 2 * s}`}
-                        fill="none"
+                      <circle
+                        cx={rk.knob.x}
+                        cy={rk.knob.y}
+                        r={5 * s}
+                        fill="#fff"
                         stroke="currentColor"
-                        strokeWidth={1.6 * s}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                        strokeWidth={2 * s}
                       />
                     </g>
                   );

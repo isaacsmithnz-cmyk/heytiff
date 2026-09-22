@@ -632,8 +632,8 @@ describe("the cheap fix comes before the expensive one", () => {
 
   it("a blocked condenser is read from behind and washed the right way", () => {
     const { o, best, alts } = all("condenser-blocked");
+    expect(o.actions[0]).toMatch(/^wash it from the inside out/i);
     expect(o.actions[0]).toMatch(/torch from behind/i);
-    expect(best).toMatch(/from the inside out/i);
     expect(best).toMatch(/straighten flattened fins/i);
     expect(alts.map((a) => a.fix)).toContain("Chemical clean it");
     expect(alts.every((a) => !a.escalate)).toBe(true);
@@ -747,12 +747,33 @@ describe("the heading says what the list is", () => {
 
   it("a list of checks is never headed as the fix", () => {
     // the screen that started it, and the ones shaped like it
-    for (const id of ["not-pumping", "control-board", "odu-no-power", "phase-protection", "bearing-motor", "comp-damp", "code-persists", "heat-none"]) {
+    for (const id of ["not-pumping", "control-board", "odu-no-power", "phase-protection", "bearing-motor", "comp-damp", "code-persists", "heat-none",
+      // the second read, asking only whether the heading was true of the list:
+      // "Best fix: find out why it's cooling at all", "…work the room's load
+      // out", "…sight the run for fall" were all checks wearing the title
+      "low-ambient", "zone-load", "drain-install", "vrf-charge"]) {
       expect(getOutcome(id)!.plan).toBe("check");
     }
     // and where the steps ARE the repair, it still says so
     for (const id of ["vrf-crossed-pipes", "condenser-blocked", "drain-blocked", "cond-aluminium", "zone-return"]) {
       expect(getOutcome(id)!.plan).toBe("fix");
+    }
+  });
+
+  it("under 'fix', the list opens on a fix and not on a check", () => {
+    // oversized opened "Best fix: 1. Check the unit's capacity…" with the
+    // two cheap fixes underneath; a heading has to be true of line one
+    const o = getOutcome("oversized")!;
+    expect(o.plan).toBe("fix");
+    expect(o.actions[0]).toMatch(/^widen the controller deadband/i);
+    expect(o.actions[1]).toMatch(/^drop the fan a speed/i);
+    // and every 'fix' plan opens on something you DO, not something you read
+    for (const x of OUTCOMES.filter((y) => y.plan === "fix")) {
+      expect(x.actions[0]).not.toMatch(/^(check|confirm|find out|work out|sight|measure|look|read|compare) /i);
+    }
+    // and the mirror: a 'check' plan never opens on the repair itself
+    for (const x of OUTCOMES.filter((y) => y.plan === "check")) {
+      expect(x.actions[0]).not.toMatch(/^(replace|fit|re-pipe|weigh|braze|recover) /i);
     }
   });
 

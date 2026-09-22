@@ -946,4 +946,50 @@ describe("UnitBrowser", () => {
       expect(moved).toEqual(["wall"]);
     });
   });
+
+  /* A SERIES IS SHUT UNTIL IT IS ASKED FOR. Wall-mounted opens on its series
+     rather than the units inside them, so the styles are read at a glance. */
+  it("opens on series alone, and a series opens when it is clicked", () => {
+    const p = fixturePack();
+    p.indoor_units.push({ ...idu("AP-25", "wall", 2.5, [820, 240, 290]), series: "AP" });
+    p.outdoor_units.push(odu("OD-AP", 2.5));
+    p.pair_tables.push(pair("AP-25", "OD-AP", 2.5, 20));
+    render(
+      <UnitBrowser pack={p} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+
+    // the doors are shut, and each says how many are behind it
+    const doors = screen.getAllByRole("button", { expanded: false });
+    expect(doors.length).toBeGreaterThan(0);
+    expect(within(tbl()).queryByText("WALL-25")).toBeNull();
+    expect(within(tbl()).queryByText("AP-25")).toBeNull();
+
+    const t = doors.find((d) => d.textContent?.startsWith("T"))!;
+    fireEvent.click(t);
+    expect(t).toHaveAttribute("aria-expanded", "true");
+    expect(within(tbl()).getByText("WALL-25")).toBeInTheDocument();
+    // opening one leaves the others shut
+    expect(within(tbl()).queryByText("AP-25")).toBeNull();
+
+    fireEvent.click(t);
+    expect(within(tbl()).queryByText("WALL-25")).toBeNull();
+  });
+
+  it("a search opens what it finds — searching IS the asking", () => {
+    const p = fixturePack();
+    p.indoor_units.push({ ...idu("AP-25", "wall", 2.5, [820, 240, 290]), series: "AP" });
+    p.outdoor_units.push(odu("OD-AP", 2.5));
+    p.pair_tables.push(pair("AP-25", "OD-AP", 2.5, 20));
+    render(
+      <UnitBrowser pack={p} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+    expect(within(tbl()).queryByText("WALL-25")).toBeNull();
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search units" }), {
+      target: { value: "WALL-25" },
+    });
+    expect(within(tbl()).getByText("WALL-25")).toBeInTheDocument();
+  });
 });

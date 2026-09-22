@@ -158,6 +158,11 @@ describe("Cockpit ducted body", () => {
     // opens on the ducted form-factor tab, gated to the required band's units
     expect(within(dialog).getByRole("button", { name: /Ducted/ }).className).toContain("on");
     const tbl = dialog.querySelector(".ds-ub-table tbody") as HTMLElement;
+    /* a series is shut until it is asked for: open the one holding the pair */
+    const door = within(tbl)
+      .getAllByRole("button", { expanded: false })
+      .find((d) => d.textContent?.startsWith("PEAD"));
+    if (door) fireEvent.click(door);
     fireEvent.click(within(tbl).getByText("PEAD-M100JAA(D)"));
     fireEvent.click(screen.getByRole("button", { name: /Add to plan/ }));
 

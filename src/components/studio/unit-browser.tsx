@@ -213,6 +213,19 @@ export function UnitBrowser({
   const [selected, setSelected] = useState<string | null>(null);
   /** group the table by product series (e.g. AP, EF) — an aid, toggleable off */
   const [groupBySeries, setGroupBySeries] = useState(true);
+  /* A SERIES IS SHUT UNTIL IT IS ASKED FOR. Wall-mounted opens on PKFY, MSZ-AP
+     and MSZ-LN rather than the eighty units inside them, so the styles are
+     read at a glance and the sizes are read when a series is chosen. A search
+     opens what it finds, because a search IS the asking. */
+  const [openSeries, setOpenSeries] = useState<ReadonlySet<string>>(new Set());
+  const seriesKey = (sectionKey: string, series: string) => `${sectionKey}::${series}`;
+  const toggleSeries = (key: string) =>
+    setOpenSeries((cur) => {
+      const next = new Set(cur);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   /** the model being dragged towards a room card, null at rest. Held so the
       column can show ITSELF as the destination while a unit is in flight —
       the affordance is the lit target, never a caption telling you to drag */
@@ -886,12 +899,46 @@ export function UnitBrowser({
                         </tr>,
                       ]
                     : s.grouped
-                      ? s.groups.flatMap((g) => [
-                          <tr key={`grp-${s.key}-${g.series}`} className="ds-ub-group">
-                            <td colSpan={colSpan}>{g.series}</td>
-                          </tr>,
-                          ...g.items.map(renderRow),
-                        ])
+                      ? s.groups.flatMap((g) => {
+                          const key = seriesKey(s.key, g.series);
+                          /* a search has already narrowed the list to what was
+                             asked for, so its groups open themselves */
+                          const open = Boolean(q) || openSeries.has(key);
+                          return [
+                            <tr
+                              key={`grp-${s.key}-${g.series}`}
+                              className={`ds-ub-group${open ? " open" : ""}`}
+                            >
+                              <td colSpan={colSpan}>
+                                <button
+                                  type="button"
+                                  aria-expanded={open}
+                                  onClick={() => toggleSeries(key)}
+                                >
+                                  <svg
+                                    className="ds-ub-caret"
+                                    width="10"
+                                    height="10"
+                                    viewBox="0 0 16 16"
+                                    aria-hidden="true"
+                                  >
+                                    <path
+                                      d="M6 3l6 5-6 5"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                  {g.series}
+                                  <span className="ds-ub-groupn">{g.items.length}</span>
+                                </button>
+                              </td>
+                            </tr>,
+                            ...(open ? g.items.map(renderRow) : []),
+                          ];
+                        })
                       : s.items.map(renderRow)),
                 ])}
                 {options.length === 0 && (

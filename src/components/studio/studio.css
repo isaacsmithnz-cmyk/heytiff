@@ -5163,16 +5163,43 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-table tr.sel:hover {
   background: #e7f4f1;
 }
-/* series subheader — a quiet band, not a selectable row */
+/* series subheader — a quiet band, and the door to the series under it.
+   Shut, the styles are read at a glance; opened, the sizes are read. */
 .ds-ub-table tr.ds-ub-group td,
 .ds-ub-table tr.ds-ub-group:hover td {
   background: #f5f5f4;
-  padding: 4px 12px;
+  padding: 0;
   font-size: 12px;
   font-weight: 500;
   color: var(--q);
 }
 .ds-ub-table tr.ds-ub-group .ds-ub-count { margin-left: 8px; }
+/* the whole band is the target: a caret in a table is a small thing to hit */
+.ds-ub-table tr.ds-ub-group td button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ds-ub-table tr.ds-ub-group td button:hover { background: #eeeeec; }
+.ds-ub-caret {
+  flex: none;
+  transition: transform var(--t-fast) var(--ease);
+}
+.ds-ub-table tr.ds-ub-group.open .ds-ub-caret { transform: rotate(90deg); }
+/* how many are behind the door, so a shut series still says its size */
+.ds-ub-groupn {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--q);
+}
 
 /* Fit section header — louder than the series band, and it STICKS: the flags
    on individual rows only mean something next to the heading that framed

@@ -20,6 +20,13 @@ import path from "node:path";
    first set wrong on purpose, the run printed the real counts, and only then
    were they recorded. Do the same when you add one.
 
+   One number may go up, and only this way: a counter that was blind to a
+   spelling learns it, and work already in the sheets becomes visible. That is
+   not a licence — it needs Isaac's word and the reason written into
+   docs/design.md beside the law, the way the shadows ratchet records its
+   52 → 57. A baseline raised to let something new in is the thing this file
+   exists to stop.
+
    The three paper stylesheets are left out on purpose. The design sheet, the
    letterhead and the live sheet are documents set for print, with type sizes
    that belong to paper, not to the screen scales. */
@@ -68,13 +75,24 @@ function offScaleRadii(): number {
 
 /* A focus ring is `0 0 0 Npx`, or the ring token since the tokens landed, and
    is ink doing its job; an inset is a hairline drawn the long way. Everything
-   else is a shadow. */
+   else is a shadow.
+
+   `filter: drop-shadow()` paints the same shadow and is counted the same way.
+   It takes none of the exemptions above, because it can express neither: the
+   function has no spread, so it cannot draw a ring, and no `inset`, so it
+   cannot draw a hairline. Every drop-shadow is a shadow.
+
+   The second pass reads the value, not the property, so a drop-shadow parked
+   in a custom property counts where it is written; `backdrop-filter` and the
+   prefixed spellings come along for free. One declaration is one hit on both
+   passes: a comma-list of shadows is one decision. */
 function shadows(): number {
   let n = 0;
   for (const m of CSS.matchAll(/box-shadow\s*:\s*([^;}]+)/g)) {
     const v = m[1].trim();
     if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v) && !/^var\(--ring/.test(v)) n++;
   }
+  for (const _ of CSS.matchAll(/[\w-]+\s*:\s*[^;}]*drop-shadow\([^;}]*/g)) n++;
   return n;
 }
 
@@ -334,7 +352,13 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "`text-transform: uppercase` — the eyebrow is retired; a registration plate is the one thing set in caps", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 2 },
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
   { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 47 },
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 52 },
+  /* 52 → 57 on 2026-09-21, the one baseline in this file that has ever gone
+     up. Nothing was added: the counter learned `filter: drop-shadow()`, and
+     five shadows that had been in the sheets since July became visible to it.
+     Isaac agreed to the re-base; docs/design.md names the two that stay (the
+     photo thumbnail's star, the Studio's close-ready vertex) and records that
+     the donut's three go with the Studio's new design. */
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 57 },
   { law: "bars at the left edge — selection is a fill, state is a word; the one left is the cap on the schedule's blocks", now: leftBars, baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 0 },

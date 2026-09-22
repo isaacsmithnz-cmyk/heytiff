@@ -7814,7 +7814,7 @@ html[data-ds-display] .dstudio.editing {
    that survives at the few pixels it has at working zoom */
 .dstudio .ds-throw line {
   stroke: var(--ds-air);
-  stroke-width: 2px;
+  stroke-width: 3px;
   stroke-linecap: butt;
   vector-effect: non-scaling-stroke;
 }

@@ -392,15 +392,15 @@ export function unitGlyph(cx: number, cy: number, w: number, h: number, role: st
    ducted box or 1-way cassette throws out its front (+y in its own frame,
    which turns with the unit); a 4-way cassette throws out all four faces.
 
-   It is SCREEN-sized where it counts. The stem runs the body's depth so the
-   arrow sits ON the unit, but a wall head is ten pixels deep at working zoom,
-   so the arrow is never shorter than a legible minimum and the head is a
-   fixed few pixels — a filled triangle, because a filled shape is the only
-   kind that survives at that size. Four rounds of mock-ups scaled the arrow
-   to the footprint and drew smudges; this is what was measured instead.
+   It is SCREEN-sized, and it is BIG, because it is only ever shown while the
+   unit is in hand — placing, moving or turning — when the one question is
+   which way it faces. It starts at the back of the body and runs out past the
+   discharge face as far as it needs to; it does not have to fit the unit.
+   The head is a filled triangle, a third of the arrow, because a filled shape
+   is the only kind that reads at a glance. Four rounds of mock-ups scaled the
+   arrow to the footprint and drew smudges; this is what was measured instead.
 
-   Shared by the placed unit and the placing ghost, so you can see which way
-   a unit will face BEFORE you let go of it. */
+   Shared by the placed unit and the placing ghost. */
 export function throwArrows(
   cx: number,
   cy: number,
@@ -412,9 +412,9 @@ export function throwArrows(
   const four = formFactor === "cassette-4way";
   const dirs: Array<[number, number]> = four ? [[0, 1], [0, -1], [1, 0], [-1, 0]] : [[0, 1]];
   const px = (n: number) => n / zoom; // screen px → world units
-  const headLen = px(5);
-  const headHalf = px(3);
-  const minLen = px(16);
+  const headLen = px(12);
+  const headHalf = px(8);
+  const minLen = px(34);
   return dirs.map(([dx, dy]) => {
     const half = dx ? w / 2 : h / 2; // centre to the face it leaves by
     // a single throw starts at the back of the body; a 4-way's four start
@@ -4097,11 +4097,16 @@ export function StudioCanvas({
                 <g transform={rot ? `rotate(${rot} ${at.x} ${at.y})` : undefined}>
                 {unitGlyph(at.x, at.y, fp.w, fp.h, String(u.props.role ?? "idu"), zoom)}
                 {(() => {
-                  /* every head the pack knows carries its throw (throwArrows,
-                     above). An air-capable ducted unit hands over to its own
-                     flow arrow once a plenum has oriented it — the block
-                     below — and carries the plain throw until then. */
+                  /* THE THROW SHOWS WHILE THE UNIT IS BEING MOVED OR TURNED,
+                     and not at rest: orientation is the question while you
+                     hold it, and a plan of resting heads each wearing an
+                     arrow was a plan of arrows. An air-capable ducted unit
+                     hands over to its own flow arrow once a plenum has
+                     oriented it — the block below. */
                   if (String(u.props.role ?? "idu") !== "idu") return null;
+                  const moving =
+                    (drag?.kind === "point" && drag.id === u.id) || liveRotate?.id === u.id;
+                  if (!moving) return null;
                   if (air && ends.some((e) => e.determined)) return null;
                   const ff = iduSpec?.(String(u.props.model ?? ""))?.form_factor;
                   if (!ff) return null;

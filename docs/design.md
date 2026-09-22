@@ -326,6 +326,21 @@ line, 16px. A **group** is something you read: no box, a hairline top. An
 **overlay** floats: surface and the one shadow. A fourth kind is a question for
 this file, not a new class prefix.
 
+A shadow is a shadow however it is spelled. `box-shadow` and `filter:
+drop-shadow()` are the same paint and count together; drop-shadow takes none
+of box-shadow's exemptions, because it has no spread to draw a ring with and
+no `inset` to draw a hairline with. Until 2026-09-21 the guard read only the
+first spelling, so six drop-shadows were never counted — the count below said
+291 on the day the law was written and the truth was 297. Widening the guard
+is what moved the number; the sheets did not get worse. Of the five left (the
+canvas plan's own lift went with the dead-CSS sweep, #681), two do a job the
+overlay shadow does not and stay, named here: **the star on a photo thumbnail**
+in the Workboard's media strip, which separates a gold glyph from an unknown
+photo and would vanish on a bright one, and **the Studio's close-ready vertex**,
+a glow at zero offset — not a lift — marking the click that closes a room. The
+capacity donut's three are a lift under a figure and are owed; they go with the
+Studio's new design.
+
 | Ink, paper and state | Value | Use |
 |---|---|---|
 | ink | `#050505` | text, the mark on a light ground, the primary action, the link, the focus ring (2px solid, 18:1 on the well) |
@@ -497,7 +512,7 @@ for print, with their own type.
 | radius off the scale | four radii and a circle | 748 |
 | ambient `infinite` animation | motion is feedback or state; held by name since 2026-09-15, below | 45 |
 | gradients | one accent, flat surfaces | 136 |
-| shadows that are not a focus ring | one shadow, overlays only | 291 |
+| shadows that are not a focus ring | one shadow, overlays only, `box-shadow` and `drop-shadow` alike; the figure was 291 until the guard learned the second spelling on 2026-09-21, above | 297 |
 | bars at the left edge | selection is a fill, state is a word | 27 |
 | Tailwind palette hexes | colour comes from the tokens | 261 |
 | spacing off the scale | 2, 4, 8, 12, 16, 24, 32, 48 | 2,866 |

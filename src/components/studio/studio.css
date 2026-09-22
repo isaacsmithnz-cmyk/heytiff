@@ -10651,19 +10651,23 @@ html[data-ds-display] .dstudio.editing {
   overflow-y: auto;
   min-height: 0;
 }
+/* THE HIERARCHY IS THE SAME LADDER THE QUESTIONS BESIDE IT CLIMB — a title
+   at 20, a group at 16, a line at 14, its qualifiers at 12 — because the two
+   columns are read together and a reader should not have to learn a second
+   scale for the right-hand one. The first cut set the group headings at 13,
+   SMALLER than the lines under them, and there was no hierarchy to see. */
 .ds-iq-eh {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--ink);
-  padding-bottom: 8px;
+  padding-bottom: 4px;
 }
 .ds-iq-eg { display: flex; flex-direction: column; }
 .ds-iq-egh {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--ink);
-  padding: 16px 0 4px;
-  border-bottom: 1px solid var(--line);
+  padding: 24px 0 8px;
 }
 /* one line: the name and its quantity on a baseline, a rule under the pair */
 .ds-iq-er {

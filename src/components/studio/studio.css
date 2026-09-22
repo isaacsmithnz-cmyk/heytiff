@@ -10227,18 +10227,35 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-zp-nm {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   min-width: 0;
 }
-.dstudio .ds-zp-kind,
+/* WHAT IT IS, as a small filled mark beside the name: Multi, Split, Ducted,
+   VRF. Not a state — a state is a word — but the one thing that tells two
+   cards apart at a glance, so it wears the system's own colour as the plan's
+   zones do, a 12% wash, with the ink on it (the colour on its own wash fails
+   the floor for the lighter systems). One recipe for the system's colour,
+   on the plan and on the card. */
+.dstudio .ds-zp-kind {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sc) 12%, #fff);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
 .dstudio .ds-zp-brand {
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.25;
   color: var(--q);
 }
-.dstudio .ds-zp-kind { font-size: 13px; }
-.dstudio .ds-zp-brand { font-size: 12px; }
 /* Delete, as the clear cross the laws allow — top right of the open card,
    named for the system it takes, quiet until pointed at. It takes a whole
    system and its units off the plan, so it is the same one undo the

@@ -176,7 +176,7 @@ export function SystemsPanel({
         {doc.systems.length > 0 && (
           <button className="ds-zp-btn" onClick={onAddSystem}>
             <PlusGlyph />
-            Add a system
+            Add
           </button>
         )}
       </div>
@@ -309,13 +309,18 @@ function SystemCard({
     >
       <div className="ds-zp-top">
         <span className="ds-zp-dot" aria-hidden="true" />
-        <button className="ds-zp-name" aria-expanded={open} onClick={open ? onRest : onOpen}>
-          {sys.name}
-        </button>
-        <span className="ds-zp-is">
+        <div className="ds-zp-id">
+          <button className="ds-zp-name" aria-expanded={open} onClick={open ? onRest : onOpen}>
+            {sys.name}
+          </button>
           {kind !== "empty" && <span className="ds-zp-kind">{KIND_WORD[kind]}</span>}
           {pack && <span className="ds-zp-brand">{brandName(pack, sys.brand)}</span>}
-        </span>
+        </div>
+        {open && (
+          <button className="ds-zp-x" onClick={onDelete} aria-label={`Delete ${sys.name}`}>
+            <CrossGlyph />
+          </button>
+        )}
       </div>
       {!open && <div className={`ds-zp-status ${status.tone}`}>{status.text}</div>}
       {open && (
@@ -395,13 +400,6 @@ function SystemCard({
                 <div className="ds-zp-acts">
                   <button className="ds-zp-wide" onClick={onBuild}>
                     Edit system
-                  </button>
-                  <button
-                    className="ds-zp-del"
-                    onClick={onDelete}
-                    aria-label={`Delete ${sys.name}`}
-                  >
-                    Delete
                   </button>
                 </div>
               </>

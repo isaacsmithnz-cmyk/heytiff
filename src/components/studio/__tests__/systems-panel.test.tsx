@@ -216,10 +216,10 @@ describe("SystemsPanel — Add a system", () => {
     expect(onAddSystem).toHaveBeenCalledTimes(1);
   });
 
-  it("with a system the header carries Add a system and the body's is gone", () => {
+  it("with a system the header carries Add — the title beside it already says what — and the body's is gone", () => {
     const { doc } = claimed(house().doc, ["master"]);
     const { onAddSystem, container } = mount(doc);
-    const buttons = screen.getAllByRole("button", { name: "Add a system" });
+    const buttons = screen.getAllByRole("button", { name: "Add" });
     expect(buttons).toHaveLength(1);
     expect(buttons[0].closest(".ds-zp-h")).not.toBeNull();
     expect(container.querySelector(".ds-zp-addsys")).toBeNull();
@@ -666,9 +666,9 @@ describe("SystemCockpit — close a system", () => {
     const { onDeleteSystem, onBuild } = mount(made.doc, made.systemId);
     const el = card("System 1");
     const del = within(el).getByRole("button", { name: "Delete System 1" });
-    /* the word alone in the row; the aria-label carries which system, because
-       "Delete" beside a card is only unambiguous if you can see the card */
-    expect(del.textContent).toBe("Delete");
+    /* a cross, top right of the open card, named for the system it takes */
+    expect(del).toHaveClass("ds-zp-x");
+    expect(del.querySelector("svg")).not.toBeNull();
     fireEvent.click(del);
     expect(onDeleteSystem).toHaveBeenCalledWith(made.systemId);
     expect(onBuild).not.toHaveBeenCalled();

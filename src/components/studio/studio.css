@@ -10125,12 +10125,10 @@ html[data-ds-display] .dstudio.editing {
    the next step is, so the figures above it are undisturbed. It is the way
    BACK into a system that is already right, never the move the card is
    asking for, so it carries no edge and no fill until it is pointed at. */
-/* the card's two ways back in, on one row: the way you take stands in two
-   thirds of it and the way you cannot undo takes the other third */
+/* Edit system alone, across the card and centred, under the hairline: the
+   way back in. Delete lives at the top right now, so nothing shares this row. */
 .dstudio .ds-zp-acts {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 8px;
+  display: flex;
   margin-top: 4px;
 }
 .dstudio .ds-zp-wide {
@@ -10153,28 +10151,6 @@ html[data-ds-display] .dstudio.editing {
    chip's cross clears one zone, and this takes a whole system and its units
    off the plan, which is too much to say with a mark. It is the quietest
    thing on the card until it is pointed at, and it costs one undo. */
-.dstudio .ds-zp-del {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 36px;
-  border: 0;
-  border-radius: var(--r-button);
-  background: none;
-  color: var(--q);
-  font: 500 14px var(--font);
-  cursor: pointer;
-  transition:
-    color var(--t-fast) var(--ease),
-    background-color var(--t-fast) var(--ease);
-}
-/* it says what it does the moment it is pointed at, and only then: the word
-   alone sits with Edit, and the colour arrives with the pointer */
-.dstudio .ds-zp-del:hover {
-  color: var(--bad-t);
-  background: var(--bad-f, var(--tint));
-}
 /* the one thing to press when there is no system yet */
 .dstudio .ds-zp-addsys {
   display: flex;
@@ -10212,10 +10188,12 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-zp-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   min-height: 28px;
 }
+/* the dot sits on the NAME line, not the middle of the stack under it */
+.dstudio .ds-zp-top > .ds-zp-dot { margin-top: 4px; }
 .dstudio .ds-zp-dot,
 .dstudio .ds-zp-unit-dot {
   width: 10px;
@@ -10237,37 +10215,49 @@ html[data-ds-display] .dstudio.editing {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* what the system is, at the far end of the name line: the type word with
-   the brand under it. The BLOCK sits right, its two lines start together, so
-   the words stack on one left edge instead of drifting apart as they shorten,
-   and each takes a dot so they read as two facts and not one wrapped line. */
-.dstudio .ds-zp-is {
-  margin-left: auto;
+/* the card's identity is one stack down the left: the name, what it is,
+   whose it is. Three lines that shorten together, on one edge — and the top
+   right is left free for the one thing that takes the card away. */
+.dstudio .ds-zp-id {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  flex: none;
-  text-align: left;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
 }
 .dstudio .ds-zp-kind,
 .dstudio .ds-zp-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   font-weight: 500;
+  line-height: 1.25;
   color: var(--q);
-}
-.dstudio .ds-zp-kind::before,
-.dstudio .ds-zp-brand::before {
-  content: "";
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--q);
-  flex: none;
 }
 .dstudio .ds-zp-kind { font-size: 13px; }
 .dstudio .ds-zp-brand { font-size: 12px; }
+/* Delete, as the clear cross the laws allow — top right of the open card,
+   named for the system it takes, quiet until pointed at. It takes a whole
+   system and its units off the plan, so it is the same one undo the
+   builder's Delete system costs. */
+.dstudio .ds-zp-x {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: -2px -4px 0 0;
+  border: 0;
+  border-radius: var(--r-button);
+  background: none;
+  color: var(--q);
+  cursor: pointer;
+  transition:
+    color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-zp-x:hover {
+  color: var(--bad-t);
+  background: var(--bad-f, var(--tint));
+}
 .dstudio .ds-zp-status {
   font-size: 12px;
   font-weight: 500;

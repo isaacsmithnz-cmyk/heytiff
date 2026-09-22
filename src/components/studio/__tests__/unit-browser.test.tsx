@@ -92,6 +92,11 @@ const detailPanel = () => document.querySelector(".ds-ub-detail") as HTMLElement
 const rowOf = (model: string) =>
   within(tbl()).getByText(model).closest("tr") as HTMLElement;
 
+/* comparing is a MODE now: the ticks only exist once Compare is pressed */
+function startCompare() {
+  fireEvent.click(screen.getByRole("button", { name: "Compare", pressed: false }));
+}
+
 beforeEach(() => window.localStorage.clear());
 
 describe("UnitBrowser", () => {
@@ -457,6 +462,7 @@ describe("UnitBrowser", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
 
+    startCompare();
     fireEvent.click(screen.getByRole("checkbox", { name: "Compare WALL-25" }));
     // one selected → the Compare button is present but disabled
     expect(screen.getByRole("button", { name: /Compare 1/ })).toBeDisabled();
@@ -497,6 +503,7 @@ describe("UnitBrowser", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
 
+    startCompare();
     ["WALL-25", "WALL-35", "WALL-45"].forEach((m) =>
       fireEvent.click(screen.getByRole("checkbox", { name: `Compare ${m}` }))
     );
@@ -510,6 +517,7 @@ describe("UnitBrowser", () => {
       <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={onClose} />
     );
     fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
+    startCompare();
     fireEvent.click(screen.getByRole("checkbox", { name: "Compare WALL-25" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Compare WALL-35" }));
     fireEvent.click(screen.getByRole("button", { name: /Compare 2/ }));

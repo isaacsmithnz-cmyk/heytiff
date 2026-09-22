@@ -4993,6 +4993,26 @@ html[data-ds-display] .dstudio.editing {
 /* a draggable row says so by the cursor, the one place it costs no ink */
 .ds-ub-table tbody tr.drag { cursor: grab; }
 .ds-ub-table tbody tr.drag:active { cursor: grabbing; }
+/* the grip: the mark the rack under the system card uses for the same
+   gesture, so a row that can be dragged says so before it is picked up.
+
+   It sits in the cell's own left padding and OUT OF THE FLOW, because in the
+   flow it pushed the model onto a second line in a column sized for the
+   model alone; and it is quiet until the row is under the pointer, because a
+   column of grips down a list of a hundred units is a column of noise. */
+.ds-ub-model { position: relative; }
+.ds-ub-grip {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  fill: var(--q);
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease);
+}
+.ds-ub-table tbody tr.drag:hover .ds-ub-grip,
+.ds-ub-table tbody tr.drag:focus-within .ds-ub-grip,
+.ds-ub-table tbody tr.drag.sel .ds-ub-grip { opacity: 1; }
 @media (max-width: 900px) {
   .ds-ub-roomcol {
     width: auto;
@@ -5093,6 +5113,25 @@ html[data-ds-display] .dstudio.editing {
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
   z-index: 1;
+}
+/* Compare, the mode: pressed, the rows take their ticks and the bar comes
+   up; pressing it again, or Clear, puts the list back */
+.ds-ub-cmpmode {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  color: var(--ink);
+  font: 500 13px var(--font);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-ub-cmpmode:hover { background: var(--tint); }
+.ds-ub-cmpmode.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
 }
 .ds-ub-table th.sortable { cursor: pointer; user-select: none; }
 /* per-room flow: the head's own capacity, which the pair flow reads off its
@@ -5413,7 +5452,10 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
 }
 .ds-cmp-addrow td { padding-top: 12px; padding-bottom: 12px; }
-.ds-ub-model { font-weight: 700; color: var(--ink); }
+/* `td.` and not the class alone: `.ds-ub-table td` is (0,1,1) and sets the
+   cell's padding, so a bare `.ds-ub-model` (0,1,0) never moved the text and
+   the grip sat against it */
+.ds-ub-table td.ds-ub-model { font-weight: 700; color: var(--ink); padding-left: 32px; }
 .ds-ub-model em {
   font-style: normal;
   font-size: 12px;
@@ -9622,6 +9664,13 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-sb-zone.cant .ds-sb-zone-box {
   stroke: var(--bad-t);
+  stroke-width: 2;
+}
+/* the zone Add is aimed at takes the ink edge, so the button's words and the
+   card it will fill say the same thing; clicking another card moves it */
+.ds-sb-zone { cursor: pointer; }
+.ds-sb-zone.aimed .ds-sb-zone-box {
+  stroke: var(--ink);
   stroke-width: 2;
 }
 /* a head on a card: its line is the button that opens its swap */

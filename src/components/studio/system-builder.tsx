@@ -729,7 +729,17 @@ export function SystemBuilder({
     if (empty) dropHead(empty.zone.id, iduModel);
     else dropBand(iduModel);
   };
-  const addTarget = view ? (view.zones.find((z) => !z.lines.some((l) => l.mine)) ?? view.zones[0]) : null;
+  /* WHICH ZONE ADD PUTS IT IN. It was always the first zone with nothing in
+     it, derived and unchangeable, so the button said Add to Master Bedroom
+     and there was no way to say Study. Clicking a zone card aims it; until
+     one is clicked the first empty zone is the default, which is where you
+     would have wanted it anyway. */
+  const [aimedZone, setAimedZone] = useState<string | null>(null);
+  const addTarget = view
+    ? ((aimedZone ? view.zones.find((z) => z.zone.id === aimedZone) : null) ??
+       view.zones.find((z) => !z.lines.some((l) => l.mine)) ??
+       view.zones[0])
+    : null;
 
   const commitRename = () => {
     if (sys) write(renameSystem(draft, sys.id, nameDraft));
@@ -955,6 +965,8 @@ export function SystemBuilder({
                 view={view}
                 selected={selected}
                 headType={headType}
+                aimedZoneId={addTarget?.zone.id ?? null}
+                onAimZone={setAimedZone}
                 addZoneOpen={addZoneOpen}
                 onSelect={setSelected}
                 onDropHead={dropHead}
@@ -1303,6 +1315,8 @@ function Schematic({
   view,
   selected,
   headType,
+  aimedZoneId,
+  onAimZone,
   addZoneOpen,
   onSelect,
   onDropHead,
@@ -1322,6 +1336,9 @@ function Schematic({
   /** what the browser beside the schematic is offering — the band is only
       drawn when that could serve the whole system */
   headType: FormFactor | null;
+  /** the zone the browser's Add button puts a unit in */
+  aimedZoneId: string | null;
+  onAimZone: (zoneId: string) => void;
   addZoneOpen: boolean;
   onSelect: (allocationId: string | null) => void;
   onDropHead: (zoneId: string, iduModel: string) => void;
@@ -1584,7 +1601,18 @@ function Schematic({
               key={z.zone.id}
               className={`ds-sb-zone${hasMine ? " mine" : ""}${over === key ? " over" : ""}${z.cant ? " cant" : ""}${
                 z.short ? " short" : ""
-              }`}
+              }${z.zone.id === aimedZoneId ? " aimed" : ""}`}
+              role="button"
+              tabIndex={0}
+              /* not "Add to <zone>": that is the browser's button, which
+                 performs the add. This one chooses where it lands. */
+              aria-label={`Put the next unit in ${z.name}`}
+              aria-pressed={z.zone.id === aimedZoneId}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAimZone(z.zone.id);
+              }}
+              onKeyDown={pressKeys(() => onAimZone(z.zone.id))}
               {...targetProps(key, headOnly((m) => onDropHead(z.zone.id, m)))}
             >
               <rect

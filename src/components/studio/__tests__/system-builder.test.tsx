@@ -307,4 +307,20 @@ describe("SystemBuilder", () => {
     expect(Number(bus[1])).toBeLessThan(centre);
     expect(top).toBeGreaterThan(0);
   });
+
+  /* WHICH ZONE ADD FILLS. It was always the first zone with nothing in it,
+     derived and unchangeable, so the button said Add to Master Bedroom and
+     there was no way to say Study. */
+  it("aims Add at the zone card you click, and starts on the first empty one", () => {
+    const made = claimed(house(), ["bed1", "study"]);
+    render(<SystemBuilder doc={made.doc} pack={pack} systemId={made.systemId} onCommit={() => {}} onClose={() => {}} />);
+    const addButton = () => screen.getByRole("button", { name: /^Add to / });
+    expect(addButton()).toHaveTextContent("Add to Bed 1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Put the next unit in Study" }));
+    expect(addButton()).toHaveTextContent("Add to Study");
+    // and the card it will fill says so
+    expect(zoneCard("Study")).toHaveClass("aimed");
+    expect(zoneCard("Bed 1")).not.toHaveClass("aimed");
+  });
 });

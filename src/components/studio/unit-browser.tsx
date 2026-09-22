@@ -232,6 +232,11 @@ export function UnitBrowser({
      the side-by-side survives switching the browser to another brand (each
      entry is self-contained; the overlay never re-reads a pack) */
   const [compare, setCompare] = useState<CompareEntry[]>([]);
+  /* COMPARING IS A MODE, NOT A COLUMN. A tick box on every row, always, made
+     the one control on a draggable row a control for something else; and it
+     asked a hundred rows to carry a question that is asked of two. Compare
+     turns the mode on, the rows take their ticks, and leaving the mode with
+     nothing picked puts the list back. */
   const [comparing, setComparing] = useState(false);
   const brandName =
     pack.brands.find((b) => b.id === pack.meta.brand)?.name ??
@@ -240,6 +245,10 @@ export function UnitBrowser({
   const compareKey = (model: string) => `${brandName}::${model}`;
   const inCompare = (model: string) => compare.some((c) => c.key === compareKey(model));
   const COMPARE_MAX = 3;
+  const endCompare = () => {
+    setComparing(false);
+    setCompare([]);
+  };
   const toggleCompare = (o: BrowserRow, pair: PairProposal | null) =>
     setCompare((cur) => {
       const key = compareKey(o.idu.model);
@@ -617,7 +626,7 @@ export function UnitBrowser({
       >
         {/* compare is universal: a pair row compares its pairing, a per-room
             row the head alone, since its outdoor belongs to the system */}
-        {(perRoom || pair) && (
+        {comparing && (perRoom || pair) && (
           <td className="ds-ub-cmpcell" onClick={(e) => e.stopPropagation()}>
             <input
               type="checkbox"
@@ -634,6 +643,20 @@ export function UnitBrowser({
           </td>
         )}
         <td className="ds-ub-model">
+          {/* the row IS the drag — the grip says so, the same mark the rack
+              under the system card uses for the same gesture. The checkbox
+              beside it is Compare, and was the only control on the row, so a
+              draggable row read as a row you tick. */}
+          {canDrag && (
+            <svg className="ds-ub-grip" width="10" height="16" viewBox="0 0 10 16" aria-hidden="true">
+              <circle cx="3" cy="4" r="1.4" />
+              <circle cx="7" cy="4" r="1.4" />
+              <circle cx="3" cy="8" r="1.4" />
+              <circle cx="7" cy="8" r="1.4" />
+              <circle cx="3" cy="12" r="1.4" />
+              <circle cx="7" cy="12" r="1.4" />
+            </svg>
+          )}
           {o.idu.model}
           {o.bestFit && <em>Best fit</em>}
           <FitChip fit={o.fit} loadKw={loadKw} capacityKw={o.capacityKw} />
@@ -794,6 +817,13 @@ export function UnitBrowser({
               Group by series
             </label>
           )}
+          <button
+            className={`ds-ub-cmpmode${comparing ? " on" : ""}`}
+            aria-pressed={comparing}
+            onClick={() => (comparing ? endCompare() : setComparing(true))}
+          >
+            Compare
+          </button>
           <ColumnsMenu specs={menuSpecs} enabled={columnIds} onToggle={toggleColumn} />
         </div>
       </div>
@@ -805,7 +835,7 @@ export function UnitBrowser({
             <table className="ds-ub-table">
               <thead>
                 <tr>
-                  <th className="ds-ub-cmpcol" aria-label="Compare" />
+                  {comparing && <th className="ds-ub-cmpcol" aria-label="Compare" />}
                   <th>Model</th>
                   {perRoom && <th>Cooling</th>}
                   {activeSpecs.map((s) =>
@@ -1001,7 +1031,7 @@ export function UnitBrowser({
               </span>
             ))}
           </div>
-          <button className="ds-ub-cmpclear" onClick={() => setCompare([])}>
+          <button className="ds-ub-cmpclear" onClick={endCompare}>
             Clear
           </button>
           <button

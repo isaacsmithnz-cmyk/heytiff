@@ -7809,6 +7809,14 @@ html[data-ds-display] .dstudio.editing {
 .dstudio {
   --ds-air: var(--info-t);
 }
+/* a head's throw: the same air colour and the same head as the ducted flow
+   arrow, so there is one way air is drawn on this plan */
+.dstudio .ds-throw {
+  stroke: var(--ds-air);
+  stroke-width: 2px;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
 .dstudio .ds-ahu-flow {
   stroke: var(--ds-air);
   stroke-width: 2.4px;

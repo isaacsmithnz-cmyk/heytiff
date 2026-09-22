@@ -3,6 +3,7 @@
 
 import { render } from "@testing-library/react";
 import { StudioCanvas } from "../canvas";
+import type { IndoorUnit } from "@/lib/studio/packs/schema";
 import {
   createDesign,
   type DesignDocument,
@@ -38,9 +39,13 @@ function docWithUnit(role: "idu" | "odu"): DesignDocument {
   return d;
 }
 
-function renderCanvas(role: "idu" | "odu") {
+function renderCanvas(role: "idu" | "odu", formFactor?: string) {
+  const spec = formFactor
+    ? ({ model: "IDU", form_factor: formFactor, capacity_cool_kw: 2.5, capacity_heat_kw: 3.2 } as unknown as IndoorUnit)
+    : null;
   render(
     <StudioCanvas
+      iduSpec={(m) => (spec && m === spec.model ? spec : null)}
       doc={docWithUnit(role)}
       floor={floor}
       tool="select"
@@ -68,5 +73,59 @@ describe("unit footprint glyph", () => {
     expect(document.querySelector(".ds-unit-hub")).toBeNull();
     // three louvre lines
     expect(document.querySelectorAll(".ds-unit-detail").length).toBe(3);
+  });
+});
+
+/* WHICH WAY IT BLOWS. A screen-sized arrow leaves the discharge face of every
+   head that blows into the room; the pattern is the form factor's. Ducted and
+   bulkhead units blow through ducts, which their plenums draw, and an outdoor
+   unit blows nowhere anyone draws. */
+describe("the throw arrow", () => {
+  const throws = () => document.querySelectorAll(".ds-throw");
+
+  it("a wall head throws one way, out the front", () => {
+    renderCanvas("idu", "wall");
+    expect(throws().length).toBe(1);
+    // the app's one airflow head, so air is drawn one way on this plan
+    expect(throws()[0].getAttribute("marker-end")).toBe("url(#ds-flow-arrow)");
+  });
+
+  it("a 4-way cassette throws four ways", () => {
+    renderCanvas("idu", "cassette-4way");
+    expect(throws().length).toBe(4);
+  });
+
+  it("a 1-way cassette, a floor console and an under-ceiling throw one way", () => {
+    for (const ff of ["cassette-1way", "floor-console", "under-ceiling", "floor-concealed"]) {
+      document.body.innerHTML = "";
+      renderCanvas("idu", ff);
+      expect([ff, throws().length]).toEqual([ff, 1]);
+    }
+  });
+
+  it("ducted and bulkhead units get none here — their plenums draw the air", () => {
+    for (const ff of ["ducted", "bulkhead"]) {
+      document.body.innerHTML = "";
+      renderCanvas("idu", ff);
+      expect([ff, throws().length]).toEqual([ff, 0]);
+    }
+  });
+
+  it("an outdoor unit gets none, and so does a head the pack does not know", () => {
+    renderCanvas("odu");
+    expect(throws().length).toBe(0);
+    document.body.innerHTML = "";
+    renderCanvas("idu");
+    expect(throws().length).toBe(0);
+  });
+
+  it("the arrow leaves the face: it starts inside the body and ends outside it", () => {
+    renderCanvas("idu", "wall");
+    const a = throws()[0];
+    const y1 = Number(a.getAttribute("y1"));
+    const y2 = Number(a.getAttribute("y2"));
+    // the unit is 300 mm deep at 10 mm/unit, centred on y=0: its front face is y=15
+    expect(y1).toBeLessThan(15);
+    expect(y2).toBeGreaterThan(15);
   });
 });

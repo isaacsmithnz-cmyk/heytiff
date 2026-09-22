@@ -4046,6 +4046,41 @@ export function StudioCanvas({
                 <g transform={rot ? `rotate(${rot} ${at.x} ${at.y})` : undefined}>
                 {unitGlyph(at.x, at.y, fp.w, fp.h, String(u.props.role ?? "idu"), zoom)}
                 {(() => {
+                  /* WHICH WAY IT BLOWS, on every head that blows into the room.
+                     The pattern is the form factor's — one throw out the front
+                     for a wall head, a floor unit or an under-ceiling; four for
+                     a 4-way cassette, one for a 1-way — and it turns with the
+                     unit. The arrow is SCREEN-sized, like a label, not scaled
+                     to the footprint: a wall head is ten pixels deep at
+                     working zoom, and anything proportional to that is a
+                     smudge. It starts a little inside the discharge face and
+                     leaves it, so the meaning is the same at every zoom: air
+                     comes out here. Ducted and bulkhead units blow through
+                     ducts, and their plenums draw that — the block below. */
+                  if (air || String(u.props.role ?? "idu") !== "idu") return null;
+                  const ff = iduSpec?.(String(u.props.model ?? ""))?.form_factor;
+                  if (!ff || ff === "ducted" || ff === "bulkhead") return null;
+                  const dirs: Array<[number, number]> =
+                    ff === "cassette-4way" ? [[0, 1], [0, -1], [1, 0], [-1, 0]] : [[0, 1]];
+                  const inside = 4 / zoom;
+                  const out = 11 / zoom;
+                  return dirs.map(([dx, dy]) => {
+                    const fx = at.x + dx * (fp.w / 2);
+                    const fy = at.y + dy * (fp.h / 2);
+                    return (
+                      <line
+                        key={`th-${dx}-${dy}`}
+                        className="ds-throw"
+                        x1={fx - dx * inside}
+                        y1={fy - dy * inside}
+                        x2={fx + dx * out}
+                        y2={fy + dy * out}
+                        markerEnd="url(#ds-flow-arrow)"
+                      />
+                    );
+                  });
+                })()}
+                {(() => {
                   /* the airflow arrow + face labels appear only ONCE the unit
                      is determined — the first plenum, or a built-in return
                      (which orients the unit on its own). No `?` clutter and no

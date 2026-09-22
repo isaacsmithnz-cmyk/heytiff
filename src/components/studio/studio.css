@@ -10636,11 +10636,18 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 600;
   color: var(--warn-t);
 }
+/* THE EQUIPMENT LIST IS A LIST, READ DOWN, so it is set in three weights and
+   two sizes and nothing else: a group is a heading in ink with a rule under
+   it, a line is its name in ink with its quantity in ink beside it, and
+   everything that qualifies a line — the model, why it is there, that it is
+   for the day — is the quiet size under or beside the thing it qualifies,
+   inside the line, never a row of its own. It was one size and one weight
+   throughout, with the qualifiers breaking out as rows between the rows, so
+   a list of nine parts read as a list of eighteen things. */
 .ds-iq-eq {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
   overflow-y: auto;
   min-height: 0;
 }
@@ -10648,46 +10655,82 @@ html[data-ds-display] .dstudio.editing {
   font-size: 16px;
   font-weight: 600;
   color: var(--ink);
+  padding-bottom: 8px;
 }
-.ds-iq-eg { display: flex; flex-direction: column; gap: 2px; }
+.ds-iq-eg { display: flex; flex-direction: column; }
 .ds-iq-egh {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--q);
-  padding-top: 8px;
-  margin-top: 4px;
-  border-top: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 16px 0 4px;
+  border-bottom: 1px solid var(--line);
 }
+/* one line: the name and its quantity on a baseline, a rule under the pair */
 .ds-iq-er {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 12px;
-  font-size: 13px;
+  column-gap: 12px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
   color: var(--ink);
 }
-.ds-iq-er.waiting .ds-iq-er-n,
-.ds-iq-er.waiting .ds-iq-er-v { color: var(--q); }
-.ds-iq-er-v { text-align: right; }
-.ds-iq-er-why,
-.ds-iq-er-day {
-  grid-column: 1 / -1;
+.ds-iq-er:last-child { border-bottom: 0; }
+.ds-iq-er-n { font-weight: 500; min-width: 0; }
+/* the model, under the name it belongs to */
+.ds-iq-er-m {
+  display: block;
   font-size: 12px;
   font-weight: 500;
   color: var(--q);
+  margin-top: 2px;
 }
-.ds-iq-er-day { color: var(--warn-t); font-weight: 600; }
+.ds-iq-er-v {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* a line still waiting on an answer is a placeholder, and is set quiet all
+   the way across so it is not mistaken for a part */
+.ds-iq-er.waiting .ds-iq-er-n,
+.ds-iq-er.waiting .ds-iq-er-v {
+  color: var(--q);
+  font-weight: 500;
+}
+/* why it is there — under the name, in the name's column only */
+.ds-iq-er-why {
+  grid-column: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--q);
+  margin-top: 2px;
+}
+/* for the day — under the quantity, in the quantity's column, so the two
+   facts about a line sit under the two halves of it */
+.ds-iq-er-day {
+  grid-column: 2;
+  justify-self: end;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--warn-t);
+  white-space: nowrap;
+  margin-top: 2px;
+}
 .ds-iq-note {
-  margin-top: 8px;
+  margin-top: 16px;
   padding: 12px;
   border-radius: var(--r-button);
   background: var(--tint);
   font-size: 13px;
+  line-height: 1.45;
   color: var(--ink);
 }
 .ds-iq-note b {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 .ds-iq-note p { margin: 0; }

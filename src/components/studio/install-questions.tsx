@@ -251,7 +251,9 @@ export function InstallQuestions({
                     <div key={`${row.name}-${row.model ?? ""}-${i}`} className={`ds-iq-er${row.waiting ? " waiting" : ""}`}>
                       <span className="ds-iq-er-n">
                         {row.name}
-                        {row.model && row.model !== row.name ? ` ${row.model}` : ""}
+                        {row.model && row.model !== row.name && (
+                          <span className="ds-iq-er-m">{row.model}</span>
+                        )}
                       </span>
                       <span className="ds-iq-er-v num">
                         {row.waiting ? "Waiting on an answer" : (row.value ?? (row.qty != null ? String(row.qty) : ""))}

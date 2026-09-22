@@ -1161,8 +1161,7 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "The outdoor coil is how the heat actually leaves the building. Blocked fins, a failing fan or no clearance and head pressure climbs — capacity falls away and the unit may cut out on protection.",
     actions: [
-      "Look at it with a torch from behind first — the dust is on the face the air enters, so a coil that looks clean from the front can be packed solid on the inside",
-      "Wash it from the inside out wherever you can get behind it. Hosing it from the front drives the dirt further in",
+      "Wash it from the inside out wherever you can get behind it — a torch from behind shows you why: the dust is on the face the air enters, so a coil that looks clean from the front can be packed solid inside, and hosing the front drives it further in",
       "Straighten flattened fins with a comb — a bent panel chokes it as surely as dirt does",
       "Confirm the fan runs at full speed and turns the right way",
       "Restore clearance: fences, plants, stored gear, anything within a few hundred mm",
@@ -1576,7 +1575,7 @@ export const OUTCOMES: Outcome[] = [
       "Check whether its maker offers a low-ambient field setting or a bolt-on wind baffle for that model — where one exists, it's the cheapest fix there is",
       "Meanwhile, avoid cooling in cold weather",
     ],
-    plan: "fix",
+    plan: "check",
     alternatives: [
       {
         fix: "Let the outside air do it",
@@ -1685,10 +1684,10 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "The room hits setpoint in a couple of minutes, so the unit shuts down, the temperature drifts, and it starts again. Hard on the compressor and poor at removing humidity.",
     actions: [
-      "Check the unit's capacity against the room's actual load",
-      "Inverter: it should ramp down and cruise, not stop — one that stop-starts can't turn down far enough for the load, which is the same oversizing story told a different way",
       "Widen the controller deadband if it allows it",
       "Drop the fan a speed: less air over the coil means less sensible capacity, so it runs longer — and pulls more moisture out while it does. Watch the coil doesn't ice",
+      "Then check the unit's capacity against the room's actual load, because the settings only hide a small mismatch",
+      "Inverter: it should ramp down and cruise, not stop — one that stop-starts can't turn down far enough for the load, which is the same oversizing story told a different way",
     ],
     plan: "fix",
     alternatives: [
@@ -2220,21 +2219,24 @@ export const OUTCOMES: Outcome[] = [
     explain:
       "These systems carry enough refrigerant for a nominal pipe run and need a calculated top-up for every metre beyond it. Miss that at commissioning and the whole system underperforms quietly for years — which is exactly what everything-is-a-bit-weak looks like.",
     actions: [
-      "Measure the actual pipe runs and calculate the additional charge required",
-      "Check the outdoor unit's charge label — it should record what was added and when",
       "Leak-test before adding anything: a missing top-up and a slow leak look identical from here",
-      "Weigh the charge in against the calculation — never trim it in on pressure",
+      "Check the outdoor unit's charge label — it should record what was added and when",
+      "Measure the actual pipe runs and calculate the additional charge the system should be carrying",
     ],
-    plan: "fix",
+    plan: "check",
     alternatives: [
       {
         fix: "Find the leak and repair it before anything is weighed in",
         when: "The label says the extra charge WAS weighed in at commissioning and it still reads short. Then it has gone somewhere, and topping it up just buys the same callout next year.",
         escalate: true,
       },
+      {
+        fix: "Weigh the additional charge in against the calculation",
+        when: "No leak, and the label shows it was never added. Weighed in to the figure — never trimmed in on pressure.",
+        escalate: true,
+      },
     ],
     tool: PRESSURES,
-    escalate: true,
   },
   {
     id: "vrf-monitor",
@@ -2556,7 +2558,7 @@ export const OUTCOMES: Outcome[] = [
       "Compare it against what that outlet can actually deliver",
       "Cut the load where it's cheap: shade the west glass and the skylight — usually cheaper than re-ducting",
     ],
-    plan: "fix",
+    plan: "check",
     alternatives: [
       {
         fix: "Add an outlet, or up-size the run",
@@ -2608,7 +2610,7 @@ export const OUTCOMES: Outcome[] = [
       "Confirm the indoor unit is level, or sitting very slightly down towards its drain outlet",
       "Re-run the bad section rather than trying to clear a line that was never right",
     ],
-    plan: "fix",
+    plan: "check",
     alternatives: [
       {
         fix: "Fit a condensate pump",

@@ -1145,18 +1145,30 @@ export function StudioCanvas({
   type UnitObj = (typeof units)[number];
   const unitRotDeg = (o: UnitObj) =>
     liveRotate?.id === o.id ? liveRotate.deg : o.geometry.rotation ?? 0;
-  /* the rotate knob's world position: local "up" (top of the footprint plus a
-     gap) turned by the unit's current angle — the same sin/-cos the north
-     knob uses, so the grab target tracks the on-screen handle */
-  const unitRotKnob = (o: UnitObj) => {
+  /* THE ROTATE BADGE sits just off the footprint's top-right corner — a
+     screen-sized step out from the corner, turned with the unit so the grab
+     target tracks the drawn handle. It used to be a leg out of the top face
+     with a knob on the end, and the leg was sized to the GRID: 71px long at
+     140% with a 6px dot on the end, gone at fit-to-screen. The one thing on a
+     selected unit that was not sized to the screen, and it looked like it. */
+  /* `zoom` is passed in rather than read off `vp` here: this closure is called
+     from render and from the pointer handlers, and closing over the viewport
+     object from up here changed the dependency shape the React Compiler
+     inferred for three unrelated memoized callbacks (it reported it could
+     not preserve their memoization). A number in, nothing captured. */
+  const unitRotKnob = (o: UnitObj, zoomNow: number) => {
     const at = pointAt(o);
     const fp = footprint(Number(o.props.widthMm ?? 800), Number(o.props.depthMm ?? 300));
-    const gap = fp.h / 2 + grid * 0.55;
     const rad = (unitRotDeg(o) * Math.PI) / 180;
+    // the corner, then 12px right and 10px up of it, in the unit's own frame
+    const lx = fp.w / 2 + 12 / zoomNow;
+    const ly = -(fp.h / 2 + 10 / zoomNow);
     return {
       at,
-      gap,
-      knob: { x: at.x + Math.sin(rad) * gap, y: at.y - Math.cos(rad) * gap },
+      knob: {
+        x: at.x + lx * Math.cos(rad) - ly * Math.sin(rad),
+        y: at.y + lx * Math.sin(rad) + ly * Math.cos(rad),
+      },
     };
   };
 
@@ -2650,7 +2662,7 @@ export function StudioCanvas({
         if (selectedId) {
           const su = units.find((u) => u.id === selectedId);
           if (su) {
-            const ks = worldToScreen(unitRotKnob(su).knob, vp);
+            const ks = worldToScreen(unitRotKnob(su, vp.zoom).knob, vp);
             if (dist(worldToScreen(w, vp), ks) <= 14) {
               setDrag({ kind: "unit-rotate", id: su.id, center: pointAt(su) });
               break;
@@ -4086,7 +4098,7 @@ export function StudioCanvas({
             const sockD = 150 * perMm;
             const builtInD = 350 * perMm; // engine's default plenum depth
             const rot = unitRotDeg(u); // simple units only; AHUs stay at 0
-            const rk = u.id === selectedId ? unitRotKnob(u) : null;
+            const rk = u.id === selectedId ? unitRotKnob(u, zoom) : null;
             return (
               <g
                 key={u.id}
@@ -4261,31 +4273,33 @@ export function StudioCanvas({
                     summary/plan-figure.tsx — and keeps the full labels, because
                     paper can't be hovered.) */}
                 {rk && (() => {
-                  // the handle: a stem from the footprint's turned top edge out
-                  // to a grab knob (drag to spin, Shift snaps 15°; [ / ] step 90°)
-                  const rad = (rot * Math.PI) / 180;
-                  const edge = {
-                    x: at.x + Math.sin(rad) * (fp.h / 2),
-                    y: at.y - Math.cos(rad) * (fp.h / 2),
-                  };
+                  // the handle (drag to spin, Shift snaps 15°; [ / ] step 90°)
+                  /* the badge: a white disc with the rotate cursor's curved
+                     arrow on it, in the system's colour, 18px across at any
+                     zoom. No leg — nothing crosses the unit's face. */
+                  const s = 1 / zoom;
+                  const r = 5.5 * s;
+                  const kx = rk.knob.x;
+                  const ky = rk.knob.y;
+                  const ax = kx - r * 0.9;
+                  const ay = ky - r * 0.2;
                   return (
                     <g className="ds-rot-knob">
-                      <line
-                        x1={edge.x}
-                        y1={edge.y}
-                        x2={rk.knob.x}
-                        y2={rk.knob.y}
+                      <circle cx={kx} cy={ky} r={9 * s} fill="#fff" stroke="currentColor" strokeWidth={1.5 * s} />
+                      <path
+                        d={`M ${ax} ${ay} A ${r} ${r} 0 1 1 ${kx + r * 0.35} ${ky + r * 0.93}`}
+                        fill="none"
                         stroke="currentColor"
-                        strokeWidth={1.5 / zoom}
-                        strokeDasharray={`${3 / zoom} ${3 / zoom}`}
+                        strokeWidth={1.6 * s}
+                        strokeLinecap="round"
                       />
-                      <circle
-                        cx={rk.knob.x}
-                        cy={rk.knob.y}
-                        r={6 / zoom}
-                        fill="#fff"
+                      <path
+                        d={`M ${ax - 2.6 * s} ${ay - 2.2 * s} L ${ax} ${ay} L ${ax + 2.8 * s} ${ay - 2 * s}`}
+                        fill="none"
                         stroke="currentColor"
-                        strokeWidth={1.5 / zoom}
+                        strokeWidth={1.6 * s}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
                     </g>
                   );

@@ -310,10 +310,12 @@ function SystemCard({
       <div className="ds-zp-top">
         <span className="ds-zp-dot" aria-hidden="true" />
         <div className="ds-zp-id">
-          <button className="ds-zp-name" aria-expanded={open} onClick={open ? onRest : onOpen}>
-            {sys.name}
-          </button>
-          {kind !== "empty" && <span className="ds-zp-kind">{KIND_WORD[kind]}</span>}
+          <div className="ds-zp-nm">
+            <button className="ds-zp-name" aria-expanded={open} onClick={open ? onRest : onOpen}>
+              {sys.name}
+            </button>
+            {kind !== "empty" && <span className="ds-zp-kind">{KIND_WORD[kind]}</span>}
+          </div>
           {pack && <span className="ds-zp-brand">{brandName(pack, sys.brand)}</span>}
         </div>
         {open && (

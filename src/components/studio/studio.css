@@ -10215,15 +10215,21 @@ html[data-ds-display] .dstudio.editing {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* the card's identity is one stack down the left: the name, what it is,
-   whose it is. Three lines that shorten together, on one edge — and the top
-   right is left free for the one thing that takes the card away. */
+/* the card's identity, down the left: the name with what it is beside it on
+   the one line, and whose it is under them. The top right is left free for
+   the one thing that takes the card away. */
 .dstudio .ds-zp-id {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
   flex: 1;
+}
+.dstudio .ds-zp-nm {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
 }
 .dstudio .ds-zp-kind,
 .dstudio .ds-zp-brand {

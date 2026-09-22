@@ -10472,10 +10472,25 @@ html[data-ds-display] .dstudio.editing {
   border-bottom: 1px solid var(--line);
   flex: none;
 }
+/* the screen's name, with how far through it you are under it — a figure
+   about the WHOLE run belongs to the title, not among the facts about the
+   system, which is where it sat and where it read as one more of them */
+.ds-iq-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: none;
+}
 .ds-iq-title {
   font-size: 20px;
   font-weight: 600;
   color: var(--ink);
+}
+.ds-iq-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--q);
+  white-space: nowrap;
 }
 .ds-iq-rule {
   width: 1px;
@@ -10508,6 +10523,12 @@ html[data-ds-display] .dstudio.editing {
   white-space: nowrap;
 }
 .ds-iq-stat .v.warn { color: var(--warn-t); }
+/* the system's name in the system's own colour, one stop toward the ink so
+   the lightest of the six clears the floor on white — the recipe the plan's
+   units use for the same reason */
+.ds-iq-stat .v.sys {
+  color: color-mix(in srgb, var(--sc) 90%, var(--ink, #0a0b10));
+}
 .ds-iq .num { font-variant-numeric: tabular-nums; }
 .ds-iq-body {
   display: grid;

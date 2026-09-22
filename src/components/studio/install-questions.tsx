@@ -18,7 +18,7 @@
    Like the builder it edits a draft: Done applies it as one undo step,
    Discard changes drops it, and nothing waits on an answer. */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { DesignDocument } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
@@ -182,12 +182,21 @@ export function InstallQuestions({
     <div className="ds-sb-scrim" onMouseDown={(e) => e.target === e.currentTarget && !dirty && onClose()}>
       <div className="ds-sb ds-iq" role="dialog" aria-modal="true" aria-label="Install questions">
         <div className="ds-iq-head">
-          <span className="ds-iq-title">Install questions</span>
+          <div className="ds-iq-titles">
+            <span className="ds-iq-title">Install questions</span>
+            <span className="ds-iq-count num">
+              {list.answered} of {list.total} answered
+            </span>
+          </div>
           <span className="ds-iq-rule" aria-hidden="true" />
           <div className="ds-iq-stats">
             <div className="ds-iq-stat">
               <span className="k">System</span>
-              <span className="v">{sys.name}</span>
+              {/* the name in its own colour, the way the plan and the panel
+                  carry it, so the screen says which system it is asking about */}
+              <span className="v sys" style={{ "--sc": sys.colour } as CSSProperties}>
+                {sys.name}
+              </span>
             </div>
             <div className="ds-iq-stat">
               <span className="k">Brand</span>
@@ -201,18 +210,6 @@ export function InstallQuestions({
               <span className="k">Units</span>
               <span className="v num">{units.length}</span>
             </div>
-            <div className="ds-iq-stat">
-              <span className="k">Answered</span>
-              <span className="v num">
-                {list.answered} of {list.total}
-              </span>
-            </div>
-            {list.onTheDay > 0 && (
-              <div className="ds-iq-stat">
-                <span className="k">On the day</span>
-                <span className="v num warn">{list.onTheDay}</span>
-              </div>
-            )}
           </div>
           <button className="ds-sb-x" onClick={onClose} aria-label="Close install questions">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
@@ -246,7 +243,7 @@ export function InstallQuestions({
               if (!rows.length) return null;
               return (
                 <div key={group} className="ds-iq-eg">
-                  <div className="ds-iq-egh">{group === "Pipework" ? "Pipework, from the plan" : group}</div>
+                  <div className="ds-iq-egh">{group}</div>
                   {rows.map((row, i) => (
                     <div key={`${row.name}-${row.model ?? ""}-${i}`} className={`ds-iq-er${row.waiting ? " waiting" : ""}`}>
                       <span className="ds-iq-er-n">

@@ -966,7 +966,13 @@ export function SystemBuilder({
                 selected={selected}
                 headType={headType}
                 aimedZoneId={addTarget?.zone.id ?? null}
-                onAimZone={setAimedZone}
+                onAimZone={(zoneId) => {
+                  setAimedZone(zoneId);
+                  /* the outdoor box turns the browser to Outdoor; a zone is
+                     the same gesture for the other side, and without this
+                     clicking a zone aimed a list you could not see */
+                  setSide("indoor");
+                }}
                 addZoneOpen={addZoneOpen}
                 onSelect={setSelected}
                 onDropHead={dropHead}

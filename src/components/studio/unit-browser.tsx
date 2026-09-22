@@ -489,6 +489,18 @@ export function UnitBrowser({
     return out;
   }, [options, loadKw, groupBySeries]);
 
+  /* WHETHER ANY ROW IS ON SCREEN. With every series shut there is nothing
+     under the headings, and a row of column names over a list of five doors
+     names columns nobody can see — so the header waits for the first series
+     to open. */
+  const anyRowsShown = sections.some(
+    (s) =>
+      s.items.length > 0 &&
+      (!s.grouped ||
+        Boolean(q) ||
+        s.groups.some((g) => openSeries.has(seriesKey(s.key, g.series))))
+  );
+
   /** the Group-by-series control only earns its place where it'd do something */
   const canGroup = sections.some((s) => s.groups.length > 1);
 
@@ -816,29 +828,36 @@ export function UnitBrowser({
             Reset
           </button>
         )}
-        <div className="ds-ub-fright">
-          {/* embedded there is no title bar to carry Power; a multi head
-              has no outdoor of its own, so no supply to filter on */}
-          {embedded && !perRoom && powerSeg}
-          {canGroup && (
-            <label className="ds-ub-groupby">
-              <input
-                type="checkbox"
-                checked={groupBySeries}
-                onChange={(e) => setGroupBySeries(e.target.checked)}
-              />
-              Group by series
-            </label>
-          )}
-          <button
-            className={`ds-ub-cmpmode${comparing ? " on" : ""}`}
-            aria-pressed={comparing}
-            onClick={() => (comparing ? endCompare() : setComparing(true))}
-          >
-            Compare
-          </button>
-          <ColumnsMenu specs={menuSpecs} enabled={columnIds} onToggle={toggleColumn} />
-        </div>
+        {/* embedded there is no title bar to carry Power; a multi head
+            has no outdoor of its own, so no supply to filter on */}
+        {embedded && !perRoom && <span className="ds-ub-fright">{powerSeg}</span>}
+      </div>
+
+      {/* WHAT IS IN THE LIST above, HOW IT IS SHOWN here. The two jobs shared
+          one row, so a tick box sat between a height filter and a menu and
+          belonged to neither, and at narrow widths the row wrapped them into
+          a heap. Shaping the list reads left to right: how it is grouped,
+          then the two things that change what a row carries. */}
+      <div className="ds-ub-view">
+        {canGroup && (
+          <label className="ds-ub-groupby">
+            <input
+              type="checkbox"
+              checked={groupBySeries}
+              onChange={(e) => setGroupBySeries(e.target.checked)}
+            />
+            Group by series
+          </label>
+        )}
+        <span className="ds-ub-vspring" />
+        <button
+          className={`ds-ub-cmpmode${comparing ? " on" : ""}`}
+          aria-pressed={comparing}
+          onClick={() => (comparing ? endCompare() : setComparing(true))}
+        >
+          Compare
+        </button>
+        <ColumnsMenu specs={menuSpecs} enabled={columnIds} onToggle={toggleColumn} />
       </div>
 
       <div className="ds-ub-body">
@@ -846,7 +865,7 @@ export function UnitBrowser({
           {/* embedded, the list takes focus so its keys stay its own */}
           <div className="ds-ub-scroll" tabIndex={embedded ? 0 : undefined}>
             <table className="ds-ub-table">
-              <thead>
+              <thead hidden={!anyRowsShown}>
                 <tr>
                   {comparing && <th className="ds-ub-cmpcol" aria-label="Compare" />}
                   <th>Model</th>

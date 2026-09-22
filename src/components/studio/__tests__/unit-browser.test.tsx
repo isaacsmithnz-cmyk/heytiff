@@ -960,6 +960,8 @@ describe("UnitBrowser", () => {
     fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
 
     // the doors are shut, and each says how many are behind it
+    // and the column names wait: they name columns nobody can see yet
+    expect(tbl().closest("table")!.querySelector("thead")).toHaveAttribute("hidden");
     const doors = screen.getAllByRole("button", { expanded: false });
     expect(doors.length).toBeGreaterThan(0);
     expect(within(tbl()).queryByText("WALL-25")).toBeNull();
@@ -969,6 +971,7 @@ describe("UnitBrowser", () => {
     fireEvent.click(t);
     expect(t).toHaveAttribute("aria-expanded", "true");
     expect(within(tbl()).getByText("WALL-25")).toBeInTheDocument();
+    expect(tbl().closest("table")!.querySelector("thead")).not.toHaveAttribute("hidden");
     // opening one leaves the others shut
     expect(within(tbl()).queryByText("AP-25")).toBeNull();
 

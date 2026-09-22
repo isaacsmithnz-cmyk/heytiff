@@ -5258,6 +5258,16 @@ html[data-ds-display] .dstudio.editing {
   gap: 12px;
   margin-left: auto;
 }
+/* how the list is shown: grouping on the left, where reading starts, and the
+   two controls that change what a row carries on the right */
+.ds-ub-view {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.ds-ub-vspring { flex: 1; }
 .ds-ub-groupby {
   display: inline-flex;
   align-items: center;
@@ -9693,10 +9703,24 @@ html[data-ds-display] .dstudio.editing {
   stroke: var(--bad-t);
   stroke-width: 2;
 }
-/* the zone Add is aimed at takes the ink edge, so the button's words and the
-   card it will fill say the same thing; clicking another card moves it */
+/* THE AIMED ZONE IS FILLED, not just edged. A 2px ink outline on a card that
+   already has an outline is a change you have to look for; selection in this
+   app is a fill, so the card takes a wash of its system's colour and the eye
+   lands on it from across the schematic. (A line travelling round the card
+   was the other idea, and it is a perpetual loop: design.md names every one
+   that runs, and this is not among them.) */
+/* the card is focusable now, and a focusable SVG group takes the BROWSER's
+   own outline — 5px of orange, which is not a colour this app owns and read
+   as a warning on a card that was merely chosen. Ink, 2px, and only for the
+   keyboard: a click already answers itself by filling the card. */
 .ds-sb-zone { cursor: pointer; }
+.ds-sb-zone:focus { outline: none; }
+.ds-sb-zone:focus-visible .ds-sb-zone-box {
+  stroke: var(--ink);
+  stroke-width: 2;
+}
 .ds-sb-zone.aimed .ds-sb-zone-box {
+  fill: color-mix(in srgb, var(--sys) 12%, var(--paper));
   stroke: var(--ink);
   stroke-width: 2;
 }

@@ -75,7 +75,7 @@ import { SystemsPanel } from "./systems-panel";
 import { InstallQuestions } from "./install-questions";
 import { installState } from "@/lib/studio/install";
 import { builderEnabled, isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
-import { SystemBuilder } from "./system-builder";
+import { SystemBuilder, ZoneStanding } from "./system-builder";
 import {
   allocationsOf,
   hasAllocations,
@@ -1375,6 +1375,8 @@ function Editor({
     systemId?: string | null;
     /** a draft to start from (a zone moved onto a system that cannot take its units) */
     start?: DesignDocument;
+    /** open on this zone: Add puts the next unit in it */
+    zoneId?: string;
   } | null>(null);
   const openUnits = useCallback(
     (roomId: string) => {
@@ -2413,6 +2415,7 @@ function Editor({
           focus={builderOpen.focus}
           systemId={builderOpen.systemId ?? null}
           start={builderOpen.start}
+          aimZoneId={builderOpen.zoneId ?? null}
           onCommit={(built) => {
             mutate(() => built);
             setBuilderOpen(null);
@@ -2470,6 +2473,12 @@ function Editor({
               roomId={editingRoomId}
               onMutate={mutate}
               builder={builder}
+              onEditSystem={(systemId, zoneId) => {
+                /* the editor replaces the popup, open on this zone */
+                setEditingRoomId(null);
+                setActiveSystemId(systemId);
+                setBuilderOpen({ focus: null, systemId, zoneId });
+              }}
               onBrowseUnits={(id) => {
                 /* the units modal replaces this one — two stacked dialogs
                    would leave the room open behind a browser that can re-aim
@@ -2797,6 +2806,7 @@ function RoomModalUnits({
   roomId,
   onMutate,
   onBrowseUnits,
+  onEditSystem,
   builder = false,
 }: {
   doc: DesignDocument;
@@ -2805,39 +2815,14 @@ function RoomModalUnits({
   roomId: string;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onBrowseUnits: (roomId: string) => void;
-  /** with the builder, the room lists what serves it and opens the builder */
+  /** the zones flow: open this system's editor on this zone */
+  onEditSystem: (systemId: string, zoneId: string) => void;
+  /** with the builder, the zone says what serves it and opens its system */
   builder?: boolean;
 }) {
   const sys = doc.systems.find((s) => s.id === systemId);
   const room = doc.objects.find((o) => o.id === roomId);
-  if (builder) {
-    const units = doc.systems
-      .filter(hasAllocations)
-      .flatMap((x) =>
-        allocationsOf(x)
-          .filter((a) => a.role === "idu" && a.roomId === roomId && a.model)
-          .map((a) => ({ sys: x, a }))
-      );
-    return (
-      <div className="ds-sb-roomunits">
-        {units.length > 0 ? (
-          <ul>
-            {units.map(({ sys: x, a }) => (
-              <li key={a.id}>
-                <span className="ds-sb-size-model">{a.model}</span>
-                <span className="ds-sb-facts">{x.name}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="ds-sb-facts">No units serve this room yet.</p>
-        )}
-        <button className="ds-sb-btn" onClick={() => onBrowseUnits(roomId)}>
-          Build systems
-        </button>
-      </div>
-    );
-  }
+  if (builder) return pack ? <ZoneStanding doc={doc} pack={pack} zoneId={roomId} onEditSystem={onEditSystem} /> : null;
   if (!sys || !room || room.geometry.kind !== "polygon") return null;
   const summary = SYSTEM_MODULES[sys.type].summary;
   return (

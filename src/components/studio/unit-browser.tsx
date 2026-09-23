@@ -155,6 +155,8 @@ export function UnitBrowser({
   formFactor = null,
   onFormFactor,
   brandLocked = false,
+  detailHost,
+  addNote,
 }: {
   pack: DataPack;
   loadKw: number | null;
@@ -198,6 +200,12 @@ export function UnitBrowser({
   /** the system already has a unit of this brand, so the brand is locked:
       the brand reads as a dashed, locked control rather than a filter */
   brandLocked?: boolean;
+  /** where the spec sheet goes. Absent, beside the list; an element, into
+      the host's own column (the builder's right-hand side, full height);
+      null, nowhere, while the host shows something else in that column */
+  detailHost?: HTMLElement | null;
+  /** a line over the Add button: what the unit does for where it goes */
+  addNote?: (capacityKw: number) => string | null;
 }) {
   const [filters, setFilters] = useState<SelectFilters>({});
   /** the search box — reaches every style, see `searched` */
@@ -742,6 +750,27 @@ export function UnitBrowser({
     </div>
   );
 
+  const detail = (
+    <aside className="ds-ub-detail">
+      {selectedOption ? (
+        <DetailPanel
+          option={selectedOption as unknown as UnitOption}
+          pair={pairFor(selectedOption)}
+          loadKw={loadKw}
+          capacityKw={selectedOption.capacityKw}
+          onPickOdu={(oduModel) =>
+            setOduPick((m) => ({ ...m, [selectedOption.idu.model]: oduModel }))
+          }
+          onAdd={() => choose(selectedOption)}
+          addLabel={addLabel}
+          addNote={addNote?.(selectedOption.capacityKw) ?? null}
+        />
+      ) : (
+        <div className="ds-ub-dempty">Select a unit to see its full spec sheet.</div>
+      )}
+    </aside>
+  );
+
   const panel = (
     <div
       className={`ds-ub${embedded ? " embedded" : ""}`}
@@ -976,23 +1005,11 @@ export function UnitBrowser({
           </div>
         </div>
 
-        <aside className="ds-ub-detail">
-          {selectedOption ? (
-            <DetailPanel
-              option={selectedOption as unknown as UnitOption}
-              pair={pairFor(selectedOption)}
-              loadKw={loadKw}
-              capacityKw={selectedOption.capacityKw}
-              onPickOdu={(oduModel) =>
-                setOduPick((m) => ({ ...m, [selectedOption.idu.model]: oduModel }))
-              }
-              onAdd={() => choose(selectedOption)}
-              addLabel={addLabel}
-            />
-          ) : (
-            <div className="ds-ub-dempty">Select a unit to see its full spec sheet.</div>
-          )}
-        </aside>
+        {detailHost === undefined
+          ? detail
+          : detailHost
+            ? createPortal(detail, detailHost)
+            : null}
 
         {/* ── the rooms column: every room on the system, with the size and
             load you are shopping against. Clicking a card aims the ranking
@@ -1203,6 +1220,7 @@ function DetailPanel({
   onPickOdu,
   onAdd,
   addLabel,
+  addNote = null,
 }: {
   option: UnitOption;
   /** null in per-room flow: the outdoor is the SYSTEM's, chosen once, so the
@@ -1215,6 +1233,7 @@ function DetailPanel({
   onPickOdu: (oduModel: string) => void;
   onAdd: () => void;
   addLabel: string;
+  addNote?: string | null;
 }) {
   const rows = (group: SpecGroup) =>
     specsInGroup(group).map((s) => (
@@ -1261,6 +1280,7 @@ function DetailPanel({
       </div>
 
       <div className="ds-ub-addbar">
+        {addNote && <p className="ds-ub-addnote">{addNote}</p>}
         <button
           className="ds-ub-addbtn"
           onClick={onAdd}

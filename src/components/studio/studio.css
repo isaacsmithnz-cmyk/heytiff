@@ -9165,52 +9165,159 @@ html[data-ds-display] .dstudio.editing {
   box-shadow: var(--ring);
 }
 
-/* the picker beside the summary, the schematic under the edge between them
-   (the top's share is set inline from the builder) */
-.ds-sb-panes {
+/* THE EDITOR (Isaac's "System Editor" mock, 2026-09-23): the piping down
+   the left, the list in the middle, and on the right, full height, the
+   detail of whatever is chosen — the list's own spec sheet, the outdoor on
+   the system, or a unit already on it */
+.ds-sb-body {
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.ds-sb-top {
-  flex: 0 0 auto;
-  min-height: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr) 340px;
 }
 .ds-sb-picker {
-  flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--line);
 }
-.ds-sb-divider {
-  flex: none;
-  height: 12px;
+.ds-sb-side {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+}
+.ds-sb-side-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ds-sb-side-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s-5) var(--s-5) var(--s-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.ds-sb-side-empty {
+  flex: 1;
   display: grid;
   place-items: center;
-  border-top: 1px solid var(--line);
+  font-size: var(--fs-3);
+  color: var(--q);
+}
+.ds-sb-side-empty p {
+  margin: 0;
+}
+/* what the column is about: what kind of thing, its name, and a line */
+.ds-sb-side-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding-bottom: var(--s-4);
   border-bottom: 1px solid var(--line);
+}
+.ds-sb-side-kind {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-heading);
+  color: var(--q);
+}
+.ds-sb-side-title {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--fs-5);
+  font-weight: var(--fw-heading);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.ds-sb-side-sub {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+.ds-sb-side-sub .ok {
+  color: var(--ok-t);
+}
+.ds-sb-side-sub .bad {
+  color: var(--bad-t);
+}
+/* a fact a row, on a hairline, the way the mock reads a spec sheet */
+.ds-sb-side .ds-sb-kv {
+  gap: 0 var(--s-4);
+  font-size: var(--fs-2);
+}
+.ds-sb-side .ds-sb-kv dt,
+.ds-sb-side .ds-sb-kv dd {
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.ds-sb-side .ds-sb-kv dd {
+  font-weight: var(--fw-label);
+}
+/* the list's spec sheet, mounted in the column: the column is its width */
+.ds-sb-side .ds-ub-detail {
+  width: auto;
+  flex: 1;
+  border-left: 0;
   background: var(--paper);
-  cursor: row-resize;
-  touch-action: none;
 }
-.ds-sb-divider::before {
-  content: "";
-  width: 32px;
-  height: 2px;
-  border-radius: var(--r-pill);
-  background: var(--line);
-  transition: background-color var(--t-fast) var(--ease);
+.ds-sb-side .ds-ub-dscroll {
+  padding: var(--s-5) var(--s-5) var(--s-3);
 }
-.ds-sb-divider:hover::before,
-.ds-sb-divider:focus-visible::before {
-  background: var(--q);
+.ds-sb-side .ds-ub-dhead {
+  padding-bottom: var(--s-4);
 }
-.ds-sb-divider:focus-visible {
-  outline: none;
-  box-shadow: var(--ring);
+.ds-sb-side .ds-ub-dhead > b {
+  flex-basis: 100%;
+  font-size: var(--fs-5);
+  font-weight: var(--fw-heading);
+}
+.ds-sb-side .ds-ub-drow {
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.ds-sb-side .ds-ub-dlabel,
+.ds-sb-side .ds-ub-dval {
+  font-size: var(--fs-2);
+}
+.ds-sb-side .ds-ub-dval {
+  font-weight: var(--fw-label);
+}
+.ds-sb-side .ds-ub-addbar {
+  padding: var(--s-5);
+}
+.ds-sb-side .ds-ub-addbtn {
+  height: 44px;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-heading);
+}
+.ds-ub-addnote {
+  margin: 0 0 var(--s-3);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+/* the list's filters on one line: the column is narrower than the window
+   the list was drawn for */
+.ds-sb-picker .ds-ub-filters {
+  flex-wrap: nowrap;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+}
+.ds-sb-picker .ds-ub-filters .ds-ub-search {
+  flex: 1;
+  min-width: 100px;
+  width: auto;
+}
+.ds-sb-picker .ds-ub-filters input:not(.ds-ub-search) {
+  width: 56px;
+}
+.ds-sb-picker .ds-ub-filters label,
+.ds-sb-picker .ds-ub-flabel {
+  white-space: nowrap;
 }
 .ds-sb-none {
   flex: 1;
@@ -9471,67 +9578,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--q);
 }
 
-/* the summary: a line per zone, the outdoor with its supply, the pipework */
-.ds-sb-summary {
-  width: 340px;
-  flex: none;
-  padding: var(--s-4) var(--s-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-  overflow-y: auto;
-}
-.ds-sb-sum-zones {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--fs-1);
-  font-weight: var(--fw-label);
-}
-.ds-sb-sum-zones th {
-  text-align: left;
-  font-size: var(--fs-1);
-  font-weight: var(--fw-label);
-  color: var(--q);
-  padding: 0 0 var(--s-2);
-  border-bottom: 1px solid var(--line);
-}
-.ds-sb-sum-zones td {
-  padding: var(--s-2) 0;
-  border-bottom: 1px solid var(--line);
-  color: var(--ink);
-}
-.ds-sb-sum-zones th + th,
-.ds-sb-sum-zones td + td {
-  padding-left: var(--s-3);
-}
-.ds-sb-sum-zones .num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-.ds-sb-sum-zones td.quiet {
-  color: var(--q);
-}
-.ds-sb-sum-zones td.ok {
-  color: var(--ok-t);
-}
-.ds-sb-sum-zones td.bad {
-  color: var(--bad-t);
-}
-.ds-sb-sum-zones td.warn {
-  color: var(--warn-t);
-}
-.ds-sb-sum-sec {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  padding-top: var(--s-4);
-  border-top: 1px solid var(--line);
-}
-.ds-sb-sum-sec h3 {
-  margin: 0;
-  font-size: var(--fs-2);
-  font-weight: var(--fw-heading);
-}
 .ds-sb-kv {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -9560,261 +9606,488 @@ html[data-ds-display] .dstudio.editing {
   gap: var(--s-3);
 }
 
-/* the schematic: the outdoor box and the band on top, the zone cards in
-   balanced rows under a bus in the system's colour */
-.ds-sb-work {
-  flex: 1 1 0;
+/* THE PIPING RAIL: the outdoor at the top, the zones under it, and the pipe
+   gutter down their left — a line per zone for a split or a multi, one
+   trunk with a joint per branch for a VRF, that trunk dashed for air off a
+   unit on the band. A pipe takes the system's colour once a unit of it is
+   on the end, and is quiet and dashed until then. */
+.ds-sb-rail {
+  min-width: 0;
   min-height: 0;
-  overflow: auto;
-  background: var(--ground);
+  display: flex;
+  flex-direction: column;
+  background: var(--tint);
+  border-right: 1px solid var(--line);
 }
-.ds-sb-schematic {
-  position: relative;
-  width: max-content;
-  margin: 0 auto;
+.ds-sb-rail-head {
+  flex: none;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 0 var(--s-5);
+  border-bottom: 1px solid var(--line);
 }
-.ds-sb-svg {
-  display: block;
-  font-family: var(--font);
-}
-.ds-sb-line {
-  fill: none;
-  stroke: var(--sys);
-  stroke-width: 1.5;
-}
-.ds-sb-line.quiet {
-  stroke: var(--q);
-}
-.ds-sb-line.bad {
-  stroke: var(--bad-t);
-}
-.ds-sb-line.dashed {
-  stroke-dasharray: 6 4;
-}
-.ds-sb-out,
-.ds-sb-band[role="button"],
-.ds-sb-stray,
-.ds-sb-add,
-.ds-sb-head-line[role="button"],
-.ds-sb-zone-x {
-  cursor: pointer;
-}
-.ds-sb-out:focus-visible,
-.ds-sb-band:focus-visible,
-.ds-sb-stray:focus-visible,
-.ds-sb-add:focus-visible,
-.ds-sb-head-line:focus-visible,
-.ds-sb-zone-x:focus-visible {
-  outline: none;
-}
-.ds-sb-out-box,
-.ds-sb-band-box,
-.ds-sb-stray rect {
-  fill: var(--paper);
-  stroke: var(--sys);
-  stroke-width: 2;
-  transition: fill var(--t-fast) var(--ease);
-}
-/* dashed with their word until something lands */
-.ds-sb-out.empty .ds-sb-out-box,
-.ds-sb-band.empty .ds-sb-band-box {
-  fill: var(--ground);
-  stroke: var(--q);
-  stroke-width: 1.5;
-  stroke-dasharray: 7 5;
-}
-.ds-sb-out.fails .ds-sb-out-box {
-  stroke: var(--bad-t);
-}
-.ds-sb-band.sel .ds-sb-band-box,
-.ds-sb-stray.sel rect {
-  fill: var(--tint-2);
-}
-.ds-sb-out-model,
-.ds-sb-zone-name {
-  fill: var(--ink);
-  font-size: var(--fs-2);
+.ds-sb-rail-title {
+  margin: 0;
+  font-size: var(--fs-1);
   font-weight: var(--fw-heading);
+  color: var(--q);
 }
-.ds-sb-out.empty .ds-sb-out-model,
-.ds-sb-band.empty .ds-sb-out-model {
-  fill: var(--q);
-}
-.ds-sb-fact {
-  fill: var(--q);
+.ds-sb-rail-note {
   font-size: var(--fs-1);
   font-weight: var(--fw-label);
+  color: var(--q);
+  white-space: nowrap;
 }
+.ds-sb-rail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s-5) var(--s-5) var(--s-6);
+}
+/* the outdoor: paper once one is there, dashed and open until then; while
+   the list is on Outdoor it wears the choosing fill */
+.ds-sb-out {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.ds-sb-out:hover {
+  background: var(--tint);
+}
+.ds-sb-out.empty {
+  border: 1.5px dashed var(--q);
+  background: none;
+}
+.ds-sb-out.fails {
+  border-color: var(--bad-t);
+}
+.ds-sb-out.on {
+  background: color-mix(in srgb, var(--sys) 12%, var(--paper));
+  border-color: var(--ink);
+}
+.ds-sb-out:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.ds-sb-out-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.ds-sb-out-label {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+.ds-sb-out-ports {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-heading);
+  color: var(--q);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ds-sb-out-ports.bad {
+  color: var(--bad-t);
+}
+.ds-sb-out-model {
+  font-size: var(--fs-3);
+  font-weight: var(--fw-heading);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.ds-sb-out.empty .ds-sb-out-model {
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+/* state words: a word in the state colour, never a pill */
 .ds-sb-state {
   font-size: var(--fs-1);
-  font-weight: var(--fw-label);
+  font-weight: var(--fw-heading);
+  white-space: nowrap;
 }
 .ds-sb-state.ok {
-  fill: var(--ok-t);
+  color: var(--ok-t);
 }
 .ds-sb-state.bad {
-  fill: var(--bad-t);
+  color: var(--bad-t);
 }
 .ds-sb-state.warn {
-  fill: var(--warn-t);
+  color: var(--warn-t);
 }
 .ds-sb-state.quiet {
-  fill: var(--q);
+  color: var(--q);
 }
-.ds-sb-zone-box {
-  fill: var(--paper);
-  stroke: var(--line);
-  stroke-width: 1.5;
-  transition: fill var(--t-fast) var(--ease);
+/* a row: the gutter's lines at its left, a card at its right */
+.ds-sb-row {
+  position: relative;
+  padding-top: var(--s-2);
+  padding-bottom: var(--s-2);
 }
-.ds-sb-zone.mine .ds-sb-zone-box {
+.ds-sb-feed {
+  position: relative;
+  height: 12px;
+}
+.ds-sb-pipes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.ds-sb-pipe {
+  fill: none;
+  stroke: color-mix(in srgb, var(--q) 45%, var(--paper));
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+}
+.ds-sb-pipe.on {
   stroke: var(--sys);
+  stroke-dasharray: none;
 }
-.ds-sb-zone.cant .ds-sb-zone-box {
+.ds-sb-pipe.on.air {
+  stroke-dasharray: 6 4;
+}
+.ds-sb-pipe.bad {
   stroke: var(--bad-t);
-  stroke-width: 2;
+  stroke-dasharray: 4 4;
 }
-/* THE AIMED ZONE IS FILLED, not just edged. A 2px ink outline on a card that
-   already has an outline is a change you have to look for; selection in this
-   app is a fill, so the card takes a wash of its system's colour and the eye
-   lands on it from across the schematic. (A line travelling round the card
-   was the other idea, and it is a perpetual loop: design.md names every one
-   that runs, and this is not among them.) */
-/* the card is focusable now, and a focusable SVG group takes the BROWSER's
-   own outline — 5px of orange, which is not a colour this app owns and read
-   as a warning on a card that was merely chosen. Ink, 2px, and only for the
-   keyboard: a click already answers itself by filling the card. */
-.ds-sb-zone { cursor: pointer; }
-.ds-sb-zone:focus { outline: none; }
-.ds-sb-zone:focus-visible .ds-sb-zone-box {
-  stroke: var(--ink);
-  stroke-width: 2;
-}
-.ds-sb-zone.aimed .ds-sb-zone-box {
-  fill: color-mix(in srgb, var(--sys) 12%, var(--paper));
-  stroke: var(--ink);
-  stroke-width: 2;
-}
-/* a head on a card: its line is the button that opens its swap */
-.ds-sb-head-line rect {
-  fill: transparent;
-  transition: fill var(--t-fast) var(--ease);
-}
-.ds-sb-head-line[role="button"]:hover rect {
-  fill: var(--tint);
-}
-.ds-sb-head-line.sel rect {
-  fill: var(--tint-2);
-}
-.ds-sb-head-line:focus-visible rect {
-  stroke: var(--ink);
-  stroke-width: 2;
-}
-.ds-sb-head-model {
+.ds-sb-joint {
   fill: var(--ink);
-  font-size: var(--fs-1);
-  font-weight: var(--fw-heading);
 }
-.ds-sb-head-model.other {
-  fill: var(--q);
+/* the band: a unit here serves the whole system; dashed with its word
+   until one lands */
+.ds-sb-band {
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
-/* the short zone's slot: another split beside, or another unit on the multi */
-.ds-sb-slot rect {
-  fill: var(--ground);
-  stroke: var(--q);
-  stroke-width: 1.5;
-  stroke-dasharray: 7 5;
-  transition: fill var(--t-fast) var(--ease);
+.ds-sb-band.empty {
+  display: grid;
+  place-items: center;
+  height: 48px;
+  border: 1.5px dashed var(--q);
+  background: none;
 }
-.ds-sb-slot text {
-  fill: var(--ink);
+.ds-sb-band-word {
   font-size: var(--fs-2);
   font-weight: var(--fw-heading);
+  color: var(--q);
 }
-/* the card's clear cross, shown on hover and on keyboard focus alike */
+.ds-sb-band-btn {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-3) var(--s-4);
+  border-radius: inherit;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-band-btn:hover {
+  background: var(--tint);
+}
+.ds-sb-band.sel .ds-sb-band-btn {
+  background: var(--tint-2);
+}
+.ds-sb-band-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.ds-sb-band-model {
+  font-size: var(--fs-3);
+  font-weight: var(--fw-heading);
+}
+.ds-sb-band-facts {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+/* a unit with no zone of this system, waiting above the zones */
+.ds-sb-stray {
+  appearance: none;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border: 1px dashed var(--q);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-stray:hover {
+  background: var(--tint);
+}
+.ds-sb-stray.sel {
+  background: var(--tint-2);
+}
+.ds-sb-stray:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.ds-sb-stray-model {
+  font-size: var(--fs-2);
+  font-weight: var(--fw-heading);
+  color: var(--ink);
+}
+.ds-sb-stray-word {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+/* A ZONE CARD. The card is the aim: a button under its words, so a click
+   anywhere on it chooses where the list's Add puts the next unit, and the
+   chosen card FILLS with its system's colour, because selection in this app
+   is a fill. The words let a click through; a unit on it is its own button
+   (its swap and its remove open on the right), and the cross clears it. */
+.ds-sb-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.ds-sb-zone-aim {
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  cursor: pointer;
+}
+.ds-sb-zone-aim:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.ds-sb-zone:hover {
+  background: var(--tint);
+}
+.ds-sb-zone.aimed {
+  background: color-mix(in srgb, var(--sys) 12%, var(--paper));
+  border-color: var(--ink);
+}
+.ds-sb-zone.cant {
+  border-color: var(--bad-t);
+}
+.ds-sb-zone-top,
+.ds-sb-zone-line {
+  position: relative;
+  pointer-events: none;
+}
+.ds-sb-zone-top,
+.ds-sb-zone-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-width: 0;
+}
+/* the word and the pipe share a line while they fit; the pipe keeps the
+   right when they do not */
+.ds-sb-zone-line.foot {
+  flex-wrap: wrap;
+}
+.ds-sb-state.wrap {
+  white-space: normal;
+}
+.ds-sb-zone-name {
+  min-width: 0;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-heading);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds-sb-zone-need,
+.ds-sb-zone-none,
+.ds-sb-zone-kw,
+.ds-sb-zone-pipe {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ds-sb-head-model {
+  appearance: none;
+  min-width: 0;
+  padding: 0 var(--s-1);
+  margin: 0 calc(-1 * var(--s-1));
+  border: 0;
+  border-radius: var(--r-control);
+  background: none;
+  font: inherit;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--ink);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-head-model:hover {
+  background: var(--tint-2);
+}
+.ds-sb-head-model.sel {
+  background: var(--tint-2);
+}
+.ds-sb-head-model:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.ds-sb-zone-pipe {
+  margin-left: auto;
+}
+/* another system's unit in a shared zone: read-only, with its system's dot */
+.ds-sb-head-model.other {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--q);
+  cursor: default;
+}
+.ds-sb-head-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+/* the short zone's slot: another split beside, or another unit on the multi */
+.ds-sb-slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 40px;
+  margin-top: var(--s-2);
+  border: 1.5px dashed var(--q);
+  border-radius: var(--r-button);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-heading);
+  color: var(--ink);
+  pointer-events: auto;
+  transition: background-color var(--t-fast) var(--ease);
+}
+/* the card's clear cross, the chip's: on hover and on keyboard focus alike */
 .ds-sb-zone-x {
+  appearance: none;
+  position: absolute;
+  top: calc(-1 * var(--s-3));
+  right: calc(-1 * var(--s-3));
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
   opacity: 0;
+  cursor: pointer;
   transition: opacity var(--t-fast) var(--ease);
 }
 .ds-sb-zone:hover .ds-sb-zone-x,
 .ds-sb-zone:focus-within .ds-sb-zone-x {
   opacity: 1;
 }
-.ds-sb-zone-x rect {
-  fill: var(--paper);
-  stroke: var(--line);
-  transition: fill var(--t-fast) var(--ease);
+.ds-sb-zone-x:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
-.ds-sb-zone-x:hover rect {
-  fill: var(--tint);
+/* Add zone: under the zones, dashed, pressed while its list is open */
+.ds-sb-addwrap {
+  position: relative;
+  padding-top: var(--s-2);
 }
-.ds-sb-zone-x:focus-visible rect {
-  stroke: var(--ink);
-  stroke-width: 2;
-}
-.ds-sb-zone-x path {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 1.5;
-  stroke-linecap: round;
-}
-/* Add zone: the last card, dashed, pressed while its list is open */
-.ds-sb-add rect {
-  fill: var(--ground);
-  stroke: var(--q);
-  stroke-opacity: 0.5;
-  stroke-width: 1.5;
-  stroke-dasharray: 7 5;
-  transition: fill var(--t-fast) var(--ease);
-}
-.ds-sb-add text {
-  fill: var(--q);
+.ds-sb-add {
+  appearance: none;
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  border: 1.5px dashed color-mix(in srgb, var(--q) 45%, var(--paper));
+  border-radius: var(--r-button);
+  background: none;
+  font: inherit;
   font-size: var(--fs-2);
-  font-weight: var(--fw-heading);
+  font-weight: var(--fw-label);
+  color: var(--q);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
 }
-.ds-sb-add:hover rect {
-  fill: var(--tint);
+.ds-sb-add:hover {
+  background: var(--tint);
 }
-.ds-sb-add.on rect {
-  fill: var(--paper);
-  stroke: var(--ink);
-  stroke-opacity: 1;
-  stroke-width: 2;
-  stroke-dasharray: none;
+.ds-sb-add.on {
+  border-style: solid;
+  border-color: var(--ink);
+  background: var(--paper);
+  color: var(--ink);
 }
-.ds-sb-add.on text {
-  fill: var(--ink);
+.ds-sb-add:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
 /* while a head is in flight the cards and the band say they take it; while
-   an outdoor is, its box does; the one under the pointer is lit in ink */
-.ds-sb-work.dragging.head .ds-sb-zone-box,
-.ds-sb-work.dragging.head .ds-sb-band-box,
-.ds-sb-work.dragging.outdoor .ds-sb-out-box {
-  stroke: var(--q);
-  stroke-dasharray: 7 5;
+   an outdoor is, its card does; the one under the pointer is lit in ink */
+.ds-sb-rail.dragging.head .ds-sb-zone,
+.ds-sb-rail.dragging.head .ds-sb-band,
+.ds-sb-rail.dragging.outdoor .ds-sb-out {
+  border-style: dashed;
+  border-color: var(--q);
 }
-.ds-sb-out.over .ds-sb-out-box,
-.ds-sb-band.over .ds-sb-band-box,
-.ds-sb-zone.over .ds-sb-zone-box,
-.ds-sb-slot.over rect {
-  fill: var(--tint-2);
-  stroke: var(--ink);
-  stroke-width: 2;
-  stroke-dasharray: 7 5;
+.ds-sb-out.over,
+.ds-sb-band.over,
+.ds-sb-zone.over,
+.ds-sb-slot.over,
+.ds-sb-rail.dragging .ds-sb-out.over,
+.ds-sb-rail.dragging .ds-sb-band.over,
+.ds-sb-rail.dragging .ds-sb-zone.over {
+  background: var(--tint-2);
+  border-style: dashed;
+  border-color: var(--ink);
 }
-.ds-sb-out:focus-visible .ds-sb-out-box,
-.ds-sb-band:focus-visible .ds-sb-band-box,
-.ds-sb-stray:focus-visible rect,
-.ds-sb-add:focus-visible rect {
-  stroke: var(--ink);
-  stroke-width: 2;
-  stroke-dasharray: none;
-}
-/* the Add zone list, over its card: the plan's zones this system lacks */
+/* the Add zone list, under its button: the plan's zones this system lacks */
 .ds-sb-addzone {
   position: absolute;
   z-index: var(--z-overlay);
-  width: 280px;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-button);
@@ -10007,6 +10280,17 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-sb-btn:hover {
   background: var(--tint);
+}
+.ds-sb-btn.danger {
+  border-color: transparent;
+  background: none;
+  color: var(--bad-t);
+}
+.ds-sb-btn.danger:hover {
+  background: var(--tint);
+}
+.ds-sb-remove {
+  align-self: flex-start;
 }
 .ds-sb-btn.small {
   height: 28px;

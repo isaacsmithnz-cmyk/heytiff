@@ -93,20 +93,6 @@ const kwOf = (pack: DataPack, model: string, basis: SizingBasis): number | null 
   return row ? sizingCapacityKw(row, basis) : null;
 };
 
-/* How much of the window the picker takes, the schematic the rest — dragged
-   on the edge between them and kept for next time on this device. */
-const SPLIT_KEY = "heytiff.studio.builderSplit";
-const SPLIT_DEFAULT = 58;
-const clampSplit = (pct: number) => Math.min(80, Math.max(25, Math.round(pct)));
-function readSplit(): number {
-  try {
-    const v = Number(window.localStorage.getItem(SPLIT_KEY));
-    return Number.isFinite(v) && v > 0 ? clampSplit(v) : SPLIT_DEFAULT;
-  } catch {
-    return SPLIT_DEFAULT;
-  }
-}
-
 /* ─────────────────────────── reading the system ─────────────────────────── */
 
 interface HeadLine {
@@ -164,6 +150,7 @@ interface SystemView {
   zonesLoadKw: number | null;
   loadText: string;
   coverKw: number | null;
+  coveredText: string;
   anyShort: boolean;
   proposalModel: string | null;
   outRows: OutRow[];
@@ -195,33 +182,45 @@ function zoneWord(args: {
   oduModel: string;
   bandKw: number | null;
   zonesLoadKw: number | null;
+  loadKw: number | null;
   lines: number;
   verdict: RoomVerdict;
 }): { word: Word; short: boolean } {
-  const { cant, oduModel, bandKw, zonesLoadKw, lines, verdict } = args;
+  const { cant, oduModel, bandKw, zonesLoadKw, loadKw, lines, verdict } = args;
+  const shortBy = (need: number, cover: number): string => `${Math.max(0, need - cover).toFixed(1)} kW short`;
   if (cant) return { word: { text: `Can't join ${oduModel}`, tone: "bad" }, short: false };
   /* a unit on the band serves every zone: each zone reads the unit against
      the load of all of them together */
   if (bandKw != null) {
     if (zonesLoadKw == null || zonesLoadKw <= 0) return { word: { text: kwText(bandKw), tone: "quiet" }, short: false };
-    const p = pct(bandKw, zonesLoadKw);
-    return p >= 100
-      ? { word: { text: `Fits, ${p}%`, tone: "ok" }, short: false }
-      : { word: { text: `Short, ${p}%`, tone: "bad" }, short: true };
+    return bandKw >= zonesLoadKw
+      ? { word: { text: "Covered", tone: "ok" }, short: false }
+      : { word: { text: shortBy(zonesLoadKw, bandKw), tone: "bad" }, short: true };
   }
-  if (lines === 0) return { word: { text: "No unit yet", tone: "quiet" }, short: false };
-  const p = verdict.loadKw ? pct(verdict.coverKw, verdict.loadKw) : null;
+  /* nothing in it yet: what it is short by is what it needs, and it is not
+     wrong yet, only not done — amber, where a short unit is red */
+  if (lines === 0) {
+    return loadKw != null
+      ? { word: { text: shortBy(loadKw, 0), tone: "warn" }, short: false }
+      : { word: { text: "", tone: "quiet" }, short: false };
+  }
   switch (verdict.word) {
     case "Fits":
-      return { word: { text: `Fits, ${p}%`, tone: "ok" }, short: false };
+      return { word: { text: "Covered", tone: "ok" }, short: false };
     case "Undersized":
-      return { word: { text: `Short, ${p}%`, tone: "bad" }, short: true };
+      return {
+        word: { text: verdict.loadKw != null ? shortBy(verdict.loadKw, verdict.coverKw) : "Short", tone: "bad" },
+        short: true,
+      };
     case "Oversized":
-      return { word: { text: `Oversized, ${p}%`, tone: "warn" }, short: false };
+      return {
+        word: { text: verdict.loadKw ? `Oversized, ${pct(verdict.coverKw, verdict.loadKw)}%` : "Oversized", tone: "warn" },
+        short: false,
+      };
     case "Calibrate":
       return { word: { text: kwText(verdict.coverKw), tone: "quiet" }, short: false };
     default:
-      return { word: { text: "No unit yet", tone: "quiet" }, short: false };
+      return { word: { text: "", tone: "quiet" }, short: false };
   }
 }
 
@@ -303,6 +302,7 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
       oduModel: odu?.model ?? "",
       bandKw,
       zonesLoadKw,
+      loadKw: zoneShare ?? null,
       lines: lines.length,
       verdict,
     });
@@ -319,6 +319,10 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
         : `${zonesLoadKw.toFixed(1)} kW`;
   const coverKw = empty ? null : (bandKw ?? cover.coverKw);
   const anyShort = zones.some((z) => z.short);
+  /* the header's Covered: the ONE figure (systemCover) over the load, the
+     words the system card on the panel uses */
+  const coveredText =
+    coverKw == null ? "—" : zonesLoadKw == null ? kwText(coverKw) : `${coverKw.toFixed(1)} of ${zonesLoadKw.toFixed(1)} kW`;
 
   /* the outdoors of the family, each saying Valid or Fails against the
      heads; the one on the system is always listed, valid or not */
@@ -423,6 +427,7 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     zonesLoadKw,
     loadText,
     coverKw,
+    coveredText,
     anyShort,
     proposalModel,
     outRows,
@@ -437,113 +442,6 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     refrigerantText,
     bandPipe,
   };
-}
-
-/* ─────────────────────────── schematic layout ─────────────────────────── */
-
-const PAD = 24;
-const CARD_W = 248;
-const CARD_GAP = 48;
-const COLS = 4;
-const ROW_GAP = 28;
-const OUT_W = 260;
-const OUT_H = 70;
-const OUT_Y = 10;
-const BAND_W = 280;
-const BAND_H = 56;
-const TOP_GAP = 80;
-const STRAY_W = 200;
-const STRAY_H = 40;
-const BUS_DROP = 28;
-const GUTTER = 16;
-const LINE = 18;
-const TEXT_X = 18;
-const SLOT_H = 58;
-const FIRST_LINE = 65;
-
-interface Box {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-interface CardBox extends Box {
-  row: number;
-}
-
-/** balanced rows of at most four: five cards sit three and two, seven four
-    and three */
-function gridRows(count: number): number[] {
-  if (count <= 0) return [];
-  const rows = Math.ceil(count / COLS);
-  const base = Math.floor(count / rows);
-  const extra = count % rows;
-  return Array.from({ length: rows }, (_, r) => base + (r < extra ? 1 : 0));
-}
-
-/** how tall a zone card is: its lines of text, then the slot if it has one */
-function cardHeight(textRows: number, slot: boolean): number {
-  const lastLine = FIRST_LINE + LINE * (textRows - 1);
-  return slot ? lastLine + 15 + SLOT_H + 18 : Math.max(82, lastLine + 13);
-}
-
-function layout(cards: number, cardH: number, strays: number, withBand: boolean) {
-  const rows = gridRows(cards);
-  const wide = rows.length ? rows[0] : 1;
-  const gridW = wide * CARD_W + (wide - 1) * CARD_GAP;
-  const topW = OUT_W + (withBand ? TOP_GAP + BAND_W : 0);
-  const width = Math.max(gridW, topW) + 2 * PAD;
-  const topLeft = (width - topW) / 2;
-  const out: Box = { x: topLeft, y: OUT_Y, w: OUT_W, h: OUT_H };
-  const band: Box = { x: topLeft + OUT_W + TOP_GAP, y: OUT_Y + (OUT_H - BAND_H) / 2, w: BAND_W, h: BAND_H };
-  const strayY = OUT_Y + OUT_H + 12;
-  const strayBoxes: Box[] = Array.from({ length: strays }, (_, i) => ({
-    x: PAD + i * (STRAY_W + 12),
-    y: strayY,
-    w: STRAY_W,
-    h: STRAY_H,
-  }));
-  const busY = OUT_Y + OUT_H + (strays ? STRAY_H + 12 : 0) + 20;
-  const firstTop = busY + BUS_DROP;
-  const boxes: CardBox[] = [];
-  rows.forEach((n, r) => {
-    const rowW = n * CARD_W + (n - 1) * CARD_GAP;
-    const x0 = (width - rowW) / 2;
-    const y = firstTop + r * (cardH + ROW_GAP);
-    for (let c = 0; c < n; c++) boxes.push({ x: x0 + c * (CARD_W + CARD_GAP), y, w: CARD_W, h: cardH, row: r });
-  });
-  const height = (rows.length ? firstTop + rows.length * cardH + (rows.length - 1) * ROW_GAP : busY) + PAD;
-  const gridRight = (width + gridW) / 2;
-  return { width, height, out, band, strayBoxes, busY, boxes, rows, gridRight };
-}
-type Layout = ReturnType<typeof layout>;
-
-/** one trunk from the source, a bus over the first row, a rail down the
-    right into a gutter above each later row, and one drop per card: all
-    orthogonal, none across a card's words */
-function busPath(l: Layout, fromX: number, fromY: number, wired: CardBox[]): string {
-  const parts: string[] = [`M${fromX} ${fromY} V${l.busY}`];
-  if (!wired.length) return parts.join(" ");
-  const centre = (b: Box) => b.x + b.w / 2;
-  const rowsOf = (r: number) => wired.filter((b) => b.row === r);
-  const row0 = rowsOf(0);
-  if (!row0.length) return parts.join(" ");
-  const left0 = centre(row0[0]);
-  const right0 = centre(row0[row0.length - 1]);
-  const railX = l.gridRight + 20;
-  const rowCount = wired[wired.length - 1].row + 1;
-  const later = rowCount > 1;
-  parts.push(`M${Math.min(left0, fromX)} ${l.busY} H${later ? Math.max(railX, fromX) : Math.max(right0, fromX)}`);
-  let prevY = l.busY;
-  for (let r = 1; r < rowCount; r++) {
-    const row = rowsOf(r);
-    if (!row.length) continue;
-    const gutterY = row[0].y - GUTTER;
-    parts.push(`M${Math.max(railX, fromX)} ${prevY} V${gutterY} H${centre(row[0])}`);
-    prevY = gutterY;
-  }
-  for (const b of wired) parts.push(`M${centre(b)} ${b.row === 0 ? l.busY : b.y - GUTTER} V${b.y}`);
-  return parts.join(" ");
 }
 
 /* ─────────────────────────── the window ─────────────────────────── */
@@ -606,33 +504,8 @@ export function SystemBuilder({
   const [nameDraft, setNameDraft] = useState("");
   /** what is in flight from the picker, so the targets that take it show */
   const [dragging, setDragging] = useState<"head" | "outdoor" | null>(null);
-
-  const [split, setSplit] = useState<number>(readSplit);
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(SPLIT_KEY, String(split));
-    } catch {
-      /* private window: the split just isn't remembered */
-    }
-  }, [split]);
-  const panesRef = useRef<HTMLDivElement>(null);
-  const dragSplit = (e: React.PointerEvent<HTMLDivElement>) => {
-    const panes = panesRef.current;
-    if (!panes) return;
-    e.preventDefault();
-    const edge = e.currentTarget;
-    edge.setPointerCapture(e.pointerId);
-    const box = panes.getBoundingClientRect();
-    const move = (ev: PointerEvent) => setSplit(clampSplit(((ev.clientY - box.top) / box.height) * 100));
-    const up = () => {
-      edge.removeEventListener("pointermove", move);
-      edge.removeEventListener("pointerup", up);
-      edge.removeEventListener("pointercancel", up);
-    };
-    edge.addEventListener("pointermove", move);
-    edge.addEventListener("pointerup", up);
-    edge.addEventListener("pointercancel", up);
-  };
+  /** the right-hand column, where the list's spec sheet is mounted */
+  const [sideHost, setSideHost] = useState<HTMLDivElement | null>(null);
 
   /* Esc closes what is open first — the browser's comparison, the Add zone
      list, a selected head — and the window only when there is nothing to
@@ -790,16 +663,10 @@ export function SystemBuilder({
               <span className="ds-sb-rule" />
               <dl className="ds-sb-stats">
                 {!view.empty && (
-                  <>
-                    <div className="ds-sb-stat">
-                      <dt>Brand</dt>
-                      <dd>{brandName(pack, view.sys.brand)}</dd>
-                    </div>
-                    <div className="ds-sb-stat">
-                      <dt>Type</dt>
-                      <dd>{KIND_WORD[view.kind]}</dd>
-                    </div>
-                  </>
+                  <div className="ds-sb-stat">
+                    <dt>Type</dt>
+                    <dd>{KIND_WORD[view.kind]}</dd>
+                  </div>
                 )}
                 <div className="ds-sb-stat">
                   <dt>Zones</dt>
@@ -810,18 +677,10 @@ export function SystemBuilder({
                   <dd className={view.zonesLoadKw == null ? "quiet" : ""}>{view.loadText}</dd>
                 </div>
                 {!view.empty && (
-                  <>
-                    <div className="ds-sb-stat">
-                      <dt>Cover</dt>
-                      <dd className={view.anyShort ? "bad" : view.coverKw == null ? "quiet" : ""}>{kwText(view.coverKw)}</dd>
-                    </div>
-                    <div className="ds-sb-stat">
-                      <dt>Combination</dt>
-                      <dd className={view.combination === "Valid" ? "ok" : view.combination === "Fails" ? "bad" : "quiet"}>
-                        {view.combination ?? "—"}
-                      </dd>
-                    </div>
-                  </>
+                  <div className="ds-sb-stat">
+                    <dt>Covered</dt>
+                    <dd className={view.anyShort ? "bad" : view.coverKw == null ? "quiet" : ""}>{view.coveredText}</dd>
+                  </div>
                 )}
               </dl>
             </>
@@ -832,170 +691,172 @@ export function SystemBuilder({
           </button>
         </header>
 
-        <div className="ds-sb-panes" ref={panesRef}>
-          <div className="ds-sb-top" style={{ flexBasis: `${split}%` }}>
-            <section className="ds-sb-picker" aria-label="Units">
-              {view && (
-                <div className="ds-sb-crumbs">
-                  <CrumbMenu
-                    label="Family of outdoor"
-                    value={view.family}
-                    options={FAMILIES.map((f) => ({ value: f, label: FAMILY_WORD[f] }))}
-                    onPick={(f) => pickFamily(f as SystemFamily)}
-                  />
-                  <span className="ds-sb-crumb-sep" aria-hidden="true">
-                    <Icon name="chevR" size={12} />
-                  </span>
-                  {side === "indoor" && headType ? (
-                    <CrumbMenu
-                      label="Head type"
-                      now
-                      value={headType}
-                      options={headTypes}
-                      onPick={(ff) => setFormFactor(ff as FormFactor)}
-                    />
-                  ) : (
-                    <span className="ds-sb-crumb now">Outdoor</span>
-                  )}
-                  <span className="ds-sb-spring" />
-                  <div className="ds-sb-switch" role="group" aria-label="Indoor or outdoor">
-                    <button
-                      type="button"
-                      className="ds-sb-switch-opt"
-                      aria-pressed={side === "indoor"}
-                      onClick={() => setSide("indoor")}
-                    >
-                      Indoor
-                    </button>
-                    <button
-                      type="button"
-                      className="ds-sb-switch-opt"
-                      aria-pressed={side === "outdoor"}
-                      onClick={() => setSide("outdoor")}
-                    >
-                      Outdoor
-                    </button>
-                  </div>
-                </div>
-              )}
-              {!view ? (
-                <div className="ds-sb-none">
-                  <p>Add a system on the panel first.</p>
-                </div>
-              ) : side === "indoor" ? (
-                <UnitBrowser
-                  embedded
-                  pack={pack}
-                  loadKw={lensKw}
-                  basis={basis}
-                  mode={perRoom ? "per-room" : "pair"}
-                  formFactor={headType}
-                  onFormFactor={setFormFactor}
-                  brandLocked={!view.empty}
-                  addLabel={addTarget ? `Add to ${addTarget.name}` : "Add to the band"}
-                  onChoose={chooseFromBrowser}
-                  onDragRow={(choice, transfer) => {
-                    const iduModel = choice.kind === "pair" ? choice.pair.idu.model : choice.idu.model;
-                    transfer.setData(DRAG_TYPE, JSON.stringify({ iduModel }));
-                    transfer.effectAllowed = "copy";
-                    setDragging("head");
-                  }}
-                />
-              ) : (
-                <OutdoorTable
-                  pack={pack}
-                  view={view}
-                  basis={basis}
-                  onPick={dropOutdoor}
-                  onProposal={() => write(proposalHandedBack(draft, pack, view.sys.id))}
-                  onDrag={(oduModel, transfer) => {
-                    transfer.setData(DRAG_TYPE, JSON.stringify({ oduModel }));
-                    transfer.effectAllowed = "copy";
-                    setDragging("outdoor");
-                  }}
-                />
-              )}
-            </section>
+        <div className="ds-sb-body">
+          {view ? (
+            <PipingRail
+              draft={draft}
+              pack={pack}
+              view={view}
+              selected={selected}
+              headType={headType}
+              aimedZoneId={side === "indoor" ? (addTarget?.zone.id ?? null) : null}
+              outdoorOn={side === "outdoor" && !selectedAlloc}
+              dragging={dragging}
+              onAimZone={(zoneId) => {
+                setAimedZone(zoneId);
+                setSelected(null);
+                /* the outdoor card turns the list to Outdoor; a zone is the
+                   same gesture for the other side, and without this clicking
+                   a zone aimed a list you could not see */
+                setSide("indoor");
+              }}
+              addZoneOpen={addZoneOpen}
+              onSelect={setSelected}
+              onDropHead={dropHead}
+              onDropBand={dropBand}
+              onDropOutdoor={dropOutdoor}
+              onDropSlot={dropSlot}
+              onRemoveZone={(zoneId) => write(removeZone(draft, pack, view.sys.id, zoneId))}
+              onOutdoor={() => {
+                setSelected(null);
+                setSide("outdoor");
+              }}
+              onAddZone={() => setAddZoneOpen((o) => !o)}
+              onCloseAddZone={() => setAddZoneOpen(false)}
+              onClaim={(zoneId) => {
+                write(claimZone(draft, view.sys.id, zoneId));
+                setAddZoneOpen(false);
+              }}
+            />
+          ) : (
+            <div className="ds-sb-rail" />
+          )}
 
+          <section className="ds-sb-picker" aria-label="Units">
             {view && (
-              <aside className="ds-sb-summary" aria-label={selectedAlloc ? "Selected unit" : "Summary"}>
-                {selectedAlloc ? (
-                  <UnitDetail
-                    draft={draft}
-                    pack={pack}
-                    basis={basis}
-                    view={view}
-                    alloc={selectedAlloc}
-                    onChange={(d, err) => {
-                      setError(err ?? null);
-                      if (d) setDraft(d);
-                    }}
-                    onClose={() => setSelected(null)}
+              <div className="ds-sb-crumbs">
+                <CrumbMenu
+                  label="Family of outdoor"
+                  value={view.family}
+                  options={FAMILIES.map((f) => ({ value: f, label: FAMILY_WORD[f] }))}
+                  onPick={(f) => pickFamily(f as SystemFamily)}
+                />
+                <span className="ds-sb-crumb-sep" aria-hidden="true">
+                  <Icon name="chevR" size={12} />
+                </span>
+                {side === "indoor" && headType ? (
+                  <CrumbMenu
+                    label="Head type"
+                    now
+                    value={headType}
+                    options={headTypes}
+                    onPick={(ff) => setFormFactor(ff as FormFactor)}
                   />
                 ) : (
-                  <Summary view={view} basis={basis} />
+                  <span className="ds-sb-crumb now">Outdoor</span>
                 )}
-              </aside>
+                <span className="ds-sb-spring" />
+                <div className="ds-sb-switch" role="group" aria-label="Indoor or outdoor">
+                  <button
+                    type="button"
+                    className="ds-sb-switch-opt"
+                    aria-pressed={side === "indoor"}
+                    onClick={() => setSide("indoor")}
+                  >
+                    Indoor
+                  </button>
+                  <button
+                    type="button"
+                    className="ds-sb-switch-opt"
+                    aria-pressed={side === "outdoor"}
+                    onClick={() => {
+                      setSelected(null);
+                      setSide("outdoor");
+                    }}
+                  >
+                    Outdoor
+                  </button>
+                </div>
+              </div>
             )}
-          </div>
-
-          <div
-            className="ds-sb-divider"
-            role="separator"
-            aria-orientation="horizontal"
-            aria-label="Unit list and schematic"
-            aria-valuenow={split}
-            aria-valuemin={25}
-            aria-valuemax={80}
-            tabIndex={0}
-            onPointerDown={dragSplit}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                e.preventDefault();
-                setSplit((v) => clampSplit(v + (e.key === "ArrowDown" ? 5 : -5)));
-              }
-            }}
-          />
-
-          <section className={`ds-sb-work${dragging ? ` dragging ${dragging}` : ""}`} aria-label="Schematic">
-            {view && (
-              <Schematic
-                draft={draft}
+            {!view ? (
+              <div className="ds-sb-none">
+                <p>Add a system on the panel first.</p>
+              </div>
+            ) : side === "indoor" ? (
+              <UnitBrowser
+                embedded
+                pack={pack}
+                loadKw={lensKw}
+                basis={basis}
+                mode={perRoom ? "per-room" : "pair"}
+                formFactor={headType}
+                onFormFactor={setFormFactor}
+                brandLocked={!view.empty}
+                addLabel={addTarget ? `Add to ${addTarget.name}` : "Add to the band"}
+                addNote={(kw) => {
+                  const need = addTarget?.loadKw;
+                  if (!addTarget || need == null) return null;
+                  return kw >= need
+                    ? `Covers ${addTarget.name} (needs ${need.toFixed(1)} kW)`
+                    : `${(need - kw).toFixed(1)} kW short for ${addTarget.name}`;
+                }}
+                /* the spec sheet goes in the right-hand column, full height,
+                   unless a unit on the system is open there */
+                detailHost={selectedAlloc ? null : sideHost}
+                onChoose={chooseFromBrowser}
+                onDragRow={(choice, transfer) => {
+                  const iduModel = choice.kind === "pair" ? choice.pair.idu.model : choice.idu.model;
+                  transfer.setData(DRAG_TYPE, JSON.stringify({ iduModel }));
+                  transfer.effectAllowed = "copy";
+                  setDragging("head");
+                }}
+              />
+            ) : (
+              <OutdoorTable
                 pack={pack}
                 view={view}
-                selected={selected}
-                headType={headType}
-                aimedZoneId={addTarget?.zone.id ?? null}
-                onAimZone={(zoneId) => {
-                  setAimedZone(zoneId);
-                  /* the outdoor box turns the browser to Outdoor; a zone is
-                     the same gesture for the other side, and without this
-                     clicking a zone aimed a list you could not see */
-                  setSide("indoor");
-                }}
-                addZoneOpen={addZoneOpen}
-                onSelect={setSelected}
-                onDropHead={dropHead}
-                onDropBand={dropBand}
-                onDropOutdoor={dropOutdoor}
-                onDropSlot={dropSlot}
-                onRemoveZone={(zoneId) => write(removeZone(draft, pack, view.sys.id, zoneId))}
-                onOutdoor={() => setSide("outdoor")}
-                onAddZone={() => setAddZoneOpen((o) => !o)}
-                onCloseAddZone={() => setAddZoneOpen(false)}
-                onClaim={(zoneId) => {
-                  write(claimZone(draft, view.sys.id, zoneId));
-                  setAddZoneOpen(false);
+                basis={basis}
+                onPick={dropOutdoor}
+                onProposal={() => write(proposalHandedBack(draft, pack, view.sys.id))}
+                onDrag={(oduModel, transfer) => {
+                  transfer.setData(DRAG_TYPE, JSON.stringify({ oduModel }));
+                  transfer.effectAllowed = "copy";
+                  setDragging("outdoor");
                 }}
               />
             )}
           </section>
+
+          <aside
+            className="ds-sb-side"
+            aria-label={selectedAlloc ? "Selected unit" : side === "outdoor" ? "Outdoor unit" : "Unit detail"}
+          >
+            {view && selectedAlloc ? (
+              <UnitDetail
+                draft={draft}
+                pack={pack}
+                basis={basis}
+                view={view}
+                alloc={selectedAlloc}
+                onChange={(d, err) => {
+                  setError(err ?? null);
+                  if (d) setDraft(d);
+                }}
+                onClose={() => setSelected(null)}
+              />
+            ) : view && side === "outdoor" ? (
+              <OutdoorSide view={view} basis={basis} />
+            ) : (
+              <div className="ds-sb-side-host" ref={setSideHost} />
+            )}
+          </aside>
         </div>
 
         <footer className="ds-sb-foot">
           {view && (
             <button
-              className="ds-sb-btn"
+              className="ds-sb-btn danger"
               onClick={() => {
                 onCommit(releaseSystem(doc, view.sys.id));
                 onClose();
@@ -1189,113 +1050,92 @@ function OutdoorTable({
   );
 }
 
-/* ─────────────────────────── the summary ─────────────────────────── */
+/* ─────────────────────── the outdoor, on the right ─────────────────────── */
 
-function Summary({ view, basis }: { view: SystemView; basis: SizingBasis }) {
-  const band = view.bandUnits[0] ?? null;
+/** the Outdoor side's right-hand column: the outdoor on the system, what is
+    connected to it and its pipework, all read off the pack */
+function OutdoorSide({ view, basis }: { view: SystemView; basis: SizingBasis }) {
+  const odu = view.oduRow;
+  if (!odu) {
+    return (
+      <div className="ds-sb-side-empty">
+        <p>No outdoor yet</p>
+      </div>
+    );
+  }
   return (
-    <>
-      <table className="ds-sb-sum-zones">
-        <thead>
-          <tr>
-            <th>Zone</th>
-            <th>Unit</th>
-            <th className="num">Cover</th>
-          </tr>
-        </thead>
-        <tbody>
-          {view.zones.map((z) => {
-            const mine = z.lines.filter((l) => l.mine).map((l) => l.alloc.model);
-            const unit = band ? band.model : mine.length ? mine.join(", ") : "No unit yet";
-            const p = band
-              ? view.zonesLoadKw
-                ? pct(view.coverKw ?? 0, view.zonesLoadKw)
-                : null
-              : z.verdict.loadKw
-                ? pct(z.verdict.coverKw, z.verdict.loadKw)
-                : null;
-            const cover = z.cant
-              ? { text: "Can't join", tone: "bad" as Tone }
-              : !band && z.lines.length === 0
-                ? { text: z.loadKw != null ? `${z.loadKw.toFixed(1)} kW short` : "—", tone: "quiet" as Tone }
-                : { text: p == null ? kwText(z.verdict.coverKw) : `${p}%`, tone: z.word.tone };
-            return (
-              <tr key={z.zone.id}>
-                <td>{z.name}</td>
-                <td className="quiet">{unit}</td>
-                <td className={`num ${cover.tone}`}>{cover.text}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {view.oduRow && (
-        <section className="ds-sb-sum-sec">
-          <h3>Outdoor</h3>
-          <dl className="ds-sb-kv">
-            <dt>Model</dt>
-            <dd>{view.oduRow.model}</dd>
-            <dt>Capacity</dt>
-            <dd>{kwText(sizingCapacityKw(view.oduRow, basis))}</dd>
-            {view.connectedText && (
-              <>
-                <dt>Connected</dt>
-                <dd>{view.connectedText}</dd>
-              </>
-            )}
-            {view.ratio && (
-              <>
-                <dt>Connection ratio</dt>
-                <dd>{view.ratio.pct}%</dd>
-              </>
-            )}
-            {view.takesText && (
-              <>
-                <dt>Takes</dt>
-                <dd className="bad">{view.takesText}</dd>
-              </>
-            )}
-            {view.supplyText && (
-              <>
-                <dt>Supply</dt>
-                <dd>{view.supplyText}</dd>
-              </>
-            )}
-          </dl>
-        </section>
-      )}
-      {(view.pipeText || view.oduRow) && (
-        <section className="ds-sb-sum-sec">
-          <h3>Pipework</h3>
-          <dl className="ds-sb-kv">
-            {view.pipeText && (
-              <>
-                <dt>Pipe</dt>
-                <dd>{view.pipeText}</dd>
-              </>
-            )}
-            {view.limitsText && (
-              <>
-                <dt>Limits</dt>
-                <dd>{view.limitsText}</dd>
-              </>
-            )}
-            <dt>Drawn</dt>
-            <dd className={view.drawnText === "Not yet" ? "quiet" : ""}>{view.drawnText}</dd>
-            {view.refrigerantText && (
-              <>
-                <dt>Refrigerant</dt>
-                <dd>{view.refrigerantText}</dd>
-              </>
-            )}
-          </dl>
-        </section>
-      )}
-    </>
+    <div className="ds-sb-side-scroll">
+      <div className="ds-sb-side-head">
+        <span className="ds-sb-side-kind">Outdoor unit</span>
+        <h3 className="ds-sb-side-title">{odu.model}</h3>
+        <span className="ds-sb-side-sub">
+          {view.oduByHand ? "Picked" : "Proposed"}, combination{" "}
+          <span className={view.combination === "Valid" ? "ok" : "bad"}>
+            {view.combination === "Valid" ? "valid" : "fails"}
+          </span>
+        </span>
+      </div>
+      <dl className="ds-sb-kv">
+        <dt>Capacity</dt>
+        <dd>{kwText(sizingCapacityKw(odu, basis))}</dd>
+        {odu.system_type === "multi" && odu.ports != null && (
+          <>
+            <dt>Ports</dt>
+            <dd className={view.heads.length > odu.ports ? "bad" : ""}>
+              {view.heads.length} of {odu.ports}
+            </dd>
+          </>
+        )}
+        {view.connectedText && (
+          <>
+            <dt>Connected</dt>
+            <dd>{view.connectedText}</dd>
+          </>
+        )}
+        {view.ratio && (
+          <>
+            <dt>Connection ratio</dt>
+            <dd>{view.ratio.pct}%</dd>
+          </>
+        )}
+        {view.takesText && (
+          <>
+            <dt>Takes</dt>
+            <dd className="bad">{view.takesText}</dd>
+          </>
+        )}
+        {view.supplyText && (
+          <>
+            <dt>Supply</dt>
+            <dd>{view.supplyText}</dd>
+          </>
+        )}
+        {view.pipeText && (
+          <>
+            <dt>Pipe</dt>
+            <dd>{view.pipeText}</dd>
+          </>
+        )}
+        {view.limitsText && (
+          <>
+            <dt>Limits</dt>
+            <dd>{view.limitsText}</dd>
+          </>
+        )}
+        <dt>Drawn</dt>
+        <dd className={view.drawnText === "Not yet" ? "quiet" : ""}>{view.drawnText}</dd>
+        {view.refrigerantText && (
+          <>
+            <dt>Refrigerant</dt>
+            <dd>{view.refrigerantText}</dd>
+          </>
+        )}
+      </dl>
+    </div>
   );
 }
 
-/* ─────────────────────────── the schematic ─────────────────────────── */
+/* ─────────────────────────── the piping rail ─────────────────────────── */
 
 function readPayload(e: React.DragEvent): DragPayload | null {
   const raw = e.dataTransfer?.getData(DRAG_TYPE);
@@ -1315,13 +1155,34 @@ const pressKeys = (fn: () => void) => (e: React.KeyboardEvent) => {
   }
 };
 
-function Schematic({
+/* THE GUTTER. A split or a multi is a star: every head has its own line pair
+   back to the outdoor, so each zone has its own line down the gutter, turning
+   into its card — the first zone's innermost, so no two cross. A VRF is one
+   shared line with a joint per branch, and a unit on the band feeds its
+   zones by air, the same trunk dashed. Lines are drawn row by row: a line
+   passes down a row it is not for, and turns into the card of the row it is. */
+const GUT_OFF = 14;
+const GUT_SP = 12;
+const GUT_TRUNK = 40;
+
+interface PipeTone {
+  /** in the system's colour: a unit of this system is on the end of it */
+  on: boolean;
+  bad?: boolean;
+  /** air off the band, not refrigerant */
+  air?: boolean;
+}
+const pipeClass = (t: PipeTone): string => `${t.on ? " on" : ""}${t.bad ? " bad" : ""}${t.air ? " air" : ""}`;
+
+function PipingRail({
   draft,
   pack,
   view,
   selected,
   headType,
   aimedZoneId,
+  outdoorOn,
+  dragging,
   onAimZone,
   addZoneOpen,
   onSelect,
@@ -1339,11 +1200,14 @@ function Schematic({
   pack: DataPack;
   view: SystemView;
   selected: string | null;
-  /** what the browser beside the schematic is offering — the band is only
-      drawn when that could serve the whole system */
+  /** what the list beside the rail is offering — the band is only drawn
+      when that could serve the whole system */
   headType: FormFactor | null;
-  /** the zone the browser's Add button puts a unit in */
+  /** the zone the list's Add button puts a unit in */
   aimedZoneId: string | null;
+  /** the list is on its Outdoor side */
+  outdoorOn: boolean;
+  dragging: "head" | "outdoor" | null;
   onAimZone: (zoneId: string) => void;
   addZoneOpen: boolean;
   onSelect: (allocationId: string | null) => void;
@@ -1396,11 +1260,9 @@ function Schematic({
   };
 
   const band = view.bandUnits[0] ?? null;
-  const textRows = Math.max(1, ...view.zones.map((z) => (z.lines.length ? z.lines.length + 1 : 1)));
-  const cardH = cardHeight(textRows, view.zones.some((z) => z.slot != null));
-  /* the band is drawn when it holds a unit, or when the browser is offering
-     one that could go in it — an empty Whole system box beside a multi of
-     wall heads is a drop target for something nobody is holding */
+  /* the band is drawn when it holds a unit, or when the list is offering one
+     that could go in it — an empty Whole system box beside a multi of wall
+     heads is a drop target for something nobody is holding */
   const wholeSystemType = headType === "ducted" || headType === "bulkhead";
   const showBand = Boolean(band) || wholeSystemType;
   /* Add zone is there only while there is a zone to add: one without a
@@ -1408,82 +1270,121 @@ function Schematic({
      on this system it would open on a list of nothing. */
   const toAdd = zonesToAdd(draft, sys.id);
   const canAdd = toAdd.length > 0;
-  const l = layout(view.zones.length + (canAdd ? 1 : 0), cardH, view.strays.length, showBand);
-  const addBox = canAdd ? l.boxes[l.boxes.length - 1] : null;
-  const source = band ? l.band : l.out;
-  /* ADD ZONE IS NOT WIRED IN. It sits in the grid so it reads as the next
-     card along, but it is a control, not a zone: the trunk ran into it and
-     drew the system as serving a button. Every zone card is wired. */
-  const trunk = busPath(l, source.x + source.w / 2, source.y + source.h, canAdd ? l.boxes.slice(0, -1) : l.boxes);
+  const free = toAdd.filter((z) => z.sharedWith.length === 0);
+  const taken = toAdd.filter((z) => z.sharedWith.length > 0);
   const oduModel = view.odu?.model ?? "";
   const valid = view.combination === "Valid";
 
   const addZoneBox = useRef<HTMLDivElement>(null);
-  const addZoneCard = useRef<SVGGElement>(null);
+  const addZoneBtn = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!addZoneOpen) return;
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (addZoneBox.current?.contains(t) || addZoneCard.current?.contains(t)) return;
+      if (addZoneBox.current?.contains(t) || addZoneBtn.current?.contains(t)) return;
       onCloseAddZone();
     };
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
   }, [addZoneOpen, onCloseAddZone]);
-  const free = toAdd.filter((z) => z.sharedWith.length === 0);
-  const taken = toAdd.filter((z) => z.sharedWith.length > 0);
+
+  /* the outdoor's ports, for a multi: how many of them its heads take, red
+     when there are more heads than ports; before an outdoor, how many the
+     zones will want */
+  const multi = view.oduRow ? view.oduRow.system_type === "multi" : view.family === "multi";
+  const heads = view.heads.filter((a) => a.serves !== "system").length;
+  const ports = view.oduRow?.ports ?? null;
+  const portsText = !multi
+    ? view.oduRow
+      ? kwText(sizingCapacityKw(view.oduRow, draft.settings.sizingBasis))
+      : null
+    : ports != null
+      ? `${heads} of ${ports} ports`
+      : `Needs ${Math.max(heads, view.zones.length)} ports`;
+  const portsBad = multi && ports != null && heads > ports;
+
+  const n = view.zones.length;
+  const vrf = view.oduRow ? view.oduRow.system_type === "vrf" : view.family === "vrf";
+  const trunk = Boolean(band) || vrf;
+  const gutter = trunk ? GUT_TRUNK : GUT_OFF + Math.max(1, n) * GUT_SP + 8;
+  const xOf = (k: number) => GUT_OFF + (n - 1 - k) * GUT_SP;
+  const zoneTone = (z: ZoneView): PipeTone => ({ on: z.lines.some((l) => l.mine), bad: z.cant, air: Boolean(band) });
+  const trunkTone: PipeTone = band ? { on: true, air: true } : { on: Boolean(view.odu) };
+  const note = band
+    ? "Ducted to each zone"
+    : vrf
+      ? "One shared line, a joint per branch"
+      : multi
+        ? "One line pair per port"
+        : "One line pair";
+
+  /* drawn in SVG, a row at a time: a line's ends are the row's top, middle
+     and bottom, which only percentages know */
+  const vline = (key: string, x: number, span: "full" | "top" | "bottom", tone: PipeTone) => (
+    <line
+      key={key}
+      className={`ds-sb-pipe v${pipeClass(tone)}`}
+      x1={x}
+      x2={x}
+      y1={span === "bottom" ? "50%" : 0}
+      y2={span === "top" ? "50%" : "100%"}
+    />
+  );
+  const hline = (key: string, x: number, tone: PipeTone) => (
+    <line key={key} className={`ds-sb-pipe h${pipeClass(tone)}`} x1={x} x2={gutter} y1="50%" y2="50%" />
+  );
+  const pipes = (lines: React.ReactNode[]) => (
+    <svg className="ds-sb-pipes" width={gutter} aria-hidden="true">
+      {lines}
+    </svg>
+  );
+  /* a row the lines only pass: the band waiting empty, a unit with no zone,
+     the drop between the outdoor and the first zone */
+  const passing = (): React.ReactNode[] =>
+    trunk ? [vline("trunk", GUT_OFF, "full", trunkTone)] : view.zones.map((z, k) => vline(z.zone.id, xOf(k), "full", zoneTone(z)));
+  /* a zone's row: the lines of the zones below pass it, its own turns in */
+  const zonePipes = (z: ZoneView, i: number): React.ReactNode[] => {
+    if (trunk) {
+      return [
+        vline("trunk", GUT_OFF, i < n - 1 ? "full" : "top", trunkTone),
+        hline("branch", GUT_OFF, zoneTone(z)),
+        ...(vrf && !band
+          ? [<rect key="joint" className="ds-sb-joint" x={GUT_OFF - 4} y="50%" width={8} height={8} rx={2} transform="translate(0 -4)" />]
+          : []),
+      ];
+    }
+    return [
+      ...view.zones.slice(i + 1).map((below, j) => vline(below.zone.id, xOf(i + 1 + j), "full", zoneTone(below))),
+      vline(z.zone.id, xOf(i), "top", zoneTone(z)),
+      hline("elbow", xOf(i), zoneTone(z)),
+    ];
+  };
 
   const describe = `Schematic of ${sys.name}: ${
     view.odu ? `${oduModel} above` : "no outdoor yet, above"
-  } ${view.zones.length} ${view.zones.length === 1 ? "zone" : "zones"}${band ? `, ${band.model} on the band` : ""}`;
+  } ${n} ${n === 1 ? "zone" : "zones"}${band ? `, ${band.model} on the band` : ""}`;
 
   return (
-    <div className="ds-sb-schematic" onClick={() => onSelect(null)}>
-      <svg
-        className="ds-sb-svg"
-        width={l.width}
-        height={l.height}
-        viewBox={`0 0 ${l.width} ${l.height}`}
-        role="img"
-        aria-label={describe}
-        style={{ "--sys": sys.colour } as React.CSSProperties}
-      >
-        {/* lines first, under everything: in the system's colour once it has
-            an outdoor, quiet and dashed until then, air lines dashed */}
-        <path
-          className={`ds-sb-line${view.odu ? "" : " quiet"}${!view.odu || band ? " dashed" : ""}`}
-          d={trunk}
-        />
-        {view.zones.map((z, i) => {
-          const b = l.boxes[i];
-          if (!z.cant) return null;
-          return (
-            <path
-              key={z.zone.id}
-              className="ds-sb-line dashed bad"
-              d={`M${b.x + b.w / 2} ${b.row === 0 ? l.busY : b.y - GUTTER} V${b.y}`}
-            />
-          );
-        })}
-        {band && (
-          <>
-            <path className="ds-sb-line" d={`M${l.out.x + l.out.w} ${l.out.y + l.out.h / 2} H${l.band.x}`} />
-            {view.bandPipe && (
-              <text className="ds-sb-fact" x={l.out.x + l.out.w + TOP_GAP / 2} y={l.out.y + l.out.h / 2 - 8} textAnchor="middle">
-                {view.bandPipe}
-              </text>
-            )}
-          </>
-        )}
-
-        {/* the outdoor box: dashed with the word until something lands */}
-        <g
-          className={`ds-sb-out${view.odu ? "" : " empty"}${over === "outdoor" ? " over" : ""}${
+    <section
+      className={`ds-sb-rail${dragging ? ` dragging ${dragging}` : ""}`}
+      aria-label={describe}
+      style={{ "--sys": sys.colour } as React.CSSProperties}
+    >
+      <div className="ds-sb-rail-head">
+        <h3 className="ds-sb-rail-title">Piping</h3>
+        <span className="ds-sb-rail-note">{note}</span>
+      </div>
+      <div className="ds-sb-rail-scroll" onClick={() => onSelect(null)}>
+        {/* the outdoor: dashed until something lands; pressing it turns the
+            list to Outdoor, and an outdoor dragged from there lands on it */}
+        <div
+          className={`ds-sb-out${view.odu ? "" : " empty"}${outdoorOn ? " on" : ""}${over === "outdoor" ? " over" : ""}${
             view.odu && !valid ? " fails" : ""
           }`}
           role="button"
           tabIndex={0}
           aria-label={view.odu ? `Outdoor ${oduModel}` : "Outdoor"}
+          aria-pressed={outdoorOn}
           onClick={(e) => {
             e.stopPropagation();
             onOutdoor();
@@ -1493,277 +1394,239 @@ function Schematic({
             if ("oduModel" in p) onDropOutdoor(p.oduModel);
           })}
         >
-          <rect
-            className="ds-sb-out-box"
-            x={l.out.x}
-            y={l.out.y}
-            width={l.out.w}
-            height={l.out.h}
-            rx={10}
-          />
-          {view.odu ? (
-            <>
-              <text className="ds-sb-out-model" x={l.out.x + l.out.w / 2} y={l.out.y + 22} textAnchor="middle">
-                {oduModel}
-              </text>
-              <text className="ds-sb-fact" x={l.out.x + l.out.w / 2} y={l.out.y + 40} textAnchor="middle">
-                {view.outFacts}
-              </text>
-              <text
-                className={`ds-sb-state ${valid ? "ok" : "bad"}`}
-                x={l.out.x + l.out.w / 2}
-                y={l.out.y + 58}
-                textAnchor="middle"
-              >
-                {view.oduByHand ? "Picked" : "Proposed"}, combination {valid ? "valid" : "fails"}
-              </text>
-            </>
-          ) : (
-            <text className="ds-sb-out-model" x={l.out.x + l.out.w / 2} y={l.out.y + l.out.h / 2 + 5} textAnchor="middle">
-              Outdoor
-            </text>
+          <span className="ds-sb-out-top">
+            <span className="ds-sb-out-label">Outdoor</span>
+            {portsText && <span className={`ds-sb-out-ports${portsBad ? " bad" : ""}`}>{portsText}</span>}
+          </span>
+          <span className="ds-sb-out-model">{view.odu ? oduModel : "No outdoor yet"}</span>
+          {view.odu && (
+            <span className={`ds-sb-state ${valid ? "ok" : "bad"}`}>
+              {`${view.oduByHand ? "Picked" : "Proposed"}, combination ${valid ? "valid" : "fails"}`}
+            </span>
           )}
-        </g>
+        </div>
 
         {/* the band: a unit dropped here serves the whole system */}
         {showBand && (
-        <g
-          className={`ds-sb-band${band ? "" : " empty"}${over === "band" ? " over" : ""}${
-            band && selected === band.id ? " sel" : ""
-          }`}
-          role={band ? "button" : undefined}
-          tabIndex={band ? 0 : undefined}
-          aria-label={band ? `${band.model}, serves the whole system` : undefined}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (band) onSelect(band.id);
-          }}
-          onKeyDown={band ? pressKeys(() => onSelect(band.id)) : undefined}
-          {...targetProps("band", headOnly(onDropBand))}
-        >
-          <rect
-            className="ds-sb-band-box"
-            x={l.band.x}
-            y={l.band.y}
-            width={l.band.w}
-            height={l.band.h}
-            rx={10}
-          />
-          {band ? (
-            <>
-              <text className="ds-sb-out-model" x={l.band.x + l.band.w / 2} y={l.band.y + 22} textAnchor="middle">
-                {band.model}
-              </text>
-              <text className="ds-sb-fact" x={l.band.x + l.band.w / 2} y={l.band.y + 40} textAnchor="middle">
-                {[
-                  kwText(kwOf(pack, band.model, draft.settings.sizingBasis)),
-                  iduRowOf(pack, band.model)?.airflow_ls != null ? `${iduRowOf(pack, band.model)!.airflow_ls} L/s` : null,
-                  "serves the whole system",
-                ]
-                  .filter(Boolean)
-                  .join(", ")}
-              </text>
-            </>
-          ) : (
-            <text className="ds-sb-out-model" x={l.band.x + l.band.w / 2} y={l.band.y + l.band.h / 2 + 5} textAnchor="middle">
-              Whole system
-            </text>
-          )}
-        </g>
+          <div className="ds-sb-row" style={{ paddingLeft: gutter }}>
+            {pipes(
+              band
+                ? [
+                    vline("feed", GUT_OFF, "top", { on: Boolean(view.odu) }),
+                    hline("in", GUT_OFF, { on: Boolean(view.odu) }),
+                    vline("air", GUT_OFF, "bottom", trunkTone),
+                  ]
+                : passing()
+            )}
+            <div
+              className={`ds-sb-band${band ? "" : " empty"}${over === "band" ? " over" : ""}${
+                band && selected === band.id ? " sel" : ""
+              }`}
+              {...targetProps("band", headOnly(onDropBand))}
+            >
+              {band ? (
+                <button
+                  type="button"
+                  className="ds-sb-band-btn"
+                  aria-label={`${band.model}, serves the whole system`}
+                  aria-pressed={selected === band.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(band.id);
+                  }}
+                >
+                  <span className="ds-sb-band-model">{band.model}</span>
+                  <span className="ds-sb-band-facts">
+                    {[
+                      kwText(kwOf(pack, band.model, draft.settings.sizingBasis)),
+                      iduRowOf(pack, band.model)?.airflow_ls != null ? `${iduRowOf(pack, band.model)!.airflow_ls} L/s` : null,
+                      view.bandPipe ? `${view.bandPipe} mm` : null,
+                      "serves the whole system",
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
+                </button>
+              ) : (
+                <span className="ds-sb-band-word">Whole system</span>
+              )}
+            </div>
+          </div>
         )}
 
-        {/* heads with no zone of this system: waiting under the band */}
-        {view.strays.map((a, i) => {
-          const b = l.strayBoxes[i];
-          return (
-            <g
-              key={a.id}
+        {/* heads with no zone of this system: waiting above the zones */}
+        {view.strays.map((a) => (
+          <div key={a.id} className="ds-sb-row" style={{ paddingLeft: gutter }}>
+            {pipes(passing())}
+            <button
+              type="button"
               className={`ds-sb-stray${selected === a.id ? " sel" : ""}`}
-              role="button"
-              tabIndex={0}
               aria-label={`${a.model}, no zone`}
+              aria-pressed={selected === a.id}
               onClick={(e) => {
                 e.stopPropagation();
                 onSelect(a.id);
               }}
-              onKeyDown={pressKeys(() => onSelect(a.id))}
             >
-              <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={6} />
-              <text className="ds-sb-head-model" x={b.x + 12} y={b.y + 17}>
-                {a.model}
-              </text>
-              <text className="ds-sb-fact" x={b.x + 12} y={b.y + 32}>
-                No zone
-              </text>
-            </g>
-          );
-        })}
+              <span className="ds-sb-stray-model">{a.model}</span>
+              <span className="ds-sb-stray-word">No zone</span>
+            </button>
+          </div>
+        ))}
+
+        {n > 0 && (
+          <div className="ds-sb-feed">{pipes(passing())}</div>
+        )}
 
         {view.zones.map((z, i) => {
-          const b = l.boxes[i];
           const key = `zone:${z.zone.id}`;
-          const hasMine = z.lines.some((x) => x.mine);
-          const lastLine = FIRST_LINE + LINE * Math.max(0, z.lines.length);
-          const wordY = b.y + lastLine;
-          const dotX = z.shared ? TEXT_X + 18 : TEXT_X;
+          const aimed = z.zone.id === aimedZoneId;
           return (
-            <g
-              key={z.zone.id}
-              className={`ds-sb-zone${hasMine ? " mine" : ""}${over === key ? " over" : ""}${z.cant ? " cant" : ""}${
-                z.short ? " short" : ""
-              }${z.zone.id === aimedZoneId ? " aimed" : ""}`}
-              role="button"
-              tabIndex={0}
-              /* not "Add to <zone>": that is the browser's button, which
-                 performs the add. This one chooses where it lands. */
-              aria-label={`Put the next unit in ${z.name}`}
-              aria-pressed={z.zone.id === aimedZoneId}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAimZone(z.zone.id);
-              }}
-              onKeyDown={pressKeys(() => onAimZone(z.zone.id))}
-              {...targetProps(key, headOnly((m) => onDropHead(z.zone.id, m)))}
-            >
-              <rect
-                className="ds-sb-zone-box"
-                x={b.x}
-                y={b.y}
-                width={b.w}
-                height={b.h}
-                rx={10}
-              />
-              <text className="ds-sb-zone-name" x={b.x + TEXT_X} y={b.y + 24}>
-                {z.name}
-              </text>
-              <text className="ds-sb-fact" x={b.x + TEXT_X} y={b.y + 42}>
-                {z.loadKw != null ? `Needs ${z.loadKw.toFixed(1)} kW` : "No heat load yet"}
-                {z.shared ? `, shared with ${[...new Set(z.lines.filter((x) => !x.mine).map((x) => x.sys.name))].join(", ")}` : ""}
-              </text>
-              {z.lines.map((line, k) => {
-                const y = b.y + FIRST_LINE + LINE * k;
-                const right = line.mine ? kwText(line.kw) : `${line.sys.name}, ${kwText(line.kw)}`;
-                const isSel = line.mine && selected === line.alloc.id;
-                return (
-                  <g
-                    key={line.alloc.id}
-                    className={`ds-sb-head-line${line.mine ? "" : " other"}${isSel ? " sel" : ""}`}
-                    role={line.mine ? "button" : undefined}
-                    tabIndex={line.mine ? 0 : undefined}
-                    aria-label={line.mine ? `${line.alloc.model} in ${z.name}` : undefined}
-                    onClick={
-                      line.mine
-                        ? (e) => {
+            <div key={z.zone.id} className="ds-sb-row" style={{ paddingLeft: gutter }}>
+              {pipes(zonePipes(z, i))}
+              <div
+                className={`ds-sb-zone${over === key ? " over" : ""}${z.cant ? " cant" : ""}${z.short ? " short" : ""}${
+                  aimed ? " aimed" : ""
+                }`}
+                {...targetProps(key, headOnly((m) => onDropHead(z.zone.id, m)))}
+              >
+                {/* the card is the aim: under its words, so a click anywhere
+                    on it chooses where the list's Add puts the next unit.
+                    Not "Add to <zone>": that is the list's button, which
+                    performs the add */}
+                <button
+                  type="button"
+                  className="ds-sb-zone-aim"
+                  aria-label={`Put the next unit in ${z.name}`}
+                  aria-pressed={aimed}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAimZone(z.zone.id);
+                  }}
+                />
+                <span className="ds-sb-zone-top">
+                  <span className="ds-sb-zone-name">{z.name}</span>
+                  <span className="ds-sb-zone-need">{z.loadKw != null ? `${z.loadKw.toFixed(1)} kW` : "No load yet"}</span>
+                </span>
+                {/* a unit a line: its model, and its kW at the right */}
+                {z.lines.map((line) => {
+                  const isSel = line.mine && selected === line.alloc.id;
+                  return (
+                    <span key={line.alloc.id} className="ds-sb-zone-line">
+                      {line.mine ? (
+                        <button
+                          type="button"
+                          className={`ds-sb-head-model${isSel ? " sel" : ""}`}
+                          aria-label={`${line.alloc.model} in ${z.name}`}
+                          aria-pressed={isSel}
+                          onClick={(e) => {
                             e.stopPropagation();
                             onSelect(line.alloc.id);
-                          }
-                        : undefined
-                    }
-                    onKeyDown={line.mine ? pressKeys(() => onSelect(line.alloc.id)) : undefined}
+                          }}
+                        >
+                          {line.alloc.model}
+                        </button>
+                      ) : (
+                        <span className="ds-sb-head-model other" title={`${line.sys.name}, read-only here`}>
+                          <span className="ds-sb-head-dot" style={{ background: line.sys.colour }} aria-hidden="true" />
+                          {line.alloc.model}
+                        </span>
+                      )}
+                      <span className="ds-sb-zone-kw">{kwText(line.kw)}</span>
+                    </span>
+                  );
+                })}
+                {/* then the zone's word, and the pipe size of its last unit at
+                    the right: a split's from its pair, a multi head's its own
+                    connection */}
+                {z.lines.length > 0 && (
+                  <span className="ds-sb-zone-line foot">
+                    <span className={`ds-sb-state ${z.word.tone}${z.cant ? " wrap" : ""}`}>{z.word.text}</span>
+                    {z.pipe && !z.cant && <span className="ds-sb-zone-pipe">{z.pipe}</span>}
+                  </span>
+                )}
+                {z.lines.length === 0 && (
+                  <span className="ds-sb-zone-line">
+                    {/* a zone the band feeds has its unit: the one above */}
+                    <span className="ds-sb-zone-none">{band ? band.model : "No unit yet"}</span>
+                    {z.word.text && <span className={`ds-sb-state ${z.word.tone}`}>{z.word.text}</span>}
+                  </span>
+                )}
+                {z.slot && (
+                  <span
+                    className={`ds-sb-slot${over === `slot:${z.zone.id}` ? " over" : ""}`}
+                    {...targetProps(`slot:${z.zone.id}`, headOnly((m) => onDropSlot(z, m)))}
                   >
-                    <rect x={b.x + 8} y={y - 13} width={b.w - 16} height={LINE} rx={6} />
-                    {z.shared && <circle cx={b.x + TEXT_X + 5} cy={y - 4} r={5} fill={line.sys.colour} />}
-                    <text className={`ds-sb-head-model${line.mine ? "" : " other"}`} x={b.x + dotX} y={y}>
-                      {line.alloc.model}
-                    </text>
-                    <text className="ds-sb-fact" x={b.x + b.w - TEXT_X} y={y} textAnchor="end">
-                      {right}
-                    </text>
-                  </g>
-                );
-              })}
-              <text className={`ds-sb-state ${z.word.tone}`} x={b.x + TEXT_X} y={wordY}>
-                {z.word.text}
-              </text>
-              {z.pipe && z.lines.length > 0 && (
-                <text className="ds-sb-fact" x={b.x + b.w - TEXT_X} y={wordY} textAnchor="end">
-                  {z.pipe}
-                </text>
-              )}
-              {z.slot && (
-                <g
-                  className={`ds-sb-slot${over === `slot:${z.zone.id}` ? " over" : ""}`}
-                  {...targetProps(`slot:${z.zone.id}`, headOnly((m) => onDropSlot(z, m)))}
-                >
-                  <rect x={b.x + TEXT_X} y={wordY + 15} width={b.w - 2 * TEXT_X} height={SLOT_H} rx={10} />
-                  <text x={b.x + b.w / 2} y={wordY + 15 + SLOT_H / 2 + 5} textAnchor="middle">
                     {z.slot === "split" ? "Add another split" : "Add another unit"}
-                  </text>
-                </g>
-              )}
-              <g
-                className="ds-sb-zone-x"
-                role="button"
-                tabIndex={0}
-                aria-label={`Clear ${z.name} from ${sys.name}`}
-                transform={`translate(${b.x + b.w - 30}, ${b.y + 10})`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemoveZone(z.zone.id);
-                }}
-                onKeyDown={pressKeys(() => onRemoveZone(z.zone.id))}
-              >
-                <rect width={20} height={20} rx={6} />
-                <path d="M6 6 L14 14 M14 6 L6 14" />
-              </g>
-            </g>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="ds-sb-zone-x"
+                  aria-label={`Clear ${z.name} from ${sys.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveZone(z.zone.id);
+                  }}
+                >
+                  <Icon name="x" size={12} />
+                </button>
+              </div>
+            </div>
           );
         })}
 
-        {/* the last card claims another of the plan's zones */}
-        {addBox && (
-          <g
-            ref={addZoneCard}
-            className={`ds-sb-add${addZoneOpen ? " on" : ""}`}
-            role="button"
-            tabIndex={0}
-            aria-haspopup="dialog"
-            aria-expanded={addZoneOpen}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddZone();
-            }}
-            onKeyDown={pressKeys(onAddZone)}
-          >
-            <rect x={addBox.x} y={addBox.y} width={addBox.w} height={addBox.h} rx={10} />
-            <text x={addBox.x + addBox.w / 2} y={addBox.y + addBox.h / 2 + 5} textAnchor="middle">
+        {/* Add zone claims another of the plan's zones. It is not a zone, so
+            no line runs into it */}
+        {canAdd && (
+          <div className="ds-sb-addwrap" style={{ paddingLeft: gutter }}>
+            <button
+              ref={addZoneBtn}
+              type="button"
+              className={`ds-sb-add${addZoneOpen ? " on" : ""}`}
+              aria-haspopup="dialog"
+              aria-expanded={addZoneOpen}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddZone();
+              }}
+            >
+              <Icon name="plus" size={12} />
               Add zone
-            </text>
-          </g>
+            </button>
+            {addZoneOpen && (
+              <div
+                ref={addZoneBox}
+                className="ds-sb-addzone"
+                role="dialog"
+                aria-label="Add zone"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {free.length > 0 && <p className="ds-sb-addzone-label">Without a system</p>}
+                {free.map(({ zone }) => (
+                  <button key={zone.id} type="button" className="ds-sb-addzone-opt" onClick={() => onClaim(zone.id)}>
+                    <span className="ds-sb-dot unclaimed" />
+                    <span className="ds-sb-addzone-name">{zoneName(zone)}</span>
+                    <span className="ds-sb-addzone-load">{kwText(roomLoadKw(draft, zone))}</span>
+                  </button>
+                ))}
+                {taken.length > 0 && <p className="ds-sb-addzone-label">On another system</p>}
+                {taken.map(({ zone, sharedWith }) => (
+                  <button key={zone.id} type="button" className="ds-sb-addzone-opt" onClick={() => onClaim(zone.id)}>
+                    <span className="ds-sb-dot" style={{ background: sharedWith[0].colour }} />
+                    <span className="ds-sb-addzone-name">
+                      {zoneName(zone)}
+                      <span className="ds-sb-addzone-sub">{sharedWith.map((s) => s.name).join(", ")}</span>
+                    </span>
+                    <span className="ds-sb-addzone-load">{kwText(roomLoadKw(draft, zone))}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
-      </svg>
-
-      {addZoneOpen && addBox && (
-        <div
-          ref={addZoneBox}
-          className="ds-sb-addzone"
-          role="dialog"
-          aria-label="Add zone"
-          style={{ left: addBox.x, top: addBox.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {free.length > 0 && <p className="ds-sb-addzone-label">Without a system</p>}
-          {free.map(({ zone }) => (
-            <button key={zone.id} type="button" className="ds-sb-addzone-opt" onClick={() => onClaim(zone.id)}>
-              <span className="ds-sb-dot unclaimed" />
-              <span className="ds-sb-addzone-name">{zoneName(zone)}</span>
-              <span className="ds-sb-addzone-load">{kwText(roomLoadKw(draft, zone))}</span>
-            </button>
-          ))}
-          {taken.length > 0 && <p className="ds-sb-addzone-label">On another system</p>}
-          {taken.map(({ zone, sharedWith }) => (
-            <button key={zone.id} type="button" className="ds-sb-addzone-opt" onClick={() => onClaim(zone.id)}>
-              <span className="ds-sb-dot" style={{ background: sharedWith[0].colour }} />
-              <span className="ds-sb-addzone-name">
-                {zoneName(zone)}
-                <span className="ds-sb-addzone-sub">{sharedWith.map((s) => s.name).join(", ")}</span>
-              </span>
-              <span className="ds-sb-addzone-load">{kwText(roomLoadKw(draft, zone))}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+      </div>
+    </section>
   );
 }
 
@@ -1814,19 +1677,40 @@ function UnitDetail({
     [candidates, draft, pack, basis, sys.id, alloc.id, alloc.model]
   );
   const beforeOdu = view.odu?.model ?? "";
+  const pipe = pipeSize(pack, sys, alloc, view.odu?.model ?? null);
+  const kw = kwOf(pack, alloc.model, basis);
 
   return (
-    <div className="ds-sb-pane">
-      <div className="ds-sb-detail-head">
-        <h3 className="ds-sb-pane-title">{alloc.model}</h3>
-        <span className="ds-sb-spring" />
-        <button className="ds-sb-x" onClick={onClose} aria-label="Close unit detail">
-          <Icon name="x" size={16} />
-        </button>
+    <div className="ds-sb-side-scroll ds-sb-pane">
+      <div className="ds-sb-side-head">
+        <span className="ds-sb-side-kind">{alloc.serves === "system" ? "Whole system unit" : "Indoor unit"}</span>
+        <div className="ds-sb-detail-head">
+          <h3 className="ds-sb-side-title">{alloc.model}</h3>
+          <span className="ds-sb-spring" />
+          <button className="ds-sb-x" onClick={onClose} aria-label="Close unit detail">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <span className="ds-sb-side-sub">
+          {alloc.serves === "system" ? "Whole system" : zone ? zone.name : "No zone"}, {sys.name}
+        </span>
       </div>
-      <p className="ds-sb-facts">
-        {alloc.serves === "system" ? "Whole system" : zone ? zone.name : "No zone"}, {sys.name}
-      </p>
+      {(kw != null || pipe) && (
+        <dl className="ds-sb-kv">
+          {kw != null && (
+            <>
+              <dt>Capacity</dt>
+              <dd>{kwText(kw)}</dd>
+            </>
+          )}
+          {pipe && (
+            <>
+              <dt>Pipe</dt>
+              <dd>{pipe} mm</dd>
+            </>
+          )}
+        </dl>
+      )}
       {alloc.serves !== "system" && (
         <label className="ds-sb-field">
           <span>Zone</span>
@@ -1847,15 +1731,6 @@ function UnitDetail({
           </select>
         </label>
       )}
-      <button
-        className="ds-sb-btn"
-        onClick={() => {
-          onChange(removeAllocation(draft, sys.id, alloc.id, pack));
-          onClose();
-        }}
-      >
-        Remove unit
-      </button>
       {rows.length > 1 && (
         <div className="ds-sb-sizes">
           <span className="ds-sb-label">Sizes</span>
@@ -1904,6 +1779,15 @@ function UnitDetail({
           </ul>
         </div>
       )}
+      <button
+        className="ds-sb-btn ds-sb-remove"
+        onClick={() => {
+          onChange(removeAllocation(draft, sys.id, alloc.id, pack));
+          onClose();
+        }}
+      >
+        Remove unit
+      </button>
     </div>
   );
 }

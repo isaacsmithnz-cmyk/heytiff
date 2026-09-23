@@ -13,6 +13,7 @@ import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "@/lib/studio/document";
 import { addHead, allocationsOf, chooseOutdoor, moveZone } from "@/lib/studio/builder";
 import { claimZone, newSystem } from "@/lib/studio/zones";
+import { sizingCapacityKw } from "@/lib/studio/loads";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -79,7 +80,8 @@ const transfer = () => {
   };
 };
 
-const schematic = () => screen.getByRole("img", { name: /^Schematic of/ });
+/* the piping rail down the left: the outdoor, and the zones under it */
+const schematic = () => screen.getByRole("region", { name: /^Schematic of/ });
 const zoneNames = () => [...schematic().querySelectorAll(".ds-sb-zone-name")].map((t) => t.textContent);
 const zoneCard = (name: string) =>
   [...schematic().querySelectorAll(".ds-sb-zone")].find(
@@ -120,20 +122,23 @@ describe("SystemBuilder", () => {
     );
 
     expect(zoneNames()).toEqual(["Bed 1", "Study"]);
-    // before the first unit the rail shows Zones and Load only
+    // before the first unit the header shows Zones and Load only
     expect(stat("Zones")).toHaveTextContent("2");
     expect(stat("Load")).toHaveTextContent(/kW/);
-    expect(screen.queryByText("Combination", { selector: "dt" })).toBeNull();
+    expect(screen.queryByText("Type", { selector: "dt" })).toBeNull();
+    expect(screen.queryByText("Covered", { selector: "dt" })).toBeNull();
     expect(within(zoneCard("Bed 1")).getByText("No unit yet")).toBeInTheDocument();
 
     dragRow("MSZ-AP25VGD2", zoneCard("Bed 1"));
 
     expect(within(zoneCard("Bed 1")).getByText("MSZ-AP25VGD2")).toBeInTheDocument();
-    expect(within(zoneCard("Bed 1")).getByText(/^Fits, \d+%$/)).toBeInTheDocument();
+    expect(within(zoneCard("Bed 1")).getByText("Covered")).toBeInTheDocument();
     expect(within(zoneCard("Study")).getByText("No unit yet")).toBeInTheDocument();
+    // an empty zone is short by what it needs, in amber: not wrong, not done
+    expect(within(zoneCard("Study")).getByText(/^\d+\.\d kW short$/)).toHaveClass("warn");
     // two zones claimed, so the head makes a multi and its outdoor is proposed
     expect(stat("Type")).toHaveTextContent("Multi");
-    expect(stat("Combination")).toHaveTextContent("Valid");
+    expect(stat("Covered")).toHaveTextContent(/^\d+\.\d of \d+\.\d kW$/);
     expect(within(schematic()).getByText(/^Proposed, combination valid$/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
@@ -182,15 +187,36 @@ describe("SystemBuilder", () => {
     expect(screen.getByRole("button", { name: "Clear Bed 1 from Bedrooms" })).toBeInTheDocument();
   });
 
-  it("gives the list and the schematic the share of the window it was last dragged to", () => {
-    window.localStorage.setItem("heytiff.studio.builderSplit", "70");
+  /* THE EDITOR IS THREE COLUMNS (Isaac's "System Editor" mock, 2026-09-23):
+     the piping down the left, the list in the middle, and the detail on the
+     right, full height. The list's own spec sheet is mounted in that column,
+     not beside the list; a unit already on the system takes its place there. */
+  it("puts the list's spec sheet in the right-hand column, and a unit on the system in its place", () => {
+    const made = claimed(house(), ["bed1", "study"]);
+    const doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "MSZ-AP25VGD2" });
+    render(<SystemBuilder doc={doc} pack={pack} systemId={made.systemId} onCommit={() => {}} onClose={() => {}} />);
+    const list = screen.getByRole("region", { name: "Choose a unit" });
+    const side = screen.getByRole("complementary", { name: "Unit detail" });
+    expect(side.querySelector(".ds-ub-detail")).not.toBeNull();
+    expect(list.querySelector(".ds-ub-detail")).toBeNull();
+    expect(screen.queryByRole("separator")).toBeNull();
+
+    fireEvent.click(within(zoneCard("Bed 1")).getByRole("button", { name: "MSZ-AP25VGD2 in Bed 1" }));
+    const open = screen.getByRole("complementary", { name: "Selected unit" });
+    expect(within(open).getByRole("heading", { name: "MSZ-AP25VGD2" })).toBeInTheDocument();
+    expect(document.querySelector(".ds-ub-detail")).toBeNull();
+    fireEvent.click(within(open).getByRole("button", { name: "Close unit detail" }));
+    expect(screen.getByRole("complementary", { name: "Unit detail" }).querySelector(".ds-ub-detail")).not.toBeNull();
+  });
+
+  it("says over the Add button what the unit does for the zone it goes in", () => {
     const made = claimed(house(), ["bed1"]);
     render(<SystemBuilder doc={made.doc} pack={pack} systemId={made.systemId} onCommit={() => {}} onClose={() => {}} />);
-    const edge = screen.getByRole("separator", { name: "Unit list and schematic" });
-    expect(edge).toHaveAttribute("aria-valuenow", "70");
-    fireEvent.keyDown(edge, { key: "ArrowUp" });
-    expect(edge).toHaveAttribute("aria-valuenow", "65");
-    expect(window.localStorage.getItem("heytiff.studio.builderSplit")).toBe("65");
+    const list = screen.getByRole("region", { name: "Choose a unit" });
+    fireEvent.change(within(list).getByRole("searchbox", { name: "Search units" }), { target: { value: "MSZ-AP20VGD" } });
+    fireEvent.click(within(list.querySelector(".ds-ub-table tbody") as HTMLElement).getByText("MSZ-AP20VGD").closest("tr")!);
+    expect(screen.getByRole("button", { name: "Add to Bed 1" })).toBeInTheDocument();
+    expect(document.querySelector(".ds-ub-addnote")!.textContent).toMatch(/^(Covers Bed 1 \(needs \d+\.\d kW\)|\d+\.\d kW short for Bed 1)$/);
   });
 
   it("a unit dropped on the band serves the whole system, and the rail reads Ducted", () => {
@@ -212,11 +238,16 @@ describe("SystemBuilder", () => {
     expect(stat("Type")).toHaveTextContent("Ducted");
     expect(within(band).getByText("PEAD-M125JAA(D)")).toBeInTheDocument();
     expect(within(band).getByText(/serves the whole system/)).toBeInTheDocument();
+    // the band's pipe, from its pair, where its line used to carry it
+    expect(within(band).getByText(/\d+(\.\d+)? \/ \d+(\.\d+)? mm/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Head type: Ducted/ })).toBeInTheDocument();
-    // every zone reads the whole-system unit against all the zones' load
-    expect(within(zoneCard("Bed 1")).getByText(/^Fits, \d+%$/)).toBeInTheDocument();
-    expect(within(zoneCard("Study")).getByText(/^Fits, \d+%$/)).toBeInTheDocument();
-    expect(stat("Combination")).toHaveTextContent("Valid");
+    // every zone reads the whole-system unit against all the zones' load,
+    // and names it as the unit that serves it
+    expect(within(zoneCard("Bed 1")).getByText("Covered")).toBeInTheDocument();
+    expect(within(zoneCard("Study")).getByText("Covered")).toBeInTheDocument();
+    expect(within(zoneCard("Study")).getByText("PEAD-M125JAA(D)")).toBeInTheDocument();
+    expect(within(zoneCard("Study")).queryByText("No unit yet")).toBeNull();
+    expect(within(schematic()).getByText(/combination valid$/)).toBeInTheDocument();
   });
 
   /* the mock's step 12: Study, dragged onto System 1, brings its head; the
@@ -246,7 +277,6 @@ describe("SystemBuilder", () => {
       const done = screen.getByRole("button", { name: "Done" });
       expect(done).toBeDisabled();
       expect(screen.getByRole("alert")).toHaveTextContent("MUZ-AP80VG2 takes one head");
-      expect(stat("Combination")).toHaveTextContent("Fails");
       expect(stat("Type")).toHaveTextContent("Multi");
       expect(within(zoneCard("Study")).getByText("Can't join MUZ-AP80VG2")).toBeInTheDocument();
       expect(within(schematic()).getByText("Picked, combination fails")).toBeInTheDocument();
@@ -260,8 +290,10 @@ describe("SystemBuilder", () => {
 
       fireEvent.click(six);
       expect(done).toBeEnabled();
-      expect(stat("Combination")).toHaveTextContent("Valid");
       expect(within(schematic()).getByText("Picked, combination valid")).toBeInTheDocument();
+      // the right-hand column reads the outdoor on the system
+      const side = screen.getByRole("complementary", { name: "Outdoor unit" });
+      expect(within(side).getByRole("heading", { name: "MXZ-6F120VGD" })).toBeInTheDocument();
 
       fireEvent.click(done);
       const built = onCommit.mock.calls[0][0] as DesignDocument;
@@ -277,7 +309,6 @@ describe("SystemBuilder", () => {
       );
       fireEvent.click(screen.getByRole("button", { name: "Use the proposal" }));
       expect(screen.getByRole("button", { name: "Done" })).toBeEnabled();
-      expect(stat("Combination")).toHaveTextContent("Valid");
       expect(within(schematic()).getByText("MXZ-6F120VGD")).toBeInTheDocument();
       expect(within(schematic()).getByText("Proposed, combination valid")).toBeInTheDocument();
       // the choice is the heads' again, so there is nothing to hand back
@@ -285,27 +316,49 @@ describe("SystemBuilder", () => {
     });
   });
 
-  /* ADD ZONE IS A CONTROL, NOT A ZONE. It sits last in the grid so it reads
-     as the next card along, but the system does not serve it: the trunk used
-     to run into it and draw the system as feeding a button. */
+  /* ADD ZONE IS A CONTROL, NOT A ZONE. It sits under the zones so it reads
+     as the next one along, but the system does not serve it: no line runs
+     into it. Every zone has one line of its own that turns into its card. */
   it("does not wire Add zone into the system", () => {
     const made = claimed(house(), ["bed1", "study"]);
     render(<SystemBuilder doc={made.doc} pack={pack} systemId={made.systemId} onCommit={() => {}} onClose={() => {}} />);
-    const add = schematic().querySelector(".ds-sb-add rect") as SVGRectElement;
-    const centre = Number(add.getAttribute("x")) + Number(add.getAttribute("width")) / 2;
-    const top = Number(add.getAttribute("y"));
-    const trunk = schematic().querySelector("path.ds-sb-line")!.getAttribute("d")!;
-    /* the path opens with the stem from the source down to the bus, then the
-       bus, then one drop per wired card FROM the bus: "M<x> <busY> V<top>" */
-    const busY = trunk.match(/^M[\d.]+ [\d.]+ V([\d.]+)/)![1];
-    const drops = [...trunk.matchAll(new RegExp(`M([\\d.]+) ${busY} V`, "g"))].map((m) => Number(m[1]));
-    // one per zone, and the two zones are the only ones
-    expect(drops).toHaveLength(2);
-    expect(drops).not.toContain(centre);
-    // the bus stops short of Add zone rather than running under it
-    const bus = trunk.match(/M[\d.]+ [\d.]+ H([\d.]+)/)!;
-    expect(Number(bus[1])).toBeLessThan(centre);
-    expect(top).toBeGreaterThan(0);
+    const add = screen.getByRole("button", { name: "Add zone" });
+    expect(add.closest(".ds-sb-addwrap")!.querySelector(".ds-sb-pipe")).toBeNull();
+    const rows = [...schematic().querySelectorAll(".ds-sb-row")].filter((r) => r.querySelector(".ds-sb-zone"));
+    expect(rows).toHaveLength(2);
+    for (const r of rows) expect(r.querySelectorAll(".ds-sb-pipe.h")).toHaveLength(1);
+  });
+
+  /* what the rail took away and Isaac asked back (2026-09-23): each unit's kW
+     on its line, and the pipe size at the right of the zone's word */
+  it("a unit on a zone card shows its kW, and the card the unit's pipe size", () => {
+    const made = claimed(house(), ["bed1", "study"]);
+    const doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "MSZ-AP25VGD2" });
+    render(<SystemBuilder doc={doc} pack={pack} systemId={made.systemId} onCommit={() => {}} onClose={() => {}} />);
+    const row = pack.indoor_units.find((u) => u.model === "MSZ-AP25VGD2")!;
+    const card = zoneCard("Bed 1");
+    expect(card.querySelector(".ds-sb-zone-kw")!.textContent).toBe(
+      `${sizingCapacityKw(row, doc.settings.sizingBasis).toFixed(1)} kW`
+    );
+    // two zones make a multi, and a multi head's line is its own connection
+    expect(card.querySelector(".ds-sb-zone-pipe")!.textContent).toBe(`${row.conn_liquid_mm} / ${row.conn_gas_mm}`);
+    // the word and the pipe share the foot of the card
+    expect(within(card.querySelector(".ds-sb-zone-line.foot") as HTMLElement).getByText("Covered")).toBeInTheDocument();
+    // a zone with nothing in it has neither
+    expect(zoneCard("Study").querySelector(".ds-sb-zone-kw")).toBeNull();
+    expect(zoneCard("Study").querySelector(".ds-sb-zone-pipe")).toBeNull();
+  });
+
+  /* A multi is a star: every head has its own line pair to the outdoor, so a
+     zone's line is in the system's colour once a unit of it is on the end,
+     and quiet and dashed until then */
+  it("draws a line per zone, in the system's colour once the zone has a unit", () => {
+    const made = claimed(house(), ["bed1", "study"]);
+    const doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "MSZ-AP25VGD2" });
+    render(<SystemBuilder doc={doc} pack={pack} systemId={made.systemId} onCommit={() => {}} onClose={() => {}} />);
+    const elbow = (name: string) => zoneCard(name).parentElement!.querySelector(".ds-sb-pipe.h")!;
+    expect(elbow("Bed 1")).toHaveClass("on");
+    expect(elbow("Study")).not.toHaveClass("on");
   });
 
   /* Add zone is offered only while there is a zone to add (Isaac,
@@ -317,10 +370,10 @@ describe("SystemBuilder", () => {
     );
     expect(screen.queryByRole("button", { name: "Add zone" })).toBeNull();
     expect(schematic().querySelector(".ds-sb-add")).toBeNull();
-    // every zone card is still wired: one drop from the bus per zone
-    const trunk = schematic().querySelector("path.ds-sb-line")!.getAttribute("d")!;
-    const busY = trunk.match(/^M[\d.]+ [\d.]+ V([\d.]+)/)![1];
-    expect([...trunk.matchAll(new RegExp(`M([\\d.]+) ${busY} V`, "g"))]).toHaveLength(4);
+    // every zone card is still wired: one line turns into each
+    const rows = [...schematic().querySelectorAll(".ds-sb-row")].filter((r) => r.querySelector(".ds-sb-zone"));
+    expect(rows).toHaveLength(4);
+    for (const r of rows) expect(r.querySelectorAll(".ds-sb-pipe.h")).toHaveLength(1);
     first.unmount();
 
     // a zone on another system is one to take

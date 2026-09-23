@@ -87,9 +87,10 @@ function keptWords(applied: Record<string, unknown> | null): string | null {
   return words.length ? words.join("\n\n") : null;
 }
 
-/** One read for every name on the strip and the diary. Tolerant: a note by
-    somebody with no staff card is unattributed, never dropped. */
-async function staffDisplayNames(
+/** One read for every name on the strip, the diary and the Documents face.
+    Tolerant: a note by somebody with no staff card is unattributed, never
+    dropped. */
+export async function staffDisplayNames(
   orgId: string,
   ids: readonly (string | null)[]
 ): Promise<Map<string, string>> {

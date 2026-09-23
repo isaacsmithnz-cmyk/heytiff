@@ -21,12 +21,16 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { DOCUMENTS_BUCKET, SIGNED_URL_SECONDS } from "@/lib/documents/query";
 import { isPartialInvoicePaper } from "./job-family";
 import {
+  fileTypeForMime,
   groupJobMedia,
   JOB_MEDIA_CAP,
   jobMediaKind,
   originLabel,
   type JobMediaItem,
 } from "./job-media";
+import { staffDisplayNames } from "./job-notes-query";
+import { naiveInZone } from "./job-story";
+import { getSm8Timezone } from "./query";
 
 export type JobMediaRead = {
   items: JobMediaItem[];
@@ -235,16 +239,111 @@ export async function readJobMedia(
   return { items, truncated };
 }
 
+/** The id a file of OURS goes by on the card — never a ServiceM8 uuid, so
+    the viewer's lookup by id can't land on one of theirs. */
+export const ourDocumentRemoteId = (documentId: string) => `doc:${documentId}`;
+
+/** The files somebody put on this job from its Documents face — ours, in
+    `documents` as `job_document`, newest first. ServiceM8 never had them, so
+    they are read here beside its list rather than out of the mirror.
+
+    ALWAYS PAPER. A photograph uploaded to the Documents face is a document —
+    somebody filed it there, as a certificate or a plan — so it is `document`
+    whatever its bytes are. Called `photo` it would join the diary's photo
+    clusters, whose "+N" leads to a Photos face that never shows it. */
+export async function readOurJobDocuments(orgId: string, jobUuid: string): Promise<JobMediaItem[]> {
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .select("id, file_name, mime_type, storage_ref, uploaded_at, uploaded_by")
+    .eq("org_id", orgId)
+    .eq("kind", "job_document")
+    .eq("sm8_job_uuid", jobUuid)
+    /* a slot handed out and never filled is nobody's file */
+    .not("uploaded_at", "is", null)
+    .order("uploaded_at", { ascending: false })
+    .limit(JOB_MEDIA_CAP);
+  const rows = (data ?? []) as {
+    id: string;
+    file_name: string;
+    mime_type: string;
+    storage_ref: string;
+    uploaded_at: string;
+    uploaded_by: string | null;
+  }[];
+  if (rows.length === 0) return [];
+
+  const [signed, names, timezone] = await Promise.all([
+    supabaseAdmin.storage
+      .from(DOCUMENTS_BUCKET)
+      .createSignedUrls(
+        rows.map((r) => r.storage_ref),
+        SIGNED_URL_SECONDS
+      ),
+    staffDisplayNames(
+      orgId,
+      rows.map((r) => r.uploaded_by)
+    ),
+    getSm8Timezone(orgId),
+  ]);
+  const urls = new Map<string, string>();
+  for (const s of signed.data ?? []) if (s.path && s.signedUrl) urls.set(s.path, s.signedUrl);
+
+  return rows.map((r) => ({
+    remoteId: ourDocumentRemoteId(r.id),
+    name: r.file_name,
+    fileType: fileTypeForMime(r.mime_type),
+    kind: "document" as const,
+    origin: null,
+    /* the account's own clock, the same naive shape ServiceM8's stamps
+       arrive in, so the face's day reads the same for both */
+    takenAt: naiveInZone(r.uploaded_at, timezone),
+    url: urls.get(r.storage_ref) ?? null,
+    width: null,
+    height: null,
+    fromClaim: null,
+    documentId: r.id,
+    addedBy: r.uploaded_by ? names.get(r.uploaded_by) ?? null : null,
+  }));
+}
+
+/** Two newest-first lists as one. Stable: each list keeps its own order, and
+    a stamp we can't read sinks rather than jumping the queue. */
+function byNewest(a: readonly JobMediaItem[], b: readonly JobMediaItem[]): JobMediaItem[] {
+  const out: JobMediaItem[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    const x = a[i];
+    const y = b[j];
+    if (!y || (x && (x.takenAt ?? "") >= (y.takenAt ?? ""))) {
+      out.push(x);
+      i += 1;
+    } else {
+      out.push(y);
+      j += 1;
+    }
+  }
+  return out;
+}
+
 export type JobMediaGroupsRead = ReturnType<typeof groupJobMedia> & { truncated: boolean };
 
 /** The sheet's shape — grouped, then capped PER LENS. `truncated` is true
-    when anything anywhere was left off: the DB window, or either lens. */
+    when anything anywhere was left off: the DB window, or either lens.
+
+    OUR FILES RIDE IN HERE, not beside the call. Every reader that hands the
+    card its media goes through this — the first read, the caching loop's
+    refreshes, a star — and a list that only the first read carried would
+    lose them the moment the caching loop reported back. */
 export async function readJobMediaGroups(
   orgId: string,
   jobUuid: string,
   claims: readonly MediaSource[] = []
 ): Promise<JobMediaGroupsRead> {
-  const read = await readJobMedia(orgId, jobUuid, claims);
+  const [read, ours] = await Promise.all([
+    readJobMedia(orgId, jobUuid, claims),
+    readOurJobDocuments(orgId, jobUuid),
+  ]);
   const groups = groupJobMedia(read.items);
   const clipped =
     groups.photos.length > JOB_MEDIA_CAP ||
@@ -252,7 +351,7 @@ export async function readJobMediaGroups(
     groups.elsewhere.length > JOB_MEDIA_CAP;
   return {
     photos: groups.photos.slice(0, JOB_MEDIA_CAP),
-    documents: groups.documents.slice(0, JOB_MEDIA_CAP),
+    documents: byNewest(ours, groups.documents.slice(0, JOB_MEDIA_CAP)),
     elsewhere: groups.elsewhere.slice(0, JOB_MEDIA_CAP),
     truncated: read.truncated || clipped,
   };

@@ -88,6 +88,15 @@ jest.mock('@/app/actions/swms', () => ({
   signOnSwms: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
 }))
 
+/* Filing a document on a job, for the same reason: the job card imports it
+   at module scope for its Documents face's upload. The default refuses, so no
+   suite proceeds as though a file had been filed; job-documents.test.ts tests
+   the real one and `jest.unmock`s it. */
+jest.mock('@/app/actions/job-documents', () => ({
+  attachJobDocument: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  removeJobDocument: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+}))
+
 /* The uploader's browser half, for the same reason and by the same route: it
    imports `@/app/actions/documents` to ask for a signed slot, which is a
    `"use server"` module, and every scan panel imports the uploader. Its job is

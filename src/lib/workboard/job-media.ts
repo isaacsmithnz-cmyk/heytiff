@@ -109,6 +109,23 @@ export function isCacheableMedia(fileType: string | null | undefined): boolean {
   return normaliseFileType(fileType) === ".pdf";
 }
 
+/** May the card's own viewer show this file? A PDF in its frame, an image the
+    browser draws — the same two it caches. ServiceM8's images never reach the
+    Documents face (they are the Photos face's), so on that face this is the
+    PDF test for their paper and the image test only for a photograph of a
+    certificate somebody uploaded there. */
+export function opensInCard(fileType: string | null | undefined): boolean {
+  return isCacheableMedia(fileType);
+}
+
+/** The dotted extension the documents bucket's own mime type stands for —
+    how an upload of ours says what it is in the same words ServiceM8 uses. */
+export function fileTypeForMime(mime: string | null | undefined): string | null {
+  const m = (mime ?? "").toLowerCase();
+  const ext = Object.entries(MIME_BY_EXT).find(([, v]) => v === m)?.[0];
+  return ext ? `.${ext}` : null;
+}
+
 /* ── handing a file to storage, and reading its refusal ── */
 
 /** The mime type our own extension implies. The documents bucket enforces an
@@ -214,6 +231,11 @@ export type JobMediaItem = {
       it rises to the job; this says where it came from, which is also how
       anyone would ever notice one filed against the wrong invoice. */
   fromClaim: string | null;
+  /** OURS — a file somebody put on the job from its Documents face: the
+      `documents` row that holds it, and who put it there. Absent on
+      everything ServiceM8 holds, which we may read but never take back off. */
+  documentId?: string;
+  addedBy?: string | null;
 };
 
 export type JobMediaGroups = {

@@ -131,7 +131,7 @@ async function card(viewer: string | null) {
   const { container, unmount } = render(
     <JobDocumentsFace documents={[]} elsewhere={[]} designs={[]} loading={false} truncated={false} onOpen={() => {}} swms={swms} onReviseSwms={() => {}} />
   );
-  const row = container.querySelector(".sw-docrow");
+  const row = container.querySelector(".wb2-docrow");
   const out = {
     lines: row ? [...row.querySelectorAll(".wb2-doc-b em")].map((e) => e.textContent ?? "") : [],
     doors: row ? [...row.querySelectorAll("a.pbtn, button.pbtn")].map((e) => e.textContent ?? "") : [],

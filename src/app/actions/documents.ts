@@ -102,6 +102,9 @@ async function mayUpload(kind: DocumentKind): Promise<boolean> {
   // Site photos and job paperwork come from whoever is ON the job — the
   // board's tick tier, same doctrine as the checklists they sit beside.
   if (kind === "project_file") return can("workboard");
+  // The same tier on a ServiceM8 job: whoever can open the card can file the
+  // paper that belongs on it.
+  if (kind === "job_document") return can("workboard");
   return can("team");
 }
 

@@ -13,6 +13,7 @@ import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "@/lib/studio/document";
 import { addHead, allocationsOf, chooseOutdoor, moveZone } from "@/lib/studio/builder";
 import { claimZone, newSystem } from "@/lib/studio/zones";
+import { sizingCapacityKw } from "@/lib/studio/loads";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -237,6 +238,8 @@ describe("SystemBuilder", () => {
     expect(stat("Type")).toHaveTextContent("Ducted");
     expect(within(band).getByText("PEAD-M125JAA(D)")).toBeInTheDocument();
     expect(within(band).getByText(/serves the whole system/)).toBeInTheDocument();
+    // the band's pipe, from its pair, where its line used to carry it
+    expect(within(band).getByText(/\d+(\.\d+)? \/ \d+(\.\d+)? mm/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Head type: Ducted/ })).toBeInTheDocument();
     // every zone reads the whole-system unit against all the zones' load,
     // and names it as the unit that serves it
@@ -324,6 +327,26 @@ describe("SystemBuilder", () => {
     const rows = [...schematic().querySelectorAll(".ds-sb-row")].filter((r) => r.querySelector(".ds-sb-zone"));
     expect(rows).toHaveLength(2);
     for (const r of rows) expect(r.querySelectorAll(".ds-sb-pipe.h")).toHaveLength(1);
+  });
+
+  /* what the rail took away and Isaac asked back (2026-09-23): each unit's kW
+     on its line, and the pipe size at the right of the zone's word */
+  it("a unit on a zone card shows its kW, and the card the unit's pipe size", () => {
+    const made = claimed(house(), ["bed1", "study"]);
+    const doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "MSZ-AP25VGD2" });
+    render(<SystemBuilder doc={doc} pack={pack} systemId={made.systemId} onCommit={() => {}} onClose={() => {}} />);
+    const row = pack.indoor_units.find((u) => u.model === "MSZ-AP25VGD2")!;
+    const card = zoneCard("Bed 1");
+    expect(card.querySelector(".ds-sb-zone-kw")!.textContent).toBe(
+      `${sizingCapacityKw(row, doc.settings.sizingBasis).toFixed(1)} kW`
+    );
+    // two zones make a multi, and a multi head's line is its own connection
+    expect(card.querySelector(".ds-sb-zone-pipe")!.textContent).toBe(`${row.conn_liquid_mm} / ${row.conn_gas_mm}`);
+    // the word and the pipe share the foot of the card
+    expect(within(card.querySelector(".ds-sb-zone-line.foot") as HTMLElement).getByText("Covered")).toBeInTheDocument();
+    // a zone with nothing in it has neither
+    expect(zoneCard("Study").querySelector(".ds-sb-zone-kw")).toBeNull();
+    expect(zoneCard("Study").querySelector(".ds-sb-zone-pipe")).toBeNull();
   });
 
   /* A multi is a star: every head has its own line pair to the outdoor, so a

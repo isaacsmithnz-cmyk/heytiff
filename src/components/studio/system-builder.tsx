@@ -1440,6 +1440,7 @@ function PipingRail({
                     {[
                       kwText(kwOf(pack, band.model, draft.settings.sizingBasis)),
                       iduRowOf(pack, band.model)?.airflow_ls != null ? `${iduRowOf(pack, band.model)!.airflow_ls} L/s` : null,
+                      view.bandPipe ? `${view.bandPipe} mm` : null,
                       "serves the whole system",
                     ]
                       .filter(Boolean)
@@ -1480,8 +1481,6 @@ function PipingRail({
         {view.zones.map((z, i) => {
           const key = `zone:${z.zone.id}`;
           const aimed = z.zone.id === aimedZoneId;
-          const last = z.lines.length - 1;
-          const inline = !z.cant;
           return (
             <div key={z.zone.id} className="ds-sb-row" style={{ paddingLeft: gutter }}>
               {pipes(zonePipes(z, i))}
@@ -1509,7 +1508,8 @@ function PipingRail({
                   <span className="ds-sb-zone-name">{z.name}</span>
                   <span className="ds-sb-zone-need">{z.loadKw != null ? `${z.loadKw.toFixed(1)} kW` : "No load yet"}</span>
                 </span>
-                {z.lines.map((line, k) => {
+                {/* a unit a line: its model, and its kW at the right */}
+                {z.lines.map((line) => {
                   const isSel = line.mine && selected === line.alloc.id;
                   return (
                     <span key={line.alloc.id} className="ds-sb-zone-line">
@@ -1532,12 +1532,19 @@ function PipingRail({
                           {line.alloc.model}
                         </span>
                       )}
-                      {k === last && inline && z.word.text && (
-                        <span className={`ds-sb-state ${z.word.tone}`}>{z.word.text}</span>
-                      )}
+                      <span className="ds-sb-zone-kw">{kwText(line.kw)}</span>
                     </span>
                   );
                 })}
+                {/* then the zone's word, and the pipe size of its last unit at
+                    the right: a split's from its pair, a multi head's its own
+                    connection */}
+                {z.lines.length > 0 && (
+                  <span className="ds-sb-zone-line foot">
+                    <span className={`ds-sb-state ${z.word.tone}${z.cant ? " wrap" : ""}`}>{z.word.text}</span>
+                    {z.pipe && !z.cant && <span className="ds-sb-zone-pipe">{z.pipe}</span>}
+                  </span>
+                )}
                 {z.lines.length === 0 && (
                   <span className="ds-sb-zone-line">
                     {/* a zone the band feeds has its unit: the one above */}
@@ -1545,7 +1552,6 @@ function PipingRail({
                     {z.word.text && <span className={`ds-sb-state ${z.word.tone}`}>{z.word.text}</span>}
                   </span>
                 )}
-                {!inline && <span className={`ds-sb-state ${z.word.tone}`}>{z.word.text}</span>}
                 {z.slot && (
                   <span
                     className={`ds-sb-slot${over === `slot:${z.zone.id}` ? " over" : ""}`}

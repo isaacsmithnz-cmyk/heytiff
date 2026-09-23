@@ -9898,8 +9898,7 @@ html[data-ds-display] .dstudio.editing {
   border-color: var(--bad-t);
 }
 .ds-sb-zone-top,
-.ds-sb-zone-line,
-.ds-sb-zone > .ds-sb-state {
+.ds-sb-zone-line {
   position: relative;
   pointer-events: none;
 }
@@ -9911,7 +9910,12 @@ html[data-ds-display] .dstudio.editing {
   gap: var(--s-3);
   min-width: 0;
 }
-.ds-sb-zone > .ds-sb-state {
+/* the word and the pipe share a line while they fit; the pipe keeps the
+   right when they do not */
+.ds-sb-zone-line.foot {
+  flex-wrap: wrap;
+}
+.ds-sb-state.wrap {
   white-space: normal;
 }
 .ds-sb-zone-name {
@@ -9924,7 +9928,9 @@ html[data-ds-display] .dstudio.editing {
   text-overflow: ellipsis;
 }
 .ds-sb-zone-need,
-.ds-sb-zone-none {
+.ds-sb-zone-none,
+.ds-sb-zone-kw,
+.ds-sb-zone-pipe {
   font-size: var(--fs-1);
   font-weight: var(--fw-label);
   color: var(--q);
@@ -9960,6 +9966,9 @@ html[data-ds-display] .dstudio.editing {
 .ds-sb-head-model:focus-visible {
   outline: none;
   box-shadow: var(--ring);
+}
+.ds-sb-zone-pipe {
+  margin-left: auto;
 }
 /* another system's unit in a shared zone: read-only, with its system's dot */
 .ds-sb-head-model.other {

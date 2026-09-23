@@ -107,6 +107,17 @@ describe("FaultFinder — walking the tree", () => {
     expect(options).toEqual(["Replace the compressor"]);
   });
 
+  it("a bill that jumped in winter lands on the season, with words for the customer", () => {
+    const { container } = render(<FaultFinder />);
+    pickSymptom(/Costs too much to run/);
+    answer(/It jumped/);
+    answer(/^Winter$/);
+    expect(screen.getByText("Diagnosis")).toBeInTheDocument();
+    expect(container.querySelector(".ffg-outcome h2")).toHaveTextContent(/winter costs more/i);
+    expect(screen.getByText("What to tell the customer")).toBeInTheDocument();
+    expect(container.querySelector(".ffg-outcome .esc")).toBeNull();
+  });
+
   it("names every Toolbox tool the walk can send you to, with no decoration", () => {
     const { container } = render(<FaultFinder />);
     const rail = container.querySelector(".ffg-links")!;

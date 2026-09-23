@@ -3786,7 +3786,15 @@ export function StudioCanvas({
                       ? "Drop it in the room it serves · Esc to cancel"
                       : "Click where the outdoor unit sits · Esc to cancel",
                 }
-              : null;
+              /* picking a system's zones: the card's Add zones started it,
+                 and this corner is where the plan says so (Isaac,
+                 2026-09-23) — the system being built is the active one */
+              : tool === "claim"
+                ? {
+                    icon: "plus",
+                    text: `Select zones to add to ${doc.systems.find((s) => s.id === activeSystemId)?.name ?? "the system"}`,
+                  }
+                : null;
 
   return (
     <div

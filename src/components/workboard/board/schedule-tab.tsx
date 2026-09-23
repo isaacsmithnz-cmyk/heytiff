@@ -33,6 +33,7 @@ import {
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
 import { ToolbarSync } from "./sm8-chip";
 import { useNowMin } from "./use-now-min";
+import { useDoubleClickOpen } from "./use-double-click-open";
 import { FocusInspector } from "./focus-inspector";
 import { Split } from "./inspector";
 
@@ -413,6 +414,37 @@ export function ScheduleTab({
     </div>
   );
 
+  /* WHAT ONE BLOCK IS DOING — asked of lib/workboard/focus.ts, which is the
+     same call the focus card makes. The rail draws the answer as treatment
+     and the card writes it as a word, and the two must not be able to drift
+     apart: a card that says "not started" beside a block drawn as started is
+     worse than either mark alone.
+
+     FILLED MEANS SOMEONE IS ON IT; HOLLOW MEANS IT IS STILL ONLY BOOKED — the
+     three gates and the late case are stated there, over this clock. `nowMin`
+     is null when the browser's date disagrees with the board's, and lateness
+     is then simply not claimed. */
+  const clock: DayClock = {
+    dayISO: openDay,
+    today,
+    nowMin,
+    tracksTime: !!day?.tracksTime,
+  };
+  const blockState = (b: ScheduleBlock) => blockStateOf(b, clock);
+
+  /* THE SHEET'S ONE DOOR from the rail — "Open job" and a double-click on a
+     block both come through here. The day-state rides along so the sheet's
+     header can wear the same reading the rail drew; the statuses the sheet
+     already chips (Quote, Unsuccessful, Completed) stay its own. The panel
+     stays open under the sheet: closing the sheet comes back to the job you
+     were reading. */
+  const openJob = (id: string) => {
+    const job = jobById.get(id);
+    const brought = day ? focusJobOf(day, id, clock) : null;
+    if (job) onOpenJob(job, brought ? dayStateOfMarks(brought.marks) : null);
+  };
+  const armDouble = useDoubleClickOpen(openJob);
+
   /* THE FIRST THING A DISCONNECTED ACCOUNT SEES. Schedule is the landing tab
      of the landing side, and it is the one surface with no native half to
      fall back on — so the gap is explained here or it isn't explained before
@@ -446,24 +478,6 @@ export function ScheduleTab({
      already gone is late in all of it; today needs the browser's clock, and
      without a trustworthy one nothing is claimed. */
   const overdueBefore = openDay < today ? 24 * 60 : openDay === today ? nowMin : null;
-
-  /* WHAT ONE BLOCK IS DOING — asked of lib/workboard/focus.ts, which is the
-     same call the focus card makes. The rail draws the answer as treatment
-     and the card writes it as a word, and the two must not be able to drift
-     apart: a card that says "not started" beside a block drawn as started is
-     worse than either mark alone.
-
-     FILLED MEANS SOMEONE IS ON IT; HOLLOW MEANS IT IS STILL ONLY BOOKED — the
-     three gates and the late case are stated there, over this clock. `nowMin`
-     is null when the browser's date disagrees with the board's, and lateness
-     is then simply not claimed. */
-  const clock: DayClock = {
-    dayISO: openDay,
-    today,
-    nowMin,
-    tracksTime: !!day?.tracksTime,
-  };
-  const blockState = (b: ScheduleBlock) => blockStateOf(b, clock);
 
   const hasBare = day
     ? day.lanes.some((l) => l.blocks.some((b) => !b.tracked && !b.categoryColour))
@@ -515,13 +529,7 @@ export function ScheduleTab({
               day={openDay}
               onClose={closeFocus}
               onOpen={() => {
-                const job = focusJob ? jobById.get(focusJob) : null;
-                /* the day-state rides along so the sheet's header can wear the
-                   same reading the rail drew — the statuses the sheet already
-                   chips (Quote, Unsuccessful, Completed) stay its own. The
-                   panel stays open under the sheet: closing the sheet comes
-                   back to the job you were reading. */
-                if (job) onOpenJob(job, dayStateOfMarks(focus.marks));
+                if (focusJob) openJob(focusJob);
               }}
             />
           ) : null
@@ -698,9 +706,14 @@ export function ScheduleTab({
                                  the sheet directly. Every block does it, crew or
                                  not — a stack of one is still the same rule, and
                                  "Open job" then sits in the same place whatever
-                                 was clicked. */
+                                 was clicked. A double-click opens it: the first
+                                 click arms the block, because by the second the
+                                 rail has re-laid under the pointer. */
                               aria-pressed={b.remoteId === focusJob}
-                            onClick={() => setFocusJob(b.remoteId)}
+                            onClick={(e) => {
+                              armDouble(b.remoteId, e);
+                              setFocusJob(b.remoteId);
+                            }}
                             >
                               {/* THE CLIENT LEADS, the number follows. The name
                                   has the first line to itself; the second line

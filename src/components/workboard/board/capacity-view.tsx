@@ -36,6 +36,7 @@ import { Inspector, Split } from "./inspector";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
 import { ToolbarSync } from "./sm8-chip";
 import { useNowMin } from "./use-now-min";
+import { useDoubleClickOpen } from "./use-double-click-open";
 import type { ScheduleJobState } from "./schedule-tab";
 
 /* Capacity — the Schedule tab's other side: how full each day is, one gauge
@@ -301,6 +302,16 @@ export function CapacityView({
     returnTo.current = null;
   });
 
+  /* The sheet's one door from the day — "Open job" and a double-click on a
+     row. The row a double-click starts on is gone by its second click (the
+     job's card takes the day's place), so the first click arms it. */
+  const openJob = (id: string) => {
+    const job = jobById.get(id);
+    const brought = dayLayout ? focusJobOf(dayLayout, id, clock) : null;
+    if (job) onOpenJob(job, brought ? dayStateOfMarks(brought.marks) : null);
+  };
+  const armDouble = useDoubleClickOpen(openJob);
+
   /* THE DAY IS NOT A DIALOG ANY MORE. The card this replaced sat over a scrim,
      so Escape and Tab had to belong to it and focus landed on it once per day
      opened. The inspector sits beside the grid: focus stays on the cell that
@@ -405,8 +416,7 @@ export function CapacityView({
       onClose={closeDetail}
       onBack={closeFocus}
       onOpen={() => {
-        const job = focusJob ? jobById.get(focusJob) : null;
-        if (job) onOpenJob(job, dayStateOfMarks(focus.marks));
+        if (focusJob) openJob(focusJob);
       }}
     />
   ) : openDay !== null ? (
@@ -428,7 +438,8 @@ export function CapacityView({
         {/* A ROW IS THE BLOCK IT WOULD BE ON THE RAIL: the category's wash,
             its cap on the leading edge, the number as a chip. Clicking one
             brings the job forward — every row does it, crew or not, so the
-            next step is always in the same place. */}
+            next step is always in the same place — and a double-click opens
+            it, as it does on the rail. */}
         {detailJobs.map((row) => (
           <button
             key={row.id}
@@ -444,7 +455,10 @@ export function CapacityView({
               "--chip": row.done ? "rgba(5,5,5,.06)" : row.paint.chip,
               "--btext": row.paint.ink,
             } as CSSProperties}
-            onClick={() => setFocusJob(row.id)}
+            onClick={(e) => {
+              armDouble(row.id, e);
+              setFocusJob(row.id);
+            }}
           >
             <span className="wb2-scdjh">
               <b>{row.clientName ?? "Unnamed client"}</b>

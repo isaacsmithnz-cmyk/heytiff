@@ -30,6 +30,7 @@ import {
   adoptLegacySystem,
   allocationsOf,
   chooseOutdoor,
+  deleteZone,
   moveAllocation,
   moveZone,
   outdoorsListing,
@@ -839,5 +840,50 @@ describe("a unit on the band serves the whole system", () => {
     d = addHead(d, pack, { systemId: made.systemId, zoneId: room.bed1.id, iduModel: "MSZ-AP20VGD" });
     expect(combinationWord(d, pack, sys())).toBe("Fails");
     expect(systemFindings(d, pack, sys()).map((f) => f.code)).toContain("outdoor-takes-one");
+  });
+});
+
+/* ── deleting a zone from the plan (Isaac, 2026-09-23: "i cant delete a room
+   now"). Deleting the object alone left the system claiming a zone that was
+   gone, and its placed heads dropped back into the rack. ── */
+
+describe("a zone deleted from the plan", () => {
+  function twoZones() {
+    const { doc, room } = house();
+    const made = newSystem(doc, pack.meta.version);
+    let d = claimZone(made.doc, made.systemId, room.bed1.id);
+    d = claimZone(d, made.systemId, room.study.id);
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: room.bed1.id, iduModel: "MSZ-AP25VGD2" });
+    d = addHead(d, pack, { systemId: made.systemId, zoneId: room.study.id, iduModel: "MSZ-AP25VGD2" });
+    const bedHead = allocationsOf(d.systems[0]).find((a) => a.role === "idu" && a.roomId === room.bed1.id)!;
+    d = placeAllocation(d, pack, made.systemId, bedHead.id, d.floors[0].id, centreOf(room.bed1));
+    return { doc: d, room, systemId: made.systemId, bedHead: bedHead.id };
+  }
+  const centreOf = (r: RoomObj) => {
+    const p = r.geometry.points;
+    return { x: (p[0].x + p[2].x) / 2, y: (p[0].y + p[2].y) / 2 };
+  };
+
+  it("lets every system that claimed it go, with its heads, placed or not, and goes itself", () => {
+    const t0 = twoZones();
+    expect(t0.doc.objects.some((o) => o.id === t0.bedHead)).toBe(true);
+    const after = deleteZone(t0.doc, pack, t0.room.bed1.id);
+    const sys = after.systems.find((s) => s.id === t0.systemId)!;
+    expect(after.objects.some((o) => o.id === t0.room.bed1.id)).toBe(false);
+    expect(zoneIdsOf(sys)).toEqual([t0.room.study.id]);
+    expect(allocationsOf(sys).some((a) => a.roomId === t0.room.bed1.id)).toBe(false);
+    // the placed head went with it, and nothing waits in the rack for a zone that is gone
+    expect(after.objects.some((o) => o.id === t0.bedHead)).toBe(false);
+    expect(trayItems(after, pack).map((i) => i.allocationId)).not.toContain(t0.bedHead);
+    // the other zone keeps its head, and the outdoor is proposed for what is left
+    expect(allocationsOf(sys).filter((a) => a.role === "idu").map((a) => a.roomId)).toEqual([t0.room.study.id]);
+    expect(allocationsOf(sys).some((a) => a.role === "odu" && a.model)).toBe(true);
+  });
+
+  it("without a pack still lets the claim go", () => {
+    const t0 = twoZones();
+    const after = deleteZone(t0.doc, null, t0.room.bed1.id);
+    expect(zoneIdsOf(after.systems[0])).toEqual([t0.room.study.id]);
+    expect(after.objects.some((o) => o.id === t0.room.bed1.id)).toBe(false);
   });
 });

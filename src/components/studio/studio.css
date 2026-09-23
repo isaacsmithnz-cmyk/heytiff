@@ -6133,6 +6133,15 @@ html[data-ds-display] .dstudio.editing {
 .ds-rm-btn.secondary:hover { background: #e7e9ec; }
 .ds-rm-btn.primary { background: var(--teal, var(--ink)); color: var(--paper); min-width: 104px; }
 .ds-rm-btn.primary:hover { background: var(--teal-d, var(--ink)); }
+/* Delete at the far left of the footer, a quiet word in the danger ink,
+   away from Done and Save */
+.ds-rm-btn.danger {
+  margin-right: auto;
+  border: 0;
+  background: none;
+  color: var(--bad-t);
+}
+.ds-rm-btn.danger:hover { background: var(--tint); }
 
 /* ═════════ summary page (job details + takeoff + printable pack) ═════════ */
 .dstudio .ds-summary { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }

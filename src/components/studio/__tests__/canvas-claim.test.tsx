@@ -107,13 +107,15 @@ function mount(opts: {
   placing?: PlacingUnit | null;
   onClaimToggle?: jest.Mock;
   onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
+  selectedId?: string | null;
+  deleteRoom?: (d: DesignDocument, roomId: string) => DesignDocument;
 }) {
   const utils = render(
     <StudioCanvas
       doc={opts.doc}
       floor={opts.doc.floors[0]}
       tool={opts.tool ?? "select"}
-      selectedId={null}
+      selectedId={opts.selectedId ?? null}
       onSelect={() => {}}
       onMutate={opts.onMutate ?? (() => {})}
       onToolDone={() => {}}
@@ -125,6 +127,7 @@ function mount(opts: {
       iduSpec={() => null}
       onRoomCreated={() => {}}
       onClaimToggle={opts.onClaimToggle}
+      deleteRoom={opts.deleteRoom}
       onRemarkConsumed={() => {}}
       onReshapeConsumed={() => {}}
     />
@@ -338,5 +341,21 @@ describe("the Zone tool", () => {
     } finally {
       process.env[FLAG] = "1";
     }
+  });
+});
+
+/* the Delete key on a selected zone deletes it the host's way: in the zones
+   flow the systems let the zone and its heads go (builder.ts deleteZone) */
+describe("the Delete key on a zone", () => {
+  it("deletes it the way the host says, in one change", () => {
+    const { doc } = house();
+    const made = claimed(doc, ["bed1"]);
+    const commit = captureCommit(made.doc);
+    const deleteRoom = jest.fn((d: DesignDocument, id: string) => ({ ...d, objects: d.objects.filter((o) => o.id !== id) }));
+    mount({ doc: made.doc, selectedId: "bed1", onMutate: commit.onMutate, deleteRoom });
+    fireEvent.keyDown(window, { key: "Delete" });
+    expect(deleteRoom).toHaveBeenCalledTimes(1);
+    expect(deleteRoom.mock.calls[0][1]).toBe("bed1");
+    expect(commit.get().objects.some((o) => o.id === "bed1")).toBe(false);
   });
 });

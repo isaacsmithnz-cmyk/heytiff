@@ -290,3 +290,27 @@ describe("RoomModal — in the zones flow it is a zone", () => {
     expect(screen.getByText("New room")).toBeInTheDocument();
   });
 });
+
+/* DELETE IS A BUTTON, not only a key (Isaac, 2026-09-23: "i cant delete a
+   room now"): at the left of the footer on both faces, named for the thing */
+describe("RoomModal — Delete", () => {
+  it("offers Delete zone on both faces, and it asks the host to delete", () => {
+    const onDelete = jest.fn();
+    const setup = render(
+      <RoomModal doc={docWithRoom()} roomId="room1" word="Zone" onMutate={() => {}} onClose={() => {}} onDelete={onDelete} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Delete zone" }));
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    setup.unmount();
+    const d = docWithRoom();
+    d.objects[0].props.configured = true;
+    render(<RoomModal doc={d} roomId="room1" word="Zone" onMutate={() => {}} onClose={() => {}} onDelete={onDelete} />);
+    fireEvent.click(screen.getByRole("button", { name: "Delete zone" }));
+    expect(onDelete).toHaveBeenCalledTimes(2);
+  });
+
+  it("has no Delete where the host gives no way to delete", () => {
+    render(<RoomModal doc={docWithRoom()} roomId="room1" onMutate={() => {}} onClose={() => {}} />);
+    expect(screen.queryByRole("button", { name: /^Delete/ })).toBeNull();
+  });
+});

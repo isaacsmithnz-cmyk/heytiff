@@ -1403,13 +1403,18 @@ function Schematic({
      wall heads is a drop target for something nobody is holding */
   const wholeSystemType = headType === "ducted" || headType === "bulkhead";
   const showBand = Boolean(band) || wholeSystemType;
-  const l = layout(view.zones.length + 1, cardH, view.strays.length, showBand);
-  const addBox = l.boxes[l.boxes.length - 1];
+  /* Add zone is there only while there is a zone to add: one without a
+     system, or one another system has (Isaac, 2026-09-23). With every zone
+     on this system it would open on a list of nothing. */
+  const toAdd = zonesToAdd(draft, sys.id);
+  const canAdd = toAdd.length > 0;
+  const l = layout(view.zones.length + (canAdd ? 1 : 0), cardH, view.strays.length, showBand);
+  const addBox = canAdd ? l.boxes[l.boxes.length - 1] : null;
   const source = band ? l.band : l.out;
   /* ADD ZONE IS NOT WIRED IN. It sits in the grid so it reads as the next
      card along, but it is a control, not a zone: the trunk ran into it and
-     drew the system as serving a button. Every card but the last is wired. */
-  const trunk = busPath(l, source.x + source.w / 2, source.y + source.h, l.boxes.slice(0, -1));
+     drew the system as serving a button. Every zone card is wired. */
+  const trunk = busPath(l, source.x + source.w / 2, source.y + source.h, canAdd ? l.boxes.slice(0, -1) : l.boxes);
   const oduModel = view.odu?.model ?? "";
   const valid = view.combination === "Valid";
 
@@ -1425,7 +1430,6 @@ function Schematic({
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
   }, [addZoneOpen, onCloseAddZone]);
-  const toAdd = addZoneOpen ? zonesToAdd(draft, sys.id) : [];
   const free = toAdd.filter((z) => z.sharedWith.length === 0);
   const taken = toAdd.filter((z) => z.sharedWith.length > 0);
 
@@ -1707,27 +1711,29 @@ function Schematic({
         })}
 
         {/* the last card claims another of the plan's zones */}
-        <g
-          ref={addZoneCard}
-          className={`ds-sb-add${addZoneOpen ? " on" : ""}`}
-          role="button"
-          tabIndex={0}
-          aria-haspopup="dialog"
-          aria-expanded={addZoneOpen}
-          onClick={(e) => {
-            e.stopPropagation();
-            onAddZone();
-          }}
-          onKeyDown={pressKeys(onAddZone)}
-        >
-          <rect x={addBox.x} y={addBox.y} width={addBox.w} height={addBox.h} rx={10} />
-          <text x={addBox.x + addBox.w / 2} y={addBox.y + addBox.h / 2 + 5} textAnchor="middle">
-            Add zone
-          </text>
-        </g>
+        {addBox && (
+          <g
+            ref={addZoneCard}
+            className={`ds-sb-add${addZoneOpen ? " on" : ""}`}
+            role="button"
+            tabIndex={0}
+            aria-haspopup="dialog"
+            aria-expanded={addZoneOpen}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddZone();
+            }}
+            onKeyDown={pressKeys(onAddZone)}
+          >
+            <rect x={addBox.x} y={addBox.y} width={addBox.w} height={addBox.h} rx={10} />
+            <text x={addBox.x + addBox.w / 2} y={addBox.y + addBox.h / 2 + 5} textAnchor="middle">
+              Add zone
+            </text>
+          </g>
+        )}
       </svg>
 
-      {addZoneOpen && (
+      {addZoneOpen && addBox && (
         <div
           ref={addZoneBox}
           className="ds-sb-addzone"
@@ -1736,7 +1742,6 @@ function Schematic({
           style={{ left: addBox.x, top: addBox.y }}
           onClick={(e) => e.stopPropagation()}
         >
-          {toAdd.length === 0 && <p className="ds-sb-addzone-none">Every zone on the plan is on this system.</p>}
           {free.length > 0 && <p className="ds-sb-addzone-label">Without a system</p>}
           {free.map(({ zone }) => (
             <button key={zone.id} type="button" className="ds-sb-addzone-opt" onClick={() => onClaim(zone.id)}>

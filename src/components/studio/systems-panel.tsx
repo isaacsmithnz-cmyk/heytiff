@@ -17,6 +17,11 @@
    the bench tray did; the card stays mounted through the drag (Chrome ends a
    drag whose source unmounts).
 
+   Claim mode shows here and nowhere else: the plan has no bar over it. While
+   a card's zones are being clicked on the plan its Add zones reads Done, and
+   the chips arrive in front of it; closing the card, or opening another,
+   ends the claim as Done does, so it never runs on out of sight.
+
    A zone dragged from one card onto another moves with its units (moveZone);
    dragged from Zones without a system onto a card it joins the system; a chip
    dropped on that list, like its cross, takes the zone off. Drop targets
@@ -94,6 +99,8 @@ export function SystemsPanel({
   onActivate,
   onAddSystem,
   onAddZones,
+  claiming = null,
+  onClaimDone,
   onBuild,
   onInstall,
   onDeleteSystem,
@@ -110,6 +117,10 @@ export function SystemsPanel({
   onAddSystem: () => void;
   /** Add zones: the plan goes into claim mode for this system */
   onAddZones: (systemId: string) => void;
+  /** the system whose zones are being clicked on the plan, if any */
+  claiming?: string | null;
+  /** ends claim mode, as Escape does */
+  onClaimDone: () => void;
   /** Build system, and Edit system once a unit is in */
   onBuild: (systemId: string) => void;
   onInstall: (systemId: string) => void;
@@ -167,6 +178,9 @@ export function SystemsPanel({
   );
 
   const free = unclaimedZones(doc);
+  /* a zone here is dragged onto a system's card to join it; with no system yet
+     there is nothing to drop it on, so the row is a line to read — no grip */
+  const canJoin = doc.systems.length > 0;
   const openId = activeSystemId && rested !== activeSystemId ? activeSystemId : null;
 
   return (
@@ -196,12 +210,18 @@ export function SystemsPanel({
             sys={sys}
             open={openId === sys.id}
             over={over === `sys:${sys.id}`}
+            claiming={claiming === sys.id}
             onOpen={() => {
+              if (claiming && claiming !== sys.id) onClaimDone();
               setRested(null);
               onActivate(sys.id);
             }}
-            onRest={() => setRested(sys.id)}
+            onRest={() => {
+              if (claiming === sys.id) onClaimDone();
+              setRested(sys.id);
+            }}
             onAddZones={() => onAddZones(sys.id)}
+            onClaimDone={onClaimDone}
             onBuild={() => onBuild(sys.id)}
             onInstall={() => onInstall(sys.id)}
             onDelete={() => onDeleteSystem(sys.id)}
@@ -216,7 +236,7 @@ export function SystemsPanel({
         <div className="ds-zp-freewrap">
         <div className="ds-zp-lbl">Zones without a system</div>
         <div
-          className={`ds-zp-free${over === "free" ? " drop" : ""}`}
+          className={`ds-zp-free${over === "free" ? " over" : ""}`}
           data-drop="free"
           onDragEnter={enter}
           onDragLeave={leave}
@@ -227,14 +247,18 @@ export function SystemsPanel({
           {free.map((z) => (
             <div
               key={z.id}
-              className="ds-zp-row"
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData(ZONE_DRAG, JSON.stringify({ zoneId: z.id, from: null }));
-                e.dataTransfer.effectAllowed = "move";
-              }}
+              className={`ds-zp-row${canJoin ? "" : " plain"}`}
+              draggable={canJoin}
+              onDragStart={
+                canJoin
+                  ? (e) => {
+                      e.dataTransfer.setData(ZONE_DRAG, JSON.stringify({ zoneId: z.id, from: null }));
+                      e.dataTransfer.effectAllowed = "move";
+                    }
+                  : undefined
+              }
             >
-              <GripGlyph />
+              {canJoin && <GripGlyph />}
               <span className="ds-zp-row-name">{zoneName(z)}</span>
               <span className="ds-zp-row-kw">{kwText(roomLoadKw(doc, z))}</span>
             </div>
@@ -253,9 +277,11 @@ function SystemCard({
   sys,
   open,
   over,
+  claiming,
   onOpen,
   onRest,
   onAddZones,
+  onClaimDone,
   onBuild,
   onInstall,
   onDelete,
@@ -272,9 +298,12 @@ function SystemCard({
   sys: DesignSystem;
   open: boolean;
   over: boolean;
+  /** its zones are being clicked on the plan */
+  claiming: boolean;
   onOpen: () => void;
   onRest: () => void;
   onAddZones: () => void;
+  onClaimDone: () => void;
   onBuild: () => void;
   onInstall: () => void;
   onDelete: () => void;
@@ -298,7 +327,7 @@ function SystemCard({
 
   return (
     <section
-      className={`ds-zp-card${open ? " open" : ""}${over ? " drop" : ""}`}
+      className={`ds-zp-card${open ? " open" : ""}${over ? " over" : ""}`}
       style={{ "--sc": sys.colour } as React.CSSProperties}
       aria-label={sys.name}
       data-drop={`sys:${sys.id}`}
@@ -348,10 +377,16 @@ function SystemCard({
                 </button>
               </span>
             ))}
-            <button className="ds-zp-addzones" onClick={onAddZones}>
-              <PlusGlyph />
-              Add zones
-            </button>
+            {claiming ? (
+              <button className="ds-zp-addzones on" onClick={onClaimDone}>
+                Done
+              </button>
+            ) : (
+              <button className="ds-zp-addzones" onClick={onAddZones}>
+                <PlusGlyph />
+                Add zones
+              </button>
+            )}
           </div>
           {kind !== "empty" && (
             <dl className="ds-zp-facts">
@@ -440,7 +475,10 @@ function Rack({
         return (
           <div
             key={item.key}
-            className={`ds-zp-unit ${item.role}`}
+            /* the role as data, not a class: shell.css styles a bare `.odu`
+               (a gauge card) and this row wore its inset shadow */
+            className="ds-zp-unit"
+            data-role={item.role}
             draggable
             onDragStart={(e) => {
               if (e.dataTransfer) {

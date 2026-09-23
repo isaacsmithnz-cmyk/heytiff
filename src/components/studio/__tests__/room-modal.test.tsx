@@ -2,6 +2,8 @@
    the inputs. Area is derived from the polygon; the kW recomputes on input
    change from the Stage-3 engine. */
 
+import { readFileSync } from "fs";
+import { join } from "path";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { RoomModal } from "../room-modal";
 import {
@@ -226,5 +228,26 @@ describe("RoomModal — setup vs review", () => {
     expect(screen.getByPlaceholderText("e.g. Living / Dining")).toBeInTheDocument();
     expect(screen.queryByTestId("units-slot")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save room" })).toBeInTheDocument();
+  });
+});
+
+/* The units slot wears `.dstudio` for the studio's tokens (the modal portals
+   to body), and `.dstudio` is also the PAGE's root: a flex column at least a
+   screen tall. Unless the slot undoes that height, the dialog stands a screen
+   tall round two lines of units (Isaac, 2026-09-23: "a bit big for what it
+   is"). jsdom lays nothing out, so this reads the stylesheet. */
+describe("RoomModal — the units slot's .dstudio", () => {
+  it("undoes the page root's height, so the dialog is as tall as what is in it", () => {
+    const css = readFileSync(join(process.cwd(), "src/components/studio/studio.css"), "utf8").replace(
+      /\/\*[\s\S]*?\*\//g,
+      ""
+    );
+    const body = (selector: string): string => {
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`(?:^|\\})\\s*${escaped}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? "";
+    };
+    // the root does lay a height down: the thing this guards against
+    expect(body(".dstudio")).toMatch(/(^|;)\s*min-height:\s*calc\(/);
+    expect(body(".ds-rm-units.dstudio")).toMatch(/(^|;)\s*min-height:\s*0\s*(;|$)/);
   });
 });

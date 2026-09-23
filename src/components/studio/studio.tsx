@@ -2454,6 +2454,7 @@ function Editor({
         <RoomModal
           doc={doc}
           roomId={editingRoomId}
+          word={builder ? "Zone" : "Room"}
           onMutate={mutate}
           onClose={() => setEditingRoomId(null)}
           onRemarkWalls={(id) => {

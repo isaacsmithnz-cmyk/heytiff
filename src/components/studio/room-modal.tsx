@@ -53,8 +53,8 @@ const NAME_CHIPS = [
   "Bathroom",
   "Office",
 ];
-const TIP_GLAZING =
-  "Amount of glass in the room. Low (double glazed) reduces load by 20%. High (large or single glazed) increases it by 24%.";
+const tipGlazing = (thing: string) =>
+  `Amount of glass in the ${thing}. Low (double glazed) reduces load by 20%. High (large or single glazed) increases it by 24%.`;
 const TIP_CONDITION =
   "Building envelope quality. Well insulated reduces load by 15%. Poor insulation increases it by 20%. Standard = no adjustment.";
 const TIP_ORIENT =
@@ -79,6 +79,7 @@ export function RoomModal({
   onEditShape,
   onOpenReference,
   unitsSection,
+  word = "Room",
 }: {
   doc: DesignDocument;
   roomId: string;
@@ -97,7 +98,11 @@ export function RoomModal({
       the ROOM — it should not have to learn the shape of a system to show
       them. */
   unitsSection?: React.ReactNode;
+  /** what the thing is called: a zone in the zones flow, where rooms are
+      zones (Isaac, 2026-09-23: "rename room to zone in the popup") */
+  word?: "Room" | "Zone";
 }) {
+  const thing = word.toLowerCase();
   const room = useMemo(() => doc.objects.find((o) => o.id === roomId), [doc.objects, roomId]);
   const floor = useMemo(
     () => (room ? doc.floors.find((f) => f.id === room.floorId) : null),
@@ -178,7 +183,7 @@ export function RoomModal({
   const [draft, setDraft] = useState<Draft>(() => {
     const p = (room?.props ?? {}) as Record<string, unknown>;
     return {
-      name: String(p.name ?? "Room"),
+      name: String(p.name ?? word),
       glazing: (p.glazing as GlazingLevel) ?? "moderate",
       condition: (p.condition as RoomCondition) ?? "standard",
       ceilingHeightM: typeof p.ceilingHeightM === "number" ? p.ceilingHeightM : 2.4,
@@ -257,7 +262,7 @@ export function RoomModal({
               ...o,
               props: {
                 ...o.props,
-                name: draft.name.trim() || "Room",
+                name: draft.name.trim() || word,
                 glazing: draft.glazing,
                 condition: draft.condition,
                 ceilingHeightM: draft.ceilingHeightM,
@@ -301,7 +306,7 @@ export function RoomModal({
         className="ds-rm"
         role="dialog"
         aria-modal="true"
-        aria-label="Configure room"
+        aria-label={`Configure ${thing}`}
         style={{ transform: `translate(${drag.dx}px, ${drag.dy}px)` }}
       >
         <header className="ds-rm-head ds-rm-drag" onPointerDown={onHeadPointerDown}>
@@ -310,7 +315,7 @@ export function RoomModal({
                 face carries it on the green banner, and the wizard has it in
                 the Room name field a line below */}
             <span className={`ds-rm-mode${isEdit ? " edit" : ""}`}>
-              {isEdit ? "Edit room" : "New room"}
+              {isEdit ? `Edit ${thing}` : `New ${thing}`}
             </span>
           </div>
           <button className="ds-ub-close" onClick={onClose} aria-label="Close">
@@ -327,7 +332,7 @@ export function RoomModal({
                   different treatments of one number (Isaac, 2026-08-25) */}
               <div className="ds-rm-load">
                 <div>
-                  <div className="ds-rm-load-t">{draft.name || "Room"}</div>
+                  <div className="ds-rm-load-t">{draft.name || word}</div>
                   <div className="ds-rm-load-sub">
                     {areaM2 != null
                       ? `${trimM(areaM2)} m², Zone ${activeZone}, ${wm2} W/m²`
@@ -356,7 +361,7 @@ export function RoomModal({
           <>
           {/* name + quick-pick chips */}
           <div className="ds-rm-field">
-            <span>Room name</span>
+            <span>{word} name</span>
             <input
               autoFocus
               className="ds-rm-name"
@@ -453,7 +458,7 @@ export function RoomModal({
             <label className="ds-rm-field">
               <span>
                 Glazing
-                <i className="ds-tip tip-l" data-tip={TIP_GLAZING}>
+                <i className="ds-tip tip-l" data-tip={tipGlazing(thing)}>
                   i
                 </i>
               </span>
@@ -572,13 +577,13 @@ export function RoomModal({
               >
                 <path d="M2.5 4.5V2.5h2M9.5 2.5h2v2M11.5 9.5v2h-2M4.5 11.5h-2v-2" />
               </svg>
-              Edit room shape — resize or move it on the plan
+              Edit {thing} shape — resize or move it on the plan
             </button>
           )}
 
           {noSolar && (
             <div className="ds-rm-note">
-              No external walls marked — treated as an internal / party room (no
+              No external walls marked — treated as an internal / party {thing} (no
               solar gain, ×1.00).
             </div>
           )}
@@ -623,7 +628,7 @@ export function RoomModal({
                 Cancel
               </button>
               <button className="ds-rm-btn primary" onClick={save}>
-                Save room
+                Save {thing}
               </button>
             </>
           ) : (

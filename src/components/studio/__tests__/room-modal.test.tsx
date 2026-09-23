@@ -4,7 +4,7 @@
 
 import { readFileSync } from "fs";
 import { join } from "path";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { RoomModal } from "../room-modal";
 import {
   createDesign,
@@ -249,5 +249,44 @@ describe("RoomModal — the units slot's .dstudio", () => {
     // the root does lay a height down: the thing this guards against
     expect(body(".dstudio")).toMatch(/(^|;)\s*min-height:\s*calc\(/);
     expect(body(".ds-rm-units.dstudio")).toMatch(/(^|;)\s*min-height:\s*0\s*(;|$)/);
+  });
+});
+
+/* THE ZONES FLOW CALLS A ROOM A ZONE (Isaac, 2026-09-23: "rename room to zone
+   in the popup"). Nothing a person reads in the popup says room: its words,
+   its buttons, its labels, its tips. The zone's own name is its own. */
+describe("RoomModal — in the zones flow it is a zone", () => {
+  const said = (el: HTMLElement): string =>
+    [el, ...el.querySelectorAll<HTMLElement>("*")]
+      .flatMap((n) => [
+        n === el ? (el.textContent ?? "") : "",
+        ...["aria-label", "title", "data-tip", "placeholder"].map((a) => n.getAttribute(a) ?? ""),
+      ])
+      .join(" ");
+
+  it("says zone on both faces, and room nowhere", () => {
+    const wizard = render(
+      <RoomModal doc={docWithRoom()} roomId="room1" word="Zone" onMutate={() => {}} onClose={() => {}} onEditShape={() => {}} onRemarkWalls={() => {}} />
+    );
+    const setup = screen.getByRole("dialog", { name: "Configure zone" });
+    expect(within(setup).getByText("New zone")).toBeInTheDocument();
+    expect(within(setup).getByText("Zone name")).toBeInTheDocument();
+    expect(within(setup).getByRole("button", { name: "Save zone" })).toBeInTheDocument();
+    expect(within(setup).getByText(/^Edit zone shape/)).toBeInTheDocument();
+    expect(said(setup)).not.toMatch(/\broom\b/i);
+    wizard.unmount();
+
+    const d = docWithRoom();
+    d.objects[0].props.configured = true;
+    render(<RoomModal doc={d} roomId="room1" word="Zone" onMutate={() => {}} onClose={() => {}} />);
+    const review = screen.getByRole("dialog", { name: "Configure zone" });
+    expect(within(review).getByText("Edit zone")).toBeInTheDocument();
+    expect(said(review)).not.toMatch(/\broom\b/i);
+  });
+
+  it("outside the zones flow it is still a room", () => {
+    render(<RoomModal doc={docWithRoom()} roomId="room1" onMutate={() => {}} onClose={() => {}} />);
+    expect(screen.getByRole("dialog", { name: "Configure room" })).toBeInTheDocument();
+    expect(screen.getByText("New room")).toBeInTheDocument();
   });
 });

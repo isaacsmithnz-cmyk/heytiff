@@ -103,16 +103,17 @@ describe("ToolboxScreen", () => {
   /* A CATEGORY WITH NO TOOLS IS NOT A SHELF. "Design Tools" was a permanently
      empty quarter of the grid reading "Nothing here yet", and it collided with
      "Design Studio, VRF design canvas" — a live rail row two items above it.
-     Someone hunting for a design tool clicked the empty card while the real
-     one sat in the nav. The registry entry stays; it gets a chip with the
-     first tool that lands on it. */
-  it("does not render a category that has no tools", () => {
-    render(<ToolboxScreen today={TODAY} />);
-    const empty = TOOL_CATEGORIES.filter((c) => c.tools.length === 0);
-    expect(empty.length).toBeGreaterThan(0); // or this test proves nothing
-    for (const cat of empty) {
-      expect(screen.queryByText(cat.title)).not.toBeInTheDocument();
+     The screen stopped drawing empty categories (#382), which made the entry
+     invisible, and it sat invisible in the registry for six weeks. Isaac
+     deleted it on 2026-09-23: the rule is now that the registry holds no empty
+     shelf at all, and the screen's own guard against drawing one stays as
+     belt and braces. */
+  it("the registry holds no category without a tool", () => {
+    for (const cat of TOOL_CATEGORIES) {
+      expect(cat.tools.length).toBeGreaterThan(0);
     }
+    render(<ToolboxScreen today={TODAY} />);
+    expect(screen.queryByText("Design Tools")).not.toBeInTheDocument();
     expect(screen.queryByText("Nothing here yet")).not.toBeInTheDocument();
   });
 

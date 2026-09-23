@@ -101,14 +101,6 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
     ],
   },
   {
-    key: "design",
-    title: "Design Tools",
-    sub: "System design & layout",
-    icon: "layers",
-    accent: "#007fa8",
-    tools: [],
-  },
-  {
     key: "reference",
     /* "Reference Library" until the naming pass: the app had four things
        called a library, and the only one that should own the word outright is

@@ -73,20 +73,14 @@ import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones"
 import { blockingFindings, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
 import { InstallQuestions } from "./install-questions";
-import { installState } from "@/lib/studio/install";
 import { builderEnabled, isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
 import { SystemBuilder, ZoneStanding } from "./system-builder";
-import {
-  allocationsOf,
-  hasAllocations,
-  releaseSystem,
-  moveZone,
-  removeZone,
-} from "@/lib/studio/builder";
+import { releaseSystem, moveZone, removeZone } from "@/lib/studio/builder";
 import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import {
   itemsToPlace,
   nextMove,
+  nextMoveZones,
   panelRests,
   unitsVerb,
   type NextMove,
@@ -1575,23 +1569,7 @@ function Editor({
      Clicking ARMS the move — the chip is a control, not a caption. ── */
   const next = useMemo((): NextMove | null => {
     if (!builder) return nextMove(doc, pack, effectiveSystemId);
-    /* the zones flow: draw the zones, add a system, build it, place its
-       units (from its card), answer its install questions */
-    const rooms = doc.objects.filter((o) => o.type === "room");
-    if (rooms.length === 0) return { key: "draw-room", label: "Draw a zone" };
-    if (doc.systems.length === 0) return { key: "add-system", label: "Add a system" };
-    const unbuilt = doc.systems.find((s) => !hasAllocations(s) || !allocationsOf(s).some((a) => a.model));
-    if (unbuilt) return { key: "build-system", label: "Build system", systemId: unbuilt.id };
-    if (pack) {
-      const placed = new Set(doc.objects.map((o) => o.id));
-      const waiting = doc.systems.find(
-        (s) => hasAllocations(s) && allocationsOf(s).some((a) => a.model && !placed.has(a.id))
-      );
-      if (waiting) return null;
-      const asking = doc.systems.find((s) => installState(doc, pack, s) !== "complete");
-      if (asking) return { key: "install", label: "Install questions", systemId: asking.id };
-    }
-    return null;
+    return nextMoveZones(doc, pack);
   }, [builder, doc, pack, effectiveSystemId]);
 
   /* the chip's pair choice — the same write UnitsSub's picker commits: the
@@ -1791,6 +1769,9 @@ function Editor({
       case "add-system":
         onAddSystem();
         break;
+      case "add-zones":
+        startClaim(next.systemId);
+        break;
       case "build-system":
         onBuildSystem(next.systemId);
         break;
@@ -1808,7 +1789,7 @@ function Editor({
         onStep(2);
         break;
     }
-  }, [next, changeTool, armPlace, onStep, openUnits, onAddSystem, onBuildSystem, onInstallSystem]);
+  }, [next, changeTool, armPlace, onStep, openUnits, onAddSystem, startClaim, onBuildSystem, onInstallSystem]);
 
   /* ── the Units verb (bar, System group): browse → arm IDU → arm ODU →
      browse again as a swap. Pressing it while a unit rides the cursor

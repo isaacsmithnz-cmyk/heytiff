@@ -424,6 +424,10 @@ function SystemCard({
             </dl>
           )}
           {status.tone === "bad" && <div className="ds-zp-status bad">{status.text}</div>}
+          {/* a system with no zone yet has nothing to build for: its next
+              step is Add zones, above, and Build system waits for a zone
+              (Isaac, 2026-09-23) */}
+          {(kind !== "empty" || zones.length > 0) && (
           <div className="ds-zp-next">
             {kind === "empty" ? (
               <button className="ds-zp-primary" onClick={onBuild}>
@@ -446,6 +450,7 @@ function SystemCard({
               </>
             )}
           </div>
+          )}
         </>
       )}
     </section>

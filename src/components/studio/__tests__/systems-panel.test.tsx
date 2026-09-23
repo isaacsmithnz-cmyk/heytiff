@@ -386,8 +386,19 @@ describe("SystemsPanel — the open card", () => {
     expect(facts.get("Combination")).toHaveClass("ok");
   });
 
-  it("a new empty system offers Build system as its next step, and no Edit system", () => {
+  /* Build system waits for a zone: a system with none has nothing to build
+     for, and its next step is Add zones (Isaac, 2026-09-23) */
+  it("a new system with no zone offers no Build system: its next step is Add zones", () => {
     const made = newSystem(house().doc, mePack.meta.version);
+    mount(made.doc, made.systemId);
+    const el = card("System 1");
+    expect(within(el).queryByRole("button", { name: "Build system" })).toBeNull();
+    expect(el.querySelector(".ds-zp-next")).toBeNull();
+    expect(within(el).getByRole("button", { name: "Add zones" })).toBeInTheDocument();
+  });
+
+  it("an empty system with a zone offers Build system as its next step, and no Edit system", () => {
+    const made = claimed(house().doc, ["bed1"]);
     const { onBuild } = mount(made.doc, made.systemId);
     const el = card("System 1");
     expect(within(el).queryByRole("button", { name: "Edit system" })).toBeNull();

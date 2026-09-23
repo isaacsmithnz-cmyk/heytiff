@@ -7,7 +7,7 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { SystemBuilder } from "../system-builder";
+import { SystemBuilder, ZoneStanding } from "../system-builder";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "@/lib/studio/document";
@@ -401,5 +401,50 @@ describe("SystemBuilder", () => {
     // and the card it will fill says so
     expect(zoneCard("Study")).toHaveClass("aimed");
     expect(zoneCard("Bed 1")).not.toHaveClass("aimed");
+  });
+});
+
+/* A ZONE'S POPUP IS ABOUT THE ZONE (Isaac, 2026-09-23: "It says build
+   systems. For clicking on one room. It doesn't seem to make sense"). What
+   serves it is one line with its card's word, and the way in is that
+   system's editor, open on this zone. */
+describe("ZoneStanding, in the zone's popup", () => {
+  it("says what serves the zone and how it stands, and opens that system's editor on the zone", () => {
+    const made = claimed(house(), ["bed1", "study"]);
+    const doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "MSZ-AP25VGD2" });
+    const onEditSystem = jest.fn();
+    const { container } = render(<ZoneStanding doc={doc} pack={pack} zoneId="bed1" onEditSystem={onEditSystem} />);
+    expect(container.querySelector(".ds-sb-roomunits-line")!.textContent).toBe("MSZ-AP25VGD2 on System 1, Covered");
+    expect(screen.getByText("Covered")).toHaveClass("ok");
+    expect(screen.queryByRole("button", { name: "Build systems" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Edit System 1" }));
+    expect(onEditSystem).toHaveBeenCalledWith(made.systemId, "bed1");
+  });
+
+  it("reads an empty zone the way its card in the editor does", () => {
+    const made = claimed(house(), ["bed1", "study"]);
+    const doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "MSZ-AP25VGD2" });
+    const popup = render(<ZoneStanding doc={doc} pack={pack} zoneId="study" onEditSystem={() => {}} />);
+    const word = popup.container.querySelector(".ds-sb-word")!.textContent!;
+    expect(popup.container.querySelector(".ds-sb-roomunits-line")!.textContent).toBe(`No unit yet on System 1, ${word}`);
+    popup.unmount();
+    render(<SystemBuilder doc={doc} pack={pack} systemId={made.systemId} onCommit={() => {}} onClose={() => {}} />);
+    expect(zoneCard("Study").querySelector(".ds-sb-zone-line .ds-sb-state")!.textContent).toBe(word);
+    expect(word).toMatch(/^\d+\.\d kW short$/);
+  });
+
+  it("a zone no system has claimed says so, and offers nothing", () => {
+    render(<ZoneStanding doc={house()} pack={pack} zoneId="bed1" onEditSystem={() => {}} />);
+    expect(screen.getByText("No system yet")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("the editor it opens starts on that zone", () => {
+    const made = claimed(house(), ["bed1", "study"]);
+    render(
+      <SystemBuilder doc={made.doc} pack={pack} systemId={made.systemId} aimZoneId="study" onCommit={() => {}} onClose={() => {}} />
+    );
+    expect(screen.getByRole("button", { name: "Put the next unit in Study" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Put the next unit in Bed 1" })).toHaveAttribute("aria-pressed", "false");
   });
 });

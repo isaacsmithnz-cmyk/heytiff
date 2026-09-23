@@ -10404,18 +10404,26 @@ html[data-ds-display] .dstudio.editing {
   align-items: flex-start;
   gap: var(--s-3);
 }
-.ds-sb-roomunits ul {
-  list-style: none;
+/* what serves the zone, a system a line, and the zone's word at the end */
+.ds-sb-roomunits-line {
   margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
+  font-size: var(--fs-3);
+  color: var(--ink);
 }
-.ds-sb-roomunits li {
+.ds-sb-roomunits-sys {
+  display: block;
+}
+.ds-sb-roomunits-sys b {
+  font-weight: var(--fw-heading);
+}
+.ds-sb-roomunits-line .ds-sb-word {
+  font-size: var(--fs-3);
+  font-weight: var(--fw-heading);
+}
+.ds-sb-roomunits-acts {
   display: flex;
-  align-items: baseline;
-  gap: var(--s-3);
+  flex-wrap: wrap;
+  gap: var(--s-2);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

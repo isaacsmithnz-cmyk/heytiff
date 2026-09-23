@@ -42,6 +42,7 @@ import {
   retypeSystem,
   systemKind,
   systemZones,
+  zoneIdsOf,
   type SystemFamily,
   type SystemKind,
 } from "@/lib/studio/zones";
@@ -452,6 +453,7 @@ export function SystemBuilder({
   focus,
   systemId = null,
   start: startFrom,
+  aimZoneId = null,
   onCommit,
   onClose,
 }: {
@@ -466,6 +468,9 @@ export function SystemBuilder({
       system whose units it cannot take, so Done is off until it can and
       Discard changes undoes the move */
   start?: DesignDocument;
+  /** open with this zone chosen, so Add puts the next unit in it — the
+      zone's own popup opens its system's editor this way */
+  aimZoneId?: string | null;
   /** Done: the built design, as one change */
   onCommit: (next: DesignDocument) => void;
   onClose: () => void;
@@ -607,7 +612,7 @@ export function SystemBuilder({
      and there was no way to say Study. Clicking a zone card aims it; until
      one is clicked the first empty zone is the default, which is where you
      would have wanted it anyway. */
-  const [aimedZone, setAimedZone] = useState<string | null>(null);
+  const [aimedZone, setAimedZone] = useState<string | null>(aimZoneId);
   const addTarget = view
     ? ((aimedZone ? view.zones.find((z) => z.zone.id === aimedZone) : null) ??
        view.zones.find((z) => !z.lines.some((l) => l.mine)) ??
@@ -1131,6 +1136,80 @@ function OutdoorSide({ view, basis }: { view: SystemView; basis: SizingBasis }) 
           </>
         )}
       </dl>
+    </div>
+  );
+}
+
+/* ─────────────────────────── a zone's standing ─────────────────────────── */
+
+/** how a zone stands, for the zone's own popup: the units of each system that
+    claims it (a system's band unit feeds every zone it has), and the zone's
+    word — read off the same view the editor draws, so the popup and the
+    zone's card in the editor can never say two things */
+export function zoneStanding(
+  doc: DesignDocument,
+  pack: DataPack,
+  basis: SizingBasis,
+  zoneId: string
+): { systems: { sys: DesignSystem; models: string[] }[]; word: Word } | null {
+  const claims = doc.systems.filter((s) => zoneIdsOf(s).includes(zoneId));
+  if (!claims.length) return null;
+  const views = claims.map((s) => readSystem(doc, pack, basis, s));
+  const systems = views.map((v) => {
+    const z = v.zones.find((x) => x.zone.id === zoneId);
+    const mine = z ? z.lines.filter((l) => l.mine).map((l) => l.alloc.model) : [];
+    return { sys: v.sys, models: mine.length ? mine : v.bandUnits.map((a) => a.model) };
+  });
+  const first = views[0].zones.find((x) => x.zone.id === zoneId);
+  return { systems, word: first ? first.word : { text: "", tone: "quiet" } };
+}
+
+/* A ZONE'S POPUP IS ABOUT THE ZONE (Isaac, 2026-09-23). What serves it is
+   one line with the word its card in the editor says, and the way in is
+   that system's editor, open on this zone. It offered "Build systems",
+   which opened whichever system's card was open in the panel and forgot
+   the zone it came from. */
+export function ZoneStanding({
+  doc,
+  pack,
+  zoneId,
+  onEditSystem,
+}: {
+  doc: DesignDocument;
+  pack: DataPack;
+  zoneId: string;
+  onEditSystem: (systemId: string, zoneId: string) => void;
+}) {
+  const standing = zoneStanding(doc, pack, doc.settings.sizingBasis, zoneId);
+  if (!standing) {
+    return (
+      <div className="ds-sb-roomunits">
+        <p className="ds-sb-facts">No system yet</p>
+      </div>
+    );
+  }
+  const { systems, word } = standing;
+  return (
+    <div className="ds-sb-roomunits">
+      <p className="ds-sb-roomunits-line">
+        {systems.map((g, i) => (
+          <span key={g.sys.id} className="ds-sb-roomunits-sys">
+            <b>{g.models.length ? g.models.join(", ") : "No unit yet"}</b> on {g.sys.name}
+            {i === systems.length - 1 && word.text && (
+              <>
+                , <span className={`ds-sb-word ${word.tone}`}>{word.text}</span>
+              </>
+            )}
+          </span>
+        ))}
+      </p>
+      <div className="ds-sb-roomunits-acts">
+        {systems.map((g) => (
+          <button key={g.sys.id} type="button" className="ds-sb-btn" onClick={() => onEditSystem(g.sys.id, zoneId)}>
+            Edit {g.sys.name}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

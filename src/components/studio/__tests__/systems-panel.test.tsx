@@ -623,6 +623,27 @@ describe("SystemsPanel — Zones without a system", () => {
     expect(dt.setData).not.toHaveBeenCalled();
   });
 
+  /* "make clicking a zone in the list add it" (Isaac, 2026-09-23): while a
+     system's zones are being picked, a click here does what a click on the
+     plan does */
+  it("while a system's zones are being picked, a click on a zone here adds it", () => {
+    const { doc, one } = twoSystems();
+    const { onClaimZone } = mount(doc, one, mePack, one);
+    fireEvent.click(screen.getByRole("button", { name: "Add Living to System 1" }));
+    expect(onClaimZone).toHaveBeenCalledWith("living", one);
+    fireEvent.keyDown(screen.getByRole("button", { name: "Add Bed 2 to System 1" }), { key: "Enter" });
+    expect(onClaimZone).toHaveBeenLastCalledWith("bed2", one);
+  });
+
+  it("with nothing being picked, a click on a zone here adds nothing", () => {
+    const { doc, one } = twoSystems();
+    const { onClaimZone, container } = mount(doc, one);
+    expect(screen.queryByRole("button", { name: /^Add Living to/ })).toBeNull();
+    const row = [...container.querySelectorAll<HTMLElement>(".ds-zp-row")].find((r) => r.textContent?.includes("Living"))!;
+    fireEvent.click(row);
+    expect(onClaimZone).not.toHaveBeenCalled();
+  });
+
   it("says None when every zone has a system", () => {
     const { doc } = claimed(house().doc, ["living", "bed1", "bed2", "master", "study"]);
     const { container } = mount(doc);

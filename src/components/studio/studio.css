@@ -10816,6 +10816,14 @@ html[data-ds-display] .dstudio.editing {
   gap: 4px;
   border-radius: var(--r-button);
 }
+/* while a system's zones are being picked, a row here is a click to add it */
+.dstudio .ds-zp-row.pick {
+  cursor: pointer;
+}
+.dstudio .ds-zp-row.pick:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
 /* no system yet to drop a zone on: the row is read, not dragged */
 .dstudio .ds-zp-row.plain {
   grid-template-columns: minmax(0, 1fr) auto;

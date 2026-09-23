@@ -21,7 +21,8 @@
    zones are being clicked on the plan, the plan's grey corner window says so
    (canvas.tsx), the chips arrive in front of the button, and the button reads
    Done once there is a chip; closing the card, or opening another, ends the
-   claim as Done does, so it never runs on out of sight.
+   claim as Done does, so it never runs on out of sight. A zone in Zones
+   without a system takes the same click while the picking is on.
 
    A zone dragged from one card onto another moves with its units (moveZone);
    dragged from Zones without a system onto a card it joins the system; a chip
@@ -182,6 +183,8 @@ export function SystemsPanel({
   /* a zone here is dragged onto a system's card to join it; with no system yet
      there is nothing to drop it on, so the row is a line to read — no grip */
   const canJoin = doc.systems.length > 0;
+  /** the system whose zones are being picked, if any */
+  const picking = claiming ? (doc.systems.find((s) => s.id === claiming) ?? null) : null;
   const openId = activeSystemId && rested !== activeSystemId ? activeSystemId : null;
 
   return (
@@ -248,8 +251,24 @@ export function SystemsPanel({
           {free.map((z) => (
             <div
               key={z.id}
-              className={`ds-zp-row${canJoin ? "" : " plain"}`}
+              className={`ds-zp-row${canJoin ? "" : " plain"}${picking ? " pick" : ""}`}
               draggable={canJoin}
+              /* while a system's zones are being picked, a click here adds
+                 the zone, as a click on the plan does (Isaac, 2026-09-23) */
+              {...(picking
+                ? {
+                    role: "button",
+                    tabIndex: 0,
+                    "aria-label": `Add ${zoneName(z)} to ${picking.name}`,
+                    onClick: () => onClaimZone(z.id, picking.id),
+                    onKeyDown: (e: React.KeyboardEvent) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onClaimZone(z.id, picking.id);
+                      }
+                    },
+                  }
+                : {})}
               onDragStart={
                 canJoin
                   ? (e) => {

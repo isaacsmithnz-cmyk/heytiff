@@ -9,7 +9,7 @@
    ink clears 4.5:1 against whatever ground the gauge actually puts under it. */
 
 import { useState } from "react";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SchedulePayload } from "@/lib/workboard/schedule-query";
 import type { CapacityPayload } from "@/lib/workboard/capacity-query";
@@ -375,6 +375,22 @@ it("brings a job forward out of the day, in the rail's own reading", async () =>
   await userEvent.click(screen.getByRole("button", { name: /Open job/ }));
   expect(onOpenJob).toHaveBeenCalledWith(expect.objectContaining({ remoteId: "j-3145" }), null);
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+/* A double-click on a row opens the job, as it does on the rail — though the
+   row is gone by the second click: the job's card takes the day's place, and
+   the second click lands on whatever of the card is under the pointer. */
+it("opens a job on a double-click, though its row is gone by the second click", async () => {
+  const onOpenJob = jest.fn();
+  await openCapacity({ onOpenJob });
+  await userEvent.click(screen.getByRole("button", { name: /Fri 14 Aug/ }));
+  const dayCard = await screen.findByRole("complementary", { name: /Jobs on Fri 14 Aug/ });
+  fireEvent.click(within(dayCard).getByRole("button", { name: /Rifkin, Julian/ }), { detail: 1 });
+  fireEvent.click(screen.getByRole("button", { name: "Back to the day" }), { detail: 2 });
+  expect(onOpenJob).toHaveBeenCalledTimes(1);
+  expect(onOpenJob).toHaveBeenCalledWith(expect.objectContaining({ remoteId: "j-3145" }), null);
+  // the second click was the double-click's, so the job stays on the table
+  expect(screen.getByText("2 people on this job")).toBeInTheDocument();
 });
 
 it("offers the crew editor only to someone who can manage the board", async () => {

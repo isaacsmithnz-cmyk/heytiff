@@ -4,7 +4,7 @@
    names, empty states say why they're empty, and the queue link goes to the
    tab that owns the queue. */
 
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SchedulePayload } from "@/lib/workboard/schedule-query";
 
@@ -175,6 +175,58 @@ describe("clicking a block", () => {
     /* nothing to dismiss under the sheet any more: closing the sheet comes
        back to the job that was being read */
     expect(stack()).toBeInTheDocument();
+  });
+
+  /* A DOUBLE-CLICK IS BOTH STEPS AT ONCE. The pair is read by its FIRST
+     click: that click opens the inspector, the inspector narrows the rail,
+     and the hours re-lay into what is left — so by the second click another
+     block, an empty lane or the panel's own buttons can be under the
+     pointer. */
+  it("opens the job on a double-click, and keeps it beside the day", async () => {
+    const onOpenJob = jest.fn();
+    render(tab({ onOpenJob }));
+    await userEvent.dblClick((await screen.findAllByRole("button", { name: /Job #3171/ }))[0]);
+    expect(onOpenJob).toHaveBeenCalledTimes(1);
+    expect(onOpenJob).toHaveBeenCalledWith(expect.objectContaining({ remoteId: "j-3171" }), {
+      kind: "on",
+      word: "Started",
+    });
+    expect(stack()).toBeInTheDocument();
+  });
+
+  it("opens the job the FIRST click chose, whatever the second lands on", async () => {
+    const onOpenJob = jest.fn();
+    render(tab({ onOpenJob }));
+    const a = (await screen.findAllByRole("button", { name: /Job #3171/ }))[0];
+    const b = (await screen.findAllByRole("button", { name: /Job #3145/ }))[0];
+    fireEvent.click(a, { detail: 1 });
+    // the rail re-laid: another job's block slid under the pointer
+    fireEvent.click(b, { detail: 2 });
+    expect(onOpenJob).toHaveBeenCalledTimes(1);
+    expect(onOpenJob).toHaveBeenCalledWith(
+      expect.objectContaining({ remoteId: "j-3171" }),
+      expect.anything()
+    );
+    // ...and was not chosen by a click that was never aimed at it
+    expect(a).toHaveAttribute("aria-pressed", "true");
+    expect(b).toHaveAttribute("aria-pressed", "false");
+    // a third click in the same run is spent too, not pressed on what's there
+    fireEvent.click(screen.getByRole("button", { name: "Close the panel" }), { detail: 3 });
+    expect(stack()).toBeInTheDocument();
+    expect(onOpenJob).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens nothing on a double-click that began off the blocks", async () => {
+    const onOpenJob = jest.fn();
+    render(tab({ onOpenJob }));
+    const a = (await screen.findAllByRole("button", { name: /Job #3171/ }))[0];
+    const b = (await screen.findAllByRole("button", { name: /Job #3145/ }))[0];
+    fireEvent.click(a, { detail: 1 });
+    // a fresh first click elsewhere starts a new pair, and disarms the block
+    fireEvent.click(screen.getByRole("button", { name: "Close the panel" }), { detail: 1 });
+    fireEvent.click(b, { detail: 2 });
+    expect(onOpenJob).not.toHaveBeenCalled();
+    expect(b).toHaveAttribute("aria-pressed", "true");
   });
 
   it("brings EVERYONE on the job forward, with their own hours", async () => {

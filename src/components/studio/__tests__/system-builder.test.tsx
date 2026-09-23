@@ -308,6 +308,32 @@ describe("SystemBuilder", () => {
     expect(top).toBeGreaterThan(0);
   });
 
+  /* Add zone is offered only while there is a zone to add (Isaac,
+     2026-09-23): one without a system, or one another system has to take. */
+  it("offers Add zone only while the plan has a zone this system does not", () => {
+    const every = claimed(house(), ["living", "bed1", "bed2", "study"]);
+    const first = render(
+      <SystemBuilder doc={every.doc} pack={pack} systemId={every.systemId} onCommit={() => {}} onClose={() => {}} />
+    );
+    expect(screen.queryByRole("button", { name: "Add zone" })).toBeNull();
+    expect(schematic().querySelector(".ds-sb-add")).toBeNull();
+    // every zone card is still wired: one drop from the bus per zone
+    const trunk = schematic().querySelector("path.ds-sb-line")!.getAttribute("d")!;
+    const busY = trunk.match(/^M[\d.]+ [\d.]+ V([\d.]+)/)![1];
+    expect([...trunk.matchAll(new RegExp(`M([\\d.]+) ${busY} V`, "g"))]).toHaveLength(4);
+    first.unmount();
+
+    // a zone on another system is one to take
+    const mine = claimed(house(), ["living", "bed1", "bed2"]);
+    const theirs = claimed(mine.doc, ["study"]);
+    render(<SystemBuilder doc={theirs.doc} pack={pack} systemId={mine.systemId} onCommit={() => {}} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Add zone" }));
+    const list = screen.getByRole("dialog", { name: "Add zone" });
+    expect(within(list).queryByText("Without a system")).toBeNull();
+    expect(within(list).getByText("On another system")).toBeInTheDocument();
+    expect(within(list).getAllByRole("button").map((b) => b.textContent)).toEqual([expect.stringContaining("Study")]);
+  });
+
   /* WHICH ZONE ADD FILLS. It was always the first zone with nothing in it,
      derived and unchangeable, so the button said Add to Master Bedroom and
      there was no way to say Study. */

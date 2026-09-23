@@ -21,7 +21,6 @@ import {
   type DesignDocument,
   type DesignObject,
   type DesignSettings,
-  type DesignSystem,
   type DesignVariantRef,
 } from "@/lib/studio/document";
 import { NOTE_INKS } from "@/lib/studio/notes";
@@ -2275,9 +2274,7 @@ function Editor({
             placingKw={placingKw}
             roomFits={roomFits}
             onPlaced={onPlaced}
-            claiming={claiming}
             onClaimToggle={onClaimToggle}
-            onClaimDone={() => changeTool("select")}
             onRoomCreated={(id) => {
               setEditingRoomId(id);
             }}
@@ -2335,6 +2332,8 @@ function Editor({
               onActivate={setActiveSystemId}
               onAddSystem={onAddSystem}
               onAddZones={startClaim}
+              claiming={claiming}
+              onClaimDone={() => changeTool("select")}
               onBuild={onBuildSystem}
               onInstall={onInstallSystem}
               onDeleteSystem={(id) => mutate((d) => releaseSystem(d, id))}
@@ -3053,23 +3052,6 @@ function ItemsTray({
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-/* ── claim mode's bar over the plan: whose zones are being clicked, what to
-   do, and Done with the count. Esc does what Done does. ── */
-function ClaimHud({ system, onDone }: { system: DesignSystem | null; onDone: () => void }) {
-  if (!system) return null;
-  const n = zoneIdsOf(system).length;
-  return (
-    <div className="ds-hud" role="toolbar" aria-label="Claim zones">
-      <span className="ds-hud-dot" style={{ background: system.colour }} aria-hidden="true" />
-      <span className="ds-hud-name">{system.name}</span>
-      <span className="ds-hud-text">Click the zones it serves</span>
-      <button className="ds-hud-done" onClick={onDone}>
-        {n === 1 ? "Done, 1 zone" : `Done, ${n} zones`}
-      </button>
     </div>
   );
 }
@@ -3874,9 +3856,7 @@ function DesignPanel({
   onLegend,
   onCalibrated,
   builder = false,
-  claiming = null,
   onClaimToggle,
-  onClaimDone,
 }: {
   doc: DesignDocument;
   activeFloorId: string | null;
@@ -3932,10 +3912,8 @@ function DesignPanel({
   onCalibrated: () => void;
   /** the system builder flag: rooms need no system, units come from its tray */
   builder?: boolean;
-  /** claim mode (the zones flow): the system whose zones are being clicked */
-  claiming?: string | null;
+  /** claim mode (the zones flow): a zone clicked while the claim tool is up */
   onClaimToggle?: (roomId: string) => void;
-  onClaimDone?: () => void;
 }) {
   const floor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
@@ -4200,12 +4178,6 @@ function DesignPanel({
             still says is the tool hint and the crosshair cursor. */}
         {/* options HUD — floating pill strip, top-centre over the canvas,
             while a tool with options is armed (Step 2: the plenum variant) */}
-        {tool === "claim" && claiming && (
-          <ClaimHud
-            system={doc.systems.find((s) => s.id === claiming) ?? null}
-            onDone={() => onClaimDone?.()}
-          />
-        )}
         {tool === "component" && airComp?.kind === "plenum" && (
           <PlenumHud
             stream={airComp.stream}

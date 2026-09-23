@@ -7792,37 +7792,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
 }
 .dstudio .ds-hud-chip:disabled { opacity: 0.4; cursor: not-allowed; }
-/* claim mode's bar: the system's dot and name, what to do, and Done */
-.dstudio .ds-hud-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex: none;
-}
-.dstudio .ds-hud-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink);
-}
-.dstudio .ds-hud-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--gray500);
-}
-.dstudio .ds-hud-done {
-  font-size: 13px;
-  font-weight: 600;
-  color: #0b0d13;
-  background: var(--paper);
-  border-radius: var(--r-pill);
-  padding: 4px 12px;
-  transition: background-color var(--t-fast) var(--ease);
-}
-.dstudio .ds-hud-done:hover {
-  background: var(--on-ink-tint-2);
-  color: var(--ink);
-}
-
 /* canvas: plenums — the ceiling-cavity (~85 %) opacity family */
 .dstudio .ds-plenum { opacity: 0.85; }
 .dstudio .ds-plenum-body {
@@ -9031,8 +9000,10 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-rm-editload:hover { background: #f5f5f3; }
 /* the units card carries its own .dstudio wrapper (see room-modal.tsx); keep
-   that wrapper from imposing the studio column gap on a single child */
-.ds-rm-units.dstudio { display: block; gap: 0; }
+   that wrapper from imposing the studio column gap on a single child, or the
+   page's full-screen min-height on the dialog — which stood the modal a
+   screen tall round two lines of units */
+.ds-rm-units.dstudio { display: block; gap: 0; min-height: 0; }
 
 /* ── The system builder (spec: Studio System Builder) ──
    An overlay on the scrim: the unit browser on top, the schematic underneath,
@@ -9859,12 +9830,6 @@ html[data-ds-display] .dstudio.editing {
   font-weight: var(--fw-label);
   color: var(--q);
 }
-.ds-sb-addzone-none {
-  margin: 0;
-  padding: var(--s-3);
-  font-size: var(--fs-2);
-  color: var(--q);
-}
 .ds-sb-addzone-opt {
   appearance: none;
   border: 0;
@@ -10281,8 +10246,11 @@ html[data-ds-display] .dstudio.editing {
   border: 1px solid var(--line);
 }
 .dstudio .ds-zp-card.open { outline: 2px solid var(--ink); outline-offset: -2px; }
-.dstudio .ds-zp-card.drop,
-.dstudio .ds-zp-free.drop {
+/* `over`, never `drop`: shell.css styles a bare `.fg .drop` (the file drop
+   zone), and a card wearing that name took its align-items:center — every
+   line on it collapsed to the middle while a zone was held over it */
+.dstudio .ds-zp-card.over,
+.dstudio .ds-zp-free.over {
   outline: 2px dashed var(--sc, var(--ink));
   outline-offset: 4px;
 }
@@ -10454,6 +10422,13 @@ html[data-ds-display] .dstudio.editing {
   cursor: pointer;
 }
 .dstudio .ds-zp-addzones:hover { background: var(--tint); }
+/* while the card's zones are being clicked on the plan it is the way out:
+   Done, a solid edge on the selection fill, because the mode is on */
+.dstudio .ds-zp-addzones.on {
+  outline-style: solid;
+  background: var(--tint);
+  font-weight: 600;
+}
 
 /* the open card's figures */
 .dstudio .ds-zp-facts {
@@ -10549,6 +10524,13 @@ html[data-ds-display] .dstudio.editing {
   gap: 4px;
   border-radius: var(--r-button);
 }
+/* no system yet to drop a zone on: the row is read, not dragged */
+.dstudio .ds-zp-row.plain {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 8px 12px;
+  cursor: default;
+}
+.dstudio .ds-zp-row.plain:hover { background: var(--paper); }
 .dstudio .ds-zp-row-name { font-size: 13px; font-weight: 500; color: var(--ink); }
 .dstudio .ds-zp-row-kw { font-size: 13px; color: var(--q); font-variant-numeric: tabular-nums; }
 .dstudio .ds-zp-none {

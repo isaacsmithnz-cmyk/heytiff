@@ -157,11 +157,17 @@ function placeAll(doc: DesignDocument, systemId: string): DesignDocument {
   return d;
 }
 
-function mount(doc: DesignDocument, activeSystemId: string | null = null, pack: DataPack | null = mePack) {
+function mount(
+  doc: DesignDocument,
+  activeSystemId: string | null = null,
+  pack: DataPack | null = mePack,
+  claiming: string | null = null
+) {
   const on = {
     onActivate: jest.fn(),
     onAddSystem: jest.fn(),
     onAddZones: jest.fn(),
+    onClaimDone: jest.fn(),
     onBuild: jest.fn(),
     onInstall: jest.fn(),
     onDeleteSystem: jest.fn(),
@@ -171,7 +177,7 @@ function mount(doc: DesignDocument, activeSystemId: string | null = null, pack: 
     onRemoveZone: jest.fn(),
   };
   const utils = render(
-    <SystemsPanel doc={doc} pack={pack} basis={basis} activeSystemId={activeSystemId} {...on} />
+    <SystemsPanel doc={doc} pack={pack} basis={basis} activeSystemId={activeSystemId} claiming={claiming} {...on} />
   );
   return { ...utils, ...on };
 }
@@ -301,6 +307,42 @@ describe("SystemsPanel — the open card", () => {
     expect(onAddZones).toHaveBeenCalledWith(made.systemId);
   });
 
+  /* the plan has no bar over it in claim mode (Isaac, 2026-09-23: "right
+     panel shows that information"), so the card is where the claim is seen
+     and where it ends */
+  it("while its zones are being clicked, Add zones reads Done, and Done ends the claim", () => {
+    const { doc, one } = twoSystems();
+    const { onClaimDone, onAddZones } = mount(doc, one, mePack, one);
+    const el = card("System 1");
+    expect(within(el).queryByRole("button", { name: "Add zones" })).toBeNull();
+    const done = within(el).getByRole("button", { name: "Done" });
+    // where Add zones was: the chips arrive in front of it
+    expect(done.closest(".ds-zp-zones")!.lastElementChild).toBe(done);
+    fireEvent.click(done);
+    expect(onClaimDone).toHaveBeenCalledTimes(1);
+    expect(onAddZones).not.toHaveBeenCalled();
+  });
+
+  it("the claim never runs on out of sight: resting its card or opening another ends it", () => {
+    const { doc, one, two } = twoSystems();
+    const rest = mount(doc, one, mePack, one);
+    fireEvent.click(within(card("System 1")).getByRole("button", { name: "System 1" }));
+    expect(rest.onClaimDone).toHaveBeenCalledTimes(1);
+    rest.unmount();
+
+    const other = mount(doc, one, mePack, one);
+    fireEvent.click(within(card("System 2")).getByRole("button", { name: "System 2" }));
+    expect(other.onClaimDone).toHaveBeenCalledTimes(1);
+    expect(other.onActivate).toHaveBeenCalledWith(two);
+    other.unmount();
+
+    // with no claim running, opening and resting end nothing
+    const calm = mount(doc, one);
+    fireEvent.click(within(card("System 2")).getByRole("button", { name: "System 2" }));
+    fireEvent.click(within(card("System 1")).getByRole("button", { name: "System 1" }));
+    expect(calm.onClaimDone).not.toHaveBeenCalled();
+  });
+
   it("Edit system sits under the figures once a unit is in, and opens the builder", () => {
     const made = fiveHeadMulti(fittedHouse().doc);
     const { onBuild } = mount(made.doc, made.systemId);
@@ -379,9 +421,9 @@ describe("SystemsPanel — the rack", () => {
     const rows = rackRows(el);
     expect(rows).toHaveLength(6);
     for (const row of rows) expect(row).toHaveAttribute("draggable", "true");
-    const heads = rows.filter((r) => r.classList.contains("idu")).map(modelOf).sort();
+    const heads = rows.filter((r) => r.dataset.role === "idu").map(modelOf).sort();
     expect(heads).toEqual(["MSZ-AP20VGD", "MSZ-AP20VGD", "MSZ-AP25VGD2", "MSZ-AP35VGD2", "MSZ-AP42VGD2"]);
-    const odu = rows.find((r) => r.classList.contains("odu"))!;
+    const odu = rows.find((r) => r.dataset.role === "odu")!;
     expect(modelOf(odu)).toBe("MXZ-5F100VGD");
     expect(odu.textContent).toContain("Outdoor");
     // a head's row names the zone it serves
@@ -481,6 +523,7 @@ describe("SystemsPanel — zone chips", () => {
       r.textContent?.includes("Bed 2")
     )!;
     expect(row).toHaveAttribute("draggable", "true");
+    expect(row.querySelector(".ds-zp-grip")).not.toBeNull();
     const dt = transfer();
     fireEvent.dragStart(row, { dataTransfer: dt });
     const [type, json] = dt.setData.mock.calls[0] as [string, string];
@@ -508,12 +551,12 @@ describe("SystemsPanel — zone chips", () => {
     const target = card("System 2");
     const dt = transfer({ zoneId: "master", from: one });
     fireEvent.dragEnter(target, { dataTransfer: dt });
-    expect(target).toHaveClass("drop");
+    expect(target).toHaveClass("over");
     // and the drop is accepted while it is over: dragover is prevented, as a move
     expect(fireEvent.dragOver(target, { dataTransfer: dt })).toBe(false);
     expect(dt.dropEffect).toBe("move");
     fireEvent.dragLeave(target, { dataTransfer: dt });
-    expect(target).not.toHaveClass("drop");
+    expect(target).not.toHaveClass("over");
   });
 
   it("a drag that is not a zone lights nothing", () => {
@@ -521,7 +564,7 @@ describe("SystemsPanel — zone chips", () => {
     mount(doc, one);
     const target = card("System 2");
     fireEvent.dragEnter(target, { dataTransfer: transfer() });
-    expect(target).not.toHaveClass("drop");
+    expect(target).not.toHaveClass("over");
   });
 });
 
@@ -539,11 +582,87 @@ describe("SystemsPanel — Zones without a system", () => {
     expect(container.querySelector(".ds-zp-none")).toBeNull();
   });
 
+  /* a zone here is dragged onto a system's card; with no system there is no
+     card, so a grip would promise a drag that lands nowhere (Isaac,
+     2026-09-23: "has a drag handle. why?") */
+  it("with no system yet a zone here is a line to read: no grip, no drag", () => {
+    const { doc } = house();
+    expect(doc.systems).toHaveLength(0);
+    const { container } = mount(doc);
+    const rows = [...container.querySelectorAll<HTMLElement>(".ds-zp-row")];
+    expect(rows).toHaveLength(5);
+    for (const row of rows) {
+      expect(row).toHaveAttribute("draggable", "false");
+      expect(row.querySelector(".ds-zp-grip")).toBeNull();
+    }
+    const dt = transfer();
+    fireEvent.dragStart(rows[0], { dataTransfer: dt });
+    expect(dt.setData).not.toHaveBeenCalled();
+  });
+
   it("says None when every zone has a system", () => {
     const { doc } = claimed(house().doc, ["living", "bed1", "bed2", "master", "study"]);
     const { container } = mount(doc);
     expect(container.querySelector(".ds-zp-free")!.textContent).toBe("None");
     expect(container.querySelector(".ds-zp-row")).toBeNull();
+  });
+});
+
+/* The panel sits under the shell's `.fg`, where shell.css styles a few bare
+   class names for the whole app: `.drop` is the file drop zone, `.odu` a gauge
+   card. Anything in the panel wearing one of those names wears that skin as
+   well — the card a zone was held over took the drop zone's
+   align-items:center and every line on it collapsed to the middle (Isaac,
+   2026-09-23), and the rack's outdoor row carried the gauge card's inset
+   shadow. So every class the panel puts on an element, in every state, is
+   its own `ds-` name or one the shell leaves alone. */
+function bareShellClasses(): Set<string> {
+  const css = readFileSync(join(__dirname, "../../../app/dashboard/shell.css"), "utf8").replace(
+    /\/\*[\s\S]*?\*\//g,
+    ""
+  );
+  const bare = new Set<string>();
+  for (const [, selectors] of css.matchAll(/([^{}]+)\{/g)) {
+    for (const sel of selectors.split(",")) {
+      // the class on its own, straight under `.fg` or nothing: `.fg .drop`, `.fg .drop:hover`
+      const hit = /^\s*(?:\.fg\s+)?\.([\w-]+)(?::[\w-]+(?:\([^)]*\))?)*\s*$/.exec(sel);
+      if (hit) bare.add(hit[1]);
+    }
+  }
+  return bare;
+}
+
+describe("SystemsPanel — class names the shell already styles", () => {
+  it("no element, in any state, wears a class shell.css styles bare", () => {
+    const bare = bareShellClasses();
+    // the guard can see the two collisions it was written for
+    expect(bare.has("drop")).toBe(true);
+    expect(bare.has("odu")).toBe(true);
+
+    const worn = new Set<string>();
+    const collect = (root: Element) => {
+      for (const el of root.querySelectorAll("*")) el.classList.forEach((c) => worn.add(c));
+    };
+    // no system yet: the zones are plain rows
+    const none = mount(house().doc);
+    collect(none.container);
+    none.unmount();
+    // two systems, one claiming, a zone held over a card and then over the list
+    const { doc, one } = twoSystems();
+    const two = mount(doc, one, mePack, one);
+    const dt = transfer({ zoneId: "master", from: one });
+    fireEvent.dragEnter(card("System 2"), { dataTransfer: dt });
+    collect(two.container);
+    fireEvent.dragEnter(two.container.querySelector(".ds-zp-free")!, { dataTransfer: dt });
+    collect(two.container);
+    two.unmount();
+    // a built system with its units still to place: the rack
+    const made = fiveHeadMulti(house().doc);
+    collect(mount(made.doc, made.systemId).container);
+
+    // every state was really reached
+    for (const c of ["plain", "over", "on", "ds-zp-unit", "ds-zp-grip"]) expect(worn).toContain(c);
+    expect([...worn].filter((c) => bare.has(c))).toEqual([]);
   });
 });
 

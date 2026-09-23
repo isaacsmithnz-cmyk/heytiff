@@ -36,7 +36,8 @@ export type SymptomKey =
   | "pumping"
   | "zoning"
   | "condensation"
-  | "compressor";
+  | "compressor"
+  | "cost";
 
 export interface Symptom {
   key: SymptomKey;
@@ -267,6 +268,17 @@ export const SYMPTOMS: Symptom[] = [
     start: "comp.iso",
     safety:
       "Compressor testing is done dead: isolated, leads off, capacitors discharged. The first step walks all of that — don't skip it.",
+  },
+  /* The commonest call that isn't a fault. Nearly every answer is cheap, and
+     the part a tech is missing is usually the words and one sum, not a
+     tool: a 7 kW unit at a COP of 3.5 draws about 2 kW. */
+  {
+    key: "cost",
+    label: "Costs too much to run",
+    blurb: "The bill jumped, or was always high",
+    icon: "dollar",
+    color: "#8A5A00",
+    start: "cost.change",
   },
 ];
 
@@ -1028,6 +1040,59 @@ export const QUESTIONS: Question[] = [
         next: "out:oil-metal",
       },
       { label: "Cloudy or milky", next: "out:oil-moisture" },
+    ],
+  },
+
+  /* ---------------- costs too much to run ----------------
+     A bill that JUMPED has a cause on this site and a date; a bill that was
+     always high is a sizing, habit or tariff conversation, and no part fixes
+     it. That split goes first because it decides whether there is anything
+     to find at all. */
+  {
+    id: "cost.change",
+    ask: "Has the bill jumped, or has it always been high?",
+    why: "Get the last two bills side by side — the retailer's app has them, and the customer usually has the app. A bill that jumped has a cause on this site and a date. A bill that has always been high is a sizing, habit or tariff conversation, and no part fixes it.",
+    answers: [
+      { label: "It jumped", next: "cost.what" },
+      { label: "It's always been high", next: "cost.age" },
+    ],
+  },
+  {
+    id: "cost.what",
+    ask: "What changed around the time it jumped?",
+    why: "Ask, then look for yourself: a new appliance, more people home, a pool pump on a new timer, a heat pump hot water system, a second heater in the far room, a renovation that opened the plan up, a new retailer or plan. The air conditioner gets blamed for everything with a power lead, because it's the one thing they can hear.",
+    answers: [
+      { label: "Nothing anyone can name", next: "cost.clean" },
+      { label: "A new appliance, more people, or a renovation", next: "out:cost-not-the-ac" },
+      { label: "Winter", next: "out:cost-winter" },
+      { label: "A new retailer or plan", next: "out:cost-tariff" },
+    ],
+  },
+  {
+    id: "cost.clean",
+    ask: "Are the filters, the indoor coil and the outdoor coil clean?",
+    why: "The cheapest quarter of a power bill there is. A choked filter or a packed condenser makes the unit run longer and harder for the same room, and neither shows as a fault — it just costs more, quietly, from the week it happened.",
+    answers: [
+      { label: "Dirty", next: "out:cost-dirty" },
+      { label: "Clean", next: "cost.setting" },
+    ],
+  },
+  {
+    id: "cost.setting",
+    ask: "What's it set to, and how long does it run each day?",
+    why: "Look at the controller, not the customer's account of it. Every degree past comfort is about ten percent on the running cost, so 18 in summer or 26 in winter IS the bill. AUTO can heat in the morning and cool in the afternoon on one mild day. And a timer or a schedule can have it running at 3am for nobody.",
+    answers: [
+      { label: "Set hard, on AUTO, or running for nobody", next: "out:cost-setting" },
+      { label: "Sensible, and only when they're home", next: "out:cost-losing-heat" },
+    ],
+  },
+  {
+    id: "cost.age",
+    ask: "How old is it, and is it the right size for the space?",
+    why: "Read the data plate and look at the room. An old fixed-speed unit does the same job as a modern inverter for about half as much again in power, and it knows two speeds: full and off. One too big for the room satisfies in minutes and never dries the air; one too small runs flat out all day and never gets there. Both cost more than the right one would.",
+    answers: [
+      { label: "Old fixed-speed, or clearly the wrong size", next: "out:cost-old-or-wrong-size" },
+      { label: "A modern inverter, sized right", next: "cost.clean" },
     ],
   },
 ];
@@ -3017,6 +3082,150 @@ export const OUTCOMES: Outcome[] = [
       "Check oil type and charge against what the new compressor wants",
       "If it failed mechanically but the oil is clean, look harder at oil return and short cycling before you blame the part",
     ],
+  },
+
+  /* costs too much to run — mostly "nothing is broken", with the words, and
+     the one sum every tech should be able to do on the doorstep */
+  {
+    id: "cost-not-the-ac",
+    title: "The air conditioner is wearing someone else's bill",
+    confidence: "info",
+    explain:
+      "The bill jumped when something else arrived. A pool pump on a timer, a heat pump hot water system, a second heater, a spa, a renovation that turned two rooms into one big one — the air conditioner is the thing they can hear, so it takes the blame for all of it.",
+    customer:
+      "The bill went up when the house changed, not when the air conditioner did. It's the biggest thing you can hear running, so it gets the blame, but the pool pump, the hot water and the extra room are all on that bill too. We can measure what it's actually drawing, and it's a fraction of what you're picturing.",
+    actions: [
+      "Put a number on it: a 7 kW unit at a COP of 3.5 draws about 2 kW, so at 30 cents a kilowatt-hour it costs about 60 cents an hour. Six hours a day is under four dollars. Show them the sum",
+      "Better, measure it — a clamp meter on the outdoor supply while it runs, or the smart meter's app with everything else off — and the argument is over in a minute",
+      "Walk the site for what arrived with the jump: a pool pump timer, a heat pump hot water unit, a spa, a second heater, a fridge in the garage",
+      "If the plan opened up — a wall came out, or a room joined another — the unit is now conditioning a bigger space than it was sized for, and that IS on the bill: work the load",
+    ],
+    tool: HEATLOAD,
+  },
+  {
+    id: "cost-winter",
+    title: "Winter costs more, and the heat pump is still the cheapest heat in the house",
+    confidence: "info",
+    explain:
+      "Heating costs more than cooling for the same house: the gap between outside and inside is bigger, the nights are long, and the unit spends part of every cold morning defrosting itself instead of heating the room. A bill that jumps in June is the season, not the machine — and it would jump far more on anything with an element in it.",
+    customer:
+      "Winter is dearer to heat than summer is to cool — there's a bigger gap to make up, and the unit spends some of every cold morning melting frost off itself. But for every unit of power it uses it puts three or four units of heat into the room. A fan heater or an oil column gives you one for one. So it's the cheapest heating you own; it's just that winter costs.",
+    actions: [
+      "Do the sum against the alternative: a heat pump at a COP of 3 to 4 delivers three or four kilowatts of heat for every kilowatt it draws; a fan heater or an oil column delivers one. The heat pump is the cheap one, and the bill is the season",
+      "Set it to 20 or 21 and leave it — every degree above that is about ten percent, and 24 in a T-shirt is the winter bill",
+      "Run it steadily rather than in bursts: a heat pump recovering a cold house at 6pm works far harder than one holding it, and a deep overnight setback costs more than it saves in a well-sealed house",
+      "Count the defrosts on a cold, wet morning — one every half hour to an hour is normal; one every ten minutes is a fault, and a fault costs money. The 'Not heating' path covers it",
+      "Shut the doors: heating the hall and the spare room is the commonest winter bill there is",
+    ],
+  },
+  {
+    id: "cost-tariff",
+    title: "The plan changed, not the unit",
+    confidence: "info",
+    explain:
+      "A new retailer or a new plan can move the same kilowatt-hours to a different price: time-of-use plans charge two or three times as much in the late afternoon and evening, some plans add a charge for the household's busiest half-hour, and a discount that quietly expired is the same usage at a higher rate.",
+    actions: [
+      "Read the plan, not the total: the rate per kilowatt-hour, whether it changes by time of day, and whether there's a demand or peak charge on top",
+      "On a time-of-use plan, pre-cool or pre-heat before the peak window and let it coast through it — the same comfort at the off-peak rate",
+      "Set the schedule so it never starts at the top of the peak, which is when everything else in the house starts too",
+      "Check the discount hasn't lapsed — a benefit period ending is the commonest 'my bill jumped and nothing changed'",
+      "Point them at their state's comparison site; it's the retailer's job to be beaten",
+    ],
+  },
+  {
+    id: "cost-dirty",
+    title: "A dirty unit is running longer and harder for the same room",
+    confidence: "likely",
+    explain:
+      "Blocked filters starve the indoor coil, and a packed outdoor coil can't shed its heat, so the unit runs longer — and on an inverter, faster — to hold the same temperature. Nothing trips and nothing codes; it just costs up to a quarter more than it did clean, from the week it happened.",
+    actions: [
+      "Clean or replace the return-air filters, and show the customer where they are and how often — monthly in summer on a busy house",
+      "Clean the indoor coil and the fan wheel; dust on the blades starves the coil with spotless filters",
+      "Wash the outdoor coil from behind, where the dirt is, and clear whatever has grown around it",
+      "Set the fan back to auto or normal if someone parked it on low to make it quiet",
+      "Then run it and measure the split: 8–12 K on a stabilised system says it's back to itself",
+    ],
+  },
+  {
+    id: "cost-setting",
+    title: "The setting is the bill",
+    confidence: "likely",
+    explain:
+      "Every degree past comfort is about ten percent of the running cost, so 18 in summer against 24 is more than half as much again for the same room, and 26 in winter against 21 is the same story. AUTO can heat in the morning and cool in the afternoon on one mild day. And a schedule that runs it through the night for nobody is the dearest setting of all.",
+    customer:
+      "It's set to work far harder than it needs to. Every degree you push it past comfortable costs about ten percent more — so 18 in summer costs you half as much again as 24 would, for a room that feels cold. Set it to 24 and leave it there, and let it run steady instead of blasting it when you get home.",
+    actions: [
+      "Set 24 in summer, 20 or 21 in winter, in COOL or HEAT and never AUTO — and show them where AUTO lives so it stays off",
+      "Clear the timer or schedule that runs it for nobody, and set one that runs it for the hours they're actually home",
+      "Tell them how to leave it: steady at a sensible setpoint beats blasting a hot house at 5pm on an inverter — but running an empty house all day is not that, whatever the neighbour says",
+      "Put a number on it while you're there: a 7 kW unit at a COP of 3.5 draws about 2 kW — about 60 cents an hour at 30 cents a kilowatt-hour. Hours, not degrees, are usually the surprise",
+      "Close off what it's conditioning for nobody: doors to the spare rooms, and zones on a ducted system",
+    ],
+    plan: "fix",
+    alternatives: [
+      {
+        fix: "Lock the setpoint range on the controller",
+        when: "The settings keep drifting back — a shop, a rental, a house with teenagers. Plenty of controllers can be limited to a range, and the button just beeps.",
+      },
+      {
+        fix: "Fit a controller with a proper schedule, or connect the app",
+        when: "The unit's own timer can't do what the household needs — different hours on different days, or off when nobody's home.",
+      },
+    ],
+  },
+  {
+    id: "cost-losing-heat",
+    title: "The room is losing what the unit makes",
+    confidence: "likely",
+    explain:
+      "Sensible settings, a clean unit, and it still costs: then the room is giving the heat or the cold away as fast as the unit makes it, and the unit runs all day to stand still. Open doors, a hall it was never meant to condition, big west glass, a ceiling with no insulation, an exhaust fan left running, or a second heater working against it.",
+    actions: [
+      "Watch the unit for ten minutes at setpoint: it should cycle, or on an inverter drop to a murmur. One that never backs off is losing the room, not conditioning it",
+      "Walk the room: doors to unconditioned space, a rangehood or bathroom fan left running, a gap under the front door, west glass with nothing over it",
+      "Get into the ceiling if you can — patchy or missing insulation over the room is the commonest cause of a unit that runs all day",
+      "Look for a second heater or cooler working against it: an oil column in the bedroom while the heat pump runs, an evaporative cooler with the windows open",
+      "Ducted: check which zones are open, and the return-air filter",
+      "Compare the room's load against the unit's capacity — a unit too small for the space runs flat out and never gets there",
+    ],
+    plan: "check",
+    alternatives: [
+      {
+        fix: "Insulate, shade and seal",
+        when: "The heat is leaving through the fabric. Ceiling insulation, external shade on west glass and door seals cost less than any bigger unit, and they cut every bill after this one.",
+      },
+      {
+        fix: "Replace it with a unit sized to the load",
+        when: "The load is real, it can't be cut, and this unit is too small for it. A quote, not a repair.",
+      },
+    ],
+    tool: HEATLOAD,
+  },
+  {
+    id: "cost-old-or-wrong-size",
+    title: "It was always going to cost this much",
+    confidence: "possible",
+    explain:
+      "An old fixed-speed unit knows two speeds, full and off, and does the same job as a modern inverter for about half as much again in power. One too big for the room satisfies in minutes, stops, starts again and never dries the air; one too small runs flat out all day. None of that is a fault — it's the wrong machine for the room, and it has cost this since the day it went in.",
+    customer:
+      "Nothing's broken. This unit is either the wrong size for the room or old enough that it only knows full speed and off, and either way it costs more than a modern one would to do the same job. It's been like this since it went in — the bill isn't new, you've just noticed it. A new unit sized to the room would pay for part of itself on the bills.",
+    actions: [
+      "Read the data plate: the input kW against the output kW is the efficiency, and an old unit's figures tell the story on their own",
+      "Work the room's load properly and compare it against the unit — the tool below does it in a minute",
+      "Measure what it draws while it runs, so a quote can say what a new one saves in dollars rather than in adjectives",
+      "Meanwhile: filters, settings and doors — the cheap things still work on an old unit",
+    ],
+    plan: "check",
+    alternatives: [
+      {
+        fix: "Replace it with an inverter sized to the load",
+        when: "The numbers say so. A quote conversation, and the running-cost saving belongs in it.",
+      },
+      {
+        fix: "Add a unit for the room that loses",
+        when: "One area is dragging a system that's otherwise fine. A split of its own there is cheaper than replacing the lot.",
+      },
+    ],
+    tool: HEATLOAD,
   },
 ];
 

@@ -111,8 +111,8 @@ describe("content quality", () => {
     }
   });
 
-  it("all fifteen symptoms are covered, each with an icon and colour", () => {
-    expect(SYMPTOMS).toHaveLength(15);
+  it("all sixteen symptoms are covered, each with an icon and colour", () => {
+    expect(SYMPTOMS).toHaveLength(16);
     for (const s of SYMPTOMS) {
       expect(s.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
       expect(s.icon.length).toBeGreaterThan(2);
@@ -731,6 +731,66 @@ describe("the cheap fix comes before the expensive one", () => {
   });
 });
 
+describe("costs too much to run", () => {
+  /* The commonest call that isn't a fault. Isaac, 2026-09-23: build it. */
+  it("splits a bill that jumped from one that was always high before anything else", () => {
+    const q = getQuestion(getSymptom("cost")!.start)!;
+    expect(q.ask).toMatch(/jumped, or has it always been high/i);
+    expect(q.answers).toHaveLength(2);
+    // a jump goes looking for what changed; always-high goes to the machine
+    expect(getQuestion(q.answers[0].next)!.ask).toMatch(/what changed/i);
+    expect(getQuestion(q.answers[1].next)!.ask).toMatch(/how old is it/i);
+  });
+
+  it("a new appliance, winter and a new plan each end in one step, with the words", () => {
+    const q = getQuestion("cost.what")!;
+    for (const [label, id] of [["appliance", "cost-not-the-ac"], ["Winter", "cost-winter"], ["retailer", "cost-tariff"]] as const) {
+      const a = q.answers.find((x) => x.label.includes(label))!;
+      expect(outcomeId(a.next)).toBe(id);
+      expect(getOutcome(id)!.confidence).toBe("info"); // nothing is broken
+    }
+    expect(getOutcome("cost-not-the-ac")!.customer).toMatch(/pool pump/i);
+    expect(getOutcome("cost-winter")!.customer).toMatch(/three or four units of heat/i);
+  });
+
+  it("teaches the sum on the doorstep, and where the ten percent comes from", () => {
+    const text = (id: string) => getOutcome(id)!.actions.join(" ");
+    for (const id of ["cost-not-the-ac", "cost-setting"]) {
+      expect(text(id)).toMatch(/7 kW unit at a COP of 3\.5 draws about 2 kW/);
+      expect(text(id)).toMatch(/60 cents an hour/i);
+    }
+    expect(getQuestion("cost.setting")!.why).toMatch(/every degree past comfort is about ten percent/i);
+    // and the winter answer names the heat pump's advantage in numbers, not adjectives
+    expect(text("cost-winter")).toMatch(/COP of 3 to 4/);
+  });
+
+  it("the cheap causes come before the sizing conversation, on both branches", () => {
+    // a jump with no named cause: dirt, then settings, then the room
+    const clean = getQuestion("cost.clean")!;
+    expect(outcomeId(clean.answers[0].next)).toBe("cost-dirty");
+    const setting = getQuestion(clean.answers[1].next)!;
+    expect(outcomeId(setting.answers[0].next)).toBe("cost-setting");
+    expect(outcomeId(setting.answers[1].next)).toBe("cost-losing-heat");
+    // always-high on a modern, right-sized unit rejoins the same cheap path
+    const age = getQuestion("cost.age")!;
+    expect(age.answers[1].next).toBe("cost.clean");
+    expect(outcomeId(age.answers[0].next)).toBe("cost-old-or-wrong-size");
+  });
+
+  it("never sends anyone to a part: nothing on the path is specialist work", () => {
+    const ids = ["cost-not-the-ac", "cost-winter", "cost-tariff", "cost-dirty", "cost-setting", "cost-losing-heat", "cost-old-or-wrong-size"];
+    for (const id of ids) {
+      const o = getOutcome(id)!;
+      expect(o.escalate).toBeFalsy();
+      for (const a of o.alternatives ?? []) expect(a.escalate).toBeFalsy();
+    }
+    // the three that end on sizing hand off to Heat Load
+    for (const id of ["cost-not-the-ac", "cost-losing-heat", "cost-old-or-wrong-size"]) {
+      expect(getOutcome(id)!.tool!.href).toContain("heat-load");
+    }
+  });
+});
+
 describe("the heading says what the list is", () => {
   /* Isaac, on "Compressor isn't pumping": "what on earth?" The screen read
      "Best fix: 1. service valves… 2. measure running current…", with "Replace
@@ -1320,7 +1380,8 @@ describe("reading the oil — the only witness to why it died", () => {
 
 describe("words for the customer", () => {
   it("carries a script wherever explaining it is most of the job", () => {
-    for (const id of ["cond-aluminium", "cond-humidity", "cond-building", "defrost-normal", "mode-conflict", "gurgle-normal", "load-excess", "heat-capacity", "vrf-diversity", "outdoor-water"]) {
+    for (const id of ["cond-aluminium", "cond-humidity", "cond-building", "defrost-normal", "mode-conflict", "gurgle-normal", "load-excess", "heat-capacity", "vrf-diversity", "outdoor-water",
+      "cost-not-the-ac", "cost-winter", "cost-setting", "cost-old-or-wrong-size"]) {
       const out = getOutcome(id)!;
       expect(out.customer).toBeTruthy();
       expect(out.customer!.length).toBeGreaterThan(80);

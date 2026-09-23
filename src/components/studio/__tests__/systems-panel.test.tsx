@@ -323,6 +323,18 @@ describe("SystemsPanel — the open card", () => {
     expect(onAddZones).not.toHaveBeenCalled();
   });
 
+  /* "it shouldn't say done when there's nothing there. It should just say
+     add zones" (Isaac, 2026-09-23) */
+  it("picking zones for a system with none yet, the button still says Add zones, not Done", () => {
+    const made = newSystem(house().doc, mePack.meta.version);
+    const { onClaimDone, onAddZones } = mount(made.doc, made.systemId, mePack, made.systemId);
+    const el = card("System 1");
+    expect(within(el).queryByRole("button", { name: "Done" })).toBeNull();
+    fireEvent.click(within(el).getByRole("button", { name: "Add zones" }));
+    expect(onAddZones).toHaveBeenCalledWith(made.systemId);
+    expect(onClaimDone).not.toHaveBeenCalled();
+  });
+
   it("the claim never runs on out of sight: resting its card or opening another ends it", () => {
     const { doc, one, two } = twoSystems();
     const rest = mount(doc, one, mePack, one);

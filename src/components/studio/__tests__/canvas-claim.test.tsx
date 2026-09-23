@@ -230,6 +230,25 @@ describe("claim mode", () => {
     expect(onClaimToggle).toHaveBeenCalledTimes(2);
   });
 
+  /* the plan's grey corner window says what the clicks are for (Isaac,
+     2026-09-23: "the little gray pop-up in the top right corner that says
+     select zones to add to system") */
+  it("while zones are being picked the corner window names the system they join", () => {
+    const { doc } = house();
+    const made = claimed(doc, ["bed1"]);
+    const { container } = mount({ doc: made.doc, tool: "claim", activeSystemId: made.systemId });
+    const hint = container.querySelector(".ds-tool-hint")!;
+    expect(hint).toHaveAttribute("role", "status");
+    expect(hint.querySelector(".ds-tool-hint-t")!.textContent).toBe("Select zones to add to System 1");
+  });
+
+  it("with the claim over, the corner window goes", () => {
+    const { doc } = house();
+    const made = claimed(doc, ["bed1"]);
+    const { container } = mount({ doc: made.doc, tool: "select", activeSystemId: made.systemId });
+    expect(container.querySelector(".ds-tool-hint")).toBeNull();
+  });
+
   it("a tap on the empty plan claims nothing", () => {
     const { doc } = house();
     const made = claimed(doc, ["bed1"]);

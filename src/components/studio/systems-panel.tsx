@@ -17,10 +17,11 @@
    the bench tray did; the card stays mounted through the drag (Chrome ends a
    drag whose source unmounts).
 
-   Claim mode shows here and nowhere else: the plan has no bar over it. While
-   a card's zones are being clicked on the plan its Add zones reads Done, and
-   the chips arrive in front of it; closing the card, or opening another,
-   ends the claim as Done does, so it never runs on out of sight.
+   Claim mode starts on the card's Add zones, never on its own. While a card's
+   zones are being clicked on the plan, the plan's grey corner window says so
+   (canvas.tsx), the chips arrive in front of the button, and the button reads
+   Done once there is a chip; closing the card, or opening another, ends the
+   claim as Done does, so it never runs on out of sight.
 
    A zone dragged from one card onto another moves with its units (moveZone);
    dragged from Zones without a system onto a card it joins the system; a chip
@@ -377,7 +378,10 @@ function SystemCard({
                 </button>
               </span>
             ))}
-            {claiming ? (
+            {/* Done only once there is something to be done with: before
+                the first zone the button still says what it does, Add
+                zones, and the plan's corner says they are being picked */}
+            {claiming && zones.length > 0 ? (
               <button className="ds-zp-addzones on" onClick={onClaimDone}>
                 Done
               </button>

@@ -1453,11 +1453,16 @@ function Editor({
   );
 
   /* the systems panel's doors (the zones flow) */
+  /* a new system is a card waiting for its zones: its Add zones starts the
+     picking, and the plan's corner says so (Isaac, 2026-09-23 — it had
+     started on its own, and the card said Done over nothing). A claim still
+     running for another system ends, so it never runs on out of sight. */
   const onAddSystem = useCallback(() => {
     const made = newSystem(docRef.current, packVersion);
     mutate(() => made.doc);
-    startClaim(made.systemId);
-  }, [mutate, packVersion, startClaim]);
+    setTool((t) => (t === "claim" ? "select" : t));
+    setActiveSystemId(made.systemId);
+  }, [mutate, packVersion]);
   const onBuildSystem = useCallback((systemId: string) => {
     setActiveSystemId(systemId);
     setBuilderOpen({ focus: null, systemId });

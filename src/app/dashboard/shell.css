@@ -7660,6 +7660,65 @@ a.wb2-doc .wb2-doc-ic { background:var(--info-tint); color:var(--ink); }
 .wb2-doc > .wb2-chip { flex:none; }
 .wb2-doc-go { display:flex; flex:none; color:var(--gray400); transition:transform var(--t-move) var(--ease), color var(--t-fast) var(--ease); }
 a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
+/* ── compliance on the job, and sending what's ticked ──
+   THE TICK A ROW CARRIES while the face is sending. A real checkbox, in INK:
+   choosing is ink's job, and the OK green is for a thing that is done — the
+   checklist's tick. A row with nothing to send keeps the same width empty,
+   so a column of names never jumps. */
+.wb2-docpick { display:flex; align-items:center; justify-content:center; flex:none; width:16px; }
+.wb2-docpick input { width:15px; height:15px; margin:0; accent-color:var(--ink); cursor:pointer; }
+.wb2-docpick input:focus-visible { outline:none; box-shadow:var(--ring); }
+/* after a tick the row's hover wash starts at the row, not under the box */
+.wb2-docpick + .wb2-doc { margin-left:0; }
+/* ADD COMPLIANCE opens under the ways in, and it is a card — something you
+   act on — with the Compliance group it fills directly below it */
+.wb2-cpick { display:flex; flex-direction:column; gap:12px; margin:0 0 12px; padding:12px 16px;
+  border:1px solid var(--wb2-line); border-radius:var(--r-card); background:var(--paper); }
+.wb2-cpick .int-hint, .wb2-cpick > .wb2-sherr { margin:0; }
+.wb2-cprow { display:flex; align-items:center; gap:12px; padding:8px 2px; min-width:0;
+  border-top:1px solid var(--wb2-line2); cursor:pointer; }
+.wb2-sect + .wb2-cprow, .wb2-cptypes + .wb2-cprow { border-top:0; }
+.wb2-cprow input { width:15px; height:15px; margin:0; flex:none; accent-color:var(--ink); cursor:pointer; }
+.wb2-cprow input:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-cprow.off, .wb2-cprow.off input { cursor:default; }
+.wb2-cpname { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
+.wb2-cpname b { font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-cpname em { font-style:normal; font-size:12px; font-weight:500; color:var(--gray500);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-cprow.off .wb2-cpname b { color:var(--gray500); }
+.wb2-cpbook { flex:none; font-style:normal; font-size:12px; font-weight:500; color:var(--gray500); white-space:nowrap; }
+/* the state is a word (law 26); `.sw-state.<tone>` colours it */
+.wb2-cpstate { flex:none; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); white-space:nowrap; }
+/* which licence — the checklist's segmented choice, allowed to wrap when a
+   team holds more kinds of ticket than the card is wide */
+.wb2-cptypes { flex-wrap:wrap; align-self:flex-start; margin:4px 0 8px; }
+.wb2-cptypes em { margin-left:4px; font-style:normal; font-variant-numeric:tabular-nums; }
+.wb2-cpfoot { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+.wb2-cpfoot > em { margin-right:auto; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); }
+/* SENDING — the card's footer while something is ticked. `flex:none`: the
+   body above is the one that gives way, so the letter is never squeezed. */
+.wb2-dsend { flex:none; justify-content:flex-end; }
+.wb2-dsend-n { margin-right:auto; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); }
+.wb2-dsend.open { max-height:60vh; overflow-y:auto; }
+/* the email, as a ledger: a quiet label column and the answers beside it */
+.wb2-mail { flex:1; min-width:0; display:grid; grid-template-columns:88px minmax(0,1fr); gap:8px 16px; align-items:start; }
+.wb2-maillbl { padding-top:8px; font-size:12px; font-weight:500; color:var(--q); }
+/* beside a list of people the label sits on the first name, not on a field */
+.wb2-maillbl.people { padding-top:2px; }
+.wb2-mail .wb2-fi { width:100%; }
+.wb2-mail textarea.wb2-fi { resize:vertical; font-weight:500; line-height:1.55; }
+.wb2-mailto { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.wb2-mailto > .wb2-fi { margin-top:4px; }
+.wb2-mailwho { display:flex; align-items:baseline; gap:8px; min-width:0; cursor:pointer; }
+.wb2-mailwho input { width:15px; height:15px; margin:0; flex:none; align-self:center; accent-color:var(--ink); cursor:pointer; }
+.wb2-mailwho input:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-mailwho b { font-size:14px; font-weight:600; white-space:nowrap; }
+.wb2-mailwho em { min-width:0; font-style:normal; font-size:12px; font-weight:500; color:var(--gray500);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-mailfiles { padding-top:8px; font-size:13px; font-weight:500; overflow-wrap:anywhere; }
+.wb2-mail > .int-hint, .wb2-mail > .wb2-sherr, .wb2-mailnote, .wb2-mailacts { grid-column:1 / -1; margin:0; }
+.wb2-mailnote { font-size:13px; font-weight:500; color:var(--warn-t); }
+.wb2-mailacts { display:flex; justify-content:flex-end; gap:8px; }
 .wb2-gates { display:grid; gap:8px; }
 .wb2-gate { border:1px solid var(--wb2-line); border-radius:var(--r-button); background:var(--paper); transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 .wb2-gate.on { background:var(--tint); border-color:var(--line); }

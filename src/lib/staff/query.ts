@@ -111,15 +111,43 @@ export async function listLicenceTerms(
 ): Promise<Record<string, StaffLicenceRecord[]>> {
   const { data, error } = await supabaseAdmin
     .from("staff_licence_records")
-    .select(
-      "id, licence_id, issuer, number, classes, issuing_state, starts_on, expires_on" +
-        ", document_id, source, created_at"
-    )
+    .select(LICENCE_TERM_COLUMNS)
     .eq("org_id", orgId)
     .eq("staff_profile_id", staffProfileId)
     .order("expires_on", { ascending: false });
   if (error) return {};
+  return licenceTermsByLicence(data);
+}
 
+/* THE TERMS BEHIND NAMED TICKETS, keyed by licence — the one read of this
+   shape wider than a person.
+
+   The job card's Compliance chooser offers every ticket the team holds ("ARC
+   licence", then who holds one), gated on `team`. A job's Compliance rows say
+   whose ticket is on the job and when it runs to, for anyone who can open the
+   card — and its scan opens only for `team` and the person it belongs to
+   (lib/compliance/query). The caller decides who may see what; this takes the
+   licence ids it has already decided on and nothing wider. */
+export async function listLicenceTermsFor(
+  orgId: string,
+  licenceIds: readonly string[]
+): Promise<Record<string, StaffLicenceRecord[]>> {
+  if (licenceIds.length === 0) return {};
+  const { data, error } = await supabaseAdmin
+    .from("staff_licence_records")
+    .select(LICENCE_TERM_COLUMNS)
+    .eq("org_id", orgId)
+    .in("licence_id", [...licenceIds])
+    .order("expires_on", { ascending: false });
+  if (error) return {};
+  return licenceTermsByLicence(data);
+}
+
+const LICENCE_TERM_COLUMNS =
+  "id, licence_id, issuer, number, classes, issuing_state, starts_on, expires_on" +
+  ", document_id, source, created_at";
+
+function licenceTermsByLicence(data: unknown): Record<string, StaffLicenceRecord[]> {
   const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);
 
   const out: Record<string, StaffLicenceRecord[]> = {};

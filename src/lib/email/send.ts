@@ -41,18 +41,42 @@ export function isEmailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY);
 }
 
+/** One file riding on a letter: the name it arrives under, and its bytes as
+    base64 — the provider's own shape. */
+export type MailAttachment = { filename: string; content: string };
+
+/* WHO A LETTER IS FROM, when it is sent FOR somebody. The address stays the
+   verified one — the domain is what the provider will sign — and only the
+   name in front of it changes: "Smith & Sons via HeyTiff". The name is
+   typed data, so anything that could end the phrase or open a second address
+   is taken out before it is quoted. */
+export function fromFor(name: string | undefined, configured: string = process.env.MAIL_FROM ?? DEFAULT_FROM): string {
+  const clean = (name ?? "").replace(/["\\<>\r\n]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!clean) return configured;
+  const address = /<([^>]+)>/.exec(configured)?.[1] ?? configured.trim();
+  return `"${clean}" <${address}>`;
+}
+
 export async function sendEmail(letter: {
-  to: string;
+  /** One address, or a few — a customer and their builder. */
+  to: string | readonly string[];
   subject: string;
   html: string;
   /** Who a confused recipient should reach. An invitation from a no-reply
       address with no human behind it is indistinguishable from a phish, so
       every letter that names a person sets this to that person. */
   replyTo?: string;
+  /** A quiet copy — the sender's own record of a letter that did not leave
+      from their own mailbox. */
+  bcc?: readonly string[];
+  /** The name the letter is from, in front of the verified address. */
+  fromName?: string;
+  attachments?: readonly MailAttachment[];
 }): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { ok: false, reason: "unconfigured" };
 
+  const to = typeof letter.to === "string" ? [letter.to] : [...letter.to];
   try {
     const res = await fetch(ENDPOINT, {
       method: "POST",
@@ -61,11 +85,15 @@ export async function sendEmail(letter: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: process.env.MAIL_FROM ?? DEFAULT_FROM,
-        to: [letter.to],
+        from: fromFor(letter.fromName),
+        to,
         subject: letter.subject,
         html: letter.html,
         ...(letter.replyTo ? { reply_to: letter.replyTo } : {}),
+        ...(letter.bcc?.length ? { bcc: [...letter.bcc] } : {}),
+        ...(letter.attachments?.length
+          ? { attachments: letter.attachments.map((a) => ({ filename: a.filename, content: a.content })) }
+          : {}),
       }),
     });
 

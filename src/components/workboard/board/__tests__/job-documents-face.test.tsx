@@ -6,6 +6,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import type { SwmsSummary } from "@/lib/swms/query";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
+import type { JobPaper, PaperChoices } from "@/lib/compliance/papers";
 import { JobDocumentsFace } from "../job-documents-face";
 
 const summary = (over: Partial<SwmsSummary> = {}): SwmsSummary => ({
@@ -266,4 +267,184 @@ it("opens a photo of ours in the card, and hands a HEIC to the browser", async (
   await userEvent.click(screen.getByRole("button", { name: /Switchboard label\.jpg/ }));
   expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ remoteId: "doc:d-7" }));
   expect(screen.getByRole("link", { name: /Isolator\.heic/ })).toHaveAttribute("target", "_blank");
+});
+
+/* ── compliance: the business's papers on the job, and sending ─────────── */
+
+const TODAY = "2026-09-23";
+
+const paperRow = (over: Partial<JobPaper> = {}): JobPaper => ({
+  id: "p1",
+  kind: "company",
+  name: "Public liability",
+  person: null,
+  issuer: "QBE",
+  expiresOn: "2027-06-30",
+  state: "ok",
+  renewed: false,
+  files: [{ id: "d1", fileName: "coc.pdf", mimeType: "application/pdf", sizeBytes: 1000, url: "https://x/coc.pdf" }],
+  addedBy: "Isaac Smith",
+  addedAt: "2026-09-23T00:00:00Z",
+  manage: true,
+  ...over,
+});
+
+const doc = (over: Partial<JobMediaItem> = {}): JobMediaItem => ({
+  remoteId: "q1",
+  name: "Quote #2380",
+  fileType: ".pdf",
+  kind: "document",
+  origin: "Quote",
+  takenAt: "2026-09-10 09:00:00",
+  url: "https://x/q.pdf",
+  width: null,
+  height: null,
+  fromClaim: null,
+  ...over,
+});
+
+it("files the business's papers under Compliance beside the SWMS, saying what needs doing", () => {
+  face({
+    today: TODAY,
+    swms: [summary()],
+    papers: [
+      paperRow(),
+      paperRow({ id: "p2", name: "Workers compensation", issuer: "icare", expiresOn: "2026-02-28", state: "bad", renewed: true }),
+      paperRow({ id: "p3", kind: "staff", name: "ARC licence", person: "Dane Whitmore", issuer: "ARC", expiresOn: "2026-10-05", state: "warn" }),
+    ],
+  });
+  expect(screen.getByText("Compliance — 4")).toBeInTheDocument();
+  expect(screen.getByText("QBE, to 30 Jun 2027, added by Isaac Smith")).toBeInTheDocument();
+  /* data as its owner spells it */
+  expect(screen.getByText("icare, to 28 Feb 2026, added by Isaac Smith")).toBeInTheDocument();
+  expect(screen.getByText("Expired")).toHaveClass("sw-state", "bad");
+  expect(screen.getByText("Dane Whitmore, to 5 Oct 2026, added by Isaac Smith")).toBeInTheDocument();
+  expect(screen.getByText("Expires in 12 days")).toHaveClass("sw-state", "warn");
+});
+
+it("opens a paper where the viewer may, and names a colleague's licence without a door for anyone else", async () => {
+  const onOpenPaper = jest.fn();
+  face({
+    today: TODAY,
+    onOpenPaper,
+    papers: [
+      paperRow(),
+      paperRow({
+        id: "p3",
+        kind: "staff",
+        name: "ARC licence",
+        person: "Dane Whitmore",
+        files: [{ id: "d3", fileName: "arc.jpg", mimeType: "image/jpeg", sizeBytes: 1000, url: null }],
+        manage: false,
+      }),
+    ],
+  });
+  await userEvent.click(screen.getByRole("button", { name: /Public liability/ }));
+  expect(onOpenPaper).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }));
+  expect(screen.getByText("ARC licence")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /ARC licence/ })).toBeNull();
+  /* and one they can't manage offers nothing to press */
+  const row = screen.getByText("ARC licence").closest(".wb2-docrow") as HTMLElement;
+  expect(within(row).queryByRole("button")).toBeNull();
+});
+
+it("takes a paper off the job in two presses, and the second says the paper itself stays", async () => {
+  const onRemovePaper = jest.fn(async () => null);
+  face({ today: TODAY, papers: [paperRow()], onRemovePaper });
+  const row = screen.getByText("Public liability").closest(".wb2-docrow") as HTMLElement;
+  await userEvent.click(within(row).getByRole("button", { name: "Remove" }));
+  expect(within(row).queryByRole("button", { name: "Delete file" })).toBeNull();
+  await userEvent.click(within(row).getByRole("button", { name: "Remove from job" }));
+  expect(onRemovePaper).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }));
+});
+
+it("says why a paper didn't come off, and keeps it", async () => {
+  face({ today: TODAY, papers: [paperRow()], onRemovePaper: async () => "You can't take that off the job." });
+  await userEvent.click(screen.getByRole("button", { name: "Remove" }));
+  await userEvent.click(screen.getByRole("button", { name: "Remove from job" }));
+  expect(await screen.findByText("You can't take that off the job.")).toBeInTheDocument();
+  expect(screen.getByText("Public liability")).toBeInTheDocument();
+});
+
+it("moves a renewed paper to its renewal in one press", async () => {
+  const onRenewPaper = jest.fn(async () => null);
+  face({ today: TODAY, papers: [paperRow({ renewed: true }), paperRow({ id: "p2", name: "Workers compensation" })], onRenewPaper });
+  expect(screen.getByText("Renewed since it was added")).toBeInTheDocument();
+  expect(screen.getAllByRole("button", { name: "Use renewal" })).toHaveLength(1);
+  await userEvent.click(screen.getByRole("button", { name: "Use renewal" }));
+  expect(onRenewPaper).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }));
+});
+
+it("says a failed read failed instead of drawing an empty Compliance group", () => {
+  face({ papers: null, papersFailed: true });
+  expect(screen.getByText("Couldn't read this job's licences and insurance. Close the card and open it again.")).toBeInTheDocument();
+});
+
+describe("Add compliance", () => {
+  const offer: PaperChoices = { company: [], staff: null };
+
+  it("sits in the row of ways in, only for someone who may add a side", () => {
+    face({ onLoadChoices: async () => offer, onAddPapers: async () => null, mayAdd: { company: false, staff: false } });
+    expect(screen.queryByRole("button", { name: "Add compliance" })).toBeNull();
+  });
+
+  it("opens IN the face under the ways in — not over the card — and closes the same way", async () => {
+    const onLoadChoices = jest.fn(async () => offer);
+    face({ onLoadChoices, onAddPapers: async () => null, mayAdd: { company: true, staff: false }, swms: [] , onCreateSwms: () => {}, canCreateSwms: true });
+    const add = screen.getByRole("button", { name: "Add compliance" });
+    expect(add.closest(".wb2-jcdadd")).toBe(screen.getByRole("button", { name: "Create SWMS" }).closest(".wb2-jcdadd"));
+    expect(add).toHaveAttribute("aria-expanded", "false");
+
+    await userEvent.click(add);
+    const chooser = await screen.findByRole("group", { name: "Add compliance" });
+    expect(chooser.closest(".wb2-jcdoc")).not.toBeNull();
+    expect(add).toHaveAttribute("aria-expanded", "true");
+    expect(onLoadChoices).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(within(chooser).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("group", { name: "Add compliance" })).toBeNull();
+  });
+});
+
+describe("ticking to send", () => {
+  const everything = () => ({
+    today: TODAY,
+    swms: [summary()],
+    papers: [
+      paperRow(),
+      paperRow({ id: "p2", name: "Workers compensation", state: "bad" as const }),
+      paperRow({ id: "p3", kind: "staff" as const, name: "ARC licence", person: "Dane Whitmore", files: [{ id: "d3", fileName: "arc.jpg", mimeType: "image/jpeg", sizeBytes: 1, url: null }] }),
+    ],
+    documents: [
+      doc(),
+      doc({ remoteId: "e1", name: "Builder's plan.pdf", origin: "Emailed in", url: null }),
+      doc({ remoteId: "doc:u1", name: "Certificate of compliance.pdf", origin: null, documentId: "u1", addedBy: "Isaac Smith" }),
+    ],
+  });
+
+  it("gives every file with bytes to send a tick — ours, theirs and the papers — and nothing else one", async () => {
+    const onPick = jest.fn();
+    face({ ...everything(), picked: new Set(["p:p1"]), onPick });
+    expect(screen.getByRole("checkbox", { name: "Select Public liability" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Select Quote #2380" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Select Certificate of compliance.pdf" })).toBeInTheDocument();
+    /* a SWMS is a page, an expired certificate isn't to be handed out, a
+       colleague's licence won't open for this viewer, and a file not brought
+       across has no bytes — each keeps the tick's place, empty */
+    expect(screen.getAllByRole("checkbox")).toHaveLength(3);
+    expect(document.querySelectorAll(".wb2-docpick")).toHaveLength(7);
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select Quote #2380" }));
+    expect(onPick).toHaveBeenCalledWith("f:q1", true);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select Certificate of compliance.pdf" }));
+    expect(onPick).toHaveBeenCalledWith("d:u1", true);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Select Public liability" }));
+    expect(onPick).toHaveBeenCalledWith("p:p1", false);
+  });
+
+  it("draws no ticks at all for someone who may not send", () => {
+    face(everything());
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    expect(document.querySelector(".wb2-docpick")).toBeNull();
+  });
 });

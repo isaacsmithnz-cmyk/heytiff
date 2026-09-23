@@ -3,7 +3,8 @@
    never going silent while something is owed (the motivating bug: a real
    design stalled for hours between "outdoor placed" and "indoor placed"). */
 
-import { itemsToPlace, nextMove, panelRests, unitsVerb } from "../next-move";
+import { itemsToPlace, nextMove, nextMoveZones, panelRests, unitsVerb } from "../next-move";
+import { claimZone, newSystem } from "../zones";
 import { createDesign, type DesignDocument, type DesignObject, type Floor } from "../document";
 import { emptyPack, type DataPack, type IndoorUnit, type OutdoorUnit } from "../packs/schema";
 
@@ -326,5 +327,29 @@ describe("itemsToPlace", () => {
         "sys1"
       ).map((i) => i.model)
     ).toEqual(["ODU-25"]);
+  });
+});
+
+/* THE ZONES FLOW'S CHIP says the step the system's card says, so the two
+   agree: a system with no zone yet has no Build system on its card, only
+   Add zones (Isaac, 2026-09-23) */
+describe("nextMoveZones — the zones flow's chip", () => {
+  const plan = (withZone: boolean): DesignDocument => {
+    const d = createDesign({ name: "t", mode: "blank" });
+    d.floors = [floor];
+    d.objects = withZone ? [{ ...room("z1", "Zone 1"), systemId: null }] : [];
+    return d;
+  };
+
+  it("draws a zone, then adds a system", () => {
+    expect(nextMoveZones(plan(false), null)).toEqual({ key: "draw-room", label: "Draw a zone" });
+    expect(nextMoveZones(plan(true), null)).toEqual({ key: "add-system", label: "Add a system" });
+  });
+
+  it("asks a system with no zone for its zones before asking to build it", () => {
+    const made = newSystem(plan(true), "1");
+    expect(nextMoveZones(made.doc, null)).toEqual({ key: "add-zones", label: "Add zones", systemId: made.systemId });
+    const zoned = claimZone(made.doc, made.systemId, "z1");
+    expect(nextMoveZones(zoned, null)).toEqual({ key: "build-system", label: "Build system", systemId: made.systemId });
   });
 });

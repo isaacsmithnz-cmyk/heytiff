@@ -75,7 +75,7 @@ import { SystemsPanel } from "./systems-panel";
 import { InstallQuestions } from "./install-questions";
 import { builderEnabled, isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
 import { SystemBuilder, ZoneStanding } from "./system-builder";
-import { releaseSystem, moveZone, removeZone } from "@/lib/studio/builder";
+import { deleteZone, releaseSystem, moveZone, removeZone } from "@/lib/studio/builder";
 import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import {
   itemsToPlace,
@@ -2442,6 +2442,12 @@ function Editor({
           roomId={editingRoomId}
           word={builder ? "Zone" : "Room"}
           onMutate={mutate}
+          onDelete={() => {
+            const id = editingRoomId;
+            setEditingRoomId(null);
+            setSelectedId((cur) => (cur === id ? null : cur));
+            mutate((d) => deleteZone(d, pack, id));
+          }}
           onClose={() => setEditingRoomId(null)}
           onRemarkWalls={(id) => {
             setEditingRoomId(null);
@@ -4113,6 +4119,7 @@ function DesignPanel({
             oduSpec={oduSpec}
             onRoomCreated={onRoomCreated}
             onClaimToggle={onClaimToggle}
+            deleteRoom={(d, id) => deleteZone(d, pack, id)}
             onOpenRoom={onOpenRoom}
             remarkRoomId={remarkRoomId}
             reshapeRoomId={reshapeRoomId}

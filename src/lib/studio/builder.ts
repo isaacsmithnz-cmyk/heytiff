@@ -19,7 +19,7 @@ import { allocationsOf, hasAllocations, type Allocation } from "./allocations";
 import { roomAtPoint, roomCoverage, type CoverageCap } from "./coverage";
 import { checkMultiCompatibility, multiCapableIdus } from "./multi";
 import { outdoorReadiness } from "./packs/ready";
-import { stripAttachesTo } from "./attach";
+import { deleteRoomWithContents, releaseRoomsFromSystems, stripAttachesTo } from "./attach";
 import { OVERSIZE_CAP } from "./select";
 import { nextSystemColour } from "./modules";
 import { ATTACHED_RUN_TYPES } from "./attach";
@@ -316,6 +316,29 @@ export function removeZone(
     d = { ...d, objects: stripAttachesTo(d.objects.filter((o) => !gone.has(o.id)), gone) };
   }
   return proposeOutdoor(d, pack, systemId);
+}
+
+/** A ZONE DELETED FROM THE PLAN. Every system that claimed it, or holds a
+    head in it, lets it go with those heads, the way the cross on its chip
+    does (removeZone): the claim goes, the heads go whether placed or not,
+    and each outdoor is proposed again. Then the zone goes, with whatever
+    else sits in it, and no system of the old flow keeps its id. Deleting
+    only the object left the claim and the heads behind: the system went on
+    holding a zone that was gone, and its placed heads dropped back into the
+    rack (Isaac, 2026-09-23: "i cant delete a room now"). Without a pack
+    nothing can be proposed again, so the claims alone are let go. */
+export function deleteZone(doc: DesignDocument, pack: DataPack | null, zoneId: string): DesignDocument {
+  let d = doc;
+  for (const s of doc.systems) {
+    const holds = hasAllocations(s) && allocationsOf(s).some((a) => a.roomId === zoneId);
+    if (!holds && !zoneIdsOf(s).includes(zoneId)) continue;
+    d = pack ? removeZone(d, pack, s.id, zoneId) : unclaimZone(d, s.id, zoneId);
+  }
+  return {
+    ...d,
+    systems: releaseRoomsFromSystems(d.systems, new Set([zoneId])),
+    objects: deleteRoomWithContents(d.objects, zoneId),
+  };
 }
 
 /** a zone dragged from one system's card onto another's: it moves with its

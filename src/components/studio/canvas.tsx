@@ -720,6 +720,7 @@ export function StudioCanvas({
   oduSpec,
   onRoomCreated,
   onClaimToggle,
+  deleteRoom,
   onOpenRoom,
   remarkRoomId = null,
   onRemarkConsumed,
@@ -782,6 +783,10 @@ export function StudioCanvas({
   /** claim mode (the zones flow): a click on a zone. Zones wear their
       systems' colours whenever this flow is on, from the claims themselves. */
   onClaimToggle?: (roomId: string) => void;
+  /** how a room is deleted when the host knows more than the canvas: in the
+      zones flow the systems let the zone and its heads go (builder.ts
+      deleteZone). Absent, the room goes with its contents and its id. */
+  deleteRoom?: (d: DesignDocument, roomId: string) => DesignDocument;
   /** double-click a room with Select → open that room's modal */
   onOpenRoom?: (id: string) => void;
   /** request to re-enter wall-marking for an existing room (from the modal) */
@@ -1881,6 +1886,7 @@ export function StudioCanvas({
           // a room takes its units (and their plenums) with it, the same way
           // a room move carries them — and frees its id from every system
           if (d.objects.find((o) => o.id === selectedId)?.type === "room") {
+            if (deleteRoom) return deleteRoom(d, selectedId);
             return {
               ...d,
               systems: releaseRoomsFromSystems(d.systems, new Set([selectedId])),
@@ -1911,7 +1917,7 @@ export function StudioCanvas({
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, [selectedId, onMutate, onSelect, units, ahuRow, setDraftPipe]);
+  }, [selectedId, onMutate, onSelect, units, ahuRow, setDraftPipe, deleteRoom]);
 
   /* ── document intents ── */
   /* A closed boundary lands the room on the plan LOOSE — the user tweaks its

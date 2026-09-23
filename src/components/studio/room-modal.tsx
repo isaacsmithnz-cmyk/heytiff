@@ -80,6 +80,7 @@ export function RoomModal({
   onOpenReference,
   unitsSection,
   word = "Room",
+  onDelete,
 }: {
   doc: DesignDocument;
   roomId: string;
@@ -101,6 +102,9 @@ export function RoomModal({
   /** what the thing is called: a zone in the zones flow, where rooms are
       zones (Isaac, 2026-09-23: "rename room to zone in the popup") */
   word?: "Room" | "Zone";
+  /** delete it from the plan, with what sits in it — one undo, like the
+      Delete key on the plan (Isaac, 2026-09-23: it was only a key) */
+  onDelete?: () => void;
 }) {
   const thing = word.toLowerCase();
   const room = useMemo(() => doc.objects.find((o) => o.id === roomId), [doc.objects, roomId]);
@@ -622,6 +626,11 @@ export function RoomModal({
         </div>
 
         <footer className="ds-rm-foot">
+          {onDelete && (
+            <button className="ds-rm-btn danger" onClick={onDelete}>
+              Delete {thing}
+            </button>
+          )}
           {editingLoad ? (
             <>
               <button className="ds-rm-btn secondary" onClick={onClose}>

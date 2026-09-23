@@ -371,6 +371,42 @@ describe("the cascade", () => {
   });
 });
 
+describe("the line — a visit's one-line note", () => {
+  function Line() {
+    const [v, setV] = useState("");
+    const committed = useRef<string[]>([]);
+    return (
+      <>
+        <NoteToken
+          as="line"
+          label="a packing item"
+          value={v}
+          onChange={setV}
+          onCommit={() => {
+            committed.current.push(v);
+            setV("");
+          }}
+        />
+        <output data-testid="committed">{committed.current.join("|")}</output>
+      </>
+    );
+  }
+
+  /* the strip's rule, in the other one-line posture: never a + that won't press */
+  it("puts the cursor in the field when + is pressed empty, and adds once there are words", async () => {
+    mount(<Line />);
+    const add = screen.getByLabelText("Add — a packing item");
+    expect(add).toBeEnabled();
+    await userEvent.click(add);
+    expect(screen.getByLabelText("a packing item")).toHaveFocus();
+    expect(screen.getByTestId("committed")).toHaveTextContent("");
+
+    await userEvent.type(screen.getByLabelText("a packing item"), "Isolator 20A");
+    await userEvent.click(add);
+    expect(screen.getByTestId("committed")).toHaveTextContent("Isolator 20A");
+  });
+});
+
 describe("the strip — a job card's note row", () => {
   function Harness() {
     const [v, setV] = useState("");
@@ -398,6 +434,24 @@ describe("the strip — a job card's note row", () => {
     await userEvent.click(screen.getByLabelText("Add a note for this visit"));
     expect(routeNote).not.toHaveBeenCalled();
     expect(screen.getByTestId("committed")).toHaveTextContent("Gate code 4417");
+  });
+
+  /* The + was disabled until something was typed, and a + beside a
+     microphone that won't press reads as broken — Isaac, on the job card's
+     diary: "it doesn't let me select it". Pressed empty, it puts the cursor
+     where the note goes and adds nothing. */
+  it("answers a press with nothing typed by putting the cursor in the field", async () => {
+    mount(<Harness />);
+    const add = screen.getByLabelText("Add a note for this visit");
+    expect(add).toBeEnabled();
+    expect(add).not.toHaveClass("go");
+    await userEvent.click(add);
+    expect(screen.getByLabelText("a note for this visit")).toHaveFocus();
+    expect(screen.getByTestId("committed")).toHaveTextContent("");
+
+    /* and it says it's ready the moment there is something to add */
+    await userEvent.type(screen.getByLabelText("a note for this visit"), "Gate code 4417");
+    expect(add).toHaveClass("go");
   });
 
   it("Enter commits too, and still doesn't route", async () => {

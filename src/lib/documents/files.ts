@@ -38,6 +38,15 @@ export type DocumentKind =
      when the grant is, and it must never be adoptable by a claim or a notice
      the way a receipt is. */
   | "job_file"
+  /* A file somebody HERE put on a ServiceM8 job, from the job card's
+     Documents face — a certificate of compliance, the builder's plans, a
+     supplier's quote. The opposite of `job_file` in every way that matters:
+     somebody uploaded it, it is not re-fetchable, and it must survive the
+     ServiceM8 grant being revoked, because ServiceM8 never had it — the
+     mirror is read-only by charter, so it lives here and nowhere else. Owned
+     by the job (documents.sm8_job_uuid), and its own kind so no claim, notice
+     or project can adopt it. */
+  | "job_document"
   /* The invoice or receipt behind a vehicle's purchase price. Its own kind for
      the standing reason: an expense claim must not be able to adopt the van's
      purchase paperwork and land a $45,000 vehicle in someone's
@@ -90,6 +99,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "staff_photo",
   "project_file",
   "job_file",
+  "job_document",
   "purchase_invoice",
   "insurance_policy",
   "rego_notice",

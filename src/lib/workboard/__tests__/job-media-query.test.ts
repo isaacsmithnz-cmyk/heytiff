@@ -8,6 +8,11 @@ type Filter = { col: string; val: unknown };
 
 let attachmentRows: Record<string, unknown>[] = [];
 let documentRows: Record<string, unknown>[] = [];
+/* Files somebody put on the job from its Documents face — `job_document`
+   rows, read with their own bounded query (the only `documents` read that
+   calls `.limit`). */
+let ourRows: Record<string, unknown>[] = [];
+let staffRows: Record<string, unknown>[] = [];
 const filtersBy: Record<string, Filter[]> = {};
 let signedFor: string[] = [];
 
@@ -30,9 +35,14 @@ jest.mock("@/lib/supabase-server", () => ({
         return sub;
       };
       sub.order = () => sub;
-      sub.limit = () => Promise.resolve({ data: attachmentRows });
+      sub.limit = () => Promise.resolve({ data: table === "documents" ? ourRows : attachmentRows });
+      sub.maybeSingle = () =>
+        Promise.resolve({ data: table === "sm8_vendor" ? { timezone_name: "Australia/Brisbane" } : null });
       sub.then = (res: (v: { data: unknown[] }) => unknown) =>
-        Promise.resolve({ data: table === "documents" ? documentRows : attachmentRows }).then(res);
+        Promise.resolve({
+          data:
+            table === "documents" ? documentRows : table === "staff_profiles" ? staffRows : attachmentRows,
+        }).then(res);
       return sub;
     },
     storage: {
@@ -60,6 +70,8 @@ const attachment = (over: Record<string, unknown> & { uuid: string }) => ({
 beforeEach(() => {
   attachmentRows = [];
   documentRows = [];
+  ourRows = [];
+  staffRows = [];
   signedFor = [];
   for (const k of Object.keys(filtersBy)) delete filtersBy[k];
 });
@@ -343,6 +355,77 @@ describe("the cap is per lens, after the split", () => {
     attachmentRows = [attachment({ uuid: "p-1" })];
     const groups = await readJobMediaGroups("org-1", "job-1");
     expect(groups.truncated).toBe(false);
+  });
+});
+
+/* ── paper somebody filed from the card ─────────────────────────────────
+   ServiceM8 never had these — the mirror is read-only — so they are read
+   out of `documents` beside its list, and must ride EVERY media read: the
+   caching loop replaces the card's media with what it reads back, and a list
+   only the first read carried would vanish on its first report. */
+
+describe("the files we filed ourselves", () => {
+  const ours = (over: Record<string, unknown> & { id: string }) => ({
+    file_name: "CoC — electrical.pdf",
+    mime_type: "application/pdf",
+    storage_ref: `org/org-1/job_document/${over.id}.pdf`,
+    uploaded_at: "2026-09-23T00:40:00Z",
+    uploaded_by: "staff-1",
+    ...over,
+  });
+
+  it("reads only this job's landed job documents", async () => {
+    ourRows = [ours({ id: "d-9" })];
+    await readJobMediaGroups("org-1", "job-1");
+    expect(filtersBy["documents"]).toEqual(
+      expect.arrayContaining([
+        { col: "kind", val: "job_document" },
+        { col: "sm8_job_uuid", val: "job-1" },
+        { col: "not:uploaded_at", val: null },
+      ])
+    );
+  });
+
+  it("files them as paper with who added them, on the account's own clock", async () => {
+    ourRows = [ours({ id: "d-9" })];
+    staffRows = [{ id: "staff-1", first_name: "Isaac", last_name: "Smith" }];
+    const groups = await readJobMediaGroups("org-1", "job-1");
+    expect(groups.documents[0]).toMatchObject({
+      remoteId: "doc:d-9",
+      documentId: "d-9",
+      name: "CoC — electrical.pdf",
+      fileType: ".pdf",
+      kind: "document",
+      origin: null,
+      url: "https://signed/org/org-1/job_document/d-9.pdf",
+      /* 00:40 UTC is 10:40 in Brisbane — the day a morning upload reads as */
+      takenAt: "2026-09-23 10:40",
+    });
+    expect(groups.documents[0].addedBy).toMatch(/Isaac/);
+  });
+
+  it("keeps a photograph filed as a document out of the photo lens", async () => {
+    ourRows = [ours({ id: "d-8", file_name: "switchboard label.jpg", mime_type: "image/jpeg", storage_ref: "org/org-1/job_document/d-8.jpg" })];
+    const groups = await readJobMediaGroups("org-1", "job-1");
+    expect(groups.photos).toHaveLength(0);
+    expect(groups.documents[0]).toMatchObject({ remoteId: "doc:d-8", kind: "document", fileType: ".jpg" });
+  });
+
+  it("merges them with ServiceM8's paper, newest first", async () => {
+    attachmentRows = [
+      attachment({ uuid: "inv", attachment_name: "Invoice #1.pdf", file_type: ".pdf", timestamp: "2026-09-24 09:00:00" }),
+      attachment({ uuid: "quo", attachment_name: "Quote #1.pdf", file_type: ".pdf", timestamp: "2026-09-02 09:00:00" }),
+    ];
+    ourRows = [ours({ id: "d-9" })];
+    const groups = await readJobMediaGroups("org-1", "job-1");
+    expect(groups.documents.map((d) => d.remoteId)).toEqual(["inv", "doc:d-9", "quo"]);
+  });
+
+  it("costs one query and no signing on a job with none", async () => {
+    attachmentRows = [attachment({ uuid: "p-1" })];
+    await readJobMediaGroups("org-1", "job-1");
+    expect(signedFor).toEqual([]);
+    expect(filtersBy["sm8_vendor"]).toBeUndefined();
   });
 });
 

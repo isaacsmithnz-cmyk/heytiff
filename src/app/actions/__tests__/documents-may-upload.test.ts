@@ -117,6 +117,20 @@ describe("every other kind is unchanged", () => {
     expect(await beginUpload({ kind: "notice_attachment", ...png })).toMatchObject({ ok: false });
   });
 
+  /* paper on a ServiceM8 job is the card's own tier — whoever can open the
+     card can file what belongs on it */
+  it("puts a job document on `workboard`, the card's own tier", async () => {
+    const perms = jest.requireMock("@/lib/permissions-server") as { can: jest.Mock };
+    perms.can.mockImplementation(async (cap: string) => cap === "workboard");
+    dbRole = "staff";
+    expect((await beginUpload({ kind: "job_document", ...png })).ok).toBe(true);
+    expect(perms.can).toHaveBeenCalledWith("workboard");
+
+    perms.can.mockImplementation(async () => false);
+    expect(await beginUpload({ kind: "job_document", ...png })).toMatchObject({ ok: false });
+    perms.can.mockImplementation(async () => capTeam);
+  });
+
   it("still refuses a kind nothing stores", async () => {
     expect(await beginUpload({ kind: "passport_scan", ...png })).toEqual({
       ok: false,

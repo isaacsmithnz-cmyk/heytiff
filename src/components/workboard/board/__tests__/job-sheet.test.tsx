@@ -131,6 +131,26 @@ const addJobNote = jest.fn(async (job: string, body: string) => ({
 const removeJobNote = jest.fn(async () => {});
 const taskFromJobNote = jest.fn(async () => ({ ok: true, taskId: "t-new" }));
 const dismissJobNote = jest.fn(async () => {});
+/* The Documents face's upload: the shared slot flow, then the row pointed at
+   the job. Mocked for their content, and for the "use server" reason as
+   ever. */
+const uploadFile = jest.fn(async (_file: File, _kind: string) => ({
+  ok: true as const,
+  file: { documentId: "d-9", fileName: "CoC.pdf", mimeType: "application/pdf", sizeBytes: 8, previewUrl: null },
+}));
+jest.mock("@/lib/documents/upload-client", () => ({
+  uploadFile: (...a: unknown[]) => uploadFile(...(a as [File, string])),
+}));
+const attachJobDocument = jest.fn(
+  async (_doc: string, _job: string): Promise<{ ok: true } | { ok: false; error: string }> => ({ ok: true })
+);
+const removeJobDocument = jest.fn(
+  async (_doc: string): Promise<{ ok: true } | { ok: false; error: string }> => ({ ok: true })
+);
+jest.mock("@/app/actions/job-documents", () => ({
+  attachJobDocument: (...a: unknown[]) => attachJobDocument(...(a as [string, string])),
+  removeJobDocument: (...a: unknown[]) => removeJobDocument(...(a as [string])),
+}));
 jest.mock("@/app/actions/job-notes", () => ({
   addJobNote: (...a: unknown[]) => addJobNote(...(a as [string, string])),
   removeJobNote: (...a: unknown[]) => removeJobNote(...(a as [])),
@@ -239,6 +259,9 @@ const record = (over: Partial<JobRecordRead> = {}): JobRecordRead => ({
 });
 
 beforeEach(() => {
+  uploadFile.mockClear();
+  attachJobDocument.mockClear();
+  removeJobDocument.mockClear();
   readMirrorJob.mockReset();
   readClaim.mockReset();
   readClaim.mockResolvedValue(null);
@@ -2625,6 +2648,64 @@ describe("files on the job", () => {
     await waitFor(() => expect(swmsActions.listSwmsForJob).toHaveBeenCalled());
     await act(async () => {});
     expect(face("documents").queryByRole("button", { name: "Create SWMS" })).toBeNull();
+  });
+
+  /* PAPER WE FILE OURSELVES. The certificate, the builder's plans — they had
+     nowhere to go but ServiceM8, whose mirror we only read. */
+  const ours = file({
+    remoteId: "doc:d-9",
+    documentId: "d-9",
+    addedBy: "Isaac Smith",
+    name: "CoC.pdf",
+    fileType: ".pdf",
+    kind: "document",
+    url: "https://signed/d-9.pdf",
+    takenAt: "2026-09-23 10:40",
+  });
+
+  it("files an upload on THIS job and shows it on the face", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(files()).mockResolvedValueOnce(files({ documents: [ours] }));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+
+    const doc = new File(["%PDF-1.4"], "CoC.pdf", { type: "application/pdf" });
+    fireEvent.change(face("documents").getByLabelText("Choose documents to upload"), { target: { files: [doc] } });
+
+    expect(await face("documents").findByText("Added by Isaac Smith, Wed 23 Sept")).toBeInTheDocument();
+    expect(uploadFile).toHaveBeenCalledWith(doc, "job_document");
+    /* the card's own job — the parent the detail read resolved, never a guess */
+    expect(attachJobDocument).toHaveBeenCalledWith("d-9", "j-1");
+  });
+
+  it("says why a file couldn't be put on the job", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(files());
+    attachJobDocument.mockResolvedValueOnce({ ok: false, error: "That job isn't in ServiceM8's copy any more." });
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+
+    fireEvent.change(face("documents").getByLabelText("Choose documents to upload"), {
+      target: { files: [new File(["%PDF-1.4"], "CoC.pdf", { type: "application/pdf" })] },
+    });
+
+    expect(await face("documents").findByText("That job isn't in ServiceM8's copy any more.")).toBeInTheDocument();
+  });
+
+  it("takes one of ours back off the job", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(files({ documents: [ours] }));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+
+    await userEvent.click(await face("documents").findByRole("button", { name: "Remove" }));
+    await userEvent.click(face("documents").getByRole("button", { name: "Delete file" }));
+
+    expect(removeJobDocument).toHaveBeenCalledWith("d-9");
+    await waitFor(() => expect(face("documents").queryByText("CoC.pdf")).toBeNull());
   });
 
   it("files a document that arrived by email under From the client", async () => {

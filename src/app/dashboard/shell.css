@@ -7617,7 +7617,24 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-doc { display:flex; align-items:center; gap:12px; padding:8px 8px; margin:0 -6px; min-width:0;
   border-top:1px solid var(--wb2-line2); border-radius:var(--r-button); color:inherit; text-decoration:none;
   transition:background var(--t-fast) var(--ease); }
-.wb2-doc:first-of-type { border-top:0; }
+/* the first row under a group's label draws no rule — the label is its
+   edge. Read off the LABEL, not `:first-of-type`: a group mixes <button>,
+   <a> and <div> rows, and first-of-type is first of each ELEMENT, so a PDF
+   after a link row lost its hairline. */
+.wb2-sect + .wb2-doc, .wb2-sect + .wb2-docrow { border-top:0; }
+/* a row with acts beside it — a SWMS's sign-on and revision, one of our
+   files' removal: the same row, with the hairline moved out to the pair */
+.wb2-docrow { display:flex; align-items:center; gap:8px; min-width:0; border-top:1px solid var(--wb2-line2); }
+.wb2-docrow > .wb2-doc { flex:1; min-width:0; border-top:0; }
+.wb2-jcsec > .wb2-sherr { margin:4px 0 8px; }
+/* THE FACE'S WAYS IN sit under its title, the row the Checklist's composer
+   and the Diary's pen keep — never in the title's own line, where Create
+   SWMS floated off the count at the far edge. */
+.wb2-jcdadd { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0; }
+.wb2-jcdoc > .wb2-sherr { margin:0 0 8px; }
+/* a file over the face: the whole face is the target, and says so at its
+   edge while the upload button says what letting go does */
+.wb2-jcdoc[data-over] { outline:2px dashed var(--ink); outline-offset:8px; border-radius:var(--r-card); }
 a.wb2-doc:hover { background:var(--info-tint); }
 a.wb2-doc:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* a PDF's row is a BUTTON into the in-card viewer — same dress, UA face
@@ -7728,6 +7745,9 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
   background:var(--ink); color:var(--paper); cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .wb2-addgo:hover:not(:disabled) { background:var(--ink2); }
 .wb2-addgo:disabled { background:var(--tint-2); color:var(--q); cursor:not-allowed; }
+/* nothing typed yet: quiet, and still a button — pressed, it puts the cursor
+   in the field */
+.wb2-addgo.idle:not(:hover):not(:disabled) { background:var(--tint-2); color:var(--gray500); }
 .wb2-addgo:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* the pill's red mic at row size — same colour, because it's the same act */
 .wb2-micgo { flex:none; width:32px; height:32px; border-radius:var(--r-button); border:0; display:grid; place-items:center;

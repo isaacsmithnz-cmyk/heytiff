@@ -133,15 +133,6 @@
 /* the choice a control belongs to, under the control it qualifies */
 .sw-lib em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
 
-/* ── the job card's Compliance rows ────────────────────────────────────── */
-
-/* the same row every document wears, with the SWMS's own two acts beside it */
-.sw-docrow { display:flex; align-items:center; gap:8px; min-width:0; border-top:1px solid var(--wb2-line2, var(--line)); }
-.wb2-jcsec > .sw-docrow:first-of-type { border-top:0; }
-.sw-docrow > .wb2-doc { flex:1; min-width:0; border-top:0; }
-/* the head's one act sits after the count, which already takes the slack */
-.wb2-jcdhead > em + .pbtn { margin-left:12px; }
-
 /* ── the sign-on and template pages ─────────────────────────────────────── */
 
 .sws { max-width:760px; display:flex; flex-direction:column; gap:16px; color:var(--ink); }

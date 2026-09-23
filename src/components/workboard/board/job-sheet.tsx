@@ -42,6 +42,8 @@ import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { listSwmsForJob } from "@/app/actions/swms";
+import { uploadFile } from "@/lib/documents/upload-client";
+import { attachJobDocument, removeJobDocument } from "@/app/actions/job-documents";
 import type { SwmsSummary } from "@/lib/swms/query";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import { JobMediaViewer } from "./job-media-viewer";
@@ -433,6 +435,45 @@ export function JobSheet({
       live = false;
     };
   }, [cardId]);
+
+  /* PAPER WE FILE OURSELVES — the Documents face's upload. The bytes take the
+     shared slot flow, the row is pointed at this job, and the files are read
+     again so the row is on the face by the time its button says it's done.
+     The face runs a batch one file at a time and says which of them didn't
+     land. */
+  const uploadDocument = async (file: File): Promise<string | null> => {
+    if (!cardId) return "This card doesn't know its job yet.";
+    try {
+      const up = await uploadFile(file, "job_document");
+      if (!up.ok) return up.error;
+      if (up.file.previewUrl) URL.revokeObjectURL(up.file.previewUrl);
+      /* a file that lands on no job is taken back out by the server */
+      const put = await attachJobDocument(up.file.documentId, cardId);
+      if (!put.ok) return put.error;
+      const fresh = await readJobFiles(cardId).catch(() => null);
+      if (alive.current && fresh) setMedia(fresh);
+      return null;
+    } catch {
+      return "That upload didn't finish.";
+    }
+  };
+
+  /* One of OURS off the job. Off the face at once — the read would only
+     confirm what the answer already said. */
+  const removeDocument = async (item: JobMediaItem): Promise<string | null> => {
+    if (!item.documentId) return "ServiceM8's files stay in ServiceM8.";
+    try {
+      const res = await removeJobDocument(item.documentId);
+      if (!res.ok) return res.error;
+      if (alive.current)
+        setMedia((m) =>
+          m ? { ...m, documents: m.documents.filter((d) => d.remoteId !== item.remoteId) } : m
+        );
+      return null;
+    } catch {
+      return "Couldn't remove that file.";
+    }
+  };
 
   const reloadSwms = () => {
     if (!cardId) return;
@@ -1496,6 +1537,8 @@ export function JobSheet({
               loading={media === null}
               truncated={!!media?.truncated}
               onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
+              onUpload={cardId ? uploadDocument : undefined}
+              onRemove={removeDocument}
               onCreateSwms={() => setSwmsWizard({ revise: null })}
               onOpenSwms={(s) => setViewer({ kind: "swms", id: s.versionId })}
               onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}

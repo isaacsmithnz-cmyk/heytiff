@@ -972,6 +972,7 @@ function Strip({
 }) {
   const mic = useFieldMic(value, onChange);
   const { dict } = mic;
+  const field = useRef<HTMLInputElement | null>(null);
   const busy = disabled || dict.recording || dict.transcribing;
   /* WHEN THE FIELD HANDS ITS BOX TO THE RIVER. Any time there are live words,
      and from the start of a recording that already has something to show —
@@ -996,7 +997,14 @@ function Strip({
   }
 
   const commit = () => {
-    if (!value.trim()) return;
+    /* AN EMPTY + STILL ANSWERS. It was disabled until something was typed,
+       and a + beside a microphone that won't press reads as broken ("it
+       doesn't let me select it"). Pressed empty, it puts the cursor where
+       the note goes. */
+    if (!value.trim()) {
+      field.current?.focus();
+      return;
+    }
     onCommit?.();
     /* Sniff what was just committed, not what's in the box — the box is
        about to be cleared by the caller. */
@@ -1021,6 +1029,7 @@ function Strip({
           <LiveWords line className="wb2-stripin" label={label} said={value} text={dict.interim} />
         ) : (
           <input
+            ref={field}
             className="wb2-stripin"
             value={value}
             placeholder={dict.recording ? "Listening…" : (placeholder ?? "Add a note, or say it…")}
@@ -1074,11 +1083,13 @@ function Strip({
                 <Icon name="mic" size={15} />
               </button>
             )}
+            {/* filled once there is something to add — the state is in the
+                paint, never in a button that won't press */}
             <button
               type="button"
-              className="wb2-striprnd go"
+              className={"wb2-striprnd" + (value.trim() ? " go" : "")}
               aria-label={`Add ${label}`}
-              disabled={busy || !value.trim()}
+              disabled={busy}
               onClick={commit}
             >
               <Icon name="plus" size={15} />
@@ -1262,7 +1273,11 @@ function FieldPosture({
 }) {
   const mic = useFieldMic(value, onChange);
   const { dict } = mic;
+  const line = useRef<HTMLInputElement | null>(null);
   const busy = disabled || dict.recording || dict.transcribing;
+  /* the strip's rule: never a + that won't press — empty, it puts the cursor
+     in the field */
+  const addLine = () => (value.trim() === "" ? line.current?.focus() : onCommit?.());
   /* WHEN THE FIELD HANDS ITS BOX TO THE RIVER. Any time there are live words,
      and from the start of a recording that already has something to show —
      but NOT on an empty field with nothing heard yet, because "Listening…" is
@@ -1321,6 +1336,7 @@ function FieldPosture({
             <LiveWords line className="wb2-fi" label={label} said={value} text={dict.interim} />
           ) : (
             <input
+              ref={line}
               className="wb2-fi"
               placeholder={dict.recording ? "Listening…" : placeholder}
               value={value}
@@ -1379,11 +1395,11 @@ function FieldPosture({
               )}
               <button
                 type="button"
-                className="wb2-addgo"
-                disabled={disabled || dict.transcribing || value.trim() === ""}
+                className={"wb2-addgo" + (value.trim() === "" ? " idle" : "")}
+                disabled={disabled || dict.transcribing}
                 title="Add it"
                 aria-label={`Add — ${label}`}
-                onClick={onCommit}
+                onClick={addLine}
               >
                 <Icon name="plus" size={14} />
               </button>

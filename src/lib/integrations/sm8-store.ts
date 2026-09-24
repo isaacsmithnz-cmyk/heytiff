@@ -149,6 +149,20 @@ export async function nameSm8ConnectionIfNameless(
     connected-with-holes, which the next sync repairs, rather than
     disconnected-with-leftovers, which nothing would ever clean. */
 export async function disconnectSm8(orgId: string): Promise<void> {
+  /* Writes still waiting to go are cancelled, and the record of what went
+     is kept: sm8_writes is HeyTiff's own history, not a mirror. A reconnect
+     starts with writing switched off (the row below goes, and write_mode
+     with it), and nothing queued before it may go after it. */
+  await supabaseAdmin
+    .from("sm8_writes")
+    .update({
+      status: "cancelled",
+      last_error: "ServiceM8 was disconnected before it went.",
+      lease_until: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("org_id", orgId)
+    .in("status", ["queued", "sending"]);
   for (const table of SM8_WIPE_TABLES) {
     await supabaseAdmin.from(table).delete().eq("org_id", orgId);
   }

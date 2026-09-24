@@ -2,12 +2,8 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { can } from "@/lib/permissions-server";
-import { staffProfileIdFor } from "@/lib/fleet/query";
 import { todayInAu } from "@/lib/au-dates";
-import { orgExpiryWindow } from "@/lib/org/query";
 import {
   currentPaperOf,
   jobPaperRows,
@@ -18,25 +14,20 @@ import {
 import {
   EMAIL_MAX_BYTES,
   EMAIL_MAX_TO,
-  attachmentName,
   defaultMessage,
   defaultSubject,
   isEmailAddress,
   paperKey,
-  paperLabel,
   readPaperKey,
   sentNote,
   splitSendKeys,
   uniqueNames,
-  withExtension,
   type JobPapersRead,
-  type PaperChoice,
   type PaperChoices,
-  type SendPicks,
 } from "@/lib/compliance/papers";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
+import { clock, complianceContext, jobIsReal, outgoing, trimId, whose } from "@/lib/compliance/send";
 import { fmtBytes, refIsOrgs } from "@/lib/documents/files";
-import { familyMediaSources } from "@/lib/workboard/all-jobs-query";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import { emailsByUser } from "@/lib/staff/query";
 import { isEmailConfigured, sendEmail, type MailAttachment } from "@/lib/email/send";
@@ -66,9 +57,10 @@ import type { OurJobNote } from "@/lib/workboard/job-notes-query";
    itself, and every id from the browser is re-resolved in this org. Nothing
    here throws: the face says what went wrong in words.
 
-   NOTHING HERE WRITES TO SERVICEM8. The mirror is read-only by charter; the
-   card's Send to ServiceM8 waits on the write path, which is its own piece of
-   work (not this file's). */
+   NOTHING HERE WRITES TO SERVICEM8. The footer's other door, Send to
+   ServiceM8, is app/actions/job-sm8.ts, over the write path in
+   lib/integrations/sm8-writes. The two share lib/compliance/send: who is
+   asking, and which files the ticks name. */
 
 export type ComplianceResult = { ok: true } | { ok: false; error: string };
 
@@ -105,55 +97,10 @@ export type EmailDocumentsResult =
     }
   | { ok: false; error: string };
 
-type Ctx = {
-  orgId: string;
-  userId: string;
-  staffId: string | null;
-  /** `workboard_manage`: the business's papers, and sending. */
-  company: boolean;
-  /** `team`: people's tickets. */
-  team: boolean;
-};
-
-async function context(): Promise<Ctx | null> {
-  const session = await auth0.getSession();
-  const orgId = session?.orgId as string | undefined;
-  const userId = session?.user?.sub as string | undefined;
-  if (!orgId || !userId) return null;
-  if (!(await can("workboard"))) return null;
-  const [company, team, staffId] = await Promise.all([
-    can("workboard_manage"),
-    can("team"),
-    staffProfileIdFor(orgId, userId),
-  ]);
-  return { orgId, userId, staffId, company, team };
-}
-
-const trimId = (v: unknown) => String(v ?? "").trim().slice(0, 80);
-
-async function clock(orgId: string): Promise<{ today: string; warnDays: number }> {
-  const { warnDays } = await orgExpiryWindow(orgId);
-  return { today: todayInAu(), warnDays };
-}
-
-/** The id came from a browser, so it names a CHOICE — this decides whether it
-    is a real job in this workspace's mirror. */
-async function jobIsReal(orgId: string, job: string): Promise<boolean> {
-  const { data } = await supabaseAdmin
-    .from("sm8_jobs")
-    .select("uuid")
-    .eq("org_id", orgId)
-    .eq("uuid", job)
-    .maybeSingle();
-  return !!data;
-}
-
-const whose = (c: Pick<PaperChoice, "name" | "person">) => (c.person ? `${c.person}'s ${c.name}` : c.name);
-
 /** The job's papers, as the Documents face lists them, and what this viewer
     may do there. Null when the viewer can't open the job card at all. */
 export async function listJobPapers(jobUuid: string): Promise<JobPapersRead | null> {
-  const ctx = await context();
+  const ctx = await complianceContext();
   if (!ctx) return null;
   const job = trimId(jobUuid);
   if (!job) return null;
@@ -170,7 +117,7 @@ export async function listJobPapers(jobUuid: string): Promise<JobPapersRead | nu
 
 /** What "Add compliance" offers. Null for a viewer who may add neither side. */
 export async function readComplianceChoices(jobUuid: string): Promise<PaperChoices | null> {
-  const ctx = await context();
+  const ctx = await complianceContext();
   if (!ctx || (!ctx.company && !ctx.team)) return null;
   const job = trimId(jobUuid);
   if (!job) return null;
@@ -181,7 +128,7 @@ export async function readComplianceChoices(jobUuid: string): Promise<PaperChoic
 /** Put ticked papers on a job, each pinned to the term that is current now.
     Returns the new rows' ids, so the face can tick them ready to send. */
 export async function addJobPapers(jobUuid: string, keys: string[]): Promise<AddPapersResult> {
-  const ctx = await context();
+  const ctx = await complianceContext();
   if (!ctx) return { ok: false, error: "You can't add compliance to jobs." };
   const job = trimId(jobUuid);
   const wanted = [
@@ -242,7 +189,7 @@ export async function addJobPapers(jobUuid: string, keys: string[]): Promise<Add
 
 /** Take one paper off a job. The paper itself is untouched — this is a link. */
 export async function removeJobPaper(paperId: string): Promise<ComplianceResult> {
-  const ctx = await context();
+  const ctx = await complianceContext();
   if (!ctx) return { ok: false, error: "You can't change compliance on jobs." };
   const id = trimId(paperId);
   const [row] = await jobPaperRows(ctx.orgId, null, [id]);
@@ -256,7 +203,7 @@ export async function removeJobPaper(paperId: string): Promise<ComplianceResult>
 
 /** Move a paper on a job to the renewal that has come in since. */
 export async function renewJobPaper(paperId: string): Promise<ComplianceResult> {
-  const ctx = await context();
+  const ctx = await complianceContext();
   if (!ctx) return { ok: false, error: "You can't change compliance on jobs." };
   const id = trimId(paperId);
   const [row] = await jobPaperRows(ctx.orgId, null, [id]);
@@ -286,7 +233,7 @@ type ContactRow = { first: string | null; last: string | null; email: string | n
 /** Who the email could go to, and the words it starts with. Null for a
     viewer who can't send, or a job this workspace doesn't hold. */
 export async function readEmailDraft(jobUuid: string): Promise<EmailDraft | null> {
-  const ctx = await context();
+  const ctx = await complianceContext();
   if (!ctx?.company) return null;
   const job = trimId(jobUuid);
   if (!job) return null;
@@ -347,104 +294,6 @@ export async function readEmailDraft(jobUuid: string): Promise<EmailDraft | null
   };
 }
 
-type Outgoing = { ref: string; size: number; name: string };
-
-/** Everything ticked, as files the server may send: each re-resolved on THIS
-    job in THIS org, and a ticket only where its scan may open for the sender. */
-async function outgoing(
-  ctx: Ctx,
-  job: string,
-  picks: SendPicks
-): Promise<{ ok: true; files: Outgoing[]; labels: string[] } | { ok: false; error: string }> {
-  const files: Outgoing[] = [];
-  const labels: string[] = [];
-  const gone = { ok: false as const, error: "One of those is no longer on the job. Close the card and open it again." };
-
-  if (picks.papers.length > 0) {
-    const { today, warnDays } = await clock(ctx.orgId);
-    const papers = await readJobPapers(ctx.orgId, job, {
-      staffId: ctx.staffId,
-      company: ctx.company,
-      team: ctx.team,
-      today,
-      warnDays,
-    });
-    const picked: { paper: (typeof papers)[number]; file: (typeof papers)[number]["files"][number]; i: number; n: number }[] = [];
-    for (const id of picks.papers) {
-      const paper = papers.find((p) => p.id === id);
-      if (!paper) return gone;
-      /* the face offers no tick for these; the same answer for a POST that
-         skipped the face */
-      if (paper.state === "bad") {
-        return { ok: false, error: `${whose(paper)} on this job has expired. Use the renewal, or untick it.` };
-      }
-      const open = paper.files.filter((f) => f.url);
-      if (open.length === 0) return { ok: false, error: `You can't send ${whose(paper)}.` };
-      open.forEach((file, i) => picked.push({ paper, file, i, n: open.length }));
-      labels.push(paperLabel(paper));
-    }
-    const { data } = await supabaseAdmin
-      .from("documents")
-      .select("id, storage_ref, size_bytes")
-      .eq("org_id", ctx.orgId)
-      .in(
-        "id",
-        picked.map((p) => p.file.id)
-      );
-    const refs = new Map(
-      ((data ?? []) as { id: string; storage_ref: string; size_bytes: number | null }[]).map((r) => [r.id, r])
-    );
-    for (const p of picked) {
-      const row = refs.get(p.file.id);
-      if (!row) return gone;
-      files.push({ ref: row.storage_ref, size: Number(row.size_bytes) || 0, name: attachmentName(p.paper, p.file, p.i, p.n) });
-    }
-  }
-
-  type DocRow = { storage_ref: string; file_name: string; mime_type: string; size_bytes: number | null };
-  const take = (rows: DocRow[]) => {
-    for (const r of rows) {
-      files.push({ ref: r.storage_ref, size: Number(r.size_bytes) || 0, name: withExtension(r.file_name, r.mime_type) });
-      labels.push(r.file_name);
-    }
-  };
-
-  if (picks.documents.length > 0) {
-    const { data } = await supabaseAdmin
-      .from("documents")
-      .select("storage_ref, file_name, mime_type, size_bytes")
-      .eq("org_id", ctx.orgId)
-      .eq("kind", "job_document")
-      .eq("sm8_job_uuid", job)
-      .in("id", picks.documents)
-      .not("uploaded_at", "is", null);
-    const rows = (data ?? []) as DocRow[];
-    if (rows.length !== picks.documents.length) return gone;
-    take(rows);
-  }
-
-  if (picks.files.length > 0) {
-    /* ServiceM8's own files, from the copies cached here — the card gathers
-       a job's claims' files onto it, so the family is where they may be */
-    const family = [job, ...(await familyMediaSources(ctx.orgId, job)).map((s) => s.remoteId)];
-    const { data } = await supabaseAdmin
-      .from("documents")
-      .select("storage_ref, file_name, mime_type, size_bytes")
-      .eq("org_id", ctx.orgId)
-      .eq("source", "servicem8")
-      .in("sm8_job_uuid", family)
-      .in("remote_ref", picks.files)
-      .not("uploaded_at", "is", null);
-    const rows = (data ?? []) as DocRow[];
-    if (rows.length !== picks.files.length) {
-      return { ok: false, error: "One of ServiceM8's files hasn't been brought across yet. Untick it and send the rest." };
-    }
-    take(rows);
-  }
-
-  return { ok: true, files, labels };
-}
-
 async function appOrigin(): Promise<string> {
   if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
   const h = await headers();
@@ -457,7 +306,7 @@ async function appOrigin(): Promise<string> {
     business's name from the verified address, replies reach the sender, the
     sender gets a quiet copy, and the job's diary records what went to whom. */
 export async function emailJobDocuments(input: EmailDocumentsInput): Promise<EmailDocumentsResult> {
-  const ctx = await context();
+  const ctx = await complianceContext();
   if (!ctx?.company) return { ok: false, error: "You can't email documents from jobs." };
   const job = trimId(input?.jobUuid);
   if (!job || !(await jobIsReal(ctx.orgId, job))) {

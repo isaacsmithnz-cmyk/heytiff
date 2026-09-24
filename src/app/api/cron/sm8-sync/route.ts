@@ -1,5 +1,6 @@
 import { authorised } from "@/lib/integrations/cron-auth";
 import { runSm8Sync, sweepableSm8Orgs } from "@/lib/integrations/sm8-sync";
+import { orgsWithDueSm8Writes, runSm8Writes } from "@/lib/integrations/sm8-writes";
 
 /* The nightly ServiceM8 mirror top-up — the BACKSTOP, not the primary path.
 
@@ -87,6 +88,24 @@ export async function GET(request: Request) {
     }
   }
 
+  /* THE OTHER DIRECTION, same backstop. A file somebody sent to ServiceM8
+     that met a busy or unreachable ServiceM8 retries on the next page load;
+     this is for the one whose job card nobody opens again. Workspaces with
+     nothing waiting cost one query between them, and none of this runs on
+     a deployment that doesn't write (orgsWithDueSm8Writes returns none). */
+  let writesSent = 0;
+  let writesFailed = 0;
+  const writers = await orgsWithDueSm8Writes(ORG_CAP);
+  for (const orgId of writers) {
+    try {
+      const run = await runSm8Writes(orgId, "cron");
+      writesSent += run.sent;
+      writesFailed += run.failed;
+    } catch {
+      writesFailed += 1;
+    }
+  }
+
   /* Counts only — enough to see the top-up is alive in the Vercel logs, and
      useless to anybody else. */
   return Response.json({
@@ -98,5 +117,6 @@ export async function GET(request: Request) {
     pages,
     rows,
     capped: orgs.length === ORG_CAP,
+    writes: { orgs: writers.length, sent: writesSent, failed: writesFailed },
   });
 }

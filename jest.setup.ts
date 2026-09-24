@@ -113,6 +113,14 @@ jest.mock('@/app/actions/job-compliance', () => ({
   emailJobDocuments: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
 }))
 
+/* Send to ServiceM8's two actions, for the same reason: the job card imports
+   them, and every suite that renders it would otherwise reach for Auth0 and
+   Supabase. Nothing offered, nothing sent, until a suite says otherwise. */
+jest.mock('@/app/actions/job-sm8', () => ({
+  readJobSm8: jest.fn(async () => null),
+  sendJobDocumentsToServiceM8: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+}))
+
 /* The uploader's browser half, for the same reason and by the same route: it
    imports `@/app/actions/documents` to ask for a signed slot, which is a
    `"use server"` module, and every scan panel imports the uploader. Its job is

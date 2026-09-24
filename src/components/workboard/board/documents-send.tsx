@@ -14,9 +14,11 @@ import type { EmailContact, EmailDraft } from "@/app/actions/job-compliance";
    ticked while the email is written — the letter's Attaching line follows the
    ticks. Nothing opens over the card.
 
-   SEND TO SERVICEM8 IS HERE AND OFF. ServiceM8 is mirrored read-only by
-   charter; putting files on its job is the write path's first job, and until
-   that lands the button says what it will do and does not pretend to do it. */
+   SEND TO SERVICEM8 IS THE OTHER DOOR, and it is there only where an owner
+   has switched it on (Integrations, ServiceM8). The press waits for its
+   files; what came of them is the card's toast and each row's own words,
+   and a file that didn't go keeps its tick and says why here, in the space
+   the count was in. */
 
 function ContactBox({
   contact,
@@ -43,6 +45,9 @@ export function DocumentsSend({
   onClear,
   onLoadDraft,
   onSend,
+  sm8 = null,
+  sm8Note = null,
+  onSendToSm8,
 }: {
   /** What is ticked, by the names the letter will list. */
   picked: readonly { key: string; name: string }[];
@@ -54,27 +59,71 @@ export function DocumentsSend({
   onLoadDraft: () => Promise<EmailDraft | null>;
   /** Resolves null once the email has left, or with the reason it didn't. */
   onSend: (input: { to: string[]; subject: string; message: string }) => Promise<string | null>;
+  /** Whether Send to ServiceM8 is offered here, and on which setting. */
+  sm8?: "trial" | "live" | null;
+  /** Why the last send left files behind; cleared by the next tick. */
+  sm8Note?: string | null;
+  onSendToSm8?: () => Promise<void>;
 }) {
   if (!writing) {
-    const n = picked.length;
     return (
-      <div className="wb2-shft wb2-dsend">
-        <em className="wb2-dsend-n">{n === 1 ? "1 document ticked" : `${n} documents ticked`}</em>
-        <button type="button" className="pbtn ghost" onClick={onClear}>
-          Clear ticks
-        </button>
-        <button type="button" className="pbtn ghost" disabled title="Sending to ServiceM8 isn't switched on yet">
-          Send to ServiceM8
-        </button>
-        <button type="button" className="pbtn" onClick={() => onWriting(true)}>
-          <Icon name="mail" size={15} />
-          Email documents
-        </button>
-      </div>
+      <SendBar
+        count={picked.length}
+        sm8={sm8}
+        sm8Note={sm8Note}
+        onClear={onClear}
+        onEmail={() => onWriting(true)}
+        onSendToSm8={onSendToSm8}
+      />
     );
   }
 
   return <EmailForm picked={picked} onLoadDraft={onLoadDraft} onSend={onSend} onCancel={() => onWriting(false)} />;
+}
+
+function SendBar({
+  count,
+  sm8,
+  sm8Note,
+  onClear,
+  onEmail,
+  onSendToSm8,
+}: {
+  count: number;
+  sm8: "trial" | "live" | null;
+  sm8Note: string | null;
+  onClear: () => void;
+  onEmail: () => void;
+  onSendToSm8?: () => Promise<void>;
+}) {
+  const [sending, setSending] = useState(false);
+  const sendToSm8 = async () => {
+    if (!onSendToSm8 || sending) return;
+    setSending(true);
+    await onSendToSm8().catch(() => {});
+    setSending(false);
+  };
+  return (
+    <div className="wb2-shft wb2-dsend">
+      {sm8Note ? (
+        <em className="wb2-dsend-n sw-state bad">{sm8Note}</em>
+      ) : (
+        <em className="wb2-dsend-n">{count === 1 ? "1 document ticked" : `${count} documents ticked`}</em>
+      )}
+      <button type="button" className="pbtn ghost" disabled={sending} onClick={onClear}>
+        Clear ticks
+      </button>
+      {sm8 && onSendToSm8 && (
+        <button type="button" className="pbtn ghost" disabled={sending} onClick={() => void sendToSm8()}>
+          {sending ? "Sending to ServiceM8…" : "Send to ServiceM8"}
+        </button>
+      )}
+      <button type="button" className="pbtn" disabled={sending} onClick={onEmail}>
+        <Icon name="mail" size={15} />
+        Email documents
+      </button>
+    </div>
+  );
 }
 
 function EmailForm({

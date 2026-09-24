@@ -70,12 +70,21 @@ export type Sm8Tokens = {
 /** The URL that starts consent. `state` is minted and cookie-bound by the
     caller; ServiceM8's documented parameters are response_type, client_id,
     scope (space-separated) and redirect_uri — `state` rides along under the
-    OAuth 2.0 rule that the server echoes it back untouched. */
-export function buildSm8ConsentUrl(cfg: Sm8Config, state: string): string {
+    OAuth 2.0 rule that the server echoes it back untouched.
+
+    `scopes` is the read list unless the caller says otherwise: the connect
+    route adds the write scopes while the owner has writing switched on
+    (providers.ts, sm8ScopesWanted), so a reconnect never drops a permission
+    a switch depends on. */
+export function buildSm8ConsentUrl(
+  cfg: Sm8Config,
+  state: string,
+  scopes: readonly string[] = SM8_SCOPE_LIST
+): string {
   const params = new URLSearchParams({
     response_type: "code",
     client_id: cfg.clientId,
-    scope: SM8_SCOPE_LIST.join(" "),
+    scope: scopes.join(" "),
     redirect_uri: cfg.redirectUri,
     state,
   });

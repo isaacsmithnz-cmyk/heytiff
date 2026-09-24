@@ -12,7 +12,10 @@ import {
   PROVIDERS,
   SM8_SCOPE_LIST,
   SM8_SCOPES,
+  SM8_WRITE_SCOPE_LIST,
+  SM8_WRITE_SCOPES,
   sm8MissingScopes,
+  sm8ScopesWanted,
   XERO_SCOPE_LIST,
 } from "../providers";
 
@@ -147,5 +150,45 @@ describe("missing scopes are judged per provider", () => {
 
   it("an unknown provider misses nothing rather than everything", () => {
     expect(missingScopesFor("someday-crm", "whatever")).toEqual([]);
+  });
+});
+
+/* WRITING HAS ITS OWN LIST, and the read list above stays write-free BY
+   SHAPE — those tests are unchanged. What is pinned here is the other half:
+   exactly which writes exist, and that none is asked for unless the owner
+   has switched sending on. */
+describe("the write ask", () => {
+  it("is one scope, the one that puts a file on a job", () => {
+    expect(SM8_WRITE_SCOPE_LIST).toEqual(["manage_attachments"]);
+  });
+
+  it("is a write by shape, and never leaks into the read list", () => {
+    for (const s of SM8_WRITE_SCOPE_LIST) {
+      expect(s).toMatch(/^(manage|create|publish)_/);
+      expect(SM8_SCOPE_LIST).not.toContain(s);
+    }
+  });
+
+  it("says what the permission allows as well as what HeyTiff does with it", () => {
+    const why = SM8_WRITE_SCOPES[0].why;
+    expect(why).toMatch(/add, change and remove/);
+    expect(why).toMatch(/HeyTiff only ever adds/);
+  });
+
+  it("is asked for only while sending is On — off and a trial run ask for the reads alone", () => {
+    expect(sm8ScopesWanted(undefined)).toEqual(SM8_SCOPE_LIST);
+    expect(sm8ScopesWanted("off")).toEqual(SM8_SCOPE_LIST);
+    expect(sm8ScopesWanted("trial")).toEqual(SM8_SCOPE_LIST);
+    expect(sm8ScopesWanted("live")).toEqual([...SM8_SCOPE_LIST, ...SM8_WRITE_SCOPE_LIST]);
+  });
+
+  it("reads a grant without it as missing it, only while sending is On", () => {
+    const reads = SM8_SCOPE_LIST.join(" ");
+    expect(sm8MissingScopes(reads, "off")).toEqual([]);
+    expect(sm8MissingScopes(reads, "live")).toEqual(["manage_attachments"]);
+    expect(missingScopesFor("servicem8", reads, "live")).toEqual(["manage_attachments"]);
+    expect(missingScopesFor("servicem8", `${reads} manage_attachments`, "live")).toEqual([]);
+    // Xero's yardstick is its own, whatever the switch says
+    expect(missingScopesFor("xero", XERO_SCOPE_LIST.join(" "), "live")).toEqual([]);
   });
 });

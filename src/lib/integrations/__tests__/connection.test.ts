@@ -5,7 +5,7 @@ import {
   toView,
   type ConnectionRow,
 } from "../connection";
-import { XERO_SCOPE_LIST } from "../providers";
+import { SM8_SCOPE_LIST, XERO_SCOPE_LIST } from "../providers";
 
 const row = (over: Partial<ConnectionRow> = {}): ConnectionRow => ({
   id: "c1",
@@ -56,6 +56,19 @@ describe("toView", () => {
   it("passes the connector's name through", () => {
     expect(toView(row(), "Isaac Smith").connectedByName).toBe("Isaac Smith");
     expect(toView(row()).connectedByName).toBeNull();
+  });
+
+  it("carries the owner's write switch, off unless it reads as a setting", () => {
+    expect(toView(row()).writeMode).toBe("off");
+    expect(toView(row({ write_mode: "trial" })).writeMode).toBe("trial");
+    expect(toView(row({ write_mode: "sideways" })).writeMode).toBe("off");
+  });
+
+  it("counts the write permission as missing only while sending is On", () => {
+    const sm8 = (over: Partial<ConnectionRow>) =>
+      toView(row({ provider: "servicem8", scopes: SM8_SCOPE_LIST.join(" "), ...over }));
+    expect(sm8({ write_mode: "trial" }).missing).toEqual([]);
+    expect(sm8({ write_mode: "live" }).missing).toEqual(["manage_attachments"]);
   });
 });
 

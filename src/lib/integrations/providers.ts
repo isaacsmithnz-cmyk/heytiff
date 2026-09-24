@@ -189,7 +189,8 @@ export function missingScopes(granted: string | null | undefined): string[] {
    owner would accept, rendered verbatim on the screen the consent URL is built
    from. READ-ONLY, DELIBERATELY — ServiceM8's scopes are granular read_* /
    manage_* / create_* / publish_* families, and nothing here takes a writing
-   one. Still true and worth naming:
+   one. Writing has its own list, SM8_WRITE_SCOPES below, asked for only while
+   the owner has it switched on. Still true and worth naming:
 
      manage_badges   the ONLY scope over job badges is a write scope, so badges
                      stay out entirely — Workboard readiness tags are
@@ -320,20 +321,63 @@ export const SM8_SCOPES: ScopeEntry[] = [
 /** What we ask ServiceM8 for, space-separated in the consent URL. */
 export const SM8_SCOPE_LIST: string[] = SM8_SCOPES.map((s) => s.scope);
 
-export function sm8MissingScopes(granted: string | null | undefined): string[] {
+/* ── ServiceM8 write scopes ────────────────────────────────────────────────
+
+   THE LIST ABOVE STAYS READ-ONLY, and writing lives here instead. A write
+   scope is asked for only while the owner has writing switched ON
+   (integration_connections.write_mode = 'live'). Off, or on a trial run, the
+   consent screen is the read list alone, exactly as before, so an owner who
+   never turns writing on never grants it, and the tests still hold the read
+   list write-free BY SHAPE.
+
+   ONE SCOPE, AND IT CAME WITH ITS FEATURE. manage_attachments puts a file on
+   a job. Every later write brings its own scope and its own sentence when it
+   ships, not before.
+
+   THE SENTENCE SAYS WHAT THE PERMISSION ALLOWS AS WELL AS WHAT WE DO WITH
+   IT. "Manage" covers changing and deleting a job's files too. HeyTiff only
+   adds, and the consent screen is where an owner deserves to read both.
+
+   The name is the one ServiceM8's "Attaching files to a Job Diary" guide
+   gives for uploads (searched 2026-09-24). Their developer site isn't
+   reachable from the build environment, so the first live send is the
+   confirmation: a 403 logs ServiceM8's body, which names the scope it
+   actually wanted. That is how read_attachments was found. */
+
+export const SM8_WRITE_SCOPES: ScopeEntry[] = [
+  {
+    scope: "manage_attachments",
+    area: "Workboard",
+    why: "Lets HeyTiff add, change and remove the files on a job. HeyTiff only ever adds: the files somebody sends from a job here, like your insurance certificates, licences and uploads, go on the same job in ServiceM8. Nothing already there is changed or removed.",
+  },
+];
+
+export const SM8_WRITE_SCOPE_LIST: string[] = SM8_WRITE_SCOPES.map((s) => s.scope);
+
+/** What the consent screen asks for: the reads always, the writes only while
+    writing is on. A trial run sends nothing, so it asks for nothing more. */
+export function sm8ScopesWanted(writeMode?: string | null): string[] {
+  return writeMode === "live" ? [...SM8_SCOPE_LIST, ...SM8_WRITE_SCOPE_LIST] : SM8_SCOPE_LIST;
+}
+
+export function sm8MissingScopes(granted: string | null | undefined, writeMode?: string | null): string[] {
   const have = new Set((granted ?? "").split(/\s+/).filter(Boolean));
-  return SM8_SCOPE_LIST.filter((s) => !have.has(s));
+  return sm8ScopesWanted(writeMode).filter((s) => !have.has(s));
 }
 
 /** The per-provider form, for code that holds a connection row and needs the
     row's own yardstick — a ServiceM8 grant judged against Xero's list would
     read as permanently incomplete. Unknown providers miss nothing rather than
-    everything, for the same degrade-don't-crash reason parseTenants has. */
+    everything, for the same degrade-don't-crash reason parseTenants has.
+
+    `writeMode` is the row's own switch: a ServiceM8 grant with writing on
+    and no write permission is missing it, and the screen says reconnect. */
 export function missingScopesFor(
   provider: string,
-  granted: string | null | undefined
+  granted: string | null | undefined,
+  writeMode?: string | null
 ): string[] {
   if (provider === "xero") return missingScopes(granted);
-  if (provider === "servicem8") return sm8MissingScopes(granted);
+  if (provider === "servicem8") return sm8MissingScopes(granted, writeMode);
   return [];
 }

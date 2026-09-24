@@ -53,6 +53,8 @@ import {
   removeJobPaper,
   renewJobPaper,
 } from "@/app/actions/job-compliance";
+import { readJobSm8, sendJobDocumentsToServiceM8, type JobSm8Read } from "@/app/actions/job-sm8";
+import { sendFailure, sendToast, twinsToHide } from "@/lib/integrations/sm8-write-plan";
 import {
   ourDocumentSendKey,
   paperLabel,
@@ -257,7 +259,9 @@ export function JobSheet({
 }) {
   const router = useRouter();
   const [detail, setDetail] = useState<MirrorJobDetail | null>(null);
-  const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
+  /* The job's files AS READ. What the faces show is `media`, below: this,
+     less ServiceM8's copies of files we sent that our own rows show. */
+  const [mediaRead, setMedia] = useState<JobMediaGroupsRead | null>(null);
   const [mediaNote, setMediaNote] = useState<string | null>(null);
   /* Photos cached but not yet looked at. Null until a read reports; 0 once the
      job is fully in the bank. */
@@ -309,6 +313,34 @@ export function JobSheet({
      the Documents face and the letter in the footer below it. */
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const [writing, setWriting] = useState(false);
+  /* SERVICEM8, THE OTHER DOOR: what has gone from this job and whether this
+     viewer gets the button, and why the last press left files behind. */
+  const [sm8Read, setSm8Read] = useState<JobSm8Read | null>(null);
+  const [sm8Note, setSm8Note] = useState<string | null>(null);
+  /* ONE ROW PER FILE. A file we sent comes back as ServiceM8's own once the
+     next sync mirrors it; while one of our rows shows that file, the copy is
+     left off every face (and off the story, so its stamp doesn't move for a
+     file it already counted). Take our row away and the copy shows as
+     ServiceM8's, which is what it then is. */
+  const twins = useMemo(() => {
+    if (!sm8Read || sm8Read.sends.length === 0) return null;
+    const shown = [
+      ...(mediaRead?.documents ?? []).flatMap((d) => (d.documentId ? [d.documentId] : [])),
+      ...(papers?.papers ?? []).flatMap((p) => p.files.map((f) => f.id)),
+    ];
+    const hide = twinsToHide(sm8Read.sends, shown);
+    return hide.size > 0 ? hide : null;
+  }, [sm8Read, mediaRead, papers]);
+  const media = useMemo(() => {
+    if (!mediaRead || !twins) return mediaRead;
+    const keep = (i: JobMediaItem) => !twins.has(i.remoteId);
+    return {
+      ...mediaRead,
+      photos: mediaRead.photos.filter(keep),
+      documents: mediaRead.documents.filter(keep),
+      elsewhere: mediaRead.elsewhere.filter(keep),
+    };
+  }, [mediaRead, twins]);
   /* The shared viewer: a photo (by its place in the photos lens) or one
      PDF's paper. Closing it lands the reader exactly where they were. */
   const [viewer, setViewer] = useState<
@@ -553,6 +585,13 @@ export function JobSheet({
       .catch(() => {
         if (live) setPapersFailed(true);
       });
+    /* what has gone to ServiceM8 from here; a read that fails leaves the
+       rows without their ServiceM8 words and the footer without the door */
+    void readJobSm8(cardId)
+      .then((read) => {
+        if (live) setSm8Read(read);
+      })
+      .catch(() => {});
     return () => {
       live = false;
     };
@@ -568,13 +607,16 @@ export function JobSheet({
     return read;
   };
 
-  const tick = (key: string, on: boolean) =>
+  const tick = (key: string, on: boolean) => {
+    /* the footer's "wasn't sent" was about the ticks as they were */
+    setSm8Note(null);
     setPicked((cur) => {
       const next = new Set(cur);
       if (on) next.add(key);
       else next.delete(key);
       return next;
     });
+  };
 
   /* Put ticked papers on the job. What was just added is most often what is
      about to be sent, so it arrives ticked — the footer's Email documents is
@@ -649,6 +691,32 @@ export function JobSheet({
       onToast(`Email sent to ${andList(res.to)}`);
     }
     return null;
+  };
+
+  /* SEND TO SERVICEM8. The press waits for its files; what went is unticked
+     and said in a toast, and what didn't keeps its tick and says why in the
+     footer — pressing again tries it again. Every row's words come from the
+     sends the answer carries, so the face is true the moment it returns. */
+  const sendToServiceM8 = async (): Promise<void> => {
+    if (!cardId) return;
+    setSm8Note(null);
+    const names = new Map(pickedList.map((p) => [p.key, p.name]));
+    const res = await sendJobDocumentsToServiceM8({
+      jobUuid: cardId,
+      keys: pickedList.map((p) => p.key),
+    }).catch(() => ({ ok: false as const, error: "Couldn't reach HeyTiff. Try again." }));
+    if (!alive.current) return;
+    if (!res.ok) {
+      setSm8Note(res.error);
+      return;
+    }
+    setSm8Read((cur) => (cur ? { ...cur, sends: res.sends } : cur));
+    const stay = new Set(res.failed.map((f) => f.key));
+    setPicked((cur) => new Set([...cur].filter((k) => stay.has(k))));
+    const nameOf = (key: string) => names.get(key) ?? "A document";
+    const toast = sendToast(res, nameOf);
+    if (toast) onToast(toast);
+    setSm8Note(sendFailure(res.failed, nameOf));
   };
 
   /* Our OWN material picklist — pushed here from a Studio design. On its own
@@ -1716,6 +1784,7 @@ export function JobSheet({
               onOpenPaper={(p) => setViewer({ kind: "papers", id: p.id, index: 0 })}
               onRemovePaper={removePaper}
               onRenewPaper={renewPaper}
+              sends={sm8Read?.sends ?? null}
             />
           )}
 
@@ -1736,9 +1805,13 @@ export function JobSheet({
             onClear={() => {
               setPicked(new Set());
               setWriting(false);
+              setSm8Note(null);
             }}
             onLoadDraft={() => readEmailDraft(cardId)}
             onSend={sendDocuments}
+            sm8={sm8Read?.send ?? null}
+            sm8Note={sm8Note}
+            onSendToSm8={sendToServiceM8}
           />
         )}
 

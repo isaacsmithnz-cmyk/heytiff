@@ -16,6 +16,7 @@ import {
   listSm8SyncStatus,
   type Sm8SyncStatusView,
 } from "@/lib/integrations/sm8-sync";
+import { kickSm8WritesIfDue } from "@/lib/integrations/sm8-writes";
 import { todayInZone } from "./dates";
 import { listFlags, type BoardFlag } from "./notes-query";
 import { loadMaintenanceBoard, type MaintenanceBoardData } from "./board-query";
@@ -144,7 +145,12 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
   // the after() callback touches request APIs (Server Component rule).
   // a grant that needs signing in again cannot sync; asking it to would only
    // burn the attempt and log a failure nobody reads
-  if (connection === "connected") await kickSm8SyncIfStale(orgId);
+  if (connection === "connected") {
+    await kickSm8SyncIfStale(orgId);
+    /* and send what is waiting to go the other way — a file whose first
+       send hit a busy ServiceM8 goes the next time anyone looks */
+    await kickSm8WritesIfDue(orgId);
+  }
 
   return {
     manage,

@@ -19,6 +19,7 @@ import {
   type JobPaper,
   type PaperChoices,
 } from "@/lib/compliance/papers";
+import { sendLine, type JobSend, type SendLine } from "@/lib/integrations/sm8-write-plan";
 import { ComplianceChooser } from "./compliance-chooser";
 import "@/components/swms/swms.css";
 
@@ -57,7 +58,14 @@ import "@/components/swms/swms.css";
    the face holds carries a tick — ours, theirs and the papers alike — and
    what is ticked is emailed from the card's footer. A row with nothing to
    send (a SWMS is a page, a file not brought across yet) holds the tick's
-   place empty, so the names still line up. */
+   place empty, so the names still line up.
+
+   AND ONE OF OURS SAYS WHETHER IT IS IN SERVICEM8, once somebody has sent
+   it there from the footer: "In ServiceM8", or on its way, or why it didn't
+   go, in the state's colour under its name. ServiceM8's own copy, mirrored
+   back by the next sync, is left off the list while our row shows the file
+   (the sheet does that, lib/integrations/sm8-write-plan's twinsToHide), so
+   a file sent is still one row. */
 
 const editedOn = (iso: string): string => {
   const d = new Date(iso);
@@ -71,7 +79,22 @@ const editedOn = (iso: string): string => {
     a file the upload would then refuse. */
 const ACCEPT = Object.keys(ALLOWED_TYPES).join(",");
 
-function DocRow({ item, onOpen }: { item: JobMediaItem; onOpen: (item: JobMediaItem) => void }) {
+/** A line in the state's colour under a row's name — a paper's expiry, a
+    file's way to ServiceM8. No tone is the quiet colour. */
+function StateLine({ line }: { line: SendLine }) {
+  return <em className={line.tone ? `sw-state ${line.tone}` : undefined}>{line.word}</em>;
+}
+
+function DocRow({
+  item,
+  onOpen,
+  state = null,
+}: {
+  item: JobMediaItem;
+  onOpen: (item: JobMediaItem) => void;
+  /** Where this file stands with ServiceM8, for one of ours. */
+  state?: SendLine | null;
+}) {
   const day = item.takenAt ? fmtAuWeekdayDayMonth(item.takenAt.slice(0, 10)) : null;
   /* One dress for every document — #559's law, kept through the grouping:
      the same row the design list wears, and the meta says only what the
@@ -98,6 +121,7 @@ function DocRow({ item, onOpen }: { item: JobMediaItem; onOpen: (item: JobMediaI
       <span className="wb2-doc-b">
         <b>{item.name}</b>
         {meta && <em>{meta}</em>}
+        {state && <StateLine line={state} />}
       </span>
       {item.url && (
         <span className="wb2-doc-go">
@@ -130,12 +154,14 @@ function DocRow({ item, onOpen }: { item: JobMediaItem; onOpen: (item: JobMediaI
 function OurRow({
   item,
   pick,
+  state = null,
   onOpen,
   onRemove,
 }: {
   item: JobMediaItem;
   /** The row's tick, when the face is sending. */
   pick?: React.ReactNode;
+  state?: SendLine | null;
   onOpen: (item: JobMediaItem) => void;
   onRemove?: (item: JobMediaItem) => Promise<string | null>;
 }) {
@@ -159,7 +185,7 @@ function OurRow({
     <>
       <div className="wb2-docrow">
         {pick}
-        <DocRow item={item} onOpen={onOpen} />
+        <DocRow item={item} onOpen={onOpen} state={state} />
         {onRemove &&
           (asking ? (
             <>
@@ -189,6 +215,7 @@ function PaperRow({
   paper,
   today,
   pick,
+  sm8 = null,
   onOpen,
   onRemove,
   onRenew,
@@ -196,6 +223,8 @@ function PaperRow({
   paper: JobPaper;
   today: string;
   pick?: React.ReactNode;
+  /** Where the paper's files stand with ServiceM8. */
+  sm8?: SendLine | null;
   onOpen?: (paper: JobPaper) => void;
   onRemove?: (paper: JobPaper) => Promise<string | null>;
   onRenew?: (paper: JobPaper) => Promise<string | null>;
@@ -227,7 +256,8 @@ function PaperRow({
       <span className="wb2-doc-b">
         <b>{paper.name}</b>
         <em>{paperMeta(paper)}</em>
-        {line && <em className={`sw-state ${line.tone}`}>{line.word}</em>}
+        {line && <StateLine line={line} />}
+        {sm8 && <StateLine line={sm8} />}
       </span>
       {opens && (
         <span className="wb2-doc-go">
@@ -335,6 +365,7 @@ export function JobDocumentsFace({
   onOpenPaper,
   onRemovePaper,
   onRenewPaper,
+  sends = null,
 }: {
   documents: readonly JobMediaItem[] | null;
   elsewhere: readonly JobMediaItem[] | null;
@@ -381,6 +412,8 @@ export function JobDocumentsFace({
   onOpenPaper?: (paper: JobPaper) => void;
   onRemovePaper?: (paper: JobPaper) => Promise<string | null>;
   onRenewPaper?: (paper: JobPaper) => Promise<string | null>;
+  /** What has been sent to ServiceM8 from this job, by file. */
+  sends?: readonly JobSend[] | null;
 }) {
   const day = today ?? todayInAu();
   /* Add compliance, open under the ways in */
@@ -614,6 +647,7 @@ export function JobDocumentsFace({
                 paperSendable(p) ? paperSendKey(p.id) : null,
                 p.person ? `${p.name}, ${p.person}` : p.name
               )}
+              sm8={sends ? sendLine(sends, p.files.map((f) => f.id)) : null}
               onOpen={onOpenPaper}
               onRemove={onRemovePaper}
               onRenew={onRenewPaper}
@@ -667,6 +701,7 @@ export function JobDocumentsFace({
                   key={d.remoteId}
                   item={d}
                   pick={pickOf(d.url ? ourDocumentSendKey(d.documentId) : null, d.name)}
+                  state={sends ? sendLine(sends, [d.documentId]) : null}
                   onOpen={onOpen}
                   onRemove={onRemove}
                 />

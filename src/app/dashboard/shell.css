@@ -4489,6 +4489,14 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-scopehead { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .fg .int-tag { font-size:14px; font-weight:500; color:var(--gray500); }
 .fg .int-tag.warn { color:var(--warn-t); }
+/* the writes list's two outcomes — a word in the state's colour (law 26) */
+.fg .int-tag.ok { color:var(--ok-t); }
+.fg .int-tag.bad { color:var(--bad-t); }
+/* SENDING FILES TO SERVICEM8 — the checklist's segmented choice for the
+   setting, and each write's file name read as a name, not as code */
+.fg .int-wmode { margin:0 0 16px; }
+.fg .int-writes { margin-top:16px; }
+.fg .int-wname { min-width:0; font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* A backfill in progress is NOT a warning. It wears the ok green, because the
    thing it reports is working — the warn amber next to it now means one thing
@@ -7699,6 +7707,10 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
    body above is the one that gives way, so the letter is never squeezed. */
 .wb2-dsend { flex:none; justify-content:flex-end; }
 .wb2-dsend-n { margin-right:auto; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); }
+/* why a send left files behind takes the whole first line, so the three
+   buttons keep their row together under it instead of one of them wrapping
+   off on its own */
+.wb2-dsend-n.bad { flex:1 0 100%; margin:0; }
 .wb2-dsend.open { max-height:60vh; overflow-y:auto; }
 /* the email, as a ledger: a quiet label column and the answers beside it */
 .wb2-mail { flex:1; min-width:0; display:grid; grid-template-columns:88px minmax(0,1fr); gap:8px 16px; align-items:start; }

@@ -7,6 +7,8 @@ import { getDbRole } from "@/lib/permissions-server";
 import { disconnectXero, setXeroTenant } from "@/lib/integrations/store";
 import { disconnectSm8 } from "@/lib/integrations/sm8-store";
 import { runSm8Sync } from "@/lib/integrations/sm8-sync";
+import { setSm8WriteMode, sm8WritesEnabled } from "@/lib/integrations/sm8-writes";
+import { readWriteMode } from "@/lib/integrations/sm8-write-plan";
 
 /* The two things you can do to an existing connection from the screen.
 
@@ -82,6 +84,25 @@ export async function syncServiceM8NowAction(): Promise<IntegrationResult> {
   revalidate();
   if (!outcome.ran) return { ok: false, error: outcome.note };
   return { ok: true, note: outcome.note };
+}
+
+/** The owner's switch for writing to ServiceM8: off, a trial run, or on.
+    The mode arrives from a browser, so it is read as a choice and anything
+    that isn't one of the three is refused rather than guessed at. Turning
+    it on doesn't grant anything by itself: the screen then asks for the
+    reconnect that gives HeyTiff the permission. */
+export async function setServiceM8WriteModeAction(mode: string): Promise<IntegrationResult> {
+  const ctx = await ownerOrgId();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+  if (!sm8WritesEnabled()) return { ok: false, error: "Sending to ServiceM8 isn't available yet." };
+
+  const want = readWriteMode(mode);
+  if (want !== mode) return { ok: false, error: "That isn't a setting." };
+  if (!(await setSm8WriteMode(ctx.orgId, want))) {
+    return { ok: false, error: "Couldn't change it. Reload the page and try again." };
+  }
+  revalidate();
+  return { ok: true };
 }
 
 export async function setXeroTenantAction(tenantId: string): Promise<IntegrationResult> {

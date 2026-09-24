@@ -18,11 +18,13 @@ import type { Sm8ObjectStatus, Sm8SyncStatusView } from "@/lib/integrations/sm8-
 
 const disconnect = jest.fn();
 const syncNow = jest.fn();
+const setWriteMode = jest.fn();
 const refresh = jest.fn();
 
 jest.mock("@/app/actions/integrations", () => ({
   disconnectServiceM8Action: (...args: unknown[]) => disconnect(...args),
   syncServiceM8NowAction: (...args: unknown[]) => syncNow(...args),
+  setServiceM8WriteModeAction: (...args: unknown[]) => setWriteMode(...args),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
 
@@ -55,6 +57,7 @@ const openConfirm = async (user: ReturnType<typeof userEvent.setup>) =>
 beforeEach(() => {
   disconnect.mockReset().mockResolvedValue({ ok: true });
   syncNow.mockReset().mockResolvedValue({ ok: true });
+  setWriteMode.mockReset().mockResolvedValue({ ok: true });
   refresh.mockReset();
 });
 
@@ -456,5 +459,117 @@ describe("the mirror card's clock", () => {
       />,
     );
     expect(html).toContain("Syncing now…");
+  });
+});
+
+/* ── sending files to ServiceM8 ──────────────────────────────────────────
+   The owner's switch for the first thing HeyTiff writes back. It isn't drawn
+   where it can't be set; it names each setting as a sentence; On asks for
+   the permission it needs and says so until it has it; and the list shows
+   what was done to their ServiceM8, including what didn't go. */
+describe("sending files to ServiceM8", () => {
+  const writes = (over = {}) => ({
+    mode: "off" as "off" | "trial" | "live",
+    granted: false,
+    sentLately: null as number | null,
+    recent: [] as {
+      id: string;
+      name: string;
+      jobNumber: string | null;
+      status: "sent" | "failed" | "trial" | "queued" | "sending" | "cancelled";
+      attempts: number;
+      error: string | null;
+      at: string;
+      by: string | null;
+    }[],
+    ...over,
+  });
+
+  it("isn't drawn where writing isn't available — a setting that can't be set is a roadmap", () => {
+    render(<Servicem8Screen connection={toView(row())} {...ready} writes={null} />);
+    expect(screen.queryByText("Sending files to ServiceM8")).not.toBeInTheDocument();
+  });
+
+  it("starts off, and says what off means", () => {
+    render(<Servicem8Screen connection={toView(row())} {...ready} writes={writes()} />);
+    expect(screen.getByText("Off. Nothing HeyTiff does changes your ServiceM8.")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("switches on the owner's press and reloads what the screen says", async () => {
+    const user = userEvent.setup();
+    render(<Servicem8Screen connection={toView(row())} {...ready} writes={writes()} />);
+    await user.click(screen.getByRole("radio", { name: "Trial run" }));
+    expect(setWriteMode).toHaveBeenCalledWith("trial");
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it("says a refused change, rather than looking as though it took", async () => {
+    setWriteMode.mockResolvedValue({ ok: false, error: "Only an owner can change connected apps." });
+    const user = userEvent.setup();
+    render(<Servicem8Screen connection={toView(row())} {...ready} writes={writes()} />);
+    await user.click(screen.getByRole("radio", { name: "On" }));
+    expect(await screen.findByText("Only an owner can change connected apps.")).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("says plainly that a trial run sends nothing", () => {
+    render(<Servicem8Screen connection={toView(row({ write_mode: "trial" }))} {...ready} writes={writes({ mode: "trial" })} />);
+    expect(screen.getByText(/Nothing reaches ServiceM8\.$/)).toBeInTheDocument();
+  });
+
+  it("asks for the write permission only while On, and says what it allows", () => {
+    const { unmount } = render(<Servicem8Screen connection={toView(row())} {...ready} writes={writes()} />);
+    expect(screen.queryByText("manage_attachments")).not.toBeInTheDocument();
+    expect(screen.getByText(/Read-only, every one of them/)).toBeInTheDocument();
+    unmount();
+
+    render(<Servicem8Screen connection={toView(row({ write_mode: "live" }))} {...ready} writes={writes({ mode: "live" })} />);
+    expect(screen.getByText("manage_attachments")).toBeInTheDocument();
+    expect(screen.getByText(/HeyTiff only ever adds/)).toBeInTheDocument();
+    expect(screen.getByText(/Reads, and one write/)).toBeInTheDocument();
+  });
+
+  it("says On can't send until ServiceM8 gives the permission, and how to give it", () => {
+    render(<Servicem8Screen connection={toView(row({ write_mode: "live" }))} {...ready} writes={writes({ mode: "live" })} />);
+    expect(screen.getByText(/hasn't given HeyTiff permission to add files yet/)).toBeInTheDocument();
+    // the status line agrees: the grant is short of what is now asked for
+    expect(screen.getByText("Connected, but missing some of the access HeyTiff now asks for.")).toBeInTheDocument();
+    expect(screen.getAllByText("Not granted yet")).toHaveLength(1);
+  });
+
+  it("once granted, says so at the top and counts what went", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row({ write_mode: "live", scopes: `${SM8_SCOPE_LIST.join(" ")} manage_attachments` }))}
+        {...ready}
+        writes={writes({ mode: "live", granted: true, sentLately: 14 })}
+      />
+    );
+    expect(screen.getByText("HeyTiff can read this ServiceM8 account, and add files to its jobs.")).toBeInTheDocument();
+    expect(screen.getByText(/14 in the last 30 days\.$/)).toBeInTheDocument();
+    expect(screen.queryByText(/hasn't given HeyTiff permission/)).not.toBeInTheDocument();
+  });
+
+  it("lists what was done to their ServiceM8, with what didn't go and why", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row({ write_mode: "live" }))}
+        {...ready}
+        writes={writes({
+          mode: "live",
+          granted: true,
+          recent: [
+            { id: "w1", name: "Public liability.pdf", jobNumber: "2380", status: "sent", attempts: 1, error: null, at: "2026-09-23T02:00:00Z", by: "Isaac Smith" },
+            { id: "w2", name: "Plan.pdf", jobNumber: "2381", status: "failed", attempts: 1, error: "ServiceM8 said the file is too big.", at: "2026-09-22T02:00:00Z", by: "Troy Porter" },
+          ],
+        })}
+      />
+    );
+    expect(screen.getByText("Public liability.pdf")).toBeInTheDocument();
+    expect(screen.getByText("Sent")).toHaveClass("int-tag", "ok");
+    expect(screen.getByText("Job 2380, Isaac Smith, Wed 23 Sept")).toBeInTheDocument();
+    expect(screen.getByText("Not sent")).toHaveClass("int-tag", "bad");
+    expect(screen.getByText("Job 2381, Troy Porter, Tue 22 Sept. ServiceM8 said the file is too big.")).toBeInTheDocument();
   });
 });

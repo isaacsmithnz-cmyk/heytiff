@@ -9,6 +9,7 @@ import { disconnectSm8 } from "@/lib/integrations/sm8-store";
 import { runSm8Sync } from "@/lib/integrations/sm8-sync";
 import { setSm8WriteMode, sm8WritesEnabled } from "@/lib/integrations/sm8-writes";
 import { readWriteMode } from "@/lib/integrations/sm8-write-plan";
+import { sm8DisconnectNote } from "@/lib/integrations/outcome";
 
 /* The two things you can do to an existing connection from the screen.
 
@@ -60,15 +61,18 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
-  await disconnectSm8(ctx.orgId);
+  const { cancelled, inFlight } = await disconnectSm8(ctx.orgId);
   revalidate();
 
   /* ServiceM8 documents no revocation endpoint, so unlike Xero there is no
      upstream call to attempt: our sealed tokens are gone, and finishing the
-     job on their side is a one-off the owner does in ServiceM8 itself. */
+     job on their side is a one-off the owner does in ServiceM8 itself. The
+     note also says which files that were waiting to go won't, and how many
+     were already on their way and may still arrive. */
+  const names = cancelled.map((c) => c.name).filter((n): n is string => n !== null);
   return {
     ok: true,
-    note: "Disconnected here. To fully revoke access, also remove HeyTiff from your ServiceM8 account's add-ons.",
+    note: sm8DisconnectNote({ cancelled: names, unnamed: cancelled.length - names.length, inFlight }),
   };
 }
 

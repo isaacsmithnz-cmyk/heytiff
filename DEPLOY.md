@@ -168,7 +168,9 @@ by hand and a connection only enriches them.
 5. `INTEGRATIONS_TOKEN_KEY` is **shared with Xero** — if step 3b is done, there is
    nothing to do here. It seals ServiceM8's tokens the same way.
 6. Apply `docs/migrations/sm8_mirror.sql` (and, for the Workboard itself,
-   `workboard_projects.sql` + `workboard_maintenance.sql`).
+   `workboard_projects.sql` + `workboard_maintenance.sql`), then
+   `docs/migrations/sm8_staying_connected.sql`. Run the two read-only checks
+   in that file's header first; both should return no rows.
 7. Sign in as an **owner** → **Admin → Integrations → ServiceM8 → Connect to
    ServiceM8**.
 
@@ -180,6 +182,23 @@ write scope, and a jest test pins it out.
 **No store submission is needed to use your own add-on.** The Add-on Store review
 applies to listing it publicly; connecting your own ServiceM8 account to your own
 add-on does not require approval.
+
+**One ServiceM8 account per workspace.** ServiceM8's rate limit is per
+account, and two workspaces writing to one account would double every note, so
+connecting an account another HeyTiff workspace already holds is refused and
+nothing is saved (a unique index is the backstop). Reconnecting to a
+*different* account replaces the old one: HeyTiff clears its copy of the old
+account (the mirror, and its cached photos with what was read off them),
+cancels anything still waiting to go to it, switches sending off, and the
+ServiceM8 screen says so and keeps the old account's name as "Previous
+account". Reconnecting the same account changes nothing but the tokens.
+
+**Staying connected.** A token that runs out mid-sync, or a network blip on
+the refresh, no longer asks the owner to reconnect: a refused request gets one
+renewal and one more try, and only ServiceM8 saying the grant is dead flags
+it. The refresh log line (`[sm8] token refresh <status>: <body>`) records
+every refusal, with our secret and tokens struck out, which is how to check
+the rule on a real removed add-on.
 
 **Disconnecting is only half a revocation.** ServiceM8 publishes no token-revoke
 endpoint, so Disconnect deletes HeyTiff's sealed tokens (and wipes the mirror);

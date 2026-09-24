@@ -15,6 +15,7 @@ import {
   intOrNull,
   maxEditDate,
   SM8_OBJECTS,
+  SM8_ACCOUNT_RESET_TABLES,
   SM8_WIPE_TABLES,
   textOrNull,
   walkOrderFor,
@@ -356,5 +357,17 @@ describe("chunk", () => {
     const parts = chunk(rows, 400);
     expect(parts.map((p) => p.length)).toEqual([400, 400, 200]);
     expect(parts.flat()).toEqual(rows);
+  });
+});
+
+describe("what a change of account clears", () => {
+  it("every mirror and the cursors into them", () => {
+    for (const spec of SM8_OBJECTS) expect(SM8_ACCOUNT_RESET_TABLES).toContain(spec.table);
+    expect(SM8_ACCOUNT_RESET_TABLES).toContain("sm8_sync_state");
+  });
+
+  it("not sm8_vendor, which goes last on its own, and never the lease a run may hold", () => {
+    expect(SM8_ACCOUNT_RESET_TABLES).not.toContain("sm8_vendor");
+    expect(SM8_ACCOUNT_RESET_TABLES).not.toContain("sm8_sync_runs");
   });
 });

@@ -7,6 +7,7 @@ type Row = Record<string, unknown>;
 
 const upserts: { table: string; payload: unknown }[] = [];
 const updates: { table: string; patch: Row }[] = [];
+const deletes: string[] = [];
 
 let claimResult: Row[] = [{ calls_today: 0, calls_day: null }];
 let stateRows: Row[] = [];
@@ -15,6 +16,13 @@ let runsRow: Row | null = null;
    finished run looks like */
 let connRows: Row[] = [];
 let runRows: Row[] = [];
+/* The connection row and the mirror's own account row, as maybeSingle reads
+   them. A write that names or switches the connection lands on connRow, so a
+   later read sees it the way the database would. */
+let connRow: Row | null = { tenant_id: "v-1", tenant_name: "Acme Air" };
+let vendorRow: Row | null = { uuid: "v-1", name: "Acme Air" };
+/* The unique index on ServiceM8 accounts refusing a write that names one. */
+let namingRefused = false;
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
@@ -29,9 +37,17 @@ jest.mock("@/lib/supabase-server", () => ({
         sub.eq = () => sub;
         sub.or = () => sub;
         sub.is = () => sub;
+        sub.neq = () => sub;
         sub.select = () => {
           updates.push({ table, patch });
-          return Promise.resolve({ data: table === "sm8_sync_runs" ? claimResult : [] });
+          if (table === "integration_connections" && namingRefused && "tenant_id" in patch) {
+            return Promise.resolve({ data: null, error: { code: "23505" } });
+          }
+          if (table === "integration_connections" && connRow) {
+            connRow = { ...connRow, ...patch };
+            return Promise.resolve({ data: [{ id: "c1" }], error: null });
+          }
+          return Promise.resolve({ data: table === "sm8_sync_runs" ? claimResult : [], error: null });
         };
         sub.then = (res: (v: { error: null }) => unknown) => {
           updates.push({ table, patch });
@@ -44,7 +60,12 @@ jest.mock("@/lib/supabase-server", () => ({
         sub.eq = () => sub;
         sub.in = () => sub;
         sub.limit = () => sub;
-        sub.maybeSingle = async () => ({ data: runsRow });
+        sub.order = () => sub;
+        sub.range = () => sub;
+        sub.maybeSingle = async () => ({
+          data: table === "integration_connections" ? connRow : table === "sm8_vendor" ? vendorRow : runsRow,
+          error: null,
+        });
         sub.then = (res: (v: { data: Row[] }) => unknown) => {
           const data =
             table === "sm8_sync_state"
@@ -61,28 +82,36 @@ jest.mock("@/lib/supabase-server", () => ({
       chain.delete = () => {
         const sub: Record<string, unknown> = {};
         sub.eq = () => sub;
-        sub.then = (res: (v: { error: null }) => unknown) =>
-          Promise.resolve({ error: null }).then(res);
+        sub.then = (res: (v: { error: null }) => unknown) => {
+          deletes.push(table);
+          return Promise.resolve({ error: null }).then(res);
+        };
         return sub;
       };
       return chain;
     },
+    storage: { from: () => ({ remove: async () => ({ data: [], error: null }) }) },
   },
 }));
 
 const afterFn = jest.fn((cb: () => unknown) => void cb);
 jest.mock("next/server", () => ({ after: (cb: () => unknown) => afterFn(cb) }));
 
-const sm8Access = jest.fn();
+const sm8AccessResult = jest.fn();
+const renewSm8Access = jest.fn();
 const markSm8NeedsReauth = jest.fn();
-/* The token paths are stubbed, but the naming repair is the REAL one: it
-   touches no tokens, and a spy here would only prove the sync calls something
-   — the point of the test below is that the connection row actually gets
-   written. */
+/* The token paths are stubbed, but the naming repair, the account read and
+   the switch are the REAL ones: they touch no tokens, and a spy here would
+   only prove the sync calls something — the point of the tests below is what
+   actually gets written and wiped. The renewal helper between the store and
+   the engine is real too. */
 jest.mock("../sm8-store", () => ({
-  sm8Access: (...a: unknown[]) => sm8Access(...(a as [])),
+  sm8AccessResult: (...a: unknown[]) => sm8AccessResult(...(a as [])),
+  renewSm8Access: (...a: unknown[]) => renewSm8Access(...(a as [])),
   markSm8NeedsReauth: (...a: unknown[]) => markSm8NeedsReauth(...(a as [])),
   nameSm8ConnectionIfNameless: jest.requireActual("../sm8-store").nameSm8ConnectionIfNameless,
+  readSm8Accounts: jest.requireActual("../sm8-store").readSm8Accounts,
+  switchSm8Account: jest.requireActual("../sm8-store").switchSm8Account,
 }));
 
 const fetchSm8Vendor = jest.fn();
@@ -96,24 +125,41 @@ jest.mock("../sm8-read", () => ({
 }));
 
 import { kickSm8SyncIfStale, runSm8Sync, sweepableSm8Orgs } from "../sm8-sync";
-import { PAGE_BUDGET, SM8_OBJECTS } from "../sm8-sync-plan";
+import {
+  PAGE_BUDGET,
+  SM8_ACCOUNT_MOVED,
+  SM8_ACCOUNT_RESET_TABLES,
+  SM8_ACCOUNT_SWITCHED,
+  SM8_ELSEWHERE,
+  SM8_OBJECTS,
+  SM8_REVOKED,
+  SM8_UNREACHABLE,
+} from "../sm8-sync-plan";
 
 const NOW = Date.parse("2026-07-28T01:00:00Z");
 const TODAY = "2026-07-28";
 
 const emptyPage = { ok: true as const, rows: [], nextCursor: null };
 
+const ACCESS = { accessToken: "tok", tenantId: "v-1", grant: "g1" };
+const RENEWED = { accessToken: "tok-2", tenantId: "v-1", grant: "g2" };
+
 beforeEach(() => {
   upserts.length = 0;
   updates.length = 0;
+  deletes.length = 0;
+  connRow = { tenant_id: "v-1", tenant_name: "Acme Air" };
+  vendorRow = { uuid: "v-1", name: "Acme Air" };
+  namingRefused = false;
   claimResult = [{ calls_today: 0, calls_day: null }];
   stateRows = [];
   runsRow = null;
   connRows = [];
   runRows = [];
   afterFn.mockClear();
-  sm8Access.mockReset().mockResolvedValue({ accessToken: "tok" });
-  markSm8NeedsReauth.mockReset();
+  sm8AccessResult.mockReset().mockResolvedValue({ ok: true, access: ACCESS });
+  renewSm8Access.mockReset().mockResolvedValue({ ok: true, access: RENEWED });
+  markSm8NeedsReauth.mockReset().mockResolvedValue(true);
   fetchSm8Vendor.mockReset().mockResolvedValue({
     ok: true,
     vendor: { uuid: "v-1", name: "Acme Air", email: null, timezoneName: "Australia/Brisbane", currency: "AUD" },
@@ -133,12 +179,12 @@ describe("the lease is a real mutex", () => {
     claimResult = [];
     const out = await runSm8Sync("org-1", "manual", NOW);
     expect(out).toMatchObject({ ran: false, note: "A sync is already running." });
-    expect(sm8Access).not.toHaveBeenCalled();
+    expect(sm8AccessResult).not.toHaveBeenCalled();
     expect(fetchSm8Page).not.toHaveBeenCalled();
   });
 
   it("an unusable grant releases the lease with the reason", async () => {
-    sm8Access.mockResolvedValue(null);
+    sm8AccessResult.mockResolvedValue({ ok: false, reason: "reauth" });
     const out = await runSm8Sync("org-1", "manual", NOW);
     expect(out.ran).toBe(false);
     const release = lastRunsUpdate();
@@ -421,6 +467,7 @@ describe("the vendor read repairs a nameless connect", () => {
   const connectionWrite = () => updates.find((u) => u.table === "integration_connections");
 
   it("a successful vendor read names the connection row, not just the mirror", async () => {
+    connRow = { tenant_id: null, tenant_name: null };
     await runSm8Sync("org-1", "manual", NOW);
 
     expect(upserts.find((u) => u.table === "sm8_vendor")).toBeDefined();
@@ -433,9 +480,20 @@ describe("the vendor read repairs a nameless connect", () => {
   it("a vendor read that failed leaves the connection row alone", async () => {
     // nothing was learned, so there is nothing to write — and a bad read must
     // never blank a name the row already has
+    connRow = { tenant_id: null, tenant_name: null };
     fetchSm8Vendor.mockResolvedValue({ ok: false, unauthorized: false });
     await runSm8Sync("org-1", "manual", NOW);
     expect(connectionWrite()).toBeUndefined();
+  });
+
+  it("an account another workspace already holds is flagged, and no page is fetched", async () => {
+    connRow = { tenant_id: null, tenant_name: null };
+    // the unique index refuses the naming write
+    namingRefused = true;
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_ELSEWHERE);
+    expect(markSm8NeedsReauth).toHaveBeenCalledWith("org-1", SM8_ELSEWHERE, ACCESS);
+    expect(fetchSm8Page).not.toHaveBeenCalled();
   });
 });
 
@@ -464,13 +522,78 @@ describe("failure kinds end exactly as much as they should", () => {
     expect(lastRunsUpdate().patch).toMatchObject({ last_ok: false });
   });
 
-  it("a dead grant marks needs_reauth and stops immediately", async () => {
+  it("a dead grant is renewed once, then marked needs_reauth, and the run stops", async () => {
     fetchSm8Page.mockResolvedValue({ ok: false, failure: "unauthorized" });
 
     const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(fetchSm8Page).toHaveBeenCalledTimes(2);
+    expect(renewSm8Access).toHaveBeenCalledTimes(1);
     expect(markSm8NeedsReauth).toHaveBeenCalledTimes(1);
+    // the grant flagged is the one that was refused twice, not an older one
+    expect(markSm8NeedsReauth).toHaveBeenCalledWith("org-1", SM8_REVOKED, RENEWED);
     expect(out.note).toContain("reconnecting");
+  });
+
+  it("a 401 cured by one renewal keeps walking every object and flags nothing", async () => {
+    /* The hourly token ran out mid-walk. Before, this flagged the connection
+       and the owner was asked to reconnect a connection that worked. */
+    let refused = false;
+    fetchSm8Page.mockImplementation(async (token: string) => {
+      if (token === "tok" && !refused) {
+        refused = true;
+        return { ok: false, failure: "unauthorized" };
+      }
+      return emptyPage;
+    });
+
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.complete).toBe(true);
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
+    // every object, plus the one page asked twice
+    expect(fetchSm8Page).toHaveBeenCalledTimes(SM8_OBJECTS.length + 1);
+    // and the renewed token was carried on, not renewed per object
+    expect(renewSm8Access).toHaveBeenCalledTimes(1);
+    expect(lastRunsUpdate().patch).toMatchObject({ calls_today: 1 + SM8_OBJECTS.length + 1 });
+  });
+
+  it("a vendor 401 is renewed once before the grant is judged", async () => {
+    fetchSm8Vendor.mockImplementation(async (token: string) =>
+      token === "tok"
+        ? { ok: false, unauthorized: true }
+        : { ok: true, vendor: { uuid: "v-1", name: "Acme Air", email: null, timezoneName: "Australia/Brisbane", currency: "AUD" } }
+    );
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.complete).toBe(true);
+    expect(fetchSm8Vendor).toHaveBeenCalledTimes(2);
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
+    // the pages went with the renewed token
+    expect(fetchSm8Page.mock.calls[0][0]).toBe("tok-2");
+  });
+
+  it("a refresh that couldn't reach ServiceM8 says so, not 'reconnect'", async () => {
+    sm8AccessResult.mockResolvedValue({ ok: false, reason: "unreachable" });
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_UNREACHABLE);
+    expect(out.note).not.toMatch(/reconnect/i);
+    expect(fetchSm8Vendor).not.toHaveBeenCalled();
+  });
+
+  it("a renewal that couldn't reach ServiceM8 mid-walk stops the run on 'couldn't be reached'", async () => {
+    fetchSm8Page.mockResolvedValue({ ok: false, failure: "unauthorized" });
+    renewSm8Access.mockResolvedValue({ ok: false, reason: "unreachable" });
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_UNREACHABLE);
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
     expect(fetchSm8Page).toHaveBeenCalledTimes(1);
+  });
+
+  it("a vendor read that fails ends the run before any page is fetched", async () => {
+    // without the account's uuid, a changed account can't be told from the same one
+    fetchSm8Vendor.mockResolvedValue({ ok: false, unauthorized: false });
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_UNREACHABLE);
+    expect(fetchSm8Page).not.toHaveBeenCalled();
+    expect(upserts.find((u) => u.table === "sm8_vendor")).toBeUndefined();
   });
 
   /* 2026-07-30, the first live connection: an expired ServiceM8 trial answers
@@ -588,5 +711,86 @@ describe("the page-load kick", () => {
     };
     await kickSm8SyncIfStale("org-1", NOW);
     expect(afterFn).not.toHaveBeenCalled();
+  });
+});
+
+/* ── one account per mirror ──
+
+   2026-08-10: a live business account was connected by accident, and the
+   owner reconnected the right one while the first backfill was still running.
+   Nothing stopped the first run writing the wrong account into the fresh
+   mirror, and a reconnect to a different account kept the old account's copy
+   beside the new one. */
+describe("the account behind the connection", () => {
+  const vendorB = { uuid: "v-2", name: "Beta Cooling", email: null, timezoneName: "Australia/Sydney", currency: "AUD" };
+
+  beforeEach(() => {
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("a different account from the one the mirror holds clears the old copy, switches sending off, and reads from the start", async () => {
+    // the connection holds B (the callback saved it); the mirror still names A
+    connRow = { tenant_id: "v-2", tenant_name: "Beta Cooling" };
+    vendorRow = { uuid: "v-1", name: "Acme Air" };
+    fetchSm8Vendor.mockResolvedValue({ ok: true, vendor: vendorB });
+    stateRows = SM8_OBJECTS.map((s) => ({ object: s.object, cursor: "2026-07-01 00:00:00", backfill_done: true, rows_pulled: 5 }));
+
+    const out = await runSm8Sync("org-1", "manual", NOW);
+
+    for (const t of SM8_ACCOUNT_RESET_TABLES) expect(deletes).toContain(t);
+    expect(deletes).toContain("sm8_vendor");
+    expect(deletes).not.toContain("sm8_sync_runs");
+    expect(updates.find((u) => u.table === "integration_connections")!.patch).toMatchObject({
+      write_mode: "off",
+      account_changed_from: "Acme Air",
+    });
+    expect(updates.find((u) => u.table === "sm8_writes")!.patch).toMatchObject({ status: "cancelled" });
+    // the mirror's row now names the new account
+    expect(upserts.find((u) => u.table === "sm8_vendor")!.payload).toMatchObject({ uuid: "v-2" });
+    expect(out.note).toBe(SM8_ACCOUNT_SWITCHED);
+  });
+
+  it("the same account deletes nothing and leaves the owner's switch alone", async () => {
+    await runSm8Sync("org-1", "manual", NOW);
+    expect(deletes).toEqual([]);
+    expect(updates.some((u) => "write_mode" in u.patch)).toBe(false);
+  });
+
+  it("never on a missing value: no mirror row yet is a first sync, not a switch", async () => {
+    vendorRow = null;
+    connRow = { tenant_id: null, tenant_name: null };
+    fetchSm8Vendor.mockResolvedValue({ ok: true, vendor: vendorB });
+    await runSm8Sync("org-1", "manual", NOW);
+    expect(deletes).toEqual([]);
+    expect(updates.some((u) => "write_mode" in u.patch)).toBe(false);
+  });
+
+  it("a connection already naming another account than this token reads is a reconnect mid-run: nothing written", async () => {
+    // this run's token reads A; the owner has since reconnected to B
+    connRow = { tenant_id: "v-2", tenant_name: "Beta Cooling" };
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_ACCOUNT_MOVED);
+    expect(deletes).toEqual([]);
+    expect(upserts.find((u) => u.table === "sm8_vendor")).toBeUndefined();
+    expect(fetchSm8Page).not.toHaveBeenCalled();
+  });
+
+  it("a connection moved to another account mid-walk stops the run, and writes no more of the old one", async () => {
+    let n = 0;
+    fetchSm8Page.mockImplementation(async () => {
+      n += 1;
+      if (n === 2) connRow = { tenant_id: "v-2", tenant_name: "Beta Cooling" };
+      return { ok: true, rows: [{ uuid: `u-${n}`, edit_date: "2026-07-28 09:00:00", active: 1 }], nextCursor: `c-${n}` };
+    });
+
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_ACCOUNT_MOVED);
+    expect(fetchSm8Page).toHaveBeenCalledTimes(2);
+    // page one landed before the move; page two, and the object's state row, didn't
+    expect(upserts.filter((u) => u.table === "sm8_staff")).toHaveLength(1);
+    expect(stateUpsertFor("staff")).toBeUndefined();
   });
 });

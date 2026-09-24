@@ -8,7 +8,10 @@ import { readSm8Vendor } from "@/lib/integrations/sm8-read";
 import { kickSm8SyncIfStale, listSm8SyncStatus, type Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
 import { tokenKey } from "@/lib/integrations/secrets";
 import { sm8Config } from "@/lib/integrations/sm8";
-import { sm8ConnectMessage } from "@/lib/integrations/outcome";
+import { sm8ConnectMessage, sm8SwitchedNotice } from "@/lib/integrations/outcome";
+import { readSm8AccountChange } from "@/lib/integrations/sm8-store";
+import { countSm8WritesCancelledSince, countWaitingSm8Writes } from "@/lib/integrations/sm8-write-cancel";
+import { WRITE_WORDS } from "@/lib/integrations/sm8-write-plan";
 import { getSm8PeopleData } from "@/app/actions/staff-import";
 import {
   countSm8WritesSentLately,
@@ -52,6 +55,14 @@ export default async function Servicem8IntegrationPage({
       : stored;
   const errorText = sm8ConnectMessage(one(params.error));
 
+  /* Read whenever there is a connection row, not only a working one:
+     Disconnect is offered in needs_reauth too, and its confirm says what it
+     would cancel. A database without the account-change columns yet reads as
+     "no change". */
+  const [waitingWrites, previousAccount] = connection
+    ? await Promise.all([countWaitingSm8Writes(orgId), readSm8AccountChange(orgId)])
+    : [0, null];
+
   /* One live read, only when there is a grant to read through. Doubles as the
      health check: revoked-from-ServiceM8 shows up here as needs_reauth on the
      next render, not at the first sync somebody depends on. */
@@ -94,20 +105,34 @@ export default async function Servicem8IntegrationPage({
     await kickSm8WritesIfDue(orgId);
   }
 
+  /* A reconnect that REPLACED the account says so, with what went with the
+     old one. The count is read from the rows cancelled since the change,
+     never taken from the URL, which anyone can type. */
+  const switchedText =
+    !errorText && one(params.connected) === "1" && one(params.switched) === "1" && previousAccount && connection?.tenantName
+      ? sm8SwitchedNotice({
+          to: connection.tenantName,
+          from: previousAccount.from,
+          cancelled: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at),
+        })
+      : null;
+
   const notice = errorText
     ? ({ kind: "error", text: errorText } as const)
-    : one(params.connected) === "1"
-      ? /* Name what was connected, never just "connected". OAuth authorises
-           whichever account the browser was signed into and never asks which
-           one you meant — an anonymous success is how a live business account
-           got connected by accident on 2026-08-10. */
-        ({
-          kind: "ok",
-          text: connection?.tenantName
-            ? `Connected to ${connection.tenantName}.`
-            : "ServiceM8 is connected.",
-        } as const)
-      : null;
+    : switchedText
+      ? ({ kind: "ok", text: switchedText } as const)
+      : one(params.connected) === "1"
+        ? /* Name what was connected, never just "connected". OAuth authorises
+             whichever account the browser was signed into and never asks which
+             one you meant — an anonymous success is how a live business account
+             got connected by accident on 2026-08-10. */
+          ({
+            kind: "ok",
+            text: connection?.tenantName
+              ? `Connected to ${connection.tenantName}.`
+              : "ServiceM8 is connected.",
+          } as const)
+        : null;
 
   return (
     <Servicem8Screen
@@ -120,6 +145,8 @@ export default async function Servicem8IntegrationPage({
       people={people}
       elsewhere={elsewhere}
       writes={writes}
+      waitingWrites={waitingWrites}
+      previousAccount={previousAccount ? { name: previousAccount.from, at: previousAccount.at } : null}
     />
   );
 }

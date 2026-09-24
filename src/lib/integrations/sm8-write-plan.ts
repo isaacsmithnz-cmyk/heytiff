@@ -117,9 +117,18 @@ export const WRITE_RETRY_AFTER_MS: readonly number[] = [
 /** Attempts before a row stops trying by itself and waits for a person. */
 export const WRITE_MAX_ATTEMPTS = WRITE_RETRY_AFTER_MS.length + 1;
 
+/** How far into its claim a refused send may still try again, once its
+    token has been renewed. The second try is another upload (60 s at most)
+    and perhaps a read-back (10 s), and all of it must end inside
+    WRITE_LEASE_MS, or a second sender could take the row mid-request. Past
+    this the row goes back in the queue, untouched, for the next run. */
+export const WRITE_RETRY_CUTOFF_MS = 40_000;
+
 /** Waits for a reason that isn't the row's (a busy or unpaid account). */
 const RATE_LIMIT_WAIT_MS = 60_000;
 const BILLING_WAIT_MS = 12 * 3_600_000;
+/** After a token renewal that couldn't reach ServiceM8. */
+const RENEW_WAIT_MS = 60_000;
 
 /* ── the sentences ── */
 
@@ -186,8 +195,9 @@ export type WriteVerdict = {
   /** End the run here. The next row would get the same answer, and asking
       again would spend somebody's rate limit to be told twice. */
   stop: boolean;
-  /** The grant is dead. The connection is flagged for reconnecting, the way
-      a 401 on a read flags it. */
+  /** ServiceM8 refused the token. The sender renews it once and tries again
+      (sm8-renew.ts); only a second refusal flags the connection for
+      reconnecting, the way a 401 on a read does. */
   reauth: boolean;
 };
 
@@ -210,6 +220,34 @@ const retryAfter = (attempts: number): number =>
 export function verdictForUnreadable(attempts: number): WriteVerdict {
   if (attempts >= WRITE_MAX_ATTEMPTS) return verdict({ status: "failed", error: WRITE_WORDS.unreadableGaveUp });
   return verdict({ status: "queued", error: WRITE_WORDS.unreadable, retryAfterMs: retryAfter(attempts) });
+}
+
+/** A refused send whose token couldn't be renewed because ServiceM8 couldn't
+    be reached. Not the file's doing and not a dead grant: it waits a minute,
+    the attempt is handed back, and the run stops, because the next row would
+    need the same renewal. */
+export function verdictForRenewUnreachable(): WriteVerdict {
+  return verdict({
+    status: "queued",
+    error: WRITE_WORDS.unreachable,
+    retryAfterMs: RENEW_WAIT_MS,
+    refund: true,
+    stop: true,
+  });
+}
+
+/** A send that found the connection gone mid-run. It waits in the queue; the
+    next run, finding no connection, cancels it with these words. */
+export function verdictForDisconnected(): WriteVerdict {
+  return verdict({ status: "queued", error: WRITE_WORDS.disconnected, refund: true, stop: true });
+}
+
+/** A send refused with a token that has since been renewed, too late in its
+    claim to try again (WRITE_RETRY_CUTOFF_MS). Nothing went wrong with the
+    file or the grant: it goes back to the queue as it was, due at once, and
+    the run carries on with the renewed token. */
+export function verdictForRenewLate(): WriteVerdict {
+  return verdict({ status: "queued", retryAfterMs: 0, refund: true });
 }
 
 /** What a row becomes after one attempt. `attempts` counts this one. */

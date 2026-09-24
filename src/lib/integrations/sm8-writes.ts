@@ -35,7 +35,9 @@ import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { refIsOrgs } from "@/lib/documents/files";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import { SM8_WRITE_SCOPE_LIST } from "./providers";
-import { markSm8NeedsReauth, sm8Access } from "./sm8-store";
+import { sm8AccessResult, type Sm8Access } from "./sm8-store";
+import { withSm8Renewal } from "./sm8-renew";
+import { cancelWaitingSm8Writes } from "./sm8-write-cancel";
 import { postSm8Attachment, readSm8Attachment } from "./sm8-write";
 import {
   documentSubject,
@@ -44,9 +46,13 @@ import {
   sm8FileName,
   subjectDocumentId,
   verdictFor,
+  verdictForDisconnected,
+  verdictForRenewLate,
+  verdictForRenewUnreachable,
   verdictForUnreadable,
   WRITE_BATCH,
   WRITE_LEASE_MS,
+  WRITE_RETRY_CUTOFF_MS,
   WRITE_WORDS,
   type JobSend,
   type Sm8WriteMode,
@@ -104,17 +110,11 @@ export async function setSm8WriteMode(orgId: string, mode: Sm8WriteMode, now: nu
   return true;
 }
 
-/** Cancel what is waiting: queued rows, and a send whose claim has lapsed.
-    A send in flight is left to land or not: pulling its row from under it
-    would record a file ServiceM8 may already hold as never sent. */
-export async function cancelWaitingSm8Writes(orgId: string, reason: string, now: number = Date.now()): Promise<void> {
-  const iso = new Date(now).toISOString();
-  await supabaseAdmin
-    .from(TABLE)
-    .update({ status: "cancelled", last_error: reason, lease_until: null, updated_at: iso })
-    .eq("org_id", orgId)
-    .or(`status.eq.queued,and(status.eq.sending,lease_until.lt.${iso})`);
-}
+/* Cancelling what is waiting lives in sm8-write-cancel.ts, where the
+   connection store can reach it too (disconnect, and a change of account).
+   Re-exported, so everything that cancelled from here still does. */
+export { cancelWaitingSm8Writes };
+export type { CancelledWrite } from "./sm8-write-cancel";
 
 /* ── queueing ── */
 
@@ -382,38 +382,51 @@ async function readBytes(
   return { ok: true, bytes: new Uint8Array(await blob.arrayBuffer()), mimeType: doc.mime_type };
 }
 
-/** One row, start to end. Returns what it became. */
-async function sendOne(
+type Ready = { payload: AttachmentPayload; jobUuid: string; bytes: Uint8Array<ArrayBuffer>; mimeType: string };
+
+/** Everything a row needs before it can go — the account checked, the file
+    found and read — or what it became without going. */
+async function prepareOne(
   orgId: string,
   state: Sm8WriteState,
   row: WriteRow,
-  attempts: number,
-  token: string | null
-): Promise<Finish> {
+  attempts: number
+): Promise<{ ready: Ready } | { finish: Finish }> {
   /* the reconnect accident with writes in it: never another account */
   if (row.tenant_id !== state.tenantId) {
-    return { status: "cancelled", error: WRITE_WORDS.otherAccount, httpStatus: null };
+    return { finish: { status: "cancelled", error: WRITE_WORDS.otherAccount, httpStatus: null } };
   }
   const payload = row.kind === "attachment" ? readPayload(row) : null;
-  if (!payload || !row.sm8_job_uuid) return { status: "cancelled", error: WRITE_WORDS.fileGone, httpStatus: null };
+  if (!payload || !row.sm8_job_uuid) {
+    return { finish: { status: "cancelled", error: WRITE_WORDS.fileGone, httpStatus: null } };
+  }
 
   const file = await readBytes(orgId, payload.documentId);
   if (!file.ok) {
-    if (file.gone) return { status: "cancelled", error: WRITE_WORDS.fileGone, httpStatus: null };
+    if (file.gone) return { finish: { status: "cancelled", error: WRITE_WORDS.fileGone, httpStatus: null } };
     const v = verdictForUnreadable(attempts);
-    return { status: v.status, error: v.error, httpStatus: null, verdict: v };
+    return { finish: { status: v.status, error: v.error, httpStatus: null, verdict: v } };
+  }
+  return {
+    ready: { payload, jobUuid: row.sm8_job_uuid, bytes: file.bytes, mimeType: file.mimeType || payload.mimeType },
+  };
+}
+
+/** The request itself, with one token. */
+async function postOne(row: WriteRow, r: Ready, access: Sm8Access, attempts: number): Promise<Finish> {
+  /* A token renewed mid-run belongs to whatever account is connected NOW,
+     and a reconnect may have changed it: that token never carries a file
+     queued for another account. */
+  if (access.tenantId && access.tenantId !== row.tenant_id) {
+    return { status: "cancelled", error: WRITE_WORDS.otherAccount, httpStatus: null };
   }
 
-  /* A TRIAL RUN GOES THIS FAR AND NO FURTHER: the account checked, the file
-     found and read, the request ready. Only the send is left out. */
-  if (state.mode !== "live" || !token) return { status: "trial", error: null, httpStatus: null };
-
-  const res = await postSm8Attachment(token, {
-    jobUuid: row.sm8_job_uuid,
+  const res = await postSm8Attachment(access.accessToken, {
+    jobUuid: r.jobUuid,
     uuid: row.remote_uuid,
-    fileName: payload.name,
-    mimeType: file.mimeType || payload.mimeType,
-    bytes: file.bytes,
+    fileName: r.payload.name,
+    mimeType: r.mimeType,
+    bytes: r.bytes,
   });
 
   let outcome: Sm8WriteOutcome = res.outcome;
@@ -421,7 +434,7 @@ async function sendOne(
     /* ServiceM8 already has a record under our uuid. Ours, from an attempt
        whose answer was lost, if it is on this job and live; anything else
        is a conflict that isn't ours to call sent. */
-    const check = await readSm8Attachment(token, row.remote_uuid);
+    const check = await readSm8Attachment(access.accessToken, row.remote_uuid);
     if (!check.ok) outcome = { kind: "unavailable", status: null };
     else if (!check.found) outcome = { kind: "unavailable", status: 409 };
     else if (check.jobUuid !== row.sm8_job_uuid || !check.active) outcome = { kind: "rejected", status: 409 };
@@ -433,6 +446,52 @@ async function sendOne(
       ? outcome.remoteUuid
       : undefined;
   return { status: v.status, error: v.error, httpStatus: res.status, verdict: v, remoteUuid: theirs };
+}
+
+/** One row, start to end. Returns what it became, and the access to carry
+    on with — renewed, when ServiceM8 refused the one it was given.
+
+    A REFUSED TOKEN IS RENEWED ONCE AND TRIED AGAIN under the same claim, the
+    same uuid and the same attempt count: a token that ran out mid-run is not
+    a dead grant, and the file shouldn't wait for the next kick because of
+    it. `inTime` is asked before the second try — past WRITE_RETRY_CUTOFF_MS
+    into the claim, the row goes back to the queue instead of risking an
+    upload that outlives its lease. */
+async function sendOne(
+  orgId: string,
+  state: Sm8WriteState,
+  row: WriteRow,
+  attempts: number,
+  access: Sm8Access | null,
+  inTime: () => boolean
+): Promise<{ finish: Finish; access: Sm8Access | null }> {
+  const prepared = await prepareOne(orgId, state, row, attempts);
+  if ("finish" in prepared) return { finish: prepared.finish, access };
+
+  /* A TRIAL RUN GOES THIS FAR AND NO FURTHER: the account checked, the file
+     found and read, the request ready. Only the send is left out. */
+  if (state.mode !== "live" || !access) return { finish: { status: "trial", error: null, httpStatus: null }, access };
+
+  const out = await withSm8Renewal(
+    orgId,
+    access,
+    (a) => postOne(row, prepared.ready, a, attempts),
+    (f) => f.verdict?.reauth === true,
+    { retry: inTime }
+  );
+  const as = (v: WriteVerdict): Finish => ({ status: v.status, error: v.error, httpStatus: out.result.httpStatus, verdict: v });
+  switch (out.verdict) {
+    case "unreachable":
+      return { finish: as(verdictForRenewUnreachable()), access: out.access };
+    case "gone":
+      return { finish: as(verdictForDisconnected()), access: out.access };
+    case "late":
+      return { finish: as(verdictForRenewLate()), access: out.access };
+    default:
+      /* ok, or dead: a second refusal, already flagged for this grant by the
+         renewal — the row waits for the reconnect, its attempt handed back */
+      return { finish: out.result, access: out.access };
+  }
 }
 
 /** Send what is due for one workspace. `ids` narrows it to one press's
@@ -462,22 +521,37 @@ export async function runSm8Writes(
   const due = await dueRows(orgId, started, opts.ids);
   if (due.length === 0) return NONE;
 
-  let token: string | null = null;
+  /* The rows are left exactly as they are when there's no token: a grant
+     that is dead says so on the connection, and a ServiceM8 that couldn't be
+     reached to renew one is a wait, not a failure of any file. */
+  let access: Sm8Access | null = null;
   if (live) {
-    const access = await sm8Access(orgId, started);
-    if (!access) return { ...NONE, stopped: WRITE_WORDS.reauth };
-    token = access.accessToken;
+    const got = await sm8AccessResult(orgId, started);
+    if (!got.ok) {
+      return { ...NONE, stopped: got.reason === "unreachable" ? WRITE_WORDS.unreachable : WRITE_WORDS.reauth };
+    }
+    access = got.access;
   }
 
   const run: Sm8WriteRun = { ...NONE };
   for (const row of due) {
     if (run.done >= WRITE_BATCH) break;
     if (opts.budgetMs !== undefined && clock() - started > opts.budgetMs) break;
-    if (!(await claim(orgId, row, clock()))) continue;
+    const claimedAt = clock();
+    if (!(await claim(orgId, row, claimedAt))) continue;
 
     let f: Finish;
     try {
-      f = await sendOne(orgId, state, row, row.attempts + 1, token);
+      const sent = await sendOne(
+        orgId,
+        state,
+        row,
+        row.attempts + 1,
+        access,
+        () => clock() - claimedAt < WRITE_RETRY_CUTOFF_MS
+      );
+      f = sent.finish;
+      access = sent.access;
     } catch (err) {
       /* nothing above should throw; if something does, the row is not left
          claimed until its lease lapses */
@@ -491,9 +565,6 @@ export async function runSm8Writes(
     if (f.status === "sent") run.sent += 1;
     if (f.status === "trial") run.trial += 1;
     if (f.status === "failed") run.failed += 1;
-    if (f.verdict?.reauth) {
-      await markSm8NeedsReauth(orgId, "ServiceM8 no longer accepts this connection. Reconnect ServiceM8.");
-    }
     if (f.verdict?.stop) {
       run.stopped = f.error;
       break;

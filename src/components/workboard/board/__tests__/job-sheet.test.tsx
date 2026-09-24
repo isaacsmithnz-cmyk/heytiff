@@ -27,6 +27,7 @@ import type {
   EmailDocumentsResult,
   EmailDraft,
 } from "@/app/actions/job-compliance";
+import type { JobSm8Read, SendToSm8Input, SendToSm8Result } from "@/app/actions/job-sm8";
 
 const readMirrorJob = jest.fn(
   async (): Promise<JobCardRead> => ({ detail: null, focusRemoteId: null })
@@ -185,6 +186,19 @@ jest.mock("@/app/actions/job-compliance", () => ({
   readEmailDraft: (...a: unknown[]) => compliance.readEmailDraft(...(a as [string])),
   emailJobDocuments: (...a: unknown[]) => compliance.emailJobDocuments(...(a as [EmailDocumentsInput])),
 }));
+/* Send to ServiceM8 — the same arrangement: nothing offered and nothing sent
+   by default, filled in by the tests that are about it. */
+const sm8Send = {
+  readJobSm8: jest.fn(async (_job: string): Promise<JobSm8Read | null> => null),
+  sendJobDocumentsToServiceM8: jest.fn(
+    async (_input: SendToSm8Input): Promise<SendToSm8Result> => ({ ok: false, error: "no" })
+  ),
+};
+jest.mock("@/app/actions/job-sm8", () => ({
+  readJobSm8: (...a: unknown[]) => sm8Send.readJobSm8(...(a as [string])),
+  sendJobDocumentsToServiceM8: (...a: unknown[]) =>
+    sm8Send.sendJobDocumentsToServiceM8(...(a as [SendToSm8Input])),
+}));
 
 
 import { JobSheet } from "../job-sheet";
@@ -298,6 +312,8 @@ beforeEach(() => {
   cacheJobFiles.mockReset();
   readMirrorJob.mockResolvedValue(card(null));
   readJobFiles.mockResolvedValue(null);
+  sm8Send.readJobSm8.mockReset().mockResolvedValue(null);
+  sm8Send.sendJobDocumentsToServiceM8.mockReset().mockResolvedValue({ ok: false, error: "no" });
   readJobRecord.mockResolvedValue(null);
   cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
   listJobPicklist.mockReset();
@@ -3652,7 +3668,8 @@ describe("compliance on the card", () => {
     const bar = screen.getByText("1 document ticked").closest(".wb2-shft") as HTMLElement;
     /* THE CARD'S FOOTER, under the scrolling body — not inside it */
     expect(bar.parentElement).toHaveClass("wb2-sheet");
-    expect(within(bar).getByRole("button", { name: "Send to ServiceM8" })).toBeDisabled();
+    /* no ServiceM8 door until an owner switches sending on */
+    expect(within(bar).queryByRole("button", { name: "Send to ServiceM8" })).toBeNull();
 
     await userEvent.click(within(bar).getByRole("button", { name: "Email documents" }));
     await userEvent.click(await screen.findByRole("checkbox", { name: /Josh/ }));
@@ -3719,6 +3736,112 @@ describe("compliance on the card", () => {
     await openTab("Documents");
     await userEvent.click(await face("documents").findByRole("button", { name: /Public liability/ }));
     expect(await screen.findByTitle("Public liability")).toHaveAttribute("src", "https://signed/coc.pdf");
+  });
+
+  /* ── the footer's other door ── */
+
+  const sent = (documentId: string, status: "sent" | "failed", error: string | null = null) => ({
+    documentId,
+    status,
+    error,
+    attempts: 1,
+    remoteUuid: `r-${documentId}`,
+  });
+
+  it("sends what's ticked to ServiceM8 where an owner switched it on, and the row says it's there", async () => {
+    const onToast = jest.fn();
+    sm8Send.readJobSm8.mockResolvedValue({ send: "live", sends: [] });
+    sm8Send.sendJobDocumentsToServiceM8.mockResolvedValue({
+      ok: true,
+      trial: false,
+      sent: ["p:p1"],
+      waiting: [],
+      failed: [],
+      already: [],
+      sends: [sent("d1", "sent")],
+    });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+    await detailLanded();
+    await openTab("Documents");
+
+    await userEvent.click(await face("documents").findByRole("checkbox", { name: "Select Public liability" }));
+    const bar = screen.getByText("1 document ticked").closest(".wb2-shft") as HTMLElement;
+    await userEvent.click(within(bar).getByRole("button", { name: "Send to ServiceM8" }));
+
+    expect(sm8Send.sendJobDocumentsToServiceM8).toHaveBeenCalledWith({ jobUuid: "j-1", keys: ["p:p1"] });
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith("Public liability sent to ServiceM8"));
+    /* it went: the tick clears, the footer with it, and the row says so */
+    expect(screen.queryByText("1 document ticked")).toBeNull();
+    expect(face("documents").getByText("In ServiceM8")).toBeInTheDocument();
+  });
+
+  it("keeps a file that didn't go ticked, and says why in the footer until the ticks change", async () => {
+    sm8Send.readJobSm8.mockResolvedValue({ send: "live", sends: [] });
+    sm8Send.sendJobDocumentsToServiceM8.mockResolvedValue({
+      ok: true,
+      trial: false,
+      sent: [],
+      waiting: [],
+      failed: [{ key: "p:p1", error: "ServiceM8 said the file is too big." }],
+      already: [],
+      sends: [sent("d1", "failed", "ServiceM8 said the file is too big.")],
+    });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+
+    const tick = await face("documents").findByRole("checkbox", { name: "Select Public liability" });
+    await userEvent.click(tick);
+    await userEvent.click(screen.getByRole("button", { name: "Send to ServiceM8" }));
+
+    expect(
+      await screen.findByText("Public liability wasn't sent. ServiceM8 said the file is too big.")
+    ).toBeInTheDocument();
+    expect(tick).toBeChecked();
+    expect(face("documents").getByText("Not sent to ServiceM8. ServiceM8 said the file is too big.")).toBeInTheDocument();
+
+    await userEvent.click(tick);
+    await userEvent.click(tick);
+    expect(screen.queryByText(/wasn't sent/)).toBeNull();
+    expect(screen.getByText("1 document ticked")).toBeInTheDocument();
+  });
+
+  it("shows a file we sent once: ServiceM8's copy stays off the list while our row shows it", async () => {
+    const doc = (over: Partial<JobMediaItem> & { remoteId: string }): JobMediaItem => ({
+      name: "CoC.pdf",
+      fileType: ".pdf",
+      kind: "document",
+      origin: null,
+      takenAt: "2026-09-23 10:40",
+      url: "https://signed/coc.pdf",
+      width: null,
+      height: null,
+      fromClaim: null,
+      ...over,
+    });
+    compliance.listJobPapers.mockResolvedValue({ papers: [], may });
+    sm8Send.readJobSm8.mockResolvedValue({ send: null, sends: [sent("d-9", "sent")] });
+    readJobFiles.mockResolvedValue({
+      photos: [],
+      documents: [
+        doc({ remoteId: "doc:d-9", documentId: "d-9", addedBy: "Isaac Smith" }),
+        /* the same file, mirrored back by the next sync under the uuid we sent it with */
+        doc({ remoteId: "r-d-9", takenAt: "2026-09-24 09:00" }),
+        doc({ remoteId: "sm8-other", name: "Quote #3137", origin: "Quote" }),
+      ],
+      elsewhere: [],
+      truncated: false,
+    });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+
+    expect(await face("documents").findByText("In ServiceM8")).toBeInTheDocument();
+    expect(face("documents").getAllByText("CoC.pdf")).toHaveLength(1);
+    expect(face("documents").getByText("Quote #3137")).toBeInTheDocument();
   });
 });
 

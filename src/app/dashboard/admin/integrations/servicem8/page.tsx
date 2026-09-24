@@ -10,6 +10,14 @@ import { tokenKey } from "@/lib/integrations/secrets";
 import { sm8Config } from "@/lib/integrations/sm8";
 import { sm8ConnectMessage } from "@/lib/integrations/outcome";
 import { getSm8PeopleData } from "@/app/actions/staff-import";
+import {
+  countSm8WritesSentLately,
+  kickSm8WritesIfDue,
+  listRecentSm8Writes,
+  sm8WritesEnabled,
+} from "@/lib/integrations/sm8-writes";
+import { SM8_WRITE_SCOPE_LIST } from "@/lib/integrations/providers";
+import type { Sm8WritesView } from "@/components/integrations/sm8-writes-card";
 
 /* The ServiceM8 connection screen. Owner-only, matching the routes it links
    to — the Xero page's sibling, and the same posture throughout: two booleans
@@ -29,7 +37,19 @@ export default async function Servicem8IntegrationPage({
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
   const orgId = session.orgId as string;
-  const connection = await getConnectionView(orgId, "servicem8");
+  const stored = await getConnectionView(orgId, "servicem8");
+  /* A deployment that can't write shows every workspace's sending as off,
+     whatever was last chosen: the consent won't ask for the write
+     permission there (the connect route agrees), so the screen mustn't say
+     it's missing. */
+  const connection =
+    stored && !sm8WritesEnabled() && stored.writeMode !== "off"
+      ? {
+          ...stored,
+          writeMode: "off" as const,
+          missing: stored.missing.filter((s) => !SM8_WRITE_SCOPE_LIST.includes(s)),
+        }
+      : stored;
   const errorText = sm8ConnectMessage(one(params.error));
 
   /* One live read, only when there is a grant to read through. Doubles as the
@@ -39,15 +59,27 @@ export default async function Servicem8IntegrationPage({
   let sync: Sm8SyncStatusView | null = null;
   let people: Awaited<ReturnType<typeof getSm8PeopleData>> = null;
   let elsewhere = 0;
+  let writes: Sm8WritesView | null = null;
   if (connection && connection.status === "connected") {
-    const [vendor, status, peopleData, alsoConnected] = await Promise.all([
+    const [vendor, status, peopleData, alsoConnected, recent, sentLately] = await Promise.all([
       readSm8Vendor(orgId),
       listSm8SyncStatus(orgId),
       // the reconcile card: live staff.json against this workspace's cards
       getSm8PeopleData(),
       // whether this same account is mirrored into other workspaces too
       countConnectionsElsewhere(orgId, "servicem8", connection.tenantId),
+      sm8WritesEnabled() ? listRecentSm8Writes(orgId) : Promise.resolve([]),
+      // the writes card's one figure: files sent in the last 30 days
+      sm8WritesEnabled() ? countSm8WritesSentLately(orgId) : Promise.resolve(null),
     ]);
+    if (sm8WritesEnabled()) {
+      writes = {
+        mode: connection.writeMode,
+        granted: SM8_WRITE_SCOPE_LIST.every((s) => connection.scopes.includes(s)),
+        sentLately,
+        recent,
+      };
+    }
     elsewhere = alsoConnected;
     reach = vendor.ok
       ? { ok: true, account: { name: vendor.data.name, timezoneName: vendor.data.timezoneName } }
@@ -58,6 +90,8 @@ export default async function Servicem8IntegrationPage({
     // response when they're stale. Closes over the orgId read above; no
     // request APIs inside (Server Component after() rule).
     await kickSm8SyncIfStale(orgId);
+    // and whatever is waiting to go the other way
+    await kickSm8WritesIfDue(orgId);
   }
 
   const notice = errorText
@@ -85,6 +119,7 @@ export default async function Servicem8IntegrationPage({
       sync={sync}
       people={people}
       elsewhere={elsewhere}
+      writes={writes}
     />
   );
 }

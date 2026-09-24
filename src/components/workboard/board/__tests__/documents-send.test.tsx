@@ -1,8 +1,10 @@
 /* Sending what's ticked — the job card's footer while the Documents face has
    ticks, and the email that opens in it. What this pins: Send to ServiceM8 is
-   there and OFF until the write path lands; the email starts from the job's
-   own people and words; nothing is sent to nobody or to something that isn't
-   an address; and a deployment with no mail key says so instead of pretending. */
+   offered only where an owner switched it on, says what it is doing while it
+   waits, and leaves the reason a file didn't go where the count was; the
+   email starts from the job's own people and words; nothing is sent to nobody
+   or to something that isn't an address; and a deployment with no mail key
+   says so instead of pretending. */
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -39,14 +41,34 @@ const footer = (over: Partial<Parameters<typeof DocumentsSend>[0]> = {}) => {
 };
 
 describe("the bar", () => {
-  it("counts what's ticked and offers the two ways out, ServiceM8's off until it can write", async () => {
+  it("counts what's ticked and offers email, and no ServiceM8 where it isn't switched on", async () => {
     const props = footer();
     expect(screen.getByText("2 documents ticked")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send to ServiceM8" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Send to ServiceM8" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Email documents" }));
     expect(props.onWriting).toHaveBeenCalledWith(true);
     await userEvent.click(screen.getByRole("button", { name: "Clear ticks" }));
     expect(props.onClear).toHaveBeenCalled();
+  });
+
+  it("offers Send to ServiceM8 where it's on, and says what it's doing while it waits", async () => {
+    let finish: () => void = () => {};
+    const onSendToSm8 = jest.fn(() => new Promise<void>((done) => (finish = done)));
+    footer({ sm8: "live", onSendToSm8 });
+    await userEvent.click(screen.getByRole("button", { name: "Send to ServiceM8" }));
+    expect(onSendToSm8).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Sending to ServiceM8…" })).toBeDisabled();
+    // nothing else leaves the footer while it waits
+    expect(screen.getByRole("button", { name: "Email documents" })).toBeDisabled();
+    finish();
+    expect(await screen.findByRole("button", { name: "Send to ServiceM8" })).toBeEnabled();
+  });
+
+  it("puts why a file didn't go where the count was, in the state's colour", () => {
+    footer({ sm8: "live", onSendToSm8: jest.fn(async () => {}), sm8Note: "Plan.pdf wasn't sent. ServiceM8 refused the file." });
+    const note = screen.getByText("Plan.pdf wasn't sent. ServiceM8 refused the file.");
+    expect(note).toHaveClass("sw-state", "bad");
+    expect(screen.queryByText("2 documents ticked")).not.toBeInTheDocument();
   });
 
   it("is the card's footer, not something floating over the list", () => {

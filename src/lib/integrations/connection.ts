@@ -7,6 +7,7 @@
    an access token even if someone spreads the object into a prop later. */
 
 import { missingScopesFor } from "./providers";
+import { readWriteMode, type Sm8WriteMode } from "./sm8-write-plan";
 
 export type ConnectionStatus = "connected" | "needs_reauth";
 
@@ -32,6 +33,9 @@ export type ConnectionRow = {
   last_error: string | null;
   drift_count?: number | null;
   drift_checked_at?: string | null;
+  /** 'off' | 'trial' | 'live' — whether HeyTiff may write back. ServiceM8
+      only today; every other provider's row reads 'off'. */
+  write_mode?: string | null;
 };
 
 /** What crosses to the browser. No tokens, ever. */
@@ -54,6 +58,9 @@ export type ConnectionView = {
      figures behind it need `financials`. */
   driftCount: number | null;
   driftCheckedAt: string | null;
+  /** The owner's switch for writing back to the provider — see
+      docs/migrations/sm8_writes.sql. Anything unreadable is "off". */
+  writeMode: Sm8WriteMode;
 };
 
 export function isConnectionStatus(v: unknown): v is ConnectionStatus {
@@ -88,13 +95,15 @@ export function toView(row: ConnectionRow, connectedByName: string | null = null
     tenants: parseTenants(row.tenants),
     scopes: (row.scopes ?? "").split(/\s+/).filter(Boolean),
     // Judged against the ROW's provider — a ServiceM8 grant measured with
-    // Xero's list would prompt "reconnect to finish" forever.
-    missing: missingScopesFor(row.provider, row.scopes),
+    // Xero's list would prompt "reconnect to finish" forever — and the row's
+    // own switch: writing on without the permission to write is missing it.
+    missing: missingScopesFor(row.provider, row.scopes, row.write_mode),
     connectedAt: row.connected_at,
     connectedByName,
     lastError: row.last_error,
     driftCount: typeof row.drift_count === "number" ? row.drift_count : null,
     driftCheckedAt: row.drift_checked_at ?? null,
+    writeMode: readWriteMode(row.write_mode),
   };
 }
 

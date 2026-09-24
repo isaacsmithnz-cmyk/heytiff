@@ -448,3 +448,49 @@ describe("ticking to send", () => {
     expect(document.querySelector(".wb2-docpick")).toBeNull();
   });
 });
+
+/* ── ours, in ServiceM8 ──────────────────────────────────────────────────
+   Once somebody has sent one of ours from the footer, the row says where it
+   stands: in ServiceM8, on its way, or why it didn't go — in the state's
+   colour, under the name. A file never sent says nothing. */
+describe("where ours stand with ServiceM8", () => {
+  const sent = (documentId: string, status: "sent" | "queued" | "failed" | "trial", over = {}) => ({
+    documentId,
+    status,
+    error: null as string | null,
+    attempts: 1,
+    remoteUuid: `r-${documentId}`,
+    ...over,
+  });
+
+  it("says In ServiceM8 under a paper and an upload that went, in the OK colour", () => {
+    face({
+      today: TODAY,
+      papers: [paperRow()],
+      documents: [OURS],
+      sends: [sent("d1", "sent"), sent("d-9", "sent")],
+    });
+    const lines = screen.getAllByText("In ServiceM8");
+    expect(lines).toHaveLength(2);
+    for (const line of lines) expect(line).toHaveClass("sw-state", "ok");
+  });
+
+  it("says why one didn't go, in the bad colour", () => {
+    face({
+      documents: [OURS],
+      sends: [sent("d-9", "failed", { error: "ServiceM8 said the file is too big." })],
+    });
+    expect(screen.getByText("Not sent to ServiceM8. ServiceM8 said the file is too big.")).toHaveClass("sw-state", "bad");
+  });
+
+  it("says one is on its way, quietly", () => {
+    face({ documents: [OURS], sends: [sent("d-9", "queued", { attempts: 0 })] });
+    const line = screen.getByText("Sending to ServiceM8…");
+    expect(line).not.toHaveClass("sw-state");
+  });
+
+  it("says nothing for a file never sent, or sent on a trial run", () => {
+    face({ today: TODAY, papers: [paperRow()], documents: [OURS], sends: [sent("d1", "trial")] });
+    expect(screen.queryByText(/ServiceM8/)).toBeNull();
+  });
+});

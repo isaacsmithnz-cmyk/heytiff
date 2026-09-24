@@ -10,6 +10,7 @@ let row: Row | null = null;
    `.eq(col, null)` are not the same query, and the naming repair's guard is
    the whole point of that write. */
 const updates: {
+  table: string;
   patch: Record<string, unknown>;
   filters: Record<string, unknown>;
   is: Record<string, unknown>;
@@ -30,9 +31,13 @@ jest.mock("@/lib/supabase-server", () => ({
       };
       c.maybeSingle = async () => ({ data: row });
       c.update = (patch: Record<string, unknown>) => {
-        const u = { patch, filters, is: {} as Record<string, unknown> };
+        const u = { table, patch, filters, is: {} as Record<string, unknown> };
         const chain: Record<string, unknown> = {};
         chain.eq = (col: string, v: unknown) => {
+          u.filters = { ...u.filters, [col]: v };
+          return chain;
+        };
+        chain.in = (col: string, v: unknown) => {
           u.filters = { ...u.filters, [col]: v };
           return chain;
         };
@@ -275,5 +280,15 @@ describe("disconnect", () => {
     // connected-with-holes (self-repairing), never disconnected-with-leftovers
     const final = deletes[deletes.length - 1];
     expect(final.filters).toMatchObject({ org_id: "org-1", provider: "servicem8" });
+  });
+
+  it("cancels this org's writes still waiting to go, and keeps the record of what went", async () => {
+    await disconnectSm8("org-1");
+    const cancel = updates.find((u) => u.table === "sm8_writes");
+    expect(cancel?.patch).toMatchObject({ status: "cancelled", lease_until: null });
+    expect(String(cancel?.patch.last_error)).toContain("disconnected");
+    // only what hasn't gone: a sent row is history, and history stays
+    expect(cancel?.filters).toEqual({ org_id: "org-1", status: ["queued", "sending"] });
+    expect(deletes.map((d) => d.table)).not.toContain("sm8_writes");
   });
 });

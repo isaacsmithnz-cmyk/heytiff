@@ -5,6 +5,8 @@ import { hasMinRole } from "@/lib/roles";
 import { getDbRole } from "@/lib/permissions-server";
 import { tokenKey } from "@/lib/integrations/secrets";
 import { buildSm8ConsentUrl, sm8Config } from "@/lib/integrations/sm8";
+import { sm8ScopesWanted } from "@/lib/integrations/providers";
+import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { encodeState, stateCookieFor, STATE_TTL_SECONDS } from "@/lib/integrations/oauth-state";
 
 /* Step one of ServiceM8's OAuth 2.0 authorisation-code flow: mint a state,
@@ -45,7 +47,14 @@ export async function GET(request: Request) {
 
   const state = randomBytes(16).toString("hex");
 
-  const response = NextResponse.redirect(buildSm8ConsentUrl(cfg, state));
+  /* The owner's write switch decides the ask: while writing is on, the
+     consent carries the write scope beside the reads, so reconnecting (for
+     any reason) keeps the permission the switch depends on. Off, or on a
+     deployment that can't write at all, it is the read list alone. */
+  const writes = await readSm8WriteState(orgId);
+  const scopes = sm8ScopesWanted(writes.deployment ? writes.mode : "off");
+
+  const response = NextResponse.redirect(buildSm8ConsentUrl(cfg, state, scopes));
   response.cookies.set({
     name: COOKIE.name,
     value: encodeState({ state, orgId }),

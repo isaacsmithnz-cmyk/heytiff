@@ -7,12 +7,13 @@ import { Icon } from "@/components/shell/icon";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
 import { useHydrated } from "@/lib/use-hydrated";
-import { providerById, SM8_SCOPES } from "@/lib/integrations/providers";
+import { providerById, SM8_SCOPES, SM8_WRITE_SCOPES } from "@/lib/integrations/providers";
 import type { ConnectionView } from "@/lib/integrations/connection";
 import type { Sm8ObjectStatus, Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
 import { disconnectServiceM8Action, syncServiceM8NowAction } from "@/app/actions/integrations";
 import { PeopleImportCard, type PeopleCardData } from "@/components/integrations/people-import-card";
 import { ConnectActions } from "@/components/integrations/connect-actions";
+import { Sm8WritesCard, type Sm8WritesView } from "@/components/integrations/sm8-writes-card";
 
 /* The ServiceM8 connection screen — xero-screen's sibling, same two refusals
    to be vague (WHAT IT IS FOR, WHAT IT CAN SEE), and the shared ConnectActions
@@ -49,6 +50,9 @@ export type Servicem8ScreenProps = {
   people?: PeopleCardData | null;
   /** Other HeyTiff workspaces holding this same ServiceM8 account. */
   elsewhere?: number;
+  /** Sending files to ServiceM8 — null until connected, and on a
+      deployment that can't write. */
+  writes?: Sm8WritesView | null;
 };
 
 /** "just now" / "4 min ago" / "3 hours ago" — the board's staleness language,
@@ -93,6 +97,7 @@ export function Servicem8Screen({
   sync,
   people,
   elsewhere = 0,
+  writes = null,
 }: Servicem8ScreenProps) {
   const provider = providerById("servicem8")!;
   const router = useRouter();
@@ -105,6 +110,10 @@ export function Servicem8Screen({
   const attention =
     connection !== null &&
     (connection.status === "needs_reauth" || connection.missing.length > 0);
+  /* The ask follows the owner's switch: the write permission is on the list,
+     and on the consent screen, only while sending is On. */
+  const writing = connection?.writeMode === "live";
+  const asks = writing ? [...SM8_SCOPES, ...SM8_WRITE_SCOPES] : SM8_SCOPES;
 
   const disconnect = () => {
     setError(null);
@@ -164,7 +173,9 @@ export function Servicem8Screen({
                       ? connection.status === "needs_reauth"
                         ? connection.lastError ?? "This connection needs reconnecting."
                         : "Connected, but missing some of the access HeyTiff now asks for."
-                      : "HeyTiff can read this ServiceM8 account."
+                      : writing
+                        ? "HeyTiff can read this ServiceM8 account, and add files to its jobs."
+                        : "HeyTiff can read this ServiceM8 account."
                     : provider.blurb}
                 </em>
               </div>
@@ -265,6 +276,9 @@ export function Servicem8Screen({
           {/* ── the mirror, object by object ── */}
           {connected && sync && <MirrorCard sync={sync} busy={busy} onSync={syncNow} />}
 
+          {/* ── the other direction: files sent from a job ── */}
+          {connected && writes && <Sm8WritesCard view={writes} />}
+
           {/* ── the people reconcile — import is a review, never a copy ── */}
           {connected && people && <PeopleImportCard provider="servicem8" {...people} />}
 
@@ -297,13 +311,14 @@ export function Servicem8Screen({
               <div>
                 <b>What HeyTiff asks ServiceM8 for</b>
                 <em>
-                  Read-only, every one of them. Nothing here writes to ServiceM8, and the list
-                  below is exactly what the consent screen will show.
+                  {writing
+                    ? "Reads, and one write: adding the files somebody sends from a job. The list below is exactly what the consent screen will show."
+                    : "Read-only, every one of them. Nothing here writes to ServiceM8, and the list below is exactly what the consent screen will show."}
                 </em>
               </div>
             </div>
             <ul className="int-scopes">
-              {SM8_SCOPES.map((s) => {
+              {asks.map((s) => {
                 const missing = connection?.missing.includes(s.scope) ?? false;
                 return (
                   <li key={s.scope} className={missing ? "missing" : undefined}>

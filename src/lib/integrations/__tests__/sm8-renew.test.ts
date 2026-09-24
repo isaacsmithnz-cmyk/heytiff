@@ -12,8 +12,8 @@ jest.mock("../sm8-store", () => ({
 import { withSm8Renewal } from "../sm8-renew";
 import { SM8_REVOKED } from "../sm8-sync-plan";
 
-const first = { accessToken: "tok-1", tenantId: "v-1", grant: "g1" };
-const renewed = { accessToken: "tok-2", tenantId: "v-1", grant: "g2" };
+const first = { accessToken: "tok-1", tenantId: "v-1", grant: "g1", meter: "v-1" };
+const renewed = { accessToken: "tok-2", tenantId: "v-1", grant: "g2", meter: "v-1" };
 
 type Answer = { status: number };
 const refused = (a: Answer) => a.status === 401;

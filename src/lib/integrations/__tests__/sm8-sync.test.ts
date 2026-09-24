@@ -34,6 +34,11 @@ let onUpsert: ((table: string) => void) | null = null;
 /* Tables whose single-row read errors, and whose delete the database refuses. */
 const readFails = new Set<string>();
 const deleteFails = new Set<string>();
+/* A list read of sm8_sync_state that errors for these columns — a database
+   without walk_started_at yet, or one that can't be read at all. */
+let stateSelectFails: ((cols: string) => boolean) | null = null;
+/* An upsert the database refuses, by table and payload. */
+let upsertFails: ((table: string, payload: unknown) => { code: string } | null) | null = null;
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
@@ -41,6 +46,8 @@ jest.mock("@/lib/supabase-server", () => ({
       const chain: Record<string, unknown> = {};
       chain.upsert = (payload: unknown) => {
         onUpsert?.(table);
+        const refused = upsertFails?.(table, payload) ?? null;
+        if (refused) return Promise.resolve({ error: refused });
         upserts.push({ table, payload });
         return Promise.resolve({ error: null });
       };
@@ -83,7 +90,7 @@ jest.mock("@/lib/supabase-server", () => ({
         };
         return sub;
       };
-      chain.select = () => {
+      chain.select = (cols = "") => {
         const sub: Record<string, unknown> = {};
         sub.eq = () => sub;
         sub.in = () => sub;
@@ -100,7 +107,10 @@ jest.mock("@/lib/supabase-server", () => ({
           if (table === "integration_connections") onConnRead?.(++connReads);
           return answer;
         };
-        sub.then = (res: (v: { data: Row[] }) => unknown) => {
+        sub.then = (res: (v: { data: Row[] | null; error?: { code: string } }) => unknown) => {
+          if (table === "sm8_sync_state" && stateSelectFails?.(cols)) {
+            return Promise.resolve({ data: null, error: { code: "42703" } }).then(res);
+          }
           const data =
             table === "sm8_sync_state"
               ? stateRows
@@ -160,10 +170,13 @@ jest.mock("../sm8-read", () => ({
 }));
 
 import {
-  kickSm8SyncIfStale,
+  listSm8SyncStatus,
+  readSm8LastCron,
+  recordSm8CronVisit,
   runSm8Sync,
   runSm8SyncWhenFree,
   SM8_SYNC_BUSY,
+  sm8SyncIsStale,
   sweepableSm8Orgs,
   switchSm8AccountUnderLease,
 } from "../sm8-sync";
@@ -176,7 +189,9 @@ import {
   SM8_ACCOUNT_UNREAD,
   SM8_ELSEWHERE,
   SM8_OBJECTS,
+  SM8_PAUSE_SHARED_LIMIT,
   SM8_REVOKED,
+  SM8_STATE_UNREAD,
   SM8_UNREACHABLE,
 } from "../sm8-sync-plan";
 
@@ -185,8 +200,8 @@ const TODAY = "2026-07-28";
 
 const emptyPage = { ok: true as const, rows: [], nextCursor: null };
 
-const ACCESS = { accessToken: "tok", tenantId: "v-1", grant: "g1" };
-const RENEWED = { accessToken: "tok-2", tenantId: "v-1", grant: "g2" };
+const ACCESS = { accessToken: "tok", tenantId: "v-1", grant: "g1", meter: "v-1" };
+const RENEWED = { accessToken: "tok-2", tenantId: "v-1", grant: "g2", meter: "v-1" };
 
 beforeEach(() => {
   upserts.length = 0;
@@ -200,6 +215,8 @@ beforeEach(() => {
   onUpsert = null;
   readFails.clear();
   deleteFails.clear();
+  stateSelectFails = null;
+  upsertFails = null;
   claimResult = [{ calls_today: 0, calls_day: null }];
   stateRows = [];
   runsRow = null;
@@ -357,7 +374,7 @@ describe("a walk resumes where it paused", () => {
     });
   });
 
-  it("clears both columns when the walk finally finishes", async () => {
+  it("a walk paused before its start was recorded finishes on the old rule, and clears both columns", async () => {
     stateRows = [
       {
         object: "staff",
@@ -399,6 +416,188 @@ describe("a walk resumes where it paused", () => {
     await runSm8Sync("org-1", "manual", NOW);
 
     expect(stateUpsertFor("staff")!.walk_cursor).toBe("page-2");
+  });
+});
+
+/* ── where a finished walk leaves the cursor ──
+
+   The highest stamp read used to be the cursor. A record edited on a page the
+   walk had already read carries a lower stamp than a later page's, so the
+   next walk never asked for it again; and in April's repeated hour a later
+   edit can carry an earlier stamp. The cursor is now floored a quarter of an
+   hour before the walk began, in the account's own clock. */
+describe("the cursor a finished walk leaves", () => {
+  const vendorIn = (timezoneName: string | null) =>
+    fetchSm8Vendor.mockResolvedValue({
+      ok: true,
+      vendor: { uuid: "v-1", name: "Acme Air", email: null, timezoneName, currency: "AUD" },
+    });
+  const jobsPages = (rows: { page: string; edit: string }[]) =>
+    fetchSm8Page.mockImplementation(async (_call: unknown, endpoint: string, opts: { cursor: string }) => {
+      if (endpoint !== "job.json") return emptyPage;
+      if (opts.cursor === "-1") {
+        return { ok: true, rows: [{ uuid: "j-1", edit_date: rows[0].edit, active: 1 }], nextCursor: "p2" };
+      }
+      return { ok: true, rows: [{ uuid: "j-2", edit_date: rows[1].edit, active: 1 }], nextCursor: null };
+    });
+
+  it("sits a quarter of an hour before the walk began, when a later page read a newer stamp", async () => {
+    // Brisbane is UTC+10: the walk began at 11:00 on the account's clock
+    vendorIn("Australia/Brisbane");
+    jobsPages([
+      { page: "1", edit: "2026-07-28 09:00:00" },
+      { page: "2", edit: "2026-07-28 11:05:00" },
+    ]);
+    await runSm8Sync("org-1", "manual", NOW);
+    // the old rule said 11:05, and an edit at 10:59 on page one was lost
+    expect(stateUpsertFor("jobs")).toMatchObject({ cursor: "2026-07-28 10:45:00", walk_started_at: null });
+  });
+
+  it("reaches back across April's repeated hour", async () => {
+    // 15:40Z on 3 April 2027 is 02:40 AEDT, twenty minutes before Sydney's clocks go back
+    vendorIn("Australia/Sydney");
+    jobsPages([
+      { page: "1", edit: "2027-04-04 01:00:00" },
+      { page: "2", edit: "2027-04-04 02:39:00" },
+    ]);
+    claimResult = [{ calls_today: 0, calls_day: null }];
+    await runSm8Sync("org-1", "manual", Date.parse("2027-04-03T15:40:00Z"));
+    expect(stateUpsertFor("jobs")!.cursor).toBe("2027-04-04 01:25:00");
+  });
+
+  it("keeps the highest stamp read when that is the lower of the two", async () => {
+    vendorIn("Australia/Brisbane");
+    jobsPages([
+      { page: "1", edit: "2026-07-28 08:00:00" },
+      { page: "2", edit: "2026-07-28 09:00:00" },
+    ]);
+    await runSm8Sync("org-1", "manual", NOW);
+    expect(stateUpsertFor("jobs")!.cursor).toBe("2026-07-28 09:00:00");
+  });
+
+  it("takes the account's zone from its last known row when this read didn't name one", async () => {
+    vendorIn(null);
+    vendorRow = { uuid: "v-1", name: "Acme Air", timezone_name: "Australia/Brisbane" };
+    jobsPages([
+      { page: "1", edit: "2026-07-28 09:00:00" },
+      { page: "2", edit: "2026-07-28 11:05:00" },
+    ]);
+    await runSm8Sync("org-1", "manual", NOW);
+    expect(stateUpsertFor("jobs")!.cursor).toBe("2026-07-28 10:45:00");
+    // and the known zone is kept rather than blanked
+    expect((upserts.find((u) => u.table === "sm8_vendor")!.payload as Row).timezone_name).toBe("Australia/Brisbane");
+  });
+
+  it("keeps the old rule when no zone is known at all", async () => {
+    vendorIn(null);
+    jobsPages([
+      { page: "1", edit: "2026-07-28 09:00:00" },
+      { page: "2", edit: "2026-07-28 11:05:00" },
+    ]);
+    await runSm8Sync("org-1", "manual", NOW);
+    expect(stateUpsertFor("jobs")!.cursor).toBe("2026-07-28 11:05:00");
+  });
+
+  it("a fresh walk that pauses keeps when it began, and the run that finishes it floors at that", async () => {
+    vendorIn("Australia/Brisbane");
+    // first run: the jobs walk never runs out of pages
+    fetchSm8Page.mockImplementation(async (_call: unknown, endpoint: string, opts: { cursor: string }) =>
+      endpoint === "job.json"
+        ? { ok: true, rows: [{ uuid: `j-${opts.cursor}`, edit_date: "2026-07-28 10:59:00", active: 1 }], nextCursor: `after-${opts.cursor}` }
+        : emptyPage
+    );
+    stateRows = SM8_OBJECTS.filter((o) => o.object !== "jobs").map((o) => ({
+      object: o.object,
+      cursor: null,
+      backfill_done: true,
+      rows_pulled: 0,
+      walk_cursor: null,
+      walk_filter: null,
+    }));
+    await runSm8Sync("org-1", "manual", NOW);
+    const paused = stateUpsertFor("jobs")!;
+    expect(paused.walk_cursor).not.toBeNull();
+    expect(paused.walk_started_at).toBe(new Date(NOW).toISOString());
+
+    // a day later, the walk finishes: its floor is the first run's start
+    upserts.length = 0;
+    stateRows = [...stateRows, { ...paused }];
+    fetchSm8Page.mockImplementation(async (_call: unknown, endpoint: string) =>
+      endpoint === "job.json"
+        ? { ok: true, rows: [{ uuid: "j-last", edit_date: "2026-07-29 12:00:00", active: 1 }], nextCursor: null }
+        : emptyPage
+    );
+    await runSm8Sync("org-1", "manual", NOW + 86_400_000);
+    expect(stateUpsertFor("jobs")).toMatchObject({ cursor: "2026-07-28 10:45:00", walk_started_at: null, walk_cursor: null });
+  });
+
+  it("a state read that fails on the new column is asked again without it, rather than starting a new backfill", async () => {
+    stateSelectFails = (cols) => cols.includes("walk_started_at");
+    stateRows = SM8_OBJECTS.map((o) => ({
+      object: o.object,
+      cursor: "2026-07-27 00:00:00",
+      backfill_done: true,
+      rows_pulled: 5,
+      walk_cursor: null,
+      walk_filter: null,
+    }));
+    await runSm8Sync("org-1", "manual", NOW);
+    // filtered from the stored cursor, not from 24 months back
+    const jobsCall = fetchSm8Page.mock.calls.find((c) => c[1] === "job.json")!;
+    expect(jobsCall[2]).toMatchObject({ filter: "edit_date gt '2026-07-26 23:59:59'" });
+  });
+
+  it("a state that can't be read at all stops the run before a page is asked for", async () => {
+    stateSelectFails = () => true;
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_STATE_UNREAD);
+    expect(fetchSm8Page).not.toHaveBeenCalled();
+    expect(upserts.filter((u) => u.table === "sm8_sync_state")).toHaveLength(0);
+  });
+
+  it("a database without walk_started_at still saves the rest of the state", async () => {
+    upsertFails = (table, payload) =>
+      table === "sm8_sync_state" && payload !== null && typeof payload === "object" && "walk_started_at" in payload
+        ? { code: "PGRST204" }
+        : null;
+    await runSm8Sync("org-1", "manual", NOW);
+    const jobs = stateUpsertFor("jobs")!;
+    expect(jobs).toMatchObject({ backfill_done: true });
+    expect(jobs).not.toHaveProperty("walk_started_at");
+  });
+});
+
+/* ── the account's call limit is shared ──
+
+   Every request the sync makes takes a turn from the account's counter on
+   the `sync` lane, which leaves the most room behind. When there is none, the
+   sync steps back so a person's send finds it. */
+describe("the sync steps back for the account's call limit", () => {
+  it("asks for the vendor row and every page on lane `sync`, with the connection's counter", async () => {
+    await runSm8Sync("org-1", "manual", NOW);
+    expect(fetchSm8Vendor.mock.calls[0][0]).toEqual({ accessToken: "tok", meter: "v-1", lane: "sync" });
+    for (const c of fetchSm8Page.mock.calls) {
+      expect(c[0]).toEqual({ accessToken: "tok", meter: "v-1", lane: "sync" });
+    }
+  });
+
+  it("a throttled vendor read ends the run before any page is asked for, and costs nothing", async () => {
+    fetchSm8Vendor.mockResolvedValue({ ok: false, unauthorized: false, throttled: true, called: false });
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_PAUSE_SHARED_LIMIT);
+    expect(fetchSm8Page).not.toHaveBeenCalled();
+    expect(lastRunsUpdate().patch).toMatchObject({ calls_today: 0, last_note: SM8_PAUSE_SHARED_LIMIT });
+  });
+
+  it("a throttled page pauses the walk on the shared-limit note, where it stopped, and isn't counted", async () => {
+    fetchSm8Page.mockImplementation(async (_call: unknown, endpoint: string) =>
+      endpoint === "category.json" ? { ok: false, failure: "throttled", called: false } : emptyPage
+    );
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_PAUSE_SHARED_LIMIT);
+    expect(stateUpsertFor("categories")).toMatchObject({ last_error: SM8_PAUSE_SHARED_LIMIT, walk_cursor: "-1" });
+    // the vendor read and the staff page reached ServiceM8; the refused turn didn't
+    expect(lastRunsUpdate().patch).toMatchObject({ calls_today: 2 });
   });
 });
 
@@ -587,8 +786,8 @@ describe("failure kinds end exactly as much as they should", () => {
     /* The hourly token ran out mid-walk. Before, this flagged the connection
        and the owner was asked to reconnect a connection that worked. */
     let refused = false;
-    fetchSm8Page.mockImplementation(async (token: string) => {
-      if (token === "tok" && !refused) {
+    fetchSm8Page.mockImplementation(async (call: { accessToken: string }) => {
+      if (call.accessToken === "tok" && !refused) {
         refused = true;
         return { ok: false, failure: "unauthorized" };
       }
@@ -606,8 +805,8 @@ describe("failure kinds end exactly as much as they should", () => {
   });
 
   it("a vendor 401 is renewed once before the grant is judged", async () => {
-    fetchSm8Vendor.mockImplementation(async (token: string) =>
-      token === "tok"
+    fetchSm8Vendor.mockImplementation(async (call: { accessToken: string }) =>
+      call.accessToken === "tok"
         ? { ok: false, unauthorized: true }
         : { ok: true, vendor: { uuid: "v-1", name: "Acme Air", email: null, timezoneName: "Australia/Brisbane", currency: "AUD" } }
     );
@@ -616,7 +815,7 @@ describe("failure kinds end exactly as much as they should", () => {
     expect(fetchSm8Vendor).toHaveBeenCalledTimes(2);
     expect(markSm8NeedsReauth).not.toHaveBeenCalled();
     // the pages went with the renewed token
-    expect(fetchSm8Page.mock.calls[0][0]).toBe("tok-2");
+    expect(fetchSm8Page.mock.calls[0][0]).toMatchObject({ accessToken: "tok-2", lane: "sync" });
   });
 
   it("a refresh that couldn't reach ServiceM8 says so, not 'reconnect'", async () => {
@@ -742,24 +941,57 @@ describe("sweepableSm8Orgs — the nightly cap must rotate, not cut off", () => 
   });
 });
 
-describe("the page-load kick", () => {
-  it("fires only when the mirrors are stale and nothing is running", async () => {
+describe("is the mirror due a top-up?", () => {
+  it("yes, when it is stale and nothing is running", async () => {
     runsRow = { lease_until: null, last_finished_at: new Date(NOW - 60 * 60_000).toISOString() };
-    await kickSm8SyncIfStale("org-1", NOW);
-    expect(afterFn).toHaveBeenCalledTimes(1);
+    expect(await sm8SyncIsStale("org-1", NOW)).toBe(true);
+    runsRow = null; // never synced
+    expect(await sm8SyncIsStale("org-1", NOW)).toBe(true);
   });
 
-  it("stays quiet when fresh or already running", async () => {
+  it("no, when fresh or already running — and it schedules nothing itself", async () => {
     runsRow = { lease_until: null, last_finished_at: new Date(NOW - 2 * 60_000).toISOString() };
-    await kickSm8SyncIfStale("org-1", NOW);
-    expect(afterFn).not.toHaveBeenCalled();
+    expect(await sm8SyncIsStale("org-1", NOW)).toBe(false);
 
     runsRow = {
       lease_until: new Date(NOW + 60_000).toISOString(),
       last_finished_at: new Date(NOW - 60 * 60_000).toISOString(),
     };
-    await kickSm8SyncIfStale("org-1", NOW);
+    expect(await sm8SyncIsStale("org-1", NOW)).toBe(false);
     expect(afterFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("the overnight trace", () => {
+  it("records the scheduler's visit against the workspace, and nothing else", async () => {
+    await recordSm8CronVisit("org-1", NOW);
+    const visit = upserts.find((u) => u.table === "sm8_sync_runs")!.payload as Row;
+    expect(visit).toEqual({ org_id: "org-1", last_cron_at: new Date(NOW).toISOString() });
+  });
+
+  it("never throws for a database without the column", async () => {
+    upsertFails = (table) => (table === "sm8_sync_runs" ? { code: "PGRST204" } : null);
+    await expect(recordSm8CronVisit("org-1", NOW)).resolves.toBeUndefined();
+  });
+
+  it("reads back as the time, null when it never came, and undefined when it can't be read", async () => {
+    runsRow = { last_cron_at: "2026-09-24T20:04:00Z" };
+    expect(await readSm8LastCron("org-1")).toBe("2026-09-24T20:04:00Z");
+    runsRow = { last_cron_at: null };
+    expect(await readSm8LastCron("org-1")).toBeNull();
+    runsRow = null;
+    expect(await readSm8LastCron("org-1")).toBeNull();
+    readFails.add("sm8_sync_runs");
+    expect(await readSm8LastCron("org-1")).toBeUndefined();
+  });
+
+  it("rides the screen's status view — and is absent, not null, when unread", async () => {
+    runsRow = { last_cron_at: "2026-09-24T20:04:00Z", last_finished_at: null, lease_until: null };
+    expect((await listSm8SyncStatus("org-1")).lastCron).toBe("2026-09-24T20:04:00Z");
+    runsRow = { last_cron_at: null };
+    expect((await listSm8SyncStatus("org-1")).lastCron).toBeNull();
+    readFails.add("sm8_sync_runs");
+    expect("lastCron" in (await listSm8SyncStatus("org-1"))).toBe(false);
   });
 });
 

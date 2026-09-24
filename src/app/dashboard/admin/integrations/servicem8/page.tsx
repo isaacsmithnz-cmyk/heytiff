@@ -5,7 +5,8 @@ import { getDbRole } from "@/lib/permissions-server";
 import { Servicem8Screen, type Sm8Reach } from "@/components/integrations/servicem8-screen";
 import { countConnectionsElsewhere, getConnectionView } from "@/lib/integrations/store";
 import { readSm8Vendor } from "@/lib/integrations/sm8-read";
-import { kickSm8SyncIfStale, listSm8SyncStatus, type Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
+import { listSm8SyncStatus, type Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
+import { freshenSm8AfterResponse } from "@/lib/integrations/sm8-freshness";
 import { tokenKey } from "@/lib/integrations/secrets";
 import { sm8Config } from "@/lib/integrations/sm8";
 import { sm8ConnectMessage, sm8SwitchedNotice } from "@/lib/integrations/outcome";
@@ -16,7 +17,6 @@ import { getSm8PeopleData } from "@/app/actions/staff-import";
 import {
   countSm8Queue,
   countSm8WritesSentLately,
-  kickSm8WritesIfDue,
   listRecentSm8Writes,
   readSm8WriteState,
   sm8WriteKindsEnabled,
@@ -119,12 +119,9 @@ export default async function Servicem8IntegrationPage({
       : { ok: false, error: vendor.error };
     sync = status;
     people = peopleData;
-    // Opening this screen counts as looking — top the mirrors up behind the
-    // response when they're stale. Closes over the orgId read above; no
-    // request APIs inside (Server Component after() rule).
-    await kickSm8SyncIfStale(orgId);
-    // and whatever is waiting to go the other way
-    await kickSm8WritesIfDue(orgId);
+    /* Opening this screen counts as looking: what is waiting to go is sent,
+       then a stale mirror topped up, all behind the response. */
+    freshenSm8AfterResponse(orgId);
   }
 
   /* A reconnect that REPLACED the account says so, with what went with the

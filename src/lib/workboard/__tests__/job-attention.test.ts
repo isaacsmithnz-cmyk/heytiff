@@ -23,6 +23,7 @@ const note = (over: Partial<AttentionInputs["notes"][number]> = {}) => ({
   at: "2026-08-20 09:14:00",
   actionRequired: false,
   handles: ["lukeingold"],
+  ours: false,
   ...over,
 });
 
@@ -128,6 +129,26 @@ describe("buildJobAttention", () => {
         })
       );
       expect(built.items[0]).toMatchObject({ named: [{ staffId: "staff-9" }] });
+    });
+
+    it("never offer HeyTiff's own note back as a mention or a flag", () => {
+      /* A reply HeyTiff posts to ServiceM8 comes back with the next sync as
+         one of ServiceM8's notes. Offered as a suggestion, it would ask Luke
+         to answer his own words; HeyTiff's own row is where it lives. */
+      const built = buildJobAttention(
+        inputs({ notes: [note({ ours: true }), note({ remoteId: "n-2", ours: true, actionRequired: true })] })
+      );
+      expect(built).toEqual({ items: [], total: 0 });
+    });
+
+    it("still names Luke from the same words when the note isn't ours, and reads the handles unchanged", () => {
+      const mine = note({ ours: true });
+      const theirs = note({ ours: false });
+      expect(buildJobAttention(inputs({ notes: [theirs] })).items[0]).toMatchObject({
+        kind: "mention",
+        named: [{ name: "Luke Ingold" }],
+      });
+      expect(mine.handles).toEqual(theirs.handles);
     });
 
     it("stays quiet about a handle the roster doesn't know", () => {

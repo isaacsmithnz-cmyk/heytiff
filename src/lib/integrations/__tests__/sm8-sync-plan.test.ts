@@ -8,13 +8,19 @@
 import {
   backfillFloor,
   chunk,
+  CURSOR_OVERLAP_MS,
   cursorFloor,
   dateOrNull,
   filterFor,
   fmtSm8,
   intOrNull,
+  isSm8PauseNote,
+  lowestStampFrom,
   maxEditDate,
+  nextCursor,
+  sm8LocalStamp,
   SM8_OBJECTS,
+  SM8_PAUSE_SHARED_LIMIT,
   SM8_ACCOUNT_RESET_TABLES,
   SM8_WIPE_TABLES,
   textOrNull,
@@ -98,6 +104,71 @@ describe("cursor arithmetic on naive strings", () => {
     expect(maxEditDate(rows, null)).toBe("2026-07-02 09:00:00");
     expect(maxEditDate(rows, "2026-07-03 00:00:00")).toBe("2026-07-03 00:00:00");
     expect(maxEditDate([], null)).toBeNull();
+  });
+});
+
+/* ServiceM8 stamps edit_date in the account's own wall-clock time. A walk's
+   finished cursor is floored in that clock, a quarter of an hour before the
+   walk began, and at its lowest across a clock change. */
+describe("the floor a finished walk's cursor sits at", () => {
+  it("writes an instant as ServiceM8 would stamp it in the account's zone", () => {
+    const t = Date.parse("2026-07-28T01:00:00Z");
+    expect(sm8LocalStamp(t, "Australia/Brisbane")).toBe("2026-07-28 11:00:00");
+    // Sydney keeps daylight saving; in July it doesn't, and it matches Brisbane
+    expect(sm8LocalStamp(t, "Australia/Sydney")).toBe("2026-07-28 11:00:00");
+    expect(sm8LocalStamp(Date.parse("2026-12-28T01:00:00Z"), "Australia/Sydney")).toBe("2026-12-28 12:00:00");
+    expect(sm8LocalStamp(Date.parse("2026-12-28T01:00:00Z"), "Australia/Brisbane")).toBe("2026-12-28 11:00:00");
+    // midnight is 00, never 24
+    expect(sm8LocalStamp(Date.parse("2026-07-27T14:00:00Z"), "Australia/Brisbane")).toBe("2026-07-28 00:00:00");
+  });
+
+  it("gives nothing for a zone that doesn't exist", () => {
+    expect(sm8LocalStamp(0, "Mars/Olympus_Mons")).toBeNull();
+    expect(lowestStampFrom(0, "Mars/Olympus_Mons")).toBeNull();
+  });
+
+  it("reaches back across April's repeated hour", () => {
+    // 15:25Z on 3 April 2027 is 02:25 AEDT; at 16:00Z Sydney's clocks go back to 02:00 AEST
+    expect(lowestStampFrom(Date.parse("2027-04-03T15:25:00Z"), "Australia/Sydney")).toBe("2027-04-04 01:25:00");
+  });
+
+  it("stays put across October's skipped hour", () => {
+    // 15:25Z on 3 October 2026 is 01:25 AEST; at 16:00Z the clocks jump to 03:00 AEDT
+    expect(lowestStampFrom(Date.parse("2026-10-03T15:25:00Z"), "Australia/Sydney")).toBe("2026-10-04 01:25:00");
+  });
+
+  it("is the plain stamp on an ordinary day", () => {
+    expect(lowestStampFrom(Date.parse("2026-07-28T00:45:00Z"), "Australia/Brisbane")).toBe("2026-07-28 10:45:00");
+  });
+
+  it("takes the smaller of the highest stamp read and the floor", () => {
+    const walkStartedAtMs = Date.parse("2026-07-28T01:00:00Z");
+    expect(CURSOR_OVERLAP_MS).toBe(15 * 60_000);
+    const tz = "Australia/Brisbane";
+    // a later page read 11:05; the floor is 10:45
+    expect(nextCursor({ seenMax: "2026-07-28 11:05:00", walkStartedAtMs, tz })).toBe("2026-07-28 10:45:00");
+    // nothing that recent was read: the highest stamp stands
+    expect(nextCursor({ seenMax: "2026-07-28 09:00:00", walkStartedAtMs, tz })).toBe("2026-07-28 09:00:00");
+    // nothing read at all: the floor
+    expect(nextCursor({ seenMax: null, walkStartedAtMs, tz })).toBe("2026-07-28 10:45:00");
+  });
+
+  it("keeps the old rule when the walk's start or the zone isn't known", () => {
+    expect(nextCursor({ seenMax: "2026-07-28 11:05:00", walkStartedAtMs: null, tz: "Australia/Brisbane" })).toBe(
+      "2026-07-28 11:05:00"
+    );
+    expect(nextCursor({ seenMax: "2026-07-28 11:05:00", walkStartedAtMs: 0, tz: null })).toBe("2026-07-28 11:05:00");
+    expect(nextCursor({ seenMax: "2026-07-28 11:05:00", walkStartedAtMs: 0, tz: "Nowhere/Else" })).toBe(
+      "2026-07-28 11:05:00"
+    );
+    expect(nextCursor({ seenMax: null, walkStartedAtMs: null, tz: null })).toBeNull();
+  });
+});
+
+describe("pausing for the account's call limit", () => {
+  it("is a pause, not a fault", () => {
+    expect(isSm8PauseNote(SM8_PAUSE_SHARED_LIMIT)).toBe(true);
+    expect(SM8_PAUSE_SHARED_LIMIT).toBe("Paused to leave room in ServiceM8's call limit — resuming next sync.");
   });
 });
 

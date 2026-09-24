@@ -524,6 +524,40 @@ describe("the mirror card's clock", () => {
   });
 });
 
+/* THE OVERNIGHT RUN, SEEN. The nightly sync does nothing until CRON_SECRET
+   is set in Vercel, and nothing on any screen said whether it ever ran. The
+   card now says when Vercel's scheduler last came, as an AU day and time —
+   no clock is read, so the server and the browser write the same words. */
+describe("the mirror card's overnight line", () => {
+  const READY = { configured: true, sealed: true, notice: null, connection: toView(row()) };
+
+  it("says when the overnight sync last came, on the AU clock", () => {
+    // 20:04 UTC on Thursday 24 September is 6:04 am on Friday in Sydney
+    render(<Servicem8Screen {...READY} sync={{ ...syncView([JOBS_DONE]), lastCron: "2026-09-24T20:04:00Z" }} />);
+    expect(screen.getByText("Last overnight sync: Fri 25 Sept, 6:04 am")).toBeInTheDocument();
+  });
+
+  it("says plainly when it never has", () => {
+    render(<Servicem8Screen {...READY} sync={{ ...syncView([JOBS_DONE]), lastCron: null }} />);
+    expect(screen.getByText("The overnight sync hasn't run.")).toBeInTheDocument();
+  });
+
+  it("says nothing either way when it couldn't be read", () => {
+    render(<Servicem8Screen {...READY} sync={syncView([JOBS_DONE])} />);
+    expect(screen.queryByText(/overnight sync/i)).toBeNull();
+  });
+
+  it("writes the same line on the server as in the browser", async () => {
+    const sync = { ...syncView([JOBS_DONE]), lastCron: "2026-09-24T20:04:00Z" };
+    const html = renderToString(<Servicem8Screen {...READY} sync={sync} />);
+    expect(html).toContain("Last overnight sync: Fri 25 Sept, 6:04 am");
+    render(<Servicem8Screen {...READY} sync={sync} />);
+    // once hydrated (the relative time has filled in), the line is unchanged
+    await waitFor(() => expect(document.body.textContent).toMatch(/Last synced (just now|\d+ min ago|\d+ hours? ago|over a day ago)/i));
+    expect(screen.getByText("Last overnight sync: Fri 25 Sept, 6:04 am")).toBeInTheDocument();
+  });
+});
+
 /* ── sending files to ServiceM8 ──────────────────────────────────────────
    The owner's switch for the first thing HeyTiff writes back. It isn't drawn
    where it can't be set; it names each setting as a sentence; On asks for

@@ -173,6 +173,11 @@ export function storageNote(message: string | undefined | null): string {
   return "Storage wouldn't accept that file — the log has the reason.";
 }
 
+/** ServiceM8's call limit for the account had no room for a download
+    (lib/integrations/sm8-meter). The batch stops, and the sheet's loop with
+    it; the rest come across on another opening. */
+export const MEDIA_BUSY = "ServiceM8 is busy. The rest will come across next time the job is opened.";
+
 /* ── where a file came from, in ServiceM8's own words ── */
 
 /** `attachment_source` is ServiceM8's tag for a file's origin. Three values

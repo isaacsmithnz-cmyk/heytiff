@@ -32,7 +32,6 @@ import {
   sm8FileName,
   sm8WriteKindsFrom,
   subjectDocumentId,
-  twinsToHide,
   verdictFor,
   verdictForAccountUnknown,
   verdictForDisconnected,
@@ -149,6 +148,33 @@ describe("what an answer means", () => {
     expect(v).toMatchObject({ status: "queued", refund: true, stop: true, error: WRITE_WORDS.dailyLimit });
     expect(new Date(now + v.retryAfterMs!).toISOString()).toBe("2026-09-25T14:05:00.000Z");
     expect(v.holdAllMs).toBe(v.retryAfterMs);
+  });
+
+  it("HeyTiff's own counter with no room waits a minute, the attempt handed back, and ends the run", () => {
+    /* nothing reached ServiceM8: the row did nothing wrong, and the next row
+       would be refused the same turn */
+    const v = verdictFor({ kind: "rate_limited", limit: "ours", waitMs: 5_000 }, 3);
+    expect(v).toMatchObject({
+      status: "queued",
+      refund: true,
+      stop: true,
+      reauth: false,
+      retryAfterMs: 60_000,
+      holdAllMs: 60_000,
+      error: WRITE_WORDS.paced,
+    });
+    expect(WRITE_WORDS.paced).toBe("Waiting for room in ServiceM8's call limit. Trying again in a minute.");
+    // a longer wait the counter named is kept, and never shortened
+    expect(verdictFor({ kind: "rate_limited", limit: "ours", waitMs: 90_000 }, 1).retryAfterMs).toBe(90_000);
+    // no wait named at all is a minute
+    expect(verdictFor({ kind: "rate_limited", limit: "ours" }, 1).retryAfterMs).toBe(60_000);
+  });
+
+  it("the counter's daily cap, or a daily 429 it recorded, says the daily limit's words", () => {
+    const v = verdictFor({ kind: "rate_limited", limit: "ours", waitMs: 3 * 3_600_000 }, 1);
+    expect(v).toMatchObject({ status: "queued", refund: true, stop: true, error: WRITE_WORDS.dailyLimit });
+    expect(v.retryAfterMs).toBe(3 * 3_600_000);
+    expect(v.holdAllMs).toBe(3 * 3_600_000);
   });
 
   it("a dead record goes again at once under a new uuid, the attempt handed back — twice, then a person", () => {
@@ -298,20 +324,6 @@ describe("what one of our rows says", () => {
     expect(sendable(send({ status: "trial" }))).toBe(true);
     expect(sendable(send({ status: "sent" }))).toBe(false);
     expect(sendable(send({ status: "queued" }))).toBe(false);
-  });
-});
-
-describe("the twin", () => {
-  it("hides ServiceM8's copy of a file we sent while our row shows it", () => {
-    expect([...twinsToHide([send({ remoteUuid: "r1" })], ["d1"])]).toEqual(["r1"]);
-  });
-
-  it("shows the copy as ServiceM8's once our row is gone — a file taken off the job, or a paper moved on", () => {
-    expect(twinsToHide([send({ remoteUuid: "r1" })], ["d9"]).size).toBe(0);
-  });
-
-  it("hides nothing that didn't go", () => {
-    expect(twinsToHide([send({ status: "failed" }), send({ status: "trial" })], ["d1"]).size).toBe(0);
   });
 });
 

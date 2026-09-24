@@ -29,6 +29,7 @@ import {
   type JobMediaItem,
 } from "./job-media";
 import { staffDisplayNames } from "./job-notes-query";
+import { sm8Ours, withoutOurs } from "@/lib/integrations/sm8-echo";
 import { naiveInZone } from "./job-story";
 import { getSm8Timezone } from "./query";
 
@@ -112,8 +113,18 @@ export async function readJobMedia(
 
   /* Swept and deduped FIRST; the per-lens cap is groupJobMedia's — capping
      this flat list was the defect that let paperwork crowd a job's photos
-     out of the photo lens. */
-  const all = (data ?? []) as AttachmentRow[];
+     out of the photo lens.
+
+     OUR OWN FILES COME OFF FIRST OF ALL. A file HeyTiff sent is mirrored back
+     by the next sync as one of ServiceM8's; its uuid is one HeyTiff minted
+     (lib/integrations/sm8-echo), so it is left off here — every face, and
+     the story — whether or not HeyTiff's own row for it still shows. */
+  const fetched = (data ?? []) as AttachmentRow[];
+  const ours = await sm8Ours(
+    orgId,
+    fetched.map((r) => r.uuid)
+  );
+  const all = withoutOurs(fetched, (r) => r.uuid, ours);
 
   /* THE NAME DEDUPE IS ACROSS SOURCES ONLY — and the version that wasn't hid
      72% of the account's files.

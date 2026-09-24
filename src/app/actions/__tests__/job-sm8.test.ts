@@ -52,6 +52,7 @@ const readJobSends = jest.fn();
 const enqueueAttachments = jest.fn();
 const runSm8Writes = jest.fn();
 jest.mock("@/lib/integrations/sm8-writes", () => ({
+  sm8WritesEnabled: () => true,
   readSm8WriteState: async () => ({ ...state }),
   readJobSends: (...a: unknown[]) => readJobSends(...a),
   enqueueAttachments: (...a: unknown[]) => enqueueAttachments(...a),
@@ -223,25 +224,34 @@ describe("what goes", () => {
   it("waits for this press's files within a budget", async () => {
     await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] });
     expect(runSm8Writes).toHaveBeenCalledWith("org-1", "send", { ids: ["w1", "w2"], budgetMs: 20_000 });
-    // both went: nothing left to hand on
-    expect(scheduled).toHaveLength(0);
   });
 
-  it("hands what the budget didn't reach to a sender behind the response", async () => {
-    runSm8Writes.mockResolvedValueOnce({ done: 1, sent: 1, trial: 0, failed: 0, again: 0, lost: 0, stopped: null });
+  /* EVERY PRESS DRAINS. Behind the answer, one sender takes whatever is due
+     for the workspace — this press's leftovers, a file due again at once
+     under a new uuid, and anything an earlier press left waiting — however
+     this press's own run ended. */
+  const pressThenDrain = async () => {
     await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] });
     expect(scheduled).toHaveLength(1);
     await scheduled[0]();
-    expect(runSm8Writes).toHaveBeenLastCalledWith("org-1", "send", { ids: ["w1", "w2"], budgetMs: 90_000 });
+    expect(runSm8Writes).toHaveBeenLastCalledWith("org-1", "send", { budgetMs: 90_000 });
+  };
+
+  it("drains the workspace behind the answer when the press's files all went", async () => {
+    await pressThenDrain();
   });
 
-  it("follows up a file due again at once — a dead record under its new uuid", async () => {
+  it("drains when the budget didn't reach every file", async () => {
+    runSm8Writes.mockResolvedValueOnce({ done: 1, sent: 1, trial: 0, failed: 0, again: 0, lost: 0, stopped: null });
+    await pressThenDrain();
+  });
+
+  it("drains when a file is due again at once — a dead record under its new uuid", async () => {
     runSm8Writes.mockResolvedValueOnce({ done: 2, sent: 1, trial: 0, failed: 0, again: 1, lost: 0, stopped: null });
-    await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] });
-    expect(scheduled).toHaveLength(1);
+    await pressThenDrain();
   });
 
-  it("leaves a run ServiceM8 stopped to the retries it has already set", async () => {
+  it("drains when ServiceM8 stopped the run — what it held back waits for its own time", async () => {
     runSm8Writes.mockResolvedValueOnce({
       done: 1,
       sent: 0,
@@ -251,11 +261,16 @@ describe("what goes", () => {
       lost: 0,
       stopped: "ServiceM8 couldn't be reached.",
     });
-    await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] });
-    expect(scheduled).toHaveLength(0);
+    await pressThenDrain();
   });
 
-  it("answers within its budget however long ServiceM8 takes, and waits for the send behind the answer", async () => {
+  it("drains when every tick was already on its way, and nothing was queued", async () => {
+    enqueueAttachments.mockResolvedValue({ ids: [], already: ["doc-a", "doc-b"], capped: false });
+    await pressThenDrain();
+    expect(runSm8Writes).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers within its budget however long ServiceM8 takes, and drains only once the send behind the answer ends", async () => {
     jest.useFakeTimers();
     try {
       let finish: (r: unknown) => void = () => {};
@@ -270,19 +285,22 @@ describe("what goes", () => {
       expect(answered).toMatchObject({ ok: true, sent: [], waiting: ["p:paper-1", "d:doc-b"] });
       expect(scheduled).toHaveLength(1);
 
-      // behind the answer: the run still going is waited for, then followed up
+      // behind the answer: the run still going is waited for — nothing else keeps it alive — then the drain
       const behind = Promise.resolve(scheduled[0]());
+      await jest.advanceTimersByTimeAsync(0);
+      expect(runSm8Writes).toHaveBeenCalledTimes(1);
       finish({ done: 1, sent: 1, trial: 0, failed: 0, again: 0, lost: 0, stopped: null });
       await behind;
-      expect(runSm8Writes).toHaveBeenLastCalledWith("org-1", "send", { ids: ["w1", "w2"], budgetMs: 90_000 });
+      expect(runSm8Writes).toHaveBeenCalledTimes(2);
+      expect(runSm8Writes).toHaveBeenLastCalledWith("org-1", "send", { budgetMs: 90_000 });
     } finally {
       jest.useRealTimers();
     }
   });
 
-  /* The follow-up runs inside this action's function, which ends 300 s
-     after the press: its last claim must end a lease (120 s) and a margin
-     (15 s) before that, so it may claim until 165 s in and no later. */
+  /* The drain runs inside this action's function, which ends 300 s after the
+     press: its last claim must end a lease (120 s) and a margin (15 s)
+     before that, so it may claim until 165 s in and no later. */
   const slowFirstRun = async (msBehind: number) => {
     let finish: (r: unknown) => void = () => {};
     runSm8Writes.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
@@ -297,17 +315,17 @@ describe("what goes", () => {
     await behind;
   };
 
-  it("gives the follow-up only what the function has left", async () => {
+  it("gives the drain only what the function has left", async () => {
     jest.useFakeTimers();
     try {
       await slowFirstRun(130_000); // 150 s in
-      expect(runSm8Writes).toHaveBeenLastCalledWith("org-1", "send", { ids: ["w1", "w2"], budgetMs: 15_000 });
+      expect(runSm8Writes).toHaveBeenLastCalledWith("org-1", "send", { budgetMs: 15_000 });
     } finally {
       jest.useRealTimers();
     }
   });
 
-  it("follows up nothing once the function has no time for another send", async () => {
+  it("drains nothing once the function has no time for another send", async () => {
     jest.useFakeTimers();
     try {
       await slowFirstRun(150_000); // 170 s in

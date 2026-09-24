@@ -21,10 +21,22 @@ jest.mock("../sm8-store", () => {
   return { sm8AccessResult: sm8AccessMock, renewSm8Access: renewMock, markSm8NeedsReauth: needsReauthMock };
 });
 
-import { fetchSm8Page, readSm8StaffRows, readSm8Vendor } from "../sm8-read";
+/* The account's call counter always has a turn here, unless a test says
+   otherwise: what is under test is what the reader does with the answer. */
+// eslint-disable-next-line no-var
+var takeTurn: jest.Mock;
+jest.mock("../sm8-meter", () => {
+  takeTurn = jest.fn(async () => ({ ok: true }));
+  const actual = jest.requireActual("../sm8-meter");
+  return { ...actual, takeSm8Call: (...a: unknown[]) => takeTurn(...a), noteSm8Throttle: jest.fn(async () => {}) };
+});
 
-const ACCESS = { accessToken: "tok", tenantId: "v-1", grant: "g1" };
-const RENEWED = { accessToken: "tok-2", tenantId: "v-1", grant: "g2" };
+import { BUSY, fetchSm8Page, readSm8StaffRows, readSm8Vendor } from "../sm8-read";
+
+const ACCESS = { accessToken: "tok", tenantId: "v-1", grant: "g1", meter: "v-1" };
+const RENEWED = { accessToken: "tok-2", tenantId: "v-1", grant: "g2", meter: "v-1" };
+/** A read on lane `read` for account v-1, with this token. */
+const call = (accessToken = "t") => ({ accessToken, meter: "v-1", lane: "read" as const });
 
 /* jsdom's test globals don't reliably carry Node's fetch classes, so the
    fakes are plain objects shaped like the four things the reader touches —
@@ -40,6 +52,7 @@ const fetchMock = jest.fn();
 beforeEach(() => {
   fetchMock.mockReset();
   global.fetch = fetchMock as unknown as typeof fetch;
+  takeTurn.mockReset().mockResolvedValue({ ok: true });
 });
 
 afterAll(() => {
@@ -71,7 +84,7 @@ afterEach(() => {
 describe("fetchSm8Page", () => {
   it("asks the documented shape: cursor always, $filter only when given", async () => {
     fetchMock.mockResolvedValue(jsonResponse([]));
-    await fetchSm8Page("tok", "job.json", { cursor: "-1", filter: "edit_date gt '2026-07-01 00:00:00'" });
+    await fetchSm8Page(call("tok"), "job.json", { cursor: "-1", filter: "edit_date gt '2026-07-01 00:00:00'" });
 
     const url = new URL(fetchMock.mock.calls[0][0] as string);
     expect(url.origin + url.pathname).toBe("https://api.servicem8.com/api_1.0/job.json");
@@ -79,7 +92,7 @@ describe("fetchSm8Page", () => {
     expect(url.searchParams.get("$filter")).toBe("edit_date gt '2026-07-01 00:00:00'");
 
     fetchMock.mockResolvedValue(jsonResponse([]));
-    await fetchSm8Page("tok", "job.json", { cursor: "-1", filter: null });
+    await fetchSm8Page(call("tok"), "job.json", { cursor: "-1", filter: null });
     const bare = new URL(fetchMock.mock.calls[1][0] as string);
     expect(bare.searchParams.has("$filter")).toBe(false);
   });
@@ -89,15 +102,15 @@ describe("fetchSm8Page", () => {
        read's timeout is one of the clocks that must fit in the lease */
     const timeout = jest.spyOn(AbortSignal, "timeout");
     fetchMock.mockResolvedValue(jsonResponse([]));
-    await fetchSm8Page("t", "attachment.json", { cursor: "-1", filter: null, timeoutMs: 4_321 });
+    await fetchSm8Page(call("t"), "attachment.json", { cursor: "-1", filter: null, timeoutMs: 4_321 });
     expect(timeout).toHaveBeenLastCalledWith(4_321);
-    await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null });
+    await fetchSm8Page(call("t"), "job.json", { cursor: "-1", filter: null });
     expect(timeout).toHaveBeenLastCalledWith(10_000);
   });
 
   it("carries the bearer token and never anything else", async () => {
     fetchMock.mockResolvedValue(jsonResponse([]));
-    await fetchSm8Page("tok-123", "job.json", { cursor: "-1", filter: null });
+    await fetchSm8Page(call("tok-123"), "job.json", { cursor: "-1", filter: null });
     const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer tok-123");
   });
@@ -106,17 +119,17 @@ describe("fetchSm8Page", () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse([{ uuid: "a" }, { uuid: "b" }], { nextCursor: "cur-2" })
     );
-    const first = await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null });
+    const first = await fetchSm8Page(call("t"), "job.json", { cursor: "-1", filter: null });
     expect(first).toEqual({ ok: true, rows: [{ uuid: "a" }, { uuid: "b" }], nextCursor: "cur-2" });
 
     fetchMock.mockResolvedValueOnce(jsonResponse([{ uuid: "c" }]));
-    const last = await fetchSm8Page("t", "job.json", { cursor: "cur-2", filter: null });
+    const last = await fetchSm8Page(call("t"), "job.json", { cursor: "cur-2", filter: null });
     expect(last).toEqual({ ok: true, rows: [{ uuid: "c" }], nextCursor: null });
   });
 
   it("drops non-object rows rather than passing garbage to the shaper", async () => {
     fetchMock.mockResolvedValue(jsonResponse([{ uuid: "a" }, null, "junk", 7]));
-    const page = await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null });
+    const page = await fetchSm8Page(call("t"), "job.json", { cursor: "-1", filter: null });
     expect(page).toEqual({ ok: true, rows: [{ uuid: "a" }], nextCursor: null });
   });
 
@@ -131,22 +144,45 @@ describe("fetchSm8Page", () => {
       [500, "unavailable"],
     ] as const) {
       fetchMock.mockResolvedValueOnce(jsonResponse("nope", { status }));
-      expect(await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null })).toEqual({
+      expect(await fetchSm8Page(call("t"), "job.json", { cursor: "-1", filter: null })).toEqual({
         ok: false,
         failure,
       });
     }
   });
 
+  it("a turn the account's counter refuses is 'throttled', and nothing is asked of ServiceM8", async () => {
+    takeTurn.mockResolvedValue({ ok: false, waitMs: 60_000, why: "cooldown_minute" });
+    expect(await fetchSm8Page(call(), "job.json", { cursor: "-1", filter: null })).toEqual({
+      ok: false,
+      failure: "throttled",
+      called: false,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("takes its turn on the caller's lane, from the caller's account", async () => {
+    fetchMock.mockResolvedValue(jsonResponse([]));
+    await fetchSm8Page({ accessToken: "t", meter: "acct-9", lane: "sync" }, "job.json", { cursor: "-1", filter: null });
+    expect(takeTurn).toHaveBeenCalledWith("acct-9", "sync");
+  });
+
+  it("ServiceM8's own 429 is still 'rate_limited' — a request was made", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse("Number of allowed API requests per minute exceeded", { status: 429 }));
+    const page = await fetchSm8Page(call(), "job.json", { cursor: "-1", filter: null });
+    expect(page).toEqual({ ok: false, failure: "rate_limited" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("a network throw and a non-array body are both 'unavailable'", async () => {
     fetchMock.mockRejectedValueOnce(new Error("boom"));
-    expect(await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null })).toEqual({
+    expect(await fetchSm8Page(call("t"), "job.json", { cursor: "-1", filter: null })).toEqual({
       ok: false,
       failure: "unavailable",
     });
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "object body" }));
-    expect(await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null })).toEqual({
+    expect(await fetchSm8Page(call("t"), "job.json", { cursor: "-1", filter: null })).toEqual({
       ok: false,
       failure: "unavailable",
     });
@@ -168,7 +204,7 @@ describe("what an unavailable failure tells the server", () => {
 
   it("records the endpoint, the status and the served body", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse("No route matched", { status: 404 }));
-    await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null });
+    await fetchSm8Page(call("t"), "job.json", { cursor: "-1", filter: null });
     expect(logged.join()).toContain("job.json");
     expect(logged.join()).toContain("404");
     expect(logged.join()).toContain("No route matched");
@@ -176,13 +212,13 @@ describe("what an unavailable failure tells the server", () => {
 
   it("names a 200 whose body is not an array as exactly that", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "object body" }));
-    await fetchSm8Page("t", "staff.json", { cursor: "-1", filter: null });
+    await fetchSm8Page(call("t"), "staff.json", { cursor: "-1", filter: null });
     expect(logged.join()).toMatch(/not a JSON array/i);
   });
 
   it("distinguishes never reaching the host from being served an error", async () => {
     fetchMock.mockRejectedValueOnce(new Error("ENOTFOUND"));
-    await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null });
+    await fetchSm8Page(call("t"), "job.json", { cursor: "-1", filter: null });
     expect(logged.join()).toContain("request failed");
     expect(logged.join()).toContain("ENOTFOUND");
   });
@@ -191,7 +227,7 @@ describe("what an unavailable failure tells the server", () => {
     // 401/402/429 are decisions, not mysteries — the screen says what to do.
     for (const status of [401, 402, 429]) {
       fetchMock.mockResolvedValueOnce(jsonResponse("nope", { status }));
-      await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null });
+      await fetchSm8Page(call("t"), "job.json", { cursor: "-1", filter: null });
     }
     expect(logged).toHaveLength(0);
   });
@@ -204,7 +240,7 @@ describe("what an unavailable failure tells the server", () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ errorCode: 403, message: "Scope read_attachments required" }, { status: 403 })
     );
-    const page = await fetchSm8Page("super-secret-token", "attachment.json", {
+    const page = await fetchSm8Page(call("super-secret-token"), "attachment.json", {
       cursor: "-1",
       filter: null,
     });
@@ -215,7 +251,7 @@ describe("what an unavailable failure tells the server", () => {
 
   it("never puts the access token in the log", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse("boom", { status: 500 }));
-    await fetchSm8Page("super-secret-token", "job.json", { cursor: "-1", filter: null });
+    await fetchSm8Page(call("super-secret-token"), "job.json", { cursor: "-1", filter: null });
     expect(logged.join()).not.toContain("super-secret-token");
   });
 });
@@ -318,6 +354,25 @@ describe("with a grant to read through", () => {
       .mockResolvedValueOnce(jsonResponse("unauthorized", { status: 401 }))
       .mockResolvedValueOnce(jsonResponse([{ uuid: "u-1" }]));
     expect(await readSm8StaffRows("org-1")).toEqual({ ok: true, data: [{ uuid: "u-1" }] });
+    expect(needsReauthMock).not.toHaveBeenCalled();
+  });
+
+  it("reads on lane `read`, from the connection's account", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(vendorBody));
+    await readSm8Vendor("org-1");
+    expect(takeTurn).toHaveBeenCalledWith("v-1", "read");
+    takeTurn.mockClear();
+    fetchMock.mockResolvedValue(jsonResponse([{ uuid: "u-1" }]));
+    await readSm8StaffRows("org-1");
+    expect(takeTurn).toHaveBeenCalledWith("v-1", "read");
+  });
+
+  it("says ServiceM8 is busy when the account's limit has no room, and flags nothing", async () => {
+    takeTurn.mockResolvedValue({ ok: false, waitMs: 60_000, why: "cooldown_minute" });
+    expect(await readSm8Vendor("org-1")).toEqual({ ok: false, error: BUSY });
+    expect(await readSm8StaffRows("org-1")).toEqual({ ok: false, error: BUSY });
+    expect(BUSY).toBe("ServiceM8 is busy for this account. Try again in a minute.");
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(needsReauthMock).not.toHaveBeenCalled();
   });
 

@@ -13,7 +13,24 @@ jest.mock("../sm8-read", () => ({
   fetchSm8Page: (...a: unknown[]) => fetchSm8Page(...a),
 }));
 
+jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
+
+/* The account's counter, stubbed: a turn unless a test says otherwise. */
+const takeTurn = jest.fn();
+const noteThrottle = jest.fn();
+jest.mock("../sm8-meter", () => {
+  const actual = jest.requireActual("../sm8-meter");
+  return {
+    ...actual,
+    takeSm8Call: (...a: unknown[]) => takeTurn(...a),
+    noteSm8Throttle: (...a: unknown[]) => noteThrottle(...a),
+  };
+});
+
 import { postSm8Attachment, readSm8Attachment } from "../sm8-write";
+
+/** A write on the account vendor-1, with this token. */
+const W = (accessToken: string) => ({ accessToken, meter: "vendor-1", lane: "write" as const });
 
 const UPLOAD = {
   jobUuid: "job-uuid-1",
@@ -27,6 +44,8 @@ const fetchMock = jest.fn();
 beforeEach(() => {
   fetchMock.mockReset();
   fetchSm8Page.mockReset();
+  takeTurn.mockReset().mockResolvedValue({ ok: true });
+  noteThrottle.mockReset().mockResolvedValue(undefined);
   global.fetch = fetchMock as unknown as typeof fetch;
   jest.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -35,7 +54,7 @@ afterEach(() => jest.restoreAllMocks());
 describe("putting a file on a job", () => {
   it("is one multipart POST to attachment.json, the record and the bytes together", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 200, headers: { "x-record-uuid": UPLOAD.uuid } }));
-    await postSm8Attachment("token-1", UPLOAD);
+    await postSm8Attachment(W("token-1"), UPLOAD);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -59,7 +78,7 @@ describe("putting a file on a job", () => {
 
   it("leaves out what ServiceM8's guide says the multipart route decides for itself", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
-    await postSm8Attachment("t", UPLOAD);
+    await postSm8Attachment(W("t"), UPLOAD);
     const form = (fetchMock.mock.calls[0] as [string, RequestInit])[1].body as FormData;
     expect(form.has("file_type")).toBe(false);
     expect(form.has("active")).toBe(false);
@@ -67,7 +86,7 @@ describe("putting a file on a job", () => {
 
   it("reads the new record's uuid off the header", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 200, headers: { "x-record-uuid": "theirs" } }));
-    expect(await postSm8Attachment("t", UPLOAD)).toEqual({
+    expect(await postSm8Attachment(W("t"), UPLOAD)).toEqual({
       status: 200,
       outcome: { kind: "created", remoteUuid: "theirs" },
       remote: null,
@@ -81,7 +100,7 @@ describe("putting a file on a job", () => {
         headers: { "content-type": "text/plain" },
       })
     );
-    const res = await postSm8Attachment("t", UPLOAD);
+    const res = await postSm8Attachment(W("t"), UPLOAD);
     expect(res).toMatchObject({ status: 403, outcome: { kind: "forbidden", scope: true } });
     expect(res.remote?.message).toBe('insufficient_scope: "manage_attachments" scope required');
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining("manage_attachments"));
@@ -94,7 +113,7 @@ describe("putting a file on a job", () => {
         headers: { "content-type": "application/json" },
       })
     );
-    expect(await postSm8Attachment("t", UPLOAD)).toEqual({
+    expect(await postSm8Attachment(W("t"), UPLOAD)).toEqual({
       status: 400,
       outcome: { kind: "rejected", status: 400 },
       remote: { code: "1000", message: "An error occurred completing your request" },
@@ -108,14 +127,42 @@ describe("putting a file on a job", () => {
         headers: { "content-type": "application/json" },
       })
     );
-    expect((await postSm8Attachment("t", UPLOAD)).outcome).toEqual({ kind: "rate_limited", limit: "day" });
+    expect((await postSm8Attachment(W("t"), UPLOAD)).outcome).toEqual({ kind: "rate_limited", limit: "day" });
     fetchMock.mockResolvedValue(new Response("Number of allowed API requests per minute exceeded", { status: 429 }));
-    expect((await postSm8Attachment("t", UPLOAD)).outcome).toEqual({ kind: "rate_limited", limit: "minute" });
+    expect((await postSm8Attachment(W("t"), UPLOAD)).outcome).toEqual({ kind: "rate_limited", limit: "minute" });
+  });
+
+  it("takes its turn on lane `write`, from the account it is for", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+    await postSm8Attachment(W("t"), UPLOAD);
+    expect(takeTurn).toHaveBeenCalledWith("vendor-1", "write");
+  });
+
+  it("sends nothing when the account's counter has no turn for it, and says it was ours", async () => {
+    takeTurn.mockResolvedValue({ ok: false, waitMs: 45_000, why: "cooldown_minute" });
+    expect(await postSm8Attachment(W("t"), UPLOAD)).toEqual({
+      status: null,
+      outcome: { kind: "rate_limited", limit: "ours", waitMs: 45_000 },
+      remote: null,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("holds every caller on the account after ServiceM8's daily 429", async () => {
+    fetchMock.mockResolvedValue(
+      new Response('{"errorCode": 429, "message": "Number of allowed API requests per day exceeded"}', {
+        status: 429,
+        headers: { "content-type": "application/json" },
+      })
+    );
+    const res = await postSm8Attachment(W("t"), UPLOAD);
+    expect(res.outcome).toEqual({ kind: "rate_limited", limit: "day" });
+    expect(noteThrottle).toHaveBeenCalledWith("vendor-1", "day");
   });
 
   it("answers a lost connection as unreachable rather than throwing", async () => {
     fetchMock.mockRejectedValue(new Error("socket hang up"));
-    expect(await postSm8Attachment("t", UPLOAD)).toEqual({
+    expect(await postSm8Attachment(W("t"), UPLOAD)).toEqual({
       status: null,
       outcome: { kind: "unavailable", status: null },
       remote: null,
@@ -130,14 +177,14 @@ describe("confirming a 409 was ours", () => {
       rows: [{ uuid: UPLOAD.uuid, related_object_uuid: "job-uuid-1", active: 1 }],
       nextCursor: null,
     });
-    expect(await readSm8Attachment("t", UPLOAD.uuid)).toEqual({
+    expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({
       ok: true,
       found: true,
       jobUuid: "job-uuid-1",
       active: true,
     });
     // its own short clock: the read runs under the row's claim
-    expect(fetchSm8Page).toHaveBeenCalledWith("t", "attachment.json", {
+    expect(fetchSm8Page).toHaveBeenCalledWith(W("t"), "attachment.json", {
       cursor: "-1",
       filter: `uuid eq '${UPLOAD.uuid}'`,
       timeoutMs: 10_000,
@@ -145,14 +192,27 @@ describe("confirming a 409 was ours", () => {
   });
 
   it("never builds a filter from something that isn't a uuid", async () => {
-    expect(await readSm8Attachment("t", "x' or '1' eq '1")).toEqual({ ok: true, found: false });
+    expect(await readSm8Attachment(W("t"), "x' or '1' eq '1")).toEqual({ ok: true, found: false });
     expect(fetchSm8Page).not.toHaveBeenCalled();
+  });
+
+  it("reads back on the caller's lane — `write`, which a busy sync can't starve", async () => {
+    fetchSm8Page.mockResolvedValue({ ok: true, rows: [], nextCursor: null });
+    await readSm8Attachment(W("t"), UPLOAD.uuid);
+    expect(fetchSm8Page.mock.calls[0][0]).toEqual({ accessToken: "t", meter: "vendor-1", lane: "write" });
+  });
+
+  it("says when the account's limit had no room, apart from a read that failed", async () => {
+    fetchSm8Page.mockResolvedValueOnce({ ok: false, failure: "throttled", called: false });
+    expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({ ok: false, throttled: true });
+    fetchSm8Page.mockResolvedValueOnce({ ok: false, failure: "rate_limited" });
+    expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({ ok: false, throttled: true });
   });
 
   it("says not found, and couldn't tell, apart", async () => {
     fetchSm8Page.mockResolvedValueOnce({ ok: true, rows: [], nextCursor: null });
-    expect(await readSm8Attachment("t", UPLOAD.uuid)).toEqual({ ok: true, found: false });
+    expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({ ok: true, found: false });
     fetchSm8Page.mockResolvedValueOnce({ ok: false, failure: "unavailable" });
-    expect(await readSm8Attachment("t", UPLOAD.uuid)).toEqual({ ok: false });
+    expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({ ok: false });
   });
 });

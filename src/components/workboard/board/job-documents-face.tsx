@@ -63,9 +63,9 @@ import "@/components/swms/swms.css";
    AND ONE OF OURS SAYS WHETHER IT IS IN SERVICEM8, once somebody has sent
    it there from the footer: "In ServiceM8", or on its way, or why it didn't
    go, in the state's colour under its name. ServiceM8's own copy, mirrored
-   back by the next sync, is left off the list while our row shows the file
-   (the sheet does that, lib/integrations/sm8-write-plan's twinsToHide), so
-   a file sent is still one row. */
+   back by the next sync, never reaches this list: the server leaves every
+   file HeyTiff sent off the job's files (lib/integrations/sm8-echo), so a
+   file sent is still one row. */
 
 const editedOn = (iso: string): string => {
   const d = new Date(iso);

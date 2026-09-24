@@ -27,9 +27,16 @@
 
    Verified against the guide by search on 2026-09-24; the developer site
    itself isn't reachable from the build environment. The first live send
-   is the proof, and every refusal logs what ServiceM8 said. */
+   is the proof, and every refusal logs what ServiceM8 said.
 
-import { SM8_API_BASE } from "./sm8";
+   ON LANE `write`, BOTH OF THEM. The upload and the read-back take their
+   turns from the account's counter (sm8-meter) on the lane with no floor,
+   so a sync walking beside them can never starve a send or its check. A
+   turn the counter refuses makes no request: the upload comes back
+   rate-limited by HeyTiff's own counter (`ours`), the read-back as
+   throttled, and the sender hands the attempt back. */
+
+import { sm8Request, type Sm8Call } from "./sm8-http";
 import { fetchSm8Page } from "./sm8-read";
 import {
   classifyWrite,
@@ -75,10 +82,7 @@ export type Sm8WriteResult = { status: number | null; outcome: Sm8WriteOutcome; 
 
 /** Put one file on one job. Never throws: an outcome is always returned, and
     the plan decides what it means for the row and for the run. */
-export async function postSm8Attachment(
-  accessToken: string,
-  upload: Sm8AttachmentUpload
-): Promise<Sm8WriteResult> {
+export async function postSm8Attachment(call: Sm8Call, upload: Sm8AttachmentUpload): Promise<Sm8WriteResult> {
   const form = new FormData();
   form.append("related_object", "job");
   form.append("related_object_uuid", upload.jobUuid);
@@ -89,13 +93,15 @@ export async function postSm8Attachment(
   form.append("file", new Blob([upload.bytes], { type: upload.mimeType }), upload.fileName);
 
   let res: Response;
+  let limit: "minute" | "day" | null = null;
   try {
-    res = await fetch(new URL("attachment.json", SM8_API_BASE).toString(), {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      body: form,
-      signal: AbortSignal.timeout(WRITE_TIMEOUT_MS),
-    });
+    const answer = await sm8Request(call, "attachment.json", { method: "POST", body: form, timeoutMs: WRITE_TIMEOUT_MS });
+    if (answer.kind === "throttled") {
+      /* nothing went: the account's own counter had no turn for it */
+      return { status: null, outcome: { kind: "rate_limited", limit: "ours", waitMs: answer.waitMs }, remote: null };
+    }
+    res = answer.res;
+    limit = answer.limit;
   } catch (err) {
     console.error(
       `[sm8] POST attachment.json request failed: ${err instanceof Error ? err.message : String(err)}`
@@ -104,13 +110,18 @@ export async function postSm8Attachment(
   }
 
   const remote = res.ok ? null : await readRefusal("POST attachment.json", res);
-  return { status: res.status, outcome: classifyWrite(res.status, res.headers.get("x-record-uuid"), remote), remote };
+  let outcome = classifyWrite(res.status, res.headers.get("x-record-uuid"), remote);
+  /* the door read the 429's body too: either reading "per day" is the day */
+  if (outcome.kind === "rate_limited" && limit === "day") outcome = { kind: "rate_limited", limit: "day" };
+  return { status: res.status, outcome, remote };
 }
 
 export type Sm8AttachmentCheck =
   | { ok: true; found: false }
   | { ok: true; found: true; jobUuid: string | null; active: boolean }
-  | { ok: false };
+  /** `throttled`: the account's call limit had no room — the counter
+      refused the turn, or ServiceM8 answered 429. Not the record's doing. */
+  | { ok: false; throttled?: true };
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -125,14 +136,16 @@ const UUID = /^[0-9a-f-]{36}$/i;
     bytes), while attachment.json with a $filter is what the sync engine has
     read twenty-five thousand rows through. The filter is built from a uuid
     WE minted, and checked against the shape before it goes. */
-export async function readSm8Attachment(accessToken: string, uuid: string): Promise<Sm8AttachmentCheck> {
+export async function readSm8Attachment(call: Sm8Call, uuid: string): Promise<Sm8AttachmentCheck> {
   if (!UUID.test(uuid)) return { ok: true, found: false };
-  const page = await fetchSm8Page(accessToken, "attachment.json", {
+  const page = await fetchSm8Page(call, "attachment.json", {
     cursor: "-1",
     filter: `uuid eq '${uuid}'`,
     timeoutMs: WRITE_READ_TIMEOUT_MS,
   });
-  if (!page.ok) return { ok: false };
+  if (!page.ok) {
+    return page.failure === "throttled" || page.failure === "rate_limited" ? { ok: false, throttled: true } : { ok: false };
+  }
   const row = page.rows.find((r) => r.uuid === uuid);
   if (!row) return { ok: true, found: false };
   return {

@@ -38,7 +38,10 @@ import {
   disconnectServiceM8Action,
   retryFailedServiceM8WritesAction,
   setServiceM8WriteModeAction,
+  syncServiceM8NowAction,
 } from "../integrations";
+
+const runSm8Sync = (jest.requireMock("@/lib/integrations/sm8-sync") as { runSm8Sync: jest.Mock }).runSm8Sync;
 
 const LIVE = {
   readable: true,
@@ -87,6 +90,23 @@ describe("setServiceM8WriteModeAction", () => {
     });
   });
 
+  it("drains what was waiting when sending goes on, or to a trial run", async () => {
+    for (const mode of ["live", "trial"]) {
+      scheduled.length = 0;
+      runSm8Writes.mockClear();
+      expect(await setServiceM8WriteModeAction(mode)).toEqual({ ok: true });
+      expect(scheduled).toHaveLength(1);
+      await scheduled[0]();
+      expect(runSm8Writes).toHaveBeenCalledWith("org-1", "send", { budgetMs: 90_000 });
+    }
+  });
+
+  it("drains nothing when sending goes off or is paused", async () => {
+    await setServiceM8WriteModeAction("off");
+    await setServiceM8WriteModeAction("paused");
+    expect(scheduled).toHaveLength(0);
+  });
+
   it("refuses what isn't a setting, and says a change that didn't take", async () => {
     expect(await setServiceM8WriteModeAction("banana")).toEqual({ ok: false, error: "That isn't a setting." });
     setSm8WriteMode.mockResolvedValue({ ok: false });
@@ -103,16 +123,17 @@ describe("retryFailedServiceM8WritesAction", () => {
     expect(retryFailedSm8Writes).toHaveBeenCalledWith(PRESS, LIVE);
     expect(scheduled).toHaveLength(1);
     await scheduled[0]();
-    expect(runSm8Writes).toHaveBeenCalledWith("org-1", "kick", { budgetMs: 90_000 });
+    // the drain: everything due in the workspace, not only the retried
+    expect(runSm8Writes).toHaveBeenCalledWith("org-1", "send", { budgetMs: 90_000 });
   });
 
-  it("says when the hour has no room, and sends nothing", async () => {
+  it("says when the hour has no room, queues nothing more, and still drains what was waiting", async () => {
     retryFailedSm8Writes.mockResolvedValue({ queued: 0, left: 3, capped: true, byHour: true });
     expect(await retryFailedServiceM8WritesAction()).toEqual({
       ok: true,
       note: "60 have gone to ServiceM8 in the last hour. Try again in an hour.",
     });
-    expect(scheduled).toHaveLength(0);
+    expect(scheduled).toHaveLength(1);
   });
 
   it("says why sending can't take them, in the press's words", async () => {
@@ -131,6 +152,23 @@ describe("retryFailedServiceM8WritesAction", () => {
     press = null;
     expect((await retryFailedServiceM8WritesAction()).ok).toBe(false);
     expect(retryFailedSm8Writes).not.toHaveBeenCalled();
+  });
+});
+
+describe("syncServiceM8NowAction", () => {
+  it("syncs in the foreground, and drains what is waiting to go behind the answer", async () => {
+    runSm8Sync.mockResolvedValue({ ran: true, note: "Synced 3 changes across 13 objects.", pagesUsed: 1, rowsPulled: 3, complete: true });
+    expect(await syncServiceM8NowAction()).toEqual({ ok: true, note: "Synced 3 changes across 13 objects." });
+    expect(runSm8Sync).toHaveBeenCalledWith("org-1", "manual");
+    expect(scheduled).toHaveLength(1);
+    await scheduled[0]();
+    expect(runSm8Writes).toHaveBeenCalledWith("org-1", "send", { budgetMs: 90_000 });
+  });
+
+  it("is an owner's", async () => {
+    role = "admin";
+    expect(await syncServiceM8NowAction()).toEqual({ ok: false, error: "Only an owner can change connected apps." });
+    expect(scheduled).toHaveLength(0);
   });
 });
 

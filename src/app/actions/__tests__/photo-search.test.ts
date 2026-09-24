@@ -4,6 +4,8 @@
 
 const rpcCalls: { fn: string; args: Record<string, unknown> }[] = [];
 let rpcRows: Record<string, unknown>[] = [];
+/* HeyTiff's own writes to ServiceM8, as the echo read finds them. */
+let writeRows: Record<string, unknown>[] = [];
 
 jest.mock("@/lib/permissions-server", () => ({
   requireOrg: async () => ({ orgId: "org-1", userId: "auth0|me" }),
@@ -11,9 +13,10 @@ jest.mock("@/lib/permissions-server", () => ({
 jest.mock("@/lib/documents/query", () => ({ DOCUMENTS_BUCKET: "documents", SIGNED_URL_SECONDS: 60 }));
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
-    from: () => {
+    from: (table: string) => {
       const q: Record<string, unknown> = {};
       for (const m of ["select", "eq", "in", "not"]) q[m] = () => q;
+      q.or = async () => ({ data: table === "sm8_writes" ? writeRows : [], error: null });
       q.then = (res: (v: { data: unknown[]; count: number }) => unknown) =>
         Promise.resolve({ data: [], count: 500 }).then(res);
       return q;
@@ -50,6 +53,7 @@ const row = (n: number) => ({
 beforeEach(() => {
   rpcCalls.length = 0;
   rpcRows = [];
+  writeRows = [];
 });
 
 describe("searchPhotos' limit", () => {
@@ -74,5 +78,29 @@ describe("searchPhotos' limit", () => {
     await searchPhotos("plate", -4);
     await searchPhotos("plate", Number.NaN);
     expect(rpcCalls.map((c) => c.args.p_limit)).toEqual([2, PHOTO_SEARCH_LIMIT + 1]);
+  });
+});
+
+/* A photo HeyTiff sent to ServiceM8 comes back in the mirror as one of
+   ServiceM8's, and would be found twice — or found as a photo from site. */
+describe("a photo HeyTiff sent", () => {
+  const u = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+  const hit = (n: number) => ({ ...row(n), sm8_attachment_uuid: u(n) });
+
+  it("is left out of the results", async () => {
+    rpcRows = [hit(1), hit(2), hit(3)];
+    writeRows = [{ remote_uuid: u(2), replaced_uuids: [] }];
+    const found = await searchPhotos("plate", 6);
+    expect(found.hits.map((h) => h.remoteId)).toEqual([u(1), u(3)]);
+  });
+
+  it("is left out before the cap is judged, so it can't push a real photo past it", async () => {
+    // seven back for a cap of six, one of them ours: six real photos, and the cap didn't bind
+    rpcRows = Array.from({ length: 7 }, (_, n) => hit(n + 1));
+    writeRows = [{ remote_uuid: u(4), replaced_uuids: [] }];
+    const found = await searchPhotos("plate", 6);
+    expect(found.hits).toHaveLength(6);
+    expect(found.hits.map((h) => h.remoteId)).not.toContain(u(4));
+    expect(found.capped).toBe(false);
   });
 });

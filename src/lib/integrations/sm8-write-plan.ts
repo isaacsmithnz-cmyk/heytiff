@@ -288,6 +288,7 @@ export const WRITE_MAX_ATTEMPTS = WRITE_RETRY_AFTER_MS.length + 1;
 
 /** Waits for a reason that isn't the row's (a busy or unpaid account). */
 const RATE_LIMIT_WAIT_MS = 60_000;
+const HOUR_MS = 3_600_000;
 const BILLING_WAIT_MS = 12 * 3_600_000;
 /** After a token renewal that couldn't reach ServiceM8. */
 const RENEW_WAIT_MS = 60_000;
@@ -305,6 +306,9 @@ export const WRITE_WORDS = {
   billing: "ServiceM8 says this account isn't in good standing. Nothing more goes until its ServiceM8 bill is paid.",
   slowDown: "ServiceM8 asked HeyTiff to slow down. Trying again in a minute.",
   dailyLimit: "ServiceM8's daily limit for HeyTiff is used up. Trying again after it resets.",
+  /** HeyTiff's own counter had no room for the call (sm8-meter): nothing
+      went, and nothing about the file was wrong. */
+  paced: "Waiting for room in ServiceM8's call limit. Trying again in a minute.",
   paused: "Sending to ServiceM8 is paused. An owner can change that in Integrations, ServiceM8.",
   settingsUnread: "HeyTiff couldn't read the ServiceM8 settings. Nothing was sent or cancelled.",
   deadRecordGaveUp: "ServiceM8 left the file unfinished, after several tries.",
@@ -377,9 +381,10 @@ const SCOPE_REFUSAL = /insufficient_scope|scope required/i;
     so every reader of a 429 tells the two apart the same way. */
 export const SM8_PER_DAY = /per day/i;
 
-/** Which limit a 429 was. A union so another limit (HeyTiff's own meter)
-    can join it without a second shape. */
-export type Sm8RateLimit = "minute" | "day";
+/** Which limit stopped a write: ServiceM8's per-minute or daily limit (a
+    429), or `ours` — HeyTiff's own counter for the account (sm8-meter)
+    refused the turn, and no request was made. */
+export type Sm8RateLimit = "minute" | "day" | "ours";
 
 /** One request's answer, as the decision it forces. The sentences come
     later, from `verdictFor`: the same 403 means one thing to a row and
@@ -395,7 +400,8 @@ export type Sm8WriteOutcome =
       kind would be refused the same way until a reconnect. */
   | { kind: "forbidden"; scope: boolean }
   | { kind: "payment_required" }
-  | { kind: "rate_limited"; limit: Sm8RateLimit }
+  /** `waitMs`: how long the counter said to wait, for `ours`. */
+  | { kind: "rate_limited"; limit: Sm8RateLimit; waitMs?: number }
   /** The 409's record is ours, on this job, and INACTIVE: an earlier upload
       failed half way, which ServiceM8's guide says leaves the record
       "inactive and pending upload". That uuid is spent; the file goes again
@@ -599,6 +605,22 @@ export function verdictFor(
         stop: true,
       });
     case "rate_limited": {
+      if (outcome.limit === "ours") {
+        /* HeyTiff's own counter: nothing reached ServiceM8. Its wait is the
+           counter's, at least a minute; past an hour it is a daily limit
+           (the counter's day cap, or ServiceM8's daily 429 it recorded), and
+           says so. Everything queued waits with it — the counter is the
+           account's, so the next row would be refused the same way. */
+        const wait = Math.max(RATE_LIMIT_WAIT_MS, outcome.waitMs ?? 0);
+        return verdict({
+          status: "queued",
+          error: wait > HOUR_MS ? WRITE_WORDS.dailyLimit : WRITE_WORDS.paced,
+          retryAfterMs: wait,
+          holdAllMs: wait,
+          refund: true,
+          stop: true,
+        });
+      }
       if (outcome.limit === "day") {
         const wait = Math.max(RATE_LIMIT_WAIT_MS, nextDailyReset(ctx.now, ctx.timezoneName) - ctx.now);
         return verdict({
@@ -777,19 +799,10 @@ export function sendable(send: JobSend | undefined): boolean {
   return !send || send.status === "failed" || send.status === "cancelled" || send.status === "trial";
 }
 
-/** THE TWIN. Once a file we sent is in ServiceM8, the next sync mirrors it
-    back as one of ServiceM8's own, and the Documents face would list it
-    twice: ours, saying "In ServiceM8", and theirs. This is the set of
-    ServiceM8 uuids to leave off — but only for files one of our rows is
-    SHOWING. Take the upload off the job, or move a paper to its renewal,
-    and the copy in ServiceM8 is no longer ours on the card, so it appears
-    as theirs: which is what it now is. */
-export function twinsToHide(sends: readonly JobSend[], shownDocumentIds: Iterable<string>): Set<string> {
-  const shown = new Set(shownDocumentIds);
-  const out = new Set<string>();
-  for (const s of sends) if (s.status === "sent" && shown.has(s.documentId)) out.add(s.remoteUuid);
-  return out;
-}
+/* THE TWIN — a file we sent, mirrored back by the next sync as one of
+   ServiceM8's own — is left off on the server, by its uuid, everywhere a
+   ServiceM8 file is read (sm8-echo.ts). A file sent is one row whether or
+   not our own row still shows it. */
 
 /* ── what the owner's log says ── */
 

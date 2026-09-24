@@ -98,10 +98,13 @@ export async function GET(request: NextRequest) {
   if (!result.ok) return leave(request, "?error=exchange");
 
   /* Asked twice: one blip shouldn't decide whether a reconnect can go ahead.
-     A 402 isn't asked again — it is the account's state, not a blip. */
-  let vendorResult: Sm8VendorResult = await fetchSm8Vendor(result.tokens.accessToken);
+     A 402 isn't asked again — it is the account's state, not a blip. The
+     read goes uncounted (meter null): which account's counter it belongs to
+     is what it is asking. */
+  const connectRead = { accessToken: result.tokens.accessToken, meter: null, lane: "read" } as const;
+  let vendorResult: Sm8VendorResult = await fetchSm8Vendor(connectRead);
   if (!vendorResult.ok && !vendorResult.paymentRequired) {
-    vendorResult = await fetchSm8Vendor(result.tokens.accessToken);
+    vendorResult = await fetchSm8Vendor(connectRead);
   }
   const accounts = await readSm8Accounts(orgId);
   if (!accounts.ok) return leave(request, "?error=save");

@@ -46,6 +46,7 @@ import { jobsOnRail, nowMinInZone, railTasksOf, type RailTask } from "./day-rail
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { sm8QueueStuck } from "@/lib/integrations/sm8-writes";
+import { freshenSm8AfterResponse } from "@/lib/integrations/sm8-freshness";
 import { phaseOf, type DayPhase } from "./debrief-voice";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
@@ -193,6 +194,11 @@ export async function loadDashboard(): Promise<DashboardData> {
   const orgId = session?.orgId as string | undefined;
   const userId = session?.user?.sub as string | undefined;
   if (!orgId || !userId) return EMPTY;
+
+  /* Opening Home tops ServiceM8 up behind the response: what is waiting to
+     go is sent, and a stale mirror synced. Not awaited, and it reads nothing
+     before the response — every check runs in after(). */
+  freshenSm8AfterResponse(orgId);
 
   const caps = await getCapabilities();
   const canManage = caps.has("team");

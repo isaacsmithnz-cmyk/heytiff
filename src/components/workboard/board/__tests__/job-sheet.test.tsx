@@ -3822,7 +3822,11 @@ describe("compliance on the card", () => {
     expect(face("documents").queryByText("Sending to ServiceM8…")).toBeNull();
   });
 
-  it("shows a file we sent once: ServiceM8's copy stays off the list while our row shows it", async () => {
+  /* The copy ServiceM8's mirror brings back is left off on the SERVER, by
+     the uuid it was sent under (lib/integrations/sm8-echo, pinned in
+     job-media-query.test) — the read the card gets never holds it, so the
+     card draws exactly what it is handed. */
+  it("shows a file we sent once, in the state it went: our row, saying so", async () => {
     const doc = (over: Partial<JobMediaItem> & { remoteId: string }): JobMediaItem => ({
       name: "CoC.pdf",
       fileType: ".pdf",
@@ -3841,8 +3845,6 @@ describe("compliance on the card", () => {
       photos: [],
       documents: [
         doc({ remoteId: "doc:d-9", documentId: "d-9", addedBy: "Isaac Smith" }),
-        /* the same file, mirrored back by the next sync under the uuid we sent it with */
-        doc({ remoteId: "r-d-9", takenAt: "2026-09-24 09:00" }),
         doc({ remoteId: "sm8-other", name: "Quote #3137", origin: "Quote" }),
       ],
       elsewhere: [],

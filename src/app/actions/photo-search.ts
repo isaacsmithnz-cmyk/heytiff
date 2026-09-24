@@ -3,6 +3,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { requireOrg } from "@/lib/permissions-server";
 import { DOCUMENTS_BUCKET, SIGNED_URL_SECONDS } from "@/lib/documents/query";
+import { sm8Ours, withoutOurs } from "@/lib/integrations/sm8-echo";
 import {
   PHOTO_SEARCH_LIMIT,
   parsePhotoQuery,
@@ -150,7 +151,15 @@ async function searchPhotosInner(term: string, cap: number): Promise<PhotoSearch
     return { ...NOTHING, banked };
   }
 
-  const rows = (data ?? []) as HitRow[];
+  /* A photo HeyTiff sent to ServiceM8 comes back in the mirror as one of
+     ServiceM8's; it is left out here (lib/integrations/sm8-echo), and the
+     cap is judged on what is left. */
+  const found = (data ?? []) as HitRow[];
+  const ours = await sm8Ours(
+    orgId,
+    found.map((r) => r.sm8_attachment_uuid)
+  );
+  const rows = withoutOurs(found, (r) => r.sm8_attachment_uuid, ours);
   const capped = rows.length > cap;
   const kept = capped ? rows.slice(0, cap) : rows;
 

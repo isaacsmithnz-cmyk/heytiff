@@ -42,7 +42,6 @@ export function DocumentsSend({
   picked,
   writing,
   onWriting,
-  onClear,
   onLoadDraft,
   onSend,
   sm8 = null,
@@ -55,7 +54,6 @@ export function DocumentsSend({
       writing doesn't throw the letter away with the footer. */
   writing: boolean;
   onWriting: (on: boolean) => void;
-  onClear: () => void;
   onLoadDraft: () => Promise<EmailDraft | null>;
   /** Resolves null once the email has left, or with the reason it didn't. */
   onSend: (input: { to: string[]; subject: string; message: string }) => Promise<string | null>;
@@ -71,7 +69,6 @@ export function DocumentsSend({
         count={picked.length}
         sm8={sm8}
         sm8Note={sm8Note}
-        onClear={onClear}
         onEmail={() => onWriting(true)}
         onSendToSm8={onSendToSm8}
       />
@@ -85,14 +82,12 @@ function SendBar({
   count,
   sm8,
   sm8Note,
-  onClear,
   onEmail,
   onSendToSm8,
 }: {
   count: number;
   sm8: "trial" | "live" | null;
   sm8Note: string | null;
-  onClear: () => void;
   onEmail: () => void;
   onSendToSm8?: () => Promise<void>;
 }) {
@@ -110,9 +105,6 @@ function SendBar({
       ) : (
         <em className="wb2-dsend-n">{count === 1 ? "1 document ticked" : `${count} documents ticked`}</em>
       )}
-      <button type="button" className="pbtn ghost" disabled={sending} onClick={onClear}>
-        Clear ticks
-      </button>
       {sm8 && onSendToSm8 && (
         <button type="button" className="pbtn ghost" disabled={sending} onClick={() => void sendToSm8()}>
           {sending ? "Sending to ServiceM8…" : "Send to ServiceM8"}

@@ -1802,11 +1802,6 @@ export function JobSheet({
             picked={pickedList}
             writing={writing}
             onWriting={setWriting}
-            onClear={() => {
-              setPicked(new Set());
-              setWriting(false);
-              setSm8Note(null);
-            }}
             onLoadDraft={() => readEmailDraft(cardId)}
             onSend={sendDocuments}
             sm8={sm8Read?.send ?? null}

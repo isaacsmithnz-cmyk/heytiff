@@ -3,12 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { fmtAuWeekdayDayMonth, todayInAu } from "@/lib/au-dates";
 import { ALLOWED_TYPES } from "@/lib/documents/files";
 import { documentGroupOf, opensInCard, type JobMediaItem } from "@/lib/workboard/job-media";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import { andList } from "@/lib/swms/library";
 import type { SwmsSummary } from "@/lib/swms/query";
+import {
+  ourDocumentSendKey,
+  paperMeta,
+  paperSendable,
+  paperSendKey,
+  paperStateLine,
+  theirFileSendKey,
+  type JobPaper,
+  type PaperChoices,
+} from "@/lib/compliance/papers";
+import { ComplianceChooser } from "./compliance-chooser";
 import "@/components/swms/swms.css";
 
 /* THE DOCUMENTS FACE — the job's paper, grouped by what a document IS,
@@ -34,7 +45,19 @@ import "@/components/swms/swms.css";
    cached yet are named without a door. Videos are finally NAMED — their
    rows were loaded and thrown away for a bare count — but their bytes stay
    in ServiceM8 by charter (a job's worth of mp4 against a bucket sized in
-   gigabytes), so the row says so instead of pretending to play. */
+   gigabytes), so the row says so instead of pretending to play.
+
+   THE BUSINESS'S PAPERS JOIN THE SWMS UNDER COMPLIANCE. Add compliance is
+   the third way in: the certificates on the Organisation screen and the
+   tickets on the staff cards, put on the job as links to the paper they
+   already own (lib/compliance/papers). A paper whose policy has renewed
+   since says so, and one press moves it to the renewal.
+
+   AND ANYTHING WITH BYTES CAN BE SENT. For someone who may send, every file
+   the face holds carries a tick — ours, theirs and the papers alike — and
+   what is ticked is emailed from the card's footer. A row with nothing to
+   send (a SWMS is a page, a file not brought across yet) holds the tick's
+   place empty, so the names still line up. */
 
 const editedOn = (iso: string): string => {
   const d = new Date(iso);
@@ -106,10 +129,13 @@ function DocRow({ item, onOpen }: { item: JobMediaItem; onOpen: (item: JobMediaI
     because the bytes go with the row and nothing brings them back. */
 function OurRow({
   item,
+  pick,
   onOpen,
   onRemove,
 }: {
   item: JobMediaItem;
+  /** The row's tick, when the face is sending. */
+  pick?: React.ReactNode;
   onOpen: (item: JobMediaItem) => void;
   onRemove?: (item: JobMediaItem) => Promise<string | null>;
 }) {
@@ -132,6 +158,7 @@ function OurRow({
   return (
     <>
       <div className="wb2-docrow">
+        {pick}
         <DocRow item={item} onOpen={onOpen} />
         {onRemove &&
           (asking ? (
@@ -145,6 +172,110 @@ function OurRow({
             </>
           ) : (
             <button type="button" className="pbtn ghost sm" onClick={() => setAsking(true)}>
+              Remove
+            </button>
+          ))}
+      </div>
+      {err && <p className="wb2-sherr">{err}</p>}
+    </>
+  );
+}
+
+/** A paper the business put on the job — the same row, with its state said
+    out loud and the two acts a link has: taking it off (the paper itself
+    stays, so the confirm says "Remove from job", not "Delete file"), and,
+    once the policy has renewed, moving it to the renewal. */
+function PaperRow({
+  paper,
+  today,
+  pick,
+  onOpen,
+  onRemove,
+  onRenew,
+}: {
+  paper: JobPaper;
+  today: string;
+  pick?: React.ReactNode;
+  onOpen?: (paper: JobPaper) => void;
+  onRemove?: (paper: JobPaper) => Promise<string | null>;
+  onRenew?: (paper: JobPaper) => Promise<string | null>;
+}) {
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState<"remove" | "renew" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const line = paperStateLine(paper, today);
+  /* a ticket's scan opens for `team` and its holder; for anyone else the row
+     says it is here and when it runs to, without a door */
+  const opens = !!onOpen && paper.files.some((f) => f.url);
+
+  const run = async (what: "remove" | "renew", act: (p: JobPaper) => Promise<string | null>) => {
+    setBusy(what);
+    setErr(null);
+    const why = await act(paper).catch(() => "That didn't work. Try again.");
+    /* a row that landed its change is redrawn by the next read; one that
+       didn't stays, and says why */
+    setBusy(null);
+    setAsking(false);
+    if (why) setErr(why);
+  };
+
+  const inner = (
+    <>
+      <span className="wb2-doc-ic">
+        <Icon name={paper.kind === "company" ? "shield" : "passport"} size={15} />
+      </span>
+      <span className="wb2-doc-b">
+        <b>{paper.name}</b>
+        <em>{paperMeta(paper)}</em>
+        {line && <em className={`sw-state ${line.tone}`}>{line.word}</em>}
+      </span>
+      {opens && (
+        <span className="wb2-doc-go">
+          <Icon name="chevR" size={15} />
+        </span>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      <div className="wb2-docrow">
+        {pick}
+        {opens ? (
+          <button type="button" className="wb2-doc" onClick={() => onOpen?.(paper)}>
+            {inner}
+          </button>
+        ) : (
+          <span className="wb2-doc">{inner}</span>
+        )}
+        {paper.manage && paper.renewed && onRenew && !asking && (
+          <button
+            type="button"
+            className="pbtn ghost sm"
+            disabled={!!busy}
+            onClick={() => void run("renew", onRenew)}
+          >
+            {busy === "renew" ? "Switching…" : "Use renewal"}
+          </button>
+        )}
+        {paper.manage &&
+          onRemove &&
+          (asking ? (
+            <>
+              <button type="button" className="pbtn ghost sm" disabled={!!busy} onClick={() => setAsking(false)}>
+                Keep
+              </button>
+              <button
+                type="button"
+                className="pbtn ghost sm dan"
+                disabled={!!busy}
+                onClick={() => void run("remove", onRemove)}
+              >
+                {busy === "remove" ? "Removing…" : "Remove from job"}
+              </button>
+            </>
+          ) : (
+            <button type="button" className="pbtn ghost sm" disabled={!!busy} onClick={() => setAsking(true)}>
               Remove
             </button>
           ))}
@@ -193,6 +324,17 @@ export function JobDocumentsFace({
   onCreateSwms,
   onOpenSwms,
   onReviseSwms,
+  papers = null,
+  papersFailed = false,
+  mayAdd = { company: false, staff: false },
+  today,
+  picked,
+  onPick,
+  onLoadChoices,
+  onAddPapers,
+  onOpenPaper,
+  onRemovePaper,
+  onRenewPaper,
 }: {
   documents: readonly JobMediaItem[] | null;
   elsewhere: readonly JobMediaItem[] | null;
@@ -220,7 +362,29 @@ export function JobDocumentsFace({
   onCreateSwms?: () => void;
   onOpenSwms?: (swms: SwmsSummary) => void;
   onReviseSwms?: (versionId: string) => void;
+  /** The business's papers on this job; null until the read lands. */
+  papers?: readonly JobPaper[] | null;
+  /** The read failed — said, rather than an empty group that looks true. */
+  papersFailed?: boolean;
+  /** Which sides of Add compliance this viewer may add. */
+  mayAdd?: { company: boolean; staff: boolean };
+  /** yyyy-mm-dd — what "expires in 2 weeks" counts from. */
+  today?: string;
+  /** What is ticked to send. Absent for someone who may not send, and then
+      no row carries a tick at all. */
+  picked?: ReadonlySet<string>;
+  onPick?: (key: string, on: boolean) => void;
+  /** Absent until the card knows which job it is. */
+  onLoadChoices?: () => Promise<PaperChoices | null>;
+  /** Put ticked papers on the job; null once they are on, or the reason. */
+  onAddPapers?: (keys: string[]) => Promise<string | null>;
+  onOpenPaper?: (paper: JobPaper) => void;
+  onRemovePaper?: (paper: JobPaper) => Promise<string | null>;
+  onRenewPaper?: (paper: JobPaper) => Promise<string | null>;
 }) {
+  const day = today ?? todayInAu();
+  /* Add compliance, open under the ways in */
+  const [choosing, setChoosing] = useState(false);
   const picker = useRef<HTMLInputElement | null>(null);
   /* How far through a batch the upload is — null when none is running. */
   const [sending, setSending] = useState<{ at: number; of: number } | null>(null);
@@ -290,9 +454,29 @@ export function JobDocumentsFace({
     byGroup.set(g, [...(byGroup.get(g) ?? []), d]);
   }
   const statements = swms ?? [];
-  const total = docs.length + designs.length + statements.length;
+  const ours = papers ?? [];
+  const total = docs.length + designs.length + statements.length + ours.length;
 
   const offerSwms = !!onCreateSwms && !swmsClosed && swms !== null && statements.length === 0;
+  const offerPapers = !!onLoadChoices && !!onAddPapers && (mayAdd.company || mayAdd.staff);
+
+  /* THE TICK A ROW CARRIES while the face is sending: a box for a file with
+     bytes to send, and for anything else an empty box-sized gap, so a column
+     of names never jumps. No tick at all for someone who may not send. */
+  const pickOf = (key: string | null, name: string) => {
+    if (!onPick) return undefined;
+    if (!key) return <span className="wb2-docpick" aria-hidden="true" />;
+    return (
+      <label className="wb2-docpick">
+        <input
+          type="checkbox"
+          checked={!!picked?.has(key)}
+          onChange={(e) => onPick(key, e.target.checked)}
+          aria-label={`Select ${name}`}
+        />
+      </label>
+    );
+  };
 
   return (
     <div className="wb2-jcdoc" data-over={over ? "" : undefined} {...dropProps}>
@@ -301,7 +485,7 @@ export function JobDocumentsFace({
         {total > 0 && <em>{total === 1 ? "1 file" : `${total} files`}</em>}
       </div>
 
-      {(onUpload || offerSwms) && (
+      {(onUpload || offerSwms || offerPapers) && (
         <div className="wb2-jcdadd">
           {onUpload && (
             <>
@@ -336,6 +520,17 @@ export function JobDocumentsFace({
               />
             </>
           )}
+          {offerPapers && (
+            <button
+              type="button"
+              className="pbtn ghost"
+              aria-expanded={choosing}
+              onClick={() => setChoosing((open) => !open)}
+            >
+              <Icon name="plus" size={15} />
+              Add compliance
+            </button>
+          )}
           {offerSwms && (
             <button type="button" className="pbtn ghost" disabled={!canCreateSwms} onClick={onCreateSwms}>
               <Icon name="shield" size={15} />
@@ -350,13 +545,26 @@ export function JobDocumentsFace({
         </p>
       ))}
 
-      {swmsFailed && <p className="int-hint">Couldn&apos;t read this job&apos;s SWMS. Close the card and open it again.</p>}
+      {choosing && offerPapers && (
+        <ComplianceChooser
+          today={day}
+          onLoad={onLoadChoices}
+          onAdd={onAddPapers}
+          onClose={() => setChoosing(false)}
+        />
+      )}
 
-      {statements.length > 0 && (
+      {swmsFailed && <p className="int-hint">Couldn&apos;t read this job&apos;s SWMS. Close the card and open it again.</p>}
+      {papersFailed && (
+        <p className="int-hint">Couldn&apos;t read this job&apos;s licences and insurance. Close the card and open it again.</p>
+      )}
+
+      {statements.length + ours.length > 0 && (
         <div className="wb2-jcsec">
-          <span className="wb2-sect">{`Compliance — ${statements.length}`}</span>
+          <span className="wb2-sect">{`Compliance — ${statements.length + ours.length}`}</span>
           {statements.map((s) => (
             <div key={s.swmsId} className="wb2-docrow">
+              {pickOf(null, "Safe Work Method Statement")}
               <button type="button" className="wb2-doc" onClick={() => onOpenSwms?.(s)}>
                 <span className="wb2-doc-ic">
                   <Icon name="shield" size={15} />
@@ -396,6 +604,20 @@ export function JobDocumentsFace({
                 </button>
               )}
             </div>
+          ))}
+          {ours.map((p) => (
+            <PaperRow
+              key={p.id}
+              paper={p}
+              today={day}
+              pick={pickOf(
+                paperSendable(p) ? paperSendKey(p.id) : null,
+                p.person ? `${p.name}, ${p.person}` : p.name
+              )}
+              onOpen={onOpenPaper}
+              onRemove={onRemovePaper}
+              onRenew={onRenewPaper}
+            />
           ))}
         </div>
       )}
@@ -441,7 +663,19 @@ export function JobDocumentsFace({
             <span className="wb2-sect">{`${label} — ${items.length}`}</span>
             {items.map((d) =>
               d.documentId ? (
-                <OurRow key={d.remoteId} item={d} onOpen={onOpen} onRemove={onRemove} />
+                <OurRow
+                  key={d.remoteId}
+                  item={d}
+                  pick={pickOf(d.url ? ourDocumentSendKey(d.documentId) : null, d.name)}
+                  onOpen={onOpen}
+                  onRemove={onRemove}
+                />
+              ) : onPick ? (
+                /* theirs, with a tick when there are bytes here to send */
+                <div key={d.remoteId} className="wb2-docrow">
+                  {pickOf(d.url ? theirFileSendKey(d.remoteId) : null, d.name)}
+                  <DocRow item={d} onOpen={onOpen} />
+                </div>
               ) : (
                 <DocRow key={d.remoteId} item={d} onOpen={onOpen} />
               )

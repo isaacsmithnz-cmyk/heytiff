@@ -20,6 +20,13 @@ import type { ClaimDetailRead } from "@/lib/workboard/all-jobs-query";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 import { deriveFamilyMoney, type FamilyMoney } from "@/lib/workboard/job-family";
 import { buildJobStory, storyStamp } from "@/lib/workboard/job-story";
+import type { JobPaper, JobPapersRead, PaperChoices } from "@/lib/compliance/papers";
+import type {
+  AddPapersResult,
+  EmailDocumentsInput,
+  EmailDocumentsResult,
+  EmailDraft,
+} from "@/app/actions/job-compliance";
 
 const readMirrorJob = jest.fn(
   async (): Promise<JobCardRead> => ({ detail: null, focusRemoteId: null })
@@ -156,6 +163,27 @@ jest.mock("@/app/actions/job-notes", () => ({
   removeJobNote: (...a: unknown[]) => removeJobNote(...(a as [])),
   taskFromJobNote: (...a: unknown[]) => taskFromJobNote(...(a as [])),
   dismissJobNote: (...a: unknown[]) => dismissJobNote(...(a as [])),
+}));
+/* Compliance on the job and sending its files — mocked for their content in
+   the block that tests them. The default is the setup file's: nothing on the
+   job and a viewer who may do nothing with it, so no other test sees a tick. */
+const compliance = {
+  listJobPapers: jest.fn(async (_job: string): Promise<JobPapersRead | null> => null),
+  readComplianceChoices: jest.fn(async (_job: string): Promise<PaperChoices | null> => null),
+  addJobPapers: jest.fn(async (_job: string, _keys: string[]): Promise<AddPapersResult> => ({ ok: false, error: "no" })),
+  removeJobPaper: jest.fn(async () => ({ ok: true as const })),
+  renewJobPaper: jest.fn(async () => ({ ok: true as const })),
+  readEmailDraft: jest.fn(async (_job: string): Promise<EmailDraft | null> => null),
+  emailJobDocuments: jest.fn(async (_input: EmailDocumentsInput): Promise<EmailDocumentsResult> => ({ ok: false, error: "no" })),
+};
+jest.mock("@/app/actions/job-compliance", () => ({
+  listJobPapers: (...a: unknown[]) => compliance.listJobPapers(...(a as [string])),
+  readComplianceChoices: (...a: unknown[]) => compliance.readComplianceChoices(...(a as [string])),
+  addJobPapers: (...a: unknown[]) => compliance.addJobPapers(...(a as [string, string[]])),
+  removeJobPaper: (...a: unknown[]) => compliance.removeJobPaper(...(a as [])),
+  renewJobPaper: (...a: unknown[]) => compliance.renewJobPaper(...(a as [])),
+  readEmailDraft: (...a: unknown[]) => compliance.readEmailDraft(...(a as [string])),
+  emailJobDocuments: (...a: unknown[]) => compliance.emailJobDocuments(...(a as [EmailDocumentsInput])),
 }));
 
 
@@ -3571,3 +3599,126 @@ describe("the job's own checklist", () => {
     expect(screen.queryByText("Materials")).not.toBeInTheDocument();
   });
 });
+
+/* ── compliance on the card, and sending what's ticked ── */
+
+describe("compliance on the card", () => {
+  const may = { company: true, staff: true, send: true };
+  const pl: JobPaper = {
+    id: "p1",
+    kind: "company",
+    name: "Public liability",
+    person: null,
+    issuer: "QBE",
+    expiresOn: "2027-06-30",
+    state: "ok",
+    renewed: false,
+    files: [{ id: "d1", fileName: "coc.pdf", mimeType: "application/pdf", sizeBytes: 1000, url: "https://signed/coc.pdf" }],
+    addedBy: "Isaac Smith",
+    addedAt: "2026-09-23T00:00:00Z",
+    manage: true,
+  };
+  const draft: EmailDraft = {
+    contacts: [{ name: "Josh", email: "josh@lsdb.com.au", role: "Property manager" }],
+    subject: "Documents for job 3137",
+    message: "Hi,\n\nPlease find our documents for this job attached.",
+    ready: true,
+  };
+
+  beforeEach(() => {
+    for (const fn of Object.values(compliance)) fn.mockClear();
+    compliance.listJobPapers.mockResolvedValue({ papers: [pl], may });
+    compliance.readEmailDraft.mockResolvedValue(draft);
+  });
+
+  it("files the business's papers under Compliance, and sends what's ticked from the card's own footer", async () => {
+    const onToast = jest.fn();
+    compliance.emailJobDocuments.mockResolvedValue({
+      ok: true,
+      to: ["josh@lsdb.com.au"],
+      note: { id: "n-1", text: "Emailed Public liability to josh@lsdb.com.au.", at: "2026-09-23T02:00:00Z", author: "Isaac Smith" },
+    });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+    await detailLanded();
+    await openTab("Documents");
+
+    expect(await face("documents").findByText("Public liability")).toBeInTheDocument();
+    expect(compliance.listJobPapers).toHaveBeenCalledWith("j-1");
+    /* nothing ticked, no footer */
+    expect(screen.queryByRole("button", { name: "Email documents" })).toBeNull();
+
+    await userEvent.click(face("documents").getByRole("checkbox", { name: "Select Public liability" }));
+    const bar = screen.getByText("1 document ticked").closest(".wb2-shft") as HTMLElement;
+    /* THE CARD'S FOOTER, under the scrolling body — not inside it */
+    expect(bar.parentElement).toHaveClass("wb2-sheet");
+    expect(within(bar).getByRole("button", { name: "Send to ServiceM8" })).toBeDisabled();
+
+    await userEvent.click(within(bar).getByRole("button", { name: "Email documents" }));
+    await userEvent.click(await screen.findByRole("checkbox", { name: /Josh/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Send email" }));
+    expect(compliance.emailJobDocuments).toHaveBeenCalledWith({
+      jobUuid: "j-1",
+      keys: ["p:p1"],
+      to: ["josh@lsdb.com.au"],
+      subject: "Documents for job 3137",
+      message: "Hi,\n\nPlease find our documents for this job attached.",
+    });
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith("Email sent to josh@lsdb.com.au"));
+    /* sent: the ticks clear and the footer goes with them */
+    expect(screen.queryByText("1 document ticked")).toBeNull();
+    expect(face("documents").getByRole("checkbox", { name: "Select Public liability" })).not.toBeChecked();
+
+    /* and the diary says what went, without a reload */
+    await openTab("Diary");
+    expect(await face("diary").findByText("Emailed Public liability to josh@lsdb.com.au.")).toBeInTheDocument();
+  });
+
+  it("adds papers from IN the face, and what was just added arrives ticked ready to send", async () => {
+    compliance.listJobPapers.mockResolvedValueOnce({ papers: [], may }).mockResolvedValueOnce({ papers: [pl], may });
+    compliance.readComplianceChoices.mockResolvedValue({
+      company: [
+        { key: "c:pl", kind: "company", name: "Public liability", person: null, issuer: "QBE", expiresOn: "2027-06-30", state: "ok", files: 1, booked: false, onJob: false },
+      ],
+      staff: null,
+    });
+    compliance.addJobPapers.mockResolvedValue({ ok: true, added: ["p1"] });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+
+    await userEvent.click(await face("documents").findByRole("button", { name: "Add compliance" }));
+    const chooser = await face("documents").findByRole("group", { name: "Add compliance" });
+    await userEvent.click(await within(chooser).findByRole("checkbox", { name: /Public liability/ }));
+    await userEvent.click(within(chooser).getByRole("button", { name: "Add to job" }));
+
+    expect(compliance.addJobPapers).toHaveBeenCalledWith("j-1", ["c:pl"]);
+    expect(await face("documents").findByRole("checkbox", { name: "Select Public liability" })).toBeChecked();
+    expect(screen.getByText("1 document ticked")).toBeInTheDocument();
+    expect(face("documents").queryByRole("group", { name: "Add compliance" })).toBeNull();
+  });
+
+  it("keeps the footer to the face the ticks are on", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+    await userEvent.click(await face("documents").findByRole("checkbox", { name: "Select Public liability" }));
+    expect(screen.getByText("1 document ticked")).toBeInTheDocument();
+    await openTab("Summary");
+    expect(screen.queryByText("1 document ticked")).toBeNull();
+    await openTab("Documents");
+    expect(screen.getByText("1 document ticked")).toBeInTheDocument();
+  });
+
+  it("opens a paper in the card's own viewer", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+    await userEvent.click(await face("documents").findByRole("button", { name: /Public liability/ }));
+    expect(await screen.findByTitle("Public liability")).toHaveAttribute("src", "https://signed/coc.pdf");
+  });
+});
+

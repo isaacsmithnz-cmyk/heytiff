@@ -97,6 +97,22 @@ jest.mock('@/app/actions/job-documents', () => ({
   removeJobDocument: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
 }))
 
+/* Compliance on a job and sending its files, for the same reason: the job
+   card imports them at module scope for its Documents face. The defaults are
+   the empty answers — nothing on the job, and a viewer who may do nothing
+   with it, so no suite sees a tick or a button it didn't ask for. A suite
+   that wants them mocks them locally; job-compliance.test.ts tests the real
+   module and `jest.unmock`s it. */
+jest.mock('@/app/actions/job-compliance', () => ({
+  listJobPapers: jest.fn(async () => null),
+  readComplianceChoices: jest.fn(async () => null),
+  addJobPapers: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  removeJobPaper: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  renewJobPaper: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  readEmailDraft: jest.fn(async () => null),
+  emailJobDocuments: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+}))
+
 /* The uploader's browser half, for the same reason and by the same route: it
    imports `@/app/actions/documents` to ask for a signed slot, which is a
    `"use server"` module, and every scan panel imports the uploader. Its job is

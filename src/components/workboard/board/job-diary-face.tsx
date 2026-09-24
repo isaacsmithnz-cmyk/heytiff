@@ -340,9 +340,14 @@ function Ev({
 
 /** ServiceM8 @mentions, worn the way the diary mock wears them — the handle
     is lower(first+last), so the string itself is the join key slice 5 will
-    resolve; here it only needs to read as a callout. */
+    resolve; here it only needs to read as a callout.
+
+    AN "@" INSIDE A WORD IS AN ADDRESS, NOT A MENTION. The diary records the
+    documents emailed from the job ("… to josh@lsdb.com.au"), and a split on
+    every "@" drew "@lsdb" as a callout in the middle of it — the same
+    tolerance lib/workboard/sm8-mentions already gives an email address. */
 export function withMentions(text: string): React.ReactNode {
-  const parts = text.split(/(@[a-z0-9_]+)/gi);
+  const parts = text.split(/((?<![\w.+-])@[a-z0-9_]+)/gi);
   if (parts.length === 1) return text;
   return parts.map((part, i) =>
     /^@[a-z0-9_]+$/i.test(part) ? (

@@ -44,9 +44,30 @@ import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { listSwmsForJob } from "@/app/actions/swms";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { attachJobDocument, removeJobDocument } from "@/app/actions/job-documents";
+import {
+  addJobPapers,
+  emailJobDocuments,
+  listJobPapers,
+  readComplianceChoices,
+  readEmailDraft,
+  removeJobPaper,
+  renewJobPaper,
+} from "@/app/actions/job-compliance";
+import {
+  ourDocumentSendKey,
+  paperLabel,
+  paperSendable,
+  paperSendKey,
+  theirFileSendKey,
+  type JobPaper,
+  type JobPapersRead,
+} from "@/lib/compliance/papers";
 import type { SwmsSummary } from "@/lib/swms/query";
-import type { JobMediaItem } from "@/lib/workboard/job-media";
+import { andList } from "@/lib/swms/library";
+import { fileTypeForMime, type JobMediaItem } from "@/lib/workboard/job-media";
+import { todayInAu } from "@/lib/au-dates";
 import { JobMediaViewer } from "./job-media-viewer";
+import { DocumentsSend } from "./documents-send";
 import {
   listJobPhotoFavourites,
   setJobPhotoFavourite,
@@ -152,6 +173,24 @@ const swmsPaper = (versionId: string): JobMediaItem => ({
   height: null,
   fromClaim: null,
 });
+
+/** A paper's files as pages the card's viewer can hold — a licence's two
+    sides are two stops on its arrow keys. Only what this viewer may open. */
+const paperPages = (paper: JobPaper): JobMediaItem[] =>
+  paper.files
+    .filter((f) => f.url)
+    .map((f) => ({
+      remoteId: `paper:${paper.id}:${f.id}`,
+      name: paperLabel(paper),
+      fileType: fileTypeForMime(f.mimeType),
+      kind: "document" as const,
+      origin: null,
+      takenAt: null,
+      url: f.url,
+      width: null,
+      height: null,
+      fromClaim: null,
+    }));
 
 /** Jobs ServiceM8 has closed out — the same two the bell and the card's
     sign-on door already stand down for. */
@@ -261,6 +300,15 @@ export function JobSheet({
   const [swms, setSwms] = useState<SwmsSummary[] | null>(null);
   const [swmsFailed, setSwmsFailed] = useState(false);
   const [swmsWizard, setSwmsWizard] = useState<{ revise: string | null } | null>(null);
+  /* THE BUSINESS'S PAPERS ON THIS JOB, and what this viewer may do with them
+     — its own read on its own clock, like the SWMS. */
+  const [papers, setPapers] = useState<JobPapersRead | null>(null);
+  const [papersFailed, setPapersFailed] = useState(false);
+  /* WHAT IS TICKED TO SEND, by send key (lib/compliance/papers), and whether
+     the email is open in the footer. The card holds both: the ticks live on
+     the Documents face and the letter in the footer below it. */
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const [writing, setWriting] = useState(false);
   /* The shared viewer: a photo (by its place in the photos lens) or one
      PDF's paper. Closing it lands the reader exactly where they were. */
   const [viewer, setViewer] = useState<
@@ -269,6 +317,8 @@ export function JobSheet({
     /* a SWMS is paper HeyTiff writes, so it opens in the same viewer as the
        job's other paper instead of a new tab that loses the card */
     | { kind: "swms"; id: string }
+    /* a licence or certificate on the job — its pages, by where the arrows are */
+    | { kind: "papers"; id: string; index: number }
     | null
   >(null);
   /* Only a REFRESHED paragraph lives in state; the stored one rides the
@@ -486,6 +536,119 @@ export function JobSheet({
       .catch(() => {
         if (alive.current) setSwmsFailed(true);
       });
+  };
+
+  /* The job's licences and insurance — ours, put on it from the Documents
+     face. A read that fails says so on the face rather than drawing an empty
+     Compliance group that looks true. */
+  useEffect(() => {
+    if (!cardId) return;
+    let live = true;
+    void listJobPapers(cardId)
+      .then((read) => {
+        if (!live) return;
+        setPapers(read);
+        setPapersFailed(false);
+      })
+      .catch(() => {
+        if (live) setPapersFailed(true);
+      });
+    return () => {
+      live = false;
+    };
+  }, [cardId]);
+
+  const reloadPapers = async (): Promise<JobPapersRead | null> => {
+    if (!cardId) return null;
+    const read = await listJobPapers(cardId).catch(() => null);
+    if (alive.current && read) {
+      setPapers(read);
+      setPapersFailed(false);
+    }
+    return read;
+  };
+
+  const tick = (key: string, on: boolean) =>
+    setPicked((cur) => {
+      const next = new Set(cur);
+      if (on) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+
+  /* Put ticked papers on the job. What was just added is most often what is
+     about to be sent, so it arrives ticked — the footer's Email documents is
+     the next press, not a hunt back down the list. */
+  const addPapers = async (keys: string[]): Promise<string | null> => {
+    if (!cardId) return "This card doesn't know its job yet.";
+    const res = await addJobPapers(cardId, keys).catch(() => ({
+      ok: false as const,
+      error: "Couldn't add them to the job.",
+    }));
+    if (!res.ok) return res.error;
+    const fresh = await reloadPapers();
+    if (alive.current && fresh?.may.send && res.added.length > 0)
+      setPicked((cur) => new Set([...cur, ...res.added.map(paperSendKey)]));
+    return null;
+  };
+
+  /* Off the face at once — the read would only confirm what the answer said. */
+  const removePaper = async (paper: JobPaper): Promise<string | null> => {
+    const res = await removeJobPaper(paper.id).catch(() => ({
+      ok: false as const,
+      error: "Couldn't take that off the job.",
+    }));
+    if (!res.ok) return res.error;
+    if (alive.current) {
+      setPapers((cur) => (cur ? { ...cur, papers: cur.papers.filter((p) => p.id !== paper.id) } : cur));
+      tick(paperSendKey(paper.id), false);
+    }
+    return null;
+  };
+
+  const renewPaper = async (paper: JobPaper): Promise<string | null> => {
+    const res = await renewJobPaper(paper.id).catch(() => ({
+      ok: false as const,
+      error: "Couldn't switch to the renewal.",
+    }));
+    if (!res.ok) return res.error;
+    await reloadPapers();
+    return null;
+  };
+
+  /* THE TICKS AS THE LETTER WILL NAME THEM — read off what the face holds
+     now, so a paper taken off or a file that went away is simply not sent
+     rather than sent as a name with nothing behind it. */
+  const pickedList = useMemo(() => {
+    const out: { key: string; name: string }[] = [];
+    for (const p of papers?.papers ?? []) {
+      const key = paperSendKey(p.id);
+      if (picked.has(key) && paperSendable(p)) out.push({ key, name: paperLabel(p) });
+    }
+    for (const d of media?.documents ?? []) {
+      const key = d.documentId ? ourDocumentSendKey(d.documentId) : theirFileSendKey(d.remoteId);
+      if (picked.has(key) && d.url) out.push({ key, name: d.name });
+    }
+    return out;
+  }, [picked, papers, media]);
+
+  const sendDocuments = async (input: { to: string[]; subject: string; message: string }): Promise<string | null> => {
+    if (!cardId) return "This card doesn't know its job yet.";
+    const res = await emailJobDocuments({
+      jobUuid: cardId,
+      keys: pickedList.map((p) => p.key),
+      ...input,
+    }).catch(() => ({ ok: false as const, error: "The email didn't send. Try again in a minute." }));
+    if (!res.ok) return res.error;
+    if (alive.current) {
+      setPicked(new Set());
+      setWriting(false);
+      /* the diary says what went, the moment it went */
+      const note = res.note;
+      if (note) setOurNotes((cur) => [note, ...(cur ?? [])]);
+      onToast(`Email sent to ${andList(res.to)}`);
+    }
+    return null;
   };
 
   /* Our OWN material picklist — pushed here from a Studio design. On its own
@@ -1542,13 +1705,42 @@ export function JobSheet({
               onCreateSwms={() => setSwmsWizard({ revise: null })}
               onOpenSwms={(s) => setViewer({ kind: "swms", id: s.versionId })}
               onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
+              papers={papers ? papers.papers : null}
+              papersFailed={papersFailed}
+              mayAdd={{ company: !!papers?.may.company, staff: !!papers?.may.staff }}
+              today={todayInAu()}
+              picked={papers?.may.send ? picked : undefined}
+              onPick={papers?.may.send ? tick : undefined}
+              onLoadChoices={cardId ? () => readComplianceChoices(cardId) : undefined}
+              onAddPapers={cardId ? addPapers : undefined}
+              onOpenPaper={(p) => setViewer({ kind: "papers", id: p.id, index: 0 })}
+              onRemovePaper={removePaper}
+              onRenewPaper={renewPaper}
             />
           )}
 
           {/* No Actions face. The once-per-job acts live behind the band's
               ⋯; the naming row below is the only floor furniture, and only
-              while a project is being named. */}
+              while a project is being named — and the send row, only while
+              the Documents face has something ticked. */}
         </div>
+
+        {/* SENDING WHAT'S TICKED — the card's footer, under the scrolling body,
+            so the list keeps scrolling above it. Only on the face the ticks
+            are on, and never over the naming row. */}
+        {tab === "documents" && !naming && cardId && papers?.may.send && (pickedList.length > 0 || writing) && (
+          <DocumentsSend
+            picked={pickedList}
+            writing={writing}
+            onWriting={setWriting}
+            onClear={() => {
+              setPicked(new Set());
+              setWriting(false);
+            }}
+            onLoadDraft={() => readEmailDraft(cardId)}
+            onSend={sendDocuments}
+          />
+        )}
 
         {manage && naming && (
           <div className="wb2-shft">
@@ -1618,9 +1810,28 @@ export function JobSheet({
         />
       )}
 
+      {/* A licence or certificate on the job — its own pages, in the same
+          viewer as the job's other paper. */}
+      {viewer?.kind === "papers" &&
+        (() => {
+          const paper = papers?.papers.find((p) => p.id === viewer.id);
+          const pages = paper ? paperPages(paper) : [];
+          if (pages.length === 0) return null;
+          return (
+            <JobMediaViewer
+              items={pages}
+              index={Math.min(viewer.index, pages.length - 1)}
+              favourites={null}
+              onNav={(i) => setViewer({ kind: "papers", id: viewer.id, index: i })}
+              onClose={() => setViewer(null)}
+            />
+          );
+        })()}
+
       {/* The shared viewer — same portal, same law as the claim modal. */}
       {viewer &&
         viewer.kind !== "swms" &&
+        viewer.kind !== "papers" &&
         media &&
         (() => {
           /* THE VIEWER CARRIES ONLY WHAT IT CAN SHOW. A video's bytes stay

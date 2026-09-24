@@ -8,6 +8,7 @@
 
 import {
   GROUP_CAP,
+  jobSearchTerm,
   matchesWords,
   searchWorkboard,
   type WorkSearchInput,
@@ -353,5 +354,45 @@ describe("order and cap", () => {
   it("counts every match in the headline, cap or no cap", () => {
     const many = Array.from({ length: GROUP_CAP + 6 }, (_, i) => visit({ id: `v-${i}` }));
     expect(searchWorkboard(input({ visits: many }), "kingsford").total).toBe(GROUP_CAP + 6);
+  });
+});
+
+/* The palette's ask of the mirror. Isaac typed "job 288" into ⌘K; the mirror
+   stores the number bare, so the word in front of it has to go before the
+   question is asked — and only that word, only as a word. */
+describe("the job the palette asks for", () => {
+  it.each([
+    ["job 288", "288"],
+    ["Job 288", "288"],
+    ["job #288", "288"],
+    ["#288", "288"],
+    ["# 288", "288"],
+    ["job no. 288", "288"],
+    ["job no.288", "288"],
+    ["job no 288", "288"],
+    ["job number 288", "288"],
+    ["jobs 288", "288"],
+    ["job288", "288"],
+    ["  job   2380A  ", "2380A"],
+  ])("reads %p as job %p", (typed, asked) => {
+    expect(jobSearchTerm(typed)).toBe(asked);
+  });
+
+  it("asks for the rest as typed when no number follows", () => {
+    expect(jobSearchTerm("job kingsford")).toBe("kingsford");
+    expect(jobSearchTerm("Kingsford Bakery")).toBe("Kingsford Bakery");
+    expect(jobSearchTerm("job nothing works")).toBe("nothing works");
+  });
+
+  it("leaves a word that only starts like the lead", () => {
+    expect(jobSearchTerm("jobson plumbing")).toBe("jobson plumbing");
+    expect(jobSearchTerm("number 7 cafe")).toBe("number 7 cafe");
+  });
+
+  it("asks for nothing when the lead is all there is", () => {
+    expect(jobSearchTerm("job")).toBe("");
+    expect(jobSearchTerm("jobs")).toBe("");
+    expect(jobSearchTerm("job #")).toBe("");
+    expect(jobSearchTerm("   ")).toBe("");
   });
 });

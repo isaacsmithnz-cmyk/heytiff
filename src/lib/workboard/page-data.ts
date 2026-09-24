@@ -23,7 +23,8 @@ import { loadMaintenanceBoard, type MaintenanceBoardData } from "./board-query";
 import { loadProjectsBoard, type ProjectsBoardData } from "./projects-board-query";
 import { autoCompleteVisitsFromMirror, ensureVisits } from "./visit-ensure";
 import { ensureMirrorClaims } from "./claim-mirror";
-import { EMPTY_ALL_JOBS, loadAllJobs, type AllJobsData } from "./all-jobs-query";
+import { EMPTY_ALL_JOBS, loadAllJobs, readMirrorJobRow, type AllJobsData } from "./all-jobs-query";
+import type { AllJobsMirrorJob } from "./all-jobs";
 import { getSm8Timezone } from "./query";
 
 export type WorkboardConnection = "none" | "connected" | "attention";
@@ -179,4 +180,23 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     at all — exactly the account this flag exists to speak for. */
 function backfillDone(sync: Sm8SyncStatusView, object: string): boolean {
   return sync.objects.find((o) => o.object === object)?.backfillDone ?? false;
+}
+
+/** The job a `?job=` link names: from the book this load already holds, else
+    from the whole mirror — the palette finds jobs finished long before the
+    board's 56-day window, and a link to one of those has to open it too.
+    The id is a CHOICE from a URL, so the read is scoped to the session's own
+    org and the money rule this load already decided; a job the org does not
+    hold answers null and the page simply lands on the board. */
+export async function loadLinkedJob(
+  data: WorkboardData,
+  remoteId: string
+): Promise<AllJobsMirrorJob | null> {
+  const held = data.allJobs.jobs.find((j) => j.remoteId === remoteId);
+  if (held) return held;
+  const session = await auth0.getSession();
+  const orgId = session?.orgId as string | undefined;
+  const id = remoteId.trim().slice(0, 80);
+  if (!orgId || !id) return null;
+  return readMirrorJobRow(orgId, id, data.today, { includeMoney: data.moneyVisible });
 }

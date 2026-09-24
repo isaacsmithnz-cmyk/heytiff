@@ -1759,7 +1759,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   .fg-cmd.open { display:flex; }
   .fg-cmd .ov { position:absolute; inset:0; background:var(--scrim); backdrop-filter:blur(8px); animation:fgcFade .2s both; }
   @keyframes fgcFade { from{opacity:0} to{opacity:1} }
-  .fg-cmd .box { position:relative; width:640px; max-width:calc(100vw - 32px); border-radius:var(--r-card); overflow:hidden; background:var(--on-ink-tint-2); backdrop-filter:blur(24px) saturate(1.6); border:1px solid var(--paper); box-shadow:var(--shadow-overlay); animation:fgcIn .3s var(--ease) both; }
+  .fg-cmd .box { position:relative; width:640px; max-width:calc(100vw - 32px); border-radius:var(--r-card); overflow:hidden; background:var(--paper); border:1px solid var(--paper); box-shadow:var(--shadow-overlay); animation:fgcIn .3s var(--ease) both; }
   @keyframes fgcIn { from{opacity:0;transform:scale(.96) translateY(-8px)} to{opacity:1;transform:none} }
   .fg-cmd .cin { position:relative; display:flex; align-items:center; gap:16px; padding:16px 24px; border-bottom:1px solid var(--tint); }
   .fg-cmd .cin .ci { color:var(--q); display:flex; }
@@ -1775,14 +1775,17 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   .fg-cmd .crow .ck { flex:1; min-width:0; }
   .fg-cmd .crow .ck b { display:block; font-size:16px; font-weight:700; color:var(--ink); }
   .fg-cmd .crow .ck em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
+  /* one line each: a job's description runs to a paragraph, and a row that
+     wraps pushes the rest of the answers below the fold */
+  .fg-cmd .crow .ck b, .fg-cmd .crow .ck em { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .fg-cmd .crow .ck .cno { font-variant-numeric:tabular-nums; }
+  .fg-cmd .crow .ci2.job { background:var(--tint); color:var(--ink); }
+  .fg-cmd .crow .cst { flex:0 0 auto; font-size:13px; font-weight:500; color:var(--q); }
+  .fg-cmd .crow + .cgl { margin-top:8px; }
   .fg-cmd .crow .cen { color:var(--q); opacity:0; }
   .fg-cmd .crow.on .cen { opacity:1; }
   .fg-cmd .cempty { padding:48px 16px; text-align:center; }
   .fg-cmd .cempty b { display:block; font-size:16px; font-weight:700; color:var(--q); }
-  /* `display:block` so the 4px actually lands — an inline <em> drops vertical
-     margins on the floor, so this line has always sat hard against the one
-     above it. Only visible once the copy grew past a few words. */
-  .fg-cmd .cempty em { display:block; font-style:normal; font-size:13px; color:var(--q); margin-top:4px; }
   .fg-cmd .cfoot { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; border-top:1px solid var(--tint); background:rgba(249,250,251,.5); }
   .fg-cmd .cf-l { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--q); }
   .fg-cmd .cf-r { display:flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--q); }

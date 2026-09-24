@@ -1084,6 +1084,57 @@ describe("a job named in the URL", () => {
     render(<OverviewScreen data={base} />);
     expect(screen.getByTestId("jboard").textContent).toContain("open:none");
   });
+
+  /* ⌘K, opened while standing on the Workboard, changes only the query. The
+     outlet is keyed on the pathname, so this screen is NOT remounted, and a
+     job read once as opening state was never seen — the palette closed and
+     nothing opened. */
+  const held = { ...base, allJobs: { jobs: [job], truncated: false, projectLinks: [] } };
+
+  it("takes a job named while the board is already open, from whichever side", async () => {
+    const { rerender } = render(<OverviewScreen data={held} />);
+    await toProjects();
+
+    rerender(<OverviewScreen data={held} openJob={{ ...job }} />);
+
+    expect(screen.getByTestId("jboard").textContent).toContain("open:job:j-7");
+  });
+
+  it("hands a job over once per naming, not once per render", async () => {
+    const { rerender } = render(<OverviewScreen data={held} openJob={job} />);
+    await toProjects();
+    await goSide(/^All jobs/);
+    expect(screen.getByTestId("jboard").textContent).toContain("open:none");
+
+    // the same naming, rendered again, is not a second naming
+    rerender(<OverviewScreen data={held} openJob={job} />);
+    expect(screen.getByTestId("jboard").textContent).toContain("open:none");
+    // nor is the page rendering after the link has left the address
+    rerender(<OverviewScreen data={held} openJob={null} />);
+    expect(screen.getByTestId("jboard").textContent).toContain("open:none");
+
+    // naming it again is
+    rerender(<OverviewScreen data={held} openJob={{ ...job }} />);
+    expect(screen.getByTestId("jboard").textContent).toContain("open:job:j-7");
+  });
+
+  /* Left in the address, every refresh would name the job again — a save on
+     its sheet revalidates the page — and naming the same job twice would be a
+     link to where you already are. */
+  it("takes the link out of the address once it has landed, and nothing else", () => {
+    window.history.replaceState(null, "", "/dashboard/workboard?job=j-7&side=jobs");
+    render(<OverviewScreen data={held} openJob={job} />);
+    expect(window.location.pathname).toBe("/dashboard/workboard");
+    expect(window.location.search).toBe("?side=jobs");
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("leaves the address alone when no job was named", () => {
+    window.history.replaceState(null, "", "/dashboard/workboard?job=j-gone");
+    render(<OverviewScreen data={held} />);
+    expect(window.location.search).toBe("?job=j-gone");
+    window.history.replaceState(null, "", "/");
+  });
 });
 
 describe("what the screen tells the Tiff button", () => {

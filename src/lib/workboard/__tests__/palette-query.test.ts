@@ -43,6 +43,17 @@ describe("searchClients", () => {
     expect(asked("sm8_companies", "ilike")).toEqual([["name", "%kings%"]]);
   });
 
+  /* Several words each have to START a word of the name, in any order:
+     "constr hr" is HR Constructions, and "hr" inside Christine is not "hr". */
+  it("asks for every word of several at the start of a word of the name", async () => {
+    await searchClients("org-1", "constr hr");
+    expect(asked("sm8_companies", "ilike")).toEqual([]);
+    expect(asked("sm8_companies", "or")).toEqual([
+      ["name.ilike.constr%,name.ilike.% constr%"],
+      ["name.ilike.hr%,name.ilike.% hr%"],
+    ]);
+  });
+
   /* Alphabetical is how the book is read; it is not how an answer is ranked.
      "kings" wants Kingsford Bakery before The Kingsway Group. */
   it("puts the name itself, then a name that starts with it, then a word that does", async () => {
@@ -78,9 +89,22 @@ describe("searchClients", () => {
 
 describe("searchProjects", () => {
   it("asks by name, client or site, with the syntax PostgREST reads scrubbed out", async () => {
+    await searchProjects("org-1", "Kingsford");
+    expect(asked("projects", "or")).toEqual([
+      [
+        "name.ilike.%kingsford%,client_name.ilike.%kingsford%,site_label.ilike.%kingsford%,site_address.ilike.%kingsford%",
+      ],
+    ]);
+  });
+
+  /* Every word has to land in one of the four — "hr mosman" is HR's project
+     on a Mosman site — and the brackets and commas PostgREST reads as syntax
+     never reach it. */
+  it("asks for every word, each in any of them", async () => {
     await searchProjects("org-1", "smith, (jones)");
     expect(asked("projects", "or")).toEqual([
-      ["name.ilike.%smith   jones%,client_name.ilike.%smith   jones%,site_label.ilike.%smith   jones%"],
+      ["name.ilike.%smith%,client_name.ilike.%smith%,site_label.ilike.%smith%,site_address.ilike.%smith%"],
+      ["name.ilike.%jones%,client_name.ilike.%jones%,site_label.ilike.%jones%,site_address.ilike.%jones%"],
     ]);
   });
 

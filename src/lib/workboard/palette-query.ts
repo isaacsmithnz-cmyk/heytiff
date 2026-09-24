@@ -27,9 +27,13 @@ export type PaletteProject = {
   status: string;
 };
 
-/** Commas and brackets are PostgREST's own syntax inside `.or()`, and `%` is
-    LIKE's — the same scrub the mirror's job search gives a typed term. */
-const scrub = (term: string) => term.replace(/[%,()]/g, " ").trim();
+/** Commas, brackets and quotes are PostgREST's own syntax inside `.or()`, and
+    `%` is LIKE's — the same scrub the mirror's job search gives a typed term. */
+const scrub = (term: string) => term.replace(/[%,()"\\]/g, " ").trim();
+
+/** The typed words, once each. Several must each land — a second word
+    narrows, the rule every search box here runs. */
+const wordsOf = (safe: string) => [...new Set(safe.toLowerCase().split(/\s+/).filter(Boolean))];
 
 const oneLine = (text: string | null): string | null => {
   const flat = (text ?? "").replace(/\s*\n\s*/g, ", ").replace(/\s+/g, " ").trim();
@@ -60,14 +64,18 @@ export async function searchClients(
 ): Promise<PaletteClient[]> {
   const safe = scrub(term);
   if (safe.length < 2) return [];
-  const { data } = await supabaseAdmin
+  const words = wordsOf(safe);
+  let asked = supabaseAdmin
     .from("sm8_companies")
     .select("uuid, name, address")
     .eq("org_id", orgId)
-    .eq("active", 1)
-    .ilike("name", `%${safe}%`)
-    .order("name", { ascending: true })
-    .limit(CLIENT_POOL);
+    .eq("active", 1);
+  /* One word is looked for anywhere in a name, and ranked. Several must each
+     START a word of it, in any order — "constr hr" is HR Constructions — the
+     rule the mirror's own job search names a client by. */
+  if (words.length === 1) asked = asked.ilike("name", `%${safe}%`);
+  else for (const w of words) asked = asked.or(`name.ilike.${w}%,name.ilike.% ${w}%`);
+  const { data } = await asked.order("name", { ascending: true }).limit(CLIENT_POOL);
 
   return ((data ?? []) as { uuid: string; name: string | null; address: string | null }[])
     .map((c) => ({ uuid: c.uuid, name: (c.name ?? "").trim(), address: oneLine(c.address) }))
@@ -78,9 +86,10 @@ export async function searchClients(
     .map(({ c }) => c);
 }
 
-/** Projects by their name, their client or their site. Archived ones stay put
-    away, as they do on the Projects list — "done" is still work somebody
-    looks up. */
+/** Projects by their name, their client or their site — every word landing in
+    one of them, so "hr mosman" is HR's project on a Mosman site. Archived ones
+    stay put away, as they do on the Projects list — "done" is still work
+    somebody looks up. */
 export async function searchProjects(
   orgId: string,
   term: string,
@@ -88,14 +97,17 @@ export async function searchProjects(
 ): Promise<PaletteProject[]> {
   const safe = scrub(term);
   if (safe.length < 2) return [];
-  const { data } = await supabaseAdmin
+  let asked = supabaseAdmin
     .from("projects")
     .select("id, name, client_name, site_label, stage, status")
     .eq("org_id", orgId)
-    .neq("status", "archived")
-    .or(`name.ilike.%${safe}%,client_name.ilike.%${safe}%,site_label.ilike.%${safe}%`)
-    .order("updated_at", { ascending: false })
-    .limit(limit);
+    .neq("status", "archived");
+  for (const w of wordsOf(safe)) {
+    asked = asked.or(
+      `name.ilike.%${w}%,client_name.ilike.%${w}%,site_label.ilike.%${w}%,site_address.ilike.%${w}%`
+    );
+  }
+  const { data } = await asked.order("updated_at", { ascending: false }).limit(limit);
 
   return (
     (data ?? []) as {

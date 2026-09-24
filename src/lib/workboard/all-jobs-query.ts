@@ -1165,12 +1165,16 @@ export async function searchAllMirrorJobs(
   if (!safe) return [];
 
   const [{ data: byNumber }, { data: companyRows }] = await Promise.all([
+    /* In number order, which puts the number typed FIRST: a prefix sorts
+       before everything it starts. Unordered, "23" could hand back thirty of
+       the hundred-odd jobs from 230 to 2399 and leave out job 23 itself. */
     supabaseAdmin
       .from("sm8_jobs")
       .select(columns)
       .eq("org_id", orgId)
       .eq("active", 1)
       .ilike("generated_job_id", `${safe}%`)
+      .order("generated_job_id", { ascending: true })
       .limit(limit),
     supabaseAdmin
       .from("sm8_companies")
@@ -1213,9 +1217,55 @@ export async function searchAllMirrorJobs(
     }
   }
   const found = rows.slice(0, limit);
+  return hydrateMirrorJobs(
+    orgId,
+    found,
+    today,
+    includeMoney,
+    new Map(companies.map((c) => [c.uuid, c.name]))
+  );
+}
+
+/** One job from the whole mirror, by its uuid, in the shape the board's rows
+    take. This is how a link to a job past the loaded window still opens its
+    card: the palette finds a job finished last year, and the board it lands
+    on only ever loaded 56 days of finished work. */
+export async function readMirrorJobRow(
+  orgId: string,
+  remoteId: string,
+  today: string,
+  opts: { includeMoney?: boolean } = {}
+): Promise<AllJobsMirrorJob | null> {
+  const includeMoney = opts.includeMoney ?? true;
+  const base =
+    "uuid, generated_job_id, status, company_uuid, geo_city, category_uuid, " +
+    "job_description, date, quote_date, completion_date";
+  const { data } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select(includeMoney ? `${base}, ${SM8_JOB_MONEY_COLUMNS}` : base)
+    .eq("org_id", orgId)
+    .eq("uuid", remoteId)
+    .eq("active", 1)
+    .maybeSingle();
+  if (!data) return null;
+  const [job] = await hydrateMirrorJobs(orgId, [data as unknown as JobRow], today, includeMoney);
+  return job ?? null;
+}
+
+/** Slim rows become board rows: the client's name, the category, the next
+    booking and — for a reader who holds money — what has been paid. ONE
+    DOOR for the search and the single read, so a job never reports two
+    states depending on how it was reached. `nameById` carries the names a
+    caller already looked up. */
+async function hydrateMirrorJobs(
+  orgId: string,
+  found: JobRow[],
+  today: string,
+  includeMoney: boolean,
+  nameById: Map<string, string | null> = new Map()
+): Promise<AllJobsMirrorJob[]> {
   if (found.length === 0) return [];
 
-  const nameById = new Map(companies.map((c) => [c.uuid, c.name]));
   const missing = [
     ...new Set(
       found

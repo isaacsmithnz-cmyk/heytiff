@@ -34,6 +34,19 @@ import type { AllJobsMirrorJob } from "./all-jobs";
     box never disagree about when searching has started. */
 export const SEARCH_MIN = 2;
 
+/* The word before the number: "job", "jobs", then "no", "no." or "number",
+   each only as a whole word — "jobson" is a client, not a job. */
+const JOB_LEAD = /^(?:jobs?(?=[\s#\d]|$)\s*(?:(?:number|no\.?)(?=[\s#\d]|$)\s*)?)?#?\s*/i;
+
+/** What the palette asks the mirror, from what somebody typed. People write
+    the word before the number — "job 288", "job #288", "#288", "job no. 288"
+    — and the mirror stores the number bare, so the lead goes and the rest is
+    asked as typed: "job kingsford" asks for Kingsford. Nothing but the lead
+    asks for nothing. */
+export function jobSearchTerm(query: string): string {
+  return query.trim().replace(JOB_LEAD, "").trim();
+}
+
 /** Past this a group is answering with a wall rather than an answer. The
     count line says what was held back — a cap nobody is told about reads as
     "that's all there is". */

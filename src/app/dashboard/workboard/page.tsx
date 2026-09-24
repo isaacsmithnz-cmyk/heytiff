@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { can } from "@/lib/permissions-server";
-import { loadWorkboardPage } from "@/lib/workboard/page-data";
+import { loadLinkedJob, loadWorkboardPage } from "@/lib/workboard/page-data";
 import { OverviewScreen } from "@/components/workboard/overview-screen";
 
 /* The Workboard — Overview today; Projects and Maintenance land as their own
@@ -21,11 +21,12 @@ export default async function WorkboardPage({
 
   /* `?job=<uuid>` lands on the jobs side with that job's card open — the way
      in from outside the board (Home's day band hands its agreement door
-     here). Resolved against the book the page already loaded, so a link to
-     a job the board does not hold simply lands on the board. */
+     here, the palette every job it finds). The book the page already loaded
+     answers first; past it, the whole mirror does, because the palette finds
+     jobs finished long before the board's window. A link to a job this org
+     does not hold simply lands on the board. */
   const wanted = (await searchParams).job;
-  const openJob =
-    typeof wanted === "string" ? (data.allJobs.jobs.find((j) => j.remoteId === wanted) ?? null) : null;
+  const openJob = typeof wanted === "string" && wanted ? await loadLinkedJob(data, wanted) : null;
 
   return <OverviewScreen data={data} openJob={openJob} />;
 }

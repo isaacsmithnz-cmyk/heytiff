@@ -127,10 +127,35 @@ export function OverviewScreen({
     | { side: "jobs"; kind: "job"; job: AllJobsMirrorJob };
   const [handoff, setHandoff] = useState<Handoff | null>(
     /* A job named in the URL arrives the way a search hit does: the jobs
-       side, its sheet open on that job. Seeded once — the outlet is keyed on
-       the pathname, so a navigation here always mounts this fresh. */
+       side, its sheet open on that job. */
     openJob ? { side: "jobs", kind: "job", job: openJob } : null
   );
+  /* ...and a job named AGAIN arrives the same way. Seeding alone was not
+     enough: the outlet is keyed on the PATHNAME, so a link here from the
+     Workboard itself — the palette, opened while standing on this board —
+     changes only the query and never remounts this screen. Taken by identity
+     while rendering, like the boards take a handoff: each navigation hands a
+     fresh object, a re-render hands the same one. */
+  const [takenJob, setTakenJob] = useState(openJob);
+  if (openJob !== takenJob) {
+    setTakenJob(openJob);
+    if (openJob) {
+      setHandoff({ side: "jobs", kind: "job", job: openJob });
+      setTab("jobs");
+    }
+  }
+  /* The link has done its job once the sheet is open, so it leaves the
+     address. Left there, every refresh would hand the same job over again —
+     a save on the sheet revalidates this page, and the sheet you were
+     writing in would reopen under you — and naming the same job twice would
+     change nothing a router could see. `?`-only, so the outlet keeps its key. */
+  useEffect(() => {
+    if (!openJob) return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("job")) return;
+    url.searchParams.delete("job");
+    window.history.replaceState(null, "", url.toString());
+  }, [openJob]);
   const pickSide = (side: SideKey) => {
     setHandoff(null);
     setTab(side);

@@ -31,7 +31,9 @@ jest.mock("@/lib/supabase-server", () => ({
       sub.eq = () => sub;
       sub.in = note("in");
       sub.ilike = note("ilike");
-      sub.order = () => sub;
+      sub.order = note("order");
+      sub.gte = () => sub;
+      sub.or = note("or");
       sub.limit = note("limit");
       sub.maybeSingle = () => {
         const q = singleQueue[table];
@@ -48,7 +50,9 @@ jest.mock("@/lib/supabase-server", () => ({
 import {
   readJobFamily,
   readMirrorJobDetail,
+  readMirrorJobRow,
   resolveJobCard,
+  searchAllMirrorJobs,
 } from "@/lib/workboard/all-jobs-query";
 
 const TODAY = "2026-08-14";
@@ -436,5 +440,59 @@ describe("resolveJobCard", () => {
       parentRemoteId: "j-nope",
       focusRemoteId: null,
     });
+  });
+});
+
+/* ⌘K finds a job anywhere in the mirror and opens it on the Workboard, whose
+   own book only holds 56 days of finished work — so the link reads the one
+   job itself when the book doesn't have it. */
+describe("readMirrorJobRow", () => {
+  it("reads one job past the board's window, in the board's own shape", async () => {
+    singleBy["sm8_jobs"] = {
+      ...jobRow,
+      uuid: "j-288",
+      generated_job_id: "288",
+      status: "Completed",
+      company_uuid: "c-1",
+      geo_city: "Kingsford",
+      completion_date: "2024-03-04 15:00:00",
+    };
+    rowsBy["sm8_companies"] = [{ uuid: "c-1", name: "Kingsford Bakery" }];
+
+    const job = await readMirrorJobRow("org-1", "j-288", TODAY, { includeMoney: false });
+
+    expect(job).toMatchObject({
+      remoteId: "j-288",
+      jobNumber: "288",
+      status: "Completed",
+      clientName: "Kingsford Bakery",
+      description: "Split not cooling",
+      suburb: "Kingsford",
+      completionDate: "2024-03-04 15:00:00",
+      money: null,
+      paidCents: 0,
+    });
+  });
+
+  it("answers null for a job this org's mirror does not hold", async () => {
+    singleBy["sm8_jobs"] = null;
+    expect(await readMirrorJobRow("org-1", "j-elsewhere", TODAY)).toBeNull();
+  });
+});
+
+describe("searchAllMirrorJobs", () => {
+  /* Unordered, "23" could come back as thirty of the hundred-odd jobs from
+     230 to 2399 and leave out job 23 itself; in number order a prefix sorts
+     before everything it starts. */
+  it("asks for the number in number order, so the number typed comes first", async () => {
+    rowsBy["sm8_jobs"] = [];
+    await searchAllMirrorJobs("org-1", "23", TODAY, { includeMoney: false });
+
+    const byNumber = calls.findIndex(
+      (c) => c.table === "sm8_jobs" && c.method === "ilike" && c.args[0] === "generated_job_id"
+    );
+    expect(byNumber).toBeGreaterThanOrEqual(0);
+    const order = calls.slice(byNumber + 1).find((c) => c.table === "sm8_jobs" && c.method === "order");
+    expect(order?.args).toEqual(["generated_job_id", { ascending: true }]);
   });
 });

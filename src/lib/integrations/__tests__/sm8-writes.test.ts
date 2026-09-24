@@ -20,6 +20,13 @@ let storageFails = false;
 let onDownload: () => void = () => {};
 /** Tables whose every query answers with an error. */
 const failing = new Set<string>();
+/** Tables whose UPDATES answer with an error, reads still fine. */
+const failingUpdates = new Set<string>();
+/** Columns this database doesn't have yet: an update naming one is refused
+    the way PostgREST refuses it. */
+const missingColumns = new Set<string>();
+/** Runs before an upsert; an error it returns is the upsert's answer. */
+let beforeUpsert: () => { code: string; message: string } | null = () => null;
 
 /** The migration's generated column, as the database computes it. */
 const keyOf = (r: Row) => `${r.kind}:${r.sm8_job_uuid ?? ""}:${r.subject}`;
@@ -69,11 +76,25 @@ function from(table: string) {
   let head = false;
   const exec = () => {
     if (failing.has(table)) return { data: null, count: null, error: { code: "XX000", message: "fake: down" } };
+    if (op === "update" && failingUpdates.has(table)) return { data: null, error: { code: "XX000", message: "fake: down" } };
+    if (op === "update" && Object.keys(patch).some((c) => missingColumns.has(c))) {
+      return { data: null, error: { code: "PGRST204", message: "fake: no such column" } };
+    }
     const rows = db[table];
     if (op === "upsert") {
+      const raced = beforeUpsert();
+      if (raced) return { data: null, error: raced };
       const made: Row[] = [];
       for (const r of incoming) {
-        const row: Row = { replaced_uuids: [], free_retries: 0, verify_uuid: null, claim_id: null, lease_until: null, ...r };
+        const row: Row = {
+          replaced_uuids: [],
+          free_retries: 0,
+          maybe_landed: false,
+          verify_uuids: [],
+          claim_id: null,
+          lease_until: null,
+          ...r,
+        };
         if (table === "sm8_writes") row.dedupe_key = keyOf(row);
         /* a unique index: NULLs never clash */
         const clash = rows.some((x) => conflict.every((c) => x[c] != null && x[c] === row[c]));
@@ -254,6 +275,9 @@ beforeEach(async () => {
   storageFails = false;
   onDownload = () => {};
   failing.clear();
+  failingUpdates.clear();
+  missingColumns.clear();
+  beforeUpsert = () => null;
   scheduled.length = 0;
   process.env.SM8_WRITES = "1";
   sm8AccessResult.mockReset().mockResolvedValue({ ok: true, access: ACCESS });
@@ -355,6 +379,7 @@ describe("queueing", () => {
       attempts: 6,
       last_error: "x",
       http_status: 503,
+      maybe_landed: true,
       remote_code: "500",
       remote_message: "down",
     });
@@ -369,17 +394,18 @@ describe("queueing", () => {
       remote_code: null,
       remote_message: null,
       replaced_uuids: [old],
-      verify_uuid: old,
+      verify_uuids: [old],
+      maybe_landed: false,
     });
     expect(writes()[0].remote_uuid).not.toBe(old);
     expect(writes()[0].remote_uuid).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it("checks nothing first when the last answer was one ServiceM8 meant", async () => {
+  it("checks nothing first when nothing under the old uuid went out unanswered", async () => {
     await queue("d1");
     Object.assign(writes()[0], { status: "failed", attempts: 1, http_status: 413 });
     await queue("d1");
-    expect(writes()[0].verify_uuid).toBeNull();
+    expect(writes()[0].verify_uuids).toEqual([]);
   });
 
   it("gives a trial row and a cancelled row a new uuid too", async () => {
@@ -432,6 +458,46 @@ describe("queueing", () => {
     expect(writes()[0].dedupe_key).toBe("attachment::document:d1");
   });
 
+  it("says a re-queue that couldn't be written couldn't be queued — never that the file is already there", async () => {
+    await queue("d1");
+    Object.assign(writes()[0], { status: "failed", attempts: 6 });
+    failingUpdates.add("sm8_writes");
+    const state = await readSm8WriteState(ORG);
+    expect(await enqueueAttachments(press, state, [file("d1")], NOW)).toBeNull();
+    expect(writes()[0].status).toBe("failed");
+  });
+
+  it("reads a press that lost the race to the same file as 'already', not as a failure", async () => {
+    /* while the old unique index stands beside the new one, the loser of two
+       presses at the same instant raises 23505 instead of doing nothing */
+    beforeUpsert = () => {
+      beforeUpsert = () => null;
+      db.sm8_writes.push({
+        id: "theirs",
+        org_id: ORG,
+        tenant_id: "vendor-1",
+        kind: "attachment",
+        sm8_job_uuid: "job-1",
+        subject: "document:d1",
+        dedupe_key: "attachment:job-1:document:d1",
+        status: "queued",
+      });
+      return { code: "23505", message: "duplicate key value violates unique constraint \"sm8_writes_subject_uniq\"" };
+    };
+    const q = await queue("d1", "d2");
+    // d1 is the other press's; d2, which the failed statement never reached, goes in
+    expect(q.already).toEqual(["d1"]);
+    expect(q.ids).toHaveLength(1);
+    expect(writes().map((w) => w.subject).sort()).toEqual(["document:d1", "document:d2"]);
+    expect(writes().find((w) => w.subject === "document:d2")!.status).toBe("queued");
+  });
+
+  it("still fails a press whose insert fails for any other reason", async () => {
+    beforeUpsert = () => ({ code: "XX000", message: "fake: down" });
+    const state = await readSm8WriteState(ORG);
+    expect(await enqueueAttachments(press, state, [file("d1")], NOW)).toBeNull();
+  });
+
   it("brings a waiting retry forward, keeping its count", async () => {
     await queue("d1");
     Object.assign(writes()[0], { attempts: 2, next_attempt_at: "2026-09-24T09:00:00.000Z" });
@@ -470,6 +536,24 @@ describe("the hourly cap", () => {
       paused_reason: "cap",
       paused_at: new Date(NOW).toISOString(),
     });
+  });
+
+  it("leaves an owner's own Paused or Off alone, set between the press's read and the trip", async () => {
+    pressed(60, 10);
+    const stale = await readSm8WriteState(ORG);
+    for (const [mode, reason] of [
+      ["paused", "owner"],
+      ["off", null],
+    ] as const) {
+      Object.assign(db.integration_connections[0], { write_mode: mode, paused_reason: reason, paused_at: "2026-09-23T00:00:00.000Z" });
+      const q = await enqueueAttachments(press, stale, [file("d1")], NOW);
+      expect(q?.capped).toBe(true);
+      expect(db.integration_connections[0]).toMatchObject({
+        write_mode: mode,
+        paused_reason: reason,
+        paused_at: "2026-09-23T00:00:00.000Z",
+      });
+    }
   });
 
   it("takes the 60th", async () => {
@@ -624,6 +708,36 @@ describe("doubt holds, and never cancels", () => {
     expect(postSm8Attachment).not.toHaveBeenCalled();
     expect(writes()[0].status).toBe("queued");
     expect(writes()[0].last_error ?? null).toBeNull();
+  });
+
+  it.each([
+    ["the owner pauses it", { write_mode: "paused", paused_reason: "owner" }, WRITE_WORDS.paused],
+    ["it turns to a trial run", { write_mode: "trial" }, "Sending to ServiceM8 changed to a trial run."],
+    ["the account changes", { tenant_id: "vendor-2" }, WRITE_WORDS.otherAccount],
+  ])("claims nothing more once %s mid-run", async (_what, change, stopped) => {
+    /* Pause changes no row: a run already going must read the switch again
+       before its next claim, or "Paused: nothing goes" is a suggestion */
+    const { ids } = await queue("d1", "d2", "d3");
+    postSm8Attachment.mockImplementationOnce(async () => {
+      Object.assign(db.integration_connections[0], change);
+      return { status: 200, outcome: { kind: "created", remoteUuid: null } };
+    });
+    const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(run).toMatchObject({ done: 1, sent: 1, stopped });
+    expect(postSm8Attachment).toHaveBeenCalledTimes(1);
+    expect(writes()[1]).toMatchObject({ status: "queued", attempts: 0 });
+    expect(writes()[2]).toMatchObject({ status: "queued", attempts: 0 });
+  });
+
+  it("holds, mid-run, when the switch can't be read again", async () => {
+    const { ids } = await queue("d1", "d2");
+    postSm8Attachment.mockImplementationOnce(async () => {
+      failing.add("integration_connections");
+      return { status: 200, outcome: { kind: "created", remoteUuid: null } };
+    });
+    const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(run).toMatchObject({ done: 1, stopped: WRITE_WORDS.settingsUnread });
+    expect(writes()[1]).toMatchObject({ status: "queued", attempts: 0 });
   });
 
   it("cancels, in the disconnect's words, what waits for a connection that is gone", async () => {
@@ -896,7 +1010,7 @@ describe("a file ServiceM8 left unfinished", () => {
 describe("a file asked for again after an unanswered try", () => {
   const again = async () => {
     const { ids } = await queue("d1");
-    Object.assign(writes()[0], { status: "failed", attempts: 6, http_status: null });
+    Object.assign(writes()[0], { status: "failed", attempts: 6, http_status: null, maybe_landed: true });
     const old = String(writes()[0].remote_uuid);
     await queue("d1");
     return { ids, old, fresh: String(writes()[0].remote_uuid) };
@@ -910,7 +1024,7 @@ describe("a file asked for again after an unanswered try", () => {
     expect(postSm8Attachment).not.toHaveBeenCalled();
     expect(downloads).toEqual([]);
     expect(run.sent).toBe(1);
-    expect(writes()[0]).toMatchObject({ status: "sent", remote_uuid: old, verify_uuid: null, replaced_uuids: [] });
+    expect(writes()[0]).toMatchObject({ status: "sent", remote_uuid: old, verify_uuids: [], replaced_uuids: [] });
   });
 
   it("goes under the new uuid when the last try isn't there", async () => {
@@ -918,7 +1032,7 @@ describe("a file asked for again after an unanswered try", () => {
     readSm8Attachment.mockResolvedValueOnce({ ok: true, found: false });
     await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
     expect(postSm8Attachment).toHaveBeenCalledWith("token-1", expect.objectContaining({ uuid: fresh }));
-    expect(writes()[0]).toMatchObject({ status: "sent", remote_uuid: fresh, verify_uuid: null });
+    expect(writes()[0]).toMatchObject({ status: "sent", remote_uuid: fresh, verify_uuids: [] });
   });
 
   it("waits, counted, when ServiceM8 can't be asked", async () => {
@@ -927,7 +1041,109 @@ describe("a file asked for again after an unanswered try", () => {
     const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
     expect(postSm8Attachment).not.toHaveBeenCalled();
     expect(run.stopped).toBe(WRITE_WORDS.unreachable);
-    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 1, verify_uuid: old });
+    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 1, verify_uuids: [old] });
+  });
+});
+
+describe("an upload that may have landed is checked, whatever came between", () => {
+  const lost = { status: null, outcome: { kind: "unavailable", status: null }, remote: null };
+  const due = () => (writes()[0].next_attempt_at = new Date(NOW).toISOString());
+
+  it("through Off, a trial run and back: the lost upload is still checked, and never uploaded twice", async () => {
+    /* U1's upload times out and lands unseen. Off cancels it; a press makes
+       U2 and keeps U1 to check; a trial run uploads nothing under U2. The
+       next live press must still check U1 — not U2, which never went */
+    const { ids } = await queue("d1");
+    const u1 = String(writes()[0].remote_uuid);
+    postSm8Attachment.mockResolvedValueOnce(lost);
+    await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(writes()[0]).toMatchObject({ status: "queued", maybe_landed: true });
+
+    await setSm8WriteMode(ORG, "off", NOW);
+    db.integration_connections[0].write_mode = "trial";
+    await queue("d1");
+    const u2 = String(writes()[0].remote_uuid);
+    expect(writes()[0]).toMatchObject({ verify_uuids: [u1], maybe_landed: false });
+    await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(writes()[0]).toMatchObject({ status: "trial", attempts: 1, verify_uuids: [u1], maybe_landed: false });
+
+    db.integration_connections[0].write_mode = "live";
+    await queue("d1");
+    expect(writes()[0].verify_uuids).toEqual([u1]);
+    expect(writes()[0].replaced_uuids).toEqual([u1, u2]);
+
+    readSm8Attachment.mockResolvedValueOnce({ ok: true, found: true, jobUuid: "job-1", active: true });
+    await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(readSm8Attachment).toHaveBeenCalledWith("token-1", u1);
+    expect(postSm8Attachment).toHaveBeenCalledTimes(1);
+    expect(writes()[0]).toMatchObject({ status: "sent", remote_uuid: u1, verify_uuids: [] });
+  });
+
+  it("through a check that couldn't be read until the row gave up", async () => {
+    const { ids } = await queue("d1");
+    const u1 = String(writes()[0].remote_uuid);
+    postSm8Attachment.mockResolvedValueOnce(lost);
+    await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    Object.assign(writes()[0], { status: "failed" });
+    await queue("d1");
+    expect(writes()[0].verify_uuids).toEqual([u1]);
+
+    readSm8Attachment.mockResolvedValue({ ok: false });
+    for (let i = 0; i < 6; i++) {
+      due();
+      await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    }
+    expect(writes()[0]).toMatchObject({ status: "failed", last_error: WRITE_WORDS.gaveUp, verify_uuids: [u1], maybe_landed: false });
+
+    await queue("d1");
+    expect(writes()[0].verify_uuids).toEqual([u1]);
+    expect(postSm8Attachment).toHaveBeenCalledTimes(1);
+  });
+
+  it("after a 409 whose record couldn't be read back — a record exists under that uuid, and may be ours", async () => {
+    const { ids } = await queue("d1");
+    const u1 = String(writes()[0].remote_uuid);
+    postSm8Attachment.mockResolvedValueOnce({ status: 409, outcome: { kind: "exists" }, remote: null });
+    readSm8Attachment.mockResolvedValueOnce({ ok: false });
+    await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(writes()[0]).toMatchObject({ status: "queued", http_status: 409, maybe_landed: true });
+    Object.assign(writes()[0], { status: "failed" });
+    await queue("d1");
+    expect(writes()[0].verify_uuids).toEqual([u1]);
+  });
+
+  it("after a sender that never finished its upload", async () => {
+    /* the claim marks the uuid before the upload goes; a sender that loses
+       its row mid-upload records nothing, and the mark is what is left */
+    const { ids } = await queue("d1");
+    const u1 = String(writes()[0].remote_uuid);
+    postSm8Attachment.mockImplementationOnce(async () => {
+      Object.assign(writes()[0], { status: "cancelled", last_error: WRITE_WORDS.switchedOff });
+      return { status: 200, outcome: { kind: "created", remoteUuid: null }, remote: null };
+    });
+    const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(run.lost).toBe(1);
+    expect(writes()[0]).toMatchObject({ status: "cancelled", maybe_landed: true });
+
+    await queue("d1");
+    expect(writes()[0].verify_uuids).toEqual([u1]);
+    readSm8Attachment.mockResolvedValueOnce({ ok: true, found: true, jobUuid: "job-1", active: true });
+    await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(postSm8Attachment).toHaveBeenCalledTimes(1);
+    expect(writes()[0]).toMatchObject({ status: "sent", remote_uuid: u1 });
+  });
+
+  it("but not after an answer ServiceM8 meant, or a trial run", async () => {
+    const { ids } = await queue("d1", "d2");
+    postSm8Attachment.mockResolvedValueOnce({ status: 413, outcome: { kind: "rejected", status: 413 }, remote: null });
+    await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(writes()[0]).toMatchObject({ status: "failed", maybe_landed: false });
+    expect(writes()[1]).toMatchObject({ status: "sent", maybe_landed: false });
+
+    db.integration_connections[0].write_mode = "trial";
+    await queue("d3");
+    await runSm8Writes(ORG, "send", { clock: () => NOW });
+    expect(writes()[2]).toMatchObject({ status: "trial", maybe_landed: false });
   });
 });
 
@@ -1108,6 +1324,17 @@ describe("the switch, and cancelling", () => {
     });
   });
 
+  it("switches every setting but Paused on a database without the pause columns yet", async () => {
+    missingColumns.add("paused_reason");
+    expect(await setSm8WriteMode(ORG, "trial", NOW)).toEqual({ ok: true, cancelled: [] });
+    expect(db.integration_connections[0].write_mode).toBe("trial");
+    expect(await setSm8WriteMode(ORG, "live", NOW)).toEqual({ ok: true, cancelled: [] });
+    expect(db.integration_connections[0].write_mode).toBe("live");
+    // Paused needs them: it says so rather than half-switching
+    expect(await setSm8WriteMode(ORG, "paused", NOW)).toEqual({ ok: false });
+    expect(db.integration_connections[0].write_mode).toBe("live");
+  });
+
   it("leaves a send in flight alone, and takes one whose claim has lapsed", async () => {
     await queue("d1", "d2");
     Object.assign(writes()[0], { status: "sending", lease_until: new Date(NOW + 60_000).toISOString() });
@@ -1143,6 +1370,24 @@ describe("kicks", () => {
     expect(scheduled).toHaveLength(1);
   });
 
+  it("sends what is due in the kick's run, while the page's function has time for it", async () => {
+    await queue("d1");
+    await kickSm8WritesIfDue(ORG, Date.now());
+    await scheduled[0]();
+    expect(postSm8Attachment).toHaveBeenCalledTimes(1);
+  });
+
+  it("claims nothing in a kick whose function has no time left for a send", async () => {
+    /* the page's function began 170 s ago: a send claimed now could hold its
+       row a whole lease (120 s) past the function's 300 */
+    await queue("d1");
+    await kickSm8WritesIfDue(ORG, Date.now() - 170_000);
+    expect(scheduled).toHaveLength(1);
+    await scheduled[0]();
+    expect(postSm8Attachment).not.toHaveBeenCalled();
+    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0 });
+  });
+
   it("gives the nightly sweep each workspace with something due, once", async () => {
     await queue("d1", "d2");
     db.sm8_writes.push({ ...writes()[0], id: "other", org_id: "org-2" });
@@ -1168,7 +1413,7 @@ describe("the owner's Retry failed files", () => {
       status: "failed",
       attempts: 6,
       http_status: 413,
-      verify_uuid: null,
+      verify_uuids: [],
       pressed_at: "2026-09-20T00:00:00.000Z",
       updated_at: `2026-09-2${id.length}T00:00:00.000Z`,
       ...over,
@@ -1304,6 +1549,17 @@ describe("what the card and the screen read", () => {
   it("counts what is waiting, and what failed", async () => {
     await queue("d1", "d2", "d3");
     writes()[2].status = "failed";
-    expect(await countSm8Queue(ORG, NOW)).toEqual({ waiting: 2, failed: 1 });
+    expect(await countSm8Queue(ORG, "vendor-1", NOW)).toEqual({ waiting: 2, failed: 1 });
+  });
+
+  it("counts only the connected account's failures — the ones Retry failed files can reach", async () => {
+    await queue("d1", "d2");
+    Object.assign(writes()[0], { status: "failed", tenant_id: "vendor-old" });
+    writes()[1].status = "sent";
+    expect(await countSm8Queue(ORG, "vendor-1", NOW)).toEqual({ waiting: 0, failed: 0 });
+    // and Retry agrees there is nothing of this account's to go again
+    expect(await retryFailedSm8Writes(press, await readSm8WriteState(ORG), NOW)).toMatchObject({ queued: 0, left: 0 });
+    // no account named: nothing counted as failed
+    expect((await countSm8Queue(ORG, null, NOW)).failed).toBe(0);
   });
 });

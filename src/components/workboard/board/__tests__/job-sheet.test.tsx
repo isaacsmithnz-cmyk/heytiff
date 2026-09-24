@@ -3808,6 +3808,20 @@ describe("compliance on the card", () => {
     expect(screen.getByText("1 document ticked")).toBeInTheDocument();
   });
 
+  it("says a file waiting behind a pause is held by it, not on its way", async () => {
+    sm8Send.readJobSm8.mockResolvedValue({
+      send: "live",
+      sends: [{ documentId: "d1", status: "queued", error: null, attempts: 0, remoteUuid: "r-d1" }],
+      hold: "paused",
+    });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+    expect(await face("documents").findByText("Not in ServiceM8 yet. Sending is paused.")).toBeInTheDocument();
+    expect(face("documents").queryByText("Sending to ServiceM8…")).toBeNull();
+  });
+
   it("shows a file we sent once: ServiceM8's copy stays off the list while our row shows it", async () => {
     const doc = (over: Partial<JobMediaItem> & { remoteId: string }): JobMediaItem => ({
       name: "CoC.pdf",

@@ -62,9 +62,10 @@ export default async function Servicem8IntegrationPage({
   /* Read whenever there is a connection row, not only a working one:
      Disconnect is offered in needs_reauth too, and its confirm says what it
      would cancel. A database without the account-change columns yet reads as
-     "no change". */
+     "no change". What failed is counted for the account connected now, the
+     one Retry failed files can reach. */
   const [queue, previousAccount] = connection
-    ? await Promise.all([countSm8Queue(orgId), readSm8AccountChange(orgId)])
+    ? await Promise.all([countSm8Queue(orgId, connection.tenantId), readSm8AccountChange(orgId)])
     : [{ waiting: 0, failed: 0 }, null];
   const waitingWrites = queue.waiting;
 

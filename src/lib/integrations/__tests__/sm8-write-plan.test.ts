@@ -6,8 +6,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  backgroundBudgetMs,
   capAllows,
   classifyWrite,
+  FUNCTION_MAX_MS,
+  RUN_BUDGET_MS,
   dedupeKey,
   documentSubject,
   grantedKinds,
@@ -38,6 +41,7 @@ import {
   verdictForRenewUnreachable,
   verdictForUnreadable,
   verifyOnRepress,
+  VERIFY_KEEP,
   WRITE_DOWNLOAD_TIMEOUT_MS,
   WRITE_FREE_RETRIES,
   WRITE_HOURLY_CAP,
@@ -258,6 +262,27 @@ describe("what one of our rows says", () => {
     expect(sendLine([send()], ["d1"], "paused")).toEqual({ word: "In ServiceM8", tone: "ok" });
   });
 
+  it("says why the sender put a file back, however few tries it has had", () => {
+    /* a 402 or a daily limit hands the attempt back, so a file held for 12
+       hours can read attempts 0 — it must not say "Sending…" */
+    expect(sendLine([send({ status: "queued", attempts: 0, error: WRITE_WORDS.billing })], ["d1"])).toEqual({
+      word: `Not in ServiceM8 yet. ${WRITE_WORDS.billing}`,
+      tone: "warn",
+    });
+    expect(sendLine([send({ status: "queued", attempts: 0, error: WRITE_WORDS.dailyLimit })], ["d1"])).toEqual({
+      word: `Not in ServiceM8 yet. ${WRITE_WORDS.dailyLimit}`,
+      tone: "warn",
+    });
+    expect(sendLine([send({ status: "queued", attempts: 2, error: WRITE_WORDS.unreachable })], ["d1"])).toEqual({
+      word: `Not in ServiceM8 yet. ${WRITE_WORDS.unreachable}`,
+      tone: "warn",
+    });
+    // a pause still says it's paused, and a failure still comes first
+    expect(sendLine([send({ status: "queued", error: WRITE_WORDS.billing })], ["d1"], "paused")?.word).toBe(
+      "Not in ServiceM8 yet. Sending is paused."
+    );
+  });
+
   it("says a first send quietly, and a retry in the warning colour", () => {
     expect(sendLine([send({ status: "sending", attempts: 1 })], ["d1"])).toEqual({ word: "Sending to ServiceM8…", tone: null });
     expect(sendLine([send({ status: "queued", attempts: 0 })], ["d1"])).toEqual({ word: "Sending to ServiceM8…", tone: null });
@@ -465,25 +490,52 @@ describe("when a daily limit resets", () => {
 
 describe("a file asked for again", () => {
   const row = (over: Partial<Parameters<typeof verifyOnRepress>[0]> = {}) => ({
-    attempts: 1,
-    http_status: 503 as number | null,
     remote_uuid: "old",
-    verify_uuid: null as string | null,
+    maybe_landed: false as boolean | null,
+    verify_uuids: [] as string[] | null,
     ...over,
   });
 
-  it("checks the last uuid first when its last try ended without an answer", () => {
-    expect(verifyOnRepress(row())).toBe("old");
-    expect(verifyOnRepress(row({ http_status: null }))).toBe("old");
-    expect(verifyOnRepress(row({ http_status: 408 }))).toBe("old");
-    // a trial row with attempts and no status: a live try before it may have landed
-    expect(verifyOnRepress(row({ http_status: null, attempts: 2 }))).toBe("old");
+  it("checks the uuid it leaves when an upload under it may have landed", () => {
+    expect(verifyOnRepress(row({ maybe_landed: true }))).toEqual(["old"]);
   });
 
-  it("doesn't check an answer ServiceM8 meant, and keeps an older unchecked one", () => {
-    expect(verifyOnRepress(row({ http_status: 413 }))).toBeNull();
-    expect(verifyOnRepress(row({ http_status: 413, verify_uuid: "older" }))).toBe("older");
-    expect(verifyOnRepress(row({ attempts: 0, http_status: null }))).toBeNull();
+  it("checks nothing when nothing under it went out unanswered", () => {
+    expect(verifyOnRepress(row())).toEqual([]);
+    expect(verifyOnRepress(row({ maybe_landed: null, verify_uuids: null }))).toEqual([]);
+  });
+
+  it("never drops a uuid still waiting for its check for a newer one", () => {
+    /* U1's upload was lost and the row cancelled; a re-press made U2 and
+       kept U1 to check. A trial run, or a check of U1 that couldn't be
+       read, uploaded nothing under U2 — so the next press checks U1 still,
+       and not U2 */
+    expect(verifyOnRepress(row({ remote_uuid: "U2", verify_uuids: ["U1"] }))).toEqual(["U1"]);
+    // and a uuid of its own that may have landed joins it, never replaces it
+    expect(verifyOnRepress(row({ remote_uuid: "U2", maybe_landed: true, verify_uuids: ["U1"] }))).toEqual(["U1", "U2"]);
+    expect(verifyOnRepress(row({ remote_uuid: "U1", maybe_landed: true, verify_uuids: ["U1"] }))).toEqual(["U1"]);
+  });
+
+  it("keeps the last few", () => {
+    expect(
+      verifyOnRepress(row({ remote_uuid: "U4", maybe_landed: true, verify_uuids: ["U1", "U2", "U3"] }))
+    ).toEqual(["U2", "U3", "U4"]);
+    expect(VERIFY_KEEP).toBe(3);
+  });
+});
+
+describe("a run nobody waits on fits in its function", () => {
+  it("claims for RUN_BUDGET_MS, or until a lease and a margin before the function ends", () => {
+    const t0 = 1_000_000;
+    // early on: the whole budget
+    expect(backgroundBudgetMs(t0, t0)).toBe(RUN_BUDGET_MS);
+    // 150 s in: the last claim must be by 165 s (300 − 120 − 15)
+    expect(backgroundBudgetMs(t0, t0 + 150_000)).toBe(15_000);
+    expect(FUNCTION_MAX_MS - WRITE_LEASE_MS - WRITE_LEASE_MARGIN_MS).toBe(165_000);
+    // past it: none
+    expect(backgroundBudgetMs(t0, t0 + 170_000)).toBeLessThanOrEqual(0);
+    // a route with its own maxDuration
+    expect(backgroundBudgetMs(t0, t0, 60_000)).toBeLessThanOrEqual(0);
   });
 });
 

@@ -84,6 +84,17 @@ describe("fetchSm8Page", () => {
     expect(bare.searchParams.has("$filter")).toBe(false);
   });
 
+  it("waits as long as a caller with a clock of its own asks, and the usual 10 s otherwise", async () => {
+    /* the sender reads one attachment back under its row's claim, and that
+       read's timeout is one of the clocks that must fit in the lease */
+    const timeout = jest.spyOn(AbortSignal, "timeout");
+    fetchMock.mockResolvedValue(jsonResponse([]));
+    await fetchSm8Page("t", "attachment.json", { cursor: "-1", filter: null, timeoutMs: 4_321 });
+    expect(timeout).toHaveBeenLastCalledWith(4_321);
+    await fetchSm8Page("t", "job.json", { cursor: "-1", filter: null });
+    expect(timeout).toHaveBeenLastCalledWith(10_000);
+  });
+
   it("carries the bearer token and never anything else", async () => {
     fetchMock.mockResolvedValue(jsonResponse([]));
     await fetchSm8Page("tok-123", "job.json", { cursor: "-1", filter: null });

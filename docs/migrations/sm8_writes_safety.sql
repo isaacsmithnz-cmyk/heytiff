@@ -28,8 +28,12 @@
 -- after it failed goes under a new uuid (the old one may be a dead record in
 -- ServiceM8: an upload that failed half way stays "inactive and pending
 -- upload"). `replaced_uuids` keeps the old ones, so they are known to be
--- ours; `verify_uuid` is an old one whose last try lost its answer, checked
--- before the new one goes so an upload that did land isn't made twice.
+-- ours. `maybe_landed` says an upload under the row's uuid went out and got
+-- no answer that can be trusted (none, a 408, a 5xx, a 409 that couldn't be
+-- confirmed, a sender that died mid-upload): the sender sets it, never a
+-- guess from http_status. `verify_uuids` are old uuids that may have landed,
+-- each checked before the new one goes so an upload that did land isn't made
+-- twice; one waiting for its check is never dropped for a newer one.
 -- `free_retries` counts the goes a row didn't pay for (a dead record, a send
 -- that ran out of time before it started); after two the row stops for a
 -- person.
@@ -60,10 +64,22 @@
 --   select write_mode, paused_reason, write_scope_refused
 --     from public.integration_connections where provider = 'servicem8';
 --
--- ON A SUPABASE BRANCH, NOT PROD, before merging: insert … on conflict
--- (org_id, dedupe_key) do nothing, twice, with sm8_job_uuid = null, leaves
--- one row. PostgREST's on_conflict naming a stored generated column is
--- expected to work and hasn't been proven here.
+-- A MERGE GATE, ON A SUPABASE BRANCH, NOT PROD: every press goes through
+-- one upsert whose conflict target is the generated column, and nothing but
+-- a real Postgres behind a real PostgREST can prove it. After applying this
+-- file to the branch:
+--   (a) SQL: insert … on conflict (org_id, dedupe_key) do nothing, twice,
+--       with sm8_job_uuid = null, and twice with a real job — one row each;
+--   (b) supabase-js, the call the code makes: .upsert(row, { onConflict:
+--       "org_id,dedupe_key", ignoreDuplicates: true }).select("id,
+--       dedupe_key"), twice with a null job and twice with a real one — an
+--       id the first time, [] the second, one row each;
+--   (c) two of (b) with a real job at the same instant: while the old
+--       sm8_writes_subject_uniq stands, the loser may raise 23505, which the
+--       code reads back as "already" (enqueueSm8Writes' insertFresh).
+-- The results go in the PR description. The old index is dropped AFTER the
+-- deploy (DEPLOY.md), never before: the code on main names it as its
+-- upsert's conflict target.
 --
 -- Additive and idempotent: safe to run twice.
 
@@ -100,7 +116,7 @@ alter table public.sm8_writes
   add column if not exists requested_by_user text,
   add column if not exists claim_id uuid,
   add column if not exists replaced_uuids text[] not null default '{}',
-  add column if not exists verify_uuid text,
+  add column if not exists verify_uuids text[] not null default '{}',
   add column if not exists free_retries integer not null default 0,
   add column if not exists remote_code text,
   add column if not exists remote_message text;
@@ -117,6 +133,26 @@ begin
   ) then
     alter table public.sm8_writes add column pressed_at timestamptz not null default now();
     update public.sm8_writes set pressed_at = updated_at where pressed_at = now();
+  end if;
+end $$;
+
+-- maybe_landed: the rows already there were written by code that kept no
+-- such mark, so the one witness they have stands in for it, ONCE, as the
+-- column arrives: a row not sent whose last try got no answer, a 408, a 409
+-- or a 5xx is marked, and a re-press checks its uuid before a new one goes.
+-- Erring that way costs one read; the other way costs a second copy. A row
+-- the old code touches between this and the deploy isn't marked, so apply
+-- it close to the deploy.
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'sm8_writes' and column_name = 'maybe_landed'
+  ) then
+    alter table public.sm8_writes add column maybe_landed boolean not null default false;
+    update public.sm8_writes set maybe_landed = true
+      where status <> 'sent' and attempts > 0
+        and (http_status is null or http_status in (408, 409) or http_status >= 500);
   end if;
 end $$;
 

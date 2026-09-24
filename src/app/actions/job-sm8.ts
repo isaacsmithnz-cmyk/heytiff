@@ -12,8 +12,8 @@ import {
   type Sm8WriteRun,
 } from "@/lib/integrations/sm8-writes";
 import {
+  backgroundBudgetMs,
   offersSend,
-  RUN_BUDGET_MS,
   sendHold,
   sendRefusal,
   WRITE_WORDS,
@@ -42,6 +42,13 @@ import {
    anything not done by then, or that meets a busy ServiceM8, stays queued
    and goes behind the response, on the next page load, or with the nightly
    sweep. The card says which.
+
+   WHAT GOES BEHIND THE RESPONSE FITS IN THE FUNCTION. It runs inside this
+   action's function, which ends at the platform's max duration (no route
+   sets one for the action), so the follow-up's budget is what is left of
+   it after a lease and a margin, counted from the press (backgroundBudgetMs)
+   — and with nothing left, there is no follow-up: the page-load kick and
+   the nightly sweep take what is waiting.
 
    ONLY A PRESS QUEUES. The press is minted from the session here
    (lib/integrations/sm8-press), and the queue refuses anything else. */
@@ -112,6 +119,8 @@ export type SendToSm8Result =
   | { ok: false; error: string };
 
 export async function sendJobDocumentsToServiceM8(input: SendToSm8Input): Promise<SendToSm8Result> {
+  /* the function's clock: a follow-up behind the answer is budgeted from it */
+  const startedAt = Date.now();
   const ctx = await complianceContext();
   if (!ctx?.company) return { ok: false, error: "You can't send documents from jobs." };
   const press = await sm8PressFromSession();
@@ -167,13 +176,18 @@ export async function sendJobDocumentsToServiceM8(input: SendToSm8Input): Promis
        behind the response — nothing else keeps it alive once the answer is
        sent — and followed up the same way. */
     const more = (r: Sm8WriteRun) => r.stopped === null && (r.done < ids.length || r.again > 0);
+    const followUp = async () => {
+      const budgetMs = backgroundBudgetMs(startedAt, Date.now());
+      if (budgetMs <= 0) return;
+      await runSm8Writes(orgId, "send", { ids, budgetMs }).catch(() => {});
+    };
     if (run === null) {
       after(async () => {
         const r = await running.catch(() => null);
-        if (r && more(r)) await runSm8Writes(orgId, "send", { ids, budgetMs: RUN_BUDGET_MS }).catch(() => {});
+        if (r && more(r)) await followUp();
       });
     } else if (more(run)) {
-      after(() => runSm8Writes(orgId, "send", { ids, budgetMs: RUN_BUDGET_MS }).catch(() => {}));
+      after(followUp);
     }
   }
 

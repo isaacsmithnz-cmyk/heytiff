@@ -237,6 +237,24 @@ export const WRITE_SEND_BY_MS = WRITE_LEASE_MS - WRITE_TIMEOUT_MS - WRITE_READ_T
     CLAIMING at this; a send already claimed finishes inside its lease. */
 export const RUN_BUDGET_MS = 90_000;
 
+/** How long a function may run on this deployment when its route sets no
+    maxDuration: Vercel's default with Fluid compute, which the cron's own
+    maxDuration of 300 relies on too. A run in after() lives inside it
+    ("after will run for the platform's default or configured max duration
+    of your route" — Next's after() docs), and a function cut off
+    mid-upload leaves its row to lapse. */
+export const FUNCTION_MAX_MS = 300_000;
+
+/** A background run's budget: RUN_BUDGET_MS, or less when the function it
+    runs in has less left — its last claim must still end, a whole lease and
+    a margin later, before the function does. The cron's deadline, for every
+    run nobody waits on. Zero or less: there is no time for one, and what is
+    waiting goes on the next kick. `startedAt` is when the function's request
+    began (as near as the caller knows it). */
+export function backgroundBudgetMs(startedAt: number, now: number, maxMs: number = FUNCTION_MAX_MS): number {
+  return Math.min(RUN_BUDGET_MS, startedAt + maxMs - WRITE_LEASE_MS - WRITE_LEASE_MARGIN_MS - now);
+}
+
 /** Pressed writes one ServiceM8 account may take in an hour, across every
     workspace. More trips Pause: a loop, or a person, sending more than this
     is worth stopping and saying so. A trial run sends nothing and isn't
@@ -642,24 +660,33 @@ export function verdictFor(
 
 /* ── a file asked for again ── */
 
-/** The uuid to check before a re-pressed row goes under its new one: the
-    last one, when its last try ended without an answer ServiceM8 can be
-    trusted to have meant (none at all, a 408, its own 5xx) — that upload may
-    have landed, and a fresh uuid would make a second copy. The check is one
-    read before the upload (sm8-writes' sendOne). Otherwise an older uuid
-    still waiting for its check keeps its place. A trial row with attempts
-    and no status counts too: a live try before it may have lost its answer,
-    and the trial run wrote over the status. */
+/** The most uuids a row keeps waiting for their check. Each upload clears
+    the list first (sendOne checks every one before it goes), so a row
+    reaches two only when a sender dies mid-check; three is room to spare. */
+export const VERIFY_KEEP = 3;
+
+/** The uuids to check before a re-pressed row goes under its new one.
+
+    EVERY UUID STILL WAITING FOR ITS CHECK KEEPS ITS PLACE: none is replaced
+    by a newer one before it has been read back. The uuid the row is leaving
+    joins them only when an upload under it went out and got no answer that
+    can be trusted (`maybe_landed`, set by the sender: no answer at all, a
+    408, ServiceM8's own 5xx, a 409 whose record couldn't be confirmed, or a
+    sender that died mid-upload) — that upload may have landed, and a fresh
+    uuid would make a second copy.
+
+    It is WHAT HAPPENED, never guessed from a status: a trial run, a check
+    that couldn't be read and a cancel before the upload uploaded nothing,
+    so they add no uuid and take none away. The check is one read per uuid
+    before the upload (sm8-writes' sendOne). */
 export function verifyOnRepress(row: {
-  attempts: number;
-  http_status: number | null;
   remote_uuid: string;
-  verify_uuid: string | null;
-}): string | null {
-  const s = row.http_status;
-  const unanswered = s === null || s === 408 || (s >= 500 && s < 600);
-  if (row.attempts > 0 && unanswered) return row.remote_uuid;
-  return row.verify_uuid;
+  maybe_landed: boolean | null;
+  verify_uuids: readonly string[] | null;
+}): string[] {
+  const keep = [...(row.verify_uuids ?? [])];
+  if (row.maybe_landed && !keep.includes(row.remote_uuid)) keep.push(row.remote_uuid);
+  return keep.slice(-VERIFY_KEEP);
 }
 
 /* ── the name it goes under ── */
@@ -704,7 +731,11 @@ export type SendLine = { word: string; tone: "ok" | "warn" | "bad" | null };
     renewal came in since says nothing until the renewal is sent too.
 
     `hold` is what is holding the workspace's waiting writes: a file waiting
-    behind a pause, or a reconnect, says that rather than "shortly". */
+    behind a pause, or a reconnect, says that rather than "shortly". A file
+    the sender put back with a reason — an unpaid ServiceM8 bill, a daily
+    limit, a ServiceM8 that couldn't be reached — says that reason, in the
+    warning colour: it may wait hours, and "Sending…" would say it is on its
+    way. */
 export function sendLine(
   sends: readonly JobSend[],
   documentIds: readonly string[],
@@ -725,6 +756,8 @@ export function sendLine(
       ? { word: "Not in ServiceM8 yet. Sending is paused.", tone: null }
       : { word: "Not in ServiceM8 yet. ServiceM8 needs reconnecting.", tone: "warn" };
   }
+  const held = waiting.find((s) => s.status === "queued" && s.error);
+  if (held) return { word: `Not in ServiceM8 yet. ${held.error}`, tone: "warn" };
   if (waiting.length > 0) {
     const retrying = waiting.some((s) => s.status === "queued" && s.attempts > 0);
     return retrying

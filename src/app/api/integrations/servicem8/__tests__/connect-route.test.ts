@@ -3,9 +3,10 @@
  *
  * What the connect route asks ServiceM8 for: the reads always, and the write
  * permission of the kinds this deployment allows while the owner has
- * sending On or Paused. Settings that can't be read refuse the connect —
- * guessing "off" would ask for reads alone, and a reconnect of a live
- * workspace would drop the permission its sending depends on.
+ * sending On or Paused. On a deployment that writes, settings that can't be
+ * read refuse the connect — guessing "off" would ask for reads alone, and a
+ * reconnect of a live workspace would drop the permission its sending
+ * depends on.
  */
 
 jest.mock("@/lib/auth0", () => ({
@@ -77,5 +78,14 @@ describe("the ServiceM8 connect route", () => {
     readSm8WriteState.mockResolvedValue(state({ readable: false, mode: "off", modeStored: null }));
     const url = await connect();
     expect(`${url.pathname}${url.search}`).toBe("/dashboard/admin/integrations/servicem8?error=settings");
+  });
+
+  it("connects for reads alone on a deployment that writes nothing, whether or not the settings read", async () => {
+    /* a preview, or SM8_WRITES unset: it asks for the reads whatever the
+       settings say, so a database without the write migration can't block it */
+    readSm8WriteState.mockResolvedValue(state({ readable: false, deployment: false, kinds: [], mode: "off", modeStored: null }));
+    const url = await connect();
+    expect(url.host).toBe("go.servicem8.com");
+    expect(asked(url)).toEqual(SM8_SCOPE_LIST);
   });
 });

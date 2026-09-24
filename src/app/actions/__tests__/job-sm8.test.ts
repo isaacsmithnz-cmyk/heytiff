@@ -279,6 +279,43 @@ describe("what goes", () => {
       jest.useRealTimers();
     }
   });
+
+  /* The follow-up runs inside this action's function, which ends 300 s
+     after the press: its last claim must end a lease (120 s) and a margin
+     (15 s) before that, so it may claim until 165 s in and no later. */
+  const slowFirstRun = async (msBehind: number) => {
+    let finish: (r: unknown) => void = () => {};
+    runSm8Writes.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
+    readJobSends.mockResolvedValue([sent("doc-a", "sending"), sent("doc-b", "queued")]);
+    const pressing = sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] });
+    await jest.advanceTimersByTimeAsync(20_000);
+    await pressing;
+    const behind = Promise.resolve(scheduled[0]());
+    // the first run's last send holds its row this long past the answer
+    await jest.advanceTimersByTimeAsync(msBehind);
+    finish({ done: 1, sent: 1, trial: 0, failed: 0, again: 0, lost: 0, stopped: null });
+    await behind;
+  };
+
+  it("gives the follow-up only what the function has left", async () => {
+    jest.useFakeTimers();
+    try {
+      await slowFirstRun(130_000); // 150 s in
+      expect(runSm8Writes).toHaveBeenLastCalledWith("org-1", "send", { ids: ["w1", "w2"], budgetMs: 15_000 });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("follows up nothing once the function has no time for another send", async () => {
+    jest.useFakeTimers();
+    try {
+      await slowFirstRun(150_000); // 170 s in
+      expect(runSm8Writes).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe("what comes back, tick by tick", () => {

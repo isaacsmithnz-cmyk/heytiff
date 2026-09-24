@@ -239,7 +239,25 @@ connection and the queue every write goes through (`sm8_writes`). Then
 (the old code runs happily on it): Paused, the per-kind refusals, one row per
 thing written, the claim a sender must still hold to record an answer, and the
 record that a person pressed. Its header lists read-only checks for before
-and after, and one to run on a Supabase branch before merging.
+and after, and a **merge gate** to run on a Supabase branch: the press's
+upsert names the generated `dedupe_key` as its conflict target, and only a
+real Postgres behind a real PostgREST proves that works. Until the file is
+applied, a deployment that writes (`SM8_WRITES` set) can't read the
+ServiceM8 settings, so it holds every file and **refuses Connect and
+Reconnect** with the settings error; a deployment that doesn't write
+connects as before.
+
+**After that deploy is live, not before**, drop the old one-row-per-thing
+index, which nothing names as a conflict target any more (the code before
+it does, so dropping it first breaks every press on that code):
+
+```sql
+drop index if exists public.sm8_writes_subject_uniq;
+```
+
+While it stands beside the new one, two presses of one file on one job at
+the same instant can meet on it and raise a unique violation; the code reads
+that as "already on its way", so nothing is lost, but the drop ends it.
 
 A write that meets a busy or unreachable ServiceM8 waits in the queue and goes
 on the next page load, or with the nightly sweep below. A press answers within
@@ -261,6 +279,9 @@ owner's per kind will be a column beside `write_mode`.
 
 **Rolling back** past this: switch any workspace that is **Paused** to On or
 Off first. The old code reads Paused as Off, and Off cancels what is waiting.
+If `sm8_writes_subject_uniq` has been dropped, re-run its `create unique
+index` from `docs/migrations/sm8_writes.sql` first: the old code's press
+names it.
 
 **Try it on a ServiceM8 account that isn't a live business first**, or use Trial
 run on the live one. A file sent to a job is visible to everyone who can open

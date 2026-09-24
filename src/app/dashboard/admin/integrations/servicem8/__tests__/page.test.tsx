@@ -40,10 +40,11 @@ jest.mock("@/app/actions/staff-import", () => ({ getSm8PeopleData: jest.fn(async
 let kinds: string[] = ["attachment"];
 const readSm8WriteState = jest.fn();
 const kickSm8WritesIfDue = jest.fn(async () => {});
+const countSm8Queue = jest.fn(async (..._a: unknown[]) => ({ waiting: 3, failed: 1 }));
 jest.mock("@/lib/integrations/sm8-writes", () => ({
   sm8WriteKindsEnabled: () => kinds,
   readSm8WriteState: (...a: unknown[]) => readSm8WriteState(...a),
-  countSm8Queue: jest.fn(async () => ({ waiting: 3, failed: 1 })),
+  countSm8Queue: (...a: unknown[]) => countSm8Queue(...a),
   countSm8WritesSentLately: jest.fn(async () => 14),
   listRecentSm8Writes: jest.fn(async () => []),
   kickSm8WritesIfDue: () => kickSm8WritesIfDue(),
@@ -102,6 +103,7 @@ beforeEach(() => {
   readSm8WriteState.mockReset().mockResolvedValue(state());
   kickSm8SyncIfStale.mockClear();
   kickSm8WritesIfDue.mockClear();
+  countSm8Queue.mockClear();
   readSm8Vendor.mockClear();
 });
 
@@ -120,6 +122,11 @@ describe("the ServiceM8 screen's loader", () => {
       hourlyCap: 60,
     });
     expect(p.waitingWrites).toBe(3);
+  });
+
+  it("counts the failures of the account connected now, the ones Retry failed files can reach", async () => {
+    await load();
+    expect(countSm8Queue).toHaveBeenCalledWith("org-1", "vendor-1");
   });
 
   it("draws the writes card while the connection needs reconnecting — when the owner needs it most", async () => {

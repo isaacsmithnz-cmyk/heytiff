@@ -2,7 +2,12 @@
 
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import { SEARCH_MIN, type WorkHit, type WorkSearchResult } from "@/lib/workboard/work-search";
+import {
+  SEARCH_MIN,
+  jobSearchTerm,
+  type WorkHit,
+  type WorkSearchResult,
+} from "@/lib/workboard/work-search";
 import { searchSummary, snippet } from "@/lib/workboard/photo-search";
 import { subjectColour, subjectLabel } from "@/lib/workboard/photo-subjects";
 import type { PhotoHit } from "@/app/actions/photo-search";
@@ -157,7 +162,10 @@ export function WorkSearchPanel({
   onClear: () => void;
 }) {
   const typed = query.trim();
-  const short = typed.length < SEARCH_MIN;
+  /* What the halves were asked, which "job 288" is not: the headline echoes
+     the words typed, the photos are matched and summed against the number. */
+  const asked = jobSearchTerm(query);
+  const short = asked.length < SEARCH_MIN;
   const photoHits = photos.hits ?? [];
   const total = result.total + photoHits.length;
   /* "Nothing matches" may only be said once BOTH halves have answered — the
@@ -224,7 +232,7 @@ export function WorkSearchPanel({
             <div className="wb2-fgrp">
               <div className="wb2-sect">
                 Photos
-                <em>{searchSummary(photoHits.length, photos.banked, typed)}</em>
+                <em>{searchSummary(photoHits.length, photos.banked, asked)}</em>
               </div>
               <div className="wb2-showgrid wb2-findgrid">
                 {photoHits.map((h, i) => (
@@ -290,7 +298,7 @@ export function WorkSearchPanel({
                           picture shows a plate and the words that found it
                           are on it. */}
                       {h.match.transcript && (
-                        <mark className="wb2-showhit">{snippet(h.ocrText, typed)}</mark>
+                        <mark className="wb2-showhit">{snippet(h.ocrText, asked)}</mark>
                       )}
                     </figcaption>
                   </figure>

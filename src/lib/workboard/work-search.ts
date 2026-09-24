@@ -38,11 +38,11 @@ export const SEARCH_MIN = 2;
    each only as a whole word — "jobson" is a client, not a job. */
 const JOB_LEAD = /^(?:jobs?(?=[\s#\d]|$)\s*(?:(?:number|no\.?)(?=[\s#\d]|$)\s*)?)?#?\s*/i;
 
-/** What the palette asks the mirror, from what somebody typed. People write
-    the word before the number — "job 288", "job #288", "#288", "job no. 288"
-    — and the mirror stores the number bare, so the lead goes and the rest is
-    asked as typed: "job kingsford" asks for Kingsford. Nothing but the lead
-    asks for nothing. */
+/** What a search box asks for, from what somebody typed — the palette's and
+    the Workboard's alike. People write the word before the number — "job
+    288", "job #288", "#288", "job no. 288" — and every number is stored
+    bare, so the lead goes and the rest is asked as typed: "job kingsford"
+    asks for Kingsford. Nothing but the lead asks for nothing. */
 export function jobSearchTerm(query: string): string {
   return query.trim().replace(JOB_LEAD, "").trim();
 }
@@ -293,15 +293,18 @@ function group(
   key: WorkSearchGroupKey,
   label: string,
   note: string,
-  hits: WorkHit[]
+  hits: WorkHit[],
+  leads: (hit: WorkHit) => boolean
 ): WorkSearchGroup | null {
   if (hits.length === 0) return null;
-  const sorted = ordered(hits);
+  const sorted = [...ordered(hits.filter(leads)), ...ordered(hits.filter((h) => !leads(h)))];
   return { key, label, note, hits: sorted.slice(0, GROUP_CAP), found: sorted.length };
 }
 
 export function searchWorkboard(input: WorkSearchInput, query: string): WorkSearchResult {
-  const q = query.trim();
+  /* "job 288" asks for 288: the word in front of a number is how people say
+     it, not something the work has written on it — the palette's rule. */
+  const q = jobSearchTerm(query);
   if (q.length < SEARCH_MIN) return { groups: [], total: 0 };
   const { today } = input;
 
@@ -364,17 +367,32 @@ export function searchWorkboard(input: WorkSearchInput, query: string): WorkSear
     elsewhere.push(jobHit(j, today));
   }
 
-  const groups = [
-    group("maintenance", "Maintenance", "Visits and the agreements behind them.", maintenance),
-    group("projects", "Projects", "Projects and the trips booked on them.", projects),
-    group("jobs", "ServiceM8 jobs", "In the book, not promoted onto a board.", jobs),
+  /* THE WORK ASKED FOR BY ITS NUMBER COMES FIRST — at the head of its group,
+     and its group at the head of the panel. "288" also finds #2288, a site on
+     288 George Street and every note that mentions it, and the job that IS
+     288 must not wait under all of them, least of all in the last group,
+     where a job older than the window lands. Exact and case-blind, against
+     the number the row wears: ServiceM8's on a job, ours on a visit or a
+     trip, each labelled, so a four-digit number both families use leads
+     with both. */
+  const asked = q.toLowerCase();
+  const leads = (hit: WorkHit) => hit.number !== null && hit.number.toLowerCase() === asked;
+  const found = [
+    group("maintenance", "Maintenance", "Visits and the agreements behind them.", maintenance, leads),
+    group("projects", "Projects", "Projects and the trips booked on them.", projects, leads),
+    group("jobs", "ServiceM8 jobs", "In the book, not promoted onto a board.", jobs, leads),
     group(
       "elsewhere",
       "Found elsewhere in ServiceM8",
       "Older than the board's window, reached by asking.",
-      elsewhere
+      elsewhere,
+      leads
     ),
   ].filter((g): g is WorkSearchGroup => g !== null);
+  const groups = [
+    ...found.filter((g) => leads(g.hits[0])),
+    ...found.filter((g) => !leads(g.hits[0])),
+  ];
 
   return { groups, total: groups.reduce((n, g) => n + g.found, 0) };
 }

@@ -19,7 +19,7 @@ import {
   type JobPaper,
   type PaperChoices,
 } from "@/lib/compliance/papers";
-import { sendLine, type JobSend, type SendLine } from "@/lib/integrations/sm8-write-plan";
+import { sendLine, type JobSend, type SendHold, type SendLine } from "@/lib/integrations/sm8-write-plan";
 import { ComplianceChooser } from "./compliance-chooser";
 import "@/components/swms/swms.css";
 
@@ -366,6 +366,7 @@ export function JobDocumentsFace({
   onRemovePaper,
   onRenewPaper,
   sends = null,
+  sendHold = null,
 }: {
   documents: readonly JobMediaItem[] | null;
   elsewhere: readonly JobMediaItem[] | null;
@@ -414,6 +415,8 @@ export function JobDocumentsFace({
   onRenewPaper?: (paper: JobPaper) => Promise<string | null>;
   /** What has been sent to ServiceM8 from this job, by file. */
   sends?: readonly JobSend[] | null;
+  /** What is holding the files waiting to go: a pause, or a reconnect. */
+  sendHold?: SendHold;
 }) {
   const day = today ?? todayInAu();
   /* Add compliance, open under the ways in */
@@ -647,7 +650,7 @@ export function JobDocumentsFace({
                 paperSendable(p) ? paperSendKey(p.id) : null,
                 p.person ? `${p.name}, ${p.person}` : p.name
               )}
-              sm8={sends ? sendLine(sends, p.files.map((f) => f.id)) : null}
+              sm8={sends ? sendLine(sends, p.files.map((f) => f.id), sendHold) : null}
               onOpen={onOpenPaper}
               onRemove={onRemovePaper}
               onRenew={onRenewPaper}
@@ -701,7 +704,7 @@ export function JobDocumentsFace({
                   key={d.remoteId}
                   item={d}
                   pick={pickOf(d.url ? ourDocumentSendKey(d.documentId) : null, d.name)}
-                  state={sends ? sendLine(sends, [d.documentId]) : null}
+                  state={sends ? sendLine(sends, [d.documentId], sendHold) : null}
                   onOpen={onOpen}
                   onRemove={onRemove}
                 />

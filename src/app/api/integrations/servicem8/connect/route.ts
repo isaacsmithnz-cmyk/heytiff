@@ -47,12 +47,18 @@ export async function GET(request: Request) {
 
   const state = randomBytes(16).toString("hex");
 
-  /* The owner's write switch decides the ask: while writing is on, the
-     consent carries the write scope beside the reads, so reconnecting (for
-     any reason) keeps the permission the switch depends on. Off, or on a
-     deployment that can't write at all, it is the read list alone. */
+  /* The owner's write switch decides the ask: while writing is on or
+     paused, the consent carries the write scopes of the kinds this
+     deployment allows beside the reads, so reconnecting (for any reason)
+     keeps the permission the switch depends on. Off, or on a deployment
+     that can't write at all, it is the read list alone.
+
+     SETTINGS THAT CAN'T BE READ REFUSE THE CONNECT. Guessing "off" would ask
+     for reads alone, and a reconnect of a live workspace would drop the
+     write permission its sending depends on. */
   const writes = await readSm8WriteState(orgId);
-  const scopes = sm8ScopesWanted(writes.deployment ? writes.mode : "off");
+  if (!writes.readable) return back(request, "settings");
+  const scopes = sm8ScopesWanted(writes.deployment ? writes.mode : "off", writes.kinds);
 
   const response = NextResponse.redirect(buildSm8ConsentUrl(cfg, state, scopes));
   response.cookies.set({

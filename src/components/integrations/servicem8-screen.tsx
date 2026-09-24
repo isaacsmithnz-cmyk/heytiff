@@ -112,9 +112,12 @@ export function Servicem8Screen({
     connection !== null &&
     (connection.status === "needs_reauth" || connection.missing.length > 0);
   /* The ask follows the owner's switch: the write permission is on the list,
-     and on the consent screen, only while sending is On. */
+     and on the consent screen, only while sending is On or Paused (a pause
+     keeps the permission, so switching back on needs no reconnect). The
+     status line says HeyTiff adds files only while it is On. */
   const writing = connection?.writeMode === "live";
-  const asks = writing ? [...SM8_SCOPES, ...SM8_WRITE_SCOPES] : SM8_SCOPES;
+  const asking = writing || connection?.writeMode === "paused";
+  const asks = asking ? [...SM8_SCOPES, ...SM8_WRITE_SCOPES] : SM8_SCOPES;
 
   const disconnect = () => {
     setError(null);
@@ -324,7 +327,7 @@ export function Servicem8Screen({
               <div>
                 <b>What HeyTiff asks ServiceM8 for</b>
                 <em>
-                  {writing
+                  {asking
                     ? "Reads, and one write: adding the files somebody sends from a job. The list below is exactly what the consent screen will show."
                     : "Read-only, every one of them. Nothing here writes to ServiceM8, and the list below is exactly what the consent screen will show."}
                 </em>

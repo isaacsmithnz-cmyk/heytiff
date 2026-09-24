@@ -3,13 +3,23 @@
 import { after } from "next/server";
 import { splitSendKeys, theirFileSendKey } from "@/lib/compliance/papers";
 import { complianceContext, jobIsReal, outgoing, trimId } from "@/lib/compliance/send";
+import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
 import {
   enqueueAttachments,
   readJobSends,
   readSm8WriteState,
   runSm8Writes,
+  type Sm8WriteRun,
 } from "@/lib/integrations/sm8-writes";
-import { offersSend, sendRefusal, WRITE_WORDS, type JobSend } from "@/lib/integrations/sm8-write-plan";
+import {
+  offersSend,
+  RUN_BUDGET_MS,
+  sendHold,
+  sendRefusal,
+  WRITE_WORDS,
+  type JobSend,
+  type SendHold,
+} from "@/lib/integrations/sm8-write-plan";
 
 /* SEND TO SERVICEM8 — the Documents face's second door, beside Email
    documents, over the write path in lib/integrations/sm8-writes.
@@ -25,22 +35,44 @@ import { offersSend, sendRefusal, WRITE_WORDS, type JobSend } from "@/lib/integr
    one of those is answered "already there" rather than sent back to where
    it came from.
 
-   THE PRESS WAITS FOR ITS FILES, within a budget. The person who pressed
-   wants to know they went, so this press's files are sent in the
-   foreground; anything the budget doesn't reach, or that meets a busy
-   ServiceM8, stays queued and goes behind the response, on the next page
-   load, or with the nightly sweep. The card says which. */
+   THE PRESS WAITS FOR ITS FILES, within a budget — AND NO LONGER. The
+   person who pressed wants to know they went, so this press's files are
+   sent in the foreground; the answer comes at SEND_BUDGET_MS whatever
+   ServiceM8 is doing (a send already under way finishes behind it), and
+   anything not done by then, or that meets a busy ServiceM8, stays queued
+   and goes behind the response, on the next page load, or with the nightly
+   sweep. The card says which.
+
+   ONLY A PRESS QUEUES. The press is minted from the session here
+   (lib/integrations/sm8-press), and the queue refuses anything else. */
 
 /** How long a press waits on ServiceM8 before handing the rest to the
     queue. A few files are seconds; this is for the slow day. */
 const SEND_BUDGET_MS = 20_000;
 
+/** `p`'s answer, or null once `ms` have passed — whichever is first. The
+    promise itself keeps going. */
+async function settleWithin<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms);
+  });
+  try {
+    return await Promise.race([p.catch(() => null), late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export type JobSm8Read = {
   /** Whether this viewer is offered Send to ServiceM8, and on which
-      setting. Null: not offered here. */
+      setting. Null: not offered here. Paused still offers it as On: the
+      press says it is paused. */
   send: "trial" | "live" | null;
   /** What has gone from this job, by file. */
   sends: JobSend[];
+  /** What is holding the files waiting to go: a pause, or a reconnect. */
+  hold: SendHold;
 };
 
 /** The job's writes, and whether this viewer gets the button. Null when the
@@ -51,8 +83,12 @@ export async function readJobSm8(jobUuid: string): Promise<JobSm8Read | null> {
   const job = trimId(jobUuid);
   if (!job) return null;
   const [state, sends] = await Promise.all([readSm8WriteState(ctx.orgId), readJobSends(ctx.orgId, job)]);
-  const offered = ctx.company && offersSend(state) && state.mode !== "off";
-  return { send: offered ? (state.mode as "trial" | "live") : null, sends };
+  const offered = ctx.company && offersSend(state, "attachment");
+  return {
+    send: offered ? (state.mode === "trial" ? "trial" : "live") : null,
+    sends,
+    hold: sendHold(state, "attachment"),
+  };
 }
 
 export type SendToSm8Input = { jobUuid: string; keys: string[] };
@@ -78,13 +114,15 @@ export type SendToSm8Result =
 export async function sendJobDocumentsToServiceM8(input: SendToSm8Input): Promise<SendToSm8Result> {
   const ctx = await complianceContext();
   if (!ctx?.company) return { ok: false, error: "You can't send documents from jobs." };
+  const press = await sm8PressFromSession();
+  if (!press || press.orgId !== ctx.orgId) return { ok: false, error: "You can't send documents from jobs." };
   const job = trimId(input?.jobUuid);
   if (!job || !(await jobIsReal(ctx.orgId, job))) {
     return { ok: false, error: "That job isn't in ServiceM8's copy any more." };
   }
 
   const state = await readSm8WriteState(ctx.orgId);
-  const refusal = sendRefusal(state);
+  const refusal = sendRefusal(state, "attachment");
   if (refusal || !state.tenantId) return { ok: false, error: refusal ?? "ServiceM8 isn't connected." };
 
   const picks = splitSendKeys(Array.isArray(input.keys) ? input.keys.slice(0, 60) : []);
@@ -100,9 +138,8 @@ export async function sendJobDocumentsToServiceM8(input: SendToSm8Input): Promis
   if (!found.ok) return found;
 
   const queued = await enqueueAttachments(
-    ctx.orgId,
-    state.tenantId,
-    ctx.staffId,
+    press,
+    state,
     found.files.map((f) => ({
       jobUuid: job,
       documentId: f.documentId,
@@ -113,17 +150,30 @@ export async function sendJobDocumentsToServiceM8(input: SendToSm8Input): Promis
     }))
   );
   if (!queued) return { ok: false, error: "Couldn't queue those for ServiceM8. Try again." };
+  /* this press would have taken the account past the hourly cap: nothing
+     was queued, and sending is paused for the owner to look at */
+  if (queued.capped) return { ok: false, error: WRITE_WORDS.paused };
 
   if (queued.ids.length > 0) {
     const orgId = ctx.orgId;
     const ids = queued.ids;
-    const run = await runSm8Writes(orgId, "send", { ids, budgetMs: SEND_BUDGET_MS });
-    /* whatever the budget didn't reach goes once the answer is on its way.
-       A run ServiceM8 stopped (busy, unreachable, a lapsed grant) has
+    const running = runSm8Writes(orgId, "send", { ids, budgetMs: SEND_BUDGET_MS });
+    const run = await settleWithin(running, SEND_BUDGET_MS);
+    /* Whatever the budget didn't reach goes once the answer is on its way,
+       and so does a file due again at once (a dead record under its new
+       uuid). A run ServiceM8 stopped (busy, unreachable, a lapsed grant) has
        already set each file's next try; the page-load kick and the nightly
-       sweep take those. */
-    if (run.done < ids.length && run.stopped === null) {
-      after(() => runSm8Writes(orgId, "send", { ids }).catch(() => {}));
+       sweep take those. A run still going at the budget is WAITED FOR
+       behind the response — nothing else keeps it alive once the answer is
+       sent — and followed up the same way. */
+    const more = (r: Sm8WriteRun) => r.stopped === null && (r.done < ids.length || r.again > 0);
+    if (run === null) {
+      after(async () => {
+        const r = await running.catch(() => null);
+        if (r && more(r)) await runSm8Writes(orgId, "send", { ids, budgetMs: RUN_BUDGET_MS }).catch(() => {});
+      });
+    } else if (more(run)) {
+      after(() => runSm8Writes(orgId, "send", { ids, budgetMs: RUN_BUDGET_MS }).catch(() => {}));
     }
   }
 

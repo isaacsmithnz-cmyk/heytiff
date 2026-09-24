@@ -8,6 +8,7 @@ import {
   licenceChip,
   orgCredentialChips,
   profileChip,
+  sm8QueueChip,
   sortChips,
   swmsIssueChip,
   swmsSignonChip,
@@ -97,6 +98,9 @@ export type ChipSources = {
   /** The SWMS template isn't approved yet — the loader reads it for owners
       only; `assembleChips` checks `isOwner` again. */
   swmsTemplatePending?: boolean;
+  /** Files waiting to go to ServiceM8 that only the owner can unstick — the
+      loader reads it for owners only; `assembleChips` checks again. */
+  sm8Stuck?: { reason: "cap" | "billing" | "reconnect"; waiting: number } | null;
 };
 
 const push = (arr: ActionChip[], chip: ActionChip | null) => {
@@ -139,6 +143,10 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
     /* the template is the owner's to approve, and nobody else can clear it */
     if (src.isOwner) push(self, swmsTemplateChip(src.swmsTemplatePending));
   }
+  /* The ServiceM8 connection is the owner's whether or not they have a
+     staff card, so this sits outside the block above: an owner with no card
+     still owns the files stuck on their way to ServiceM8. */
+  if (src.isOwner) push(self, sm8QueueChip(src.sm8Stuck ?? null));
 
   const team: ActionChip[] = [];
   if (caps.has("team")) {

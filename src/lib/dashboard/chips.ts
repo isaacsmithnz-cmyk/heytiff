@@ -27,6 +27,7 @@ import {
 import { daysUntil, fmtAuDayMonth } from "@/lib/au-dates";
 import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
 import { isNoVisa, isNotCleared } from "@/lib/staff/work-rights";
+import { WRITE_HOURLY_CAP } from "@/lib/integrations/sm8-write-plan";
 
 export type ChipKind =
   | "licence"
@@ -45,7 +46,8 @@ export type ChipKind =
   | "profile"
   | "swms"
   | "swms-issue"
-  | "swms-template";
+  | "swms-template"
+  | "sm8-writes";
 
 /** Only actionable states surface as chips; a compliant thing produces none. */
 export type ActionState = Exclude<ChipState, "ok">; // "bad" | "warn"
@@ -104,6 +106,9 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   swms: "Workboard",
   "swms-issue": "Workboard",
   "swms-template": "Workboard",
+  /* The connection's own screen is under the business's settings, beside
+     the company's papers. */
+  "sm8-writes": "Business",
 };
 
 export const GROUP_ICON: Record<ChipGroup, string> = {
@@ -663,6 +668,39 @@ export function declinedLeaveChip(
     subject: span,
     href: "/dashboard/my-leave",
     urgency: urgency("bad", age),
+  };
+}
+
+/** Files waiting to go to ServiceM8 that can't go until the OWNER does
+    something: reconnect, look at why HeyTiff paused sending, or sort out
+    ServiceM8's bill. An owner's own pause, Off or trial run is their choice
+    and chips nothing (lib/integrations/sm8-writes' sm8QueueStuck decides).
+    One chip for the queue, whatever its size. */
+export function sm8QueueChip(
+  stuck: { reason: "cap" | "billing" | "reconnect"; waiting: number } | null
+): ActionChip | null {
+  if (!stuck) return null;
+  const files = (n: number) => (n === 1 ? "1 file" : `${n} files`);
+  const base = { key: "sm8-writes", kind: "sm8-writes" as const, href: "/dashboard/admin/integrations/servicem8" };
+  if (stuck.reason === "cap") {
+    return {
+      ...base,
+      state: "warn",
+      label: "Sending to ServiceM8 paused",
+      subject:
+        stuck.waiting > 0
+          ? `More than ${WRITE_HOURLY_CAP} in an hour, ${files(stuck.waiting)} waiting`
+          : `More than ${WRITE_HOURLY_CAP} in an hour`,
+      urgency: urgency("warn", 0),
+    };
+  }
+  if (stuck.waiting <= 0) return null;
+  return {
+    ...base,
+    state: "bad",
+    label: stuck.reason === "billing" ? "ServiceM8 account not in good standing" : "Reconnect ServiceM8",
+    subject: `${files(stuck.waiting)} waiting to go`,
+    urgency: urgency("bad", 0),
   };
 }
 

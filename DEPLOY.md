@@ -51,7 +51,7 @@ your local `.env.local`), scope = **Production** (and Preview if you want previe
 | `XERO_CLIENT_SECRET` | Same. Server-side only, never `NEXT_PUBLIC_`. |
 | `SM8_CLIENT_ID` | See **ServiceM8** below. ServiceM8 calls it the **App ID**. Optional — unset, the ServiceM8 screen renders but says connecting isn't available. |
 | `SM8_CLIENT_SECRET` | Same — ServiceM8's **App Secret**. Server-side only, never `NEXT_PUBLIC_`. |
-| `SM8_WRITES` | `1` lets this deployment write to ServiceM8 (see **Writing to ServiceM8** below). **Unset ⇒ nothing is ever written** (fail-closed), and the ServiceM8 screen shows no sending setting. Set it on **Production only**: a preview build can be given the same database keys, and a branch must never be able to write to a customer's ServiceM8. |
+| `SM8_WRITES` | The kinds of write this deployment may make to ServiceM8 (see **Writing to ServiceM8** below): `1` means files, which is what it has always meant; otherwise a comma list of kinds (`attachment` is files, the only kind today). **Unset, empty or `0` ⇒ nothing is ever written** (fail-closed), and the ServiceM8 screen shows no sending setting. Set it on **Production only**: a preview build can be given the same database keys, and a branch must never be able to write to a customer's ServiceM8. |
 | `ANTHROPIC_API_KEY` | Claude, server-side: fleet valuations, receipt reading, and the Smart Notes brain. Optional — unset, those features say so instead of failing. Never `NEXT_PUBLIC_`. |
 | `ELEVENLABS_API_KEY` | See **Smart Notes** below. Optional — unset, **notes still work**: the mic simply isn't offered and the paste box does everything. Never `NEXT_PUBLIC_`. |
 | `NEXT_PUBLIC_VOICE_REALTIME` | `1` streams dictation live instead of transcribing on stop. Optional, off by default, build-time. Holds no secret — see **Live transcription** below. |
@@ -219,20 +219,48 @@ job**: the office ticks papers and uploads on a job card's Documents tab and
 presses **Send to ServiceM8**. Three switches must all be on before anything is
 written, and each is re-read before every send:
 
-1. **The deployment's** — `SM8_WRITES=1` in Vercel, Production only.
+1. **The deployment's** — `SM8_WRITES=1` in Vercel, Production only. It is
+   the operator's allow-list of kinds; with one kind there is nothing to
+   choose between.
 2. **The owner's** — Admin → Integrations → ServiceM8 → **Sending files to
    ServiceM8**: Off (where every business starts), **Trial run** (the office can
    press the button and each send is checked and listed there, but nothing
-   reaches ServiceM8), or **On**.
+   reaches ServiceM8), **Paused** (nothing goes, nothing waiting is lost), or
+   **On**. Switching to Off cancels what is waiting, and says how many.
 3. **ServiceM8's** — On asks for one extra permission, `manage_attachments`, at
    the next **Reconnect**, and the screen says so until it has been approved.
-   Off and Trial run never ask for it.
+   Paused keeps asking for it, so switching back on needs no reconnect. Off
+   and Trial run never ask for it. If ServiceM8 refuses a file for want of
+   that permission, files wait until the next reconnect.
 
 Apply `docs/migrations/sm8_writes.sql` first: it adds the owner's switch to the
-connection and the queue every write goes through (`sm8_writes`). A write that
-meets a busy or unreachable ServiceM8 waits there and goes on the next page
-load, or with the nightly sweep below. The ServiceM8 screen lists the latest
-writes, including any that didn't go and why.
+connection and the queue every write goes through (`sm8_writes`). Then
+`docs/migrations/sm8_writes_safety.sql`, **before the deploy that needs it**
+(the old code runs happily on it): Paused, the per-kind refusals, one row per
+thing written, the claim a sender must still hold to record an answer, and the
+record that a person pressed. Its header lists read-only checks for before
+and after, and one to run on a Supabase branch before merging.
+
+A write that meets a busy or unreachable ServiceM8 waits in the queue and goes
+on the next page load, or with the nightly sweep below. A press answers within
+20 seconds whatever ServiceM8 is doing; what isn't done by then carries on
+behind the answer. A file ServiceM8 left unfinished goes again under a new
+id, twice at most. The ServiceM8 screen lists every write still waiting or
+failed, and the last 30 days of the rest, with **Retry failed files**.
+
+**Only a person's press queues a write**, and **one ServiceM8 account takes at
+most 60 an hour**: the 61st press pauses sending (Paused, "by HeyTiff") and
+the owner's bell says so, with how many are waiting. Nothing waiting is lost;
+the owner switches it back on. The bell also says when files are waiting for
+a **reconnect**, or on a ServiceM8 account that **isn't in good standing**
+(an unpaid ServiceM8 bill holds every file for 12 hours at a time).
+
+**Per-kind switches for the owner come with the second kind** of write. Today
+the deployment's allow-list and the owner's Pause are the switches; the
+owner's per kind will be a column beside `write_mode`.
+
+**Rolling back** past this: switch any workspace that is **Paused** to On or
+Off first. The old code reads Paused as Off, and Off cancels what is waiting.
 
 **Try it on a ServiceM8 account that isn't a live business first**, or use Trial
 run on the live one. A file sent to a job is visible to everyone who can open

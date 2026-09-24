@@ -18,47 +18,141 @@
 
    THE SENTENCES ARE OURS. ServiceM8's response body goes to the server log,
    truncated, and never to a screen: the same rule the read side keeps
-   (sm8-read.ts). */
+   (sm8-read.ts). A short copy of what it said (remote_code, remote_message)
+   is kept on the row for whoever diagnoses it, and is never shown. */
+
+import { SM8_WRITE_KIND_SCOPES } from "./providers";
 
 /* ── the owner's switch ── */
 
-export type Sm8WriteMode = "off" | "trial" | "live";
+/** `paused` stops everything going without losing anything waiting: the
+    owner's own "not now", or HeyTiff's when a workspace sends more than
+    WRITE_HOURLY_CAP in an hour. */
+export type Sm8WriteMode = "off" | "trial" | "live" | "paused";
 
 /** The switch as stored. Anything unreadable is off: a write path must fail
-    closed. */
+    closed. (What the SENDER does with an unreadable value is stricter still:
+    it holds, and cancels nothing — see sm8-writes' runSm8Writes.) */
 export function readWriteMode(v: unknown): Sm8WriteMode {
-  return v === "trial" || v === "live" ? v : "off";
+  return v === "trial" || v === "live" || v === "paused" ? v : "off";
+}
+
+/** Who paused sending: the owner, or HeyTiff's hourly cap. */
+export type Sm8PausedReason = "owner" | "cap";
+
+export function readPausedReason(v: unknown): Sm8PausedReason | null {
+  return v === "owner" || v === "cap" ? v : null;
+}
+
+/* ── kinds ── */
+
+/** A kind of write — the keys of the scope table, so a kind can't exist
+    without the permission it needs. */
+export type Sm8WriteKind = keyof typeof SM8_WRITE_KIND_SCOPES;
+
+const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES) as Sm8WriteKind[];
+
+const isKind = (v: string): v is Sm8WriteKind => (KINDS as string[]).includes(v);
+
+/** The kinds a deployment allows, from SM8_WRITES: the operator's switch.
+    "1" is files (what it always meant); otherwise a comma list of kinds,
+    unknown names dropped. Unset, empty or "0" is nothing, so a preview never
+    writes. */
+export function sm8WriteKindsFrom(env: string | undefined | null): Sm8WriteKind[] {
+  const raw = (env ?? "").trim();
+  if (raw === "" || raw === "0") return [];
+  if (raw === "1") return ["attachment"];
+  const out: Sm8WriteKind[] = [];
+  for (const part of raw.split(",")) {
+    const k = part.trim();
+    if (isKind(k) && !out.includes(k)) out.push(k);
+  }
+  return out;
+}
+
+/** The kinds whose every scope the grant holds. */
+export function grantedKinds(scopes: string | readonly string[] | null | undefined): Sm8WriteKind[] {
+  const have = new Set(typeof scopes === "string" || scopes == null ? (scopes ?? "").split(/\s+/).filter(Boolean) : scopes);
+  return KINDS.filter((k) => SM8_WRITE_KIND_SCOPES[k].every((s) => have.has(s)));
+}
+
+/** The kinds ServiceM8 refused for scope SINCE THE LAST CONNECT. `raw` is
+    the connection's write_scope_refused, `{kind: when}`; a refusal older than
+    `connected_at` belongs to an earlier grant, so a reconnect clears it
+    without anything having to write. Junk reads as nothing refused. */
+export function refusedKinds(raw: unknown, connectedAt: string | null | undefined): Sm8WriteKind[] {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+  const since = connectedAt ? Date.parse(connectedAt) : NaN;
+  const out: Sm8WriteKind[] = [];
+  for (const [k, at] of Object.entries(raw as Record<string, unknown>)) {
+    if (!isKind(k) || typeof at !== "string") continue;
+    const when = Date.parse(at);
+    if (Number.isNaN(when)) continue;
+    if (Number.isNaN(since) || when > since) out.push(k);
+  }
+  return out;
 }
 
 /** Where writing stands for one workspace, as the sender and the card both
     need it. Built from the connection row and the deployment's switch. */
 export type Sm8WriteState = {
-  /** SM8_WRITES is on for this deployment: the operator's switch, above
-      every owner's. Off on a preview, so a branch can never write to a
-      business's ServiceM8. */
+  /** The connection row could be read. False means HOLD EVERYTHING AND
+      CANCEL NOTHING: a failed read is not a switched-off workspace. */
+  readable: boolean;
+  /** The kinds this deployment allows (SM8_WRITES) — the operator's switch,
+      above every owner's. None on a preview, so a branch can never write to
+      a business's ServiceM8. */
+  kinds: readonly Sm8WriteKind[];
+  /** `kinds.length > 0`. */
   deployment: boolean;
+  /** The owner's setting, read. */
   mode: Sm8WriteMode;
+  /** The setting exactly as stored — null with no connection row. Only a
+      stored "off" cancels what is waiting; any other value `mode` reads as
+      off (junk) holds. */
+  modeStored: string | null;
+  pausedReason: Sm8PausedReason | null;
+  /** When sending was last paused. Kept on resume: the hourly cap counts
+      presses since the later of an hour ago and this. */
+  pausedAt: string | null;
+  /** There is a connection row at all. None means disconnected, and what is
+      still waiting is cancelled with the disconnect's words. */
+  linked: boolean;
   /** The grant works (not needs_reauth). */
   connected: boolean;
   /** The ServiceM8 account connected now — what every write is checked
       against before it goes. */
   tenantId: string | null;
-  /** The grant carries every write scope. */
-  granted: boolean;
+  /** The kinds whose scopes the grant holds. */
+  granted: readonly Sm8WriteKind[];
+  /** The kinds ServiceM8 refused for scope since the last connect. */
+  refused: readonly Sm8WriteKind[];
+  /** The ServiceM8 account's time zone, for when its daily limit resets. */
+  timezoneName: string | null;
 };
+
+/** Whether `kind` can go now, as far as the switches and the grant go. A
+    trial run sends nothing, so it needs no permission. */
+export function kindReady(s: Sm8WriteState, kind: Sm8WriteKind): boolean {
+  if (!s.kinds.includes(kind)) return false;
+  if (s.mode !== "live") return true;
+  return s.granted.includes(kind) && !s.refused.includes(kind);
+}
 
 const WHERE = "An owner can change that in Integrations, ServiceM8.";
 
 /** Why a press of Send to ServiceM8 can't be taken, in words — or null when
     it can. The order is the order of the fixes: nothing an owner does helps
-    a deployment that can't write, and a switch that is off outranks a
-    permission nobody has been asked for. */
-export function sendRefusal(s: Sm8WriteState): string | null {
-  if (!s.deployment) return "Sending to ServiceM8 isn't available yet.";
+    a deployment that can't write, a switch that is off outranks a pause, and
+    both outrank a permission nobody has been asked for. */
+export function sendRefusal(s: Sm8WriteState, kind: Sm8WriteKind = "attachment"): string | null {
+  if (!s.kinds.includes(kind)) return "Sending to ServiceM8 isn't available yet.";
+  if (!s.readable) return WRITE_WORDS.settingsUnread;
   if (!s.tenantId) return "ServiceM8 isn't connected.";
   if (s.mode === "off") return `Sending to ServiceM8 is switched off. ${WHERE}`;
+  if (s.mode === "paused") return WRITE_WORDS.paused;
   if (!s.connected) return `ServiceM8 needs reconnecting. ${WHERE}`;
-  if (s.mode === "live" && !s.granted) {
+  if (s.mode === "live" && !kindReady(s, kind)) {
     return `ServiceM8 hasn't given HeyTiff permission to add files yet. ${WHERE}`;
   }
   return null;
@@ -66,15 +160,24 @@ export function sendRefusal(s: Sm8WriteState): string | null {
 
 /** Whether the card offers Send to ServiceM8 at all. Only where an owner
     has switched it on: a button that could only ever explain itself is
-    furniture. A switched-on workspace whose grant has lapsed keeps the
-    button, and the press says what's wrong. */
-export function offersSend(s: Sm8WriteState): boolean {
-  return s.deployment && !!s.tenantId && s.mode !== "off";
+    furniture. A switched-on workspace whose grant has lapsed, or whose
+    sending is paused, keeps the button, and the press says what's wrong. */
+export function offersSend(s: Sm8WriteState, kind: Sm8WriteKind = "attachment"): boolean {
+  return s.readable && s.kinds.includes(kind) && !!s.tenantId && s.mode !== "off";
+}
+
+/** What is holding a workspace's waiting writes, as the card and the owner's
+    list say it: the owner's (or the cap's) pause, or a reconnect ServiceM8
+    needs before anything more can go. */
+export type SendHold = "paused" | "reconnect" | null;
+
+export function sendHold(s: Sm8WriteState, kind: Sm8WriteKind = "attachment"): SendHold {
+  if (s.mode === "paused") return "paused";
+  if (s.mode === "live" && (!s.connected || !kindReady(s, kind))) return "reconnect";
+  return null;
 }
 
 /* ── the row ── */
-
-export type Sm8WriteKind = "attachment";
 
 export type Sm8WriteStatus = "queued" | "sending" | "sent" | "failed" | "trial" | "cancelled";
 
@@ -93,6 +196,13 @@ export function subjectDocumentId(subject: string): string | null {
   return m ? m[1] : null;
 }
 
+/** ONE ROW PER THING WRITTEN, a job or no job. The generated column
+    sm8_writes.dedupe_key is exactly this expression
+    (docs/migrations/sm8_writes_safety.sql): a NULL job can't slip past a
+    unique index the way it slips past (org, kind, job, subject). */
+export const dedupeKey = (kind: string, jobUuid: string | null, subject: string) =>
+  `${kind}:${jobUuid ?? ""}:${subject}`;
+
 /* ── how much, how often ── */
 
 /** Writes one run sends. ServiceM8 allows 180 requests a minute; this keeps
@@ -100,9 +210,50 @@ export function subjectDocumentId(subject: string): string | null {
 export const WRITE_BATCH = 10;
 
 /** How long a claimed row is held while its request is in flight. Longer
-    than the request's own timeout, so a live send never has its row taken
-    from under it. */
+    than everything a send does under it (see WRITE_SEND_BY_MS), so a live
+    send never has its row taken from under it. */
 export const WRITE_LEASE_MS = 120_000;
+
+/** THE CLOCKS UNDER ONE CLAIM, each a hard timeout on its own request:
+    - the file's bytes, read from storage;
+    - the upload (a file of a few MB to a host in Australia, from a function
+      in Singapore: generous);
+    - a read of one attachment back from ServiceM8 — the check before a
+      re-press, and the confirmation after a 409;
+    - a margin for the database writes around them. */
+export const WRITE_DOWNLOAD_TIMEOUT_MS = 20_000;
+export const WRITE_TIMEOUT_MS = 60_000;
+export const WRITE_READ_TIMEOUT_MS = 10_000;
+export const WRITE_LEASE_MARGIN_MS = 15_000;
+
+/** THE LAST MOMENT INTO A CLAIM AN UPLOAD MAY START, the first or the one
+    after a renewed token: its own timeout, a read-back after it and the
+    margin all still end inside the lease. A send that reaches this late (a
+    slow read of the file, a slow check first) lets go of its row instead,
+    untouched, and the next run takes it. 35 s. */
+export const WRITE_SEND_BY_MS = WRITE_LEASE_MS - WRITE_TIMEOUT_MS - WRITE_READ_TIMEOUT_MS - WRITE_LEASE_MARGIN_MS;
+
+/** A run nobody is waiting on: behind a press's answer, or a retry. It stops
+    CLAIMING at this; a send already claimed finishes inside its lease. */
+export const RUN_BUDGET_MS = 90_000;
+
+/** Pressed writes one ServiceM8 account may take in an hour, across every
+    workspace. More trips Pause: a loop, or a person, sending more than this
+    is worth stopping and saying so. A trial run sends nothing and isn't
+    counted. */
+export const WRITE_HOURLY_CAP = 60;
+
+/** Whether `adding` more writes fit in the hour, `count` being those
+    already pressed in it. */
+export function capAllows(count: number, adding: number): boolean {
+  return count + adding <= WRITE_HOURLY_CAP;
+}
+
+/** Goes a row gets that it didn't pay for: a dead record given a fresh uuid,
+    or a send that let go of its row for want of time. Past this the row
+    stops with a sentence, so a file ServiceM8 always leaves unfinished
+    can't make a new dead record in somebody's ServiceM8 on every run. */
+export const WRITE_FREE_RETRIES = 2;
 
 /** How long after each failed attempt a row waits before the next. The first
     retry is quick (a blip), the last is half a day (an outage). */
@@ -117,26 +268,29 @@ export const WRITE_RETRY_AFTER_MS: readonly number[] = [
 /** Attempts before a row stops trying by itself and waits for a person. */
 export const WRITE_MAX_ATTEMPTS = WRITE_RETRY_AFTER_MS.length + 1;
 
-/** How far into its claim a refused send may still try again, once its
-    token has been renewed. The second try is another upload (60 s at most)
-    and perhaps a read-back (10 s), and all of it must end inside
-    WRITE_LEASE_MS, or a second sender could take the row mid-request. Past
-    this the row goes back in the queue, untouched, for the next run. */
-export const WRITE_RETRY_CUTOFF_MS = 40_000;
-
 /** Waits for a reason that isn't the row's (a busy or unpaid account). */
 const RATE_LIMIT_WAIT_MS = 60_000;
 const BILLING_WAIT_MS = 12 * 3_600_000;
 /** After a token renewal that couldn't reach ServiceM8. */
 const RENEW_WAIT_MS = 60_000;
+/** A daily limit's reset is guessed, then tried a few minutes after. */
+const RESET_GRACE_MS = 5 * 60_000;
 
 /* ── the sentences ── */
 
 export const WRITE_WORDS = {
   reauth: "ServiceM8 needs reconnecting before anything more can go.",
-  forbidden: "ServiceM8 hasn't given HeyTiff permission to add files.",
-  billing: "ServiceM8 isn't accepting anything for this account until its plan or invoice is sorted.",
+  /** ServiceM8 refused for want of a scope: this kind waits for a reconnect. */
+  scopeHeld: "ServiceM8 hasn't given HeyTiff permission to add files. It goes once ServiceM8 is reconnected.",
+  /** A 403 that doesn't name a scope: this file, not the grant. */
+  forbidden: "ServiceM8 didn't allow HeyTiff to add this file.",
+  billing: "ServiceM8 says this account isn't in good standing. Nothing more goes until its ServiceM8 bill is paid.",
   slowDown: "ServiceM8 asked HeyTiff to slow down. Trying again in a minute.",
+  dailyLimit: "ServiceM8's daily limit for HeyTiff is used up. Trying again after it resets.",
+  paused: "Sending to ServiceM8 is paused. An owner can change that in Integrations, ServiceM8.",
+  settingsUnread: "HeyTiff couldn't read the ServiceM8 settings. Nothing was sent or cancelled.",
+  deadRecordGaveUp: "ServiceM8 left the file unfinished, after several tries.",
+  tooSlowGaveUp: "HeyTiff took too long to get the file ready, after several tries.",
   unreachable: "ServiceM8 couldn't be reached. Trying again shortly.",
   gaveUp: "ServiceM8 couldn't be reached, after several tries.",
   noJob: "ServiceM8 couldn't find the job.",
@@ -154,6 +308,61 @@ export const WRITE_WORDS = {
 
 /* ── what came back ── */
 
+/** What ServiceM8 said, kept short: its errorCode and message from a JSON
+    body, or a plain-text body as the message. For whoever diagnoses the row
+    (sm8_writes.remote_code / remote_message) and for telling one 403 or 429
+    from another. NEVER SHOWN on a screen. */
+export type RemoteError = { code: string | null; message: string | null };
+
+export const REMOTE_MESSAGE_MAX = 300;
+const REMOTE_CODE_MAX = 20;
+
+const NO_REMOTE: RemoteError = { code: null, message: null };
+
+const squeeze = (v: string): string | null => {
+  const t = v.replace(/\s+/g, " ").trim();
+  return t ? t.slice(0, REMOTE_MESSAGE_MAX) : null;
+};
+
+export function readRemoteError(text: string | null | undefined, contentType: string | null | undefined): RemoteError {
+  const body = (text ?? "").trim();
+  if (!body) return NO_REMOTE;
+  /* an HTML error page is a proxy's or a load balancer's, never ServiceM8's
+     own words, and not worth keeping */
+  if (/html/i.test(contentType ?? "") || body.startsWith("<")) return NO_REMOTE;
+  if (/json/i.test(contentType ?? "") || body.startsWith("{")) {
+    try {
+      const j: unknown = JSON.parse(body);
+      if (j && typeof j === "object" && !Array.isArray(j)) {
+        const o = j as Record<string, unknown>;
+        const raw = o.errorCode;
+        const code =
+          typeof raw === "string" || typeof raw === "number" ? String(raw).trim().slice(0, REMOTE_CODE_MAX) || null : null;
+        const message = typeof o.message === "string" ? squeeze(o.message) : null;
+        return { code, message };
+      }
+    } catch {
+      /* not JSON after all: keep it as text */
+    }
+  }
+  return { code: null, message: squeeze(body) };
+}
+
+/** A 403 that names a missing scope — the wording ServiceM8 was seen to use
+    on a read ("insufficient_scope: … scope required"). Their write docs show
+    only a generic 403, so a scope refusal in other words reads as a refusal
+    of the one file. */
+const SCOPE_REFUSAL = /insufficient_scope|scope required/i;
+
+/** ServiceM8's daily limit, by its words: "Number of allowed API requests per
+    day exceeded". Anything else a 429 says is the per-minute limit. Exported
+    so every reader of a 429 tells the two apart the same way. */
+export const SM8_PER_DAY = /per day/i;
+
+/** Which limit a 429 was. A union so another limit (HeyTiff's own meter)
+    can join it without a second shape. */
+export type Sm8RateLimit = "minute" | "day";
+
 /** One request's answer, as the decision it forces. The sentences come
     later, from `verdictFor`: the same 403 means one thing to a row and
     another to the run. */
@@ -164,25 +373,79 @@ export type Sm8WriteOutcome =
       recorded as sent. */
   | { kind: "exists" }
   | { kind: "unauthorized" }
-  | { kind: "forbidden" }
+  /** `scope`: ServiceM8 named a missing permission, so every write of this
+      kind would be refused the same way until a reconnect. */
+  | { kind: "forbidden"; scope: boolean }
   | { kind: "payment_required" }
-  | { kind: "rate_limited" }
+  | { kind: "rate_limited"; limit: Sm8RateLimit }
+  /** The 409's record is ours, on this job, and INACTIVE: an earlier upload
+      failed half way, which ServiceM8's guide says leaves the record
+      "inactive and pending upload". That uuid is spent; the file goes again
+      under a new one. */
+  | { kind: "dead_record" }
   /** This request will never succeed as it is. */
   | { kind: "rejected"; status: number }
   /** Didn't answer, or answered with its own trouble. */
   | { kind: "unavailable"; status: number | null };
 
-export function classifyWrite(status: number, recordUuid: string | null): Sm8WriteOutcome {
+export function classifyWrite(
+  status: number,
+  recordUuid: string | null,
+  remote: RemoteError | null = null
+): Sm8WriteOutcome {
   if (status >= 200 && status < 300) return { kind: "created", remoteUuid: recordUuid };
   if (status === 409) return { kind: "exists" };
   if (status === 401) return { kind: "unauthorized" };
   if (status === 402) return { kind: "payment_required" };
-  if (status === 403) return { kind: "forbidden" };
-  if (status === 429) return { kind: "rate_limited" };
+  if (status === 403) return { kind: "forbidden", scope: SCOPE_REFUSAL.test(remote?.message ?? "") };
+  if (status === 429) return { kind: "rate_limited", limit: SM8_PER_DAY.test(remote?.message ?? "") ? "day" : "minute" };
   // a request that timed out on their side can be asked again
   if (status === 408) return { kind: "unavailable", status };
   if (status >= 400 && status < 500) return { kind: "rejected", status };
   return { kind: "unavailable", status };
+}
+
+/** When ServiceM8's daily limit is next worth trying: the earlier of the
+    next UTC midnight and the next midnight in the account's zone, plus a few
+    minutes. Which one ServiceM8 resets on is UNCONFIRMED, so trying at both
+    costs at most two requests a day. An unknown zone is UTC's alone. */
+export function nextDailyReset(now: number, timezoneName: string | null | undefined): number {
+  const DAY = 86_400_000;
+  const utc = Math.floor(now / DAY) * DAY + DAY;
+  const local = timezoneName ? nextLocalMidnight(now, timezoneName) : null;
+  return Math.min(utc, local ?? utc) + RESET_GRACE_MS;
+}
+
+/** The zone's offset from UTC at `t`, in ms — null for a zone Intl doesn't know. */
+function zoneOffset(t: number, tz: string): number | null {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).formatToParts(new Date(t));
+    const n = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+    const wall = Date.UTC(n("year"), n("month") - 1, n("day"), n("hour"), n("minute"), n("second"));
+    return wall - Math.floor(t / 1000) * 1000;
+  } catch {
+    return null;
+  }
+}
+
+function nextLocalMidnight(now: number, tz: string): number | null {
+  const DAY = 86_400_000;
+  const offset = zoneOffset(now, tz);
+  if (offset === null) return null;
+  const wall = now + offset;
+  const next = Math.floor(wall / DAY) * DAY + DAY - offset;
+  /* across a daylight-saving change the offset at midnight isn't today's */
+  const then = zoneOffset(next, tz);
+  return then === null ? next : next + offset - then;
 }
 
 export type WriteVerdict = {
@@ -200,6 +463,16 @@ export type WriteVerdict = {
       (sm8-renew.ts); only a second refusal flags the connection for
       reconnecting, the way a 401 on a read does. */
   reauth: boolean;
+  /** ServiceM8 refused this KIND for scope: it is marked refused on the
+      connection, and no row of it goes until a reconnect. */
+  blockKind: boolean;
+  /** Hold every queued row this long — the account's trouble, not a row's. */
+  holdAllMs: number | null;
+  /** The row's uuid is spent (a dead record): it goes again under a new one,
+      and the old one is remembered. */
+  freshUuid: boolean;
+  /** A go the row didn't pay for, counted against WRITE_FREE_RETRIES. */
+  freeRetry: boolean;
 };
 
 const verdict = (v: Partial<WriteVerdict> & Pick<WriteVerdict, "status">): WriteVerdict => ({
@@ -208,8 +481,17 @@ const verdict = (v: Partial<WriteVerdict> & Pick<WriteVerdict, "status">): Write
   refund: false,
   stop: false,
   reauth: false,
+  blockKind: false,
+  holdAllMs: null,
+  freshUuid: false,
+  freeRetry: false,
   ...v,
 });
+
+/** What a verdict needs to know besides the answer: the time (for a daily
+    limit's reset), the account's zone, and how many free goes the row has
+    had. */
+export type VerdictContext = { now: number; timezoneName: string | null; freeRetries: number };
 
 /** The wait before the next try, after `attempts` tries. */
 const retryAfter = (attempts: number): number =>
@@ -259,15 +541,28 @@ export function verdictForDisconnected(): WriteVerdict {
 }
 
 /** A send refused with a token that has since been renewed, too late in its
-    claim to try again (WRITE_RETRY_CUTOFF_MS). Nothing went wrong with the
-    file or the grant: it goes back to the queue as it was, due at once, and
-    the run carries on with the renewed token. */
+    claim to try again (WRITE_SEND_BY_MS). Nothing went wrong with the file
+    or the grant: it goes back to the queue as it was, due at once, and the
+    run carries on with the renewed token. */
 export function verdictForRenewLate(): WriteVerdict {
   return verdict({ status: "queued", retryAfterMs: 0, refund: true });
 }
 
+/** A send that reached WRITE_SEND_BY_MS before its upload could start — the
+    file was slow to read, or the check before it was. It lets go of the row
+    untouched and due at once, the attempt handed back; after
+    WRITE_FREE_RETRIES of those it stops for a person. */
+export function verdictForLetGo(freeRetries: number): WriteVerdict {
+  if (freeRetries >= WRITE_FREE_RETRIES) return verdict({ status: "failed", error: WRITE_WORDS.tooSlowGaveUp });
+  return verdict({ status: "queued", retryAfterMs: 0, refund: true, freeRetry: true });
+}
+
 /** What a row becomes after one attempt. `attempts` counts this one. */
-export function verdictFor(outcome: Sm8WriteOutcome, attempts: number): WriteVerdict {
+export function verdictFor(
+  outcome: Sm8WriteOutcome,
+  attempts: number,
+  ctx: VerdictContext = { now: Date.now(), timezoneName: null, freeRetries: 0 }
+): WriteVerdict {
   switch (outcome.kind) {
     case "created":
     case "exists":
@@ -276,27 +571,52 @@ export function verdictFor(outcome: Sm8WriteOutcome, attempts: number): WriteVer
       /* waits for a reconnect, then goes: nothing about the file was wrong */
       return verdict({ status: "queued", error: WRITE_WORDS.reauth, refund: true, stop: true, reauth: true });
     case "payment_required":
+      /* the account, not the file: everything waiting waits with it */
       return verdict({
         status: "queued",
         error: WRITE_WORDS.billing,
         retryAfterMs: BILLING_WAIT_MS,
+        holdAllMs: BILLING_WAIT_MS,
         refund: true,
         stop: true,
       });
-    case "rate_limited":
+    case "rate_limited": {
+      if (outcome.limit === "day") {
+        const wait = Math.max(RATE_LIMIT_WAIT_MS, nextDailyReset(ctx.now, ctx.timezoneName) - ctx.now);
+        return verdict({
+          status: "queued",
+          error: WRITE_WORDS.dailyLimit,
+          retryAfterMs: wait,
+          holdAllMs: wait,
+          refund: true,
+          stop: true,
+        });
+      }
       return verdict({
         status: "queued",
         error: WRITE_WORDS.slowDown,
         retryAfterMs: RATE_LIMIT_WAIT_MS,
+        holdAllMs: RATE_LIMIT_WAIT_MS,
         refund: true,
         stop: true,
       });
+    }
     case "forbidden":
-      /* The grant holds the scope by our records and ServiceM8 still said
-         no: a scope name they have changed, or a permission taken away on
-         their side. A person has to look, so the row stops, and so does the
-         run — the next file would be refused the same way. */
-      return verdict({ status: "failed", error: WRITE_WORDS.forbidden, stop: true });
+      /* A 403 that names a missing scope is the grant's: the file waits, its
+         attempt handed back, and so does every file of its kind until a
+         reconnect gives the permission. Any other 403 is about THIS file (a
+         job the grant can't touch, say) and stops only its row; the run
+         ends at the second in a row (sm8-writes). */
+      if (outcome.scope) {
+        return verdict({ status: "queued", error: WRITE_WORDS.scopeHeld, refund: true, stop: true, blockKind: true });
+      }
+      return verdict({ status: "failed", error: WRITE_WORDS.forbidden });
+    case "dead_record":
+      /* the uuid is spent; the file goes again at once under a new one */
+      if (ctx.freeRetries >= WRITE_FREE_RETRIES) {
+        return verdict({ status: "failed", error: WRITE_WORDS.deadRecordGaveUp });
+      }
+      return verdict({ status: "queued", retryAfterMs: 0, refund: true, freshUuid: true, freeRetry: true });
     case "rejected":
       return verdict({
         status: "failed",
@@ -318,6 +638,28 @@ export function verdictFor(outcome: Sm8WriteOutcome, attempts: number): WriteVer
         stop: true,
       });
   }
+}
+
+/* ── a file asked for again ── */
+
+/** The uuid to check before a re-pressed row goes under its new one: the
+    last one, when its last try ended without an answer ServiceM8 can be
+    trusted to have meant (none at all, a 408, its own 5xx) — that upload may
+    have landed, and a fresh uuid would make a second copy. The check is one
+    read before the upload (sm8-writes' sendOne). Otherwise an older uuid
+    still waiting for its check keeps its place. A trial row with attempts
+    and no status counts too: a live try before it may have lost its answer,
+    and the trial run wrote over the status. */
+export function verifyOnRepress(row: {
+  attempts: number;
+  http_status: number | null;
+  remote_uuid: string;
+  verify_uuid: string | null;
+}): string | null {
+  const s = row.http_status;
+  const unanswered = s === null || s === 408 || (s >= 500 && s < 600);
+  if (row.attempts > 0 && unanswered) return row.remote_uuid;
+  return row.verify_uuid;
 }
 
 /* ── the name it goes under ── */
@@ -359,8 +701,15 @@ export type SendLine = { word: string; tone: "ok" | "warn" | "bad" | null };
     A retry pending is said in the warning colour, because a file that went
     nowhere for an hour is worth noticing; a first send in flight isn't. "In
     ServiceM8" only when EVERY file the row holds went, so a paper whose
-    renewal came in since says nothing until the renewal is sent too. */
-export function sendLine(sends: readonly JobSend[], documentIds: readonly string[]): SendLine | null {
+    renewal came in since says nothing until the renewal is sent too.
+
+    `hold` is what is holding the workspace's waiting writes: a file waiting
+    behind a pause, or a reconnect, says that rather than "shortly". */
+export function sendLine(
+  sends: readonly JobSend[],
+  documentIds: readonly string[],
+  hold: SendHold = null
+): SendLine | null {
   if (documentIds.length === 0) return null;
   const mine = documentIds
     .map((id) => sends.find((s) => s.documentId === id))
@@ -371,6 +720,11 @@ export function sendLine(sends: readonly JobSend[], documentIds: readonly string
   if (failed) return { word: `Not sent to ServiceM8. ${failed.error ?? WRITE_WORDS.refused}`, tone: "bad" };
 
   const waiting = mine.filter((s) => s.status === "queued" || s.status === "sending");
+  if (waiting.length > 0 && hold !== null && waiting.some((s) => s.status === "queued")) {
+    return hold === "paused"
+      ? { word: "Not in ServiceM8 yet. Sending is paused.", tone: null }
+      : { word: "Not in ServiceM8 yet. ServiceM8 needs reconnecting.", tone: "warn" };
+  }
   if (waiting.length > 0) {
     const retrying = waiting.some((s) => s.status === "queued" && s.attempts > 0);
     return retrying
@@ -406,8 +760,11 @@ export function twinsToHide(sends: readonly JobSend[], shownDocumentIds: Iterabl
 
 /* ── what the owner's log says ── */
 
-/** One write in the ServiceM8 screen's list, in the state colour. */
-export function logWord(status: Sm8WriteStatus, attempts: number): SendLine {
+/** One write in the ServiceM8 screen's list, in the state colour. A write
+    waiting behind a pause or a reconnect says which (`hold`). */
+export function logWord(status: Sm8WriteStatus, attempts: number, hold: SendHold = null): SendLine {
+  if (status === "queued" && hold === "paused") return { word: "Held while paused", tone: null };
+  if (status === "queued" && hold === "reconnect") return { word: "Waiting for a reconnect", tone: "warn" };
   switch (status) {
     case "sent":
       return { word: "Sent", tone: "ok" };

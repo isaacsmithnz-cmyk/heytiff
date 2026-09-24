@@ -1,6 +1,7 @@
 import { authorised } from "@/lib/integrations/cron-auth";
 import { runSm8Sync, sweepableSm8Orgs } from "@/lib/integrations/sm8-sync";
 import { orgsWithDueSm8Writes, runSm8Writes } from "@/lib/integrations/sm8-writes";
+import { WRITE_LEASE_MARGIN_MS, WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
 
 /* The nightly ServiceM8 mirror top-up — the BACKSTOP, not the primary path.
 
@@ -51,7 +52,20 @@ const ORG_CAP = 10;
 
 export const maxDuration = 300;
 
+/** One workspace's write run stops CLAIMING after this. */
+const CRON_WRITE_BUDGET_MS = 30_000;
+
+/** THE WRITES' ONE DEADLINE, across every workspace, counted from the start
+    of the request. A run's budget only stops it claiming: a send claimed at
+    the last moment can hold its row for a whole lease (WRITE_LEASE_MS)
+    before it is done. So the last claim of the night must come a lease and a
+    margin before maxDuration, or the function is cut off mid-upload — ten
+    workspaces at 30 s each would not fit, whatever order they ran in. Past
+    it, what is left waits for the next page load or the next night. */
+const CRON_WRITE_DEADLINE_MS = maxDuration * 1000 - WRITE_LEASE_MS - WRITE_LEASE_MARGIN_MS;
+
 export async function GET(request: Request) {
+  const startedAt = Date.now();
   if (!authorised(request.headers.get("authorization"))) {
     // No detail: an unauthorised caller learns nothing about whether the
     // secret is set, only that they don't have it.
@@ -95,10 +109,16 @@ export async function GET(request: Request) {
      a deployment that doesn't write (orgsWithDueSm8Writes returns none). */
   let writesSent = 0;
   let writesFailed = 0;
+  let writesDeferred = 0;
   const writers = await orgsWithDueSm8Writes(ORG_CAP);
   for (const orgId of writers) {
+    const left = startedAt + CRON_WRITE_DEADLINE_MS - Date.now();
+    if (left <= 0) {
+      writesDeferred += 1;
+      continue;
+    }
     try {
-      const run = await runSm8Writes(orgId, "cron");
+      const run = await runSm8Writes(orgId, "cron", { budgetMs: Math.min(CRON_WRITE_BUDGET_MS, left) });
       writesSent += run.sent;
       writesFailed += run.failed;
     } catch {
@@ -117,6 +137,6 @@ export async function GET(request: Request) {
     pages,
     rows,
     capped: orgs.length === ORG_CAP,
-    writes: { orgs: writers.length, sent: writesSent, failed: writesFailed },
+    writes: { orgs: writers.length, sent: writesSent, failed: writesFailed, deferred: writesDeferred },
   });
 }

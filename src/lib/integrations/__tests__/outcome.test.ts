@@ -5,6 +5,8 @@ import {
   nameList,
   sm8ConnectMessage,
   sm8DisconnectNote,
+  sm8OffNote,
+  sm8RetryNote,
   sm8SwitchedNotice,
   sm8WaitingConsequence,
 } from "../outcome";
@@ -102,5 +104,41 @@ describe("the disconnect confirm's waiting line", () => {
     expect(sm8WaitingConsequence(1)).toBe("1 file still waiting to go to ServiceM8 is cancelled.");
     expect(sm8WaitingConsequence(2)).toBe("2 files still waiting to go to ServiceM8 are cancelled.");
     expect(sm8WaitingConsequence(0)).toBeNull();
+  });
+});
+
+describe("a connect that couldn't read the settings", () => {
+  it("says nothing changed", () => {
+    expect(sm8ConnectMessage("settings")).toBe(
+      "HeyTiff couldn't read this workspace's ServiceM8 settings, so nothing changed. Try again."
+    );
+  });
+});
+
+describe("what Off cancelled", () => {
+  it("says how many files that were waiting won't go", () => {
+    expect(sm8OffNote(2)).toBe("Sending is off. 2 files that were waiting won't go.");
+    expect(sm8OffNote(1)).toBe("Sending is off. 1 file that was waiting won't go.");
+    expect(sm8OffNote(0)).toBeNull();
+  });
+});
+
+describe("what Retry failed files did", () => {
+  it("says how many go again, and how many are left for the next hour", () => {
+    expect(sm8RetryNote({ queued: 2, left: 0, capped: false, byHour: false })).toBe("2 files will go again.");
+    expect(sm8RetryNote({ queued: 1, left: 0, capped: false, byHour: false })).toBe("1 file will go again.");
+    expect(sm8RetryNote({ queued: 2, left: 1, capped: false, byHour: true })).toBe(
+      "2 files will go again. 1 more can go after an hour."
+    );
+    expect(sm8RetryNote({ queued: 200, left: 5, capped: false, byHour: false })).toBe(
+      "200 files will go again. 5 more can go with another retry."
+    );
+  });
+
+  it("says when the hour has no room", () => {
+    expect(sm8RetryNote({ queued: 0, left: 3, capped: true, byHour: true })).toBe(
+      "60 have gone to ServiceM8 in the last hour. Try again in an hour."
+    );
+    expect(sm8RetryNote({ queued: 0, left: 0, capped: false, byHour: false })).toBe("Nothing is waiting to go again.");
   });
 });

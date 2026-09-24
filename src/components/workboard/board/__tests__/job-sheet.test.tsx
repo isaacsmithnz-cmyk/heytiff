@@ -3750,7 +3750,7 @@ describe("compliance on the card", () => {
 
   it("sends what's ticked to ServiceM8 where an owner switched it on, and the row says it's there", async () => {
     const onToast = jest.fn();
-    sm8Send.readJobSm8.mockResolvedValue({ send: "live", sends: [] });
+    sm8Send.readJobSm8.mockResolvedValue({ send: "live", sends: [], hold: null });
     sm8Send.sendJobDocumentsToServiceM8.mockResolvedValue({
       ok: true,
       trial: false,
@@ -3777,7 +3777,7 @@ describe("compliance on the card", () => {
   });
 
   it("keeps a file that didn't go ticked, and says why in the footer until the ticks change", async () => {
-    sm8Send.readJobSm8.mockResolvedValue({ send: "live", sends: [] });
+    sm8Send.readJobSm8.mockResolvedValue({ send: "live", sends: [], hold: null });
     sm8Send.sendJobDocumentsToServiceM8.mockResolvedValue({
       ok: true,
       trial: false,
@@ -3822,7 +3822,7 @@ describe("compliance on the card", () => {
       ...over,
     });
     compliance.listJobPapers.mockResolvedValue({ papers: [], may });
-    sm8Send.readJobSm8.mockResolvedValue({ send: null, sends: [sent("d-9", "sent")] });
+    sm8Send.readJobSm8.mockResolvedValue({ send: null, sends: [sent("d-9", "sent")], hold: null });
     readJobFiles.mockResolvedValue({
       photos: [],
       documents: [

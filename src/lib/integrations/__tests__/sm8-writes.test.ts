@@ -478,6 +478,28 @@ describe("what an answer does to the run", () => {
     expect(writes()[0]).toMatchObject({ status: "cancelled", last_error: WRITE_WORDS.otherAccount });
   });
 
+  it("a token renewed onto a connection that names no account never carries the file, and doesn't cancel it", async () => {
+    /* A nameless reconnect landed while the run was out: the token is for
+       SOME account, and nothing says it is the one this file was queued for. */
+    const { ids } = await queue("d1", "d2");
+    postSm8Attachment.mockResolvedValue({ status: 401, outcome: { kind: "unauthorized" } });
+    renewSm8Access.mockResolvedValue({ ok: true, access: { ...RENEWED, tenantId: null } });
+    const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(postSm8Attachment).toHaveBeenCalledTimes(1);
+    expect(run).toMatchObject({ done: 1, stopped: WRITE_WORDS.accountUnknown });
+    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0, last_error: WRITE_WORDS.accountUnknown });
+    expect(writes()[0].next_attempt_at).toBe(new Date(NOW + 60_000).toISOString());
+    expect(writes()[1]).toMatchObject({ status: "queued", attempts: 0 });
+  });
+
+  it("a first token from a connection that names no account sends nothing", async () => {
+    const { ids } = await queue("d1");
+    sm8AccessResult.mockResolvedValue({ ok: true, access: { ...ACCESS, tenantId: null } });
+    await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(postSm8Attachment).not.toHaveBeenCalled();
+    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0, last_error: WRITE_WORDS.accountUnknown });
+  });
+
   it("backs off an unreachable ServiceM8 and ends the run, the next file untried", async () => {
     const { ids } = await queue("d1", "d2");
     postSm8Attachment.mockResolvedValue({ status: 503, outcome: { kind: "unavailable", status: 503 } });

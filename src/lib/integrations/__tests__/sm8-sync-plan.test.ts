@@ -154,9 +154,13 @@ describe("the object list", () => {
 
   it("wipes every mirror plus the bookkeeping on disconnect", () => {
     for (const spec of SM8_OBJECTS) expect(SM8_WIPE_TABLES).toContain(spec.table);
-    expect(SM8_WIPE_TABLES).toContain("sm8_vendor");
     expect(SM8_WIPE_TABLES).toContain("sm8_sync_state");
     expect(SM8_WIPE_TABLES).toContain("sm8_sync_runs");
+  });
+
+  it("keeps the record of which account the copy came from, so a different one connected later is a change of account", () => {
+    // the cached photos, their readings and stars outlive a disconnect
+    expect(SM8_WIPE_TABLES).not.toContain("sm8_vendor");
   });
 });
 

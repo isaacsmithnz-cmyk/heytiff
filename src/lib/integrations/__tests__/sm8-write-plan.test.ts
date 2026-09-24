@@ -19,6 +19,7 @@ import {
   subjectDocumentId,
   twinsToHide,
   verdictFor,
+  verdictForAccountUnknown,
   verdictForDisconnected,
   verdictForRenewLate,
   verdictForRenewUnreachable,
@@ -318,6 +319,17 @@ describe("a refused token, renewed", () => {
     expect(verdictForDisconnected()).toMatchObject({
       status: "queued",
       error: WRITE_WORDS.disconnected,
+      refund: true,
+      stop: true,
+      reauth: false,
+    });
+  });
+
+  it("a token whose connection names no account waits, hands the attempt back and stops — never cancelled, never sent", () => {
+    expect(verdictForAccountUnknown()).toEqual({
+      status: "queued",
+      error: WRITE_WORDS.accountUnknown,
+      retryAfterMs: 60_000,
       refund: true,
       stop: true,
       reauth: false,

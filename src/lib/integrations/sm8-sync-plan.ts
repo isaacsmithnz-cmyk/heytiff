@@ -351,10 +351,19 @@ export const SM8_OBJECTS: Sm8ObjectSpec[] = [
 ];
 
 /** Everything disconnect wipes — the mirrors AND the bookkeeping, because a
-    cursor into data we no longer hold is a lie waiting for a reconnect. */
+    cursor into data we no longer hold is a lie waiting for a reconnect.
+
+    NOT sm8_vendor. It is the one record of WHICH account this workspace's
+    copy came from, and HeyTiff keeps more of that copy than the mirrors: the
+    cached photos, what was read off them, and the stars on them all survive
+    a disconnect, so reconnecting the same account doesn't pay to read them
+    again. Kept, the row makes a later connect of a DIFFERENT account a change
+    of account (switchSm8Account), which clears them; wiped, that connect
+    would look like a first one, and the old business's photos would stay
+    searchable under the new account. It holds the account's own name, zone
+    and currency — nothing of its client book. */
 export const SM8_WIPE_TABLES: string[] = [
   ...SM8_OBJECTS.map((s) => s.table),
-  "sm8_vendor",
   "sm8_sync_state",
   "sm8_sync_runs",
 ];
@@ -496,6 +505,12 @@ export const SM8_ACCOUNT_MOVED =
 /** The account changed, and clearing the old copy didn't finish. */
 export const SM8_ACCOUNT_UNCLEARED =
   "The ServiceM8 account changed, and the old copy couldn't be cleared yet. The next sync tries again.";
+
+/** HeyTiff's own record of which account is connected, or which one the copy
+    came from, couldn't be read. Without it a changed account can't be told
+    from the same one, so nothing is named, cleared or written. */
+export const SM8_ACCOUNT_UNREAD =
+  "HeyTiff couldn't check which ServiceM8 account this is, so the sync stopped. The next sync tries again.";
 
 /** A nameless connection turned out to hold an account another workspace
     already has: one account, one workspace. */

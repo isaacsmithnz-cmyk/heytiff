@@ -34,11 +34,9 @@ jest.mock("@/lib/integrations/sm8", () => ({
 
 const readSm8Accounts = jest.fn();
 const saveSm8Connection = jest.fn();
-const switchSm8Account = jest.fn();
 jest.mock("@/lib/integrations/sm8-store", () => ({
   readSm8Accounts: (...a: unknown[]) => readSm8Accounts(...a),
   saveSm8Connection: (...a: unknown[]) => saveSm8Connection(...a),
-  switchSm8Account: (...a: unknown[]) => switchSm8Account(...a),
 }));
 
 const countConnectionsElsewhere = jest.fn();
@@ -46,7 +44,13 @@ jest.mock("@/lib/integrations/store", () => ({
   countConnectionsElsewhere: (...a: unknown[]) => countConnectionsElsewhere(...a),
 }));
 
-jest.mock("@/lib/integrations/sm8-sync", () => ({ runSm8Sync: jest.fn(async () => ({})) }));
+/* The clear goes through the sync's lease; what the lease does is the sync
+   suite's to prove. */
+const switchSm8Account = jest.fn();
+jest.mock("@/lib/integrations/sm8-sync", () => ({
+  runSm8SyncWhenFree: jest.fn(async () => ({})),
+  switchSm8AccountUnderLease: (...a: unknown[]) => switchSm8Account(...a),
+}));
 
 import { GET } from "../callback/route";
 
@@ -73,6 +77,7 @@ beforeEach(() => {
   exchangeSm8Code.mockReset().mockResolvedValue({ ok: true, tokens: TOKENS });
   fetchSm8Vendor.mockReset().mockResolvedValue({ ok: true, vendor: acme });
   readSm8Accounts.mockReset().mockResolvedValue({
+    ok: true,
     connected: { tenantId: "v-1", tenantName: "Acme Air" },
     mirrored: { uuid: "v-1", name: "Acme Air" },
   });
@@ -122,6 +127,7 @@ describe("a different account replaces the old one", () => {
 
   it("a nameless connection is compared through the mirror's account", async () => {
     readSm8Accounts.mockResolvedValue({
+      ok: true,
       connected: { tenantId: null, tenantName: null },
       mirrored: { uuid: "v-1", name: "Acme Air" },
     });
@@ -137,10 +143,65 @@ describe("a different account replaces the old one", () => {
     expect(where(res)).toBe(`${SCREEN}?connected=1`);
   });
 
+  it("Disconnect then Connect of another account is a change of account too", async () => {
+    // Disconnect deleted the connection row and kept the record of the old account
+    readSm8Accounts.mockResolvedValue({ ok: true, connected: null, mirrored: { uuid: "v-1", name: "Acme Air" } });
+    fetchSm8Vendor.mockResolvedValue({ ok: true, vendor: beta });
+    const res = await GET(callback());
+    expect(saveSm8Connection).toHaveBeenCalledWith(expect.objectContaining({ vendor: beta, switching: true }));
+    expect(switchSm8Account).toHaveBeenCalledWith("org-1", {
+      to: beta,
+      from: { uuid: "v-1", name: "Acme Air" },
+      now: expect.any(Number),
+    });
+    expect(where(res)).toBe(`${SCREEN}?connected=1&switched=1`);
+  });
+
+  it("Disconnect then Connect of the same account clears nothing", async () => {
+    readSm8Accounts.mockResolvedValue({ ok: true, connected: null, mirrored: { uuid: "v-1", name: "Acme Air" } });
+    await GET(callback());
+    expect(saveSm8Connection).toHaveBeenCalledWith(expect.objectContaining({ vendor: acme, switching: false }));
+    expect(switchSm8Account).not.toHaveBeenCalled();
+  });
+
+  it("a sync still walking the old account holds the clear off: saved, no switch claimed, the first sync finishes it", async () => {
+    const quiet = jest.spyOn(console, "error").mockImplementation(() => {});
+    fetchSm8Vendor.mockResolvedValue({ ok: true, vendor: beta });
+    switchSm8Account.mockResolvedValue({ ok: false, reason: "busy" });
+    const res = await GET(callback());
+    expect(saveSm8Connection).toHaveBeenCalledWith(expect.objectContaining({ switching: true }));
+    expect(afterFn).toHaveBeenCalledTimes(1);
+    expect(where(res)).toBe(`${SCREEN}?connected=1`);
+    quiet.mockRestore();
+  });
+
   it("a first connect has nothing to replace", async () => {
-    readSm8Accounts.mockResolvedValue({ connected: null, mirrored: null });
+    readSm8Accounts.mockResolvedValue({ ok: true, connected: null, mirrored: null });
     await GET(callback());
     expect(saveSm8Connection).toHaveBeenCalledWith(expect.objectContaining({ switching: false }));
+    expect(switchSm8Account).not.toHaveBeenCalled();
+  });
+});
+
+describe("which account this workspace had must be read, not assumed", () => {
+  it("a failed read saves nothing, and says it couldn't be saved", async () => {
+    /* Read as "no connection", a reconnect whose account couldn't be named
+       would be saved nameless over the named row, and a different account
+       would be saved without sending going off. */
+    readSm8Accounts.mockResolvedValue({ ok: false });
+    fetchSm8Vendor.mockResolvedValue({ ok: false, unauthorized: false });
+    const res = await GET(callback());
+    expect(where(res)).toBe(`${SCREEN}?error=save`);
+    expect(saveSm8Connection).not.toHaveBeenCalled();
+    expect(afterFn).not.toHaveBeenCalled();
+  });
+
+  it("a failed read with a readable account saves nothing either", async () => {
+    readSm8Accounts.mockResolvedValue({ ok: false });
+    fetchSm8Vendor.mockResolvedValue({ ok: true, vendor: beta });
+    const res = await GET(callback());
+    expect(where(res)).toBe(`${SCREEN}?error=save`);
+    expect(saveSm8Connection).not.toHaveBeenCalled();
     expect(switchSm8Account).not.toHaveBeenCalled();
   });
 });
@@ -161,7 +222,7 @@ describe("an account ServiceM8 wouldn't name", () => {
   });
 
   it("a first connect with no readable account is still stored, nameless", async () => {
-    readSm8Accounts.mockResolvedValue({ connected: null, mirrored: null });
+    readSm8Accounts.mockResolvedValue({ ok: true, connected: null, mirrored: null });
     fetchSm8Vendor.mockResolvedValue({ ok: false, unauthorized: false });
     const res = await GET(callback());
     expect(saveSm8Connection).toHaveBeenCalledWith(expect.objectContaining({ vendor: null }));

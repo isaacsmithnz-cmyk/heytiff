@@ -147,6 +147,7 @@ export const WRITE_WORDS = {
   unreadable: "HeyTiff couldn't read the file. Trying again shortly.",
   unreadableGaveUp: "HeyTiff couldn't read the file, after several tries.",
   otherAccount: "This was for a different ServiceM8 account from the one connected now.",
+  accountUnknown: "HeyTiff couldn't confirm which ServiceM8 account is connected. Trying again shortly.",
   switchedOff: "Sending to ServiceM8 was switched off before it went.",
   disconnected: "ServiceM8 was disconnected before it went.",
 } as const;
@@ -230,6 +231,21 @@ export function verdictForRenewUnreachable(): WriteVerdict {
   return verdict({
     status: "queued",
     error: WRITE_WORDS.unreachable,
+    retryAfterMs: RENEW_WAIT_MS,
+    refund: true,
+    stop: true,
+  });
+}
+
+/** A token whose connection doesn't say which ServiceM8 account it is for —
+    a nameless reconnect landed mid-run. The account is unknown, not known to
+    be wrong, so the file isn't cancelled: it waits, its attempt handed back,
+    until a sync has named the connection. The run stops, because every
+    later row would go out on the same token. */
+export function verdictForAccountUnknown(): WriteVerdict {
+  return verdict({
+    status: "queued",
+    error: WRITE_WORDS.accountUnknown,
     retryAfterMs: RENEW_WAIT_MS,
     refund: true,
     stop: true,

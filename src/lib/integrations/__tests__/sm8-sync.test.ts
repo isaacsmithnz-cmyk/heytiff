@@ -23,27 +23,55 @@ let connRow: Row | null = { tenant_id: "v-1", tenant_name: "Acme Air" };
 let vendorRow: Row | null = { uuid: "v-1", name: "Acme Air" };
 /* The unique index on ServiceM8 accounts refusing a write that names one. */
 let namingRefused = false;
+/* Called on every single-row read of the connection, with its count, AFTER
+   the read has taken its answer — lets a test play the owner reconnecting
+   just after read n of a run. */
+let onConnRead: ((n: number) => void) | null = null;
+let connReads = 0;
+/* Called on every upsert, before it lands — the reconnect that arrives while
+   a page is being written. */
+let onUpsert: ((table: string) => void) | null = null;
+/* Tables whose single-row read errors, and whose delete the database refuses. */
+const readFails = new Set<string>();
+const deleteFails = new Set<string>();
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
     from: (table: string) => {
       const chain: Record<string, unknown> = {};
       chain.upsert = (payload: unknown) => {
+        onUpsert?.(table);
         upserts.push({ table, payload });
         return Promise.resolve({ error: null });
       };
       chain.update = (patch: Row) => {
+        /* The connection's own guards are honoured, the way the database
+           would: a write conditional on the row's account matches only while
+           the row still holds it. */
+        const eqs: Row = {};
+        const nulls: string[] = [];
+        const holds = () =>
+          !!connRow &&
+          Object.entries(eqs).every(([col, v]) => !(col in connRow!) || connRow![col] === v) &&
+          nulls.every((col) => connRow![col] == null);
         const sub: Record<string, unknown> = {};
-        sub.eq = () => sub;
+        sub.eq = (col: string, v: unknown) => {
+          eqs[col] = v;
+          return sub;
+        };
         sub.or = () => sub;
-        sub.is = () => sub;
+        sub.is = (col: string) => {
+          nulls.push(col);
+          return sub;
+        };
         sub.neq = () => sub;
         sub.select = () => {
           updates.push({ table, patch });
           if (table === "integration_connections" && namingRefused && "tenant_id" in patch) {
             return Promise.resolve({ data: null, error: { code: "23505" } });
           }
-          if (table === "integration_connections" && connRow) {
+          if (table === "integration_connections") {
+            if (!holds()) return Promise.resolve({ data: [], error: null });
             connRow = { ...connRow, ...patch };
             return Promise.resolve({ data: [{ id: "c1" }], error: null });
           }
@@ -62,10 +90,16 @@ jest.mock("@/lib/supabase-server", () => ({
         sub.limit = () => sub;
         sub.order = () => sub;
         sub.range = () => sub;
-        sub.maybeSingle = async () => ({
-          data: table === "integration_connections" ? connRow : table === "sm8_vendor" ? vendorRow : runsRow,
-          error: null,
-        });
+        sub.maybeSingle = async () => {
+          const answer = readFails.has(table)
+            ? { data: null, error: { code: "08006" } }
+            : {
+                data: table === "integration_connections" ? connRow : table === "sm8_vendor" ? vendorRow : runsRow,
+                error: null,
+              };
+          if (table === "integration_connections") onConnRead?.(++connReads);
+          return answer;
+        };
         sub.then = (res: (v: { data: Row[] }) => unknown) => {
           const data =
             table === "sm8_sync_state"
@@ -82,7 +116,8 @@ jest.mock("@/lib/supabase-server", () => ({
       chain.delete = () => {
         const sub: Record<string, unknown> = {};
         sub.eq = () => sub;
-        sub.then = (res: (v: { error: null }) => unknown) => {
+        sub.then = (res: (v: { error: { code: string } | null }) => unknown) => {
+          if (deleteFails.has(table)) return Promise.resolve({ error: { code: "57014" } }).then(res);
           deletes.push(table);
           return Promise.resolve({ error: null }).then(res);
         };
@@ -124,12 +159,21 @@ jest.mock("../sm8-read", () => ({
   fetchSm8Page: (...a: unknown[]) => fetchSm8Page(...(a as [])),
 }));
 
-import { kickSm8SyncIfStale, runSm8Sync, sweepableSm8Orgs } from "../sm8-sync";
+import {
+  kickSm8SyncIfStale,
+  runSm8Sync,
+  runSm8SyncWhenFree,
+  SM8_SYNC_BUSY,
+  sweepableSm8Orgs,
+  switchSm8AccountUnderLease,
+} from "../sm8-sync";
 import {
   PAGE_BUDGET,
   SM8_ACCOUNT_MOVED,
   SM8_ACCOUNT_RESET_TABLES,
   SM8_ACCOUNT_SWITCHED,
+  SM8_ACCOUNT_UNCLEARED,
+  SM8_ACCOUNT_UNREAD,
   SM8_ELSEWHERE,
   SM8_OBJECTS,
   SM8_REVOKED,
@@ -151,6 +195,11 @@ beforeEach(() => {
   connRow = { tenant_id: "v-1", tenant_name: "Acme Air" };
   vendorRow = { uuid: "v-1", name: "Acme Air" };
   namingRefused = false;
+  onConnRead = null;
+  connReads = 0;
+  onUpsert = null;
+  readFails.clear();
+  deleteFails.clear();
   claimResult = [{ calls_today: 0, calls_day: null }];
   stateRows = [];
   runsRow = null;
@@ -792,5 +841,190 @@ describe("the account behind the connection", () => {
     // page one landed before the move; page two, and the object's state row, didn't
     expect(upserts.filter((u) => u.table === "sm8_staff")).toHaveLength(1);
     expect(stateUpsertFor("staff")).toBeUndefined();
+  });
+
+  /* Reads of the connection in a run of one account whose mirror is its own:
+     1 which account (readSm8Accounts), 2 before sm8_vendor is written, then
+     one before each page's rows and one before each object's state row. */
+  it("a reconnect that lands before the mirror's own row is written stops the run before it", async () => {
+    // the stale run must not write the old account over the sentinel
+    onConnRead = (n) => {
+      if (n === 1) connRow = { tenant_id: "v-2", tenant_name: "Beta Cooling" };
+    };
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_ACCOUNT_MOVED);
+    expect(upserts.find((u) => u.table === "sm8_vendor")).toBeUndefined();
+    expect(fetchSm8Page).not.toHaveBeenCalled();
+  });
+
+  it("a disconnect mid-walk stops the run, and none of the page it read lands", async () => {
+    fetchSm8Page.mockResolvedValue({ ok: true, rows: [{ uuid: "u-1", edit_date: "2026-07-28 09:00:00", active: 1 }], nextCursor: null });
+    onConnRead = (n) => {
+      if (n === 2) connRow = null;
+    };
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toMatch(/isn't connected/);
+    expect(fetchSm8Page).toHaveBeenCalledTimes(1);
+    const mirrorTables = new Set(SM8_OBJECTS.map((o) => o.table));
+    expect(upserts.filter((u) => mirrorTables.has(u.table))).toEqual([]);
+    expect(upserts.filter((u) => u.table === "sm8_sync_state")).toEqual([]);
+  });
+
+  it("a nameless connection taken by another account before this run could name it: nothing named, nothing cleared", async () => {
+    /* The mirror names a third account — a switch that hadn't finished — so a
+       run that went on would start clearing on behalf of an account the
+       connection no longer holds. */
+    connRow = { tenant_id: null, tenant_name: null };
+    vendorRow = { uuid: "v-3", name: "Gamma Heating" };
+    onConnRead = (n) => {
+      if (n === 1) connRow = { tenant_id: "v-2", tenant_name: "Beta Cooling" };
+    };
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_ACCOUNT_MOVED);
+    expect(connRow).toMatchObject({ tenant_id: "v-2" });
+    expect(updates.some((u) => "write_mode" in u.patch)).toBe(false);
+    expect(deletes).toEqual([]);
+    expect(upserts.find((u) => u.table === "sm8_vendor")).toBeUndefined();
+  });
+
+  it("a reconnect that lands after an object's last page, before its state row, keeps the old cursor out", async () => {
+    /* A cursor of the old account's, with backfill_done, inherited by the new
+       one would mean its history is never read. */
+    fetchSm8Page.mockResolvedValue({ ok: true, rows: [{ uuid: "u-1", edit_date: "2026-07-28 09:00:00", active: 1 }], nextCursor: null });
+    onConnRead = (n) => {
+      if (n === 3) connRow = { tenant_id: "v-2", tenant_name: "Beta Cooling" };
+    };
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_ACCOUNT_MOVED);
+    expect(upserts.filter((u) => u.table === "sm8_staff")).toHaveLength(1);
+    expect(upserts.filter((u) => u.table === "sm8_sync_state")).toEqual([]);
+  });
+
+  it("a reconnect while a page is being written: the old rows stay behind the sentinel, and the next run clears them", async () => {
+    fetchSm8Page.mockResolvedValue({ ok: true, rows: [{ uuid: "u-a", edit_date: "2026-07-28 09:00:00", active: 1 }], nextCursor: null });
+    onUpsert = (table) => {
+      if (table === "sm8_staff") connRow = { tenant_id: "v-2", tenant_name: "Beta Cooling" };
+    };
+    const stale = await runSm8Sync("org-1", "manual", NOW);
+    expect(stale.note).toBe(SM8_ACCOUNT_MOVED);
+    expect(upserts.filter((u) => u.table === "sm8_staff")).toHaveLength(1);
+    // no cursor for the object that was being written, and the sentinel still names the old account
+    expect(upserts.filter((u) => u.table === "sm8_sync_state")).toEqual([]);
+    expect(deletes).not.toContain("sm8_vendor");
+    expect(upserts.filter((u) => u.table === "sm8_vendor").map((u) => (u.payload as Row).uuid)).toEqual(["v-1"]);
+
+    // the next run, under the new grant, finds the old copy and clears it before reading
+    onUpsert = null;
+    upserts.length = 0;
+    fetchSm8Vendor.mockResolvedValue({ ok: true, vendor: vendorB });
+    fetchSm8Page.mockResolvedValue(emptyPage);
+    const next = await runSm8Sync("org-1", "manual", NOW);
+    expect(deletes).toContain("sm8_staff");
+    expect(deletes).toContain("sm8_vendor");
+    expect(upserts.find((u) => u.table === "sm8_vendor")!.payload).toMatchObject({ uuid: "v-2" });
+    expect(next.note).toBe(SM8_ACCOUNT_SWITCHED);
+  });
+
+  it.each([...SM8_ACCOUNT_RESET_TABLES, "documents"])(
+    "a clear of %s that fails stops the run before any page, and keeps the sentinel",
+    async (table) => {
+      jest.spyOn(console, "error").mockImplementation(() => {});
+      connRow = { tenant_id: "v-2", tenant_name: "Beta Cooling" };
+      vendorRow = { uuid: "v-1", name: "Acme Air" };
+      fetchSm8Vendor.mockResolvedValue({ ok: true, vendor: vendorB });
+      deleteFails.add(table);
+      const out = await runSm8Sync("org-1", "manual", NOW);
+      expect(out.note).toBe(SM8_ACCOUNT_UNCLEARED);
+      expect(fetchSm8Page).not.toHaveBeenCalled();
+      expect(deletes).not.toContain("sm8_vendor");
+      expect(upserts.find((u) => u.table === "sm8_vendor")).toBeUndefined();
+    }
+  );
+
+  it.each(["integration_connections", "sm8_vendor"])(
+    "a failed read of %s names, clears and writes nothing",
+    async (table) => {
+      jest.spyOn(console, "error").mockImplementation(() => {});
+      connRow = { tenant_id: null, tenant_name: null };
+      readFails.add(table);
+      const out = await runSm8Sync("org-1", "manual", NOW);
+      expect(out.note).toBe(SM8_ACCOUNT_UNREAD);
+      expect(updates.filter((u) => u.table === "integration_connections")).toEqual([]);
+      expect(deletes).toEqual([]);
+      expect(upserts.find((u) => u.table === "sm8_vendor")).toBeUndefined();
+      expect(fetchSm8Page).not.toHaveBeenCalled();
+    }
+  );
+
+  it("a disconnect kept the record of the old account, so connecting another one clears the old copy", async () => {
+    // Disconnect deleted the connection row but kept sm8_vendor; the new grant is nameless
+    connRow = { tenant_id: null, tenant_name: null };
+    vendorRow = { uuid: "v-1", name: "Acme Air" };
+    fetchSm8Vendor.mockResolvedValue({ ok: true, vendor: vendorB });
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(connRow).toMatchObject({ tenant_id: "v-2", write_mode: "off", account_changed_from: "Acme Air" });
+    expect(deletes).toEqual(expect.arrayContaining(["documents", "job_photo_readings", "job_photo_favourites", "sm8_vendor"]));
+    expect(out.note).toBe(SM8_ACCOUNT_SWITCHED);
+  });
+});
+
+/* ── the callback's clear, and the sync that follows it ──
+
+   The callback clears the old account's copy before its first sync, and it
+   does so under the same lease the walker holds: a run still reading the old
+   account under the old grant must not land a page after its table went. */
+describe("the callback's clear is serialised with the walker", () => {
+  const vendorB = { uuid: "v-2", name: "Beta Cooling", email: null, timezoneName: "Australia/Sydney", currency: "AUD" };
+  const from = { uuid: "v-1", name: "Acme Air" };
+
+  beforeEach(() => {
+    connRow = { tenant_id: "v-2", tenant_name: "Beta Cooling" };
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("a run holding the lease means the clear is skipped: nothing deleted, nothing recorded", async () => {
+    claimResult = [];
+    expect(await switchSm8AccountUnderLease("org-1", { to: vendorB, from, now: NOW })).toEqual({ ok: false, reason: "busy" });
+    expect(deletes).toEqual([]);
+    expect(updates.filter((u) => u.table === "integration_connections")).toEqual([]);
+  });
+
+  it("a free lease is taken for the clear and given back, without passing for a sync", async () => {
+    const r = await switchSm8AccountUnderLease("org-1", { to: vendorB, from, now: NOW });
+    expect(r).toEqual({ ok: true, cancelled: 0, cleared: true });
+    const runs = updates.filter((u) => u.table === "sm8_sync_runs");
+    expect(runs[0].patch).toEqual({ lease_until: new Date(NOW + 120_000).toISOString() });
+    expect(runs[runs.length - 1].patch).toEqual({ lease_until: null });
+    expect(deletes).toContain("sm8_vendor");
+    // the clear happened while the lease was held
+    const order = [...updates.map((u) => u.table)];
+    expect(order.indexOf("sm8_sync_runs")).toBeLessThan(order.indexOf("integration_connections"));
+  });
+
+  it("the first sync waits for a run under the old grant to stop, then runs", async () => {
+    let claims = 0;
+    claimResult = [];
+    onUpsert = (table) => {
+      if (table === "sm8_sync_runs" && ++claims === 3) claimResult = [{ calls_today: 0, calls_day: null }];
+    };
+    const out = await runSm8SyncWhenFree("org-1", "connect", { waitMs: 0 });
+    expect(claims).toBe(3);
+    expect(out.ran).toBe(true);
+  });
+
+  it("gives up after its last try, with the busy answer", async () => {
+    claimResult = [];
+    const out = await runSm8SyncWhenFree("org-1", "connect", { tries: 2, waitMs: 0 });
+    expect(out).toMatchObject({ ran: false, note: SM8_SYNC_BUSY });
+    expect(sm8AccessResult).not.toHaveBeenCalled();
+  });
+
+  it("doesn't wait on an answer that isn't busy", async () => {
+    sm8AccessResult.mockResolvedValue({ ok: false, reason: "reauth" });
+    await runSm8SyncWhenFree("org-1", "connect", { waitMs: 0 });
+    expect(sm8AccessResult).toHaveBeenCalledTimes(1);
   });
 });

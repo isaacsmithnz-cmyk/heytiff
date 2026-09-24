@@ -206,18 +206,27 @@ export async function nameSm8ConnectionIfNameless(
 }
 
 /** Which ServiceM8 account this workspace is connected to, and which one its
-    mirror holds — token-free. The two agree except across a change of
-    account: the connection moves first, and the mirror's own row
-    (sm8_vendor) is cleared LAST, so while they differ the old copy is still
-    here to clear. `connected` is null when there is no connection row; its
-    tenantId is null while the grant is nameless. A read that fails reads as
-    absent, which is the safe direction: nothing is ever cleared on a
-    missing value. */
-export async function readSm8Accounts(orgId: string): Promise<{
-  connected: { tenantId: string | null; tenantName: string | null } | null;
-  mirrored: { uuid: string; name: string | null } | null;
-}> {
-  const [{ data: conn }, { data: vendor }] = await Promise.all([
+    copy came from — token-free. The two agree except across a change of
+    account: the connection moves first, and the copy's own row (sm8_vendor)
+    is cleared LAST, so while they differ the old copy is still here to
+    clear. sm8_vendor outlives a disconnect for the same reason (see
+    SM8_WIPE_TABLES): the cached photos do too. `connected` is null when there
+    is no connection row; its tenantId is null while the grant is nameless.
+
+    A READ THAT FAILS IS NOT AN ABSENT ROW. It comes back as `ok: false`, and
+    every caller stops: taken as "no account", it would let a reconnect save
+    nameless over a named row, or let a sync write the new account over the
+    one record of which account's copy is still here. */
+export type Sm8Accounts =
+  | {
+      ok: true;
+      connected: { tenantId: string | null; tenantName: string | null } | null;
+      mirrored: { uuid: string; name: string | null } | null;
+    }
+  | { ok: false };
+
+export async function readSm8Accounts(orgId: string): Promise<Sm8Accounts> {
+  const [conn, vendor] = await Promise.all([
     supabaseAdmin
       .from(TABLE)
       .select("tenant_id, tenant_name")
@@ -226,9 +235,14 @@ export async function readSm8Accounts(orgId: string): Promise<{
       .maybeSingle(),
     supabaseAdmin.from("sm8_vendor").select("uuid, name").eq("org_id", orgId).maybeSingle(),
   ]);
-  const c = conn as { tenant_id: string | null; tenant_name: string | null } | null;
-  const v = vendor as { uuid: string | null; name: string | null } | null;
+  if (conn.error || vendor.error) {
+    console.error(`[sm8] couldn't read which ServiceM8 account org ${orgId} holds:`, conn.error ?? vendor.error);
+    return { ok: false };
+  }
+  const c = conn.data as { tenant_id: string | null; tenant_name: string | null } | null;
+  const v = vendor.data as { uuid: string | null; name: string | null } | null;
   return {
+    ok: true,
     connected: c ? { tenantId: c.tenant_id ?? null, tenantName: c.tenant_name ?? null } : null,
     mirrored: v?.uuid ? { uuid: v.uuid, name: v.name ?? null } : null,
   };
@@ -323,10 +337,17 @@ export type Sm8SwitchResult =
        queued for `to` are its own, and stay).
     3. HeyTiff's cached copies of the old account's photos go (see
        clearCachedCopies).
-    4. The mirrors and their cursors, org-scoped; then sm8_vendor LAST. It is
-       the sentinel: an interrupted clear leaves it naming the old account,
-       and the next sync repeats all of this.
+    4. The mirrors and their cursors, org-scoped; then sm8_vendor LAST, and
+       only while it still names `from`. It is the sentinel: an interrupted
+       clear leaves it naming the old account, and the next sync repeats all
+       of this; and a newer account's row is never the one deleted.
     sm8_sync_runs is never touched — see SM8_ACCOUNT_RESET_TABLES.
+
+    ONLY UNDER THE SYNC LEASE (runSm8Sync, or switchSm8AccountUnderLease for
+    the callback). A walker still reading the old account under the old grant
+    could otherwise land a page, or an object's cursor, after the table it
+    belongs to was cleared — and with sm8_vendor already naming the new
+    account, nothing would ever clear it again.
 
     NEVER ON A MISSING VALUE. Both uuids must be present and different, or
     nothing happens; both are logged before anything is deleted. */
@@ -382,7 +403,7 @@ export async function switchSm8Account(
     }
   }
   if (cleared) {
-    const { error } = await supabaseAdmin.from("sm8_vendor").delete().eq("org_id", orgId);
+    const { error } = await supabaseAdmin.from("sm8_vendor").delete().eq("org_id", orgId).eq("uuid", from.uuid);
     if (error) cleared = false;
   }
   return { ok: true, cancelled: cancelled.length, cleared };
@@ -405,7 +426,11 @@ export async function switchSm8Account(
     kept: sm8_writes is HeyTiff's own history, not a mirror. A send already
     mid-request is left to land or not — it is counted, not cancelled, and
     the owner is told it may still arrive. A reconnect starts with writing
-    switched off (the row below goes, and write_mode with it). */
+    switched off (the row below goes, and write_mode with it).
+
+    sm8_vendor STAYS (see SM8_WIPE_TABLES): the cached photos, their readings
+    and their stars outlive a disconnect, and that row is what makes a later
+    connect of a different account clear them. */
 export async function disconnectSm8(
   orgId: string,
   now: number = Date.now()

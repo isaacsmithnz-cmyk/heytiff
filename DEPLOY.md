@@ -169,8 +169,12 @@ by hand and a connection only enriches them.
    nothing to do here. It seals ServiceM8's tokens the same way.
 6. Apply `docs/migrations/sm8_mirror.sql` (and, for the Workboard itself,
    `workboard_projects.sql` + `workboard_maintenance.sql`), then
-   `docs/migrations/sm8_staying_connected.sql`. Run the two read-only checks
-   in that file's header first; both should return no rows.
+   `docs/migrations/sm8_staying_connected.sql`. **Before merging the code
+   that needs it**, run the two read-only checks in that file's header; both
+   must return no rows. Check 2 is a hard stop: a workspace whose connection
+   names a different account from its `sm8_vendor` row is read by the first
+   sync as a change of account, which clears that workspace's mirror and
+   cached photos and switches its sending off.
 7. Sign in as an **owner** → **Admin → Integrations → ServiceM8 → Connect to
    ServiceM8**.
 
@@ -186,8 +190,9 @@ add-on does not require approval.
 **One ServiceM8 account per workspace.** ServiceM8's rate limit is per
 account, and two workspaces writing to one account would double every note, so
 connecting an account another HeyTiff workspace already holds is refused and
-nothing is saved (a unique index is the backstop). Reconnecting to a
-*different* account replaces the old one: HeyTiff clears its copy of the old
+nothing is saved (a unique index is the backstop). Connecting a
+*different* account — by Reconnect, or by Disconnect and then Connect —
+replaces the old one: HeyTiff clears its copy of the old
 account (the mirror, and its cached photos with what was read off them),
 cancels anything still waiting to go to it, switches sending off, and the
 ServiceM8 screen says so and keeps the old account's name as "Previous
@@ -203,7 +208,9 @@ the rule on a real removed add-on.
 **Disconnecting is only half a revocation.** ServiceM8 publishes no token-revoke
 endpoint, so Disconnect deletes HeyTiff's sealed tokens (and wipes the mirror);
 finishing the job means removing the add-on inside ServiceM8 itself. The screen
-says so at the point of use.
+says so at the point of use. The cached photos, what was read off them, and
+the account's own name (`sm8_vendor`) stay, so reconnecting the same account
+doesn't pay to read them again, and connecting a different one clears them.
 
 ### Writing to ServiceM8
 

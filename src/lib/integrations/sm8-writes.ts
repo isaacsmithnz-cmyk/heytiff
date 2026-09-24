@@ -46,6 +46,7 @@ import {
   sm8FileName,
   subjectDocumentId,
   verdictFor,
+  verdictForAccountUnknown,
   verdictForDisconnected,
   verdictForRenewLate,
   verdictForRenewUnreachable,
@@ -416,8 +417,14 @@ async function prepareOne(
 async function postOne(row: WriteRow, r: Ready, access: Sm8Access, attempts: number): Promise<Finish> {
   /* A token renewed mid-run belongs to whatever account is connected NOW,
      and a reconnect may have changed it: that token never carries a file
-     queued for another account. */
-  if (access.tenantId && access.tenantId !== row.tenant_id) {
+     queued for another account. A token whose connection names no account
+     at all carries nothing either — the file goes back to wait, because
+     "unknown" is not "another". */
+  if (access.tenantId !== row.tenant_id) {
+    if (access.tenantId === null) {
+      const v = verdictForAccountUnknown();
+      return { status: v.status, error: v.error, httpStatus: null, verdict: v };
+    }
     return { status: "cancelled", error: WRITE_WORDS.otherAccount, httpStatus: null };
   }
 

@@ -23,6 +23,10 @@ let documentRows: Row[] = [];
 let upsertError: { code: string } | null = null;
 /* One-off answers for an update, by the patch it carries. */
 let updateHook: ((u: Update) => DbResult | undefined) | null = null;
+/* Tables whose delete the database refuses, and tables whose single-row read
+   errors — a failure is not an absent row. */
+const deleteFails = new Set<string>();
+const readFails = new Set<string>();
 const removed: string[][] = [];
 
 /* `is` is kept apart from `filters` on purpose: `.is(col, null)` and
@@ -89,10 +93,13 @@ jest.mock("@/lib/supabase-server", () => ({
       c.or = () => c;
       c.order = () => c;
       c.range = () => c;
-      c.maybeSingle = async () => ({
-        data: table === "sm8_vendor" ? vendorRow : table === "integration_connections" ? row : null,
-        error: null,
-      });
+      c.maybeSingle = async () =>
+        readFails.has(table)
+          ? { data: null, error: { code: "08006", message: "connection failure" } }
+          : {
+              data: table === "sm8_vendor" ? vendorRow : table === "integration_connections" ? row : null,
+              error: null,
+            };
       c.then = (res: (v: DbResult) => unknown) =>
         Promise.resolve(
           head
@@ -143,7 +150,8 @@ jest.mock("@/lib/supabase-server", () => ({
           d.filters[col] = v;
           return chain;
         };
-        chain.then = (res: (v: { error: null }) => unknown) => {
+        chain.then = (res: (v: { error: { code: string } | null }) => unknown) => {
+          if (deleteFails.has(table)) return Promise.resolve({ error: { code: "57014" } }).then(res);
           deletes.push(d);
           return Promise.resolve({ error: null }).then(res);
         };
@@ -172,6 +180,7 @@ import {
   markSm8NeedsReauth,
   nameSm8ConnectionIfNameless,
   readSm8AccountChange,
+  readSm8Accounts,
   renewSm8Access,
   saveSm8Connection,
   sm8Access,
@@ -249,6 +258,8 @@ beforeEach(() => {
   documentRows = [];
   upsertError = null;
   updateHook = null;
+  deleteFails.clear();
+  readFails.clear();
   vendorRow = null;
   refreshSm8Tokens.mockReset();
   refreshSm8Tokens.mockResolvedValue(fresh);
@@ -369,6 +380,50 @@ describe("the refresh claim", () => {
     expect(await pending).toEqual({ ok: false, reason: "unreachable" });
     expect(refreshSm8Tokens).not.toHaveBeenCalled();
     expect(flags()).toHaveLength(0);
+  });
+
+  it("a refresh that failed gives the claim back at once, on the token it claimed", async () => {
+    /* Held for its full 15 s instead, every other server would wait 12 s for
+       a rotation that is never coming and then say ServiceM8 couldn't be
+       reached. */
+    refreshSm8Tokens.mockResolvedValue({ ok: false, failure: "unavailable", status: null });
+    await sm8AccessResult("org-1", NOW);
+    const release = updates.find(
+      (u) => u.table === "integration_connections" && "refresh_claimed_until" in u.patch && u.patch.refresh_claimed_until === null
+    );
+    expect(release).toBeDefined();
+    expect(release!.patch).toEqual({ refresh_claimed_until: null });
+    expect(release!.filters).toMatchObject({ org_id: "org-1", provider: "servicem8", refresh_token_enc: "sealed:old-refresh" });
+  });
+
+  it("a refused refresh gives the claim back too", async () => {
+    refreshSm8Tokens.mockResolvedValue({ ok: false, failure: "revoked", status: 400 });
+    await sm8AccessResult("org-1", NOW);
+    expect(updates.some((u) => u.patch.refresh_claimed_until === null && Object.keys(u.patch).length === 1)).toBe(true);
+  });
+
+  it("a claim that was never taken is never given back", async () => {
+    claimError = { code: "PGRST204" };
+    refreshSm8Tokens.mockResolvedValue({ ok: false, failure: "unavailable", status: null });
+    await sm8AccessResult("org-1", NOW);
+    expect(updates.some((u) => u.patch.refresh_claimed_until === null)).toBe(false);
+  });
+
+  it("a busy claim whose sibling found the grant dead says so at the next look, not after the whole wait", async () => {
+    jest.useFakeTimers();
+    claimBusy = true;
+    onBusyClaim = () => {
+      row = connectedRow({ status: "needs_reauth" });
+    };
+    let settled = false;
+    const pending = sm8AccessResult("org-1", NOW).then((r) => {
+      settled = true;
+      return r;
+    });
+    await jest.advanceTimersByTimeAsync(1_000);
+    expect(settled).toBe(true);
+    expect(await pending).toEqual({ ok: false, reason: "reauth" });
+    expect(refreshSm8Tokens).not.toHaveBeenCalled();
   });
 
   it("a database without the claim column refreshes as before", async () => {
@@ -544,6 +599,23 @@ describe("switching to a different account", () => {
     for (const d of deletes) expect(d.filters.org_id).toBe("org-1");
   });
 
+  it("deletes the sentinel only while it still names the old account", async () => {
+    // a newer account's row, written by a sync since, is never the one that goes
+    await switchSm8Account("org-1", { to, from, now: NOW });
+    const sentinel = deletes.find((d) => d.table === "sm8_vendor")!;
+    expect(sentinel.filters).toEqual({ org_id: "org-1", uuid: "v-1" });
+  });
+
+  it.each([...SM8_ACCOUNT_RESET_TABLES, "documents", "job_photo_readings", "job_photo_favourites"])(
+    "a clear of %s that fails keeps the sentinel, so the next sync repeats the clear",
+    async (table) => {
+      jest.spyOn(console, "error").mockImplementation(() => {});
+      deleteFails.add(table);
+      expect(await switchSm8Account("org-1", { to, from, now: NOW })).toEqual({ ok: true, cancelled: 0, cleared: false });
+      expect(deletes.map((d) => d.table)).not.toContain("sm8_vendor");
+    }
+  );
+
   it("cancels only what was waiting to go to the old account", async () => {
     await switchSm8Account("org-1", { to, from, now: NOW });
     const cancel = updates.find((u) => u.table === "sm8_writes")!;
@@ -609,6 +681,28 @@ describe("switching to a different account", () => {
   });
 });
 
+describe("which account this workspace holds", () => {
+  it("reads the connection's account and the one its copy came from", async () => {
+    vendorRow = { uuid: "v-1", name: "Acme Air" };
+    expect(await readSm8Accounts("org-1")).toEqual({
+      ok: true,
+      connected: { tenantId: "v-1", tenantName: "Acme Air" },
+      mirrored: { uuid: "v-1", name: "Acme Air" },
+    });
+  });
+
+  it("no rows read as absent", async () => {
+    row = null;
+    expect(await readSm8Accounts("org-1")).toEqual({ ok: true, connected: null, mirrored: null });
+  });
+
+  it.each(["integration_connections", "sm8_vendor"])("a failed read of %s is a failure, not an absent row", async (table) => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    readFails.add(table);
+    expect(await readSm8Accounts("org-1")).toEqual({ ok: false });
+  });
+});
+
 describe("the last change of account", () => {
   it("reads the old name and when it went", async () => {
     row = connectedRow({ account_changed_at: "2026-09-24T01:00:00.000Z", account_changed_from: "Acme Air" });
@@ -634,6 +728,20 @@ describe("disconnect", () => {
     // connected-with-holes (self-repairing), never disconnected-with-leftovers
     const final = deletes[deletes.length - 1];
     expect(final.filters).toMatchObject({ org_id: "org-1", provider: "servicem8" });
+  });
+
+  it("keeps the record of which account the copy came from, and the cached photos with it", async () => {
+    /* The cached photos, their readings and stars outlive a disconnect; the
+       sm8_vendor row is what makes a later connect of a different account a
+       change of account that clears them. */
+    vendorRow = { uuid: "v-1", name: "Acme Air" };
+    await disconnectSm8("org-1", NOW);
+    const wiped = deletes.map((d) => d.table);
+    expect(wiped).not.toContain("sm8_vendor");
+    expect(wiped).not.toContain("documents");
+    expect(wiped).not.toContain("job_photo_readings");
+    row = null; // the connection row has gone
+    expect(await readSm8Accounts("org-1")).toEqual({ ok: true, connected: null, mirrored: { uuid: "v-1", name: "Acme Air" } });
   });
 
   it("cancels only what is waiting, never a send mid-request, and keeps the record of what went", async () => {

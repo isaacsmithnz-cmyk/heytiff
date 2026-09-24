@@ -3,9 +3,9 @@ import { auth0 } from "@/lib/auth0";
 import { hasMinRole } from "@/lib/roles";
 import { getDbRole } from "@/lib/permissions-server";
 import { exchangeSm8Code, fetchSm8Vendor, sm8Config, type Sm8VendorResult } from "@/lib/integrations/sm8";
-import { readSm8Accounts, saveSm8Connection, switchSm8Account } from "@/lib/integrations/sm8-store";
+import { readSm8Accounts, saveSm8Connection } from "@/lib/integrations/sm8-store";
 import { countConnectionsElsewhere } from "@/lib/integrations/store";
-import { runSm8Sync } from "@/lib/integrations/sm8-sync";
+import { runSm8SyncWhenFree, switchSm8AccountUnderLease } from "@/lib/integrations/sm8-sync";
 import { decodeState, stateCookieFor, stateMatches } from "@/lib/integrations/oauth-state";
 
 /* Step two: ServiceM8 sends the browser back here with a code. Swap it for
@@ -28,8 +28,15 @@ import { decodeState, stateCookieFor, stateMatches } from "@/lib/integrations/oa
      index on tenant_id is the backstop for two connects at once.
    - A different account from the one this workspace had REPLACES it: the
      new grant is saved with sending off, and the old account's copy is
-     cleared (switchSm8Account) before the first sync of the new one starts.
+     cleared (switchSm8Account, under the sync lease) before the first sync
+     of the new one starts. "Had" is the connection's account, or, for a
+     nameless connection or none at all, the account the copy came from —
+     sm8_vendor outlives a disconnect, so Disconnect then Connect of another
+     account is a change of account too.
    - The same account is an ordinary reconnect: new tokens, nothing cleared.
+   - Which account this workspace had must be READ, not assumed: a failed
+     read saves nothing, because saving over a row it couldn't see could
+     erase the account a working connection holds.
    For a FIRST connect the read is still best-effort. Xero revokes an
    unstorable grant; ServiceM8 has no revocation endpoint, so failing a first
    connect because the NAME couldn't be read would strand a live grant nothing
@@ -96,7 +103,9 @@ export async function GET(request: NextRequest) {
   if (!vendorResult.ok && !vendorResult.paymentRequired) {
     vendorResult = await fetchSm8Vendor(result.tokens.accessToken);
   }
-  const { connected, mirrored } = await readSm8Accounts(orgId);
+  const accounts = await readSm8Accounts(orgId);
+  if (!accounts.ok) return leave(request, "?error=save");
+  const { connected, mirrored } = accounts;
   const userId = session.user.sub as string;
 
   if (!vendorResult.ok) {
@@ -107,7 +116,7 @@ export async function GET(request: NextRequest) {
     if (connected?.tenantId) return leave(request, "?error=account");
     const saved = await saveSm8Connection({ orgId, userId, tokens: result.tokens, vendor: null });
     if (!saved.ok) return leave(request, saved.elsewhere ? "?error=elsewhere" : "?error=save");
-    after(() => runSm8Sync(orgId, "connect").catch(() => {}));
+    after(() => runSm8SyncWhenFree(orgId, "connect").catch(() => {}));
     return leave(request, "?connected=1");
   }
 
@@ -139,12 +148,15 @@ export async function GET(request: NextRequest) {
   }
 
   /* The old account's copy goes BEFORE the first sync of the new one is
-     scheduled, so that sync starts from nothing. If the clear doesn't
-     finish, the mirror's own row still names the old account, and the sync
-     finishes it. */
+     scheduled, so that sync starts from nothing — and under the sync lease,
+     so a run still walking the old account can't land a page after its table
+     was cleared. A run holding the lease is skipped, not waited on: it stops
+     at its next check, and the first sync below waits for it and finishes
+     the switch. So does any clear that doesn't finish: the copy's own row
+     still names the old account until it has gone. */
   let switched = false;
   if (switching && was) {
-    const sw = await switchSm8Account(orgId, { to: vendor, from: was, now });
+    const sw = await switchSm8AccountUnderLease(orgId, { to: vendor, from: was, now });
     switched = sw.ok;
     if (!sw.ok) console.error(`[sm8] the account switch for org ${orgId} didn't finish (${sw.reason}); the next sync repeats it`);
     else if (!sw.cleared) console.error(`[sm8] the old account's copy for org ${orgId} isn't fully cleared; the next sync finishes it`);
@@ -155,7 +167,7 @@ export async function GET(request: NextRequest) {
      after() rides the invocation's waitUntil instead. Bounded by the
      engine's page budget; the screen's per-object progress shows the rest
      arriving across subsequent kicks. */
-  after(() => runSm8Sync(orgId, "connect").catch(() => {}));
+  after(() => runSm8SyncWhenFree(orgId, "connect").catch(() => {}));
 
   return leave(request, switched ? "?connected=1&switched=1" : "?connected=1");
 }

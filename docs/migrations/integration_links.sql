@@ -74,6 +74,9 @@ create table if not exists public.integration_links (
 );
 
 -- One link per person, per provider+kind, per Xero organisation.
+-- SUPERSEDED by integration_links_subject_index.sql: the `where` below made
+-- the index invisible to the links upsert's ON CONFLICT, and every link save
+-- failed. Kept as it was applied; the later file recreates it without.
 create unique index if not exists integration_links_subject_uniq
   on public.integration_links (org_id, provider, kind, tenant_id, staff_profile_id)
   where staff_profile_id is not null;

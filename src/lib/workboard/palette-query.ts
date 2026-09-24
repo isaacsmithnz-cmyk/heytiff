@@ -1,0 +1,117 @@
+/* What ⌘K reaches past the screens and the jobs: the client book and the
+   projects.
+
+   THE CLIENT BOOK IS SERVICEM8'S. HeyTiff's own records carry a client's
+   NAME — typed on an agreement, copied onto a project — but the list of
+   clients with an address and an identity is the mirror's `sm8_companies`.
+   A standalone account has no book, and still finds its projects by the
+   client named on them.
+
+   NO SESSION HERE — callers establish the right to ask. */
+
+import { supabaseAdmin } from "@/lib/supabase-server";
+
+export type PaletteClient = {
+  uuid: string;
+  name: string;
+  /** One line, as ServiceM8 holds it — the line that tells two Smiths apart. */
+  address: string | null;
+};
+
+export type PaletteProject = {
+  id: string;
+  name: string;
+  clientName: string | null;
+  siteLabel: string | null;
+  stage: string;
+  status: string;
+};
+
+/** Commas and brackets are PostgREST's own syntax inside `.or()`, and `%` is
+    LIKE's — the same scrub the mirror's job search gives a typed term. */
+const scrub = (term: string) => term.replace(/[%,()]/g, " ").trim();
+
+const oneLine = (text: string | null): string | null => {
+  const flat = (text ?? "").replace(/\s*\n\s*/g, ", ").replace(/\s+/g, " ").trim();
+  return flat || null;
+};
+
+/** How well a name answers what was typed: the name itself, then a name that
+    starts with it, then one with a word that does, then anything holding it.
+    "kings" wants Kingsford Bakery before The Kingsway Group. */
+function rank(name: string, term: string): number {
+  const n = name.toLowerCase();
+  const t = term.toLowerCase();
+  if (n === t) return 0;
+  if (n.startsWith(t)) return 1;
+  if (n.includes(` ${t}`)) return 2;
+  return 3;
+}
+
+/** How many names are read to choose the few that are shown. A term broad
+    enough to match more than this is ranked within the first forty by name,
+    and the next letter typed narrows it. */
+const CLIENT_POOL = 40;
+
+export async function searchClients(
+  orgId: string,
+  term: string,
+  limit = 5
+): Promise<PaletteClient[]> {
+  const safe = scrub(term);
+  if (safe.length < 2) return [];
+  const { data } = await supabaseAdmin
+    .from("sm8_companies")
+    .select("uuid, name, address")
+    .eq("org_id", orgId)
+    .eq("active", 1)
+    .ilike("name", `%${safe}%`)
+    .order("name", { ascending: true })
+    .limit(CLIENT_POOL);
+
+  return ((data ?? []) as { uuid: string; name: string | null; address: string | null }[])
+    .map((c) => ({ uuid: c.uuid, name: (c.name ?? "").trim(), address: oneLine(c.address) }))
+    .filter((c) => c.name)
+    .map((c, i) => ({ c, i, r: rank(c.name, safe) }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .slice(0, limit)
+    .map(({ c }) => c);
+}
+
+/** Projects by their name, their client or their site. Archived ones stay put
+    away, as they do on the Projects list — "done" is still work somebody
+    looks up. */
+export async function searchProjects(
+  orgId: string,
+  term: string,
+  limit = 5
+): Promise<PaletteProject[]> {
+  const safe = scrub(term);
+  if (safe.length < 2) return [];
+  const { data } = await supabaseAdmin
+    .from("projects")
+    .select("id, name, client_name, site_label, stage, status")
+    .eq("org_id", orgId)
+    .neq("status", "archived")
+    .or(`name.ilike.%${safe}%,client_name.ilike.%${safe}%,site_label.ilike.%${safe}%`)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+  return (
+    (data ?? []) as {
+      id: string;
+      name: string;
+      client_name: string | null;
+      site_label: string | null;
+      stage: string;
+      status: string;
+    }[]
+  ).map((p) => ({
+    id: p.id,
+    name: p.name,
+    clientName: p.client_name,
+    siteLabel: p.site_label,
+    stage: p.stage,
+    status: p.status,
+  }));
+}

@@ -803,6 +803,43 @@ describe("the universal search", () => {
     expect(searchAllJobs).not.toHaveBeenCalledWith("");
   });
 
+  /* ⌘K hands a client over as `?q=` — there is no page for a client, and
+     this search, run on their name, is every piece of work that names them. */
+  it("lands searching for the words named in the URL", async () => {
+    render(<OverviewScreen data={loaded} openSearch={{ text: "kingsford" }} />);
+
+    expect(box()).toHaveValue("kingsford");
+    expect(screen.getByText(/3 matches for “kingsford”/)).toBeInTheDocument();
+    await waitFor(() => expect(searchAllJobs).toHaveBeenCalledWith("kingsford"));
+    await waitFor(() => expect(searchPhotos).toHaveBeenCalledWith("kingsford"));
+  });
+
+  /* The outlet is keyed on the pathname, so ⌘K used while standing on the
+     board changes only the query and never remounts this screen. */
+  it("takes words named while the board is already open, once per naming", async () => {
+    const { rerender } = render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "bakery");
+    searchAllJobs.mockClear();
+
+    const named = { text: "kingsford medical" };
+    rerender(<OverviewScreen data={loaded} openSearch={named} />);
+    expect(box()).toHaveValue("kingsford medical");
+    await waitFor(() => expect(searchAllJobs).toHaveBeenCalledWith("kingsford medical"));
+
+    // the same naming rendered again is not a second one
+    searchAllJobs.mockClear();
+    rerender(<OverviewScreen data={loaded} openSearch={named} />);
+    await act(async () => {});
+    expect(searchAllJobs).not.toHaveBeenCalled();
+  });
+
+  it("takes the words out of the address once it is searching", () => {
+    window.history.replaceState(null, "", "/dashboard/workboard?q=kingsford&side=jobs");
+    render(<OverviewScreen data={loaded} openSearch={{ text: "kingsford" }} />);
+    expect(window.location.search).toBe("?side=jobs");
+    window.history.replaceState(null, "", "/");
+  });
+
   /* Told nothing while a single letter sits in the box, you can't tell a
      search that hasn't started from one that found nothing. */
   it("says a single character is not yet a search, rather than saying nothing matched", async () => {

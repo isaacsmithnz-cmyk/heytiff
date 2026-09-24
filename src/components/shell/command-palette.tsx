@@ -6,27 +6,60 @@ import { useCommandPalette } from "./command-palette-context";
 import { Icon } from "./icon";
 import { Chevron } from "@/components/logo";
 import { navFor, type NavItem } from "./nav";
-import { searchAllJobs } from "@/app/actions/workboard";
+import { searchPalette, type PaletteFinds } from "@/app/actions/workboard";
 import { SEARCH_MIN, jobSearchTerm } from "@/lib/workboard/work-search";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
+import type { PaletteClient, PaletteProject } from "@/lib/workboard/palette-query";
 import type { Role } from "@/lib/roles-shared";
 import type { Capability } from "@/lib/permissions";
 
-/** How long typing pauses before the mirror is asked. A query per letter is
+/** How long typing pauses before the work is asked for. A query per letter is
     a round trip per letter, and only the last one is ever read. */
-const JOB_SEARCH_DELAY_MS = 250;
+const WORK_SEARCH_DELAY_MS = 250;
 
-/** One list, top to bottom: the arrow keys walk screens and jobs alike. */
+/** One list, top to bottom: the arrow keys walk every group alike. */
 type Row =
   | { kind: "screen"; key: string; href: string; screen: NavItem }
+  | { kind: "client"; key: string; href: string; client: PaletteClient }
+  | { kind: "project"; key: string; href: string; project: PaletteProject }
   | { kind: "job"; key: string; href: string; job: AllJobsMirrorJob };
 
-const NO_JOBS: AllJobsMirrorJob[] = [];
+/* "Navigate" — which is also what the footer calls moving the selection with
+   the arrow keys. One word, two meanings, six inches apart. These name what
+   the rows ARE; the jobs are ServiceM8's, which is whose numbers they carry. */
+const GROUP: { [K in Row["kind"]]: string } = {
+  screen: "Screens",
+  client: "Clients",
+  project: "Projects",
+  job: "ServiceM8 jobs",
+};
+
+const NO_FINDS: PaletteFinds = { clients: [], projects: [], jobs: [] };
 
 /** A job opens where its card lives: the Workboard, on the jobs side, with
     this job's sheet up — found in the board's window or past it. */
 const jobHref = (job: AllJobsMirrorJob) =>
   `/dashboard/workboard?job=${encodeURIComponent(job.remoteId)}`;
+
+/** A client has no page of their own. The Workboard's search, run on their
+    name, is the nearest thing: every job, visit, project and photo that
+    names them, grouped by the side that owns it. */
+const clientHref = (client: PaletteClient) =>
+  `/dashboard/workboard?q=${encodeURIComponent(client.name)}`;
+
+const projectHref = (project: PaletteProject) =>
+  `/dashboard/workboard/projects/${encodeURIComponent(project.id)}`;
+
+/** A project's state in one word: its stage while it runs, the state itself
+    once it has stopped — the Projects board's own vocabulary. */
+const projectState = (p: PaletteProject) =>
+  p.status === "done"
+    ? "Done"
+    : p.status === "blocked"
+      ? "Blocked"
+      : p.status === "on_hold"
+        ? "On hold"
+        : p.stage;
 
 export function CommandPalette({
   role,
@@ -45,22 +78,23 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [selRaw, setSel] = useState(0);
 
-  /* JOBS, for whoever can open the Workboard. The search behind it checks
-     the same grant; asking here only spares everyone else a round trip that
-     has to come back empty. */
-  const findsJobs = caps.includes("workboard");
+  /* CLIENTS, PROJECTS AND JOBS, for whoever can open the Workboard — which is
+     where every one of them opens. The search behind it checks the same
+     grant; asking here only spares everyone else a round trip that has to
+     come back empty. */
+  const findsWork = caps.includes("workboard");
   /* The answer, with the term it answers. A list is only shown under the
      question it was asked for, so a slow answer can never paint itself under
      a box that has moved on — and the sequence below means only the newest
      question may answer at all. */
-  const [jobs, setJobs] = useState<{ term: string; rows: AllJobsMirrorJob[] } | null>(null);
-  const jobSeq = useRef(0);
-  const jobTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [work, setWork] = useState<{ term: string; finds: PaletteFinds } | null>(null);
+  const workSeq = useRef(0);
+  const workTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const term = findsJobs ? jobSearchTerm(query) : "";
-  const asksJobs = term.length >= SEARCH_MIN;
-  const jobsSettled = !asksJobs || jobs?.term === term;
-  const jobRows = asksJobs && jobs?.term === term ? jobs.rows : NO_JOBS;
+  const term = findsWork ? jobSearchTerm(query) : "";
+  const asksWork = term.length >= SEARCH_MIN;
+  const workSettled = !asksWork || work?.term === term;
+  const finds = asksWork && work?.term === term ? work.finds : NO_FINDS;
 
   const screens = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -69,12 +103,21 @@ export function CommandPalette({
     );
   }, [query, role, caps]);
 
+  /* Screens first — the palette's first job is still getting about — then
+     the broadest answer to the narrowest: a client, their projects, the
+     jobs. */
   const rows = useMemo<Row[]>(
     () => [
       ...screens.map((s): Row => ({ kind: "screen", key: `screen:${s.key}`, href: s.href, screen: s })),
-      ...jobRows.map((j): Row => ({ kind: "job", key: `job:${j.remoteId}`, href: jobHref(j), job: j })),
+      ...finds.clients.map(
+        (c): Row => ({ kind: "client", key: `client:${c.uuid}`, href: clientHref(c), client: c })
+      ),
+      ...finds.projects.map(
+        (p): Row => ({ kind: "project", key: `project:${p.id}`, href: projectHref(p), project: p })
+      ),
+      ...finds.jobs.map((j): Row => ({ kind: "job", key: `job:${j.remoteId}`, href: jobHref(j), job: j })),
     ],
-    [screens, jobRows]
+    [screens, finds]
   );
 
   /* The highlighted row, clamped as you read it rather than corrected after the
@@ -109,8 +152,8 @@ export function CommandPalette({
   useEffect(() => {
     if (!open) return;
     return () => {
-      if (jobTimer.current) clearTimeout(jobTimer.current);
-      jobSeq.current += 1;
+      if (workTimer.current) clearTimeout(workTimer.current);
+      workSeq.current += 1;
     };
   }, [open]);
 
@@ -119,22 +162,22 @@ export function CommandPalette({
   const ask = (q: string) => {
     setQuery(q);
     setSel(0);
-    if (!findsJobs) return;
-    if (jobTimer.current) clearTimeout(jobTimer.current);
-    const mine = ++jobSeq.current;
+    if (!findsWork) return;
+    if (workTimer.current) clearTimeout(workTimer.current);
+    const mine = ++workSeq.current;
     const wanted = jobSearchTerm(q);
     if (wanted.length < SEARCH_MIN) return;
-    jobTimer.current = setTimeout(() => {
-      void searchAllJobs(wanted)
+    workTimer.current = setTimeout(() => {
+      void searchPalette(wanted)
         .then((found) => {
-          if (mine === jobSeq.current) setJobs({ term: wanted, rows: found });
+          if (mine === workSeq.current) setWork({ term: wanted, finds: found });
         })
         /* A failed ask answers "none", or the list would say it was still
            searching for as long as the palette stayed open. */
         .catch(() => {
-          if (mine === jobSeq.current) setJobs({ term: wanted, rows: [] });
+          if (mine === workSeq.current) setWork({ term: wanted, finds: NO_FINDS });
         });
-    }, JOB_SEARCH_DELAY_MS);
+    }, WORK_SEARCH_DELAY_MS);
   };
 
   /* Declared ABOVE the key handler, and memoised, because it is one of its
@@ -153,8 +196,8 @@ export function CommandPalette({
 
   useEffect(() => {
     if (!open) return;
-    /* The arrow keys can walk past the list's fold now that jobs make it
-       long, so the row they land on is brought into view. Only the keys do
+    /* The arrow keys can walk past the list's fold now that the work makes
+       it long, so the row they land on is brought into view. Only the keys do
        this: scrolling under a resting pointer would hand the hover to the
        next row, and that row would scroll again. */
     const pick = (next: number) => {
@@ -193,8 +236,10 @@ export function CommandPalette({
             ref={inputRef}
             value={query}
             onChange={(e) => ask(e.target.value)}
-            placeholder={findsJobs ? "Search screens and jobs…" : "Jump to a screen…"}
-            aria-label={findsJobs ? "Search screens and jobs" : "Jump to a screen"}
+            placeholder={
+              findsWork ? "Search screens, clients, projects and jobs…" : "Jump to a screen…"
+            }
+            aria-label={findsWork ? "Search screens, clients, projects and jobs" : "Jump to a screen"}
             autoComplete="off"
           />
           <kbd className="esc">ESC</kbd>
@@ -202,27 +247,21 @@ export function CommandPalette({
 
         <div className="clist no-sb" id="fg-cmd-list" ref={listRef}>
           {rows.length === 0 ? (
-            /* Says what it is doing while the jobs are still being asked
-               for, and what it looked through once they have answered —
-               never "no match" before the mirror has had its say. */
+            /* Says what it is doing while the work is still being asked
+               for — never "no match" before it has had its say. */
             <div className="cempty">
               <b>
-                {!jobsSettled
-                  ? "Searching jobs…"
-                  : asksJobs
-                    ? <>No screen or job matches &ldquo;{query}&rdquo;</>
+                {!workSettled
+                  ? "Searching…"
+                  : asksWork
+                    ? <>Nothing matches &ldquo;{query}&rdquo;</>
                     : <>No screen matches &ldquo;{query}&rdquo;</>}
               </b>
             </div>
           ) : (
             rows.map((r, i) => (
               <Fragment key={r.key}>
-                {/* "Navigate" — which is also what the footer calls moving the
-                    selection with the arrow keys. One word, two meanings, six
-                    inches apart. These name what the rows ARE; the jobs are
-                    ServiceM8's, which is whose numbers they carry. */}
-                {i === 0 && r.kind === "screen" && <div className="cgl">Screens</div>}
-                {i === screens.length && r.kind === "job" && <div className="cgl">ServiceM8 jobs</div>}
+                {(i === 0 || rows[i - 1].kind !== r.kind) && <div className="cgl">{GROUP[r.kind]}</div>}
                 <button
                   className={`crow${i === sel ? " on" : ""}`}
                   onMouseMove={() => i !== sel && setSel(i)}
@@ -241,9 +280,33 @@ export function CommandPalette({
                         <em>{r.screen.hint}</em>
                       </span>
                     </>
+                  ) : r.kind === "client" ? (
+                    <>
+                      <span className="ci2 find">
+                        <Icon name="user" size={17} />
+                      </span>
+                      <span className="ck">
+                        <b>{r.client.name}</b>
+                        {r.client.address && <em>{r.client.address}</em>}
+                      </span>
+                    </>
+                  ) : r.kind === "project" ? (
+                    <>
+                      <span className="ci2 find">
+                        <Icon name="folder" size={17} />
+                      </span>
+                      <span className="ck">
+                        <b>{r.project.name}</b>
+                        <em>
+                          {[r.project.clientName, r.project.siteLabel].filter(Boolean).join(", ") ||
+                            "No client"}
+                        </em>
+                      </span>
+                      <span className="cst">{projectState(r.project)}</span>
+                    </>
                   ) : (
                     <>
-                      <span className="ci2 job">
+                      <span className="ci2 find">
                         <Icon name="file" size={17} />
                       </span>
                       <span className="ck">

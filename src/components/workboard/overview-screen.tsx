@@ -34,6 +34,9 @@ import { JobMediaViewer } from "./board/job-media-viewer";
 import { showcaseMediaItem } from "./board/showcase-view";
 import { WorkSearchField, WorkSearchPanel, type PhotoSearchState } from "./board/work-search";
 
+/** How long the photo bank waits for the typing to pause before it is asked. */
+const PHOTO_DEBOUNCE_MS = 250;
+
 /* The Workboard — a command centre, not a menu.
 
    THE BRIEF, IN ONE LINE: someone running a crew opens this at 6am and needs
@@ -104,10 +107,13 @@ type SideKey = (typeof SIDES)[number]["key"];
 export function OverviewScreen({
   data,
   openJob = null,
+  openSearch = null,
 }: {
   data: WorkboardData;
   /** A job named in the URL — the page resolved it; this screen lands on it. */
   openJob?: AllJobsMirrorJob | null;
+  /** Words named in the URL (`?q=`) — the board lands searching for them. */
+  openSearch?: { text: string } | null;
 }) {
   const router = useRouter();
   const [display, setDisplay] = useState(false);
@@ -149,18 +155,19 @@ export function OverviewScreen({
       setTab("jobs");
     }
   }
-  /* The link has done its job once the sheet is open, so it leaves the
-     address. Left there, every refresh would hand the same job over again —
+  /* The link has done its job once the sheet is open — or the search is
+     running — so it leaves the address. Left there, every refresh would hand the same job over again —
      a save on the sheet revalidates this page, and the sheet you were
      writing in would reopen under you — and naming the same job twice would
      change nothing a router could see. `?`-only, so the outlet keeps its key. */
   useEffect(() => {
-    if (!openJob) return;
+    if (!openJob && !openSearch) return;
     const url = new URL(window.location.href);
-    if (!url.searchParams.has("job")) return;
+    if (!url.searchParams.has("job") && !url.searchParams.has("q")) return;
     url.searchParams.delete("job");
+    url.searchParams.delete("q");
     window.history.replaceState(null, "", url.toString());
-  }, [openJob]);
+  }, [openJob, openSearch]);
   const pickSide = (side: SideKey) => {
     setHandoff(null);
     setTab(side);
@@ -282,9 +289,9 @@ export function OverviewScreen({
     };
   }, []);
 
-  const PHOTO_DEBOUNCE_MS = 250;
-
-  const runQuery = (q: string) => {
+  /* Memoised because the landing search below runs it from an effect. It reads
+     no state — every setter, ref and the transition it touches is stable. */
+  const runQuery = useCallback((q: string) => {
     setQuery(q);
     /* Every half asks for the same thing, and "job 288" asks for 288 — the
        box shows what was typed, the mirror and the bank hear the number. */
@@ -327,7 +334,7 @@ export function OverviewScreen({
           setPhotoState({ hits: [], banked: 0, capped: false, searching: false });
         });
     }, PHOTO_DEBOUNCE_MS);
-  };
+  }, []);
   const clearQuery = useCallback(() => {
     setQuery("");
     setRemote([]);
@@ -339,6 +346,29 @@ export function OverviewScreen({
        layer with no ground. */
     setPhotoView(null);
   }, []);
+
+  /* A SEARCH NAMED IN THE URL — ⌘K handing over a client. Taken the way a
+     named job is, by identity while rendering, so a second client picked
+     while standing on the board is taken too. The box shows the words at
+     once; the asking it starts cannot happen inside a render, so it waits
+     for the effect below, which runs it after the commit rather than during
+     it (bell.tsx keeps the same distance). */
+  const [takenSearch, setTakenSearch] = useState<{ text: string } | null>(null);
+  const [landing, setLanding] = useState<{ text: string } | null>(null);
+  if (openSearch !== takenSearch) {
+    setTakenSearch(openSearch);
+    if (openSearch) {
+      setQuery(openSearch.text);
+      setLanding(openSearch);
+    }
+  }
+  useEffect(() => {
+    if (!landing) return;
+    void Promise.resolve().then(() => {
+      setLanding(null);
+      runQuery(landing.text);
+    });
+  }, [landing, runQuery]);
 
   /* Opening a hit FREEZES the list — the viewer walks a snapshot, so a
      result set changing underneath (a keystroke, a slow answer landing)

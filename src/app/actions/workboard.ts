@@ -62,6 +62,12 @@ import {
 } from "@/lib/workboard/all-jobs-query";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import {
+  searchClients,
+  searchProjects,
+  type PaletteClient,
+  type PaletteProject,
+} from "@/lib/workboard/palette-query";
+import {
   EMPTY_SCHEDULE,
   loadScheduleDay,
   type SchedulePayload,
@@ -567,6 +573,33 @@ export async function searchAllJobs(query: string): Promise<AllJobsMirrorJob[]> 
   return searchAllMirrorJobs(ctx.orgId, query, today, {
     includeMoney: await can("workboard_money"),
   });
+}
+
+export type PaletteFinds = {
+  clients: PaletteClient[];
+  projects: PaletteProject[];
+  jobs: AllJobsMirrorJob[];
+};
+
+const NO_FINDS: PaletteFinds = { clients: [], projects: [], jobs: [] };
+
+/** ⌘K's reach past the screens: the client book, the projects and every job
+    in the mirror, in ONE round trip — the router runs actions one at a time,
+    so three would queue behind each other at every pause in the typing. Money
+    is never asked for, because nothing in the palette shows it; a job opened
+    from it is read again by the page, under the page's own money rule. */
+export async function searchPalette(term: string): Promise<PaletteFinds> {
+  const ctx = await context();
+  if (!ctx || !(await can("workboard"))) return NO_FINDS;
+  const q = trim(term, 120);
+  if (!q || q.length < 2) return NO_FINDS;
+  const today = todayInZone(await getSm8Timezone(ctx.orgId));
+  const [clients, projects, jobs] = await Promise.all([
+    searchClients(ctx.orgId, q),
+    searchProjects(ctx.orgId, q),
+    searchAllMirrorJobs(ctx.orgId, q, today, { includeMoney: false }),
+  ]);
+  return { clients, projects, jobs };
 }
 
 /** One day of the diary for the Schedule tab. The day is a CHOICE handed in

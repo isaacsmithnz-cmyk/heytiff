@@ -1,12 +1,14 @@
 /* ⌘K finds jobs as well as screens (2026-09-24). Isaac typed "job 288" into
    it and was told it only jumps between screens. It asks the whole ServiceM8
    mirror now — the same search the Workboard's own box reaches past its
-   window with — and a job opens on the Workboard with its card up.
+   window with — and a job opens on the Workboard with its card up. Clients
+   and projects joined it the same day: a project opens its own page, and a
+   client, who has no page, opens the Workboard searching for their name.
 
    What these pin: the word in front of the number is not asked for; nothing
-   says "no match" before the jobs have answered; only the newest question
-   may answer; the keys walk from the screens into the jobs; and nobody
-   without the Workboard is sent to ask. */
+   says "no match" before the work has answered; only the newest question
+   may answer; the groups run screens, clients, projects, jobs and the keys
+   walk through them; and nobody without the Workboard is sent to ask. */
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
@@ -21,12 +23,14 @@ jest.mock("../command-palette-context", () => ({
   useCommandPalette: () => ({ isOpen, close }),
 }));
 
-const searchAllJobs = jest.fn();
+const searchPalette = jest.fn();
 jest.mock("@/app/actions/workboard", () => ({
-  searchAllJobs: (...a: unknown[]) => searchAllJobs(...a),
+  searchPalette: (...a: unknown[]) => searchPalette(...a),
 }));
 
 import { CommandPalette } from "../command-palette";
+import type { PaletteFinds } from "@/app/actions/workboard";
+import type { PaletteClient, PaletteProject } from "@/lib/workboard/palette-query";
 
 const job = (over: Partial<AllJobsMirrorJob> = {}): AllJobsMirrorJob => ({
   remoteId: "j-288",
@@ -43,6 +47,31 @@ const job = (over: Partial<AllJobsMirrorJob> = {}): AllJobsMirrorJob => ({
   nextBooking: null,
   money: null,
   paidCents: 0,
+  ...over,
+});
+
+const client = (over: Partial<PaletteClient> = {}): PaletteClient => ({
+  uuid: "c-1",
+  name: "Kingsford Bakery",
+  address: "12 Anzac Pde, Kingsford NSW 2032",
+  ...over,
+});
+
+const project = (over: Partial<PaletteProject> = {}): PaletteProject => ({
+  id: "p-9",
+  name: "Kingsford fitout",
+  clientName: "Kingsford Bakery",
+  siteLabel: "Kingsford",
+  stage: "Pre-install",
+  status: "active",
+  ...over,
+});
+
+/** What the one round trip answers — jobs only unless a test says otherwise. */
+const finds = (over: Partial<PaletteFinds> = {}): PaletteFinds => ({
+  clients: [],
+  projects: [],
+  jobs: [],
   ...over,
 });
 
@@ -73,23 +102,23 @@ beforeEach(() => {
   jest.useFakeTimers();
   push.mockClear();
   close.mockClear();
-  searchAllJobs.mockReset();
-  searchAllJobs.mockResolvedValue([]);
+  searchPalette.mockReset();
+  searchPalette.mockResolvedValue(finds());
   isOpen = true;
 });
 afterEach(() => jest.useRealTimers());
 
 describe("the palette finds jobs", () => {
   it("finds job 288 asked the way people ask for it, and opens its card", async () => {
-    searchAllJobs.mockResolvedValue([job()]);
+    searchPalette.mockResolvedValue(finds({ jobs: [job()] }));
     palette();
 
     type("job 288");
-    expect(searchAllJobs).not.toHaveBeenCalled(); // not per keystroke
+    expect(searchPalette).not.toHaveBeenCalled(); // not per keystroke
     await settle();
 
-    expect(searchAllJobs).toHaveBeenCalledTimes(1);
-    expect(searchAllJobs).toHaveBeenCalledWith("288");
+    expect(searchPalette).toHaveBeenCalledTimes(1);
+    expect(searchPalette).toHaveBeenCalledWith("288");
     expect(screen.getByText("ServiceM8 jobs")).toBeInTheDocument();
     const row = screen.getByRole("button", { name: /#288 Kingsford Bakery/ });
     expect(row).toHaveTextContent("Replace the split in the office");
@@ -101,7 +130,7 @@ describe("the palette finds jobs", () => {
   });
 
   it("opens a job from a click as well", async () => {
-    searchAllJobs.mockResolvedValue([job({ remoteId: "j/odd id" })]);
+    searchPalette.mockResolvedValue(finds({ jobs: [job({ remoteId: "j/odd id" })] }));
     palette();
     type("288");
     await settle();
@@ -111,26 +140,24 @@ describe("the palette finds jobs", () => {
   });
 
   it("says it is searching, and never 'no match', until the jobs have answered", async () => {
-    const answer = later<AllJobsMirrorJob[]>();
-    searchAllJobs.mockReturnValue(answer.promise);
+    const answer = later<PaletteFinds>();
+    searchPalette.mockReturnValue(answer.promise);
     palette();
 
     type("job 288");
-    expect(screen.getByText("Searching jobs…")).toBeInTheDocument();
+    expect(screen.getByText("Searching…")).toBeInTheDocument();
     await settle();
-    expect(screen.getByText("Searching jobs…")).toBeInTheDocument();
+    expect(screen.getByText("Searching…")).toBeInTheDocument();
     expect(screen.queryByText(/matches/)).toBeNull();
 
-    await act(async () => answer.resolve([]));
-    expect(screen.getByText(/No screen or job matches/)).toHaveTextContent(
-      "No screen or job matches “job 288”"
-    );
+    await act(async () => answer.resolve(finds()));
+    expect(screen.getByText(/Nothing matches/)).toHaveTextContent("Nothing matches “job 288”");
   });
 
   it("lets only the newest question answer", async () => {
-    const first = later<AllJobsMirrorJob[]>();
-    const second = later<AllJobsMirrorJob[]>();
-    searchAllJobs.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const first = later<PaletteFinds>();
+    const second = later<PaletteFinds>();
+    searchPalette.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
     palette();
 
     type("job 28");
@@ -138,16 +165,16 @@ describe("the palette finds jobs", () => {
     type("job 288");
     await settle();
 
-    await act(async () => second.resolve([job()]));
+    await act(async () => second.resolve(finds({ jobs: [job()] })));
     // the older, slower answer lands last and must not be painted
-    await act(async () => first.resolve([job({ remoteId: "j-28", jobNumber: "28" })]));
+    await act(async () => first.resolve(finds({ jobs: [job({ remoteId: "j-28", jobNumber: "28" })] })));
 
     expect(screen.getByRole("button", { name: /#288 Kingsford Bakery/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /#28 Kingsford/ })).toBeNull();
   });
 
   it("puts the screens first and walks the keys on into the jobs", async () => {
-    searchAllJobs.mockResolvedValue([job({ remoteId: "j-9", jobNumber: "2380" })]);
+    searchPalette.mockResolvedValue(finds({ jobs: [job({ remoteId: "j-9", jobNumber: "2380" })] }));
     palette();
     type("workboard");
     await settle();
@@ -169,11 +196,11 @@ describe("the palette finds jobs", () => {
     await settle();
     type("job");
     await settle();
-    expect(searchAllJobs).not.toHaveBeenCalled();
+    expect(searchPalette).not.toHaveBeenCalled();
   });
 
   it("starts clean when it opens again", async () => {
-    searchAllJobs.mockResolvedValue([job()]);
+    searchPalette.mockResolvedValue(finds({ jobs: [job()] }));
     const { rerender } = palette();
     type("job 288");
     await settle();
@@ -189,6 +216,91 @@ describe("the palette finds jobs", () => {
   });
 });
 
+describe("the palette finds clients and projects", () => {
+  it("lists clients, then projects, then jobs, under the screens", async () => {
+    searchPalette.mockResolvedValue(
+      finds({ clients: [client()], projects: [project()], jobs: [job()] })
+    );
+    palette();
+    type("kingsford");
+    await settle();
+
+    expect(searchPalette).toHaveBeenCalledWith("kingsford");
+    const heads = [...document.querySelectorAll(".cgl")].map((h) => h.textContent);
+    expect(heads).toEqual(["Clients", "Projects", "ServiceM8 jobs"]);
+    expect(screen.getByRole("button", { name: /^Kingsford Bakery/ })).toHaveTextContent(
+      "12 Anzac Pde, Kingsford NSW 2032"
+    );
+    const row = screen.getByRole("button", { name: /^Kingsford fitout/ });
+    expect(row).toHaveTextContent("Kingsford Bakery, Kingsford");
+    expect(row).toHaveTextContent("Pre-install");
+  });
+
+  /* A client has no page of their own; the board's search on their name is
+     every job, visit, project and photo that names them. */
+  it("opens a client as the Workboard searching for their name", async () => {
+    searchPalette.mockResolvedValue(finds({ clients: [client({ name: "Smith & Sons" })] }));
+    palette();
+    type("smith");
+    await settle();
+
+    press("Enter");
+    expect(close).toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith("/dashboard/workboard?q=Smith%20%26%20Sons");
+  });
+
+  it("opens a project on its own page", async () => {
+    searchPalette.mockResolvedValue(finds({ projects: [project()] }));
+    palette();
+    type("fitout");
+    await settle();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Kingsford fitout/ }));
+    expect(push).toHaveBeenCalledWith("/dashboard/workboard/projects/p-9");
+  });
+
+  it("says a stopped project's state, and a running one's stage", async () => {
+    searchPalette.mockResolvedValue(
+      finds({
+        projects: [
+          project({ id: "p-1", name: "Held tower", status: "on_hold" }),
+          project({ id: "p-2", name: "Stuck tower", status: "blocked" }),
+          project({ id: "p-3", name: "Finished tower", status: "done" }),
+          project({ id: "p-4", name: "Running tower", stage: "Rough-in" }),
+        ],
+      })
+    );
+    palette();
+    type("tower");
+    await settle();
+
+    expect(screen.getByRole("button", { name: /^Held tower/ })).toHaveTextContent("On hold");
+    expect(screen.getByRole("button", { name: /^Stuck tower/ })).toHaveTextContent("Blocked");
+    expect(screen.getByRole("button", { name: /^Finished tower/ })).toHaveTextContent("Done");
+    expect(screen.getByRole("button", { name: /^Running tower/ })).toHaveTextContent("Rough-in");
+  });
+
+  it("walks the keys from a client through a project to a job", async () => {
+    searchPalette.mockResolvedValue(
+      finds({ clients: [client()], projects: [project()], jobs: [job()] })
+    );
+    palette();
+    type("kingsford");
+    await settle();
+
+    const order = ["^Kingsford Bakery", "^Kingsford fitout", "#288 Kingsford Bakery"].map((n) =>
+      screen.getByRole("button", { name: new RegExp(n) })
+    );
+    expect(order[0]).toHaveClass("on");
+    press("ArrowDown");
+    expect(order[1]).toHaveClass("on");
+    press("ArrowDown");
+    expect(order[2]).toHaveClass("on");
+    press("Enter");
+    expect(push).toHaveBeenCalledWith("/dashboard/workboard?job=j-288");
+  });
+});
+
 describe("without the Workboard", () => {
   it("never asks, and says what it did look through", async () => {
     palette([]);
@@ -197,7 +309,7 @@ describe("without the Workboard", () => {
     type("job 288");
     await settle();
 
-    expect(searchAllJobs).not.toHaveBeenCalled();
+    expect(searchPalette).not.toHaveBeenCalled();
     expect(screen.getByText(/No screen matches/)).toHaveTextContent("No screen matches “job 288”");
   });
 });

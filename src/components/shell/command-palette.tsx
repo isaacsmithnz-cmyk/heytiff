@@ -2,28 +2,44 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useCommandPalette } from "./command-palette-context";
 import { Icon } from "./icon";
 import { Chevron } from "@/components/logo";
 import { navFor, type NavItem } from "./nav";
 import { searchPalette, type PaletteFinds } from "@/app/actions/palette";
+import type { PhotoHit } from "@/app/actions/photo-search";
+import { setJobPhotoFavourite } from "@/app/actions/job-photo-favourites";
+import { snippet } from "@/lib/workboard/photo-search";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { SEARCH_MIN, jobSearchTerm } from "@/lib/workboard/work-search";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { PaletteClient, PaletteProject, PaletteStaff } from "@/lib/workboard/palette-query";
 import type { Role } from "@/lib/roles-shared";
 import type { Capability } from "@/lib/permissions";
 
+/* The photo viewer loads when a photo is first chosen, not with the frame:
+   this palette rides every screen, and the viewer is weight nobody should
+   pay for until they open a picture. */
+const PalettePhotoViewer = dynamic(
+  () => import("./palette-photo-viewer").then((m) => m.PalettePhotoViewer),
+  { ssr: false }
+);
+
 /** How long typing pauses before the work is asked for. A query per letter is
     a round trip per letter, and only the last one is ever read. */
 const WORK_SEARCH_DELAY_MS = 250;
 
-/** One list, top to bottom: the arrow keys walk every group alike. */
+/** One list, top to bottom: the arrow keys walk every group alike. A photo
+    is the one row that goes nowhere — it opens over the screen you are on —
+    so it carries its place among the photos instead of an address. */
 type Row =
   | { kind: "screen"; key: string; href: string; screen: NavItem }
   | { kind: "staff"; key: string; href: string; person: PaletteStaff }
   | { kind: "client"; key: string; href: string; client: PaletteClient }
   | { kind: "project"; key: string; href: string; project: PaletteProject }
-  | { kind: "job"; key: string; href: string; job: AllJobsMirrorJob };
+  | { kind: "job"; key: string; href: string; job: AllJobsMirrorJob }
+  | { kind: "photo"; key: string; href: null; photo: PhotoHit; at: number };
 
 /* "Navigate" — which is also what the footer calls moving the selection with
    the arrow keys. One word, two meanings, six inches apart. These name what
@@ -34,9 +50,20 @@ const GROUP: { [K in Row["kind"]]: string } = {
   client: "Clients",
   project: "Projects",
   job: "ServiceM8 jobs",
+  photo: "Photos",
 };
 
-const NO_FINDS: PaletteFinds = { staff: [], clients: [], projects: [], jobs: [] };
+const NO_FINDS: PaletteFinds = { staff: [], clients: [], projects: [], jobs: [], photos: [] };
+
+/** Whose job a photo is from and when — the Workboard's own photo caption. */
+const photoOrigin = (h: PhotoHit) =>
+  [
+    h.jobNumber ? `#${h.jobNumber}` : null,
+    h.clientName,
+    h.takenAt ? fmtAuWeekdayDayMonth(h.takenAt.slice(0, 10)) : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
 /** A person opens on their staff card. */
 const staffHref = (person: PaletteStaff) => `/dashboard/team/${encodeURIComponent(person.id)}`;
@@ -95,7 +122,7 @@ export function CommandPalette({
   const reach = [
     "screens",
     ...(findsStaff ? ["staff"] : []),
-    ...(findsWork ? ["clients", "projects", "jobs"] : []),
+    ...(findsWork ? ["clients", "projects", "jobs", "photos"] : []),
   ];
   const reachSaid =
     reach.length === 1 ? reach[0] : `${reach.slice(0, -1).join(", ")} and ${reach[reach.length - 1]}`;
@@ -135,9 +162,45 @@ export function CommandPalette({
         (p): Row => ({ kind: "project", key: `project:${p.id}`, href: projectHref(p), project: p })
       ),
       ...finds.jobs.map((j): Row => ({ kind: "job", key: `job:${j.remoteId}`, href: jobHref(j), job: j })),
+      ...finds.photos.map(
+        (h, at): Row => ({ kind: "photo", key: `photo:${h.remoteId}`, href: null, photo: h, at })
+      ),
     ],
     [screens, finds]
   );
+
+  /* THE PHOTO BEING READ, over whatever screen the palette was opened on. A
+     SNAPSHOT of the hits at the moment one was chosen — the palette closes
+     behind it, and nothing typed later can reshuffle the roll. The stars are
+     owned here for the same reason the Workboard owns its own: the viewer's
+     star is the same act as the gallery's, and it has to start at the truth. */
+  const [viewing, setViewing] = useState<{ items: readonly PhotoHit[]; index: number } | null>(
+    null
+  );
+  const [stars, setStars] = useState<ReadonlySet<string>>(new Set());
+  const closeViewer = useCallback(() => setViewing(null), []);
+  const navViewer = useCallback(
+    (index: number) => setViewing((cur) => (cur ? { ...cur, index } : cur)),
+    []
+  );
+  const star = (remoteId: string) => {
+    const hit = viewing?.items.find((h) => h.remoteId === remoteId);
+    if (!hit) return;
+    const on = !stars.has(remoteId);
+    const paint = (next: boolean) =>
+      setStars((cur) => {
+        const set = new Set(cur);
+        if (next) set.add(remoteId);
+        else set.delete(remoteId);
+        return set;
+      });
+    paint(on);
+    void setJobPhotoFavourite(hit.jobUuid, remoteId, on)
+      .then((res) => {
+        if (!res.ok) paint(res.starred);
+      })
+      .catch(() => paint(!on));
+  };
 
   /* The highlighted row, clamped as you read it rather than corrected after the
      fact. Typing shortens the list, which can strand the selection past the
@@ -156,6 +219,8 @@ export function CommandPalette({
     if (open) {
       setQuery("");
       setSel(0);
+      // the palette asked for again is the photo put down
+      setViewing(null);
     }
   }
 
@@ -205,12 +270,17 @@ export function CommandPalette({
      the missing dependency went unnoticed — and naming it in the array would
      then have torn down and re-added the window listener on every keystroke,
      since `query` re-renders this component as you type. */
-  const run = useCallback(
-    (href: string) => {
+  const choose = useCallback(
+    (row: Row) => {
       onClose();
-      router.push(href);
+      if (row.kind === "photo") {
+        setStars(new Set(finds.photos.filter((h) => h.starred).map((h) => h.remoteId)));
+        setViewing({ items: finds.photos, index: row.at });
+      } else {
+        router.push(row.href);
+      }
     },
-    [onClose, router]
+    [onClose, router, finds]
   );
 
   useEffect(() => {
@@ -236,14 +306,15 @@ export function CommandPalette({
       } else if (e.key === "Enter") {
         e.preventDefault();
         const row = rows[sel];
-        if (row) run(row.href);
+        if (row) choose(row);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, rows, sel, onClose, run]);
+  }, [open, rows, sel, onClose, choose]);
 
   return (
+    <>
     <div className={`fg-cmd${open ? " open" : ""}`} id="fg-cmd">
       <div className="ov" onClick={onClose} />
       <div className="box">
@@ -282,7 +353,7 @@ export function CommandPalette({
                 <button
                   className={`crow${i === sel ? " on" : ""}`}
                   onMouseMove={() => i !== sel && setSel(i)}
-                  onClick={() => run(r.href)}
+                  onClick={() => choose(r)}
                   type="button"
                 >
                   {r.kind === "screen" ? (
@@ -331,6 +402,27 @@ export function CommandPalette({
                         </em>
                       </span>
                       <span className="cst">{projectState(r.project)}</span>
+                    </>
+                  ) : r.kind === "photo" ? (
+                    <>
+                      <span className="ci2 find shot" aria-hidden>
+                        {r.photo.url ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={r.photo.url} alt="" loading="lazy" />
+                        ) : (
+                          <Icon name="cam" size={17} />
+                        )}
+                      </span>
+                      <span className="ck">
+                        <b>{r.photo.caption || r.photo.name}</b>
+                        {/* WHY IT MATCHED, when the words are on the equipment in
+                            the frame — the Workboard's panel says the same. */}
+                        <em>
+                          {r.photo.match.transcript
+                            ? snippet(r.photo.ocrText, term)
+                            : photoOrigin(r.photo) || "No job"}
+                        </em>
+                      </span>
                     </>
                   ) : (
                     <>
@@ -385,5 +477,16 @@ export function CommandPalette({
         </div>
       </div>
     </div>
+    {viewing && (
+      <PalettePhotoViewer
+        items={viewing.items}
+        index={viewing.index}
+        starred={stars}
+        onNav={navViewer}
+        onStar={star}
+        onClose={closeViewer}
+      />
+    )}
+    </>
   );
 }

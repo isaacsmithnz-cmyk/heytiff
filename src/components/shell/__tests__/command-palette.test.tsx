@@ -28,7 +28,36 @@ jest.mock("@/app/actions/palette", () => ({
   searchPalette: (...a: unknown[]) => searchPalette(...a),
 }));
 
+const setJobPhotoFavourite = jest.fn();
+jest.mock("@/app/actions/job-photo-favourites", () => ({
+  setJobPhotoFavourite: (...a: unknown[]) => setJobPhotoFavourite(...a),
+}));
+
+/* The viewer is the Workboard's own, loaded when a photo is first chosen; a
+   stub stands in for it here and says what it was handed. */
+jest.mock("../palette-photo-viewer", () => ({
+  PalettePhotoViewer: (p: {
+    items: { remoteId: string }[];
+    index: number;
+    starred: ReadonlySet<string>;
+    onNav: (i: number) => void;
+    onStar: (id: string) => void;
+    onClose: () => void;
+  }) => (
+    <div data-testid="viewer">
+      <span>
+        {p.items[p.index].remoteId} of {p.items.length}
+      </span>
+      <span>starred: {[...p.starred].join(" ") || "none"}</span>
+      <button onClick={() => p.onNav(p.index + 1)}>Next photo</button>
+      <button onClick={() => p.onStar(p.items[p.index].remoteId)}>Star photo</button>
+      <button onClick={p.onClose}>Close viewer</button>
+    </div>
+  ),
+}));
+
 import { CommandPalette } from "../command-palette";
+import type { PhotoHit } from "@/app/actions/photo-search";
 import type { PaletteFinds } from "@/app/actions/palette";
 import type { PaletteClient, PaletteProject, PaletteStaff } from "@/lib/workboard/palette-query";
 
@@ -77,9 +106,28 @@ const person = (over: Partial<PaletteStaff> = {}): PaletteStaff => ({
   ...over,
 });
 
+const photo = (over: Partial<PhotoHit> = {}): PhotoHit => ({
+  remoteId: "ph-1",
+  jobUuid: "j-2380",
+  jobNumber: "2380",
+  clientName: "Kingsford Bakery",
+  name: "Photo",
+  takenAt: "2026-03-12T09:30:00",
+  subject: null,
+  tags: [],
+  caption: "Outdoor unit rating plate",
+  ocrText: "MODEL PUZ-M125VKA2 SERIAL 1234",
+  url: "https://example.test/ph-1.jpg",
+  readAt: "2026-03-12T10:00:00",
+  match: { text: false, transcript: false, caption: true, tag: false },
+  starred: false,
+  ...over,
+});
+
 /** What the one round trip answers — jobs only unless a test says otherwise. */
 const finds = (over: Partial<PaletteFinds> = {}): PaletteFinds => ({
   staff: [],
+  photos: [],
   clients: [],
   projects: [],
   jobs: [],
@@ -115,6 +163,8 @@ beforeEach(() => {
   close.mockClear();
   searchPalette.mockReset();
   searchPalette.mockResolvedValue(finds());
+  setJobPhotoFavourite.mockReset();
+  setJobPhotoFavourite.mockResolvedValue({ ok: true, starred: true, note: null });
   isOpen = true;
 });
 afterEach(() => jest.useRealTimers());
@@ -371,7 +421,112 @@ describe("the palette finds staff", () => {
     palette(TEAM_AND_WORK);
     expect(box()).toHaveAttribute(
       "placeholder",
-      "Search screens, staff, clients, projects and jobs…"
+      "Search screens, staff, clients, projects, jobs and photos…"
+    );
+  });
+});
+
+/* Photos joined the palette on 2026-09-24: the photo bank the Workboard's own
+   box searches, a handful at a time, opening in the Workboard's own viewer
+   over whatever screen the palette was asked on. */
+describe("the palette finds photos", () => {
+  it("lists photos last, each its own thumbnail, and says what matched", async () => {
+    searchPalette.mockResolvedValue(
+      finds({
+        jobs: [job()],
+        photos: [
+          photo(),
+          photo({
+            remoteId: "ph-2",
+            caption: "",
+            name: "Photo",
+            url: null,
+            match: { text: false, transcript: true, caption: false, tag: false },
+          }),
+        ],
+      })
+    );
+    palette();
+    type("puz-m125");
+    await settle();
+
+    const heads = [...document.querySelectorAll(".cgl")].map((h) => h.textContent);
+    expect(heads).toEqual(["ServiceM8 jobs", "Photos"]);
+    const plate = screen.getByRole("button", { name: /Outdoor unit rating plate/ });
+    expect(plate.querySelector(".ci2.shot img")).toHaveAttribute("src", "https://example.test/ph-1.jpg");
+    expect(plate).toHaveTextContent("#2380, Kingsford Bakery, Thu 12 Mar");
+    // a match on the words in the frame shows them, not the caption line
+    const read = screen.getAllByRole("button").find((b) => b.textContent?.includes("PUZ-M125"));
+    expect(read).toBeDefined();
+    expect(read?.querySelector(".ci2.shot img")).toBeNull();
+  });
+
+  it("opens a photo over the screen it was asked on, and walks the photos", async () => {
+    searchPalette.mockResolvedValue(
+      finds({ photos: [photo(), photo({ remoteId: "ph-2", caption: "Condenser coil" })] })
+    );
+    palette();
+    type("coil");
+    await settle();
+
+    press("Enter");
+    expect(close).toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+    expect(await screen.findByTestId("viewer")).toHaveTextContent("ph-1 of 2");
+
+    fireEvent.click(screen.getByRole("button", { name: "Next photo" }));
+    expect(screen.getByTestId("viewer")).toHaveTextContent("ph-2 of 2");
+    fireEvent.click(screen.getByRole("button", { name: "Close viewer" }));
+    expect(screen.queryByTestId("viewer")).toBeNull();
+  });
+
+  /* The star is the gallery's own: it starts at the truth the search
+     reported, and a refused save puts it back. */
+  it("starts the star at the truth, and takes a refused one back", async () => {
+    searchPalette.mockResolvedValue(
+      finds({ photos: [photo({ starred: true }), photo({ remoteId: "ph-2", caption: "Condenser coil" })] })
+    );
+    palette();
+    type("plate");
+    await settle();
+    fireEvent.click(screen.getByRole("button", { name: /Outdoor unit rating plate/ }));
+
+    await screen.findByTestId("viewer");
+    const starredLine = () => screen.getByText(/^starred:/).textContent;
+    expect(starredLine()).toBe("starred: ph-1");
+    fireEvent.click(screen.getByRole("button", { name: "Next photo" }));
+
+    // a save that is refused puts the star back where the server says it is
+    setJobPhotoFavourite.mockResolvedValueOnce({ ok: false, starred: false, note: null });
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Star photo" })));
+    expect(setJobPhotoFavourite).toHaveBeenCalledWith("j-2380", "ph-2", true);
+    expect(starredLine()).toBe("starred: ph-1");
+
+    // and one that lands stays
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Star photo" })));
+    expect(starredLine()).toBe("starred: ph-1 ph-2");
+  });
+
+  it("puts the photo down when the palette is asked for again", async () => {
+    searchPalette.mockResolvedValue(finds({ photos: [photo()] }));
+    const { rerender } = palette();
+    type("plate");
+    await settle();
+    press("Enter");
+    expect(await screen.findByTestId("viewer")).toBeInTheDocument();
+
+    isOpen = false;
+    rerender(<CommandPalette role="staff" caps={WORKBOARD} />);
+    isOpen = true;
+    rerender(<CommandPalette role="staff" caps={WORKBOARD} />);
+    expect(screen.queryByTestId("viewer")).toBeNull();
+  });
+
+  it("names photos among what it reaches", () => {
+    palette(["team", "workboard"]);
+    expect(box()).toHaveAttribute(
+      "placeholder",
+      "Search screens, staff, clients, projects, jobs and photos…"
     );
   });
 });

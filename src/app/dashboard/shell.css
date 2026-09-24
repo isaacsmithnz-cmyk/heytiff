@@ -1782,6 +1782,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   .fg-cmd .crow .ci2.find { background:var(--tint); color:var(--ink); }
   /* a person is a face, not a thing: the avatar's circle and their initials */
   .fg-cmd .crow .ci2.who { border-radius:50%; font-size:13px; font-weight:600; }
+  /* a photo is its own thumbnail, cropped to the tile */
+  .fg-cmd .crow .ci2.shot { overflow:hidden; }
+  .fg-cmd .crow .ci2.shot img { width:100%; height:100%; object-fit:cover; display:block; }
   .fg-cmd .crow .cst { flex:0 0 auto; font-size:13px; font-weight:500; color:var(--q); }
   .fg-cmd .crow + .cgl { margin-top:8px; }
   .fg-cmd .crow .cen { color:var(--q); opacity:0; }

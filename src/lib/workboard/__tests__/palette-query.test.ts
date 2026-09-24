@@ -23,7 +23,7 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-import { searchClients, searchProjects } from "@/lib/workboard/palette-query";
+import { searchClients, searchProjects, searchStaff } from "@/lib/workboard/palette-query";
 
 const asked = (table: string, method: string) =>
   calls.filter((c) => c.table === table && c.method === method).map((c) => c.args);
@@ -136,5 +136,77 @@ describe("searchProjects", () => {
         status: "on_hold",
       },
     ]);
+  });
+});
+
+describe("searchStaff", () => {
+  const card = (over: Record<string, unknown>) => ({
+    id: "s-1",
+    first_name: "Robert",
+    last_name: "Smith",
+    full_name: "Robert Smith",
+    preferred_name: null,
+    job_title: "Senior Tech",
+    contact_email: null,
+    status: "Active",
+    ...over,
+  });
+
+  /* A first name, a surname, what they go by, a word of their title — each
+     word has to START one of them, and every word has to land: "rob smi" is
+     Robert Smith, and "rob" inside Carrobbie is not Rob. */
+  it("asks for every word at the start of a name or a title, in this org", async () => {
+    await searchStaff("org-1", "rob smi");
+    expect(asked("staff_profiles", "eq")).toEqual([["org_id", "org-1"]]);
+    expect(asked("staff_profiles", "or")).toEqual([
+      [
+        "first_name.ilike.rob%,last_name.ilike.rob%,preferred_name.ilike.rob%,full_name.ilike.rob%,full_name.ilike.% rob%,job_title.ilike.rob%,job_title.ilike.% rob%",
+      ],
+      [
+        "first_name.ilike.smi%,last_name.ilike.smi%,preferred_name.ilike.smi%,full_name.ilike.smi%,full_name.ilike.% smi%,job_title.ilike.smi%,job_title.ilike.% smi%",
+      ],
+    ]);
+  });
+
+  /* People who have left stay findable — their records outlive them — but
+     after the ones still here. */
+  it("puts the people still here first, then by name", async () => {
+    rowsBy["staff_profiles"] = [
+      card({ id: "s-gone", first_name: "Aaron", full_name: "Aaron Smith", status: "Inactive" }),
+      card({ id: "s-zed", first_name: "Zed", full_name: "Zed Smith" }),
+      card({ id: "s-bob", first_name: "Bob", full_name: "Bob Smith" }),
+    ];
+    const found = await searchStaff("org-1", "smith");
+    expect(found.map((p) => [p.id, p.active])).toEqual([
+      ["s-bob", true],
+      ["s-zed", true],
+      ["s-gone", false],
+    ]);
+  });
+
+  it("says what they go by only when it is not their first name", async () => {
+    rowsBy["staff_profiles"] = [
+      card({ id: "s-1", preferred_name: "Bob" }),
+      card({ id: "s-2", first_name: "Ann", last_name: "Lee", full_name: "Ann Lee", preferred_name: "ann" }),
+    ];
+    const found = await searchStaff("org-1", "senior");
+    expect(found.find((p) => p.id === "s-1")).toMatchObject({ name: "Robert Smith", known: "Bob", initials: "RS" });
+    expect(found.find((p) => p.id === "s-2")).toMatchObject({ known: null });
+  });
+
+  /* An imported card can carry only an address until its person arrives —
+     the directory names it by the address, and so does this. */
+  it("names a card with no name by its address", async () => {
+    rowsBy["staff_profiles"] = [
+      card({ first_name: null, last_name: null, full_name: null, contact_email: "tony@example.com" }),
+    ];
+    expect(await searchStaff("org-1", "senior")).toEqual([
+      expect.objectContaining({ name: "tony", initials: "TO", title: "Senior Tech" }),
+    ]);
+  });
+
+  it("asks nothing for too little", async () => {
+    expect(await searchStaff("org-1", "r")).toEqual([]);
+    expect(calls).toEqual([]);
   });
 });

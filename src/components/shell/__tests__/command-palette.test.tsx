@@ -24,13 +24,13 @@ jest.mock("../command-palette-context", () => ({
 }));
 
 const searchPalette = jest.fn();
-jest.mock("@/app/actions/workboard", () => ({
+jest.mock("@/app/actions/palette", () => ({
   searchPalette: (...a: unknown[]) => searchPalette(...a),
 }));
 
 import { CommandPalette } from "../command-palette";
-import type { PaletteFinds } from "@/app/actions/workboard";
-import type { PaletteClient, PaletteProject } from "@/lib/workboard/palette-query";
+import type { PaletteFinds } from "@/app/actions/palette";
+import type { PaletteClient, PaletteProject, PaletteStaff } from "@/lib/workboard/palette-query";
 
 const job = (over: Partial<AllJobsMirrorJob> = {}): AllJobsMirrorJob => ({
   remoteId: "j-288",
@@ -67,8 +67,19 @@ const project = (over: Partial<PaletteProject> = {}): PaletteProject => ({
   ...over,
 });
 
+const person = (over: Partial<PaletteStaff> = {}): PaletteStaff => ({
+  id: "s-1",
+  name: "Robert Smith",
+  known: null,
+  initials: "RS",
+  title: "Senior Tech",
+  active: true,
+  ...over,
+});
+
 /** What the one round trip answers — jobs only unless a test says otherwise. */
 const finds = (over: Partial<PaletteFinds> = {}): PaletteFinds => ({
+  staff: [],
   clients: [],
   projects: [],
   jobs: [],
@@ -298,6 +309,70 @@ describe("the palette finds clients and projects", () => {
     expect(order[2]).toHaveClass("on");
     press("Enter");
     expect(push).toHaveBeenCalledWith("/dashboard/workboard?job=j-288");
+  });
+});
+
+/* Staff joined the palette on 2026-09-24, for whoever holds `team` — the
+   grant the staff card's own route checks. */
+describe("the palette finds staff", () => {
+  const TEAM_AND_WORK: Capability[] = ["team", "workboard"];
+
+  it("lists staff under the screens and ahead of the work, and opens a staff card", async () => {
+    searchPalette.mockResolvedValue(
+      finds({ staff: [person()], clients: [client({ name: "Smith & Sons" })] })
+    );
+    palette(TEAM_AND_WORK);
+    type("smith");
+    await settle();
+
+    const heads = [...document.querySelectorAll(".cgl")].map((h) => h.textContent);
+    expect(heads).toEqual(["Staff", "Clients"]);
+    const row = screen.getByRole("button", { name: /Robert Smith/ });
+    expect(row).toHaveTextContent("Senior Tech");
+    expect(row.querySelector(".ci2.who")).toHaveTextContent("RS");
+
+    press("Enter");
+    expect(push).toHaveBeenCalledWith("/dashboard/team/s-1");
+  });
+
+  it("says what a person goes by, and says when they have left", async () => {
+    searchPalette.mockResolvedValue(
+      finds({
+        staff: [
+          person({ id: "s-1", known: "Bob" }),
+          person({ id: "s-2", name: "Ann Smith", title: null, active: false }),
+        ],
+      })
+    );
+    palette(TEAM_AND_WORK);
+    type("smith");
+    await settle();
+
+    expect(screen.getByRole("button", { name: /Robert Smith \(Bob\)/ })).not.toHaveTextContent(
+      "Inactive"
+    );
+    expect(screen.getByRole("button", { name: /Ann Smith/ })).toHaveTextContent("Inactive");
+  });
+
+  /* Somebody who holds the Team screen but not the Workboard still asks —
+     for the people, and the box says that is what it reaches. */
+  it("asks for someone with the Team screen alone, and says so in the box", async () => {
+    searchPalette.mockResolvedValue(finds({ staff: [person()] }));
+    palette(["team"]);
+    expect(box()).toHaveAttribute("placeholder", "Search screens and staff…");
+
+    type("smith");
+    await settle();
+    expect(searchPalette).toHaveBeenCalledWith("smith");
+    expect(screen.getByRole("button", { name: /Robert Smith/ })).toBeInTheDocument();
+  });
+
+  it("names everything it reaches for someone who holds both", () => {
+    palette(TEAM_AND_WORK);
+    expect(box()).toHaveAttribute(
+      "placeholder",
+      "Search screens, staff, clients, projects and jobs…"
+    );
   });
 });
 

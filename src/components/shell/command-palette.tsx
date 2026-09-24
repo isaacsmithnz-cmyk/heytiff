@@ -6,10 +6,10 @@ import { useCommandPalette } from "./command-palette-context";
 import { Icon } from "./icon";
 import { Chevron } from "@/components/logo";
 import { navFor, type NavItem } from "./nav";
-import { searchPalette, type PaletteFinds } from "@/app/actions/workboard";
+import { searchPalette, type PaletteFinds } from "@/app/actions/palette";
 import { SEARCH_MIN, jobSearchTerm } from "@/lib/workboard/work-search";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
-import type { PaletteClient, PaletteProject } from "@/lib/workboard/palette-query";
+import type { PaletteClient, PaletteProject, PaletteStaff } from "@/lib/workboard/palette-query";
 import type { Role } from "@/lib/roles-shared";
 import type { Capability } from "@/lib/permissions";
 
@@ -20,6 +20,7 @@ const WORK_SEARCH_DELAY_MS = 250;
 /** One list, top to bottom: the arrow keys walk every group alike. */
 type Row =
   | { kind: "screen"; key: string; href: string; screen: NavItem }
+  | { kind: "staff"; key: string; href: string; person: PaletteStaff }
   | { kind: "client"; key: string; href: string; client: PaletteClient }
   | { kind: "project"; key: string; href: string; project: PaletteProject }
   | { kind: "job"; key: string; href: string; job: AllJobsMirrorJob };
@@ -29,12 +30,16 @@ type Row =
    the rows ARE; the jobs are ServiceM8's, which is whose numbers they carry. */
 const GROUP: { [K in Row["kind"]]: string } = {
   screen: "Screens",
+  staff: "Staff",
   client: "Clients",
   project: "Projects",
   job: "ServiceM8 jobs",
 };
 
-const NO_FINDS: PaletteFinds = { clients: [], projects: [], jobs: [] };
+const NO_FINDS: PaletteFinds = { staff: [], clients: [], projects: [], jobs: [] };
+
+/** A person opens on their staff card. */
+const staffHref = (person: PaletteStaff) => `/dashboard/team/${encodeURIComponent(person.id)}`;
 
 /** A job opens where its card lives: the Workboard, on the jobs side, with
     this job's sheet up — found in the board's window or past it. */
@@ -78,11 +83,22 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [selRaw, setSel] = useState(0);
 
-  /* CLIENTS, PROJECTS AND JOBS, for whoever can open the Workboard — which is
-     where every one of them opens. The search behind it checks the same
-     grant; asking here only spares everyone else a round trip that has to
-     come back empty. */
+  /* STAFF for whoever holds `team`, where a staff card opens; CLIENTS,
+     PROJECTS AND JOBS for whoever can open the Workboard, where every one of
+     them opens. The search behind it checks the same grants group by group;
+     asking here only spares everyone else a round trip that has to come back
+     empty. */
+  const findsStaff = caps.includes("team");
   const findsWork = caps.includes("workboard");
+  const asksServer = findsStaff || findsWork;
+  /* The box says what it reaches, for this viewer. */
+  const reach = [
+    "screens",
+    ...(findsStaff ? ["staff"] : []),
+    ...(findsWork ? ["clients", "projects", "jobs"] : []),
+  ];
+  const reachSaid =
+    reach.length === 1 ? reach[0] : `${reach.slice(0, -1).join(", ")} and ${reach[reach.length - 1]}`;
   /* The answer, with the term it answers. A list is only shown under the
      question it was asked for, so a slow answer can never paint itself under
      a box that has moved on — and the sequence below means only the newest
@@ -91,10 +107,10 @@ export function CommandPalette({
   const workSeq = useRef(0);
   const workTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const term = findsWork ? jobSearchTerm(query) : "";
-  const asksWork = term.length >= SEARCH_MIN;
-  const workSettled = !asksWork || work?.term === term;
-  const finds = asksWork && work?.term === term ? work.finds : NO_FINDS;
+  const term = asksServer ? jobSearchTerm(query) : "";
+  const asking = term.length >= SEARCH_MIN;
+  const answered = !asking || work?.term === term;
+  const finds = asking && work?.term === term ? work.finds : NO_FINDS;
 
   const screens = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -104,11 +120,14 @@ export function CommandPalette({
   }, [query, role, caps]);
 
   /* Screens first — the palette's first job is still getting about — then
-     the broadest answer to the narrowest: a client, their projects, the
-     jobs. */
+     the people, then the work from the broadest answer to the narrowest: a
+     client, their projects, the jobs. */
   const rows = useMemo<Row[]>(
     () => [
       ...screens.map((s): Row => ({ kind: "screen", key: `screen:${s.key}`, href: s.href, screen: s })),
+      ...finds.staff.map(
+        (p): Row => ({ kind: "staff", key: `staff:${p.id}`, href: staffHref(p), person: p })
+      ),
       ...finds.clients.map(
         (c): Row => ({ kind: "client", key: `client:${c.uuid}`, href: clientHref(c), client: c })
       ),
@@ -162,7 +181,7 @@ export function CommandPalette({
   const ask = (q: string) => {
     setQuery(q);
     setSel(0);
-    if (!findsWork) return;
+    if (!asksServer) return;
     if (workTimer.current) clearTimeout(workTimer.current);
     const mine = ++workSeq.current;
     const wanted = jobSearchTerm(q);
@@ -236,10 +255,8 @@ export function CommandPalette({
             ref={inputRef}
             value={query}
             onChange={(e) => ask(e.target.value)}
-            placeholder={
-              findsWork ? "Search screens, clients, projects and jobs…" : "Jump to a screen…"
-            }
-            aria-label={findsWork ? "Search screens, clients, projects and jobs" : "Jump to a screen"}
+            placeholder={asksServer ? `Search ${reachSaid}…` : "Jump to a screen…"}
+            aria-label={asksServer ? `Search ${reachSaid}` : "Jump to a screen"}
             autoComplete="off"
           />
           <kbd className="esc">ESC</kbd>
@@ -251,9 +268,9 @@ export function CommandPalette({
                for — never "no match" before it has had its say. */
             <div className="cempty">
               <b>
-                {!workSettled
+                {!answered
                   ? "Searching…"
-                  : asksWork
+                  : asking
                     ? <>Nothing matches &ldquo;{query}&rdquo;</>
                     : <>No screen matches &ldquo;{query}&rdquo;</>}
               </b>
@@ -279,6 +296,17 @@ export function CommandPalette({
                         <b>{r.screen.label}</b>
                         <em>{r.screen.hint}</em>
                       </span>
+                    </>
+                  ) : r.kind === "staff" ? (
+                    <>
+                      <span className="ci2 find who" aria-hidden>
+                        {r.person.initials}
+                      </span>
+                      <span className="ck">
+                        <b>{r.person.known ? `${r.person.name} (${r.person.known})` : r.person.name}</b>
+                        {r.person.title && <em>{r.person.title}</em>}
+                      </span>
+                      {!r.person.active && <span className="cst">Inactive</span>}
                     </>
                   ) : r.kind === "client" ? (
                     <>

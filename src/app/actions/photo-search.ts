@@ -103,16 +103,23 @@ export async function countBankedPhotos(): Promise<number> {
   return count ?? 0;
 }
 
-export async function searchPhotos(term: string): Promise<PhotoSearchResult> {
+/** `limit` is how many hits are wanted — the Workboard's panel takes the
+    whole cap, ⌘K a handful. Clamped here: it arrives from a client, and every
+    hit costs a signed URL. */
+export async function searchPhotos(
+  term: string,
+  limit: number = PHOTO_SEARCH_LIMIT
+): Promise<PhotoSearchResult> {
+  const cap = Math.min(PHOTO_SEARCH_LIMIT, Math.max(1, Math.floor(Number(limit)) || PHOTO_SEARCH_LIMIT));
   try {
-    return await searchPhotosInner(term);
+    return await searchPhotosInner(term, cap);
   } catch (e) {
     console.error("[photo-search] failed:", e);
     return NOTHING;
   }
 }
 
-async function searchPhotosInner(term: string): Promise<PhotoSearchResult> {
+async function searchPhotosInner(term: string, cap: number): Promise<PhotoSearchResult> {
   const { orgId } = await requireOrg("workboard");
   const query = parsePhotoQuery(term);
 
@@ -135,7 +142,7 @@ async function searchPhotosInner(term: string): Promise<PhotoSearchResult> {
   const { data, error } = await supabaseAdmin.rpc("search_job_photos", {
     p_org: orgId,
     p_term: query.raw,
-    p_limit: PHOTO_SEARCH_LIMIT + 1,
+    p_limit: cap + 1,
   });
 
   if (error) {
@@ -144,8 +151,8 @@ async function searchPhotosInner(term: string): Promise<PhotoSearchResult> {
   }
 
   const rows = (data ?? []) as HitRow[];
-  const capped = rows.length > PHOTO_SEARCH_LIMIT;
-  const kept = capped ? rows.slice(0, PHOTO_SEARCH_LIMIT) : rows;
+  const capped = rows.length > cap;
+  const kept = capped ? rows.slice(0, cap) : rows;
 
   /* The function already ranked these. `rankPhotos` re-sorts on the same
      weights so the two can never silently disagree — and so the ordering is

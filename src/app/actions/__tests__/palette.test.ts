@@ -21,14 +21,26 @@ jest.mock("@/lib/workboard/palette-query", () => ({
   searchProjects: (...a: unknown[]) => searchProjects(...(a as [])),
 }));
 
+const searchPhotos = jest.fn(async () => ({
+  ok: true,
+  hits: [{ remoteId: "ph-1" }],
+  banked: 12,
+  capped: false,
+}));
+jest.mock("../photo-search", () => ({
+  searchPhotos: (...a: unknown[]) => searchPhotos(...(a as [])),
+}));
+
 import { searchPalette } from "../palette";
 
-const NONE = { staff: [], clients: [], projects: [], jobs: [] };
+const NONE = { staff: [], clients: [], projects: [], jobs: [], photos: [] };
 
 beforeEach(() => {
   caps = new Set(["team", "workboard"]);
   getSession.mockResolvedValue({ user: { sub: "auth0|me" }, orgId: "org-1" });
-  for (const f of [searchAllMirrorJobs, searchStaff, searchClients, searchProjects]) f.mockClear();
+  for (const f of [searchAllMirrorJobs, searchStaff, searchClients, searchProjects, searchPhotos]) {
+    f.mockClear();
+  }
 });
 
 describe("searchPalette", () => {
@@ -39,7 +51,10 @@ describe("searchPalette", () => {
       clients: [{ uuid: "c-1", name: "Kingsford Bakery" }],
       projects: [{ id: "p-9", name: "Kingsford fitout" }],
       jobs: [{ remoteId: "j-1" }],
+      photos: [{ remoteId: "ph-1" }],
     });
+    // a handful of photos — the palette is a list to choose from
+    expect(searchPhotos).toHaveBeenCalledWith("kingsford", 6);
     expect(searchStaff).toHaveBeenCalledWith("org-1", "kingsford");
     expect(searchClients).toHaveBeenCalledWith("org-1", "kingsford");
     expect(searchProjects).toHaveBeenCalledWith("org-1", "kingsford");
@@ -64,6 +79,7 @@ describe("searchPalette", () => {
     expect(searchClients).not.toHaveBeenCalled();
     expect(searchProjects).not.toHaveBeenCalled();
     expect(searchAllMirrorJobs).not.toHaveBeenCalled();
+    expect(searchPhotos).not.toHaveBeenCalled();
   });
 
   it("asks nothing for someone holding neither, or signed out", async () => {

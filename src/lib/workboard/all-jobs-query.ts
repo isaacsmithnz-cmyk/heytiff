@@ -1161,8 +1161,14 @@ export async function searchAllMirrorJobs(
     "uuid, generated_job_id, status, company_uuid, geo_city, category_uuid, " +
     "job_description, date, quote_date, completion_date";
   const columns = includeMoney ? `${base}, ${SM8_JOB_MONEY_COLUMNS}` : base;
-  const safe = q.replace(/[%,()]/g, " ").trim();
+  const safe = q.replace(/[%,()"\\]/g, " ").trim();
   if (!safe) return [];
+
+  const words = [...new Set(safe.toLowerCase().split(/\s+/).filter(Boolean))];
+  if (words.length > 1) {
+    const { rows, names } = await searchMirrorByWords(orgId, words, columns, limit);
+    return hydrateMirrorJobs(orgId, rows, today, includeMoney, names);
+  }
 
   const [{ data: byNumber }, { data: companyRows }] = await Promise.all([
     /* In number order, which puts the number typed FIRST: a prefix sorts
@@ -1224,6 +1230,96 @@ export async function searchAllMirrorJobs(
     includeMoney,
     new Map(companies.map((c) => [c.uuid, c.name]))
   );
+}
+
+/* ── several words: every one has to land ──
+
+   "hr constructions mosman" is a client's name and a suburb. Asked as one
+   phrase it matched nothing, because no one field holds all three words: the
+   name lives on the client, the suburb on the job. So each word has to land
+   in SOME field — the rule the board's own box has always run
+   (`matchesWords`):
+
+   - clients are found by the words their names START with. "hr" anywhere in
+     a name is forty-seven clients live; "hr" as a word is one. Every client
+     whose name covers ALL the words is asked for first, apart, so a word as
+     common as "pty" cannot crowd the one being named out of the pool;
+   - each client's jobs are then asked for whatever words its name left
+     over, in the job's own number, description and suburb — one question
+     per set of words left, not one per client;
+   - and the jobs are asked on their own, every word in their own fields,
+     for work whose client the words don't name at all.
+
+   A client that covers more of the words answers first. */
+
+/** Per typed word, how many clients whose name has a word starting with it
+    are read. A word common enough to pass this ("pty": 161 live) is never
+    the one that names the client — the rarer words beside it do that. */
+const WORD_POOL = 60;
+/** How many sets of left-over words are asked about. */
+const MAX_CLIENT_GROUPS = 8;
+
+/** A name has the word when one of its words starts with it. */
+const nameStartsWord = (w: string) => `name.ilike.${w}%,name.ilike.% ${w}%`;
+/** The job's own fields, where a word the client's name did not cover must be. */
+const jobFieldsHold = (w: string) =>
+  `generated_job_id.ilike.${w}%,job_description.ilike.%${w}%,geo_city.ilike.%${w}%`;
+
+async function searchMirrorByWords(
+  orgId: string,
+  words: string[],
+  columns: string,
+  limit: number
+): Promise<{ rows: JobRow[]; names: Map<string, string | null> }> {
+  const clients = () =>
+    supabaseAdmin.from("sm8_companies").select("uuid, name").eq("org_id", orgId).eq("active", 1);
+  let whole = clients();
+  for (const w of words) whole = whole.or(nameStartsWord(w));
+  const pools = await Promise.all([
+    whole.limit(WORD_POOL),
+    ...words.map((w) => clients().or(nameStartsWord(w)).limit(WORD_POOL)),
+  ]);
+
+  const names = new Map<string, string | null>();
+  const groups = new Map<string, { left: string[]; ids: string[] }>();
+  for (const { data } of pools) {
+    for (const c of (data ?? []) as { uuid: string; name: string | null }[]) {
+      if (names.has(c.uuid)) continue;
+      names.set(c.uuid, c.name);
+      const own = (c.name ?? "").toLowerCase().split(/\s+/);
+      const left = words.filter((w) => !own.some((o) => o.startsWith(w)));
+      if (left.length === words.length) continue;
+      const key = left.join(" ");
+      const group = groups.get(key) ?? { left, ids: [] };
+      group.ids.push(c.uuid);
+      groups.set(key, group);
+    }
+  }
+
+  const jobs = (left: readonly string[], ids: string[] | null) => {
+    let q = supabaseAdmin.from("sm8_jobs").select(columns).eq("org_id", orgId).eq("active", 1);
+    if (ids) q = q.in("company_uuid", ids.slice(0, 200));
+    for (const w of left) q = q.or(jobFieldsHold(w));
+    return q.order("date", { ascending: false }).limit(limit);
+  };
+  const answers = await Promise.all([
+    ...[...groups.values()]
+      .sort((a, b) => a.left.length - b.left.length)
+      .slice(0, MAX_CLIENT_GROUPS)
+      .map((g) => jobs(g.left, g.ids)),
+    jobs(words, null),
+  ]);
+
+  const seen = new Set<string>();
+  const rows: JobRow[] = [];
+  for (const { data } of answers) {
+    for (const r of (data ?? []) as unknown as JobRow[]) {
+      if (seen.has(r.uuid)) continue;
+      seen.add(r.uuid);
+      rows.push(r);
+    }
+  }
+  return { rows: rows.slice(0, limit), names };
 }
 
 /** One job from the whole mirror, by its uuid, in the shape the board's rows

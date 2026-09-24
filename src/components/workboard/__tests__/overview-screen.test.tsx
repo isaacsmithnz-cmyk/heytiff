@@ -782,6 +782,27 @@ describe("the universal search", () => {
     expect(box()).toHaveValue("");
   });
 
+  /* The palette learned "job 288" first; the board's own box reads it the
+     same way, or the two searches would disagree about the same words. */
+  it("reads \"job 2214\" as the number, in every half", async () => {
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "job 2214");
+
+    expect(searchAllJobs).toHaveBeenLastCalledWith("2214");
+    expect(screen.getByText("1 match for “job 2214”")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Open Kingsford Bakery/ })).toBeInTheDocument();
+    await waitFor(() => expect(searchPhotos).toHaveBeenLastCalledWith("2214"));
+  });
+
+  it("takes the word \"job\" alone as a search not yet started", async () => {
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "job ");
+
+    expect(screen.getByText("Keep typing")).toBeInTheDocument();
+    expect(searchAllJobs).not.toHaveBeenCalledWith("job");
+    expect(searchAllJobs).not.toHaveBeenCalledWith("");
+  });
+
   /* Told nothing while a single letter sits in the box, you can't tell a
      search that hasn't started from one that found nothing. */
   it("says a single character is not yet a search, rather than saying nothing matched", async () => {

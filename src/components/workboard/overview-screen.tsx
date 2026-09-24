@@ -14,7 +14,12 @@ import { urgentRows } from "@/lib/workboard/urgent-rules";
 import { projectUrgentRows } from "@/lib/workboard/project-rules";
 import type { WorkboardData } from "@/lib/workboard/page-data";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
-import { SEARCH_MIN, searchWorkboard, type WorkHit } from "@/lib/workboard/work-search";
+import {
+  SEARCH_MIN,
+  jobSearchTerm,
+  searchWorkboard,
+  type WorkHit,
+} from "@/lib/workboard/work-search";
 import { searchAllJobs } from "@/app/actions/workboard";
 import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { createPortal } from "react-dom";
@@ -281,15 +286,17 @@ export function OverviewScreen({
 
   const runQuery = (q: string) => {
     setQuery(q);
+    /* Every half asks for the same thing, and "job 288" asks for 288 — the
+       box shows what was typed, the mirror and the bank hear the number. */
+    const wanted = jobSearchTerm(q);
     // One character is not a search — it's a keystroke on the way to one, and
     // asking the mirror on every one of them is a query per letter.
-    if (q.trim().length < SEARCH_MIN) {
+    if (wanted.length < SEARCH_MIN) {
       setRemote([]);
     } else {
-      startSearch(async () => setRemote(await searchAllJobs(q)));
+      startSearch(async () => setRemote(await searchAllJobs(wanted)));
     }
 
-    const wanted = q.trim();
     if (photoTimer.current) clearTimeout(photoTimer.current);
     /* A too-short term schedules nothing and clears everything: it bumps the
        sequence so an answer still in flight is discarded rather than painted

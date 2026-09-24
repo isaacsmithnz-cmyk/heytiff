@@ -396,3 +396,103 @@ describe("the job the palette asks for", () => {
     expect(jobSearchTerm("   ")).toBe("");
   });
 });
+
+/* The Workboard's own box reads "job 288" the way the palette does
+   (2026-09-24), and the work asked for by its number comes first: "288" also
+   finds #2288, a site on 288 George Street and every note that mentions it. */
+describe("asked for by its number", () => {
+  const old288 = job({
+    remoteId: "j-288",
+    jobNumber: "288",
+    status: "Completed",
+    completionDate: "2024-03-04 15:00:00",
+  });
+
+  it("reads the word in front of the number out, locally and in the mirror's older half", () => {
+    const local = searchWorkboard(input({ jobs: [job({ remoteId: "j-1" })] }), "job 2200");
+    expect(groupOf(local, "jobs")?.hits.map((h) => h.key)).toEqual(["job:j-1"]);
+
+    const past = searchWorkboard(input({ elsewhere: [old288] }), "job #288");
+    expect(groupOf(past, "elsewhere")?.hits.map((h) => h.key)).toEqual(["job:j-288"]);
+  });
+
+  it("takes the word alone as a search not yet started", () => {
+    const r = searchWorkboard(
+      input({ jobs: [job({ remoteId: "j-1", description: "Finish the job" })] }),
+      "job"
+    );
+    expect(r).toEqual({ groups: [], total: 0 });
+  });
+
+  it("puts the work that IS the number at the head of its group", () => {
+    const r = searchWorkboard(
+      input({
+        jobs: [
+          job({ remoteId: "j-2288", jobNumber: "2288", date: "2026-08-01 09:00:00" }),
+          job({ remoteId: "j-288", jobNumber: "288", date: "2026-08-10 09:00:00" }),
+          job({
+            remoteId: "j-george",
+            jobNumber: "2301",
+            description: "Split at 288 George St",
+            date: "2026-07-01 09:00:00",
+          }),
+        ],
+      }),
+      "job 288"
+    );
+    // soonest-first would have put it last; the rest keep that order behind it
+    expect(groupOf(r, "jobs")?.hits.map((h) => h.key)).toEqual([
+      "job:j-288",
+      "job:j-george",
+      "job:j-2288",
+    ]);
+  });
+
+  it("puts the group holding it at the head of the panel", () => {
+    const r = searchWorkboard(
+      input({ visits: [visit({ id: "v-1", label: "Service unit 288" })], elsewhere: [old288] }),
+      "job 288"
+    );
+    // Maintenance leads when nothing is asked for by number
+    expect(r.groups.map((g) => g.key)).toEqual(["elsewhere", "maintenance"]);
+  });
+
+  it("knows the number without regard to case", () => {
+    const r = searchWorkboard(
+      input({
+        jobs: [
+          job({
+            remoteId: "j-note",
+            jobNumber: "2391",
+            description: "Claim 2380A raised",
+            date: "2026-08-01 09:00:00",
+          }),
+          job({ remoteId: "j-2380a", jobNumber: "2380A", date: "2026-08-09 09:00:00" }),
+        ],
+      }),
+      "job 2380a"
+    );
+    expect(groupOf(r, "jobs")?.hits.map((h) => h.key)).toEqual(["job:j-2380a", "job:j-note"]);
+  });
+
+  /* Both families are four digits. When ServiceM8's number and ours are the
+     same, each is the thing asked for, and each is labelled with whose it is. */
+  it("leads with both when ServiceM8's number and ours are the same", () => {
+    const r = searchWorkboard(
+      input({
+        visits: [
+          visit({ id: "v-early", jobNo: 2004, dueDate: "2026-08-14", label: "Unit 1004 filters" }),
+          visit({ id: "v-1004", jobNo: 1004, dueDate: "2026-09-30" }),
+        ],
+        jobs: [
+          job({ remoteId: "j-21004", jobNumber: "21004", date: "2026-08-01 09:00:00" }),
+          job({ remoteId: "j-1004", jobNumber: "1004", date: "2026-08-09 09:00:00" }),
+        ],
+      }),
+      "1004"
+    );
+    expect(groupOf(r, "maintenance")?.hits[0].key).toBe("visit:v-1004");
+    expect(groupOf(r, "jobs")?.hits[0].key).toBe("job:j-1004");
+    expect(r.groups.map((g) => g.key)).toEqual(["maintenance", "jobs"]);
+  });
+});

@@ -31,7 +31,6 @@ const footer = (over: Partial<Parameters<typeof DocumentsSend>[0]> = {}) => {
     picked,
     writing: false,
     onWriting: jest.fn(),
-    onClear: jest.fn(),
     onLoadDraft: jest.fn(async () => draft),
     onSend: jest.fn(async () => null as string | null),
     ...over,
@@ -47,8 +46,14 @@ describe("the bar", () => {
     expect(screen.queryByRole("button", { name: "Send to ServiceM8" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Email documents" }));
     expect(props.onWriting).toHaveBeenCalledWith(true);
-    await userEvent.click(screen.getByRole("button", { name: "Clear ticks" }));
-    expect(props.onClear).toHaveBeenCalled();
+  });
+
+  /* Isaac: "remove the tick button". A tick comes off where it went on, in
+     its box; a send clears its own; and the footer keeps to the ways out. */
+  it("has no Clear ticks button", () => {
+    footer({ sm8: "live", onSendToSm8: jest.fn(async () => {}) });
+    expect(screen.queryByRole("button", { name: "Clear ticks" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Send to ServiceM8", "Email documents"]);
   });
 
   it("offers Send to ServiceM8 where it's on, and says what it's doing while it waits", async () => {

@@ -1780,6 +1780,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   .fg-cmd .crow .ck b, .fg-cmd .crow .ck em { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   .fg-cmd .crow .ck .cno { font-variant-numeric:tabular-nums; }
   .fg-cmd .crow .ci2.find { background:var(--tint); color:var(--ink); }
+  /* a person is a face, not a thing: the avatar's circle and their initials */
+  .fg-cmd .crow .ci2.who { border-radius:50%; font-size:13px; font-weight:600; }
   .fg-cmd .crow .cst { flex:0 0 auto; font-size:13px; font-weight:500; color:var(--q); }
   .fg-cmd .crow + .cgl { margin-top:8px; }
   .fg-cmd .crow .cen { color:var(--q); opacity:0; }

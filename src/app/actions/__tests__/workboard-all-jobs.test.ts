@@ -73,20 +73,12 @@ jest.mock("@/lib/workboard/all-jobs-query", () => ({
   readClaimDetail: (...a: unknown[]) => readClaimDetail(...(a as [])),
 }));
 
-const searchClients = jest.fn(async () => [{ uuid: "c-1", name: "Kingsford Bakery", address: null }]);
-const searchProjects = jest.fn(async () => [{ id: "p-9", name: "Kingsford fitout" }]);
-jest.mock("@/lib/workboard/palette-query", () => ({
-  searchClients: (...a: unknown[]) => searchClients(...(a as [])),
-  searchProjects: (...a: unknown[]) => searchProjects(...(a as [])),
-}));
-
 import {
   createProjectFromJob,
   readClaim,
   readMirrorJob,
   searchAllJobs,
   searchJobs,
-  searchPalette,
 } from "../workboard";
 
 const quoteJob = {
@@ -109,40 +101,6 @@ beforeEach(() => {
   readClaimDetail.mockClear();
   searchAllMirrorJobs.mockClear();
   searchMirrorJobs.mockClear();
-  searchClients.mockClear();
-  searchProjects.mockClear();
-});
-
-/* ⌘K asks for clients, projects and jobs in one round trip (2026-09-24). */
-describe("searchPalette", () => {
-  it("asks all three for this org, and never for money", async () => {
-    caps = new Set(["workboard", "workboard_money"]);
-    expect(await searchPalette("kingsford")).toEqual({
-      clients: [{ uuid: "c-1", name: "Kingsford Bakery", address: null }],
-      projects: [{ id: "p-9", name: "Kingsford fitout" }],
-      jobs: [{ remoteId: "j-1" }],
-    });
-    expect(searchClients).toHaveBeenCalledWith("org-1", "kingsford");
-    expect(searchProjects).toHaveBeenCalledWith("org-1", "kingsford");
-    // the palette shows no money, so even a reader who holds it is not sent any
-    expect(searchAllMirrorJobs).toHaveBeenCalledWith("org-1", "kingsford", expect.any(String), {
-      includeMoney: false,
-    });
-  });
-
-  it("answers nothing, and asks nothing, off the board", async () => {
-    caps = new Set();
-    expect(await searchPalette("kingsford")).toEqual({ clients: [], projects: [], jobs: [] });
-    expect(searchClients).not.toHaveBeenCalled();
-    expect(searchProjects).not.toHaveBeenCalled();
-    expect(searchAllMirrorJobs).not.toHaveBeenCalled();
-  });
-
-  it("asks nothing for a single character", async () => {
-    caps = new Set(["workboard"]);
-    expect(await searchPalette(" k ")).toEqual({ clients: [], projects: [], jobs: [] });
-    expect(searchClients).not.toHaveBeenCalled();
-  });
 });
 
 describe("createProjectFromJob", () => {

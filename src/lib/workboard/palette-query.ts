@@ -1,5 +1,5 @@
-/* What ⌘K reaches past the screens and the jobs: the client book and the
-   projects.
+/* What ⌘K reaches past the screens and the jobs: the staff, the client book
+   and the projects.
 
    THE CLIENT BOOK IS SERVICEM8'S. HeyTiff's own records carry a client's
    NAME — typed on an agreement, copied onto a project — but the list of
@@ -10,6 +10,19 @@
    NO SESSION HERE — callers establish the right to ask. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { fullNameOf } from "@/lib/staff/name";
+import { initialsFrom } from "@/lib/staff/derive";
+
+export type PaletteStaff = {
+  /** staff_profiles.id — what the staff card's route resolves. */
+  id: string;
+  name: string;
+  /** What they go by, when that is not the name — Bob, beside Robert. */
+  known: string | null;
+  initials: string;
+  title: string | null;
+  active: boolean;
+};
 
 export type PaletteClient = {
   uuid: string;
@@ -84,6 +97,68 @@ export async function searchClients(
     .sort((a, b) => a.r - b.r || a.i - b.i)
     .slice(0, limit)
     .map(({ c }) => c);
+}
+
+/** How many cards are read to choose the few shown — active first. */
+const STAFF_POOL = 40;
+
+/** Staff by the words their names and their job titles start with — a first
+    name, a surname, what they go by, "tech" for Senior Tech — every word
+    landing, so "rob smi" is Robert Smith. Cards that have left stay findable
+    after the ones still here: their records outlive them. */
+export async function searchStaff(
+  orgId: string,
+  term: string,
+  limit = 5
+): Promise<PaletteStaff[]> {
+  const safe = scrub(term);
+  if (safe.length < 2) return [];
+  let asked = supabaseAdmin
+    .from("staff_profiles")
+    .select("id, first_name, last_name, full_name, preferred_name, job_title, contact_email, status")
+    .eq("org_id", orgId);
+  for (const w of wordsOf(safe)) {
+    asked = asked.or(
+      [
+        `first_name.ilike.${w}%`,
+        `last_name.ilike.${w}%`,
+        `preferred_name.ilike.${w}%`,
+        `full_name.ilike.${w}%`,
+        `full_name.ilike.% ${w}%`,
+        `job_title.ilike.${w}%`,
+        `job_title.ilike.% ${w}%`,
+      ].join(",")
+    );
+  }
+  const { data } = await asked.limit(STAFF_POOL);
+
+  type Card = {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    full_name: string | null;
+    preferred_name: string | null;
+    job_title: string | null;
+    contact_email: string | null;
+    status: string | null;
+  };
+  return ((data ?? []) as Card[])
+    .map((c) => {
+      const stored = fullNameOf(c);
+      const email = (c.contact_email ?? "").trim();
+      const known = (c.preferred_name ?? "").trim();
+      return {
+        id: c.id,
+        // the directory's own fallback: an imported card may carry only an address
+        name: stored || email.split("@")[0] || "Unnamed",
+        known: known && known.toLowerCase() !== (c.first_name ?? "").trim().toLowerCase() ? known : null,
+        initials: initialsFrom(stored, email),
+        title: (c.job_title ?? "").trim() || null,
+        active: c.status !== "Inactive",
+      };
+    })
+    .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name))
+    .slice(0, limit);
 }
 
 /** Projects by their name, their client or their site — every word landing in

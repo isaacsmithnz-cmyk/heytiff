@@ -427,6 +427,76 @@ describe("ticking a task made from a mention", () => {
     expect(notes()).toHaveLength(0);
   });
 
+  describe("(F) a Done answers only a note that still stands — the rule a reply keeps", () => {
+    const nothingFiled = async () => {
+      expect(task().status).toBe("done");
+      expect(notes()).toHaveLength(0);
+      expect(writes()).toHaveLength(0);
+      expect(postSm8Note).not.toHaveBeenCalled();
+    };
+
+    it("Luke deleted his note in ServiceM8, then Isaac ticks: the tick stands, and no Done is filed or sent", async () => {
+      (fake.db.sm8_job_notes as Row[])[0].active = 0;
+      expect(await tick()).toEqual({ ok: true });
+      await nothingFiled();
+      // and a direct press of the Done is as quiet
+      expect(await sendTaskDone({ taskId: TASK })).toEqual({ ok: true, state: null });
+      await nothingFiled();
+    });
+
+    it("the task was made from one of OUR notes, taken back since: no Done under it", async () => {
+      const OURS = "7e7e7e7e-0000-4000-8000-00000000a5c2";
+      const ourRow = newId();
+      fake.db.sm8_job_notes = [];
+      notes().push({
+        id: ourRow,
+        org_id: ORG,
+        author_id: "staff-luke",
+        target_kind: "job",
+        target_id: JOB,
+        status: "applied",
+        applied: { jobNotes: ["@isaacsmith can you order the grilles"], sm8Text: "@isaacsmith can you order the grilles" },
+        removed_at: new Date().toISOString(),
+        created_at: "2026-09-20T00:00:00.000Z",
+      });
+      writes().push({
+        id: "w-ours",
+        org_id: ORG,
+        kind: "note",
+        op: "create",
+        status: "sent",
+        note_id: ourRow,
+        remote_uuid: OURS,
+        sm8_job_uuid: JOB,
+        as_staff_uuid: LUKE_SM8,
+        requested_by: "staff-luke",
+        taken_back_at: new Date().toISOString(),
+      });
+      (fake.db.job_note_actions as Row[])[0].sm8_note_uuid = OURS;
+      expect(await tick()).toEqual({ ok: true });
+      expect(task().status).toBe("done");
+      expect(dones()).toHaveLength(0);
+      expect(writes()).toHaveLength(1);
+      expect(postSm8Note).not.toHaveBeenCalled();
+    });
+
+    it("whether it stands can't be read: quiet, and nothing is saved on a guess", async () => {
+      // noteSourceOf's read goes through; the standing check's own read fails
+      fake.before.sm8_job_notes = (s) => {
+        if (s.columns === "active") fake.failing.add("sm8_job_notes");
+      };
+      expect(await tick()).toEqual({ ok: true });
+      expect(fake.on("sm8_job_notes").map((s) => s.columns)).toContain("active");
+      await nothingFiled();
+    });
+
+    it("the note it answers can't be found at all: quiet", async () => {
+      fake.db.sm8_job_notes = [];
+      expect(await tick()).toEqual({ ok: true });
+      await nothingFiled();
+    });
+  });
+
   it("(F) 32. unreadable settings: the Done is saved with 'unreadable' and queues nothing; its line and the bell say so", async () => {
     fake.failing.add("integration_connections");
     await tick();

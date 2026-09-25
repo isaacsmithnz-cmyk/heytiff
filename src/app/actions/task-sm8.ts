@@ -45,7 +45,7 @@ import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { DONE_TTL_MS, offersSend, sendRefusal, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import { sm8NoteSender, type NoteSender } from "@/lib/integrations/links";
-import { noteAskerOf, noteSourceOf } from "@/lib/integrations/sm8-note-source";
+import { noteAskerOf, noteSourceOf, sourceStands } from "@/lib/integrations/sm8-note-source";
 import { DONE_PRESS_BUDGET_MS, settlePressedWrites } from "@/lib/integrations/sm8-drain";
 import {
   doneText,
@@ -220,8 +220,9 @@ async function settle(orgId: string, ids: readonly string[], startedAt: number):
     only for a hand tick (`postDone`) where the deployment sends notes.
 
     Quiet — nothing made, nothing said — unless the task is done, by this
-    person, just now; it was made from a mention; and notes are offered (or
-    the settings can't be read, when the Done is saved and says why). */
+    person, just now; it was made from a mention that still stands; and
+    notes are offered (or the settings can't be read, when the Done is
+    saved and says why). */
 export async function sendTaskDone(input: { taskId: string }): Promise<TaskDoneResult> {
   if (!sm8NotesAllowed()) return QUIET;
   const startedAt = Date.now();
@@ -257,10 +258,26 @@ export async function sendTaskDone(input: { taskId: string }): Promise<TaskDoneR
   const existing = await liveDoneOf(orgId, taskId);
   if (existing) return { ok: true, state: await lineOf(orgId, existing, viewer) };
 
-  /* 5. who asked, and 6. who it goes as: "@lukeingold Done.", or plain
-     "Done." when nobody can be named or the asker is the sender */
+  /* 5. THE NOTE IT ANSWERS IS FOUND AND STILL STANDS — the rule a reply
+     keeps, through the same sourceStands: nobody files a Done under a note
+     its author took back or somebody removed in ServiceM8. It would stand
+     in the diary under nothing, and go to ServiceM8 answering nothing. A
+     note that can't be found, or whose standing can't be read, is quiet
+     too, decided on purpose: a Done saved on a guess could later go by Send
+     again under a note that is gone (the queue doesn't ask again), while a
+     Done left unmade costs only the courtesy. The tick stands either way,
+     as it does when any read here fails. */
   const source = await noteSourceOf(orgId, mention.sm8_note_uuid);
-  const asker = source ? await noteAskerOf(orgId, mention.sm8_note_uuid, source) : null;
+  if (!source) return QUIET;
+  const standing = await sourceStands(orgId, mention.sm8_note_uuid, source.origin);
+  if (standing === null) {
+    console.error(`[sm8] couldn't read whether the note task ${taskId} answers still stands, for org ${orgId}: no Done filed`);
+  }
+  if (standing !== true) return QUIET;
+
+  /* 6. who asked, and who it goes as: "@lukeingold Done.", or plain
+     "Done." when nobody can be named or the asker is the sender */
+  const asker = await noteAskerOf(orgId, mention.sm8_note_uuid, source);
   const { sender } = await viewer();
   const text = doneText(asker, sender && "remoteId" in sender ? sender.remoteId : null);
 

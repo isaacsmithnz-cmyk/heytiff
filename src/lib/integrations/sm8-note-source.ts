@@ -92,6 +92,51 @@ export async function noteSourceOf(orgId: string, noteUuid: string): Promise<Not
   };
 }
 
+/** WHETHER THE NOTE A REPLY OR A DONE ANSWERS STILL STANDS: false once its
+    author took it back or somebody removed it in ServiceM8, null when that
+    can't be read (nothing is saved on a guess). A reply (job-note-sm8) and a
+    Done (task-sm8) both ask it here before HeyTiff saves a row, so nobody
+    answers a withdrawn note by either door.
+
+    noteSourceOf finds a note however it stands, so this asks the two things
+    it doesn't: whether ServiceM8's copy is still active in the mirror, and
+    whether it is one of OURS whose create was taken back or whose row was
+    removed. The second is asked of a mirror note too: until the sync has
+    caught up with the delete, the mirror still holds our withdrawn copy as
+    active. */
+export async function sourceStands(
+  orgId: string,
+  sourceUuid: string,
+  origin: "sm8" | "heytiff"
+): Promise<boolean | null> {
+  const [mirror, creates] = await Promise.all([
+    origin === "sm8"
+      ? supabaseAdmin.from("sm8_job_notes").select("active").eq("org_id", orgId).eq("uuid", sourceUuid).maybeSingle()
+      : null,
+    supabaseAdmin
+      .from("sm8_writes")
+      .select("note_id, taken_back_at")
+      .eq("org_id", orgId)
+      .eq("kind", "note")
+      .eq("op", "create")
+      .eq("remote_uuid", sourceUuid)
+      .limit(5),
+  ]);
+  if (mirror?.error || creates.error) return null;
+  if (mirror && Number((mirror.data as { active: unknown } | null)?.active) !== 1) return false;
+  const ours = (creates.data ?? []) as { note_id: string | null; taken_back_at: string | null }[];
+  if (ours.some((c) => !!c.taken_back_at)) return false;
+  const noteIds = ours.map((c) => c.note_id).filter((id): id is string => !!id);
+  if (noteIds.length === 0) return true;
+  const { data, error } = await supabaseAdmin
+    .from("workboard_notes")
+    .select("id, removed_at")
+    .eq("org_id", orgId)
+    .in("id", noteIds);
+  if (error) return null;
+  return !((data ?? []) as { removed_at: string | null }[]).some((r) => !!r.removed_at);
+}
+
 /** Where a HeyTiff row's note goes in ServiceM8:
     - a diary entry (it answers nothing): the job it is written on;
     - a reply or a Done: the object its source hangs off, ONLY when that is

@@ -68,6 +68,24 @@ export function DashboardHome({
      handed to the Tasks face, which chooses the row, scrolls it into view
      and marks it, then clears this so pressing the same door again works. */
   const [focusTask, setFocusTask] = useState<string | null>(taskId);
+
+  /* THE ADDRESS CAN NAME A TASK AFTER HOME IS UP: the bell's door onto a
+     Done is pressed from Home itself far more than from anywhere else, and
+     only the search changes, so nothing remounts Home (the outlet is keyed
+     on the pathname, and the router keys a page without its search). A task
+     newly named is opened here the way a diary door opens one. Answered in
+     render (the adjust-during-render idiom HomeTasks uses for the same
+     door), so the face turns in the same paint. An address that stops
+     naming one leaves the face where the reader put it. */
+  const [namedTask, setNamedTask] = useState<string | null>(taskId);
+  if (taskId !== namedTask) {
+    setNamedTask(taskId);
+    if (taskId) {
+      setTab("tasks");
+      setFocusTask(taskId);
+    }
+  }
+
   const openTask = useCallback((id: string) => {
     setTab("tasks");
     setFocusTask(id);

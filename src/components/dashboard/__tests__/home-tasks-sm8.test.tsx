@@ -244,6 +244,24 @@ describe("/dashboard?task=<id>", () => {
     expect(page().querySelector(`[data-note-id="${OLD}"]`)).toHaveTextContent(stillIn.state.text!);
   });
 
+  it("(F) 30. the bell's door pressed on Home itself: only the search changes, and Home follows it to the task", () => {
+    /* the outlet is keyed on the pathname and the router keys a page
+       without its search, so /dashboard → /dashboard?task=<id> hands the
+       same Home a new prop — it is never mounted afresh */
+    const { rerender } = render(<DashboardHome data={data()} />);
+    expect(screen.getByRole("tab", { name: /^Diary/ })).toHaveAttribute("aria-selected", "true");
+
+    rerender(<DashboardHome data={data()} taskId={T} />);
+    expect(screen.getByRole("tab", { name: /^Tasks/ })).toHaveAttribute("aria-selected", "true");
+    expect(document.getElementById("hmsec-tasks")).not.toHaveAttribute("hidden");
+    expect(within(page()).getByText("Order the grilles")).toHaveClass("hm-said");
+    expect(page().querySelector(`[data-note-id="${OLD}"]`)).toHaveTextContent(stillIn.state.text!);
+
+    // an address that stops naming it leaves the face where it is
+    rerender(<DashboardHome data={data()} />);
+    expect(screen.getByRole("tab", { name: /^Tasks/ })).toHaveAttribute("aria-selected", "true");
+  });
+
   it("without one, Home opens on the Diary as ever", () => {
     render(<DashboardHome data={data()} />);
     expect(screen.getByRole("tab", { name: /^Diary/ })).toHaveAttribute("aria-selected", "true");

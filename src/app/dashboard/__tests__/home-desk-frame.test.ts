@@ -14,8 +14,9 @@ import path from "node:path";
      copy's weight IS the chosen tab's weight.
    - the slide. The faces slide past each other in one cell, and a face on
      its way must never paint over the day, the tabs or the list — so both
-     cells clip, and the tabs stand outside them, pinned by where they are
-     rather than by `sticky`.
+     cells clip (and with `clip`, not `hidden`, so neither is a scroller a
+     flash could move), and the tabs stand outside them, pinned by where
+     they are rather than by `sticky`.
 
    And the old one, still true: a face styled as a flex column beats the
    browser's own `[hidden]`, so hidden has to be said again. */
@@ -70,8 +71,24 @@ describe("the tabs never move", () => {
 
 describe("the slide stays in its cell", () => {
   it("clips the body and the diary column, so a face on its way paints over nothing", () => {
-    expect(rule(".fg .hd-fx").overflow).toBe("hidden");
-    expect(rule(".fg .hd-col").overflow).toBe("hidden");
+    expect(rule(".fg .hd-fx").overflow).toBe("clip");
+    expect(rule(".fg .hd-col").overflow).toBe("clip");
+  });
+
+  /* `hidden` clips too, but it makes a scroll container, and the face on
+     its way in gives that container room sideways. A diary door lands on
+     Tasks mid-slide and Tasks' flash calls `scrollIntoView` on the row: the
+     browser scrolls the column across to reach it (0 → 314px → 0 over the
+     280 ms, measured in headless Chrome at 1440 against this sheet), and
+     the two faces lurch. `clip` is not a scroll container, so nothing can
+     scroll it. Nor may either axis be set on its own to anything else. */
+  it("clips without making a scroller, so a flash mid-slide cannot scroll the cell sideways", () => {
+    for (const sel of [".fg .hd-fx", ".fg .hd-col"]) {
+      const r = rule(sel);
+      expect(r["overflow-x"]).toBeUndefined();
+      expect(r["overflow-y"]).toBeUndefined();
+      expect(r.overflow).not.toMatch(/hidden|auto|scroll/);
+    }
   });
 
   it("puts the parts that slide past each other in one cell", () => {

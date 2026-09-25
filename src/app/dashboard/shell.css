@@ -11045,15 +11045,20 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* THE CELL. The body and the Calendar share it and slide past each other
    in it; the diary column's two faces share its own. Both clip, so a face
-   on its way never paints over the day, the tabs or the list. */
-.fg .hd-fx { flex:1; min-height:0; display:grid; grid-template:minmax(0,1fr) / minmax(0,1fr); overflow:hidden; }
+   on its way never paints over the day, the tabs or the list.
+   `clip`, NEVER `hidden`: hidden still makes a scroll container, and the
+   face sliding in gives it room sideways, so a diary door's flash (Tasks'
+   `scrollIntoView`) would scroll the cell ~300px across mid-slide and snap
+   back. Clip bounds the slide without a scroller, as the Studio's start
+   screen does (.ds-home). */
+.fg .hd-fx { flex:1; min-height:0; display:grid; grid-template:minmax(0,1fr) / minmax(0,1fr); overflow:clip; }
 .fg .hd-fx > .hd-main, .fg .hd-fx > .hd-face { grid-area:1 / 1; min-width:0; min-height:0; }
 /* The list takes the right-hand column once it is there; until then the
    column is the body. */
 .fg .hd-main { display:grid; grid-template-columns:minmax(0,1fr); }
 .fg .hd-main:has(> .hd-list) { grid-template-columns:minmax(0,1fr) minmax(280px,420px); }
 .fg .hd-col { display:grid; grid-template:minmax(0,1fr) / minmax(0,1fr); min-width:0; min-height:0;
-  overflow:hidden; }
+  overflow:clip; }
 .fg .hd-col > .hd-face { grid-area:1 / 1; min-width:0; min-height:0; }
 /* A face scrolls on its own; the tabs above it stay where they are. */
 .fg .hd-face { display:flex; flex-direction:column; overflow-y:auto; }

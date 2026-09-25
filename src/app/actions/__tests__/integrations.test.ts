@@ -252,6 +252,20 @@ describe("setServiceM8WriteKindAction", () => {
     expect(setSm8WriteKind).not.toHaveBeenCalled();
   });
 
+  it("(F) with files alone allowed (production today) changes nothing, Files included: the card draws no switch to put it back", async () => {
+    allowed = ["attachment"];
+    expect(await setServiceM8WriteKindAction("attachment", false)).toEqual({ ok: false, error: "That isn't a setting." });
+    expect(await setServiceM8WriteKindAction("attachment", true)).toEqual({ ok: false, error: "That isn't a setting." });
+    expect(setSm8WriteKind).not.toHaveBeenCalled();
+    expect(scheduled).toHaveLength(0);
+  });
+
+  it("switches Files off where notes are allowed beside them", async () => {
+    setSm8WriteKind.mockResolvedValue({ ok: true, cancelled: [{ id: "w1", name: "a.pdf", kind: "attachment" }] });
+    expect(await setServiceM8WriteKindAction("attachment", false)).toEqual({ ok: true, note: "Files are off. 1 file that was waiting won't go." });
+    expect(setSm8WriteKind).toHaveBeenCalledWith("org-1", "attachment", false);
+  });
+
   it("switches Notes on and drains while sending is On", async () => {
     expect(await setServiceM8WriteKindAction("note", true)).toEqual({ ok: true });
     expect(setSm8WriteKind).toHaveBeenCalledWith("org-1", "note", true);

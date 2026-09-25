@@ -177,6 +177,11 @@ async function objectIsReal(orgId: string, uuid: string): Promise<boolean> {
 /** A create could still reach, or be in, ServiceM8. */
 const createMayBeThere = (c: Create) => c.status === "sending" || c.status === "sent" || mayHaveLanded(c);
 
+/** Whether this press is the one that queued `create`. A press with no staff
+    card is nobody's: null never matches null, so a login without a card
+    can't pass for the presser of a row that has none. */
+const pressedBy = (create: Create, press: Sm8Press) => !!press.staffId && create.requested_by === press.staffId;
+
 /* ── stopping a create, and taking out what went ── */
 
 /** Close a create and stop it if it could still go. Needs no ServiceM8
@@ -229,7 +234,7 @@ async function queueDelete(
   create: Create,
   state: Sm8WriteState
 ): Promise<DeleteQueued> {
-  if ((create.requested_by ?? null) !== press.staffId) return { ok: false, refusal: "not_yours" };
+  if (!pressedBy(create, press)) return { ok: false, refusal: "not_yours" };
   if (!state.readable) return { ok: false, refusal: "unreadable" };
   if (!offersSend(state, "note")) return { ok: false, refusal: "not_offered" };
   const write: Sm8WriteToQueue = {
@@ -251,6 +256,31 @@ async function queueDelete(
 
 /* ── a note, sent ── */
 
+/** READ THE NOTE AND ITS CREATE AGAIN, after a press queued (or failed to).
+    A take-back that ran meanwhile may not have seen the create: this press
+    takes it back itself, as long as the create is this press's own — a
+    create somebody else queued is left alone (the run closes and cancels a
+    create whose note is removed, without claiming it). A note deleted
+    outright meanwhile is gone. Either way a press racing an Undo is never
+    told the note is on its way. Null when neither happened. */
+async function takenBackMeanwhile(press: Sm8Press, noteId: string, state: Sm8WriteState): Promise<QueueResult | null> {
+  const orgId = press.orgId;
+  const after = await readNote(orgId, noteId);
+  const nowCreate = await readCreate(orgId, noteId);
+  const createAfter = nowCreate === "failed" ? null : nowCreate;
+  if (after !== "failed" && (!after || after.removed_at)) {
+    if (createAfter && pressedBy(createAfter, press)) {
+      const stopped = await stopCreate(orgId, createAfter, Date.now());
+      if (createMayBeThere(stopped)) await queueDelete(press, { id: noteId }, stopped, state);
+    } else if (createAfter) {
+      console.error(`[sm8] left note ${noteId}'s create for org ${orgId} alone: this press didn't queue it`);
+    }
+    return { ok: false, refusal: "no_note" };
+  }
+  if (createAfter?.taken_back_at) return { ok: false, refusal: "no_note" };
+  return null;
+}
+
 /** Queue HeyTiff's note for ServiceM8, as the person pressing — who must be
     its author. Serves Send to ServiceM8, Send again, and the queueing of a
     reply or a Done. */
@@ -259,6 +289,10 @@ export async function queueNoteCreate(press: Sm8Press, input: { noteId: string }
     console.error("[sm8] refused to queue a note that nobody pressed for (no press, or a stale one)");
     return { ok: false, refusal: "unqueued" };
   }
+  /* a login with no staff card: nothing can go as it, and a row whose author
+     is gone (null) is nobody's to send — answered before any read, and
+     nothing is kept on a row it can't show is its own */
+  if (!press.staffId) return { ok: false, refusal: "no_card" };
   const orgId = press.orgId;
   const noteId = typeof input?.noteId === "string" ? input.noteId.trim() : "";
   if (!UUID.test(noteId)) return { ok: false, refusal: "no_note" };
@@ -351,27 +385,22 @@ export async function queueNoteCreate(press: Sm8Press, input: { noteId: string }
       noteText: words,
     },
   ]);
-  if (!queued) return refuse("unqueued");
+  if (!queued) {
+    /* a note deleted while its first create went in fails the note_id key
+       (23503), and the queue answers null: that note is gone, not
+       unqueued — and nothing is kept on a row that isn't there */
+    const gone = await takenBackMeanwhile(press, noteId, state);
+    if (gone) return gone;
+    return refuse("unqueued");
+  }
   if (queued.capped) return refuse("capped");
   if (queued.others?.includes(noteId)) return { ok: false, refusal: "not_yours" };
   /* 9. queued: nothing to say any more */
   if (note.sm8_refusal) await storeRefusal(orgId, noteId, null);
 
-  /* 10. READ THE NOTE AND ITS CREATE AGAIN. A take-back that ran while this
-     press was queueing may not have seen the create: this press takes it
-     back itself — it is this presser's (1 and 2 made sure). Either way a
-     press racing an Undo is never told the note is on its way. */
-  const after = await readNote(orgId, noteId);
-  const nowCreate = await readCreate(orgId, noteId);
-  const createAfter = nowCreate === "failed" ? null : nowCreate;
-  if (after !== "failed" && (!after || after.removed_at)) {
-    if (createAfter) {
-      const stopped = await stopCreate(orgId, createAfter, Date.now());
-      if (createMayBeThere(stopped)) await queueDelete(press, { id: noteId }, stopped, state);
-    }
-    return { ok: false, refusal: "no_note" };
-  }
-  if (createAfter?.taken_back_at) return { ok: false, refusal: "no_note" };
+  /* 10. READ THE NOTE AND ITS CREATE AGAIN (decision 11) */
+  const raced = await takenBackMeanwhile(press, noteId, state);
+  if (raced) return raced;
   return { ok: true, rowIds: queued.ids, already: queued.ids.length === 0 && queued.already.includes(noteId) };
 }
 
@@ -386,6 +415,9 @@ export async function queueNoteTakeBack(press: Sm8Press, input: { noteId: string
     console.error("[sm8] refused a take-back that nobody pressed for (no press, or a stale one)");
     return { ok: false, refusal: "no_note", removed: false };
   }
+  /* a login with no staff card pressed nothing that went, and is never the
+     author of a row whose author is gone: null never matches null */
+  if (!press.staffId) return { ok: false, refusal: "not_yours", removed: false };
   const orgId = press.orgId;
   const noteId = typeof input?.noteId === "string" ? input.noteId.trim() : "";
   if (!UUID.test(noteId)) return { ok: false, refusal: "no_note", removed: false };
@@ -459,9 +491,14 @@ export async function queueNoteTakeBack(press: Sm8Press, input: { noteId: string
     if (refused) return refused;
   } else {
     /* 7. a Send racing this take-back may have queued a create after 2
-       read: it is this presser's (only the author queues a first create) */
+       read. Only the author queues a first create, so it should be this
+       presser's — checked, not assumed: a create somebody else queued is
+       left alone, and the run closes and cancels it unclaimed, because its
+       note is removed now */
     const late = await readCreate(orgId, noteId);
-    if (late && late !== "failed") {
+    if (late && late !== "failed" && !pressedBy(late, press)) {
+      console.error(`[sm8] left note ${noteId}'s create for org ${orgId} alone: this press didn't queue it`);
+    } else if (late && late !== "failed") {
       const stopped = await stopCreate(orgId, late, Date.now());
       if (stopped.status === "cancelled" && createCanStillGo(late, now)) plan = "cancelled";
       const refused = await takeOut(stopped);
@@ -500,6 +537,9 @@ export async function queueFlagChange(
     console.error("[sm8] refused a flag change that nobody pressed for (no press, or a stale one)");
     return { ok: false, refusal: "unqueued" };
   }
+  /* a login with no staff card: no mark goes as it, and none is its to take
+     off — answered before any read */
+  if (!press.staffId) return { ok: false, refusal: input?.done ? "no_card" : "not_yours" };
   const orgId = press.orgId;
   const noteUuid = typeof input?.noteUuid === "string" ? input.noteUuid.trim() : "";
   const pressId = typeof input?.pressId === "string" ? input.pressId.trim() : "";

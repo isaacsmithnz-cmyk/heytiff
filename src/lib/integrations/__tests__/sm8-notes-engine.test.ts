@@ -59,7 +59,8 @@ jest.mock("../sm8-write", () => ({
 
 const getSession = jest.fn();
 jest.mock("@/lib/auth0", () => ({ auth0: { getSession: (...a: unknown[]) => getSession(...a) } }));
-let whoIsSignedIn = "staff-isaac";
+/** null: a login with no staff card */
+let whoIsSignedIn: string | null = "staff-isaac";
 jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: jest.fn(async () => whoIsSignedIn) }));
 jest.mock("next/server", () => ({ after: () => {} }));
 jest.mock("@/lib/workboard/job-notes-query", () => ({
@@ -147,7 +148,7 @@ function seedNote(over: Row = {}): string {
   return id;
 }
 
-async function pressAs(staff: string): Promise<Sm8Press> {
+async function pressAs(staff: string | null): Promise<Sm8Press> {
   whoIsSignedIn = staff;
   return (await sm8PressFromSession())!;
 }
@@ -842,10 +843,10 @@ describe("only whoever pressed a note can press it again or take it back", () =>
   it("(F) ...and the other order: the take-back reads the create again after its tombstone and stops it", async () => {
     const id = seedNote();
     let inserted = false;
-    fake.before.sm8_writes = (s) => {
-      /* the take-back's first read of the create finds none; a Send lands
-         right after it */
-      if (s.op === "select" && s.filters.includes(`note_id=${id}`) && !inserted) {
+    fake.before.workboard_notes = (s) => {
+      /* the take-back's first read of the create found none; a Send's
+         create lands as it sets the tombstone, before its second read */
+      if (s.op === "update" && s.patch && "removed_at" in s.patch && !inserted) {
         inserted = true;
         fake.db.sm8_writes.push({
           id: "raced",
@@ -875,8 +876,9 @@ describe("only whoever pressed a note can press it again or take it back", () =>
       }
     };
     const t = await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
-    fake.before.sm8_writes = undefined;
-    expect(t).toMatchObject({ ok: true, removed: true });
+    fake.before.workboard_notes = undefined;
+    expect(inserted).toBe(true);
+    expect(t).toEqual({ ok: true, plan: "cancelled", removed: true });
     expect(createOf(id)).toMatchObject({ status: "cancelled" });
     expect(createOf(id).taken_back_at).toBeTruthy();
     await run();
@@ -902,6 +904,122 @@ describe("only whoever pressed a note can press it again or take it back", () =>
     const twice = await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
     expect(twice).toEqual({ ok: true, plan: "already", removed: true });
     expect(writes().filter((w) => w.op === "delete")).toHaveLength(1);
+  });
+
+  it("(F) a login with no staff card is nobody's presser: a note whose author is gone can't be taken back or sent by it, and nothing is read or kept", async () => {
+    /* author_id is null for a note whose author's card was deleted (the key
+       is ON DELETE SET NULL), and a cardless press's staffId is null too */
+    const id = seedNote({ author_id: null });
+    const cardless = await pressAs(null);
+    expect(cardless.staffId).toBeNull();
+    fake.log.length = 0;
+    expect(await queueNoteTakeBack(cardless, { noteId: id })).toEqual({ ok: false, refusal: "not_yours", removed: false });
+    expect(await queueNoteCreate(cardless, { noteId: id })).toEqual({ ok: false, refusal: "no_card" });
+    expect(await queueFlagChange(cardless, { noteUuid: FLAG, done: true, seenEditDate: null, pressId: noteId() })).toEqual({
+      ok: false,
+      refusal: "no_card",
+    });
+    expect(await queueFlagChange(cardless, { noteUuid: FLAG, done: false, pressId: noteId() })).toEqual({ ok: false, refusal: "not_yours" });
+    expect(noteRow(id)).toMatchObject({ removed_at: null, sm8_refusal: null });
+    expect(writes()).toHaveLength(0);
+    expect(fake.log).toHaveLength(0);
+  });
+
+  /** A create written by hand, as a race (or a branch) would leave one. */
+  const plantCreate = (id: string, over: Row = {}): Row => ({
+    id: `planted-${id}`,
+    org_id: ORG,
+    tenant_id: TENANT,
+    kind: "note",
+    op: "create",
+    sm8_job_uuid: JOB,
+    subject: `jobnote:${id}`,
+    dedupe_key: `note:${JOB}:jobnote:${id}`,
+    payload: { name: "Note" },
+    remote_uuid: "5a1b2c3d-0000-4000-8000-000000000888",
+    status: "queued",
+    attempts: 0,
+    next_attempt_at: new Date(Date.now() - 1000).toISOString(),
+    created_at: new Date().toISOString(),
+    note_id: id,
+    note_text: "x",
+    requested_by: "staff-isaac",
+    lease_until: null,
+    maybe_landed: false,
+    verify_uuids: [],
+    replaced_uuids: [],
+    taken_back_at: null,
+    free_retries: 0,
+    ...over,
+  });
+
+  it("(F) a create somebody else queued, found by the take-back's second read, is left alone: not closed, not cancelled, nothing deleted", async () => {
+    const id = seedNote();
+    let planted = false;
+    fake.before.workboard_notes = (s) => {
+      /* the take-back's first read of the create found none; one that isn't
+         this presser's lands as it sets the tombstone */
+      if (s.op === "update" && s.patch && "removed_at" in s.patch && !planted) {
+        planted = true;
+        fake.db.sm8_writes.push(plantCreate(id, { requested_by: "staff-luke", status: "sent" }));
+      }
+    };
+    const t = await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
+    fake.before.workboard_notes = undefined;
+    expect(planted).toBe(true);
+    expect(t).toEqual({ ok: true, plan: "nothing", removed: true });
+    expect(noteRow(id).removed_at).toBeTruthy();
+    expect(createOf(id)).toMatchObject({ status: "sent", taken_back_at: null, requested_by: "staff-luke" });
+    expect(writes().filter((w) => w.op === "delete")).toHaveLength(0);
+  });
+
+  it("(F) ...and a Send that meets somebody else's create and a take-back leaves that create alone too", async () => {
+    const id = seedNote();
+    fake.before.sm8_writes = (s) => {
+      /* between this press's read of the create and its insert: another
+         person's create lands, and a take-back tombstones the note */
+      if (s.op === "upsert" && !writes().some((w) => w.note_id === id)) {
+        fake.db.sm8_writes.push(plantCreate(id, { requested_by: "staff-luke", status: "sent" }));
+        noteRow(id).removed_at = new Date().toISOString();
+      }
+    };
+    const r = await queueNoteCreate(await pressAs("staff-isaac"), { noteId: id });
+    fake.before.sm8_writes = undefined;
+    expect(r).toEqual({ ok: false, refusal: "no_note" });
+    expect(createOf(id)).toMatchObject({ status: "sent", taken_back_at: null, requested_by: "staff-luke" });
+    expect(writes().filter((w) => w.op === "delete")).toHaveLength(0);
+  });
+
+  it("(F) a note deleted while its first create goes in answers no_note, and keeps nothing on a row that isn't there", async () => {
+    const id = seedNote();
+    fake.before.sm8_writes = (s) => {
+      /* a Remove of the plain entry lands just before the insert, which then
+         fails the note_id key (23503) */
+      if (s.op === "upsert") fake.db.workboard_notes = fake.db.workboard_notes.filter((n) => n.id !== id);
+    };
+    const r = await queueNoteCreate(await pressAs("staff-isaac"), { noteId: id });
+    fake.before.sm8_writes = undefined;
+    expect(r).toEqual({ ok: false, refusal: "no_note" });
+    expect(writes()).toHaveLength(0);
+    expect(fake.on("workboard_notes").filter((s) => s.op === "update")).toHaveLength(0);
+  });
+
+  it("(F) queueDelete reads who off the create as it now stands: one whose presser was changed by hand under the take-back queues no delete", async () => {
+    const id = seedNote();
+    await queueNoteCreate(await pressAs("staff-isaac"), { noteId: id });
+    await run();
+    expect(createOf(id).status).toBe("sent");
+    /* the migration's trigger keeps a note row's presser fixed; this is a row
+       changed by hand (a branch without it), as the take-back closes it —
+       after the take-back's own check, before queueDelete's */
+    fake.before.sm8_writes = (s) => {
+      if (s.op === "update" && s.patch && "taken_back_at" in s.patch && !("status" in s.patch)) createOf(id).requested_by = "staff-luke";
+    };
+    const t = await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
+    fake.before.sm8_writes = undefined;
+    expect(createOf(id).requested_by).toBe("staff-luke");
+    expect(t).toEqual({ ok: false, refusal: "unqueued", removed: true });
+    expect(writes().filter((w) => w.op === "delete")).toHaveLength(0);
   });
 });
 

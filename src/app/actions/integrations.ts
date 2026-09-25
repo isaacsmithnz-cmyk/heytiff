@@ -137,8 +137,13 @@ export async function setServiceM8WriteModeAction(mode: string): Promise<Integra
 
 /** The owner's switch for ONE KIND — Files or Notes — under the one Off /
     Trial run / Paused / On. Only a kind this deployment allows (SM8_WRITES)
-    can be switched. Off cancels that kind's waiting rows and says how many;
-    On drains, while sending is On or a Trial run, so what waits goes. */
+    can be switched, and only where it allows two: the card draws the Files
+    and Notes rows only then, and a switch the card doesn't draw can't be
+    switched back from it. On a deployment that sends files alone (SM8_WRITES=1,
+    production today) the one Off / On is the only switch, as before, and a
+    direct POST changes nothing. Off cancels that kind's waiting rows and says
+    how many; On drains, while sending is On or a Trial run, so what waits
+    goes. */
 export async function setServiceM8WriteKindAction(kind: string, on: boolean): Promise<IntegrationResult> {
   const startedAt = Date.now();
   const ctx = await ownerOrgId();
@@ -152,6 +157,8 @@ export async function setServiceM8WriteKindAction(kind: string, on: boolean): Pr
     };
   }
   if (typeof on !== "boolean") return { ok: false, error: "That isn't a setting." };
+  /* the card's own test for drawing the two rows (sm8-writes-card `both`) */
+  if (!(allowed.includes("attachment") && allowed.includes("note"))) return { ok: false, error: "That isn't a setting." };
   const changed = await setSm8WriteKind(ctx.orgId, kind as Sm8WriteKind, on);
   if (!changed.ok) return { ok: false, error: "Couldn't change it. Reload the page and try again." };
   if (on) {

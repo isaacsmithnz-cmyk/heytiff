@@ -26,7 +26,12 @@ const afters: (() => Promise<unknown> | unknown)[] = [];
 jest.mock("next/server", () => ({ after: (fn: () => unknown) => afters.push(fn) }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("../sm8-sync", () => ({ runSm8Sync: jest.fn(async () => ({ ran: false })), sm8SyncIsStale: jest.fn(async () => false) }));
-jest.mock("@/lib/permissions-server", () => ({ requireOrg: async () => ({ orgId: "org-1", userId: "auth0|i" }), can: async () => true }));
+/* every grant but money, so a card open reads the record without the ledger */
+jest.mock("@/lib/permissions-server", () => ({
+  requireOrg: async () => ({ orgId: "org-1", userId: "auth0|i" }),
+  can: async (cap: string) => cap !== "workboard_money",
+}));
+jest.mock("@/lib/auth0", () => ({ auth0: { getSession: async () => ({ orgId: "org-1", user: { sub: "auth0|i" } }) } }));
 jest.mock("@/lib/workboard/projects-query", () => ({ staffIdFor: async () => "staff-isaac" }));
 
 import {
@@ -42,6 +47,7 @@ import { listJournal } from "@/lib/dashboard/journal-query";
 import { taskFromJobNote } from "@/app/actions/job-notes";
 import { countSm8Queue } from "../sm8-writes";
 import { disconnectSm8 } from "../sm8-store";
+import { readJobRecord } from "@/app/actions/workboard";
 
 const ORG = "org-1";
 const JOB = "0f8c2b9e-1111-4a4a-8b8b-000000000001";
@@ -168,6 +174,30 @@ describe("where the deployment sends notes", () => {
       { id: "w3", org_id: ORG, kind: "attachment", status: "queued", next_attempt_at: LONG_AGO }
     );
     expect(await countWaitingSm8WritesByKind(ORG, Date.now())).toEqual({ attachment: 1, note: 1 });
+  });
+});
+
+/* THE WIRING, through the card's own read: readJobRecord hands the strip
+   `echoFiltered` from the same test readJobNotes uses, so exactly one of the
+   two makes the echo read — never none (the strip would show our own notes
+   back) and never both (two reads per card open). */
+describe("a card open, through readJobRecord itself", () => {
+  beforeEach(() => {
+    fake.db.sm8_jobs = [{ org_id: ORG, uuid: JOB, active: 1, generated_job_id: "2380", status: "Work Order" }];
+  });
+
+  it("(F) with files alone: exactly one echo read, the attention strip's, as today", async () => {
+    const r = await readJobRecord(JOB);
+    expect(r).not.toBeNull();
+    expect(r!.notes.map((n) => n.remoteId).sort()).toEqual([OURS, OLD, THEIRS].sort());
+    expect(echoReads()).toHaveLength(1);
+  });
+
+  it("(F) with notes allowed: exactly one echo read, readJobNotes', which has already left our own notes out", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    const r = await readJobRecord(JOB);
+    expect(r!.notes.map((n) => n.remoteId)).toEqual([THEIRS]);
+    expect(echoReads()).toHaveLength(1);
   });
 });
 

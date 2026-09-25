@@ -57,6 +57,15 @@ export function isDelegated(task: Pick<DashTask, "assigneeId" | "createdBy">): b
   return task.createdBy !== task.assigneeId;
 }
 
+/* Late is ONE comparison: an open task whose day is before today — the test
+   the rail's red count makes over your open tasks, so the new Home's late
+   rows are exactly the tasks that count makes red. (Today's Home writes the
+   same comparison inline in two places; they go when it does.) A finished
+   task is never late, whatever its date said. */
+export function isLate(task: Pick<DashTask, "dueDate" | "status">, today: string): boolean {
+  return task.status === "open" && task.dueDate !== null && task.dueDate < today;
+}
+
 export type NoticeItem = {
   id: string;
   title: string;
@@ -125,7 +134,7 @@ export function dueLabel(
 /* Open tasks, most urgent first: anything with a due date sorts by that date
    ascending (overdue → soonest → later), and undated tasks trail, newest of
    those first. Stable so equal keys keep insertion order. */
-export function sortTasks(tasks: readonly DashTask[]): DashTask[] {
+export function sortTasks<T extends Pick<DashTask, "dueDate" | "createdAt">>(tasks: readonly T[]): T[] {
   return [...tasks].sort((a, b) => {
     if (a.dueDate && b.dueDate) return a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0;
     if (a.dueDate) return -1;

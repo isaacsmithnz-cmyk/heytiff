@@ -66,11 +66,15 @@ export async function clock(orgId: string): Promise<{ today: string; warnDays: n
 /** The id came from a browser, so it names a CHOICE — this decides whether it
     is a real job in this workspace's mirror. */
 export async function jobIsReal(orgId: string, job: string): Promise<boolean> {
+  /* ACTIVE ONLY. A job deleted in ServiceM8 stays in the mirror as active 0
+     (ServiceM8 deletes are soft), and nothing — a file, a paper, an email —
+     goes to a job its own business deleted. */
   const { data } = await supabaseAdmin
     .from("sm8_jobs")
     .select("uuid")
     .eq("org_id", orgId)
     .eq("uuid", job)
+    .eq("active", 1)
     .maybeSingle();
   return !!data;
 }

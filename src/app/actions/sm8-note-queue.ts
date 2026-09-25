@@ -261,14 +261,17 @@ async function queueDelete(
     takes it back itself, as long as the create is this press's own — a
     create somebody else queued is left alone (the run closes and cancels a
     create whose note is removed, without claiming it). A note deleted
-    outright meanwhile is gone. Either way a press racing an Undo is never
-    told the note is on its way. Null when neither happened. */
+    outright meanwhile is gone, and so is one no longer `applied`: the Tiff
+    modal's Undo moves a note to `undone`, and reads for a create after it
+    has (workboard-notes' heldBySm8), so whichever reads second sees the
+    other. Either way a press racing an Undo is never told the note is on
+    its way. Null when neither happened. */
 async function takenBackMeanwhile(press: Sm8Press, noteId: string, state: Sm8WriteState): Promise<QueueResult | null> {
   const orgId = press.orgId;
   const after = await readNote(orgId, noteId);
   const nowCreate = await readCreate(orgId, noteId);
   const createAfter = nowCreate === "failed" ? null : nowCreate;
-  if (after !== "failed" && (!after || after.removed_at)) {
+  if (after !== "failed" && (!after || after.removed_at || after.status !== "applied")) {
     if (createAfter && pressedBy(createAfter, press)) {
       const stopped = await stopCreate(orgId, createAfter, Date.now());
       if (createMayBeThere(stopped)) await queueDelete(press, { id: noteId }, stopped, state);

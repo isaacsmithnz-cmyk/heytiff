@@ -840,6 +840,24 @@ describe("only whoever pressed a note can press it again or take it back", () =>
     expect(postSm8Note).not.toHaveBeenCalled();
   });
 
+  it("(F) the Tiff modal's Undo racing a first Send: the Send reads the note undone after queueing and takes its own create back", async () => {
+    const id = seedNote({ applied: { v: 2, taskIds: ["t-1"], jobNotes: ["the filter is in the van"] } });
+    /* Undo read no create and claims the note (`undone`) once the Send has
+       inserted its own — before the Send reads the note again */
+    fake.before.workboard_notes = (s) => {
+      if (s.op === "select" && fake.db.sm8_writes.length > 0 && noteRow(id).status === "applied") {
+        Object.assign(noteRow(id), { status: "undone", undone_at: new Date().toISOString() });
+      }
+    };
+    const r = await queueNoteCreate(await pressAs("staff-isaac"), { noteId: id });
+    fake.before.workboard_notes = undefined;
+    expect(r).toEqual({ ok: false, refusal: "no_note" });
+    expect(createOf(id)).toMatchObject({ status: "cancelled", last_error: NOTE_WORDS.row.takenBackBeforeSent });
+    expect(createOf(id).taken_back_at).toBeTruthy();
+    await run();
+    expect(postSm8Note).not.toHaveBeenCalled();
+  });
+
   it("(F) ...and the other order: the take-back reads the create again after its tombstone and stops it", async () => {
     const id = seedNote();
     let inserted = false;

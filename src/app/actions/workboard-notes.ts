@@ -63,6 +63,8 @@ import {
   type TiffRoom,
   type Turn,
 } from "@/lib/workboard/note-turns";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { undoPlan, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 
 /* Smart Notes — capture, route, review, apply.
 
@@ -1498,7 +1500,36 @@ const UNDO = {
   text: "That job's notes have changed since, so nothing was taken back.",
   acted: "Someone has already acted on one of those, so nothing was taken back.",
   ticked: (first: string) => `${first} has already ticked off one of those, so nothing was taken back.`,
+  sm8: "That note was queued for ServiceM8, so nothing was taken back. Remove it from the job's diary first.",
 };
+
+/* A NOTE QUEUED FOR SERVICEM8 IS TAKEN BACK FROM THE JOB'S DIARY, NOT HERE
+   (two-way phase 2). A note filed on a job is its author's diary entry, and
+   its author can send it to ServiceM8. Undo moves it to `undone`, which no
+   diary reads: while something of it can still go or may be in ServiceM8,
+   HeyTiff would lose its record of it and nobody could take it out. The
+   diary's Remove takes it back whatever state it is in (decision 8), and
+   once that has closed the create Undo goes as ever.
+
+   Read after the claim as well as before it (decision 11): a Send reads the
+   note again once it has queued, and gives its create back when the note is
+   no longer `applied`, so whichever reads second sees the other. Only where
+   this deployment sends notes, so production gains no read; a read that
+   fails holds the Undo. */
+async function heldBySm8(orgId: string, note: NoteRow): Promise<boolean> {
+  if (note.target_kind !== "job" || !sm8NotesAllowed()) return false;
+  const { data, error } = await supabaseAdmin
+    .from("sm8_writes")
+    .select("id, status, remote_uuid, lease_until, maybe_landed, verify_uuids, taken_back_at")
+    .eq("org_id", orgId)
+    .eq("kind", "note")
+    .eq("op", "create")
+    .eq("note_id", note.id)
+    .maybeSingle();
+  if (error) return true;
+  const create = data as CreateRow | null;
+  return !!create && !create.taken_back_at && undoPlan(create, Date.now()) !== "nothing";
+}
 
 type Rows = Record<string, unknown>[];
 
@@ -1588,6 +1619,7 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
     const now = (data as Record<string, unknown> | null)?.[w.column] ?? null;
     if (now !== w.after) return { ok: false, error: UNDO.text };
   }
+  if (await heldBySm8(ctx.orgId, note)) return { ok: false, error: UNDO.sm8 };
 
   /* ── claimed: only one Undo lands ── */
   const summary = undoSummary(a);
@@ -1601,6 +1633,16 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
     .eq("status", "applied")
     .select("id");
   if (!((claimed ?? []) as unknown[]).length) return { ok: false, error: UNDO.undone };
+  /* a Send that queued in the moment since: the note goes back as it was */
+  if (await heldBySm8(ctx.orgId, note)) {
+    await supabaseAdmin
+      .from("workboard_notes")
+      .update({ status: "applied", undone_at: null, turns: so })
+      .eq("org_id", ctx.orgId)
+      .eq("id", noteId)
+      .eq("status", "undone");
+    return { ok: false, error: UNDO.sm8 };
+  }
 
   /* ── taken back. Each delete still names the state it checked, so a row
      acted on in the moment since is left alone rather than destroyed. ── */

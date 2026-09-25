@@ -86,6 +86,40 @@ export async function listVehicles(
   return { vehicles, aiValues };
 }
 
+/* The Home calendar's width: who each vehicle is and the three days it must
+   be renewed by. Narrower than FULL and no wider than the register a holder
+   of `assets_all` already sees, so it adds nothing to what they may know. */
+const EXPIRY_COLUMNS = "id, name, plate, status, rego_expiry, insurance_expiry, ctp_expiry";
+
+export type VehicleExpiries = {
+  id: string;
+  name: string | null;
+  plate: string | null;
+  status: string | null;
+  regoExpiry: string | null;
+  insuranceExpiry: string | null;
+  ctpExpiry: string | null;
+};
+
+/** Every vehicle's renewal days — `assets_all` only, as the register is.
+    Callers must check first. Sold vehicles are NOT filtered here: `.neq`
+    would drop every vehicle whose status is NULL along with them, so the
+    caller filters them in code (lib/calendar/items). */
+export async function listVehicleExpiries(orgId: string): Promise<VehicleExpiries[]> {
+  const { data } = await supabaseAdmin.from("vehicles").select(EXPIRY_COLUMNS).eq("org_id", orgId);
+  const day = (v: unknown) => (typeof v === "string" && v ? v.slice(0, 10) : null);
+  const text = (v: unknown) => (typeof v === "string" ? v : null);
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    name: text(r.name),
+    plate: text(r.plate),
+    status: text(r.status),
+    regoExpiry: day(r.rego_expiry),
+    insuranceExpiry: day(r.insurance_expiry),
+    ctpExpiry: day(r.ctp_expiry),
+  }));
+}
+
 /** The vehicle assigned to one staff member, at own-vehicle width. Sold
     vehicles never come back — you can't log fuel on something that's gone. */
 export async function getOwnVehicle(

@@ -21,7 +21,7 @@ const chain = () => {
 
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { from: () => chain() } }));
 
-import { getOwnVehicle, listVehiclePicker, listVehicles } from "../query";
+import { getOwnVehicle, listVehicleExpiries, listVehiclePicker, listVehicles } from "../query";
 
 /** snake_case column list -> the camelCase field names it exposes */
 const fieldsOf = (cols: string) =>
@@ -85,5 +85,16 @@ describe("the register", () => {
     }
     expect(cols).toContain("assigned_to");
     expect(cols).toContain("ai_value");
+  });
+});
+
+describe("the calendar's renewal days", () => {
+  it("reads who each vehicle is and its three renewal dates — no money, no assignment", async () => {
+    await listVehicleExpiries("org-1");
+    const fields = fieldsOf(selected[0]);
+    expect(fields.sort()).toEqual(["ctpExpiry", "id", "insuranceExpiry", "name", "plate", "regoExpiry", "status"]);
+    for (const col of ["value", "purchase_price", "assigned_to", "notes", "ai_value"]) {
+      expect(selected[0]).not.toContain(col);
+    }
   });
 });

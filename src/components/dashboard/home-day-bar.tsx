@@ -172,6 +172,8 @@ export function HomeDayBar({
     pending.current = move && motionAllowed() ? shoot() : "cut";
   };
   useImperativeHandle(ref, () => ({ capture }));
+  /* A card the pointer moves onto grows out of its sliver or the fold, as
+     his prototype grew it: named under law 8 and law 18 in docs/design.md. */
   const hover = (key: string | null) => {
     if (key === hoverKey) return;
     capture(true);

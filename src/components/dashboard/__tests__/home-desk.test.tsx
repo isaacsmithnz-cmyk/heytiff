@@ -569,6 +569,48 @@ describe("the slide", () => {
     expect(runs).toEqual([]);
   }, WHOLE);
 
+  /* A door between faces is a way to change face like a tab: pressed with a
+     pointer its face slides in, and pressed from the keyboard it is simply
+     there (law 8) — both ways, the diary's door to a task and the task's
+     Open in diary. */
+  it("slides a face in for a door pressed with the pointer, and not for one pressed from the keyboard", async () => {
+    const user = userEvent.setup();
+    render(
+      <DashboardDesk
+        data={data({
+          journal: [
+            entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
+          ],
+          tasks: { mine: [task()], team: null, done: [], reported: [] },
+        })}
+      />,
+    );
+    const door = () => within(face("diary")).getByRole("button", { name: /Order 2× MERV 11 filters/ });
+    const back = () => within(face("tasks")).getByRole("button", { name: "Open in diary" });
+    const toTasks = [
+      { who: "hdsec-diary", frames: ["translateX(0px)", "translateX(-600px)"] },
+      { who: "hdsec-tasks", frames: ["translateX(600px)", "none"] },
+    ];
+    await user.click(door());
+    expect(moves()).toEqual(toTasks);
+    await settle();
+    runs = [];
+    back().focus();
+    await user.keyboard("{Enter}");
+    expect(shownFaces()).toEqual(["diary"]);
+    expect(runs).toEqual([]);
+    door().focus();
+    await user.keyboard("{Enter}");
+    expect(shownFaces()).toEqual(["tasks"]);
+    expect(document.querySelector('[data-task-id="t1"]')).toHaveClass("on");
+    expect(runs).toEqual([]);
+    await user.click(back());
+    expect(moves()).toEqual([
+      { who: "hdsec-tasks", frames: ["translateX(0px)", "translateX(600px)"] },
+      { who: "hdsec-diary", frames: ["translateX(-600px)", "none"] },
+    ]);
+  }, WHOLE);
+
   /* The day's panel stands above the body: opening it pushes the body
      down, and closing it lets the body back up — travelling there on
      `--t-move` rather than jumping. jsdom lays nothing out, so the body's

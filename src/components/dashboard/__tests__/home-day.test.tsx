@@ -1082,6 +1082,24 @@ describe("in motion", () => {
     expect(runs).toEqual([]);
   });
 
+  /* The folded block is a key like any card: pressed from the keyboard,
+     its nine cards are simply there, focus on the first, and the grow a
+     pointer started stops. */
+  it("opens the folded block at once for a press from the keyboard, and stops a grow in flight", async () => {
+    const user = userEvent.setup();
+    draw(busy());
+    await user.click(card(/^Ryde, Job 1009,/));
+    const flying = [...runs];
+    expect(flying.length).toBeGreaterThan(0);
+    runs = [];
+    card("Show 9 finished jobs").focus();
+    await user.keyboard("{Enter}");
+    expect(document.querySelectorAll(".hd-card")).toHaveLength(10);
+    expect(document.activeElement).toBe(card(/^Ryde, Job 1000,/));
+    expect(flying.every((r) => r.cancel.mock.calls.length > 0)).toBe(true);
+    expect(runs).toEqual([]);
+  });
+
   it("moves nothing under reduced motion: every change is simply there", async () => {
     const user = userEvent.setup();
     reduced = true;

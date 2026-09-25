@@ -60,8 +60,8 @@ function OutcomeDoor({
   onOpenIssue,
 }: {
   o: Outcome;
-  onOpenTask?: (id: string) => void;
-  onOpenIssue?: (id: string) => void;
+  onOpenTask?: (id: string, pointer: boolean) => void;
+  onOpenIssue?: (id: string, pointer: boolean) => void;
 }) {
   /* A task is not a page — it is a row on the face next door — so its door
      is a button that moves the card, not a link that reloads the screen. An
@@ -69,7 +69,7 @@ function OutcomeDoor({
   if (o.go?.type === "task" && onOpenTask) {
     const id = o.go.id;
     return (
-      <button type="button" className="hm-door" onClick={() => onOpenTask(id)}>
+      <button type="button" className="hm-door" onClick={(e) => onOpenTask(id, e.detail > 0)}>
         <DoorBody o={o} />
       </button>
     );
@@ -77,7 +77,7 @@ function OutcomeDoor({
   if (o.go?.type === "issue" && onOpenIssue) {
     const id = o.go.id;
     return (
-      <button type="button" className="hm-door" onClick={() => onOpenIssue(id)}>
+      <button type="button" className="hm-door" onClick={(e) => onOpenIssue(id, e.detail > 0)}>
         <span className="hm-idot" aria-hidden="true" />
         {o.text}
       </button>
@@ -116,10 +116,12 @@ export function HomeDiary({
       so a task's "Open in diary" can choose one from the face next door. */
   selectedId: string | null;
   onSelect: (id: string) => void;
-  /** Given by Home: switches to the Tasks face and marks the row. */
-  onOpenTask?: (id: string) => void;
+  /** Given by Home: switches to the Tasks face and marks the row.
+      `pointer` is false for a door pressed from the keyboard, which the
+      new Home's desk changes face for without a slide (law 8). */
+  onOpenTask?: (id: string, pointer: boolean) => void;
   /** The same door for an issue, which lives on the same face. */
-  onOpenIssue?: (id: string) => void;
+  onOpenIssue?: (id: string, pointer: boolean) => void;
 }) {
   /* "Today" and "Yesterday" earn their names; older days say their date.
      The same labelling the debrief log uses, so one rule names a day. */

@@ -103,9 +103,11 @@ function Desk({ data }: { data: DashboardData }) {
   const boxOf = (b: SlidePlan["box"]): HTMLElement | null => (b === "body" ? bodyRef.current : columnRef.current);
 
   /* `pointer` false: a face chosen from the keyboard (the arrows, Home and
-     End, or a tab pressed with a key) is simply there — law 8, no motion on
-     a keyboard-driven action — and a slide still in flight stops. */
-  const go = (next: DeskFace, pointer = true) => {
+     End, a tab pressed with a key, or a door between faces pressed with a
+     key) is simply there — law 8, no motion on a keyboard-driven action —
+     and a slide still in flight stops. Every caller says which it was:
+     there is no default to fall back to. */
+  const go = (next: DeskFace, pointer: boolean) => {
     if (next === face) return;
     const plan = slidePlan(face, next);
     const was = motion && slidePlan(motion.from, motion.to);
@@ -158,17 +160,18 @@ function Desk({ data }: { data: DashboardData }) {
 
   /* THE ONE DOOR. Today's diary reads a chosen entry rather than taking a
      door, so an entry is chosen here; today's tasks take a task by id and
-     hand the door back once it is shown. */
-  const show = (to: DeskFocus) => {
-    go(to.face);
+     hand the door back once it is shown. A door pressed with a pointer
+     slides its face in like a tab; one pressed from the keyboard does not. */
+  const show = (to: DeskFocus, pointer: boolean) => {
+    go(to.face, pointer);
     if (to.face === "diary" && to.kind === "entry") {
       setEntryId(to.ids[0] ?? null);
       return;
     }
     setFocus(to);
   };
-  const openTask = (id: string) => show({ face: "tasks", kind: "task", ids: [id] });
-  const openEntry = (id: string) => show({ face: "diary", kind: "entry", ids: [id] });
+  const openTask = (id: string, pointer: boolean) => show({ face: "tasks", kind: "task", ids: [id] }, pointer);
+  const openEntry = (id: string, pointer: boolean) => show({ face: "diary", kind: "entry", ids: [id] }, pointer);
   const taskFocus = focus?.face === "tasks" && focus.kind === "task" ? (focus.ids[0] ?? null) : null;
 
   const leaving = motion?.from ?? null;

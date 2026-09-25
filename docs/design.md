@@ -666,16 +666,26 @@ What the guard cannot count is noted here on the same word:
 - **Law 18, motion tokens, and law 8, a tab's content appears.** The faces
   slide, in 280 ms rather than `--t-move`: "Calendar should slide across"
   (2026-09-25). Nothing slides under reduced motion, and nothing slides
-  for a face chosen from the keyboard: law 8's "none on keyboard-driven
-  actions" still holds there.
-- **Law 18, motion tokens, the grow.** A card that opens grows, and the
-  cards beside it give way, in his 350 ms on his `ease`, as the prototype
-  he walked eased it, rather than `--t-move`; finished work folds into its
-  block and opens out of it the same way. It is a FLIP on transforms, so
-  nothing is laid out again frame by frame. The panel under the bar fades
-  in on `--t-fast`, and the body under the day moves to make room for it
-  on `--t-move`. Nothing grows under reduced motion, or for a change made
-  from the keyboard.
+  for a face chosen from the keyboard, a tab or a door between faces:
+  law 8's "none on keyboard-driven actions" still holds there. A door
+  pressed with a pointer slides its face in as its tab would.
+- **Law 18, motion tokens, and law 8, the grow.** A card that opens grows,
+  and the cards beside it give way, in his 350 ms on his `ease`, as the
+  prototype he walked eased it: past law 8's 300 ms and off `--t-move`
+  ("go with your recommendations", 2026-09-25, which kept his 350 ms
+  grow). Finished work folds into its block and opens out of it the same
+  way. So does a card the pointer moves onto in a crowded bar: it comes
+  out of its sliver or the fold at full strength and the cards beside it
+  give way, in the same 350 ms, where law 18 has nothing scale under the
+  pointer and law 8 no motion on a high-frequency action. His prototype
+  grew the card under the pointer so ("design exempt for now, but keep a
+  note", 2026-09-24). Only a move of the pointer counts: a card that
+  grows under a pointer standing still is not taken as hovered, so the
+  bar never chases it. It is a FLIP on transforms, so nothing is laid
+  out again frame by frame. The panel under the bar fades in on
+  `--t-fast`, and the body under the day moves to make room for it on
+  `--t-move`. Nothing grows under reduced motion, or for a change made
+  from the keyboard: a card, the folded block, the cross or Escape.
 - **Law 18, loops.** The Trace moves while the job it marks is on, the
   one thing on the page that does: `hdTrace`, 8 seconds a turn, in the
   loops table above. It is a rotation, which the compositor runs without

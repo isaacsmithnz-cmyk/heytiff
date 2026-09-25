@@ -3,6 +3,7 @@ import {
   sm8Handle,
   taskTitleFromNote,
   withoutHandles,
+  withoutKnownHandles,
 } from "@/lib/workboard/sm8-mentions";
 
 /* The handles are LIVE FACTS, checked against the mirror before the module
@@ -106,5 +107,59 @@ describe("withoutHandles", () => {
     expect(withoutHandles("Return air box at henry to be picked up")).toBe(
       "Return air box at henry to be picked up",
     );
+  });
+});
+
+describe("withoutKnownHandles", () => {
+  /* The diary QUOTES a person, so only what is addressing may go. */
+  const roster = ["lukeingold", "michaeldiamond", "isaacsmith", "davidhann", "ross."];
+
+  it("keeps an email address whole, where withoutHandles cut it in half", () => {
+    const note = "@isaacsmith email susie@peterson.com about it";
+    expect(withoutHandles(note)).toBe("email susie about it");
+    expect(withoutKnownHandles(note, roster)).toBe("email susie@peterson.com about it");
+  });
+
+  it("keeps an address even when what follows its @ is somebody's handle", () => {
+    /* an @ inside a word is an address, never a mention */
+    expect(withoutKnownHandles("send it to info@isaacsmith today", roster)).toBe(
+      "send it to info@isaacsmith today",
+    );
+  });
+
+  it("takes a known handle out and leaves an unknown @word alone", () => {
+    expect(withoutKnownHandles("@lukeingold ask @nobodyhere first", roster)).toBe("ask @nobodyhere first");
+  });
+
+  it("closes the gap a handle leaves, without a double space or a space before a comma", () => {
+    expect(withoutKnownHandles("@lukeingold @michaeldiamond still need another day", roster)).toBe(
+      "still need another day",
+    );
+    expect(withoutKnownHandles("call @lukeingold about it", roster)).toBe("call about it");
+    expect(withoutKnownHandles("hi @lukeingold, call Mary", roster)).toBe("hi, call Mary");
+    expect(withoutKnownHandles("thanks @lukeingold", roster)).toBe("thanks");
+  });
+
+  it("keeps the full stop a handle ended the sentence with", () => {
+    expect(withoutKnownHandles("Thanks @davidhann.", roster)).toBe("Thanks.");
+    expect(withoutKnownHandles("Ask @davidhann. He knows", roster)).toBe("Ask. He knows");
+    // a handle that really ends in one loses it, as mentionedHandles reads it
+    expect(withoutKnownHandles("@ross. is on it", roster)).toBe("is on it");
+  });
+
+  it("keeps the note's line breaks and its capitals", () => {
+    expect(withoutKnownHandles("@IsaacSmith\nPlease call Mary\nabout the quote", roster)).toBe(
+      "Please call Mary\nabout the quote",
+    );
+  });
+
+  it("leaves a possessive alone, as mentionedHandles does", () => {
+    expect(withoutKnownHandles("@lukeingold's van is at the yard", roster)).toBe(
+      "@lukeingold's van is at the yard",
+    );
+  });
+
+  it("changes nothing but the ends when no handle is known", () => {
+    expect(withoutKnownHandles("  @lukeingold call Mary ", [])).toBe("@lukeingold call Mary");
   });
 });

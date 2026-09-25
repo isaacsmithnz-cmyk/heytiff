@@ -62,6 +62,52 @@ export function withoutHandles(text: string): string {
   return text.replace(TOKEN, " ").replace(/\s+/g, " ").trim();
 }
 
+/* A handle with the spaces either side of it, so taking one out can close
+   the gap it leaves instead of leaving two spaces or a space before a
+   comma. Horizontal only: a note's line breaks are its own. */
+const SPACED_TOKEN = /([ \t]*)@([a-z0-9.'-]+)([ \t]*)/gi;
+
+/* What can sit straight after a handle and end the gap: the end of a line,
+   or the sentence's own punctuation. */
+const CLOSES = /^$|^[\r\n,.;:!?)\]]/;
+
+/* A character that makes the "@" part of an address rather than a mention:
+   "susie@peterson.com" and "info@isaacsmith" name nobody. */
+const IN_ADDRESS = /[a-z0-9._%+-]/i;
+
+/** The note's words with only the handles we KNOW taken out — what a row
+    that QUOTES a person should show.
+
+    `withoutHandles` takes out every @word, which is right for a task's title
+    and wrong for a quote: "email susie@peterson.com about it" became "email
+    susie about it", half an address and a sentence that says something
+    else. This takes out exactly what `mentionedHandles` would count, keeps
+    an address whole (an "@" inside a word is never a mention), keeps a
+    sentence's full stop when the handle ended it, and leaves every other
+    character — line breaks included — where the writer put it. */
+export function withoutKnownHandles(text: string, known: Iterable<string>): string {
+  const set = new Set([...known].filter(Boolean).map((h) => h.toLowerCase()));
+  if (set.size === 0) return text.trim();
+  const out = text.replace(
+    SPACED_TOKEN,
+    (whole: string, lead: string, raw: string, trail: string, offset: number, all: string) => {
+      const before = offset > 0 ? all[offset - 1] : "";
+      if (lead === "" && before !== "" && IN_ADDRESS.test(before)) return whole;
+      const lower = raw.toLowerCase();
+      /* Longest first, as mentionedHandles does: "ross." is a handle before
+         "ross" is one with a full stop after it. */
+      const bare = set.has(lower) ? lower : lower.replace(/[.'-]+$/, "");
+      if (!bare || !set.has(bare)) return whole;
+      const kept = raw.slice(bare.length);
+      const after = all.slice(offset + whole.length, offset + whole.length + 1);
+      if (kept) return trail ? `${kept} ` : kept;
+      if (CLOSES.test(after)) return "";
+      return lead ? " " : "";
+    }
+  );
+  return out.trim();
+}
+
 /** The note's words with its handles taken out — what a task drafted from it
     should be TITLED.
 

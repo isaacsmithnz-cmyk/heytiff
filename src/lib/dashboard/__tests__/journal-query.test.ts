@@ -36,7 +36,7 @@ const table = (name: string) => {
 
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { from: (n: string) => table(n) } }));
 
-import { listJournal } from "../journal-query";
+import { listDiaryEntries, listJournal } from "../journal-query";
 
 const note = (id: string, applied: unknown) => ({
   id,
@@ -240,5 +240,73 @@ describe("the Debrief's column", () => {
     // and nothing on the entry says which door the words came through
     expect(out[0]).not.toHaveProperty("isDebrief");
     expect(out[0]).toEqual(expect.objectContaining({ said: "said e1", spoken: true }));
+  });
+});
+
+/* ── the new Home's diary: the same read, three more facts ── */
+
+describe("listDiaryEntries", () => {
+  it("reads the journal's own rows, the same person and status, plus the proposal", async () => {
+    rows.workboard_notes = [note("e1", {})];
+    await listDiaryEntries("org-1", "s1", null);
+    const [read] = of("workboard_notes");
+    expect(read.eq).toEqual({ org_id: "org-1", author_id: "s1", status: "applied" });
+    // built on the journal's column list, so the two can't drift apart
+    expect(read.columns).toBe("id, transcript, source, applied, created_at, proposal");
+  });
+
+  it("says when on the account's clock, so an entry sorts beside a ServiceM8 note", async () => {
+    // 2026-08-11T22:00Z is 8:00 am on the 12th in Sydney, and 6:00 am in Perth
+    rows.workboard_notes = [note("e1", {})];
+    // ICU may put a narrow space before "am"; the words are what matter
+    const words = (s: string) => s.replace(/\s/g, " ");
+    const [sydney] = await listDiaryEntries("org-1", "s1", null);
+    expect(sydney).toMatchObject({ stamp: "2026-08-12 08:00", day: "2026-08-12" });
+    expect(words(sydney.at)).toBe("8:00 am");
+
+    const [perth] = await listDiaryEntries("org-1", "s1", "Australia/Perth");
+    expect(perth).toMatchObject({ stamp: "2026-08-12 06:00", day: "2026-08-12" });
+    expect(words(perth.at)).toBe("6:00 am");
+
+    // and late at night the zone decides the DAY, not just the hour
+    rows.workboard_notes = [{ ...note("e2", {}), created_at: "2026-08-11T15:30:00Z" }];
+    const [lateSydney] = await listDiaryEntries("org-1", "s1", null);
+    const [latePerth] = await listDiaryEntries("org-1", "s1", "Australia/Perth");
+    expect(lateSydney.day).toBe("2026-08-12");
+    expect(latePerth.day).toBe("2026-08-11");
+  });
+
+  it("tells a Save from an entry Tiff read that filed nothing", async () => {
+    rows.workboard_notes = [
+      { ...note("routed", {}), proposal: { actions: [] } },
+      { ...note("saved", {}), proposal: null },
+    ];
+    const out = await listDiaryEntries("org-1", "s1", null);
+    expect(out.map((e) => [e.id, e.routed])).toEqual([
+      ["routed", true],
+      ["saved", false],
+    ]);
+  });
+
+  it("says who each task is on, for the tasks that are still there", async () => {
+    rows.workboard_notes = [note("e1", { taskIds: ["t-luke", "t-mine", "t-nobody", "t-gone"] })];
+    rows.tasks = [
+      { id: "t-luke", title: "Call Mary", assigned_to: "s-luke" },
+      { id: "t-mine", title: "Order the grille", assigned_to: "s1" },
+      { id: "t-nobody", title: "Chase the warranty", assigned_to: null },
+    ];
+    const [entry] = await listDiaryEntries("org-1", "s1", null);
+    expect(of("tasks")[0].columns).toBe("id, title, assigned_to");
+    expect(entry.taskFor).toEqual({ "t-luke": "s-luke", "t-mine": "s1", "t-nobody": null });
+    // the removed one is still counted where it always was
+    expect(chips([entry])).toContainEqual(["1 task removed", null]);
+  });
+
+  it("leaves the old journal's entries as they were", async () => {
+    rows.workboard_notes = [note("e1", { taskIds: ["t1"] })];
+    rows.tasks = [{ id: "t1", title: "Call Mary", assigned_to: "s-luke" }];
+    const [entry] = await listJournal("org-1", "s1");
+    for (const added of ["stamp", "routed", "taskFor"]) expect(entry).not.toHaveProperty(added);
+    expect(of("workboard_notes")[0].columns).not.toContain("proposal");
   });
 });

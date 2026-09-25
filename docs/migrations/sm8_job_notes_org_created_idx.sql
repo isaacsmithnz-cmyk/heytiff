@@ -1,0 +1,57 @@
+-- ServiceM8 job notes, newest first: the walk the new Home's diary makes.
+--
+-- WHAT READS IT. The diary on the new Home (src/lib/dashboard/mentions-query.ts,
+-- listMyMentions) asks for the viewer's mentions in one read: this workspace's
+-- live notes from the last 60 days whose words hold "@<their handle>",
+-- newest first, forty at most. The only index on the table today is
+-- (org_id, related_object_uuid), which a read with no job in it cannot use,
+-- so without this one Postgres reads every note the workspace has and sorts
+-- them. With it, the read walks the workspace's notes from the newest back
+-- and stops at the fortieth match or the 60-day edge, whichever comes first.
+--
+-- create_date is ServiceM8's fixed-width naive text ("2026-09-21 13:42:10",
+-- '0000-00-00' for none), so the text order is the time order, and the
+-- index is on the column as it is.
+--
+-- APPLY BEFORE MERGING the PR that adds mentions-query.ts. Additive and
+-- idempotent: safe to run twice. The code does not need it to be right, only
+-- to be quick: without it the same read returns the same rows, more slowly,
+-- and only for a viewer the HOME_DESK flag gives the new Home.
+--
+-- THREE READ-ONLY CHECKS (the third before and after).
+--
+-- 1. How big the table is. Under a few hundred thousand rows the plain
+--    create below takes well under a second, and the sync waits for it.
+--    Much bigger than that, run it as `create index concurrently if not
+--    exists ...` on its own, outside a transaction, so the sync never waits.
+--      select count(*) from public.sm8_job_notes;
+--
+-- 2. What is there already (expect the primary key and
+--    sm8_job_notes_related_idx, and not this one):
+--      select indexname, indexdef from pg_indexes
+--      where schemaname = 'public' and tablename = 'sm8_job_notes';
+--
+-- 3. What the read costs, before and after: the statement mentions-query
+--    sends, for one linked person, with their handle and the account's
+--    today less 60 days (EXPLAIN ANALYZE runs the select; it writes
+--    nothing). Before: expect a Sort over a scan of the workspace's notes.
+--    After: an Index Scan on sm8_job_notes_org_created_idx under the Limit,
+--    no Sort.
+--      explain (analyze, buffers)
+--      select uuid, related_object, related_object_uuid, note,
+--             edit_by_staff_uuid, create_date
+--      from public.sm8_job_notes
+--      where org_id = '<org uuid>'
+--        and active = 1
+--        and note ilike '%@isaacsmith%'
+--        and create_date >= '<today - 60 days, yyyy-mm-dd>'
+--      order by create_date desc
+--      limit 40;
+--
+-- The thread read after it rides the existing (org_id, related_object_uuid)
+-- index and needs nothing new.
+--
+-- ROLLBACK: drop index if exists public.sm8_job_notes_org_created_idx;
+
+create index if not exists sm8_job_notes_org_created_idx
+  on public.sm8_job_notes (org_id, create_date desc);

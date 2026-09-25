@@ -32,7 +32,9 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { auDayOf, fmtAuTime } from "@/lib/au-dates";
-import { describeAppliedResolved, type JournalEntry } from "./journal";
+import { todayInZone } from "@/lib/workboard/dates";
+import { naiveInZone } from "@/lib/workboard/job-story";
+import { describeAppliedResolved, type DiaryEntry, type JournalEntry } from "./journal";
 
 /* NO `is_debrief`, WRITTEN OR READ. The Debrief left the router and this
    read in the same change, so the column's drop (note_is_debrief_drop.sql) is
@@ -44,6 +46,11 @@ import { describeAppliedResolved, type JournalEntry } from "./journal";
    below. A test in journal-query.test.ts refuses a migration that drops a
    column this list still names. */
 const COLUMNS = "id, transcript, source, applied, created_at";
+/* The diary's read is the journal's plus whether Tiff routed the words at
+   all. Built ON the journal's list rather than beside it, so whatever the
+   journal stops reading (the Debrief's column is on its way out) the diary
+   stops reading in the same edit. */
+const DIARY_COLUMNS = `${COLUMNS}, proposal`;
 
 type Row = {
   id: string;
@@ -51,6 +58,8 @@ type Row = {
   source: string;
   applied: unknown;
   created_at: string;
+  /** Only in the diary's read. */
+  proposal?: unknown;
 };
 
 /** What the chips on this page can be doors to. Everything here was read
@@ -58,6 +67,8 @@ type Row = {
 type Resolved = {
   /** taskId → title, for the tasks that still exist. */
   tasks: Map<string, string>;
+  /** taskId → the staff card it is on (null: nobody), for the same tasks. */
+  owners: Map<string, string | null>;
   /** kb documentId → title, for the documents that still exist. */
   kb: Map<string, string>;
   /** journal entry id → the grouped note its kept lines were filed as. */
@@ -108,7 +119,7 @@ async function resolveOutcomes(orgId: string, staffId: string, rows: readonly Ro
 
   const [tasks, kb, notes, issues] = await Promise.all([
     taskIds.length
-      ? supabaseAdmin.from("tasks").select("id, title").eq("org_id", orgId).in("id", taskIds)
+      ? supabaseAdmin.from("tasks").select("id, title, assigned_to").eq("org_id", orgId).in("id", taskIds)
       : Promise.resolve({ data: [] }),
     kbIds.length
       ? supabaseAdmin.from("kb_documents").select("id, title").eq("org_id", orgId).in("id", kbIds)
@@ -128,9 +139,11 @@ async function resolveOutcomes(orgId: string, staffId: string, rows: readonly Ro
       : Promise.resolve({ data: [] }),
   ]);
 
-  const found: Resolved = { tasks: new Map(), kb: new Map(), notes: new Map(), issues: new Map() };
-  for (const r of (tasks.data ?? []) as Record<string, unknown>[])
+  const found: Resolved = { tasks: new Map(), owners: new Map(), kb: new Map(), notes: new Map(), issues: new Map() };
+  for (const r of (tasks.data ?? []) as Record<string, unknown>[]) {
     found.tasks.set(String(r.id), String(r.title ?? ""));
+    found.owners.set(String(r.id), typeof r.assigned_to === "string" && r.assigned_to ? r.assigned_to : null);
+  }
   for (const r of (kb.data ?? []) as Record<string, unknown>[])
     found.kb.set(String(r.id), String(r.title ?? ""));
   for (const r of (notes.data ?? []) as Record<string, unknown>[])
@@ -163,4 +176,75 @@ export async function listJournal(
   if (rows.length === 0) return [];
   const found = await resolveOutcomes(orgId, staffId, rows);
   return rows.map((r) => toEntry(r, found));
+}
+
+/* ── THE NEW HOME'S DIARY ────────────────────────────────────────────────
+
+   The same rows, the same person scope, the same doors, and three things
+   the journal never needed because it never stood beside anything else:
+
+     stamp     the moment as a naive stamp in the ServiceM8 account's zone,
+               so an entry sorts beside Luke's note from the same afternoon.
+               `day` and `at` are said on that same clock here, so an entry
+               can't file under one day and sort under another.
+     routed    whether Tiff read the words at all. A Save files them as they
+               were typed and routes nothing; an entry Tiff read that filed
+               nothing can say "Nothing filed." and a Save says nothing.
+     taskFor   who each task it made is on, so the diary can say "2 tasks for
+               Luke", and "1 task" for your own.
+
+   The old Home keeps `listJournal`, unchanged, until the new one replaces
+   it. */
+
+/** Everything this person has told Tiff, newest first, dressed for the
+    diary. `tz` is the ServiceM8 account's zone; null is Sydney, the clock
+    the diary has always used. */
+export async function listDiaryEntries(
+  orgId: string,
+  staffId: string,
+  tz: string | null,
+  limit = 60,
+): Promise<DiaryEntry[]> {
+  const { data } = await supabaseAdmin
+    .from("workboard_notes")
+    .select(DIARY_COLUMNS)
+    .eq("org_id", orgId)
+    .eq("author_id", staffId)
+    .eq("status", "applied")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  const rows = (data ?? []) as Row[];
+  if (rows.length === 0) return [];
+  const found = await resolveOutcomes(orgId, staffId, rows);
+  return rows.flatMap((r): DiaryEntry[] => {
+    const stamp = naiveInZone(r.created_at, tz);
+    if (!stamp) return [];
+    const when = new Date(r.created_at);
+    const taskFor: Record<string, string | null> = {};
+    for (const id of appliedIds(r.applied, "taskIds"))
+      if (found.owners.has(id)) taskFor[id] = found.owners.get(id) ?? null;
+    return [
+      {
+        ...toEntry(r, found),
+        day: todayInZone(tz, when),
+        at: clockIn(tz, when),
+        stamp,
+        /* Every row written before Save existed went through the router and
+           carries its proposal; a Save writes none. */
+        routed: r.proposal !== null && r.proposal !== undefined,
+        taskFor,
+      },
+    ];
+  });
+}
+
+/* fmtAuTime's words, on the account's clock. */
+function clockIn(tz: string | null, when: Date): string {
+  if (!tz) return fmtAuTime(when);
+  try {
+    return new Intl.DateTimeFormat("en-AU", { timeZone: tz, hour: "numeric", minute: "2-digit", hour12: true }).format(when);
+  } catch {
+    return fmtAuTime(when);
+  }
 }

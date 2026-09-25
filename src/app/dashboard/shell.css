@@ -8666,6 +8666,9 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .fg .tm-rm { width:24px; height:24px; border-radius:var(--r-control); opacity:0; }
 .fg .tm-row-plan:hover .tm-rm, .fg .tm-row-plan:focus-within .tm-rm { opacity:1; }
 .fg .tm .pbtn { height:36px; padding:0 12px; font-size:14px; }
+/* Done, Send, a quick answer and "Add to the Library": the ring the capture
+   card's buttons wear, for the keyboard only (law 32) */
+.fg .tm .pbtn:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .tm-quick { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
 .fg .tm-doors { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:12px;
   font-size:13px; font-weight:500; color:var(--q); }
@@ -8690,6 +8693,14 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .fg .tm-in::placeholder { color:var(--q); }
 .fg .tm-dock .tiffbtn { --tb:36px; }
 .fg .tm-err { margin:8px 0 0; font-size:13px; font-weight:500; color:var(--bad-t); }
+
+/* UNDER REDUCED MOTION NOTHING SLIDES. The still mark arrives in the header
+   and the conversation's foot opens by width, margin and padding: the
+   frame's reduced-motion rule shortens animations only, so a transition
+   that moves something is taken off here, by name. */
+@media (prefers-reduced-motion:reduce) {
+  .fg .tm-hmark, .fg .tm-turns { transition:none; }
+}
 
 /* THE CONTEXT TAG. It rides in the capture ribbon as a normal blue chip; the
    only thing added is a way off it. The × is deliberately quiet — the tag

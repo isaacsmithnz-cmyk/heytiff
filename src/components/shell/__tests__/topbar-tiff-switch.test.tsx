@@ -83,3 +83,17 @@ it("says nothing is on until it is told", () => {
   );
   expect(report).not.toHaveBeenCalledWith(true);
 });
+
+it("takes the answer back when the top bar goes, so no Tiff button opens a modal nobody switched on", () => {
+  const report = jest.fn();
+  const { unmount } = render(
+    <TiffContext.Provider value={api(report)}>
+      <CommandPaletteProvider>
+        <Topbar user={owner} today="2026-09-26" tiffModal />
+      </CommandPaletteProvider>
+    </TiffContext.Provider>
+  );
+  expect(report).toHaveBeenLastCalledWith(true);
+  unmount();
+  expect(report).toHaveBeenLastCalledWith(false);
+});

@@ -56,7 +56,11 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
         words: o.words?.trim() || undefined,
         room: o.room,
         openerId: o.id ?? null,
-        still: o.keyboard === true || prefersStill(),
+        /* Two different things. Reduced motion stills all of it; a keyboard
+           press only keeps anything from flying out of the button (law 8) —
+           Tiff's thinking is state, not the press, and keeps its floors. */
+        still: prefersStill(),
+        keyboard: o.keyboard === true,
         at: Date.now(),
       };
       /* A double press lands twice before either render: the first wins. */

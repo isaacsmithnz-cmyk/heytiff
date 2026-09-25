@@ -74,6 +74,31 @@ export function withTurns(turns: readonly Turn[], ...more: Turn[]): Turn[] {
   return [all[0], ...all.slice(all.length - (TURNS_MAX - 1))];
 }
 
+/* THE CONVERSATION BEFORE A NEW NOTE. After Tiff has filed one thing, "and
+   the same for Smith St" means nothing on its own, so a new note in the same
+   conversation carries the turns ahead of it — as context to read the note
+   by, never as more to file. Capped the way the ask route caps its history:
+   the last six, 4,000 characters each, you or Tiff only. The browser sends
+   them, so the server shapes them again and keeps nothing else. */
+
+/** How many earlier turns a new note carries. */
+export const EARLIER_TURNS = 6;
+/** Per turn: a long answer is trimmed rather than dropped. */
+export const EARLIER_TEXT_MAX = 4000;
+
+export type EarlierTurn = { who: TurnWho; text: string };
+
+export function earlierTurns(raw: unknown): EarlierTurn[] {
+  const out: EarlierTurn[] = [];
+  for (const t of Array.isArray(raw) ? raw : []) {
+    const row = (t && typeof t === "object" ? t : {}) as Record<string, unknown>;
+    if (row.who !== "you" && row.who !== "tiff") continue;
+    const text = typeof row.text === "string" ? row.text.trim().slice(0, EARLIER_TEXT_MAX) : "";
+    if (text) out.push({ who: row.who, text });
+  }
+  return out.slice(-EARLIER_TURNS);
+}
+
 /** Replies so far: every "you" turn after the first, which is the note. */
 export function repliesIn(turns: readonly Turn[]): number {
   return Math.max(0, turns.filter((t) => t.who === "you").length - 1);

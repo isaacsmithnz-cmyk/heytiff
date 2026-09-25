@@ -44,6 +44,7 @@ jest.mock("@/lib/supabase-server", () => ({
       chain.update = (patch: Record<string, unknown>) => {
         const sub: Record<string, unknown> = {};
         sub.eq = () => sub;
+        sub.in = () => sub;
         sub.then = (res: (v: { error: null }) => unknown) => {
           updates.push({ table, patch });
           return Promise.resolve({ error: null }).then(res);

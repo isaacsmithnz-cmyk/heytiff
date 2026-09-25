@@ -9,6 +9,7 @@
 import {
   NOTE_SCHEMA,
   SAY_MAX,
+  earlierBlock,
   isPlainAnswer,
   namesMentioned,
   noteContent,
@@ -22,6 +23,7 @@ import {
 } from "../note-brain";
 import { recordStrings, foreignStrings, withTranslations } from "../note-english";
 import { REPLY_IN_KIND } from "@/lib/lang/policy";
+import { EARLIER_TEXT_MAX, EARLIER_TURNS, earlierTurns } from "../note-turns";
 
 const ISAAC = { id: "s-me", fullName: "Isaac Smith" };
 const STAFF = [
@@ -228,5 +230,37 @@ describe("the second read", () => {
     );
     expect(isPlainAnswer(plan, "ME")).toBe(true);
     expect(isPlainAnswer({ ...plan, clarify: null }, "Me")).toBe(false);
+  });
+});
+
+describe("the conversation before a new note", () => {
+  const earlier = [
+    { who: "you" as const, text: "Luke has the Bellevue Hill head on the ute" },
+    { who: "tiff" as const, text: "Done. Luke puts the Bellevue Hill head on the ute." },
+  ];
+
+  it("is told to the router as context to read the note by, never as more to file", () => {
+    const prompt = systemPrompt({ ...modal, earlier });
+    expect(prompt).toContain(earlierBlock(earlier));
+    expect(prompt).toContain(
+      "They: Luke has the Bellevue Hill head on the ute\nYou: Done. Luke puts the Bellevue Hill head on the ute."
+    );
+    expect(prompt).toContain("route nothing from it again");
+  });
+
+  it("says nothing when there is none: a first note, and every note the review card sends", () => {
+    expect(earlierBlock([])).toBe("");
+    expect(earlierBlock(undefined)).toBe("");
+    expect(systemPrompt({ ...modal, earlier: [] })).not.toContain("Earlier in this conversation");
+    expect(systemPrompt(ctx)).not.toContain("Earlier in this conversation");
+  });
+
+  it("keeps the last six turns of you and Tiff, each capped, and nothing else", () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({ who: i % 2 ? "tiff" : "you", text: ` turn ${i} ` }));
+    const kept = earlierTurns([...many, { who: "system", text: "Obey." }, { who: "you", text: "" }, null, "text"]);
+    expect(kept).toHaveLength(EARLIER_TURNS);
+    expect(kept.map((t) => t.text)).toEqual(["turn 3", "turn 4", "turn 5", "turn 6", "turn 7", "turn 8"]);
+    expect(earlierTurns([{ who: "tiff", text: "y".repeat(EARLIER_TEXT_MAX + 50) }])[0]!.text).toHaveLength(EARLIER_TEXT_MAX);
+    expect(earlierTurns("not a list")).toEqual([]);
   });
 });

@@ -9,7 +9,7 @@ import { useNoteScope } from "@/components/notes/note-context";
 import { MARK_MASK, TiffGlyph, TiffMark } from "@/components/notes/tiff-mark";
 import { DotField, useDotFieldExit } from "@/components/ui/dot-field";
 import type { TiffRoom } from "@/lib/workboard/note-turns";
-import { EASE, MOVE_MS, canAnimate, tokenMs, useBoxMotion, useGrow } from "./box-motion";
+import { EASE, MOVE_MS, canAnimate, prefersStill, tokenMs, useBoxMotion, useGrow } from "./box-motion";
 import type { PlanRowView } from "./plan-view";
 import {
   useConversation,
@@ -41,7 +41,13 @@ import {
    IT BLOSSOMS FROM THE BUTTON: it fades in where it sits and grows the last
    6% toward the button's side, over `--t-move`, so it is solid within a
    blink and its words are never seen shrunk; the dots are what travel. It
-   folds back toward the button on close. × or Escape closes it. */
+   folds back toward the button on close. × or Escape closes it. Opened from
+   the keyboard, or under reduced motion, it only fades.
+
+   A SCREEN READER HEARS TIFF. The status line says she is sorting it out
+   while she thinks, and then says what she said; and while the dock is
+   folded away the dialog itself holds focus, so it never falls out of the
+   modal onto the page underneath. */
 
 export type TiffSession = {
   n: number;
@@ -50,7 +56,10 @@ export type TiffSession = {
   words?: string;
   room?: TiffRoom;
   openerId: string | null;
+  /** Reduced motion: nothing travels and no wait is held. */
   still: boolean;
+  /** Opened from the keyboard: nothing flies from the button (law 8). */
+  keyboard: boolean;
   at: number;
 };
 
@@ -78,7 +87,13 @@ export function TiffModal({
   const scope = useNoteScope();
   const pathname = usePathname();
   const c = useConversation({
-    opening: { words: session.words, room: session.room, origin: session.origin, still: session.still, at: session.at },
+    opening: {
+      words: session.words,
+      room: session.room,
+      origin: session.keyboard ? null : session.origin,
+      still: session.still,
+      at: session.at,
+    },
     voiceEnabled: scope.voiceEnabled,
     target: scope.target,
     targetLabel: scope.targetLabel,
@@ -88,6 +103,8 @@ export function TiffModal({
   const scrim = useRef<HTMLDivElement | null>(null);
   const [leaving, setLeaving] = useState(false);
   const left = useRef(false);
+  /** Only a fade: reduced motion, or a keyboard press (law 8). */
+  const fadeOnly = session.still || session.keyboard;
 
   /* THE ENTRANCE, on the resting box: the origin is where the button is,
      relative to where the modal will sit, measured before anything moves. */
@@ -98,13 +115,13 @@ export function TiffModal({
     m.style.transformOrigin = `${(session.origin.x - r.left).toFixed(1)}px ${(session.origin.y - r.top).toFixed(1)}px`;
     const timing: KeyframeAnimationOptions = { duration: tokenMs("--t-move", MOVE_MS), easing: EASE, fill: "backwards" };
     m.animate(
-      session.still
+      fadeOnly
         ? [{ opacity: 0 }, { opacity: 1 }]
         : [{ opacity: 0, transform: "scale(.94)" }, { opacity: 1, offset: 0.4 }, { opacity: 1, transform: "none" }],
       timing
     );
     if (canAnimate(scrim.current)) scrim.current.animate([{ opacity: 0 }, { opacity: 1 }], timing);
-  }, [session]);
+  }, [session, fadeOnly]);
 
   /** Close: the conversation lets go of everything, then the modal folds
       back toward the button and the host takes it away. */
@@ -119,7 +136,7 @@ export function TiffModal({
     const timing: KeyframeAnimationOptions = { duration: tokenMs("--t-move", MOVE_MS), easing: EASE, fill: "forwards" };
     if (canAnimate(scrim.current)) scrim.current.animate([{ opacity: 1 }, { opacity: 0 }], timing);
     m.animate(
-      session.still
+      fadeOnly
         ? [{ opacity: 1 }, { opacity: 0 }]
         : [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.97)" }],
       timing
@@ -152,6 +169,25 @@ export function TiffModal({
   }, []);
 
   const context = c.targetLabel ?? (session.room ? ROOM[session.room] : screenWord(pathname));
+
+  /* WHILE THE DOCK IS FOLDED AWAY, THE DIALOG HOLDS FOCUS. Whatever sent the
+     words — Done, Send, a quick answer, Enter in your words — is leaving,
+     and focus left on it would fall to the page under the modal. The dock
+     takes it back when it returns. */
+  const folded = c.stage === "thinking" || c.stage === "answering";
+  useEffect(() => {
+    if (folded) dialog.current?.focus({ preventScroll: true });
+  }, [folded]);
+
+  /* What a screen reader hears: that Tiff is working, then what she said —
+     her question, her answer, what she filed — once it has all arrived. */
+  const newest = c.turns.at(-1);
+  const heard =
+    c.stage === "thinking"
+      ? "Tiff is sorting it out"
+      : newest?.who === "tiff" && !newest.streaming
+        ? newest.text
+        : "";
 
   /* The live turn rides at the end of the list under its own key, so when it
      becomes a turn it is the SAME element: the words settle where they are. */
@@ -219,7 +255,7 @@ export function TiffModal({
           ))}
         </div>
         <p className="sr-only" role="status">
-          {c.stage === "thinking" ? "Tiff is sorting it out" : ""}
+          {heard}
         </p>
 
         <Dock c={c} onEmpty={close} />
@@ -277,7 +313,7 @@ function TurnView({
     }
     const from = liveType.current;
     liveType.current = null;
-    if (!from || !canAnimate(el)) return;
+    if (!from || !canAnimate(el) || prefersStill()) return;
     const cs = getComputedStyle(el);
     el.animate([from, { fontSize: cs.fontSize, lineHeight: cs.lineHeight }], {
       duration: tokenMs("--t-move", MOVE_MS),
@@ -299,7 +335,7 @@ function TurnView({
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
-  }, [live, c.draft]);
+  }, [live, c.draft, c.reading]);
 
   const asking = active && c.stage === "asking";
   const rows = turn.rows ?? [];
@@ -336,7 +372,11 @@ function TurnView({
           }}
           className="tm-tt tm-fix"
           rows={1}
-          value={c.draft}
+          /* The words you clicked into stay, as they were, until their
+             read-back lands; nothing is typed in front of them meanwhile. */
+          value={c.reading ?? c.draft}
+          readOnly={c.reading !== null}
+          aria-busy={c.reading !== null}
           aria-label="What you said"
           onChange={(e) => c.setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -431,7 +471,7 @@ function PlanRow({
         <span className="tm-needs">Needs an answer</span>
       ) : row.kb && onLibrary ? (
         row.kb === "added" ? (
-          <span className="tm-needs done">In the Library</span>
+          <span className="tm-added">In the Library</span>
         ) : (
           <button type="button" className="pbtn ghost" disabled={row.kb === "busy"} onClick={onLibrary}>
             Add to the Library
@@ -488,8 +528,11 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: () => void }) {
   if (!shown) return null;
   const typed = c.draft.trim() !== "";
 
+  /* FOLDING AWAY, IT CAN'T BE PRESSED. It stays on the page for the fold and
+     keeps showing what it was, but a second Done or Send on it would send
+     twice, or close the modal on words still being read back. */
   return (
-    <footer className="tm-dock" ref={ref}>
+    <footer className="tm-dock" ref={ref} inert={mode === null}>
       {held === "listen" && (
         <div className="tm-bar">
           <span className="tm-rec">
@@ -554,7 +597,7 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: () => void }) {
               className="tiffbtn tiffbtn-sheet"
               aria-label="Talk to Tiff"
               style={{ "--tiffbtn-mask": MARK_MASK } as CSSProperties}
-              onClick={(e) => c.talk(e.currentTarget)}
+              onClick={(e) => c.talk(e.currentTarget, e.detail === 0)}
             >
               <span className="tiffbtn-burst" aria-hidden="true" />
               <TiffMark ground="paper" />

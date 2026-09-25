@@ -34,6 +34,7 @@ const session = {
   origin: { x: 900, y: 30 },
   openerId: null,
   still: false,
+  keyboard: false,
   at: 0,
 };
 
@@ -71,4 +72,23 @@ it("renders one opened on typed words, with no window", () => {
   );
   expect(html).toContain("Callum picks up the filters");
   expect(html).toContain("Diary");
+});
+
+/* THE HOST IS MOUNTED, AND THE LAYOUT STAYS SYNCHRONOUS. Drop the host from
+   the dashboard layout and nothing fails loudly: every Tiff button quietly
+   goes back to the capture sheet. It sits inside the note scope because the
+   modal reads it, and the layout must never await (see its own header). */
+it("the dashboard layout mounts the host inside the note scope, and never awaits", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const src = readFileSync(join(process.cwd(), "src/app/dashboard/layout.tsx"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\{\s*\}/g, "");
+  const scope = [src.indexOf("<NoteScopeProvider"), src.indexOf("</NoteScopeProvider>")];
+  const host = [src.indexOf("<TiffModalProvider>"), src.indexOf("</TiffModalProvider>")];
+  expect(host[0]).toBeGreaterThan(scope[0]);
+  expect(host[1]).toBeGreaterThan(host[0]);
+  expect(scope[1]).toBeGreaterThan(host[1]);
+  expect(src).toMatch(/export default function DashboardLayout/);
+  expect(src).not.toMatch(/\basync\b|\bawait\b/);
 });

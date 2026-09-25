@@ -51,12 +51,14 @@ import {
   KEPT_AS_SAID,
   REPLIES_MAX,
   WHICH_JOB,
+  earlierTurns,
   isTiffRoom,
   repliesIn,
   roomOf,
   turn,
   turnsOf,
   withTurns,
+  type EarlierTurn,
   type TiffRoom,
   type Turn,
 } from "@/lib/workboard/note-turns";
@@ -280,7 +282,7 @@ async function resolveTarget(orgId: string, target: NoteTarget): Promise<NoteTar
 async function routingContext(
   ctx: Ctx,
   target: NoteTarget,
-  extra: Pick<NoteContext, "room" | "askWho"> = {},
+  extra: Pick<NoteContext, "room" | "askWho" | "earlier"> = {},
 ): Promise<{ note: NoteContext; staff: NoteStaff[]; dayStart: string }> {
   const [staff, label, tz, history] = await Promise.all([
     assignableStaff(ctx.orgId),
@@ -311,6 +313,7 @@ async function routingContext(
          neither, exactly as they always were. */
       ...(extra.room ? { room: extra.room } : {}),
       ...(extra.askWho ? { askWho: true } : {}),
+      ...(extra.earlier?.length ? { earlier: extra.earlier } : {}),
     },
   };
 }
@@ -324,13 +327,19 @@ async function routingContext(
     rather than a row for a dropdown the modal doesn't have, `room` is a hint
     about what a bare instruction means, and a routing failure files the words
     as they were said instead of leaving them pending where nothing reads
-    them. Without it, this is the review card's door, unchanged. */
+    them. Without it, this is the review card's door, unchanged.
+
+    `before` is the modal's conversation ahead of these words, when Tiff has
+    already answered or filed something in it: the router reads the new note
+    by it and files nothing from it. Shaped here again (`earlierTurns`), as
+    the browser sent it, and ignored on the review card's notes. */
 export async function routeNote(input: {
   transcript: string;
   target: NoteTarget;
   source?: "text" | "voice";
   room?: TiffRoom;
   conversation?: boolean;
+  before?: readonly EarlierTurn[];
 }): Promise<RouteResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
@@ -368,7 +377,11 @@ export async function routeNote(input: {
   if (error || !data) return { ok: false, error: "Couldn't save that note." };
   const noteId = (data as { id: string }).id;
 
-  const routing = await routingContext(ctx, target, talk ? { room, askWho: true } : {});
+  const routing = await routingContext(
+    ctx,
+    target,
+    talk ? { room, askWho: true, earlier: earlierTurns(input.before) } : {},
+  );
   const read = await readNote(transcript, routing.note);
 
   if (!read.ok) {
@@ -1737,11 +1750,18 @@ export async function dismissNote(noteId: string): Promise<ApplyResult> {
   const note = await noteIn(ctx.orgId, noteId);
   if (!note) return { ok: false, error: GONE };
 
+  /* ONLY A NOTE STILL WAITING. Walking away sets aside what was never filed,
+     and the Tiff modal cannot always know whether it was: a filing whose
+     answer was lost may have landed. Setting an `applied` note aside would
+     take it off the diary while its tasks and flags stay live, where Undo —
+     which needs `applied` — could never reach them. Held the way every other
+     write on a note here is held. */
   await supabaseAdmin
     .from("workboard_notes")
     .update({ status: "dismissed" })
     .eq("org_id", ctx.orgId)
-    .eq("id", noteId);
+    .eq("id", noteId)
+    .in("status", ["pending", "clarifying"]);
   refresh({ kind: note.target_kind, id: note.target_id });
   /* NOT "Kept as a note." — this is the ABANDON path (Escape, ×, walking
      away), and a dismissed row is read by nothing: the journal lists `applied`

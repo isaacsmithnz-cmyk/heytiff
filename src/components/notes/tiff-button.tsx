@@ -123,14 +123,17 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
         aria-expanded={tiff.enabled ? tiff.openedBy === id : flow.open}
         style={{ "--tiffbtn-mask": MARK_MASK } as CSSProperties}
         onClick={(e) => {
-          setLit(true);
           /* The modal measures where it grew from itself, in this click. */
           if (tiff.enabled) {
             /* A click with no pointer behind it (`detail` 0) came from the
-               keyboard, and a keyboard press moves nothing (law 8). */
-            tiff.open({ from: e.currentTarget, id, keyboard: e.detail === 0 });
+               keyboard, and a keyboard press moves nothing (law 8): not the
+               modal's blossom, and not this button's own turn. */
+            const keyboard = e.detail === 0;
+            if (!keyboard) setLit(true);
+            tiff.open({ from: e.currentTarget, id, keyboard });
             return;
           }
+          setLit(true);
           const r = e.currentTarget.getBoundingClientRect();
           setFrom({
             dx: r.left + r.width / 2 - window.innerWidth / 2,

@@ -36,7 +36,7 @@ import { HHMM, isRemindKind, type RemindKind } from "@/lib/dashboard/reminders";
 import { RECORD_IN_ENGLISH, RECORD_LANGUAGE } from "@/lib/lang/policy";
 import { englishProposal } from "./note-english";
 import { planRows, type PlanRow } from "./note-draft";
-import type { TiffRoom, Turn } from "./note-turns";
+import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
 
 /* Opus 5: the routing decision is the whole product. A cheaper model that
    mis-assigns "tell Luke" to the wrong Luke, or reads an urgent flag as a
@@ -184,6 +184,11 @@ export type NoteContext = {
       review card has the dropdown, and its notes are routed exactly as
       before: this is off unless the caller turns it on. */
   askWho?: boolean;
+  /** THE CONVERSATION BEFORE THIS NOTE, when the Tiff modal sends a new note
+      after Tiff has already answered or filed something: context to read the
+      note by ("and the same for Smith St"), never more to file. Shaped and
+      capped by `earlierTurns` before it gets here. */
+  earlier?: readonly EarlierTurn[];
 };
 
 export type NoteBrainResult =
@@ -450,6 +455,21 @@ export function sayBlock(): string {
   ].join("\n");
 }
 
+/** What came before this note in the same conversation with Tiff. Already
+    dealt with — filed, answered or taken back — so the router is told to use
+    it only to understand what the note refers to. Empty on a first note, and
+    on every note the review card sends. */
+export function earlierBlock(earlier: readonly EarlierTurn[] | undefined): string {
+  if (!earlier?.length) return "";
+  return [
+    "",
+    "Earlier in this conversation, before this note. It has been dealt with",
+    "already: route nothing from it again. Use it only to understand what the",
+    "note refers to (\"the same for Smith St\", \"him\", \"that job\").",
+    ...earlier.map((t) => `${t.who === "tiff" ? "You" : "They"}: ${t.text}`),
+  ].join("\n");
+}
+
 /** WHERE THEY WERE when they said it. A bare instruction means different
     things typed into a diary and into a task list, and the box knows which
     it was. Home says nothing: it is the door for everything. */
@@ -521,6 +541,7 @@ export function systemPrompt(ctx: NoteContext): string {
     "",
     whenBlock(ctx),
     ctx.room && roomLine(ctx.room) ? `\n${roomLine(ctx.room)}` : "",
+    earlierBlock(ctx.earlier),
     ctx.targetLabel ? `\nThis note is about: ${ctx.targetLabel}.` : "",
     ctx.equipment?.length ? `Equipment on site: ${ctx.equipment.join(", ")}.` : "",
     historyBlock(ctx),

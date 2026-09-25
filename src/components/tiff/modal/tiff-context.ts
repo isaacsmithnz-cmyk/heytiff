@@ -18,8 +18,9 @@ export type TiffOpen = {
   room?: TiffRoom;
   /** Which button, so it alone reads as expanded. */
   id?: string;
-  /** Pressed from the keyboard: it opens where it sits, with nothing
-      flying and no wait held for the motion (law 8). */
+  /** Pressed from the keyboard: it opens where it sits and nothing flies
+      from the button (law 8). Tiff's thinking still takes its time: that is
+      state, not the press. */
   keyboard?: boolean;
 };
 

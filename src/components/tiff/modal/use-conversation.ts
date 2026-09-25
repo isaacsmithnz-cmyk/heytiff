@@ -22,7 +22,7 @@ import {
 } from "@/app/actions/workboard-notes";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
 import type { NoteDoor } from "@/lib/workboard/note-applied";
-import { KEPT_AS_SAID, WHICH_JOB, type TiffRoom } from "@/lib/workboard/note-turns";
+import { KEPT_AS_SAID, WHICH_JOB, earlierTurns, type TiffRoom } from "@/lib/workboard/note-turns";
 import { askLine, lastTiff, planView, tiffSince, type PlanRowView } from "./plan-view";
 import type { TiffLanded } from "./tiff-context";
 
@@ -38,14 +38,17 @@ import type { TiffLanded } from "./tiff-context";
    WHERE A REPLY GOES, decided in one place (`submit`):
      a note waiting on an answer   continueNote, the whole note routed again
      it reads as a question        the ask stream, with the turns before it
-     anything else                 a new note in the same conversation
+     anything else                 a new note in the same conversation,
+                                   read by the turns before it
 
    THE WAITS HAVE FLOORS, and they are motion, not padding. The dots gather
    from the button you pressed for GATHER_MS, and the cloud Tiff thinks in
    turns for at least CLOUD_MS before it falls — a result that came back
    sooner is held until then, or every moving dot jumps (the prototype's
    film, 2026-09-24). Under reduced motion nothing travels and nothing is
-   held.
+   held. A keyboard press is not reduced motion: nothing flies from the
+   button (law 8), but Tiff's thinking is state, not the press, and its
+   cloud keeps its floor.
 
    NOTHING RUNS AFTER YOU LEAVE. Every server answer checks that the modal
    is still here; a note that was waiting when you closed it is set aside
@@ -103,9 +106,10 @@ export type Face = {
 export type Opening = {
   words?: string;
   room?: TiffRoom;
-  /** The pressed button's centre; the dots gather from it. */
+  /** The pressed button's centre; the dots gather from it. None for a
+      keyboard press, which moves nothing (law 8). */
   origin: Point | null;
-  /** Reduced motion, read when it opened. */
+  /** Reduced motion, read when it opened: nothing travels, nothing is held. */
   still: boolean;
   /** When it opened (ms), read in the click, never in render. */
   at: number;
@@ -121,6 +125,9 @@ type Note = {
   waiting: boolean;
   /** A call on this note is out. */
   busy: boolean;
+  /** A filing's answer was lost, so whether it landed is unknown. A note in
+      that state is never set aside: it may be filed. */
+  lost: boolean;
 };
 
 const NONE: NoteTarget = { kind: "none" };
@@ -163,6 +170,12 @@ export function useConversation({
   const [spoke, setSpoke] = useState(listensFirst);
   /** A complaint about the microphone, not something Tiff said. */
   const [error, setError] = useState<string | null>(null);
+  /** THE WORDS YOU CLICKED INTO, held while their read-back is out. The live
+      words stop arriving the moment the mic stops and the transcript is
+      seconds behind them, so without this the words you clicked would vanish
+      under your cursor. Nothing can be typed until it lands: typing then
+      would put your words in front of the ones you said. */
+  const [reading, setReading] = useState<string | null>(null);
 
   const seq = useRef(0);
   const alive = useRef(true);
@@ -274,8 +287,11 @@ export function useConversation({
       r = await fileNote(n.id, { leaveOut: [...leave.current], ...opts });
     } catch {
       /* Whether it filed is unknown — the answer was lost, not the call — so
-         nothing here sets the note aside: that could write over a filed one. */
+         nothing sets the note aside from here on, closing included: that
+         could write over a filed one. A reply still goes to the note, and
+         the server refuses it if it did file. */
       n.busy = false;
+      n.lost = true;
       return settle(() => tiffSays(NOT_REACHED, "failed"));
     }
     n.busy = false;
@@ -312,7 +328,7 @@ export function useConversation({
 
   /** A routed note: ask what is unclear, or file it now. */
   const read = (r: Extract<RouteResult, { ok: true }>) => {
-    const n: Note = { id: r.noteId, proposal: r.proposal, staff: r.staff, waiting: false, busy: false };
+    const n: Note = { id: r.noteId, proposal: r.proposal, staff: r.staff, waiting: false, busy: false, lost: false };
     note.current = n;
     leave.current = [];
     const c = r.proposal.clarify;
@@ -343,10 +359,21 @@ export function useConversation({
     return settle(() => tiffSays(res.error, "failed"));
   };
 
-  const route = async (words: string, source: "voice" | "text") => {
+  /** The turns a question or a new note is read by: what was said, not what
+      is still arriving. */
+  const spoken = (ts: readonly ModalTurn[]) =>
+    ts.filter((t) => t.text.trim() && !t.streaming).map((t) => ({ who: t.who, text: t.text }));
+
+  const route = async (words: string, source: "voice" | "text", before: readonly ModalTurn[]) => {
+    /* A new note after Tiff has already answered or filed something is read
+       by what came before it ("and the same for Smith St"); a first note is
+       sent exactly as it always was. */
+    const prior = earlierTurns(spoken(before));
+    const input: Parameters<typeof routeNote>[0] = { transcript: words, target, source, room, conversation: true };
+    if (prior.length) input.before = prior;
     let r: RouteResult;
     try {
-      r = await routeNote({ transcript: words, target, source, room, conversation: true });
+      r = await routeNote(input);
     } catch {
       return keep(words);
     }
@@ -399,7 +426,7 @@ export function useConversation({
         question,
         target,
         targetLabel,
-        history: before.filter((t) => t.text.trim() && !t.streaming).map((t) => ({ who: t.who, text: t.text })),
+        history: spoken(before),
         signal: ctl.signal,
       },
       {
@@ -441,7 +468,7 @@ export function useConversation({
     const n = note.current;
     if (n?.waiting) return void reply(n, words);
     if (looksLikeQuestion(words)) return ask(words, before);
-    void route(words, source);
+    void route(words, source, before);
   };
 
   /** Your words become a turn — the live one, if they arrived there. */
@@ -462,6 +489,7 @@ export function useConversation({
   const dict = useDictation({
     onTranscript: (transcript, { capped }) => {
       if (!alive.current) return;
+      setReading(null);
       const words = appendSpoken(draft, transcript);
       if (awaitingVoice.current) {
         awaitingVoice.current = false;
@@ -477,6 +505,7 @@ export function useConversation({
     },
     onError: (message) => {
       if (!alive.current) return;
+      setReading(null);
       if (awaitingVoice.current) {
         /* Done, and nothing came back: the reply box, and why. */
         awaitingVoice.current = false;
@@ -523,8 +552,14 @@ export function useConversation({
   /* ── what the person does ── */
 
   /** Done: stop listening and send what was said. False when there was
-      nothing to send, which closes the modal. */
+      nothing to send, which closes the modal.
+
+      ONCE, AND ONLY WHILE LISTENING. A second press lands on a dock that is
+      folding away, after the mic has stopped and before the read-back has
+      put the words anywhere, so it would read as "nothing was said" and
+      close the modal on them. It does nothing instead. */
   const done = (): boolean => {
+    if (awaitingVoice.current || stage !== "listening") return true;
     if (dict.recording) {
       awaitingVoice.current = true;
       const said = appendSpoken(draft, dict.interim);
@@ -559,7 +594,8 @@ export function useConversation({
       return;
     }
     if (fixing) {
-      if (dict.transcribing) dict.cancel();
+      if (dict.transcribing || reading !== null) dict.cancel();
+      setReading(null);
       setFixing(false);
       if (voiceEnabled) {
         setStage("listening");
@@ -568,19 +604,25 @@ export function useConversation({
     }
   };
 
-  /** Clicking into your words stops the mic and keeps them for typing. */
+  /** Clicking into your words stops the mic and keeps them for typing —
+      on screen, as they were, until the read-back replaces them. */
   const fix = () => {
     if (stage !== "listening") return;
+    /* Held only when there are live words: with none, the engine may bin a
+       silent take unheard, and no read-back would ever come to end it. */
+    const heard = dict.interim.trim() ? appendSpoken(draft, dict.interim) : null;
     dict.handOver();
+    setReading(heard);
     setStage("editing");
     setFixing(true);
   };
 
-  /** The reply box's Tiff button: listen again, the dots gathering from it. */
-  const talk = (from: HTMLElement | null) => {
+  /** The reply box's Tiff button: listen again, the dots gathering from it —
+      unless it was pressed from the keyboard, which moves nothing (law 8). */
+  const talk = (from: HTMLElement | null, keyboard = false) => {
     if (!voiceEnabled || stage === "listening" || stage === "thinking" || stage === "answering") return;
     const r = from?.getBoundingClientRect();
-    const origin = !still && r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+    const origin = !still && !keyboard && r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
     stopFold();
     gatherUntil.current = origin ? Date.now() + GATHER_MS : 0;
     setFace((f) => ({ stage: "mark", key: f.key + 1, origin }));
@@ -667,9 +709,10 @@ export function useConversation({
     /* A note Tiff was waiting on is set aside — unless a call on it is still
        out. A picked job files straight past its question, and setting the
        note aside under a filing in flight would race it; the call's own
-       answer sets it aside if it comes back unfiled. */
+       answer sets it aside if it comes back unfiled. Nor one whose filing's
+       answer was lost: it may have landed. */
     const n = note.current;
-    if (n?.waiting && !n.busy) walkAway(n.id);
+    if (n?.waiting && !n.busy && !n.lost) walkAway(n.id);
     const landed = filed.current.length
       ? { noteIds: filed.current.map((f) => f.noteId), ids: filed.current.flatMap((f) => f.ids) }
       : null;
@@ -683,6 +726,8 @@ export function useConversation({
     draft,
     setDraft,
     fixing,
+    /** The words you clicked into, while their read-back is out. */
+    reading,
     face,
     faceOpen,
     error,

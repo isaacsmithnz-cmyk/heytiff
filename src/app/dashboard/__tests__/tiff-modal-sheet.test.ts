@@ -12,7 +12,11 @@ import path from "node:path";
    - The tick on a row it will file is ink: colour only where it means
      something, and the OK colour is a state.
    - The dots may leave it while they gather from the button, and the arrival
-     that starts lit is motion-only. */
+     that starts lit is motion-only.
+   - Every control in it wears the ring from the keyboard (law 32), and
+     nothing in it slides under reduced motion.
+   - The view and the sheet agree both ways, and a finished thing is not
+     dressed as a warning. */
 
 const read = (f: string) => fs.readFileSync(path.join(process.cwd(), f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 const TOKENS = read("src/app/tokens.css");
@@ -21,6 +25,26 @@ const CSS = read("src/app/dashboard/shell.css");
 /** Every rule as [selector, body]; nested blocks are read at their own level. */
 const rules = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1]!.trim(), m[2]!] as const);
 const tmRules = rules.filter(([sel]) => /(^|[\s,.])\.?tm(-[a-z-]+)?\b/.test(sel) && /\.tm\b|\.tm-/.test(sel));
+/** The rules inside every `@media` block whose query matches. */
+function mediaRules(query: RegExp): (readonly [string, string])[] {
+  const out: (readonly [string, string])[] = [];
+  for (const m of CSS.matchAll(/@media([^{]*)\{/g)) {
+    if (!query.test(m[1]!)) continue;
+    let depth = 1;
+    let i = m.index! + m[0].length;
+    const start = i;
+    while (depth && i < CSS.length) {
+      if (CSS[i] === "{") depth++;
+      else if (CSS[i] === "}") depth--;
+      i++;
+    }
+    for (const r of CSS.slice(start, i - 1).matchAll(/([^{}]+)\{([^{}]*)\}/g)) out.push([r[1]!.trim(), r[2]!]);
+  }
+  return out;
+}
+const VIEW = fs.readFileSync(path.join(process.cwd(), "src/components/tiff/modal/tiff-modal.tsx"), "utf8");
+const selectors = (sel: string) => sel.split(",").map((s) => s.trim());
+
 const body = (selector: string) => {
   const hit = rules.filter(([sel]) => sel === selector);
   if (hit.length !== 1) throw new Error(`${selector}: ${hit.length} rules, expected 1`);
@@ -101,15 +125,58 @@ describe("its words are readable", () => {
 describe("the view and the sheet agree", () => {
   /* A class the view names and no rule styles is a control drawn as the
      browser's default — the kind of slip only a rendered page shows. */
+  const named = new Set([...VIEW.matchAll(/["` ](tm-[a-z-]+)/g)].map((m) => m[1]!));
+
   it("styles every .tm- class the modal names", () => {
-    const view = fs.readFileSync(path.join(process.cwd(), "src/components/tiff/modal/tiff-modal.tsx"), "utf8");
-    const named = new Set([...view.matchAll(/["` ](tm-[a-z-]+)/g)].map((m) => m[1]!));
     expect(named.size).toBeGreaterThan(10);
     for (const cls of named) expect(`${cls}: ${new RegExp(`\\.${cls}(?![a-z-])`).test(CSS)}`).toBe(`${cls}: true`);
   });
 
+  /* And the other way: a rule no element wears is either dead or the rule an
+     element was MEANT to wear. "In the Library" wore the warning's class
+     while the quiet rule written for it sat unused. */
+  it("names every .tm- class the sheet styles", () => {
+    const styled = new Set([...CSS.matchAll(/\.(tm-[a-z-]+)/g)].map((m) => m[1]!));
+    expect(styled.size).toBeGreaterThan(10);
+    for (const cls of styled) expect(`${cls}: ${named.has(cls)}`).toBe(`${cls}: true`);
+  });
+
+  it("says a library entry is in the Library quietly, not in the warning's colour", () => {
+    expect(VIEW).toMatch(/className="tm-added">In the Library</);
+    expect(body(".fg .tm-added")).toMatch(/color:var\(--q\)/);
+    expect(body(".fg .tm-added")).not.toMatch(/--(warn|bad|ok)/);
+  });
+
   it("gives the live words the live type on the element the settle reads", () => {
     expect(rules.some(([sel, b]) => sel.includes(".tm-turn.live .tm-words") && /font-size:20px/.test(b))).toBe(true);
+  });
+});
+
+describe("the keyboard and reduced motion", () => {
+  /* Every control in the modal, and the words you click into to fix. */
+  const RINGED = [".fg .tm-aimx", ".fg .tm-x", ".fg .tm-clear", ".fg .tm-rm", ".fg .tm-undo", ".fg .tm-words", ".fg .tm .pbtn"];
+
+  it.each(RINGED)("%s wears the ring from the keyboard (law 32)", (control) => {
+    const ringed = rules.some(
+      ([sel, b]) => selectors(sel).includes(`${control}:focus-visible`) && /box-shadow:var\(--ring\)/.test(b)
+    );
+    expect(ringed).toBe(true);
+  });
+
+  /* The frame's reduced-motion rule shortens animations only; a transition
+     that moves something has to be taken off by name. */
+  it("takes off every transition that moves something", () => {
+    const still = mediaRules(/prefers-reduced-motion:\s*reduce/);
+    const moving = tmRules.filter(([, b]) =>
+      /transition\s*:[^;]*\b(width|height|margin[a-z-]*|padding[a-z-]*|transform|top|left)\b/.test(b)
+    );
+    expect(moving.length).toBeGreaterThan(0);
+    for (const [sel] of moving) {
+      for (const one of selectors(sel)) {
+        const off = still.some(([s, b]) => selectors(s).includes(one) && /transition\s*:\s*none/.test(b));
+        expect(`${one}: ${off}`).toBe(`${one}: true`);
+      }
+    }
   });
 });
 

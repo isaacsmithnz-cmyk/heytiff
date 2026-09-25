@@ -9,6 +9,7 @@
 import {
   NOTE_SCHEMA,
   SAY_MAX,
+  TIFF_NOTE_SCHEMA,
   earlierBlock,
   isPlainAnswer,
   namesMentioned,
@@ -17,12 +18,13 @@ import {
   sayBlock,
   shapeProposal,
   systemPrompt,
+  whenBlock,
   whoBlock,
   type NoteContext,
   type NoteProposal,
 } from "../note-brain";
 import { recordStrings, foreignStrings, withTranslations } from "../note-english";
-import { REPLY_IN_KIND } from "@/lib/lang/policy";
+import { RECORD_LANGUAGE, REPLY_IN_KIND } from "@/lib/lang/policy";
 import { EARLIER_TEXT_MAX, EARLIER_TURNS, earlierTurns } from "../note-turns";
 
 const ISAAC = { id: "s-me", fullName: "Isaac Smith" };
@@ -33,7 +35,7 @@ const STAFF = [
   { id: "s-jo", fullName: "Jo Baker" },
 ];
 const ctx: NoteContext = { staff: STAFF, todayISO: "2026-09-25", author: ISAAC };
-const modal: NoteContext = { ...ctx, askWho: true };
+const modal: NoteContext = { ...ctx, askWho: true, speak: true };
 
 const raw = (over: Record<string, unknown> = {}) => ({
   tasks: [],
@@ -57,9 +59,25 @@ const nobodysTask = raw({
 });
 
 describe("say", () => {
-  it("is a lane the model must fill", () => {
-    expect(NOTE_SCHEMA.required).toContain("say");
-    expect(NOTE_SCHEMA.properties.say).toEqual({ type: "string" });
+  it("is a lane the model must fill on the modal's notes, and no lane at all on the card's", () => {
+    expect(TIFF_NOTE_SCHEMA.required).toContain("say");
+    expect(TIFF_NOTE_SCHEMA.properties.say).toEqual({ type: "string" });
+    expect(NOTE_SCHEMA.required).not.toContain("say");
+    expect(NOTE_SCHEMA.properties).not.toHaveProperty("say");
+  });
+
+  it("is the only thing the modal's schema adds to the card's, ahead of the question", () => {
+    const { say, ...rest } = TIFF_NOTE_SCHEMA.properties;
+    void say;
+    expect(rest).toEqual(NOTE_SCHEMA.properties);
+    expect(TIFF_NOTE_SCHEMA.required).toEqual(Object.keys(TIFF_NOTE_SCHEMA.properties));
+    expect(Object.keys(TIFF_NOTE_SCHEMA.properties).slice(-4)).toEqual([
+      "say",
+      "clarify_needed",
+      "clarify_question",
+      "clarify_options",
+    ]);
+    expect(TIFF_NOTE_SCHEMA.additionalProperties).toBe(false);
   });
 
   it("is trimmed to 280 characters, and a missing one is empty", () => {
@@ -77,10 +95,46 @@ describe("say", () => {
     expect(block).toMatch(/NOT a record/);
     expect(block).toMatch(/language the note\s+was spoken in/);
     expect(block).toMatch(/Never say anything is done/);
-    const prompt = systemPrompt(ctx);
+    const prompt = systemPrompt(modal);
     expect(prompt).toContain(block);
     // the recording prompt carries its own carve-out, never the answering rule
     expect(prompt).not.toContain(REPLY_IN_KIND);
+  });
+
+  it("keeps the question and its answers a record: only `say` follows the speaker", () => {
+    /* A German note's clarify_question came back in German when this block
+       said only that `say` follows the speaker (2026-09-26). */
+    const block = sayBlock();
+    expect(block).toContain(
+      `clarify_question and clarify_options are records like every other field:\nwrite them in ${RECORD_LANGUAGE}, whatever language the note was spoken\nin. Only \`say\` follows the language they spoke.`,
+    );
+    // and the question Tiff says is said in theirs
+    expect(block).toMatch(/end it\s+with the question, asked in their language/);
+  });
+
+  it("is never asked of the review card's notes: its prompt says nothing about `say`", () => {
+    const card: NoteContext = { ...ctx, targetLabel: "#1042 — Smith St" };
+    const prompt = systemPrompt(card);
+    expect(prompt).not.toContain(sayBlock());
+    expect(prompt).not.toMatch(/`say`/);
+    /* The card's prompt as it was before the modal, line for line: the
+       question rule runs straight into the dates, and the dates straight
+       into the job, with no line left behind by what the modal adds. */
+    expect(prompt).toContain(`you are confident about; do not blank the rest.\n\n${whenBlock(card)}\n\nThis note is about:`);
+    expect(systemPrompt(modal)).toContain(`do not blank the rest.\n\n${sayBlock()}\n\n${whenBlock(modal)}`);
+  });
+
+  it("is empty on the card's notes even when the shaper asks the question", () => {
+    const twoLukes = [...STAFF, { id: "s-luke-t", fullName: "Luke Tran" }];
+    const { say: _none, ...cardRaw } = raw({
+      tasks: [{ title: "Order the grilles", detail: "", assignee_hint: "Luke", due_hint: "", due_date: "", remind_time: "", remind_kind: "at" }],
+    });
+    void _none;
+    const card = shapeProposal(cardRaw, { ...ctx, staff: twoLukes });
+    expect(card.clarify?.question).toBe("Which Luke did you mean?");
+    expect(card.say).toBe("");
+    // the modal's line carries the question it did not write itself
+    expect(shapeProposal(cardRaw, { ...modal, staff: twoLukes }).say).toBe("Which Luke did you mean?");
   });
 
   it("is left in the language it was spoken in by the English check", () => {
@@ -224,12 +278,16 @@ describe("the second read", () => {
     const free = noteContent("n", { plan, turns: turns("no, Luke's doing both, drop the flag"), leftOut: [] });
     expect(free).not.toContain("Do not ask again");
     expect(free).toContain("Ask again only if something is still unclear.");
-    // the card's box forces it, as it always did
-    expect(noteContent("n", { plan, turns: turns("the tall one"), leftOut: [], plain: true })).toContain(
-      "Do not ask again.",
-    );
     expect(isPlainAnswer(plan, "ME")).toBe(true);
     expect(isPlainAnswer({ ...plan, clarify: null }, "Me")).toBe(false);
+  });
+});
+
+describe("the review card's answer", () => {
+  it("is sent in the words it always was: the question, the answer, and do not ask again", () => {
+    expect(noteContent("  tell luke to order the grilles  ", { question: "Which Luke?", answer: "Luke Tran" })).toBe(
+      "Note:\ntell luke to order the grilles\n\nYou asked: Which Luke?\nThey answered: Luke Tran\n\nRoute the note using that answer. Do not ask again.",
+    );
   });
 });
 

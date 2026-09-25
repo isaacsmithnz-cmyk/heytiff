@@ -305,7 +305,7 @@ describe("routeNote", () => {
     });
     expect(res.ok).toBe(true);
     const ctx = readNote.mock.calls[0][1];
-    expect(ctx).toMatchObject({ askWho: true, room: "tasks" });
+    expect(ctx).toMatchObject({ askWho: true, speak: true, room: "tasks" });
 
     const row = rowsOf("workboard_notes")[0];
     expect((row.turns as Row[]).map((x) => [x.who, x.text, x.room])).toEqual([
@@ -320,6 +320,7 @@ describe("routeNote", () => {
     await routeNote({ transcript: "Luke needs to order the grilles", target: { kind: "none" } });
     const ctx = readNote.mock.calls[0][1];
     expect(ctx).not.toHaveProperty("askWho");
+    expect(ctx).not.toHaveProperty("speak");
     expect(ctx).not.toHaveProperty("room");
     for (const w of writes.filter((x) => x.table === "workboard_notes")) {
       expect(w.payload).not.toHaveProperty("turns");
@@ -470,7 +471,7 @@ describe("continueNote", () => {
     expect(res.ok).toBe(true);
 
     const [, ctx, follow] = readNote.mock.calls[0];
-    expect(ctx).toMatchObject({ askWho: true, room: "diary" });
+    expect(ctx).toMatchObject({ askWho: true, speak: true, room: "diary" });
     expect(follow.plan.clarify.question).toBe("Who should do this: Order the grilles?");
     expect(follow.turns.map((x: Row) => x.text)).toEqual([
       "Luke needs to order the grilles",
@@ -523,8 +524,8 @@ describe("continueNote", () => {
   });
 });
 
-describe("answerClarify — the card's wrapper", () => {
-  it("writes no turns, and routes with the answer as plain", async () => {
+describe("answerClarify — the card's clarify box", () => {
+  it("writes no turns, and sends the question and the answer as the box always did", async () => {
     note({
       status: "clarifying",
       turns: undefined,
@@ -533,8 +534,15 @@ describe("answerClarify — the card's wrapper", () => {
     readNote.mockResolvedValue({ ok: true, proposal: { ...EMPTY, tasks: [task()] } });
     const res = await answerClarify("n-1", "Luke Nguyen");
     expect(res.ok).toBe(true);
-    expect(readNote.mock.calls[0][1]).not.toHaveProperty("askWho");
-    expect(readNote.mock.calls[0][2].plain).toBe(true);
+    const [transcript, ctx, follow] = readNote.mock.calls[0];
+    expect(ctx).not.toHaveProperty("askWho");
+    expect(ctx).not.toHaveProperty("speak");
+    expect(ctx).not.toHaveProperty("room");
+    // no plan and no turns: the note, the question, the answer
+    expect(follow).toEqual({ question: "Which Luke?", answer: "Luke Nguyen" });
+    expect(noteContent(transcript, follow)).toBe(
+      `Note:\n${transcript}\n\nYou asked: Which Luke?\nThey answered: Luke Nguyen\n\nRoute the note using that answer. Do not ask again.`,
+    );
     for (const w of writes) expect(w.payload ?? {}).not.toHaveProperty("turns");
   });
 });

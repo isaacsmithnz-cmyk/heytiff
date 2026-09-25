@@ -22,7 +22,10 @@
    the safety model moves: the proposal is still only a proposal here, but
    `fileNote` files it the moment nothing is left to ask, and Undo is the net.
    Which is why, for those notes (`askWho`), a task with nobody on it becomes
-   a question here rather than waiting for a dropdown the modal doesn't have.
+   a question here rather than waiting for a dropdown the modal doesn't have,
+   and why only those notes (`speak`) are asked for a line Tiff says back. The
+   review card's notes are read with the prompt, schema and words they always
+   were: nothing the modal needs reaches them unless its caller turns it on.
 
    TWO LAYERS OF VALIDATION, ON PURPOSE. `output_config.format` guarantees
    the SHAPE — valid JSON matching the schema, no parsing roulette. It cannot
@@ -136,7 +139,9 @@ export type NoteProposal = {
       `englishProposal` leaves it alone. It says what she will file and ends
       with the question when `clarify` is set. It never says anything is done
       — nothing is, until `fileNote` runs and says "Done." itself. "" when the
-      model said nothing, and on every proposal stored before the field. */
+      model said nothing, on every note the review card routes (it is only
+      asked for when `speak` is on), and on every proposal stored before the
+      field. */
   say: string;
   /** Set when the note can't be routed without a human answering something. */
   clarify: { question: string; options: string[] } | null;
@@ -184,6 +189,15 @@ export type NoteContext = {
       review card has the dropdown, and its notes are routed exactly as
       before: this is off unless the caller turns it on. */
   askWho?: boolean;
+  /** TIFF SPEAKS BACK. The Tiff modal shows her own line above the plan, so
+      for its notes the router is told about `say` (`sayBlock`) and held to a
+      schema that has it (`TIFF_NOTE_SCHEMA`). The old review card shows no
+      line, and a prompt that asks for one changes what it routes: with it,
+      the card asked questions it never used to and asked them in the
+      speaker's language (a real-notes check, 2026-09-26). So its notes are
+      read with the prompt and schema they always were: this is off unless
+      the caller turns it on. */
+  speak?: boolean;
   /** THE CONVERSATION BEFORE THIS NOTE, when the Tiff modal sends a new note
       after Tiff has already answered or filed something: context to read the
       note by ("and the same for Smith St"), never more to file. Shaped and
@@ -276,7 +290,6 @@ export const NOTE_SCHEMA = {
       },
     },
     plain_note: str,
-    say: str,
     clarify_needed: { type: "boolean" },
     clarify_question: str,
     clarify_options: strArray,
@@ -290,13 +303,26 @@ export const NOTE_SCHEMA = {
     "issue_entries",
     "kb_entries",
     "plain_note",
-    "say",
     "clarify_needed",
     "clarify_question",
     "clarify_options",
   ],
   additionalProperties: false,
 } as const;
+
+/* The Tiff modal's schema is the review card's with `say` in it, after the
+   lanes and ahead of the question, and every property still required. */
+const { clarify_needed, clarify_question, clarify_options, ...LANES } = NOTE_SCHEMA.properties;
+const TIFF_PROPERTIES = { ...LANES, say: str, clarify_needed, clarify_question, clarify_options };
+
+/** The schema a note is read with when Tiff speaks back (`speak`): the
+    review card's, plus the one field she says. Only the modal's notes are
+    held to it; `NOTE_SCHEMA` is the card's, as it always was. */
+export const TIFF_NOTE_SCHEMA = {
+  ...NOTE_SCHEMA,
+  properties: TIFF_PROPERTIES,
+  required: Object.keys(TIFF_PROPERTIES) as (keyof typeof TIFF_PROPERTIES)[],
+};
 
 /* ── the instruction ──────────────────────────────────────────────────── */
 
@@ -441,7 +467,15 @@ export function whoBlock(ctx: NoteContext): string {
     prompt's posture, and this prompt's posture is the opposite (a test in
     lang/policy pins that it never carries both). One field, read once, by the
     person who said the note, is answered in their language; everything else
-    stays a record. */
+    stays a record.
+
+    THE QUESTION IS A RECORD TOO, and the block says so in as many words. A
+    German note once came back with its `clarify_question` and options in
+    German (2026-09-26): told that one field follows the speaker, the model
+    let the question follow it as well, and `checkEnglish` passed it. The
+    question is stored on the note and its options are answers read back
+    against the plan, so they stay in the record language; `say` carries the
+    question to the person in theirs. Only in the modal's prompt (`speak`). */
 export function sayBlock(): string {
   return [
     "`say` is the one field that is NOT a record: it is what you tell the",
@@ -450,8 +484,12 @@ export function sayBlock(): string {
     "another language; a note of codes, model numbers and names is English.",
     "One or two short sentences, first names only, plain words: what you are",
     "about to file, for whom and when. When clarify_needed is true, end it",
-    "with the question. Never say anything is done, saved or sent — nothing",
-    "is, until they have seen it.",
+    "with the question, asked in their language. Never say anything is done,",
+    "saved or sent — nothing is, until they have seen it.",
+    "",
+    "clarify_question and clarify_options are records like every other field:",
+    `write them in ${RECORD_LANGUAGE}, whatever language the note was spoken`,
+    "in. Only `say` follows the language they spoke.",
   ].join("\n");
 }
 
@@ -496,6 +534,8 @@ export function roomLine(room: TiffRoom | undefined): string {
     should assist with that"), and its lane went out of the schema with it, so
     the model has nowhere to put words that no card shows. */
 export function systemPrompt(ctx: NoteContext): string {
+  const room = roomLine(ctx.room);
+  const earlier = earlierBlock(ctx.earlier);
   return [
     "You route a tradesperson's site note into structured outcomes for an",
     "Australian HVAC business. The note was spoken aloud or typed quickly, so",
@@ -537,11 +577,13 @@ export function systemPrompt(ctx: NoteContext): string {
     "concrete options. When clarify_needed is true, still fill in whatever",
     "you are confident about; do not blank the rest.",
     "",
-    sayBlock(),
-    "",
+    /* The modal's lines, each only when its caller sent it: a line that is
+       absent is not even an empty one, so the review card's prompt is the
+       one it always was, to the byte. */
+    ...(ctx.speak ? [sayBlock(), ""] : []),
     whenBlock(ctx),
-    ctx.room && roomLine(ctx.room) ? `\n${roomLine(ctx.room)}` : "",
-    earlierBlock(ctx.earlier),
+    ...(room ? [`\n${room}`] : []),
+    ...(earlier ? [earlier] : []),
     ctx.targetLabel ? `\nThis note is about: ${ctx.targetLabel}.` : "",
     ctx.equipment?.length ? `Equipment on site: ${ctx.equipment.join(", ")}.` : "",
     historyBlock(ctx),
@@ -792,9 +834,11 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
 
   /* Tiff's line ends with the question when she has one to ask. When the
      shaper asked it, the model's line never mentioned it, so the question is
-     added, and the line gives way to it rather than the question being cut. */
+     added, and the line gives way to it rather than the question being cut.
+     Only when she speaks: the review card's read never asks for a line, so
+     its proposals carry none. */
   let say = clean(r.say, SAY_MAX);
-  if (escalated && clarify && !say.includes("?")) {
+  if (ctx.speak && escalated && clarify && !say.includes("?")) {
     const left = SAY_MAX - clarify.question.length - 1;
     say = [left > 0 ? say.slice(0, left).trimEnd() : "", clarify.question]
       .filter(Boolean)
@@ -854,10 +898,11 @@ function reasonFor(err: unknown): string {
 
 /* ── A REPLY ROUTES THE WHOLE NOTE AGAIN ─────────────────────────────────
 
-   The old clarify box sent one answer to one question and told the model not
-   to ask again. The modal is a conversation: a reply can answer, but it can
-   also say "no, Callum's doing that", "leave the flag off" or "and order the
-   filters too". So the second read sees the note, the plan as it stands, the
+   The old clarify box sends one answer to one question and tells the model
+   not to ask again (`ClarifyAnswer`), and still does, word for word. The
+   modal is a conversation: a reply can answer, but it can also say "no,
+   Callum's doing that", "leave the flag off" or "and order the filters too".
+   So the modal's second read sees the note, the plan as it stands, the
    conversation since, and the rows they took off the plan, and routes the
    whole note again from there. */
 
@@ -869,11 +914,11 @@ export type NoteFollow = {
   /** The rows they took off the plan, as `planRows` keys of `plan`. A key
       that names no row is ignored. */
   leftOut: readonly string[];
-  /** Forced: this reply is a plain answer. The old review card's clarify box
-      always said "Do not ask again" and keeps saying it through the wrapper
-      (`answerClarify`); left out, it is read off the reply itself. */
-  plain?: boolean;
 };
+
+/** The review card's clarify box: the question the note is waiting on and
+    the answer typed or picked under it (`answerClarify`). */
+export type ClarifyAnswer = { question: string; answer: string };
 
 /** One plan row, as the router is told it. The person's name comes off the
     roster by id; a hint that matched nobody is quoted as said. */
@@ -921,11 +966,15 @@ export function isPlainAnswer(plan: NoteProposal, reply: string): boolean {
     Pure and exported so the wording is pinned without a network call. */
 export function noteContent(
   transcript: string,
-  follow?: NoteFollow,
+  follow?: NoteFollow | ClarifyAnswer,
   staff: readonly NoteStaff[] = [],
 ): string {
   const text = transcript.trim();
   if (!follow) return `Note:\n${text}`;
+  /* The review card's answer, in the words it has always been sent in. */
+  if (!("plan" in follow)) {
+    return `Note:\n${text}\n\nYou asked: ${follow.question}\nThey answered: ${follow.answer}\n\nRoute the note using that answer. Do not ask again.`;
+  }
 
   const rows = planRows(follow.plan);
   const plan = [
@@ -941,7 +990,7 @@ export function noteContent(
   const first = follow.turns.findIndex((t) => t.who === "you");
   const since = follow.turns.slice(first + 1);
   const reply = [...since].reverse().find((t) => t.who === "you")?.text ?? "";
-  const plain = follow.plain ?? isPlainAnswer(follow.plan, reply);
+  const plain = isPlainAnswer(follow.plan, reply);
 
   return [
     `Note:\n${text}`,
@@ -962,15 +1011,16 @@ export function noteContent(
     .join("\n\n");
 }
 
-/** Read one note. `follow` carries the conversation since the first read, so
-    a reply routes the whole note again with what it said.
+/** Read one note. `follow` carries what came after the first read: the
+    review card's answer to its question, or the modal's conversation since,
+    so a reply routes the whole note again with what it said.
 
     Never throws, and every failure keeps the note: the transcript is already
     the valuable thing, and routing is an enhancement on top of it. */
 export async function readNote(
   transcript: string,
   ctx: NoteContext,
-  follow?: NoteFollow
+  follow?: NoteFollow | ClarifyAnswer
 ): Promise<NoteBrainResult> {
   if (!process.env.ANTHROPIC_API_KEY) return { ok: false, error: NO_KEY };
   const text = transcript.trim();
@@ -981,7 +1031,10 @@ export async function readNote(
   /* Every word they said, for the names a "who should do this?" offers. */
   const said = [
     text,
-    ...(follow?.turns ?? []).filter((t) => t.who === "you").slice(1).map((t) => t.text),
+    ...(follow && "turns" in follow ? follow.turns : [])
+      .filter((t) => t.who === "you")
+      .slice(1)
+      .map((t) => t.text),
   ].join("\n");
 
   try {
@@ -991,7 +1044,9 @@ export async function readNote(
       // A real cost/quality/LATENCY lever here — see DEFAULT_EFFORT.
       output_config: {
         effort: DEFAULT_EFFORT,
-        format: { type: "json_schema", schema: NOTE_SCHEMA },
+        /* `say` only when Tiff speaks back: the card's schema is the one
+           it always had. */
+        format: { type: "json_schema", schema: ctx.speak ? TIFF_NOTE_SCHEMA : NOTE_SCHEMA },
       },
       system: systemPrompt(ctx),
       messages: [{ role: "user", content }],

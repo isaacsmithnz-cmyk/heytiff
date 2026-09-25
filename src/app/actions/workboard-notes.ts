@@ -11,6 +11,7 @@ import {
   isSeverity,
   namesMentioned,
   readNote,
+  type ClarifyAnswer,
   type NoteContext,
   type NoteFollow,
   type NoteProposal,
@@ -282,7 +283,7 @@ async function resolveTarget(orgId: string, target: NoteTarget): Promise<NoteTar
 async function routingContext(
   ctx: Ctx,
   target: NoteTarget,
-  extra: Pick<NoteContext, "room" | "askWho" | "earlier"> = {},
+  extra: Pick<NoteContext, "room" | "askWho" | "speak" | "earlier"> = {},
 ): Promise<{ note: NoteContext; staff: NoteStaff[]; dayStart: string }> {
   const [staff, label, tz, history] = await Promise.all([
     assignableStaff(ctx.orgId),
@@ -310,9 +311,10 @@ async function routingContext(
         recentNotes: history.recentNotes,
       },
       /* Only what the modal sends: the review card's notes are read with
-         neither, exactly as they always were. */
+         none of these, exactly as they always were. */
       ...(extra.room ? { room: extra.room } : {}),
       ...(extra.askWho ? { askWho: true } : {}),
+      ...(extra.speak ? { speak: true } : {}),
       ...(extra.earlier?.length ? { earlier: extra.earlier } : {}),
     },
   };
@@ -323,8 +325,9 @@ async function routingContext(
     someone spoke are the valuable thing — routing is an enhancement on top.
 
     `conversation` is the Tiff modal saying so. Its note keeps `turns` (your
-    words, then Tiff's line), a task with nobody on it becomes a question
-    rather than a row for a dropdown the modal doesn't have, `room` is a hint
+    words, then Tiff's line, which only its reads ask for: `speak`), a task
+    with nobody on it becomes a question rather than a row for a dropdown the
+    modal doesn't have, `room` is a hint
     about what a bare instruction means, and a routing failure files the words
     as they were said instead of leaving them pending where nothing reads
     them. Without it, this is the review card's door, unchanged.
@@ -380,7 +383,7 @@ export async function routeNote(input: {
   const routing = await routingContext(
     ctx,
     target,
-    talk ? { room, askWho: true, earlier: earlierTurns(input.before) } : {},
+    talk ? { room, askWho: true, speak: true, earlier: earlierTurns(input.before) } : {},
   );
   const read = await readNote(transcript, routing.note);
 
@@ -476,11 +479,11 @@ async function targetLabel(orgId: string, target: NoteTarget): Promise<string | 
 
 /** Answer the brain's clarifying question and route again with it folded in.
 
-    The review card's clarify box. A wrapper now over the read `continueNote`
-    makes, kept until the old capture UI goes (H25): the note is routed again
-    with the plan it has and the answer given, and — as the box always said —
-    told not to ask again. It writes no turns and asks nobody "who?", so the
-    crew's card behaves exactly as it did. */
+    The review card's clarify box, kept until the old capture UI goes (H25).
+    It sends what it always sent: the note, the question, the answer and "Do
+    not ask again" (`ClarifyAnswer`), read with the card's own context, so no
+    plan, no turns, no "who?" and no line from Tiff. `continueNote` is the
+    modal's reply, and shares only the write that stores what came back. */
 export async function answerClarify(noteId: string, answer: string): Promise<RouteResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
@@ -492,35 +495,32 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
   const reply = trim(answer, 500);
   if (!reply) return { ok: false, error: "Type an answer first." };
 
-  /* THE STORED PROPOSAL RIDES IN AS THE PLAN, SHAPED. One filed before the
-     Debrief went can still carry its `debrief: true` stamp; that mode is
-     gone, `storedProposal` reads only the lanes there are, and the stamp is
-     not written back. */
-  const plan = storedProposal(note.proposal);
-  const question = plan?.clarify?.question;
-  if (!plan || !question) return { ok: false, error: "There's no question waiting on that note." };
+  /* THE QUESTION IS ALL THAT RIDES IN FROM THE STORED PROPOSAL. One filed
+     before the Debrief went can still carry its `debrief: true` stamp; that
+     mode is gone, so an answer to the question it asked is routed as the
+     ordinary note it now is, and the stamp is not written back. */
+  const proposal = note.proposal as NoteProposal | null;
+  const question = proposal?.clarify?.question;
+  if (!question) return { ok: false, error: "There's no question waiting on that note." };
 
-  return reread(ctx, note, {
-    plan,
-    turns: [turn("you", note.transcript), turn("tiff", question), turn("you", reply)],
-    leftOut: [],
-    plain: true,
-  });
+  return reread(ctx, note, { question, answer: reply });
 }
 
-/** Route a note again with the conversation since, and store what came back.
-    The one read both reply doors make; only the modal's keeps turns. */
+/** Route a note again with what was said since, and store what came back.
+    The one read both reply doors make: the card's answer (`ClarifyAnswer`)
+    or the modal's conversation (`NoteFollow`, with `talk`). Only the modal's
+    keeps turns, asks who and has Tiff speak. */
 async function reread(
   ctx: Ctx,
   note: NoteRow,
-  follow: NoteFollow,
+  follow: NoteFollow | ClarifyAnswer,
   talk?: { turns: Turn[]; reply: Turn },
 ): Promise<RouteResult> {
   const target: NoteTarget = { kind: note.target_kind, id: note.target_id };
   const routing = await routingContext(
     ctx,
     target,
-    talk ? { room: roomOf(talk.turns), askWho: true } : {},
+    talk ? { room: roomOf(talk.turns), askWho: true, speak: true } : {},
   );
   const read = await readNote(note.transcript, routing.note, follow);
   if (!read.ok) return { ok: false, error: read.error };

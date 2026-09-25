@@ -693,18 +693,7 @@ describe("the Debrief is out of the router", () => {
     expect(res.ok).toBe(true);
 
     expect(readNote.mock.calls[0][1]).not.toHaveProperty("debrief");
-    /* The card's answer rides in as the follow-up read's last turn, told not
-       to ask again as the box always was, over the stored plan read back
-       without its stamp. */
-    const follow = readNote.mock.calls[0][2];
-    expect(follow.plan).not.toHaveProperty("debrief");
-    expect(follow.plan.clarify).toEqual({ question: "Which Luke?", options: ["Luke Nguyen", "Luke Tran"] });
-    expect(follow.turns.map((t: { who: string; text: string }) => [t.who, t.text])).toEqual([
-      ["you", "…"],
-      ["tiff", "Which Luke?"],
-      ["you", "Luke Nguyen"],
-    ]);
-    expect(follow).toMatchObject({ leftOut: [], plain: true });
+    expect(readNote.mock.calls[0][2]).toEqual({ question: "Which Luke?", answer: "Luke Nguyen" });
     const stored = updates.find((u) => u.table === "workboard_notes")!.patch;
     expect(stored.proposal).toEqual(PROPOSAL);
   });

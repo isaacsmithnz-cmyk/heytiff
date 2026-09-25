@@ -48,7 +48,9 @@ import {
   type TextWrite,
 } from "@/lib/workboard/note-applied";
 import {
+  KEPT_AS_SAID,
   REPLIES_MAX,
+  WHICH_JOB,
   isTiffRoom,
   repliesIn,
   roomOf,
@@ -145,11 +147,7 @@ export type PublishKbResult =
 const NOT_SIGNED_IN = "Not signed in.";
 const NO_ACCESS = "You don't have access to the Workboard.";
 const GONE = "That note is no longer here.";
-/** Tiff's line when routing fails on a modal note (the spec's words). */
-const KEPT_AS_SAID = "I couldn't sort that out just now, so it's in your diary as you said it.";
 const NOT_YOURS = "That note isn't yours.";
-/** The question a pick answers: its options carry their jobs. */
-const WHICH_JOB = "Which job is this for?";
 
 /** Why a note can't be answered or filed any more, by where it ended up. */
 const SETTLED: Record<string, string> = {

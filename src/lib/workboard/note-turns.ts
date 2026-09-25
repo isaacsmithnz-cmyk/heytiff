@@ -79,6 +79,17 @@ export function repliesIn(turns: readonly Turn[]): number {
   return Math.max(0, turns.filter((t) => t.who === "you").length - 1);
 }
 
+/* TWO OF TIFF'S SENTENCES, ONCE, because both sides of the wire say them.
+   The server writes them into the conversation; the modal says the first
+   itself when the words never reached the server at all, and recognises the
+   second as the one question a pick answers rather than a reply. */
+
+/** Tiff's line when routing fails and the words are filed as they were said. */
+export const KEPT_AS_SAID = "I couldn't sort that out just now, so it's in your diary as you said it.";
+
+/** The question a pick answers: its options carry their jobs. */
+export const WHICH_JOB = "Which job is this for?";
+
 /** The room the note was first said in, if it said. */
 export const roomOf = (turns: readonly Turn[]): TiffRoom | undefined =>
   turns.find((t) => t.who === "you")?.room;

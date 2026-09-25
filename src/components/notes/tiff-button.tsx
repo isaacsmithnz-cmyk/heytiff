@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useId, useState, type CSSProperties } from "react";
+import { useTiff } from "@/components/tiff/modal/tiff-context";
 import { CaptureSheet } from "./note-token";
 import { MARK_MASK, TiffMark } from "./tiff-mark";
 import { useNoteFlow } from "./note-flow";
@@ -57,7 +58,18 @@ import { useNoteScope } from "./note-context";
    Everything inside is sized OFF THE BUTTON, in the stylesheet: the mark is
    56% of it, the rings 86% and 72%. The button is 36px on the frame, as
    Isaac's prototype drew it, and 30px in a sheet, beside the 30px close ×.
-   It carries no sparkle (law 5). */
+   It carries no sparkle (law 5).
+
+   ── TWO THINGS IT CAN OPEN, AND THE SWITCH DECIDES ──
+
+   Where HOME_DESK gives this viewer the new Home (the owner first, then
+   everyone at the flip), the button opens THE TIFF MODAL — one light
+   conversation, app-wide, and opening means listening (Isaac, 2026-09-25:
+   "opening means listening, from every Tiff button", which reverses the
+   18 August door above for the people the switch lets in). Everyone else
+   keeps the capture sheet exactly as it is until the flip. The modal lives
+   in the frame's host (components/tiff/modal), so a second button cannot
+   start a second conversation over the first. */
 
 type Where = "topbar" | "sheet";
 
@@ -65,6 +77,10 @@ type Where = "topbar" | "sheet";
 export function TiffButton({ where = "topbar" }: { where?: Where }) {
   const scope = useNoteScope();
   const flow = useNoteFlow();
+  const tiff = useTiff();
+  /** Which button this is, so only the one that opened the modal reads as
+      expanded. */
+  const id = useId();
 
   /* The press, made visible: the mark turns once on its own point and a ring
      leaves the button's edge while the sheet blossoms from the same corner —
@@ -104,15 +120,22 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
         aria-label={label}
         title={where === "sheet" ? label : undefined}
         aria-haspopup="dialog"
-        aria-expanded={flow.open}
+        aria-expanded={tiff.enabled ? tiff.openedBy === id : flow.open}
         style={{ "--tiffbtn-mask": MARK_MASK } as CSSProperties}
         onClick={(e) => {
+          setLit(true);
+          /* The modal measures where it grew from itself, in this click. */
+          if (tiff.enabled) {
+            /* A click with no pointer behind it (`detail` 0) came from the
+               keyboard, and a keyboard press moves nothing (law 8). */
+            tiff.open({ from: e.currentTarget, id, keyboard: e.detail === 0 });
+            return;
+          }
           const r = e.currentTarget.getBoundingClientRect();
           setFrom({
             dx: r.left + r.width / 2 - window.innerWidth / 2,
             dy: r.top + r.height / 2 - window.innerHeight / 2,
           });
-          setLit(true);
           flow.setOpen(true);
           /* IT OPENS ON THE CHOICE, and the press stops here (Isaac,
              2026-08-18). This line used to start the microphone, honouring a
@@ -131,7 +154,7 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
           on which control you reached it through — only the ENTRANCE differs:
           from this button the sheet blossoms out of the corner the button is
           in; from a field's nudge it simply rises. */}
-      <CaptureSheet flow={flow} entrance="blossom" from={from} />
+      {!tiff.enabled && <CaptureSheet flow={flow} entrance="blossom" from={from} />}
     </>
   );
 }

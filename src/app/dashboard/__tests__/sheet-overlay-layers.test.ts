@@ -56,6 +56,8 @@ describe("what opens over a card sits on the card's layer", () => {
     [".wb2-capcard", "the capture card"],
     [".swz-scrim", "the SWMS wizard's scrim"],
     [".swz", "the SWMS wizard"],
+    [".tm-scrim", "the Tiff modal's scrim"],
+    [".tm", "the Tiff modal"],
   ])("%s, %s, is on the sheet's layer", (selector) => {
     expect(layer(selector)).toBe(SHEET);
   });

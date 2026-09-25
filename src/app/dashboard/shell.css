@@ -11265,8 +11265,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-ls-fig { grid-row:1; grid-column:3; display:flex; align-items:center; justify-content:flex-end; gap:8px;
   font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
 /* HIS NAME TAG on someone else's task: a filled capsule, where law 26 says
-   a plain word. He kept it — a named exemption in docs/design.md. */
-.fg .hd-ls-tag { padding:0 8px; border-radius:999px; background:var(--tint-2); font-size:12px; font-weight:600;
+   a plain word. He kept it — a named exemption in docs/design.md. Its fill
+   is his own, #eef0f3, the grey of his second rule, and SOLID: a tint
+   would stack on the row's own, and the body grey reads 4.22:1 on the
+   selection tint laid over itself, which a lit row would make of it. */
+.fg .hd-ls-tag { padding:0 8px; border-radius:999px; background:var(--hd-rule2); font-size:12px; font-weight:600;
   line-height:20px; color:var(--hd-body); }
 .fg .hd-ls-sub { grid-row:2; grid-column:2 / 4; min-width:0; font-size:13px; font-weight:500; color:var(--hd-body); }
 .fg .hd-ls-row.has-vb .hd-ls-sub { grid-column:2; }

@@ -168,7 +168,7 @@ function draw(list: HomeListData, props: { flash?: DeskFocus | null; onFlashDone
     </DeskJobHost>
   );
   const view = render(tree(list));
-  return { onShow, rerender: (next: HomeListData) => view.rerender(tree(next)) };
+  return { onShow, rerender: (next: HomeListData) => view.rerender(tree(next)), unmount: view.unmount };
 }
 
 /** The four seconds and the fold on a clock the test holds. */
@@ -270,7 +270,8 @@ describe("ticking a task", () => {
     expect(completeTask).toHaveBeenCalledWith("t1");
     expect(within(rowOf("Ring the Hilux dealer")).getByRole("checkbox")).toHaveAttribute("aria-checked", "true");
     expect(lineOf("Ring the Hilux dealer").querySelector(".hd-ls-sub")).toHaveTextContent("Done. Undo");
-    expect(mockRouter.refresh).toHaveBeenCalled();
+    // completeTask revalidates Home itself: a second reload would read the whole page again
+    expect(mockRouter.refresh).not.toHaveBeenCalled();
 
     // the page comes back without it: the list holds the one it was pressed on
     rerender(onlyT2());
@@ -299,6 +300,7 @@ describe("ticking a task", () => {
     await user.click(within(rowOf("Ring the Hilux dealer")).getByRole("button", { name: "Undo" }));
     await flush();
     expect(reopenTask).toHaveBeenCalledWith("t1");
+    expect(mockRouter.refresh).not.toHaveBeenCalled();
     /* Taken back while the page's list is still the one without it: the row
        stands as it was rather than blinking out until the fresh one comes. */
     expect(within(rowOf("Ring the Hilux dealer")).getByRole("checkbox")).toHaveAttribute("aria-checked", "false");
@@ -344,6 +346,119 @@ describe("ticking a task", () => {
     draw(two());
     await user.click(within(rowOf("Ring the Hilux dealer")).getByRole("checkbox", { name: "Tick it off" }));
     expect(lineOf("Ring the Hilux dealer").querySelector(".hd-ls-sub")).toHaveTextContent("Couldn't complete that task.");
+  });
+
+  it("cannot be pressed again while the tick is still out", async () => {
+    clock();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    let answer: (res: { ok: true }) => void = () => {};
+    (completeTask as jest.Mock).mockReturnValue(new Promise((r) => (answer = r)));
+    draw(two());
+    const box = within(rowOf("Ring the Hilux dealer")).getByRole("checkbox", { name: "Tick it off" });
+    await user.click(box);
+    await flush();
+    expect(box).toHaveAttribute("aria-checked", "true");
+    expect(box).toBeDisabled();
+    await act(async () => answer({ ok: true }));
+    await flush();
+    expect(box).toBeEnabled();
+    expect(completeTask).toHaveBeenCalledTimes(1);
+  });
+
+  /* Ticking down a list is how a list is used: a second tick lands while
+     the first row is still saying "Done.", and holds the list on after the
+     first has folded. The folded row stays folded, and its group counts
+     it off, down to a group with nothing left in it. */
+  it("keeps a folded row off the list while another still holds it, and the count follows each fold", async () => {
+    clock();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    (completeTask as jest.Mock).mockResolvedValue({ ok: true });
+    const tasks = [
+      task({ id: "t0", title: "Due today", dueDate: DAY }),
+      task({ id: "t1", title: "Ring the Hilux dealer" }),
+      task({ id: "t2", title: "Order the filters", dueDate: "2026-09-21" }),
+    ];
+    const { rerender } = draw(place({ tasks }));
+    expect(heads()).toEqual(["Late 2", "Today 1"]);
+
+    await user.click(within(rowOf("Due today")).getByRole("checkbox", { name: "Tick it off" }));
+    await flush();
+    rerender(place({ tasks: tasks.slice(1) }));
+    act(() => jest.advanceTimersByTime(2000));
+    await user.click(within(rowOf("Ring the Hilux dealer")).getByRole("checkbox", { name: "Tick it off" }));
+    await flush();
+    rerender(place({ tasks: tasks.slice(2) }));
+
+    // the first has had its four seconds and its fold; the second is still saying so
+    act(() => jest.advanceTimersByTime(HOLD_MS + FOLD_MS - 2000));
+    expect(screen.queryByText("Due today")).toBeNull();
+    expect(heads()).toEqual(["Late 2"]);
+    expect(lineOf("Ring the Hilux dealer").querySelector(".hd-ls-sub")).toHaveTextContent("Done. Undo");
+
+    // a third tick holds the list on, and what has folded stays folded
+    await user.click(within(rowOf("Order the filters")).getByRole("checkbox", { name: "Tick it off" }));
+    await flush();
+    rerender(place({ tasks: [] }));
+    expect(screen.queryByText("Due today")).toBeNull();
+    expect(heads()).toEqual(["Late 2"]);
+
+    act(() => jest.advanceTimersByTime(2000));
+    expect(screen.queryByText("Ring the Hilux dealer")).toBeNull();
+    expect(heads()).toEqual(["Late 1"]);
+
+    act(() => jest.advanceTimersByTime(HOLD_MS + FOLD_MS - 2000));
+    expect(heads()).toEqual([]);
+    expect(completeTask).toHaveBeenCalledTimes(3);
+
+    // let go, the list forgets what folded: reopened elsewhere, the first is
+    // back, and the next tick holds it on screen with the rest
+    rerender(place({ tasks: [tasks[0]!, task({ id: "t3", title: "Chase the invoice" })] }));
+    await user.click(within(rowOf("Chase the invoice")).getByRole("checkbox", { name: "Tick it off" }));
+    await flush();
+    expect(screen.getByText("Due today")).toBeInTheDocument();
+    expect(heads()).toEqual(["Late 1", "Today 1"]);
+  });
+
+  it("says why when Undo fails, stays done, and folds away as it would have", async () => {
+    clock();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    (completeTask as jest.Mock).mockResolvedValue({ ok: true });
+    (reopenTask as jest.Mock).mockResolvedValue({ ok: false, error: "That task isn't yours to reopen." });
+    const { rerender } = draw(two());
+    await user.click(within(rowOf("Ring the Hilux dealer")).getByRole("checkbox", { name: "Tick it off" }));
+    await flush();
+    rerender(onlyT2());
+    act(() => jest.advanceTimersByTime(1000));
+    await user.click(within(rowOf("Ring the Hilux dealer")).getByRole("button", { name: "Undo" }));
+    await flush();
+
+    const sub = lineOf("Ring the Hilux dealer").querySelector(".hd-ls-sub")!;
+    expect(sub).toHaveTextContent("That task isn't yours to reopen.");
+    expect(sub).toHaveClass("late");
+    expect(within(rowOf("Ring the Hilux dealer")).getByRole("checkbox")).toHaveAttribute("aria-checked", "true");
+
+    // a full four seconds from the failure, then the fold
+    act(() => jest.advanceTimersByTime(HOLD_MS));
+    expect(rowOf("Ring the Hilux dealer")).toHaveAttribute("data-leaving");
+    act(() => jest.advanceTimersByTime(FOLD_MS));
+    expect(screen.queryByText("Ring the Hilux dealer")).toBeNull();
+    expect(heads()).toEqual(["Late 1"]);
+
+    // back on a later list, it says its own line, not the old failure
+    rerender(two());
+    expect(lineOf("Ring the Hilux dealer").querySelector(".hd-ls-sub")).toHaveTextContent("Due Sun 20 Sept.");
+  });
+
+  it("leaves nothing to fire into a list that has gone", async () => {
+    clock();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    (completeTask as jest.Mock).mockResolvedValue({ ok: true });
+    const { unmount } = draw(two());
+    await user.click(within(rowOf("Ring the Hilux dealer")).getByRole("checkbox", { name: "Tick it off" }));
+    await flush();
+    expect(jest.getTimerCount()).toBeGreaterThan(0);
+    unmount();
+    expect(jest.getTimerCount()).toBe(0);
   });
 });
 
@@ -491,7 +606,8 @@ describe("what opens in place", () => {
     (resolveIssue as jest.Mock).mockResolvedValue({ ok: true });
     (reopenIssue as jest.Mock).mockResolvedValue({ ok: true });
     draw(place({ issues: [issue()] }));
-    await user.click(screen.getByRole("button", { name: "Rooftop unit keeps tripping" }));
+    const title = screen.getByRole("button", { name: "Rooftop unit keeps tripping" });
+    await user.click(title);
     await user.click(screen.getByRole("button", { name: "Mark resolved" }));
     expect(resolveIssue).toHaveBeenCalledWith("i1");
     const row = rowOf("Rooftop unit keeps tripping");
@@ -500,6 +616,23 @@ describe("what opens in place", () => {
     await user.click(within(row).getByRole("button", { name: "Undo" }));
     expect(reopenIssue).toHaveBeenCalledWith("i1");
     expect(row.querySelector(".hd-ls-sub")).toHaveTextContent("Open since Thu 30 July.");
+    // back as it stood before it was opened: the detail does not spring open again
+    expect(title).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "Mark resolved" })).toBeNull();
+    // both actions revalidate Home themselves
+    expect(mockRouter.refresh).not.toHaveBeenCalled();
+  });
+
+  it("says why an issue could not be resolved, in the late red, and leaves it open", async () => {
+    const user = userEvent.setup();
+    (resolveIssue as jest.Mock).mockResolvedValue({ ok: false, error: "Issues need the workboard." });
+    draw(place({ issues: [issue()] }));
+    await user.click(screen.getByRole("button", { name: "Rooftop unit keeps tripping" }));
+    await user.click(screen.getByRole("button", { name: "Mark resolved" }));
+    const sub = lineOf("Rooftop unit keeps tripping").querySelector(".hd-ls-sub")!;
+    expect(sub).toHaveTextContent("Issues need the workboard.");
+    expect(sub).toHaveClass("late");
+    expect(within(rowOf("Rooftop unit keeps tripping")).queryByRole("button", { name: "Undo" })).toBeNull();
   });
 
   it("books a visit on the day picked in its row, and Undo takes it off again", async () => {
@@ -520,9 +653,91 @@ describe("what opens in place", () => {
     expect(placeVisit).toHaveBeenCalledWith("vis1", DAY);
     expect(row.querySelector(".hd-ls-sub")).toHaveTextContent("Booked for Fri 25 Sept. Undo");
     expect(within(row).queryByRole("button", { name: "Book in" })).toBeNull();
+    // placeVisit revalidates the board, not Home: the list asks for the page
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
     await user.click(within(row).getByRole("button", { name: "Undo" }));
     expect(clearVisitPlacement).toHaveBeenCalledWith("vis1");
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(2);
+    expect(within(row).getByRole("button", { name: "Book in" })).toHaveAttribute("aria-expanded", "false");
+    // the day it was booked on was the picker's last: it does not open again
+    expect(within(row).queryByRole("button", { name: "The day to book it in" })).toBeNull();
+  });
+
+  it("books a visit from today on, never a day already gone", async () => {
+    const user = userEvent.setup();
+    draw(place({ visits: [visit] }));
+    await user.click(within(rowOf("Bayview Apartments, annual service")).getByRole("button", { name: "Book in" }));
+    await user.click(screen.getByRole("button", { name: "The day to book it in" }));
+    expect(screen.getByRole("button", { name: "Thursday 24 September 2026" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Friday 25 September 2026" })).toBeEnabled();
+  });
+
+  it("says why a visit could not be booked, in the late red, and why its Undo could not take it off", async () => {
+    const user = userEvent.setup();
+    (placeVisit as jest.Mock).mockResolvedValueOnce({ ok: false, error: "That visit is already closed." });
+    (placeVisit as jest.Mock).mockResolvedValueOnce({ ok: true });
+    (clearVisitPlacement as jest.Mock).mockRejectedValue(new Error("offline"));
+    draw(place({ visits: [visit] }));
+    const row = rowOf("Bayview Apartments, annual service");
+    const sub = () => row.querySelector(".hd-ls-sub")!;
+    const book = async () => {
+      await user.click(within(row).getByRole("button", { name: "Book in" }));
+      await user.click(screen.getByRole("button", { name: "The day to book it in" }));
+      await user.click(screen.getByRole("button", { name: "Today" }));
+    };
+
+    await book();
+    expect(sub()).toHaveTextContent("That visit is already closed.");
+    expect(sub()).toHaveClass("late");
     expect(within(row).getByRole("button", { name: "Book in" })).toBeInTheDocument();
+
+    await book();
+    expect(sub()).toHaveTextContent("Booked for Fri 25 Sept. Undo");
+    expect(sub()).not.toHaveClass("late");
+    await user.click(within(row).getByRole("button", { name: "Undo" }));
+    expect(sub()).toHaveTextContent("Couldn't clear the placement.");
+  });
+
+  /* A roll-up's row folds out of the roll-up while another row holds the
+     list: the roll-up counts one fewer, and a roll-up with nothing left
+     goes, and its group with it. */
+  it("folds a booked visit out of its roll-up while the list is held, and the roll-up once it is empty", async () => {
+    clock();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    (placeVisit as jest.Mock).mockResolvedValue({ ok: true });
+    (completeTask as jest.Mock).mockResolvedValue({ ok: true });
+    const later = [
+      { id: "vis1", clientName: "Bayview Apartments", label: "annual service", dueDate: "2026-09-28" },
+      { id: "vis2", clientName: "Coogee Strata", label: "filter clean", dueDate: "2026-09-30" },
+    ];
+    draw(place({ tasks: [task()], visits: later }));
+    expect(heads()).toEqual(["Late 1", "Jobs to book 2"]);
+    await user.click(screen.getByRole("button", { name: "2 services due with no day" }));
+    const book = async (title: string) => {
+      await user.click(within(rowOf(title)).getByRole("button", { name: "Book in" }));
+      await user.click(screen.getByRole("button", { name: "The day to book it in" }));
+      await user.click(screen.getByRole("button", { name: "Today" }));
+      await flush();
+    };
+
+    await book("Bayview Apartments, annual service");
+    act(() => jest.advanceTimersByTime(1000));
+    await book("Coogee Strata, filter clean");
+    act(() => jest.advanceTimersByTime(1000));
+    await user.click(within(rowOf("Ring the Hilux dealer")).getByRole("checkbox", { name: "Tick it off" }));
+    await flush();
+
+    // the first visit has folded: its roll-up holds one
+    act(() => jest.advanceTimersByTime(HOLD_MS + FOLD_MS - 2000));
+    expect(screen.queryByText("Bayview Apartments, annual service")).toBeNull();
+    expect(screen.getByText("Coogee Strata, filter clean")).toBeInTheDocument();
+    expect(heads()).toEqual(["Late 1", "Jobs to book 1"]);
+
+    // the second has folded: nothing is left to book
+    act(() => jest.advanceTimersByTime(1000));
+    expect(screen.queryByText("Coogee Strata, filter clean")).toBeNull();
+    expect(screen.queryByRole("button", { name: "2 services due with no day" })).toBeNull();
+    expect(heads()).toEqual(["Late 1"]);
   });
 
   it("words how often an issue was seen", () => {

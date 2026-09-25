@@ -53,11 +53,13 @@ import { useDeskJobs } from "./home-job-sheet";
    handed up (`onShow`). A roll-up and an issue open in place instead.
 
    UNTIL THE ROW HAS FOLDED, THE LIST HOLDS STILL. Every action here
-   revalidates the page, and the list the server sends back no longer has
+   brings the page back fresh, and the list the server sends no longer has
    the row that was ticked — so while any row is saying "Done.",
    "Resolved." or "Booked for …", the list on screen is the one the press
    was made on, and the fresh one is taken when the last of them has
-   folded away. A failed action puts its own words where the sub-line was.
+   folded away. A row that folds while another still holds the list stays
+   folded: it is taken off the held list, and its group counts one fewer.
+   A failed action puts its own words where the sub-line was.
 
    ROWS ARE MADE OF PARTS THE CALENDAR'S RAIL USES TOO: `ListGroup`,
    `ListLine` and `ListDot`, exported below, in the `hd-ls-` dress. */
@@ -246,6 +248,9 @@ type Held = {
       held row has folded. */
   list: HomeListData | null;
   rows: Record<string, Hold>;
+  /** Rows that have folded away while another row still holds `list`,
+      which has them yet: kept off the screen until `list` is let go. */
+  gone: readonly string[];
 };
 
 /** A record without one key. Out here, not destructured in place: the React
@@ -257,12 +262,41 @@ function omit<T>(record: Readonly<Record<string, T>>, key: string): Record<strin
 }
 
 /** `held` without these rows — and letting go of its list once none is
-    left. */
-function without(s: Held, rowIds: readonly string[]): Held {
+    left. Rows that have `folded` away stay off the list while it is held;
+    a row let go any other way (its action failed, or Undo took it back)
+    stands on it as it was. */
+function without(s: Held, rowIds: readonly string[], folded = false): Held {
   if (!rowIds.some((id) => id in s.rows)) return s;
   const rows = { ...s.rows };
   for (const id of rowIds) delete rows[id];
-  return Object.keys(rows).length > 0 ? { list: s.list, rows } : { list: null, rows };
+  if (Object.keys(rows).length === 0) return { list: null, rows, gone: [] };
+  return { list: s.list, rows, gone: folded ? [...s.gone, ...rowIds] : s.gone };
+}
+
+/** What a run of rows counts: a roll-up counts what it holds. */
+const things = (rows: readonly ListRow[]) => rows.reduce((n, r) => n + (r.kind === "rollup" ? r.count : 1), 0);
+
+/** The held list without the rows that have folded off it. Each group's
+    count follows, as it would on the fresh list, and a roll-up or a group
+    left with nothing goes too. A roll-up keeps the words it was placed
+    with (its "2 services due …"): the fresh list re-words it when the last
+    held row folds, and until then another row on it is still saying what
+    was done. */
+function lessGone(list: HomeListData, gone: readonly string[]): HomeListData {
+  if (gone.length === 0) return list;
+  const keep = (rows: readonly ListRow[]): ListRow[] =>
+    rows.flatMap((r): ListRow[] => {
+      if (gone.includes(r.id)) return [];
+      if (r.kind !== "rollup") return [r];
+      const kids = keep(r.rows);
+      if (kids.length === r.rows.length) return [r];
+      return kids.length > 0 ? [{ ...r, rows: kids, count: r.count - things(r.rows) + things(kids) }] : [];
+    });
+  const groups = list.groups.flatMap((g) => {
+    const rows = keep(g.rows);
+    return rows.length > 0 ? [{ ...g, rows, count: g.count - things(g.rows) + things(rows) }] : [];
+  });
+  return { ...list, groups };
 }
 
 const UNDO: Record<HoldKind, { run: (id: string) => Promise<Res>; words: string }> = {
@@ -310,7 +344,7 @@ export function HomeList({
 }) {
   const { openJob } = useDeskJobs();
   const router = useRouter();
-  const [held, setHeld] = useState<Held>({ list: null, rows: {} });
+  const [held, setHeld] = useState<Held>({ list: null, rows: {}, gone: [] });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [opened, setOpened] = useState<Record<string, "pointer" | "key">>({});
   const [picking, setPicking] = useState<string | null>(null);
@@ -332,7 +366,7 @@ export function HomeList({
   });
   if (settled.length > 0) setHeld((s) => without(s, settled));
 
-  const shown = held.list ?? list;
+  const shown = held.list ? lessGone(held.list, held.gone) : list;
 
   /* ── holding a row ── */
   const clearTimer = (rowId: string) => {
@@ -351,7 +385,7 @@ export function HomeList({
     );
   };
   const hold = (rowId: string, h: Hold) =>
-    setHeld((s) => ({ list: s.list ?? list, rows: { ...s.rows, [rowId]: h } }));
+    setHeld((s) => ({ ...s, list: s.list ?? list, rows: { ...s.rows, [rowId]: h } }));
   const patch = (rowId: string, p: Partial<Hold>) =>
     setHeld((s) => (s.rows[rowId] ? { ...s, rows: { ...s.rows, [rowId]: { ...s.rows[rowId]!, ...p } } } : s));
   const drop = (rowId: string) => {
@@ -366,12 +400,22 @@ export function HomeList({
       else next[rowId] = words;
       return next;
     });
-  /** Four seconds of Undo, then the fold, then gone. */
+  /** Four seconds of Undo, then the fold, then gone — and so are any words
+      a failed Undo left on it, should the row come back on a later list. */
   const fold = (rowId: string) =>
     after(rowId, HOLD_MS, () => {
       patch(rowId, { leaving: true });
-      after(rowId, FOLD_MS, () => drop(rowId));
+      after(rowId, FOLD_MS, () => {
+        setHeld((s) => without(s, [rowId], true));
+        say(rowId, null);
+      });
     });
+  /* A task's and an issue's actions revalidate Home themselves, and a
+     Server Function's revalidation brings the page back with its answer.
+     A visit's revalidate the board alone, so for those the list asks. */
+  const fresh = (kind: HoldKind) => {
+    if (kind === "booked") router.refresh();
+  };
 
   const act = async (rowId: string, h: Pick<Hold, "kind" | "target" | "on">, run: () => Promise<Res>) => {
     clearTimer(rowId);
@@ -384,7 +428,7 @@ export function HomeList({
       return;
     }
     patch(rowId, { busy: false });
-    router.refresh();
+    fresh(h.kind);
     fold(rowId);
   };
 
@@ -427,7 +471,7 @@ export function HomeList({
        Home, so that list can still be without it — or for four seconds if
        nothing comes. */
     patch(rowId, { busy: false, undone: latest.current });
-    router.refresh();
+    fresh(h.kind);
     after(rowId, HOLD_MS, () => drop(rowId));
   };
 

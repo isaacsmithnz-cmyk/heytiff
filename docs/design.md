@@ -671,7 +671,8 @@ What the guard cannot count is noted here on the same word:
 
 - **Law 16, colour.** `.hd-page` declares his colours as its tokens, and
   no rule on the page writes a colour literal: the ink `#151a24`, the body
-  grey `#5b6472`, the rules `#e6e9ee`, `#eef0f3` and `#e2e5ea`, the teal
+  grey `#5b6472`, the rules `#e6e9ee`, `#eef0f3` (which also fills his
+  name tag, solid, so a lit row cannot darken it) and `#e2e5ea`, the teal
   of Today `#0f766e`, the green of done `#16a34a`, and the list's quiet
   dot `#c3cad4`. `text-contrast` holds every one that is text to 4.5:1 on
   the page's fills; the quiet dot is a mark at 1.65:1, and a row's group

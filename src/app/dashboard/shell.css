@@ -8685,8 +8685,8 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    times the 6.1px the audit found and legible across a van. */
 /* The ink is the dusk skin's, not restated here: this stage is dusk in both
    doors it appears in (the sheet's `duskClass` and the entry card's
-   hardcoded one), and a second declaration of the same colour is a second place for it
-   to drift. See `.wb2-dusk .wb-lvl`. */
+   hardcoded one), and a second declaration of the same colour is a second
+   place for it to drift. See `.wb2-dusk .wb-lvl`. */
 .wb2-caprec .wb-lvl { --orb:68px; padding-left:0; }
 /* ── the same instrument, laid along a line ──
    The three note postures put their microphone in a row — a strip beside a

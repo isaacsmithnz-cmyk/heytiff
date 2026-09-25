@@ -18,7 +18,8 @@ describe("homeTabs", () => {
   });
 
   it("has no Debrief — the room went, and its dot with it", () => {
-    /* Isaac, 2026-09-25: "remove the debrief section. Entirely." */
+    /* Isaac, 2026-09-24: "the diary, tasks and HeyTiff chat window should
+       assist with that." */
     const tabs = homeTabs({ openTasks: 0, overdueTasks: 0 });
     expect(tabs.map((t) => t.label)).not.toContain("Debrief");
     expect(tabs.some((t) => "dot" in t)).toBe(false);

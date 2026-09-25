@@ -287,9 +287,10 @@ describe("the page head", () => {
 });
 
 describe("the debrief is gone", () => {
-  /* Isaac, 2026-09-25: "remove the debrief section. Entirely." Everyone loses
-     the tab: no face, no dot, no button, and a debrief filed before today is
-     an ordinary diary entry, read where every other entry is. */
+  /* Isaac, 2026-09-24: "the diary, tasks and HeyTiff chat window should
+     assist with that." Everyone loses the tab: no face, no dot, no button,
+     and a debrief filed before today is an ordinary diary entry, read where
+     every other entry is. */
   it("has three faces on the rail, and none of them is the Debrief", () => {
     draw({ journal: [entry({ said: "Long day, two callouts.", isDebrief: true })] });
     const tabs = within(screen.getByRole("tablist", { name: "Home" })).getAllByRole("tab");
@@ -302,10 +303,20 @@ describe("the debrief is gone", () => {
   });
 
   it("keeps a debrief filed before today in the diary, with every other entry", () => {
+    /* A pin, not a guard: the diary has always been handed the whole journal
+       (only the Debrief's own face filtered it), so this passes on main too.
+       It holds that line while the router's half (H2) and the column's drop
+       (H3) take `isDebrief` away. */
     draw({
       journal: [
         entry({ id: "j1", said: "Board corroded, replaced it.", isDebrief: false }),
-        entry({ id: "j2", said: "Long day, two callouts.", at: "5:02 pm", isDebrief: true }),
+        entry({
+          id: "j2",
+          said: "Long day, two callouts.",
+          day: "2026-08-09",
+          at: "5:02 pm",
+          isDebrief: true,
+        }),
       ],
     });
     expect(panel("diary").textContent).toContain("Long day, two callouts.");

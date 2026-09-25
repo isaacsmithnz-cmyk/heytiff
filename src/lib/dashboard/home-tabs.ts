@@ -14,8 +14,8 @@
    downward answers "who is off, from here on"; the grid answered "what does
    this fortnight look like", which is a question this screen never asks.
 
-   THE DEBRIEF WENT (Isaac, 2026-09-25: "remove the debrief section.
-   Entirely."). It was a room with one button in it, asking the whole day at
+   THE DEBRIEF WENT (Isaac, 2026-09-24: "the diary, tasks and HeyTiff chat
+   window should assist with that"). It was a room with one button in it, asking the whole day at
    once; the diary, the tasks and the Tiff button already take the same words
    one thought at a time, so the room left and its dot with it.
 

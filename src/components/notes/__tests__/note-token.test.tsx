@@ -523,8 +523,8 @@ describe("the field", () => {
   });
 });
 
-/* THE DEBRIEF IS GONE (Isaac, 2026-09-25: "remove the debrief section.
-   Entirely."), and what it proved about a capture card that grows in the page
+/* THE DEBRIEF IS GONE (Isaac, 2026-09-24: "the diary, tasks and HeyTiff chat
+   window should assist with that"), and what it proved about a capture card that grows in the page
    is now proved on the door that kept that shape: the diary's entry row. The
    tests below were the debrief's, moved onto the row — the card in the page,
    its class, the focus coming home, the job picker, the one dark ground — so

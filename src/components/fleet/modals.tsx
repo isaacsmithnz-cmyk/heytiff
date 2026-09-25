@@ -593,7 +593,7 @@ export function LogModal({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {thumb && <img className="fl-scanthumb" src={thumb} alt="Receipt" />}
           <div className="fl-reading">
-            <TiffGlyph size={20} working />
+            <TiffGlyph size={24} working />
             {scan.reading}
           </div>
         </div>

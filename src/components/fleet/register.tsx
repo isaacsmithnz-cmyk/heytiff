@@ -286,12 +286,12 @@ export function FleetRegister({
             </select>
           </label>
           <button
-            className={`pbtn ghost fl-add fl-valuebtn${valuing ? " busy" : ""}`}
+            className={`pbtn ghost fl-add fl-valuebtn tiffkey${valuing ? " busy" : ""}`}
             disabled={valuing}
             onClick={runValuation}
             title="Tiff estimates each vehicle's AU market value — Manager+ only"
           >
-            <TiffGlyph size={19} working={valuing} />
+            <TiffGlyph working={valuing} />
             {valuing ? "Tiff is valuing…" : "Value with Tiff"}
           </button>
           <button className="pbtn primary fl-add" onClick={() => setModal({ t: "add" })}>

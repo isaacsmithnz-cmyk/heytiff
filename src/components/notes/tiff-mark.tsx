@@ -196,38 +196,45 @@ export function TiffMark({ ground }: { ground: Ground }) {
   );
 }
 
-/* THE MARK OUTSIDE THE BUTTON (Isaac, 2026-09-25: "Elsewhere, for
-   reference — looks good lets do it"). Wherever the chevron stands for Tiff,
-   it is the gimbal too, in one of two states:
+/* THE MARK OUTSIDE THE BUTTON. Wherever the chevron stands for Tiff it is
+   the gimbal too (Isaac, 2026-09-25: "Elsewhere, for reference — looks good
+   lets do it"), and it moves, the way the button does ("round end, moving,
+   no dark background", the same day, after a still pose read as a smudge
+   at label size). Two paces:
 
-   STILL, where it is a label — the chat's header and ask bar, Ask Tiff, the
-   answer's ribbon, the palette's footer. It holds the pose reduced motion
-   gives the button: the mark leaning, the rings tipped. A label that moved
-   would be the ambient motion law 18 keeps off every screen; only the button
-   has Isaac's word for that.
+   AT REST it runs the button's own loops: a label for Tiff — the chat's
+   header and ask bar, the answer's ribbon, the palette's footer, and the
+   round end of a Tiff button (`.tiffkey`).
 
-   WORKING, where Tiff is — a wait, a valuation, a receipt being read. The
-   same loops at the thinking pace, which is the orb's old job under law 18:
-   it starts when the work starts and goes when the work is done.
+   WORKING it runs them at the thinking pace: a wait, a valuation, a receipt
+   being read. It starts when the work starts and goes when it is done.
 
+   QUIET marks move only while their control is hovered or focused, for a
+   control repeated down a list (Ask Tiff on every document): a hundred
+   gyroscopes turning at once is a page of motion, and a compositor bill.
+
+   The logo fills more of it than of the button (74%, rings at the edge),
+   because it is small: at 15–24px the button's proportions left a smudge.
    Sized by `size`, or by the slot's stylesheet when the slot has more than
-   one size (the ask bar is smaller on a locked page), because an inline size
-   would beat every one of them. */
+   one size, because an inline size would beat every one of them. */
 export function TiffGlyph({
   ground = "paper",
   working = false,
+  quiet = false,
   size,
   label,
 }: {
   ground?: Ground;
   working?: boolean;
+  /** Moves only while its control is hovered or focused: for a control repeated down a list. */
+  quiet?: boolean;
   size?: number;
   /** Stand alone as "HeyTiff" for a screen reader; omit it beside words that already name the thing. */
   label?: string;
 }) {
   return (
     <span
-      className={`tiffmk tiffmk-${ground} ${working ? "working" : "still"}`}
+      className={`tiffmk tiffmk-${ground}${working ? " working" : ""}${quiet ? " quiet" : ""}`}
       style={{ "--tiffbtn-mask": MARK_MASK, ...(size ? { "--tb": `${size}px` } : {}) } as CSSProperties}
       {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}
     >

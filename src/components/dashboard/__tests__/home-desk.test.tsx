@@ -6,12 +6,15 @@ import type { DashTask } from "@/lib/dashboard/tasks";
 import type { JournalEntry } from "@/lib/dashboard/journal";
 import type { ScheduleBlock } from "@/lib/workboard/schedule";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
+import type { HomeListReads } from "@/lib/dashboard/home-list";
 
 /* THE NEW HOME'S FRAME (H11): the date in the band, "Your day" on every
    face, ONE row of tabs that never moves, and a body that slides in tab
    order. The faces hold today's diary, tasks and calendar for now; each has
    its own suite, so this one is about the frame around them — and about the
-   doors between them and the one job card they share.
+   doors between them and the one job card they share. The list beside
+   Diary and Tasks (H19) has its own suite too; here it is where it stands
+   and the doors it opens onto the faces.
 
    The capture controls and the job card reach server actions, and "use
    server" modules cannot be imported into jsdom: stubbed, as on Home. */
@@ -42,9 +45,28 @@ jest.mock("@/app/actions/dashboard", () => ({
   reopenTask: jest.fn(),
   deleteTask: jest.fn(),
   setTaskDue: jest.fn(),
+  resolveIssue: jest.fn(),
+  reopenIssue: jest.fn(),
+}));
+jest.mock("@/app/actions/workboard-maintenance", () => ({
+  placeVisit: jest.fn(),
+  clearVisitPlacement: jest.fn(),
 }));
 
 const TODAY = "2026-08-10";
+
+/** The list's own reads, as the loader hands them over: nothing won and
+    nothing to book, so what the list holds is the page's tasks. */
+const reads = (over: Partial<HomeListReads> = {}): HomeListReads => ({
+  day: TODAY,
+  tz: "Australia/Sydney",
+  warnDays: 30,
+  caps: { assetsAll: false, placeVisits: false, money: false, sm8: true },
+  names: {},
+  wins: [],
+  visits: [],
+  ...over,
+});
 
 const task = (over: Partial<DashTask> = {}): DashTask => ({
   id: "t1",
@@ -142,7 +164,7 @@ const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   viewerStaffId: "s1",
   today: TODAY,
   rail: rail(),
-  desk: { warnDays: 30 },
+  desk: { warnDays: 30, list: reads() },
   ...over,
 });
 
@@ -315,7 +337,7 @@ describe("the one door between faces", () => {
   it("takes a diary door to its task on the Tasks face", async () => {
     const user = userEvent.setup();
     render(<DashboardDesk data={wired()} />);
-    await user.click(screen.getByRole("button", { name: /Order 2× MERV 11 filters/ }));
+    await user.click(within(face("diary")).getByRole("button", { name: /Order 2× MERV 11 filters/ }));
     expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
     expect(shownFaces()).toEqual(["tasks"]);
     expect(document.querySelector('[data-task-id="t1"]')).toHaveClass("on");
@@ -333,6 +355,78 @@ describe("the one door between faces", () => {
     expect(face("diary").querySelector(".hm-said")!.textContent).toBe(
       "Order the filters for Bayview before Thursday",
     );
+  }, WHOLE);
+});
+
+describe("the list", () => {
+  const theList = () => screen.getByRole("complementary", { name: "The list" });
+  const withTasks = (over: Partial<DashboardData> = {}) =>
+    data({
+      journal: [
+        entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
+        entry({ id: "e0", said: "Something older.", day: "2026-08-09", at: "4:10 pm" }),
+      ],
+      tasks: {
+        mine: [task({ id: "t0", title: "Ring the Hilux dealer", dueDate: "2026-08-07" }), task()],
+        team: null,
+        done: [],
+        reported: [],
+      },
+      ...over,
+    });
+
+  it("stands in the body beside the diary column, and goes with it under the Calendar", async () => {
+    const user = userEvent.setup();
+    render(<DashboardDesk data={withTasks()} />);
+    const list = theList();
+    expect(list).toHaveClass("hd-list");
+    expect(list.parentElement).toBe(main());
+    expect(list.previousElementSibling).toHaveClass("hd-col");
+    await user.click(tab("Tasks"));
+    expect(theList()).toBe(list);
+    expect(list.closest("[hidden]")).toBeNull();
+    expect(list).not.toHaveAttribute("inert");
+    await user.click(tab("Calendar"));
+    expect(main()).toHaveAttribute("hidden");
+    expect(list).toHaveAttribute("inert");
+  }, WHOLE);
+
+  it("places the page's own tasks on the workspace's day", () => {
+    render(<DashboardDesk data={withTasks()} />);
+    expect(within(theList()).getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
+      "Late 1",
+      "No date 1",
+    ]);
+  });
+
+  it("opens a task's door on the Tasks face, with that task chosen", async () => {
+    const user = userEvent.setup();
+    render(<DashboardDesk data={withTasks()} />);
+    await user.click(within(theList()).getByRole("button", { name: "Ring the Hilux dealer" }));
+    expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+    expect(document.querySelector('[data-task-id="t0"]')).toHaveClass("on");
+  }, WHOLE);
+
+  it("opens a diary-born task's door on the entry that made it", async () => {
+    const user = userEvent.setup();
+    render(<DashboardDesk data={withTasks()} />);
+    await user.click(screen.getByRole("button", { name: /Something older/ }));
+    await user.click(tab("Tasks"));
+    await user.click(within(theList()).getByRole("button", { name: "Order 2× MERV 11 filters" }));
+    expect(shownFaces()).toEqual(["diary"]);
+    expect(face("diary").querySelector(".hm-said")!.textContent).toBe("Order the filters for Bayview before Thursday");
+  }, WHOLE);
+
+  it("opens a won job on the desk's one card", async () => {
+    const user = userEvent.setup();
+    render(
+      <DashboardDesk
+        data={data({ desk: { warnDays: 30, list: reads({ wins: [{ job: mirror(), wonOn: TODAY }] }) } })}
+      />,
+    );
+    await user.click(within(theList()).getByRole("button", { name: "Job 1042, Chatswood" }));
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByRole("dialog", { name: "Job 1042" })).toHaveTextContent("Bayview Apartments");
   }, WHOLE);
 });
 

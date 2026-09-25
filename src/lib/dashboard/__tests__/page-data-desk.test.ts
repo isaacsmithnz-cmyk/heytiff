@@ -10,8 +10,10 @@
    and the desk alike; the link map (two reads in a row) holds up nobody's
    batch but the desk's own, which gets the viewer's ServiceM8 person from
    it; and the day's new fields — connected, where, crew —
-   carry the viewer's own jobs and nobody else's. Every other read is stubbed
-   with an honest empty answer: they are their own suites'. */
+   carry the viewer's own jobs and nobody else's. The list's own reads (H19)
+   join the desk's batch, told whether the workspace has ServiceM8 at all.
+   Every other read is stubbed with an honest empty answer: they are their
+   own suites'. */
 
 jest.mock("@/lib/auth0", () => ({
   auth0: { getSession: jest.fn(async () => ({ orgId: "org-1", user: { sub: "auth0|me" } })) },
@@ -126,6 +128,20 @@ jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: (orgId: string) 
 jest.mock("@/lib/integrations/sm8-writes", () => ({ sm8QueueStuck: jest.fn(async () => null) }));
 jest.mock("@/lib/integrations/sm8-freshness", () => ({ freshenSm8AfterResponse: jest.fn() }));
 
+/* The list's reads are their own suite's (home-list-query): here, what they
+   were asked and that their answer is the desk's. */
+const LIST_READS = {
+  day: "2026-09-24",
+  tz: "Australia/Sydney",
+  warnDays: 45,
+  caps: { assetsAll: false, placeVisits: false, money: false, sm8: true },
+  names: {},
+  wins: [],
+  visits: [],
+};
+const loadHomeList = jest.fn(async (_ctx: unknown) => LIST_READS);
+jest.mock("../home-list-query", () => ({ loadHomeList: (ctx: unknown) => loadHomeList(ctx) }));
+
 /* The desk's own loader, watched but real. */
 jest.mock("../desk-data", () => {
   const actual = jest.requireActual("../desk-data");
@@ -178,11 +194,11 @@ describe("the new Home behind HOME_DESK", () => {
 
   it("is loaded for the owner on `owner`, and for everyone on `on`", async () => {
     process.env.HOME_DESK = "owner";
-    expect((await loadDashboard()).desk).toEqual({ warnDays: 45 });
+    expect((await loadDashboard()).desk).toEqual({ warnDays: 45, list: LIST_READS });
 
     process.env.HOME_DESK = "on";
     role = "staff";
-    expect((await loadDashboard()).desk).toEqual({ warnDays: 45 });
+    expect((await loadDashboard()).desk).toEqual({ warnDays: 45, list: LIST_READS });
     expect(loadDesk).toHaveBeenCalledTimes(2);
   });
 
@@ -219,7 +235,7 @@ describe("the new Home behind HOME_DESK", () => {
     expect(rail.linked).toBe(true);
     expect(rail.blocks.map((b) => b.key)).toEqual(["a1"]);
     if (flag) {
-      expect(desk).toEqual({ warnDays: 45 });
+      expect(desk).toEqual({ warnDays: 45, list: LIST_READS });
       expect(loadDesk).toHaveBeenCalledWith(expect.objectContaining({ mineUuid: "sm8-me" }));
     } else {
       expect(desk).toBeNull();
@@ -256,7 +272,7 @@ describe("the reads the chips and the desk share", () => {
     expect(orgExpiryWindow).toHaveBeenCalledTimes(1);
     expect(listOrgCredentials).toHaveBeenCalledTimes(1);
     expect(chipsInput()).toMatchObject({ warnDays: 45, orgCredentials: [CRED] });
-    expect(data.desk).toEqual({ warnDays: 45 });
+    expect(data.desk).toEqual({ warnDays: 45, list: LIST_READS });
     expect(loadDesk).toHaveBeenCalledWith(
       expect.objectContaining({ shared: { expiry: { warnDays: 45, email: true }, orgCredentials: [CRED] } })
     );
@@ -281,6 +297,35 @@ describe("the reads the chips and the desk share", () => {
     expect(orgExpiryWindow).toHaveBeenCalledTimes(1);
     expect(listOrgCredentials).toHaveBeenCalledTimes(1);
     expect(chipsInput()).toMatchObject({ warnDays: 45, orgCredentials: [CRED] });
+  });
+});
+
+describe("the list's reads", () => {
+  it("are the desk's, and the crew on today's Home make none", async () => {
+    await loadDashboard();
+    expect(loadHomeList).not.toHaveBeenCalled();
+
+    process.env.HOME_DESK = "owner";
+    const { desk } = await loadDashboard();
+    expect(loadHomeList).toHaveBeenCalledTimes(1);
+    expect(desk?.list).toBe(LIST_READS);
+  });
+
+  /* Whether there are won jobs to read at all is the vendor row's answer —
+     the one the day already reads — never a guess from the zone: a vendor
+     read that fails comes back connected with no zone. */
+  it.each([
+    [{ tz: "Australia/Sydney", connected: true }],
+    [{ tz: null, connected: true }],
+    [{ tz: null, connected: false }],
+  ])("are told whether the workspace has ServiceM8, from the vendor row (%o)", async (v) => {
+    process.env.HOME_DESK = "owner";
+    vendor = v;
+    await loadDashboard();
+    expect(loadDesk).toHaveBeenCalledWith(expect.objectContaining({ connected: v.connected }));
+    expect(loadHomeList).toHaveBeenCalledWith(
+      expect.objectContaining({ connected: v.connected, orgId: "org-1", railDay: expect.any(String) }),
+    );
   });
 });
 

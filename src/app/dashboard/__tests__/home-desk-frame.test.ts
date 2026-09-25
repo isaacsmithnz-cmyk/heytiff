@@ -105,3 +105,45 @@ describe("the slide stays in its cell", () => {
     expect(rule(".fg .hd-main[hidden], .fg .hd-face[hidden]").display).toBe("none");
   });
 });
+
+/* THE LIST (H19), beside Diary and Tasks. What the sheet promises for it:
+   it takes the frame's second column and scrolls on its own; every rule is
+   two classes deep, as the family's are, so `.fg button` (0,1,1) — the
+   frame's reset — never beats a title, a verb or the box; a row's fill
+   reaches past the column by exactly the row's own side padding, so its
+   words stand on the column's edge; and nothing folds or grows under
+   reduced motion. */
+describe("the list", () => {
+  it("takes the frame's second column, and scrolls on its own", () => {
+    expect(rule(".fg .hd-main:has(> .hd-list)")["grid-template-columns"]).toBe("minmax(0,1fr) minmax(280px,420px)");
+    const list = rule(".fg .hd-list");
+    expect(list["overflow-y"]).toBe("auto");
+    expect(list["min-height"]).toBe("0");
+  });
+
+  it("sets every one of its rules two classes deep, under the frame", () => {
+    const parts: string[] = [];
+    for (const m of CSS.matchAll(/([^{}]+)\{[^{}]*\}/g)) {
+      const sel = m[1]!.trim();
+      if (!/\.hd-(ls-|list\b)/.test(sel)) continue;
+      parts.push(...sel.split(",").map((s) => s.trim()));
+    }
+    expect(parts.length).toBeGreaterThan(20);
+    expect(parts.filter((p) => !/^\.fg \.hd-[\w-]/.test(p))).toEqual([]);
+  });
+
+  it("reaches a row's fill past the column by the row's own side padding", () => {
+    const row = rule(".fg .hd-ls-row");
+    const [, side] = row.padding!.split(" ");
+    expect(row.margin).toBe(`0 -${side}`);
+  });
+
+  it("folds and grows nothing under reduced motion", () => {
+    const quiet = [...CSS.matchAll(/@media \(prefers-reduced-motion:reduce\) \{((?:[^{}]*\{[^{}]*\})*)\s*\}/g)]
+      .map((m) => m[1]!)
+      .find((body) => body.includes(".hd-ls-"));
+    expect(quiet).toBeDefined();
+    expect(quiet).toMatch(/\.fg \.hd-ls-it \{ transition:none; \}/);
+    expect(quiet).toMatch(/\.fg \.hd-ls-in\[data-grow\] \{ animation:none; \}/);
+  });
+});

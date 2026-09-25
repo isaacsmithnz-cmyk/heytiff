@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ScreenBand } from "@/components/shell/screen-band";
 import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
 import {
@@ -14,6 +14,7 @@ import {
   type SlidePlan,
 } from "@/lib/dashboard/desk-focus";
 import { motionAllowed } from "@/lib/dashboard/day-flip";
+import { placeHomeList } from "@/lib/dashboard/home-list";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 import { HomeCalendarFace } from "./home-calendar-face";
 import { HomeDay } from "./home-day";
@@ -21,6 +22,7 @@ import { KEEPS_DAY } from "./home-day-bar";
 import { HomeDiary } from "./home-diary";
 import { HomeFaceTabs } from "./home-face-tabs";
 import { DeskJobHost } from "./home-job-sheet";
+import { HomeList } from "./home-list";
 import { HomeTasks } from "./home-tasks";
 
 /* THE NEW HOME — the desk (docs/design.md, "Home is the day, three tabs and
@@ -36,8 +38,10 @@ import { HomeTasks } from "./home-tasks";
 
    THE FACES ARE HELD, NOT BUILT, in this first cut: today's diary, tasks and
    calendar stand in them, in their own dress, until each face's own lands.
-   "Your day" is his own already (./home-day). Every new file mounts here
-   and nowhere else, which is what keeps the crew's Home as it is.
+   "Your day" is his own already (./home-day), and so is THE LIST in the
+   right-hand column beside Diary and Tasks (./home-list), which the
+   Calendar slides across with the column. Every new file mounts here and
+   nowhere else, which is what keeps the crew's Home as it is.
 
    THE DAY'S OPEN CARD STAYS OPEN across faces, so a press on the tabs or
    in the Calendar does not close it (`KEEPS_DAY`); a click anywhere else
@@ -80,6 +84,9 @@ export function DashboardDesk({ data }: { data: DashboardData }) {
 
 function Desk({ data }: { data: DashboardData }) {
   const { calendar, tasks, journal, issues, assignable, canManage, viewerStaffId, today, rail } = data;
+  /* The list, placed from its own reads and what the page already holds —
+     pure, and dated on the server by the workspace's day. */
+  const list = useMemo(() => (data.desk ? placeHomeList(data.desk.list, data) : null), [data]);
 
   const [face, setFace] = useState<DeskFace>(DEFAULT_FACE);
   const [motion, setMotion] = useState<Motion | null>(null);
@@ -173,6 +180,10 @@ function Desk({ data }: { data: DashboardData }) {
   const openTask = (id: string, pointer: boolean) => show({ face: "tasks", kind: "task", ids: [id] }, pointer);
   const openEntry = (id: string, pointer: boolean) => show({ face: "diary", kind: "entry", ids: [id] }, pointer);
   const taskFocus = focus?.face === "tasks" && focus.kind === "task" ? (focus.ids[0] ?? null) : null;
+  /* Rows a door asked to see stand in the list, beside Diary and Tasks
+     alike; the list lights them once and hands the door back. */
+  const rowsFocus = focus?.kind === "rows" ? focus : null;
+  const rowsShown = useCallback(() => setFocus(null), []);
 
   const leaving = motion?.from ?? null;
   const shown = (p: SlidePart) => partShown(p, face, leaving);
@@ -241,6 +252,19 @@ function Desk({ data }: { data: DashboardData }) {
                     </div>,
                   )}
                 </div>
+                {/* THE LIST, beside the column: the frame's grid takes a
+                    second column when it is here. It stays put while Diary
+                    and Tasks slide past each other, and goes with the
+                    column when the Calendar slides across. */}
+                {list && (
+                  <HomeList
+                    list={list}
+                    onShow={show}
+                    flash={rowsFocus}
+                    onFlashDone={rowsShown}
+                    inert={face === "calendar"}
+                  />
+                )}
               </div>
               {facePanel(
                 "calendar",

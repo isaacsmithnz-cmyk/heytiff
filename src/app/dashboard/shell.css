@@ -11013,9 +11013,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    so they are named exemptions in docs/design.md. Every text token is held
    to 4.5:1 on the page's fills by text-contrast. The late red is the app's
    own `--bad-t`: his #d6293e is 4.15:1 on the selection tint, and one late
-   red serves the whole page. */
+   red serves the whole page. `--hd-dot` is his quiet dot on the list: a
+   mark, not text, and the group's title says what it means. */
 .fg .hd-page { --hd-ink:#151a24; --hd-body:#5b6472; --hd-rule:#e6e9ee; --hd-rule2:#eef0f3; --hd-edge:#e2e5ea;
-  --hd-late:var(--bad-t); --hd-today:#0f766e; --hd-done:#16a34a; }
+  --hd-late:var(--bad-t); --hd-today:#0f766e; --hd-done:#16a34a; --hd-dot:#c3cad4; }
 
 /* ── YOUR DAY: across the top, on every face ──
    A rule under the band and one under the day, in his grey. */
@@ -11206,6 +11207,114 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-x:hover { background:color-mix(in srgb, currentColor 16%, transparent); }
 .fg .hd-x > span, .fg .hd-x svg { display:block; }
 .fg .hd-open:focus-visible, .fg .hd-x:focus-visible { outline:none; box-shadow:var(--ring); }
+
+/* ── THE LIST: the right-hand column beside Diary and Tasks ──
+   home-list.tsx. His list (the prototype's rail, v32) on the page's tokens:
+   a group's title at 16/600, Late in the late red and Today in the one
+   teal, its count 8px after it in the quiet grey; then rows of a lead (a
+   dot or a box), the title, a figure, the line under it and at most one
+   verb. His numbers snap to the scales, 4px or less each: the column's
+   padding 28 → 24, the row's gap 14 → 12, the count's 6px → 8, the verb's
+   radius 8 → 10 and its padding 10 → 12. The verb is 32px tall, the
+   height of the Calendar's own admin action. The frame's grid gives the
+   list its column when it is there (`.hd-main:has(> .hd-list)`). */
+.fg .hd-list { min-width:0; min-height:0; overflow-y:auto; padding:4px 24px 24px;
+  border-left:1px solid var(--hd-rule); }
+.fg .hd-ls-none { margin:0; padding:16px 0; font-size:14px; color:var(--q); }
+.fg .hd-ls-grp { display:flex; align-items:baseline; gap:8px; margin:0; padding:24px 0 8px;
+  border-bottom:1px solid var(--hd-rule); font-size:16px; font-weight:600; line-height:1.2; color:var(--hd-ink); }
+.fg .hd-ls-g:first-child > .hd-ls-grp { padding-top:16px; }
+.fg .hd-ls-grp.late { color:var(--hd-late); }
+.fg .hd-ls-grp.today { color:var(--hd-today); }
+.fg .hd-ls-n { font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
+.fg .hd-ls-rows, .fg .hd-ls-kids { margin:0; padding:0; list-style:none; }
+
+/* A ROW FOLDS AWAY AS ONE once it has said "Done." for its four seconds:
+   the item is a grid of one track, and the track closes on `--t-move`. */
+.fg .hd-ls-it { display:grid; grid-template-rows:1fr; transition:grid-template-rows var(--t-move) var(--ease); }
+.fg .hd-ls-it[data-leaving] { grid-template-rows:0fr; }
+.fg .hd-ls-fold { min-height:0; border-bottom:1px solid var(--hd-rule2); }
+.fg .hd-ls-it[data-leaving] > .hd-ls-fold { overflow:hidden; }
+/* The row's fill reaches 8px past the column's words on each side, as his
+   did, so the words themselves stand on the column's edge. */
+.fg .hd-ls-row { display:grid; grid-template-columns:20px minmax(0,1fr) auto; column-gap:12px; align-items:start;
+  margin:0 -8px; padding:12px 8px; border-radius:6px; font-size:14px; line-height:1.45;
+  transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-ls-row.opens { cursor:pointer; }
+.fg .hd-ls-row.opens:hover { background:var(--tint); }
+/* A door asked for this row: lit once, on the selection tint, and back. */
+.fg .hd-ls-row[data-lit] { background:var(--tint-2); }
+/* The lead stands in the title's first line, whatever the title does. */
+.fg .hd-ls-lead { grid-row:1; display:flex; align-items:center; justify-content:center; height:1.45em; }
+.fg .hd-ls-dot { width:8px; height:8px; border-radius:50%; background:var(--hd-dot); }
+.fg .hd-ls-dot[data-dot="late"] { background:var(--hd-late); }
+.fg .hd-ls-dot[data-dot="today"] { background:var(--hd-today); }
+/* THE BOX, copied from today's Home into this family, which outlives it:
+   a control, so the control radius, and the quiet colour for its edge. */
+.fg .hd-ls-cb { display:grid; place-items:center; width:18px; height:18px; padding:0; border:1px solid var(--q);
+  border-radius:6px; background:var(--paper); color:var(--paper); cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .hd-ls-cb:hover:not(:disabled) { border-color:var(--ink); }
+.fg .hd-ls-cb.on { background:var(--ink); border-color:var(--ink); }
+.fg .hd-ls-cb:disabled { cursor:default; }
+.fg .hd-ls-cb > span, .fg .hd-ls-cb svg { display:block; }
+.fg .hd-ls-t { grid-row:1; grid-column:2; display:block; min-width:0; overflow:hidden; padding:0; border:0;
+  border-radius:6px; background:none; font:inherit; font-weight:500; color:var(--hd-ink); text-align:left;
+  text-decoration:none; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+.fg .hd-ls-row.done .hd-ls-t { color:var(--q); text-decoration:line-through; }
+.fg .hd-ls-fig { grid-row:1; grid-column:3; display:flex; align-items:center; justify-content:flex-end; gap:8px;
+  font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+/* HIS NAME TAG on someone else's task: a filled capsule, where law 26 says
+   a plain word. He kept it — a named exemption in docs/design.md. Its fill
+   is his own, #eef0f3, the grey of his second rule, and SOLID: a tint
+   would stack on the row's own, and the body grey reads 4.22:1 on the
+   selection tint laid over itself, which a lit row would make of it. */
+.fg .hd-ls-tag { padding:0 8px; border-radius:999px; background:var(--hd-rule2); font-size:12px; font-weight:600;
+  line-height:20px; color:var(--hd-body); }
+.fg .hd-ls-sub { grid-row:2; grid-column:2 / 4; min-width:0; font-size:13px; font-weight:500; color:var(--hd-body); }
+.fg .hd-ls-row.has-vb .hd-ls-sub { grid-column:2; }
+.fg .hd-ls-sub.late { color:var(--hd-late); }
+.fg .hd-ls-sub.fresh { color:var(--hd-today); }
+.fg .hd-ls-sub b { font-weight:600; }
+.fg .hd-ls-vbs { grid-row:2; grid-column:3; justify-self:end; align-self:center; }
+/* THE VERB: one small outline button, drawn alike as a link or a button. */
+.fg .hd-ls-vb { display:inline-flex; align-items:center; height:32px; padding:0 12px; border:1px solid var(--hd-edge);
+  border-radius:10px; background:var(--paper); font:inherit; font-size:13px; font-weight:600; color:var(--hd-ink);
+  text-decoration:none; white-space:nowrap; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-ls-vb:hover { background:var(--tint); }
+.fg .hd-ls-undo, .fg .hd-ls-link { padding:0; border:0; border-radius:6px; background:none; font:inherit; font-weight:600;
+  color:var(--hd-ink); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.fg .hd-ls-undo:disabled { cursor:default; }
+.fg .hd-ls-t:focus-visible, .fg .hd-ls-cb:focus-visible, .fg .hd-ls-vb:focus-visible,
+.fg .hd-ls-undo:focus-visible, .fg .hd-ls-link:focus-visible { outline:none; box-shadow:var(--ring); }
+
+/* WHAT OPENS IN PLACE — a roll-up's rows, an issue's facts, a visit's day —
+   grows open on `--t-move` when a pointer opened it, and is simply there
+   from the keyboard (law 8). Its rows sit under the title, past the lead;
+   the clip keeps the 8px their fill reaches past the column. */
+.fg .hd-ls-in { display:grid; grid-template-rows:1fr; }
+.fg .hd-ls-in[data-grow] { animation:hdLsOpen var(--t-move) var(--ease); }
+.fg .hd-ls-in > * { min-height:0; overflow:clip; overflow-clip-margin:8px; }
+@keyframes hdLsOpen { from { grid-template-rows:0fr; } }
+.fg .hd-ls-kids { margin:0 0 8px calc(20px + 12px); }
+.fg .hd-ls-kids > .hd-ls-it:last-child > .hd-ls-fold { border-bottom:0; }
+.fg .hd-ls-iss { display:flex; flex-direction:column; gap:12px; padding:0 0 16px calc(20px + 12px); }
+.fg .hd-ls-facts { display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 12px; margin:0; font-size:13px;
+  font-weight:500; }
+.fg .hd-ls-facts > div { display:contents; }
+.fg .hd-ls-facts dt { color:var(--q); }
+.fg .hd-ls-facts dd { margin:0; color:var(--hd-ink); }
+.fg .hd-ls-facts dd.unset { color:var(--q); }
+.fg .hd-ls-acts { display:flex; align-items:center; gap:16px; }
+.fg .hd-ls-pick { padding:0 0 12px calc(20px + 12px); }
+/* The day field's own edge and paper, which the frame's button reset
+   (`.fg button`, 0,1,1) takes off the unscoped `.datef` (0,1,0). */
+.fg .hd-ls-pick .datef { border:1px solid var(--line); background:var(--paper); }
+.fg .hd-ls-pick .datef:focus-visible, .fg .hd-ls-pick .datef[aria-expanded="true"] { border-color:var(--ink); }
+@media (prefers-reduced-motion:reduce) {
+  .fg .hd-ls-it { transition:none; }
+  .fg .hd-ls-in[data-grow] { animation:none; }
+}
 /* ===================================================================
    VEHICLE MODAL v2 (components/fleet/vehicle-modal/)
 

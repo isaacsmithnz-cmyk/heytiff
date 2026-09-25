@@ -607,8 +607,9 @@ describe("the new Home's text tokens clear 4.5:1 on every fill the page has", ()
     "his quiet panel #f4f6f8": hex("#f4f6f8"),
   };
   const TEXT = ["hd-ink", "hd-body", "hd-late", "hd-today"];
-  /* rules and a tick's fill: lines and marks, held to nothing here */
-  const NOT_TEXT = ["hd-rule", "hd-rule2", "hd-edge", "hd-done"];
+  /* rules, a tick's fill and the list's quiet dot: lines and marks, held to
+     nothing here */
+  const NOT_TEXT = ["hd-rule", "hd-rule2", "hd-edge", "hd-done", "hd-dot"];
 
   it("names every token the page declares as text or not text — a new one has to be sorted", () => {
     // the page's own rule, not a selector list it shares with the old Home's green
@@ -669,5 +670,76 @@ describe("Your day's panel: the state capsule and the button clear 4.5:1", () =>
     ["Open job: paper on his ink", ".fg .hd-open", ".fg .hd-open"],
   ])("%s", (_label, text, ground) => {
     expect(+ratio(decl(text, "color"), decl(ground, "background")).toFixed(2)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+/* ===== The list (.hd-ls-*, H19) =====
+
+   The list's words that are not the page's text tokens — the quiet count,
+   a ticked title, a fact's label — and the ones that stand on a ground of
+   their own: his name tag on its capsule, the verb on its paper. A row is
+   paper at rest, the hover tint under the pointer and the selection tint
+   while a door has lit it, so what a row says is held on all three. Read
+   off the rules, a tint laid over what is under it as the page lays it:
+   paper for a row, and the row's own ground for what stands on the row. */
+describe("the list's words clear 4.5:1 on every ground a row has", () => {
+  const code = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  const colour = (v: string, under: number[]): number[] => {
+    const alias = v.match(/^var\(--([a-z0-9-]+)\)$/i);
+    const value = alias ? token(alias[1]!) : v;
+    const tint = value.match(/^rgba\((\d+), *(\d+), *(\d+), *([\d.]+)\)$/);
+    if (tint) return over([Number(tint[1]), Number(tint[2]), Number(tint[3])], Number(tint[4]), under);
+    if (value.toLowerCase() === "#fff") return WHITE;
+    if (!/^#[0-9a-f]{6}$/i.test(value)) throw new Error(`not a colour this test reads: ${value}`);
+    return hex(value);
+  };
+  /** One declaration of the rule whose selector is exactly `sel`, a tint
+      laid over `under` (paper, unless said). */
+  const decl = (sel: string, prop: string, under: number[] = WHITE): number[] => {
+    for (const m of code.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (m[1]!.trim() !== sel) continue;
+      const d = m[2]!.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`));
+      if (d) return colour(d[1]!.trim(), under);
+    }
+    throw new Error(`no ${prop} on "${sel}"`);
+  };
+  const ROW = () => ({
+    "at rest": WHITE,
+    "under the pointer": decl(".fg .hd-ls-row.opens:hover", "background"),
+    lit: decl(".fg .hd-ls-row[data-lit]", "background"),
+  });
+  const short = (text: number[], grounds: Record<string, number[]>) =>
+    Object.entries(grounds)
+      .map(([ground, bg]) => ({ ground, r: +ratio(text, bg).toFixed(2) }))
+      .filter((x) => x.r < 4.5);
+
+  it.each([
+    ["a sub-line", ".fg .hd-ls-sub"],
+    ["a late sub-line", ".fg .hd-ls-sub.late"],
+    ["a ticked title", ".fg .hd-ls-row.done .hd-ls-t"],
+    ["a title", ".fg .hd-ls-t"],
+    ["a figure", ".fg .hd-ls-fig"],
+  ])("%s, on a row at rest, under the pointer and lit", (_label, sel) => {
+    expect(short(decl(sel, "color"), ROW())).toEqual([]);
+  });
+
+  /* The tag stands on the row, so its capsule is laid on each of the row's
+     grounds in turn: a translucent capsule darkens with the row under it,
+     and #5b6472 on the selection tint laid over itself is 4.22. */
+  it("his name tag, on its capsule, on a row at rest, under the pointer and lit", () => {
+    const text = decl(".fg .hd-ls-tag", "color");
+    const onRow = Object.fromEntries(
+      Object.entries(ROW()).map(([ground, row]) => [ground, decl(".fg .hd-ls-tag", "background", row)]),
+    );
+    expect(short(text, onRow)).toEqual([]);
+  });
+
+  it.each([
+    ["a group's count, on paper", ".fg .hd-ls-n", null],
+    ["a fact's label, on paper", ".fg .hd-ls-facts dt", null],
+    ["a verb, on its paper", ".fg .hd-ls-vb", ".fg .hd-ls-vb"],
+  ])("%s", (_label, text, ground) => {
+    const bg = ground ? decl(ground, "background") : WHITE;
+    expect(+ratio(decl(text, "color"), bg).toFixed(2)).toBeGreaterThanOrEqual(4.5);
   });
 });

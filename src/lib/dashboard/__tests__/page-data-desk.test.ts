@@ -7,8 +7,9 @@
    What is pinned: the new Home's reads happen only for a viewer the flag
    names, so the crew on today's Home pay for nothing; the expiry window and
    the org's credentials are read ONCE for the page and handed to the chips
-   and the desk alike; which ServiceM8 person the viewer is is known before
-   the batch starts; and the day's new fields — connected, where, crew —
+   and the desk alike; the link map (two reads in a row) holds up nobody's
+   batch but the desk's own, which gets the viewer's ServiceM8 person from
+   it; and the day's new fields — connected, where, crew —
    carry the viewer's own jobs and nobody else's. Every other read is stubbed
    with an honest empty answer: they are their own suites'. */
 
@@ -118,7 +119,9 @@ jest.mock("@/lib/workboard/schedule-query", () => ({
   EMPTY_SCHEDULE: { dayISO: "", activities: [], staff: [], jobs: [], onSite: [], addresses: {} },
   loadScheduleDay: (orgId: string, dayISO: string) => loadScheduleDay(orgId, dayISO),
 }));
-const sm8StaffLinkMap = jest.fn(async (_orgId: string) => new Map([["sm8-me", "s-me"], ["sm8-luke", "s-luke"]]));
+const sm8StaffLinkMap = jest.fn(
+  async (_orgId: string): Promise<Map<string, string>> => new Map([["sm8-me", "s-me"], ["sm8-luke", "s-luke"]])
+);
 jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: (orgId: string) => sm8StaffLinkMap(orgId) }));
 jest.mock("@/lib/integrations/sm8-writes", () => ({ sm8QueueStuck: jest.fn(async () => null) }));
 jest.mock("@/lib/integrations/sm8-freshness", () => ({ freshenSm8AfterResponse: jest.fn() }));
@@ -130,7 +133,21 @@ jest.mock("../desk-data", () => {
 });
 
 import { loadDesk } from "../desk-data";
+import { loadStaffNames } from "../tasks-query";
 import { loadActionRequired, loadDashboard } from "../page-data";
+
+/* A read held open until the test lets it go. */
+const held = <T,>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+};
+/* Every read that is not held has answered once this returns: the stubs are
+   all promises, and a macrotask runs only when their chains have drained. */
+const settle = () => new Promise<void>((res) => setImmediate(res));
+const LINKS = () => new Map([["sm8-me", "s-me"], ["sm8-luke", "s-luke"]]);
 
 const chipsInput = () =>
   assembleChips.mock.calls.at(-1)![0] as { warnDays: number; orgCredentials: unknown[] };
@@ -169,12 +186,66 @@ describe("the new Home behind HOME_DESK", () => {
     expect(loadDesk).toHaveBeenCalledTimes(2);
   });
 
-  it("knows which ServiceM8 person the viewer is before the batch it rides in starts", async () => {
+  it("tells the desk which ServiceM8 person the viewer is, and nobody when the viewer is unlinked", async () => {
     process.env.HOME_DESK = "owner";
     await loadDashboard();
     expect(loadDesk).toHaveBeenCalledWith(expect.objectContaining({ mineUuid: "sm8-me", viewerStaffId: "s-me", isOwner: true }));
-    // the link map is read up front now, not beside the schedule it narrows
-    expect(sm8StaffLinkMap.mock.invocationCallOrder[0]).toBeLessThan(loadScheduleDay.mock.invocationCallOrder[0]);
+
+    sm8StaffLinkMap.mockImplementationOnce(async () => new Map([["sm8-luke", "s-luke"]]));
+    await loadDashboard();
+    expect(loadDesk).toHaveBeenLastCalledWith(expect.objectContaining({ mineUuid: null }));
+  });
+
+  /* The link map is two reads one after the other; the wait before the batch
+     is one. Waiting for the map there would start every read in the batch a
+     round trip late — for the crew on today's Home too. */
+  it.each([
+    ["today's Home", undefined],
+    ["the new Home", "owner"],
+  ])("on %s, the batch starts without waiting for the link map", async (_home, flag) => {
+    if (flag) process.env.HOME_DESK = flag;
+    const links = held<Map<string, string>>();
+    sm8StaffLinkMap.mockImplementationOnce(() => links.promise);
+
+    const page = loadDashboard();
+    await settle();
+    expect(loadScheduleDay).toHaveBeenCalledTimes(1);
+    expect(assembleChips).toHaveBeenCalledTimes(1);
+    // only the desk waits for it, since only the desk needs it in the batch
+    expect(loadDesk).not.toHaveBeenCalled();
+
+    links.resolve(LINKS());
+    const { rail, desk } = await page;
+    expect(rail.linked).toBe(true);
+    expect(rail.blocks.map((b) => b.key)).toEqual(["a1"]);
+    if (flag) {
+      expect(desk).toEqual({ warnDays: 45 });
+      expect(loadDesk).toHaveBeenCalledWith(expect.objectContaining({ mineUuid: "sm8-me" }));
+    } else {
+      expect(desk).toBeNull();
+    }
+  });
+
+  /* Started before a wait that is not for it, the map could fail with
+     nothing yet listening — an unhandled rejection, which fails this test. */
+  it("fails the page on a link map that fails while the first wait is still out, and leaves no rejection unhandled", async () => {
+    const names = held<Map<string, string>>();
+    (loadStaffNames as jest.Mock).mockImplementationOnce(() => names.promise);
+    sm8StaffLinkMap.mockImplementationOnce(async () => {
+      throw new Error("links down");
+    });
+
+    // the page's own failure is listened for from the start: it is not the one under test
+    const failed = loadDashboard().then(
+      () => null,
+      (err: unknown) => err
+    );
+    await settle();
+    expect(sm8StaffLinkMap).toHaveBeenCalledTimes(1);
+    expect(loadScheduleDay).not.toHaveBeenCalled();
+
+    names.resolve(new Map());
+    expect(await failed).toEqual(new Error("links down"));
   });
 });
 

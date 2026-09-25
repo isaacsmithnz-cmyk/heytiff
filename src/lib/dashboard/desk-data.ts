@@ -17,8 +17,10 @@
    WHAT IS SHARED is read once, for everyone, before that batch: the expiry
    window and the org's credentials (which the bell's chips were already
    reading for themselves — `readHomeShared` is those same two reads moved
-   up, not new ones), and which ServiceM8 person the viewer is, so a read
-   that needs `mineUuid` can ride the batch instead of queueing behind it. */
+   up, not new ones). Which ServiceM8 person the viewer is comes from the
+   link map, which is two reads in a row and so is NOT waited for before the
+   batch: `loadDesk` starts inside the batch as soon as that map is in, with
+   `mineUuid` in its context, so only the new Home's own reads wait for it. */
 
 import { listOrgCredentials, orgExpiryWindow } from "@/lib/org/query";
 import type { OrgCredential } from "@/lib/org/credentials";
@@ -43,7 +45,8 @@ export async function readHomeShared(orgId: string, isOwner: boolean): Promise<H
   return { expiry, orgCredentials };
 }
 
-/** Everything `loadDashboard` already knows when the batch starts. */
+/** Everything `loadDashboard` knows when the batch starts, plus `mineUuid`,
+    which is in once the link map is. */
 export type DeskContext = {
   orgId: string;
   viewerStaffId: string | null;

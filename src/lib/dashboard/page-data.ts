@@ -232,6 +232,30 @@ export async function loadDashboard(): Promise<DashboardData> {
   const today = todayInAu();
   const viewerStaffId = await staffProfileIdFor(orgId, userId);
 
+  /* WHICH OF THE CREW THE VIEWER IS. One cheap read on the table that is the
+     app's law for it — never a name match, which is exactly the guessing
+     `integration_links` exists to end (see lib/integrations/links and the
+     one-truth-per-staff-member rule).
+
+     Started now and awaited by nothing up front: it is two reads one after
+     the other (the connection, then its links), and the wait below is one,
+     so holding the whole page for it would start every read in the batch a
+     round trip late. It is needed only after the batch, for the rail, and by
+     the new Home's loader, which waits for it on its own. Caught at once so
+     a failure while the first wait is still out is no unhandled rejection;
+     the batch below still awaits the promise itself, so it fails the page as
+     it always did. */
+  const linksP =
+    caps.has("workboard") && viewerStaffId
+      ? sm8StaffLinkMap(orgId)
+      : Promise.resolve(new Map<string, string>());
+  linksP.catch(() => {});
+  /* The map is remote-uuid → staff card, so finding the viewer is a scan of
+     something with one row per linked person: small by construction, and the
+     alternative is a second query for a fact already in hand. */
+  const mineOf = (links: Map<string, string>): string | null =>
+    [...links.entries()].find(([, staffId]) => staffId === viewerStaffId)?.[0] ?? null;
+
   /* Five of the queries below label rows with a person's name, and each used to
      read the whole staff table for itself. Read it once and hand the same map
      round — the names cannot disagree between sections either, which they could
@@ -240,34 +264,20 @@ export async function loadDashboard(): Promise<DashboardData> {
      with it. Read alongside the names rather than after them: neither depends
      on the other, and this one gates a query in the batch below.
 
-     Three more ride here because the batch below needs their answers rather
-     than their company. WHICH OF THE CREW THE VIEWER IS: one cheap read on
-     the table that is the app's law for it — never a name match, which is
-     exactly the guessing `integration_links` exists to end (see
-     lib/integrations/links and the one-truth-per-staff-member rule) — and a
-     read that needs `mineUuid` can then ride the batch instead of queueing
-     behind it. And the expiry window and the org's credentials, which the
-     chips have always read for themselves: read once here and shared, so the
-     new Home's areas never read them a second time (./desk-data). */
-  const [names, vendor, sm8Links, shared] = await Promise.all([
+     And the expiry window and the org's credentials, which the chips have
+     always read for themselves: read once here and shared, so the new Home's
+     areas never read them a second time (./desk-data). They are one round
+     trip, as the names are, so this wait takes no longer for them. */
+  const [names, vendor, shared] = await Promise.all([
     loadStaffNames(orgId),
     sm8VendorOf(orgId),
-    caps.has("workboard") && viewerStaffId
-      ? sm8StaffLinkMap(orgId)
-      : Promise.resolve(new Map<string, string>()),
     readHomeShared(orgId, isOwner),
   ]);
   const railTz = vendor.tz;
   const railDay = todayInZone(railTz);
   const railNowMin = nowMinInZone(railTz);
 
-  /* The map is remote-uuid → staff card, so finding the viewer is a scan of
-     something with one row per linked person: small by construction, and the
-     alternative is a second query for a fact already in hand. */
-  const mineUuid =
-    [...sm8Links.entries()].find(([, staffId]) => staffId === viewerStaffId)?.[0] ?? null;
-
-  const [chips, calendar, tasks, notices, assignable, journal, jobs, issues, schedule, deskData] = await Promise.all([
+  const [chips, calendar, tasks, notices, assignable, journal, jobs, issues, schedule, sm8Links, deskData] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today, isOwner, shared),
     loadCalendar(orgId, today, viewerStaffId, canManage),
     loadTasks(orgId, viewerStaffId, canManage, names),
@@ -285,22 +295,27 @@ export async function loadDashboard(): Promise<DashboardData> {
     /* The day rail. Same gate as the board it mirrors — a viewer without
        `workboard` may not see the crew's bookings, on Home or anywhere. */
     caps.has("workboard") ? loadScheduleDay(orgId, railDay) : Promise.resolve(EMPTY_SCHEDULE),
-    /* The new Home's reads, in this same wait — and only for its viewers. */
+    linksP,
+    /* The new Home's reads, in this same wait — and only for its viewers.
+       It waits for the link map itself, so nobody else does. */
     desk
-      ? loadDesk({
-          orgId,
-          viewerStaffId,
-          caps,
-          isOwner,
-          today,
-          railDay,
-          tz: railTz,
-          mineUuid,
-          names,
-          shared,
-        })
+      ? linksP.then((links) =>
+          loadDesk({
+            orgId,
+            viewerStaffId,
+            caps,
+            isOwner,
+            today,
+            railDay,
+            tz: railTz,
+            mineUuid: mineOf(links),
+            names,
+            shared,
+          })
+        )
       : Promise.resolve(null),
   ]);
+  const mineUuid = mineOf(sm8Links);
 
   /* The board's own layout, then flattened: it knows what a block IS — the
      closure rule, the on-site join, the midnight clamp — and Home differs

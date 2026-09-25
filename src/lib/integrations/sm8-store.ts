@@ -42,6 +42,7 @@ import {
 } from "./sm8-sync-plan";
 import {
   cancelWaitingSm8Writes,
+  clearSm8NoteText,
   countSm8WritesInFlight,
   type CancelledWrite,
 } from "./sm8-write-cancel";
@@ -398,6 +399,9 @@ export async function switchSm8Account(
   if ((res.data ?? []).length === 0) return { ok: false, reason: "moved" };
 
   const cancelled = await cancelWaitingSm8Writes(orgId, WRITE_WORDS.otherAccount, now, { exceptFor: to.uuid });
+  /* the old account's notes' words leave the queue with it (only where the
+     deployment sends notes; HeyTiff's own rows keep them) */
+  await clearSm8NoteText({ orgId, exceptTenant: to.uuid }, now);
 
   let cleared = await clearCachedCopies(orgId);
   for (const table of SM8_ACCOUNT_RESET_TABLES) {
@@ -442,6 +446,10 @@ export async function disconnectSm8(
 ): Promise<{ cancelled: CancelledWrite[]; inFlight: number }> {
   const cancelled = await cancelWaitingSm8Writes(orgId, WRITE_WORDS.disconnected, now);
   const inFlight = await countSm8WritesInFlight(orgId, now);
+  /* every settled note's words leave the queue at once (only where the
+     deployment sends notes); a send still in flight settles later, and the
+     nightly cron clears it (clearDisconnectedSm8NoteText) */
+  await clearSm8NoteText({ orgId }, now);
   for (const table of SM8_WIPE_TABLES) {
     await supabaseAdmin.from(table).delete().eq("org_id", orgId);
   }

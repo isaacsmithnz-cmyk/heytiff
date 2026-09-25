@@ -58,20 +58,24 @@ import { isSm8Press, type Sm8Press } from "./sm8-press";
 import { sm8AccessResult, type Sm8Access } from "./sm8-store";
 import { withSm8Renewal } from "./sm8-renew";
 import { sm8CallOf } from "./sm8-http";
-import { cancelWaitingSm8Writes, countWaitingSm8Writes, type CancelledWrite } from "./sm8-write-cancel";
+import { cancelWaitingSm8Writes, countWaitingSm8WritesByKind, type CancelledWrite } from "./sm8-write-cancel";
 import { postSm8Attachment, readSm8Attachment } from "./sm8-write";
+import { sm8NotesAllowed, sm8WriteKindsEnabled } from "./sm8-kinds";
+import { NOTE_WORDS } from "./sm8-note-plan";
+import { sendNoteRow } from "./sm8-note-send";
 import {
   capAllows,
   dedupeKey,
   documentSubject,
   grantedKinds,
   kindReady,
+  kindsSwitchedOff,
+  readOwnerKinds,
   readPausedReason,
   readWriteMode,
   readWriteStatus,
   refusedKinds,
   sm8FileName,
-  sm8WriteKindsFrom,
   subjectDocumentId,
   verdictFor,
   verdictForAccountUnknown,
@@ -111,12 +115,10 @@ const missingColumn = (e: DbError) => e?.code === "PGRST204" || e?.code === "427
 
 /* ── the switches ── */
 
-/** The kinds this deployment may write: the operator's switch, SM8_WRITES
-    ("1" is files; or a comma list). Nothing when unset, so a preview or a
-    branch never writes to a business's ServiceM8. */
-export function sm8WriteKindsEnabled(): Sm8WriteKind[] {
-  return sm8WriteKindsFrom(process.env.SM8_WRITES);
-}
+/* The kinds this deployment may write (SM8_WRITES) live in sm8-kinds.ts, so
+   a reader can ask without importing the sender; re-exported here, so
+   everything that asked this module still does. */
+export { sm8WriteKindsEnabled, sm8NotesAllowed };
 
 /** Whether this deployment writes anything at all. */
 export function sm8WritesEnabled(): boolean {
@@ -133,7 +135,11 @@ type ConnectionRead = {
   paused_at: string | null;
   write_scope_refused: unknown;
   connected_at: string | null;
+  write_kinds?: unknown;
 };
+
+const STATE_COLUMNS =
+  "status, tenant_id, tenants, scopes, write_mode, paused_reason, paused_at, write_scope_refused, connected_at";
 
 /** The account's zone, from the connection's one tenant. */
 function timezoneOf(tenants: unknown): string | null {
@@ -148,17 +154,23 @@ function timezoneOf(tenants: unknown): string | null {
     `readable: false`, and the sender holds everything and cancels nothing:
     taken as "no connection" (as it once was), a blip would cancel every
     file waiting to go. A database without this migration's columns yet
-    reads the same way, and holds. */
+    reads the same way, and holds.
+
+    THE OWNER'S PER-KIND SWITCH (write_kinds) is read beside it. A database
+    without that column is read again without it: files read as on, as the
+    column meant before it existed, and `ownerKindsRead` is false, so
+    nothing is ever cancelled for a switch nobody could have set. Files are
+    never held for a missing column. */
 export async function readSm8WriteState(orgId: string): Promise<Sm8WriteState> {
   const kinds = sm8WriteKindsEnabled();
-  const { data, error } = await supabaseAdmin
-    .from(CONNECTIONS)
-    .select(
-      "status, tenant_id, tenants, scopes, write_mode, paused_reason, paused_at, write_scope_refused, connected_at"
-    )
-    .eq("org_id", orgId)
-    .eq("provider", PROVIDER)
-    .maybeSingle();
+  const read = (columns: string) =>
+    supabaseAdmin.from(CONNECTIONS).select(columns).eq("org_id", orgId).eq("provider", PROVIDER).maybeSingle();
+  let ownerKindsRead = true;
+  let { data, error } = await read(`${STATE_COLUMNS}, write_kinds`);
+  if (missingColumn(error as DbError)) {
+    ownerKindsRead = false;
+    ({ data, error } = await read(STATE_COLUMNS));
+  }
   if (error) {
     console.error(`[sm8] couldn't read the ServiceM8 write settings for org ${orgId}; holding every write:`, error);
     return {
@@ -175,9 +187,11 @@ export async function readSm8WriteState(orgId: string): Promise<Sm8WriteState> {
       granted: [],
       refused: [],
       timezoneName: null,
+      ownerKinds: [],
+      ownerKindsRead: false,
     };
   }
-  const row = data as ConnectionRead | null;
+  const row = data as unknown as ConnectionRead | null;
   return {
     readable: true,
     kinds,
@@ -192,6 +206,8 @@ export async function readSm8WriteState(orgId: string): Promise<Sm8WriteState> {
     granted: grantedKinds(row?.scopes ?? null),
     refused: refusedKinds(row?.write_scope_refused, row?.connected_at),
     timezoneName: timezoneOf(row?.tenants),
+    ownerKinds: ownerKindsRead ? readOwnerKinds(row?.write_kinds) : ["attachment"],
+    ownerKindsRead: ownerKindsRead && row !== null,
   };
 }
 
@@ -228,6 +244,8 @@ export async function setSm8WriteMode(orgId: string, mode: Sm8WriteMode, now: nu
    Re-exported, so everything that cancelled from here still does. */
 export { cancelWaitingSm8Writes };
 export type { CancelledWrite };
+/* and a note's words leaving the queue, for the nightly cron */
+export { clearDisconnectedSm8NoteText, clearSm8NoteText } from "./sm8-write-cancel";
 
 /** HeyTiff's own pause: more than WRITE_HOURLY_CAP pressed in an hour. Only
     over a workspace that is On — an owner's own Off or Paused stays theirs. */
@@ -251,9 +269,19 @@ async function tripSm8Pause(orgId: string, now: number): Promise<boolean> {
 
 /** ServiceM8 refused `kind` for scope. Recorded against the connection, so
     no row of that kind goes until a reconnect (a newer connected_at) clears
-    it — see refusedKinds. A read, a merge and a write: with one kind today
-    there is nothing for two refusals to race over. */
+    it — see refusedKinds. ONE ATOMIC UPDATE (the sm8_mark_kind_refused
+    function merges the kind into the jsonb in place), because with two
+    kinds two refusals can race: a read, a merge and a write would let the
+    second overwrite the first. The read-merge-write stays only for a
+    database without the function yet (PGRST202). */
 async function markSm8KindRefused(orgId: string, kind: Sm8WriteKind, now: number): Promise<void> {
+  const at = new Date(now).toISOString();
+  const rpc = await supabaseAdmin.rpc("sm8_mark_kind_refused", { p_org: orgId, p_kind: kind, p_at: at });
+  if (!rpc.error) return;
+  if ((rpc.error as DbError)?.code !== "PGRST202") {
+    console.error(`[sm8] couldn't record that ServiceM8 refused ${kind} for org ${orgId}:`, rpc.error);
+    return;
+  }
   const { data, error } = await supabaseAdmin
     .from(CONNECTIONS)
     .select("write_scope_refused")
@@ -268,10 +296,47 @@ async function markSm8KindRefused(orgId: string, kind: Sm8WriteKind, now: number
   const was = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
   const { error: writeError } = await supabaseAdmin
     .from(CONNECTIONS)
-    .update({ write_scope_refused: { ...was, [kind]: new Date(now).toISOString() } })
+    .update({ write_scope_refused: { ...was, [kind]: at } })
     .eq("org_id", orgId)
     .eq("provider", PROVIDER);
   if (writeError) console.error(`[sm8] couldn't record that ServiceM8 refused ${kind} for org ${orgId}:`, writeError);
+}
+
+export type KindChange = { ok: true; cancelled: CancelledWrite[] } | { ok: false };
+
+/** The owner's switch for ONE KIND (Files, Notes), under the one Off /
+    Trial run / Paused / On. A single atomic update (sm8_set_write_kind), so
+    two switches pressed at once can't lose one. Off also cancels that
+    kind's waiting rows — for notes, creates, flag changes and take-backs
+    alike — in that kind's words, and says what it cancelled. */
+export async function setSm8WriteKind(
+  orgId: string,
+  kind: Sm8WriteKind,
+  on: boolean,
+  now: number = Date.now()
+): Promise<KindChange> {
+  const iso = new Date(now).toISOString();
+  const { data, error } = await supabaseAdmin.rpc("sm8_set_write_kind", {
+    p_org: orgId,
+    p_kind: kind,
+    p_on: on,
+    p_at: iso,
+  });
+  /* no connection row answers null; an empty list is a switch that took
+     (every kind off) */
+  if (error || data === null || data === undefined) {
+    if (error) console.error(`[sm8] couldn't switch ${kind} ${on ? "on" : "off"} for org ${orgId}:`, error);
+    return { ok: false };
+  }
+  const cancelled = on
+    ? []
+    : await cancelWaitingSm8Writes(
+        orgId,
+        kind === "note" ? NOTE_WORDS.row.notesSwitchedOff : NOTE_WORDS.row.filesSwitchedOff,
+        now,
+        { kind }
+      );
+  return { ok: true, cancelled };
 }
 
 /** Every queued row waits until at least `iso` — the account's trouble (an
@@ -297,6 +362,23 @@ export type Sm8WriteToQueue = {
   payload: Record<string, unknown>;
   /** What the caller calls it, handed back in `already`. */
   ref: string;
+  /* A NOTE'S DETAILS, in columns of their own (docs/migrations/
+     sm8_notes_queue.sql): written only for kind "note", so a file row still
+     inserts on a database without that migration. The payload holds only
+     `{ name: <label> }`. */
+  op?: "create" | "update" | "delete";
+  /** HeyTiff's own row the note is (workboard_notes). */
+  noteId?: string;
+  /** A take-back's create row. */
+  dependsOn?: string;
+  /** The ServiceM8 note a flag change is made to. */
+  targetUuid?: string;
+  flagDone?: boolean;
+  /** The edit time and editor the presser saw (a flag change). */
+  seenEditDate?: string | null;
+  seenEditBy?: string | null;
+  /** The words a create goes with, from HeyTiff's row. */
+  noteText?: string;
 };
 
 export type Enqueued = {
@@ -307,11 +389,15 @@ export type Enqueued = {
   /** Nothing was queued: this press would have taken the account past the
       hourly cap, and sending is now paused. */
   capped: boolean;
+  /** Note rows someone else pressed: a note goes as whoever pressed it, and
+      only they can press it again. Left as they are. */
+  others?: string[];
 };
 
 type ExistingRow = {
   id: string;
   dedupe_key: string;
+  kind?: string;
   status: string;
   attempts: number;
   remote_uuid: string;
@@ -319,10 +405,13 @@ type ExistingRow = {
   maybe_landed: boolean | null;
   verify_uuids: string[] | null;
   pressed_at: string | null;
+  requested_by?: string | null;
+  taken_back_at?: string | null;
+  op?: string | null;
 };
 
 const EXISTING_COLUMNS =
-  "id, dedupe_key, status, attempts, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, pressed_at";
+  "id, dedupe_key, kind, requested_by, status, attempts, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, pressed_at";
 
 /** Where the hourly count starts: an hour ago, or the last pause if later —
     so the presses that tripped a pause don't count again once it's lifted. */
@@ -380,6 +469,32 @@ function againPatch(row: ExistingRow, press: Sm8Press, tenantId: string, iso: st
   };
 }
 
+/** A NOTE ROW NEVER CHANGES WHO PRESSED IT. Its patches never NAME
+    requested_by or requested_by_user, not even at the same value: the
+    migration's trigger refuses any update of a note row that names either
+    (which is what stops OLD code's Retry, after a rollback, re-queueing a
+    note), and new code never meets it. */
+function withoutPresser(patch: Record<string, unknown>): Record<string, unknown> {
+  const { requested_by: _by, requested_by_user: _user, ...rest } = patch;
+  void _by;
+  void _user;
+  return rest;
+}
+
+/** The columns a fresh note row carries beside the common ones. */
+function noteColumns(w: Sm8WriteToQueue): Record<string, unknown> {
+  return {
+    op: w.op ?? "create",
+    note_id: w.noteId ?? null,
+    depends_on: w.dependsOn ?? null,
+    target_uuid: w.targetUuid ?? null,
+    flag_done: w.flagDone ?? null,
+    seen_edit_date: w.seenEditDate ?? null,
+    seen_edit_by: w.seenEditBy ?? null,
+    note_text: w.noteText ?? null,
+  };
+}
+
 /** Queue writes for the press that asked for them. Null when the queue
     couldn't be written, or when this isn't a press (logged).
 
@@ -391,7 +506,16 @@ function againPatch(row: ExistingRow, press: Sm8Press, tenantId: string, iso: st
 
     THE HOURLY CAP, while On: if this press would take the account past
     WRITE_HOURLY_CAP writes in the hour, NOTHING is queued, sending pauses,
-    and `capped` says so. */
+    and `capped` says so.
+
+    A NOTE ROW (only sm8-note-queue queues one) keeps three more rules:
+    - pressed again by anyone but whoever pressed it, it is left alone and
+      its ref comes back in `others`;
+    - its patches never name the presser (withoutPresser);
+    - a create's patch writes its words and note again (the 30-day clear
+      may have taken the words), leaves the payload alone, and misses on a
+      create somebody took back (taken_back_at), which is answered in
+      `already` — the helper then reads the note again and says so. */
 export async function enqueueSm8Writes(
   press: Sm8Press,
   state: Sm8WriteState,
@@ -417,16 +541,17 @@ export async function enqueueSm8Writes(
     if (!byKey.has(key)) byKey.set(key, w);
   }
 
+  const holdsNote = writes.some((w) => w.kind === "note");
   const { data, error } = await supabaseAdmin
     .from(TABLE)
-    .select(EXISTING_COLUMNS)
+    .select(holdsNote ? `${EXISTING_COLUMNS}, op, taken_back_at` : EXISTING_COLUMNS)
     .eq("org_id", orgId)
     .in("dedupe_key", [...byKey.keys()]);
   if (error) {
     console.error(`[sm8] couldn't read the queue for org ${orgId}:`, error);
     return null;
   }
-  const existing = new Map(((data ?? []) as ExistingRow[]).map((r) => [r.dedupe_key, r]));
+  const existing = new Map(((data ?? []) as unknown as ExistingRow[]).map((r) => [r.dedupe_key, r]));
 
   if (state.mode === "live") {
     const since = capWindowStart(now, state.pausedAt);
@@ -452,10 +577,12 @@ export async function enqueueSm8Writes(
 
   const ids: string[] = [];
   const already: string[] = [];
+  const others: string[] = [];
   const fresh: FreshRow[] = [];
 
   for (const [key, w] of byKey) {
     const row = existing.get(key);
+    const note = w.kind === "note";
     if (!row) {
       fresh.push({
         key,
@@ -477,18 +604,31 @@ export async function enqueueSm8Writes(
           requested_by_user: press.userId,
           created_at: iso,
           updated_at: iso,
+          ...(note ? noteColumns(w) : {}),
         },
       });
       continue;
     }
 
+    /* a note goes as whoever pressed it: nobody else presses it again */
+    if (note && (row.requested_by ?? null) !== press.staffId) {
+      others.push(w.ref);
+      continue;
+    }
     const status = readWriteStatus(row.status);
     if (status === "sent" || status === "sending") {
       already.push(w.ref);
       continue;
     }
-    const patch =
-      status === "queued"
+    const create = note && (w.op ?? "create") === "create";
+    /* a create's words and note, again: the 30-day clear may have taken the
+       words, and the press puts them back from HeyTiff's own row */
+    const createCols = create ? { note_text: w.noteText ?? null, note_id: w.noteId ?? null } : {};
+    const patch = note
+      ? status === "queued"
+        ? { tenant_id: tenantId, next_attempt_at: iso, updated_at: iso, ...createCols }
+        : { ...withoutPresser(againPatch(row, press, tenantId, iso)), ...createCols }
+      : status === "queued"
         ? {
             tenant_id: tenantId,
             payload: w.payload,
@@ -501,14 +641,17 @@ export async function enqueueSm8Writes(
     /* conditional on the status it was read in: a sender that claimed it in
        between owns it now, and this press is answered "on its way". A write
        that FAILED is not that: it queued nothing, and saying "already" would
-       tell the office a file is in ServiceM8 that went nowhere. */
-    const { data: again, error: againError } = await supabaseAdmin
+       tell the office a file is in ServiceM8 that went nowhere. A create
+       somebody took back is never queued again, even by a press racing the
+       Undo: the patch misses, and the helper answers from the note. */
+    let again$ = supabaseAdmin
       .from(TABLE)
       .update(patch)
       .eq("org_id", orgId)
       .eq("id", row.id)
-      .eq("status", row.status)
-      .select("id");
+      .eq("status", row.status);
+    if (create) again$ = again$.is("taken_back_at", null);
+    const { data: again, error: againError } = await again$.select("id");
     if (againError) {
       console.error(`[sm8] couldn't queue write ${row.id} again for org ${orgId}:`, againError);
       return null;
@@ -524,7 +667,7 @@ export async function enqueueSm8Writes(
     already.push(...made.already);
   }
 
-  return { ids, already, capped: false };
+  return others.length > 0 ? { ids, already, capped: false, others } : { ids, already, capped: false };
 }
 
 type FreshRow = { key: string; ref: string; row: Record<string, unknown> };
@@ -651,7 +794,11 @@ export type Retried = {
 /** The owner's Retry failed files: every failed write for the account
     connected now, oldest first, queued again the way a press would (a new
     uuid, the old one checked where it may have landed). It NEVER TRIPS
-    PAUSE: it takes what the hour has room for and says how many are left. */
+    PAUSE: it takes what the hour has room for and says how many are left.
+
+    FILES ONLY — the select and the count of what is left alike. A note goes
+    as whoever pressed it, and only they can send it again (from its own
+    line); an owner's Retry never names it, and never counts it as left. */
 export async function retryFailedSm8Writes(
   press: Sm8Press,
   state: Sm8WriteState,
@@ -682,6 +829,7 @@ export async function retryFailedSm8Writes(
       .select(EXISTING_COLUMNS)
       .eq("org_id", orgId)
       .eq("tenant_id", tenantId)
+      .eq("kind", "attachment")
       .eq("status", "failed")
       .order("updated_at", { ascending: true })
       .limit(room);
@@ -689,7 +837,7 @@ export async function retryFailedSm8Writes(
       console.error(`[sm8] couldn't read the failed writes for org ${orgId}:`, error);
       return null;
     }
-    for (const row of (data ?? []) as ExistingRow[]) {
+    for (const row of (data ?? []) as unknown as ExistingRow[]) {
       const { data: again, error: againError } = await supabaseAdmin
         .from(TABLE)
         .update(againPatch(row, press, tenantId, iso))
@@ -708,6 +856,7 @@ export async function retryFailedSm8Writes(
     .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
     .eq("tenant_id", tenantId)
+    .eq("kind", "attachment")
     .eq("status", "failed");
   const left = countError ? 0 : count ?? 0;
   return { queued, left, capped: room === 0, byHour: left > 0 && byHourRoom <= RETRY_BATCH };
@@ -735,7 +884,9 @@ export type Sm8WriteRun = {
 
 const NONE: Sm8WriteRun = { done: 0, sent: 0, trial: 0, failed: 0, again: 0, lost: 0, stopped: null };
 
-type WriteRow = {
+/** A queue row as the sender reads it. The note columns are absent on a
+    database without the notes migration (dueRows reads files only there). */
+export type WriteRow = {
   id: string;
   tenant_id: string;
   kind: string;
@@ -750,37 +901,116 @@ type WriteRow = {
   maybe_landed: boolean | null;
   verify_uuids: string[] | null;
   free_retries: number | null;
+  op?: string | null;
+  note_id?: string | null;
+  depends_on?: string | null;
+  target_uuid?: string | null;
+  flag_done?: boolean | null;
+  seen_edit_date?: string | null;
+  seen_edit_by?: string | null;
+  note_text?: string | null;
+  requested_by?: string | null;
+  pressed_at?: string | null;
+  next_attempt_at?: string | null;
+  taken_back_at?: string | null;
 };
 
-const ROW_COLUMNS =
+const PHASE0_COLUMNS =
   "id, tenant_id, kind, sm8_job_uuid, subject, payload, remote_uuid, status, attempts, lease_until, replaced_uuids, maybe_landed, verify_uuids, free_retries";
+
+const ROW_COLUMNS = `${PHASE0_COLUMNS}, op, note_id, depends_on, target_uuid, flag_done, seen_edit_date, seen_edit_by, note_text, requested_by, pressed_at, next_attempt_at, taken_back_at`;
+
+const isNoteCreate = (r: WriteRow) => r.kind === "note" && (r.op ?? "create") === "create";
 
 /** Rows of the `kinds` ready to go, due now, oldest first: queued ones whose
     wait is over, and sends whose claim lapsed (a worker that died
-    mid-request). */
+    mid-request). A database without the notes migration's columns is read
+    again with the phase-0 list, files only. `removedNotes` are the notes
+    (by id) of the batch's note creates that somebody took back — one read
+    of workboard_notes, made only when the batch holds a note create. */
 async function dueRows(
   orgId: string,
   now: number,
   kinds: readonly Sm8WriteKind[],
   ids?: readonly string[]
-): Promise<WriteRow[]> {
+): Promise<{ rows: WriteRow[]; removedNotes: Set<string> }> {
   const iso = new Date(now).toISOString();
-  let q = supabaseAdmin
-    .from(TABLE)
-    .select(ROW_COLUMNS)
-    .eq("org_id", orgId)
-    .in("kind", [...kinds])
-    .in("status", ["queued", "sending"])
-    .lte("next_attempt_at", iso);
-  if (ids) q = q.in("id", [...ids]);
-  const { data, error } = await q.order("created_at", { ascending: true }).limit(WRITE_BATCH * 3);
+  const read = (columns: string, only: readonly string[]) => {
+    let q = supabaseAdmin
+      .from(TABLE)
+      .select(columns)
+      .eq("org_id", orgId)
+      .in("kind", [...only])
+      .in("status", ["queued", "sending"])
+      .lte("next_attempt_at", iso);
+    if (ids) q = q.in("id", [...ids]);
+    return q.order("created_at", { ascending: true }).limit(WRITE_BATCH * 3);
+  };
+  let { data, error } = await read(ROW_COLUMNS, kinds);
+  if (missingColumn(error as DbError)) {
+    ({ data, error } = await read(PHASE0_COLUMNS, kinds.filter((k) => k === "attachment")));
+  }
   if (error) {
     console.error(`[sm8] couldn't read what is due to go for org ${orgId}:`, error);
-    return [];
+    return { rows: [], removedNotes: new Set() };
   }
-  return ((data ?? []) as WriteRow[]).filter(
+  const rows = ((data ?? []) as unknown as WriteRow[]).filter(
     (r) => r.status === "queued" || (r.lease_until !== null && Date.parse(r.lease_until) < now)
   );
+
+  const noteIds = [...new Set(rows.filter(isNoteCreate).map((r) => r.note_id).filter((n): n is string => !!n))];
+  const removedNotes = new Set<string>();
+  if (noteIds.length > 0) {
+    const { data: notes, error: notesError } = await supabaseAdmin
+      .from("workboard_notes")
+      .select("id, removed_at")
+      .eq("org_id", orgId)
+      .in("id", noteIds);
+    if (notesError) {
+      /* not knowing is not "removed": the check inside every POST attempt
+         reads it again before anything goes */
+      console.error(`[sm8] couldn't read whether org ${orgId}'s notes were taken back:`, notesError);
+    }
+    for (const n of (notes ?? []) as { id: string; removed_at: string | null }[]) {
+      if (n.removed_at) removedNotes.add(n.id);
+    }
+  }
+  return { rows, removedNotes };
+}
+
+/** A note create somebody took back, never claimed: cancelled in place
+    ("Taken back before it went") by an update that matches the row exactly
+    as dueRows read it — the same status and attempts, and for a lapsed send
+    an expired lease, the condition a claim uses — so it can't take a row a
+    sender has just claimed. `maybe_landed` and `verify_uuids` stay as they
+    are: the take-back reads them to know what to take out. A note whose
+    tombstone is set but whose create isn't closed yet (a Send that raced a
+    take-back) is closed first. A miss changes nothing. */
+async function cancelTakenBack(orgId: string, row: WriteRow, now: number): Promise<void> {
+  const iso = new Date(now).toISOString();
+  if (!row.taken_back_at) {
+    await supabaseAdmin
+      .from(TABLE)
+      .update({ taken_back_at: iso })
+      .eq("org_id", orgId)
+      .eq("id", row.id)
+      .is("taken_back_at", null);
+  }
+  let q = supabaseAdmin
+    .from(TABLE)
+    .update({
+      status: "cancelled",
+      last_error: NOTE_WORDS.row.takenBackBeforeSent,
+      lease_until: null,
+      claim_id: null,
+      updated_at: iso,
+    })
+    .eq("org_id", orgId)
+    .eq("id", row.id)
+    .eq("attempts", row.attempts);
+  q = row.status === "sending" ? q.eq("status", "sending").lt("lease_until", iso) : q.eq("status", "queued");
+  const { error } = await q.select("id");
+  if (error) console.error(`[sm8] couldn't cancel taken-back note ${row.id} for org ${orgId}:`, error);
 }
 
 /** Take one row for this sender. The update matches only the row as it was
@@ -810,18 +1040,40 @@ async function claim(orgId: string, row: WriteRow, now: number, live: boolean): 
     .eq("id", row.id)
     .eq("attempts", row.attempts);
   q = row.status === "sending" ? q.eq("status", "sending").lt("lease_until", iso) : q.eq("status", "queued");
+  /* A NOTE TAKEN BACK IS NEVER CLAIMED: an Undo that lands after dueRows
+     read the row makes this miss. File rows are claimed exactly as before
+     (a database without the column must still claim files). */
+  if (row.kind === "note") q = q.is("taken_back_at", null);
   const { data } = await q.select("id");
   return (data ?? []).length > 0 ? claimId : null;
 }
 
-type Finish = {
+export type Finish = {
   status: Sm8WriteStatus;
   error: string | null;
   httpStatus: number | null;
   verdict?: WriteVerdict;
   /** ServiceM8 knows the record by this uuid rather than the one we sent:
-      its own choice, or an earlier upload the check before this one found. */
+      its own choice, or an earlier upload the check before this one found.
+      For a note, written ONLY FOR A CREATE: an update's or a delete's
+      x-record-uuid is someone else's note, and stored it would hide that
+      note as one of ours (sm8-echo). */
   remoteUuid?: string;
+  /** Uuids this send spent (a note posted under a fresh uuid): remembered
+      as ours. */
+  replacedUuids?: string[];
+  /** The read-back ruled the row's own uuid out, so nothing under it can
+      have landed. */
+  ownRuledOut?: boolean;
+  /** A note: whose ServiceM8 staff uuid it went as, read from the link at
+      send time. */
+  asStaffUuid?: string;
+  /** A take-back or a flag change: the ServiceM8 note it acted on. */
+  targetUuid?: string;
+  /** A flag change: the edit time our change left on the note. */
+  landedEditDate?: string | null;
+  /** When a queued row may go again, for a finish with no verdict. */
+  retryAfterMs?: number;
   /** What ServiceM8 said, when it refused — kept, never shown. */
   remote?: RemoteError | null;
   /** The uuids still waiting for their check, when the send read some back
@@ -854,26 +1106,40 @@ async function finish(orgId: string, row: WriteRow, claimId: string, f: Finish, 
   /* the claim counted this attempt; one that wasn't the row's doing is
      handed back */
   if (f.verdict?.refund) patch.attempts = row.attempts;
-  if (f.status === "queued") patch.next_attempt_at = new Date(now + (f.verdict?.retryAfterMs ?? 0)).toISOString();
+  if (f.status === "queued") {
+    patch.next_attempt_at = new Date(now + (f.retryAfterMs ?? f.verdict?.retryAfterMs ?? 0)).toISOString();
+  }
   if (f.verifyUuids) patch.verify_uuids = f.verifyUuids;
   if (f.status === "sent") {
     patch.sent_at = iso;
     patch.verify_uuids = [];
   }
   /* What is known about the row's uuid, over the claim's mark: it stays
-     marked once any upload under it was lost, until it is sent or spent. */
+     marked once any upload under it was lost, until it is sent or spent. It
+     is worked out from the row AS READ BEFORE THE CLAIM, so a note whose
+     POST never went (taken back first, say) reads as never landed. */
   const spent = f.status === "sent" || f.verdict?.freshUuid === true;
-  patch.maybe_landed = spent ? false : row.maybe_landed === true || f.uploadLost === true;
-  if (f.remoteUuid) {
+  const before = f.ownRuledOut ? false : row.maybe_landed === true;
+  patch.maybe_landed = spent ? false : before || f.uploadLost === true;
+  const creates = row.kind !== "note" || (row.op ?? "create") === "create";
+  let replacedNow = replaced;
+  if (f.replacedUuids && f.replacedUuids.length > 0 && creates) {
+    replacedNow = [...new Set([...replaced, ...f.replacedUuids])];
+    patch.replaced_uuids = replacedNow;
+  }
+  if (f.remoteUuid && creates) {
     patch.remote_uuid = f.remoteUuid;
     /* an earlier uuid found in ServiceM8 is the record now, not a spent one */
-    if (replaced.includes(f.remoteUuid)) patch.replaced_uuids = replaced.filter((u) => u !== f.remoteUuid);
+    if (replacedNow.includes(f.remoteUuid)) patch.replaced_uuids = replacedNow.filter((u) => u !== f.remoteUuid);
   }
   if (f.verdict?.freshUuid) {
     patch.remote_uuid = randomUUID();
-    patch.replaced_uuids = [...new Set([...replaced, row.remote_uuid])];
+    patch.replaced_uuids = [...new Set([...replacedNow, row.remote_uuid])];
   }
   if (f.verdict?.freeRetry) patch.free_retries = (row.free_retries ?? 0) + 1;
+  if (f.asStaffUuid) patch.as_staff_uuid = f.asStaffUuid;
+  if (f.targetUuid && row.kind === "note" && row.op === "delete") patch.target_uuid = f.targetUuid;
+  if (f.landedEditDate !== undefined && row.kind === "note") patch.landed_edit_date = f.landedEditDate;
 
   const { data, error } = await supabaseAdmin
     .from(TABLE)
@@ -1019,6 +1285,9 @@ async function sendOne(
   if (row.tenant_id !== state.tenantId) {
     return { finish: { status: "cancelled", error: WRITE_WORDS.otherAccount, httpStatus: null }, access };
   }
+  /* a note is its own engine (sm8-note-send): as a person, with read-backs
+     and take-backs. Files go on exactly as before. */
+  if (row.kind === "note") return sendNoteRow(orgId, state, row, attempts, access, t);
   const payload = row.kind === "attachment" ? readPayload(row) : null;
   if (!payload || !row.sm8_job_uuid) {
     return { finish: { status: "cancelled", error: WRITE_WORDS.fileGone, httpStatus: null }, access };
@@ -1108,15 +1377,19 @@ async function sendOne(
        flight at the disconnect finishes back in the queue, and goes here);
     4. the owner's Off, as stored: cancel. A stored value that isn't a
        setting holds;
+    4b. a kind the owner switched off (Files, Notes): cancel that kind's
+       waiting rows, in its words — paused or not;
     5. no account named: stop;
     6. paused: hold, cancel nothing;
     7. On with a grant that doesn't work: stop for the reconnect;
-    8. no kind whose permission is held: stop, holding them.
+    8. no kind ready (switched on, permission held): stop, holding them.
 
-    AND AGAIN BEFORE EVERY CLAIM AFTER A SEND. Pause changes no row, so a
-    run already going when the owner presses it would carry on claiming on
-    the setting it started with; the switch and the account are read again
-    (one row), and a run whose setting or account has moved stops there. */
+    AND AGAIN BEFORE EVERY CLAIM AFTER A SEND, AND BEFORE EVERY NOTE. Pause
+    changes no row, so a run already going when the owner presses it would
+    carry on claiming on the setting it started with; the switch and the
+    account are read again (one row), and a run whose setting or account has
+    moved stops there. A row whose kind isn't ready in the fresh reading is
+    skipped, not claimed: Notes Off stops the notes, and files go on. */
 export async function runSm8Writes(
   orgId: string,
   trigger: Sm8WriteTrigger,
@@ -1140,14 +1413,32 @@ export async function runSm8Writes(
     await cancelWaitingSm8Writes(orgId, WRITE_WORDS.switchedOff, started);
     return { ...NONE, stopped: "Writing to ServiceM8 is switched off." };
   }
+  /* 4b. A KIND THE OWNER SWITCHED OFF: what of it is still waiting never
+     goes — a row queued by a press that read the state just before the
+     Off, say. Before the pause, so a straggler is cancelled while paused
+     too. None unless the deployment allows a kind the owner has off, so a
+     files-only deployment with files on makes no query here. */
+  for (const kind of kindsSwitchedOff(state)) {
+    await cancelWaitingSm8Writes(
+      orgId,
+      kind === "note" ? NOTE_WORDS.row.notesSwitchedOff : NOTE_WORDS.row.filesSwitchedOff,
+      started,
+      { kind }
+    );
+  }
   if (!state.tenantId) return { ...NONE, stopped: "ServiceM8 isn't connected." };
   if (state.mode === "paused") return { ...NONE, stopped: WRITE_WORDS.paused };
   const live = state.mode === "live";
   if (live && !state.connected) return { ...NONE, stopped: WRITE_WORDS.reauth };
   const ready = state.kinds.filter((k) => kindReady(state, k));
-  if (ready.length === 0) return { ...NONE, stopped: WRITE_WORDS.scopeHeld };
+  if (ready.length === 0) {
+    /* files alone allowed: exactly today's words */
+    if (state.kinds.length === 1 && state.kinds[0] === "attachment") return { ...NONE, stopped: WRITE_WORDS.scopeHeld };
+    const anyOn = state.kinds.some((k) => state.ownerKinds.includes(k));
+    return { ...NONE, stopped: anyOn ? NOTE_WORDS.kindWords.heldAll : NOTE_WORDS.kindWords.allOff };
+  }
 
-  const due = await dueRows(orgId, started, ready, opts.ids);
+  const { rows: due, removedNotes } = await dueRows(orgId, started, ready, opts.ids);
   if (due.length === 0) return NONE;
 
   /* The rows are left exactly as they are when there's no token: a grant
@@ -1169,7 +1460,18 @@ export async function runSm8Writes(
   let sentSinceRead = false;
   for (const row of due) {
     if (run.done >= WRITE_BATCH) break;
-    if (sentSinceRead) {
+    const note = row.kind === "note";
+    /* A NOTE TAKEN BACK IS CANCELLED, NEVER CLAIMED: its create closed by an
+       Undo, or its note's tombstone set by a take-back that raced a Send
+       (whose create is closed here first). No request goes. */
+    if (isNoteCreate(row) && (row.taken_back_at || (row.note_id && removedNotes.has(row.note_id)))) {
+      await cancelTakenBack(orgId, row, clock());
+      continue;
+    }
+    /* Before a NOTE the switch is read again every time, not only after a
+       send: Notes Off, or a note's permission refused, stops a run already
+       going from claiming another note, while files behind it still go. */
+    if (sentSinceRead || note) {
       const moved = await switchMoved(orgId, state);
       if (typeof moved === "string") {
         run.stopped = moved;
@@ -1178,6 +1480,8 @@ export async function runSm8Writes(
       current = moved;
       sentSinceRead = false;
     }
+    /* a kind that isn't ready now (switched off, refused since) is skipped */
+    if (!kindReady(current, row.kind as Sm8WriteKind)) continue;
     /* the budget is checked last, right before the claim it bounds */
     if (opts.budgetMs !== undefined && clock() - started > opts.budgetMs) break;
     const claimedAt = clock();
@@ -1195,7 +1499,10 @@ export async function runSm8Writes(
          claimed until its lease lapses — and, not knowing whether an upload
          went, a live send keeps its uuid marked as maybe landed */
       console.error(`[sm8] write ${row.id} (${trigger}) threw: ${err instanceof Error ? err.message : String(err)}`);
-      f = { ...fromVerdict(verdictForUnreadable(row.attempts + 1)), uploadLost: live };
+      f = {
+        ...fromVerdict(verdictForUnreadable(row.attempts + 1, note ? "note" : "attachment")),
+        uploadLost: live,
+      };
     }
     const landed = await finish(orgId, row, claimId, f, clock());
 
@@ -1218,7 +1525,9 @@ export async function runSm8Writes(
       run.stopped = f.error;
       break;
     }
-    refusedInARow = f.httpStatus === 403 && !f.verdict?.blockKind ? refusedInARow + 1 : 0;
+    /* A PERSON'S REFUSAL (a note that goes as someone whose ServiceM8 login
+       can't do this) is theirs, not the account's: it never counts */
+    if (!f.verdict?.personal) refusedInARow = f.httpStatus === 403 && !f.verdict?.blockKind ? refusedInARow + 1 : 0;
     if (refusedInARow >= 2) {
       run.stopped = WRITE_WORDS.forbidden;
       break;
@@ -1313,7 +1622,10 @@ export async function readJobSends(orgId: string, jobUuid: string): Promise<JobS
 
 export type RecentSm8Write = {
   id: string;
-  /** The file's name as it went. */
+  /** A file or a note. */
+  kind: Sm8WriteKind;
+  /** The file's name as it went; a note's label ("Reply", "Done."), never
+      its words. */
   name: string;
   /** "2380", when the job is still in the mirror. */
   jobNumber: string | null;
@@ -1331,10 +1643,12 @@ const RECENT_DAYS = 30;
 /** Each half of the list stops here. */
 const RECENT_CAP = 200;
 
-const RECENT_COLUMNS = "id, sm8_job_uuid, payload, status, attempts, last_error, updated_at, requested_by";
+/* never note_text: the owner's list names a note by its label */
+const RECENT_COLUMNS = "id, kind, sm8_job_uuid, payload, status, attempts, last_error, updated_at, requested_by";
 
 type RecentRow = {
   id: string;
+  kind?: string;
   sm8_job_uuid: string | null;
   payload: unknown;
   status: string;
@@ -1391,9 +1705,11 @@ export async function listRecentSm8Writes(orgId: string, now: number = Date.now(
 
   return rows.map((r) => {
     const p = (r.payload && typeof r.payload === "object" ? r.payload : {}) as Record<string, unknown>;
+    const note = r.kind === "note";
     return {
       id: r.id,
-      name: typeof p.name === "string" && p.name ? p.name : "A file",
+      kind: note ? ("note" as const) : ("attachment" as const),
+      name: typeof p.name === "string" && p.name ? p.name : note ? NOTE_WORDS.label.fallback : "A file",
       jobNumber: r.sm8_job_uuid ? numbers.get(r.sm8_job_uuid) ?? null : null,
       status: readWriteStatus(r.status),
       attempts: r.attempts ?? 0,
@@ -1415,19 +1731,27 @@ export async function countSm8Queue(
   orgId: string,
   tenantId: string | null,
   now: number = Date.now()
-): Promise<{ waiting: number; failed: number }> {
-  const [waiting, failed] = await Promise.all([
-    countWaitingSm8Writes(orgId, now),
+): Promise<{ waiting: number; failed: number; waitingKinds: { attachment: number; note: number } }> {
+  const [waitingKinds, failed] = await Promise.all([
+    /* per kind only where the deployment sends notes; otherwise today's one
+       count, every row of it a file */
+    countWaitingSm8WritesByKind(orgId, now),
+    /* what Retry failed files can take: files only */
     tenantId
       ? supabaseAdmin
           .from(TABLE)
           .select("id", { count: "exact", head: true })
           .eq("org_id", orgId)
           .eq("tenant_id", tenantId)
+          .eq("kind", "attachment")
           .eq("status", "failed")
       : Promise.resolve({ count: 0, error: null }),
   ]);
-  return { waiting, failed: failed.error ? 0 : failed.count ?? 0 };
+  return {
+    waiting: waitingKinds.attachment + waitingKinds.note,
+    failed: failed.error ? 0 : failed.count ?? 0,
+    waitingKinds,
+  };
 }
 
 /** Why a workspace's waiting writes are stuck, for the owner's bell — null
@@ -1439,17 +1763,24 @@ export async function countSm8Queue(
       permission a kind needs.
     An owner's own pause, Off and a trial run are the owner's choices, and
     say nothing here. */
-export type Sm8QueueStuck = { reason: "cap" | "billing" | "reconnect"; waiting: number };
+export type Sm8QueueStuck = {
+  reason: "cap" | "billing" | "reconnect";
+  waiting: number;
+  /** The same, files and notes apart (all files where notes aren't sent). */
+  kinds: { attachment: number; note: number };
+};
 
 export async function sm8QueueStuck(orgId: string, now: number = Date.now()): Promise<Sm8QueueStuck | null> {
   if (!sm8WritesEnabled()) return null;
   const state = await readSm8WriteState(orgId);
   if (!state.readable || !state.linked) return null;
-  if (state.mode === "paused" && state.pausedReason === "cap") {
-    return { reason: "cap", waiting: await countWaitingSm8Writes(orgId, now) };
-  }
+  const counted = async () => {
+    const kinds = await countWaitingSm8WritesByKind(orgId, now);
+    return { waiting: kinds.attachment + kinds.note, kinds };
+  };
+  if (state.mode === "paused" && state.pausedReason === "cap") return { reason: "cap", ...(await counted()) };
   if (state.mode !== "live") return null;
-  const waiting = await countWaitingSm8Writes(orgId, now);
+  const { waiting, kinds } = await counted();
   if (waiting === 0) return null;
   const { count, error } = await supabaseAdmin
     .from(TABLE)
@@ -1457,8 +1788,11 @@ export async function sm8QueueStuck(orgId: string, now: number = Date.now()): Pr
     .eq("org_id", orgId)
     .eq("status", "queued")
     .eq("last_error", WRITE_WORDS.billing);
-  if (!error && (count ?? 0) > 0) return { reason: "billing", waiting };
-  if (!state.connected || state.kinds.some((k) => !kindReady(state, k))) return { reason: "reconnect", waiting };
+  if (!error && (count ?? 0) > 0) return { reason: "billing", waiting, kinds };
+  /* only the kinds the owner has on: a kind switched off never asks for a
+     reconnect */
+  const on = state.kinds.filter((k) => state.ownerKinds.includes(k));
+  if (!state.connected || on.some((k) => !kindReady(state, k))) return { reason: "reconnect", waiting, kinds };
   return null;
 }
 

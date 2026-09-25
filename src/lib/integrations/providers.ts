@@ -331,9 +331,10 @@ export const SM8_SCOPE_LIST: string[] = SM8_SCOPES.map((s) => s.scope);
    never turns writing on never grants it, and the tests still hold the read
    list write-free BY SHAPE.
 
-   ONE SCOPE, AND IT CAME WITH ITS FEATURE. manage_attachments puts a file on
-   a job. Every later write brings its own scope and its own sentence when it
-   ships, not before.
+   EACH SCOPE CAME WITH ITS FEATURE. manage_attachments puts a file on a
+   job; publish_job_notes adds a note to one, marks a flagged note done and
+   takes a note back (two-way phase 2). Every later write brings its own
+   scope and its own sentence when it ships, not before.
 
    THE SENTENCE SAYS WHAT THE PERMISSION ALLOWS AS WELL AS WHAT WE DO WITH
    IT. "Manage" covers changing and deleting a job's files too. HeyTiff only
@@ -343,13 +344,24 @@ export const SM8_SCOPE_LIST: string[] = SM8_SCOPES.map((s) => s.scope);
    gives for uploads (searched 2026-09-24). Their developer site isn't
    reachable from the build environment, so the first live send is the
    confirmation: a 403 logs ServiceM8's body, which names the scope it
-   actually wanted. That is how read_attachments was found. */
+   actually wanted. That is how read_attachments was found.
+
+   publish_job_notes, the x-impersonate-uuid header a note goes under, and
+   the paths note.json and dbonote/{uuid}.json (update and delete) were read
+   off ServiceM8's developer reference on 2026-09-25: "Create a new Note",
+   "Update a Note", "Delete a Note", and the impersonation paragraph of
+   Authentication. Live test 1 proves them on the real account. */
 
 export const SM8_WRITE_SCOPES: ScopeEntry[] = [
   {
     scope: "manage_attachments",
     area: "Workboard",
     why: "Lets HeyTiff add, change and remove the files on a job. HeyTiff only ever adds: the files somebody sends from a job here, like your insurance certificates, licences and uploads, go on the same job in ServiceM8. Nothing already there is changed or removed.",
+  },
+  {
+    scope: "publish_job_notes",
+    area: "Workboard",
+    why: "Lets HeyTiff add, change and remove notes on a job. HeyTiff adds the notes people write or reply with here, each sent as that person, marks a flagged note done when someone answers it here, and removes a note only when whoever sent it takes it back.",
   },
 ];
 
@@ -362,6 +374,7 @@ export const SM8_WRITE_SCOPE_LIST: string[] = SM8_WRITE_SCOPES.map((s) => s.scop
     the kind names are read off them (sm8-write-plan's Sm8WriteKind). */
 export const SM8_WRITE_KIND_SCOPES = {
   attachment: ["manage_attachments"],
+  note: ["publish_job_notes"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Sm8WriteKindName = keyof typeof SM8_WRITE_KIND_SCOPES;
@@ -405,13 +418,17 @@ export function sm8MissingScopes(
 
     `writeMode` is the row's own switch: a ServiceM8 grant with writing on
     (or paused) and no write permission is missing it, and the screen says
-    reconnect. */
+    reconnect. `kinds` are the kinds whose permission counts: the ones the
+    deployment allows AND the owner has switched on (store.ts works them
+    out). Left out, every write kind counts, and a connection read that way
+    would say "Reconnect to finish" for a permission nobody asks for. */
 export function missingScopesFor(
   provider: string,
   granted: string | null | undefined,
-  writeMode?: string | null
+  writeMode?: string | null,
+  kinds?: readonly string[]
 ): string[] {
   if (provider === "xero") return missingScopes(granted);
-  if (provider === "servicem8") return sm8MissingScopes(granted, writeMode);
+  if (provider === "servicem8") return sm8MissingScopes(granted, writeMode, kinds);
   return [];
 }

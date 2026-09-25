@@ -33,6 +33,9 @@ const budgets: (number | undefined)[] = [];
 /** How long each workspace's write run takes, in turn. */
 let takes: number[] = [];
 jest.mock("@/lib/integrations/sm8-writes", () => ({
+  /* a note's words leaving the queue (two-way phase 2) */
+  clearSm8NoteText: jest.fn(async () => 2),
+  clearDisconnectedSm8NoteText: jest.fn(async () => 1),
   orgsWithDueSm8Writes: jest.fn(async () => ["a", "b", "c", "d"]),
   runSm8Writes: jest.fn(async (org: string, _trigger: string, opts: { budgetMs?: number }) => {
     events.push(`writes:${org}`);
@@ -159,5 +162,37 @@ describe("the syncs fit the window", () => {
     expect(body).toMatchObject({ ran: 1, deferred: 1 });
     // a workspace that waited records no visit: it wasn't synced
     expect(recordSm8CronVisit).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* A NOTE'S WORDS LEAVE THE QUEUE nightly (two-way phase 2) — only on a
+   deployment that sends notes. Production sends files only, and there the
+   night is exactly as it was. */
+describe("note words", () => {
+  const { clearSm8NoteText, clearDisconnectedSm8NoteText } = jest.requireMock("@/lib/integrations/sm8-writes") as {
+    clearSm8NoteText: jest.Mock;
+    clearDisconnectedSm8NoteText: jest.Mock;
+  };
+  afterEach(() => {
+    delete process.env.SM8_WRITES;
+  });
+
+  it("(F) with SM8_WRITES=1: no clear runs, and the answer is word for word as before", async () => {
+    process.env.SM8_WRITES = "1";
+    clearSm8NoteText.mockClear();
+    clearDisconnectedSm8NoteText.mockClear();
+    const body = await (await GET(byScheduler())).json();
+    expect(clearSm8NoteText).not.toHaveBeenCalled();
+    expect(clearDisconnectedSm8NoteText).not.toHaveBeenCalled();
+    expect(body).not.toHaveProperty("notesCleared");
+  });
+
+  it("with notes allowed: the 30-day clear across workspaces, and every disconnected workspace's", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    clearSm8NoteText.mockClear();
+    const body = await (await GET(byScheduler())).json();
+    expect(clearSm8NoteText).toHaveBeenCalledWith({ olderThanDays: 30 }, expect.any(Number));
+    expect(clearDisconnectedSm8NoteText).toHaveBeenCalled();
+    expect(body.notesCleared).toBe(3);
   });
 });

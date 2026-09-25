@@ -152,8 +152,35 @@ function from(table: string) {
   return q;
 }
 
+/** The two functions the notes migration adds, applied to `db` as the
+    database would: one atomic update each. `rpcMissing` is a database
+    without them (PGRST202). */
+let rpcMissing = false;
+const rpcCalls: string[] = [];
+function rpc(name: string, args: Record<string, unknown>) {
+  rpcCalls.push(name);
+  if (rpcMissing) return Promise.resolve({ data: null, error: { code: "PGRST202", message: "fake: no such function" } });
+  const conn = (db.integration_connections ?? []).find((c) => c.org_id === args.p_org && c.provider === "servicem8");
+  if (name === "sm8_mark_kind_refused") {
+    if (conn) {
+      const was = (conn.write_scope_refused ?? {}) as Record<string, unknown>;
+      conn.write_scope_refused = { ...was, [String(args.p_kind)]: args.p_at };
+    }
+    return Promise.resolve({ data: !!conn, error: null });
+  }
+  if (name === "sm8_set_write_kind") {
+    if (!conn || (args.p_kind !== "attachment" && args.p_kind !== "note")) return Promise.resolve({ data: null, error: null });
+    const was = Array.isArray(conn.write_kinds) ? (conn.write_kinds as string[]) : ["attachment"];
+    const kind = String(args.p_kind);
+    conn.write_kinds = args.p_on ? [...new Set([...was, kind])].sort() : was.filter((k) => k !== kind);
+    return Promise.resolve({ data: conn.write_kinds, error: null });
+  }
+  return Promise.resolve({ data: null, error: { code: "PGRST202", message: `fake: no ${name}` } });
+}
+
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
+    rpc: (name: string, args: Record<string, unknown>) => rpc(name, args),
     from: (t: string) => from(t),
     storage: {
       from: () => ({
@@ -280,6 +307,8 @@ beforeEach(async () => {
   failingUpdates.clear();
   missingColumns.clear();
   beforeUpsert = () => null;
+  rpcMissing = false;
+  rpcCalls.length = 0;
   scheduled.length = 0;
   process.env.SM8_WRITES = "1";
   sm8AccessResult.mockReset().mockResolvedValue({ ok: true, access: ACCESS });
@@ -318,6 +347,10 @@ describe("where writing stands", () => {
       granted: ["attachment"],
       refused: [],
       timezoneName: "Australia/Sydney",
+      /* the owner's per-kind switch: a row without write_kinds reads as
+         files, which is what it meant before the column */
+      ownerKinds: ["attachment"],
+      ownerKindsRead: true,
     });
     delete process.env.SM8_WRITES;
     expect((await readSm8WriteState(ORG)).deployment).toBe(false);
@@ -1289,7 +1322,7 @@ describe("the switch, and cancelling", () => {
     writes()[1].status = "sent";
     expect(await setSm8WriteMode(ORG, "off", NOW)).toEqual({
       ok: true,
-      cancelled: [{ id: writes()[0].id, name: "d1.pdf" }],
+      cancelled: [{ id: writes()[0].id, name: "d1.pdf", kind: "attachment" }],
     });
     expect(db.integration_connections[0].write_mode).toBe("off");
     expect(writes()[0]).toMatchObject({ status: "cancelled", last_error: WRITE_WORDS.switchedOff });
@@ -1349,7 +1382,9 @@ describe("the switch, and cancelling", () => {
   it("says what it cancelled, by the name each file would have gone under", async () => {
     await queue("d1", "d2");
     writes()[1].status = "sent";
-    expect(await cancelWaitingSm8Writes(ORG, "because", NOW)).toEqual([{ id: writes()[0].id, name: "d1.pdf" }]);
+    expect(await cancelWaitingSm8Writes(ORG, "because", NOW)).toEqual([
+      { id: writes()[0].id, name: "d1.pdf", kind: "attachment" },
+    ]);
   });
 
   it("counts what is waiting and what is in flight by the same rule the cancel uses", async () => {
@@ -1572,7 +1607,7 @@ describe("what the owner's bell reads", () => {
   it("says HeyTiff paused sending at the cap, with how many are waiting", async () => {
     await queue("d1", "d2");
     Object.assign(db.integration_connections[0], { write_mode: "paused", paused_reason: "cap" });
-    expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "cap", waiting: 2 });
+    expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "cap", waiting: 2, kinds: { attachment: 2, note: 0 } });
   });
 
   it("forgets the cap once sending isn't paused — a change of account switched it off", async () => {
@@ -1590,16 +1625,17 @@ describe("what the owner's bell reads", () => {
   it("asks for a reconnect when files wait on a grant that doesn't work, or a permission refused", async () => {
     await queue("d1");
     db.integration_connections[0].status = "needs_reauth";
-    expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "reconnect", waiting: 1 });
+    const one = { attachment: 1, note: 0 };
+    expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "reconnect", waiting: 1, kinds: one });
     db.integration_connections[0].status = "connected";
     db.integration_connections[0].write_scope_refused = { attachment: new Date(NOW).toISOString() };
-    expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "reconnect", waiting: 1 });
+    expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "reconnect", waiting: 1, kinds: one });
   });
 
   it("says when ServiceM8 holds files for an account not in good standing", async () => {
     await queue("d1");
     writes()[0].last_error = WRITE_WORDS.billing;
-    expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "billing", waiting: 1 });
+    expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "billing", waiting: 1, kinds: { attachment: 1, note: 0 } });
   });
 
   it("reads nothing on a deployment that doesn't write", async () => {
@@ -1646,14 +1682,22 @@ describe("what the card and the screen read", () => {
   it("counts what is waiting, and what failed", async () => {
     await queue("d1", "d2", "d3");
     writes()[2].status = "failed";
-    expect(await countSm8Queue(ORG, "vendor-1", NOW)).toEqual({ waiting: 2, failed: 1 });
+    expect(await countSm8Queue(ORG, "vendor-1", NOW)).toEqual({
+      waiting: 2,
+      failed: 1,
+      waitingKinds: { attachment: 2, note: 0 },
+    });
   });
 
   it("counts only the connected account's failures — the ones Retry failed files can reach", async () => {
     await queue("d1", "d2");
     Object.assign(writes()[0], { status: "failed", tenant_id: "vendor-old" });
     writes()[1].status = "sent";
-    expect(await countSm8Queue(ORG, "vendor-1", NOW)).toEqual({ waiting: 0, failed: 0 });
+    expect(await countSm8Queue(ORG, "vendor-1", NOW)).toEqual({
+      waiting: 0,
+      failed: 0,
+      waitingKinds: { attachment: 0, note: 0 },
+    });
     // and Retry agrees there is nothing of this account's to go again
     expect(await retryFailedSm8Writes(press, await readSm8WriteState(ORG), NOW)).toMatchObject({ queued: 0, left: 0 });
     // no account named: nothing counted as failed

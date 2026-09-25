@@ -164,14 +164,21 @@ export async function listJournal(
   staffId: string,
   limit = 60,
 ): Promise<JournalEntry[]> {
-  const { data } = await supabaseAdmin
-    .from("workboard_notes")
-    .select(COLUMNS)
-    .eq("org_id", orgId)
-    .eq("author_id", staffId)
-    .eq("status", "applied")
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  /* A NOTE SOMEBODY TOOK BACK (removed_at, the tombstone a take-back
+     leaves: two-way phase 2) isn't on anybody's journal. A database
+     without the column yet reads as it always has. */
+  const read = (tombstones: boolean) => {
+    let q = supabaseAdmin
+      .from("workboard_notes")
+      .select(COLUMNS)
+      .eq("org_id", orgId)
+      .eq("author_id", staffId)
+      .eq("status", "applied");
+    if (tombstones) q = q.is("removed_at", null);
+    return q.order("created_at", { ascending: false }).limit(limit);
+  };
+  let { data, error } = await read(true);
+  if (error?.code === "42703" || error?.code === "PGRST204") ({ data, error } = await read(false));
 
   const rows = (data ?? []) as Row[];
   if (rows.length === 0) return [];

@@ -33,6 +33,7 @@ import {
 } from "@/lib/workboard/job-notes-query";
 import type { JobAttention } from "@/lib/workboard/job-attention";
 import { sm8JobIsOpen } from "@/lib/workboard/all-jobs";
+import { sm8WriteKindsEnabled } from "@/lib/integrations/sm8-kinds";
 import { orgPaymentTermsDays } from "@/lib/org/query";
 
 /** Notes always; the ledger only for a reader who holds money. */
@@ -547,6 +548,9 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
     notes,
     jobOpen: sm8JobIsOpen(status),
     today,
+    /* readJobNotes already left our own echoes out where the deployment
+       sends notes: one echo read per card open, either way */
+    echoFiltered: sm8WriteKindsEnabled().includes("note"),
   });
 
   if (!moneyVisible) {

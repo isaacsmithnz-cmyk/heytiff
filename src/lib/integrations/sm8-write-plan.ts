@@ -22,6 +22,7 @@
    is kept on the row for whoever diagnoses it, and is never shown. */
 
 import { SM8_WRITE_KIND_SCOPES } from "./providers";
+import { fillWords, NOTE_WORDS } from "./sm8-note-words";
 
 /* ── the owner's switch ── */
 
@@ -67,6 +68,16 @@ export function sm8WriteKindsFrom(env: string | undefined | null): Sm8WriteKind[
     const k = part.trim();
     if (isKind(k) && !out.includes(k)) out.push(k);
   }
+  return out;
+}
+
+/** The kinds the OWNER has switched on (integration_connections.write_kinds).
+    Anything that isn't an array reads as files alone, which is what the
+    column meant before it existed; an array keeps only kinds there are. */
+export function readOwnerKinds(v: unknown): Sm8WriteKind[] {
+  if (!Array.isArray(v)) return ["attachment"];
+  const out: Sm8WriteKind[] = [];
+  for (const k of v) if (typeof k === "string" && isKind(k) && !out.includes(k)) out.push(k);
   return out;
 }
 
@@ -129,14 +140,30 @@ export type Sm8WriteState = {
   refused: readonly Sm8WriteKind[];
   /** The ServiceM8 account's time zone, for when its daily limit resets. */
   timezoneName: string | null;
+  /** The kinds the owner has switched on, per kind (Files, Notes), under the
+      one Off / Trial run / Paused / On. */
+  ownerKinds: readonly Sm8WriteKind[];
+  /** The owner's per-kind switch was READ (the write_kinds column exists).
+      False on a database without it: files read as on, and nothing is
+      cancelled for being switched off, because nobody switched it. */
+  ownerKindsRead: boolean;
 };
 
-/** Whether `kind` can go now, as far as the switches and the grant go. A
-    trial run sends nothing, so it needs no permission. */
+/** Whether `kind` can go now, as far as the switches and the grant go: the
+    deployment allows it AND the owner has it on. A trial run sends nothing,
+    so it needs no permission. */
 export function kindReady(s: Sm8WriteState, kind: Sm8WriteKind): boolean {
-  if (!s.kinds.includes(kind)) return false;
+  if (!s.kinds.includes(kind) || !s.ownerKinds.includes(kind)) return false;
   if (s.mode !== "live") return true;
   return s.granted.includes(kind) && !s.refused.includes(kind);
+}
+
+/** The kinds the deployment allows that the owner has switched off — the
+    run cancels what of them is still waiting. None unless the switch was
+    actually read. */
+export function kindsSwitchedOff(s: Sm8WriteState): Sm8WriteKind[] {
+  if (!s.ownerKindsRead) return [];
+  return s.kinds.filter((k) => !s.ownerKinds.includes(k));
 }
 
 const WHERE = "An owner can change that in Integrations, ServiceM8.";
@@ -144,37 +171,60 @@ const WHERE = "An owner can change that in Integrations, ServiceM8.";
 /** Why a press of Send to ServiceM8 can't be taken, in words — or null when
     it can. The order is the order of the fixes: nothing an owner does helps
     a deployment that can't write, a switch that is off outranks a pause, and
-    both outrank a permission nobody has been asked for. */
+    both outrank a permission nobody has been asked for. The owner's switch
+    for this one kind comes straight after the whole switch. */
 export function sendRefusal(s: Sm8WriteState, kind: Sm8WriteKind = "attachment"): string | null {
   if (!s.kinds.includes(kind)) return "Sending to ServiceM8 isn't available yet.";
   if (!s.readable) return WRITE_WORDS.settingsUnread;
   if (!s.tenantId) return "ServiceM8 isn't connected.";
   if (s.mode === "off") return `Sending to ServiceM8 is switched off. ${WHERE}`;
+  if (!s.ownerKinds.includes(kind)) {
+    return kind === "note" ? NOTE_WORDS.press.kindOff : `Sending files to ServiceM8 is switched off. ${WHERE}`;
+  }
   if (s.mode === "paused") return WRITE_WORDS.paused;
   if (!s.connected) return `ServiceM8 needs reconnecting. ${WHERE}`;
   if (s.mode === "live" && !kindReady(s, kind)) {
-    return `ServiceM8 hasn't given HeyTiff permission to add files yet. ${WHERE}`;
+    return kind === "note"
+      ? NOTE_WORDS.press.notesScope
+      : `ServiceM8 hasn't given HeyTiff permission to add files yet. ${WHERE}`;
   }
   return null;
 }
 
 /** Whether the card offers Send to ServiceM8 at all. Only where an owner
-    has switched it on: a button that could only ever explain itself is
-    furniture. A switched-on workspace whose grant has lapsed, or whose
-    sending is paused, keeps the button, and the press says what's wrong. */
+    has switched it on, the kind as well as the whole: a button that could
+    only ever explain itself is furniture. A switched-on workspace whose
+    grant has lapsed, or whose sending is paused, keeps the button, and the
+    press says what's wrong. */
 export function offersSend(s: Sm8WriteState, kind: Sm8WriteKind = "attachment"): boolean {
-  return s.readable && s.kinds.includes(kind) && !!s.tenantId && s.mode !== "off";
+  return (
+    s.readable && s.kinds.includes(kind) && s.ownerKinds.includes(kind) && !!s.tenantId && s.mode !== "off"
+  );
 }
 
 /** What is holding a workspace's waiting writes, as the card and the owner's
-    list say it: the owner's (or the cap's) pause, or a reconnect ServiceM8
-    needs before anything more can go. */
-export type SendHold = "paused" | "reconnect" | null;
+    list say it: the owner's (or the cap's) pause, the owner's switch for
+    this kind, or a reconnect ServiceM8 needs before anything more can go. */
+export type SendHold = "paused" | "reconnect" | "off" | null;
 
+/** In this order: a pause, then the kind switched off, then a reconnect —
+    so with Notes Off a note is never said to be waiting for a reconnect. */
 export function sendHold(s: Sm8WriteState, kind: Sm8WriteKind = "attachment"): SendHold {
   if (s.mode === "paused") return "paused";
+  if (s.kinds.includes(kind) && !s.ownerKinds.includes(kind)) return "off";
   if (s.mode === "live" && (!s.connected || !kindReady(s, kind))) return "reconnect";
   return null;
+}
+
+/** "1 file", "3 notes", "1 file and 2 notes". With no notes it is exactly
+    the files' words the screens have always said. */
+export function kindCount(n: { attachment: number; note: number }): string {
+  const files =
+    n.attachment === 1 ? NOTE_WORDS.kindWords.fileOne : fillWords(NOTE_WORDS.kindWords.fileMany, { n: n.attachment });
+  if (n.note <= 0) return files;
+  const notes = n.note === 1 ? NOTE_WORDS.kindWords.noteOne : fillWords(NOTE_WORDS.kindWords.noteMany, { n: n.note });
+  if (n.attachment <= 0) return notes;
+  return fillWords(NOTE_WORDS.kindWords.both, { files, notes });
 }
 
 /* ── the row ── */
@@ -238,6 +288,30 @@ export const WRITE_LEASE_MARGIN_MS = 15_000;
     this sum in sm8-meter.test): a sleep before either would
     come out of the margin, which is for the database and the clocks. */
 export const WRITE_SEND_BY_MS = WRITE_LEASE_MS - WRITE_TIMEOUT_MS - WRITE_READ_TIMEOUT_MS - WRITE_LEASE_MARGIN_MS;
+
+/* ── a note's clocks ──
+
+   A note is a small JSON request, not a file, so its POST has a shorter
+   timeout of its own. But a note's send may make SEVERAL requests under one
+   claim: read-backs before a create, a read before and after a flag change,
+   one DELETE per uuid a take-back removes. So instead of one start-by, each
+   request is asked in turn whether it still fits: */
+
+/** A note POST or DELETE's own timeout. */
+export const WRITE_NOTE_TIMEOUT_MS = 20_000;
+
+/** The latest a note READ may start into a claim, a confirmDead read
+    included: the read's timeout and the margin still end inside the lease.
+    95 s. */
+export const NOTE_READ_BY_MS = WRITE_LEASE_MS - WRITE_LEASE_MARGIN_MS - WRITE_READ_TIMEOUT_MS;
+
+/** The latest a note POST or DELETE may start: its timeout, then room for
+    one read after it (the read-back that confirms it). 75 s. */
+export const NOTE_SEND_BY_MS = NOTE_READ_BY_MS - WRITE_NOTE_TIMEOUT_MS;
+
+/** A Done that has waited longer than this never goes by itself: a "Done."
+    a day late reads as a different answer. */
+export const DONE_TTL_MS = 86_400_000;
 
 /** A run nobody is waiting on: behind a press's answer, or a retry. It stops
     CLAIMING at this; a send already claimed finishes inside its lease. */
@@ -505,6 +579,10 @@ export type WriteVerdict = {
   freshUuid: boolean;
   /** A go the row didn't pay for, counted against WRITE_FREE_RETRIES. */
   freeRetry: boolean;
+  /** The refusal was about THIS PERSON (a note goes as whoever pressed it),
+      not the account: it fails only their row, never counts towards
+      stopping the run, and never marks the connection. */
+  personal: boolean;
 };
 
 const verdict = (v: Partial<WriteVerdict> & Pick<WriteVerdict, "status">): WriteVerdict => ({
@@ -517,24 +595,77 @@ const verdict = (v: Partial<WriteVerdict> & Pick<WriteVerdict, "status">): Write
   holdAllMs: null,
   freshUuid: false,
   freeRetry: false,
+  personal: false,
   ...v,
 });
 
+/** A write's operation: every file is a create; a note may also be an
+    update (a flag marked done or cleared) or a delete (a take-back). */
+export type Sm8WriteOp = "create" | "update" | "delete";
+
 /** What a verdict needs to know besides the answer: the time (for a daily
-    limit's reset), the account's zone, and how many free goes the row has
-    had. */
-export type VerdictContext = { now: number; timezoneName: string | null; freeRetries: number };
+    limit's reset), the account's zone, how many free goes the row has had,
+    and — for a note — which kind and op it is, because a note's refusals
+    mean other things than a file's. */
+export type VerdictContext = {
+  now: number;
+  timezoneName: string | null;
+  freeRetries: number;
+  kind?: Sm8WriteKind;
+  op?: Sm8WriteOp;
+};
 
 /** The wait before the next try, after `attempts` tries. */
 const retryAfter = (attempts: number): number =>
   WRITE_RETRY_AFTER_MS[Math.min(Math.max(0, attempts - 1), WRITE_RETRY_AFTER_MS.length - 1)];
 
 /** What a row becomes when the file couldn't be read HERE — the bucket, not
-    ServiceM8. Ours to retry, with the same patience, and the run goes on:
-    the next row's file may read fine. */
-export function verdictForUnreadable(attempts: number): WriteVerdict {
-  if (attempts >= WRITE_MAX_ATTEMPTS) return verdict({ status: "failed", error: WRITE_WORDS.unreadableGaveUp });
-  return verdict({ status: "queued", error: WRITE_WORDS.unreadable, retryAfterMs: retryAfter(attempts) });
+    ServiceM8 — or, for a note, when its send threw. Ours to retry, with the
+    same patience, and the run goes on: the next row may be fine. */
+export function verdictForUnreadable(attempts: number, kind: Sm8WriteKind = "attachment"): WriteVerdict {
+  const note = kind === "note";
+  if (attempts >= WRITE_MAX_ATTEMPTS) {
+    return verdict({ status: "failed", error: note ? NOTE_WORDS.row.noteThrewGaveUp : WRITE_WORDS.unreadableGaveUp });
+  }
+  return verdict({
+    status: "queued",
+    error: note ? NOTE_WORDS.row.noteThrew : WRITE_WORDS.unreadable,
+    retryAfterMs: retryAfter(attempts),
+  });
+}
+
+/** A take-back whose note is still being sent under a live claim: it waits
+    until that claim ends (the create's sender checks for the take-back
+    inside every attempt, so the wait ends within one lease). Handed back,
+    at least half a minute, and the run goes on. */
+export function verdictForWaitingOn(untilMs: number, now: number): WriteVerdict {
+  return verdict({ status: "queued", retryAfterMs: Math.max(30_000, untilMs - now), refund: true });
+}
+
+/** A Done that waited past DONE_TTL_MS: it never goes by itself. */
+export function verdictForStale(): WriteVerdict {
+  return verdict({ status: "failed", error: NOTE_WORDS.row.doneStale });
+}
+
+/** ServiceM8 refused a person's login twice and a plain read couldn't say
+    whether the account's grant still works (throttled, failed, or no time
+    left). Nothing is flagged; the row waits a minute, handed back, and the
+    run goes on. */
+export function verdictForLoginUnchecked(): WriteVerdict {
+  return verdict({ status: "queued", error: NOTE_WORDS.row.loginUnchecked, retryAfterMs: 60_000, refund: true });
+}
+
+/** The presser's ServiceM8 link couldn't be read at send time. Nothing goes
+    as `unknown`: the row waits a minute, handed back, and the run goes on.
+    `error` is row.unknown with their name. */
+export function verdictForLinkUnknown(error: string): WriteVerdict {
+  return verdict({ status: "queued", error, retryAfterMs: 60_000, refund: true });
+}
+
+/** The check inside a note's POST attempt (was it taken back?) couldn't be
+    read. Nothing is POSTed: back to the queue, handed back, a minute. */
+export function verdictForCheckFailed(): WriteVerdict {
+  return verdict({ status: "queued", error: NOTE_WORDS.row.noteThrew, retryAfterMs: 60_000, refund: true });
 }
 
 /** A refused send whose token couldn't be renewed because ServiceM8 couldn't
@@ -584,8 +715,10 @@ export function verdictForRenewLate(): WriteVerdict {
     file was slow to read, or the check before it was. It lets go of the row
     untouched and due at once, the attempt handed back; after
     WRITE_FREE_RETRIES of those it stops for a person. */
-export function verdictForLetGo(freeRetries: number): WriteVerdict {
-  if (freeRetries >= WRITE_FREE_RETRIES) return verdict({ status: "failed", error: WRITE_WORDS.tooSlowGaveUp });
+export function verdictForLetGo(freeRetries: number, kind: Sm8WriteKind = "attachment"): WriteVerdict {
+  if (freeRetries >= WRITE_FREE_RETRIES) {
+    return verdict({ status: "failed", error: kind === "note" ? NOTE_WORDS.row.noteTooSlow : WRITE_WORDS.tooSlowGaveUp });
+  }
   return verdict({ status: "queued", retryAfterMs: 0, refund: true, freeRetry: true });
 }
 
@@ -658,7 +791,19 @@ export function verdictFor(
          attempt handed back, and so does every file of its kind until a
          reconnect gives the permission. Any other 403 is about THIS file (a
          job the grant can't touch, say) and stops only its row; the run
-         ends at the second in a row (sm8-writes). */
+         ends at the second in a row (sm8-writes).
+
+         A NOTE GOES AS A PERSON (x-impersonate-uuid), so a 403 that names no
+         scope is about that person — their ServiceM8 login can't do this —
+         and is `personal`: it never counts towards stopping the run. A
+         scope 403 holds notes only, and doesn't stop the run either: files
+         behind it still go. */
+      if (ctx.kind === "note") {
+        if (outcome.scope) {
+          return verdict({ status: "queued", error: NOTE_WORDS.row.scopeHeldNote, refund: true, blockKind: true });
+        }
+        return verdict({ status: "failed", error: NOTE_WORDS.row.personForbidden, personal: true });
+      }
       if (outcome.scope) {
         return verdict({ status: "queued", error: WRITE_WORDS.scopeHeld, refund: true, stop: true, blockKind: true });
       }
@@ -670,6 +815,17 @@ export function verdictFor(
       }
       return verdict({ status: "queued", retryAfterMs: 0, refund: true, freshUuid: true, freeRetry: true });
     case "rejected":
+      if (ctx.kind === "note") {
+        /* A 404 on a delete: the note is already gone, which is what a
+           take-back wanted. A 404 on an UPDATE is not a verdict at all —
+           the sender cancels that row itself (sm8-note-send), because a
+           verdict is never `cancelled`. On a create it is the job. */
+        if (outcome.status === 404) {
+          return ctx.op === "delete" ? verdict({ status: "sent" }) : verdict({ status: "failed", error: WRITE_WORDS.noJob });
+        }
+        if (outcome.status === 413) return verdict({ status: "failed", error: NOTE_WORDS.row.noteTooLong });
+        return verdict({ status: "failed", error: NOTE_WORDS.row.noteRefused });
+      }
       return verdict({
         status: "failed",
         error:
@@ -786,9 +942,10 @@ export function sendLine(
 
   const waiting = mine.filter((s) => s.status === "queued" || s.status === "sending");
   if (waiting.length > 0 && hold !== null && waiting.some((s) => s.status === "queued")) {
-    return hold === "paused"
-      ? { word: "Not in ServiceM8 yet. Sending is paused.", tone: null }
-      : { word: "Not in ServiceM8 yet. ServiceM8 needs reconnecting.", tone: "warn" };
+    if (hold === "paused") return { word: "Not in ServiceM8 yet. Sending is paused.", tone: null };
+    /* the owner switched files off: the next run cancels what is waiting */
+    if (hold === "off") return { word: "Not in ServiceM8 yet. Sending files is switched off.", tone: null };
+    return { word: "Not in ServiceM8 yet. ServiceM8 needs reconnecting.", tone: "warn" };
   }
   const held = waiting.find((s) => s.status === "queued" && s.error);
   if (held) return { word: `Not in ServiceM8 yet. ${held.error}`, tone: "warn" };
@@ -823,6 +980,7 @@ export function sendable(send: JobSend | undefined): boolean {
 export function logWord(status: Sm8WriteStatus, attempts: number, hold: SendHold = null): SendLine {
   if (status === "queued" && hold === "paused") return { word: "Held while paused", tone: null };
   if (status === "queued" && hold === "reconnect") return { word: "Waiting for a reconnect", tone: "warn" };
+  if (status === "queued" && hold === "off") return { word: "Switched off", tone: null };
   switch (status) {
     case "sent":
       return { word: "Sent", tone: "ok" };

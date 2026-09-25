@@ -149,6 +149,10 @@ export async function readJobAttention(
     jobOpen: boolean;
     /** The account's today, for the overdue reading. */
     today: string;
+    /** The notes were already read without our own echoes (readJobNotes
+        does that where the deployment sends notes), so this read would ask
+        the same question twice: a card open makes exactly ONE echo read. */
+    echoFiltered?: boolean;
   }
 ): Promise<JobAttentionRead> {
   const [flags, taskIds, answered, people, assignable, ours] = await Promise.all([
@@ -158,10 +162,12 @@ export async function readJobAttention(
     readMentionPeople(orgId),
     mentionableStaff(orgId),
     /* notes HeyTiff wrote itself, mirrored back (lib/integrations/sm8-echo) */
-    sm8Ours(
-      orgId,
-      input.notes.map((n) => n.remoteId)
-    ),
+    input.echoFiltered
+      ? Promise.resolve(new Set<string>())
+      : sm8Ours(
+          orgId,
+          input.notes.map((n) => n.remoteId)
+        ),
   ]);
   const tasks = await openTasks(orgId, taskIds);
 

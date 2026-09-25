@@ -8,6 +8,8 @@
 
 let lists: Record<string, Record<string, unknown>[]> = {};
 let rows: Record<string, Record<string, unknown> | null> = {};
+/** `.is(col, null)` filters asked for, as `table.col`. */
+const tombstoneFilters: string[] = [];
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
@@ -17,6 +19,10 @@ jest.mock("@/lib/supabase-server", () => ({
       chain.select = self;
       chain.eq = self;
       chain.in = self;
+      chain.is = (col: string) => {
+        tombstoneFilters.push(`${table}.${col}`);
+        return chain;
+      };
       chain.order = self;
       chain.limit = self;
       chain.maybeSingle = async () => ({ data: rows[table] ?? null });
@@ -90,6 +96,12 @@ describe("jobHistory", () => {
       equipment: ["Rooftop package unit PUZ-ZM250"],
       jobNotes: "gate code 4417",
     });
+  });
+
+  it("never grounds the router on a note somebody took back (two-way phase 2)", async () => {
+    tombstoneFilters.length = 0;
+    await jobHistory("org-1", { kind: "job", id: "j-1" });
+    expect(tombstoneFilters).toEqual(["workboard_notes.removed_at"]);
   });
 
   it("a visit has no equipment register and that is not an error", async () => {

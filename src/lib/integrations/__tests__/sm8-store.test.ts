@@ -792,8 +792,8 @@ describe("disconnect", () => {
     headCount = 1;
     expect(await disconnectSm8("org-1", NOW)).toEqual({
       cancelled: [
-        { id: "w1", name: "Public liability.pdf" },
-        { id: "w2", name: null },
+        { id: "w1", name: "Public liability.pdf", kind: "attachment" },
+        { id: "w2", name: null, kind: "attachment" },
       ],
       inFlight: 1,
     });

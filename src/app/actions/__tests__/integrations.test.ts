@@ -13,11 +13,15 @@ jest.mock("@/lib/integrations/store", () => ({ disconnectXero: jest.fn(), setXer
 jest.mock("@/lib/integrations/sm8-sync", () => ({ runSm8Sync: jest.fn() }));
 
 const setSm8WriteMode = jest.fn();
+const setSm8WriteKind = jest.fn();
 const readSm8WriteState = jest.fn();
 const retryFailedSm8Writes = jest.fn();
 const runSm8Writes = jest.fn();
+let allowed = ["attachment"];
 jest.mock("@/lib/integrations/sm8-writes", () => ({
   setSm8WriteMode: (...a: unknown[]) => setSm8WriteMode(...a),
+  setSm8WriteKind: (...a: unknown[]) => setSm8WriteKind(...a),
+  sm8WriteKindsEnabled: () => allowed,
   sm8WritesEnabled: () => true,
   readSm8WriteState: (...a: unknown[]) => readSm8WriteState(...a),
   retryFailedSm8Writes: (...a: unknown[]) => retryFailedSm8Writes(...a),
@@ -37,6 +41,7 @@ jest.mock("@/lib/integrations/sm8-store", () => ({ disconnectSm8: (...a: unknown
 import {
   disconnectServiceM8Action,
   retryFailedServiceM8WritesAction,
+  setServiceM8WriteKindAction,
   setServiceM8WriteModeAction,
   syncServiceM8NowAction,
 } from "../integrations";
@@ -57,6 +62,8 @@ const LIVE = {
   granted: ["attachment"],
   refused: [],
   timezoneName: null,
+  ownerKinds: ["attachment"],
+  ownerKindsRead: true,
 };
 
 beforeEach(() => {
@@ -204,5 +211,56 @@ describe("disconnectServiceM8Action", () => {
     role = "admin";
     expect(await disconnectServiceM8Action()).toEqual({ ok: false, error: "Only an owner can change connected apps." });
     expect(disconnectSm8).not.toHaveBeenCalled();
+  });
+
+  it("counts cancelled notes apart from the files it names", async () => {
+    disconnectSm8.mockResolvedValue({
+      cancelled: [
+        { id: "w1", name: "Public liability.pdf", kind: "attachment" },
+        { id: "w2", name: "Reply", kind: "note" },
+        { id: "w3", name: "Note", kind: "note" },
+      ],
+      inFlight: 0,
+    });
+    expect((await disconnectServiceM8Action()) as { note: string }).toMatchObject({
+      note: expect.stringContaining("1 file and 2 notes waiting to go to ServiceM8 were cancelled: Public liability.pdf."),
+    });
+  });
+});
+
+/* THE OWNER'S SWITCH PER KIND (two-way phase 2): Files and Notes, each Off
+   or On, under the one Off / Trial run / Paused / On. */
+describe("setServiceM8WriteKindAction", () => {
+  beforeEach(() => {
+    allowed = ["attachment", "note"];
+    setSm8WriteKind.mockReset().mockResolvedValue({ ok: true, cancelled: [] });
+  });
+  afterEach(() => {
+    allowed = ["attachment"];
+  });
+
+  it("is an owner's", async () => {
+    role = "admin";
+    expect(await setServiceM8WriteKindAction("note", true)).toEqual({ ok: false, error: "Only an owner can change connected apps." });
+    expect(setSm8WriteKind).not.toHaveBeenCalled();
+  });
+
+  it("refuses a kind the deployment doesn't allow, and anything that isn't a kind", async () => {
+    allowed = ["attachment"];
+    expect(await setServiceM8WriteKindAction("note", true)).toEqual({ ok: false, error: "Notes can't be sent from this deployment yet." });
+    expect(await setServiceM8WriteKindAction("booking", true)).toEqual({ ok: false, error: "That isn't something HeyTiff sends." });
+    expect(setSm8WriteKind).not.toHaveBeenCalled();
+  });
+
+  it("switches Notes on and drains while sending is On", async () => {
+    expect(await setServiceM8WriteKindAction("note", true)).toEqual({ ok: true });
+    expect(setSm8WriteKind).toHaveBeenCalledWith("org-1", "note", true);
+    expect(scheduled).toHaveLength(1);
+  });
+
+  it("switches Notes off and says what it cancelled, draining nothing", async () => {
+    setSm8WriteKind.mockResolvedValue({ ok: true, cancelled: [{ id: "w1", name: "Reply", kind: "note" }, { id: "w2", name: "Note", kind: "note" }] });
+    expect(await setServiceM8WriteKindAction("note", false)).toEqual({ ok: true, note: "Notes are off. 2 notes that were waiting won't go." });
+    expect(scheduled).toHaveLength(0);
   });
 });

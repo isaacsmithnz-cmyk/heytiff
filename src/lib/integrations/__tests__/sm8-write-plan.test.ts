@@ -377,6 +377,8 @@ const state = (over: Partial<Sm8WriteState> = {}): Sm8WriteState => ({
   granted: ["attachment"],
   refused: [],
   timezoneName: null,
+  ownerKinds: ["attachment"],
+  ownerKindsRead: true,
   ...over,
 });
 
@@ -430,7 +432,10 @@ describe("kinds", () => {
     expect(sm8WriteKindsFrom("")).toEqual([]);
     expect(sm8WriteKindsFrom("0")).toEqual([]);
     expect(sm8WriteKindsFrom(undefined)).toEqual([]);
-    expect(sm8WriteKindsFrom("note")).toEqual([]);
+    // notes are the second kind (two-way phase 2); anything else is still nothing
+    expect(sm8WriteKindsFrom("note")).toEqual(["note"]);
+    expect(sm8WriteKindsFrom("attachment,note")).toEqual(["attachment", "note"]);
+    expect(sm8WriteKindsFrom("booking")).toEqual([]);
   });
 
   it("a kind is granted only when the grant holds every scope it needs", () => {

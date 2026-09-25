@@ -68,7 +68,24 @@ describe("toView", () => {
     const sm8 = (over: Partial<ConnectionRow>) =>
       toView(row({ provider: "servicem8", scopes: SM8_SCOPE_LIST.join(" "), ...over }));
     expect(sm8({ write_mode: "trial" }).missing).toEqual([]);
-    expect(sm8({ write_mode: "live" }).missing).toEqual(["manage_attachments"]);
+    // with no kinds handed in, every write kind counts (only a test reads it so)
+    expect(sm8({ write_mode: "live" }).missing).toEqual(["manage_attachments", "publish_job_notes"]);
+  });
+
+  it("counts only the kinds it is handed: files alone never miss the notes permission", () => {
+    /* THE INDEX FIX. With SM8_WRITES=1 and the owner's files on, the store
+       hands in ["attachment"]; without the pass-through a grant holding
+       manage_attachments would read as missing publish_job_notes, and the
+       Integrations index would say "Reconnect to finish" for a permission
+       nobody asks for. */
+    const withFiles = row({
+      provider: "servicem8",
+      scopes: [...SM8_SCOPE_LIST, "manage_attachments"].join(" "),
+      write_mode: "live",
+    });
+    expect(toView(withFiles, null, ["attachment"]).missing).toEqual([]);
+    // both kinds allowed, and Notes on: the notes permission is missing
+    expect(toView(withFiles, null, ["attachment", "note"]).missing).toEqual(["publish_job_notes"]);
   });
 });
 

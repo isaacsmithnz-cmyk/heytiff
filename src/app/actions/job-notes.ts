@@ -7,6 +7,8 @@ import { staffIdFor } from "@/lib/workboard/projects-query";
 import { displayNameOf } from "@/lib/staff/name";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
 import type { OurJobNote } from "@/lib/workboard/job-notes-query";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { sm8Ours } from "@/lib/integrations/sm8-echo";
 
 /* WRITING ON A SERVICEM8 JOB — the pen at the diary's head, and the two
    answers a suggestion can be given.
@@ -148,6 +150,12 @@ export async function taskFromJobNote(input: NoteTaskInput): Promise<NoteTaskRes
     .eq("uuid", noteUuid)
     .maybeSingle();
   if (!note) return { ok: false, error: "That note is no longer here." };
+  /* OUR OWN NOTE, MIRRORED BACK, isn't a note to make a task from: HeyTiff's
+     row stands for it (sm8-echo). Only where the deployment sends notes —
+     before that there is none of ours, and no read is added. */
+  if (sm8NotesAllowed() && (await sm8Ours(orgId, [noteUuid])).has(noteUuid)) {
+    return { ok: false, error: "That note is no longer here." };
+  }
 
   const { data: person } = await supabaseAdmin
     .from("staff_profiles")

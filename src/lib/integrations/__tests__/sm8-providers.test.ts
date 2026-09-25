@@ -159,8 +159,28 @@ describe("missing scopes are judged per provider", () => {
    exactly which writes exist, and that none is asked for unless the owner
    has switched sending on. */
 describe("the write ask", () => {
-  it("is one scope, the one that puts a file on a job", () => {
-    expect(SM8_WRITE_SCOPE_LIST).toEqual(["manage_attachments"]);
+  it("is two scopes, each with its feature: files on a job, and notes (two-way phase 2)", () => {
+    expect(SM8_WRITE_SCOPE_LIST).toEqual(["manage_attachments", "publish_job_notes"]);
+    expect(SM8_WRITE_KIND_SCOPES).toEqual({ attachment: ["manage_attachments"], note: ["publish_job_notes"] });
+  });
+
+  it("says what the notes permission allows, and what HeyTiff does with it", () => {
+    const why = SM8_WRITE_SCOPES.find((s) => s.scope === "publish_job_notes")!.why;
+    expect(why).toMatch(/add, change and remove notes/);
+    expect(why).toMatch(/each sent as that person/);
+    expect(why).toMatch(/only when whoever sent it takes it back/);
+  });
+
+  it("a deployment that sends files never asks for, or misses, the notes permission", () => {
+    const withFiles = `${SM8_SCOPE_LIST.join(" ")} manage_attachments`;
+    expect(sm8ScopesWanted("live", ["attachment"])).not.toContain("publish_job_notes");
+    expect(missingScopesFor("servicem8", withFiles, "live", ["attachment"])).toEqual([]);
+    expect(missingScopesFor("servicem8", withFiles, "live", ["attachment", "note"])).toEqual(["publish_job_notes"]);
+    expect(sm8ScopesWanted("paused", ["attachment", "note"])).toEqual([
+      ...SM8_SCOPE_LIST,
+      "manage_attachments",
+      "publish_job_notes",
+    ]);
   });
 
   it("is a write by shape, and never leaks into the read list", () => {
@@ -170,7 +190,7 @@ describe("the write ask", () => {
     }
   });
 
-  it("says what the permission allows as well as what HeyTiff does with it", () => {
+  it("says what the files permission allows as well as what HeyTiff does with it", () => {
     const why = SM8_WRITE_SCOPES[0].why;
     expect(why).toMatch(/add, change and remove/);
     expect(why).toMatch(/HeyTiff only ever adds/);
@@ -185,19 +205,21 @@ describe("the write ask", () => {
 
   it("reads a grant without it as missing it, only while sending is On", () => {
     const reads = SM8_SCOPE_LIST.join(" ");
-    expect(sm8MissingScopes(reads, "off")).toEqual([]);
-    expect(sm8MissingScopes(reads, "live")).toEqual(["manage_attachments"]);
-    expect(missingScopesFor("servicem8", reads, "live")).toEqual(["manage_attachments"]);
-    expect(missingScopesFor("servicem8", `${reads} manage_attachments`, "live")).toEqual([]);
+    const files = ["attachment"];
+    expect(sm8MissingScopes(reads, "off", files)).toEqual([]);
+    expect(sm8MissingScopes(reads, "live", files)).toEqual(["manage_attachments"]);
+    expect(missingScopesFor("servicem8", reads, "live", files)).toEqual(["manage_attachments"]);
+    expect(missingScopesFor("servicem8", `${reads} manage_attachments`, "live", files)).toEqual([]);
     // Xero's yardstick is its own, whatever the switch says
     expect(missingScopesFor("xero", XERO_SCOPE_LIST.join(" "), "live")).toEqual([]);
   });
 
   it("is still asked for while sending is paused, so a reconnect then doesn't drop it", () => {
     const reads = SM8_SCOPE_LIST.join(" ");
+    const files = ["attachment"];
     expect(sm8ScopesWanted("paused")).toEqual([...SM8_SCOPE_LIST, ...SM8_WRITE_SCOPE_LIST]);
-    expect(sm8MissingScopes(reads, "paused")).toEqual(["manage_attachments"]);
-    expect(missingScopesFor("servicem8", reads, "paused")).toEqual(["manage_attachments"]);
+    expect(sm8MissingScopes(reads, "paused", files)).toEqual(["manage_attachments"]);
+    expect(missingScopesFor("servicem8", reads, "paused", files)).toEqual(["manage_attachments"]);
   });
 
   it("asks only for the kinds a deployment allows", () => {

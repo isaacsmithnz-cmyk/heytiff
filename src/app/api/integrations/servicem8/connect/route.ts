@@ -61,7 +61,10 @@ export async function GET(request: Request) {
      write migration hasn't reached yet can't block a connect there. */
   const writes = await readSm8WriteState(orgId);
   if (writes.deployment && !writes.readable) return back(request, "settings");
-  const scopes = sm8ScopesWanted(writes.deployment ? writes.mode : "off", writes.kinds);
+  /* the kinds the deployment allows AND the owner has on: Notes Off asks for
+     no notes permission, and a files-only deployment never asks for one */
+  const kinds = writes.kinds.filter((k) => writes.ownerKinds.includes(k));
+  const scopes = sm8ScopesWanted(writes.deployment ? writes.mode : "off", kinds);
 
   const response = NextResponse.redirect(buildSm8ConsentUrl(cfg, state, scopes));
   response.cookies.set({

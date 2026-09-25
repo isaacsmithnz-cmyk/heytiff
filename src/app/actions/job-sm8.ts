@@ -10,7 +10,7 @@ import {
   runSm8Writes,
   type Sm8WriteRun,
 } from "@/lib/integrations/sm8-writes";
-import { drainSm8WritesAfterResponse } from "@/lib/integrations/sm8-drain";
+import { drainSm8WritesAfterResponse, settleWithin } from "@/lib/integrations/sm8-drain";
 import {
   offersSend,
   sendHold,
@@ -57,19 +57,6 @@ import {
     queue. A few files are seconds; this is for the slow day. */
 const SEND_BUDGET_MS = 20_000;
 
-/** `p`'s answer, or null once `ms` have passed — whichever is first. The
-    promise itself keeps going. */
-async function settleWithin<T>(p: Promise<T>, ms: number): Promise<T | null> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), ms);
-  });
-  try {
-    return await Promise.race([p.catch(() => null), late]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 export type JobSm8Read = {
   /** Whether this viewer is offered Send to ServiceM8, and on which

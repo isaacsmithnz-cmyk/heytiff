@@ -491,6 +491,7 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
 
   const note = await noteIn(ctx.orgId, noteId);
   if (!note) return { ok: false, error: GONE };
+  if (!onTheCard(note)) return { ok: false, error: ALREADY_APPLIED };
 
   const reply = trim(answer, 500);
   if (!reply) return { ok: false, error: "Type an answer first." };
@@ -534,12 +535,16 @@ async function reread(
       ...(turns ? { turns } : {}),
     })
     .eq("org_id", ctx.orgId)
-    .eq("id", note.id);
-  /* A reply that crossed a Save or an Undo in flight must not drag a settled
-     note back to pending: the modal's write only lands on a note still
-     waiting. The card's is the write it always was. */
+    .eq("id", note.id)
+    .in("status", ON_THE_CARD);
+  /* ONLY A NOTE STILL WAITING TAKES WHAT CAME BACK. A reply that crossed a
+     Save or an Undo in flight must not drag a settled note back to pending,
+     and the card's answer, a Server Function reachable by direct POST, must
+     not rewrite the words of a note that may be in ServiceM8 (two-way phase
+     2). Both writes are held to a note still waiting; only the modal's asks
+     whether it landed, and the card's answers as it always did. */
   if (talk) {
-    const { data } = await write.in("status", ["pending", "clarifying"]).select("id");
+    const { data } = await write.select("id");
     if (!((data ?? []) as unknown[]).length) return { ok: false, error: SETTLED.applied };
   } else {
     await write;
@@ -627,6 +632,22 @@ type NoteRow = {
    had and only the modal's name `turns`. */
 const NOTE_COLUMNS = "id, transcript, status, target_kind, target_id, proposal";
 const TALK_COLUMNS = `${NOTE_COLUMNS}, author_id, applied, turns`;
+
+/* ONLY A NOTE STILL ON THE REVIEW CARD CAN BE ENDED BY IT. The card's three
+   endings and its clarify answer update a row by id, and a Server Function
+   is reachable by direct POST: pointed at an APPLIED row — a reply, a Done
+   or a pen entry that may be in ServiceM8 (two-way phase 2) — they would
+   hide it from the diary while its note still went, rewrite the words that
+   go, or put it back on the card. So they act only on a `pending` or
+   `clarifying` row, the rule applyNote already keeps, and each update is
+   conditional on it too, so a row applied in between is left alone. The
+   card only ever calls them on its own routed note, which is one of those,
+   so nothing a person does changes, and no read is added (noteIn already
+   reads the status). The Tiff modal's reply and its walking away are held
+   to the same two statuses. */
+const ON_THE_CARD = ["pending", "clarifying"];
+const ALREADY_APPLIED = "That note was already applied.";
+const onTheCard = (note: NoteRow) => ON_THE_CARD.includes(note.status);
 
 async function noteIn(
   orgId: string,
@@ -1749,6 +1770,7 @@ export async function dismissNote(noteId: string): Promise<ApplyResult> {
 
   const note = await noteIn(ctx.orgId, noteId);
   if (!note) return { ok: false, error: GONE };
+  if (!onTheCard(note)) return { ok: false, error: ALREADY_APPLIED };
 
   /* ONLY A NOTE STILL WAITING. Walking away sets aside what was never filed,
      and the Tiff modal cannot always know whether it was: a filing whose
@@ -1761,7 +1783,7 @@ export async function dismissNote(noteId: string): Promise<ApplyResult> {
     .update({ status: "dismissed" })
     .eq("org_id", ctx.orgId)
     .eq("id", noteId)
-    .in("status", ["pending", "clarifying"]);
+    .in("status", ON_THE_CARD);
   refresh({ kind: note.target_kind, id: note.target_id });
   /* NOT "Kept as a note." — this is the ABANDON path (Escape, ×, walking
      away), and a dismissed row is read by nothing: the journal lists `applied`
@@ -1801,6 +1823,7 @@ export async function keepNoteOnJob(
 
   const note = await noteIn(ctx.orgId, noteId);
   if (!note) return { ok: false, error: GONE };
+  if (!onTheCard(note)) return { ok: false, error: ALREADY_APPLIED };
 
   let target: NoteTarget = { kind: note.target_kind, id: note.target_id };
   if (retarget && retarget.kind !== "none" && retarget.id) {
@@ -1865,7 +1888,8 @@ export async function keepNoteOnJob(
       target_id: target.id,
     })
     .eq("org_id", ctx.orgId)
-    .eq("id", noteId);
+    .eq("id", noteId)
+    .in("status", ON_THE_CARD);
 
   refresh(target);
   return {
@@ -1896,6 +1920,8 @@ export async function keepNoteForMe(noteId: string): Promise<ApplyResult> {
 
   const note = await noteIn(ctx.orgId, noteId);
   if (!note) return { ok: false, error: GONE };
+  /* before the staff_notes insert: an applied row keeps nothing */
+  if (!onTheCard(note)) return { ok: false, error: ALREADY_APPLIED };
 
   const body = trim(note.transcript, 4000);
   if (!body) return { ok: false, error: "There are no words to keep." };
@@ -1927,7 +1953,8 @@ export async function keepNoteForMe(noteId: string): Promise<ApplyResult> {
       applied_at: new Date().toISOString(),
     })
     .eq("org_id", ctx.orgId)
-    .eq("id", noteId);
+    .eq("id", noteId)
+    .in("status", ON_THE_CARD);
 
   refresh({ kind: note.target_kind, id: note.target_id });
   revalidatePath(navHref("mynotes"));

@@ -34,6 +34,47 @@ import { after } from "next/server";
 import { backgroundBudgetMs } from "./sm8-write-plan";
 import { runSm8Writes, sm8WritesEnabled, type Sm8WriteRun } from "./sm8-writes";
 
+/** How long a note press (a reply, Send to ServiceM8, Undo, Mark done)
+    waits on ServiceM8 before handing the rest to the queue. */
+export const NOTE_PRESS_BUDGET_MS = 8_000;
+
+/** How long a tick waits for its Done. The rest goes behind the answer. */
+export const DONE_PRESS_BUDGET_MS = 3_000;
+
+/** `p`'s answer, or null once `ms` have passed — whichever is first. The
+    promise itself keeps going. */
+export async function settleWithin<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms);
+  });
+  try {
+    return await Promise.race([p.catch(() => null), late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** A press's own rows, sent in the foreground for up to `budgetMs`, then —
+    unless that run stopped for the account's reasons — the drain behind the
+    answer, waiting for the press's run if it outlived the budget. The
+    pattern job-sm8's Send to ServiceM8 follows, for every note press. */
+export async function settlePressedWrites(
+  orgId: string,
+  ids: readonly string[],
+  opts: { startedAt: number; budgetMs: number }
+): Promise<void> {
+  let running: Promise<Sm8WriteRun> | undefined;
+  let stopped = false;
+  if (ids.length > 0) {
+    const pressRun = runSm8Writes(orgId, "send", { ids, budgetMs: opts.budgetMs });
+    const run = await settleWithin(pressRun, opts.budgetMs);
+    if (run === null) running = pressRun;
+    else stopped = run.stopped !== null;
+  }
+  if (!stopped) drainSm8WritesAfterResponse(orgId, { startedAt: opts.startedAt, behind: running });
+}
+
 export function drainSm8WritesAfterResponse(
   orgId: string,
   opts: { startedAt?: number; behind?: Promise<Pick<Sm8WriteRun, "stopped">> } = {}

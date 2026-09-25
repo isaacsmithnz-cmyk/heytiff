@@ -1,9 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import userEvent from "@testing-library/user-event";
 import { Servicem8Screen } from "../servicem8-screen";
-import { toView, type ConnectionRow } from "@/lib/integrations/connection";
-import { SM8_SCOPE_LIST } from "@/lib/integrations/providers";
+import { toView as toViewOf, type ConnectionRow } from "@/lib/integrations/connection";
+import { SM8_SCOPE_LIST, SM8_WRITE_SCOPES } from "@/lib/integrations/providers";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import { sm8ObjectPhase, SM8_PAUSE_MIDWALK } from "@/lib/integrations/sm8-sync-plan";
 import type { Sm8ObjectStatus, Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
@@ -21,6 +21,7 @@ import type { Sm8WritesView } from "../sm8-writes-card";
 const disconnect = jest.fn();
 const syncNow = jest.fn();
 const setWriteMode = jest.fn();
+const setWriteKind = jest.fn();
 const retryFailed = jest.fn();
 const refresh = jest.fn();
 
@@ -28,8 +29,13 @@ jest.mock("@/app/actions/integrations", () => ({
   disconnectServiceM8Action: (...args: unknown[]) => disconnect(...args),
   syncServiceM8NowAction: (...args: unknown[]) => syncNow(...args),
   setServiceM8WriteModeAction: (...args: unknown[]) => setWriteMode(...args),
+  setServiceM8WriteKindAction: (...args: unknown[]) => setWriteKind(...args),
   retryFailedServiceM8WritesAction: (...args: unknown[]) => retryFailed(...args),
 }));
+
+/* The view as the store builds it on a deployment that sends files: the
+   write kinds that count are files alone (store.ts hands them in). */
+const toView = (r: ConnectionRow, name: string | null = null) => toViewOf(r, name, ["attachment"]);
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
 
 const ACCOUNT = "Diamond Air Solutions Pty LTD";
@@ -566,6 +572,7 @@ describe("the mirror card's overnight line", () => {
 describe("sending files to ServiceM8", () => {
   type Recent = {
     id: string;
+    kind: "attachment" | "note";
     name: string;
     jobNumber: string | null;
     status: "sent" | "failed" | "trial" | "queued" | "sending" | "cancelled";
@@ -590,6 +597,7 @@ describe("sending files to ServiceM8", () => {
   const recent = (n: number, over: Partial<Recent> = {}): Recent[] =>
     Array.from({ length: n }, (_, i) => ({
       id: `w${i}`,
+      kind: "attachment" as const,
       name: `File ${i}.pdf`,
       jobNumber: "2380",
       status: "sent",
@@ -675,8 +683,8 @@ describe("sending files to ServiceM8", () => {
           mode: "live",
           granted: ["attachment"],
           recent: [
-            { id: "w1", name: "Public liability.pdf", jobNumber: "2380", status: "sent", attempts: 1, error: null, at: "2026-09-23T02:00:00Z", by: "Isaac Smith" },
-            { id: "w2", name: "Plan.pdf", jobNumber: "2381", status: "failed", attempts: 1, error: "ServiceM8 said the file is too big.", at: "2026-09-22T02:00:00Z", by: "Troy Porter" },
+            { id: "w1", kind: "attachment", name: "Public liability.pdf", jobNumber: "2380", status: "sent", attempts: 1, error: null, at: "2026-09-23T02:00:00Z", by: "Isaac Smith" },
+            { id: "w2", kind: "attachment", name: "Plan.pdf", jobNumber: "2381", status: "failed", attempts: 1, error: "ServiceM8 said the file is too big.", at: "2026-09-22T02:00:00Z", by: "Troy Porter" },
           ],
         })}
       />
@@ -791,5 +799,63 @@ describe("sending files to ServiceM8", () => {
     // but adds files only while On
     expect(screen.queryByText("HeyTiff can read this ServiceM8 account, and add files to its jobs.")).not.toBeInTheDocument();
     expect(screen.getByText(/hasn't given HeyTiff permission to add files yet/)).toBeInTheDocument();
+  });
+});
+
+/* ── files and notes (two-way phase 2) ──
+   With files alone allowed (production today) the card and the asks list
+   are exactly as they were; with notes allowed too, the owner switches each
+   kind, and the notes permission is listed only while Notes is on. */
+describe("sending files and notes", () => {
+  const view = (over: Partial<Sm8WritesView> = {}): Sm8WritesView => ({
+    mode: "live",
+    pausedReason: null,
+    hold: null,
+    granted: ["attachment", "note"],
+    refused: [],
+    sentLately: 3,
+    waiting: 0,
+    failed: 0,
+    recent: [],
+    hourlyCap: 60,
+    kinds: ["attachment", "note"],
+    ownerKinds: ["attachment"],
+    ...over,
+  });
+
+  it("(F) with files alone allowed, the asks list never shows the notes permission, and the card has no kind switch", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row({ write_mode: "live" }))}
+        {...ready}
+        writes={view({ kinds: ["attachment"], ownerKinds: ["attachment", "note"] })}
+      />
+    );
+    expect(screen.getByText("manage_attachments")).toBeInTheDocument();
+    expect(screen.queryByText("publish_job_notes")).not.toBeInTheDocument();
+    expect(screen.getByText("Sending files to ServiceM8")).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "Sending notes to ServiceM8" })).not.toBeInTheDocument();
+  });
+
+  it("with notes allowed: headed Sending to ServiceM8, a Files and a Notes switch, and the notes permission when the page lists it", async () => {
+    const user = userEvent.setup();
+    setWriteKind.mockResolvedValue({ ok: true });
+    render(
+      <Servicem8Screen
+        connection={toView(row({ write_mode: "live" }))}
+        {...ready}
+        writes={view({ ownerKinds: ["attachment", "note"], granted: ["attachment"] })}
+        writeScopes={SM8_WRITE_SCOPES}
+      />
+    );
+    expect(screen.getByText("Sending to ServiceM8")).toBeInTheDocument();
+    expect(screen.getByText("publish_job_notes")).toBeInTheDocument();
+    expect(screen.getByText("On. 3 sent in the last 30 days.")).toBeInTheDocument();
+    const notes = screen.getByRole("radiogroup", { name: "Sending notes to ServiceM8" });
+    expect(screen.getByRole("radiogroup", { name: "Sending files to ServiceM8" })).toBeInTheDocument();
+    // the notes permission isn't held: said, in notes' words
+    expect(screen.getByText(/hasn't given HeyTiff permission to add notes yet/)).toBeInTheDocument();
+    await user.click(within(notes).getByRole("radio", { name: "Off" }));
+    expect(setWriteKind).toHaveBeenCalledWith("note", false);
   });
 });

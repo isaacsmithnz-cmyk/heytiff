@@ -11,12 +11,15 @@ import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
 import {
   readSm8WriteState,
   retryFailedSm8Writes,
+  setSm8WriteKind,
   setSm8WriteMode,
+  sm8WriteKindsEnabled,
   sm8WritesEnabled,
 } from "@/lib/integrations/sm8-writes";
 import { drainSm8WritesAfterResponse } from "@/lib/integrations/sm8-drain";
-import { readWriteMode, sendRefusal } from "@/lib/integrations/sm8-write-plan";
-import { sm8DisconnectNote, sm8OffNote, sm8RetryNote } from "@/lib/integrations/outcome";
+import { readWriteMode, sendRefusal, type Sm8WriteKind } from "@/lib/integrations/sm8-write-plan";
+import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
+import { sm8DisconnectNote, sm8KindOffNote, sm8OffNote, sm8RetryNote } from "@/lib/integrations/outcome";
 
 /* The two things you can do to an existing connection from the screen.
 
@@ -76,10 +79,17 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
      job on their side is a one-off the owner does in ServiceM8 itself. The
      note also says which files that were waiting to go won't, and how many
      were already on their way and may still arrive. */
-  const names = cancelled.map((c) => c.name).filter((n): n is string => n !== null);
+  /* files by name; a note's name is only its label, so notes are counted */
+  const files = cancelled.filter((c) => c.kind !== "note");
+  const names = files.map((c) => c.name).filter((n): n is string => n !== null);
   return {
     ok: true,
-    note: sm8DisconnectNote({ cancelled: names, unnamed: cancelled.length - names.length, inFlight }),
+    note: sm8DisconnectNote({
+      cancelled: names,
+      unnamed: files.length - names.length,
+      inFlight,
+      notes: cancelled.length - files.length,
+    }),
   };
 }
 
@@ -119,7 +129,37 @@ export async function setServiceM8WriteModeAction(mode: string): Promise<Integra
   if (!changed.ok) return { ok: false, error: "Couldn't change it. Reload the page and try again." };
   if (want === "live" || want === "trial") drainSm8WritesAfterResponse(ctx.orgId, { startedAt });
   revalidate();
-  const note = want === "off" ? sm8OffNote(changed.cancelled.length) : null;
+  /* files and notes apart: with no notes, today's words exactly */
+  const notes = changed.cancelled.filter((c) => c.kind === "note").length;
+  const note = want === "off" ? sm8OffNote(changed.cancelled.length - notes, notes) : null;
+  return note ? { ok: true, note } : { ok: true };
+}
+
+/** The owner's switch for ONE KIND — Files or Notes — under the one Off /
+    Trial run / Paused / On. Only a kind this deployment allows (SM8_WRITES)
+    can be switched. Off cancels that kind's waiting rows and says how many;
+    On drains, while sending is On or a Trial run, so what waits goes. */
+export async function setServiceM8WriteKindAction(kind: string, on: boolean): Promise<IntegrationResult> {
+  const startedAt = Date.now();
+  const ctx = await ownerOrgId();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+  if (kind !== "attachment" && kind !== "note") return { ok: false, error: NOTE_WORDS.card.notAKind };
+  const allowed = sm8WriteKindsEnabled();
+  if (!allowed.includes(kind)) {
+    return {
+      ok: false,
+      error: kind === "note" ? NOTE_WORDS.card.notesUnavailable : "Sending to ServiceM8 isn't available yet.",
+    };
+  }
+  if (typeof on !== "boolean") return { ok: false, error: "That isn't a setting." };
+  const changed = await setSm8WriteKind(ctx.orgId, kind as Sm8WriteKind, on);
+  if (!changed.ok) return { ok: false, error: "Couldn't change it. Reload the page and try again." };
+  if (on) {
+    const state = await readSm8WriteState(ctx.orgId);
+    if (state.mode === "live" || state.mode === "trial") drainSm8WritesAfterResponse(ctx.orgId, { startedAt });
+  }
+  revalidate();
+  const note = on ? null : sm8KindOffNote(kind, changed.cancelled.length);
   return note ? { ok: true, note } : { ok: true };
 }
 

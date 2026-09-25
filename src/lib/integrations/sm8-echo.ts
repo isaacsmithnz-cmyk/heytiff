@@ -15,9 +15,15 @@
    WHERE IT IS LEFT OUT: the job card's files and the job story
    (job-media-query), the download that brings a job's files across
    (workboard-media), the photo bank's search and its reader
-   (photo-search, photo-readings), and a note's mentions and flags
-   (job-attention), ready for the writes that make notes. HeyTiff's OWN rows
-   — sm8_writes, the document it sent, a paper — are never touched: the file
+   (photo-search, photo-readings), and — for notes (two-way phase 2) — the
+   job's notes (all-jobs-query's readJobNotes, which feeds the diary, the
+   strip, the stored summary and the claim modal) and a task made from a
+   note (job-notes' taskFromJobNote). Both of those ask only where the
+   deployment sends notes; readJobAttention asks only when readJobNotes
+   hasn't (`echoFiltered`), so a card open makes one echo read. The echo
+   hides OUR COPY from OUR lists; who a note mentions is still read from its
+   words. HeyTiff's OWN rows — sm8_writes, the document it sent, a paper, a
+   note's workboard_notes row — are never touched: the file or the note
    stays one row, ours.
 
    DOUBT SHOWS IT TWICE. A read that fails returns nothing as ours, logged: a

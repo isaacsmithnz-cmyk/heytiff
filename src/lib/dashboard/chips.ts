@@ -28,7 +28,7 @@ import { daysUntil, fmtAuDayMonth } from "@/lib/au-dates";
 import { dateFromDays } from "@/lib/fleet/map";
 import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
 import { isNoVisa, isNotCleared } from "@/lib/staff/work-rights";
-import { WRITE_HOURLY_CAP } from "@/lib/integrations/sm8-write-plan";
+import { kindCount, WRITE_HOURLY_CAP } from "@/lib/integrations/sm8-write-plan";
 
 export type ChipKind =
   | "licence"
@@ -781,10 +781,17 @@ export function declinedLeaveChip(
     and chips nothing (lib/integrations/sm8-writes' sm8QueueStuck decides).
     One chip for the queue, whatever its size. */
 export function sm8QueueChip(
-  stuck: { reason: "cap" | "billing" | "reconnect"; waiting: number } | null
+  stuck: {
+    reason: "cap" | "billing" | "reconnect";
+    waiting: number;
+    /** Files and notes apart, where the deployment sends notes. */
+    kinds?: { attachment: number; note: number };
+  } | null
 ): ActionChip | null {
   if (!stuck) return null;
-  const files = (n: number) => (n === 1 ? "1 file" : `${n} files`);
+  /* "1 file", or "1 file and 2 notes" once notes go: word for word today's
+     with no notes (kindCount) */
+  const files = (n: number) => kindCount(stuck.kinds && stuck.kinds.note > 0 ? stuck.kinds : { attachment: n, note: 0 });
   const base = {
     key: "sm8-writes",
     kind: "sm8-writes" as const,

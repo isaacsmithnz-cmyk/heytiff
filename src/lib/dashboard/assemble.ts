@@ -100,7 +100,11 @@ export type ChipSources = {
   swmsTemplatePending?: boolean;
   /** Files waiting to go to ServiceM8 that only the owner can unstick — the
       loader reads it for owners only; `assembleChips` checks again. */
-  sm8Stuck?: { reason: "cap" | "billing" | "reconnect"; waiting: number } | null;
+  sm8Stuck?: {
+    reason: "cap" | "billing" | "reconnect";
+    waiting: number;
+    kinds?: { attachment: number; note: number };
+  } | null;
 };
 
 const push = (arr: ActionChip[], chip: ActionChip | null) => {

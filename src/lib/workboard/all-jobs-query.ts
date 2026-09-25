@@ -20,6 +20,8 @@
    handed in, and when it is false the money columns are never selected. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { sm8Ours, withoutOurs } from "@/lib/integrations/sm8-echo";
 import {
   readJobMediaGroups,
   type JobMediaGroupsRead,
@@ -421,7 +423,9 @@ export async function readJobNotes(
 
   const { data } = await supabaseAdmin
     .from("sm8_job_notes")
-    .select("uuid, note, create_date, action_required, edit_by_staff_uuid, related_object_uuid")
+    .select(
+      "uuid, note, create_date, action_required, action_completed_by_staff_uuid, edit_date, edit_by_staff_uuid, related_object_uuid"
+    )
     .eq("org_id", orgId)
     .in(
       "related_object_uuid",
@@ -436,11 +440,27 @@ export async function readJobNotes(
     note: string | null;
     create_date: string | null;
     action_required: string | null;
+    action_completed_by_staff_uuid: string | null;
+    edit_date: string | null;
     edit_by_staff_uuid: string | null;
     related_object_uuid: string;
   }[];
-  const withText = rows.filter((r) => !!r.note?.trim());
+  let withText = rows.filter((r) => !!r.note?.trim());
   if (withText.length === 0) return [];
+
+  /* OUR OWN NOTES, MIRRORED BACK, are HeyTiff's rows already (the diary
+     draws those): the twin is left out, by its uuid (sm8-echo). Only where
+     the deployment sends notes — before that there is no note of ours to
+     echo, so a files-only deployment makes no new read. A read that fails
+     shows everything: a duplicate beats a diary that won't open. */
+  if (sm8NotesAllowed()) {
+    const ours = await sm8Ours(
+      orgId,
+      withText.map((r) => r.uuid)
+    );
+    withText = withoutOurs(withText, (r) => r.uuid, ours);
+    if (withText.length === 0) return [];
+  }
 
   const staffName = await namesForStaff(
     orgId,
@@ -453,8 +473,10 @@ export async function readJobNotes(
     writtenOn: dateOf(r.create_date),
     writtenAt: r.create_date,
     writtenBy: r.edit_by_staff_uuid ? staffName.get(r.edit_by_staff_uuid) ?? null : null,
-    /* ServiceM8 sends the flag as "1"/"0" text, like every boolean it owns. */
-    actionRequired: r.action_required === "1",
+    /* ServiceM8 sends the flag as "1"/"0" text, like every boolean it owns.
+       A flag somebody marked done keeps "1" and gains a completer: it is
+       answered, not open. */
+    actionRequired: r.action_required === "1" && !r.action_completed_by_staff_uuid,
     fromClaim: claimOf.get(r.related_object_uuid) ?? null,
   }));
 }

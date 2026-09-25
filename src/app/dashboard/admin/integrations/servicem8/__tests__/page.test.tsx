@@ -43,7 +43,11 @@ jest.mock("@/app/actions/staff-import", () => ({ getSm8PeopleData: jest.fn(async
 
 let kinds: string[] = ["attachment"];
 const readSm8WriteState = jest.fn();
-const countSm8Queue = jest.fn(async (..._a: unknown[]) => ({ waiting: 3, failed: 1 }));
+const countSm8Queue = jest.fn(async (..._a: unknown[]) => ({
+  waiting: 3,
+  failed: 1,
+  waitingKinds: { attachment: 3, note: 0 },
+}));
 jest.mock("@/lib/integrations/sm8-writes", () => ({
   sm8WriteKindsEnabled: () => kinds,
   readSm8WriteState: (...a: unknown[]) => readSm8WriteState(...a),
@@ -57,7 +61,9 @@ import Servicem8IntegrationPage from "../page";
 type Props = {
   connection: { writeMode: string; missing: string[] } | null;
   writes: Record<string, unknown> | null;
+  writeScopes: { scope: string }[];
   waitingWrites: number;
+  waitingNotes: number;
   notice: { kind: string; text: string } | null;
   reach: unknown;
 };
@@ -91,6 +97,8 @@ const state = (over: Record<string, unknown> = {}) => ({
   granted: ["attachment"],
   refused: [],
   timezoneName: null,
+  ownerKinds: ["attachment"],
+  ownerKindsRead: true,
   ...over,
 });
 
@@ -159,6 +167,27 @@ describe("the ServiceM8 screen's loader", () => {
     const p = await load();
     expect(p.writes).toBeNull();
     expect(p.connection).toMatchObject({ writeMode: "off", missing: [] });
+  });
+
+  /* two-way phase 2: "What HeyTiff asks ServiceM8 for" lists only the write
+     permissions the consent will ask for — never the notes permission on a
+     deployment that sends files alone, whatever the owner's switch says */
+  it("(F) with files alone allowed, the asks list never holds the notes permission", async () => {
+    readSm8WriteState.mockResolvedValue(state({ ownerKinds: ["attachment", "note"] }));
+    const p = await load();
+    expect(p.writeScopes.map((s) => s.scope)).toEqual(["manage_attachments"]);
+    expect(p.writes).toMatchObject({ kinds: ["attachment"], holds: { attachment: null } });
+  });
+
+  it("with notes allowed: the notes permission only while the owner has Notes on, and holds per kind", async () => {
+    kinds = ["attachment", "note"];
+    readSm8WriteState.mockResolvedValue(state({ kinds, ownerKinds: ["attachment"] }));
+    let p = await load();
+    expect(p.writeScopes.map((s) => s.scope)).toEqual(["manage_attachments"]);
+    expect(p.writes).toMatchObject({ kinds, ownerKinds: ["attachment"], holds: { attachment: null, note: "off" } });
+    readSm8WriteState.mockResolvedValue(state({ kinds, ownerKinds: ["attachment", "note"] }));
+    p = await load();
+    expect(p.writeScopes.map((s) => s.scope)).toEqual(["manage_attachments", "publish_job_notes"]);
   });
 
   it("says why a connect was refused for settings it couldn't read", async () => {

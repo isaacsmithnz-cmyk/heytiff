@@ -27,7 +27,14 @@ jest.mock("../sm8-meter", () => {
   };
 });
 
-import { postSm8Attachment, readSm8Attachment } from "../sm8-write";
+import {
+  deleteSm8Note,
+  postSm8Attachment,
+  postSm8Note,
+  readSm8Attachment,
+  readSm8Note,
+  updateSm8NoteCompleter,
+} from "../sm8-write";
 
 /** A write on the account vendor-1, with this token. */
 const W = (accessToken: string) => ({ accessToken, meter: "vendor-1", lane: "write" as const });
@@ -271,5 +278,98 @@ describe("confirming a 409 was ours", () => {
     expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({ ok: true, found: false });
     fetchSm8Page.mockResolvedValueOnce({ ok: false, failure: "unavailable" });
     expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({ ok: false });
+  });
+});
+
+/* ── notes (two-way phase 2) ── */
+
+describe("a note, as the person who pressed it", () => {
+  const STAFF = "5a1b2c3d-0000-4000-8000-00000000aaaa";
+  const NOTE = "7d3f2c1e-5b6a-4c8d-9e0f-00000000beef";
+  const call = (i = 0) => fetchMock.mock.calls[i] as [string, RequestInit];
+
+  it("posts exactly its four fields to note.json, impersonated, and never action_required", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 200, headers: { "x-record-uuid": NOTE } }));
+    const r = await postSm8Note(W("t"), { relatedUuid: "job-1", uuid: NOTE, text: "@lukeingold on my way", asStaffUuid: STAFF });
+    const [url, init] = call();
+    expect(url).toBe("https://api.servicem8.com/api_1.0/note.json");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({
+      related_object: "job",
+      related_object_uuid: "job-1",
+      note: "@lukeingold on my way",
+      uuid: NOTE,
+    });
+    expect((init.headers as Record<string, string>)["x-impersonate-uuid"]).toBe(STAFF);
+    expect(r).toMatchObject({ status: 200, outcome: { kind: "created" }, recordUuid: NOTE });
+  });
+
+  it("(F) marks a flag done with the completer alone, and takes a note out with DELETE, both as the person", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+    await updateSm8NoteCompleter(W("t"), NOTE, STAFF, STAFF);
+    let [url, init] = call(0);
+    expect(url).toBe(`https://api.servicem8.com/api_1.0/dbonote/${NOTE}.json`);
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ action_completed_by_staff_uuid: STAFF });
+    expect((init.headers as Record<string, string>)["x-impersonate-uuid"]).toBe(STAFF);
+    await updateSm8NoteCompleter(W("t"), NOTE, "", STAFF);
+    expect(JSON.parse(call(1)[1].body as string)).toEqual({ action_completed_by_staff_uuid: "" });
+    await deleteSm8Note(W("t"), NOTE, STAFF);
+    [url, init] = call(2);
+    expect(url).toBe(`https://api.servicem8.com/api_1.0/dbonote/${NOTE}.json`);
+    expect(init.method).toBe("DELETE");
+    expect((init.headers as Record<string, string>)["x-impersonate-uuid"]).toBe(STAFF);
+  });
+
+  it("never sends a request for a uuid that can't be a note", async () => {
+    expect((await deleteSm8Note(W("t"), "../vendor", STAFF)).status).toBe(404);
+    expect((await updateSm8NoteCompleter(W("t"), "x", "", STAFF)).status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("an answer that didn't come is unavailable, never thrown", async () => {
+    fetchMock.mockRejectedValue(new Error("socket hang up"));
+    expect(await postSm8Note(W("t"), { relatedUuid: "j", uuid: NOTE, text: "x", asStaffUuid: STAFF })).toMatchObject({
+      status: null,
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("(F) reads a note back as the account (never impersonated), shaped exactly as the mirror shapes it", async () => {
+    fetchSm8Page.mockResolvedValueOnce({
+      ok: true,
+      rows: [
+        {
+          uuid: NOTE,
+          related_object_uuid: "job-1",
+          active: "1",
+          action_required: "1",
+          action_completed_by_staff_uuid: "",
+          edit_date: "0000-00-00 00:00:00",
+          edit_by_staff_uuid: "",
+        },
+      ],
+      nextCursor: null,
+    });
+    const r = await readSm8Note(W("t"), NOTE);
+    expect(r).toEqual({
+      ok: true,
+      found: true,
+      relatedUuid: "job-1",
+      active: true,
+      flagged: true,
+      completedBy: null,
+      editDate: null,
+      editBy: null,
+    });
+    const [, endpoint, opts] = fetchSm8Page.mock.calls[0];
+    expect(endpoint).toBe("note.json");
+    expect(opts).toMatchObject({ cursor: "-1", filter: `uuid eq '${NOTE}'` });
+    // the call carries no impersonation: the page read is the account's
+    expect(fetchSm8Page.mock.calls[0][0]).toEqual(W("t"));
+    fetchSm8Page.mockResolvedValueOnce({ ok: false, failure: "unauthorized" });
+    expect(await readSm8Note(W("t"), NOTE)).toEqual({ ok: false, unauthorized: true });
+    fetchSm8Page.mockResolvedValueOnce({ ok: true, rows: [{ uuid: NOTE, active: 0 }], nextCursor: null });
+    expect(await readSm8Note(W("t"), NOTE)).toMatchObject({ found: true, active: false });
   });
 });

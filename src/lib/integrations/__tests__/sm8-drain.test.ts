@@ -16,7 +16,7 @@ jest.mock("../sm8-writes", () => ({
   sm8WritesEnabled: () => writing,
 }));
 
-import { drainSm8WritesAfterResponse } from "../sm8-drain";
+import { DONE_PRESS_BUDGET_MS, drainSm8WritesAfterResponse, NOTE_PRESS_BUDGET_MS, settlePressedWrites } from "../sm8-drain";
 
 let clock = Date.parse("2026-09-25T00:00:00Z");
 
@@ -95,5 +95,28 @@ describe("drainSm8WritesAfterResponse", () => {
     runSm8Writes.mockRejectedValueOnce(new Error("boom"));
     drainSm8WritesAfterResponse("org-1");
     await expect(scheduled[0]()).resolves.toBeUndefined();
+  });
+});
+
+/* A NOTE PRESS (two-way phase 2): its own rows in the foreground for a few
+   seconds, then the drain — the pattern Send to ServiceM8 already follows. */
+describe("settlePressedWrites", () => {
+  it("sends the press's own rows within its budget, then drains the rest", async () => {
+    await settlePressedWrites("org-1", ["w1"], { startedAt: clock, budgetMs: NOTE_PRESS_BUDGET_MS });
+    expect(runSm8Writes).toHaveBeenCalledWith("org-1", "send", { ids: ["w1"], budgetMs: 8_000 });
+    expect(scheduled).toHaveLength(1);
+    expect(DONE_PRESS_BUDGET_MS).toBe(3_000);
+  });
+
+  it("doesn't drain after a run that stopped for the account's reasons", async () => {
+    runSm8Writes.mockResolvedValueOnce({ done: 1, sent: 0, trial: 0, failed: 0, again: 0, lost: 0, stopped: "ServiceM8 couldn't be reached." } as never);
+    await settlePressedWrites("org-1", ["w1"], { startedAt: clock, budgetMs: NOTE_PRESS_BUDGET_MS });
+    expect(scheduled).toHaveLength(0);
+  });
+
+  it("with nothing of its own queued, only drains", async () => {
+    await settlePressedWrites("org-1", [], { startedAt: clock, budgetMs: NOTE_PRESS_BUDGET_MS });
+    expect(runSm8Writes).not.toHaveBeenCalled();
+    expect(scheduled).toHaveLength(1);
   });
 });

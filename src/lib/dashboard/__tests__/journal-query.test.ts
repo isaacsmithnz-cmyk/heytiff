@@ -27,6 +27,11 @@ const table = (name: string) => {
     call.in = [col, vals];
     return chain;
   };
+  /* a note somebody took back isn't on anybody's journal (two-way phase 2) */
+  chain.is = (col: string, val: unknown) => {
+    call.eq[`${col} is`] = val;
+    return chain;
+  };
   chain.order = () => chain;
   chain.limit = () => chain;
   chain.then = (res: (v: { data: unknown }) => unknown) =>

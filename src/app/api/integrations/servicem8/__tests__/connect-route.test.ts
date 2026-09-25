@@ -42,6 +42,8 @@ const state = (over: Record<string, unknown> = {}) => ({
   granted: ["attachment"],
   refused: [],
   timezoneName: null,
+  ownerKinds: ["attachment"],
+  ownerKindsRead: true,
   ...over,
 });
 
@@ -87,5 +89,20 @@ describe("the ServiceM8 connect route", () => {
     const url = await connect();
     expect(url.host).toBe("go.servicem8.com");
     expect(asked(url)).toEqual(SM8_SCOPE_LIST);
+  });
+
+  /* two-way phase 2: the notes permission is asked for only where the
+     deployment sends notes AND the owner has Notes On — Paused included */
+  it("asks for publish_job_notes only while the owner has Notes on", async () => {
+    const both = { kinds: ["attachment", "note"] };
+    readSm8WriteState.mockResolvedValue(state({ ...both, ownerKinds: ["attachment"] }));
+    expect(asked(await connect())).not.toContain("publish_job_notes");
+    readSm8WriteState.mockResolvedValue(state({ ...both, ownerKinds: ["attachment", "note"] }));
+    expect(asked(await connect())).toEqual([...SM8_SCOPE_LIST, "manage_attachments", "publish_job_notes"]);
+    readSm8WriteState.mockResolvedValue(state({ ...both, ownerKinds: ["attachment", "note"], mode: "paused", modeStored: "paused" }));
+    expect(asked(await connect())).toContain("publish_job_notes");
+    // a deployment that sends files never asks, whatever the owner's switch
+    readSm8WriteState.mockResolvedValue(state({ ownerKinds: ["attachment", "note"] }));
+    expect(asked(await connect())).not.toContain("publish_job_notes");
   });
 });

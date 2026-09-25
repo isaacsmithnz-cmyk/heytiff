@@ -3,7 +3,7 @@
    "the review card only offered valid options" is not a control. */
 
 const inserts: { table: string; payload: unknown }[] = [];
-const updates: { table: string; patch: Record<string, unknown> }[] = [];
+const updates: { table: string; patch: Record<string, unknown>; onStatus?: string[] }[] = [];
 
 let rows: Record<string, Record<string, unknown> | null> = {};
 /* Reads that come back as a SET rather than a row — the bulk `.in(…)` lookups
@@ -18,6 +18,7 @@ jest.mock("@/lib/supabase-server", () => ({
       chain.select = self;
       chain.eq = self;
       chain.in = self;
+      chain.is = self;
       chain.order = self;
       chain.limit = self;
       chain.maybeSingle = async () => ({ data: rows[table] ?? null });
@@ -43,10 +44,16 @@ jest.mock("@/lib/supabase-server", () => ({
       };
       chain.update = (patch: Record<string, unknown>) => {
         const sub: Record<string, unknown> = {};
+        const onStatus: string[][] = [];
         sub.eq = () => sub;
-        sub.in = () => sub;
+        /* the review card's endings are conditional on the row still being
+           on the card (two-way phase 2) */
+        sub.in = (col: string, vs: string[]) => {
+          if (col === "status") onStatus.push(vs);
+          return sub;
+        };
         sub.then = (res: (v: { error: null }) => unknown) => {
-          updates.push({ table, patch });
+          updates.push({ table, patch, onStatus: onStatus[0] });
           return Promise.resolve({ error: null }).then(res);
         };
         return sub;
@@ -791,5 +798,46 @@ describe("a job target", () => {
       target_kind: "job",
       target_id: "job-uuid",
     });
+  });
+});
+
+/* ONLY A NOTE STILL ON THE REVIEW CARD CAN BE ENDED BY IT (two-way phase 2).
+   A reply, a Done or a pen entry is saved `applied`, and may be in
+   ServiceM8: the card's endings, reached by direct POST, would hide it,
+   rewrite the words that go, or put it back on the card. */
+describe("the review card's endings, on a row that isn't on the card", () => {
+  const APPLIED = {
+    id: "n-9",
+    transcript: "@lukeingold on my way",
+    status: "applied",
+    target_kind: "job",
+    target_id: "job-uuid",
+    proposal: { clarify: { question: "Which Luke?" } },
+  };
+
+  it("(F) dismiss, keep on the job, keep for me and answer a question all refuse an applied row, and change nothing", async () => {
+    rows = { workboard_notes: APPLIED };
+    readNote.mockClear();
+    const { answerClarify } = await import("../workboard-notes");
+    for (const act of [
+      () => dismissNote("n-9"),
+      () => keepNoteOnJob("n-9"),
+      () => keepNoteForMe("n-9"),
+      () => answerClarify("n-9", "Luke Ingold"),
+    ]) {
+      expect(await act()).toEqual({ ok: false, error: "That note was already applied." });
+    }
+    expect(updates).toHaveLength(0);
+    expect(inserts).toHaveLength(0);
+    expect(readNote).not.toHaveBeenCalled();
+  });
+
+  it("(F) on a pending or clarifying note they work as before, each update conditional on the row still being on the card", async () => {
+    rows = { workboard_notes: { ...NOTE, status: "clarifying" } };
+    expect((await dismissNote("n-1")).ok).toBe(true);
+    expect(updates.at(-1)).toMatchObject({ table: "workboard_notes", onStatus: ["pending", "clarifying"] });
+    rows = { workboard_notes: NOTE };
+    expect((await keepNoteForMe("n-1")).ok).toBe(true);
+    expect(updates.at(-1)).toMatchObject({ table: "workboard_notes", onStatus: ["pending", "clarifying"] });
   });
 });

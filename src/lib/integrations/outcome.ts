@@ -8,7 +8,16 @@
    Anything unrecognised falls back to the generic line rather than rendering
    the code, for the same reason. */
 
-import { WRITE_HOURLY_CAP } from "./sm8-write-plan";
+import { kindCount, WRITE_HOURLY_CAP } from "./sm8-write-plan";
+import { fillWords, NOTE_WORDS } from "./sm8-note-words";
+
+/* FILES AND NOTES, COUNTED APART. Where the deployment sends notes, what a
+   switch, a disconnect or the owner's Off cancelled is counted per kind and
+   worded with kindCount ("1 file and 2 notes"). With no notes every
+   sentence below is word for word what it always was. */
+
+const isAre = (n: number) => (n === 1 ? "is" : "are");
+const wasWere = (n: number) => (n === 1 ? "was" : "were");
 
 /* The customer never supplies Xero credentials — one HeyTiff-owned Xero app
    serves every workspace, so `unconfigured` and `nokey` are OUR deployment
@@ -98,25 +107,46 @@ export function nameList(names: readonly string[], extra: number = 0): string {
     account replaced which, what went with the old one, and how many files
     that were waiting to go to it won't. `from` null is an account whose name
     was never read. */
-export function sm8SwitchedNotice(input: { to: string; from: string | null; cancelled: number }): string {
+export function sm8SwitchedNotice(input: {
+  to: string;
+  from: string | null;
+  cancelled: number;
+  /** Notes among them, where the deployment sends notes. */
+  notes?: number;
+}): string {
   const old = input.from ?? "that account";
   const parts = [
     `Connected to ${input.to}.`,
     `It replaced ${input.from ?? "another ServiceM8 account"}.`,
     `HeyTiff cleared its copy of ${old} and switched sending to ServiceM8 off.`,
   ];
-  if (input.cancelled === 1) parts.push(`1 file waiting to go to ${old} was cancelled.`);
+  const notes = input.notes ?? 0;
+  if (notes > 0) {
+    const n = input.cancelled + notes;
+    parts.push(`${kindCount({ attachment: input.cancelled, note: notes })} waiting to go to ${old} ${wasWere(n)} cancelled.`);
+  } else if (input.cancelled === 1) parts.push(`1 file waiting to go to ${old} was cancelled.`);
   else if (input.cancelled > 1) parts.push(`${input.cancelled} files waiting to go to ${old} were cancelled.`);
   return parts.join(" ");
 }
 
 /** The note after a disconnect: what it cancelled, by name, and what was
     already on its way and may still arrive. `unnamed` counts cancelled files
-    whose name couldn't be read. */
-export function sm8DisconnectNote(input: { cancelled: readonly string[]; unnamed: number; inFlight: number }): string {
+    whose name couldn't be read; `notes` counts cancelled notes (named by
+    nothing: a note's name is only its label). */
+export function sm8DisconnectNote(input: {
+  cancelled: readonly string[];
+  unnamed: number;
+  inFlight: number;
+  notes?: number;
+}): string {
   const parts = ["Disconnected here."];
   const n = input.cancelled.length + input.unnamed;
-  if (n > 0) {
+  const notes = input.notes ?? 0;
+  if (notes > 0) {
+    const names = nameList(input.cancelled, input.unnamed);
+    const what = `${kindCount({ attachment: n, note: notes })} waiting to go to ServiceM8 ${wasWere(n + notes)} cancelled`;
+    parts.push(names ? `${what}: ${names}.` : `${what}.`);
+  } else if (n > 0) {
     const names = nameList(input.cancelled, input.unnamed);
     const what = n === 1 ? "1 file waiting to go to ServiceM8 was cancelled" : `${n} files waiting to go to ServiceM8 were cancelled`;
     parts.push(names ? `${what}: ${names}.` : `${what}.`);
@@ -129,21 +159,40 @@ export function sm8DisconnectNote(input: { cancelled: readonly string[]; unnamed
   return parts.join(" ");
 }
 
-/** The disconnect confirm's line for what is still waiting to go. */
-export function sm8WaitingConsequence(waiting: number): string | null {
+/** The disconnect confirm's line for what is still waiting to go. `waiting`
+    counts files; `notes` the notes, where the deployment sends them. */
+export function sm8WaitingConsequence(waiting: number, notes: number = 0): string | null {
+  if (notes > 0) {
+    const n = Math.max(0, waiting) + notes;
+    return `${kindCount({ attachment: Math.max(0, waiting), note: notes })} still waiting to go to ServiceM8 ${isAre(n)} cancelled.`;
+  }
   if (waiting <= 0) return null;
   return waiting === 1
     ? "1 file still waiting to go to ServiceM8 is cancelled."
     : `${waiting} files still waiting to go to ServiceM8 are cancelled.`;
 }
 
-/** The note after the owner switches sending Off: how many files that were
-    waiting won't go now. Null when nothing was waiting. */
-export function sm8OffNote(cancelled: number): string | null {
+/** The note after the owner switches sending Off: how many files (and
+    notes) that were waiting won't go now. Null when nothing was waiting. */
+export function sm8OffNote(cancelled: number, notes: number = 0): string | null {
+  if (notes > 0) {
+    const n = Math.max(0, cancelled) + notes;
+    return `Sending is off. ${kindCount({ attachment: Math.max(0, cancelled), note: notes })} that ${wasWere(n)} waiting won't go.`;
+  }
   if (cancelled <= 0) return null;
   return cancelled === 1
     ? "Sending is off. 1 file that was waiting won't go."
     : `Sending is off. ${cancelled} files that were waiting won't go.`;
+}
+
+/** The note after the owner switches one kind Off: how many of it that were
+    waiting won't go now. Null when nothing was waiting. */
+export function sm8KindOffNote(kind: string, cancelled: number): string | null {
+  if (cancelled <= 0) return null;
+  if (kind === "note") {
+    return cancelled === 1 ? NOTE_WORDS.card.notesOffOne : fillWords(NOTE_WORDS.card.notesOffMany, { n: cancelled });
+  }
+  return cancelled === 1 ? NOTE_WORDS.card.filesOffOne : fillWords(NOTE_WORDS.card.filesOffMany, { n: cancelled });
 }
 
 /** The note after Retry failed files: how many go again, and how many are

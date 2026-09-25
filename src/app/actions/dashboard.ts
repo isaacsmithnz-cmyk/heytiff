@@ -17,6 +17,7 @@ import { todayInAu } from "@/lib/au-dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { zonedParts } from "@/lib/dashboard/day-rail";
 import { hhmm, remindAtFrom } from "@/lib/dashboard/reminders";
+import { logTaskEvent } from "@/lib/dashboard/task-events";
 
 /* Dashboard mutations — tasks and the noticeboard.
 
@@ -24,6 +25,11 @@ import { hhmm, remindAtFrom } from "@/lib/dashboard/reminders";
 
      ASSIGN / POST   creating a task for someone, or posting a notice, needs
                      `team`. It's a management action about other people.
+     ADD             a task for yourself needs nothing: your own to-do, in
+                     `reminders.ts`'s posture. Ownership is the enforcement.
+     GIVE            handing a task to someone else is assigning it, so it
+                     needs `team` too (Isaac, 2026-09-25: only managers can
+                     give a task away).
      COMPLETE        finishing a task is intrinsic to the person it's assigned
                      to (it's their to-do); a `team` holder can also close one.
      DELETE          erasing a task belongs to whoever CREATED it (or `team`).
@@ -31,6 +37,11 @@ import { hhmm, remindAtFrom } from "@/lib/dashboard/reminders";
                      assignment is yours; erasing the record that someone
                      assigned it is not.
      ACK             acknowledging a notice is intrinsic — it's your own read.
+
+   A TASK'S HISTORY is written after each change the row cannot keep — who
+   it was made for, the date moving, a hand-over, every done and reopen
+   (lib/dashboard/task-events.ts). Best-effort: it is awaited, and it never
+   fails the change it describes.
 */
 
 export type DashResult = { ok: true } | { ok: false; error: string };
@@ -113,16 +124,124 @@ export async function createTask(input: {
     .maybeSingle();
   if (!target) return { ok: false, error: "That person isn't in this organisation." };
 
-  const { error } = await supabaseAdmin.from("tasks").insert({
-    org_id: ctx.orgId,
-    title: title.slice(0, 200),
-    detail: input.detail?.trim().slice(0, 1000) || null,
-    assigned_to: input.assignedTo,
-    created_by: ctx.staffId,
-    due_date: input.dueDate || null,
-    status: "open",
+  const { data: made, error } = await supabaseAdmin
+    .from("tasks")
+    .insert({
+      org_id: ctx.orgId,
+      title: title.slice(0, 200),
+      detail: input.detail?.trim().slice(0, 1000) || null,
+      assigned_to: input.assignedTo,
+      created_by: ctx.staffId,
+      due_date: input.dueDate || null,
+      status: "open",
+    })
+    .select("id")
+    .single();
+  if (error || !made) return { ok: false, error: "Couldn't create that task." };
+  await logTaskEvent(ctx.orgId, String((made as { id: string }).id), ctx.staffId, {
+    kind: "created",
+    to: input.assignedTo,
   });
-  if (error) return { ok: false, error: "Couldn't create that task." };
+  refresh();
+  return { ok: true };
+}
+
+export type AddTaskResult = { ok: true; taskId: string } | { ok: false; error: string };
+
+/** A task for yourself — the Tasks face's Save. No `team` gate: writing
+    yourself a to-do is not a management action, and gating it would leave
+    a tradesperson without `team` unable to note down their own work. The
+    task is assigned to the caller and made by the caller, and nothing in
+    the request can say otherwise, so a request can only ever make its
+    sender a task.
+
+    No date: Save files the words as they are. A date is Move due date's
+    job, or Tiff's when the words carry one. */
+export async function addTask(title: string): Promise<AddTaskResult> {
+  const ctx = await context();
+  if (!ctx?.staffId) return { ok: false, error: "Not signed in." };
+
+  const clean = typeof title === "string" ? title.trim().slice(0, 200).trim() : "";
+  if (!clean) return { ok: false, error: "Give the task a title." };
+
+  const { data, error } = await supabaseAdmin
+    .from("tasks")
+    .insert({
+      org_id: ctx.orgId,
+      title: clean,
+      detail: null,
+      assigned_to: ctx.staffId,
+      created_by: ctx.staffId,
+      due_date: null,
+      status: "open",
+    })
+    .select("id")
+    .single();
+  if (error || !data) return { ok: false, error: "Couldn't save that task." };
+
+  const taskId = String((data as { id: string }).id);
+  await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "created", to: ctx.staffId });
+  refresh();
+  return { ok: true, taskId };
+}
+
+/** Hand a task to someone else — the Tasks face's "Give it to". Managers
+    only, the same rule as assigning (Isaac, 2026-09-25).
+
+    THE NEW PERSON HEARS ABOUT IT. `acknowledged_at` is the old assignee's
+    "Got it"; left set, the task would arrive already acknowledged and the
+    bell would never ring for the person now doing it (task_acknowledged.sql:
+    a new assignment ALWAYS alerts). `reminder_emailed_at` goes for the same
+    reason: the nudge was mailed to somebody else.
+
+    A done task is refused: handing over finished work is a question about
+    the record, not the work. Giving it to the person who already has it
+    changes nothing, so it writes nothing. */
+export async function giveTask(taskId: string, staffId: string): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (!(await can("team"))) return { ok: false, error: "You can't give tasks to other people." };
+
+  const { data } = await supabaseAdmin
+    .from("tasks")
+    .select("assigned_to, status")
+    .eq("org_id", ctx.orgId)
+    .eq("id", taskId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That task no longer exists." };
+  if (data.status === "done") return { ok: false, error: "That task is done." };
+
+  const to = typeof staffId === "string" ? staffId : "";
+  if (to && to === data.assigned_to) return { ok: true };
+
+  // the new assignee must belong to this org — scoped lookup, never id alone
+  const { data: target } = to
+    ? await supabaseAdmin
+        .from("staff_profiles")
+        .select("id")
+        .eq("org_id", ctx.orgId)
+        .eq("id", to)
+        .maybeSingle()
+    : { data: null };
+  if (!target) return { ok: false, error: "That person isn't in this organisation." };
+
+  const { error } = await supabaseAdmin
+    .from("tasks")
+    .update({
+      assigned_to: to,
+      acknowledged_at: null,
+      reminder_emailed_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("org_id", ctx.orgId)
+    .eq("id", taskId);
+  if (error) return { ok: false, error: "Couldn't give that task." };
+
+  await logTaskEvent(ctx.orgId, taskId, ctx.staffId, {
+    kind: "given",
+    from: (data.assigned_to as string | null) ?? null,
+    to,
+  });
   refresh();
   return { ok: true };
 }
@@ -155,6 +274,7 @@ export async function completeTask(taskId: string): Promise<DashResult> {
     .eq("org_id", ctx.orgId)
     .eq("id", taskId);
   if (error) return { ok: false, error: "Couldn't complete that task." };
+  await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "done" });
   refresh();
   return { ok: true };
 }
@@ -183,6 +303,7 @@ export async function reopenTask(taskId: string): Promise<DashResult> {
     .eq("org_id", ctx.orgId)
     .eq("id", taskId);
   if (error) return { ok: false, error: "Couldn't reopen that task." };
+  await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "reopened" });
   refresh();
   return { ok: true };
 }
@@ -205,7 +326,7 @@ export async function setTaskDue(taskId: string, dueDate: string | null): Promis
 
   const { data } = await supabaseAdmin
     .from("tasks")
-    .select("assigned_to, created_by, status, remind_at")
+    .select("assigned_to, created_by, status, remind_at, due_date")
     .eq("org_id", ctx.orgId)
     .eq("id", taskId)
     .maybeSingle();
@@ -230,6 +351,13 @@ export async function setTaskDue(taskId: string, dueDate: string | null): Promis
     .eq("org_id", ctx.orgId)
     .eq("id", taskId);
   if (error) return { ok: false, error: "Couldn't move that task." };
+  /* The history says the date MOVED, so a save that left it where it was
+     says nothing. Compared as days: the column is a date, and a driver may
+     hand one back with a time on it. */
+  const was = data.due_date ? String(data.due_date).slice(0, 10) : null;
+  if (was !== dueDate) {
+    await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "due", from: was, to: dueDate });
+  }
   refresh();
   return { ok: true };
 }
@@ -296,8 +424,10 @@ export async function reopenIssue(issueId: string): Promise<DashResult> {
 /** Remove a task outright — its CREATOR, or `team`. Deliberately narrower than
     complete/reopen, which also allow the assignee: finishing your assignment is
     intrinsic to you, erasing someone else's record of having assigned it is
-    not. A hard delete (no table references tasks), and the one task action
-    with no undo — which is why the UI asks twice before calling it. */
+    not. A hard delete, and the one task action with no undo — which is why
+    the UI asks twice before calling it. Two tables point at a task and
+    neither stops the delete: `job_note_actions.task_id` is set null (the
+    note stays answered), and the task's `task_events` go with it. */
 export async function deleteTask(taskId: string): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };

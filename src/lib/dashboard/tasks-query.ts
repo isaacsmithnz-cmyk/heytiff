@@ -59,10 +59,13 @@ export const loadStaffNames = staffNames;
    belongs on the day beside the bookings rather than in a list. Its date part
    is `due_date` by construction (docs/migrations/task_reminders.sql), so it
    never disagrees with the due date it was composed from. */
-const TASK_COLUMNS =
+export const TASK_COLUMNS =
   "id, title, detail, assigned_to, created_by, due_date, status, created_at, done_at, done_by, remind_at, remind_kind";
 
-function toTask(r: Record<string, unknown>, name: (id: string) => string): DashTask {
+/** A tasks row as the dashboard reads it. Exported for the new Home's Tasks
+    face (./task-record-query), which reads a few columns more and builds on
+    this rather than reading a task a second way. */
+export function toTask(r: Record<string, unknown>, name: (id: string) => string): DashTask {
   const assigneeId = String(r.assigned_to);
   const doneBy = (r.done_by as string) ?? null;
   return {

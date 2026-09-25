@@ -14,6 +14,7 @@ import type { BoardNotice } from "./board";
 import { documentsForNotices } from "@/lib/documents/query";
 import { displayNameOf } from "@/lib/staff/name";
 import { isDelegated, noticeReadState, type DashTask } from "./tasks";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 
 /* Queries for the task list and noticeboard. Org-scoped throughout.
 
@@ -107,7 +108,14 @@ export async function myTasks(
 }
 
 /* Your recently-completed tasks. A done task is kept, not deleted, so finishing
-   one leaves a trace you can check — and undo if the tap was a mistake. */
+   one leaves a trace you can check — and undo if the tap was a mistake.
+
+   WHAT YOU TICKED, TOO, where the deployment sends notes (two-way phase 2,
+   PR C). Ticking a task made from a ServiceM8 mention sends a Done to
+   ServiceM8 as you, and whether it went is said on the task's page — so a
+   task you ticked for somebody else has to be there for you to read it,
+   and for the bell's link to land on. Without notes this is exactly the
+   read it always was. */
 export async function recentlyDoneTasks(
   orgId: string,
   staffProfileId: string,
@@ -116,12 +124,12 @@ export async function recentlyDoneTasks(
   known?: StaffNames,
 ): Promise<DashTask[]> {
   const since = new Date(now.getTime() - sinceDays * 86_400_000).toISOString();
+  const base = supabaseAdmin.from("tasks").select(TASK_COLUMNS).eq("org_id", orgId);
+  const whose = sm8NotesAllowed()
+    ? base.or(`assigned_to.eq.${staffProfileId},done_by.eq.${staffProfileId}`)
+    : base.eq("assigned_to", staffProfileId);
   const [{ data }, names] = await Promise.all([
-    supabaseAdmin
-      .from("tasks")
-      .select(TASK_COLUMNS)
-      .eq("org_id", orgId)
-      .eq("assigned_to", staffProfileId)
+    whose
       .eq("status", "done")
       .gte("done_at", since)
       .order("done_at", { ascending: false })

@@ -152,7 +152,7 @@ const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
 const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   chips: { self: [], team: [] },
   calendar: { spanStart: "2026-08-03", spanEnd: "2026-11-01", days: [] },
-  tasks: { mine: [], team: null, done: [], reported: [] },
+  tasks: { mine: [], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
   notices: [],
   journal: [],
   assignable: [],
@@ -216,7 +216,7 @@ describe("the card", () => {
 
 describe("the badges", () => {
   it("counts the viewer's open tasks, so a hidden face still says how much is on", () => {
-    draw({ tasks: { mine: [task(), task({ id: "t2" })], team: null, done: [], reported: [] } });
+    draw({ tasks: { mine: [task(), task({ id: "t2" })], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } } });
     expect(within(tab(/^Tasks/)).getByText("2")).toBeInTheDocument();
   });
 
@@ -227,6 +227,7 @@ describe("the badges", () => {
         team: null,
         done: [],
         reported: [],
+        sm8: { lines: {}, sender: null },
       },
     });
     const n = within(tab(/^Tasks/)).getByText("1");
@@ -434,7 +435,7 @@ describe("the rooms talk to each other", () => {
         }),
         entry({ id: "e0", said: "Something older.", day: "2026-08-09", at: "4:10 pm" }),
       ],
-      tasks: { mine: [task()], team: null, done: [], reported: [] },
+      tasks: { mine: [task()], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
     });
 
   it("a diary door opens the task on the Tasks face", async () => {

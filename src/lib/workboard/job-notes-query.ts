@@ -71,6 +71,13 @@ export type OurJobNote = {
   hasCreate?: boolean;
   /** The viewer wrote it. */
   mine?: boolean;
+  /* ── a task's Done (two-way phase 2, PR C) ── */
+  /** The task it stands for: a Done, or a reply that closed its task. Null
+      once the task is deleted (the key sets it null; the Done stays). */
+  taskId?: string | null;
+  /** A Done — made only by a tick, so it is never a mention, and Reopen
+      never takes a reply back. */
+  isTaskDone?: boolean;
 };
 
 /** Who is looking, where the deployment sends notes: their staff card, the
@@ -97,10 +104,12 @@ type OurRow = {
   reply_to_sm8_note_uuid?: string | null;
   removed_at?: string | null;
   sm8_refusal?: string | null;
+  task_id?: string | null;
+  is_task_done?: boolean | null;
 };
 
 const OUR_COLUMNS = "id, transcript, applied, applied_at, created_at, author_id";
-const OUR_SM8_COLUMNS = `${OUR_COLUMNS}, reply_to_sm8_note_uuid, removed_at, sm8_refusal`;
+const OUR_SM8_COLUMNS = `${OUR_COLUMNS}, reply_to_sm8_note_uuid, removed_at, sm8_refusal, task_id, is_task_done`;
 
 /** A note's queue rows, as its line reads them: its create and the
     take-back of that create. */
@@ -170,7 +179,9 @@ export async function readOurJobNotes(
   }));
 }
 
-function keptWords(applied: Record<string, unknown> | null): string | null {
+/** The words a row's diary entry shows: what was kept, not what was said
+    first. Also the task line's quote of a Done (PR C). */
+export function keptWords(applied: Record<string, unknown> | null): string | null {
   const kept = applied?.jobNotes;
   if (!Array.isArray(kept)) return null;
   const words = kept.filter((k): k is string => typeof k === "string" && !!k.trim());
@@ -239,6 +250,81 @@ async function viewerOr(orgId: string, viewer: NotesViewer | Promise<NotesViewer
   return { staffId: null, state: await readSm8WriteState(orgId), sender: null };
 }
 
+/** A row's line, as far as it is read: who wrote it, whether it was taken
+    back, and why a press didn't queue it. */
+type LineRow = Pick<OurRow, "id" | "author_id" | "removed_at" | "sm8_refusal">;
+
+/** Everything one read of the queue says about a set of rows, and who is
+    looking: what each row's line is worked out from. */
+type LineCtx = {
+  viewer: NotesViewer;
+  names: Map<string, string>;
+  createOf: Map<string, QueueRow>;
+  takeBackOf: Map<string, QueueRow>;
+};
+
+function lineCtx(viewer: NotesViewer, names: Map<string, string>, queue: readonly QueueRow[]): LineCtx {
+  const createOf = new Map<string, QueueRow>();
+  const takeBackOf = new Map<string, QueueRow>();
+  for (const q of queue) {
+    if (q.op === "create" && q.note_id) createOf.set(q.note_id, q);
+    else if (q.op === "delete" && q.depends_on) takeBackOf.set(q.depends_on, q);
+  }
+  return { viewer, names, createOf, takeBackOf };
+}
+
+/** One row's line (noteState) as the viewer reads it: the doors are theirs
+    only if they sent it, and the words name whoever did. */
+function rowLine(r: LineRow, ctx: LineCtx): { line: NoteState; create: QueueRow | null } {
+  const { viewer, names } = ctx;
+  const { state, sender } = viewer;
+  const create = ctx.createOf.get(r.id) ?? null;
+  const takeBack = create ? (ctx.takeBackOf.get(create.id) ?? null) : null;
+  const sentBy = create ? (create.requested_by ?? null) : (r.author_id ?? null);
+  const viewerIsSender = !!viewer.staffId && sentBy === viewer.staffId;
+  const senderName = sentBy ? (names.get(sentBy) ?? null) : null;
+  const line = noteState({
+    row: { removed: !!r.removed_at, refusal: isStoredRefusal(r.sm8_refusal) ? r.sm8_refusal : null },
+    create,
+    takeBack,
+    hold: state.readable ? sendHold(state, "note") : null,
+    offered: offersSend(state, "note"),
+    viewerIsSender,
+    senderName,
+    sm8Name: viewerIsSender ? (sender && "sm8Name" in sender ? sender.sm8Name : null) : senderName,
+  });
+  return { line, create };
+}
+
+/** Where each of these rows stands with ServiceM8, as `viewer` reads it —
+    the very line the diary draws, for a surface that isn't the diary: a
+    task's Done and the reply that closed it (PR C). Two reads, the queue
+    and the names. Null when the queue can't be read: then nothing is said
+    about ServiceM8, rather than something wrong. A row whose line is empty
+    maps to an empty state (`key` null). */
+export async function noteLinesOf(
+  orgId: string,
+  rows: readonly LineRow[],
+  viewer: NotesViewer
+): Promise<Map<string, NoteState> | null> {
+  const out = new Map<string, NoteState>();
+  if (rows.length === 0) return out;
+  const [names, queue] = await Promise.all([
+    staffDisplayNames(
+      orgId,
+      rows.map((r) => r.author_id)
+    ),
+    readQueueRows(
+      orgId,
+      rows.map((r) => r.id)
+    ),
+  ]);
+  if (queue === null) return null;
+  const ctx = lineCtx(viewer, names, queue);
+  for (const r of rows) out.set(r.id, rowLine(r, ctx).line);
+  return out;
+}
+
 /** Shape our rows, each with where it stands with ServiceM8. A removed row
     is left out once its line is empty: nothing of it can be in ServiceM8. */
 async function shapeOurNotes(orgId: string, rows: readonly OurRow[], viewerIn: NotesViewer | Promise<NotesViewer | null> | null): Promise<OurJobNote[]> {
@@ -253,37 +339,13 @@ async function shapeOurNotes(orgId: string, rows: readonly OurRow[], viewerIn: N
     ),
     viewerOr(orgId, viewerIn),
   ]);
-  const { state, sender } = viewer;
-  const hold = state.readable ? sendHold(state, "note") : null;
-  const offered = offersSend(state, "note");
-  const createOf = new Map<string, QueueRow>();
-  const takeBackOf = new Map<string, QueueRow>();
-  for (const q of queue ?? []) {
-    if (q.op === "create" && q.note_id) createOf.set(q.note_id, q);
-    else if (q.op === "delete" && q.depends_on) takeBackOf.set(q.depends_on, q);
-  }
+  const ctx = lineCtx(viewer, names, queue ?? []);
 
   const out: OurJobNote[] = [];
   for (const r of rows) {
-    const create = createOf.get(r.id) ?? null;
-    const takeBack = create ? (takeBackOf.get(create.id) ?? null) : null;
+    const { line: read, create } = rowLine(r, ctx);
     const removed = !!r.removed_at;
-    const sentBy = create ? (create.requested_by ?? null) : (r.author_id ?? null);
-    const viewerIsSender = !!viewer.staffId && sentBy === viewer.staffId;
-    const senderName = sentBy ? (names.get(sentBy) ?? null) : null;
-    const line =
-      queue === null
-        ? null
-        : noteState({
-            row: { removed, refusal: isStoredRefusal(r.sm8_refusal) ? r.sm8_refusal : null },
-            create,
-            takeBack,
-            hold,
-            offered,
-            viewerIsSender,
-            senderName,
-            sm8Name: viewerIsSender ? (sender && "sm8Name" in sender ? sender.sm8Name : null) : senderName,
-          });
+    const line = queue === null ? null : read;
     const drawn = line && line.key ? line : null;
     /* A TAKE-BACK THAT SETTLED LEAVES NOTHING, as today's Remove did: the
        tombstone is drawn only while something of it may be in ServiceM8 */
@@ -300,6 +362,8 @@ async function shapeOurNotes(orgId: string, rows: readonly OurRow[], viewerIn: N
       sm8Uuid: create?.status === "sent" ? create.remote_uuid : null,
       hasCreate: !!create,
       mine: !!viewer.staffId && r.author_id === viewer.staffId,
+      taskId: r.task_id ?? null,
+      isTaskDone: r.is_task_done === true,
     });
   }
   return out;
@@ -489,8 +553,13 @@ export async function readJobAttention(
   }
 ): Promise<JobAttentionRead> {
   const notesOn = sm8NotesAllowed();
-  /* our notes that may carry a mention: queued once, not taken back */
-  const ourMentions = notesOn ? (input.ourNotes ?? []).filter((n) => n.hasCreate && !n.removed) : [];
+  /* our notes that may carry a mention: queued once, not taken back — and
+     never a Done. "@lukeingold Done." names Luke to address him, not to ask
+     him anything: the task it closes was made from HIS note, so it answers
+     a mention and is none (PR C). Still none after its task is deleted: the
+     mark stays when the link goes. A reply that closed its task is a reply,
+     and a mention like any other. */
+  const ourMentions = notesOn ? (input.ourNotes ?? []).filter((n) => n.hasCreate && !n.removed && !n.isTaskDone) : [];
   const [flags, taskIds, answered, people, assignable, ours, repliedTo] = await Promise.all([
     readJobFlags(orgId, jobUuid),
     noteBornTaskIds(orgId, jobUuid),

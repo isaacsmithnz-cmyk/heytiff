@@ -745,7 +745,7 @@ describe("Urgent — derived rows, resolvable in place", () => {
     await userEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(clearFlag).toHaveBeenCalledWith("f-1");
     await userEvent.click(screen.getByRole("button", { name: "Mark done — Order filters" }));
-    expect(completeTask).toHaveBeenCalledWith("t-1");
+    expect(completeTask).toHaveBeenCalledWith("t-1", { postDone: true });
   });
 
   it("splits the queue into Overdue and Deal with it today, with tasks in their own lane", () => {
@@ -1255,7 +1255,7 @@ describe("Urgent quick actions — each row fixes ITS fact (A1/A4)", () => {
         { name: "Undo" }
       )
     );
-    expect(reopenTask).toHaveBeenCalledWith("t-1");
+    expect(reopenTask).toHaveBeenCalledWith("t-1", { takeBackDone: true });
   });
 
   it("the vitals live on as filters (D8): pressing one narrows the queue to its kind", async () => {

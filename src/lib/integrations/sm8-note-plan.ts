@@ -326,6 +326,70 @@ export function refusalWords(
   });
 }
 
+/** A queue helper's refusal of ONE PRESS, said to the person who pressed —
+    the job card's actions and the task's say it in these same words, so a
+    refusal reads the same wherever the door was:
+    - `doing`: what was pressed — a send (a reply, Send to ServiceM8, Send
+      again), a take-back (Undo, Remove, Reopen, Try again), or a flag's mark;
+    - `sm8Name`: who the presser is in ServiceM8, for the question and the
+      link refusals;
+    - `owner`: who sent it, or marked it done, when that is the refusal;
+    - `notOffered`: why notes aren't offered, in the owner's order of fixes
+      (sendRefusal), for a send. */
+export function pressRefusalWords(
+  code: NoteRefusal,
+  ctx: {
+    doing: "send" | "take_back" | "flag";
+    sm8Name?: string | null;
+    owner?: string | null;
+    notOffered?: string | null;
+  }
+): string {
+  const sm8Name = ctx.sm8Name || THEM;
+  switch (code) {
+    case "unlinked":
+      return NOTE_WORDS.press.unlinked;
+    case "no_card":
+      return NOTE_WORDS.press.noCard;
+    case "confirm":
+      return fillWords(NOTE_WORDS.press.confirm, { sm8Name });
+    case "denied":
+      return fillWords(NOTE_WORDS.press.denied, { sm8Name });
+    case "inactive":
+      return fillWords(NOTE_WORDS.press.inactive, { sm8Name });
+    case "unknown":
+      return NOTE_WORDS.press.unknown;
+    case "bad_link":
+      return NOTE_WORDS.press.badLink;
+    case "job_gone":
+      return NOTE_WORDS.press.jobGone;
+    case "capped":
+      return NOTE_WORDS.press.capped;
+    case "unqueued":
+      return NOTE_WORDS.press.unqueued;
+    case "unreadable":
+      return NOTE_WORDS.press.unreadable;
+    case "not_offered":
+      return ctx.doing === "take_back" ? NOTE_WORDS.press.takeBackOff : ctx.notOffered || NOTE_WORDS.press.kindOff;
+    case "not_yours": {
+      if (ctx.doing === "send") return NOTE_WORDS.press.notAuthor;
+      const name = ctx.owner || "the person";
+      return fillWords(ctx.doing === "flag" ? NOTE_WORDS.press.notMarker : NOTE_WORDS.press.notYours, { name });
+    }
+    case "in_flight":
+      return FLAG_UNDO_AFTER_SENT ? NOTE_WORDS.press.inFlight : NOTE_WORDS.press.inFlightFinal;
+    case "changed":
+      return NOTE_WORDS.press.changed;
+    case "not_flagged":
+      return NOTE_WORDS.press.notFlagged;
+    case "removed_there":
+      return NOTE_WORDS.press.removedThere;
+    case "no_note":
+    default:
+      return NOTE_WORDS.press.noNote;
+  }
+}
+
 export type NoteKey =
   | "line.sending"
   | "line.waitingWhy"

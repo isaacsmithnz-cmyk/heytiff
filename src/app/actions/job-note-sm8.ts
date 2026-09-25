@@ -36,13 +36,14 @@ import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
 import { offersSend, sendHold, sendRefusal, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import { confirmSm8Link, sm8NoteSender, type NoteSender } from "@/lib/integrations/links";
-import { noteSourceOf } from "@/lib/integrations/sm8-note-source";
+import { noteAskerOf, noteSourceOf } from "@/lib/integrations/sm8-note-source";
 import { NOTE_PRESS_BUDGET_MS, settlePressedWrites } from "@/lib/integrations/sm8-drain";
 import {
   FLAG_UNDO_AFTER_SENT,
   fillWords,
   flagState,
   NOTE_WORDS,
+  pressRefusalWords,
   replyText,
   type FlagState,
   type NoteRefusal,
@@ -59,9 +60,10 @@ import {
   type NotesViewer,
   type OurJobNote,
 } from "@/lib/workboard/job-notes-query";
-import { mentionedHandles, sm8Handle } from "@/lib/workboard/sm8-mentions";
+import { mentionedHandles } from "@/lib/workboard/sm8-mentions";
 import { englishLine } from "@/lib/workboard/note-english";
 import { queueFlagChange, queueNoteCreate, queueNoteTakeBack } from "./sm8-note-queue";
+import { completeTask } from "./dashboard";
 
 const WB = "/dashboard/workboard";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -155,53 +157,24 @@ async function refusalWords(
     owner?: string | null;
   }
 ): Promise<string> {
-  switch (code) {
-    case "unlinked":
-      return NOTE_WORDS.press.unlinked;
-    case "no_card":
-      return NOTE_WORDS.press.noCard;
-    case "confirm":
-    case "denied":
-    case "inactive": {
-      /* the name the question and the refusal carry is the sender's own */
-      const sender = await sm8NoteSender(ctx.orgId, ctx.press.staffId);
-      const key = code === "confirm" ? "confirm" : code === "denied" ? "denied" : "inactive";
-      return fillWords(NOTE_WORDS.press[key], { sm8Name: sm8NameOf(sender) });
-    }
-    case "unknown":
-      return NOTE_WORDS.press.unknown;
-    case "bad_link":
-      return NOTE_WORDS.press.badLink;
-    case "job_gone":
-      return NOTE_WORDS.press.jobGone;
-    case "capped":
-      return NOTE_WORDS.press.capped;
-    case "unqueued":
-      return NOTE_WORDS.press.unqueued;
-    case "unreadable":
-      return NOTE_WORDS.press.unreadable;
-    case "not_offered":
-      return ctx.doing === "take_back" ? NOTE_WORDS.press.takeBackOff : notOffered(ctx.state ?? null);
-    case "not_yours": {
-      if (ctx.doing === "send") return NOTE_WORDS.press.notAuthor;
-      const name = ctx.owner ? (await staffDisplayNames(ctx.orgId, [ctx.owner])).get(ctx.owner) : null;
-      const who = name || "the person";
-      return ctx.doing === "flag"
-        ? fillWords(NOTE_WORDS.press.notMarker, { name: who })
-        : fillWords(NOTE_WORDS.press.notYours, { name: who });
-    }
-    case "in_flight":
-      return FLAG_UNDO_AFTER_SENT ? NOTE_WORDS.press.inFlight : NOTE_WORDS.press.inFlightFinal;
-    case "changed":
-      return NOTE_WORDS.press.changed;
-    case "not_flagged":
-      return NOTE_WORDS.press.notFlagged;
-    case "removed_there":
-      return NOTE_WORDS.press.removedThere;
-    case "no_note":
-    default:
-      return NOTE_WORDS.press.noNote;
-  }
+  /* a mark on its way out: final while an Undo can't follow it once it went
+     (read here, where the switch is this module's own) */
+  if (code === "in_flight") return FLAG_UNDO_AFTER_SENT ? NOTE_WORDS.press.inFlight : NOTE_WORDS.press.inFlightFinal;
+  /* the name the question and the refusal carry is the sender's own */
+  const sm8Name =
+    code === "confirm" || code === "denied" || code === "inactive"
+      ? sm8NameOf(await sm8NoteSender(ctx.orgId, ctx.press.staffId))
+      : null;
+  const owner =
+    code === "not_yours" && ctx.doing !== "send" && ctx.owner
+      ? ((await staffDisplayNames(ctx.orgId, [ctx.owner])).get(ctx.owner) ?? null)
+      : null;
+  return pressRefusalWords(code, {
+    doing: ctx.doing,
+    sm8Name,
+    owner,
+    notOffered: code === "not_offered" && ctx.doing !== "take_back" ? notOffered(ctx.state ?? null) : null,
+  });
 }
 
 /** The press's rows, sent in the foreground for a moment, then the drain. */
@@ -258,13 +231,21 @@ async function senderOfNote(orgId: string, noteId: string, authorId: string | nu
     Everything a person can fix is checked BEFORE anything is saved, so a
     refusal leaves their words in the box. What only the queue can know
     (paused, capped, the settings unreadable) is kept on the saved row,
-    which then says why and offers Send again. */
+    which then says why and offers Send again.
+
+    `closesTaskId` (PR C): the reply also closes the task made from this
+    note — the task is ticked with no Done, because the reply is the answer,
+    and the reply stands for the task while it is done (its line shows on
+    the task, and Reopen never takes it back: it is a real reply). Only a
+    task made from THIS note, still open; otherwise the reply goes as a
+    plain reply and closes nothing. */
 export async function replyToJobNote(input: {
   jobUuid: string;
   sourceNoteUuid: string;
   words: string;
   spoken?: boolean;
   composeId: string;
+  closesTaskId?: string;
 }): Promise<ReplyResult> {
   const startedAt = Date.now();
   const g = await gate(true);
@@ -311,9 +292,13 @@ export async function replyToJobNote(input: {
   /* 7. the words go as said; the diary keeps them in English (lang/policy)
      — both fixed now, so every later send sends the same words */
   const english = await englishLine(words);
-  const asker = source.origin === "sm8" ? await askerOf(orgId, sourceUuid, source.authorSm8Uuid) : source.authorSm8Uuid;
+  const asker = await noteAskerOf(orgId, sourceUuid, source);
   /* nobody is addressed by their own reply */
-  const askerHandle = asker && asker.toLowerCase() !== sender.staffUuid.toLowerCase() ? await handleOf(orgId, asker) : null;
+  const askerHandle = asker && asker.sm8Uuid.toLowerCase() !== sender.staffUuid.toLowerCase() ? asker.handle : null;
+
+  /* the task this reply closes, if it asked to: one made from this very
+     note, and still open — otherwise it closes nothing */
+  const closes = await taskItCloses(orgId, sourceUuid, input?.closesTaskId);
 
   /* 8. RECORD FIRST: HeyTiff's row, under the box's id */
   const now = new Date().toISOString();
@@ -350,6 +335,23 @@ export async function replyToJobNote(input: {
   /* 9. queue it — a refusal stays on the row; an Undo racing this press is
      settled inside the helper */
   const queued = await queueNoteCreate(press, { noteId: composeId });
+
+  /* THE REPLY CLOSES ITS TASK (PR C): the task is ticked with no Done — the
+     reply is the answer, so one note goes, not two — and the reply stands
+     for the task while it is done. Only when this reply's own tick won. */
+  if (closes) {
+    const done = await completeTask(closes);
+    if (done.ok) {
+      const { error: linkError } = await supabaseAdmin
+        .from("workboard_notes")
+        .update({ task_id: closes })
+        .eq("org_id", orgId)
+        .eq("id", composeId)
+        .is("task_id", null);
+      if (linkError) console.error(`[sm8] couldn't link reply ${composeId} to the task it closed for org ${orgId}:`, linkError);
+    }
+  }
+
   if (queued.ok) await settle(orgId, queued.rowIds, startedAt);
 
   revalidatePath(WB);
@@ -357,6 +359,28 @@ export async function replyToJobNote(input: {
   const note = await readOurJobNote(orgId, composeId, viewerOf(orgId, press, g.state));
   if (!note) return { ok: false, error: NOTE_WORDS.press.noNote };
   return { ok: true, note };
+}
+
+/** The task a reply closes: `taskId` when the task was made from the note
+    the reply answers (job_note_actions names it) and is still open. Null
+    otherwise, and with no read when none was asked for. */
+async function taskItCloses(orgId: string, sourceUuid: string, taskId: unknown): Promise<string | null> {
+  const id = typeof taskId === "string" ? taskId.trim() : "";
+  if (!UUID.test(id)) return null;
+  const [{ data: act }, { data: task }] = await Promise.all([
+    supabaseAdmin
+      .from("job_note_actions")
+      .select("task_id")
+      .eq("org_id", orgId)
+      .eq("task_id", id)
+      .eq("action", "task")
+      .eq("sm8_note_uuid", sourceUuid)
+      .limit(1)
+      .maybeSingle(),
+    supabaseAdmin.from("tasks").select("status").eq("org_id", orgId).eq("id", id).maybeSingle(),
+  ]);
+  if (!act || (task as { status: string | null } | null)?.status !== "open") return null;
+  return id;
 }
 
 /** Whether the note a reply answers still stands: false once its author
@@ -396,43 +420,6 @@ async function sourceStands(orgId: string, sourceUuid: string, origin: "sm8" | "
     .in("id", noteIds);
   if (error) return null;
   return !((data ?? []) as { removed_at: string | null }[]).some((r) => !!r.removed_at);
-}
-
-/** A ServiceM8 staff member's @handle, by their uuid. */
-async function handleOf(orgId: string, sm8Uuid: string | null): Promise<string | null> {
-  if (!sm8Uuid) return null;
-  const { data } = await supabaseAdmin
-    .from("sm8_staff")
-    .select("first, last")
-    .eq("org_id", orgId)
-    .eq("uuid", sm8Uuid)
-    .maybeSingle();
-  const s = data as { first: string | null; last: string | null } | null;
-  return s ? sm8Handle(s.first, s.last) : null;
-}
-
-/** Who asked, for the @handle a reply addresses. ServiceM8 names only a
-    note's last editor, and our own Mark done may have made the presser that
-    editor: then the asker is who it was when we marked it (readJobNotes
-    reads the author the same way). */
-async function askerOf(orgId: string, noteUuid: string, editor: string | null): Promise<string | null> {
-  const { data } = await supabaseAdmin
-    .from("sm8_writes")
-    .select("seen_edit_by, as_staff_uuid, created_at")
-    .eq("org_id", orgId)
-    .eq("kind", "note")
-    .eq("op", "update")
-    .eq("flag_done", true)
-    .eq("target_uuid", noteUuid)
-    .in("status", ["sending", "sent"])
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const op = data as { seen_edit_by: string | null; as_staff_uuid: string | null } | null;
-  if (op?.seen_edit_by && editor !== op.seen_edit_by && (!op.as_staff_uuid || editor === op.as_staff_uuid)) {
-    return op.seen_edit_by;
-  }
-  return editor;
 }
 
 /* ── a diary entry, sent ── */

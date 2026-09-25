@@ -77,6 +77,36 @@ describe("the notes migration", () => {
   });
 });
 
+describe("the Done migration (PR C)", () => {
+  const done = readFileSync(join(process.cwd(), "docs", "migrations", "task_done_sm8.sql"), "utf8");
+  const doneCode = done.replace(/--.*$/gm, "");
+
+  it("says when to apply it, after A's, and what to check before and after", () => {
+    expect(done).toMatch(/BEFORE THE DEPLOY OF PR C, and after sm8_notes_queue\.sql/);
+    expect(done).toMatch(/READ-ONLY, BEFORE:/);
+    expect(done).toMatch(/AFTER:/);
+    expect(deploy).toMatch(/task_done_sm8\.sql/);
+  });
+
+  it("is one transaction of indexes only, each made only if it isn't there", () => {
+    expect(doneCode.trim().startsWith("begin;")).toBe(true);
+    expect(doneCode.trim().endsWith("commit;")).toBe(true);
+    const statements = doneCode
+      .replace(/^\s*begin;|commit;\s*$/g, "")
+      .split(";")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    expect(statements.length).toBe(4);
+    for (const s of statements) expect(s).toMatch(/^create (unique )?index if not exists /);
+  });
+
+  it("(F) allows one live Done per task: a Done taken back, or a reply that closed it, holds nothing", () => {
+    expect(doneCode.replace(/\s+/g, " ")).toMatch(
+      /create unique index if not exists workboard_notes_one_done_uniq on public\.workboard_notes \(org_id, task_id\) where is_task_done and task_id is not null and removed_at is null;/
+    );
+  });
+});
+
 describe("the rollback in DEPLOY.md", () => {
   const rollback =
     /```sql\n\s*(begin;[\s\S]*?commit;)\n\s*```/.exec(deploy.slice(deploy.indexOf("Rollback, word for word")))?.[1].replace(/\s+/g, " ") ?? "";

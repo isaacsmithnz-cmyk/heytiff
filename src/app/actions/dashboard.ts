@@ -18,6 +18,8 @@ import { getSm8Timezone } from "@/lib/workboard/query";
 import { zonedParts } from "@/lib/dashboard/day-rail";
 import { hhmm, remindAtFrom } from "@/lib/dashboard/reminders";
 import { logTaskEvent } from "@/lib/dashboard/task-events";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { sendTaskDone, takeBackTaskDone } from "./task-sm8";
 
 /* Dashboard mutations — tasks and the noticeboard.
 
@@ -44,7 +46,9 @@ import { logTaskEvent } from "@/lib/dashboard/task-events";
    fails the change it describes.
 */
 
-export type DashResult = { ok: true } | { ok: false; error: string };
+/** `note`: something the person should know although the action stood — a
+    Reopen that couldn't take back somebody else's Done (reopenTask). */
+export type DashResult = { ok: true; note?: string } | { ok: false; error: string };
 
 type Ctx = { orgId: string; staffId: string | null };
 
@@ -246,7 +250,22 @@ export async function giveTask(taskId: string, staffId: string): Promise<DashRes
   return { ok: true };
 }
 
-export async function completeTask(taskId: string): Promise<DashResult> {
+/** Tick a task done. Your own to-do, or `team` closing one out.
+
+    ONE TICK WINS. The write is conditional on the task still being open, so
+    two ticks at once — two tabs, the bell and the list — complete it once,
+    and the second is told it is already done.
+
+    A HAND TICK ON A TASK MADE FROM A SERVICEM8 MENTION ANSWERS IT (two-way
+    phase 2, PR C): `postDone` files "@<asker> Done." in the job's diary and
+    sends it to ServiceM8 as whoever ticked (task-sm8's sendTaskDone). Only
+    the screens a person ticks on pass it — never code, and never a reply
+    that closes its task (the reply is the answer). It runs only where the
+    deployment sends notes: on a deployment that sends files only, a tick is
+    exactly the one read and one write it always was. What the Done says
+    lands on the task's own page and, if it didn't go, in the ticker's bell;
+    a Done that couldn't be filed never undoes the tick. */
+export async function completeTask(taskId: string, opts: { postDone?: boolean } = {}): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
 
@@ -263,7 +282,7 @@ export async function completeTask(taskId: string): Promise<DashResult> {
   const mine = ctx.staffId && ctx.staffId === data.assigned_to;
   if (!mine && !(await can("team"))) return { ok: false, error: "That task isn't yours to complete." };
 
-  const { error } = await supabaseAdmin
+  const { data: won, error } = await supabaseAdmin
     .from("tasks")
     .update({
       status: "done",
@@ -272,16 +291,32 @@ export async function completeTask(taskId: string): Promise<DashResult> {
       updated_at: new Date().toISOString(),
     })
     .eq("org_id", ctx.orgId)
-    .eq("id", taskId);
+    .eq("id", taskId)
+    .eq("status", "open")
+    .select("id");
   if (error) return { ok: false, error: "Couldn't complete that task." };
+  if ((won ?? []).length === 0) return { ok: false, error: "That task is already done." };
   await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "done" });
+  if (opts?.postDone === true && sm8NotesAllowed()) {
+    await sendTaskDone({ taskId }).catch((err: unknown) => {
+      console.error(`[sm8] the Done for task ${taskId} threw: ${err instanceof Error ? err.message : String(err)}`);
+    });
+  }
   refresh();
   return { ok: true };
 }
 
 /** Undo a completion. Same rule as completing it: your own task, or `team`.
-    Completing is a single tap, so it has to be reversible. */
-export async function reopenTask(taskId: string): Promise<DashResult> {
+    Completing is a single tap, so it has to be reversible — and, like the
+    tick, conditional: it reopens a task that is still done, once.
+
+    `takeBackDone` (two-way phase 2, PR C), from the screens a person
+    reopens on: the tick's Done is taken back too — if it hadn't gone, it
+    never goes; if it went, it is taken out of ServiceM8. Only its sender
+    can do that; anyone else's Reopen still reopens the task, and `note`
+    says whose Done it is. A reply that closed the task is never taken back.
+    Only where the deployment sends notes. */
+export async function reopenTask(taskId: string, opts: { takeBackDone?: boolean } = {}): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
 
@@ -297,15 +332,26 @@ export async function reopenTask(taskId: string): Promise<DashResult> {
   const mine = ctx.staffId && ctx.staffId === data.assigned_to;
   if (!mine && !(await can("team"))) return { ok: false, error: "That task isn't yours to reopen." };
 
-  const { error } = await supabaseAdmin
+  const { data: won, error } = await supabaseAdmin
     .from("tasks")
     .update({ status: "open", done_at: null, done_by: null, updated_at: new Date().toISOString() })
     .eq("org_id", ctx.orgId)
-    .eq("id", taskId);
+    .eq("id", taskId)
+    .eq("status", "done")
+    .select("id");
   if (error) return { ok: false, error: "Couldn't reopen that task." };
+  if ((won ?? []).length === 0) return { ok: false, error: "That task is already open." };
   await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "reopened" });
+  let note: string | undefined;
+  if (opts?.takeBackDone === true && sm8NotesAllowed()) {
+    const back = await takeBackTaskDone({ taskId }).catch((err: unknown) => {
+      console.error(`[sm8] taking back the Done of task ${taskId} threw: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    });
+    note = back ? (back.ok ? back.note : back.error) : undefined;
+  }
   refresh();
-  return { ok: true };
+  return note ? { ok: true, note } : { ok: true };
 }
 
 /** Move a task's date, or take it off. The assignee, the creator, or `team`:
@@ -424,10 +470,15 @@ export async function reopenIssue(issueId: string): Promise<DashResult> {
 /** Remove a task outright — its CREATOR, or `team`. Deliberately narrower than
     complete/reopen, which also allow the assignee: finishing your assignment is
     intrinsic to you, erasing someone else's record of having assigned it is
-    not. A hard delete, and the one task action with no undo — which is why
-    the UI asks twice before calling it. Two tables point at a task and
-    neither stops the delete: `job_note_actions.task_id` is set null (the
-    note stays answered), and the task's `task_events` go with it. */
+    not. A hard delete. `job_note_actions.task_id` and `workboard_notes.task_id`
+    refer to tasks (on delete set null), so a note stays answered and a Done
+    stays in the diary, with its Undo, after its task goes; the task's
+    `task_events` go with it. The one task action with no undo — which is why
+    the UI asks twice before calling it.
+
+    It never touches a Done or its queue rows: deleting a task is not a press
+    to ServiceM8, and only whoever sent a Done can take it back — from the
+    job's diary, where it stays. */
 export async function deleteTask(taskId: string): Promise<DashResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };

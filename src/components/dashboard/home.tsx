@@ -35,7 +35,15 @@ import type { DashboardData } from "@/lib/dashboard/page-data";
    diary is reading, and which task a diary door just named. Every panel's
    data arrives resolved from the loader. */
 
-export function DashboardHome({ data }: { data: DashboardData }) {
+export function DashboardHome({
+  data,
+  taskId = null,
+}: {
+  data: DashboardData;
+  /** A task the address names (`/dashboard?task=<id>`, the bell's door onto
+      a Done that didn't go): Home opens on the Tasks face with it chosen. */
+  taskId?: string | null;
+}) {
   const {
     chips,
     calendar,
@@ -50,7 +58,7 @@ export function DashboardHome({ data }: { data: DashboardData }) {
     rail,
   } = data;
 
-  const [tab, setTab] = useState<HomeTabKey>(DEFAULT_TAB);
+  const [tab, setTab] = useState<HomeTabKey>(taskId ? "tasks" : DEFAULT_TAB);
   /* The entry the diary's pane is reading — null reads the newest. Home
      owns it so a task's "Open in diary" can choose one from next door. */
   const [entryId, setEntryId] = useState<string | null>(null);
@@ -59,7 +67,7 @@ export function DashboardHome({ data }: { data: DashboardData }) {
      — opens it HERE: one card, and the row is next door. `focusTask` is
      handed to the Tasks face, which chooses the row, scrolls it into view
      and marks it, then clears this so pressing the same door again works. */
-  const [focusTask, setFocusTask] = useState<string | null>(null);
+  const [focusTask, setFocusTask] = useState<string | null>(taskId);
   const openTask = useCallback((id: string) => {
     setTab("tasks");
     setFocusTask(id);
@@ -158,6 +166,8 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                   onOpenEntry={openEntry}
                   focusTaskId={focusTask}
                   onFocusHandled={clearFocusTask}
+                  sm8Lines={tasks.sm8?.lines}
+                  sm8Sender={tasks.sm8?.sender ?? null}
                 />,
               )}
 

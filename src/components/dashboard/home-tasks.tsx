@@ -19,6 +19,11 @@ import { issueSeen, type HomeIssue } from "@/lib/dashboard/issues";
 import { zonedParts } from "@/lib/dashboard/day-rail";
 import { clockLabel } from "@/lib/workboard/schedule";
 import { auDayOf, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { retryTaskDone } from "@/app/actions/task-sm8";
+import { confirmMySm8Link } from "@/app/actions/job-note-sm8";
+import type { TaskDoneLine } from "@/lib/dashboard/task-done-query";
+import type { NoteSender } from "@/lib/integrations/links";
+import { TaskSm8Line, type TaskSm8Doors } from "./task-sm8-line";
 
 /* THE TASKS — the work you owe, the work you handed out, and what keeps
    going wrong.
@@ -92,6 +97,8 @@ export function doneLabel(iso: string, today: string): string {
 
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
+const NO_LINES: Record<string, TaskDoneLine[]> = {};
+
 export function HomeTasks({
   today,
   mine,
@@ -107,6 +114,9 @@ export function HomeTasks({
   onOpenEntry,
   focusTaskId = null,
   onFocusHandled,
+  sm8Lines = NO_LINES,
+  sm8Sender = null,
+  onUndoDone,
 }: {
   today: string;
   mine: DashTask[];
@@ -129,6 +139,15 @@ export function HomeTasks({
       scroll to it and mark it, once. */
   focusTaskId?: string | null;
   onFocusHandled?: () => void;
+  /** Where each task's Done stands with ServiceM8, by task (two-way phase
+      2, PR C) — empty where the deployment doesn't send notes, and then the
+      face is exactly as it was. */
+  sm8Lines?: Record<string, TaskDoneLine[]>;
+  /** Who the viewer is in ServiceM8: the link question's Yes answers for it. */
+  sm8Sender?: NoteSender | null;
+  /** Only for a surface that draws a Done's Undo on its line (the Home
+      redesign). Here Reopen is the task's Undo. */
+  onUndoDone?: (taskId: string, noteId: string) => void;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -169,20 +188,41 @@ export function HomeTasks({
   const all = [...overdue, ...openRows, ...issueRows, ...doneRows];
   const sel = all.find((r) => r.id === selId) ?? all[0] ?? null;
 
-  const run = (fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) => {
+  /* `note`: the action stood, and there is something to know about it — a
+     Reopen that couldn't take somebody else's Done out of ServiceM8. It is
+     said in the same place a refusal is. */
+  const run = (fn: () => Promise<{ ok: boolean; error?: string; note?: string }>, after?: () => void) => {
     setError(null);
     start(async () => {
       const res = await fn();
       if (!res.ok) setError(res.error ?? "Something went wrong.");
       else {
+        if (res.note) setError(res.note);
         after?.();
         router.refresh();
       }
     });
   };
 
-  const markDone = (id: string) => run(() => completeTask(id));
-  const undo = (id: string) => run(() => reopenTask(id));
+  /* A HAND TICK ANSWERS THE MENTION a task was made from (`postDone`), and
+     a Reopen takes that answer back (`takeBackDone`): two-way phase 2, PR C.
+     Both are no-ops where the deployment doesn't send notes. */
+  const markDone = (id: string) => run(() => completeTask(id, { postDone: true }));
+  const undo = (id: string) => run(() => reopenTask(id, { takeBackDone: true }));
+
+  /* The task line's doors, each on its own row. Yes (or Not me) is kept for
+     the link the viewer holds, and then that row is pressed again: after Yes
+     it goes; after Not me the line says why it can't. */
+  const sm8Doors = (taskId: string): TaskSm8Doors => ({
+    onRetry: (noteId, act) => run(() => retryTaskDone({ taskId, noteId, act })),
+    onConfirm: (noteId, remoteId, answer) =>
+      run(async () => {
+        const said = await confirmMySm8Link({ remoteId, answer });
+        if (!said.ok) return said;
+        return retryTaskDone({ taskId, noteId, act: "send_again" });
+      }),
+    ...(onUndoDone ? { onUndo: (noteId: string) => onUndoDone(taskId, noteId) } : {}),
+  });
 
   /* THE FLASH. The face was just revealed, so the row is somewhere in a list
      the reader has never scrolled — bring it to the middle and mark it for a
@@ -545,6 +585,15 @@ export function HomeTasks({
                   under "From the diary" below */}
               {sel.task.detail && <> {sel.task.detail}</>}
             </p>
+            {/* THE ANSWER IT SENT, when the task was made from a ServiceM8
+                mention: the Done (or the reply that closed it) in quotes,
+                then where it stands, in the diary's own words. */}
+            <TaskSm8Line
+              lines={sm8Lines[sel.id] ?? []}
+              sender={sm8Sender}
+              pending={pending}
+              doors={sm8Doors(sel.id)}
+            />
 
             <dl className="hm-facts">
               <div>

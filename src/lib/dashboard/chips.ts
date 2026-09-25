@@ -29,6 +29,7 @@ import { dateFromDays } from "@/lib/fleet/map";
 import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
 import { isNoVisa, isNotCleared } from "@/lib/staff/work-rights";
 import { kindCount, WRITE_HOURLY_CAP } from "@/lib/integrations/sm8-write-plan";
+import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 
 export type ChipKind =
   | "licence"
@@ -48,7 +49,8 @@ export type ChipKind =
   | "swms"
   | "swms-issue"
   | "swms-template"
-  | "sm8-writes";
+  | "sm8-writes"
+  | "sm8-done";
 
 /** Only actionable states surface as chips; a compliant thing produces none. */
 export type ActionState = Exclude<ChipState, "ok">; // "bad" | "warn"
@@ -146,6 +148,9 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   /* The connection's own screen is under the business's settings, beside
      the company's papers. */
   "sm8-writes": "Business",
+  /* A task's Done is a note on a job, answering the job's own mention, so
+     it files with the board, whatever screen the item opens. */
+  "sm8-done": "Workboard",
 };
 
 export const GROUP_ICON: Record<ChipGroup, string> = {
@@ -817,6 +822,30 @@ export function sm8QueueChip(
     state: "bad",
     label: stuck.reason === "billing" ? "ServiceM8 account not in good standing" : "Reconnect ServiceM8",
     subject: `${files(stuck.waiting)} waiting to go`,
+    urgency: urgency("bad", 0),
+  };
+}
+
+/** A task's Done that didn't go to ServiceM8, didn't come out of it, or may
+    not have reached it (two-way phase 2, PR C) — for the one person whose
+    tick it was, and nobody else (lib/dashboard/task-done-query's
+    myUnsentDones reads only theirs). It opens the task on Home, where the
+    Done's line says why and offers Send again or Try again. One per task;
+    `bad`, because a note the person thinks went and didn't is the kind of
+    thing that is found out on site. */
+export function sm8DoneChip(done: { taskId: string; title: string; op: "post" | "take_back" | "check" }): ActionChip {
+  return {
+    key: `sm8-done:${done.taskId}`,
+    kind: "sm8-done",
+    state: "bad",
+    label:
+      done.op === "take_back"
+        ? NOTE_WORDS.bell.doneStillIn
+        : done.op === "check"
+          ? NOTE_WORDS.bell.doneUnsure
+          : NOTE_WORDS.bell.doneNotSent,
+    subject: done.title,
+    href: `/dashboard?task=${encodeURIComponent(done.taskId)}`,
     urgency: urgency("bad", 0),
   };
 }

@@ -92,6 +92,15 @@ export function makeFakeDb() {
     if (table === "workboard_notes" && rows.some((x) => x !== row && x.id === row.id)) {
       return { code: "23505", message: "fake: workboard_notes_pkey" };
     }
+    /* task_done_sm8.sql: one Done per task that hasn't been taken back */
+    const liveDone = (x: Row) => x.is_task_done === true && x.task_id != null && x.removed_at == null;
+    if (
+      table === "workboard_notes" &&
+      liveDone(row) &&
+      rows.some((x) => x !== row && liveDone(x) && x.org_id === row.org_id && x.task_id === row.task_id)
+    ) {
+      return { code: "23505", message: "fake: workboard_notes_one_done_uniq" };
+    }
     return null;
   }
 
@@ -117,7 +126,16 @@ export function makeFakeDb() {
       row.dedupe_key = dedupe(row);
     }
     if (table === "workboard_notes") {
-      Object.assign(row, { removed_at: null, sm8_refusal: null, reply_to_sm8_note_uuid: null, task_id: null, is_task_done: false, ...r });
+      Object.assign(row, {
+        removed_at: null,
+        sm8_refusal: null,
+        reply_to_sm8_note_uuid: null,
+        task_id: null,
+        is_task_done: false,
+        /* the column's default, now() */
+        created_at: new Date().toISOString(),
+        ...r,
+      });
     }
     if (row.id === undefined) row.id = `${table.slice(0, 2)}${++idSeq}`;
     return row;
@@ -195,6 +213,15 @@ export function makeFakeDb() {
           const named = hit.filter((n) => (db.sm8_writes ?? []).some((w) => w.note_id === n.id && w.org_id === n.org_id));
           if (named.length > 0) return { data: null, error: { code: "23503", message: "fake: sm8_writes_note_id_fkey" } };
         }
+        /* the two keys that name a task, ON DELETE SET NULL: a note stays
+           answered and a Done stays a Done after its task goes */
+        if (table === "tasks") {
+          for (const t of hit) {
+            for (const ref of ["workboard_notes", "job_note_actions"]) {
+              for (const r of db[ref] ?? []) if (r.task_id === t.id && r.org_id === t.org_id) r.task_id = null;
+            }
+          }
+        }
         db[table] = rows.filter((r) => !hit.includes(r));
         return { data: hit.map((r) => ({ ...r })), error: null };
       }
@@ -218,13 +245,20 @@ export function makeFakeDb() {
       }
       hit = hit.slice(0, limit);
       if (head) return { data: null, count: hit.length, error: null };
-      /* the one embed the note sender uses: a create's note, through note_id */
-      const embed = /(\w+):workboard_notes!sm8_writes_note_id_fkey\(([^)]*)\)/.exec(columns);
+      /* the embeds the note code uses, each through the key it names: a
+         create's note (note_id), and a Done's task (task_id) */
+      const KEYS: Record<string, { table: string; via: string }> = {
+        sm8_writes_note_id_fkey: { table: "workboard_notes", via: "note_id" },
+        workboard_notes_task_fkey: { table: "tasks", via: "task_id" },
+      };
+      const embed = /(\w+):(\w+)!(\w+)\(([^)]*)\)/.exec(columns);
       const shaped = hit.map((r) => {
         const out: Row = { ...r };
         if (embed) {
-          const note = (db.workboard_notes ?? []).find((n) => n.id === r.note_id && n.org_id === r.org_id);
-          out[embed[1]] = note ? Object.fromEntries(embed[2].split(",").map((c) => [c.trim(), note[c.trim()] ?? null])) : null;
+          const key = KEYS[embed[3]];
+          if (!key || key.table !== embed[2]) throw new Error(`fake: unknown embed ${embed[0]}`);
+          const other = (db[key.table] ?? []).find((n) => n.id === r[key.via] && n.org_id === r.org_id);
+          out[embed[1]] = other ? Object.fromEntries(embed[4].split(",").map((c) => [c.trim(), other[c.trim()] ?? null])) : null;
         }
         return out;
       });

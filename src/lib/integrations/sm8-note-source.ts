@@ -10,6 +10,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { familyMediaSources } from "@/lib/workboard/all-jobs-query";
+import { sm8Handle } from "@/lib/workboard/sm8-mentions";
 import { noteWords } from "./sm8-note-plan";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -107,4 +108,53 @@ export async function noteObjectOf(
   if (source.relatedUuid === row.target_id) return row.target_id;
   const family = await familyMediaSources(orgId, row.target_id);
   return family.some((c) => c.remoteId === source.relatedUuid) ? source.relatedUuid : null;
+}
+
+/** A ServiceM8 staff member's @handle, by their uuid. An inactive person
+    keeps theirs: ServiceM8 still knows who they were. */
+export async function sm8HandleOf(orgId: string, sm8Uuid: string | null): Promise<string | null> {
+  if (!sm8Uuid) return null;
+  const { data } = await supabaseAdmin
+    .from("sm8_staff")
+    .select("first, last")
+    .eq("org_id", orgId)
+    .eq("uuid", sm8Uuid)
+    .maybeSingle();
+  const s = data as { first: string | null; last: string | null } | null;
+  return s ? sm8Handle(s.first, s.last) : null;
+}
+
+/** WHO ASKED a note, for the @handle a reply or a Done addresses: its
+    ServiceM8 uuid and handle. ServiceM8 names only a note's last editor, and
+    our own Mark done may have made the presser that editor: then the asker
+    is who it was when we marked it (readJobNotes reads the author the same
+    way). One of OUR notes that went asked as whoever it went as. Null when
+    nobody can be named. The reply (job-note-sm8) and the Done (task-sm8)
+    both read it here, so the two never address different people. */
+export async function noteAskerOf(
+  orgId: string,
+  noteUuid: string,
+  source: Pick<NoteSource, "authorSm8Uuid" | "origin">
+): Promise<{ sm8Uuid: string; handle: string | null } | null> {
+  let asker = source.authorSm8Uuid;
+  if (source.origin === "sm8") {
+    const { data } = await supabaseAdmin
+      .from("sm8_writes")
+      .select("seen_edit_by, as_staff_uuid, created_at")
+      .eq("org_id", orgId)
+      .eq("kind", "note")
+      .eq("op", "update")
+      .eq("flag_done", true)
+      .eq("target_uuid", noteUuid)
+      .in("status", ["sending", "sent"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const op = data as { seen_edit_by: string | null; as_staff_uuid: string | null } | null;
+    if (op?.seen_edit_by && asker !== op.seen_edit_by && (!op.as_staff_uuid || asker === op.as_staff_uuid)) {
+      asker = op.seen_edit_by;
+    }
+  }
+  if (!asker) return null;
+  return { sm8Uuid: asker, handle: await sm8HandleOf(orgId, asker) };
 }

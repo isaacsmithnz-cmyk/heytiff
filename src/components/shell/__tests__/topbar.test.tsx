@@ -421,7 +421,7 @@ describe("reminders in the bell", () => {
     await act(async () => {
       done.click();
     });
-    expect(doneMock).toHaveBeenCalledWith("t1");
+    expect(doneMock).toHaveBeenCalledWith("t1", { postDone: true });
     expect(remRows()).toHaveLength(1);
   });
 
@@ -583,7 +583,7 @@ describe("work somebody gave you", () => {
     await act(async () => {
       (remRows()[0].querySelector(".bp-remdo") as HTMLButtonElement).click();
     });
-    expect(doneMock).toHaveBeenCalledWith("a1");
+    expect(doneMock).toHaveBeenCalledWith("a1", { postDone: true });
     expect(ackMock).not.toHaveBeenCalled();
   });
 

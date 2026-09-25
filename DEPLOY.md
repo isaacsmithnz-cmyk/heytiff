@@ -306,6 +306,25 @@ ServiceM8 screen says "Says this isn't them." beside that link, which is
 where it gets fixed (a relink asks again). With `SM8_WRITES=1` the card is
 exactly as it was, and every one of these actions answers before any read.
 
+**Done and Undo** (PR C): apply `docs/migrations/task_done_sm8.sql` before
+its deploy, after A's. It adds the one-Done rule (a unique index: one live
+Done per task) and three indexes. Once notes are offered, **ticking a task
+made from a ServiceM8 mention by hand** (the Tasks face, the day band, the
+bell, the Workboard's Urgent tab) files "@<asker> Done." in the job's diary,
+threaded under the note that asked, and sends it to ServiceM8 as whoever
+ticked. **Reopen** takes it back: if it hadn't gone, it never goes; if it
+went, it is taken out of ServiceM8. Only whoever sent it can; anyone else's
+Reopen still reopens the task and is told whose Done it is. A reply that
+closes its task posts that reply and no Done, and Reopen never takes a
+reply back. The task's page says where its Done stands, with Send again or
+Try again; if it didn't go, the ticker's bell says so and opens the task
+(`/dashboard?task=<id>`). Deleting a task never touches its Done: it stays
+in the diary, where its sender can still Undo it. One visible change comes
+with it once notes are on: the Tasks face's **Done** group also lists what
+you ticked for somebody else, so its Done's line is there for you to read.
+With `SM8_WRITES=1` a tick is exactly the one read and one write it always
+was.
+
 **The order, word for word:**
 
 1. Apply A's migration, then B's, then C's. Each goes before the deploy that reads it.

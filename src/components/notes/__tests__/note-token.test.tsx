@@ -66,6 +66,7 @@ const proposal = (over: Partial<NoteProposal> = {}): NoteProposal => ({
   issueEntries: [],
   kbEntries: [],
   plainNote: "Middle rooftop unit tripped again.",
+  say: "",
   clarify: null,
   ...over,
 });

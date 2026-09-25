@@ -7,7 +7,8 @@ import { FaceSwitch } from "@/components/me/face-switch";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { DateField } from "@/components/ui/date-field";
-import { JobPicker, targetOf } from "@/components/notes/review-card";
+import { JobPicker } from "@/components/notes/review-card";
+import { targetOf } from "@/lib/workboard/note-draft";
 import type { JobCandidate } from "@/lib/workboard/note-match";
 import {
   CATEGORY_LABEL,

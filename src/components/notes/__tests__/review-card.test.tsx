@@ -1,5 +1,6 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
-import { ReviewRows, blockers, toConfirmed, toDraft, type Draft } from "../review-card";
+import { ReviewRows } from "../review-card";
+import { blockers, toConfirmed, toDraft, type Draft } from "@/lib/workboard/note-draft";
 import type { NoteProposal } from "@/lib/workboard/note-brain";
 
 /* THE CARD THAT REFUSED TO SAVE A REMINDER.
@@ -27,6 +28,7 @@ const EMPTY: NoteProposal = {
   issueEntries: [],
   kbEntries: [],
   plainNote: "",
+  say: "",
   clarify: null,
 };
 

@@ -183,7 +183,16 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
     for (const v of src.fleet) {
       // your own van's chips are already in `self` — don't list them twice
       if (v.assignedTo && v.assignedTo === src.viewerStaffId) continue;
-      team.push(...vehicleChips(v, { subject: vehicleLabel(v), href: "/dashboard/assets", warnDays: src.warnDays }));
+      /* The row opens THAT vehicle's card (`?v=`), not the register to hunt
+         it out of: the chip already says which van, so landing on a list of
+         every van was a door to the right building and not the right room. */
+      team.push(
+        ...vehicleChips(v, {
+          subject: vehicleLabel(v),
+          href: `/dashboard/assets?v=${encodeURIComponent(v.id)}`,
+          warnDays: src.warnDays,
+        }),
+      );
     }
   }
 

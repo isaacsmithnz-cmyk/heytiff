@@ -190,3 +190,15 @@ export async function loadLinkedJob(
   if (!orgId || !id) return null;
   return readMirrorJobRow(orgId, id, data.today, { includeMoney: data.moneyVisible });
 }
+
+/** The visit a `?visit=<id>` link names, when the maintenance board this load
+    holds has it: every open visit of an active agreement, and the recently
+    done. No second read, unlike a job: a visit the board doesn't hold has no
+    sheet to open (the sheet reads the board's own row), and one in a paused
+    agreement or another org is exactly that. It answers null and the page
+    lands on the board. A fresh object per call, because the screen takes a
+    link by identity. */
+export function linkedVisit(data: WorkboardData, visitId: string): { id: string } | null {
+  const id = visitId.trim();
+  return id && data.board.visits.some((v) => v.id === id) ? { id } : null;
+}

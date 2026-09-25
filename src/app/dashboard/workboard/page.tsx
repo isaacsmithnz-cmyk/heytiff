@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { can } from "@/lib/permissions-server";
-import { loadLinkedJob, loadWorkboardPage } from "@/lib/workboard/page-data";
+import { linkedVisit, loadLinkedJob, loadWorkboardPage } from "@/lib/workboard/page-data";
 import { OverviewScreen } from "@/components/workboard/overview-screen";
 
 /* The Workboard — Overview today; Projects and Maintenance land as their own
@@ -12,7 +12,11 @@ import { OverviewScreen } from "@/components/workboard/overview-screen";
 export default async function WorkboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ job?: string | string[]; q?: string | string[] }>;
+  searchParams: Promise<{
+    job?: string | string[];
+    q?: string | string[];
+    visit?: string | string[];
+  }>;
 }) {
   if (!(await can("workboard"))) redirect("/dashboard");
 
@@ -37,5 +41,19 @@ export default async function WorkboardPage({
   const asked = typeof params.q === "string" ? params.q.trim().slice(0, 120) : "";
   const openSearch = asked ? { text: asked } : null;
 
-  return <OverviewScreen data={data} openJob={openJob} openSearch={openSearch} />;
+  /* `?visit=<id>` lands on the Maintenance side with that visit's sheet open:
+     Home's list hands a service with no day here. A job named too wins, the
+     older door; a visit the board doesn't hold lands on the board. */
+  const visit = params.visit;
+  const openVisit =
+    !openJob && typeof visit === "string" && visit ? linkedVisit(data, visit) : null;
+
+  return (
+    <OverviewScreen
+      data={data}
+      openJob={openJob}
+      openSearch={openSearch}
+      openVisit={openVisit}
+    />
+  );
 }

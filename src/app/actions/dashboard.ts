@@ -265,6 +265,34 @@ export async function resolveIssue(issueId: string): Promise<DashResult> {
   return { ok: true };
 }
 
+/** Undo a resolve. The same gate as resolving it, because Mark resolved is a
+    single press and has to be reversible: the list's Undo calls this. The
+    row comes back as it was, with its count and its dates, since nothing was
+    taken off it. */
+export async function reopenIssue(issueId: string): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (!(await can("workboard"))) return { ok: false, error: "Issues need the workboard." };
+
+  const { data } = await supabaseAdmin
+    .from("workboard_issues")
+    .select("resolved")
+    .eq("org_id", ctx.orgId)
+    .eq("id", issueId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That issue no longer exists." };
+  if (!data.resolved) return { ok: false, error: "That issue is already open." };
+
+  const { error } = await supabaseAdmin
+    .from("workboard_issues")
+    .update({ resolved: false })
+    .eq("org_id", ctx.orgId)
+    .eq("id", issueId);
+  if (error) return { ok: false, error: "Couldn't reopen that issue." };
+  refresh();
+  return { ok: true };
+}
+
 /** Remove a task outright — its CREATOR, or `team`. Deliberately narrower than
     complete/reopen, which also allow the assignee: finishing your assignment is
     intrinsic to you, erasing someone else's record of having assigned it is

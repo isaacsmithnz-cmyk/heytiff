@@ -30,10 +30,12 @@ jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: jest.fn(async () => "
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: jest.fn(async () => null) }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
-import { resolveIssue } from "../dashboard";
+import { reopenIssue, resolveIssue } from "../dashboard";
+import { can } from "@/lib/permissions-server";
 
 beforeEach(() => {
   update.mockClear();
+  (can as jest.Mock).mockClear();
   issueRow = { resolved: false };
   allowed = true;
 });
@@ -55,4 +57,32 @@ it("says so when the issue is gone, or already closed", async () => {
   issueRow = { resolved: true };
   expect(await resolveIssue("i1")).toEqual({ ok: false, error: "That issue is already resolved." });
   expect(update).not.toHaveBeenCalled();
+});
+
+/* Undo on Home's list. Mark resolved is one press, so it has to come back,
+   under the same gate: whoever may close it may take the close back. */
+describe("reopenIssue", () => {
+  beforeEach(() => {
+    issueRow = { resolved: true };
+  });
+
+  it("opens the row again, as it was", async () => {
+    expect(await reopenIssue("i1")).toEqual({ ok: true });
+    expect(update).toHaveBeenCalledWith({ resolved: false });
+  });
+
+  it("asks for the workboard, the gate resolving it asks for", async () => {
+    allowed = false;
+    expect(await reopenIssue("i1")).toEqual({ ok: false, error: "Issues need the workboard." });
+    expect(can).toHaveBeenCalledWith("workboard");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("refuses an issue that is gone, or already open", async () => {
+    issueRow = null;
+    expect(await reopenIssue("i1")).toEqual({ ok: false, error: "That issue no longer exists." });
+    issueRow = { resolved: false };
+    expect(await reopenIssue("i1")).toEqual({ ok: false, error: "That issue is already open." });
+    expect(update).not.toHaveBeenCalled();
+  });
 });

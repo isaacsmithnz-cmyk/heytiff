@@ -26,7 +26,7 @@ jest.mock("@/lib/workboard/visit-ensure", () => ({
 jest.mock("@/lib/workboard/claim-mirror", () => ({ ensureMirrorClaims: jest.fn() }));
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: jest.fn() }));
 
-import { loadLinkedJob, type WorkboardData } from "@/lib/workboard/page-data";
+import { linkedVisit, loadLinkedJob, type WorkboardData } from "@/lib/workboard/page-data";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 
 const job = (remoteId: string): AllJobsMirrorJob => ({
@@ -85,5 +85,30 @@ describe("loadLinkedJob", () => {
     getSession.mockResolvedValue(null);
     expect(await loadLinkedJob(data([]), "j-288")).toBeNull();
     expect(readMirrorJobRow).not.toHaveBeenCalled();
+  });
+});
+
+/* `?visit=<id>` (Home's list). The sheet reads the maintenance board's own
+   row, so the board this load holds is the whole answer: a visit it doesn't
+   hold (a paused agreement's, another org's, a typo) has no sheet to open. */
+describe("linkedVisit", () => {
+  const withVisits = (...ids: string[]) =>
+    ({ board: { visits: ids.map((id) => ({ id })) } }) as unknown as WorkboardData;
+
+  it("names a visit the board holds, as a fresh object each time", () => {
+    const d = withVisits("vis-1", "vis-2");
+    const first = linkedVisit(d, "vis-2");
+    expect(first).toEqual({ id: "vis-2" });
+    // the screen takes a link by identity, so each naming must be new
+    expect(linkedVisit(d, "vis-2")).not.toBe(first);
+  });
+
+  it("reads past stray space, the way a pasted link arrives", () => {
+    expect(linkedVisit(withVisits("vis-1"), " vis-1 ")).toEqual({ id: "vis-1" });
+  });
+
+  it("answers null for a visit the board doesn't hold, or none", () => {
+    expect(linkedVisit(withVisits("vis-1"), "vis-other-org")).toBeNull();
+    expect(linkedVisit(withVisits("vis-1"), "  ")).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { ViewTabs } from "@/components/shell/view-tabs";
 import { useFleetActions } from "./fleet-state";
@@ -17,6 +17,7 @@ import type {
 import type { StoredDocument } from "@/lib/documents/query";
 import { MyVehicle } from "./my-vehicle";
 import { FleetRegister } from "./register";
+import type { VehicleLink } from "./vehicle-modal/derive";
 
 /* Assets — the register, on the board's card.
 
@@ -67,7 +68,7 @@ export function AssetsScreen({
   today,
   warnDays,
   viewerStaffId,
-  openVehicleId = null,
+  openVehicle = null,
 }: {
   own: OwnFleet;
   /** Present only for holders of `assets_all`. */
@@ -75,13 +76,45 @@ export function AssetsScreen({
   today: string;
   warnDays: number;
   viewerStaffId: string | null;
-  /** `?v=` — a vehicle to open on arrival, read on the server by the page and
-      passed through. A staff card's plate is the caller. */
-  openVehicleId?: string | null;
+  /** `?v=` (and `?screen=`): a vehicle to open, read on the server by the
+      page. A fresh object per naming, taken by identity. */
+  openVehicle?: VehicleLink | null;
 }) {
   const actions = useFleetActions();
   const staffLens = !register;
   const [view, setView] = useState<AssetsView>("fleet");
+  /* THE HANDOFF, the Workboard's shape. A link lands on the Fleet face with
+     the vehicle open, whichever face you were on: the bell can be opened
+     over Equipment, and the outlet is keyed on the pathname, so a link here
+     from Assets itself changes only the query and never remounts this
+     screen. Taken by identity while rendering, so each naming opens once and
+     a re-render opens nothing.
+
+     It is dropped when you move the strip yourself. The register unmounts on
+     Equipment and mounts again on Fleet, and a link still held then would
+     open a card you had already closed. */
+  const [handoff, setHandoff] = useState(openVehicle);
+  const [takenLink, setTakenLink] = useState(openVehicle);
+  if (openVehicle !== takenLink) {
+    setTakenLink(openVehicle);
+    if (openVehicle) {
+      setHandoff(openVehicle);
+      setView("fleet");
+    }
+  }
+  /* The link has done its job once the card is open, so it leaves the
+     address. Left there, a save on the card revalidates this page, the page
+     names the vehicle again, and the card springs back to the screen the link
+     named under whoever is working in it. `?`-only, so the outlet keeps its
+     key. */
+  useEffect(() => {
+    if (!openVehicle) return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("v") && !url.searchParams.has("screen")) return;
+    url.searchParams.delete("v");
+    url.searchParams.delete("screen");
+    window.history.replaceState(null, "", url.toString());
+  }, [openVehicle]);
 
   /* `working` deliberately includes vehicles off the road — off road is a
      state of a working vehicle, not an exit from the fleet. The finer slices
@@ -119,7 +152,10 @@ export function AssetsScreen({
                 idPrefix="ast"
                 panelPrefix="astp"
                 active={view}
-                onGo={(k) => setView(k as AssetsView)}
+                onGo={(k) => {
+                  setHandoff(null);
+                  setView(k as AssetsView);
+                }}
                 items={[
                   {
                     key: "fleet",
@@ -158,7 +194,7 @@ export function AssetsScreen({
                   staff={register.staff}
                   today={today}
                   warnDays={warnDays}
-                  openVehicleId={openVehicleId}
+                  openLink={handoff}
                 />
               )}
             </div>

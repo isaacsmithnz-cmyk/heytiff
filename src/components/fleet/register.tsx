@@ -10,6 +10,7 @@ import {
   type FleetSort,
   type FleetStaff,
   type FleetTab,
+  type Vehicle,
   type VehicleLog,
   displayName,
   filterVehicles,
@@ -27,6 +28,7 @@ import {
 } from "./logic";
 import { EditLogModal } from "./modals";
 import { VehicleModal, addScreen, logScreen, type Screen } from "./vehicle-modal";
+import type { VehicleLink } from "./vehicle-modal/derive";
 import { VehicleForm } from "./vehicle-modal/vehicle-form";
 import { Plate } from "./plate";
 
@@ -53,6 +55,13 @@ type ModalState =
   | { t: "detail"; id: string; screen?: Screen }
   | { t: "fix"; id: string; log: VehicleLog };
 
+/** What a link opens: the vehicle's card, on the screen it names, or nothing
+    for a vehicle this fleet doesn't hold. */
+const linkedModal = (link: VehicleLink | null, vehicles: readonly Vehicle[]): ModalState =>
+  link && vehicles.some((v) => v.id === link.id)
+    ? { t: "detail", id: link.id, screen: link.screen ?? undefined }
+    : { t: "none" };
+
 /* The reason a refused valuation gave, or a plain one. Read inside a
    try/catch, where a `??` is a value block React Compiler 1.0 cannot lower —
    it gives up on the whole component when it meets one. */
@@ -64,16 +73,17 @@ export function FleetRegister({
   staff,
   today,
   warnDays,
-  openVehicleId = null,
+  openLink = null,
 }: {
   fleet: FleetState;
   staff: FleetStaff[];
   today: string;
   warnDays: number;
-  /** `?v=` — a vehicle to open on arrival, from a plate clicked elsewhere.
-      Looked up against the whole fleet, not the current face, so a link to a
-      sold or pooled vehicle still opens from the Fleet tab. */
-  openVehicleId?: string | null;
+  /** `?v=` (and `?screen=`): a vehicle to open, from a plate clicked
+      elsewhere, the bell or Home. Looked up against the whole fleet, not the
+      current face, so a link to a sold or pooled vehicle still opens from the
+      Fleet tab. */
+  openLink?: VehicleLink | null;
 }) {
   const { vehicles, logs } = fleet;
   const [query, setQuery] = useState("");
@@ -94,14 +104,28 @@ export function FleetRegister({
      which id it had already honoured or the close button would fight the URL
      and the modal would spring back open — and setState in an effect is a
      cascading render the lint rule is right to refuse. The initialiser runs
-     once, at mount, which is exactly when a link arrives; from then on the
+     at mount, when a link from another page arrives; from then on the
      register owns its own modal. Looked up against the whole fleet rather than
-     the current face, so a link to a sold or pooled vehicle still opens. */
-  const [modal, setModal] = useState<ModalState>(() =>
-    openVehicleId && vehicles.some((v) => v.id === openVehicleId)
-      ? { t: "detail", id: openVehicleId }
-      : { t: "none" },
-  );
+     the current face, so a link to a sold or pooled vehicle still opens.
+
+     A LINK NAMED AGAIN is taken while rendering, by identity. Seeding alone
+     missed every link followed from Assets itself (the bell, opened over the
+     register): the outlet is keyed on the pathname, so the register never
+     remounted and the card never opened. The page hands a fresh object per
+     naming, and a re-render hands the same one. `linkN` remounts the card,
+     because its screen is its own state from the moment it opens: a link to
+     the rego screen of a vehicle already open would otherwise leave it
+     where it stood. */
+  const [modal, setModal] = useState<ModalState>(() => linkedModal(openLink, vehicles));
+  const [takenLink, setTakenLink] = useState(openLink);
+  const [linkN, setLinkN] = useState(0);
+  if (openLink !== takenLink) {
+    setTakenLink(openLink);
+    if (openLink && vehicles.some((v) => v.id === openLink.id)) {
+      setModal(linkedModal(openLink, vehicles));
+      setLinkN((n) => n + 1);
+    }
+  }
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [valuing, setValuing] = useState(false);
   const [valueErr, setValueErr] = useState<string | null>(null);
@@ -476,6 +500,7 @@ export function FleetRegister({
       )}
       {modal.t === "detail" && openVehicle && (
         <VehicleModal
+          key={linkN}
           vehicle={openVehicle}
           logs={logsFor(logs, openVehicle.id)}
           eco={fuelEconomy(logsFor(logs, openVehicle.id))}

@@ -108,16 +108,20 @@ export function OverviewScreen({
   data,
   openJob = null,
   openSearch = null,
+  openVisit = null,
 }: {
   data: WorkboardData;
   /** A job named in the URL — the page resolved it; this screen lands on it. */
   openJob?: AllJobsMirrorJob | null;
   /** Words named in the URL (`?q=`) — the board lands searching for them. */
   openSearch?: { text: string } | null;
+  /** A visit named in the URL (`?visit=`), one the maintenance board holds.
+      A job named too wins. */
+  openVisit?: { id: string } | null;
 }) {
   const router = useRouter();
   const [display, setDisplay] = useState(false);
-  const [tab, setTab] = useState<SideKey>("jobs");
+  const [tab, setTab] = useState<SideKey>(!openJob && openVisit ? "maintenance" : "jobs");
   /* THE HANDOFF. Following a tracked job off the All jobs side, or choosing
      anything the universal search found: the switcher changes side AND the
      destination board opens the right sheet. Held here because the boards are
@@ -138,8 +142,13 @@ export function OverviewScreen({
     | { side: "jobs"; kind: "job"; job: AllJobsMirrorJob };
   const [handoff, setHandoff] = useState<Handoff | null>(
     /* A job named in the URL arrives the way a search hit does: the jobs
-       side, its sheet open on that job. */
-    openJob ? { side: "jobs", kind: "job", job: openJob } : null
+       side, its sheet open on that job. A visit arrives on the Maintenance
+       side, its sheet open. */
+    openJob
+      ? { side: "jobs", kind: "job", job: openJob }
+      : openVisit
+        ? { side: "maintenance", kind: "visit", id: openVisit.id }
+        : null
   );
   /* ...and a job named AGAIN arrives the same way. Seeding alone was not
      enough: the outlet is keyed on the PATHNAME, so a link here from the
@@ -155,19 +164,30 @@ export function OverviewScreen({
       setTab("jobs");
     }
   }
+  /* A visit named again, the same way: Home's list followed while this board
+     is already open (the pathname never changes). A fresh handoff, so the
+     same visit named twice opens its sheet twice. */
+  const [takenVisit, setTakenVisit] = useState(openVisit);
+  if (openVisit !== takenVisit) {
+    setTakenVisit(openVisit);
+    if (openVisit && !openJob) {
+      setHandoff({ side: "maintenance", kind: "visit", id: openVisit.id });
+      setTab("maintenance");
+    }
+  }
   /* The link has done its job once the sheet is open — or the search is
      running — so it leaves the address. Left there, every refresh would hand the same job over again —
      a save on the sheet revalidates this page, and the sheet you were
      writing in would reopen under you — and naming the same job twice would
      change nothing a router could see. `?`-only, so the outlet keeps its key. */
   useEffect(() => {
-    if (!openJob && !openSearch) return;
+    if (!openJob && !openSearch && !openVisit) return;
     const url = new URL(window.location.href);
-    if (!url.searchParams.has("job") && !url.searchParams.has("q")) return;
-    url.searchParams.delete("job");
-    url.searchParams.delete("q");
+    const named = ["job", "q", "visit"].filter((k) => url.searchParams.has(k));
+    if (!named.length) return;
+    for (const k of named) url.searchParams.delete(k);
     window.history.replaceState(null, "", url.toString());
-  }, [openJob, openSearch]);
+  }, [openJob, openSearch, openVisit]);
   const pickSide = (side: SideKey) => {
     setHandoff(null);
     setTab(side);

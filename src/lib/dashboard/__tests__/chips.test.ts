@@ -23,6 +23,7 @@ import {
   sm8QueueChip,
   vehicleChips,
   vehicleLabel,
+  vehicleTitle,
   workRightsChips,
   type ActionChip,
   type ChipKind,
@@ -34,7 +35,7 @@ import { ICON_PATHS } from "@/components/shell/icon";
 const TODAY = "2026-07-19";
 
 const licCtx = { subject: "Jordan Mills", href: "/dashboard/profile", today: TODAY, warnDays: 30 };
-const vCtx = { subject: "Hiace VRF-04", href: "/dashboard/my-vehicle", warnDays: 30 };
+const vCtx = { subject: "Hiace VRF-04", href: "/dashboard/my-vehicle", warnDays: 30, today: TODAY };
 
 /* Build a VehicleWithFacts with everything "fine" by default, so each test can
    move exactly one field into the danger zone. */
@@ -203,6 +204,8 @@ describe("chipSummary / summaryLine", () => {
     subject: "s",
     href: "h",
     urgency: 0,
+    due: null,
+    ref: null,
   });
 
   it("counts each urgency separately and totals them", () => {
@@ -493,6 +496,8 @@ describe("sortChips", () => {
     subject: "s",
     href: "h",
     urgency: 0,
+    due: null,
+    ref: null,
     ...over,
   });
 
@@ -713,3 +718,117 @@ describe("profileChip", () => {
   });
 });
 
+
+/* DUE AND REF — what Home's list places and words a row by (./home-list).
+
+   The list places every dated row by its own DAY against the workspace's,
+   never by `state`, which was counted on Sydney's date; and it words a row
+   itself, so it needs the thing named whole rather than glued to an expiry
+   clause. A chip that loses its day drops off the list without a sound, so
+   every dated builder is pinned here, and every undated one to null. */
+describe("a chip's day and what it is about", () => {
+  it("dates a licence by its expiry, on the card it sits on", () => {
+    const chip = licenceChip(
+      { id: "l1", typeName: "White Card", expiryDate: "2026-08-01" },
+      { ...licCtx, owner: { kind: "staff", id: "s2" } },
+    )!;
+    expect(chip.due).toBe("2026-08-01");
+    expect(chip.ref).toEqual({ kind: "staff", id: "s2", name: "White Card" });
+  });
+
+  it("names no card when the caller didn't say whose, and still dates it", () => {
+    const chip = licenceChip({ id: "l1", typeName: "White Card", expiryDate: "2026-08-01T00:00:00Z" }, licCtx)!;
+    expect(chip.due).toBe("2026-08-01");
+    expect(chip.ref).toBeNull();
+  });
+
+  it("dates a visa by its expiry and names it by its type; the standing warnings have no day", () => {
+    const chips = workRightsChips(
+      { staffId: "me", status: "Visa holder", visaType: "482 TSS", visaExpiry: "2026-07-10", vevoCheckedAt: null },
+      { ...licCtx, owner: { kind: "self", id: "me" } },
+    );
+    const visa = chips.find((c) => c.key === "work-rights-visa:me")!;
+    expect(visa.due).toBe("2026-07-10");
+    expect(visa.ref).toEqual({ kind: "self", id: "me", name: "482 TSS" });
+    const unverified = chips.find((c) => c.key === "work-rights-unverified:me")!;
+    expect(unverified).toMatchObject({ due: null, ref: null });
+  });
+
+  it("adds a vehicle's day-count back to the day it was counted from", () => {
+    // TODAY is 2026-07-19
+    const v = vehicle({ name: "Spare van", plate: "CY14FE", regoDays: -2, insuranceDays: 12, ctpDays: 0 });
+    expect(regoChip(v, vCtx)!.due).toBe("2026-07-17");
+    expect(insuranceChip(v, vCtx)!.due).toBe("2026-07-31");
+    expect(ctpChip(v, vCtx)!.due).toBe("2026-07-19");
+    expect(regoChip(v, vCtx)!.ref).toEqual({ kind: "vehicle", id: "v1", name: "Spare van, CY14FE", kmLeft: null });
+  });
+
+  it("dates a service by time, and gives a service by distance its distance instead of a day", () => {
+    const byTime = serviceChip(vehicle({ serviceIntervalKm: null, serviceDays: 10 }), vCtx)!;
+    expect(byTime.due).toBe("2026-07-29");
+    expect(byTime.ref).toMatchObject({ kind: "vehicle", kmLeft: null });
+
+    const byKm = serviceChip(vehicle({ odometer: 99_200 }), vCtx)!;
+    expect(byKm.due).toBeNull();
+    expect(byKm.ref).toMatchObject({ kind: "vehicle", id: "v1", kmLeft: -1_200 });
+  });
+
+  /* Overdue by distance and months off by time: the distance is the reason,
+     so it carries no day — dated by the time limit it would sit a hundred
+     days out, past every window, and fall off the list while overdue. */
+  it("gives a service overdue by distance no day even when its time limit has one", () => {
+    const chip = serviceChip(vehicle({ odometer: 99_200, serviceIntervalMonths: 12, serviceDays: 100 }), vCtx)!;
+    expect(chip.state).toBe("bad");
+    expect(chip.due).toBeNull();
+    expect(chip.ref).toMatchObject({ kmLeft: -1_200 });
+  });
+
+  it("dates a business paper and keeps its issuer apart from the fallback subject", () => {
+    const ctx = { href: "/dashboard/admin/organization", today: TODAY, warnDays: 30 };
+    const [withIssuer] = orgCredentialChips(
+      [{ id: "pl", kind: "insurance", name: "Public liability", issuer: " QBE ", expiryDate: "2026-08-02" }],
+      ctx,
+    );
+    expect(withIssuer.due).toBe("2026-08-02");
+    expect(withIssuer.ref).toEqual({ kind: "org-credential", id: "pl", name: "Public liability", issuer: "QBE" });
+    const [without] = orgCredentialChips(
+      [{ id: "arc", kind: "licence", name: "ARC authorisation", issuer: null, expiryDate: "2026-08-02" }],
+      ctx,
+    );
+    expect(without.subject).toBe("Business licence");
+    expect(without.ref).toMatchObject({ issuer: null });
+  });
+
+  it("gives every queue and every answer owed no day and no ref", () => {
+    const undated = [
+      expensesChip(2),
+      leaveQueueChip(1),
+      timesheetChip({ status: "sent_back", periodStart: "2026-07-13", periodLabel: "13 – 19 Jul" }),
+      declinedClaimChip({ id: "c1", description: "Fittings", amount: 10, decidedOn: "2026-07-18" }, { today: TODAY }),
+      declinedLeaveChip(
+        { id: "r1", kind: "annual", startDate: "2026-08-01", endDate: "2026-08-02", decidedOn: "2026-07-18" },
+        { today: TODAY },
+      ),
+      profileChip({ requiredMissing: 1, firstLabel: "Mobile" }, { subject: "Luke" }),
+      swmsSignonChip(
+        { versionId: "w1", again: false, jobNumber: "12", site: null, issuedAt: "2026-07-18T00:00:00Z" },
+        { today: TODAY },
+      ),
+      swmsIssueChip({ versionId: "w1", jobNumber: "12", site: null, issues: [{ name: "Leo", issue: "rust" }] }),
+      swmsTemplateChip(true),
+      sm8QueueChip({ reason: "reconnect", waiting: 2 }),
+      sm8QueueChip({ reason: "cap", waiting: 0 }),
+    ];
+    for (const chip of undated) expect(chip).toMatchObject({ due: null, ref: null });
+  });
+});
+
+describe("vehicleTitle", () => {
+  it("names a vehicle by name and plate, whichever exists alone, and the plate once", () => {
+    expect(vehicleTitle({ name: "Spare van", plate: "CY14FE" })).toBe("Spare van, CY14FE");
+    expect(vehicleTitle({ name: " ", plate: "CY14FE" })).toBe("CY14FE");
+    expect(vehicleTitle({ name: "Hilux", plate: "" })).toBe("Hilux");
+    expect(vehicleTitle({ name: "cy14fe", plate: "CY14FE" })).toBe("cy14fe");
+    expect(vehicleTitle({ name: "", plate: "" })).toBe("Unnamed vehicle");
+  });
+});

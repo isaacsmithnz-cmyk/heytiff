@@ -13,6 +13,8 @@ const chip = (over: Partial<ActionChip> & { kind: ChipKind }): ActionChip => ({
   subject: "s",
   href: "/dashboard",
   urgency: 10_000,
+  due: null,
+  ref: null,
   ...over,
 });
 

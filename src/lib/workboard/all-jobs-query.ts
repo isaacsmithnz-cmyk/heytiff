@@ -90,8 +90,9 @@ type JobRow = {
 
 /** One line of a description, capped — the list shows a glance, the sheet
     shows the whole thing. Newlines collapse so a multi-line note can't take
-    six rows' worth of height. */
-function oneLine(text: string | null, max = 160): string | null {
+    six rows' worth of height. Home's list builds the same row for a won job,
+    so it cuts the same way. */
+export function oneLine(text: string | null, max = 160): string | null {
   if (!text) return null;
   const flat = text.replace(/\s+/g, " ").trim();
   if (!flat) return null;

@@ -106,7 +106,8 @@ const NO_KEY =
 
     `switching` is a reconnect to a DIFFERENT account: sending goes off in the
     same write that stores the new account, so there is no moment where the
-    new account is connected with the old account's switch still on.
+    new account is connected with the old account's switch still on — and a
+    pause the old account's writes tripped goes with it (paused_reason).
 
     An account another workspace already holds is refused by the unique
     index, and comes back as `elsewhere`. */
@@ -122,39 +123,41 @@ export async function saveSm8Connection(input: {
   if (!key) return { ok: false, error: NO_KEY };
 
   const now = input.now ?? Date.now();
-  const { error } = await supabaseAdmin.from(TABLE).upsert(
-    {
-      org_id: input.orgId,
-      provider: PROVIDER,
-      status: "connected",
-      /* One ServiceM8 account per grant — tenant_id/tenants exist because the
-         table is shared with multi-tenant providers, so the single account is
-         stored in the same slots the screens already read. The extra
-         timezoneName key rides in the jsonb (parseTenants ignores it); the
-         sm8_vendor mirror is the queryable home. */
-      tenant_id: input.vendor?.uuid ?? null,
-      tenant_name: input.vendor?.name ?? null,
-      tenants: input.vendor
-        ? [
-            {
-              tenantId: input.vendor.uuid,
-              tenantName: input.vendor.name,
-              timezoneName: input.vendor.timezoneName,
-            },
-          ]
-        : [],
-      scopes: input.tokens.scope,
-      access_token_enc: seal(input.tokens.accessToken, key),
-      refresh_token_enc: seal(input.tokens.refreshToken, key),
-      expires_at: expiryFromTokenSet({ expires_in: input.tokens.expiresIn ?? undefined }, now),
-      connected_by_user_id: input.userId,
-      connected_at: new Date(now).toISOString(),
-      updated_at: new Date(now).toISOString(),
-      last_error: null,
-      ...(input.switching ? { write_mode: "off" } : {}),
-    },
-    { onConflict: "org_id,provider" }
-  );
+  const row = {
+    org_id: input.orgId,
+    provider: PROVIDER,
+    status: "connected",
+    /* One ServiceM8 account per grant — tenant_id/tenants exist because the
+       table is shared with multi-tenant providers, so the single account is
+       stored in the same slots the screens already read. The extra
+       timezoneName key rides in the jsonb (parseTenants ignores it); the
+       sm8_vendor mirror is the queryable home. */
+    tenant_id: input.vendor?.uuid ?? null,
+    tenant_name: input.vendor?.name ?? null,
+    tenants: input.vendor
+      ? [
+          {
+            tenantId: input.vendor.uuid,
+            tenantName: input.vendor.name,
+            timezoneName: input.vendor.timezoneName,
+          },
+        ]
+      : [],
+    scopes: input.tokens.scope,
+    access_token_enc: seal(input.tokens.accessToken, key),
+    refresh_token_enc: seal(input.tokens.refreshToken, key),
+    expires_at: expiryFromTokenSet({ expires_in: input.tokens.expiresIn ?? undefined }, now),
+    connected_by_user_id: input.userId,
+    connected_at: new Date(now).toISOString(),
+    updated_at: new Date(now).toISOString(),
+    last_error: null,
+    ...(input.switching ? { write_mode: "off" } : {}),
+  };
+  const save = (extra: Record<string, unknown>) =>
+    supabaseAdmin.from(TABLE).upsert({ ...row, ...extra }, { onConflict: "org_id,provider" });
+  let { error } = await save(input.switching ? { paused_reason: null } : {});
+  /* a database without the pause column yet still saves the connection */
+  if (input.switching && missingColumn(error)) ({ error } = await save({}));
 
   if (heldElsewhere(error)) {
     return { ok: false, error: "That ServiceM8 account is connected to another workspace.", elsewhere: true };
@@ -374,6 +377,8 @@ export async function switchSm8Account(
     write_mode: "off",
     updated_at: iso,
   };
+  /* a pause the old account's writes tripped isn't the new account's */
+  const newer = { account_changed_at: iso, account_changed_from: from.name, paused_reason: null };
   const update = (patch: Record<string, unknown>) =>
     supabaseAdmin
       .from(TABLE)
@@ -383,7 +388,7 @@ export async function switchSm8Account(
       .eq("tenant_id", to.uuid)
       .select("id");
 
-  let res = await update({ ...base, account_changed_at: iso, account_changed_from: from.name });
+  let res = await update({ ...base, ...newer });
   if (missingColumn(res.error)) res = await update(base);
   if (res.error) {
     if (heldElsewhere(res.error)) return { ok: false, reason: "elsewhere" };

@@ -1785,6 +1785,7 @@ export function JobSheet({
               onRemovePaper={removePaper}
               onRenewPaper={renewPaper}
               sends={sm8Read?.sends ?? null}
+              sendHold={sm8Read?.hold ?? null}
             />
           )}
 

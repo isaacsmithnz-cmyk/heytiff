@@ -324,8 +324,9 @@ export const SM8_SCOPE_LIST: string[] = SM8_SCOPES.map((s) => s.scope);
 /* ── ServiceM8 write scopes ────────────────────────────────────────────────
 
    THE LIST ABOVE STAYS READ-ONLY, and writing lives here instead. A write
-   scope is asked for only while the owner has writing switched ON
-   (integration_connections.write_mode = 'live'). Off, or on a trial run, the
+   scope is asked for only while the owner has writing switched ON, or
+   paused (integration_connections.write_mode 'live' or 'paused'). Off, or on
+   a trial run, the
    consent screen is the read list alone, exactly as before, so an owner who
    never turns writing on never grants it, and the tests still hold the read
    list write-free BY SHAPE.
@@ -354,15 +355,47 @@ export const SM8_WRITE_SCOPES: ScopeEntry[] = [
 
 export const SM8_WRITE_SCOPE_LIST: string[] = SM8_WRITE_SCOPES.map((s) => s.scope);
 
-/** What the consent screen asks for: the reads always, the writes only while
-    writing is on. A trial run sends nothing, so it asks for nothing more. */
-export function sm8ScopesWanted(writeMode?: string | null): string[] {
-  return writeMode === "live" ? [...SM8_SCOPE_LIST, ...SM8_WRITE_SCOPE_LIST] : SM8_SCOPE_LIST;
+/** EACH KIND OF WRITE IS ITS OWN PERMISSION. A kind goes only when the grant
+    holds every scope listed for it, so a grant that holds one kind's scope
+    sends that kind, whatever else the list asks for. `satisfies`, not a
+    `Record<string, …>` annotation: the annotation would lose the keys, and
+    the kind names are read off them (sm8-write-plan's Sm8WriteKind). */
+export const SM8_WRITE_KIND_SCOPES = {
+  attachment: ["manage_attachments"],
+} as const satisfies Record<string, readonly string[]>;
+
+export type Sm8WriteKindName = keyof typeof SM8_WRITE_KIND_SCOPES;
+
+/** The write scopes of `kinds` — every kind when none are named. */
+function writeScopesFor(kinds?: readonly string[]): string[] {
+  if (kinds === undefined) return SM8_WRITE_SCOPE_LIST;
+  const wanted = new Set<string>(
+    kinds.flatMap((k) =>
+      Object.hasOwn(SM8_WRITE_KIND_SCOPES, k) ? [...SM8_WRITE_KIND_SCOPES[k as Sm8WriteKindName]] : []
+    )
+  );
+  return SM8_WRITE_SCOPE_LIST.filter((s) => wanted.has(s));
 }
 
-export function sm8MissingScopes(granted: string | null | undefined, writeMode?: string | null): string[] {
+/** Writing is on, or paused: a pause keeps the permission it needs, so a
+    reconnect while paused doesn't drop the write scope, and switching back
+    on needs no second reconnect. */
+const asksToWrite = (writeMode?: string | null) => writeMode === "live" || writeMode === "paused";
+
+/** What the consent screen asks for: the reads always, and the writes of the
+    kinds this deployment allows only while writing is on or paused. A trial
+    run sends nothing, so it asks for nothing more. */
+export function sm8ScopesWanted(writeMode?: string | null, kinds?: readonly string[]): string[] {
+  return asksToWrite(writeMode) ? [...SM8_SCOPE_LIST, ...writeScopesFor(kinds)] : SM8_SCOPE_LIST;
+}
+
+export function sm8MissingScopes(
+  granted: string | null | undefined,
+  writeMode?: string | null,
+  kinds?: readonly string[]
+): string[] {
   const have = new Set((granted ?? "").split(/\s+/).filter(Boolean));
-  return sm8ScopesWanted(writeMode).filter((s) => !have.has(s));
+  return sm8ScopesWanted(writeMode, kinds).filter((s) => !have.has(s));
 }
 
 /** The per-provider form, for code that holds a connection row and needs the
@@ -371,7 +404,8 @@ export function sm8MissingScopes(granted: string | null | undefined, writeMode?:
     everything, for the same degrade-don't-crash reason parseTenants has.
 
     `writeMode` is the row's own switch: a ServiceM8 grant with writing on
-    and no write permission is missing it, and the screen says reconnect. */
+    (or paused) and no write permission is missing it, and the screen says
+    reconnect. */
 export function missingScopesFor(
   provider: string,
   granted: string | null | undefined,

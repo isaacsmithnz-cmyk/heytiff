@@ -489,6 +489,14 @@ describe("where ours stand with ServiceM8", () => {
     expect(line).not.toHaveClass("sw-state");
   });
 
+  it("says a waiting one is held by a pause, or a reconnect", () => {
+    const { unmount } = face({ documents: [OURS], sends: [sent("d-9", "queued", { attempts: 0 })], sendHold: "paused" });
+    expect(screen.getByText("Not in ServiceM8 yet. Sending is paused.")).toBeInTheDocument();
+    unmount();
+    face({ documents: [OURS], sends: [sent("d-9", "queued", { attempts: 1 })], sendHold: "reconnect" });
+    expect(screen.getByText("Not in ServiceM8 yet. ServiceM8 needs reconnecting.")).toHaveClass("sw-state", "warn");
+  });
+
   it("says nothing for a file never sent, or sent on a trial run", () => {
     face({ today: TODAY, papers: [paperRow()], documents: [OURS], sends: [sent("d1", "trial")] });
     expect(screen.queryByText(/ServiceM8/)).toBeNull();

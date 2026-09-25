@@ -21,6 +21,8 @@ let cancelledRows: Row[] = [];
 let headCount = 0;
 let documentRows: Row[] = [];
 let upsertError: { code: string } | null = null;
+/** Errors for the next upserts, one each, before `upsertError` applies. */
+const upsertErrorsOnce: { code: string }[] = [];
 /* One-off answers for an update, by the patch it carries. */
 let updateHook: ((u: Update) => DbResult | undefined) | null = null;
 /* Tables whose delete the database refuses, and tables whose single-row read
@@ -141,7 +143,7 @@ jest.mock("@/lib/supabase-server", () => ({
       };
       c.upsert = (payload: Record<string, unknown>) => {
         upserts.push(payload);
-        return Promise.resolve({ error: upsertError });
+        return Promise.resolve({ error: upsertErrorsOnce.shift() ?? upsertError });
       };
       c.delete = () => {
         const d = { table, filters: { ...filters } as Record<string, unknown> };
@@ -257,6 +259,7 @@ beforeEach(() => {
   headCount = 0;
   documentRows = [];
   upsertError = null;
+  upsertErrorsOnce.length = 0;
   updateHook = null;
   deleteFails.clear();
   readFails.clear();
@@ -506,9 +509,23 @@ describe("saving a grant", () => {
     });
   });
 
-  it("a switch of account turns sending off in the same write", async () => {
+  it("a switch of account turns sending off in the same write, and forgets who paused it", async () => {
     await saveSm8Connection({ orgId: "org-1", userId: "auth0|me", tokens, vendor, switching: true, now: NOW });
-    expect(upserts[0]).toMatchObject({ tenant_id: "v-9", write_mode: "off" });
+    expect(upserts[0]).toMatchObject({ tenant_id: "v-9", write_mode: "off", paused_reason: null });
+  });
+
+  it("a reconnect to the same account leaves a pause as it is", async () => {
+    await saveSm8Connection({ orgId: "org-1", userId: "auth0|me", tokens, vendor, now: NOW });
+    expect(upserts[0]).not.toHaveProperty("paused_reason");
+  });
+
+  it("a database without the pause column still saves a switch", async () => {
+    upsertErrorsOnce.push({ code: "PGRST204" });
+    const r = await saveSm8Connection({ orgId: "org-1", userId: "auth0|me", tokens, vendor, switching: true, now: NOW });
+    expect(r).toEqual({ ok: true });
+    expect(upserts).toHaveLength(2);
+    expect(upserts[1]).toMatchObject({ write_mode: "off" });
+    expect(upserts[1]).not.toHaveProperty("paused_reason");
   });
 
   it("an account another workspace holds reads as elsewhere", async () => {
@@ -587,6 +604,8 @@ describe("switching to a different account", () => {
       account_changed_at: new Date(NOW).toISOString(),
       account_changed_from: "Acme Air",
       tenant_name: "Beta Cooling",
+      // a pause the old account's writes tripped isn't the new account's
+      paused_reason: null,
     });
     // only while the row still holds the new account
     expect(conn.filters).toMatchObject({ org_id: "org-1", tenant_id: "v-2" });

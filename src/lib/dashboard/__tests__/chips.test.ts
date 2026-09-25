@@ -20,6 +20,7 @@ import {
   swmsIssueChip,
   swmsSignonChip,
   swmsTemplateChip,
+  sm8QueueChip,
   vehicleChips,
   vehicleLabel,
   workRightsChips,
@@ -266,6 +267,7 @@ describe("chipGroup", () => {
       swms: true,
       "swms-issue": true,
       "swms-template": true,
+      "sm8-writes": true,
     };
     for (const k of Object.keys(filed) as ChipKind[]) {
       const g = chipGroup(k);
@@ -356,6 +358,45 @@ describe("swmsTemplateChip", () => {
   it("goes once it's approved", () => {
     expect(swmsTemplateChip(false)).toBeNull();
     expect(swmsTemplateChip(undefined)).toBeNull();
+  });
+});
+
+/* FILES STUCK ON THEIR WAY TO SERVICEM8 — one chip for the queue, on the
+   owner's list, and only for what only the owner can unstick. */
+describe("sm8QueueChip", () => {
+  it("asks the owner to reconnect, in the bad colour, with how many are waiting", () => {
+    expect(sm8QueueChip({ reason: "reconnect", waiting: 3 })).toMatchObject({
+      key: "sm8-writes",
+      kind: "sm8-writes",
+      state: "bad",
+      label: "Reconnect ServiceM8",
+      subject: "3 files waiting to go",
+      href: "/dashboard/admin/integrations/servicem8",
+    });
+    expect(sm8QueueChip({ reason: "reconnect", waiting: 1 })?.subject).toBe("1 file waiting to go");
+  });
+
+  it("says HeyTiff paused sending at the cap, in the warning colour", () => {
+    expect(sm8QueueChip({ reason: "cap", waiting: 4 })).toMatchObject({
+      state: "warn",
+      label: "Sending to ServiceM8 paused",
+      subject: "More than 60 in an hour, 4 files waiting",
+    });
+    expect(sm8QueueChip({ reason: "cap", waiting: 0 })?.subject).toBe("More than 60 in an hour");
+  });
+
+  it("says ServiceM8 holds the files for an account not in good standing", () => {
+    expect(sm8QueueChip({ reason: "billing", waiting: 2 })).toMatchObject({
+      state: "bad",
+      label: "ServiceM8 account not in good standing",
+      subject: "2 files waiting to go",
+    });
+  });
+
+  it("is nothing when nothing is stuck, and files under Business", () => {
+    expect(sm8QueueChip(null)).toBeNull();
+    expect(sm8QueueChip({ reason: "reconnect", waiting: 0 })).toBeNull();
+    expect(chipGroup("sm8-writes")).toBe("Business");
   });
 });
 

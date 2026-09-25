@@ -317,3 +317,29 @@ describe("assembleChips — the SWMS template", () => {
     expect(assembleChips({ ...FULL, isOwner: true, swmsTemplatePending: false }, caps()).self.some((c) => c.kind === "swms-template")).toBe(false);
   });
 });
+
+/* FILES STUCK ON THEIR WAY TO SERVICEM8 are the owner's: the connection is
+   theirs whether or not they have a staff card. */
+describe("assembleChips — files stuck on their way to ServiceM8", () => {
+  const stuck = { reason: "reconnect" as const, waiting: 2 };
+
+  it("tells the owner", () => {
+    const { self } = assembleChips({ ...FULL, isOwner: true, sm8Stuck: stuck }, caps());
+    expect(self.find((c) => c.kind === "sm8-writes")).toMatchObject({ label: "Reconnect ServiceM8" });
+  });
+
+  it("tells an owner with no staff card too", () => {
+    const { self } = assembleChips({ ...FULL, isOwner: true, viewerStaffId: null, self: null, sm8Stuck: stuck }, caps());
+    expect(self.map((c) => c.kind)).toContain("sm8-writes");
+  });
+
+  it("tells nobody else, whatever they hold", () => {
+    const all = caps("team", "approvals", "assets_all");
+    const { self, team } = assembleChips({ ...FULL, isOwner: false, sm8Stuck: stuck }, all);
+    expect([...self, ...team].some((c) => c.kind === "sm8-writes")).toBe(false);
+  });
+
+  it("says nothing when nothing is stuck", () => {
+    expect(assembleChips({ ...FULL, isOwner: true, sm8Stuck: null }, caps()).self.some((c) => c.kind === "sm8-writes")).toBe(false);
+  });
+});

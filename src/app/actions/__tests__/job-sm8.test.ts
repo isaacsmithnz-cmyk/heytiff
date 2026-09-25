@@ -26,12 +26,28 @@ jest.mock("@/lib/compliance/send", () => ({
 }));
 
 const state = {
+  readable: true,
+  kinds: ["attachment"] as "attachment"[],
   deployment: true,
-  mode: "live" as "off" | "trial" | "live",
+  mode: "live" as "off" | "trial" | "live" | "paused",
+  modeStored: "live" as string | null,
+  pausedReason: null as "owner" | "cap" | null,
+  pausedAt: null as string | null,
+  linked: true,
   connected: true,
   tenantId: "vendor-1" as string | null,
-  granted: true,
+  granted: ["attachment"] as "attachment"[],
+  refused: [] as "attachment"[],
+  timezoneName: null as string | null,
 };
+const FRESH = { ...state };
+
+/* the press is minted from the session in the real module; here it is a
+   token the queue (stubbed) receives */
+const PRESS = { orgId: "org-1", userId: "auth0|isaac", staffId: "staff-isaac", at: 0 };
+let press: typeof PRESS | null = PRESS;
+jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromSession: async () => press }));
+
 const readJobSends = jest.fn();
 const enqueueAttachments = jest.fn();
 const runSm8Writes = jest.fn();
@@ -69,15 +85,18 @@ const sent = (documentId: string, status = "sent", error: string | null = null) 
 beforeEach(() => {
   ctx = office;
   jobReal = true;
-  Object.assign(state, { deployment: true, mode: "live", connected: true, tenantId: "vendor-1", granted: true });
+  press = PRESS;
+  Object.assign(state, FRESH, { granted: ["attachment"], refused: [] });
   scheduled.length = 0;
   outgoing.mockReset().mockResolvedValue({
     ok: true,
     labels: [],
     files: [out("p:paper-1", "doc-a", "Public liability.pdf"), out("d:doc-b", "doc-b", "Plan.pdf")],
   });
-  enqueueAttachments.mockReset().mockResolvedValue({ ids: ["w1", "w2"], already: [] });
-  runSm8Writes.mockReset().mockResolvedValue({ done: 2, sent: 2, trial: 0, failed: 0, stopped: null });
+  enqueueAttachments.mockReset().mockResolvedValue({ ids: ["w1", "w2"], already: [], capped: false });
+  runSm8Writes
+    .mockReset()
+    .mockResolvedValue({ done: 2, sent: 2, trial: 0, failed: 0, again: 0, lost: 0, stopped: null });
   readJobSends.mockReset().mockResolvedValue([sent("doc-a"), sent("doc-b")]);
 });
 
@@ -88,17 +107,28 @@ describe("what the card reads", () => {
   });
 
   it("offers the button to the office where an owner switched it on", async () => {
-    expect(await readJobSm8("job-1")).toEqual({ send: "live", sends: [sent("doc-a"), sent("doc-b")] });
+    expect(await readJobSm8("job-1")).toEqual({ send: "live", sends: [sent("doc-a"), sent("doc-b")], hold: null });
     state.mode = "trial";
     expect((await readJobSm8("job-1"))?.send).toBe("trial");
   });
 
   it("still gives the rows their words where the button isn't offered", async () => {
     ctx = { ...office, company: false };
-    expect(await readJobSm8("job-1")).toEqual({ send: null, sends: [sent("doc-a"), sent("doc-b")] });
+    expect(await readJobSm8("job-1")).toEqual({ send: null, sends: [sent("doc-a"), sent("doc-b")], hold: null });
     ctx = office;
     state.mode = "off";
     expect((await readJobSm8("job-1"))?.send).toBeNull();
+  });
+
+  it("keeps the button while paused, and says what holds the files waiting", async () => {
+    state.mode = "paused";
+    expect(await readJobSm8("job-1")).toMatchObject({ send: "live", hold: "paused" });
+    state.mode = "live";
+    state.connected = false;
+    expect(await readJobSm8("job-1")).toMatchObject({ send: "live", hold: "reconnect" });
+    state.connected = true;
+    state.refused = ["attachment"];
+    expect((await readJobSm8("job-1"))?.hold).toBe("reconnect");
   });
 });
 
@@ -123,10 +153,42 @@ describe("who may send, and when", () => {
     const res = await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1"] });
     expect(res).toEqual({ ok: false, error: expect.stringMatching(/^Sending to ServiceM8 is switched off/) });
     state.mode = "live";
-    state.granted = false;
+    state.granted = [];
     const res2 = await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1"] });
     expect(res2).toEqual({ ok: false, error: expect.stringMatching(/permission to add files/) });
     expect(enqueueAttachments).not.toHaveBeenCalled();
+  });
+
+  it("says sending is paused, and queues nothing", async () => {
+    state.mode = "paused";
+    expect(await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1"] })).toEqual({
+      ok: false,
+      error: "Sending to ServiceM8 is paused. An owner can change that in Integrations, ServiceM8.",
+    });
+    expect(enqueueAttachments).not.toHaveBeenCalled();
+  });
+
+  it("queues nothing without a press from this workspace's session", async () => {
+    press = null;
+    expect(await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1"] })).toEqual({
+      ok: false,
+      error: "You can't send documents from jobs.",
+    });
+    press = { ...PRESS, orgId: "org-2" };
+    expect(await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1"] })).toEqual({
+      ok: false,
+      error: "You can't send documents from jobs.",
+    });
+    expect(enqueueAttachments).not.toHaveBeenCalled();
+  });
+
+  it("says sending is paused when this press would pass the hourly cap", async () => {
+    enqueueAttachments.mockResolvedValue({ ids: [], already: [], capped: true });
+    expect(await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1"] })).toEqual({
+      ok: false,
+      error: "Sending to ServiceM8 is paused. An owner can change that in Integrations, ServiceM8.",
+    });
+    expect(runSm8Writes).not.toHaveBeenCalled();
   });
 });
 
@@ -152,7 +214,7 @@ describe("what goes", () => {
 
   it("queues each file for the connected account, as the person who pressed", async () => {
     await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] });
-    expect(enqueueAttachments).toHaveBeenCalledWith("org-1", "vendor-1", "staff-isaac", [
+    expect(enqueueAttachments).toHaveBeenCalledWith(PRESS, expect.objectContaining({ tenantId: "vendor-1" }), [
       { jobUuid: "job-1", documentId: "doc-a", name: "Public liability.pdf", mimeType: "application/pdf", sizeBytes: 10, key: "p:paper-1" },
       { jobUuid: "job-1", documentId: "doc-b", name: "Plan.pdf", mimeType: "application/pdf", sizeBytes: 10, key: "d:doc-b" },
     ]);
@@ -166,17 +228,93 @@ describe("what goes", () => {
   });
 
   it("hands what the budget didn't reach to a sender behind the response", async () => {
-    runSm8Writes.mockResolvedValueOnce({ done: 1, sent: 1, trial: 0, failed: 0, stopped: null });
+    runSm8Writes.mockResolvedValueOnce({ done: 1, sent: 1, trial: 0, failed: 0, again: 0, lost: 0, stopped: null });
     await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] });
     expect(scheduled).toHaveLength(1);
     await scheduled[0]();
-    expect(runSm8Writes).toHaveBeenLastCalledWith("org-1", "send", { ids: ["w1", "w2"] });
+    expect(runSm8Writes).toHaveBeenLastCalledWith("org-1", "send", { ids: ["w1", "w2"], budgetMs: 90_000 });
+  });
+
+  it("follows up a file due again at once — a dead record under its new uuid", async () => {
+    runSm8Writes.mockResolvedValueOnce({ done: 2, sent: 1, trial: 0, failed: 0, again: 1, lost: 0, stopped: null });
+    await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] });
+    expect(scheduled).toHaveLength(1);
   });
 
   it("leaves a run ServiceM8 stopped to the retries it has already set", async () => {
-    runSm8Writes.mockResolvedValueOnce({ done: 1, sent: 0, trial: 0, failed: 0, stopped: "ServiceM8 couldn't be reached." });
+    runSm8Writes.mockResolvedValueOnce({
+      done: 1,
+      sent: 0,
+      trial: 0,
+      failed: 0,
+      again: 0,
+      lost: 0,
+      stopped: "ServiceM8 couldn't be reached.",
+    });
     await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] });
     expect(scheduled).toHaveLength(0);
+  });
+
+  it("answers within its budget however long ServiceM8 takes, and waits for the send behind the answer", async () => {
+    jest.useFakeTimers();
+    try {
+      let finish: (r: unknown) => void = () => {};
+      runSm8Writes.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
+      readJobSends.mockResolvedValue([sent("doc-a", "sending"), sent("doc-b", "queued")]);
+      let answered: unknown = null;
+      const pressing = sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] }).then(
+        (r) => (answered = r)
+      );
+      await jest.advanceTimersByTimeAsync(21_000);
+      await pressing;
+      expect(answered).toMatchObject({ ok: true, sent: [], waiting: ["p:paper-1", "d:doc-b"] });
+      expect(scheduled).toHaveLength(1);
+
+      // behind the answer: the run still going is waited for, then followed up
+      const behind = Promise.resolve(scheduled[0]());
+      finish({ done: 1, sent: 1, trial: 0, failed: 0, again: 0, lost: 0, stopped: null });
+      await behind;
+      expect(runSm8Writes).toHaveBeenLastCalledWith("org-1", "send", { ids: ["w1", "w2"], budgetMs: 90_000 });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  /* The follow-up runs inside this action's function, which ends 300 s
+     after the press: its last claim must end a lease (120 s) and a margin
+     (15 s) before that, so it may claim until 165 s in and no later. */
+  const slowFirstRun = async (msBehind: number) => {
+    let finish: (r: unknown) => void = () => {};
+    runSm8Writes.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
+    readJobSends.mockResolvedValue([sent("doc-a", "sending"), sent("doc-b", "queued")]);
+    const pressing = sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] });
+    await jest.advanceTimersByTimeAsync(20_000);
+    await pressing;
+    const behind = Promise.resolve(scheduled[0]());
+    // the first run's last send holds its row this long past the answer
+    await jest.advanceTimersByTimeAsync(msBehind);
+    finish({ done: 1, sent: 1, trial: 0, failed: 0, again: 0, lost: 0, stopped: null });
+    await behind;
+  };
+
+  it("gives the follow-up only what the function has left", async () => {
+    jest.useFakeTimers();
+    try {
+      await slowFirstRun(130_000); // 150 s in
+      expect(runSm8Writes).toHaveBeenLastCalledWith("org-1", "send", { ids: ["w1", "w2"], budgetMs: 15_000 });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("follows up nothing once the function has no time for another send", async () => {
+    jest.useFakeTimers();
+    try {
+      await slowFirstRun(150_000); // 170 s in
+      expect(runSm8Writes).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 

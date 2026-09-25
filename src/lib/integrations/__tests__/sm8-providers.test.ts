@@ -12,6 +12,7 @@ import {
   PROVIDERS,
   SM8_SCOPE_LIST,
   SM8_SCOPES,
+  SM8_WRITE_KIND_SCOPES,
   SM8_WRITE_SCOPE_LIST,
   SM8_WRITE_SCOPES,
   sm8MissingScopes,
@@ -190,5 +191,24 @@ describe("the write ask", () => {
     expect(missingScopesFor("servicem8", `${reads} manage_attachments`, "live")).toEqual([]);
     // Xero's yardstick is its own, whatever the switch says
     expect(missingScopesFor("xero", XERO_SCOPE_LIST.join(" "), "live")).toEqual([]);
+  });
+
+  it("is still asked for while sending is paused, so a reconnect then doesn't drop it", () => {
+    const reads = SM8_SCOPE_LIST.join(" ");
+    expect(sm8ScopesWanted("paused")).toEqual([...SM8_SCOPE_LIST, ...SM8_WRITE_SCOPE_LIST]);
+    expect(sm8MissingScopes(reads, "paused")).toEqual(["manage_attachments"]);
+    expect(missingScopesFor("servicem8", reads, "paused")).toEqual(["manage_attachments"]);
+  });
+
+  it("asks only for the kinds a deployment allows", () => {
+    expect(sm8ScopesWanted("live", ["attachment"])).toEqual([...SM8_SCOPE_LIST, "manage_attachments"]);
+    expect(sm8ScopesWanted("live", [])).toEqual(SM8_SCOPE_LIST);
+    expect(sm8ScopesWanted("live", ["not-a-kind"])).toEqual(SM8_SCOPE_LIST);
+    expect(sm8MissingScopes(SM8_SCOPE_LIST.join(" "), "live", [])).toEqual([]);
+  });
+
+  it("gives every write scope to a kind, and every kind's scope is on the list", () => {
+    const byKind = Object.values(SM8_WRITE_KIND_SCOPES).flat();
+    expect(new Set(byKind)).toEqual(new Set(SM8_WRITE_SCOPE_LIST));
   });
 });

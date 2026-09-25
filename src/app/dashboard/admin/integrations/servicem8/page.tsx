@@ -10,16 +10,18 @@ import { tokenKey } from "@/lib/integrations/secrets";
 import { sm8Config } from "@/lib/integrations/sm8";
 import { sm8ConnectMessage, sm8SwitchedNotice } from "@/lib/integrations/outcome";
 import { readSm8AccountChange } from "@/lib/integrations/sm8-store";
-import { countSm8WritesCancelledSince, countWaitingSm8Writes } from "@/lib/integrations/sm8-write-cancel";
-import { WRITE_WORDS } from "@/lib/integrations/sm8-write-plan";
+import { countSm8WritesCancelledSince } from "@/lib/integrations/sm8-write-cancel";
+import { sendHold, WRITE_HOURLY_CAP, WRITE_WORDS } from "@/lib/integrations/sm8-write-plan";
 import { getSm8PeopleData } from "@/app/actions/staff-import";
 import {
+  countSm8Queue,
   countSm8WritesSentLately,
   kickSm8WritesIfDue,
   listRecentSm8Writes,
-  sm8WritesEnabled,
+  readSm8WriteState,
+  sm8WriteKindsEnabled,
 } from "@/lib/integrations/sm8-writes";
-import { SM8_WRITE_SCOPE_LIST } from "@/lib/integrations/providers";
+import { SM8_WRITE_KIND_SCOPES, SM8_WRITE_SCOPE_LIST } from "@/lib/integrations/providers";
 import type { Sm8WritesView } from "@/components/integrations/sm8-writes-card";
 
 /* The ServiceM8 connection screen. Owner-only, matching the routes it links
@@ -41,27 +43,59 @@ export default async function Servicem8IntegrationPage({
 
   const orgId = session.orgId as string;
   const stored = await getConnectionView(orgId, "servicem8");
-  /* A deployment that can't write shows every workspace's sending as off,
-     whatever was last chosen: the consent won't ask for the write
-     permission there (the connect route agrees), so the screen mustn't say
-     it's missing. */
-  const connection =
-    stored && !sm8WritesEnabled() && stored.writeMode !== "off"
-      ? {
-          ...stored,
-          writeMode: "off" as const,
-          missing: stored.missing.filter((s) => !SM8_WRITE_SCOPE_LIST.includes(s)),
-        }
-      : stored;
+  /* A deployment shows only the write permissions of the kinds it allows —
+     the consent won't ask for the others (the connect route agrees), so the
+     screen mustn't say they're missing — and one that can't write at all
+     shows every workspace's sending as off, whatever was last chosen. */
+  const kinds = sm8WriteKindsEnabled();
+  const allowed = new Set<string>(kinds.flatMap((k) => [...SM8_WRITE_KIND_SCOPES[k]]));
+  const barred = SM8_WRITE_SCOPE_LIST.filter((s) => !allowed.has(s));
+  const connection = stored
+    ? {
+        ...stored,
+        writeMode: kinds.length === 0 ? ("off" as const) : stored.writeMode,
+        missing: stored.missing.filter((s) => !barred.includes(s)),
+      }
+    : null;
   const errorText = sm8ConnectMessage(one(params.error));
 
   /* Read whenever there is a connection row, not only a working one:
      Disconnect is offered in needs_reauth too, and its confirm says what it
      would cancel. A database without the account-change columns yet reads as
-     "no change". */
-  const [waitingWrites, previousAccount] = connection
-    ? await Promise.all([countWaitingSm8Writes(orgId), readSm8AccountChange(orgId)])
-    : [0, null];
+     "no change". What failed is counted for the account connected now, the
+     one Retry failed files can reach. */
+  const [queue, previousAccount] = connection
+    ? await Promise.all([countSm8Queue(orgId, connection.tenantId), readSm8AccountChange(orgId)])
+    : [{ waiting: 0, failed: 0 }, null];
+  const waitingWrites = queue.waiting;
+
+  /* The writes card, WHENEVER THERE IS A CONNECTION and the deployment
+     writes — needs_reauth included, which is exactly when the owner needs
+     to see what is waiting and why. Settings that can't be read draw no
+     card rather than a wrong one. */
+  let writes: Sm8WritesView | null = null;
+  if (connection && kinds.length > 0) {
+    const [state, recent, sentLately] = await Promise.all([
+      readSm8WriteState(orgId),
+      listRecentSm8Writes(orgId),
+      // the writes card's one figure: files sent in the last 30 days
+      countSm8WritesSentLately(orgId),
+    ]);
+    if (state.readable) {
+      writes = {
+        mode: state.mode,
+        pausedReason: state.pausedReason,
+        hold: sendHold(state, "attachment"),
+        granted: [...state.granted],
+        refused: [...state.refused],
+        sentLately,
+        waiting: queue.waiting,
+        failed: queue.failed,
+        recent,
+        hourlyCap: WRITE_HOURLY_CAP,
+      };
+    }
+  }
 
   /* One live read, only when there is a grant to read through. Doubles as the
      health check: revoked-from-ServiceM8 shows up here as needs_reauth on the
@@ -70,27 +104,15 @@ export default async function Servicem8IntegrationPage({
   let sync: Sm8SyncStatusView | null = null;
   let people: Awaited<ReturnType<typeof getSm8PeopleData>> = null;
   let elsewhere = 0;
-  let writes: Sm8WritesView | null = null;
   if (connection && connection.status === "connected") {
-    const [vendor, status, peopleData, alsoConnected, recent, sentLately] = await Promise.all([
+    const [vendor, status, peopleData, alsoConnected] = await Promise.all([
       readSm8Vendor(orgId),
       listSm8SyncStatus(orgId),
       // the reconcile card: live staff.json against this workspace's cards
       getSm8PeopleData(),
       // whether this same account is mirrored into other workspaces too
       countConnectionsElsewhere(orgId, "servicem8", connection.tenantId),
-      sm8WritesEnabled() ? listRecentSm8Writes(orgId) : Promise.resolve([]),
-      // the writes card's one figure: files sent in the last 30 days
-      sm8WritesEnabled() ? countSm8WritesSentLately(orgId) : Promise.resolve(null),
     ]);
-    if (sm8WritesEnabled()) {
-      writes = {
-        mode: connection.writeMode,
-        granted: SM8_WRITE_SCOPE_LIST.every((s) => connection.scopes.includes(s)),
-        sentLately,
-        recent,
-      };
-    }
     elsewhere = alsoConnected;
     reach = vendor.ok
       ? { ok: true, account: { name: vendor.data.name, timezoneName: vendor.data.timezoneName } }

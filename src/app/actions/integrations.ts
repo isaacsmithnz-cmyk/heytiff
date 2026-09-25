@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { auth0 } from "@/lib/auth0";
 import { hasMinRole } from "@/lib/roles";
@@ -7,9 +8,16 @@ import { getDbRole } from "@/lib/permissions-server";
 import { disconnectXero, setXeroTenant } from "@/lib/integrations/store";
 import { disconnectSm8 } from "@/lib/integrations/sm8-store";
 import { runSm8Sync } from "@/lib/integrations/sm8-sync";
-import { setSm8WriteMode, sm8WritesEnabled } from "@/lib/integrations/sm8-writes";
-import { readWriteMode } from "@/lib/integrations/sm8-write-plan";
-import { sm8DisconnectNote } from "@/lib/integrations/outcome";
+import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
+import {
+  readSm8WriteState,
+  retryFailedSm8Writes,
+  runSm8Writes,
+  setSm8WriteMode,
+  sm8WritesEnabled,
+} from "@/lib/integrations/sm8-writes";
+import { readWriteMode, RUN_BUDGET_MS, sendRefusal } from "@/lib/integrations/sm8-write-plan";
+import { sm8DisconnectNote, sm8OffNote, sm8RetryNote } from "@/lib/integrations/outcome";
 
 /* The two things you can do to an existing connection from the screen.
 
@@ -90,11 +98,12 @@ export async function syncServiceM8NowAction(): Promise<IntegrationResult> {
   return { ok: true, note: outcome.note };
 }
 
-/** The owner's switch for writing to ServiceM8: off, a trial run, or on.
-    The mode arrives from a browser, so it is read as a choice and anything
-    that isn't one of the three is refused rather than guessed at. Turning
-    it on doesn't grant anything by itself: the screen then asks for the
-    reconnect that gives HeyTiff the permission. */
+/** The owner's switch for writing to ServiceM8: off, a trial run, paused,
+    or on. The mode arrives from a browser, so it is read as a choice and
+    anything that isn't one of the four is refused rather than guessed at.
+    Turning it on doesn't grant anything by itself: the screen then asks for
+    the reconnect that gives HeyTiff the permission. Off says what it
+    cancelled. */
 export async function setServiceM8WriteModeAction(mode: string): Promise<IntegrationResult> {
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
@@ -102,11 +111,34 @@ export async function setServiceM8WriteModeAction(mode: string): Promise<Integra
 
   const want = readWriteMode(mode);
   if (want !== mode) return { ok: false, error: "That isn't a setting." };
-  if (!(await setSm8WriteMode(ctx.orgId, want))) {
-    return { ok: false, error: "Couldn't change it. Reload the page and try again." };
-  }
+  const changed = await setSm8WriteMode(ctx.orgId, want);
+  if (!changed.ok) return { ok: false, error: "Couldn't change it. Reload the page and try again." };
   revalidate();
-  return { ok: true };
+  const note = want === "off" ? sm8OffNote(changed.cancelled.length) : null;
+  return note ? { ok: true, note } : { ok: true };
+}
+
+/** The owner's Retry failed files: every write that failed for the account
+    connected now goes again, as far as the hour's cap has room, and a
+    sender follows behind the answer. A person pressed it, so it is a press
+    (sm8-press): the queue takes nothing else. */
+export async function retryFailedServiceM8WritesAction(): Promise<IntegrationResult> {
+  const ctx = await ownerOrgId();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+  if (!sm8WritesEnabled()) return { ok: false, error: "Sending to ServiceM8 isn't available yet." };
+  const press = await sm8PressFromSession();
+  if (!press || press.orgId !== ctx.orgId) return { ok: false, error: NOT_OWNER };
+
+  const state = await readSm8WriteState(ctx.orgId);
+  const refusal = sendRefusal(state, "attachment");
+  if (refusal) return { ok: false, error: refusal };
+
+  const retried = await retryFailedSm8Writes(press, state);
+  if (!retried) return { ok: false, error: "Couldn't send those again. Try again." };
+  const orgId = ctx.orgId;
+  if (retried.queued > 0) after(() => runSm8Writes(orgId, "kick", { budgetMs: RUN_BUDGET_MS }).catch(() => {}));
+  revalidate();
+  return { ok: true, note: sm8RetryNote(retried) };
 }
 
 export async function setXeroTenantAction(tenantId: string): Promise<IntegrationResult> {

@@ -4,49 +4,80 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { auDayOf, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import { logWord, type Sm8WriteMode } from "@/lib/integrations/sm8-write-plan";
+import {
+  logWord,
+  type SendHold,
+  type Sm8PausedReason,
+  type Sm8WriteKind,
+  type Sm8WriteMode,
+} from "@/lib/integrations/sm8-write-plan";
 import type { RecentSm8Write } from "@/lib/integrations/sm8-writes";
-import { setServiceM8WriteModeAction } from "@/app/actions/integrations";
+import { retryFailedServiceM8WritesAction, setServiceM8WriteModeAction } from "@/app/actions/integrations";
 
 /* SENDING FILES TO SERVICEM8 — the owner's switch for the first thing
    HeyTiff writes back, on the connection it governs.
 
-   THREE SETTINGS, AND OFF IS WHERE EVERY BUSINESS STARTS. Trial run lets
+   FOUR SETTINGS, AND OFF IS WHERE EVERY BUSINESS STARTS. Trial run lets
    the office press Send to ServiceM8 on a job and see each send checked and
    listed here, with nothing reaching ServiceM8: the way to watch it work on
-   a live account before it touches one. On asks ServiceM8 for the one
-   permission it needs, at the next reconnect, and until that is given the
-   card says so rather than pretending.
+   a live account before it touches one. Paused stops everything going and
+   loses nothing — the owner's own "not now", or HeyTiff's when more than the
+   hourly cap went in an hour. On asks ServiceM8 for the one permission it
+   needs, at the next reconnect, and until that is given the card says so
+   rather than pretending.
 
    THE LIST IS WHAT WAS DONE TO THEIR SERVICEM8, latest first, in the state's
-   colour — including what didn't go and why. A write path whose owner
-   can't see what it wrote is asking to be trusted. */
+   colour — including what didn't go and why, and every file still waiting
+   or failed however old. A write path whose owner can't see what it wrote is
+   asking to be trusted. */
 
 /** Null on a deployment that can't write (SM8_WRITES unset): the card isn't
     drawn at all there, because a setting that can't be set is a roadmap. */
 export type Sm8WritesView = {
   mode: Sm8WriteMode;
-  /** The grant carries the write permission. */
-  granted: boolean;
+  /** Who paused it, while paused. */
+  pausedReason: Sm8PausedReason | null;
+  /** What is holding the files waiting to go, as the list says it. */
+  hold: SendHold;
+  /** The kinds whose permission the grant holds. */
+  granted: Sm8WriteKind[];
+  /** The kinds ServiceM8 refused for permission since the last connect. */
+  refused: Sm8WriteKind[];
   /** Files sent in the last 30 days; null when it couldn't be counted. */
   sentLately: number | null;
+  /** Files waiting to go. */
+  waiting: number;
+  /** Files that didn't go and wait for a person. */
+  failed: number;
   recent: RecentSm8Write[];
+  /** Files one ServiceM8 account may take in an hour before sending pauses. */
+  hourlyCap: number;
 };
 
 const MODES: { id: Sm8WriteMode; label: string }[] = [
   { id: "off", label: "Off" },
   { id: "trial", label: "Trial run" },
+  { id: "paused", label: "Paused" },
   { id: "live", label: "On" },
 ];
 
+/** How many rows the list draws before it asks. */
+const SHOWN = 20;
+
 /** The setting as a sentence, with the one figure worth having. */
-function modeLine(mode: Sm8WriteMode, sentLately: number | null): string {
+function modeLine(view: Sm8WritesView): string {
+  const { mode, sentLately, waiting } = view;
   if (mode === "off") return "Off. Nothing HeyTiff does changes your ServiceM8.";
   if (mode === "trial") {
     return "Trial run. The office can press Send to ServiceM8 on a job, and each send is checked and listed here. Nothing reaches ServiceM8.";
   }
-  const lately =
-    sentLately && sentLately > 0 ? ` ${sentLately} in the last 30 days.` : "";
+  if (mode === "paused") {
+    const held = waiting > 0 ? ` ${waiting} waiting.` : "";
+    return view.pausedReason === "cap"
+      ? `Paused by HeyTiff, because more than ${view.hourlyCap} went to ServiceM8 within an hour. Nothing waiting is lost.${held}`
+      : `Paused. Nothing goes to ServiceM8 until you switch it back on, and nothing waiting is lost.${held}`;
+  }
+  const lately = sentLately && sentLately > 0 ? ` ${sentLately} in the last 30 days.` : "";
   return `On. Files sent from a job's Documents tab are added to the same job in ServiceM8.${lately}`;
 }
 
@@ -61,23 +92,46 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
 
   const choose = (mode: Sm8WriteMode) => {
     if (mode === view.mode || busy) return;
     setError(null);
+    setNote(null);
     start(async () => {
       const res = await setServiceM8WriteModeAction(mode);
-      if (res.ok) router.refresh();
-      else setError(res.error);
+      if (res.ok) {
+        if (res.note) setNote(res.note);
+        router.refresh();
+      } else setError(res.error);
     });
   };
+
+  const retry = () => {
+    if (busy) return;
+    setError(null);
+    setNote(null);
+    start(async () => {
+      const res = await retryFailedServiceM8WritesAction();
+      if (res.ok) {
+        if (res.note) setNote(res.note);
+        router.refresh();
+      } else setError(res.error);
+    });
+  };
+
+  /* Asked for while On or Paused (a pause keeps the permission), and said
+     until ServiceM8 gives it — or while ServiceM8 has refused it since. */
+  const unheld = !view.granted.includes("attachment") || view.refused.includes("attachment");
+  const shown = all ? view.recent : view.recent.slice(0, SHOWN);
 
   return (
     <div className="int-grp">
       <div className="c2h">
         <div style={{ minWidth: 0 }}>
           <b>Sending files to ServiceM8</b>
-          <em>{modeLine(view.mode, view.sentLately)}</em>
+          <em>{modeLine(view)}</em>
         </div>
       </div>
 
@@ -97,8 +151,9 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
         ))}
       </div>
       {error && <div className="int-note bad">{error}</div>}
+      {note && <div className="int-note ok">{note}</div>}
 
-      {view.mode === "live" && !view.granted && (
+      {(view.mode === "live" || view.mode === "paused") && unheld && (
         <div className="int-consent">
           <Icon name="alert" size={15} />
           <p>
@@ -108,10 +163,21 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
         </div>
       )}
 
-      {view.recent.length > 0 && (
+      {view.failed > 0 && (
+        <div className="c2h">
+          <div style={{ minWidth: 0 }}>
+            <b>{view.failed === 1 ? "1 didn't go." : `${view.failed} didn't go.`}</b>
+          </div>
+          <button type="button" className="pbtn ghost" disabled={busy} onClick={retry}>
+            Retry failed files
+          </button>
+        </div>
+      )}
+
+      {shown.length > 0 && (
         <ul className="int-scopes int-writes">
-          {view.recent.map((w) => {
-            const word = logWord(w.status, w.attempts);
+          {shown.map((w) => {
+            const word = logWord(w.status, w.attempts, view.hold);
             return (
               <li key={w.id}>
                 <div className="int-scopehead">
@@ -123,6 +189,13 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
             );
           })}
         </ul>
+      )}
+      {!all && view.recent.length > SHOWN && (
+        <div className="int-act">
+          <button type="button" className="pbtn ghost" onClick={() => setAll(true)}>
+            Show all {view.recent.length}
+          </button>
+        </div>
       )}
     </div>
   );

@@ -45,6 +45,7 @@ import { layoutScheduleDay, type ScheduleBlock } from "@/lib/workboard/schedule"
 import { jobsOnRail, nowMinInZone, railTasksOf, type RailTask } from "./day-rail";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
+import { sm8QueueStuck } from "@/lib/integrations/sm8-writes";
 import { phaseOf, type DayPhase } from "./debrief-voice";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
@@ -399,7 +400,7 @@ async function loadChips(
   /** the Organisation screen admits the owner only — see `assembleChips` */
   isOwner: boolean,
 ): Promise<DashboardChips> {
-  const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv, detailsGap, swmsSignons, swmsIssues, swmsTemplatePending] = await Promise.all([
+  const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv, detailsGap, swmsSignons, swmsIssues, swmsTemplatePending, sm8Stuck] = await Promise.all([
     viewerStaffId ? listStaffCompliance(orgId, viewerStaffId) : Promise.resolve([]),
     viewerStaffId ? getOwnVehicle(orgId, viewerStaffId) : Promise.resolve(null),
     viewerStaffId ? loadOwnSheet(orgId, viewerStaffId) : Promise.resolve(null),
@@ -420,6 +421,9 @@ async function loadChips(
     // the SWMS template, for the one person who can approve it; a read that
     // fails says nothing is pending rather than nagging on a guess
     isOwner ? isLibraryApproved(orgId).then((approved) => !approved).catch(() => false) : Promise.resolve(false),
+    // files stuck on their way to ServiceM8, for the one person who can
+    // unstick them; a read that fails raises no chip
+    isOwner ? sm8QueueStuck(orgId).catch(() => null) : Promise.resolve(null),
   ]);
 
   // Team data is only READ when the capability is held — it never reaches here
@@ -458,6 +462,7 @@ async function loadChips(
       ownSwmsSignons: swmsSignons,
       ownSwmsIssues: swmsIssues,
       swmsTemplatePending,
+      sm8Stuck,
     },
     caps,
   );

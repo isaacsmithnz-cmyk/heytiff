@@ -7,6 +7,7 @@ import { SM8_SCOPE_LIST } from "@/lib/integrations/providers";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import { sm8ObjectPhase, SM8_PAUSE_MIDWALK } from "@/lib/integrations/sm8-sync-plan";
 import type { Sm8ObjectStatus, Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
+import type { Sm8WritesView } from "../sm8-writes-card";
 
 /* The ServiceM8 screen's guards, which are STRICTER than Xero's for one
    reason: disconnecting here deletes a whole mirror of somebody's client
@@ -20,12 +21,14 @@ import type { Sm8ObjectStatus, Sm8SyncStatusView } from "@/lib/integrations/sm8-
 const disconnect = jest.fn();
 const syncNow = jest.fn();
 const setWriteMode = jest.fn();
+const retryFailed = jest.fn();
 const refresh = jest.fn();
 
 jest.mock("@/app/actions/integrations", () => ({
   disconnectServiceM8Action: (...args: unknown[]) => disconnect(...args),
   syncServiceM8NowAction: (...args: unknown[]) => syncNow(...args),
   setServiceM8WriteModeAction: (...args: unknown[]) => setWriteMode(...args),
+  retryFailedServiceM8WritesAction: (...args: unknown[]) => retryFailed(...args),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
 
@@ -59,6 +62,7 @@ beforeEach(() => {
   disconnect.mockReset().mockResolvedValue({ ok: true });
   syncNow.mockReset().mockResolvedValue({ ok: true });
   setWriteMode.mockReset().mockResolvedValue({ ok: true });
+  retryFailed.mockReset().mockResolvedValue({ ok: true, note: "2 files will go again." });
   refresh.mockReset();
 });
 
@@ -526,22 +530,41 @@ describe("the mirror card's clock", () => {
    the permission it needs and says so until it has it; and the list shows
    what was done to their ServiceM8, including what didn't go. */
 describe("sending files to ServiceM8", () => {
-  const writes = (over = {}) => ({
-    mode: "off" as "off" | "trial" | "live",
-    granted: false,
-    sentLately: null as number | null,
-    recent: [] as {
-      id: string;
-      name: string;
-      jobNumber: string | null;
-      status: "sent" | "failed" | "trial" | "queued" | "sending" | "cancelled";
-      attempts: number;
-      error: string | null;
-      at: string;
-      by: string | null;
-    }[],
+  type Recent = {
+    id: string;
+    name: string;
+    jobNumber: string | null;
+    status: "sent" | "failed" | "trial" | "queued" | "sending" | "cancelled";
+    attempts: number;
+    error: string | null;
+    at: string;
+    by: string | null;
+  };
+  const writes = (over: Partial<Sm8WritesView> = {}): Sm8WritesView => ({
+    mode: "off",
+    pausedReason: null,
+    hold: null,
+    granted: [],
+    refused: [],
+    sentLately: null,
+    waiting: 0,
+    failed: 0,
+    recent: [] as Recent[],
+    hourlyCap: 60,
     ...over,
   });
+  const recent = (n: number, over: Partial<Recent> = {}): Recent[] =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `w${i}`,
+      name: `File ${i}.pdf`,
+      jobNumber: "2380",
+      status: "sent",
+      attempts: 1,
+      error: null,
+      at: "2026-09-23T02:00:00Z",
+      by: "Isaac Smith",
+      ...over,
+    }));
 
   it("isn't drawn where writing isn't available — a setting that can't be set is a roadmap", () => {
     render(<Servicem8Screen connection={toView(row())} {...ready} writes={null} />);
@@ -601,7 +624,7 @@ describe("sending files to ServiceM8", () => {
       <Servicem8Screen
         connection={toView(row({ write_mode: "live", scopes: `${SM8_SCOPE_LIST.join(" ")} manage_attachments` }))}
         {...ready}
-        writes={writes({ mode: "live", granted: true, sentLately: 14 })}
+        writes={writes({ mode: "live", granted: ["attachment"], sentLately: 14 })}
       />
     );
     expect(screen.getByText("HeyTiff can read this ServiceM8 account, and add files to its jobs.")).toBeInTheDocument();
@@ -616,7 +639,7 @@ describe("sending files to ServiceM8", () => {
         {...ready}
         writes={writes({
           mode: "live",
-          granted: true,
+          granted: ["attachment"],
           recent: [
             { id: "w1", name: "Public liability.pdf", jobNumber: "2380", status: "sent", attempts: 1, error: null, at: "2026-09-23T02:00:00Z", by: "Isaac Smith" },
             { id: "w2", name: "Plan.pdf", jobNumber: "2381", status: "failed", attempts: 1, error: "ServiceM8 said the file is too big.", at: "2026-09-22T02:00:00Z", by: "Troy Porter" },
@@ -629,5 +652,110 @@ describe("sending files to ServiceM8", () => {
     expect(screen.getByText("Job 2380, Isaac Smith, Wed 23 Sept")).toBeInTheDocument();
     expect(screen.getByText("Not sent")).toHaveClass("int-tag", "bad");
     expect(screen.getByText("Job 2381, Troy Porter, Tue 22 Sept. ServiceM8 said the file is too big.")).toBeInTheDocument();
+  });
+  it("offers Paused, and says who paused it and how many are waiting", () => {
+    const { unmount } = render(
+      <Servicem8Screen
+        connection={toView(row({ write_mode: "paused" }))}
+        {...ready}
+        writes={writes({ mode: "paused", pausedReason: "owner", waiting: 3, granted: ["attachment"] })}
+      />
+    );
+    expect(screen.getByRole("radio", { name: "Paused" })).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByText(
+        "Paused. Nothing goes to ServiceM8 until you switch it back on, and nothing waiting is lost. 3 waiting."
+      )
+    ).toBeInTheDocument();
+    unmount();
+
+    render(
+      <Servicem8Screen
+        connection={toView(row({ write_mode: "paused" }))}
+        {...ready}
+        writes={writes({ mode: "paused", pausedReason: "cap", granted: ["attachment"] })}
+      />
+    );
+    expect(
+      screen.getByText("Paused by HeyTiff, because more than 60 went to ServiceM8 within an hour. Nothing waiting is lost.")
+    ).toBeInTheDocument();
+  });
+
+  it("switches to Paused on the owner's press", async () => {
+    const user = userEvent.setup();
+    render(<Servicem8Screen connection={toView(row({ write_mode: "live" }))} {...ready} writes={writes({ mode: "live" })} />);
+    await user.click(screen.getByRole("radio", { name: "Paused" }));
+    expect(setWriteMode).toHaveBeenCalledWith("paused");
+  });
+
+  it("says what Off cancelled", async () => {
+    setWriteMode.mockResolvedValue({ ok: true, note: "Sending is off. 2 files that were waiting won't go." });
+    const user = userEvent.setup();
+    render(<Servicem8Screen connection={toView(row({ write_mode: "live" }))} {...ready} writes={writes({ mode: "live" })} />);
+    await user.click(screen.getByRole("radio", { name: "Off" }));
+    expect(await screen.findByText("Sending is off. 2 files that were waiting won't go.")).toBeInTheDocument();
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("offers Retry failed files when some didn't go, and says what it did", async () => {
+    const user = userEvent.setup();
+    render(
+      <Servicem8Screen
+        connection={toView(row({ write_mode: "live" }))}
+        {...ready}
+        writes={writes({ mode: "live", granted: ["attachment"], failed: 2 })}
+      />
+    );
+    expect(screen.getByText("2 didn't go.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry failed files" }));
+    expect(retryFailed).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("2 files will go again.")).toBeInTheDocument();
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it("offers no Retry when nothing failed", () => {
+    render(<Servicem8Screen connection={toView(row({ write_mode: "live" }))} {...ready} writes={writes({ mode: "live" })} />);
+    expect(screen.queryByRole("button", { name: "Retry failed files" })).not.toBeInTheDocument();
+  });
+
+  it("draws twenty writes, then offers the rest", async () => {
+    const user = userEvent.setup();
+    render(
+      <Servicem8Screen
+        connection={toView(row({ write_mode: "live" }))}
+        {...ready}
+        writes={writes({ mode: "live", granted: ["attachment"], recent: recent(25) })}
+      />
+    );
+    expect(screen.getAllByText(/^File \d+\.pdf$/)).toHaveLength(20);
+    await user.click(screen.getByRole("button", { name: "Show all 25" }));
+    expect(screen.getAllByText(/^File \d+\.pdf$/)).toHaveLength(25);
+    expect(screen.queryByRole("button", { name: /Show all/ })).not.toBeInTheDocument();
+  });
+
+  it("says what holds a waiting write", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row({ write_mode: "paused" }))}
+        {...ready}
+        writes={writes({ mode: "paused", pausedReason: "owner", hold: "paused", recent: recent(1, { status: "queued", attempts: 0 }) })}
+      />
+    );
+    expect(screen.getByText("Held while paused")).toBeInTheDocument();
+  });
+
+  it("keeps asking for the write permission while Paused", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row({ write_mode: "paused" }))}
+        {...ready}
+        writes={writes({ mode: "paused", pausedReason: "owner" })}
+      />
+    );
+    expect(screen.getByText("manage_attachments")).toBeInTheDocument();
+    expect(screen.getByText(/Reads, and one write/)).toBeInTheDocument();
+    // but adds files only while On
+    expect(screen.queryByText("HeyTiff can read this ServiceM8 account, and add files to its jobs.")).not.toBeInTheDocument();
+    expect(screen.getByText(/hasn't given HeyTiff permission to add files yet/)).toBeInTheDocument();
   });
 });

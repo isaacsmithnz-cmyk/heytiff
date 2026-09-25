@@ -70,15 +70,47 @@ describe("putting a file on a job", () => {
     expect(await postSm8Attachment("t", UPLOAD)).toEqual({
       status: 200,
       outcome: { kind: "created", remoteUuid: "theirs" },
+      remote: null,
     });
   });
 
   it("answers a refusal as a decision, and logs ServiceM8's own words server-side only", async () => {
     fetchMock.mockResolvedValue(
-      new Response('insufficient_scope: "manage_attachments" scope required', { status: 403 })
+      new Response('insufficient_scope: "manage_attachments" scope required', {
+        status: 403,
+        headers: { "content-type": "text/plain" },
+      })
     );
-    expect(await postSm8Attachment("t", UPLOAD)).toEqual({ status: 403, outcome: { kind: "forbidden" } });
+    const res = await postSm8Attachment("t", UPLOAD);
+    expect(res).toMatchObject({ status: 403, outcome: { kind: "forbidden", scope: true } });
+    expect(res.remote?.message).toBe('insufficient_scope: "manage_attachments" scope required');
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining("manage_attachments"));
+  });
+
+  it("keeps a JSON refusal's code and message", async () => {
+    fetchMock.mockResolvedValue(
+      new Response('{"errorCode": "1000", "message": "An error occurred completing your request"}', {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      })
+    );
+    expect(await postSm8Attachment("t", UPLOAD)).toEqual({
+      status: 400,
+      outcome: { kind: "rejected", status: 400 },
+      remote: { code: "1000", message: "An error occurred completing your request" },
+    });
+  });
+
+  it("tells ServiceM8's daily limit from its per-minute one", async () => {
+    fetchMock.mockResolvedValue(
+      new Response('{"errorCode": 429, "message": "Number of allowed API requests per day exceeded"}', {
+        status: 429,
+        headers: { "content-type": "application/json" },
+      })
+    );
+    expect((await postSm8Attachment("t", UPLOAD)).outcome).toEqual({ kind: "rate_limited", limit: "day" });
+    fetchMock.mockResolvedValue(new Response("Number of allowed API requests per minute exceeded", { status: 429 }));
+    expect((await postSm8Attachment("t", UPLOAD)).outcome).toEqual({ kind: "rate_limited", limit: "minute" });
   });
 
   it("answers a lost connection as unreachable rather than throwing", async () => {
@@ -86,6 +118,7 @@ describe("putting a file on a job", () => {
     expect(await postSm8Attachment("t", UPLOAD)).toEqual({
       status: null,
       outcome: { kind: "unavailable", status: null },
+      remote: null,
     });
   });
 });
@@ -103,9 +136,11 @@ describe("confirming a 409 was ours", () => {
       jobUuid: "job-uuid-1",
       active: true,
     });
+    // its own short clock: the read runs under the row's claim
     expect(fetchSm8Page).toHaveBeenCalledWith("t", "attachment.json", {
       cursor: "-1",
       filter: `uuid eq '${UPLOAD.uuid}'`,
+      timeoutMs: 10_000,
     });
   });
 

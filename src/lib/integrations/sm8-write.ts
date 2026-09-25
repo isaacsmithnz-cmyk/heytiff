@@ -31,12 +31,18 @@
 
 import { SM8_API_BASE } from "./sm8";
 import { fetchSm8Page } from "./sm8-read";
-import { classifyWrite, type Sm8WriteOutcome } from "./sm8-write-plan";
+import {
+  classifyWrite,
+  readRemoteError,
+  WRITE_READ_TIMEOUT_MS,
+  WRITE_TIMEOUT_MS,
+  type RemoteError,
+  type Sm8WriteOutcome,
+} from "./sm8-write-plan";
 
-/* A file of a few MB to a host in Australia, from a function in Singapore:
-   generous, and still short of the row's lease (WRITE_LEASE_MS), so a slow
-   request can't outlive its claim. */
-const WRITE_TIMEOUT_MS = 60_000;
+/* The upload's timeout and the read-back's are the plan's (WRITE_TIMEOUT_MS,
+   WRITE_READ_TIMEOUT_MS): they are two of the clocks that must all fit
+   inside one row's claim, and the sum is pinned there. */
 
 export type Sm8AttachmentUpload = {
   jobUuid: string;
@@ -48,19 +54,24 @@ export type Sm8AttachmentUpload = {
   bytes: Uint8Array<ArrayBuffer>;
 };
 
-async function logRefusal(what: string, res: Response): Promise<void> {
-  let detail = "";
+/** A refused request's body, read once: to the server log, truncated, and
+    back as ServiceM8's code and message for the decision and the row. */
+async function readRefusal(what: string, res: Response): Promise<RemoteError> {
+  let body = "";
   try {
-    detail = (await res.text()).slice(0, 500);
+    body = await res.text();
   } catch {
-    detail = "<unreadable body>";
+    console.error(`[sm8] ${what} ${res.status} ${res.statusText}: <unreadable body>`);
+    return { code: null, message: null };
   }
-  console.error(`[sm8] ${what} ${res.status} ${res.statusText}: ${detail}`);
+  console.error(`[sm8] ${what} ${res.status} ${res.statusText}: ${body.slice(0, 500)}`);
+  return readRemoteError(body, res.headers.get("content-type"));
 }
 
-/** What one request came back with: the decision, and the status it came
-    as, which the row keeps for whoever has to diagnose it. */
-export type Sm8WriteResult = { status: number | null; outcome: Sm8WriteOutcome };
+/** What one request came back with: the decision, the status it came as,
+    and what ServiceM8 said when it refused — all kept on the row for
+    whoever has to diagnose it. */
+export type Sm8WriteResult = { status: number | null; outcome: Sm8WriteOutcome; remote: RemoteError | null };
 
 /** Put one file on one job. Never throws: an outcome is always returned, and
     the plan decides what it means for the row and for the run. */
@@ -89,11 +100,11 @@ export async function postSm8Attachment(
     console.error(
       `[sm8] POST attachment.json request failed: ${err instanceof Error ? err.message : String(err)}`
     );
-    return { status: null, outcome: { kind: "unavailable", status: null } };
+    return { status: null, outcome: { kind: "unavailable", status: null }, remote: null };
   }
 
-  if (!res.ok) await logRefusal("POST attachment.json", res);
-  return { status: res.status, outcome: classifyWrite(res.status, res.headers.get("x-record-uuid")) };
+  const remote = res.ok ? null : await readRefusal("POST attachment.json", res);
+  return { status: res.status, outcome: classifyWrite(res.status, res.headers.get("x-record-uuid"), remote), remote };
 }
 
 export type Sm8AttachmentCheck =
@@ -104,7 +115,9 @@ export type Sm8AttachmentCheck =
 const UUID = /^[0-9a-f-]{36}$/i;
 
 /** Read one attachment's record back: how a 409 on our own uuid is
-    confirmed as OUR earlier attempt rather than some other conflict.
+    confirmed as OUR earlier attempt rather than some other conflict, and how
+    a re-pressed file checks whether its last, unanswered upload landed after
+    all (sm8-writes' sendOne) before it goes under a new uuid.
 
     THROUGH THE LIST ENDPOINT, filtered to the one uuid, on purpose. The
     single-record path is the part of ServiceM8's attachment surface its
@@ -117,6 +130,7 @@ export async function readSm8Attachment(accessToken: string, uuid: string): Prom
   const page = await fetchSm8Page(accessToken, "attachment.json", {
     cursor: "-1",
     filter: `uuid eq '${uuid}'`,
+    timeoutMs: WRITE_READ_TIMEOUT_MS,
   });
   if (!page.ok) return { ok: false };
   const row = page.rows.find((r) => r.uuid === uuid);

@@ -3750,7 +3750,7 @@ describe("compliance on the card", () => {
 
   it("sends what's ticked to ServiceM8 where an owner switched it on, and the row says it's there", async () => {
     const onToast = jest.fn();
-    sm8Send.readJobSm8.mockResolvedValue({ send: "live", sends: [] });
+    sm8Send.readJobSm8.mockResolvedValue({ send: "live", sends: [], hold: null });
     sm8Send.sendJobDocumentsToServiceM8.mockResolvedValue({
       ok: true,
       trial: false,
@@ -3777,7 +3777,7 @@ describe("compliance on the card", () => {
   });
 
   it("keeps a file that didn't go ticked, and says why in the footer until the ticks change", async () => {
-    sm8Send.readJobSm8.mockResolvedValue({ send: "live", sends: [] });
+    sm8Send.readJobSm8.mockResolvedValue({ send: "live", sends: [], hold: null });
     sm8Send.sendJobDocumentsToServiceM8.mockResolvedValue({
       ok: true,
       trial: false,
@@ -3808,6 +3808,20 @@ describe("compliance on the card", () => {
     expect(screen.getByText("1 document ticked")).toBeInTheDocument();
   });
 
+  it("says a file waiting behind a pause is held by it, not on its way", async () => {
+    sm8Send.readJobSm8.mockResolvedValue({
+      send: "live",
+      sends: [{ documentId: "d1", status: "queued", error: null, attempts: 0, remoteUuid: "r-d1" }],
+      hold: "paused",
+    });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+    expect(await face("documents").findByText("Not in ServiceM8 yet. Sending is paused.")).toBeInTheDocument();
+    expect(face("documents").queryByText("Sending to ServiceM8…")).toBeNull();
+  });
+
   it("shows a file we sent once: ServiceM8's copy stays off the list while our row shows it", async () => {
     const doc = (over: Partial<JobMediaItem> & { remoteId: string }): JobMediaItem => ({
       name: "CoC.pdf",
@@ -3822,7 +3836,7 @@ describe("compliance on the card", () => {
       ...over,
     });
     compliance.listJobPapers.mockResolvedValue({ papers: [], may });
-    sm8Send.readJobSm8.mockResolvedValue({ send: null, sends: [sent("d-9", "sent")] });
+    sm8Send.readJobSm8.mockResolvedValue({ send: null, sends: [sent("d-9", "sent")], hold: null });
     readJobFiles.mockResolvedValue({
       photos: [],
       documents: [

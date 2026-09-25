@@ -162,11 +162,14 @@ export type Sm8Page =
     that names the next page (absent = walk complete). The five failure kinds
     are the five different DECISIONS the engine makes — dead grant, missing
     scope, the account can't be billed, back off, try later — so they come back
-    as data, not sentences. */
+    as data, not sentences.
+
+    `timeoutMs` shortens the wait for a caller that holds a clock of its
+    own — the sender reading one attachment back under its row's claim. */
 export async function fetchSm8Page(
   accessToken: string,
   endpoint: string,
-  opts: { cursor: string; filter: string | null }
+  opts: { cursor: string; filter: string | null; timeoutMs?: number }
 ): Promise<Sm8Page> {
   const url = new URL(endpoint, SM8_API_BASE);
   url.searchParams.set("cursor", opts.cursor);
@@ -175,7 +178,7 @@ export async function fetchSm8Page(
   try {
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${accessToken}` },
-      signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
+      signal: AbortSignal.timeout(opts.timeoutMs ?? HTTP_TIMEOUT_MS),
     });
     if (res.status === 401) return { ok: false, failure: "unauthorized" };
     if (res.status === 403) {

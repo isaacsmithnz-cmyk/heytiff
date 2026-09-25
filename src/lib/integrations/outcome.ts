@@ -8,6 +8,8 @@
    Anything unrecognised falls back to the generic line rather than rendering
    the code, for the same reason. */
 
+import { WRITE_HOURLY_CAP } from "./sm8-write-plan";
+
 /* The customer never supplies Xero credentials — one HeyTiff-owned Xero app
    serves every workspace, so `unconfigured` and `nokey` are OUR deployment
    being incomplete, not anything the reader can fix. They're worded to say so,
@@ -61,6 +63,10 @@ export const SM8_CONNECT_ERRORS = {
     "That ServiceM8 account is already connected to another HeyTiff workspace, so nothing changed here. Disconnect it there first, or connect a different account.",
   /** A reconnect whose account couldn't be read: the working grant is kept. */
   account: "ServiceM8 didn't say which account that was, so nothing changed here. Try again.",
+  /** The workspace's ServiceM8 settings couldn't be read, so the ask (with
+      or without the write permission) couldn't be worked out. Asking for
+      reads alone could drop a permission sending depends on. */
+  settings: "HeyTiff couldn't read this workspace's ServiceM8 settings, so nothing changed. Try again.",
   /** 402: the account isn't in good standing (an ended trial, an unpaid invoice). */
   billing:
     "That ServiceM8 account isn't accepting requests until its plan or invoice is sorted, so nothing changed here.",
@@ -129,4 +135,26 @@ export function sm8WaitingConsequence(waiting: number): string | null {
   return waiting === 1
     ? "1 file still waiting to go to ServiceM8 is cancelled."
     : `${waiting} files still waiting to go to ServiceM8 are cancelled.`;
+}
+
+/** The note after the owner switches sending Off: how many files that were
+    waiting won't go now. Null when nothing was waiting. */
+export function sm8OffNote(cancelled: number): string | null {
+  if (cancelled <= 0) return null;
+  return cancelled === 1
+    ? "Sending is off. 1 file that was waiting won't go."
+    : `Sending is off. ${cancelled} files that were waiting won't go.`;
+}
+
+/** The note after Retry failed files: how many go again, and how many are
+    left for later — the hour's cap, or another retry. */
+export function sm8RetryNote(r: { queued: number; left: number; capped: boolean; byHour: boolean }): string {
+  if (r.queued === 0) {
+    return r.capped
+      ? `${WRITE_HOURLY_CAP} have gone to ServiceM8 in the last hour. Try again in an hour.`
+      : "Nothing is waiting to go again.";
+  }
+  const parts = [r.queued === 1 ? "1 file will go again." : `${r.queued} files will go again.`];
+  if (r.left > 0) parts.push(r.byHour ? `${r.left} more can go after an hour.` : `${r.left} more can go with another retry.`);
+  return parts.join(" ");
 }

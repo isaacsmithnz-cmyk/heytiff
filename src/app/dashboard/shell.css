@@ -8691,6 +8691,10 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   border:1px solid var(--tint-2); border-radius:var(--r-button); background:var(--paper);
   transition:border-color var(--t-fast) var(--ease); }
 .fg .tm-box:focus-within { border-color:var(--ink); }
+/* the words take no outline of their own, so the box wears the ring for
+   them (law 32), as the search box does. Only for the words: a Save or Sort
+   it out with the keyboard on it wears its own, and the box stays out of it */
+.fg .tm-box:has(> .tm-in:focus-visible) { box-shadow:var(--ring); }
 .fg .tm-in { flex:1; min-width:0; height:34px; padding:0; border:0; outline:none; background:none;
   font-size:14px; color:var(--ink); }
 .fg .tm-in::placeholder { color:var(--q); }

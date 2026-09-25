@@ -262,16 +262,41 @@ describe("Save", () => {
     expect(field()).toHaveValue("");
   });
 
-  it("words typed while it saved stay in the box", async () => {
+  /* An edit made while it saved kept the saved words in the box, looking
+     unsaved, and the next Save filed them again. The words hold still until
+     the room answers, so what leaves is what was saved. */
+  it("the words hold still while it saves, so the next Save never files them again", async () => {
     const answer = held();
     const user = userEvent.setup();
     render(<Room />);
     await user.type(field(), "Rang Reece");
     await user.click(button("Save")!);
+    expect(field()).toHaveAttribute("readonly");
     await user.type(field(), ", and the filters");
+    expect(field()).toHaveValue("Rang Reece");
     await answer({ ok: true });
     expect(save).toHaveBeenCalledWith("Rang Reece");
-    expect(field()).toHaveValue("Rang Reece, and the filters");
+    expect(field()).toHaveValue("");
+    expect(field()).not.toHaveAttribute("readonly");
+
+    save.mockResolvedValue({ ok: true });
+    await user.type(field(), "and the filters");
+    await user.click(button("Save")!);
+    await flush();
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith("and the filters");
+  });
+
+  it("a save that fails gives the words back to edit", async () => {
+    const answer = held();
+    const user = userEvent.setup();
+    render(<Room />);
+    await user.type(field(), "Rang Reece");
+    await user.click(button("Save")!);
+    await answer({ ok: false, error: "Couldn't save that." });
+    expect(field()).not.toHaveAttribute("readonly");
+    await user.type(field(), " about the filters");
+    expect(field()).toHaveValue("Rang Reece about the filters");
   });
 });
 

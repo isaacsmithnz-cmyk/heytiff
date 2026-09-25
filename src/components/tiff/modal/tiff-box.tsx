@@ -27,7 +27,10 @@ import { useTiff } from "./tiff-context";
    yes, or the modal opened on them. Anything else leaves them where they
    were — a save that failed says why under the box, and a modal that could
    not open (one is already open, or this viewer does not have it yet) takes
-   nothing.
+   nothing. While a save is out the words hold still (read-only, "Saving…"),
+   so the words that leave are the words that were saved: an edit made
+   meanwhile would have kept the saved words in the box, looking unsaved,
+   for the next press to file again.
 
    The box is the modal's own reply box, on the page: the same edge, corner,
    words and 36px buttons, taller here (shell.css, `.tm-entry`). */
@@ -75,8 +78,8 @@ export function TiffBox({ room, placeholder, save }: { room: TiffRoom; placehold
     busy.current = false;
     setSaving(false);
     if (saved.ok) {
-      /* Only what was saved leaves: words typed while it saved stay. */
-      setText((now) => (now.trim() === words ? "" : now));
+      /* The field was read-only while it saved: what is in it is what went. */
+      setText("");
     } else {
       setError(saved.error);
     }
@@ -100,6 +103,7 @@ export function TiffBox({ room, placeholder, save }: { room: TiffRoom; placehold
           className="tm-in"
           ref={field}
           value={text}
+          readOnly={saving}
           onChange={(e) => {
             setText(e.target.value);
             if (error) setError(null);

@@ -13,8 +13,8 @@ import path from "node:path";
      something, and the OK colour is a state.
    - The dots may leave it while they gather from the button, and the arrival
      that starts lit is motion-only.
-   - Every control in it wears the ring from the keyboard (law 32), and
-     nothing in it slides under reduced motion.
+   - Every control in it, and the box you type into, wears the ring from
+     the keyboard (law 32), and nothing in it slides under reduced motion.
    - The view and the sheet agree both ways, and a finished thing is not
      dressed as a warning.
    - The entry box (tiff-box.tsx) is the reply box on the page: the same
@@ -190,6 +190,18 @@ describe("the keyboard and reduced motion", () => {
       ([sel, b]) => selectors(sel).includes(`${control}:focus-visible`) && /box-shadow:var\(--ring\)/.test(b)
     );
     expect(ringed).toBe(true);
+  });
+
+  /* The words you type into, in the reply box and the entry box on the page.
+     The field has no outline, and a 1px edge going ink is not a ring; the box
+     wears it, for the field alone, so a focused Save inside is not ringed
+     twice. */
+  it("rings the box when its words have the keyboard, and only then (law 32)", () => {
+    expect(body(".fg .tm-in")).toMatch(/outline:none/);
+    expect(body(".fg .tm-box:has(> .tm-in:focus-visible)")).toMatch(/box-shadow:var\(--ring\)/);
+    for (const [sel, b] of rules) {
+      if (selectors(sel).some((s) => /\.tm-box:focus-within/.test(s))) expect(b).not.toMatch(/box-shadow/);
+    }
   });
 
   /* The frame's reduced-motion rule shortens animations only; a transition

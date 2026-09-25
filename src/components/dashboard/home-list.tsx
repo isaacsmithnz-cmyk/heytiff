@@ -299,8 +299,13 @@ function lessGone(list: HomeListData, gone: readonly string[]): HomeListData {
   return { ...list, groups };
 }
 
+/* A TICK HERE IS A PERSON'S, and so is its Undo (two-way phase 2, PR C): a
+   task made from a ServiceM8 mention sends its Done as whoever ticked
+   (`postDone`), and the Undo takes that Done back (`takeBackDone`). Both
+   are no-ops where the deployment doesn't send notes. Written as calls, so
+   the callers guard (task-sm8-callers.test) can read the flags. */
 const UNDO: Record<HoldKind, { run: (id: string) => Promise<Res>; words: string }> = {
-  done: { run: reopenTask, words: "Couldn't reopen that task." },
+  done: { run: (id) => reopenTask(id, { takeBackDone: true }), words: "Couldn't reopen that task." },
   resolved: { run: reopenIssue, words: "Couldn't reopen that issue." },
   booked: { run: clearVisitPlacement, words: "Couldn't clear the placement." },
 };
@@ -434,7 +439,7 @@ export function HomeList({
 
   const tick = (row: ListTaskRow) =>
     void act(row.id, { kind: "done", target: row.id, on: null }, () =>
-      settle(() => completeTask(row.id), "Couldn't complete that task."),
+      settle(() => completeTask(row.id, { postDone: true }), "Couldn't complete that task."),
     );
 
   const resolve = (row: ListIssueRow) => {

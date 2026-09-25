@@ -60,7 +60,7 @@ export default async function DashboardHomePage({
           .map((s) => s.name.trim().split(/\s+/)[0])
           .filter((n) => n.length >= 2)}
       />
-      {data.desk ? <DashboardDesk data={data} /> : <DashboardHome data={data} taskId={taskId} />}
+      {data.desk ? <DashboardDesk data={data} taskId={taskId} /> : <DashboardHome data={data} taskId={taskId} />}
     </>
   );
 }

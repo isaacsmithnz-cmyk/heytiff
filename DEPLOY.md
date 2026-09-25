@@ -323,18 +323,21 @@ in the diary, where its sender can still Undo it. One visible change comes
 with it once notes are on: the Tasks face's **Done** group also lists what
 you ticked for somebody else, so its Done's line is there for you to read.
 With `SM8_WRITES=1` a tick is exactly the one read and one write it always
-was. **The new Home (`HOME_DESK`, the owner's) must show the same lines**
-before notes go on for anyone it names: its Tasks face is handed each
-task's Done lines, it opens at `?task=<id>`, and its own ticks and Undo
-pass `postDone` and `takeBackDone`. `task-sm8-callers.test.ts` fails until
-they do. Isaac walks live test 13 ("A Done by ticking, then Reopen") on the
-Home he sees, bell item included.
+was. **The new Home (`HOME_DESK`, the owner's) shows the same lines:** its
+Tasks face is handed each task's Done lines, it opens at `?task=<id>`, and
+its own ticks (Your day's Mark done, the list's tick) and the list's Undo
+pass `postDone` and `takeBackDone`. `task-sm8-callers.test.ts` holds all
+three, for every Home the page can draw. Isaac walks live test 13 ("A Done
+by ticking, then Reopen") on the Home he sees, bell item included. Its
+diary's ServiceM8 conversations aren't on screen yet; when they are, a
+reply HeyTiff sent is an echo there (mentions-query leaves ours out), so
+it has to be threaded from its `workboard_notes` row before notes go on.
 
 **The order, word for word:**
 
 1. Apply A's migration, then B's, then C's. Each goes before the deploy that reads it.
 2. Deploy. With `SM8_WRITES=1` nothing new shows.
-3. **Only after phase 1's live walk** (files on the real account), and only once the new Home shows each task's Done (above), set `SM8_WRITES=attachment,note`. That needs a redeploy. Do it while Isaac isn't designing, because a redeploy reloads open tabs.
+3. **Only after phase 1's live walk** (files on the real account), set `SM8_WRITES=attachment,note`. That needs a redeploy. Do it while Isaac isn't designing, because a redeploy reloads open tabs.
 4. The owner sets **Paused**.
 5. The owner turns **Notes On**.
 6. The owner presses **Reconnect**. A reconnect while Paused still asks for the write scopes. **Never Reconnect in Trial:** it asks for reads only and drops `manage_attachments`.

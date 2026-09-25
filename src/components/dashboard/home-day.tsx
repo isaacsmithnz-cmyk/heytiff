@@ -264,7 +264,8 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
         disabled={pending}
         onClick={() =>
           start(async () => {
-            await completeTask(id);
+            // a person's tick: a task made from a mention answers it (PR C)
+            await completeTask(id, { postDone: true });
             router.refresh();
           })
         }

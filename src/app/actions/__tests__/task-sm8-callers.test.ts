@@ -10,9 +10,11 @@ import * as ts from "typescript";
 
    A task's Done goes to ServiceM8 as whoever ticked, so it may only follow a
    PERSON'S tick on a screen made for ticking: the Tasks face, the day band,
-   the bell and the Workboard's Urgent tab. `postDone: true` is how such a
-   screen says so, and `takeBackDone: true` is how the two screens with a
-   Reopen say it about the Undo. Read as source, because the danger is a new
+   the bell and the Workboard's Urgent tab, and on the new Home (HOME_DESK's)
+   Your day and the list. `postDone: true` is how such a screen says so, and
+   `takeBackDone: true` is how the screens with a Reopen or an Undo (the
+   Tasks face, the Urgent tab, the list) say it about taking the tick back.
+   Read as source, because the danger is a new
    caller — a cron, a route, a reply that closes its task, a bulk action —
    that would post a Done nobody pressed for, or a new Undo that reopens a
    task and leaves its Done in ServiceM8.
@@ -33,11 +35,15 @@ import * as ts from "typescript";
 
 const SRC = join(process.cwd(), "src");
 
+/* "home-day 2.tsx" is iCloud's copy of a file, not source: .gitignore's
+   `* [0-9].*` keeps it out of the repo, and it is kept out of the read. */
+const ICLOUD_COPY = / \d+\.(ts|tsx)$/;
+
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) return name === "__tests__" ? [] : files(p);
-    return /\.(ts|tsx)$/.test(name) ? [p] : [];
+    return /\.(ts|tsx)$/.test(name) && !ICLOUD_COPY.test(name) ? [p] : [];
   });
 }
 
@@ -110,9 +116,12 @@ it("(F) nothing hands a tick or a Reopen on by reference: every use is a call th
   expect(reopens.refs).toEqual([]);
 });
 
-it("(F) exactly the four ticking screens post a Done, on every tick they make", () => {
+it("(F) exactly the ticking screens post a Done, on every tick they make", () => {
   expect(where(ticks.calls, "postDone")).toEqual([
     "components/dashboard/home-day-band.tsx",
+    // the new Home's (HOME_DESK's): Your day's Mark done, and the list's tick
+    "components/dashboard/home-day.tsx",
+    "components/dashboard/home-list.tsx",
     "components/dashboard/home-tasks.tsx",
     "components/shell/bell.tsx",
     "components/workboard/board/urgent-tab.tsx",
@@ -123,8 +132,10 @@ it("(F) exactly the four ticking screens post a Done, on every tick they make", 
   expect(onScreens(ticks.calls).filter((c) => c.path === "components/shell/bell.tsx")).toHaveLength(2);
 });
 
-it("(F) exactly the two screens with a Reopen take one back, on every Reopen they make", () => {
+it("(F) exactly the screens with a Reopen or an Undo take one back, on every Reopen they make", () => {
   expect(where(reopens.calls, "takeBackDone")).toEqual([
+    // the new Home's list: the Undo on a row it just ticked
+    "components/dashboard/home-list.tsx",
     "components/dashboard/home-tasks.tsx",
     "components/workboard/board/urgent-tab.tsx",
   ]);

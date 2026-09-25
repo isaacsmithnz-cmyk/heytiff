@@ -3,7 +3,10 @@ import {
   RAIL_ROW_PX,
   placeRail,
   railBounds,
+  railCrewOf,
+  railMissing,
   railSaysEmpty,
+  railWhereOf,
   railSpanLabel,
   railHourLabel,
   railHours,
@@ -13,7 +16,7 @@ import {
   zonedParts,
   type RailItem,
 } from "../day-rail";
-import type { ScheduleBlock } from "@/lib/workboard/schedule";
+import { layoutScheduleDay, type ScheduleBlock } from "@/lib/workboard/schedule";
 
 /* The rail's geometry is the half of it that can be WRONG: two bookings at
    once must not hide each other, a fifteen-minute call must still be
@@ -105,6 +108,105 @@ describe("railSaysEmpty", () => {
   it("never says it about a day with something on it", () => {
     expect(railSaysEmpty(1, null)).toBe(false);
     expect(railSaysEmpty(3, "link")).toBe(false);
+  });
+});
+
+describe("railMissing", () => {
+  it("names the layer a ServiceM8 workspace is short of", () => {
+    expect(railMissing({ connected: true, enabled: false, linked: false })).toBe("workboard");
+    expect(railMissing({ connected: true, enabled: true, linked: false })).toBe("link");
+    expect(railMissing({ connected: true, enabled: true, linked: true })).toBeNull();
+  });
+
+  it("gives a workspace without ServiceM8 no ServiceM8 sentence — its day is complete", () => {
+    /* nobody can be linked to a ServiceM8 it does not have, and there are
+       no bookings anywhere for the workboard gate to be hiding */
+    expect(railMissing({ connected: false, enabled: true, linked: false })).toBeNull();
+    expect(railMissing({ connected: false, enabled: false, linked: false })).toBeNull();
+    expect(railSaysEmpty(0, railMissing({ connected: false, enabled: true, linked: false }))).toBe(true);
+  });
+});
+
+describe("railCrewOf — who else is on your jobs today", () => {
+  const DAY = "2026-09-24";
+  const act = (uuid: string, job: string, staff: string | null, from: string, to: string) => ({
+    uuid,
+    jobUuid: job,
+    staffUuid: staff,
+    start: `${DAY} ${from}:00`,
+    end: `${DAY} ${to}:00`,
+    wasScheduled: 1,
+  });
+  const mirrorJob = (remoteId: string) => ({
+    remoteId,
+    jobNumber: remoteId,
+    status: "Work Order",
+    clientName: null,
+    description: null,
+    suburb: null,
+    categoryName: null,
+    categoryColour: null,
+    date: null,
+    quoteDate: null,
+    completionDate: null,
+    nextBooking: null,
+    money: null,
+    paidCents: 0,
+  });
+  const staff = [
+    { uuid: "me", name: "Isaac Smith" },
+    { uuid: "luke", name: "Luke Ingold" },
+    { uuid: "cal", name: "Callum Reid" },
+    { uuid: "cal2", name: "Callum Brown" },
+    { uuid: "dan", name: "Dane Park" },
+  ];
+  const lay = (activities: ReturnType<typeof act>[]) => {
+    const day = layoutScheduleDay({ activities, staff, jobs: ["3342", "3315", "1377"].map(mirrorJob) });
+    const mine = day.lanes.filter((l) => l.staffUuid === "me").flatMap((l) => l.blocks);
+    return { lanes: day.lanes, mine };
+  };
+
+  it("names everyone else booked on the same job that day, by first name, and never the viewer", () => {
+    const { lanes, mine } = lay([
+      act("a1", "3342", "me", "16:45", "17:45"),
+      act("a2", "3342", "luke", "16:45", "17:45"),
+      // a different hour on the same job still counts: the job is shared
+      act("a3", "3342", "dan", "07:00", "08:00"),
+      act("a4", "1377", "dan", "09:00", "10:00"),
+    ]);
+    expect(railCrewOf(lanes, mine, "me")).toEqual({ "3342": ["Dane", "Luke"] });
+  });
+
+  it("leaves out a job nobody else is on — With is dropped, not 'Solo'", () => {
+    const { lanes, mine } = lay([act("a1", "3315", "me", "17:00", "18:00"), act("a2", "1377", "luke", "17:00", "18:00")]);
+    expect(railCrewOf(lanes, mine, "me")).toEqual({});
+  });
+
+  it("names a person once however many times they are booked, and keeps two Callums apart", () => {
+    const { lanes, mine } = lay([
+      act("a1", "3342", "me", "09:00", "10:00"),
+      act("a2", "3342", "cal", "09:00", "10:00"),
+      act("a3", "3342", "cal", "13:00", "14:00"),
+      act("a4", "3342", "cal2", "13:00", "14:00"),
+    ]);
+    expect(railCrewOf(lanes, mine, "me")).toEqual({ "3342": ["Callum Reid", "Callum Brown"] });
+  });
+
+  it("does not count a booking nobody owns as a person", () => {
+    const { lanes, mine } = lay([act("a1", "3342", "me", "09:00", "10:00"), act("a2", "3342", null, "09:00", "10:00")]);
+    expect(lanes.some((l) => l.staffUuid === "")).toBe(true);
+    expect(railCrewOf(lanes, mine, "me")).toEqual({});
+  });
+});
+
+describe("railWhereOf — the jobs on your day only", () => {
+  it("keeps the entries for this bar's jobs and drops everyone else's", () => {
+    const addresses = { "3342": "Carrington St", "9999": "Somebody Else's Rd" };
+    expect(railWhereOf([{ remoteId: "3342" }, { remoteId: "3315" }], addresses)).toEqual({ "3342": "Carrington St" });
+  });
+
+  it("reads only the record's own keys", () => {
+    expect(railWhereOf([{ remoteId: "constructor" }], {} as Record<string, string>)).toEqual({});
   });
 });
 

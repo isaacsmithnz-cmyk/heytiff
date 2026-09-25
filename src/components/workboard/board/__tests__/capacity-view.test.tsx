@@ -110,6 +110,7 @@ const dayPayload = (): SchedulePayload => ({
     },
   ],
   onSite: [],
+  addresses: {},
 });
 
 /* The month around it: Friday holds 18h against 16h (113%, over), Saturday

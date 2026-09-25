@@ -9,6 +9,8 @@ type Call = {
   gte?: [string, string];
   lt?: [string, string];
   in?: [string, string[]];
+  /** The columns the read named — a row comes back with those and no more. */
+  select?: string[];
 };
 
 let rows: Record<string, Record<string, unknown>[]> = {};
@@ -18,7 +20,10 @@ const table = (name: string) => {
   const call: Call = { table: name, eq: {} };
   calls.push(call);
   const chain: Record<string, unknown> = {};
-  chain.select = () => chain;
+  chain.select = (cols: string) => {
+    call.select = cols.split(",").map((c) => c.trim());
+    return chain;
+  };
   chain.eq = (col: string, val: unknown) => {
     call.eq[col] = val;
     return chain;
@@ -46,6 +51,10 @@ const table = (name: string) => {
     if (call.gte) data = data.filter((r) => String(r[call.gte![0]]) >= call.gte![1]);
     if (call.lt) data = data.filter((r) => String(r[call.lt![0]]) < call.lt![1]);
     if (call.in) data = data.filter((r) => call.in![1].includes(String(r[call.in![0]])));
+    if (call.select) {
+      const cols = call.select;
+      data = data.map((r) => Object.fromEntries(cols.filter((c) => c in r).map((c) => [c, r[c]])));
+    }
     return Promise.resolve({ data }).then(res);
   };
   return chain;
@@ -89,6 +98,29 @@ it("dates every job by its earliest booking on the day — what the row builder 
     ["j-1", `${DAY} 07:30:00`],
     ["j-2", `${DAY} 13:00:00`],
   ]);
+});
+
+describe("addresses — the street line under Home's Where", () => {
+  it("keys each job's first address line by the job, and reads the column to do it", async () => {
+    rows.sm8_jobs[0].job_address = "260 Birrell St,\nBondi NSW 2026";
+    rows.sm8_jobs[1].job_address = "\n2 Spring St\r\nPaddington NSW 2021";
+    const day = await loadScheduleDay("org-1", DAY);
+    // the street alone: ServiceM8's trailing comma off, a blank first line skipped
+    expect(day.addresses).toEqual({ "j-1": "260 Birrell St", "j-2": "2 Spring St" });
+  });
+
+  it("leaves out a job with no address rather than saying nothing under Where", async () => {
+    rows.sm8_jobs[0].job_address = null;
+    rows.sm8_jobs[1].job_address = "   ";
+    const day = await loadScheduleDay("org-1", DAY);
+    expect(day.addresses).toEqual({});
+  });
+
+  it("is empty on a day with nothing booked", async () => {
+    rows.sm8_job_activities = [];
+    const day = await loadScheduleDay("org-1", DAY);
+    expect(day.addresses).toEqual({});
+  });
 });
 
 it("still carries no money on the diary's jobs", async () => {

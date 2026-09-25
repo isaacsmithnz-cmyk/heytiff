@@ -22,6 +22,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { plusDays } from "./dates";
 import { sm8CategoryColour, type AllJobsMirrorJob } from "./all-jobs";
 import { onSiteKey, type ScheduleActivity, type ScheduleStaff } from "./schedule";
+import { streetLine } from "@/lib/studio/job-link";
 
 export type SchedulePayload = {
   dayISO: string;
@@ -32,6 +33,11 @@ export type SchedulePayload = {
       day. An ARRAY, not a Set: this payload crosses a server action's
       serialisation boundary, and the component rebuilds the Set on arrival. */
   onSite: string[];
+  /** job uuid → the first line of its site address ("2 Spring St"), for the
+      day's jobs that have one. A record beside the rows, not a field on
+      them: `AllJobsMirrorJob` is the one row shape every sheet opens on, and
+      a street line is only what Home's day panel says under Where. */
+  addresses: Record<string, string>;
 };
 
 export const EMPTY_SCHEDULE: SchedulePayload = {
@@ -40,6 +46,7 @@ export const EMPTY_SCHEDULE: SchedulePayload = {
   staff: [],
   jobs: [],
   onSite: [],
+  addresses: {},
 };
 
 /** One line of a description, capped — the block's hover carries a glance,
@@ -133,7 +140,7 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
       ? supabaseAdmin
           .from("sm8_jobs")
           .select(
-            "uuid, generated_job_id, status, company_uuid, geo_city, category_uuid, " +
+            "uuid, generated_job_id, status, company_uuid, geo_city, job_address, category_uuid, " +
               "job_description, date, quote_date, completion_date"
           )
           .eq("org_id", orgId)
@@ -148,6 +155,7 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
     status: string | null;
     company_uuid: string | null;
     geo_city: string | null;
+    job_address: string | null;
     category_uuid: string | null;
     job_description: string | null;
     date: string | null;
@@ -211,11 +219,23 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
     .map((s) => ({ uuid: s.uuid, name: [s.first, s.last].filter(Boolean).join(" ").trim() }))
     .filter((s) => s.name !== "");
 
+  /* The street by the one law for it (studio/job-link's `streetLine`): the
+     first line that says anything, less ServiceM8's trailing comma. ServiceM8
+     writes the address as a driver's label — two lines and a postcode — and
+     the street is the line a person looks for. A job with no address is
+     absent rather than "", so nothing ever draws an empty Where. */
+  const addresses: Record<string, string> = {};
+  for (const j of jobs) {
+    const line = streetLine(j.job_address);
+    if (line) addresses[j.uuid] = line;
+  }
+
   return {
     dayISO,
     activities,
     staff,
     onSite,
+    addresses,
     jobs: jobs.map((j) => ({
       remoteId: j.uuid,
       jobNumber: j.generated_job_id,

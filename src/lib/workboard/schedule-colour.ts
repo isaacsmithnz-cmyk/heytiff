@@ -110,6 +110,19 @@ function toRgb(h: number, s: number, l: number): [number, number, number] {
 
 const css = (rgb: readonly [number, number, number]) => `rgb(${rgb.join(", ")})`;
 
+/** A colour this module wrote — "rgb(71, 157, 37)" — or a hex, back to its
+    channels. Null for anything else. The paints leave here as CSS strings,
+    and the one thing a caller may want to ask of them afterwards is how they
+    measure, so the way back in lives beside the way out. */
+export function rgbOf(colour: string): [number, number, number] | null {
+  const m = colour.trim().match(/^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i);
+  if (m) {
+    const rgb = [Number(m[1]), Number(m[2]), Number(m[3])];
+    return rgb.every((v) => v <= 255) ? (rgb as [number, number, number]) : null;
+  }
+  return channelsOf(colour);
+}
+
 /** The sheet's --ink. Written out because this file has no cascade to read. */
 const INK: [number, number, number] = [10, 11, 16];
 
@@ -221,6 +234,44 @@ function capFor(h: number, wash: readonly [number, number, number]): [number, nu
   /* Unreachable: every hue is dark enough by the floor. Kept so the function
      is total rather than nearly total. */
   return toRgb(h, BAR_S, BAR_FLOOR_L);
+}
+
+const WHITE: [number, number, number] = [255, 255, 255];
+/** WCAG's floor for words. */
+const LABEL = 4.5;
+/** How far one step of the walk below moves lightness. Half the cap's step:
+    at 0.01 the green overshoots to 4.65:1 and lands visibly darker than the
+    colour the Workboard's key shows, which is the colour this is meant to BE. */
+const LABEL_STEP = 0.005;
+
+/**
+ * The category's strong colour, as a ground WHITE words can sit on.
+ *
+ * Home's day bar fills a job to come with its Workboard colour — the cap's,
+ * the one the board's key shows (Isaac, 2026-09-24: "the same colours as the
+ * workboard, just use the nice filled colour instead of pale") — and writes on
+ * it in white. The cap was only ever walked to 3:1 against its WASH, which is
+ * a graphic's floor, not a label's: white on the Workboard's green measures
+ * 3.43:1 and on its grey 3.93:1.
+ *
+ * So this is `capFor`'s walk again with the other question: hold the hue and
+ * saturation the cap already has, and step lightness DOWN until white clears
+ * 4.5:1. A colour that already passes comes back exactly as it went in — red
+ * and purple do — so a category only changes where it had to. Green lands on
+ * 61,134,32 and the grey on 112,119,130, the two the prototype had tuned by
+ * eye. Anything unreadable comes back as the no-category grey's answer.
+ */
+export function whiteLabelFill(bar: string): string {
+  const src = rgbOf(bar) ?? rgbOf(NO_CATEGORY_PAINT.bar)!;
+  if (contrastRatio(src, WHITE) >= LABEL) return css(src);
+  const [h, s, l0] = toHsl(src);
+  /* Counted in whole steps so the lightness never drifts on float
+     accumulation; black is the floor, and white clears black 21:1. */
+  for (let i = 1; l0 - i * LABEL_STEP > 0; i++) {
+    const rgb = toRgb(h, s, l0 - i * LABEL_STEP);
+    if (contrastRatio(rgb, WHITE) >= LABEL) return css(rgb);
+  }
+  return css([0, 0, 0]);
 }
 
 /**

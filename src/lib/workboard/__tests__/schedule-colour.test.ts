@@ -4,8 +4,11 @@
 
 import {
   contrastRatio,
+  rgbOf,
   scheduleBlockPaint,
+  whiteLabelFill,
   NO_CATEGORY_PAINT,
+  TRACKED_PAINT,
 } from "../schedule-colour";
 
 /** "rgb(12, 34, 56)" → channels, so a test can measure what shipped. */
@@ -199,5 +202,67 @@ describe("contrastRatio", () => {
       contrastRatio([240, 240, 10], [12, 200, 90]),
       10
     );
+  });
+});
+
+describe("whiteLabelFill — the Workboard's colour, as a ground for white words", () => {
+  const WHITE: [number, number, number] = [255, 255, 255];
+  const hueOf = ([r, g, b]: [number, number, number]) => {
+    const [x, y, z] = [r / 255, g / 255, b / 255];
+    const mx = Math.max(x, y, z);
+    const d = mx - Math.min(x, y, z);
+    if (d === 0) return 0;
+    const h = mx === x ? 60 * (((y - z) / d) % 6) : mx === y ? 60 * ((z - x) / d + 2) : 60 * ((x - y) / d + 4);
+    return (h + 360) % 360;
+  };
+  /** hsl → '#rrggbb', to hand in ServiceM8-shaped washes of every hue. */
+  const hex = (h: number, s: number, l: number) => {
+    const f = (n: number) => {
+      const k = (n + h / 30) % 12;
+      const v = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+      return Math.round(v * 255).toString(16).padStart(2, "0");
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+  };
+
+  it("darkens the Workboard's green just past 4.5:1 — the prototype's hand-tuned fill", () => {
+    expect(contrastRatio([71, 157, 37], WHITE)).toBeLessThan(4.5); // 3.43:1 as it is
+    const fill = whiteLabelFill("rgb(71, 157, 37)");
+    expect(fill).toBe("rgb(61, 134, 32)");
+    expect(contrastRatio(channels(fill), WHITE)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("darkens the no-category grey the same way", () => {
+    expect(whiteLabelFill(NO_CATEGORY_PAINT.bar)).toBe("rgb(112, 119, 130)");
+  });
+
+  it("returns a colour that already passes exactly as it came — red, purple, the tracked blue", () => {
+    expect(whiteLabelFill("rgb(190, 45, 45)")).toBe("rgb(190, 45, 45)");
+    expect(whiteLabelFill("rgb(143, 45, 190)")).toBe("rgb(143, 45, 190)");
+    expect(whiteLabelFill(TRACKED_PAINT.bar)).toBe(TRACKED_PAINT.bar);
+  });
+
+  it("clears 4.5:1 for every hue ServiceM8 can hand us, keeps the hue, and goes no darker than it must", () => {
+    for (let h = 0; h < 360; h++) {
+      const bar = scheduleBlockPaint(hex(h, 0.55, 0.85)).bar;
+      const fill = channels(whiteLabelFill(bar));
+      const ratio = contrastRatio(fill, WHITE);
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+      if (contrastRatio(channels(bar), WHITE) < 4.5) {
+        // walked: one half-step past the line, never a darker colour than asked for
+        expect(ratio).toBeLessThan(4.75);
+      } else {
+        expect(fill).toEqual(channels(bar));
+      }
+      const drift = Math.abs(hueOf(fill) - hueOf(channels(bar)));
+      expect(Math.min(drift, 360 - drift)).toBeLessThan(4);
+    }
+  });
+
+  it("reads a hex as well as its own rgb(), and gives nonsense the grey's answer", () => {
+    expect(whiteLabelFill("#479d25")).toBe("rgb(61, 134, 32)");
+    expect(whiteLabelFill("nope")).toBe("rgb(112, 119, 130)");
+    expect(rgbOf("rgb(300, 0, 0)")).toBeNull();
+    expect(rgbOf("rgb(1, 2, 3)")).toEqual([1, 2, 3]);
   });
 });

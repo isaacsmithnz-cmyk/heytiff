@@ -67,6 +67,7 @@ jest.mock("@/lib/timepay/holiday-sync", () => ({
 import { loadCompanyCalendar, schoolDivisionOf, type CompanyCalendarContext } from "../query";
 import type { Capability } from "@/lib/permissions";
 import type { OrgCredential } from "@/lib/org/credentials";
+import { expiryDue } from "@/lib/expiry-due";
 
 const ORG = "org-1";
 const TODAY = "2026-09-25";
@@ -85,7 +86,7 @@ const ctx = (over: Partial<CompanyCalendarContext> = {}, caps: Capability[] = ["
   orgId: ORG,
   caps: new Set(caps),
   isOwner: true,
-  today: TODAY,
+  railDay: TODAY,
   names: new Map([["s1", "Isaac"]]),
   shared: { expiry: { warnDays: 30, email: true }, orgCredentials: [policy] },
   ...over,
@@ -292,12 +293,48 @@ describe("loadCompanyCalendar", () => {
     const desk = {
       ...ctx(),
       viewerStaffId: "s1",
-      railDay: TODAY,
+      today: TODAY,
       tz: "Australia/Sydney",
       mineUuid: null,
       names: new Map<string, string>(),
     };
     await expect(loadCompanyCalendar(desk)).resolves.toMatchObject({ windowStart: "2026-09-01" });
+  });
+});
+
+describe("the day it counts on", () => {
+  /* A Perth workspace at 11pm on Thu 24 Sept: Sydney is already on Friday.
+     The loader's context carries both days, as DeskContext does. */
+  const perth = (railDay: string, today: string) => ({
+    ...ctx(),
+    railDay,
+    today,
+    tz: "Australia/Perth",
+    viewerStaffId: "s1",
+    mineUuid: null,
+  });
+
+  it("is the workspace's, the day the list places the same rego on, not Sydney's", async () => {
+    rows.vehicles = [
+      { org_id: ORG, id: "v1", name: "Van", plate: "A1", status: "active", rego_expiry: "2026-09-24", insurance_expiry: null, ctp_expiry: null },
+      { org_id: ORG, id: "v2", name: "Ute", plate: "B2", status: "active", rego_expiry: "2026-09-23", insurance_expiry: null, ctp_expiry: null },
+    ];
+    const out = await loadCompanyCalendar(perth("2026-09-24", "2026-09-25"));
+    // the calendar's Today is the one "Your day" draws above it
+    expect(out.today).toBe("2026-09-24");
+    const overdue = (id: string) => out.items.find((x) => x.id === id)?.overdue;
+    /* The list places each date by expiryDue on the same day: Thursday's rego
+       is its Today, Wednesday's its Late. Sydney's Friday would call both late. */
+    expect(expiryDue("2026-09-24", "2026-09-24", 30)).toMatchObject({ days: 0, state: "warn" });
+    expect(overdue("veh:v1:rego")).toBe(false);
+    expect(overdue("veh:v2:rego")).toBe(true);
+    expect(ensureHolidays).toHaveBeenCalledWith(ORG, "NSW", "2026-09-24");
+  });
+
+  it("sets the window by it, across a month's end", async () => {
+    const out = await loadCompanyCalendar(perth("2026-08-31", "2026-09-01"));
+    expect(out).toMatchObject({ today: "2026-08-31", windowStart: "2026-08-01", windowEnd: "2027-07-31" });
+    expect(of("calendar_events")[0].filters).toContainEqual({ op: "gte", col: "ends_on", val: "2026-08-01" });
   });
 });
 

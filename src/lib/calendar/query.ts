@@ -40,7 +40,16 @@ import {
 
    THE TWO NEW TABLES MAY NOT EXIST YET. The migrations go in before the
    merge, but a read that fails (a missing table, a blip) is an empty
-   source, never a broken Home: the calendar draws what it has. */
+   source, never a broken Home: the calendar draws what it has.
+
+   ONE DAY FOR THE WHOLE NEW HOME: the workspace's (`railDay`, the ServiceM8
+   account's zone, Sydney without one). It is the day the "Your day" bar
+   draws above the calendar, and the day the list places its rows on with
+   the same `expiryDue`, so a rego the list calls Today is not overdue here.
+   It is NOT the loader's `today` (Sydney's, the bell's): late on a Perth
+   evening Sydney is already on tomorrow, and the calendar's Today would sit
+   a day ahead of the bar over it. The context below does not carry `today` at all, so
+   nothing here can count on it by mistake. */
 
 /** What the calendar needs from the new Home's loader context. The loader's
     own context (`DeskContext`) carries all of this, so it passes as it is. */
@@ -48,8 +57,9 @@ export type CompanyCalendarContext = {
   orgId: string;
   caps: ReadonlySet<Capability>;
   isOwner: boolean;
-  /** Today in Sydney: the day the bell counts expiries on. */
-  today: string;
+  /** The workspace's day: the calendar's Today, its window, and the day an
+      admin date is counted late on (see the header). */
+  railDay: string;
   /** Staff id → display name, for "Added" on an event. */
   names?: ReadonlyMap<string, string>;
   /** Read once for the whole page (lib/dashboard/desk-data `readHomeShared`). */
@@ -169,12 +179,14 @@ const none = <T>(): Promise<T[]> => Promise.resolve([]);
 export async function loadCompanyCalendar(ctx: CompanyCalendarContext): Promise<CompanyCalendar> {
   const warnDays = ctx.shared.expiry.warnDays;
   const canAdd = ctx.caps.has("team");
-  const win = companyWindow(ctx.today);
-  /* `today` is the loader's own Sydney day, so this is a malformed context,
-     not a state a person can reach: draw nothing rather than guess a window. */
+  /* The calendar's day, and the only one it counts on (see the header). */
+  const day = ctx.railDay;
+  const win = companyWindow(day);
+  /* `railDay` is the loader's own day, so this is a malformed context, not a
+     state a person can reach: draw nothing rather than guess a window. */
   if (!win) {
-    const empty = { windowStart: ctx.today, windowEnd: ctx.today, stateName: "", items: [] };
-    return { today: ctx.today, ...empty, warnDays, canAdd, hasSchool: false };
+    const empty = { windowStart: day, windowEnd: day, stateName: "", items: [] };
+    return { today: day, ...empty, warnDays, canAdd, hasSchool: false };
   }
   const { windowStart, windowEnd } = win;
 
@@ -187,7 +199,7 @@ export async function loadCompanyCalendar(ctx: CompanyCalendarContext): Promise<
       if (!s) return [];
       /* The fill writes only when coverage runs short (about twice a year),
          and a fill that fails must not cost the page the holidays it has. */
-      await ensureHolidays(ctx.orgId, s, ctx.today).catch(() => undefined);
+      await ensureHolidays(ctx.orgId, s, day).catch(() => undefined);
       return holidaysInSpan(ctx.orgId, s, windowStart, windowEnd);
     }),
     state.then((s) => (s ? schoolHolidaysInSpan(s, schoolDivisionOf(s), windowStart, windowEnd) : none<SchoolHolidayRow>())),
@@ -208,11 +220,11 @@ export async function loadCompanyCalendar(ctx: CompanyCalendarContext): Promise<
          anyone else; this says so again where the items are made. */
       credentials: ctx.isOwner ? ctx.shared.orgCredentials : [],
     },
-    { today: ctx.today, windowEnd, warnDays, names: ctx.names },
+    { today: day, windowEnd, warnDays, names: ctx.names },
   );
 
   return {
-    today: ctx.today,
+    today: day,
     windowStart,
     windowEnd,
     stateName: (await state) ?? "",

@@ -17,11 +17,15 @@ import type { OrgCredential } from "@/lib/org/credentials";
    sources can never collide and a selection survives a reload:
    ph: sch: ev: nt: veh:<id>:rego|insurance|ctp cred:.
 
-   LATE IS THE BELL'S WORD. An admin item's `overdue` is `expiryDue`'s state,
-   the rule every chip and the register read, on the same day and the same
-   org window, so the calendar's Due and the bell can never disagree. "Due"
-   (inside the window, not late) is the same predicate again, which is why
-   the calendar carries `warnDays` rather than a number of its own. */
+   LATE IS THE LIST'S WORD, AND THE BELL'S RULE. An admin item's `overdue` is
+   `expiryDue`'s state (the bell's `expiryState`, the rule every chip and the
+   register read) at the org's window, counted on the day `./query` hands in:
+   the workspace's day, the one Home's list places the same date on with the
+   same `expiryDue`, so a rego the list calls Late is overdue here and one it
+   calls Today is not. For a workspace in Sydney's zone (and every one without
+   ServiceM8) that is the bell's day too. "Due" (inside the window, not late)
+   is the same predicate again, which is why the calendar carries `warnDays`
+   rather than a number of its own. */
 
 /* ── the item ──
 
@@ -72,7 +76,8 @@ export type CalItem = {
 /** Everything the Home calendar is drawn from. The model's frame is the
     first four fields (today, the window, the state), so this passes as it is. */
 export type CompanyCalendar = {
-  /** Today in Sydney: the day the bell counts expiries on. */
+  /** The workspace's day (`railDay`): the one "Your day" draws above the
+      calendar and the list places its rows on. */
   today: string;
   /** The 1st of this month. */
   windowStart: string;

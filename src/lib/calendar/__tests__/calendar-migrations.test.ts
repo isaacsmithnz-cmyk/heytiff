@@ -49,7 +49,32 @@ const seed: Seed[] = [
   ...code(school).matchAll(/\('(\w+)',\s*'([\d-]+)',\s*'([\d-]+)',\s*(?:'([\d-]+)'|null),\s*'([^']+)'\)/g),
 ].map((m) => ({ season: m[1], start: m[2], end: m[3], back: m[4] ?? null, source: m[5] }));
 
+/* THE DEPARTMENT'S DATES, copied by hand from its pages (Eastern division),
+   and checked again on 2026-09-25: the 2026 page (spring, summer 2026-27,
+   and Term 4's first day), the 2027 page (every 2027 break, and the first
+   day of each term, Term 1's closing summer 2026-27), and the future-and-past
+   page (2028's breaks; no students-back day is published for 2028, and
+   summer 2027-28's would be Term 1 2028's). A seed row that differs from this
+   by a day is a school holiday on the wrong week for every workspace, and
+   no other test here would notice. */
+const DEPARTMENT: ReadonlyArray<Omit<Seed, "source">> = [
+  { season: "spring", start: "2026-09-28", end: "2026-10-09", back: "2026-10-13" },
+  { season: "summer", start: "2026-12-18", end: "2027-01-27", back: "2027-02-03" },
+  { season: "autumn", start: "2027-04-12", end: "2027-04-23", back: "2027-04-29" },
+  { season: "winter", start: "2027-07-05", end: "2027-07-16", back: "2027-07-20" },
+  { season: "spring", start: "2027-09-27", end: "2027-10-08", back: "2027-10-12" },
+  { season: "summer", start: "2027-12-21", end: "2028-01-28", back: null },
+  { season: "autumn", start: "2028-04-10", end: "2028-04-21", back: null },
+  { season: "winter", start: "2028-07-10", end: "2028-07-21", back: null },
+  { season: "spring", start: "2028-10-03", end: "2028-10-13", back: null },
+  { season: "summer", start: "2028-12-22", end: "2029-01-25", back: null },
+];
+
 describe("the school-holiday seed", () => {
+  it("is the department's dates, every one of them", () => {
+    expect(seed.map(({ season, start, end, back }) => ({ season, start, end, back }))).toEqual(DEPARTMENT);
+  });
+
   it("is NSW Eastern from this spring to the summer that ends in 2029", () => {
     expect(seed).toHaveLength(10);
     expect(code(school)).toMatch(/select 'NSW', 'eastern', v\.season/);

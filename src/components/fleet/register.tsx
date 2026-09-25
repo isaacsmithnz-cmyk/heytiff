@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
+import { TiffGlyph } from "@/components/notes/tiff-mark";
 import type { FleetState } from "./fleet-state";
 import {
   type FleetSort,
@@ -290,7 +291,7 @@ export function FleetRegister({
             onClick={runValuation}
             title="Tiff estimates each vehicle's AU market value — Manager+ only"
           >
-            <Chevron size={19} gradient decorative />
+            <TiffGlyph size={19} working={valuing} />
             {valuing ? "Tiff is valuing…" : "Value with Tiff"}
           </button>
           <button className="pbtn primary fl-add" onClick={() => setModal({ t: "add" })}>

@@ -135,9 +135,12 @@ describe("the wait, named", () => {
     expect(screen.getByRole("status").textContent).toBe("Reading it back");
   });
 
-  it("keeps the orb decorative — the sphere is not a second announcement", () => {
+  /* The sphere left the wait for the mark, working (2026-09-25); it stays the
+     dictation meter. The mark is as decorative as the sphere was. */
+  it("keeps the mark decorative, and working — not a second announcement", () => {
     const { container } = render(<Waiting note="Thinking" />);
-    expect(container.querySelectorAll("[aria-hidden='true'] .orb-ball")).toHaveLength(1);
+    expect(container.querySelectorAll(".tiffmk.working[aria-hidden='true']")).toHaveLength(1);
+    expect(container.querySelector(".orb-ball")).toBeNull();
   });
 
   /* Callers pass the class of the slot the plain grey line used to hold —

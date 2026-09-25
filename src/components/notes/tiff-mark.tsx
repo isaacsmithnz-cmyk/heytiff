@@ -195,3 +195,43 @@ export function TiffMark({ ground }: { ground: Ground }) {
     </>
   );
 }
+
+/* THE MARK OUTSIDE THE BUTTON (Isaac, 2026-09-25: "Elsewhere, for
+   reference — looks good lets do it"). Wherever the chevron stands for Tiff,
+   it is the gimbal too, in one of two states:
+
+   STILL, where it is a label — the chat's header and ask bar, Ask Tiff, the
+   answer's ribbon, the palette's footer. It holds the pose reduced motion
+   gives the button: the mark leaning, the rings tipped. A label that moved
+   would be the ambient motion law 18 keeps off every screen; only the button
+   has Isaac's word for that.
+
+   WORKING, where Tiff is — a wait, a valuation, a receipt being read. The
+   same loops at the thinking pace, which is the orb's old job under law 18:
+   it starts when the work starts and goes when the work is done.
+
+   Sized by `size`, or by the slot's stylesheet when the slot has more than
+   one size (the ask bar is smaller on a locked page), because an inline size
+   would beat every one of them. */
+export function TiffGlyph({
+  ground = "paper",
+  working = false,
+  size,
+  label,
+}: {
+  ground?: Ground;
+  working?: boolean;
+  size?: number;
+  /** Stand alone as "HeyTiff" for a screen reader; omit it beside words that already name the thing. */
+  label?: string;
+}) {
+  return (
+    <span
+      className={`tiffmk tiffmk-${ground} ${working ? "working" : "still"}`}
+      style={{ "--tiffbtn-mask": MARK_MASK, ...(size ? { "--tb": `${size}px` } : {}) } as CSSProperties}
+      {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}
+    >
+      <TiffMark ground={ground} />
+    </span>
+  );
+}

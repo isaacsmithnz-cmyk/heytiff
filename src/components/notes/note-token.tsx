@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
-import { Chevron } from "@/components/logo";
+import { TiffGlyph } from "./tiff-mark";
 import { LiveWords, appendSpoken, useDictation } from "./dictation";
 import { RecordingCard, RecordingMeter } from "./recording-card";
 import { READING_BACK_NOTE } from "./waits";
@@ -64,7 +64,7 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
       ) : thinking ? null : stage === "answer" ? (
         /* the mark, not a sparkle — the ribbon says "Answer" and the thing
            that answered is HeyTiff */
-        <Chevron size={19} gradient decorative />
+        <TiffGlyph ground="ink" size={19} />
       ) : (
         <Icon name="note" size={16} />
       )}

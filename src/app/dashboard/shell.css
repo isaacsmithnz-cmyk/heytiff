@@ -607,7 +607,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tinput .tib { position:absolute; inset:-5px; border-radius:var(--r-card); background:var(--ink); filter:blur(12px); opacity:.16; }
 .fg .tinput .tin { position:relative; display:flex; align-items:center; gap:16px; padding:12px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--paper); }
 .fg .tinput .tic { width:48px; height:48px; border-radius:var(--r-card); background:var(--bg); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
-.fg .tinput .tic svg { color:var(--ink); }
+.fg .tinput .tic .tiffmk { --tb:24px; }
 .fg .tinput input { flex:1; min-width:0; background:none; border:none; outline:none; font-size:16px; font-weight:500; color:var(--ink); padding:16px 0; }
 .fg .tinput input::placeholder { color:var(--gray400); }
 .fg .tinput .tsend { position:relative; overflow:hidden; width:48px; height:48px; border-radius:var(--r-card); background:var(--ink); display:flex; align-items:center; justify-content:center; color:var(--paper); flex:0 0 auto; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
@@ -2281,6 +2281,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    Scoped to `.orb-say.tvsay`, not to `.fg .tvsay`: the two-minute notice and
    the error line are plain `<p class="tvsay">` and are meant to be grey. */
 .orb-say.tvsay, .orb-say.wb2-dicthint { --orb:20px; gap:8px; min-height:20px; color:var(--say-ink); }
+.orb-say .tiffmk { --tb:24px; }
+.orb-say.tvsay .tiffmk, .orb-say.wb2-dicthint .tiffmk { --tb:20px; }
 .orb-say.tvsay b, .orb-say.wb2-dicthint b { font-size:13px; font-weight:700; }
 
 /* ── the wait with no words of its own ──
@@ -8441,11 +8443,13 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    No `.fg` scope: sheets portal to body, and the tokens live on :root. */
 .tiffbtn { --tb:36px; position:relative; flex:none; width:var(--tb); height:var(--tb); padding:0; border:0;
   border-radius:50%; background:none; cursor:pointer; transition:transform var(--t-fast) var(--ease); }
-.tiffbtn-topbar { --tb:36px;
+.tiffbtn-topbar { --tb:36px; }
+/* sized to sit beside the sheet's 30px close × */
+.tiffbtn-sheet { --tb:30px; }
+.tiffbtn-topbar, .tiffmk-ink {
   --tiffbtn-sheen:color-mix(in srgb, var(--mark-teal) 85%, transparent); --tiffbtn-sheen-hi:var(--mark-core);
   --tiffbtn-burst:color-mix(in srgb, var(--mark-core) 90%, transparent); }
-/* sized to sit beside the sheet's 30px close × */
-.tiffbtn-sheet { --tb:30px;
+.tiffbtn-sheet, .tiffmk-paper {
   --tiffbtn-sheen:color-mix(in srgb, var(--paper) 90%, transparent); --tiffbtn-sheen-hi:var(--paper);
   --tiffbtn-burst:color-mix(in srgb, var(--mark-blue) 70%, transparent); }
 .tiffbtn:active { transform:translateY(1px); }
@@ -8506,6 +8510,25 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 @keyframes tiffTurn { from { transform:rotateX(0deg); } to { transform:rotateX(360deg); } }
 .tiffbtn.lit .tiffbtn-burst { animation:tiffBurst .8s var(--ease); }
 @keyframes tiffBurst { from { opacity:.9; transform:scale(1); } to { opacity:0; transform:scale(2.1); } }
+
+/* ── THE MARK OUTSIDE THE BUTTON (`TiffGlyph`, 2026-09-25) ──
+   Where the chevron stands for Tiff it is the gimbal too. A label holds it
+   STILL, in the pose reduced motion gives the button; Tiff WORKING runs the
+   same loops at the thinking pace, the orb's old job under law 18. No new
+   loop: these only stop or quicken the button's six. */
+.tiffmk { --tb:24px; position:relative; display:inline-block; flex:none; width:var(--tb); height:var(--tb);
+  vertical-align:middle; }
+.tiffmk.still :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc) { animation:none; }
+.tiffmk.still .tiffbtn-pre { transform:rotateY(18deg); }
+.tiffmk.still .tiffbtn-gim-a { transform:rotateZ(-20deg) rotateY(60deg); }
+.tiffmk.still .tiffbtn-gim-b { transform:rotateZ(25deg) rotateX(60deg); }
+.tiffmk.still .tiffbtn-sheen { display:none; }
+/* a pseudo-element cannot sit inside :is(), so the band of light gets its own selector */
+.tiffmk.working .tiffbtn-pre, .tiffmk.working .tiffbtn-sheen::before { animation-duration:2.4s; }
+.tiffmk.working .tiffbtn-nod { animation-duration:.5s; }
+.tiffmk.working .tiffbtn-gim-a { animation-duration:2.8s; }
+.tiffmk.working .tiffbtn-gim-b { animation-duration:2s; }
+.tiffmk.working .tiffbtn-arc { animation-duration:1s; }
 
 @media (max-width:760px) { .fg .tbr { gap:12px; } }
 @media (prefers-reduced-motion:reduce) {
@@ -9777,7 +9800,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .page.tk-lock .tinput .tib { display:none; }
 .fg .page.tk-lock .tinput .tin { gap:12px; padding:8px; border-radius:var(--r-card); border-color:var(--line); }
 .fg .page.tk-lock .tinput .tic { width:38px; height:38px; border-radius:var(--r-button); }
-.fg .page.tk-lock .tinput .tic svg { width:20px; height:20px; }
+.fg .page.tk-lock .tinput .tic .tiffmk { --tb:20px; }
 .fg .page.tk-lock .tinput input { font-size:16px; padding:8px 0; }
 .fg .page.tk-lock .tinput .tsend { width:40px; height:40px; border-radius:var(--r-button); }
 .fg .page.tk-lock .tinput .tmic { width:36px; height:36px; }

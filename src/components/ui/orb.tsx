@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { TiffGlyph } from "@/components/notes/tiff-mark";
 
 /* The orb: one sphere of dots, spun by the browser.
 
@@ -145,7 +146,11 @@ export type WaitingProps = {
 export function Waiting({ note, className }: WaitingProps) {
   return (
     <span className={className ? `orb-say ${className}` : "orb-say"} role="status">
-      <Orb />
+      {/* THE MARK, WORKING, where the sphere was (Isaac, 2026-09-25): Tiff's
+          own gimbal at the thinking pace says "Tiff is on it" in the
+          product's voice. The sphere stays the dictation meter, where its
+          size is the level. */}
+      <TiffGlyph working />
       <b>{note}</b>
     </span>
   );

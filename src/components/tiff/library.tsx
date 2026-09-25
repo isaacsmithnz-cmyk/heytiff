@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
-import { Chevron } from "@/components/logo";
+import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { KB_CATEGORIES, filterKbDocs, type KbCategoryKey } from "./kb";
 import { UploadDrawer } from "./upload-drawer";
 import { TagPicker, TagPills } from "./tag-picker";
@@ -701,7 +701,7 @@ function DocRow({
               sparkle is the badge every AI tool in the market is wearing, and
               this button's whole promise is that the answer comes out of THIS
               document rather than out of the air. */}
-          <Chevron size={15} gradient />
+          <TiffGlyph size={15} />
           Ask Tiff
         </button>
       )}

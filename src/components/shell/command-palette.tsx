@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useCommandPalette } from "./command-palette-context";
 import { Icon } from "./icon";
-import { Chevron } from "@/components/logo";
+import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { navFor, type NavItem } from "./nav";
 import { searchPalette, type PaletteFinds } from "@/app/actions/palette";
 import type { PhotoHit } from "@/app/actions/photo-search";
@@ -469,7 +469,7 @@ export function CommandPalette({
                 the mark defaults to an aria-label of "HeyTiff" and would have
                 the footer read "HeyTiff HeyTiff". */}
             <span style={{ display: "flex" }}>
-              <Chevron size={15} gradient decorative />
+              <TiffGlyph size={15} />
             </span>{" "}
             {/* was "HeyTiff Command" — there are no commands in it */}
             HeyTiff

@@ -31,6 +31,13 @@
    - FAILURES ARE PER-OBJECT WHERE THEY CAN BE. A 403 records "reconnect to
      grant X" on that object and the walk moves on; only a dead grant (401)
      or a back-off signal (429/unreachable) ends the whole run.
+   - A 401 IS RENEWED BEFORE IT IS BELIEVED. The hourly token can run out
+     mid-walk; one renewal and one more try (sm8-renew.ts) tell that apart
+     from a grant that is really dead, and only the second refusal flags it.
+   - ONE ACCOUNT PER MIRROR. The run checks that the account it reads is the
+     one the mirror holds; a different one clears the old copy first
+     (switchSm8Account), and a connection moved to another account mid-walk
+     stops the run before it writes the old account into the new mirror.
 
    NO SESSION HERE — the caller establishes the right to ask (owner action,
    CRON_SECRET, or a page loader that already gated the org) and hands in a
@@ -39,7 +46,16 @@
 import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { fetchSm8Vendor } from "./sm8";
-import { markSm8NeedsReauth, nameSm8ConnectionIfNameless, sm8Access } from "./sm8-store";
+import {
+  markSm8NeedsReauth,
+  nameSm8ConnectionIfNameless,
+  readSm8Accounts,
+  sm8AccessResult,
+  switchSm8Account,
+  type Sm8SwitchResult,
+} from "./sm8-store";
+import type { Sm8Vendor } from "./sm8";
+import { withSm8Renewal } from "./sm8-renew";
 import { fetchSm8Page } from "./sm8-read";
 import {
   chunk,
@@ -47,12 +63,18 @@ import {
   filterFor,
   maxEditDate,
   PAGE_BUDGET,
+  SM8_ACCOUNT_MOVED,
+  SM8_ACCOUNT_SWITCHED,
+  SM8_ACCOUNT_UNCLEARED,
+  SM8_ACCOUNT_UNREAD,
   SM8_BILLING,
+  SM8_ELSEWHERE,
   SM8_OBJECTS,
   SM8_PAUSE_DAILY_BUDGET,
   SM8_PAUSE_MIDWALK,
   SM8_PAUSE_PAGE_BUDGET,
   SM8_PAUSE_RATE_LIMIT,
+  SM8_UNREACHABLE,
   sm8ObjectPhase,
   walkOrderFor,
   type MirrorRow,
@@ -74,6 +96,53 @@ export type Sm8SyncOutcome = {
 
 const LEASE_MS = 120_000;
 
+const NOT_CONNECTED = "ServiceM8 isn't connected, or needs reconnecting.";
+const DEAD = "The connection needs reconnecting.";
+/** The lease is held elsewhere: another run is walking. */
+export const SM8_SYNC_BUSY = "A sync is already running.";
+
+/** Claim the one lease over this workspace's mirror. The upsert guarantees a
+    row exists without touching a live one (ignoreDuplicates); the
+    conditional update is the actual mutex — it matches only an unleased or
+    expired-lease row, and matching nothing means somebody else holds it.
+    Same conditional-write idiom as the refresh rotation guard. Null: busy. */
+async function claimSm8Lease(
+  orgId: string,
+  now: number,
+  patch: Record<string, unknown> = {}
+): Promise<{ calls_today: number | null; calls_day: string | null } | null> {
+  const iso = new Date(now).toISOString();
+  await supabaseAdmin
+    .from("sm8_sync_runs")
+    .upsert({ org_id: orgId }, { onConflict: "org_id", ignoreDuplicates: true });
+
+  const { data: claimed } = await supabaseAdmin
+    .from("sm8_sync_runs")
+    .update({ lease_until: new Date(now + LEASE_MS).toISOString(), ...patch })
+    .eq("org_id", orgId)
+    .or(`lease_until.is.null,lease_until.lt.${iso}`)
+    .select("calls_today, calls_day");
+  return ((claimed ?? [])[0] as { calls_today: number | null; calls_day: string | null } | undefined) ?? null;
+}
+
+/** Whether the connection still holds the account this run is reading.
+    Asked before every write into the mirror: a reconnect to a different
+    account while a run is walking must not let the old account's rows land
+    in the new account's copy. A read that fails is no evidence either way,
+    and the write it guards goes ahead. */
+async function stillReading(orgId: string, uuid: string): Promise<"same" | "moved" | "gone"> {
+  const { data, error } = await supabaseAdmin
+    .from("integration_connections")
+    .select("tenant_id")
+    .eq("org_id", orgId)
+    .eq("provider", "servicem8")
+    .maybeSingle();
+  if (error) return "same";
+  const row = data as { tenant_id: string | null } | null;
+  if (!row) return "gone";
+  return row.tenant_id === uuid ? "same" : "moved";
+}
+
 type StateRow = {
   object: string;
   cursor: string | null;
@@ -92,29 +161,9 @@ export async function runSm8Sync(
   const iso = new Date(now).toISOString();
   const today = iso.slice(0, 10);
 
-  /* Claim the lease. The upsert guarantees a row exists without touching a
-     live one (ignoreDuplicates); the conditional update is the actual mutex —
-     it matches only an unleased or expired-lease row, and matching nothing
-     means somebody else is running. Same conditional-write idiom as the
-     refresh rotation guard. */
-  await supabaseAdmin
-    .from("sm8_sync_runs")
-    .upsert({ org_id: orgId }, { onConflict: "org_id", ignoreDuplicates: true });
-
-  const { data: claimed } = await supabaseAdmin
-    .from("sm8_sync_runs")
-    .update({
-      lease_until: new Date(now + LEASE_MS).toISOString(),
-      last_trigger: trigger,
-      last_started_at: iso,
-    })
-    .eq("org_id", orgId)
-    .or(`lease_until.is.null,lease_until.lt.${iso}`)
-    .select("calls_today, calls_day");
-
-  const lease = (claimed ?? [])[0] as { calls_today: number | null; calls_day: string | null } | undefined;
+  const lease = await claimSm8Lease(orgId, now, { last_trigger: trigger, last_started_at: iso });
   if (!lease) {
-    return { ran: false, note: "A sync is already running.", pagesUsed: 0, rowsPulled: 0, complete: false };
+    return { ran: false, note: SM8_SYNC_BUSY, pagesUsed: 0, rowsPulled: 0, complete: false };
   }
 
   const callsBase = lease.calls_day === today ? lease.calls_today ?? 0 : 0;
@@ -140,54 +189,130 @@ export async function runSm8Sync(
     return { ran: false, note, pagesUsed: 0, rowsPulled: 0, complete: false };
   }
 
-  const access = await sm8Access(orgId, now);
-  if (!access) {
-    const note = "ServiceM8 isn't connected, or needs reconnecting.";
+  const got = await sm8AccessResult(orgId, now);
+  if (!got.ok) {
+    /* A refresh that couldn't reach ServiceM8 is a wait, not a broken
+       connection, and says so. */
+    const note = got.reason === "unreachable" ? SM8_UNREACHABLE : NOT_CONNECTED;
     await release(false, note);
     return { ran: false, note, pagesUsed: 0, rowsPulled: 0, complete: false };
   }
+  let access = got.access;
 
-  /* The account row first: cheap, and timezone_name is what every due-date
-     bucket downstream reads. A plain failure here is not fatal — the mirrors
-     are still worth refreshing — but a 401 is the same dead grant it is
-     anywhere else. */
-  const vendorResult = await fetchSm8Vendor(access.accessToken);
-  calls += 1;
-  if (!vendorResult.ok && vendorResult.unauthorized) {
-    await markSm8NeedsReauth(orgId, "ServiceM8 no longer accepts this connection. Reconnect ServiceM8.");
-    const note = "The connection needs reconnecting.";
+  const ended = async (note: string) => {
     await release(false, note);
     return { ran: true, note, pagesUsed: 0, rowsPulled: 0, complete: false };
-  }
+  };
+
+  /* The account row first: cheap, timezone_name is what every due-date
+     bucket downstream reads, and its uuid is how the run knows WHICH account
+     it is about to write into the mirror. So a failed read ends the run: the
+     objects share its host, and without the uuid nothing below can tell a
+     changed account from the same one. */
+  const vendorRead = await withSm8Renewal(
+    orgId,
+    access,
+    (a) => fetchSm8Vendor(a.accessToken),
+    (r) => !r.ok && r.unauthorized
+  );
+  calls += vendorRead.tries;
+  access = vendorRead.access;
+  const vendorResult = vendorRead.result;
+  // the grant was flagged by the renewal, for this grant only
+  if (vendorRead.verdict === "dead") return ended(DEAD);
+  if (vendorRead.verdict === "unreachable") return ended(SM8_UNREACHABLE);
+  if (vendorRead.verdict === "gone") return ended(NOT_CONNECTED);
   /* A billing block answers every endpoint the same way, and this call already
      proved it — walking the nine objects would spend nine calls to be told so
      nine more times. The grant is untouched: it isn't what's wrong. */
-  if (!vendorResult.ok && vendorResult.paymentRequired) {
-    await release(false, SM8_BILLING);
-    return { ran: true, note: SM8_BILLING, pagesUsed: 0, rowsPulled: 0, complete: false };
+  if (!vendorResult.ok && vendorResult.paymentRequired) return ended(SM8_BILLING);
+  if (!vendorResult.ok) return ended(SM8_UNREACHABLE);
+
+  const v = vendorResult.vendor;
+
+  /* WHICH ACCOUNT. Two questions, asked of two records, and they are not
+     the same question:
+
+     - Is this token still the connection's? The connection's tenant_id is
+       always written from a vendor read with its own grant, so one that
+       names another account than this token reads means the owner
+       reconnected while this run was starting. This run writes nothing; the
+       next one, under the new grant, reads the new account. (Extra
+       protection for a stale run, not the reason for the order below.)
+     - Is the copy here the account this token reads? That is sm8_vendor's
+       to say, not the connection's, and the switch below compares against
+       it even when tenant_id already matches. The connection moves first
+       (the callback saves the new account before anything is cleared);
+       sm8_vendor names the old account until its copy is gone, including
+       across a disconnect. Comparing tenant_id alone would find the two
+       agreeing, write the new account into sm8_vendor, and lose the only
+       marker that the old copy — or a clear that didn't finish — is still
+       here to clear. Nothing is cleared on a missing value either way.
+
+     A failed read of either record ends the run before anything is named,
+     cleared or written: an error is not an absent row. */
+  const before = await readSm8Accounts(orgId);
+  if (!before.ok) return ended(SM8_ACCOUNT_UNREAD);
+  if (!before.connected) return ended(NOT_CONNECTED);
+  if (before.connected.tenantId && before.connected.tenantId !== v.uuid) return ended(SM8_ACCOUNT_MOVED);
+
+  /* A grant whose connect-time vendor read failed was stored nameless on
+     purpose (saveSm8Connection). This read is the one that can fix it, so
+     it does — the mirror is the queryable home for the account, but the
+     connection row is what the screens' status line reads, and what any
+     later tenant_name reader would find empty forever. No-ops on a row that
+     already has a name. An account another workspace already holds can't be
+     named here: one account, one workspace. */
+  if (!before.connected.tenantId) {
+    const named = await nameSm8ConnectionIfNameless(orgId, v, now);
+    if (named === "elsewhere") {
+      await markSm8NeedsReauth(orgId, SM8_ELSEWHERE, access);
+      return ended(SM8_ELSEWHERE);
+    }
+    if (named === "unchanged" && (await stillReading(orgId, v.uuid)) !== "same") {
+      return ended(SM8_ACCOUNT_MOVED);
+    }
   }
-  if (vendorResult.ok) {
-    const v = vendorResult.vendor;
-    await supabaseAdmin.from("sm8_vendor").upsert(
-      {
-        org_id: orgId,
-        uuid: v.uuid,
-        name: v.name,
-        email: v.email,
-        timezone_name: v.timezoneName,
-        currency: v.currency,
-        synced_at: iso,
-      },
-      { onConflict: "org_id" }
-    );
-    /* A grant whose connect-time vendor read failed was stored nameless on
-       purpose (saveSm8Connection). This read is the one that can fix it, so
-       it does — the mirror is the queryable home for the account, but the
-       connection row is what the screens' status line reads, and what any
-       later tenant_name reader would find empty forever. No-ops on a row that
-       already has a name. */
-    await nameSm8ConnectionIfNameless(orgId, v, now);
+
+  /* The mirror's own row names the account its copy was read from. A
+     different account behind the connection now means that copy is another
+     business's: it is cleared, sending goes off, and this run reads the new
+     account from the start. Never on a missing value — no mirror row, no
+     switch. This run holds the lease, so no walker under the old grant can
+     be writing while the clear runs. */
+  let switched = false;
+  if (before.mirrored && before.mirrored.uuid !== v.uuid) {
+    const sw = await switchSm8Account(orgId, { to: v, from: before.mirrored, now });
+    if (!sw.ok) {
+      if (sw.reason === "elsewhere") {
+        await markSm8NeedsReauth(orgId, SM8_ELSEWHERE, access);
+        return ended(SM8_ELSEWHERE);
+      }
+      return ended(sw.reason === "moved" ? SM8_ACCOUNT_MOVED : SM8_ACCOUNT_UNCLEARED);
+    }
+    // an unfinished clear keeps the old sm8_vendor row, so the next sync repeats it
+    if (!sw.cleared) return ended(SM8_ACCOUNT_UNCLEARED);
+    switched = true;
   }
+
+  /* The mirror's row is written only while the connection still holds this
+     account: a reconnect that landed since would otherwise find the old
+     account named here, and clear a copy it had only just started. */
+  const holdingNow = await stillReading(orgId, v.uuid);
+  if (holdingNow !== "same") return ended(holdingNow === "moved" ? SM8_ACCOUNT_MOVED : NOT_CONNECTED);
+
+  await supabaseAdmin.from("sm8_vendor").upsert(
+    {
+      org_id: orgId,
+      uuid: v.uuid,
+      name: v.name,
+      email: v.email,
+      timezone_name: v.timezoneName,
+      currency: v.currency,
+      synced_at: iso,
+    },
+    { onConflict: "org_id" }
+  );
 
   const { data: stateRows } = await supabaseAdmin
     .from("sm8_sync_state")
@@ -205,6 +330,9 @@ export async function runSm8Sync(
   let rowsPulled = 0;
   let objectsCompleted = 0;
   let stopNote: string | null = null; // set = the whole run ends after this object
+  /* set = the connection no longer holds the account this run is reading;
+     nothing more of it is written, not even this object's state row */
+  let accountLost = false;
 
   for (const spec of walkOrderFor(backfillDone)) {
     if (stopNote) break;
@@ -242,16 +370,28 @@ export async function runSm8Sync(
         break;
       }
 
-      const page = await fetchSm8Page(access.accessToken, spec.endpoint, {
-        cursor: walkCursor,
-        filter,
-      });
-      calls += 1;
+      const read = await withSm8Renewal(
+        orgId,
+        access,
+        (a) => fetchSm8Page(a.accessToken, spec.endpoint, { cursor: walkCursor, filter }),
+        (p) => !p.ok && p.failure === "unauthorized"
+      );
+      calls += read.tries;
+      access = read.access;
+      const page = read.result;
+
+      if (read.verdict === "unreachable" || read.verdict === "gone") {
+        // no token to go on with: the page was never read, so it is the one to retry
+        objectError = read.verdict === "unreachable" ? SM8_UNREACHABLE : NOT_CONNECTED;
+        stopNote = objectError;
+        resumeCursor = walkCursor;
+        break;
+      }
 
       if (!page.ok) {
         if (page.failure === "unauthorized") {
-          await markSm8NeedsReauth(orgId, "ServiceM8 no longer accepts this connection. Reconnect ServiceM8.");
-          objectError = "The connection needs reconnecting.";
+          // refused twice, a token apart: the renewal has flagged this grant
+          objectError = DEAD;
           stopNote = objectError;
         } else if (page.failure === "forbidden") {
           // Scope drift is per-object news, not a dead run: record which
@@ -271,7 +411,7 @@ export async function runSm8Sync(
           // Unreachable: the other objects share the same upstream, so
           // spending eight more calls to learn it eight more times helps
           // nobody. End the run; the next kick retries everything.
-          objectError = "ServiceM8 couldn't be reached — resuming next sync.";
+          objectError = SM8_UNREACHABLE;
           stopNote = objectError;
         }
         /* The page that failed is the page to retry. Harmless on the paths
@@ -286,6 +426,16 @@ export async function runSm8Sync(
       for (const raw of page.rows) {
         const s = spec.shape(raw);
         if (s) shaped.push({ ...s, org_id: orgId, synced_at: iso });
+      }
+
+      /* The connection may have moved to another account since the run
+         began. Nothing of the old one lands after that — not these rows, and
+         not the state row below. */
+      const holding = await stillReading(orgId, v.uuid);
+      if (holding !== "same") {
+        stopNote = holding === "moved" ? SM8_ACCOUNT_MOVED : NOT_CONNECTED;
+        accountLost = true;
+        break;
       }
 
       let storeFailed = false;
@@ -325,6 +475,15 @@ export async function runSm8Sync(
     rowsPulled += pulled;
     if (completed) objectsCompleted += 1;
 
+    if (!accountLost) {
+      const holding = await stillReading(orgId, v.uuid);
+      if (holding !== "same") {
+        stopNote = holding === "moved" ? SM8_ACCOUNT_MOVED : NOT_CONNECTED;
+        accountLost = true;
+      }
+    }
+    if (accountLost) break;
+
     await supabaseAdmin.from("sm8_sync_state").upsert(
       completed
         ? {
@@ -359,11 +518,61 @@ export async function runSm8Sync(
 
   const complete = objectsCompleted === SM8_OBJECTS.length && !stopNote;
   const note = complete
-    ? `Synced ${rowsPulled} change${rowsPulled === 1 ? "" : "s"} across ${SM8_OBJECTS.length} objects.`
+    ? switched
+      ? SM8_ACCOUNT_SWITCHED
+      : `Synced ${rowsPulled} change${rowsPulled === 1 ? "" : "s"} across ${SM8_OBJECTS.length} objects.`
     : stopNote ?? "Paused — resuming next sync.";
 
   await release(complete || stopNote === null, note);
   return { ran: true, note, pagesUsed: PAGE_BUDGET - pagesLeft, rowsPulled, complete };
+}
+
+/* ── the callback's half of a change of account ── */
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Clear the old account's copy under the sync lease, so no walker is
+    writing into the mirror while it goes. `busy`: a run holds the lease.
+    One under the old grant stops at its next check (the connection has
+    moved); one under the new grant finds the old copy itself and clears it
+    under its own lease. Either way nothing was cleared here, so sm8_vendor
+    still names the old account, and the run that holds or follows the lease
+    finishes the switch.
+
+    The lease is released unconditionally: the callback that calls this can
+    run for a minute at most (its maxDuration), well inside LEASE_MS, so the
+    lease can't have passed to anyone else while it held it. last_* are left
+    alone — this is not a sync, and the page-load kick reads them. */
+export async function switchSm8AccountUnderLease(
+  orgId: string,
+  input: { to: Sm8Vendor; from: { uuid: string | null; name: string | null }; now?: number }
+): Promise<Sm8SwitchResult | { ok: false; reason: "busy" }> {
+  const now = input.now ?? Date.now();
+  if (!(await claimSm8Lease(orgId, now))) return { ok: false, reason: "busy" };
+  try {
+    return await switchSm8Account(orgId, { ...input, now });
+  } finally {
+    await supabaseAdmin.from("sm8_sync_runs").update({ lease_until: null }).eq("org_id", orgId);
+  }
+}
+
+/** A sync that waits a moment for a run already walking to end — the
+    callback's first sync. A run under the old grant stops at its next check
+    once the connection has moved, typically within a page; giving up at
+    once would leave the old account's copy on the board until the next kick,
+    ten minutes on. Bounded: past `tries`, the busy answer is the answer. */
+export async function runSm8SyncWhenFree(
+  orgId: string,
+  trigger: Sm8SyncTrigger,
+  opts: { tries?: number; waitMs?: number } = {}
+): Promise<Sm8SyncOutcome> {
+  const tries = opts.tries ?? 6;
+  const waitMs = opts.waitMs ?? 2_000;
+  for (let i = 1; ; i++) {
+    const out = await runSm8Sync(orgId, trigger);
+    if (out.ran || out.note !== SM8_SYNC_BUSY || i >= tries) return out;
+    await sleep(waitMs);
+  }
 }
 
 /* ── what the screen shows ── */

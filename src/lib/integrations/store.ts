@@ -72,16 +72,24 @@ export async function getConnectionView(
 /** How many OTHER HeyTiff workspaces hold a connection to this same provider
     account. Zero for the ordinary case.
 
-    WHY THIS IS VISIBLE RATHER THAN BLOCKED. Every uniqueness rule in the
+    XERO: VISIBLE RATHER THAN BLOCKED (#359). Every uniqueness rule in the
     integrations area is scoped to one workspace — one connection per
     (org_id, provider), mirrors keyed (org_id, uuid), links unique within an
-    org — so two workspaces connecting one ServiceM8 account both work, and
-    neither is told. That is deliberate: a bookkeeper and an operations team
-    running separate workspaces off one account is a real arrangement, and
-    refusing it would break them with no way past. But the same property means
-    somebody who can authenticate to the account can mirror the whole client
-    book into a workspace the owner cannot see, and NOTHING said so. This
-    count is what says so.
+    org — so two workspaces connecting one Xero organisation both work. That
+    is deliberate: a bookkeeper and an operations team running separate
+    workspaces off one organisation is a real arrangement, and refusing it
+    would break them with no way past. But the same property means somebody
+    who can authenticate to the account can mirror it into a workspace the
+    owner cannot see, and NOTHING said so. This count is what says so.
+
+    SERVICEM8: REFUSED AT CONNECT. ServiceM8's rate limit (180 a minute,
+    20,000 a day) is per account, so two workspaces reading one account share
+    one budget, and once HeyTiff writes back, two workspaces writing to one
+    account would double every note and every file. So the ServiceM8 callback
+    asks this before it saves and refuses a held account, and a unique index
+    on (tenant_id) for ServiceM8 rows is the backstop for two connects at
+    once (docs/migrations/sm8_staying_connected.sql). For ServiceM8 this
+    reads zero once that index is in; the screen still asks, harmlessly.
 
     Counts, never names: another workspace's identity is not this caller's to
     read, and a bare number is enough to prompt the question. The comparison

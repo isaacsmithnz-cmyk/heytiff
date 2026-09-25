@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Servicem8Screen } from "../servicem8-screen";
 import { toView, type ConnectionRow } from "@/lib/integrations/connection";
 import { SM8_SCOPE_LIST } from "@/lib/integrations/providers";
+import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import { sm8ObjectPhase, SM8_PAUSE_MIDWALK } from "@/lib/integrations/sm8-sync-plan";
 import type { Sm8ObjectStatus, Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
 
@@ -159,6 +160,29 @@ describe("disconnect — the only control here that deletes", () => {
     expect((screen.getByText("Yes, disconnect") as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it("says how many files still waiting to go it would cancel", async () => {
+    const user = userEvent.setup();
+    render(<Servicem8Screen connection={toView(row())} waitingWrites={2} {...ready} />);
+    await openConfirm(user);
+    expect(screen.getByText("2 files still waiting to go to ServiceM8 are cancelled.")).toBeInTheDocument();
+  });
+
+  it("says it in a connection that needs reconnecting too — Disconnect is offered there", async () => {
+    const user = userEvent.setup();
+    render(
+      <Servicem8Screen connection={toView(row({ status: "needs_reauth" }))} waitingWrites={1} {...ready} />
+    );
+    await openConfirm(user);
+    expect(screen.getByText("1 file still waiting to go to ServiceM8 is cancelled.")).toBeInTheDocument();
+  });
+
+  it("leaves the line out when nothing is waiting", async () => {
+    const user = userEvent.setup();
+    render(<Servicem8Screen connection={toView(row())} waitingWrites={0} {...ready} />);
+    await openConfirm(user);
+    expect(screen.queryByText(/still waiting to go to ServiceM8/)).not.toBeInTheDocument();
+  });
+
   it("surfaces a refused disconnect rather than claiming success", async () => {
     disconnect.mockResolvedValue({ ok: false, error: "Only an owner can change connected apps." });
     const user = userEvent.setup();
@@ -172,6 +196,40 @@ describe("disconnect — the only control here that deletes", () => {
       await screen.findByText("Only an owner can change connected apps."),
     ).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
+  });
+});
+
+/* A reconnect to a different account cleared the old one's copy, so the
+   screen is the one place left that says which business it was. */
+describe("the account this one replaced", () => {
+  it("shows the previous account's name and the day it went", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row())}
+        previousAccount={{ name: "Acme Air", at: "2026-09-24T01:00:00.000Z" }}
+        {...ready}
+      />
+    );
+    expect(screen.getByText("Previous account")).toBeInTheDocument();
+    // the day in AU time, in the screen's own date format (en-AU spells it "Sept" on current ICU)
+    expect(screen.getByText(`Acme Air, until ${fmtAuWeekdayDate("2026-09-24")}`)).toBeInTheDocument();
+    expect(fmtAuWeekdayDate("2026-09-24")).toMatch(/^Thu 24 Sept? 2026$/);
+  });
+
+  it("an old account whose name was never read", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row())}
+        previousAccount={{ name: null, at: "2026-09-24T01:00:00.000Z" }}
+        {...ready}
+      />
+    );
+    expect(screen.getByText(/^Another ServiceM8 account, until/)).toBeInTheDocument();
+  });
+
+  it("is absent when the account never changed", () => {
+    render(<Servicem8Screen connection={toView(row())} {...ready} />);
+    expect(screen.queryByText("Previous account")).not.toBeInTheDocument();
   });
 });
 

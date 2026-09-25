@@ -130,10 +130,15 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-const sm8Access = jest.fn();
+/* The store is a fake — tokens are its suite's business — but the renewal
+   helper between it and the sender is the REAL one, so a 401 here goes
+   through exactly the renew-once-then-judge path production does. */
+const sm8AccessResult = jest.fn();
+const renewSm8Access = jest.fn();
 const markSm8NeedsReauth = jest.fn();
 jest.mock("../sm8-store", () => ({
-  sm8Access: (...a: unknown[]) => sm8Access(...a),
+  sm8AccessResult: (...a: unknown[]) => sm8AccessResult(...a),
+  renewSm8Access: (...a: unknown[]) => renewSm8Access(...a),
   markSm8NeedsReauth: (...a: unknown[]) => markSm8NeedsReauth(...a),
 }));
 
@@ -150,6 +155,7 @@ jest.mock("@/lib/workboard/job-notes-query", () => ({
   staffDisplayNames: jest.fn(async () => new Map([["staff-isaac", "Isaac Smith"]])),
 }));
 
+import { countSm8WritesInFlight, countWaitingSm8Writes } from "../sm8-write-cancel";
 import {
   cancelWaitingSm8Writes,
   enqueueAttachments,
@@ -162,6 +168,10 @@ import {
   setSm8WriteMode,
 } from "../sm8-writes";
 import { WRITE_BATCH, WRITE_WORDS } from "../sm8-write-plan";
+import { SM8_REVOKED } from "../sm8-sync-plan";
+
+const ACCESS = { accessToken: "token-1", tenantId: "vendor-1", grant: "g1" };
+const RENEWED = { accessToken: "token-2", tenantId: "vendor-1", grant: "g2" };
 
 const NOW = Date.parse("2026-09-24T01:00:00.000Z");
 const ORG = "org-1";
@@ -207,8 +217,9 @@ beforeEach(() => {
   storageFails = false;
   scheduled.length = 0;
   process.env.SM8_WRITES = "1";
-  sm8Access.mockReset().mockResolvedValue({ accessToken: "token-1" });
-  markSm8NeedsReauth.mockReset();
+  sm8AccessResult.mockReset().mockResolvedValue({ ok: true, access: ACCESS });
+  renewSm8Access.mockReset().mockResolvedValue({ ok: true, access: RENEWED });
+  markSm8NeedsReauth.mockReset().mockResolvedValue(true);
   postSm8Attachment.mockReset().mockResolvedValue({ status: 200, outcome: { kind: "created", remoteUuid: null } });
   readSm8Attachment.mockReset();
 });
@@ -375,22 +386,118 @@ describe("a trial run", () => {
     const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
     expect(run).toMatchObject({ done: 1, trial: 1, sent: 0 });
     expect(downloads).toEqual([`org/${ORG}/jobs/d1.pdf`]);
-    expect(sm8Access).not.toHaveBeenCalled();
+    expect(sm8AccessResult).not.toHaveBeenCalled();
     expect(postSm8Attachment).not.toHaveBeenCalled();
     expect(writes()[0]).toMatchObject({ status: "trial", lease_until: null });
   });
 });
 
 describe("what an answer does to the run", () => {
-  it("holds everything for a reconnect on a 401, flags the grant, and doesn't count it against the file", async () => {
+  it("a 401 that survives one renewal holds everything for a reconnect, flags THAT grant, and doesn't count it against the file", async () => {
     const { ids } = await queue("d1", "d2");
     postSm8Attachment.mockResolvedValue({ status: 401, outcome: { kind: "unauthorized" } });
     const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
     expect(run.done).toBe(1);
-    expect(postSm8Attachment).toHaveBeenCalledTimes(1);
-    expect(markSm8NeedsReauth).toHaveBeenCalledWith(ORG, expect.stringContaining("Reconnect ServiceM8"));
+    // the same file, the same uuid, once with each token
+    expect(postSm8Attachment).toHaveBeenCalledTimes(2);
+    expect(postSm8Attachment.mock.calls.map((c) => c[0])).toEqual(["token-1", "token-2"]);
+    expect(postSm8Attachment.mock.calls[1][1].uuid).toBe(postSm8Attachment.mock.calls[0][1].uuid);
+    expect(markSm8NeedsReauth).toHaveBeenCalledTimes(1);
+    expect(markSm8NeedsReauth).toHaveBeenCalledWith(ORG, SM8_REVOKED, RENEWED);
     expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0, last_error: WRITE_WORDS.reauth });
     expect(writes()[1]).toMatchObject({ status: "queued", attempts: 0 });
+  });
+
+  it("a 401 cured by one renewal sends the file and flags nothing", async () => {
+    /* The hourly token ran out mid-run: that is not a dead grant, and the
+       owner must not be asked to reconnect a connection that works. */
+    const { ids } = await queue("d1", "d2");
+    postSm8Attachment.mockImplementation(async (token: string) =>
+      token === "token-1"
+        ? { status: 401, outcome: { kind: "unauthorized" } }
+        : { status: 200, outcome: { kind: "created", remoteUuid: null } }
+    );
+    const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(run).toMatchObject({ done: 2, sent: 2, stopped: null });
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
+    // the renewed token is carried on: the second file needed no renewal of its own
+    expect(renewSm8Access).toHaveBeenCalledTimes(1);
+    expect(writes()[0]).toMatchObject({ status: "sent", attempts: 1 });
+  });
+
+  it("a token refresh that couldn't reach ServiceM8 stops with that, and touches no row", async () => {
+    const { ids } = await queue("d1");
+    const before = { ...writes()[0] };
+    sm8AccessResult.mockResolvedValue({ ok: false, reason: "unreachable" });
+    const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(run.stopped).toBe(WRITE_WORDS.unreachable);
+    expect(postSm8Attachment).not.toHaveBeenCalled();
+    expect(writes()[0]).toEqual(before);
+  });
+
+  it("a dead grant stops the run without touching a row", async () => {
+    const { ids } = await queue("d1");
+    sm8AccessResult.mockResolvedValue({ ok: false, reason: "reauth" });
+    const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(run.stopped).toBe(WRITE_WORDS.reauth);
+    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0 });
+  });
+
+  it("a renewal that couldn't reach ServiceM8 hands the attempt back and waits a minute", async () => {
+    const { ids } = await queue("d1", "d2");
+    postSm8Attachment.mockResolvedValue({ status: 401, outcome: { kind: "unauthorized" } });
+    renewSm8Access.mockResolvedValue({ ok: false, reason: "unreachable" });
+    const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(run).toMatchObject({ done: 1, stopped: WRITE_WORDS.unreachable });
+    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0, last_error: WRITE_WORDS.unreachable });
+    expect(writes()[0].next_attempt_at).toBe(new Date(NOW + 60_000).toISOString());
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
+  });
+
+  it("renewed too late in its claim, a send goes back to the queue instead of risking its lease", async () => {
+    const { ids } = await queue("d1");
+    let t = NOW;
+    postSm8Attachment.mockImplementation(async () => {
+      t += 45_000; // a slow upload, then the refusal
+      return { status: 401, outcome: { kind: "unauthorized" } };
+    });
+    await runSm8Writes(ORG, "send", { ids, clock: () => t });
+    expect(postSm8Attachment).toHaveBeenCalledTimes(1);
+    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0, last_error: null, lease_until: null });
+    expect(writes()[0].next_attempt_at).toBe(new Date(t).toISOString());
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
+  });
+
+  it("a token renewed onto a different account never carries the file", async () => {
+    // the owner reconnected to another account while the run was out
+    const { ids } = await queue("d1");
+    postSm8Attachment.mockResolvedValue({ status: 401, outcome: { kind: "unauthorized" } });
+    renewSm8Access.mockResolvedValue({ ok: true, access: { ...RENEWED, tenantId: "vendor-2" } });
+    await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(postSm8Attachment).toHaveBeenCalledTimes(1);
+    expect(writes()[0]).toMatchObject({ status: "cancelled", last_error: WRITE_WORDS.otherAccount });
+  });
+
+  it("a token renewed onto a connection that names no account never carries the file, and doesn't cancel it", async () => {
+    /* A nameless reconnect landed while the run was out: the token is for
+       SOME account, and nothing says it is the one this file was queued for. */
+    const { ids } = await queue("d1", "d2");
+    postSm8Attachment.mockResolvedValue({ status: 401, outcome: { kind: "unauthorized" } });
+    renewSm8Access.mockResolvedValue({ ok: true, access: { ...RENEWED, tenantId: null } });
+    const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(postSm8Attachment).toHaveBeenCalledTimes(1);
+    expect(run).toMatchObject({ done: 1, stopped: WRITE_WORDS.accountUnknown });
+    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0, last_error: WRITE_WORDS.accountUnknown });
+    expect(writes()[0].next_attempt_at).toBe(new Date(NOW + 60_000).toISOString());
+    expect(writes()[1]).toMatchObject({ status: "queued", attempts: 0 });
+  });
+
+  it("a first token from a connection that names no account sends nothing", async () => {
+    const { ids } = await queue("d1");
+    sm8AccessResult.mockResolvedValue({ ok: true, access: { ...ACCESS, tenantId: null } });
+    await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(postSm8Attachment).not.toHaveBeenCalled();
+    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0, last_error: WRITE_WORDS.accountUnknown });
   });
 
   it("backs off an unreachable ServiceM8 and ends the run, the next file untried", async () => {
@@ -491,6 +598,22 @@ describe("the switch, and cancelling", () => {
     await cancelWaitingSm8Writes(ORG, "because", NOW);
     expect(writes()[0].status).toBe("sending");
     expect(writes()[1].status).toBe("cancelled");
+  });
+
+  it("says what it cancelled, by the name each file would have gone under", async () => {
+    await queue("d1", "d2");
+    writes()[1].status = "sent";
+    expect(await cancelWaitingSm8Writes(ORG, "because", NOW)).toEqual([{ id: writes()[0].id, name: "d1.pdf" }]);
+  });
+
+  it("counts what is waiting and what is in flight by the same rule the cancel uses", async () => {
+    await queue("d1", "d2", "d3");
+    Object.assign(writes()[1], { status: "sending", lease_until: new Date(NOW + 60_000).toISOString() });
+    Object.assign(writes()[2], { status: "sending", lease_until: new Date(NOW - 60_000).toISOString() });
+    expect(await countWaitingSm8Writes(ORG, NOW)).toBe(2);
+    expect(await countSm8WritesInFlight(ORG, NOW)).toBe(1);
+    await cancelWaitingSm8Writes(ORG, "because", NOW);
+    expect(await countWaitingSm8Writes(ORG, NOW)).toBe(0);
   });
 });
 

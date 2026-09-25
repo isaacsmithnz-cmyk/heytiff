@@ -351,12 +351,32 @@ export const SM8_OBJECTS: Sm8ObjectSpec[] = [
 ];
 
 /** Everything disconnect wipes — the mirrors AND the bookkeeping, because a
-    cursor into data we no longer hold is a lie waiting for a reconnect. */
+    cursor into data we no longer hold is a lie waiting for a reconnect.
+
+    NOT sm8_vendor. It is the one record of WHICH account this workspace's
+    copy came from, and HeyTiff keeps more of that copy than the mirrors: the
+    cached photos, what was read off them, and the stars on them all survive
+    a disconnect, so reconnecting the same account doesn't pay to read them
+    again. Kept, the row makes a later connect of a DIFFERENT account a change
+    of account (switchSm8Account), which clears them; wiped, that connect
+    would look like a first one, and the old business's photos would stay
+    searchable under the new account. It holds the account's own name, zone
+    and currency — nothing of its client book. */
 export const SM8_WIPE_TABLES: string[] = [
   ...SM8_OBJECTS.map((s) => s.table),
-  "sm8_vendor",
   "sm8_sync_state",
   "sm8_sync_runs",
+];
+
+/** What a change of ServiceM8 account clears before the new one is read: the
+    mirrors and the cursors into them. NOT sm8_vendor, which the switch deletes
+    LAST by itself — while it still names the old account, an interrupted
+    clear is repeated by the next sync. And NOT sm8_sync_runs: a run under the
+    old grant may be holding its lease, and deleting the row would let a
+    second walker start beside it. */
+export const SM8_ACCOUNT_RESET_TABLES: string[] = [
+  ...SM8_OBJECTS.map((s) => s.table),
+  "sm8_sync_state",
 ];
 
 /* ── the order one run walks it ── */
@@ -460,6 +480,42 @@ export function maxEditDate(rows: MirrorRow[], seed: string | null): string | nu
     undefined that quietly falls through to "paused". */
 export const SM8_BILLING =
   "ServiceM8 isn't accepting requests for this account — its trial has ended or an invoice is outstanding. Choose a plan in ServiceM8, then sync.";
+
+/* ── the connection's own sentences ──
+
+   Here rather than in sm8-store for SM8_BILLING's reason: the store is what
+   the engine's, the sender's and the reader's tests replace, and the renewal
+   helper that marks a dead grant runs for real inside all three. */
+
+/** A grant ServiceM8 refused twice, a token apart: the needs_reauth reason. */
+export const SM8_REVOKED = "ServiceM8 no longer accepts this connection. Reconnect ServiceM8.";
+
+/** ServiceM8 didn't answer, or answered with its own trouble. */
+export const SM8_UNREACHABLE = "ServiceM8 couldn't be reached — resuming next sync.";
+
+/** The run that found a different ServiceM8 account behind the connection. */
+export const SM8_ACCOUNT_SWITCHED =
+  "The ServiceM8 account changed. The old copy was cleared, and this one is being read from the start.";
+
+/** A run started under one account, and the connection was moved to another
+    while it walked. */
+export const SM8_ACCOUNT_MOVED =
+  "The ServiceM8 account changed during this sync, so it stopped. The next sync reads the new one.";
+
+/** The account changed, and clearing the old copy didn't finish. */
+export const SM8_ACCOUNT_UNCLEARED =
+  "The ServiceM8 account changed, and the old copy couldn't be cleared yet. The next sync tries again.";
+
+/** HeyTiff's own record of which account is connected, or which one the copy
+    came from, couldn't be read. Without it a changed account can't be told
+    from the same one, so nothing is named, cleared or written. */
+export const SM8_ACCOUNT_UNREAD =
+  "HeyTiff couldn't check which ServiceM8 account this is, so the sync stopped. The next sync tries again.";
+
+/** A nameless connection turned out to hold an account another workspace
+    already has: one account, one workspace. */
+export const SM8_ELSEWHERE =
+  "This ServiceM8 account is connected to another HeyTiff workspace. Disconnect it there, or reconnect with a different account.";
 
 /* ── a pause is not a failure ── */
 

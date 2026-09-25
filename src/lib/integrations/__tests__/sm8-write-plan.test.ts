@@ -19,8 +19,14 @@ import {
   subjectDocumentId,
   twinsToHide,
   verdictFor,
+  verdictForAccountUnknown,
+  verdictForDisconnected,
+  verdictForRenewLate,
+  verdictForRenewUnreachable,
   verdictForUnreadable,
+  WRITE_LEASE_MS,
   WRITE_MAX_ATTEMPTS,
+  WRITE_RETRY_CUTOFF_MS,
   WRITE_RETRY_AFTER_MS,
   WRITE_WORDS,
   type JobSend,
@@ -294,5 +300,55 @@ describe("what a press says", () => {
         nameOf
       )
     ).toBe(`Public liability wasn't sent. ${WRITE_WORDS.refused} 2 more didn't go either.`);
+  });
+});
+
+describe("a refused token, renewed", () => {
+  it("a renewal that couldn't reach ServiceM8 waits a minute, hands the attempt back and stops — never a reconnect", () => {
+    expect(verdictForRenewUnreachable()).toEqual({
+      status: "queued",
+      error: WRITE_WORDS.unreachable,
+      retryAfterMs: 60_000,
+      refund: true,
+      stop: true,
+      reauth: false,
+    });
+  });
+
+  it("a connection gone mid-run leaves the row for the next run to cancel, and stops", () => {
+    expect(verdictForDisconnected()).toMatchObject({
+      status: "queued",
+      error: WRITE_WORDS.disconnected,
+      refund: true,
+      stop: true,
+      reauth: false,
+    });
+  });
+
+  it("a token whose connection names no account waits, hands the attempt back and stops — never cancelled, never sent", () => {
+    expect(verdictForAccountUnknown()).toEqual({
+      status: "queued",
+      error: WRITE_WORDS.accountUnknown,
+      retryAfterMs: 60_000,
+      refund: true,
+      stop: true,
+      reauth: false,
+    });
+  });
+
+  it("renewed too late for the claim, the row goes back as it was, due at once", () => {
+    expect(verdictForRenewLate()).toEqual({
+      status: "queued",
+      error: null,
+      retryAfterMs: 0,
+      refund: true,
+      stop: false,
+      reauth: false,
+    });
+  });
+
+  it("a second try started before the cut-off ends inside the lease", () => {
+    // the upload's own 60 s timeout, and a 10 s read-back after a 409
+    expect(WRITE_RETRY_CUTOFF_MS + 60_000 + 10_000).toBeLessThan(WRITE_LEASE_MS);
   });
 });

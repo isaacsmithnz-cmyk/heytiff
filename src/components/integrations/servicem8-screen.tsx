@@ -14,6 +14,7 @@ import { disconnectServiceM8Action, syncServiceM8NowAction } from "@/app/actions
 import { PeopleImportCard, type PeopleCardData } from "@/components/integrations/people-import-card";
 import { ConnectActions } from "@/components/integrations/connect-actions";
 import { Sm8WritesCard, type Sm8WritesView } from "@/components/integrations/sm8-writes-card";
+import { nameList, sm8WaitingConsequence } from "@/lib/integrations/outcome";
 
 /* The ServiceM8 connection screen — xero-screen's sibling, same two refusals
    to be vague (WHAT IT IS FOR, WHAT IT CAN SEE), and the shared ConnectActions
@@ -53,6 +54,11 @@ export type Servicem8ScreenProps = {
   /** Sending files to ServiceM8 — null until connected, and on a
       deployment that can't write. */
   writes?: Sm8WritesView | null;
+  /** Files still waiting to go to ServiceM8, which a disconnect cancels. */
+  waitingWrites?: number;
+  /** The account this workspace was connected to before the current one,
+      and when it was replaced; null when it never changed. */
+  previousAccount?: { name: string | null; at: string } | null;
 };
 
 /** "just now" / "4 min ago" / "3 hours ago" — the board's staleness language,
@@ -81,13 +87,6 @@ function agoLabel(iso: string | null): string {
     unseparated run of digits is the one place a number stops being read. */
 const num = (n: number) => n.toLocaleString("en-AU");
 
-/** "Attachments", "Attachments and Jobs", "Attachments, Jobs and 2 more". */
-function nameList(labels: string[]): string {
-  if (labels.length <= 1) return labels[0] ?? "";
-  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
-  return `${labels[0]}, ${labels[1]} and ${labels.length - 2} more`;
-}
-
 export function Servicem8Screen({
   connection,
   configured,
@@ -98,6 +97,8 @@ export function Servicem8Screen({
   people,
   elsewhere = 0,
   writes = null,
+  waitingWrites = 0,
+  previousAccount = null,
 }: Servicem8ScreenProps) {
   const provider = providerById("servicem8")!;
   const router = useRouter();
@@ -204,6 +205,17 @@ export function Servicem8Screen({
                     {connection.scopes.length === 1 ? "" : "s"}
                   </dd>
                 </div>
+                {/* The account this one replaced. Its copy was cleared, so this
+                    line is the one trace of which business it was. */}
+                {previousAccount && (
+                  <div>
+                    <dt>Previous account</dt>
+                    <dd>
+                      {previousAccount.name ?? "Another ServiceM8 account"}, until{" "}
+                      {fmtAuWeekdayDate(auDayOf(previousAccount.at))}
+                    </dd>
+                  </div>
+                )}
                 {/* Proof the grant READS, not just that it exists. A connection
                     revoked from ServiceM8's own add-ons screen still has a row
                     and unexpired-looking tokens — this is where that shows. */}
@@ -263,6 +275,7 @@ export function Servicem8Screen({
               consequences={[
                 "HeyTiff's stored credentials for this account are deleted.",
                 "Every mirrored row goes with them — clients, jobs, schedule, checklists and staff.",
+                ...[sm8WaitingConsequence(waitingWrites)].filter((c): c is string => c !== null),
                 "Workboard rows you created here stay, on the names they already captured.",
                 "Reconnecting the same account rebuilds the mirror in a few minutes.",
               ]}

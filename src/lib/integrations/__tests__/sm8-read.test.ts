@@ -11,14 +11,20 @@ jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
 // eslint-disable-next-line no-var
 var sm8AccessMock: jest.Mock;
 // eslint-disable-next-line no-var
+var renewMock: jest.Mock;
+// eslint-disable-next-line no-var
 var needsReauthMock: jest.Mock;
 jest.mock("../sm8-store", () => {
   sm8AccessMock = jest.fn();
-  needsReauthMock = jest.fn(async () => {});
-  return { sm8Access: sm8AccessMock, markSm8NeedsReauth: needsReauthMock };
+  renewMock = jest.fn();
+  needsReauthMock = jest.fn(async () => true);
+  return { sm8AccessResult: sm8AccessMock, renewSm8Access: renewMock, markSm8NeedsReauth: needsReauthMock };
 });
 
-import { fetchSm8Page, readSm8StaffRows } from "../sm8-read";
+import { fetchSm8Page, readSm8StaffRows, readSm8Vendor } from "../sm8-read";
+
+const ACCESS = { accessToken: "tok", tenantId: "v-1", grant: "g1" };
+const RENEWED = { accessToken: "tok-2", tenantId: "v-1", grant: "g2" };
 
 /* jsdom's test globals don't reliably carry Node's fetch classes, so the
    fakes are plain objects shaped like the four things the reader touches —
@@ -203,7 +209,7 @@ describe("what an unavailable failure tells the server", () => {
   });
 });
 
-describe("readSm8StaffRows — the import screen's live walk", () => {
+describe("with a grant to read through", () => {
   const ENV = { SM8_CLIENT_ID: "id", SM8_CLIENT_SECRET: "secret", APP_BASE_URL: "https://app.test" };
   const saved: Record<string, string | undefined> = {};
 
@@ -220,8 +226,48 @@ describe("readSm8StaffRows — the import screen's live walk", () => {
     }
   });
   beforeEach(() => {
-    sm8AccessMock.mockReset().mockResolvedValue({ accessToken: "tok" });
+    sm8AccessMock.mockReset().mockResolvedValue({ ok: true, access: ACCESS });
+    renewMock.mockReset().mockResolvedValue({ ok: true, access: RENEWED });
     needsReauthMock.mockClear();
+  });
+
+  const vendorBody = [{ uuid: "v-1", name: "Acme Air", timezone_name: "Australia/Brisbane" }];
+  const bearerOf = (call: unknown[]) =>
+    ((call[1] as RequestInit).headers as Record<string, string>).Authorization;
+
+  it("readSm8Vendor renews a refused token once and reads with the new one, flagging nothing", async () => {
+    /* The hourly token running out between the page's refresh check and the
+       read used to flag the connection needs_reauth, so the owner's screen
+       said "reconnect" about a connection that worked. */
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse("unauthorized", { status: 401 }))
+      .mockResolvedValueOnce(jsonResponse(vendorBody));
+    const out = await readSm8Vendor("org-1");
+    expect(out).toMatchObject({ ok: true, data: { uuid: "v-1", name: "Acme Air" } });
+    expect(bearerOf(fetchMock.mock.calls[1])).toBe("Bearer tok-2");
+    expect(needsReauthMock).not.toHaveBeenCalled();
+  });
+
+  it("readSm8Vendor flags the renewed grant when it is refused too", async () => {
+    fetchMock.mockResolvedValue(jsonResponse("unauthorized", { status: 401 }));
+    const out = await readSm8Vendor("org-1");
+    expect(out).toEqual({ ok: false, error: "The ServiceM8 connection needs reconnecting." });
+    expect(needsReauthMock).toHaveBeenCalledTimes(1);
+    expect(needsReauthMock).toHaveBeenCalledWith("org-1", expect.stringContaining("Reconnect"), RENEWED);
+  });
+
+  it("a refresh that couldn't reach ServiceM8 says so, not 'isn't connected'", async () => {
+    sm8AccessMock.mockResolvedValue({ ok: false, reason: "unreachable" });
+    const out = await readSm8Vendor("org-1");
+    expect(out.ok).toBe(false);
+    if (!out.ok) expect(out.error).toMatch(/couldn't be reached/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("a grant already flagged says reconnect", async () => {
+    sm8AccessMock.mockResolvedValue({ ok: false, reason: "reauth" });
+    const out = await readSm8Vendor("org-1");
+    expect(out).toEqual({ ok: false, error: "The ServiceM8 connection needs reconnecting." });
   });
 
   it("walks every page and hands back the concatenated raw rows", async () => {
@@ -248,15 +294,24 @@ describe("readSm8StaffRows — the import screen's live walk", () => {
     expect(needsReauthMock).not.toHaveBeenCalled();
   });
 
-  it("marks the row needs_reauth on a dead grant, like the vendor read does", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse("unauthorized", { status: 401 }));
+  it("marks the row needs_reauth on a grant refused after one renewal, like the vendor read does", async () => {
+    fetchMock.mockResolvedValue(jsonResponse("unauthorized", { status: 401 }));
     const out = await readSm8StaffRows("org-1");
     expect(out.ok).toBe(false);
-    expect(needsReauthMock).toHaveBeenCalledWith("org-1", expect.stringContaining("Reconnect"));
+    expect(renewMock).toHaveBeenCalledTimes(1);
+    expect(needsReauthMock).toHaveBeenCalledWith("org-1", expect.stringContaining("Reconnect"), RENEWED);
+  });
+
+  it("a staff page refused once is renewed and the walk goes on", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse("unauthorized", { status: 401 }))
+      .mockResolvedValueOnce(jsonResponse([{ uuid: "u-1" }]));
+    expect(await readSm8StaffRows("org-1")).toEqual({ ok: true, data: [{ uuid: "u-1" }] });
+    expect(needsReauthMock).not.toHaveBeenCalled();
   });
 
   it("reads as not-connected when there is no grant to read through", async () => {
-    sm8AccessMock.mockResolvedValue(null);
+    sm8AccessMock.mockResolvedValue({ ok: false, reason: "not_connected" });
     const out = await readSm8StaffRows("org-1");
     expect(out.ok).toBe(false);
     if (!out.ok) expect(out.error).toMatch(/isn't connected/i);

@@ -14,7 +14,8 @@
    bare access token. */
 
 import { fetchSm8Vendor, SM8_API_BASE, sm8Config, type Sm8Vendor } from "./sm8";
-import { markSm8NeedsReauth, sm8Access } from "./sm8-store";
+import { sm8AccessResult, type Sm8AccessResult } from "./sm8-store";
+import { withSm8Renewal, type RenewVerdict } from "./sm8-renew";
 import { SM8_BILLING } from "./sm8-sync-plan";
 import type { ReadResult } from "./xero-read";
 
@@ -24,23 +25,45 @@ const NOT_CONNECTED = "ServiceM8 isn't connected for this workspace.";
 const UNAVAILABLE = "ServiceM8 couldn't be reached just now. Try again shortly.";
 const REAUTH = "The ServiceM8 connection needs reconnecting.";
 
+/** Why there was no token to read with, as the screen's sentence: a refresh
+    that couldn't reach ServiceM8 is "try again shortly", never "reconnect". */
+function noAccess(r: Extract<Sm8AccessResult, { ok: false }>): string {
+  return r.reason === "unreachable" ? UNAVAILABLE : r.reason === "reauth" ? REAUTH : NOT_CONNECTED;
+}
+
+/** A renewal that ended the read, as the screen's sentence; null when the
+    answer it came back with should be read as usual. */
+function renewalEnded(verdict: RenewVerdict): string | null {
+  if (verdict === "dead") return REAUTH; // flagged already, for this grant only
+  if (verdict === "unreachable") return UNAVAILABLE;
+  if (verdict === "gone") return NOT_CONNECTED;
+  return null;
+}
+
 /** One live read of the account identity. Doubles as the health check: a
     connection revoked from ServiceM8's own side still has a row and
-    unexpired-looking tokens here, and this is what notices — the 401 marks
-    the row needs_reauth, so the next render says "reconnect". */
+    unexpired-looking tokens here, and this is what notices — a 401 that
+    survives one renewal marks the row needs_reauth, so the next render says
+    "reconnect". A token that merely ran out is renewed and the read goes on:
+    this runs on every render of the connection screen, and an hourly token
+    expiring must not read as a dead connection. */
 export async function readSm8Vendor(orgId: string): Promise<ReadResult<Sm8Vendor>> {
   if (!sm8Config()) return { ok: false, error: NOT_CONNECTED };
 
-  const access = await sm8Access(orgId);
-  if (!access) return { ok: false, error: NOT_CONNECTED };
+  const got = await sm8AccessResult(orgId);
+  if (!got.ok) return { ok: false, error: noAccess(got) };
 
-  const result = await fetchSm8Vendor(access.accessToken);
+  const read = await withSm8Renewal(
+    orgId,
+    got.access,
+    (a) => fetchSm8Vendor(a.accessToken),
+    (r) => !r.ok && r.unauthorized
+  );
+  const ended = renewalEnded(read.verdict);
+  if (ended) return { ok: false, error: ended };
+
+  const result = read.result;
   if (result.ok) return { ok: true, data: result.vendor };
-
-  if (result.unauthorized) {
-    await markSm8NeedsReauth(orgId, "ServiceM8 no longer accepts this connection. Reconnect ServiceM8.");
-    return { ok: false, error: REAUTH };
-  }
   /* Deliberately NOT needs_reauth: the grant is fine, and telling someone to
      reconnect a healthy connection sends them round a loop that cannot fix a
      billing state. */
@@ -65,20 +88,26 @@ export async function readSm8StaffRows(
 ): Promise<ReadResult<Record<string, unknown>[]>> {
   if (!sm8Config()) return { ok: false, error: NOT_CONNECTED };
 
-  const access = await sm8Access(orgId);
-  if (!access) return { ok: false, error: NOT_CONNECTED };
+  const got = await sm8AccessResult(orgId);
+  if (!got.ok) return { ok: false, error: noAccess(got) };
+  let access = got.access;
 
   const rows: Record<string, unknown>[] = [];
   let cursor = "-1";
   /* A staff list is tens of rows; ten pages is ten thousand. Past that the
      walk is wrong, not the team big — stop rather than loop. */
   for (let pages = 0; pages < 10; pages++) {
-    const page = await fetchSm8Page(access.accessToken, "staff.json", { cursor, filter: null });
+    const read = await withSm8Renewal(
+      orgId,
+      access,
+      (a) => fetchSm8Page(a.accessToken, "staff.json", { cursor, filter: null }),
+      (p) => !p.ok && p.failure === "unauthorized"
+    );
+    access = read.access;
+    const ended = renewalEnded(read.verdict);
+    if (ended) return { ok: false, error: ended };
+    const page = read.result;
     if (!page.ok) {
-      if (page.failure === "unauthorized") {
-        await markSm8NeedsReauth(orgId, "ServiceM8 no longer accepts this connection. Reconnect ServiceM8.");
-        return { ok: false, error: REAUTH };
-      }
       if (page.failure === "forbidden") return { ok: false, error: STAFF_SCOPE };
       if (page.failure === "payment_required") return { ok: false, error: SM8_BILLING };
       return { ok: false, error: UNAVAILABLE };

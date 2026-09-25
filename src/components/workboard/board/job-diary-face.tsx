@@ -709,7 +709,9 @@ function NoteEv({
               <ConfirmDoors onConfirm={doors.onConfirm} thenSend={entry.id} />
             </>
           )}
-          {acts.includes("send_again") && doors.onSendCopy && (
+          {/* the question was answered since (here, or on another note):
+              the row can simply go again */}
+          {(acts.includes("send_again") || (acts.includes("confirm") && sender?.state === "ready")) && doors.onSendCopy && (
             <button className="wb2-evdoor" onClick={() => doors.onSendCopy!(entry.id!)}>
               {NOTE_WORDS.door.sendAgain}
             </button>

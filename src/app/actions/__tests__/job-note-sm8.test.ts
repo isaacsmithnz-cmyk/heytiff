@@ -737,6 +737,19 @@ describe("Remove (removeJobNote)", () => {
     expect(noteRow(id)!.removed_at).toBeNull();
   });
 
+  it("(F) (verifier r2 1) someone else's Remove on a removed row still in ServiceM8 names its sender, and queues nothing", async () => {
+    const id = seedEntry();
+    await sendJobNoteToServiceM8({ jobUuid: JOB, noteId: id });
+    conn().write_kinds = ["attachment"];
+    await takeBackJobNote({ jobUuid: JOB, noteId: id });
+    expect(noteRow(id)!.removed_at).toBeTruthy();
+    const before = JSON.stringify(writes());
+    as("staff-luke");
+    expect(await removeJobNote(id)).toEqual({ ok: false, error: "Only Isaac Smith, who sent it, can take it out of ServiceM8." });
+    expect(JSON.stringify(writes())).toBe(before);
+    expect(noteRow(id)).toBeDefined();
+  });
+
   it("(F) (verifier 2c) a Remove racing its author's Send meets the key, and takes it back as the author — or not at all for anyone else", async () => {
     conn().write_mode = "paused";
     const race = async (remover: string) => {

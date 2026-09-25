@@ -305,6 +305,13 @@ describe("our own notes' lines and doors", () => {
     expect(view.onConfirm).toHaveBeenLastCalledWith("no", undefined);
   });
 
+  it("a row that asked the question offers Send again once you've answered it elsewhere", async () => {
+    const view = draw([ours({ state: lineFor(null, { refusal: "confirm" }) })]);
+    expect(within(evOf("@lukeingold")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Send again", "Undo"]);
+    await userEvent.click(screen.getByRole("button", { name: NOTE_WORDS.door.sendAgain }));
+    expect(view.onSendCopy).toHaveBeenCalledWith("r1");
+  });
+
   it("your own entry that stayed in HeyTiff offers Send to ServiceM8 beside Remove; someone else's only Remove", async () => {
     const plain = ours({ key: "ournote:d1", id: "d1", text: "Drain kit still to go on", replyTo: null, hasCreate: false, state: null });
     const view = draw([plain]);

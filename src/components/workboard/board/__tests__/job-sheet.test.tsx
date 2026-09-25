@@ -1478,6 +1478,24 @@ describe("notes to ServiceM8 on the card", () => {
     await waitFor(() => expect(f.queryByText("@lukeingold on my way")).toBeNull());
   });
 
+  it("Remove on an entry that went keeps it, taking it out, until it has gone", async () => {
+    const entry = reply({ id: "d-1", text: "Drain kit still to go on", replyTo: null, state: null, hasCreate: true });
+    readMirrorJob.mockResolvedValue(card(detail()));
+    readJobRecord.mockResolvedValue(withNotes({ ourNotes: [entry], attention: { items: [], total: 0 } }));
+    removeJobNote.mockResolvedValueOnce({ ok: true, gone: false } as never);
+    noteSm8.readJobNoteStates
+      .mockResolvedValueOnce({ ours: { "d-1": { key: "line.takingOut", text: NOTE_WORDS.line.takingOut, tone: null, acts: [] } }, flags: {} })
+      .mockResolvedValue({ ours: {}, flags: {} });
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Diary");
+    const f = face("diary");
+    await userEvent.click(await f.findByRole("button", { name: "Remove" }));
+    expect(await f.findByText(NOTE_WORDS.line.takingOut)).toBeInTheDocument();
+    expect(f.getByText("Drain kit still to go on")).toBeInTheDocument();
+    removeJobNote.mockClear();
+  });
+
   it("is not there at all where the deployment sends no notes", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(

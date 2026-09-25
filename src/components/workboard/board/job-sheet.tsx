@@ -1132,10 +1132,17 @@ export function JobSheet({
     void removeJobNote(id)
       .then((res) => {
         if (!res || (res.ok && res.gone)) return;
-        /* refused, or kept as "Still in ServiceM8": it stays, and says why */
-        setOurNotes(before);
-        if (!res.ok) onToast(res.error);
-        else void refreshNoteStates();
+        /* refused: it stays, and says why */
+        if (!res.ok) {
+          setOurNotes(before);
+          onToast(res.error);
+          return;
+        }
+        /* taken back but something of it may still be in ServiceM8: it
+           stays, removed, while its line says so */
+        setOurNotes((before ?? []).map((n) => (n.id === id ? { ...n, removed: true } : n)));
+        void refreshNoteStates();
+        kickPoll();
       })
       .catch(() => {
         setOurNotes(before);

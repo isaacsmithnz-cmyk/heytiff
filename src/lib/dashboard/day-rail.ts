@@ -241,6 +241,22 @@ export function railSaysEmpty(itemCount: number, missing: RailMissing): boolean 
   return itemCount === 0 && missing === null;
 }
 
+/** Which layer the day is short of — the band's inline answer, lifted here
+    for Home's new day bar (the band keeps its own copy until it goes).
+
+    A WORKSPACE WITHOUT SERVICEM8 IS SHORT OF NOTHING. There are no bookings
+    anywhere for it to miss, so its day is complete with its timed tasks
+    alone, and "nobody in ServiceM8 is linked to your account yet" would be a
+    sentence about a product it does not use. The band asks only `enabled`
+    and `linked`, which is right for the one workspace that has always had
+    ServiceM8 and wrong for every one that has not. `connected` goes first
+    for that reason: without it, the other two questions have no answer. */
+export function railMissing(rail: { enabled: boolean; linked: boolean; connected: boolean }): RailMissing {
+  if (!rail.connected) return null;
+  if (!rail.enabled) return "workboard";
+  return rail.linked ? null : "link";
+}
+
 /** Where the top of a minute sits, in pixels down the rail. */
 export function railTop(min: number, bounds: RailBounds): number {
   return ((min - bounds.startMin) / 60) * RAIL_PX_PER_HOUR;
@@ -494,6 +510,59 @@ export function jobsOnRail<J extends { remoteId: string }>(
   for (const b of blocks) {
     const j = byId.get(b.remoteId);
     if (j && !out.includes(j)) out.push(j);
+  }
+  return out;
+}
+
+/** A per-job record cut down to the jobs on the viewer's own day — the
+    `jobsOnRail` rule for a record. The day's payload knows every job booked
+    on it; the ones in somebody else's lane are not on this bar and do not
+    ride to the browser with it. */
+export function railWhereOf<V>(
+  blocks: readonly { remoteId: string }[],
+  byJob: Readonly<Record<string, V>>
+): Record<string, V> {
+  const out: Record<string, V> = {};
+  for (const b of blocks) {
+    if (Object.prototype.hasOwnProperty.call(byJob, b.remoteId)) out[b.remoteId] = byJob[b.remoteId];
+  }
+  return out;
+}
+
+/** Who else is on each of the viewer's jobs today, by first name — the
+    panel's "With Luke". Read off the board's own lanes, so "booked on it"
+    means exactly what the Schedule tab draws.
+
+    Everyone else booked on the SAME JOB on this day counts, whether or not
+    their hours meet yours: a two-man install where one arrives after lunch
+    is still a job you are on together. The viewer is left out (`mineUuid`),
+    and so is the unassigned lane — "Nobody named" is not a person.
+
+    One name per person, in lane order (whoever started first). A first name
+    two of them share would say one person twice, so those two keep their
+    whole names. A job nobody else is on has no entry: the panel leaves With
+    out rather than saying "Solo". */
+export function railCrewOf(
+  lanes: readonly { staffUuid: string; name: string; blocks: readonly { remoteId: string }[] }[],
+  blocks: readonly { remoteId: string }[],
+  mineUuid: string | null
+): Record<string, string[]> {
+  const jobs = [...new Set(blocks.map((b) => b.remoteId))];
+  const people = new Map<string, { uuid: string; name: string }[]>(jobs.map((j) => [j, []]));
+  for (const lane of lanes) {
+    const name = lane.name.trim();
+    if (lane.staffUuid === "" || lane.staffUuid === mineUuid || !name) continue;
+    for (const b of lane.blocks) {
+      const list = people.get(b.remoteId);
+      if (list && !list.some((p) => p.uuid === lane.staffUuid)) list.push({ uuid: lane.staffUuid, name });
+    }
+  }
+  const out: Record<string, string[]> = {};
+  for (const job of jobs) {
+    const list = people.get(job)!;
+    if (list.length === 0) continue;
+    const firsts = list.map((p) => p.name.split(/\s+/)[0]);
+    out[job] = list.map((p, i) => (firsts.filter((f) => f === firsts[i]).length > 1 ? p.name : firsts[i]));
   }
   return out;
 }

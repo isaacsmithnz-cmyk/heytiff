@@ -131,6 +131,9 @@ const rail = (over: Partial<HomeRail> = {}): HomeRail => ({
   tracksTime: false,
   manage: false,
   moneyVisible: false,
+  connected: true,
+  where: {},
+  crew: {},
   ...over,
 });
 
@@ -158,6 +161,7 @@ const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   viewerStaffId: "s1",
   today: TODAY,
   rail: rail(),
+  desk: null,
   ...over,
 });
 

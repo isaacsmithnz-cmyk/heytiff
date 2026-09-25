@@ -62,7 +62,7 @@ jest.mock("../tasks-query", () => ({
   loadStaffNames: jest.fn(),
   mentionableStaff: jest.fn(),
 }));
-jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: jest.fn() }));
+jest.mock("@/lib/workboard/query", () => ({ sm8VendorOf: jest.fn(async () => ({ tz: null, connected: false })) }));
 jest.mock("@/lib/workboard/schedule-query", () => ({ EMPTY_SCHEDULE: {}, loadScheduleDay: jest.fn() }));
 jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: jest.fn() }));
 const sm8QueueStuck = jest.fn();

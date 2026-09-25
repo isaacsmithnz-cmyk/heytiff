@@ -13,8 +13,6 @@ import { CLAIM_NUDGE_DAYS } from "./chips";
 import { listStaffCompliance, type StaffCompliance } from "./query";
 import { ownDetailsGap } from "@/lib/staff/onboarding";
 import { isLibraryApproved, pendingSignons, raisedIssues } from "@/lib/swms/query";
-import { listOrgCredentials, orgExpiryWindow } from "@/lib/org/query";
-import type { OrgCredential } from "@/lib/org/credentials";
 import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
 import { ownDeclinedLeave, pendingLeaveCount } from "@/lib/timepay/leave-query";
 import { buildCalendar, calendarSpan, type LeaveCalendar } from "./calendar";
@@ -38,11 +36,20 @@ import {
 import type { MentionTarget } from "./comments";
 import type { BoardNotice } from "./board";
 import { RECENT_DONE_DAYS, sortNotices, sortTasks, type DashTask } from "./tasks";
-import { getSm8Timezone } from "@/lib/workboard/query";
+import { sm8VendorOf } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { EMPTY_SCHEDULE, loadScheduleDay } from "@/lib/workboard/schedule-query";
 import { layoutScheduleDay, type ScheduleBlock } from "@/lib/workboard/schedule";
-import { jobsOnRail, nowMinInZone, railTasksOf, type RailTask } from "./day-rail";
+import {
+  jobsOnRail,
+  nowMinInZone,
+  railCrewOf,
+  railTasksOf,
+  railWhereOf,
+  type RailTask,
+} from "./day-rail";
+import { deskOn } from "./desk-flag";
+import { loadDesk, readHomeShared, type DeskData, type HomeShared } from "./desk-data";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { sm8QueueStuck } from "@/lib/integrations/sm8-writes";
@@ -98,6 +105,9 @@ export type DashboardData = {
   /** The day beside the diary: today's bookings and the tasks that named an
       hour. See ./day-rail for what earns a place on it. */
   rail: HomeRail;
+  /** The new Home's own data, or null for a viewer still on today's Home
+      (`HOME_DESK`, ./desk-flag). Nothing reads it for them. */
+  desk: DeskData | null;
 };
 
 export type HomeRail = {
@@ -152,6 +162,15 @@ export type HomeRail = {
   manage: boolean;
   /** `workboard_money` — whether the card may show a Money face at all. */
   moneyVisible: boolean;
+  /** Does this workspace hold a ServiceM8 copy at all (`sm8VendorOf`)?
+      Without one there are no bookings for the day to be missing, so the
+      day says nothing about ServiceM8 — see `railMissing`. */
+  connected: boolean;
+  /** job uuid → its street line, for the jobs on this day only. */
+  where: Record<string, string>;
+  /** job uuid → everyone else booked on it today, by first name; a job
+      nobody else is on has no entry. This day's jobs only. */
+  crew: Record<string, string[]>;
 };
 
 const EMPTY_RAIL: HomeRail = {
@@ -167,6 +186,9 @@ const EMPTY_RAIL: HomeRail = {
   tracksTime: false,
   manage: false,
   moneyVisible: false,
+  connected: false,
+  where: {},
+  crew: {},
 };
 
 const EMPTY: DashboardData = {
@@ -182,6 +204,7 @@ const EMPTY: DashboardData = {
   viewerStaffId: null,
   today: todayInAu(),
   rail: EMPTY_RAIL,
+  desk: null,
 };
 
 export async function loadDashboard(): Promise<DashboardData> {
@@ -201,7 +224,11 @@ export async function loadDashboard(): Promise<DashboardData> {
      screen and the ServiceM8 people screen — so the owner question is asked
      once here and travelled, rather than each chip guessing from a
      capability that does not gate the page it points at. */
-  const isOwner = hasMinRole(await getDbRole(), "owner");
+  const role = await getDbRole();
+  const isOwner = hasMinRole(role, "owner");
+  /* The new Home is built behind HOME_DESK and shown to whoever the flag
+     names; everyone else gets today's Home and none of its reads. */
+  const desk = deskOn(role);
   const today = todayInAu();
   const viewerStaffId = await staffProfileIdFor(orgId, userId);
 
@@ -211,13 +238,37 @@ export async function loadDashboard(): Promise<DashboardData> {
      when five reads raced an edit. */
   /* The zone comes from the connected ServiceM8 account, and the rail's day
      with it. Read alongside the names rather than after them: neither depends
-     on the other, and this one gates a query in the batch below. */
-  const [names, railTz] = await Promise.all([loadStaffNames(orgId), getSm8Timezone(orgId)]);
+     on the other, and this one gates a query in the batch below.
+
+     Three more ride here because the batch below needs their answers rather
+     than their company. WHICH OF THE CREW THE VIEWER IS: one cheap read on
+     the table that is the app's law for it — never a name match, which is
+     exactly the guessing `integration_links` exists to end (see
+     lib/integrations/links and the one-truth-per-staff-member rule) — and a
+     read that needs `mineUuid` can then ride the batch instead of queueing
+     behind it. And the expiry window and the org's credentials, which the
+     chips have always read for themselves: read once here and shared, so the
+     new Home's areas never read them a second time (./desk-data). */
+  const [names, vendor, sm8Links, shared] = await Promise.all([
+    loadStaffNames(orgId),
+    sm8VendorOf(orgId),
+    caps.has("workboard") && viewerStaffId
+      ? sm8StaffLinkMap(orgId)
+      : Promise.resolve(new Map<string, string>()),
+    readHomeShared(orgId, isOwner),
+  ]);
+  const railTz = vendor.tz;
   const railDay = todayInZone(railTz);
   const railNowMin = nowMinInZone(railTz);
 
-  const [chips, calendar, tasks, notices, assignable, journal, jobs, issues, schedule, sm8Links] = await Promise.all([
-    loadChips(orgId, viewerStaffId, caps, today, isOwner),
+  /* The map is remote-uuid → staff card, so finding the viewer is a scan of
+     something with one row per linked person: small by construction, and the
+     alternative is a second query for a fact already in hand. */
+  const mineUuid =
+    [...sm8Links.entries()].find(([, staffId]) => staffId === viewerStaffId)?.[0] ?? null;
+
+  const [chips, calendar, tasks, notices, assignable, journal, jobs, issues, schedule, deskData] = await Promise.all([
+    loadChips(orgId, viewerStaffId, caps, today, isOwner, shared),
     loadCalendar(orgId, today, viewerStaffId, canManage),
     loadTasks(orgId, viewerStaffId, canManage, names),
     listNotices(orgId, viewerStaffId, NOTICE_WINDOW, names).then(sortNotices),
@@ -234,21 +285,22 @@ export async function loadDashboard(): Promise<DashboardData> {
     /* The day rail. Same gate as the board it mirrors — a viewer without
        `workboard` may not see the crew's bookings, on Home or anywhere. */
     caps.has("workboard") ? loadScheduleDay(orgId, railDay) : Promise.resolve(EMPTY_SCHEDULE),
-
-    /* WHICH OF THE CREW THE VIEWER IS. One cheap read on the table that is
-       the app's law for it — never a name match, which is exactly the
-       guessing `integration_links` exists to end (see lib/integrations/links
-       and the one-truth-per-staff-member rule). */
-    caps.has("workboard") && viewerStaffId
-      ? sm8StaffLinkMap(orgId)
-      : Promise.resolve(new Map<string, string>()),
+    /* The new Home's reads, in this same wait — and only for its viewers. */
+    desk
+      ? loadDesk({
+          orgId,
+          viewerStaffId,
+          caps,
+          isOwner,
+          today,
+          railDay,
+          tz: railTz,
+          mineUuid,
+          names,
+          shared,
+        })
+      : Promise.resolve(null),
   ]);
-
-  /* The map is remote-uuid → staff card, so finding the viewer is a scan of
-     something with one row per linked person: small by construction, and the
-     alternative is a second query for a fact already in hand. */
-  const mineUuid =
-    [...sm8Links.entries()].find(([, staffId]) => staffId === viewerStaffId)?.[0] ?? null;
 
   /* The board's own layout, then flattened: it knows what a block IS — the
      closure rule, the on-site join, the midnight clamp — and Home differs
@@ -302,7 +354,13 @@ export async function loadDashboard(): Promise<DashboardData> {
       tracksTime: day?.tracksTime ?? false,
       manage: caps.has("workboard_manage"),
       moneyVisible: caps.has("workboard_money"),
+      connected: vendor.connected,
+      /* Both cut to the viewer's own jobs, as `jobs` is: the day's payload
+         knows every booking on it, and the rest are other people's. */
+      where: railWhereOf(railBlocks, schedule.addresses),
+      crew: day ? railCrewOf(day.lanes, railBlocks, mineUuid) : {},
     },
+    desk: deskData,
   };
 }
 
@@ -399,6 +457,9 @@ async function loadChips(
   today: string,
   /** the Organisation screen admits the owner only — see `assembleChips` */
   isOwner: boolean,
+  /** The expiry window and the org's credentials, when Home has already read
+      them for the whole page; read here when not (the action-required page). */
+  shared?: HomeShared,
 ): Promise<DashboardChips> {
   const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv, detailsGap, swmsSignons, swmsIssues, swmsTemplatePending, sm8Stuck] = await Promise.all([
     viewerStaffId ? listStaffCompliance(orgId, viewerStaffId) : Promise.resolve([]),
@@ -428,17 +489,16 @@ async function loadChips(
 
   // Team data is only READ when the capability is held — it never reaches here
   // otherwise, so the scoping is enforced at the query, not just in assembly.
-  const [teamPeople, orgCredentials, fleet, pendingClaims, pendingLeave, expiry] = await Promise.all([
+  const [teamPeople, { orgCredentials, expiry }, fleet, pendingClaims, pendingLeave] = await Promise.all([
     caps.has("team") ? listStaffCompliance(orgId) : Promise.resolve([] as StaffCompliance[]),
-    // every card, not the soonest policy — the bell shows each one inside the window
-    isOwner ? listOrgCredentials(orgId) : Promise.resolve([] as OrgCredential[]),
+    /* every org card, not the soonest policy — the bell shows each one inside
+       the window — and ONE NUMBER for every chip below (lib/expiry.ts) */
+    shared ? Promise.resolve(shared) : readHomeShared(orgId, isOwner),
     caps.has("assets_all") ? listVehicles(orgId).then((r) => r.vehicles) : Promise.resolve([] as Vehicle[]),
     // a head count, not the full claims read — the chip needs one integer
     caps.has("approvals") ? pendingClaimsCount(orgId) : Promise.resolve(0),
     // the other queue that belongs to whoever can decide it
     caps.has("approvals") ? pendingLeaveCount(orgId) : Promise.resolve(0),
-    // ONE NUMBER for every chip below — lib/expiry.ts
-    orgExpiryWindow(orgId),
   ]);
 
   return assembleChips(

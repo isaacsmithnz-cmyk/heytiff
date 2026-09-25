@@ -22,3 +22,30 @@ export async function getSm8Timezone(orgId: string): Promise<string | null> {
     .maybeSingle();
   return (data as { timezone_name: string | null } | null)?.timezone_name ?? null;
 }
+
+/** The account's clock, and whether this workspace holds a ServiceM8 copy at
+    all — one read of the same row `getSm8Timezone` reads, for a caller that
+    has to tell "nothing booked" from "no ServiceM8 to book anything in".
+
+    `connected` is the row existing. sm8_vendor is written by the first sync
+    and outlives a disconnect (lib/integrations/sm8-store), so this answers
+    "has a copy been made here", which is the question Home's day asks: a
+    workspace that never had ServiceM8 must not be told nobody in it is
+    linked.
+
+    A READ THAT FAILS IS NOT AN ABSENT ROW (the sm8-store law). It comes back
+    connected with no zone, so a screen keeps saying what it cannot see
+    rather than calling a day it could not read complete. */
+export async function sm8VendorOf(orgId: string): Promise<{ tz: string | null; connected: boolean }> {
+  const { data, error } = await supabaseAdmin
+    .from("sm8_vendor")
+    .select("timezone_name")
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (error) {
+    console.error(`[sm8] couldn't read the ServiceM8 account row for org ${orgId}:`, error);
+    return { tz: null, connected: true };
+  }
+  const row = data as { timezone_name: string | null } | null;
+  return { tz: row?.timezone_name ?? null, connected: row !== null };
+}

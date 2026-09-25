@@ -25,6 +25,7 @@ import {
   type VehicleWithFacts,
 } from "@/components/fleet/logic";
 import { daysUntil, fmtAuDayMonth } from "@/lib/au-dates";
+import { dateFromDays } from "@/lib/fleet/map";
 import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
 import { isNoVisa, isNotCleared } from "@/lib/staff/work-rights";
 import { WRITE_HOURLY_CAP } from "@/lib/integrations/sm8-write-plan";
@@ -65,7 +66,43 @@ export type ActionChip = {
   href: string;
   /** Lower = more urgent. Drives the worst-first sort within a section. */
   urgency: number;
+  /** The day it falls due, ISO yyyy-mm-dd, for a chip that counts down to a
+      date: a licence, a visa, a vehicle's papers, a service by time, the
+      business's papers. Null for everything else — a queue, a standing
+      warning, and a service judged by the odometer have no day to be placed
+      on. Home's list places a row by THIS against its own day, never by
+      `state`, because `state` was counted on Sydney's date and the list runs
+      on the workspace's (./home-list). */
+  due: string | null;
+  /** What a dated chip is about, for a screen that words its own row rather
+      than repeating `label` (Home's list): the record it lives on, and the
+      thing named whole. Null wherever `due` is null except a service judged
+      by the odometer, which is still a vehicle's. */
+  ref: ChipRef | null;
 };
+
+/** Which record a chip is about, and what the thing is called.
+
+    A vehicle is named by name AND plate ("Spare van, CY14FE") — `subject`
+    carries only one of them, because a bell row has the room for one. A paper
+    is named by its own name ("White Card", "Public liability"): the chip's
+    `label` has it only glued to an expiry clause. `id` is the vehicle, the
+    person whose card holds the paper, or the business's paper itself. */
+export type ChipRef =
+  | {
+      kind: "vehicle";
+      id: string;
+      name: string;
+      /** For a service judged by the odometer, how far off it is — negative
+          once past. Null for everything judged by a date. */
+      kmLeft: number | null;
+    }
+  | { kind: "staff" | "self"; id: string; name: string }
+  | { kind: "org-credential"; id: string; name: string; issuer: string | null };
+
+/** Whose card a person's paper sits on — the viewer's own, or a colleague's.
+    Handed in by `assembleChips`, which is the one place that knows. */
+export type ChipOwner = { kind: "staff" | "self"; id: string };
 
 /* Which part of the business a chip belongs to.
 
@@ -151,7 +188,7 @@ function expiryLabel(what: string, days: number): string {
 /** A single licence → a chip when it is expired or expiring soon, else null. */
 export function licenceChip(
   lic: { id: string; typeName: string; expiryDate: string | null },
-  ctx: { subject: string; href: string; today: string; warnDays: number },
+  ctx: { subject: string; href: string; today: string; warnDays: number; owner?: ChipOwner },
 ): ActionChip | null {
   if (!lic.expiryDate) return null;
   const days = daysUntil(lic.expiryDate, ctx.today);
@@ -165,7 +202,15 @@ export function licenceChip(
     subject: ctx.subject,
     href: ctx.href,
     urgency: urgency(state, days),
+    due: lic.expiryDate.slice(0, 10),
+    ref: ownedRef(ctx.owner, lic.typeName),
   };
+}
+
+/** A person's paper, on the card it sits on — or nothing, for a caller that
+    didn't say whose card that is. */
+function ownedRef(owner: ChipOwner | undefined, name: string): ChipRef | null {
+  return owner ? { kind: owner.kind, id: owner.id, name } : null;
 }
 
 /* Work rights raise two distinct concerns, both actionable:
@@ -191,7 +236,7 @@ export function workRightsChips(
     visaExpiry: string | null;
     vevoCheckedAt: string | null;
   },
-  ctx: { subject: string; href: string; today: string; warnDays: number },
+  ctx: { subject: string; href: string; today: string; warnDays: number; owner?: ChipOwner },
 ): ActionChip[] {
   const chips: ActionChip[] = [];
 
@@ -208,6 +253,8 @@ export function workRightsChips(
         subject: ctx.subject,
         href: ctx.href,
         urgency: urgency(state, days),
+        due: wr.visaExpiry.slice(0, 10),
+        ref: ownedRef(ctx.owner, what),
       });
     }
   }
@@ -231,6 +278,8 @@ export function workRightsChips(
       subject: ctx.subject,
       href: ctx.href,
       urgency: urgency("bad", 0),
+      due: null,
+      ref: null,
     });
   } else if (wr.status && !isNoVisa(wr.status) && !wr.vevoCheckedAt) {
     // No date to count down — an unverified record is a standing warn until
@@ -243,16 +292,30 @@ export function workRightsChips(
       subject: ctx.subject,
       href: ctx.href,
       urgency: urgency("warn", 0),
+      due: null,
+      ref: null,
     });
   }
 
   return chips;
 }
 
+/* A VEHICLE'S DAY-COUNTS BACK INTO DAYS. The register holds `regoDays`, not
+   the date — counted in lib/fleet/map.ts against the server's AU date, which
+   is the `today` the chips are built on — so the date is the count added back
+   to that same day, through map.ts's own inverse. `today` is the vehicle
+   context's for this reason and no other. */
+type VehicleCtx = { subject: string; href: string; warnDays: number; today: string };
+type Named = Pick<VehicleWithFacts, "id" | "name" | "plate">;
+
+function vehicleRef(v: Named, kmLeft: number | null = null): ChipRef {
+  return { kind: "vehicle", id: v.id, name: vehicleTitle(v), kmLeft };
+}
+
 /** Rego expiry chip for a vehicle, from the same day-count the register shows. */
 export function regoChip(
-  v: Pick<VehicleWithFacts, "id" | "status" | "regoDays">,
-  ctx: { subject: string; href: string; warnDays: number },
+  v: Pick<VehicleWithFacts, "id" | "status" | "regoDays" | "name" | "plate">,
+  ctx: VehicleCtx,
 ): ActionChip | null {
   if (v.status === "sold") return null;
   // no date entered, nothing to chase — see expiryState in fleet/logic.ts
@@ -266,13 +329,15 @@ export function regoChip(
     subject: ctx.subject,
     href: ctx.href,
     urgency: urgency(state, v.regoDays),
+    due: dateFromDays(v.regoDays, ctx.today),
+    ref: vehicleRef(v),
   };
 }
 
 /** Insurance expiry chip for a vehicle. */
 export function insuranceChip(
-  v: Pick<VehicleWithFacts, "id" | "status" | "insuranceDays">,
-  ctx: { subject: string; href: string; warnDays: number },
+  v: Pick<VehicleWithFacts, "id" | "status" | "insuranceDays" | "name" | "plate">,
+  ctx: VehicleCtx,
 ): ActionChip | null {
   if (v.status === "sold") return null;
   if (v.insuranceDays == null || v.insuranceDays > ctx.warnDays) return null;
@@ -285,6 +350,8 @@ export function insuranceChip(
     subject: ctx.subject,
     href: ctx.href,
     urgency: urgency(state, v.insuranceDays),
+    due: dateFromDays(v.insuranceDays, ctx.today),
+    ref: vehicleRef(v),
   };
 }
 
@@ -295,8 +362,8 @@ export function insuranceChip(
    lapse and the rego cannot be renewed at all, and the chip that would have
    said so was the one we didn't send. */
 export function ctpChip(
-  v: Pick<VehicleWithFacts, "id" | "status" | "ctpDays">,
-  ctx: { subject: string; href: string; warnDays: number },
+  v: Pick<VehicleWithFacts, "id" | "status" | "ctpDays" | "name" | "plate">,
+  ctx: VehicleCtx,
 ): ActionChip | null {
   if (v.status === "sold") return null;
   if (v.ctpDays == null || v.ctpDays > ctx.warnDays) return null;
@@ -309,6 +376,8 @@ export function ctpChip(
     subject: ctx.subject,
     href: ctx.href,
     urgency: urgency(state, v.ctpDays),
+    due: dateFromDays(v.ctpDays, ctx.today),
+    ref: vehicleRef(v),
   };
 }
 
@@ -323,8 +392,10 @@ export function serviceChip(
     | "lastServiceOdo"
     | "serviceDays"
     | "motorised"
+    | "name"
+    | "plate"
   >,
-  ctx: { subject: string; href: string; warnDays: number },
+  ctx: VehicleCtx,
 ): ActionChip | null {
   if (v.status === "sold") return null;
   const due = serviceDue(v as VehicleWithFacts, ctx.warnDays);
@@ -350,6 +421,11 @@ export function serviceChip(
     href: ctx.href,
     // days-to-due either way: the km limit converts, the time limit already is
     urgency: urgency(state, byKm ? km / SERVICE_KM_PER_DAY : days),
+    /* The same reason words the chip and dates it: a service judged by the
+       odometer has a distance and no day, so it carries the distance on its
+       ref and is placed by its state. */
+    due: byKm || due.daysLeft == null ? null : dateFromDays(due.daysLeft, ctx.today),
+    ref: vehicleRef(v, byKm ? km : null),
   };
 }
 
@@ -360,11 +436,17 @@ export function vehicleLabel(v: Pick<VehicleWithFacts, "name" | "plate">): strin
   return v.name?.trim() || v.plate?.trim() || "Unnamed vehicle";
 }
 
+/** A vehicle named whole, for a row with room for both: "Spare van, CY14FE".
+    Whichever exists alone, and the plate once when it is also the name. */
+export function vehicleTitle(v: Pick<VehicleWithFacts, "name" | "plate">): string {
+  const name = v.name?.trim() || "";
+  const plate = v.plate?.trim() || "";
+  if (name && plate && name.toLowerCase() !== plate.toLowerCase()) return `${name}, ${plate}`;
+  return name || plate || "Unnamed vehicle";
+}
+
 /** All expiry/overdue chips for one vehicle, worst-first. */
-export function vehicleChips(
-  v: VehicleWithFacts,
-  ctx: { subject: string; href: string; warnDays: number },
-): ActionChip[] {
+export function vehicleChips(v: VehicleWithFacts, ctx: VehicleCtx): ActionChip[] {
   return sortChips(
     [regoChip(v, ctx), insuranceChip(v, ctx), ctpChip(v, ctx), serviceChip(v, ctx)].filter(
       (c): c is ActionChip => c !== null,
@@ -410,6 +492,10 @@ export function orgCredentialChips(
       subject: c.issuer?.trim() || (c.kind === "licence" ? "Business licence" : "Business insurance"),
       href: ctx.href,
       urgency: urgency(state, days),
+      due: c.expiryDate.slice(0, 10),
+      /* The issuer on its own: `subject` falls back to a kind word when nobody
+         recorded one, and a row that appends the issuer must not append that. */
+      ref: { kind: "org-credential", id: c.id, name: c.name, issuer: c.issuer?.trim() || null },
     });
   }
   return sortChips(chips);
@@ -435,6 +521,8 @@ export function expensesChip(pendingCount: number): ActionChip | null {
     subject: "Expenses",
     href: "/dashboard/timepay/expenses",
     urgency: urgency("warn", 0),
+    due: null,
+    ref: null,
   };
 }
 
@@ -465,6 +553,8 @@ export function timesheetChip(
     // the period the question is about, not whichever one is current
     href: `/dashboard/my-timesheet?period=${sheet.periodStart}`,
     urgency: urgency("bad", 0),
+    due: null,
+    ref: null,
   };
 }
 
@@ -496,6 +586,8 @@ export function profileChip(
     subject: ctx.subject,
     href: "/dashboard/profile",
     urgency: urgency("warn", 0),
+    due: null,
+    ref: null,
   };
 }
 
@@ -526,6 +618,8 @@ export function swmsSignonChip(
     subject: [p.jobNumber ? `Job #${p.jobNumber}` : null, site].filter(Boolean).join(", ") || "A job",
     href: `/dashboard/swms/${p.versionId}`,
     urgency: urgency("warn", -age),
+    due: null,
+    ref: null,
   };
 }
 
@@ -546,6 +640,8 @@ export function swmsIssueChip(p: { versionId: string; jobNumber: string | null; 
     subject: [p.jobNumber ? `Job #${p.jobNumber}` : null, site].filter(Boolean).join(", ") || "A job",
     href: `/dashboard/swms/${p.versionId}`,
     urgency: urgency("bad", 0),
+    due: null,
+    ref: null,
   };
 }
 
@@ -566,6 +662,8 @@ export function swmsTemplateChip(pending: boolean | undefined): ActionChip | nul
     subject: "Before the first SWMS",
     href: "/dashboard/swms/template",
     urgency: urgency("warn", 0),
+    due: null,
+    ref: null,
   };
 }
 
@@ -604,6 +702,8 @@ export function declinedClaimChip(
     // newest first within the bad bucket — the freshest decision is the one
     // you are most likely to still be able to do something about
     urgency: urgency("bad", age),
+    due: null,
+    ref: null,
   };
 }
 
@@ -633,6 +733,8 @@ export function leaveQueueChip(pendingCount: number): ActionChip | null {
     subject: "Leave",
     href: "/dashboard/timepay/leave",
     urgency: urgency("warn", 0),
+    due: null,
+    ref: null,
   };
 }
 
@@ -668,6 +770,8 @@ export function declinedLeaveChip(
     subject: span,
     href: "/dashboard/my-leave",
     urgency: urgency("bad", age),
+    due: null,
+    ref: null,
   };
 }
 
@@ -681,7 +785,13 @@ export function sm8QueueChip(
 ): ActionChip | null {
   if (!stuck) return null;
   const files = (n: number) => (n === 1 ? "1 file" : `${n} files`);
-  const base = { key: "sm8-writes", kind: "sm8-writes" as const, href: "/dashboard/admin/integrations/servicem8" };
+  const base = {
+    key: "sm8-writes",
+    kind: "sm8-writes" as const,
+    href: "/dashboard/admin/integrations/servicem8",
+    due: null,
+    ref: null,
+  };
   if (stuck.reason === "cap") {
     return {
       ...base,

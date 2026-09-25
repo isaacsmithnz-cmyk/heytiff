@@ -353,3 +353,24 @@ describe("assembleChips — files stuck on their way to ServiceM8", () => {
     expect(assembleChips({ ...FULL, isOwner: true, sm8Stuck: null }, caps()).self.some((c) => c.kind === "sm8-writes")).toBe(false);
   });
 });
+
+/* WHOSE CARD, AND WHICH DAY. Home's list opens your own paper on your card
+   and a colleague's on theirs, and places a vehicle's papers by the day they
+   fall due — a day only this module can add back, because it alone holds the
+   `today` the register's day-counts were counted from. */
+describe("assembleChips — whose card, and which day", () => {
+  it("files your own paper on your card and a colleague's on theirs", () => {
+    const { self, team } = assembleChips(FULL, caps("team"));
+    expect(self.find((c) => c.key === "licence:me-lic")!.ref).toEqual({ kind: "self", id: "me", name: "White Card" });
+    expect(team.find((c) => c.key === "licence:s2-lic")!.ref).toEqual({ kind: "staff", id: "s2", name: "White Card" });
+    expect(self.find((c) => c.key === "licence:me-lic")!.due).toBe("2026-07-01");
+  });
+
+  it("dates your van's chips and the fleet's from the day they were counted on", () => {
+    const { self, team } = assembleChips(FULL, caps("assets_all"));
+    // regoDays -10 on 2026-07-19
+    expect(self.find((c) => c.key === "rego:mine")!.due).toBe("2026-07-09");
+    expect(team.find((c) => c.key === "rego:v2")!.due).toBe("2026-07-09");
+    expect(team.find((c) => c.key === "rego:v2")!.ref).toMatchObject({ kind: "vehicle", id: "v2", name: "Van v2, v2" });
+  });
+});

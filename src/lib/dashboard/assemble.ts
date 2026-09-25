@@ -110,7 +110,14 @@ const push = (arr: ActionChip[], chip: ActionChip | null) => {
 export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): DashboardChips {
   const self: ActionChip[] = [];
   if (src.self && src.viewerStaffId) {
-    const ctx = { subject: src.self.name, href: "/dashboard/profile", today: src.today, warnDays: src.warnDays };
+    const ctx = {
+      subject: src.self.name,
+      href: "/dashboard/profile",
+      today: src.today,
+      warnDays: src.warnDays,
+      /* whose card the paper is on — Home's list words your own as yours */
+      owner: { kind: "self" as const, id: src.viewerStaffId },
+    };
     for (const lic of src.self.licences) push(self, licenceChip(lic, ctx));
     self.push(...workRightsChips({ staffId: src.viewerStaffId, ...src.self.workRights }, ctx));
   }
@@ -120,6 +127,8 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
         subject: vehicleLabel(src.selfVehicle),
         href: "/dashboard/my-vehicle",
         warnDays: src.warnDays,
+        // the day the register's day-counts were counted from — see chips.ts
+        today: src.today,
       }),
     );
   }
@@ -152,7 +161,13 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
   if (caps.has("team")) {
     for (const s of src.teamPeople) {
       if (s.staffId === src.viewerStaffId) continue; // your own already in `self`
-      const ctx = { subject: s.name, href: `/dashboard/team/${s.staffId}`, today: src.today, warnDays: src.warnDays };
+      const ctx = {
+        subject: s.name,
+        href: `/dashboard/team/${s.staffId}`,
+        today: src.today,
+        warnDays: src.warnDays,
+        owner: { kind: "staff" as const, id: s.staffId },
+      };
       for (const lic of s.licences) push(team, licenceChip(lic, ctx));
       team.push(...workRightsChips({ staffId: s.staffId, ...s.workRights }, ctx));
     }
@@ -191,6 +206,7 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
           subject: vehicleLabel(v),
           href: `/dashboard/assets?v=${encodeURIComponent(v.id)}`,
           warnDays: src.warnDays,
+          today: src.today,
         }),
       );
     }

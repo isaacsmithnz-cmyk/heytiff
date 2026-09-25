@@ -65,6 +65,8 @@ const chip = (n: number, over: Partial<ActionChip> = {}): ActionChip => ({
   subject: `Ute ${n}`,
   href: `/dashboard/fleet/${n}`,
   urgency: n,
+  due: null,
+  ref: null,
   ...over,
 });
 

@@ -62,6 +62,8 @@ const chip = (state: "bad" | "warn", key: string): ActionChip => ({
   subject: "Hilux ute",
   href: "/dashboard/assets",
   urgency: state === "bad" ? -4 : 10_014,
+  due: null,
+  ref: null,
 });
 
 const task = (over: Partial<DashTask> = {}): DashTask => ({

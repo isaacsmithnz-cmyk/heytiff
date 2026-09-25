@@ -172,14 +172,11 @@ it("names an issue's door from one read, resolved or not", async () => {
   expect(chips(entries, 1)).toEqual([["Compressor short-cycling", "issue"]]);
 });
 
-/* THE DROP ORDER, HELD. `is_debrief` is still selected here after routeNote
-   stopped writing it: the read goes in a change of its own, and only once
-   that change is live may the column be dropped. PostgREST fails the WHOLE
-   select on a column that isn't there, and this is the select every diary is
-   built from, so a migration that drops a column this read still names would
-   empty every diary on the day it was applied. The migrations are read from
-   the folder rather than restated here, so the file that would do it is the
-   thing that fails. */
+/* THE DROP ORDER, HELD. PostgREST fails the WHOLE select on a column that
+   isn't there, and this is the select every diary is built from, so a
+   migration that drops a column this read still names would empty every diary
+   on the day it was applied. The migrations are read from the folder rather
+   than restated here, so the file that would do it is the thing that fails. */
 it("reads no column that a migration drops from workboard_notes", async () => {
   rows.workboard_notes = [note("e1", {})];
   await listJournal("org-1", "s1");
@@ -204,4 +201,44 @@ it("reads no column that a migration drops from workboard_notes", async () => {
       );
     });
   expect(dropped.filter((d) => read.includes(d.column))).toEqual([]);
+});
+
+/* THE DEBRIEF'S COLUMN, OUT OF THE READ. H3 drops `is_debrief` once THIS
+   change is live, as a migration and nothing else. If the read still named
+   it, that drop would empty every diary the moment it ran, whatever the tree
+   holds — the test above only sees a drop that sits beside the read. So the
+   read must not name it, and an old Debrief row must not need it: the row is
+   an applied note like any other, and its grouped note's door comes from
+   `applied.noteLines`. */
+describe("the Debrief's column", () => {
+  it("is not in the diary's read", async () => {
+    rows.workboard_notes = [note("e1", {})];
+    await listJournal("org-1", "s1");
+    const read = (of("workboard_notes")[0].columns ?? "").split(",").map((c) => c.trim());
+    expect(read).toEqual(expect.arrayContaining(["id", "transcript", "applied"]));
+    expect(read).not.toContain("is_debrief");
+  });
+
+  it("is not needed for an old Debrief row to keep its place and its door", async () => {
+    rows.workboard_notes = [
+      { ...note("e1", { taskIds: ["t1"], noteLines: ["Long day.", "Two callouts."] }), is_debrief: true },
+      note("e2", { taskIds: ["t2"] }),
+    ];
+    rows.tasks = [
+      { id: "t1", title: "Chase the Daikin warranty claim" },
+      { id: "t2", title: "Order 2× MERV 11 filters" },
+    ];
+    rows.staff_notes = [{ id: "n1", source_note_id: "e1" }];
+
+    const out = await listJournal("org-1", "s1");
+    expect(out.map((e) => e.id)).toEqual(["e1", "e2"]);
+    expect(chips(out, 0)).toEqual([
+      ["Chase the Daikin warranty claim", "task"],
+      ["2 lines kept", "note"],
+    ]);
+    expect(out[0].outcomes.find((o) => o.go?.type === "note")?.go).toEqual({ type: "note", id: "n1" });
+    // and nothing on the entry says which door the words came through
+    expect(out[0]).not.toHaveProperty("isDebrief");
+    expect(out[0]).toEqual(expect.objectContaining({ said: "said e1", spoken: true }));
+  });
 });

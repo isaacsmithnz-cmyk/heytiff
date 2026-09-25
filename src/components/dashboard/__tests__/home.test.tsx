@@ -144,7 +144,6 @@ const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
   at: "6:52 am",
   outcomes: [],
   spoken: true,
-  isDebrief: false,
   ...over,
 });
 
@@ -296,7 +295,7 @@ describe("the debrief is gone", () => {
      and a debrief filed before today is an ordinary diary entry, read where
      every other entry is. */
   it("has three faces on the rail, and none of them is the Debrief", () => {
-    draw({ journal: [entry({ said: "Long day, two callouts.", isDebrief: true })] });
+    draw({ journal: [entry({ said: "Long day, two callouts." })] });
     const tabs = within(screen.getByRole("tablist", { name: "Home" })).getAllByRole("tab");
     expect(tabs.map((t) => t.textContent)).toEqual(["Diary", "Tasks", "Calendar"]);
     expect(document.getElementById("hmtab-debrief")).toBeNull();
@@ -309,17 +308,17 @@ describe("the debrief is gone", () => {
   it("keeps a debrief filed before today in the diary, with every other entry", () => {
     /* A pin, not a guard: the diary has always been handed the whole journal
        (only the Debrief's own face filtered it), so this passes on main too.
-       It holds that line while the router's half (H2) and the column's drop
-       (H3) take `isDebrief` away. */
+       Since the router's half (H2) the journal doesn't read `is_debrief` at
+       all, so an old debrief reaches Home as an entry like any other: j2 is
+       one, filed on an earlier day. */
     draw({
       journal: [
-        entry({ id: "j1", said: "Board corroded, replaced it.", isDebrief: false }),
+        entry({ id: "j1", said: "Board corroded, replaced it." }),
         entry({
           id: "j2",
           said: "Long day, two callouts.",
           day: "2026-08-09",
           at: "5:02 pm",
-          isDebrief: true,
         }),
       ],
     });

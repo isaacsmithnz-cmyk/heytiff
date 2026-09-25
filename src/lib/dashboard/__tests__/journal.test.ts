@@ -163,7 +163,6 @@ describe("describeAppliedResolved", () => {
 const entry = (id: string, day: string, at = "9:00 am"): JournalEntry => ({
   id,
   said: `said ${id}`,
-  isDebrief: false,
   day,
   at,
   outcomes: [],
@@ -356,7 +355,6 @@ describe("an issue's door (2026-09-15, since Home lists issues)", () => {
         at: "7:12 am",
         outcomes: [{ kind: "todo" as const, text: "x", go: { type: "issue" as const, id: "i1" } }],
         spoken: true,
-        isDebrief: false,
       },
     ];
     expect(entryForDoor(entries, "issue", "i1")?.id).toBe("e1");

@@ -391,7 +391,7 @@ describe("the day's open card", () => {
     expect(isOpen()).toBe("true");
   }, WHOLE);
 
-  it("closes for a press in the Diary", async () => {
+  it("closes for a click in the Diary", async () => {
     const user = userEvent.setup();
     draw({ rail: onNow() });
     await user.click(face("diary"));

@@ -10,6 +10,7 @@ import type { RailTask } from "@/lib/dashboard/day-rail";
 import type { ScheduleBlock } from "@/lib/workboard/schedule";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { dayStateOfBlock } from "@/lib/workboard/focus";
+import { dayCardPaint, dayItems, fitDay, guessMeasure } from "@/lib/dashboard/day-bar";
 
 /* YOUR DAY (H12): his slanted bar and the panel under it, still.
 
@@ -147,6 +148,10 @@ const busy = (over: Partial<HomeRail> = {}) =>
     ...over,
   });
 
+/* A face's own button and its form, to see that they still hear their own
+   clicks, and which of those clicks close the card. */
+const mockFacePress = jest.fn();
+const mockFaceSend = jest.fn();
 const tree = (r: HomeRail) => (
   <DeskJobHost manage moneyVisible={false}>
     <div className="hd-page">
@@ -155,7 +160,18 @@ const tree = (r: HomeRail) => (
       <div data-day-keep="">
         <button type="button">A tab</button>
       </div>
-      <input aria-label="A face's box" />
+      <button type="button" onClick={() => mockFacePress()}>
+        {"A face's button"}
+      </button>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          mockFaceSend();
+        }}
+      >
+        <input aria-label="A face's box" />
+        <button type="submit">Send</button>
+      </form>
     </div>
     <button type="button">Outside the page</button>
   </DeskJobHost>
@@ -171,6 +187,8 @@ afterEach(() => {
   cleanup();
   mockRefresh.mockClear();
   mockComplete.mockClear();
+  mockFacePress.mockClear();
+  mockFaceSend.mockClear();
 });
 
 describe("on the first paint", () => {
@@ -326,11 +344,94 @@ describe("closing the card", () => {
     expect(isOpen()).toBe(true);
   });
 
-  it("closes on a click anywhere else on the page", async () => {
+  it("leaves Escape that something in the day already answered", async () => {
+    const user = userEvent.setup();
+    draw(thursday());
+    const answered = (e: KeyboardEvent) => e.preventDefault();
+    const day = screen.getByRole("region", { name: "Your day" });
+    day.addEventListener("keydown", answered);
+    try {
+      within(panel()).getByRole("button", { name: "Open job" }).focus();
+      await user.keyboard("{Escape}");
+      expect(isOpen()).toBe(true);
+    } finally {
+      day.removeEventListener("keydown", answered);
+    }
+    await user.keyboard("{Escape}");
+    expect(isOpen()).toBe(false);
+  });
+
+  it("closes on a click anywhere else on the page, and the thing clicked still hears it", async () => {
     const user = userEvent.setup();
     draw(thursday());
     await user.click(screen.getByText("Elsewhere on the page"));
     expect(isOpen()).toBe(false);
+    await user.click(card(LIVE));
+    await user.click(screen.getByRole("button", { name: "A face's button" }));
+    expect(isOpen()).toBe(false);
+    expect(mockFacePress).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes on a click that something on the page stops from rising", async () => {
+    const user = userEvent.setup();
+    draw(thursday());
+    const page = document.querySelector(".hd-page")!;
+    const stop = (e: Event) => e.stopPropagation();
+    page.addEventListener("click", stop);
+    try {
+      await user.click(screen.getByRole("button", { name: "A face's button" }));
+      expect(isOpen()).toBe(false);
+    } finally {
+      page.removeEventListener("click", stop);
+    }
+  });
+
+  /* The panel is above the faces: closed on the press, it would lift the
+     page under a pointer that is still down, and the release — and so the
+     click — would land on something else. jsdom has no layout to lift, so
+     what is held here is the order: nothing moves until the click. */
+  it("closes on the click, not the press: a button held down keeps the page where it is", async () => {
+    const user = userEvent.setup();
+    draw(thursday());
+    const face = screen.getByRole("button", { name: "A face's button" });
+    await user.pointer({ keys: "[MouseLeft>]", target: face });
+    expect(isOpen()).toBe(true);
+    await user.pointer({ keys: "[/MouseLeft]", target: face });
+    expect(mockFacePress).toHaveBeenCalledTimes(1);
+    expect(isOpen()).toBe(false);
+  });
+
+  it("stays open for a press alone, and for one released off the page", async () => {
+    const user = userEvent.setup();
+    draw(busy());
+    await user.click(card("Show 9 finished jobs"));
+    const away = screen.getByText("Elsewhere on the page");
+    // a press that is never a click, as on a face's scrollbar
+    fireEvent.pointerDown(away);
+    fireEvent.mouseDown(away);
+    expect(isOpen()).toBe(true);
+    expect(document.querySelectorAll(".hd-card")).toHaveLength(10);
+    // released off the page, the click goes to what the two share, which is not Home
+    await user.pointer({ keys: "[MouseLeft>]", target: away });
+    await user.pointer({ keys: "[/MouseLeft]", target: screen.getByRole("button", { name: "Outside the page" }) });
+    expect(isOpen()).toBe(true);
+    expect(document.querySelectorAll(".hd-card")).toHaveLength(10);
+  });
+
+  /* A click from the keyboard carries no count: the key was pressed in a
+     face, and the card does not close under someone working there. */
+  it("stays open for a face's button pressed from the keyboard, and for Enter in a face's form", async () => {
+    const user = userEvent.setup();
+    draw(thursday());
+    screen.getByRole("button", { name: "A face's button" }).focus();
+    await user.keyboard("{Enter}");
+    await user.keyboard(" ");
+    expect(mockFacePress).toHaveBeenCalledTimes(2);
+    expect(isOpen()).toBe(true);
+    screen.getByRole("textbox", { name: "A face's box" }).focus();
+    await user.keyboard("{Enter}");
+    expect(mockFaceSend).toHaveBeenCalledTimes(1);
+    expect(isOpen()).toBe(true);
   });
 
   it("stays open for a click on the bar, in the panel, on what keeps it, or off the page", async () => {
@@ -397,6 +498,24 @@ describe("the panel's one thing to do", () => {
     expect(mockComplete.mock.invocationCallOrder[0]).toBeLessThan(mockRefresh.mock.invocationCallOrder[0]!);
   });
 
+  it("cannot be pressed again while the task is being marked done", async () => {
+    const user = userEvent.setup();
+    let finish!: () => void;
+    mockComplete.mockImplementationOnce(() => new Promise<undefined>((r) => (finish = () => r(undefined))));
+    draw(rail({ tasks: [task()], nowMin: hm(14) }));
+    await user.click(card("Task, Call Reece about the filters, 3pm, To come"));
+    const done = within(panel()).getByRole("button", { name: "Mark done" });
+    expect(done).not.toBeDisabled();
+    await user.click(done);
+    expect(done).toBeDisabled();
+    await user.click(done);
+    expect(mockComplete).toHaveBeenCalledTimes(1);
+    expect(mockRefresh).not.toHaveBeenCalled();
+    await act(async () => finish());
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+    expect(done).not.toBeDisabled();
+  });
+
   it("says a task past its time is late, in the late red's chip", async () => {
     const user = userEvent.setup();
     draw(rail({ tasks: [task({ kind: "by", atMin: hm(16) })] }));
@@ -428,6 +547,47 @@ describe("an open card at an end of the bar", () => {
   });
 });
 
+/* Every colour is dayCardPaint's, measured in its own suite; what is held
+   here is that each card and panel asks it the right question. */
+describe("the colours", () => {
+  const first = /^Sydney, Job 3342, 6:30/;
+
+  it("paints a finished card that is open, and its panel, in its tint with the heading ink — not gone pale", async () => {
+    const user = userEvent.setup();
+    draw(thursday());
+    await user.click(card(first));
+    const item = dayItems(thursday())[0]!;
+    const open = dayCardPaint(item, 1, { selected: true });
+    // the question matters: asked as a quiet card, the answer differs
+    expect(open.bg).not.toBe(dayCardPaint(item, 1).bg);
+    expect(open.title).not.toBe(open.sub);
+    const pan = panel().querySelector<HTMLElement>(".hd-pan")!;
+    expect(pan.style.getPropertyValue("--hd-pbg")).toBe(open.bg);
+    expect(pan.style.getPropertyValue("--hd-ptitle")).toBe(open.title);
+    expect(pan.style.getPropertyValue("--hd-psub")).toBe(open.sub);
+    expect(pan.style.getPropertyValue("--hd-psw")).toBe(open.swatch);
+    expect(card(first).style.getPropertyValue("--hd-bg")).toBe(open.bg);
+  });
+
+  it("paints a finished card under the pointer at full strength, and pale again once the pointer leaves", () => {
+    draw(thursday({ nowMin: hm(14) }));
+    const row = document.querySelector(".hd-row")!;
+    const away = screen.getByText("Elsewhere on the page");
+    const item = dayItems(thursday())[0]!;
+    const quiet = dayCardPaint(item, 1);
+    const hovered = dayCardPaint(item, 1, { hovered: true });
+    expect(hovered.bg).not.toBe(quiet.bg);
+    expect(hovered.text).not.toBe(quiet.text);
+    const c = card(first);
+    expect(c.style.getPropertyValue("--hd-bg")).toBe(quiet.bg);
+    fireEvent.mouseOut(row, { relatedTarget: c });
+    expect(c.style.getPropertyValue("--hd-bg")).toBe(hovered.bg);
+    expect(c.style.getPropertyValue("--hd-text")).toBe(hovered.text);
+    fireEvent.mouseOut(row, { relatedTarget: away });
+    expect(card(first).style.getPropertyValue("--hd-bg")).toBe(quiet.bg);
+  });
+});
+
 describe("a crowded bar", () => {
   it("folds finished work into one block, which opens out on a press with focus on its first card", async () => {
     const user = userEvent.setup();
@@ -436,6 +596,13 @@ describe("a crowded bar", () => {
     expect(block9).toHaveAttribute("title", "9 finished");
     expect(block9).not.toHaveAttribute("aria-expanded");
     expect(document.querySelectorAll(".hd-card")).toHaveLength(2);
+    // folded to its tick: centred by the sheet, and no words in 64px
+    expect(block9).toHaveAttribute("data-collapsed");
+    expect(block9.querySelector(".hd-lab")).toBeNull();
+    expect(block9.querySelector(".hd-tick")).not.toBeNull();
+    const live = card(/^Ryde, Job 1009,/);
+    expect(live).not.toHaveAttribute("data-collapsed");
+    expect(live.querySelector(".hd-lab")).toHaveTextContent("RydeJob 10094:00–4:45");
     await user.click(block9);
     expect(document.querySelectorAll(".hd-card")).toHaveLength(10);
     expect(document.activeElement).toBe(card(/^Ryde, Job 1000,/));
@@ -483,7 +650,7 @@ describe("a crowded bar", () => {
     fireEvent.click(card("Show 3 finished jobs"));
     const first = card(/^Ryde, Job 1000,/);
     fireEvent.mouseOut(row, { relatedTarget: first });
-    fireEvent.pointerDown(away);
+    fireEvent.click(away, { detail: 1 });
     // folded again, all but the card under the pointer, which splits the run
     expect(card(/^Ryde, Job 1000,/)).toBe(first);
     expect(card("Show 2 finished jobs")).toBeInTheDocument();
@@ -518,18 +685,38 @@ describe("measuring", () => {
       Object.defineProperty(el, "clientWidth", { configurable: true, value: width });
       if (watched.has(el)) act(() => report());
     };
+    const r = thursday();
+    const compactAt = (barWidth: number) =>
+      fitDay({
+        items: dayItems(r),
+        nowMin: r.nowMin,
+        barWidth,
+        selectedKey: "job:d",
+        hoverKey: null,
+        showFinished: false,
+        measure: guessMeasure,
+      }).compact;
     try {
-      draw(thursday());
+      draw(r);
       const bar = document.querySelector<HTMLElement>(".hd-bar")!;
       // his width, drawn whole
       expect(document.querySelectorAll(".hd-card")).toHaveLength(6);
+      expect(bar).not.toHaveAttribute("data-compact");
       // a bar with no width (not laid out yet) is not a bar 0px wide
       resize(bar, 0);
       expect(document.querySelectorAll(".hd-card")).toHaveLength(6);
       resize(bar, 700);
       expect(card("Show 3 finished jobs")).toBeInTheDocument();
+      // crowded to compact words: the sheet has to draw the names at the
+      // size they were measured in
+      expect(compactAt(500)).toBe(true);
+      resize(bar, 500);
+      expect(bar).toHaveAttribute("data-compact");
+      expect(card(LIVE).querySelector(".hd-time")).toHaveTextContent(/^4:45$/);
+      expect(compactAt(1200)).toBe(false);
       resize(bar, 1200);
       expect(document.querySelectorAll(".hd-card")).toHaveLength(6);
+      expect(bar).not.toHaveAttribute("data-compact");
     } finally {
       window.ResizeObserver = RO;
     }

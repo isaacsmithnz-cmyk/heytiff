@@ -119,10 +119,26 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
 
   /* A CLICK ELSEWHERE closes the card and folds finished work up again —
      elsewhere ON THIS PAGE. The job card and Tiff are portalled to <body>,
-     outside it, and a click in them is not a click on Home. */
+     outside it, and a click in them is not a click on Home.
+
+     ON THE CLICK, NEVER THE PRESS. The panel sits above the faces, so
+     closing it lifts everything under it by its height. Closed on the
+     press, that lift lands between the button going down and coming up,
+     the release is over something else, and the browser gives the click to
+     what the two have in common: the button pressed never hears it. On the
+     click the target has its click; capturing it lets the page settle
+     before the target's own handler runs, so anything it measures is where
+     it now stands, and no face's stopPropagation can keep the card open.
+
+     A CLICK FROM A POINTER. A button pressed from the keyboard, and the
+     click Enter in a form's box makes on its submit button, carry no
+     count (`detail` 0): the keyboard is in a face, where Escape is the
+     face's too, and a card that closed under someone typing would pull
+     the box they are typing in up the page. */
   useEffect(() => {
     if (openKey === null && !showFinished) return;
-    const onDown = (e: PointerEvent) => {
+    const onClick = (e: MouseEvent) => {
+      if (e.detail === 0) return;
       const t = e.target;
       if (!(t instanceof Element)) return;
       const page = section.current?.closest(".hd-page");
@@ -130,8 +146,8 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
       setSelectedKey(null);
       setShowFinished(false);
     };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
   }, [openKey, showFinished]);
 
   /* WHAT SERVICEM8 COULDN'T ADD. `null` is the complete day — including a

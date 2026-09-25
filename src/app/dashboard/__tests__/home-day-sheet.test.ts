@@ -113,6 +113,16 @@ describe("the bar", () => {
   });
 });
 
+/* The panel's words are white on a card still to come and ink on a finished
+   one, so the cross takes the panel's own ink, and its hover is a step of
+   that ink: his white at 60% hid a white cross. */
+describe("the panel's close cross", () => {
+  it("is drawn in the panel's ink, and hovers in a step of it", () => {
+    expect(rule(".fg .hd-x").color).toBe("inherit");
+    expect(rule(".fg .hd-x:hover").background).toMatch(/^color-mix\(in srgb, currentColor \d+%, transparent\)$/);
+  });
+});
+
 describe("the open card's outline", () => {
   it("is drawn over the card's fill, and a focus ring inward where the bar would clip one outside", () => {
     expect(rule(".fg .hd-skin::after").position).toBe("absolute");

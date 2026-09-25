@@ -363,14 +363,16 @@ export function dayCardLabel(slot: DaySlot, nowMin: number | null): string {
 }
 
 /** The card's tooltip, only where the card could not say it all: a folded
-    run's "3 finished", a sliver that shows only its tick, and a card whose
-    place or name had to be shortened ("The full name always shows in the
-    card's tooltip and in the summary panel", handoff §2.5). */
+    run's "3 finished", a sliver that shows only its tick, a card whose
+    place or name had to be shortened, and a card the last step shrank
+    below the room its words were laid out in, whose words the sheet then
+    cuts short ("The full name always shows in the card's tooltip and in the
+    summary panel", handoff §2.5). */
 export function dayCardTip(slot: DaySlot): string | null {
   if (slot.kind === "group") return slot.name;
   const it = slot.items[0];
   const whole = slot.tag === (it.kind === "task" ? "Task" : (it.place ?? "")) && slot.name === it.name;
-  if (whole && !slot.collapsed) return null;
+  if (whole && !slot.collapsed && !slot.shrunk) return null;
   return [it.kind === "task" ? null : it.place, it.name, dayTimeLabel(it, false)].filter(Boolean).join(", ");
 }
 
@@ -397,6 +399,9 @@ export type DaySlot = {
   end: boolean;
   /** Folded or a sliver: a fixed width, no words, only the tick. */
   collapsed: boolean;
+  /** Narrower than the room its words were laid out in: the last step
+      (`scale` below 1) reached it, so the sheet may cut its words short. */
+  shrunk: boolean;
   grow: number;
   shrink: 0 | 1;
   basis: number;
@@ -554,6 +559,7 @@ function lay(cards: readonly Card[], input: DayFitInput, liveKey: string | null)
       live: c.kind !== "group" && c.key === liveKey,
       end: isEnd(i),
       collapsed: x.collapsed,
+      shrunk: !kept(i) && k < 1,
       grow: x.collapsed ? 0 : (1 + hours * DAY_GROW_PER_HOUR) * (selected[i] ? DAY_SEL_GROW : 1),
       shrink: x.collapsed ? 0 : 1,
       basis: x.collapsed ? x.w : isEnd(i) ? DAY_END_BASIS : 0,

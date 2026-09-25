@@ -385,6 +385,49 @@ describe("the panel's words", () => {
     expect(short.tag).not.toBe("Willoughby East North Heights");
     expect(dayCardTip(short)).toBe("Willoughby East North Heights, Job 3342, 8:00–9:00");
   });
+
+  /* Short names fit their cap whole, but the last step can still take a
+     card below the room its words were laid out in, and the sheet cuts
+     them with an ellipsis: "Bayview A…" needs its tooltip as much as a
+     shortened place does. */
+  it("gives a tooltip on every card the last step shrank, though its words were whole", () => {
+    const named = (n: number) =>
+      dayItems(
+        rail(
+          Array.from({ length: n }, (_, i) =>
+            block({
+              key: `s${i}`,
+              remoteId: `s${i}`,
+              jobNumber: null,
+              clientName: "Bayview Apts",
+              suburb: "Ryde",
+              startMin: hm(7 + i),
+              endMin: hm(7 + i, 45),
+            })
+          )
+        )
+      );
+    for (const [n, barWidth] of [
+      [8, 1152],
+      [10, 900],
+    ] as const) {
+      const f = fit({ items: named(n), barWidth, nowMin: hm(6), measure: guessMeasure });
+      expect(f.scale).toBeLessThan(1);
+      expect(f.slots.map((s) => [s.tag, s.name])).toEqual(Array.from({ length: n }, () => ["Ryde", "Bayview Apts"]));
+      expect(f.slots.every((s) => s.shrunk)).toBe(true);
+      expect(f.slots.map(dayCardTip)).toEqual(
+        Array.from({ length: n }, (_, i) => `Ryde, Bayview Apts, ${dayTimeLabel(f.slots[i]!.items[0]!, false)}`)
+      );
+    }
+    // the open card keeps the room it was laid out in, so its words are whole
+    const open = fit({ items: named(8), barWidth: 1152, nowMin: hm(6), measure: guessMeasure, selectedKey: "job:s3" });
+    const s3 = open.slots.find((s) => s.key === "job:s3")!;
+    expect(open.scale).toBeLessThan(1);
+    expect(s3.shrunk).toBe(false);
+    expect(dayCardTip(s3)).toBeNull();
+    // a bar that fits shrinks nothing
+    expect(fit({ items: thursday(), barWidth: 1144 }).slots.some((s) => s.shrunk)).toBe(false);
+  });
 });
 
 describe("the server's measure", () => {

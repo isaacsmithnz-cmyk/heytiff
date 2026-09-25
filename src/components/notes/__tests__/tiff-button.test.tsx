@@ -280,7 +280,7 @@ describe("the button itself", () => {
      case the context tag exists for. Isaac's fix: a button ON the sheet. It is
      the same component and the same flow; only the ground changes, so only the
      skin does. */
-  it("wears the sheet skin, and says what it will be about", () => {
+  it("wears the paper skin in a sheet, and says what it will be about", () => {
     render(
       <NoteScopeProvider voiceEnabled>
         <NoteScopeScreen target={{ kind: "visit", id: "v-1" }} targetLabel="Server room CRACs" />
@@ -289,18 +289,33 @@ describe("the button itself", () => {
     );
     const el = screen.getByLabelText("Ask or tell Tiff about Server room CRACs");
     expect(el).toHaveClass("tiffbtn-sheet");
-    /* The core holds the mark's contrast on a WHITE sheet; the halo is the
-       topbar's answer to a black one. Wearing both would be wrong twice. */
-    expect(el.querySelector(".tiffbtn-core")).not.toBeNull();
-    expect(el.querySelector(".tiffbtn-halo")).toBeNull();
+    /* A white face on a white sheet is nothing: on paper the face takes the
+       brand gradient, and the depth goes a step darker. */
+    const face = el.querySelector(".tiffbtn-ly.face path");
+    expect(face).toHaveAttribute("stroke", "url(#tiffFacePaper)");
+    expect(el.querySelectorAll(".tiffbtn-ly")).toHaveLength(10);
   });
 
-  it("keeps the topbar skin on the topbar — glow, no core", () => {
+  it("wears the ink skin on the frame: a paper face, gradient depth", () => {
     mount();
     const el = btn();
     expect(el).toHaveClass("tiffbtn-topbar");
-    expect(el.querySelector(".tiffbtn-halo")).not.toBeNull();
-    expect(el.querySelector(".tiffbtn-core")).toBeNull();
+    expect(el.querySelector(".tiffbtn-ly.face path")).toHaveAttribute("stroke", "currentColor");
+    expect(el.querySelector(".tiffbtn-ly:not(.face) path")).toHaveAttribute("stroke", "url(#tiffDepthInk)");
+  });
+
+  /* THE GIMBAL (Isaac, 2026-09-25). Two rings, each with its run of light,
+     around the mark in both places — and nothing around the rings: the
+     aura went on his word ("aura looks too generic ai"), and law 5 took the
+     sparkle long before. */
+  it("is the mark in two gimbals, with no halo and no sparkle", () => {
+    mount();
+    const el = btn();
+    expect(el.querySelectorAll(".tiffbtn-gim")).toHaveLength(2);
+    expect(el.querySelectorAll(".tiffbtn-arc circle")).toHaveLength(4);
+    expect(el.querySelector(".tiffbtn-halo, .tiffbtn-spark, .tiffbtn-core")).toBeNull();
+    // the band of light is cut to the logo's own shape, passed in from the one geometry
+    expect(el.style.getPropertyValue("--tiffbtn-mask")).toMatch(/^url\("data:image\/svg\+xml,/);
   });
 
   it("says what it does rather than naming an icon", () => {

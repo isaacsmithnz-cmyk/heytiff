@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { navHref } from "@/components/shell/nav";
 import { Chevron } from "@/components/logo";
+import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useHydrated } from "@/lib/use-hydrated";
 import { kbDocUrl } from "@/app/actions/kb";
 import { askTiff, type AskSourceItem, type AskTurn } from "@/lib/tiff/ask-client";
@@ -949,7 +950,7 @@ export function TiffAssistant({
                     is HeyTiff — a bot glyph here was the generic-AI badge on
                     the one screen that should feel most like the product */}
                 <span className="tb2">
-                  <Chevron size={24} gradient />
+                  <TiffGlyph label="HeyTiff" />
                 </span>
                 <div className="tcht">
                   <b>{active.title}</b>
@@ -1155,7 +1156,7 @@ export function TiffAssistant({
                     is HeyTiff's own voice and wears its own mark (Isaac's
                     call, and the visual one too) */}
                 <div className="tic">
-                  <Chevron size={24} gradient />
+                  <TiffGlyph label="HeyTiff" />
                 </div>
                 <input
                   ref={inputRef}

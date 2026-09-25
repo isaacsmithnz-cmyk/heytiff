@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
-import { Chevron } from "@/components/logo";
+import { TiffGlyph } from "./tiff-mark";
 import { LiveWords, appendSpoken, useDictation } from "./dictation";
 import { RecordingCard, RecordingMeter } from "./recording-card";
 import { READING_BACK_NOTE } from "./waits";
@@ -64,7 +64,7 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
       ) : thinking ? null : stage === "answer" ? (
         /* the mark, not a sparkle — the ribbon says "Answer" and the thing
            that answered is HeyTiff */
-        <Chevron size={19} gradient decorative />
+        <TiffGlyph ground="ink" size={19} />
       ) : (
         <Icon name="note" size={16} />
       )}
@@ -710,11 +710,8 @@ function JobLine({ flow }: { flow: NoteFlow }) {
    debriefs" and the sheet is labelled "Morning debrief"), so the verb costs
    no new vocabulary.
 
-   The mark's host is a SPAN taking `.tiffbtn-topbar` (which owns the 44px
-   box, the face, the halo and the spark's placement) but NOT `.tiffbtn` —
-   the same split #325 arrived at, for the same reason: a button inside a
-   button is invalid, and `.tiffbtn`'s cursor and lift belong to the bar now.
-   Its hovers are re-pointed at `.hm-say:hover` in shell.css. */
+   The mark left this bar again on 2026-09-01 (see DebriefButton below); the
+   frame's Tiff button is the one place it stands. */
 
 /* THE DIARY'S OWN WAY IN.
 

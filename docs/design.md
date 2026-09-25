@@ -564,11 +564,12 @@ infinite loop into a strobe.
 | `wb2CursorBlink` | the board's answer while it streams | a caret |
 | `fgPulse` ×3 | the recording dot beside the capture clock; the row microphone while it listens; Time & Pay's live period | a live dot: something is open right now |
 | `int-pulse` | an integration's backfill while it runs | a live dot |
-| `orbSpin` | the orb, in the note rows and Tiff's waits | the orb: the microphone is open, or Tiff is working |
-| `orbSaySweep` | the wait's word beside the orb | the orb's label, lit while the orb works: the caret's job on a word |
+| `orbSpin` | the orb, as the dictation meter | the orb: the microphone is open |
+| `orbSaySweep` | the wait's word beside the working mark | the wait's label, lit while Tiff works: the caret's job on a word |
 | `dotfSwell` | the capture card's mark while you talk | the microphone is open: a wave through the mark |
 | `dotfTurn`, `dotfZip`, `dotfFire` | the capture card's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
 | `wb2Flash` | a calendar day the board's data asked to flash | a flash a row asked for with data |
+| `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button, on the frame and in a sheet's header; and the mark wherever Tiff is working, at the thinking pace (a wait, a fleet valuation, a receipt being read), which is state | on the button, not feedback or state: Isaac's override of law 18 (2026-09-24, "make it gently alive all the time"), the one thing in the app that moves at rest. See "The Tiff button" below |
 
 ### The buttons that keep their glyph
 
@@ -588,6 +589,52 @@ this list the way it holds the loops: both ways, by name.
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `chevR` | `railtg` | the rail's handle, a chevron riding the seam between rail and content; the shell stands as it is |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
+
+### The Tiff button
+
+The logo as a gyroscope (Isaac, 2026-09-25, picked from the "Tiff Button in
+3D" board). A solid chevron leans 18° and the lean circles once every 6
+seconds, with a small nod on it. It sits inside two gimbal rings that turn on
+their own axes with a line of light running along each, and a band of light
+crosses its face once a turn. It is 36px on the frame and 30px in a sheet's
+header, beside the close cross. The ground decides the skin. On the ink frame
+it has a paper face and the brand gradient in its depth. On a sheet's paper
+the face takes the brand gradient and the depth goes a step darker. It has no
+disc, no halo and no sparkle: "aura looks too generic ai". A press turns the
+mark once on its point and sends a ring out from its edge.
+
+It breaks five laws, on Isaac's word ("they are design exempt for now, but
+keep a note", 2026-09-24). This is the note:
+
+- **Law 18, loops.** It moves at rest, the only thing in the app that does.
+  Its six keyframes are in the loops table above, and every one stops under
+  reduced motion, leaving a still pose: the mark leaning, the rings tipped.
+- **Law 18, motion tokens.** Its clocks (6, 7, 5, 2.6 and 1.5 seconds) and
+  its press (800 ms) are its own, not `--t-fast` or `--t-move`.
+- **Law 23, hover.** A hover is two changes here: the rings brighten and the
+  mark comes forward 7%. Keyboard focus does the same.
+- **Law 16, colour.** Its colours are its own tokens, `--mark-*` in
+  `tokens.css`: the logo's colours on the logo, the way `--wordmark` is. The
+  accent count does not read them, by design, as it does not read
+  `--wordmark`.
+- **Law 25, the word.** It is the mark alone. Its label is "Ask or tell
+  Tiff", and in a sheet it names what the sheet is about.
+
+The gradients and shadows ratchets did not move. The old press wash's
+gradient went as the band of light's came, and the button casts no shadow.
+
+**The mark elsewhere** (`TiffGlyph`, 2026-09-25: "Elsewhere, for reference
+— looks good lets do it"). Wherever the chevron stands for Tiff it is the
+gimbal too, in one of two states, and neither needs an exemption:
+
+- **Still**, where it is a label: the Tiff chat's header and ask bar, Ask
+  Tiff on a document, the answer's ribbon, and the palette's footer. It holds
+  the button's reduced-motion pose, with the mark leaning and the rings
+  tipped.
+- **Working**, where Tiff is working: every wait (it replaced the orb there;
+  the orb stays the dictation meter), "Tiff is valuing…" on the fleet, and a
+  receipt being read. It runs the button's own loops at the thinking pace,
+  starting when the work does and ending with it: law 18's "Tiff is working".
 
 ## The order of work
 

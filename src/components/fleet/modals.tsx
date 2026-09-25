@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
+import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { DateField } from "@/components/ui/date-field";
 import { scanInProgress } from "@/components/record-modal/scan-card";
 import { readFuelReceipt, readServiceRecord } from "@/app/actions/fleet-ai";
@@ -592,7 +593,7 @@ export function LogModal({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {thumb && <img className="fl-scanthumb" src={thumb} alt="Receipt" />}
           <div className="fl-reading">
-            <Chevron size={20} gradient decorative />
+            <TiffGlyph size={20} working />
             {scan.reading}
           </div>
         </div>

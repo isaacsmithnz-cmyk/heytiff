@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { CaptureSheet } from "./note-token";
-import { TiffMark } from "./tiff-mark";
+import { MARK_MASK, TiffMark } from "./tiff-mark";
 import { useNoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
 
@@ -40,48 +40,42 @@ import { useNoteScope } from "./note-context";
    `topbar`  beside the bell, on the app's black frame. It floated
              bottom-right first and covered the page it sat on; a control
              that is always present has to live somewhere that is always
-             empty. THE ANIMATED GRADIENT HALO does the separating, and does
-             it alone: the smoked-glass disc the face used to wear only sat
-             on top of the halo and dulled it (removed 2026-08-12). The mark
-             is bare on the frame.
+             empty. The mark is bare on the frame: no disc, no halo. Its
+             two gimbal rings are its edge and the light on them is the
+             separation (the halo went with the gimbal redesign, 2026-09-25:
+             "aura looks too generic ai").
 
    `sheet`   in a sheet's own header. A sheet is a white surface with a
              scrim under it, and nothing outside that scrim can be clicked —
              which is why the topbar button is unreachable the moment a job
              opens, and why the tag could never do the one job it exists for.
              Isaac's fix, and it is the right one: put a button ON the sheet.
-             Here the ground is white, so the skin inverts — a dark face with
-             the core behind the mark, and no halo, because a coloured glow
-             on white is a smudge.
+             Here the ground is white, so the skin inverts: the face takes
+             the brand gradient and the rings go a step deeper (see
+             ./tiff-mark).
 
-   The marks are sized OFF THE BUTTON in both. They stayed at their 58px
-   sizes once when the button shrank to 44 and immediately read as crowded;
-   the approved ratios are chevron ~46%, sparkle ~30%. */
+   Everything inside is sized OFF THE BUTTON, in the stylesheet: the mark is
+   56% of it, the rings 86% and 72%. The button is 36px on the frame, as
+   Isaac's prototype drew it, and 30px in a sheet, beside the 30px close ×.
+   It carries no sparkle (law 5). */
 
 type Where = "topbar" | "sheet";
 
 
-/** 44px on the topbar, 30px in a sheet header beside the close ×. */
-const SIZES: Record<Where, { chevron: number; spark: number }> = {
-  topbar: { chevron: 20, spark: 13 },
-  sheet: { chevron: 14, spark: 9 },
-};
-
 export function TiffButton({ where = "topbar" }: { where?: Where }) {
   const scope = useNoteScope();
   const flow = useNoteFlow();
-  const size = SIZES[where];
 
-  /* The press, made visible: the halo flares and a wash of it BURSTS out of
-     the button while the sheet blossoms from the same corner — the sheet is
-     not a thing that appears, it is the button, grown. State-driven rather
-     than :active because the flare outlives the press (a tap is ~100ms; the
-     burst is 550). Cleared on a timer, not animationend: with motion reduced
-     the animation never ends and the class would stick. */
+  /* The press, made visible: the mark turns once on its own point and a ring
+     leaves the button's edge while the sheet blossoms from the same corner —
+     the sheet is not a thing that appears, it is the button, grown.
+     State-driven rather than :active because the turn outlives the press (a
+     tap is ~100ms; the turn is 800). Cleared on a timer, not animationend:
+     with motion reduced the animation never runs and the class would stick. */
   const [lit, setLit] = useState(false);
   useEffect(() => {
     if (!lit) return;
-    const t = setTimeout(() => setLit(false), 600);
+    const t = setTimeout(() => setLit(false), 850);
     return () => clearTimeout(t);
   }, [lit]);
 
@@ -111,6 +105,7 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
         title={where === "sheet" ? label : undefined}
         aria-haspopup="dialog"
         aria-expanded={flow.open}
+        style={{ "--tiffbtn-mask": MARK_MASK } as CSSProperties}
         onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
           setFrom({
@@ -128,14 +123,8 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
         }}
       >
         <span className="tiffbtn-burst" aria-hidden="true" />
-        {/* The core holds the mark's contrast on top of a LIGHT ground and is
-            wrong on a dark one, where it would only mute the halo. */}
-        <TiffMark
-          chevron={size.chevron}
-          spark={size.spark}
-          halo={where === "topbar"}
-          core={where === "sheet"}
-        />
+        {/* The frame is ink and a sheet is paper; the mark dresses for it. */}
+        <TiffMark ground={where === "topbar" ? "ink" : "paper"} />
       </button>
 
       {/* The SAME sheet the field postures open. What you get must not depend

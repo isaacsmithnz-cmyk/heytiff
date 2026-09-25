@@ -485,7 +485,14 @@ export function maxEditDate(rows: MirrorRow[], seed: string | null): string | nu
    it. The quarter of an hour covers the difference between our clock and
    ServiceM8's. The cursor is never later than the old rule's, so a wrong
    zone can only re-read more, never miss more; an unknown zone, or a walk
-   that paused before this rule existed, keeps the old rule. */
+   that paused before this rule existed, keeps the old rule.
+
+   WHAT IT DOESN'T MEND. The repeated hour's edit is READ again, but the
+   mirror's keep-newer guard (docs/migrations/sm8_calls_echo_freshness.sql)
+   compares stamps, and a record edited in both passes of that hour carries
+   a second-pass stamp that reads as older than its first. That record
+   keeps its first-pass copy until its next edit: a stamp with no zone
+   can't tell the two passes apart. Once a year, between 2 and 3 am. */
 
 /** How far before a walk began its floor sits. */
 export const CURSOR_OVERLAP_MS = 15 * 60_000;

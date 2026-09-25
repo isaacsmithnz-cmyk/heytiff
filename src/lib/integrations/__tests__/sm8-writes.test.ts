@@ -1421,10 +1421,29 @@ describe("the account's call limit", () => {
     expect(writes()[1].next_attempt_at).toBe(new Date(NOW + 60_000).toISOString());
   });
 
+  const counterRefused = (waitMs: number, day = false) => ({
+    ok: false,
+    limited: { kind: "rate_limited", limit: "ours", waitMs, day },
+  });
+
+  it("a send refused for the day says so, and waits what the counter said, though that is under an hour", async () => {
+    // ServiceM8's daily 429 was recorded 10 s ago: its hour's cooldown has 59 min 50 s to run
+    const { ids } = await queue("d1");
+    postSm8Attachment.mockResolvedValue({
+      status: null,
+      outcome: { kind: "rate_limited", limit: "ours", waitMs: 3_590_000, day: true },
+      remote: null,
+    });
+    const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(run.stopped).toBe(WRITE_WORDS.dailyLimit);
+    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0, last_error: WRITE_WORDS.dailyLimit });
+    expect(writes()[0].next_attempt_at).toBe(new Date(NOW + 3_590_000).toISOString());
+  });
+
   it("a read-back after a 409 the counter had no room for is handed back, not spent", async () => {
     const { ids } = await queue("d1");
     postSm8Attachment.mockResolvedValue({ status: 409, outcome: { kind: "exists" }, remote: null });
-    readSm8Attachment.mockResolvedValue({ ok: false, throttled: true });
+    readSm8Attachment.mockResolvedValue(counterRefused(20_000));
     const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
     expect(readSm8Attachment).toHaveBeenCalledWith(W1, writes()[0].remote_uuid);
     expect(run.stopped).toBe(WRITE_WORDS.paced);
@@ -1433,16 +1452,36 @@ describe("the account's call limit", () => {
     expect(writes()[0].maybe_landed).toBe(true);
   });
 
+  it("a read-back refused under the day's cooldown keeps the counter's wait, not a minute", async () => {
+    const { ids } = await queue("d1");
+    postSm8Attachment.mockResolvedValue({ status: 409, outcome: { kind: "exists" }, remote: null });
+    readSm8Attachment.mockResolvedValue(counterRefused(3_590_000, true));
+    const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(run.stopped).toBe(WRITE_WORDS.dailyLimit);
+    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0, last_error: WRITE_WORDS.dailyLimit });
+    expect(writes()[0].next_attempt_at).toBe(new Date(NOW + 3_590_000).toISOString());
+  });
+
   it("a check before a re-press the counter had no room for is handed back, and the check kept", async () => {
     const old = "0b1c2d3e-4f50-4617-8829-3a4b5c6d7e8f";
     const { ids } = await queue("d1");
     Object.assign(writes()[0], { verify_uuids: [old] });
-    readSm8Attachment.mockResolvedValue({ ok: false, throttled: true });
+    readSm8Attachment.mockResolvedValue(counterRefused(20_000));
     const run = await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
     expect(readSm8Attachment).toHaveBeenCalledWith(W1, old);
     expect(postSm8Attachment).not.toHaveBeenCalled();
     expect(run.stopped).toBe(WRITE_WORDS.paced);
     expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0, verify_uuids: [old] });
+  });
+
+  it("a check before a re-press refused under the day's cooldown waits it out, the check kept", async () => {
+    const old = "0b1c2d3e-4f50-4617-8829-3a4b5c6d7e8f";
+    const { ids } = await queue("d1");
+    Object.assign(writes()[0], { verify_uuids: [old] });
+    readSm8Attachment.mockResolvedValue(counterRefused(3_590_000, true));
+    await runSm8Writes(ORG, "send", { ids, clock: () => NOW });
+    expect(writes()[0]).toMatchObject({ status: "queued", attempts: 0, verify_uuids: [old], last_error: WRITE_WORDS.dailyLimit });
+    expect(writes()[0].next_attempt_at).toBe(new Date(NOW + 3_590_000).toISOString());
   });
 
   it("a check that failed any other way still spends the attempt, as before", async () => {

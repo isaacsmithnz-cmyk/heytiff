@@ -142,9 +142,36 @@ describe("putting a file on a job", () => {
     takeTurn.mockResolvedValue({ ok: false, waitMs: 45_000, why: "cooldown_minute" });
     expect(await postSm8Attachment(W("t"), UPLOAD)).toEqual({
       status: null,
-      outcome: { kind: "rate_limited", limit: "ours", waitMs: 45_000 },
+      outcome: { kind: "rate_limited", limit: "ours", waitMs: 45_000, day: false },
       remote: null,
     });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("says when the counter's refusal is a daily one, whatever is left of its wait", async () => {
+    // ServiceM8's daily 429, recorded 10 s ago: the hour's cooldown has under an hour to run
+    takeTurn.mockResolvedValue({ ok: false, waitMs: 3_590_000, why: "cooldown_day" });
+    expect((await postSm8Attachment(W("t"), UPLOAD)).outcome).toEqual({
+      kind: "rate_limited",
+      limit: "ours",
+      waitMs: 3_590_000,
+      day: true,
+    });
+    // the counter's own day cap, in the UTC day's last hour
+    takeTurn.mockResolvedValue({ ok: false, waitMs: 1_800_000, why: "day" });
+    expect((await postSm8Attachment(W("t"), UPLOAD)).outcome).toMatchObject({ day: true, waitMs: 1_800_000 });
+  });
+
+  it("never sleeps for a turn: the upload runs under a claim whose clocks have no room for it", async () => {
+    // a turn half a second away, which a read or the sync would sleep through
+    takeTurn.mockResolvedValue({ ok: false, waitMs: 500, why: "minute" });
+    expect((await postSm8Attachment(W("t"), UPLOAD)).outcome).toEqual({
+      kind: "rate_limited",
+      limit: "ours",
+      waitMs: 500,
+      day: false,
+    });
+    expect(takeTurn).toHaveBeenCalledTimes(1);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -202,11 +229,41 @@ describe("confirming a 409 was ours", () => {
     expect(fetchSm8Page.mock.calls[0][0]).toEqual({ accessToken: "t", meter: "vendor-1", lane: "write" });
   });
 
-  it("says when the account's limit had no room, apart from a read that failed", async () => {
-    fetchSm8Page.mockResolvedValueOnce({ ok: false, failure: "throttled", called: false });
-    expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({ ok: false, throttled: true });
-    fetchSm8Page.mockResolvedValueOnce({ ok: false, failure: "rate_limited" });
-    expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({ ok: false, throttled: true });
+  it("says when the account's limit had no room, with its wait, apart from a read that failed", async () => {
+    fetchSm8Page.mockResolvedValueOnce({
+      ok: false,
+      failure: "throttled",
+      called: false,
+      busy: { waitMs: 20_000, day: false },
+    });
+    expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({
+      ok: false,
+      limited: { kind: "rate_limited", limit: "ours", waitMs: 20_000, day: false },
+    });
+    // ServiceM8's own 429: its minute, or its day
+    fetchSm8Page.mockResolvedValueOnce({ ok: false, failure: "rate_limited", busy: { waitMs: 60_000, day: false } });
+    expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({
+      ok: false,
+      limited: { kind: "rate_limited", limit: "minute" },
+    });
+    fetchSm8Page.mockResolvedValueOnce({ ok: false, failure: "rate_limited", busy: { waitMs: 3_600_000, day: true } });
+    expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({
+      ok: false,
+      limited: { kind: "rate_limited", limit: "day" },
+    });
+  });
+
+  it("keeps the counter's wait and its day when a read-back is refused under the day's cooldown", async () => {
+    fetchSm8Page.mockResolvedValueOnce({
+      ok: false,
+      failure: "throttled",
+      called: false,
+      busy: { waitMs: 3_590_000, day: true },
+    });
+    expect(await readSm8Attachment(W("t"), UPLOAD.uuid)).toEqual({
+      ok: false,
+      limited: { kind: "rate_limited", limit: "ours", waitMs: 3_590_000, day: true },
+    });
   });
 
   it("says not found, and couldn't tell, apart", async () => {

@@ -15,6 +15,15 @@
    answer has gone, and a drain beside it would find its rows claimed. The
    drain starts when it ends.
 
+   NOT AFTER A RUN THAT STOPPED. A run ends early for the account's reasons
+   — ServiceM8 unreachable, a limit, an unpaid bill, a grant to reconnect,
+   Pause — and what it says about the account holds for the next file too.
+   An unreachable ServiceM8 sets no hold on the rest of the queue, so a
+   drain straight after would claim the next file, upload it into the same
+   outage and spend its attempt. So a press whose own run stopped doesn't
+   drain (the caller skips it), nor does a drain behind a run that stops;
+   what waits goes on its own retry time, the next page load or the night.
+
    IT FITS IN THE FUNCTION. It runs in after(), inside the press's own
    function, so it claims only while a whole lease still fits before the
    function ends (backgroundBudgetMs, counted from `startedAt`); with no
@@ -23,11 +32,11 @@
 
 import { after } from "next/server";
 import { backgroundBudgetMs } from "./sm8-write-plan";
-import { runSm8Writes, sm8WritesEnabled } from "./sm8-writes";
+import { runSm8Writes, sm8WritesEnabled, type Sm8WriteRun } from "./sm8-writes";
 
 export function drainSm8WritesAfterResponse(
   orgId: string,
-  opts: { startedAt?: number; behind?: Promise<unknown> } = {}
+  opts: { startedAt?: number; behind?: Promise<Pick<Sm8WriteRun, "stopped">> } = {}
 ): void {
   if (!sm8WritesEnabled()) return;
   const startedAt = opts.startedAt ?? Date.now();
@@ -35,7 +44,11 @@ export function drainSm8WritesAfterResponse(
      no unhandled rejection */
   const behind = opts.behind?.catch(() => null);
   after(async () => {
-    if (behind) await behind;
+    if (behind) {
+      const ran = await behind;
+      /* it stopped for the account's reasons: they hold for the next file */
+      if (ran && ran.stopped !== null) return;
+    }
     const budgetMs = backgroundBudgetMs(startedAt, Date.now());
     if (budgetMs <= 0) return;
     await runSm8Writes(orgId, "send", { budgetMs }).catch((err: unknown) => {

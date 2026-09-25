@@ -40,16 +40,28 @@ describe("drainSm8WritesAfterResponse", () => {
     expect(runSm8Writes).toHaveBeenCalledWith("org-1", "send", { budgetMs: 90_000 });
   });
 
+  const RAN = { stopped: null };
+
   it("waits for a run of the press's own that is still going, then drains", async () => {
-    let finish: () => void = () => {};
-    const still = new Promise<void>((resolve) => (finish = resolve));
+    let finish: (r: { stopped: string | null }) => void = () => {};
+    const still = new Promise<{ stopped: string | null }>((resolve) => (finish = resolve));
     drainSm8WritesAfterResponse("org-1", { behind: still });
     const draining = scheduled[0]();
     await Promise.resolve();
     expect(runSm8Writes).not.toHaveBeenCalled();
-    finish();
+    finish(RAN);
     await draining;
     expect(runSm8Writes).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't drain behind a run that stopped for the account's reasons — ServiceM8 unreachable holds nothing back", async () => {
+    /* an unreachable ServiceM8 leaves the queue's other files due at once:
+       a drain now would upload the next one into the same outage */
+    drainSm8WritesAfterResponse("org-1", {
+      behind: Promise.resolve({ stopped: "ServiceM8 couldn't be reached. Trying again shortly." }),
+    });
+    await scheduled[0]();
+    expect(runSm8Writes).not.toHaveBeenCalled();
   });
 
   it("drains after a run that failed, too", async () => {

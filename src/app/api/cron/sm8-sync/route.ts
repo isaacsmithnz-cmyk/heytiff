@@ -1,7 +1,7 @@
 import { authorised } from "@/lib/integrations/cron-auth";
 import { recordSm8CronVisit, runSm8Sync, sweepableSm8Orgs } from "@/lib/integrations/sm8-sync";
 import { orgsWithDueSm8Writes, runSm8Writes } from "@/lib/integrations/sm8-writes";
-import { WRITE_LEASE_MARGIN_MS } from "@/lib/integrations/sm8-write-plan";
+import { WRITE_LEASE_MARGIN_MS, WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
 
 /* The nightly ServiceM8 top-up — the BACKSTOP, not the primary path.
 
@@ -63,20 +63,25 @@ export const maxDuration = 300;
 /** One workspace's write run stops CLAIMING after this. */
 const CRON_WRITE_BUDGET_MS = 30_000;
 
-/** THE WRITES' ONE BUDGET, across every workspace, counted from the start
-    of the request. Writes go FIRST, so a file waiting since yesterday isn't
-    behind ten syncs; and they share one budget, so the syncs after them
-    still have the night's window. A run's budget only stops it claiming: a
-    send claimed at the last moment holds its row for up to a lease
-    (WRITE_LEASE_MS), which still ends well inside maxDuration. Past it, what
-    is left waits for the next page load or the next night. */
-const CRON_WRITE_TOTAL_MS = 60_000;
-
 /** A workspace's sync starts only while one of its leases (120 s) and a
     margin still fit before maxDuration; one that doesn't waits for the next
     night, first in line (sweepableSm8Orgs is least-recently-swept first). */
 const SYNC_LEASE_MS = 120_000;
 const CRON_SYNC_START_BY_MS = maxDuration * 1000 - SYNC_LEASE_MS - WRITE_LEASE_MARGIN_MS;
+
+/** THE WRITES' ONE BUDGET, across every workspace, counted from the start
+    of the request. Writes go FIRST, so a file waiting since yesterday isn't
+    behind ten syncs; and they share one budget, so the syncs after them
+    still have the night's window.
+
+    A run's budget only stops it CLAIMING: a send claimed at the last moment
+    can hold its row for a whole lease (WRITE_LEASE_MS). So the writes stop
+    claiming a lease before the first sync must start: however slow the last
+    send, the first workspace still syncs — and records the overnight visit
+    — rather than every sync being put off to the next night while the
+    screen says the overnight run never came. 45 s. Past it, what is left
+    waits for the next page load or the next night. */
+const CRON_WRITE_TOTAL_MS = CRON_SYNC_START_BY_MS - WRITE_LEASE_MS;
 
 /** Whether Vercel's scheduler made this call, rather than a person. */
 function fromScheduler(request: Request): boolean {

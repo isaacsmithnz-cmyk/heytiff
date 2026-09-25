@@ -44,7 +44,10 @@
      (SM8_PAUSE_SHARED_LIMIT) and a person's send goes instead.
    - A FINISHED WALK'S CURSOR SITS BEFORE THE WALK BEGAN (nextCursor), so an
      edit made on a page already read, or in April's repeated hour, is read
-     by the next walk rather than skipped.
+     by the next walk rather than skipped. (Read, not always kept: a record
+     edited in both passes of the repeated hour keeps its first-pass copy
+     until its next edit, because the mirror keeps the newer stamp and the
+     second pass's reads as older — see sm8-sync-plan's cursor note.)
 
    NO SESSION HERE — the caller establishes the right to ask (owner action,
    CRON_SECRET, or a page loader that already gated the org) and hands in a
@@ -196,6 +199,14 @@ async function readSyncState(orgId: string): Promise<StateRow[] | null> {
     .select(`${STATE_COLUMNS}, walk_started_at`)
     .eq("org_id", orgId);
   if (!withStart.error) return (withStart.data ?? []) as StateRow[];
+  /* ONLY a missing column is asked again: after any other failure a plain
+     read that happened to answer would lose the start of a walk in progress
+     — its finished cursor back on the old rule, or the start saved as null
+     for good. The run stops instead, and the next one reads it whole. */
+  if (!missingColumn(withStart.error)) {
+    console.error(`[sm8] couldn't read where the last sync stopped for org ${orgId}:`, withStart.error);
+    return null;
+  }
   const plain = await supabaseAdmin.from("sm8_sync_state").select(STATE_COLUMNS).eq("org_id", orgId);
   if (!plain.error) return (plain.data ?? []) as StateRow[];
   console.error(`[sm8] couldn't read where the last sync stopped for org ${orgId}:`, plain.error);

@@ -31,7 +31,7 @@ jest.mock("../sm8-meter", () => {
   };
 });
 
-import { sm8Request, sm8Url } from "../sm8-http";
+import { sm8BusyOf, sm8Request, sm8Url } from "../sm8-http";
 
 const fetchMock = jest.fn();
 const realFetch = global.fetch;
@@ -91,7 +91,7 @@ describe("a turn first", () => {
 
   it("sleeps through a short wait for the bucket, once, and then asks", async () => {
     turns = [{ ok: false, waitMs: 1_500, why: "minute" }, { ok: true }];
-    const answer = await sm8Request(CALL, "vendor.json", {}, { sleep });
+    const answer = await sm8Request({ ...CALL, lane: "sync" }, "vendor.json", {}, { sleep });
     expect(sleep).toHaveBeenCalledWith(1_500);
     expect(answer.kind).toBe("response");
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -110,8 +110,20 @@ describe("a turn first", () => {
       { ok: false, waitMs: 1_000, why: "minute" },
       { ok: false, waitMs: 1_000, why: "minute" },
     ];
-    expect((await sm8Request(CALL, "vendor.json", {}, { sleep })).kind).toBe("throttled");
+    expect((await sm8Request({ ...CALL, lane: "sync" }, "vendor.json", {}, { sleep })).kind).toBe("throttled");
     expect(sleep).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("never sleeps on lane `write`: its turns are taken under a row's claim, whose clocks have no room", async () => {
+    turns = [{ ok: false, waitMs: 500, why: "minute" }, { ok: true }];
+    expect(await sm8Request(CALL, "attachment.json", { method: "POST" }, { sleep })).toEqual({
+      kind: "throttled",
+      waitMs: 500,
+      why: "minute",
+    });
+    expect(sleep).not.toHaveBeenCalled();
+    expect(taken).toHaveLength(1);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -195,5 +207,24 @@ describe("a 429, shared", () => {
     fetchMock.mockResolvedValueOnce(new Response("nope", { status: 500 }));
     expect(await sm8Request(CALL, "job.json", {}, { sleep })).toMatchObject({ kind: "response", limit: null });
     expect(noted).toHaveLength(0);
+  });
+});
+
+/* What a refusal asks of whoever reads it: a daily limit is a daily limit
+   however little of its wait is left, so the words can't be chosen by the
+   wait's length. */
+describe("sm8BusyOf", () => {
+  it("a counter's refusal carries its wait, and is daily for its day cap or a daily 429's cooldown", () => {
+    expect(sm8BusyOf({ kind: "throttled", waitMs: 800, why: "minute" })).toEqual({ waitMs: 800, day: false });
+    expect(sm8BusyOf({ kind: "throttled", waitMs: 45_000, why: "cooldown_minute" })).toEqual({ waitMs: 45_000, day: false });
+    expect(sm8BusyOf({ kind: "throttled", waitMs: 3_590_000, why: "cooldown_day" })).toEqual({ waitMs: 3_590_000, day: true });
+    expect(sm8BusyOf({ kind: "throttled", waitMs: 1_800_000, why: "day" })).toEqual({ waitMs: 1_800_000, day: true });
+  });
+
+  it("ServiceM8's own 429 waits the cooldown the door recorded; any other answer asks nothing", () => {
+    const res = (status: number) => new Response(null, { status });
+    expect(sm8BusyOf({ kind: "response", res: res(429), limit: "minute" })).toEqual({ waitMs: 60_000, day: false });
+    expect(sm8BusyOf({ kind: "response", res: res(429), limit: "day" })).toEqual({ waitMs: 3_600_000, day: true });
+    expect(sm8BusyOf({ kind: "response", res: res(200), limit: null })).toBeNull();
   });
 });

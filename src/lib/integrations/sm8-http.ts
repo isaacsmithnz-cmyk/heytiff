@@ -12,8 +12,9 @@
       fetch somewhere else with an owner's token on it.
    2. A TURN IS TAKEN from the account's counter (sm8-meter). A short wait
       for the per-minute bucket is slept through, once, when it fits the
-      lane's patience; anything longer — a cooldown after a 429, or the day's
-      cap — comes back as `throttled`, and no request is made.
+      lane's patience (none for a write: its turn is taken under a row's
+      claim); anything longer — a cooldown after a 429, or the day's cap —
+      comes back as `throttled`, and no request is made.
    3. THE REQUEST, with the bearer token and a timeout. A network error is
       thrown, as fetch's own, so the callers' existing catches still work.
    4. A 429 IS RECORDED against the account, as the kind ServiceM8 named,
@@ -47,6 +48,24 @@ export type Sm8Answer =
   | { kind: "response"; res: Response; limit: "minute" | "day" | null }
   /** No request was made: the counter had no turn for this call. */
   | { kind: "throttled"; waitMs: number; why: MeterRefusal };
+
+/** What a refusal asks of the caller: how long to hold off, and whether it
+    is a DAILY limit — the counter's own day cap, a daily 429 it recorded, or
+    ServiceM8's daily 429 just now — so what a person reads says "for the
+    day", not "a minute". */
+export type Sm8Busy = { waitMs: number; day: boolean };
+
+/** The refusal in an answer: the counter's (no request made) or ServiceM8's
+    own 429, whose wait is the cooldown the door has just recorded. Null for
+    any other answer. */
+export function sm8BusyOf(answer: Sm8Answer): Sm8Busy | null {
+  if (answer.kind === "throttled") {
+    return { waitMs: answer.waitMs, day: answer.why === "day" || answer.why === "cooldown_day" };
+  }
+  if (answer.res.status !== 429) return null;
+  const limit = answer.limit ?? "minute";
+  return { waitMs: SM8_METER.cooldownMs[limit], day: limit === "day" };
+}
 
 /** A call on `lane` with an access the store handed out. */
 export function sm8CallOf(access: { accessToken: string; meter: string }, lane: Sm8Lane): Sm8Call {
@@ -90,7 +109,8 @@ export async function sm8Request(
 
   if (call.meter !== null) {
     let turn = await takeSm8Call(call.meter, call.lane);
-    if (!turn.ok && turn.why === "minute" && turn.waitMs <= SM8_METER.maxWaitMs[call.lane]) {
+    const patience: number = SM8_METER.maxWaitMs[call.lane];
+    if (!turn.ok && turn.why === "minute" && patience > 0 && turn.waitMs <= patience) {
       await (deps.sleep ?? sleepFor)(turn.waitMs);
       turn = await takeSm8Call(call.meter, call.lane);
     }

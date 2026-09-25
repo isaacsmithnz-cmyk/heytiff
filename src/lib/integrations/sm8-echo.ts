@@ -27,11 +27,13 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
-/** Uuids per query: two lists of them ride in the URL (remote_uuid and
-    replaced_uuids), and a hundred of each stays well inside any proxy's
-    limit — a URL too long for one would fail, and fall through to the empty
-    set, silently showing every twin. */
-export const ECHO_CHUNK = 100;
+/** Uuids per query. Two lists of them ride in the URL (remote_uuid and
+    replaced_uuids), each uuid about 39 characters once its comma is
+    encoded, so fifty make a request line of about 4 KB — half of the 8 KB
+    a common proxy buffers for one. A hundred came to 7.9 KB, right at that
+    edge; a URL too long for a proxy would fail, and fall through to the
+    empty set, silently showing every twin. */
+export const ECHO_CHUNK = 50;
 
 type DbError = { code?: string; message?: string } | null;
 const missingColumn = (e: DbError) => e?.code === "PGRST204" || e?.code === "42703";
@@ -52,11 +54,29 @@ async function readEchoes(orgId: string, part: readonly string[]): Promise<{ dat
 }
 
 /** Which of these ServiceM8 uuids HeyTiff minted for its own writes — any
-    status, any kind. Only well-formed uuids are ever put in a filter. */
+    status, any kind. Only well-formed uuids are ever put in a filter.
+
+    WHATEVER THE CASE. HeyTiff mints its uuids lower case, and ServiceM8
+    has mirrored the one sent so far back unchanged (checked read-only on
+    2026-09-25); but a copy that came back in capitals would otherwise show
+    twice and be downloaded back. So the ask and the match are lower case,
+    and what comes back is each uuid as the caller gave it. */
 export async function sm8Ours(orgId: string, uuids: readonly string[]): Promise<Set<string>> {
-  const asked = [...new Set(uuids.filter((u) => typeof u === "string" && UUID.test(u)))];
+  /* each uuid, lower case, and every spelling the caller gave it */
+  const given = new Map<string, string[]>();
+  for (const u of uuids) {
+    if (typeof u !== "string" || !UUID.test(u)) continue;
+    const key = u.toLowerCase();
+    const seen = given.get(key);
+    if (!seen) given.set(key, [u]);
+    else if (!seen.includes(u)) seen.push(u);
+  }
+  const asked = [...given.keys()];
   const ours = new Set<string>();
   if (asked.length === 0) return ours;
+  const mark = (u: string | null | undefined) => {
+    for (const as of (u && given.get(u.toLowerCase())) || []) ours.add(as);
+  };
 
   try {
     for (let i = 0; i < asked.length; i += ECHO_CHUNK) {
@@ -68,8 +88,8 @@ export async function sm8Ours(orgId: string, uuids: readonly string[]): Promise<
       }
       const wanted = new Set(part);
       for (const r of (data ?? []) as EchoRow[]) {
-        if (r.remote_uuid && wanted.has(r.remote_uuid)) ours.add(r.remote_uuid);
-        for (const u of r.replaced_uuids ?? []) if (wanted.has(u)) ours.add(u);
+        if (r.remote_uuid && wanted.has(r.remote_uuid.toLowerCase())) mark(r.remote_uuid);
+        for (const u of r.replaced_uuids ?? []) if (wanted.has(u.toLowerCase())) mark(u);
       }
     }
   } catch (err) {

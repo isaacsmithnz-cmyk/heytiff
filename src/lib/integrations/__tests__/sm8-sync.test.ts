@@ -37,6 +37,8 @@ const deleteFails = new Set<string>();
 /* A list read of sm8_sync_state that errors for these columns — a database
    without walk_started_at yet, or one that can't be read at all. */
 let stateSelectFails: ((cols: string) => boolean) | null = null;
+/* ...and the code it fails with: 42703 is a missing column. */
+let stateSelectCode = "42703";
 /* An upsert the database refuses, by table and payload. */
 let upsertFails: ((table: string, payload: unknown) => { code: string } | null) | null = null;
 
@@ -109,7 +111,7 @@ jest.mock("@/lib/supabase-server", () => ({
         };
         sub.then = (res: (v: { data: Row[] | null; error?: { code: string } }) => unknown) => {
           if (table === "sm8_sync_state" && stateSelectFails?.(cols)) {
-            return Promise.resolve({ data: null, error: { code: "42703" } }).then(res);
+            return Promise.resolve({ data: null, error: { code: stateSelectCode } }).then(res);
           }
           const data =
             table === "sm8_sync_state"
@@ -216,6 +218,7 @@ beforeEach(() => {
   readFails.clear();
   deleteFails.clear();
   stateSelectFails = null;
+  stateSelectCode = "42703";
   upsertFails = null;
   claimResult = [{ calls_today: 0, calls_day: null }];
   stateRows = [];
@@ -545,6 +548,17 @@ describe("the cursor a finished walk leaves", () => {
     // filtered from the stored cursor, not from 24 months back
     const jobsCall = fetchSm8Page.mock.calls.find((c) => c[1] === "job.json")!;
     expect(jobsCall[2]).toMatchObject({ filter: "edit_date gt '2026-07-26 23:59:59'" });
+  });
+
+  it("a state read that fails for any other reason stops the run, rather than reading again without the walk's start", async () => {
+    /* a brief database error on the first read, then a plain read that
+       answers: the walk in progress would lose its start for good */
+    stateSelectFails = (cols) => cols.includes("walk_started_at");
+    stateSelectCode = "08006";
+    const out = await runSm8Sync("org-1", "manual", NOW);
+    expect(out.note).toBe(SM8_STATE_UNREAD);
+    expect(fetchSm8Page).not.toHaveBeenCalled();
+    expect(upserts.filter((u) => u.table === "sm8_sync_state")).toHaveLength(0);
   });
 
   it("a state that can't be read at all stops the run before a page is asked for", async () => {

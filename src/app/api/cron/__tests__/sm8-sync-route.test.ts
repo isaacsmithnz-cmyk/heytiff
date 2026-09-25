@@ -5,7 +5,8 @@
  * a refused one writes nothing — not even the trace. Writes go first, on one
  * budget for the whole night, so the syncs after them still fit the window;
  * a write run's budget only stops it CLAIMING, and a send claimed at the
- * last moment can hold its row for a whole lease. Vercel's own scheduled
+ * last moment can hold its row for a whole lease — so claiming stops a
+ * lease before the first sync must start. Vercel's own scheduled
  * call is recorded against each workspace it syncs, before the sync, so the
  * owner's screen can say the overnight run came; a call made by hand is not.
  */
@@ -120,24 +121,31 @@ describe("the night's order", () => {
 });
 
 describe("the writes' one budget", () => {
-  it("gives each workspace 30 s of claiming while the night's minute has room", async () => {
+  it("gives each workspace 30 s of claiming while the night's budget has room", async () => {
     takes = [1_000, 1_000, 1_000, 1_000];
     const body = await (await GET(byScheduler())).json();
     expect(budgets).toEqual([30_000, 30_000, 30_000, 30_000]);
     expect(body.writes).toMatchObject({ orgs: 4, sent: 4, deferred: 0 });
   });
 
-  it("shares one minute across every workspace, and claims nothing past it", async () => {
-    // the first takes its whole 30 s, the second 25 of its 30
-    takes = [30_000, 25_000, 5_000];
+  it("shares 45 s across every workspace, and claims nothing past it", async () => {
+    // the first takes 20 of its 30 s, the second 20 of its 25, the third has 5 left
+    takes = [20_000, 20_000, 5_000];
     const body = await (await GET(byScheduler())).json();
-    expect(budgets).toEqual([30_000, 30_000, 5_000]);
+    expect(budgets).toEqual([30_000, 25_000, 5_000]);
     expect(body.writes).toMatchObject({ orgs: 4, sent: 3, deferred: 1 });
   });
 
-  it("a send claimed at the end of the writes' minute still ends before any sync could be cut off", () => {
-    // claims stop 60 s in; one held a whole lease ends by 180 s, inside the 300 s function
-    expect(60_000 + WRITE_LEASE_MS).toBeLessThan(maxDuration * 1000);
+  it("a send claimed at the last moment, held for a whole lease, still lets the first sync start and record the visit", async () => {
+    // the first workspace's writes take 44 s; the second is given the last
+    // second, claims in it, and its send holds its row for the whole lease
+    takes = [44_000, WRITE_LEASE_MS];
+    const body = await (await GET(byScheduler())).json();
+    expect(budgets).toEqual([30_000, 1_000]);
+    expect(events.filter((e) => !e.startsWith("writes:"))).toEqual(["visit:s1", "sync:s1", "visit:s2", "sync:s2"]);
+    expect(body).toMatchObject({ ran: 2, deferred: 0 });
+    // ...and it all ends inside the function
+    expect(clock - Date.parse("2026-09-25T20:00:00Z")).toBeLessThan(maxDuration * 1000);
   });
 });
 

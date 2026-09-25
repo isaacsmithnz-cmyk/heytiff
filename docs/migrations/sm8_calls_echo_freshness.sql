@@ -28,6 +28,14 @@
 -- text, so collate "C" compares it as the time it is. The sync is the only
 -- writer of these tables.
 --
+-- THE ONE EXCEPTION, APRIL'S REPEATED HOUR. A record edited in both passes
+-- of the hour the clock goes back (2 to 3 am) carries a second-pass stamp
+-- that reads as older than its first-pass one: the cursor's floor reads it
+-- again, and this guard then keeps the first-pass copy until the record's
+-- next edit. A stamp with no zone can't tell the two passes apart, and
+-- letting an older stamp through would undo the guard all year for one
+-- hour a year.
+--
 -- THE OVERNIGHT TRACE (sm8_sync_runs.last_cron_at). Written only by
 -- Vercel's scheduled call, after it passed CRON_SECRET; the owner's
 -- ServiceM8 screen says when it last came.
@@ -166,6 +174,8 @@ create index if not exists sm8_writes_org_remote_idx on public.sm8_writes (org_i
 alter table public.sm8_sync_state add column if not exists walk_started_at timestamptz;
 
 -- ── 4. keep the newer row: an older edit_date never replaces a newer one ──
+-- (save in April's repeated hour: a record edited in both passes keeps its
+-- first-pass copy until its next edit; see the header)
 -- BEGIN KEEP NEWER (the test script carries this function too)
 create or replace function public.sm8_mirror_keep_newer()
 returns trigger language plpgsql set search_path = public

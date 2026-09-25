@@ -31,12 +31,13 @@
 
    ON LANE `write`, BOTH OF THEM. The upload and the read-back take their
    turns from the account's counter (sm8-meter) on the lane with no floor,
-   so a sync walking beside them can never starve a send or its check. A
-   turn the counter refuses makes no request: the upload comes back
-   rate-limited by HeyTiff's own counter (`ours`), the read-back as
-   throttled, and the sender hands the attempt back. */
+   so a sync walking beside them can never starve a send or its check, and
+   with no patience, because both run under a row's claim. A turn the
+   counter refuses makes no request: either comes back rate-limited by
+   HeyTiff's own counter (`ours`), with the counter's wait and whether its
+   limit is a daily one, and the sender hands the attempt back. */
 
-import { sm8Request, type Sm8Call } from "./sm8-http";
+import { sm8BusyOf, sm8Request, type Sm8Call } from "./sm8-http";
 import { fetchSm8Page } from "./sm8-read";
 import {
   classifyWrite,
@@ -98,7 +99,12 @@ export async function postSm8Attachment(call: Sm8Call, upload: Sm8AttachmentUplo
     const answer = await sm8Request(call, "attachment.json", { method: "POST", body: form, timeoutMs: WRITE_TIMEOUT_MS });
     if (answer.kind === "throttled") {
       /* nothing went: the account's own counter had no turn for it */
-      return { status: null, outcome: { kind: "rate_limited", limit: "ours", waitMs: answer.waitMs }, remote: null };
+      const busy = sm8BusyOf(answer) ?? { waitMs: answer.waitMs, day: false };
+      return {
+        status: null,
+        outcome: { kind: "rate_limited", limit: "ours", waitMs: busy.waitMs, day: busy.day },
+        remote: null,
+      };
     }
     res = answer.res;
     limit = answer.limit;
@@ -119,9 +125,11 @@ export async function postSm8Attachment(call: Sm8Call, upload: Sm8AttachmentUplo
 export type Sm8AttachmentCheck =
   | { ok: true; found: false }
   | { ok: true; found: true; jobUuid: string | null; active: boolean }
-  /** `throttled`: the account's call limit had no room — the counter
-      refused the turn, or ServiceM8 answered 429. Not the record's doing. */
-  | { ok: false; throttled?: true };
+  /** `limited`: the account's call limit had no room — the counter refused
+      the turn (`ours`, with its wait), or ServiceM8 answered 429 (its
+      minute or its day) — as the outcome the sender hands the attempt back
+      with. Not the record's doing. */
+  | { ok: false; limited?: Extract<Sm8WriteOutcome, { kind: "rate_limited" }> };
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -144,7 +152,14 @@ export async function readSm8Attachment(call: Sm8Call, uuid: string): Promise<Sm
     timeoutMs: WRITE_READ_TIMEOUT_MS,
   });
   if (!page.ok) {
-    return page.failure === "throttled" || page.failure === "rate_limited" ? { ok: false, throttled: true } : { ok: false };
+    if (page.failure === "throttled") {
+      const busy = page.busy ?? { waitMs: 0, day: false };
+      return { ok: false, limited: { kind: "rate_limited", limit: "ours", waitMs: busy.waitMs, day: busy.day } };
+    }
+    if (page.failure === "rate_limited") {
+      return { ok: false, limited: { kind: "rate_limited", limit: page.busy?.day ? "day" : "minute" } };
+    }
+    return { ok: false };
   }
   const row = page.rows.find((r) => r.uuid === uuid);
   if (!row) return { ok: true, found: false };

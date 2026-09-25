@@ -28,7 +28,7 @@
    `sm8Config()` returns null and the screen says so. */
 
 import { SM8_SCOPE_LIST } from "./providers";
-import { sm8Request, type Sm8Call } from "./sm8-http";
+import { sm8BusyOf, sm8Request, type Sm8Call } from "./sm8-http";
 
 const AUTHORIZE_URL = "https://go.servicem8.com/oauth/authorize";
 const TOKEN_URL = "https://go.servicem8.com/oauth/access_token";
@@ -287,6 +287,9 @@ export type Sm8VendorResult =
       unauthorized: boolean;
       paymentRequired?: boolean;
       throttled?: boolean;
+      /** With `throttled`: the limit that had no room is a daily one (see
+          sm8-http's Sm8Busy), so the screen says so rather than "a minute". */
+      daily?: true;
       /** No request reached ServiceM8: the counter refused the turn. */
       called?: false;
     };
@@ -300,11 +303,13 @@ export type Sm8VendorResult =
 export async function fetchSm8Vendor(call: Sm8Call): Promise<Sm8VendorResult> {
   try {
     const answer = await sm8Request(call, "vendor.json", { timeoutMs: HTTP_TIMEOUT_MS });
-    if (answer.kind === "throttled") return { ok: false, unauthorized: false, throttled: true, called: false };
+    const busy = sm8BusyOf(answer);
+    const daily = busy?.day ? ({ daily: true } as const) : {};
+    if (answer.kind === "throttled") return { ok: false, unauthorized: false, throttled: true, ...daily, called: false };
     const res = answer.res;
     if (res.status === 429) {
       console.error(`[sm8] GET vendor.json 429: ServiceM8's ${answer.limit ?? "minute"} limit`);
-      return { ok: false, unauthorized: false, throttled: true };
+      return { ok: false, unauthorized: false, throttled: true, ...daily };
     }
     if (res.status === 401) return { ok: false, unauthorized: true };
     /* 402 = the ServiceM8 account isn't in good standing (an expired trial

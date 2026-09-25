@@ -313,7 +313,11 @@ header lists the checks for after.
   ServiceM8 screen, and every press of Send, Retry failed files, Sync now or
   switching sending on sends what is waiting behind its answer.
 - **A record edited mid-sync, or in April's repeated hour, is no longer
-  skipped**, and an older copy of a record never replaces a newer one.
+  skipped**, and an older copy of a record never replaces a newer one. One
+  exception, once a year: a record edited in both passes of April's repeated
+  hour (2 to 3 am) can keep its first-pass copy until its next edit, because
+  the second pass's stamp reads as older and nothing in a stamp without a
+  zone tells the two apart.
 
 ### The daily mirror top-up
 

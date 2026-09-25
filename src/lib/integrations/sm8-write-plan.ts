@@ -230,7 +230,13 @@ export const WRITE_LEASE_MARGIN_MS = 15_000;
     after a renewed token: its own timeout, a read-back after it and the
     margin all still end inside the lease. A send that reaches this late (a
     slow read of the file, a slow check first) lets go of its row instead,
-    untouched, and the next run takes it. 35 s. */
+    untouched, and the next run takes it. 35 s.
+
+    NOTHING UNDER A CLAIM SLEEPS FOR A TURN. The upload and the read-back
+    take their turns from the account's counter on lane `write`, whose
+    patience is none (sm8-meter's SM8_METER.maxWaitMs.write, pinned against
+    this sum in sm8-meter.test): a sleep before either would
+    come out of the margin, which is for the database and the clocks. */
 export const WRITE_SEND_BY_MS = WRITE_LEASE_MS - WRITE_TIMEOUT_MS - WRITE_READ_TIMEOUT_MS - WRITE_LEASE_MARGIN_MS;
 
 /** A run nobody is waiting on: behind a press's answer, or a retry. It stops
@@ -400,8 +406,10 @@ export type Sm8WriteOutcome =
       kind would be refused the same way until a reconnect. */
   | { kind: "forbidden"; scope: boolean }
   | { kind: "payment_required" }
-  /** `waitMs`: how long the counter said to wait, for `ours`. */
-  | { kind: "rate_limited"; limit: Sm8RateLimit; waitMs?: number }
+  /** For `ours`: `waitMs`, how long the counter said to wait, and `day`,
+      whether the limit with no room is a daily one — the counter's own day
+      cap, or ServiceM8's daily 429 it recorded (an hour's cooldown). */
+  | { kind: "rate_limited"; limit: Sm8RateLimit; waitMs?: number; day?: boolean }
   /** The 409's record is ours, on this job, and INACTIVE: an earlier upload
       failed half way, which ServiceM8's guide says leaves the record
       "inactive and pending upload". That uuid is spent; the file goes again
@@ -607,14 +615,18 @@ export function verdictFor(
     case "rate_limited": {
       if (outcome.limit === "ours") {
         /* HeyTiff's own counter: nothing reached ServiceM8. Its wait is the
-           counter's, at least a minute; past an hour it is a daily limit
-           (the counter's day cap, or ServiceM8's daily 429 it recorded), and
-           says so. Everything queued waits with it — the counter is the
-           account's, so the next row would be refused the same way. */
+           counter's, at least a minute. A daily limit says so, whatever is
+           left of its wait — the counter's day cap waits only until UTC
+           midnight, under an hour for the last hour of the UTC day (mid-
+           morning in Sydney), and ServiceM8's daily 429 holds for an hour — so it is told by the counter's
+           reason, not by the length of the wait. Everything queued waits
+           with it — the counter is the account's, so the next row would be
+           refused the same way. */
         const wait = Math.max(RATE_LIMIT_WAIT_MS, outcome.waitMs ?? 0);
+        const daily = outcome.day === true || wait > HOUR_MS;
         return verdict({
           status: "queued",
-          error: wait > HOUR_MS ? WRITE_WORDS.dailyLimit : WRITE_WORDS.paced,
+          error: daily ? WRITE_WORDS.dailyLimit : WRITE_WORDS.paced,
           retryAfterMs: wait,
           holdAllMs: wait,
           refund: true,

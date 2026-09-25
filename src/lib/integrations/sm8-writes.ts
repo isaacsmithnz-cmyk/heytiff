@@ -973,8 +973,9 @@ async function postOne(
        anything else is a conflict that isn't ours to call sent. */
     const check = await readSm8Attachment(sm8CallOf(access, "write"), row.remote_uuid);
     /* a read-back the account's limit had no room for is handed back, not
-       spent: the record under our uuid is still there to confirm next time */
-    if (!check.ok && check.throttled) outcome = { kind: "rate_limited", limit: "ours" };
+       spent, and waits what the limit asks: the record under our uuid is
+       still there to confirm next time */
+    if (!check.ok && check.limited) outcome = check.limited;
     else if (!check.ok) outcome = { kind: "unavailable", status: null };
     else if (!check.found) outcome = { kind: "unavailable", status: 409 };
     else if (check.jobUuid !== row.sm8_job_uuid) outcome = { kind: "rejected", status: 409 };
@@ -1040,15 +1041,10 @@ async function sendOne(
     for (const uuid of toCheck) {
       const check = await readSm8Attachment(sm8CallOf(live, "write"), uuid);
       if (!check.ok) {
-        /* the account's limit had no room: handed back, the check kept for
-           next time; any other failed read spends the attempt as before */
-        const unread = fromVerdict(
-          verdictFor(
-            check.throttled ? { kind: "rate_limited", limit: "ours" } : { kind: "unavailable", status: null },
-            attempts,
-            ctx()
-          )
-        );
+        /* the account's limit had no room: handed back for as long as the
+           limit asks, the check kept for next time; any other failed read
+           spends the attempt as before */
+        const unread = fromVerdict(verdictFor(check.limited ?? { kind: "unavailable", status: null }, attempts, ctx()));
         return { finish: { ...unread, verifyUuids: left }, access };
       }
       if (check.found && check.active && check.jobUuid === row.sm8_job_uuid) {

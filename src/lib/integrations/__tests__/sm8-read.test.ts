@@ -31,7 +31,7 @@ jest.mock("../sm8-meter", () => {
   return { ...actual, takeSm8Call: (...a: unknown[]) => takeTurn(...a), noteSm8Throttle: jest.fn(async () => {}) };
 });
 
-import { BUSY, fetchSm8Page, readSm8StaffRows, readSm8Vendor } from "../sm8-read";
+import { BUSY, BUSY_DAY, fetchSm8Page, readSm8StaffRows, readSm8Vendor } from "../sm8-read";
 
 const ACCESS = { accessToken: "tok", tenantId: "v-1", grant: "g1", meter: "v-1" };
 const RENEWED = { accessToken: "tok-2", tenantId: "v-1", grant: "g2", meter: "v-1" };
@@ -59,9 +59,11 @@ afterAll(() => {
   global.fetch = realFetch;
 });
 
-const jsonResponse = (body: unknown, init: { status?: number; nextCursor?: string } = {}) => {
+const jsonResponse = (body: unknown, init: { status?: number; nextCursor?: string } = {}): Record<string, unknown> => {
   const status = init.status ?? 200;
   return {
+    // the door reads a 429's body from a copy, to tell the day from the minute
+    clone: () => jsonResponse(body, init),
     ok: status >= 200 && status < 300,
     status,
     statusText: status === 200 ? "OK" : "Error",
@@ -144,7 +146,7 @@ describe("fetchSm8Page", () => {
       [500, "unavailable"],
     ] as const) {
       fetchMock.mockResolvedValueOnce(jsonResponse("nope", { status }));
-      expect(await fetchSm8Page(call("t"), "job.json", { cursor: "-1", filter: null })).toEqual({
+      expect(await fetchSm8Page(call("t"), "job.json", { cursor: "-1", filter: null })).toMatchObject({
         ok: false,
         failure,
       });
@@ -157,8 +159,21 @@ describe("fetchSm8Page", () => {
       ok: false,
       failure: "throttled",
       called: false,
+      busy: { waitMs: 60_000, day: false },
     });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("says when the counter's refusal is a daily one — its own day cap, or a daily 429 it recorded", async () => {
+    takeTurn.mockResolvedValue({ ok: false, waitMs: 3_590_000, why: "cooldown_day" });
+    expect(await fetchSm8Page(call(), "job.json", { cursor: "-1", filter: null })).toMatchObject({
+      failure: "throttled",
+      busy: { waitMs: 3_590_000, day: true },
+    });
+    takeTurn.mockResolvedValue({ ok: false, waitMs: 1_800_000, why: "day" });
+    expect(await fetchSm8Page(call(), "job.json", { cursor: "-1", filter: null })).toMatchObject({
+      busy: { waitMs: 1_800_000, day: true },
+    });
   });
 
   it("takes its turn on the caller's lane, from the caller's account", async () => {
@@ -170,8 +185,15 @@ describe("fetchSm8Page", () => {
   it("ServiceM8's own 429 is still 'rate_limited' — a request was made", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse("Number of allowed API requests per minute exceeded", { status: 429 }));
     const page = await fetchSm8Page(call(), "job.json", { cursor: "-1", filter: null });
-    expect(page).toEqual({ ok: false, failure: "rate_limited" });
+    expect(page).toEqual({ ok: false, failure: "rate_limited", busy: { waitMs: 60_000, day: false } });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    // the daily one holds every caller for the hour's cooldown
+    fetchMock.mockResolvedValueOnce(jsonResponse("Number of allowed API requests per day exceeded", { status: 429 }));
+    expect(await fetchSm8Page(call(), "job.json", { cursor: "-1", filter: null })).toEqual({
+      ok: false,
+      failure: "rate_limited",
+      busy: { waitMs: 3_600_000, day: true },
+    });
   });
 
   it("a network throw and a non-array body are both 'unavailable'", async () => {
@@ -373,6 +395,29 @@ describe("with a grant to read through", () => {
     expect(await readSm8StaffRows("org-1")).toEqual({ ok: false, error: BUSY });
     expect(BUSY).toBe("ServiceM8 is busy for this account. Try again in a minute.");
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(needsReauthMock).not.toHaveBeenCalled();
+  });
+
+  it("says ServiceM8 is busy when ServiceM8 itself answers 429 to the staff read, and flags nothing", async () => {
+    fetchMock.mockResolvedValue(jsonResponse("Number of allowed API requests per minute exceeded", { status: 429 }));
+    expect(await readSm8StaffRows("org-1")).toEqual({ ok: false, error: BUSY });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(needsReauthMock).not.toHaveBeenCalled();
+    expect(renewMock).not.toHaveBeenCalled();
+  });
+
+  it("says the day's limit is used up, not 'a minute', when the limit with no room is a daily one", async () => {
+    // the counter's refusal under a daily 429's cooldown, with under an hour of it left
+    takeTurn.mockResolvedValue({ ok: false, waitMs: 3_590_000, why: "cooldown_day" });
+    expect(await readSm8Vendor("org-1")).toEqual({ ok: false, error: BUSY_DAY });
+    expect(await readSm8StaffRows("org-1")).toEqual({ ok: false, error: BUSY_DAY });
+    expect(fetchMock).not.toHaveBeenCalled();
+    // ServiceM8's own daily 429
+    takeTurn.mockResolvedValue({ ok: true });
+    fetchMock.mockResolvedValue(jsonResponse("Number of allowed API requests per day exceeded", { status: 429 }));
+    expect(await readSm8Vendor("org-1")).toEqual({ ok: false, error: BUSY_DAY });
+    expect(await readSm8StaffRows("org-1")).toEqual({ ok: false, error: BUSY_DAY });
+    expect(BUSY_DAY).toBe("ServiceM8's daily limit for this account is used up. Try again after it resets.");
     expect(needsReauthMock).not.toHaveBeenCalled();
   });
 

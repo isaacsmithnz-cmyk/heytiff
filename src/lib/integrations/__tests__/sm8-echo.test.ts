@@ -90,14 +90,34 @@ describe("sm8Ours", () => {
     expect((await sm8Ours(ORG, [uuid(1)])).size).toBe(0);
   });
 
-  it("asks a hundred at a time, so the address stays short", async () => {
-    expect(ECHO_CHUNK).toBe(100);
+  it("asks fifty at a time, so the request line stays well inside a proxy's 8 KB", async () => {
+    expect(ECHO_CHUNK).toBe(50);
     rows = [{ org_id: ORG, remote_uuid: uuid(250), status: "sent", replaced_uuids: [] }];
     const asked = Array.from({ length: 250 }, (_, i) => uuid(i + 1));
     const ours = await sm8Ours(ORG, asked);
     expect([...ours]).toEqual([uuid(250)]);
-    expect(queries).toHaveLength(3);
-    for (const q of queries) expect(q.or!.length).toBeLessThan(8_000);
+    expect(queries).toHaveLength(5);
+    /* the request line as PostgREST's client builds it: every parameter
+       URL-encoded, so each comma and bracket costs three characters. A
+       hundred uuids came to 7.9 KB, at the edge of nginx's default 8 KB. */
+    for (const q of queries) {
+      const search = new URLSearchParams();
+      search.append("select", "remote_uuid,replaced_uuids");
+      search.append("org_id", `eq.${uuid(0)}`);
+      search.append("or", `(${q.or})`);
+      const line = `GET /rest/v1/sm8_writes?${search.toString()} HTTP/1.1`;
+      expect(line.length).toBeLessThan(6_000);
+    }
+  });
+
+  it("finds ours whatever the case ServiceM8 mirrors it back in, and answers in the caller's own spelling", async () => {
+    rows = [{ org_id: ORG, remote_uuid: "7d3f2c1e-5b6a-4c8d-9e0f-1a2b3c4d5e6f", status: "sent", replaced_uuids: [] }];
+    const theirs = "7D3F2C1E-5B6A-4C8D-9E0F-1A2B3C4D5E6F";
+    const ours = await sm8Ours(ORG, [theirs, uuid(2)]);
+    expect([...ours]).toEqual([theirs]);
+    // asked in lower case, the way HeyTiff minted it
+    expect(queries[0].or).toContain("remote_uuid.in.(7d3f2c1e-5b6a-4c8d-9e0f-1a2b3c4d5e6f,");
+    expect(withoutOurs([{ uuid: theirs }, { uuid: uuid(2) }], (r) => r.uuid, ours)).toEqual([{ uuid: uuid(2) }]);
   });
 
   it("asks once per uuid, however often it is named", async () => {

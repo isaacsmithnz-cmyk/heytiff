@@ -14,6 +14,13 @@ jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { rpc: (...a: unknown
 
 import { noteSm8Throttle, sm8LimitOf, SM8_METER, takeSm8Call } from "../sm8-meter";
 import { DAILY_CALL_BUDGET } from "../sm8-sync-plan";
+import {
+  WRITE_LEASE_MARGIN_MS,
+  WRITE_LEASE_MS,
+  WRITE_READ_TIMEOUT_MS,
+  WRITE_SEND_BY_MS,
+  WRITE_TIMEOUT_MS,
+} from "../sm8-write-plan";
 
 beforeEach(() => {
   rpc.mockReset();
@@ -41,6 +48,16 @@ describe("the numbers", () => {
     expect(dayCap.write).toBeLessThanOrEqual(18_000);
     // the sync's own per-workspace budget still binds first
     expect(DAILY_CALL_BUDGET).toBeLessThanOrEqual(dayCap.sync);
+  });
+
+  it("never sleep under a write's claim: an upload started at the last moment, and its read-back, still end inside the lease with the whole margin", () => {
+    /* the upload and a read-back after a 409 each take a turn on lane
+       `write` after WRITE_SEND_BY_MS; a sleep before either would come out
+       of the margin, which is for the database and the clocks */
+    expect(SM8_METER.maxWaitMs.write).toBe(0);
+    expect(
+      WRITE_SEND_BY_MS + 2 * SM8_METER.maxWaitMs.write + WRITE_TIMEOUT_MS + WRITE_READ_TIMEOUT_MS + WRITE_LEASE_MARGIN_MS
+    ).toBeLessThanOrEqual(WRITE_LEASE_MS);
   });
 
   it("wait a minute after a per-minute 429, and an hour after a daily one", () => {
@@ -73,6 +90,11 @@ describe("taking a turn", () => {
     expect(await takeSm8Call("v-1", "write")).toEqual({ ok: false, waitMs: 3_000_000, why: "cooldown_day" });
   });
 
+  it("hands back a daily refusal with the wait left to UTC midnight", async () => {
+    rpc.mockResolvedValue({ data: [{ ok: false, wait_ms: 20 * 3_600_000, why: "day" }], error: null });
+    expect(await takeSm8Call("v-1", "sync")).toEqual({ ok: false, waitMs: 20 * 3_600_000, why: "day" });
+  });
+
   it("reads a single row as well as the array a RETURNS TABLE comes back as", async () => {
     rpc.mockResolvedValue({ data: { ok: false, wait_ms: 500, why: "minute" }, error: null });
     expect(await takeSm8Call("v-1", "sync")).toEqual({ ok: false, waitMs: 500, why: "minute" });
@@ -92,6 +114,46 @@ describe("a counter that can't be asked", () => {
       expect(console.error).toHaveBeenCalledTimes(1);
       expect((console.error as jest.Mock).mock.calls[0][0]).toContain("call meter unavailable (PGRST202)");
     });
+  });
+});
+
+/* The SQL is exercised by a script, not by these tests. A counter that
+   answered — but wrongly — would hold every call to ServiceM8 without an
+   error to show for it, so an answer it can't have meant is let through,
+   like a counter that can't be asked, and said once in the log. */
+describe("a counter that answers what it can't mean", () => {
+  it("lets the call through when a wait is longer than its reason allows", async () => {
+    await jest.isolateModulesAsync(async () => {
+      const { takeSm8Call: take } = await import("../sm8-meter");
+      // the bucket refills 2 a second: no per-minute wait is an hour
+      rpc.mockResolvedValue({ data: [{ ok: false, wait_ms: 3_600_000, why: "minute" }], error: null });
+      expect(await take("v-1", "sync")).toEqual({ ok: true });
+      // a cooldown is a minute, or an hour for the day
+      rpc.mockResolvedValue({ data: [{ ok: false, wait_ms: 600_000, why: "cooldown_minute" }], error: null });
+      expect(await take("v-1", "read")).toEqual({ ok: true });
+      rpc.mockResolvedValue({ data: [{ ok: false, wait_ms: 5 * 3_600_000, why: "cooldown_day" }], error: null });
+      expect(await take("v-1", "write")).toEqual({ ok: true });
+      // the day's cap waits until UTC midnight, never longer than a day
+      rpc.mockResolvedValue({ data: [{ ok: false, wait_ms: 30 * 3_600_000, why: "day" }], error: null });
+      expect(await take("v-1", "sync")).toEqual({ ok: true });
+      // a reason it never gives
+      rpc.mockResolvedValue({ data: [{ ok: false, wait_ms: 500, why: null }], error: null });
+      expect(await take("v-1", "sync")).toEqual({ ok: true });
+      expect(console.error).toHaveBeenCalledTimes(1);
+      expect((console.error as jest.Mock).mock.calls[0][0]).toContain("call meter answered what it can't mean");
+    });
+  });
+
+  it("still refuses the longest wait each reason can honestly carry", async () => {
+    // the sync's floor is 10: from an empty bucket, 11 tokens at 2 a second
+    rpc.mockResolvedValue({ data: [{ ok: false, wait_ms: 5_500, why: "minute" }], error: null });
+    expect(await takeSm8Call("v-1", "sync")).toEqual({ ok: false, waitMs: 5_500, why: "minute" });
+    rpc.mockResolvedValue({ data: [{ ok: false, wait_ms: 60_000, why: "cooldown_minute" }], error: null });
+    expect(await takeSm8Call("v-1", "read")).toEqual({ ok: false, waitMs: 60_000, why: "cooldown_minute" });
+    rpc.mockResolvedValue({ data: [{ ok: false, wait_ms: 3_600_000, why: "cooldown_day" }], error: null });
+    expect(await takeSm8Call("v-1", "write")).toEqual({ ok: false, waitMs: 3_600_000, why: "cooldown_day" });
+    rpc.mockResolvedValue({ data: [{ ok: false, wait_ms: 86_400_000, why: "day" }], error: null });
+    expect(await takeSm8Call("v-1", "sync")).toEqual({ ok: false, waitMs: 86_400_000, why: "day" });
   });
 });
 

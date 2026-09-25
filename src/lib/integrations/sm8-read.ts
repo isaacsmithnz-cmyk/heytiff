@@ -19,7 +19,7 @@
    pauses. */
 
 import { fetchSm8Vendor, sm8Config, type Sm8Vendor } from "./sm8";
-import { sm8CallOf, sm8Request, type Sm8Call } from "./sm8-http";
+import { sm8BusyOf, sm8CallOf, sm8Request, type Sm8Busy, type Sm8Call } from "./sm8-http";
 import { sm8AccessResult, type Sm8AccessResult } from "./sm8-store";
 import { withSm8Renewal, type RenewVerdict } from "./sm8-renew";
 import { SM8_BILLING } from "./sm8-sync-plan";
@@ -32,6 +32,9 @@ const UNAVAILABLE = "ServiceM8 couldn't be reached just now. Try again shortly."
 const REAUTH = "The ServiceM8 connection needs reconnecting.";
 /** The account's call limit had no room for this read. */
 export const BUSY = "ServiceM8 is busy for this account. Try again in a minute.";
+/** ...and the limit with no room is a daily one: the counter's day cap, or
+    ServiceM8's daily limit, whose cooldown is an hour, not a minute. */
+export const BUSY_DAY = "ServiceM8's daily limit for this account is used up. Try again after it resets.";
 
 /** Why there was no token to read with, as the screen's sentence: a refresh
     that couldn't reach ServiceM8 is "try again shortly", never "reconnect". */
@@ -76,7 +79,7 @@ export async function readSm8Vendor(orgId: string): Promise<ReadResult<Sm8Vendor
      reconnect a healthy connection sends them round a loop that cannot fix a
      billing state. */
   if (result.paymentRequired) return { ok: false, error: SM8_BILLING };
-  if (result.throttled) return { ok: false, error: BUSY };
+  if (result.throttled) return { ok: false, error: result.daily ? BUSY_DAY : BUSY };
   return { ok: false, error: UNAVAILABLE };
 }
 
@@ -119,7 +122,9 @@ export async function readSm8StaffRows(
     if (!page.ok) {
       if (page.failure === "forbidden") return { ok: false, error: STAFF_SCOPE };
       if (page.failure === "payment_required") return { ok: false, error: SM8_BILLING };
-      if (page.failure === "throttled" || page.failure === "rate_limited") return { ok: false, error: BUSY };
+      if (page.failure === "throttled" || page.failure === "rate_limited") {
+        return { ok: false, error: page.busy?.day ? BUSY_DAY : BUSY };
+      }
       return { ok: false, error: UNAVAILABLE };
     }
     rows.push(...page.rows);
@@ -168,8 +173,10 @@ export type Sm8PageFailure =
 export type Sm8Page =
   | { ok: true; rows: Record<string, unknown>[]; nextCursor: string | null }
   /** `called: false` — no request reached ServiceM8 (the counter refused the
-      turn), so a caller counting its calls doesn't count this one. */
-  | { ok: false; failure: Sm8PageFailure; called?: false };
+      turn), so a caller counting its calls doesn't count this one. `busy`,
+      on `throttled` and `rate_limited`: how long the account's limit asks
+      callers to hold off, and whether it is a daily limit. */
+  | { ok: false; failure: Sm8PageFailure; called?: false; busy?: Sm8Busy };
 
 /** One page of one object: up to 1000 rows plus the x-next-cursor header
     that names the next page (absent = walk complete). The failure kinds are
@@ -190,7 +197,9 @@ export async function fetchSm8Page(
 
   try {
     const answer = await sm8Request(call, endpoint, { query, timeoutMs: opts.timeoutMs ?? HTTP_TIMEOUT_MS });
-    if (answer.kind === "throttled") return { ok: false, failure: "throttled", called: false };
+    if (answer.kind === "throttled") {
+      return { ok: false, failure: "throttled", called: false, busy: sm8BusyOf(answer) ?? undefined };
+    }
     const res = answer.res;
     if (res.status === 401) return { ok: false, failure: "unauthorized" };
     if (res.status === 403) {
@@ -204,7 +213,7 @@ export async function fetchSm8Page(
       return { ok: false, failure: "forbidden" };
     }
     if (res.status === 402) return { ok: false, failure: "payment_required" };
-    if (res.status === 429) return { ok: false, failure: "rate_limited" };
+    if (res.status === 429) return { ok: false, failure: "rate_limited", busy: sm8BusyOf(answer) ?? undefined };
     if (!res.ok) {
       await logSm8Failure(`GET ${endpoint}`, res);
       return { ok: false, failure: "unavailable" };

@@ -177,6 +177,23 @@ describe("what an answer means", () => {
     expect(v.holdAllMs).toBe(3 * 3_600_000);
   });
 
+  it("a daily refusal says the daily limit's words however little of its wait is left", () => {
+    /* ServiceM8's daily 429, recorded 10 s ago, holds for an hour; the
+       counter's own day cap waits only until UTC midnight. Either can be
+       under an hour, and neither is "a minute". */
+    const v = verdictFor({ kind: "rate_limited", limit: "ours", waitMs: 3_590_000, day: true }, 1);
+    expect(v).toMatchObject({ status: "queued", refund: true, stop: true, error: WRITE_WORDS.dailyLimit });
+    expect(v.retryAfterMs).toBe(3_590_000);
+    expect(v.holdAllMs).toBe(3_590_000);
+    expect(verdictFor({ kind: "rate_limited", limit: "ours", waitMs: 90_000, day: true }, 1).error).toBe(
+      WRITE_WORDS.dailyLimit
+    );
+    // a per-minute wait stays a minute's words
+    expect(verdictFor({ kind: "rate_limited", limit: "ours", waitMs: 20_000, day: false }, 1).error).toBe(
+      WRITE_WORDS.paced
+    );
+  });
+
   it("a dead record goes again at once under a new uuid, the attempt handed back — twice, then a person", () => {
     const ctx = (freeRetries: number) => ({ now: 0, timezoneName: null, freeRetries });
     expect(verdictFor({ kind: "dead_record" }, 1, ctx(0))).toMatchObject({

@@ -63,6 +63,7 @@ const scheduled: (() => unknown)[] = [];
 jest.mock("next/server", () => ({ after: (fn: () => unknown) => scheduled.push(fn) }));
 
 import { readJobSm8, sendJobDocumentsToServiceM8 } from "../job-sm8";
+import { WRITE_WORDS } from "@/lib/integrations/sm8-write-plan";
 
 const office: Ctx = { orgId: "org-1", userId: "auth0|isaac", staffId: "staff-isaac", company: true, team: true };
 
@@ -251,7 +252,9 @@ describe("what goes", () => {
     await pressThenDrain();
   });
 
-  it("drains when ServiceM8 stopped the run — what it held back waits for its own time", async () => {
+  it("doesn't drain when the press's own run stopped — an unreachable ServiceM8 would take the next file's attempt too", async () => {
+    /* unreachable holds nothing back: the press's other files are due at
+       once, and a drain would upload the next into the same outage */
     runSm8Writes.mockResolvedValueOnce({
       done: 1,
       sent: 0,
@@ -259,9 +262,30 @@ describe("what goes", () => {
       failed: 0,
       again: 0,
       lost: 0,
-      stopped: "ServiceM8 couldn't be reached.",
+      stopped: WRITE_WORDS.unreachable,
     });
-    await pressThenDrain();
+    await sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] });
+    for (const fn of scheduled) await fn();
+    expect(runSm8Writes).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't drain behind a run still going at the answer that then stops", async () => {
+    jest.useFakeTimers();
+    try {
+      let finish: (r: unknown) => void = () => {};
+      runSm8Writes.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
+      readJobSends.mockResolvedValue([sent("doc-a", "sending"), sent("doc-b", "queued")]);
+      const pressing = sendJobDocumentsToServiceM8({ jobUuid: "job-1", keys: ["p:paper-1", "d:doc-b"] });
+      await jest.advanceTimersByTimeAsync(21_000);
+      await pressing;
+      expect(scheduled).toHaveLength(1);
+      const behind = Promise.resolve(scheduled[0]());
+      finish({ done: 1, sent: 0, trial: 0, failed: 0, again: 0, lost: 0, stopped: WRITE_WORDS.unreachable });
+      await behind;
+      expect(runSm8Writes).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("drains when every tick was already on its way, and nothing was queued", async () => {

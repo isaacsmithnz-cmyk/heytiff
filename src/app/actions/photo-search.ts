@@ -140,10 +140,14 @@ async function searchPhotosInner(term: string, cap: number): Promise<PhotoSearch
      matching, the escaping and the ranking in one place that CAN be tested
      directly, and it was: `%`, `_` and `a,b` all return nothing, while
      `PUZ-M125` finds the dataplate the tsvector alone cannot. */
+  /* Twice the cap and one more: the one to know whether the cap bound, and
+     the rest room for HeyTiff's own files, left out below, so they don't
+     cut a real photo off the end. */
+  const limit = cap * 2 + 1;
   const { data, error } = await supabaseAdmin.rpc("search_job_photos", {
     p_org: orgId,
     p_term: query.raw,
-    p_limit: cap + 1,
+    p_limit: limit,
   });
 
   if (error) {
@@ -153,15 +157,16 @@ async function searchPhotosInner(term: string, cap: number): Promise<PhotoSearch
 
   /* A photo HeyTiff sent to ServiceM8 comes back in the mirror as one of
      ServiceM8's; it is left out here (lib/integrations/sm8-echo), and the
-     cap is judged on what is left. */
+     cap is judged on what is left. A full answer is cut off whatever was
+     left out of it: the database may hold more matches past it. */
   const found = (data ?? []) as HitRow[];
   const ours = await sm8Ours(
     orgId,
     found.map((r) => r.sm8_attachment_uuid)
   );
   const rows = withoutOurs(found, (r) => r.sm8_attachment_uuid, ours);
-  const capped = rows.length > cap;
-  const kept = capped ? rows.slice(0, cap) : rows;
+  const capped = rows.length > cap || found.length >= limit;
+  const kept = rows.slice(0, cap);
 
   /* The function already ranked these. `rankPhotos` re-sorts on the same
      weights so the two can never silently disagree — and so the ordering is

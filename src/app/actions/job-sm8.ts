@@ -8,6 +8,7 @@ import {
   readJobSends,
   readSm8WriteState,
   runSm8Writes,
+  type Sm8WriteRun,
 } from "@/lib/integrations/sm8-writes";
 import { drainSm8WritesAfterResponse } from "@/lib/integrations/sm8-drain";
 import {
@@ -162,14 +163,19 @@ export async function sendJobDocumentsToServiceM8(input: SendToSm8Input): Promis
      was queued, and sending is paused for the owner to look at */
   if (queued.capped) return { ok: false, error: WRITE_WORDS.paused };
 
-  let running: Promise<unknown> | undefined;
+  let running: Promise<Sm8WriteRun> | undefined;
+  let stopped = false;
   if (queued.ids.length > 0) {
     const pressRun = runSm8Writes(ctx.orgId, "send", { ids: queued.ids, budgetMs: SEND_BUDGET_MS });
     const run = await settleWithin(pressRun, SEND_BUDGET_MS);
     /* still going at the budget: the drain waits for it behind the answer */
     if (run === null) running = pressRun;
+    /* ended for the account's reasons (ServiceM8 unreachable, a limit, a
+       reconnect, Pause): a drain now would only meet them again, spending
+       the next file's attempt — see sm8-drain */
+    else stopped = run.stopped !== null;
   }
-  drainSm8WritesAfterResponse(ctx.orgId, { startedAt, behind: running });
+  if (!stopped) drainSm8WritesAfterResponse(ctx.orgId, { startedAt, behind: running });
 
   const sends = await readJobSends(ctx.orgId, job);
   const sendOf = new Map(sends.map((s) => [s.documentId, s]));

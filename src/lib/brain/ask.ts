@@ -87,7 +87,45 @@ export type AskBrainInput = {
   targetRef?: { kind: string; id: string };
   todayISO: string;
   signal?: AbortSignal;
+  /** The conversation before this question, oldest first — the Tiff modal's
+      turns, already capped and filtered by the route. "And the one at Smith
+      St?" means nothing without the question before it. */
+  history?: readonly AskHistoryTurn[];
 };
+
+/** One earlier turn, in the modal's own words for who said it. */
+export type AskHistoryTurn = { who: "you" | "tiff"; text: string };
+
+type AskMessage = {
+  role: "user" | "assistant";
+  content: { type: "text"; text: string; cache_control?: typeof EPHEMERAL }[];
+};
+
+/** The opening messages: the history, then the question.
+
+    A conversation must open on a user turn and alternate, and a window of
+    the last few turns can begin anywhere — so a leading Tiff turn is dropped,
+    two turns in a row from the same side become one message, and a question
+    that follows one of your own turns joins it rather than standing beside
+    it. The question keeps the cache marker, so the history ahead of it is
+    cached with it. Pure and exported for the test. */
+export function askMessages(question: string, history: readonly AskHistoryTurn[] = []): AskMessage[] {
+  const out: AskMessage[] = [];
+  const push = (role: AskMessage["role"], block: AskMessage["content"][number]) => {
+    const last = out[out.length - 1];
+    if (last?.role === role) last.content.push(block);
+    else out.push({ role, content: [block] });
+  };
+  for (const turn of history) {
+    const text = typeof turn?.text === "string" ? turn.text.trim() : "";
+    if (!text) continue;
+    const role = turn.who === "tiff" ? "assistant" : "user";
+    if (out.length === 0 && role === "assistant") continue;
+    push(role, { type: "text", text });
+  }
+  push("user", { type: "text", text: question, cache_control: EPHEMERAL });
+  return out;
+}
 
 const NO_KEY = "Asking isn't switched on yet.";
 const FAILED = "That couldn't be answered just now. Try again.";
@@ -163,14 +201,15 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
     i === defs.length - 1 ? { ...def, cache_control: EPHEMERAL } : def
   ) as Anthropic.Beta.BetaTool[];
 
-  /* The running conversation: the question, then each round's assistant
-     blocks and tool results. Plain message objects — the SDK's own types for
-     tool_result content are looser than ours need to be. The question is a
-     block rather than a bare string only so it has somewhere to hang its
-     cache marker. */
-  const messages: { role: "user" | "assistant"; content: unknown }[] = [
-    { role: "user", content: [{ type: "text", text: question, cache_control: EPHEMERAL }] },
-  ];
+  /* The running conversation: the history ahead of the question, then each
+     round's assistant blocks and tool results. Plain message objects — the
+     SDK's own types for tool_result content are looser than ours need to be.
+     The question is a block rather than a bare string only so it has
+     somewhere to hang its cache marker. */
+  const messages: { role: "user" | "assistant"; content: unknown }[] = askMessages(
+    question,
+    input.history,
+  );
 
   /* Where the rolling marker sits right now, so the next round can take it
      back off — three markers is the budget, and one per round would blow the

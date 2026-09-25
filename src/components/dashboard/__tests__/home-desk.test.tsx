@@ -126,7 +126,6 @@ const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
   at: "6:52 am",
   outcomes: [],
   spoken: true,
-  isDebrief: false,
   ...over,
 });
 
@@ -177,7 +176,7 @@ describe("the frame", () => {
   });
 
   it("says Debrief nowhere", () => {
-    draw({ journal: [entry({ said: "Long day, two callouts.", isDebrief: true })] });
+    draw({ journal: [entry({ said: "Long day, two callouts." })] });
     expect(document.body.textContent).not.toMatch(/debrief/i);
   });
 });

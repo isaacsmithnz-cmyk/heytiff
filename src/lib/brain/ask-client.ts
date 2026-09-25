@@ -20,6 +20,10 @@ export async function askBrain(
     question: string;
     target?: NoteTarget;
     targetLabel?: string;
+    /** The Tiff modal's conversation so far, oldest first. The route keeps
+        the last six, you and Tiff only, and replays them ahead of the
+        question, so "and the one at Smith St?" means something. */
+    history?: readonly { who: "you" | "tiff"; text: string }[];
     signal?: AbortSignal;
   },
   handlers: BrainAskHandlers
@@ -37,6 +41,9 @@ export async function askBrain(
             ? { kind: input.target.kind, id: input.target.id }
             : undefined,
         targetLabel: input.targetLabel,
+        ...(input.history?.length
+          ? { history: input.history.map((t) => ({ who: t.who, text: t.text })) }
+          : {}),
       }),
     });
   } catch {

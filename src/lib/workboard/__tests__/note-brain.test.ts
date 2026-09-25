@@ -21,6 +21,7 @@ import {
   whoBlock,
   NOTE_SCHEMA,
   SEVERITIES,
+  TIFF_NOTE_SCHEMA,
   type NoteContext,
 } from "../note-brain";
 
@@ -347,14 +348,15 @@ describe("no debrief mode is left", () => {
        shaper and leaving it in the schema is exactly that, so this reads the
        schema itself rather than a list someone would have to remember. The
        object lanes (tasks, flags, entries) and the clarify pair have tests of
-       their own above. */
-    const plain = Object.entries(NOTE_SCHEMA.properties).filter(([key, lane]) => {
+       their own above. Both schemas: the modal's is the card's plus `say`. */
+    const lanes = { ...NOTE_SCHEMA.properties, ...TIFF_NOTE_SCHEMA.properties };
+    const plain = Object.entries(lanes).filter(([key, lane]) => {
       const l = lane as { type: string; items?: { type?: string } };
       return !key.startsWith("clarify_") && (l.type === "string" || l.items?.type === "string");
     });
     // not vacuous: a filter that matched nothing would pass the loop below
     expect(plain.map(([key]) => key)).toEqual(
-      expect.arrayContaining(["bring_items", "plain_note", "progress_bullets"]),
+      expect.arrayContaining(["bring_items", "plain_note", "progress_bullets", "say"]),
     );
     for (const [key, lane] of plain) {
       const said = `words for ${key}`;

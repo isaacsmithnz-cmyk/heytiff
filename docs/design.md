@@ -719,10 +719,11 @@ The logo as a gyroscope (Isaac, 2026-09-25, picked from the "Tiff Button in
 3D" board). A solid chevron leans 18° and the lean circles once every 6
 seconds, with a small nod on it. It sits inside two gimbal rings that turn on
 their own axes with a line of light running along each, and a band of light
-crosses its face once a turn. It is 36px on the frame and 30px in a sheet's
-header, beside the close cross. The ground decides the skin. On the ink frame
-it has a paper face and the brand gradient in its depth. On a sheet's paper
-the face takes the brand gradient and the depth goes a step darker. It has no
+crosses its face once a turn. It is 36px on the frame, 30px in a sheet's
+header, beside the close cross, and 36px at the end of an entry box, beside
+the box's Save. The ground decides the skin. On the ink frame it has a paper
+face and the brand gradient in its depth. On paper, a sheet's or a box's, the
+face takes the brand gradient and the depth goes a step darker. It has no
 disc, no halo and no sparkle: "aura looks too generic ai". A press turns the
 mark once on its point and sends a ring out from its edge.
 
@@ -741,7 +742,9 @@ keep a note", 2026-09-24). This is the note:
   accent count does not read them, by design, as it does not read
   `--wordmark`.
 - **Law 25, the word.** It is the mark alone. Its label is "Ask or tell
-  Tiff", and in a sheet it names what the sheet is about.
+  Tiff", and in a sheet it names what the sheet is about. At the end of an
+  entry box it is "Talk to Tiff": the box is the way to type, and the
+  button is the other way in.
 
 The gradients and shadows ratchets did not move. The old press wash's
 gradient went as the band of light's came, and the button casts no shadow.

@@ -2045,8 +2045,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
      only ever exists on a short card (the door, or a recording), so there is
      no scroll position to lose in the swap; and the field's own `overflow` is
      wanted again by the time anything collapses it. */
-  .wb2-capcard:has(.dotf[data-stage="gather"]) { overflow:visible; }
-  .wb2-capfield:has(.dotf[data-stage="gather"]) { overflow:visible; }
+  .wb2-capcard:has(.dotf[data-stage="gather"]),
+  .tm:has(.dotf[data-stage="gather"]) { overflow:visible; }
+  .wb2-capfield:has(.dotf[data-stage="gather"]),
+  .tm-face:has(.dotf[data-stage="gather"]) { overflow:visible; }
 }
 
 /* ── out into the cloud ──
@@ -4351,7 +4353,9 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .datef.inpd { width:100%; height:46px; padding:0 16px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--tint); font-size:14px; font-weight:500; }
 .datef.inpd.err { border-color:var(--bad); background:var(--bad-tint); }
 
-.fg .cal-pop { position:fixed; z-index:var(--z-modal); width:300px; padding:12px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); box-shadow:var(--shadow-overlay); animation:calPop .16s ease; }
+/* Its shadow is the one overlay shadow, declared once with the Tiff modal's
+   (the modal's section, below the Tiff button). */
+.fg .cal-pop { position:fixed; z-index:var(--z-modal); width:300px; padding:12px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); animation:calPop .16s ease; }
 @keyframes calPop { from { opacity:0; transform:translateY(-4px); } }
 .fg .cal-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
 .fg .cal-mo { flex:1; text-align:center; font-size:14px; font-weight:700; color:var(--ink); }
@@ -8447,10 +8451,12 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .tiffbtn-topbar { --tb:36px; }
 /* sized to sit beside the sheet's 30px close × */
 .tiffbtn-sheet { --tb:30px; }
+/* at the end of an entry box and of the modal's reply box, beside a 36px Save */
+.tiffbtn-box { --tb:36px; }
 .tiffbtn-topbar, .tiffmk-ink {
   --tiffbtn-sheen:color-mix(in srgb, var(--mark-teal) 85%, transparent); --tiffbtn-sheen-hi:var(--mark-core);
   --tiffbtn-burst:color-mix(in srgb, var(--mark-core) 90%, transparent); }
-.tiffbtn-sheet, .tiffmk-paper {
+.tiffbtn-sheet, .tiffbtn-box, .tiffmk-paper {
   --tiffbtn-sheen:color-mix(in srgb, var(--paper) 90%, transparent); --tiffbtn-sheen-hi:var(--paper);
   --tiffbtn-burst:color-mix(in srgb, var(--mark-blue) 70%, transparent); }
 .tiffbtn:active { transform:translateY(1px); }
@@ -8572,6 +8578,142 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   .tiffbtn-gim-a { transform:rotateZ(-20deg) rotateY(60deg); }
   .tiffbtn-gim-b { transform:rotateZ(25deg) rotateX(60deg); }
   .tiffbtn:is(:hover, :focus-visible) .tiffbtn-root { transform:none; }
+}
+
+/* ══════════════════ THE TIFF MODAL (.tm-*) ══════════════════
+   One light modal, app-wide, where you talk to Tiff (Isaac, 2026-09-24,
+   "unify it as one smooth modal … implemented app wide"; light, after "not
+   dark background"). The markup and the reasons are in
+   components/tiff/modal/tiff-modal.tsx.
+
+   It portals to the body inside a `.fg` wrapper that draws no box, so the
+   frame's resets and type reach it; the scrim and the modal themselves are
+   unscoped, because they are only ever that wrapper's children. Paper, the
+   card radius, the one overlay shadow, the one scrim, the modal layer.
+
+   THREE ZONES THAT STAY WHERE THEY ARE: the face, the conversation and the
+   dock. Each opens and closes by its own box (Web Animations, in
+   box-motion.ts) and the modal is never given a height. The motion is the
+   two tokens; the dots are the capture card's own field and its named loops
+   (`dotf*`, `fgPulse` on the recording dot, the caret on an answer). */
+.fg .cal-pop, .tm { box-shadow:var(--shadow-overlay); }
+.tm-scrim { position:fixed; inset:0; z-index:var(--z-modal); background:var(--scrim); }
+.tm { position:fixed; z-index:var(--z-modal); top:104px; left:0; right:0; margin:0 auto;
+  width:min(600px, calc(100vw - 32px)); max-height:calc(100vh - 128px);
+  display:flex; flex-direction:column; overflow:hidden; outline:none;
+  background:var(--paper); border-radius:var(--r-card); color:var(--ink); }
+
+/* the header: the context, the tag's cross, Close. The still mark slides in
+   beside the context once the face zone has closed. */
+.fg .tm-head { display:flex; align-items:center; gap:8px; height:48px; padding:0 12px 0 24px; flex:none; }
+.fg .tm-who { display:flex; align-items:center; gap:4px; flex:1; min-width:0; }
+.fg .tm-hmark { display:inline-grid; place-items:center; flex:none; width:0; margin-right:0; opacity:0; overflow:hidden;
+  transition:width var(--t-move) var(--ease), margin-right var(--t-move) var(--ease), opacity var(--t-move) var(--ease); }
+.fg .tm.speaking .tm-hmark { width:20px; margin-right:4px; opacity:1; }
+.fg .tm-ctx { font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .tm-aimx, .fg .tm-x, .fg .tm-clear, .fg .tm-rm { display:grid; place-items:center; flex:none; padding:0; color:var(--q);
+  transition:background-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease); }
+.fg .tm-aimx { width:24px; height:24px; border-radius:var(--r-control); }
+.fg .tm-x { width:32px; height:32px; border-radius:var(--r-button); }
+.fg .tm-aimx:hover, .fg .tm-x:hover, .fg .tm-clear:hover, .fg .tm-rm:hover { background:var(--tint); }
+.fg .tm-aimx:focus-visible, .fg .tm-x:focus-visible, .fg .tm-clear:focus-visible, .fg .tm-rm:focus-visible,
+.fg .tm-undo:focus-visible, .fg .tm-words:focus-visible { outline:none; box-shadow:var(--ring); }
+
+/* the face: the mark as dots, 252 geometry at .6, pinned to the zone's top so
+   it never rides the zone's height as it opens and closes */
+.fg .tm-face { position:relative; flex:none; height:176px; overflow:hidden; }
+.fg .tm-field { position:absolute; left:50%; top:88px; width:252px; height:252px; margin:-126px 0 0 -126px;
+  transform:scale(.6); pointer-events:none; }
+/* THE STREAM IS SEEN LEAVING THE BUTTON. The modal lands over the button you
+   pressed, so while the dots travel the face paints above the turns and the
+   dock, and each dot starts already lit: the field's own arrival starts at
+   nothing, which here hid the first third of the journey under the modal. */
+@media (min-width:760px) {
+  .fg .tm-face:has(.dotf[data-stage="gather"]) { z-index:var(--z-raised); }
+}
+@keyframes tmArrive { 0% { opacity:.6; transform:scale(.5) } 40% { opacity:1; transform:scale(.9) } 100% { opacity:1; transform:scale(1) } }
+@media (min-width:760px) and (prefers-reduced-motion:no-preference) {
+  .fg .tm .dotf[data-stage="gather"] .dotf-wander { animation-name:tmArrive; }
+}
+
+/* the conversation: turns open by their own box, so a margin, never a gap */
+.fg .tm-turns { flex:0 1 auto; min-height:0; max-height:440px; overflow-y:auto; overscroll-behavior:contain;
+  scrollbar-width:none; padding:0 24px 8px; transition:padding-bottom var(--t-move) var(--ease); }
+/* while the dock is folded away the last turn is the modal's foot */
+.fg .tm:not(:has(.tm-dock)) .tm-turns { padding-bottom:24px; }
+.fg .tm-turns::-webkit-scrollbar { display:none; }
+.fg .tm-turn + .tm-turn { margin-top:16px; }
+.fg .tm-label { margin-bottom:4px; font-size:13px; font-weight:500; color:var(--q); }
+.fg .tm-tt { margin:0; min-height:24px; font-size:16px; font-weight:400; line-height:1.5; color:var(--ink);
+  white-space:pre-wrap; overflow-wrap:anywhere; }
+.fg .tm-turn.past .tm-tt { color:var(--q); }
+/* YOUR WORDS WHILE YOU SAY THEM: free on the modal, large, arriving word by
+   word (the capture card's glide). Click into them to fix a word. */
+.fg .tm-turn.live .tm-tt, .fg .tm-turn.live .tm-words { min-height:28px; font-size:20px; line-height:1.4; }
+.fg .tm-words { cursor:text; border-radius:var(--r-control); outline:none; }
+.fg .tm-fix { display:block; width:100%; padding:0; border:0; outline:none; resize:none; overflow:hidden;
+  background:none; font-family:inherit; color:var(--ink); caret-color:var(--ink); }
+
+/* the plan, a list inside Tiff's turn. The tick is ink: colour only where it
+   means something, and a row she will file is not a state. */
+.fg .tm-plan { list-style:none; margin:12px 0 0; padding:0; border-top:1px solid var(--line); }
+.fg .tm-row-plan { display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:12px; align-items:center;
+  min-height:40px; padding:8px 0; border-bottom:1px solid var(--line); font-size:14px; line-height:1.5; }
+.fg .tm-row-plan b { font-weight:600; }
+.fg .tm-ok { display:grid; place-items:center; color:var(--ink); }
+.fg .tm-qm { display:grid; place-items:center; width:20px; height:20px; border-radius:50%;
+  font-size:12px; font-weight:700; color:var(--warn-t); box-shadow:inset 0 0 0 1.5px var(--warn-t); }
+.fg .tm-needs { font-size:13px; font-weight:600; color:var(--warn-t); white-space:nowrap; }
+.fg .tm-added { font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; }
+.fg .tm-rm { width:24px; height:24px; border-radius:var(--r-control); opacity:0; }
+.fg .tm-row-plan:hover .tm-rm, .fg .tm-row-plan:focus-within .tm-rm { opacity:1; }
+.fg .tm .pbtn, .fg .tm-entry .pbtn { height:36px; padding:0 12px; font-size:14px; }
+/* Done, Send, a quick answer, "Add to the Library", and the entry box's Save
+   and Sort it out: the ring the capture card's buttons wear, for the
+   keyboard only (law 32) */
+.fg .tm .pbtn:focus-visible, .fg .tm-entry .pbtn:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .tm-quick { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.fg .tm-doors { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:12px;
+  font-size:13px; font-weight:500; color:var(--q); }
+.fg .tm-undo { padding:0; font-size:13px; font-weight:600; color:var(--ink); text-decoration:underline;
+  text-underline-offset:2px; border-radius:var(--r-control); }
+.fg .tm-undo:disabled { color:var(--q); cursor:default; }
+
+/* the dock, the only buttons. Listening it is a plain row; otherwise the
+   reply box, with the Tiff button on its end until you type. */
+.fg .tm-dock { flex:none; padding:12px 16px; border-top:1px solid var(--line); }
+.fg .tm-bar { display:flex; align-items:center; gap:8px; min-height:44px; }
+.fg .tm-rec { display:inline-flex; align-items:center; gap:8px; }
+.fg .tm-rec .wb2-capclock { font-size:14px; font-weight:600; }
+.fg .tm-sp { flex:1; }
+.fg .tm-clear { width:36px; height:36px; border-radius:var(--r-button); }
+.fg .tm-box { display:flex; align-items:center; gap:8px; min-height:44px; padding:4px 4px 4px 12px;
+  border:1px solid var(--tint-2); border-radius:var(--r-button); background:var(--paper);
+  transition:border-color var(--t-fast) var(--ease); }
+.fg .tm-box:focus-within { border-color:var(--ink); }
+/* the words take no outline of their own, so the box wears the ring for
+   them (law 32), as the search box does. Only for the words: a Save or Sort
+   it out with the keyboard on it wears its own, and the box stays out of it */
+.fg .tm-box:has(> .tm-in:focus-visible) { box-shadow:var(--ring); }
+.fg .tm-in { flex:1; min-width:0; height:34px; padding:0; border:0; outline:none; background:none;
+  font-size:14px; color:var(--ink); }
+.fg .tm-in::placeholder { color:var(--q); }
+.fg .tm-err { margin:8px 0 0; font-size:13px; font-weight:500; color:var(--bad-t); }
+
+/* THE ENTRY BOX (tiff-box.tsx), on the page: the reply box above, so the
+   same edge, corner, words and 36px buttons wherever you meet it. On the
+   page it is his taller box, 52px, with the words 16px in (his 18, snapped
+   to the scale) and the field its full height, so the whole box takes a
+   click. Where it stands and what is under it are the room's to say. */
+.fg .tm-box.tm-entry { height:52px; padding:0 8px 0 16px; }
+.fg .tm-entry .tm-in { height:100%; }
+
+/* UNDER REDUCED MOTION NOTHING SLIDES. The still mark arrives in the header
+   and the conversation's foot opens by width, margin and padding: the
+   frame's reduced-motion rule shortens animations only, so a transition
+   that moves something is taken off here, by name. */
+@media (prefers-reduced-motion:reduce) {
+  .fg .tm-hmark, .fg .tm-turns { transition:none; }
 }
 
 /* THE CONTEXT TAG. It rides in the capture ribbon as a normal blue chip; the

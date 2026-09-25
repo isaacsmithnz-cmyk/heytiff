@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { AppShell } from "@/components/shell/app-shell";
 import { RAIL_BOOT } from "@/components/shell/rail-state";
 import { NoteScopeProvider } from "@/components/notes/note-context";
+import { TiffModalProvider } from "@/components/tiff/modal/tiff-host";
 import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { ShellPalette, ShellSidebar, ShellTopbar } from "@/components/shell/shell-chrome";
 import { SidebarSkeleton, TopbarSkeleton } from "@/components/shell/shell-skeletons";
@@ -32,31 +33,36 @@ import "./shell.css";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <NoteScopeProvider voiceEnabled={isTranscriptionConfigured()}>
-      {/* the sidebar's remembered size, applied BEFORE the frame paints — a
-          collapsed rail must never flash wide. Synchronous inline script; the
-          layout stays synchronous with it. */}
-      <script dangerouslySetInnerHTML={{ __html: RAIL_BOOT }} />
-      <AppShell
-        sidebar={
-        <Suspense fallback={<SidebarSkeleton />}>
-          <ShellSidebar />
-        </Suspense>
-      }
-        topbar={
-        <Suspense fallback={<TopbarSkeleton />}>
-          <ShellTopbar />
-        </Suspense>
-      }
-      /* No fallback: a palette that doesn't yet know your capabilities should
-         be absent, not something you can open and find empty. */
-        palette={
-        <Suspense fallback={null}>
-          <ShellPalette />
-        </Suspense>
-      }
-    >
-        {children}
-      </AppShell>
+      {/* THE TIFF MODAL'S HOST, inside the note scope because the modal
+          reads it, and inert: whether this viewer gets the modal arrives
+          later, from the top bar's slot, so nothing here awaits it. */}
+      <TiffModalProvider>
+        {/* the sidebar's remembered size, applied BEFORE the frame paints — a
+            collapsed rail must never flash wide. Synchronous inline script; the
+            layout stays synchronous with it. */}
+        <script dangerouslySetInnerHTML={{ __html: RAIL_BOOT }} />
+        <AppShell
+          sidebar={
+          <Suspense fallback={<SidebarSkeleton />}>
+            <ShellSidebar />
+          </Suspense>
+        }
+          topbar={
+          <Suspense fallback={<TopbarSkeleton />}>
+            <ShellTopbar />
+          </Suspense>
+        }
+        /* No fallback: a palette that doesn't yet know your capabilities should
+           be absent, not something you can open and find empty. */
+          palette={
+          <Suspense fallback={null}>
+            <ShellPalette />
+          </Suspense>
+        }
+      >
+          {children}
+        </AppShell>
+      </TiffModalProvider>
     </NoteScopeProvider>
   );
 }

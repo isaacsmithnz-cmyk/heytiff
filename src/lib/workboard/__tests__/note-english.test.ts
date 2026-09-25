@@ -26,6 +26,7 @@ const EMPTY: NoteProposal = {
   issueEntries: [],
   kbEntries: [],
   plainNote: "",
+  say: "",
   clarify: null,
 };
 

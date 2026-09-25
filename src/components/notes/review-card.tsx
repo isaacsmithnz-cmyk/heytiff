@@ -3,10 +3,10 @@
 import { Fragment, useMemo, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { TimeWheel, clockParts, formatClock } from "@/components/ui/time-wheel";
-import { toHHMM, type RemindKind } from "@/lib/dashboard/reminders";
-import { SEVERITIES, type NoteProposal, type NoteStaff } from "@/lib/workboard/note-brain";
+import { toHHMM } from "@/lib/dashboard/reminders";
+import { SEVERITIES, type NoteStaff } from "@/lib/workboard/note-brain";
+import type { Draft } from "@/lib/workboard/note-draft";
 import { describeJob, searchJobs, type JobCandidate } from "@/lib/workboard/note-match";
-import type { ConfirmedNote, NoteTarget } from "@/app/actions/workboard-notes";
 import { DateField } from "@/components/ui/date-field";
 
 /* THE REVIEW — one card, every posture.
@@ -21,164 +21,11 @@ import { DateField } from "@/components/ui/date-field";
    never applies what the model produced, it applies what came back from THIS
    card. Every row is editable and droppable; nothing is saved that nobody
    looked at. A misheard word costs a dismissed card, never a task assigned
-   to the wrong person. */
+   to the wrong person.
 
-export type Draft = {
-  tasks: {
-    on: boolean;
-    title: string;
-    detail: string;
-    assigneeId: string | null;
-    dueDate: string;
-    /** "HH:MM" on the workspace's clock, or "" for an ordinary task. A day
-        plus a time IS a reminder — there is no separate switch for one. */
-    remindTime: string;
-    /** Whether that time is when to DO it or when it must be DONE. The model
-        proposes it from the note's own words ("back by four" is a deadline,
-        "service at half seven" is not) and this is where a person disagrees. */
-    remindKind: RemindKind;
-    hint: string;
-    dueHint: string;
-  }[];
-  bringItems: { on: boolean; text: string }[];
-  flags: { on: boolean; message: string; severity: string }[];
-  progressBullets: { on: boolean; text: string }[];
-  commissioningEntries: { on: boolean; text: string }[];
-  issueEntries: { on: boolean; summary: string; equipmentRef: string }[];
-  /** LEARN — "Worth teaching everyone". Ticked rows publish to the KB. */
-  kbEntries: { on: boolean; title: string; body: string }[];
-};
-
-export function toDraft(p: NoteProposal): Draft {
-  return {
-    tasks: p.tasks.map((t) => ({
-      on: true,
-      title: t.title,
-      detail: t.detail,
-      assigneeId: t.assigneeId,
-      /* Seeded from the model's resolved day. "Tomorrow" is a date, and
-         making someone read the word and then type the date is asking them
-         to do the easy half of the job the note already did. */
-      dueDate: t.dueDate,
-      /* The router resolves "Monday morning" against this person's own working
-         day, so the wheel opens on the time they asked for rather than on one
-         the card guessed. */
-      remindTime: t.remindTime,
-      remindKind: t.remindKind,
-      hint: t.assigneeHint,
-      /* What was actually SAID about when — "before Monday's visit (3
-         August)". The date box starts empty because that phrase isn't a
-         date, but throwing the words away meant the one bit of the note
-         that gave a task its urgency never reached the person doing it. */
-      dueHint: t.dueHint,
-    })),
-    bringItems: p.bringItems.map((text) => ({ on: true, text })),
-    flags: p.flags.map((f) => ({ on: true, message: f.message, severity: f.severity })),
-    progressBullets: p.progressBullets.map((text) => ({ on: true, text })),
-    commissioningEntries: p.commissioningEntries.map((e) => ({ on: true, text: e.body })),
-    issueEntries: p.issueEntries.map((e) => ({
-      on: true,
-      summary: e.body,
-      equipmentRef: e.equipmentHint,
-    })),
-    kbEntries: p.kbEntries.map((k) => ({ on: true, title: k.title, body: k.body })),
-  };
-}
-
-export function toConfirmed(d: Draft): ConfirmedNote {
-  return {
-    tasks: d.tasks
-      .filter((t) => t.on && t.title.trim() && t.assigneeId)
-      .map((t) => ({
-        title: t.title,
-        detail: t.detail,
-        assigneeId: t.assigneeId,
-        dueDate: t.dueDate || null,
-        /* A time with no day is not a moment, so it never travels alone —
-           `remindAtFrom` would refuse it server-side anyway, and sending it
-           would put a value in the payload that cannot become anything. */
-        remindTime: (t.dueDate && t.remindTime) || null,
-        /* Travels with the time, for the same reason: a kind with no moment
-           to qualify is refused by the database and means nothing here. */
-        remindKind: (t.dueDate && t.remindTime && t.remindKind) || null,
-      })),
-    bringItems: d.bringItems.filter((b) => b.on && b.text.trim()).map((b) => b.text),
-    flags: d.flags
-      .filter((f) => f.on && f.message.trim())
-      .map((f) => ({ message: f.message, severity: f.severity })),
-    progressBullets: d.progressBullets.filter((b) => b.on && b.text.trim()).map((b) => b.text),
-    commissioningEntries: d.commissioningEntries
-      .filter((e) => e.on && e.text.trim())
-      .map((e) => e.text),
-    issueEntries: d.issueEntries
-      .filter((e) => e.on && e.summary.trim())
-      .map((e) => ({ summary: e.summary, equipmentRef: e.equipmentRef })),
-    kbEntries: d.kbEntries
-      .filter((k) => k.on && k.title.trim() && k.body.trim())
-      .map((k) => ({ title: k.title, body: k.body })),
-  };
-}
-
-/* Every bucket of a ConfirmedNote is an array, so "nothing is ticked" is just
-   "they are all empty". */
-export const nothingTicked = (d: Draft): boolean =>
-  Object.values(toConfirmed(d)).every((bucket) => bucket.length === 0);
-
-/** Buckets that are text on somebody else's row and cannot exist without a
-    job to sit on. Tasks are deliberately NOT here — `tasks` has no job
-    column, so a task from a note stands on its own.
-
-    ANY job satisfies this, and that is the whole of the rule — do not be
-    tempted to make progress and commissioning ask for a PROJECT because
-    `project_entries` is where they land on one. They land somewhere on a
-    visit and an agreement too (the job's own notes, a bullet per line), and
-    `applyNote` enforces exactly this list. It didn't always: the server
-    accepted any job here while only ever writing the project case, so a
-    reading ticked against a visit was dropped in silence under a card that
-    had nothing to complain about. The two must say the same thing. */
-const jobBound = (d: Draft): boolean => {
-  const c = toConfirmed(d);
-  return (
-    c.bringItems.length > 0 ||
-    c.flags.length > 0 ||
-    c.progressBullets.length > 0 ||
-    c.commissioningEntries.length > 0 ||
-    c.issueEntries.length > 0
-  );
-};
-
-/* WHAT WOULD BE THROWN AWAY IF YOU PRESSED SAVE RIGHT NOW.
-
-   This card used to let you press Save with rows on it that could never be
-   saved, and then say "Saved as a note." Isaac dictated two tasks and two
-   bring-items, pressed Save, and the database recorded `applied: {}` — the
-   tasks had no person on them and a general note has no job to hang a
-   bring-list off, so all four were dropped without a word.
-
-   THE JOB RULE IS NOW PER ROW, NOT PER NOTE (Isaac, 2026-08-05). It used to
-   refuse every note that named no job, which was right about flags and
-   bring-lists and wrong about tasks: "tell Luke to ring the wholesaler back"
-   is a real task about no job in particular, and it could not be saved at
-   all. So the question the button asks is: is there anything ticked here
-   that CANNOT be done? */
-export function blockers(d: Draft, hasTarget: boolean): string[] {
-  const out: string[] = [];
-
-  if (!hasTarget && jobBound(d)) {
-    out.push(
-      "Flags, bring-items, progress, commissioning and issues all hang off a job — say which one, or untick them."
-    );
-  }
-  const unassigned = d.tasks.filter((t) => t.on && t.title.trim() && !t.assigneeId).length;
-  if (unassigned) {
-    out.push(
-      unassigned === 1
-        ? "One task still needs a person on it — assign it, or untick it."
-        : `${unassigned} tasks still need a person on them — assign them, or untick them.`
-    );
-  }
-  return out;
-}
+   THE PURE HALF LIVES IN lib/workboard/note-draft.ts — the draft, what a
+   draft confirms, what blocks a save and the picker's parser — because the
+   Tiff modal files on the server from the same rules. */
 
 /* The stored severities are lowercase keys — `info`, `warn`, `urgent` — and
    showing the key is showing the database to the user. These are what a
@@ -586,13 +433,4 @@ export function JobPicker({
       </div>
     </div>
   );
-}
-
-/** Turn a picker value ("visit:abc") back into a target. */
-export function targetOf(picked: string): NoteTarget | null {
-  if (!picked) return null;
-  const [kind, id] = picked.split(":");
-  return kind === "agreement" || kind === "project" || kind === "visit"
-    ? { kind: kind as NoteTarget["kind"], id }
-    : null;
 }

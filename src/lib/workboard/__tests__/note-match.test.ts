@@ -5,7 +5,7 @@
    agreement says "Kingsford Medical Centre" — an exact-name match finds
    nothing, which is why this matches by token. */
 
-import { describeJob, matchJob, searchJobs, type JobCandidate } from "../note-match";
+import { describeJob, matchJob, matchedJobs, searchJobs, type JobCandidate } from "../note-match";
 
 const KINGSFORD_TRIP: JobCandidate = {
   kind: "visit",
@@ -129,5 +129,28 @@ describe("searching the roster by hand", () => {
 
   it("an empty search is not a filter", () => {
     expect(searchJobs("   ", ROSTER)).toHaveLength(3);
+  });
+});
+
+/* The quick answers under Tiff's "Which job is this for?". A button is an
+   answer the person can press without reading, so it is only ever a job the
+   words pointed at — never the rest of the roster that `matchJob` hands a
+   picker to open on. */
+describe("the jobs a note pointed at", () => {
+  it("offers only the matches, best first", () => {
+    expect(matchedJobs(SAID, ROSTER).map((c) => c.id)).toEqual(["v-king"]);
+    expect(matchedJobs("Ardex want a quote, but first close out job 1042", ROSTER).map((c) => c.id)).toEqual([
+      "v-king",
+      "v-ardex",
+    ]);
+  });
+
+  it("offers nothing when the note named nobody on the board", () => {
+    expect(matchedJobs("Order more coil cleaner for the van", ROSTER)).toEqual([]);
+  });
+
+  it("offers three at most", () => {
+    const many = Array.from({ length: 5 }, (_, i) => ({ ...ARDEX, id: `v-${i}` }));
+    expect(matchedJobs("Ardex", many)).toHaveLength(3);
   });
 });

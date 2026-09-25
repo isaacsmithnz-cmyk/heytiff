@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { buildDotField, markInk } from "@/lib/ui/dot-mark";
 
 /* THE FIELD — the capture card's instrument, and the mark itself.
@@ -55,6 +55,7 @@ export function DotField({
   cols = 26,
   className,
   from,
+  origin,
 }: {
   stage: DotFieldStage;
   /** The field's width in px; everything scales off it. */
@@ -67,9 +68,32 @@ export function DotField({
       (`--cap-dx/--cap-dy`, see tiff-button). Absent on every surface that has
       no button to fly out of: the debrief, a field's nudge, the postures. */
   from?: { dx: number; dy: number } | null;
+  /** The pressed button's centre ON THE SCREEN — the Tiff modal's way of
+      saying the same thing as `from`. The modal's field is drawn scaled
+      inside a zone that opens and closes by its own height, so an offset
+      from some card's centre is the wrong question; the field measures
+      ITSELF against the point instead. */
+  origin?: { x: number; y: number } | null;
 }) {
-  const shown = useGather(from ? stage : null) ?? stage;
+  const shown = useGather(from || origin ? stage : null) ?? stage;
   const root = useRef<HTMLDivElement | null>(null);
+
+  /* THE DOTS START ON THE BUTTON, measured on the field's RESTING box.
+
+     A layout effect, and that is the point: a child's layout effects run
+     before its parent's, so this reads the field before the modal around it
+     starts its entrance — the rect is where the field will rest, not a frame
+     of the animation. The rect includes whatever scale the field is drawn at,
+     and the dots are placed in the field's own units, hence `k`. Never in
+     render: a layout read there is the hydration trap. */
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (!el || !origin) return;
+    const r = el.getBoundingClientRect();
+    const k = r.width > 0 ? r.width / size : 1;
+    el.style.setProperty("--gox", ((origin.x - (r.left + r.width / 2)) / k).toFixed(1));
+    el.style.setProperty("--goy", ((origin.y - (r.top + r.height / 2)) / k).toFixed(1));
+  }, [origin, size]);
 
   /* THE BUTTON, IN THE FIELD'S OWN COORDINATES. `from` is measured against the
      CARD's centre and the dots are placed from the FIELD's, so the difference

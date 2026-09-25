@@ -18,7 +18,7 @@ import {
   routeNote,
 } from "@/app/actions/workboard-notes";
 import { useNoteScope } from "./note-context";
-import { blockers, toConfirmed, toDraft, targetOf, type Draft } from "./review-card";
+import { blockers, toConfirmed, toDraft, targetOf, type Draft } from "@/lib/workboard/note-draft";
 
 /* THE STATE MACHINE, once.
 

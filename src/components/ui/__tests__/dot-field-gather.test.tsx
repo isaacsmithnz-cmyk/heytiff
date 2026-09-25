@@ -168,3 +168,34 @@ describe("the hand-over into the resting mark", () => {
     expect(frames![1]).toMatch(/100%\s*\{\s*opacity:1;\s*transform:scale\(1\)\s*\}/);
   });
 });
+
+/* THE MODAL'S WAY OF SAYING IT: `origin`, the pressed button's centre on the
+   screen. The Tiff modal draws the field scaled (.6) inside a zone that opens
+   by its own height, so the field measures itself against the point — once,
+   on its resting box — and places the dots in its own units. */
+describe("from a point on the screen", () => {
+  function mountAt(origin: { x: number; y: number } | null) {
+    const rect = (l: number, t: number, w: number) =>
+      ({ left: l, top: t, width: w, height: w, right: l + w, bottom: t + w, x: l, y: t, toJSON() {} }) as DOMRect;
+    const spy = jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      // the field, 252 wide, drawn at .6, its centre at (720, 240)
+      return this.classList.contains("dotf") ? rect(644.4, 164.4, 151.2) : rect(0, 0, 0);
+    });
+    render(<DotField stage="mark" size={252} origin={origin} />);
+    spy.mockRestore();
+    return document.querySelector<HTMLElement>(".dotf")!;
+  }
+
+  it("gathers from it, the offset in the field's own units", () => {
+    const el = mountAt({ x: 900, y: 30 });
+    expect(el.getAttribute("data-stage")).toBe("gather");
+    expect(el.style.getPropertyValue("--gox")).toBe(((900 - 720) / 0.6).toFixed(1));
+    expect(el.style.getPropertyValue("--goy")).toBe(((30 - 240) / 0.6).toFixed(1));
+  });
+
+  it("does not fly without one", () => {
+    const el = mountAt(null);
+    expect(el.getAttribute("data-stage")).toBe("mark");
+    expect(el.style.getPropertyValue("--gox")).toBe("");
+  });
+});

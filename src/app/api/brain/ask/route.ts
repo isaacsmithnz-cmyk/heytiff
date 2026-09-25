@@ -1,6 +1,6 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
-import { streamBrainAnswer } from "@/lib/brain/ask";
+import { streamBrainAnswer, type AskHistoryTurn } from "@/lib/brain/ask";
 import { toolsFor } from "@/lib/brain/tools";
 import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
@@ -21,6 +21,14 @@ import { getSm8Timezone } from "@/lib/workboard/query";
 export const maxDuration = 120;
 
 const QUESTION_MAX = 1_000;
+
+/** Turns of the Tiff modal's conversation replayed ahead of the question.
+    Six is three exchanges: enough for "and the one at Smith St?" to mean
+    something, short of re-billing the whole note on every ask. */
+const HISTORY_TURNS = 6;
+
+/** Per turn. A long earlier answer is trimmed rather than dropped. */
+const HISTORY_TEXT_MAX = 4_000;
 const NO_ACCESS = "There's nothing you have access to ask about.";
 const UNREADABLE = "That question couldn't be read.";
 const FAILED = "That couldn't be answered just now. Try again.";
@@ -29,7 +37,25 @@ type AskBody = {
   question: string;
   target?: { kind: "project" | "visit" | "agreement"; id: string };
   targetLabel?: string;
+  history: AskHistoryTurn[];
 };
+
+/* The history is replayed into the model as earlier turns, so it is the one
+   input a caller could use to put words in Tiff's mouth: text only, the last
+   few, each capped, and only the two voices the modal has. A turn from
+   anyone else is dropped, not relabelled. Not exported: a route file may
+   export only what Next reads. */
+function shapeHistory(raw: unknown): AskHistoryTurn[] {
+  const out: AskHistoryTurn[] = [];
+  for (const turn of Array.isArray(raw) ? raw : []) {
+    const row = (turn && typeof turn === "object" ? turn : {}) as Record<string, unknown>;
+    if (row.who !== "you" && row.who !== "tiff") continue;
+    const text = typeof row.text === "string" ? row.text.trim().slice(0, HISTORY_TEXT_MAX) : "";
+    if (!text) continue;
+    out.push({ who: row.who, text });
+  }
+  return out.slice(-HISTORY_TURNS);
+}
 
 function shapeBody(raw: unknown): AskBody | null {
   const body = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
@@ -51,7 +77,12 @@ function shapeBody(raw: unknown): AskBody | null {
   const targetLabel =
     typeof body.targetLabel === "string" ? body.targetLabel.trim().slice(0, 200) : undefined;
 
-  return { question, target, targetLabel: targetLabel || undefined };
+  return {
+    question,
+    target,
+    targetLabel: targetLabel || undefined,
+    history: shapeHistory(body.history),
+  };
 }
 
 export async function POST(request: Request) {
@@ -83,7 +114,7 @@ export async function POST(request: Request) {
   request.signal.addEventListener("abort", stop, { once: true });
 
   const encoder = new TextEncoder();
-  const { question, target, targetLabel } = body;
+  const { question, target, targetLabel, history } = body;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -106,6 +137,7 @@ export async function POST(request: Request) {
           targetRef: target,
           todayISO: todayInZone(tz),
           signal: abort.signal,
+          history,
         })) {
           if (event.type === "delta") write({ t: "delta", text: event.text });
           else if (event.type === "tool") write({ t: "tool", name: event.name, label: event.label });

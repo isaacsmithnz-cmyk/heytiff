@@ -11,7 +11,8 @@ import { Waiting } from "@/components/ui/orb";
 import { DotField, useDotFieldExit } from "@/components/ui/dot-field";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
-import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
+import { Cascade, JobPicker, ReviewRows } from "./review-card";
+import { nothingTicked } from "@/lib/workboard/note-draft";
 import { describeJob } from "@/lib/workboard/note-match";
 import { sniff } from "@/lib/notes/sniff";
 

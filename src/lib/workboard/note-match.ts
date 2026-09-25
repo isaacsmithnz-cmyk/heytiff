@@ -127,6 +127,22 @@ export function searchJobs(query: string, candidates: JobCandidate[]): JobCandid
   });
 }
 
+/** Only the candidates the words actually matched, best first — the quick
+    answers under Tiff's "Which job is this for?". `matchJob` hands back the
+    whole roster when nothing matched, which is right for a picker to open on
+    and wrong for three buttons: an answer the note never pointed at is a
+    guess wearing a button. */
+export function matchedJobs(transcript: string, candidates: JobCandidate[], limit = 3): JobCandidate[] {
+  const said = ` ${normalise(transcript)} `;
+  const numbers = numbersIn(said);
+  return candidates
+    .map((c) => ({ c, score: scoreOf(c, said, numbers) }))
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((s) => s.c);
+}
+
 /** How a candidate says who it is, for the line you confirm. */
 export function describeJob(c: JobCandidate): string {
   const bits = [`${c.clientName} — ${c.label}`];

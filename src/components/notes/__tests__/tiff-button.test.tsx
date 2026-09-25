@@ -1,7 +1,9 @@
 import * as React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { TiffButton } from "../tiff-button";
+import { TIFF_BUTTON_PLACES, TiffButton } from "../tiff-button";
 import { NoteScopeProvider, NoteScopeScreen, useNoteScope } from "../note-context";
 
 /* ONE WAY IN, IN THE SAME CORNER OF EVERY SCREEN.
@@ -294,6 +296,43 @@ describe("the button itself", () => {
     const face = el.querySelector(".tiffbtn-ly.face path");
     expect(face).toHaveAttribute("stroke", "url(#tiffFacePaper)");
     expect(el.querySelectorAll(".tiffbtn-ly")).toHaveLength(10);
+  });
+
+  /* THE BOX VARIANT. At the end of an entry box it is on paper, so it wears
+     the sheet's skin, and it says what it does beside the words to type:
+     talk. Even on a screen about a job — the box beside it is the room's,
+     not the sheet's. */
+  it("wears the paper skin in a box and says Talk to Tiff, whatever the screen is about", () => {
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <NoteScopeScreen target={{ kind: "visit", id: "v-1" }} targetLabel="Server room CRACs" />
+        <TiffButton where="box" room="diary" />
+      </NoteScopeProvider>
+    );
+    const el = screen.getByRole("button", { name: "Talk to Tiff" });
+    expect(el).toHaveClass("tiffbtn-box");
+    expect(el).not.toHaveAttribute("title");
+    expect(el.querySelector(".tiffbtn-ly.face path")).toHaveAttribute("stroke", "url(#tiffFacePaper)");
+  });
+
+  /* THE SKIN IS A CLASS BUILT FROM THE PLACE, `tiffbtn-${where}`, and a
+     dead-CSS sweep cannot see a class built that way: #681's deleted every
+     `.tiffbtn-sheet` rule and the sheet's button went 0×0. So every place
+     has its size rule, read off the stylesheet, and a paper place its
+     paper light. */
+  it("has a size rule in the stylesheet for every place it stands", () => {
+    const css = readFileSync(join(process.cwd(), "src/app/dashboard/shell.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1]!.split(",").map((s) => s.trim()), m[2]!] as const);
+    expect(TIFF_BUTTON_PLACES).toEqual(["topbar", "sheet", "box"]);
+    for (const place of TIFF_BUTTON_PLACES) {
+      const sized = rules.some(([sels, body]) => sels.includes(`.tiffbtn-${place}`) && /--tb\s*:\s*\d+px/.test(body));
+      expect(`${place}: ${sized}`).toBe(`${place}: true`);
+    }
+    const lit = (place: string) => rules.some(([sels, body]) => sels.includes(`.tiffbtn-${place}`) && /--tiffbtn-sheen\s*:/.test(body));
+    for (const place of TIFF_BUTTON_PLACES) expect(`${place}: ${lit(place)}`).toBe(`${place}: true`);
+    const size = (place: string) =>
+      rules.find(([sels, body]) => sels.includes(`.tiffbtn-${place}`) && /--tb\s*:/.test(body))![1].match(/--tb\s*:\s*(\d+)px/)![1];
+    expect(size("box")).toBe("36");
   });
 
   it("wears the ink skin on the frame: a paper face, gradient depth", () => {

@@ -481,6 +481,100 @@ describe("replying to a note that mentions you", () => {
     expect(capped).toMatchObject({ ok: true, note: { state: { key: "line.notSent" } } });
     expect(noteRow(b)).toMatchObject({ sm8_refusal: "capped" });
   });
+
+  describe("(F) a note that no longer stands is not answered, and nothing is saved or queued", () => {
+    /** Isaac's two replies to Luke's ask, both in ServiceM8; each mentions
+        Luke, so Luke may answer either. */
+    const twoSent = async () => {
+      const a = newId();
+      const b = newId();
+      await reply({ composeId: a });
+      await reply({ composeId: b, words: "grilles ordered" });
+      expect(createOf(a)).toMatchObject({ status: "sent" });
+      expect(createOf(b)).toMatchObject({ status: "sent" });
+      return { a, b, aUuid: createOf(a)!.remote_uuid as string, bUuid: createOf(b)!.remote_uuid as string };
+    };
+    const lukeAnswers = (sourceNoteUuid: string) => {
+      as("staff-luke");
+      return reply({ sourceNoteUuid, words: "cheers" });
+    };
+    const nothingNew = (notesBefore: number, writesBefore: number) => {
+      expect(notes()).toHaveLength(notesBefore);
+      expect(writes()).toHaveLength(writesBefore);
+    };
+
+    it("one somebody removed in ServiceM8", async () => {
+      fake.db.sm8_job_notes.find((n) => n.uuid === ASK)!.active = 0;
+      expect(await reply()).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
+      nothingNew(0, 0);
+    });
+
+    it("one of ours its author took back, while it is still being taken out of ServiceM8", async () => {
+      const { a, aUuid, bUuid } = await twoSent();
+      conn().write_mode = "paused";
+      expect(await takeBackJobNote({ jobUuid: JOB, noteId: a })).toMatchObject({ ok: true, gone: false });
+      expect(deleteOf(a)).toMatchObject({ status: "queued" });
+      conn().write_mode = "live";
+      const [n, w] = [notes().length, writes().length];
+      expect(await lukeAnswers(aUuid)).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
+      nothingNew(n, w);
+      // the one still standing is answered as ever
+      expect(await lukeAnswers(bUuid)).toMatchObject({ ok: true, note: { replyTo: bUuid } });
+    });
+
+    it("one of ours whose create was closed by a take-back that stopped before its row was removed", async () => {
+      const { a, aUuid } = await twoSent();
+      createOf(a)!.taken_back_at = new Date().toISOString();
+      expect(noteRow(a)!.removed_at).toBeNull();
+      const [n, w] = [notes().length, writes().length];
+      expect(await lukeAnswers(aUuid)).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
+      nothingNew(n, w);
+    });
+
+    it("one of ours whose row was removed, its create not closed", async () => {
+      const { a, aUuid } = await twoSent();
+      noteRow(a)!.removed_at = new Date().toISOString();
+      expect(createOf(a)!.taken_back_at).toBeNull();
+      const [n, w] = [notes().length, writes().length];
+      expect(await lukeAnswers(aUuid)).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
+      nothingNew(n, w);
+    });
+
+    it("one of ours taken back whose copy the mirror still holds as active (the sync hasn't caught up)", async () => {
+      const { a, aUuid, bUuid } = await twoSent();
+      for (const [uuid, text] of [
+        [aUuid, "@lukeingold on my way"],
+        [bUuid, "@lukeingold grilles ordered"],
+      ]) {
+        fake.db.sm8_job_notes.push({
+          org_id: ORG,
+          uuid,
+          related_object_uuid: JOB,
+          note: text,
+          create_date: "2026-09-20 10:00:00",
+          action_required: "0",
+          action_completed_by_staff_uuid: null,
+          edit_by_staff_uuid: ISAAC_SM8,
+          edit_date: "2026-09-20 10:00:00",
+          active: 1,
+        });
+      }
+      conn().write_mode = "paused";
+      await takeBackJobNote({ jobUuid: JOB, noteId: a });
+      conn().write_mode = "live";
+      const [n, w] = [notes().length, writes().length];
+      expect(await lukeAnswers(aUuid)).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
+      nothingNew(n, w);
+      expect(await lukeAnswers(bUuid)).toMatchObject({ ok: true });
+    });
+
+    it("and where that can't be read, nothing is saved on a guess", async () => {
+      fake.failing.add("sm8_writes");
+      expect(await reply()).toEqual({ ok: false, error: NOTE_WORDS.press.saveFailed });
+      fake.failing.delete("sm8_writes");
+      nothingNew(0, 0);
+    });
+  });
 });
 
 /* ── Send to ServiceM8 ── */

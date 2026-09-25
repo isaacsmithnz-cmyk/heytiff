@@ -2,7 +2,7 @@
    a mention of you, Mark done on a flag, and one of HeyTiff's own replies as
    a mention — no task from it, and Not work only for the person it names. */
 
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { JobAttentionStrip, type StripSm8 } from "../job-attention-strip";
 import type { AttentionItem } from "@/lib/workboard/job-attention";
@@ -120,6 +120,18 @@ describe("a flag", () => {
   it("Mark done again after somebody cleared ours", () => {
     strip([flag], { flags: { [FLAG]: { key: "flag.flagged", text: NOTE_WORDS.flag.flagged, tone: "warn", acts: ["mark_done_again"] } } });
     expect(screen.getByRole("button", { name: NOTE_WORDS.door.markDoneAgain })).toBeInTheDocument();
+  });
+
+  it("(F) while a press on it is out, Mark done waits for the answer; another flag's press leaves it be", async () => {
+    const flags = { [FLAG]: { key: "flag.flagged" as const, text: NOTE_WORDS.flag.flagged, tone: "warn" as const, acts: ["mark_done" as const] } };
+    const h = strip([flag], { flags, marking: new Set([FLAG]) });
+    const door = screen.getByRole("button", { name: NOTE_WORDS.door.markDone });
+    expect(door).toBeDisabled();
+    await userEvent.click(door);
+    expect(h.onMarkDone).not.toHaveBeenCalled();
+    cleanup();
+    strip([flag], { flags, marking: new Set(["7e7e7e7e-0000-4000-8000-0000000000ee"]) });
+    expect(screen.getByRole("button", { name: NOTE_WORDS.door.markDone })).toBeEnabled();
   });
 
   it("offers nothing new where notes aren't offered, or the deployment sends none", () => {

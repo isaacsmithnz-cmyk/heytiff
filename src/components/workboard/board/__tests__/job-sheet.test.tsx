@@ -1496,6 +1496,65 @@ describe("notes to ServiceM8 on the card", () => {
     removeJobNote.mockClear();
   });
 
+  it("(F) Mark done is one press until the server answers: a second click sends nothing, a lost answer's retry is the same press, an answer mints the next", async () => {
+    const FLAG = "7e7e7e7e-0000-4000-8000-00000000f1a9";
+    const flagNote = { ...askNote, remoteId: FLAG, text: "call the builder", actionRequired: true };
+    const flagged = { key: "flag.flagged" as const, text: NOTE_WORDS.flag.flagged, tone: "warn" as const, acts: ["mark_done" as const] };
+    const marking = { key: "flag.marking" as const, text: NOTE_WORDS.flag.marking, tone: null, acts: ["unmark" as const] };
+    readMirrorJob.mockResolvedValue(card(detail()));
+    readJobRecord.mockResolvedValue(withNotes({ notes: [flagNote], flags: { [FLAG]: flagged }, attention: { items: [], total: 0 } }));
+    const answers: { resolve: (v: FlagResult) => void; reject: (e: unknown) => void }[] = [];
+    const pending = () =>
+      new Promise<FlagResult>((resolve, reject) => {
+        answers.push({ resolve, reject });
+      });
+    noteSm8.markJobNoteDone.mockImplementation(pending);
+    noteSm8.undoJobNoteDone.mockImplementation(pending);
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Diary");
+    const f = face("diary");
+    const pressIdOf = (fn: jest.Mock, n: number) => (fn.mock.calls[n][0] as { pressId: string }).pressId;
+
+    const door = await f.findByRole("button", { name: NOTE_WORDS.door.markDone });
+    /* two clicks before the card has drawn the first: the door is still
+       open, and the press already out stops the second */
+    act(() => {
+      door.click();
+      door.click();
+    });
+    expect(noteSm8.markJobNoteDone).toHaveBeenCalledTimes(1);
+    await userEvent.click(door);
+    expect(noteSm8.markJobNoteDone).toHaveBeenCalledTimes(1);
+    expect(door).toBeDisabled();
+    const first = pressIdOf(noteSm8.markJobNoteDone, 0);
+    expect(first).toMatch(/^[0-9a-f-]{36}$/);
+
+    // the answer was lost: the door opens again, and the retry is the same press
+    await act(async () => answers[0].reject(new Error("network")));
+    await waitFor(() => expect(door).toBeEnabled());
+    await userEvent.click(door);
+    expect(noteSm8.markJobNoteDone).toHaveBeenCalledTimes(2);
+    expect(pressIdOf(noteSm8.markJobNoteDone, 1)).toBe(first);
+
+    // answered: the next press is a new one
+    await act(async () => answers[1].resolve({ ok: false, error: "no", state: flagged }));
+    await waitFor(() => expect(door).toBeEnabled());
+    await userEvent.click(door);
+    expect(noteSm8.markJobNoteDone).toHaveBeenCalledTimes(3);
+    const third = pressIdOf(noteSm8.markJobNoteDone, 2);
+    expect(third).not.toBe(first);
+
+    // its Undo is a press of its own, never the mark's subject
+    await act(async () => answers[2].resolve({ ok: true, state: marking }));
+    const undo = await f.findByRole("button", { name: NOTE_WORDS.door.undo });
+    await userEvent.click(undo);
+    await userEvent.click(undo);
+    expect(noteSm8.undoJobNoteDone).toHaveBeenCalledTimes(1);
+    expect([first, third]).not.toContain(pressIdOf(noteSm8.undoJobNoteDone, 0));
+    await act(async () => answers[3].resolve({ ok: true, state: flagged }));
+  });
+
   it("is not there at all where the deployment sends no notes", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(

@@ -287,6 +287,11 @@ export async function replyToJobNote(input: {
     const family = await familyMediaSources(orgId, job);
     if (!family.some((c) => c.remoteId === source.relatedUuid)) return { ok: false, error: NOTE_WORDS.press.noNote };
   }
+  /* ...and still standing: nobody answers a note its author took back, or
+     one somebody removed in ServiceM8 */
+  const standing = await sourceStands(orgId, sourceUuid, source.origin);
+  if (standing === null) return { ok: false, error: NOTE_WORDS.press.saveFailed };
+  if (!standing) return { ok: false, error: NOTE_WORDS.press.noNote };
   /* 4. nothing goes to a job its own business deleted — checked before the
      row is saved, so the words stay in the box */
   if (!(await jobIsReal(orgId, source.relatedUuid))) return { ok: false, error: NOTE_WORDS.press.jobGone };
@@ -352,6 +357,45 @@ export async function replyToJobNote(input: {
   const note = await readOurJobNote(orgId, composeId, viewerOf(orgId, press, g.state));
   if (!note) return { ok: false, error: NOTE_WORDS.press.noNote };
   return { ok: true, note };
+}
+
+/** Whether the note a reply answers still stands: false once its author
+    took it back or somebody removed it in ServiceM8, null when that can't be
+    read (nothing is saved on a guess).
+
+    noteSourceOf finds a note however it stands, so this asks the two things
+    it doesn't: whether ServiceM8's copy is still active in the mirror, and
+    whether it is one of OURS whose create was taken back or whose row was
+    removed. The second is asked of a mirror note too: until the sync has
+    caught up with the delete, the mirror still holds our withdrawn copy as
+    active. */
+async function sourceStands(orgId: string, sourceUuid: string, origin: "sm8" | "heytiff"): Promise<boolean | null> {
+  const [mirror, creates] = await Promise.all([
+    origin === "sm8"
+      ? supabaseAdmin.from("sm8_job_notes").select("active").eq("org_id", orgId).eq("uuid", sourceUuid).maybeSingle()
+      : null,
+    supabaseAdmin
+      .from("sm8_writes")
+      .select("note_id, taken_back_at")
+      .eq("org_id", orgId)
+      .eq("kind", "note")
+      .eq("op", "create")
+      .eq("remote_uuid", sourceUuid)
+      .limit(5),
+  ]);
+  if (mirror?.error || creates.error) return null;
+  if (mirror && Number((mirror.data as { active: unknown } | null)?.active) !== 1) return false;
+  const ours = (creates.data ?? []) as { note_id: string | null; taken_back_at: string | null }[];
+  if (ours.some((c) => !!c.taken_back_at)) return false;
+  const noteIds = ours.map((c) => c.note_id).filter((id): id is string => !!id);
+  if (noteIds.length === 0) return true;
+  const { data, error } = await supabaseAdmin
+    .from("workboard_notes")
+    .select("id, removed_at")
+    .eq("org_id", orgId)
+    .in("id", noteIds);
+  if (error) return null;
+  return !((data ?? []) as { removed_at: string | null }[]).some((r) => !!r.removed_at);
 }
 
 /** A ServiceM8 staff member's @handle, by their uuid. */

@@ -1249,14 +1249,42 @@ export function JobSheet({
       .catch(() => onToast(NOTE_WORDS.press.unqueued));
   };
 
+  /* ONE PRESS PER MARK. A flag's Mark done (and its Undo) carries an id
+     minted once and kept until the server ANSWERS, so a repeat of the same
+     press — a retry after a lost answer — is the same subject and the queue
+     keeps one; a fresh id only follows a settled answer. And while a press
+     on a note is out, its doors are off here and on the strip: a second
+     click never becomes a second mark. The ref is the guard (two clicks in
+     one tick see it); the state only draws it. */
+  const flagPressIds = useRef(new Map<string, string>());
+  const flagOut = useRef(new Set<string>());
+  const [flagsBusy, setFlagsBusy] = useState<ReadonlySet<string>>(() => new Set());
+  const flagPress = (noteUuid: string, doing: "done" | "clear"): string | null => {
+    if (flagOut.current.has(noteUuid)) return null;
+    flagOut.current.add(noteUuid);
+    setFlagsBusy(new Set(flagOut.current));
+    const key = `${doing}:${noteUuid}`;
+    const id = flagPressIds.current.get(key) ?? mintPressId();
+    flagPressIds.current.set(key, id);
+    return id;
+  };
+  const flagSettled = (noteUuid: string, doing: "done" | "clear", answered: boolean) => {
+    if (answered) flagPressIds.current.delete(`${doing}:${noteUuid}`);
+    flagOut.current.delete(noteUuid);
+    if (alive.current) setFlagsBusy(new Set(flagOut.current));
+  };
+
   const markDone = (noteUuid: string, seenEditDate?: string | null) => {
     if (!cardId) return;
     const seen =
       seenEditDate !== undefined
         ? seenEditDate
         : (record?.notes.find((n) => n.remoteId === noteUuid)?.editedAt ?? null);
-    void markJobNoteDone({ jobUuid: cardId, noteUuid, seenEditDate: seen, pressId: mintPressId() })
+    const pressId = flagPress(noteUuid, "done");
+    if (!pressId) return;
+    void markJobNoteDone({ jobUuid: cardId, noteUuid, seenEditDate: seen, pressId })
       .then((res) => {
+        flagSettled(noteUuid, "done", true);
         if (res.state) setFlags((cur) => ({ ...cur, [noteUuid]: res.state! }));
         if (res.ok) {
           dropAttention(`sm8flag:${noteUuid}`);
@@ -1267,18 +1295,27 @@ export function JobSheet({
         /* changed in ServiceM8 since it was read: look again */
         if (res.error === NOTE_WORDS.press.changed) void reloadRecord();
       })
-      .catch(() => onToast(NOTE_WORDS.press.unqueued));
+      .catch(() => {
+        flagSettled(noteUuid, "done", false);
+        onToast(NOTE_WORDS.press.unqueued);
+      });
   };
 
   const undoDone = (noteUuid: string) => {
     if (!cardId) return;
-    void undoJobNoteDone({ jobUuid: cardId, noteUuid, pressId: mintPressId() })
+    const pressId = flagPress(noteUuid, "clear");
+    if (!pressId) return;
+    void undoJobNoteDone({ jobUuid: cardId, noteUuid, pressId })
       .then((res) => {
+        flagSettled(noteUuid, "clear", true);
         if (res.state) setFlags((cur) => ({ ...cur, [noteUuid]: res.state! }));
         if (!res.ok) onToast(res.error);
         kickPoll();
       })
-      .catch(() => onToast(NOTE_WORDS.press.unqueued));
+      .catch(() => {
+        flagSettled(noteUuid, "clear", false);
+        onToast(NOTE_WORDS.press.unqueued);
+      });
   };
 
   /** "Is <name> you?" — Yes on a saved row's line then sends that row. */
@@ -1652,6 +1689,7 @@ export function JobSheet({
                         go("diary");
                       },
                       onMarkDone: (noteUuid) => markDone(noteUuid),
+                      marking: flagsBusy,
                     }
                   : null
               }
@@ -1707,6 +1745,7 @@ export function JobSheet({
               onTakeBack={takeBack}
               onMarkDone={markDone}
               onUndoDone={undoDone}
+              flagsBusy={flagsBusy}
               onConfirm={confirmLink}
             />
           )}

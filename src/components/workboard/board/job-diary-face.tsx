@@ -72,6 +72,9 @@ const FILTERS: { key: StoryFilter; label: string }[] = [
 /** Where the pen's tick box is remembered, per person, in this browser. */
 const ALSO_KEY = "heytiff.diary.alsoSm8";
 
+/** No flag has a press out. */
+const NONE_BUSY: ReadonlySet<string> = new Set();
+
 /** What notes to ServiceM8 hand the diary (two-way phase 2). */
 export type DiaryNotesSm8 = { trial: boolean; hold: SendHold; owner: boolean };
 
@@ -89,6 +92,8 @@ type Doors = {
   onTakeBack?: (noteId: string) => void;
   onMarkDone?: (noteUuid: string, seenEditDate: string | null) => void;
   onUndoDone?: (noteUuid: string) => void;
+  /** The flags a Mark done or its Undo is out on: their doors are off. */
+  flagsBusy: ReadonlySet<string>;
   /** The answer to "Is <name> you?"; `thenSend` is the row a line's Yes
       then sends. Resolves with the refusal's words, or null. */
   onConfirm?: (answer: "yes" | "no", thenSend?: string) => Promise<string | null>;
@@ -114,6 +119,7 @@ export function JobDiaryFace({
   onTakeBack,
   onMarkDone,
   onUndoDone,
+  flagsBusy,
   onConfirm,
 }: {
   entries: StoryEntry[];
@@ -155,6 +161,8 @@ export function JobDiaryFace({
   onTakeBack?: Doors["onTakeBack"];
   onMarkDone?: Doors["onMarkDone"];
   onUndoDone?: Doors["onUndoDone"];
+  /** The flags a press is out on, whose doors wait for its answer. */
+  flagsBusy?: ReadonlySet<string>;
   onConfirm?: Doors["onConfirm"];
 }) {
   const [filter, setFilter] = useState<StoryFilter>("all");
@@ -175,6 +183,7 @@ export function JobDiaryFace({
     onTakeBack,
     onMarkDone,
     onUndoDone,
+    flagsBusy: flagsBusy ?? NONE_BUSY,
     onConfirm,
     onRemoveNote,
   };
@@ -646,11 +655,14 @@ function NoteEv({
   const ours = entry.origin === "heytiff";
   const state: NoteState | null = ours ? (entry.state ?? null) : null;
   const flag = !ours && entry.sm8Uuid ? (doors.flags[entry.sm8Uuid] ?? null) : null;
+  /* a Mark done or its Undo is out on this flag: one press, one answer */
+  const flagBusy = !!entry.sm8Uuid && doors.flagsBusy.has(entry.sm8Uuid);
   const { sender, notesSm8 } = doors;
 
   /* REPLY: only on a mention of you, never on your own note, and only when
      you can send (or be asked who you are). One of ours can be answered
-     only once its copy is in ServiceM8. */
+     only once its copy is in ServiceM8, and never once its author took it
+     back: a withdrawn row is drawn only to say it is on its way out. */
   const canAnswer = !!notesSm8 && !!sender && (sender.state === "ready" || sender.state === "confirm");
   const you = sender && "handle" in sender ? sender.handle : null;
   const mentionsYou = !!you && mentionedHandles(entry.text, [you]).length > 0;
@@ -658,6 +670,7 @@ function NoteEv({
     canAnswer &&
     mentionsYou &&
     !!entry.sm8Uuid &&
+    !entry.removed &&
     !!doors.onReply &&
     (ours ? !entry.mine : !(sender && "remoteId" in sender && entry.authorSm8Uuid && entry.authorSm8Uuid === sender.remoteId));
 
@@ -745,12 +758,16 @@ function NoteEv({
       {!ours && entry.sm8Uuid && flagActs.length > 0 && (
         <div className="wb2-jcattsave">
           {notesSm8 && doors.onMarkDone && (flagActs.includes("mark_done") || flagActs.includes("mark_done_again")) && (
-            <button className="wb2-evdoor" onClick={() => doors.onMarkDone!(entry.sm8Uuid!, entry.editedAt ?? null)}>
+            <button
+              className="wb2-evdoor"
+              disabled={flagBusy}
+              onClick={() => doors.onMarkDone!(entry.sm8Uuid!, entry.editedAt ?? null)}
+            >
               {flagActs.includes("mark_done_again") ? NOTE_WORDS.door.markDoneAgain : NOTE_WORDS.door.markDone}
             </button>
           )}
           {flagActs.includes("unmark") && doors.onUndoDone && (
-            <button className="wb2-evdoor" onClick={() => doors.onUndoDone!(entry.sm8Uuid!)}>
+            <button className="wb2-evdoor" disabled={flagBusy} onClick={() => doors.onUndoDone!(entry.sm8Uuid!)}>
               {NOTE_WORDS.door.undo}
             </button>
           )}

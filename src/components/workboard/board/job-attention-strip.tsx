@@ -47,6 +47,9 @@ export type StripSm8 = {
   onReply: (noteUuid: string) => void;
   /** Mark one of ServiceM8's flags done, as the viewer. */
   onMarkDone: (noteUuid: string) => void;
+  /** The flags a Mark done (or its Undo) is out on: their door waits for
+      the answer, so a second click is never a second mark. */
+  marking?: ReadonlySet<string>;
 };
 
 export function JobAttentionStrip({
@@ -184,7 +187,11 @@ function AttentionRow({
           </button>
         )}
         {item.kind === "sm8flag" && markDoor && sm8 && (
-          <button className="wb2-chip blue" disabled={busy} onClick={() => sm8.onMarkDone(item.noteUuid)}>
+          <button
+            className="wb2-chip blue"
+            disabled={busy || !!sm8.marking?.has(item.noteUuid)}
+            onClick={() => sm8.onMarkDone(item.noteUuid)}
+          >
             {markDoor}
           </button>
         )}

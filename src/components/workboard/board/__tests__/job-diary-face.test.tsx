@@ -11,7 +11,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { JobDiaryFace } from "../job-diary-face";
 import type { StoryEntry } from "@/lib/workboard/job-story";
-import { noteState, NOTE_WORDS, type NoteState, type QueueRowIn } from "@/lib/integrations/sm8-note-plan";
+import { noteState, NOTE_WORDS, type FlagState, type NoteState, type QueueRowIn } from "@/lib/integrations/sm8-note-plan";
 import type { NoteSender } from "@/lib/integrations/links";
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
@@ -236,6 +236,22 @@ describe("Reply", () => {
     draw([{ ...sent, sm8Uuid: null }], { sender: luke });
     expect(screen.queryByRole("button", { name: "Reply" })).toBeNull();
   });
+
+  it("(F) one of ours its author took back is never answered, while it is still on its way out of ServiceM8", () => {
+    const luke: NoteSender = { state: "ready", staffUuid: LUKE_SM8, remoteId: LUKE_SM8, sm8Name: "Luke Ingold", handle: "lukeingold" };
+    const takingOut: NoteState = { key: "line.takingOut", text: NOTE_WORDS.line.takingOut, tone: null, acts: [] };
+    const stillIn: NoteState = { key: "line.stillIn", text: "Still in ServiceM8. Sending notes is switched off.", tone: "bad", acts: [] };
+    for (const state of [takingOut, stillIn]) {
+      /* its create went, so it still carries the uuid its copy went under */
+      const { unmount } = draw([ours({ sm8Uuid: SENT_AS, mine: false, removed: true, state })], { sender: luke });
+      expect(screen.getByText(state.text!)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Reply" })).toBeNull();
+      unmount();
+    }
+    // nor where the strip's Reply named it
+    draw([ours({ sm8Uuid: SENT_AS, mine: false, removed: true, state: takingOut })], { sender: luke, replyFor: SENT_AS });
+    expect(screen.queryByPlaceholderText(NOTE_WORDS.door.replyPlaceholder)).toBeNull();
+  });
 });
 
 describe("our own notes' lines and doors", () => {
@@ -369,6 +385,28 @@ describe("a flagged note", () => {
     draw([flagged], { notesSm8: null, flags: { [FLAG]: { key: "flag.flagged", text: NOTE_WORDS.flag.flagged, tone: "warn", acts: ["mark_done"] } } });
     expect(screen.queryByRole("button", { name: NOTE_WORDS.door.markDone })).toBeNull();
     expect(screen.getByText(NOTE_WORDS.flag.flagged)).toBeInTheDocument();
+  });
+
+  it("(F) while a press on the flag is out, its doors wait for the answer", async () => {
+    const acts: [FlagState["acts"][number], string][] = [
+      ["mark_done", NOTE_WORDS.door.markDone],
+      ["mark_done_again", NOTE_WORDS.door.markDoneAgain],
+      ["unmark", NOTE_WORDS.door.undo],
+    ];
+    for (const [act, door] of acts) {
+      const flags = { [FLAG]: { key: "flag.flagged", text: NOTE_WORDS.flag.flagged, tone: "warn", acts: [act] } } as Record<string, FlagState>;
+      const view = draw([flagged], { flags, flagsBusy: new Set([FLAG]) });
+      const button = screen.getByRole("button", { name: door });
+      expect(button).toBeDisabled();
+      await userEvent.click(button);
+      expect(view.onMarkDone).not.toHaveBeenCalled();
+      expect(view.onUndoDone).not.toHaveBeenCalled();
+      view.unmount();
+      // another flag's press leaves this one's door open
+      const other = draw([flagged], { flags, flagsBusy: new Set(["7e7e7e7e-0000-4000-8000-0000000000ee"]) });
+      expect(screen.getByRole("button", { name: door })).toBeEnabled();
+      other.unmount();
+    }
   });
 });
 

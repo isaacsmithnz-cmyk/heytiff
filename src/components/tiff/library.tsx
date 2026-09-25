@@ -692,7 +692,7 @@ function DocRow({
       {ready && (
         <button
           type="button"
-          className="tk-ask"
+          className="tk-ask tiffkey"
           aria-label={`Ask Tiff about ${doc.title}`}
           title="Ask Tiff about this document"
           onClick={onAsk}
@@ -701,7 +701,7 @@ function DocRow({
               sparkle is the badge every AI tool in the market is wearing, and
               this button's whole promise is that the answer comes out of THIS
               document rather than out of the air. */}
-          <TiffGlyph size={15} />
+          <TiffGlyph quiet />
           Ask Tiff
         </button>
       )}

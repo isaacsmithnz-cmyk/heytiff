@@ -569,7 +569,7 @@ infinite loop into a strobe.
 | `dotfSwell` | the capture card's mark while you talk | the microphone is open: a wave through the mark |
 | `dotfTurn`, `dotfZip`, `dotfFire` | the capture card's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
 | `wb2Flash` | a calendar day the board's data asked to flash | a flash a row asked for with data |
-| `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button, on the frame and in a sheet's header; and the mark wherever Tiff is working, at the thinking pace (a wait, a fleet valuation, a receipt being read), which is state | on the button, not feedback or state: Isaac's override of law 18 (2026-09-24, "make it gently alive all the time"), the one thing in the app that moves at rest. See "The Tiff button" below |
+| `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button, on the frame and in a sheet's header; and the mark wherever it stands for Tiff (at rest, at the thinking pace while Tiff works, or on hover in a list) | not feedback or state: Isaac's override of law 18 (2026-09-24, "make it gently alive all the time"), the one thing in the app that moves at rest. See "The Tiff button" below |
 
 ### The buttons that keep their glyph
 
@@ -623,18 +623,25 @@ keep a note", 2026-09-24). This is the note:
 The gradients and shadows ratchets did not move. The old press wash's
 gradient went as the band of light's came, and the button casts no shadow.
 
-**The mark elsewhere** (`TiffGlyph`, 2026-09-25: "Elsewhere, for reference
-— looks good lets do it"). Wherever the chevron stands for Tiff it is the
-gimbal too, in one of two states, and neither needs an exemption:
+**The mark elsewhere** (`TiffGlyph`, 2026-09-25). Wherever the chevron
+stands for Tiff it is the gimbal too, and it moves the way the button does.
+Isaac chose it after a still pose read as a smudge at label size: "round
+end, moving, no dark background". That is the same law 18 exemption as the
+button's, on his word, and it runs the button's six loops with no new one.
 
-- **Still**, where it is a label: the Tiff chat's header and ask bar, Ask
-  Tiff on a document, the answer's ribbon, and the palette's footer. It holds
-  the button's reduced-motion pose, with the mark leaning and the rings
-  tipped.
-- **Working**, where Tiff is working: every wait (it replaced the orb there;
-  the orb stays the dictation meter), "Tiff is valuing…" on the fleet, and a
-  receipt being read. It runs the button's own loops at the thinking pace,
-  starting when the work does and ending with it: law 18's "Tiff is working".
+- **At rest** it runs at the button's pace: the Tiff chat's header and ask
+  bar, the answer's ribbon, and the palette's footer.
+- **Working** it runs at the thinking pace: every wait (it replaced the orb
+  there; the orb stays the dictation meter), "Tiff is valuing…" on the
+  fleet, and a receipt being read.
+- **Quiet** it moves only while its control is hovered or focused. That is
+  for a control repeated down a list, like Ask Tiff on every document in the
+  library, where a hundred turning marks would be a page of motion.
+- It is small, so the logo fills more of it: 74%, with the rings at its edge.
+- **A Tiff control has a round end** (`.tiffkey`): a button that asks Tiff
+  (Ask Tiff, Value with Tiff) has a full circle for its left end. The mark
+  sits in it, concentric, with no disc behind it: the rings are the circle.
+  The radius is on the scale (the pill and the button's own).
 
 ## The order of work
 

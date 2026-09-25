@@ -64,7 +64,7 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
       ) : thinking ? null : stage === "answer" ? (
         /* the mark, not a sparkle — the ribbon says "Answer" and the thing
            that answered is HeyTiff */
-        <TiffGlyph ground="ink" size={19} />
+        <TiffGlyph ground="ink" size={24} />
       ) : (
         <Icon name="note" size={16} />
       )}

@@ -607,7 +607,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tinput .tib { position:absolute; inset:-5px; border-radius:var(--r-card); background:var(--ink); filter:blur(12px); opacity:.16; }
 .fg .tinput .tin { position:relative; display:flex; align-items:center; gap:16px; padding:12px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--paper); }
 .fg .tinput .tic { width:48px; height:48px; border-radius:var(--r-card); background:var(--bg); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
-.fg .tinput .tic .tiffmk { --tb:24px; }
+.fg .tinput .tic .tiffmk { --tb:36px; }
 .fg .tinput input { flex:1; min-width:0; background:none; border:none; outline:none; font-size:16px; font-weight:500; color:var(--ink); padding:16px 0; }
 .fg .tinput input::placeholder { color:var(--gray400); }
 .fg .tinput .tsend { position:relative; overflow:hidden; width:48px; height:48px; border-radius:var(--r-card); background:var(--ink); display:flex; align-items:center; justify-content:center; color:var(--paper); flex:0 0 auto; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
@@ -1805,6 +1805,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* active conversation */
 .fg .tchathead { display:flex; align-items:center; gap:12px; margin-bottom:16px; flex:0 0 auto; }
 .fg .tchathead .tb2 { width:44px; height:44px; border-radius:var(--r-card); display:flex; align-items:center; justify-content:center; flex:0 0 auto; background:var(--tint); border:1px solid var(--line); color:var(--ink); }
+.fg .tchathead .tb2 .tiffmk { --tb:34px; }
 .fg .tchathead .tcht { flex:1; min-width:0; }
 /* the title outranks the buttons beside it — it is the name of the thing
    being read, and at 16px it lost to its own "New chat" ghost */
@@ -8512,23 +8513,37 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 @keyframes tiffBurst { from { opacity:.9; transform:scale(1); } to { opacity:0; transform:scale(2.1); } }
 
 /* ── THE MARK OUTSIDE THE BUTTON (`TiffGlyph`, 2026-09-25) ──
-   Where the chevron stands for Tiff it is the gimbal too. A label holds it
-   STILL, in the pose reduced motion gives the button; Tiff WORKING runs the
-   same loops at the thinking pace, the orb's old job under law 18. No new
-   loop: these only stop or quicken the button's six. */
+   Wherever the chevron stands for Tiff it is the gimbal, moving at rest the
+   way the button does (Isaac: "round end, moving, no dark background"). No
+   new loop: it runs the button's six, quickened while Tiff works, paused
+   when QUIET until its control is hovered or focused. It is small, so the
+   logo fills more of it: 74%, with the rings pushed out to its edge. */
 .tiffmk { --tb:24px; position:relative; display:inline-block; flex:none; width:var(--tb); height:var(--tb);
   vertical-align:middle; }
-.tiffmk.still :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc) { animation:none; }
-.tiffmk.still .tiffbtn-pre { transform:rotateY(18deg); }
-.tiffmk.still .tiffbtn-gim-a { transform:rotateZ(-20deg) rotateY(60deg); }
-.tiffmk.still .tiffbtn-gim-b { transform:rotateZ(25deg) rotateX(60deg); }
-.tiffmk.still .tiffbtn-sheen { display:none; }
+.tiffmk :is(.tiffbtn-ly, .tiffbtn-sheen) { width:calc(var(--tb) * .74); height:calc(var(--tb) * .74);
+  margin:calc(var(--tb) * -.37) 0 0 calc(var(--tb) * -.37); }
+.tiffmk .tiffbtn-gim-a .tiffbtn-arc { --k:1; }
+.tiffmk .tiffbtn-gim-b .tiffbtn-arc { --k:.9; }
 /* a pseudo-element cannot sit inside :is(), so the band of light gets its own selector */
 .tiffmk.working .tiffbtn-pre, .tiffmk.working .tiffbtn-sheen::before { animation-duration:2.4s; }
 .tiffmk.working .tiffbtn-nod { animation-duration:.5s; }
 .tiffmk.working .tiffbtn-gim-a { animation-duration:2.8s; }
 .tiffmk.working .tiffbtn-gim-b { animation-duration:2s; }
 .tiffmk.working .tiffbtn-arc { animation-duration:1s; }
+.tiffmk.quiet :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
+.tiffmk.quiet .tiffbtn-sheen::before { animation-play-state:paused; }
+:is(button, a):is(:hover, :focus-visible) > .tiffmk.quiet :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
+:is(button, a):is(:hover, :focus-visible) > .tiffmk.quiet .tiffbtn-sheen::before { animation-play-state:running; }
+
+/* ── A TIFF CONTROL HAS A ROUND END (Isaac, 2026-09-25: "circle into
+   rectangle … round end, moving, no dark background") ──
+   The logo lives in the button's own round left end, concentric with it and
+   2px inside the border; the rest of the button is what it always was. No
+   disc: the rings are the circle. `button.` for weight over each button's own
+   padding and radius, wherever its sheet puts them. */
+.fg button.tiffkey { border-radius:999px var(--r-button) var(--r-button) 999px; padding-left:2px; }
+.fg .tk-ask.tiffkey .tiffmk { --tb:28px; }
+.fg .fl-valuebtn.tiffkey .tiffmk { --tb:38px; }
 
 @media (max-width:760px) { .fg .tbr { gap:12px; } }
 @media (prefers-reduced-motion:reduce) {
@@ -9800,7 +9815,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .page.tk-lock .tinput .tib { display:none; }
 .fg .page.tk-lock .tinput .tin { gap:12px; padding:8px; border-radius:var(--r-card); border-color:var(--line); }
 .fg .page.tk-lock .tinput .tic { width:38px; height:38px; border-radius:var(--r-button); }
-.fg .page.tk-lock .tinput .tic .tiffmk { --tb:20px; }
+.fg .page.tk-lock .tinput .tic .tiffmk { --tb:30px; }
 .fg .page.tk-lock .tinput input { font-size:16px; padding:8px 0; }
 .fg .page.tk-lock .tinput .tsend { width:40px; height:40px; border-radius:var(--r-button); }
 .fg .page.tk-lock .tinput .tmic { width:36px; height:36px; }

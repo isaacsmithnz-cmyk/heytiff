@@ -469,7 +469,7 @@ export function CommandPalette({
                 the mark defaults to an aria-label of "HeyTiff" and would have
                 the footer read "HeyTiff HeyTiff". */}
             <span style={{ display: "flex" }}>
-              <TiffGlyph size={15} />
+              <TiffGlyph size={20} />
             </span>{" "}
             {/* was "HeyTiff Command" — there are no commands in it */}
             HeyTiff

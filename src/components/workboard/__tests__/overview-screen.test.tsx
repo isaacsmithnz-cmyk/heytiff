@@ -1195,6 +1195,85 @@ describe("a job named in the URL", () => {
   });
 });
 
+/* `?visit=<id>`: Home's list hands a service with no day here. The same
+   contract as a job: the page checks the board holds it and hands a fresh
+   object per naming; the screen lands on the side, the board opens the
+   sheet. */
+describe("a visit named in the URL", () => {
+  const visit = visitStub({ id: "vis-1" });
+  const held = { ...base, board: { ...base.board, visits: [visit] } };
+
+  it("lands on the Maintenance side with that visit handed to the board", () => {
+    render(<OverviewScreen data={held} openVisit={{ id: "vis-1" }} />);
+    expect(screen.queryByTestId("jboard")).toBeNull();
+    expect(screen.getByTestId("mboard").textContent).toContain("open:visit:vis-1");
+  });
+
+  it("gives way to a job named in the same address", () => {
+    const job = {
+      remoteId: "j-7",
+      jobNumber: "2231",
+      status: "Work Order",
+      clientName: "Kingsford Bakery",
+      description: null,
+      suburb: "Kingsford",
+      categoryName: null,
+      categoryColour: null,
+      date: "2026-07-20 09:00:00",
+      quoteDate: null,
+      completionDate: null,
+      nextBooking: null,
+      money: null,
+      paidCents: 0,
+    };
+    render(<OverviewScreen data={held} openJob={job} openVisit={{ id: "vis-1" }} />);
+    expect(screen.queryByTestId("mboard")).toBeNull();
+    expect(screen.getByTestId("jboard").textContent).toContain("open:job:j-7");
+  });
+
+  /* Followed while standing on the board, the link changes only the query
+     and the outlet, keyed on the pathname, never remounts this screen. */
+  it("takes a visit named while the board is already open, from whichever side", async () => {
+    const { rerender } = render(<OverviewScreen data={held} />);
+    await toProjects();
+
+    rerender(<OverviewScreen data={held} openVisit={{ id: "vis-1" }} />);
+
+    expect(screen.getByTestId("mboard").textContent).toContain("open:visit:vis-1");
+  });
+
+  it("hands a visit over once per naming, not once per render", async () => {
+    const named = { id: "vis-1" };
+    const { rerender } = render(<OverviewScreen data={held} openVisit={named} />);
+    await toProjects();
+    await toMaintenance();
+    expect(screen.getByTestId("mboard").textContent).toContain("open:none");
+
+    rerender(<OverviewScreen data={held} openVisit={named} />);
+    expect(screen.getByTestId("mboard").textContent).toContain("open:none");
+    rerender(<OverviewScreen data={held} openVisit={null} />);
+    expect(screen.getByTestId("mboard").textContent).toContain("open:none");
+
+    rerender(<OverviewScreen data={held} openVisit={{ id: "vis-1" }} />);
+    expect(screen.getByTestId("mboard").textContent).toContain("open:visit:vis-1");
+  });
+
+  it("takes the link out of the address once it has landed, and nothing else", () => {
+    window.history.replaceState(null, "", "/dashboard/workboard?visit=vis-1&side=m");
+    render(<OverviewScreen data={held} openVisit={{ id: "vis-1" }} />);
+    expect(window.location.pathname).toBe("/dashboard/workboard");
+    expect(window.location.search).toBe("?side=m");
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("leaves the address alone when no visit was named", () => {
+    window.history.replaceState(null, "", "/dashboard/workboard?visit=vis-gone");
+    render(<OverviewScreen data={held} />);
+    expect(window.location.search).toBe("?visit=vis-gone");
+    window.history.replaceState(null, "", "/");
+  });
+});
+
 describe("what the screen tells the Tiff button", () => {
   const withProbe = (data: WorkboardData) =>
     render(

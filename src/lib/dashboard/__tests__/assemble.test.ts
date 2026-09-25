@@ -148,6 +148,16 @@ describe("assembleChips — assets gate", () => {
     expect(team.some((c) => c.key === "rego:v3")).toBe(true);
     expect(team.some((c) => c.key === "rego:v2")).toBe(true);
   });
+
+  /* The bell's fleet row said which van and then landed on the register of
+     every van. It opens that vehicle's card now; your own van, which you may
+     not hold the register for, still opens My vehicle. */
+  it("opens the vehicle a fleet row names, and your own van on My vehicle", () => {
+    const { self, team } = assembleChips(FULL, caps("assets_all"));
+    expect(team.find((c) => c.key === "rego:v2")!.href).toBe("/dashboard/assets?v=v2");
+    expect(team.find((c) => c.key === "rego:v3")!.href).toBe("/dashboard/assets?v=v3");
+    expect(self.find((c) => c.key === "rego:mine")!.href).toBe("/dashboard/my-vehicle");
+  });
 });
 
 describe("assembleChips — no staff record", () => {

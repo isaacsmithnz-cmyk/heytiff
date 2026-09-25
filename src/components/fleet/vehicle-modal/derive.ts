@@ -19,6 +19,7 @@ import { formatAbn } from "@/lib/fleet/receipt";
 import {
   FINANCE_KIND_LABEL,
   PAYMENTS_PER_YEAR,
+  RENEWAL_KINDS,
   expiryState,
   fmtKm,
   fmtCost,
@@ -58,6 +59,28 @@ export function isAddScreen(screen: Screen): screen is `add:${LogKind}` {
 
 /** The kind a logging screen is for. */
 export const addKindOf = (screen: `add:${LogKind}`): LogKind => screen.slice(4) as LogKind;
+
+/** The screens a link may open the card on: `?screen=` on /dashboard/assets,
+    beside `?v=`. A renewal, or logging a service, because a door from outside
+    the register (the bell, Home's list, the calendar) lands on the thing to
+    DO about a date running out. Every other screen is a step taken inside
+    the card, and an entry's id in a URL would be a door to a record that can
+    be deleted under it. */
+export type LinkedScreen = RenewalKind | "add:service";
+
+/** A vehicle named in the URL, and the screen to open its card on. The page
+    builds a fresh one per render; the register takes it by identity. */
+export type VehicleLink = { id: string; screen: LinkedScreen | null };
+
+/** Read `?screen=`. Anything it doesn't name, an array included, is no
+    screen at all, and the card opens on its main screen: a link that half
+    works still opens the vehicle. */
+export function linkedScreen(raw: unknown): LinkedScreen | null {
+  if (raw === "add:service") return raw;
+  return typeof raw === "string" && (RENEWAL_KINDS as readonly string[]).includes(raw)
+    ? (raw as RenewalKind)
+    : null;
+}
 
 export const RENEWAL_TITLE: Record<RenewalKind, string> = {
   rego: "Registration",

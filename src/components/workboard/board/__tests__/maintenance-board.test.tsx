@@ -974,6 +974,28 @@ describe("the page's search slots", () => {
     mountWith({ openTarget: { kind: "agreement", id: "a-1" } });
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
+
+  /* `?visit=` and the bell land here: the page names a visit, and it is the
+     VISIT's sheet that opens, for the visit named, not the first one held and
+     not its agreement's. The Summary tab is the visit sheet's own. */
+  it("opens the named visit's sheet when a visit is handed in", async () => {
+    mountWith({
+      data: data({
+        visits: [
+          visit({ id: "v-1" }),
+          visit({ id: "v-2", agreementId: "a-2", clientName: "Meridian Towers", label: "Chillers" }),
+        ],
+        agreements: [
+          agreementFix({ id: "a-1" }),
+          agreementFix({ id: "a-2", clientName: "Meridian Towers", label: "Chillers" }),
+        ],
+      }),
+      openTarget: { kind: "visit", id: "v-2" },
+    });
+    const sheet = await screen.findByRole("dialog", { name: "Meridian Towers — Chillers" });
+    expect(within(sheet).getByRole("tab", { name: "Summary" })).toBeInTheDocument();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  });
 });
 
 describe("Calendar — first cut", () => {

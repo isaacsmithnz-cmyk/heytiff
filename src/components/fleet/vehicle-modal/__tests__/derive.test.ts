@@ -10,6 +10,7 @@ import {
   historyMeta,
   historyTabs,
   isLogScreen,
+  linkedScreen,
   logDocuments,
   logIdOf,
   logIso,
@@ -317,5 +318,36 @@ describe("an entry on its own screen", () => {
   it("writes a row's second line as who, where and whether it was corrected", () => {
     expect(historyMeta(fill, 9.4)).toBe("Dane Poulos, Shell Coburg, 9.4 L/100km, corrected");
     expect(historyMeta(log({ kind: "odo", ago: 0 }))).toBe("");
+  });
+});
+
+/* `?screen=` beside `?v=` on /dashboard/assets (the bell, Home's Renew, the
+   calendar's admin action). A link lands on a thing to do about a date, so
+   it may name a renewal or logging a service and nothing else; whatever else
+   arrives still opens the vehicle, on its main screen. */
+describe("linkedScreen", () => {
+  it("takes the three renewals and logging a service", () => {
+    expect(["rego", "insurance", "ctp", "add:service"].map(linkedScreen)).toEqual([
+      "rego",
+      "insurance",
+      "ctp",
+      "add:service",
+    ]);
+  });
+
+  it("reads every other screen, and anything that isn't one string, as none", () => {
+    const others: unknown[] = [
+      "main",
+      "financials",
+      "services",
+      "log:l1",
+      "add:fuel",
+      "add:issue",
+      "REGO",
+      "",
+      undefined,
+      ["rego", "ctp"],
+    ];
+    for (const raw of others) expect(linkedScreen(raw)).toBeNull();
   });
 });

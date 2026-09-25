@@ -248,7 +248,6 @@ describe("diaryFeed", () => {
     at: "",
     outcomes: [],
     spoken: false,
-    isDebrief: false,
     stamp,
     routed: true,
     taskFor: {},

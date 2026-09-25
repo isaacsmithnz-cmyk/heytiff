@@ -33,7 +33,6 @@ const ENTRY: DiaryEntry = {
   at: "8:42 am",
   outcomes: [],
   spoken: false,
-  isDebrief: false,
   stamp: "2026-09-25 08:42",
   routed: false,
   taskFor: {},

@@ -8524,6 +8524,9 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   margin:calc(var(--tb) * -.37) 0 0 calc(var(--tb) * -.37); }
 .tiffmk .tiffbtn-gim-a .tiffbtn-arc { --k:1; }
 .tiffmk .tiffbtn-gim-b .tiffbtn-arc { --k:.9; }
+/* A flatter lens than the button's: at label size the near side of a ring
+   swung toward you under the button's perspective grew past its own box. */
+.tiffmk .tiffbtn-st { perspective:calc(var(--tb) * 6); }
 /* a pseudo-element cannot sit inside :is(), so the band of light gets its own selector */
 .tiffmk.working .tiffbtn-pre, .tiffmk.working .tiffbtn-sheen::before { animation-duration:2.4s; }
 .tiffmk.working .tiffbtn-nod { animation-duration:.5s; }
@@ -8544,9 +8547,18 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    2px inside the border; the rest of the button is what it always was. No
    disc: the rings are the circle. `button.` for weight over each button's own
    padding and radius, wherever its sheet puts them. */
-.fg button.tiffkey { border-radius:999px var(--r-button) var(--r-button) 999px; padding-left:2px; }
-.fg .tk-ask.tiffkey .tiffmk { --tb:28px; }
-.fg .fl-valuebtn.tiffkey .tiffmk { --tb:38px; }
+/* `.wb2 .pbtn.ghost` (0,3,0) set the fleet's radius and padding over the first
+   version of this rule, and the toolbar makes that button 38px, not 44: the
+   mark filled it edge to edge and its rings ran past the border (Isaac, on
+   prod: "doesnt quite fit"). So the wb2 spelling is named, and the mark is the
+   button's height less 8: its border and a 3px ring of air on every side. */
+.fg button.tiffkey, .fg .wb2 button.pbtn.tiffkey { border-radius:999px var(--r-button) var(--r-button) 999px; padding-left:2px; }
+.fg .tk-ask.tiffkey .tiffmk { --tb:24px; }
+.fg .fl-valuebtn.tiffkey .tiffmk { --tb:30px; }
+/* Inside a round end the rings sit a little in from its edge, so their
+   near side, swung toward you, never crosses the border. */
+.tiffkey .tiffmk .tiffbtn-gim-a .tiffbtn-arc { --k:.94; }
+.tiffkey .tiffmk .tiffbtn-gim-b .tiffbtn-arc { --k:.82; }
 
 @media (max-width:760px) { .fg .tbr { gap:12px; } }
 @media (prefers-reduced-motion:reduce) {

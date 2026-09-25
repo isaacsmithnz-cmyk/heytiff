@@ -86,19 +86,73 @@ const IN_ADDRESS = /[a-z0-9._%+-]/i;
     sentence's full stop when the handle ended it, and leaves every other
     character — line breaks included — where the writer put it. */
 export function withoutKnownHandles(text: string, known: Iterable<string>): string {
-  const set = new Set([...known].filter(Boolean).map((h) => h.toLowerCase()));
-  if (set.size === 0) return text.trim();
+  return sayKnownHandles(text, lowerSet(known), () => null);
+}
+
+/** A note as the diary QUOTES it to one reader: only the ADDRESSING taken
+    out, and every other person it names said by name.
+
+    Taking out every handle we know changed what was asked: "Hi @isaacsmith,
+    can you ask @michaeldiamond to bring the ladder" became "Hi, can you ask
+    to bring the ladder". A handle is addressing in two places only:
+      - the run of handles the note opens with ("@isaacsmith @michaeldiamond
+        please…", "@isaacsmith and @michaeldiamond please…"), which is who
+        the note is to, not what it says — the run goes whole, with the
+        colon or dash that closes it. Unless the sentence carries on from
+        it with "and" ("@michaeldiamond and I will sort it"): then the run
+        is who the sentence is ABOUT, and each handle in it is said by
+        name, the reader's own included;
+      - `addressing` wherever it is: the reader's own handle in a note to
+        them, the asker's in the reader's reply. The row already says who
+        is talking to whom.
+    Every other handle we know becomes `names`' word for it — "can you ask
+    Michael to bring the ladder" — and an address, an unknown @word and a
+    possessive stay as written, as withoutKnownHandles leaves them. */
+export function quotedNote(
+  text: string,
+  say: { names: ReadonlyMap<string, string>; addressing: Iterable<string> }
+): string {
+  const names = new Map([...say.names].filter(([h]) => h).map(([h, w]) => [h.toLowerCase(), w]));
+  const addressing = lowerSet(say.addressing);
+  const known = new Set([...names.keys(), ...addressing]);
+  if (known.size === 0) return text.trim();
+  const run = addressRun(text, known);
+  const rest = run.subject ? text : text.slice(run.end);
+  const about = run.subject ? run.end : 0;
+  return sayKnownHandles(rest, known, (h, at) =>
+    at >= about && addressing.has(h) ? null : names.get(h) ?? null
+  );
+}
+
+const lowerSet = (hs: Iterable<string>) => new Set([...hs].filter(Boolean).map((h) => h.toLowerCase()));
+
+/* Longest first, as mentionedHandles reads it: "ross." is a handle before
+   "ross" is one with a full stop after it. "" when it is nobody we know. */
+function knownIn(raw: string, known: ReadonlySet<string>): string {
+  const lower = raw.toLowerCase();
+  const bare = known.has(lower) ? lower : lower.replace(/[.'-]+$/, "");
+  return bare && known.has(bare) ? bare : "";
+}
+
+/* Every known handle outside an address, through `say` (the handle, and
+   where in `text` it stands): the words to put in its place, or null to
+   take it out and close the gap it leaves. */
+function sayKnownHandles(
+  text: string,
+  known: ReadonlySet<string>,
+  say: (handle: string, at: number) => string | null
+): string {
+  if (known.size === 0) return text.trim();
   const out = text.replace(
     SPACED_TOKEN,
     (whole: string, lead: string, raw: string, trail: string, offset: number, all: string) => {
       const before = offset > 0 ? all[offset - 1] : "";
       if (lead === "" && before !== "" && IN_ADDRESS.test(before)) return whole;
-      const lower = raw.toLowerCase();
-      /* Longest first, as mentionedHandles does: "ross." is a handle before
-         "ross" is one with a full stop after it. */
-      const bare = set.has(lower) ? lower : lower.replace(/[.'-]+$/, "");
-      if (!bare || !set.has(bare)) return whole;
+      const bare = knownIn(raw, known);
+      if (!bare) return whole;
       const kept = raw.slice(bare.length);
+      const word = say(bare, offset + lead.length);
+      if (word !== null) return `${lead}${word}${kept}${trail}`;
       const after = all.slice(offset + whole.length, offset + whole.length + 1);
       if (kept) return trail ? `${kept} ` : kept;
       if (CLOSES.test(after)) return "";
@@ -106,6 +160,41 @@ export function withoutKnownHandles(text: string, known: Iterable<string>): stri
     }
   );
   return out.trim();
+}
+
+/* The handles a note opens with, joined by spaces, a comma, "&", "+", "/"
+   or "and" — only while another handle follows the join. A handle that
+   carries the sentence's full stop ends the run. `end` is where the rest
+   of the note starts, past the colon, dash or line break that closes the
+   run; 0 when it opens with no handle we know. `subject` when the sentence
+   carries on from the run with "and" or "&" — "@michaeldiamond and I will
+   sort it" — so the run is who it is about; `end` is then the run's own. */
+const RUN_HANDLE = /^@([a-z0-9.'-]+)/i;
+const RUN_JOIN = /^(?:[ \t]*[,&+/][ \t]*|[ \t]+and[ \t]+|[ \t]+)(?=@)/i;
+const RUN_SUBJECT = /^(?:[ \t]*&|[ \t]+and\b)/i;
+const RUN_CLOSE = /^[\s,:;.!?\u2013\u2014-]*/;
+
+function addressRun(text: string, known: ReadonlySet<string>): { end: number; subject: boolean } {
+  let i = text.length - text.trimStart().length;
+  let end = 0;
+  let stopped = false;
+  for (;;) {
+    const m = RUN_HANDLE.exec(text.slice(i));
+    const bare = m ? knownIn(m[1], known) : "";
+    if (!m || !bare) break;
+    i += 1 + bare.length;
+    end = i;
+    if (m[1].length > bare.length) {
+      stopped = true;
+      break;
+    }
+    const join = RUN_JOIN.exec(text.slice(i));
+    if (!join) break;
+    i += join[0].length;
+  }
+  if (end === 0) return { end: 0, subject: false };
+  if (!stopped && RUN_SUBJECT.test(text.slice(end))) return { end, subject: true };
+  return { end: end + (RUN_CLOSE.exec(text.slice(end))?.[0].length ?? 0), subject: false };
 }
 
 /** The note's words with its handles taken out — what a task drafted from it

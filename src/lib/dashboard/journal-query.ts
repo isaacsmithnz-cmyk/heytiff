@@ -35,6 +35,7 @@ import { auDayOf, fmtAuTime } from "@/lib/au-dates";
 import { todayInZone } from "@/lib/workboard/dates";
 import { naiveInZone } from "@/lib/workboard/job-story";
 import { describeAppliedResolved, type DiaryEntry, type JournalEntry } from "./journal";
+import { DIARY_ENTRY_LIMIT } from "./diary-feed";
 
 /* NO `is_debrief`, WRITTEN OR READ. The Debrief left the router and this
    read in the same change, so the column's drop (note_is_debrief_drop.sql) is
@@ -203,7 +204,7 @@ export async function listDiaryEntries(
   orgId: string,
   staffId: string,
   tz: string | null,
-  limit = 60,
+  limit = DIARY_ENTRY_LIMIT,
 ): Promise<DiaryEntry[]> {
   const { data } = await supabaseAdmin
     .from("workboard_notes")

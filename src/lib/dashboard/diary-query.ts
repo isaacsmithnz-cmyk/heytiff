@@ -14,7 +14,7 @@
 
 import type { Capability } from "@/lib/permissions";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { diaryFeed, type DiaryConversation, type DiaryFeed } from "./diary-feed";
+import { DIARY_ENTRY_LIMIT, diaryFeed, type DiaryConversation, type DiaryFeed } from "./diary-feed";
 import { listDiaryEntries } from "./journal-query";
 import { listMyMentions } from "./mentions-query";
 
@@ -60,5 +60,14 @@ export async function loadDiaryFeed(ctx: DiaryFeedContext): Promise<DiaryFeed> {
     mineUuid ? mirrorSyncedAt(ctx.orgId).catch(() => null) : Promise.resolve(null),
   ]);
 
-  return diaryFeed({ entries, conversations, day: ctx.railDay, mentions: mineUuid !== null, syncedAt });
+  return diaryFeed({
+    entries,
+    conversations,
+    day: ctx.railDay,
+    mentions: mineUuid !== null,
+    /* listDiaryEntries reads DIARY_ENTRY_LIMIT; a full read may have left
+       older entries unread, and the column stops where they do. */
+    entriesCut: entries.length >= DIARY_ENTRY_LIMIT,
+    syncedAt,
+  });
 }

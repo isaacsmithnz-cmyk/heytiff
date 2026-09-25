@@ -41,15 +41,19 @@ const table = (name: string) => {
 
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { from: (n: string) => table(n) } }));
 
+/* As the real one answers: which of the uuids it was GIVEN are ours. */
 const ours = new Set<string>();
-const sm8Ours = jest.fn(async () => ours);
-jest.mock("@/lib/integrations/sm8-echo", () => ({ sm8Ours: (...a: unknown[]) => sm8Ours(...(a as [])) }));
+const sm8Ours = jest.fn(async (_org: string, ids: readonly string[]) => new Set(ids.filter((id) => ours.has(id))));
+jest.mock("@/lib/integrations/sm8-echo", () => ({
+  sm8Ours: (...a: unknown[]) => sm8Ours(...(a as [string, string[]])),
+}));
 
 import { listMyMentions, MENTION_LIMIT, THREAD_LIMIT } from "../mentions-query";
 
 const STAFF = [
   { uuid: "u-isaac", first: "Isaac", last: "Smith" },
   { uuid: "u-luke", first: "Luke", last: "Ingold" },
+  { uuid: "u-michael", first: "Michael", last: "Diamond" },
   { uuid: "u-brent", first: "Brent (Service)", last: "Gilmore" },
 ];
 
@@ -140,17 +144,48 @@ it("makes no thread read when nothing is really an ask", async () => {
   expect(of("sm8_jobs")).toHaveLength(0);
 });
 
-it("leaves out what HeyTiff wrote itself, mirrored back", async () => {
+it("leaves out what HeyTiff wrote itself, mirrored back, asking only about the conversations' messages", async () => {
   tables.asks = [
     row("n1", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
     row("n-echo", "j-3294", "u-luke", "2026-09-22 09:00:00", "@isaacsmith sent from HeyTiff"),
+  ];
+  tables.thread = [
+    // on the asked jobs, but in no conversation: never asked about
+    row("n-other", "j-2041", "u-luke", "2026-09-21 14:00:00", "@michaeldiamond grab the ladder"),
+    row("n-mine", "j-2041", "u-isaac", "2026-09-21 16:00:00", "Unit tested, all good"),
   ];
   ours.add("n-echo");
 
   const out = await listMyMentions("org-1", "u-isaac", "2026-09-25");
 
-  expect(sm8Ours).toHaveBeenCalledWith("org-1", expect.arrayContaining(["n1", "n-echo"]));
+  expect(sm8Ours).toHaveBeenCalledTimes(1);
+  expect([...sm8Ours.mock.calls[0][1]].sort()).toEqual(["n-echo", "n1"]);
   expect(out.map((c) => c.askNoteUuid)).toEqual(["n1"]);
+});
+
+it("asks again only about a note that joins once an echo is out", async () => {
+  /* HeyTiff posted "@lukeingold done" as Isaac. Without it the ask is
+     unanswered, so Luke's note the next day follows on, and that note has
+     not been asked about yet. */
+  tables.asks = [row("n1", "j-2041", "u-luke", "2026-09-23 10:00:00", "@isaacsmith call Mary")];
+  tables.thread = [
+    row("n-echo", "j-2041", "u-isaac", "2026-09-24 10:00:00", "@lukeingold done"),
+    row("n-next", "j-2041", "u-luke", "2026-09-25 08:00:00", "Invoice sent to client"),
+  ];
+  ours.add("n-echo");
+
+  const [c] = await listMyMentions("org-1", "u-isaac", "2026-09-25");
+
+  expect(sm8Ours.mock.calls.map((call) => [...call[1]].sort())).toEqual([["n-echo", "n1"], ["n-next"]]);
+  expect(c.messages.map((m) => m.id)).toEqual(["n1", "n-next"]);
+  expect(c).toMatchObject({ answered: false, fresh: true });
+});
+
+it("says a job ServiceM8 deleted isn't live, so it gets no Reply", async () => {
+  tables.asks = [row("n1", "j-2749", "u-luke", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly")];
+  tables.sm8_jobs = [{ uuid: "j-2749", generated_job_id: 2749, geo_city: "Woolloomooloo", active: 0 }];
+  const [c] = await listMyMentions("org-1", "u-isaac", "2026-09-25");
+  expect(c).toMatchObject({ jobLabel: "2749 Woolloomooloo", jobLive: false });
 });
 
 it("takes only notes on a job", async () => {

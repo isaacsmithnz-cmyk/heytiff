@@ -17,8 +17,14 @@
         exact one, and your own notes are never asks;
      3. the threads: every live note on those jobs from the earliest ask
         on, and the jobs' numbers and suburbs, together;
-     4. which of all that HeyTiff wrote itself (sm8Ours) — our own writes,
-        mirrored back, are left out.
+     4. which of the notes that ended up IN a conversation HeyTiff wrote
+        itself (sm8Ours) — our own writes, mirrored back, are left out.
+        Only those: a thread read brings up to THREAD_LIMIT notes, most of
+        which join nothing, and sm8Ours asks fifty at a time, one after
+        another. A note that joined nothing changed nothing, so taking it
+        out can't change a conversation; the conversations are built
+        again without the echoes, and again only if that brings in a note
+        not yet asked about.
    docs/migrations/sm8_job_notes_org_created_idx.sql is the index read 2
    walks. */
 
@@ -123,7 +129,6 @@ export async function listMyMentions(orgId: string, mineUuid: string, today: str
      still leaves every ask its conversation. */
   const pool = new Map<string, MentionNote>();
   for (const n of [...asks, ...jobNotes(thread.data)]) if (!pool.has(n.uuid)) pool.set(n.uuid, n);
-  const ours = await sm8Ours(orgId, [...pool.keys()]);
 
   const jobs = new Map<string, { label: string | null; live: boolean }>();
   for (const j of (jobRows.data ?? []) as {
@@ -138,11 +143,26 @@ export async function listMyMentions(orgId: string, mineUuid: string, today: str
     });
   }
 
-  return buildConversations({
-    notes: [...pool.values()].filter((n) => !ours.has(n.uuid)),
-    me,
-    people,
-    jobs,
-    today,
-  });
+  /* Each round asks only about messages no round has asked about, and
+     goes again only when it found an echo — so today, with HeyTiff writing
+     no notes, it is one round and one query. */
+  const echoes = new Set<string>();
+  const checked = new Set<string>();
+  for (;;) {
+    const conversations = buildConversations({
+      notes: [...pool.values()].filter((n) => !echoes.has(n.uuid)),
+      me,
+      people,
+      jobs,
+      today,
+    });
+    const unchecked = [...new Set(conversations.flatMap((c) => c.messages.map((m) => m.id)))].filter(
+      (id) => !checked.has(id)
+    );
+    if (unchecked.length === 0) return conversations;
+    for (const id of unchecked) checked.add(id);
+    const ours = await sm8Ours(orgId, unchecked);
+    if (ours.size === 0) return conversations;
+    for (const id of ours) echoes.add(id);
+  }
 }

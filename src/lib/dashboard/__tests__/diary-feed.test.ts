@@ -9,6 +9,7 @@ import {
   buildConversations,
   diaryFeed,
   FOLLOW_ON_DAYS,
+  MENTION_DAYS,
   jobDoorLabel,
   sortStamp,
   type DiaryConversation,
@@ -117,6 +118,36 @@ describe("buildConversations", () => {
     expect(build([note("j-2041", LUKE.uuid, "2026-09-24 23:59:00", "@isaacsmith call Mary")])[0].fresh).toBe(false);
   });
 
+  it("an ask made today and answered today is answered, and not fresh", () => {
+    const [c] = build([
+      note("j-2041", LUKE.uuid, "2026-09-25 07:00:00", "@isaacsmith call Mary"),
+      note("j-2041", ISAAC.uuid, "2026-09-25 09:00:00", "@lukeingold done"),
+    ]);
+    expect(c).toMatchObject({ lastTheirs: "2026-09-25 07:00:00", answered: true, fresh: false });
+  });
+
+  it("quotes the ask less its addressing, and names anybody else it asks about", () => {
+    const quote = (text: string) =>
+      build([note("j-2041", LUKE.uuid, "2026-09-21 13:42:10", text)])[0].messages[0].text;
+    expect(quote("Hi @isaacsmith, can you ask @michaeldiamond to bring the ladder")).toBe(
+      "Hi, can you ask Michael to bring the ladder",
+    );
+    expect(quote("@isaacsmith and @michaeldiamond please sort the invoice")).toBe("please sort the invoice");
+  });
+
+  it("quotes your reply less the asker's handle, and names the rest", () => {
+    const [c] = build([
+      note("j-2041", LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
+      note("j-2041", ISAAC.uuid, "2026-09-21 14:00:00", "Rang her, thanks @lukeingold. @michaeldiamond has the key"),
+    ]);
+    expect(c.messages[1]).toMatchObject({ from: "you", text: "Rang her, thanks. Michael has the key" });
+  });
+
+  it("says a person by full name when another on the roster shares the first", () => {
+    const [c] = build([note("j-2041", LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith can you and @isaacsmithy go")]);
+    expect(c.messages[0].text).toBe("can you and Isaac Smithy go");
+  });
+
   it("makes two conversations when two people ask you on one job", () => {
     const out = build([
       note("j-2041", LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
@@ -155,9 +186,32 @@ describe("buildConversations", () => {
     const late = note("j-2749", LUKE.uuid, "2026-09-16 09:00:00", "unit delivered");
     const [c] = build([ask, soon, late]);
     expect(c.messages.map((m) => m.id)).toEqual([ask.uuid, soon.uuid]);
-    // measured from HIS previous message, so a chain of follow-ups carries on
+  });
+
+  it("measures a follow-up from his last mention of you, so status notes can't chain on", () => {
+    const ask = note("j-2749", LUKE.uuid, "2026-09-09 10:00:00", "@isaacsmith can you advise Holly");
+    const soon = note("j-2749", LUKE.uuid, "2026-09-11 09:42:00", "Holly's number is on the job card");
+    // within 3 days of "soon", but not of the ask
     const chain = note("j-2749", LUKE.uuid, "2026-09-14 09:00:00", "she'll be home after 3");
-    expect(build([ask, soon, chain])[0].messages.map((m) => m.id)).toEqual([ask.uuid, soon.uuid, chain.uuid]);
+    expect(build([ask, soon, chain])[0].messages.map((m) => m.id)).toEqual([ask.uuid, soon.uuid]);
+    // a new mention starts the window again
+    const again = note("j-2749", LUKE.uuid, "2026-09-13 09:00:00", "@isaacsmith any luck?");
+    expect(build([ask, soon, again, chain])[0].messages.map((m) => m.id)).toEqual([
+      ask.uuid,
+      soon.uuid,
+      again.uuid,
+      chain.uuid,
+    ]);
+  });
+
+  it("does not take his note that names nobody once you have answered", () => {
+    const [c] = build([
+      note("j-2041", LUKE.uuid, "2026-09-23 10:00:00", "@isaacsmith call Mary"),
+      note("j-2041", ISAAC.uuid, "2026-09-24 10:00:00", "@lukeingold done"),
+      note("j-2041", LUKE.uuid, "2026-09-25 08:00:00", "Invoice sent to client"),
+    ]);
+    expect(c.messages.map((m) => m.text)).toEqual(["call Mary", "done"]);
+    expect(c).toMatchObject({ lastTheirs: "2026-09-23 10:00:00", answered: true, fresh: false });
   });
 
   it("does not take a note of yours that names nobody — a job note is not an answer", () => {
@@ -199,8 +253,10 @@ describe("diaryFeed", () => {
     routed: true,
     taskFor: {},
   });
-  const conversation = (key: string, lastTheirs: string): DiaryConversation =>
-    ({ key, lastTheirs }) as DiaryConversation;
+  const conversation = (key: string, lastTheirs: string, lastYours: string | null = null): DiaryConversation =>
+    ({ key, lastTheirs, lastYours }) as DiaryConversation;
+  const feedOf = (over: Partial<Parameters<typeof diaryFeed>[0]>) =>
+    diaryFeed({ entries: [], conversations: [], day: "2026-09-25", mentions: true, entriesCut: false, syncedAt: null, ...over });
 
   it("puts journal stamps and ServiceM8 stamps in one order, and splits at today", () => {
     const feed = diaryFeed({
@@ -212,6 +268,7 @@ describe("diaryFeed", () => {
       ],
       day: "2026-09-25",
       mentions: true,
+      entriesCut: false,
       syncedAt: null,
     });
     expect(feed.today.map((i) => i.key)).toEqual(["mention:j-3294:u-luke", "entry:e-today", "mention:j-2041:u-luke"]);
@@ -224,6 +281,7 @@ describe("diaryFeed", () => {
       conversations: [],
       day: "2026-09-25",
       mentions: false,
+      entriesCut: false,
       syncedAt: null,
     });
     expect(feed).toEqual({
@@ -241,9 +299,43 @@ describe("diaryFeed", () => {
       conversations: [],
       day: "2026-09-25",
       mentions: false,
+      entriesCut: false,
       syncedAt: null,
     });
     expect(feed.today).toHaveLength(1);
+  });
+
+  it("places a conversation by his newest message, however recently you replied", () => {
+    const feed = feedOf({
+      entries: [entry("e-22", "2026-09-22 12:00"), entry("e-18", "2026-09-18 12:00")],
+      conversations: [conversation("j-2041:u-luke", "2026-09-20 10:00:00", "2026-09-25 09:00:00")],
+    });
+    expect(feed.today).toEqual([]);
+    expect(feed.earlier.map((i) => i.key)).toEqual(["entry:e-22", "mention:j-2041:u-luke", "entry:e-18"]);
+  });
+
+  it("stops at your oldest entry when the entry read was cut, so no stretch is mentions alone", () => {
+    const entries = [entry("e-24", "2026-09-24 12:00"), entry("e-20", "2026-09-20 12:00")];
+    const conversations = [
+      conversation("j-2041:u-luke", "2026-09-21 10:00:00"),
+      conversation("j-3294:u-luke", "2026-09-19 10:00:00"),
+    ];
+    const keys = (f: ReturnType<typeof diaryFeed>) => [...f.today, ...f.earlier].map((i) => i.key);
+    expect(keys(feedOf({ entries, conversations, entriesCut: true }))).toEqual([
+      "entry:e-24",
+      "mention:j-2041:u-luke",
+      "entry:e-20",
+    ]);
+    // a read that wasn't cut holds every entry there is, so the older mention stays
+    expect(keys(feedOf({ entries, conversations, entriesCut: false }))).toContain("mention:j-3294:u-luke");
+  });
+
+  it(`stops at ${MENTION_DAYS} days when mentions were read, so no stretch is entries alone`, () => {
+    // 2026-07-27 is sixty days before the 25th
+    const entries = [entry("e-in", "2026-07-27 06:00"), entry("e-out", "2026-07-26 23:59")];
+    expect([...feedOf({ entries }).earlier].map((i) => i.key)).toEqual(["entry:e-in"]);
+    // without mentions the diary is your entries, as far back as they were read
+    expect([...feedOf({ entries, mentions: false }).earlier].map((i) => i.key)).toEqual(["entry:e-in", "entry:e-out"]);
   });
 });
 

@@ -3,6 +3,7 @@ import {
   sm8Handle,
   taskTitleFromNote,
   withoutHandles,
+  quotedNote,
   withoutKnownHandles,
 } from "@/lib/workboard/sm8-mentions";
 
@@ -161,5 +162,56 @@ describe("withoutKnownHandles", () => {
 
   it("changes nothing but the ends when no handle is known", () => {
     expect(withoutKnownHandles("  @lukeingold call Mary ", [])).toBe("@lukeingold call Mary");
+  });
+});
+
+describe("quotedNote", () => {
+  /* The diary quotes Luke to Isaac: only the addressing goes, and anybody
+     else Luke asks about stays in the sentence, by name. */
+  const names = new Map([
+    ["lukeingold", "Luke"],
+    ["michaeldiamond", "Michael"],
+    ["isaacsmith", "Isaac"],
+    ["ross.", "Ross"],
+  ]);
+  const toIsaac = (text: string) => quotedNote(text, { names, addressing: ["isaacsmith"] });
+
+  it("keeps a person the note asks about, by name", () => {
+    expect(toIsaac("Hi @isaacsmith, can you ask @michaeldiamond to bring the ladder")).toBe(
+      "Hi, can you ask Michael to bring the ladder",
+    );
+    expect(toIsaac("@isaacsmith can you ask @michaeldiamond.")).toBe("can you ask Michael.");
+  });
+
+  it("takes out the run of handles a note opens with, however it is joined", () => {
+    expect(toIsaac("@isaacsmith @michaeldiamond please sort the invoice")).toBe("please sort the invoice");
+    expect(toIsaac("@isaacsmith and @michaeldiamond please sort the invoice")).toBe("please sort the invoice");
+    expect(toIsaac("@michaeldiamond, @IsaacSmith & @lukeingold: roof access Monday")).toBe("roof access Monday");
+    expect(toIsaac("@isaacsmith - please call Mary")).toBe("please call Mary");
+    expect(toIsaac("@isaacsmith\nPlease call Mary\nabout the quote")).toBe("Please call Mary\nabout the quote");
+  });
+
+  it("names the run when the sentence carries on from it — it is who the note is about", () => {
+    expect(toIsaac("@michaeldiamond and I will sort it @isaacsmith")).toBe("Michael and I will sort it");
+    expect(toIsaac("@isaacsmith, @michaeldiamond & I are on it")).toBe("Isaac, Michael & I are on it");
+  });
+
+  it("ends the run at a handle that carries the full stop", () => {
+    expect(toIsaac("@isaacsmith. @michaeldiamond has the key")).toBe("Michael has the key");
+  });
+
+  it("takes out the reader's own handle wherever it is, closing the gap", () => {
+    expect(toIsaac("Thanks @isaacsmith.")).toBe("Thanks.");
+    expect(toIsaac("Please call Mary @isaacsmith")).toBe("Please call Mary");
+  });
+
+  it("leaves an address, an unknown @word and a possessive as written", () => {
+    expect(toIsaac("@isaacsmith email susie@peterson.com about it")).toBe("email susie@peterson.com about it");
+    expect(toIsaac("@isaacsmith ask @nobodyhere first")).toBe("ask @nobodyhere first");
+    expect(toIsaac("@isaacsmith @michaeldiamond's van is at the yard")).toBe("@michaeldiamond's van is at the yard");
+  });
+
+  it("names a handle that ends in a full stop without losing the sentence's", () => {
+    expect(toIsaac("@isaacsmith ask @ross. about it")).toBe("ask Ross about it");
   });
 });

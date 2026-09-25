@@ -3,7 +3,7 @@
 
 import type { Capability } from "@/lib/permissions";
 import type { DiaryEntry } from "../journal";
-import type { DiaryConversation } from "../diary-feed";
+import { DIARY_ENTRY_LIMIT, type DiaryConversation } from "../diary-feed";
 
 const listDiaryEntries = jest.fn();
 const listMyMentions = jest.fn();
@@ -90,6 +90,18 @@ it("keeps your entries when the mention read fails", async () => {
   expect(feed.earlier).toEqual([]);
   expect(spy).toHaveBeenCalled();
   spy.mockRestore();
+});
+
+it("stops the column at your oldest entry when the entry read came back full", async () => {
+  const full = Array.from({ length: DIARY_ENTRY_LIMIT }, (_, i) => ({ ...ENTRY, id: `e${i}`, stamp: "2026-09-24 08:00" }));
+  listDiaryEntries.mockResolvedValue(full);
+  const feed = await loadDiaryFeed(ctx());
+  // Luke's ask of the 21st is older than every entry read, so older ones may be missing
+  expect(feed.earlier.map((i) => i.key)).not.toContain("mention:j-2041:u-luke");
+  expect(feed.earlier).toHaveLength(DIARY_ENTRY_LIMIT);
+
+  listDiaryEntries.mockResolvedValue(full.slice(1));
+  expect((await loadDiaryFeed(ctx())).earlier.map((i) => i.key)).toContain("mention:j-2041:u-luke");
 });
 
 it("with no ServiceM8 is your own entries, on the day the loader gives it", async () => {

@@ -312,25 +312,48 @@ async function answeredNotes(orgId: string, jobUuid: string): Promise<Set<string
     ZERO links, so today every mention arrives named and unassigned. That is
     the honest reading, and it will start filling itself the day someone
     links the accounts. */
-async function readMentionPeople(
+export async function readMentionPeople(
   orgId: string
 ): Promise<Map<string, { name: string; staffId: string | null }>> {
-  const [{ data: staff }, linked] = await Promise.all([
-    supabaseAdmin
-      .from("sm8_staff")
-      .select("uuid, first, last")
-      .eq("org_id", orgId)
-      .limit(500),
-    sm8StaffLinkMap(orgId),
-  ]);
+  const [roster, linked] = await Promise.all([sm8Roster(orgId), sm8StaffLinkMap(orgId)]);
 
   const map = new Map<string, { name: string; staffId: string | null }>();
-  for (const s of (staff ?? []) as { uuid: string; first: string | null; last: string | null }[]) {
+  for (const s of roster) map.set(s.handle, { name: s.name, staffId: linked.get(s.uuid) ?? null });
+  return map;
+}
+
+/** A ServiceM8 staff member as a note can name them. */
+export type Sm8Person = {
+  uuid: string;
+  /** What a note writes after the "@" — see sm8Handle. */
+  handle: string;
+  /** "Luke Ingold", as ServiceM8 spells it. */
+  name: string;
+  /** "Luke", for a line that says "You to Luke". */
+  first: string;
+};
+
+/** EVERY HANDLE IN THE ACCOUNT, and whose it is — the one read both the
+    job card's strip (through readMentionPeople) and the Home diary name
+    people from, so the two can never spell a person differently.
+
+    A row with no name to build a handle from is left out: it can never be
+    mentioned, and an empty handle would match every bare "@". */
+export async function sm8Roster(orgId: string): Promise<Sm8Person[]> {
+  const { data } = await supabaseAdmin
+    .from("sm8_staff")
+    .select("uuid, first, last")
+    .eq("org_id", orgId)
+    .limit(500);
+
+  const out: Sm8Person[] = [];
+  for (const s of (data ?? []) as { uuid: string; first: string | null; last: string | null }[]) {
     const handle = sm8Handle(s.first, s.last);
     if (!handle) continue;
-    const name = `${(s.first ?? "").trim()} ${(s.last ?? "").trim()}`.trim();
+    const first = (s.first ?? "").trim();
+    const name = `${first} ${(s.last ?? "").trim()}`.trim();
     if (!name) continue;
-    map.set(handle, { name, staffId: linked.get(s.uuid) ?? null });
+    out.push({ uuid: s.uuid, handle, name, first: first || name });
   }
-  return map;
+  return out;
 }

@@ -3,6 +3,8 @@ import {
   sm8Handle,
   taskTitleFromNote,
   withoutHandles,
+  quotedNote,
+  withoutKnownHandles,
 } from "@/lib/workboard/sm8-mentions";
 
 /* The handles are LIVE FACTS, checked against the mirror before the module
@@ -106,5 +108,110 @@ describe("withoutHandles", () => {
     expect(withoutHandles("Return air box at henry to be picked up")).toBe(
       "Return air box at henry to be picked up",
     );
+  });
+});
+
+describe("withoutKnownHandles", () => {
+  /* The diary QUOTES a person, so only what is addressing may go. */
+  const roster = ["lukeingold", "michaeldiamond", "isaacsmith", "davidhann", "ross."];
+
+  it("keeps an email address whole, where withoutHandles cut it in half", () => {
+    const note = "@isaacsmith email susie@peterson.com about it";
+    expect(withoutHandles(note)).toBe("email susie about it");
+    expect(withoutKnownHandles(note, roster)).toBe("email susie@peterson.com about it");
+  });
+
+  it("keeps an address even when what follows its @ is somebody's handle", () => {
+    /* an @ inside a word is an address, never a mention */
+    expect(withoutKnownHandles("send it to info@isaacsmith today", roster)).toBe(
+      "send it to info@isaacsmith today",
+    );
+  });
+
+  it("takes a known handle out and leaves an unknown @word alone", () => {
+    expect(withoutKnownHandles("@lukeingold ask @nobodyhere first", roster)).toBe("ask @nobodyhere first");
+  });
+
+  it("closes the gap a handle leaves, without a double space or a space before a comma", () => {
+    expect(withoutKnownHandles("@lukeingold @michaeldiamond still need another day", roster)).toBe(
+      "still need another day",
+    );
+    expect(withoutKnownHandles("call @lukeingold about it", roster)).toBe("call about it");
+    expect(withoutKnownHandles("hi @lukeingold, call Mary", roster)).toBe("hi, call Mary");
+    expect(withoutKnownHandles("thanks @lukeingold", roster)).toBe("thanks");
+  });
+
+  it("keeps the full stop a handle ended the sentence with", () => {
+    expect(withoutKnownHandles("Thanks @davidhann.", roster)).toBe("Thanks.");
+    expect(withoutKnownHandles("Ask @davidhann. He knows", roster)).toBe("Ask. He knows");
+    // a handle that really ends in one loses it, as mentionedHandles reads it
+    expect(withoutKnownHandles("@ross. is on it", roster)).toBe("is on it");
+  });
+
+  it("keeps the note's line breaks and its capitals", () => {
+    expect(withoutKnownHandles("@IsaacSmith\nPlease call Mary\nabout the quote", roster)).toBe(
+      "Please call Mary\nabout the quote",
+    );
+  });
+
+  it("leaves a possessive alone, as mentionedHandles does", () => {
+    expect(withoutKnownHandles("@lukeingold's van is at the yard", roster)).toBe(
+      "@lukeingold's van is at the yard",
+    );
+  });
+
+  it("changes nothing but the ends when no handle is known", () => {
+    expect(withoutKnownHandles("  @lukeingold call Mary ", [])).toBe("@lukeingold call Mary");
+  });
+});
+
+describe("quotedNote", () => {
+  /* The diary quotes Luke to Isaac: only the addressing goes, and anybody
+     else Luke asks about stays in the sentence, by name. */
+  const names = new Map([
+    ["lukeingold", "Luke"],
+    ["michaeldiamond", "Michael"],
+    ["isaacsmith", "Isaac"],
+    ["ross.", "Ross"],
+  ]);
+  const toIsaac = (text: string) => quotedNote(text, { names, addressing: ["isaacsmith"] });
+
+  it("keeps a person the note asks about, by name", () => {
+    expect(toIsaac("Hi @isaacsmith, can you ask @michaeldiamond to bring the ladder")).toBe(
+      "Hi, can you ask Michael to bring the ladder",
+    );
+    expect(toIsaac("@isaacsmith can you ask @michaeldiamond.")).toBe("can you ask Michael.");
+  });
+
+  it("takes out the run of handles a note opens with, however it is joined", () => {
+    expect(toIsaac("@isaacsmith @michaeldiamond please sort the invoice")).toBe("please sort the invoice");
+    expect(toIsaac("@isaacsmith and @michaeldiamond please sort the invoice")).toBe("please sort the invoice");
+    expect(toIsaac("@michaeldiamond, @IsaacSmith & @lukeingold: roof access Monday")).toBe("roof access Monday");
+    expect(toIsaac("@isaacsmith - please call Mary")).toBe("please call Mary");
+    expect(toIsaac("@isaacsmith\nPlease call Mary\nabout the quote")).toBe("Please call Mary\nabout the quote");
+  });
+
+  it("names the run when the sentence carries on from it — it is who the note is about", () => {
+    expect(toIsaac("@michaeldiamond and I will sort it @isaacsmith")).toBe("Michael and I will sort it");
+    expect(toIsaac("@isaacsmith, @michaeldiamond & I are on it")).toBe("Isaac, Michael & I are on it");
+  });
+
+  it("ends the run at a handle that carries the full stop", () => {
+    expect(toIsaac("@isaacsmith. @michaeldiamond has the key")).toBe("Michael has the key");
+  });
+
+  it("takes out the reader's own handle wherever it is, closing the gap", () => {
+    expect(toIsaac("Thanks @isaacsmith.")).toBe("Thanks.");
+    expect(toIsaac("Please call Mary @isaacsmith")).toBe("Please call Mary");
+  });
+
+  it("leaves an address, an unknown @word and a possessive as written", () => {
+    expect(toIsaac("@isaacsmith email susie@peterson.com about it")).toBe("email susie@peterson.com about it");
+    expect(toIsaac("@isaacsmith ask @nobodyhere first")).toBe("ask @nobodyhere first");
+    expect(toIsaac("@isaacsmith @michaeldiamond's van is at the yard")).toBe("@michaeldiamond's van is at the yard");
+  });
+
+  it("names a handle that ends in a full stop without losing the sentence's", () => {
+    expect(toIsaac("@isaacsmith ask @ross. about it")).toBe("ask Ross about it");
   });
 });

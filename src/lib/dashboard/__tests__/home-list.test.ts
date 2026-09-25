@@ -78,7 +78,6 @@ const entry = (id: string, day: string, taskIds: string[] = [], issueIds: string
     ...issueIds.map((i) => ({ kind: "kept" as const, text: "an issue", go: { type: "issue" as const, id: i } })),
   ],
   spoken: false,
-  isDebrief: false,
 });
 
 const job = (over: Partial<AllJobsMirrorJob> = {}): AllJobsMirrorJob => ({

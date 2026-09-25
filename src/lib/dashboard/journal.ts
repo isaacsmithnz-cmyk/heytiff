@@ -175,6 +175,22 @@ export type JournalEntry = {
   spoken: boolean;
 };
 
+/** A journal entry as the new Home's diary holds it (journal-query's
+    `listDiaryEntries`). `day` and `at` are on the ServiceM8 account's clock
+    here, the same clock as `stamp`. */
+export type DiaryEntry = JournalEntry & {
+  /** "2026-09-21 13:42", naive, in the account's zone: sortable beside a
+      ServiceM8 note's own stamp. */
+  stamp: string;
+  /** Tiff read the words. False for a Save, which files them as typed and
+      routes nothing — so only a routed entry can say "Nothing filed." */
+  routed: boolean;
+  /** taskId → the staff card the task is on (null: nobody), for each task
+      this entry made that still exists. A removed task isn't here; its
+      outcome already says "removed". */
+  taskFor: Record<string, string | null>;
+};
+
 export type JournalDay = {
   /** ISO yyyy-mm-dd. */
   day: string;

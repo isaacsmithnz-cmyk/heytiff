@@ -3,6 +3,9 @@
    asking the database once per chip (sixty entries would be sixty round trips
    to paint one panel), and trusting an id whose row has since been deleted. */
 
+import fs from "node:fs";
+import path from "node:path";
+
 type Call = { table: string; columns?: string; eq: Record<string, unknown>; in?: [string, string[]] };
 
 let rows: Record<string, Record<string, unknown>[]> = {};
@@ -167,4 +170,38 @@ it("names an issue's door from one read, resolved or not", async () => {
     ["1 issue removed", null],
   ]);
   expect(chips(entries, 1)).toEqual([["Compressor short-cycling", "issue"]]);
+});
+
+/* THE DROP ORDER, HELD. `is_debrief` is still selected here after routeNote
+   stopped writing it: the read goes in a change of its own, and only once
+   that change is live may the column be dropped. PostgREST fails the WHOLE
+   select on a column that isn't there, and this is the select every diary is
+   built from, so a migration that drops a column this read still names would
+   empty every diary on the day it was applied. The migrations are read from
+   the folder rather than restated here, so the file that would do it is the
+   thing that fails. */
+it("reads no column that a migration drops from workboard_notes", async () => {
+  rows.workboard_notes = [note("e1", {})];
+  await listJournal("org-1", "s1");
+  const read = (of("workboard_notes")[0].columns ?? "").split(",").map((c) => c.trim());
+  // not vacuous: an empty capture would pass the comparison below
+  expect(read).toEqual(expect.arrayContaining(["id", "transcript", "applied"]));
+
+  const dir = path.join(process.cwd(), "docs", "migrations");
+  const dropped = fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .flatMap((file) => {
+      const sql = fs.readFileSync(path.join(dir, file), "utf8").replace(/--.*$/gm, "");
+      const alters = sql.matchAll(
+        /alter\s+table\s+(?:if\s+exists\s+)?(?:only\s+)?(?:public\.)?workboard_notes\b([^;]*);/gi,
+      );
+      return [...alters].flatMap((m) =>
+        [...m[1].matchAll(/drop\s+column\s+(?:if\s+exists\s+)?"?([a-z_]+)"?/gi)].map((d) => ({
+          file,
+          column: d[1].toLowerCase(),
+        })),
+      );
+    });
+  expect(dropped.filter((d) => read.includes(d.column))).toEqual([]);
 });

@@ -34,6 +34,13 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { auDayOf, fmtAuTime } from "@/lib/au-dates";
 import { describeAppliedResolved, type JournalEntry } from "./journal";
 
+/* `is_debrief` IS STILL READ AND NO LONGER WRITTEN. routeNote stopped
+   setting it when the Debrief left the router, so every row since carries the
+   column's default. The read goes in a change of its own, and the migration
+   that drops the column is applied only once THAT change is live: PostgREST
+   fails the whole select on a column that isn't there, and this is the select
+   every diary is built from. A test in journal-query.test.ts refuses a
+   migration that drops a column this list still names. */
 const COLUMNS = "id, transcript, source, applied, created_at, is_debrief";
 
 type Row = {
@@ -74,7 +81,8 @@ const toEntry = (r: Row, found: Resolved): JournalEntry => ({
   }),
   spoken: r.source === "voice",
   /* Null for every row written before the column existed, and read as false —
-     not a guess about the past, just the absence of a claim. See
+     not a guess about the past, just the absence of a claim. False for every
+     row since routeNote stopped writing it, too. See
      docs/migrations/note_is_debrief.sql. */
   isDebrief: r.is_debrief === true,
 });

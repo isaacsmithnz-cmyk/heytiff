@@ -25,7 +25,6 @@ const EMPTY: NoteProposal = {
   commissioningEntries: [],
   issueEntries: [],
   kbEntries: [],
-  noteLines: [],
   plainNote: "",
   clarify: null,
 };

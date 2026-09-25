@@ -545,7 +545,6 @@ function Review({ flow }: { flow: NoteFlow }) {
         jobLabel={flow.targetLabel ?? (flow.chosenJob ? describeJob(flow.chosenJob) : null)}
         taskCount={draft.tasks.filter((t) => t.on && t.title.trim() && t.assigneeId).length}
         kbCount={draft.kbEntries.filter((k) => k.on && k.title.trim() && k.body.trim()).length}
-        noteLineCount={draft.noteLines.filter((l) => l.on && l.text.trim()).length}
         fallsThrough={flow.fallsThrough}
       />
 

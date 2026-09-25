@@ -19,6 +19,7 @@ import {
   systemPrompt,
   whenBlock,
   whoBlock,
+  NOTE_SCHEMA,
   SEVERITIES,
   type NoteContext,
 } from "../note-brain";
@@ -56,7 +57,6 @@ const raw = (over: Record<string, unknown> = {}) => ({
   commissioning_entries: [],
   issue_entries: [],
   kb_entries: [],
-  note_lines: [],
   plain_note: "",
   clarify_needed: false,
   clarify_question: "",
@@ -297,51 +297,70 @@ describe("shapeProposal — the LEARN lane", () => {
     expect(p.kbEntries).toHaveLength(0);
   });
 
-  it("outside a debrief, stray note_lines fold into the plain note rather than vanish", () => {
-    const p = shapeProposal(raw({ note_lines: ["ring the wholesaler"], plain_note: "gate 4417" }), ctx);
-    expect(p.noteLines).toEqual([]);
-    expect(p.plainNote).toBe("gate 4417, ring the wholesaler");
-  });
 });
 
-describe("shapeProposal — debrief coercion", () => {
-  const debriefCtx: NoteContext = { ...ctx, debrief: true };
+/* THE DEBRIEF IS OUT OF THE ROUTER (Isaac, 2026-09-24: "the diary, tasks and
+   HeyTiff chat window should assist with that"). It was a second prompt, a
+   coercion that closed every job-bound lane, and a "note lines" lane in the
+   schema that only its card showed. All three went; these hold that, and hold
+   the rule the lane's removal could have broken. */
+describe("no debrief mode is left", () => {
+  /* A context built by an old caller, or a stamp read off a proposal stored
+     before the change, is not a door into a mode that no longer exists. */
+  const stray = { ...ctx, debrief: true } as NoteContext;
 
-  it("job-bound buckets become note lines — nothing a person said is dropped", () => {
+  it("asks one question, whatever the context carries", () => {
+    expect(systemPrompt(stray)).toBe(systemPrompt(ctx));
+  });
+
+  it("names no debrief and no note-lines lane to the model", () => {
+    for (const prompt of [systemPrompt(ctx), systemPrompt(spoken)]) {
+      expect(prompt).not.toMatch(/debrief/i);
+      expect(prompt).not.toMatch(/note_lines/);
+    }
+  });
+
+  it("closes no lane: a flag, a bring-item and a remark pass through as they came", () => {
     const p = shapeProposal(
       raw({
         flags: [{ message: "Meridian RTU-2 tripping", severity: "warn" }],
         bring_items: ["595 filters"],
         issue_entries: [{ summary: "compressor noisy at Smith St", equipment_hint: "" }],
-        note_lines: ["chase the coil pricing"],
         plain_note: "long day tomorrow",
       }),
-      debriefCtx
+      stray,
     );
-    expect(p.flags).toEqual([]);
-    expect(p.bringItems).toEqual([]);
-    expect(p.issueEntries).toEqual([]);
-    expect(p.plainNote).toBe("");
-    expect(p.noteLines).toEqual([
-      "chase the coil pricing",
-      "Meridian RTU-2 tripping",
-      "Bring next visit: 595 filters",
-      "compressor noisy at Smith St",
-      "long day tomorrow",
-    ]);
+    expect(p.flags).toEqual([{ message: "Meridian RTU-2 tripping", severity: "warn" }]);
+    expect(p.bringItems).toEqual(["595 filters"]);
+    expect(p.issueEntries).toEqual([{ body: "compressor noisy at Smith St", equipmentHint: "" }]);
+    expect(p.plainNote).toBe("long day tomorrow");
   });
 
-  it("tasks and knowledge pass through a debrief untouched", () => {
-    const p = shapeProposal(
-      raw({
-        tasks: [{ title: "Order grilles", detail: "", assignee_hint: "Luke", due_hint: "" }],
-        kb_entries: [{ title: "E6 trick", body: "Power the board separately." }],
-      }),
-      debriefCtx
+  it("has no note-lines lane on a proposal", () => {
+    expect(shapeProposal(raw(), ctx)).not.toHaveProperty("noteLines");
+  });
+
+  it("drops nothing the schema lets the model say: every plain lane reaches the proposal", () => {
+    /* THE RULE THE LANE'S REMOVAL COULD HAVE BROKEN. `output_config.format`
+       lets the model fill any lane the schema lists, and a lane the shaper
+       never reads is words that reach nobody. Taking `note_lines` out of the
+       shaper and leaving it in the schema is exactly that, so this reads the
+       schema itself rather than a list someone would have to remember. The
+       object lanes (tasks, flags, entries) and the clarify pair have tests of
+       their own above. */
+    const plain = Object.entries(NOTE_SCHEMA.properties).filter(([key, lane]) => {
+      const l = lane as { type: string; items?: { type?: string } };
+      return !key.startsWith("clarify_") && (l.type === "string" || l.items?.type === "string");
+    });
+    // not vacuous: a filter that matched nothing would pass the loop below
+    expect(plain.map(([key]) => key)).toEqual(
+      expect.arrayContaining(["bring_items", "plain_note", "progress_bullets"]),
     );
-    expect(p.tasks).toHaveLength(1);
-    expect(p.kbEntries).toHaveLength(1);
-    expect(p.noteLines).toEqual([]);
+    for (const [key, lane] of plain) {
+      const said = `words for ${key}`;
+      const p = shapeProposal(raw({ [key]: (lane as { type: string }).type === "string" ? said : [said] }), ctx);
+      expect(JSON.stringify(p)).toContain(said);
+    }
   });
 });
 
@@ -500,18 +519,17 @@ describe("what the router is told about who and when", () => {
     expect(whenBlock(spoken)).toMatch(/asks to be reminded but names no time[\s\S]*06:30/);
   });
 
-  it("carries both blocks into the real prompt, in both modes", () => {
-    /* They were duplicated across the two variants once and drifted within two
-       edits, which is why they are functions. */
-    for (const mode of [spoken, { ...spoken, debrief: true }]) {
-      const prompt = systemPrompt(mode);
-      expect(prompt).toContain("The person speaking is Isaac Smith");
-      expect(prompt).toContain("`remind_time` is the time of day to nudge them at");
-      expect(prompt).toContain("`remind_kind` says how to READ that time");
-      /* The instruction that keeps the rail trustworthy: when the model is
-         unsure it must NOT reach for the louder answer. */
-      expect(prompt).toContain("Use 'at'");
-    }
+  it("carries both blocks into the real prompt", () => {
+    /* They were duplicated across two prompt variants once (the site note's
+       and the Debrief's) and drifted within two edits, which is why they are
+       functions. */
+    const prompt = systemPrompt(spoken);
+    expect(prompt).toContain("The person speaking is Isaac Smith");
+    expect(prompt).toContain("`remind_time` is the time of day to nudge them at");
+    expect(prompt).toContain("`remind_kind` says how to READ that time");
+    /* The instruction that keeps the rail trustworthy: when the model is
+       unsure it must NOT reach for the louder answer. */
+    expect(prompt).toContain("Use 'at'");
   });
 });
 

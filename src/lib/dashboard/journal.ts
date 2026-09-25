@@ -145,9 +145,11 @@ export function describeAppliedResolved(
     }
 
     const text = `${v.length} ${v.length === 1 ? one : many}`;
-    /* Kept lines are the odd one out: the debrief files them as ONE grouped
-       note, so they get one door for the lot rather than a chip each — the
-       words themselves aren't stored per line anywhere the reader can open. */
+    /* Kept lines are the odd one out: they were filed as ONE note (the old
+       Debrief grouped its leftovers into one, and "Keep it in my notes" keeps
+       the whole of what was said as one), so they get one door for the lot
+       rather than a chip each — the words themselves aren't stored per line
+       anywhere the reader can open. */
     out.push(
       key === "noteLines" && lookups.noteId
         ? { kind, text, go: { type: "note", id: lookups.noteId } }
@@ -174,7 +176,8 @@ export type JournalEntry = {
   /** Did this come through the Debrief face, or an ordinary note/diary
       capture? Both write the same row and always did — this is the one thing
       that tells them apart, and it only exists for rows written after the
-      column did. */
+      column did. HISTORY ONLY: the Debrief is gone, nothing writes the column
+      any more and nothing on screen reads this; it goes when the read does. */
   isDebrief: boolean;
 };
 

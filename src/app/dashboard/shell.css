@@ -8422,115 +8422,103 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .wb2-capribbon b { font-size:14px; font-weight:700; color:var(--ink); }
 .wb2-capribbon .wb2-chip { margin-left:auto; }
 .wb2-capribbon .wb2-ico { margin-left:0; flex:none; }
-/* ── THE TIFF BUTTON ──
-   TWO PLACES, AND THE GROUND DECIDES THE SKIN. Shared geometry here; the
-   `-topbar` and `-sheet` blocks below carry only what differs.
+/* ── THE TIFF BUTTON: GIMBAL LIGHT (Isaac, 2026-09-25) ──
+   The logo as a gyroscope: a solid chevron that leans and circles, inside two
+   gimbal rings with light running along them. No disc, no halo, no sparkle —
+   the rings are its edge ("aura looks too generic ai"). The markup and the
+   reasons are in components/notes/tiff-mark.tsx; docs/design.md, "The Tiff
+   button", records what it is exempt from and why.
 
-   The marks are sized off the button in the component, not here. They stayed
-   at their 58px sizes once when it shrank to 44 and immediately read as
-   crowded — approved ratios are chevron ~46%, sparkle ~30%. */
-.tiffbtn { position:relative; flex:none; padding:0; border:0; background:none; cursor:pointer;
-  display:inline-flex; align-items:center; justify-content:center;
-  transition:transform var(--t-move) var(--ease); }
-.tiffbtn:hover { }
-.tiffbtn:active { transform:translateY(0); }
-.tiffbtn-face { position:absolute; inset:0; border-radius:50%; overflow:hidden;
-  display:grid; place-items:center; }
-.tiffbtn-mk { position:relative; }
-.tiffbtn-spark { position:absolute; display:grid; pointer-events:none; }
-.tiffbtn:focus-visible { outline:none; }
+   It is gently alive at rest, which law 18 does not allow anything else:
+   Isaac's override, 2026-09-24 ("make it gently alive all the time"). Every
+   loop below is named in the loops table and stops under reduced motion.
 
-/* ── on the topbar: black ground, so the GLOW does the separating ──
-   It floated bottom-right first and covered the page it sat on; a control
-   that is always present has to live somewhere that is always empty.
+   Every motion is a transform or an opacity, so the compositor carries it.
+   Sizes come off one number, `--tb`, the button's width.
 
-   THE FACE IS BARE. It wore a smoked-glass disc — a white film, a 14px
-   backdrop blur and a rim — on the argument that a dark button on a dark
-   frame needs a surface to sit on. It doesn't: the halo was always the thing
-   doing the separating, and the disc sat on top of it, muting the one part
-   that worked and adding a grey pill the mark had to fight through. Isaac,
-   2026-08-12: take the smoked look off. What is left is the mark, its glow,
-   and nothing between them.
+   TWO PLACES, AND THE GROUND DECIDES THE SKIN. The frame is ink and a sheet
+   is paper; the component picks the strokes, and this sheet picks the light.
+   No `.fg` scope: sheets portal to body, and the tokens live on :root. */
+.tiffbtn { --tb:36px; position:relative; flex:none; width:var(--tb); height:var(--tb); padding:0; border:0;
+  border-radius:50%; background:none; cursor:pointer; transition:transform var(--t-fast) var(--ease); }
+.tiffbtn-topbar { --tb:36px;
+  --tiffbtn-sheen:color-mix(in srgb, var(--mark-teal) 85%, transparent); --tiffbtn-sheen-hi:var(--mark-core);
+  --tiffbtn-burst:color-mix(in srgb, var(--mark-core) 90%, transparent); }
+/* sized to sit beside the sheet's 30px close × */
+.tiffbtn-sheet { --tb:30px;
+  --tiffbtn-sheen:color-mix(in srgb, var(--paper) 90%, transparent); --tiffbtn-sheen-hi:var(--paper);
+  --tiffbtn-burst:color-mix(in srgb, var(--mark-blue) 70%, transparent); }
+.tiffbtn:active { transform:translateY(1px); }
+.tiffbtn:focus-visible { outline:none; box-shadow:var(--ring); }
+.tiffbtn-defs { position:absolute; width:0; height:0; overflow:hidden; }
 
-   So the face keeps only the geometry it shares (`inset:0`, the circle) and
-   the focus ring, which still needs a box to ring. Hover lives on the halo
-   and the lift now — there is no fill left to brighten. Dropping the blur
-   also gives the frame back a backdrop-filter budget (one per page). */
-.tiffbtn-topbar { width:44px; height:44px; }
-.tiffbtn-topbar .tiffbtn-mk { transform:translate(-2px,-2px); }
-.tiffbtn-topbar .tiffbtn-spark { right:9px; bottom:9px; }
-.tiffbtn-topbar:focus-visible .tiffbtn-face {  box-shadow:var(--ring); }
-.tiffbtn-halo { position:absolute; inset:-6px; border-radius:50%; pointer-events:none;
-  background:var(--ink);
-  filter:blur(9px); opacity:.5; }
-/* HOVER HAS TO STOP THE BREATH TO BE SEEN AT ALL. A running animation sits
-   above author rules in the cascade, so while `fgBreath` plays it owns
-   `opacity` outright — which is why the `opacity:.72` that lived here from
-   the beginning never once fired, on this surface or on Home's copy of it.
-   Nobody caught it because the glass face's own hover fill was doing the
-   visible work; taking the face off (#369) left the hover with nothing but
-   the 2px lift and made the dead rule obvious.
+/* the 3D space: one perspective, then one wrapper per motion */
+.tiffbtn-st { position:absolute; inset:0; perspective:calc(var(--tb) * 3); pointer-events:none; }
+.tiffbtn-root, .tiffbtn-flip, .tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gw, .tiffbtn-gim {
+  position:absolute; inset:0; transform-style:preserve-3d; }
+.tiffbtn-root { transition:transform var(--t-move) var(--ease); }
 
-   So it does what `.lit` does on press: kill the animation and take the
-   value. `.40` rather than the old `.72` because the breath only ever
-   reaches `.26` — against that, `.72` is a lamp switching on, not a lift.
-   The press still beats it: `.tiffbtn.lit .tiffbtn-halo` weighs the same
-   and sits later in the file.
+/* the solid: ten copies of the mark in depth, the face at the front */
+.tiffbtn-ly, .tiffbtn-sheen { position:absolute; left:50%; top:50%; width:calc(var(--tb) * .56); height:calc(var(--tb) * .56);
+  margin:calc(var(--tb) * -.28) 0 0 calc(var(--tb) * -.28); }
+.tiffbtn-ly { display:block; overflow:visible; transform:translateZ(calc(var(--tb) * var(--z))); }
+.tiffbtn-ly.face { color:var(--paper); }
+/* precession: the lean is an axis that travels round, so the face traces a
+   cone and the chevron keeps pointing right; the three functions interpolate
+   one by one, which is what makes the circle smooth */
+.tiffbtn-pre { animation:tiffGyro 6s linear infinite; }
+@keyframes tiffGyro {
+  from { transform:rotateZ(0deg) rotateY(18deg) rotateZ(0deg); }
+  to { transform:rotateZ(360deg) rotateY(18deg) rotateZ(-360deg); } }
+.tiffbtn-nod { animation:tiffNod 1.5s ease-in-out infinite alternate; }
+@keyframes tiffNod { from { transform:rotateX(-3deg); } to { transform:rotateX(3deg); } }
+/* a band of light across the face, once a turn, cut to the mark's shape */
+.tiffbtn-sheen { overflow:hidden; transform:translateZ(calc(var(--tb) * .061));
+  -webkit-mask:var(--tiffbtn-mask) center / 100% 100% no-repeat; mask:var(--tiffbtn-mask) center / 100% 100% no-repeat; }
+.tiffbtn-sheen::before { content:""; position:absolute; top:-20%; bottom:-20%; left:0; width:60%;
+  background:linear-gradient(100deg, transparent, var(--tiffbtn-sheen) 40%, var(--tiffbtn-sheen-hi) 55%, transparent);
+  animation:tiffSheen 6s ease-in-out infinite; }
+@keyframes tiffSheen { 0%, 30% { transform:translateX(-120%); } 62%, 100% { transform:translateX(260%); } }
 
-   Note the `opacity:.5` above is likewise never seen while the animation
-   runs. It is what reduced motion falls back to, which is the reason the
-   reduced-motion block at the end of this section now pins the resting
-   glow to the breath's own peak — otherwise hovering DIMS it. */
-.tiffbtn-topbar:hover .tiffbtn-halo { animation:none; opacity:.40; }
+/* the gimbals: two rings on their own axes, a run of light along each */
+.tiffbtn-gw { opacity:.85; transition:opacity var(--t-fast) var(--ease); }
+.tiffbtn-gim-a { animation:tiffGimbalA 7s linear infinite; }
+.tiffbtn-gim-b { animation:tiffGimbalB 5s linear infinite; }
+@keyframes tiffGimbalA { from { transform:rotateZ(-20deg) rotateY(0deg); } to { transform:rotateZ(-20deg) rotateY(360deg); } }
+@keyframes tiffGimbalB { from { transform:rotateZ(25deg) rotateX(0deg); } to { transform:rotateZ(25deg) rotateX(360deg); } }
+.tiffbtn-arc { --r:calc(var(--tb) * var(--k)); position:absolute; left:50%; top:50%; width:var(--r); height:var(--r);
+  margin:calc(var(--r) / -2) 0 0 calc(var(--r) / -2); animation:tiffArc 2.6s linear infinite; }
+.tiffbtn-gim-a .tiffbtn-arc { --k:.86; }
+.tiffbtn-gim-b .tiffbtn-arc { --k:.72; }
+@keyframes tiffArc { to { transform:rotate(360deg); } }
+.tiffbtn-arc svg { display:block; width:100%; height:100%; overflow:visible; }
+.tiffbtn-arc circle { fill:none; stroke-width:max(1.2px, calc(var(--tb) * .022)); }
+.tiffbtn-ring { stroke-opacity:.18; }
 
-/* ── THE BUTTON EMPTIES WHILE THE SHEET HAS IT (Isaac, 2026-08-18) ──
-   The dots that build the chevron on the card come out of this button, so the
-   button cannot still be wearing one — two marks on screen at once turns a
-   journey into a copy. It goes as they leave and comes back when the sheet
-   closes, and the halo stays lit the whole time: the control is still there
-   and still active, it has just handed its mark over.
+/* hover, and keyboard focus with it: the rings brighten and the mark comes forward */
+.tiffbtn:is(:hover, :focus-visible) .tiffbtn-gw { opacity:1; }
+.tiffbtn:is(:hover, :focus-visible) .tiffbtn-root { transform:scale(1.07); }
 
-   `aria-expanded` is already on the button and is true for exactly as long as
-   the sheet is open, so this needs no state and cannot drift from it.
-
-   Held to the same width as the travel. Below 760px the sheet comes up from
-   the bottom edge with no blossom and no gather, so there is nothing for the
-   mark to have left FOR, and draining it would just be the logo vanishing. */
-@media (min-width:760px) {
-  .tiffbtn-topbar :is(.tiffbtn-mk, .tiffbtn-spark) {
-    transition:opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-  /* The chevron KEEPS ITS NUDGE. `.tiffbtn-topbar .tiffbtn-mk` carries a
-     `translate(-2px,-2px)` that optically centres the mark in the disc, and a
-     bare `scale()` here would replace it — so the logo would slide to the
-     middle on its way out. Restated, not overridden. */
-  .tiffbtn-topbar[aria-expanded="true"] .tiffbtn-mk {
-    opacity:0; transform:translate(-2px,-2px) scale(.5); }
-  .tiffbtn-topbar[aria-expanded="true"] .tiffbtn-spark { opacity:0; transform:scale(.5); }
-  @media (prefers-reduced-motion:reduce) {
-    .tiffbtn-topbar :is(.tiffbtn-mk, .tiffbtn-spark) { transition:none; }
-  }
-}
-
-/* ── in a sheet header: white ground, so the SKIN INVERTS ──
-   Nothing outside a sheet's scrim can be clicked, which is why the topbar
-   button is unreachable the moment a job opens. Isaac's fix: put one ON the
-   sheet. Here the ground is white, so the face goes dark and the core holds
-   the mark's contrast — and there is NO halo, because a coloured glow on
-   white is a smudge. Sized to sit beside the 30px close ×.
-
-   No `.fg` scope: sheets portal to body, where anything declared under `.fg`
-   is absent rather than outranked. */
-/* The close × takes the auto margin; Tiff sits just before it. */
+/* the press: one turn on the chevron's own point, and a ring leaves the edge */
+.tiffbtn-burst { position:absolute; inset:0; border-radius:50%; pointer-events:none; opacity:0;
+  border:max(1px, calc(var(--tb) * .025)) solid var(--tiffbtn-burst); }
+.tiffbtn.lit .tiffbtn-flip { animation:tiffTurn .8s var(--ease); }
+@keyframes tiffTurn { from { transform:rotateX(0deg); } to { transform:rotateX(360deg); } }
+.tiffbtn.lit .tiffbtn-burst { animation:tiffBurst .8s var(--ease); }
+@keyframes tiffBurst { from { opacity:.9; transform:scale(1); } to { opacity:0; transform:scale(2.1); } }
 
 @media (max-width:760px) { .fg .tbr { gap:12px; } }
 @media (prefers-reduced-motion:reduce) {
-  .tiffbtn, .tiffbtn:hover { transition:none; transform:none; }
-  /* Stopping the breath uncovers the rule's own `opacity:.5` — brighter than
-     the animation's peak of `.26`, so reduced motion was quietly getting a
-     glow twice everyone else's, and once hover became `.40` it would have
-     DIMMED on hover. Pin the resting state to the peak instead: same still
-     image the breath arrives at, and hover still lifts it. */
-  .tiffbtn-halo { animation:none; opacity:.26; }
+  /* Every loop above stops by name, and the button holds one still pose that
+     still reads as the object: the mark leaning, the rings tipped. */
+  .tiffbtn, .tiffbtn-root { transition:none; }
+  .tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc,
+  .tiffbtn.lit .tiffbtn-flip, .tiffbtn.lit .tiffbtn-burst { animation:none; }
+  .tiffbtn-pre { transform:rotateY(18deg); }
+  .tiffbtn-sheen { display:none; }
+  .tiffbtn-gim-a { transform:rotateZ(-20deg) rotateY(60deg); }
+  .tiffbtn-gim-b { transform:rotateZ(25deg) rotateX(60deg); }
+  .tiffbtn:is(:hover, :focus-visible) .tiffbtn-root { transform:none; }
 }
 
 /* THE CONTEXT TAG. It rides in the capture ribbon as a normal blue chip; the
@@ -10479,14 +10467,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   animation:wb2CapRise .38s var(--ease) .12s both; }
 .wb2-capcard.wb2-dusk .wb2-capact { animation:wb2CapRise .38s var(--ease) .19s both; }
 
-/* ── the press, on the button itself: flare, then the burst the sheet grows
-   out of. The wash is a child so it scales from the button's own centre. ── */
-.tiffbtn-burst { position:absolute; inset:0; border-radius:50%; pointer-events:none; opacity:0;
-  background:radial-gradient(circle, var(--tint-2), var(--tint-2) 45%, var(--tint) 72%); }
-@keyframes tiffBurst { from { opacity:.9; transform:scale(.6); } to { opacity:0; transform:scale(14); } }
-.tiffbtn.lit .tiffbtn-burst { animation:tiffBurst .55s var(--ease) both; }
-.tiffbtn.lit .tiffbtn-halo { animation:none; opacity:1; filter:blur(12px); }
-
 /* Motion off: everything above collapses to plain appearance. The blossom
    override is not optional — at (0,3,0) it outranks the generic
    `.wb2-capcard.wb2-caps { animation:none }` in the sheet's own reduce
@@ -10499,7 +10479,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
      rule: without it the box keeps easing three lines open under the words,
      which is the one movement on this card motion-off has to stop. */
   .wb2-livetext { animation:none; }
-  .tiffbtn.lit .tiffbtn-burst { animation:none; }
   .wb2-capdim::after { animation:none; }
 }
 
@@ -10915,10 +10894,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   font-size:14px; font-weight:600; text-align:left; cursor:pointer; }
 .fg .hm-say:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hm-saytx { color:inherit; }
-/* the mark is not in the button — see note-token's debrief posture; the
-   hover rule stays because the halo's guard (tiff-halo-hover) reads it */
-.fg .hm-saymk { display:none; }
-.fg .hm-say:hover .tiffbtn-halo { animation:none; opacity:.40; }
 .fg .hm-dbf .hm-none { padding:4px 0 0; }
 .fg .hm-dbflog { margin-top:24px; padding-top:16px; border-top:1px solid var(--line); }
 .fg .hm-dbfday { margin-top:16px; }

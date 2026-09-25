@@ -26,6 +26,13 @@
    `.fg` keeps the layout that is genuinely its own, below. */
 :root {
   --teal:#00E5C0; --wordmark:#00E5C0; /* the "Tiff" of the wordmark, the one place the teal lives */ --teal-d:#00A389; --blue:#2E68FF; --violet:#8A2BE2;
+  /* THE MARK'S OWN LIGHT: the Tiff button (docs/design.md, "The Tiff button").
+     The chevron's two colours, and the light that runs on the button's rings,
+     in both of its skins. Brand, the way `--wordmark` is: the logo's colours on
+     the logo, never a working screen's accent. The `-ink` pair is the depth of
+     the mark on paper, a step darker so the solid reads on white. */
+  --mark-teal:#00E5C0; --mark-blue:#2E68FF; --mark-blue-l:#5F96FF; --mark-core:#5FD4FF;
+  --mark-teal-d:#00A389; --mark-teal-ink:#007A67; --mark-blue-ink:#1D46C8;
   --ink:#050505; --ink2:#0A0B10; --bg:#F0F2F5; --red:#FF3366;
   /* --gray400 and --gray500 were #9ca3af and #6b7280, and between them carried
      352 `color:` declarations — they are the two most-used text colours in the

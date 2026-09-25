@@ -11,12 +11,8 @@ import { after } from "next/server";
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { getConnectionView } from "@/lib/integrations/store";
-import {
-  kickSm8SyncIfStale,
-  listSm8SyncStatus,
-  type Sm8SyncStatusView,
-} from "@/lib/integrations/sm8-sync";
-import { kickSm8WritesIfDue } from "@/lib/integrations/sm8-writes";
+import { listSm8SyncStatus, type Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
+import { freshenSm8AfterResponse } from "@/lib/integrations/sm8-freshness";
 import { todayInZone } from "./dates";
 import { listFlags, type BoardFlag } from "./notes-query";
 import { loadMaintenanceBoard, type MaintenanceBoardData } from "./board-query";
@@ -141,17 +137,11 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     listSm8SyncStatus(orgId),
   ]);
 
-  // Looking at the board counts as looking — top the mirrors up behind the
-  // response when they've gone stale. orgId is closed over; nothing inside
-  // the after() callback touches request APIs (Server Component rule).
-  // a grant that needs signing in again cannot sync; asking it to would only
-   // burn the attempt and log a failure nobody reads
-  if (connection === "connected") {
-    await kickSm8SyncIfStale(orgId);
-    /* and send what is waiting to go the other way — a file whose first
-       send hit a busy ServiceM8 goes the next time anyone looks */
-    await kickSm8WritesIfDue(orgId);
-  }
+  /* Looking at the board counts as looking: what is waiting to go to
+     ServiceM8 is sent, then a stale mirror topped up, all behind the
+     response (sm8-freshness) — no query here, and nothing to wait on. A
+     grant that needs signing in again can't do either. */
+  if (connection === "connected") freshenSm8AfterResponse(orgId);
 
   return {
     manage,

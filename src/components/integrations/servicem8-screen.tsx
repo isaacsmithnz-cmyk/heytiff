@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
-import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
+import { auDayOf, fmtAuTime, fmtAuWeekdayDate, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { useHydrated } from "@/lib/use-hydrated";
 import { providerById, SM8_SCOPES, SM8_WRITE_SCOPES } from "@/lib/integrations/providers";
 import type { ConnectionView } from "@/lib/integrations/connection";
@@ -419,6 +419,7 @@ function MirrorCard({
         <div style={{ minWidth: 0 }}>
           <b>What&apos;s been read across</b>
           <em>{subtitle}</em>
+          {sync.lastCron !== undefined && <em>{overnightLine(sync.lastCron)}</em>}
         </div>
       </div>
       <ul className="int-scopes">
@@ -438,6 +439,15 @@ function MirrorCard({
       </div>
     </div>
   );
+}
+
+/** When Vercel's scheduler last ran the overnight sync, as an AU day and
+    time: no clock is read, so the server and the browser write the same
+    words (see MirrorCard). Null: it never has — what an unset CRON_SECRET
+    looks like from here. */
+function overnightLine(lastCron: string | null): string {
+  if (lastCron === null || Number.isNaN(Date.parse(lastCron))) return "The overnight sync hasn't run.";
+  return `Last overnight sync: ${fmtAuWeekdayDayMonth(auDayOf(lastCron))}, ${fmtAuTime(new Date(lastCron))}`;
 }
 
 /** One object's state as one tag. `blocked` is the only one that warns — which

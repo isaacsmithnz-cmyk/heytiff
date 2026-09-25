@@ -20,6 +20,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { displayNameOf } from "@/lib/staff/name";
 import { NAME_COLUMNS, mentionableStaff } from "@/lib/dashboard/tasks-query";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
+import { sm8Ours } from "@/lib/integrations/sm8-echo";
 import { mentionedHandles, sm8Handle } from "./sm8-mentions";
 import { buildJobAttention, type AttentionFlag, type AttentionTask, type JobAttention } from "./job-attention";
 import type { Severity } from "./note-brain";
@@ -150,12 +151,17 @@ export async function readJobAttention(
     today: string;
   }
 ): Promise<JobAttentionRead> {
-  const [flags, taskIds, answered, people, assignable] = await Promise.all([
+  const [flags, taskIds, answered, people, assignable, ours] = await Promise.all([
     readJobFlags(orgId, jobUuid),
     noteBornTaskIds(orgId, jobUuid),
     answeredNotes(orgId, jobUuid),
     readMentionPeople(orgId),
     mentionableStaff(orgId),
+    /* notes HeyTiff wrote itself, mirrored back (lib/integrations/sm8-echo) */
+    sm8Ours(
+      orgId,
+      input.notes.map((n) => n.remoteId)
+    ),
   ]);
   const tasks = await openTasks(orgId, taskIds);
 
@@ -169,7 +175,9 @@ export async function readJobAttention(
       author: n.writtenBy,
       at: n.writtenAt,
       actionRequired: n.actionRequired,
+      /* who a note mentions is read from its words, ours or not */
       handles: mentionedHandles(n.text, handles),
+      ours: ours.has(n.remoteId),
     })),
     jobOpen: input.jobOpen,
     answered,

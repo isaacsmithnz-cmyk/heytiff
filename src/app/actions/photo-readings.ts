@@ -7,6 +7,7 @@ import { requireOrg } from "@/lib/permissions-server";
 import { familyMediaSources } from "@/lib/workboard/all-jobs-query";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { mimeForExt, normaliseFileType } from "@/lib/workboard/job-media";
+import { sm8Ours } from "@/lib/integrations/sm8-echo";
 import {
   READING_SCHEMA,
   READ_PROMPT,
@@ -194,14 +195,22 @@ async function readJobPhotosInner(
     .not("uploaded_at", "is", null)
     .limit(400);
 
-  const held = ((docRows ?? []) as {
+  const cachedRows = (docRows ?? []) as {
     id: string;
     remote_ref: string | null;
     storage_ref: string;
     file_name: string;
     mime_type: string | null;
-  }[]).filter((d) => {
-    if (!d.remote_ref) return false;
+  }[];
+  /* A photo HeyTiff sent to ServiceM8 is never read as one of ServiceM8's
+     (lib/integrations/sm8-echo): it is the business's own file, not a new
+     photograph from site. */
+  const ours = await sm8Ours(
+    orgId,
+    cachedRows.flatMap((d) => (d.remote_ref ? [d.remote_ref] : []))
+  );
+  const held = cachedRows.filter((d) => {
+    if (!d.remote_ref || ours.has(d.remote_ref)) return false;
     /* PHOTOS ONLY, and decided by the MIME TYPE — see isBankablePhoto for
        why the file name cannot be trusted here. `cacheJobFiles` also brings
        PDFs across; an invoice is not a photograph. */

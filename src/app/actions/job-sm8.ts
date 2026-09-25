@@ -1,6 +1,5 @@
 "use server";
 
-import { after } from "next/server";
 import { splitSendKeys, theirFileSendKey } from "@/lib/compliance/papers";
 import { complianceContext, jobIsReal, outgoing, trimId } from "@/lib/compliance/send";
 import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
@@ -11,8 +10,8 @@ import {
   runSm8Writes,
   type Sm8WriteRun,
 } from "@/lib/integrations/sm8-writes";
+import { drainSm8WritesAfterResponse } from "@/lib/integrations/sm8-drain";
 import {
-  backgroundBudgetMs,
   offersSend,
   sendHold,
   sendRefusal,
@@ -43,12 +42,13 @@ import {
    and goes behind the response, on the next page load, or with the nightly
    sweep. The card says which.
 
-   WHAT GOES BEHIND THE RESPONSE FITS IN THE FUNCTION. It runs inside this
-   action's function, which ends at the platform's max duration (no route
-   sets one for the action), so the follow-up's budget is what is left of
-   it after a lease and a margin, counted from the press (backgroundBudgetMs)
-   — and with nothing left, there is no follow-up: the page-load kick and
-   the nightly sweep take what is waiting.
+   EVERY PRESS DRAINS (lib/integrations/sm8-drain). Behind the answer,
+   whatever is due for the workspace goes — this press's leftovers, a file
+   due again at once under a new uuid, and anything an earlier press left
+   waiting. A run of this press's that outlived the answer is waited for
+   first: nothing else keeps it alive once the answer is sent. The drain
+   fits in this action's function, counted from the press, and with no time
+   left there is none: the page loads and the nightly sweep take the rest.
 
    ONLY A PRESS QUEUES. The press is minted from the session here
    (lib/integrations/sm8-press), and the queue refuses anything else. */
@@ -163,33 +163,19 @@ export async function sendJobDocumentsToServiceM8(input: SendToSm8Input): Promis
      was queued, and sending is paused for the owner to look at */
   if (queued.capped) return { ok: false, error: WRITE_WORDS.paused };
 
+  let running: Promise<Sm8WriteRun> | undefined;
+  let stopped = false;
   if (queued.ids.length > 0) {
-    const orgId = ctx.orgId;
-    const ids = queued.ids;
-    const running = runSm8Writes(orgId, "send", { ids, budgetMs: SEND_BUDGET_MS });
-    const run = await settleWithin(running, SEND_BUDGET_MS);
-    /* Whatever the budget didn't reach goes once the answer is on its way,
-       and so does a file due again at once (a dead record under its new
-       uuid). A run ServiceM8 stopped (busy, unreachable, a lapsed grant) has
-       already set each file's next try; the page-load kick and the nightly
-       sweep take those. A run still going at the budget is WAITED FOR
-       behind the response — nothing else keeps it alive once the answer is
-       sent — and followed up the same way. */
-    const more = (r: Sm8WriteRun) => r.stopped === null && (r.done < ids.length || r.again > 0);
-    const followUp = async () => {
-      const budgetMs = backgroundBudgetMs(startedAt, Date.now());
-      if (budgetMs <= 0) return;
-      await runSm8Writes(orgId, "send", { ids, budgetMs }).catch(() => {});
-    };
-    if (run === null) {
-      after(async () => {
-        const r = await running.catch(() => null);
-        if (r && more(r)) await followUp();
-      });
-    } else if (more(run)) {
-      after(followUp);
-    }
+    const pressRun = runSm8Writes(ctx.orgId, "send", { ids: queued.ids, budgetMs: SEND_BUDGET_MS });
+    const run = await settleWithin(pressRun, SEND_BUDGET_MS);
+    /* still going at the budget: the drain waits for it behind the answer */
+    if (run === null) running = pressRun;
+    /* ended for the account's reasons (ServiceM8 unreachable, a limit, a
+       reconnect, Pause): a drain now would only meet them again, spending
+       the next file's attempt — see sm8-drain */
+    else stopped = run.stopped !== null;
   }
+  if (!stopped) drainSm8WritesAfterResponse(ctx.orgId, { startedAt, behind: running });
 
   const sends = await readJobSends(ctx.orgId, job);
   const sendOf = new Map(sends.map((s) => [s.documentId, s]));

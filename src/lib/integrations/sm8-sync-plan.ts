@@ -467,6 +467,86 @@ export function maxEditDate(rows: MirrorRow[], seed: string | null): string | nu
   return max;
 }
 
+/* ── where a finished walk leaves the cursor ──
+
+   THE TWO GAPS THE HIGHEST STAMP LEFT. The cursor used to be the highest
+   edit_date the walk read. But a walk reads page after page, and a record
+   edited on a page ALREADY READ, while the walk was still going, carries a
+   stamp below the highest one a later page held — the next walk's filter
+   (`gt cursor − 1 s`) never asked for it again, and the edit was lost until
+   the record's next one. And ServiceM8 writes stamps in the account's own
+   wall-clock time: in April's repeated hour a later edit can carry an
+   EARLIER stamp than one already read.
+
+   So a finished walk's cursor is the lower of that highest stamp and a
+   floor: the account's wall-clock time a quarter of an hour before the walk
+   began, taken at its lowest across a clock change. Every edit made after
+   that moment carries a stamp at or above the floor, so the next walk reads
+   it. The quarter of an hour covers the difference between our clock and
+   ServiceM8's. The cursor is never later than the old rule's, so a wrong
+   zone can only re-read more, never miss more; an unknown zone, or a walk
+   that paused before this rule existed, keeps the old rule.
+
+   WHAT IT DOESN'T MEND. The repeated hour's edit is READ again, but the
+   mirror's keep-newer guard (docs/migrations/sm8_calls_echo_freshness.sql)
+   compares stamps, and a record edited in both passes of that hour carries
+   a second-pass stamp that reads as older than its first. That record
+   keeps its first-pass copy until its next edit: a stamp with no zone
+   can't tell the two passes apart. Once a year, between 2 and 3 am. */
+
+/** How far before a walk began its floor sits. */
+export const CURSOR_OVERLAP_MS = 15 * 60_000;
+
+/** An instant as ServiceM8 would stamp it in the account's zone:
+    "YYYY-MM-DD HH:MM:SS". Null for a zone Intl doesn't know. */
+export function sm8LocalStamp(ms: number, tz: string): string | null {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).formatToParts(new Date(ms));
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    const stamp = `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
+    return SM8_DATE_RE.test(stamp) ? stamp : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The lowest stamp any moment from `ms` on can carry: the stamp at `ms`,
+    or, where the clock goes back within the hour after it, the stamp an
+    hour later less the hour — whichever is lower. */
+export function lowestStampFrom(ms: number, tz: string): string | null {
+  const now = sm8LocalStamp(ms, tz);
+  const later = sm8LocalStamp(ms + 3_600_000, tz);
+  if (now === null || later === null) return null;
+  const laterMs = parseSm8(later);
+  if (laterMs === null) return null;
+  const back = fmtSm8(laterMs - 3_600_000);
+  return back < now ? back : now;
+}
+
+/** The cursor a finished walk leaves: the lower of the highest stamp it read
+    and the floor from when it began (see above). The highest stamp alone
+    when the walk's start or the account's zone isn't known. */
+export function nextCursor(i: {
+  seenMax: string | null;
+  walkStartedAtMs: number | null;
+  tz: string | null;
+}): string | null {
+  if (i.walkStartedAtMs === null || !Number.isFinite(i.walkStartedAtMs) || !i.tz) return i.seenMax;
+  const floor = lowestStampFrom(i.walkStartedAtMs - CURSOR_OVERLAP_MS, i.tz);
+  if (floor === null) return i.seenMax;
+  if (i.seenMax === null) return floor;
+  return i.seenMax < floor ? i.seenMax : floor;
+}
+
 /* ── the one sentence a failure kind carries ── */
 
 /** ServiceM8's 402, worded. Documented as "Your ServiceM8 account is not in
@@ -512,6 +592,11 @@ export const SM8_ACCOUNT_UNCLEARED =
 export const SM8_ACCOUNT_UNREAD =
   "HeyTiff couldn't check which ServiceM8 account this is, so the sync stopped. The next sync tries again.";
 
+/** Where each object's last walk stopped couldn't be read. Read as nothing
+    synced yet, it would start every backfill again, so the run stops. */
+export const SM8_STATE_UNREAD =
+  "HeyTiff couldn't read where the last sync stopped, so this one didn't start. The next sync tries again.";
+
 /** A nameless connection turned out to hold an account another workspace
     already has: one account, one workspace. */
 export const SM8_ELSEWHERE =
@@ -527,7 +612,7 @@ export const SM8_ELSEWHERE =
    several runs — read as a broken integration, while the rows it HAD read went
    unmentioned.
 
-   These four sentences are the second meaning, and they are CONSTANTS so the
+   These sentences are the second meaning, and they are CONSTANTS so the
    writer and the reader cannot drift apart: the engine writes one into
    Postgres on one run and a later render classifies it on another, which is a
    coupling no compiler checks. They live in the pure module for the same
@@ -542,12 +627,16 @@ export const SM8_PAUSE_MIDWALK = "Paused mid-walk — resuming next sync.";
 export const SM8_PAUSE_PAGE_BUDGET = "Page budget spent — resuming next sync.";
 export const SM8_PAUSE_DAILY_BUDGET = "Today's sync budget is spent — resuming tomorrow.";
 export const SM8_PAUSE_RATE_LIMIT = "ServiceM8's rate limit was hit — resuming next sync.";
+/** The account's call counter (sm8-meter) had no room left for the sync:
+    it steps back so a person's send or a screen's read finds some. */
+export const SM8_PAUSE_SHARED_LIMIT = "Paused to leave room in ServiceM8's call limit — resuming next sync.";
 
 const PAUSE_NOTES: ReadonlySet<string> = new Set([
   SM8_PAUSE_MIDWALK,
   SM8_PAUSE_PAGE_BUDGET,
   SM8_PAUSE_DAILY_BUDGET,
   SM8_PAUSE_RATE_LIMIT,
+  SM8_PAUSE_SHARED_LIMIT,
 ]);
 
 /** True when a note means "still working", not "someone is needed". */

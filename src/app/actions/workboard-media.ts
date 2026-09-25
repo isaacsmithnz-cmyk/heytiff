@@ -29,10 +29,13 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { sm8Access } from "@/lib/integrations/sm8-store";
 import { fetchSm8AttachmentFile } from "@/lib/integrations/sm8-attachment-file";
+import { sm8CallOf } from "@/lib/integrations/sm8-http";
+import { sm8Ours } from "@/lib/integrations/sm8-echo";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { storageRef } from "@/lib/documents/files";
 import {
   isCacheableMedia,
+  MEDIA_BUSY,
   mimeForExt,
   normaliseFileType,
   storageNote,
@@ -44,6 +47,7 @@ import { familyMediaSources } from "@/lib/workboard/all-jobs-query";
     invocation finishes comfortably (a photo is well under a megabyte), big
     enough that a 26-photo job is a handful of rounds. */
 const BATCH = 6;
+
 
 export type CacheJobFilesResult = {
   ok: boolean;
@@ -125,12 +129,20 @@ async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult>
     ((haveRows ?? []) as { remote_ref: string | null }[]).map((r) => r.remote_ref).filter(Boolean)
   );
 
-  const wanted = ((attachRows ?? []) as {
+  const live = (attachRows ?? []) as {
     uuid: string;
     attachment_name: string | null;
     file_type: string | null;
     related_object_uuid: string;
-  }[]).filter((r) => isCacheableMedia(r.file_type) && !have.has(r.uuid));
+  }[];
+  /* A file HeyTiff sent comes back in the mirror as one of ServiceM8's; its
+     bytes are already ours, so it is never downloaded a second time
+     (lib/integrations/sm8-echo). */
+  const ours = await sm8Ours(
+    orgId,
+    live.map((r) => r.uuid)
+  );
+  const wanted = live.filter((r) => isCacheableMedia(r.file_type) && !have.has(r.uuid) && !ours.has(r.uuid));
 
   if (wanted.length === 0) {
     return {
@@ -146,13 +158,18 @@ async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult>
   let note: string | null = null;
 
   for (const row of wanted.slice(0, BATCH)) {
-    const file = await fetchSm8AttachmentFile(access.accessToken, row.uuid);
+    const file = await fetchSm8AttachmentFile(sm8CallOf(access, "read"), row.uuid);
     if (!file.ok) {
       /* A dead grant ends the batch — every other file would fail the same
-         way. Anything else is this one file's problem: skip it and carry on,
-         so one bad attachment can't hide the other twenty. */
+         way — and so does a busy account: the next download would be told
+         the same. Anything else is this one file's problem: skip it and
+         carry on, so one bad attachment can't hide the other twenty. */
       if (file.reason === "unauthorized") {
         note = "ServiceM8 refused the download — reconnect it.";
+        break;
+      }
+      if (file.reason === "busy") {
+        note = MEDIA_BUSY;
         break;
       }
       continue;

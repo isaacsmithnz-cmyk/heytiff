@@ -68,7 +68,16 @@ jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: jest.fn() }));
 const sm8QueueStuck = jest.fn();
 jest.mock("@/lib/integrations/sm8-writes", () => ({ sm8QueueStuck: (...a: unknown[]) => sm8QueueStuck(...a) }));
 
-import { loadActionRequired } from "../page-data";
+/* Opening Home tops ServiceM8 up behind the response. The page only
+   registers it: a promise that never settles here proves nothing waits on it. */
+const freshen = jest.fn((_orgId: string): unknown => new Promise(() => {}));
+jest.mock("@/lib/integrations/sm8-freshness", () => ({
+  freshenSm8AfterResponse: (orgId: string) => freshen(orgId),
+}));
+
+import { auth0 } from "@/lib/auth0";
+import { getCapabilities } from "@/lib/permissions-server";
+import { loadActionRequired, loadDashboard } from "../page-data";
 
 const handed = () => (assembleChips.mock.calls.at(-1)![0] as { sm8Stuck: unknown }).sm8Stuck;
 
@@ -96,5 +105,28 @@ describe("the bell's ServiceM8 line", () => {
     sm8QueueStuck.mockRejectedValue(new Error("down"));
     await loadActionRequired();
     expect(handed()).toBeNull();
+  });
+});
+
+describe("opening Home", () => {
+  beforeEach(() => {
+    freshen.mockClear();
+    (getCapabilities as jest.Mock).mockClear();
+  });
+
+  it("tops ServiceM8 up for this workspace, and waits on none of it", async () => {
+    // the rest of Home's reads are stubbed hollow; only the order matters here
+    await loadDashboard().catch(() => null);
+    expect(freshen).toHaveBeenCalledTimes(1);
+    expect(freshen).toHaveBeenCalledWith("org-1");
+    // the page went on to its own reads while the top-up never settled
+    expect(getCapabilities).toHaveBeenCalled();
+    expect(freshen.mock.invocationCallOrder[0]).toBeLessThan((getCapabilities as jest.Mock).mock.invocationCallOrder[0]);
+  });
+
+  it("does nothing for a visitor with no workspace", async () => {
+    (auth0.getSession as jest.Mock).mockResolvedValueOnce(null);
+    await loadDashboard();
+    expect(freshen).not.toHaveBeenCalled();
   });
 });

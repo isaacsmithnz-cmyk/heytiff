@@ -38,14 +38,24 @@
      one the mirror holds; a different one clears the old copy first
      (switchSm8Account), and a connection moved to another account mid-walk
      stops the run before it writes the old account into the new mirror.
+   - THE SYNC STEPS BACK FIRST. Every request is counted against the
+     account's limit (sm8-http, lane `sync`), and the sync's lane leaves the
+     most room behind: when the counter has no turn for it, the run pauses
+     (SM8_PAUSE_SHARED_LIMIT) and a person's send goes instead.
+   - A FINISHED WALK'S CURSOR SITS BEFORE THE WALK BEGAN (nextCursor), so an
+     edit made on a page already read, or in April's repeated hour, is read
+     by the next walk rather than skipped. (Read, not always kept: a record
+     edited in both passes of the repeated hour keeps its first-pass copy
+     until its next edit, because the mirror keeps the newer stamp and the
+     second pass's reads as older — see sm8-sync-plan's cursor note.)
 
    NO SESSION HERE — the caller establishes the right to ask (owner action,
    CRON_SECRET, or a page loader that already gated the org) and hands in a
    bare orgId. */
 
-import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { fetchSm8Vendor } from "./sm8";
+import { sm8CallOf } from "./sm8-http";
 import {
   markSm8NeedsReauth,
   nameSm8ConnectionIfNameless,
@@ -62,6 +72,7 @@ import {
   DAILY_CALL_BUDGET,
   filterFor,
   maxEditDate,
+  nextCursor,
   PAGE_BUDGET,
   SM8_ACCOUNT_MOVED,
   SM8_ACCOUNT_SWITCHED,
@@ -74,6 +85,8 @@ import {
   SM8_PAUSE_MIDWALK,
   SM8_PAUSE_PAGE_BUDGET,
   SM8_PAUSE_RATE_LIMIT,
+  SM8_PAUSE_SHARED_LIMIT,
+  SM8_STATE_UNREAD,
   SM8_UNREACHABLE,
   sm8ObjectPhase,
   walkOrderFor,
@@ -143,6 +156,19 @@ async function stillReading(orgId: string, uuid: string): Promise<"same" | "move
   return row.tenant_id === uuid ? "same" : "moved";
 }
 
+/** The zone the last vendor read named, for a read that came back without
+    one. Null when there is none, or it can't be read. */
+async function storedTimezone(orgId: string): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from("sm8_vendor")
+    .select("timezone_name")
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (error) return null;
+  const tz = (data as { timezone_name: string | null } | null)?.timezone_name;
+  return typeof tz === "string" && tz.trim() ? tz.trim() : null;
+}
+
 type StateRow = {
   object: string;
   cursor: string | null;
@@ -151,7 +177,58 @@ type StateRow = {
   /** Where a paused walk resumes, and the query that cursor belongs to. */
   walk_cursor: string | null;
   walk_filter: string | null;
+  /** When the walk in progress began — what its finished cursor is floored
+      at (nextCursor). Absent on a database without the column, and null for
+      a walk paused before it existed: both finish on the old rule. */
+  walk_started_at?: string | null;
 };
+
+type DbError = { code?: string; message?: string } | null;
+const missingColumn = (e: DbError) => e?.code === "PGRST204" || e?.code === "42703";
+
+const STATE_COLUMNS = "object, cursor, backfill_done, rows_pulled, walk_cursor, walk_filter";
+
+/** Every object's state for one workspace. A READ THAT FAILS IS NOT AN EMPTY
+    STATE: read as "nothing synced yet", it would start every object's
+    backfill again — 24 months of history. A database without walk_started_at
+    yet is asked again without it; any other failure is null, and the run
+    stops. */
+async function readSyncState(orgId: string): Promise<StateRow[] | null> {
+  const withStart = await supabaseAdmin
+    .from("sm8_sync_state")
+    .select(`${STATE_COLUMNS}, walk_started_at`)
+    .eq("org_id", orgId);
+  if (!withStart.error) return (withStart.data ?? []) as StateRow[];
+  /* ONLY a missing column is asked again: after any other failure a plain
+     read that happened to answer would lose the start of a walk in progress
+     — its finished cursor back on the old rule, or the start saved as null
+     for good. The run stops instead, and the next one reads it whole. */
+  if (!missingColumn(withStart.error)) {
+    console.error(`[sm8] couldn't read where the last sync stopped for org ${orgId}:`, withStart.error);
+    return null;
+  }
+  const plain = await supabaseAdmin.from("sm8_sync_state").select(STATE_COLUMNS).eq("org_id", orgId);
+  if (!plain.error) return (plain.data ?? []) as StateRow[];
+  console.error(`[sm8] couldn't read where the last sync stopped for org ${orgId}:`, plain.error);
+  return null;
+}
+
+/** Save one object's state. A database without walk_started_at yet saves the
+    rest; anything else that fails is logged — the next run re-reads from the
+    older cursor, which costs calls, never rows. */
+async function saveSyncState(orgId: string, row: Record<string, unknown>): Promise<void> {
+  const { error } = await supabaseAdmin.from("sm8_sync_state").upsert(row, { onConflict: "org_id,object" });
+  if (!error) return;
+  if (missingColumn(error) && "walk_started_at" in row) {
+    const { walk_started_at: _dropped, ...rest } = row;
+    void _dropped;
+    const again = await supabaseAdmin.from("sm8_sync_state").upsert(rest, { onConflict: "org_id,object" });
+    if (!again.error) return;
+    console.error(`[sm8] couldn't save the sync state of ${String(row.object)} for org ${orgId}:`, again.error);
+    return;
+  }
+  console.error(`[sm8] couldn't save the sync state of ${String(row.object)} for org ${orgId}:`, error);
+}
 
 export async function runSm8Sync(
   orgId: string,
@@ -212,16 +289,20 @@ export async function runSm8Sync(
   const vendorRead = await withSm8Renewal(
     orgId,
     access,
-    (a) => fetchSm8Vendor(a.accessToken),
+    (a) => fetchSm8Vendor(sm8CallOf(a, "sync")),
     (r) => !r.ok && r.unauthorized
   );
-  calls += vendorRead.tries;
-  access = vendorRead.access;
   const vendorResult = vendorRead.result;
+  // a turn the counter refused reached nobody, and costs the day nothing
+  calls += vendorRead.tries - (!vendorResult.ok && vendorResult.called === false ? 1 : 0);
+  access = vendorRead.access;
   // the grant was flagged by the renewal, for this grant only
   if (vendorRead.verdict === "dead") return ended(DEAD);
   if (vendorRead.verdict === "unreachable") return ended(SM8_UNREACHABLE);
   if (vendorRead.verdict === "gone") return ended(NOT_CONNECTED);
+  /* The account's limit has no room for the sync — before a single page is
+     asked for, so a person's send finds the room instead. */
+  if (!vendorResult.ok && vendorResult.throttled) return ended(SM8_PAUSE_SHARED_LIMIT);
   /* A billing block answers every endpoint the same way, and this call already
      proved it — walking the nine objects would spend nine calls to be told so
      nine more times. The grant is untouched: it isn't what's wrong. */
@@ -301,26 +382,27 @@ export async function runSm8Sync(
   const holdingNow = await stillReading(orgId, v.uuid);
   if (holdingNow !== "same") return ended(holdingNow === "moved" ? SM8_ACCOUNT_MOVED : NOT_CONNECTED);
 
+  /* THE ACCOUNT'S ZONE, which its edit stamps are written in: from this
+     read, or the last one that named it. Unknown, a finished walk's cursor
+     keeps the old rule (nextCursor). */
+  const tz = v.timezoneName ?? (await storedTimezone(orgId));
+
   await supabaseAdmin.from("sm8_vendor").upsert(
     {
       org_id: orgId,
       uuid: v.uuid,
       name: v.name,
       email: v.email,
-      timezone_name: v.timezoneName,
+      timezone_name: tz,
       currency: v.currency,
       synced_at: iso,
     },
     { onConflict: "org_id" }
   );
 
-  const { data: stateRows } = await supabaseAdmin
-    .from("sm8_sync_state")
-    .select("object, cursor, backfill_done, rows_pulled, walk_cursor, walk_filter")
-    .eq("org_id", orgId);
-  const state = new Map<string, StateRow>(
-    ((stateRows ?? []) as StateRow[]).map((r) => [r.object, r])
-  );
+  const stateRows = await readSyncState(orgId);
+  if (stateRows === null) return ended(SM8_STATE_UNREAD);
+  const state = new Map<string, StateRow>(stateRows.map((r) => [r.object, r]));
 
   const backfillDone = new Set(
     [...state.values()].filter((r) => r.backfill_done === true).map((r) => r.object)
@@ -353,6 +435,10 @@ export async function runSm8Sync(
     const resuming = prior?.walk_cursor != null;
     const filter = resuming ? prior!.walk_filter : filterFor(spec, prior?.cursor ?? null, now);
 
+    /* When this walk began: a resumed walk keeps its own start, a new one
+       starts now — a moment before its first page, the safe side. */
+    const walkStartedAt: string | null = resuming ? prior?.walk_started_at ?? null : iso;
+
     let walkCursor = prior?.walk_cursor ?? "-1";
     /* Where the NEXT run should pick up; null once the walk finishes. Every
        break below sets it before leaving, so a pause never forgets its place. */
@@ -373,12 +459,13 @@ export async function runSm8Sync(
       const read = await withSm8Renewal(
         orgId,
         access,
-        (a) => fetchSm8Page(a.accessToken, spec.endpoint, { cursor: walkCursor, filter }),
+        (a) => fetchSm8Page(sm8CallOf(a, "sync"), spec.endpoint, { cursor: walkCursor, filter }),
         (p) => !p.ok && p.failure === "unauthorized"
       );
-      calls += read.tries;
-      access = read.access;
       const page = read.result;
+      // a turn the counter refused reached nobody, and costs the day nothing
+      calls += read.tries - (!page.ok && page.called === false ? 1 : 0);
+      access = read.access;
 
       if (read.verdict === "unreachable" || read.verdict === "gone") {
         // no token to go on with: the page was never read, so it is the one to retry
@@ -406,6 +493,11 @@ export async function runSm8Sync(
           stopNote = objectError;
         } else if (page.failure === "rate_limited") {
           objectError = SM8_PAUSE_RATE_LIMIT;
+          stopNote = objectError;
+        } else if (page.failure === "throttled") {
+          /* the account's counter had no room for the sync: it steps back,
+             and the page it didn't read is the one to start from */
+          objectError = SM8_PAUSE_SHARED_LIMIT;
           stopNote = objectError;
         } else {
           // Unreachable: the other objects share the same upstream, so
@@ -484,12 +576,19 @@ export async function runSm8Sync(
     }
     if (accountLost) break;
 
-    await supabaseAdmin.from("sm8_sync_state").upsert(
+    await saveSyncState(
+      orgId,
       completed
         ? {
             org_id: orgId,
             object: spec.object,
-            cursor: batchMax,
+            /* the lower of the highest stamp read and the walk's start less
+               the overlap, in the account's clock — see nextCursor */
+            cursor: nextCursor({
+              seenMax: batchMax,
+              walkStartedAtMs: walkStartedAt ? Date.parse(walkStartedAt) : null,
+              tz,
+            }),
             backfill_done: true,
             last_synced_at: new Date().toISOString(),
             last_error: null,
@@ -497,6 +596,7 @@ export async function runSm8Sync(
             // The walk is over; the next one starts fresh from the new floor.
             walk_cursor: null,
             walk_filter: null,
+            walk_started_at: null,
           }
         : {
             org_id: orgId,
@@ -511,8 +611,8 @@ export async function runSm8Sync(
                number into an unknown book. */
             walk_cursor: resumeCursor,
             walk_filter: resumeCursor === null ? null : filter,
-          },
-      { onConflict: "org_id,object" }
+            walk_started_at: resumeCursor === null ? null : walkStartedAt,
+          }
     );
   }
 
@@ -596,10 +696,14 @@ export type Sm8SyncStatusView = {
     note: string | null;
     running: boolean;
   } | null;
+  /** When Vercel's scheduler last called the overnight sync for this
+      workspace; null when it never has, and absent when that couldn't be
+      read (the screen then says nothing about it). */
+  lastCron?: string | null;
 };
 
 export async function listSm8SyncStatus(orgId: string): Promise<Sm8SyncStatusView> {
-  const [{ data: stateRows }, { data: runRows }] = await Promise.all([
+  const [{ data: stateRows }, { data: runRows }, lastCron] = await Promise.all([
     supabaseAdmin
       .from("sm8_sync_state")
       .select("object, cursor, backfill_done, rows_pulled, last_synced_at, last_error")
@@ -609,6 +713,7 @@ export async function listSm8SyncStatus(orgId: string): Promise<Sm8SyncStatusVie
       .select("lease_until, last_started_at, last_finished_at, last_ok, last_note")
       .eq("org_id", orgId)
       .maybeSingle(),
+    readSm8LastCron(orgId),
   ]);
 
   const byObject = new Map(
@@ -646,7 +751,46 @@ export async function listSm8SyncStatus(orgId: string): Promise<Sm8SyncStatusVie
           running: !!run.lease_until && Date.parse(run.lease_until) > Date.now(),
         }
       : null,
+    ...(lastCron === undefined ? {} : { lastCron }),
   };
+}
+
+/* ── the overnight trace ──
+
+   Kept apart from last_trigger, which the next page-load kick overwrites
+   within minutes of the morning: last_cron_at is written only by Vercel's
+   scheduled call, once it has passed CRON_SECRET, and only read here. It is
+   how the owner's screen can say the overnight sync ran — or that it never
+   has, which is what an unset CRON_SECRET looks like. */
+
+/** The scheduler called the overnight sync for this workspace. Recorded
+    before the workspace's sync runs, so a night where another sync held the
+    lease still counts. Never throws; a database without the column yet
+    records nothing. */
+export async function recordSm8CronVisit(orgId: string, now: number = Date.now()): Promise<void> {
+  try {
+    const { error } = await supabaseAdmin
+      .from("sm8_sync_runs")
+      .upsert({ org_id: orgId, last_cron_at: new Date(now).toISOString() }, { onConflict: "org_id" });
+    if (error && !missingColumn(error)) {
+      console.error(`[sm8] couldn't record the overnight sync for org ${orgId}:`, error);
+    }
+  } catch {
+    // the trace is a courtesy; the sync is the point
+  }
+}
+
+/** When the overnight sync last came: the time, null when it never has, and
+    undefined when it can't be read (a database without the column yet). */
+export async function readSm8LastCron(orgId: string): Promise<string | null | undefined> {
+  const { data, error } = await supabaseAdmin
+    .from("sm8_sync_runs")
+    .select("last_cron_at")
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (error) return undefined;
+  const at = (data as { last_cron_at?: string | null } | null)?.last_cron_at;
+  return typeof at === "string" && at ? at : null;
 }
 
 /* ── who the nightly backstop sweeps ── */
@@ -708,17 +852,15 @@ export async function sweepableSm8Orgs(limit: number): Promise<string[]> {
     .slice(0, limit);
 }
 
-/* ── the page-load kick — the PRIMARY freshness path ── */
+/* ── is the mirror due a top-up? ── */
 
-const STALE_AFTER_MS = 10 * 60_000;
+/** How long a finished sync keeps the mirror fresh. */
+export const STALE_AFTER_MS = 10 * 60_000;
 
-/** Schedule a sync slice after the current response if the mirrors look
-    stale. `after()` is what makes fire-and-forget real on Vercel — a floating
-    promise is frozen the instant the response returns; this one rides the
-    invocation's waitUntil. Callers are Server Components and route handlers
-    that already gated the org, and the callback deliberately closes over
-    nothing but the orgId. */
-export async function kickSm8SyncIfStale(orgId: string, now: number = Date.now()): Promise<void> {
+/** Whether the mirror is due a sync slice: nothing running, and nothing
+    finished in the last ten minutes. The page-load path asks it after the
+    response (sm8-freshness), so no page waits on it. */
+export async function sm8SyncIsStale(orgId: string, now: number = Date.now()): Promise<boolean> {
   const { data } = await supabaseAdmin
     .from("sm8_sync_runs")
     .select("lease_until, last_finished_at")
@@ -729,7 +871,5 @@ export async function kickSm8SyncIfStale(orgId: string, now: number = Date.now()
   const running = !!run?.lease_until && Date.parse(run.lease_until) > now;
   const fresh =
     !!run?.last_finished_at && now - Date.parse(run.last_finished_at) < STALE_AFTER_MS;
-  if (running || fresh) return;
-
-  after(() => runSm8Sync(orgId, "kick").catch(() => {}));
+  return !running && !fresh;
 }

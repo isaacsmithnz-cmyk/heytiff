@@ -92,6 +92,14 @@ beforeEach(() => {
   countConnectionsElsewhere.mockReset().mockResolvedValue(0);
 });
 
+describe("the connect-time read of which account this is", () => {
+  it("goes uncounted: whose call counter it belongs to is what it is asking", async () => {
+    await GET(callback());
+    expect(fetchSm8Vendor).toHaveBeenCalled();
+    for (const c of fetchSm8Vendor.mock.calls) expect(c[0]).toMatchObject({ meter: null, lane: "read" });
+  });
+});
+
 describe("one ServiceM8 account, one workspace", () => {
   it("an account another workspace holds is refused, and nothing is saved", async () => {
     countConnectionsElsewhere.mockResolvedValue(1);

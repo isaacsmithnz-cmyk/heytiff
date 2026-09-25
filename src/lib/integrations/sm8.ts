@@ -28,10 +28,13 @@
    `sm8Config()` returns null and the screen says so. */
 
 import { SM8_SCOPE_LIST } from "./providers";
+import { sm8BusyOf, sm8Request, type Sm8Call } from "./sm8-http";
 
 const AUTHORIZE_URL = "https://go.servicem8.com/oauth/authorize";
 const TOKEN_URL = "https://go.servicem8.com/oauth/access_token";
-export const SM8_API_BASE = "https://api.servicem8.com/api_1.0/";
+/* The REST base lives with the one door to it (sm8-http); the token
+   endpoint above is a different host, and the only fetch this file makes. */
+export { SM8_API_BASE } from "./sm8-http";
 
 /** Where ServiceM8 sends the browser back. Derived from APP_BASE_URL so
     localhost and production can't drift — ServiceM8 additionally requires the
@@ -279,18 +282,35 @@ export type Sm8Vendor = {
 
 export type Sm8VendorResult =
   | { ok: true; vendor: Sm8Vendor }
-  | { ok: false; unauthorized: boolean; paymentRequired?: boolean };
+  | {
+      ok: false;
+      unauthorized: boolean;
+      paymentRequired?: boolean;
+      throttled?: boolean;
+      /** With `throttled`: the limit that had no room is a daily one (see
+          sm8-http's Sm8Busy), so the screen says so rather than "a minute". */
+      daily?: true;
+      /** No request reached ServiceM8: the counter refused the turn. */
+      called?: false;
+    };
 
-/** Read the account identity with a bare access token. `unauthorized` is the
-    one failure worth distinguishing: a 401 means the GRANT is dead (revoked
-    from ServiceM8's own side), which the read layer records as needs_reauth —
-    everything else is "not right now" and harms nothing. */
-export async function fetchSm8Vendor(accessToken: string): Promise<Sm8VendorResult> {
+/** Read the account identity through the one door (sm8-http). `unauthorized`
+    is the one failure worth distinguishing: a 401 means the GRANT is dead
+    (revoked from ServiceM8's own side), which the read layer records as
+    needs_reauth — everything else is "not right now" and harms nothing.
+    `throttled`: the account's call limit had no room (a turn refused, or
+    ServiceM8's own 429). */
+export async function fetchSm8Vendor(call: Sm8Call): Promise<Sm8VendorResult> {
   try {
-    const res = await fetch(`${SM8_API_BASE}vendor.json`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
-    });
+    const answer = await sm8Request(call, "vendor.json", { timeoutMs: HTTP_TIMEOUT_MS });
+    const busy = sm8BusyOf(answer);
+    const daily = busy?.day ? ({ daily: true } as const) : {};
+    if (answer.kind === "throttled") return { ok: false, unauthorized: false, throttled: true, ...daily, called: false };
+    const res = answer.res;
+    if (res.status === 429) {
+      console.error(`[sm8] GET vendor.json 429: ServiceM8's ${answer.limit ?? "minute"} limit`);
+      return { ok: false, unauthorized: false, throttled: true, ...daily };
+    }
     if (res.status === 401) return { ok: false, unauthorized: true };
     /* 402 = the ServiceM8 account isn't in good standing (an expired trial
        answers with it too). Distinguished because no amount of retrying or

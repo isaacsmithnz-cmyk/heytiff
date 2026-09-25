@@ -54,7 +54,7 @@ import {
   renewJobPaper,
 } from "@/app/actions/job-compliance";
 import { readJobSm8, sendJobDocumentsToServiceM8, type JobSm8Read } from "@/app/actions/job-sm8";
-import { sendFailure, sendToast, twinsToHide } from "@/lib/integrations/sm8-write-plan";
+import { sendFailure, sendToast } from "@/lib/integrations/sm8-write-plan";
 import {
   ourDocumentSendKey,
   paperLabel,
@@ -318,29 +318,9 @@ export function JobSheet({
   const [sm8Read, setSm8Read] = useState<JobSm8Read | null>(null);
   const [sm8Note, setSm8Note] = useState<string | null>(null);
   /* ONE ROW PER FILE. A file we sent comes back as ServiceM8's own once the
-     next sync mirrors it; while one of our rows shows that file, the copy is
-     left off every face (and off the story, so its stamp doesn't move for a
-     file it already counted). Take our row away and the copy shows as
-     ServiceM8's, which is what it then is. */
-  const twins = useMemo(() => {
-    if (!sm8Read || sm8Read.sends.length === 0) return null;
-    const shown = [
-      ...(mediaRead?.documents ?? []).flatMap((d) => (d.documentId ? [d.documentId] : [])),
-      ...(papers?.papers ?? []).flatMap((p) => p.files.map((f) => f.id)),
-    ];
-    const hide = twinsToHide(sm8Read.sends, shown);
-    return hide.size > 0 ? hide : null;
-  }, [sm8Read, mediaRead, papers]);
-  const media = useMemo(() => {
-    if (!mediaRead || !twins) return mediaRead;
-    const keep = (i: JobMediaItem) => !twins.has(i.remoteId);
-    return {
-      ...mediaRead,
-      photos: mediaRead.photos.filter(keep),
-      documents: mediaRead.documents.filter(keep),
-      elsewhere: mediaRead.elsewhere.filter(keep),
-    };
-  }, [mediaRead, twins]);
+     next sync mirrors it; the server leaves that copy off every face and the
+     story (lib/integrations/sm8-echo), by the uuid we sent it under. */
+  const media = mediaRead;
   /* The shared viewer: a photo (by its place in the photos lens) or one
      PDF's paper. Closing it lands the reader exactly where they were. */
   const [viewer, setViewer] = useState<

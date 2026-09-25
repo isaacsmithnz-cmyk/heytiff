@@ -3,9 +3,24 @@
    verified against developer.servicem8.com/docs/authentication (2026-07-28)
    — this suite is what stops them drifting back toward memory. */
 
+jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
+
+/* The account's call counter, stubbed: a turn unless a test says otherwise. */
+const takeTurn = jest.fn();
+const noteThrottle = jest.fn();
+jest.mock("../sm8-meter", () => {
+  const actual = jest.requireActual("../sm8-meter");
+  return {
+    ...actual,
+    takeSm8Call: (...a: unknown[]) => takeTurn(...a),
+    noteSm8Throttle: (...a: unknown[]) => noteThrottle(...a),
+  };
+});
+
 import {
   buildSm8ConsentUrl,
   classifySm8TokenFailure,
+  fetchSm8Vendor,
   readSm8Tokens,
   refreshSm8Tokens,
   sm8Config,
@@ -217,5 +232,65 @@ describe("refreshSm8Tokens", () => {
     fetchMock.mockResolvedValueOnce(answer(401, JSON.stringify({ error: "invalid_client" })));
     expect(await refreshSm8Tokens(CFG, "rt-1")).toEqual({ ok: false, failure: "unavailable", status: 401 });
     expect(logged.join("\n")).toMatch(/configuration/);
+  });
+});
+
+describe("fetchSm8Vendor", () => {
+  const realFetch = global.fetch;
+  const fetchMock = jest.fn();
+  const CALL = { accessToken: "tok-1", meter: "v-1", lane: "read" as const };
+
+  if (typeof AbortSignal.timeout !== "function") {
+    (AbortSignal as unknown as { timeout: () => AbortSignal }).timeout = () => new AbortController().signal;
+  }
+
+  const answer = (status: number, body: string) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    statusText: "",
+    headers: { get: () => null },
+    clone() {
+      return this;
+    },
+    text: async () => body,
+    json: async () => JSON.parse(body),
+  });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    takeTurn.mockReset().mockResolvedValue({ ok: true });
+    noteThrottle.mockReset().mockResolvedValue(undefined);
+    jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+    jest.restoreAllMocks();
+  });
+
+  it("goes through the one door: a turn from the account's counter, then vendor.json", async () => {
+    fetchMock.mockResolvedValue(answer(200, JSON.stringify([{ uuid: "v-1", name: "Acme Air" }])));
+    expect(await fetchSm8Vendor(CALL)).toMatchObject({ ok: true, vendor: { uuid: "v-1" } });
+    expect(takeTurn).toHaveBeenCalledWith("v-1", "read");
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api.servicem8.com/api_1.0/vendor.json");
+  });
+
+  it("a 429 is throttled, never unauthorized, and holds the account's other callers", async () => {
+    fetchMock.mockResolvedValue(answer(429, "Number of allowed API requests per minute exceeded"));
+    expect(await fetchSm8Vendor(CALL)).toEqual({ ok: false, unauthorized: false, throttled: true });
+    expect(noteThrottle).toHaveBeenCalledWith("v-1", "minute");
+  });
+
+  it("a turn the counter refuses asks nothing of ServiceM8", async () => {
+    takeTurn.mockResolvedValue({ ok: false, waitMs: 60_000, why: "cooldown_minute" });
+    expect(await fetchSm8Vendor(CALL)).toEqual({ ok: false, unauthorized: false, throttled: true, called: false });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("the connect-time read, whose account isn't known yet, is asked uncounted", async () => {
+    fetchMock.mockResolvedValue(answer(200, JSON.stringify([{ uuid: "v-1", name: "Acme Air" }])));
+    await fetchSm8Vendor({ accessToken: "tok-1", meter: null, lane: "read" });
+    expect(takeTurn).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

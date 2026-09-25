@@ -13,6 +13,8 @@ let documentRows: Record<string, unknown>[] = [];
    calls `.limit`). */
 let ourRows: Record<string, unknown>[] = [];
 let staffRows: Record<string, unknown>[] = [];
+/* HeyTiff's own writes to ServiceM8, as the echo read finds them. */
+let writeRows: Record<string, unknown>[] = [];
 const filtersBy: Record<string, Filter[]> = {};
 let signedFor: string[] = [];
 
@@ -33,6 +35,10 @@ jest.mock("@/lib/supabase-server", () => ({
       sub.not = (col: string, _op: string, val: unknown) => {
         filtersBy[table].push({ col: `not:${col}`, val });
         return sub;
+      };
+      sub.or = (filter: string) => {
+        filtersBy[table].push({ col: "or", val: filter });
+        return Promise.resolve({ data: table === "sm8_writes" ? writeRows : [], error: null });
       };
       sub.order = () => sub;
       sub.limit = () => Promise.resolve({ data: table === "documents" ? ourRows : attachmentRows });
@@ -72,6 +78,7 @@ beforeEach(() => {
   documentRows = [];
   ourRows = [];
   staffRows = [];
+  writeRows = [];
   signedFor = [];
   for (const k of Object.keys(filtersBy)) delete filtersBy[k];
 });
@@ -426,6 +433,53 @@ describe("the files we filed ourselves", () => {
     await readJobMediaGroups("org-1", "job-1");
     expect(signedFor).toEqual([]);
     expect(filtersBy["sm8_vendor"]).toBeUndefined();
+  });
+});
+
+/* ── a file we sent, mirrored back ──────────────────────────────────────
+   A file HeyTiff sends to ServiceM8 comes back with the next sync as one of
+   ServiceM8's own. It is ours — its uuid is one HeyTiff minted — so it is
+   left off, whether or not HeyTiff's own row for it is still on the card:
+   one file, one row. */
+describe("a file we sent to ServiceM8", () => {
+  const SENT = "7d3f2c1e-5b6a-4c8d-9e0f-1a2b3c4d5e6f";
+  const THEIRS = "0b1c2d3e-4f50-4617-8829-3a4b5c6d7e8f";
+  const RETIRED = "9e8d7c6b-5a49-4382-9716-05f4e3d2c1b0";
+
+  it("is not listed beside our own row, and ServiceM8's own file beside it still is", async () => {
+    attachmentRows = [
+      attachment({ uuid: SENT, attachment_name: "CoC — electrical.pdf", file_type: ".pdf" }),
+      attachment({ uuid: THEIRS, attachment_name: "Invoice #1.pdf", file_type: ".pdf" }),
+    ];
+    writeRows = [{ remote_uuid: SENT, replaced_uuids: [] }];
+    ourRows = [
+      {
+        id: "d-9",
+        file_name: "CoC — electrical.pdf",
+        mime_type: "application/pdf",
+        storage_ref: "org/org-1/job_document/d-9.pdf",
+        uploaded_at: "2026-09-23T00:40:00Z",
+        uploaded_by: null,
+      },
+    ];
+    const groups = await readJobMediaGroups("org-1", "job-1");
+    expect(groups.documents.map((d) => d.remoteId).sort()).toEqual([THEIRS, "doc:d-9"].sort());
+  });
+
+  it("is not listed when our own row is gone either", async () => {
+    attachmentRows = [attachment({ uuid: SENT }), attachment({ uuid: THEIRS })];
+    writeRows = [{ remote_uuid: SENT, replaced_uuids: [] }];
+    const { items } = await readJobMedia("org-1", "job-1");
+    expect(items.map((i) => i.remoteId)).toEqual([THEIRS]);
+  });
+
+  it("is found by a uuid the write has since replaced, too", async () => {
+    attachmentRows = [attachment({ uuid: RETIRED }), attachment({ uuid: THEIRS })];
+    writeRows = [{ remote_uuid: SENT, replaced_uuids: [RETIRED] }];
+    const { items } = await readJobMedia("org-1", "job-1");
+    expect(items.map((i) => i.remoteId)).toEqual([THEIRS]);
+    // asked of this workspace's writes only
+    expect(filtersBy["sm8_writes"]).toEqual(expect.arrayContaining([{ col: "org_id", val: "org-1" }]));
   });
 });
 

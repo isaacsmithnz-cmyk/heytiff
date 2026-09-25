@@ -1,6 +1,5 @@
 "use server";
 
-import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { auth0 } from "@/lib/auth0";
 import { hasMinRole } from "@/lib/roles";
@@ -12,11 +11,11 @@ import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
 import {
   readSm8WriteState,
   retryFailedSm8Writes,
-  runSm8Writes,
   setSm8WriteMode,
   sm8WritesEnabled,
 } from "@/lib/integrations/sm8-writes";
-import { readWriteMode, RUN_BUDGET_MS, sendRefusal } from "@/lib/integrations/sm8-write-plan";
+import { drainSm8WritesAfterResponse } from "@/lib/integrations/sm8-drain";
+import { readWriteMode, sendRefusal } from "@/lib/integrations/sm8-write-plan";
 import { sm8DisconnectNote, sm8OffNote, sm8RetryNote } from "@/lib/integrations/outcome";
 
 /* The two things you can do to an existing connection from the screen.
@@ -87,11 +86,14 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
 /** Run one sync slice now, in the foreground — the button's whole point is
     watching the counts move, so this awaits rather than after()s. The
     engine's lease makes a press during a running sync a polite "already
-    running" rather than a second walker. */
+    running" rather than a second walker. A press, so it drains: whatever
+    is waiting to go to ServiceM8 goes behind the answer. */
 export async function syncServiceM8NowAction(): Promise<IntegrationResult> {
+  const startedAt = Date.now();
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
+  drainSm8WritesAfterResponse(ctx.orgId, { startedAt });
   const outcome = await runSm8Sync(ctx.orgId, "manual");
   revalidate();
   if (!outcome.ran) return { ok: false, error: outcome.note };
@@ -103,8 +105,10 @@ export async function syncServiceM8NowAction(): Promise<IntegrationResult> {
     anything that isn't one of the four is refused rather than guessed at.
     Turning it on doesn't grant anything by itself: the screen then asks for
     the reconnect that gives HeyTiff the permission. Off says what it
-    cancelled. */
+    cancelled. On and Trial run drain: what was waiting goes behind the
+    answer. */
 export async function setServiceM8WriteModeAction(mode: string): Promise<IntegrationResult> {
+  const startedAt = Date.now();
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
   if (!sm8WritesEnabled()) return { ok: false, error: "Sending to ServiceM8 isn't available yet." };
@@ -113,16 +117,18 @@ export async function setServiceM8WriteModeAction(mode: string): Promise<Integra
   if (want !== mode) return { ok: false, error: "That isn't a setting." };
   const changed = await setSm8WriteMode(ctx.orgId, want);
   if (!changed.ok) return { ok: false, error: "Couldn't change it. Reload the page and try again." };
+  if (want === "live" || want === "trial") drainSm8WritesAfterResponse(ctx.orgId, { startedAt });
   revalidate();
   const note = want === "off" ? sm8OffNote(changed.cancelled.length) : null;
   return note ? { ok: true, note } : { ok: true };
 }
 
 /** The owner's Retry failed files: every write that failed for the account
-    connected now goes again, as far as the hour's cap has room, and a
-    sender follows behind the answer. A person pressed it, so it is a press
+    connected now goes again, as far as the hour's cap has room, and the
+    drain follows behind the answer. A person pressed it, so it is a press
     (sm8-press): the queue takes nothing else. */
 export async function retryFailedServiceM8WritesAction(): Promise<IntegrationResult> {
+  const startedAt = Date.now();
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
   if (!sm8WritesEnabled()) return { ok: false, error: "Sending to ServiceM8 isn't available yet." };
@@ -135,8 +141,7 @@ export async function retryFailedServiceM8WritesAction(): Promise<IntegrationRes
 
   const retried = await retryFailedSm8Writes(press, state);
   if (!retried) return { ok: false, error: "Couldn't send those again. Try again." };
-  const orgId = ctx.orgId;
-  if (retried.queued > 0) after(() => runSm8Writes(orgId, "kick", { budgetMs: RUN_BUDGET_MS }).catch(() => {}));
+  drainSm8WritesAfterResponse(ctx.orgId, { startedAt });
   revalidate();
   return { ok: true, note: sm8RetryNote(retried) };
 }

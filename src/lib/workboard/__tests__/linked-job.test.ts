@@ -14,11 +14,8 @@ jest.mock("@/lib/workboard/all-jobs-query", () => ({
 jest.mock("next/server", () => ({ after: jest.fn() }));
 jest.mock("@/lib/permissions-server", () => ({ can: jest.fn() }));
 jest.mock("@/lib/integrations/store", () => ({ getConnectionView: jest.fn() }));
-jest.mock("@/lib/integrations/sm8-sync", () => ({
-  kickSm8SyncIfStale: jest.fn(),
-  listSm8SyncStatus: jest.fn(),
-}));
-jest.mock("@/lib/integrations/sm8-writes", () => ({ kickSm8WritesIfDue: jest.fn() }));
+jest.mock("@/lib/integrations/sm8-sync", () => ({ listSm8SyncStatus: jest.fn() }));
+jest.mock("@/lib/integrations/sm8-freshness", () => ({ freshenSm8AfterResponse: jest.fn() }));
 jest.mock("@/lib/workboard/notes-query", () => ({ listFlags: jest.fn() }));
 jest.mock("@/lib/workboard/board-query", () => ({ loadMaintenanceBoard: jest.fn() }));
 jest.mock("@/lib/workboard/projects-board-query", () => ({ loadProjectsBoard: jest.fn() }));

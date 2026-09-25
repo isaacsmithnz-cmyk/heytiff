@@ -105,6 +105,10 @@ export type AttentionNote = {
   actionRequired: boolean;
   /** The handles this note mentions, already matched against the roster. */
   handles: string[];
+  /** HeyTiff wrote this note itself (lib/integrations/sm8-echo): its own
+      reply, mirrored back. Never offered as a mention or a flag — HeyTiff's
+      own row is where that conversation lives. */
+  ours: boolean;
 };
 
 export type AttentionInputs = {
@@ -189,7 +193,8 @@ export function buildJobAttention(inputs: AttentionInputs): JobAttention {
      both go silent for good once somebody has answered them. */
   if (inputs.jobOpen) {
     for (const n of inputs.notes) {
-      if (inputs.answered.has(n.remoteId)) continue;
+      /* answered already, or HeyTiff's own note coming back */
+      if (inputs.answered.has(n.remoteId) || n.ours) continue;
 
       if (n.actionRequired) {
         items.push({

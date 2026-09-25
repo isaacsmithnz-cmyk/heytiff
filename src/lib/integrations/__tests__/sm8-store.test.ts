@@ -295,8 +295,17 @@ describe("refresh is single-flight with a rotation guard", () => {
   it("two concurrent reads redeem the refresh token once and share the answer", async () => {
     const [a, b] = await Promise.all([sm8Access("org-1", NOW), sm8Access("org-1", NOW)]);
     expect(refreshSm8Tokens).toHaveBeenCalledTimes(1);
-    expect(a).toEqual({ accessToken: "new-access", tenantId: "v-1", grant: expect.any(String) });
+    expect(a).toEqual({ accessToken: "new-access", tenantId: "v-1", grant: expect.any(String), meter: "v-1" });
     expect(b).toEqual(a);
+  });
+
+  it("counts a token's calls against its ServiceM8 account, or the workspace while the connection is nameless", async () => {
+    row = connectedRow({ expires_at: new Date(NOW + 3_600_000).toISOString() });
+    const named = await sm8AccessResult("org-1", NOW);
+    expect(named).toEqual({ ok: true, access: expect.objectContaining({ meter: "v-1" }) });
+    row = connectedRow({ tenant_id: null, expires_at: new Date(NOW + 3_600_000).toISOString() });
+    const nameless = await sm8AccessResult("org-1", NOW);
+    expect(nameless).toEqual({ ok: true, access: expect.objectContaining({ meter: "org:org-1" }) });
   });
 
   it("the stored rotation is guarded by the token it spent", async () => {

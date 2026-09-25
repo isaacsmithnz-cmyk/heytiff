@@ -26,10 +26,14 @@ jest.mock("@/lib/integrations/store", () => ({
 }));
 const readSm8Vendor = jest.fn(async () => ({ ok: true, data: { name: "Acme Air", timezoneName: null } }));
 jest.mock("@/lib/integrations/sm8-read", () => ({ readSm8Vendor: () => readSm8Vendor() }));
-const kickSm8SyncIfStale = jest.fn(async () => {});
 jest.mock("@/lib/integrations/sm8-sync", () => ({
-  kickSm8SyncIfStale: () => kickSm8SyncIfStale(),
   listSm8SyncStatus: jest.fn(async () => ({ objects: [], lastRun: null })),
+}));
+/* Opening the screen tops ServiceM8 up behind the response; the loader only
+   registers it. A promise that never settles proves the page doesn't wait. */
+const freshen = jest.fn((_orgId: string): unknown => new Promise(() => {}));
+jest.mock("@/lib/integrations/sm8-freshness", () => ({
+  freshenSm8AfterResponse: (orgId: string) => freshen(orgId),
 }));
 jest.mock("@/lib/integrations/secrets", () => ({ tokenKey: () => "k" }));
 jest.mock("@/lib/integrations/sm8", () => ({ sm8Config: () => ({}) }));
@@ -39,7 +43,6 @@ jest.mock("@/app/actions/staff-import", () => ({ getSm8PeopleData: jest.fn(async
 
 let kinds: string[] = ["attachment"];
 const readSm8WriteState = jest.fn();
-const kickSm8WritesIfDue = jest.fn(async () => {});
 const countSm8Queue = jest.fn(async (..._a: unknown[]) => ({ waiting: 3, failed: 1 }));
 jest.mock("@/lib/integrations/sm8-writes", () => ({
   sm8WriteKindsEnabled: () => kinds,
@@ -47,7 +50,6 @@ jest.mock("@/lib/integrations/sm8-writes", () => ({
   countSm8Queue: (...a: unknown[]) => countSm8Queue(...a),
   countSm8WritesSentLately: jest.fn(async () => 14),
   listRecentSm8Writes: jest.fn(async () => []),
-  kickSm8WritesIfDue: () => kickSm8WritesIfDue(),
 }));
 
 import Servicem8IntegrationPage from "../page";
@@ -101,8 +103,7 @@ beforeEach(() => {
   kinds = ["attachment"];
   getConnectionView.mockReset().mockResolvedValue(view());
   readSm8WriteState.mockReset().mockResolvedValue(state());
-  kickSm8SyncIfStale.mockClear();
-  kickSm8WritesIfDue.mockClear();
+  freshen.mockClear();
   countSm8Queue.mockClear();
   readSm8Vendor.mockClear();
 });
@@ -134,10 +135,17 @@ describe("the ServiceM8 screen's loader", () => {
     readSm8WriteState.mockResolvedValue(state({ connected: false }));
     const p = await load();
     expect(p.writes).toMatchObject({ mode: "live", hold: "reconnect", waiting: 3 });
-    // the live reads and the kicks still wait for a working grant
+    // the live reads and the top-up still wait for a working grant
     expect(p.reach).toBeNull();
     expect(readSm8Vendor).not.toHaveBeenCalled();
-    expect(kickSm8WritesIfDue).not.toHaveBeenCalled();
+    expect(freshen).not.toHaveBeenCalled();
+  });
+
+  it("tops ServiceM8 up behind the response for a working connection, and waits on none of it", async () => {
+    const p = await load();
+    expect(freshen).toHaveBeenCalledWith("org-1");
+    // the page came back although the top-up never settled
+    expect(p.writes).not.toBeNull();
   });
 
   it("draws no card rather than a wrong one when the settings can't be read", async () => {

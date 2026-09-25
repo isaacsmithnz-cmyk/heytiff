@@ -8,11 +8,14 @@
    "answered with a file", and the failures it exists to catch (an HTML error
    page, a JSON error body) both arrive with an encouraging status. */
 
+jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
+
 import {
   attachmentFileCandidates,
   looksLikeFile,
   sniffFileKind,
 } from "../sm8-attachment-probe";
+import { sm8Url } from "../sm8-http";
 
 const UUID = "1a2b3c4d-5e6f-7081-92a3-b4c5d6e7f809";
 
@@ -25,8 +28,8 @@ describe("attachmentFileCandidates", () => {
     ]);
   });
 
-  it("builds them against the live API base, uuid intact", () => {
-    const urls = attachmentFileCandidates(UUID).map((c) => c.url);
+  it("names paths the one door resolves against the live API base, uuid intact", () => {
+    const urls = attachmentFileCandidates(UUID).map((c) => sm8Url(c.path).toString());
     expect(urls).toEqual([
       `https://api.servicem8.com/api_1.0/Attachment/${UUID}.file`,
       `https://api.servicem8.com/api_1.0/attachment/${UUID}.file`,
@@ -34,13 +37,22 @@ describe("attachmentFileCandidates", () => {
     ]);
   });
 
-  it("keeps the api_1.0 segment — a relative URL would eat it", () => {
-    /* new URL("Attachment/x.file", base) only keeps /api_1.0/ because the base
-       ends in a slash. Drop that slash and every candidate silently becomes
-       api.servicem8.com/Attachment/… — a 404 that reads as "no such endpoint"
-       and would end the whole media feature on a wrong answer. */
+  it("keeps the api_1.0 segment — a path from the root would eat it", () => {
+    /* A relative path only keeps /api_1.0/ because the base ends in a slash
+       and the path doesn't start with one. Start it with "/" and every
+       candidate becomes api.servicem8.com/Attachment/… — a 404 that reads as
+       "no such endpoint". The door refuses that outright now; the paths must
+       never need refusing. */
     for (const c of attachmentFileCandidates(UUID)) {
-      expect(c.url).toContain("/api_1.0/");
+      expect(c.path.startsWith("/")).toBe(false);
+      expect(sm8Url(c.path).pathname).toContain("/api_1.0/");
+    }
+  });
+
+  it("can't be walked out of the API by what the uuid says", () => {
+    for (const c of attachmentFileCandidates("../../../evil")) {
+      expect(() => sm8Url(c.path)).not.toThrow();
+      expect(sm8Url(c.path).pathname.startsWith("/api_1.0/")).toBe(true);
     }
   });
 });

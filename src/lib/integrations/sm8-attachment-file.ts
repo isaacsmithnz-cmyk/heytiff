@@ -23,16 +23,22 @@
    until the first bytes agree it is a file.
 
    CONTENT-LENGTH IS NOT TRUSTWORTHY — the live PDF came back with none at
-   all. The cap is enforced against the bytes actually received. */
+   all. The cap is enforced against the bytes actually received.
 
-import { SM8_API_BASE } from "./sm8";
+   THROUGH THE ONE DOOR (sm8-http), on the caller's lane — `read` for the job
+   card's files — so every download counts against the account's limit. A
+   turn the counter refuses, or ServiceM8's own 429, is `busy`: the batch
+   stops, and the rest come across the next time the job is opened. */
+
+import { sm8Request, type Sm8Call } from "./sm8-http";
 import { looksLikeFile, sniffFileKind } from "./sm8-attachment-probe";
 
 /** The shape that serves bytes. Verified live; see the header. */
 export const SM8_ATTACHMENT_FILE_SHAPE = "Attachment/{uuid}.file";
 
-export function attachmentFileUrl(uuid: string): string {
-  return new URL(`Attachment/${uuid}.file`, SM8_API_BASE).toString();
+/** The path, under the API base, that serves one attachment's bytes. */
+export function attachmentFilePath(uuid: string): string {
+  return `Attachment/${encodeURIComponent(uuid)}.file`;
 }
 
 /** Bigger than any photo the live account holds (the largest sampled was
@@ -44,24 +50,21 @@ const HTTP_TIMEOUT_MS = 45_000;
 
 export type Sm8FileResult =
   | { ok: true; bytes: Uint8Array; contentType: string; kind: string | null }
-  | { ok: false; reason: "unauthorized" | "gone" | "too_big" | "not_a_file" | "unavailable" };
+  | { ok: false; reason: "unauthorized" | "gone" | "too_big" | "not_a_file" | "busy" | "unavailable" };
 
 /** One attachment's bytes, or a reason we're not storing them. Never throws:
     a job with one bad file must still show its other twenty. */
-export async function fetchSm8AttachmentFile(
-  accessToken: string,
-  uuid: string
-): Promise<Sm8FileResult> {
+export async function fetchSm8AttachmentFile(call: Sm8Call, uuid: string): Promise<Sm8FileResult> {
   let res: Response;
   try {
-    res = await fetch(attachmentFileUrl(uuid), {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
-    });
+    const answer = await sm8Request(call, attachmentFilePath(uuid), { timeoutMs: HTTP_TIMEOUT_MS });
+    if (answer.kind === "throttled") return { ok: false, reason: "busy" };
+    res = answer.res;
   } catch {
     return { ok: false, reason: "unavailable" };
   }
 
+  if (res.status === 429) return { ok: false, reason: "busy" };
   if (res.status === 401) return { ok: false, reason: "unauthorized" };
   if (res.status === 403) return { ok: false, reason: "unauthorized" };
   if (res.status === 404 || res.status === 410) return { ok: false, reason: "gone" };

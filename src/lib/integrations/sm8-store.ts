@@ -458,7 +458,14 @@ export type Sm8Access = {
   tenantId: string | null;
   /** A fingerprint of the grant the token was issued under — see grantOf. */
   grant: string;
+  /** The call counter this token's requests take their turns from
+      (sm8-meter): the ServiceM8 account, whose limit it is, or the
+      workspace while the connection is nameless. */
+  meter: string;
 };
+
+/** The counter a connection's calls count against — see Sm8Access.meter. */
+export const sm8MeterOf = (orgId: string, tenantId: string | null): string => tenantId ?? `org:${orgId}`;
 
 export type Sm8AccessReason = "not_connected" | "reauth" | "unreachable";
 
@@ -512,13 +519,21 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 
 /** The access token a row already holds, if it is live and readable. */
 function storedAccess(
+  orgId: string,
   row: ConnectionRow,
   key: NonNullable<ReturnType<typeof tokenKey>>,
   at: number
 ): Sm8Access | null {
   if (row.status !== "connected" || !accessTokenUsable(row.expires_at, at)) return null;
   const accessToken = open(row.access_token_enc, key);
-  return accessToken ? { accessToken, tenantId: row.tenant_id, grant: grantOf(row.refresh_token_enc) } : null;
+  return accessToken
+    ? {
+        accessToken,
+        tenantId: row.tenant_id,
+        grant: grantOf(row.refresh_token_enc),
+        meter: sm8MeterOf(orgId, row.tenant_id),
+      }
+    : null;
 }
 
 /** A usable ServiceM8 access token for this org, refreshing first if the
@@ -543,7 +558,7 @@ export async function sm8AccessResult(orgId: string, now: number = Date.now()): 
   if (!key || !cfg) return NOT_CONNECTED;
 
   if (accessTokenUsable(row.expires_at, now)) {
-    const access = storedAccess(row, key, now);
+    const access = storedAccess(orgId, row, key, now);
     if (access) return { ok: true, access };
     // Sealed with a key we no longer hold — a refresh can't help.
     await flagRow(orgId, SM8_UNREADABLE, row.refresh_token_enc);
@@ -579,7 +594,7 @@ export async function renewSm8Access(
   if (!key || !cfg) return NOT_CONNECTED;
 
   if (grantOf(row.refresh_token_enc) !== rejected.grant) {
-    const newer = storedAccess(row, key, now);
+    const newer = storedAccess(orgId, row, key, now);
     if (newer && newer.accessToken !== rejected.accessToken) return { ok: true, access: newer };
   }
   return refreshOnce(orgId, row, key, cfg, now);
@@ -644,7 +659,7 @@ async function awaitSiblingRotation(
       if (latest.status === "needs_reauth") return REAUTH;
       continue;
     }
-    const access = storedAccess(latest, key, now + waited);
+    const access = storedAccess(orgId, latest, key, now + waited);
     return access ? { ok: true, access } : UNREACHABLE;
   }
   return UNREACHABLE;
@@ -695,7 +710,12 @@ async function refreshAndStore(
     if (error) console.error(`[sm8] couldn't store the rotated grant for org ${orgId}:`, error);
     return {
       ok: true,
-      access: { accessToken: fresh.tokens.accessToken, tenantId: row.tenant_id, grant: grantOf(sealedRefresh) },
+      access: {
+        accessToken: fresh.tokens.accessToken,
+        tenantId: row.tenant_id,
+        grant: grantOf(sealedRefresh),
+        meter: sm8MeterOf(orgId, row.tenant_id),
+      },
     };
   }
 
@@ -714,7 +734,7 @@ async function refreshAndStore(
   const latest = await readRow(orgId);
   if (!latest) return NOT_CONNECTED;
   if (latest.refresh_token_enc !== row.refresh_token_enc) {
-    const access = storedAccess(latest, key, now);
+    const access = storedAccess(orgId, latest, key, now);
     return access ? { ok: true, access } : UNREACHABLE;
   }
 

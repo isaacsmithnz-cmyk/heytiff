@@ -58,7 +58,7 @@ your local `.env.local`), scope = **Production** (and Preview if you want previe
 | `RESEND_API_KEY` | Resend key for the app's own mail — today that is the staff invitation. Optional: **unset, an invite is still created and still works**, and the Team page says the letter didn't go so you copy its link instead. The sending domain `mail.hey-tiff.com` is already verified (it is what Auth0's letters go through — `docs/auth0-branding.md`). Server-side only, never `NEXT_PUBLIC_`. |
 | `MAIL_FROM` | Overrides the sender on those letters. Optional — defaults to `HeyTiff <no-reply@mail.hey-tiff.com>`. Must be an address on a **verified** Resend domain, or every send is refused. |
 | `INTEGRATIONS_TOKEN_KEY` | 32-byte key that seals OAuth tokens before they reach the database. Required to connect anything — without it the Connect button is switched off rather than storing tokens in plaintext. |
-| `CRON_SECRET` | Guards the scheduled routes (`/api/cron/*`). **Vercel sets and sends this itself** once a `crons` entry exists in `vercel.json` — you only need to add it manually if you want to trigger a sweep by hand. **Unset ⇒ every cron request is refused** (fail-closed): the routes run with no session and service-role access, so the secret is the only gate. |
+| `CRON_SECRET` | Guards the scheduled routes (`/api/cron/*`). **You create it**: Vercel → Settings → Environment Variables, Production, a random string of at least 16 characters. Once it exists, Vercel sends it as `Authorization: Bearer <CRON_SECRET>` on every scheduled call. **Unset ⇒ every cron request is refused** (fail-closed): the routes run with no session and service-role access, so the secret is the only gate. |
 
 ---
 
@@ -115,8 +115,8 @@ It writes nothing to Xero and changes no wage. Adopting a rate is still a human
 tap. A side effect worth knowing: the weekly call keeps the refresh token from
 ever hitting Xero's 60-day idle expiry.
 
-Nothing to configure — Vercel manages `CRON_SECRET` itself. Apply
-`docs/migrations/integration_drift.sql` before merging.
+Set `CRON_SECRET` first (see the table above); without it every run is
+refused. Apply `docs/migrations/integration_drift.sql` before merging.
 
 ---
 
@@ -287,17 +287,64 @@ names it.
 run on the live one. A file sent to a job is visible to everyone who can open
 that job in ServiceM8.
 
+### Calls, echo and freshness
+
+Apply `docs/migrations/sm8_calls_echo_freshness.sql` **before the deploy that
+needs it** (the code on main never reads it; the new code runs without it,
+uncounted). **First run `docs/migrations/sm8_calls_echo_freshness.test.sql`
+whole**: it applies the call counter and the keep-newer guard inside one
+transaction, checks them, and ends in `ROLLBACK`, so it is safe against
+production. A check that fails raises and names what it saw. The migration's
+header lists the checks for after.
+
+- **One call counter per ServiceM8 account.** Every request to ServiceM8's
+  API takes a turn from it: at most about 140 calls in any minute (ServiceM8
+  allows 180), and each kind of caller stops at its own daily cap, under
+  ServiceM8's 20,000. The sync leaves the most room behind, so a person's
+  Send always finds some; when there is none the sync pauses ("Paused to
+  leave room in ServiceM8's call limit") and a file waits a minute ("Waiting
+  for room in ServiceM8's call limit"). A 429 from ServiceM8 holds every
+  caller for a minute, or an hour for the daily limit.
+- **A file HeyTiff sent shows once.** Its copy in the mirror is left off the
+  job card, the photo bank and the downloads, found by the uuid HeyTiff sent
+  it under.
+- **Opening Home refreshes ServiceM8**: what is waiting to go is sent, then a
+  stale mirror synced, all behind the page. So do the Workboard and the
+  ServiceM8 screen, and every press of Send, Retry failed files, Sync now or
+  switching sending on sends what is waiting behind its answer.
+- **A record edited mid-sync, or in April's repeated hour, is no longer
+  skipped**, and an older copy of a record never replaces a newer one. One
+  exception, once a year: a record edited in both passes of April's repeated
+  hour (2 to 3 am) can keep its first-pass copy until its next edit, because
+  the second pass's stamp reads as older and nothing in a stamp without a
+  zone tells the two apart.
+
 ### The daily mirror top-up
 
 `vercel.json` schedules `/api/cron/sm8-sync` for **20:00 UTC daily** — 6am on the
-east-coast AU clock, so the board is true before anyone starts.
+east-coast AU clock, so the board is true before anyone starts. It sends what
+is waiting to go to ServiceM8 first, then syncs.
 
 It is **daily, not hourly, because this project is on Vercel's Hobby tier**, which
 fails the deployment outright for any cron that would run more than once a day
 (`0 * * * *` is named in their docs as an example that does). That costs nothing:
-freshness is the page-load kick — opening the Workboard tops the mirrors up behind
-the response — and this run only covers the hours nobody is looking. On Pro, one
-line in `vercel.json` and one in the route header make it hourly.
+freshness comes from looking — opening Home, the Workboard or the ServiceM8
+screen tops ServiceM8 up behind the response — and this run only covers the
+hours nobody is looking. On Pro, one line in `vercel.json` and one in the route
+header make it hourly.
+
+It runs only once `CRON_SECRET` is set (section 3). **How to tell it ran.** The
+owner's ServiceM8 screen says *Last overnight sync* with its day and time, or
+*The overnight sync hasn't run.* Only Vercel's scheduled calls count, not one
+triggered by hand. Vercel → Settings → Cron Jobs → View Logs lists each call; a
+401 there means `CRON_SECRET` is missing or different. On Hobby the run can land
+anywhere in the 20:00 UTC hour, and Vercel says a night can occasionally be
+missed or run twice.
+
+**Phase 0 isn't finished until the overnight run is proven:** set `CRON_SECRET`
+in Vercel Production, redeploy, and after the next 20:00 UTC hour see a 200 for
+`/api/cron/sm8-sync` in the cron logs and *Last overnight sync* on the ServiceM8
+screen. Until then the overnight top-up does nothing at all.
 
 ---
 

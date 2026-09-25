@@ -30,6 +30,8 @@ let plateRows: { sm8_attachment_uuid: string }[] = [];
 let readingFilters: [string, unknown][] = [];
 /** Which sm8_job_uuids the documents read was scoped to. */
 let documentsScopedTo: string[] | null = null;
+/** HeyTiff's own writes to ServiceM8, as the echo read finds them. */
+let writeRows: Record<string, unknown>[] = [];
 
 const table = (name: string) => {
   const chain: Record<string, unknown> = {};
@@ -46,6 +48,7 @@ const table = (name: string) => {
     if (name === "documents" && col === "sm8_job_uuid") documentsScopedTo = vals;
     return chain;
   };
+  chain.or = async () => ({ data: name === "sm8_writes" ? writeRows : [], error: null });
   chain.limit = async () =>
     name === "documents" ? { data: docRows, error: null } : { data: [], error: null };
   chain.maybeSingle = async () => ({ data: null, error: null });
@@ -142,6 +145,7 @@ beforeEach(() => {
   plateRows = [];
   readingFilters = [];
   documentsScopedTo = null;
+  writeRows = [];
 });
 
 /* ── the claims' photos are the job's photos ── */
@@ -315,4 +319,19 @@ it("does not re-read anything on the ordinary bank pass", async () => {
 
   expect(res.read).toBe(0);
   expect(messagesCreate).not.toHaveBeenCalled();
+});
+
+/* ── HeyTiff's own file, mirrored back ── */
+
+/* A photo HeyTiff sent to ServiceM8 comes back as one of ServiceM8's, and
+   the bank would pay to read it as a photograph from site. It is the
+   business's own file: never read. */
+it("never reads a file HeyTiff sent itself", async () => {
+  const ours = "7d3f2c1e-5b6a-4c8d-9e0f-1a2b3c4d5e6f";
+  const theirs = "0b1c2d3e-4f50-4617-8829-3a4b5c6d7e8f";
+  docRows = [doc({ id: "d-1", remote_ref: ours }), doc({ id: "d-2", remote_ref: theirs })];
+  writeRows = [{ remote_uuid: ours, replaced_uuids: [] }];
+  const res = await readJobPhotos("job-1");
+  expect(res.read).toBe(1);
+  expect(upsert.mock.calls.map((c) => c[0].sm8_attachment_uuid)).toEqual([theirs]);
 });

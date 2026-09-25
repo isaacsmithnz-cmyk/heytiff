@@ -14,13 +14,14 @@
    PURE ON PURPOSE: the candidate list and the magic-number sniff are the parts
    worth pinning in a test. Everything that touches the network lives in the
    route, so the shapes we tried are recorded here even after the probe has
-   served its purpose and the answer is a one-line constant. */
+   served its purpose and the answer is a one-line constant.
 
-import { SM8_API_BASE } from "./sm8";
+   The candidates are PATHS under the API base, not addresses: the route asks
+   through the one door (sm8-http), which resolves and checks them. */
 
 /** A path shape worth trying, newest guess LAST — the list is walked in order
     and the first 2xx wins, so the documented-by-analogy shape goes first. */
-export type Sm8FileCandidate = { shape: string; url: string };
+export type Sm8FileCandidate = { shape: string; path: string };
 
 /** The three ways ServiceM8's own surface suggests the bytes might be named.
 
@@ -34,10 +35,11 @@ export type Sm8FileCandidate = { shape: string; url: string };
        already pinned in sm8-sync-plan's tests, so the bytes may follow the
        `dbo` side rather than the plain one. */
 export function attachmentFileCandidates(uuid: string): Sm8FileCandidate[] {
+  const id = encodeURIComponent(uuid);
   return [
-    { shape: "Attachment/{uuid}.file", url: new URL(`Attachment/${uuid}.file`, SM8_API_BASE).toString() },
-    { shape: "attachment/{uuid}.file", url: new URL(`attachment/${uuid}.file`, SM8_API_BASE).toString() },
-    { shape: "dboattachment/{uuid}.file", url: new URL(`dboattachment/${uuid}.file`, SM8_API_BASE).toString() },
+    { shape: "Attachment/{uuid}.file", path: `Attachment/${id}.file` },
+    { shape: "attachment/{uuid}.file", path: `attachment/${id}.file` },
+    { shape: "dboattachment/{uuid}.file", path: `dboattachment/${id}.file` },
   ];
 }
 

@@ -4,6 +4,7 @@ import {
   looksLikeFile,
   sniffFileKind,
 } from "@/lib/integrations/sm8-attachment-probe";
+import { sm8CallOf, sm8Request, type Sm8Call } from "@/lib/integrations/sm8-http";
 import { sm8Access } from "@/lib/integrations/sm8-store";
 import { supabaseAdmin } from "@/lib/supabase-server";
 
@@ -96,7 +97,7 @@ export async function GET(request: Request) {
   for (const subject of subjects) {
     const candidates: CandidateResult[] = [];
     for (const candidate of attachmentFileCandidates(subject.uuid)) {
-      const outcome = await tryCandidate(candidate.url, access.accessToken);
+      const outcome = await tryCandidate(candidate.path, sm8CallOf(access, "read"));
       candidates.push({ shape: candidate.shape, ...outcome });
       // First shape that serves a real file settles it for this subject —
       // no reason to spend two more calls proving the others don't.
@@ -162,15 +163,20 @@ export async function GET(request: Request) {
   }
 }
 
-async function tryCandidate(
-  url: string,
-  accessToken: string
-): Promise<Omit<CandidateResult, "shape">> {
+async function tryCandidate(path: string, call: Sm8Call): Promise<Omit<CandidateResult, "shape">> {
   try {
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
-    });
+    const answer = await sm8Request(call, path, { timeoutMs: HTTP_TIMEOUT_MS });
+    if (answer.kind === "throttled") {
+      return {
+        status: 0,
+        ok: false,
+        redirectedTo: null,
+        contentType: null,
+        contentLength: null,
+        error: "ServiceM8's call limit for this account had no room — try again in a minute.",
+      };
+    }
+    const res = answer.res;
 
     const base = {
       status: res.status,
@@ -186,7 +192,7 @@ async function tryCandidate(
       // The vendor's own error text is the diagnosis when a shape is refused —
       // truncated, and it never travels with the token.
       const detail = await res.text().catch(() => "<unreadable body>");
-      console.error(`[sm8] attachment probe ${res.status} at ${url}: ${detail.slice(0, 300)}`);
+      console.error(`[sm8] attachment probe ${res.status} at ${path}: ${detail.slice(0, 300)}`);
       return base;
     }
 

@@ -35,12 +35,21 @@
      still holds the row (claim_id), so a slow sender whose row was taken
      over can't write over the answer the other one recorded.
 
+   - EVERY PRESS DRAINS. A press action (Send, Retry failed files, Sync
+     now, switching sending on) ends with drainSm8WritesAfterResponse
+     (sm8-drain.ts), which sends whatever is due behind the answer, and so
+     must every press action written after these: without it a file that
+     met a busy ServiceM8 waits for the next page load. Opening Home, the
+     Workboard or the ServiceM8 screen does the same (sm8-freshness.ts).
+   - EVERY REQUEST COUNTS. The upload, the read-back after a 409 and the
+     check before a re-press all go through sm8-http on lane `write`, and a
+     turn the account's counter refuses hands the attempt back (`ours`).
+
    Sending needs no session: the caller establishes the right to ask (the
    card's action, an owner's action, CRON_SECRET, or a page loader that
    already gated the org) and hands in a bare orgId. Queueing needs a press. */
 
 import { randomUUID } from "node:crypto";
-import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { refIsOrgs } from "@/lib/documents/files";
@@ -48,10 +57,10 @@ import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
 import { isSm8Press, type Sm8Press } from "./sm8-press";
 import { sm8AccessResult, type Sm8Access } from "./sm8-store";
 import { withSm8Renewal } from "./sm8-renew";
+import { sm8CallOf } from "./sm8-http";
 import { cancelWaitingSm8Writes, countWaitingSm8Writes, type CancelledWrite } from "./sm8-write-cancel";
 import { postSm8Attachment, readSm8Attachment } from "./sm8-write";
 import {
-  backgroundBudgetMs,
   capAllows,
   dedupeKey,
   documentSubject,
@@ -947,7 +956,7 @@ async function postOne(
   const wrong = tokenMismatch(row, access);
   if (wrong) return wrong;
 
-  const res = await postSm8Attachment(access.accessToken, {
+  const res = await postSm8Attachment(sm8CallOf(access, "write"), {
     jobUuid: r.jobUuid,
     uuid: row.remote_uuid,
     fileName: r.payload.name,
@@ -962,8 +971,12 @@ async function postOne(
        it is on this job and inactive (an upload that failed half way — that
        uuid can't be finished, so the file goes again under a new one); and
        anything else is a conflict that isn't ours to call sent. */
-    const check = await readSm8Attachment(access.accessToken, row.remote_uuid);
-    if (!check.ok) outcome = { kind: "unavailable", status: null };
+    const check = await readSm8Attachment(sm8CallOf(access, "write"), row.remote_uuid);
+    /* a read-back the account's limit had no room for is handed back, not
+       spent, and waits what the limit asks: the record under our uuid is
+       still there to confirm next time */
+    if (!check.ok && check.limited) outcome = check.limited;
+    else if (!check.ok) outcome = { kind: "unavailable", status: null };
     else if (!check.found) outcome = { kind: "unavailable", status: 409 };
     else if (check.jobUuid !== row.sm8_job_uuid) outcome = { kind: "rejected", status: 409 };
     else if (!check.active) outcome = { kind: "dead_record" };
@@ -976,7 +989,7 @@ async function postOne(
       : undefined;
   /* the upload went and nothing trustworthy came back: no answer, a 408 or
      a 5xx, or a 409 whose record couldn't be read back */
-  const uploadLost = outcome.kind === "unavailable";
+  const uploadLost = outcome.kind === "unavailable" || (res.status === 409 && outcome.kind === "rate_limited");
   return { ...fromVerdict(v, res.status), remoteUuid: theirs, remote: res.remote ?? null, uploadLost };
 }
 
@@ -1026,9 +1039,12 @@ async function sendOne(
     if (wrong) return { finish: wrong, access };
     let left = [...toCheck];
     for (const uuid of toCheck) {
-      const check = await readSm8Attachment(live.accessToken, uuid);
+      const check = await readSm8Attachment(sm8CallOf(live, "write"), uuid);
       if (!check.ok) {
-        const unread = fromVerdict(verdictFor({ kind: "unavailable", status: null }, attempts, ctx()));
+        /* the account's limit had no room: handed back for as long as the
+           limit asks, the check kept for next time; any other failed read
+           spends the attempt as before */
+        const unread = fromVerdict(verdictFor(check.limited ?? { kind: "unavailable", status: null }, attempts, ctx()));
         return { finish: { ...unread, verifyUuids: left }, access };
       }
       if (check.found && check.active && check.jobUuid === row.sm8_job_uuid) {
@@ -1227,39 +1243,35 @@ async function switchMoved(orgId: string, was: Sm8WriteState): Promise<Sm8WriteS
   return is;
 }
 
-/* ── kicks ── */
+/* ── what is due ── */
 
-/** Schedule a sender after the response when something is due — the
-    page-load path, beside kickSm8SyncIfStale. The check is one indexed
-    row; the send runs in after(), so nobody's page waits on ServiceM8.
-
-    THE RUN HAS A BUDGET, from the time the page's function has left
-    (backgroundBudgetMs, counted from this call): unbounded, ten slow sends
-    could outlive the function and be cut off mid-upload. */
-export async function kickSm8WritesIfDue(orgId: string, now: number = Date.now()): Promise<void> {
-  if (!sm8WritesEnabled()) return;
-  const { data } = await supabaseAdmin
+/** Whether anything of a kind this deployment writes is due to go for one
+    workspace — the page-load check (sm8-freshness), one indexed row. False
+    on a deployment that writes nothing, and when the queue can't be read. */
+export async function sm8WritesDue(orgId: string, now: number = Date.now()): Promise<boolean> {
+  const kinds = sm8WriteKindsEnabled();
+  if (kinds.length === 0) return false;
+  const { data, error } = await supabaseAdmin
     .from(TABLE)
     .select("id")
     .eq("org_id", orgId)
+    .in("kind", kinds)
     .in("status", ["queued", "sending"])
     .lte("next_attempt_at", new Date(now).toISOString())
     .limit(1);
-  if ((data ?? []).length === 0) return;
-  after(async () => {
-    const budgetMs = backgroundBudgetMs(now, Date.now());
-    if (budgetMs <= 0) return;
-    await runSm8Writes(orgId, "kick", { budgetMs }).catch(() => {});
-  });
+  if (error) return false;
+  return (data ?? []).length > 0;
 }
 
 /** Workspaces with something due, longest-waiting first — the nightly
     cron's list, for the hours nobody opens the board. */
 export async function orgsWithDueSm8Writes(limit: number, now: number = Date.now()): Promise<string[]> {
-  if (!sm8WritesEnabled()) return [];
+  const kinds = sm8WriteKindsEnabled();
+  if (kinds.length === 0) return [];
   const { data } = await supabaseAdmin
     .from(TABLE)
     .select("org_id")
+    .in("kind", kinds)
     .in("status", ["queued", "sending"])
     .lte("next_attempt_at", new Date(now).toISOString())
     .order("next_attempt_at", { ascending: true })

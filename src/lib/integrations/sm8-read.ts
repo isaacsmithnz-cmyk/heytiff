@@ -11,9 +11,15 @@
 
    NO SESSION HERE — callers establish the right to ask (the page behind its
    owner gate, the cron behind CRON_SECRET) and hand in a bare orgId or a
-   bare access token. */
+   call (a token, the account's counter and a lane).
 
-import { fetchSm8Vendor, SM8_API_BASE, sm8Config, type Sm8Vendor } from "./sm8";
+   EVERY REQUEST GOES THROUGH THE ONE DOOR (sm8-http), which counts it
+   against the account's limit. A turn the counter refuses is `throttled`,
+   and no request was made: the screens say ServiceM8 is busy, the sync
+   pauses. */
+
+import { fetchSm8Vendor, sm8Config, type Sm8Vendor } from "./sm8";
+import { sm8BusyOf, sm8CallOf, sm8Request, type Sm8Busy, type Sm8Call } from "./sm8-http";
 import { sm8AccessResult, type Sm8AccessResult } from "./sm8-store";
 import { withSm8Renewal, type RenewVerdict } from "./sm8-renew";
 import { SM8_BILLING } from "./sm8-sync-plan";
@@ -24,6 +30,11 @@ const HTTP_TIMEOUT_MS = 10_000;
 const NOT_CONNECTED = "ServiceM8 isn't connected for this workspace.";
 const UNAVAILABLE = "ServiceM8 couldn't be reached just now. Try again shortly.";
 const REAUTH = "The ServiceM8 connection needs reconnecting.";
+/** The account's call limit had no room for this read. */
+export const BUSY = "ServiceM8 is busy for this account. Try again in a minute.";
+/** ...and the limit with no room is a daily one: the counter's day cap, or
+    ServiceM8's daily limit, whose cooldown is an hour, not a minute. */
+export const BUSY_DAY = "ServiceM8's daily limit for this account is used up. Try again after it resets.";
 
 /** Why there was no token to read with, as the screen's sentence: a refresh
     that couldn't reach ServiceM8 is "try again shortly", never "reconnect". */
@@ -56,7 +67,7 @@ export async function readSm8Vendor(orgId: string): Promise<ReadResult<Sm8Vendor
   const read = await withSm8Renewal(
     orgId,
     got.access,
-    (a) => fetchSm8Vendor(a.accessToken),
+    (a) => fetchSm8Vendor(sm8CallOf(a, "read")),
     (r) => !r.ok && r.unauthorized
   );
   const ended = renewalEnded(read.verdict);
@@ -68,6 +79,7 @@ export async function readSm8Vendor(orgId: string): Promise<ReadResult<Sm8Vendor
      reconnect a healthy connection sends them round a loop that cannot fix a
      billing state. */
   if (result.paymentRequired) return { ok: false, error: SM8_BILLING };
+  if (result.throttled) return { ok: false, error: result.daily ? BUSY_DAY : BUSY };
   return { ok: false, error: UNAVAILABLE };
 }
 
@@ -100,7 +112,7 @@ export async function readSm8StaffRows(
     const read = await withSm8Renewal(
       orgId,
       access,
-      (a) => fetchSm8Page(a.accessToken, "staff.json", { cursor, filter: null }),
+      (a) => fetchSm8Page(sm8CallOf(a, "read"), "staff.json", { cursor, filter: null }),
       (p) => !p.ok && p.failure === "unauthorized"
     );
     access = read.access;
@@ -110,6 +122,9 @@ export async function readSm8StaffRows(
     if (!page.ok) {
       if (page.failure === "forbidden") return { ok: false, error: STAFF_SCOPE };
       if (page.failure === "payment_required") return { ok: false, error: SM8_BILLING };
+      if (page.failure === "throttled" || page.failure === "rate_limited") {
+        return { ok: false, error: page.busy?.day ? BUSY_DAY : BUSY };
+      }
       return { ok: false, error: UNAVAILABLE };
     }
     rows.push(...page.rows);
@@ -152,34 +167,40 @@ export type Sm8PageFailure =
   | "forbidden"
   | "payment_required"
   | "rate_limited"
+  | "throttled"
   | "unavailable";
 
 export type Sm8Page =
   | { ok: true; rows: Record<string, unknown>[]; nextCursor: string | null }
-  | { ok: false; failure: Sm8PageFailure };
+  /** `called: false` — no request reached ServiceM8 (the counter refused the
+      turn), so a caller counting its calls doesn't count this one. `busy`,
+      on `throttled` and `rate_limited`: how long the account's limit asks
+      callers to hold off, and whether it is a daily limit. */
+  | { ok: false; failure: Sm8PageFailure; called?: false; busy?: Sm8Busy };
 
 /** One page of one object: up to 1000 rows plus the x-next-cursor header
-    that names the next page (absent = walk complete). The five failure kinds
-    are the five different DECISIONS the engine makes — dead grant, missing
-    scope, the account can't be billed, back off, try later — so they come back
-    as data, not sentences.
+    that names the next page (absent = walk complete). The failure kinds are
+    the different DECISIONS the engine makes — dead grant, missing scope, the
+    account can't be billed, ServiceM8 said back off, the account's own
+    counter had no room, try later — so they come back as data, not
+    sentences.
 
     `timeoutMs` shortens the wait for a caller that holds a clock of its
     own — the sender reading one attachment back under its row's claim. */
 export async function fetchSm8Page(
-  accessToken: string,
+  call: Sm8Call,
   endpoint: string,
   opts: { cursor: string; filter: string | null; timeoutMs?: number }
 ): Promise<Sm8Page> {
-  const url = new URL(endpoint, SM8_API_BASE);
-  url.searchParams.set("cursor", opts.cursor);
-  if (opts.filter) url.searchParams.set("$filter", opts.filter);
+  const query: Record<string, string> = { cursor: opts.cursor };
+  if (opts.filter) query.$filter = opts.filter;
 
   try {
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      signal: AbortSignal.timeout(opts.timeoutMs ?? HTTP_TIMEOUT_MS),
-    });
+    const answer = await sm8Request(call, endpoint, { query, timeoutMs: opts.timeoutMs ?? HTTP_TIMEOUT_MS });
+    if (answer.kind === "throttled") {
+      return { ok: false, failure: "throttled", called: false, busy: sm8BusyOf(answer) ?? undefined };
+    }
+    const res = answer.res;
     if (res.status === 401) return { ok: false, failure: "unauthorized" };
     if (res.status === 403) {
       /* The engine words this one ("Reconnect ServiceM8 to grant X") — but a
@@ -192,7 +213,7 @@ export async function fetchSm8Page(
       return { ok: false, failure: "forbidden" };
     }
     if (res.status === 402) return { ok: false, failure: "payment_required" };
-    if (res.status === 429) return { ok: false, failure: "rate_limited" };
+    if (res.status === 429) return { ok: false, failure: "rate_limited", busy: sm8BusyOf(answer) ?? undefined };
     if (!res.ok) {
       await logSm8Failure(`GET ${endpoint}`, res);
       return { ok: false, failure: "unavailable" };

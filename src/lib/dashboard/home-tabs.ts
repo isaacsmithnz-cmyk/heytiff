@@ -1,4 +1,4 @@
-/* The four faces of Home, and the number on them.
+/* The three faces of Home, and the number on them.
 
    It was six — Journal, Urgent, Needs attention, Noticeboard, Tasks,
    Calendar — and four of those were lists of things that already have a whole
@@ -7,25 +7,27 @@
    itself. Urgent and Needs attention are now chips in the page head pointing
    at /dashboard/action-required, and the Noticeboard chip at
    /dashboard/notices. What is left is what Home is FOR (Isaac, 2026-08-30):
-   the record, the work you owe, the conversation that produces both — and the
-   month ahead.
+   the record, the work you owe — and the month ahead.
 
    THE CALENDAR CAME BACK as the fourth (Isaac, 2026-08-30) — as a list, not
    the grid it was, and it is where being off lives now. Four weeks read
    downward answers "who is off, from here on"; the grid answered "what does
    this fortnight look like", which is a question this screen never asks.
 
+   THE DEBRIEF WENT (Isaac, 2026-09-25: "remove the debrief section.
+   Entirely."). It was a room with one button in it, asking the whole day at
+   once; the diary, the tasks and the Tiff button already take the same words
+   one thought at a time, so the room left and its dot with it.
+
    THE BADGE IS THE GLANCE, and Tasks is the only face that can want you.
    Overdue takes red because red on this app means "something is wrong" and a
    task past its date is exactly that; with nothing overdue the same badge
    falls back to the plain count, which is work rather than a state. Diary is
-   where you land, so a number on it counts what you are already reading;
-   Debrief is a door to a conversation, and a count on a conversation is not a
-   thing that exists. */
+   where you land, so a number on it counts what you are already reading. */
 
 import type { ViewTab } from "@/components/shell/view-tabs";
 
-export type HomeTabKey = "diary" | "tasks" | "debrief" | "calendar";
+export type HomeTabKey = "diary" | "tasks" | "calendar";
 
 /** Diary leads: you land on what you told Tiff, with the day beside it. */
 export const DEFAULT_TAB: HomeTabKey = "diary";
@@ -35,8 +37,6 @@ export function homeTabs(input: {
   openTasks: number;
   /** How many of those are past their date. */
   overdueTasks: number;
-  /** Has anything been filed today? The debrief wears a dot until it has. */
-  debriefedToday?: boolean;
 }): ViewTab[] {
   const overdue = input.overdueTasks > 0;
   return [
@@ -52,18 +52,6 @@ export function homeTabs(input: {
       countLabel: overdue
         ? (n) => `${n} past ${n === 1 ? "its date" : "their date"}`
         : (n) => `${n} open`,
-    },
-    {
-      /* No badge, ever. The debrief is a conversation you either had or
-         haven't; "1" would be a number on the door of a room, and the room
-         itself says which of the day's three questions it is asking. */
-      key: "debrief",
-      label: "Debrief",
-      /* NOT a count — a state. See ViewTab.dot: the debrief is had or it
-         isn't, and the dot goes out the moment something lands in today's
-         record. */
-      dot: !input.debriefedToday,
-      dotLabel: "nothing filed today yet",
     },
     {
       /* No badge either, and for a reason worth keeping: a number here would

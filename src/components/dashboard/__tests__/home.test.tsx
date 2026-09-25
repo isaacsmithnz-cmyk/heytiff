@@ -8,17 +8,15 @@ import type { JournalEntry } from "@/lib/dashboard/journal";
 import type { ScheduleBlock } from "@/lib/workboard/schedule";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 
-/* Home as one card with three rooms: the day across the top, a rail of four
+/* Home as one card with three rooms: the day across the top, a rail of three
    faces, the face's list, and the page the chosen row opens onto.
 
    The capture controls reach the note flow and its server actions, and
-   "use server" modules cannot be imported into jsdom. Stubbed by posture so
-   this suite stays about the page; each control has its own suite. */
+   "use server" modules cannot be imported into jsdom. Stubbed so this suite
+   stays about the page; each control has its own suite. */
 jest.mock("@/components/notes/note-token", () => ({
-  NoteToken: ({ as, cta, placeholder }: { as: string; cta?: string; placeholder?: string }) => (
-    <button aria-label={as === "debrief" ? "Debrief" : (placeholder ?? "Add to the diary…")}>
-      {cta}
-    </button>
+  NoteToken: ({ placeholder }: { placeholder?: string }) => (
+    <button aria-label={placeholder ?? "Add to the diary…"} />
   ),
 }));
 const push = jest.fn();
@@ -160,7 +158,6 @@ const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   viewerStaffId: "s1",
   today: TODAY,
   rail: rail(),
-  phase: "midday",
   ...over,
 });
 
@@ -182,7 +179,7 @@ describe("the card", () => {
     const user = userEvent.setup();
     draw();
     const shown = () =>
-      ["diary", "tasks", "debrief", "calendar"].filter((k) => !panel(k).hasAttribute("hidden"));
+      ["diary", "tasks", "calendar"].filter((k) => !panel(k).hasAttribute("hidden"));
     expect(shown()).toEqual(["diary"]);
     await user.click(tab(/^Tasks/));
     expect(shown()).toEqual(["tasks"]);
@@ -194,7 +191,7 @@ describe("the card", () => {
     draw();
     const list = screen.getByRole("tablist", { name: "Home" });
     expect(list).toHaveAttribute("aria-orientation", "vertical");
-    for (const key of ["diary", "tasks", "debrief", "calendar"]) {
+    for (const key of ["diary", "tasks", "calendar"]) {
       const t = document.getElementById(`hmtab-${key}`)!;
       expect(t).toHaveAttribute("aria-controls", `hmsec-${key}`);
       expect(panel(key)).toHaveAttribute("aria-labelledby", `hmtab-${key}`);
@@ -289,27 +286,30 @@ describe("the page head", () => {
   });
 });
 
-describe("the debrief", () => {
-  it("keeps only the debriefs — not the whole diary", async () => {
-    const user = userEvent.setup();
+describe("the debrief is gone", () => {
+  /* Isaac, 2026-09-25: "remove the debrief section. Entirely." Everyone loses
+     the tab: no face, no dot, no button, and a debrief filed before today is
+     an ordinary diary entry, read where every other entry is. */
+  it("has three faces on the rail, and none of them is the Debrief", () => {
+    draw({ journal: [entry({ said: "Long day, two callouts.", isDebrief: true })] });
+    const tabs = within(screen.getByRole("tablist", { name: "Home" })).getAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual(["Diary", "Tasks", "Calendar"]);
+    expect(document.getElementById("hmtab-debrief")).toBeNull();
+    expect(document.getElementById("hmsec-debrief")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/debrief/i);
+    expect(screen.queryByRole("button", { name: /debrief/i })).toBeNull();
+    expect(document.querySelector(".hm-rldot")).toBeNull();
+  });
+
+  it("keeps a debrief filed before today in the diary, with every other entry", () => {
     draw({
       journal: [
         entry({ id: "j1", said: "Board corroded, replaced it.", isDebrief: false }),
         entry({ id: "j2", said: "Long day, two callouts.", at: "5:02 pm", isDebrief: true }),
       ],
     });
-    await user.click(tab(/^Debrief/));
-    const face = panel("debrief");
-    expect(face.textContent).toContain("Long day, two callouts.");
-    expect(face.textContent).not.toContain("Board corroded");
-  });
-
-  it("wears a dot until something is in today's record, then takes it off", () => {
-    draw({ journal: [] });
-    expect(tab(/^Debrief/).querySelector(".hm-rldot")).not.toBeNull();
-    cleanup();
-    draw({ journal: [entry()] });
-    expect(tab(/^Debrief/).querySelector(".hm-rldot")).toBeNull();
+    expect(panel("diary").textContent).toContain("Long day, two callouts.");
+    expect(panel("diary").textContent).toContain("Board corroded");
   });
 });
 

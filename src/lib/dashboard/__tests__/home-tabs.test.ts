@@ -12,9 +12,16 @@ import { homeTabs } from "../home-tabs";
 const by = (tabs: ReturnType<typeof homeTabs>, key: string) => tabs.find((t) => t.key === key)!;
 
 describe("homeTabs", () => {
-  it("is Diary, Tasks, Debrief, Calendar — in that order, Diary first", () => {
+  it("is Diary, Tasks, Calendar — in that order, Diary first", () => {
     const tabs = homeTabs({ openTasks: 0, overdueTasks: 0 });
-    expect(tabs.map((t) => t.key)).toEqual(["diary", "tasks", "debrief", "calendar"]);
+    expect(tabs.map((t) => t.key)).toEqual(["diary", "tasks", "calendar"]);
+  });
+
+  it("has no Debrief — the room went, and its dot with it", () => {
+    /* Isaac, 2026-09-25: "remove the debrief section. Entirely." */
+    const tabs = homeTabs({ openTasks: 0, overdueTasks: 0 });
+    expect(tabs.map((t) => t.label)).not.toContain("Debrief");
+    expect(tabs.some((t) => "dot" in t)).toBe(false);
   });
 
   it("counts the viewer's open tasks", () => {
@@ -44,28 +51,13 @@ describe("homeTabs", () => {
     expect(tabs.every((t) => !t.count)).toBe(true);
   });
 
-  it("dots the Debrief until something has been filed today", () => {
-    /* A state, not a count: the debrief is had or it isn't, and "1" would be
-       a number on a conversation. The dot is teal — not writing yet today is
-       not something being wrong. */
-    const fresh = homeTabs({ openTasks: 0, overdueTasks: 0, debriefedToday: false });
-    expect(by(fresh, "debrief").dot).toBe(true);
-    expect(by(fresh, "debrief").count).toBeUndefined();
-
-    const filed = homeTabs({ openTasks: 0, overdueTasks: 0, debriefedToday: true });
-    expect(by(filed, "debrief").dot).toBe(false);
-  });
-
-  it("never badges Diary, Debrief or Calendar, whatever else is going on", () => {
+  it("never badges Diary or Calendar, whatever else is going on", () => {
     /* Diary is where you land, so a number on it counts what you are already
-       reading. Debrief is a door to a conversation, and a count on a
-       conversation is not a thing that exists. A number on Calendar would
-       count people being off, which is not something that needs you — and
-       red or amber there would make leave look like a problem. */
+       reading. A number on Calendar would count people being off, which is
+       not something that needs you — and red or amber there would make leave
+       look like a problem. */
     const tabs = homeTabs({ openTasks: 9, overdueTasks: 4 });
     expect(by(tabs, "diary").count).toBeUndefined();
-    expect(by(tabs, "debrief").count).toBeUndefined();
-    expect(by(tabs, "debrief").tone).toBeUndefined();
     expect(by(tabs, "calendar").count).toBeUndefined();
     expect(by(tabs, "calendar").tone).toBeUndefined();
   });

@@ -5,13 +5,11 @@ import { NoteScopeProvider } from "../note-context";
 
 /* THE DIARY'S OWN WAY IN.
 
-   Home's record used to carry the debrief bar at its head — the one control
-   on the panel, and the wrong one: a debrief asks for the whole day, while
-   the thing a record is missing is a way to add ONE line to it from where you
-   are reading. This posture is that row, and what matters about it is that it
-   is the same capture flow with the debrief flag DROPPED: a single thought
-   gets read as a single note, which is what lets it land on a job or ask you
-   a question back.
+   A record needs a way to add ONE line to it from where you are reading.
+   This posture is that row, and it is the same capture flow as every other
+   door: a single thought gets read as a single note, which is what lets it
+   land on a job or ask you a question back. (Home's record once carried the
+   Debrief's bar at its head instead; the Debrief went on 2026-09-25.)
 
    The mic is a second button rather than a glyph on the first, because it
    does a different thing: `flow.talk()` opens the microphone with the card,
@@ -36,23 +34,22 @@ const mount = (voiceEnabled = true) =>
   );
 
 describe("the diary entry row", () => {
-  it("invites a line rather than announcing a debrief", () => {
+  it("invites a line", () => {
     mount();
     expect(screen.getByRole("button", { name: /Add to the diary/ })).toBeInTheDocument();
-    expect(screen.queryByText("Debrief the day")).toBeNull();
   });
 
-  it("opens the capture card in place, and it is NOT a debrief", async () => {
-    /* Same card the debrief opens — `wb2-capcard` carries every fill and
-       button skin — but the ribbon says the ordinary thing, because a debrief
-       ribbon here would promise a whole-day sort this row never asked for. */
+  it("opens the capture card in place, saying the ordinary thing", async () => {
+    /* `wb2-capcard` carries every fill and button skin, and the ribbon says
+       what the Tiff button says: every door routes questions as readily as
+       notes. */
     const user = userEvent.setup();
     const { container } = mount();
     await user.click(screen.getByRole("button", { name: /Add to the diary/ }));
 
     expect(container.querySelector(".wb2-capcard")).not.toBeNull();
     expect(screen.getByLabelText("Add to the diary")).toBeInTheDocument();
-    expect(screen.queryByText("Tasks, knowledge & your notes")).toBeNull();
+    expect(screen.getByText("Ask or tell Tiff")).toBeInTheDocument();
   });
 
   it("offers the microphone as its own control", () => {

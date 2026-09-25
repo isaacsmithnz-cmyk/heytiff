@@ -23,7 +23,7 @@ import { READING_BACK_NOTE } from "../waits";
 
      3. THE CARD WENT WHITE AT THE REVIEW. Capture was dusk and checking was
         a light surface; one flow, two grounds, and the review has had dark
-        clothes since the debrief card needed them.
+        clothes since the in-page card needed them.
 
    These drive the REAL dictation engine against a microphone that never
    opens, because the gap in (1) only exists in the real one — a mocked

@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react";
 import { HomeDayBand } from "./home-day-band";
-import { HomeDebrief } from "./home-debrief";
 import { HomeDiary } from "./home-diary";
 import { HomeCalendarFace } from "./home-calendar-face";
 import { HomeRailNav } from "./home-rail-nav";
@@ -15,7 +14,7 @@ import type { DashboardData } from "@/lib/dashboard/page-data";
 
 /* HOME — one card, three rooms.
 
-   The day across the top; under it a rail of the four faces, the list the
+   The day across the top; under it a rail of the three faces, the list the
    face holds, and the page the chosen row opens onto. That is the
    three-room handoff of 2026-09-14, redrawn to the ink-and-paper laws (see
    docs/design.md). It replaced the desk — a day rail down the left beside a
@@ -49,7 +48,6 @@ export function DashboardHome({ data }: { data: DashboardData }) {
     viewerStaffId,
     today,
     rail,
-    phase,
   } = data;
 
   const [tab, setTab] = useState<HomeTabKey>(DEFAULT_TAB);
@@ -90,15 +88,9 @@ export function DashboardHome({ data }: { data: DashboardData }) {
      groups on. */
   const overdue = tasks.mine.filter((t) => t.dueDate !== null && t.dueDate < today).length;
 
-  /* The dot goes out the moment anything lands in today's record — the
-     debrief is one way to file, and a note typed straight into the diary is
-     another. Both count as "you have told it something today". */
-  const debriefedToday = journal.some((e) => e.day === today);
-
   const tabs = homeTabs({
     openTasks: tasks.mine.length,
     overdueTasks: overdue,
-    debriefedToday,
   });
 
   const panel = (key: HomeTabKey, shape: "two" | "one", body: React.ReactNode) => (
@@ -166,20 +158,6 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                   onOpenEntry={openEntry}
                   focusTaskId={focusTask}
                   onFocusHandled={clearFocusTask}
-                />,
-              )}
-
-              {panel(
-                "debrief",
-                "one",
-                <HomeDebrief
-                  phase={phase}
-                  /* Filtered here rather than loaded separately: the journal
-                     is already in hand (60 entries, whole history), so the
-                     debriefs are a subset of something the page has, not a
-                     second round trip. */
-                  debriefs={journal.filter((e) => e.isDebrief)}
-                  today={today}
                 />,
               )}
 

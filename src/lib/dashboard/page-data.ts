@@ -47,7 +47,6 @@ import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { sm8QueueStuck } from "@/lib/integrations/sm8-writes";
 import { freshenSm8AfterResponse } from "@/lib/integrations/sm8-freshness";
-import { phaseOf, type DayPhase } from "./debrief-voice";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
    and live in ./assemble and ./calendar; this file is the thin I/O layer
@@ -99,9 +98,6 @@ export type DashboardData = {
   /** The day beside the diary: today's bookings and the tasks that named an
       hour. See ./day-rail for what earns a place on it. */
   rail: HomeRail;
-  /** Which of the day's three questions the Debrief tab is asking. Resolved
-      here, in the workspace's zone, so no component reads a clock. */
-  phase: DayPhase;
 };
 
 export type HomeRail = {
@@ -186,7 +182,6 @@ const EMPTY: DashboardData = {
   viewerStaffId: null,
   today: todayInAu(),
   rail: EMPTY_RAIL,
-  phase: "morning",
 };
 
 export async function loadDashboard(): Promise<DashboardData> {
@@ -308,7 +303,6 @@ export async function loadDashboard(): Promise<DashboardData> {
       manage: caps.has("workboard_manage"),
       moneyVisible: caps.has("workboard_money"),
     },
-    phase: phaseOf(railNowMin),
   };
 }
 

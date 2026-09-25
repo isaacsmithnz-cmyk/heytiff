@@ -630,13 +630,17 @@ end, moving, no dark background". That is the same law 18 exemption as the
 button's, on his word, and it runs the button's six loops with no new one.
 
 - **At rest** it runs at the button's pace: the Tiff chat's header and ask
-  bar, the answer's ribbon, and the palette's footer.
+  bar and its "General knowledge" choice, the answer's ribbon, the palette's
+  footer, the fleet's Tiff total, "Read by Tiff" on a scanned receipt, and
+  the vehicle card's "Tiff value".
 - **Working** it runs at the thinking pace: every wait (it replaced the orb
   there; the orb stays the dictation meter), "Tiff is valuing…" on the
   fleet, and a receipt being read.
-- **Quiet** it moves only while its control is hovered or focused. That is
-  for a control repeated down a list, like Ask Tiff on every document in the
-  library, where a hundred turning marks would be a page of motion.
+- **Quiet** it moves only while its control is hovered or focused, or its
+  row, where a list row declares itself the host with `data-tiff-hover`.
+  That is for a mark repeated down a list, like Ask Tiff on every document
+  in the library or Tiff's price on every vehicle, where a hundred turning
+  marks would be a page of motion.
 - It is small, so the logo fills more of it: 74%, with the rings at its edge.
 - **A Tiff control has a round end** (`.tiffkey`): a button that asks Tiff
   (Ask Tiff, Value with Tiff) has a full circle for its left end. The mark

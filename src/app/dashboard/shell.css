@@ -8532,8 +8532,11 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .tiffmk.working .tiffbtn-arc { animation-duration:1s; }
 .tiffmk.quiet :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
 .tiffmk.quiet .tiffbtn-sheen::before { animation-play-state:paused; }
+/* the control it sits in, or a list row that declares itself the host (`data-tiff-hover`) */
 :is(button, a):is(:hover, :focus-visible) > .tiffmk.quiet :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
-:is(button, a):is(:hover, :focus-visible) > .tiffmk.quiet .tiffbtn-sheen::before { animation-play-state:running; }
+:is(button, a):is(:hover, :focus-visible) > .tiffmk.quiet .tiffbtn-sheen::before,
+[data-tiff-hover]:is(:hover, :focus-within) .tiffmk.quiet :is(.tiffbtn-pre, .tiffbtn-nod, .tiffbtn-gim-a, .tiffbtn-gim-b, .tiffbtn-arc),
+[data-tiff-hover]:is(:hover, :focus-within) .tiffmk.quiet .tiffbtn-sheen::before { animation-play-state:running; }
 
 /* ── A TIFF CONTROL HAS A ROUND END (Isaac, 2026-09-25: "circle into
    rectangle … round end, moving, no dark background") ──
@@ -9823,7 +9826,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .page.tk-lock .tk-clbl, .fg .page.tk-lock .tk-chint { display:none; }
 .fg .page.tk-lock .tk-mode { padding:2px; }
 .fg .page.tk-lock .tk-modeb { height:26px; padding:0 12px; font-size:12px; gap:4px; }
-.fg .page.tk-lock .tk-modeb svg { width:13px; height:13px; }
+.fg .page.tk-lock .tk-modeb > svg { width:13px; height:13px; }
+.fg .tk-modeb .tiffmk { --tb:20px; }
+.fg .page.tk-lock .tk-modeb .tiffmk { --tb:18px; }
 
 /* ── what hangs off a message ── */
 .fg .tmw { display:flex; flex-direction:column; align-items:flex-start; gap:8px; flex:1 1 auto; min-width:0; }

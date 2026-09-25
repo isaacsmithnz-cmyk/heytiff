@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
-import { Chevron } from "@/components/logo";
+import { TiffGlyph } from "@/components/notes/tiff-mark";
 import type { StoredDocument } from "@/lib/documents/query";
 import { dateFromDays } from "@/lib/fleet/map";
 import { Plate } from "../plate";
@@ -360,7 +360,7 @@ export function MainScreen({
           <div className="vm-moneycols">
             <div>
               <span className="vm-fl">
-                <Chevron size={12} gradient decorative />
+                <TiffGlyph size={16} />
                 Tiff value
               </span>
               {valuation ? (

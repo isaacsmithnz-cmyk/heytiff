@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
-import { Chevron } from "@/components/logo";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { DateField } from "@/components/ui/date-field";
 import { scanInProgress } from "@/components/record-modal/scan-card";
@@ -606,7 +605,7 @@ export function LogModal({
             {thumb && <img className="fl-scanthumb small" src={thumb} alt="Receipt" />}
             {scanTag ? (
               <span className="dchip2 ok">
-                <Chevron size={15} gradient decorative />
+                <TiffGlyph size={18} />
                 Read by Tiff — check &amp; save
               </span>
             ) : (

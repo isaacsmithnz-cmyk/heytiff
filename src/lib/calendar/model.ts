@@ -357,7 +357,9 @@ export function longWeekend<T extends CalItem>(day: string, items: readonly T[])
 
 /* ── 4 weeks: the agenda ── */
 
-export type SpanTag<T extends CalItem> = { item: T; kind: "school" | "shutdown"; label: string };
+/** A week header's tag for something over days: "School holidays all week",
+    "Shutdown from Wed", "Daikin course until Tue 13" (an event by its title). */
+export type SpanTag<T extends CalItem> = { item: T; kind: "school" | "shutdown" | "event"; label: string };
 export type AgendaWeek<T extends CalItem> = {
   kind: "week";
   key: string;
@@ -438,9 +440,11 @@ function agendaLine<T extends CalItem>(p: Span<T>, hols: ReadonlySet<number>, st
 /** The rolling four weeks from the anchor: a week header before the first day
     and on every Monday, a row only for a day with something starting on it
     (and today, always), and each run of empty days inside one week and one
-    month folded to a quiet line. A weekend run that touches a public holiday
-    reads as a long weekend; the working days before or after it in the same
-    run keep their own quiet line. */
+    month folded to a quiet line. The days of a run that belong to a long
+    weekend read as one; the working days before or after them in the same run
+    keep their own quiet line. Anything that runs over days is tagged on the
+    header of every week it touches, so an event already under way at the
+    anchor still shows. */
 export function agendaRows<T extends CalItem>(vis: readonly T[], anchor: string, frame: CalFrame): AgendaRow<T>[] {
   const f = frameOf(frame);
   const a0 = must(anchor, "anchor");
@@ -448,7 +452,10 @@ export function agendaRows<T extends CalItem>(vis: readonly T[], anchor: string,
   const mon0 = f.t - columnOf(f.t);
   const P = spansOf(vis);
   const hols = holidayDays(P);
-  const tagged = P.filter((p) => p.e > p.s && (p.x.cat === "school" || isShutdown(p.x)));
+  /* School holidays, shutdowns and any other event over days (a two-day
+     course): a row marks only the day a thing starts, so without its tag an
+     event begun before the anchor would not show at all. */
+  const tagged = P.filter((p) => p.e > p.s && (p.x.cat === "school" || p.x.cat === "event"));
   const starting = new Map<number, Span<T>[]>();
   for (const p of P) {
     if (p.s < a0 || p.s > a1) continue;
@@ -468,26 +475,24 @@ export function agendaRows<T extends CalItem>(vis: readonly T[], anchor: string,
       text: (a === b ? dayName(a) : `${dayName(a)}${DASH}${dayName(b)}`) + (lw ? ", long weekend" : ", nothing on"),
       longWeekend: lw,
     });
+  /* A quiet day is a long weekend's by the one rule the holiday's own line
+     and the panel use (three or more days off in a row), so no two rows on
+     the screen disagree: the prototype asked only whether the run touched a
+     holiday, and called the Sunday after a Saturday Anzac Day long. The run
+     splits wherever that answer changes. */
+  const lwDay = (n: number) => longWeekendOf(n, hols) !== null;
   let run: { a: number; b: number } | null = null;
   const flush = () => {
     if (!run) return;
     const { a, b } = run;
     run = null;
-    if (hols.has(b + 1) && isWeekend(b)) {
-      let k = b;
-      while (k - 1 >= a && isWeekend(k - 1)) k--;
-      if (k > a) quiet(a, k - 1, false);
-      quiet(k, b, true);
-      return;
+    let from = a;
+    for (let n = a; n <= b; n++) {
+      if (n === b || lwDay(n + 1) !== lwDay(n)) {
+        quiet(from, n, lwDay(n));
+        from = n + 1;
+      }
     }
-    if (hols.has(a - 1) && isWeekend(a)) {
-      let k = a;
-      while (k + 1 <= b && isWeekend(k + 1)) k++;
-      quiet(a, k, true);
-      if (k < b) quiet(k + 1, b, false);
-      return;
-    }
-    quiet(a, b, false);
   };
 
   for (let n = a0; n <= a1; n++) {
@@ -498,12 +503,9 @@ export function agendaRows<T extends CalItem>(vis: readonly T[], anchor: string,
         .filter((p) => p.s <= end && p.e >= n)
         .sort(byOrder)
         .map((p): SpanTag<T> => {
-          const school = p.x.cat === "school";
-          return {
-            item: p.x,
-            kind: school ? "school" : "shutdown",
-            label: tagLabel(school ? "School holidays" : "Shutdown", p.s, p.e, n, end),
-          };
+          const kind = p.x.cat === "school" ? "school" : isShutdown(p.x) ? "shutdown" : "event";
+          const base = kind === "school" ? "School holidays" : kind === "shutdown" ? "Shutdown" : p.x.title;
+          return { item: p.x, kind, label: tagLabel(base, p.s, p.e, n, end) };
         });
       rows.push({
         kind: "week",
@@ -550,7 +552,8 @@ export type RailRow<T extends CalItem> = {
   /** "Ran out Thu 17 Sept.", "Due Tue 20 Oct.", "Wed 23 Dec – Fri 8 Jan". */
   sub: string;
   late: boolean;
-  /** The right side: "Today", "22 days", or the month past 60 days; null when late. */
+  /** The right side: "Today", "22 days", or the month past 60 days; null when
+      late, or for an item due whose date is already behind this today. */
   away: string | null;
 };
 export type RailLists<T extends CalItem> = { due: RailRow<T>[]; holidays: RailRow<T>[] };
@@ -562,19 +565,28 @@ function awayLabel(s: number, t: number): string {
 }
 
 /** Due: admin that is overdue, first, then admin due inside the org's warning
-    window (`dueWithin` days, the same window the bell warns in), by date.
-    Holidays ahead: the next 6 public holidays and shutdowns from today. */
-export function railLists<T extends CalItem>(vis: readonly T[], frame: CalFrame, dueWithin = 30): RailLists<T> {
+    window (`warnDays`, orgExpiryWindow's number, the same window the bell
+    warns in; never defaulted, so a caller cannot quietly get someone else's
+    30), by date. Holidays ahead: the next 6 public holidays and shutdowns
+    from today.
+
+    Late is the item's flag, set from the bell's own rule, never the date: an
+    item not flagged late is still due however its date reads against this
+    frame's today, so it cannot drop out of Due while the bell warns on it. */
+export function railLists<T extends CalItem>(vis: readonly T[], frame: CalFrame, warnDays: number): RailLists<T> {
   const t = must(frame.today, "today");
+  if (!Number.isInteger(warnDays) || warnDays < 0) {
+    throw new Error(`calendar: warnDays is not a number of days: ${JSON.stringify(warnDays)}`);
+  }
   const P = spansOf(vis);
-  const due = P.filter((p) => p.x.cat === "admin" && (p.x.overdue || (p.s >= t && p.s <= t + dueWithin)))
+  const due = P.filter((p) => p.x.cat === "admin" && (p.x.overdue || p.s <= t + warnDays))
     .sort((p, r) => Number(!!r.x.overdue) - Number(!!p.x.overdue) || p.s - r.s || byOrder(p, r))
     .map((p) => ({
       item: p.x,
       title: p.x.title,
       sub: p.x.overdue ? `Ran out ${dayLabel(p.s)}.` : `Due ${dayLabel(p.s)}.`,
       late: !!p.x.overdue,
-      away: p.x.overdue ? null : awayLabel(p.s, t),
+      away: p.x.overdue || p.s < t ? null : awayLabel(p.s, t),
     }));
   const holidays = P.filter((p) => (p.x.cat === "hol" || isShutdown(p.x)) && p.s >= t)
     .sort((p, r) => p.s - r.s || byOrder(p, r))
@@ -815,7 +827,9 @@ function statusOf(p: Span<CalItem>, t: number): { text: string; tone: StatusTone
   const x = p.x;
   const d = p.s - t;
   if (x.cat === "admin") {
-    if (x.overdue) return { text: `${inDays(-d)} late`, tone: "late" };
+    /* The flag says late and the date is not behind today (the flag's clock
+       ran ahead): no "0 days late", no "-1 days late". */
+    if (x.overdue) return { text: d < 0 ? `${inDays(-d)} late` : "Overdue", tone: "late" };
     const text = d < 0 ? `Was due ${inDays(-d)} ago` : d === 0 ? "Due today" : d === 1 ? "Due tomorrow" : `Due in ${inDays(d)}`;
     return { text, tone: "due" };
   }

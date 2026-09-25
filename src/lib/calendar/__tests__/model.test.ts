@@ -84,6 +84,7 @@ describe("the window and the views", () => {
     expect(stepAnchor("month", "2026-10-14", -1, FRAME)).toBe("2026-09-01");
     expect(stepAnchor("month", TODAY, -1, FRAME)).toBeNull();
     expect(stepAnchor("month", "2027-08-01", 1, FRAME)).toBeNull();
+    expect(stepAnchor("month", "2027-07-10", 1, FRAME)).toBe("2027-08-01"); // the window's last month is reachable
   });
 
   it("rests both of Year's arrows: the window is one year", () => {
@@ -141,6 +142,7 @@ describe("switching views", () => {
     expect(revealDay(nav, "2026-10-10", FRAME)).toBe(nav);
     expect(revealDay({ ...nav, anchor: "2026-11-19" }, "2026-10-10", FRAME).anchor).toBe(TODAY);
     expect(revealDay(nav, "2026-11-15", FRAME).anchor).toBe("2026-11-15");
+    expect(revealDay(nav, "2026-10-22", FRAME).anchor).toBe("2026-10-22"); // today + 28, one past the four weeks
     expect(revealDay(nav, "2027-08-30", FRAME).anchor).toBe("2027-08-04");
     expect(revealDay({ view: "month", anchor: TODAY, a4: TODAY }, "2027-01-10", FRAME).anchor).toBe("2027-01-10");
   });
@@ -253,6 +255,44 @@ describe("4 weeks: the agenda", () => {
     ]);
   });
 
+  it("calls a quiet day long only where the holiday's own line does: a Saturday Anzac Day makes no long weekend", () => {
+    const anzac: CalItem = { id: "ph:anzac26", cat: "hol", start: "2026-04-25", end: "2026-04-25", title: "Anzac Day" };
+    const rows = agenda([anzac], "2026-04-20", at("2026-04-20"));
+    expect(rows.slice(0, 5)).toEqual([
+      "wk This week | 20 – 26 Apr",
+      "day Mon 20 today",
+      "q 21 – 24 | Tue – Fri, nothing on",
+      "day Sat 25 hol | Anzac Day — Public holiday in NSW.",
+      "q 26 | Sun, nothing on",
+    ]);
+    expect(longWeekend("2026-04-26", [anzac])).toBeNull();
+  });
+
+  it("reads both days of a long weekend a month end splits as long (Labour Day, Mon 2 Oct 2028)", () => {
+    const labour: CalItem = { id: "ph:labour28", cat: "hol", start: "2028-10-02", end: "2028-10-02", title: "Labour Day" };
+    expect(agenda([labour], "2028-09-25", at("2028-09-25")).slice(0, 7)).toEqual([
+      "wk This week | 25 Sept – 1 Oct",
+      "day Mon 25 today",
+      "q 26 – 29 | Tue – Fri, nothing on",
+      "q 30 | Sat, long weekend (lw)",
+      "q 1 | Sun, long weekend (lw)",
+      "wk Next week | 2 – 8 Oct",
+      "day Mon 2 hol | Labour Day — Public holiday in NSW. Long weekend, Sat 30 Sept – Mon 2 Oct.",
+    ]);
+  });
+
+  it("keeps the Sunday of a Friday holiday's long weekend long when the Saturday has an event", () => {
+    const friday: CalItem = { id: "ph:f", cat: "hol", start: "2026-10-16", end: "2026-10-16", title: "Show Day" };
+    const sat: CalItem = { id: "ev:sat", cat: "event", start: "2026-10-17", end: "2026-10-17", title: "Open day" };
+    expect(agenda([friday, sat], "2026-10-12").slice(0, 5)).toEqual([
+      "wk In 3 weeks | 12 – 18 Oct",
+      "q 12 – 15 | Mon – Thu, nothing on",
+      "day Fri 16 hol | Show Day — Public holiday in NSW. Long weekend, Fri 16 – Sun 18 Oct.",
+      "day Sat 17 we | Open day",
+      "q 18 | Sun, long weekend (lw)",
+    ]);
+  });
+
   it("labels the weeks from today's week, back past today too", () => {
     expect(weekLabel(0)).toBe("This week");
     expect(weekLabel(1)).toBe("Next week");
@@ -279,11 +319,21 @@ describe("4 weeks: the agenda", () => {
     expect(agenda([shut])).toContain("wk In 3 weeks | 12 – 18 Oct | Shutdown from Tue until Thu 15");
   });
 
-  it("tags only school holidays and shutdowns: a two-day course is a day row, not a tag", () => {
+  it("tags an event over days by its title, and still gives its first day a row", () => {
     const course: CalItem = { id: "ev:c", cat: "event", start: "2026-10-13", end: "2026-10-14", title: "Course" };
-    const rows = agenda([course]);
-    expect(rows).toContain("wk In 3 weeks | 12 – 18 Oct");
-    expect(rows).toContain("day Tue 13 | Course");
+    const rows = agendaRows([course], TODAY, FRAME);
+    expect(rows.map(line)).toContain("wk In 3 weeks | 12 – 18 Oct | Course from Tue until Wed 14");
+    expect(rows.map(line)).toContain("day Tue 13 | Course");
+    const wk = rows.find((r) => r.kind === "week" && r.start === "2026-10-12");
+    expect(wk?.kind === "week" && wk.tags.map((t) => t.kind)).toEqual(["event"]);
+  });
+
+  it("shows a two-day event on its second day, begun before the anchor", () => {
+    const course: CalItem = { id: "ev:c", cat: "event", start: "2026-09-30", end: "2026-10-01", title: "Course" };
+    expect(agenda([course], "2026-10-01", at("2026-10-01")).slice(0, 2)).toEqual([
+      "wk This week | 1 – 4 Oct | Course until Thu 1",
+      "day Thu 1 today",
+    ]);
   });
 
   it("marks a weekend day row quiet, and a holiday on a weekend as a holiday", () => {
@@ -321,7 +371,7 @@ describe("4 weeks: the agenda", () => {
     jest.useFakeTimers({ now: new Date("2031-06-15T03:00:00Z") });
     try {
       expect(agenda(ITEMS)).toEqual(before);
-      expect(railLists(ITEMS, FRAME).due.map((r) => r.away)).toEqual([null, "26 days"]);
+      expect(railLists(ITEMS, FRAME, 30).due.map((r) => r.away)).toEqual([null, "26 days"]);
     } finally {
       jest.useRealTimers();
     }
@@ -339,6 +389,13 @@ describe("long weekends", () => {
     expect(longWeekend("2027-01-26", HOLIDAYS)).toBeNull();
   });
 
+  it("finds none for two days off midweek: Christmas on a Tuesday and Boxing Day (2029)", () => {
+    const hol = (day: string): CalItem => ({ id: `ph:${day}`, cat: "hol", start: day, end: day, title: day });
+    const both = [hol("2029-12-25"), hol("2029-12-26")];
+    expect(longWeekend("2029-12-25", both)).toBeNull();
+    expect(longWeekend("2029-12-26", both)).toBeNull();
+  });
+
   it("finds none for a working day beside one", () => {
     expect(longWeekend("2026-10-06", HOLIDAYS)).toBeNull();
     expect(longWeekend("2026-10-02", HOLIDAYS)).toBeNull();
@@ -347,7 +404,7 @@ describe("long weekends", () => {
 
 describe("the rail", () => {
   it("puts overdue first, then what is due inside the window, by date", () => {
-    const { due } = railLists(ITEMS, FRAME);
+    const { due } = railLists(ITEMS, FRAME, 30);
     expect(due.map((r) => [r.title, r.sub, r.late, r.away])).toEqual([
       ["Spare van, CY14FE rego", "Ran out Thu 17 Sept.", true, null],
       ["Trailer, TC22BJ rego", "Due Tue 20 Oct.", false, "26 days"],
@@ -368,12 +425,12 @@ describe("the rail", () => {
     const today: CalItem = { id: "a:t", cat: "admin", start: TODAY, end: TODAY, title: "Due today" };
     const edge: CalItem = { id: "a:e", cat: "admin", start: "2026-10-24", end: "2026-10-24", title: "Day 30" };
     const past: CalItem = { id: "a:p", cat: "admin", start: "2026-10-25", end: "2026-10-25", title: "Day 31" };
-    expect(railLists([today, edge, past], FRAME).due.map((r) => [r.title, r.away])).toEqual([
+    expect(railLists([today, edge, past], FRAME, 30).due.map((r) => [r.title, r.away])).toEqual([
       ["Due today", "Today"],
       ["Day 30", "30 days"],
     ]);
     const tomorrow: CalItem = { id: "a:1", cat: "admin", start: "2026-09-25", end: "2026-09-25", title: "Tomorrow" };
-    expect(railLists([tomorrow], FRAME).due[0].away).toBe("1 day");
+    expect(railLists([tomorrow], FRAME, 30).due[0].away).toBe("1 day");
   });
 
   it("trusts the overdue flag over the date, so Due and the bell never disagree", () => {
@@ -381,19 +438,35 @@ describe("the rail", () => {
     // on today's date (another clock's today) still leads the list.
     const late: CalItem = { id: "veh:u:rego", cat: "admin", start: TODAY, end: TODAY, title: "Ute, AB12CD rego", overdue: true };
     const soon: CalItem = { id: "veh:h:rego", cat: "admin", start: TODAY, end: TODAY, title: "Hiace van, EF34GH rego" };
-    expect(railLists([soon, late], FRAME).due.map((r) => [r.item.id, r.late, r.away])).toEqual([
+    expect(railLists([soon, late], FRAME, 30).due.map((r) => [r.item.id, r.late, r.away])).toEqual([
       ["veh:u:rego", true, null],
       ["veh:h:rego", false, "Today"],
     ]);
   });
 
+  it("keeps an item the flag calls due in Due even when its date is behind this today", () => {
+    // the reverse of the case above: the bell still warns on it, so Due must hold it
+    const due: CalItem = { id: "veh:y:rego", cat: "admin", start: "2026-09-23", end: "2026-09-23", title: "Ute, AB12CD rego" };
+    expect(railLists([due], FRAME, 30).due.map((r) => [r.item.id, r.sub, r.late, r.away])).toEqual([
+      ["veh:y:rego", "Due Wed 23 Sept.", false, null],
+    ]);
+  });
+
+  it("takes the org's window every time, never a default", () => {
+    expect(() => railLists(ITEMS, FRAME, undefined as unknown as number)).toThrow(/warnDays/);
+    expect(() => railLists(ITEMS, FRAME, -1)).toThrow(/warnDays/);
+    // @ts-expect-error the window is orgExpiryWindow's number, so leaving it out does not compile
+    expect(() => railLists(ITEMS, FRAME)).toThrow(/warnDays/);
+    expect(railLists(ITEMS, FRAME, 0).due.map((r) => r.item.id)).toEqual(["veh:cy14:rego"]);
+  });
+
   it('reads the right side in days under 60, then as the month: "59 days", "Nov"', () => {
     const hol = (start: string): CalItem => ({ id: `ph:${start}`, cat: "hol", start, end: start, title: start });
-    expect(railLists([hol("2026-11-22"), hol("2026-11-23")], FRAME).holidays.map((r) => r.away)).toEqual(["59 days", "Nov"]);
+    expect(railLists([hol("2026-11-22"), hol("2026-11-23")], FRAME, 30).holidays.map((r) => r.away)).toEqual(["59 days", "Nov"]);
   });
 
   it("holds the next 6 public holidays and shutdowns from today", () => {
-    const { holidays } = railLists(ITEMS, FRAME);
+    const { holidays } = railLists(ITEMS, FRAME, 30);
     expect(holidays.map((r) => [r.title, r.sub, r.away])).toEqual([
       ["Labour Day", "Mon 5 Oct", "11 days"],
       ["Christmas shutdown", "Wed 23 Dec – Fri 8 Jan", "Dec"],
@@ -406,7 +479,7 @@ describe("the rail", () => {
 
   it("hides what a chip turned off, from the rail as from the view", () => {
     const vis = visibleItems(ITEMS, { admin: true, event: true });
-    const rail = railLists(vis, FRAME);
+    const rail = railLists(vis, FRAME, 30);
     expect(rail.due).toEqual([]);
     expect(rail.holidays.map((r) => r.title)).not.toContain("Christmas shutdown");
     expect(agenda(vis).join("\n")).not.toContain("Toolbox talk");
@@ -509,7 +582,11 @@ describe("Month", () => {
     const cells = monthWeeks(ITEMS, TODAY, FRAME).flatMap((w) => w.cells);
     const items = (day: string) => cells.find((c) => c.day === day)?.items.map((i) => `${i.title} / ${i.meta}`);
     expect(items("2026-09-17")).toEqual(["Spare van rego / Overdue"]);
+    expect(cells.find((c) => c.day === "2026-09-17")?.items.map((i) => i.overdue)).toEqual([true]);
     expect(items("2026-10-01")).toEqual(["Toolbox talk / 6:45 am"]);
+    expect(cells.find((c) => c.day === "2026-10-01")?.items.map((i) => i.overdue)).toEqual([false]);
+    const nov = monthWeeks(ITEMS, "2026-11-10", FRAME).flatMap((w) => w.cells);
+    expect(nov.find((c) => c.day === "2026-11-10")?.items.map((i) => `${i.title} / ${i.meta}`)).toEqual(["Public liability / Due"]);
     const octCells = oct.flatMap((w) => w.cells);
     expect(octCells.find((c) => c.day === "2026-10-20")?.items.map((i) => `${i.title} / ${i.meta}`)).toEqual(["Trailer rego / TC22BJ"]);
     expect(octCells.find((c) => c.day === "2026-10-08")?.items.map((i) => i.title)).toEqual(["Daikin training"]);
@@ -548,6 +625,8 @@ describe("Month", () => {
     // the course starts first but waits for school holidays; the expo fits in behind the course, the weekend behind school
     expect(weeks[0].bars.map((b) => `${b.item.id}:${b.lane}`)).toEqual(["school:0", "course:1", "expo:1", "later:0"]);
     expect(weeks[0].lanes).toBe(2);
+    // an event over days that does not close the business is an event's bar, never a shutdown's
+    expect(weeks[0].bars.map((b) => `${b.item.id}:${b.kind}`)).toEqual(["school:school", "course:event", "expo:event", "later:event"]);
   });
 });
 
@@ -702,6 +781,18 @@ describe("the panel", () => {
     expect(status(event("2026-09-23"))).toBe("1 day ago");
     expect(status(admin("2026-11-23"))).toBe("Due in 60 days");
     expect(status(admin("2026-11-24"))).toBe("Due in 2 months");
+  });
+
+  it("words an item flagged late but dated today or later as Overdue, never 0 or -1 days late", () => {
+    const late = (start: string): CalItem => ({ id: "a", cat: "admin", start, end: start, title: "a", overdue: true });
+    expect(detail(late(TODAY), [], FRAME)?.status).toEqual({ text: "Overdue", tone: "late" });
+    expect(detail(late("2026-09-25"), [], FRAME)?.status).toEqual({ text: "Overdue", tone: "late" });
+    expect(detail(late("2026-09-23"), [], FRAME)?.status).toEqual({ text: "1 day late", tone: "late" });
+  });
+
+  it("gives school holidays with no day back only where they come from", () => {
+    const noBack: CalItem = { ...byId("sch:spring26"), back: null };
+    expect(detail(noBack, ITEMS, FRAME)?.facts).toEqual([["From", "NSW school terms"]]);
   });
 
   it("gives nothing for an item whose start is not a day", () => {

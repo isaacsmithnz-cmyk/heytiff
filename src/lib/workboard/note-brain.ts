@@ -451,7 +451,10 @@ export function whoBlock(ctx: NoteContext): string {
           "Every task is filed the moment nothing is left to ask, so a task with",
           "nobody on it cannot wait for a dropdown. When the note gives a task to",
           "nobody and nothing in it says who, set clarify_needed and ask who",
-          "should do it, offering `Me` and the people the note names.",
+          "should do it, offering `Me` and the people the note names. When it",
+          "gives a task to a name that is none of the people above, set",
+          "clarify_needed and ask who they meant, offering `Me` and the people",
+          "above whose names are closest.",
         ].join("\n")
       : "",
   ]
@@ -833,18 +836,15 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
   }
 
   /* Tiff's line ends with the question when she has one to ask. When the
-     shaper asked it, the model's line never mentioned it, so the question is
-     added, and the line gives way to it rather than the question being cut.
-     Only when she speaks: the review card's read never asks for a line, so
-     its proposals carry none. */
+     shaper asked it, the model's line was written for a plan the app has just
+     stopped ("I'll make a task for Leo" over a Leo nobody is), and in the
+     speaker's language, so the question tacked on after it read as a second
+     voice (a real-notes check, 2026-09-26). The line is set aside and the
+     question is all she says. `whoBlock` asks the model to raise these itself,
+     in their words, so this is the fallback. Only when she speaks: the review
+     card's read never asks for a line, so its proposals carry none. */
   let say = clean(r.say, SAY_MAX);
-  if (ctx.speak && escalated && clarify && !say.includes("?")) {
-    const left = SAY_MAX - clarify.question.length - 1;
-    say = [left > 0 ? say.slice(0, left).trimEnd() : "", clarify.question]
-      .filter(Boolean)
-      .join(" ")
-      .slice(0, SAY_MAX);
-  }
+  if (ctx.speak && escalated && clarify) say = clarify.question;
 
   /* NO COERCION BY MODE. The Debrief's closed every job-bound lane and
      rewrote what landed in one into a "note line"; with the Debrief gone

@@ -157,8 +157,8 @@ describe("a task with nobody on it", () => {
       question: "Who should do this: Order the grilles?",
       options: ["Me", "Callum", "Luke"],
     });
-    // Tiff's line ends with the question she did not write herself
-    expect(p.say).toBe("A task to order the grilles. Who should do this: Order the grilles?");
+    // her line was written for a plan the app just stopped: the question is all she says
+    expect(p.say).toBe("Who should do this: Order the grilles?");
   });
 
   it("stays a task for the review card's dropdown on the card's notes", () => {
@@ -183,10 +183,21 @@ describe("a task with nobody on it", () => {
     expect(p.say).toBe("Which grilles?");
   });
 
-  it("keeps the question whole when Tiff's line is long", () => {
-    const p = shapeProposal({ ...nobodysTask, say: "y".repeat(280) }, modal);
+  it("sets aside a line in another language rather than tack English onto it", () => {
+    const p = shapeProposal(
+      raw({
+        tasks: [{ title: "Order the grilles", detail: "", assignee_hint: "Leo", due_hint: "", due_date: "", remind_time: "", remind_kind: "at" }],
+        say: "Ich lege eine Aufgabe für Leo an.".padEnd(SAY_MAX, "."),
+      }),
+      modal,
+    );
+    expect(p.say).toBe("Who should do this: Order the grilles?");
     expect(p.say.length).toBeLessThanOrEqual(SAY_MAX);
-    expect(p.say.endsWith("Who should do this: Order the grilles?")).toBe(true);
+  });
+
+  it("asks the model to raise a name nobody answers to itself, on the modal's notes only", () => {
+    expect(whoBlock(modal)).toMatch(/none of the people above, set\s+clarify_needed/);
+    expect(whoBlock(ctx)).not.toMatch(/none of the people above/);
   });
 });
 

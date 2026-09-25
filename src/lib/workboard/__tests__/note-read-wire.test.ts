@@ -147,9 +147,9 @@ describe("the Tiff modal's read", () => {
     expect(body.output_config.format).toEqual({ type: "json_schema", schema: TIFF_NOTE_SCHEMA });
   });
 
-  it("reads Tiff's line back, ending with the question she had to ask", async () => {
+  it("reads back only the question the app had to ask, not a line written without it", async () => {
     reply = { ...lanes, say: "A task to order the grilles." };
     const read = await readNote("tell Luke to order the grilles", modal);
-    expect(read.ok && read.proposal.say).toBe("A task to order the grilles. Which Luke did you mean?");
+    expect(read.ok && read.proposal.say).toBe("Which Luke did you mean?");
   });
 });

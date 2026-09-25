@@ -10,6 +10,8 @@ import {
   type JobAttention,
 } from "@/lib/workboard/job-attention";
 import { taskTitleFromNote, withoutHandles } from "@/lib/workboard/sm8-mentions";
+import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
+import type { FlagState } from "@/lib/integrations/sm8-note-plan";
 
 /* THE ATTENTION STRIP — what this job still wants from you, above the tabs.
 
@@ -31,6 +33,22 @@ import { taskTitleFromNote, withoutHandles } from "@/lib/workboard/sm8-mentions"
    person presses the button, names who it is for and lets it save — the
    review-before-save law, unchanged. Nothing here writes on its own. */
 
+/** What the strip offers for notes to ServiceM8 (two-way phase 2). Absent
+    where the deployment sends no notes: the strip is then exactly as it
+    was. */
+export type StripSm8 = {
+  /** ServiceM8's flags with our marks on them, by the note's uuid. */
+  flags: Record<string, FlagState>;
+  /** Notes are offered here and the viewer can send (or be asked who they
+      are): Reply and Mark done are on offer. */
+  canReply: boolean;
+  canMark: boolean;
+  /** Opens the Diary at this note with its reply box open. */
+  onReply: (noteUuid: string) => void;
+  /** Mark one of ServiceM8's flags done, as the viewer. */
+  onMarkDone: (noteUuid: string) => void;
+};
+
 export function JobAttentionStrip({
   attention,
   assignable,
@@ -39,6 +57,7 @@ export function JobAttentionStrip({
   onOpenNote,
   onMakeTask,
   onDismissNote,
+  sm8,
 }: {
   attention: JobAttention;
   /** Who a task can be given to — sent with the strip so the form opens
@@ -54,7 +73,10 @@ export function JobAttentionStrip({
     assigneeId: string;
     dueDate: string | null;
   }) => void;
+  /** "Not work": ServiceM8's note by its uuid, or one of HeyTiff's own by
+      its row's id. */
   onDismissNote: (noteUuid: string) => void;
+  sm8?: StripSm8 | null;
 }) {
   /* Which suggestion has its form open. One at a time: two open forms on a
      three-row strip is a dialog pretending to be a list. */
@@ -80,6 +102,7 @@ export function JobAttentionStrip({
           onOpenNote={onOpenNote}
           onMakeTask={onMakeTask}
           onDismissNote={onDismissNote}
+          sm8={sm8 ?? null}
         />
       ))}
       {/* THE COUNT IS THE ONLY OVERFLOW. There is no "show all" — three is
@@ -104,6 +127,7 @@ function AttentionRow({
   onOpenNote,
   onMakeTask,
   onDismissNote,
+  sm8,
 }: {
   item: AttentionItem;
   assignable: readonly { id: string; name: string }[];
@@ -119,8 +143,25 @@ function AttentionRow({
     dueDate: string | null;
   }) => void;
   onDismissNote: (noteUuid: string) => void;
+  sm8: StripSm8 | null;
 }) {
   const face = faceOf(item);
+  /* ServiceM8's own flagged note: Mark done (or again) when its line offers
+     it and notes are offered here */
+  const flagActs = item.kind === "sm8flag" && sm8?.canMark ? (sm8.flags[item.noteUuid]?.acts ?? []) : [];
+  const markDoor = flagActs.includes("mark_done_again")
+    ? NOTE_WORDS.door.markDoneAgain
+    : flagActs.includes("mark_done")
+      ? NOTE_WORDS.door.markDone
+      : null;
+  /* a mention: one of HeyTiff's own rows, or ServiceM8's note */
+  const ours = item.kind === "mention" && item.origin === "heytiff";
+  const replyTo =
+    item.kind === "mention" && item.you && sm8?.canReply && item.noteUuid ? item.noteUuid : null;
+  /* what "Not work" puts aside: ServiceM8's uuid, or our row's id — and on
+     one of ours only a mention of you */
+  const asideId =
+    item.kind !== "mention" ? null : ours ? (item.you ? (item.rowId ?? null) : null) : item.noteUuid;
 
   return (
     <div className={"wb2-jcattrow" + (drafting ? " open" : "")}>
@@ -142,6 +183,11 @@ function AttentionRow({
             Clear
           </button>
         )}
+        {item.kind === "sm8flag" && markDoor && sm8 && (
+          <button className="wb2-chip blue" disabled={busy} onClick={() => sm8.onMarkDone(item.noteUuid)}>
+            {markDoor}
+          </button>
+        )}
         {item.kind === "sm8flag" && (
           <button className="wb2-chip" onClick={() => onOpenNote(item.noteUuid)}>
             Open in the diary
@@ -152,21 +198,31 @@ function AttentionRow({
         )}
         {item.kind === "mention" && !drafting && (
           <>
-            <button className="wb2-chip blue" disabled={busy} onClick={() => onDraft(true)}>
-              Make it a task
-            </button>
-            <button
-              className="wb2-chip"
-              disabled={busy}
-              onClick={() => onDismissNote(item.noteUuid)}
-              title="Not work — and it stays dismissed"
-            >
-              Not work
-            </button>
+            {replyTo && sm8 && (
+              <button className="wb2-chip blue" disabled={busy} onClick={() => sm8.onReply(replyTo)}>
+                {NOTE_WORDS.door.reply}
+              </button>
+            )}
+            {/* a task is made from ServiceM8's note, never from our own */}
+            {!ours && (
+              <button className="wb2-chip blue" disabled={busy} onClick={() => onDraft(true)}>
+                Make it a task
+              </button>
+            )}
+            {asideId && (
+              <button
+                className="wb2-chip"
+                disabled={busy}
+                onClick={() => onDismissNote(asideId)}
+                title="Not work — and it stays dismissed"
+              >
+                Not work
+              </button>
+            )}
           </>
         )}
       </span>
-      {item.kind === "mention" && drafting && (
+      {item.kind === "mention" && drafting && item.noteUuid && (
         <TaskDraft
           item={item}
           assignable={assignable}
@@ -174,7 +230,7 @@ function AttentionRow({
           onCancel={() => onDraft(false)}
           onSave={(input) => {
             onDraft(false);
-            onMakeTask({ noteUuid: item.noteUuid, ...input });
+            onMakeTask({ noteUuid: item.noteUuid!, ...input });
           }}
         />
       )}

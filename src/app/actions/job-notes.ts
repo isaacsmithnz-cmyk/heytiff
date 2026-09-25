@@ -9,6 +9,10 @@ import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
 import type { OurJobNote } from "@/lib/workboard/job-notes-query";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { sm8Ours } from "@/lib/integrations/sm8-echo";
+import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
+import { takeBackJobNote } from "./job-note-sm8";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /* WRITING ON A SERVICEM8 JOB — the pen at the diary's head, and the two
    answers a suggestion can be given.
@@ -38,12 +42,20 @@ const WB = "/dashboard/workboard";
     behind it, so a client painting its own entry optimistically stamped the
     time and left the name blank until the card was reopened. The server knows
     both. */
-export async function addJobNote(jobUuid: string, body: string): Promise<OurJobNote> {
+export async function addJobNote(jobUuid: string, body: string, opts: { id?: string } = {}): Promise<OurJobNote> {
   const { orgId, userId } = await requireOrg("workboard");
   const job = jobUuid.trim();
   if (!job) throw new Error("No job to write on");
   const text = body.trim().slice(0, 4000);
   if (!text) throw new Error("Nothing to write");
+  /* THE PEN'S OWN ID (two-way phase 2): minted when the pen opens, so a
+     double submit — or a retry after a lost answer — is ONE entry, and so
+     one note if it goes to ServiceM8. It came from a browser: a uuid, or
+     nothing is saved. */
+  const composeId = opts?.id;
+  if (composeId !== undefined && (typeof composeId !== "string" || !UUID.test(composeId))) {
+    throw new Error("Couldn't save that note");
+  }
 
   /* The id came from a browser, so it names a CHOICE — this decides whether
      it is a real job in this workspace's mirror. */
@@ -57,48 +69,173 @@ export async function addJobNote(jobUuid: string, body: string): Promise<OurJobN
 
   const staffId = await staffIdFor(orgId, userId);
   const now = new Date().toISOString();
+  const entry = {
+    org_id: orgId,
+    author_id: staffId,
+    target_kind: "job",
+    target_id: job,
+    transcript: text,
+    source: "text",
+    status: "applied",
+    applied: { jobNotes: [text] },
+    applied_at: now,
+  };
+
+  const saved = async (row: { id: string; applied_at: string | null; created_at: string }): Promise<OurJobNote> => {
+    revalidatePath(WB);
+    return {
+      id: row.id,
+      text,
+      at: row.applied_at ?? row.created_at,
+      author: staffId ? await displayName(orgId, staffId) : null,
+      /* what the diary's doors read, where the deployment sends notes: a
+         fresh entry is yours, and HeyTiff's only */
+      ...(sm8NotesAllowed()
+        ? { authorId: staffId, mine: !!staffId, removed: false, state: null, sm8Uuid: null, hasCreate: false, replyTo: null }
+        : {}),
+    };
+  };
+  const insertFresh = async () => {
+    const { data, error } = await supabaseAdmin
+      .from("workboard_notes")
+      .insert(entry)
+      .select("id, applied_at, created_at")
+      .single();
+    if (error || !data) throw new Error("Couldn't save that note");
+    return saved(data as { id: string; applied_at: string | null; created_at: string });
+  };
+
+  if (!composeId) return insertFresh();
+
+  /* ONE WRITE, as ever: the same insert, under the pen's id, and a second
+     submit of that id is left alone. Only then is anything read. */
   const { data, error } = await supabaseAdmin
     .from("workboard_notes")
-    .insert({
-      org_id: orgId,
-      author_id: staffId,
-      target_kind: "job",
-      target_id: job,
-      transcript: text,
-      source: "text",
-      status: "applied",
-      applied: { jobNotes: [text] },
-      applied_at: now,
-    })
-    .select("id, applied_at, created_at")
-    .single();
-  if (error || !data) throw new Error("Couldn't save that note");
+    .upsert({ id: composeId, ...entry }, { onConflict: "id", ignoreDuplicates: true })
+    .select("id, applied_at, created_at");
+  if (error) throw new Error("Couldn't save that note");
+  const made = ((data ?? []) as { id: string; applied_at: string | null; created_at: string }[])[0];
+  if (made) return saved(made);
 
-  const row = data as { id: string; applied_at: string | null; created_at: string };
-  revalidatePath(WB);
-  return {
-    id: row.id,
-    text,
-    at: row.applied_at ?? row.created_at,
-    author: staffId ? await displayName(orgId, staffId) : null,
-  };
+  /* ALREADY SAVED under this id: the same press twice, or a retry after a
+     lost answer. It must be this person's note on this job; one taken back
+     since is gone for good; and different words under the same id are a
+     different note (the first answer was lost and the box was edited), so
+     they get a row of their own. */
+  const again = await readSavedEntry(orgId, composeId);
+  if (!again || again.target_kind !== "job" || again.target_id !== job || (again.author_id ?? null) !== staffId) {
+    throw new Error("Couldn't save that note");
+  }
+  if (again.removed_at) throw new Error("That note is no longer here.");
+  if ((again.transcript ?? "").trim() !== text) return insertFresh();
+  return saved(again);
 }
+
+type SavedEntry = {
+  id: string;
+  target_kind: string;
+  target_id: string | null;
+  author_id: string | null;
+  transcript: string | null;
+  applied_at: string | null;
+  created_at: string;
+  removed_at?: string | null;
+};
+
+/** A pen entry already saved under its id — with the tombstone where the
+    database has the column. */
+async function readSavedEntry(orgId: string, id: string): Promise<SavedEntry | null> {
+  const cols = "id, target_kind, target_id, author_id, transcript, applied_at, created_at";
+  const read = (c: string) => supabaseAdmin.from("workboard_notes").select(c).eq("org_id", orgId).eq("id", id).maybeSingle();
+  let { data, error } = await read(`${cols}, removed_at`);
+  if (error?.code === "42703" || error?.code === "PGRST204") ({ data, error } = await read(cols));
+  if (error) return null;
+  return (data as unknown as SavedEntry | null) ?? null;
+}
+
+export type RemoveNoteResult = { ok: true; gone: boolean } | { ok: false; error: string };
 
 /** Take one note back off the job's diary.
 
     Only OUR notes — a ServiceM8 note is in a mirror we may not write, and the
-    card says so. Kept deliberately narrow: this deletes the row rather than
-    flagging it, because a note somebody typed and immediately regretted
-    should leave no trace in a feed people read as the job's history. */
-export async function removeJobNote(noteId: string): Promise<void> {
+    card says so. A note that never left HeyTiff is deleted outright, by
+    anyone who can open the job, because a note somebody typed and
+    immediately regretted should leave no trace in a feed people read as the
+    job's history.
+
+    ONE THAT WENT TO SERVICEM8, OR WAS QUEUED FOR IT (two-way phase 2), is
+    taken back instead (job-note-sm8's takeBackJobNote): its row is kept
+    while something of it may be in ServiceM8, and only whoever sent it can
+    take it out. The database refuses to delete a row any queue row names
+    (the note_id key), so where this deployment doesn't send notes — the
+    rollback window — such a note stays, and the person is told why, rather
+    than HeyTiff losing its record of something that may be in ServiceM8. */
+export async function removeJobNote(noteId: string): Promise<RemoveNoteResult> {
   const { orgId } = await requireOrg("workboard");
-  await supabaseAdmin
-    .from("workboard_notes")
-    .delete()
-    .eq("org_id", orgId)
-    .eq("id", noteId)
-    .eq("target_kind", "job");
-  revalidatePath(WB);
+  const id = typeof noteId === "string" ? noteId.trim() : "";
+
+  const deleteIt = () =>
+    supabaseAdmin.from("workboard_notes").delete().eq("org_id", orgId).eq("id", id).eq("target_kind", "job");
+
+  /* WITHOUT NOTES, exactly today's one delete, and no read */
+  if (!sm8NotesAllowed()) {
+    const { error } = await deleteIt();
+    revalidatePath(WB);
+    if (error?.code === "23503") return { ok: false, error: NOTE_WORDS.press.removeHeld };
+    if (error) return { ok: false, error: "Couldn't remove that note." };
+    return { ok: true, gone: true };
+  }
+
+  const row = await readRemovable(orgId, id);
+  if (!row) return { ok: false, error: NOTE_WORDS.press.noNote };
+  /* a plain entry that never left HeyTiff: deleted, as ever */
+  if (!row.hasCreate && !row.reply_to_sm8_note_uuid && !row.is_task_done && !row.removed_at) {
+    const { error } = await deleteIt();
+    if (!error) {
+      revalidatePath(WB);
+      return { ok: true, gone: true };
+    }
+    /* its author's Send queued it in between: the note_id key refused the
+       delete, and it is taken back instead (as the author, or not at all) */
+    if (error.code !== "23503") return { ok: false, error: "Couldn't remove that note." };
+  }
+  if (!row.target_id) return { ok: false, error: NOTE_WORDS.press.noNote };
+  const r = await takeBackJobNote({ jobUuid: row.target_id, noteId: id });
+  return r.ok ? { ok: true, gone: r.gone } : { ok: false, error: r.error };
+}
+
+/** The row a Remove is about, and whether anything was ever queued of it. */
+async function readRemovable(
+  orgId: string,
+  id: string
+): Promise<{
+  target_id: string | null;
+  reply_to_sm8_note_uuid: string | null;
+  is_task_done: boolean | null;
+  removed_at: string | null;
+  hasCreate: boolean;
+} | null> {
+  if (!UUID.test(id)) return null;
+  const [{ data: note }, { data: create }] = await Promise.all([
+    supabaseAdmin
+      .from("workboard_notes")
+      .select("id, target_id, reply_to_sm8_note_uuid, is_task_done, removed_at")
+      .eq("org_id", orgId)
+      .eq("id", id)
+      .eq("target_kind", "job")
+      .maybeSingle(),
+    supabaseAdmin
+      .from("sm8_writes")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("kind", "note")
+      .eq("op", "create")
+      .eq("note_id", id)
+      .maybeSingle(),
+  ]);
+  if (!note) return null;
+  const n = note as { target_id: string | null; reply_to_sm8_note_uuid: string | null; is_task_done: boolean | null; removed_at: string | null };
+  return { ...n, hasCreate: !!create };
 }
 
 export type NoteTaskInput = {

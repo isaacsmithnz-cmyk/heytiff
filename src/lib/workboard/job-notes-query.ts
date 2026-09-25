@@ -19,11 +19,30 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { displayNameOf } from "@/lib/staff/name";
 import { NAME_COLUMNS, mentionableStaff } from "@/lib/dashboard/tasks-query";
-import { sm8StaffLinkMap } from "@/lib/integrations/links";
+import { sm8StaffLinkMap, type NoteSender } from "@/lib/integrations/links";
 import { sm8Ours } from "@/lib/integrations/sm8-echo";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { offersSend, sendHold, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
+import {
+  flagHeldByUs,
+  flagState,
+  isStoredRefusal,
+  noteState,
+  type FlagOp,
+  type FlagState,
+  type NoteState,
+  type QueueRowIn,
+} from "@/lib/integrations/sm8-note-plan";
 import { mentionedHandles, sm8Handle } from "./sm8-mentions";
-import { buildJobAttention, type AttentionFlag, type AttentionTask, type JobAttention } from "./job-attention";
+import {
+  buildJobAttention,
+  type AttentionFlag,
+  type AttentionOurNote,
+  type AttentionTask,
+  type JobAttention,
+} from "./job-attention";
 import type { Severity } from "./note-brain";
+import type { JobNoteEntry } from "./all-jobs-query";
 
 /** A note somebody wrote on this job, ours. */
 export type OurJobNote = {
@@ -32,20 +51,90 @@ export type OurJobNote = {
   /** The account-local naive stamp, so it sorts beside ServiceM8's. */
   at: string;
   author: string | null;
+  /* ── notes to ServiceM8 (two-way phase 2, PR B) ──
+     Set only where the deployment sends notes; optional so every reader
+     that predates them types unchanged. */
+  /** Who wrote it: their staff card. */
+  authorId?: string | null;
+  /** The ServiceM8 note this answers, when it is a reply. */
+  replyTo?: string | null;
+  /** Taken back (a tombstone), drawn only while something of it may still
+      be in ServiceM8. */
+  removed?: boolean;
+  /** What it says about ServiceM8, and the doors it offers the viewer —
+      null for a HeyTiff-only entry. */
+  state?: NoteState | null;
+  /** The uuid ServiceM8's copy carries, once it went: a reply to that copy
+      finds this row by it. */
+  sm8Uuid?: string | null;
+  /** It has been queued for ServiceM8 at least once. */
+  hasCreate?: boolean;
+  /** The viewer wrote it. */
+  mine?: boolean;
+};
+
+/** Who is looking, where the deployment sends notes: their staff card, the
+    workspace's sending state and who they are in ServiceM8. One read of
+    each per card open, shared by every reader that needs them. */
+export type NotesViewer = {
+  staffId: string | null;
+  state: Sm8WriteState;
+  sender: NoteSender | null;
 };
 
 const SEVERITY: ReadonlySet<string> = new Set(["info", "warn", "urgent"]);
+
+type DbError = { code?: string } | null;
+const missingColumn = (e: DbError) => e?.code === "42703" || e?.code === "PGRST204";
+
+type OurRow = {
+  id: string;
+  transcript: string | null;
+  applied: Record<string, unknown> | null;
+  applied_at: string | null;
+  created_at: string;
+  author_id: string | null;
+  reply_to_sm8_note_uuid?: string | null;
+  removed_at?: string | null;
+  sm8_refusal?: string | null;
+};
+
+const OUR_COLUMNS = "id, transcript, applied, applied_at, created_at, author_id";
+const OUR_SM8_COLUMNS = `${OUR_COLUMNS}, reply_to_sm8_note_uuid, removed_at, sm8_refusal`;
+
+/** A note's queue rows, as its line reads them: its create and the
+    take-back of that create. */
+type QueueRow = QueueRowIn & {
+  note_id: string | null;
+  op: string;
+  depends_on: string | null;
+  requested_by: string | null;
+};
+
+const QUEUE_COLUMNS =
+  "id, note_id, op, depends_on, status, lease_until, remote_uuid, maybe_landed, verify_uuids, taken_back_at, requested_by, last_error, attempts";
 
 /** Every note HeyTiff holds against this job, newest first.
 
     Capped like the mirror's own read: a diary is read from the top, and a
     job with two hundred notes on it is telling us something other than that
-    the reader wants all two hundred at once. */
+    the reader wants all two hundred at once.
+
+    WHERE THE DEPLOYMENT SENDS NOTES, each one also says where it stands
+    with ServiceM8 (`state`), read from its queue rows in one query, and a
+    note somebody took back is still drawn while something of it may be in
+    ServiceM8 — "Still in ServiceM8", with Try again — and not once nothing
+    of it can be. `viewer` says who is looking, so the doors are theirs; the
+    stored summary reads without one and gets the same set of notes (the
+    story's stamp needs both readers handed the same set). Without notes
+    this is exactly the read it always was. */
 export async function readOurJobNotes(
   orgId: string,
   jobUuid: string,
-  limit = 60
+  limit = 60,
+  viewer?: NotesViewer | Promise<NotesViewer | null> | null
 ): Promise<OurJobNote[]> {
+  if (sm8NotesAllowed()) return readOurJobNotesWithSm8(orgId, jobUuid, limit, viewer ?? null);
   const { data } = await supabaseAdmin
     .from("workboard_notes")
     .select("id, transcript, applied, applied_at, created_at, author_id")
@@ -86,6 +175,238 @@ function keptWords(applied: Record<string, unknown> | null): string | null {
   if (!Array.isArray(kept)) return null;
   const words = kept.filter((k): k is string => typeof k === "string" && !!k.trim());
   return words.length ? words.join("\n\n") : null;
+}
+
+/* ── our notes, where the deployment sends notes ── */
+
+/** Our rows on this job: filed on it, or taken back. A database without the
+    phase 2 columns reads as it always did. A take-back keeps its row
+    (`removed_at`), and the rollback may have set it `dismissed`: new code
+    reads a removed row whatever its status. */
+async function readOurRows(orgId: string, jobUuid: string, limit: number): Promise<OurRow[]> {
+  const base = () =>
+    supabaseAdmin.from("workboard_notes").select(OUR_SM8_COLUMNS).eq("org_id", orgId).eq("target_kind", "job").eq("target_id", jobUuid);
+  const { data, error } = await base()
+    .or("status.eq.applied,removed_at.not.is.null")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (!missingColumn(error)) return (data ?? []) as unknown as OurRow[];
+  const old = await supabaseAdmin
+    .from("workboard_notes")
+    .select(OUR_COLUMNS)
+    .eq("org_id", orgId)
+    .eq("target_kind", "job")
+    .eq("target_id", jobUuid)
+    .eq("status", "applied")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return (old.data ?? []) as unknown as OurRow[];
+}
+
+/** A diary row carries words the diary can show. */
+const drawable = (r: OurRow) => {
+  const kept = r.applied?.jobNotes;
+  return Array.isArray(kept) && kept.length > 0 && !!r.transcript?.trim();
+};
+
+/** The queue rows of these notes: each one's create and its take-back, in
+    one read. Null when it can't be read — the notes then say nothing about
+    ServiceM8, rather than something wrong. */
+async function readQueueRows(orgId: string, noteIds: readonly string[]): Promise<QueueRow[] | null> {
+  if (noteIds.length === 0) return [];
+  const { data, error } = await supabaseAdmin
+    .from("sm8_writes")
+    .select(QUEUE_COLUMNS)
+    .eq("org_id", orgId)
+    .eq("kind", "note")
+    .in("op", ["create", "delete"])
+    .in("note_id", [...noteIds]);
+  if (error) {
+    console.error(`[sm8] couldn't read where org ${orgId}'s notes stand with ServiceM8:`, error);
+    return null;
+  }
+  return (data ?? []) as unknown as QueueRow[];
+}
+
+/** Who is looking, when the caller didn't say: nobody's doors, the
+    workspace's own state. The sender's module is reached lazily: it imports
+    this one (for names), and every reader of staffDisplayNames — the files,
+    the papers — would otherwise load the whole sender with it. */
+async function viewerOr(orgId: string, viewer: NotesViewer | Promise<NotesViewer | null> | null): Promise<NotesViewer> {
+  const v = await viewer;
+  if (v) return v;
+  const { readSm8WriteState } = await import("@/lib/integrations/sm8-writes");
+  return { staffId: null, state: await readSm8WriteState(orgId), sender: null };
+}
+
+/** Shape our rows, each with where it stands with ServiceM8. A removed row
+    is left out once its line is empty: nothing of it can be in ServiceM8. */
+async function shapeOurNotes(orgId: string, rows: readonly OurRow[], viewerIn: NotesViewer | Promise<NotesViewer | null> | null): Promise<OurJobNote[]> {
+  const [names, queue, viewer] = await Promise.all([
+    staffDisplayNames(
+      orgId,
+      rows.map((r) => r.author_id)
+    ),
+    readQueueRows(
+      orgId,
+      rows.map((r) => r.id)
+    ),
+    viewerOr(orgId, viewerIn),
+  ]);
+  const { state, sender } = viewer;
+  const hold = state.readable ? sendHold(state, "note") : null;
+  const offered = offersSend(state, "note");
+  const createOf = new Map<string, QueueRow>();
+  const takeBackOf = new Map<string, QueueRow>();
+  for (const q of queue ?? []) {
+    if (q.op === "create" && q.note_id) createOf.set(q.note_id, q);
+    else if (q.op === "delete" && q.depends_on) takeBackOf.set(q.depends_on, q);
+  }
+
+  const out: OurJobNote[] = [];
+  for (const r of rows) {
+    const create = createOf.get(r.id) ?? null;
+    const takeBack = create ? (takeBackOf.get(create.id) ?? null) : null;
+    const removed = !!r.removed_at;
+    const sentBy = create ? (create.requested_by ?? null) : (r.author_id ?? null);
+    const viewerIsSender = !!viewer.staffId && sentBy === viewer.staffId;
+    const senderName = sentBy ? (names.get(sentBy) ?? null) : null;
+    const line =
+      queue === null
+        ? null
+        : noteState({
+            row: { removed, refusal: isStoredRefusal(r.sm8_refusal) ? r.sm8_refusal : null },
+            create,
+            takeBack,
+            hold,
+            offered,
+            viewerIsSender,
+            senderName,
+            sm8Name: viewerIsSender ? (sender && "sm8Name" in sender ? sender.sm8Name : null) : senderName,
+          });
+    const drawn = line && line.key ? line : null;
+    /* A TAKE-BACK THAT SETTLED LEAVES NOTHING, as today's Remove did: the
+       tombstone is drawn only while something of it may be in ServiceM8 */
+    if (removed && !drawn) continue;
+    out.push({
+      id: r.id,
+      text: keptWords(r.applied) ?? r.transcript!.trim(),
+      at: r.applied_at ?? r.created_at,
+      author: r.author_id ? (names.get(r.author_id) ?? null) : null,
+      authorId: r.author_id ?? null,
+      replyTo: r.reply_to_sm8_note_uuid ?? null,
+      removed,
+      state: drawn,
+      sm8Uuid: create?.status === "sent" ? create.remote_uuid : null,
+      hasCreate: !!create,
+      mine: !!viewer.staffId && r.author_id === viewer.staffId,
+    });
+  }
+  return out;
+}
+
+async function readOurJobNotesWithSm8(
+  orgId: string,
+  jobUuid: string,
+  limit: number,
+  viewer: NotesViewer | Promise<NotesViewer | null> | null
+): Promise<OurJobNote[]> {
+  const rows = (await readOurRows(orgId, jobUuid, limit)).filter(drawable);
+  if (rows.length === 0) return [];
+  return shapeOurNotes(orgId, rows, viewer);
+}
+
+/** One of our notes, shaped as the diary draws it — the answer to a press,
+    read after it. Null when it isn't this workspace's note on a job, or
+    it's a removed one that draws nothing now. */
+export async function readOurJobNote(
+  orgId: string,
+  noteId: string,
+  viewer: NotesViewer | Promise<NotesViewer | null> | null
+): Promise<OurJobNote | null> {
+  const { data, error } = await supabaseAdmin
+    .from("workboard_notes")
+    .select(OUR_SM8_COLUMNS)
+    .eq("org_id", orgId)
+    .eq("id", noteId)
+    .eq("target_kind", "job")
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = data as unknown as OurRow & { status?: string };
+  if (!drawable(row)) return null;
+  const [shaped] = await shapeOurNotes(orgId, [row], viewer);
+  return shaped ?? null;
+}
+
+/* ── ServiceM8's flags, with our marks on them ── */
+
+type FlagOpRow = FlagOp & { target_uuid: string | null };
+
+/** Our marks on these of ServiceM8's notes, newest first, in one read. */
+export async function readFlagOps(orgId: string, noteUuids: readonly string[]): Promise<Map<string, FlagOpRow[]>> {
+  const out = new Map<string, FlagOpRow[]>();
+  const uuids = [...new Set(noteUuids)].slice(0, 100);
+  if (uuids.length === 0) return out;
+  const { data, error } = await supabaseAdmin
+    .from("sm8_writes")
+    .select("id, target_uuid, status, flag_done, seen_edit_date, landed_edit_date, requested_by, last_error, created_at")
+    .eq("org_id", orgId)
+    .eq("kind", "note")
+    .eq("op", "update")
+    .in("target_uuid", uuids)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) {
+    console.error(`[sm8] couldn't read org ${orgId}'s marks on ServiceM8's flags:`, error);
+    return out;
+  }
+  for (const op of (data ?? []) as unknown as FlagOpRow[]) {
+    if (!op.target_uuid) continue;
+    const list = out.get(op.target_uuid) ?? [];
+    list.push(op);
+    out.set(op.target_uuid, list);
+  }
+  return out;
+}
+
+/** Every flagged note's line, with our marks on it — and the ones our own
+    mark still holds, which the strip leaves off (a flag we marked done is
+    dealt with, until somebody changes it in ServiceM8). */
+export async function readFlagStates(
+  orgId: string,
+  notes: readonly Pick<JobNoteEntry, "remoteId" | "flagged" | "actionRequired" | "doneBy" | "editedAt">[],
+  viewer: Pick<NotesViewer, "staffId" | "state">
+): Promise<{ flags: Record<string, FlagState>; held: Set<string> }> {
+  const flagged = notes.filter((n) => n.flagged ?? n.actionRequired);
+  const flags: Record<string, FlagState> = {};
+  const held = new Set<string>();
+  if (flagged.length === 0) return { flags, held };
+  const ops = await readFlagOps(
+    orgId,
+    flagged.map((n) => n.remoteId)
+  );
+  const hold = viewer.state.readable ? sendHold(viewer.state, "note") : null;
+  const trialNow = viewer.state.mode === "trial";
+  for (const n of flagged) {
+    const mine = ops.get(n.remoteId) ?? [];
+    const completed = !n.actionRequired;
+    const line = flagState({
+      mirror: {
+        flagged: true,
+        completedByName: completed ? (n.doneBy ?? null) : null,
+        /* read as a yes or no: somebody has marked it done, named or not */
+        completedBy: completed ? "marked" : null,
+        editDate: n.editedAt ?? null,
+      },
+      ops: mine,
+      hold,
+      trialNow,
+      viewerStaffId: viewer.staffId,
+    });
+    if (line.key) flags[n.remoteId] = line;
+    if (flagHeldByUs({ editDate: n.editedAt ?? null }, mine, trialNow)) held.add(n.remoteId);
+  }
+  return { flags, held };
 }
 
 /** One read for every name on the strip, the diary and the Documents face.
@@ -153,9 +474,24 @@ export async function readJobAttention(
         does that where the deployment sends notes), so this read would ask
         the same question twice: a card open makes exactly ONE echo read. */
     echoFiltered?: boolean;
+    /* ── where the deployment sends notes (two-way phase 2, PR B) ── */
+    /** The viewer's own @handle, from who they are in ServiceM8: a mention
+        of them says so (`you`), and offers them a Reply. */
+    viewerHandle?: string | null;
+    /** HeyTiff's own notes on this job (readOurJobNotes). One that went, or
+        is on its way, and names somebody is a mention for them — ServiceM8
+        alerts them, and the twin it mirrors back is hidden, so HeyTiff's
+        row is where the mention lives. */
+    ourNotes?: readonly OurJobNote[];
+    /** ServiceM8's flags our own Mark done still holds: dealt with, so off
+        the strip, until somebody changes them in ServiceM8. */
+    heldFlags?: ReadonlySet<string>;
   }
 ): Promise<JobAttentionRead> {
-  const [flags, taskIds, answered, people, assignable, ours] = await Promise.all([
+  const notesOn = sm8NotesAllowed();
+  /* our notes that may carry a mention: queued once, not taken back */
+  const ourMentions = notesOn ? (input.ourNotes ?? []).filter((n) => n.hasCreate && !n.removed) : [];
+  const [flags, taskIds, answered, people, assignable, ours, repliedTo] = await Promise.all([
     readJobFlags(orgId, jobUuid),
     noteBornTaskIds(orgId, jobUuid),
     answeredNotes(orgId, jobUuid),
@@ -168,14 +504,26 @@ export async function readJobAttention(
           orgId,
           input.notes.map((n) => n.remoteId)
         ),
+    /* ANSWERED BY A REPLY: worked out from the replies themselves, never a
+       job_note_actions row (a reply is not a decision about the note, and
+       one note can have many). Only where the deployment sends notes. */
+    notesOn
+      ? answeredByReply(orgId, [
+          ...input.notes.map((n) => n.remoteId),
+          ...ourMentions.map((n) => n.sm8Uuid).filter((u): u is string => !!u),
+        ])
+      : Promise.resolve(new Set<string>()),
   ]);
   const tasks = await openTasks(orgId, taskIds);
 
   const handles = [...people.keys()];
+  const held = input.heldFlags ?? new Set<string>();
   const attention = buildJobAttention({
     flags,
     tasks,
-    notes: input.notes.map((n) => ({
+    /* a flag our own mark holds is dealt with: off the strip altogether,
+       mention and all, as a flag somebody answered is */
+    notes: input.notes.filter((n) => !(n.actionRequired && held.has(n.remoteId))).map((n) => ({
       remoteId: n.remoteId,
       text: n.text,
       author: n.writtenBy,
@@ -185,13 +533,46 @@ export async function readJobAttention(
       handles: mentionedHandles(n.text, handles),
       ours: ours.has(n.remoteId),
     })),
+    ours: ourMentions.map(
+      (n): AttentionOurNote => ({
+        rowId: n.id,
+        noteUuid: n.sm8Uuid ?? null,
+        text: n.text,
+        author: n.author,
+        at: n.at,
+        handles: mentionedHandles(n.text, handles),
+      })
+    ),
+    /* undefined without notes: the items are exactly today's */
+    viewerHandle: notesOn ? (input.viewerHandle ?? null) : undefined,
     jobOpen: input.jobOpen,
-    answered,
+    answered: repliedTo.size > 0 ? new Set([...answered, ...repliedTo]) : answered,
     people,
     today: input.today,
   });
 
   return { attention, assignable };
+}
+
+/** Which of these notes somebody has replied to from HeyTiff, with a reply
+    that hasn't been taken back. The uuids ride in the URL, so they go fifty
+    at a time (sm8-echo's measure). */
+async function answeredByReply(orgId: string, uuids: readonly string[]): Promise<Set<string>> {
+  const wanted = [...new Set(uuids.filter(Boolean))];
+  const out = new Set<string>();
+  for (let i = 0; i < wanted.length; i += 50) {
+    const { data, error } = await supabaseAdmin
+      .from("workboard_notes")
+      .select("reply_to_sm8_note_uuid")
+      .eq("org_id", orgId)
+      .in("reply_to_sm8_note_uuid", wanted.slice(i, i + 50))
+      .is("removed_at", null);
+    if (error) return out;
+    for (const r of (data ?? []) as { reply_to_sm8_note_uuid: string | null }[]) {
+      if (r.reply_to_sm8_note_uuid) out.add(r.reply_to_sm8_note_uuid);
+    }
+  }
+  return out;
 }
 
 /** Live HeyTiff flags against this job. */

@@ -28,6 +28,15 @@ import type {
   EmailDraft,
 } from "@/app/actions/job-compliance";
 import type { JobSm8Read, SendToSm8Input, SendToSm8Result } from "@/app/actions/job-sm8";
+import type {
+  ConfirmResult,
+  FlagResult,
+  JobNoteStates,
+  NoteStateResult,
+  ReplyResult,
+  TakeBackNoteResult,
+} from "@/app/actions/job-note-sm8";
+import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 
 const readMirrorJob = jest.fn(
   async (): Promise<JobCardRead> => ({ detail: null, focusRemoteId: null })
@@ -198,6 +207,26 @@ jest.mock("@/app/actions/job-sm8", () => ({
   readJobSm8: (...a: unknown[]) => sm8Send.readJobSm8(...(a as [string])),
   sendJobDocumentsToServiceM8: (...a: unknown[]) =>
     sm8Send.sendJobDocumentsToServiceM8(...(a as [SendToSm8Input])),
+}));
+/* Notes to ServiceM8 (two-way phase 2) — the same arrangement: nothing
+   offered and nothing sent by default, filled in by the block about them. */
+const noteSm8 = {
+  replyToJobNote: jest.fn(async (_i: Parameters<typeof import("@/app/actions/job-note-sm8").replyToJobNote>[0]): Promise<ReplyResult> => ({ ok: false, error: "no" })),
+  sendJobNoteToServiceM8: jest.fn(async (_i: { jobUuid: string; noteId: string }): Promise<NoteStateResult> => ({ ok: false, error: "no" })),
+  takeBackJobNote: jest.fn(async (_i: { jobUuid: string; noteId: string }): Promise<TakeBackNoteResult> => ({ ok: false, error: "no" })),
+  markJobNoteDone: jest.fn(async (_i: unknown): Promise<FlagResult> => ({ ok: false, error: "no" })),
+  undoJobNoteDone: jest.fn(async (_i: unknown): Promise<FlagResult> => ({ ok: false, error: "no" })),
+  confirmMySm8Link: jest.fn(async (_i: { remoteId: string; answer: "yes" | "no" }): Promise<ConfirmResult> => ({ ok: false, error: "no" })),
+  readJobNoteStates: jest.fn(async (_i: { jobUuid: string }): Promise<JobNoteStates | null> => null),
+};
+jest.mock("@/app/actions/job-note-sm8", () => ({
+  replyToJobNote: (...a: unknown[]) => noteSm8.replyToJobNote(...(a as [never])),
+  sendJobNoteToServiceM8: (...a: unknown[]) => noteSm8.sendJobNoteToServiceM8(...(a as [never])),
+  takeBackJobNote: (...a: unknown[]) => noteSm8.takeBackJobNote(...(a as [never])),
+  markJobNoteDone: (...a: unknown[]) => noteSm8.markJobNoteDone(...(a as [never])),
+  undoJobNoteDone: (...a: unknown[]) => noteSm8.undoJobNoteDone(...(a as [never])),
+  confirmMySm8Link: (...a: unknown[]) => noteSm8.confirmMySm8Link(...(a as [never])),
+  readJobNoteStates: (...a: unknown[]) => noteSm8.readJobNoteStates(...(a as [never])),
 }));
 
 
@@ -1187,7 +1216,10 @@ describe("writing on the job", () => {
     await userEvent.type(f.getByLabelText("a note on this job"), "Drain kit still to go on");
     await userEvent.click(f.getByRole("button", { name: "Add a note on this job" }));
 
-    expect(addJobNote).toHaveBeenCalledWith("j-1", "Drain kit still to go on");
+    /* under the pen's own id (two-way phase 2): a double submit is one entry */
+    expect(addJobNote).toHaveBeenCalledWith("j-1", "Drain kit still to go on", {
+      id: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
+    });
     /* THE SAVED ROW REPLACES THE OPTIMISTIC ONE. A browser knows its own
        auth id and not the display name behind it — slice 3 shipped that
        defect on the checklist's stamps, and this is the same fix. */
@@ -1254,6 +1286,220 @@ describe("writing on the job", () => {
        is worse than not offering one. */
     expect(f.queryByRole("button", { name: "Remove" })).toBeNull();
     expect(f.queryByText("In HeyTiff")).toBeNull();
+  });
+});
+
+/* ── notes to ServiceM8 on the card (two-way phase 2, PR B) ── */
+
+describe("notes to ServiceM8 on the card", () => {
+  const ASK = "7e7e7e7e-0000-4000-8000-00000000a5c1";
+  const ISAAC_SM8 = "5a1b2c3d-0000-4000-8000-00000000aaaa";
+  const ready = { state: "ready" as const, staffUuid: ISAAC_SM8, remoteId: ISAAC_SM8, sm8Name: "Isaac Smith", handle: "isaacsmith" };
+  const askNote = {
+    remoteId: ASK,
+    text: "@isaacsmith can you order the grilles",
+    writtenOn: "2026-08-26",
+    writtenAt: "2026-08-26 09:00:00",
+    writtenBy: "Luke Ingold",
+    actionRequired: false,
+    fromClaim: null,
+    editedAt: "2026-08-26 09:00:00",
+    authorSm8Uuid: "5a1b2c3d-0000-4000-8000-00000000bbbb",
+  };
+  const sending = { key: "line.sending" as const, text: NOTE_WORDS.line.sending, tone: null, acts: ["undo" as const] };
+  const sent = { key: "line.sent" as const, text: NOTE_WORDS.line.sent, tone: "ok" as const, acts: ["undo" as const] };
+  const withNotes = (over: Partial<JobRecordRead> = {}) =>
+    record({
+      notes: [askNote],
+      sender: ready,
+      notesSm8: { trial: false, hold: null, owner: false },
+      flags: {},
+      attention: {
+        items: [
+          {
+            kind: "mention",
+            key: `mention:${ASK}`,
+            noteUuid: ASK,
+            text: askNote.text,
+            author: "Luke Ingold",
+            at: askNote.writtenAt,
+            named: [{ name: "Isaac Smith", staffId: "staff-1" }],
+            you: true,
+            origin: "sm8",
+            rowId: null,
+          },
+        ],
+        total: 1,
+      },
+      ...over,
+    });
+  const reply = (over: Partial<import("@/lib/workboard/job-notes-query").OurJobNote> = {}) => ({
+    id: "r-1",
+    text: "@lukeingold on my way",
+    at: "2026-08-26T00:00:00.000Z",
+    author: "Isaac Smith",
+    authorId: "staff-1",
+    replyTo: ASK,
+    removed: false,
+    state: sending,
+    sm8Uuid: null,
+    hasCreate: true,
+    mine: true,
+    ...over,
+  });
+
+  beforeEach(() => {
+    for (const fn of Object.values(noteSm8)) fn.mockReset();
+    noteSm8.readJobNoteStates.mockResolvedValue(null);
+    /* the pen's tick is remembered per browser: each test starts unticked */
+    localStorage.clear();
+    addJobNote.mockClear();
+  });
+
+  it("(F) the strip's Reply opens the diary at the note, with its box open; a reply shows at once under it, sending, with Undo", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(withNotes());
+    noteSm8.replyToJobNote.mockResolvedValueOnce({ ok: true, note: reply() });
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+
+    const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+    await userEvent.click(strip.getByRole("button", { name: "Reply" }));
+    expect(screen.getByRole("tab", { name: "Diary", selected: true })).toBeInTheDocument();
+    const f = face("diary");
+    await userEvent.type(f.getByPlaceholderText(NOTE_WORDS.door.replyPlaceholder), "on my way");
+    await userEvent.click(f.getByRole("button", { name: NOTE_WORDS.door.sendReply }));
+    expect(noteSm8.replyToJobNote).toHaveBeenCalledWith(
+      expect.objectContaining({ jobUuid: "j-1", sourceNoteUuid: ASK, words: "on my way" })
+    );
+    // under the note it answers, once, with its line and its Undo
+    const thread = await waitFor(() => {
+      const t = document.querySelector("#jcsec-diary .wb2-evthread");
+      if (!t) throw new Error("no thread yet");
+      return t as HTMLElement;
+    });
+    expect(within(thread).getByText(NOTE_WORDS.line.sending)).toBeInTheDocument();
+    expect(within(thread).getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    expect(document.querySelectorAll("#jcsec-diary .wb2-evcard")).toHaveLength(2);
+    // answered: its mention leaves the strip
+    expect(screen.queryByRole("region", { name: "Needs attention" })).toBeNull();
+  });
+
+  it("(F) (verifier r2 12) ticked, the pen sends with the SAVED id — and the same words twice are one entry and one send", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(withNotes({ attention: { items: [], total: 0 } }));
+    let land: (v: unknown) => void = () => {};
+    addJobNote.mockImplementationOnce(
+      (_job: string, body: string) =>
+        new Promise((resolve) => {
+          land = () => resolve({ id: "saved-1", text: body, at: "2026-08-28T09:00:00.000Z", author: "Isaac Smith" });
+        })
+    );
+    noteSm8.sendJobNoteToServiceM8.mockResolvedValue({ ok: true, state: sent });
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Diary");
+    const f = face("diary");
+    await userEvent.click(f.getByRole("checkbox", { name: NOTE_WORDS.door.alsoInSm8 }));
+    const box = f.getByLabelText("a note on this job");
+    await userEvent.type(box, "Drain kit still to go on{Enter}");
+    await userEvent.type(box, "Drain kit still to go on{Enter}");
+    expect(addJobNote).toHaveBeenCalledTimes(1);
+    expect(f.getAllByText("Drain kit still to go on")).toHaveLength(1);
+    await act(async () => land(null));
+    await waitFor(() => expect(noteSm8.sendJobNoteToServiceM8).toHaveBeenCalledTimes(1));
+    expect(noteSm8.sendJobNoteToServiceM8).toHaveBeenCalledWith({ jobUuid: "j-1", noteId: "saved-1" });
+    expect(await f.findByText(NOTE_WORDS.line.sent)).toBeInTheDocument();
+    addJobNote.mockClear();
+  });
+
+  it("unticked, the pen sends nothing to ServiceM8", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(withNotes({ attention: { items: [], total: 0 } }));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Diary");
+    const f = face("diary");
+    await userEvent.type(f.getByLabelText("a note on this job"), "Drain kit{Enter}");
+    await waitFor(() => expect(addJobNote).toHaveBeenCalled());
+    expect(noteSm8.sendJobNoteToServiceM8).not.toHaveBeenCalled();
+    addJobNote.mockClear();
+  });
+
+  it("(F) (verifier r3 3) Yes on a saved row's question confirms, then sends that row; Not me sends nothing", async () => {
+    const confirm = { state: "confirm" as const, remoteId: ISAAC_SM8, sm8Name: "Isaac Smith", handle: "isaacsmith" };
+    const asking = {
+      key: "line.notSent" as const,
+      text: "Not sent to ServiceM8. Is Isaac Smith you?",
+      tone: "bad" as const,
+      acts: ["confirm" as const, "undo" as const],
+    };
+    readMirrorJob.mockResolvedValue(card(detail()));
+    readJobRecord.mockResolvedValue(withNotes({ sender: confirm, ourNotes: [reply({ state: asking })], attention: { items: [], total: 0 } }));
+    noteSm8.confirmMySm8Link.mockResolvedValue({ ok: true, sender: ready });
+    noteSm8.sendJobNoteToServiceM8.mockResolvedValue({ ok: true, state: sending });
+    const { unmount } = render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Diary");
+    const ev = (await face("diary").findByText("Not sent to ServiceM8. Is Isaac Smith you?")).closest(".wb2-ev") as HTMLElement;
+    await userEvent.click(within(ev).getByRole("button", { name: NOTE_WORDS.door.yes }));
+    expect(noteSm8.confirmMySm8Link).toHaveBeenCalledWith({ remoteId: ISAAC_SM8, answer: "yes" });
+    await waitFor(() => expect(noteSm8.sendJobNoteToServiceM8).toHaveBeenCalledWith({ jobUuid: "j-1", noteId: "r-1" }));
+    unmount();
+
+    noteSm8.sendJobNoteToServiceM8.mockClear();
+    noteSm8.confirmMySm8Link.mockResolvedValue({ ok: true, sender: { ...confirm, state: "denied" } });
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Diary");
+    const ev2 = (await face("diary").findByText("Not sent to ServiceM8. Is Isaac Smith you?")).closest(".wb2-ev") as HTMLElement;
+    await userEvent.click(within(ev2).getByRole("button", { name: NOTE_WORDS.door.notMe }));
+    await waitFor(() => expect(noteSm8.confirmMySm8Link).toHaveBeenLastCalledWith({ remoteId: ISAAC_SM8, answer: "no" }));
+    expect(noteSm8.sendJobNoteToServiceM8).not.toHaveBeenCalled();
+  });
+
+  it("Undo asks the server and draws what it answers: gone, or still in ServiceM8 with Try again", async () => {
+    readMirrorJob.mockResolvedValue(card(detail()));
+    readJobRecord.mockResolvedValue(withNotes({ ourNotes: [reply({ state: sent, sm8Uuid: "9a9a9a9a-0000-4000-8000-000000000001" })], attention: { items: [], total: 0 } }));
+    noteSm8.takeBackJobNote.mockResolvedValueOnce({
+      ok: false,
+      error: NOTE_WORDS.press.takeBackOff,
+      state: { key: "line.stillIn", text: "Still in ServiceM8. Sending notes is switched off.", tone: "bad", acts: ["take_out_again"] },
+    });
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Diary");
+    const f = face("diary");
+    await userEvent.click(await f.findByRole("button", { name: "Undo" }));
+    expect(noteSm8.takeBackJobNote).toHaveBeenCalledWith({ jobUuid: "j-1", noteId: "r-1" });
+    expect(await f.findByText("Still in ServiceM8. Sending notes is switched off.")).toBeInTheDocument();
+    noteSm8.takeBackJobNote.mockResolvedValueOnce({ ok: true, gone: true, state: null });
+    await userEvent.click(f.getByRole("button", { name: NOTE_WORDS.door.tryAgain }));
+    await waitFor(() => expect(f.queryByText("@lukeingold on my way")).toBeNull());
+  });
+
+  it("is not there at all where the deployment sends no notes", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(
+      record({
+        notes: [askNote],
+        attention: {
+          items: [
+            { kind: "mention", key: `mention:${ASK}`, noteUuid: ASK, text: askNote.text, author: "Luke Ingold", at: askNote.writtenAt, named: [{ name: "Isaac Smith", staffId: "staff-1" }] },
+          ],
+          total: 1,
+        },
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+    expect(strip.queryByRole("button", { name: "Reply" })).toBeNull();
+    expect(strip.getByRole("button", { name: "Make it a task" })).toBeInTheDocument();
+    await openTab("Diary");
+    expect(face("diary").queryByRole("button", { name: "Reply" })).toBeNull();
+    expect(face("diary").queryByRole("checkbox")).toBeNull();
+    expect(noteSm8.readJobNoteStates).not.toHaveBeenCalled();
   });
 });
 

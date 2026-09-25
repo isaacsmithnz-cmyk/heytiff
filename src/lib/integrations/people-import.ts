@@ -46,8 +46,10 @@ export type ImportStaffCandidate = StaffCandidate & {
 };
 
 export type PersonRow =
-  /** A saved decision — shown so re-entry reads as done, never re-offered. */
-  | { kind: "linked"; person: ImportCandidate; staffProfileId: string; staffName: string }
+  /** A saved decision — shown so re-entry reads as done, never re-offered.
+      `denied`: the person answered "Not me" to it (ServiceM8, two-way
+      phase 2) — the link is wrong, and an owner fixes it here. */
+  | { kind: "linked"; person: ImportCandidate; staffProfileId: string; staffName: string; denied?: boolean }
   /** One confident candidate here, with the reason. A human still presses it. */
   | {
       kind: "suggested";
@@ -70,7 +72,9 @@ export type PersonRow =
 export function buildPeopleRows(
   people: ImportCandidate[],
   staff: ImportStaffCandidate[],
-  links: IntegrationLink[]
+  links: IntegrationLink[],
+  /** Remote ids whose link its person said isn't them. */
+  denied?: ReadonlySet<string>
 ): PersonRow[] {
   const linkByRemote = new Map(links.map((l) => [l.remoteId, l]));
   const linkedStaffIds = new Set(links.map((l) => l.staffProfileId));
@@ -95,6 +99,7 @@ export function buildPeopleRows(
         // The card is the truth for who they are NOW; the label the link
         // captured is only the fallback for a card that has since gone.
         staffName: staffById.get(link.staffProfileId)?.name ?? link.remoteLabel ?? "a removed card",
+        ...(denied?.has(person.id) ? { denied: true } : {}),
       };
     }
 

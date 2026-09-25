@@ -291,6 +291,21 @@ columns to `workboard_notes`, the owner's per-kind switch, and the link
 confirmation). With `SM8_WRITES=1` nothing about notes changes: no screen,
 no read and no write.
 
+**On the job card** (PR B), apply `docs/migrations/sm8_notes_job_card.sql`
+before its deploy too, after A's: one index, for "has anybody replied to
+this note from HeyTiff?". Once notes are offered, a ServiceM8 note that
+@mentions you offers **Reply** in the diary and on the strip; the pen gains
+**Also in ServiceM8**; your own entry offers **Send to ServiceM8**; **Undo**
+(or **Remove**, on a diary entry) takes a note back whatever state it is in;
+and a flagged note offers **Mark done**, as you. **The link question:** the
+first time you'd send, the card asks "Is <your ServiceM8 name> you?" — in
+the reply box, beside the tick box, or on a saved note's line — with **Yes**
+and **Not me**. Yes never sends anything by itself; on a saved note's line
+it then sends that note. Not me is kept, and the owner's people card on the
+ServiceM8 screen says "Says this isn't them." beside that link, which is
+where it gets fixed (a relink asks again). With `SM8_WRITES=1` the card is
+exactly as it was, and every one of these actions answers before any read.
+
 **The order, word for word:**
 
 1. Apply A's migration, then B's, then C's. Each goes before the deploy that reads it.

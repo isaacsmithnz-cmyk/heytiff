@@ -193,6 +193,25 @@ describe("inactive people and linked people stay out of the way", () => {
   });
 });
 
+/* Two-way phase 2: each person answers "Is <ServiceM8 name> you?" before a
+   note goes as them, and "Not me" is kept against the link — the owner sees
+   it here, beside that link, which is where it is fixed. */
+describe("a link its person said isn't them", () => {
+  it("(F) says so beside the link, and a confirmed one says nothing", async () => {
+    const linked = (id: string, denied?: boolean): PersonRow => ({
+      kind: "linked",
+      person: person({ id, name: id === "u-4" ? "Dan Smith" : "Ann Lee" }),
+      staffProfileId: `s-${id}`,
+      staffName: "A card",
+      ...(denied ? { denied } : {}),
+    });
+    show({ rows: [linked("u-4", true), linked("u-5")] });
+    await userEvent.click(screen.getByRole("button", { name: /already linked \(2\)/i }));
+    expect(screen.getAllByText("Says this isn't them.")).toHaveLength(1);
+    expect(screen.getByText("Says this isn't them.").closest(".sp-row")).toHaveTextContent("Dan Smith");
+  });
+});
+
 /* One component, two providers — what changes is the name in the sentences
    and where an unlink belongs. */
 describe("the provider only changes what it must", () => {

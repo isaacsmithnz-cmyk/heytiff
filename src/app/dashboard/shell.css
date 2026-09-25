@@ -7084,6 +7084,13 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
   color:var(--ink); cursor:pointer; }
 .wb2-evdoor:hover { text-decoration:underline; }
 .wb2-evdoor:focus-visible { outline:none; box-shadow:var(--ring);; border-radius:var(--r-control); }
+/* NOTES TO SERVICEM8 (two-way phase 2): a reply sits under the note it
+   answers, indented one step, and a note's reply box (and the pen's Also in
+   ServiceM8) opens under its words. Both on the spacing scale; nothing else
+   is new — the doors are `.wb2-evdoor` and a row of them is the strip's own
+   `.wb2-jcattsave`. */
+.wb2-evthread { padding-left:24px; }
+.wb2-evreply { display:grid; gap:8px; margin-top:8px; }
 /* THE DIARY FILTER IS A FaceSwitch, AND THE SHEET IS PORTALLED OUTSIDE
    `.fg` — so `.fg .seg` and `.fg .me-fshd` never reach it (the exact drift
    that once rendered nine hints at the body's full ink). Restated here,

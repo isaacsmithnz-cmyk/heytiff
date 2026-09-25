@@ -68,7 +68,9 @@ export type AttentionItem =
   | {
       kind: "mention";
       key: string;
-      noteUuid: string;
+      /** The note's uuid in ServiceM8. Always set on one of ServiceM8's; on
+          one of ours (`origin: "heytiff"`), only once it has gone there. */
+      noteUuid: string | null;
       text: string;
       author: string | null;
       at: string | null;
@@ -78,6 +80,16 @@ export type AttentionItem =
           staff member), so an unlinked person arrives named and unassigned
           rather than assigned to a guess. */
       named: { name: string; staffId: string | null }[];
+      /* ── two-way phase 2 (PR B); absent where the deployment sends no
+         notes, which reads as ServiceM8's and not you ── */
+      /** It mentions the person looking: it can be replied to. */
+      you?: boolean;
+      /** ServiceM8's note, or HeyTiff's own row: a reply sent from here,
+          whose ServiceM8 copy the echo hides. */
+      origin?: "sm8" | "heytiff";
+      /** HeyTiff's row, for one of ours: what Not work puts aside, and it
+          never changes when the note goes under a new uuid. */
+      rowId?: string | null;
     };
 
 /** A HeyTiff flag as the strip needs it. */
@@ -111,10 +123,28 @@ export type AttentionNote = {
   ours: boolean;
 };
 
+/** One of HeyTiff's own notes that went to ServiceM8 (or is on its way),
+    as a mention: ServiceM8 alerts the people it names, and its copy there
+    is hidden here, so HeyTiff's row is where the mention lives. */
+export type AttentionOurNote = {
+  rowId: string;
+  /** Its uuid in ServiceM8, once it has gone. */
+  noteUuid: string | null;
+  text: string;
+  author: string | null;
+  at: string | null;
+  handles: string[];
+};
+
 export type AttentionInputs = {
   flags: readonly AttentionFlag[];
   tasks: readonly AttentionTask[];
   notes: readonly AttentionNote[];
+  /** Our own notes that may carry a mention (where the deployment sends
+      notes). */
+  ours?: readonly AttentionOurNote[];
+  /** The viewer's own @handle, so a mention of them says so. */
+  viewerHandle?: string | null;
   /** ServiceM8's status word for the card's job. A closed job's flagged and
       mentioning notes are HISTORY — the diary keeps them and the strip says
       nothing, which is the difference between a record and an alarm. */
@@ -211,9 +241,7 @@ export function buildJobAttention(inputs: AttentionInputs): JobAttention {
         continue;
       }
 
-      const named = n.handles
-        .map((h) => inputs.people.get(h))
-        .filter((p): p is { name: string; staffId: string | null } => !!p);
+      const named = namedIn(n.handles);
       if (named.length === 0) continue;
 
       items.push({
@@ -224,8 +252,38 @@ export function buildJobAttention(inputs: AttentionInputs): JobAttention {
         author: n.author,
         at: n.at,
         named,
+        ...(inputs.viewerHandle !== undefined
+          ? { you: !!inputs.viewerHandle && n.handles.includes(inputs.viewerHandle), origin: "sm8" as const, rowId: null }
+          : {}),
       });
     }
+
+    /* OUR OWN, as mentions. Put aside by its row's id or its uuid, and
+       answered by a reply to that uuid — the same set, so a Not work before
+       it went still holds after. */
+    for (const o of inputs.ours ?? []) {
+      if (inputs.answered.has(o.rowId) || (o.noteUuid && inputs.answered.has(o.noteUuid))) continue;
+      const named = namedIn(o.handles);
+      if (named.length === 0) continue;
+      items.push({
+        kind: "mention",
+        key: `mention:${o.rowId}`,
+        noteUuid: o.noteUuid,
+        text: o.text,
+        author: o.author,
+        at: o.at,
+        named,
+        you: !!inputs.viewerHandle && o.handles.includes(inputs.viewerHandle),
+        origin: "heytiff",
+        rowId: o.rowId,
+      });
+    }
+  }
+
+  function namedIn(handles: readonly string[]) {
+    return handles
+      .map((h) => inputs.people.get(h))
+      .filter((p): p is { name: string; staffId: string | null } => !!p);
   }
 
   items.sort((a, b) => {

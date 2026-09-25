@@ -81,7 +81,9 @@ jest.mock("@/lib/integrations/sm8-read", () => ({
 jest.mock("@/lib/integrations/xero-read", () => ({
   listPayrollEmployees: jest.fn(async () => xeroRead ?? { ok: true, data: xeroEmployees }),
 }));
+const deniedSpy = jest.fn(async () => new Set(["u-dan"]));
 jest.mock("@/lib/integrations/links", () => ({
+  sm8DeniedLinks: (...args: unknown[]) => deniedSpy(...(args as [])),
   listSm8StaffLinks: jest.fn(async () => sm8Links),
   linkSm8StaffMember: (...args: unknown[]) => linkSpy(...(args as [])),
   unlinkSm8StaffMember: (...args: unknown[]) => unlinkSpy(...(args as [])),
@@ -272,6 +274,35 @@ describe("getSm8PeopleData", () => {
   it("returns null when ServiceM8 isn't connected — the card simply doesn't render", async () => {
     connection = null;
     expect(await getSm8PeopleData()).toBeNull();
+  });
+
+  /* "Not me" (two-way phase 2): read only where the deployment sends notes —
+     nobody is asked before that, and production sends files only */
+  describe("a link its person said isn't them", () => {
+    const linkedDan = () => {
+      sm8Links = [{ id: "l1", staffProfileId: "s-1", remoteId: "u-dan", remoteLabel: "Dan Smith", matchedBy: "manual", linkedAt: "" }];
+      staffListRows = [{ id: "s-1", user_id: null, first_name: "Dan", last_name: "Smith", full_name: null, preferred_name: null, contact_email: null, status: "Active" }];
+    };
+    afterEach(() => {
+      delete process.env.SM8_WRITES;
+      deniedSpy.mockClear();
+    });
+
+    it("(F) with files only, nothing more is read and nothing is marked", async () => {
+      process.env.SM8_WRITES = "1";
+      linkedDan();
+      const view = await getSm8PeopleData();
+      expect(deniedSpy).not.toHaveBeenCalled();
+      expect(view?.rows[0]).toEqual(expect.not.objectContaining({ denied: true }));
+    });
+
+    it("with notes, the link is marked", async () => {
+      process.env.SM8_WRITES = "attachment,note";
+      linkedDan();
+      const view = await getSm8PeopleData();
+      expect(deniedSpy).toHaveBeenCalledWith("org-1", "vendor-1");
+      expect(view?.rows[0]).toMatchObject({ kind: "linked", denied: true });
+    });
   });
 });
 

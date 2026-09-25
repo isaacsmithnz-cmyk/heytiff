@@ -10,6 +10,7 @@
 
 import {
   alignTranslations,
+  englishLine,
   englishProposal,
   foreignStrings,
   recordStrings,
@@ -168,5 +169,24 @@ describe("an English proposal costs nothing", () => {
       progressBullets: ["Checked the belts and the filters"],
     };
     await expect(englishProposal(p)).resolves.toBe(p);
+  });
+});
+
+/* A reply's line (two-way phase 2): ServiceM8 gets the words as said, the
+   diary keeps the English. The same three rules, on one string. */
+describe("englishLine", () => {
+  const key = process.env.ANTHROPIC_API_KEY;
+  afterEach(() => {
+    if (key === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = key;
+  });
+
+  it("returns English words as they are, with no call", async () => {
+    await expect(englishLine("on my way, twenty minutes")).resolves.toBe("on my way, twenty minutes");
+  });
+
+  it("keeps foreign words as said when there is no key, and never throws", async () => {
+    delete process.env.ANTHROPIC_API_KEY;
+    await expect(englishLine("Tôi đang đến, hai mươi phút nữa")).resolves.toBe("Tôi đang đến, hai mươi phút nữa");
   });
 });

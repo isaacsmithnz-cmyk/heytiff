@@ -21,6 +21,7 @@ import {
 } from "@/lib/compliance/papers";
 import { sendLine, type JobSend, type SendHold, type SendLine } from "@/lib/integrations/sm8-write-plan";
 import { ComplianceChooser } from "./compliance-chooser";
+import { StateLine } from "./state-line";
 import "@/components/swms/swms.css";
 
 /* THE DOCUMENTS FACE — the job's paper, grouped by what a document IS,
@@ -78,12 +79,6 @@ const editedOn = (iso: string): string => {
 /** What the file picker offers — the bucket's own list, so it never offers
     a file the upload would then refuse. */
 const ACCEPT = Object.keys(ALLOWED_TYPES).join(",");
-
-/** A line in the state's colour under a row's name — a paper's expiry, a
-    file's way to ServiceM8. No tone is the quiet colour. */
-function StateLine({ line }: { line: SendLine }) {
-  return <em className={line.tone ? `sw-state ${line.tone}` : undefined}>{line.word}</em>;
-}
 
 function DocRow({
   item,

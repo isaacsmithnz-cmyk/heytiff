@@ -367,6 +367,25 @@ export async function sm8NoteSender(orgId: string, staffId: string | null, tenan
   }
 }
 
+/** The ServiceM8 staff this account's people said AREN'T them ("Not me",
+    for the link as it stands) — the owner's people card says so beside the
+    link, which is where it gets fixed. A database without the confirm
+    columns has no answers yet. */
+export async function sm8DeniedLinks(orgId: string, tenantId: string): Promise<Set<string>> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE)
+    .select("remote_id, confirmed_remote_id, confirmed_answer")
+    .eq("org_id", orgId)
+    .eq("provider", "servicem8")
+    .eq("kind", SM8_STAFF)
+    .eq("tenant_id", tenantId)
+    .eq("confirmed_answer", "no");
+  if (error) return new Set();
+  return new Set(
+    ((data ?? []) as LinkRow[]).filter((r) => r.remote_id && r.confirmed_remote_id === r.remote_id).map((r) => r.remote_id!)
+  );
+}
+
 /** A person's answer to "Is <ServiceM8 name> you?", for THEIR OWN link, and
     only for the link they saw (`remoteId`): a conditional update that
     matches nothing once an owner has relinked them, so Yes after a relink

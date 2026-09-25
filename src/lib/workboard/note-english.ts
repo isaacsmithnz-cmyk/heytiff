@@ -212,3 +212,25 @@ export async function englishProposal(proposal: NoteProposal): Promise<NotePropo
     return proposal;
   }
 }
+
+/**
+ * One line, in English — a reply's words as the diary keeps them.
+ *
+ * A reply goes to ServiceM8 in the words said (the person chose them, and the
+ * one they answer reads them there), and HeyTiff's own diary keeps the
+ * English copy, as `lang/policy.ts` requires of every stored record. Same
+ * three rules as the proposal's repair: nothing to do costs nothing (the
+ * detector is local, and English words never reach the model), there is no
+ * model without a key, and any failure keeps the words as said. Never throws.
+ */
+export async function englishLine(words: string): Promise<string> {
+  try {
+    if (!words.trim() || !checkEnglish(words).foreign) return words;
+    if (!process.env.ANTHROPIC_API_KEY) return words;
+    const map = await translate([words]);
+    return map.get(words) ?? words;
+  } catch (err) {
+    console.error(`[note-english] a line wasn't repaired: ${err instanceof Error ? err.message : String(err)}`);
+    return words;
+  }
+}

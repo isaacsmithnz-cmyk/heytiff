@@ -133,3 +133,18 @@ jest.mock('@/app/actions/job-sm8', () => ({
 jest.mock('@/lib/documents/upload-client', () => ({
   uploadFile: jest.fn(async () => ({ ok: false, error: "That upload didn't finish." })),
 }))
+
+/* Notes to ServiceM8 on the job card (two-way phase 2), for the same reason:
+   the job card imports them at module scope for its diary and strip. The
+   defaults offer nothing and send nothing — no states to poll, every press
+   refused — so no suite sees a door it didn't ask for. job-note-sm8.test.ts
+   tests the real module and `jest.unmock`s it. */
+jest.mock('@/app/actions/job-note-sm8', () => ({
+  replyToJobNote: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  sendJobNoteToServiceM8: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  takeBackJobNote: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  markJobNoteDone: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  undoJobNoteDone: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  confirmMySm8Link: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  readJobNoteStates: jest.fn(async () => null),
+}))

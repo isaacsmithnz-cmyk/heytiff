@@ -21,9 +21,11 @@ import {
   linkSm8StaffMember,
   listPayrollLinks,
   listSm8StaffLinks,
+  sm8DeniedLinks,
   unlinkSm8StaffMember,
   type IntegrationLink,
 } from "@/lib/integrations/links";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { normEmail } from "@/lib/integrations/match";
 import { emailsByUser } from "@/lib/staff/query";
 import { displayNameOf } from "@/lib/staff/name";
@@ -204,17 +206,22 @@ async function peopleData(provider: ImportProvider): Promise<PeopleView | null> 
   const connection = await getConnectionView(ctx.orgId, provider);
   if (!connection?.tenantId) return null;
 
-  const [read, links, candidates] = await Promise.all([
+  const [read, links, candidates, denied] = await Promise.all([
     adapter.read(ctx.orgId),
     adapter.links(ctx.orgId, connection.tenantId),
     staffCandidates(ctx.orgId),
+    /* "Not me" answers to "Is <name> you?" — ServiceM8 only, and only where
+       the deployment sends notes (nobody is asked before that) */
+    provider === "servicem8" && sm8NotesAllowed()
+      ? sm8DeniedLinks(ctx.orgId, connection.tenantId)
+      : Promise.resolve(undefined),
   ]);
 
   if (!read.ok) return { rows: [], linkable: [], error: read.error };
 
   const linkedStaff = new Set(links.map((l) => l.staffProfileId));
   return {
-    rows: buildPeopleRows(read.data, candidates, links),
+    rows: buildPeopleRows(read.data, candidates, links, denied),
     linkable: candidates
       .filter((c) => c.status === "Active" && !linkedStaff.has(c.staffProfileId))
       .map((c) => ({ staffProfileId: c.staffProfileId, name: c.name }))

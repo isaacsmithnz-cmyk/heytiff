@@ -160,6 +160,17 @@ describe("buildPeopleRows — provider-blind", () => {
     ]);
   });
 
+  it("marks a link its person said isn't them, and only that one", () => {
+    const rows = buildPeopleRows(
+      [person({ id: "u-1" }), person({ id: "u-2", name: "Ann Lee", email: "ann@acme.com" })],
+      [card({ staffProfileId: "s-1", name: "Dan Smith" }), card({ staffProfileId: "s-2", name: "Ann Lee" })],
+      [link("s-1", "u-1"), link("s-2", "u-2")],
+      new Set(["u-2"])
+    );
+    expect(rows[0]).not.toHaveProperty("denied");
+    expect(rows[1]).toMatchObject({ kind: "linked", denied: true });
+  });
+
   it("suggests by email even when the names disagree", () => {
     const rows = buildPeopleRows(
       [person({ id: "u-1", name: "Danny S", first: "Danny", last: "S", email: "dan@acme.com" })],

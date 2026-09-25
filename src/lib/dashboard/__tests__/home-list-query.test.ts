@@ -143,6 +143,7 @@ const ctx = (over: Partial<HomeListContext> = {}, ...caps: Capability[]): HomeLi
     ["s4", "  "],
   ]),
   shared: { expiry: { warnDays: 21 } },
+  connected: true,
   ...over,
 });
 
@@ -373,14 +374,21 @@ describe("loadHomeList", () => {
     expect(reads.caps).toEqual({ assetsAll: false, placeVisits: true, money: true, sm8: true });
   });
 
-  it("takes the workspace's word for ServiceM8, and a known zone when it gives none", async () => {
+  it("takes the workspace's word for ServiceM8, and reads no work orders without one", async () => {
     rows.sm8_jobs = [workOrder("won")];
-    expect((await loadHomeList(ctx({ connected: false }))).caps.sm8).toBe(false);
-    expect((await loadHomeList(ctx({ tz: null }))).caps.sm8).toBe(false);
-    expect((await loadHomeList(ctx({ tz: null, connected: true }))).caps.sm8).toBe(true);
-    calls.length = 0;
-    const reads = await loadHomeList(ctx({ tz: null }));
+    const off = await loadHomeList(ctx({ connected: false }));
+    expect(off.caps.sm8).toBe(false);
     expect(of("sm8_jobs")).toHaveLength(0);
-    expect(reads.wins).toEqual([]);
+    expect(off.wins).toEqual([]);
+  });
+
+  /* The zone is not the word. `sm8VendorOf` answers a failed read as
+     connected with no zone, and an account row can hold no zone at all: a
+     connected workspace keeps its won jobs either way. */
+  it("keeps a connected workspace's won jobs when its zone is unknown", async () => {
+    rows.sm8_jobs = [workOrder("won")];
+    const reads = await loadHomeList(ctx({ tz: null, connected: true }));
+    expect(reads.caps.sm8).toBe(true);
+    expect(reads.wins.map((w) => w.job.remoteId)).toEqual(["won"]);
   });
 });

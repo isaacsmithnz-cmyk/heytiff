@@ -8,7 +8,6 @@
 import {
   FRESH_WIN_DAYS,
   LIST_EMPTY,
-  expiryDue,
   firstSentence,
   placeHomeList,
   placeList,
@@ -27,6 +26,7 @@ import { assembleChips } from "../assemble";
 import type { DashTask } from "../tasks";
 import type { JournalEntry } from "../journal";
 import type { HomeIssue } from "../issues";
+import { expiryDue } from "@/lib/expiry-due";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { VehicleWithFacts } from "@/components/fleet/logic";
 import type { Capability } from "@/lib/permissions";
@@ -159,35 +159,32 @@ const find = <T extends ListRow>(list: HomeList, id: string): T => {
 
 /* ── one due date, one rule ── */
 
-describe("expiryDue — the bell's rule, as a date", () => {
-  it("is late before the day, today on it, soon inside the window, nowhere past it", () => {
-    expect(expiryDue("2026-09-24", DAY, 30)).toEqual({ due: "2026-09-24", days: -1, when: "late" });
-    expect(expiryDue("2026-09-25", DAY, 30)).toEqual({ due: "2026-09-25", days: 0, when: "today" });
-    expect(expiryDue("2026-10-25", DAY, 30)).toEqual({ due: "2026-10-25", days: 30, when: "soon" });
-    expect(expiryDue("2026-10-26", DAY, 30)).toBeNull();
-  });
+/* The rule itself is lib/expiry-due's, pinned in its own suite and read by
+   the calendar too. The list only words its answer, and counts no day of its
+   own: the bell's bad is Late, its warn is Today on the day itself and coming
+   up before it, and its ok (no chip at all) is nowhere. */
+describe("a dated chip's place is expiryDue's answer", () => {
+  /** The group a chip's row landed in, a roll-up's members included. */
+  const placedIn = (list: HomeList, id: string): ListGroupKey | null => {
+    for (const g of list.groups)
+      for (const r of g.rows) if (r.id === id || (r.kind === "rollup" && r.rows.some((m) => m.id === id))) return g.key;
+    return null;
+  };
 
-  it("reads a stamp by its day, and nothing from nothing", () => {
-    expect(expiryDue("2026-09-24T22:00:00Z", DAY, 30)?.due).toBe("2026-09-24");
-    expect(expiryDue(null, DAY, 30)).toBeNull();
-    expect(expiryDue("", DAY, 30)).toBeNull();
-    expect(expiryDue("not a date", DAY, 30)).toBeNull();
-  });
-
-  it("follows the org's window", () => {
-    expect(expiryDue("2026-10-05", DAY, 14)?.when).toBe("soon");
-    expect(expiryDue("2026-10-15", DAY, 14)).toBeNull();
-  });
-
-  /* The bell and the list must never disagree about one date: the bell's bad
-     is late, its warn is today-or-soon, and no chip means nowhere. */
   it("agrees with the bell's own chip on every day either side of the window", () => {
-    for (let d = -40; d <= 40; d++) {
-      const due = new Date(Date.parse(`${DAY}T00:00:00Z`) + d * 86_400_000).toISOString().slice(0, 10);
-      const chip = licenceChip({ id: "l", typeName: "White Card", expiryDate: due }, { subject: "x", href: "/x", today: DAY, warnDays: 30 });
-      const at = expiryDue(due, DAY, 30);
-      expect(at === null).toBe(chip === null);
-      if (chip && at) expect(at.when === "late").toBe(chip.state === "bad");
+    for (const warnDays of [14, 30]) {
+      for (let d = -40; d <= 40; d++) {
+        const due = new Date(Date.parse(`${DAY}T00:00:00Z`) + d * 86_400_000).toISOString().slice(0, 10);
+        const chip = licenceChip(
+          { id: "l", typeName: "White Card", expiryDate: due },
+          { subject: "Isaac Smith", href: "/x", today: DAY, warnDays, owner: { kind: "self", id: "me" } },
+        );
+        const state = expiryDue(due, DAY, warnDays)!.state;
+        const where = placedIn(placeList(input({ warnDays, chips: chip ? [chip] : [] })), "chip:licence:l");
+        const want = state === "ok" ? null : state === "bad" ? "late" : d === 0 ? "today" : "later";
+        expect([due, warnDays, where]).toEqual([due, warnDays, want]);
+        expect([due, warnDays, chip?.state ?? "ok"]).toEqual([due, warnDays, state]);
+      }
     }
   });
 });
@@ -270,6 +267,26 @@ describe("tasks", () => {
     expect(today.map((r) => r.id)).toEqual(["t1", "t2"]);
     expect(today.map((r) => r.who)).toEqual([null, "Leo"]);
     expect(group(list, "today")!.count).toBe(2);
+  });
+
+  /* A task you gave a colleague comes back on the team's list. It is not
+     "From Isaac" to Isaac: you are never told a task came from you. */
+  it("never say a task you gave a colleague came from you", () => {
+    const base = { viewerStaffId: "me", chips: { self: [], team: [] }, issues: [], journal: [] };
+    const reads = { day: DAY, tz: "Australia/Sydney", warnDays: 30, caps: ALL, names: { me: "Isaac", s2: "Callum" }, wins: [], visits: [] };
+    const leo = { assigneeId: "s3", assigneeName: "Leo Marsh" };
+    const list = placeHomeList(reads, {
+      ...base,
+      tasks: {
+        mine: [],
+        team: [
+          task({ id: "gave", ...leo, createdBy: "me" }),
+          task({ id: "callum-gave", ...leo, createdBy: "s2" }),
+        ],
+      },
+    });
+    expect(find<ListTaskRow>(list, "gave")).toMatchObject({ sub: "Added Tue 15 Sept.", who: "Leo" });
+    expect(find<ListTaskRow>(list, "callum-gave")).toMatchObject({ sub: "From Callum, Tue 15 Sept.", who: "Leo" });
   });
 
   it("open the diary entry they came from, the mention that asked, or else themselves on the Tasks tab", () => {

@@ -41,7 +41,7 @@ import type { StaffNames } from "./tasks-query";
 
 /** What the list needs from the page loader — a part of the new Home's
     shared context (`DeskContext`, ./desk-data), so that context can be handed
-    in as it is. */
+    in as it is once it carries `connected`. */
 export type HomeListContext = {
   orgId: string;
   caps: ReadonlySet<Capability>;
@@ -51,10 +51,12 @@ export type HomeListContext = {
   names: StaffNames;
   /** The expiry window the bell warns by, read once for the page. */
   shared: { expiry: { warnDays: number } };
-  /** Does the workspace hold a ServiceM8 copy? When the context doesn't say,
-      a known account zone stands in: the zone is read off the same account
-      row, so a workspace that never had ServiceM8 has none. */
-  connected?: boolean;
+  /** Does the workspace hold a ServiceM8 copy — `sm8VendorOf`'s `connected`,
+      which the page already reads. Required, and never guessed from `tz`: a
+      failed vendor read comes back connected with no zone, and an account
+      row can carry no zone, so a zone standing in would empty Jobs to book
+      for a workspace that has them. */
+  connected: boolean;
 };
 
 /** The list's own reads, placed later by `placeHomeList` beside the page's. */
@@ -64,7 +66,7 @@ export async function loadHomeList(ctx: HomeListContext): Promise<HomeListReads>
     assetsAll: ctx.caps.has("assets_all"),
     placeVisits: board && ctx.caps.has("workboard_manage"),
     money: board && ctx.caps.has("workboard_money"),
-    sm8: ctx.connected ?? (ctx.tz !== null),
+    sm8: ctx.connected,
   };
   const { wins, visits } = board
     ? await loadJobsToBook(ctx.orgId, ctx.railDay, { money: caps.money, sm8: caps.sm8 })

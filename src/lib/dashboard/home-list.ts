@@ -12,7 +12,8 @@
    day bar draws. A chip's bad/warn `state` is never used to place a dated
    row: chips are counted on Sydney's date, which is a second clock, and a
    Perth evening would put yesterday's expiry under Today by one and Late by
-   the other. The one rule both clocks share is `expiryDue` below.
+   the other. The one rule both clocks share is `expiryDue` (lib/expiry-due),
+   the one the calendar reads too.
 
    COUNTS COUNT THINGS, not rows (Isaac, 2026-09-25): a roll-up of seventeen
    won jobs makes "Jobs to book 17", not 1.
@@ -30,6 +31,7 @@
    will ask `offersSend` itself. */
 
 import { daysUntil, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { expiryDue } from "@/lib/expiry-due";
 import { fmtKm } from "@/components/fleet/logic";
 import { agoLabel } from "@/lib/format/duration";
 import { fmtAud } from "@/lib/workboard/project-money";
@@ -83,27 +85,16 @@ export const LIST_EMPTY = "Nothing late, due today or coming up.";
 /* ── one due date, one rule ── */
 
 export type ExpiryWhen = "late" | "today" | "soon";
-export type ExpiryDue = { due: string; days: number; when: ExpiryWhen };
 
-/** WHERE A DATED EXPIRY STANDS ON `today` — the one answer the list and the
-    calendar share (the plan's ruling: List owns it, Calendar imports it).
-
-    Late is past, today is today, soon is inside the warning window; beyond
-    the window, or with no date, it is nowhere (null). It is the bell's own
-    rule written as a date: a chip exists while `days <= warnDays` and is
-    `bad` while `days < 0` (./chips), so late here is the bell's bad and
-    today-or-soon its warn — handed the same day, the three can never
-    disagree about one date. */
-export function expiryDue(
-  iso: string | null | undefined,
-  today: string,
-  warnDays: number,
-): ExpiryDue | null {
-  if (typeof iso !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return null;
-  const due = iso.slice(0, 10);
-  const days = daysUntil(due, today);
-  if (days > warnDays) return null;
-  return { due, days, when: days < 0 ? "late" : days === 0 ? "today" : "soon" };
+/** WHERE A DATED EXPIRY STANDS ON `day`, in the list's words. The rule is
+    `expiryDue`'s (lib/expiry-due), which the calendar reads too, and it is
+    the bell's: its `bad` is late, its `warn` is today on the day itself and
+    soon before it, and its `ok` (beyond the window) or no real day is
+    nowhere (null). Nothing here counts the days a second way. */
+function whenDue(iso: string, day: string, warnDays: number): { when: ExpiryWhen; due: string } | null {
+  const at = expiryDue(iso, day, warnDays);
+  if (!at || at.state === "ok") return null;
+  return { due: at.due, when: at.state === "bad" ? "late" : at.days === 0 ? "today" : "soon" };
 }
 
 /* ── the shapes ── */
@@ -411,10 +402,7 @@ const byDueThenNewest = (a: DashTask, b: DashTask): number => {
 /** Where one chip goes, or null for a chip the list doesn't carry. */
 function chipWhen(chip: ActionChip, day: string, warnDays: number): { when: ExpiryWhen; due: string | null } | null {
   if (!LIST_CHIP_KINDS.includes(chip.kind)) return null;
-  if (chip.due) {
-    const d = expiryDue(chip.due, day, warnDays);
-    return d ? { when: d.when, due: d.due } : null;
-  }
+  if (chip.due) return whenDue(chip.due, day, warnDays);
   /* A service judged by the odometer has no day. Its state is all there is:
      past the distance is late, inside the warning distance is coming up. */
   if (chip.kind === "service" && chip.ref?.kind === "vehicle" && chip.ref.kmLeft != null)

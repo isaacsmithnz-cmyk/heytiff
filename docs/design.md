@@ -317,6 +317,21 @@ Every decision below is made once, here, and a guard test holds each number.
   chosen in a panel beside them, never empty. One choice and one set of
   filters serve all three views, and nothing steps past the twelve
   months.
+  The Diary is one column, newest first. At the top the entry box, "Add
+  to the diary…", with the Tiff button at its end: Save keeps the words
+  as typed and the entry lands at the top of Today, lit on his pale teal
+  for seven seconds; Sort it out, or Enter, takes them to Tiff. Then
+  "Today", a quiet teal label over a rule, and today's entries or
+  "Nothing yet."; everything older follows with no more dividers, each
+  entry saying its own date. An entry is your initials in an ink disc,
+  "You" and when, your words as you said them, and under them what they
+  became: tasks counted by whose they are ("2 tasks for Luke", and "1
+  task" for your own), each count a door that lights those rows in the
+  list beside it, or opens the Tasks tab for one the list no longer holds;
+  the Library's, a kept note's and an issue's doors as they were; and a
+  sentence for what has nowhere to go ("1 line kept.", "Nothing filed.").
+  A door from the list or the Tasks tab brings its entry up and lights it
+  the same way.
   **His design is the default here.** A redraw to the laws "looks far
   worse", so where his numbers break a law this file names the exemption
   instead of bending the design ("design exempt for now, but keep a note",
@@ -693,10 +708,11 @@ What the guard cannot count is noted here on the same word:
   no rule on the page writes a colour literal: the ink `#151a24`, the body
   grey `#5b6472`, the rules `#e6e9ee`, `#eef0f3` (which also fills his
   name tag, solid, so a lit row cannot darken it) and `#e2e5ea`, the teal
-  of Today `#0f766e`, the green of done `#16a34a`, and the list's quiet
-  dot `#c3cad4`. `text-contrast` holds every one that is text to 4.5:1 on
-  the page's fills; the quiet dot is a mark at 1.65:1, and a row's group
-  title says what it means. The Trace's
+  of Today `#0f766e`, the green of done `#16a34a`, the list's quiet
+  dot `#c3cad4`, and the diary's wash `#e6f7f3`, his pale teal under an
+  entry that has just landed. `text-contrast` holds every one that is
+  text to 4.5:1 on the page's fills, the wash among them; the quiet dot
+  is a mark at 1.65:1, and a row's group title says what it means. The Trace's
   masks are `#000`, which a mask reads only for its alpha, and its light
   is `--paper`.
 - **Law 16, the Calendar's colours.** `.hd-cal` declares his calendar's

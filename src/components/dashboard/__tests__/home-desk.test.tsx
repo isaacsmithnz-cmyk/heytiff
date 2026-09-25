@@ -9,22 +9,38 @@ import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { HomeListReads } from "@/lib/dashboard/home-list";
 import type { TaskDoneLine } from "@/lib/dashboard/task-done-query";
 import type { CompanyCalendar } from "@/lib/calendar/items";
+import type { DeskDiary } from "@/lib/dashboard/diary-doors";
+import { diaryFeed } from "@/lib/dashboard/diary-feed";
 
 /* THE NEW HOME'S FRAME (H11): the date in the band, "Your day" on every
    face, ONE row of tabs that never moves, and a body that slides in tab
-   order. The faces hold today's diary and tasks for now; each has its own
-   suite, so this one is about the frame around them — and about the doors
-   between them and the one job card they share. The list beside Diary and
-   Tasks (H19) and the Calendar (H21) have their own suites too; here each
-   is where it stands.
+   order. The diary is its own (H16), and today's tasks hold their face for
+   now; each has its own suite, so this one is about the frame around them
+   — and about the doors between them and the one job card they share. The
+   list beside Diary and Tasks (H19) and the Calendar (H21) have their own
+   suites too; here each is where it stands, with the doors the list opens
+   onto the faces.
 
    The capture controls and the job card reach server actions, and "use
-   server" modules cannot be imported into jsdom: stubbed, as on Home. */
+   server" modules cannot be imported into jsdom: stubbed, as on Home. The
+   diary's box is the real one; with no modal host around it, its Tiff
+   button carries the capture sheet, stubbed with the rest of note-token. */
 jest.mock("@/components/notes/note-token", () => ({
   NoteToken: ({ placeholder }: { placeholder?: string }) => (
     <button aria-label={placeholder ?? "Add to the diary…"} />
   ),
+  CaptureSheet: () => null,
 }));
+jest.mock("@/app/actions/workboard-notes", () => ({
+  keepWords: jest.fn(),
+  routeNote: jest.fn(),
+  applyNote: jest.fn(),
+  keepNoteOnJob: jest.fn(),
+  keepNoteForMe: jest.fn(),
+  answerClarify: jest.fn(),
+  dismissNote: jest.fn(),
+}));
+jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }),
 }));
@@ -171,6 +187,22 @@ const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
   ...over,
 });
 
+/** The diary as the desk's loader hands it over, from the same entries the
+    page's journal holds — the Tasks tab and the list read those, and the
+    two are the same rows. */
+const diaryOf = (entries: readonly JournalEntry[]): DeskDiary => ({
+  feed: diaryFeed({
+    entries: entries.map((e) => ({ ...e, stamp: `${e.day} 12:00:00`, routed: true, taskFor: {} })),
+    conversations: [],
+    day: TODAY,
+    mentions: false,
+    entriesCut: false,
+    syncedAt: null,
+  }),
+  you: "IS",
+  names: {},
+});
+
 const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   chips: { self: [], team: [] },
   calendar: { spanStart: "2026-08-03", spanEnd: "2026-11-01", days: [] },
@@ -184,7 +216,7 @@ const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   viewerStaffId: "s1",
   today: TODAY,
   rail: rail(),
-  desk: { warnDays: 30, list: reads(), calendar: cal() },
+  desk: { warnDays: 30, list: reads(), calendar: cal(), diary: diaryOf(over.journal ?? []) },
   ...over,
 });
 
@@ -193,6 +225,11 @@ const tab = (name: string) => screen.getByRole("tab", { name });
 const face = (key: string) => document.getElementById(`hdsec-${key}`)!;
 const main = () => document.querySelector<HTMLElement>(".hd-main")!;
 const shownFaces = () => ["diary", "tasks", "calendar"].filter((k) => !face(k).hasAttribute("hidden"));
+/** The diary's entries that are lit: saved just now, or asked for by a door. */
+const litEntries = () =>
+  [...face("diary").querySelectorAll<HTMLElement>("[data-entry]")]
+    .filter((li) => li.querySelector(".hd-dy-en")!.hasAttribute("data-lit"))
+    .map((li) => li.dataset.entry);
 
 /* A whole face mounts a real list and a real page; generous, as on Home. */
 const WHOLE = 20_000;
@@ -374,27 +411,48 @@ describe("the one door between faces", () => {
       },
     });
 
-  it("takes a diary door to its task on the Tasks face", async () => {
+  /* The task is open, so the list beside the diary holds it: the door
+     lights its row there, and the diary stays where you are reading. */
+  it("lights a diary door's task in the list beside it, and the diary stays", async () => {
     const user = userEvent.setup();
     render(<DashboardDesk data={wired()} />);
-    await user.click(within(face("diary")).getByRole("button", { name: /Order 2× MERV 11 filters/ }));
+    await user.click(within(face("diary")).getByRole("button", { name: "1 task" }));
+    expect(tab("Diary")).toHaveAttribute("aria-selected", "true");
+    expect(shownFaces()).toEqual(["diary"]);
+    const list = screen.getByRole("complementary", { name: "The list" });
+    expect(list.querySelector('[data-thing="t1"] .hd-ls-row')).toHaveAttribute("data-lit");
+    expect(list.querySelector('[data-thing="t0"] .hd-ls-row')).not.toHaveAttribute("data-lit");
+  }, WHOLE);
+
+  /* Ticked off, the task has left the list, and the Tasks tab — which
+     keeps what is done — is where it still stands. */
+  it("takes a diary door to its task on the Tasks face when the list does not hold it", async () => {
+    const user = userEvent.setup();
+    const done = task({ status: "done", doneAt: "2026-08-10T01:00:00Z" });
+    const tasks = {
+      mine: [task({ id: "t0", title: "Ring the Hilux dealer" })],
+      team: null,
+      done: [done],
+      reported: [],
+      sm8: { lines: {}, sender: null },
+    };
+    render(<DashboardDesk data={{ ...wired(), tasks }} />);
+    await user.click(within(face("diary")).getByRole("button", { name: "1 task" }));
     expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
     expect(shownFaces()).toEqual(["tasks"]);
     expect(document.querySelector('[data-task-id="t1"]')).toHaveClass("on");
     expect(document.querySelector('[data-task-id="t0"]')).not.toHaveClass("on");
   }, WHOLE);
 
-  it("takes a task's Open in diary to the entry that made it", async () => {
+  it("takes a task's Open in diary to the entry that made it, and lights that entry alone", async () => {
     const user = userEvent.setup();
     render(<DashboardDesk data={wired()} />);
-    await user.click(screen.getByRole("button", { name: /Something older/ }));
+    expect(litEntries()).toEqual([]);
     await user.click(tab("Tasks"));
     await user.click(within(face("tasks")).getByRole("button", { name: /^Order 2× MERV 11 filters/ }));
     await user.click(screen.getByRole("button", { name: "Open in diary" }));
     expect(shownFaces()).toEqual(["diary"]);
-    expect(face("diary").querySelector(".hm-said")!.textContent).toBe(
-      "Order the filters for Bayview before Thursday",
-    );
+    expect(litEntries()).toEqual(["e1"]);
   }, WHOLE);
 });
 
@@ -501,18 +559,24 @@ describe("the list", () => {
   it("opens a diary-born task's door on the entry that made it", async () => {
     const user = userEvent.setup();
     render(<DashboardDesk data={withTasks()} />);
-    await user.click(screen.getByRole("button", { name: /Something older/ }));
     await user.click(tab("Tasks"));
     await user.click(within(theList()).getByRole("button", { name: "Order 2× MERV 11 filters" }));
     expect(shownFaces()).toEqual(["diary"]);
-    expect(face("diary").querySelector(".hm-said")!.textContent).toBe("Order the filters for Bayview before Thursday");
+    expect(litEntries()).toEqual(["e1"]);
   }, WHOLE);
 
   it("opens a won job on the desk's one card", async () => {
     const user = userEvent.setup();
     render(
       <DashboardDesk
-        data={data({ desk: { warnDays: 30, list: reads({ wins: [{ job: mirror(), wonOn: TODAY }] }), calendar: cal() } })}
+        data={data({
+          desk: {
+            warnDays: 30,
+            list: reads({ wins: [{ job: mirror(), wonOn: TODAY }] }),
+            calendar: cal(),
+            diary: diaryOf([]),
+          },
+        })}
       />,
     );
     await user.click(within(theList()).getByRole("button", { name: "Job 1042, Chatswood" }));
@@ -756,7 +820,8 @@ describe("the slide", () => {
   /* A door between faces is a way to change face like a tab: pressed with a
      pointer its face slides in, and pressed from the keyboard it is simply
      there (law 8) — both ways, the diary's door to a task and the task's
-     Open in diary. */
+     Open in diary. The task is ticked off, so the list does not hold it and
+     the diary's door goes to the Tasks tab. */
   it("slides a face in for a door pressed with the pointer, and not for one pressed from the keyboard", async () => {
     const user = userEvent.setup();
     render(
@@ -765,11 +830,17 @@ describe("the slide", () => {
           journal: [
             entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
           ],
-          tasks: { mine: [task()], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
+          tasks: {
+            mine: [],
+            team: null,
+            done: [task({ status: "done", doneAt: "2026-08-10T01:00:00Z" })],
+            reported: [],
+            sm8: { lines: {}, sender: null },
+          },
         })}
       />,
     );
-    const door = () => within(face("diary")).getByRole("button", { name: /Order 2× MERV 11 filters/ });
+    const door = () => within(face("diary")).getByRole("button", { name: "1 task" });
     const back = () => within(face("tasks")).getByRole("button", { name: "Open in diary" });
     const toTasks = [
       { who: "hdsec-diary", frames: ["translateX(0px)", "translateX(-600px)"] },

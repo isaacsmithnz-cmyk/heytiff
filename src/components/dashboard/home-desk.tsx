@@ -14,12 +14,12 @@ import {
   type SlidePlan,
 } from "@/lib/dashboard/desk-focus";
 import { motionAllowed } from "@/lib/dashboard/day-flip";
-import { placeHomeList } from "@/lib/dashboard/home-list";
+import { placeHomeList, thingsOnList } from "@/lib/dashboard/home-list";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 import { HomeCalendarPage } from "./home-cal-page";
 import { HomeDay } from "./home-day";
 import { KEEPS_DAY } from "./home-day-bar";
-import { HomeDiary } from "./home-diary";
+import { HomeDiaryFeed } from "./home-diary-feed";
 import { HomeFaceTabs } from "./home-face-tabs";
 import { DeskJobHost } from "./home-job-sheet";
 import { HomeList } from "./home-list";
@@ -36,13 +36,13 @@ import { HomeTasks } from "./home-tasks";
    the Calendar across the whole body, Tasks across the diary column, in tab
    order ("Calendar should slide across"). Only the faces scroll.
 
-   THE FACES ARE HELD UNTIL THEIR OWN LAND: today's diary and tasks stand
-   in theirs, in their own dress, until each face's own lands. "Your day"
-   is his own already (./home-day), and so are THE LIST in the right-hand
-   column beside Diary and Tasks (./home-list), and THE CALENDAR
+   THE FACES ARE BUILT ONE BY ONE. "Your day" is his own already
+   (./home-day), and so are THE DIARY (./home-diary-feed), THE LIST in the
+   right-hand column beside Diary and Tasks (./home-list), and THE CALENDAR
    (./home-cal-page), which slides across the column and the list alike.
-   Every new file mounts here and nowhere else, which is what keeps the
-   crew's Home as it is.
+   Today's tasks stand in their face, in their own dress, until its own
+   lands. Every new file mounts here and nowhere else, which is what keeps
+   the crew's Home as it is.
 
    THE DAY'S OPEN CARD STAYS OPEN across faces, so a press on the tabs or
    in the Calendar does not close it (`KEEPS_DAY`); a click anywhere else
@@ -121,8 +121,6 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
       setFocus(taskDoor(taskId));
     }
   }
-  /* The entry today's diary is reading — null reads the newest. */
-  const [entryId, setEntryId] = useState<string | null>(null);
 
   /* What slides, and what clips each slide. Read only in the effect and the
      handlers, never in render. */
@@ -194,25 +192,31 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     };
   }, [motion]);
 
-  /* THE ONE DOOR. Today's diary reads a chosen entry rather than taking a
-     door, so an entry is chosen here; today's tasks take a task by id and
-     hand the door back once it is shown. A door pressed with a pointer
-     slides its face in like a tab; one pressed from the keyboard does not. */
+  /* THE ONE DOOR. The face it names shows it and hands it back: the diary
+     brings an entry up and lights it, today's tasks choose a task by id. A
+     door pressed with a pointer slides its face in like a tab; one pressed
+     from the keyboard does not. */
   const show = (to: DeskFocus, pointer: boolean) => {
     go(to.face, pointer);
-    if (to.face === "diary" && to.kind === "entry") {
-      setEntryId(to.ids[0] ?? null);
-      return;
-    }
     setFocus(to);
   };
-  const openTask = (id: string, pointer: boolean) => show(taskDoor(id), pointer);
   const openEntry = (id: string, pointer: boolean) => show({ face: "diary", kind: "entry", ids: [id] }, pointer);
   const taskFocus = focus?.face === "tasks" && focus.kind === "task" ? (focus.ids[0] ?? null) : null;
+  const entryFocus = focus?.face === "diary" && focus.kind === "entry" ? focus : null;
   /* Rows a door asked to see stand in the list, beside Diary and Tasks
      alike; the list lights them once and hands the door back. */
   const rowsFocus = focus?.kind === "rows" ? focus : null;
-  const rowsShown = useCallback(() => setFocus(null), []);
+  const focusShown = useCallback(() => setFocus(null), []);
+  /* A diary door names tasks, or an issue. Where the list beside it holds
+     them, they light there and the diary stays; one the list does not hold
+     (a task already ticked off) opens on the Tasks tab, whose rows keep
+     what is done. */
+  const onList = useMemo(() => (list ? thingsOnList(list) : new Set<string>()), [list]);
+  const showThings = (ids: readonly string[], pointer: boolean) => {
+    const here = ids.filter((id) => onList.has(id));
+    if (here.length > 0) show({ face: "diary", kind: "rows", ids: here }, pointer);
+    else if (ids[0]) show({ face: "tasks", kind: "task", ids: [ids[0]] }, pointer);
+  };
 
   const leaving = motion?.from ?? null;
   const shown = (p: SlidePart) => partShown(p, face, leaving);
@@ -248,16 +252,15 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                 <div className="hd-col" ref={columnRef}>
                   {facePanel(
                     "diary",
-                    <div className="hm-face two">
-                      <HomeDiary
-                        entries={journal}
-                        today={today}
-                        selectedId={entryId}
-                        onSelect={setEntryId}
-                        onOpenTask={openTask}
-                        onOpenIssue={openTask}
+                    data.desk && (
+                      <HomeDiaryFeed
+                        diary={data.desk.diary}
+                        viewerStaffId={viewerStaffId}
+                        focus={entryFocus}
+                        onFocusShown={focusShown}
+                        onShowThings={showThings}
                       />
-                    </div>,
+                    ),
                   )}
                   {facePanel(
                     "tasks",
@@ -294,7 +297,7 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                     list={list}
                     onShow={show}
                     flash={rowsFocus}
-                    onFlashDone={rowsShown}
+                    onFlashDone={focusShown}
                     inert={face === "calendar"}
                   />
                 )}

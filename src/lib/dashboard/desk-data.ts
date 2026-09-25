@@ -37,7 +37,10 @@ import { listOrgCredentials, orgExpiryWindow } from "@/lib/org/query";
 import type { OrgCredential } from "@/lib/org/credentials";
 import type { ExpiryWindow } from "@/lib/expiry";
 import type { Capability } from "@/lib/permissions";
-import type { HomeListReads } from "./home-list";
+import { initialsFrom } from "@/lib/staff/derive";
+import { taskOwners, type DeskDiary } from "./diary-doors";
+import { loadDiaryFeed } from "./diary-query";
+import { firstNames, type HomeListReads } from "./home-list";
 import { loadHomeList } from "./home-list-query";
 import type { StaffNames } from "./tasks-query";
 
@@ -99,12 +102,39 @@ export type DeskData = {
       renewals the viewer may see — on the workspace's day
       (lib/calendar/query). */
   calendar: CompanyCalendar;
+  /** The Diary tab: your entries, newest first, with Today split off, and
+      what it needs to say them — your initials, and the first names of the
+      people their tasks are on (./diary-doors). */
+  diary: DeskDiary;
 };
 
 export async function loadDesk(start: DeskStart, mine: Promise<string | null>): Promise<DeskData> {
   /** The whole context, once the link map is in. */
   const ctx = mine.then((mineUuid): DeskContext => ({ ...start, mineUuid }));
   /* Each area's read joins here as a Promise.all over its own gates. */
-  const [list, calendar] = await Promise.all([ctx.then(loadHomeList), loadCompanyCalendar(start)]);
-  return { warnDays: start.shared.expiry.warnDays, list, calendar };
+  const [list, calendar, diary] = await Promise.all([
+    ctx.then(loadHomeList),
+    loadCompanyCalendar(start),
+    ctx.then(loadDeskDiary),
+  ]);
+  return { warnDays: start.shared.expiry.warnDays, list, calendar, diary };
+}
+
+/* THE DIARY, YOUR OWN ENTRIES FOR NOW. The ServiceM8 notes that @mention
+   you come onto the page with their conversations (the Diary spec's second
+   PR), and until then they are not read at all: a read the page cannot
+   show would cost round trips, and would cut the column at the mentions'
+   horizon (diary-feed's ONE HORIZON) for a source nobody can see. So the
+   feed is asked as for a viewer with no ServiceM8 person — which is exactly
+   the diary every viewer without one gets. */
+async function loadDeskDiary(ctx: DeskContext): Promise<DeskDiary> {
+  const feed = await loadDiaryFeed({ ...ctx, mineUuid: null });
+  const first = firstNames(ctx.names);
+  const names: Record<string, string> = {};
+  for (const id of taskOwners(feed)) if (first[id]) names[id] = first[id];
+  return {
+    feed,
+    you: initialsFrom(ctx.viewerStaffId ? ctx.names.get(ctx.viewerStaffId) : null),
+    names,
+  };
 }

@@ -605,11 +605,12 @@ describe("the new Home's text tokens clear 4.5:1 on every fill the page has", ()
     "the hover tint": tintOf("tint"),
     "the selection tint": tintOf("tint-2"),
     "his quiet panel #f4f6f8": hex("#f4f6f8"),
+    "the diary's wash": hex(token("hd-fresh")),
   };
   const TEXT = ["hd-ink", "hd-body", "hd-late", "hd-today"];
   /* rules, a tick's fill and the list's quiet dot: lines and marks, held to
-     nothing here */
-  const NOT_TEXT = ["hd-rule", "hd-rule2", "hd-edge", "hd-done", "hd-dot"];
+     nothing here; and the diary's wash, a fill, which is held above */
+  const NOT_TEXT = ["hd-rule", "hd-rule2", "hd-edge", "hd-done", "hd-dot", "hd-fresh"];
 
   it("names every token the page declares as text or not text — a new one has to be sorted", () => {
     // the page's own rule, not a selector list it shares with the old Home's green
@@ -954,5 +955,67 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
     ["the action, paper on his ink", ".fg .hd-cal-go", () => [fill(".fg .hd-cal-go")]],
   ])("the panel: %s", (_label, sel, grounds) => {
     expect(lowest(ink(sel), grounds())).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+/* ===== The diary (.hd-dy-*, H16) =====
+
+   An entry stands on paper, and on his pale teal while it is lit — saved
+   just now, or asked for by a door. Everything an entry says is held on
+   both, and a door under the pointer on the hover tint laid over each. The
+   Today label and "Nothing yet." stand on paper alone. Read off the rules,
+   like the list's. */
+describe("the diary's words clear 4.5:1 on an entry at rest and lit", () => {
+  const code = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  const colour = (v: string, under: number[]): number[] => {
+    const alias = v.match(/^var\(--([a-z0-9-]+)\)$/i);
+    const value = alias ? token(alias[1]!) : v;
+    const tint = value.match(/^rgba\((\d+), *(\d+), *(\d+), *([\d.]+)\)$/);
+    if (tint) return over([Number(tint[1]), Number(tint[2]), Number(tint[3])], Number(tint[4]), under);
+    if (value.toLowerCase() === "#fff") return WHITE;
+    if (!/^#[0-9a-f]{6}$/i.test(value)) throw new Error(`not a colour this test reads: ${value}`);
+    return hex(value);
+  };
+  const decl = (sel: string, prop: string, under: number[] = WHITE): number[] => {
+    for (const m of code.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (m[1]!.trim() !== sel) continue;
+      const d = m[2]!.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`));
+      if (d) return colour(d[1]!.trim(), under);
+    }
+    throw new Error(`no ${prop} on "${sel}"`);
+  };
+  const ENTRY = () => ({ "at rest": WHITE, lit: decl(".fg .hd-dy-en[data-lit]", "background") });
+  const short = (text: number[], grounds: Record<string, number[]>) =>
+    Object.entries(grounds)
+      .map(([ground, bg]) => ({ ground, r: +ratio(text, bg).toFixed(2) }))
+      .filter((x) => x.r < 4.5);
+
+  it.each([
+    ["who and when", ".fg .hd-dy-m"],
+    ["You", ".fg .hd-dy-m b"],
+    ["the words", ".fg .hd-dy-p"],
+    ["a quiet line", ".fg .hd-dy-note"],
+    ["a door", ".fg .hd-dy-door"],
+  ])("%s, on an entry at rest and lit", (_label, sel) => {
+    expect(short(decl(sel, "color"), ENTRY())).toEqual([]);
+  });
+
+  it("a door under the pointer, on an entry at rest and lit", () => {
+    const hovered = Object.fromEntries(
+      Object.entries(ENTRY()).map(([ground, bg]) => [ground, decl(".fg .hd-dy-door:hover", "background", bg)]),
+    );
+    expect(short(decl(".fg .hd-dy-door", "color"), hovered)).toEqual([]);
+  });
+
+  it.each([
+    ["Today", ".fg .hd-dy-day"],
+    ["Nothing yet.", ".fg .hd-dy-none"],
+  ])("%s, on paper", (_label, sel) => {
+    expect(+ratio(decl(sel, "color"), WHITE).toFixed(2)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("your initials, paper on the ink disc", () => {
+    const disc = decl(".fg .hd-dy-av", "background");
+    expect(+ratio(decl(".fg .hd-dy-av", "color"), disc).toFixed(2)).toBeGreaterThanOrEqual(4.5);
   });
 });

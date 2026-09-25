@@ -14,9 +14,10 @@
    reads (H19) join the desk's batch, told whether the workspace has
    ServiceM8 at all, and so do the Calendar's (H21), on the workspace's day
    and the page's shared reads, started with the batch rather than behind
-   the link map; and a viewer on the new Home is spared the old Home's
-   calendar. Every other read is stubbed with an honest empty answer: they
-   are their own suites'. */
+   the link map, and the diary's (H16), asked for your own entries alone
+   until the mentions come onto the page; and a viewer on the new Home is
+   spared the old Home's calendar. Every other read is stubbed with an
+   honest empty answer: they are their own suites'. */
 
 jest.mock("@/lib/auth0", () => ({
   auth0: { getSession: jest.fn(async () => ({ orgId: "org-1", user: { sub: "auth0|me" } })) },
@@ -168,6 +169,46 @@ const CAL = {
 const loadCompanyCalendar = jest.fn(async (_ctx: unknown) => CAL);
 jest.mock("@/lib/calendar/query", () => ({ loadCompanyCalendar: (ctx: unknown) => loadCompanyCalendar(ctx) }));
 
+/* The diary's read is its own suite's (diary-query): here, what it was
+   asked and that its answer is the desk's. One entry of today, whose two
+   tasks are on Luke and on nobody. */
+const DIARY_FEED: DiaryFeed = {
+  day: "2026-09-24",
+  today: [
+    {
+      kind: "entry",
+      key: "entry:e1",
+      sortAt: "2026-09-24 08:42:00",
+      entry: {
+        id: "e1",
+        said: "Luke, grab the spare remote from the office before tomorrow.",
+        day: "2026-09-24",
+        at: "8:42 am",
+        outcomes: [],
+        spoken: true,
+        stamp: "2026-09-24 08:42",
+        routed: true,
+        taskFor: { t1: "s-luke", t2: null },
+      },
+    },
+  ],
+  earlier: [],
+  mentions: false,
+  syncedAt: null,
+};
+const loadDiaryFeed = jest.fn(async (_ctx: unknown) => DIARY_FEED);
+jest.mock("../diary-query", () => ({ loadDiaryFeed: (ctx: unknown) => loadDiaryFeed(ctx) }));
+
+/* The desk as the loader hands it over, with the names stub's empty map:
+   no initials to be had for a card it does not name, and no first name for
+   Luke's task. */
+const DESK = {
+  warnDays: 45,
+  list: LIST_READS,
+  calendar: CAL,
+  diary: { feed: DIARY_FEED, you: "?", names: {} },
+};
+
 /* The desk's own loader, watched but real. */
 jest.mock("../desk-data", () => {
   const actual = jest.requireActual("../desk-data");
@@ -175,6 +216,7 @@ jest.mock("../desk-data", () => {
 });
 
 import { loadDesk } from "../desk-data";
+import type { DiaryFeed } from "../diary-feed";
 import { loadStaffNames, recentlyDoneTasks } from "../tasks-query";
 import { approvedInSpan, holidaysInSpan } from "@/lib/timepay/leave-query";
 import { loadActionRequired, loadDashboard } from "../page-data";
@@ -221,11 +263,11 @@ describe("the new Home behind HOME_DESK", () => {
 
   it("is loaded for the owner on `owner`, and for everyone on `on`", async () => {
     process.env.HOME_DESK = "owner";
-    expect((await loadDashboard()).desk).toEqual({ warnDays: 45, list: LIST_READS, calendar: CAL });
+    expect((await loadDashboard()).desk).toEqual(DESK);
 
     process.env.HOME_DESK = "on";
     role = "staff";
-    expect((await loadDashboard()).desk).toEqual({ warnDays: 45, list: LIST_READS, calendar: CAL });
+    expect((await loadDashboard()).desk).toEqual(DESK);
     expect(loadDesk).toHaveBeenCalledTimes(2);
   });
 
@@ -263,7 +305,7 @@ describe("the new Home behind HOME_DESK", () => {
     expect(rail.linked).toBe(true);
     expect(rail.blocks.map((b) => b.key)).toEqual(["a1"]);
     if (flag) {
-      expect(desk).toEqual({ warnDays: 45, list: LIST_READS, calendar: CAL });
+      expect(desk).toEqual(DESK);
       expect(loadHomeList).toHaveBeenCalledWith(expect.objectContaining({ mineUuid: "sm8-me" }));
     } else {
       expect(desk).toBeNull();
@@ -301,7 +343,7 @@ describe("the reads the chips and the desk share", () => {
     expect(orgExpiryWindow).toHaveBeenCalledTimes(1);
     expect(listOrgCredentials).toHaveBeenCalledTimes(1);
     expect(chipsInput()).toMatchObject({ warnDays: 45, orgCredentials: [CRED] });
-    expect(data.desk).toEqual({ warnDays: 45, list: LIST_READS, calendar: CAL });
+    expect(data.desk).toEqual(DESK);
     expect(loadDesk).toHaveBeenCalledWith(
       expect.objectContaining({ shared: { expiry: { warnDays: 45, email: true }, orgCredentials: [CRED] } }),
       expect.any(Promise)
@@ -395,7 +437,7 @@ describe("the Calendar's reads", () => {
     await settle();
     expect(loadCompanyCalendar).toHaveBeenCalledTimes(1);
     list.resolve(LIST_READS);
-    expect((await page).desk).toEqual({ warnDays: 45, list: LIST_READS, calendar: CAL });
+    expect((await page).desk).toEqual(DESK);
   });
 
   /* The calendar asks nothing of the link map, and its own reads are two in
@@ -411,7 +453,7 @@ describe("the Calendar's reads", () => {
     expect(loadCompanyCalendar.mock.calls[0]![0]).not.toHaveProperty("mineUuid");
     expect(loadHomeList).not.toHaveBeenCalled();
     links.resolve(LINKS());
-    expect((await page).desk).toEqual({ warnDays: 45, list: LIST_READS, calendar: CAL });
+    expect((await page).desk).toEqual(DESK);
   });
 });
 
@@ -430,6 +472,42 @@ describe("the old Home's calendar", () => {
     expect(holidaysInSpan).not.toHaveBeenCalled();
     expect(data.calendar).toEqual({ spanStart: "", spanEnd: "", days: [] });
     expect(data.desk?.calendar).toBe(CAL);
+  });
+});
+
+describe("the diary's reads", () => {
+  it("are the desk's, and the crew on today's Home make none", async () => {
+    await loadDashboard();
+    expect(loadDiaryFeed).not.toHaveBeenCalled();
+
+    process.env.HOME_DESK = "owner";
+    const { desk } = await loadDashboard();
+    expect(loadDiaryFeed).toHaveBeenCalledTimes(1);
+    expect(desk?.diary.feed).toBe(DIARY_FEED);
+  });
+
+  /* The mentions come onto the page with their conversations; until then
+     not one of their reads is made, even for a viewer ServiceM8 knows. */
+  it("ask for your own entries alone, as for a viewer with no ServiceM8 person, on the workspace's day", async () => {
+    process.env.HOME_DESK = "owner";
+    await loadDashboard();
+    expect(loadHomeList).toHaveBeenCalledWith(expect.objectContaining({ mineUuid: "sm8-me" }));
+    expect(loadDiaryFeed).toHaveBeenCalledWith(
+      expect.objectContaining({ orgId: "org-1", viewerStaffId: "s-me", mineUuid: null, tz: "Australia/Sydney", railDay: expect.any(String) }),
+    );
+  });
+
+  it("carry your initials, and the first names of the people its tasks are on and nobody else's", async () => {
+    process.env.HOME_DESK = "owner";
+    (loadStaffNames as jest.Mock).mockResolvedValueOnce(
+      new Map([
+        ["s-me", "Isaac Smith"],
+        ["s-luke", "Luke Ingold"],
+        ["s-leo", "Leo Park"],
+      ]),
+    );
+    const { desk } = await loadDashboard();
+    expect(desk?.diary).toEqual({ feed: DIARY_FEED, you: "IS", names: { "s-luke": "Luke" } });
   });
 });
 

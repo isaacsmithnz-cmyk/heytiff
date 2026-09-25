@@ -147,3 +147,45 @@ describe("the list", () => {
     expect(quiet).toMatch(/\.fg \.hd-ls-in\[data-grow\] \{ animation:none; \}/);
   });
 });
+
+/* THE DIARY (H16), in the Diary tab. What the sheet promises for it: its
+   rules are two classes deep, like the family's, so the frame's reset never
+   beats a door; it scrolls with its face, never on its own (only a face
+   scrolls, and the diary's door brings an entry up by moving the face); an
+   entry's wash reaches past the column by exactly its own side padding, so
+   the words never move when it lights, and the rule under it stays on the
+   column; and the wash comes and goes on the motion token, a fill that
+   moves nothing. */
+describe("the diary", () => {
+  it("sets every one of its rules two classes deep, under the frame", () => {
+    const parts: string[] = [];
+    for (const m of CSS.matchAll(/([^{}]+)\{[^{}]*\}/g)) {
+      const sel = m[1]!.trim();
+      if (!/\.hd-dy\b|\.hd-dy-/.test(sel)) continue;
+      parts.push(...sel.split(",").map((s) => s.trim()));
+    }
+    expect(parts.length).toBeGreaterThan(10);
+    expect(parts.filter((p) => !/^\.fg \.hd-[\w-]/.test(p))).toEqual([]);
+  });
+
+  it("scrolls with its face, never on its own", () => {
+    for (const m of CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!/\.hd-dy\b|\.hd-dy-/.test(m[1]!)) continue;
+      expect(m[2]).not.toMatch(/overflow(-y)?\s*:\s*(auto|scroll)/);
+    }
+  });
+
+  it("reaches an entry's wash past the column by the entry's own side padding, with the rule on the item", () => {
+    const en = rule(".fg .hd-dy-en");
+    const [, side] = en.padding!.split(" ");
+    expect(en.margin).toBe(`0 -${side}`);
+    expect(en["border-bottom"]).toBeUndefined();
+    expect(rule(".fg .hd-dy-it")["border-bottom"]).toBe("1px solid var(--hd-rule)");
+  });
+
+  it("lights an entry with a fill on the motion token, and moves nothing", () => {
+    expect(rule(".fg .hd-dy-en").transition).toBe("background-color var(--t-move) var(--ease)");
+    const lit = rule(".fg .hd-dy-en[data-lit]");
+    expect(Object.keys(lit)).toEqual(["background"]);
+  });
+});

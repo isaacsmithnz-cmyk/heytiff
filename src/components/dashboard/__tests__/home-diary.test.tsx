@@ -51,7 +51,28 @@ describe("the doors", () => {
       { onOpenTask },
     );
     await user.click(within(pane()).getByRole("button", { name: /Order 2× MERV 11 filters/ }));
-    expect(onOpenTask).toHaveBeenCalledWith("t1");
+    expect(onOpenTask).toHaveBeenCalledWith("t1", true);
+  });
+
+  /* Home changes face without a slide for a door pressed from the keyboard
+     (law 8), so each door says which it was. */
+  it("tells Home when a task or issue door was pressed from the keyboard", async () => {
+    const onOpenTask = jest.fn();
+    const onOpenIssue = jest.fn();
+    const user = userEvent.setup();
+    draw(
+      withOutcomes([
+        { kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } },
+        { kind: "todo", text: "Middle rooftop unit has tripped again", go: { type: "issue", id: "i1" } },
+      ]),
+      { onOpenTask, onOpenIssue },
+    );
+    within(pane()).getByRole("button", { name: /Order 2× MERV 11 filters/ }).focus();
+    await user.keyboard("{Enter}");
+    expect(onOpenTask).toHaveBeenCalledWith("t1", false);
+    within(pane()).getByRole("button", { name: /Middle rooftop/ }).focus();
+    await user.keyboard("{Enter}");
+    expect(onOpenIssue).toHaveBeenCalledWith("i1", false);
   });
 
   /* THE ROUTES ARE ASKED FOR, NOT SPELLED OUT: what is worth pinning is that
@@ -87,7 +108,7 @@ describe("the doors", () => {
     const door = within(pane()).getByRole("button", { name: /Middle rooftop/ });
     expect(door.querySelector(".hm-idot")).not.toBeNull();
     await user.click(door);
-    expect(onOpenIssue).toHaveBeenCalledWith("i1");
+    expect(onOpenIssue).toHaveBeenCalledWith("i1", true);
   });
 
   it("does not offer a task door when Home hasn't wired one", () => {

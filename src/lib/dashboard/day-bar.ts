@@ -28,8 +28,8 @@
 
 import { blockPaint } from "@/lib/workboard/focus";
 import { NO_CATEGORY_PAINT, rgbOf, whiteLabelFill } from "@/lib/workboard/schedule-colour";
-import type { ScheduleBlock } from "@/lib/workboard/schedule";
-import type { RailTask } from "./day-rail";
+import { clockLabel, type ScheduleBlock } from "@/lib/workboard/schedule";
+import { railSpanLabel, type RailTask } from "./day-rail";
 
 /** The bar's height. The cards lean 45°, so it is also how far a slanted
     edge travels across — which is why the width sums below add it back. */
@@ -72,6 +72,14 @@ export const DAY_FONTS = {
   tag: { px: 12, weight: 600 },
   time: { px: 13, weight: 600 },
 } as const satisfies Record<string, DayFont>;
+
+/** The bar's width before it has measured itself. The server cannot
+    measure, and the browser's first render has to draw what the server
+    drew, so both lay the bar out at this width and the browser corrects it
+    once it has looked. His width: the bar on a 1440 window — less the
+    rail's 224, the frame's 16 and the day's 24 each side — so the first
+    paint at his desk is already the right one. */
+export const DAY_NOMINAL_W = 1152;
 
 /** How wide `text` is in `font`, in CSS pixels. */
 export type DayMeasure = (text: string, font: DayFont) => number;
@@ -303,6 +311,71 @@ export function dayGroupLabel(count: number): string {
   return `Show ${count} finished jobs`;
 }
 
+/** "Luke", "Luke and Callum", "Luke, Callum and Leo". */
+function andList(names: readonly string[]): string {
+  return names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/** What the panel under the bar says about the card that is open. */
+export type DayPanelFacts = {
+  /** The place, big: "Sydney". A booking with no suburb is titled by its
+      name, and a task by its own title. */
+  title: string;
+  /** Beside the title: "Job 3342" (a client, when the job has no number),
+      "Task" for a task; null when the title is already the name. */
+  number: string | null;
+  summary: string | null;
+  /** "4:45–5:45pm", with the meridiem said once (railSpanLabel). A task
+      says its moment, "7:00am", and a deadline "by 7:00am". */
+  time: string;
+  /** The street line; the suburb when the mirror had no street. */
+  where: string | null;
+  /** Everyone else booked on the job today; null when you are on it alone,
+      so the panel leaves "With" out rather than saying "Solo". */
+  with: string | null;
+};
+
+export function dayPanelFacts(item: DayItem): DayPanelFacts {
+  if (item.kind === "task") {
+    const at = clockLabel(item.startMin);
+    return { title: item.name, number: "Task", summary: null, time: item.by ? `by ${at}` : at, where: null, with: null };
+  }
+  return {
+    title: item.place ?? item.name,
+    number: item.place ? item.name : null,
+    summary: item.summary?.trim() || null,
+    time: railSpanLabel(item.startMin, item.endMin),
+    where: item.where?.trim() || item.place,
+    with: item.crew.length > 0 ? andList(item.crew) : null,
+  };
+}
+
+/** A card's name, read aloud: everything the card shows, whole and never
+    shortened, and the state its colour shows — "Sydney, Job 3342,
+    4:45–5:45pm, On now, 17%". A folded run is named for what pressing it
+    does. */
+export function dayCardLabel(slot: DaySlot, nowMin: number | null): string {
+  if (slot.kind === "group") return dayGroupLabel(slot.items.length);
+  const it = slot.items[0];
+  return [it.kind === "task" ? "Task" : it.place, it.name, dayPanelFacts(it).time, dayStateWord(it, nowMin)]
+    .filter(Boolean)
+    .join(", ");
+}
+
+/** The card's tooltip, only where the card could not say it all: a folded
+    run's "3 finished", a sliver that shows only its tick, a card whose
+    place or name had to be shortened, and a card the last step shrank
+    below the room its words were laid out in, whose words the sheet then
+    cuts short ("The full name always shows in the card's tooltip and in the
+    summary panel", handoff §2.5). */
+export function dayCardTip(slot: DaySlot): string | null {
+  if (slot.kind === "group") return slot.name;
+  const it = slot.items[0];
+  const whole = slot.tag === (it.kind === "task" ? "Task" : (it.place ?? "")) && slot.name === it.name;
+  if (whole && !slot.collapsed && !slot.shrunk) return null;
+  return [it.kind === "task" ? null : it.place, it.name, dayTimeLabel(it, false)].filter(Boolean).join(", ");
+}
+
 /* ── the fit ─────────────────────────────────────────────────────────── */
 
 export type DaySlotKind = "job" | "task" | "group";
@@ -326,6 +399,9 @@ export type DaySlot = {
   end: boolean;
   /** Folded or a sliver: a fixed width, no words, only the tick. */
   collapsed: boolean;
+  /** Narrower than the room its words were laid out in: the last step
+      (`scale` below 1) reached it, so the sheet may cut its words short. */
+  shrunk: boolean;
   grow: number;
   shrink: 0 | 1;
   basis: number;
@@ -483,6 +559,7 @@ function lay(cards: readonly Card[], input: DayFitInput, liveKey: string | null)
       live: c.kind !== "group" && c.key === liveKey,
       end: isEnd(i),
       collapsed: x.collapsed,
+      shrunk: !kept(i) && k < 1,
       grow: x.collapsed ? 0 : (1 + hours * DAY_GROW_PER_HOUR) * (selected[i] ? DAY_SEL_GROW : 1),
       shrink: x.collapsed ? 0 : 1,
       basis: x.collapsed ? x.w : isEnd(i) ? DAY_END_BASIS : 0,

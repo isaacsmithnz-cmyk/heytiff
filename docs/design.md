@@ -50,7 +50,9 @@ Every decision below is made once, here, and a guard test holds each number.
   glyphs (a circled X for Xero, a figure-8 for ServiceM8) do not read;
   connectors will carry the providers' own logos, later.
 - **Home is one card with three rooms** (decided 2026-09-15, from the
-  three-room handoff): the day across the top, a rail of the faces (four
+  three-room handoff; **superseded 2026-09-25** by "Home is the day, three
+  tabs and the list", below, and still the crew's Home until the flip):
+  the day across the top, a rail of the faces (four
   until the Debrief went; Isaac, 2026-09-24: "the diary, tasks and HeyTiff
   chat window should assist with that"), the face's list, and the page the
   chosen row opens onto. Its h1 is the date, not the word Home: the shell's
@@ -260,6 +262,43 @@ Every decision below is made once, here, and a guard test holds each number.
   on its screen, so the margin drew a second frame 16px inside the first and
   an edge a pixel from the shell's own. On `.page.full` the card's border and
   corner come off and it IS the screen.
+- **Home is the day, three tabs and the list** (decided 2026-09-25, from
+  his handoff "Home - Diagonal day" and his walks of the prototype to v32).
+  Built behind `HOME_DESK`: the owner's until he has walked it, and the
+  crew keep the Home above until the flip. The date is the h1, in the band
+  every screen wears. Under it "Your day", on every face ("The top hero can
+  stay as it is, that says Your day"). Under that one row of tabs, Diary,
+  Tasks and Calendar in that order ("swap Tasks and calendar around"), in
+  the same place on every face ("the diary, calendar and tasks tabs
+  shouldn't move positions each time"): his grey words, the chosen one ink
+  and bold, and each tab as wide as its bold word from the start, so
+  choosing one never moves the next. What belongs to one face, the
+  Calendar's box and its views, stands in that face's own toolbar, never
+  in the row. Under the tabs the body slides in tab order ("Calendar should
+  slide across"): the Calendar across the whole body, Tasks across the
+  diary column, in 280 ms, and at once under reduced motion. The list
+  stands in the right-hand column beside Diary and Tasks. One job card
+  serves every door on the page. The Debrief is gone (2026-09-24).
+  "Your day" is his slanted bar: the viewer's own bookings and timed
+  tasks as 45° cards in their Workboard colours, the one on now filling
+  as it runs, finished work pale with a tick and folded into one block
+  when the bar is crowded. The page opens with the job on now open, and
+  its panel under the bar says the place, the number, the state, the
+  job, Time, Where and With, beside Open job and the close cross. The
+  open card stays open whatever face is up ("if the card is open, they
+  can just close it if they want more space"). A card grows as it opens
+  and its place name slides to its middle, the panel fades in under it
+  as the body makes room, and a white light runs round the job on now
+  (the Trace); under reduced motion, and for a change made from the
+  keyboard, each is simply there.
+  **His design is the default here.** A redraw to the laws "looks far
+  worse", so where his numbers break a law this file names the exemption
+  instead of bending the design ("design exempt for now, but keep a note",
+  2026-09-24): his shapes, colours and motion are named exemptions, under
+  Guards. His spacing and radii snap to the scales, a move of 4px or less
+  each ("go with your recommendations", 2026-09-25). His late red is the
+  app's `--bad-t`, one red for the page: his own is 4.15:1 on the
+  selection tint.
 - **The job sheet is parked.** A ruled-list job sheet reads as paper but scans
   worse than the row. Nothing in that direction moves until a version keeps the
   row's scannability.
@@ -496,9 +535,9 @@ became consequences of the ink-and-paper decision rather than choices.
 across every screen stylesheet and component under `src` and holds each count at the number
 recorded there. A PR may lower a number. A PR may never raise one. When a
 count drops, the PR lowers the recorded number with it, so the number is
-always the truth. Two it holds by name instead — the loops, and the buttons
-that keep their glyph — in the lists below. Every guard was watched failing
-before it was trusted.
+always the truth. Three things it holds by name instead — the loops, the
+buttons that keep their glyph, and Isaac's named exemptions — in the lists
+below. Every guard was watched failing before it was trusted.
 
 The three paper stylesheets are outside the guards on purpose: the design
 sheet (`sheet-doc.css`), the letterhead and the live sheet are documents set
@@ -572,6 +611,7 @@ infinite loop into a strobe.
 | `dotfTurn`, `dotfZip`, `dotfFire` | the capture card's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
 | `wb2Flash` | a calendar day the board's data asked to flash | a flash a row asked for with data |
 | `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button, on the frame and in a sheet's header; and the mark wherever it stands for Tiff (at rest, at the thinking pace while Tiff works, or on hover in a list) | not feedback or state: Isaac's override of law 18 (2026-09-24, "make it gently alive all the time"), the one thing in the app that moves at rest. See "The Tiff button" below |
+| `hdTrace` | the Trace: the white light round the job on now, on Home's day bar | Isaac's override of law 18 (2026-09-24, "design exempt for now, but keep a note"): his live job, marked by a light that runs round its edge once every 8 seconds while it is on. It goes when the job finishes, and stands still under reduced motion. See "Named exemptions" below |
 
 ### The buttons that keep their glyph
 
@@ -591,6 +631,71 @@ this list the way it holds the loops: both ways, by name.
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `chevR` | `railtg` | the rail's handle, a chevron riding the seam between rail and content; the shell stands as it is |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
+
+### Named exemptions
+
+Isaac's own shapes on the new Home break some of the laws on purpose, on
+his word ("design exempt for now, but keep a note", 2026-09-24). A baseline
+raised to let them in would let the next rule in with them, unnamed, so
+they are held the way the loops are. Five ratchets take a named exemption:
+gradients, shadows, bars at the left edge, Tailwind palette hexes and
+pills. Each counts the sheets without the rule blocks its own rows cover,
+so no baseline moves, and `design-ratchets.test.ts` holds the hits in those
+blocks to this table exactly, both ways: a named rule that grows fails, and
+a row whose rule has gone fails until the row goes. A block is covered only
+when every selector in its list names the class, and a row covers its
+class under its own ratchet and no other. A row needs his words and the
+day he said them.
+
+| Rule | Ratchet | Count | His words | Date |
+|---|---|---|---|---|
+| `.hd-page` | Tailwind palette hexes | 1 | "design exempt for now, but keep a note": `--hd-done`, the tick on finished work, is Tailwind's green 600 | 2026-09-24 |
+| `.hd-bar` | bars at the left edge | 1 | "go with your recommendations", which kept his end-card line: the first card's outer slant is cut away by the bar, so the open card's 3px ink outline closes down the bar's square end | 2026-09-25 |
+| `.hd-chip` | pills | 1 | "go with your recommendations", which kept his On-now capsule: the state word in the day's panel sits in a white capsule, "On now, 17%" | 2026-09-25 |
+| `.hd-trace` | gradients | 5 | "design exempt for now, but keep a note": the Trace, his white light round the job on now, is a conic gradient turning behind a ring that two masks cut from the card's edge, each mask written twice, prefixed and plain | 2026-09-24 |
+
+What the guard cannot count is noted here on the same word:
+
+- **Law 16, colour.** `.hd-page` declares his colours as its tokens, and
+  no rule on the page writes a colour literal: the ink `#151a24`, the body
+  grey `#5b6472`, the rules `#e6e9ee`, `#eef0f3` and `#e2e5ea`, the teal
+  of Today `#0f766e`, and the green of done `#16a34a`. `text-contrast`
+  holds every one that is text to 4.5:1 on the page's fills. The Trace's
+  masks are `#000`, which a mask reads only for its alpha, and its light
+  is `--paper`.
+- **Law 18, motion tokens, and law 8, a tab's content appears.** The faces
+  slide, in 280 ms rather than `--t-move`: "Calendar should slide across"
+  (2026-09-25). Nothing slides under reduced motion, and nothing slides
+  for a face chosen from the keyboard, a tab or a door between faces:
+  law 8's "none on keyboard-driven actions" still holds there. A door
+  pressed with a pointer slides its face in as its tab would.
+- **Law 18, motion tokens, and law 8, the grow.** A card that opens grows,
+  and the cards beside it give way, in his 350 ms on his `ease`, as the
+  prototype he walked eased it: past law 8's 300 ms and off `--t-move`
+  ("go with your recommendations", 2026-09-25, which kept his 350 ms
+  grow). Finished work folds into its block and opens out of it the same
+  way. So does a card the pointer moves onto in a crowded bar: it comes
+  out of its sliver or the fold at full strength and the cards beside it
+  give way, in the same 350 ms, where law 18 has nothing scale under the
+  pointer and law 8 no motion on a high-frequency action. His prototype
+  grew the card under the pointer so ("design exempt for now, but keep a
+  note", 2026-09-24). Only a move of the pointer counts: a card that
+  grows under a pointer standing still is not taken as hovered, so the
+  bar never chases it. It is a FLIP on transforms, so nothing is laid
+  out again frame by frame. The panel under the bar fades in on
+  `--t-fast`, and the body under the day moves to make room for it on
+  `--t-move`. Nothing grows under reduced motion, or for a change made
+  from the keyboard: a card, the folded block, the cross or Escape.
+- **Law 18, loops.** The Trace moves while the job it marks is on, the
+  one thing on the page that does: `hdTrace`, 8 seconds a turn, in the
+  loops table above. It is a rotation, which the compositor runs without
+  painting the page.
+- **Law 16 and law 31, the day's colours.** Each card on "Your day" is
+  filled with its job's Workboard colour, darkened only where white on it
+  would fall under 4.5:1, and goes pale once finished. The colours are
+  worked out in `lib/dashboard/day-bar` (`dayCardPaint`), where every pair
+  is measured, and reach the sheet as inline properties; no rule names a
+  hue. They are the drawing, which law 31 lets carry colour.
 
 ### The Tiff button
 

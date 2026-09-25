@@ -5,10 +5,13 @@ import {
   DAY_GROUP_W,
   DAY_H,
   DAY_SLIVER_W,
+  dayCardLabel,
   dayCardPaint,
+  dayCardTip,
   dayGroupLabel,
   dayItems,
   dayLiveKey,
+  dayPanelFacts,
   dayProgress,
   dayState,
   dayStateWord,
@@ -304,6 +307,126 @@ describe("the words on a card", () => {
 
   it("names a folded run for a screen reader", () => {
     expect(dayGroupLabel(3)).toBe("Show 3 finished jobs");
+  });
+});
+
+describe("the panel's words", () => {
+  const one = (b: Partial<ScheduleBlock> = {}, over: Partial<DayRailInput> = {}) => dayItems(rail([block(b)], [], over))[0]!;
+
+  it("titles a booking by its place, its number beside it, and says the span with the meridiem once", () => {
+    const it = one(
+      { startMin: hm(16, 45), endMin: hm(17, 45) },
+      { jobs: [{ remoteId: "j1", description: "Service AC units " }], where: { j1: "Carrington St, Sydney" } }
+    );
+    expect(dayPanelFacts(it)).toEqual({
+      title: "Sydney",
+      number: "Job 3342",
+      summary: "Service AC units",
+      time: "4:45–5:45pm",
+      where: "Carrington St, Sydney",
+      with: null,
+    });
+  });
+
+  it("says who else is on the job, and leaves With out when you are alone", () => {
+    const crew = (names: string[]) => dayPanelFacts(one({}, { crew: { j1: names } })).with;
+    expect(crew([])).toBeNull();
+    expect(crew(["Luke"])).toBe("Luke");
+    expect(crew(["Luke", "Callum"])).toBe("Luke and Callum");
+    expect(crew(["Luke", "Callum", "Leo"])).toBe("Luke, Callum and Leo");
+  });
+
+  it("falls back to the suburb for Where, and to the name for a title when there is no suburb", () => {
+    expect(dayPanelFacts(one()).where).toBe("Sydney");
+    const bare = dayPanelFacts(one({ suburb: null, jobNumber: null, clientName: "Bayview Apartments" }));
+    expect(bare).toMatchObject({ title: "Bayview Apartments", number: null, where: null, summary: null });
+  });
+
+  it("gives a task its moment, and a deadline its 'by'", () => {
+    const at = dayItems(rail([], [task({ atMin: hm(7) })]))[0]!;
+    const by = dayItems(rail([], [task({ atMin: hm(17, 30), kind: "by" })]))[0]!;
+    expect(dayPanelFacts(at)).toEqual({
+      title: "Hilux in for its service",
+      number: "Task",
+      summary: null,
+      time: "7am",
+      where: null,
+      with: null,
+    });
+    expect(dayPanelFacts(by).time).toBe("by 5:30pm");
+  });
+
+  it("names a card aloud with everything it shows, whole, and its state", () => {
+    const items = thursday();
+    const f = fit({ items, barWidth: 1144, selectedKey: "job:d" });
+    const live = f.slots.find((s) => s.key === "job:d")!;
+    expect(dayCardLabel(live, FIVE_TO_FIVE)).toBe("Sydney, Job 3342, 4:45–5:45pm, On now, 17%");
+    const e = f.slots.find((s) => s.key === "job:e")!;
+    expect(dayCardLabel(e, FIVE_TO_FIVE)).toBe("Willoughby East, Job 3315, 5–6pm, To come");
+    const folded = fit({ items, selectedKey: "job:d" }).slots[0]!;
+    expect(dayCardLabel(folded, FIVE_TO_FIVE)).toBe("Show 3 finished jobs");
+    const late = fit({ items: dayItems(rail([], [task({ atMin: hm(16), kind: "by" })])) }).slots[0]!;
+    expect(dayCardLabel(late, FIVE_TO_FIVE)).toBe("Task, Hilux in for its service, by 4pm, Late");
+  });
+
+  it("gives a tooltip only where the card could not say it all", () => {
+    const whole = fit({ items: thursday(), barWidth: 1144 });
+    expect(whole.slots.map(dayCardTip)).toEqual([null, null, null, null, null, null]);
+    // a folded run says how many; a sliver says what it is
+    const folded = fit({ items: thursday(), selectedKey: "job:d" });
+    expect(dayCardTip(folded.slots[0]!)).toBe("3 finished");
+    const sliver = fit({ items: thursday(), barWidth: 670, showFinished: true });
+    const first = sliver.slots[0]!;
+    expect(first.collapsed).toBe(true);
+    expect(dayCardTip(first)).toBe("Sydney, Job 3342, 6:30–9:00");
+    // a shortened place gives the whole one back
+    const narrow = dayItems(rail([block({ suburb: "Willoughby East North Heights" })]));
+    const short = fit({ items: narrow, barWidth: 1144, nowMin: hm(6) }).slots[0]!;
+    expect(short.tag).not.toBe("Willoughby East North Heights");
+    expect(dayCardTip(short)).toBe("Willoughby East North Heights, Job 3342, 8:00–9:00");
+  });
+
+  /* Short names fit their cap whole, but the last step can still take a
+     card below the room its words were laid out in, and the sheet cuts
+     them with an ellipsis: "Bayview A…" needs its tooltip as much as a
+     shortened place does. */
+  it("gives a tooltip on every card the last step shrank, though its words were whole", () => {
+    const named = (n: number) =>
+      dayItems(
+        rail(
+          Array.from({ length: n }, (_, i) =>
+            block({
+              key: `s${i}`,
+              remoteId: `s${i}`,
+              jobNumber: null,
+              clientName: "Bayview Apts",
+              suburb: "Ryde",
+              startMin: hm(7 + i),
+              endMin: hm(7 + i, 45),
+            })
+          )
+        )
+      );
+    for (const [n, barWidth] of [
+      [8, 1152],
+      [10, 900],
+    ] as const) {
+      const f = fit({ items: named(n), barWidth, nowMin: hm(6), measure: guessMeasure });
+      expect(f.scale).toBeLessThan(1);
+      expect(f.slots.map((s) => [s.tag, s.name])).toEqual(Array.from({ length: n }, () => ["Ryde", "Bayview Apts"]));
+      expect(f.slots.every((s) => s.shrunk)).toBe(true);
+      expect(f.slots.map(dayCardTip)).toEqual(
+        Array.from({ length: n }, (_, i) => `Ryde, Bayview Apts, ${dayTimeLabel(f.slots[i]!.items[0]!, false)}`)
+      );
+    }
+    // the open card keeps the room it was laid out in, so its words are whole
+    const open = fit({ items: named(8), barWidth: 1152, nowMin: hm(6), measure: guessMeasure, selectedKey: "job:s3" });
+    const s3 = open.slots.find((s) => s.key === "job:s3")!;
+    expect(open.scale).toBeLessThan(1);
+    expect(s3.shrunk).toBe(false);
+    expect(dayCardTip(s3)).toBeNull();
+    // a bar that fits shrinks nothing
+    expect(fit({ items: thursday(), barWidth: 1144 }).slots.some((s) => s.shrunk)).toBe(false);
   });
 });
 

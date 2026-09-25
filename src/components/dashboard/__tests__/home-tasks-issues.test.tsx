@@ -179,7 +179,12 @@ describe("the page", () => {
     expect(pane().querySelector(".hm-quote")!.textContent).toContain("tripped again");
     expect(pane().querySelector(".hm-qm")!.textContent).toContain("Thu 30 July");
     await user.click(screen.getByRole("button", { name: "Open in diary" }));
-    expect(onOpenEntry).toHaveBeenCalledWith("e3");
+    expect(onOpenEntry).toHaveBeenCalledWith("e3", true);
+    // from the keyboard, so Home changes face without a slide (law 8)
+    onOpenEntry.mockClear();
+    screen.getByRole("button", { name: "Open in diary" }).focus();
+    await user.keyboard("{Enter}");
+    expect(onOpenEntry).toHaveBeenCalledWith("e3", false);
   });
 
   it("is chosen by a diary door naming it, like a task", () => {

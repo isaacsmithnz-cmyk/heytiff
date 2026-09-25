@@ -151,7 +151,9 @@ const MAX_READ_ROUNDS = 70;
     103 — so the list has to hold its shape without a scrollbar of its own. */
 const VISITS_SHOWN = 6;
 
-type TabKey =
+/** The card's faces. A door that knows which face it wants opens on it
+    with `initialTab`. */
+export type JobSheetTab =
   | "summary"
   | "diary"
   | "money"
@@ -159,6 +161,7 @@ type TabKey =
   | "checklist"
   | "photos"
   | "documents";
+type TabKey = JobSheetTab;
 
 /** A SWMS version as a page the card's viewer can hold — the printable
     document, which carries its own Print button and its own version. */
@@ -235,6 +238,7 @@ export function JobSheet({
   moneyVisible,
   sm8 = null,
   scheduleState = null,
+  initialTab,
   onClose,
   onCreateAgreement,
   onOpenTracked,
@@ -250,6 +254,10 @@ export function JobSheet({
       block opened this sheet, so the header carries the same reading the rail
       drew (the "!" and the hollow cap, in words). */
   scheduleState?: ScheduleJobState | null;
+  /** The face to open on, for a door that knows what it came for — a
+      mention opens the job's Diary. Summary otherwise, and Summary for Money
+      without the grant, because that face is absent. */
+  initialTab?: JobSheetTab;
   onClose: () => void;
   /** Hands this job to the existing new-agreement modal, prefilled. */
   onCreateAgreement: (row: AllJobRow, detail: MirrorJobDetail | null) => void;
@@ -288,7 +296,9 @@ export function JobSheet({
   const [ourNotes, setOurNotes] = useState<OurJobNote[] | null>(null);
   const [attention, setAttention] = useState<JobAttention | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabKey>("summary");
+  const [tab, setTab] = useState<TabKey>(() =>
+    initialTab && (initialTab !== "money" || moneyVisible) ? initialTab : "summary"
+  );
   const [naming, setNaming] = useState(false);
   const [allVisits, setAllVisits] = useState(false);
   /* The claim this card was opened FOR, when a clone's row was clicked. It
@@ -347,8 +357,9 @@ export function JobSheet({
   const [err, setErr] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   /* Whether the reader has chosen a tab themselves — the one thing that
-     outranks the clone-open landing on Money. */
-  const touchedTab = useRef(false);
+     outranks the clone-open landing on Money. A face the door asked for is
+     that choice made on the reader's behalf, and outranks it the same way. */
+  const touchedTab = useRef(initialTab !== undefined);
   const alive = useRef(true);
 
   useEffect(() => {

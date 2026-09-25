@@ -122,8 +122,9 @@ export function HomeTasks({
   journal?: JournalEntry[];
   /** The workspace's zone, for reading a reminder's clock time. */
   tz?: string | null;
-  /** Given by Home: switches to the Diary face on that entry. */
-  onOpenEntry?: (id: string) => void;
+  /** Given by Home: switches to the Diary face on that entry. `pointer`
+      is false for Open in diary pressed from the keyboard. */
+  onOpenEntry?: (id: string, pointer: boolean) => void;
   /** A row named by a diary door — a task's id or an issue's: choose it,
       scroll to it and mark it, once. */
   focusTaskId?: string | null;
@@ -498,7 +499,7 @@ export function HomeTasks({
                     {fmtAuWeekdayDayMonth(src.day)}, {src.at}
                   </span>
                   {onOpenEntry && (
-                    <button type="button" className="hm-link" onClick={() => onOpenEntry(src.id)}>
+                    <button type="button" className="hm-link" onClick={(e) => onOpenEntry(src.id, e.detail > 0)}>
                       Open in diary
                     </button>
                   )}
@@ -575,7 +576,7 @@ export function HomeTasks({
                     {fmtAuWeekdayDayMonth(src.day)}, {src.at}
                   </span>
                   {onOpenEntry && (
-                    <button type="button" className="hm-link" onClick={() => onOpenEntry(src.id)}>
+                    <button type="button" className="hm-link" onClick={(e) => onOpenEntry(src.id, e.detail > 0)}>
                       Open in diary
                     </button>
                   )}

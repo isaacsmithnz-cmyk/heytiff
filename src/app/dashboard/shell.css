@@ -10655,12 +10655,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    hand out. */
 .fg .page:has(> .hm-wrap) { height:100%; display:flex; flex-direction:column; }
 .fg .hm-wrap { flex:1; min-height:0; display:flex; flex-direction:column;
-  width:100%; max-width:none; margin:0; align-self:center; padding:16px;
-  /* HOME'S ONE GREEN (Isaac, 2026-09-15: "we're missing a little bit of
-     colour"). Two places and no more: the part of the day that has gone,
-     and the entry being read. The handoff's own green, at a text tone that
-     clears 4.5:1 on its tint (5.2 on paper) and a mark that clears 3:1. */
-  --hm-green:#12a594; --hm-green-t:#137a6e; --hm-green-tint:#e6f7f3; }
+  width:100%; max-width:none; margin:0; align-self:center; padding:16px; }
+/* HOME'S ONE GREEN (Isaac, 2026-09-15: "we're missing a little bit of
+   colour"). Two places and no more: the part of the day that has gone, and
+   the entry being read. The handoff's own green, at a text tone that clears
+   4.5:1 on its tint (5.2 on paper) and a mark that clears 3:1. The new Home
+   (`.hd-page`) takes it too while it holds today's day band and faces, and
+   gives it back when they go. */
+.fg .hm-wrap, .fg .hd-page { --hm-green:#12a594; --hm-green-t:#137a6e; --hm-green-tint:#e6f7f3; }
 .fg .hm-wrap > .stg { flex:1; min-height:0; display:flex; flex-direction:column; }
 .fg .hm-card { flex:1; min-height:0; display:flex; flex-direction:column;
   background:var(--paper); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
@@ -10992,6 +10994,218 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   .fg .hm-read { padding:24px 32px 24px; }
   .fg .hm-face.one { padding:24px 32px; }
 }
+
+/* ======================= THE NEW HOME: THE DESK =======================
+   Behind HOME_DESK (lib/dashboard/desk-flag): the owner's until the flip,
+   while the crew keep the Home above, untouched. docs/design.md, "Home is
+   the day, three tabs and the list" (2026-09-25).
+
+   The band with the date, then "Your day" on every face, then ONE row of
+   tabs that never moves, then the body, which slides (home-desk.tsx). The
+   page scrolls nowhere; only a face does.
+
+   RULES ARE `.fg .hd-*`, two classes deep, for the old family's reason:
+   `.fg button` is (0,1,1). Every face that lands takes this prefix too
+   (`hd-dy-`, `hd-ls-`, `hd-tk-`, `hd-cal-`) and these tokens.
+
+   HIS COLOURS ARE TOKENS, declared here and nowhere else: law 16 is his to
+   waive and he has ("design exempt for now, but keep a note", 2026-09-24),
+   so they are named exemptions in docs/design.md. Every text token is held
+   to 4.5:1 on the page's fills by text-contrast. The late red is the app's
+   own `--bad-t`: his #d6293e is 4.15:1 on the selection tint, and one late
+   red serves the whole page. */
+.fg .hd-page { --hd-ink:#151a24; --hd-body:#5b6472; --hd-rule:#e6e9ee; --hd-rule2:#eef0f3; --hd-edge:#e2e5ea;
+  --hd-late:var(--bad-t); --hd-today:#0f766e; --hd-done:#16a34a; }
+
+/* ── YOUR DAY: across the top, on every face ──
+   A rule under the band and one under the day, in his grey. */
+.fg .hd-day { flex:none; display:flex; flex-direction:column; gap:12px; padding:16px 24px;
+  border-top:1px solid var(--hd-rule); border-bottom:1px solid var(--hd-rule); }
+.fg .hd-dayh { margin:0; font-size:16px; font-weight:600; line-height:1.2; color:var(--hd-ink); }
+
+/* ── THE BODY: the tabs, then the one cell the faces slide through ──
+   On the page's own paper, so that while it travels down to make room for
+   the day's panel (home-day.tsx) it covers the panel it is uncovering,
+   rather than its words passing over the panel's. */
+.fg .hd-body { flex:1; min-height:0; display:flex; flex-direction:column; background:var(--paper); }
+
+/* THE TABS. His grey words, no underline; the chosen one is ink and bold.
+   The row is `flex:none` above the body, so it is pinned by where it
+   stands rather than by `sticky`, and it is one node on every face. */
+.fg .hd-tabs { flex:none; display:flex; align-items:baseline; gap:24px; padding:16px 24px; }
+.fg .hd-tab { display:inline-flex; flex-direction:column; align-items:flex-start; padding:0; border:0;
+  border-radius:6px; background:none; font-size:20px; font-weight:500; line-height:1.2; color:var(--q);
+  cursor:pointer; transition:color var(--t-fast) var(--ease); }
+.fg .hd-tab:hover { color:var(--hd-ink); }
+.fg .hd-tab.on { font-weight:600; color:var(--hd-ink); cursor:default; }
+.fg .hd-tab:focus-visible { outline:none; box-shadow:var(--ring); }
+/* The bold name under every name, with no height and nothing to see: the
+   tab is as wide as its bold word from the start, so the one that is on is
+   never wider than it was and nothing beside it moves. Its weight IS the
+   chosen tab's weight; home-desk-frame holds the two together. */
+.fg .hd-tabw { height:0; overflow:hidden; visibility:hidden; font-weight:600; pointer-events:none;
+  user-select:none; }
+
+/* THE CELL. The body and the Calendar share it and slide past each other
+   in it; the diary column's two faces share its own. Both clip, so a face
+   on its way never paints over the day, the tabs or the list.
+   `clip`, NEVER `hidden`: hidden still makes a scroll container, and the
+   face sliding in gives it room sideways, so a diary door's flash (Tasks'
+   `scrollIntoView`) would scroll the cell ~300px across mid-slide and snap
+   back. Clip bounds the slide without a scroller, as the Studio's start
+   screen does (.ds-home). */
+.fg .hd-fx { flex:1; min-height:0; display:grid; grid-template:minmax(0,1fr) / minmax(0,1fr); overflow:clip; }
+.fg .hd-fx > .hd-main, .fg .hd-fx > .hd-face { grid-area:1 / 1; min-width:0; min-height:0; }
+/* The list takes the right-hand column once it is there; until then the
+   column is the body. */
+.fg .hd-main { display:grid; grid-template-columns:minmax(0,1fr); }
+.fg .hd-main:has(> .hd-list) { grid-template-columns:minmax(0,1fr) minmax(280px,420px); }
+.fg .hd-col { display:grid; grid-template:minmax(0,1fr) / minmax(0,1fr); min-width:0; min-height:0;
+  overflow:clip; }
+.fg .hd-col > .hd-face { grid-area:1 / 1; min-width:0; min-height:0; }
+/* A face scrolls on its own; the tabs above it stay where they are. */
+.fg .hd-face { display:flex; flex-direction:column; overflow-y:auto; }
+.fg .hd-main[hidden], .fg .hd-face[hidden] { display:none; }
+/* TODAY'S FACES, HELD until their own land: the old components in their
+   old dress, filling the face. This rule goes with them. */
+.fg .hd-face > .hm-face { flex:1; }
+
+/* ── YOUR DAY: his slanted bar (handoff "Home - Diagonal day", §2) ──
+   home-day-bar.tsx. What a card is, how wide, what it says and its colours
+   are decided in lib/dashboard/day-bar and arrive inline: `flex`,
+   `min-width`, and --hd-bg / --hd-fill / --hd-text / --hd-p. Nothing here
+   picks a hue. His radii snap to the scale (card 8 → 10, panel 14 → 16),
+   and his spacing within 4px of where he drew it. Nothing on a card
+   transitions: the grow is a FLIP the bar runs itself (lib/dashboard/
+   day-flip), from boxes read with nothing in the way. The one thing here
+   that moves is the Trace, below. */
+.fg .hd-daynote { margin:0; font-size:14px; color:var(--q); }
+.fg .hd-daynote a { color:var(--link); font-weight:500; text-decoration:underline; text-underline-offset:3px; }
+.fg .hd-daynone { margin:0; font-size:14px; font-weight:500; color:var(--q); }
+
+/* THE BAR clips the row, whose ends reach half a card's height past it, so
+   the outer slants of the first and last cards are cut away and the ends
+   read square. `clip`, not `hidden`: hidden is a scroll container, and
+   focusing the last card would scroll the row the 44px it overhangs. */
+.fg .hd-bar { position:relative; margin:8px 0 4px; overflow:clip; border-radius:10px; }
+.fg .hd-row { display:flex; gap:4px; height:88px; margin:0 -44px; }
+/* THE CARD is a layout box the pointer passes through; its skin is what a
+   click lands on, so the card under the pointer is the one whose SHAPE is
+   there, not the one whose box it leans into. */
+.fg .hd-card { position:relative; min-width:0; padding:0; border:0; background:none; font:inherit;
+  color:var(--hd-text); text-align:center; cursor:pointer; pointer-events:none; }
+.fg .hd-card:focus-visible { outline:none; }
+.fg .hd-skin { position:absolute; inset:0; border-radius:10px; overflow:hidden; transform:skewX(45deg);
+  background:var(--hd-bg); pointer-events:auto; }
+/* The job on now darkens from the left as it runs, its edge on the slant. */
+.fg .hd-fill { position:absolute; inset:0; transform-origin:left; transform:scaleX(var(--hd-p, 0));
+  background:var(--hd-fill); }
+/* The open card's 3px ink outline, over its fill, and a focus ring drawn
+   INWARD: the bar clips anything outside a card. */
+.fg .hd-skin::after { content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; }
+.fg .hd-card[aria-expanded="true"] .hd-skin::after { box-shadow:inset 0 0 0 3px var(--hd-ink); }
+.fg .hd-card:focus-visible .hd-skin::after { box-shadow:inset 0 0 0 2px var(--paper), inset 0 0 0 4px var(--ink); }
+/* An end card's outer slant is cut away, so the bar draws that side of the
+   outline down its own square end. His line; a named exemption (law 14).
+   Raised: the cards are positioned and come after ::before, so without a
+   layer of its own the left line would be painted under the first card. */
+.fg .hd-bar::before, .fg .hd-bar::after { content:""; position:absolute; inset:0; z-index:var(--z-raised);
+  border-radius:inherit; pointer-events:none; }
+.fg .hd-bar[data-sel-end~="first"]::before { box-shadow:inset 3px 0 0 var(--hd-ink); }
+.fg .hd-bar[data-sel-end~="last"]::after { box-shadow:inset -3px 0 0 var(--hd-ink); }
+
+/* THE TRACE: a white light that runs round the job on now, once every 8
+   seconds. His loop, and his gradient: both named exemptions in
+   docs/design.md. The ring is a 3px border, the width of the open card's
+   outline, and two masks keep only it (all of the box, less the inside of
+   the border); the mask also cuts away whatever lies outside the box. The
+   light is a conic gradient on a square behind the ring that turns about
+   the card's middle — a rotation, which the compositor runs without
+   painting the page, where animating the gradient's own angle repaints it
+   on every frame. The square is the card's width plus its height across,
+   so its turning corners never come inside the ring. Over the open card's
+   ink outline, as he drew it, so the light still runs on the card the page
+   opens on. Under reduced motion it stands still, the light at the top. */
+.fg .hd-trace { position:absolute; inset:0; z-index:var(--z-raised); border:3px solid transparent;
+  border-radius:inherit; pointer-events:none;
+  -webkit-mask:linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0); mask-composite:exclude; }
+.fg .hd-trace > i { position:absolute; left:50%; top:50%; width:calc(100% + 88px); aspect-ratio:1;
+  translate:-50% -50%;
+  background:conic-gradient(transparent 0deg 220deg, color-mix(in srgb, var(--paper) 50%, transparent) 300deg,
+    var(--paper) 350deg, transparent 360deg);
+  animation:hdTrace 8s linear infinite; }
+@keyframes hdTrace { to { rotate:360deg; } }
+@media (prefers-reduced-motion:reduce) { .fg .hd-trace > i { animation:none; } }
+
+/* THE WORDS, NEVER SKEWED. He drew them inside the skewed card, each block
+   straightened about its own middle; that lands a block along x by its
+   height from the card's middle (44px), at 45°, and nothing else. So each
+   is placed here where his landed: the tag, 18px line centred 19px down,
+   25px left of his 18; the name and time, centred 53px down, 9px right. */
+.fg .hd-lab { position:absolute; inset:0; pointer-events:none; }
+.fg .hd-tag { position:absolute; top:10px; left:-7px; max-width:calc(100% - 60px); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; font-size:12px; font-weight:600; line-height:18px; }
+.fg .hd-card[data-end~="first"] .hd-tag { left:63px; }
+/* Open, the place moves to the middle, above the name: his 32px right of
+   centre at 14px down, less the 21 that height takes back. The end cards'
+   middle is 40px in from the square end. */
+.fg .hd-card[aria-expanded="true"] .hd-tag { top:14px; left:calc(50% + 11px); transform:translateX(-50%); }
+.fg .hd-card[aria-expanded="true"][data-end~="first"] .hd-tag { left:calc(50% + 51px); }
+.fg .hd-card[aria-expanded="true"][data-end~="last"] .hd-tag { left:calc(50% - 29px); }
+.fg .hd-mid { position:absolute; top:18px; bottom:0; left:2px; right:2px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:4px; line-height:1.2; white-space:nowrap;
+  transform:translateX(9px); }
+.fg .hd-card[data-end~="first"] .hd-mid { left:80px; }
+.fg .hd-card[data-end~="last"] .hd-mid { right:80px; }
+.fg .hd-name, .fg .hd-time { max-width:calc(100% - 40px); overflow:hidden; text-overflow:ellipsis; }
+.fg .hd-name { font-size:16px; font-weight:700; }
+.fg .hd-bar[data-compact] .hd-name { font-size:14px; }
+.fg .hd-time { font-size:13px; font-weight:600; }
+/* The tick on finished work, level, in his green: his bottom-right corner
+   (12px in, 7px up), which the slant carries 28px right; centred on a card
+   folded down to its tick. */
+.fg .hd-tick { position:absolute; right:-16px; bottom:7px; display:grid; place-items:center; width:18px; height:18px;
+  border-radius:50%; background:var(--hd-done); color:var(--paper); pointer-events:none; }
+.fg .hd-tick > span, .fg .hd-tick svg { display:block; }
+.fg .hd-card[data-end~="last"] .hd-tick { right:56px; }
+.fg .hd-card[data-collapsed] .hd-tick { top:35px; bottom:auto; right:calc(50% - 9px); }
+.fg .hd-card[data-collapsed][data-end~="first"] .hd-tick { right:calc(50% - 49px); }
+.fg .hd-card[data-collapsed][data-end~="last"] .hd-tick { right:calc(50% + 31px); }
+
+/* THE PANEL under the bar: the open card, summed up, in the card's own
+   colours (--hd-pbg, --hd-ptitle, --hd-psub, --hd-psw from `dayCardPaint`).
+   Its one action and the close cross stand at the right. */
+.fg .hd-pan { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:start; gap:16px; padding:16px;
+  border-radius:16px; background:var(--hd-pbg); color:var(--hd-ptitle); }
+.fg .hd-sw { width:12px; height:12px; margin-top:4px; background:var(--hd-psw); }
+.fg .hd-pm { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.fg .hd-pt { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; }
+.fg .hd-pn { margin:0; font-size:20px; font-weight:600; line-height:1.2; color:inherit; }
+.fg .hd-pno { font-size:14px; font-weight:600; color:var(--hd-psub); }
+/* HIS CAPSULE round the state word — law 26 says state is a word; he kept
+   it (a named exemption). Paper and ink on a card still to come or on now,
+   his quiet grey once it is finished, the late red on a task past its time. */
+.fg .hd-chip { padding:2px 8px; border-radius:999px; background:var(--paper); color:var(--hd-ink);
+  font-size:12px; font-weight:600; line-height:1.5; }
+.fg .hd-chip[data-state="done"] { background:var(--hd-rule2); color:var(--hd-body); }
+.fg .hd-chip[data-state="late"] { color:var(--hd-late); }
+.fg .hd-ps { margin:0; max-width:720px; font-size:14px; font-weight:500; line-height:1.5; }
+.fg .hd-px { display:flex; flex-wrap:wrap; gap:4px 24px; margin:0; font-size:13px; color:var(--hd-psub); }
+.fg .hd-px > div { display:flex; gap:4px; }
+.fg .hd-px dt { font-weight:700; }
+.fg .hd-px dd { margin:0; }
+.fg .hd-pb { display:flex; align-items:center; gap:8px; }
+.fg .hd-open { height:36px; padding:0 12px; border:0; border-radius:10px; background:var(--hd-ink); color:var(--paper);
+  font:inherit; font-size:14px; font-weight:600; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-open:hover:not(:disabled) { background:color-mix(in srgb, var(--hd-ink) 88%, var(--paper)); }
+.fg .hd-open:disabled { cursor:default; }
+.fg .hd-x { display:grid; place-items:center; width:36px; height:36px; padding:0; border:0; border-radius:10px;
+  background:transparent; color:inherit; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+/* One step of the panel's own ink — his white at 60% hid a white cross. */
+.fg .hd-x:hover { background:color-mix(in srgb, currentColor 16%, transparent); }
+.fg .hd-x > span, .fg .hd-x svg { display:block; }
+.fg .hd-open:focus-visible, .fg .hd-x:focus-visible { outline:none; box-shadow:var(--ring); }
 /* ===================================================================
    VEHICLE MODAL v2 (components/fleet/vehicle-modal/)
 

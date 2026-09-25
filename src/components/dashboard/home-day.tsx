@@ -18,9 +18,18 @@ import {
   dayStateWord,
   type DayItem,
 } from "@/lib/dashboard/day-bar";
+import {
+  DAY_BODY_EASE,
+  DAY_BODY_MOVE_MS,
+  DAY_PANEL_FADE_MS,
+  liftFrames,
+  liftOf,
+  motionAllowed,
+  PANEL_IN,
+} from "@/lib/dashboard/day-flip";
 import { railMissing, railSaysEmpty } from "@/lib/dashboard/day-rail";
 import type { HomeRail } from "@/lib/dashboard/page-data";
-import { HomeDayBar, KEEPS_DAY } from "./home-day-bar";
+import { HomeDayBar, KEEPS_DAY, type DayBarHandle } from "./home-day-bar";
 import { useDeskJobs } from "./home-job-sheet";
 
 /* YOUR DAY (docs/design.md, "Home is the day, three tabs and the list"):
@@ -48,7 +57,39 @@ import { useDeskJobs } from "./home-job-sheet";
    Time / Where / With, and one thing to do — Open job, or a task's Mark
    done — beside the close cross. A booking the mirror could not name has
    nothing to open and says so by having no button. Open job is the desk's
-   one card (./home-job-sheet), wearing the day-state the Schedule would. */
+   one card (./home-job-sheet), wearing the day-state the Schedule would.
+
+   IN MOTION (lib/dashboard/day-flip): every change a pointer makes — a
+   card pressed, the cross, a click elsewhere, the folded block — is
+   braced first: the bar reads where its cards are drawn, and what stands
+   under the day (the desk's body) is read where it is. Once the change is
+   committed the cards grow from there, the panel fades in on `--t-fast`,
+   and the body travels to its new place on `--t-move` instead of jumping
+   by the panel's height. A change from the keyboard — Escape, a card or
+   the cross pressed with a key — is simply there (law 8), as is every
+   change under reduced motion. */
+
+/** What stands under the day on its page — on the desk, the body with the
+    tabs and faces — which the panel pushes down as it opens. */
+function underDay(section: HTMLElement | null): HTMLElement[] {
+  const out: HTMLElement[] = [];
+  for (let el = section?.nextElementSibling ?? null; el; el = el.nextElementSibling) {
+    if (el instanceof HTMLElement) out.push(el);
+  }
+  return out;
+}
+
+type Braced = { open: boolean; under: { el: HTMLElement; top: number }[] };
+
+/** Before a change to the day: the bar reads its cards, and what stands
+    under the day is read where it is drawn — a move in flight included.
+    A change that will not move ("cut") stops what is in flight instead. */
+function brace(bar: DayBarHandle | null, section: HTMLElement | null, open: boolean, pointer: boolean): Braced | "cut" {
+  const move = pointer && motionAllowed();
+  bar?.capture(move);
+  if (!move) return "cut";
+  return { open, under: underDay(section).map((el) => ({ el, top: el.getBoundingClientRect().top })) };
+}
 
 export function HomeDay({ rail }: { rail: HomeRail }) {
   const { openJob } = useDeskJobs();
@@ -83,12 +124,30 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
     else cards.current.delete(key);
   };
 
-  const close = () => {
+  /* THE MOTION: the bar's own handle, what was read before a change, the
+     moves in flight under the bar, and the panel that fades in. Read and
+     written only in handlers and effects. */
+  const bar = useRef<DayBarHandle>(null);
+  const braced = useRef<Braced | "cut" | null>(null);
+  const lifts = useRef<Animation[]>([]);
+  const panelBox = useRef<HTMLDivElement>(null);
+  const ready = (pointer: boolean) => {
+    braced.current = brace(bar.current, section.current, openKey !== null, pointer);
+  };
+
+  const choose = (key: string, pointer: boolean) => {
+    ready(pointer);
+    setSelectedKey(openKey === key ? null : key);
+  };
+
+  const close = (pointer: boolean) => {
+    ready(pointer);
     focusNext.current = openKey;
     setSelectedKey(null);
   };
 
-  const unfold = (first: string) => {
+  const unfold = (first: string, pointer: boolean) => {
+    ready(pointer);
     focusNext.current = first;
     setShowFinished(true);
   };
@@ -97,6 +156,26 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
     if (key === null) return;
     focusNext.current = null;
     cards.current.get(key)?.focus();
+  });
+
+  /* After every commit: if the change was braced, what stands under the day
+     travels from where it was to where the panel has put it, and a panel
+     that was not there fades in. Whatever was in flight stops first, so
+     the places read now are the layout's own. */
+  useLayoutEffect(() => {
+    const was = braced.current;
+    braced.current = null;
+    if (was === null) return;
+    for (const a of lifts.current) a.cancel();
+    lifts.current = [];
+    if (was === "cut") return;
+    const move = { duration: DAY_BODY_MOVE_MS, easing: DAY_BODY_EASE };
+    for (const { el, top } of was.under) {
+      const dy = liftOf(top, el.getBoundingClientRect().top);
+      if (dy !== null) lifts.current.push(el.animate(liftFrames(dy), move));
+    }
+    const pan = panelBox.current?.firstElementChild;
+    if (!was.open && pan) lifts.current.push(pan.animate(PANEL_IN, { duration: DAY_PANEL_FADE_MS, easing: DAY_BODY_EASE }));
   });
 
   /* ESCAPE closes the card when the key is pressed in the day, or with
@@ -110,6 +189,8 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
       if (document.querySelector('[aria-modal="true"]')) return;
       const t = e.target;
       if (t !== document.body && !(t instanceof Node && section.current?.contains(t))) return;
+      // a key: simply shut, and anything in flight stops (law 8)
+      braced.current = brace(bar.current, section.current, true, false);
       focusNext.current = openKey;
       setSelectedKey(null);
     };
@@ -143,6 +224,7 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
       if (!(t instanceof Element)) return;
       const page = section.current?.closest(".hd-page");
       if (!page || !page.contains(t) || t.closest("[data-day-keep]")) return;
+      braced.current = brace(bar.current, section.current, openKey !== null, true);
       setSelectedKey(null);
       setShowFinished(false);
     };
@@ -215,12 +297,13 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
 
       {items.length > 0 ? (
         <HomeDayBar
+          ref={bar}
           items={items}
           nowMin={nowMin}
           selectedKey={openKey}
           showFinished={showFinished}
           panelId={panelId}
-          onChoose={(key) => setSelectedKey(openKey === key ? null : key)}
+          onChoose={choose}
           onUnfold={unfold}
           hold={hold}
         />
@@ -228,7 +311,7 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
         saysEmpty && <p className="hd-daynone">Nothing on your day.</p>
       )}
 
-      <div id={panelId} className="hd-panw" {...KEEPS_DAY} hidden={!selected}>
+      <div id={panelId} className="hd-panw" ref={panelBox} {...KEEPS_DAY} hidden={!selected}>
         {selected && <DayPanel item={selected} nowMin={nowMin} action={action} onClose={close} />}
       </div>
     </section>
@@ -247,7 +330,8 @@ function DayPanel({
   item: DayItem;
   nowMin: number | null;
   action: ReactNode;
-  onClose: () => void;
+  /** `pointer` is false for the cross pressed from the keyboard. */
+  onClose: (pointer: boolean) => void;
 }) {
   const facts = dayPanelFacts(item);
   const paint = dayCardPaint(item, dayProgress(item, nowMin), { selected: true });
@@ -295,7 +379,7 @@ function DayPanel({
       </div>
       <div className="hd-pb">
         {action}
-        <button type="button" className="hd-x" aria-label="Close" onClick={onClose}>
+        <button type="button" className="hd-x" aria-label="Close" onClick={(e) => onClose(e.detail > 0)}>
           <Icon name="x" size={16} />
         </button>
       </div>

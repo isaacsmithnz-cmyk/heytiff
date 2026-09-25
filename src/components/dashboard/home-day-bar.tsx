@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type CSSProperties, type Ref } from "react";
 import { Icon } from "@/components/shell/icon";
 import {
+  DAY_GROW_MS,
   DAY_NOMINAL_W,
   dayCardLabel,
   dayCardPaint,
@@ -13,6 +14,17 @@ import {
   type DayItem,
   type DayMeasure,
 } from "@/lib/dashboard/day-bar";
+import {
+  DAY_GROW_EASE,
+  DAY_PARTS,
+  growPlan,
+  motionAllowed,
+  shiftFrames,
+  skinFrames,
+  skinSpan,
+  type CardPose,
+  type DayPart,
+} from "@/lib/dashboard/day-flip";
 
 /* THE BAR ITSELF: his slanted cards (handoff "Home - Diagonal day", §2).
 
@@ -42,8 +54,18 @@ import {
    after the fonts are in), and lays itself out again. A guess can only fold
    early, so the one correction is in the safe direction.
 
-   STILL, in this cut: nothing here animates. A press commits the new widths
-   at once; the grow, the Trace and the panel's entrance come next. */
+   THE GROW IS A FLIP (lib/dashboard/day-flip). A change still commits its
+   widths at once, and nothing in the sheet transitions: before the day
+   changes the bar it asks it to `capture` where every card is drawn, and
+   once the change is committed each skin grows from there to its new box
+   by transforms alone, the words sliding level beside it. A change made
+   from the keyboard, or under reduced motion, is simply there (law 8), and
+   stops any grow still in flight.
+
+   THE TRACE is the light that runs round the job on now: a ring cut by two
+   masks from a conic gradient turning inside it, so the turn is a rotation
+   the compositor runs and the page is never painted for it. His loop, named
+   in docs/design.md; it stands still under reduced motion. */
 
 /** Canvas text metrics in the page's own face; null where there is no
     canvas to ask, or no face to ask it in, which keeps the guess. The family is the hashed next/font
@@ -69,6 +91,30 @@ export function canvasMeasure(family: string): DayMeasure | null {
     leaves the card open over. Spread onto each. */
 export const KEEPS_DAY = { "data-day-keep": "" } as const;
 
+/** The level parts that slide beside a growing skin, by their class. */
+const PART_SEL: Record<DayPart, string> = { tag: ".hd-tag", mid: ".hd-mid", tick: ".hd-tick" };
+
+/** One card as it is drawn right now, a grow in flight included. */
+function poseOf(el: HTMLElement, key: string, members: readonly string[]): CardPose {
+  const skin = el.querySelector(".hd-skin");
+  const parts: CardPose["parts"] = {};
+  for (const part of DAY_PARTS) {
+    const p = el.querySelector(PART_SEL[part]);
+    if (!p) continue;
+    const r = p.getBoundingClientRect();
+    parts[part] = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+  return { key, members, span: skin ? skinSpan(skin.getBoundingClientRect()) : null, parts };
+}
+
+/** What the day asks of the bar just before it changes it. */
+export type DayBarHandle = {
+  /** Read where every card is drawn, so the change about to be committed
+      grows from there. `false` — a change from the keyboard, or with motion
+      off — stops any grow in flight instead, and the change is simply there. */
+  capture: (move: boolean) => void;
+};
+
 export function HomeDayBar({
   items,
   nowMin,
@@ -78,6 +124,7 @@ export function HomeDayBar({
   onChoose,
   onUnfold,
   hold,
+  ref,
 }: {
   items: readonly DayItem[];
   nowMin: number | null;
@@ -85,21 +132,51 @@ export function HomeDayBar({
   showFinished: boolean;
   /** The panel every card opens, for `aria-controls`. */
   panelId: string;
-  /** A card was pressed: open it, or close it when it is the one open. */
-  onChoose: (key: string) => void;
+  /** A card was pressed: open it, or close it when it is the one open.
+      `pointer` is false for a press from the keyboard. */
+  onChoose: (key: string, pointer: boolean) => void;
   /** The folded run was pressed; `first` is the first card it held. */
-  onUnfold: (first: string) => void;
+  onUnfold: (first: string, pointer: boolean) => void;
   /** Hands each card's button to the day, which gives focus back to it; a
       folded block is handed over under every card it holds. */
   hold: (key: string, el: HTMLButtonElement | null) => void;
+  ref?: Ref<DayBarHandle>;
 }) {
   const bar = useRef<HTMLDivElement>(null);
   /* THE CARD UNDER THE POINTER is never folded and shows at full strength,
      so it is part of the fit. It clears when the pointer leaves the BAR,
      not the card: a finished card that unfolds under the pointer grows,
      and clearing on the card's own edge would fold it back under the
-     pointer and flicker. */
+     pointer and flicker.
+
+     IT IS THE CARD THE POINTER MOVED ONTO, read off `mousemove`, never
+     `mouseenter`. The cards grow and give way under a pointer that is
+     standing still, and the browser reports each one that passes under it
+     as entered; taking those as hovers would unfold the next card, move
+     the bar again, and chase the pointer. A move is the person's own. */
   const [hoverKey, setHoverKey] = useState<string | null>(null);
+
+  /* THE GROW. Every card's button by its slot key, the slots as last drawn
+     (key and the items each holds), the poses read before a change, and
+     the grow in flight. Read and written only in handlers and effects. */
+  const els = useRef(new Map<string, HTMLButtonElement>());
+  const drawn = useRef<{ key: string; members: string[] }[]>([]);
+  const pending = useRef<CardPose[] | "cut" | null>(null);
+  const runs = useRef<Animation[]>([]);
+  const shoot = (): CardPose[] =>
+    drawn.current.flatMap(({ key, members }) => {
+      const el = els.current.get(key);
+      return el ? [poseOf(el, key, members)] : [];
+    });
+  const capture = (move: boolean) => {
+    pending.current = move && motionAllowed() ? shoot() : "cut";
+  };
+  useImperativeHandle(ref, () => ({ capture }));
+  const hover = (key: string | null) => {
+    if (key === hoverKey) return;
+    capture(true);
+    setHoverKey(key);
+  };
   const [width, setWidth] = useState<number | null>(null);
   /* Wrapped: a function handed to a state setter is called, not stored. */
   const [measured, setMeasured] = useState<{ measure: DayMeasure } | null>(null);
@@ -145,6 +222,31 @@ export function HomeDayBar({
      itself, down its own square end. */
   const selEnd = [at === 0 && "first", at >= 0 && at === last && "last"].filter(Boolean).join(" ");
 
+  /* After every commit: note what was drawn, and if the day captured the
+     bar before this change, grow each card from where it stood. Any grow
+     still in flight stops first, so the boxes read here are the layout's
+     own — and the ones captured were where that grow had got to. */
+  useLayoutEffect(() => {
+    drawn.current = fit.slots.map((s) => ({ key: s.key, members: s.items.map((it) => it.key) }));
+    const first = pending.current;
+    pending.current = null;
+    if (first === null) return;
+    for (const a of runs.current) a.cancel();
+    runs.current = [];
+    if (first === "cut") return;
+    const timing = { duration: DAY_GROW_MS, easing: DAY_GROW_EASE };
+    for (const move of growPlan(first, shoot())) {
+      const el = els.current.get(move.key);
+      const skin = el?.querySelector(".hd-skin");
+      if (move.skin && skin) runs.current.push(skin.animate(skinFrames(move.skin), timing));
+      for (const part of DAY_PARTS) {
+        const d = move.parts[part];
+        const p = d && el?.querySelector(PART_SEL[part]);
+        if (d && p) runs.current.push(p.animate(shiftFrames(d), timing));
+      }
+    }
+  });
+
   return (
     <div
       className="hd-bar"
@@ -152,7 +254,7 @@ export function HomeDayBar({
       {...KEEPS_DAY}
       data-sel-end={selEnd || undefined}
       data-compact={fit.compact || undefined}
-      onMouseLeave={() => setHoverKey(null)}
+      onMouseLeave={() => hover(null)}
     >
       <div className="hd-row">
         {fit.slots.map((slot, i) => {
@@ -163,6 +265,8 @@ export function HomeDayBar({
             <button
               key={slot.key}
               ref={(el) => {
+                if (el) els.current.set(slot.key, el);
+                else els.current.delete(slot.key);
                 hold(slot.key, el);
                 if (group) for (const it of slot.items) hold(it.key, el);
               }}
@@ -189,11 +293,19 @@ export function HomeDayBar({
                   "--hd-p": slot.p > 0 && slot.p < 1 ? String(slot.p) : "0",
                 } as CSSProperties
               }
-              onClick={() => (group ? onUnfold(slot.items[0]!.key) : onChoose(slot.key))}
-              onMouseEnter={group ? undefined : () => setHoverKey(slot.key)}
+              onClick={(e) =>
+                group ? onUnfold(slot.items[0]!.key, e.detail > 0) : onChoose(slot.key, e.detail > 0)
+              }
+              onMouseMove={group ? undefined : () => hover(slot.key)}
             >
               <span className="hd-skin">
                 <span className="hd-fill" />
+                {/* The light round the job on now: his loop, named in docs/design.md. */}
+                {slot.live && (
+                  <span className="hd-trace">
+                    <i />
+                  </span>
+                )}
               </span>
               {!slot.collapsed && (
                 <span className="hd-lab">

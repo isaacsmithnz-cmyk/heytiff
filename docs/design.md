@@ -286,7 +286,11 @@ Every decision below is made once, here, and a guard test holds each number.
   its panel under the bar says the place, the number, the state, the
   job, Time, Where and With, beside Open job and the close cross. The
   open card stays open whatever face is up ("if the card is open, they
-  can just close it if they want more space").
+  can just close it if they want more space"). A card grows as it opens
+  and its place name slides to its middle, the panel fades in under it
+  as the body makes room, and a white light runs round the job on now
+  (the Trace); under reduced motion, and for a change made from the
+  keyboard, each is simply there.
   **His design is the default here.** A redraw to the laws "looks far
   worse", so where his numbers break a law this file names the exemption
   instead of bending the design ("design exempt for now, but keep a note",
@@ -607,6 +611,7 @@ infinite loop into a strobe.
 | `dotfTurn`, `dotfZip`, `dotfFire` | the capture card's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
 | `wb2Flash` | a calendar day the board's data asked to flash | a flash a row asked for with data |
 | `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button, on the frame and in a sheet's header; and the mark wherever it stands for Tiff (at rest, at the thinking pace while Tiff works, or on hover in a list) | not feedback or state: Isaac's override of law 18 (2026-09-24, "make it gently alive all the time"), the one thing in the app that moves at rest. See "The Tiff button" below |
+| `hdTrace` | the Trace: the white light round the job on now, on Home's day bar | Isaac's override of law 18 (2026-09-24, "design exempt for now, but keep a note"): his live job, marked by a light that runs round its edge once every 8 seconds while it is on. It goes when the job finishes, and stands still under reduced motion. See "Named exemptions" below |
 
 ### The buttons that keep their glyph
 
@@ -647,17 +652,34 @@ day he said them.
 | `.hd-page` | Tailwind palette hexes | 1 | "design exempt for now, but keep a note": `--hd-done`, the tick on finished work, is Tailwind's green 600 | 2026-09-24 |
 | `.hd-bar` | bars at the left edge | 1 | "go with your recommendations", which kept his end-card line: the first card's outer slant is cut away by the bar, so the open card's 3px ink outline closes down the bar's square end | 2026-09-25 |
 | `.hd-chip` | pills | 1 | "go with your recommendations", which kept his On-now capsule: the state word in the day's panel sits in a white capsule, "On now, 17%" | 2026-09-25 |
+| `.hd-trace` | gradients | 5 | "design exempt for now, but keep a note": the Trace, his white light round the job on now, is a conic gradient turning behind a ring that two masks cut from the card's edge, each mask written twice, prefixed and plain | 2026-09-24 |
 
 What the guard cannot count is noted here on the same word:
 
 - **Law 16, colour.** `.hd-page` declares his colours as its tokens, and
-  no rule on the page writes a literal: the ink `#151a24`, the body grey
-  `#5b6472`, the rules `#e6e9ee`, `#eef0f3` and `#e2e5ea`, the teal of
-  Today `#0f766e`, and the green of done `#16a34a`. `text-contrast` holds
-  every one that is text to 4.5:1 on the page's fills.
+  no rule on the page writes a colour literal: the ink `#151a24`, the body
+  grey `#5b6472`, the rules `#e6e9ee`, `#eef0f3` and `#e2e5ea`, the teal
+  of Today `#0f766e`, and the green of done `#16a34a`. `text-contrast`
+  holds every one that is text to 4.5:1 on the page's fills. The Trace's
+  masks are `#000`, which a mask reads only for its alpha, and its light
+  is `--paper`.
 - **Law 18, motion tokens, and law 8, a tab's content appears.** The faces
   slide, in 280 ms rather than `--t-move`: "Calendar should slide across"
-  (2026-09-25). Nothing slides under reduced motion.
+  (2026-09-25). Nothing slides under reduced motion, and nothing slides
+  for a face chosen from the keyboard: law 8's "none on keyboard-driven
+  actions" still holds there.
+- **Law 18, motion tokens, the grow.** A card that opens grows, and the
+  cards beside it give way, in his 350 ms on his `ease`, as the prototype
+  he walked eased it, rather than `--t-move`; finished work folds into its
+  block and opens out of it the same way. It is a FLIP on transforms, so
+  nothing is laid out again frame by frame. The panel under the bar fades
+  in on `--t-fast`, and the body under the day moves to make room for it
+  on `--t-move`. Nothing grows under reduced motion, or for a change made
+  from the keyboard.
+- **Law 18, loops.** The Trace moves while the job it marks is on, the
+  one thing on the page that does: `hdTrace`, 8 seconds a turn, in the
+  loops table above. It is a rotation, which the compositor runs without
+  painting the page.
 - **Law 16 and law 31, the day's colours.** Each card on "Your day" is
   filled with its job's Workboard colour, darkened only where white on it
   would fall under 4.5:1, and goes pale once finished. The colours are

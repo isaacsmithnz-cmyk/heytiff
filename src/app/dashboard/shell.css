@@ -11023,8 +11023,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   border-top:1px solid var(--hd-rule); border-bottom:1px solid var(--hd-rule); }
 .fg .hd-dayh { margin:0; font-size:16px; font-weight:600; line-height:1.2; color:var(--hd-ink); }
 
-/* ── THE BODY: the tabs, then the one cell the faces slide through ── */
-.fg .hd-body { flex:1; min-height:0; display:flex; flex-direction:column; }
+/* ── THE BODY: the tabs, then the one cell the faces slide through ──
+   On the page's own paper, so that while it travels down to make room for
+   the day's panel (home-day.tsx) it covers the panel it is uncovering,
+   rather than its words passing over the panel's. */
+.fg .hd-body { flex:1; min-height:0; display:flex; flex-direction:column; background:var(--paper); }
 
 /* THE TABS. His grey words, no underline; the chosen one is ink and bold.
    The row is `flex:none` above the body, so it is pinned by where it
@@ -11072,8 +11075,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    are decided in lib/dashboard/day-bar and arrive inline: `flex`,
    `min-width`, and --hd-bg / --hd-fill / --hd-text / --hd-p. Nothing here
    picks a hue. His radii snap to the scale (card 8 → 10, panel 14 → 16),
-   and his spacing within 4px of where he drew it. Still, in this cut: no
-   transition on a card, and nothing loops. */
+   and his spacing within 4px of where he drew it. Nothing on a card
+   transitions: the grow is a FLIP the bar runs itself (lib/dashboard/
+   day-flip), from boxes read with nothing in the way. The one thing here
+   that moves is the Trace, below. */
 .fg .hd-daynote { margin:0; font-size:14px; color:var(--q); }
 .fg .hd-daynote a { color:var(--link); font-weight:500; text-decoration:underline; text-underline-offset:3px; }
 .fg .hd-daynone { margin:0; font-size:14px; font-weight:500; color:var(--q); }
@@ -11108,6 +11113,30 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   border-radius:inherit; pointer-events:none; }
 .fg .hd-bar[data-sel-end~="first"]::before { box-shadow:inset 3px 0 0 var(--hd-ink); }
 .fg .hd-bar[data-sel-end~="last"]::after { box-shadow:inset -3px 0 0 var(--hd-ink); }
+
+/* THE TRACE: a white light that runs round the job on now, once every 8
+   seconds. His loop, and his gradient: both named exemptions in
+   docs/design.md. The ring is a 3px border, the width of the open card's
+   outline, and two masks keep only it (all of the box, less the inside of
+   the border); the mask also cuts away whatever lies outside the box. The
+   light is a conic gradient on a square behind the ring that turns about
+   the card's middle — a rotation, which the compositor runs without
+   painting the page, where animating the gradient's own angle repaints it
+   on every frame. The square is the card's width plus its height across,
+   so its turning corners never come inside the ring. Over the open card's
+   ink outline, as he drew it, so the light still runs on the card the page
+   opens on. Under reduced motion it stands still, the light at the top. */
+.fg .hd-trace { position:absolute; inset:0; z-index:var(--z-raised); border:3px solid transparent;
+  border-radius:inherit; pointer-events:none;
+  -webkit-mask:linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0); mask-composite:exclude; }
+.fg .hd-trace > i { position:absolute; left:50%; top:50%; width:calc(100% + 88px); aspect-ratio:1;
+  translate:-50% -50%;
+  background:conic-gradient(transparent 0deg 220deg, color-mix(in srgb, var(--paper) 50%, transparent) 300deg,
+    var(--paper) 350deg, transparent 360deg);
+  animation:hdTrace 8s linear infinite; }
+@keyframes hdTrace { to { rotate:360deg; } }
+@media (prefers-reduced-motion:reduce) { .fg .hd-trace > i { animation:none; } }
 
 /* THE WORDS, NEVER SKEWED. He drew them inside the skewed card, each block
    straightened about its own middle; that lands a block along x by its

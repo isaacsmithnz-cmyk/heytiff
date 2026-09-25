@@ -23,13 +23,17 @@ import { KEEPS_DAY } from "./home-day-bar";
    toolbar, so a face can never move the tabs.
 
    Automatic activation with a roving tabindex: the arrows choose as they
-   move, Home and End jump to the ends. No counts on the tabs. */
+   move, Home and End jump to the ends. No counts on the tabs.
+
+   A face chosen with a key does not slide (law 8: no motion on a keyboard-
+   driven action); a tab pressed with a pointer does. */
 export function HomeFaceTabs({
   face,
   onGo,
 }: {
   face: DeskFace;
-  onGo: (face: DeskFace) => void;
+  /** `pointer` is false for a choice made from the keyboard. */
+  onGo: (face: DeskFace, pointer: boolean) => void;
 }) {
   const tabs = useRef(new Map<DeskFace, HTMLButtonElement>());
 
@@ -37,7 +41,7 @@ export function HomeFaceTabs({
     const next = stepFace(face, e.key);
     if (!next) return;
     e.preventDefault();
-    onGo(next);
+    onGo(next, false);
     tabs.current.get(next)?.focus();
   };
 
@@ -60,7 +64,7 @@ export function HomeFaceTabs({
             aria-selected={on}
             tabIndex={on ? 0 : -1}
             className={on ? "hd-tab on" : "hd-tab"}
-            onClick={() => onGo(f)}
+            onClick={(e) => onGo(f, e.detail > 0)}
           >
             {FACE_LABEL[f]}
             <span className="hd-tabw" aria-hidden="true">

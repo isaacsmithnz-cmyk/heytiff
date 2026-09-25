@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DAY_END_EXTRA, DAY_FONTS, DAY_GAP, DAY_H } from "@/lib/dashboard/day-bar";
+import { DAY_BODY_EASE, DAY_BODY_MOVE_MS, DAY_PANEL_FADE_MS } from "@/lib/dashboard/day-flip";
 
 /* YOUR DAY, IN THE SHEET (home-day-bar.tsx; his handoff "Home - Diagonal
    day", §2). The fit in lib/dashboard/day-bar decides every card's width
@@ -13,8 +14,9 @@ import { DAY_END_EXTRA, DAY_FONTS, DAY_GAP, DAY_H } from "@/lib/dashboard/day-ba
      so a click lands on the card whose shape is under it.
    - The bar clips without being a scroller, so focusing an end card cannot
      scroll the row the 44px it overhangs.
-   - Still: nothing on a card transitions, so a press commits its widths at
-     once — which is also what a FLIP needs to measure from.
+   - Nothing on a card transitions, so a press commits its widths at once —
+     which is what the grow's FLIP needs to measure from; the one thing the
+     sheet moves is the Trace, and it moves as a rotation.
    - His words sit where his skewed layout put them; each number below is
      worked back to his, so moving one without the other fails. */
 
@@ -120,6 +122,101 @@ describe("the panel's close cross", () => {
   it("is drawn in the panel's ink, and hovers in a step of it", () => {
     expect(rule(".fg .hd-x").color).toBe("inherit");
     expect(rule(".fg .hd-x:hover").background).toMatch(/^color-mix\(in srgb, currentColor \d+%, transparent\)$/);
+  });
+});
+
+/* THE TRACE (docs/design.md, the loops and the named exemptions): his light
+   round the job on now. What makes it cheap is that the light TURNS — a
+   rotation the compositor runs — rather than the gradient's angle being
+   animated, which repaints the page on every frame; and what makes it a
+   ring is two masks, which the build must not lose. */
+describe("the Trace", () => {
+  /** The rule with exactly this selector outside any @media — `rule` would
+      fold the reduced-motion one into it. */
+  const own = (sel: string): Record<string, string> & { body: string } => {
+    const flat = CSS.replace(/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, "");
+    const m = [...flat.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find((x) => x[1]!.trim() === sel);
+    if (!m) throw new Error(`no rule "${sel}" outside @media`);
+    const out: Record<string, string> = {};
+    for (const d of m[2]!.split(";")) {
+      const at = d.indexOf(":");
+      if (at > 0) out[d.slice(0, at).trim()] = d.slice(at + 1).trim();
+    }
+    return { ...out, body: m[2]! };
+  };
+
+  it("is a ring the open card's outline wide, two masks cut from the card's edge, over the outline", () => {
+    const tr = own(".fg .hd-trace");
+    const outline = /inset 0 0 0 (\d+px)/.exec(rule('.fg .hd-card[aria-expanded="true"] .hd-skin::after')["box-shadow"]!)![1];
+    expect(tr.border).toBe(`${outline} solid transparent`);
+    expect(tr.position).toBe("absolute");
+    expect(tr.inset).toBe("0");
+    expect(tr["border-radius"]).toBe("inherit");
+    // the outline is the skin's ::after, positioned after it: the light is raised over it
+    expect(tr["z-index"]).toBe("var(--z-raised)");
+    expect(tr["pointer-events"]).toBe("none");
+  });
+
+  /* Chrome before 120 reads only the prefixed pair, and `xor` is its word
+     for `exclude`; the plain pair comes last so it wins where both are
+     read. (Lightning CSS keeps both for Next's targets — checked on the
+     real sheet when this landed.) */
+  it("cuts the ring with both spellings of the masks, the plain one last", () => {
+    const tr = own(".fg .hd-trace");
+    const both = "linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0)";
+    expect(tr["-webkit-mask"]).toBe(both);
+    expect(tr.mask).toBe(both);
+    expect(tr["-webkit-mask-composite"]).toBe("xor");
+    expect(tr["mask-composite"]).toBe("exclude");
+    const at = (d: string) => tr.body.search(new RegExp(`(^|[;\\s])${d.replace(/[-]/g, "\\-")}\\s*:`));
+    expect(at("mask")).toBeGreaterThan(at("-webkit-mask"));
+    expect(at("mask-composite")).toBeGreaterThan(at("-webkit-mask-composite"));
+  });
+
+  it("turns its light about the card's middle once every 8 seconds, as a rotation", () => {
+    const light = own(".fg .hd-trace > i");
+    expect(light.animation).toBe("hdTrace 8s linear infinite");
+    expect(CSS).toMatch(/@keyframes hdTrace\s*\{\s*to\s*\{\s*rotate:\s*360deg;?\s*\}\s*\}/);
+    // a square about the middle, the card's width plus its height across,
+    // so its turning corners never come inside the ring
+    expect(light.left).toBe("50%");
+    expect(light.top).toBe("50%");
+    expect(light.translate).toBe("-50% -50%");
+    expect(light.width).toBe(`calc(100% + ${DAY_H}px)`);
+    expect(light["aspect-ratio"]).toBe("1");
+    // his white, as the paper's token, fading in behind the head of the light
+    expect(light.background).toMatch(/^conic-gradient\(transparent 0deg 220deg, color-mix\(in srgb, var\(--paper\) 50%, transparent\) 300deg,\s+var\(--paper\) 350deg, transparent 360deg\)$/);
+  });
+
+  it("stands still under reduced motion, by name", () => {
+    const still = [...CSS.matchAll(/@media \(prefers-reduced-motion:\s*reduce\)\s*\{([^{}]*\{[^{}]*\})*[^{}]*\}/g)].map((m) => m[0]);
+    expect(still.some((m) => /\.fg \.hd-trace > i\s*\{\s*animation:\s*none;?\s*\}/.test(m))).toBe(true);
+  });
+
+  it("is the one thing on the bar that moves in the sheet", () => {
+    const moving = barRules(["hd-bar", "hd-row", "hd-card", "hd-skin", "hd-fill", "hd-trace", "hd-lab", "hd-tag", "hd-mid", "hd-tick"])
+      .filter(({ body }) => /(^|[^-\w])(transition|animation)(-[a-z-]+)?\s*:\s*(?!none)/.test(body))
+      .map(({ sel }) => sel);
+    expect(moving).toEqual([".fg .hd-trace > i"]);
+  });
+});
+
+/* The grow's own numbers are his (day-bar's DAY_GROW_MS, day-flip's
+   DAY_GROW_EASE: named in docs/design.md); the panel's fade and the body's
+   move are law 18's tokens, which the animation API cannot read, so the
+   numbers it is handed are held to them here. */
+describe("the motion under the bar is on the tokens", () => {
+  const tokens = fs.readFileSync(path.join(process.cwd(), "src/app/tokens.css"), "utf8");
+  it("fades the panel in on --t-fast and moves the body on --t-move, ease-out", () => {
+    expect(tokens).toMatch(new RegExp(`--t-fast:\\s*${DAY_PANEL_FADE_MS}ms;`));
+    expect(tokens).toMatch(new RegExp(`--t-move:\\s*${DAY_BODY_MOVE_MS}ms;`));
+    expect(tokens).toMatch(new RegExp(`--ease:\\s*${DAY_BODY_EASE};`));
+  });
+
+  /* The body travels down to make room for the panel; on no ground of its
+     own its tabs would pass over the panel's words on the way. */
+  it("puts the body under the day on the page's paper, so it covers the panel it uncovers", () => {
+    expect(rule(".fg .hd-body").background).toBe("var(--paper)");
   });
 });
 

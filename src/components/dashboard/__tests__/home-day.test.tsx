@@ -10,7 +10,16 @@ import type { RailTask } from "@/lib/dashboard/day-rail";
 import type { ScheduleBlock } from "@/lib/workboard/schedule";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { dayStateOfBlock } from "@/lib/workboard/focus";
-import { dayCardPaint, dayItems, fitDay, guessMeasure } from "@/lib/dashboard/day-bar";
+import { DAY_GAP, DAY_GROW_MS, DAY_H, dayCardPaint, dayItems, fitDay, guessMeasure } from "@/lib/dashboard/day-bar";
+import {
+  DAY_BODY_EASE,
+  DAY_BODY_MOVE_MS,
+  DAY_GROW_EASE,
+  DAY_PANEL_FADE_MS,
+  liftFrames,
+  PANEL_IN,
+  skinSpan,
+} from "@/lib/dashboard/day-flip";
 
 /* YOUR DAY (H12): his slanted bar and the panel under it, still.
 
@@ -580,11 +589,28 @@ describe("the colours", () => {
     expect(hovered.text).not.toBe(quiet.text);
     const c = card(first);
     expect(c.style.getPropertyValue("--hd-bg")).toBe(quiet.bg);
-    fireEvent.mouseOut(row, { relatedTarget: c });
+    fireEvent.mouseMove(c);
     expect(c.style.getPropertyValue("--hd-bg")).toBe(hovered.bg);
     expect(c.style.getPropertyValue("--hd-text")).toBe(hovered.text);
     fireEvent.mouseOut(row, { relatedTarget: away });
     expect(card(first).style.getPropertyValue("--hd-bg")).toBe(quiet.bg);
+  });
+
+  /* The cards grow and give way under a pointer standing still, and the
+     browser reports each one that passes under it as entered. Only the
+     pointer's own move makes a card the hovered one, or the bar would
+     unfold the card that slid under it, move again, and chase the pointer.
+     React reads an enter off the `mouseout` of what the pointer left. */
+  it("takes a card as under the pointer only when the pointer moved onto it", () => {
+    draw(thursday({ nowMin: hm(14) }));
+    const row = document.querySelector(".hd-row")!;
+    const item = dayItems(thursday())[0]!;
+    const c = card(first);
+    fireEvent.mouseOut(row, { relatedTarget: c });
+    fireEvent.mouseOver(c, { relatedTarget: row });
+    expect(c.style.getPropertyValue("--hd-bg")).toBe(dayCardPaint(item, 1).bg);
+    fireEvent.mouseMove(c);
+    expect(c.style.getPropertyValue("--hd-bg")).toBe(dayCardPaint(item, 1, { hovered: true }).bg);
   });
 });
 
@@ -638,10 +664,10 @@ describe("a crowded bar", () => {
     expect(document.querySelectorAll(".hd-card")).toHaveLength(2);
   });
 
-  /* React reads enter and leave off the `mouseout` of the element the
-     pointer left and its related target, so the path is spelled out: from
-     the row onto the first card, off it back onto the row, and off the bar
-     onto the page. */
+  /* The pointer moves onto the first card; React reads leave off the
+     `mouseout` of the element the pointer left and its related target, so
+     that path is spelled out: off the card back onto the row, and off the
+     bar onto the page. */
   it("keeps the card under the pointer out of the fold until the pointer leaves the bar", () => {
     draw(busy({ nowMin: hm(9, 50) }));
     const row = document.querySelector(".hd-row")!;
@@ -649,7 +675,7 @@ describe("a crowded bar", () => {
     // 7, 8 and 9 are done and fold; open them out to point at the first
     fireEvent.click(card("Show 3 finished jobs"));
     const first = card(/^Ryde, Job 1000,/);
-    fireEvent.mouseOut(row, { relatedTarget: first });
+    fireEvent.mouseMove(first);
     fireEvent.click(away, { detail: 1 });
     // folded again, all but the card under the pointer, which splits the run
     expect(card(/^Ryde, Job 1000,/)).toBe(first);
@@ -815,5 +841,277 @@ describe("what the bar cannot draw", () => {
     cleanup();
     draw(rail({ linked: false }));
     expect(screen.queryByText("Nothing on your day.")).toBeNull();
+  });
+});
+
+/* THE TRACE: the light that runs round the job on now. Its turn is the
+   sheet's (home-day-sheet); here, where it is drawn. */
+describe("the Trace", () => {
+  it("runs round the job on now and nothing else, inside its skin, over its fill", () => {
+    draw(thursday());
+    const traces = document.querySelectorAll(".hd-trace");
+    expect(traces).toHaveLength(1);
+    const skin = card(LIVE).querySelector(".hd-skin")!;
+    expect(traces[0]!.parentElement).toBe(skin);
+    expect(skin.firstElementChild).toHaveClass("hd-fill");
+    expect(traces[0]!.previousElementSibling).toBe(skin.firstElementChild);
+    // the light is the child that turns
+    expect(traces[0]!.querySelector(":scope > i")).not.toBeNull();
+  });
+
+  it("is on the job on now whether or not it is open, and goes when nothing is on", async () => {
+    const user = userEvent.setup();
+    draw(thursday());
+    await user.click(card(LIVE));
+    expect(card(LIVE).querySelector(".hd-trace")).not.toBeNull();
+    cleanup();
+    draw(thursday({ nowMin: hm(14) }));
+    expect(document.querySelector(".hd-trace")).toBeNull();
+  });
+});
+
+/* IN MOTION. jsdom lays nothing out and has no animation API, so both are
+   stood in for. The layout follows what the bar committed: each card as
+   wide as its min-width, end to end with the gap, its skin drawn half the
+   bar's height wider each side for its lean, its tag at its left (at its
+   middle when open), its words at its middle, its tick at its right; and
+   everything under the day a panel's height lower while the panel is up.
+   Each animation is recorded with its frames. So a grow can be checked the
+   way it is meant: from where each part was drawn BEFORE the press, to
+   where the commit put it. */
+describe("in motion", () => {
+  type Run = { el: Element; frames: Keyframe[]; opts: KeyframeAnimationOptions; cancel: jest.Mock };
+  let runs: Run[] = [];
+  let reduced = false;
+  const PANEL = 120;
+  const realRect = Element.prototype.getBoundingClientRect;
+
+  type Box = { left: number; top: number; width: number; height: number };
+  function layout(el: Element): Box {
+    const c = el.closest<HTMLElement>(".hd-card");
+    if (c) {
+      let left = 0;
+      for (const sib of c.parentElement!.children) {
+        if (sib === c) break;
+        left += parseFloat((sib as HTMLElement).style.minWidth) + DAY_GAP;
+      }
+      const w = parseFloat(c.style.minWidth);
+      const open = c.getAttribute("aria-expanded") === "true";
+      if (el.classList.contains("hd-skin")) return { left: left - DAY_H / 2, top: 0, width: w + DAY_H, height: DAY_H };
+      if (el.classList.contains("hd-tag")) {
+        return { left: open ? left + w / 2 - 20 : left + 10, top: open ? 14 : 10, width: 40, height: 18 };
+      }
+      if (el.classList.contains("hd-mid")) return { left: left + w / 2 - 30, top: 40, width: 60, height: 30 };
+      if (el.classList.contains("hd-tick")) return { left: left + w - 30, top: 63, width: 18, height: 18 };
+      return { left, top: 0, width: w, height: DAY_H };
+    }
+    const day = document.querySelector(".hd-day");
+    const under =
+      !!day && el.parentElement === day.parentElement && !!(day.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+    if (under) return { left: 0, top: 300 + (document.querySelector(".hd-pan") ? PANEL : 0), width: 1000, height: 40 };
+    return { left: 0, top: 0, width: 0, height: 0 };
+  }
+
+  beforeEach(() => {
+    runs = [];
+    reduced = false;
+    Element.prototype.animate = function (this: Element, frames: Keyframe[], opts: KeyframeAnimationOptions) {
+      const cancel = jest.fn();
+      runs.push({ el: this, frames, opts, cancel });
+      return { cancel, finished: new Promise(() => {}) } as unknown as Animation;
+    } as typeof Element.prototype.animate;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      const b = layout(this);
+      return { ...b, x: b.left, y: b.top, right: b.left + b.width, bottom: b.top + b.height, toJSON() {} } as DOMRect;
+    };
+    window.matchMedia = ((q: string) => ({ matches: reduced && q.includes("reduce") })) as typeof window.matchMedia;
+  });
+  afterEach(() => {
+    delete (Element.prototype as { animate?: unknown }).animate;
+    Element.prototype.getBoundingClientRect = realRect;
+    delete (window as { matchMedia?: unknown }).matchMedia;
+  });
+
+  const skins = () => runs.filter((r) => r.el.classList.contains("hd-skin"));
+  const skinOf = (c: Element) => c.querySelector(".hd-skin")!;
+  /** A skin's layout box as the made-up layout draws it now. */
+  const spanNow = (c: Element) => skinSpan(skinOf(c).getBoundingClientRect());
+  const mid = (s: { left: number; width: number }) => s.left + s.width / 2;
+  const flipIn = (r: Run) => {
+    const m = /^translateX\((-?[\d.]+)px\) skewX\(45deg\) scaleX\(([\d.]+)\)$/.exec(String(r.frames[0]!.transform));
+    if (!m) throw new Error(`not a skin's first frame: ${String(r.frames[0]!.transform)}`);
+    return { dx: Number(m[1]), s: Number(m[2]) };
+  };
+  /** Every card's skin box, by its button, as drawn now. */
+  const drawn = () => new Map([...document.querySelectorAll(".hd-card")].map((c) => [c, spanNow(c)]));
+
+  it("grows the card pressed and gives way beside it, each from where it was drawn", async () => {
+    const user = userEvent.setup();
+    draw(thursday());
+    const before = drawn();
+    await user.click(card(/^Willoughby East/));
+    expect(skins().length).toBeGreaterThan(0);
+    for (const r of skins()) {
+      const c = r.el.closest(".hd-card")!;
+      const { dx, s } = flipIn(r);
+      const was = before.get(c)!;
+      const now = spanNow(c);
+      // put back by its first frame, the skin stands exactly where it was
+      expect(mid(now) + dx).toBeCloseTo(mid(was), 1);
+      expect(now.width * s).toBeCloseTo(was.width, 1);
+      // and it eases to its own place, leaning 45° the whole way
+      expect(r.frames[1]).toEqual({ transform: "translateX(0px) skewX(45deg) scaleX(1)" });
+      expect(r.opts).toEqual({ duration: DAY_GROW_MS, easing: DAY_GROW_EASE });
+    }
+    const grew = skins().find((r) => r.el === skinOf(card(/^Willoughby East/)))!;
+    const gave = skins().find((r) => r.el === skinOf(card(LIVE)))!;
+    expect(flipIn(grew).s).toBeLessThan(1);
+    expect(flipIn(gave).s).toBeGreaterThan(1);
+    // the panel was up already: it takes the new card's words, and does not fade in again
+    expect(runs.filter((r) => r.el.classList.contains("hd-pan"))).toEqual([]);
+  });
+
+  it("slides a card's words level, by translate alone, and the opened card's place name to its middle", async () => {
+    const user = userEvent.setup();
+    draw(thursday());
+    const tag = () => card(/^Willoughby East/).querySelector(".hd-tag")!;
+    const was = tag().getBoundingClientRect();
+    await user.click(card(/^Willoughby East/));
+    const words = runs.filter((r) => !r.el.classList.contains("hd-skin") && r.el.closest(".hd-card"));
+    expect(words.length).toBeGreaterThan(0);
+    for (const r of words) {
+      expect(r.frames.flatMap((f) => Object.keys(f))).toEqual(["translate", "translate"]);
+      expect(r.frames[1]).toEqual({ translate: "0px 0px" });
+    }
+    const slid = words.find((r) => r.el === tag())!;
+    const now = tag().getBoundingClientRect();
+    expect(now.top).not.toBe(was.top);
+    expect(slid.frames[0]).toEqual({ translate: `${was.left - now.left}px ${was.top - now.top}px` });
+  });
+
+  it("fades the panel in, and brings what stands under the day down with it, when a card opens with none open", async () => {
+    const user = userEvent.setup();
+    draw(thursday({ nowMin: hm(14) }));
+    await user.click(card(/^Cremorne/));
+    const pan = runs.filter((r) => r.el.classList.contains("hd-pan"));
+    expect(pan.map((r) => [r.frames, r.opts])).toEqual([[PANEL_IN, { duration: DAY_PANEL_FADE_MS, easing: DAY_BODY_EASE }]]);
+    const lifts = runs.filter((r) => r.el.closest(".hd-day") === null);
+    expect(lifts.length).toBeGreaterThan(0);
+    for (const r of lifts) {
+      expect(r.frames).toEqual(liftFrames(-PANEL));
+      expect(r.opts).toEqual({ duration: DAY_BODY_MOVE_MS, easing: DAY_BODY_EASE });
+    }
+  });
+
+  it("lets what stands under the day back up when the card closes, and fades nothing", async () => {
+    const user = userEvent.setup();
+    draw(thursday());
+    await user.click(within(panel()).getByRole("button", { name: "Close" }));
+    expect(runs.filter((r) => r.el.classList.contains("hd-pan"))).toEqual([]);
+    const lifts = runs.filter((r) => r.el.closest(".hd-day") === null);
+    expect(lifts.length).toBeGreaterThan(0);
+    for (const r of lifts) expect(r.frames).toEqual(liftFrames(PANEL));
+  });
+
+  it("opens the folded block out of itself, and folds the cards back into it", async () => {
+    const user = userEvent.setup();
+    draw(busy());
+    const block = spanNow(card("Show 9 finished jobs"));
+    await user.click(card("Show 9 finished jobs"));
+    const finished = (c: Element) => /Finished$/.test(c.getAttribute("aria-label")!);
+    const out = skins().filter((r) => finished(r.el.closest(".hd-card")!));
+    expect(out).toHaveLength(9);
+    for (const r of out) {
+      const now = spanNow(r.el.closest(".hd-card")!);
+      const { dx, s } = flipIn(r);
+      // every card it held starts as the block
+      expect(mid(now) + dx).toBeCloseTo(mid(block), 1);
+      expect(now.width * s).toBeCloseTo(block.width, 1);
+    }
+    const spans = [...document.querySelectorAll(".hd-card")].filter(finished).map(spanNow);
+    const took = { left: spans[0]!.left, width: spans.at(-1)!.left + spans.at(-1)!.width - spans[0]!.left };
+    runs = [];
+    await user.click(screen.getByText("Elsewhere on the page"));
+    const folded = card("Show 9 finished jobs");
+    const r = skins().find((x) => x.el === skinOf(folded))!;
+    const { dx, s } = flipIn(r);
+    // the block starts as the cards it took in, end to end
+    expect(mid(spanNow(folded)) + dx).toBeCloseTo(mid(took), 1);
+    expect(spanNow(folded).width * s).toBeCloseTo(took.width, 1);
+  });
+
+  it("grows a finished card the pointer moves onto out of its sliver", async () => {
+    const user = userEvent.setup();
+    draw(busy({ nowMin: hm(9, 50) }));
+    await user.click(card("Show 3 finished jobs"));
+    runs = [];
+    // crowded: a finished card stands as a sliver until the pointer is on it
+    const first = card(/^Ryde, Job 1000,/);
+    expect(first).toHaveAttribute("data-collapsed");
+    fireEvent.mouseMove(first);
+    expect(first).not.toHaveAttribute("data-collapsed");
+    expect(skins().some((r) => r.el === skinOf(first) && flipIn(r).s < 1)).toBe(true);
+  });
+
+  /* Law 8: no motion on a keyboard-driven action. A key changes the bar at
+     once, and a grow still in flight stops rather than finish somewhere
+     the bar no longer is. */
+  it("grows nothing for a card or the cross pressed from the keyboard, or for Escape, and stops a grow in flight", async () => {
+    const user = userEvent.setup();
+    draw(thursday());
+    await user.click(card(/^Willoughby East/));
+    const flying = [...runs];
+    expect(flying.length).toBeGreaterThan(0);
+    runs = [];
+    card(/^Cremorne/).focus();
+    await user.keyboard("{Enter}");
+    expect(card(/^Cremorne/)).toHaveAttribute("aria-expanded", "true");
+    expect(flying.every((r) => r.cancel.mock.calls.length > 0)).toBe(true);
+    expect(runs).toEqual([]);
+    within(panel()).getByRole("button", { name: "Close" }).focus();
+    await user.keyboard("{Enter}");
+    expect(isOpen()).toBe(false);
+    expect(runs).toEqual([]);
+    await user.click(card(/^Cremorne/));
+    const again = [...runs];
+    expect(again.length).toBeGreaterThan(0);
+    runs = [];
+    fireEvent.keyDown(card(/^Cremorne/), { key: "Escape" });
+    expect(isOpen()).toBe(false);
+    expect(again.every((r) => r.cancel.mock.calls.length > 0)).toBe(true);
+    expect(runs).toEqual([]);
+  });
+
+  it("moves nothing under reduced motion: every change is simply there", async () => {
+    const user = userEvent.setup();
+    reduced = true;
+    draw(thursday());
+    await user.click(card(/^Willoughby East/));
+    await user.click(within(panel()).getByRole("button", { name: "Close" }));
+    await user.click(card(/^Cremorne/));
+    expect(isOpen()).toBe(true);
+    expect(runs).toEqual([]);
+    // the pointer onto a sliver: it opens out, and nothing grows
+    cleanup();
+    draw(busy({ nowMin: hm(9, 50) }));
+    await user.click(card("Show 3 finished jobs"));
+    fireEvent.mouseMove(card(/^Ryde, Job 1000,/));
+    expect(card(/^Ryde, Job 1000,/)).not.toHaveAttribute("data-collapsed");
+    expect(runs).toEqual([]);
+  });
+
+  it("changes at once, and throws nothing, where the browser has no animation API", async () => {
+    const user = userEvent.setup();
+    delete (Element.prototype as { animate?: unknown }).animate;
+    draw(thursday());
+    await user.click(card(/^Willoughby East/));
+    expect(card(/^Willoughby East/)).toHaveAttribute("aria-expanded", "true");
+    await user.click(card(/^Willoughby East/));
+    expect(isOpen()).toBe(false);
+    cleanup();
+    draw(busy({ nowMin: hm(9, 50) }));
+    await user.click(card("Show 3 finished jobs"));
+    fireEvent.mouseMove(card(/^Ryde, Job 1000,/));
+    expect(card(/^Ryde, Job 1000,/)).not.toHaveAttribute("data-collapsed");
   });
 });

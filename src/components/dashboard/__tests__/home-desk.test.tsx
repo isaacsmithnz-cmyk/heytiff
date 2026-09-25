@@ -545,6 +545,52 @@ describe("the slide", () => {
     }
   }, WHOLE);
 
+  /* Law 8: no motion on a keyboard-driven action. The arrows, Home and End,
+     and a tab pressed with a key change the face at once, and a slide in
+     flight stops where it is rather than finish. */
+  it("switches at once for a face chosen from the keyboard, and stops a slide in flight", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(tab("Tasks"));
+    const flying = [...runs];
+    expect(flying).toHaveLength(2);
+    runs = [];
+    await user.keyboard("{ArrowRight}");
+    expect(tab("Calendar")).toHaveAttribute("aria-selected", "true");
+    expect(flying.every((r) => r.cancel.mock.calls.length > 0)).toBe(true);
+    expect(runs).toEqual([]);
+    expect(shownFaces()).toEqual(["calendar"]);
+    await user.keyboard("{Home}");
+    expect(shownFaces()).toEqual(["diary"]);
+    tab("Tasks").focus();
+    await user.keyboard("{Enter}");
+    expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+    expect(shownFaces()).toEqual(["tasks"]);
+    expect(runs).toEqual([]);
+  }, WHOLE);
+
+  /* The day's panel stands above the body: opening it pushes the body
+     down, and closing it lets the body back up — travelling there on
+     `--t-move` rather than jumping. jsdom lays nothing out, so the body's
+     place is stood in for: lower by the panel's height while it is up. */
+  it("moves the body under the day as the day's panel closes, rather than jumping it", async () => {
+    const user = userEvent.setup();
+    const realRect = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      const top = this.classList.contains("hd-body") ? 300 + (document.querySelector(".hd-pan") ? 120 : 0) : 0;
+      return { left: 0, top, width: 0, height: 0, x: 0, y: top, right: 0, bottom: top, toJSON() {} } as DOMRect;
+    };
+    try {
+      draw({ rail: rail({ blocks: [block()], jobs: [mirror()], nowMin: 9 * 60 }) });
+      await user.click(within(document.querySelector(".hd-panw")!).getByRole("button", { name: "Close" }));
+      expect(moves()).toContainEqual({ who: "hd-body", frames: ["translateY(120px)", "translateY(0px)"] });
+      const lift = runs.find((r) => r.el.classList.contains("hd-body"))!;
+      expect(lift.opts).toEqual({ duration: 200, easing: "ease-out" });
+    } finally {
+      Element.prototype.getBoundingClientRect = realRect;
+    }
+  }, WHOLE);
+
   it("does not slide at all under reduced motion: the face is simply there", async () => {
     const user = userEvent.setup();
     reduced = true;

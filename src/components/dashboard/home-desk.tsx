@@ -13,6 +13,7 @@ import {
   type SlidePart,
   type SlidePlan,
 } from "@/lib/dashboard/desk-focus";
+import { motionAllowed } from "@/lib/dashboard/day-flip";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 import { HomeCalendarFace } from "./home-calendar-face";
 import { HomeDay } from "./home-day";
@@ -62,14 +63,6 @@ type Motion = {
   x0: number;
 };
 
-/** Whether this browser will slide at all: never under reduced motion,
-    where the switch is instant, and never without the animation API. */
-function slides(): boolean {
-  if (typeof window === "undefined" || typeof Element === "undefined") return false;
-  if (typeof Element.prototype.animate !== "function") return false;
-  return !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-}
-
 /** How far across its slide a part stands right now, in pixels. */
 function offsetOf(el: HTMLElement | null): number {
   if (!el || typeof DOMMatrixReadOnly !== "function") return 0;
@@ -109,7 +102,10 @@ function Desk({ data }: { data: DashboardData }) {
     p === "main" ? mainRef.current : p === "diary" ? diaryRef.current : p === "tasks" ? tasksRef.current : calendarRef.current;
   const boxOf = (b: SlidePlan["box"]): HTMLElement | null => (b === "body" ? bodyRef.current : columnRef.current);
 
-  const go = (next: DeskFace) => {
+  /* `pointer` false: a face chosen from the keyboard (the arrows, Home and
+     End, or a tab pressed with a key) is simply there — law 8, no motion on
+     a keyboard-driven action — and a slide still in flight stops. */
+  const go = (next: DeskFace, pointer = true) => {
     if (next === face) return;
     const plan = slidePlan(face, next);
     const was = motion && slidePlan(motion.from, motion.to);
@@ -118,7 +114,7 @@ function Desk({ data }: { data: DashboardData }) {
     for (const a of runs.current) a.cancel();
     runs.current = [];
     setFace(next);
-    setMotion(slides() ? { from: face, to: next, x0 } : null);
+    setMotion(pointer && motionAllowed() ? { from: face, to: next, x0 } : null);
   };
 
   /* THE SLIDE. After the commit that shows both parts and before the paint:

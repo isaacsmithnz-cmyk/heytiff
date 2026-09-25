@@ -70,6 +70,7 @@ jest.mock("@/lib/workboard/note-brain", () => ({
 }));
 
 import {
+  answerClarify,
   applyNote,
   clearFlag,
   dismissNote,
@@ -555,10 +556,10 @@ describe("keeping a note for yourself", () => {
     ]);
 
     /* `noteLines` rather than a group of its own: this does literally what the
-       debrief's leftovers do — ONE `staff_notes` row, linked by
+       Debrief's leftovers did — ONE `staff_notes` row, linked by
        `source_note_id`, which is the link the journal's kept-lines chip
        resolves its door from. A second key would render the same chip in
-       different words. */
+       different words, and old Debrief rows would lose theirs. */
     const note = updates.find((u) => u.table === "workboard_notes")!;
     expect(note.patch.status).toBe("applied");
     expect(note.patch.applied).toEqual({
@@ -583,7 +584,6 @@ describe("the router is grounded — the brain tool layer", () => {
     commissioningEntries: [],
     issueEntries: [],
     kbEntries: [],
-    noteLines: [],
     plainNote: "noted",
     clarify: null,
   };
@@ -630,6 +630,78 @@ describe("the router is grounded — the brain tool layer", () => {
     const ctx = readNote.mock.calls[0][1];
     expect(ctx.history).toEqual({ issues: [], flags: [], recentNotes: [] });
     expect(ctx.equipment).toBeUndefined();
+  });
+});
+
+/* ── THE DEBRIEF IS OUT OF THE ROUTER ───────────────────────────────────
+   Isaac, 2026-09-24: "the diary, tasks and HeyTiff chat window should assist
+   with that." No door sends the flag since the UI half went, and a Server
+   Function is reachable by direct POST, so each of these sends what an old
+   page or a hand-built request still could, and holds that nothing reads it:
+   no `is_debrief` written, no debrief mode asked for, no stamp carried through
+   a clarify, and no grouped note filed from lines nothing shows any more. */
+
+describe("the Debrief is out of the router", () => {
+  const PROPOSAL = {
+    tasks: [],
+    bringItems: [],
+    flags: [],
+    progressBullets: [],
+    commissioningEntries: [],
+    issueEntries: [],
+    kbEntries: [],
+    plainNote: "long day, two callouts",
+    clarify: null,
+  };
+
+  beforeEach(() => {
+    readNote.mockReset();
+    readNote.mockResolvedValue({ ok: true, proposal: PROPOSAL });
+  });
+
+  it("writes no is_debrief, asks for no debrief, and stores no stamp, whatever the request says", async () => {
+    const res = await routeNote({
+      transcript: "long day, two callouts",
+      target: { kind: "none" },
+      debrief: true,
+    } as Parameters<typeof routeNote>[0]);
+    expect(res.ok).toBe(true);
+
+    const [row] = rowsFor("workboard_notes");
+    expect(row).toMatchObject({ transcript: "long day, two callouts", author_id: "staff-me" });
+    expect(row).not.toHaveProperty("is_debrief");
+    expect(readNote.mock.calls[0][1]).not.toHaveProperty("debrief");
+    const stored = updates.find((u) => u.table === "workboard_notes")!.patch;
+    expect(stored.proposal).toEqual(PROPOSAL);
+  });
+
+  it("answers a question a debrief asked as the ordinary note it now is, and drops the stamp", async () => {
+    /* Filed before the change: the stored proposal still carries the mode. */
+    rows.workboard_notes = {
+      ...NOTE,
+      target_kind: "none",
+      target_id: null,
+      status: "clarifying",
+      proposal: {
+        ...PROPOSAL,
+        clarify: { question: "Which Luke?", options: ["Luke Nguyen", "Luke Tran"] },
+        debrief: true,
+      },
+    };
+    const res = await answerClarify("n-1", "Luke Nguyen");
+    expect(res.ok).toBe(true);
+
+    expect(readNote.mock.calls[0][1]).not.toHaveProperty("debrief");
+    expect(readNote.mock.calls[0][2]).toEqual({ question: "Which Luke?", answer: "Luke Nguyen" });
+    const stored = updates.find((u) => u.table === "workboard_notes")!.patch;
+    expect(stored.proposal).toEqual(PROPOSAL);
+  });
+
+  it("files no grouped note from kept lines a stale page still sends", async () => {
+    await applyNote("n-1", confirmed({ noteLines: ["chase the coil pricing"] }));
+    expect(rowsFor("staff_notes")).toEqual([]);
+    const applied = updates.find((u) => u.table === "workboard_notes")?.patch.applied;
+    expect(applied ?? {}).not.toHaveProperty("noteLines");
   });
 });
 

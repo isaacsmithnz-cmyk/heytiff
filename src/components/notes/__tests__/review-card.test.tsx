@@ -26,7 +26,6 @@ const EMPTY: NoteProposal = {
   commissioningEntries: [],
   issueEntries: [],
   kbEntries: [],
-  noteLines: [],
   plainNote: "",
   clarify: null,
 };
@@ -181,4 +180,23 @@ it("lets you untick the task instead of assigning it", () => {
   expect(blockers(d, false)).toHaveLength(1);
   d.tasks[0].on = false;
   expect(blockers(d, false)).toEqual([]);
+});
+
+/* THE DEBRIEF'S LEFTOVERS ARE OFF THE CARD. The router has no note-lines lane
+   any more and `applyNote` no longer files one, so a proposal that still
+   carries it — a page loaded before the deploy, a router answer from the old
+   build — must not grow "Keeping in your notes" rows, nor send lines that the
+   server would now count as nothing. */
+describe("no kept-lines lane", () => {
+  const stale = { ...EMPTY, noteLines: ["chase the coil pricing"] } as NoteProposal;
+
+  it("shows no 'Keeping in your notes' rows", () => {
+    render(<ReviewRows draft={toDraft(stale)} staff={[]} patch={jest.fn()} dayStart="06:30" />);
+    expect(screen.queryByText("Keeping in your notes")).toBeNull();
+    expect(screen.queryByDisplayValue("chase the coil pricing")).toBeNull();
+  });
+
+  it("sends no noteLines to applyNote", () => {
+    expect(toConfirmed(toDraft(stale))).not.toHaveProperty("noteLines");
+  });
 });

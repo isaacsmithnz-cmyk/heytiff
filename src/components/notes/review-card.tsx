@@ -47,8 +47,6 @@ export type Draft = {
   issueEntries: { on: boolean; summary: string; equipmentRef: string }[];
   /** LEARN — "Worth teaching everyone". Ticked rows publish to the KB. */
   kbEntries: { on: boolean; title: string; body: string }[];
-  /** Debrief leftovers — the lines kept as one grouped note. */
-  noteLines: { on: boolean; text: string }[];
 };
 
 export function toDraft(p: NoteProposal): Draft {
@@ -84,7 +82,6 @@ export function toDraft(p: NoteProposal): Draft {
       equipmentRef: e.equipmentHint,
     })),
     kbEntries: p.kbEntries.map((k) => ({ on: true, title: k.title, body: k.body })),
-    noteLines: p.noteLines.map((text) => ({ on: true, text })),
   };
 }
 
@@ -119,7 +116,6 @@ export function toConfirmed(d: Draft): ConfirmedNote {
     kbEntries: d.kbEntries
       .filter((k) => k.on && k.title.trim() && k.body.trim())
       .map((k) => ({ title: k.title, body: k.body })),
-    noteLines: d.noteLines.filter((l) => l.on && l.text.trim()).map((l) => l.text),
   };
 }
 
@@ -200,7 +196,6 @@ export function Cascade({
   jobLabel,
   taskCount,
   kbCount = 0,
-  noteLineCount = 0,
   fallsThrough,
 }: {
   jobLabel: string | null;
@@ -208,12 +203,9 @@ export function Cascade({
   /** Ticked "Worth teaching everyone" rows — its own line because its blast
       radius is the whole org, and that should be readable at the foot. */
   kbCount?: number;
-  /** Ticked debrief leftovers, headed for the grouped note. */
-  noteLineCount?: number;
   /** Nothing above could take it, so My notes is the destination. */
   fallsThrough: boolean;
 }) {
-  const notesOn = fallsThrough || noteLineCount > 0;
   return (
     <div className="wb2-casc">
       <div className={"wb2-cascrow" + (jobLabel ? " on" : "")}>
@@ -228,15 +220,10 @@ export function Cascade({
             : "No tasks for anyone"}
         </span>
       </div>
-      <div className={"wb2-cascrow" + (notesOn ? " on" : "")}>
+      <div className={"wb2-cascrow" + (fallsThrough ? " on" : "")}>
         <span className="wb2-cascn">3</span>
         <span>
-          {noteLineCount > 0 ? (
-            <>
-              {noteLineCount} {noteLineCount === 1 ? "line" : "lines"} — grouped in{" "}
-              <b>your notes</b>
-            </>
-          ) : fallsThrough ? (
+          {fallsThrough ? (
             <>Nothing else fits — keep it in <b>your notes</b></>
           ) : (
             "Your notes — not needed"
@@ -485,13 +472,6 @@ export function ReviewRows({
           </p>
         </div>
       )}
-
-      <SimpleRows
-        title="Keeping in your notes"
-        rows={draft.noteLines.map((l) => ({ on: l.on, text: l.text }))}
-        onToggle={(i) => patch((d) => ((d.noteLines[i].on = !d.noteLines[i].on), d))}
-        onEdit={(i, v) => patch((d) => ((d.noteLines[i].text = v), d))}
-      />
     </>
   );
 }

@@ -23,13 +23,10 @@ const ANSWERING: [string, string][] = [
 const ctx = {
   staff: [{ id: "1", fullName: "Luke Brennan" }],
   todayISO: "2026-08-09",
-  debrief: false,
 };
 
-const RECORDING: [string, string][] = [
-  ["site note", noteSystemPrompt({ ...ctx, debrief: false })],
-  ["debrief", noteSystemPrompt({ ...ctx, debrief: true })],
-];
+/* One recording prompt now: the Debrief's own variant went with the Debrief. */
+const RECORDING: [string, string][] = [["site note", noteSystemPrompt(ctx)]];
 
 describe("every prompt that answers a person answers in their language", () => {
   it.each(ANSWERING)("%s replies in kind", (_label, prompt) => {

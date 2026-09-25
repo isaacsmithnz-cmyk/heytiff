@@ -67,7 +67,6 @@ describe("entryForTask", () => {
     at: "7:12 am",
     outcomes,
     spoken: true,
-    isDebrief: false,
   });
 
   it("finds the entry whose door names the task", () => {

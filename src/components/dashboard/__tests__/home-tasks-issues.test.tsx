@@ -167,7 +167,6 @@ describe("the page", () => {
           { kind: "todo", text: "Middle rooftop unit has tripped again", go: { type: "issue", id: "i1" } },
         ],
         spoken: false,
-        isDebrief: false,
       },
     ];
     const onOpenEntry = jest.fn();

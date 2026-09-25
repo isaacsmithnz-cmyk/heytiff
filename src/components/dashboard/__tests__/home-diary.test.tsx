@@ -22,7 +22,6 @@ const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
   at: "6:52 am",
   outcomes: [],
   spoken: true,
-  isDebrief: false,
   ...over,
 });
 

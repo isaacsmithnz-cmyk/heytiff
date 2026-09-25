@@ -101,7 +101,6 @@ beforeEach(() => {
       commissioningEntries: [],
       issueEntries: [],
       kbEntries: [],
-      noteLines: [],
       plainNote: "whatever",
       clarify: null,
     },

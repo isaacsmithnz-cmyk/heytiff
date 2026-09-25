@@ -121,10 +121,6 @@ export type NoteProposal = {
       the KB on tick — never automatically. "Got the E6 clear by powering
       the outdoor board separately" is a kb_entry; "cleared the E6" is not. */
   kbEntries: ProposedKbEntry[];
-  /** Debrief leftovers — the lines that are neither a task for anyone nor
-      knowledge, kept as ONE grouped note in the author's own notes. Always
-      empty outside debrief mode. */
-  noteLines: string[];
   plainNote: string;
   /** Set when the note can't be routed without a human answering something. */
   clarify: { question: string; options: string[] } | null;
@@ -163,10 +159,6 @@ export type NoteContext = {
       keep them, the workspace's otherwise. */
   dayStart?: string;
   dayEnd?: string;
-  /** Debrief mode: one long transcript, many unrelated things, before the
-      day starts. Changes what the model is asked for — see systemPrompt —
-      and what the shaper tolerates. */
-  debrief?: boolean;
 };
 
 export type NoteBrainResult =
@@ -182,7 +174,9 @@ export type NoteBrainResult =
 const str = { type: "string" } as const;
 const strArray = { type: "array", items: { type: "string" } } as const;
 
-const NOTE_SCHEMA = {
+/** Exported for the test that reads it: every lane the model is allowed to
+    fill must reach the proposal, or what it put there reaches nobody. */
+export const NOTE_SCHEMA = {
   type: "object",
   properties: {
     tasks: {
@@ -251,7 +245,6 @@ const NOTE_SCHEMA = {
         additionalProperties: false,
       },
     },
-    note_lines: strArray,
     plain_note: str,
     clarify_needed: { type: "boolean" },
     clarify_question: str,
@@ -265,7 +258,6 @@ const NOTE_SCHEMA = {
     "commissioning_entries",
     "issue_entries",
     "kb_entries",
-    "note_lines",
     "plain_note",
     "clarify_needed",
     "clarify_question",
@@ -317,12 +309,13 @@ export function historyBlock(ctx: NoteContext): string {
   return lines.length ? `\nWhat the workspace already knows:\n${lines.join("\n")}` : "";
 }
 
-/** WHEN, AND WHO "ME" IS — the block both prompt variants share.
+/** WHEN, AND WHO "ME" IS.
 
-    Exported and shared for the reason `historyBlock` is: a site note and a
-    debrief ask for different things, but the day a note was dictated and the
-    person who dictated it are facts about the workspace, not about the ask.
-    They were duplicated once and drifted within two edits.
+    Exported and kept apart from the prompt for the reason `historyBlock` is:
+    the day a note was dictated and the person who dictated it are facts about
+    the workspace, not about the ask. There were two prompts once, the site
+    note's and the Debrief's, and a copy of this in each drifted within two
+    edits; the Debrief's went on 2026-09-25, and this stays one function.
 
     THE VAGUE-TIME TABLE IS THE POINT. "Monday morning" is the ordinary way to
     say when, and a model left to guess renders it as 9am — an hour and a half
@@ -372,7 +365,7 @@ export function whenBlock(ctx: NoteContext): string {
 
 /** WHO CAN BE GIVEN WORK, and who is doing the giving.
 
-    Shared by both variants for the same reason as `whenBlock`. The author line
+    Its own function for the same reason as `whenBlock`. The author line
     is the fix for the note that started this: "remind me to check with Luke"
     produced a perfectly good task with nobody on it, because the router had
     never been told that a "me" was in the room. */
@@ -398,59 +391,15 @@ export function whoBlock(ctx: NoteContext): string {
 }
 
 /** What the router is told it is. Exported for the same reason
-    `systemPromptFor` is in the KB answerer: the two variants — site note and
-    debrief — are worth reading side by side in a test, and the language rule
-    they both carry is a fact about the workspace rather than about a call. */
-export function systemPrompt(ctx: NoteContext): string {
-  /* DEBRIEF IS A DIFFERENT ASK. One long transcript, recorded before the day
-     starts, deliberately unsorted — "empty your head". Expect MANY unrelated
-     items. The job-bound lanes are closed (a debrief spans several jobs and
-     v1 pins one job per note, so a flag here would land on the wrong job or
-     nowhere): anything that would have been a flag, bring-item or reading
-     becomes a note_line naming the job in its own words. Per-row job
-     assignment is the planned follow-up; until then honesty beats reach. */
-  if (ctx.debrief) {
-    return [
-      "You are sorting a tradesperson's morning debrief for an Australian",
-      "HVAC business — one long spoken braindump of everything on their",
-      "mind, in no order. Expect many unrelated items, fragments, trade",
-      "slang and transcription slips. Split it faithfully; invent nothing.",
-      "",
-      RECORD_IN_ENGLISH,
-      "",
-      "Route each item into exactly one place:",
-      "- tasks: someone must DO something later. 'Tell Luke to order the",
-      "  grilles' is a task for Luke. Put the item's own details in `detail`",
-      "  so the task stands alone when read next week.",
-      "- kb_entries: reusable know-how worth teaching the whole team — a",
-      "  method, a fix, a gotcha that would help on a DIFFERENT day at a",
-      "  DIFFERENT site. Title it like a library card; write the body for",
-      "  someone who wasn't there. Propose these sparingly: a technique is",
-      "  knowledge, 'the unit is fixed' is not. If they say to remember,",
-      "  note down, or add something to the knowledge base, that is always",
-      "  a kb_entry.",
-      "- note_lines: EVERYTHING ELSE, one line per item, in the speaker's",
-      "  own words — their phrasing, kept plain, translated where it was not",
-      "  English. Reminders to themselves, things to watch, half-thoughts.",
-      "  If an item mentions a specific job or site, keep that name in the",
-      "  line — the line is how they'll find it again.",
-      "",
-      "Do not use bring_items, flags, progress_bullets, commissioning_entries",
-      "or issue_entries in a debrief — return them empty. An item that looks",
-      "like one of those becomes a note_line that names the job.",
-      "",
-      whoBlock(ctx),
-      "",
-      "Set clarify_needed only when an item genuinely cannot be routed",
-      "without an answer. Ask ONE short question about ONE item; route",
-      "everything else meanwhile.",
-      "",
-      whenBlock(ctx),
-      "",
-      "Leave plain_note empty — note_lines carries the leftovers here.",
-    ].join("\n");
-  }
+    `systemPromptFor` is in the KB answerer: the language rule it carries is a
+    fact about the workspace rather than about a call, and a test pins it.
 
+    ONE PROMPT. The Debrief had its own, a morning braindump sorted into tasks,
+    knowledge and "note lines" with every job-bound lane closed; it went with
+    the Debrief (Isaac, 2026-09-24: "the diary, tasks and HeyTiff chat window
+    should assist with that"), and its lane went out of the schema with it, so
+    the model has nowhere to put words that no card shows. */
+export function systemPrompt(ctx: NoteContext): string {
   return [
     "You route a tradesperson's site note into structured outcomes for an",
     "Australian HVAC business. The note was spoken aloud or typed quickly, so",
@@ -480,8 +429,6 @@ export function systemPrompt(ctx: NoteContext): string {
     "  that is always a kb_entry.",
     "- plain_note: anything that is genuinely just a remark. A note is",
     "  allowed to be a note — do not manufacture tasks to seem useful.",
-    "",
-    "Leave note_lines empty — it belongs to debriefs, not site notes.",
     "",
     "One note can produce several of these at once. Produce nothing for the",
     "parts of the note that do not call for it: empty arrays are correct.",
@@ -691,9 +638,11 @@ export function shapeProposal(raw: unknown, ctx: NoteContext): NoteProposal {
     kbEntries.push({ title: clean(row.title, TITLE_MAX) || body.slice(0, 80), body });
   }
 
-  const noteLines = cleanList(r.note_lines, BODY_MAX);
-
-  const proposal: NoteProposal = {
+  /* NO COERCION BY MODE. The Debrief's closed every job-bound lane and
+     rewrote what landed in one into a "note line"; with the Debrief gone
+     there is one ask, every lane is open, and the shaper passes each through
+     as it came. */
+  return {
     tasks,
     bringItems: cleanList(r.bring_items, TITLE_MAX),
     flags,
@@ -701,41 +650,9 @@ export function shapeProposal(raw: unknown, ctx: NoteContext): NoteProposal {
     commissioningEntries: entries("commissioning_entries", "body"),
     issueEntries: entries("issue_entries", "summary"),
     kbEntries,
-    noteLines,
     plainNote: clean(r.plain_note, BODY_MAX),
     clarify,
   };
-
-  /* DEBRIEF COERCION — the prompt says the job-bound lanes are closed, and
-     this makes it true whatever the model does. A debrief spans several jobs
-     and v1 pins one job per note, so a flag produced here would land on the
-     wrong job or block the save; instead the item survives as a note line
-     wearing its own words. Nothing the person said is dropped — the standing
-     rule of the whole feature. The inverse holds outside a debrief:
-     note_lines is a debrief-only lane, so stray lines fold into buckets the
-     review card actually shows there. */
-  if (ctx.debrief) {
-    proposal.noteLines = [
-      ...proposal.noteLines,
-      ...proposal.flags.map((f) => f.message),
-      ...proposal.bringItems.map((b) => `Bring next visit: ${b}`),
-      ...proposal.progressBullets,
-      ...proposal.commissioningEntries.map((e) => e.body),
-      ...proposal.issueEntries.map((e) => e.body),
-      ...(proposal.plainNote ? [proposal.plainNote] : []),
-    ];
-    proposal.flags = [];
-    proposal.bringItems = [];
-    proposal.progressBullets = [];
-    proposal.commissioningEntries = [];
-    proposal.issueEntries = [];
-    proposal.plainNote = "";
-  } else if (proposal.noteLines.length) {
-    proposal.plainNote = [proposal.plainNote, ...proposal.noteLines].filter(Boolean).join(", ");
-    proposal.noteLines = [];
-  }
-
-  return proposal;
 }
 
 /** True when the model found nothing to do with the note — the caller keeps
@@ -749,7 +666,6 @@ export function isEmptyProposal(p: NoteProposal): boolean {
     p.commissioningEntries.length === 0 &&
     p.issueEntries.length === 0 &&
     p.kbEntries.length === 0 &&
-    p.noteLines.length === 0 &&
     !p.clarify
   );
 }

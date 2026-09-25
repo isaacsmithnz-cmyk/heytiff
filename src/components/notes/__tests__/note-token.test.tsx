@@ -65,7 +65,6 @@ const proposal = (over: Partial<NoteProposal> = {}): NoteProposal => ({
   commissioningEntries: [],
   issueEntries: [],
   kbEntries: [],
-  noteLines: [],
   plainNote: "Middle rooftop unit tripped again.",
   clarify: null,
   ...over,
@@ -591,7 +590,7 @@ describe("the entry row's card", () => {
     routeNote.mockResolvedValue({
       ok: true,
       noteId: "n-1",
-      proposal: proposal({ plainNote: "", noteLines: ["chase the coil pricing"] }),
+      proposal: proposal({ plainNote: "chase the coil pricing" }),
       staff: [{ id: "s-1", fullName: "Luke Mercer" }],
     });
     await openEntry();
@@ -605,7 +604,7 @@ describe("the entry row's card", () => {
 
   /* EVERY DOOR ASKS THE BRAIN THE SAME QUESTION NOW. The debrief flag changed
      what the router asked the model for; with the Debrief gone no door sends
-     it, and the router's own copy of it goes in the next PR. */
+     it, and the router no longer reads one (workboard-notes.test). */
   it("routes without a debrief flag", async () => {
     await sortIt("the middle unit tripped again", {});
     expect(routeNote).toHaveBeenCalledTimes(1);
@@ -624,7 +623,7 @@ describe("the entry row's card", () => {
   ];
 
   it("matches a job named in the words, once Home has candidates to match", async () => {
-    await sortIt("tell danny to order the filters for the northgate job", { noteLines: ["order the filters"] }, { jobs: JOBS });
+    await sortIt("tell danny to order the filters for the northgate job", {}, { jobs: JOBS });
     expect(screen.getByText(/Sounds like/)).toBeInTheDocument();
     // scoped to the job line: `describeJob` builds the sentence, so match on the client
     expect(document.querySelector(".wb2-capjob")).toHaveTextContent(/Northgate Realty/);
@@ -632,7 +631,7 @@ describe("the entry row's card", () => {
   });
 
   it("offers the picker when the words match nothing, and says where the note goes", async () => {
-    await sortIt("long day, everything is behind", { noteLines: ["order the filters"] }, { jobs: JOBS });
+    await sortIt("long day, everything is behind", {}, { jobs: JOBS });
     // the job line, not the cascade's own "No job named" under the rows
     expect(document.querySelector(".wb2-capjob")).toHaveTextContent(
       "No job named — it'll go to your own notes."
@@ -642,7 +641,7 @@ describe("the entry row's card", () => {
   });
 
   it("searches the jobs, and names the one you pick", async () => {
-    await sortIt("long day, everything is behind", { noteLines: ["order the filters"] }, { jobs: JOBS });
+    await sortIt("long day, everything is behind", {}, { jobs: JOBS });
     await userEvent.click(screen.getByRole("button", { name: "Pick a job" }));
 
     const search = screen.getByRole("searchbox", { name: /Search jobs/ });
@@ -658,38 +657,34 @@ describe("the entry row's card", () => {
   it("is still absent where there are no jobs to offer", async () => {
     /* A control with an empty list is furniture — and this is every org that
        does not hold `workboard`, where the loader sends none. */
-    await sortIt("chase the coil pricing", { noteLines: ["chase the coil pricing"] });
+    await sortIt("chase the coil pricing", {});
     expect(screen.queryByRole("button", { name: "Pick a job" })).toBeNull();
     expect(document.querySelector(".wb2-capjob")).toBeNull();
   });
 
-  /* The kept lines' rows belong to the review card and go with the router's
-     half of the Debrief (the next PR); until then they still review and save
-     the same way through this door. */
-  it("reviews kept lines as 'Keeping in your notes', each line droppable", async () => {
-    await sortIt("chase the coil pricing, long day tomorrow", {
-      noteLines: ["chase the coil pricing", "long day tomorrow"],
-    });
-    expect(screen.getByText("Keeping in your notes")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("chase the coil pricing")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Skip long day tomorrow" }));
-    expect(screen.getByRole("button", { name: "Include long day tomorrow" })).toBeInTheDocument();
-  });
+  /* THE KEPT LINES WENT WITH THE ROUTER'S HALF OF THE DEBRIEF. Its leftovers
+     were the one lane only this card showed, filed by `applyNote` as a grouped
+     note that no longer exists. An answer that still carries them — the old
+     build's router, across a deploy — reviews and saves without them: no
+     "Keeping in your notes" rows, and nothing in the payload to be counted as
+     nothing. "Keep it in my notes" is how words reach your notes now. */
+  it("reviews and saves no kept lines, even from an answer that still carries them", async () => {
+    await sortIt("chase the coil pricing, and the E6 trick", {
+      noteLines: ["chase the coil pricing"],
+      kbEntries: [{ title: "Clearing an E6", body: "Power the outdoor board separately." }],
+    } as Partial<NoteProposal>);
+    expect(screen.queryByText("Keeping in your notes")).toBeNull();
+    expect(screen.queryByDisplayValue("chase the coil pricing")).toBeNull();
 
-  it("saves the ticked lines through the confirmed payload", async () => {
-    await sortIt("chase the coil pricing", { noteLines: ["chase the coil pricing"] });
     await userEvent.click(screen.getByRole("button", { name: "Save these" }));
-    expect(applyNote).toHaveBeenCalledWith(
-      "n-1",
-      expect.objectContaining({ noteLines: ["chase the coil pricing"] }),
-      undefined
-    );
+    expect(applyNote).toHaveBeenCalledTimes(1);
+    expect(applyNote.mock.calls[0][1]).not.toHaveProperty("noteLines");
   });
 
   it("always offers the keep-it door beside Save", async () => {
-    /* The debrief hid it, because its Save filed the leftovers as the
+    /* The Debrief hid it, because its Save filed the leftovers as the
        grouped note already. Every door left keeps it. */
-    await sortIt("chase the coil pricing", { noteLines: ["a line"] });
+    await sortIt("chase the coil pricing", {});
     expect(screen.getByRole("button", { name: /Keep it in my notes/ })).toBeInTheDocument();
   });
 });

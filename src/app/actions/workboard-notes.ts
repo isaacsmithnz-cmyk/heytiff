@@ -182,9 +182,6 @@ export async function routeNote(input: {
   transcript: string;
   target: NoteTarget;
   source?: "text" | "voice";
-  /** A morning braindump rather than a site note — changes what the brain is
-      asked for (tasks + knowledge + note lines, no job-bound buckets). */
-  debrief?: boolean;
 }): Promise<RouteResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
@@ -205,12 +202,12 @@ export async function routeNote(input: {
       target_id: target.id ?? null,
       transcript,
       source: input.source === "voice" ? "voice" : "text",
-      /* WHICH DOOR THE WORDS CAME THROUGH. This flag already decided what the
-         brain was asked for and was then thrown away, so a debrief and a line
-         typed into the diary landed as the same row — which is why the Debrief
-         face could not show you your own debriefs without showing you the
-         whole diary. See docs/migrations/note_is_debrief.sql. */
-      is_debrief: input.debrief === true,
+      /* NO `is_debrief`. There is one door now (Isaac, 2026-09-24: "the
+         diary, tasks and HeyTiff chat window should assist with that"), so
+         there is nothing to record about which one the words came through.
+         The column's own default writes false until it is dropped, and a
+         `debrief` key that a stale page or a direct POST still sends is read
+         by nothing here. */
     })
     .select("id")
     .single();
@@ -234,7 +231,6 @@ export async function routeNote(input: {
     ...who,
     targetLabel: label ?? undefined,
     todayISO: todayInZone(tz),
-    debrief: input.debrief === true,
     equipment: history.equipment.length ? history.equipment : undefined,
     history: {
       issues: history.issues.map((i) => ({
@@ -257,10 +253,7 @@ export async function routeNote(input: {
   await supabaseAdmin
     .from("workboard_notes")
     .update({
-      /* The extra `debrief` key rides in the jsonb so the MODE survives the
-         clarify round-trip even when a debrief happened to produce no note
-         lines — inferring it from noteLines alone misses exactly that case. */
-      proposal: input.debrief ? { ...read.proposal, debrief: true } : read.proposal,
+      proposal: read.proposal,
       status: read.proposal.clarify ? "clarifying" : "pending",
     })
     .eq("org_id", ctx.orgId)
@@ -359,22 +352,20 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
         flags: history.flags.map((f) => f.message),
         recentNotes: history.recentNotes,
       },
-      /* The mode has to survive the clarify round-trip, or answering "which
-         Luke?" would re-route the whole debrief as a site note and scatter
-         its leftovers into buckets the card no longer shows. routeNote
-         stamped the stored proposal for exactly this read. */
-      debrief: (proposal as { debrief?: boolean } | null)?.debrief === true,
+      /* THE QUESTION IS ALL THAT RIDES IN FROM THE STORED PROPOSAL. One
+         filed before the Debrief went can still carry its `debrief: true`
+         stamp; that mode is gone, so an answer to the question it asked is
+         routed as the ordinary note it now is, and the stamp is not written
+         back. */
     },
     { question, answer: reply }
   );
   if (!read.ok) return { ok: false, error: read.error };
 
-  const wasDebrief = (proposal as { debrief?: boolean } | null)?.debrief === true;
   await supabaseAdmin
     .from("workboard_notes")
     .update({
-      // re-stamped, or the mode would only survive ONE clarify round
-      proposal: wasDebrief ? { ...read.proposal, debrief: true } : read.proposal,
+      proposal: read.proposal,
       status: read.proposal.clarify ? "clarifying" : "pending",
     })
     .eq("org_id", ctx.orgId)
@@ -433,9 +424,6 @@ export type ConfirmedNote = {
   issueEntries: { summary: string; equipmentRef: string }[];
   /** LEARN — ticked "Worth teaching everyone" rows, published to the KB. */
   kbEntries?: { title: string; body: string }[];
-  /** Debrief leftovers — become ONE grouped note in the author's own notes,
-      titled with the day. Empty outside a debrief. */
-  noteLines?: string[];
 };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -917,32 +905,6 @@ export async function applyNote(
     record("kbIds", kbIds, "knowledge entry", "knowledge entries");
   }
 
-  /* ── the debrief's grouped note ──
-     ONE staff_notes row titled with the day, holding every ticked line. The
-     title is derived HERE from the org's own clock — a browser's idea of
-     today is whatever its laptop says. */
-  const lines = (confirmed.noteLines ?? []).map((l) => trim(l, 1000)).filter(Boolean);
-  if (lines.length) {
-    if (!ctx.staffId) {
-      return { ok: false, error: "Your staff profile isn't set up yet, so there's nowhere to keep the notes." };
-    }
-    const tz = await getSm8Timezone(ctx.orgId);
-    const body = [`Debrief — ${fmtAuWeekdayDayMonth(todayInZone(tz))}`, ...lines.map((l) => `• ${l}`)]
-      .join("\n")
-      .slice(0, 4000);
-    const { error: dbErr } = await supabaseAdmin.from("staff_notes").insert({
-      org_id: ctx.orgId,
-      staff_id: ctx.staffId,
-      body,
-      source: "routed",
-      source_note_id: noteId,
-    });
-    if (dbErr) return { ok: false, error: "Couldn't keep the debrief's notes." };
-    record("noteLines", lines, "line kept", "lines kept");
-    // by name: a revalidate at a moved route clears nothing and says nothing
-    revalidatePath(navHref("mynotes"));
-  }
-
   /* ── the words themselves, when the target is a JOB ──
      Every other target has somewhere for the transcript to go and a sheet
      that reads it back; a ServiceM8 job's written record is its DIARY, and
@@ -965,8 +927,7 @@ export async function applyNote(
     (confirmed.progressBullets?.length ?? 0) +
     (confirmed.commissioningEntries?.length ?? 0) +
     (confirmed.issueEntries?.length ?? 0) +
-    (confirmed.kbEntries?.length ?? 0) +
-    (confirmed.noteLines?.length ?? 0);
+    (confirmed.kbEntries?.length ?? 0);
   /* Everything that needs a job was refused by the per-bucket guard near the
      top, and a bring-list with nowhere to sit was refused just above. So by
      the time we are here the only way to drop every row is a task with
@@ -1169,7 +1130,12 @@ export async function keepNoteForMe(noteId: string): Promise<ApplyResult> {
      itself as a discard. It reuses `noteLines` rather than inventing a group
      because it does literally what that group does — one `staff_notes` row,
      linked by `source_note_id`, which is exactly what the journal's kept-lines
-     chip resolves its door from. One line kept, and the door opens on it. */
+     chip resolves its door from. One line kept, and the door opens on it.
+
+     THE ONLY WRITER OF `noteLines` LEFT. The Debrief filed its ticked
+     leftovers the same way, as one grouped note, and that writer went with
+     it; its old rows keep their door, because the journal resolves this key
+     and never asks which door the words came through. */
   await supabaseAdmin
     .from("workboard_notes")
     .update({

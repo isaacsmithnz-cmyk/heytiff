@@ -182,7 +182,6 @@ describe("the wait, and what is moving during it", () => {
         commissioningEntries: [],
         issueEntries: [],
         kbEntries: [],
-        noteLines: ["Order the grilles"],
         plainNote: "Luke needs to order the grilles",
         clarify: null,
       },

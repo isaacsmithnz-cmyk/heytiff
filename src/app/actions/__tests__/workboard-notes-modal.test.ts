@@ -16,7 +16,7 @@
    chain that returns canned rows can't show a row being gone. */
 
 type Row = Record<string, unknown>;
-type Filter = [op: "eq" | "in", column: string, value: unknown];
+type Filter = [op: "eq" | "in" | "is", column: string, value: unknown];
 
 let db: Record<string, Row[]> = {};
 type Write = { op: "insert" | "update" | "delete" | "rpc"; table: string; payload?: unknown; filters: Filter[] };
@@ -49,7 +49,11 @@ function from(table: string) {
   let returning = false;
   const match = (r: Row) =>
     filters.every(([op, col, val]) =>
-      op === "eq" ? r[col] === val : (val as unknown[]).includes(r[col]),
+      op === "eq"
+        ? r[col] === val
+        : op === "is"
+          ? (r[col] ?? null) === val
+          : (val as unknown[]).includes(r[col]),
     );
   const run = (one = false) => {
     const all = (db[table] ??= []);
@@ -76,6 +80,9 @@ function from(table: string) {
   };
   b.eq = (col: string, val: unknown) => (filters.push(["eq", col, val]), b);
   b.in = (col: string, val: unknown[]) => (filters.push(["in", col, val]), b);
+  /* the journal skips a row somebody took back (`removed_at`, two-way
+     phase 2); a row that never had the column reads as null */
+  b.is = (col: string, val: unknown) => (filters.push(["is", col, val]), b);
   b.order = () => b;
   b.limit = () => b;
   b.maybeSingle = async () => run(true);

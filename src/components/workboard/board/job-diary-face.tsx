@@ -72,6 +72,27 @@ const FILTERS: { key: StoryFilter; label: string }[] = [
 /** Where the pen's tick box is remembered, per person, in this browser. */
 const ALSO_KEY = "heytiff.diary.alsoSm8";
 
+/* The box's memory, outside the Pen: React Compiler can't lower a value
+   block (a conditional or a logical) inside a try, and skips the whole
+   component when it meets one. Blocked storage reads as unticked, and a
+   write it refuses leaves the box ticked, just not remembered. */
+function rememberedAlso(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(ALSO_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function rememberAlso(on: boolean) {
+  const value = on ? "1" : "0";
+  try {
+    window.localStorage.setItem(ALSO_KEY, value);
+  } catch {
+    /* not remembered, still ticked */
+  }
+}
+
 /** No flag has a press out. */
 const NONE_BUSY: ReadonlySet<string> = new Set();
 
@@ -302,20 +323,10 @@ function Pen({
 }) {
   /* the card is drawn in the browser only (a portal), so storage is there
      to read at once; blocked storage starts the box unticked */
-  const [also, setAlso] = useState(() => {
-    try {
-      return typeof window !== "undefined" && window.localStorage.getItem(ALSO_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [also, setAlso] = useState(rememberedAlso);
   const tick = (on: boolean) => {
     setAlso(on);
-    try {
-      window.localStorage.setItem(ALSO_KEY, on ? "1" : "0");
-    } catch {
-      /* not remembered, still ticked */
-    }
+    rememberAlso(on);
   };
   /* the id and the words it was last pressed with */
   const pen = useRef<{ id: string; words: string | null } | null>(null);

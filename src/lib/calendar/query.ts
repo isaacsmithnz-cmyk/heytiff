@@ -27,9 +27,10 @@ import {
    them again.
 
    Six sources, each read over the calendar's twelve months:
-   - public holidays: the org's own table, topped up first by
-     `ensureHolidays` (the lazy fill Time & Pay already runs; Home never did,
-     so a workspace that had never opened Time & Pay would show none);
+   - public holidays: the org's own table, topped up by `ensureHolidays`
+     (the lazy fill Time & Pay already runs; Home never did, so a workspace
+     that had never opened Time & Pay would show none), whose guard is read
+     beside them and which is read again only after a fill;
    - school holidays: the department's dates, a reference table the same for
      every workspace (docs/migrations/school_holidays.sql);
    - company events and shutdowns (docs/migrations/calendar_events.sql);
@@ -197,10 +198,16 @@ export async function loadCompanyCalendar(ctx: CompanyCalendarContext): Promise<
   const [holidays, school, events, notices, vehicles] = await Promise.all([
     state.then(async (s): Promise<HolidayRow[]> => {
       if (!s) return [];
-      /* The fill writes only when coverage runs short (about twice a year),
-         and a fill that fails must not cost the page the holidays it has. */
-      await ensureHolidays(ctx.orgId, s, day).catch(() => undefined);
-      return holidaysInSpan(ctx.orgId, s, windowStart, windowEnd);
+      /* The top-up's guard and the read go out together, rather than one
+         after the other: the fill writes only when coverage runs short
+         (about twice a year), and only then is the read taken again, after
+         it — so a workspace that has never opened Time & Pay still has its
+         holidays on its first Home, and every other load waits one round
+         trip less. A fill that fails must not cost the page the holidays it
+         has. */
+      const read = () => holidaysInSpan(ctx.orgId, s, windowStart, windowEnd);
+      const [wrote, rows] = await Promise.all([ensureHolidays(ctx.orgId, s, day).catch(() => false), read()]);
+      return wrote ? read() : rows;
     }),
     state.then((s) => (s ? schoolHolidaysInSpan(s, schoolDivisionOf(s), windowStart, windowEnd) : none<SchoolHolidayRow>())),
     calendarEventsInSpan(ctx.orgId, windowStart, windowEnd),

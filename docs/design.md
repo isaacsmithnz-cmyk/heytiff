@@ -303,6 +303,20 @@ Every decision below is made once, here, and a guard test holds each number.
   books from here; a visit's Book in picks its day in the row, which is
   real now. A roll-up and an issue open in place. Without ServiceM8 the
   list is HeyTiff's own: no won jobs, no money, no Create job.
+  The Calendar is his handoff "Calendar": the company's twelve months from
+  this one, and nothing personal — public and school holidays, the
+  company's events and shutdowns, the noticeboard's events, and the
+  renewals the viewer may see; no job bookings, nobody's leave, nothing
+  made up. Its own toolbar, never the tabs' row, carries the box (Save
+  puts the words on today, as typed; Sort it out and the Tiff button ask
+  Tiff) and 4 weeks, Month and Year; then ‹ ›, what is in view, Today and
+  the filters, which are also the legend and count what is in view. 4
+  weeks is today and the 27 days after it, a row only for a day with
+  something on, with Due and Holidays ahead beside it, built from the
+  list's own rows ("Keep the Due"). Month and Year keep the one thing
+  chosen in a panel beside them, never empty. One choice and one set of
+  filters serve all three views, and nothing steps past the twelve
+  months.
   **His design is the default here.** A redraw to the laws "looks far
   worse", so where his numbers break a law this file names the exemption
   instead of bending the design ("design exempt for now, but keep a note",
@@ -643,6 +657,8 @@ this list the way it holds the loops: both ways, by name.
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `chevR` | `railtg` | the rail's handle, a chevron riding the seam between rail and content; the shell stands as it is |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
+| `chevL` | `hd-cal-nb` | the Home calendar's Earlier, his arrow either side of what is in view ("go with your recommendations", 2026-09-25, which kept his shapes): the range beside it is the word, the button is named Earlier, and it rests at the twelve months' edge |
+| `chevR` | `hd-cal-nb` | the Home calendar's Later, on the same terms as its Earlier |
 
 ### Named exemptions
 
@@ -666,6 +682,9 @@ day he said them.
 | `.hd-chip` | pills | 1 | "go with your recommendations", which kept his On-now capsule: the state word in the day's panel sits in a white capsule, "On now, 17%" | 2026-09-25 |
 | `.hd-ls-tag` | pills | 1 | "go with your recommendations", which kept his name tag: a task on the list that is someone else's carries their first name in a grey capsule, where law 26 says a plain word | 2026-09-25 |
 | `.hd-trace` | gradients | 5 | "design exempt for now, but keep a note": the Trace, his white light round the job on now, is a conic gradient turning behind a ring that two masks cut from the card's edge, each mask written twice, prefixed and plain | 2026-09-24 |
+| `.hd-cal` | gradients | 2 | "design exempt for now, but keep a note": the Calendar's school holidays wear his grey hatch, a striped gradient declared once as the calendar's token, and its swatch the same hatch drawn finer | 2026-09-24 |
+| `.hd-cal-tag` | pills | 1 | "go with your recommendations", which kept his span tags: a week in the Calendar's 4 weeks carries a tinted capsule for what runs through it, "School holidays all week", where law 26 says a plain word | 2026-09-25 |
+| `.hd-cal-chip` | pills | 1 | "go with your recommendations", which kept his status chip: the Calendar's panel says where the chosen thing stands, "Due in 8 days", in a capsule in the tint of what it says | 2026-09-25 |
 
 What the guard cannot count is noted here on the same word:
 
@@ -679,6 +698,17 @@ What the guard cannot count is noted here on the same word:
   title says what it means. The Trace's
   masks are `#000`, which a mask reads only for its alpha, and its light
   is `--paper`.
+- **Law 16, the Calendar's colours.** `.hd-cal` declares his calendar's
+  colours as its own tokens, and no rule writes a colour literal: each
+  category — holidays his purple `#7c5ce0`, events his teal `#0f9488`,
+  admin his amber `#d9860f` — with its tint and its ink, his pale late
+  red `#fbe0db` with its ink `#a8202f`, the school holidays' grey and its
+  hatch, the holiday day's tint and the weekend's. A thing says its
+  category with `data-c`, never an inline colour. The late mark itself is
+  the page's one late red, and a hover and a choice are the app's own
+  tints, as on the list. `text-contrast` holds every pair that is text to
+  4.5:1 on the fill it stands on; the swatches, the bars' fills and the
+  year's dots are marks, and the filters beside them name what they mean.
 - **Law 18, motion tokens, and law 8, a tab's content appears.** The faces
   slide, in 280 ms rather than `--t-move`: "Calendar should slide across"
   (2026-09-25). Nothing slides under reduced motion, and nothing slides

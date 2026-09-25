@@ -22,6 +22,8 @@
    batch: `loadDesk` starts inside the batch as soon as that map is in, with
    `mineUuid` in its context, so only the new Home's own reads wait for it. */
 
+import { loadCompanyCalendar } from "@/lib/calendar/query";
+import type { CompanyCalendar } from "@/lib/calendar/items";
 import { listOrgCredentials, orgExpiryWindow } from "@/lib/org/query";
 import type { OrgCredential } from "@/lib/org/credentials";
 import type { ExpiryWindow } from "@/lib/expiry";
@@ -79,10 +81,15 @@ export type DeskData = {
       visits with no day — placed on screen beside what the page already
       holds (`placeHomeList`, ./home-list). */
   list: HomeListReads;
+  /** The Calendar face: the company's twelve months — public and school
+      holidays, events and shutdowns, the noticeboard's events, and the
+      renewals the viewer may see — on the workspace's day
+      (lib/calendar/query). */
+  calendar: CompanyCalendar;
 };
 
 export async function loadDesk(ctx: DeskContext): Promise<DeskData> {
   /* Each area's read joins here as a Promise.all over its own gates. */
-  const [list] = await Promise.all([loadHomeList(ctx)]);
-  return { warnDays: ctx.shared.expiry.warnDays, list };
+  const [list, calendar] = await Promise.all([loadHomeList(ctx), loadCompanyCalendar(ctx)]);
+  return { warnDays: ctx.shared.expiry.warnDays, list, calendar };
 }

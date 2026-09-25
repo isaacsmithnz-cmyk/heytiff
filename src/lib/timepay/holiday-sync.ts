@@ -24,12 +24,16 @@ export const ENSURE_MIN_AHEAD_DAYS = 548; // ~18 months
 /** A fill writes rules out to this many days ahead. */
 export const ENSURE_FILL_AHEAD_DAYS = 730; // ~24 months
 
+/** Tops the org's public holidays up when they run short. Resolves true when
+    it wrote a fill, so a reader that went ahead beside it (the Home
+    calendar, which does not wait on the guard) knows to read again; false
+    for the guard alone, which is almost every call. */
 export async function ensureHolidays(
   orgId: string,
   state: string | null,
   today: string,
-): Promise<void> {
-  if (!state) return;
+): Promise<boolean> {
+  if (!state) return false;
 
   // The guard: newest auto row for this org+state. Manual rows don't count —
   // one hand-entered date two years out shouldn't stop the statutory fill.
@@ -44,7 +48,7 @@ export async function ensureHolidays(
     .maybeSingle();
 
   const covered = newest ? String(newest.holiday_date).slice(0, 10) : null;
-  if (covered && covered >= addDays(today, ENSURE_MIN_AHEAD_DAYS)) return;
+  if (covered && covered >= addDays(today, ENSURE_MIN_AHEAD_DAYS)) return false;
 
   const fillTo = addDays(today, ENSURE_FILL_AHEAD_DAYS);
   const fromYear = Number(today.slice(0, 4));
@@ -73,9 +77,10 @@ export async function ensureHolidays(
       });
     }
   }
-  if (rows.length === 0) return;
+  if (rows.length === 0) return false;
 
   await supabaseAdmin
     .from("public_holidays")
     .upsert(rows, { onConflict: "org_id,state,holiday_date", ignoreDuplicates: true });
+  return true;
 }

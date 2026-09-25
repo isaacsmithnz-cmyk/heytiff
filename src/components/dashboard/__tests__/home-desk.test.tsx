@@ -8,14 +8,15 @@ import type { ScheduleBlock } from "@/lib/workboard/schedule";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { HomeListReads } from "@/lib/dashboard/home-list";
 import type { TaskDoneLine } from "@/lib/dashboard/task-done-query";
+import type { CompanyCalendar } from "@/lib/calendar/items";
 
 /* THE NEW HOME'S FRAME (H11): the date in the band, "Your day" on every
    face, ONE row of tabs that never moves, and a body that slides in tab
-   order. The faces hold today's diary, tasks and calendar for now; each has
-   its own suite, so this one is about the frame around them — and about the
-   doors between them and the one job card they share. The list beside
-   Diary and Tasks (H19) has its own suite too; here it is where it stands
-   and the doors it opens onto the faces.
+   order. The faces hold today's diary and tasks for now; each has its own
+   suite, so this one is about the frame around them — and about the doors
+   between them and the one job card they share. The list beside Diary and
+   Tasks (H19) and the Calendar (H21) have their own suites too; here each
+   is where it stands.
 
    The capture controls and the job card reach server actions, and "use
    server" modules cannot be imported into jsdom: stubbed, as on Home. */
@@ -53,8 +54,26 @@ jest.mock("@/app/actions/workboard-maintenance", () => ({
   placeVisit: jest.fn(),
   clearVisitPlacement: jest.fn(),
 }));
+jest.mock("@/app/actions/calendar", () => ({ addCalendarEvent: jest.fn() }));
+/* Tiff's box has its own suite; the Calendar's toolbar holds it. */
+jest.mock("@/components/tiff/modal/tiff-box", () => ({
+  TiffBox: ({ placeholder }: { placeholder: string }) => <input aria-label={placeholder} />,
+}));
 
 const TODAY = "2026-08-10";
+
+/** The Calendar's reads: the company's twelve months, with nothing on them. */
+const cal = (over: Partial<CompanyCalendar> = {}): CompanyCalendar => ({
+  today: TODAY,
+  windowStart: "2026-08-01",
+  windowEnd: "2027-07-31",
+  stateName: "NSW",
+  items: [],
+  warnDays: 30,
+  canAdd: true,
+  hasSchool: false,
+  ...over,
+});
 
 /** The list's own reads, as the loader hands them over: nothing won and
     nothing to book, so what the list holds is the page's tasks. */
@@ -165,7 +184,7 @@ const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   viewerStaffId: "s1",
   today: TODAY,
   rail: rail(),
-  desk: { warnDays: 30, list: reads() },
+  desk: { warnDays: 30, list: reads(), calendar: cal() },
   ...over,
 });
 
@@ -305,6 +324,25 @@ describe("the faces", () => {
     await user.click(tab("Diary"));
     expect(main()).not.toHaveAttribute("hidden");
     expect(shownFaces()).toEqual(["diary"]);
+  }, WHOLE);
+
+  /* The Calendar's box and its views are the Calendar's own toolbar, under
+     the tabs and inside the face that slides: never in the tabs' row, so
+     no face can move the tabs (Isaac, 2026-09-25). */
+  it("give the Calendar its own page, its toolbar under the tabs and never in their row", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(tab("Calendar"));
+    const page = face("calendar").querySelector(".hd-cal")!;
+    expect(page).not.toBeNull();
+    const views = within(face("calendar")).getByRole("group", { name: "View" });
+    expect(within(views).getByRole("button", { name: "4 weeks" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(face("calendar")).getByRole("textbox", { name: "Add to the calendar…" })).toBeInTheDocument();
+    const row = screen.getByRole("tablist", { name: "Home" });
+    expect(row.contains(views)).toBe(false);
+    expect(within(row).getAllByRole("tab")).toHaveLength(3);
+    // today's calendar face stands nowhere on the desk
+    expect(document.querySelector(".hm-cal, .hm-face.one")).toBeNull();
   }, WHOLE);
 
   it("put Diary and Tasks in the same column", () => {
@@ -474,7 +512,7 @@ describe("the list", () => {
     const user = userEvent.setup();
     render(
       <DashboardDesk
-        data={data({ desk: { warnDays: 30, list: reads({ wins: [{ job: mirror(), wonOn: TODAY }] }) } })}
+        data={data({ desk: { warnDays: 30, list: reads({ wins: [{ job: mirror(), wonOn: TODAY }] }), calendar: cal() } })}
       />,
     );
     await user.click(within(theList()).getByRole("button", { name: "Job 1042, Chatswood" }));

@@ -62,7 +62,8 @@ import { useDeskJobs } from "./home-job-sheet";
    A failed action puts its own words where the sub-line was.
 
    ROWS ARE MADE OF PARTS THE CALENDAR'S RAIL USES TOO: `ListGroup`,
-   `ListLine` and `ListDot`, exported below, in the `hd-ls-` dress. */
+   `ListLine` and `ListDot`, exported below, in the `hd-ls-` dress
+   (home-cal-rail.tsx: Due and Holidays ahead). */
 
 /** How long a row says "Done." (or "Resolved.", or "Booked for …") with
     Undo before it folds away. */
@@ -77,27 +78,37 @@ const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boo
 
 /* ── the parts the calendar's rail reuses ── */
 
-export type GroupTone = "late" | "today" | "";
+/** A group title's colour: the list's Late red and Today teal, and the
+    calendar rail's Due (the warning colour) and Holidays ahead (the
+    holidays' own ink, the calendar's token). */
+export type GroupTone = "late" | "today" | "due" | "hol" | "";
 
-/** A group: its title and count, and its rows as a list under them. */
+/** A group: its title and count, and its rows as a list under them. A
+    group that is a short list of what comes next rather than a tally —
+    the calendar's Holidays ahead — carries no count. */
 export function ListGroup({
   id,
   title,
-  count,
+  count = null,
   tone = "",
   children,
 }: {
   id: string;
   title: string;
-  count: number;
+  count?: number | null;
   tone?: GroupTone;
   children: ReactNode;
 }) {
   return (
     <section className="hd-ls-g" aria-labelledby={id}>
       <h2 className={cx("hd-ls-grp", tone)} id={id}>
-        {title}{" "}
-        <span className="hd-ls-n">{count}</span>
+        {title}
+        {count !== null && (
+          <>
+            {" "}
+            <span className="hd-ls-n">{count}</span>
+          </>
+        )}
       </h2>
       <ul className="hd-ls-rows">{children}</ul>
     </section>
@@ -110,13 +121,16 @@ export function ListDot({ dot }: { dot: Dot }) {
 }
 
 /** What a row's title does: follow a URL, or open something — a door
-    elsewhere, or what the row holds, in place (`expanded`). */
+    elsewhere, what the row holds, in place (`expanded`), or the one thing
+    a page has chosen (`pressed`: the calendar rail's row for the thing
+    the calendar has selected, filled as a selection is). */
 export type LineOpen =
   | { href: string }
   | {
       onOpen: (pointer: boolean, from: HTMLElement) => void;
       expanded?: boolean;
       controls?: string;
+      pressed?: boolean;
     };
 
 /* What a press on the row itself must leave alone: anything that is its
@@ -177,6 +191,7 @@ export function ListLine({
         <div
           className={cx("hd-ls-row", open && "opens", verb !== null && "has-vb", done && "done")}
           data-lit={lit ? "" : undefined}
+          data-pressed={open && "onOpen" in open && open.pressed ? "" : undefined}
           onClick={onRow}
         >
           <span className="hd-ls-lead">{lead}</span>
@@ -192,6 +207,7 @@ export function ListLine({
               className="hd-ls-t"
               aria-expanded={open.expanded}
               aria-controls={open.controls}
+              aria-pressed={open.pressed}
               onClick={(e) => open.onOpen(e.detail > 0, e.currentTarget)}
             >
               {title}

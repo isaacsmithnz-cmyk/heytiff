@@ -11,9 +11,10 @@
    batch but the desk's own, which gets the viewer's ServiceM8 person from
    it; and the day's new fields — connected, where, crew —
    carry the viewer's own jobs and nobody else's. The list's own reads (H19)
-   join the desk's batch, told whether the workspace has ServiceM8 at all.
-   Every other read is stubbed with an honest empty answer: they are their
-   own suites'. */
+   join the desk's batch, told whether the workspace has ServiceM8 at all,
+   and so do the Calendar's (H21), on the workspace's day and the page's
+   shared reads. Every other read is stubbed with an honest empty answer:
+   they are their own suites'. */
 
 jest.mock("@/lib/auth0", () => ({
   auth0: { getSession: jest.fn(async () => ({ orgId: "org-1", user: { sub: "auth0|me" } })) },
@@ -151,6 +152,20 @@ jest.mock("../task-done-query", () => ({
   myUnsentDones: (...a: unknown[]) => myUnsentDones(...a),
 }));
 
+/* The Calendar's reads are their own suite's too (lib/calendar/query). */
+const CAL = {
+  today: "2026-09-24",
+  windowStart: "2026-09-01",
+  windowEnd: "2027-08-31",
+  stateName: "NSW",
+  items: [],
+  warnDays: 45,
+  canAdd: true,
+  hasSchool: true,
+};
+const loadCompanyCalendar = jest.fn(async (_ctx: unknown) => CAL);
+jest.mock("@/lib/calendar/query", () => ({ loadCompanyCalendar: (ctx: unknown) => loadCompanyCalendar(ctx) }));
+
 /* The desk's own loader, watched but real. */
 jest.mock("../desk-data", () => {
   const actual = jest.requireActual("../desk-data");
@@ -203,11 +218,11 @@ describe("the new Home behind HOME_DESK", () => {
 
   it("is loaded for the owner on `owner`, and for everyone on `on`", async () => {
     process.env.HOME_DESK = "owner";
-    expect((await loadDashboard()).desk).toEqual({ warnDays: 45, list: LIST_READS });
+    expect((await loadDashboard()).desk).toEqual({ warnDays: 45, list: LIST_READS, calendar: CAL });
 
     process.env.HOME_DESK = "on";
     role = "staff";
-    expect((await loadDashboard()).desk).toEqual({ warnDays: 45, list: LIST_READS });
+    expect((await loadDashboard()).desk).toEqual({ warnDays: 45, list: LIST_READS, calendar: CAL });
     expect(loadDesk).toHaveBeenCalledTimes(2);
   });
 
@@ -244,7 +259,7 @@ describe("the new Home behind HOME_DESK", () => {
     expect(rail.linked).toBe(true);
     expect(rail.blocks.map((b) => b.key)).toEqual(["a1"]);
     if (flag) {
-      expect(desk).toEqual({ warnDays: 45, list: LIST_READS });
+      expect(desk).toEqual({ warnDays: 45, list: LIST_READS, calendar: CAL });
       expect(loadDesk).toHaveBeenCalledWith(expect.objectContaining({ mineUuid: "sm8-me" }));
     } else {
       expect(desk).toBeNull();
@@ -281,7 +296,7 @@ describe("the reads the chips and the desk share", () => {
     expect(orgExpiryWindow).toHaveBeenCalledTimes(1);
     expect(listOrgCredentials).toHaveBeenCalledTimes(1);
     expect(chipsInput()).toMatchObject({ warnDays: 45, orgCredentials: [CRED] });
-    expect(data.desk).toEqual({ warnDays: 45, list: LIST_READS });
+    expect(data.desk).toEqual({ warnDays: 45, list: LIST_READS, calendar: CAL });
     expect(loadDesk).toHaveBeenCalledWith(
       expect.objectContaining({ shared: { expiry: { warnDays: 45, email: true }, orgCredentials: [CRED] } })
     );
@@ -335,6 +350,46 @@ describe("the list's reads", () => {
     expect(loadHomeList).toHaveBeenCalledWith(
       expect.objectContaining({ connected: v.connected, orgId: "org-1", railDay: expect.any(String) }),
     );
+  });
+});
+
+describe("the Calendar's reads", () => {
+  it("are the desk's, and the crew on today's Home make none", async () => {
+    await loadDashboard();
+    expect(loadCompanyCalendar).not.toHaveBeenCalled();
+
+    process.env.HOME_DESK = "owner";
+    const { desk } = await loadDashboard();
+    expect(loadCompanyCalendar).toHaveBeenCalledTimes(1);
+    expect(desk?.calendar).toBe(CAL);
+  });
+
+  /* The calendar counts late on the workspace's day and draws the org's
+     papers from the page's own read of them, never a second one. */
+  it("are handed the workspace's day and the page's shared reads, and read neither again", async () => {
+    process.env.HOME_DESK = "owner";
+    await loadDashboard();
+    expect(loadCompanyCalendar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orgId: "org-1",
+        isOwner: true,
+        railDay: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        shared: { expiry: { warnDays: 45, email: true }, orgCredentials: [CRED] },
+      }),
+    );
+    expect(orgExpiryWindow).toHaveBeenCalledTimes(1);
+    expect(listOrgCredentials).toHaveBeenCalledTimes(1);
+  });
+
+  it("run beside the list's, not after them", async () => {
+    process.env.HOME_DESK = "owner";
+    const list = held<typeof LIST_READS>();
+    loadHomeList.mockImplementationOnce(() => list.promise);
+    const page = loadDashboard();
+    await settle();
+    expect(loadCompanyCalendar).toHaveBeenCalledTimes(1);
+    list.resolve(LIST_READS);
+    expect((await page).desk).toEqual({ warnDays: 45, list: LIST_READS, calendar: CAL });
   });
 });
 

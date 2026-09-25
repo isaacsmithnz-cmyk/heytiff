@@ -742,4 +742,206 @@ describe("the list's words clear 4.5:1 on every ground a row has", () => {
     const bg = ground ? decl(ground, "background") : WHITE;
     expect(+ratio(decl(text, "color"), bg).toFixed(2)).toBeGreaterThanOrEqual(4.5);
   });
+
+  /* The calendar rail's row for the chosen thing (H21) stands on its own
+     fill for as long as it is chosen: what a row says is held there too. */
+  it.each([
+    ["a sub-line", ".fg .hd-ls-sub"],
+    ["a late sub-line", ".fg .hd-ls-sub.late"],
+    ["a title", ".fg .hd-ls-t"],
+  ])("%s, on the calendar rail's chosen row", (_label, sel) => {
+    expect(short(decl(sel, "color"), { chosen: decl(".fg .hd-ls-row[data-pressed]", "background") })).toEqual([]);
+  });
+});
+
+/* ===== The Calendar (.hd-cal-*, H21) =====
+
+   His calendar's colours are its own tokens, declared once on `.hd-cal` (a
+   named exemption, law 16), and every word it sets lands on one of a few
+   fills: paper, the app's hover and selection tints, the weekend's and a
+   holiday's day, his category tints, and the school holidays' hatch, which
+   is read as both its stripes. Every pair is read off the sheet, a tint
+   laid over what it stands on, so a retuned token or a swapped
+   declaration re-checks it. */
+describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
+  const code = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  const calToken = (name: string): string => {
+    const block = code.match(/(?:^|\})\s*\.fg \.hd-cal \{([^}]*)\}/);
+    if (!block) throw new Error(".fg .hd-cal declares no tokens");
+    const m = block[1]!.match(new RegExp(`--${name} *: *([^;]+);`));
+    return m ? m[1]!.trim() : token(name);
+  };
+  /** A value as the colour it paints on `under`: a token, a hex, or a tint. */
+  const colour = (v: string, under: number[] = WHITE): number[] => {
+    const alias = v.match(/^var\(--([a-z0-9-]+)\)$/i);
+    const value = alias ? calToken(alias[1]!) : v;
+    const deeper = value.match(/^var\(--([a-z0-9-]+)\)$/i);
+    if (deeper) return colour(value, under);
+    const tint = value.match(/^rgba\((\d+), *(\d+), *(\d+), *([\d.]+)\)$/);
+    if (tint) return over([Number(tint[1]), Number(tint[2]), Number(tint[3])], Number(tint[4]), under);
+    if (value.toLowerCase() === "#fff") return WHITE;
+    if (!/^#[0-9a-f]{6}$/i.test(value)) throw new Error(`not a colour this test reads: ${value}`);
+    return hex(value);
+  };
+  const decl = (sel: string, prop: string): string => {
+    for (const m of code.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!m[1]!.split(",").map((s) => s.trim()).includes(sel)) continue;
+      const d = m[2]!.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`));
+      if (d) return d[1]!.trim();
+    }
+    throw new Error(`no ${prop} on "${sel}"`);
+  };
+  const ink = (sel: string, under?: number[]) => colour(decl(sel, "color"), under);
+  const fill = (sel: string, under?: number[]) => colour(decl(sel, "background"), under);
+  /** Both stripes of his hatch. */
+  const hatch = (): number[][] => [...new Set(calToken("hd-cal-hatch").match(/#[0-9a-f]{6}/gi) ?? [])].map(hex);
+  const PAPER = WHITE;
+  const HOVER = () => colour("var(--tint)");
+  const CHOSEN = () => colour("var(--tint-2)");
+  const lowest = (text: number[], grounds: number[][]) => Math.min(...grounds.map((g) => +ratio(text, g).toFixed(2)));
+
+  it("reads its tokens at all: the hatch's two stripes and his three categories", () => {
+    expect(hatch()).toHaveLength(2);
+    for (const name of ["hd-cal-hol", "hd-cal-ev", "hd-cal-adm"]) expect(calToken(name)).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  it.each([
+    ["a thing's title", ".fg .hd-cal-itt"],
+    ["a holiday's title", '.fg .hd-cal-itt[data-c="hol"]'],
+    ["the school holidays' title", '.fg .hd-cal-itt[data-c="school"]'],
+    ["a thing's line", ".fg .hd-cal-s"],
+    ["an event's time", ".fg .hd-cal-tm"],
+  ])("4 weeks: %s, at rest, under the pointer, chosen, just saved and on a holiday's day", (_label, sel) => {
+    const day = fill(".fg .hd-cal-r[data-holiday]");
+    const grounds = [
+      PAPER,
+      HOVER(),
+      CHOSEN(),
+      fill(".fg .hd-cal-it[data-fresh]"),
+      day,
+      colour("var(--tint)", day),
+      colour("var(--tint-2)", day),
+    ];
+    expect(lowest(ink(sel), grounds)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([
+    ["a week's dates", ".fg .hd-cal-wkr", () => [PAPER]],
+    ["a weekday", ".fg .hd-cal-dw", () => [PAPER, fill(".fg .hd-cal-r[data-holiday]")]],
+    ["a weekend's date", ".fg .hd-cal-r[data-weekend] .hd-cal-dn", () => [PAPER]],
+    ["a holiday's date", ".fg .hd-cal-r[data-holiday] .hd-cal-dn", () => [fill(".fg .hd-cal-r[data-holiday]")]],
+    ["Today", ".fg .hd-cal-tl", () => [PAPER]],
+    ["a quiet run's days", '.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-d', () => [PAPER]],
+    ["a quiet run", '.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-c', () => [PAPER]],
+    ["a long weekend", '.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-c[data-long]', () => [PAPER]],
+    ["Nothing on today", ".fg .hd-cal-none", () => [PAPER]],
+    ["an admin date's action", ".fg .hd-cal-ab", () => [fill(".fg .hd-cal-ab"), HOVER()]],
+    ["his span tag", ".fg .hd-cal-tag", () => [fill(".fg .hd-cal-tag")]],
+    ["his span tag for the school holidays", '.fg .hd-cal-tag[data-kind="school"]', hatch],
+    ["the rail's Due", ".fg .hd-ls-grp.due", () => [PAPER]],
+    ["the rail's Holidays ahead", ".fg .hd-ls-grp.hol", () => [PAPER]],
+    ["how far away, on the rail", ".fg .hd-cal-away", () => [PAPER, HOVER(), CHOSEN()]],
+    ["the range in view", ".fg .hd-cal-rt", () => [PAPER]],
+    ["Today, and Today resting", ".fg .hd-cal-today", () => [PAPER, HOVER()]],
+    ["Today resting", '.fg .hd-cal-today[aria-disabled="true"]', () => [PAPER]],
+    ["a filter", ".fg .hd-cal-filter", () => [PAPER, HOVER()]],
+    ["a filter turned off", '.fg .hd-cal-filter[aria-pressed="false"]', () => [HOVER()]],
+    ["a filter's count, on and off", ".fg .hd-cal-n", () => [PAPER, HOVER()]],
+    ["a view's word, on the tray", ".fg .hd-cal-vb", () => [fill(".fg .hd-cal-vs")]],
+    ["the chosen view, on its seat", '.fg .hd-cal-vb[aria-pressed="true"]', () => [fill('.fg .hd-cal-vb[aria-pressed="true"]')]],
+  ])("%s", (_label, sel, grounds) => {
+    expect(lowest(ink(sel), grounds())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([
+    ["a weekday's head", ".fg .hd-cal-mh span", () => [PAPER]],
+    ["a date", ".fg .hd-cal-dr", () => [PAPER]],
+    ["a weekend's date", ".fg .hd-cal-mc[data-weekend] .hd-cal-drn", () => [fill(".fg .hd-cal-mc[data-weekend]")]],
+    ["a date in another month", ".fg .hd-cal-mc[data-out] .hd-cal-drn", () => [PAPER, fill(".fg .hd-cal-mc[data-weekend]")]],
+    [
+      "a holiday's date, at rest, under the pointer and chosen",
+      ".fg .hd-cal-mc[data-holiday] .hd-cal-drn",
+      () => [
+        fill(".fg .hd-cal-mc[data-holiday]"),
+        fill(".fg button.hd-cal-dr:hover"),
+        fill('.fg button.hd-cal-dr[aria-pressed="true"]'),
+      ],
+    ],
+    [
+      "a holiday's name",
+      '.fg .hd-cal-drm[data-kind="holiday"]',
+      () => [
+        fill(".fg .hd-cal-mc[data-holiday]"),
+        fill(".fg button.hd-cal-dr:hover"),
+        fill('.fg button.hd-cal-dr[aria-pressed="true"]'),
+      ],
+    ],
+    ["the month's name", ".fg .hd-cal-drm", () => [PAPER, fill(".fg .hd-cal-mc[data-weekend]")]],
+    ["Today, in its cell", '.fg .hd-cal-drm[data-kind="today"]', () => [PAPER, fill(".fg .hd-cal-mc[data-weekend]")]],
+    ["an event's bar", ".fg .hd-cal-bar", () => [fill(".fg .hd-cal-bar")]],
+    ["the school holidays' bar", '.fg .hd-cal-bar[data-kind="school"]', hatch],
+  ])("Month: %s", (_label, sel, grounds) => {
+    expect(lowest(ink(sel), grounds())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /* A thing in a day cell stands on its cell (paper or the weekend's) with
+     the pointer's tint over it, or on the tint of what it is once chosen. */
+  it.each([
+    ["its title", ".fg .hd-cal-mi"],
+    ["its time or its plate", ".fg .hd-cal-mtm"],
+  ])("Month: a thing's %s, on every ground it has", (_label, sel) => {
+    const we = fill(".fg .hd-cal-mc[data-weekend]");
+    const grounds = [
+      PAPER,
+      we,
+      colour("var(--tint-2)", PAPER),
+      colour("var(--tint-2)", we),
+      fill('.fg .hd-cal-mi[aria-pressed="true"]'),
+      fill('.fg .hd-cal-mi[aria-pressed="true"][data-c="admin"]'),
+      fill('.fg .hd-cal-mi[aria-pressed="true"][data-late]'),
+      fill(".fg .hd-cal-mi[data-fresh]"),
+    ];
+    expect(lowest(ink(sel), grounds)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([
+    ["a month's name", ".fg .hd-cal-ymt", () => [PAPER]],
+    ["a month gone by", ".fg .hd-cal-ymt[data-past]", () => [PAPER]],
+    ["a month's holidays", ".fg .hd-cal-ymn", () => [PAPER]],
+    ["a day's letter", ".fg .hd-cal-ydl", () => [PAPER]],
+    ["a day", ".fg .hd-cal-yc", () => [PAPER]],
+    ["a weekend day, and a day gone by", ".fg .hd-cal-yc[data-past]", () => [PAPER]],
+    ["a day in the school holidays gone by", '.fg .hd-cal-yc[data-fill="school"][data-past]', hatch],
+    ["a day in a shutdown", '.fg .hd-cal-yc[data-fill="shutdown"]', () => [fill('.fg .hd-cal-yc[data-fill="shutdown"]')]],
+    ["a public holiday", '.fg .hd-cal-yc[data-fill="holiday"]', () => [fill('.fg .hd-cal-yc[data-fill="holiday"]')]],
+    ["a line of the key", ".fg .hd-cal-ki", () => [PAPER]],
+  ])("Year: %s", (_label, sel, grounds) => {
+    expect(lowest(ink(sel), grounds())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /* A quiet day (gone by, or a weekend) in the school holidays is read in
+     his body grey, because the quiet grey falls short on the hatch's darker
+     stripe. */
+  it("proves the quiet grey could not stand on the hatch's darker stripe", () => {
+    expect(lowest(colour("var(--q)"), hatch())).toBeLessThan(4.5);
+    expect(lowest(colour("var(--hd-body)"), hatch())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([
+    ["an event's kicker", ".fg .hd-cal-k", () => [PAPER]],
+    ["a holiday's kicker", '.fg .hd-cal-dx[data-c="hol"] .hd-cal-k', () => [PAPER]],
+    ["an admin date's kicker", '.fg .hd-cal-dx[data-c="admin"] .hd-cal-k', () => [PAPER]],
+    ["a late one's kicker", ".fg .hd-cal-dx[data-late] .hd-cal-k", () => [PAPER]],
+    ["the school holidays' kicker", '.fg .hd-cal-dx[data-c="school"] .hd-cal-k', () => [PAPER]],
+    ["when", ".fg .hd-cal-w", () => [PAPER]],
+    ["his capsule, for an event", ".fg .hd-cal-chip", () => [fill(".fg .hd-cal-chip")]],
+    ["his capsule, for a holiday", '.fg .hd-cal-chip[data-c="hol"]', () => [fill('.fg .hd-cal-chip[data-c="hol"]')]],
+    ["his capsule, due", '.fg .hd-cal-chip[data-tone="due"]', () => [fill('.fg .hd-cal-chip[data-tone="due"]')]],
+    ["his capsule, late", '.fg .hd-cal-chip[data-tone="late"]', () => [fill('.fg .hd-cal-chip[data-tone="late"]')]],
+    ["his capsule, school", '.fg .hd-cal-chip[data-tone="school"]', () => [fill('.fg .hd-cal-chip[data-tone="school"]')]],
+    ["a fact's label", ".fg .hd-cal-facts dt", () => [PAPER]],
+    ["the action, paper on his ink", ".fg .hd-cal-go", () => [fill(".fg .hd-cal-go")]],
+  ])("the panel: %s", (_label, sel, grounds) => {
+    expect(lowest(ink(sel), grounds())).toBeGreaterThanOrEqual(4.5);
+  });
 });

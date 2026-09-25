@@ -8647,7 +8647,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .fg .tm-turn.past .tm-tt { color:var(--q); }
 /* YOUR WORDS WHILE YOU SAY THEM: free on the modal, large, arriving word by
    word (the capture card's glide). Click into them to fix a word. */
-.fg .tm-turn.live .tm-tt { min-height:28px; font-size:20px; line-height:1.4; }
+.fg .tm-turn.live .tm-tt, .fg .tm-turn.live .tm-words { min-height:28px; font-size:20px; line-height:1.4; }
 .fg .tm-words { cursor:text; border-radius:var(--r-control); outline:none; }
 .fg .tm-fix { display:block; width:100%; padding:0; border:0; outline:none; resize:none; overflow:hidden;
   background:none; font-family:inherit; color:var(--ink); caret-color:var(--ink); }

@@ -191,7 +191,7 @@ export function TiffModal({
             {c.aimed && c.targetLabel && (
               <button
                 type="button"
-                className="tm-tagx"
+                className="tm-aimx"
                 aria-label={`Clear the tag — not about ${c.targetLabel}`}
                 onClick={c.dropAim}
               >
@@ -551,7 +551,7 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: () => void }) {
           ) : c.voiceEnabled ? (
             <button
               type="button"
-              className="tiffbtn tiffbtn-sheet tm-talk"
+              className="tiffbtn tiffbtn-sheet"
               aria-label="Talk to Tiff"
               style={{ "--tiffbtn-mask": MARK_MASK } as CSSProperties}
               onClick={(e) => c.talk(e.currentTarget)}

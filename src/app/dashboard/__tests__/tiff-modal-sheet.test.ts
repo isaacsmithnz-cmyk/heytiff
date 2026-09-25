@@ -98,6 +98,21 @@ describe("its words are readable", () => {
   });
 });
 
+describe("the view and the sheet agree", () => {
+  /* A class the view names and no rule styles is a control drawn as the
+     browser's default — the kind of slip only a rendered page shows. */
+  it("styles every .tm- class the modal names", () => {
+    const view = fs.readFileSync(path.join(process.cwd(), "src/components/tiff/modal/tiff-modal.tsx"), "utf8");
+    const named = new Set([...view.matchAll(/["` ](tm-[a-z-]+)/g)].map((m) => m[1]!));
+    expect(named.size).toBeGreaterThan(10);
+    for (const cls of named) expect(`${cls}: ${new RegExp(`\\.${cls}(?![a-z-])`).test(CSS)}`).toBe(`${cls}: true`);
+  });
+
+  it("gives the live words the live type on the element the settle reads", () => {
+    expect(rules.some(([sel, b]) => sel.includes(".tm-turn.live .tm-words") && /font-size:20px/.test(b))).toBe(true);
+  });
+});
+
 describe("the dots leave the button", () => {
   it("may leave the modal and its face while they gather", () => {
     const opened = rules.filter(([sel, b]) => /overflow:visible/.test(b) && /dotf\[data-stage="gather"\]/.test(sel));

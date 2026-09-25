@@ -154,7 +154,7 @@ const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
 const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   chips: { self: [], team: [] },
   calendar: { spanStart: "2026-08-03", spanEnd: "2026-11-01", days: [] },
-  tasks: { mine: [], team: null, done: [], reported: [] },
+  tasks: { mine: [], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
   notices: [],
   journal: [],
   assignable: [],
@@ -331,6 +331,7 @@ describe("the one door between faces", () => {
         team: null,
         done: [],
         reported: [],
+        sm8: { lines: {}, sender: null },
       },
     });
 
@@ -371,6 +372,7 @@ describe("the list", () => {
         team: null,
         done: [],
         reported: [],
+        sm8: { lines: {}, sender: null },
       },
       ...over,
     });
@@ -674,7 +676,7 @@ describe("the slide", () => {
           journal: [
             entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
           ],
-          tasks: { mine: [task()], team: null, done: [], reported: [] },
+          tasks: { mine: [task()], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
         })}
       />,
     );

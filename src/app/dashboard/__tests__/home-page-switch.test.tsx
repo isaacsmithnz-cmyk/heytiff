@@ -28,7 +28,7 @@ const loaded = (desk: { warnDays: number } | null) => ({
 
 it("draws the desk for a viewer the loader gave the new Home's data", async () => {
   loadDashboard.mockResolvedValueOnce(loaded({ warnDays: 30 }));
-  render(await DashboardHomePage());
+  render(await DashboardHomePage({ searchParams: Promise.resolve({}) }));
   expect(screen.getByText("the desk")).toBeInTheDocument();
   expect(screen.queryByText("today's Home")).toBeNull();
   expect(screen.getByTestId("scope")).toHaveTextContent("Dane");
@@ -36,7 +36,7 @@ it("draws the desk for a viewer the loader gave the new Home's data", async () =
 
 it("keeps everyone else on today's Home", async () => {
   loadDashboard.mockResolvedValueOnce(loaded(null));
-  render(await DashboardHomePage());
+  render(await DashboardHomePage({ searchParams: Promise.resolve({}) }));
   expect(screen.getByText("today's Home")).toBeInTheDocument();
   expect(screen.queryByText("the desk")).toBeNull();
   expect(screen.getByTestId("scope")).toHaveTextContent("Dane");

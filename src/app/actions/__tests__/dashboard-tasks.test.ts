@@ -51,7 +51,11 @@ const table = (name: string) => {
       write.eq[col] = val;
       return done;
     };
-    done.then = (res: (v: { error: null }) => unknown) => Promise.resolve({ error: null }).then(res);
+    /* A tick and a Reopen are conditional (one tick wins) and read back the
+       row they changed: the row asked about, which is there to change. */
+    done.select = () => done;
+    done.then = (res: (v: { data: unknown; error: null }) => unknown) =>
+      Promise.resolve({ data: [{ id: write.eq.id }], error: null }).then(res);
     return done;
   };
   return chain;
@@ -263,7 +267,13 @@ describe("every task read and write stays inside the caller's workspace", () => 
     expect(taskReads.length).toBeGreaterThan(0);
     expect(taskWrites.length).toBeGreaterThan(0);
     for (const r of taskReads) expect(r.eq).toEqual({ org_id: "org-1", id: "t1" });
-    for (const w of taskWrites) expect(w.eq).toEqual({ org_id: "org-1", id: "t1" });
+    /* a tick and a Reopen also name the status they change from (one tick
+       wins, two-way phase 2): a filter that only narrows the write */
+    for (const w of taskWrites) {
+      const { status, ...scope } = w.eq;
+      expect(scope).toEqual({ org_id: "org-1", id: "t1" });
+      expect([undefined, "open", "done"]).toContain(status);
+    }
   });
 });
 

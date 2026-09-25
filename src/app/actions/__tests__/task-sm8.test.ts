@@ -240,9 +240,10 @@ describe("on a deployment that sends files only (production today)", () => {
   it("(F) 10. a hand tick is the one read and one write it always was, and the Done actions answer before their first read", async () => {
     doneCalls.send = doneCalls.takeBack = 0;
     expect(await tick()).toEqual({ ok: true });
-    // the tick never even asks for a Done where notes aren't sent
+    // the tick never even asks for a Done where notes aren't sent: its read,
+    // its write and the history line every tick leaves (task-events)
     expect(doneCalls.send).toBe(0);
-    expect(fake.log.map((s) => `${s.table}:${s.op}`)).toEqual(["tasks:select", "tasks:update"]);
+    expect(fake.log.map((s) => `${s.table}:${s.op}`)).toEqual(["tasks:select", "tasks:update", "task_events:insert"]);
     expect(task().status).toBe("done");
     expect(notes()).toHaveLength(0);
     expect(writes()).toHaveLength(0);
@@ -259,7 +260,7 @@ describe("on a deployment that sends files only (production today)", () => {
     // a Reopen with the flag is the one read and one write too
     doneCalls.send = doneCalls.takeBack = 0;
     expect(await reopen()).toEqual({ ok: true });
-    expect(fake.log.map((s) => `${s.table}:${s.op}`)).toEqual(["tasks:select", "tasks:update"]);
+    expect(fake.log.map((s) => `${s.table}:${s.op}`)).toEqual(["tasks:select", "tasks:update", "task_events:insert"]);
     expect(doneCalls.takeBack).toBe(0);
     expect(postSm8Note).not.toHaveBeenCalled();
   });
@@ -925,6 +926,8 @@ describe("the bell, for the one whose tick it was", () => {
       subject: "Order the grilles",
       href: `/dashboard?task=${TASK}`,
       urgency: expect.any(Number),
+      due: null,
+      ref: null,
     });
     expect(sm8DoneChip({ taskId: TASK, title: "x", op: "take_back" }).label).toBe(NOTE_WORDS.bell.doneStillIn);
     expect(sm8DoneChip({ taskId: TASK, title: "x", op: "check" }).label).toBe(NOTE_WORDS.bell.doneUnsure);

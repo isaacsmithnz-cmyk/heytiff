@@ -847,6 +847,9 @@ export function sm8DoneChip(done: { taskId: string; title: string; op: "post" | 
     subject: done.title,
     href: `/dashboard?task=${encodeURIComponent(done.taskId)}`,
     urgency: urgency("bad", 0),
+    // a press that didn't go has no day to fall due on, and is no record's
+    due: null,
+    ref: null,
   };
 }
 

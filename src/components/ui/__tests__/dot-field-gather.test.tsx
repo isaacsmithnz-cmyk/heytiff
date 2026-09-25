@@ -10,8 +10,8 @@ import { DotField, GATHER_MS } from "../dot-field";
    part that decides WHETHER it happens and WHEN it stops, and both of those
    are the kind of thing that breaks without anything throwing: a gather that
    never ends leaves the mark permanently mid-flight, and a gather that fires
-   on every surface makes the debrief card grow a chevron flying in from a
-   button that is not on the screen.
+   on every surface makes the diary's entry card grow a chevron flying in
+   from a button that is not on the screen.
 
    `from` IS THE WHOLE SWITCH. It is the pressed button's offset, so its
    presence is the same question as "did a button open this" — which is why
@@ -50,8 +50,8 @@ it("hands over to the resting mark once the last dot is seated", () => {
   expect(f.stage()).toBe("mark");
 });
 
-/* Every surface that has no button to have flown out of: the debrief card,
-   the note postures, a field's nudge. They get the mark as it always was. */
+/* Every surface that has no button to have flown out of: the entry card, the
+   note postures, a field's nudge. They get the mark as it always was. */
 it("does not fly in where there is no button", () => {
   const f = mount(null);
   expect(f.stage()).toBe("mark");

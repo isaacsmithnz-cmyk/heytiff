@@ -40,8 +40,7 @@ export type Stage =
   | "review"
   | "answer";
 
-export function useNoteFlow(opts: { debrief?: boolean } = {}) {
-  const debrief = opts.debrief === true;
+export function useNoteFlow() {
   const router = useRouter();
   const scope = useNoteScope();
   const [busy, start] = useTransition();
@@ -194,7 +193,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
       setChoice("type");
       markRouting();
       start(async () => {
-        const res = await routeNote({ transcript, target, source, debrief });
+        const res = await routeNote({ transcript, target, source });
         if (!res.ok) {
           setError(res.error);
           clearRun();
@@ -208,14 +207,12 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
         setDraft(toDraft(res.proposal));
       });
     },
-    [target, router, debrief]
+    [target, router]
   );
 
   /* WHERE A SUBMIT DECIDES WHAT IT IS. One branch, used by both the typed
      submit and the voice transcript, so the two ways in can never disagree
-     about what a question looks like. A debrief never asks — it is capture
-     by definition, and "what's left at Meridian" inside a braindump is a
-     note line, not a conversation. The bias in `looksLikeQuestion` runs
+     about what a question looks like. The bias in `looksLikeQuestion` runs
      hard toward note, because a note eaten by the answer path saves
      nothing, while a question on the review card is one Discard away. */
   const submit = useCallback(
@@ -225,10 +222,10 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
          button press, so a caller saying "text" would be reporting how the
          commit happened rather than how the words arrived — and the only
          thing that knows the latter is this hook. */
-      if (!debrief && looksLikeQuestion(words)) ask(words);
+      if (looksLikeQuestion(words)) ask(words);
       else read(spoke ? "voice" : "text", words);
     },
-    [debrief, ask, read, spoke]
+    [ask, read, spoke]
   );
 
   /* THE CEILING IS NOT A DECISION.
@@ -237,9 +234,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
      transcript goes straight to routing. The two-minute cap looks identical
      to the engine and means the opposite: the person was mid-sentence and
      the clock ran out. Routing there would file half a note and drop them on
-     a review card for a thought they had not finished — worst of all on the
-     debrief, which is a whole day's braindump and the single most likely
-     recording to run long.
+     a review card for a thought they had not finished.
 
      So a capped transcript is KEPT AND HELD: appended to the box, nothing
      routed, mic ready. Press it again and carry on; the words accumulate
@@ -342,11 +337,11 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
                capture never goes back to it — a silent mis-tap handed over to
                the keyboard lands on the BOX, not on the question again.
 
-               Three surfaces skip it, and for the same reason each time: there
-               is nothing to ask. A deployment that cannot hear has one way in;
-               a debrief is typed at its own button; and a field's nudge opens
-               this sheet with the words already in it. */
-            : choice === null && scope.voiceEnabled && !debrief
+               Two surfaces skip it, and for the same reason each time: there
+               is nothing to ask. A deployment that cannot hear has one way in,
+               and a field's nudge opens this sheet with the words already in
+               it. */
+            : choice === null && scope.voiceEnabled
               ? "door"
               : "idle";
 
@@ -468,7 +463,6 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     dict,
     stage,
     busy,
-    debrief,
     open,
     setOpen,
     text,

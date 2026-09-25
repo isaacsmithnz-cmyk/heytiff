@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ViewTab } from "@/components/shell/view-tabs";
 
-/* THE RAIL — the four faces of Home, down the left of the card.
+/* THE RAIL — the three faces of Home, down the left of the card.
 
    The faces were a strip of tabs across the card's top (the board's own
    strip, borrowed). The three-room handoff (2026-09-14) stands them in a
@@ -16,7 +16,7 @@ import type { ViewTab } from "@/components/shell/view-tabs";
    and the fill is the only thing that says which room you are in.
 
    THE FACTS ON IT ARE THE TAB MODEL'S. `homeTabs()` decides the keys, the
-   count, its tone and the debrief's dot; this component only draws them.
+   count and its tone; this component only draws them.
    The count is absent at zero (a grey nought is noise), red when it counts
    what is past its date, and its meaning is said in words for anyone who
    cannot see the colour.
@@ -87,10 +87,6 @@ export function HomeRailNav({
                 >
                   {count}
                 </span>
-              )}
-              {count === 0 && t.dot && (
-                /* NOT a count — a state. The debrief is had or it isn't. */
-                <span className="hm-rldot" role="img" aria-label={t.dotLabel} />
               )}
             </button>
           );

@@ -133,9 +133,9 @@ describe("dictating a question", () => {
 
   /* THE BAR HANDS ITS SPACE TO THE SHARED CARD. What used to be a stop ■ and
      a discard × crammed into the composer is now the same recording card the
-     Tiff button's sheet and the debrief show — so what these assert is that
-     the ask bar gives way to it, and that the three ways out of a recording
-     are the card's three, not a second set invented here. */
+     Tiff button's sheet and the diary's entry card show — so what these
+     assert is that the ask bar gives way to it, and that the three ways out
+     of a recording are the card's three, not a second set invented here. */
   it("gives the bar over to the recording card, with the card's three ways out", async () => {
     const user = userEvent.setup();
     render(<TiffAssistant voiceEnabled />);

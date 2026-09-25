@@ -44,7 +44,7 @@ import { sniff } from "@/lib/notes/sniff";
    THE MIC IS ALWAYS AN ENHANCEMENT. No key, no permission, no MediaRecorder —
    every posture is still a control you can type into. */
 
-export type Posture = "strip" | "field" | "line" | "debrief" | "entry";
+export type Posture = "strip" | "field" | "line" | "entry";
 
 /* ── the surface: ribbon + whatever the stage calls for ── */
 
@@ -87,17 +87,13 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
                 ? "Check it before it saves"
                 : stage === "sorting"
                   ? "Sorting it out"
-                  : flow.debrief
-                    ? "Debrief"
-                    : /* The button's own words, not "Add a note" — every
-                         posture routes questions as readily as notes, and
-                         the title was the last thing still claiming
-                         otherwise. */
-                      "Ask or tell Tiff"}
+                  : /* The button's own words, not "Add a note" — every
+                       posture routes questions as readily as notes, and
+                       the title was the last thing still claiming
+                       otherwise. */
+                    "Ask or tell Tiff"}
       </b>
-      {flow.debrief ? (
-        <span className="wb2-chip">Tasks, knowledge &amp; your notes</span>
-      ) : flow.targetLabel ? (
+      {flow.targetLabel ? (
         /* THE TAG. What the screen underneath handed up, and the note lands
            on it — but standing on a job card is not the same as talking about
            that job, so it comes off. Dropping it is a per-capture thing; the
@@ -367,9 +363,9 @@ function StageBody({ flow }: { flow: NoteFlow }) {
        made this the only place it existed and the reason Tiff's ask bar grew
        a different one: a second mic in a different file had nothing to reuse.
        It lives in ./recording-card now — content, not container — so the
-       sheet, the debrief and Tiff's composer render one component and cannot
-       drift apart. Isaac's rule: the input section is identical throughout;
-       only where it stands changes. */
+       sheet, the diary's entry row and Tiff's composer render one component
+       and cannot drift apart. Isaac's rule: the input section is identical
+       throughout; only where it stands changes. */
     return <RecordingCard dict={flow.dict} text={flow.text} />;
   }
 
@@ -429,19 +425,10 @@ function StageBody({ flow }: { flow: NoteFlow }) {
         <textarea
           ref={textRef}
           className="wb2-notes"
-          rows={flow.debrief ? 6 : 3}
+          rows={3}
           value={flow.text}
           onChange={(e) => flow.setText(e.target.value)}
-          placeholder={
-            flow.debrief
-              /* "It gets sorted; nothing is lost" used to close this. The
-                 first half is the machinery and the second is a promise
-                 nobody had asked for a reason to doubt — the same sales
-                 voice Isaac cut from the button above ("tag line is
-                 cheesy"). What is left is the invitation. */
-              ? "What happened today?"
-              : "Tell Luke he needs to order the grilles… or ask: what's outstanding here?"
-          }
+          placeholder="Tell Luke he needs to order the grilles… or ask: what's outstanding here?"
           disabled={flow.busy}
         />
         {/* The ceiling, explained where it happened. Nothing was lost and
@@ -553,11 +540,8 @@ function Review({ flow }: { flow: NoteFlow }) {
       <ReviewRows draft={draft} staff={note.staff} patch={flow.patch} dayStart={note.dayStart} />
 
       <Cascade
-        /* A debrief used to pass null unconditionally, because it could not
-           name a job at all. It can now, so when one is picked the cascade
-           says so — that line is the only confirmation the pin took. With
-           none picked a debrief still says nothing here, which is its normal
-           case rather than a gap. */
+        /* When a job is picked the cascade says so — that line is the only
+           confirmation the pin took. */
         jobLabel={flow.targetLabel ?? (flow.chosenJob ? describeJob(flow.chosenJob) : null)}
         taskCount={draft.tasks.filter((t) => t.on && t.title.trim() && t.assigneeId).length}
         kbCount={draft.kbEntries.filter((k) => k.on && k.title.trim() && k.body.trim()).length}
@@ -574,10 +558,7 @@ function Review({ flow }: { flow: NoteFlow }) {
       ))}
 
       <div className="wb2-capact">
-        {/* A debrief's Save already files its leftovers as the grouped note,
-            so a second "keep it" door would file the transcript TWICE. Untick
-            everything else and Save IS "just keep my notes". */}
-        {flow.debrief ? null : flow.hasTarget ? (
+        {flow.hasTarget ? (
           <button
             className="pbtn ghost"
             onClick={flow.keepOnJob}
@@ -620,23 +601,13 @@ function JobLine({ flow }: { flow: NoteFlow }) {
   if (!flow.note || flow.targetLabel || flow.scope.jobs.length === 0) return null;
   return (
     <>
-      {/* THE DEBRIEF GETS THIS TOO NOW (Isaac, 2026-08-13: "in this particular
-          voice note, I mentioned a job, but I couldn't find one"). It used to
-          return null here, on the argument that a debrief spans jobs and
-          pinning the whole thing to one would un-say that. True of a debrief
-          that never named a job — and no help at all to one that named a job
-          the matcher could not resolve, which said "No job named" and offered
-          nothing to do about it.
-
-          WHAT CHANGES IS THE TONE, not the control. Naming no job is the
-          NORMAL case for a debrief, not a problem, so it takes the note glyph
-          and a plain statement; on every other posture a note that landed
-          against nothing is a thing to fix, and keeps its alert. */}
+      {/* A note that named a job the matcher could not resolve used to say
+          "No job named" and offer nothing to do about it (Isaac, 2026-08-13:
+          "in this particular voice note, I mentioned a job, but I couldn't
+          find one"). A note that landed against nothing is a thing to fix,
+          so it keeps its alert, and the picker is on the same line. */}
       <div className={"wb2-capjob" + (flow.chosenJob ? " on" : "")}>
-        <Icon
-          name={flow.chosenJob ? "check" : flow.debrief ? "note" : "alert"}
-          size={14}
-        />
+        <Icon name={flow.chosenJob ? "check" : "alert"} size={14} />
         <span>
           {flow.chosenJob ? (
             <>
@@ -644,8 +615,6 @@ function JobLine({ flow }: { flow: NoteFlow }) {
             </>
           ) : flow.guess.ambiguous ? (
             "More than one job matches what you said."
-          ) : flow.debrief ? (
-            "Not about one job — say which, if it was."
           ) : (
             "No job named — it'll go to your own notes."
           )}
@@ -673,67 +642,43 @@ function JobLine({ flow }: { flow: NoteFlow }) {
   );
 }
 
-/* ── posture: debrief ──
+/* ── posture: entry ──
 
-   THE BUTTON YOU PRESS BEFORE YOU GET STUCK IN (Isaac, 2026-08-06): unload
-   everything at once and let the sorting be the machine's problem. It opens
-   the same sheet as every other posture; only the framing and the brain's
-   instructions differ. Typing is as first-class here as everywhere else.
-
-   IT IS THE GLOBAL BUTTON, IN A BAR (Isaac, 2026-08-12). Four shapes now:
-
-     the cyan pill      the app's language from before the Tiff button existed
-     the ink capsule    dark face, gradient rim, mic half beside the word
-     just "Debrief"     a word on a glass capsule
-     this               the row IS the button, and it wears `TiffMark`
-
-   THE CAPSULE DIED OF ITS OWN MATERIAL. It was the topbar button's glass —
-   `rgba(255,255,255,.08)` — which works on the topbar's near-black but
-   composites to 1.29:1 against the glass card it ended up on. On the topbar
-   the fill was never the thing doing the work: a breathing halo sits behind
-   it and the chevron-and-sparkle sit inside it. #327 removed both, rightly,
-   when the control was a word on Tiff's own ink — but on a lighter ground
-   that left a bright gradient rim around a fill nobody could see, and the
-   card already wears that same gradient. Two outlines, one hollow shape.
-
-   So the mark comes back, and the WORD stays: the rule this posture was
-   built on is "never an icon alone, because what does the sparkle do is a
-   question a 6am brain shouldn't have to ask". The bar is the label and the
-   hit area; the mark is what makes it recognisably Tiff's. #327's argument
-   does not carry over, because that was about a mark on a control sitting on
-   an ink console — here the mark IS the control's contrast.
-
-   THE MARK LEADS AND THE COPY IS THREE WORDS (Isaac, 2026-08-12). It read
-   "Say the day — anything you'll forget, and it gets sorted", which is a
-   sales promise, not this app's voice: "tag line is cheesy". `Debrief` is
-   already the app's own noun for these entries (the record counts "2
-   debriefs" and the sheet is labelled "Morning debrief"), so the verb costs
-   no new vocabulary.
-
-   The mark left this bar again on 2026-09-01 (see DebriefButton below); the
-   frame's Tiff button is the one place it stands. */
-
-/* THE DIARY'S OWN WAY IN.
-
-   The Diary tab is a record, and a record you cannot add to from where you are
-   reading it sends you somewhere else to write. This is the row that fixes
-   that: a dashed field wearing the mark, with a microphone at its end because
-   most of these arrive spoken from the ute rather than typed.
-
-   It opens the SAME card the debrief opens, in the same slot, minus the
-   debrief flag — so what you say here is read as an ordinary note (it can
-   land on a job, it can ask you a question back), while the Debrief tab's
-   button asks for the whole day at once. One flow, two doors, and neither is
-   a second implementation of capture.
+   THE DIARY'S OWN WAY IN. The Diary tab is a record, and a record you cannot
+   add to from where you are reading it sends you somewhere else to write.
+   This is the row that fixes that, with a microphone at its end because most
+   of these arrive spoken from the ute rather than typed. What you say here is
+   read as an ordinary note: it can land on a job, and it can ask you a
+   question back.
 
    The mic is its own button rather than a glyph on this one: `flow.talk()`
    opens the microphone as well as the card, so reaching for it is one press,
-   not a press and then another inside the card that just opened. */
-/* THE ENTRY ROW STANDS IN TWO ROOMS NOW (the three-room Home, 2026-09-14):
+   not a press and then another inside the card that just opened.
+
+   THE ENTRY ROW STANDS IN TWO ROOMS NOW (the three-room Home, 2026-09-14):
    the Diary's, where it says "Add to the diary…", and the Tasks', where it
    says "Add a task…". Same flow, same door, same router deciding what the
    words are — only the placeholder differs, and the open card's name with it,
-   so a screen reader hears which room it is in. */
+   so a screen reader hears which room it is in.
+
+   IT OPENS IN THE PAGE, NOT OVER IT (Isaac, 2026-08-12, ruled for the
+   Debrief's card, which this row took its shape from; the Debrief itself went
+   on 2026-09-25). Capture and review grow in the row's own slot. No scrim and
+   nothing modal: the tabs and the record stay live, the ribbon's × is the
+   real close (`flow.close`, on every stage), and Escape still closes from
+   `useNoteFlow`'s own key handler.
+
+   IT WEARS `wb2-capcard` (Isaac, 2026-08-13: "match how the global one does
+   it but in line"). Every fill, every button skin and the dusk surface are
+   keyed on that class. The first in-page card left it off and restated them
+   under `.fg .hm-cap` — forty rules that had already drifted from the sheet.
+   `hm-cap` only says where the card stands.
+
+   IT STAYS DUSK ALL THE WAY DOWN ("All sections should have the same
+   background. No white."). The review family's dark clothes live with the
+   SKIN (`.wb2-capcard.wb2-dusk`, in shell.css) rather than with this
+   posture: they describe what a review looks like on ink, wherever that ink
+   is. */
 function EntryRow({
   flow,
   placeholder = "Add to the diary…",
@@ -744,9 +689,8 @@ function EntryRow({
   const rowRef = useRef<HTMLButtonElement | null>(null);
   const wasOpen = useRef(false);
 
-  /* Same courtesy the debrief bar pays: the card that replaced this row is
-     gone when it closes, so focus has to come back here rather than fall to
-     the top of the document. */
+  /* The card that replaced this row is gone when it closes, so focus has to
+     come back here rather than fall to the top of the document. */
   useEffect(() => {
     if (wasOpen.current && !flow.open) rowRef.current?.focus();
     wasOpen.current = flow.open;
@@ -796,104 +740,23 @@ function EntryRow({
   );
 }
 
-function DebriefButton({ flow, cta }: { flow: NoteFlow; cta?: string }) {
-  const barRef = useRef<HTMLButtonElement | null>(null);
-  const wasOpen = useRef(false);
-
-  /* The bar is where you were when you opened it, and it is where you should
-     be when it shuts — the card that replaced it is gone by then, so focus
-     would otherwise fall to the top of the document. */
-  useEffect(() => {
-    if (wasOpen.current && !flow.open) barRef.current?.focus();
-    wasOpen.current = flow.open;
-  }, [flow.open]);
-
-  if (!flow.open) {
-    return (
-      <div className="wb2-tokdock hm-saydock">
-        <button
-          ref={barRef}
-          type="button"
-          className="hm-say"
-          /* NOT `haspopup="dialog"` any more: what opens is this row becoming
-             the card, in the page, with everything around it still live. */
-          aria-expanded={false}
-          onClick={() => flow.setOpen(true)}
-        >
-          {/* NO MARK IN THE BUTTON (Isaac, 2026-09-01, third report on this
-              control). It was decorative — the words were always the
-              accessible name — but a 26px haloed logo inside a button pushed
-              the label 40px right of where the eye lands and gave the words
-              something to compete with. A button reads best as a button with
-              its label in it. The mark is still on the frame's Tiff button,
-              one press away from every screen. */}
-          <span className="hm-saytx">{cta ?? "Debrief the day"}</span>
-        </button>
-        {flow.done && <span className="wb2-chip ok">{flow.done}</span>}
-      </div>
-    );
-  }
-
-  /* THE DEBRIEF HAPPENS IN THE PAGE (Isaac, 2026-08-12) — capture AND review,
-     in the bar's own slot, on the card the journal is already on.
-
-     The floating sheet stays exactly as it is for the topbar door; this is the
-     one posture that had a place on a page to grow into. What that costs is a
-     scrim, which was doing three jobs: it dimmed the page, it caught the click
-     that closed the sheet, and it was the reason the thing counted as modal.
-     None of them survive the move, and none of them should — nothing here is
-     modal, the tabs and the record stay live, and the ribbon's × was always
-     the real close (`flow.close`, on every stage). Escape still closes, from
-     `useNoteFlow`'s own key handler.
-
-     IT WEARS `wb2-capcard`, AND THAT IS THE WHOLE POINT (Isaac, 2026-08-13:
-     "match how the global one does it but in line"). Every fill, every button
-     skin, the dusk capture surface and the light review are keyed on that
-     class — sixteen-odd rules the sheet has always had. The first version of
-     this card left it off and RESTATED them under `.fg .hm-cap`: forty rules
-     copying a system they could only drift from, and they already had — the
-     review stayed ink here while the sheet crossfaded to light, so the same
-     content wore different clothes depending on which door you came through.
-
-     IT STAYS DUSK ALL THE WAY DOWN, which is the one place it does NOT follow
-     the sheet (Isaac, 2026-08-13: "All sections of the debrief part should
-     have the same background. No white."). The sheet hands back to light for
-     the review because it is a white card floating over a white page and the
-     review's dozen components were tuned for that. This card is a panel
-     inside Home's ink card — a white block halfway down it is a second
-     surface appearing mid-flow, on a screen that is one piece of glass.
-
-     So the review family wears dusk here, and those rules live with the SKIN
-     (`.wb2-capcard.wb2-dusk`, in shell.css) rather than with this posture —
-     they describe what a review looks like on ink, wherever that ink is. */
-  return (
-    <section className="wb2-capcard hm-cap wb2-dusk" aria-label="Debrief">
-      <Ribbon flow={flow} />
-      {flow.error && <p className="wb2-sherr">{flow.error}</p>}
-      {/* Same slot the sheet puts it in — between the error and the body. */}
-      <JobLine flow={flow} />
-      <Body flow={flow} />
-    </section>
-  );
-}
-
 /* ── posture: capsule ── */
 
 /* THE DUSK SKIN, ALL THE WAY DOWN.
 
    It used to come off at the review: capture was Tiff's moment, checking was
    dense reading, and the review's dozen tuned light components would each
-   have to re-earn themselves on ink. They since did — the debrief card in
-   Home's journal is the same review on the same dusk skin, and every rule it
-   needs already lives with the skin as `.wb2-capcard.wb2-dusk …` in
-   shell.css rather than with that posture.
+   have to re-earn themselves on ink. They since did — the entry row's card
+   on Home is the same review on the same dusk skin, and every rule it needs
+   already lives with the skin as `.wb2-capcard.wb2-dusk …` in shell.css
+   rather than with that posture.
 
    So the split was costing what it was always going to cost: you press one
    button, watch a dark card listen and think, and it hands you a white one
    (Isaac, 2026-08-17: "it's also still got a white card instead of the dark
-   glass"). Isaac already ruled on this shape once for the debrief — "All
-   sections should have the same background. No white." — and the sheet is
-   the same flow through the same stages.
+   glass"). Isaac already ruled on this shape once for the in-page card —
+   "All sections should have the same background. No white." — and the
+   sheet is the same flow through the same stages.
 
    It stays a named thing rather than being inlined at the three mount
    points, because the argument above is the kind that gets re-litigated and
@@ -937,7 +800,7 @@ export function CaptureSheet({
         }
         role="dialog"
         aria-modal="true"
-        aria-label={flow.debrief ? "Day debrief" : "Add a note"}
+        aria-label="Add a note"
       >
         <span className="wb2-grab" aria-hidden="true" />
         <Ribbon flow={flow} />
@@ -1191,7 +1054,6 @@ export function NoteToken({
   rows = 3,
   disabled = false,
   className,
-  cta,
 }: {
   /** Where this one is standing. No default: the corner — the only posture
       that was ever the obvious one — is now the Tiff button in the frame. */
@@ -1208,13 +1070,9 @@ export function NoteToken({
   rows?: number;
   disabled?: boolean;
   className?: string;
-  /** debrief only — what the bar says. The same conversation is a brief at
-      dawn and a debrief at knock-off, so Home hands it the hour's word. */
-  cta?: string;
 }) {
-  const flow = useNoteFlow({ debrief: as === "debrief" });
+  const flow = useNoteFlow();
 
-  if (as === "debrief") return <DebriefButton flow={flow} cta={cta} />;
   if (as === "entry") return <EntryRow flow={flow} placeholder={placeholder} />;
   if (as === "strip")
     return (

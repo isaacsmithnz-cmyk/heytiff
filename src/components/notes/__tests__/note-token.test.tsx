@@ -523,85 +523,99 @@ describe("the field", () => {
   });
 });
 
-describe("the debrief", () => {
-  const openDebrief = async (over: Partial<NoteProposal>) => {
+/* THE DEBRIEF IS GONE (Isaac, 2026-09-24: "the diary, tasks and HeyTiff chat
+   window should assist with that"), and what it proved about a capture card that grows in the page
+   is now proved on the door that kept that shape: the diary's entry row. The
+   tests below were the debrief's, moved onto the row — the card in the page,
+   its class, the focus coming home, the job picker, the one dark ground — so
+   deleting the posture did not delete the guards on the card. */
+describe("the entry row's card", () => {
+  const openEntry = async (scope: Parameters<typeof mount>[1] = {}) => {
+    const view = mount(<NoteToken as="entry" />, scope);
+    await userEvent.click(screen.getByRole("button", { name: /Add to the diary/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Type" }));
+    return view;
+  };
+  const sortIt = async (said: string, over: Partial<NoteProposal>, scope: Parameters<typeof mount>[1] = {}) => {
     routeNote.mockResolvedValue({
       ok: true,
       noteId: "n-1",
       proposal: proposal({ plainNote: "", ...over }),
       staff: [{ id: "s-1", fullName: "Luke Mercer" }],
     });
-    mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
-    await userEvent.type(screen.getByRole("textbox"), "everything on my mind");
+    await openEntry(scope);
+    await userEvent.type(screen.getByRole("textbox"), said);
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await reviewIsUp();
   };
 
-  /* IT HAPPENS IN THE PAGE (Isaac, 2026-08-12). The debrief was a floating
-     sheet over a scrim like every other posture; option A puts capture AND
-     review in the bar's own slot, on the card the record is already on.
-
-     What these pin is the part that is easy to undo by accident: the moment
-     anyone reaches for `createPortal` again, or restores `role="dialog"`
-     "for consistency", the tabs and the journal behind it stop being live and
-     the whole point of the move is gone. The topbar sheet is a separate path
-     and is deliberately untouched — its own tests still assert the portal. */
+  /* IT HAPPENS IN THE PAGE (Isaac, 2026-08-12). The moment anyone reaches for
+     `createPortal` again, or restores `role="dialog"` "for consistency", the
+     tabs and the record behind it stop being live. The Tiff button's sheet is
+     a separate path and keeps its portal; its own tests assert it. */
   it("opens in the page, not over it — no portal, no scrim, nothing modal", async () => {
-    const { container } = mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
+    const { container } = await openEntry();
 
     const card = document.querySelector(".hm-cap");
     expect(card).toBeInTheDocument();
     expect(card).not.toHaveAttribute("role", "dialog");
     expect(card).not.toHaveAttribute("aria-modal");
     expect(document.querySelector(".wb2-capdim")).toBeNull();
-    /* IN the component's own tree — a portal would have put it under
-       document.body instead, which is what took it out of the page. This is
-       the assertion that actually catches a portal; it used to be
-       `querySelector(".wb2-capcard") === null`, which stopped meaning
-       anything the moment the card started wearing that class on purpose. */
+    // IN the component's own tree — a portal would have put it under document.body instead
     expect(container.contains(card)).toBe(true);
-    expect(document.body.contains(card)).toBe(true); // in the tree, not beside it
   });
 
   /* THE CARD IS THE SHEET, IN THE PAGE (Isaac, 2026-08-13: "match how the
-     global one does it but in line").
-
-     `wb2-capcard` is what every button fill, the dusk capture surface and the
-     light review are keyed on. Without it this card sat outside that system
-     and forty rules were restated under `.fg .hm-cap` to imitate it — which
-     had already drifted: the review stayed ink here while the sheet went
-     light. Drop the class again and the imitation comes back. */
+     global one does it but in line"). Drop `wb2-capcard` and the forty rules
+     that imitated it under `.fg .hm-cap` come back. */
   it("wears the sheet's own class, so the two cannot drift apart", async () => {
-    mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
+    await openEntry();
     expect(document.querySelector(".hm-cap")).toHaveClass("wb2-capcard");
   });
 
-  it("takes the bar's place, and hands focus back when it shuts", async () => {
-    mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
-
-    // one control in the slot at a time: the bar is gone while the card is up
-    expect(screen.queryByRole("button", { name: /Debrief the day/ })).toBeNull();
+  it("takes the row's place, and hands focus back when it shuts", async () => {
+    await openEntry();
+    // one control in the slot at a time: the row is gone while the card is up
+    expect(screen.queryByRole("button", { name: /Add to the diary/ })).toBeNull();
 
     await userEvent.click(screen.getByRole("button", { name: "Discard" }));
-    const bar = await screen.findByRole("button", { name: /Debrief the day/ });
-    // the card that replaced it is gone, so focus would otherwise fall to the
-    // top of the document
-    expect(bar).toHaveFocus();
+    const row = await screen.findByRole("button", { name: /Add to the diary/ });
+    // the card that replaced it is gone, so focus would otherwise fall to the top of the document
+    expect(row).toHaveFocus();
   });
 
-  /* THE JOB PICKER REACHES THE DEBRIEF (Isaac, 2026-08-13: "in this
-     particular voice note, I mentioned a job, but I couldn't find one").
+  it("is one ground all the way down, review included", async () => {
+    /* Isaac, 2026-08-13: "All sections … should have the same background.
+       No white." The review family wears dusk, scoped to
+       `.wb2-capcard.wb2-dusk` in shell.css. */
+    routeNote.mockResolvedValue({
+      ok: true,
+      noteId: "n-1",
+      proposal: proposal({ plainNote: "", noteLines: ["chase the coil pricing"] }),
+      staff: [{ id: "s-1", fullName: "Luke Mercer" }],
+    });
+    await openEntry();
+    expect(document.querySelector(".hm-cap")).toHaveClass("wb2-dusk"); // capture
 
-     `JobLine` used to `return null` on a debrief outright, on the argument
-     that a debrief spans jobs and pinning it to one would un-say that. True
-     of a debrief that never named a job — and no help at all to one that
-     named a job the matcher could not resolve. Home also pushed no
-     candidates, so `scope.jobs` was empty and the control had nothing to
-     offer even once un-suppressed; the loader supplies them now. */
+    await userEvent.type(screen.getByRole("textbox"), "chase the coil pricing");
+    await userEvent.click(screen.getByRole("button", { name: "Go" }));
+    await reviewIsUp();
+    expect(document.querySelector(".hm-cap")).toHaveClass("wb2-dusk"); // and review
+  });
+
+  /* EVERY DOOR ASKS THE BRAIN THE SAME QUESTION NOW. The debrief flag changed
+     what the router asked the model for; with the Debrief gone no door sends
+     it, and the router's own copy of it goes in the next PR. */
+  it("routes without a debrief flag", async () => {
+    await sortIt("the middle unit tripped again", {});
+    expect(routeNote).toHaveBeenCalledTimes(1);
+    expect(routeNote.mock.calls[0][0]).not.toHaveProperty("debrief");
+  });
+
+  /* THE JOB PICKER (Isaac, 2026-08-13: "in this particular voice note, I
+     mentioned a job, but I couldn't find one"). Naming the job always worked
+     — `matchJob` resolves "northgate" against the candidates — but Home once
+     pushed none, so nothing could ever match. */
   const JOBS = [
     { kind: "agreement" as const, id: "a-1", clientName: "Northgate Realty",
       label: "Quarterly service", siteLabel: "Level 3", jobNumber: null },
@@ -609,47 +623,26 @@ describe("the debrief", () => {
       label: "CRAC service", siteLabel: "Server room", jobNumber: "1042" },
   ];
 
-  const openWithJobs = async (said: string) => {
-    routeNote.mockResolvedValue({
-      ok: true,
-      noteId: "n-1",
-      proposal: proposal({ plainNote: "", noteLines: ["order the filters"] }),
-      staff: [{ id: "s-1", fullName: "Luke Mercer" }],
-    });
-    mount(<NoteToken as="debrief" />, { jobs: JOBS });
-    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
-    await userEvent.type(screen.getByRole("textbox"), said);
-    await userEvent.click(screen.getByRole("button", { name: "Go" }));
-    await reviewIsUp();
-  };
-
-  /* THE HEADLINE FIX IS THE DATA. Naming the job always worked — `matchJob`
-     resolves "northgate" against the candidate list — but Home pushed NO
-     candidates, so the list was empty, nothing could ever match, and the
-     review said "No job named" about a note that named one. */
   it("matches a job named in the words, once Home has candidates to match", async () => {
-    await openWithJobs("tell danny to order the filters for the northgate job");
+    await sortIt("tell danny to order the filters for the northgate job", { noteLines: ["order the filters"] }, { jobs: JOBS });
     expect(screen.getByText(/Sounds like/)).toBeInTheDocument();
-    /* Scoped to the job line. `describeJob` builds "client — service · site ·
-       which job", so match on the client rather than pinning the sentence.
-
-       The RIBBON is deliberately not asserted: on a debrief its chip says
-       what the capture files into ("Tasks, knowledge & your notes") rather
-       than which job, and that stays true with a job picked — the two say
-       different things and both are wanted. */
+    // scoped to the job line: `describeJob` builds the sentence, so match on the client
     expect(document.querySelector(".wb2-capjob")).toHaveTextContent(/Northgate Realty/);
     expect(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();
   });
 
-  it("offers the picker when the words match nothing, without nagging", async () => {
-    await openWithJobs("long day, everything is behind");
-    // a debrief naming no job is its NORMAL case, so this is a statement
-    expect(screen.getByText(/Not about one job/)).toBeInTheDocument();
+  it("offers the picker when the words match nothing, and says where the note goes", async () => {
+    await sortIt("long day, everything is behind", { noteLines: ["order the filters"] }, { jobs: JOBS });
+    // the job line, not the cascade's own "No job named" under the rows
+    expect(document.querySelector(".wb2-capjob")).toHaveTextContent(
+      "No job named — it'll go to your own notes."
+    );
+    expect(screen.queryByText(/Not about one job/)).toBeNull();
     expect(screen.getByRole("button", { name: "Pick a job" })).toBeInTheDocument();
   });
 
   it("searches the jobs, and names the one you pick", async () => {
-    await openWithJobs("long day, everything is behind");
+    await sortIt("long day, everything is behind", { noteLines: ["order the filters"] }, { jobs: JOBS });
     await userEvent.click(screen.getByRole("button", { name: "Pick a job" }));
 
     const search = screen.getByRole("searchbox", { name: /Search jobs/ });
@@ -665,136 +658,18 @@ describe("the debrief", () => {
   it("is still absent where there are no jobs to offer", async () => {
     /* A control with an empty list is furniture — and this is every org that
        does not hold `workboard`, where the loader sends none. */
-    await openDebrief({ noteLines: ["chase the coil pricing"] });
+    await sortIt("chase the coil pricing", { noteLines: ["chase the coil pricing"] });
     expect(screen.queryByRole("button", { name: "Pick a job" })).toBeNull();
-    expect(screen.queryByText(/Not about one job/)).toBeNull();
+    expect(document.querySelector(".wb2-capjob")).toBeNull();
   });
 
-  it("is one ground all the way down, review included", async () => {
-    /* THE ONE PLACE IT DOES NOT FOLLOW THE SHEET (Isaac, 2026-08-13: "All
-       sections of the debrief part should have the same background. No
-       white."). The sheet hands back to light for the review — right for a
-       white card floating over a white page. This card is a panel inside
-       Home's ink card, where a white block halfway down is a second surface
-       appearing mid-flow. The review family wears dusk instead, scoped to
-       `.wb2-capcard.wb2-dusk` in shell.css.
-
-       Asserted on the way past rather than from a second mount: `openDebrief`
-       mounts, and two cards in the DOM make every `getByRole` ambiguous. */
-    routeNote.mockResolvedValue({
-      ok: true,
-      noteId: "n-1",
-      proposal: proposal({ plainNote: "", noteLines: ["chase the coil pricing"] }),
-      staff: [{ id: "s-1", fullName: "Luke Mercer" }],
+  /* The kept lines' rows belong to the review card and go with the router's
+     half of the Debrief (the next PR); until then they still review and save
+     the same way through this door. */
+  it("reviews kept lines as 'Keeping in your notes', each line droppable", async () => {
+    await sortIt("chase the coil pricing, long day tomorrow", {
+      noteLines: ["chase the coil pricing", "long day tomorrow"],
     });
-    mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
-    expect(document.querySelector(".hm-cap")).toHaveClass("wb2-dusk"); // capture
-
-    await userEvent.type(screen.getByRole("textbox"), "everything on my mind");
-    await userEvent.click(screen.getByRole("button", { name: "Go" }));
-    await reviewIsUp();
-    expect(document.querySelector(".hm-cap")).toHaveClass("wb2-dusk"); // and review
-  });
-
-  it("is a labelled button — never an icon alone", () => {
-    /* THE RULE SURVIVED THE MARK COMING BACK. The bar wears `TiffMark` again
-       (the capsule's own glass measured 1.29:1 on the Journal card, so the
-       fill was invisible and only its gradient rim showed) — but the words
-       are still the button's accessible name, and the mark is aria-hidden.
-       "What does the sparkle do" stays a question nobody has to ask. */
-    mount(<NoteToken as="debrief" />);
-    expect(screen.getByRole("button", { name: /Debrief the day/ })).toBeInTheDocument();
-    /* The strongest form of the rule: there is no icon in there to be alone
-       WITH. The accessible name is the visible words, exactly. */
-    expect(screen.getByRole("button", { name: "Debrief the day" })).toBeInTheDocument();
-  });
-
-  /* THE DEFAULT SWITCH IS NOT THIS SHEET'S TO SHOW. Spotted live 2026-08-10:
-     it lived in the shared body, so the debrief wore it too — reading
-     "DEFAULT, Talk" over a text box, on a sheet that opens from its own
-     button and never consults the stored mode. Pressing it would have
-     rewritten the TIFF BUTTON's default from a screen with no say over it,
-     which is the invisible-preference trap wearing a label.
-
-     The choice is still here, offered as the one-off it actually is. */
-  it("offers Talk as a one-off, and claims no default it cannot honour", async () => {
-    localStorage.setItem("heytiff.capture.mode", "talk");
-    mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
-
-    expect(screen.queryByText("Default")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /talk/i })).toBeInTheDocument();
-  });
-
-  it("opens in the box whatever the Tiff button's default says", async () => {
-    localStorage.setItem("heytiff.capture.mode", "talk");
-    mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
-
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
-    expect(screen.queryByText("Recording")).not.toBeInTheDocument();
-  });
-
-  it("has no mic at the door — the sheet it opens is where you choose", () => {
-    /* The half went on 2026-08-10 with the console. Nothing is lost: the sheet
-       has Talk in it, gated on the same `voiceEnabled`. What the half cost was
-       the last asymmetry between the two doors into one sheet — the topbar
-       button does not offer a mic either, because arriving already recording
-       makes typing second-class. */
-    mount(<NoteToken as="debrief" />);
-    expect(screen.queryByLabelText("Start the debrief by talking")).toBeNull();
-    /* One control at the door, and it is the bar itself. */
-    expect(document.querySelectorAll(".hm-say")).toHaveLength(1);
-  });
-
-  it("is the words and nothing else — no mark inside the button", () => {
-    /* THE MARK CAME AND WENT, and the reason it could go is that the reason
-       it arrived stopped being true.
-
-       2026-08-12 it was added because the word-alone capsule died of its own
-       material: the topbar button's `rgba(255,255,255,.08)` glass composited
-       to 1.29:1 against the then-DARK Journal card, so nothing showed but a
-       gradient rim. The mark was the control's contrast.
-
-       The card is daylight now and the button is a solid teal fill, so the
-       contrast comes from the button. What the mark was left doing was
-       pushing the label 40px right of where the eye lands and giving the
-       words something to compete with — which is what Isaac reported three
-       times running as "hard to read" (2026-09-01).
-
-       The rule underneath never moved: never an icon alone. It is now the
-       stronger version of that — words alone. */
-    mount(<NoteToken as="debrief" />);
-    const bar = screen.getByRole("button", { name: /Debrief the day/ });
-    expect(bar.querySelector(".hm-saymk")).toBeNull();
-    expect(bar.textContent).toMatch(/Debrief the day/);
-  });
-
-  /* THE MARK BESIDE THE WORD IS DECORATION. Wearing Tiff's chevron here (it
-     opens Tiff's sheet) brought the logo's own `role="img" aria-label`
-     along, and the button's name silently became "HeyTiff Debrief" — an
-     accessible name nobody wrote, on the one control whose whole point is
-     that it says what it does. */
-  it("keeps its name its own, mark and all", () => {
-    /* MORE load-bearing now the mark is back, not less: the logo carries its
-       own `role="img" aria-label`, and last time that silently made the
-       button "HeyTiff Debrief". The mark's host is aria-hidden, so the name
-       is the words and nothing else. */
-    mount(<NoteToken as="debrief" />);
-    expect(screen.getByRole("button", { name: /Debrief the day/ })).toHaveAccessibleName(
-      "Debrief the day",
-    );
-    expect(screen.queryByRole("img", { name: "HeyTiff" })).not.toBeInTheDocument();
-  });
-
-  it("routes with the debrief flag — the brain is asked a different question", async () => {
-    await openDebrief({ noteLines: ["chase the coil pricing"] });
-    expect(routeNote).toHaveBeenCalledWith(expect.objectContaining({ debrief: true }));
-  });
-
-  it("leftovers review as 'Keeping in your notes', each line droppable", async () => {
-    await openDebrief({ noteLines: ["chase the coil pricing", "long day tomorrow"] });
     expect(screen.getByText("Keeping in your notes")).toBeInTheDocument();
     expect(screen.getByDisplayValue("chase the coil pricing")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Skip long day tomorrow" }));
@@ -802,7 +677,7 @@ describe("the debrief", () => {
   });
 
   it("saves the ticked lines through the confirmed payload", async () => {
-    await openDebrief({ noteLines: ["chase the coil pricing"] });
+    await sortIt("chase the coil pricing", { noteLines: ["chase the coil pricing"] });
     await userEvent.click(screen.getByRole("button", { name: "Save these" }));
     expect(applyNote).toHaveBeenCalledWith(
       "n-1",
@@ -811,11 +686,11 @@ describe("the debrief", () => {
     );
   });
 
-  it("offers no job picker and no keep-elsewhere door — Save is the one path", async () => {
-    await openDebrief({ noteLines: ["a line"] });
-    expect(screen.queryByRole("button", { name: /Pick a job/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Keep it in my notes/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /on the job's notes/ })).not.toBeInTheDocument();
+  it("always offers the keep-it door beside Save", async () => {
+    /* The debrief hid it, because its Save filed the leftovers as the
+       grouped note already. Every door left keeps it. */
+    await sortIt("chase the coil pricing", { noteLines: ["a line"] });
+    expect(screen.getByRole("button", { name: /Keep it in my notes/ })).toBeInTheDocument();
   });
 });
 
@@ -902,16 +777,6 @@ describe("ask-mode — the same token answers questions", () => {
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await reviewIsUp();
     expect(askBrain).not.toHaveBeenCalled();
-  });
-
-  it("a debrief NEVER asks — a braindump is capture by definition", async () => {
-    mount(<NoteToken as="debrief" />);
-    await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
-    await userEvent.type(screen.getByRole("textbox"), "what's left at Meridian");
-    await userEvent.click(screen.getByRole("button", { name: "Go" }));
-    await reviewIsUp();
-    expect(askBrain).not.toHaveBeenCalled();
-    expect(routeNote).toHaveBeenCalled();
   });
 
   it("an answer error lands as a sentence, not a dead sheet", async () => {

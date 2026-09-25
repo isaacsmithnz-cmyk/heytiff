@@ -213,7 +213,7 @@ describe("the button itself", () => {
 
   /* THE ENTRANCE IS THE BUTTON'S OWN. Only the Tiff button hands the sheet
      `wb2-blossom` — the clip reveal is anchored where the button lives, so
-     from anywhere else (a field's nudge, the debrief) it would grow out of
+     from anywhere else (a field's nudge) it would grow out of
      a corner with nothing in it. jsdom can't see the animation; the class
      is the structural fact it CAN pin. */
   it("blossoms out of its own corner — the sheet carries the entrance class", async () => {

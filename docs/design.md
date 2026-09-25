@@ -50,12 +50,14 @@ Every decision below is made once, here, and a guard test holds each number.
   glyphs (a circled X for Xero, a figure-8 for ServiceM8) do not read;
   connectors will carry the providers' own logos, later.
 - **Home is one card with three rooms** (decided 2026-09-15, from the
-  three-room handoff): the day across the top, a rail of the four faces, the
-  face's list, and the page the chosen row opens onto. Its h1 is the date, not
-  the word Home: the shell's rail names the screen one column to the left, and
-  the day is what the screen is about. Bookings on the day wear the Schedule
-  tab's own paint, wash and cap by category, so one booking is one colour on
-  the two screens that draw it. Home carries one green of its own (Isaac,
+  three-room handoff): the day across the top, a rail of the faces (four
+  until the Debrief went; Isaac, 2026-09-24: "the diary, tasks and HeyTiff
+  chat window should assist with that"), the face's list, and the page the
+  chosen row opens onto. Its h1 is the date, not the word Home: the shell's
+  rail names the screen one column to the left, and the day is what the
+  screen is about. Bookings on the day wear the Schedule tab's own paint,
+  wash and cap by category, so one booking is one colour on the two screens
+  that draw it. Home carries one green of its own (Isaac,
   2026-09-15: "we're missing a little bit of colour"): the part of the day
   that has gone, and the entry being read — two places, and nowhere else. The
   card fills the screen with no width cap — to a 16px edge until 2026-09-20,

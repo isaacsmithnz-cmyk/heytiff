@@ -2320,12 +2320,12 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* ══════════ TIFF — THE RECORDING CARD, IN THE COMPOSER (.tk-rec) ══════════
    The ask bar hands its space to the shared recording card while the mic is
    open (notes/recording-card), so the sequence you get here is the sequence
-   the Tiff button's sheet and the debrief card give you. Isaac: "the input
-   section should be identical throughout the software — they just appear in
-   different places."
+   the Tiff button's sheet and the diary's entry card give you. Isaac: "the
+   input section should be identical throughout the software — they just
+   appear in different places."
 
    THIS RULE IS ONLY ABOUT WHERE IT STANDS, exactly as `.hm-cap` is for the
-   debrief. Nothing here says anything about material: the dusk skin, the
+   entry card. Nothing here says anything about material: the dusk skin, the
    button fills, the type sizes and the 68px orb all arrive from
    `.wb2-capcard` and `.wb2-capcard.wb2-dusk`, and a background declared here
    would beat them on source order and quietly undo the point. The debrief
@@ -8702,9 +8702,9 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    own resting scale that still draws a 34px ball in a silent room — five
    times the 6.1px the audit found and legible across a van. */
 /* The ink is the dusk skin's, not restated here: this stage is dusk in both
-   doors it appears in (the sheet's `duskClass` and the debrief's hardcoded
-   one), and a second declaration of the same colour is a second place for it
-   to drift. See `.wb2-dusk .wb-lvl`. */
+   doors it appears in (the sheet's `duskClass` and the entry card's
+   hardcoded one), and a second declaration of the same colour is a second
+   place for it to drift. See `.wb2-dusk .wb-lvl`. */
 .wb2-caprec .wb-lvl { --orb:68px; padding-left:0; }
 /* ── the same instrument, laid along a line ──
    The three note postures put their microphone in a row — a strip beside a
@@ -10134,13 +10134,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    plain single-class rule on a <button> or <input> outside that namespace
    silently loses. */
 
-/* ── the capsule ──
-   Keyboard | mic in one object. The mic half is WIDER on purpose: both stay
-   full targets so typing is never a sliver, but the note you speak is what
-   this was built for and the shape should say so without being told. */
-.wb2-tokdock { display:inline-flex; align-items:center; gap:8px; }
-/* the only red in the resting UI, and only once the mic is open */
-
 /* ── the sheet ──
    `.wb2-capcard` is also on this element and is doing the real work (button
    fills, type, disabled states out in the portal). This block ONLY moves it.
@@ -10249,10 +10242,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
    `.wb2-debriefword` and the whole `.wb2-tok.wb2-debrief` capsule skin —
    ink face, masked gradient rim, the live-red mic half — went when the
-   control became a bar wearing `TiffMark` (see `.hm-say` in the HOME
-   section). Nothing renders those classes any more, and dead rules in this
-   stylesheet have shadowed live components at equal specificity twice, so
-   they are removed rather than left for the next person to trip over. */
+   control became a bar wearing `TiffMark`, and the bar (`.hm-say`) and
+   `.wb2-tokdock` went with the Debrief itself on 2026-09-25. Nothing renders
+   those classes any more, and dead rules in this stylesheet have shadowed
+   live components at equal specificity twice, so they are removed rather
+   than left for the next person to trip over. */
 
 /* ── the LEARN rows ──
    A title line and a method box under it — the one section on the review
@@ -10465,9 +10459,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* ── the entrance: the sheet grows OUT OF THE BUTTON ──
 
-   Only the Tiff button hands in `wb2-blossom`; a field's nudge and the
-   debrief keep the plain rise, because a grow anchored on the topbar would
-   be growing out of a corner with nothing in it.
+   Only the Tiff button hands in `wb2-blossom`; a field's nudge keeps the
+   plain rise, because a grow anchored on the topbar would be growing out of
+   a corner with nothing in it.
 
    IT USED TO GUESS. The first version was a clip circle at a hardcoded
    `86% -48px` — roughly where the button sits on a 1400px screen with the
@@ -10625,7 +10619,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* ============================ HOME ============================
    ONE CARD, THREE ROOMS (the handoff of 2026-09-14, redrawn to the laws).
-   The day across the top; under it a rail of the four faces, the list the
+   The day across the top; under it a rail of the three faces, the list the
    face holds, and the page the chosen row opens onto. Ink and paper: every
    colour below is a token, the only chroma is a state word, and the shell
    around the card is untouched.
@@ -10633,9 +10627,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    THIS BLOCK REPLACED 1,170 LINES. The desk's family — the ink card, the
    glass, the day rail down the left, the sticky diary headings, the board's
    task rows restyled twice, the three coloured washes on the well — went
-   with the layout it dressed. The two faces the handoff did not draw, the
-   Debrief and the Calendar, keep their markup and their rules follow at the
-   end of this block, ported onto the tokens.
+   with the layout it dressed. The face the handoff did not draw, the
+   Calendar, keeps its markup and its rules follow at the end of this block,
+   ported onto the tokens. (The Debrief was the other one, and went with its
+   rules on 2026-09-25.)
 
    RULES ARE `.fg .hm-*`, two classes deep, because `.fg button` and
    `.fg input` are (0,1,1) resets and a one-class rule loses to them. */
@@ -10762,7 +10757,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* ── THE THREE ROOMS ──
    The rail, then the face. A two-column face is the list and its page; a
-   one-column face (Debrief, Calendar) takes the whole width. */
+   one-column face (the Calendar) takes the whole width. */
 .fg .hm-body { flex:1; min-height:0; display:grid; grid-template-columns:200px minmax(0,1fr); }
 .fg .hm-face { min-height:0; }
 .fg .hm-face[hidden] { display:none; }
@@ -10787,7 +10782,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-rln { font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .hm-rln.bad { color:var(--bad-t); font-weight:600; }
 .fg .hm-rln.warn { color:var(--warn-t); font-weight:600; }
-.fg .hm-rldot { width:8px; height:8px; border-radius:50%; background:var(--ink); }
 
 /* ── THE LIST COLUMN ──
    A heading and a count, the composer, then the rows in their own scroller.
@@ -10923,27 +10917,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-btn:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hm-confirm { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--ink); }
 .fg .hm-none { margin:0; padding:16px; font-size:14px; color:var(--q); }
-
-/* ── THE DEBRIEF, ON ITS OWN FACE ──
-   One question, one button, and the debriefs you have filed under it. The
-   button is the app's primary — ink, its word in it — where it was a teal
-   bar and then a teal slab. */
-.fg .hm-dbf { display:flex; flex-direction:column; gap:16px; max-width:640px; }
-.fg .hm-dbft { margin:0; font-size:24px; font-weight:400; line-height:1.4; color:var(--ink); }
-.fg .hm-dbfsaid { margin:0; font-size:14px; line-height:1.6; color:var(--ink); text-wrap:pretty; }
-.fg .hm-saydock { flex:none; display:inline-flex; align-items:center; gap:12px; }
-.fg .hm-say { position:relative; display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:0 16px;
-  border:1px solid var(--ink); border-radius:10px; background:var(--ink); color:var(--paper);
-  font-size:14px; font-weight:600; text-align:left; cursor:pointer; }
-.fg .hm-say:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .hm-saytx { color:inherit; }
-.fg .hm-dbf .hm-none { padding:4px 0 0; }
-.fg .hm-dbflog { margin-top:24px; padding-top:16px; border-top:1px solid var(--line); }
-.fg .hm-dbfday { margin-top:16px; }
-.fg .hm-dbfday:first-of-type { margin-top:8px; }
-.fg .hm-dbfdh { font-size:12px; font-weight:500; color:var(--q); margin-bottom:8px; }
-.fg .hm-dbfe { display:grid; grid-template-columns:72px minmax(0,1fr); column-gap:16px; padding:8px 0; align-items:baseline; }
-.fg .hm-dbfet { font-size:12px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
 
 /* ── THE CALENDAR FACE: one window, three readings ──
    The stepper and the view switcher share a row and belong to the WINDOW.

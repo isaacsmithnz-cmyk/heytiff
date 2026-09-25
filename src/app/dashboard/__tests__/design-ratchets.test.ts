@@ -56,7 +56,7 @@ const CSS = sheets(SRC)
   .map((f) => fs.readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, ""))
   .join("\n");
 
-const count = (re: RegExp) => (CSS.match(re) ?? []).length;
+const count = (re: RegExp, css = CSS) => (css.match(re) ?? []).length;
 
 /* The radius scale from docs/design.md, plus the two values that are not a
    radius at all. A shorthand like `12px 12px 0 0` is one declaration and one
@@ -86,13 +86,13 @@ function offScaleRadii(): number {
    in a custom property counts where it is written; `backdrop-filter` and the
    prefixed spellings come along for free. One declaration is one hit on both
    passes: a comma-list of shadows is one decision. */
-function shadows(): number {
+function shadows(css = CSS): number {
   let n = 0;
-  for (const m of CSS.matchAll(/box-shadow\s*:\s*([^;}]+)/g)) {
+  for (const m of css.matchAll(/box-shadow\s*:\s*([^;}]+)/g)) {
     const v = m[1].trim();
     if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v) && !/^var\(--ring/.test(v)) n++;
   }
-  for (const _ of CSS.matchAll(/[\w-]+\s*:\s*[^;}]*drop-shadow\([^;}]*/g)) n++;
+  for (const _ of css.matchAll(/[\w-]+\s*:\s*[^;}]*drop-shadow\([^;}]*/g)) n++;
   return n;
 }
 
@@ -102,11 +102,11 @@ function shadows(): number {
    these has a job. Widths under 2px are dividers, not bars, and are not
    counted. Isaac named this one himself: "the vertical line at the start of
    lots of different buttons or cards. the nav bar items are an easy example." */
-function leftBars(): number {
+function leftBars(css = CSS): number {
   let n = 0;
   const re = /([^{}]+)\{([^{}]*)\}/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(CSS))) {
+  while ((m = re.exec(css))) {
     const sel = m[1];
     const body = m[2];
     const border = body.match(/border-(?:left|inline-start)\s*:\s*([^;]+)/);
@@ -149,11 +149,11 @@ const TSX = (() => {
 const countTsx = (re: RegExp) => (TSX.match(re) ?? []).length;
 
 /* Every rule block as [selector, body], for the counts that need both. */
-function blocks(): Array<[string, string]> {
+function blocks(css = CSS): Array<[string, string]> {
   const out: Array<[string, string]> = [];
   const re = /([^{}]+)\{([^{}]*)\}/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(CSS))) out.push([m[1], m[2]]);
+  while ((m = re.exec(css))) out.push([m[1], m[2]]);
   return out;
 }
 
@@ -167,8 +167,8 @@ const TAILWIND = [
   "#f5f5f5", "#e5e5e5", "#d4d4d4", "#a3a3a3", "#737373", "#525252", "#404040", "#262626", "#171717",
   "#6366f1", "#4f46e5", "#8b5cf6", "#7c3aed", "#3b82f6", "#2563eb", "#10b981", "#059669", "#22c55e", "#16a34a", "#ef4444", "#dc2626", "#f59e0b", "#d97706", "#0ea5e9", "#14b8a6",
 ];
-function tailwindHexes(): number {
-  const low = CSS.toLowerCase();
+function tailwindHexes(css = CSS): number {
+  const low = css.toLowerCase();
   let n = 0;
   for (const h of TAILWIND) n += (low.match(new RegExp(h, "g")) ?? []).length;
   return n;
@@ -344,6 +344,110 @@ function namedLoops(): Record<string, number> {
   return out;
 }
 
+const gradients = (css = CSS) => count(/(?:linear|radial|conic)-gradient\(/g, css);
+
+/* A pill is counted only while it is drawn as one: a pill, chip, tag or
+   badge selector whose own rule gives it a radius. A state word keeps the
+   class name and loses the box, so it stops counting. */
+function pills(css = CSS): number {
+  let n = 0;
+  for (const [sel, body] of blocks(css)) {
+    if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++;
+  }
+  return n;
+}
+
+/* NAMED EXEMPTIONS — ISAAC'S OWN SHAPES, HELD BY NAME (2026-09-25).
+
+   His Home breaks some of these laws on purpose, and on his word ("design
+   exempt for now, but keep a note", 2026-09-24): his colours as tokens, and
+   later the Trace's gradient and the day bar's own shapes. Raising a
+   baseline to let them in is the one thing this file exists to stop, and a
+   baseline raised for him would let the next rule in too, unnamed. So they
+   are held the way the loops are: docs/design.md, "### Named exemptions",
+   names each rule's class, the ratchet it breaks, and how many times.
+
+   Five ratchets take one: the gradients, the shadows, the bars at the left
+   edge, the Tailwind hexes and the pills. Each counts the sheets WITHOUT the
+   rule blocks its own rows cover, so the baselines do not move, and the hits
+   in those blocks are held to the table exactly, both ways: a named rule
+   that grows fails, and a row whose rule has gone fails until the row goes.
+
+   A block is covered only when EVERY selector in its list names an
+   exempted class, so `.hd-x, .other` still counts; a row covers its class
+   under its own ratchet and no other, so a shadow added to a rule exempted
+   for its hexes still counts as a shadow. Every part of this was watched
+   failing before it was trusted — the synthetic sheets below are the
+   record of how. */
+const EXEMPTABLE: Record<string, (css: string) => number> = {
+  gradients,
+  shadows,
+  "bars at the left edge": leftBars,
+  "Tailwind palette hexes": tailwindHexes,
+  pills,
+};
+
+type Exemption = { cls: string; ratchet: string; count: number };
+
+function namedExemptions(
+  doc = fs.readFileSync(path.join(process.cwd(), "docs/design.md"), "utf8"),
+): Exemption[] {
+  const at = doc.indexOf("### Named exemptions");
+  if (at < 0) throw new Error("docs/design.md has no section 'Named exemptions'");
+  const end = doc.indexOf("\n#", at + 1);
+  const out: Exemption[] = [];
+  for (const row of doc.slice(at, end < 0 ? undefined : end).split("\n")) {
+    if (!row.startsWith("| `")) continue;
+    const [, rule = "", ratchet = "", n = "", words = "", date = ""] = row.split("|").map((c) => c.trim());
+    const cls = /^`\.([\w-]+)`$/.exec(rule)?.[1];
+    if (!cls) throw new Error(`a named exemption names one class, as \`.name\`: ${row}`);
+    if (!(ratchet in EXEMPTABLE)) {
+      throw new Error(`"${ratchet}" is not a ratchet an exemption can name (${Object.keys(EXEMPTABLE).join(", ")}): ${row}`);
+    }
+    if (!/^[1-9]\d*$/.test(n)) throw new Error(`a named exemption counts its hits, one or more: ${row}`);
+    if (!words || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error(`a named exemption carries his words and the day he said them: ${row}`);
+    }
+    out.push({ cls, ratchet, count: Number(n) });
+  }
+  return out;
+}
+
+let read: Exemption[] | null = null;
+/** Read once, when a test first asks — a table that fails to parse fails
+    the tests that read it, with its reason, rather than the suite's load. */
+const exemptions = () => (read ??= namedExemptions());
+
+const classesFor = (ratchet: string, list: Exemption[] = exemptions()) => [
+  ...new Set(list.filter((e) => e.ratchet === ratchet).map((e) => e.cls)),
+];
+
+const namesClass = (sel: string, cls: string) => new RegExp(`\\.${cls}(?![\\w-])`).test(sel);
+
+/** The sheets with the blocks `classes` cover taken out, and what those
+    blocks held under `f`, by class. */
+function exempt(
+  css: string,
+  classes: string[],
+  f: (css: string) => number,
+): { kept: string; held: Record<string, number> } {
+  const held: Record<string, number> = {};
+  if (classes.length === 0) return { kept: css, held };
+  const kept = css.replace(/([^{}]+)\{([^{}]*)\}/g, (whole, sel: string) => {
+    if (!sel.split(",").every((part) => classes.some((c) => namesClass(part, c)))) return whole;
+    const n = f(whole);
+    if (n > 0) {
+      const c = classes.find((k) => namesClass(sel, k))!;
+      held[c] = (held[c] ?? 0) + n;
+    }
+    return "";
+  });
+  return { kept, held };
+}
+
+/** The sheets as a ratchet counts them: without the rules named for it. */
+const outside = (ratchet: string) => exempt(CSS, classesFor(ratchet), EXEMPTABLE[ratchet]!).kept;
+
 const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "type below 12px — the floor", now: small, baseline: 0 },
   { law: "type off the scale — 12, 13, 14, 16, 20, 24, 32, 40", now: offScaleType, baseline: 0 },
@@ -351,17 +455,17 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "`transition: all` — a transition names what moves", now: () => count(/transition\s*:\s*all\b/g), baseline: 0 },
   { law: "`text-transform: uppercase` — the eyebrow is retired; a registration plate is the one thing set in caps", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 2 },
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
-  { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 47 },
+  { law: "gradients — one accent, flat surfaces; his are named below", now: () => gradients(outside("gradients")), baseline: 47 },
   /* 52 → 57 on 2026-09-21, the one baseline in this file that has ever gone
      up. Nothing was added: the counter learned `filter: drop-shadow()`, and
      five shadows that had been in the sheets since July became visible to it.
      Isaac agreed to the re-base; docs/design.md names the two that stay (the
      photo thumbnail's star, the Studio's close-ready vertex) and records that
      the donut's three go with the Studio's new design. */
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 57 },
-  { law: "bars at the left edge — selection is a fill, state is a word; the one left is the cap on the schedule's blocks", now: leftBars, baseline: 1 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 57 },
+  { law: "bars at the left edge — selection is a fill, state is a word; the one left is the cap on the schedule's blocks", now: () => leftBars(outside("bars at the left edge")), baseline: 1 },
   // round two
-  { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 0 },
+  { law: "Tailwind palette hexes — colour comes from the tokens; his are named below", now: () => tailwindHexes(outside("Tailwind palette hexes")), baseline: 0 },
   { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 0 },
   { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 0 },
   { law: "distinct z-index values — six layers", now: distinctZ, baseline: 20 },
@@ -375,10 +479,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      a rule that lists a `:focus-within` twin beside its `:hover` gives the
      keyboard the same control back (law 24). */
   { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/:hover/.test(sel) && !/focus-within|focus-visible/.test(sel) && /\bopacity\s*:\s*1\b/.test(body)) n++; return n; }, baseline: 0 },
-  /* A pill is counted only while it is drawn as one: a pill, chip, tag or
-     badge selector whose own rule gives it a radius. A state word keeps the
-     class name and loses the box, so it stops counting. */
-  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++; return n; }, baseline: 39 },
+  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => pills(outside("pills")), baseline: 39 },
   { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 31 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of
@@ -440,6 +541,64 @@ describe("the design ratchets only go down", () => {
 
   it("keeps no glyph-only button that docs/design.md does not name, and names none that has gone", () => {
     expect(iconOnly()).toEqual(namedIconOnly());
+  });
+
+  describe("named exemptions", () => {
+    it("holds every rule they cover to docs/design.md's table, both ways", () => {
+      const held: Record<string, number> = {};
+      for (const [ratchet, f] of Object.entries(EXEMPTABLE)) {
+        for (const [cls, n] of Object.entries(exempt(CSS, classesFor(ratchet), f).held)) {
+          held[`${ratchet} on .${cls}`] = n;
+        }
+      }
+      const named = Object.fromEntries(exemptions().map((e) => [`${e.ratchet} on .${e.cls}`, e.count]));
+      expect(held).toEqual(named);
+    });
+
+    /* A table the parser cannot find reads as "no exemptions" and passes
+       everything above vacuously, so the rows it must find are named. */
+    it("reads the table at all: the new Home's colour tokens are on it", () => {
+      expect(exemptions()).toContainEqual({ cls: "hd-page", ratchet: "Tailwind palette hexes", count: 1 });
+    });
+
+    const G = "background:linear-gradient(red, blue);";
+
+    it("covers a rule only when every selector in its list names the class", () => {
+      const css = [
+        `.fg .hd-x { ${G} }`,
+        `.fg .hd-x, .fg .other { ${G} }`,
+        `.fg .hd-x:hover, .fg .hd-x.on { ${G} }`,
+      ].join("\n");
+      const { kept, held } = exempt(css, ["hd-x"], gradients);
+      expect(gradients(kept)).toBe(1);
+      expect(held).toEqual({ "hd-x": 2 });
+    });
+
+    it("covers a class, never a class that begins with its name", () => {
+      const { kept, held } = exempt(`.fg .hd-xy { ${G} }`, ["hd-x"], gradients);
+      expect(gradients(kept)).toBe(1);
+      expect(held).toEqual({});
+    });
+
+    it("covers a rule under its own ratchet and no other", () => {
+      const list: Exemption[] = [{ cls: "hd-page", ratchet: "Tailwind palette hexes", count: 1 }];
+      const css = `.fg .hd-page { --done:#16a34a; ${G} }`;
+      const hexes = classesFor("Tailwind palette hexes", list);
+      expect(tailwindHexes(exempt(css, hexes, tailwindHexes).kept)).toBe(0);
+      // the same rule grows a gradient: nothing named it for one, so it counts
+      expect(classesFor("gradients", list)).toEqual([]);
+      expect(gradients(exempt(css, classesFor("gradients", list), gradients).kept)).toBe(1);
+    });
+
+    it("refuses a row that names a ratchet it does not know, or leaves out his word", () => {
+      const doc = (row: string) => `### Named exemptions\n\n| Rule | Ratchet | Count | His words | Date |\n|---|---|---|---|---|\n${row}\n`;
+      expect(() => namedExemptions(doc("| `.hd-x` | gradient | 1 | “keep it” | 2026-09-25 |"))).toThrow(/not a ratchet/);
+      expect(() => namedExemptions(doc("| `.hd-x` | gradients | 1 |  | 2026-09-25 |"))).toThrow(/his words/);
+      expect(() => namedExemptions(doc("| `.hd-x` | gradients | 0 | “keep it” | 2026-09-25 |"))).toThrow(/one or more/);
+      expect(namedExemptions(doc("| `.hd-x` | gradients | 2 | “keep it” | 2026-09-25 |"))).toEqual([
+        { cls: "hd-x", ratchet: "gradients", count: 2 },
+      ]);
+    });
   });
 
   for (const r of RATCHETS) {

@@ -50,7 +50,9 @@ Every decision below is made once, here, and a guard test holds each number.
   glyphs (a circled X for Xero, a figure-8 for ServiceM8) do not read;
   connectors will carry the providers' own logos, later.
 - **Home is one card with three rooms** (decided 2026-09-15, from the
-  three-room handoff): the day across the top, a rail of the faces (four
+  three-room handoff; **superseded 2026-09-25** by "Home is the day, three
+  tabs and the list", below, and still the crew's Home until the flip):
+  the day across the top, a rail of the faces (four
   until the Debrief went; Isaac, 2026-09-24: "the diary, tasks and HeyTiff
   chat window should assist with that"), the face's list, and the page the
   chosen row opens onto. Its h1 is the date, not the word Home: the shell's
@@ -260,6 +262,31 @@ Every decision below is made once, here, and a guard test holds each number.
   on its screen, so the margin drew a second frame 16px inside the first and
   an edge a pixel from the shell's own. On `.page.full` the card's border and
   corner come off and it IS the screen.
+- **Home is the day, three tabs and the list** (decided 2026-09-25, from
+  his handoff "Home - Diagonal day" and his walks of the prototype to v32).
+  Built behind `HOME_DESK`: the owner's until he has walked it, and the
+  crew keep the Home above until the flip. The date is the h1, in the band
+  every screen wears. Under it "Your day", on every face ("The top hero can
+  stay as it is, that says Your day"). Under that one row of tabs, Diary,
+  Tasks and Calendar in that order ("swap Tasks and calendar around"), in
+  the same place on every face ("the diary, calendar and tasks tabs
+  shouldn't move positions each time"): his grey words, the chosen one ink
+  and bold, and each tab as wide as its bold word from the start, so
+  choosing one never moves the next. What belongs to one face, the
+  Calendar's box and its views, stands in that face's own toolbar, never
+  in the row. Under the tabs the body slides in tab order ("Calendar should
+  slide across"): the Calendar across the whole body, Tasks across the
+  diary column, in 280 ms, and at once under reduced motion. The list
+  stands in the right-hand column beside Diary and Tasks. One job card
+  serves every door on the page. The Debrief is gone (2026-09-24).
+  **His design is the default here.** A redraw to the laws "looks far
+  worse", so where his numbers break a law this file names the exemption
+  instead of bending the design ("design exempt for now, but keep a note",
+  2026-09-24): his shapes, colours and motion are named exemptions, under
+  Guards. His spacing and radii snap to the scales, a move of 4px or less
+  each ("go with your recommendations", 2026-09-25). His late red is the
+  app's `--bad-t`, one red for the page: his own is 4.15:1 on the
+  selection tint.
 - **The job sheet is parked.** A ruled-list job sheet reads as paper but scans
   worse than the row. Nothing in that direction moves until a version keeps the
   row's scannability.
@@ -496,9 +523,9 @@ became consequences of the ink-and-paper decision rather than choices.
 across every screen stylesheet and component under `src` and holds each count at the number
 recorded there. A PR may lower a number. A PR may never raise one. When a
 count drops, the PR lowers the recorded number with it, so the number is
-always the truth. Two it holds by name instead — the loops, and the buttons
-that keep their glyph — in the lists below. Every guard was watched failing
-before it was trusted.
+always the truth. Three things it holds by name instead — the loops, the
+buttons that keep their glyph, and Isaac's named exemptions — in the lists
+below. Every guard was watched failing before it was trusted.
 
 The three paper stylesheets are outside the guards on purpose: the design
 sheet (`sheet-doc.css`), the letterhead and the live sheet are documents set
@@ -591,6 +618,36 @@ this list the way it holds the loops: both ways, by name.
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `chevR` | `railtg` | the rail's handle, a chevron riding the seam between rail and content; the shell stands as it is |
 | `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
+
+### Named exemptions
+
+Isaac's own shapes on the new Home break some of the laws on purpose, on
+his word ("design exempt for now, but keep a note", 2026-09-24). A baseline
+raised to let them in would let the next rule in with them, unnamed, so
+they are held the way the loops are. Five ratchets take a named exemption:
+gradients, shadows, bars at the left edge, Tailwind palette hexes and
+pills. Each counts the sheets without the rule blocks its own rows cover,
+so no baseline moves, and `design-ratchets.test.ts` holds the hits in those
+blocks to this table exactly, both ways: a named rule that grows fails, and
+a row whose rule has gone fails until the row goes. A block is covered only
+when every selector in its list names the class, and a row covers its
+class under its own ratchet and no other. A row needs his words and the
+day he said them.
+
+| Rule | Ratchet | Count | His words | Date |
+|---|---|---|---|---|
+| `.hd-page` | Tailwind palette hexes | 1 | "design exempt for now, but keep a note": `--hd-done`, the tick on finished work, is Tailwind's green 600 | 2026-09-24 |
+
+What the guard cannot count is noted here on the same word:
+
+- **Law 16, colour.** `.hd-page` declares his colours as its tokens, and
+  no rule on the page writes a literal: the ink `#151a24`, the body grey
+  `#5b6472`, the rules `#e6e9ee`, `#eef0f3` and `#e2e5ea`, the teal of
+  Today `#0f766e`, and the green of done `#16a34a`. `text-contrast` holds
+  every one that is text to 4.5:1 on the page's fills.
+- **Law 18, motion tokens, and law 8, a tab's content appears.** The faces
+  slide, in 280 ms rather than `--t-move`: "Calendar should slide across"
+  (2026-09-25). Nothing slides under reduced motion.
 
 ### The Tiff button
 

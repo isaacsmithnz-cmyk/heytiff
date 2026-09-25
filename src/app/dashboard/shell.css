@@ -10655,12 +10655,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    hand out. */
 .fg .page:has(> .hm-wrap) { height:100%; display:flex; flex-direction:column; }
 .fg .hm-wrap { flex:1; min-height:0; display:flex; flex-direction:column;
-  width:100%; max-width:none; margin:0; align-self:center; padding:16px;
-  /* HOME'S ONE GREEN (Isaac, 2026-09-15: "we're missing a little bit of
-     colour"). Two places and no more: the part of the day that has gone,
-     and the entry being read. The handoff's own green, at a text tone that
-     clears 4.5:1 on its tint (5.2 on paper) and a mark that clears 3:1. */
-  --hm-green:#12a594; --hm-green-t:#137a6e; --hm-green-tint:#e6f7f3; }
+  width:100%; max-width:none; margin:0; align-self:center; padding:16px; }
+/* HOME'S ONE GREEN (Isaac, 2026-09-15: "we're missing a little bit of
+   colour"). Two places and no more: the part of the day that has gone, and
+   the entry being read. The handoff's own green, at a text tone that clears
+   4.5:1 on its tint (5.2 on paper) and a mark that clears 3:1. The new Home
+   (`.hd-page`) takes it too while it holds today's day band and faces, and
+   gives it back when they go. */
+.fg .hm-wrap, .fg .hd-page { --hm-green:#12a594; --hm-green-t:#137a6e; --hm-green-tint:#e6f7f3; }
 .fg .hm-wrap > .stg { flex:1; min-height:0; display:flex; flex-direction:column; }
 .fg .hm-card { flex:1; min-height:0; display:flex; flex-direction:column;
   background:var(--paper); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
@@ -10992,6 +10994,73 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   .fg .hm-read { padding:24px 32px 24px; }
   .fg .hm-face.one { padding:24px 32px; }
 }
+
+/* ======================= THE NEW HOME: THE DESK =======================
+   Behind HOME_DESK (lib/dashboard/desk-flag): the owner's until the flip,
+   while the crew keep the Home above, untouched. docs/design.md, "Home is
+   the day, three tabs and the list" (2026-09-25).
+
+   The band with the date, then "Your day" on every face, then ONE row of
+   tabs that never moves, then the body, which slides (home-desk.tsx). The
+   page scrolls nowhere; only a face does.
+
+   RULES ARE `.fg .hd-*`, two classes deep, for the old family's reason:
+   `.fg button` is (0,1,1). Every face that lands takes this prefix too
+   (`hd-dy-`, `hd-ls-`, `hd-tk-`, `hd-cal-`) and these tokens.
+
+   HIS COLOURS ARE TOKENS, declared here and nowhere else: law 16 is his to
+   waive and he has ("design exempt for now, but keep a note", 2026-09-24),
+   so they are named exemptions in docs/design.md. Every text token is held
+   to 4.5:1 on the page's fills by text-contrast. The late red is the app's
+   own `--bad-t`: his #d6293e is 4.15:1 on the selection tint, and one late
+   red serves the whole page. */
+.fg .hd-page { --hd-ink:#151a24; --hd-body:#5b6472; --hd-rule:#e6e9ee; --hd-rule2:#eef0f3; --hd-edge:#e2e5ea;
+  --hd-late:var(--bad-t); --hd-today:#0f766e; --hd-done:#16a34a; }
+
+/* ── YOUR DAY: across the top, on every face ──
+   A rule under the band and one under the day, in his grey. */
+.fg .hd-day { flex:none; display:flex; flex-direction:column; gap:12px; padding:16px 24px;
+  border-top:1px solid var(--hd-rule); border-bottom:1px solid var(--hd-rule); }
+.fg .hd-dayh { margin:0; font-size:16px; font-weight:600; line-height:1.2; color:var(--hd-ink); }
+
+/* ── THE BODY: the tabs, then the one cell the faces slide through ── */
+.fg .hd-body { flex:1; min-height:0; display:flex; flex-direction:column; }
+
+/* THE TABS. His grey words, no underline; the chosen one is ink and bold.
+   The row is `flex:none` above the body, so it is pinned by where it
+   stands rather than by `sticky`, and it is one node on every face. */
+.fg .hd-tabs { flex:none; display:flex; align-items:baseline; gap:24px; padding:16px 24px; }
+.fg .hd-tab { display:inline-flex; flex-direction:column; align-items:flex-start; padding:0; border:0;
+  border-radius:6px; background:none; font-size:20px; font-weight:500; line-height:1.2; color:var(--q);
+  cursor:pointer; transition:color var(--t-fast) var(--ease); }
+.fg .hd-tab:hover { color:var(--hd-ink); }
+.fg .hd-tab.on { font-weight:600; color:var(--hd-ink); cursor:default; }
+.fg .hd-tab:focus-visible { outline:none; box-shadow:var(--ring); }
+/* The bold name under every name, with no height and nothing to see: the
+   tab is as wide as its bold word from the start, so the one that is on is
+   never wider than it was and nothing beside it moves. Its weight IS the
+   chosen tab's weight; home-desk-frame holds the two together. */
+.fg .hd-tabw { height:0; overflow:hidden; visibility:hidden; font-weight:600; pointer-events:none;
+  user-select:none; }
+
+/* THE CELL. The body and the Calendar share it and slide past each other
+   in it; the diary column's two faces share its own. Both clip, so a face
+   on its way never paints over the day, the tabs or the list. */
+.fg .hd-fx { flex:1; min-height:0; display:grid; grid-template:minmax(0,1fr) / minmax(0,1fr); overflow:hidden; }
+.fg .hd-fx > .hd-main, .fg .hd-fx > .hd-face { grid-area:1 / 1; min-width:0; min-height:0; }
+/* The list takes the right-hand column once it is there; until then the
+   column is the body. */
+.fg .hd-main { display:grid; grid-template-columns:minmax(0,1fr); }
+.fg .hd-main:has(> .hd-list) { grid-template-columns:minmax(0,1fr) minmax(280px,420px); }
+.fg .hd-col { display:grid; grid-template:minmax(0,1fr) / minmax(0,1fr); min-width:0; min-height:0;
+  overflow:hidden; }
+.fg .hd-col > .hd-face { grid-area:1 / 1; min-width:0; min-height:0; }
+/* A face scrolls on its own; the tabs above it stay where they are. */
+.fg .hd-face { display:flex; flex-direction:column; overflow-y:auto; }
+.fg .hd-main[hidden], .fg .hd-face[hidden] { display:none; }
+/* TODAY'S FACES, HELD until their own land: the old components in their
+   old dress, filling the face. This rule goes with them. */
+.fg .hd-face > .hm-face { flex:1; }
 /* ===================================================================
    VEHICLE MODAL v2 (components/fleet/vehicle-modal/)
 

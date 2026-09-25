@@ -412,6 +412,24 @@ describe("the card is tabs", () => {
     expect(screen.queryByRole("tab", { name: "Money" })).toBeNull();
   });
 
+  /* A DOOR THAT KNOWS WHAT IT CAME FOR opens the card on that face — the
+     new Home's mention opens the job's Diary. The tab set is untouched. */
+  it("opens on the face a door asks for", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} initialTab="diary" />);
+    await detailLanded();
+    expect(screen.getByRole("tab", { name: "Diary" })).toHaveAttribute("aria-selected", "true");
+    expect(document.querySelector("#jcsec-diary")).not.toHaveAttribute("hidden");
+    expect(document.querySelector("#jcsec-summary")).toHaveAttribute("hidden");
+  });
+
+  it("opens on Summary when the face asked for is Money and the reader has no grant", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} initialTab="money" />);
+    await detailLanded();
+    expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute("aria-selected", "true");
+  });
+
   it("has no Actions tab even for a manager — the acts live behind the ⋯", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} manage />);
@@ -1984,6 +2002,16 @@ describe("a card opened from a progress claim", () => {
     expect(document.querySelector(".wb2-shcrumb")).not.toBeNull();
     expect(screen.getByTitle(/Payment 1 — Deposit — open it/)).toHaveTextContent("#2380A");
     expect(screen.getAllByText("Payment 1 — Deposit").length).toBeGreaterThan(0);
+  });
+
+  /* The landing on Money gives way to a reader who has chosen a face, and a
+     face the door asked for is that choice made on their behalf. */
+  it("stays on the face a door asked for, rather than landing on Money", async () => {
+    opened();
+    render(<JobSheet row={row({ number: "2380A" })} {...props} moneyVisible initialTab="photos" />);
+    // the claim is known and the family's money is in: everything that would land on Money has
+    expect(await screen.findByText("$31,340.35")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Photos" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("marks the claim it was opened for in the ledger", async () => {

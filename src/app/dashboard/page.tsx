@@ -1,4 +1,5 @@
 import { DashboardHome } from "@/components/dashboard/home";
+import { DashboardDesk } from "@/components/dashboard/home-desk";
 import { loadDashboard } from "@/lib/dashboard/page-data";
 import { NoteScopeScreen } from "@/components/notes/note-context";
 import { redirectIfSetupPending } from "@/lib/org/setup-gate";
@@ -22,16 +23,22 @@ export default async function DashboardHomePage() {
   const data = await loadDashboard();
 
   /* Home is the universal case — nothing here is ABOUT a job, so the default
-     target stays none. The debrief's staff roster is whoever can be assigned
-     tasks, which the page already loaded; first names only, because that is
-     what a spoken "tell Dane…" contains.
+     target stays none. The staff roster is whoever can be assigned tasks,
+     which the page already loaded; first names only, because that is what a
+     spoken "tell Dane…" contains.
 
      THE JOBS ARE NEW, and they are what make the picker reachable. `scope.jobs`
      is the list a capture can be pinned to, and only the two Workboard screens
-     ever pushed one — so on Home a debrief that named a job the matcher could
+     ever pushed one — so on Home a capture that named a job the matcher could
      not resolve said "No job named" and offered nothing (Isaac, 2026-08-13:
      "I mentioned a job, but I couldn't find one"). They are candidates, not a
-     target: pinning is still an explicit choice on the review. */
+     target: pinning is still an explicit choice on the review.
+
+     TWO HOMES, ONE SWITCH. `desk` is the new Home's own data, and the loader
+     sets it only for a viewer `HOME_DESK` gives the new Home to (the owner,
+     until the flip; lib/dashboard/desk-flag) — so the switch is the data's
+     presence, decided on the server, and everyone else gets today's Home
+     exactly as it was. The capture's scope is the same for both. */
   return (
     <>
       <NoteScopeScreen
@@ -40,7 +47,7 @@ export default async function DashboardHomePage() {
           .map((s) => s.name.trim().split(/\s+/)[0])
           .filter((n) => n.length >= 2)}
       />
-      <DashboardHome data={data} />
+      {data.desk ? <DashboardDesk data={data} /> : <DashboardHome data={data} />}
     </>
   );
 }

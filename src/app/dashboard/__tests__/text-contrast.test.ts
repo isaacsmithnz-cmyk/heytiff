@@ -580,3 +580,55 @@ describe("de-emphasis never multiplies text contrast", () => {
     expect(ratio(dimmed, strip)).toBeLessThan(4.5);
   });
 });
+
+/* ===== The new Home's own colours (.hd-page, 2026-09-25) =====
+
+   His colours are tokens on the page — a named exemption in docs/design.md,
+   law 16 being his to waive — and every one that is text lands on the
+   page's own fills: paper, the hover tint, the selection tint, and his quiet
+   panel. Computed from the sheet like everything above, so retuning a token
+   or a tint re-checks the pair.
+
+   The late red is here because it failed. His #d6293e reads 4.95 on paper
+   and 4.15 on the selection tint, so the page's one late red is `--bad-t`;
+   the proof below keeps anyone from putting his back without a fill it can
+   stand on. */
+describe("the new Home's text tokens clear 4.5:1 on every fill the page has", () => {
+  const code = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  const tintOf = (name: string) => {
+    const m = token(name).match(/^rgba\((\d+), *(\d+), *(\d+), *([\d.]+)\)$/);
+    if (!m) throw new Error(`--${name} is not an rgba() tint`);
+    return over([Number(m[1]), Number(m[2]), Number(m[3])], Number(m[4]), WHITE);
+  };
+  const FILLS: Record<string, number[]> = {
+    paper: WHITE,
+    "the hover tint": tintOf("tint"),
+    "the selection tint": tintOf("tint-2"),
+    "his quiet panel #f4f6f8": hex("#f4f6f8"),
+  };
+  const TEXT = ["hd-ink", "hd-body", "hd-late", "hd-today"];
+  /* rules and a tick's fill: lines and marks, held to nothing here */
+  const NOT_TEXT = ["hd-rule", "hd-rule2", "hd-edge", "hd-done"];
+
+  it("names every token the page declares as text or not text — a new one has to be sorted", () => {
+    // the page's own rule, not a selector list it shares with the old Home's green
+    const block = code.match(/(?:^|\})\s*\.fg \.hd-page \{([^}]*)\}/);
+    expect(block).not.toBeNull();
+    const declared = [...block![1]!.matchAll(/--(hd-[\w-]+) *:/g)].map((m) => m[1]).sort();
+    expect(declared).toEqual([...TEXT, ...NOT_TEXT].sort());
+  });
+
+  it.each(TEXT)("--%s", (name) => {
+    const value = token(name);
+    expect(value).toMatch(/^#[0-9a-f]{6}$/i);
+    const short = Object.entries(FILLS)
+      .map(([fill, bg]) => ({ fill, r: +ratio(hex(value), bg).toFixed(2) }))
+      .filter((x) => x.r < 4.5);
+    expect(short).toEqual([]);
+  });
+
+  it("proves his own late red could not serve the selection tint", () => {
+    expect(ratio(hex("#d6293e"), FILLS["the selection tint"]!)).toBeLessThan(4.5);
+    expect(ratio(hex("#d6293e"), WHITE)).toBeGreaterThan(4.5);
+  });
+});

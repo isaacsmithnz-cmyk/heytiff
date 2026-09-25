@@ -66,8 +66,30 @@ const resolveJobCard = jest.fn(async (_org: string, id: string) => ({
   focusRemoteId: null,
 }));
 const readClaimDetail = jest.fn(async () => ({ ledger: { materials: [], payments: [] }, notes: [], media: { photos: [], documents: [], elsewhere: [], truncated: false } }));
+/* One job from the whole mirror, in the board's shape — what a door on the
+   new Home that holds only a uuid opens its card on. */
+const readMirrorJobRow = jest.fn(
+  async (_org: string, id: string, _today: string, _opts: { includeMoney?: boolean }): Promise<AllJobsMirrorJob | null> => ({
+    remoteId: id,
+    jobNumber: "2051",
+    status: "Work Order",
+    clientName: "Mosman Marina",
+    description: "Service the rooftop units",
+    suburb: "Mosman",
+    categoryName: null,
+    categoryColour: null,
+    date: null,
+    quoteDate: null,
+    completionDate: null,
+    nextBooking: null,
+    money: null,
+    paidCents: 0,
+  })
+);
 jest.mock("@/lib/workboard/all-jobs-query", () => ({
   readMirrorJobDetail: (...a: unknown[]) => readMirrorJobDetail(...(a as [])),
+  readMirrorJobRow: (...a: unknown[]) =>
+    readMirrorJobRow(...(a as [string, string, string, { includeMoney?: boolean }])),
   searchAllMirrorJobs: (...a: unknown[]) => searchAllMirrorJobs(...(a as [])),
   resolveJobCard: (...a: unknown[]) => resolveJobCard(...(a as [string, string])),
   readClaimDetail: (...a: unknown[]) => readClaimDetail(...(a as [])),
@@ -75,11 +97,13 @@ jest.mock("@/lib/workboard/all-jobs-query", () => ({
 
 import {
   createProjectFromJob,
+  openMirrorJob,
   readClaim,
   readMirrorJob,
   searchAllJobs,
   searchJobs,
 } from "../workboard";
+import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 
 const quoteJob = {
   uuid: "j-1",
@@ -259,5 +283,62 @@ describe("reading the book", () => {
     caps = new Set();
     expect(await searchJobs("ardex")).toEqual([]);
     expect(searchMirrorJobs).not.toHaveBeenCalled();
+  });
+});
+
+/* THE NEW HOME'S DOOR BY UUID. A mention names a job the page holds no row
+   for; the card has to open on the row the board's own builder makes. The
+   uuid is a CHOICE from the client, so the read is this org's, and money
+   rides only with the grant. */
+describe("openMirrorJob", () => {
+  beforeEach(() => readMirrorJobRow.mockClear());
+
+  it("reads the job inside this org's mirror and hands back the board's own row for it", async () => {
+    caps = new Set(["workboard"]);
+    const row = await openMirrorJob("  j-2051  ");
+    expect(readMirrorJobRow).toHaveBeenCalledWith("org-1", "j-2051", expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), {
+      includeMoney: false,
+    });
+    expect(row).toMatchObject({ id: "j-2051", number: "2051", clientName: "Mosman Marina" });
+  });
+
+  it("lets money ride only for a reader who holds it", async () => {
+    caps = new Set(["workboard", "workboard_money"]);
+    await openMirrorJob("j-2051");
+    expect(readMirrorJobRow).toHaveBeenCalledWith("org-1", "j-2051", expect.any(String), { includeMoney: true });
+  });
+
+  it("opens nothing without workboard, for no uuid, or for a job the mirror does not hold", async () => {
+    caps = new Set();
+    expect(await openMirrorJob("j-2051")).toBeNull();
+    expect(readMirrorJobRow).not.toHaveBeenCalled();
+
+    caps = new Set(["workboard"]);
+    expect(await openMirrorJob("   ")).toBeNull();
+    expect(readMirrorJobRow).not.toHaveBeenCalled();
+
+    readMirrorJobRow.mockResolvedValueOnce(null);
+    expect(await openMirrorJob("gone")).toBeNull();
+  });
+
+  it("opens nothing for a job with no status, which the board files nowhere either", async () => {
+    caps = new Set(["workboard"]);
+    readMirrorJobRow.mockImplementationOnce(async (_o, id) => ({
+      remoteId: id,
+      jobNumber: "7",
+      status: null,
+      clientName: null,
+      description: null,
+      suburb: null,
+      categoryName: null,
+      categoryColour: null,
+      date: null,
+      quoteDate: null,
+      completionDate: null,
+      nextBooking: null,
+      money: null,
+      paidCents: 0,
+    }));
+    expect(await openMirrorJob("j-7")).toBeNull();
   });
 });

@@ -57,10 +57,11 @@ export type JobRecordRead = {
 };
 import {
   readMirrorJobDetail,
+  readMirrorJobRow,
   searchAllMirrorJobs,
   type MirrorJobDetail,
 } from "@/lib/workboard/all-jobs-query";
-import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
+import { sheetRowOf, type AllJobRow, type AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import {
   EMPTY_SCHEDULE,
   loadScheduleDay,
@@ -452,6 +453,28 @@ export async function readMirrorJob(remoteId: string): Promise<JobCardRead> {
     timezone,
   });
   return { detail, focusRemoteId: target.focusRemoteId };
+}
+
+/** THE ROW A CARD OPENS ON, from a job's uuid alone. A door on the new Home
+    can name a job it holds no row for (a mention of a job finished last
+    year), and the card has to open on the row the board's own builder
+    would make, the way a `?job=` link does. The uuid is a CHOICE the client
+    handed in, so it is read inside this org's mirror; money rides only for
+    a reader who holds `workboard_money`. Null without `workboard`, for a
+    job the org's mirror does not hold, and for a status the board files
+    nowhere, which the card opens on nowhere either. */
+export async function openMirrorJob(remoteId: string): Promise<AllJobRow | null> {
+  const ctx = await context();
+  if (!ctx || !(await can("workboard"))) return null;
+  const id = trim(remoteId, 80);
+  if (!id) return null;
+  const [timezone, includeMoney] = await Promise.all([
+    getSm8Timezone(ctx.orgId),
+    can("workboard_money"),
+  ]);
+  const today = todayInZone(timezone);
+  const job = await readMirrorJobRow(ctx.orgId, id, today, { includeMoney });
+  return job ? sheetRowOf(job, today) : null;
 }
 
 /** The job sheet's files, fetched separately from its detail on purpose: the

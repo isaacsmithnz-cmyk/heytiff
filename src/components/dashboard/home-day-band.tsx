@@ -88,7 +88,17 @@ export function wordsWidthGuess(item: RailItem): number {
   return 48 + text.length * 7.5;
 }
 
-export function HomeDayBand({ rail }: { rail: HomeRail }) {
+export function HomeDayBand({
+  rail,
+  onOpenJob,
+}: {
+  rail: HomeRail;
+  /** THE NEW HOME'S ONE CARD. The desk holds this band until its own day
+      lands, and opens a booking through the card every door on it shares
+      (home-job-sheet) rather than a second one here. Today's Home passes
+      nothing and the band keeps its own. */
+  onOpenJob?: (row: AllJobRow, state: ReturnType<typeof dayStateOfBlock>, from: HTMLElement | null) => void;
+}) {
   /* The browser's clock, not the loader's: the marker keeps moving while the
      page is open, and it reads null the moment the browser's own date
      disagrees with the band's day — a missing mark beats one that is hours
@@ -351,7 +361,11 @@ export function HomeDayBand({ rail }: { rail: HomeRail }) {
               key={p.item.key}
               ref={hold(p.item.key)}
               style={pillStyle}
-              onClick={() => setOpen({ row, state: dayStateOfBlock(b, clock), from: p.item.key })}
+              onClick={(e) =>
+                onOpenJob
+                  ? onOpenJob(row, dayStateOfBlock(b, clock), e.currentTarget)
+                  : setOpen({ row, state: dayStateOfBlock(b, clock), from: p.item.key })
+              }
             >
               {words}
             </button>

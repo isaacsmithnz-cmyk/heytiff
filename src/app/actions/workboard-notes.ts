@@ -84,7 +84,8 @@ import {
    filed), `keepWords` (the plain Save) and `publishNoteKb` (the one row that
    waits for a press). The review card's door is untouched: its notes write
    no turns and route exactly as before, so the crew's capture never names a
-   column tiff_modal_turns.sql adds. */
+   column tiff_modal_turns.sql adds or calls a function tiff_modal_record.sql
+   adds. */
 
 export type NoteTarget = {
   /** `job` is a SERVICEM8 job, and it is the odd one out: the other three are
@@ -130,7 +131,8 @@ export type FileAsk = {
 
 export type FileResult =
   | { ok: true; summary: string; doors: NoteDoor[]; turns: Turn[] }
-  | { ok: false; error: string; ask?: FileAsk };
+  /** `turns` when it asked: the conversation with the question on the end. */
+  | { ok: false; error: string; ask?: FileAsk; turns?: Turn[] };
 
 export type UndoResult = { ok: true; summary: string; turns: Turn[] } | { ok: false; error: string };
 
@@ -146,6 +148,8 @@ const GONE = "That note is no longer here.";
 /** Tiff's line when routing fails on a modal note (the spec's words). */
 const KEPT_AS_SAID = "I couldn't sort that out just now, so it's in your diary as you said it.";
 const NOT_YOURS = "That note isn't yours.";
+/** The question a pick answers: its options carry their jobs. */
+const WHICH_JOB = "Which job is this for?";
 
 /** Why a note can't be answered or filed any more, by where it ended up. */
 const SETTLED: Record<string, string> = {
@@ -1307,6 +1311,9 @@ async function agreementOfVisit(orgId: string, visitId: string): Promise<string 
     own pending question, then a task with nobody on it ("Who should do this:
     …?"), then a row that needs a job and has none ("Which job is this for?",
     with up to three jobs the words match as answers that carry the job).
+    A question it asks is kept on the note (`askFirst`), so the reply is read
+    as the answer to it. A job the answer carries files straight past its
+    own question.
 
     CLAIMED BEFORE IT WRITES. Nothing reviews this, so two presses must not
     file twice: the note moves to `applied` only if it is still waiting, and
@@ -1326,7 +1333,11 @@ export async function fileNote(
 
   const plan = storedProposal(note.proposal);
   if (!plan) return { ok: false, error: "There's nothing on that note to file yet." };
-  if (plan.clarify) {
+  /* "Which job is this for?" is the one question a pick answers rather than
+     a reply, so it is asked afresh below (its answers carry their jobs, which
+     a stored option cannot) and a job it was answered with files past it. */
+  const jobAsked = plan.clarify?.question === WHICH_JOB;
+  if (plan.clarify && !jobAsked) {
     return {
       ok: false,
       error: plan.clarify.question,
@@ -1346,23 +1357,20 @@ export async function fileNote(
     const said = [note.transcript, ...turns.filter((t) => t.who === "you").slice(1).map((t) => t.text)].join("\n");
     const question = `Who should do this: ${nobody.title.trim()}?`;
     const labels = [...(ctx.staffId ? ["Me"] : []), ...namesMentioned(said, staff, ctx.staffId)];
-    return { ok: false, error: question, ask: { question, options: labels.map((label) => ({ label })) } };
+    return askFirst(ctx, note, turns, { question, options: labels.map((label) => ({ label })) });
   }
 
   const picked = await pickTarget(ctx, note, opts.retarget);
   if (!picked) return { ok: false, error: MOVED };
   const { target } = picked;
   if (jobBound(draft) && (target.kind === "none" || !target.id)) {
-    const question = "Which job is this for?";
     const jobs = matchedJobs(note.transcript, await jobCandidates(ctx.orgId), 3);
-    return {
-      ok: false,
-      error: question,
-      ask: {
-        question,
-        options: jobs.map((j) => ({ label: describeJob(j), target: { kind: j.kind, id: j.id } })),
-      },
+    const ask: FileAsk = {
+      question: WHICH_JOB,
+      options: jobs.map((j) => ({ label: describeJob(j), target: { kind: j.kind, id: j.id } })),
     };
+    /* Asked once: pressed again, the question is already Tiff's last turn. */
+    return jobAsked ? { ok: false, error: WHICH_JOB, ask, turns } : askFirst(ctx, note, turns, ask);
   }
 
   const { data: claimed } = await supabaseAdmin
@@ -1384,14 +1392,6 @@ export async function fileNote(
     return { ok: false, error: done.error };
   }
 
-  /* A library entry published before filing rides into the record, so Undo
-     finds it with everything else. */
-  const before = appliedOf(note.applied);
-  if (before.kbIds.length) {
-    done.applied.kbIds = before.kbIds;
-    done.applied.kbTitles = before.kbTitles;
-  }
-
   const filed = withTurns(
     turns.length ? turns : [turn("you", note.transcript)],
     turn("tiff", plan.say ? `Done. ${plan.say}` : "Done."),
@@ -1399,16 +1399,62 @@ export async function fileNote(
   await supabaseAdmin
     .from("workboard_notes")
     .update({
-      applied: done.applied,
       turns: filed,
       /* The job the answer carried: the note remembers where it ended up. */
       ...(picked.moved ? { target_kind: target.kind, target_id: target.id ?? null } : {}),
+      /* The question a job answered is answered: nothing is waiting on it. */
+      ...(plan.clarify ? { proposal: { ...(note.proposal as Record<string, unknown>), clarify: null } } : {}),
     })
     .eq("org_id", ctx.orgId)
     .eq("id", noteId);
 
+  /* THE RECORD IS MERGED IN THE DATABASE, NEVER WRITTEN BACK FROM A COPY.
+     A Library press can land while this note is filing (the entry sits in
+     the same plan), and each used to write the whole column from what it
+     had read: the press's stale copy then wiped this record, or this record
+     wiped the press's entry. One statement each now (tiff_modal_record.sql),
+     so an entry published before or during filing stays on the record and
+     Undo finds it with everything else. */
+  await supabaseAdmin.rpc("workboard_note_file_record", {
+    p_org: ctx.orgId,
+    p_note: noteId,
+    p_applied: done.applied,
+  });
+
   refreshHome(target);
   return { ok: true, summary: done.summary, doors: doorsOf(appliedOf(done.applied)), turns: filed };
+}
+
+/** Ask instead of filing, and KEEP THE QUESTION ON THE NOTE: Tiff's turn in
+    the conversation, so the diary's last line is the question and the reply
+    that follows it reads as its answer, and the proposal's `clarify`, so the
+    next read is told what was asked and a tapped option is a plain answer
+    ("Do not ask again"). The note is `clarifying` until it is answered.
+
+    Only onto a note still waiting: a question must not reopen one that was
+    filed or taken back in the moment since. Nothing else changes, and `say`
+    stays the plan's own line, which is what "Done." repeats. */
+async function askFirst(
+  ctx: Ctx,
+  note: NoteRow,
+  turns: Turn[],
+  ask: FileAsk,
+): Promise<FileResult> {
+  const asked = withTurns(turns.length ? turns : [turn("you", note.transcript)], turn("tiff", ask.question));
+  await supabaseAdmin
+    .from("workboard_notes")
+    .update({
+      proposal: {
+        ...(note.proposal as Record<string, unknown>),
+        clarify: { question: ask.question, options: ask.options.map((o) => o.label) },
+      },
+      status: "clarifying",
+      turns: asked,
+    })
+    .eq("org_id", ctx.orgId)
+    .eq("id", note.id)
+    .in("status", ["pending", "clarifying"]);
+  return { ok: false, error: ask.question, ask, turns: asked };
 }
 
 /** Why Undo is refused, in the spec's words where it has them. */
@@ -1533,7 +1579,7 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
     a.taskIds.length ? gone("tasks", a.taskIds).eq("status", "open") : null,
     a.flagIds.length ? gone("workboard_flags", a.flagIds).eq("active", true) : null,
     a.entryIds.length ? gone("project_entries", a.entryIds) : null,
-    fresh.length ? gone("workboard_issues", fresh).eq("occurrences", 1) : null,
+    fresh.length ? gone("workboard_issues", fresh).eq("occurrences", 1).eq("resolved", false) : null,
     a.checklistIds.length ? gone("project_checklist_items", a.checklistIds).eq("done", false) : null,
     a.picklistIds.length ? gone("job_picklist_items", a.picklistIds).eq("picked", false) : null,
     a.kbIds.length ? gone("kb_documents", a.kbIds).eq("category", "field") : null,
@@ -1652,17 +1698,33 @@ export async function publishNoteKb(noteId: string, index: number): Promise<Publ
   });
   if (!res.ok) return { ok: false, error: res.error };
 
-  /* Onto the record, whatever else is on it — built here rather than
-     written inline, since a pending note's record is empty until it files. */
-  const next: Record<string, unknown> =
-    note.applied && typeof note.applied === "object" ? { ...(note.applied as Record<string, unknown>) } : {};
-  next.kbIds = [...before.kbIds, res.documentId];
-  next.kbTitles = [...before.kbTitles, title];
-  await supabaseAdmin
-    .from("workboard_notes")
-    .update({ applied: next })
-    .eq("org_id", ctx.orgId)
-    .eq("id", noteId);
+  /* ONTO THE RECORD AS IT STANDS NOW, not as it was read before the entry
+     was embedded: the note may have filed in the meantime, and writing the
+     column back from that copy wiped the whole record Undo needs. One
+     statement in the database (tiff_modal_record.sql) appends the entry, and
+     refuses a note set aside or taken back since, or a second press that
+     already added this title. */
+  const { data: added, error: addErr } = await supabaseAdmin.rpc("workboard_note_add_kb", {
+    p_org: ctx.orgId,
+    p_note: noteId,
+    p_kb_id: res.documentId,
+    p_title: title,
+  });
+  if (addErr || added !== true) {
+    /* Not on the record means nothing could take it back: so it comes out
+       of the Library again rather than staying there with no note behind
+       it. Its chunk goes with it (kb_chunks cascades). */
+    await supabaseAdmin.from("kb_documents").delete().eq("org_id", ctx.orgId).eq("id", res.documentId);
+    const now = addErr ? undefined : await noteIn(ctx.orgId, noteId, TALK_COLUMNS);
+    if (now === null) return { ok: false, error: GONE };
+    if (now?.status === "dismissed" || now?.status === "undone") {
+      return { ok: false, error: SETTLED[now.status] };
+    }
+    if (now && appliedOf(now.applied).kbTitles.includes(title)) {
+      return { ok: false, error: "That's already in the Library." };
+    }
+    return { ok: false, error: "Couldn't add that to the Library." };
+  }
 
   refreshHome(target);
   return { ok: true, documentId: res.documentId, summary: "Added to the Library." };

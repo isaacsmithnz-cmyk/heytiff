@@ -19,8 +19,12 @@ type Row = Record<string, unknown>;
 type Filter = [op: "eq" | "in", column: string, value: unknown];
 
 let db: Record<string, Row[]> = {};
-const writes: { op: "insert" | "update" | "delete"; table: string; payload?: unknown; filters: Filter[] }[] = [];
+type Write = { op: "insert" | "update" | "delete" | "rpc"; table: string; payload?: unknown; filters: Filter[] };
+const writes: Write[] = [];
 let seq = 0;
+/** Runs after every update lands: somebody else acting in the moment between
+    two of the server's writes. */
+let onUpdate: ((w: Write) => void) | null = null;
 
 /* What the database fills in that the code doesn't send. */
 const DEFAULTS: Record<string, Row> = {
@@ -52,7 +56,9 @@ function from(table: string) {
     const hit = all.filter(match);
     if (mode === "update") {
       for (const r of hit) Object.assign(r, structuredClone(patch));
-      writes.push({ op: "update", table, payload: patch, filters: [...filters] });
+      const w: Write = { op: "update", table, payload: patch, filters: [...filters] };
+      writes.push(w);
+      onUpdate?.(w);
       return { data: returning ? hit.map((r) => ({ ...r })) : null, error: null };
     }
     if (mode === "delete") {
@@ -98,7 +104,45 @@ function from(table: string) {
   return b;
 }
 
-jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { from: (t: string) => from(t) } }));
+/* The two functions tiff_modal_record.sql adds, as the database runs them:
+   one statement each, merged into the row as it stands when it lands. The
+   SQL is pinned against these at the foot of this file. */
+const isObj = (v: unknown): v is Row => !!v && typeof v === "object" && !Array.isArray(v);
+const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+const RPC: Record<string, (a: Row) => boolean> = {
+  workboard_note_file_record: (a) => {
+    const n = (db.workboard_notes ?? []).find(
+      (r) => r.org_id === a.p_org && r.id === a.p_note && r.status === "applied",
+    );
+    if (!n || !isObj(a.p_applied)) return false;
+    n.applied = { ...(isObj(n.applied) ? n.applied : {}), ...structuredClone(a.p_applied) };
+    return true;
+  },
+  workboard_note_add_kb: (a) => {
+    const n = (db.workboard_notes ?? []).find(
+      (r) =>
+        r.org_id === a.p_org &&
+        r.id === a.p_note &&
+        ["pending", "clarifying", "applied"].includes(String(r.status)),
+    );
+    const base = n && isObj(n.applied) ? n.applied : {};
+    if (!n || list(base.kbTitles).includes(a.p_title)) return false;
+    n.applied = {
+      ...base,
+      kbIds: [...list(base.kbIds), a.p_kb_id],
+      kbTitles: [...list(base.kbTitles), a.p_title],
+    };
+    return true;
+  },
+};
+async function rpc(name: string, args: Row) {
+  writes.push({ op: "rpc", table: name, payload: args, filters: [] });
+  return { data: RPC[name](args), error: null };
+}
+
+jest.mock("@/lib/supabase-server", () => ({
+  supabaseAdmin: { from: (t: string) => from(t), rpc: (n: string, a: Row) => rpc(n, a) },
+}));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
 let session: { user: { sub: string }; orgId: string } | null = { user: { sub: "auth0|me" }, orgId: "org-1" };
@@ -108,7 +152,21 @@ let caps = new Set<string>();
 jest.mock("@/lib/permissions-server", () => ({ can: async (c: string) => caps.has(c) }));
 let me: string | null = "s-me";
 jest.mock("@/lib/workboard/projects-query", () => ({ staffIdFor: async () => me }));
-jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: async () => "Australia/Sydney" }));
+/* A hold on the next clock read: `applyConfirmed` reads it after fileNote
+   has claimed the note, so a test can act while a note is mid-filing. */
+let tzHold: Promise<void> | null = null;
+let tzReached: () => void = () => {};
+jest.mock("@/lib/workboard/query", () => ({
+  getSm8Timezone: async () => {
+    const hold = tzHold;
+    tzHold = null;
+    if (hold) {
+      tzReached();
+      await hold;
+    }
+    return "Australia/Sydney";
+  },
+}));
 jest.mock("@/lib/dashboard/reminders-query", () => ({
   workdayHours: async () => ({ start: "06:30", end: "15:00" }),
 }));
@@ -116,7 +174,13 @@ jest.mock("@/lib/brain/tools", () => ({
   jobHistory: async () => ({ equipment: [], issues: [], flags: [], recentNotes: [] }),
 }));
 let candidates: Row[] = [];
-jest.mock("@/lib/dashboard/job-candidates", () => ({ jobCandidates: async () => candidates }));
+let onCandidates: (() => void) | null = null;
+jest.mock("@/lib/dashboard/job-candidates", () => ({
+  jobCandidates: async () => {
+    onCandidates?.();
+    return candidates;
+  },
+}));
 const publishFieldNote = jest.fn();
 jest.mock("@/lib/tiff/field-notes", () => ({
   publishFieldNote: (i: unknown) => publishFieldNote(i),
@@ -140,7 +204,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { listJournal } from "@/lib/dashboard/journal-query";
 import { TURNS_MAX } from "@/lib/workboard/note-turns";
-import type { NoteProposal } from "@/lib/workboard/note-brain";
+import { noteContent, type NoteProposal } from "@/lib/workboard/note-brain";
 const { readNote } = jest.requireMock("@/lib/workboard/note-brain") as { readNote: jest.Mock };
 
 /* ── fixtures ─────────────────────────────────────────────────────────── */
@@ -211,9 +275,19 @@ beforeEach(() => {
   caps = new Set(["workboard"]);
   me = "s-me";
   candidates = [];
+  onCandidates = null;
+  onUpdate = null;
+  tzHold = null;
   readNote.mockReset();
   publishFieldNote.mockReset();
 });
+
+/** A promise the test resolves by hand. */
+function held<T = void>() {
+  let release!: (v: T) => void;
+  const promise = new Promise<T>((r) => (release = r));
+  return { promise, release };
+}
 
 /* ── routeNote: the modal's door and the card's ──────────────────────── */
 
@@ -262,6 +336,14 @@ describe("routeNote", () => {
     const row = rowsOf("workboard_notes")[0];
     expect(row).toMatchObject({ status: "applied", applied: {} });
     expect((row.turns as Row[]).at(-1)).toMatchObject({ who: "tiff", text: expect.stringContaining("in your diary") });
+  });
+
+  it("files nothing as said without a staff card, since no diary could show it", async () => {
+    me = null;
+    readNote.mockResolvedValue({ ok: false, error: "Too busy right now — the note was saved as written." });
+    const res = await routeNote({ transcript: "gate code 4821", target: { kind: "none" }, conversation: true });
+    expect(res).toEqual({ ok: false, error: "Too busy right now — the note was saved as written." });
+    expect(rowsOf("workboard_notes")[0]).toMatchObject({ status: "pending", applied: null });
   });
 
   it("the card's failure still leaves its note pending for the card to offer", async () => {
@@ -459,9 +541,65 @@ describe("fileNote", () => {
         question: "Who should do this: Order the grilles?",
         options: [{ label: "Me" }, { label: "Callum" }, { label: "Luke" }],
       },
+      turns: expect.any(Array),
     });
     expect(rowsOf("tasks")).toEqual([]);
-    expect(noteRow().status).toBe("pending");
+  });
+
+  it("keeps the question it asks on the note, so the reply is read as its answer", async () => {
+    note({
+      transcript: "Callum said the grilles need ordering",
+      turns: [t("you", "Callum said the grilles need ordering"), t("tiff", "A task to order the grilles.")],
+      proposal: { ...EMPTY, tasks: [task({ assigneeId: null, assigneeHint: "" })], say: "A task to order the grilles." },
+    });
+    const res = await fileNote("n-1");
+    const asked = ["tiff", "Who should do this: Order the grilles?"];
+    expect(!res.ok && res.turns?.map((x) => [x.who, x.text]).at(-1)).toEqual(asked);
+
+    const row = noteRow();
+    expect(row.status).toBe("clarifying");
+    expect((row.proposal as NoteProposal).clarify).toEqual({
+      question: "Who should do this: Order the grilles?",
+      options: ["Me", "Callum"],
+    });
+    // Tiff's own line for the plan is untouched: it is what "Done." repeats
+    expect((row.proposal as NoteProposal).say).toBe("A task to order the grilles.");
+    expect((row.turns as Row[]).map((x) => [x.who, x.text]).at(-1)).toEqual(asked);
+
+    // pressed again, it asks from the note and says it once
+    expect((await fileNote("n-1")).ok).toBe(false);
+    expect((row.turns as Row[]).filter((x) => x.text === asked[1])).toHaveLength(1);
+
+    // "Me", tapped, is the answer to that question: the next read is told not to ask again
+    readNote.mockResolvedValue({ ok: true, proposal: { ...EMPTY, tasks: [task({ assigneeId: "s-me" })] } });
+    await continueNote("n-1", "Me");
+    const follow = readNote.mock.calls[0][2];
+    const sent = noteContent("Callum said the grilles need ordering", follow);
+    expect(sent).toContain("You: Who should do this: Order the grilles?\nThey: Me");
+    expect(sent).toContain("They answered your question. Do not ask again.");
+  });
+
+  it("offers no Me to someone without a staff card", async () => {
+    me = null;
+    note({
+      author_id: null,
+      transcript: "Callum said the grilles need ordering",
+      proposal: { ...EMPTY, tasks: [task({ assigneeId: null, assigneeHint: "" })] },
+    });
+    const res = await fileNote("n-1");
+    expect(!res.ok && res.ask?.options).toEqual([{ label: "Callum" }]);
+  });
+
+  it("a question never reopens a note filed in the moment since", async () => {
+    note({ proposal: { ...EMPTY, flags: [{ message: "Roof hatch seized", severity: "warn" }] } });
+    // the other tab files it while this one looks for jobs
+    onCandidates = () => {
+      noteRow().status = "applied";
+    };
+    const res = await fileNote("n-1");
+    expect(!res.ok && res.error).toBe("Which job is this for?");
+    expect(noteRow()).toMatchObject({ status: "applied" });
+    expect((noteRow().proposal as NoteProposal).clarify).toBeNull();
   });
 
   it("asks which job when a row needs one, with the jobs the words match as answers that carry the job", async () => {
@@ -482,7 +620,46 @@ describe("fileNote", () => {
       ]);
     }
     expect(rowsOf("workboard_flags")).toEqual([]);
-    expect(noteRow().status).toBe("pending");
+    expect(noteRow().status).toBe("clarifying");
+    expect((noteRow().turns as Row[]).at(-1)).toMatchObject({ who: "tiff", text: "Which job is this for?" });
+
+    // pressed again, the answers still carry their jobs, and it is asked once
+    const again = await fileNote("n-1");
+    expect(!again.ok && again.ask?.options[0]?.target).toEqual({ kind: "visit", id: "v-1" });
+    expect((noteRow().turns as Row[]).filter((x) => x.text === "Which job is this for?")).toHaveLength(1);
+  });
+
+  it("a job the answer carries files straight past its own question", async () => {
+    note({
+      transcript: "Meridian roof hatch is seized",
+      proposal: { ...EMPTY, flags: [{ message: "Roof hatch seized", severity: "warn" }], say: "A flag on the roof hatch." },
+    });
+    db.maintenance_visits = [{ id: "v-1", org_id: "org-1", notes: null }];
+    expect((await fileNote("n-1")).ok).toBe(false);
+    expect(noteRow().status).toBe("clarifying");
+
+    const res = await fileNote("n-1", { retarget: { kind: "visit", id: "v-1" } });
+    expect(res.ok).toBe(true);
+    expect(rowsOf("workboard_flags")[0]).toMatchObject({ target_kind: "visit", target_id: "v-1" });
+    expect(noteRow()).toMatchObject({ status: "applied", target_kind: "visit", target_id: "v-1" });
+    // nothing is waiting on the question now, and "Done." says the plan's own line
+    expect((noteRow().proposal as NoteProposal).clarify).toBeNull();
+    expect((noteRow().turns as Row[]).at(-1)).toMatchObject({ text: "Done. A flag on the roof hatch." });
+  });
+
+  it("a job does not answer any other question", async () => {
+    note({
+      status: "clarifying",
+      proposal: {
+        ...EMPTY,
+        flags: [{ message: "Roof hatch seized", severity: "warn" }],
+        clarify: { question: "Which Luke?", options: ["Luke Nguyen", "Luke Tran"] },
+      },
+    });
+    db.maintenance_visits = [{ id: "v-1", org_id: "org-1", notes: null }];
+    const res = await fileNote("n-1", { retarget: { kind: "visit", id: "v-1" } });
+    expect(!res.ok && res.error).toBe("Which Luke?");
+    expect(rowsOf("workboard_flags")).toEqual([]);
   });
 
   it("files onto the job the answer carries", async () => {
@@ -505,7 +682,16 @@ describe("fileNote", () => {
     db.maintenance_visits = [{ id: "v-1", org_id: "org-1", notes: null }];
     const res = await fileNote("n-1", { retarget: { kind: "visit", id: "v-1" } });
     expect(res.ok).toBe(false);
-    expect(noteRow()).toMatchObject({ target_kind: "none", target_id: null, status: "pending" });
+    expect(noteRow()).toMatchObject({ target_kind: "none", target_id: null, status: "clarifying" });
+  });
+
+  it("a filing the writer refuses part-way puts the note back to waiting", async () => {
+    // Luke's card was deleted after the note was routed
+    note({ proposal: { ...EMPTY, tasks: [task({ assigneeId: "s-gone" })] } });
+    const res = await fileNote("n-1");
+    expect(res).toEqual({ ok: false, error: "That person isn't on this workspace any more." });
+    expect(rowsOf("tasks")).toEqual([]);
+    expect(noteRow()).toMatchObject({ status: "pending", applied_at: null, applied: null });
   });
 
   it("refuses a job that isn't in this workspace", async () => {
@@ -740,13 +926,97 @@ describe("undoNote", () => {
       "the fresh issue was counted again",
       () => (rowsOf("workboard_issues").find((i) => i.summary === "New rattle")!.occurrences = 2),
     ],
+    [
+      "the fresh issue was resolved",
+      () => (rowsOf("workboard_issues").find((i) => i.summary === "New rattle")!.resolved = true),
+    ],
   ])("refuses, and changes nothing, when %s", async (_label, act) => {
     await filedEverything();
     act();
     const before = structuredClone(db);
     const res = await undoNote("n-1");
-    expect(res.ok).toBe(false);
+    expect(res).toEqual({ ok: false, error: "Someone has already acted on one of those, so nothing was taken back." });
     expect(db).toEqual(before);
+  });
+
+  /** A note that filed a project's bring-items and a job's, as a v2 record. */
+  function filedBringItems() {
+    note({
+      status: "applied",
+      applied: { v: 2, bringItems: ["coil cleaner", "1060 grille"], checklistIds: ["c-1"], picklistIds: ["pk-1"] },
+    });
+    db.project_checklist_items = [{ id: "c-1", org_id: "org-1", done: false }];
+    db.job_picklist_items = [{ id: "pk-1", org_id: "org-1", picked: false }];
+  }
+
+  it.each([
+    ["a bring-item was ticked off the project's checklist", () => (rowsOf("project_checklist_items")[0].done = true)],
+    ["a material was picked off the job's list", () => (rowsOf("job_picklist_items")[0].picked = true)],
+  ])("refuses, and changes nothing, when %s", async (_label, act) => {
+    filedBringItems();
+    act();
+    const before = structuredClone(db);
+    const res = await undoNote("n-1");
+    expect(res).toEqual({ ok: false, error: "Someone has already acted on one of those, so nothing was taken back." });
+    expect(db).toEqual(before);
+  });
+
+  it("leaves alone a row somebody acts on in the moment after the checks", async () => {
+    note({
+      status: "applied",
+      applied: {
+        v: 2,
+        taskIds: ["t-1"],
+        flagIds: ["f-1"],
+        issueIds: ["i-old", "i-new"],
+        issueBumps: [{ id: "i-old", occurrences: 2, lastSeen: "2026-09-01" }],
+        checklistIds: ["c-1"],
+        picklistIds: ["pk-1"],
+        kbIds: ["kb-1"],
+      },
+    });
+    db.tasks = [{ id: "t-1", org_id: "org-1", status: "open" }];
+    db.workboard_flags = [{ id: "f-1", org_id: "org-1", active: true }];
+    db.workboard_issues = [
+      { id: "i-old", org_id: "org-1", occurrences: 3, last_seen: "2026-09-25", resolved: false },
+      { id: "i-new", org_id: "org-1", occurrences: 1, resolved: false },
+    ];
+    db.project_checklist_items = [{ id: "c-1", org_id: "org-1", done: false }];
+    db.job_picklist_items = [{ id: "pk-1", org_id: "org-1", picked: false }];
+    db.kb_documents = [{ id: "kb-1", org_id: "org-1", category: "field" }];
+
+    // everyone acts at once, just after Undo has checked and claimed the note
+    onUpdate = (w) => {
+      if (w.table !== "workboard_notes" || (w.payload as Row).status !== "undone") return;
+      rowsOf("tasks")[0].status = "done";
+      rowsOf("workboard_flags")[0].active = false;
+      rowsOf("workboard_issues")[0].occurrences = 4;
+      rowsOf("workboard_issues")[1].occurrences = 2;
+      rowsOf("project_checklist_items")[0].done = true;
+      rowsOf("job_picklist_items")[0].picked = true;
+    };
+    expect((await undoNote("n-1")).ok).toBe(true);
+
+    expect(rowsOf("tasks")).toEqual([expect.objectContaining({ id: "t-1", status: "done" })]);
+    expect(rowsOf("workboard_flags")).toEqual([expect.objectContaining({ id: "f-1", active: false })]);
+    expect(rowsOf("workboard_issues")).toEqual([
+      expect.objectContaining({ id: "i-old", occurrences: 4, last_seen: "2026-09-25" }),
+      expect.objectContaining({ id: "i-new", occurrences: 2 }),
+    ]);
+    expect(rowsOf("project_checklist_items")).toHaveLength(1);
+    expect(rowsOf("job_picklist_items")).toHaveLength(1);
+    // a library entry has no state anyone acts on: it goes
+    expect(rowsOf("kb_documents")).toEqual([]);
+  });
+
+  it("leaves alone a fresh issue somebody resolves in that moment", async () => {
+    await filedEverything();
+    onUpdate = (w) => {
+      if (w.table !== "workboard_notes" || (w.payload as Row).status !== "undone") return;
+      rowsOf("workboard_issues").find((i) => i.summary === "New rattle")!.resolved = true;
+    };
+    expect((await undoNote("n-1")).ok).toBe(true);
+    expect(rowsOf("workboard_issues").map((i) => i.summary)).toEqual(["Tripped again", "New rattle"]);
   });
 
   it("refuses someone who is neither the author nor team", async () => {
@@ -863,6 +1133,98 @@ describe("publishNoteKb", () => {
     expect(publishFieldNote).not.toHaveBeenCalled();
   });
 
+  it("publishes nothing on somebody else's note, or on one set aside", async () => {
+    withKb({ author_id: "s-luke" });
+    expect(await publishNoteKb("n-1", 0)).toEqual({ ok: false, error: "That note isn't yours." });
+    withKb({ status: "dismissed" });
+    expect(await publishNoteKb("n-1", 0)).toEqual({ ok: false, error: "That note was set aside." });
+    expect(publishFieldNote).not.toHaveBeenCalled();
+  });
+
+  /** publishFieldNote as the library runs it: the row lands, then its id
+      comes back — held until the test says so when `gate` is given. */
+  function library(gate?: Promise<void>, reached?: () => void) {
+    let n = 8;
+    publishFieldNote.mockImplementation(async () => {
+      const id = `kb-${++n}`;
+      reached?.();
+      if (gate) await gate;
+      (db.kb_documents ??= []).push({ id, org_id: "org-1", category: "field" });
+      return { ok: true, documentId: id };
+    });
+  }
+
+  it("a Library press that lands after the note filed keeps the whole record, and Undo takes both back", async () => {
+    withKb({ proposal: { ...EMPTY, tasks: [task()], kbEntries: [{ title: "Clearing an E6", body: "Power the outdoor board separately." }] } });
+    const gate = held();
+    const reached = held();
+    library(gate.promise, reached.release);
+
+    const pressing = publishNoteKb("n-1", 0);
+    await reached.promise; // the entry is being embedded…
+    expect((await fileNote("n-1")).ok).toBe(true); // …and the note files meanwhile
+    gate.release();
+    expect(await pressing).toMatchObject({ ok: true, documentId: "kb-9" });
+
+    expect(noteRow().applied).toMatchObject({
+      v: 2,
+      taskIds: [rowsOf("tasks")[0].id],
+      kbIds: ["kb-9"],
+      kbTitles: ["Clearing an E6"],
+    });
+    const res = await undoNote("n-1");
+    expect(res.ok && res.summary).toBe("1 task and 1 library entry taken back.");
+    expect(rowsOf("tasks")).toEqual([]);
+    expect(rowsOf("kb_documents")).toEqual([]);
+  });
+
+  it("a Library press that lands while the note is filing stays on the record", async () => {
+    withKb({ proposal: { ...EMPTY, tasks: [task()], kbEntries: [{ title: "Clearing an E6", body: "Power the outdoor board separately." }] } });
+    library();
+    const hold = held();
+    tzHold = hold.promise;
+    const reached = held();
+    tzReached = reached.release;
+
+    const filing = fileNote("n-1");
+    await reached.promise; // claimed, and writing its rows…
+    expect(await publishNoteKb("n-1", 0)).toMatchObject({ ok: true }); // …when the press lands
+    hold.release();
+    expect((await filing).ok).toBe(true);
+
+    expect(noteRow().applied).toMatchObject({
+      v: 2,
+      taskIds: [rowsOf("tasks")[0].id],
+      kbIds: ["kb-9"],
+      kbTitles: ["Clearing an E6"],
+    });
+  });
+
+  it("an entry published onto a note taken back meanwhile comes back out of the Library", async () => {
+    withKb({ status: "applied", applied: { v: 2 } });
+    const gate = held();
+    const reached = held();
+    library(gate.promise, reached.release);
+
+    const pressing = publishNoteKb("n-1", 0);
+    await reached.promise;
+    expect((await undoNote("n-1")).ok).toBe(true);
+    gate.release();
+    expect(await pressing).toEqual({ ok: false, error: "That note was taken back." });
+    expect(rowsOf("kb_documents")).toEqual([]);
+    expect(noteRow().applied).toEqual({ v: 2 });
+  });
+
+  it("two presses at once add one entry", async () => {
+    withKb({ status: "applied", applied: { v: 2 } });
+    library();
+    const [a, b] = await Promise.all([publishNoteKb("n-1", 0), publishNoteKb("n-1", 0)]);
+    expect([a.ok, b.ok].sort()).toEqual([false, true]);
+    expect([a, b].find((r) => !r.ok)).toEqual({ ok: false, error: "That's already in the Library." });
+    expect(rowsOf("kb_documents")).toHaveLength(1);
+    expect(noteRow().applied).toEqual({ v: 2, kbIds: [rowsOf("kb_documents")[0].id], kbTitles: ["Clearing an E6"] });
+  });
+
   it("Undo takes a published entry back with the rest", async () => {
     withKb({ status: "applied", applied: { v: 2 } });
     publishFieldNote.mockResolvedValue({ ok: true, documentId: "kb-9" });
@@ -898,5 +1260,40 @@ describe("tiff_modal_turns.sql", () => {
   it("allows as many turns as the server can write", () => {
     const cap = Number(/jsonb_array_length\(turns\) <= (\d+)/.exec(code)?.[1]);
     expect(cap).toBe(TURNS_MAX);
+  });
+});
+
+describe("tiff_modal_record.sql", () => {
+  const sql = readFileSync(join(process.cwd(), "docs/migrations/tiff_modal_record.sql"), "utf8");
+  const code = sql.replace(/--.*$/gm, "").replace(/\s+/g, " ");
+  const body = (name: string) => new RegExp(`function public\\.${name}\\(.*?\\$\\$(.*?)\\$\\$`).exec(code)?.[1] ?? "";
+
+  it("creates every function the actions call, and nobody but the service role may run them", () => {
+    const src = readFileSync(join(process.cwd(), "src/app/actions/workboard-notes.ts"), "utf8");
+    const called = [...src.matchAll(/\.rpc\(\s*"(\w+)"/g)].map((m) => m[1]);
+    expect(called.sort()).toEqual(["workboard_note_add_kb", "workboard_note_file_record"]);
+    for (const name of called) {
+      expect(code).toContain(`create or replace function public.${name}(`);
+      expect(code).toMatch(new RegExp(`revoke execute on function public\\.${name}\\([^)]*\\) from public, anon, authenticated`));
+    }
+  });
+
+  it("merges into the record as it stands, never writes it back from a copy", () => {
+    // what the note filed, laid over what is there — only on a note fileNote claimed
+    const file = body("workboard_note_file_record");
+    expect(file).toMatch(/set applied = \(case when jsonb_typeof\(applied\) = 'object' then applied else '\{\}'::jsonb end\) \|\| p_applied/);
+    expect(file).toMatch(/status = 'applied'/);
+    // one entry appended, on a note still live, and never the same title twice
+    const kb = body("workboard_note_add_kb");
+    expect(kb).toMatch(/applied -> 'kbIds' else '\[\]'::jsonb end\) \|\| to_jsonb\(p_kb_id\)/);
+    expect(kb).toMatch(/applied -> 'kbTitles' else '\[\]'::jsonb end\) \|\| to_jsonb\(p_title\)/);
+    expect(kb).toMatch(/status in \('pending', 'clarifying', 'applied'\)/);
+    expect(kb).toMatch(/not coalesce\(\(applied -> 'kbTitles'\) \? p_title, false\)/);
+    for (const b of [file, kb]) expect(b).toMatch(/where org_id = p_org and id = p_note/);
+  });
+
+  it("says when to apply it and what to check", () => {
+    expect(sql).toMatch(/APPLY THIS BEFORE MERGING/);
+    expect(sql).toMatch(/READ-ONLY CHECKS, BEFORE/);
   });
 });

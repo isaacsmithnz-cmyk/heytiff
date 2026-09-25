@@ -111,11 +111,14 @@ const ctx = (over: Partial<TasksFaceContext> = {}, ...caps: Capability[]): Tasks
   ...over,
 });
 
+let warn: jest.SpyInstance;
 beforeEach(() => {
   rows = {};
   failing = {};
   calls.length = 0;
+  warn = jest.spyOn(console, "warn").mockImplementation(() => {});
 });
+afterEach(() => warn.mockRestore());
 
 const of = (t: string) => calls.filter((c) => c.table === t);
 
@@ -280,6 +283,55 @@ describe("about", () => {
     expect(of("sm8_jobs")[0].in![1].sort()).toEqual(["job-1", "job-2"]);
   });
 
+  /* supabaseAdmin passes RLS by: the workspace filter on each read is all
+     that keeps another workspace's rows out. Each foreign row below shares
+     its key with one of ours and comes after it, so a read that dropped its
+     filter would hand it back and it would win. */
+  it("keeps every other workspace's rows out of what it says about a task", async () => {
+    const THEM = "org-2";
+    rows.tasks = [taskRow(1), taskRow(2), taskRow(3)];
+    rows.job_note_actions = [
+      { org_id: ORG, action: "task", task_id: tid(1), sm8_note_uuid: "note-1", sm8_job_uuid: "job-1", acted_by: null, acted_at: null },
+      { org_id: THEM, action: "task", task_id: tid(3), sm8_note_uuid: "note-9", sm8_job_uuid: "job-9", acted_by: null, acted_at: null },
+    ];
+    rows.sm8_job_notes = [
+      { org_id: ORG, uuid: "note-1", note: "grilles for Susie", edit_by_staff_uuid: "sm8-luke", create_date: "2026-09-21 13:42:10" },
+      { org_id: THEM, uuid: "note-1", note: "their words", edit_by_staff_uuid: "sm8-luke", create_date: "2026-01-01 09:00:00" },
+    ];
+    rows.sm8_staff = [
+      { org_id: ORG, uuid: "sm8-luke", first: "Luke", last: "Ingold" },
+      { org_id: THEM, uuid: "sm8-luke", first: "Their", last: "Person" },
+    ];
+    rows.sm8_jobs = [
+      { org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Wollstonecraft" },
+      { org_id: THEM, uuid: "job-1", generated_job_id: "9999", geo_city: "Elsewhere" },
+    ];
+    rows.projects = [
+      { org_id: ORG, id: "p1", name: "Fit-out", client_name: "Harbour St", defects_task_id: tid(2) },
+      { org_id: THEM, id: "p9", name: "Their project", client_name: "Them", defects_task_id: tid(2) },
+      { org_id: THEM, id: "p8", name: "Their other project", client_name: "Them", defects_task_id: tid(3) },
+    ];
+    rows.workboard_notes = [note("n9", [tid(3)], { org_id: THEM })];
+    rows.task_events = [
+      { org_id: THEM, task_id: tid(1), kind: "done", by_staff: LEO, at: "2026-09-22T00:00:00Z", due_from: null, due_to: null, from_staff: null, to_staff: null },
+    ];
+
+    const rec = await loadTasksFace(ctx({}, "workboard"), NOW);
+    expect(rec.about[tid(1)]).toMatchObject({
+      source: "sm8",
+      sm8NoteUuid: "note-1",
+      askerName: "Luke Ingold",
+      said: { day: "2026-09-21", time: "1:42 pm" },
+      words: "grilles for Susie",
+      job: { label: "2041 Wollstonecraft", uuid: "job-1" },
+      events: [],
+    });
+    expect(rec.about[tid(2)]).toMatchObject({ source: "project", project: "Fit-out", job: { label: "Harbour St, Fit-out", uuid: null } });
+    expect(rec.about[tid(3)]).toMatchObject({ source: "typed", events: [] });
+    expect(rec.people).toEqual({ [ME]: "Isaac Smith" });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it("reads nothing of the board's without `workboard`", async () => {
     rows.tasks = [taskRow(1)];
     rows.workboard_notes = [note("n1", [tid(1)], { target_kind: "visit", target_id: "v1" })];
@@ -327,6 +379,27 @@ describe("about", () => {
     failing.task_events = { code: "PGRST205", message: "Could not find the table 'public.task_events'" };
     const before = await loadTasksFace(ctx(), NOW);
     expect(before.about[tid(1)]).toMatchObject({ source: "typed", events: [] });
+    // expected before the migration runs, so nothing in the log
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  /* A failed read here does not only make the record quieter: a diary,
+     ServiceM8 or project task falls through to "typed it", and a task with
+     no events dates its hand-over to the day it was made. The page still
+     renders; the log says why it may be wrong. */
+  it.each([
+    ["workboard_notes", { code: "PGRST100", message: "failed to parse logic tree" }],
+    ["job_note_actions", { code: "57014", message: "canceling statement due to statement timeout" }],
+    ["projects", { code: "57014", message: "canceling statement due to statement timeout" }],
+    ["task_events", { code: "57014", message: "canceling statement due to statement timeout" }],
+  ])("says in the log when %s could not be read, and still answers", async (t, error) => {
+    rows.tasks = [taskRow(1)];
+    failing[t] = error;
+    const rec = await loadTasksFace(ctx({}, "workboard"), NOW);
+    expect(rec.about[tid(1)]).toMatchObject({ source: "typed", events: [] });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain(`(${t})`);
+    expect(warn.mock.calls[0][0]).toContain(error.message);
   });
 
   it("names only the people the record mentions, and nobody it cannot name", async () => {

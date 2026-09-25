@@ -4,7 +4,7 @@ import { issueWhere } from "./issues";
 import { isDelegated, sortTasks } from "./tasks";
 import { TASK_COLUMNS, toTask, type StaffNames } from "./tasks-query";
 import { asTargetKind, targetWords } from "./target-words";
-import { TASK_EVENT_KINDS, type TaskEventKind } from "./task-events";
+import { TASK_EVENT_KINDS, missingTable, type TaskEventKind } from "./task-events";
 import {
   jobLabelOf,
   momentOf,
@@ -82,6 +82,20 @@ const RECORD_COLUMNS = `${TASK_COLUMNS}, acknowledged_at`;
 
 type Rec = Record<string, unknown>;
 const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
+
+/* A FAILED READ OF WHERE A TASK CAME FROM IS NOT ONLY QUIETER. The face
+   still renders, but a task whose diary entry, ServiceM8 note or project
+   could not be read falls through to typed ("Isaac typed it."), and one
+   whose events could not be read dates its hand-over to the day it was
+   made. So each of the four reads says in the log when it failed; a page
+   that tells somebody something wrong leaves a line saying why. The one
+   failure that is expected, task_events before its migration runs, stays
+   quiet. */
+type ReadError = { code?: unknown; message?: unknown } | null;
+function readFailed(what: string, error: ReadError): void {
+  if (!error) return;
+  console.warn(`tasks face: ${what} not read, so the record may be wrong: ${String(error.message ?? error.code)}`);
+}
 
 function toRecordTask(r: Rec, names: StaffNames): RecordTask {
   const name = (id: string) => names.get(id) ?? "Unnamed";
@@ -180,16 +194,20 @@ function appliedTaskIds(applied: unknown): string[] {
 
 /** (a) The diary entries that made these tasks. JSON containment on
     `applied->taskIds`, one condition per task: PostgREST reads
-    `cs.["<id>"]` on a jsonb path as `@> '["<id>"]'`. */
+    `cs.["<id>"]` on a jsonb path as `@> '["<id>"]'`. The request this
+    sends is written out in task_events.sql's header, to be run against
+    production before merging: if PostgREST turned the filter down, every
+    diary task would read as typed, and only the log would say so. */
 async function diaryNotesFor(orgId: string, ids: readonly string[]): Promise<DiaryNote[]> {
   const safe = ids.filter((id) => UUID.test(id));
   return chunked(safe, NOTE_CHUNK, async (chunk) => {
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("workboard_notes")
       .select("id, author_id, source, transcript, created_at, target_kind, target_id, applied")
       .eq("org_id", orgId)
       .eq("status", "applied")
       .or(chunk.map((id) => `applied->taskIds.cs.${JSON.stringify([id])}`).join(","));
+    readFailed("the diary entries that made tasks (workboard_notes)", error);
     return ((data ?? []) as Rec[]).map((r) => ({
       id: String(r.id),
       authorId: str(r.author_id),
@@ -206,12 +224,13 @@ async function diaryNotesFor(orgId: string, ids: readonly string[]): Promise<Dia
 /** (b) The ServiceM8 notes these tasks were made from. */
 async function noteActionsFor(orgId: string, ids: readonly string[]): Promise<NoteAction[]> {
   return chunked(ids, CHUNK, async (chunk) => {
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("job_note_actions")
       .select("task_id, sm8_note_uuid, sm8_job_uuid, acted_by, acted_at")
       .eq("org_id", orgId)
       .eq("action", "task")
       .in("task_id", chunk);
+    readFailed("the ServiceM8 notes that made tasks (job_note_actions)", error);
     return ((data ?? []) as Rec[]).map((r) => ({
       taskId: String(r.task_id),
       noteUuid: String(r.sm8_note_uuid),
@@ -225,11 +244,12 @@ async function noteActionsFor(orgId: string, ids: readonly string[]): Promise<No
 /** (c) The projects whose defects period made these tasks. */
 async function defectsProjectsFor(orgId: string, ids: readonly string[]): Promise<DefectsProject[]> {
   return chunked(ids, CHUNK, async (chunk) => {
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("projects")
       .select("id, name, client_name, defects_task_id")
       .eq("org_id", orgId)
       .in("defects_task_id", chunk);
+    readFailed("the projects whose defects period made tasks (projects)", error);
     return ((data ?? []) as Rec[]).map((r) => ({
       taskId: String(r.defects_task_id),
       id: String(r.id),
@@ -242,17 +262,19 @@ async function defectsProjectsFor(orgId: string, ids: readonly string[]): Promis
 const KINDS: ReadonlySet<string> = new Set(TASK_EVENT_KINDS);
 
 /** (d) What happened to these tasks, oldest first. A missing table (before
-    task_events.sql runs) or any failed read is no events: the history is
-    quieter, never wrong. */
+    task_events.sql runs) is no events, and so is any failed read; the
+    first is expected and quiet, the second goes in the log (see
+    `readFailed`). */
 async function eventsFor(orgId: string, ids: readonly string[]): Promise<Map<string, TaskEvent[]>> {
   const rows = await chunked(ids, CHUNK, async (chunk) => {
     /* A failed read answers with no data, which is no events. */
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("task_events")
       .select("task_id, kind, by_staff, at, due_from, due_to, from_staff, to_staff")
       .eq("org_id", orgId)
       .in("task_id", chunk)
       .order("at", { ascending: true });
+    if (!missingTable((error as ReadError)?.code)) readFailed("what happened to tasks (task_events)", error);
     return (data ?? []) as Rec[];
   });
   const out = new Map<string, TaskEvent[]>();

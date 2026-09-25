@@ -51,11 +51,24 @@
 --   -- Phase 2's task_done_sm8.sql makes the same index; if it is there, the
 --   -- create below is a no-op:
 --   select indexname from pg_indexes where indexname = 'job_note_actions_task_idx';
---   -- the Tasks face finds a diary task with this filter (unverified against
---   -- production until this runs; expect the notes that made that task):
+--   -- THE DIARY FILTER, twice. The Tasks face finds the diary entry that
+--   -- made a task through PostgREST, with a filter nobody has sent to
+--   -- production yet; if PostgREST turns it down, every diary task reads
+--   -- as typed and only the log says why. Pick a task Tiff made from a
+--   -- diary entry, then first the data (expect the notes that made it):
 --   select id from public.workboard_notes
 --     where org_id = '<org uuid>' and status = 'applied'
---       and applied -> 'taskIds' @> '["<a task id from a diary entry>"]'::jsonb;
+--       and applied -> 'taskIds' @> '["<task id>"]'::jsonb;
+--   -- then the same question as the exact request the app sends (a GET,
+--   -- read-only; the service key bypasses RLS, as supabaseAdmin does).
+--   -- Expect HTTP 200 and the same ids; a 400 (PGRST100, "failed to parse")
+--   -- means the filter is refused and diaryNotesFor must change first:
+--   curl -sS -w '\nHTTP %{http_code}\n' \
+--     -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+--     -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+--     "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/workboard_notes?select=id&org_id=eq.<org uuid>&status=eq.applied&or=(applied-%3EtaskIds.cs.%5B%22<task id>%22%5D)"
+--   -- (supabase-js builds exactly this from diaryNotesFor's .or(); decoded,
+--   -- the filter is or=(applied->taskIds.cs.["<task id>"]).)
 -- AND AFTER:
 --   select count(*) from public.task_events;                        -- expect 0
 --   select relrowsecurity from pg_class where oid = 'public.task_events'::regclass;  -- t

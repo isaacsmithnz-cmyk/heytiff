@@ -49,7 +49,9 @@ export function taskEventRow(
   };
 }
 
-const missingTable = (code: unknown) => code === "PGRST205" || code === "42P01";
+/** PostgREST's and Postgres's "no such table": task_events before its
+    migration runs. */
+export const missingTable = (code: unknown) => code === "PGRST205" || code === "42P01";
 
 /** Record one change to a task. Never throws; see the note at the top. */
 export async function logTaskEvent(

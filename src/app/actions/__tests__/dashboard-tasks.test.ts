@@ -5,9 +5,11 @@
    the change it describes. */
 
 type Write = { table: string; row: Record<string, unknown> };
+/** An update and the rows it was aimed at: every `eq` after `update()`. */
+type Update = Write & { eq: Record<string, unknown> };
 
 const inserts: Write[] = [];
-const updates: Write[] = [];
+const updates: Update[] = [];
 const reads: { table: string; eq: Record<string, unknown> }[] = [];
 
 let taskRow: Record<string, unknown> | null = null;
@@ -42,9 +44,13 @@ const table = (name: string) => {
     return done;
   };
   chain.update = (patch: Record<string, unknown>) => {
-    updates.push({ table: name, row: patch });
+    const write: Update = { table: name, row: patch, eq: {} };
+    updates.push(write);
     const done: Record<string, unknown> = {};
-    done.eq = () => done;
+    done.eq = (col: string, val: unknown) => {
+      write.eq[col] = val;
+      return done;
+    };
     done.then = (res: (v: { error: null }) => unknown) => Promise.resolve({ error: null }).then(res);
     return done;
   };
@@ -234,6 +240,30 @@ describe("completeTask and reopenTask log every done and reopen", () => {
     taskRow = { assigned_to: "s-luke", status: "open" };
     expect(await completeTask("t1")).toEqual({ ok: false, error: "That task isn't yours to complete." });
     expect(events()).toEqual([]);
+  });
+});
+
+/* supabaseAdmin passes RLS by, so the workspace filter on each read and
+   write is all that keeps one workspace's task out of another's hands: a
+   task id from somewhere else must find nothing and change nothing. */
+describe("every task read and write stays inside the caller's workspace", () => {
+  const cases: [string, () => Promise<unknown>, Record<string, unknown> | null][] = [
+    ["giveTask", () => giveTask("t1", "s-luke"), null],
+    ["completeTask", () => completeTask("t1"), null],
+    ["reopenTask", () => reopenTask("t1"), { assigned_to: "s-me", status: "done" }],
+    ["setTaskDue", () => setTaskDue("t1", "2026-10-02"), null],
+  ];
+
+  it.each(cases)("%s reads and writes the task by workspace and id", async (_name, act, row) => {
+    allowed = new Set(["team"]);
+    if (row) taskRow = row;
+    expect(await act()).toEqual({ ok: true });
+    const taskReads = reads.filter((r) => r.table === "tasks");
+    const taskWrites = updates.filter((w) => w.table === "tasks");
+    expect(taskReads.length).toBeGreaterThan(0);
+    expect(taskWrites.length).toBeGreaterThan(0);
+    for (const r of taskReads) expect(r.eq).toEqual({ org_id: "org-1", id: "t1" });
+    for (const w of taskWrites) expect(w.eq).toEqual({ org_id: "org-1", id: "t1" });
   });
 });
 

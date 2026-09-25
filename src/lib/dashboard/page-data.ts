@@ -311,6 +311,7 @@ export async function loadDashboard(): Promise<DashboardData> {
             mineUuid: mineOf(links),
             names,
             shared,
+            connected: vendor.connected,
           })
         )
       : Promise.resolve(null),

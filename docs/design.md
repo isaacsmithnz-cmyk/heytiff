@@ -291,6 +291,18 @@ Every decision below is made once, here, and a guard test holds each number.
   as the body makes room, and a white light runs round the job on now
   (the Trace); under reduced motion, and for a change made from the
   keyboard, each is simply there.
+  The list is what is waiting on you in five groups by urgency — Late,
+  Today, Jobs to book, No date, Later — each row placed by its own date
+  against the workspace's day, never by a chip's state. A group's count
+  counts things, not rows ("Jobs to book 17" over one roll-up). Tasks
+  come first in every group, a box you tick, and someone else's carries
+  their first name in his tag; ticking says "Done." with Undo for four
+  seconds before the row folds away. Alerts follow, a dot and a door:
+  the whole row opens its thing, and it carries at most one verb. Book
+  in and Book open the Schedule with the card, until the booking phase
+  books from here; a visit's Book in picks its day in the row, which is
+  real now. A roll-up and an issue open in place. Without ServiceM8 the
+  list is HeyTiff's own: no won jobs, no money, no Create job.
   **His design is the default here.** A redraw to the laws "looks far
   worse", so where his numbers break a law this file names the exemption
   instead of bending the design ("design exempt for now, but keep a note",
@@ -652,6 +664,7 @@ day he said them.
 | `.hd-page` | Tailwind palette hexes | 1 | "design exempt for now, but keep a note": `--hd-done`, the tick on finished work, is Tailwind's green 600 | 2026-09-24 |
 | `.hd-bar` | bars at the left edge | 1 | "go with your recommendations", which kept his end-card line: the first card's outer slant is cut away by the bar, so the open card's 3px ink outline closes down the bar's square end | 2026-09-25 |
 | `.hd-chip` | pills | 1 | "go with your recommendations", which kept his On-now capsule: the state word in the day's panel sits in a white capsule, "On now, 17%" | 2026-09-25 |
+| `.hd-ls-tag` | pills | 1 | "go with your recommendations", which kept his name tag: a task on the list that is someone else's carries their first name in a grey capsule, where law 26 says a plain word | 2026-09-25 |
 | `.hd-trace` | gradients | 5 | "design exempt for now, but keep a note": the Trace, his white light round the job on now, is a conic gradient turning behind a ring that two masks cut from the card's edge, each mask written twice, prefixed and plain | 2026-09-24 |
 
 What the guard cannot count is noted here on the same word:
@@ -659,8 +672,10 @@ What the guard cannot count is noted here on the same word:
 - **Law 16, colour.** `.hd-page` declares his colours as its tokens, and
   no rule on the page writes a colour literal: the ink `#151a24`, the body
   grey `#5b6472`, the rules `#e6e9ee`, `#eef0f3` and `#e2e5ea`, the teal
-  of Today `#0f766e`, and the green of done `#16a34a`. `text-contrast`
-  holds every one that is text to 4.5:1 on the page's fills. The Trace's
+  of Today `#0f766e`, the green of done `#16a34a`, and the list's quiet
+  dot `#c3cad4`. `text-contrast` holds every one that is text to 4.5:1 on
+  the page's fills; the quiet dot is a mark at 1.65:1, and a row's group
+  title says what it means. The Trace's
   masks are `#000`, which a mask reads only for its alpha, and its light
   is `--paper`.
 - **Law 18, motion tokens, and law 8, a tab's content appears.** The faces

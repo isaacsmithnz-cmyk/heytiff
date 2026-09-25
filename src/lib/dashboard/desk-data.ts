@@ -26,6 +26,8 @@ import { listOrgCredentials, orgExpiryWindow } from "@/lib/org/query";
 import type { OrgCredential } from "@/lib/org/credentials";
 import type { ExpiryWindow } from "@/lib/expiry";
 import type { Capability } from "@/lib/permissions";
+import type { HomeListReads } from "./home-list";
+import { loadHomeList } from "./home-list-query";
 import type { StaffNames } from "./tasks-query";
 
 /** The reads Home's chips and the new Home's areas share. */
@@ -61,6 +63,10 @@ export type DeskContext = {
   mineUuid: string | null;
   names: StaffNames;
   shared: HomeShared;
+  /** Does the workspace hold a ServiceM8 copy at all — `sm8VendorOf`'s
+      answer, which the page already reads for the day. Never guessed from
+      the zone: an account row can carry none. */
+  connected: boolean;
 };
 
 /** What the new Home carries beyond the old one's data. Null on
@@ -69,9 +75,14 @@ export type DeskData = {
   /** The expiry window, in days — the one the bell warns by, so the list's
       rows and the calendar's Due can never disagree with it. */
   warnDays: number;
+  /** The right-hand list's own reads — the won jobs never booked and the
+      visits with no day — placed on screen beside what the page already
+      holds (`placeHomeList`, ./home-list). */
+  list: HomeListReads;
 };
 
 export async function loadDesk(ctx: DeskContext): Promise<DeskData> {
   /* Each area's read joins here as a Promise.all over its own gates. */
-  return { warnDays: ctx.shared.expiry.warnDays };
+  const [list] = await Promise.all([loadHomeList(ctx)]);
+  return { warnDays: ctx.shared.expiry.warnDays, list };
 }

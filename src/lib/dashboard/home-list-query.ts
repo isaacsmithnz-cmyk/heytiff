@@ -40,8 +40,8 @@ import {
 import type { StaffNames } from "./tasks-query";
 
 /** What the list needs from the page loader — a part of the new Home's
-    shared context (`DeskContext`, ./desk-data), so that context can be handed
-    in as it is once it carries `connected`. */
+    shared context (`DeskContext`, ./desk-data), which `loadDesk` hands in as
+    it is. */
 export type HomeListContext = {
   orgId: string;
   caps: ReadonlySet<Capability>;

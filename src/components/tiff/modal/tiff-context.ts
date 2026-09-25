@@ -12,6 +12,10 @@ import type { TiffRoom } from "@/lib/workboard/note-turns";
 export type TiffOpen = {
   /** The button pressed. The modal grows from it and gives focus back to it. */
   from: HTMLElement;
+  /** Where focus goes back to instead, when the button pressed will not be
+      there: Sort it out takes the words out of the box, and the box's
+      buttons go with them, so focus goes back to the box. */
+  back?: HTMLElement;
   /** Words already typed ("Sort it out"): the first turn, sent at once. */
   words?: string;
   /** Where the words were said, a hint for the router. */

@@ -52,6 +52,8 @@ import {
 export type TiffSession = {
   n: number;
   from: HTMLElement;
+  /** Where focus goes back to when `from` will be gone (./tiff-context). */
+  back?: HTMLElement;
   origin: Point;
   words?: string;
   room?: TiffRoom;
@@ -63,7 +65,7 @@ export type TiffSession = {
   at: number;
 };
 
-export type TiffClosed = Closed & { from: HTMLElement };
+export type TiffClosed = Closed & { from: HTMLElement; back?: HTMLElement };
 
 const ROOM: Record<TiffRoom, string> = { home: "Home", diary: "Diary", tasks: "Tasks", calendar: "Calendar" };
 
@@ -129,7 +131,7 @@ export function TiffModal({
     if (left.current) return;
     left.current = true;
     setLeaving(true);
-    const result: TiffClosed = { ...c.close(), from: session.from };
+    const result: TiffClosed = { ...c.close(), from: session.from, back: session.back };
     const finish = () => onClosed(result);
     const m = dialog.current;
     if (!canAnimate(m)) return finish();
@@ -594,7 +596,7 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: () => void }) {
           ) : c.voiceEnabled ? (
             <button
               type="button"
-              className="tiffbtn tiffbtn-sheet"
+              className="tiffbtn tiffbtn-box"
               aria-label="Talk to Tiff"
               style={{ "--tiffbtn-mask": MARK_MASK } as CSSProperties}
               onClick={(e) => c.talk(e.currentTarget, e.detail === 0)}

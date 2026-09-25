@@ -719,6 +719,33 @@ describe("one at a time", () => {
   });
 });
 
+describe("focus goes back", () => {
+  /* Sort it out takes the words out of the entry box and its buttons go
+     with them, so the box asks for focus back on itself (tiff-box.tsx). */
+  it("to where the opener asked, or to the button pressed when that has gone", async () => {
+    const user = userEvent.setup();
+    render(<Harness extra={<Grab />} />);
+    const back = document.createElement("input");
+    document.body.appendChild(back);
+
+    await act(async () => {
+      grabbed.api!.open({ from: topButton(), back });
+    });
+    await user.keyboard("{Escape}");
+    await flush();
+    expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
+    expect(back).toHaveFocus();
+
+    await act(async () => {
+      grabbed.api!.open({ from: topButton(), back });
+    });
+    back.remove();
+    await user.keyboard("{Escape}");
+    await flush();
+    expect(topButton()).toHaveFocus();
+  });
+});
+
 describe("the waits have floors", () => {
   it("holds Tiff's answer until the dots have gathered and the cloud has turned", async () => {
     motion(false);

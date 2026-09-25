@@ -52,6 +52,7 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
       const next: TiffSession = {
         n: ++opened.current,
         from: o.from,
+        back: o.back,
         origin: { x: r.left + r.width / 2, y: r.top + r.height / 2 },
         words: o.words?.trim() || undefined,
         room: o.room,
@@ -77,7 +78,8 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
       /* The results land on the page after it closes — and only when
          something was written; closing on nothing costs no refetch. */
       if (c.changed) router.refresh();
-      if (c.from.isConnected) c.from.focus({ preventScroll: true });
+      const to = c.back?.isConnected ? c.back : c.from;
+      if (to.isConnected) to.focus({ preventScroll: true });
     },
     [router]
   );

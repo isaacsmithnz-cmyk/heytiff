@@ -16,7 +16,9 @@ import path from "node:path";
    - Every control in it wears the ring from the keyboard (law 32), and
      nothing in it slides under reduced motion.
    - The view and the sheet agree both ways, and a finished thing is not
-     dressed as a warning. */
+     dressed as a warning.
+   - The entry box (tiff-box.tsx) is the reply box on the page: the same
+     rules, taller, and its Tiff button is the box's, as the dock's is. */
 
 const read = (f: string) => fs.readFileSync(path.join(process.cwd(), f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 const TOKENS = read("src/app/tokens.css");
@@ -42,7 +44,10 @@ function mediaRules(query: RegExp): (readonly [string, string])[] {
   }
   return out;
 }
-const VIEW = fs.readFileSync(path.join(process.cwd(), "src/components/tiff/modal/tiff-modal.tsx"), "utf8");
+const MODAL = fs.readFileSync(path.join(process.cwd(), "src/components/tiff/modal/tiff-modal.tsx"), "utf8");
+const BOX = fs.readFileSync(path.join(process.cwd(), "src/components/tiff/modal/tiff-box.tsx"), "utf8");
+/** The family's views: the modal, and the entry box that opens it. */
+const VIEW = `${MODAL}\n${BOX}`;
 const selectors = (sel: string) => sel.split(",").map((s) => s.trim());
 
 const body = (selector: string) => {
@@ -127,7 +132,7 @@ describe("the view and the sheet agree", () => {
      browser's default — the kind of slip only a rendered page shows. */
   const named = new Set([...VIEW.matchAll(/["` ](tm-[a-z-]+)/g)].map((m) => m[1]!));
 
-  it("styles every .tm- class the modal names", () => {
+  it("styles every .tm- class the modal and the box name", () => {
     expect(named.size).toBeGreaterThan(10);
     for (const cls of named) expect(`${cls}: ${new RegExp(`\\.${cls}(?![a-z-])`).test(CSS)}`).toBe(`${cls}: true`);
   });
@@ -147,6 +152,30 @@ describe("the view and the sheet agree", () => {
     expect(body(".fg .tm-added")).not.toMatch(/--(warn|bad|ok)/);
   });
 
+  /* ONE BOX. The entry box on the page is the reply box — the same element
+     classes, so the same edge, corner, words and focus — made taller, and
+     its buttons are the modal's size. Its Tiff button and the dock's are
+     both the box's, sized by one rule. */
+  it("draws the entry box as the reply box, taller, with the modal's buttons", () => {
+    expect(BOX).toMatch(/className="tm-box tm-entry"/);
+    expect(BOX).toMatch(/className="tm-in"/);
+    expect(MODAL).toMatch(/className="tm-box"/);
+    expect(body(".fg .tm-box.tm-entry")).toMatch(/height:52px/);
+    expect(body(".fg .tm-box.tm-entry")).toMatch(/padding:0 8px 0 16px/);
+    expect(body(".fg .tm-box:focus-within")).toMatch(/border-color:var\(--ink\)/);
+    const sized = rules.find(([sel]) => selectors(sel).includes(".fg .tm-entry .pbtn"));
+    expect(sized?.[1]).toMatch(/height:36px/);
+    expect(selectors(sized![0])).toContain(".fg .tm .pbtn");
+  });
+
+  it("ends the reply box and the entry box in the box's Tiff button", () => {
+    expect(MODAL).toMatch(/className="tiffbtn tiffbtn-box"/);
+    expect(MODAL).not.toMatch(/tiffbtn-sheet/);
+    expect(BOX).toMatch(/<TiffButton where="box"/);
+    // one size rule for a box's button: the dock carries none of its own
+    expect(rules.some(([sel]) => /\.tm-dock\s+\.tiffbtn/.test(sel))).toBe(false);
+  });
+
   it("gives the live words the live type on the element the settle reads", () => {
     expect(rules.some(([sel, b]) => sel.includes(".tm-turn.live .tm-words") && /font-size:20px/.test(b))).toBe(true);
   });
@@ -154,7 +183,7 @@ describe("the view and the sheet agree", () => {
 
 describe("the keyboard and reduced motion", () => {
   /* Every control in the modal, and the words you click into to fix. */
-  const RINGED = [".fg .tm-aimx", ".fg .tm-x", ".fg .tm-clear", ".fg .tm-rm", ".fg .tm-undo", ".fg .tm-words", ".fg .tm .pbtn"];
+  const RINGED = [".fg .tm-aimx", ".fg .tm-x", ".fg .tm-clear", ".fg .tm-rm", ".fg .tm-undo", ".fg .tm-words", ".fg .tm .pbtn", ".fg .tm-entry .pbtn"];
 
   it.each(RINGED)("%s wears the ring from the keyboard (law 32)", (control) => {
     const ringed = rules.some(

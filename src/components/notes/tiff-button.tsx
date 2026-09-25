@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState, type CSSProperties } from "react";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
+import type { TiffRoom } from "@/lib/workboard/note-turns";
 import { CaptureSheet } from "./note-token";
 import { MARK_MASK, TiffMark } from "./tiff-mark";
 import { useNoteFlow } from "./note-flow";
@@ -36,7 +37,7 @@ import { useNoteScope } from "./note-context";
    every time, nothing stored. The mic stays an enhancement — no
    ELEVENLABS_API_KEY and the box is simply the only door.
 
-   ── TWO PLACES, AND THE GROUND DECIDES THE SKIN ──
+   ── THREE PLACES, AND THE GROUND DECIDES THE SKIN ──
 
    `topbar`  beside the bell, on the app's black frame. It floated
              bottom-right first and covered the page it sat on; a control
@@ -55,10 +56,22 @@ import { useNoteScope } from "./note-context";
              the brand gradient and the rings go a step deeper (see
              ./tiff-mark).
 
+   `box`     at the end of an entry box (components/tiff/modal/tiff-box).
+             Paper, like a sheet, so the sheet's skin, at 36px beside the
+             box's 36px Save; the modal's reply box ends in the same skin.
+             It says what it does there, "Talk to Tiff": the box it ends is
+             the way to type, and this is the other way in. It carries the
+             box's room, so what you say is read as said there.
+
    Everything inside is sized OFF THE BUTTON, in the stylesheet: the mark is
-   56% of it, the rings 86% and 72%. The button is 36px on the frame, as
-   Isaac's prototype drew it, and 30px in a sheet, beside the 30px close ×.
-   It carries no sparkle (law 5).
+   56% of it, the rings 86% and 72%. The button is 36px on the frame and in
+   a box, as Isaac's prototype drew it, and 30px in a sheet, beside the 30px
+   close ×. It carries no sparkle (law 5).
+
+   The skin is a class built from the place, `tiffbtn-${where}`, which a
+   dead-CSS sweep cannot see (#681 deleted every `.tiffbtn-sheet` rule and
+   the sheet's button went 0×0). So the places are a list, and a test holds
+   the stylesheet to a size rule for each.
 
    ── TWO THINGS IT CAN OPEN, AND THE SWITCH DECIDES ──
 
@@ -71,10 +84,14 @@ import { useNoteScope } from "./note-context";
    in the frame's host (components/tiff/modal), so a second button cannot
    start a second conversation over the first. */
 
-type Where = "topbar" | "sheet";
+/** Where a Tiff button stands; each one is a `.tiffbtn-<place>` rule. */
+export const TIFF_BUTTON_PLACES = ["topbar", "sheet", "box"] as const;
+type Where = (typeof TIFF_BUTTON_PLACES)[number];
 
+/** A box's button says what it does: the box beside it is for typing. */
+const TALK_TO_TIFF = "Talk to Tiff";
 
-export function TiffButton({ where = "topbar" }: { where?: Where }) {
+export function TiffButton({ where = "topbar", room }: { where?: Where; room?: TiffRoom }) {
   const scope = useNoteScope();
   const flow = useNoteFlow();
   const tiff = useTiff();
@@ -107,10 +124,13 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
 
   /* A sheet says what it is about, so its button can say what it will do
      with what you say — the topbar's cannot, because the topbar is nowhere
-     in particular. */
-  const label = scope.targetLabel
-    ? `Ask or tell Tiff about ${scope.targetLabel}`
-    : "Ask or tell Tiff";
+     in particular. A box's button is the other way into the box beside it. */
+  const label =
+    where === "box"
+      ? TALK_TO_TIFF
+      : scope.targetLabel
+        ? `Ask or tell Tiff about ${scope.targetLabel}`
+        : "Ask or tell Tiff";
 
   return (
     <>
@@ -130,7 +150,7 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
                modal's blossom, and not this button's own turn. */
             const keyboard = e.detail === 0;
             if (!keyboard) setLit(true);
-            tiff.open({ from: e.currentTarget, id, keyboard });
+            tiff.open({ from: e.currentTarget, id, keyboard, room });
             return;
           }
           setLit(true);

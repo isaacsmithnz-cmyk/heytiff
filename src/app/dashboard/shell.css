@@ -8451,10 +8451,12 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .tiffbtn-topbar { --tb:36px; }
 /* sized to sit beside the sheet's 30px close × */
 .tiffbtn-sheet { --tb:30px; }
+/* at the end of an entry box and of the modal's reply box, beside a 36px Save */
+.tiffbtn-box { --tb:36px; }
 .tiffbtn-topbar, .tiffmk-ink {
   --tiffbtn-sheen:color-mix(in srgb, var(--mark-teal) 85%, transparent); --tiffbtn-sheen-hi:var(--mark-core);
   --tiffbtn-burst:color-mix(in srgb, var(--mark-core) 90%, transparent); }
-.tiffbtn-sheet, .tiffmk-paper {
+.tiffbtn-sheet, .tiffbtn-box, .tiffmk-paper {
   --tiffbtn-sheen:color-mix(in srgb, var(--paper) 90%, transparent); --tiffbtn-sheen-hi:var(--paper);
   --tiffbtn-burst:color-mix(in srgb, var(--mark-blue) 70%, transparent); }
 .tiffbtn:active { transform:translateY(1px); }
@@ -8665,10 +8667,11 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .fg .tm-added { font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; }
 .fg .tm-rm { width:24px; height:24px; border-radius:var(--r-control); opacity:0; }
 .fg .tm-row-plan:hover .tm-rm, .fg .tm-row-plan:focus-within .tm-rm { opacity:1; }
-.fg .tm .pbtn { height:36px; padding:0 12px; font-size:14px; }
-/* Done, Send, a quick answer and "Add to the Library": the ring the capture
-   card's buttons wear, for the keyboard only (law 32) */
-.fg .tm .pbtn:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .tm .pbtn, .fg .tm-entry .pbtn { height:36px; padding:0 12px; font-size:14px; }
+/* Done, Send, a quick answer, "Add to the Library", and the entry box's Save
+   and Sort it out: the ring the capture card's buttons wear, for the
+   keyboard only (law 32) */
+.fg .tm .pbtn:focus-visible, .fg .tm-entry .pbtn:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .tm-quick { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
 .fg .tm-doors { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:12px;
   font-size:13px; font-weight:500; color:var(--q); }
@@ -8691,8 +8694,15 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .fg .tm-in { flex:1; min-width:0; height:34px; padding:0; border:0; outline:none; background:none;
   font-size:14px; color:var(--ink); }
 .fg .tm-in::placeholder { color:var(--q); }
-.fg .tm-dock .tiffbtn { --tb:36px; }
 .fg .tm-err { margin:8px 0 0; font-size:13px; font-weight:500; color:var(--bad-t); }
+
+/* THE ENTRY BOX (tiff-box.tsx), on the page: the reply box above, so the
+   same edge, corner, words and 36px buttons wherever you meet it. On the
+   page it is his taller box, 52px, with the words 16px in (his 18, snapped
+   to the scale) and the field its full height, so the whole box takes a
+   click. Where it stands and what is under it are the room's to say. */
+.fg .tm-box.tm-entry { height:52px; padding:0 8px 0 16px; }
+.fg .tm-entry .tm-in { height:100%; }
 
 /* UNDER REDUCED MOTION NOTHING SLIDES. The still mark arrives in the header
    and the conversation's foot opens by width, margin and padding: the

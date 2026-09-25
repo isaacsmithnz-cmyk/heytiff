@@ -11066,6 +11066,117 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* TODAY'S FACES, HELD until their own land: the old components in their
    old dress, filling the face. This rule goes with them. */
 .fg .hd-face > .hm-face { flex:1; }
+
+/* ── YOUR DAY: his slanted bar (handoff "Home - Diagonal day", §2) ──
+   home-day-bar.tsx. What a card is, how wide, what it says and its colours
+   are decided in lib/dashboard/day-bar and arrive inline: `flex`,
+   `min-width`, and --hd-bg / --hd-fill / --hd-text / --hd-p. Nothing here
+   picks a hue. His radii snap to the scale (card 8 → 10, panel 14 → 16),
+   and his spacing within 4px of where he drew it. Still, in this cut: no
+   transition on a card, and nothing loops. */
+.fg .hd-daynote { margin:0; font-size:14px; color:var(--q); }
+.fg .hd-daynote a { color:var(--link); font-weight:500; text-decoration:underline; text-underline-offset:3px; }
+.fg .hd-daynone { margin:0; font-size:14px; font-weight:500; color:var(--q); }
+
+/* THE BAR clips the row, whose ends reach half a card's height past it, so
+   the outer slants of the first and last cards are cut away and the ends
+   read square. `clip`, not `hidden`: hidden is a scroll container, and
+   focusing the last card would scroll the row the 44px it overhangs. */
+.fg .hd-bar { position:relative; margin:8px 0 4px; overflow:clip; border-radius:10px; }
+.fg .hd-row { display:flex; gap:4px; height:88px; margin:0 -44px; }
+/* THE CARD is a layout box the pointer passes through; its skin is what a
+   click lands on, so the card under the pointer is the one whose SHAPE is
+   there, not the one whose box it leans into. */
+.fg .hd-card { position:relative; min-width:0; padding:0; border:0; background:none; font:inherit;
+  color:var(--hd-text); text-align:center; cursor:pointer; pointer-events:none; }
+.fg .hd-card:focus-visible { outline:none; }
+.fg .hd-skin { position:absolute; inset:0; border-radius:10px; overflow:hidden; transform:skewX(45deg);
+  background:var(--hd-bg); pointer-events:auto; }
+/* The job on now darkens from the left as it runs, its edge on the slant. */
+.fg .hd-fill { position:absolute; inset:0; transform-origin:left; transform:scaleX(var(--hd-p, 0));
+  background:var(--hd-fill); }
+/* The open card's 3px ink outline, over its fill, and a focus ring drawn
+   INWARD: the bar clips anything outside a card. */
+.fg .hd-skin::after { content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; }
+.fg .hd-card[aria-expanded="true"] .hd-skin::after { box-shadow:inset 0 0 0 3px var(--hd-ink); }
+.fg .hd-card:focus-visible .hd-skin::after { box-shadow:inset 0 0 0 2px var(--paper), inset 0 0 0 4px var(--ink); }
+/* An end card's outer slant is cut away, so the bar draws that side of the
+   outline down its own square end. His line; a named exemption (law 14).
+   Raised: the cards are positioned and come after ::before, so without a
+   layer of its own the left line would be painted under the first card. */
+.fg .hd-bar::before, .fg .hd-bar::after { content:""; position:absolute; inset:0; z-index:var(--z-raised);
+  border-radius:inherit; pointer-events:none; }
+.fg .hd-bar[data-sel-end~="first"]::before { box-shadow:inset 3px 0 0 var(--hd-ink); }
+.fg .hd-bar[data-sel-end~="last"]::after { box-shadow:inset -3px 0 0 var(--hd-ink); }
+
+/* THE WORDS, NEVER SKEWED. He drew them inside the skewed card, each block
+   straightened about its own middle; that lands a block along x by its
+   height from the card's middle (44px), at 45°, and nothing else. So each
+   is placed here where his landed: the tag, 18px line centred 19px down,
+   25px left of his 18; the name and time, centred 53px down, 9px right. */
+.fg .hd-lab { position:absolute; inset:0; pointer-events:none; }
+.fg .hd-tag { position:absolute; top:10px; left:-7px; max-width:calc(100% - 60px); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; font-size:12px; font-weight:600; line-height:18px; }
+.fg .hd-card[data-end~="first"] .hd-tag { left:63px; }
+/* Open, the place moves to the middle, above the name: his 32px right of
+   centre at 14px down, less the 21 that height takes back. The end cards'
+   middle is 40px in from the square end. */
+.fg .hd-card[aria-expanded="true"] .hd-tag { top:14px; left:calc(50% + 11px); transform:translateX(-50%); }
+.fg .hd-card[aria-expanded="true"][data-end~="first"] .hd-tag { left:calc(50% + 51px); }
+.fg .hd-card[aria-expanded="true"][data-end~="last"] .hd-tag { left:calc(50% - 29px); }
+.fg .hd-mid { position:absolute; top:18px; bottom:0; left:2px; right:2px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:4px; line-height:1.2; white-space:nowrap;
+  transform:translateX(9px); }
+.fg .hd-card[data-end~="first"] .hd-mid { left:80px; }
+.fg .hd-card[data-end~="last"] .hd-mid { right:80px; }
+.fg .hd-name, .fg .hd-time { max-width:calc(100% - 40px); overflow:hidden; text-overflow:ellipsis; }
+.fg .hd-name { font-size:16px; font-weight:700; }
+.fg .hd-bar[data-compact] .hd-name { font-size:14px; }
+.fg .hd-time { font-size:13px; font-weight:600; }
+/* The tick on finished work, level, in his green: his bottom-right corner
+   (12px in, 7px up), which the slant carries 28px right; centred on a card
+   folded down to its tick. */
+.fg .hd-tick { position:absolute; right:-16px; bottom:7px; display:grid; place-items:center; width:18px; height:18px;
+  border-radius:50%; background:var(--hd-done); color:var(--paper); pointer-events:none; }
+.fg .hd-tick > span, .fg .hd-tick svg { display:block; }
+.fg .hd-card[data-end~="last"] .hd-tick { right:56px; }
+.fg .hd-card[data-collapsed] .hd-tick { top:35px; bottom:auto; right:calc(50% - 9px); }
+.fg .hd-card[data-collapsed][data-end~="first"] .hd-tick { right:calc(50% - 49px); }
+.fg .hd-card[data-collapsed][data-end~="last"] .hd-tick { right:calc(50% + 31px); }
+
+/* THE PANEL under the bar: the open card, summed up, in the card's own
+   colours (--hd-pbg, --hd-ptitle, --hd-psub, --hd-psw from `dayCardPaint`).
+   Its one action and the close cross stand at the right. */
+.fg .hd-pan { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:start; gap:16px; padding:16px;
+  border-radius:16px; background:var(--hd-pbg); color:var(--hd-ptitle); }
+.fg .hd-sw { width:12px; height:12px; margin-top:4px; background:var(--hd-psw); }
+.fg .hd-pm { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.fg .hd-pt { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; }
+.fg .hd-pn { margin:0; font-size:20px; font-weight:600; line-height:1.2; color:inherit; }
+.fg .hd-pno { font-size:14px; font-weight:600; color:var(--hd-psub); }
+/* HIS CAPSULE round the state word — law 26 says state is a word; he kept
+   it (a named exemption). Paper and ink on a card still to come or on now,
+   his quiet grey once it is finished, the late red on a task past its time. */
+.fg .hd-chip { padding:2px 8px; border-radius:999px; background:var(--paper); color:var(--hd-ink);
+  font-size:12px; font-weight:600; line-height:1.5; }
+.fg .hd-chip[data-state="done"] { background:var(--hd-rule2); color:var(--hd-body); }
+.fg .hd-chip[data-state="late"] { color:var(--hd-late); }
+.fg .hd-ps { margin:0; max-width:720px; font-size:14px; font-weight:500; line-height:1.5; }
+.fg .hd-px { display:flex; flex-wrap:wrap; gap:4px 24px; margin:0; font-size:13px; color:var(--hd-psub); }
+.fg .hd-px > div { display:flex; gap:4px; }
+.fg .hd-px dt { font-weight:700; }
+.fg .hd-px dd { margin:0; }
+.fg .hd-pb { display:flex; align-items:center; gap:8px; }
+.fg .hd-open { height:36px; padding:0 12px; border:0; border-radius:10px; background:var(--hd-ink); color:var(--paper);
+  font:inherit; font-size:14px; font-weight:600; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-open:hover:not(:disabled) { background:color-mix(in srgb, var(--hd-ink) 88%, var(--paper)); }
+.fg .hd-open:disabled { cursor:default; }
+.fg .hd-x { display:grid; place-items:center; width:36px; height:36px; padding:0; border:0; border-radius:10px;
+  background:transparent; color:inherit; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+/* One step of the panel's own ink — his white at 60% hid a white cross. */
+.fg .hd-x:hover { background:color-mix(in srgb, currentColor 16%, transparent); }
+.fg .hd-x > span, .fg .hd-x svg { display:block; }
+.fg .hd-open:focus-visible, .fg .hd-x:focus-visible { outline:none; box-shadow:var(--ring); }
 /* ===================================================================
    VEHICLE MODAL v2 (components/fleet/vehicle-modal/)
 

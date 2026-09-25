@@ -632,3 +632,42 @@ describe("the new Home's text tokens clear 4.5:1 on every fill the page has", ()
     expect(ratio(hex("#d6293e"), WHITE)).toBeGreaterThan(4.5);
   });
 });
+
+/* ===== Your day's panel (.hd-pan, H12) =====
+
+   The panel is painted from its card in TypeScript (`dayCardPaint`, every
+   pair measured in day-bar's suite). What the SHEET paints on it is here:
+   his capsule round the state word, in its three dresses, and the one
+   button, ink with paper words. Read off the rules, so a retuned token or
+   a swapped declaration re-checks the pair. */
+describe("Your day's panel: the state capsule and the button clear 4.5:1", () => {
+  const code = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  /** One declaration of the rule whose selector is exactly `sel`, its
+      `var(--x)` resolved through the sheet's tokens. */
+  const decl = (sel: string, prop: string): number[] => {
+    for (const m of code.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (m[1]!.trim() !== sel) continue;
+      const d = m[2]!.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`));
+      if (!d) continue;
+      const v = d[1]!.trim();
+      const alias = v.match(/^var\(--([a-z0-9-]+)\)$/i);
+      const value = alias ? token(alias[1]!) : v;
+      if (value.toLowerCase() === "#fff") return WHITE;
+      if (!/^#[0-9a-f]{6}$/i.test(value)) throw new Error(`${sel} ${prop} is not a colour this test reads: ${value}`);
+      return hex(value);
+    }
+    throw new Error(`no ${prop} on "${sel}"`);
+  };
+  const CHIP = ".fg .hd-chip";
+  const DONE = `${CHIP}[data-state="done"]`;
+  const LATE = `${CHIP}[data-state="late"]`;
+
+  it.each([
+    ["to come and on now: ink on paper", CHIP, CHIP],
+    ["finished: his quiet grey on his pale", DONE, DONE],
+    ["late: the late red on the capsule's paper", LATE, CHIP],
+    ["Open job: paper on his ink", ".fg .hd-open", ".fg .hd-open"],
+  ])("%s", (_label, text, ground) => {
+    expect(+ratio(decl(text, "color"), decl(ground, "background")).toFixed(2)).toBeGreaterThanOrEqual(4.5);
+  });
+});

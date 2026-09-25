@@ -167,11 +167,13 @@ describe("the frame", () => {
     expect(h1.closest(".wb2-vtabs")).not.toBeNull();
   });
 
-  it("heads the day \"Your day\", with today's day in it", () => {
+  it("heads the day \"Your day\", with your day in it as his slanted bar", () => {
     draw({ rail: rail({ blocks: [block()] }) });
     const day = screen.getByRole("region", { name: "Your day" });
     expect(within(day).getByRole("heading", { level: 2 })).toHaveTextContent("Your day");
-    expect(day.querySelector(".hm-job")!.textContent).toContain("Bayview Apartments");
+    expect(within(day).getByRole("button", { name: /^Chatswood, Job 1042, 8–10am/ })).toHaveClass("hd-card");
+    // today's band is gone from the desk; the crew's Home keeps it
+    expect(document.querySelector(".hm-track")).toBeNull();
   });
 
   it("says Debrief nowhere", () => {
@@ -337,12 +339,17 @@ describe("the one door between faces", () => {
 
 describe("the one job card", () => {
   const booked = () => rail({ blocks: [block()], jobs: [mirror()], manage: true });
-  const pill = () => screen.getByRole("button", { name: /1042.*Bayview Apartments/ });
+  const bookingCard = () => screen.getByRole("button", { name: /^Chatswood, Job 1042,/ });
+  /* A booking opens from its panel: press the card, then Open job. */
+  const openBooking = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(bookingCard());
+    await user.click(screen.getByRole("button", { name: "Open job" }));
+  };
 
   it("opens a booking on the day through the desk's card: one card, wearing the day-state", async () => {
     const user = userEvent.setup();
     draw({ rail: rail({ ...booked(), tracksTime: true }) });
-    await user.click(pill());
+    await openBooking(user);
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     const card = screen.getByRole("dialog", { name: "Job 1042" });
     expect(card.textContent).toContain("Not started");
@@ -352,13 +359,44 @@ describe("the one job card", () => {
     expect(card.closest(".hd-page")).toBeNull();
   }, WHOLE);
 
-  it("puts focus back on the booking when the card closes", async () => {
+  it("puts focus back on the door it was opened from when the card closes", async () => {
     const user = userEvent.setup();
     draw({ rail: booked() });
-    await user.click(pill());
+    await openBooking(user);
     await user.click(screen.getByRole("button", { name: "Close the card" }));
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(document.activeElement).toBe(pill());
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Open job" }));
+  }, WHOLE);
+});
+
+/* "if the card is open, they can just close it if they want more space"
+   (Isaac, 2026-09-25): the day's open card is not closed by changing face,
+   nor by a press in the Calendar, as his prototype leaves it; a press in
+   the Diary or Tasks is a click elsewhere and closes it. */
+describe("the day's open card", () => {
+  const onNow = () => rail({ blocks: [block()], jobs: [mirror()], nowMin: 9 * 60 });
+  const isOpen = () => screen.getByRole("button", { name: /^Chatswood, Job 1042,/ }).getAttribute("aria-expanded");
+
+  it("stays open on every face, and for a press on the tabs or in the Calendar", async () => {
+    const user = userEvent.setup();
+    draw({ rail: onNow() });
+    expect(isOpen()).toBe("true");
+    const panel = document.querySelector(".hd-pan");
+    for (const name of ["Tasks", "Calendar", "Diary", "Calendar"]) {
+      await user.click(tab(name));
+      expect(isOpen()).toBe("true");
+      expect(document.querySelector(".hd-pan")).toBe(panel);
+    }
+    await user.click(face("calendar"));
+    expect(isOpen()).toBe("true");
+  }, WHOLE);
+
+  it("closes for a press in the Diary", async () => {
+    const user = userEvent.setup();
+    draw({ rail: onNow() });
+    await user.click(face("diary"));
+    expect(isOpen()).toBe("false");
+    expect(document.querySelector(".hd-pan")).toBeNull();
   }, WHOLE);
 });
 

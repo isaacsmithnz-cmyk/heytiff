@@ -279,6 +279,14 @@ Every decision below is made once, here, and a guard test holds each number.
   diary column, in 280 ms, and at once under reduced motion. The list
   stands in the right-hand column beside Diary and Tasks. One job card
   serves every door on the page. The Debrief is gone (2026-09-24).
+  "Your day" is his slanted bar: the viewer's own bookings and timed
+  tasks as 45° cards in their Workboard colours, the one on now filling
+  as it runs, finished work pale with a tick and folded into one block
+  when the bar is crowded. The page opens with the job on now open, and
+  its panel under the bar says the place, the number, the state, the
+  job, Time, Where and With, beside Open job and the close cross. The
+  open card stays open whatever face is up ("if the card is open, they
+  can just close it if they want more space").
   **His design is the default here.** A redraw to the laws "looks far
   worse", so where his numbers break a law this file names the exemption
   instead of bending the design ("design exempt for now, but keep a note",
@@ -637,6 +645,8 @@ day he said them.
 | Rule | Ratchet | Count | His words | Date |
 |---|---|---|---|---|
 | `.hd-page` | Tailwind palette hexes | 1 | "design exempt for now, but keep a note": `--hd-done`, the tick on finished work, is Tailwind's green 600 | 2026-09-24 |
+| `.hd-bar` | bars at the left edge | 1 | "go with your recommendations", which kept his end-card line: the first card's outer slant is cut away by the bar, so the open card's 3px ink outline closes down the bar's square end | 2026-09-25 |
+| `.hd-chip` | pills | 1 | "go with your recommendations", which kept his On-now capsule: the state word in the day's panel sits in a white capsule, "On now, 17%" | 2026-09-25 |
 
 What the guard cannot count is noted here on the same word:
 
@@ -648,6 +658,12 @@ What the guard cannot count is noted here on the same word:
 - **Law 18, motion tokens, and law 8, a tab's content appears.** The faces
   slide, in 280 ms rather than `--t-move`: "Calendar should slide across"
   (2026-09-25). Nothing slides under reduced motion.
+- **Law 16 and law 31, the day's colours.** Each card on "Your day" is
+  filled with its job's Workboard colour, darkened only where white on it
+  would fall under 4.5:1, and goes pale once finished. The colours are
+  worked out in `lib/dashboard/day-bar` (`dayCardPaint`), where every pair
+  is measured, and reach the sheet as inline properties; no rule names a
+  hue. They are the drawing, which law 31 lets carry colour.
 
 ### The Tiff button
 

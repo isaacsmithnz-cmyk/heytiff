@@ -15,10 +15,11 @@ import {
 } from "@/lib/dashboard/desk-focus";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 import { HomeCalendarFace } from "./home-calendar-face";
-import { HomeDayBand } from "./home-day-band";
+import { HomeDay } from "./home-day";
+import { KEEPS_DAY } from "./home-day-bar";
 import { HomeDiary } from "./home-diary";
 import { HomeFaceTabs } from "./home-face-tabs";
-import { DeskJobHost, useDeskJobs } from "./home-job-sheet";
+import { DeskJobHost } from "./home-job-sheet";
 import { HomeTasks } from "./home-tasks";
 
 /* THE NEW HOME — the desk (docs/design.md, "Home is the day, three tabs and
@@ -34,8 +35,12 @@ import { HomeTasks } from "./home-tasks";
 
    THE FACES ARE HELD, NOT BUILT, in this first cut: today's diary, tasks and
    calendar stand in them, in their own dress, until each face's own lands.
-   So does today's day band in "Your day". Every new file mounts here and
-   nowhere else, which is what keeps the crew's Home as it is.
+   "Your day" is his own already (./home-day). Every new file mounts here
+   and nowhere else, which is what keeps the crew's Home as it is.
+
+   THE DAY'S OPEN CARD STAYS OPEN across faces, so a press on the tabs or
+   in the Calendar does not close it (`KEEPS_DAY`); a click anywhere else
+   on the page does.
 
    ALL MOUNTED, NEVER KEYED. A face is shown or hidden, so what you typed in
    one is still there when you come back, and the row of tabs is one node
@@ -82,7 +87,6 @@ export function DashboardDesk({ data }: { data: DashboardData }) {
 
 function Desk({ data }: { data: DashboardData }) {
   const { calendar, tasks, journal, issues, assignable, canManage, viewerStaffId, today, rail } = data;
-  const { openJob } = useDeskJobs();
 
   const [face, setFace] = useState<DeskFace>(DEFAULT_FACE);
   const [motion, setMotion] = useState<Motion | null>(null);
@@ -182,6 +186,7 @@ function Desk({ data }: { data: DashboardData }) {
       aria-labelledby={`hdtab-${f}`}
       hidden={!shown(f)}
       inert={f !== face}
+      {...(f === "calendar" ? KEEPS_DAY : {})}
     >
       {body}
     </section>
@@ -195,15 +200,7 @@ function Desk({ data }: { data: DashboardData }) {
         <div className="stg hd-page">
           <ScreenBand title={fmtAuWeekdayDateLong(today)} />
 
-          <section className="hd-day" aria-labelledby="hd-day-h">
-            <h2 className="hd-dayh" id="hd-day-h">
-              Your day
-            </h2>
-            <HomeDayBand
-              rail={rail}
-              onOpenJob={(row, state, from) => openJob(row, { state, from })}
-            />
-          </section>
+          <HomeDay rail={rail} />
 
           <div className="hd-body">
             <HomeFaceTabs face={face} onGo={go} />

@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { DESK_FACES, FACE_LABEL, stepFace, type DeskFace } from "@/lib/dashboard/desk-focus";
+import { KEEPS_DAY } from "./home-day-bar";
 
 /* THE ROW OF TABS, ONE FOR EVERY FACE (Isaac, 2026-09-25: "the diary,
    calendar and tasks tabs shouldn't move positions each time").
@@ -41,7 +42,8 @@ export function HomeFaceTabs({
   };
 
   return (
-    <div className="hd-tabs" role="tablist" aria-label="Home" onKeyDown={onKeyDown}>
+    /* A press here changes the face and leaves the day's open card open. */
+    <div className="hd-tabs" role="tablist" aria-label="Home" onKeyDown={onKeyDown} {...KEEPS_DAY}>
       {DESK_FACES.map((f) => {
         const on = f === face;
         return (

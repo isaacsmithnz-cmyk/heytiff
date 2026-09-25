@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { navHref } from "@/components/shell/nav";
-import { Chevron } from "@/components/logo";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import { useHydrated } from "@/lib/use-hydrated";
 import { kbDocUrl } from "@/app/actions/kb";
@@ -1278,7 +1277,7 @@ export function TiffAssistant({
                   onClick={() => setResearchPick(false)}
                 >
                   {/* the mark, not a robot: what Tiff already knows is Tiff's (law 5) */}
-                  <Chevron size={15} decorative />
+                  <TiffGlyph />
                   General knowledge
                 </button>
               </div>

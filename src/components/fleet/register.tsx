@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { Chevron } from "@/components/logo";
 import { TiffGlyph } from "@/components/notes/tiff-mark";
 import type { FleetState } from "./fleet-state";
 import {
@@ -322,6 +321,8 @@ export function FleetRegister({
               <div
                 key={v.id}
                 className={`dirrow flrow${isSold ? " off" : ""}`}
+                /* the row is where the pointer is, so its mark moves for the whole row */
+                data-tiff-hover=""
                 onClick={() => setModal({ t: "detail", id: v.id })}
               >
                 <span className="dname">
@@ -370,7 +371,7 @@ export function FleetRegister({
                           : `Tiff: ${fmtMoney(val.low)}–${fmtMoney(val.high)}${val.note ? `, ${val.note}` : ""}`
                       }
                     >
-                      <Chevron size={14} gradient decorative />
+                      <TiffGlyph size={18} quiet />
                       {fmtMoney(val.point)}
                       {/* The note was hover-only and Isaac found it by accident.
                           The ⓘ is the visible door; the detail modal prints the
@@ -442,7 +443,7 @@ export function FleetRegister({
             Fleet value <b>{fmtMoney(fleetValue(vehicles))}</b>
             {aiTotal !== null && (
               <em className="fl-tiff">
-                <Chevron size={14} gradient decorative />
+                <TiffGlyph size={18} />
                 Tiff ≈ {fmtMoney(aiTotal)}
               </em>
             )}

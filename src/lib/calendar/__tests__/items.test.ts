@@ -286,7 +286,39 @@ describe("events", () => {
       shutdown: false,
       seriesId: null,
       repeat: null,
+      event: { kind: "event", location: "The yard", audience: "Everyone", note: "This month: working at heights" },
     });
+  });
+
+  /* The edit form holds what the row says, not the sentence the panel made
+     of it: no full stop added, and nothing where nothing was written. */
+  it("carries the row's own words for the edit form", () => {
+    const [x] = eventItems([event({ note: "  Bring a harness ", location: null, audience: " " })]);
+    expect(x!.event).toEqual({ kind: "event", location: null, audience: null, note: "Bring a harness" });
+    expect(x!.description).toBe("Bring a harness.");
+  });
+
+  it("says when a series repeats and when it stops, from its rule and its last date on the calendar", () => {
+    const rule = { every: "month", day: "thu", nth: 1 };
+    const rows = ["2026-10-01", "2027-08-05", "2026-11-05"].map((d, i) =>
+      event({ id: `e${i}`, startsOn: d, endsOn: d, seriesId: "s-1", repeat: rule, createdAt: "2026-09-24T02:00:00Z" }),
+    );
+    const items = eventItems(rows, new Map());
+    for (const x of items) {
+      expect(x.facts).toEqual([
+        ["Where", "The yard"],
+        ["Who", "Everyone"],
+        ["Repeats", "Monthly, until Aug 2027"],
+        ["Added", "Thu 24 Sept"],
+      ]);
+    }
+  });
+
+  it("says nothing of repeating for a rule it cannot count, or for an event on its own", () => {
+    const odd = eventItems([event({ seriesId: "s-2", repeat: { every: "yearly", day: "thu" } })]);
+    expect(odd[0]!.facts!.map(([k]) => k)).not.toContain("Repeats");
+    const single = eventItems([event({ repeat: { every: "week", day: "mon" } })]);
+    expect(single[0]!.facts!.map(([k]) => k)).not.toContain("Repeats");
   });
 
   it("reads the day it was added on the yard's clock, not UTC's", () => {

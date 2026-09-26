@@ -1,8 +1,10 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { CalItem, CompanyCalendar } from "@/lib/calendar/items";
 import { detail } from "@/lib/calendar/model";
+import { CalEdit } from "./home-cal-edit";
 import { actionLink } from "./home-cal-parts";
 
 /* THE PANEL, beside Month and Year (his handoff "Calendar"): the one thing
@@ -11,7 +13,8 @@ import { actionLink } from "./home-cal-parts";
    kicker in its category's ink, its title, when, the status in his capsule
    (a named exemption, law 26), which alone turns late for an admin date
    past its due, the sentence and the facts the calendar knows (`detail`,
-   lib/calendar/model), and its action.
+   lib/calendar/model), and its action: a link for what lives elsewhere, or
+   Edit for the company's own events, to whoever may add to the calendar.
 
    It draws what the page hands it and nothing moves here: the page holds
    the thing shown while a pointer's pick fades it out, and fades the next
@@ -21,14 +24,47 @@ export function CalPanel({
   item,
   items,
   frame,
+  canEdit = false,
 }: {
   item: CalItem | null;
   items: readonly CalItem[];
   frame: CompanyCalendar;
+  /** Whoever may add to the calendar may change what the company put on it. */
+  canEdit?: boolean;
 }) {
+  /* EDIT OPENS THE FORM IN PLACE (./home-cal-edit), for the one thing it
+     was pressed on: choosing something else closes it. Closed by Save or
+     Cancel, focus goes back to Edit; after a delete there is no Edit left. */
+  const [editing, setEditing] = useState<string | null>(null);
+  const editButton = useRef<HTMLButtonElement>(null);
+  const backToEdit = useRef(false);
+  useLayoutEffect(() => {
+    if (editing !== null || !backToEdit.current) return;
+    backToEdit.current = false;
+    editButton.current?.focus({ preventScroll: true });
+  }, [editing]);
+
   const d = item ? detail(item, items, frame) : null;
   if (!item || !d) return null;
   const go = actionLink(item);
+  const editable = canEdit && item.action === "edit";
+  if (editable && editing === item.id) {
+    return (
+      <div className="hd-cal-dx" data-c={item.cat}>
+        <CalEdit
+          key={item.id}
+          item={item}
+          items={items}
+          frame={frame}
+          kicker={d.kicker}
+          onDone={(how) => {
+            backToEdit.current = how !== "deleted";
+            setEditing(null);
+          }}
+        />
+      </div>
+    );
+  }
   return (
     <div className="hd-cal-dx" data-c={item.cat}>
       <div className="hd-cal-dxh">
@@ -55,6 +91,13 @@ export function CalPanel({
           <Link className="hd-cal-go" href={go.href}>
             {go.label}
           </Link>
+        </div>
+      )}
+      {editable && (
+        <div className="hd-cal-acts">
+          <button type="button" className="hd-cal-go" ref={editButton} onClick={() => setEditing(item.id)}>
+            Edit
+          </button>
         </div>
       )}
     </div>

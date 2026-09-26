@@ -4,6 +4,7 @@ import { HomeCalendarPage } from "../home-cal-page";
 import { revealIn } from "../home-cal-parts";
 import { companyItems, type CompanyCalendar, type CompanyRows } from "@/lib/calendar/items";
 import type { BoxSave } from "@/components/tiff/modal/tiff-box";
+import { TiffContext, type TiffApi, type TiffLanded } from "@/components/tiff/modal/tiff-context";
 
 /* THE CALENDAR, ON SCREEN (H21). The rows, the maths and the words are
    lib/calendar's and have their own suites; every calendar here is built
@@ -27,7 +28,13 @@ jest.mock("@/app/actions/dashboard", () => ({
 }));
 jest.mock("@/app/actions/workboard-maintenance", () => ({ placeVisit: jest.fn(), clearVisitPlacement: jest.fn() }));
 const mockAdd = jest.fn();
-jest.mock("@/app/actions/calendar", () => ({ addCalendarEvent: (text: string) => mockAdd(text) }));
+const mockEdit = jest.fn();
+const mockDelete = jest.fn();
+jest.mock("@/app/actions/calendar", () => ({
+  addCalendarEvent: (text: string) => mockAdd(text),
+  editCalendarEvent: (...a: unknown[]) => mockEdit(...a),
+  deleteCalendarEvent: (...a: unknown[]) => mockDelete(...a),
+}));
 let box: { room: string; placeholder: string; save: BoxSave } | null = null;
 jest.mock("@/components/tiff/modal/tiff-box", () => ({
   TiffBox: (p: { room: string; placeholder: string; save: BoxSave }) => {
@@ -132,6 +139,8 @@ afterEach(() => {
   cleanup();
   box = null;
   mockAdd.mockReset();
+  mockEdit.mockReset();
+  mockDelete.mockReset();
 });
 
 describe("its own toolbar", () => {
@@ -299,7 +308,7 @@ describe("one choice across the views", () => {
     expect(panel()).toHaveTextContent("Starts in 4 days");
   });
 
-  it("shows in Month's panel what was picked in 4 weeks, with its facts and no Edit before its form", async () => {
+  it("shows in Month's panel what was picked in 4 weeks, with its facts and its Edit", async () => {
     const user = userEvent.setup();
     draw();
     await user.click(within(agenda()).getByRole("button", { name: "Toolbox talk" }));
@@ -310,7 +319,7 @@ describe("one choice across the views", () => {
     expect(p).toHaveTextContent("Thu 1 Oct, 6:45 – 7:15 am");
     expect(p).toHaveTextContent("In 7 days");
     expect(within(p).getByText("Where").nextSibling).toHaveTextContent("The yard");
-    expect(within(p).queryByRole("button")).toBeNull();
+    expect(within(p).getAllByRole("button").map((b) => b.textContent)).toEqual(["Edit"]);
     expect(within(p).queryByRole("link")).toBeNull();
   });
 
@@ -579,6 +588,261 @@ describe("Save", () => {
       await box!.save("Team barbecue");
     });
     expect(rangeTitle()).toHaveTextContent("September 2026");
+  });
+});
+
+/* ── H22: Edit, series delete, and what Tiff put on ── */
+
+const eventRow = (over: Partial<CompanyRows["events"][number]>) => ({ ...ROWS.events[0]!, ...over });
+/** His toolbox talk as Tiff files it: three first Thursdays under one series. */
+const SERIES = ["2026-10-01", "2026-11-05", "2026-12-03"].map((d, i) =>
+  eventRow({
+    id: `s${i + 1}`,
+    startsOn: d,
+    endsOn: d,
+    seriesId: "ser",
+    repeat: { every: "month", day: "thu", nth: 1 },
+    note: null,
+  }),
+);
+
+/** Month's panel, on the thing picked in 4 weeks. */
+async function inPanel(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(within(agenda()).getByRole("button", { name }));
+  await user.click(viewBtn("Month"));
+  return panel();
+}
+
+describe("Edit", () => {
+  it("opens the form in the panel with what the event holds, and Save changes sends it and closes it", async () => {
+    const user = userEvent.setup();
+    draw();
+    const p = await inPanel(user, "Toolbox talk");
+    await user.click(within(p).getByRole("button", { name: "Edit" }));
+    const form = within(p).getByRole("form", { name: "Edit Toolbox talk" });
+    const name = within(form).getByRole("textbox", { name: "Name" });
+    expect(name).toHaveValue("Toolbox talk");
+    expect(name).toHaveFocus();
+    expect(within(form).getByLabelText("From")).toHaveValue("06:45");
+    expect(within(form).getByLabelText("To")).toHaveValue("07:15");
+    expect(within(form).getByRole("textbox", { name: "Where" })).toHaveValue("The yard");
+    expect(within(form).getByRole("textbox", { name: "Who" })).toHaveValue("Everyone");
+    expect(within(form).getByRole("textbox", { name: "Note" })).toHaveValue("");
+    // one event: one save, and no "all"
+    expect(within(form).queryByRole("button", { name: /^Save all/ })).toBeNull();
+
+    await user.clear(name);
+    await user.type(name, "Toolbox talk: ladders");
+    await user.type(within(form).getByRole("textbox", { name: "Note" }), "Bring a harness");
+    mockEdit.mockResolvedValueOnce({ ok: true });
+    await user.click(within(form).getByRole("button", { name: "Save changes" }));
+    expect(mockEdit).toHaveBeenCalledWith(
+      "e1",
+      {
+        title: "Toolbox talk: ladders",
+        startsOn: "2026-10-01",
+        endsOn: "2026-10-01",
+        startsAt: "06:45",
+        endsAt: "07:15",
+        location: "The yard",
+        audience: "Everyone",
+        note: "Bring a harness",
+      },
+      "one",
+    );
+    expect(within(panel()).queryByRole("form")).toBeNull();
+    expect(within(panel()).getByRole("button", { name: "Edit" })).toHaveFocus();
+  });
+
+  it("keeps the form, and says why, when a change is refused", async () => {
+    const user = userEvent.setup();
+    draw();
+    const p = await inPanel(user, "Toolbox talk");
+    await user.click(within(p).getByRole("button", { name: "Edit" }));
+    mockEdit.mockResolvedValueOnce({ ok: false, error: "It has to finish after it starts." });
+    await user.click(within(p).getByRole("button", { name: "Save changes" }));
+    expect(within(p).getByRole("alert")).toHaveTextContent("It has to finish after it starts.");
+    expect(within(p).getByRole("form")).toBeInTheDocument();
+  });
+
+  it("can't be saved without a name", async () => {
+    const user = userEvent.setup();
+    draw();
+    const p = await inPanel(user, "Toolbox talk");
+    await user.click(within(p).getByRole("button", { name: "Edit" }));
+    await user.clear(within(p).getByRole("textbox", { name: "Name" }));
+    expect(within(p).getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await user.keyboard("{Enter}");
+    expect(mockEdit).not.toHaveBeenCalled();
+  });
+
+  it("closes on Cancel, and on choosing something else", async () => {
+    const user = userEvent.setup();
+    draw();
+    const p = await inPanel(user, "Toolbox talk");
+    await user.click(within(p).getByRole("button", { name: "Edit" }));
+    await user.click(within(p).getByRole("button", { name: "Cancel" }));
+    expect(within(panel()).queryByRole("form")).toBeNull();
+    expect(within(panel()).getByRole("button", { name: "Edit" })).toHaveFocus();
+    await user.click(within(panel()).getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "School holidays, Mon 28 Sept – Fri 9 Oct" }));
+    expect(within(panel()).queryByRole("form")).toBeNull();
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("School holidays");
+  });
+
+  it("closes when another event is chosen, and never holds one event's words over another", async () => {
+    const user = userEvent.setup();
+    const meeting = eventRow({ id: "e5", title: "Team meeting", startsOn: "2026-10-02", endsOn: "2026-10-02", location: null });
+    draw(calendar({ events: [...ROWS.events, meeting] }));
+    const p = await inPanel(user, "Toolbox talk");
+    await user.click(within(p).getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: /: Team meeting/ }));
+    expect(within(panel()).queryByRole("form")).toBeNull();
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Team meeting");
+    await user.click(within(panel()).getByRole("button", { name: "Edit" }));
+    expect(within(panel()).getByRole("textbox", { name: "Name" })).toHaveValue("Team meeting");
+  });
+
+  it("asks twice before a delete, with Keep taking focus and backing out", async () => {
+    const user = userEvent.setup();
+    draw();
+    const p = await inPanel(user, "Toolbox talk");
+    await user.click(within(p).getByRole("button", { name: "Edit" }));
+    await user.click(within(p).getByRole("button", { name: "Delete event" }));
+    expect(mockDelete).not.toHaveBeenCalled();
+    const ask = within(p).getByRole("group", { name: "Delete for good?" });
+    expect(within(ask).getByRole("button", { name: "Keep" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(mockDelete).not.toHaveBeenCalled();
+    expect(within(p).queryByRole("group", { name: "Delete for good?" })).toBeNull();
+    // backed out of, the question gives focus back to where it was
+    expect(within(p).getByRole("button", { name: "Delete event" })).toHaveFocus();
+
+    await user.click(within(p).getByRole("button", { name: "Delete event" }));
+    mockDelete.mockResolvedValueOnce({ ok: true, count: 1 });
+    await user.click(within(within(p).getByRole("group", { name: "Delete for good?" })).getByRole("button", { name: "Delete event" }));
+    expect(mockDelete).toHaveBeenCalledWith("e1", "one");
+  });
+
+  it("gives a series its choices: Save this one or all, Delete this one or all", async () => {
+    const user = userEvent.setup();
+    draw(calendar({ events: [...SERIES, ROWS.events[1]!] }));
+    const p = await inPanel(user, "Toolbox talk");
+    expect(within(p).getByText("Repeats").nextSibling).toHaveTextContent("Monthly, until Dec 2026");
+    await user.click(within(p).getByRole("button", { name: "Edit" }));
+    expect(within(p).queryByRole("button", { name: "Save changes" })).toBeNull();
+    mockEdit.mockResolvedValueOnce({ ok: true });
+    await user.click(within(p).getByRole("button", { name: "Save all 3" }));
+    expect(mockEdit).toHaveBeenCalledWith("s1", expect.objectContaining({ title: "Toolbox talk" }), "series");
+
+    await user.click(within(panel()).getByRole("button", { name: "Edit" }));
+    mockEdit.mockResolvedValueOnce({ ok: true });
+    await user.click(within(panel()).getByRole("button", { name: "Save this one" }));
+    expect(mockEdit).toHaveBeenLastCalledWith("s1", expect.anything(), "one");
+
+    // Enter in the form saves this one, never all of them
+    await user.click(within(panel()).getByRole("button", { name: "Edit" }));
+    mockEdit.mockResolvedValueOnce({ ok: true });
+    await user.type(within(panel()).getByRole("textbox", { name: "Name" }), "{Enter}");
+    expect(mockEdit).toHaveBeenCalledTimes(3);
+    expect(mockEdit).toHaveBeenLastCalledWith("s1", expect.anything(), "one");
+
+    await user.click(within(panel()).getByRole("button", { name: "Edit" }));
+    await user.click(within(panel()).getByRole("button", { name: "Delete event" }));
+    const ask = within(panel()).getByRole("group", { name: "Delete for good?" });
+    expect(within(ask).getAllByRole("button").map((b) => b.textContent)).toEqual(["Delete this one", "Delete all 3", "Keep"]);
+    mockDelete.mockResolvedValueOnce({ ok: true, count: 3 });
+    await user.click(within(ask).getByRole("button", { name: "Delete all 3" }));
+    expect(mockDelete).toHaveBeenCalledWith("s1", "series");
+  });
+
+  it("gives a shutdown its first and last day and no hours", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(viewBtn("Month"));
+    for (let i = 0; i < 3; i++) await user.click(screen.getByRole("button", { name: "Later" }));
+    await user.click(screen.getAllByRole("button", { name: /^Christmas shutdown/ })[0]!);
+    await user.click(within(panel()).getByRole("button", { name: "Edit" }));
+    const form = within(panel()).getByRole("form");
+    expect(within(form).getByText("First day")).toBeInTheDocument();
+    expect(within(form).getByText("Last day")).toBeInTheDocument();
+    expect(within(form).queryByLabelText("From")).toBeNull();
+    mockEdit.mockResolvedValueOnce({ ok: true });
+    await user.click(within(form).getByRole("button", { name: "Save changes" }));
+    expect(mockEdit).toHaveBeenCalledWith(
+      "e2",
+      expect.objectContaining({ startsOn: "2026-12-23", endsOn: "2027-01-08", startsAt: null, endsAt: null }),
+      "one",
+    );
+  });
+
+  it("is not there for someone who can't add to the calendar, nor for what lives elsewhere", async () => {
+    const user = userEvent.setup();
+    draw(calendar({}, { canAdd: false }));
+    const p = await inPanel(user, "Toolbox talk");
+    expect(within(p).queryByRole("button", { name: "Edit" })).toBeNull();
+    cleanup();
+    draw();
+    await user.click(viewBtn("Month"));
+    await user.click(screen.getByRole("button", { name: "School holidays, Mon 28 Sept – Fri 9 Oct" }));
+    expect(within(panel()).queryByRole("button", { name: "Edit" })).toBeNull();
+  });
+});
+
+describe("what Tiff put on", () => {
+  const api = (landed: TiffLanded | null): TiffApi => ({
+    enabled: true,
+    open: () => false,
+    openedBy: null,
+    isOpen: false,
+    landed,
+    report: () => {},
+  });
+  const withTiff = (landed: TiffLanded | null, cal = calendar()) => (
+    <TiffContext.Provider value={api(landed)}>
+      <HomeCalendarPage cal={cal} />
+    </TiffContext.Provider>
+  );
+
+  it("is chosen, brought into view and lit once the calendar has it, even after the modal's word has gone", () => {
+    const { rerender } = render(withTiff(null));
+    // the modal closes and says what it filed, before the refresh has brought it
+    rerender(withTiff({ noteIds: [], ids: ["s2", "s3"] }));
+    expect(within(agenda()).queryByRole("button", { name: "Toolbox talk", pressed: true })).toBeNull();
+    // its word goes after two seconds; the refresh is slower still
+    rerender(withTiff(null));
+    rerender(withTiff(null, calendar({ events: [...ROWS.events, SERIES[1]!, SERIES[2]!] })));
+    // the first of it, 5 Nov, is out of the four weeks: they move to show it
+    expect(rangeTitle()).toHaveTextContent("5 Nov");
+    const row = within(agenda()).getByRole("button", { name: "Toolbox talk", pressed: true });
+    expect(row.closest(".hd-cal-it")).toHaveAttribute("data-fresh");
+  });
+
+  it("lets go of what never reaches the calendar, and lands the next thing that does", () => {
+    const { rerender } = render(withTiff(null));
+    // a task filed from the top bar never comes
+    rerender(withTiff({ noteIds: ["n1"], ids: ["t1"] }));
+    rerender(withTiff({ noteIds: [], ids: ["s2"] }));
+    rerender(withTiff({ noteIds: [], ids: ["s2"] }, calendar({ events: [...ROWS.events, SERIES[1]!] })));
+    expect(within(agenda()).getByRole("button", { name: "Toolbox talk", pressed: true }).closest(".hd-cal-it")).toHaveAttribute(
+      "data-fresh",
+    );
+  });
+
+  it("lands once: a pick after it is the reader's", async () => {
+    const user = userEvent.setup();
+    const cal = calendar({ events: [...ROWS.events, SERIES[1]!] });
+    const landed = { noteIds: [], ids: ["s2"] };
+    const { rerender } = render(withTiff(null, cal));
+    rerender(withTiff(landed, cal));
+    expect(within(agenda()).getByRole("button", { name: "Toolbox talk", pressed: true })).toBeInTheDocument();
+    await user.click(within(agenda()).getByRole("button", { name: "Public liability insurance" }));
+    // the page renders again while the modal's word is still up
+    rerender(withTiff(landed, cal));
+    expect(within(agenda()).getByRole("button", { name: "Public liability insurance" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 });
 
@@ -917,6 +1181,47 @@ describe("motion", () => {
     expect(rangeTitle()).toHaveTextContent("September 2026");
     expect(runs).toEqual([]);
     expect(grid.scrollTop).toBe(100);
+  });
+
+  /* What Tiff put on, landing as the modal closes (his calLand). */
+  const tiffOn = (landed: TiffLanded | null, cal = calendar()) => (
+    <TiffContext.Provider
+      value={{ enabled: true, open: () => false, openedBy: null, isOpen: false, landed, report: () => {} }}
+    >
+      <HomeCalendarPage cal={cal} />
+    </TiffContext.Provider>
+  );
+
+  it("lands a pointer's swap first when what Tiff put on arrives while it fades, and brings it into the view chosen", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(tiffOn(null));
+    hold();
+    await user.click(viewBtn("Month"));
+    expect(said()).toEqual(["hd-cal-body:out"]);
+    rerender(tiffOn({ noteIds: [], ids: ["s2"] }, calendar({ events: [...ROWS.events, SERIES[1]!] })));
+    // Month, as the pointer chose, on the month of what landed: 5 Nov
+    expect(document.querySelector(".hd-cal-mg")).toBeInTheDocument();
+    expect(rangeTitle()).toHaveTextContent("November 2026");
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Toolbox talk");
+    expect(runs[0]!.cancelled).toBe(true);
+    // the swap it landed puts nothing down after it
+    await release();
+    expect(rangeTitle()).toHaveTextContent("November 2026");
+    expect(said()).toEqual(["hd-cal-body:out"]);
+  });
+
+  it("lands what Tiff put on lit and still, even while a pointer's Save is still to arrive", async () => {
+    const { rerender } = render(tiffOn(null));
+    document.querySelector(".hd-cal-add")!.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    mockAdd.mockResolvedValueOnce({ ok: true, id: "e9", day: TODAY });
+    await act(async () => {
+      await box!.save("Team barbecue");
+    });
+    runs = [];
+    rerender(tiffOn({ noteIds: [], ids: ["s1"] }, calendar({ events: [...ROWS.events, SERIES[0]!] })));
+    const row = within(agenda()).getByRole("button", { name: "Toolbox talk", pressed: true }).closest(".hd-cal-it")!;
+    expect(row).toHaveAttribute("data-fresh");
+    expect(runs.filter((r) => r.el === row)).toEqual([]);
   });
 });
 

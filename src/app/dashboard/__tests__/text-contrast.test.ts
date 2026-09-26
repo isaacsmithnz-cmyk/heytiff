@@ -953,6 +953,11 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
     ["his capsule, school", '.fg .hd-cal-chip[data-tone="school"]', () => [fill('.fg .hd-cal-chip[data-tone="school"]')]],
     ["a fact's label", ".fg .hd-cal-facts dt", () => [PAPER]],
     ["the action, paper on his ink", ".fg .hd-cal-go", () => [fill(".fg .hd-cal-go")]],
+    /* The edit form (H22), on the panel's paper. */
+    ["a field's label", ".fg .hd-cal-edf", () => [PAPER]],
+    ["what a field holds", ".fg .hd-cal-in", () => [fill(".fg .hd-cal-in")]],
+    ["a quiet button, at rest and under the pointer", ".fg .hd-cal-edb", () => [fill(".fg .hd-cal-edb"), fill(".fg .hd-cal-edb:hover")]],
+    ["the question before a delete", ".fg .hd-cal-edq", () => [PAPER]],
   ])("the panel: %s", (_label, sel, grounds) => {
     expect(lowest(ink(sel), grounds())).toBeGreaterThanOrEqual(4.5);
   });

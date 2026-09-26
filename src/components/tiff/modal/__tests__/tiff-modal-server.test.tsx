@@ -27,6 +27,11 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   publishNoteKb: () => new Promise(() => {}),
   dismissNote: () => new Promise(() => {}),
 }));
+jest.mock("@/app/actions/calendar", () => ({
+  fileCalendarLine: () => new Promise(() => {}),
+  noteOnCalendarEvents: () => new Promise(() => {}),
+  undoCalendarLine: () => new Promise(() => {}),
+}));
 
 const session = {
   n: 1,

@@ -4,7 +4,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "r
 import { addCalendarEvent } from "@/app/actions/calendar";
 import { Icon } from "@/components/shell/icon";
 import { TiffBox, type BoxSaved } from "@/components/tiff/modal/tiff-box";
+import { useTiff } from "@/components/tiff/modal/tiff-context";
 import type { CalCat, CompanyCalendar } from "@/lib/calendar/items";
+import { landedEvent } from "@/lib/calendar/line";
 import {
   agendaRows,
   chipCounts,
@@ -59,9 +61,12 @@ import { CalYear } from "./home-cal-year";
 
    THE BOX IS TIFF'S (components/tiff/modal/tiff-box), in the calendar's
    room: Save puts the words on today, all day, as typed
-   (`addCalendarEvent`); Sort it out and the Tiff button ask Tiff. What was
-   saved is chosen, brought into view and lit for his 2.4 s. The box is
-   there for whoever may add to the calendar (`team`, as posting a notice).
+   (`addCalendarEvent`); Sort it out and the Tiff button ask Tiff, who
+   reads the line for the calendar — "toolbox talk every first Thursday"
+   goes on as eleven dates (`fileCalendarLine`). What was saved, or what
+   Tiff put on, is chosen, brought into view and lit for his 2.4 s. The
+   box, and Edit in the panel, are there for whoever may add to the
+   calendar (`team`, as posting a notice).
 
    `today` is the server's — the workspace's day, the one "Your day" draws
    above — so nothing here reads a clock in render.
@@ -119,6 +124,7 @@ function whenOut(run: Run, then: () => void) {
 }
 
 export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
+  const tiff = useTiff();
   /** Where the body is. */
   const [nav, setNav] = useState<CalNav>(() => startNav(cal));
   /** Where a pointer's view, step or Today is going while the body fades
@@ -150,6 +156,12 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
   const press = useRef<"pointer" | "key">("key");
   /** Whether what Save lands grows in. */
   const landGrow = useRef(false);
+  /** What the modal last said it filed, what of it the calendar is still
+      waiting for, and a count of the landings that came while a fade was
+      on its way. */
+  const [landedSeen, setLandedSeen] = useState(tiff.landed);
+  const [landing, setLanding] = useState<readonly string[] | null>(null);
+  const [overtaken, setOvertaken] = useState(0);
 
   /** The toolbar's: where the page is, or is going. */
   const bar = ahead ?? nav;
@@ -205,6 +217,22 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
       }
     };
   }, []);
+
+  /* A landing of Tiff's put down what was on its way as it was drawn (see
+     below): its fades come off here, and nothing is left to put down after
+     it. Before the landing is brought into sight, so nothing a Save still
+     waiting armed grows it. */
+  useLayoutEffect(() => {
+    if (overtaken === 0) return;
+    filterPick.current = null;
+    landGrow.current = false;
+    for (const run of [swapRun.current, panelRun.current, filterRun.current]) {
+      run.tok += 1;
+      run.land = null;
+      for (const a of run.anims) a.cancel();
+      run.anims = [];
+    }
+  }, [overtaken]);
 
   /* A view you switch to keeps the choice in sight — Month opens on today's
      week instead (./home-cal-month). The page itself opens on today. */
@@ -332,8 +360,16 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
     if (moving && !next[cat]) setFilterIn((f) => ({ n: f.n + 1, cat }));
   };
 
-  /* Save: the words on today, as typed. What landed is chosen, shown and lit
-     — its filter back on, its day in view. */
+  /** What landed is chosen, shown and lit — its filter back on, its day in
+      view. State only, so a landing found while drawing can call it. */
+  const land = (id: string, day: string) => {
+    setPicked(id);
+    setFresh(id);
+    setOff((o) => ({ ...o, event: false }));
+    setNav((n) => revealDay(n, day, cal));
+  };
+
+  /* Save: the words on today, as typed. Anything on its way lands first. */
   const save = async (text: string): Promise<BoxSaved> => {
     const grow = press.current === "pointer" && motionAllowed();
     const res = await addCalendarEvent(text);
@@ -341,14 +377,41 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
     hurry(swapRun.current);
     hurry(panelRun.current);
     hurryFilter();
-    const id = `ev:${res.id}`;
     landGrow.current = grow;
-    setPicked(id);
-    setFresh(id);
-    setOff((o) => ({ ...o, event: false }));
-    setNav((n) => revealDay(n, res.day, cal));
+    land(`ev:${res.id}`, res.day);
     return { ok: true };
   };
+
+  /* WHAT TIFF PUT ON LANDS HERE AS THE MODAL CLOSES (his calLand): the
+     first of it is chosen, brought into view and lit, as a Save is. The
+     modal says what it filed as it closes (`landed`, for two seconds), and
+     the rows arrive with the refresh that follows, which may be slower than
+     that: so what landed is held here until the calendar has it, then
+     landed once. Anything else the modal filed (a task, from the top bar)
+     is never on the calendar, and is let go by the next landing.
+
+     It lands still: it comes with the modal closing, by × or Escape as
+     often as by a pointer, not with a press on the calendar (law 8). And
+     as a Save does, it lands anything on its way first, so a view a
+     pointer chose a moment before is the one it is brought into. */
+  if (tiff.landed !== landedSeen) {
+    setLandedSeen(tiff.landed);
+    if (tiff.landed?.ids.length) setLanding(tiff.landed.ids);
+  }
+  const arrived = landing ? landedEvent(cal.items, landing) : null;
+  if (arrived) {
+    setLanding(null);
+    /* Put down now, as a press would land them: the view a pointer chose,
+       the filter as it now stands, the panel on what comes. */
+    if (ahead) {
+      setAhead(null);
+      setNav(ahead);
+    }
+    setOffHeld(null);
+    setPanelHeld(null);
+    setOvertaken((n) => n + 1);
+    land(arrived.id, arrived.start);
+  }
 
   return (
     <div className="hd-cal">
@@ -436,7 +499,7 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
               <CalYear months={yearMonths(vis, nav.anchor, cal)} selected={selected} onPick={pick} />
             )}
             <aside className="hd-cal-det" data-scroll="" aria-label="Details" aria-live="polite">
-              <CalPanel item={item} items={cal.items} frame={cal} />
+              <CalPanel item={item} items={cal.items} frame={cal} canEdit={cal.canAdd} />
               {nav.view === "year" && <CalKey />}
             </aside>
           </div>

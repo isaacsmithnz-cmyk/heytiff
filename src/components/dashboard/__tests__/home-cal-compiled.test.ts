@@ -23,6 +23,7 @@ const FILES = [
   "src/components/dashboard/home-cal-panel.tsx",
   "src/components/dashboard/home-cal-rail.tsx",
   "src/components/dashboard/home-cal-parts.tsx",
+  "src/components/dashboard/home-cal-edit.tsx",
   "src/components/dashboard/home-list.tsx",
   "src/components/dashboard/home-desk.tsx",
 ];
@@ -60,12 +61,12 @@ describe.each(FILES)("%s", (file) => {
 });
 
 it("names the page and each of its views among what compiled", () => {
-  const names = FILES.slice(0, 6).flatMap((f) =>
+  const names = FILES.slice(0, 8).flatMap((f) =>
     compile(f)
       .events.filter((e) => e.kind === "CompileSuccess")
       .map((e) => e.fnName),
   );
-  for (const n of ["HomeCalendarPage", "CalAgenda", "CalMonth", "CalYear", "CalPanel", "CalKey", "CalRail"]) {
+  for (const n of ["HomeCalendarPage", "CalAgenda", "CalMonth", "CalYear", "CalPanel", "CalKey", "CalRail", "CalEdit"]) {
     expect(names).toContain(n);
   }
 });

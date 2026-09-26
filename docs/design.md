@@ -849,7 +849,10 @@ What the guard cannot count is noted here on the same word:
   loop. All of it is for a pointer only: from the keyboard, or under
   reduced motion, each is simply there, and what Save lands is a still
   tint for the 2.4 s. Anything pressed while a fade is on its way lands
-  it at once first.
+  it at once first. What Tiff puts on the calendar lands as a Save does
+  once the modal has closed, chosen and on the same tint, but still: it
+  arrives with the modal closing, by × or Escape as often as a pointer,
+  never with a press on the calendar.
 - **Law 18, motion tokens, and law 8, a tab's content appears.** The faces
   slide, in 280 ms rather than `--t-move`: "Calendar should slide across"
   (2026-09-25). Nothing slides under reduced motion, and nothing slides

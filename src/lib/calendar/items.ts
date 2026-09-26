@@ -1,6 +1,7 @@
 import { auDayOf, fmtAuWeekdayDate, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { expiryDue } from "@/lib/expiry-due";
 import type { OrgCredential } from "@/lib/org/credentials";
+import { readRepeatRule, repeatsFact } from "./repeat";
 
 /* THE HOME CALENDAR'S ITEMS: rows in, calendar items out.
 
@@ -71,6 +72,14 @@ export type CalItem = {
       were counted from (calendar_events.repeat, read by repeat.ts). */
   seriesId?: string | null;
   repeat?: unknown;
+  /** A company event's own fields, as the edit form holds them: what the
+      facts and the sentence say, before they were worded. */
+  event?: {
+    kind: "event" | "shutdown";
+    location: string | null;
+    audience: string | null;
+    note: string | null;
+  } | null;
 };
 
 /** Everything the Home calendar is drawn from. The model's frame is the
@@ -235,8 +244,19 @@ export function schoolItems(rows: readonly SchoolHolidayRow[]): CalItem[] {
 /* ── events ── */
 
 /** The company's own events, shutdowns included. Anyone who could add one can
-    change it, so the panel's action is Edit. */
+    change it, so the panel's action is Edit.
+
+    A REPEAT SAYS WHEN IT STOPS: "Repeats, Monthly, until Aug 2027", from the
+    rule its rows were counted from and the last of them on the calendar. A
+    series never rolls on by itself, so its last date is its end. */
 export function eventItems(rows: readonly CalendarEventRow[], names?: ReadonlyMap<string, string>): CalItem[] {
+  const lastOf = new Map<string, string>();
+  for (const r of rows) {
+    const d = dayOf(r.startsOn);
+    if (!r.seriesId || !d) continue;
+    const had = lastOf.get(r.seriesId);
+    if (!had || d > had) lastOf.set(r.seriesId, d);
+  }
   const out: CalItem[] = [];
   for (const r of rows) {
     const s = dayOf(r.startsOn);
@@ -252,6 +272,9 @@ export function eventItems(rows: readonly CalendarEventRow[], names?: ReadonlyMa
     const facts: [string, string][] = [];
     if (where) facts.push(["Where", where]);
     if (who) facts.push(["Who", who]);
+    const rule = r.seriesId ? readRepeatRule(r.repeat) : null;
+    const last = r.seriesId ? lastOf.get(r.seriesId) : undefined;
+    if (rule && last) facts.push(["Repeats", repeatsFact(rule, last)]);
     if (added) facts.push(["Added", by ? `${by}, ${fmtAuWeekdayDayMonth(added)}` : fmtAuWeekdayDayMonth(added)]);
     out.push({
       id: `ev:${r.id}`,
@@ -269,6 +292,7 @@ export function eventItems(rows: readonly CalendarEventRow[], names?: ReadonlyMa
       shutdown,
       seriesId: r.seriesId ?? null,
       repeat: r.seriesId ? r.repeat ?? null : null,
+      event: { kind: r.kind, location: where, audience: who, note: clean(r.note) },
     });
   }
   return out;

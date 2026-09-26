@@ -13,6 +13,11 @@ type Call = {
   in?: [string, string[]];
   /** Every `.in` in order, where a read has more than one. */
   ins: [string, string[]][];
+  /** `.not`, `.or` and `.gte`, as written, and the limit. */
+  not?: [string, string, unknown];
+  or?: string;
+  gte?: [string, string];
+  limit?: number;
 };
 
 let rows: Record<string, Record<string, unknown>[]> = {};
@@ -42,8 +47,23 @@ const table = (name: string) => {
     call.eq[`${col} is`] = val;
     return chain;
   };
+  chain.not = (col: string, op: string, val: unknown) => {
+    call.not = [col, op, val];
+    return chain;
+  };
+  chain.or = (expr: string) => {
+    call.or = expr;
+    return chain;
+  };
+  chain.gte = (col: string, val: string) => {
+    call.gte = [col, val];
+    return chain;
+  };
   chain.order = () => chain;
-  chain.limit = () => chain;
+  chain.limit = (n: number) => {
+    call.limit = n;
+    return chain;
+  };
   chain.then = (res: (v: { data: unknown; error?: unknown }) => unknown) =>
     Promise.resolve(
       failing.has(name) ? { data: null, error: { message: "unreachable" } } : { data: rows[name] ?? [] },
@@ -65,7 +85,7 @@ jest.mock("@/lib/integrations/links", () => ({
   sm8NoteSender: (...a: unknown[]) => mockSender(...a),
 }));
 
-import { listDiaryEntries, listJournal } from "../journal-query";
+import { listDiaryEntries, listDiaryReplies, listJournal, replyViewerOf } from "../journal-query";
 
 const note = (id: string, applied: unknown) => ({
   id,
@@ -799,6 +819,8 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
       to: "n-ask",
       jobUuid: "j-2041",
       words: "@lukeingold on my way",
+      at: "2026-08-12 08:00:00",
+      savedAt: "2026-08-11T22:00:00Z",
       line: {
         text: "Not sent to ServiceM8. ServiceM8 refused the note.",
         tone: "bad",
@@ -810,6 +832,8 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
       to: "n-grilles",
       jobUuid: "j-3294",
       words: "@lukeingold Done.",
+      at: "2026-08-12 08:00:00",
+      savedAt: "2026-08-11T22:00:00Z",
       line: { text: "In ServiceM8", tone: "ok", again: null, ask: null },
     });
     // yours, so its doors are yours: answered since, it simply goes again
@@ -840,16 +864,82 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
     expect(of("sm8_writes")).toHaveLength(0);
   });
 
-  it("keeps the reply, saying nothing about ServiceM8, when where it stands can't be read", async () => {
+  it("keeps the reply, saying nothing about ServiceM8, when its queue can't be read", async () => {
     const spy = jest.spyOn(console, "error").mockImplementation(() => {});
     process.env.SM8_WRITES = "attachment,note";
     page();
+    rows.workboard_notes.push(answer("wn-lost", "n-ask", "j-2041", "@lukeingold on my way", "@lukeingold on my way"));
     failing.add("sm8_writes");
     const out = byId(await listDiaryEntries("org-1", "s1", null));
     expect(out["wn-reply"].reply).toMatchObject({ to: "n-ask", line: null });
+    // nor "In HeyTiff": a queue nobody could read says nothing of whether it went
+    expect(out["wn-lost"].reply).toMatchObject({ line: null });
     // and says so in the log
-    expect(spy).toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining("couldn't read where org org-1's notes stand"), expect.anything());
     spy.mockRestore();
+  });
+
+  it("keeps the reply, saying nothing about ServiceM8, when reading where it stands throws", async () => {
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    process.env.SM8_WRITES = "attachment,note";
+    page();
+    mockWriteState.mockRejectedValueOnce(new Error("network"));
+    const out = byId(await listDiaryEntries("org-1", "s1", null));
+    expect(out["wn-reply"].reply).toMatchObject({ to: "n-ask", line: null });
+    expect(out["wn-done"].reply).toMatchObject({ to: "n-grilles", line: null });
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining("couldn't read where org org-1's replies stand with ServiceM8"));
+    spy.mockRestore();
+  });
+
+  it("says where each stands when who you are to ServiceM8 can't be read, with no door that needs your link", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    page();
+    mockSender.mockRejectedValue(new Error("network"));
+    const out = byId(await listDiaryEntries("org-1", "s1", null));
+    // a failure is tried again as ever: that door is the row's, not the link's
+    expect(out["wn-reply"].reply?.line).toEqual({
+      text: "Not sent to ServiceM8. ServiceM8 refused the note.",
+      tone: "bad",
+      again: { act: "send_again", label: "Try again" },
+      ask: null,
+    });
+    expect(out["wn-done"].reply?.line).toEqual({ text: "In ServiceM8", tone: "ok", again: null, ask: null });
+    // the link's question needs the link: said, with nobody to answer for and nothing to press
+    expect(out["wn-asked"].reply?.line).toMatchObject({ tone: "bad", again: null, ask: null });
+    expect(out["wn-asked"].reply?.line?.text).toMatch(/^Not sent to ServiceM8\. Is .+ you\?$/);
+  });
+
+  it("stamps each reply to the second on the account's clock, and keeps when it was saved", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    page();
+    // saved at 22:00:50 UTC: 6:00:50 am in Perth
+    rows.workboard_notes[0] = { ...rows.workboard_notes[0], created_at: "2026-08-11T22:00:50.123456+00:00" };
+    const out = byId(await listDiaryEntries("org-1", "s1", "Australia/Perth"));
+    // the entry keeps the minute it always did
+    expect(out["wn-reply"].stamp).toBe("2026-08-12 06:00");
+    expect(out["wn-reply"].reply).toMatchObject({ at: "2026-08-12 06:00:50", savedAt: "2026-08-11T22:00:50.123456+00:00" });
+  });
+
+  it("says In HeyTiff, with Send to ServiceM8, for a reply saved and never queued, as the job card does", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    page();
+    // saved, then the press's second read of the settings found notes switched off: no create, and nothing kept
+    rows.workboard_notes.push(answer("wn-lost", "n-ask", "j-2041", "@lukeingold on my way", "@lukeingold on my way"));
+    const IN_HEYTIFF = { text: "In HeyTiff", tone: null, again: { act: "send_again", label: "Send to ServiceM8" }, ask: null };
+    expect(byId(await listDiaryEntries("org-1", "s1", null))["wn-lost"].reply?.line).toEqual(IN_HEYTIFF);
+
+    // someone still to be asked their link may press it too: the send asks the question
+    mockSender.mockResolvedValue({ state: "confirm", remoteId: "u-isaac", sm8Name: "Isaac Smith", handle: "isaacsmith" });
+    expect(byId(await listDiaryEntries("org-1", "s1", null))["wn-lost"].reply?.line).toEqual(IN_HEYTIFF);
+
+    // nobody can send it: said, with no door
+    mockSender.mockResolvedValue({ state: "unlinked", noCard: false });
+    expect(byId(await listDiaryEntries("org-1", "s1", null))["wn-lost"].reply?.line).toEqual({ ...IN_HEYTIFF, again: null });
+
+    // nor where notes aren't offered
+    mockSender.mockResolvedValue(READY);
+    mockWriteState.mockResolvedValue({ ...STATE, mode: "off" });
+    expect(byId(await listDiaryEntries("org-1", "s1", null))["wn-lost"].reply?.line).toEqual({ ...IN_HEYTIFF, again: null });
   });
 
   it("is the read it always was where the deployment sends files only (production today)", async () => {
@@ -870,5 +960,135 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
     }
     expect(mockWriteState).not.toHaveBeenCalled();
     expect(mockSender).not.toHaveBeenCalled();
+  });
+
+  /* YOUR REPLIES ON THEIR OWN, for the conversations: read over the
+     mentions' reach rather than your newest entries, and with them one you
+     took back that may still be in ServiceM8 (decision 8). */
+  describe("listDiaryReplies", () => {
+    const back = (id: string, over: Record<string, unknown> = {}) => ({
+      ...answer(id, "n-ask", "j-2041", "@lukeingold on my way", "@lukeingold on my way"),
+      removed_at: "2026-08-12T01:00:00Z",
+      ...over,
+    });
+
+    it("reads your replies over the mentions' reach, filed or taken back, newest first, a hundred at most", async () => {
+      process.env.SM8_WRITES = "attachment,note";
+      page();
+      rows.workboard_notes = rows.workboard_notes.filter((r) => r.id !== "e-plain");
+      const out = await listDiaryReplies("org-1", "s1", null, "2026-07-27");
+
+      const [read] = of("workboard_notes");
+      expect(read.columns).toBe("id, transcript, source, applied, created_at, target_id, reply_to_sm8_note_uuid, sm8_refusal, removed_at");
+      expect(read.eq).toEqual({ org_id: "org-1", author_id: "s1", target_kind: "job" });
+      expect(read.not).toEqual(["reply_to_sm8_note_uuid", "is", null]);
+      expect(read.or).toBe("status.eq.applied,removed_at.not.is.null");
+      // the day before the reach, at midnight UTC: its first moment on any clock is after it
+      expect(read.gte).toEqual(["created_at", "2026-07-26T00:00:00Z"]);
+      expect(read.limit).toBe(100);
+
+      expect(out.map((e) => e.id)).toEqual(["wn-reply", "wn-done", "wn-asked"]);
+      expect(out[0]).toMatchObject({
+        said: "@lukeingold a caminho",
+        stamp: "2026-08-12 08:00",
+        outcomes: [],
+        undo: false,
+        turns: [],
+        reply: {
+          to: "n-ask",
+          jobUuid: "j-2041",
+          words: "@lukeingold on my way",
+          at: "2026-08-12 08:00:00",
+          savedAt: "2026-08-11T22:00:00Z",
+          line: { text: "Not sent to ServiceM8. ServiceM8 refused the note.", again: { act: "send_again", label: "Try again" } },
+        },
+      });
+      expect(out[0].reply).not.toHaveProperty("takenBack");
+    });
+
+    it("keeps one you took back only while something of it may still be in ServiceM8, with Try again", async () => {
+      process.env.SM8_WRITES = "attachment,note";
+      rows.workboard_notes = [back("wn-stuck"), back("wn-out"), back("wn-never"), back("wn-going"), back("wn-racing")];
+      rows.sm8_writes = [
+        // taken back here, its create not closed yet and nothing queued to take it out: read as taken back, it is still there
+        create("wn-racing", { status: "sent" }),
+        // went, and its take-back failed: Luke still has it
+        create("wn-stuck", { status: "sent", taken_back_at: "2026-08-12T01:00:00Z" }),
+        { ...create("wn-stuck", { op: "delete", depends_on: "w-wn-stuck", status: "failed", last_error: "ServiceM8 refused the note." }), id: "d-wn-stuck" },
+        // went, and came out
+        create("wn-out", { status: "sent", taken_back_at: "2026-08-12T01:00:00Z" }),
+        { ...create("wn-out", { op: "delete", depends_on: "w-wn-out", status: "sent" }), id: "d-wn-out" },
+        // taken back on its way out
+        create("wn-going", { status: "sent", taken_back_at: "2026-08-12T01:00:00Z" }),
+        { ...create("wn-going", { op: "delete", depends_on: "w-wn-going", status: "sending" }), id: "d-wn-going" },
+        // wn-never never went: nothing of it can be there
+      ];
+      const out = await listDiaryReplies("org-1", "s1", null, "2026-07-27");
+      expect(out.map((e) => [e.id, e.reply?.takenBack, e.reply?.line])).toEqual([
+        [
+          "wn-stuck",
+          true,
+          {
+            text: "Still in ServiceM8. ServiceM8 refused the note.",
+            tone: "bad",
+            again: { act: "take_out_again", label: "Try again" },
+            ask: null,
+          },
+        ],
+        ["wn-going", true, { text: "Taking it out of ServiceM8…", tone: null, again: null, ask: null }],
+        [
+          "wn-racing",
+          true,
+          {
+            text: "Still in ServiceM8. HeyTiff hasn't taken it out yet.",
+            tone: "bad",
+            again: { act: "take_out_again", label: "Try again" },
+            ask: null,
+          },
+        ],
+      ]);
+      // read as taken back: the queue is asked about each of them
+      expect(of("sm8_writes")[0].ins).toEqual([
+        ["op", ["create", "delete"]],
+        ["note_id", ["wn-stuck", "wn-out", "wn-never", "wn-going", "wn-racing"]],
+      ]);
+    });
+
+    it("leaves out every one you took back when its queue can't be read, and keeps the rest with no line", async () => {
+      const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+      process.env.SM8_WRITES = "attachment,note";
+      rows.workboard_notes = [back("wn-stuck"), answer("wn-reply", "n-ask", "j-2041", "@lukeingold on my way", "@lukeingold a caminho")];
+      failing.add("sm8_writes");
+      const out = await listDiaryReplies("org-1", "s1", null, "2026-07-27");
+      expect(out.map((e) => [e.id, e.reply?.line])).toEqual([["wn-reply", null]]);
+      spy.mockRestore();
+    });
+
+    it("reads nothing where the deployment sends files only (production today)", async () => {
+      process.env.SM8_WRITES = "1";
+      page();
+      expect(await listDiaryReplies("org-1", "s1", null, "2026-07-27")).toEqual([]);
+      expect(calls).toHaveLength(0);
+      expect(mockWriteState).not.toHaveBeenCalled();
+    });
+
+    it("says nothing, and logs, when the read fails", async () => {
+      const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+      process.env.SM8_WRITES = "attachment,note";
+      failing.add("workboard_notes");
+      expect(await listDiaryReplies("org-1", "s1", null, "2026-07-27")).toEqual([]);
+      expect(spy).toHaveBeenCalledWith(expect.stringContaining("couldn't read org org-1's replies"), expect.anything());
+      spy.mockRestore();
+    });
+
+    it("shares one read of who you are to ServiceM8 with the entry read, made only when a reader asks", async () => {
+      process.env.SM8_WRITES = "attachment,note";
+      page();
+      const viewer = replyViewerOf("org-1", "s1");
+      expect(mockWriteState).not.toHaveBeenCalled();
+      await Promise.all([listDiaryEntries("org-1", "s1", null, 60, viewer), listDiaryReplies("org-1", "s1", null, "2026-07-27", viewer)]);
+      expect(mockWriteState).toHaveBeenCalledTimes(1);
+      expect(mockSender).toHaveBeenCalledTimes(1);
+    });
   });
 });

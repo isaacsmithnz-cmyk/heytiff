@@ -318,7 +318,7 @@ describe("what a door can land on", () => {
       people: [ISAAC, LUKE],
       jobs: new Map([[J2041, { label: "2041 Wollstonecraft", live: true }]]),
       today: TODAY,
-      replies: [{ id: "wn-reply", to: "n1", jobUuid: J2041, words: "@lukeingold on my way", at: `${TODAY} 07:30`, line: null }],
+      replies: [{ id: "wn-reply", to: "n1", jobUuid: J2041, words: "@lukeingold on my way", at: `${TODAY} 07:30:00`, savedAt: `${TODAY}T07:30:00Z`, line: null }],
     });
     const feed = diaryFeed({ entries: [reply], conversations, day: TODAY, mentions: true, entriesCut: false, syncedAt: null });
     const holds = diaryHolds(feed);

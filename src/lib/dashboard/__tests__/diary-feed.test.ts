@@ -422,6 +422,7 @@ describe("your reply from HeyTiff", () => {
     jobUuid: "j-2041",
     words: "@lukeingold calling her now",
     at: "2026-09-25 09:10",
+    savedAt: "2026-09-24T23:10:00.000000+00:00",
     line,
     ...over,
   });
@@ -508,6 +509,31 @@ describe("your reply from HeyTiff", () => {
       ["wn-reply", "2026-09-25 08:40:00"],
     ]);
     expect(c).toMatchObject({ answered: true, fresh: false });
+  });
+
+  it("keeps two replies at one stamp in the order they were saved, whatever their ids", () => {
+    // "can't make it today", then "actually I can, 3pm": both held to his note, stamped after them on ServiceM8's clock
+    const [c] = withReplies(
+      [ASK],
+      [
+        reply({ id: "wn-b", words: "@lukeingold can't make it today", at: "2026-09-25 08:39:05", savedAt: "2026-09-24T22:39:05.100000+00:00" }),
+        reply({ id: "wn-a", words: "@lukeingold actually I can, 3pm", at: "2026-09-25 08:39:40", savedAt: "2026-09-24T22:39:40.200000+00:00" }),
+      ],
+    );
+    expect(c.messages.map((m) => [m.id, m.at])).toEqual([
+      ["n-ask", "2026-09-25 08:40:00"],
+      ["wn-b", "2026-09-25 08:40:00"],
+      ["wn-a", "2026-09-25 08:40:00"],
+    ]);
+    // and two saved in the same second
+    const [same] = withReplies(
+      [ASK],
+      [
+        reply({ id: "wn-b", words: "@lukeingold on my way", at: "2026-09-25 09:10:07", savedAt: "2026-09-24T23:10:07.100000+00:00" }),
+        reply({ id: "wn-a", words: "Done.", at: "2026-09-25 09:10:07", savedAt: "2026-09-24T23:10:07.900000+00:00" }),
+      ],
+    );
+    expect(same.messages.map((m) => m.id)).toEqual(["n-ask", "wn-b", "wn-a"]);
   });
 
   it("is your answer: his note after it that names nobody is on the job, not part of the ask", () => {

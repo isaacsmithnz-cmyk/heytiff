@@ -205,7 +205,8 @@ describe("your replies from HeyTiff", () => {
     to: "n1",
     jobUuid: "j-2041",
     words: "@lukeingold on my way",
-    at: "2026-09-24 10:00",
+    at: "2026-09-24 10:00:00",
+    savedAt: "2026-09-24T00:00:00.000000+00:00",
     line: { text: "In ServiceM8", tone: "ok", again: null, ask: null },
   };
   const page = () => {

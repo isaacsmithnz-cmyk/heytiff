@@ -13,6 +13,8 @@ type Row = { org_id: string; note_id: string; kind: string; op: string; remote_u
 let rows: Row[] = [];
 let failWith: { code: string; message: string } | null = null;
 let noReplacedColumn = false;
+/** The read throws, as a dropped connection does, rather than answering. */
+let throwOnRead = false;
 const calls: Call[] = [];
 
 jest.mock("@/lib/supabase-server", () => ({
@@ -26,6 +28,7 @@ jest.mock("@/lib/supabase-server", () => ({
       q.eq = (col: string, v: unknown) => ((call.eq[col] = v), q);
       q.in = async (col: string, list: string[]) => {
         call.in = [col, list];
+        if (throwOnRead) throw new Error("socket hang up");
         if (failWith) return { data: null, error: failWith };
         if (noReplacedColumn && call.columns.includes("replaced_uuids")) {
           return { data: null, error: { code: "42703", message: "column replaced_uuids does not exist" } };
@@ -49,7 +52,8 @@ jest.mock("@/lib/supabase-server", () => ({
 
 import { sm8CopiesOf } from "../sm8-echo";
 
-const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+/* in hex, as a uuid is: uuid(10) ends "…00a", so its capitals differ from it */
+const uuid = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, "0")}`;
 const NOTE = uuid(1);
 const OTHER = uuid(2);
 const create = (over: Partial<Row>): Row => ({
@@ -66,6 +70,7 @@ beforeEach(() => {
   rows = [];
   failWith = null;
   noReplacedColumn = false;
+  throwOnRead = false;
   calls.length = 0;
 });
 
@@ -78,6 +83,8 @@ it("gives each note's create uuid and every uuid it replaced, lower case, from o
     create({ kind: "attachment", remote_uuid: uuid(31) }),
     create({ org_id: "org-2", remote_uuid: uuid(32) }),
   ];
+  // a copy that came back in capitals is still known by its lower case
+  expect(uuid(10).toUpperCase()).not.toBe(uuid(10));
   const copies = await sm8CopiesOf("org-1", [NOTE, OTHER, NOTE]);
   expect([...copies].sort()).toEqual([uuid(10), uuid(11), uuid(20)]);
   expect(calls).toHaveLength(1);
@@ -98,6 +105,16 @@ it("knows no copy when the read fails, and says so in the log", async () => {
   rows = [create({})];
   expect((await sm8CopiesOf("org-1", [NOTE])).size).toBe(0);
   expect(spy).toHaveBeenCalled();
+  spy.mockRestore();
+});
+
+it("knows no copy when the read throws, and says so in the log", async () => {
+  const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+  throwOnRead = true;
+  rows = [create({})];
+  const copies = await sm8CopiesOf("org-1", [NOTE]);
+  expect(copies.size).toBe(0);
+  expect(spy).toHaveBeenCalledWith(expect.stringContaining("socket hang up"));
   spy.mockRestore();
 });
 

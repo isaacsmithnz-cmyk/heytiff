@@ -25,13 +25,13 @@
 
    YOUR REPLY FROM HEYTIFF (two-way phase 2, ./diary-reply) joins by what
    it answers, not by its words: the conversation that holds the note it
-   answers takes it, at the moment it was saved (never before that note),
-   as HeyTiff saved it — so it is there before the sync, it says where it
-   stands with ServiceM8, and a plain "Done." with nobody named still goes
-   where it belongs. ServiceM8's copy of it (`copies`) is the same message,
-   and never joins beside it. One that answers a note no conversation holds
-   stays one of your entries (diaryFeed leaves out only what a
-   conversation holds).
+   answers takes it, at the moment it was saved to the second (never before
+   that note), as HeyTiff saved it — so it is there before the sync, it
+   says where it stands with ServiceM8, and a plain "Done." with nobody
+   named still goes where it belongs. ServiceM8's copy of it (`copies`) is
+   the same message, and never joins beside it. One that answers a note no
+   conversation holds stays one of your entries (diaryFeed leaves out only
+   what a conversation holds).
 
    WHAT A MESSAGE SAYS is the note as written, less its addressing
    (sm8-mentions' quotedNote): the handles it opens with, and the one
@@ -74,6 +74,12 @@ export const FOLLOW_ON_DAYS = 3;
 /** The most entries the diary reads (journal-query's listDiaryEntries). */
 export const DIARY_ENTRY_LIMIT = 60;
 
+/** The most replies of yours the conversations read, over the mentions'
+    reach (journal-query's listDiaryReplies): each is one uuid in the URL
+    of the reads of their queue rows and their copies, and a hundred keep
+    those near 4 KB, as sm8-echo's ECHO_CHUNK keeps its own. */
+export const DIARY_REPLY_LIMIT = 100;
+
 /** One live ServiceM8 job note, as the read hands it over: text trimmed,
     stamp as ServiceM8 wrote it. HeyTiff's own echoes are already out. */
 export type MentionNote = {
@@ -97,8 +103,11 @@ export type OurReply = {
   jobUuid: string;
   /** Its words in the job's diary, with the handle it opens on. */
   words: string;
-  /** When it was saved, on the account's clock (the entry's stamp). */
+  /** When it was saved, to the second, on the account's clock. */
   at: string;
+  /** When it was saved, as the database says it: the order of two saved
+      in the same second. */
+  savedAt: string;
   line: ReplyLine | null;
 };
 
@@ -279,13 +288,20 @@ export function buildConversations(input: {
     return [{ ...r, at: source > saved ? source : saved }];
   });
   /* One stream in time order; a reply comes after a note at the same stamp,
-     so the note it answers is always in before it. */
+     so the note it answers is always in before it, and two replies at the
+     same stamp (two held to the note they answer, or two in one second)
+     keep the order they were saved in. */
+  type Step = { at: string; id: string; reply: { savedAt: string } | null };
+  const inOrder = (a: Step, b: Step): number => {
+    if (a.at !== b.at) return a.at < b.at ? -1 : 1;
+    if (!a.reply !== !b.reply) return a.reply ? 1 : -1;
+    if (a.reply && b.reply && a.reply.savedAt !== b.reply.savedAt) return a.reply.savedAt < b.reply.savedAt ? -1 : 1;
+    return a.id < b.id ? -1 : 1;
+  };
   const stream = [
     ...notes.map((note) => ({ at: note.at, id: note.uuid, note, reply: null })),
     ...replies.map((reply) => ({ at: reply.at, id: reply.id, note: null, reply })),
-  ].sort((a, b) =>
-    a.at !== b.at ? (a.at < b.at ? -1 : 1) : !a.reply !== !b.reply ? (a.reply ? 1 : -1) : a.id < b.id ? -1 : 1,
-  );
+  ].sort(inOrder);
 
   const open = new Map<string, Draft>();
   /* conversation key → the asker's newest note that mentioned you */

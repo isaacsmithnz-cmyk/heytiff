@@ -5,7 +5,7 @@
 
 import type { NoteSender } from "@/lib/integrations/links";
 import { NOTE_WORDS, type NoteState } from "@/lib/integrations/sm8-note-plan";
-import { replyLine } from "../diary-reply";
+import { IN_HEYTIFF, replyLine } from "../diary-reply";
 
 const state = (over: Partial<NoteState>): NoteState => ({ key: null, text: null, tone: null, acts: [], ...over });
 const READY: NoteSender = { state: "ready", staffUuid: "u-isaac", remoteId: "u-isaac", sm8Name: "Isaac Smith", handle: "isaacsmith" };
@@ -44,4 +44,21 @@ it("says nothing for a state that says nothing", () => {
   expect(replyLine(state({}), READY)).toBeNull();
   expect(replyLine(null, READY)).toBeNull();
   expect(replyLine(undefined, READY)).toBeNull();
+  // a row that was queued, or whose queue couldn't be read, is not "In HeyTiff"
+  expect(replyLine(state({}), READY, { unsent: false, offered: true })).toBeNull();
+});
+
+it("says In HeyTiff for one saved and never queued, as the job card's chip does, with its Send to ServiceM8", () => {
+  const unsent = { unsent: true, offered: true };
+  const IN = { text: IN_HEYTIFF, tone: null, again: { act: "send_again", label: NOTE_WORDS.door.sendToSm8 }, ask: null };
+  expect(IN_HEYTIFF).toBe("In HeyTiff");
+  expect(replyLine(state({}), READY, unsent)).toEqual(IN);
+  // still to be asked the link: the send asks it
+  expect(replyLine(state({}), ASKING, unsent)).toEqual(IN);
+  // nobody who can send, or notes not offered: said, with no door
+  expect(replyLine(state({}), { state: "unlinked", noCard: false }, unsent)).toEqual({ ...IN, again: null });
+  expect(replyLine(state({}), null, unsent)).toEqual({ ...IN, again: null });
+  expect(replyLine(state({}), READY, { unsent: true, offered: false })).toEqual({ ...IN, again: null });
+  // a state that says something says it
+  expect(replyLine(state({ key: "line.sent", text: "In ServiceM8", tone: "ok", acts: [] }), READY, unsent)).toMatchObject({ text: "In ServiceM8" });
 });

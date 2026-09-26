@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TiffContext, type TiffApi } from "@/components/tiff/modal/tiff-context";
 import type { DeskArrival } from "@/lib/dashboard/desk-focus";
@@ -17,6 +17,7 @@ import { DIARY_RECHECK_MS, DIARY_STALE_MS } from "@/lib/dashboard/diary-refresh"
 import type { DiaryEntry } from "@/lib/dashboard/journal";
 import type { Sm8Person } from "@/lib/workboard/job-notes-query";
 import { HomeDiaryFeed } from "../home-diary-feed";
+import { REPLY_NOT_REACHED } from "../home-diary-reply";
 import { DeskJobHost } from "../home-job-sheet";
 
 /* THE DIARY'S CONVERSATIONS (H17): someone who asked you something in a
@@ -266,7 +267,8 @@ describe("a reply of yours from HeyTiff", () => {
     to,
     jobUuid: J2041,
     words: "@lukeingold calling her now",
-    at: `${TODAY} 09:10`,
+    at: `${TODAY} 09:10:00`,
+    savedAt: `${TODAY}T09:10:00Z`,
     line,
   });
   const entryOf = (line: ReplyLine | null, to = "n-ask"): DiaryEntry => ({
@@ -277,7 +279,7 @@ describe("a reply of yours from HeyTiff", () => {
     at: "9:10 am",
     stamp: `${TODAY} 09:10`,
     spoken: false,
-    reply: { to, jobUuid: J2041, words: "@lukeingold calling her now", line },
+    reply: { to, jobUuid: J2041, words: "@lukeingold calling her now", at: `${TODAY} 09:10:00`, savedAt: `${TODAY}T09:10:00Z`, line },
   });
   const withReply = (line: ReplyLine | null, to = "n-ask", ask = ASK) =>
     diaryOf([ask], { entries: [entryOf(line, to)], replies: [reply(line, to)] });
@@ -338,6 +340,64 @@ describe("a reply of yours from HeyTiff", () => {
     await user.click(within(lineOf()).getByRole("button", { name: "Not me" }));
     expect(confirmMySm8Link).toHaveBeenLastCalledWith({ remoteId: "u-isaac", answer: "no" });
     expect(sendJobNoteToServiceM8).not.toHaveBeenCalled();
+  });
+
+  it("is one press while it is out: held, not disabled, until its answer comes", async () => {
+    let answer!: (v: { ok: true; state: null }) => void;
+    jest.mocked(sendJobNoteToServiceM8).mockReturnValueOnce(new Promise((r) => (answer = r)));
+    draw({ diary: withReply(FAILED) });
+    const again = within(lineOf()).getByRole("button", { name: "Try again" });
+    act(() => {
+      fireEvent.click(again);
+      fireEvent.click(again);
+    });
+    expect(sendJobNoteToServiceM8).toHaveBeenCalledTimes(1);
+    // held, not disabled: a disabled button drops the keyboard's focus to the page
+    expect(again).toHaveAttribute("aria-disabled", "true");
+    expect(again).toBeEnabled();
+    await act(async () => answer({ ok: true, state: null }));
+    expect(again).not.toHaveAttribute("aria-disabled");
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("says so when a press's answer never comes, and can be pressed again, the sentence gone once one lands", async () => {
+    jest
+      .mocked(sendJobNoteToServiceM8)
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ ok: true, state: null });
+    const user = userEvent.setup();
+    draw({ diary: withReply(FAILED) });
+    await user.click(within(lineOf()).getByRole("button", { name: "Try again" }));
+    expect(within(lineOf()).getByRole("status")).toHaveTextContent(REPLY_NOT_REACHED);
+    // the page is asked for again all the same: the send may have landed
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
+    await user.click(within(lineOf()).getByRole("button", { name: "Try again" }));
+    expect(sendJobNoteToServiceM8).toHaveBeenCalledTimes(2);
+    expect(within(lineOf()).getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("sends nothing when your Yes is refused, and says why", async () => {
+    const user = userEvent.setup();
+    const asking: ReplyLine = { text: "Not sent to ServiceM8. Is Isaac Smith you?", tone: "bad", again: null, ask: "u-isaac" };
+    jest.mocked(confirmMySm8Link).mockResolvedValueOnce({ ok: false, error: "That link has changed." });
+    draw({ diary: withReply(asking) });
+    await user.click(within(lineOf()).getByRole("button", { name: "Yes" }));
+    expect(confirmMySm8Link).toHaveBeenCalledWith({ remoteId: "u-isaac", answer: "yes" });
+    expect(sendJobNoteToServiceM8).not.toHaveBeenCalled();
+    expect(within(lineOf()).getByRole("status")).toHaveTextContent("That link has changed.");
+  });
+
+  it("says In HeyTiff for one saved and never queued, and Send to ServiceM8 sends it, as the job card's does", async () => {
+    const user = userEvent.setup();
+    const never: ReplyLine = { text: "In HeyTiff", tone: null, again: { act: "send_again", label: "Send to ServiceM8" }, ask: null };
+    jest.mocked(sendJobNoteToServiceM8).mockResolvedValueOnce({ ok: true, state: null });
+    draw({ diary: withReply(never) });
+    const said = within(lineOf()).getByText("In HeyTiff");
+    expect(said).toHaveClass("hd-dy-note");
+    expect(said).not.toHaveClass("ok", "warn", "bad");
+    await user.click(within(lineOf()).getByRole("button", { name: "Send to ServiceM8" }));
+    expect(sendJobNoteToServiceM8).toHaveBeenCalledWith({ jobUuid: J2041, noteId: "wn-reply" });
+    expect(takeBackJobNote).not.toHaveBeenCalled();
   });
 
   it("stays your entry, saying where it stands, when no conversation holds the note it answers", () => {

@@ -35,8 +35,9 @@ import { auDayOf, fmtAuTime } from "@/lib/au-dates";
 import { sm8NoteSender } from "@/lib/integrations/links";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
-import { todayInZone } from "@/lib/workboard/dates";
-import { keptWords, noteLinesOf } from "@/lib/workboard/job-notes-query";
+import { offersSend } from "@/lib/integrations/sm8-write-plan";
+import { plusDays, todayInZone } from "@/lib/workboard/dates";
+import { keptWords, readNoteLines, type NotesViewer } from "@/lib/workboard/job-notes-query";
 import { naiveInZone } from "@/lib/workboard/job-story";
 import {
   APPLIED_V,
@@ -53,9 +54,9 @@ import {
 } from "@/lib/workboard/note-applied";
 import { conversationOf, lastTiff, turnsOf } from "@/lib/workboard/note-turns";
 import { describeAppliedResolved, type DiaryEntry, type JournalEntry } from "./journal";
-import { replyLine, type ReplyLine } from "./diary-reply";
+import { replyLine, type DiaryReply, type ReplyLine } from "./diary-reply";
 import { ACTED_KINDS } from "./task-events";
-import { DIARY_ENTRY_LIMIT } from "./diary-feed";
+import { DIARY_ENTRY_LIMIT, DIARY_REPLY_LIMIT } from "./diary-feed";
 
 /* NO `is_debrief`, WRITTEN OR READ. The Debrief left the router and this
    read in the same change, so the column's drop (note_is_debrief_drop.sql) is
@@ -82,6 +83,10 @@ const SM8_COLUMNS = "target_kind, reply_to_sm8_note_uuid, is_task_done";
    2): the note it answers, the job it is on, and why a press didn't queue
    it. Read only where the deployment sends notes (./diary-reply). */
 const REPLY_COLUMNS = "target_id, reply_to_sm8_note_uuid, sm8_refusal";
+/* Your replies on their own, for the conversations (listDiaryReplies):
+   what an entry of them says, what they answer, and whether one was taken
+   back. */
+const REPLY_READ_COLUMNS = `${COLUMNS}, ${REPLY_COLUMNS}, removed_at`;
 /** Column lists as one select, each column once: the diary's read asks
     SM8_COLUMNS and, where the deployment sends notes, REPLY_COLUMNS, and
     the two share the note a reply answers. */
@@ -111,6 +116,8 @@ type Row = {
       a reply is on, and why a press didn't queue it. */
   target_id?: string | null;
   sm8_refusal?: string | null;
+  /** Only in the read of your replies: taken back (a tombstone). */
+  removed_at?: string | null;
 };
 
 /** What the chips on this page can be doors to. Everything here was read
@@ -365,21 +372,29 @@ export async function listJournal(
    And, where the deployment sends notes (two-way phase 2):
 
      reply     your reply to a ServiceM8 note from a job card, or a task's
-               Done: the note it answers, the job, its words in English, and
-               where it stands with ServiceM8 (./diary-reply). The diary
-               draws it in the conversation holding that note, once.
+               Done: the note it answers, the job, its words in English,
+               when it was saved to the second, and where it stands with
+               ServiceM8 (./diary-reply). The diary draws it in the
+               conversation holding that note, once.
+
+   The conversations read your replies on their own as well
+   (`listDiaryReplies`, below), over the mentions' reach rather than your
+   newest DIARY_ENTRY_LIMIT entries, so an older one is still in its thread.
 
    The old Home keeps `listJournal`, unchanged, until the new one replaces
    it: it still reads only what is filed, and never a status or a turn. */
 
 /** Everything this person has told Tiff, newest first, dressed for the
     diary. `tz` is the ServiceM8 account's zone; null is Sydney, the clock
-    the diary has always used. */
+    the diary has always used. `viewer`, where the diary also reads your
+    replies on their own, is the one read of who you are to ServiceM8 that
+    both reads share (`replyViewerOf`). */
 export async function listDiaryEntries(
   orgId: string,
   staffId: string,
   tz: string | null,
   limit = DIARY_ENTRY_LIMIT,
+  viewer?: ReplyViewer,
 ): Promise<DiaryEntry[]> {
   /* A note somebody took back is on nobody's diary, as on the journal
      (listJournal): the same rows. An entry Undo took back stays — its words
@@ -420,7 +435,7 @@ export async function listDiaryEntries(
       filed.filter((r) => appliedOf(r.applied).v === APPLIED_V).map((r) => r.id),
     ),
     sentToSm8(orgId, rows.filter((r) => r.target_kind === "job").map((r) => r.id)),
-    replyLinesOf(orgId, staffId, answers),
+    replyLinesOf(orgId, staffId, answers, viewer),
   ]);
   const inSm8 = (r: Row) =>
     !!r.reply_to_sm8_note_uuid || !!r.is_task_done || (r.target_kind === "job" && (sent === "all" || sent.has(r.id)));
@@ -452,18 +467,8 @@ export async function listDiaryEntries(
       takesBack(stillThere(record, found.now)) &&
       held !== "all" &&
       !held.has(r.id);
-    const reply =
-      isReply(r) && r.reply_to_sm8_note_uuid && r.target_id
-        ? {
-            reply: {
-              to: r.reply_to_sm8_note_uuid,
-              jobUuid: r.target_id,
-              words: keptWords(r.applied as Record<string, unknown> | null) ?? r.transcript.trim(),
-              line: lines.get(r.id) ?? null,
-            },
-          }
-        : {};
-    return [{ ...entry, ...said, taskFor, undo, undone: false, inSm8: inSm8(r), ...reply }];
+    const reply = isReply(r) ? replyOf(r, tz, lines) : null;
+    return [{ ...entry, ...said, taskFor, undo, undone: false, inSm8: inSm8(r), ...(reply ? { reply } : {}) }];
   });
 }
 
@@ -483,38 +488,185 @@ async function sentToSm8(orgId: string, noteIds: readonly string[]): Promise<Rea
   return new Set(((data ?? []) as { note_id: string }[]).map((r) => String(r.note_id)));
 }
 
+/** A reply row as the diary threads it (./diary-reply): what it answers,
+    the job, its words in English, when it was saved to the second, and its
+    line. Null for a row that isn't one. */
+function replyOf(r: Row, tz: string | null, lines: ReadonlyMap<string, ReplyLine | null>): DiaryReply | null {
+  const at = secondsInZone(r.created_at, tz);
+  if (!r.reply_to_sm8_note_uuid || !r.target_id || !at) return null;
+  return {
+    to: r.reply_to_sm8_note_uuid,
+    jobUuid: r.target_id,
+    words: keptWords(r.applied as Record<string, unknown> | null) ?? r.transcript.trim(),
+    at,
+    savedAt: r.created_at,
+    line: lines.get(r.id) ?? null,
+    ...(r.removed_at ? { takenBack: true as const } : {}),
+  };
+}
+
+/** YOUR REPLIES ON THEIR OWN, for the conversations (./diary-reply): every
+    reply of yours to a ServiceM8 note, and every task's Done, saved since
+    `since` — the first day the mentions read reaches, on the account's
+    clock — newest first, DIARY_REPLY_LIMIT of them. Read apart from your
+    entries so a reply older than your newest DIARY_ENTRY_LIMIT entries is
+    still threaded in a conversation that is on the page; the entry read
+    and the column's reach are as they were.
+
+    ONE YOU TOOK BACK is read too, and kept only while something of it may
+    still be in ServiceM8 (decision 8, as the job card's readOurRows and
+    shapeOurNotes keep it): it is drawn in its thread with "Still in
+    ServiceM8 …" and Try again, and nothing else. One whose take-back
+    settled, or whose queue can't be read, is left out.
+
+    Each comes as an entry of yours carrying its `reply`: what threads it,
+    and, for one taken back that no conversation holds, all its entry
+    draws. Nothing is read where the deployment sends files only. */
+export async function listDiaryReplies(
+  orgId: string,
+  staffId: string,
+  tz: string | null,
+  since: string,
+  viewer?: ReplyViewer,
+): Promise<DiaryEntry[]> {
+  if (!sm8NotesAllowed()) return [];
+  const { data, error } = await supabaseAdmin
+    .from("workboard_notes")
+    .select(REPLY_READ_COLUMNS)
+    .eq("org_id", orgId)
+    .eq("author_id", staffId)
+    .eq("target_kind", "job")
+    .not("reply_to_sm8_note_uuid", "is", null)
+    /* filed, or taken back: the rollback may have set a removed row
+       dismissed, so a removed row is read whatever its status */
+    .or("status.eq.applied,removed_at.not.is.null")
+    /* the day before, at midnight UTC: at or before that day's first
+       moment on any account's clock */
+    .gte("created_at", `${plusDays(since, -1)}T00:00:00Z`)
+    .order("created_at", { ascending: false })
+    .limit(DIARY_REPLY_LIMIT);
+  if (error) {
+    /* a database without two-way phase 2's columns has no replies to read */
+    if (error.code !== "42703" && error.code !== "PGRST204") {
+      console.error(`[diary] couldn't read org ${orgId}'s replies for the conversations:`, error);
+    }
+    return [];
+  }
+  const rows = ((data ?? []) as unknown as Row[]).filter((r) => !!r.reply_to_sm8_note_uuid && !!r.target_id);
+  if (rows.length === 0) return [];
+  const lines = await replyLinesOf(orgId, staffId, rows, viewer);
+  return rows.flatMap((r): DiaryEntry[] => {
+    const reply = replyOf(r, tz, lines);
+    const stamp = naiveInZone(r.created_at, tz);
+    /* taken back: only while its line says something of it may be there */
+    if (!reply || !stamp || (reply.takenBack && !reply.line)) return [];
+    const when = new Date(r.created_at);
+    return [
+      {
+        id: r.id,
+        said: r.transcript,
+        day: todayInZone(tz, when),
+        at: clockIn(tz, when),
+        outcomes: [],
+        spoken: r.source === "voice",
+        stamp,
+        routed: false,
+        taskFor: {},
+        turns: [],
+        undo: false,
+        undone: false,
+        reply,
+      },
+    ];
+  });
+}
+
+/** Who you are to ServiceM8, read once for a page however many readers ask
+    (`replyLinesOf`): the workspace's sending state, and who you are there
+    on the account connected now. A sender that can't be read is nobody,
+    so no door that needs the link is offered. The sending state's module
+    is reached lazily, as job-notes-query reaches it: it brings the whole
+    sender (and the session) with it, which the journal's other readers
+    never need. Nothing is read until a reader asks. */
+export type ReplyViewer = () => Promise<NotesViewer>;
+
+export function replyViewerOf(orgId: string, staffId: string): ReplyViewer {
+  let read: Promise<NotesViewer> | null = null;
+  return () =>
+    (read ??= (async () => {
+      const { readSm8WriteState } = await import("@/lib/integrations/sm8-writes");
+      const state = await readSm8WriteState(orgId);
+      const sender = await sm8NoteSender(orgId, staffId, state.tenantId ?? undefined).catch(() => null);
+      return { staffId, state, sender };
+    })());
+}
+
 /* YOUR REPLIES, AND WHERE THEY STAND WITH SERVICEM8 (./diary-reply): the
    job card's line for each (job-notes-query's noteLinesOf, so the two never
    disagree), read as the person who sent them — the workspace's sending
-   state, who they are in ServiceM8, then their queue rows and names. Only
+   state, who they are in ServiceM8, then their queue rows and names. A row
+   taken back is read as one (its `removed_at`), so its line says whether
+   anything of it may still be there. One saved but never queued, with no
+   refusal kept, is "In HeyTiff" with the job card's Send to ServiceM8. Only
    for rows that are replies, so a diary without one reads nothing more. A
    read that fails says nothing about ServiceM8, rather than something
-   wrong. The sending state's module is reached lazily, as job-notes-query
-   reaches it: it brings the whole sender (and the session) with it, which
-   the journal's other readers never need. */
+   wrong. */
 async function replyLinesOf(
   orgId: string,
   staffId: string,
   rows: readonly Row[],
+  viewer: ReplyViewer = replyViewerOf(orgId, staffId),
 ): Promise<ReadonlyMap<string, ReplyLine | null>> {
   const out = new Map<string, ReplyLine | null>();
   if (rows.length === 0) return out;
   try {
-    const { readSm8WriteState } = await import("@/lib/integrations/sm8-writes");
-    const state = await readSm8WriteState(orgId);
-    const sender = await sm8NoteSender(orgId, staffId, state.tenantId ?? undefined).catch(() => null);
-    const states = await noteLinesOf(
+    const { state, sender } = await viewer();
+    const read = await readNoteLines(
       orgId,
-      rows.map((r) => ({ id: r.id, author_id: staffId, removed_at: null, sm8_refusal: r.sm8_refusal ?? null })),
+      rows.map((r) => ({ id: r.id, author_id: staffId, removed_at: r.removed_at ?? null, sm8_refusal: r.sm8_refusal ?? null })),
       { staffId, state, sender },
     );
-    for (const r of rows) out.set(r.id, replyLine(states?.get(r.id), sender));
+    const offered = offersSend(state, "note");
+    for (const r of rows) {
+      /* saved and never queued: when nothing was kept to say why, its line
+         says nothing (a refusal kept says it — replyLine's own rule) */
+      const unsent = !!read && !r.removed_at && !read.created.has(r.id);
+      out.set(r.id, replyLine(read?.lines.get(r.id), sender, { unsent, offered }));
+    }
   } catch (err) {
     console.error(
       `[diary] couldn't read where org ${orgId}'s replies stand with ServiceM8: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
   return out;
+}
+
+/* The moment a reply was saved, to the second, on the account's clock:
+   "2026-09-25 13:42:50". The entry's stamp keeps the minute (naiveInZone,
+   which the job's story shares); a reply threads among ServiceM8's notes,
+   which carry seconds, so two sent in one minute, or one sent seconds after
+   his, keep their order. */
+function secondsInZone(iso: string, tz: string | null): string | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz ?? "Australia/Sydney",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).formatToParts(d);
+    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+    // some ICU builds say "24" for midnight; keep it sortable
+    const hour = get("hour") === "24" ? "00" : get("hour");
+    return `${get("year")}-${get("month")}-${get("day")} ${hour}:${get("minute")}:${get("second")}`;
+  } catch {
+    return iso.slice(0, 19).replace("T", " ");
+  }
 }
 
 /* A NOTE QUEUED FOR SERVICEM8 is taken back from the job's diary, not by

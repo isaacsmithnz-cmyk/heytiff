@@ -90,6 +90,7 @@ import {
   undoJobNoteDone,
 } from "../job-note-sm8";
 import { removeJobNote, addJobNote } from "../job-notes";
+import { revalidatePath } from "next/cache";
 import { readJobRecord } from "../workboard";
 import { replyText, NOTE_WORDS } from "@/lib/integrations/sm8-note-plan";
 import { mentionedHandles } from "@/lib/workboard/sm8-mentions";
@@ -260,6 +261,7 @@ describe("on a deployment that sends files only (production today)", () => {
   });
 
   it("(F) every action answers before any read or write, and the poll reads nothing", async () => {
+    jest.mocked(revalidatePath).mockClear();
     const id = seedEntry();
     const results = await Promise.all([
       reply(),
@@ -273,6 +275,8 @@ describe("on a deployment that sends files only (production today)", () => {
     expect(await readJobNoteStates({ jobUuid: JOB })).toBeNull();
     expect(fake.log).toHaveLength(0);
     expect(getSession).not.toHaveBeenCalled();
+    // and no page, the board's or Home's, is asked for again
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 
   it("(F) a card open reads exactly what it always read: no viewer, no settings, no queue read but the strip's one echo, and the diary's own query", async () => {
@@ -610,6 +614,36 @@ describe("sending a diary entry", () => {
     const r = await sendJobNoteToServiceM8({ jobUuid: JOB, noteId: id });
     expect(r).toMatchObject({ ok: false, error: NOTE_WORDS.press.unlinked, state: { key: "line.notSent", acts: ["send_again", "undo"] } });
     expect(noteRow(id)).toMatchObject({ sm8_refusal: "unlinked" });
+  });
+});
+
+/* ── the new Home under the desk's card ── */
+
+describe("a press on a note of yours, from the desk's own job card", () => {
+  it("(F) asks for Home again beside the board — a reply, a Send, a take-back and the link's answer — so the diary under the card shows it at once", async () => {
+    const pages = () => jest.mocked(revalidatePath).mock.calls.map((c) => c[0]);
+    jest.mocked(revalidatePath).mockClear();
+    const composeId = newId();
+    expect(await reply({ composeId })).toMatchObject({ ok: true });
+    expect(pages()).toEqual(["/dashboard/workboard", "/dashboard"]);
+
+    jest.mocked(revalidatePath).mockClear();
+    const id = seedEntry();
+    expect(await sendJobNoteToServiceM8({ jobUuid: JOB, noteId: id })).toMatchObject({ ok: true });
+    expect(pages()).toEqual(["/dashboard/workboard", "/dashboard"]);
+
+    jest.mocked(revalidatePath).mockClear();
+    expect(await takeBackJobNote({ jobUuid: JOB, noteId: composeId })).toMatchObject({ ok: true });
+    expect(pages()).toEqual(["/dashboard/workboard", "/dashboard"]);
+
+    jest.mocked(revalidatePath).mockClear();
+    expect(await confirmMySm8Link({ remoteId: ISAAC_SM8, answer: "yes" })).toMatchObject({ ok: true });
+    expect(pages()).toEqual(["/dashboard/workboard", "/dashboard"]);
+
+    // a flag's mark changes nothing the diary draws: the board alone
+    jest.mocked(revalidatePath).mockClear();
+    await markJobNoteDone({ jobUuid: JOB, noteUuid: FLAG, seenEditDate: EDITED, pressId: newId() });
+    expect(pages()).toEqual(["/dashboard/workboard"]);
   });
 });
 

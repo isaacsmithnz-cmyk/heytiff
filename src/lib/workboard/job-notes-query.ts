@@ -307,8 +307,22 @@ export async function noteLinesOf(
   rows: readonly LineRow[],
   viewer: NotesViewer
 ): Promise<Map<string, NoteState> | null> {
-  const out = new Map<string, NoteState>();
-  if (rows.length === 0) return out;
+  return (await readNoteLines(orgId, rows, viewer))?.lines ?? null;
+}
+
+/** noteLinesOf's lines, and which of the rows have a create — ever queued
+    for ServiceM8. A row with none and no refusal kept says nothing about
+    ServiceM8, yet it never went: the job card calls it "In HeyTiff" and
+    offers Send to ServiceM8 (job-diary-face), and the new Home's diary says
+    the same (lib/dashboard/diary-reply). The same two reads. */
+export async function readNoteLines(
+  orgId: string,
+  rows: readonly LineRow[],
+  viewer: NotesViewer
+): Promise<{ lines: Map<string, NoteState>; created: Set<string> } | null> {
+  const lines = new Map<string, NoteState>();
+  const created = new Set<string>();
+  if (rows.length === 0) return { lines, created };
   const [names, queue] = await Promise.all([
     staffDisplayNames(
       orgId,
@@ -321,8 +335,12 @@ export async function noteLinesOf(
   ]);
   if (queue === null) return null;
   const ctx = lineCtx(viewer, names, queue);
-  for (const r of rows) out.set(r.id, rowLine(r, ctx).line);
-  return out;
+  for (const r of rows) {
+    const { line, create } = rowLine(r, ctx);
+    lines.set(r.id, line);
+    if (create) created.add(r.id);
+  }
+  return { lines, created };
 }
 
 /** Shape our rows, each with where it stands with ServiceM8. A removed row

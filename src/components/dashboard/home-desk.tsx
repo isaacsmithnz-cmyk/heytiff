@@ -264,6 +264,12 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
      holds (`holds`, above): never one that would slide the diary in on
      nothing. */
   const inDiary = useCallback((id: string) => holds.entries.has(id), [holds]);
+  /* A task an ask made opens its conversation, by the ask's note, as the
+     list's door does — and only one the diary holds (`holds`): an ask older
+     than its reach, or deleted in ServiceM8, has none. */
+  const openConversation = (noteUuid: string, pointer: boolean) =>
+    show({ face: "diary", kind: "conversation", ids: [noteUuid] }, pointer);
+  const inConversation = useCallback((noteUuid: string) => holds.notes.has(noteUuid), [holds]);
   const taskFocus = focus?.face === "tasks" && focus.kind === "task" ? focus : null;
   /* The diary shows an entry, and a conversation by one of its notes (a
      task an ask made, from the list). */
@@ -355,6 +361,8 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                         tz={rail.tz}
                         onOpenEntry={openEntry}
                         canOpenEntry={inDiary}
+                        onOpenConversation={openConversation}
+                        canOpenConversation={inConversation}
                         focusTaskId={taskFocus?.ids[0] ?? null}
                         focusByPointer={taskFocus?.pointer === true}
                         onFocusHandled={focusShown}

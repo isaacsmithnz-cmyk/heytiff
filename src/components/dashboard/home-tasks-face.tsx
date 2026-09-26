@@ -214,6 +214,7 @@ type Ctl = {
   onOpenEntry?: (entryId: string, pointer: boolean) => void;
   canOpenEntry?: (entryId: string) => boolean;
   onOpenConversation?: (noteUuid: string, pointer: boolean) => void;
+  canOpenConversation?: (noteUuid: string) => boolean;
 };
 
 export function HomeTasksFace({
@@ -229,6 +230,7 @@ export function HomeTasksFace({
   onOpenEntry,
   canOpenEntry,
   onOpenConversation,
+  canOpenConversation,
   sm8Lines = NO_LINES,
   sm8Sender = null,
 }: {
@@ -254,9 +256,14 @@ export function HomeTasksFace({
   /** Whether the Diary holds that entry to open: a door to one it doesn't
       hold would open another. Without it, every entry can be opened. */
   canOpenEntry?: (entryId: string) => boolean;
-  /** The ServiceM8 conversation a task came from, once the Diary shows
-      conversations; until then a mention's task has no such door. */
+  /** The ServiceM8 conversation a task came from, by the ask's note — the
+      desk's door to the Diary, which shows conversations. Without it a
+      mention's task has no such door. */
   onOpenConversation?: (noteUuid: string, pointer: boolean) => void;
+  /** Whether the Diary holds that conversation to open: it reaches back
+      sixty days, and an ask deleted in ServiceM8 leaves none. Without it,
+      every conversation can be opened. */
+  canOpenConversation?: (noteUuid: string) => boolean;
   /** Where each task's Done stands with ServiceM8, by task (two-way phase
       2, PR C) — empty where the deployment doesn't send notes, and then
       the face is as it would be without them. */
@@ -489,6 +496,7 @@ export function HomeTasksFace({
     onOpenEntry,
     canOpenEntry,
     onOpenConversation,
+    canOpenConversation,
   };
 
   return (
@@ -712,10 +720,14 @@ function TaskDetail({
   const busy = ctl.busy.has(t.id);
   const asking = ctl.asking?.id === t.id ? ctl.asking.what : null;
   const choices = powers.give ? choicesFor(t, ctl) : [];
-  /* The doors to where it came from: the conversation, once the Diary has
-     them; your own diary entry — nobody reads someone else's diary. */
+  /* The doors to where it came from, each only where the Diary holds it:
+     the conversation; your own diary entry — nobody reads someone else's
+     diary. */
   const openConversation = ctl.onOpenConversation;
-  const noteUuid = about.source === "sm8" ? about.sm8NoteUuid : null;
+  const noteUuid =
+    about.source === "sm8" && about.sm8NoteUuid && (ctl.canOpenConversation?.(about.sm8NoteUuid) ?? true)
+      ? about.sm8NoteUuid
+      : null;
   const openEntry = ctl.onOpenEntry;
   const entryId =
     about.source === "diary" &&

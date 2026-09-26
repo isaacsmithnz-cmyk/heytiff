@@ -711,6 +711,48 @@ describe("the one door between faces", () => {
     expect(shownFaces()).toEqual(["tasks"]);
   }, WHOLE);
 
+  /* A task one of Luke's asks made opens the conversation it came from, from
+     its row on the Tasks face as from the list: the Diary comes back, and
+     the conversation is lit whole and given the focus. An ask the diary
+     holds no conversation for — older than the mentions reach, or deleted
+     in ServiceM8 — offers no such door, which would slide the diary in on
+     nothing. */
+  const ASK: MentionNote = { uuid: "n-ask", jobUuid: JOB_2041, author: "u-luke", at: "2026-08-09 13:42:10", text: "@isaacsmith call Mary" };
+  const asked = (notes: MentionNote[]) => {
+    const about: TaskAbout = {
+      ...typedAbout(),
+      source: "sm8",
+      sm8NoteUuid: ASK.uuid,
+      askerName: "Luke Ingold",
+      words: ASK.text,
+    };
+    const onFace = record([recordTask({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" })], { "t-mary": about });
+    return data({
+      desk: { ...deskOf([], onFace), diary: diaryOf([], { mentions: true, conversations: talkOf(notes) }) },
+    });
+  };
+
+  it("takes a task an ask made from the Tasks face to its conversation in the diary", async () => {
+    const user = userEvent.setup();
+    render(<DashboardDesk data={asked([ASK])} />);
+    await user.click(tab("Tasks"));
+    await user.click(taskTitle("Call Mary about 2041 Wollstonecraft"));
+    await user.click(within(face("tasks")).getByRole("button", { name: "Open conversation" }));
+    expect(shownFaces()).toEqual(["diary"]);
+    const talk = face("diary").querySelector<HTMLElement>(`[data-conversation="${JOB_2041}:u-luke"] > .hd-dy-en`)!;
+    expect(talk).toHaveAttribute("data-lit");
+    expect(document.activeElement).toBe(talk);
+  }, WHOLE);
+
+  it("offers no Open conversation on the Tasks face for an ask the diary holds no conversation for", async () => {
+    const user = userEvent.setup();
+    render(<DashboardDesk data={asked([])} />);
+    await user.click(tab("Tasks"));
+    await user.click(taskTitle("Call Mary about 2041 Wollstonecraft"));
+    expect(within(face("tasks")).queryByRole("button", { name: "Open conversation" })).toBeNull();
+    expect(shownFaces()).toEqual(["tasks"]);
+  }, WHOLE);
+
   /* A resolved issue and a task ticked off long ago are on neither the
      list nor the Tasks tab, which would otherwise open on its first row
      and show some other task as if it were the one. So they are said,

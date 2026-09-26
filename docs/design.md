@@ -313,8 +313,9 @@ Every decision below is made once, here, and a guard test holds each number.
   opens its row in place, one at a time: For, Due, Time and Job, the
   words it came from (your own diary entry, never someone else's, or the
   ServiceM8 note), what has happened to it, and what you may do — Mark
-  done, Move due date, Give it to (a manager's), Open in diary, and Delete
-  task, which asks twice. Give it to asks in the same place: the names
+  done, Move due date, Give it to (a manager's), Open in diary or Open
+  conversation (each only for what the Diary holds), and Delete task,
+  which asks twice. Give it to asks in the same place: the names
   where the actions were, and the task changes hands only on the name you
   press, never on an arrow key or a typed letter as a select would give
   it, since a hand-over rings the new person's bell. Only what the action

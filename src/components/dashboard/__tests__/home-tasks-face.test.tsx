@@ -1105,6 +1105,23 @@ describe("where it came from", () => {
     expect(onOpenConversation).toHaveBeenCalledWith("note-1", true);
   });
 
+  /* The Diary reaches back sixty days of ServiceM8, and an ask deleted there
+     leaves no conversation: a door to one it doesn't hold would slide it in
+     on nothing. */
+  it("offers Open conversation only for a conversation the Diary holds", async () => {
+    const user = userEvent.setup();
+    const rec = record({ open: [task()], about: { t1: sm8() } });
+    const { unmount } = render(
+      <Face rec={rec} onOpenConversation={jest.fn()} canOpenConversation={(uuid) => uuid === "note-2"} />,
+    );
+    await user.click(title("Order the grilles"));
+    expect(screen.queryByRole("button", { name: "Open conversation" })).toBeNull();
+    unmount();
+    render(<Face rec={rec} onOpenConversation={jest.fn()} canOpenConversation={(uuid) => uuid === "note-1"} />);
+    await user.click(title("Order the grilles"));
+    expect(screen.getByRole("button", { name: "Open conversation" })).toBeInTheDocument();
+  });
+
   /* The Diary holds its newest entries, and reads its newest for one it
      doesn't hold: a door to an entry it can't open would open another. */
   it("offers Open in diary only for an entry the Diary can open", async () => {

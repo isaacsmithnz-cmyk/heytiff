@@ -8,6 +8,8 @@ import {
   FACE_SLIDE_MS,
   partShown,
   slidePlan,
+  thingsDoor,
+  type DeskArrival,
   type DeskFace,
   type DeskFocus,
   type SlidePart,
@@ -92,7 +94,9 @@ export function DashboardDesk({
   );
 }
 
-const taskDoor = (id: string): DeskFocus => ({ face: "tasks", kind: "task", ids: [id] });
+/* A task the address names arrives as a door no hand pressed: nothing
+   slides for it, and the face it lands on moves nothing (law 8). */
+const addressed = (id: string): DeskArrival => ({ face: "tasks", kind: "task", ids: [id], pointer: false });
 
 function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) {
   const { tasks, journal, issues, assignable, canManage, viewerStaffId, today, rail } = data;
@@ -102,8 +106,9 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
 
   const [face, setFace] = useState<DeskFace>(taskId ? "tasks" : DEFAULT_FACE);
   const [motion, setMotion] = useState<Motion | null>(null);
-  /* A door from one face to another, until the face it names has shown it. */
-  const [focus, setFocus] = useState<DeskFocus | null>(taskId ? taskDoor(taskId) : null);
+  /* A door from one face to another, until the face it names has shown it
+     — with how it was pressed, so that face moves nothing for a key. */
+  const [focus, setFocus] = useState<DeskArrival | null>(taskId ? addressed(taskId) : null);
 
   /* THE ADDRESS CAN NAME A TASK AFTER THE DESK IS UP — the bell's door onto
      a Done (two-way phase 2, PR C) is pressed from Home itself, and only the
@@ -118,7 +123,7 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     if (taskId) {
       setFace("tasks");
       setMotion(null);
-      setFocus(taskDoor(taskId));
+      setFocus(addressed(taskId));
     }
   }
 
@@ -195,10 +200,11 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
   /* THE ONE DOOR. The face it names shows it and hands it back: the diary
      brings an entry up and lights it, today's tasks choose a task by id. A
      door pressed with a pointer slides its face in like a tab; one pressed
-     from the keyboard does not. */
+     from the keyboard does not, and the face it lands on scrolls to what it
+     names at once rather than smoothly (law 8). */
   const show = (to: DeskFocus, pointer: boolean) => {
     go(to.face, pointer);
-    setFocus(to);
+    setFocus({ ...to, pointer });
   };
   const openEntry = (id: string, pointer: boolean) => show({ face: "diary", kind: "entry", ids: [id] }, pointer);
   const taskFocus = focus?.face === "tasks" && focus.kind === "task" ? (focus.ids[0] ?? null) : null;
@@ -209,13 +215,20 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
   const focusShown = useCallback(() => setFocus(null), []);
   /* A diary door names tasks, or an issue. Where the list beside it holds
      them, they light there and the diary stays; one the list does not hold
-     (a task already ticked off) opens on the Tasks tab, whose rows keep
-     what is done. */
+     (a task ticked off today) opens on the Tasks tab, if that has a row for
+     it: your open work, the team's when you see it, what was done lately
+     and the open issues. One that neither holds (ticked off long ago, an
+     issue resolved) has nowhere to land, and the diary says it rather than
+     drawing a door that would open on some other row. */
   const onList = useMemo(() => (list ? thingsOnList(list) : new Set<string>()), [list]);
+  const onTasks = useMemo(
+    () => new Set([...tasks.mine, ...(tasks.team ?? []), ...tasks.done, ...tasks.reported, ...issues].map((t) => t.id)),
+    [tasks, issues],
+  );
+  const onPage = useMemo(() => new Set([...onList, ...onTasks]), [onList, onTasks]);
   const showThings = (ids: readonly string[], pointer: boolean) => {
-    const here = ids.filter((id) => onList.has(id));
-    if (here.length > 0) show({ face: "diary", kind: "rows", ids: here }, pointer);
-    else if (ids[0]) show({ face: "tasks", kind: "task", ids: [ids[0]] }, pointer);
+    const to = thingsDoor(ids, { list: onList, tasks: onTasks });
+    if (to) show(to, pointer);
   };
 
   const leaving = motion?.from ?? null;
@@ -258,6 +271,7 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                         viewerStaffId={viewerStaffId}
                         focus={entryFocus}
                         onFocusShown={focusShown}
+                        onPage={onPage}
                         onShowThings={showThings}
                       />
                     ),

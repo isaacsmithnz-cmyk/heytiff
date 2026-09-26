@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { DIARY_LIT_MS } from "@/lib/dashboard/diary-doors";
 
 /* THE NEW HOME'S FRAME, IN THE SHEET (docs/design.md, "Home is the day,
    three tabs and the list").
@@ -154,9 +155,26 @@ describe("the list", () => {
    scrolls, and the diary's door brings an entry up by moving the face); an
    entry's wash reaches past the column by exactly its own side padding, so
    the words never move when it lights, and the rule under it stays on the
-   column; and the wash comes and goes on the motion token, a fill that
-   moves nothing. */
+   column; the wash is his, a fill that moves nothing — held for three
+   quarters of its seven seconds and faded over the last, a still tint under
+   reduced motion (a named exemption in docs/design.md); and a door, and
+   the entry a door lands on, wear the focus ring (law 32). */
 describe("the diary", () => {
+  /** The sheet without its @media blocks: the rules as they stand for
+      everyone, before reduced motion takes anything away. */
+  const atRest = CSS.replace(/@media[^{]*\{((?:[^{}]*\{[^{}]*\})*)\s*\}/g, "");
+  const restRule = (sel: string): Record<string, string> => {
+    const out: Record<string, string> = {};
+    for (const m of atRest.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (m[1]!.trim() !== sel) continue;
+      for (const d of m[2]!.split(";")) {
+        const at = d.indexOf(":");
+        if (at > 0) out[d.slice(0, at).trim()] = d.slice(at + 1).trim();
+      }
+    }
+    return out;
+  };
+
   it("sets every one of its rules two classes deep, under the frame", () => {
     const parts: string[] = [];
     for (const m of CSS.matchAll(/([^{}]+)\{[^{}]*\}/g)) {
@@ -183,9 +201,46 @@ describe("the diary", () => {
     expect(rule(".fg .hd-dy-it")["border-bottom"]).toBe("1px solid var(--hd-rule)");
   });
 
-  it("lights an entry with a fill on the motion token, and moves nothing", () => {
-    expect(rule(".fg .hd-dy-en").transition).toBe("background-color var(--t-move) var(--ease)");
-    const lit = rule(".fg .hd-dy-en[data-lit]");
-    expect(Object.keys(lit)).toEqual(["background"]);
+  /* His prototype's `protoFresh 7s var(--ease) both`: on at once, held to
+     75%, gone at the end — the same seven seconds the face keeps it lit. */
+  it("lights an entry with his wash, held for three quarters of seven seconds and then faded, and moves nothing", () => {
+    const lit = restRule(".fg .hd-dy-en[data-lit]");
+    expect(lit).toEqual({ background: "var(--hd-fresh)", animation: "hdDyLit 7s var(--ease) both" });
+    expect(DIARY_LIT_MS).toBe(7000);
+    const frames = CSS.match(/@keyframes hdDyLit \{((?:[^{}]*\{[^{}]*\})*)\s*\}/);
+    expect(frames).not.toBeNull();
+    const steps = [...frames![1]!.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1]!.trim(), m[2]!.trim()]);
+    expect(steps).toEqual([
+      ["0%, 75%", "background:var(--hd-fresh);"],
+      ["to", "background:transparent;"],
+    ]);
+    // it comes on at once: nothing eases it in
+    expect(restRule(".fg .hd-dy-en").transition).toBeUndefined();
+  });
+
+  /* The global rule under reduced motion cuts every animation to a
+     thousandth of a second, which would put the wash out at once: the
+     wash is taken off instead, and the lit rule's own fill stands still. */
+  it("stands the wash still under reduced motion", () => {
+    const quiet = [...CSS.matchAll(/@media \(prefers-reduced-motion:reduce\) \{((?:[^{}]*\{[^{}]*\})*)\s*\}/g)]
+      .map((m) => m[1]!)
+      .find((body) => body.includes(".hd-dy-"));
+    expect(quiet).toBeDefined();
+    expect(quiet).toMatch(/\.fg \.hd-dy-en\[data-lit\] \{ animation:none; \}/);
+    expect(restRule(".fg .hd-dy-en[data-lit]").background).toBe("var(--hd-fresh)");
+  });
+
+  it("rings a door, and the entry a door lands on, for the keyboard (law 32)", () => {
+    expect(rule(".fg .hd-dy-door:focus-visible")).toEqual({ outline: "none", "box-shadow": "var(--ring)" });
+    expect(rule(".fg .hd-dy-en:focus-visible")).toEqual({ outline: "none", "box-shadow": "var(--ring)" });
+  });
+
+  /* His door (`.dr.real`) is ink on his edge, the line: ink is the one
+     link token, and its words are underlined (law 34). */
+  it("dresses a door as a link, on the one link token and the line's edge", () => {
+    const door = rule(".fg .hd-dy-door");
+    expect(door.color).toBe("var(--link)");
+    expect(door.border).toBe("1px solid var(--line)");
+    expect(door["text-decoration"]).toBe("underline");
   });
 });

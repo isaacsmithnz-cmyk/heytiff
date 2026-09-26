@@ -319,19 +319,24 @@ Every decision below is made once, here, and a guard test holds each number.
   months.
   The Diary is one column, newest first. At the top the entry box, "Add
   to the diary…", with the Tiff button at its end: Save keeps the words
-  as typed and the entry lands at the top of Today, lit on his pale teal
-  for seven seconds; Sort it out, or Enter, takes them to Tiff. Then
+  as typed and the entry lands at the top of Today, lit on his pale teal,
+  which fades over seven seconds; Sort it out, or Enter, takes them to
+  Tiff. Then
   "Today", a quiet teal label over a rule, and today's entries or
   "Nothing yet."; everything older follows with no more dividers, each
   entry saying its own date. An entry is your initials in an ink disc,
   "You" and when, your words as you said them, and under them what they
   became: tasks counted by whose they are ("2 tasks for Luke", and "1
-  task" for your own), each count a door that lights those rows in the
-  list beside it, or opens the Tasks tab for one the list no longer holds;
+  task" for your own; two people who share a first name each get their
+  whole name), each count a door that lights those rows in the list
+  beside it, or opens the Tasks tab for one the list no longer holds;
   the Library's, a kept note's and an issue's doors as they were; and a
-  sentence for what has nowhere to go ("1 line kept.", "Nothing filed.").
-  A door from the list or the Tasks tab brings its entry up and lights it
-  the same way.
+  sentence for what has nowhere to go ("1 line kept.", "Nothing filed.",
+  and a task or an issue no row on the page holds any more). A door is
+  the app's door, 28px tall with 12px either side where his drew 26 and
+  10, ink and underlined on the line's edge. A door from the list or the
+  Tasks tab brings its entry up, lights it the same way and gives it the
+  focus.
   **His design is the default here.** A redraw to the laws "looks far
   worse", so where his numbers break a law this file names the exemption
   instead of bending the design ("design exempt for now, but keep a note",
@@ -797,6 +802,15 @@ What the guard cannot count is noted here on the same word:
   `--t-fast`, and the body under the day moves to make room for it on
   `--t-move`. Nothing grows under reduced motion, or for a change made
   from the keyboard: a card, the folded block, the cross or Escape.
+- **Law 18, motion tokens, and law 8, the diary's wash.** An entry that
+  has just landed in the diary, or that a door asked for, stands on his
+  pale teal and fades on his keyframes, as his prototype's `protoFresh`
+  did: on at once, held for three quarters of seven seconds, then gone
+  over the last quarter, where law 18 has two tokens and law 8 says under
+  300 ms ("design exempt for now, but keep a note", 2026-09-24). It is a
+  flash a row asked for with data, once, never a loop. Under reduced
+  motion it is a still tint for the seven seconds. The door that brings
+  an entry up scrolls smoothly only when a pointer pressed it.
 - **Law 18, loops.** The Trace moves while the job it marks is on, the
   one thing on the page that does: `hdTrace`, 8 seconds a turn, in the
   loops table above. It is a rotation, which the compositor runs without

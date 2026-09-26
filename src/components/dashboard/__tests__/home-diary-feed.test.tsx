@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TiffContext, type TiffApi } from "@/components/tiff/modal/tiff-context";
-import type { DeskFocus } from "@/lib/dashboard/desk-focus";
+import type { DeskArrival } from "@/lib/dashboard/desk-focus";
 import { DIARY_LIT_MS, type DeskDiary } from "@/lib/dashboard/diary-doors";
 import { diaryFeed } from "@/lib/dashboard/diary-feed";
 import type { DiaryEntry } from "@/lib/dashboard/journal";
@@ -97,10 +97,13 @@ const tiff = (): TiffApi => ({
 
 type Props = {
   diary?: DeskDiary;
-  focus?: DeskFocus | null;
+  focus?: DeskArrival | null;
   onFocusShown?: () => void;
+  onPage?: ReadonlySet<string>;
   onShowThings?: (ids: readonly string[], pointer: boolean) => void;
 };
+/** Every task and issue the entries made has a row on the page. */
+const ALL_ON_PAGE: ReadonlySet<string> = new Set(["t2", "t3", "i1"]);
 const onShowThings = jest.fn();
 const onFocusShown = jest.fn();
 /* The face the frame puts the diary in: the one thing on the page that
@@ -113,6 +116,7 @@ const Face = (p: Props) => (
         viewerStaffId={ME}
         focus={p.focus ?? null}
         onFocusShown={p.onFocusShown ?? onFocusShown}
+        onPage={p.onPage ?? ALL_ON_PAGE}
         onShowThings={p.onShowThings ?? onShowThings}
       />
     </section>
@@ -191,6 +195,23 @@ describe("under the words", () => {
     screen.getByRole("button", { name: "Rooftop unit keeps tripping" }).focus();
     await user.keyboard("{Enter}");
     expect(onShowThings).toHaveBeenLastCalledWith(["i1"], false);
+  });
+
+  /* A task ticked off long ago, an issue resolved: no row on the page
+     holds them, and a door would open on some other row. */
+  it("says a task or an issue no row on the page holds, rather than drawing a door to it", () => {
+    draw({ onPage: new Set(["t3"]) });
+    const under = itemOf("e-today").querySelector<HTMLElement>(".hd-dy-doors")!;
+    expect(within(under).getByRole("button", { name: "2 tasks for Luke" })).toBeInTheDocument();
+    expect(within(under).queryByRole("button", { name: "Rooftop unit keeps tripping" })).toBeNull();
+    expect(within(under).getByText("Rooftop unit keeps tripping.")).toHaveClass("hd-dy-note");
+    cleanup();
+    draw({ onPage: new Set() });
+    const none = itemOf("e-today").querySelector<HTMLElement>(".hd-dy-doors")!;
+    expect(within(none).queryByRole("button")).toBeNull();
+    expect(within(none).getByText("2 tasks for Luke.")).toHaveClass("hd-dy-note");
+    // the Library's and the note's are screens, always there to open
+    expect(within(none).getAllByRole("link")).toHaveLength(2);
   });
 });
 
@@ -286,10 +307,44 @@ describe("what you just saved", () => {
     expect(lit("e-new")).toBe(false);
     expect(itemOf("e-new").querySelector(".hd-dy-m")!.textContent).toBe("You, just now");
   });
+
+  /* Each light keeps its own clock: a second save neither cuts the first
+     one's short nor holds it on. */
+  it("keeps each save's light on its own clock", async () => {
+    jest.useFakeTimers();
+    const a = entry({ id: "e-a", said: "Van booked in", day: TODAY, at: "3:05 pm", stamp: `${TODAY} 15:05:00`, routed: false });
+    const b = entry({ id: "e-b", said: "Filters ordered", day: TODAY, at: "3:08 pm", stamp: `${TODAY} 15:08:00`, routed: false });
+    const { rerender } = draw({ diary: diary([SICK]) });
+    const saveAs = async (id: string, words: string) => {
+      keepWords.mockResolvedValueOnce({ ok: true, noteId: id });
+      fireEvent.change(box(), { target: { value: words } });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      });
+    };
+    await saveAs("e-a", "Van booked in");
+    rerender(<Face diary={diary([a, SICK])} />);
+    act(() => {
+      jest.advanceTimersByTime(3000);
+    });
+    await saveAs("e-b", "Filters ordered");
+    rerender(<Face diary={diary([b, a, SICK])} />);
+    expect(lit("e-a")).toBe(true);
+    expect(lit("e-b")).toBe(true);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_LIT_MS - 3000);
+    });
+    expect(lit("e-a")).toBe(false);
+    expect(lit("e-b")).toBe(true);
+    act(() => {
+      jest.advanceTimersByTime(3000);
+    });
+    expect(lit("e-b")).toBe(false);
+  });
 });
 
 describe("a door from another face", () => {
-  const door: DeskFocus = { face: "diary", kind: "entry", ids: ["e-wipers"] };
+  const door: DeskArrival = { face: "diary", kind: "entry", ids: ["e-wipers"], pointer: false };
 
   it("brings the entry to 16px under the face's top, lights it, and hands the door back once its light has gone", () => {
     jest.useFakeTimers();
@@ -320,8 +375,66 @@ describe("a door from another face", () => {
     const face = screen.getByTestId("face");
     const scrollTo = jest.fn();
     face.scrollTo = scrollTo as unknown as typeof face.scrollTo;
-    rerender(<Face focus={{ face: "diary", kind: "rows", ids: ["e-wipers"] }} />);
+    rerender(<Face focus={{ face: "diary", kind: "rows", ids: ["e-wipers"], pointer: true }} />);
     expect(scrollTo).not.toHaveBeenCalled();
     expect(lit("e-wipers")).toBe(false);
+  });
+
+  /* The door that was pressed may have gone with its face (Tasks' Open in
+     diary hides the Tasks face), so the focus lands on what it named. */
+  it("gives the entry it names the focus, without scrolling it a second time", () => {
+    const { rerender } = draw();
+    const wash = itemOf("e-wipers").querySelector<HTMLElement>(".hd-dy-en")!;
+    expect(wash).toHaveAttribute("tabindex", "-1");
+    const focus = jest.spyOn(wash, "focus");
+    rerender(<Face focus={door} />);
+    expect(document.activeElement).toBe(wash);
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  });
+
+  describe("where the browser may move", () => {
+    const realAnimate = Element.prototype.animate;
+    beforeEach(() => {
+      Element.prototype.animate = jest.fn() as unknown as typeof Element.prototype.animate;
+      window.matchMedia = ((q: string) => ({ matches: !q.includes("reduce") })) as typeof window.matchMedia;
+    });
+    afterEach(() => {
+      Element.prototype.animate = realAnimate;
+      delete (window as { matchMedia?: unknown }).matchMedia;
+    });
+
+    /* Law 8: no motion on a keyboard-driven action. */
+    it("scrolls smoothly for a door a pointer pressed, and at once for one a key pressed", () => {
+      const { rerender } = draw();
+      const face = screen.getByTestId("face");
+      const scrollTo = jest.fn();
+      face.scrollTo = scrollTo as unknown as typeof face.scrollTo;
+      rerender(<Face focus={{ ...door, pointer: true }} />);
+      expect(scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ behavior: "smooth" }));
+      rerender(<Face focus={{ ...door, pointer: false }} />);
+      expect(scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ behavior: "auto" }));
+    });
+  });
+
+  /* The wash is a CSS animation on the entry: a door asking for it again,
+     lit or long after, starts it over rather than leaving it faded. */
+  it("starts the wash over when the entry is asked for again", () => {
+    const run = { currentTime: 5200 as number | null, play: jest.fn() };
+    const proto = Element.prototype as { getAnimations?: unknown };
+    const real = proto.getAnimations;
+    proto.getAnimations = function (this: Element) {
+      return this.classList.contains("hd-dy-en") && this.hasAttribute("data-lit") ? [run] : [];
+    };
+    try {
+      const { rerender } = draw();
+      rerender(<Face focus={door} />);
+      run.currentTime = 6800;
+      run.play.mockClear();
+      rerender(<Face focus={{ ...door }} />);
+      expect(run.currentTime).toBe(0);
+      expect(run.play).toHaveBeenCalledTimes(1);
+    } finally {
+      proto.getAnimations = real;
+    }
   });
 });

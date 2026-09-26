@@ -11,10 +11,13 @@
    UNDER THE WORDS, what they became: DOORS to the things that are still
    there, and QUIET LINES for the rest.
 
-     Tasks go by whose they are, one door each: "2 tasks for Luke",
-     "1 task for Lorenzo", and just "1 task" when it is yours (or nobody's:
-     a task on no one is nobody else's either; nor is one on a card the
-     workspace no longer names). The door carries every task
+     Tasks go by whose they are — by the staff card, never by the name on
+     it — one door each: "2 tasks for Luke", "1 task for Lorenzo", and just
+     "1 task" when it is yours, or nobody's (a task on no one is nobody
+     else's either). Two people who share a first name are two doors, each
+     with the whole name (`ownerNames`); a card the workspace no longer
+     names is a door of its own that names nobody, never counted in with
+     yours. The door carries every task
      it counts, so pressing it shows them all. The one-chip-per-task titles
      the old diary drew (journal's describeAppliedResolved) are counted
      here instead: the diary is a column of what you said, and a title
@@ -23,13 +26,17 @@
      always had, wearing what describeAppliedResolved named them.
      Everything with nowhere to go is a sentence: "1 line kept.", "2 flags.",
      "1 task removed." — what the entry really made, that really isn't
-     there to open.
+     there to open. So is a task or an issue that is still there but that
+     no row on this page holds (a task ticked off long ago, an issue
+     resolved): "1 task for Luke." A door that opened on something else
+     would be worse than none.
      "Nothing filed." is Tiff's read that made nothing, and only that: a
      Save files the words as typed and routes nothing, so it says nothing
      under them at all. */
 
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import type { DiaryFeed } from "./diary-feed";
+import { firstNames } from "./home-list";
 import type { DiaryEntry } from "./journal";
 
 /** The Diary tab's part of the new Home's data (desk-data's `loadDesk`). */
@@ -39,8 +46,8 @@ export type DeskDiary = {
   /** Your initials, for your own avatar, from the name your staff card
       goes by. */
   you: string;
-  /** Staff id → first name, for the people this diary's tasks are on and
-      nobody else: "2 tasks for Luke". */
+  /** Staff id → what to call them, for the people this diary's tasks are
+      on and nobody else: "2 tasks for Luke" (`ownerNames`). */
   names: Record<string, string>;
 };
 
@@ -67,28 +74,40 @@ export const NOTHING_FILED = "Nothing filed.";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** Words said as a sentence: with a full stop, unless they already end on
+    one (an issue's summary may). */
+const sentence = (text: string) => (/[.!?…]$/.test(text) ? text : `${text}.`);
+
 /** What an entry became: its doors, then its quiet lines. `viewerStaffId`
-    is whose tasks need no name; `names` is staff id → first name. */
+    is whose tasks need no name; `names` is staff id → what to call them
+    (`ownerNames`). `onPage`, when given, is every task and issue a row on
+    this page holds (the list beside the diary, and the Tasks tab): a task
+    door none of whose tasks is there, or an issue that isn't, is said as a
+    sentence instead of drawn as a door. */
 export function entryUnder(
   entry: DiaryEntry,
   who: { viewerStaffId: string | null; names: Readonly<Record<string, string>> },
+  onPage?: ReadonlySet<string>,
 ): EntryUnder {
   const doors: DiaryDoor[] = [];
   const lines: string[] = [];
-  /* One door per person, standing where that person's first task stood. */
+  /* One door per staff card, standing where that card's first task stood.
+     Keyed by the card, not the name on it: two Lukes are two people. */
   const tasksOf = new Map<string, Extract<DiaryDoor, { to: "tasks" }>>();
 
   for (const o of entry.outcomes) {
     const go = o.go;
     if (!go) {
-      lines.push(`${o.text}.`);
+      lines.push(sentence(o.text));
       continue;
     }
     switch (go.type) {
       case "task": {
         const owner = entry.taskFor[go.id] ?? null;
-        const first = owner !== null && owner !== who.viewerStaffId ? (who.names[owner] ?? null) : null;
-        const key = first ?? "";
+        /* yours and nobody's need no name, and are counted together */
+        const theirs = owner !== null && owner !== who.viewerStaffId ? owner : null;
+        const name = theirs === null ? null : (who.names[theirs] ?? null);
+        const key = theirs ?? "";
         let door = tasksOf.get(key);
         if (!door) {
           door = { to: "tasks", text: "", ids: [] };
@@ -96,7 +115,7 @@ export function entryUnder(
           doors.push(door);
         }
         door.ids.push(go.id);
-        door.text = `${plural(door.ids.length, "task", "tasks")}${first ? ` for ${first}` : ""}`;
+        door.text = `${plural(door.ids.length, "task", "tasks")}${name ? ` for ${name}` : ""}`;
         break;
       }
       case "issue":
@@ -107,8 +126,39 @@ export function entryUnder(
     }
   }
 
+  /* A Library entry and a kept note are screens of their own, always there
+     to open. A task or an issue opens on a row of this page, or nowhere. */
+  const landed = onPage
+    ? doors.filter((d) => {
+        const ids = d.to === "tasks" ? d.ids : d.to === "issue" ? [d.id] : null;
+        if (ids === null || ids.some((id) => onPage.has(id))) return true;
+        lines.push(sentence(d.text));
+        return false;
+      })
+    : doors;
+
   if (entry.routed && entry.outcomes.length === 0) lines.push(NOTHING_FILED);
-  return { doors, lines };
+  return { doors: landed, lines };
+}
+
+/** Staff id → what the diary calls the people its tasks are on: their
+    first name ("2 tasks for Luke"), or the whole name their card goes by
+    when another of them shares the first (as diary-feed says a mention's
+    names), so two people never read as one. Nobody else is named. */
+export function ownerNames(feed: DiaryFeed, names: ReadonlyMap<string, string>): Record<string, string> {
+  const known = new Map<string, string>();
+  for (const id of taskOwners(feed)) {
+    const name = names.get(id);
+    if (name !== undefined) known.set(id, name);
+  }
+  const first = firstNames(known);
+  const sharing = new Map<string, number>();
+  for (const f of Object.values(first)) sharing.set(f, (sharing.get(f) ?? 0) + 1);
+  const out: Record<string, string> = {};
+  for (const [id, f] of Object.entries(first)) {
+    out[id] = (sharing.get(f) ?? 0) > 1 ? (known.get(id) ?? f).trim().replace(/\s+/g, " ") : f;
+  }
+  return out;
 }
 
 /** "just now", "2:17 pm" or "Mon 8 Sept, 8:42 pm" — said after "You, ". */

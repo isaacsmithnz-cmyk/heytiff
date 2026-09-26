@@ -35,6 +35,29 @@ export type DeskFocus = {
   ids: readonly string[];
 };
 
+/** A door as the face it names is handed it: what it asks for, and whether
+    a pointer pressed it. The face that shows it moves nothing for a door
+    pressed from the keyboard — no smooth scroll, as no slide (law 8) — so
+    the press travels with the door rather than being guessed at the far
+    end. */
+export type DeskArrival = DeskFocus & { pointer: boolean };
+
+/** Where a door naming tasks or an issue lands (the diary's task and issue
+    doors): lit in the list beside the diary, for those it holds; else
+    chosen on the Tasks tab, the first it holds; else nowhere — and a door
+    with nowhere to land is not drawn as a door (lib/dashboard/diary-doors
+    says it as a sentence). `list` and `tasks` are the ids each has a row
+    for. */
+export function thingsDoor(
+  ids: readonly string[],
+  on: { list: ReadonlySet<string>; tasks: ReadonlySet<string> },
+): DeskFocus | null {
+  const here = ids.filter((id) => on.list.has(id));
+  if (here.length > 0) return { face: "diary", kind: "rows", ids: here };
+  const there = ids.find((id) => on.tasks.has(id));
+  return there === undefined ? null : { face: "tasks", kind: "task", ids: [there] };
+}
+
 /** Isaac's slide, walked on the prototype (v30–v32). Longer than
     `--t-move` on his word — a named exemption in docs/design.md. */
 export const FACE_SLIDE_MS = 280;

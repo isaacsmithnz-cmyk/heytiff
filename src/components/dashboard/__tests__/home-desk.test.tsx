@@ -454,6 +454,52 @@ describe("the one door between faces", () => {
     expect(shownFaces()).toEqual(["diary"]);
     expect(litEntries()).toEqual(["e1"]);
   }, WHOLE);
+
+  /* The Tasks face goes, and the button with it: the focus lands on the
+     entry, not at the top of the document. */
+  it("hands the focus to the entry when Open in diary is pressed from the keyboard", async () => {
+    const user = userEvent.setup();
+    render(<DashboardDesk data={wired()} />);
+    await user.click(tab("Tasks"));
+    await user.click(within(face("tasks")).getByRole("button", { name: /^Order 2× MERV 11 filters/ }));
+    screen.getByRole("button", { name: "Open in diary" }).focus();
+    await user.keyboard("{Enter}");
+    expect(shownFaces()).toEqual(["diary"]);
+    expect(document.activeElement?.closest("[data-entry]")).toBe(face("diary").querySelector('[data-entry="e1"]'));
+  }, WHOLE);
+
+  /* A resolved issue and a task ticked off long ago are on neither the
+     list nor the Tasks tab, which would otherwise open on its first row
+     and show some other task as if it were the one. So they are said,
+     not drawn as doors. */
+  it("draws no door to what no row on the page holds, so none can open on another row", async () => {
+    render(
+      <DashboardDesk
+        data={data({
+          journal: [
+            entry({
+              outcomes: [
+                { kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t-old" } },
+                { kind: "todo", text: "Rooftop unit keeps tripping", go: { type: "issue", id: "i-resolved" } },
+              ],
+            }),
+          ],
+          tasks: {
+            mine: [task({ id: "t0", title: "Ring the Hilux dealer" })],
+            team: null,
+            done: [],
+            reported: [],
+            sm8: { lines: {}, sender: null },
+          },
+        })}
+      />,
+    );
+    const under = face("diary").querySelector<HTMLElement>('[data-entry="e1"] .hd-dy-doors')!;
+    expect(within(under).queryByRole("button")).toBeNull();
+    expect(within(under).getByText("1 task.")).toHaveClass("hd-dy-note");
+    expect(within(under).getByText("Rooftop unit keeps tripping.")).toHaveClass("hd-dy-note");
+    expect(tab("Diary")).toHaveAttribute("aria-selected", "true");
+  }, WHOLE);
 });
 
 /* The bell's door onto a Done that didn't go to ServiceM8 (two-way phase 2,
@@ -864,6 +910,54 @@ describe("the slide", () => {
       { who: "hdsec-tasks", frames: ["translateX(0px)", "translateX(600px)"] },
       { who: "hdsec-diary", frames: ["translateX(-600px)", "none"] },
     ]);
+  }, WHOLE);
+
+  /* The press travels with the door to the face that shows it: a diary
+     door's rows come into view in the list smoothly for a pointer and at
+     once for a key, and so does the entry a task's Open in diary names —
+     law 8 all the way, not only at the slide. */
+  it("scrolls what a door names smoothly only for a door a pointer pressed", async () => {
+    const user = userEvent.setup();
+    const rows: (ScrollBehavior | undefined)[] = [];
+    const entries: (ScrollBehavior | undefined)[] = [];
+    const realInto = Element.prototype.scrollIntoView;
+    const realTo = Element.prototype.scrollTo;
+    Element.prototype.scrollIntoView = function (arg?: boolean | ScrollIntoViewOptions) {
+      rows.push(typeof arg === "object" ? arg.behavior : undefined);
+    };
+    Element.prototype.scrollTo = function (this: Element, arg?: number | ScrollToOptions) {
+      if (this.id === "hdsec-diary") entries.push(typeof arg === "object" ? arg.behavior : undefined);
+    } as typeof Element.prototype.scrollTo;
+    try {
+      render(
+        <DashboardDesk
+          data={data({
+            journal: [
+              entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
+            ],
+            tasks: { mine: [task()], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
+          })}
+        />,
+      );
+      const door = () => within(face("diary")).getByRole("button", { name: "1 task" });
+      await user.click(door());
+      door().focus();
+      await user.keyboard("{Enter}");
+      expect(rows).toEqual(["smooth", "auto"]);
+
+      await user.click(tab("Tasks"));
+      await settle();
+      await user.click(within(face("tasks")).getByRole("button", { name: /^Order 2× MERV 11 filters/ }));
+      within(face("tasks")).getByRole("button", { name: "Open in diary" }).focus();
+      await user.keyboard("{Enter}");
+      await user.click(tab("Tasks"));
+      await settle();
+      await user.click(within(face("tasks")).getByRole("button", { name: "Open in diary" }));
+      expect(entries).toEqual(["auto", "smooth"]);
+    } finally {
+      Element.prototype.scrollIntoView = realInto;
+      Element.prototype.scrollTo = realTo;
+    }
   }, WHOLE);
 
   /* The day's panel stands above the body: opening it pushes the body

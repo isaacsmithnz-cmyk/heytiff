@@ -11803,16 +11803,21 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    rule of its own — your initials in an ink disc, "You" and when, your
    words at body size, and under them the doors and the quiet lines. His
    numbers snap to the scales, 4px or less each: the column's padding
-   28 → 24, the avatar's gap 14 → 12, a door's padding 10 → 12 (the list's
-   verb took the same step). A door is tapped, so it keeps a chip's edge
-   (law 26), in the list verb's grey, with its words underlined as the
-   prototype drew them: a link's dress (law 34).
+   28 → 24, the avatar's gap 14 → 12. A door is tapped, so it keeps a chip's
+   edge (law 26): it is the app's door, the one the old diary's `.hm-door`
+   drew and the diary spec reuses, 28px tall (law 33's small control) with
+   12px either side where his drew 26 and 10, on his edge, the line; its
+   words are ink and underlined, as the prototype drew them: a link's
+   dress (law 34), on the one link token.
 
    THE WASH: an entry you just saved, or one a door asked for, stands on his
-   pale teal for seven seconds (DIARY_LIT_MS), coming and going on
-   `--t-move`. Like a list row, its fill reaches 8px past the column's words
-   on each side, so the words never move; the rule under it is the item's
-   own and stays on the column. */
+   pale teal for three quarters of seven seconds (DIARY_LIT_MS), then fades,
+   on his keyframes (`protoFresh`), a flash a row asked for with data — a
+   named exemption from law 18's tokens (docs/design.md). Under reduced
+   motion it is a still tint for as long as it is lit. Like a list row, its
+   fill reaches 8px past the column's words on each side, so the words
+   never move; the rule under it is the item's own and stays on the
+   column. A door lands on the entry itself, so it takes the focus ring. */
 .fg .hd-dy { padding:4px 24px 24px; }
 .fg .hd-dy-box { margin:0 0 16px; }
 .fg .hd-dy-day { margin:0; padding:0 0 8px; border-bottom:1px solid var(--hd-rule); font-size:13px; font-weight:500;
@@ -11821,8 +11826,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-dy-list { margin:0; padding:0; list-style:none; }
 .fg .hd-dy-it { border-bottom:1px solid var(--hd-rule); }
 .fg .hd-dy-en { display:grid; grid-template-columns:32px minmax(0,1fr); column-gap:12px; margin:0 -8px; padding:16px 8px;
-  border-radius:6px; transition:background-color var(--t-move) var(--ease); }
-.fg .hd-dy-en[data-lit] { background:var(--hd-fresh); }
+  border-radius:6px; }
+.fg .hd-dy-en[data-lit] { background:var(--hd-fresh); animation:hdDyLit 7s var(--ease) both; }
+@keyframes hdDyLit { 0%, 75% { background:var(--hd-fresh); } to { background:transparent; } }
+.fg .hd-dy-en:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hd-dy-av { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; background:var(--hd-ink);
   font-size:12px; font-weight:700; color:var(--paper); }
 .fg .hd-dy-bd { min-width:0; }
@@ -11831,13 +11838,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-dy-p { margin:2px 0 0; font-size:14px; line-height:1.5; color:var(--hd-ink); white-space:pre-wrap;
   overflow-wrap:anywhere; }
 .fg .hd-dy-doors { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
-.fg .hd-dy-door { display:inline-flex; align-items:center; height:28px; padding:0 12px; border:1px solid var(--hd-edge);
-  border-radius:6px; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--hd-ink);
+.fg .hd-dy-door { display:inline-flex; align-items:center; height:28px; padding:0 12px; border:1px solid var(--line);
+  border-radius:6px; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--link);
   text-decoration:underline; text-underline-offset:3px; white-space:nowrap; cursor:pointer;
   transition:background-color var(--t-fast) var(--ease); }
 .fg .hd-dy-door:hover { background:var(--tint); }
 .fg .hd-dy-door:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hd-dy-note { font-size:13px; font-weight:500; color:var(--q); }
+@media (prefers-reduced-motion:reduce) {
+  .fg .hd-dy-en[data-lit] { animation:none; }
+}
 /* ===================================================================
    VEHICLE MODAL v2 (components/fleet/vehicle-modal/)
 

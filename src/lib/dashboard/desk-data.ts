@@ -38,9 +38,9 @@ import type { OrgCredential } from "@/lib/org/credentials";
 import type { ExpiryWindow } from "@/lib/expiry";
 import type { Capability } from "@/lib/permissions";
 import { initialsFrom } from "@/lib/staff/derive";
-import { taskOwners, type DeskDiary } from "./diary-doors";
+import { ownerNames, type DeskDiary } from "./diary-doors";
 import { loadDiaryFeed } from "./diary-query";
-import { firstNames, type HomeListReads } from "./home-list";
+import type { HomeListReads } from "./home-list";
 import { loadHomeList } from "./home-list-query";
 import type { StaffNames } from "./tasks-query";
 
@@ -103,8 +103,8 @@ export type DeskData = {
       (lib/calendar/query). */
   calendar: CompanyCalendar;
   /** The Diary tab: your entries, newest first, with Today split off, and
-      what it needs to say them — your initials, and the first names of the
-      people their tasks are on (./diary-doors). */
+      what it needs to say them — your initials, and the names of the
+      people their tasks are on (./diary-doors' `ownerNames`). */
   diary: DeskDiary;
 };
 
@@ -129,12 +129,9 @@ export async function loadDesk(start: DeskStart, mine: Promise<string | null>): 
    the diary every viewer without one gets. */
 async function loadDeskDiary(ctx: DeskContext): Promise<DeskDiary> {
   const feed = await loadDiaryFeed({ ...ctx, mineUuid: null });
-  const first = firstNames(ctx.names);
-  const names: Record<string, string> = {};
-  for (const id of taskOwners(feed)) if (first[id]) names[id] = first[id];
   return {
     feed,
     you: initialsFrom(ctx.viewerStaffId ? ctx.names.get(ctx.viewerStaffId) : null),
-    names,
+    names: ownerNames(feed, ctx.names),
   };
 }

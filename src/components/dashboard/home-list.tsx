@@ -8,7 +8,7 @@ import { clearVisitPlacement, placeVisit } from "@/app/actions/workboard-mainten
 import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import type { DeskFocus } from "@/lib/dashboard/desk-focus";
+import type { DeskArrival, DeskFocus } from "@/lib/dashboard/desk-focus";
 import { motionAllowed } from "@/lib/dashboard/day-flip";
 import {
   LIST_EMPTY,
@@ -356,8 +356,8 @@ export function HomeList({
   /** A door to another face: the desk's one door (lib/dashboard/desk-focus). */
   onShow: (to: DeskFocus, pointer: boolean) => void;
   /** Rows a door between faces asked to see (`kind: "rows"`): brought into
-      view and lit once. */
-  flash?: DeskFocus | null;
+      view and lit once — smoothly only for a door a pointer pressed. */
+  flash?: DeskArrival | null;
   /** The lit rows have had their moment. */
   onFlashDone?: () => void;
   /** Not the face that is up: the Calendar is sliding across it. */
@@ -369,7 +369,7 @@ export function HomeList({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [opened, setOpened] = useState<Record<string, "pointer" | "key">>({});
   const [picking, setPicking] = useState<string | null>(null);
-  const [spent, setSpent] = useState<DeskFocus | null>(null);
+  const [spent, setSpent] = useState<DeskArrival | null>(null);
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const box = useRef<HTMLElement>(null);
   /* The page's latest list, for an answer that lands after a render. */
@@ -548,7 +548,8 @@ export function HomeList({
     const first = [...(box.current?.querySelectorAll<HTMLElement>("[data-thing]") ?? [])].find((el) =>
       flash.ids.includes(el.dataset.thing ?? ""),
     );
-    first?.scrollIntoView?.({ block: "nearest", behavior: motionAllowed() ? "smooth" : "auto" });
+    /* no motion for a door pressed from the keyboard (law 8) */
+    first?.scrollIntoView?.({ block: "nearest", behavior: flash.pointer && motionAllowed() ? "smooth" : "auto" });
     const t = setTimeout(() => {
       setSpent(flash);
       onFlashDone?.();

@@ -7,6 +7,7 @@ import {
   NOTHING_FILED,
   entryUnder,
   entryWhen,
+  ownerNames,
   taskOwners,
   type DiaryDoor,
 } from "../diary-doors";
@@ -55,6 +56,36 @@ describe("entryUnder: the doors", () => {
       who,
     );
     expect(doors).toEqual([{ to: "tasks", text: "2 tasks", ids: ["t1", "t2"] }]);
+  });
+
+  /* By the card, never by the name on it: two Lukes are two people, and
+     one door for both would light the other Luke's rows too — whatever
+     they are called (`ownerNames` gives them their whole names). */
+  it("gives two people a door each, even when they are called the same", () => {
+    const { doors } = entryUnder(
+      entry({
+        outcomes: [task("t1"), task("t2"), task("t3")],
+        taskFor: { t1: "s-luke", t2: "s-luke-2", t3: "s-luke" },
+      }),
+      { viewerStaffId: ME, names: { "s-luke": "Luke", "s-luke-2": "Luke" } },
+    );
+    expect(doors).toEqual<DiaryDoor[]>([
+      { to: "tasks", text: "2 tasks for Luke", ids: ["t1", "t3"] },
+      { to: "tasks", text: "1 task for Luke", ids: ["t2"] },
+    ]);
+  });
+
+  /* A card the workspace no longer names is still somebody else's: "1
+     task" counted in with yours would say it was yours. */
+  it("never counts a task on a card it cannot name in with your own", () => {
+    const { doors } = entryUnder(
+      entry({ outcomes: [task("t1"), task("t2"), task("t3")], taskFor: { t1: ME, t2: "s-gone", t3: null } }),
+      who,
+    );
+    expect(doors).toEqual<DiaryDoor[]>([
+      { to: "tasks", text: "2 tasks", ids: ["t1", "t3"] },
+      { to: "tasks", text: "1 task", ids: ["t2"] },
+    ]);
   });
 
   it("counts the task titles rather than repeating them: the words are already above", () => {
@@ -118,6 +149,83 @@ describe("entryUnder: the quiet lines", () => {
   it("never says \"Nothing filed.\" under an entry that filed something", () => {
     const { lines } = entryUnder(entry({ outcomes: [task("t1")], taskFor: { t1: ME } }), who);
     expect(lines).toEqual([]);
+  });
+});
+
+describe("entryUnder: a door with nowhere to land", () => {
+  const made = entry({
+    outcomes: [
+      task("t1"),
+      task("t2"),
+      task("t3"),
+      { kind: "todo", text: "Rooftop unit keeps tripping", go: { type: "issue", id: "i1" } },
+      { kind: "todo", text: "Condensate pump is noisy.", go: { type: "issue", id: "i2" } },
+      { kind: "kept", text: "Isolator sizes for a 7.1 kW", go: { type: "kb", id: "k1" } },
+      { kind: "kept", text: "1 line kept", go: { type: "note", id: "n1" } },
+    ],
+    taskFor: { t1: "s-luke", t2: "s-luke", t3: ME },
+  });
+
+  /* The Tasks tab keeps what was done lately and the open issues, the
+     list what is open: a task ticked off long ago and a resolved issue are
+     on neither. A door would open on some other row. */
+  it("says a task or an issue no row on the page holds, rather than drawing its door", () => {
+    const { doors, lines } = entryUnder(made, who, new Set(["t3", "i1"]));
+    expect(doors).toEqual<DiaryDoor[]>([
+      { to: "tasks", text: "1 task", ids: ["t3"] },
+      { to: "issue", text: "Rooftop unit keeps tripping", id: "i1" },
+      { to: "kb", text: "Isolator sizes for a 7.1 kW", id: "k1" },
+      { to: "note", text: "1 line kept", id: "n1" },
+    ]);
+    // one full stop, whether or not the words brought their own
+    expect(lines).toEqual(["2 tasks for Luke.", "Condensate pump is noisy."]);
+  });
+
+  it("keeps a task door that can show any of its tasks, carrying them all", () => {
+    const { doors } = entryUnder(made, who, new Set(["t2"]));
+    expect(doors[0]).toEqual({ to: "tasks", text: "2 tasks for Luke", ids: ["t1", "t2"] });
+  });
+
+  it("draws every door when it is not told what the page holds", () => {
+    expect(entryUnder(made, who).doors).toHaveLength(6);
+  });
+});
+
+describe("ownerNames", () => {
+  const feedOf = (taskFor: Record<string, string | null>) =>
+    diaryFeed({
+      entries: [entry({ taskFor })],
+      conversations: [] as DiaryConversation[],
+      day: "2026-09-25",
+      mentions: false,
+      entriesCut: false,
+      syncedAt: null,
+    });
+  const staff = new Map([
+    [ME, "Isaac Smith"],
+    ["s-luke", "Luke Ingold"],
+    ["s-luke-2", "Luke  Moreau"],
+    ["s-lorenzo", "Lorenzo Russo"],
+    ["s-leo", "Leo Park"],
+  ]);
+
+  it("names the people the diary's tasks are on by first name, and nobody else", () => {
+    expect(ownerNames(feedOf({ t1: "s-lorenzo", t2: ME, t3: null }), staff)).toEqual({
+      "s-lorenzo": "Lorenzo",
+      [ME]: "Isaac",
+    });
+  });
+
+  it("gives each the whole name when two of them share the first", () => {
+    expect(ownerNames(feedOf({ t1: "s-luke", t2: "s-luke-2", t3: "s-lorenzo" }), staff)).toEqual({
+      "s-luke": "Luke Ingold",
+      "s-luke-2": "Luke Moreau",
+      "s-lorenzo": "Lorenzo",
+    });
+  });
+
+  it("leaves out a card it has no name for", () => {
+    expect(ownerNames(feedOf({ t1: "s-gone" }), staff)).toEqual({});
   });
 });
 

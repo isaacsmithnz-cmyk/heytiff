@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { keepWords } from "@/app/actions/workboard-notes";
 import { navHref } from "@/components/shell/nav";
 import { TiffBox, type BoxSave } from "@/components/tiff/modal/tiff-box";
-import type { DeskFocus } from "@/lib/dashboard/desk-focus";
+import type { DeskArrival } from "@/lib/dashboard/desk-focus";
 import { motionAllowed } from "@/lib/dashboard/day-flip";
 import {
   DIARY_LIT_MS,
@@ -36,14 +36,18 @@ import type { DiaryEntry } from "@/lib/dashboard/journal";
    DOORS STAY ON THIS PAGE WHERE THEIR THING IS. A task or an issue is a
    row, so its door hands its ids to the frame (`onShowThings`), which
    lights them in the list beside this column — or, for one the list does
-   not hold (a task already ticked off), opens it on the Tasks tab. A
+   not hold (a task ticked off today), opens it on the Tasks tab. One that
+   no row on the page holds (`onPage`) is said, not drawn as a door. A
    Library entry and a kept note are screens, so those are links.
 
    A DOOR FROM ANOTHER FACE (the list's "from your diary", a task's Open in
-   diary) names an entry. It is scrolled to 16px under the face's top and
-   lit, and handed back once its light has gone. What an entry holds by
-   way of light is the one wash, his prototype's: an entry you just saved
-   here, or one a door asked for, for seven seconds.
+   diary) names an entry. It is scrolled to 16px under the face's top —
+   smoothly only for a door a pointer pressed (law 8) — lit, and given the
+   focus, since the door that was pressed may have gone with its face; and
+   it is handed back once its light has gone. What an entry holds by way
+   of light is the one wash, his prototype's: an entry you just saved here,
+   or one a door asked for, on his pale teal for three quarters of seven
+   seconds, then fading (shell.css; a still tint under reduced motion).
 
    Your own entries only, for now: the ServiceM8 notes that @mention you
    join this column with their conversations (desk-data says why they are
@@ -98,6 +102,7 @@ function Entry({
   today,
   justNow,
   lit,
+  onPage,
   onShowThings,
 }: {
   entry: DiaryEntry;
@@ -106,12 +111,14 @@ function Entry({
   today: boolean;
   justNow: boolean;
   lit: boolean;
+  onPage: ReadonlySet<string>;
   onShowThings: (ids: readonly string[], pointer: boolean) => void;
 }) {
-  const { doors, lines } = entryUnder(entry, who);
+  const { doors, lines } = entryUnder(entry, who, onPage);
   return (
     <li className="hd-dy-it" data-entry={entry.id}>
-      <div className="hd-dy-en" data-lit={lit ? "" : undefined}>
+      {/* focusable by script alone: a door from another face lands here */}
+      <div className="hd-dy-en" tabIndex={-1} data-lit={lit ? "" : undefined}>
         <span className="hd-dy-av" aria-hidden="true">
           {you}
         </span>
@@ -144,14 +151,17 @@ export function HomeDiaryFeed({
   viewerStaffId,
   focus,
   onFocusShown,
+  onPage,
   onShowThings,
 }: {
   diary: DeskDiary;
   viewerStaffId: string | null;
   /** A door from another face. This face acts on `kind: "entry"`. */
-  focus: DeskFocus | null;
+  focus: DeskArrival | null;
   /** The entry a door asked for has been shown, and its light has gone. */
   onFocusShown: () => void;
+  /** Every task and issue a row on this page holds: where a door can land. */
+  onPage: ReadonlySet<string>;
   /** A task or issue door: the frame shows those rows (see above). */
   onShowThings: (ids: readonly string[], pointer: boolean) => void;
 }) {
@@ -192,9 +202,10 @@ export function HomeDiaryFeed({
   };
 
   /* A door from another face: brought to 16px under the face's top, lit,
-     and handed back once the light has gone. The face scrolls, not this
-     column (the frame's rule: only a face scrolls), so it is the face that
-     is moved — measured here, after the commit that showed it. */
+     given the focus, and handed back once the light has gone. The face
+     scrolls, not this column (the frame's rule: only a face scrolls), so it
+     is the face that is moved — measured here, after the commit that showed
+     it. Asked for again while it is lit or after, its wash starts over. */
   const asked = focus?.kind === "entry" ? focus : null;
   useEffect(() => {
     if (!asked) return;
@@ -205,8 +216,15 @@ export function HomeDiaryFeed({
     const face = root.current?.closest<HTMLElement>(".hd-face");
     if (el && face) {
       const top = face.scrollTop + el.getBoundingClientRect().top - face.getBoundingClientRect().top - ENTRY_TOP_PX;
-      face.scrollTo?.({ top: Math.max(0, top), behavior: motionAllowed() ? "smooth" : "auto" });
+      /* no motion for a door pressed from the keyboard (law 8) */
+      face.scrollTo?.({ top: Math.max(0, top), behavior: asked.pointer && motionAllowed() ? "smooth" : "auto" });
     }
+    const wash = el?.querySelector<HTMLElement>(".hd-dy-en");
+    for (const a of wash?.getAnimations?.() ?? []) {
+      a.currentTime = 0;
+      a.play();
+    }
+    wash?.focus({ preventScroll: true });
     const t = setTimeout(onFocusShown, DIARY_LIT_MS);
     return () => clearTimeout(t);
   }, [asked, onFocusShown]);
@@ -224,6 +242,7 @@ export function HomeDiaryFeed({
         today={today}
         justNow={justNow.includes(i.entry.id)}
         lit={saved.includes(i.entry.id) || (asked?.ids.includes(i.entry.id) ?? false)}
+        onPage={onPage}
         onShowThings={onShowThings}
       />
     ) : null;

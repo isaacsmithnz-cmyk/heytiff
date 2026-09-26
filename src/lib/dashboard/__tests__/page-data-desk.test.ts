@@ -509,6 +509,29 @@ describe("the diary's reads", () => {
     const { desk } = await loadDashboard();
     expect(desk?.diary).toEqual({ feed: DIARY_FEED, you: "IS", names: { "s-luke": "Luke" } });
   });
+
+  it("carry the whole name of each of two people its tasks are on who share a first name", async () => {
+    process.env.HOME_DESK = "owner";
+    const [today] = DIARY_FEED.today;
+    const twoLukes: DiaryFeed = {
+      ...DIARY_FEED,
+      today: [
+        today!.kind === "entry"
+          ? { ...today!, entry: { ...today!.entry, taskFor: { t1: "s-luke", t2: "s-luke-2" } } }
+          : today!,
+      ],
+    };
+    loadDiaryFeed.mockResolvedValueOnce(twoLukes);
+    (loadStaffNames as jest.Mock).mockResolvedValueOnce(
+      new Map([
+        ["s-me", "Isaac Smith"],
+        ["s-luke", "Luke Ingold"],
+        ["s-luke-2", "Luke Moreau"],
+      ]),
+    );
+    const { desk } = await loadDashboard();
+    expect(desk?.diary.names).toEqual({ "s-luke": "Luke Ingold", "s-luke-2": "Luke Moreau" });
+  });
 });
 
 describe("the day's new fields", () => {

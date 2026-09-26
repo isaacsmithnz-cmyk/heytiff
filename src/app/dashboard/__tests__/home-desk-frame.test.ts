@@ -149,6 +149,62 @@ describe("the list", () => {
   });
 });
 
+/* THE TASKS FACE (home-tasks-face.tsx) wears the list's rows, so what is
+   held here is only what it adds: its rules two classes deep like the
+   rest of the family; what opens under a row standing under the title, in
+   from the row's edge by exactly the row's lead and its gap, so the words
+   line up whatever either becomes; and the open row's fill giving way to
+   a lit one, so a door's light is seen on a row it opens. */
+describe("the Tasks face", () => {
+  it("sets every one of its rules two classes deep, under the frame", () => {
+    const parts: string[] = [];
+    for (const m of CSS.matchAll(/([^{}]+)\{[^{}]*\}/g)) {
+      const sel = m[1]!.trim();
+      if (!/\.hd-(tk|cf)\b/.test(sel)) continue;
+      parts.push(...sel.split(",").map((s) => s.trim()));
+    }
+    expect(parts.length).toBeGreaterThan(20);
+    expect(parts.filter((p) => !/^\.fg \.hd-[\w-]/.test(p))).toEqual([]);
+  });
+
+  it("stands what opens under a row under its title: past the lead and the gap", () => {
+    const row = rule(".fg .hd-ls-row");
+    const lead = row["grid-template-columns"]!.split(" ")[0];
+    const gap = row["column-gap"];
+    expect(rule(".fg .hd-tk-d").padding).toBe(`4px 0 16px calc(${lead} + ${gap})`);
+  });
+
+  it("fills the open row as the pointer does, and lets a lit one keep its light", () => {
+    const open = rule('.fg .hd-tk .hd-ls-row:not([data-lit]):has(> .hd-ls-t[aria-expanded="true"])');
+    expect(open.background).toBe(rule(".fg .hd-ls-row.opens:hover").background);
+  });
+});
+
+/* WHAT OPENS UNDER A TASK, as his prototype draws it and as real words
+   make it. The words a task came from are a person's: a link or an email
+   address with no space in it must break rather than widen the face past
+   its column (law 13) — jsdom lays nothing out, so the rule is read. His
+   late fact keeps the day in ink and colours only how late; his Job door
+   is 13/500 in both his looks, where the list's link is 600 at the size
+   it stands in. */
+describe("what opens under a task", () => {
+  it("breaks a word with no space in it rather than widen the face", () => {
+    const d = rule(".fg .hd-tk-d");
+    expect(d["overflow-wrap"]).toBe("anywhere");
+    expect(d["min-width"]).toBe("0");
+  });
+
+  it("colours only how late a late fact is, never the day", () => {
+    expect(rule(".fg .hd-tk-f dd").color).toBe("var(--hd-ink)");
+    expect(rule(".fg .hd-tk-f [data-late]").color).toBe("var(--hd-late)");
+    expect(() => rule(".fg .hd-tk-f dd[data-late]")).toThrow();
+  });
+
+  it("sets the Job's door at his 13/500", () => {
+    expect(rule(".fg .hd-tk-f .hd-ls-link")).toEqual({ "font-size": "13px", "font-weight": "500" });
+  });
+});
+
 /* THE DIARY (H16), in the Diary tab. What the sheet promises for it: its
    rules are two classes deep, like the family's, so the frame's reset never
    beats a door; it scrolls with its face, never on its own (only a face

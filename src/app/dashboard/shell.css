@@ -11470,6 +11470,82 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   .fg .hd-ls-in[data-grow] { animation:none; }
 }
 
+/* ── TASKS: the diary column's second face, beside the list ──
+   home-tasks-face.tsx. His Tasks face (the prototype's #tasks, v29–v33) on
+   the page's tokens. Open and Done wear the list's own dress — its group
+   title, its row, its box and his name tag, `hd-ls-` — so a task reads the
+   same in the column and beside it; what grows open under a row is the
+   list's too (`.hd-ls-in`), and so is everything it does under reduced
+   motion. What is the face's own is here: the box's place, the due word,
+   the row that is open, and what opens under it — the facts, their own
+   words, what happened, and what you can do. His numbers snap to the
+   scales, 4px or less each: the column's padding 28 → 24, and what opens
+   sits under the title, past the lead and the gap (his 34 → 20 + 12). The
+   facts' 88px and the history's 152px are layout widths. */
+.fg .hd-tk { padding:4px 24px 24px; }
+.fg .hd-tk-box { margin:0 0 16px; }
+/* His first title sits 8px under the box, where the list's sits 16 under
+   the top of its column. */
+.fg .hd-tk-list > .hd-ls-g:first-child > .hd-ls-grp { padding-top:8px; }
+/* The row that is open wears the hover's fill for as long as it is open —
+   unless a door has lit it, which says so on the selection tint. */
+.fg .hd-tk .hd-ls-row:not([data-lit]):has(> .hd-ls-t[aria-expanded="true"]) { background:var(--tint); }
+/* The due word on the right: late in the late red, today in the teal. */
+.fg .hd-tk-due { font-size:13px; font-weight:500; color:var(--hd-body); }
+.fg .hd-tk-due[data-state="bad"] { color:var(--hd-late); }
+.fg .hd-tk-due[data-state="today"] { color:var(--hd-today); }
+/* Work someone else finished for you: a tick where the box would be, and
+   nothing to press. */
+.fg .hd-tk-tick { display:grid; place-items:center; width:18px; height:18px; color:var(--q); }
+.fg .hd-tk-tick > span, .fg .hd-tk-tick svg { display:block; }
+/* Real words carry a link or an email address with no space in it: they
+   break anywhere rather than widen the face past its column (law 13). */
+.fg .hd-tk-d { min-width:0; padding:4px 0 16px calc(20px + 12px); overflow-wrap:anywhere; }
+.fg .hd-tk-note { margin:8px 0 0; font-size:14px; line-height:1.5; color:var(--hd-ink); }
+.fg .hd-tk-f { display:grid; grid-template-columns:88px minmax(0,1fr); gap:4px 12px; margin:8px 0 0; }
+.fg .hd-tk-f > div { display:contents; }
+.fg .hd-tk-f dt { font-size:13px; font-weight:500; line-height:22px; color:var(--hd-body); }
+.fg .hd-tk-f dd { margin:0; font-size:14px; line-height:22px; color:var(--hd-ink); }
+/* His late fact keeps the day in ink: only how late is red. */
+.fg .hd-tk-f [data-late] { color:var(--hd-late); }
+/* The Job's door at his size and weight, 13/500, underlined as every link. */
+.fg .hd-tk-f .hd-ls-link { font-size:13px; font-weight:500; }
+/* Their own words, in a well: the page's ground, the tile's corner. */
+.fg .hd-tk-q { margin:12px 0 0; padding:12px 16px; border-radius:10px; background:var(--ground); }
+.fg .hd-tk-q figcaption { font-size:13px; font-weight:500; color:var(--hd-body); }
+.fg .hd-tk-q figcaption b { font-weight:600; color:var(--hd-ink); }
+.fg .hd-tk-q p { margin:4px 0 0; font-size:14px; line-height:1.5; color:var(--hd-ink); white-space:pre-line; }
+.fg .hd-tk-h { display:flex; flex-direction:column; gap:4px; margin:12px 0 0; padding:0; list-style:none; }
+.fg .hd-tk-h li { display:grid; grid-template-columns:152px minmax(0,1fr); gap:8px; font-size:13px; font-weight:500;
+  line-height:1.45; color:var(--hd-ink); }
+.fg .hd-tk-h li > span { color:var(--hd-body); }
+/* Where its Done stands with ServiceM8, under what happened to it: the
+   line the old face draws (task-sm8-line's own dress), one under another. */
+.fg .hd-tk-sm8 { display:flex; flex-direction:column; gap:4px; margin:12px 0 0; }
+/* What you can do, and a question in its place — Delete for good?, or who
+   to give it to: the list's verb, Mark done filled in ink, Give it to a
+   verb that fits its word, Delete task a red word on the right. */
+.fg .hd-tk-a, .fg .hd-cf { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:16px; }
+.fg .hd-tk-go { border-color:var(--hd-ink); background:var(--hd-ink); color:var(--paper); }
+.fg .hd-tk-go:hover { background:color-mix(in srgb, var(--hd-ink) 88%, var(--paper)); }
+/* The date field, drawn as the verbs beside it. It is the app's own
+   (`.datef`, unscoped, 0,1,0), which the frame's button reset (`.fg
+   button`, 0,1,1) would strip. */
+.fg .hd-tk-a .datef { min-width:0; height:32px; padding:0 12px; border:1px solid var(--hd-edge);
+  border-radius:10px; background:var(--paper); font:inherit; font-size:13px; font-weight:600; color:var(--hd-ink);
+  cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+/* One change on hover, the fill, as the verbs beside it: the date
+   field's own hover would darken its edge too. */
+.fg .hd-tk-a .datef:hover { border-color:var(--hd-edge); background:var(--tint); }
+.fg .hd-tk-a .datef:focus-visible, .fg .hd-tk-a .datef[aria-expanded="true"] { border-color:var(--ink); }
+.fg .hd-tk-del { height:32px; margin-left:auto; padding:0 12px; border:0; border-radius:10px; background:none;
+  font:inherit; font-size:13px; font-weight:500; color:var(--bad-t); cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-tk-del:hover { background:var(--tint); }
+.fg .hd-tk-del:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .hd-cf-q { margin-right:4px; font-size:14px; font-weight:600; color:var(--hd-ink); }
+.fg .hd-cf-go { border-color:var(--bad-t); color:var(--bad-t); }
+
 /* ── THE CALENDAR: the third face, across the whole body ──
    home-cal-page.tsx and its views. His handoff "Calendar" (4 weeks, Month,
    Year), walked on the prototype to v33, on the page's tokens. His type is

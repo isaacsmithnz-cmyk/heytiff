@@ -25,11 +25,12 @@
 
    The calendar asks nothing of it, and its own reads are two in a row (the
    workspace's state, then its holidays): started behind the map it was
-   the page's slowest path by a round trip. The list is handed the whole
-   context, as the areas still to come will be (the diary asks who the
-   viewer is), and so goes once the map is in, which costs the page
-   nothing: the map and the list's one read are back by the time the
-   calendar's two are. */
+   the page's slowest path by a round trip. The list, the Tasks face and
+   the diary are handed the whole context (the diary asks for your
+   ServiceM8 conversations as the person the map names; the Tasks face
+   quotes a ServiceM8 note without the handle it named the viewer by), and
+   so go once the map is in, which costs the page nothing: the map and the
+   list's one read are back by the time the calendar's two are. */
 
 import { loadCompanyCalendar } from "@/lib/calendar/query";
 import type { CompanyCalendar } from "@/lib/calendar/items";
@@ -42,6 +43,9 @@ import { ownerNames, type DeskDiary } from "./diary-doors";
 import { loadDiaryFeed } from "./diary-query";
 import type { HomeListReads } from "./home-list";
 import { loadHomeList } from "./home-list-query";
+import type { TaskRecord } from "./task-record";
+import { loadTaskLines, loadTasksFace } from "./task-record-query";
+import type { TaskDoneLines } from "./task-done-query";
 import type { StaffNames } from "./tasks-query";
 
 /** The reads Home's chips and the new Home's areas share. */
@@ -97,6 +101,15 @@ export type DeskData = {
       visits with no day — placed on screen beside what the page already
       holds (`placeHomeList`, ./home-list). */
   list: HomeListReads;
+  /** The Tasks face's record: every task you have a hand in, open and done
+      in the last 90 days, where each came from and what has happened to it
+      (`loadTasksFace`, ./task-record-query). */
+  tasks: TaskRecord;
+  /** Where each of those tasks' Done stands with ServiceM8, and who the
+      viewer is there (two-way phase 2, PR C) — read over the face's own
+      tasks, and empty, from no read, where the deployment doesn't send
+      notes (`loadTaskLines`, ./task-record-query). */
+  taskLines: TaskDoneLines;
   /** The Calendar face: the company's twelve months — public and school
       holidays, events and shutdowns, the noticeboard's events, and the
       renewals the viewer may see — on the workspace's day
@@ -113,12 +126,16 @@ export async function loadDesk(start: DeskStart, mine: Promise<string | null>): 
   /** The whole context, once the link map is in. */
   const ctx = mine.then((mineUuid): DeskContext => ({ ...start, mineUuid }));
   /* Each area's read joins here as a Promise.all over its own gates. */
-  const [list, calendar, diary] = await Promise.all([
+  const tasks = ctx.then((c) => loadTasksFace(c));
+  const [list, record, taskLines, calendar, diary] = await Promise.all([
     ctx.then(loadHomeList),
+    tasks,
+    /* the Done lines of the tasks the face holds, once it holds them */
+    Promise.all([ctx, tasks]).then(([c, r]) => loadTaskLines(c, r)),
     loadCompanyCalendar(start),
     ctx.then(loadDeskDiary),
   ]);
-  return { warnDays: start.shared.expiry.warnDays, list, calendar, diary };
+  return { warnDays: start.shared.expiry.warnDays, list, tasks: record, taskLines, calendar, diary };
 }
 
 /* THE DIARY: your entries, and the ServiceM8 notes that @mention you as

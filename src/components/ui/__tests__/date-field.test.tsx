@@ -98,6 +98,36 @@ describe("the field", () => {
   });
 });
 
+/* `label`: where the day is printed beside the field (the Tasks face's Due
+   fact), the button says what it does instead, and the day it holds is
+   still said to a screen reader. */
+describe("with a label", () => {
+  const labelled = (initial: string | null) => {
+    render(<DateField value={initial} today={TODAY} label="Move due date" onChange={() => {}} />);
+    return screen.getByRole("button", { name: "Move due date" });
+  };
+
+  it("reads the word, not the date, and keeps the date for a screen reader", () => {
+    const field = labelled("2026-01-09");
+    expect(field).toHaveTextContent(/^Move due date$/);
+    expect(field).toHaveAccessibleDescription("09/01/2026");
+    // a word is not a placeholder: it is set as the button's words
+    expect(field.className).not.toContain("empty");
+  });
+
+  it("says no date to a screen reader when it holds none", () => {
+    const field = labelled(null);
+    expect(field).not.toHaveAttribute("aria-description");
+    expect(field.className).not.toContain("empty");
+  });
+
+  it("still opens on the day it holds", async () => {
+    const user = userEvent.setup();
+    await user.click(labelled("2026-01-09"));
+    expect(screen.getByRole("dialog")).toHaveTextContent("January 2026");
+  });
+});
+
 describe("picking", () => {
   it("opens on the value's month, not today's", async () => {
     const { user, field } = setup({ initial: "2026-01-09" });

@@ -11,9 +11,10 @@ import * as ts from "typescript";
    A task's Done goes to ServiceM8 as whoever ticked, so it may only follow a
    PERSON'S tick on a screen made for ticking: the Tasks face, the day band,
    the bell and the Workboard's Urgent tab, and on the new Home (HOME_DESK's)
-   Your day and the list. `postDone: true` is how such a screen says so, and
-   `takeBackDone: true` is how the screens with a Reopen or an Undo (the
-   Tasks face, the Urgent tab, the list) say it about taking the tick back.
+   Your day, the list and its own Tasks face. `postDone: true` is how such a
+   screen says so, and `takeBackDone: true` is how the screens with a Reopen
+   or an Undo (both Tasks faces, the Urgent tab, the list) say it about
+   taking the tick back.
    Read as source, because the danger is a new
    caller — a cron, a route, a reply that closes its task, a bulk action —
    that would post a Done nobody pressed for, or a new Undo that reopens a
@@ -122,6 +123,8 @@ it("(F) exactly the ticking screens post a Done, on every tick they make", () =>
     // the new Home's (HOME_DESK's): Your day's Mark done, and the list's tick
     "components/dashboard/home-day.tsx",
     "components/dashboard/home-list.tsx",
+    // and its Tasks face's tick and Mark done
+    "components/dashboard/home-tasks-face.tsx",
     "components/dashboard/home-tasks.tsx",
     "components/shell/bell.tsx",
     "components/workboard/board/urgent-tab.tsx",
@@ -136,6 +139,8 @@ it("(F) exactly the screens with a Reopen or an Undo take one back, on every Reo
   expect(where(reopens.calls, "takeBackDone")).toEqual([
     // the new Home's list: the Undo on a row it just ticked
     "components/dashboard/home-list.tsx",
+    // and its Tasks face's Not done yet
+    "components/dashboard/home-tasks-face.tsx",
     "components/dashboard/home-tasks.tsx",
     "components/workboard/board/urgent-tab.tsx",
   ]);
@@ -169,8 +174,9 @@ function elementsOf(test: (tag: string) => boolean): { path: string; tag: string
 }
 
 it("(F) every screen that draws a task's page hands it the task's Done lines", () => {
-  const pages = elementsOf((t) => t === "HomeTasks");
-  expect(pages.length).toBeGreaterThan(0);
+  // today's Tasks face, and the new Home's (HOME_DESK's), where a task opens in place
+  const pages = elementsOf((t) => t === "HomeTasks" || t === "HomeTasksFace");
+  expect(new Set(pages.map((e) => e.tag))).toEqual(new Set(["HomeTasks", "HomeTasksFace"]));
   expect(pages.filter((e) => !e.attrs.includes("sm8Lines") || !e.attrs.includes("sm8Sender"))).toEqual([]);
 });
 

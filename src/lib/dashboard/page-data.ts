@@ -84,7 +84,9 @@ export type DashboardData = {
   /** Your open tasks (always), the team's (only with `team`), and your
       recently-completed ones so finishing something leaves a trace.
       `sm8`: where each task's Done stands with ServiceM8 (two-way phase 2,
-      PR C) — empty, from no read, where the deployment doesn't send notes. */
+      PR C) — empty, from no read, where the deployment doesn't send notes,
+      and for a viewer on the new Home, whose Tasks face reads its own
+      (`desk.taskLines`). */
   tasks: { mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[]; sm8: TaskDoneLines };
   /** Recent notices with your read state joined in. */
   notices: BoardNotice[];
@@ -289,7 +291,10 @@ export async function loadDashboard(): Promise<DashboardData> {
     /* Today's Home's calendar. The new Home draws its own (`desk.calendar`)
        and never this one, so its viewer is spared the reads. */
     desk ? Promise.resolve(NO_LEAVE_CALENDAR) : loadCalendar(orgId, today, viewerStaffId, canManage),
-    loadTasks(orgId, viewerStaffId, canManage, names, caps.has("workboard")),
+    /* A task's Done lines are read for the face that draws them: today's
+       Tasks face here, and the new Home's over its own tasks in its own
+       batch (`desk.taskLines`), so its viewer is spared these. */
+    loadTasks(orgId, viewerStaffId, canManage, names, caps.has("workboard") && !desk),
     listNotices(orgId, viewerStaffId, NOTICE_WINDOW, names).then(sortNotices),
     // the assign picker only needs names, and only when you can assign
     canManage ? listFleetStaff(orgId).then((s) => s.map((x) => ({ id: x.id, name: x.name }))) : Promise.resolve([]),
@@ -459,8 +464,10 @@ async function loadTasks(
   viewerStaffId: string | null,
   canManage: boolean,
   names: StaffNames,
-  /** `workboard`: a Done is a note on a job, and its line is the job's */
-  workboard: boolean,
+  /** Read where each task's Done stands with ServiceM8: with `workboard`
+      (a Done is a note on a job, and its line is the job's), and only for
+      today's Tasks face, which draws them. */
+  lines: boolean,
 ): Promise<DashboardData["tasks"]> {
   const [mine, team, done, reportedAll] = await Promise.all([
     viewerStaffId ? myTasks(orgId, viewerStaffId, names).then(sortTasks) : Promise.resolve([]),
@@ -477,7 +484,7 @@ async function loadTasks(
      somebody else (recentlyDoneTasks) — which, when you had handed it out,
      is in your report too. One row a task: yours, since you ticked it. */
   const reported = reportedAll.filter((r) => !done.some((d) => d.id === r.id));
-  const sm8 = workboard
+  const sm8 = lines
     ? await loadTaskDoneLines(orgId, viewerStaffId, [mine, team ?? [], done, reported])
     : { lines: {}, sender: null };
   return { mine, team, done, reported, sm8 };

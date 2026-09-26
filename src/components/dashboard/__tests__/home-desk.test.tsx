@@ -7,18 +7,22 @@ import type { JournalEntry } from "@/lib/dashboard/journal";
 import type { ScheduleBlock } from "@/lib/workboard/schedule";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { HomeListReads } from "@/lib/dashboard/home-list";
-import type { TaskDoneLine } from "@/lib/dashboard/task-done-query";
+import type { DeskData } from "@/lib/dashboard/desk-data";
+import type { TaskDoneLine, TaskDoneLines } from "@/lib/dashboard/task-done-query";
 import type { CompanyCalendar } from "@/lib/calendar/items";
 import { DIARY_LIT_MS, type DeskDiary } from "@/lib/dashboard/diary-doors";
 import { buildConversations, diaryFeed, type DiaryConversation, type MentionNote } from "@/lib/dashboard/diary-feed";
 import { TiffContext, type TiffApi, type TiffLanded } from "@/components/tiff/modal/tiff-context";
+import type { HomeIssue } from "@/lib/dashboard/issues";
+import { FLASH_MS } from "../home-list";
+import { typedAbout, type RecordTask, type TaskAbout, type TaskRecord } from "@/lib/dashboard/task-record";
 
 /* THE NEW HOME'S FRAME (H11): the date in the band, "Your day" on every
    face, ONE row of tabs that never moves, and a body that slides in tab
-   order. The diary is its own (H16), and today's tasks hold their face for
-   now; each has its own suite, so this one is about the frame around them
-   — and about the doors between them and the one job card they share. The
-   list beside Diary and Tasks (H19) and the Calendar (H21) have their own
+   order. The diary is its own (H16), and so is the Tasks face (H20); each
+   has its own suite, so this one is about the frame around them — and
+   about the doors between them and the one job card they share. The list
+   beside Diary and Tasks (H19) and the Calendar (H21) have their own
    suites too; here each is where it stands, with the doors the list opens
    onto the faces.
 
@@ -59,6 +63,8 @@ jest.mock("@/components/workboard/board/job-sheet", () => ({
 }));
 jest.mock("@/app/actions/workboard", () => ({ openMirrorJob: jest.fn(async () => null) }));
 jest.mock("@/app/actions/dashboard", () => ({
+  addTask: jest.fn(),
+  giveTask: jest.fn(),
   completeTask: jest.fn(),
   createTask: jest.fn(),
   reopenTask: jest.fn(),
@@ -120,6 +126,43 @@ const task = (over: Partial<DashTask> = {}): DashTask => ({
   remindAt: null,
   remindKind: "at" as const,
   ...over,
+});
+
+/** A task as the Tasks face reads it (lib/dashboard/task-record). */
+const recordTask = (over: Partial<RecordTask> = {}): RecordTask => ({
+  ...task(),
+  createdByName: "Isaac Smith",
+  doneById: null,
+  acknowledgedAt: null,
+  ...over,
+});
+
+/** No task's Done has a line: the deployment doesn't send notes. */
+const NO_LINES: TaskDoneLines = { lines: {}, sender: null };
+
+/** The Tasks face's record, as the desk's loader hands it over. */
+const record = (open: RecordTask[] = [], about: TaskRecord["about"] = {}): TaskRecord => ({
+  open,
+  done: [],
+  doneCapped: false,
+  about,
+  people: { s1: "Isaac Smith" },
+});
+
+/** Handed to Luke: on your Tasks face, and not in the list beside it,
+    which is your own work. */
+const lukes = (over: Partial<RecordTask> = {}): RecordTask =>
+  recordTask({ assigneeId: "s2", assigneeName: "Luke Ingold", ...over });
+
+/** Made by Tiff from the viewer's own diary entry. */
+const fromDiary = (noteId: string): TaskAbout => ({
+  ...typedAbout(),
+  source: "diary",
+  noteId,
+  authorId: "s1",
+  spoken: true,
+  said: { day: TODAY, time: "6:52 am" },
+  words: "Order the filters for Bayview before Thursday",
 });
 
 const block = (over: Partial<ScheduleBlock> = {}): ScheduleBlock => ({
@@ -215,6 +258,17 @@ const diaryOf = (
   names: {},
 });
 
+/** The desk as its loader hands it over: the list's reads, the Tasks
+    face's record, the company's calendar, and the diary of these entries. */
+const deskOf = (journal: readonly JournalEntry[] = [], tasks: TaskRecord = record()): DeskData => ({
+  warnDays: 30,
+  list: reads(),
+  tasks,
+  taskLines: NO_LINES,
+  calendar: cal(),
+  diary: diaryOf(journal),
+});
+
 /* Luke's ask of Isaac on a job, and what came after it, as the diary's
    conversations. */
 const JOB_2041 = "3f2b8c1e-0d4a-4b6f-9a2e-1c5d7e9f0a11";
@@ -243,7 +297,7 @@ const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   viewerStaffId: "s1",
   today: TODAY,
   rail: rail(),
-  desk: { warnDays: 30, list: reads(), calendar: cal(), diary: diaryOf(over.journal ?? []) },
+  desk: deskOf(over.journal ?? []),
   ...over,
 });
 
@@ -257,6 +311,8 @@ const litEntries = () =>
   [...face("diary").querySelectorAll<HTMLElement>("[data-entry]")]
     .filter((li) => li.querySelector(".hd-dy-en")!.hasAttribute("data-lit"))
     .map((li) => li.dataset.entry);
+/** A task's title on the Tasks face: the button that opens its row. */
+const taskTitle = (name: string) => within(face("tasks")).getByRole("button", { name });
 
 /* A whole face mounts a real list and a real page; generous, as on Home. */
 const WHOLE = 20_000;
@@ -420,7 +476,7 @@ describe("the faces", () => {
         { uuid: "n-mine", jobUuid: JOB_2041, author: "u-isaac", at: "2026-08-09 15:10:00", text: "@lukeingold on it" },
         { uuid: "n-his", jobUuid: JOB_2041, author: "u-luke", at: `${TODAY} 08:15:00`, text: "@isaacsmith she rang back" },
       ]);
-      draw({ desk: { warnDays: 30, list: reads(), calendar: cal(), diary: diaryOf([], { mentions: true, conversations }) } });
+      draw({ desk: { ...deskOf(), diary: diaryOf([], { mentions: true, conversations }) } });
       const his = () => face("diary").querySelectorAll<HTMLElement>(".hd-dy-tr")[1]!;
       expect(his()).toHaveAttribute("data-lit");
       await user.click(tab("Tasks"));
@@ -450,14 +506,15 @@ describe("the faces", () => {
 describe("the one door between faces", () => {
   /* The door names the SECOND task, so a face that merely opened on its
      first row cannot pass for one that was shown the door. */
-  const wired = () =>
-    data({
-      journal: [
-        entry({
-          outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }],
-        }),
-        entry({ id: "e0", said: "Something older.", day: "2026-08-09", at: "4:10 pm" }),
-      ],
+  const wired = () => {
+    const journal = [
+      entry({
+        outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }],
+      }),
+      entry({ id: "e0", said: "Something older.", day: "2026-08-09", at: "4:10 pm" }),
+    ];
+    return data({
+      journal,
       tasks: {
         mine: [task({ id: "t0", title: "Ring the Hilux dealer" }), task()],
         team: null,
@@ -465,7 +522,12 @@ describe("the one door between faces", () => {
         reported: [],
         sm8: { lines: {}, sender: null },
       },
+      desk: deskOf(
+        journal,
+        record([recordTask({ id: "t0", title: "Ring the Hilux dealer" }), recordTask()], { t1: fromDiary("e1") }),
+      ),
     });
+  };
 
   /* The task is open, so the list beside the diary holds it: the door
      lights its row there, and the diary stays where you are reading. */
@@ -492,12 +554,79 @@ describe("the one door between faces", () => {
       reported: [],
       sm8: { lines: {}, sender: null },
     };
-    render(<DashboardDesk data={{ ...wired(), tasks }} />);
+    const base = wired();
+    const onFace = {
+      ...record([recordTask({ id: "t0", title: "Ring the Hilux dealer" })], { t1: fromDiary("e1") }),
+      done: [recordTask({ status: "done", doneAt: "2026-08-10T01:00:00Z" })],
+    };
+    render(<DashboardDesk data={{ ...base, tasks, desk: { ...base.desk!, tasks: onFace } }} />);
     await user.click(within(face("diary")).getByRole("button", { name: "1 task" }));
     expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
     expect(shownFaces()).toEqual(["tasks"]);
-    expect(document.querySelector('[data-task-id="t1"]')).toHaveClass("on");
-    expect(document.querySelector('[data-task-id="t0"]')).not.toHaveClass("on");
+    expect(taskTitle("Order 2× MERV 11 filters")).toHaveAttribute("aria-expanded", "true");
+    expect(taskTitle("Ring the Hilux dealer")).toHaveAttribute("aria-expanded", "false");
+  }, WHOLE);
+
+  /* An issue is the list's now — the Tasks face has none — so its door in
+     the diary lights its row on the list beside the diary, which stays. */
+  it("takes a diary's issue door to its row on the list, lit, and stays on the diary", async () => {
+    const user = userEvent.setup();
+    const issue: HomeIssue = {
+      id: "i1",
+      summary: "Rooftop unit keeps tripping",
+      equipmentRef: null,
+      occurrences: 1,
+      firstSeen: TODAY,
+      lastSeen: TODAY,
+      targetKind: "none",
+      targetId: null,
+      where: null,
+    };
+    render(
+      <DashboardDesk
+        data={data({
+          journal: [entry({ outcomes: [{ kind: "kept", text: "Rooftop unit keeps tripping", go: { type: "issue", id: "i1" } }] })],
+          issues: [issue],
+        })}
+      />,
+    );
+    await user.click(within(face("diary")).getByRole("button", { name: "Rooftop unit keeps tripping" }));
+    expect(shownFaces()).toEqual(["diary"]);
+    const list = screen.getByRole("complementary", { name: "The list" });
+    const row = within(list).getByRole("button", { name: "Rooftop unit keeps tripping" }).closest(".hd-ls-row");
+    expect(row).toHaveAttribute("data-lit");
+  }, WHOLE);
+
+  /* The Tasks face is dated by the workspace's day, the one the list
+     beside it places by — not the page's own `today` — so a task due
+     today reads Today in both. */
+  it("dates the Tasks face by the workspace's day, as the list is", () => {
+    render(
+      <DashboardDesk
+        data={data({
+          today: "2026-08-09",
+          rail: rail({ dayISO: TODAY }),
+          desk: deskOf([], record([recordTask({ dueDate: TODAY })])),
+        })}
+      />,
+    );
+    expect(within(face("tasks")).getByText("Today")).toHaveAttribute("data-state", "today");
+  });
+
+  /* Today's diary holds its newest entries, and reads its newest for one
+     it doesn't hold: a task made from an older entry offers no door to it,
+     which would open another. */
+  it("offers a task's Open in diary only for an entry the diary holds", async () => {
+    const user = userEvent.setup();
+    const older = wired();
+    render(
+      <DashboardDesk
+        data={{ ...older, desk: { ...older.desk!, tasks: record([recordTask()], { t1: fromDiary("e-old") }) } }}
+      />,
+    );
+    await user.click(tab("Tasks"));
+    await user.click(taskTitle("Order 2× MERV 11 filters"));
+    expect(within(face("tasks")).queryByRole("button", { name: "Open in diary" })).toBeNull();
   }, WHOLE);
 
   it("takes a task's Open in diary to the entry that made it, and lights that entry alone", async () => {
@@ -505,7 +634,7 @@ describe("the one door between faces", () => {
     render(<DashboardDesk data={wired()} />);
     expect(litEntries()).toEqual([]);
     await user.click(tab("Tasks"));
-    await user.click(within(face("tasks")).getByRole("button", { name: /^Order 2× MERV 11 filters/ }));
+    await user.click(taskTitle("Order 2× MERV 11 filters"));
     await user.click(screen.getByRole("button", { name: "Open in diary" }));
     expect(shownFaces()).toEqual(["diary"]);
     expect(litEntries()).toEqual(["e1"]);
@@ -517,7 +646,7 @@ describe("the one door between faces", () => {
     const user = userEvent.setup();
     render(<DashboardDesk data={wired()} />);
     await user.click(tab("Tasks"));
-    await user.click(within(face("tasks")).getByRole("button", { name: /^Order 2× MERV 11 filters/ }));
+    await user.click(taskTitle("Order 2× MERV 11 filters"));
     screen.getByRole("button", { name: "Open in diary" }).focus();
     await user.keyboard("{Enter}");
     expect(shownFaces()).toEqual(["diary"]);
@@ -549,7 +678,13 @@ describe("the one door between faces", () => {
         reported: [],
         sm8: { lines: {}, sender: null },
       },
-      desk: { warnDays: 30, list: reads(), calendar: cal(), diary: diaryOf(journal, { mentions: true }) },
+      desk: {
+        ...deskOf(
+          journal,
+          record([recordTask({ id: "t0", title: "Ring the Hilux dealer" }), recordTask()], { t1: fromDiary("e-old") }),
+        ),
+        diary: diaryOf(journal, { mentions: true }),
+      },
     });
   };
 
@@ -562,18 +697,59 @@ describe("the one door between faces", () => {
     await user.click(within(list).getByRole("button", { name: "Order 2× MERV 11 filters" }));
     expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
     expect(shownFaces()).toEqual(["tasks"]);
-    expect(document.querySelector('[data-task-id="t1"]')).toHaveClass("on");
+    expect(taskTitle("Order 2× MERV 11 filters")).toHaveAttribute("aria-expanded", "true");
   }, WHOLE);
 
   it("offers no Open in diary on the Tasks tab for an entry the diary does not hold, so the face and the focus stay", async () => {
     const user = userEvent.setup();
     render(<DashboardDesk data={pastHorizon()} />);
     await user.click(tab("Tasks"));
-    const row = within(face("tasks")).getByRole("button", { name: /^Order 2× MERV 11 filters/ });
-    await user.click(row);
-    expect(document.querySelector('[data-task-id="t1"]')).toHaveClass("on");
+    await user.click(taskTitle("Order 2× MERV 11 filters"));
+    expect(taskTitle("Order 2× MERV 11 filters")).toHaveAttribute("aria-expanded", "true");
     expect(screen.queryByRole("button", { name: "Open in diary" })).toBeNull();
     expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+    expect(shownFaces()).toEqual(["tasks"]);
+  }, WHOLE);
+
+  /* A task one of Luke's asks made opens the conversation it came from, from
+     its row on the Tasks face as from the list: the Diary comes back, and
+     the conversation is lit whole and given the focus. An ask the diary
+     holds no conversation for — older than the mentions reach, or deleted
+     in ServiceM8 — offers no such door, which would slide the diary in on
+     nothing. */
+  const ASK: MentionNote = { uuid: "n-ask", jobUuid: JOB_2041, author: "u-luke", at: "2026-08-09 13:42:10", text: "@isaacsmith call Mary" };
+  const asked = (notes: MentionNote[]) => {
+    const about: TaskAbout = {
+      ...typedAbout(),
+      source: "sm8",
+      sm8NoteUuid: ASK.uuid,
+      askerName: "Luke Ingold",
+      words: ASK.text,
+    };
+    const onFace = record([recordTask({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" })], { "t-mary": about });
+    return data({
+      desk: { ...deskOf([], onFace), diary: diaryOf([], { mentions: true, conversations: talkOf(notes) }) },
+    });
+  };
+
+  it("takes a task an ask made from the Tasks face to its conversation in the diary", async () => {
+    const user = userEvent.setup();
+    render(<DashboardDesk data={asked([ASK])} />);
+    await user.click(tab("Tasks"));
+    await user.click(taskTitle("Call Mary about 2041 Wollstonecraft"));
+    await user.click(within(face("tasks")).getByRole("button", { name: "Open conversation" }));
+    expect(shownFaces()).toEqual(["diary"]);
+    const talk = face("diary").querySelector<HTMLElement>(`[data-conversation="${JOB_2041}:u-luke"] > .hd-dy-en`)!;
+    expect(talk).toHaveAttribute("data-lit");
+    expect(document.activeElement).toBe(talk);
+  }, WHOLE);
+
+  it("offers no Open conversation on the Tasks face for an ask the diary holds no conversation for", async () => {
+    const user = userEvent.setup();
+    render(<DashboardDesk data={asked([])} />);
+    await user.click(tab("Tasks"));
+    await user.click(taskTitle("Call Mary about 2041 Wollstonecraft"));
+    expect(within(face("tasks")).queryByRole("button", { name: "Open conversation" })).toBeNull();
     expect(shownFaces()).toEqual(["tasks"]);
   }, WHOLE);
 
@@ -613,8 +789,9 @@ describe("the one door between faces", () => {
 
 /* The bell's door onto a Done that didn't go to ServiceM8 (two-way phase 2,
    PR C) opens /dashboard?task=<id>, and the desk is the owner's Home: it
-   opens there on the task, and the task's page says where its Done stands,
-   as today's Home does (home-tasks-sm8.test). */
+   opens there on the task, open on the Tasks face, and the task says where
+   its Done stands — from the lines read over the face's own tasks
+   (`desk.taskLines`), which reach back as far as its Done does. */
 describe("a task the address names", () => {
   const T = "3a3a3a3a-0000-4000-8000-00000000000a";
   const OLD = "00000000-0000-4000-8000-0000000000d1";
@@ -623,24 +800,24 @@ describe("a task the address names", () => {
     words: "@lukeingold Done.",
     state: { key: "line.stillIn", text: "Still in ServiceM8.", tone: "bad", acts: ["take_out_again"] },
   };
+  const finished = recordTask({ id: T, title: "Order the grilles", status: "done", doneAt: "2026-08-10T01:00:00Z", doneById: "s1" });
   const named = () =>
     data({
-      tasks: {
-        mine: [task({ id: "t0", title: "Ring the Hilux dealer" })],
-        team: null,
-        done: [task({ id: T, title: "Order the grilles", status: "done", doneAt: "2026-08-10T01:00:00Z", doneByName: "Isaac Smith" })],
-        reported: [],
-        sm8: { lines: { [T]: [stillIn] }, sender: null },
+      desk: {
+        ...deskOf([], { ...record([recordTask({ id: "t0", title: "Ring the Hilux dealer" })]), done: [finished] }),
+        taskLines: { lines: { [T]: [stillIn] }, sender: null },
       },
     });
-  const page = () => screen.getByRole("article", { name: "The task" });
+  const opened = () => document.getElementById(taskTitle("Order the grilles").getAttribute("aria-controls")!)!;
 
-  it("(F) opens the desk on Tasks with that task chosen, and its Done's line on its page", () => {
+  it("(F) opens the desk on Tasks with that task open, and its Done's line in it", () => {
     render(<DashboardDesk data={named()} taskId={T} />);
     expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
     expect(shownFaces()).toEqual(["tasks"]);
-    expect(within(page()).getByText("Order the grilles")).toHaveClass("hm-said");
-    expect(page().querySelector(`[data-note-id="${OLD}"]`)).toHaveTextContent("Still in ServiceM8.");
+    expect(taskTitle("Order the grilles")).toHaveAttribute("aria-expanded", "true");
+    expect(opened().querySelector(`[data-note-id="${OLD}"]`)).toHaveTextContent("Still in ServiceM8.");
+    // and the row says so, closed or open
+    expect(taskTitle("Order the grilles").closest(".hd-ls-row")).toHaveTextContent("Still in ServiceM8.");
   }, WHOLE);
 
   it("(F) follows the address when only its search changes, and stays put when it stops naming one", () => {
@@ -649,7 +826,7 @@ describe("a task the address names", () => {
     rerender(<DashboardDesk data={named()} taskId={T} />);
     expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
     expect(shownFaces()).toEqual(["tasks"]);
-    expect(within(page()).getByText("Order the grilles")).toHaveClass("hm-said");
+    expect(taskTitle("Order the grilles")).toHaveAttribute("aria-expanded", "true");
     rerender(<DashboardDesk data={named()} />);
     expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
   }, WHOLE);
@@ -663,12 +840,13 @@ describe("a task the address names", () => {
 
 describe("the list", () => {
   const theList = () => screen.getByRole("complementary", { name: "The list" });
-  const withTasks = (over: Partial<DashboardData> = {}) =>
-    data({
-      journal: [
-        entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
-        entry({ id: "e0", said: "Something older.", day: "2026-08-09", at: "4:10 pm" }),
-      ],
+  const withTasks = (over: Partial<DashboardData> = {}, onFace: RecordTask[] = []) => {
+    const journal = [
+      entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
+      entry({ id: "e0", said: "Something older.", day: "2026-08-09", at: "4:10 pm" }),
+    ];
+    return data({
+      journal,
       tasks: {
         mine: [task({ id: "t0", title: "Ring the Hilux dealer", dueDate: "2026-08-07" }), task()],
         team: null,
@@ -676,8 +854,13 @@ describe("the list", () => {
         reported: [],
         sm8: { lines: {}, sender: null },
       },
+      desk: deskOf(
+        journal,
+        record([recordTask({ id: "t0", title: "Ring the Hilux dealer", dueDate: "2026-08-07" }), recordTask(), ...onFace]),
+      ),
       ...over,
     });
+  };
 
   it("stands in the body beside the diary column, and goes with it under the Calendar", async () => {
     const user = userEvent.setup();
@@ -708,7 +891,7 @@ describe("the list", () => {
     render(<DashboardDesk data={withTasks()} />);
     await user.click(within(theList()).getByRole("button", { name: "Ring the Hilux dealer" }));
     expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
-    expect(document.querySelector('[data-task-id="t0"]')).toHaveClass("on");
+    expect(taskTitle("Ring the Hilux dealer")).toHaveAttribute("aria-expanded", "true");
   }, WHOLE);
 
   it("opens a diary-born task's door on the entry that made it", async () => {
@@ -776,15 +959,18 @@ describe("the list", () => {
      instead of sliding the diary in on nothing. */
   it("opens a task an ask made on the Tasks tab when the diary holds no conversation for it", async () => {
     const user = userEvent.setup();
-    const base = withTasks({
-      tasks: {
-        mine: [task({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" })],
-        team: null,
-        done: [],
-        reported: [],
-        sm8: { lines: {}, sender: null },
+    const base = withTasks(
+      {
+        tasks: {
+          mine: [task({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" })],
+          team: null,
+          done: [],
+          reported: [],
+          sm8: { lines: {}, sender: null },
+        },
       },
-    });
+      [recordTask({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" })],
+    );
     const gone = {
       ...base,
       desk: { ...base.desk!, diary: diaryOf([], { mentions: true }) },
@@ -794,21 +980,14 @@ describe("the list", () => {
     await user.click(within(theList()).getByRole("button", { name: "Call Mary about 2041 Wollstonecraft" }));
     expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
     expect(shownFaces()).toEqual(["tasks"]);
-    expect(document.querySelector('[data-task-id="t-mary"]')).toHaveClass("on");
+    expect(taskTitle("Call Mary about 2041 Wollstonecraft")).toHaveAttribute("aria-expanded", "true");
   }, WHOLE);
 
   it("opens a won job on the desk's one card", async () => {
     const user = userEvent.setup();
     render(
       <DashboardDesk
-        data={data({
-          desk: {
-            warnDays: 30,
-            list: reads({ wins: [{ job: mirror(), wonOn: TODAY }] }),
-            calendar: cal(),
-            diary: diaryOf([]),
-          },
-        })}
+        data={data({ desk: { ...deskOf(), list: reads({ wins: [{ job: mirror(), wonOn: TODAY }] }) } })}
       />,
     );
     await user.click(within(theList()).getByRole("button", { name: "Job 1042, Chatswood" }));
@@ -1052,23 +1231,19 @@ describe("the slide", () => {
   /* A door between faces is a way to change face like a tab: pressed with a
      pointer its face slides in, and pressed from the keyboard it is simply
      there (law 8) — both ways, the diary's door to a task and the task's
-     Open in diary. The task is ticked off, so the list does not hold it and
-     the diary's door goes to the Tasks tab. */
+     Open in diary. The task is Luke's, so the list — your own work — does
+     not hold it, and the diary's door goes to the Tasks tab, where what you
+     handed out still stands. */
   it("slides a face in for a door pressed with the pointer, and not for one pressed from the keyboard", async () => {
     const user = userEvent.setup();
+    const journal = [
+      entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
+    ];
     render(
       <DashboardDesk
         data={data({
-          journal: [
-            entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
-          ],
-          tasks: {
-            mine: [],
-            team: null,
-            done: [task({ status: "done", doneAt: "2026-08-10T01:00:00Z" })],
-            reported: [],
-            sm8: { lines: {}, sender: null },
-          },
+          journal,
+          desk: deskOf(journal, record([lukes()], { t1: fromDiary("e1") })),
         })}
       />,
     );
@@ -1089,7 +1264,7 @@ describe("the slide", () => {
     door().focus();
     await user.keyboard("{Enter}");
     expect(shownFaces()).toEqual(["tasks"]);
-    expect(document.querySelector('[data-task-id="t1"]')).toHaveClass("on");
+    expect(taskTitle("Order 2× MERV 11 filters")).toHaveAttribute("aria-expanded", "true");
     expect(runs).toEqual([]);
     await user.click(back());
     expect(moves()).toEqual([
@@ -1115,13 +1290,15 @@ describe("the slide", () => {
       if (this.id === "hdsec-diary") entries.push(typeof arg === "object" ? arg.behavior : undefined);
     } as typeof Element.prototype.scrollTo;
     try {
+      const journal = [
+        entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
+      ];
       render(
         <DashboardDesk
           data={data({
-            journal: [
-              entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
-            ],
+            journal,
             tasks: { mine: [task()], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
+            desk: deskOf(journal, record([recordTask()], { t1: fromDiary("e1") })),
           })}
         />,
       );
@@ -1133,7 +1310,7 @@ describe("the slide", () => {
 
       await user.click(tab("Tasks"));
       await settle();
-      await user.click(within(face("tasks")).getByRole("button", { name: /^Order 2× MERV 11 filters/ }));
+      await user.click(taskTitle("Order 2× MERV 11 filters"));
       within(face("tasks")).getByRole("button", { name: "Open in diary" }).focus();
       await user.keyboard("{Enter}");
       await user.click(tab("Tasks"));
@@ -1143,6 +1320,83 @@ describe("the slide", () => {
     } finally {
       Element.prototype.scrollIntoView = realInto;
       Element.prototype.scrollTo = realTo;
+    }
+  }, WHOLE);
+
+  /* ...and the door carries which it was on to the face it opens, so the
+     row it names glides into view only for the pointer's press. The task
+     is Luke's, so the list — your own work — does not hold it, and the
+     diary's door opens it on the Tasks face. */
+  it("brings a door's task into view gliding for the pointer, and without moving for the keyboard", async () => {
+    const user = userEvent.setup();
+    const real = Element.prototype.scrollIntoView;
+    const glides: { thing?: string; behavior?: ScrollBehavior }[] = [];
+    Element.prototype.scrollIntoView = function (this: HTMLElement, o?: ScrollIntoViewOptions | boolean) {
+      glides.push({ thing: this.dataset.thing, behavior: typeof o === "object" ? o.behavior : undefined });
+    };
+    try {
+      const journal = [
+        entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
+      ];
+      render(<DashboardDesk data={data({ journal, desk: deskOf(journal, record([lukes()])) })} />);
+      const door = () => within(face("diary")).getByRole("button", { name: "1 task" });
+      await user.click(door());
+      expect(glides).toEqual([{ thing: "t1", behavior: "smooth" }]);
+      await settle();
+      await user.click(tab("Diary"));
+      await settle();
+      door().focus();
+      await user.keyboard("{Enter}");
+      expect(glides.at(-1)).toEqual({ thing: "t1", behavior: "auto" });
+    } finally {
+      Element.prototype.scrollIntoView = real;
+    }
+  }, WHOLE);
+
+  /* A door pressed from the keyboard leaves focus on a face that has gone
+     from sight (hidden and inert, which jsdom does not blur): it comes on
+     to the title of the task the door opened. */
+  it("brings a keyboard door's focus to the task it opens", async () => {
+    const user = userEvent.setup();
+    const journal = [
+      entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
+    ];
+    render(
+      <DashboardDesk
+        data={data({
+          journal,
+          desk: deskOf(journal, record([recordTask({ id: "t0", title: "Ring the Hilux dealer" }), lukes()])),
+        })}
+      />,
+    );
+    within(face("diary")).getByRole("button", { name: "1 task" }).focus();
+    await user.keyboard("{Enter}");
+    expect(shownFaces()).toEqual(["tasks"]);
+    expect(taskTitle("Order 2× MERV 11 filters")).toHaveFocus();
+  }, WHOLE);
+
+  /* A door's row is lit for its moment from the press, not from whenever
+     the desk last drew: the face waits on the desk's one callback, and a
+     new one each render — the slide ending is one — would start the wait
+     again. */
+  it("lights a door's task for its moment from the press, however the desk draws meanwhile", async () => {
+    jest.useFakeTimers();
+    try {
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      const journal = [
+        entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
+      ];
+      render(<DashboardDesk data={data({ journal, desk: deskOf(journal, record([lukes()])) })} />);
+      await user.click(within(face("diary")).getByRole("button", { name: "1 task" }));
+      const row = () => taskTitle("Order 2× MERV 11 filters").closest(".hd-ls-row");
+      expect(row()).toHaveAttribute("data-lit");
+      act(() => jest.advanceTimersByTime(FLASH_MS - 400));
+      await settle();
+      expect(shownFaces()).toEqual(["tasks"]);
+      act(() => jest.advanceTimersByTime(400));
+      expect(row()).not.toHaveAttribute("data-lit");
+    } finally {
+      jest.useRealTimers();
     }
   }, WHOLE);
 

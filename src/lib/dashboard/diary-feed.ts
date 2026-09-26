@@ -161,6 +161,16 @@ const msOf = (s: string) => {
 
 type Draft = Omit<DiaryConversation, "answered" | "fresh">;
 
+/** handle → the word a quoted note says for them: a first name, unless two
+    people share it. The diary's conversations and the Tasks face's quoted
+    notes (task-record-query) name people by this one rule, so the two can
+    never call the same person different things. */
+export function handleWords(people: readonly Sm8Person[]): Map<string, string> {
+  const firsts = new Map<string, number>();
+  for (const p of people) firsts.set(p.first, (firsts.get(p.first) ?? 0) + 1);
+  return new Map(people.map((p) => [p.handle, (firsts.get(p.first) ?? 0) > 1 ? p.name : p.first]));
+}
+
 /** The conversations in these notes, newest (by the asker's newest message)
     first. `me` is the viewer's ServiceM8 person; `people` is the account's
     roster (sm8Roster), which is also every handle there is. */
@@ -174,10 +184,7 @@ export function buildConversations(input: {
   const { me, today } = input;
   const byUuid = new Map(input.people.map((p) => [p.uuid, p]));
   const handles = input.people.map((p) => p.handle);
-  /* A first name, unless two people share it. */
-  const firsts = new Map<string, number>();
-  for (const p of input.people) firsts.set(p.first, (firsts.get(p.first) ?? 0) + 1);
-  const names = new Map(input.people.map((p) => [p.handle, (firsts.get(p.first) ?? 0) > 1 ? p.name : p.first]));
+  const names = handleWords(input.people);
 
   const seen = new Set<string>();
   const notes = input.notes

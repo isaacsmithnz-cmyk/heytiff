@@ -345,7 +345,12 @@ describe("talking", () => {
     await flush();
     await user.click(within(dialog()).getByRole("button", { name: "#3323 Randwick" }));
     await flush();
-    expect(fileNote).toHaveBeenLastCalledWith("n1", { leaveOut: [], retarget: { kind: "job", id: "j1" } });
+    // with the words you picked, which the note keeps as your turn
+    expect(fileNote).toHaveBeenLastCalledWith("n1", {
+      leaveOut: [],
+      retarget: { kind: "job", id: "j1" },
+      answer: "#3323 Randwick",
+    });
     expect(continueNote).not.toHaveBeenCalled();
   });
 
@@ -481,6 +486,20 @@ describe("after filing", () => {
     await user.click(within(dialog()).getByRole("button", { name: "Close" }));
     await flush();
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  /* Filed as said is filed: the diary lands it lit as the modal closes,
+     as it does a note Tiff filed or one kept when the server was out. */
+  it("lands a note routing failed on, kept as said, in the diary as the modal closes", async () => {
+    routeNote.mockResolvedValue({ ok: false, error: KEPT_AS_SAID, kept: true, noteId: "k7" });
+    const user = userEvent.setup();
+    render(<Harness extra={<Grab />} />);
+    await user.click(topButton());
+    await say(user, "something the router choked on");
+    await flush();
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
+    expect(grabbed.api!.landed).toEqual({ noteIds: ["k7"], ids: [] });
   });
 
   it("words the server never got are kept as said", async () => {
@@ -1354,6 +1373,26 @@ describe("opened again on a conversation", () => {
     expect(refresh).not.toHaveBeenCalled();
     expect(dismissNote).not.toHaveBeenCalled();
     expect(topButton()).toHaveFocus();
+  });
+
+  /* Tiff's face had already fallen when it opened, so the first reply
+     brings her cloud up where it sits: no dots fly in from the diary's line
+     behind the scrim, and no wait for a gather that was never drawn. */
+  it("thinks at once on the first reply, the cloud rising where it sits, nothing flying from the line", async () => {
+    motion(false);
+    jest.useFakeTimers();
+    routeNote.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(<Harness voice={false} extra={<Grab />} />);
+    await act(async () => {
+      grabbed.api!.open({ from: topButton(), conversation: HAD, room: "diary", id: "hd-dy-tiff-e1" });
+    });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "and the same for Smith St{Enter}");
+    const field = dialog().querySelector<HTMLElement>(".dotf");
+    expect(field).not.toBeNull();
+    expect(field).toHaveAttribute("data-stage", "cloud");
+    // measured from no button: the dots start where the field is
+    expect(field!.style.getPropertyValue("--gox")).toBe("");
   });
 
   it("lands at its newest turn as it appears, rather than scrolling there in front of you", async () => {

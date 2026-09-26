@@ -294,7 +294,7 @@ export function useConversation({
     tiffSays(text, "asking", { rows, quick, noteId: n.id });
   };
 
-  const file = async (n: Note, opts: { retarget?: NoteTarget }) => {
+  const file = async (n: Note, opts: { retarget?: NoteTarget; answer?: string }) => {
     n.busy = true;
     let r: FileResult;
     try {
@@ -397,8 +397,10 @@ export function useConversation({
       return;
     }
     if (!res.ok) {
-      /* `kept`: routing failed and the server filed the words as said. */
+      /* `kept`: routing failed and the server filed the words as said — a
+         note the diary lands lit on close, like any other it filed. */
       if (res.kept) changed.current = true;
+      if (res.kept && res.noteId) filed.current = [...filed.current, { noteId: res.noteId, ids: [] }];
       return settle(() => tiffSays(res.error, res.kept ? "filed" : "failed"));
     }
     read(res);
@@ -656,7 +658,8 @@ export function useConversation({
     if (!n || stage !== "asking") return;
     addTurn({ who: "you", text: q.label });
     think();
-    if (q.target) void file(n, { retarget: q.target });
+    /* the words you picked go too, so the note keeps them as your turn */
+    if (q.target) void file(n, { retarget: q.target, answer: q.label });
     else void reply(n, q.label);
   };
 

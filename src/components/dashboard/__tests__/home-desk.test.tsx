@@ -11,6 +11,7 @@ import type { TaskDoneLine } from "@/lib/dashboard/task-done-query";
 import type { CompanyCalendar } from "@/lib/calendar/items";
 import { DIARY_LIT_MS, type DeskDiary } from "@/lib/dashboard/diary-doors";
 import { buildConversations, diaryFeed, type DiaryConversation, type MentionNote } from "@/lib/dashboard/diary-feed";
+import { TiffContext, type TiffApi, type TiffLanded } from "@/components/tiff/modal/tiff-context";
 
 /* THE NEW HOME'S FRAME (H11): the date in the band, "Your day" on every
    face, ONE row of tabs that never moves, and a body that slides in tab
@@ -1166,6 +1167,73 @@ describe("the slide", () => {
       Element.prototype.getBoundingClientRect = realRect;
     }
   }, WHOLE);
+
+  /* What Tiff files lands in the diary, which the Calendar covers: the
+     Diary comes in first, in tab order from the left, as his prototype's
+     land() did, and the entry is lit there once the page brings it. */
+  describe("a Tiff landing", () => {
+    const host = (landed: TiffLanded | null): TiffApi => ({
+      enabled: true,
+      open: () => false,
+      openedBy: null,
+      isOpen: false,
+      landed,
+      report: () => {},
+    });
+    const LANDED = { noteIds: ["e9"], ids: [] };
+    const before = data();
+    const after = data({ journal: [entry({ id: "e9", said: "Luke books 3323" })] });
+    const at = (landed: TiffLanded | null, d: DashboardData = before) => (
+      <TiffContext.Provider value={host(landed)}>
+        <DashboardDesk data={d} />
+      </TiffContext.Provider>
+    );
+
+    it("brings the Diary in from the left when the Calendar is up, and lights the entry there", async () => {
+      const user = userEvent.setup();
+      const { rerender } = render(at(null));
+      await user.click(tab("Calendar"));
+      await settle();
+      runs = [];
+      rerender(at(LANDED));
+      expect(tab("Diary")).toHaveAttribute("aria-selected", "true");
+      expect(moves()).toEqual([
+        { who: "hdsec-calendar", frames: ["translateX(0px)", "translateX(1000px)"] },
+        { who: "hd-main", frames: ["translateX(-1000px)", "none"] },
+      ]);
+      // the page comes round with the entry in it
+      rerender(at(null, after));
+      expect(litEntries()).toEqual(["e9"]);
+    }, WHOLE);
+
+    it("is simply there under reduced motion", async () => {
+      const user = userEvent.setup();
+      reduced = true;
+      const { rerender } = render(at(null));
+      await user.click(tab("Calendar"));
+      rerender(at(LANDED));
+      expect(runs).toEqual([]);
+      expect(shownFaces()).toEqual(["diary"]);
+    }, WHOLE);
+
+    it("moves no face from Diary or Tasks, nor for a close that filed nothing", async () => {
+      const user = userEvent.setup();
+      const { rerender } = render(at(null));
+      await user.click(tab("Tasks"));
+      await settle();
+      runs = [];
+      rerender(at(LANDED));
+      expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+      expect(runs).toEqual([]);
+      rerender(at(null));
+      await user.click(tab("Calendar"));
+      await settle();
+      runs = [];
+      rerender(at({ noteIds: [], ids: ["t1"] }));
+      expect(tab("Calendar")).toHaveAttribute("aria-selected", "true");
+      expect(runs).toEqual([]);
+    }, WHOLE);
+  });
 
   it("does not slide at all under reduced motion: the face is simply there", async () => {
     const user = userEvent.setup();

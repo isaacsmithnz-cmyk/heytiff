@@ -113,6 +113,8 @@ type Props = {
   onShowThings?: (ids: readonly string[], pointer: boolean) => void;
   /** What the modal's host says: on or off, who opened it, what just landed. */
   tiff?: Partial<TiffApi>;
+  /** The Diary is the face on screen (the frame's say). */
+  showing?: boolean;
 };
 /** Every task and issue the entries made has a row on the page. */
 const ALL_ON_PAGE: ReadonlySet<string> = new Set(["t2", "t3", "i1"]);
@@ -125,8 +127,8 @@ const Face = (p: Props) => (
     <section className="hd-face" data-testid="face">
       <HomeDiaryFeed
         diary={p.diary ?? diary([TODAYS, SICK, WIPERS])}
+        showing={p.showing ?? true}
         viewerStaffId={ME}
-        showing
         focus={p.focus ?? null}
         onFocusShown={p.onFocusShown ?? onFocusShown}
         onPage={p.onPage ?? ALL_ON_PAGE}
@@ -542,7 +544,12 @@ describe("what Tiff made of it", () => {
     const doors = itemOf("e-talked").querySelector<HTMLElement>(".hd-dy-doors")!;
     const undo = within(doors).getByRole("button", { name: "Undo" });
     expect(undo).toHaveClass("hd-dy-undo");
-    expect(doors.lastElementChild).toBe(undo);
+    // the last thing it made says, then Undo, then the place its sentence
+    // will be written into: there, and empty, before anything is said
+    expect(undo.previousElementSibling).toHaveTextContent("1 task for Luke");
+    expect(undo.nextElementSibling).toBe(doors.lastElementChild);
+    expect(doors.lastElementChild).toHaveAttribute("role", "status");
+    expect(doors.lastElementChild).toBeEmptyDOMElement();
     expect(within(itemOf("e1")).queryByRole("button", { name: "Undo" })).toBeNull();
     expect(within(itemOf("e-wipers")).queryByRole("button", { name: "Undo" })).toBeNull();
   });
@@ -613,9 +620,88 @@ describe("what Tiff made of it", () => {
       fireEvent.click(undo);
     });
     expect(undoNote).toHaveBeenCalledTimes(1);
-    expect(undo).toBeDisabled();
+    // held, not disabled: a disabled button drops the keyboard to the page
+    expect(undo).toHaveAttribute("aria-disabled", "true");
+    expect(undo).toBeEnabled();
     await act(async () => answer(takenBack));
     expect(within(under()).getByRole("button", { name: named("Tiff: 1 task taken back.") })).toBeInTheDocument();
+  });
+
+  /* The first press landed and its answer was lost; pressed again, the
+     server says it was taken back already, with the conversation as it
+     stands. The entry says what went, rather than a refusal beside doors to
+     tasks that have gone. */
+  it("is taken back when a press after a lost answer finds it taken back already", async () => {
+    undoNote.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({
+      ok: false,
+      error: "That was already taken back.",
+      turns: takenBack.turns,
+    });
+    const user = userEvent.setup();
+    draw({ diary: diary([TALKED]), onPage });
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await user.click(within(under()).getByRole("button", { name: "Undo" }));
+    expect(undoNote).toHaveBeenCalledTimes(2);
+    expect(within(under()).getByRole("button", { name: named("Tiff: 1 task taken back.") })).toBeInTheDocument();
+    expect(within(under()).queryByRole("button", { name: "1 task for Luke" })).toBeNull();
+    expect(under().querySelector(".hd-dy-doors")).toBeNull();
+    expect(under()).not.toHaveTextContent("That was already taken back.");
+  });
+
+  describe("from the keyboard", () => {
+    /* The Undo you pressed goes, or goes quiet, so the keyboard is put on
+       what answered rather than dropped to the top of the page. */
+    it("stays on Undo while it is out, and lands on Tiff's line, saying what went, when it worked", async () => {
+      let answer: (v: unknown) => void = () => {};
+      undoNote.mockReturnValue(new Promise((r) => (answer = r)));
+      const user = userEvent.setup();
+      draw({ diary: diary([TALKED]), onPage });
+      const undo = screen.getByRole("button", { name: "Undo" });
+      undo.focus();
+      await user.keyboard("{Enter}");
+      expect(undo).toHaveFocus();
+      await act(async () => answer(takenBack));
+      const back = within(under()).getByRole("button", { name: named("Tiff: 1 task taken back.") });
+      expect(back).toHaveFocus();
+    });
+
+    it("lands on the entry when it was refused, with the sentence in the place kept for it", async () => {
+      const refusal = "Someone has already acted on one of those, so nothing was taken back.";
+      undoNote.mockResolvedValue({ ok: false, error: refusal });
+      const user = userEvent.setup();
+      draw({ diary: diary([TALKED]), onPage });
+      const said = within(under()).getByRole("status");
+      screen.getByRole("button", { name: "Undo" }).focus();
+      await user.keyboard("{Enter}");
+      expect(itemOf("e-talked").querySelector(".hd-dy-en")).toHaveFocus();
+      // the same live region, written into rather than mounted with its words
+      expect(within(under()).getByRole("status")).toBe(said);
+      expect(said).toHaveTextContent(refusal);
+    });
+
+    it("stays on Undo when the answer never came, to press again", async () => {
+      undoNote.mockRejectedValueOnce(new Error("offline"));
+      const user = userEvent.setup();
+      draw({ diary: diary([TALKED]), onPage });
+      const said = within(under()).getByRole("status");
+      screen.getByRole("button", { name: "Undo" }).focus();
+      await user.keyboard("{Enter}");
+      expect(within(under()).getByRole("button", { name: "Undo" })).toHaveFocus();
+      expect(within(under()).getByRole("status")).toBe(said);
+      expect(said).toHaveTextContent(NOT_REACHED);
+    });
+
+    it("leaves the keyboard where you took it while the answer was out", async () => {
+      let answer: (v: unknown) => void = () => {};
+      undoNote.mockReturnValue(new Promise((r) => (answer = r)));
+      const user = userEvent.setup();
+      draw({ diary: diary([TALKED]), onPage });
+      screen.getByRole("button", { name: "Undo" }).focus();
+      await user.keyboard("{Enter}");
+      box().focus();
+      await act(async () => answer(takenBack));
+      expect(box()).toHaveFocus();
+    });
   });
 
   it("keeps an entry the page reads as taken back: your words, Tiff's line, and nothing under them", () => {
@@ -635,6 +721,50 @@ describe("what Tiff made of it", () => {
 
   /* The modal says what it filed for two seconds after it closes; its notes
      are entries here once the page has read them again. */
+  /* The modal's notes are lit as it closes, and reach the page one read
+     later. His wash (held for three quarters of seven seconds, then faded)
+     starts drawing when the entry appears, so its seven seconds start then
+     too, or it would be cut short and snap off. */
+  it("starts the wash's seven seconds when the page brings the entry, not when the modal closed", () => {
+    jest.useFakeTimers();
+    const { rerender } = draw({ diary: diary([SICK]) });
+    rerender(<Face diary={diary([SICK])} tiff={{ landed: { noteIds: ["e-talked"], ids: ["t9"] } }} />);
+    act(() => {
+      jest.advanceTimersByTime(3000);
+    });
+    // the read comes round three seconds later
+    rerender(<Face diary={diary([TALKED, SICK])} onPage={onPage} tiff={{ landed: null }} />);
+    expect(lit("e-talked")).toBe(true);
+    act(() => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(lit("e-talked")).toBe(true);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_LIT_MS - 5000);
+    });
+    expect(lit("e-talked")).toBe(false);
+  });
+
+  it("holds the wash of an entry that lands behind another face until the Diary is up", () => {
+    jest.useFakeTimers();
+    const { rerender } = draw({ diary: diary([SICK]), showing: false });
+    rerender(<Face diary={diary([SICK])} showing={false} tiff={{ landed: { noteIds: ["e-talked"], ids: ["t9"] } }} />);
+    rerender(<Face diary={diary([TALKED, SICK])} onPage={onPage} showing={false} tiff={{ landed: null }} />);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_LIT_MS + 1000);
+    });
+    expect(lit("e-talked")).toBe(true);
+    rerender(<Face diary={diary([TALKED, SICK])} onPage={onPage} showing tiff={{ landed: null }} />);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_LIT_MS - 1);
+    });
+    expect(lit("e-talked")).toBe(true);
+    act(() => {
+      jest.advanceTimersByTime(1);
+    });
+    expect(lit("e-talked")).toBe(false);
+  });
+
   it("lights what the modal filed as it closes, \"just now\", for the wash's seven seconds", () => {
     jest.useFakeTimers();
     const { rerender } = draw({ diary: diary([SICK]) });

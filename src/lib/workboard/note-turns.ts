@@ -137,14 +137,32 @@ export function lastTiff(turns: readonly EarlierTurn[] | undefined): string {
   return "";
 }
 
-/** The conversation as the modal said it, to open it again: every turn, in
-    order, but for the plan's line where her "Done." straight after it says
-    it again. */
+/** Her "Done." line: its own turn in the modal, and so is what follows it. */
+const isDone = (text: string): boolean => text === "Done." || text.startsWith("Done. ");
+
+/** The conversation as the modal said it, to open it again. Every turn, in
+    order, but:
+      - the plan's line goes where a "Done." after it, before you speak
+        again, says it again (with a question between, when a job answered
+        one before the pick was kept: "Which job is this for?");
+      - her line and the question she asked after it are ONE turn, as the
+        modal joined them (`tiffSince`): "A task for Luke. Which job is this
+        for?". A "Done." stands alone, and so does what came after it (Undo's
+        "1 task taken back."), as they did there. */
 export function conversationOf(turns: readonly EarlierTurn[]): EarlierTurn[] {
-  return turns
-    .filter((t, i) => {
-      const next = turns[i + 1];
-      return !(t.who === "tiff" && next?.who === "tiff" && next.text === doneLine(t.text));
-    })
-    .map(({ who, text }) => ({ who, text }));
+  const out: EarlierTurn[] = [];
+  turns.forEach((t, i) => {
+    if (t.who === "tiff") {
+      for (let j = i + 1; j < turns.length && turns[j]!.who === "tiff"; j++) {
+        if (turns[j]!.text === doneLine(t.text)) return;
+      }
+      const last = out.at(-1);
+      if (last?.who === "tiff" && !isDone(last.text) && !isDone(t.text)) {
+        out[out.length - 1] = { who: "tiff", text: `${last.text} ${t.text}` };
+        return;
+      }
+    }
+    out.push({ who: t.who, text: t.text });
+  });
+  return out;
 }

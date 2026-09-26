@@ -289,4 +289,30 @@ describe("the diary", () => {
     expect(door.border).toBe("1px solid var(--line)");
     expect(door["text-decoration"]).toBe("underline");
   });
+
+  /* ONE UNDO ON THE PAGE: the list's, the modal's and the diary's alike,
+     ink, 600 and underlined (law 34), and gone quiet while it is out. */
+  it("gives the diary the page's one Undo, which goes quiet while it is out", () => {
+    const undo = rule(".fg .hd-dy-undo");
+    const list = rule(".fg .hd-ls-undo, .fg .hd-ls-link");
+    expect(undo.color).toBe(list.color);
+    expect(undo["font-weight"]).toBe(list["font-weight"]);
+    expect(undo["text-decoration"]).toBe("underline");
+    expect(rule('.fg .hd-dy-undo[aria-disabled="true"]').color).toBe("var(--q)");
+  });
+
+  /* Tiff's line is a door where the modal is on: her name wears the link
+     token on the line, as the doors do. Where it is not a door it does not. */
+  it("underlines Tiff's name where her line is a door, and only there", () => {
+    expect(rule(".fg .hd-dy-tiff b").color).toBe("var(--hd-ink)");
+    expect(rule(".fg .hd-dy-tiff b")["text-decoration"]).toBeUndefined();
+    expect(rule(".fg .hd-dy-tiff.opens b")["text-decoration"]).toBe("underline");
+  });
+
+  /* The place Undo's sentence is written into is there before it is said
+     (a live region mounted with its words is often not read out), and
+     takes no room in the row while it is empty. */
+  it("keeps Undo's sentence place out of the row while it is empty", () => {
+    expect(rule(".fg .hd-dy-said:empty")).toEqual({ position: "absolute" });
+  });
 });

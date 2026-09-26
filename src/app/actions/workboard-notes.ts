@@ -22,6 +22,7 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { fullNameOf } from "@/lib/staff/name";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
+import { ACTED_KINDS } from "@/lib/dashboard/task-events";
 import { remindAtFrom, isRemindKind } from "@/lib/dashboard/reminders";
 import { workdayHours } from "@/lib/dashboard/reminders-query";
 import { jobCandidates } from "@/lib/dashboard/job-candidates";
@@ -126,6 +127,9 @@ export type RouteResult =
       /** The modal's notes only: routing failed and the words were filed as
           they were said, so they are in the diary and nothing is lost. */
       kept?: boolean;
+      /** With `kept`: the note they were filed as, so the diary lands it
+          lit, as it does every other note the modal filed. */
+      noteId?: string;
     };
 
 export type ApplyResult = { ok: true; summary: string } | { ok: false; error: string };
@@ -142,7 +146,11 @@ export type FileResult =
   /** `turns` when it asked: the conversation with the question on the end. */
   | { ok: false; error: string; ask?: FileAsk; turns?: Turn[] };
 
-export type UndoResult = { ok: true; summary: string; turns: Turn[] } | { ok: false; error: string };
+export type UndoResult =
+  | { ok: true; summary: string; turns: Turn[] }
+  /** `turns` when it had been taken back already: the conversation as it
+      now stands, Tiff's "taken back" line on the end. */
+  | { ok: false; error: string; turns?: Turn[] };
 
 export type KeepResult = { ok: true; noteId: string } | { ok: false; error: string };
 
@@ -405,7 +413,7 @@ export async function routeNote(input: {
         .eq("org_id", ctx.orgId)
         .eq("id", noteId);
       refreshHome(target);
-      return { ok: false, error: KEPT_AS_SAID, kept: true };
+      return { ok: false, error: KEPT_AS_SAID, kept: true, noteId };
     }
     refresh(target);
     return { ok: false, error: read.error };
@@ -1348,14 +1356,17 @@ async function agreementOfVisit(orgId: string, visitId: string): Promise<string 
     with up to three jobs the words match as answers that carry the job).
     A question it asks is kept on the note (`askFirst`), so the reply is read
     as the answer to it. A job the answer carries files straight past its
-    own question.
+    own question, and the conversation keeps the pick as your turn (`answer`,
+    the words the answer showed; the job's own name where none came), so
+    opened again from the diary it reads as it was said: her question, your
+    job, "Done. …". Only words: the job itself is `retarget`, checked here.
 
     CLAIMED BEFORE IT WRITES. Nothing reviews this, so two presses must not
     file twice: the note moves to `applied` only if it is still waiting, and
     goes back to where it was if the write is refused part-way. */
 export async function fileNote(
   noteId: string,
-  opts: { leaveOut?: string[]; retarget?: NoteTarget } = {},
+  opts: { leaveOut?: string[]; retarget?: NoteTarget; answer?: string } = {},
 ): Promise<FileResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
@@ -1427,7 +1438,17 @@ export async function fileNote(
     return { ok: false, error: done.error };
   }
 
-  const filed = withTurns(turns.length ? turns : [turn("you", note.transcript)], turn("tiff", doneLine(plan.say)));
+  /* The job that answered "Which job is this for?" is your turn in the
+     conversation, as the modal showed it. */
+  const jobWords =
+    jobAsked && picked.moved
+      ? trim(opts.answer, 300) || ((await targetLabel(ctx.orgId, target)) ?? "")
+      : "";
+  const filed = withTurns(
+    turns.length ? turns : [turn("you", note.transcript)],
+    ...(jobWords ? [turn("you", jobWords)] : []),
+    turn("tiff", doneLine(plan.say)),
+  );
   await supabaseAdmin
     .from("workboard_notes")
     .update({
@@ -1537,10 +1558,17 @@ type Rows = Record<string, unknown>[];
     restored to what the column said before.
 
     ALL OR NOTHING, CHECKED FIRST. Undo lasts until someone acts on a filed
-    row (the spec's call): a task ticked off, a flag cleared, an issue counted
-    again, a line bought, the job's notes edited since. Any one of those and
-    nothing is taken back, and the sentence says why — a half-undone note is
-    worse than either.
+    row (the spec's call): a task ticked off, given to someone else, moved to
+    another day, reopened or answered "Got it", a flag cleared, an issue
+    counted again, a line bought, the job's notes edited since. Any one of
+    those and nothing is taken back, and the sentence says why — a
+    half-undone note is worse than either. A task still open says only some
+    of that on its row; the rest is its history (task_events), read with it.
+
+    TAKEN BACK ALREADY — the first press landed and its answer was lost, or
+    somebody else pressed it — is refused with the conversation as it now
+    stands, so the page that asked can say what went rather than offer Undo
+    on rows that have gone.
 
     For the author, or anyone with `team` (deleteTask's rule), on a `v: 2`
     note that is still `applied`. The words stay, and so does `applied`: it is
@@ -1554,7 +1582,7 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
   if (!note) return { ok: false, error: GONE };
   const mine = !!ctx.staffId && note.author_id === ctx.staffId;
   if (!mine && !(await can("team"))) return { ok: false, error: UNDO.notYours };
-  if (note.status === "undone") return { ok: false, error: UNDO.undone };
+  if (note.status === "undone") return { ok: false, error: UNDO.undone, turns: turnsOf(note.turns) };
   if (note.status !== "applied") return { ok: false, error: UNDO.notFiled };
 
   const a = appliedOf(note.applied);
@@ -1572,13 +1600,25 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
   };
 
   /* ── every check, before a single write ── */
-  const [tasks, flags, bumped, created, checklist, picklist] = await Promise.all([
-    read("tasks", "id, status, assigned_to, done_by", a.taskIds),
+  const [tasks, flags, bumped, created, checklist, picklist, acted] = await Promise.all([
+    read("tasks", "id, status, assigned_to, done_by, acknowledged_at", a.taskIds),
     read("workboard_flags", "id, active", a.flagIds),
     read("workboard_issues", "id, occurrences", a.issueBumps.map((b) => b.id)),
     read("workboard_issues", "id, occurrences, resolved", fresh),
     read("project_checklist_items", "id, done", a.checklistIds),
     read("job_picklist_items", "id, picked", a.picklistIds),
+    /* What an open task's row cannot say: it was given, moved, or ticked
+       and reopened since. One is enough. */
+    a.taskIds.length
+      ? supabaseAdmin
+          .from("task_events")
+          .select("task_id")
+          .eq("org_id", ctx.orgId)
+          .in("task_id", a.taskIds)
+          .in("kind", ACTED_KINDS)
+          .limit(1)
+          .then(({ data }) => (data ?? []) as unknown as Rows)
+      : Promise.resolve([] as Rows),
   ]);
 
   /* A row somebody deleted since is simply gone — there is nothing of theirs
@@ -1599,6 +1639,8 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
   }
   const prior = new Map(a.issueBumps.map((b) => [b.id, b]));
   if (
+    acted.length > 0 ||
+    tasks.some((t) => t.acknowledged_at != null) ||
     flags.some((f) => f.active !== true) ||
     bumped.some((i) => i.occurrences !== (prior.get(String(i.id))?.occurrences ?? 0) + 1) ||
     created.some((i) => i.occurrences !== 1 || i.resolved === true) ||
@@ -1648,7 +1690,7 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
     supabaseAdmin.from(table).delete().eq("org_id", ctx.orgId).in("id", ids);
   const now = new Date().toISOString();
   await Promise.all([
-    a.taskIds.length ? gone("tasks", a.taskIds).eq("status", "open") : null,
+    a.taskIds.length ? gone("tasks", a.taskIds).eq("status", "open").is("acknowledged_at", null) : null,
     a.flagIds.length ? gone("workboard_flags", a.flagIds).eq("active", true) : null,
     a.entryIds.length ? gone("project_entries", a.entryIds) : null,
     fresh.length ? gone("workboard_issues", fresh).eq("occurrences", 1).eq("resolved", false) : null,

@@ -197,9 +197,10 @@ export type DiaryEntry = JournalEntry & {
       Save, a note the review card filed, one from before the modal. */
   turns: EarlierTurn[];
   /** Undo can take back what it filed: a note filed with the record Undo
-      reads, that made something, none of whose tasks has been ticked off.
-      Anything else someone did to a row since, Undo finds when pressed and
-      says (workboard-notes' `undoNote`). */
+      reads, that made something, none of whose tasks anybody has acted on
+      (ticked, "Got it", given, moved, reopened). Anything else someone did
+      to a row since, Undo finds when pressed and says (workboard-notes'
+      `undoNote`). */
   undo: boolean;
   /** Taken back. Your words stay, with Tiff's line saying so, and nothing
       under them: what they made has gone. */

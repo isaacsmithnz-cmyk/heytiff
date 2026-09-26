@@ -2,6 +2,7 @@
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ScreenBand } from "@/components/shell/screen-band";
+import { useTiff, type TiffLanded } from "@/components/tiff/modal/tiff-context";
 import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
 import {
   DEFAULT_FACE,
@@ -178,6 +179,23 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     setMotion(pointer && motionAllowed() ? { from: face, to: next, x0 } : null);
   };
 
+  /* A TIFF LANDING WHILE THE CALENDAR IS UP. What her modal filed lands in
+     the diary, which the Calendar covers, so the Diary comes in first — in
+     tab order, from the left, as his prototype's did (v33, `land()`) — and
+     the entry lights there once it is on screen (./home-diary-feed). Taken
+     from the host as it changes, while rendering, as the diary takes it; at
+     rest there is no slide in flight to stop, so this is state alone. Still
+     under reduced motion, like every slide. */
+  const { landed } = useTiff();
+  const [heard, setHeard] = useState<TiffLanded | null>(null);
+  if (landed !== heard) {
+    setHeard(landed);
+    if (landed && landed.noteIds.length > 0 && face === "calendar" && !motion) {
+      setFace("diary");
+      setMotion(motionAllowed() ? { from: "calendar", to: "diary", x0: 0 } : null);
+    }
+  }
+
   /* THE SLIDE. After the commit that shows both parts and before the paint:
      the one leaving goes out the far side and holds there, the one arriving
      comes in from the near side. At rest, the part that left is hidden by
@@ -292,8 +310,8 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                     data.desk && (
                       <HomeDiaryFeed
                         diary={data.desk.diary}
-                        viewerStaffId={viewerStaffId}
                         showing={face === "diary"}
+                        viewerStaffId={viewerStaffId}
                         focus={diaryFocus}
                         onFocusShown={focusShown}
                         onPage={onPage}

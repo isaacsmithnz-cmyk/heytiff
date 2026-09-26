@@ -1001,8 +1001,7 @@ describe("the diary's words clear 4.5:1 on an entry at rest and lit", () => {
     ["Tiff, in her line", ".fg .hd-dy-tiff b"],
     ["her line under the pointer", ".fg .hd-dy-tiff.opens:hover"],
     ["Undo", ".fg .hd-dy-undo"],
-    ["Undo under the pointer", ".fg .hd-dy-undo:hover"],
-    ["Undo while it is out", ".fg .hd-dy-undo:disabled"],
+    ["Undo while it is out", '.fg .hd-dy-undo[aria-disabled="true"]'],
   ])("%s, on an entry at rest and lit", (_label, sel) => {
     expect(short(decl(sel, "color"), ENTRY())).toEqual([]);
   });

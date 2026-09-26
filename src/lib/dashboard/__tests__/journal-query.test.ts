@@ -6,13 +6,20 @@
 import fs from "node:fs";
 import path from "node:path";
 
-type Call = { table: string; columns?: string; eq: Record<string, unknown>; in?: [string, string[]] };
+type Call = {
+  table: string;
+  columns?: string;
+  eq: Record<string, unknown>;
+  in?: [string, string[]];
+  /** Every `.in` in order, where a read has more than one. */
+  ins: [string, string[]][];
+};
 
 let rows: Record<string, Record<string, unknown>[]> = {};
 const calls: Call[] = [];
 
 const table = (name: string) => {
-  const call: Call = { table: name, eq: {} };
+  const call: Call = { table: name, eq: {}, ins: [] };
   calls.push(call);
   const chain: Record<string, unknown> = {};
   chain.select = (cols: string) => {
@@ -24,7 +31,8 @@ const table = (name: string) => {
     return chain;
   };
   chain.in = (col: string, vals: string[]) => {
-    call.in = [col, vals];
+    call.in ??= [col, vals];
+    call.ins.push([col, vals]);
     return chain;
   };
   /* a note somebody took back isn't on anybody's journal (two-way phase 2) */
@@ -305,8 +313,8 @@ describe("listDiaryEntries", () => {
       { id: "t-nobody", title: "Chase the warranty", assigned_to: null },
     ];
     const [entry] = await listDiaryEntries("org-1", "s1", null);
-    // and whether each is still open, which Undo needs (below)
-    expect(of("tasks")[0].columns).toBe("id, title, assigned_to, status");
+    // and whether anyone has acted on each, which Undo needs (below)
+    expect(of("tasks")[0].columns).toBe("id, title, assigned_to, status, acknowledged_at");
     expect(entry.taskFor).toEqual({ "t-luke": "s-luke", "t-mine": "s1", "t-nobody": null });
     // the removed one is still counted where it always was
     expect(chips([entry])).toContainEqual(["1 task removed", null]);
@@ -324,6 +332,7 @@ describe("listDiaryEntries", () => {
     expect(read.eq.status).toBe("applied");
     expect(read.in).toBeUndefined();
     expect(of("tasks")[0].columns).toBe("id, title, assigned_to");
+    expect(of("task_events")).toHaveLength(0);
   });
 });
 
@@ -397,6 +406,33 @@ describe("listDiaryEntries: Tiff's line, Undo, and what Undo took back", () => {
       saved: false,
     });
     expect(out.every((e) => e.undone === false)).toBe(true);
+  });
+
+  /* Open is not untouched: a task given on, moved, ticked and reopened, or
+     answered "Got it" has been acted on, and Undo would refuse the lot, so
+     it is not offered. The history is one read for the page, org-scoped,
+     for the kinds that are somebody acting. */
+  it("offers no Undo once anybody has acted on a task it made, though the task is still open", async () => {
+    rows.workboard_notes = [
+      filed("untouched", { v: 2, taskIds: ["t-open"] }),
+      filed("given", { v: 2, taskIds: ["t-given"] }),
+      filed("gotit", { v: 2, taskIds: ["t-ack"] }),
+    ];
+    rows.tasks = [
+      { id: "t-open", title: "Call Mary", assigned_to: "s-luke", status: "open", acknowledged_at: null },
+      { id: "t-given", title: "Order filters", assigned_to: "s-callum", status: "open", acknowledged_at: null },
+      { id: "t-ack", title: "Book 3323", assigned_to: "s-luke", status: "open", acknowledged_at: "2026-09-25T02:00:00Z" },
+    ];
+    rows.task_events = [{ task_id: "t-given" }];
+    const out = await listDiaryEntries("org-1", "s1", null);
+    expect(Object.fromEntries(out.map((e) => [e.id, e.undo]))).toEqual({ untouched: true, given: false, gotit: false });
+    const [events] = of("task_events");
+    expect(events.columns).toBe("task_id");
+    expect(events.eq).toEqual({ org_id: "org-1" });
+    expect(events.ins).toEqual([
+      ["task_id", ["t-open", "t-given", "t-ack"]],
+      ["kind", ["due", "given", "done", "reopened"]],
+    ]);
   });
 
   it("keeps an entry Undo took back: your words, Tiff saying so, and nothing looked up for what went", async () => {

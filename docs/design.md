@@ -338,12 +338,16 @@ Every decision below is made once, here, and a guard test holds each number.
   Tasks tab brings its entry up, lights it the same way and gives it the
   focus. An entry Tiff sorted out says her last word under yours, "Tiff:
   Done. …", in his quiet line with her name in ink, and lands at the top
-  of Today lit when her modal closes; the line opens that conversation in
-  the modal again, waiting on its reply box rather than listening. Undo,
-  his quiet underlined word at the doors' height, ends what the entry
-  made while it can take it back: until someone acts on a row it filed
-  ("go with your recommendations", 2026-09-25). Taken back, your words
-  stay and Tiff's line says what went.
+  of Today lit when her modal closes, the Diary sliding in first if the
+  Calendar is up, as his prototype's did; its wash starts when the entry
+  is on screen. The line opens that conversation in the modal again,
+  waiting on its reply box rather than listening, so her name wears the
+  link token, underlined like the doors. Undo, the page's one Undo (ink,
+  underlined, as the list's and the modal's are) at the doors' height,
+  ends what the entry made while it can take it back: until someone acts
+  on a row it filed ("go with your recommendations", 2026-09-25) — ticks
+  a task off, says "Got it", gives it on or moves it, clears a flag, buys
+  a line. Taken back, your words stay and Tiff's line says what went.
   Someone who asked you something in a ServiceM8 job note is a
   conversation in the same column ("if someone mentions you, it can show
   up in diary", 2026-09-24): their initials ink in his grey disc, "Luke
@@ -822,7 +826,9 @@ What the guard cannot count is noted here on the same word:
   (2026-09-25). Nothing slides under reduced motion, and nothing slides
   for a face chosen from the keyboard, a tab or a door between faces:
   law 8's "none on keyboard-driven actions" still holds there. A door
-  pressed with a pointer slides its face in as its tab would.
+  pressed with a pointer slides its face in as its tab would, and so does
+  the Diary when Tiff lands something while the Calendar is up, as his
+  prototype's `land()` did.
 - **Law 18, motion tokens, and law 8, the grow.** A card that opens grows,
   and the cards beside it give way, in his 350 ms on his `ease`, as the
   prototype he walked eased it: past law 8's 300 ms and off `--t-move`

@@ -95,6 +95,9 @@ describe("takesBack — whether Undo has anything to reach", () => {
     expect(takesBack(appliedOf({ v: 2, flagIds: ["f-1"] }))).toBe(true);
     expect(takesBack(appliedOf({ v: 2, issueIds: ["i-1"], issueBumps: [{ id: "i-1", occurrences: 2 }] }))).toBe(true);
     expect(takesBack(appliedOf({ v: 2, checklistIds: ["c-1"] }))).toBe(true);
+    // a project entry alone, and a thing to bring alone, are each enough
+    expect(takesBack(appliedOf({ v: 2, entryIds: ["e-1"] }))).toBe(true);
+    expect(takesBack(appliedOf({ v: 2, picklistIds: ["p-1"] }))).toBe(true);
     expect(
       takesBack(
         appliedOf({

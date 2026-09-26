@@ -48,10 +48,13 @@ import { useDiaryRefresh } from "./use-diary-refresh";
 
    UNDO sits at the end of what an entry made, while it can take it back —
    until someone acts on a row it filed (Isaac's call, 2026-09-25). A task
-   ticked off is known before you press it, so Undo is not offered; the rest
-   (a flag cleared, a line bought) the server finds when pressed, and the
-   sentence it says takes Undo's place. Taken back, the entry keeps your
-   words, and Tiff's line says what went.
+   ticked off, given on, moved or answered "Got it" is known before you
+   press it, so Undo is not offered; the rest (a flag cleared, a line
+   bought) the server finds when pressed, and the sentence it says takes
+   Undo's place. Taken back — by this press, or by one whose answer was
+   lost — the entry keeps your words, and Tiff's line says what went. The
+   keyboard stays where it was pressed while it is out, and lands on what
+   answered: Tiff's line when it worked, the entry when it was refused.
 
    DOORS STAY ON THIS PAGE WHERE THEIR THING IS. A task or an issue is a
    row, so its door hands its ids to the frame (`onShowThings`), which
@@ -155,6 +158,21 @@ function Entry({
   const [undoing, setUndoing] = useState(false);
   /** A second press before the first one's render is not a second Undo. */
   const busy = useRef(false);
+  /* WHERE THE KEYBOARD GOES once Undo has answered, if it was still on Undo
+     (or nowhere): the Undo it pressed is gone, or going. Moved after the
+     render that draws what answered, so Tiff's line already says what went
+     when it takes the focus. */
+  const enRef = useRef<HTMLDivElement>(null);
+  const lineRef = useRef<HTMLButtonElement>(null);
+  const undoRef = useRef<HTMLButtonElement>(null);
+  const landOn = useRef<"line" | "entry" | "undo" | null>(null);
+  useEffect(() => {
+    const to = landOn.current;
+    if (!to) return;
+    landOn.current = null;
+    const el = to === "line" ? lineRef.current : to === "undo" ? undoRef.current : null;
+    (el ?? enRef.current)?.focus({ preventScroll: true });
+  });
 
   const shown: DiaryEntry = taken ? { ...entry, turns: taken, undo: false, undone: true } : entry;
   const { doors, lines } = entryUnder(shown, who, onPage);
@@ -176,15 +194,26 @@ function Entry({
     }
     busy.current = false;
     setUndoing(false);
-    if (!res) return setUndoSaid({ text: NOT_REACHED, again: true });
-    if (res.ok) return setTaken(conversationOf(res.turns));
+    const at = document.activeElement;
+    const held = !at || at === document.body || at === undoRef.current;
+    if (!res) {
+      if (held) landOn.current = "undo";
+      return setUndoSaid({ text: NOT_REACHED, again: true });
+    }
+    /* Taken back — by this press, or by one whose answer was lost: the
+       server then refuses with the conversation as it now stands. */
+    if (res.ok || res.turns) {
+      if (held) landOn.current = "line";
+      return setTaken(conversationOf(res.turns ?? []));
+    }
+    if (held) landOn.current = "entry";
     setUndoSaid({ text: res.error, again: false });
   };
 
   return (
     <li className="hd-dy-it" data-item={item} data-entry={entry.id}>
       {/* focusable by script alone: a door from another face lands here */}
-      <div className="hd-dy-en" tabIndex={-1} data-lit={lit ? "" : undefined}>
+      <div className="hd-dy-en" ref={enRef} tabIndex={-1} data-lit={lit ? "" : undefined}>
         <span className="hd-dy-av" aria-hidden="true">
           {you}
         </span>
@@ -198,6 +227,7 @@ function Entry({
                the modal; the same words, and no door, where not. */
             (tiff.enabled ? (
               <button
+                ref={lineRef}
                 type="button"
                 className="hd-dy-tiff opens"
                 aria-haspopup="dialog"
@@ -232,13 +262,24 @@ function Entry({
                 </span>
               ))}
               {canUndo && (
-                <button type="button" className="hd-dy-undo" disabled={undoing} onClick={() => void undo()}>
+                /* Held, not disabled, while it is out: a disabled button
+                   drops the keyboard's focus to the page. */
+                <button
+                  ref={undoRef}
+                  type="button"
+                  className="hd-dy-undo"
+                  aria-disabled={undoing || undefined}
+                  onClick={() => void undo()}
+                >
                   Undo
                 </button>
               )}
-              {undoSaid && (
-                <span className="hd-dy-note" role="status">
-                  {undoSaid.text}
+              {/* Its sentence's place, there from the first render while
+                  Undo can speak, so a screen reader hears what is written
+                  into it; empty, it takes no room in the row (shell.css). */}
+              {(shown.undo || undoSaid) && (
+                <span className="hd-dy-note hd-dy-said" role="status">
+                  {undoSaid?.text}
                 </span>
               )}
             </div>
@@ -251,18 +292,20 @@ function Entry({
 
 export function HomeDiaryFeed({
   diary,
-  viewerStaffId,
   showing,
+  viewerStaffId,
   focus,
   onFocusShown,
   onPage,
   onShowThings,
 }: {
   diary: DeskDiary;
-  viewerStaffId: string | null;
-  /** The Diary is the face on screen. A light that came in while another
-      face was up waits to be seen before its seven seconds start. */
+  /** The Diary is the face on screen: a wash starts only where it is seen,
+      so a light that came in while another face was up — an entry or a
+      conversation's newest message — waits to be seen before its seven
+      seconds start. */
   showing: boolean;
+  viewerStaffId: string | null;
   /** A door from another face. This face acts on `kind: "entry"` and
       `kind: "conversation"`. */
   focus: DeskArrival | null;
@@ -303,9 +346,10 @@ export function HomeDiaryFeed({
   /* THE MODAL CLOSED ON SOMETHING FILED (it says so for two seconds): its
      notes are entries here, whose words land at the top of Today once the
      page has read them again, which the modal asks for as it closes. They
-     are lit from now, whenever the read comes round. Taken from the host as
-     it changes, while rendering — the diary lights its own rows, and asks
-     nothing of anyone else. */
+     are lit from now, and their wash's seven seconds start when that read
+     brings them (the clocks, below). Taken from the host as it changes,
+     while rendering — the diary lights its own rows; the frame brings the
+     Diary in if the Calendar is up (./home-desk). */
   const { landed } = useTiff();
   const [heard, setHeard] = useState<TiffLanded | null>(null);
   if (landed !== heard) {
@@ -313,12 +357,21 @@ export function HomeDiaryFeed({
     if (landed) light(landed.noteIds);
   }
 
-  /* THE CLOCKS. A lighting's seven seconds start once it is on the page;
-     one whose count has moved on is started again, and one that runs out
-     puts its light out only if nothing has lit it since. */
+  /* THE CLOCKS. A lighting's seven seconds start once it is on the page and
+     the Diary is up, which is when his wash starts drawing: a modal's notes
+     are lit as it closes and reach the page one read later, and one lit
+     behind another face waits for this one. One whose count has moved on is
+     started again, and one that runs out puts its light out only if
+     nothing has lit it since. */
+  const onFeed = useMemo(
+    () => new Set([...feed.today, ...feed.earlier].flatMap((i) => (i.kind === "entry" ? [i.entry.id] : []))),
+    [feed],
+  );
   const clocks = useRef(new Map<string, { n: number; t: ReturnType<typeof setTimeout> }>());
   useEffect(() => {
+    if (!showing) return;
     for (const [id, n] of Object.entries(lit)) {
+      if (!onFeed.has(id)) continue;
       const was = clocks.current.get(id);
       if (was?.n === n) continue;
       if (was) clearTimeout(was.t);
@@ -333,7 +386,7 @@ export function HomeDiaryFeed({
       }, DIARY_LIT_MS);
       clocks.current.set(id, { n, t });
     }
-  }, [lit]);
+  }, [lit, onFeed, showing]);
   useEffect(() => {
     const pending = clocks.current;
     return () => {

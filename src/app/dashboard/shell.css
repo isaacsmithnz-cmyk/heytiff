@@ -11871,23 +11871,27 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* TIFF'S LINE, under your words: her last word on them, in his prototype's
    quiet line with her name in ink ("Tiff: Done. …"). Where the modal is on,
-   the line is the door back into the conversation: the words go ink under
-   the pointer, and it takes the focus ring. UNDO, at the end of what the
-   entry made, is his prototype's quiet underlined word at the doors'
-   height. */
+   the line is the door back into the conversation, so her name wears the
+   one link token, ink and underlined on the line's edge like the doors
+   (law 34); the words go ink under the pointer, and it takes the focus
+   ring. UNDO, at the end of what the entry made, is the page's one Undo,
+   the list's and the modal's: ink, 600, underlined, at the doors' height,
+   gone quiet while it is out. Its sentence's place is kept while Undo can
+   speak, and takes no room in the row while it is empty. */
 .fg .hd-dy-tiff { display:block; margin:8px 0 0; padding:0; border:0; border-radius:6px; background:none;
   font:inherit; font-size:13px; font-weight:500; line-height:1.5; color:var(--hd-body); text-align:left;
   overflow-wrap:anywhere; }
 .fg .hd-dy-tiff b { font-weight:600; color:var(--hd-ink); }
 .fg .hd-dy-tiff.opens { cursor:pointer; transition:color var(--t-fast) var(--ease); }
+.fg .hd-dy-tiff.opens b { text-decoration:underline; text-underline-offset:3px; }
 .fg .hd-dy-tiff.opens:hover { color:var(--hd-ink); }
 .fg .hd-dy-tiff.opens:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hd-dy-undo { height:28px; padding:0 8px; border:0; border-radius:6px; background:none; font:inherit;
-  font-size:13px; font-weight:500; color:var(--q); text-decoration:underline; text-underline-offset:3px;
+  font-size:13px; font-weight:600; color:var(--hd-ink); text-decoration:underline; text-underline-offset:3px;
   cursor:pointer; transition:color var(--t-fast) var(--ease); }
-.fg .hd-dy-undo:hover { color:var(--hd-ink); }
-.fg .hd-dy-undo:disabled { color:var(--q); cursor:default; }
+.fg .hd-dy-undo[aria-disabled="true"] { color:var(--q); cursor:default; }
 .fg .hd-dy-undo:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .hd-dy-said:empty { position:absolute; }
 @media (prefers-reduced-motion:reduce) {
   .fg .hd-dy-en[data-lit] { animation:none; }
   .fg .hd-dy-tr[data-lit] { animation:none; }

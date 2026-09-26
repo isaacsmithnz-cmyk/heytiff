@@ -19,6 +19,7 @@ const MS_PER_DAY = 86_400_000;
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+export const DAY_NAMES_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 export const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec",
 ] as const;
@@ -87,6 +88,12 @@ const sameMonth = (a: number, b: number): boolean => monthKey(a) === monthKey(b)
 /** "Mon 5 Oct". */
 export function dayLabel(n: number): string {
   return `${dayName(n)} ${dayMonth(n)}`;
+}
+
+/** "Thursday 1 October": a day in full, as a heading says it. No year: the
+    calendar's twelve months hold each month once. */
+export function dayLongLabel(n: number): string {
+  return `${DAY_NAMES_LONG[weekdayOf(n)]} ${dateOf(n)} ${MONTH_NAMES_LONG[monthOf(n)]}`;
 }
 
 /** "Mon 5 Oct", "Mon 5 – Fri 9 Oct", "Mon 28 Sept – Fri 9 Oct". */

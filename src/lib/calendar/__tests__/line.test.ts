@@ -9,6 +9,7 @@ import {
   lineDoor,
   linePlan,
   notedLine,
+  onBoxDay,
   openDays,
   outsideLine,
   saysRepeat,
@@ -228,6 +229,38 @@ describe("held to the words", () => {
     expect(asSaid(weekly, ["public holiday every Monday"], AT)).toMatchObject({ kind: "public_holiday", repeat: null });
     /* Something held on one is not a claim. */
     expect(asSaid(line({ title: "Public holiday BBQ", day: "2026-10-05" }), ["public holiday BBQ"], AT).kind).toBe("event");
+  });
+});
+
+/* THE BOX'S DAY (Isaac, 2026-09-26: "simplify it. how does a calendar
+   normally add things in?"): the Calendar's box adds to a day it names, so
+   a line that names none goes on it, where she would have asked. */
+describe("on the box's day", () => {
+  it("puts a line that names no day on it, and her line names it", () => {
+    const l = onBoxDay(line({ time: "06:45" }), "2026-10-01", AT);
+    expect(l).toMatchObject({ day: "2026-10-01", lastDay: null, time: "06:45" });
+    expect(filedLine(l, on(l))).toBe("Done. Toolbox talk is on the calendar for Thu 1 Oct at 6:45 am.");
+    // a shutdown or a claimed holiday with no day is on it too
+    expect(onBoxDay(line({ kind: "shutdown" }), "2026-12-24", AT).day).toBe("2026-12-24");
+    expect(onBoxDay(line({ kind: "public_holiday" }), "2026-10-05", AT).day).toBe("2026-10-05");
+    // the calendar's first and last days, and a day gone by this month, are days on it
+    for (const day of ["2026-09-01", "2026-09-10", "2027-08-31"]) expect(onBoxDay(line(), day, AT).day).toBe(day);
+  });
+
+  it("leaves words that name a day, a range or a repeat as they said", () => {
+    const named = line({ day: "2026-10-08" });
+    expect(onBoxDay(named, "2026-10-01", AT)).toBe(named);
+    const range = line({ kind: "shutdown", day: "2026-12-23", lastDay: "2027-01-08" });
+    expect(onBoxDay(range, "2026-10-01", AT)).toBe(range);
+    expect(onBoxDay(TOOLBOX, "2026-10-14", AT)).toBe(TOOLBOX);
+  });
+
+  it("is no day outside the twelve months, or that is not a day, and she asks as ever", () => {
+    const bare = line();
+    for (const day of ["2026-08-31", "2027-09-01", "2026-02-30", "2026-9-30", "", null, undefined]) {
+      expect(onBoxDay(bare, day, AT)).toBe(bare);
+    }
+    expect(lineDates(onBoxDay(bare, "2027-09-01", AT), AT)).toEqual({ ok: false, why: "no-day" });
   });
 });
 

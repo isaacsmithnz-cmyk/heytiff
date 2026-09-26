@@ -275,8 +275,9 @@ Every decision below is made once, here, and a guard test holds each number.
   calendar around"): his grey words, the chosen one ink and bold, and each
   tab as wide as its bold word from the start, so choosing one never moves
   the next. What belongs to one face, the
-  Calendar's box and its views, stands in that face's own toolbar, never
-  in the row. Under the tabs the body slides in tab order ("Calendar should
+  Calendar's views and its box, stands on that face's own page, the views
+  in its toolbar and the box over its right-hand column, never in the row.
+  Under the tabs the body slides in tab order ("Calendar should
   slide across"): the Calendar across the whole body, Tasks across the
   diary column, in 280 ms, and at once under reduced motion. The list
   stands in the right-hand column beside Diary and Tasks. One job card
@@ -342,16 +343,34 @@ Every decision below is made once, here, and a guard test holds each number.
   this one, and nothing personal — public and school holidays, the
   company's events and shutdowns, the noticeboard's events, and the
   renewals the viewer may see; no job bookings, nobody's leave, nothing
-  made up. Its own toolbar, never the tabs' row, carries the box (Save
-  puts the words on today, as typed; Sort it out and the Tiff button ask
-  Tiff) and 4 weeks, Month and Year; then ‹ ›, what is in view, Today and
-  the filters, which are also the legend and count what is in view. 4
-  weeks is today and the 27 days after it, a row only for a day with
-  something on, with Due and Holidays ahead beside it, built from the
-  list's own rows ("Keep the Due"). Month and Year keep the one thing
-  chosen in a panel beside them, never empty. One choice and one set of
-  filters serve all three views, and nothing steps past the twelve
-  months.
+  made up. Its own toolbar, never the tabs' row, is one row: ‹ ›, what is
+  in view, Today, the filters, which are also the legend and count what
+  is in view, and 4 weeks, Month and Year at its end, beside the filters,
+  so a row that runs out of room gives the two its next line together.
+  You click a day and add to it ("simplify it. how does a calendar
+  normally add things in?", 2026-09-26, after "if you type something in,
+  it just adds it on to today"): a press on a day — anywhere in Month's
+  cell but on its things, a day of Year, a day's row in 4 weeks or a quiet
+  run's — picks the day, and a press on a thing picks the thing. The box
+  stands at the top of the right-hand column in every view, over the rail
+  or the panel, and names the day it adds to: the day picked, else the
+  first day of the thing picked, else today ("Add to Thu 1 Oct…", "Add to
+  today…"). Save, or Enter as in any calendar's quick add, puts the words
+  on that day, as typed, and a day picked stays picked with what went on
+  lit in its list, so a day takes one thing after another; Sort it out
+  and the Tiff button ask Tiff, who puts a line that names no day on the
+  box's day rather than asking which. A pointer's press on a day puts the
+  caret in the box; a key's leaves focus on the day. 4 weeks is today and
+  the 27 days after it, a row only for a day with something on, with Due
+  and Holidays ahead beside it, built from the list's own rows ("Keep the
+  Due"). Month and Year keep the choice in a panel beside them, never
+  empty: a thing as it always was, or the day in full, "Thursday 1
+  October", and everything on it, each a row that picks it, or "Nothing
+  on."; before anything is picked, the first thing from today, while the
+  box still adds to today. One choice and one set of filters serve all
+  three views, a day picked stays picked whatever the filters hide, and
+  nothing steps past the twelve months: a day of Month's whole weeks past
+  them is not the calendar's to pick.
   The Diary is one column, newest first. At the top the entry box, "Add
   to the diary…", with the Tiff button at its end: Save keeps the words
   as typed and the entry lands at the top of Today, lit on his pale teal,
@@ -844,8 +863,11 @@ What the guard cannot count is noted here on the same word:
   chosen bar or day wears his ring, 2px of ink hugging its edge, where
   law 14 makes a selection a fill ("go with your recommendations",
   2026-09-25): a bar and a holiday's day are already filled with what
-  they are, and a fill over them would hide it. Everywhere else in the
-  calendar a choice is a fill. The keyboard's focus is law 32's outline,
+  they are, and a fill over them would hide it. A day of Year picked
+  itself (2026-09-26) wears the same ring as the day a chosen thing
+  leads. Everywhere else in the calendar a choice is a fill: Month's day
+  picked fills its date row, the holiday's own deeper tint on a holiday,
+  and 4 weeks' fills its date. The keyboard's focus is law 32's outline,
   2px of ink standing 2px off the edge with paper between, so on Year's
   days the two are told apart by that gap: the choice sits on the day,
   the focus stands off it, and today's own ring is inside it. The panel
@@ -863,14 +885,17 @@ What the guard cannot count is noted here on the same word:
   page appears. A view, a step or Today: the toolbar says where you are
   going at once, the body fades out on `--t-fast` and the new one fades in
   over his 180 ms, rising his 4px into place (his calSwap). A pick while
-  the panel is up: the views show it at once, and the panel fades out what
-  it showed and fades the pick in the same way (calPick). A filter turned
-  off: its things fade out on `--t-fast` before the view closes up, and
-  turned back on they fade in over 180 ms where they stand (calChip). What
-  Save lands grows in over his 280 ms and stands on his event tint for 55%
-  of his 2.4 s before easing to the choice's grey (calLand, calFresh),
-  past law 8's 300 ms: a flash a row asked for with data, once, never a
-  loop. All of it is for a pointer only: from the keyboard, or under
+  the panel is up, a thing or a day: the views show it at once, and the
+  panel fades out what it showed and fades the pick in the same way
+  (calPick). A filter turned off: its things fade out on `--t-fast` before
+  the view closes up, and turned back on they fade in over 180 ms where
+  they stand (calChip). What Save lands grows in over his 280 ms and
+  stands on his event tint for 55% of his 2.4 s before easing to the
+  choice's grey (calLand, calFresh), past law 8's 300 ms: a flash a row
+  asked for with data, once, never a loop. What is lit but not the choice
+  — what Save put on the day picked, a series' later dates — has no
+  choice's grey to ease to, and stands on the tint, still, for the 2.4 s,
+  as Month's do. All of it is for a pointer only: from the keyboard, or under
   reduced motion, each is simply there, and what Save lands is a still
   tint for the 2.4 s. Anything pressed while a fade is on its way lands
   it at once first. What Tiff puts on the calendar lands as a Save does

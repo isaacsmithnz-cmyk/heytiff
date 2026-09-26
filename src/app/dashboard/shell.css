@@ -11595,31 +11595,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-sw[data-late] { background:var(--hd-late); }
 .fg .hd-cal-sw[data-round] { width:8px; height:8px; border-radius:50%; }
 
-/* ITS OWN TOOLBAR, under the tabs and never in their row: the box and the
-   view switch, then ‹ ›, what is in view, Today and the filters. */
-.fg .hd-cal-hd { flex:none; display:flex; align-items:center; gap:24px; padding:4px 24px 12px;
-  border-bottom:1px solid var(--hd-rule); }
-.fg .hd-cal-add { flex:1 1 auto; min-width:0; max-width:520px; }
-/* THE VIEW SWITCH: a segmented tray, a tint of whatever it stands on
-   (segmented-tray-contrast prefers a tint to his fixed #eef0f3, which only
-   holds on the ground it was picked on), the chosen seat paper lifted by
-   his small shadow (a named exemption, docs/design.md). Each seat is as
-   wide as its bold word from the start, as the tabs are, so choosing one
-   never moves the others. */
-.fg .hd-cal-vs { flex:none; display:flex; gap:2px; margin-left:auto; padding:4px; border-radius:10px;
-  background:var(--tint-2); }
-.fg .hd-cal-vb { display:inline-flex; flex-direction:column; align-items:center; justify-content:center; height:36px;
-  padding:0 16px; border:0; border-radius:calc(10px - 4px); background:none; font-size:14px; font-weight:600;
-  line-height:1.2; color:var(--hd-body); white-space:nowrap; cursor:pointer;
-  transition:color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease); }
-.fg .hd-cal-vb:hover { color:var(--hd-ink); }
-.fg .hd-cal-vb[aria-pressed="true"] { background:var(--paper); color:var(--hd-ink); font-weight:700; cursor:default;
-  box-shadow:0 1px 2px var(--hd-cal-seat); }
-.fg .hd-cal-vbw { height:0; overflow:hidden; visibility:hidden; font-weight:700; pointer-events:none; user-select:none; }
-
+/* ITS OWN TOOLBAR, under the tabs and never in their row, and one row
+   (Isaac, 2026-09-26: "simplify it"): ‹ ›, what is in view and Today, then
+   the filters, and the view switch at its end. The box went to the top of
+   the right-hand column, over the day it adds to (below). */
 .fg .hd-cal-tb { flex:none; display:flex; align-items:center; flex-wrap:wrap; gap:8px 0; padding:12px 24px;
   border-bottom:1px solid var(--hd-rule); container:hdcaltb / inline-size; }
-.fg .hd-cal-nav { display:flex; align-items:center; gap:4px; }
+.fg .hd-cal-nav { flex:none; display:flex; align-items:center; gap:4px; }
 .fg .hd-cal-nb { display:grid; place-items:center; width:32px; height:32px; padding:0; border:0; border-radius:10px;
   background:transparent; color:var(--hd-ink); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
 .fg .hd-cal-nb:hover { background:var(--tint); }
@@ -11636,9 +11618,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* Today in view already: it rests, quiet. */
 .fg .hd-cal-today[aria-disabled="true"] { color:var(--q); cursor:default; }
 .fg .hd-cal-today[aria-disabled="true"]:hover { background:var(--paper); }
+/* The filters and the switch stand together at the row's end, so a row
+   that runs out of room gives them the next line together: the switch
+   never takes a line alone. */
+.fg .hd-cal-end { display:flex; align-items:center; gap:16px; min-width:0; margin-left:auto; padding-left:16px; }
 /* THE FILTERS, which are also the legend: law 26 keeps a filter's form,
    a hairline you tap. Off, the swatch is only its edge. */
-.fg .hd-cal-filters { display:flex; flex-wrap:wrap; gap:4px; margin-left:auto; padding-left:16px; }
+.fg .hd-cal-filters { display:flex; flex-wrap:wrap; gap:4px; min-width:0; }
 .fg .hd-cal-filter { display:inline-flex; align-items:center; gap:8px; height:32px; padding:0 12px;
   border:1px solid var(--hd-edge); border-radius:999px; background:var(--paper); font-size:13px; font-weight:600;
   color:var(--hd-ink); white-space:nowrap; cursor:pointer;
@@ -11650,27 +11636,50 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-filter[aria-pressed="false"]:hover { background:var(--tint-2); }
 .fg .hd-cal-filter[aria-pressed="false"] .hd-cal-sw { border:2px solid var(--hd-cal-c); background:transparent; }
 .fg .hd-cal-n { font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; }
+/* THE VIEW SWITCH: a segmented tray, a tint of whatever it stands on
+   (segmented-tray-contrast prefers a tint to his fixed #eef0f3, which only
+   holds on the ground it was picked on), the chosen seat paper lifted by
+   his small shadow (a named exemption, docs/design.md). Each seat is as
+   wide as its bold word from the start, as the tabs are, so choosing one
+   never moves the others. */
+.fg .hd-cal-vs { flex:none; display:flex; gap:2px; padding:4px; border-radius:10px; background:var(--tint-2); }
+.fg .hd-cal-vb { display:inline-flex; flex-direction:column; align-items:center; justify-content:center; height:36px;
+  padding:0 16px; border:0; border-radius:calc(10px - 4px); background:none; font-size:14px; font-weight:600;
+  line-height:1.2; color:var(--hd-body); white-space:nowrap; cursor:pointer;
+  transition:color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease); }
+.fg .hd-cal-vb:hover { color:var(--hd-ink); }
+.fg .hd-cal-vb[aria-pressed="true"] { background:var(--paper); color:var(--hd-ink); font-weight:700; cursor:default;
+  box-shadow:0 1px 2px var(--hd-cal-seat); }
+.fg .hd-cal-vbw { height:0; overflow:hidden; visibility:hidden; font-weight:700; pointer-events:none; user-select:none; }
 /* The toolbar is one line in every view, so the body never moves when the
-   view changes: where Year's title and two-figure counts would not fit, the
-   spacing tightens; narrower still, the filters take their own line. */
-@container hdcaltb (max-width:940px) {
+   view changes. Year's title and two-figure counts beside the switch take
+   about 1,185px of the row at his spacing, and 1,070 tightened (measured
+   in Jakarta at their weights): under 1,200 the spacing tightens, which is
+   the row at 1440 wide; under 1,100 the filters and the switch take their
+   own line, the switch at its end. */
+@container hdcaltb (max-width:1199.5px) {
   .fg .hd-cal-nav { gap:2px; }
   .fg .hd-cal-rt { margin:0 4px; }
   .fg .hd-cal-today { padding:0 8px; }
-  .fg .hd-cal-filters { padding-left:8px; }
+  .fg .hd-cal-end { gap:8px; padding-left:8px; }
   .fg .hd-cal-filter { gap:4px; padding:0 8px; }
 }
-@container hdcaltb (max-width:849.5px) {
-  .fg .hd-cal-filters { flex-basis:100%; margin-left:0; padding-left:0; }
+@container hdcaltb (max-width:1099.5px) {
+  .fg .hd-cal-end { flex-basis:100%; margin-left:0; padding-left:0; }
+  .fg .hd-cal-vs { margin-left:auto; }
 }
 
-/* THE BODY: a view and what stands beside it — the rail beside 4 weeks,
-   the panel beside Month and Year. Each side scrolls on its own. */
+/* THE BODY: a view and the column beside it — the box on top, over the day
+   it adds to, then the rail beside 4 weeks or the panel beside Month and
+   Year. Each side scrolls on its own, and the box stays over the column. */
 .fg .hd-cal-body { flex:1; min-height:0; display:flex; flex-direction:column; }
 .fg .hd-cal-v { flex:1; min-height:0; display:grid; grid-template-rows:minmax(0,1fr); }
 .fg .hd-cal-v[data-view="4w"] { grid-template-columns:minmax(0,1fr) clamp(300px, 38%, 380px); }
 .fg .hd-cal-v[data-view="month"], .fg .hd-cal-v[data-view="year"] {
   grid-template-columns:minmax(0,1fr) clamp(300px, 30%, 340px); }
+.fg .hd-cal-side { min-width:0; min-height:0; display:flex; flex-direction:column; border-left:1px solid var(--hd-rule); }
+.fg .hd-cal-add { flex:none; padding:16px 24px 0; }
+.fg .hd-cal-side > .hd-cal-rail, .fg .hd-cal-side > .hd-cal-det { flex:1; }
 .fg .hd-cal-ag, .fg .hd-cal-rail, .fg .hd-cal-mg, .fg .hd-cal-yg, .fg .hd-cal-det { min-width:0; min-height:0; overflow:auto; }
 
 /* 4 WEEKS: the date down the left, what starts on it beside. */
@@ -11687,7 +11696,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   background:var(--hd-cal-ev-tint); font-size:12px; font-weight:700; color:var(--hd-cal-ev-t); white-space:nowrap; }
 .fg .hd-cal-tag[data-kind="school"] { background:var(--hd-cal-hatch); color:var(--hd-cal-sch-t); }
 .fg .hd-cal-r[data-kind="day"] > .hd-cal-d { padding:12px 0; }
-.fg .hd-cal-day { display:flex; align-items:baseline; gap:8px; white-space:nowrap; }
+.fg .hd-cal-day { display:inline-flex; align-items:baseline; gap:8px; white-space:nowrap; }
 .fg .hd-cal-dw { font-size:14px; font-weight:500; color:var(--hd-body); }
 .fg .hd-cal-dn { font-size:20px; font-weight:700; line-height:1.2; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
 .fg .hd-cal-r[data-weekend] .hd-cal-dn { color:var(--q); }
@@ -11705,6 +11714,22 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   font-size:14px; font-weight:600; color:var(--q); }
 .fg .hd-cal-r[data-kind="quiet"] > .hd-cal-c[data-long] { color:var(--hd-cal-hol-t); }
 .fg .hd-cal-none { margin:0; padding:8px 0; font-size:14px; color:var(--q); }
+/* A DAY IS PICKED FROM ITS ROW but its things and their controls
+   (home-cal-agenda.tsx): its date is the day's button, and a quiet run's
+   dates its first day's. The button is filled while the day is the one
+   chosen (law 14: a choice is a fill), in a holiday's own tint on its row,
+   and lit under the pointer anywhere on the row but a thing; the fill
+   reaches 8px past the date, so the date never moves. */
+.fg .hd-cal-r[data-kind="day"], .fg .hd-cal-r[data-kind="quiet"] { cursor:pointer; }
+.fg .hd-cal-day, .fg .hd-cal-qd { margin:-4px -8px; padding:4px 8px; border:0; border-radius:6px; background:none;
+  font:inherit; color:inherit; text-align:left; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-cal-qd { display:inline-block; }
+.fg .hd-cal-r:hover:not(:has(.hd-cal-it:hover)) .hd-cal-day:not([aria-pressed="true"]),
+.fg .hd-cal-r:hover .hd-cal-qd:not([aria-pressed="true"]) { background:var(--tint); }
+.fg .hd-cal-r[data-holiday]:hover:not(:has(.hd-cal-it:hover)) .hd-cal-day:not([aria-pressed="true"]) {
+  background:var(--hd-cal-hol-hover); }
+.fg .hd-cal-day[aria-pressed="true"], .fg .hd-cal-qd[aria-pressed="true"] { background:var(--tint-2); }
+.fg .hd-cal-r[data-holiday] .hd-cal-day[aria-pressed="true"] { background:var(--hd-cal-hol-tint); }
 /* A thing on a day: the row picks it, through its title. */
 .fg .hd-cal-it { display:flex; align-items:center; gap:12px; margin:0 -8px; padding:8px; border-radius:10px; cursor:pointer;
   transition:background-color var(--t-fast) var(--ease); }
@@ -11718,6 +11743,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-it[data-fresh] { background:var(--hd-cal-ev-tint); animation:hdCalFresh 2.4s var(--ease) forwards; }
 @keyframes hdCalFresh { 0%, 55% { background:var(--hd-cal-ev-tint); } to { background:var(--tint-2); } }
 @media (prefers-reduced-motion:reduce) { .fg .hd-cal-it[data-fresh] { animation:none; } }
+/* Lit but not the choice — a repeat's later dates, or what was saved on the
+   day chosen — it has no choice's grey to ease to: it stands on his tint,
+   still, for as long as it is lit, as Month's do. */
+.fg .hd-cal-it[data-fresh]:not([data-sel]) { animation:none; }
 .fg .hd-cal-it > .hd-cal-sw { align-self:flex-start; margin-top:8px; }
 .fg .hd-cal-tx { flex:1; min-width:0; line-height:1.45; }
 .fg .hd-cal-itt { display:block; max-width:100%; padding:0; border:0; border-radius:6px; background:none; font:inherit;
@@ -11735,7 +11764,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* THE RAIL: the list's own rows (home-cal-rail.tsx), Due in the warning
    colour and Holidays ahead in the holidays' ink. */
-.fg .hd-cal-rail { padding:12px 24px 24px; border-left:1px solid var(--hd-rule); }
+.fg .hd-cal-rail { padding:12px 24px 24px; }
 .fg .hd-cal-rail > .hd-ls-g:first-child > .hd-ls-grp { padding-top:8px; }
 .fg .hd-ls-grp.due { color:var(--warn-t); }
 .fg .hd-ls-grp.hol { color:var(--hd-cal-hol-t); }
@@ -11757,8 +11786,20 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-dr { display:flex; align-items:baseline; gap:4px; width:100%; min-width:0; height:22px; margin:0; padding:0 4px;
   box-sizing:border-box; border:0; border-radius:6px; background:none; font:inherit; text-align:left; color:var(--hd-ink); }
 .fg button.hd-cal-dr { cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg button.hd-cal-dr:hover { background:var(--hd-cal-hol-hover); }
-.fg button.hd-cal-dr[aria-pressed="true"] { background:var(--hd-cal-hol-tint); }
+/* A DAY IS PICKED FROM ANYWHERE IN ITS CELL but its things
+   (home-cal-month.tsx), on the twelve months' days: its date row is the
+   day's button, lit under the pointer anywhere in the cell but on a thing,
+   and filled while the day, or the holiday it names, is the one chosen
+   (law 14: a choice is a fill), in a public holiday's own tints on its
+   day. A weekend chosen stands on paper, so its quiet date, and Today, read
+   on the choice's grey: on the weekend's own tint they fall short of 4.5. */
+.fg .hd-cal-mc[data-pick] { cursor:pointer; }
+.fg .hd-cal-mc[data-pick]:not([data-picked]):hover:not(:has(.hd-cal-mi:hover)) .hd-cal-dr { background:var(--tint); }
+.fg .hd-cal-mc[data-holiday][data-pick]:not([data-picked]):hover:not(:has(.hd-cal-mi:hover)) .hd-cal-dr {
+  background:var(--hd-cal-hol-hover); }
+.fg .hd-cal-mc[data-picked] .hd-cal-dr { background:var(--tint-2); }
+.fg .hd-cal-mc[data-holiday][data-picked] .hd-cal-dr { background:var(--hd-cal-hol-tint); }
+.fg .hd-cal-mc[data-weekend][data-picked] { background:var(--paper); }
 .fg .hd-cal-drn { flex:none; font-size:14px; font-weight:700; line-height:22px; font-variant-numeric:tabular-nums; }
 .fg .hd-cal-mc[data-weekend] .hd-cal-drn { color:var(--q); }
 .fg .hd-cal-mc[data-out] .hd-cal-drn { color:var(--q); font-weight:500; }
@@ -11817,7 +11858,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-yc { position:relative; display:flex; align-items:center; justify-content:center; min-width:0; height:30px;
   box-sizing:border-box; margin:0; padding:0 0 4px; border:0; border-radius:6px; background:transparent; font:inherit;
   font-size:12px; font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
-.fg button.hd-cal-yc { cursor:pointer; }
+/* Every day is a button that picks the day: one with nothing to fill it
+   answers the pointer with the app's hover; one filled keeps what it is. */
+.fg button.hd-cal-yc { cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-cal-yc:not([data-fill]):hover { background:var(--tint); }
 .fg .hd-cal-yc[data-weekend] { color:var(--q); }
 .fg .hd-cal-yc[data-past] { font-weight:400; color:var(--q); }
 .fg .hd-cal-yc[data-fill="school"] { background:var(--hd-cal-hatch); }
@@ -11832,10 +11876,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-yc > i[data-dot="admin"] { background:var(--hd-cal-adm); }
 .fg .hd-cal-yc > i[data-dot="late"] { background:var(--hd-late); }
 
-/* THE PANEL beside Month and Year: the one thing chosen. Its kicker is in
-   its category's ink, overdue or not: an admin date past its due says so
-   once, in his late capsule under the title (his calDet). */
-.fg .hd-cal-det { display:flex; flex-direction:column; gap:16px; padding:24px; border-left:1px solid var(--hd-rule); }
+/* THE PANEL beside Month and Year, under the box: the one thing or the day
+   chosen. A thing's kicker is in its category's ink, overdue or not: an
+   admin date past its due says so once, in his late capsule under the
+   title (his calDet). */
+.fg .hd-cal-det { display:flex; flex-direction:column; gap:16px; padding:24px; }
 .fg .hd-cal-dx { display:flex; flex-direction:column; gap:16px; }
 .fg .hd-cal-dxh { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
 .fg .hd-cal-k { font-size:13px; font-weight:500; color:var(--hd-cal-ev-t); }
@@ -11864,6 +11909,19 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   background:var(--hd-ink); font-size:14px; font-weight:600; color:var(--paper); text-decoration:none; white-space:nowrap;
   transition:background-color var(--t-fast) var(--ease); }
 .fg .hd-cal-go:hover:not(:disabled) { background:color-mix(in srgb, var(--hd-ink) 88%, var(--paper)); }
+/* A DAY IN THE PANEL (components/dashboard/home-cal-panel, `CalDay`): the day
+   in full, then everything on it, each a row that picks it — its swatch,
+   its title and an event's time — whose fill reaches 8px past the column's
+   words, as 4 weeks' rows do. What was just added to it is lit on his
+   event tint for as long as it is lit, as Month's things are. */
+.fg .hd-cal-dl { display:flex; flex-direction:column; gap:2px; margin:0; padding:0; list-style:none; }
+.fg .hd-cal-dli { display:flex; align-items:center; gap:12px; box-sizing:border-box; width:calc(100% + 16px); margin:0 -8px;
+  padding:8px; border:0; border-radius:10px; background:none; font:inherit; font-size:14px; font-weight:600;
+  line-height:1.45; color:var(--hd-ink); text-align:left; cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-cal-dli:hover { background:var(--tint); }
+.fg .hd-cal-dli[data-fresh] { background:var(--hd-cal-ev-tint); }
+.fg .hd-cal-dlt { flex:1; min-width:0; overflow-wrap:anywhere; }
 /* THE EDIT FORM, in the panel's place (components/dashboard/home-cal-edit):
    a label over each control, the controls 36px like the panel's action,
    Save in its ink and the rest on paper with the page's rule. */
@@ -11905,9 +11963,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-filter:focus-visible, .fg .hd-cal-itt:focus-visible, .fg .hd-cal-ab:focus-visible,
 .fg .hd-cal-dr:focus-visible, .fg .hd-cal-mi:focus-visible, .fg .hd-cal-bar:focus-visible,
 .fg .hd-cal-yc:focus-visible, .fg .hd-cal-go:focus-visible, .fg .hd-cal-edb:focus-visible,
+.fg .hd-cal-day:focus-visible, .fg .hd-cal-qd:focus-visible, .fg .hd-cal-dli:focus-visible,
 .fg input.hd-cal-fi:focus-visible, .fg textarea.hd-cal-fi:focus-visible { outline:2px solid var(--hd-ink); outline-offset:2px; }
-/* The panel's column, where focus is put after a delete: the same ring,
-   inside its edge, since the column is its own scroller. */
+/* The panel's column, where focus is put after a delete, or after a thing
+   is picked from a day's list: the same ring, inside its edge, since the
+   column is its own scroller. */
 .fg .hd-cal-det:focus-visible { outline:2px solid var(--hd-ink); outline-offset:-2px; }
 /* ── THE DIARY: the Diary tab's column ──
    home-diary-feed.tsx. His diary (the prototype's, v12–v33) on the page's

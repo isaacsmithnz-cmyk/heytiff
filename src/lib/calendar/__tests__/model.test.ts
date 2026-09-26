@@ -1,22 +1,29 @@
 import {
   BAR_PITCH,
+  addDayOf,
   agendaRows,
   barTop,
   calFrame,
   chipCounts,
+  choiceOf,
   clampAnchor,
+  dayDetail,
   detail,
   firstSelection,
   fmtDates,
   fmtDay,
+  fmtDayLong,
   fmtDayRange,
   isHome,
   laneReserve,
   longWeekend,
   monthWeeks,
+  onCalendar,
   railLists,
   rangeTitle,
   revealDay,
+  sameChoice,
+  settleChoice,
   settleSelection,
   startNav,
   stepAnchor,
@@ -181,6 +188,18 @@ describe("4 weeks: the agenda", () => {
     const today = rows.find((r) => r.kind === "day");
     expect(today).toMatchObject({ kind: "day", day: TODAY, today: true, lines: [] });
     expect(rows.filter((r) => r.kind === "day")).toHaveLength(1);
+  });
+
+  /* A quiet run is its first day's button (2026-09-26), and "Sat – Sun"
+     comes round every week: its name carries its dates. */
+  it("names each quiet run by its dates, a long weekend's as one", () => {
+    const labels = agendaRows(ITEMS, TODAY, FRAME).flatMap((r) => (r.kind === "quiet" ? [r.label] : []));
+    expect(labels.slice(0, 4)).toEqual([
+      "Fri 25 – Sun 27 Sept, nothing on",
+      "Tue 29 – Wed 30 Sept, nothing on",
+      "Fri 2 Oct, nothing on",
+      "Sat 3 – Sun 4 Oct, long weekend",
+    ]);
   });
 
   it("splits a quiet run at a month boundary", () => {
@@ -540,6 +559,97 @@ describe("the selection", () => {
   });
 });
 
+/* "simplify it. how does a calendar normally add things in?" (Isaac,
+   2026-09-26): you click a day and add to it. The choice is a thing or a
+   day, and the box adds to the day it names. */
+describe("the one choice: a thing, or a day", () => {
+  it("says which days are on the calendar: its twelve months, and nothing that is not a day", () => {
+    expect(onCalendar("2026-09-01", FRAME)).toBe(true);
+    expect(onCalendar("2027-08-31", FRAME)).toBe(true);
+    expect(onCalendar("2026-08-31", FRAME)).toBe(false);
+    expect(onCalendar("2027-09-01", FRAME)).toBe(false);
+    expect(onCalendar("2026-02-30", FRAME)).toBe(false);
+    expect(onCalendar("soon", FRAME)).toBe(false);
+  });
+
+  it("holds a day picked whatever is shown, while it is on the calendar", () => {
+    const day = { day: "2026-10-14" };
+    expect(choiceOf(day, [], FRAME)).toBe(day);
+    expect(choiceOf(day, visibleItems(ITEMS, { event: true }), FRAME)).toBe(day);
+    expect(choiceOf({ day: "2026-08-31" }, ITEMS, FRAME)).toEqual({ id: "sch:spring26", settled: true });
+  });
+
+  it("holds a thing picked while it is shown, and stands in the first thing from today, settled, otherwise", () => {
+    const daikin = { id: "ev:daikin" };
+    expect(choiceOf(daikin, ITEMS, FRAME)).toBe(daikin);
+    expect(choiceOf(daikin, visibleItems(ITEMS, { event: true }), FRAME)).toEqual({ id: "sch:spring26", settled: true });
+    expect(choiceOf(null, ITEMS, FRAME)).toEqual({ id: "sch:spring26", settled: true });
+    expect(choiceOf(null, [], FRAME)).toBeNull();
+  });
+
+  it("settles a thing as settleSelection does, and never moves a day", () => {
+    const day = { day: "2026-10-01" };
+    expect(settleChoice(day, [], FRAME)).toBe(day);
+    expect(settleChoice(day, visibleItems(ITEMS, { event: true, school: true }), FRAME)).toBe(day);
+    const daikin = { id: "ev:daikin" };
+    expect(settleChoice(daikin, ITEMS, FRAME)).toBe(daikin);
+    expect(settleChoice(daikin, visibleItems(ITEMS, { event: true }), FRAME)).toEqual({ id: "sch:spring26", settled: true });
+    expect(settleChoice(daikin, [], FRAME)).toBe(daikin);
+    expect(settleChoice(null, ITEMS, FRAME)).toEqual({ id: "sch:spring26", settled: true });
+    expect(settleChoice(null, [], FRAME)).toBeNull();
+  });
+
+  it("knows the same choice, whoever made it, and never takes a day for a thing", () => {
+    expect(sameChoice({ id: "ev:daikin" }, { id: "ev:daikin", settled: true })).toBe(true);
+    expect(sameChoice({ day: "2026-10-01" }, { day: "2026-10-01" })).toBe(true);
+    expect(sameChoice({ day: "2026-10-01" }, { day: "2026-10-02" })).toBe(false);
+    expect(sameChoice({ day: "2026-10-01" }, { id: "2026-10-01" })).toBe(false);
+    expect(sameChoice(null, { id: "ev:daikin" })).toBe(false);
+  });
+
+  it("adds to the day picked, else the first day of the thing picked, else today", () => {
+    expect(addDayOf({ day: "2026-10-14" }, ITEMS, FRAME)).toBe("2026-10-14");
+    expect(addDayOf({ id: "ev:shutdown" }, ITEMS, FRAME)).toBe("2026-12-23");
+    expect(addDayOf({ id: "veh:cy14:rego" }, ITEMS, FRAME)).toBe("2026-09-17");
+    // the page's own choice is nobody's day to add to
+    expect(addDayOf({ id: "ev:shutdown", settled: true }, ITEMS, FRAME)).toBe(TODAY);
+    expect(addDayOf(null, ITEMS, FRAME)).toBe(TODAY);
+    // a thing begun before the calendar was, a thing gone, or a day past it: today
+    expect(addDayOf({ id: "veh:cy14:rego" }, ITEMS, at("2026-10-02"))).toBe("2026-10-02");
+    expect(addDayOf({ id: "ev:gone" }, ITEMS, FRAME)).toBe(TODAY);
+    expect(addDayOf({ day: "2027-09-01" }, ITEMS, FRAME)).toBe(TODAY);
+  });
+});
+
+describe("a day in the panel", () => {
+  it("names the day in full, with no year, as the twelve months hold each month once", () => {
+    expect(fmtDayLong("2026-10-01")).toBe("Thursday 1 October");
+    expect(dayDetail(ITEMS, "2027-01-01").title).toBe("Friday 1 January");
+    expect(dayDetail(ITEMS, "2026-09-30").title).toBe("Wednesday 30 September");
+  });
+
+  it("lists everything on the day in a day's order: holiday, school holidays, events by time, then admin", () => {
+    const lines = (day: string, vis = ITEMS) => dayDetail(vis, day).lines.map((l) => [l.item.id, l.title, l.time, l.late]);
+    expect(lines("2026-10-05")).toEqual([
+      ["ph:labour", "Labour Day", null, false],
+      ["sch:spring26", "School holidays", null, false],
+    ]);
+    // what runs through the day is on it, and an event says its time
+    expect(lines("2026-12-30")).toEqual([
+      ["sch:summer26", "School holidays", null, false],
+      ["ev:shutdown", "Christmas shutdown", null, false],
+    ]);
+    expect(lines("2026-12-11")).toEqual([
+      ["ev:party", "Christmas party", "6:00 pm", false],
+      ["veh:evd:rego", "Zucky, EVD72G rego", null, false],
+    ]);
+    expect(lines("2026-09-17")).toEqual([["veh:cy14:rego", "Spare van, CY14FE rego", null, true]]);
+    expect(lines("2026-10-15")).toEqual([]);
+    // only what the filters show
+    expect(lines("2026-10-05", visibleItems(ITEMS, { school: true }))).toEqual([["ph:labour", "Labour Day", null, false]]);
+  });
+});
+
 describe("Month", () => {
   const oct = monthWeeks(ITEMS, "2026-10-14", FRAME);
 
@@ -552,6 +662,24 @@ describe("Month", () => {
       "2026-10-26 2026-11-01",
     ]);
     expect(oct[0].cells.map((c) => c.inMonth)).toEqual([false, false, false, true, true, true, true]);
+    // the days before the 1st are the calendar's, and a click may pick them
+    expect(oct[0].cells.map((c) => c.inWindow)).toEqual([true, true, true, true, true, true, true]);
+  });
+
+  /* Only the calendar's days are a click's to pick (2026-09-26): the first
+     month's and the last month's whole weeks reach past its twelve months. */
+  it("marks the days of the whole weeks past the twelve months as not the calendar's", () => {
+    const sept = monthWeeks(ITEMS, "2026-09-10", FRAME).flatMap((w) => w.cells);
+    expect(sept[0]).toMatchObject({ day: "2026-08-31", inMonth: false, inWindow: false });
+    expect(sept.filter((c) => !c.inWindow).map((c) => c.day)).toEqual(["2026-08-31"]);
+    const aug = monthWeeks(ITEMS, "2027-08-10", FRAME).flatMap((w) => w.cells);
+    expect(aug.filter((c) => !c.inWindow).map((c) => c.day)).toEqual([
+      "2027-09-01",
+      "2027-09-02",
+      "2027-09-03",
+      "2027-09-04",
+      "2027-09-05",
+    ]);
   });
 
   it("draws school holidays as a bar per week, square where it carries on", () => {

@@ -5,6 +5,7 @@ import { NoteScopeProvider } from "@/components/notes/note-context";
 import type { TiffRoom } from "@/lib/workboard/note-turns";
 import { TiffModalProvider, useTiffModalSwitch } from "../tiff-host";
 import { SAVE_FAILED, TiffBox, type BoxSaved } from "../tiff-box";
+import { TiffContext, type TiffApi } from "../tiff-context";
 
 /* THE ENTRY BOX, in a harness the way a room will hold it: the modal's host
    switched on, the microphone faked, every server action a stub, and each
@@ -96,16 +97,33 @@ function Switch({ on }: { on: boolean }) {
 
 const save = jest.fn<Promise<BoxSaved>, [string]>();
 
-function Room({ on = true, room = "diary", placeholder = "Add to the diary…" }: { on?: boolean; room?: TiffRoom; placeholder?: string }) {
+function Room({
+  on = true,
+  room = "diary",
+  placeholder = "Add to the diary…",
+  day,
+  enter,
+}: {
+  on?: boolean;
+  room?: TiffRoom;
+  placeholder?: string;
+  day?: string;
+  enter?: "sort" | "save";
+}) {
   return (
     <NoteScopeProvider voiceEnabled>
       <TiffModalProvider>
         <Switch on={on} />
-        <TiffBox room={room} placeholder={placeholder} save={save} />
+        <TiffBox room={room} placeholder={placeholder} save={save} day={day} enter={enter} />
       </TiffModalProvider>
     </NoteScopeProvider>
   );
 }
+
+/** The Calendar's box, as its page holds it (2026-09-26): on a day, and
+    Enter is its Save. */
+const CalendarRoom = () => <Room room="calendar" placeholder="Add to Thu 1 Oct…" day="2026-10-01" enter="save" />;
+const calendarField = () => screen.getByRole("textbox", { name: "Add to Thu 1 Oct" });
 
 const field = () => screen.getByRole("textbox", { name: "Add to the diary" });
 const button = (name: string) => screen.queryByRole("button", { name });
@@ -386,5 +404,80 @@ describe("Sort it out", () => {
     expect(dialog()).toBeNull();
     expect(field()).toHaveValue("Callum to grab the filters");
     expect(button("Sort it out")).toBeInTheDocument();
+  });
+});
+
+/* THE CALENDAR'S BOX (Home walk, part 2, 2026-09-26): "simplify it. how
+   does a calendar normally add things in?" A calendar's quick add saves on
+   Enter, and the box adds to a day it names, which Tiff is told with the
+   words. The diary's and Tasks' Enter is still Sort it out. */
+describe("a box whose Enter is its Save", () => {
+  it("saves on Enter, asks Tiff nothing, keeps the caret for the next, and keeps Sort it out and the Tiff button", async () => {
+    save.mockResolvedValue({ ok: true });
+    const user = userEvent.setup();
+    render(<CalendarRoom />);
+    expect(button("Talk to Tiff")).toBeInTheDocument();
+    await user.type(calendarField(), "Team barbecue");
+    expect(button("Sort it out")).toBeInTheDocument();
+    await user.keyboard("{Enter}");
+    await flush();
+    expect(save).toHaveBeenCalledWith("Team barbecue");
+    expect(dialog()).toBeNull();
+    expect(fileCalendarLine).not.toHaveBeenCalled();
+    expect(calendarField()).toHaveValue("");
+    expect(calendarField()).toHaveFocus();
+    // a second, straight after, goes the same way
+    await user.type(calendarField(), "Van check{Enter}");
+    await flush();
+    expect(save).toHaveBeenLastCalledWith("Van check");
+  });
+
+  it("saves nothing for spaces, and never mid-word in an input method", async () => {
+    const user = userEvent.setup();
+    render(<CalendarRoom />);
+    await user.type(calendarField(), "   {Enter}");
+    fireEvent.change(calendarField(), { target: { value: "東京" } });
+    fireEvent.keyDown(calendarField(), { key: "Enter", isComposing: true });
+    fireEvent.keyDown(calendarField(), { key: "Enter", keyCode: 229 });
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("still sorts on Enter in the diary's box", async () => {
+    const user = userEvent.setup();
+    render(<Room />);
+    await user.type(field(), "Callum to grab the filters{Enter}");
+    expect(dialog()).toBeInTheDocument();
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("sends Sort it out's words to Tiff with the day it adds to", async () => {
+    fileCalendarLine.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    render(<CalendarRoom />);
+    await user.type(calendarField(), "Toolbox talk");
+    await user.click(button("Sort it out")!);
+    expect(dialog()).toBeInTheDocument();
+    expect(fileCalendarLine).toHaveBeenCalledWith("Toolbox talk", "text", [], "2026-10-01");
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("hands the day to Tiff from Sort it out and from its Tiff button", async () => {
+    const open = jest.fn((_o: Parameters<TiffApi["open"]>[0]) => true);
+    const api: TiffApi = { enabled: true, open, openedBy: null, isOpen: false, landed: null, report: () => {} };
+    const user = userEvent.setup();
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <TiffContext.Provider value={api}>
+          <TiffBox room="calendar" placeholder="Add to Thu 1 Oct…" save={save} day="2026-10-01" enter="save" />
+        </TiffContext.Provider>
+      </NoteScopeProvider>,
+    );
+    await user.click(button("Talk to Tiff")!);
+    expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ room: "calendar", day: "2026-10-01" }));
+    await user.type(calendarField(), "Toolbox talk");
+    await user.click(button("Sort it out")!);
+    expect(open).toHaveBeenLastCalledWith(
+      expect.objectContaining({ words: "Toolbox talk", room: "calendar", day: "2026-10-01" }),
+    );
   });
 });

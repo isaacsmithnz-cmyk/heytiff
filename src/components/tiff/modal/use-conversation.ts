@@ -57,8 +57,10 @@ import type { TiffLanded } from "./tiff-context";
      it reads as a question        the ask stream, as anywhere
      after she has filed           kept on what she filed, as its note
      anything else                 a line for the calendar, read and filed
-   A line she could not read at all is kept in the diary as said, the way a
-   note that could not be routed is.
+   The day the box adds to rides with every line (`opening.day`, Isaac,
+   2026-09-26): a line whose words name no day goes on it, and "Which day?"
+   is asked only where there is none. A line she could not read at all is
+   kept in the diary as said, the way a note that could not be routed is.
 
    THE WAITS HAVE FLOORS, and they are motion, not padding. The dots gather
    from the button you pressed for GATHER_MS, and the cloud Tiff thinks in
@@ -133,6 +135,9 @@ export type Opening = {
       start, and what you say next is read by it. */
   conversation?: readonly EarlierTurn[];
   room?: TiffRoom;
+  /** The day a line for the calendar goes on when its words name none: the
+      day the Calendar's box adds to (./tiff-context). */
+  day?: string;
   /** The pressed button's centre; the dots gather from it. None for a
       keyboard press, which moves nothing (law 8). */
   origin: Point | null;
@@ -185,6 +190,7 @@ export function useConversation({
 
   const still = opening.still;
   const room = opening.room;
+  const day = opening.day;
   const words0 = opening.words?.trim() ?? "";
   /* OPENED AGAIN ON A CONVERSATION (a diary entry's Tiff line): what was
      said is on screen from the start, Tiff has already answered so her face
@@ -520,12 +526,13 @@ export function useConversation({
   const saidAll = (a: DayAsk) => [a.line, ...a.answers].join("\n");
 
   /** A line for the calendar: read, and on the calendar at once, or asked
-      about. It files live, as a note does, with Undo on what landed. */
+      about. It files live, as a note does, with Undo on what landed. The
+      box's day goes with it, for a line that names none. */
   const fileLine = async (a: DayAsk) => {
     dayAsk.current = null;
     let r: CalendarLineResult;
     try {
-      r = await fileCalendarLine(a.line, a.source, a.answers);
+      r = await fileCalendarLine(a.line, a.source, a.answers, day);
     } catch {
       /* Whether it went on is unknown; the words are kept, where a second
          copy costs nothing, rather than risk the calendar twice. */

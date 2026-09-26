@@ -472,9 +472,10 @@ describe("the faces", () => {
     expect(shownFaces()).toEqual(["diary"]);
   }, WHOLE);
 
-  /* The Calendar's box and its views are the Calendar's own toolbar, under
-     the tabs and inside the face that slides: never in the tabs' row, so
-     no face can move the tabs (Isaac, 2026-09-25). */
+  /* The Calendar's views are the Calendar's own toolbar, and its box the
+     top of its right-hand column (2026-09-26), under the tabs and inside
+     the face that slides: never in the tabs' row, so no face can move the
+     tabs (Isaac, 2026-09-25). */
   it("give the Calendar its own page, its toolbar under the tabs and never in their row", async () => {
     const user = userEvent.setup();
     draw();
@@ -483,9 +484,11 @@ describe("the faces", () => {
     expect(page).not.toBeNull();
     const views = within(face("calendar")).getByRole("group", { name: "View" });
     expect(within(views).getByRole("button", { name: "4 weeks" })).toHaveAttribute("aria-pressed", "true");
-    expect(within(face("calendar")).getByRole("textbox", { name: "Add to the calendar…" })).toBeInTheDocument();
+    const add = within(face("calendar")).getByRole("textbox", { name: "Add to today…" });
+    expect(add.closest(".hd-cal-side")).not.toBeNull();
     const row = screen.getByRole("tablist", { name: "Home" });
     expect(row.contains(views)).toBe(false);
+    expect(row.contains(add)).toBe(false);
     expect(within(row).getAllByRole("tab")).toHaveLength(3);
     // today's calendar face stands nowhere on the desk
     expect(document.querySelector(".hm-cal, .hm-face.one")).toBeNull();

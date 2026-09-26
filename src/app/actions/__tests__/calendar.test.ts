@@ -235,6 +235,51 @@ describe("addCalendarEvent", () => {
     expect(await addCalendarEvent("Toolbox talk")).toEqual({ ok: false, error: "Couldn't add that to the calendar." });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
+
+  /* "Click a day and add to that day" (Isaac, 2026-09-26: "simplify it.
+     how does a calendar normally add things in?"): the box sends the day
+     it names, and the server holds it to the calendar's twelve months as
+     they stand on the workspace's day — Sydney's Fri 25 Sept here, so 1
+     Sept 2026 to 31 Aug 2027. */
+  it("puts the words on the day the box sends, all day, and says the day", async () => {
+    const res = await addCalendarEvent("Team barbecue", "2026-10-01");
+    expect(res).toEqual({ ok: true, id: "ev-new", day: "2026-10-01" });
+    expect(inserts[0]!.row).toMatchObject({ title: "Team barbecue", starts_on: "2026-10-01", ends_on: "2026-10-01" });
+    expect(inserts[0]!.row).not.toHaveProperty("starts_at");
+    expect(revalidatePath).toHaveBeenCalledWith("/dashboard");
+  });
+
+  it("takes the calendar's first and last days, and a day gone by this month, which the calendar still shows", async () => {
+    for (const day of ["2026-09-01", "2026-09-10", "2027-08-31"]) {
+      expect(await addCalendarEvent("Toolbox talk", day)).toMatchObject({ ok: true, day });
+    }
+    expect(inserts.map((i) => i.row.starts_on)).toEqual(["2026-09-01", "2026-09-10", "2027-08-31"]);
+  });
+
+  it("puts the words on today when the box sends no day", async () => {
+    expect(await addCalendarEvent("Toolbox talk", null)).toMatchObject({ ok: true, day: "2026-09-25" });
+    expect(inserts[0]!.row).toMatchObject({ starts_on: "2026-09-25" });
+  });
+
+  it("refuses a day outside the twelve months, or one that is not a day, in a plain sentence, and writes nothing", async () => {
+    for (const day of ["2026-08-31", "2027-09-01", "2026-02-30", "2026-9-30", "tomorrow", "", 20261001 as unknown as string]) {
+      expect(await addCalendarEvent("Toolbox talk", day)).toEqual({ ok: false, error: "That day isn't on the calendar." });
+    }
+    expect(inserts).toEqual([]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  /* The page's day is never the control: the window is the workspace's as
+     it stands now, so a page left open into a new month cannot add to a
+     day the calendar no longer shows. */
+  it("holds the day to the twelve months as they stand on the workspace's day, not the page's", async () => {
+    jest.setSystemTime(new Date("2026-10-01T02:00:00Z"));
+    expect(await addCalendarEvent("Toolbox talk", "2026-09-30")).toEqual({
+      ok: false,
+      error: "That day isn't on the calendar.",
+    });
+    expect(await addCalendarEvent("Toolbox talk", "2027-09-30")).toMatchObject({ ok: true, day: "2027-09-30" });
+  });
 });
 
 /* ── Sort it out (H22) ── */
@@ -390,6 +435,55 @@ describe("fileCalendarLine", () => {
     insertError = { message: "boom" };
     expect(await fileCalendarLine("toolbox talk")).toEqual({ ok: false, error: "Couldn't add that to the calendar." });
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  /* THE BOX'S DAY (2026-09-26): the Calendar's box adds to a day and says
+     so ("Add to Thu 1 Oct…"), and sends it with the words. A line that
+     names no day goes on it instead of her asking, and her Done names it;
+     one that names a day, or a repeat, is read as it says. The reader is
+     asked nothing new: the day is filled in after it has read the line. */
+  it("files a line that names no day on the box's day, and says the day", async () => {
+    reads(line({ repeat: null }));
+    const res = await fileCalendarLine("Toolbox talk", "text", [], "2026-10-01");
+    expect(res).toMatchObject({
+      ok: true,
+      say: "Done. Toolbox talk is on the calendar for Thu 1 Oct at 6:45 am.",
+      plan: [{ lead: "Thu 1 Oct", text: "toolbox talk, 6:45 am" }],
+      door: "1 event on the calendar",
+      about: "the toolbox talk on Thu 1 Oct",
+    });
+    expect(inserts.map((i) => [i.row.starts_on, i.row.ends_on, i.row.series_id])).toEqual([["2026-10-01", "2026-10-01", null]]);
+    // the reader was asked what it always is: the line, the day, the calendar's end
+    expect(readCalendarLine).toHaveBeenCalledWith("Toolbox talk", { today: "2026-09-25", windowEnd: "2027-08-31" }, []);
+  });
+
+  it("lets words that name a day, or a repeat, win over the box's day", async () => {
+    reads(line({ repeat: null, day: "2026-10-08" }));
+    expect(await fileCalendarLine("Daikin training on the 8th", "text", [], "2026-10-01")).toMatchObject({
+      ok: true,
+      say: "Done. Toolbox talk is on the calendar for Thu 8 Oct at 6:45 am.",
+    });
+    reads(line());
+    await fileCalendarLine("Toolbox talk every first Thursday, 6:45", "text", [], "2026-10-14");
+    expect(inserts.map((i) => i.row.starts_on)).toEqual(["2026-10-08", ...FIRST_THURSDAYS]);
+  });
+
+  it("asks Which day? as ever when the box's day is not a day on the calendar", async () => {
+    reads(line({ repeat: null }));
+    for (const day of ["2026-08-20", "2027-09-01", "2026-02-30", "soon"]) {
+      expect(await fileCalendarLine("Toolbox talk", "text", [], day)).toEqual({ ok: false, ask: "Which day?" });
+    }
+    expect(await fileCalendarLine("Toolbox talk", "text", [], null)).toEqual({ ok: false, ask: "Which day?" });
+    expect(inserts).toEqual([]);
+  });
+
+  it("holds a public holiday claimed on the box's day to the state's list, as it holds one the words name", async () => {
+    reads(line({ kind: "public_holiday", title: "Public holiday", titleInSentence: "public holiday", repeat: null, time: null }));
+    expect(await fileCalendarLine("public holiday", "text", [], "2026-10-06")).toEqual({
+      ok: false,
+      error: "Tue 6 Oct isn't a public holiday in NSW. If the yard's closed, say it's a shutdown.",
+    });
+    expect(inserts).toEqual([]);
   });
 });
 

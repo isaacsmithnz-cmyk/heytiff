@@ -57,6 +57,7 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
         words: o.words?.trim() || undefined,
         conversation: o.conversation?.filter((t) => (t.who === "you" || t.who === "tiff") && t.text.trim() !== ""),
         room: o.room,
+        day: o.day,
         openerId: o.id ?? null,
         /* Two different things. Reduced motion stills all of it; a keyboard
            press only keeps anything from flying out of the button (law 8) —

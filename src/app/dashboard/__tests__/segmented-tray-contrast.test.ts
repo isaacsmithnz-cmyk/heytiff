@@ -107,6 +107,7 @@ const ALPHA: [string, string][] = [
   [".fg .nb-kinds", "noticeboard — notice / poll / event"],
   [".vm-seg", "vehicle modal — history filter"],
   [".fg .hm-calseg", "home calendar — how to show it"],
+  [".fg .hd-cal-vs", "the new Home's calendar — 4 weeks / Month / Year"],
   /* `.wb2-filters` left this list with the tray itself (2026-09-16): the
      Urgent tabs' filters are the board toolbar's chips, each with its own
      hairline, so there is no shared track left to lose against its ground. */

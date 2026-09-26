@@ -11393,6 +11393,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-ls-row.opens:hover { background:var(--tint); }
 /* A door asked for this row: lit once, on the selection tint, and back. */
 .fg .hd-ls-row[data-lit] { background:var(--tint-2); }
+/* The calendar rail's row for the thing the calendar has chosen: filled as
+   a selection is, for as long as it is chosen. */
+.fg .hd-ls-row[data-pressed] { background:var(--tint-2); }
 /* The lead stands in the title's first line, whatever the title does. */
 .fg .hd-ls-lead { grid-row:1; display:flex; align-items:center; justify-content:center; height:1.45em; }
 .fg .hd-ls-dot { width:8px; height:8px; border-radius:50%; background:var(--hd-dot); }
@@ -11464,6 +11467,326 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   .fg .hd-ls-it { transition:none; }
   .fg .hd-ls-in[data-grow] { animation:none; }
 }
+
+/* ── THE CALENDAR: the third face, across the whole body ──
+   home-cal-page.tsx and its views. His handoff "Calendar" (4 weeks, Month,
+   Year), walked on the prototype to v33, on the page's tokens. His type is
+   on the scale already; his spacing and radii snap to the scales, 4px or
+   less each: the gutters 28 → 24, a week's air 26 → 24, the rows' gaps 14
+   → 12 and 7 → 8, the panel's 18 → 16, the year's gaps 26 and 30 → 24;
+   his tiles 12 and 14 → 10, the view switch's seat 9 → the tray's radius
+   less its inset, 8 and 7 → 6, and his swatches, 12px and under, sharp.
+   Everything a person taps is 32px tall, as the list's verb is.
+
+   HIS COLOURS ARE TOKENS, here and nowhere else (law 16 is his to waive:
+   docs/design.md, Named exemptions): a category is said with `data-c` and
+   painted from these, never written in the markup. Holidays his purple,
+   events his teal, admin his amber, each with its tint and its ink; late
+   his pale red with its ink, and the late mark itself the page's one late
+   red; the school holidays his grey hatch, two of his gradients (a named
+   exemption); and his shadow under the view switch's chosen seat (another).
+   Hover and a choice are the app's own tints, as on the list. */
+.fg .hd-cal { --hd-cal-hol:#7c5ce0; --hd-cal-hol-tint:#e8e1fb; --hd-cal-hol-hover:#efeafd; --hd-cal-hol-day:#f6f3fe;
+  --hd-cal-hol-t:#4f3a99; --hd-cal-ev:#0f9488; --hd-cal-ev-tint:#d5f0ec; --hd-cal-ev-t:#0f5e57;
+  --hd-cal-adm:#d9860f; --hd-cal-adm-tint:#fbecd2; --hd-cal-adm-t:#8a5608; --hd-cal-late-tint:#fbe0db;
+  --hd-cal-late-t:#a8202f; --hd-cal-sch:#aeb6c4; --hd-cal-sch-t:#39465a; --hd-cal-we:#fafbfc;
+  --hd-cal-seat:rgba(21,26,36,.08);
+  --hd-cal-hatch:repeating-linear-gradient(135deg, #eef0f3 0 5px, #e1e5eb 5px 10px) #e1e5eb;
+  --hd-cal-hatch-sw:repeating-linear-gradient(135deg, #aeb6c4 0 2px, #eef0f3 2px 4px);
+  flex:1; min-height:0; display:flex; flex-direction:column; color:var(--hd-ink); }
+.fg .hd-cal [data-c="hol"] { --hd-cal-c:var(--hd-cal-hol); }
+.fg .hd-cal [data-c="event"] { --hd-cal-c:var(--hd-cal-ev); }
+.fg .hd-cal [data-c="admin"] { --hd-cal-c:var(--hd-cal-adm); }
+.fg .hd-cal [data-c="school"] { --hd-cal-c:var(--hd-cal-sch); }
+
+/* THE SWATCH: a sharp square in its category's colour, the hatch for the
+   school holidays, the late red for admin past its date; a dot where the
+   rail lists what is due, as the list's are. */
+.fg .hd-cal-sw { flex:none; display:block; width:10px; height:10px; box-sizing:border-box; background:var(--hd-cal-c); }
+.fg .hd-cal-sw[data-c="school"] { background:var(--hd-cal-hatch-sw); }
+.fg .hd-cal-sw[data-late] { background:var(--hd-late); }
+.fg .hd-cal-sw[data-round] { width:8px; height:8px; border-radius:50%; }
+
+/* ITS OWN TOOLBAR, under the tabs and never in their row: the box and the
+   view switch, then ‹ ›, what is in view, Today and the filters. */
+.fg .hd-cal-hd { flex:none; display:flex; align-items:center; gap:24px; padding:4px 24px 12px;
+  border-bottom:1px solid var(--hd-rule); }
+.fg .hd-cal-add { flex:1 1 auto; min-width:0; max-width:520px; }
+/* THE VIEW SWITCH: a segmented tray, a tint of whatever it stands on
+   (segmented-tray-contrast prefers a tint to his fixed #eef0f3, which only
+   holds on the ground it was picked on), the chosen seat paper lifted by
+   his small shadow (a named exemption, docs/design.md). Each seat is as
+   wide as its bold word from the start, as the tabs are, so choosing one
+   never moves the others. */
+.fg .hd-cal-vs { flex:none; display:flex; gap:2px; margin-left:auto; padding:4px; border-radius:10px;
+  background:var(--tint-2); }
+.fg .hd-cal-vb { display:inline-flex; flex-direction:column; align-items:center; justify-content:center; height:36px;
+  padding:0 16px; border:0; border-radius:calc(10px - 4px); background:none; font-size:14px; font-weight:600;
+  line-height:1.2; color:var(--hd-body); white-space:nowrap; cursor:pointer;
+  transition:color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease); }
+.fg .hd-cal-vb:hover { color:var(--hd-ink); }
+.fg .hd-cal-vb[aria-pressed="true"] { background:var(--paper); color:var(--hd-ink); font-weight:700; cursor:default;
+  box-shadow:0 1px 2px var(--hd-cal-seat); }
+.fg .hd-cal-vbw { height:0; overflow:hidden; visibility:hidden; font-weight:700; pointer-events:none; user-select:none; }
+
+.fg .hd-cal-tb { flex:none; display:flex; align-items:center; flex-wrap:wrap; gap:8px 0; padding:12px 24px;
+  border-bottom:1px solid var(--hd-rule); container:hdcaltb / inline-size; }
+.fg .hd-cal-nav { display:flex; align-items:center; gap:4px; }
+.fg .hd-cal-nb { display:grid; place-items:center; width:32px; height:32px; padding:0; border:0; border-radius:10px;
+  background:transparent; color:var(--hd-ink); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-cal-nb:hover { background:var(--tint); }
+.fg .hd-cal-nb > span, .fg .hd-cal-nb svg { display:block; }
+/* Past the twelve months there is nothing true to show, so the arrow rests. */
+.fg .hd-cal-nb[aria-disabled="true"] { color:var(--q); cursor:default; }
+.fg .hd-cal-nb[aria-disabled="true"]:hover { background:transparent; }
+.fg .hd-cal-rt { margin:0 12px 0 8px; font-size:20px; font-weight:700; line-height:1.2; white-space:nowrap;
+  color:var(--hd-ink); }
+.fg .hd-cal-today { display:inline-flex; align-items:center; height:32px; padding:0 12px; border:1px solid var(--hd-edge);
+  border-radius:999px; background:var(--paper); font-size:13px; font-weight:600; color:var(--hd-ink); cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-cal-today:hover { background:var(--tint); }
+/* Today in view already: it rests, quiet. */
+.fg .hd-cal-today[aria-disabled="true"] { color:var(--q); cursor:default; }
+.fg .hd-cal-today[aria-disabled="true"]:hover { background:var(--paper); }
+/* THE FILTERS, which are also the legend: law 26 keeps a filter's form,
+   a hairline you tap. Off, the swatch is only its edge. */
+.fg .hd-cal-filters { display:flex; flex-wrap:wrap; gap:4px; margin-left:auto; padding-left:16px; }
+.fg .hd-cal-filter { display:inline-flex; align-items:center; gap:8px; height:32px; padding:0 12px;
+  border:1px solid var(--hd-edge); border-radius:999px; background:var(--paper); font-size:13px; font-weight:600;
+  color:var(--hd-ink); white-space:nowrap; cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .hd-cal-filter:hover { background:var(--tint); }
+.fg .hd-cal-filter[aria-pressed="false"] { background:var(--tint); color:var(--q); }
+/* Off, it already stands on the hover's tint: the pointer takes it one step
+   darker, so an off filter answers the pointer as an on one does. */
+.fg .hd-cal-filter[aria-pressed="false"]:hover { background:var(--tint-2); }
+.fg .hd-cal-filter[aria-pressed="false"] .hd-cal-sw { border:2px solid var(--hd-cal-c); background:transparent; }
+.fg .hd-cal-n { font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; }
+/* The toolbar is one line in every view, so the body never moves when the
+   view changes: where Year's title and two-figure counts would not fit, the
+   spacing tightens; narrower still, the filters take their own line. */
+@container hdcaltb (max-width:940px) {
+  .fg .hd-cal-nav { gap:2px; }
+  .fg .hd-cal-rt { margin:0 4px; }
+  .fg .hd-cal-today { padding:0 8px; }
+  .fg .hd-cal-filters { padding-left:8px; }
+  .fg .hd-cal-filter { gap:4px; padding:0 8px; }
+}
+@container hdcaltb (max-width:849.5px) {
+  .fg .hd-cal-filters { flex-basis:100%; margin-left:0; padding-left:0; }
+}
+
+/* THE BODY: a view and what stands beside it — the rail beside 4 weeks,
+   the panel beside Month and Year. Each side scrolls on its own. */
+.fg .hd-cal-body { flex:1; min-height:0; display:flex; flex-direction:column; }
+.fg .hd-cal-v { flex:1; min-height:0; display:grid; grid-template-rows:minmax(0,1fr); }
+.fg .hd-cal-v[data-view="4w"] { grid-template-columns:minmax(0,1fr) clamp(300px, 38%, 380px); }
+.fg .hd-cal-v[data-view="month"], .fg .hd-cal-v[data-view="year"] {
+  grid-template-columns:minmax(0,1fr) clamp(300px, 30%, 340px); }
+.fg .hd-cal-ag, .fg .hd-cal-rail, .fg .hd-cal-mg, .fg .hd-cal-yg, .fg .hd-cal-det { min-width:0; min-height:0; overflow:auto; }
+
+/* 4 WEEKS: the date down the left, what starts on it beside. */
+.fg .hd-cal-ag { padding:4px 24px 32px; }
+.fg .hd-cal-r { display:grid; grid-template-columns:84px minmax(0,1fr); border-radius:10px; }
+.fg .hd-cal-c { min-width:0; }
+.fg .hd-cal-r[data-kind="week"] > .hd-cal-c { display:flex; align-items:center; flex-wrap:wrap; gap:8px;
+  padding:24px 0 8px; border-bottom:1px solid var(--hd-rule); }
+.fg .hd-cal-wkl { margin:0; font-size:16px; font-weight:700; line-height:1.2; color:var(--hd-ink); }
+.fg .hd-cal-wkr { font-size:14px; font-weight:500; color:var(--q); }
+/* HIS SPAN TAG on a week, for what runs through it: a capsule where law 26
+   has a word (a named exemption). The school holidays wear his hatch. */
+.fg .hd-cal-tag { display:inline-flex; align-items:center; height:24px; margin-left:4px; padding:0 8px; border-radius:6px;
+  background:var(--hd-cal-ev-tint); font-size:12px; font-weight:700; color:var(--hd-cal-ev-t); white-space:nowrap; }
+.fg .hd-cal-tag[data-kind="school"] { background:var(--hd-cal-hatch); color:var(--hd-cal-sch-t); }
+.fg .hd-cal-r[data-kind="day"] > .hd-cal-d { padding:12px 0; }
+.fg .hd-cal-day { display:flex; align-items:baseline; gap:8px; white-space:nowrap; }
+.fg .hd-cal-dw { font-size:14px; font-weight:500; color:var(--hd-body); }
+.fg .hd-cal-dn { font-size:20px; font-weight:700; line-height:1.2; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
+.fg .hd-cal-r[data-weekend] .hd-cal-dn { color:var(--q); }
+.fg .hd-cal-r[data-today] .hd-cal-dw { font-weight:700; color:var(--hd-ink); }
+.fg .hd-cal-tl { margin-top:2px; font-size:12px; font-weight:700; color:var(--hd-today); }
+.fg .hd-cal-r[data-kind="day"] > .hd-cal-c { padding:4px 0; border-bottom:1px solid var(--hd-rule2); }
+/* A public holiday's day is tinted, its fill reaching past the column. */
+.fg .hd-cal-r[data-holiday] { grid-template-columns:96px minmax(0,1fr); margin:4px -12px; background:var(--hd-cal-hol-day); }
+.fg .hd-cal-r[data-holiday] > .hd-cal-d { padding-left:12px; }
+.fg .hd-cal-r[data-holiday] > .hd-cal-c { padding-right:12px; border-bottom:0; }
+.fg .hd-cal-r[data-holiday] .hd-cal-dn { color:var(--hd-cal-hol-t); }
+.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-d { padding:12px 0 8px; font-size:14px; font-weight:700; color:var(--q);
+  white-space:nowrap; font-variant-numeric:tabular-nums; }
+.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-c { padding:12px 0 8px; border-bottom:1px solid var(--hd-rule2);
+  font-size:14px; font-weight:600; color:var(--q); }
+.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-c[data-long] { color:var(--hd-cal-hol-t); }
+.fg .hd-cal-none { margin:0; padding:8px 0; font-size:14px; color:var(--q); }
+/* A thing on a day: the row picks it, through its title. */
+.fg .hd-cal-it { display:flex; align-items:center; gap:12px; margin:0 -8px; padding:8px; border-radius:10px; cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-cal-it + .hd-cal-it { margin-top:2px; }
+.fg .hd-cal-it:hover { background:var(--tint); }
+.fg .hd-cal-it[data-sel] { background:var(--tint-2); }
+/* Just saved: lit in his event tint for a moment, then chosen. */
+.fg .hd-cal-it[data-fresh] { background:var(--hd-cal-ev-tint); }
+.fg .hd-cal-it > .hd-cal-sw { align-self:flex-start; margin-top:8px; }
+.fg .hd-cal-tx { flex:1; min-width:0; line-height:1.45; }
+.fg .hd-cal-itt { display:block; max-width:100%; padding:0; border:0; border-radius:6px; background:none; font:inherit;
+  font-size:16px; font-weight:600; line-height:1.45; color:var(--hd-ink); text-align:left; cursor:pointer; }
+.fg .hd-cal-itt[data-c="hol"] { color:var(--hd-cal-hol-t); }
+.fg .hd-cal-itt[data-c="school"] { color:var(--hd-body); }
+.fg .hd-cal-s { font-size:14px; color:var(--hd-body); text-wrap:pretty; }
+.fg .hd-cal-rs { flex:none; display:flex; align-items:center; gap:8px; }
+.fg .hd-cal-tm { font-size:14px; font-weight:600; color:var(--hd-body); white-space:nowrap; }
+/* An admin date's one action, drawn as the list's verb is. */
+.fg .hd-cal-ab { display:inline-flex; align-items:center; height:32px; padding:0 12px; border:1px solid var(--hd-edge);
+  border-radius:10px; background:var(--paper); font-size:13px; font-weight:600; color:var(--hd-ink); text-decoration:none;
+  white-space:nowrap; transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-cal-ab:hover { background:var(--tint); }
+
+/* THE RAIL: the list's own rows (home-cal-rail.tsx), Due in the warning
+   colour and Holidays ahead in the holidays' ink. */
+.fg .hd-cal-rail { padding:12px 24px 24px; border-left:1px solid var(--hd-rule); }
+.fg .hd-cal-rail > .hd-ls-g:first-child > .hd-ls-grp { padding-top:8px; }
+.fg .hd-ls-grp.due { color:var(--warn-t); }
+.fg .hd-ls-grp.hol { color:var(--hd-cal-hol-t); }
+.fg .hd-cal-away { font-size:13px; font-weight:500; color:var(--q); }
+
+/* MONTH: Monday first, the weekend columns narrower. The lines are inset
+   shadows, so the bars sit on the columns exactly. */
+.fg .hd-cal-mg { position:relative; padding:12px 16px 24px 24px; }
+.fg .hd-cal-mh { display:flex; box-shadow:inset 0 -1px 0 var(--hd-rule); }
+.fg .hd-cal-mh > div { min-width:0; }
+.fg .hd-cal-mh span { display:block; padding:0 0 8px 8px; font-size:12px; font-weight:600; color:var(--q); }
+.fg .hd-cal-wk { position:relative; display:flex; box-shadow:inset 0 -1px 0 var(--hd-rule); }
+.fg .hd-cal-mc { min-width:0; min-height:124px; background:var(--paper); box-shadow:inset -1px 0 0 var(--hd-rule2);
+  container-type:inline-size; }
+.fg .hd-cal-mc[data-last] { box-shadow:none; }
+.fg .hd-cal-mc[data-weekend] { background:var(--hd-cal-we); }
+.fg .hd-cal-mc[data-holiday] { background:var(--hd-cal-hol-day); }
+.fg .hd-cal-in { padding:8px 4px; }
+.fg .hd-cal-dr { display:flex; align-items:baseline; gap:4px; width:100%; min-width:0; height:22px; margin:0; padding:0 4px;
+  box-sizing:border-box; border:0; border-radius:6px; background:none; font:inherit; text-align:left; color:var(--hd-ink); }
+.fg button.hd-cal-dr { cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg button.hd-cal-dr:hover { background:var(--hd-cal-hol-hover); }
+.fg button.hd-cal-dr[aria-pressed="true"] { background:var(--hd-cal-hol-tint); }
+.fg .hd-cal-drn { flex:none; font-size:14px; font-weight:700; line-height:22px; font-variant-numeric:tabular-nums; }
+.fg .hd-cal-mc[data-weekend] .hd-cal-drn { color:var(--q); }
+.fg .hd-cal-mc[data-out] .hd-cal-drn { color:var(--q); font-weight:500; }
+.fg .hd-cal-mc[data-holiday] .hd-cal-drn { color:var(--hd-cal-hol-t); }
+.fg .hd-cal-drm { min-width:0; overflow:hidden; font-size:12px; font-weight:600; line-height:22px; color:var(--q);
+  text-overflow:ellipsis; white-space:nowrap; }
+.fg .hd-cal-drm[data-kind="holiday"] { font-weight:700; color:var(--hd-cal-hol-t); }
+.fg .hd-cal-drm[data-kind="today"] { font-weight:700; color:var(--hd-today); }
+/* Too narrow for a name beside the number: a holiday keeps its tint, its
+   number in his purple and its name as the button's. */
+@container (max-width:84px) { .fg .hd-cal-drm { display:none; } }
+.fg .hd-cal-its { display:flex; flex-direction:column; gap:2px; margin-top:2px; }
+.fg .hd-cal-mi { display:flex; align-items:flex-start; gap:8px; width:100%; min-width:0; margin:0; padding:4px; border:0;
+  border-radius:6px; background:none; font:inherit; color:var(--hd-ink); text-align:left; cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-cal-mi:hover { background:var(--tint-2); }
+.fg .hd-cal-mi[aria-pressed="true"] { background:var(--hd-cal-ev-tint); }
+.fg .hd-cal-mi[aria-pressed="true"][data-c="admin"] { background:var(--hd-cal-adm-tint); }
+.fg .hd-cal-mi[aria-pressed="true"][data-late] { background:var(--hd-cal-late-tint); }
+.fg .hd-cal-mi[data-fresh] { background:var(--hd-cal-ev-tint); }
+.fg .hd-cal-mi > .hd-cal-sw { width:8px; height:8px; margin-top:4px; }
+.fg .hd-cal-mit { display:block; min-width:0; line-height:1.35; }
+/* A title wraps between words, never inside one: a word too long for the
+   line ends in an ellipsis. */
+.fg .hd-cal-mtt { display:block; overflow:hidden; font-size:13px; font-weight:700; text-overflow:ellipsis; text-wrap:pretty;
+  overflow-wrap:normal; }
+.fg .hd-cal-mtm { display:block; overflow:hidden; font-size:12px; font-weight:500; color:var(--hd-body);
+  text-overflow:ellipsis; white-space:nowrap; }
+/* A weekend column is narrow: a thing is one line, its swatch and title,
+   and the panel carries the rest. */
+.fg .hd-cal-mc[data-narrow] .hd-cal-its { gap:4px; }
+.fg .hd-cal-mc[data-narrow] .hd-cal-mi { gap:4px; }
+.fg .hd-cal-mc[data-narrow] .hd-cal-mtt { white-space:nowrap; }
+.fg .hd-cal-mc[data-narrow] .hd-cal-mtm { display:none; }
+/* A BAR across its week: square on a side it carries on from, or into. */
+.fg .hd-cal-bar { position:absolute; display:flex; align-items:center; height:22px; box-sizing:border-box; margin:0;
+  padding:0 8px; overflow:hidden; border:0; border-radius:6px; background:var(--hd-cal-ev-tint); font:inherit;
+  font-size:12px; font-weight:700; line-height:22px; color:var(--hd-cal-ev-t); text-align:left; white-space:nowrap;
+  cursor:pointer; }
+.fg .hd-cal-bar[data-kind="school"] { background:var(--hd-cal-hatch); color:var(--hd-cal-sch-t); }
+.fg .hd-cal-bar[data-before] { border-top-left-radius:0; border-bottom-left-radius:0; }
+.fg .hd-cal-bar[data-after] { border-top-right-radius:0; border-bottom-right-radius:0; }
+.fg .hd-cal-bar[aria-pressed="true"] { box-shadow:0 0 0 2px var(--hd-ink); }
+.fg .hd-cal-barl { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+
+/* YEAR: twelve months, as many to a row as fit. */
+.fg .hd-cal-yg { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); align-content:start; gap:24px;
+  padding:24px; }
+.fg .hd-cal-ym { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.fg .hd-cal-ymh { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.fg .hd-cal-ymt { margin:0; font-size:16px; font-weight:700; line-height:1.2; color:var(--hd-ink); white-space:nowrap; }
+.fg .hd-cal-ymt[data-past] { color:var(--q); }
+.fg .hd-cal-ymn { font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; }
+.fg .hd-cal-yd { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:2px; }
+.fg .hd-cal-ydl { padding-bottom:2px; font-size:12px; font-weight:600; color:var(--q); text-align:center; }
+.fg .hd-cal-yc { position:relative; display:flex; align-items:center; justify-content:center; min-width:0; height:30px;
+  box-sizing:border-box; margin:0; padding:0 0 4px; border:0; border-radius:6px; background:transparent; font:inherit;
+  font-size:12px; font-weight:600; color:var(--hd-ink); font-variant-numeric:tabular-nums; }
+.fg button.hd-cal-yc { cursor:pointer; }
+.fg .hd-cal-yc[data-weekend] { color:var(--q); }
+.fg .hd-cal-yc[data-past] { font-weight:400; color:var(--q); }
+.fg .hd-cal-yc[data-fill="school"] { background:var(--hd-cal-hatch); }
+/* The quiet grey is short of 4.5 on the hatch's darker stripe: his body grey. */
+.fg .hd-cal-yc[data-fill="school"][data-weekend], .fg .hd-cal-yc[data-fill="school"][data-past] { color:var(--hd-body); }
+.fg .hd-cal-yc[data-fill="shutdown"] { background:var(--hd-cal-ev-tint); color:var(--hd-cal-ev-t); }
+.fg .hd-cal-yc[data-fill="holiday"] { background:var(--hd-cal-hol); font-weight:700; color:var(--paper); }
+.fg .hd-cal-yc[data-today] { font-weight:700; box-shadow:inset 0 0 0 2px var(--hd-ink); }
+.fg .hd-cal-yc[aria-pressed="true"] { box-shadow:0 0 0 2px var(--hd-ink); }
+.fg .hd-cal-yc > i { position:absolute; bottom:3px; left:50%; width:5px; height:5px; border-radius:50%; translate:-50% 0;
+  background:var(--hd-cal-ev); }
+.fg .hd-cal-yc > i[data-dot="admin"] { background:var(--hd-cal-adm); }
+.fg .hd-cal-yc > i[data-dot="late"] { background:var(--hd-late); }
+
+/* THE PANEL beside Month and Year: the one thing chosen. */
+.fg .hd-cal-det { display:flex; flex-direction:column; gap:16px; padding:24px; border-left:1px solid var(--hd-rule); }
+.fg .hd-cal-dx { display:flex; flex-direction:column; gap:16px; }
+.fg .hd-cal-dxh { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+.fg .hd-cal-k { font-size:13px; font-weight:500; color:var(--hd-cal-ev-t); }
+.fg .hd-cal-dx[data-c="hol"] .hd-cal-k { color:var(--hd-cal-hol-t); }
+.fg .hd-cal-dx[data-c="admin"] .hd-cal-k { color:var(--hd-cal-adm-t); }
+.fg .hd-cal-dx[data-late] .hd-cal-k { color:var(--hd-cal-late-t); }
+.fg .hd-cal-dx[data-c="school"] .hd-cal-k { color:var(--hd-body); }
+.fg .hd-cal-dxt { margin:0; font-size:24px; font-weight:700; line-height:1.2; color:var(--hd-ink); text-wrap:pretty; }
+.fg .hd-cal-w { font-size:14px; font-weight:500; color:var(--hd-body); }
+/* HIS STATUS CAPSULE: a named exemption (law 26), in the tint of what it
+   says. */
+.fg .hd-cal-chip { margin-top:4px; padding:4px 8px; border-radius:999px; background:var(--hd-cal-ev-tint); font-size:12px;
+  font-weight:700; line-height:1.5; color:var(--hd-cal-ev-t); }
+.fg .hd-cal-chip[data-c="hol"] { background:var(--hd-cal-hol-tint); color:var(--hd-cal-hol-t); }
+.fg .hd-cal-chip[data-tone="due"] { background:var(--hd-cal-adm-tint); color:var(--hd-cal-adm-t); }
+.fg .hd-cal-chip[data-tone="late"] { background:var(--hd-cal-late-tint); color:var(--hd-cal-late-t); }
+.fg .hd-cal-chip[data-tone="school"] { background:var(--hd-rule2); color:var(--hd-cal-sch-t); }
+.fg .hd-cal-desc { margin:0; font-size:14px; font-weight:500; line-height:1.5; text-wrap:pretty; }
+.fg .hd-cal-facts { display:flex; flex-direction:column; margin:0; border-top:1px solid var(--hd-rule2); }
+.fg .hd-cal-facts > div { display:grid; grid-template-columns:100px minmax(0,1fr); gap:12px; padding:8px 0;
+  border-bottom:1px solid var(--hd-rule2); font-size:14px; line-height:1.4; }
+.fg .hd-cal-facts dt { font-weight:600; color:var(--q); }
+.fg .hd-cal-facts dd { margin:0; font-weight:500; }
+.fg .hd-cal-acts { display:flex; flex-wrap:wrap; gap:8px; }
+/* Its one action, ink with paper words: the day panel's Open job. */
+.fg .hd-cal-go { display:inline-flex; align-items:center; height:36px; padding:0 12px; border-radius:10px;
+  background:var(--hd-ink); font-size:14px; font-weight:600; color:var(--paper); text-decoration:none; white-space:nowrap;
+  transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-cal-go:hover { background:color-mix(in srgb, var(--hd-ink) 88%, var(--paper)); }
+/* THE KEY, at the foot of Year's panel. */
+.fg .hd-cal-key { display:flex; flex-direction:column; gap:8px; margin:auto 0 0; padding:16px 0 0; list-style:none;
+  border-top:1px solid var(--hd-rule2); }
+.fg .hd-cal-ki { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--hd-body); }
+.fg .hd-cal-ks { flex:none; display:flex; align-items:flex-end; justify-content:center; width:18px; height:14px;
+  background:var(--tint); }
+.fg .hd-cal-ks[data-k="hol"] { background:var(--hd-cal-hol); }
+.fg .hd-cal-ks[data-k="shutdown"] { background:var(--hd-cal-ev-tint); }
+.fg .hd-cal-ks[data-k="school"] { background:var(--hd-cal-hatch); }
+.fg .hd-cal-ks > i { width:5px; height:5px; margin-bottom:2px; border-radius:50%; background:var(--hd-cal-ev); }
+.fg .hd-cal-ks[data-k="admin"] > i { background:var(--hd-cal-adm); }
+.fg .hd-cal-ks[data-k="late"] > i { background:var(--hd-late); }
+
+.fg .hd-cal-vb:focus-visible, .fg .hd-cal-nb:focus-visible, .fg .hd-cal-today:focus-visible,
+.fg .hd-cal-filter:focus-visible, .fg .hd-cal-itt:focus-visible, .fg .hd-cal-ab:focus-visible,
+.fg .hd-cal-dr:focus-visible, .fg .hd-cal-mi:focus-visible, .fg .hd-cal-bar:focus-visible,
+.fg .hd-cal-yc:focus-visible, .fg .hd-cal-go:focus-visible { outline:2px solid var(--hd-ink); outline-offset:2px; }
 /* ===================================================================
    VEHICLE MODAL v2 (components/fleet/vehicle-modal/)
 

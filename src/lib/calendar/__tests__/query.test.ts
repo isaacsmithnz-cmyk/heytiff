@@ -59,7 +59,7 @@ const table = (name: string) => {
 
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { from: (n: string) => table(n) } }));
 
-const ensureHolidays = jest.fn(async (...args: unknown[]): Promise<void> => void args);
+const ensureHolidays = jest.fn(async (...args: unknown[]): Promise<boolean> => (void args, false));
 jest.mock("@/lib/timepay/holiday-sync", () => ({
   ensureHolidays: (...args: unknown[]) => ensureHolidays(...args),
 }));
@@ -100,7 +100,7 @@ beforeEach(() => {
   log.length = 0;
   failing = {};
   ensureHolidays.mockReset();
-  ensureHolidays.mockResolvedValue(undefined);
+  ensureHolidays.mockResolvedValue(false);
   rows = {
     organizations: [{ id: ORG, state: "NSW" }],
     public_holidays: [
@@ -205,19 +205,39 @@ describe("loadCompanyCalendar", () => {
     expect(of("vehicles")[0].filters).toEqual([{ op: "eq", col: "org_id", val: ORG }]);
   });
 
-  it("tops the public holidays up first, then reads them", async () => {
-    /* A fill that takes a moment: a read that did not wait for it would be
-       logged before it. */
+  /* The guard is almost always the whole of the top-up, so the read goes out
+     beside it rather than after it: one round trip less on every Home. */
+  it("reads the public holidays beside the top-up's guard, not after it, and once", async () => {
     ensureHolidays.mockImplementation(async () => {
       await new Promise((r) => setTimeout(r, 5));
       log.push("ensure");
+      return false;
     });
     const out = await loadCompanyCalendar(ctx());
     expect(ensureHolidays).toHaveBeenCalledTimes(1);
     expect(ensureHolidays).toHaveBeenCalledWith(ORG, "NSW", TODAY);
     expect(ids(out)).toContain("ph:2026-10-05");
-    expect(log.indexOf("ensure")).toBeGreaterThan(-1);
-    expect(log.indexOf("ensure")).toBeLessThan(log.indexOf("public_holidays"));
+    expect(log.indexOf("public_holidays")).toBeGreaterThan(-1);
+    expect(log.indexOf("public_holidays")).toBeLessThan(log.indexOf("ensure"));
+    expect(of("public_holidays")).toHaveLength(1);
+  });
+
+  /* A workspace that has never opened Time & Pay has no holidays until the
+     top-up writes them: the read that went out beside it came back without
+     them, so it is taken again, after the fill. */
+  it("reads them again after a top-up that wrote, so the first Home has them", async () => {
+    const was = rows.public_holidays!;
+    rows.public_holidays = [];
+    ensureHolidays.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 5));
+      rows.public_holidays = was;
+      log.push("ensure");
+      return true;
+    });
+    const out = await loadCompanyCalendar(ctx());
+    expect(ids(out)).toContain("ph:2026-10-05");
+    expect(of("public_holidays")).toHaveLength(2);
+    expect(log.lastIndexOf("public_holidays")).toBeGreaterThan(log.indexOf("ensure"));
   });
 
   it("keeps the holidays it has when the top-up fails", async () => {

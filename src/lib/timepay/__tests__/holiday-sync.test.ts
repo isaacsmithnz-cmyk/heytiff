@@ -47,21 +47,22 @@ beforeEach(() => {
 });
 
 it("does nothing without a state", async () => {
-  await ensureHolidays("org-1", null, TODAY);
+  expect(await ensureHolidays("org-1", null, TODAY)).toBe(false);
   expect(upsert).not.toHaveBeenCalled();
   expect(certainHolidays).not.toHaveBeenCalled();
 });
 
 it("is a single cheap guard query when coverage is healthy", async () => {
   newestAuto = addDays(TODAY, ENSURE_MIN_AHEAD_DAYS + 30); // well past the threshold
-  await ensureHolidays("org-1", "NSW", TODAY);
+  // and says it wrote nothing, so a reader beside it keeps what it read
+  expect(await ensureHolidays("org-1", "NSW", TODAY)).toBe(false);
   expect(upsert).not.toHaveBeenCalled();
   expect(certainHolidays).not.toHaveBeenCalled();
 });
 
 it("fills from the current year to ~24 months out when coverage is thin", async () => {
   newestAuto = addDays(TODAY, 100); // under the threshold
-  await ensureHolidays("org-1", "NSW", TODAY);
+  expect(await ensureHolidays("org-1", "NSW", TODAY)).toBe(true);
 
   expect(upsert).toHaveBeenCalledTimes(1);
   const [rows, opts] = upsert.mock.calls[0];
@@ -86,15 +87,15 @@ it("fills from the current year to ~24 months out when coverage is thin", async 
   }
 });
 
-it("also fills when no auto rows exist at all", async () => {
+it("also fills when no auto rows exist at all, and says it wrote", async () => {
   newestAuto = null;
-  await ensureHolidays("org-1", "NSW", TODAY);
+  expect(await ensureHolidays("org-1", "NSW", TODAY)).toBe(true);
   expect(upsert).toHaveBeenCalledTimes(1);
 });
 
-it("writes nothing for a state the rules don't cover yet", async () => {
+it("writes nothing for a state the rules don't cover yet, and says so", async () => {
   newestAuto = null;
-  await ensureHolidays("org-1", "WA", TODAY);
+  expect(await ensureHolidays("org-1", "WA", TODAY)).toBe(false);
   expect(certainHolidays).toHaveBeenCalled();
   expect(upsert).not.toHaveBeenCalled();
 });

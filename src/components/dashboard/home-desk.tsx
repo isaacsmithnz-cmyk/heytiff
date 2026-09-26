@@ -16,7 +16,7 @@ import {
 import { motionAllowed } from "@/lib/dashboard/day-flip";
 import { placeHomeList } from "@/lib/dashboard/home-list";
 import type { DashboardData } from "@/lib/dashboard/page-data";
-import { HomeCalendarFace } from "./home-calendar-face";
+import { HomeCalendarPage } from "./home-cal-page";
 import { HomeDay } from "./home-day";
 import { KEEPS_DAY } from "./home-day-bar";
 import { HomeDiary } from "./home-diary";
@@ -36,12 +36,13 @@ import { HomeTasks } from "./home-tasks";
    the Calendar across the whole body, Tasks across the diary column, in tab
    order ("Calendar should slide across"). Only the faces scroll.
 
-   THE FACES ARE HELD, NOT BUILT, in this first cut: today's diary, tasks and
-   calendar stand in them, in their own dress, until each face's own lands.
-   "Your day" is his own already (./home-day), and so is THE LIST in the
-   right-hand column beside Diary and Tasks (./home-list), which the
-   Calendar slides across with the column. Every new file mounts here and
-   nowhere else, which is what keeps the crew's Home as it is.
+   THE FACES ARE HELD UNTIL THEIR OWN LAND: today's diary and tasks stand
+   in theirs, in their own dress, until each face's own lands. "Your day"
+   is his own already (./home-day), and so are THE LIST in the right-hand
+   column beside Diary and Tasks (./home-list), and THE CALENDAR
+   (./home-cal-page), which slides across the column and the list alike.
+   Every new file mounts here and nowhere else, which is what keeps the
+   crew's Home as it is.
 
    THE DAY'S OPEN CARD STAYS OPEN across faces, so a press on the tabs or
    in the Calendar does not close it (`KEEPS_DAY`); a click anywhere else
@@ -94,7 +95,7 @@ export function DashboardDesk({
 const taskDoor = (id: string): DeskFocus => ({ face: "tasks", kind: "task", ids: [id] });
 
 function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) {
-  const { calendar, tasks, journal, issues, assignable, canManage, viewerStaffId, today, rail } = data;
+  const { tasks, journal, issues, assignable, canManage, viewerStaffId, today, rail } = data;
   /* The list, placed from its own reads and what the page already holds —
      pure, and dated on the server by the workspace's day. */
   const list = useMemo(() => (data.desk ? placeHomeList(data.desk.list, data) : null), [data]);
@@ -298,12 +299,7 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                   />
                 )}
               </div>
-              {facePanel(
-                "calendar",
-                <div className="hm-face one">
-                  <HomeCalendarFace cal={calendar} today={today} />
-                </div>,
-              )}
+              {facePanel("calendar", data.desk && <HomeCalendarPage cal={data.desk.calendar} />)}
             </div>
           </div>
         </div>

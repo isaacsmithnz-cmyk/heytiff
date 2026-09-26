@@ -196,11 +196,12 @@ export type DiaryEntry = JournalEntry & {
       words, and the line opens the rest. Empty when she said nothing — a
       Save, a note the review card filed, one from before the modal. */
   turns: EarlierTurn[];
-  /** Undo can take back what it filed: a note filed with the record Undo
-      reads, that made something, none of whose tasks anybody has acted on
-      (ticked, "Got it", given, moved, reopened). Anything else someone did
-      to a row since, Undo finds when pressed and says (workboard-notes'
-      `undoNote`). */
+  /** Undo would take back what it filed: a note filed with the record Undo
+      reads, something it made is still there, and nobody has acted on a row
+      it filed (a task ticked, "Got it", given, moved or reopened, a flag
+      cleared, an issue counted again, a line bought, the job's notes
+      edited) — the rule `undoNote` refuses on (note-applied's
+      `undoBlocked`). */
   undo: boolean;
   /** Taken back. Your words stay, with Tiff's line saying so, and nothing
       under them: what they made has gone. */

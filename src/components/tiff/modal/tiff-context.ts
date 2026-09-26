@@ -34,7 +34,18 @@ export type TiffOpen = {
 };
 
 /** What the last conversation filed: the notes, and the rows with ids. */
-export type TiffLanded = { noteIds: string[]; ids: string[] };
+export type TiffLanded = {
+  noteIds: string[];
+  ids: string[];
+  /** The room it was had in, as it opened (the host's to say; the
+      conversation does not know). Words said to the Calendar land on the
+      Calendar, so nothing brings the Diary forward over it for them. */
+  room?: TiffRoom;
+  /** The keyboard drove it: opened with a key, or closed with one (Escape,
+      or × pressed from the keyboard). Whatever the page brings forward for
+      it is simply there, with no slide (law 8). The host's to say. */
+  keyboard?: boolean;
+};
 
 export type TiffApi = {
   /** HOME_DESK gives this viewer the modal. */

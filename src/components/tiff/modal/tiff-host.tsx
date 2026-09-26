@@ -75,7 +75,9 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
   const closed = useCallback(
     (c: TiffClosed) => {
       setSession(null);
-      if (c.landed) setLanded(c.landed);
+      /* with where it was said and whether the keyboard drove it, so the
+         page underneath knows what to bring forward, and how */
+      if (c.landed) setLanded({ ...c.landed, room: c.room, keyboard: c.keyboard });
       /* The results land on the page after it closes — and only when
          something was written; closing on nothing costs no refetch. */
       if (c.changed) router.refresh();

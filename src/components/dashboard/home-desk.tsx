@@ -181,20 +181,34 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
 
   /* A TIFF LANDING WHILE THE CALENDAR IS UP. What her modal filed lands in
      the diary, which the Calendar covers, so the Diary comes in first — in
-     tab order, from the left, as his prototype's did (v33, `land()`) — and
-     the entry lights there once it is on screen (./home-diary-feed). Taken
-     from the host as it changes, while rendering, as the diary takes it; at
-     rest there is no slide in flight to stop, so this is state alone. Still
-     under reduced motion, like every slide. */
+     tab order, from the left, as his prototype's did (v33, `land()`, the
+     top bar's Tiff) — and the entry lights there once it is on screen
+     (./home-diary-feed). Words said in the Calendar's own room are the
+     Calendar's, and it keeps them (his `calLand`): nothing comes over it.
+     Still under reduced motion, like every slide, and simply there for a
+     conversation the keyboard drove (law 8). Taken from the host as it
+     changes, while rendering, as the diary takes it; at rest there is no
+     slide in flight to stop, so this is state alone. */
   const { landed } = useTiff();
   const [heard, setHeard] = useState<TiffLanded | null>(null);
+  /** Counts the landings that brought the Diary in, for the focus below. */
+  const [landings, setLandings] = useState(0);
   if (landed !== heard) {
     setHeard(landed);
-    if (landed && landed.noteIds.length > 0 && face === "calendar" && !motion) {
+    if (landed && landed.noteIds.length > 0 && landed.room !== "calendar" && face === "calendar" && !motion) {
       setFace("diary");
-      setMotion(motionAllowed() ? { from: "calendar", to: "diary", x0: 0 } : null);
+      setMotion(!landed.keyboard && motionAllowed() ? { from: "calendar", to: "diary", x0: 0 } : null);
+      setLandings((n) => n + 1);
     }
   }
+  /* The modal gave focus back as it closed; where that was in the Calendar,
+     the Calendar has just gone inert, and focus would fall to the top of
+     the page. The tab of the face that came in holds it instead. */
+  useLayoutEffect(() => {
+    if (!landings) return;
+    if (calendarRef.current?.contains(document.activeElement))
+      document.getElementById("hdtab-diary")?.focus({ preventScroll: true });
+  }, [landings]);
 
   /* THE SLIDE. After the commit that shows both parts and before the paint:
      the one leaving goes out the far side and holds there, the one arriving

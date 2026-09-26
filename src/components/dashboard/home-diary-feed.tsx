@@ -47,12 +47,15 @@ import { useDiaryRefresh } from "./use-diary-refresh";
    closes, "just now" and lit, like a Save.
 
    UNDO sits at the end of what an entry made, while it can take it back —
-   until someone acts on a row it filed (Isaac's call, 2026-09-25). A task
-   ticked off, given on, moved or answered "Got it" is known before you
-   press it, so Undo is not offered; the rest (a flag cleared, a line
-   bought) the server finds when pressed, and the sentence it says takes
-   Undo's place. Taken back — by this press, or by one whose answer was
-   lost — the entry keeps your words, and Tiff's line says what went. The
+   until someone acts on a row it filed (Isaac's call, 2026-09-25). The
+   page's read asks the rule the server refuses on (a task ticked off,
+   given on, moved or answered "Got it", a flag cleared, an issue counted
+   again, a line bought, the job's notes edited, or everything it made
+   deleted since), so Undo is offered only where a press would not be
+   refused; one that is anyway (somebody acted in the meantime) says why
+   in Undo's place. Taken back — by this press, by one whose answer was
+   lost, or by somebody else's at the same moment — the entry keeps your
+   words, and Tiff's line says what went. The
    keyboard stays where it was pressed while it is out, and lands on what
    answered: Tiff's line when it worked, the entry when it was refused.
 
@@ -200,8 +203,9 @@ function Entry({
       if (held) landOn.current = "undo";
       return setUndoSaid({ text: NOT_REACHED, again: true });
     }
-    /* Taken back — by this press, or by one whose answer was lost: the
-       server then refuses with the conversation as it now stands. */
+    /* Taken back — by this press, by one whose answer was lost, or by
+       somebody else's that claimed it first: the server then refuses with
+       the conversation as it now stands. */
     if (res.ok || res.turns) {
       if (held) landOn.current = "line";
       return setTaken(conversationOf(res.turns ?? []));

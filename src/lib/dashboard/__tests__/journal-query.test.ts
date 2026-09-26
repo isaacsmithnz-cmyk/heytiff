@@ -391,13 +391,14 @@ describe("listDiaryEntries: Tiff's line, Undo, and what Undo took back", () => {
       { id: "t-open", title: "Call Mary", assigned_to: "s-luke", status: "open" },
       { id: "t-done", title: "Order filters", assigned_to: "s-luke", status: "done" },
     ];
+    rows.workboard_flags = [{ id: "f1", active: true }];
     const out = await listDiaryEntries("org-1", "s1", null);
     expect(Object.fromEntries(out.map((e) => [e.id, e.undo]))).toEqual({
       // a task somebody deleted since is simply gone, and stops nothing
       open: true,
       // one ticked off ends it: Undo would refuse the lot
       ticked: false,
-      // a flag Undo checks when pressed, like the rest of a row's state
+      // a flag still up
       flag: true,
       // filed before Undo existed
       v1: false,
@@ -406,6 +407,121 @@ describe("listDiaryEntries: Tiff's line, Undo, and what Undo took back", () => {
       saved: false,
     });
     expect(out.every((e) => e.undone === false)).toBe(true);
+  });
+
+  /* THE REST OF "SOMEONE ACTED ON A ROW IT FILED", known before the press:
+     Undo is drawn by the rule `undoNote` refuses on, so it is never offered
+     where pressing it could only say "Someone has already acted on one of
+     those" — after a reload as much as before. */
+  it("offers no Undo once a flag it raised is cleared, an issue counted again, a line bought or the job's notes edited", async () => {
+    const visit = (id: string, after: string) => ({
+      table: "maintenance_visits",
+      id,
+      column: "notes",
+      before: null,
+      after,
+    });
+    rows.workboard_notes = [
+      filed("flag-up", { v: 2, flagIds: ["f-up"] }),
+      filed("flag-cleared", { v: 2, flagIds: ["f-cleared"] }),
+      filed("counted", { v: 2, issueIds: ["i-counted"] }),
+      filed("resolved", { v: 2, issueIds: ["i-resolved"] }),
+      filed("bumped-again", { v: 2, issueIds: ["i-old"], issueBumps: [{ id: "i-old", occurrences: 2 }] }),
+      filed("ticked-line", { v: 2, bringItems: ["coil cleaner"], checklistIds: ["c-done"] }),
+      filed("picked", { v: 2, bringItems: ["1060 grille"], picklistIds: ["p-picked"] }),
+      filed("notes-as-left", { v: 2, textWrites: [visit("v-same", "Belts swapped")] }),
+      filed("notes-edited", { v: 2, textWrites: [visit("v-edited", "Belts swapped")] }),
+    ];
+    rows.workboard_flags = [
+      { id: "f-up", active: true },
+      { id: "f-cleared", active: false },
+    ];
+    rows.workboard_issues = [
+      { id: "i-counted", summary: "Rattle", occurrences: 2, resolved: false },
+      { id: "i-resolved", summary: "Leak", occurrences: 1, resolved: true },
+      { id: "i-old", summary: "Tripped", occurrences: 4, resolved: false },
+    ];
+    rows.project_checklist_items = [{ id: "c-done", done: true }];
+    rows.job_picklist_items = [{ id: "p-picked", picked: true }];
+    rows.maintenance_visits = [
+      { id: "v-same", notes: "Belts swapped" },
+      { id: "v-edited", notes: "Belts swapped\nLuke: done" },
+    ];
+    const out = await listDiaryEntries("org-1", "s1", null);
+    expect(Object.fromEntries(out.map((e) => [e.id, e.undo]))).toEqual({
+      "flag-up": true,
+      "flag-cleared": false,
+      counted: false,
+      resolved: false,
+      "bumped-again": false,
+      "ticked-line": false,
+      picked: false,
+      "notes-as-left": true,
+      "notes-edited": false,
+    });
+  });
+
+  it("reads what only Undo needs once per kind for the page, org-scoped, and only from records Undo reads", async () => {
+    rows.workboard_notes = [
+      filed("a", {
+        v: 2,
+        flagIds: ["f1"],
+        checklistIds: ["c1"],
+        picklistIds: ["p1"],
+        entryIds: ["e1"],
+        textWrites: [
+          { table: "maintenance_agreements", id: "a1", column: "bring_list", before: null, after: "ladder" },
+        ],
+      }),
+      filed("b", { v: 2, flagIds: ["f2"], entryIds: ["e2"] }),
+      // a record from before Undo: nothing it names is read for Undo
+      filed("old", { flagIds: ["f-old"], entryIds: ["e-old"] }),
+    ];
+    await listDiaryEntries("org-1", "s1", null);
+    const one = (t: string) => {
+      expect(of(t)).toHaveLength(1);
+      expect(of(t)[0].eq).toEqual({ org_id: "org-1" });
+      return of(t)[0];
+    };
+    expect(one("workboard_flags")).toMatchObject({ columns: "id, active", in: ["id", ["f1", "f2"]] });
+    expect(one("project_checklist_items")).toMatchObject({ columns: "id, done", in: ["id", ["c1"]] });
+    expect(one("job_picklist_items")).toMatchObject({ columns: "id, picked", in: ["id", ["p1"]] });
+    expect(one("project_entries")).toMatchObject({ columns: "id", in: ["id", ["e1", "e2"]] });
+    expect(one("maintenance_agreements")).toMatchObject({ columns: "id, notes, bring_list", in: ["id", ["a1"]] });
+    // no text written to a visit or a project: neither is asked
+    expect(of("maintenance_visits")).toHaveLength(0);
+    expect(of("projects")).toHaveLength(0);
+  });
+
+  it("asks nothing more of a page whose records Undo does not read", async () => {
+    rows.workboard_notes = [filed("old", { taskIds: ["t1"], flagIds: ["f1"] })];
+    await listDiaryEntries("org-1", "s1", null);
+    for (const t of ["task_events", "workboard_flags", "project_checklist_items", "job_picklist_items", "project_entries"])
+      expect(of(t)).toHaveLength(0);
+  });
+
+  /* Undo lasts days, so it meets rows somebody deleted in between. A note
+     whose every row has gone has nothing left for Undo to take, and one
+     that still has some says only those when pressed (undoNote). */
+  it("offers no Undo once everything it made has been deleted since", async () => {
+    rows.workboard_notes = [
+      filed("all-gone", { v: 2, taskIds: ["t-gone"], flagIds: ["f-gone"], kbIds: ["k-gone"] }),
+      filed("one-left", { v: 2, taskIds: ["t-gone", "t-open"] }),
+      filed("library", { v: 2, kbIds: ["k-field"] }),
+      filed("not-hers", { v: 2, kbIds: ["k-manual"] }),
+    ];
+    rows.tasks = [{ id: "t-open", title: "Call Mary", assigned_to: "s-luke", status: "open" }];
+    rows.kb_documents = [
+      { id: "k-field", title: "Clearing an E6", category: "field" },
+      { id: "k-manual", title: "Daikin manual", category: "install" },
+    ];
+    const out = await listDiaryEntries("org-1", "s1", null);
+    expect(Object.fromEntries(out.map((e) => [e.id, e.undo]))).toEqual({
+      "all-gone": false,
+      "one-left": true,
+      library: true,
+      "not-hers": false,
+    });
   });
 
   /* Open is not untouched: a task given on, moved, ticked and reopened, or

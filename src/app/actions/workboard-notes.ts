@@ -44,9 +44,14 @@ import {
   appliedOf,
   doorsOf,
   freshIssueIds,
+  stillThere,
+  takesBack,
+  textKey,
+  undoBlocked,
   undoSummary,
   type IssueBump,
   type NoteDoor,
+  type NowRow,
   type TextWrite,
 } from "@/lib/workboard/note-applied";
 import {
@@ -1520,6 +1525,7 @@ const UNDO = {
   acted: "Someone has already acted on one of those, so nothing was taken back.",
   ticked: (first: string) => `${first} has already ticked off one of those, so nothing was taken back.`,
   sm8: "That note was queued for ServiceM8, so nothing was taken back. Remove it from the job's diary first.",
+  gone: "Those have all been deleted since, so nothing was taken back.",
 };
 
 /* A NOTE QUEUED FOR SERVICEM8 IS TAKEN BACK FROM THE JOB'S DIARY, NOT HERE
@@ -1564,6 +1570,12 @@ type Rows = Record<string, unknown>[];
     those and nothing is taken back, and the sentence says why — a
     half-undone note is worse than either. A task still open says only some
     of that on its row; the rest is its history (task_events), read with it.
+    The rule is note-applied's `undoBlocked`, the one the diary draws its
+    Undo by, so the two never disagree about what a press would do.
+
+    WHAT IT SAYS IT TOOK is what was still there: a row somebody deleted
+    since stops nothing and is not counted, and a note whose every row has
+    gone is refused rather than said to have taken something back.
 
     TAKEN BACK ALREADY — the first press landed and its answer was lost, or
     somebody else pressed it — is refused with the conversation as it now
@@ -1598,15 +1610,18 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
       .in("id", ids);
     return (data ?? []) as unknown as Rows;
   };
+  const byId = (rows: Rows) => new Map(rows.map((r): [string, NowRow] => [String(r.id), r]));
 
-  /* ── every check, before a single write ── */
-  const [tasks, flags, bumped, created, checklist, picklist, acted] = await Promise.all([
+  /* ── every check, before a single write: the rows as they read now,
+     judged by the one rule the diary's Undo is drawn by (note-applied) ── */
+  const [tasks, flags, issues, checklist, picklist, entries, kb, history, text] = await Promise.all([
     read("tasks", "id, status, assigned_to, done_by, acknowledged_at", a.taskIds),
     read("workboard_flags", "id, active", a.flagIds),
-    read("workboard_issues", "id, occurrences", a.issueBumps.map((b) => b.id)),
-    read("workboard_issues", "id, occurrences, resolved", fresh),
+    read("workboard_issues", "id, occurrences, resolved", a.issueIds),
     read("project_checklist_items", "id, done", a.checklistIds),
     read("job_picklist_items", "id, picked", a.picklistIds),
+    read("project_entries", "id", a.entryIds),
+    read("kb_documents", "id, category", a.kbIds),
     /* What an open task's row cannot say: it was given, moved, or ticked
        and reopened since. One is enough. */
     a.taskIds.length
@@ -1619,13 +1634,39 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
           .limit(1)
           .then(({ data }) => (data ?? []) as unknown as Rows)
       : Promise.resolve([] as Rows),
+    Promise.all(
+      a.textWrites.map(async (w): Promise<[string, NowRow] | null> => {
+        const { data } = await supabaseAdmin
+          .from(w.table)
+          .select(w.column)
+          .eq("org_id", ctx.orgId)
+          .eq("id", w.id)
+          .maybeSingle();
+        return data ? [textKey(w.table, w.id), data as unknown as NowRow] : null;
+      }),
+    ),
   ]);
+  const found = {
+    tasks: byId(tasks),
+    taskHistory: new Set(history.map((e) => String(e.task_id))),
+    flags: byId(flags),
+    issues: byId(issues),
+    checklist: byId(checklist),
+    picklist: byId(picklist),
+    entries: new Set(entries.map((e) => String(e.id))),
+    kb: new Set(kb.filter((d) => d.category === "field").map((d) => String(d.id))),
+    /* two writes to one row (its notes and its bring list) read one column
+       each: merged, so each check sees its own */
+    text: text.reduce((m, hit) => {
+      if (hit) m.set(hit[0], { ...m.get(hit[0]), ...hit[1] });
+      return m;
+    }, new Map<string, NowRow>()),
+  };
 
-  /* A row somebody deleted since is simply gone — there is nothing of theirs
-     to protect in it, so it does not stop the rest. */
-  const ticked = tasks.find((t) => t.status !== "open");
-  if (ticked) {
-    const who = String(ticked.done_by ?? ticked.assigned_to ?? "");
+  const blocked = undoBlocked(a, found);
+  if (blocked?.why === "ticked") {
+    const t = found.tasks.get(blocked.taskId);
+    const who = String(t?.done_by ?? t?.assigned_to ?? "");
     const { data: person } = who
       ? await supabaseAdmin
           .from("staff_profiles")
@@ -1637,32 +1678,18 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
     const first = person ? fullNameOf(person as Record<string, unknown>).split(" ")[0] : "";
     return { ok: false, error: first ? UNDO.ticked(first) : UNDO.acted };
   }
-  const prior = new Map(a.issueBumps.map((b) => [b.id, b]));
-  if (
-    acted.length > 0 ||
-    tasks.some((t) => t.acknowledged_at != null) ||
-    flags.some((f) => f.active !== true) ||
-    bumped.some((i) => i.occurrences !== (prior.get(String(i.id))?.occurrences ?? 0) + 1) ||
-    created.some((i) => i.occurrences !== 1 || i.resolved === true) ||
-    checklist.some((c) => c.done === true) ||
-    picklist.some((p) => p.picked === true)
-  ) {
-    return { ok: false, error: UNDO.acted };
-  }
-  for (const w of a.textWrites) {
-    const { data } = await supabaseAdmin
-      .from(w.table)
-      .select(w.column)
-      .eq("org_id", ctx.orgId)
-      .eq("id", w.id)
-      .maybeSingle();
-    const now = (data as Record<string, unknown> | null)?.[w.column] ?? null;
-    if (now !== w.after) return { ok: false, error: UNDO.text };
-  }
+  if (blocked) return { ok: false, error: blocked.why === "text" ? UNDO.text : UNDO.acted };
+
+  /* What is still there to take back, counted: a row somebody deleted
+     since is not said to have been taken back, and a note whose every row
+     has gone takes nothing back at all. A note that never made a row (only
+     words kept) is taken back as it always was: "Taken back." */
+  const left = stillThere(a, found);
+  if (takesBack(a) && !takesBack(left)) return { ok: false, error: UNDO.gone };
   if (await heldBySm8(ctx.orgId, note)) return { ok: false, error: UNDO.sm8 };
 
   /* ── claimed: only one Undo lands ── */
-  const summary = undoSummary(a);
+  const summary = undoSummary(left);
   const so = turnsOf(note.turns);
   const turns = withTurns(so.length ? so : [turn("you", note.transcript)], turn("tiff", summary));
   const { data: claimed } = await supabaseAdmin
@@ -1672,7 +1699,16 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
     .eq("id", noteId)
     .eq("status", "applied")
     .select("id");
-  if (!((claimed ?? []) as unknown[]).length) return { ok: false, error: UNDO.undone };
+  if (!((claimed ?? []) as unknown[]).length) {
+    /* Somebody else's press claimed it first: answered as a press on a
+       note taken back already is, with the conversation as it now stands,
+       so the page that pressed can show what went rather than offer Undo
+       beside rows that have gone. */
+    const again = await noteIn(ctx.orgId, noteId, TALK_COLUMNS);
+    return again?.status === "undone"
+      ? { ok: false, error: UNDO.undone, turns: turnsOf(again.turns) }
+      : { ok: false, error: UNDO.undone };
+  }
   /* a Send that queued in the moment since: the note goes back as it was */
   if (await heldBySm8(ctx.orgId, note)) {
     await supabaseAdmin

@@ -281,6 +281,13 @@ describe("the diary", () => {
     expect(rule(".fg .hd-dy-en:focus-visible")).toEqual({ outline: "none", "box-shadow": "var(--ring)" });
   });
 
+  /* Tiff's line that opens her conversation again, and the entry's Undo,
+     are buttons the keyboard lands on too. */
+  it("rings Tiff's line and Undo for the keyboard (law 32)", () => {
+    expect(rule(".fg .hd-dy-tiff.opens:focus-visible")).toEqual({ outline: "none", "box-shadow": "var(--ring)" });
+    expect(rule(".fg .hd-dy-undo:focus-visible")).toEqual({ outline: "none", "box-shadow": "var(--ring)" });
+  });
+
   /* His door (`.dr.real`) is ink on his edge, the line: ink is the one
      link token, and its words are underlined (law 34). */
   it("dresses a door as a link, on the one link token and the line's edge", () => {

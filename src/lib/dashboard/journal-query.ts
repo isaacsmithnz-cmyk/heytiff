@@ -34,7 +34,19 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { auDayOf, fmtAuTime } from "@/lib/au-dates";
 import { todayInZone } from "@/lib/workboard/dates";
 import { naiveInZone } from "@/lib/workboard/job-story";
-import { APPLIED_V, appliedOf, takesBack } from "@/lib/workboard/note-applied";
+import {
+  APPLIED_V,
+  TEXT_COLUMNS,
+  appliedOf,
+  stillThere,
+  takesBack,
+  textKey,
+  undoBlocked,
+  type AppliedRecord,
+  type FiledNow,
+  type NowRow,
+  type TextTable,
+} from "@/lib/workboard/note-applied";
 import { conversationOf, lastTiff, turnsOf } from "@/lib/workboard/note-turns";
 import { describeAppliedResolved, type DiaryEntry, type JournalEntry } from "./journal";
 import { ACTED_KINDS } from "./task-events";
@@ -81,10 +93,11 @@ type Resolved = {
   tasks: Map<string, string>;
   /** taskId → the staff card it is on (null: nobody), for the same tasks. */
   owners: Map<string, string | null>;
-  /** Those of the same tasks somebody has acted on since: no longer open,
-      answered "Got it", or given, moved or reopened (their history). Asked
-      only by the diary, whose Undo any of those ends. */
-  acted: Set<string>;
+  /** Every row a filed record names, as it reads now, in the shape Undo's
+      rule reads (note-applied's `undoBlocked`). Asked only by the diary,
+      whose Undo is drawn where a press would not be refused; empty for the
+      journal. */
+  now: FiledNow;
   /** kb documentId → title, for the documents that still exist. */
   kb: Map<string, string>;
   /** journal entry id → the grouped note its kept lines were filed as. */
@@ -125,12 +138,20 @@ function appliedIds(applied: unknown, key: string): string[] {
    Org-scoped like everything else, and the notes read is person-scoped too:
    `staff_notes` is somebody's own notebook, and the door only opens onto the
    reader's own. A row that isn't returned is a row that has been deleted since
-   — that is the whole point of resolving rather than trusting the stored id. */
+   — that is the whole point of resolving rather than trusting the stored id.
+
+   THE DIARY ASKS MORE (`withStatus`): whether Undo would still take each
+   filed note back, which is every row its record names, as it reads now.
+   The chips' own reads carry the extra columns (a task's status, an
+   issue's count, a Library entry's kind); what no chip reads — flags,
+   checklist and picklist rows, project entries, the text a note appended
+   to — is one read more per kind, only for records Undo reads (`v: 2`),
+   and only where one of them names any. */
 async function resolveOutcomes(
   orgId: string,
   staffId: string,
   rows: readonly Row[],
-  /** The diary's read also asks each task whether anyone has acted on it. */
+  /** The diary's read: every row a filed record names, for its Undo. */
   withStatus = false,
 ): Promise<Resolved> {
   const taskIds = [...new Set(rows.flatMap((r) => appliedIds(r.applied, "taskIds")))];
@@ -142,7 +163,21 @@ async function resolveOutcomes(
     ? "id, title, assigned_to, status, acknowledged_at"
     : "id, title, assigned_to";
 
-  const [tasks, kb, notes, issues, events] = await Promise.all([
+  /* What only Undo reads, from the records it reads. */
+  const undoable = withStatus ? rows.map((r) => appliedOf(r.applied)).filter((a) => a.v === APPLIED_V) : [];
+  const ids = (pick: (a: AppliedRecord) => readonly string[]) => [...new Set(undoable.flatMap(pick))];
+  const byStatus = (table: string, columns: string, list: readonly string[]) =>
+    list.length
+      ? supabaseAdmin.from(table).select(columns).eq("org_id", orgId).in("id", list)
+      : Promise.resolve({ data: [] });
+  const written = new Map<TextTable, Set<string>>();
+  for (const w of undoable.flatMap((a) => a.textWrites)) {
+    const at = written.get(w.table) ?? new Set<string>();
+    written.set(w.table, at.add(w.id));
+  }
+  const history = ids((a) => a.taskIds);
+
+  const [tasks, kb, notes, issues, events, flags, checklist, picklist, entries, text] = await Promise.all([
     taskIds.length
       ? supabaseAdmin
           .from("tasks")
@@ -151,7 +186,11 @@ async function resolveOutcomes(
           .in("id", taskIds)
       : Promise.resolve({ data: [] }),
     kbIds.length
-      ? supabaseAdmin.from("kb_documents").select("id, title").eq("org_id", orgId).in("id", kbIds)
+      ? supabaseAdmin
+          .from("kb_documents")
+          .select(withStatus ? "id, title, category" : "id, title")
+          .eq("org_id", orgId)
+          .in("id", kbIds)
       : Promise.resolve({ data: [] }),
     keptIds.length
       ? supabaseAdmin
@@ -164,41 +203,67 @@ async function resolveOutcomes(
     /* Resolved or not — the row keeps its words either way, and Home's
        issues list is where the door lands. */
     issueIds.length
-      ? supabaseAdmin.from("workboard_issues").select("id, summary").eq("org_id", orgId).in("id", issueIds)
+      ? supabaseAdmin
+          .from("workboard_issues")
+          .select(withStatus ? "id, summary, occurrences, resolved" : "id, summary")
+          .eq("org_id", orgId)
+          .in("id", issueIds)
       : Promise.resolve({ data: [] }),
     /* What an open task's row cannot say: given, moved, ticked and reopened
        (task_events). The diary's only. */
-    withStatus && taskIds.length
+    history.length
       ? supabaseAdmin
           .from("task_events")
           .select("task_id")
           .eq("org_id", orgId)
-          .in("task_id", taskIds)
+          .in("task_id", history)
           .in("kind", ACTED_KINDS)
       : Promise.resolve({ data: [] }),
+    byStatus("workboard_flags", "id, active", ids((a) => a.flagIds)),
+    byStatus("project_checklist_items", "id, done", ids((a) => a.checklistIds)),
+    byStatus("job_picklist_items", "id, picked", ids((a) => a.picklistIds)),
+    byStatus("project_entries", "id", ids((a) => a.entryIds)),
+    /* The rows a note appended to, one read per table, every column a note
+       may write there. */
+    Promise.all(
+      [...written].map(([table, at]) =>
+        byStatus(table, ["id", ...TEXT_COLUMNS[table]].join(", "), [...at]).then(({ data }) =>
+          ((data ?? []) as unknown as Record<string, unknown>[]).map(
+            (r): [string, NowRow] => [textKey(table, String(r.id)), r],
+          ),
+        ),
+      ),
+    ),
   ]);
 
+  // the column lists are chosen at run time, so the client cannot type the rows
+  const list = (res: { data: unknown }) => (res.data ?? []) as Record<string, unknown>[];
+  const byId = (res: { data: unknown }) => new Map(list(res).map((r): [string, NowRow] => [String(r.id), r]));
   const found: Resolved = {
     tasks: new Map(),
     owners: new Map(),
-    acted: new Set(),
+    now: {
+      tasks: withStatus ? byId(tasks) : new Map(),
+      taskHistory: new Set(list(events).map((r) => String(r.task_id))),
+      flags: byId(flags),
+      issues: withStatus ? byId(issues) : new Map(),
+      checklist: byId(checklist),
+      picklist: byId(picklist),
+      entries: new Set(list(entries).map((r) => String(r.id))),
+      kb: new Set(withStatus ? list(kb).filter((r) => r.category === "field").map((r) => String(r.id)) : []),
+      text: new Map(text.flat()),
+    },
     kb: new Map(),
     notes: new Map(),
     issues: new Map(),
   };
-  // the column list is chosen at run time, so the client cannot type the rows
-  for (const r of (tasks.data ?? []) as unknown as Record<string, unknown>[]) {
+  for (const r of list(tasks)) {
     found.tasks.set(String(r.id), String(r.title ?? ""));
     found.owners.set(String(r.id), typeof r.assigned_to === "string" && r.assigned_to ? r.assigned_to : null);
-    if (withStatus && (r.status !== "open" || r.acknowledged_at != null)) found.acted.add(String(r.id));
   }
-  for (const r of (events.data ?? []) as Record<string, unknown>[]) found.acted.add(String(r.task_id));
-  for (const r of (kb.data ?? []) as Record<string, unknown>[])
-    found.kb.set(String(r.id), String(r.title ?? ""));
-  for (const r of (notes.data ?? []) as Record<string, unknown>[])
-    found.notes.set(String(r.source_note_id), String(r.id));
-  for (const r of (issues.data ?? []) as Record<string, unknown>[])
-    found.issues.set(String(r.id), String(r.summary ?? ""));
+  for (const r of list(kb)) found.kb.set(String(r.id), String(r.title ?? ""));
+  for (const r of list(notes)) found.notes.set(String(r.source_note_id), String(r.id));
+  for (const r of list(issues)) found.issues.set(String(r.id), String(r.summary ?? ""));
   return found;
 }
 
@@ -254,15 +319,16 @@ export async function listJournal(
      turns     the conversation, as the modal said it: Tiff's last turn is
                the line under your words ("Tiff: Done. …"), and the line
                opens the rest in the modal again.
-     undo      whether Undo can take back what it filed. The record must be
-               the one Undo reads (`v: 2`) and hold something to take back,
-               and nobody may have acted on a task it made: ticked it off,
-               said "Got it", given it on, moved it or reopened it — asked
-               of the tasks this read looks up anyway (two columns more) and
-               of their history (one read more), as `undoNote` asks them.
-               The rest of what "someone acted on a row" means (a flag
-               cleared, a line bought, the job's notes edited) Undo finds
-               when pressed, and says why it took nothing back.
+     undo      whether Undo would take back what it filed, by the rule
+               `undoNote` refuses on (note-applied's `undoBlocked`), so a
+               press on it is never refused for something already known.
+               The record must be the one Undo reads (`v: 2`), something it
+               made must still be there (a row somebody deleted is not Undo's
+               to take), and nobody may have acted on a row it filed: a task
+               ticked off, answered "Got it", given on, moved or reopened, a
+               flag cleared, an issue counted again or resolved, a line
+               bought or ticked, the job's notes edited since. Read in
+               `resolveOutcomes`, a batch per kind for the page.
      undone    Undo took it back. The row stays in the diary, your words with
                Tiff's "1 task taken back." under them, and nothing else: what
                they made has gone, so nothing is looked up for it.
@@ -327,7 +393,7 @@ export async function listDiaryEntries(
       if (found.owners.has(id)) taskFor[id] = found.owners.get(id) ?? null;
     const record = appliedOf(r.applied);
     const undo =
-      record.v === APPLIED_V && takesBack(record) && !record.taskIds.some((id) => found.acted.has(id));
+      record.v === APPLIED_V && !undoBlocked(record, found.now) && takesBack(stillThere(record, found.now));
     return [{ ...entry, ...said, taskFor, undo, undone: false }];
   });
 }

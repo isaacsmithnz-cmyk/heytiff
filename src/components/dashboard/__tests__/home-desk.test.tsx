@@ -1233,6 +1233,91 @@ describe("the slide", () => {
       expect(tab("Calendar")).toHaveAttribute("aria-selected", "true");
       expect(runs).toEqual([]);
     }, WHOLE);
+
+    /* Law 8: a conversation opened or closed from the keyboard (Escape, ×
+       with a key) brings the Diary in with no slide, as a tab chosen from
+       the keyboard does. */
+    it("brings the Diary in with no slide for a conversation the keyboard drove", async () => {
+      const user = userEvent.setup();
+      const { rerender } = render(at(null));
+      await user.click(tab("Calendar"));
+      await settle();
+      runs = [];
+      rerender(at({ ...LANDED, keyboard: true }));
+      expect(tab("Diary")).toHaveAttribute("aria-selected", "true");
+      expect(runs).toEqual([]);
+      expect(shownFaces()).toEqual(["diary"]);
+    }, WHOLE);
+
+    /* Words said to the Calendar are the Calendar's (his prototype's
+       calLand): what they file lands there, and nothing comes over it. */
+    it("leaves the Calendar up for a conversation had in the Calendar's own room", async () => {
+      const user = userEvent.setup();
+      const { rerender } = render(at(null));
+      await user.click(tab("Calendar"));
+      await settle();
+      runs = [];
+      rerender(at({ ...LANDED, room: "calendar" }));
+      expect(tab("Calendar")).toHaveAttribute("aria-selected", "true");
+      expect(runs).toEqual([]);
+      expect(shownFaces()).toEqual(["calendar"]);
+    }, WHOLE);
+
+    /* The modal hands focus back as it closes; where that was in the
+       Calendar, which goes inert as the Diary comes in, the Diary's tab
+       holds it rather than letting it fall to the top of the page. */
+    it("keeps the keyboard's place on the Diary's tab when focus was in the Calendar", async () => {
+      const user = userEvent.setup();
+      const { rerender } = render(at(null));
+      await user.click(tab("Calendar"));
+      await settle();
+      const inCalendar = face("calendar").querySelector<HTMLElement>("button:not(:disabled)")!;
+      inCalendar.focus();
+      expect(inCalendar).toHaveFocus();
+      rerender(at(LANDED));
+      expect(tab("Diary")).toHaveFocus();
+    }, WHOLE);
+
+    it("leaves focus where it was when it was not in the Calendar", async () => {
+      const user = userEvent.setup();
+      const { rerender } = render(at(null));
+      await user.click(tab("Calendar"));
+      await settle();
+      tab("Calendar").focus();
+      rerender(at(LANDED));
+      expect(tab("Calendar")).toHaveFocus();
+    }, WHOLE);
+
+    /* The wash's seven seconds start when the entry is on screen: a note
+       landed while Tasks is up waits behind it, lit, and runs its full
+       seven seconds once the Diary is chosen. */
+    it("holds the wash of an entry landed behind Tasks until the Diary is up", async () => {
+      jest.useFakeTimers();
+      try {
+        const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+        const { rerender } = render(at(null));
+        await user.click(tab("Tasks"));
+        await settle();
+        rerender(at(LANDED));
+        rerender(at(null, after));
+        expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+        act(() => {
+          jest.advanceTimersByTime(DIARY_LIT_MS + 1000);
+        });
+        await user.click(tab("Diary"));
+        expect(litEntries()).toEqual(["e9"]);
+        act(() => {
+          jest.advanceTimersByTime(DIARY_LIT_MS - 1);
+        });
+        expect(litEntries()).toEqual(["e9"]);
+        act(() => {
+          jest.advanceTimersByTime(1);
+        });
+        expect(litEntries()).toEqual([]);
+      } finally {
+        jest.useRealTimers();
+      }
+    }, WHOLE);
   });
 
   it("does not slide at all under reduced motion: the face is simply there", async () => {

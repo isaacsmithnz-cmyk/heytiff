@@ -648,6 +648,21 @@ describe("what Tiff made of it", () => {
     expect(under()).not.toHaveTextContent("That was already taken back.");
   });
 
+  /* Pressed in two places at once (a second tab, the office PC): the press
+     that loses the claim is answered with the conversation as it stands,
+     and this entry says what went, the same as the one that won. */
+  it("is taken back when somebody else's press took it back a moment first", async () => {
+    undoNote.mockResolvedValueOnce({ ok: false, error: "That was already taken back.", turns: takenBack.turns });
+    const user = userEvent.setup();
+    draw({ diary: diary([TALKED]), onPage });
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(undoNote).toHaveBeenCalledTimes(1);
+    expect(within(under()).getByRole("button", { name: named("Tiff: 1 task taken back.") })).toBeInTheDocument();
+    expect(within(under()).queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(under().querySelector(".hd-dy-doors")).toBeNull();
+    expect(under()).not.toHaveTextContent("That was already taken back.");
+  });
+
   describe("from the keyboard", () => {
     /* The Undo you pressed goes, or goes quiet, so the keyboard is put on
        what answered rather than dropped to the top of the page. */

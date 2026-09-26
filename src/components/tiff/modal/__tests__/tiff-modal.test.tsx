@@ -499,7 +499,63 @@ describe("after filing", () => {
     await flush();
     await user.click(within(dialog()).getByRole("button", { name: "Close" }));
     await flush();
-    expect(grabbed.api!.landed).toEqual({ noteIds: ["k7"], ids: [] });
+    expect(grabbed.api!.landed).toEqual({ noteIds: ["k7"], ids: [], keyboard: false });
+  });
+
+  /* What lands says where it was said and whether the keyboard drove it,
+     so the page underneath brings forward only what is its to, and with
+     no slide for a key (law 8). */
+  describe("what the landing says of itself", () => {
+    const filedThenClosed = async (close: (user: ReturnType<typeof userEvent.setup>) => Promise<void>) => {
+      routeNote.mockResolvedValue({ ok: false, error: KEPT_AS_SAID, kept: true, noteId: "k7" });
+      const user = userEvent.setup();
+      render(<Harness extra={<Grab />} />);
+      await user.click(topButton());
+      await say(user, "something the router choked on");
+      await flush();
+      await close(user);
+      await flush();
+      return grabbed.api!.landed;
+    };
+
+    it("was driven by the keyboard when Escape closed it", async () => {
+      const landed = await filedThenClosed((user) => user.keyboard("{Escape}"));
+      expect(landed).toMatchObject({ noteIds: ["k7"], keyboard: true });
+    });
+
+    it("was driven by the keyboard when × was pressed with a key", async () => {
+      const landed = await filedThenClosed(async (user) => {
+        within(dialog()).getByRole("button", { name: "Close" }).focus();
+        await user.keyboard("{Enter}");
+      });
+      expect(landed).toMatchObject({ noteIds: ["k7"], keyboard: true });
+    });
+
+    it("was driven by the keyboard when it was opened with a key, however it closed", async () => {
+      routeNote.mockResolvedValue({ ok: false, error: KEPT_AS_SAID, kept: true, noteId: "k7" });
+      const user = userEvent.setup();
+      render(<Harness voice={false} extra={<Grab />} />);
+      await act(async () => {
+        grabbed.api!.open({ from: topButton(), words: "the router chokes on this", keyboard: true });
+      });
+      await flush();
+      await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+      await flush();
+      expect(grabbed.api!.landed).toMatchObject({ noteIds: ["k7"], keyboard: true });
+    });
+
+    it("says the room it was had in", async () => {
+      routeNote.mockResolvedValue({ ok: false, error: KEPT_AS_SAID, kept: true, noteId: "k7" });
+      const user = userEvent.setup();
+      render(<Harness voice={false} extra={<Grab />} />);
+      await act(async () => {
+        grabbed.api!.open({ from: topButton(), words: "toolbox talk every first Thursday", room: "calendar" });
+      });
+      await flush();
+      await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+      await flush();
+      expect(grabbed.api!.landed).toEqual({ noteIds: ["k7"], ids: [], room: "calendar", keyboard: false });
+    });
   });
 
   it("words the server never got are kept as said", async () => {

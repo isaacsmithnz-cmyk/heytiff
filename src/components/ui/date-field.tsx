@@ -67,6 +67,13 @@ export type DateFieldProps = {
       before. A button showing dd/mm/yyyy and nothing else is unreadable
       without it. */
   "aria-label"?: string;
+  /** A WORD FOR THE BUTTON, where the date is already printed beside it.
+      The Tasks face's Due fact says "Tue 25 Aug", so its picker reads "Move
+      due date" (or "Set due date") rather than the same day again as
+      25/08/2026. The button is named by the word, the date it holds is
+      still said to a screen reader (`aria-description`), and the popover
+      opens on that date as it always does. */
+  label?: string;
 };
 
 export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function DateField(
@@ -84,6 +91,7 @@ export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function 
     "aria-label": ariaLabel,
     className,
     invalid,
+    label,
   },
   ref,
 ) {
@@ -189,7 +197,8 @@ export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function 
           size === "lg" && "lg",
           className,
           invalid && "err",
-          !value && "empty",
+          // a word is never a placeholder, whether or not there is a date
+          !value && !label && "empty",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -197,12 +206,19 @@ export const DateField = forwardRef<HTMLButtonElement, DateFieldProps>(function 
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-invalid={invalid || undefined}
+        aria-description={label && value ? formatAuDate(value) : undefined}
         onClick={toggle}
       >
-        <span className="datef-v">{value ? formatAuDate(value) : placeholder}</span>
-        <span className="datef-ic">
-          <Icon name="calendar" size={15} />
-        </span>
+        {label ? (
+          <span className="datef-v">{label}</span>
+        ) : (
+          <>
+            <span className="datef-v">{value ? formatAuDate(value) : placeholder}</span>
+            <span className="datef-ic">
+              <Icon name="calendar" size={15} />
+            </span>
+          </>
+        )}
       </button>
 
       {open &&

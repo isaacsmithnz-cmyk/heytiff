@@ -233,21 +233,55 @@ describe("about", () => {
     rows.sm8_job_notes = [
       { org_id: ORG, uuid: "note-1", note: "@isaacsmith grilles for susie@peterson.com", edit_by_staff_uuid: "sm8-luke", create_date: "2026-09-21 13:42:10" },
     ];
-    rows.sm8_staff = [{ org_id: ORG, uuid: "sm8-luke", first: "Luke", last: "Ingold" }];
+    rows.sm8_staff = [
+      { org_id: ORG, uuid: "sm8-luke", first: "Luke", last: "Ingold" },
+      { org_id: ORG, uuid: "sm8-me", first: "Isaac", last: "Smith" },
+    ];
     rows.sm8_jobs = [{ org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Wollstonecraft" }];
-    const rec = await loadTasksFace(ctx({}, "workboard"), NOW);
+    const rec = await loadTasksFace(ctx({ mineUuid: "sm8-me" }, "workboard"), NOW);
     expect(rec.about[tid(1)]).toMatchObject({
       source: "sm8",
       sm8NoteUuid: "note-1",
       askerName: "Luke Ingold",
       actedBy: null,
       said: { day: "2026-09-21", time: "1:42 pm" },
-      // as written: the face quotes it, taking out only the handles it knows
-      words: "@isaacsmith grilles for susie@peterson.com",
+      // quoted as the diary quotes it: who it was to goes, an address stays whole
+      words: "grilles for susie@peterson.com",
       job: { label: "2041 Wollstonecraft", uuid: "job-1" },
     });
     expect(of("job_note_actions")[0].eq).toEqual({ org_id: ORG, action: "task" });
-    expect(of("sm8_staff")[0].in).toEqual(["uuid", ["sm8-luke"]]);
+    // the roster, once, for every handle there is: not one read per writer
+    expect(of("sm8_staff")).toHaveLength(1);
+    expect(of("sm8_staff")[0].eq).toEqual({ org_id: ORG });
+  });
+
+  /* THE DIARY'S QUOTING, not a second one: the handle the note is to (yours)
+     goes wherever it stands, another person it names is said by the
+     diary's word for them, and an @ that is nobody we know stays. */
+  it("quotes a ServiceM8 note the way the diary does", async () => {
+    rows.tasks = [taskRow(1)];
+    rows.job_note_actions = [
+      { org_id: ORG, action: "task", task_id: tid(1), sm8_note_uuid: "note-1", sm8_job_uuid: null, acted_by: null, acted_at: null },
+    ];
+    rows.sm8_job_notes = [
+      {
+        org_id: ORG,
+        uuid: "note-1",
+        note: "Hi @isaacsmith, can you ask @lukeingold to email @bobsmith at bob@peterson.com",
+        edit_by_staff_uuid: "sm8-leo",
+        create_date: "2026-09-21 13:42:10",
+      },
+    ];
+    rows.sm8_staff = [
+      { org_id: ORG, uuid: "sm8-luke", first: "Luke", last: "Ingold" },
+      { org_id: ORG, uuid: "sm8-me", first: "Isaac", last: "Smith" },
+      { org_id: ORG, uuid: "sm8-leo", first: "Leo", last: "Park" },
+    ];
+    const rec = await loadTasksFace(ctx({ mineUuid: "sm8-me" }, "workboard"), NOW);
+    expect(rec.about[tid(1)]).toMatchObject({
+      askerName: "Leo Park",
+      words: "Hi, can you ask Luke to email @bobsmith at bob@peterson.com",
+    });
   });
 
   it("takes the job from the note action, then the diary's job target, then the project", async () => {

@@ -10,10 +10,12 @@ import {
   isLate,
   jobLabelOf,
   momentOf,
+  nameTag,
   powersOf,
   sm8Moment,
   sourceLine,
   typedAbout,
+  withChanges,
   wordsCaption,
   type RecordTask,
   type TaskAbout,
@@ -424,5 +426,70 @@ describe("moments and labels", () => {
     expect(jobLabelOf("2041", null)).toBe("Job 2041");
     expect(jobLabelOf(null, "Wollstonecraft")).toBe("Wollstonecraft");
     expect(jobLabelOf(" ", "")).toBeNull();
+  });
+});
+
+/* His name tag, by the list's own rule: the first name of whoever has it,
+   and nothing on your own. A viewer with no staff card is nobody's task. */
+describe("nameTag", () => {
+  it("names someone else's task by first name, and yours not at all", () => {
+    expect(nameTag(task({ assigneeId: LUKE, assigneeName: "Luke Ingold" }), ME)).toBe("Luke");
+    expect(nameTag(task(), ME)).toBeNull();
+    expect(nameTag(task(), null)).toBe("Isaac");
+  });
+});
+
+/* What the face draws while an action is out. The order the page will
+   bring back is the order drawn: Done newest first by when it was ticked,
+   Open in its own urgency order. */
+describe("withChanges", () => {
+  const a = task({ id: "a", title: "A", dueDate: "2026-09-20" });
+  const b = task({ id: "b", title: "B", dueDate: "2026-09-30" });
+  const c = task({ id: "c", title: "C" });
+  const d = task({ id: "d", title: "D", dueDate: "2026-09-25", status: "done", doneAt: "2026-09-22T01:00:00Z", doneById: ME });
+  const rec = { open: [a, b, c], done: [d] };
+  const ids = (ts: RecordTask[]) => ts.map((t) => t.id);
+
+  it("hands back the record itself when nothing is waiting", () => {
+    const out = withChanges(rec, []);
+    expect(out.open).toBe(rec.open);
+    expect(out.done).toBe(rec.done);
+  });
+
+  it("moves a ticked task to the top of Done, ticked by who ticked it, and a reopened one back into Open's order", () => {
+    const out = withChanges(rec, [
+      { id: "b", kind: "done", at: "2026-09-24T03:00:00Z", by: ME },
+      { id: "d", kind: "open" },
+    ]);
+    expect(ids(out.open)).toEqual(["a", "d", "c"]);
+    expect(ids(out.done)).toEqual(["b"]);
+    expect(out.done[0]).toMatchObject({ status: "done", doneAt: "2026-09-24T03:00:00Z", doneById: ME });
+    expect(out.open[1]).toMatchObject({ status: "open", doneAt: null, doneById: null });
+  });
+
+  it("re-sorts Open by a moved date, hands a task over without its old Got it, and takes a deleted one away", () => {
+    const acked = task({ id: "e", title: "E", assigneeId: LUKE, assigneeName: "Luke Ingold", acknowledgedAt: "2026-09-19T00:00:00Z" });
+    const out = withChanges({ open: [a, b, acked], done: [d] }, [
+      { id: "b", kind: "due", due: "2026-09-10" },
+      { id: "e", kind: "give", to: LEO, name: "Leo Park" },
+      { id: "d", kind: "gone" },
+    ]);
+    expect(ids(out.open)).toEqual(["b", "a", "e"]);
+    expect(out.open[2]).toMatchObject({ assigneeId: LEO, assigneeName: "Leo Park", acknowledgedAt: null });
+    expect(out.done).toEqual([]);
+  });
+
+  it("puts the last one ticked first, whatever order the record held them in", () => {
+    const out = withChanges(rec, [
+      { id: "b", kind: "done", at: "2026-09-24T03:00:00Z", by: ME },
+      { id: "c", kind: "done", at: "2026-09-24T03:05:00Z", by: ME },
+    ]);
+    expect(ids(out.done)).toEqual(["c", "b", "d"]);
+  });
+
+  it("makes nothing of a change to a task the record no longer holds", () => {
+    const out = withChanges(rec, [{ id: "zz", kind: "done", at: "2026-09-24T03:00:00Z", by: ME }]);
+    expect(ids(out.open)).toEqual(["a", "b", "c"]);
+    expect(ids(out.done)).toEqual(["d"]);
   });
 });

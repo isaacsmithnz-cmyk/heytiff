@@ -16,8 +16,9 @@
    and the page's shared reads, started with the batch rather than behind
    the link map, and the diary's (H16), which asks for your ServiceM8
    conversations (H17) as the ServiceM8 person the link map names — in a
-   workspace that holds a ServiceM8 copy to read them from; and a viewer on
-   the new Home is spared the old Home's calendar. Every other read is
+   workspace that holds a ServiceM8 copy to read them from, and the Tasks
+   face's (H20), told which ServiceM8 person you are; and a viewer on the
+   new Home is spared the old Home's calendar. Every other read is
    stubbed with an honest empty answer: they are their own suites'. */
 
 jest.mock("@/lib/auth0", () => ({
@@ -203,12 +204,18 @@ const DIARY_FEED: DiaryFeed = {
 const loadDiaryFeed = jest.fn(async (_ctx: unknown) => DIARY_FEED);
 jest.mock("../diary-query", () => ({ loadDiaryFeed: (ctx: unknown) => loadDiaryFeed(ctx) }));
 
+/* The Tasks face's reads are their own suite's too (task-record-query). */
+const TASKS = { open: [], done: [], doneCapped: false, about: {}, people: {} };
+const loadTasksFace = jest.fn(async (_ctx: unknown) => TASKS);
+jest.mock("../task-record-query", () => ({ loadTasksFace: (ctx: unknown) => loadTasksFace(ctx) }));
+
 /* The desk as the loader hands it over, with the names stub's empty map:
    no initials to be had for a card it does not name, and no first name for
    Luke's task. */
 const DESK = {
   warnDays: 45,
   list: LIST_READS,
+  tasks: TASKS,
   calendar: CAL,
   diary: { feed: DIARY_FEED, you: "?", names: {} },
 };
@@ -549,6 +556,26 @@ describe("the diary's reads", () => {
     );
     const { desk } = await loadDashboard();
     expect(desk?.diary.names).toEqual({ "s-luke": "Luke Ingold", "s-luke-2": "Luke Moreau" });
+  });
+});
+
+describe("the Tasks face's reads", () => {
+  it("are the desk's, and the crew on today's Home make none", async () => {
+    await loadDashboard();
+    expect(loadTasksFace).not.toHaveBeenCalled();
+
+    process.env.HOME_DESK = "owner";
+    const { desk } = await loadDashboard();
+    expect(loadTasksFace).toHaveBeenCalledTimes(1);
+    expect(desk?.tasks).toBe(TASKS);
+  });
+
+  it("are told who the viewer is, what they may see, and which ServiceM8 person they are", async () => {
+    process.env.HOME_DESK = "owner";
+    await loadDashboard();
+    const ctx = loadTasksFace.mock.calls[0]![0] as { orgId: string; viewerStaffId: string; caps: Set<string>; mineUuid: string };
+    expect(ctx).toMatchObject({ orgId: "org-1", viewerStaffId: "s-me", mineUuid: "sm8-me" });
+    expect([...ctx.caps].sort()).toEqual(["team", "workboard"]);
   });
 });
 

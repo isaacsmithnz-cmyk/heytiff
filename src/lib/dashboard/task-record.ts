@@ -1,6 +1,6 @@
 import { auDayOf, daysUntil, fmtAuTime, fmtAuWeekdayDate, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { zonedParts } from "./day-rail";
-import { isDelegated, isLate, type DashTask } from "./tasks";
+import { isDelegated, isLate, sortTasks, type DashTask } from "./tasks";
 import type { TaskEventKind } from "./task-events";
 
 /* A TASK'S RECORD — what the new Home's Tasks face says about one task.
@@ -210,6 +210,14 @@ function whom(id: string | null | undefined, people: People, viewer: string | nu
 }
 
 /* ── the row ── */
+
+/** His name tag on a row: the first name of whoever has the task, when that
+    is not you — the list's own rule (lib/dashboard/home-list), so a task
+    carries the same tag on both. */
+export function nameTag(t: Pick<DashTask, "assigneeId" | "assigneeName">, viewer: string | null): string | null {
+  if (viewer !== null && t.assigneeId === viewer) return null;
+  return firstOf(t.assigneeName);
+}
 
 export type DueWord = { text: string; state: "bad" | "today" | null };
 
@@ -482,5 +490,60 @@ export function powersOf(
     move: open && (canManage || assignee || creator),
     give: open && canManage,
     remove: canManage || creator,
+  };
+}
+
+/* ── what the face shows before the page comes back ── */
+
+/** A change pressed on the face and not yet answered: the face shows the
+    task as it will be (React's `useOptimistic`) until the action's answer
+    brings the page back, and as it was if the action says no. */
+export type TaskChange =
+  | { id: string; kind: "done"; at: string; by: string | null }
+  | { id: string; kind: "open" }
+  | { id: string; kind: "due"; due: string | null }
+  | { id: string; kind: "give"; to: string; name: string }
+  | { id: string; kind: "gone" };
+
+const stamp = (iso: string | null) => (iso ? new Date(iso).getTime() || 0 : 0);
+
+/** The record's two groups with these changes made, in the order they were
+    pressed. A task ticked off goes to Done by the moment it was ticked,
+    newest first, as the page will put it; one taken back goes to Open in
+    Open's own order (`sortTasks`); a moved date re-sorts Open; a deleted
+    task goes. A change to a task the record no longer holds is nothing. */
+export function withChanges(
+  record: Pick<TaskRecord, "open" | "done">,
+  changes: readonly TaskChange[],
+): { open: RecordTask[]; done: RecordTask[] } {
+  if (changes.length === 0) return { open: record.open, done: record.done };
+  const all = new Map<string, RecordTask>();
+  for (const t of [...record.open, ...record.done]) all.set(t.id, t);
+  for (const c of changes) {
+    const t = all.get(c.id);
+    if (!t) continue;
+    switch (c.kind) {
+      case "gone":
+        all.delete(c.id);
+        break;
+      case "done":
+        all.set(c.id, { ...t, status: "done", doneAt: c.at, doneById: c.by });
+        break;
+      case "open":
+        all.set(c.id, { ...t, status: "open", doneAt: null, doneById: null });
+        break;
+      case "due":
+        all.set(c.id, { ...t, dueDate: c.due });
+        break;
+      case "give":
+        /* giveTask clears the old "Got it": the new person has not said it */
+        all.set(c.id, { ...t, assigneeId: c.to, assigneeName: c.name, acknowledgedAt: null });
+        break;
+    }
+  }
+  const tasks = [...all.values()];
+  return {
+    open: sortTasks(tasks.filter((t) => t.status === "open")),
+    done: tasks.filter((t) => t.status === "done").sort((a, b) => stamp(b.doneAt) - stamp(a.doneAt)),
   };
 }

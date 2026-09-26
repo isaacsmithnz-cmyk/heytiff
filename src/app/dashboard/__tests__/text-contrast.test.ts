@@ -1047,3 +1047,83 @@ describe("the diary's words clear 4.5:1 on an entry at rest and lit", () => {
     expect(short(decl(sel, "color"), grounds)).toEqual([]);
   });
 });
+
+/* ===== The Tasks face (.hd-tk-*, H20) =====
+
+   Its rows are the list's, so what a row says is held above; what is the
+   face's own is here. A row has one more ground than the list's: the one
+   that is open wears the hover's fill for as long as it is open, so the
+   due word is held on all four — and the late red is the reason: his
+   #d6293e would fall under 4.5 on the selection tint a lit row wears.
+   What opens under a row stands on paper, but for their own words, which
+   sit in a well of the page's ground. */
+describe("the Tasks face's words clear 4.5:1 on every ground they stand on", () => {
+  const code = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  const colour = (v: string, under: number[]): number[] => {
+    const alias = v.match(/^var\(--([a-z0-9-]+)\)$/i);
+    const value = alias ? token(alias[1]!) : v;
+    const tint = value.match(/^rgba\((\d+), *(\d+), *(\d+), *([\d.]+)\)$/);
+    if (tint) return over([Number(tint[1]), Number(tint[2]), Number(tint[3])], Number(tint[4]), under);
+    if (value.toLowerCase() === "#fff") return WHITE;
+    if (!/^#[0-9a-f]{6}$/i.test(value)) throw new Error(`not a colour this test reads: ${value}`);
+    return hex(value);
+  };
+  /** One declaration of the rule whose selector is exactly `sel`, a tint
+      laid over `under` (paper, unless said). */
+  const decl = (sel: string, prop: string, under: number[] = WHITE): number[] => {
+    for (const m of code.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (m[1]!.trim() !== sel) continue;
+      const d = m[2]!.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`));
+      if (d) return colour(d[1]!.trim(), under);
+    }
+    throw new Error(`no ${prop} on "${sel}"`);
+  };
+  const OPEN = '.fg .hd-tk .hd-ls-row:not([data-lit]):has(> .hd-ls-t[aria-expanded="true"])';
+  const ROW = () => ({
+    "at rest": WHITE,
+    "under the pointer": decl(".fg .hd-ls-row.opens:hover", "background"),
+    open: decl(OPEN, "background"),
+    lit: decl(".fg .hd-ls-row[data-lit]", "background"),
+  });
+  const short = (text: number[], grounds: Record<string, number[]>) =>
+    Object.entries(grounds)
+      .map(([ground, bg]) => ({ ground, r: +ratio(text, bg).toFixed(2) }))
+      .filter((x) => x.r < 4.5);
+
+  it.each([
+    ["a due word", ".fg .hd-tk-due"],
+    ["a late due word", '.fg .hd-tk-due[data-state="bad"]'],
+    ["today's due word", '.fg .hd-tk-due[data-state="today"]'],
+  ])("%s, on a row at rest, under the pointer, open and lit", (_label, sel) => {
+    expect(short(decl(sel, "color"), ROW())).toEqual([]);
+  });
+
+  it.each([
+    ["a fact's label", ".fg .hd-tk-f dt"],
+    ["a fact", ".fg .hd-tk-f dd"],
+    ["a late fact", ".fg .hd-tk-f dd[data-late]"],
+    ["the detail", ".fg .hd-tk-note"],
+    ["what happened", ".fg .hd-tk-h li"],
+    ["when it happened", ".fg .hd-tk-h li > span"],
+    ["the confirm's question", ".fg .hd-cf-q"],
+    ["the confirm's Delete", ".fg .hd-cf-go"],
+  ])("%s, on paper", (_label, sel) => {
+    expect(short(decl(sel, "color"), { paper: WHITE })).toEqual([]);
+  });
+
+  it("Delete task, a red word on paper and under the pointer", () => {
+    const red = decl(".fg .hd-tk-del", "color");
+    expect(short(red, { paper: WHITE, "under the pointer": decl(".fg .hd-tk-del:hover", "background") })).toEqual([]);
+  });
+
+  it("Mark done: paper on his ink", () => {
+    expect(+ratio(decl(".fg .hd-tk-go", "color"), decl(".fg .hd-tk-go", "background")).toFixed(2)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("their own words and whose they are, in the well", () => {
+    const well = { well: decl(".fg .hd-tk-q", "background") };
+    for (const sel of [".fg .hd-tk-q figcaption", ".fg .hd-tk-q figcaption b", ".fg .hd-tk-q p"]) {
+      expect({ sel, short: short(decl(sel, "color"), well) }).toEqual({ sel, short: [] });
+    }
+  });
+});

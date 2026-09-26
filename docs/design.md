@@ -303,6 +303,22 @@ Every decision below is made once, here, and a guard test holds each number.
   books from here; a visit's Book in picks its day in the row, which is
   real now. A roll-up and an issue open in place. Without ServiceM8 the
   list is HeyTiff's own: no won jobs, no money, no Create job.
+  Tasks is every task you have a hand in, open and done (his answer to
+  the review, 2026-09-24): the one entry box on top,
+  whose Save makes you a task of the words as they are and whose Sort it
+  out takes them to Tiff, then Open, most urgent first, and Done, the last
+  90 days, newest first. Its rows are the list's rows — the box, the
+  title, his name tag, the line under it — with the due word on the
+  right, so a task reads the same in the column and beside it. A title
+  opens its row in place, one at a time: For, Due, Time and Job, the
+  words it came from (your own diary entry, never someone else's, or the
+  ServiceM8 note), what has happened to it, and what you may do — Mark
+  done, Move due date, Give it to (a manager's), Open in diary, and Delete
+  task, which asks twice. Only what the action would allow is offered.
+  What you press is drawn at once and put back, with the action's words,
+  if it is refused; a ticked row moves to Done and stays open there.
+  Issues are the list's now, and the Assign form is gone: Save, then Give
+  it to, or telling Tiff.
   The Calendar is his handoff "Calendar": the company's twelve months from
   this one, and nothing personal — public and school holidays, the
   company's events and shutdowns, the noticeboard's events, and the

@@ -42,6 +42,8 @@ import { ownerNames, type DeskDiary } from "./diary-doors";
 import { loadDiaryFeed } from "./diary-query";
 import type { HomeListReads } from "./home-list";
 import { loadHomeList } from "./home-list-query";
+import type { TaskRecord } from "./task-record";
+import { loadTasksFace } from "./task-record-query";
 import type { StaffNames } from "./tasks-query";
 
 /** The reads Home's chips and the new Home's areas share. */
@@ -97,6 +99,10 @@ export type DeskData = {
       visits with no day — placed on screen beside what the page already
       holds (`placeHomeList`, ./home-list). */
   list: HomeListReads;
+  /** The Tasks face's record: every task you have a hand in, open and done
+      in the last 90 days, where each came from and what has happened to it
+      (`loadTasksFace`, ./task-record-query). */
+  tasks: TaskRecord;
   /** The Calendar face: the company's twelve months — public and school
       holidays, events and shutdowns, the noticeboard's events, and the
       renewals the viewer may see — on the workspace's day
@@ -113,12 +119,13 @@ export async function loadDesk(start: DeskStart, mine: Promise<string | null>): 
   /** The whole context, once the link map is in. */
   const ctx = mine.then((mineUuid): DeskContext => ({ ...start, mineUuid }));
   /* Each area's read joins here as a Promise.all over its own gates. */
-  const [list, calendar, diary] = await Promise.all([
+  const [list, tasks, calendar, diary] = await Promise.all([
     ctx.then(loadHomeList),
+    ctx.then((c) => loadTasksFace(c)),
     loadCompanyCalendar(start),
     ctx.then(loadDeskDiary),
   ]);
-  return { warnDays: start.shared.expiry.warnDays, list, calendar, diary };
+  return { warnDays: start.shared.expiry.warnDays, list, tasks, calendar, diary };
 }
 
 /* THE DIARY: your entries, and the ServiceM8 notes that @mention you as

@@ -27,7 +27,7 @@ import { HomeDiaryFeed } from "./home-diary-feed";
 import { HomeFaceTabs } from "./home-face-tabs";
 import { DeskJobHost } from "./home-job-sheet";
 import { HomeList } from "./home-list";
-import { HomeTasks } from "./home-tasks";
+import { HomeTasksFace } from "./home-tasks-face";
 
 /* THE NEW HOME — the desk (docs/design.md, "Home is the day, three tabs and
    the list", 2026-09-25). Behind HOME_DESK (lib/dashboard/desk-flag): the
@@ -42,11 +42,11 @@ import { HomeTasks } from "./home-tasks";
 
    THE FACES ARE BUILT ONE BY ONE. "Your day" is his own already
    (./home-day), and so are THE DIARY (./home-diary-feed), THE LIST in the
-   right-hand column beside Diary and Tasks (./home-list), and THE CALENDAR
-   (./home-cal-page), which slides across the column and the list alike.
-   Today's tasks stand in their face, in their own dress, until its own
-   lands. Every new file mounts here and nowhere else, which is what keeps
-   the crew's Home as it is.
+   right-hand column beside Diary and Tasks (./home-list), THE TASKS FACE
+   (./home-tasks-face), every task you have a hand in, open and done, each
+   opening in place, and THE CALENDAR (./home-cal-page), which slides
+   across the column and the list alike. Every new file mounts here and
+   nowhere else, which is what keeps the crew's Home as it is.
 
    THE DAY'S OPEN CARD STAYS OPEN across faces, so a press on the tabs or
    in the Calendar does not close it (`KEEPS_DAY`); a click anywhere else
@@ -101,7 +101,7 @@ export function DashboardDesk({
 const addressed = (id: string): DeskArrival => ({ face: "tasks", kind: "task", ids: [id], pointer: false });
 
 function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) {
-  const { tasks, issues, assignable, canManage, viewerStaffId, today, rail } = data;
+  const { assignable, canManage, viewerStaffId, today, rail } = data;
   /* A DOOR INTO THE DIARY ONLY FOR WHAT IT HOLDS. The page's journal is
      your sixty newest entries whatever their age, and the diary reaches
      back only sixty days once it reads ServiceM8 (diary-feed's ONE
@@ -250,8 +250,8 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
   }, [motion]);
 
   /* THE ONE DOOR. The face it names shows it and hands it back: the diary
-     brings an entry or a conversation up and lights it, today's tasks
-     choose a task by id. A door pressed with a pointer slides its face in
+     brings an entry or a conversation up and lights it, the Tasks face
+     chooses a task by id. A door pressed with a pointer slides its face in
      like a tab; one pressed from the keyboard does not, and the face it
      lands on scrolls to what it names at once rather than smoothly
      (law 8). */
@@ -266,20 +266,24 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
   const diaryFocus =
     focus?.face === "diary" && (focus.kind === "entry" || focus.kind === "conversation") ? focus : null;
   /* Rows a door asked to see stand in the list, beside Diary and Tasks
-     alike; the list lights them once and hands the door back. */
+     alike; the list lights them once and hands the door back, and so does
+     the Tasks face its task. One callback for every render: each waits on
+     it for its moment, and a new one would start the wait again. */
   const rowsFocus = focus?.kind === "rows" ? focus : null;
   const focusShown = useCallback(() => setFocus(null), []);
   /* A diary door names tasks, or an issue. Where the list beside it holds
      them, they light there and the diary stays; one the list does not hold
      (a task ticked off today) opens on the Tasks tab, if that has a row for
-     it: your open work, the team's when you see it, what was done lately
-     and the open issues. One that neither holds (ticked off long ago, an
-     issue resolved) has nowhere to land, and the diary says it rather than
-     drawing a door that would open on some other row. */
+     it: every task you have a hand in, open, and done in the last 90 days.
+     An issue is the list's alone — the Tasks face has none. One that
+     neither holds (ticked off long ago, an issue resolved) has nowhere to
+     land, and the diary says it rather than drawing a door that would open
+     on some other row. */
   const onList = useMemo(() => (list ? thingsOnList(list) : new Set<string>()), [list]);
+  const record = data.desk?.tasks;
   const onTasks = useMemo(
-    () => new Set([...tasks.mine, ...(tasks.team ?? []), ...tasks.done, ...tasks.reported, ...issues].map((t) => t.id)),
-    [tasks, issues],
+    () => new Set([...(record?.open ?? []), ...(record?.done ?? [])].map((t) => t.id)),
+    [record],
   );
   const onPage = useMemo(() => new Set([...onList, ...onTasks]), [onList, onTasks]);
   const showThings = (ids: readonly string[], pointer: boolean) => {
@@ -335,28 +339,21 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                   )}
                   {facePanel(
                     "tasks",
-                    <div className="hm-face two">
-                      <HomeTasks
-                        today={today}
-                        mine={tasks.mine}
-                        team={tasks.team}
-                        done={tasks.done}
-                        reported={tasks.reported}
-                        issues={issues}
+                    /* Dated by the workspace's day, the one the list beside
+                       it places by, so a task late here is late there. */
+                    data.desk && (
+                      <HomeTasksFace
+                        today={rail.dayISO}
+                        record={data.desk.tasks}
                         viewerStaffId={viewerStaffId}
                         canManage={canManage}
                         assignable={assignable}
-                        journal={journal}
                         tz={rail.tz}
                         onOpenEntry={openEntry}
                         focusTaskId={taskFocus}
-                        onFocusHandled={() => setFocus(null)}
-                        /* where each task's Done stands with ServiceM8 —
-                           empty, from no read, without notes */
-                        sm8Lines={tasks.sm8?.lines}
-                        sm8Sender={tasks.sm8?.sender ?? null}
+                        onFocusHandled={focusShown}
                       />
-                    </div>,
+                    ),
                   )}
                 </div>
                 {/* THE LIST, beside the column: the frame's grid takes a

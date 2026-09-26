@@ -1,5 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import type { Capability } from "@/lib/permissions";
+import { sm8Roster } from "@/lib/workboard/job-notes-query";
+import { quotedNote } from "@/lib/workboard/sm8-mentions";
+import { handleWords } from "./diary-feed";
 import { issueWhere } from "./issues";
 import { isDelegated, sortTasks } from "./tasks";
 import { TASK_COLUMNS, toTask, type StaffNames } from "./tasks-query";
@@ -48,9 +51,11 @@ import {
    THEIR OWN WORDS. A diary entry's words come back only to its author —
    journal-query's rule: nobody reads someone else's diary, and a task Tiff
    made for Luke from Isaac's diary tells Luke where it came from, never what
-   Isaac said. A ServiceM8 note comes back as it was written; the face quotes
-   it (taking out only the handles ServiceM8 knows, lib/workboard/
-   sm8-mentions), so an email address in it stays whole. */
+   Isaac said. A ServiceM8 note comes back quoted the way the diary quotes
+   one (sm8-mentions' `quotedNote`): the handles it opens with, and the
+   viewer's own, are who it was to and go; every other handle ServiceM8
+   knows is said by name, by the diary's own rule (`handleWords`); an
+   unknown @word, and so an email address, stays as written. */
 
 /** What the Tasks face needs from the page loader — a part of the new Home's
     shared context (`DeskContext`, ./desk-data), so that context can be
@@ -60,6 +65,9 @@ export type TasksFaceContext = {
   viewerStaffId: string | null;
   caps: ReadonlySet<Capability>;
   names: StaffNames;
+  /** Which ServiceM8 person the viewer is, so a quoted note leaves out the
+      handle it addressed them by. */
+  mineUuid?: string | null;
 };
 
 /** How far back Done reaches, and how much of it: Isaac's "every task" read
@@ -117,7 +125,7 @@ export async function loadTasksFace(ctx: TasksFaceContext, now: Date = new Date(
     viewer ? doneTaskRecord(ctx.orgId, viewer, ctx.names, now) : Promise.resolve({ done: [], capped: false }),
   ]);
   const tasks = [...open, ...done.done];
-  const about = await taskAbout(ctx.orgId, viewer, tasks, ctx.caps.has("workboard"));
+  const about = await taskAbout(ctx.orgId, viewer, tasks, ctx.caps.has("workboard"), ctx.mineUuid ?? null);
   return { open, done: done.done, doneCapped: done.capped, about, people: peopleOf(ctx.names, tasks, about) };
 }
 
@@ -304,6 +312,7 @@ export async function taskAbout(
   viewer: string | null,
   tasks: readonly RecordTask[],
   board: boolean,
+  mineUuid: string | null = null,
 ): Promise<Record<string, TaskAbout>> {
   const ids = [...new Set(tasks.map((t) => t.id))];
   if (ids.length === 0) return {};
@@ -336,7 +345,7 @@ export async function taskAbout(
   );
   const [sm8Notes, jobs, where] = board
     ? await Promise.all([
-        sm8NotesFor(orgId, noteUuids),
+        sm8NotesFor(orgId, noteUuids, mineUuid),
         sm8JobsFor(orgId, jobUuids),
         others.length
           ? targetWords(
@@ -408,36 +417,38 @@ function jobDoor(uuid: string | null, labels: ReadonlyMap<string, string>): Task
 
 type Sm8Note = { text: string; author: string | null; createDate: string | null };
 
-/** The ServiceM8 notes, with their writers named as ServiceM8 spells them —
-    the same "First Last" the job card's strip names them by. */
-async function sm8NotesFor(orgId: string, uuids: readonly string[]): Promise<Map<string, Sm8Note>> {
+/** The ServiceM8 notes, quoted as the diary quotes them, with their writers
+    named as ServiceM8 spells them — the same "First Last" the job card's
+    strip names them by. The roster is every handle there is (sm8Roster, the
+    one read the diary and the job card name people from), read beside the
+    notes rather than after them. */
+async function sm8NotesFor(
+  orgId: string,
+  uuids: readonly string[],
+  mineUuid: string | null,
+): Promise<Map<string, Sm8Note>> {
   const out = new Map<string, Sm8Note>();
   if (uuids.length === 0) return out;
-  const rows = await chunked(uuids, CHUNK, async (chunk) => {
-    const { data } = await supabaseAdmin
-      .from("sm8_job_notes")
-      .select("uuid, note, edit_by_staff_uuid, create_date")
-      .eq("org_id", orgId)
-      .in("uuid", chunk);
-    return (data ?? []) as Rec[];
-  });
-  const staffUuids = [...new Set(rows.map((r) => str(r.edit_by_staff_uuid)).filter((x): x is string => !!x))];
-  const staff = await chunked(staffUuids, CHUNK, async (chunk) => {
-    const { data } = await supabaseAdmin
-      .from("sm8_staff")
-      .select("uuid, first, last")
-      .eq("org_id", orgId)
-      .in("uuid", chunk);
-    return (data ?? []) as Rec[];
-  });
-  const nameOf = new Map(
-    staff.map((s) => [String(s.uuid), `${(str(s.first) ?? "").trim()} ${(str(s.last) ?? "").trim()}`.trim()]),
-  );
+  const [rows, people] = await Promise.all([
+    chunked(uuids, CHUNK, async (chunk) => {
+      const { data } = await supabaseAdmin
+        .from("sm8_job_notes")
+        .select("uuid, note, edit_by_staff_uuid, create_date")
+        .eq("org_id", orgId)
+        .in("uuid", chunk);
+      return (data ?? []) as Rec[];
+    }),
+    sm8Roster(orgId),
+  ]);
+  const byUuid = new Map(people.map((p) => [p.uuid, p]));
+  const names = handleWords(people);
+  const me = mineUuid ? byUuid.get(mineUuid) : undefined;
+  const addressing = me ? [me.handle] : [];
   for (const r of rows) {
     const by = str(r.edit_by_staff_uuid);
     out.set(String(r.uuid), {
-      text: typeof r.note === "string" ? r.note : "",
-      author: (by && nameOf.get(by)) || null,
+      text: quotedNote(typeof r.note === "string" ? r.note : "", { names, addressing }),
+      author: (by && byUuid.get(by)?.name) || null,
       createDate: str(r.create_date),
     });
   }

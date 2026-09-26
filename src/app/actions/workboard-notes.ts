@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { navHref } from "@/components/shell/nav";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
@@ -11,7 +10,6 @@ import {
   isSeverity,
   namesMentioned,
   readNote,
-  type ClarifyAnswer,
   type NoteContext,
   type NoteFollow,
   type NoteProposal,
@@ -73,33 +71,34 @@ import {
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 
-/* Smart Notes — capture, route, review, apply.
+/* Smart Notes — capture, route, file, take back.
 
    THE SHAPE OF THE SAFETY MODEL: `routeNote` only ever WRITES THE NOTE and
-   returns a proposal. `applyNote` is the single function in the app that
-   turns a proposal into tasks, flags and entries, and it takes the
-   CONFIRMED payload from the review card — not the model's output. A human
-   edited or accepted every field in between. That is why a misheard word
-   costs a dismissed card instead of work assigned to the wrong person.
+   returns a proposal. `applyConfirmed` is the single writer that turns a
+   proposal into tasks, flags and entries, and it is only ever handed what
+   `fileNote` builds from the proposal STORED on the note, minus the rows the
+   person took off — never a payload the model or a browser shaped. Nothing
+   reviews what it files (Isaac, 2026-09-25: filing live, with Undo as the
+   safety net), so the questions Tiff asks when a person or a job is unclear,
+   and `undoNote`, are what stand between a misheard word and work assigned
+   to the wrong person.
 
    TWO TIERS, both capabilities (house doctrine, never a role check):
-     `workboard`         dictate a note, confirm your own, clear a flag.
+     `workboard`         dictate a note, file your own, clear a flag.
                          Capturing your own day is the whole feature.
      `workboard_manage`  nothing extra here yet — deliberately. Everything a
                          note applies (a task, a bullet, a flag) is something
                          the person on site is entitled to record.
 
-   THE TIFF MODAL IS THE SECOND DOOR, and it files without a card (Isaac,
-   2026-09-25: filing live, with Undo as the safety net). Its notes are
-   conversations — `turns` — and it reaches this file through five actions
-   of its own: `continueNote` (a reply routes the whole note again),
-   `fileNote` (files the STORED proposal the moment nothing is left to ask,
-   never a payload the browser shaped), `undoNote` (takes back what a note
-   filed), `keepWords` (the plain Save) and `publishNoteKb` (the one row that
-   waits for a press). The review card's door is untouched: its notes write
-   no turns and route exactly as before, so the crew's capture never names a
-   column tiff_modal_turns.sql adds or calls a function tiff_modal_record.sql
-   adds. */
+   THE TIFF MODAL IS THE ONE DOOR. Its notes are conversations — `turns` —
+   and it reaches this file through `routeNote` (a new note), `continueNote`
+   (a reply routes the whole note again), `fileNote` (files the stored
+   proposal the moment nothing is left to ask), `undoNote` (takes back what
+   a note filed), `keepWords` (the plain Save), `publishNoteKb` (the one row
+   that waits for a press) and `dismissNote` (walking away). The review
+   card's door — `applyNote`, `answerClarify`, `keepNoteOnJob` and
+   `keepNoteForMe` — went with the old capture UI (2026-09-27); the rows it
+   filed read as they always did. */
 
 export type NoteTarget = {
   /** `job` is a SERVICEM8 job, and it is the odd one out: the other three are
@@ -117,20 +116,14 @@ export type RouteResult =
       noteId: string;
       proposal: NoteProposal;
       staff: NoteStaff[];
-      /** When this person's day starts, "HH:MM". Rides back with the proposal
-          so the review card's time control opens on their morning rather than
-          on a number picked in the browser — the same fact the router used to
-          resolve "Monday morning", so the card and the model cannot disagree
-          about when morning is. */
-      dayStart: string;
-      /** The conversation so far — the modal's notes only. */
-      turns?: Turn[];
+      /** The conversation so far, Tiff's line last. */
+      turns: Turn[];
     }
   | {
       ok: false;
       error: string;
-      /** The modal's notes only: routing failed and the words were filed as
-          they were said, so they are in the diary and nothing is lost. */
+      /** Routing failed and the words were filed as they were said, so they
+          are in the diary and nothing is lost. */
       kept?: boolean;
       /** With `kept`: the note they were filed as, so the diary lands it
           lit, as it does every other note the modal filed. */
@@ -299,8 +292,8 @@ async function resolveTarget(orgId: string, target: NoteTarget): Promise<NoteTar
 async function routingContext(
   ctx: Ctx,
   target: NoteTarget,
-  extra: Pick<NoteContext, "room" | "askWho" | "speak" | "earlier"> = {},
-): Promise<{ note: NoteContext; staff: NoteStaff[]; dayStart: string }> {
+  extra: Pick<NoteContext, "room" | "askWho" | "speak" | "earlier">,
+): Promise<{ note: NoteContext; staff: NoteStaff[] }> {
   const [staff, label, tz, history] = await Promise.all([
     assignableStaff(ctx.orgId),
     targetLabel(ctx.orgId, target),
@@ -310,7 +303,6 @@ async function routingContext(
   const who = await authorContext(ctx.orgId, ctx.staffId, staff);
   return {
     staff,
-    dayStart: who.dayStart,
     note: {
       staff,
       ...who,
@@ -326,8 +318,8 @@ async function routingContext(
         flags: history.flags.map((f) => f.message),
         recentNotes: history.recentNotes,
       },
-      /* Only what the modal sends: the review card's notes are read with
-         none of these, exactly as they always were. */
+      /* What the modal's reads turn on: a task with nobody on it is asked
+         about, Tiff says her line, and where it was said is a hint. */
       ...(extra.room ? { room: extra.room } : {}),
       ...(extra.askWho ? { askWho: true } : {}),
       ...(extra.speak ? { speak: true } : {}),
@@ -340,24 +332,23 @@ async function routingContext(
     BEFORE the model runs and kept whatever the model says, because the words
     someone spoke are the valuable thing — routing is an enhancement on top.
 
-    `conversation` is the Tiff modal saying so. Its note keeps `turns` (your
-    words, then Tiff's line, which only its reads ask for: `speak`), a task
-    with nobody on it becomes a question rather than a row for a dropdown the
-    modal doesn't have, `room` is a hint
-    about what a bare instruction means, and a routing failure files the words
-    as they were said instead of leaving them pending where nothing reads
-    them. Without it, this is the review card's door, unchanged.
+    Every note is the Tiff modal's: it keeps `turns` (your words, then Tiff's
+    line: `speak`), a task with nobody on it becomes a question rather than a
+    row for a dropdown the modal doesn't have (`askWho`), `room` is a hint
+    about what a bare instruction means, and a routing failure files the
+    words as they were said instead of leaving them pending where nothing
+    reads them. (The review card's door routed without any of that, and went
+    with the old capture UI, 2026-09-27.)
 
     `before` is the modal's conversation ahead of these words, when Tiff has
     already answered or filed something in it: the router reads the new note
     by it and files nothing from it. Shaped here again (`earlierTurns`), as
-    the browser sent it, and ignored on the review card's notes. */
+    the browser sent it. */
 export async function routeNote(input: {
   transcript: string;
   target: NoteTarget;
   source?: "text" | "voice";
   room?: TiffRoom;
-  conversation?: boolean;
   before?: readonly EarlierTurn[];
 }): Promise<RouteResult> {
   const ctx = await context();
@@ -370,7 +361,6 @@ export async function routeNote(input: {
   const target = await resolveTarget(ctx.orgId, input.target);
   if (!target) return { ok: false, error: "That isn't something in this workspace." };
 
-  const talk = input.conversation === true;
   const room = isTiffRoom(input.room) ? input.room : undefined;
   const said: Turn = { ...turn("you", transcript), ...(room ? { room } : {}) };
 
@@ -386,31 +376,30 @@ export async function routeNote(input: {
       /* NO `is_debrief`. There is one door now (Isaac, 2026-09-24: "the
          diary, tasks and HeyTiff chat window should assist with that"), so
          there is nothing to record about which one the words came through.
-         The column's own default writes false until it is dropped, and a
-         `debrief` key that a stale page or a direct POST still sends is read
-         by nothing here. */
-      ...(talk ? { turns: [said] } : {}),
+         The column is gone (note_is_debrief_drop.sql, applied 2026-09-27),
+         and a `debrief` key that a stale page or a direct POST still sends
+         is read by nothing here. */
+      turns: [said],
     })
     .select("id")
     .single();
   if (error || !data) return { ok: false, error: "Couldn't save that note." };
   const noteId = (data as { id: string }).id;
 
-  const routing = await routingContext(
-    ctx,
-    target,
-    talk ? { room, askWho: true, speak: true, earlier: earlierTurns(input.before) } : {},
-  );
+  const routing = await routingContext(ctx, target, {
+    room,
+    askWho: true,
+    speak: true,
+    earlier: earlierTurns(input.before),
+  });
   const read = await readNote(transcript, routing.note);
 
   if (!read.ok) {
-    /* The router failed, the note did not. The review card's note stays
-       pending with no proposal so the card offers to keep it as a plain
-       note. The modal has no card to offer that, so its words are filed as
-       said — the same row `keepWords` writes — and Tiff says so. Only with a
-       staff card: the diary reads by author, and a row with none is a diary
-       entry nobody can see. */
-    if (talk && ctx.staffId) {
+    /* The router failed, the note did not. Its words are filed as said —
+       the same row `keepWords` writes — and Tiff says so. Only with a staff
+       card: the diary reads by author, and a row with none is a diary entry
+       nobody can see, so that note stays pending with no proposal. */
+    if (ctx.staffId) {
       const turns = [said, turn("tiff", KEPT_AS_SAID)];
       await supabaseAdmin
         .from("workboard_notes")
@@ -424,26 +413,19 @@ export async function routeNote(input: {
     return { ok: false, error: read.error };
   }
 
-  const turns = talk ? withTurns([said], turn("tiff", read.proposal.say)) : undefined;
+  const turns = withTurns([said], turn("tiff", read.proposal.say));
   await supabaseAdmin
     .from("workboard_notes")
     .update({
       proposal: read.proposal,
       status: read.proposal.clarify ? "clarifying" : "pending",
-      ...(turns ? { turns } : {}),
+      turns,
     })
     .eq("org_id", ctx.orgId)
     .eq("id", noteId);
 
   refresh(target);
-  return {
-    ok: true,
-    noteId,
-    proposal: read.proposal,
-    staff: routing.staff,
-    dayStart: routing.dayStart,
-    ...(turns ? { turns } : {}),
-  };
+  return { ok: true, noteId, proposal: read.proposal, staff: routing.staff, turns };
 }
 
 async function targetLabel(orgId: string, target: NoteTarget): Promise<string | null> {
@@ -493,88 +475,42 @@ async function targetLabel(orgId: string, target: NoteTarget): Promise<string | 
   return null;
 }
 
-/** Answer the brain's clarifying question and route again with it folded in.
-
-    The review card's clarify box, kept until the old capture UI goes (H25).
-    It sends what it always sent: the note, the question, the answer and "Do
-    not ask again" (`ClarifyAnswer`), read with the card's own context, so no
-    plan, no turns, no "who?" and no line from Tiff. `continueNote` is the
-    modal's reply, and shares only the write that stores what came back. */
-export async function answerClarify(noteId: string, answer: string): Promise<RouteResult> {
-  const ctx = await context();
-  if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
-  if (!(await can("workboard"))) return { ok: false, error: NO_ACCESS };
-
-  const note = await noteIn(ctx.orgId, noteId);
-  if (!note) return { ok: false, error: GONE };
-  if (!onTheCard(note)) return { ok: false, error: ALREADY_APPLIED };
-
-  const reply = trim(answer, 500);
-  if (!reply) return { ok: false, error: "Type an answer first." };
-
-  /* THE QUESTION IS ALL THAT RIDES IN FROM THE STORED PROPOSAL. One filed
-     before the Debrief went can still carry its `debrief: true` stamp; that
-     mode is gone, so an answer to the question it asked is routed as the
-     ordinary note it now is, and the stamp is not written back. */
-  const proposal = note.proposal as NoteProposal | null;
-  const question = proposal?.clarify?.question;
-  if (!question) return { ok: false, error: "There's no question waiting on that note." };
-
-  return reread(ctx, note, { question, answer: reply });
-}
-
-/** Route a note again with what was said since, and store what came back.
-    The one read both reply doors make: the card's answer (`ClarifyAnswer`)
-    or the modal's conversation (`NoteFollow`, with `talk`). Only the modal's
-    keeps turns, asks who and has Tiff speak. */
+/** Route a note again with what was said since, and store what came back:
+    the reply (`continueNote`), read by the plan it has, the conversation
+    since and the rows taken off (`NoteFollow`), with Tiff's line on the end
+    of the turns. */
 async function reread(
   ctx: Ctx,
   note: NoteRow,
-  follow: NoteFollow | ClarifyAnswer,
-  talk?: { turns: Turn[]; reply: Turn },
+  follow: NoteFollow,
+  talk: { turns: Turn[]; reply: Turn },
 ): Promise<RouteResult> {
   const target: NoteTarget = { kind: note.target_kind, id: note.target_id };
-  const routing = await routingContext(
-    ctx,
-    target,
-    talk ? { room: roomOf(talk.turns), askWho: true, speak: true } : {},
-  );
+  const routing = await routingContext(ctx, target, { room: roomOf(talk.turns), askWho: true, speak: true });
   const read = await readNote(note.transcript, routing.note, follow);
   if (!read.ok) return { ok: false, error: read.error };
 
-  const turns = talk ? withTurns(talk.turns, talk.reply, turn("tiff", read.proposal.say)) : undefined;
-  const write = supabaseAdmin
+  const turns = withTurns(talk.turns, talk.reply, turn("tiff", read.proposal.say));
+  /* ONLY A NOTE STILL WAITING TAKES WHAT CAME BACK. A reply that crossed a
+     Save or an Undo in flight must not drag a settled note back to pending,
+     and a Server Function is reachable by direct POST: nor may it rewrite
+     the words of a note that may be in ServiceM8 (two-way phase 2). So the
+     write is held to a note still waiting, and asks whether it landed. */
+  const { data } = await supabaseAdmin
     .from("workboard_notes")
     .update({
       proposal: read.proposal,
       status: read.proposal.clarify ? "clarifying" : "pending",
-      ...(turns ? { turns } : {}),
+      turns,
     })
     .eq("org_id", ctx.orgId)
     .eq("id", note.id)
-    .in("status", ON_THE_CARD);
-  /* ONLY A NOTE STILL WAITING TAKES WHAT CAME BACK. A reply that crossed a
-     Save or an Undo in flight must not drag a settled note back to pending,
-     and the card's answer, a Server Function reachable by direct POST, must
-     not rewrite the words of a note that may be in ServiceM8 (two-way phase
-     2). Both writes are held to a note still waiting; only the modal's asks
-     whether it landed, and the card's answers as it always did. */
-  if (talk) {
-    const { data } = await write.select("id");
-    if (!((data ?? []) as unknown[]).length) return { ok: false, error: SETTLED.applied };
-  } else {
-    await write;
-  }
+    .in("status", WAITING)
+    .select("id");
+  if (!((data ?? []) as unknown[]).length) return { ok: false, error: SETTLED.applied };
 
   refresh(target);
-  return {
-    ok: true,
-    noteId: note.id,
-    proposal: read.proposal,
-    staff: routing.staff,
-    dayStart: routing.dayStart,
-    ...(turns ? { turns } : {}),
-  };
+  return { ok: true, noteId: note.id, proposal: read.proposal, staff: routing.staff, turns };
 }
 
 /** A reply to Tiff, in the modal. It answers her question, or changes who
@@ -595,7 +531,7 @@ export async function continueNote(
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
   if (!(await can("workboard"))) return { ok: false, error: NO_ACCESS };
 
-  const note = await noteIn(ctx.orgId, noteId, TALK_COLUMNS);
+  const note = await noteIn(ctx.orgId, noteId);
   if (!note) return { ok: false, error: GONE };
   if (SETTLED[note.status]) return { ok: false, error: SETTLED[note.status] };
   if ((note.author_id ?? null) !== ctx.staffId) return { ok: false, error: NOT_YOURS };
@@ -606,8 +542,9 @@ export async function continueNote(
   const plan = storedProposal(note.proposal);
   if (!plan) return { ok: false, error: "There's nothing on that note to answer yet." };
 
-  /* A note the review card started has no turns: its words, and Tiff's
-     question if she asked one, are the conversation so far. */
+  /* A note from before the modal, or one the old review card started, has
+     no turns: its words, and Tiff's question if she asked one, are the
+     conversation so far. */
   let turns = turnsOf(note.turns);
   if (turns.length === 0) {
     turns = [turn("you", note.transcript)];
@@ -636,43 +573,29 @@ type NoteRow = {
   target_kind: NoteTarget["kind"];
   target_id: string | null;
   proposal: unknown;
-  /** Only in the modal's reads (`TALK_COLUMNS`). */
   author_id?: string | null;
   applied?: unknown;
   turns?: unknown;
 };
 
-/* THE CARD'S READ NAMES NO NEW COLUMN. `turns` arrives with
-   tiff_modal_turns.sql, and PostgREST fails a whole select on a column that
-   isn't there, so the review card's four actions keep the list they always
-   had and only the modal's name `turns`. */
-const NOTE_COLUMNS = "id, transcript, status, target_kind, target_id, proposal";
-const TALK_COLUMNS = `${NOTE_COLUMNS}, author_id, applied, turns`;
+const NOTE_COLUMNS = "id, transcript, status, target_kind, target_id, proposal, author_id, applied, turns";
 
-/* ONLY A NOTE STILL ON THE REVIEW CARD CAN BE ENDED BY IT. The card's three
-   endings and its clarify answer update a row by id, and a Server Function
-   is reachable by direct POST: pointed at an APPLIED row — a reply, a Done
-   or a pen entry that may be in ServiceM8 (two-way phase 2) — they would
-   hide it from the diary while its note still went, rewrite the words that
-   go, or put it back on the card. So they act only on a `pending` or
-   `clarifying` row, the rule applyNote already keeps, and each update is
-   conditional on it too, so a row applied in between is left alone. The
-   card only ever calls them on its own routed note, which is one of those,
-   so nothing a person does changes, and no read is added (noteIn already
-   reads the status). The Tiff modal's reply and its walking away are held
-   to the same two statuses. */
-const ON_THE_CARD = ["pending", "clarifying"];
+/* ONLY A NOTE STILL WAITING CAN BE ANSWERED OR SET ASIDE. A reply and a
+   walk-away update a row by id, and a Server Function is reachable by
+   direct POST: pointed at an APPLIED row — a reply, a Done or a pen entry
+   that may be in ServiceM8 (two-way phase 2) — they would hide it from the
+   diary while its note still went, rewrite the words that go, or put it
+   back to waiting. So they act only on a `pending` or `clarifying` row, and
+   each update is conditional on it too, so a row applied in between is
+   left alone. */
+const WAITING = ["pending", "clarifying"];
 const ALREADY_APPLIED = "That note was already applied.";
-const onTheCard = (note: NoteRow) => ON_THE_CARD.includes(note.status);
+const waiting = (note: NoteRow) => WAITING.includes(note.status);
 
-async function noteIn(
-  orgId: string,
-  noteId: string,
-  columns: string = NOTE_COLUMNS,
-): Promise<NoteRow | null> {
+async function noteIn(orgId: string, noteId: string): Promise<NoteRow | null> {
   const { data } = await supabaseAdmin
     .from("workboard_notes")
-    .select(columns)
+    .select(NOTE_COLUMNS)
     .eq("org_id", orgId)
     .eq("id", noteId)
     .maybeSingle();
@@ -681,9 +604,11 @@ async function noteIn(
 
 /* ---------------- apply ---------------- */
 
-/** What the review card confirmed. Deliberately NOT the model's proposal:
-    the user may have edited a title, picked the right Luke, or unticked
-    half of it, and this is that decision. */
+/** What is filed: the stored proposal as `toConfirmed(toDraft(…))` reads
+    it, minus the rows the person took off (`fileNote`). Deliberately NOT the
+    model's proposal as it came back: this is the shape the writer checks
+    field by field. A library entry is never in it: each waits for its own
+    press (`publishNoteKb`), since its reach is the whole workspace. */
 export type ConfirmedNote = {
   tasks: {
     title: string;
@@ -707,74 +632,17 @@ export type ConfirmedNote = {
   progressBullets: string[];
   commissioningEntries: string[];
   issueEntries: { summary: string; equipmentRef: string }[];
-  /** LEARN — ticked "Worth teaching everyone" rows, published to the KB. */
-  kbEntries?: { title: string; body: string }[];
 };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Turn a confirmed proposal into real rows. Everything is re-validated
-    here, because a Server Function is reachable by direct POST and "the card
-    only offered valid options" is not a control. */
-export async function applyNote(
-  noteId: string,
-  confirmed: ConfirmedNote,
-  /* Where the review card says it belongs, when the note was dictated with
-     nothing in front of it. A general note's bring-items had nowhere to land
-     and were dropped in silence — see the guard at the end of this function,
-     which now refuses that instead of pretending. Re-validated like any other
-     target: a Server Function is reachable by direct POST. */
-  retarget?: NoteTarget
-): Promise<ApplyResult> {
-  const ctx = await context();
-  if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
-  if (!(await can("workboard"))) return { ok: false, error: NO_ACCESS };
-
-  const note = await noteIn(ctx.orgId, noteId);
-  if (!note) return { ok: false, error: GONE };
-  if (note.status === "applied") return { ok: false, error: "That note was already applied." };
-
-  const target = await retargetNote(ctx, note, retarget);
-  if (!target) return { ok: false, error: MOVED };
-
-  const done = await applyConfirmed(ctx, note, confirmed, target);
-  if (!done.ok) return done;
-
-  await supabaseAdmin
-    .from("workboard_notes")
-    .update({ status: "applied", applied: done.applied, applied_at: new Date().toISOString() })
-    .eq("org_id", ctx.orgId)
-    .eq("id", noteId);
-
-  refresh(target);
-  return { ok: true, summary: done.summary };
-}
-
 const MOVED = "That job isn't on this workspace's board any more.";
 
-/** The note's target, or the one it is being pinned to — re-validated like
-    any other target, since a Server Function is reachable by direct POST —
-    and the note remembers where it ended up. Null when the new one is not in
-    this workspace. */
-async function retargetNote(
-  ctx: Ctx,
-  note: NoteRow,
-  retarget?: NoteTarget,
-): Promise<NoteTarget | null> {
-  const picked = await pickTarget(ctx, note, retarget);
-  if (!picked) return null;
-  if (picked.moved) {
-    await supabaseAdmin
-      .from("workboard_notes")
-      .update({ target_kind: picked.target.kind, target_id: picked.target.id ?? null })
-      .eq("org_id", ctx.orgId)
-      .eq("id", note.id);
-  }
-  return picked.target;
-}
-
-/** The same decision, written nowhere yet: `fileNote` moves the note only
-    when it files, so a refused filing leaves the note where it was. */
+/** The note's target, or the job an answer is pinning it to — re-validated
+    like any other target, since a Server Function is reachable by direct
+    POST. Null when the new one is not in this workspace. Written nowhere
+    yet: `fileNote` moves the note only when it files, so a refused filing
+    leaves the note where it was. */
 async function pickTarget(
   ctx: Ctx,
   note: NoteRow,
@@ -793,10 +661,10 @@ type Applied =
   | { ok: false; error: string };
 
 /** THE ONE WRITER. Turns a confirmation into rows and returns the record of
-    them, for `applyNote` (what the review card confirmed) and `fileNote`
-    (what the stored proposal confirms, minus what the person took off).
-    It writes everything but the note's own status: each caller settles its
-    note its own way.
+    them, for `fileNote` (what the stored proposal confirms, minus what the
+    person took off). Everything is re-validated here, because a Server
+    Function is reachable by direct POST. It writes everything but the
+    note's own status: `fileNote` settles its note.
 
     THE RECORD IS v2 (lib/workboard/note-applied): every row it makes, by id,
     and every append with what the column said before — what Undo needs to
@@ -822,13 +690,13 @@ async function applyConfirmed(
      at all — org, title, assignee, due date, status. A task from a note has
      always stood on its own and always landed on the assignee's dashboard.
      The only thing insisting otherwise was this guard and the review card's
-     `blockers`, which is why "tell Luke to ring the wholesaler" — a perfectly
+     Save rule, which is why "tell Luke to ring the wholesaler" — a perfectly
      good task about no job in particular — could not be saved at all.
 
-     So the question is per bucket, not per note (Isaac, 2026-08-05: aim for
-     the job, then a task, and only then My notes). A Server Function is
-     reachable by direct POST, so the review card's version of this is a
-     courtesy and THIS is the enforcement. */
+     So the question is per bucket, not per note (Isaac, 2026-08-05). A
+     Server Function is reachable by direct POST, so `fileNote` asking
+     "Which job is this for?" off the same buckets (`jobBound`) is the
+     courtesy, and THIS is the enforcement. */
   const needsJob =
     (confirmed.bringItems ?? []).some((b) => trim(b, 1000)) ||
     (confirmed.flags ?? []).some((f) => trim(f.message, 200)) ||
@@ -958,10 +826,10 @@ async function applyConfirmed(
      "project")` and nothing else — so a note pinned to a visit with a
      reading ticked wrote its flags, said "Saved — 1 flag." and dropped the
      reading without a word. The guard above accepts ANY job for these
-     buckets and the review card's `blockers` says the same, so nothing
+     buckets and the review card's Save rule said the same, so nothing
      anywhere warned; that is the exact silent drop the rest of this function
-     exists to prevent, and the picker offers visits and agreements, so it
-     was reachable from the board in two clicks.
+     exists to prevent, and the card's picker offered visits and agreements,
+     so it was reachable from the board in two clicks.
 
      Refusing (the answer bring-items get) would have been honest and still
      wrong. Readings taken on a maintenance visit are the most ordinary
@@ -970,11 +838,11 @@ async function applyConfirmed(
      the maintenance half of the board unable to record what it measured.
      Refusal is for a bucket with NOWHERE to go, and this one has somewhere.
 
-     Visits and agreements own the same `notes` column `keepNoteOnJob`
-     appends to, where a LINE IS A BULLET (lib/workboard/note-lines) and the
-     sheet already reads it back. So the lines go there — the same shape as
-     bring-items, which have gone to whichever list the target owns since the
-     day they were written.
+     Visits and agreements own a `notes` column (the one the old review
+     card's "keep it on the job" appended to), where a LINE IS A BULLET
+     (lib/workboard/note-lines) and the sheet already reads it back. So the
+     lines go there — the same shape as bring-items, which have gone to
+     whichever list the target owns since the day they were written.
 
      The kind is the one thing a text column can't carry, so commissioning
      says what it is. Progress needs no label: "what was done today" is what
@@ -1232,62 +1100,6 @@ async function applyConfirmed(
     };
   }
 
-  /* NOTHING SILENTLY VANISHES. Isaac dictated two tasks and two bring-items
-     from the board header, pressed Save, and got "Saved as a note." — while
-     `applied` went to the database as `{}`. Both tasks were dropped because
-     neither had a person on it, and both bring-items were dropped because a
-     general note has no job to hang them off. Every one of those drops was
-     silent, and the summary said the reassuring thing.
-
-     So: if the confirmation asked for work and NONE of it could be done, this
-     refuses. The note keeps its words and stays reviewable rather than being
-     marked applied over an empty object. The card is supposed to stop this
-     ever reaching here — this is the backstop that makes "saved" mean saved. */
-  /* ── LEARN — publish the ticked knowledge ──
-     After the job-bound buckets (these need no job) and before the tally, so
-     a note that is ONLY knowledge still counts as work done. The author's
-     name is fetched here rather than threaded from the card: provenance must
-     come from the session, never from a POST body. */
-  const kbWanted = (confirmed.kbEntries ?? [])
-    .map((k) => ({ title: trim(k.title, 200), body: trim(k.body, 4000) }))
-    .filter((k) => k.title && k.body);
-  if (kbWanted.length) {
-    const { data: author } = ctx.staffId
-      ? await supabaseAdmin
-          .from("staff_profiles")
-          .select(NAME_COLUMNS)
-          .eq("org_id", ctx.orgId)
-          .eq("id", ctx.staffId)
-          .maybeSingle()
-      : { data: null };
-    const authorName = author ? fullNameOf(author as Record<string, unknown>) : "the crew";
-    const tz = await getSm8Timezone(ctx.orgId);
-    const dayLabel = fmtAuWeekdayDayMonth(todayInZone(tz));
-    const jobLabel = target.kind !== "none" && target.id
-      ? await targetLabel(ctx.orgId, target)
-      : null;
-
-    const kbIds: string[] = [];
-    for (const entry of kbWanted) {
-      const res = await publishFieldNote({
-        orgId: ctx.orgId,
-        authorId: ctx.staffId,
-        authorName,
-        title: entry.title,
-        body: entry.body,
-        jobLabel,
-        dayLabel,
-        noteId,
-      });
-      /* One bad entry must not eat the rest of the save — but it must not
-         vanish either. Fail the whole apply so the card keeps the rows and
-         the person sees why, same rule as every other refusal here. */
-      if (!res.ok) return { ok: false, error: res.error };
-      kbIds.push(res.documentId);
-    }
-    record("kbIds", kbIds, "knowledge entry", "knowledge entries");
-  }
-
   /* ── the words themselves, when the target is a JOB ──
      Every other target has somewhere for the transcript to go and a sheet
      that reads it back; a ServiceM8 job's written record is its DIARY, and
@@ -1296,21 +1108,33 @@ async function applyConfirmed(
      thing that was said on this job, and the feed would be lying if it only
      showed the half that grew a row of its own.
 
-     `jobNotes` is the group `keepNoteOnJob` already writes and the journal
-     already counts, which is exactly what it means here. */
+     `jobNotes` is the group the old review card's "keep it on the job"
+     wrote, and the journal still counts, which is exactly what it means
+     here. */
   if (target.kind === "job") {
     const words = trim(note.transcript, 4000);
     if (words) record("jobNotes", [words], "note on the job", "notes on the job");
   }
 
+  /* NOTHING SILENTLY VANISHES. Isaac dictated two tasks and two bring-items
+     from the board header, pressed Save, and got "Saved as a note." — while
+     `applied` went to the database as `{}`. Both tasks were dropped because
+     neither had a person on it, and both bring-items were dropped because a
+     general note has no job to hang them off. Every one of those drops was
+     silent, and the summary said the reassuring thing.
+
+     So: if the confirmation asked for work and NONE of it could be done, this
+     refuses. The note keeps its words and stays waiting rather than being
+     marked applied over an empty object. `fileNote`'s questions are supposed
+     to stop this ever reaching here — this is the backstop that makes "saved"
+     mean saved. */
   const asked =
     (confirmed.tasks?.length ?? 0) +
     (confirmed.bringItems?.length ?? 0) +
     (confirmed.flags?.length ?? 0) +
     (confirmed.progressBullets?.length ?? 0) +
     (confirmed.commissioningEntries?.length ?? 0) +
-    (confirmed.issueEntries?.length ?? 0) +
-    (confirmed.kbEntries?.length ?? 0);
+    (confirmed.issueEntries?.length ?? 0);
   /* Everything that needs a job was refused by the per-bucket guard near the
      top, and a bring-list with nowhere to sit was refused just above. So by
      the time we are here the only way to drop every row is a task with
@@ -1349,8 +1173,8 @@ async function agreementOfVisit(orgId: string, visitId: string): Promise<string 
     filing live, with Undo as the safety net).
 
     FROM THE STORED PROPOSAL, NEVER THE BROWSER'S. What is filed is
-    `toConfirmed(toDraft(stored))`, the same rules the review card runs, minus
-    the rows `leaveOut` names (keys from `planRows`) and minus every library
+    `toConfirmed(toDraft(stored))`, the rules the review card ran, minus the
+    rows `leaveOut` names (keys from `planRows`) and minus every library
     entry: those wait for their own press (`publishNoteKb`). The browser names
     only rows to drop and the job; it cannot add a row, reword one or put a
     person on a task.
@@ -1377,7 +1201,7 @@ export async function fileNote(
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
   if (!(await can("workboard"))) return { ok: false, error: NO_ACCESS };
 
-  const note = await noteIn(ctx.orgId, noteId, TALK_COLUMNS);
+  const note = await noteIn(ctx.orgId, noteId);
   if (!note) return { ok: false, error: GONE };
   if (SETTLED[note.status]) return { ok: false, error: SETTLED[note.status] };
   if ((note.author_id ?? null) !== ctx.staffId) return { ok: false, error: NOT_YOURS };
@@ -1399,13 +1223,18 @@ export async function fileNote(
   const leaveOut = Array.isArray(opts.leaveOut) ? opts.leaveOut : [];
   const draft = withoutRows(toDraft({ ...plan, kbEntries: [] }), leaveOut);
   const turns = turnsOf(note.turns);
+  /* EVERY WORD THEY SAID: the note, then each reply after it (the first
+     "you" turn IS the note). The quick answers come off this, never off the
+     note alone, or a reply that names what was missing ("it's the Meridian
+     job") could never become one: the reply changes the plan, never the
+     transcript, and the same question came back with the same answers. */
+  const said = [note.transcript, ...turns.filter((t) => t.who === "you").slice(1).map((t) => t.text)].join("\n");
 
   /* Who, before which job: a person is the likelier gap, and the answer is a
      reply the router reads, where a job is a pick. */
   const nobody = draft.tasks.find((t) => t.on && t.title.trim() && !t.assigneeId);
   if (nobody) {
     const staff = await assignableStaff(ctx.orgId);
-    const said = [note.transcript, ...turns.filter((t) => t.who === "you").slice(1).map((t) => t.text)].join("\n");
     const question = `Who should do this: ${nobody.title.trim()}?`;
     const labels = [...(ctx.staffId ? ["Me"] : []), ...namesMentioned(said, staff, ctx.staffId)];
     return askFirst(ctx, note, turns, { question, options: labels.map((label) => ({ label })) });
@@ -1415,7 +1244,7 @@ export async function fileNote(
   if (!picked) return { ok: false, error: MOVED };
   const { target } = picked;
   if (jobBound(draft) && (target.kind === "none" || !target.id)) {
-    const jobs = matchedJobs(note.transcript, await jobCandidates(ctx.orgId), 3);
+    const jobs = matchedJobs(said, await jobCandidates(ctx.orgId), 3);
     const ask: FileAsk = {
       question: WHICH_JOB,
       options: jobs.map((j) => ({ label: describeJob(j), target: { kind: j.kind, id: j.id } })),
@@ -1429,7 +1258,7 @@ export async function fileNote(
     .update({ status: "applied", applied_at: new Date().toISOString() })
     .eq("org_id", ctx.orgId)
     .eq("id", noteId)
-    .in("status", ["pending", "clarifying"])
+    .in("status", WAITING)
     .select("id");
   if (!((claimed ?? []) as unknown[]).length) return { ok: false, error: SETTLED.applied };
 
@@ -1511,7 +1340,7 @@ async function askFirst(
     })
     .eq("org_id", ctx.orgId)
     .eq("id", note.id)
-    .in("status", ["pending", "clarifying"]);
+    .in("status", WAITING);
   return { ok: false, error: ask.question, ask, turns: asked };
 }
 
@@ -1591,7 +1420,7 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
 
-  const note = await noteIn(ctx.orgId, noteId, TALK_COLUMNS);
+  const note = await noteIn(ctx.orgId, noteId);
   if (!note) return { ok: false, error: GONE };
   const mine = !!ctx.staffId && note.author_id === ctx.staffId;
   if (!mine && !(await can("team"))) return { ok: false, error: UNDO.notYours };
@@ -1705,7 +1534,7 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
        note taken back already is, with the conversation as it now stands,
        so the page that pressed can show what went rather than offer Undo
        beside rows that have gone. */
-    const again = await noteIn(ctx.orgId, noteId, TALK_COLUMNS);
+    const again = await noteIn(ctx.orgId, noteId);
     return again?.status === "undone"
       ? { ok: false, error: UNDO.undone, turns: turnsOf(again.turns) }
       : { ok: false, error: UNDO.undone };
@@ -1761,10 +1590,10 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
 
     The row the journal already reads: `applied` with an empty record, so the
     diary shows the words and says nothing about what they became, because
-    they became nothing but themselves. No `workboard` capability, the same as
-    `keepNoteForMe`: your own words in your own diary is the least privileged
-    thing in the app. It does need a staff card — the diary reads by author,
-    and a row with none is an entry nobody can see. */
+    they became nothing but themselves. No `workboard` capability: your own
+    words in your own diary is the least privileged thing in the app. It does
+    need a staff card — the diary reads by author, and a row with none is an
+    entry nobody can see. */
 export async function keepWords(text: string, room?: TiffRoom): Promise<KeepResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
@@ -1799,16 +1628,16 @@ export async function keepWords(text: string, room?: TiffRoom): Promise<KeepResu
 /** "Add to the Library" — the one row of a plan that waits for a press,
     because its reach is the whole workspace rather than a job or a person.
 
-    Publishes the stored proposal's `kbEntries[index]` as a field note, the
-    same way the review card's tick does, and adds it to the note's record so
-    Undo takes it back with the rest. Once per entry: pressing it again says
+    Publishes the stored proposal's `kbEntries[index]` as a field note
+    (`publishFieldNote`), and adds it to the note's record so Undo takes it
+    back with the rest. Once per entry: pressing it again says
     it is already there. A note set aside or taken back publishes nothing. */
 export async function publishNoteKb(noteId: string, index: number): Promise<PublishKbResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
   if (!(await can("workboard"))) return { ok: false, error: NO_ACCESS };
 
-  const note = await noteIn(ctx.orgId, noteId, TALK_COLUMNS);
+  const note = await noteIn(ctx.orgId, noteId);
   if (!note) return { ok: false, error: GONE };
   if (note.status === "dismissed" || note.status === "undone") {
     return { ok: false, error: SETTLED[note.status] };
@@ -1866,7 +1695,7 @@ export async function publishNoteKb(noteId: string, index: number): Promise<Publ
        of the Library again rather than staying there with no note behind
        it. Its chunk goes with it (kb_chunks cascades). */
     await supabaseAdmin.from("kb_documents").delete().eq("org_id", ctx.orgId).eq("id", res.documentId);
-    const now = addErr ? undefined : await noteIn(ctx.orgId, noteId, TALK_COLUMNS);
+    const now = addErr ? undefined : await noteIn(ctx.orgId, noteId);
     if (now === null) return { ok: false, error: GONE };
     if (now?.status === "dismissed" || now?.status === "undone") {
       return { ok: false, error: SETTLED[now.status] };
@@ -1889,7 +1718,7 @@ export async function dismissNote(noteId: string): Promise<ApplyResult> {
 
   const note = await noteIn(ctx.orgId, noteId);
   if (!note) return { ok: false, error: GONE };
-  if (!onTheCard(note)) return { ok: false, error: ALREADY_APPLIED };
+  if (!waiting(note)) return { ok: false, error: ALREADY_APPLIED };
 
   /* ONLY A NOTE STILL WAITING. Walking away sets aside what was never filed,
      and the Tiff modal cannot always know whether it was: a filing whose
@@ -1902,7 +1731,7 @@ export async function dismissNote(noteId: string): Promise<ApplyResult> {
     .update({ status: "dismissed" })
     .eq("org_id", ctx.orgId)
     .eq("id", noteId)
-    .in("status", ON_THE_CARD);
+    .in("status", WAITING);
   refresh({ kind: note.target_kind, id: note.target_id });
   /* NOT "Kept as a note." — this is the ABANDON path (Escape, ×, walking
      away), and a dismissed row is read by nothing: the journal lists `applied`
@@ -1911,173 +1740,12 @@ export async function dismissNote(noteId: string): Promise<ApplyResult> {
      actually happened costs nothing and stops the next person believing the
      old sentence.
 
-     AND IT STAYS THAT WAY. The other three endings record what they did, which
-     is what puts them on the journal; this one has nothing to record, because
-     nothing happened. Filing an abandonment as applied would make walking away
-     from a half-sentence look exactly like filing it. */
+     AND IT STAYS THAT WAY. The other endings (`fileNote`, `keepWords`)
+     record what they did, which is what puts them on the journal; this one
+     has nothing to record, because nothing happened. Filing an abandonment
+     as applied would make walking away from a half-sentence look exactly
+     like filing it. */
   return { ok: true, summary: "Discarded." };
-}
-
-/* "Just keep the note" has to keep it SOMEWHERE YOU'D FIND IT.
-
-   Isaac, 2026-08-02: "if you don't pick a job you can still just keep the
-   note, but where the hell would the note go? That doesn't make sense." He's
-   right — `dismissNote` files the row at status `dismissed`, which nothing
-   reads, so the words went into a drawer nobody opens. Same shape of black
-   hole as the one #253 closed on the apply side.
-
-   So keeping a note against a job now writes it onto that job's own notes,
-   where the next person to open the sheet reads it. Appended, never replacing
-   — a visit's notes belong to whoever wrote them first.
-
-   Kept SEPARATE from dismissNote on purpose: dismiss is also the abandon path
-   (Esc, ×, walking away), and abandoning a note must never write anything. */
-export async function keepNoteOnJob(
-  noteId: string,
-  retarget?: NoteTarget
-): Promise<ApplyResult> {
-  const ctx = await context();
-  if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
-  if (!(await can("workboard"))) return { ok: false, error: NO_ACCESS };
-
-  const note = await noteIn(ctx.orgId, noteId);
-  if (!note) return { ok: false, error: GONE };
-  if (!onTheCard(note)) return { ok: false, error: ALREADY_APPLIED };
-
-  let target: NoteTarget = { kind: note.target_kind, id: note.target_id };
-  if (retarget && retarget.kind !== "none" && retarget.id) {
-    const resolved = await resolveTarget(ctx.orgId, retarget);
-    if (!resolved || resolved.kind === "none") {
-      return { ok: false, error: "That job isn't on this workspace's board any more." };
-    }
-    target = resolved;
-  }
-  if (target.kind === "none" || !target.id) {
-    return {
-      ok: false,
-      error: "Say which job this belongs to and the words go on its notes.",
-    };
-  }
-
-  const words = trim(note.transcript, 2000);
-  if (!words) return { ok: false, error: "There are no words to keep." };
-
-  /* A SERVICEM8 JOB HAS NOWHERE TO APPEND TO, and that is not a gap — it is
-     the read charter. The mirror is somebody else's system and we only read
-     it, so the note stays in OUR table and the job card's diary reads it
-     back beside ServiceM8's own notes. Nothing to update; the `applied`
-     write at the foot of this function IS the save. */
-  const table = writableNotesTable(target.kind);
-  if (table) {
-    const { data } = await supabaseAdmin
-      .from(table)
-      .select("notes")
-      .eq("org_id", ctx.orgId)
-      .eq("id", target.id)
-      .maybeSingle();
-    const current = ((data as { notes: string | null } | null)?.notes ?? "").trim();
-    const merged = [current, words].filter(Boolean).join("\n\n").slice(0, 8000);
-
-    await supabaseAdmin
-      .from(table)
-      .update({ notes: merged, updated_at: new Date().toISOString() })
-      .eq("org_id", ctx.orgId)
-      .eq("id", target.id);
-  }
-
-  /* IT RECORDS WHAT IT DID, rather than borrowing the discard status. This
-     rung used to file the row at `dismissed` — the same status as Escape —
-     so the journal, which reads `applied` rows, showed nothing at all for a
-     capture that had just succeeded. Say it, and the row reads honestly.
-
-     `jobNotes` is its own group because none of the existing ones mean "the
-     words went onto the job's own notes": `entryLines` is progress and
-     commissioning shaped by the review card, and these are the transcript
-     verbatim. Words, not ids — they become text on somebody else's row, so
-     there is nothing to point back at, the same as bring-items. Adding a
-     group means teaching `APPLIED_GROUPS` in lib/dashboard/journal.ts how to
-     count it; a test pins the two lists against each other. */
-  await supabaseAdmin
-    .from("workboard_notes")
-    .update({
-      status: "applied",
-      applied: { jobNotes: [words] },
-      applied_at: new Date().toISOString(),
-      target_kind: target.kind,
-      target_id: target.id,
-    })
-    .eq("org_id", ctx.orgId)
-    .eq("id", noteId)
-    .in("status", ON_THE_CARD);
-
-  refresh(target);
-  return {
-    ok: true,
-    summary: target.kind === "job" ? "Kept on the job's diary." : "Kept on the job's notes.",
-  };
-}
-
-/* THE LAST RUNG. Keep the words for yourself, when no job and no person will
-   take them.
-
-   The cascade Isaac chose on 2026-08-05 aims at a job first and a task
-   second, and only offers this when neither fits — so this is deliberately
-   the hardest destination to reach, not the easiest. It exists because the
-   two rungs above it genuinely don't cover everything ("ring the wholesaler
-   back about pricing" belongs to nobody's job and isn't a task for anyone
-   but you), and because the alternative is `dismissNote`, which files the
-   row where nothing reads it.
-
-   Unlike `keepNoteOnJob` this needs NO `workboard` capability: it writes to
-   the author's own notes, which is the least privileged thing in the app.
-   What it does need is a staff profile, since the row must have an owner —
-   see the same rule in actions/my-notes.ts. */
-export async function keepNoteForMe(noteId: string): Promise<ApplyResult> {
-  const ctx = await context();
-  if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
-  if (!ctx.staffId) return { ok: false, error: "Your staff profile isn't set up yet." };
-
-  const note = await noteIn(ctx.orgId, noteId);
-  if (!note) return { ok: false, error: GONE };
-  /* before the staff_notes insert: an applied row keeps nothing */
-  if (!onTheCard(note)) return { ok: false, error: ALREADY_APPLIED };
-
-  const body = trim(note.transcript, 4000);
-  if (!body) return { ok: false, error: "There are no words to keep." };
-
-  const { error } = await supabaseAdmin.from("staff_notes").insert({
-    org_id: ctx.orgId,
-    staff_id: ctx.staffId,
-    body,
-    source: "routed",
-    source_note_id: noteId,
-  });
-  if (error) return { ok: false, error: "Couldn't keep that note." };
-
-  /* SAME REASON AS `keepNoteOnJob`: this succeeded, so it must not file
-     itself as a discard. It reuses `noteLines` rather than inventing a group
-     because it does literally what that group does — one `staff_notes` row,
-     linked by `source_note_id`, which is exactly what the journal's kept-lines
-     chip resolves its door from. One line kept, and the door opens on it.
-
-     THE ONLY WRITER OF `noteLines` LEFT. The Debrief filed its ticked
-     leftovers the same way, as one grouped note, and that writer went with
-     it; its old rows keep their door, because the journal resolves this key
-     and never asks which door the words came through. */
-  await supabaseAdmin
-    .from("workboard_notes")
-    .update({
-      status: "applied",
-      applied: { noteLines: [body] },
-      applied_at: new Date().toISOString(),
-    })
-    .eq("org_id", ctx.orgId)
-    .eq("id", noteId)
-    .in("status", ON_THE_CARD);
-
-  refresh({ kind: note.target_kind, id: note.target_id });
-  revalidatePath(navHref("mynotes"));
-  return { ok: true, summary: "Kept in your notes." };
 }
 
 /** Stop a flag pulsing. Whoever dealt with it can clear it. */

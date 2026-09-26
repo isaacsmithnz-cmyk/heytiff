@@ -687,7 +687,7 @@ async function readJobFlags(orgId: string, jobUuid: string): Promise<AttentionFl
     message: f.message,
     /* The column is checked in the database, so an unreadable value here is
        impossible — but the type isn't, and defaulting to "warn" is the same
-       shrug `applyNote` makes on the way in. */
+       shrug the note writer makes on the way in. */
     severity: (SEVERITY.has(f.severity) ? f.severity : "warn") as Severity,
     raised: f.created_at,
   }));
@@ -702,7 +702,7 @@ async function readJobFlags(orgId: string, jobUuid: string): Promise<AttentionFl
     resolves outcomes this way; this is the same trick on a card.
 
     Three sources, because a task about this job can be born three ways:
-    through the review card (`workboard_notes.applied.taskIds`), straight
+    through a note Tiff filed (`workboard_notes.applied.taskIds`), straight
     off one of ServiceM8's own notes on the strip (`job_note_actions.task_id`),
     or by Tiff, from a note on it that asked somebody something
     (`mention_asks.task_id`, the new Home's one task per ask). */

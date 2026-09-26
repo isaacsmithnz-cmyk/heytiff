@@ -20,7 +20,6 @@ jest.mock("@/components/dashboard/home-desk", () => ({ DashboardDesk: () => <p>t
 import DashboardHomePage from "../page";
 
 const loaded = (desk: { warnDays: number } | null) => ({
-  jobs: [],
   assignable: [{ id: "s1", name: "Dane Cooper" }],
   desk,
 });

@@ -8,17 +8,22 @@ import { addMyNote, archiveMyNote, deleteMyNote, editMyNote } from "@/app/action
 import type { MyNote } from "@/lib/notes/my-notes-query";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 
-/* MY NOTES — the reader that makes the cascade's floor a destination.
+/* MY NOTES — your own notebook.
 
-   This screen is the entire justification for the `staff_notes` table. A note
-   that couldn't be filed against a job or handed to somebody as a task has to
-   land somewhere a person actually opens and can edit — the journal shows
-   what you SAID and never lets you change it, which is right for a record and
-   useless for a note. If this page ever goes, the table should go with it.
+   This screen is the entire justification for the `staff_notes` table: a
+   note you can open, edit and throw away. The diary shows what you SAID and
+   never lets you change it, which is right for a record and useless for a
+   note. If this page ever goes, the table should go with it.
+
+   WHAT LANDS HERE IS WHAT YOU WRITE HERE. The page was also the floor of the
+   capture card's cascade ("keep it for me", `keepNoteForMe`), and that card
+   went with the old capture UI (2026-09-27): the Tiff modal keeps the words
+   it doesn't file in your diary (`keepWords`), never here. A line kept that
+   way before still reads here, and its diary entry still opens on it.
 
    It also dogfoods the token. The add row here is the same `strip` posture
-   the job card uses — commit is instant, and the sniff offers the review only
-   when the words look like a job for somebody.
+   the job card uses — commit is instant, and the sniff offers to open the
+   Tiff modal on the words only when they look like a job for somebody.
 
    A FACE OF THE ME CARD now, not a page of its own. Archived came out of a
    disclosure row inside a second card and onto the card's tab strip, which was
@@ -83,10 +88,7 @@ export function MyNotesFace({
             <Icon name="note" size={20} />
           </span>
           <b>Nothing here yet</b>
-          <em>
-            Notes you take that don&apos;t belong to a job — or that nobody else needed to
-            action — end up on this page.
-          </em>
+          <em>Notes you write here are yours alone — nobody else sees them.</em>
         </div>
       ) : (
         <ul className="wb2-blist read" style={{ marginTop: 16 }}>

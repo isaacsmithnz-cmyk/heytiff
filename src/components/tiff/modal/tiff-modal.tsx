@@ -249,7 +249,7 @@ export function TiffModal({
         <header className="tm-head">
           <span className="tm-who">
             <span className="tm-hmark" aria-hidden="true">
-              <TiffGlyph ground="paper" quiet size={20} />
+              <TiffGlyph quiet size={20} />
             </span>
             {context && <span className="tm-ctx">{context}</span>}
             {c.aimed && c.targetLabel && (

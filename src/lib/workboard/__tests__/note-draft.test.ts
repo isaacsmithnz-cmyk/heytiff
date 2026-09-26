@@ -4,8 +4,9 @@
    are which row a cross in the modal names — by its place in the stored
    proposal, never by its words — and that a proposal stored by an older
    version of the router still files rather than throwing. The draft rules
-   themselves (`toDraft`, `toConfirmed`, `blockers`) moved here from the
-   review card unchanged and are pinned in its suite. */
+   themselves (`toDraft`, `toConfirmed`) moved here from the review card
+   unchanged, and their tests followed them when the card went (2026-09-27):
+   "the draft rules", at the foot. */
 
 import { planRows, storedProposal, toConfirmed, toDraft, withoutRows } from "../note-draft";
 import type { NoteProposal } from "../note-brain";
@@ -131,5 +132,89 @@ describe("storedProposal", () => {
 
   it("reads back what it was given, unchanged, for a proposal of today's shape", () => {
     expect(storedProposal(JSON.parse(JSON.stringify(P)))).toEqual(P);
+  });
+});
+
+/* ── THE DRAFT RULES ─────────────────────────────────────────────────────
+
+   THE CARD THAT REFUSED TO SAVE A REMINDER. Isaac dictated "…remind me to do
+   that on Monday morning" and the review card showed a well-titled task, the
+   right Monday, an empty "Assign to…" and an amber bar reading "One task
+   still needs a person on it". Underneath, the cascade said "No tasks for
+   anyone" while the task sat on screen a centimetre above — because
+   `toConfirmed` drops a task with no assignee, and everything downstream
+   counts what survives that.
+
+   The router's half of the fix is pinned in note-brain's suite. These are
+   the draft's half: that a task with a person on it is filed and one with
+   nobody is not, that a time of day survives the round trip out to the
+   server, and that a time never travels without the day it belongs to.
+   They were the review card's tests; the card went with the old capture UI
+   (2026-09-27), and `fileNote` files through the same `toDraft` and
+   `toConfirmed` (asking "Who should do this?" first, in its own suite). */
+describe("the draft rules", () => {
+  const EMPTY: NoteProposal = {
+    tasks: [],
+    bringItems: [],
+    flags: [],
+    progressBullets: [],
+    commissioningEntries: [],
+    issueEntries: [],
+    kbEntries: [],
+    plainNote: "",
+    say: "",
+    clarify: null,
+  };
+
+  const reminder = (task: Partial<NoteProposal["tasks"][number]> = {}): NoteProposal => ({
+    ...EMPTY,
+    tasks: [
+      {
+        title: "Check with Luke about quote to Chris from Scott Group",
+        detail: "Did the quote go out?",
+        assigneeId: "s-isaac",
+        assigneeHint: "me",
+        dueHint: "Monday morning",
+        dueDate: "2026-08-24",
+        remindTime: "06:30",
+        remindKind: "at" as const,
+        ...task,
+      },
+    ],
+  });
+
+  it("keeps a task with a person on it, and drops one with nobody", () => {
+    expect(toConfirmed(toDraft(reminder())).tasks).toHaveLength(1);
+    expect(toConfirmed(toDraft(reminder({ assigneeId: null }))).tasks).toHaveLength(0);
+  });
+
+  it("keeps the day and the time the note asked for", () => {
+    expect(toConfirmed(toDraft(reminder())).tasks[0]).toMatchObject({
+      dueDate: "2026-08-24",
+      remindTime: "06:30",
+    });
+  });
+
+  it("sends no time for an ordinary task", () => {
+    expect(toConfirmed(toDraft(reminder({ remindTime: "" }))).tasks[0].remindTime).toBeNull();
+  });
+
+  it("never sends a time without the day it belongs to", () => {
+    /* A time with no date is not a moment. `remindAtFrom` would refuse it
+       server-side anyway, so sending it would put a value in the payload that
+       cannot become anything — and would look, in the database, like a
+       reminder that simply never fired. */
+    const d = toDraft(reminder({ dueDate: "" }));
+    expect(d.tasks[0].remindTime).toBe("06:30"); // the draft still remembers it
+    expect(toConfirmed(d).tasks[0].remindTime).toBeNull(); // the wire does not
+  });
+
+  /* THE DEBRIEF'S LEFTOVERS ARE OFF THE WIRE. The router has no note-lines
+     lane any more and nothing files one, so a proposal that still carries it
+     — a router answer from an old build — sends no lines that the server
+     would count as nothing. */
+  it("sends no noteLines", () => {
+    const stale = { ...EMPTY, noteLines: ["chase the coil pricing"] } as NoteProposal;
+    expect(toConfirmed(toDraft(stale))).not.toHaveProperty("noteLines");
   });
 });

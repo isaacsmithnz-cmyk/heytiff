@@ -65,7 +65,7 @@ function ScopeProbe() {
   const s = useNoteScope();
   return (
     <div data-testid="scope">
-      {s.target.kind}|{s.targetLabel ?? "-"}|{s.jobs.length} jobs|{s.staffFirstNames.length} names
+      {s.target.kind}|{s.targetLabel ?? "-"}|{s.staffFirstNames.length} names
     </div>
   );
 }
@@ -1289,25 +1289,31 @@ describe("what the screen tells the Tiff button", () => {
     expect(screen.queryByLabelText(/Ask or tell Tiff/)).not.toBeInTheDocument();
   });
 
-  /* An open job and somebody to name in it — the two things the button needs
-     from a board before a spoken note can be pinned or a person recognised. */
+  /* A booked job with somebody on it — the crew on the board is the roster
+     the field mics' sieve reads names from. */
   const loaded: WorkboardData = {
     ...base,
     board: {
       ...base.board,
-      visits: [visitStub({ id: "v-1", status: "booked", clientName: "Meridian Data" })],
-      staff: [{ id: "s-1", name: "Dane Whitcombe" }] as WorkboardData["board"]["staff"],
+      visits: [
+        visitStub({
+          id: "v-1",
+          status: "booked",
+          clientName: "Meridian Data",
+          techs: [{ id: "s-1", name: "Dane Whitcombe" }],
+        }),
+      ],
     },
   };
 
-  it("reports the board's jobs and roster upward, so a note can be pinned", () => {
+  it("reports the board's crew upward by first name, so a spoken name is recognised", () => {
     withProbe(loaded);
-    expect(screen.getByTestId("scope")).toHaveTextContent("1 jobs");
+    expect(screen.getByTestId("scope")).toHaveTextContent("none|-|1 names");
   });
 
   it("stops reporting when the screen goes away, so the button is not left holding a stale board", () => {
     const { unmount } = withProbe(loaded);
-    expect(screen.getByTestId("scope")).toHaveTextContent("1 jobs");
+    expect(screen.getByTestId("scope")).toHaveTextContent("1 names");
     unmount();
 
     render(
@@ -1315,6 +1321,6 @@ describe("what the screen tells the Tiff button", () => {
         <ScopeProbe />
       </NoteScopeProvider>
     );
-    expect(screen.getByTestId("scope")).toHaveTextContent("none|-|0 jobs|0 names");
+    expect(screen.getByTestId("scope")).toHaveTextContent("none|-|0 names");
   });
 });

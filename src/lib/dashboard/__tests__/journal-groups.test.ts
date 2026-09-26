@@ -7,8 +7,8 @@ import { APPLIED_GROUPS, describeApplied } from "../journal";
 
    `applied` is written in `actions/workboard-notes.ts` and read in
    `lib/dashboard/journal.ts`, and the wording is deliberately copied rather
-   than shared: the write side counts each group into its "Saved — 2 tasks ·
-   1 line kept" summary as it inserts it, and unpicking that to share a table
+   than shared: the write side counts each group into its "Saved — 2 tasks,
+   1 flag." summary as it inserts it, and unpicking that to share a table
    would be a bigger change than the drift it prevents.
 
    So the guard reads the write side instead of restating it. A hand-written
@@ -24,13 +24,26 @@ import { APPLIED_GROUPS, describeApplied } from "../journal";
    `workboard-notes.ts` names these keys out loud. */
 
 const SOURCE = join(__dirname, "..", "..", "..", "app", "actions", "workboard-notes.ts");
+const RECORD_SQL = join(__dirname, "..", "..", "..", "..", "docs", "migrations", "tiff_modal_record.sql");
 
 const code = readFileSync(SOURCE, "utf8")
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .replace(/(^|[^:"'])\/\/.*$/gm, "$1");
 
-/** Every `record("key", ids, "one"[, "many"])` in `applyNote` — the six groups
-    a confirmed proposal can create, each carrying its own count wording. */
+/* THE TWO KEYS THE JOURNAL READS THAT THIS FILE DOES NOT WRITE, each with
+   where it does come from. Held both ways below: one that starts being
+   written here again, or that the journal stops reading, fails.
+
+     kbIds      "Add to the Library" (`publishNoteKb`) appends it in the
+                database, one statement (tiff_modal_record.sql), so a press
+                that lands while the note files keeps both.
+     noteLines  Only rows from before carry it: the old capture card's "keep
+                it for me" and the Debrief's leftovers wrote it, and both
+                went (2026-09-27, 2026-09-25). Their doors still open. */
+const ELSEWHERE = ["kbIds", "noteLines"];
+
+/** Every `record("key", ids, "one"[, "many"])` in `applyConfirmed` — the
+    groups a filed proposal can create, each carrying its own count wording. */
 function recorded(): Map<string, [one: string, many: string]> {
   const found = new Map<string, [string, string]>();
   for (const m of code.matchAll(/\brecord\(\s*"([A-Za-z]+)"\s*,([\s\S]*?)\)\s*;/g)) {
@@ -44,8 +57,9 @@ function recorded(): Map<string, [one: string, many: string]> {
   return found;
 }
 
-/** Every `applied: { key: … }` written straight onto the row — the endings
-    that never went through `applyNote` at all. */
+/** Every `applied: { key: … }` written straight onto the row — an ending
+    that never went through the writer at all. There is none today; a new
+    one that files its own payload is the thing that went unnoticed once. */
 function literals(): string[] {
   return [...code.matchAll(/applied:\s*\{\s*([A-Za-z]+)\s*:/g)].map((m) => m[1]);
 }
@@ -69,16 +83,27 @@ describe("the journal's vocabulary against the write side", () => {
        key written onto the row by an ending of its own is still a key the
        journal has to be able to read, and it never passes through `record`. */
     const written = new Set([...recorded().keys(), ...literals()]);
-    expect(written).toEqual(new Set(APPLIED_GROUPS.map(([key]) => key)));
+    for (const key of ELSEWHERE) expect(written.has(key)).toBe(false);
+    expect(new Set([...written, ...ELSEWHERE])).toEqual(new Set(APPLIED_GROUPS.map(([key]) => key)));
   });
 
-  it("still describes the two keep-rungs by name", () => {
+  it("finds the Library's key where it is written", () => {
+    expect(code).toContain('"workboard_note_add_kb"');
+    expect(readFileSync(RECORD_SQL, "utf8")).toMatch(/'kbIds'/);
+  });
+
+  it("still describes the words kept as said by name", () => {
     /* Belt and braces on the set comparison above: it is symmetric, so both
-       sides going missing together would pass it. These two are the endings
-       the journal was blind to, and they are worth naming out loud. */
-    expect(literals()).toEqual(expect.arrayContaining(["jobNotes", "noteLines"]));
+       sides going missing together would pass it. These two are the
+       endings the journal was once blind to, and they are worth naming out
+       loud: a note filed on a ServiceM8 job keeps its words on the job
+       (`jobNotes`), and a kept line from before still reads. */
+    expect(recorded().has("jobNotes")).toBe(true);
     expect(describeApplied({ jobNotes: ["gate code is 4821"] })).toEqual([
       { kind: "kept", text: "1 note on the job" },
+    ]);
+    expect(describeApplied({ noteLines: ["chase the coil pricing"] })).toEqual([
+      { kind: "kept", text: "1 line kept" },
     ]);
   });
 });

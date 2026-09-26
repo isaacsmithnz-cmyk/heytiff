@@ -150,9 +150,9 @@ describe("the recorder stops itself", () => {
   });
 
   /* The flag that lets a caller tell "I have finished" from "the clock ran
-     out". note-flow ROUTES on the first and holds on the second, so a stale
-     `capped` would file half a note — or, the other way, silently swallow a
-     finished one. */
+     out". The Tiff modal SENDS on the first and holds on the second, so a
+     stale `capped` would file half a note — or, the other way, silently
+     swallow a finished one. */
   it("says the ceiling caused it, and stops saying so on the next recording", async () => {
     const onTranscript = jest.fn();
     render(<Probe onTranscript={onTranscript} />);

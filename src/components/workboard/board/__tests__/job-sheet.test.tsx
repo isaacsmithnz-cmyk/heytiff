@@ -125,17 +125,14 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }))
 
 /* THE SERVER-ACTION IMPORT TRAP, again: `"use server"` modules pull
    `next/cache`, which needs a `Request` global jsdom hasn't got — so the
-   diary's pen (NoteToken → note-flow → workboard-notes) takes the whole
-   suite down at import time unless both action modules are mocked here. */
+   card's own `clearFlag` (workboard-notes) takes the whole suite down at
+   import time unless both action modules are mocked here. (The diary's pen
+   reached it too, through the capture card's flow, until that went.) */
 const routeNote = jest.fn(async () => ({ ok: false, error: "no" }));
 const clearFlag = jest.fn(async () => ({ ok: true }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: (...a: unknown[]) => routeNote(...(a as [])),
-  applyNote: jest.fn(async () => ({ ok: true, summary: "" })),
-  answerClarify: jest.fn(async () => ({ ok: false, error: "no" })),
   dismissNote: jest.fn(async () => ({ ok: true, summary: "" })),
-  keepNoteOnJob: jest.fn(async () => ({ ok: true, summary: "" })),
-  keepNoteForMe: jest.fn(async () => ({ ok: true, summary: "" })),
   clearFlag: (...a: unknown[]) => clearFlag(...(a as [])),
   restoreFlag: jest.fn(async () => ({ ok: true, summary: "" })),
 }));

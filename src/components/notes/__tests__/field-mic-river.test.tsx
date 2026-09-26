@@ -23,17 +23,6 @@ import { NoteToken } from "../note-token";
    carries no `aria-label` of its own. The river has to carry one — a wrapping
    label names a form control and gives a paragraph nothing. */
 
-jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
-jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
-jest.mock("@/app/actions/workboard-notes", () => ({
-  routeNote: jest.fn(),
-  applyNote: jest.fn(),
-  dismissNote: jest.fn(),
-  keepNoteOnJob: jest.fn(),
-  keepNoteForMe: jest.fn(),
-  answerClarify: jest.fn(),
-}));
-
 /** The engine, driveable from the test — `interim` is the whole point here. */
 const ctl: { setRecording?: (v: boolean) => void; setInterim?: (v: string) => void } = {};
 
@@ -51,7 +40,6 @@ jest.mock("../dictation", () => {
         recording,
         arming: false,
         transcribing: false,
-        handing: false,
         interim,
         seconds: 3,
         barsRef: react.createRef(),

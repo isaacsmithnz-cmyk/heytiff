@@ -62,11 +62,7 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refre
    jsdom hasn't got. Mocked here so the board's own suite still boots. */
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: jest.fn(async () => ({ ok: false, error: "no" })),
-  applyNote: jest.fn(async () => ({ ok: true, summary: "" })),
-  answerClarify: jest.fn(async () => ({ ok: false, error: "no" })),
   dismissNote: jest.fn(async () => ({ ok: true, summary: "" })),
-  keepNoteOnJob: jest.fn(async () => ({ ok: true, summary: "" })),
-  keepNoteForMe: jest.fn(async () => ({ ok: true, summary: "" })),
   clearFlag: jest.fn(async () => ({ ok: true, summary: "" })),
   restoreFlag: jest.fn(async () => ({ ok: true, summary: "" })),
 }));

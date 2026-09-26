@@ -12,22 +12,24 @@
    capture that produced nothing (everything unticked) does stay: you still
    said it, and the row reads honestly with no outcomes after it.
 
-   ALL FOUR ENDINGS ARE HERE, and `status` is what tells them apart. Every one
-   of them writes this table, and for a while only one of them showed up:
+   EVERY ENDING IS HERE, and `status` is what tells them apart. Every one of
+   them writes this table, and for a while only one of them showed up:
 
-     applyNote       The rows were created. `applied`, with the ids to prove it.
-     keepNoteForMe   Writes the words to `staff_notes`. A SUCCESS, so it records
-                     one `noteLines` — literally what that group means, down to
-                     the `source_note_id` this file resolves the door from.
-     keepNoteOnJob   Appends the words to the job's own notes. Also a success,
-                     recorded as `jobNotes`.
+     fileNote        The rows were created. `applied`, with the ids to prove it.
+     keepWords       The words as said, nothing made. `applied`, with an
+                     empty record.
      dismissNote     Escape, ×, walking away. `dismissed`, and it stays out.
 
-   The two keep-rungs used to borrow the discard status, which meant saying
+   The old capture card had two more, its keep-rungs, and their rows still
+   read (the card went on 2026-09-27): "keep it for me" wrote the words to
+   `staff_notes` and recorded one `noteLines` — literally what that group
+   means, down to the `source_note_id` this file resolves the door from —
+   and "keep it on the job" appended them to the job's own notes, recorded
+   as `jobNotes`. They used to borrow the discard status, which meant saying
    something and choosing "Keep it in my notes" left the record saying you
    never said it — while the empty state promised that anything you tell Tiff
    lands here with what it turned into. THE STATUS IS THE WHOLE DISTINCTION
-   NOW: filing is `applied`, abandoning is not. Do not let a fourth thing start
+   NOW: filing is `applied`, abandoning is not. Do not let a new ending start
    writing `dismissed` on a path where something actually happened. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";

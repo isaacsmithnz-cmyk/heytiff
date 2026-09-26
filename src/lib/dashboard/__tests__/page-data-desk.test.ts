@@ -233,6 +233,7 @@ jest.mock("../desk-data", () => {
 
 import { loadDesk } from "../desk-data";
 import type { DiaryFeed } from "../diary-feed";
+import { jobCandidates } from "../job-candidates";
 import { listNotices, loadStaffNames } from "../tasks-query";
 import { approvedInSpan, holidaysInSpan } from "@/lib/timepay/leave-query";
 import { loadActionRequired, loadDashboard } from "../page-data";
@@ -433,16 +434,20 @@ describe("what the old Home alone read", () => {
   /* It went with the old Home (2026-09-26): its leave calendar (leave lives
      on Time & Pay; the desk draws its own Calendar), the noticeboard's rows
      it counted unread, and its Tasks face's done lists and their lines
-     (the desk's Tasks face reads its own). Nothing draws them, so nothing
-     reads them — and nothing ships them to the browser. */
+     (the desk's Tasks face reads its own). And with the old capture UI
+     (2026-09-27), the open jobs the capture card's picker offered: the Tiff
+     modal asks "Which job is this for?" from its own read, on the server.
+     Nothing draws them, so nothing reads them — and nothing ships them to
+     the browser. */
   it("(F) is read no more, and is not on the page's data", async () => {
     const data = await loadDashboard();
     expect(approvedInSpan).not.toHaveBeenCalled();
     expect(holidaysInSpan).not.toHaveBeenCalled();
     expect(listNotices).not.toHaveBeenCalled();
     expect(readTaskDoneLines).not.toHaveBeenCalled();
+    expect(jobCandidates).not.toHaveBeenCalled();
     expect(Object.keys(data).sort()).toEqual(
-      ["assignable", "canManage", "chips", "desk", "issues", "jobs", "journal", "rail", "tasks", "today", "viewerStaffId"],
+      ["assignable", "canManage", "chips", "desk", "issues", "journal", "rail", "tasks", "today", "viewerStaffId"],
     );
     expect(Object.keys(data.tasks).sort()).toEqual(["mine", "team"]);
     expect(data.desk?.calendar).toBe(CAL);

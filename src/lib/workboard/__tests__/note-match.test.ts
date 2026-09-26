@@ -5,7 +5,7 @@
    agreement says "Kingsford Medical Centre" — an exact-name match finds
    nothing, which is why this matches by token. */
 
-import { describeJob, matchJob, matchedJobs, searchJobs, type JobCandidate } from "../note-match";
+import { describeJob, matchedJobs, searchJobs, type JobCandidate } from "../note-match";
 
 const KINGSFORD_TRIP: JobCandidate = {
   kind: "visit",
@@ -38,56 +38,42 @@ const SAID =
   "there on the third of August. We need two twenty by twenty by two filters, and we also " +
   "need to hire a scissor lift to get access to the outdoor unit";
 
+/* What was said, matched to a job card: the quick answers under Tiff's
+   "Which job is this for?" come off this (`matchedJobs`). */
 describe("matching what was said to a job card", () => {
   it("finds the job Isaac's note meant, across the Centre/Center mishearing", () => {
-    const m = matchJob(SAID, ROSTER);
-    expect(m.bestId).toBe("v-king");
-    expect(m.ambiguous).toBe(false);
-    expect(m.ranked[0].id).toBe("v-king");
-  });
-
-  it("says nothing rather than guessing when the note names no one on the board", () => {
-    const m = matchJob("Order more coil cleaner for the van", ROSTER);
-    expect(m.bestId).toBeNull();
-    expect(m.ambiguous).toBe(false);
-    // the whole roster is still offered — it just isn't ranked
-    expect(m.ranked).toHaveLength(3);
+    expect(matchedJobs(SAID, ROSTER).map((c) => c.id)).toEqual(["v-king"]);
   });
 
   it("a job number said out loud settles it outright, even against another client's name", () => {
-    const m = matchJob("Ardex want a quote, but first close out job 1042", ROSTER);
-    expect(m.bestId).toBe("v-king");
+    expect(matchedJobs("Ardex want a quote, but first close out job 1042", ROSTER)[0].id).toBe("v-king");
   });
 
   /* Two jobs for the same client is the case where guessing is worse than
-     asking — both are offered at the top and nothing is preselected. */
-  it("refuses to pick between two jobs for the same client", () => {
+     asking — both are offered, and nothing else. */
+  it("offers both of two jobs for the same client, rather than picking one", () => {
     const second: JobCandidate = { ...KINGSFORD_TRIP, id: "v-king-2", siteLabel: null };
-    const m = matchJob("filters for Kingsford", [...ROSTER, second]);
-    expect(m.bestId).toBeNull();
-    expect(m.ambiguous).toBe(true);
-    expect(m.ranked.slice(0, 2).map((c) => c.id).sort()).toEqual(["v-king", "v-king-2"]);
+    expect(matchedJobs("filters for Kingsford", [...ROSTER, second]).map((c) => c.id).sort()).toEqual([
+      "v-king",
+      "v-king-2",
+    ]);
   });
 
   it("the site breaks a tie the client name can't", () => {
     const second: JobCandidate = { ...KINGSFORD_TRIP, id: "v-king-2", siteLabel: "Plant room" };
-    const m = matchJob("Kingsford plant room needs a scissor lift", [...ROSTER, second]);
-    expect(m.bestId).toBe("v-king-2");
-    expect(m.ambiguous).toBe(false);
+    expect(matchedJobs("Kingsford plant room needs a scissor lift", [...ROSTER, second])[0].id).toBe("v-king-2");
   });
 
   /* "Medical", "Centre", "Data", "Logistics" appear across half a client
      list. Matching on them would make every client a candidate for every
      note, which is the same as matching on nothing. */
   it("generic words in a client name identify nobody", () => {
-    expect(matchJob("the medical centre called about data", ROSTER).bestId).toBeNull();
-    expect(matchJob("logistics of the aged care site", ROSTER).bestId).toBeNull();
+    expect(matchedJobs("the medical centre called about data", ROSTER)).toEqual([]);
+    expect(matchedJobs("logistics of the aged care site", ROSTER)).toEqual([]);
   });
 
   it("an empty roster can't match anything and doesn't pretend to", () => {
-    const m = matchJob(SAID, []);
-    expect(m.bestId).toBeNull();
-    expect(m.ranked).toHaveLength(0);
+    expect(matchedJobs(SAID, [])).toEqual([]);
   });
 });
 
@@ -134,8 +120,7 @@ describe("searching the roster by hand", () => {
 
 /* The quick answers under Tiff's "Which job is this for?". A button is an
    answer the person can press without reading, so it is only ever a job the
-   words pointed at — never the rest of the roster that `matchJob` hands a
-   picker to open on. */
+   words pointed at — never the rest of the roster. */
 describe("the jobs a note pointed at", () => {
   it("offers only the matches, best first", () => {
     expect(matchedJobs(SAID, ROSTER).map((c) => c.id)).toEqual(["v-king"]);

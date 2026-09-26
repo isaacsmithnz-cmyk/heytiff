@@ -8,13 +8,14 @@ import type { NoteProposal, ProposedTask, Severity } from "./note-brain";
    was the only thing that turned a proposal into a confirmation. The Tiff
    modal files on the SERVER (`fileNote`, Isaac's call: filing live, with
    Undo as the net), from the proposal the server stored rather than one a
-   browser posts, so the rules moved here where both can reach them. The
-   review card imports them back; nothing about them changed on the way.
+   browser posts, so the rules moved here where both could reach them. The
+   review card went with the old capture UI (2026-09-27), and its own Save
+   rules (`blockers`, `nothingTicked`) and its server door (`applyNote`)
+   with it; `targetOf` still reads the expense form's job picker.
 
-   THE ENGINE'S CONTRACT IS UNCHANGED: `applyNote` applies what the review
-   card confirmed, and `fileNote` applies `toConfirmed(toDraft(stored))`
-   minus the rows the person took off. Neither ever applies a payload the
-   model or a browser shaped directly. */
+   THE ENGINE'S CONTRACT: `fileNote` applies `toConfirmed(toDraft(stored))`
+   minus the rows the person took off, and never a payload the model or a
+   browser shaped directly. */
 
 export type Draft = {
   tasks: {
@@ -106,16 +107,10 @@ export function toConfirmed(d: Draft): ConfirmedNote {
     issueEntries: d.issueEntries
       .filter((e) => e.on && e.summary.trim())
       .map((e) => ({ summary: e.summary, equipmentRef: e.equipmentRef })),
-    kbEntries: d.kbEntries
-      .filter((k) => k.on && k.title.trim() && k.body.trim())
-      .map((k) => ({ title: k.title, body: k.body })),
+    /* No library entries: each waits for its own press (`publishNoteKb`),
+       so a filing never publishes one. */
   };
 }
-
-/* Every bucket of a ConfirmedNote is an array, so "nothing is ticked" is just
-   "they are all empty". */
-export const nothingTicked = (d: Draft): boolean =>
-  Object.values(toConfirmed(d)).every((bucket) => bucket.length === 0);
 
 /** Buckets that are text on somebody else's row and cannot exist without a
     job to sit on. Tasks are deliberately NOT here — `tasks` has no job
@@ -125,10 +120,12 @@ export const nothingTicked = (d: Draft): boolean =>
     tempted to make progress and commissioning ask for a PROJECT because
     `project_entries` is where they land on one. They land somewhere on a
     visit and an agreement too (the job's own notes, a bullet per line), and
-    `applyNote` enforces exactly this list. It didn't always: the server
-    accepted any job here while only ever writing the project case, so a
-    reading ticked against a visit was dropped in silence under a card that
-    had nothing to complain about. The two must say the same thing. */
+    the writer (`applyConfirmed`) enforces exactly this list. It didn't
+    always: the server accepted any job here while only ever writing the
+    project case, so a reading ticked against a visit was dropped in silence
+    under a card that had nothing to complain about. `fileNote` asks "Which
+    job is this for?" off this list, and the writer refuses off its own:
+    the two must say the same thing. */
 export const jobBound = (d: Draft): boolean => {
   const c = toConfirmed(d);
   return (
@@ -139,39 +136,6 @@ export const jobBound = (d: Draft): boolean => {
     c.issueEntries.length > 0
   );
 };
-
-/* WHAT WOULD BE THROWN AWAY IF YOU PRESSED SAVE RIGHT NOW.
-
-   This card used to let you press Save with rows on it that could never be
-   saved, and then say "Saved as a note." Isaac dictated two tasks and two
-   bring-items, pressed Save, and the database recorded `applied: {}` — the
-   tasks had no person on them and a general note has no job to hang a
-   bring-list off, so all four were dropped without a word.
-
-   THE JOB RULE IS NOW PER ROW, NOT PER NOTE (Isaac, 2026-08-05). It used to
-   refuse every note that named no job, which was right about flags and
-   bring-lists and wrong about tasks: "tell Luke to ring the wholesaler back"
-   is a real task about no job in particular, and it could not be saved at
-   all. So the question the button asks is: is there anything ticked here
-   that CANNOT be done? */
-export function blockers(d: Draft, hasTarget: boolean): string[] {
-  const out: string[] = [];
-
-  if (!hasTarget && jobBound(d)) {
-    out.push(
-      "Flags, bring-items, progress, commissioning and issues all hang off a job — say which one, or untick them."
-    );
-  }
-  const unassigned = d.tasks.filter((t) => t.on && t.title.trim() && !t.assigneeId).length;
-  if (unassigned) {
-    out.push(
-      unassigned === 1
-        ? "One task still needs a person on it — assign it, or untick it."
-        : `${unassigned} tasks still need a person on them — assign them, or untick them.`
-    );
-  }
-  return out;
-}
 
 /** Turn a picker value ("visit:abc") back into a target. */
 export function targetOf(picked: string): NoteTarget | null {

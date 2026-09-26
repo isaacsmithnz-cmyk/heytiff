@@ -5,7 +5,7 @@ import { toHHMM, type DueReminder } from "./reminders";
 
 /* The bell's reminder read. Org-scoped and PERSON-scoped: a reminder is
    something you asked for, so there is no team view of one and no capability
-   that widens it. `keepNoteForMe` is the same posture — your own words, your
+   that widens it. `keepWords` is the same posture — your own words, your
    own eyes.
 
    DERIVED, NOT DELIVERED. Nothing records that a reminder fired; the question

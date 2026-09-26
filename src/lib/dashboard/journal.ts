@@ -14,15 +14,17 @@ import type { DiaryReply } from "./diary-reply";
 /** The groups a capture can produce, in the order the write side records them,
     with the exact words it counts them in.
 
-    THE WORDING IS COPIED ON PURPOSE. `applyNote` builds its "Saved — 2 tasks ·
-    1 line kept" line from these same keys as it inserts each group, so the two
-    cannot be shared without unpicking that flow. They CAN drift, which is why
-    `journal-groups.test.ts` reads `actions/workboard-notes.ts` and fails if a
-    key or a plural stops matching. If you add a group there, add it here.
+    THE WORDING IS COPIED ON PURPOSE. The writer (`applyConfirmed`) builds its
+    "Saved — 2 tasks, 1 flag." line from these same keys as it inserts each
+    group, so the two cannot be shared without unpicking that flow. They CAN
+    drift, which is why `journal-groups.test.ts` reads
+    `actions/workboard-notes.ts` and fails if a key or a plural stops
+    matching. If you add a group there, add it here.
 
-    THE LAST TWO ARE THE KEEP-RUNGS, not `applyNote` at all — the endings that
-    file the words as they were said. They are last because they are the
-    cascade's own order: the job first, yourself only when nothing else fits. */
+    THE LAST TWO ARE THE WORDS KEPT AS SAID. A note filed on a ServiceM8 job
+    keeps its words on the job (`jobNotes`); `noteLines` is on rows from
+    before, which the old capture card's keep-rungs and the Debrief wrote,
+    and still reads. */
 const GROUPS: readonly (readonly [key: string, one: string, many: string, kind: OutcomeKind])[] = [
   ["taskIds", "task", "tasks", "todo"],
   ["flagIds", "flag", "flags", "todo"],

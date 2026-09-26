@@ -19,8 +19,9 @@ describe("describeApplied", () => {
     /* THE PAIRING IS COPIED, NOT SHARED, and `journal-groups.test.ts` is what
        actually reads `actions/workboard-notes.ts` to check it. This list is
        the order the chips come out in, which that scan says nothing about:
-       the six `applyNote` groups first, then the two endings that file the
-       words as they were said — the job, then yourself. */
+       the writer's groups first (the Library's among them, which a press
+       appends), then the two that keep the words as they were said — the
+       job, then the kept lines of rows from before. */
     expect(APPLIED_GROUPS.map(([k]) => k)).toEqual([
       "taskIds",
       "flagIds",

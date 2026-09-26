@@ -5,10 +5,12 @@
 /* WHAT THE ROUTER SENDS, ON THE WIRE. The Tiff modal asks for a line Tiff
    says back (`say`), and asking for it changed what the review card routed:
    a real-notes check (2026-09-26) found the card asking questions it never
-   used to and, on a German note, asking them in German. So the card's reads
-   go out as they always did — no `say` in the prompt, a schema without it,
-   the answer to its question in the words the box always used — and only a
-   read that turns `speak` on asks for the line.
+   used to and, on a German note, asking them in German. So a read that does
+   not turn `speak` on goes out as the card's always did — no `say` in the
+   prompt, a schema without it — and only a read that turns it on asks for
+   the line. The card went with the old capture UI (2026-09-27), and every
+   read the app makes turns it on; the option stays the router's, and so
+   does what it means.
 
    Run against the network rather than the SDK (the house rule: no test mocks
    `@anthropic-ai/sdk`): `fetch` is replaced and each request body read. */
@@ -27,7 +29,7 @@ const STAFF = [
   { id: "s-luke", fullName: "Luke Nguyen" },
   { id: "s-luke-t", fullName: "Luke Tran" },
 ];
-/* The context the review card's door builds: routingContext with no extras. */
+/* A read with none of the modal's options: what the old review card sent. */
 const card: NoteContext = {
   staff: STAFF,
   author: STAFF[0],
@@ -101,7 +103,7 @@ const lanes = {
   clarify_options: [],
 };
 
-describe("the review card's read", () => {
+describe("a read without `speak`", () => {
   it("asks for no `say`: the card's prompt and the schema without it", async () => {
     await readNote("  tell Luke to order the grilles  ", card);
     expect(sent).toHaveLength(1);
@@ -112,20 +114,6 @@ describe("the review card's read", () => {
     expect(body.output_config.format).toEqual({ type: "json_schema", schema: NOTE_SCHEMA });
     expect(JSON.stringify(body.output_config.format.schema)).not.toContain('"say"');
     expect(body.messages).toEqual([{ role: "user", content: "Note:\ntell Luke to order the grilles" }]);
-  });
-
-  it("sends the answer to its question in the words the box always used", async () => {
-    await readNote("tell Luke to order the grilles", card, { question: "Which Luke?", answer: "Luke Tran" });
-    const body = sent[0];
-    expect(body.messages).toEqual([
-      {
-        role: "user",
-        content:
-          "Note:\ntell Luke to order the grilles\n\nYou asked: Which Luke?\nThey answered: Luke Tran\n\nRoute the note using that answer. Do not ask again.",
-      },
-    ]);
-    expect(body.system).toBe(systemPrompt(card));
-    expect(body.output_config.format.schema).toEqual(NOTE_SCHEMA);
   });
 
   it("comes back with no line from Tiff, even when the app asks which Luke", async () => {

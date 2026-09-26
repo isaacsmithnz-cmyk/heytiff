@@ -14,8 +14,9 @@ import { dueReminders, reminderTask, workdayHours } from "@/lib/dashboard/remind
    oversight. `giveTask` requires `team` because handing work to somebody
    else is a management action; asking to be nudged about your own task is not,
    and gating it would mean a tradesperson without `team` could dictate "remind
-   me on Monday" and never be reminded. `keepNoteForMe` takes the same posture
-   for the same reason — your own words, your own eyes, no permission needed.
+   me on Monday" and never be reminded. `keepWords` (the diary's plain Save)
+   takes the same posture for the same reason — your own words, your own
+   eyes, no permission needed.
 
    What replaces the gate is OWNERSHIP: every read and every write is filtered
    to the caller's own staff id inside an org-scoped query, so a task id from

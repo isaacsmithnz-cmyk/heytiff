@@ -139,11 +139,12 @@ it("resolves every chip on the page in one read per kind", async () => {
   ]);
 });
 
-it("shows what the keep-rungs did, not only what applyNote made", async () => {
-  /* THE TWO ENDINGS THIS PANEL USED TO BE BLIND TO. Both are successes, both
-     file the words as they were said, and neither goes through `applyNote` —
-     they used to share `dismissNote`'s status, so choosing "Keep it in my
-     notes" left the record saying you never said it. */
+it("shows what the keep-rungs did, not only what the writer made", async () => {
+  /* THE TWO ENDINGS THIS PANEL USED TO BE BLIND TO, the old capture card's
+     keep-rungs, whose rows still read. Both were successes, both filed the
+     words as they were said, and neither went through the writer — they
+     used to share `dismissNote`'s status, so choosing "Keep it in my notes"
+     left the record saying you never said it. */
   rows.workboard_notes = [
     note("e1", { jobNotes: ["Gate code is 4821 after hours."] }),
     note("e2", { noteLines: ["Ring the wholesaler back about pricing."] }),
@@ -253,12 +254,13 @@ it("reads no column that a migration drops from workboard_notes", async () => {
   expect(dropped.filter((d) => read.includes(d.column))).toEqual([]);
 });
 
-/* THE DEBRIEF'S COLUMN, OUT OF THE READ. H3 drops `is_debrief` once THIS
-   change is live, as a migration and nothing else. If the read still named
-   it, that drop would empty every diary the moment it ran, whatever the tree
-   holds — the test above only sees a drop that sits beside the read. So the
-   read must not name it, and an old Debrief row must not need it: the row is
-   an applied note like any other, and its grouped note's door comes from
+/* THE DEBRIEF'S COLUMN, OUT OF THE READ. `is_debrief` is gone
+   (note_is_debrief_drop.sql, applied 2026-09-27, once this change was live),
+   and PostgREST fails a whole select on a column that isn't there: a read
+   that named it would empty every diary, whatever the tree holds — the test
+   above only sees a drop that sits beside the read. So the read must never
+   name it, and an old Debrief row must not need it: the row is an applied
+   note like any other, and its grouped note's door comes from
    `applied.noteLines`. */
 describe("the Debrief's column", () => {
   it("is not in the diary's read", async () => {

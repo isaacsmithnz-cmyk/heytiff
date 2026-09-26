@@ -56,10 +56,6 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   undoNote: (...a: unknown[]) => undoNote(...a),
   publishNoteKb: jest.fn(),
   dismissNote: jest.fn(),
-  applyNote: jest.fn(),
-  keepNoteOnJob: jest.fn(),
-  keepNoteForMe: jest.fn(),
-  answerClarify: jest.fn(),
 }));
 
 const TODAY = "2026-09-25";

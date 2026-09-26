@@ -1092,18 +1092,18 @@ export function TiffAssistant({
                  page.
 
                  So the bar hands its space to `RecordingCard` and gets it
-                 back when the mic closes. What arrives is what the sheet and
-                 the debrief show: what you have said so far, the 68px sphere,
-                 the clock at a size worth reading, whether anything is
-                 reaching the microphone, and Type instead / Start again /
-                 Done.
+                 back when the mic closes. What arrives is what the capture
+                 sheet and the debrief showed, while they stood: what you have
+                 said so far, the clock at a size worth reading, and Type
+                 instead / Start again / Done. (Both went — the debrief on
+                 2026-09-25, the sheet with the old capture UI on 2026-09-27 —
+                 and this is the card's last door.)
 
                  IN THE PAGE, NOT OVER IT — the debrief's precedent (Isaac,
                  2026-08-13: "match how the global one does it but in line").
                  A scrim to dictate a question would put the conversation you
-                 are asking about behind a dim sheet. `tk-rec` does the same
-                 job `hm-cap` does for the debrief: it changes where the card
-                 stands and nothing about what it is made of.
+                 are asking about behind a dim sheet. `tk-rec` only says how
+                 the card arrives; nothing about what it is made of.
 
                  WHAT COMES AFTER `Done` IS STILL TIFF'S. The words land in
                  the ask box and you press Send — no sorting, no review,
@@ -1128,19 +1128,19 @@ export function TiffAssistant({
                   </button>
                 </div>
                 {/* THE SAME INSTRUMENT THIS BAR ALWAYS HAD, mounted the way
-                    the capture sheet mounts it: above the card rather than
-                    inside it. The field is the mark while the mic is open and
-                    the cloud while the words are read back, and those are the
-                    same dots making the journey — inside the card it would be
-                    unmounted and rebuilt between the two, and the flight would
-                    become a cut.
+                    the capture sheet mounted it: above the card rather than
+                    inside it. The field is the mark while the mic is open, and
+                    it would be the cloud while the words are read back — the
+                    same dots making the journey, which inside the card would
+                    be unmounted and rebuilt between the two, so the flight
+                    would become a cut.
 
                     IT IS THE MARK ONLY, HERE. This bar shows the recording and
                     the read-back in two different branches, so a field spanning
                     them would be remounted between the two anyway; giving it
                     the cloud would buy the cut it is meant to avoid. The bar
-                    keeps its named wait, and the journey ships on the capture
-                    sheet, where one body holds both stages. */}
+                    keeps its named wait, and the journey ships in the Tiff
+                    modal, where one face holds every stage. */}
                 <div className="wb2-capfield">
                   <DotField stage="mark" size={252} />
                 </div>

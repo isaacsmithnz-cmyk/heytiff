@@ -51,7 +51,11 @@ const mockCtl: {
   start: jest.Mock;
   stop: jest.Mock;
   cancel: jest.Mock;
-} = { start: jest.fn(), stop: jest.fn(), cancel: jest.fn() };
+  /* The card's other two ways out, so its buttons do what they say here
+     rather than nothing (its own wiring is held in recording-card.test). */
+  restart: jest.Mock;
+  handOver: jest.Mock;
+} = { start: jest.fn(), stop: jest.fn(), cancel: jest.fn(), restart: jest.fn(), handOver: jest.fn() };
 
 jest.mock("@/components/notes/dictation", () => {
   const actual = jest.requireActual("@/components/notes/dictation");
@@ -75,6 +79,8 @@ jest.mock("@/components/notes/dictation", () => {
         start: mockCtl.start,
         stop: mockCtl.stop,
         cancel: mockCtl.cancel,
+        restart: mockCtl.restart,
+        handOver: mockCtl.handOver,
       };
     },
   };
@@ -171,6 +177,9 @@ describe("dictating a question", () => {
 
     await user.click(screen.getByRole("button", { name: /Start again/ }));
     expect(asks).toHaveLength(0);
+    // it bins the take and listens again: the recording goes on
+    expect(mockCtl.restart).toHaveBeenCalledTimes(1);
+    expect(mockCtl.stop).not.toHaveBeenCalled();
   });
 
   /* The rule is unchanged and the place it is kept moved: live words are

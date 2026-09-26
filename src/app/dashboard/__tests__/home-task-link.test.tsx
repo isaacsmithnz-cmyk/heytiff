@@ -5,8 +5,8 @@
 
 jest.mock("@/lib/org/setup-gate", () => ({ redirectIfSetupPending: jest.fn(async () => {}) }));
 jest.mock("@/lib/staff/onboarding-gate", () => ({ redirectIfOnboardingPending: jest.fn(async () => {}) }));
-type Loaded = { jobs: never[]; assignable: never[]; desk: { warnDays: number } | null };
-let data: Loaded = { jobs: [], assignable: [], desk: null };
+type Loaded = { assignable: never[]; desk: { warnDays: number } | null };
+let data: Loaded = { assignable: [], desk: null };
 jest.mock("@/lib/dashboard/page-data", () => ({ loadDashboard: jest.fn(async () => data) }));
 jest.mock("@/components/notes/note-context", () => ({ NoteScopeScreen: () => null }));
 jest.mock("@/components/dashboard/home-desk", () => ({ DashboardDesk: () => null }));
@@ -18,7 +18,7 @@ type Search = Record<string, string | string[] | undefined>;
 const T = "3a3a3a3a-0000-4000-8000-00000000000a";
 
 beforeEach(() => {
-  data = { jobs: [], assignable: [], desk: { warnDays: 45 } };
+  data = { assignable: [], desk: { warnDays: 45 } };
 });
 
 /** The props the page hands Home, for this address. */

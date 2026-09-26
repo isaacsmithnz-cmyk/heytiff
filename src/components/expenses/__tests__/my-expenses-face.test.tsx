@@ -615,8 +615,9 @@ describe("attaching a receipt to a job", () => {
     expect(screen.getByText("Acme Industrial, Plant room")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Change" }));
-    /* The escape hatch says what it means HERE — the picker's default words
-       name a destination ("keep it in my notes") that an expense doesn't have. */
+    /* The escape hatch says what it means HERE — the words the picker was
+       born with on the note capture name a destination ("keep it in my
+       notes") that an expense doesn't have. */
     expect(screen.queryByText(/keep it in my notes/)).not.toBeInTheDocument();
     await user.click(screen.getByRole("option", { name: "Not for a job in particular" }));
     expect(screen.getByText("Not against a job")).toBeInTheDocument();

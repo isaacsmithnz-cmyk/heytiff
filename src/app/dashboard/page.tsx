@@ -39,12 +39,10 @@ export default async function DashboardHomePage({
      which the page already loaded; first names only, because that is what a
      spoken "tell Dane…" contains.
 
-     THE JOBS ARE NEW, and they are what make the picker reachable. `scope.jobs`
-     is the list a capture can be pinned to, and only the two Workboard screens
-     ever pushed one — so on Home a capture that named a job the matcher could
-     not resolve said "No job named" and offered nothing (Isaac, 2026-08-13:
-     "I mentioned a job, but I couldn't find one"). They are candidates, not a
-     target: pinning is still an explicit choice on the review.
+     NO JOBS. Home pushed the jobs a capture could be pinned to, for the
+     capture card's job picker; the picker went with the old capture UI
+     (2026-09-27), and the Tiff modal asks "Which job is this for?" from its
+     own read on the server, so Home no longer reads them.
 
      ONE HOME. The new Home — the day, three tabs and the list — is
      everyone's (2026-09-26). It was built behind a switch, HOME_DESK, that
@@ -53,7 +51,6 @@ export default async function DashboardHomePage({
   return (
     <>
       <NoteScopeScreen
-        jobs={data.jobs}
         staffFirstNames={data.assignable
           .map((s) => s.name.trim().split(/\s+/)[0])
           .filter((n) => n.length >= 2)}

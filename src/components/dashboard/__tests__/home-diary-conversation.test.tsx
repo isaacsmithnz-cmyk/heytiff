@@ -57,10 +57,6 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   undoNote: jest.fn(),
   publishNoteKb: jest.fn(),
   dismissNote: jest.fn(),
-  applyNote: jest.fn(),
-  keepNoteOnJob: jest.fn(),
-  keepNoteForMe: jest.fn(),
-  answerClarify: jest.fn(),
 }));
 /* The modal reads a line said to the Calendar with the calendar's own
    actions (H22), whose module cannot load here; the diary's conversations

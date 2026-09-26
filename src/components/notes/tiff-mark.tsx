@@ -203,8 +203,13 @@ export function TiffMark({ ground }: { ground: Ground }) {
    at label size). Two paces:
 
    AT REST it runs the button's own loops: a label for Tiff — the chat's
-   header and ask bar, the answer's ribbon, the palette's footer, and the
-   round end of a Tiff button (`.tiffkey`).
+   header and ask bar, the palette's footer, and the round end of a Tiff
+   button (`.tiffkey`).
+
+   IT STANDS ON PAPER, every one of them. Its one mark on ink was the
+   capture card's answer ribbon, which went with the old capture UI
+   (2026-09-27), so the glyph takes no ground: the ink skin is the frame's
+   button's alone (`TiffMark`, `.tiffbtn-topbar`).
 
    WORKING it runs them at the thinking pace: a wait, a valuation, a receipt
    being read. It starts when the work starts and goes when it is done.
@@ -218,13 +223,11 @@ export function TiffMark({ ground }: { ground: Ground }) {
    Sized by `size`, or by the slot's stylesheet when the slot has more than
    one size, because an inline size would beat every one of them. */
 export function TiffGlyph({
-  ground = "paper",
   working = false,
   quiet = false,
   size,
   label,
 }: {
-  ground?: Ground;
   working?: boolean;
   /** Moves only while its control is hovered or focused: for a control repeated down a list. */
   quiet?: boolean;
@@ -234,11 +237,11 @@ export function TiffGlyph({
 }) {
   return (
     <span
-      className={`tiffmk tiffmk-${ground}${working ? " working" : ""}${quiet ? " quiet" : ""}`}
+      className={`tiffmk tiffmk-paper${working ? " working" : ""}${quiet ? " quiet" : ""}`}
       style={{ "--tiffbtn-mask": MARK_MASK, ...(size ? { "--tb": `${size}px` } : {}) } as CSSProperties}
       {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}
     >
-      <TiffMark ground={ground} />
+      <TiffMark ground="paper" />
     </span>
   );
 }

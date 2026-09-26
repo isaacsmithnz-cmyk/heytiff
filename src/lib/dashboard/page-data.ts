@@ -15,10 +15,8 @@ import { isLibraryApproved, pendingSignons, raisedIssues } from "@/lib/swms/quer
 import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
 import { ownDeclinedLeave, pendingLeaveCount } from "@/lib/timepay/leave-query";
 import { listJournal } from "./journal-query";
-import { jobCandidates } from "./job-candidates";
 import { listOpenIssues } from "./issues-query";
 import type { HomeIssue } from "./issues";
-import type { JobCandidate } from "@/lib/workboard/note-match";
 import type { JournalEntry } from "./journal";
 import {
   myTasks,
@@ -85,14 +83,9 @@ export type DashboardData = {
   journal: JournalEntry[];
   /** Staff you can assign a task to — populated only with `team`. */
   assignable: { id: string; name: string }[];
-  /** Open work a captured note can be pinned to. Home is not the board, so
-      these do not arrive from a board payload — see ./job-candidates. Gated
-      on `workboard`: the picker offers jobs, and a viewer without the board
-      may not see them. */
-  jobs: JobCandidate[];
   /** Every open issue in the workspace — the "this keeps happening" rows the
-      note router writes. Gated on `workboard` like the jobs: the row was made
-      under that gate and names a job. Empty without it. */
+      note router writes. Gated on `workboard`: the row was made under that
+      gate and names a job. Empty without it. */
   issues: HomeIssue[];
   /** `team`: can assign tasks / post notices / see the team's tasks. */
   canManage: boolean;
@@ -198,7 +191,6 @@ const EMPTY: DashboardData = {
   tasks: { mine: [], team: null },
   journal: [],
   assignable: [],
-  jobs: [],
   issues: [],
   canManage: false,
   viewerStaffId: null,
@@ -274,7 +266,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   const railDay = todayInZone(railTz);
   const railNowMin = nowMinInZone(railTz);
 
-  const [chips, tasks, assignable, journal, jobs, issues, schedule, sm8Links, desk] = await Promise.all([
+  const [chips, tasks, assignable, journal, issues, schedule, sm8Links, desk] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today, isOwner, shared),
     loadTasks(orgId, viewerStaffId, canManage, names),
     // the give-it-to picker only needs names, and only when you can give
@@ -282,10 +274,8 @@ export async function loadDashboard(): Promise<DashboardData> {
     /* An account with no staff record has never captured anything — there is
        no author_id it could have been filed under, so don't go and ask. */
     viewerStaffId ? listJournal(orgId, viewerStaffId) : Promise.resolve([]),
-    /* Rides the same Promise.all rather than adding a wait. Absent without
-       `workboard` — the same capability the board itself is behind. */
-    caps.has("workboard") ? jobCandidates(orgId) : Promise.resolve([] as JobCandidate[]),
-    /* The open issues, with their targets named — same gate, same reason. */
+    /* The open issues, with their targets named. Absent without `workboard`
+       — the same capability the board itself is behind. */
     caps.has("workboard") ? listOpenIssues(orgId) : Promise.resolve([] as HomeIssue[]),
     /* The day rail. Same gate as the board it mirrors — a viewer without
        `workboard` may not see the crew's bookings, on Home or anywhere. */
@@ -343,7 +333,7 @@ export async function loadDashboard(): Promise<DashboardData> {
       : null;
 
   return {
-    chips, tasks, assignable, journal, jobs, issues, canManage, viewerStaffId, today,
+    chips, tasks, assignable, journal, issues, canManage, viewerStaffId, today,
     rail: {
       dayISO: railDay,
       tz: railTz,

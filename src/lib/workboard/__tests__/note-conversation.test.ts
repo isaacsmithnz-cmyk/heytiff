@@ -3,8 +3,9 @@
    Three things a note routed by the modal carries that the review card's
    never did: Tiff's own line (`say`), a question when a task has nobody on
    it, and a second read that sees the whole conversation. Each is pinned
-   here without a network call, and so is the other half of each: the review
-   card's notes are routed exactly as they were. */
+   here without a network call, and so is the other half of each: a read
+   that does not turn them on is routed as the card's notes were (the card
+   went with the old capture UI, 2026-09-27). */
 
 import {
   NOTE_SCHEMA,
@@ -291,14 +292,6 @@ describe("the second read", () => {
     expect(free).toContain("Ask again only if something is still unclear.");
     expect(isPlainAnswer(plan, "ME")).toBe(true);
     expect(isPlainAnswer({ ...plan, clarify: null }, "Me")).toBe(false);
-  });
-});
-
-describe("the review card's answer", () => {
-  it("is sent in the words it always was: the question, the answer, and do not ask again", () => {
-    expect(noteContent("  tell luke to order the grilles  ", { question: "Which Luke?", answer: "Luke Tran" })).toBe(
-      "Note:\ntell luke to order the grilles\n\nYou asked: Which Luke?\nThey answered: Luke Tran\n\nRoute the note using that answer. Do not ask again.",
-    );
   });
 });
 

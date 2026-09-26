@@ -4,11 +4,11 @@
    are which row a cross in the modal names — by its place in the stored
    proposal, never by its words — and that a proposal stored by an older
    version of the router still files rather than throwing. The draft rules
-   themselves (`toDraft`, `toConfirmed`, `blockers`) moved here from the
-   review card unchanged, and their tests followed them when the card went
-   (2026-09-27): "the draft rules", at the foot. */
+   themselves (`toDraft`, `toConfirmed`) moved here from the review card
+   unchanged, and their tests followed them when the card went (2026-09-27):
+   "the draft rules", at the foot. */
 
-import { blockers, planRows, storedProposal, toConfirmed, toDraft, withoutRows, type Draft } from "../note-draft";
+import { planRows, storedProposal, toConfirmed, toDraft, withoutRows } from "../note-draft";
 import type { NoteProposal } from "../note-brain";
 
 const P: NoteProposal = {
@@ -146,11 +146,12 @@ describe("storedProposal", () => {
    counts what survives that.
 
    The router's half of the fix is pinned in note-brain's suite. These are
-   the draft's half: that a task with a person on it stops blocking, that a
-   time of day survives the round trip out to the server, and that a time
-   never travels without the day it belongs to. They were the review card's
-   tests; the card went with the old capture UI (2026-09-27), and `fileNote`
-   files through the same `toDraft` and `toConfirmed`. */
+   the draft's half: that a task with a person on it is filed and one with
+   nobody is not, that a time of day survives the round trip out to the
+   server, and that a time never travels without the day it belongs to.
+   They were the review card's tests; the card went with the old capture UI
+   (2026-09-27), and `fileNote` files through the same `toDraft` and
+   `toConfirmed` (asking "Who should do this?" first, in its own suite). */
 describe("the draft rules", () => {
   const EMPTY: NoteProposal = {
     tasks: [],
@@ -182,30 +183,9 @@ describe("the draft rules", () => {
     ],
   });
 
-  it("stops blocking once the task has a person on it", () => {
-    expect(blockers(toDraft(reminder()), false)).toEqual([]);
-  });
-
-  it("still blocks when nobody could be resolved — that rule is unchanged", () => {
-    /* The bar was RIGHT; what was wrong was that "me" could never satisfy it.
-       Assigning real work to nobody is still the failure this refuses. */
-    expect(blockers(toDraft(reminder({ assigneeId: null })), false)).toEqual([
-      "One task still needs a person on it — assign it, or untick it.",
-    ]);
-  });
-
   it("keeps a task with a person on it, and drops one with nobody", () => {
     expect(toConfirmed(toDraft(reminder())).tasks).toHaveLength(1);
     expect(toConfirmed(toDraft(reminder({ assigneeId: null }))).tasks).toHaveLength(0);
-  });
-
-  /* Proof that `blockers` reads the TICKED rows, not every row, so unticking
-     an unassignable task clears the bar exactly as the message says it will. */
-  it("lets you untick the task instead of assigning it", () => {
-    const d: Draft = toDraft(reminder({ assigneeId: null }));
-    expect(blockers(d, false)).toHaveLength(1);
-    d.tasks[0].on = false;
-    expect(blockers(d, false)).toEqual([]);
   });
 
   it("keeps the day and the time the note asked for", () => {

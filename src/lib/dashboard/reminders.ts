@@ -8,9 +8,9 @@
    THE ONE RULE THAT MATTERS: a wall-clock time is only meaningful with a zone
    attached. "Monday 6:30" is not an instant — it is an instant in Sydney and a
    different one in Perth, and the server runs in neither. Every composition
-   goes through `remindAtFrom`, and both writers (`applyNote` and
-   `setTaskDueDate`) call it, so a due date edited later cannot leave the nudge
-   behind on the old day. */
+   goes through `remindAtFrom`, and both writers (the note writer,
+   `applyConfirmed`, and `setTaskDueDate`) call it, so a due date edited later
+   cannot leave the nudge behind on the old day. */
 
 import { parseClock } from "@/components/timepay/logic";
 import { plusDays, todayInZone } from "@/lib/workboard/dates";

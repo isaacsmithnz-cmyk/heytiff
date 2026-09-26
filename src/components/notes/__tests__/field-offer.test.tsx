@@ -28,7 +28,6 @@ jest.mock("../dictation", () => {
         recording: false,
         arming: false,
         transcribing: false,
-        handing: false,
         interim: "",
         seconds: 0,
         barsRef: react.createRef(),

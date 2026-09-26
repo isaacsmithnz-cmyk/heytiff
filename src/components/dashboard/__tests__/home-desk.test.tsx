@@ -37,10 +37,6 @@ jest.mock("@/components/notes/note-token", () => ({
 jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: jest.fn(),
   routeNote: jest.fn(),
-  applyNote: jest.fn(),
-  keepNoteOnJob: jest.fn(),
-  keepNoteForMe: jest.fn(),
-  answerClarify: jest.fn(),
   dismissNote: jest.fn(),
 }));
 /* The diary's own writes (Edit, Delete, Hide): "use server", stubbed. */
@@ -297,7 +293,6 @@ const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   tasks: { mine: [], team: null },
   journal: [],
   assignable: [],
-  jobs: [],
   issues: [],
   canManage: false,
   viewerStaffId: "s1",

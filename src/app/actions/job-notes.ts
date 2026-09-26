@@ -18,7 +18,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
    answers a suggestion can be given.
 
    THE PEN IS NOT A ROUTE. `routeNote` exists for words that might mean
-   something — it stores them, asks the brain, and opens the review card. A
+   something — it stores them, asks the brain, and Tiff answers in her modal. A
    line typed at the diary's head means exactly what it says, so it lands as
    a diary entry the moment you press it, and Tiff only gets involved if the
    sniff decides the words smell like work (the token's own behaviour, same
@@ -27,8 +27,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
    THE ROW IS THE RECORD. A job is somebody else's system and we only read
    it, so there is no `notes` column to append to. The `workboard_notes` row
-   IS the note, filed applied with `jobNotes` — the same group
-   `keepNoteOnJob` writes — and the card's diary reads it back.
+   IS the note, filed applied with `jobNotes` — the same group a note filed
+   on a job records — and the card's diary reads it back.
 
    ONE TIER: `workboard`. Writing on the job you are standing on is the whole
    feature, exactly like ticking a checklist row. */
@@ -261,8 +261,9 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
     task per ask is the named exception, and is not this path: Tiff files
     an ask as one task for the person it asks, theirs to tick off or delete
     — dashboard/mention-settle, docs/voice-capture.md §8.) Which is also why the
-    assignee is required — `applyNote` learned the hard way that a task with
-    nobody on it is a task nobody does, and it refuses rather than filtering.
+    assignee is required — the note writer (`applyConfirmed`) learned the hard
+    way that a task with nobody on it is a task nobody does, and it refuses
+    rather than filtering.
 
     The `job_note_actions` row is two facts at once: this note has been
     answered (so the strip goes quiet about it for good) and this task came

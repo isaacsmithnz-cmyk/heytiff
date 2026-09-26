@@ -49,7 +49,6 @@ jest.mock("@/lib/expenses/query", () => ({
   pendingClaimsCount: jest.fn(async () => 0),
 }));
 jest.mock("../journal-query", () => ({ listJournal: jest.fn() }));
-jest.mock("../job-candidates", () => ({ jobCandidates: jest.fn() }));
 jest.mock("../issues-query", () => ({ listOpenIssues: jest.fn() }));
 jest.mock("../tasks-query", () => ({
   myTasks: jest.fn(),

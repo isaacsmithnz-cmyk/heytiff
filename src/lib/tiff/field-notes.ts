@@ -1,22 +1,23 @@
 /* Field notes — publishing crew knowledge into the KB. Server only.
 
    The write half of the LEARN lane. The note brain proposes a "Worth
-   teaching everyone" row; a human ticks it on the review card; THIS is what
-   the tick does. One kb_documents row (kind NOTE, category 'field', ready
+   teaching everyone" row; a person presses "Add to the Library" on it in the
+   Tiff modal (`publishNoteKb`); THIS is what the press does. One kb_documents row (kind NOTE, category 'field', ready
    from birth) and one kb_chunks row, embedded and keyword-indexed so both
    retrieval legs can find it — after this, a field note IS a document as far
    as asking Tiff is concerned. The provenance a manual carries in its title
    and pages, a field note carries in its heading: who learned it, when, and
    on what job.
 
-   NO SESSION HERE: the caller (applyNote) established the right to write and
-   hands in the org and author. Same posture as every module in lib/tiff.
+   NO SESSION HERE: the caller (`publishNoteKb`) established the right to
+   write and hands in the org and author. Same posture as every module in
+   lib/tiff.
 
    FAILURE KEEPS THE KNOWLEDGE. If the embedding service is down, the chunk
    is inserted with a null vector — the keyword leg still finds it, and the
    existing backfill story covers the rest. The only hard failure is the
    database refusing the rows, and the caller surfaces that instead of
-   pretending the tick worked. */
+   pretending the press worked. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { embedTexts } from "./embeddings";

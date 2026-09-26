@@ -82,7 +82,6 @@ jest.mock("@/components/notes/dictation", () => {
         recording,
         arming: false,
         transcribing: false,
-        handing: false,
         seconds: 3,
         interim,
         barsRef: react.createRef(),
@@ -181,7 +180,6 @@ const routed = (p: Record<string, unknown>) => ({
   noteId: "n1",
   proposal: proposal(p),
   staff: [LUKE],
-  dayStart: "07:00",
 });
 const DONE = "Done. Luke puts the Bellevue Hill head on the ute.";
 const filedOk = {
@@ -275,7 +273,6 @@ describe("talking", () => {
       target: { kind: "none" },
       source: "voice",
       room: undefined,
-      conversation: true,
     });
   });
 
@@ -1313,7 +1310,6 @@ describe("the conversation", () => {
       target: { kind: "none" },
       source: "text",
       room: "diary",
-      conversation: true,
     });
     expect(mic.start).not.toHaveBeenCalled();
   });
@@ -1333,7 +1329,6 @@ describe("the conversation", () => {
       target: { kind: "none" },
       source: "text",
       room: undefined,
-      conversation: true,
       before: [
         { who: "you", text: "Luke has the Bellevue Hill head on the ute" },
         { who: "tiff", text: DONE },
@@ -1414,7 +1409,6 @@ describe("opened again on a conversation", () => {
       target: { kind: "none" },
       source: "text",
       room: "diary",
-      conversation: true,
       before: HAD,
     });
     expect(within(convo()).getByText("and the same for Smith St")).toBeInTheDocument();

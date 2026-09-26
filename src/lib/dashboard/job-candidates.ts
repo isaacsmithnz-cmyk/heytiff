@@ -1,29 +1,24 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import type { JobCandidate } from "@/lib/workboard/note-match";
 
-/* THE JOBS A NOTE CAN BE PINNED TO, for a screen that is not the board.
+/* THE OPEN JOBS, for the two things that ask "which job?" off the board.
 
-   Every capture surface can already pick a job — `JobLine` + `JobPicker` in
-   components/notes have done it since #301 — but the candidates arrive from
-   the SCREEN, through `useNoteScopeScreen({ jobs })`, and only the two
-   Workboard screens ever pushed any. They build theirs by filtering a board
-   payload they have already loaded for other reasons.
-
-   Home has no such payload, so `scope.jobs` was empty there and the picker
-   could not be offered at all: name a job in a debrief that the matcher
-   cannot resolve — "Northgate Realty" — and the review said "No job named"
-   with nothing you could do about it (Isaac, 2026-08-13).
+   The Tiff modal's "Which job is this for?" (`fileNote`, which offers the
+   ones the words match) and the expense form's job picker (lib/me/page-data)
+   read this, so a receipt and a note agree about what an open job is. It
+   began as Home's list for the capture card's job picker (Isaac,
+   2026-08-13: a job the matcher could not resolve left the review saying
+   "No job named" with nothing to pick); that card went with the old capture
+   UI (2026-09-27), and Home stopped reading it.
 
    THIS IS THE LIGHT VERSION. `loadMaintenanceBoard` reads eighteen columns
    per visit plus categories, completions and mirror health; a picker needs
-   five fields and only the OPEN work. Three narrow selects, no joins, and it
-   rides the loader's existing Promise.all rather than adding a wait.
+   five fields and only the OPEN work. Three narrow selects, no joins.
 
    OPEN WORK ONLY, and in the order the board offers it — visits first,
    because a visit carries a job number and a job number makes "is this the
    right one?" a glance instead of a guess; then agreements for work with no
-   visit raised yet; then projects. Same reasoning as `attachOptions` in
-   overview-screen, which is the shape this has to agree with. */
+   visit raised yet; then projects. */
 
 /** Statuses that mean "still to happen" — the board's own definition. */
 const OPEN_VISIT = ["upcoming", "booked"];

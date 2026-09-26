@@ -52,7 +52,6 @@ jest.mock("@/components/notes/dictation", () => {
         recording,
         arming: false,
         transcribing: false,
-        handing: false,
         seconds: 0,
         interim: "",
         barsRef: react.createRef(),
@@ -324,7 +323,6 @@ describe("Sort it out", () => {
       target: { kind: "none" },
       source: "text",
       room: "diary",
-      conversation: true,
     });
     expect(mic.start).not.toHaveBeenCalled();
     expect(save).not.toHaveBeenCalled();

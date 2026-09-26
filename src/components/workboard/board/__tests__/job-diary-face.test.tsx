@@ -18,11 +18,7 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) 
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: jest.fn(),
-  applyNote: jest.fn(),
   dismissNote: jest.fn(),
-  keepNoteOnJob: jest.fn(),
-  keepNoteForMe: jest.fn(),
-  answerClarify: jest.fn(),
 }));
 
 const ASK = "7e7e7e7e-0000-4000-8000-00000000a5c1";

@@ -8307,7 +8307,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .tiffbtn-sheet { --tb:30px; }
 /* at the end of an entry box and of the modal's reply box, beside a 36px Save */
 .tiffbtn-box { --tb:36px; }
-.tiffbtn-topbar, .tiffmk-ink {
+.tiffbtn-topbar {
   --tiffbtn-sheen:color-mix(in srgb, var(--mark-teal) 85%, transparent); --tiffbtn-sheen-hi:var(--mark-core);
   --tiffbtn-burst:color-mix(in srgb, var(--mark-core) 90%, transparent); }
 .tiffbtn-sheet, .tiffbtn-box, .tiffmk-paper {

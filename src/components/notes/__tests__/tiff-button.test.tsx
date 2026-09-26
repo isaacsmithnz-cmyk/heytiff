@@ -19,21 +19,16 @@ import { NoteScopeProvider, NoteScopeScreen, useNoteScope } from "../note-contex
 
    WHAT A PRESS OPENS is the Tiff modal's to hold, in its own suite
    (../../tiff/modal/__tests__/tiff-modal), with its host round the button
-   as the frame has it. The capture sheet the button opened before the new
-   Home was everyone's keeps its tests in ./capture-sheet. */
+   as the frame has it. */
 
-const job = (id: string) => ({
-  kind: "visit" as const,
-  id,
-  clientName: "Meridian Data",
-  label: "Server room CRACs",
-  siteLabel: null,
-  jobNumber: "1042",
-});
+/** The screen's roster: what the field mics' sieve reads names from. */
+const CREW = ["Luke", "Dane"];
 
 function Probe() {
   const s = useNoteScope();
-  return <span data-testid="scope">{`${s.target.kind}|${s.targetLabel ?? "-"}|${s.jobs.length}`}</span>;
+  return (
+    <span data-testid="scope">{`${s.target.kind}|${s.targetLabel ?? "-"}|${s.staffFirstNames.length}`}</span>
+  );
 }
 
 const mount = (ui?: React.ReactNode, voiceEnabled = true) =>
@@ -179,17 +174,17 @@ describe("what it is pointed at", () => {
       <NoteScopeScreen
         target={{ kind: "project", id: "p-1" }}
         targetLabel="Smith St change-over"
-        jobs={[job("v-1"), job("v-2")]}
+        staffFirstNames={CREW}
       />
     );
     expect(screen.getByTestId("scope")).toHaveTextContent("project|Smith St change-over|2");
   });
 
-  /* THE BUG THE TWO SLOTS EXIST FOR. A screen reports its job list; a sheet
-     opens over it and reports a target. With one slot the second push replaced
-     the first, the job list vanished, and a note taken from the button could
-     no longer be pinned to anything on the board behind it. */
-  it("lets a sheet re-aim it WITHOUT losing the board's job list", () => {
+  /* THE BUG THE TWO SLOTS EXIST FOR. A screen reports its roster; a sheet
+     opens over it and reports a target. With one slot the second push
+     replaced the first and the roster vanished with it, so the field mics'
+     sieve stopped knowing anybody's name while the sheet was up. */
+  it("lets a sheet re-aim it WITHOUT losing the screen's roster", () => {
     const Sheet = () => {
       const { pushFocus } = useNoteScope();
       React.useEffect(() => {
@@ -201,7 +196,7 @@ describe("what it is pointed at", () => {
     const { rerender } = render(
       <NoteScopeProvider voiceEnabled>
         <Probe />
-        <NoteScopeScreen target={{ kind: "none" }} jobs={[job("v-1"), job("v-2")]} />
+        <NoteScopeScreen target={{ kind: "none" }} staffFirstNames={CREW} />
         <TiffButton />
       </NoteScopeProvider>
     );
@@ -210,7 +205,7 @@ describe("what it is pointed at", () => {
     rerender(
       <NoteScopeProvider voiceEnabled>
         <Probe />
-        <NoteScopeScreen target={{ kind: "none" }} jobs={[job("v-1"), job("v-2")]} />
+        <NoteScopeScreen target={{ kind: "none" }} staffFirstNames={CREW} />
         <Sheet />
         <TiffButton />
       </NoteScopeProvider>
@@ -242,19 +237,19 @@ describe("what it is pointed at", () => {
     expect(screen.getByTestId("scope")).toHaveTextContent("project|Smith St");
   });
 
-  it("stops holding a board once its screen goes away", () => {
+  it("stops holding a screen once it goes away", () => {
     const { rerender } = render(
       <NoteScopeProvider voiceEnabled>
         <Probe />
-        <NoteScopeScreen target={{ kind: "project", id: "p-1" }} jobs={[job("v-1")]} />
+        <NoteScopeScreen target={{ kind: "project", id: "p-1" }} staffFirstNames={["Luke"]} />
         <TiffButton />
       </NoteScopeProvider>
     );
     expect(screen.getByTestId("scope")).toHaveTextContent("project|-|1");
 
     /* Navigation, in the shape the frame actually sees it: the screen
-       unmounts and the button does not. Leaving the last board's jobs behind
-       would offer to pin a note to a job that is no longer on screen. */
+       unmounts and the button does not. Leaving the last screen's target
+       behind would file a note on a job that is no longer on screen. */
     rerender(
       <NoteScopeProvider voiceEnabled>
         <Probe />

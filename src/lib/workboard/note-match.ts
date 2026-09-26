@@ -1,16 +1,16 @@
 /* Which job did the note mean?
 
-   A note dictated from the board header says a client's name out loud —
-   "Luke needs to organise some filters for Kingsford Medical Center" — and
-   the review card has to come back with the JOB CARD it thinks that is, job
-   number and all, so a person can confirm it rather than hunt for it in a
-   dropdown (Isaac, 2026-08-02: "it should also confirm the job number or the
-   job card that you are referring to").
+   A note says a client's name out loud — "Luke needs to organise some
+   filters for Kingsford Medical Center" — and when it lands on no job, Tiff
+   asks "Which job is this for?" with the JOB CARDS the words named as the
+   answers, job number and all, so a person taps the right one rather than
+   hunting for it (Isaac, 2026-08-02: "it should also confirm the job number
+   or the job card that you are referring to").
 
    Deliberately NOT the model's job. Understanding is probabilistic and effect
    is deterministic, and that split is the whole trust model — so the matching
-   is plain code against the board's own roster, it runs on words a human can
-   see, and nothing it decides is acted on until the card is confirmed.
+   is plain code against the workspace's own open jobs, it runs on words a
+   human can see, and nothing it decides is acted on until a person taps it.
 
    Matching is by TOKEN, not by whole string, because a transcript is what was
    heard: the note above says "Center" where the agreement says "Centre", and
@@ -28,15 +28,6 @@ export type JobCandidate = {
   siteLabel?: string | null;
   /** The ServiceM8 job number, where one has been raised. */
   jobNumber?: string | null;
-};
-
-export type JobMatch = {
-  /** The one candidate to confirm, when exactly one stands out. */
-  bestId: string | null;
-  /** Everything that matched at all, best first, then the rest untouched. */
-  ranked: JobCandidate[];
-  /** More than one candidate tied at the top — say so instead of guessing. */
-  ambiguous: boolean;
 };
 
 const normalise = (s: string): string =>
@@ -86,30 +77,6 @@ function scoreOf(candidate: JobCandidate, said: string, numbers: Set<string>): n
   return score;
 }
 
-export function matchJob(transcript: string, candidates: JobCandidate[]): JobMatch {
-  const said = ` ${normalise(transcript)} `;
-  const numbers = numbersIn(said);
-
-  const scored = candidates.map((c) => ({ c, score: scoreOf(c, said, numbers) }));
-  const hits = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score);
-
-  if (hits.length === 0) {
-    return { bestId: null, ranked: candidates, ambiguous: false };
-  }
-
-  const top = hits[0].score;
-  const tied = hits.filter((h) => h.score === top);
-  const ranked = [
-    ...hits.map((h) => h.c),
-    ...scored.filter((s) => s.score === 0).map((s) => s.c),
-  ];
-
-  /* Tied means we genuinely don't know which of two jobs for the same client
-     was meant. Guessing one would be worse than asking — the whole point of
-     this card is that a person confirms. */
-  return { bestId: tied.length === 1 ? hits[0].c.id : null, ranked, ambiguous: tied.length > 1 };
-}
-
 /* Searching the roster is a different job from MATCHING it. Matching reads a
    whole spoken sentence and has to ignore the noise in it; searching reads
    what someone is deliberately typing to find a job, so it takes them
@@ -128,10 +95,10 @@ export function searchJobs(query: string, candidates: JobCandidate[]): JobCandid
 }
 
 /** Only the candidates the words actually matched, best first — the quick
-    answers under Tiff's "Which job is this for?". `matchJob` hands back the
-    whole roster when nothing matched, which is right for a picker to open on
-    and wrong for three buttons: an answer the note never pointed at is a
-    guess wearing a button. */
+    answers under Tiff's "Which job is this for?". Never the rest of the
+    roster when nothing matched: an answer the note never pointed at is a
+    guess wearing a button. Two jobs tied at the top are both offered, since
+    guessing between them would be worse than asking. */
 export function matchedJobs(transcript: string, candidates: JobCandidate[], limit = 3): JobCandidate[] {
   const said = ` ${normalise(transcript)} `;
   const numbers = numbersIn(said);

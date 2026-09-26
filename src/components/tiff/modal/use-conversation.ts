@@ -424,7 +424,7 @@ export function useConversation({
        by what came before it ("and the same for Smith St"); a first note is
        sent exactly as it always was. */
     const prior = earlierTurns(spoken(before));
-    const input: Parameters<typeof routeNote>[0] = { transcript: words, target, source, room, conversation: true };
+    const input: Parameters<typeof routeNote>[0] = { transcript: words, target, source, room };
     if (prior.length) input.before = prior;
     let r: RouteResult;
     try {

@@ -2,7 +2,6 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { NoteTarget } from "@/app/actions/workboard-notes";
-import type { JobCandidate } from "@/lib/workboard/note-match";
 
 /* WHERE THE TOKEN IS STANDING.
 
@@ -36,12 +35,6 @@ export type NoteScope = {
       where their words are going. Absent means they are going nowhere in
       particular. */
   targetLabel?: string;
-  /** Jobs a note can be pinned to when it arrived against nothing. Screens
-      still report them, and NOTHING READS THEM: the capture card's job
-      picker was their one reader, and it went with the old capture UI
-      (2026-09-27). The Tiff modal asks "Which job is this for?" from the
-      server's own read instead. */
-  jobs: JobCandidate[];
   /** Staff first names, for the field mics' local sniff — a named person is
       the single strongest signal that a sentence is a job for somebody, and
       the sieve can't know one without the roster. Empty just costs that
@@ -52,7 +45,6 @@ export type NoteScope = {
 const EMPTY: NoteScope = {
   voiceEnabled: false,
   target: { kind: "none" },
-  jobs: [],
   staffFirstNames: [],
 };
 
@@ -84,13 +76,13 @@ export function NoteScopeProvider({
      stands in the frame, above all of them, so the direction reversed: the
      screen no longer wraps the button, it reports up to it.
 
-     With one slot those two reports fight. A screen pushes its job list on
-     mount; a sheet opens and pushes a target; the job list vanishes because
-     the second push replaced the first, and a note dictated from the button
-     can no longer be pinned to anything. So they get a slot each:
+     With one slot those two reports fight. A screen pushes its roster on
+     mount; a sheet opens and pushes a target; the roster vanishes because
+     the second push replaced the first, and the field mics' sieve stops
+     knowing anybody's name. So they get a slot each:
 
-       screen  what the SCREEN is about — its jobs, its roster, its default
-               target. Set on mount, cleared on unmount.
+       screen  what the SCREEN is about — its roster, its default target.
+               Set on mount, cleared on unmount.
        focus   what is OPEN OVER it — a visit sheet, a trip. Outranks the
                screen for as long as it is up, and only ever a target.
 
@@ -108,9 +100,9 @@ export function NoteScopeProvider({
       voiceEnabled,
       target: aiming?.target ?? EMPTY.target,
       /* A target pushed WITHOUT a label must not inherit the last one — the
-         ribbon would name the wrong job out loud while someone spoke into it. */
+         Tiff modal's header would name the wrong job out loud while someone
+         spoke into it. */
       targetLabel: aiming?.targetLabel,
-      jobs: screen?.jobs ?? EMPTY.jobs,
       staffFirstNames: screen?.staffFirstNames ?? EMPTY.staffFirstNames,
       pushScreen,
       pushFocus,
@@ -143,33 +135,31 @@ export function useNoteScopeTarget(target: NoteTarget, label?: string): void {
   }, [kind, id, label, pushFocus]);
 }
 
-/** Tell the frame what THIS SCREEN is about — its default target, the jobs a
-    note can be pinned to, and the roster the local sieve reads names from.
+/** Tell the frame what THIS SCREEN is about — its default target, and the
+    roster the local sieve reads names from.
 
     This is the half that replaced wrapping each screen in its own provider.
     The button that consumes it is in the frame, above every screen, so a
     screen cannot wrap it; it reports up instead. Everything is cleared on
     unmount, so navigating away leaves the button a universal note taker
-    rather than one still holding the last board's job list.
+    rather than one still aimed at the last screen.
 
-    Arrays are compared by CONTENT, not identity: callers build `jobs` and
+    The roster is compared by CONTENT, not identity: callers build
     `staffFirstNames` inline with `.map()`, so an identity dependency would
     push on every render forever. */
 export function useNoteScopeScreen(scope: {
   target?: NoteTarget;
   targetLabel?: string;
-  jobs?: JobCandidate[];
   staffFirstNames?: string[];
 }): void {
   const { pushScreen } = useNoteScope();
   const kind = scope.target?.kind ?? null;
   const id = scope.target?.id ?? null;
   const label = scope.targetLabel;
-  const jobKey = (scope.jobs ?? []).map((j) => j.id).join("|");
   const nameKey = (scope.staffFirstNames ?? []).join("|");
 
-  /* The arrays themselves ride in a ref so the push effect can hand over the
-     real objects while depending only on the keys above. Written in its OWN
+  /* The array itself rides in a ref so the push effect can hand over the
+     real one while depending only on the key above. Written in its OWN
      effect rather than during render: effects run in declaration order, so
      this one has always updated the ref before the push below reads it. */
   const latest = useRef(scope);
@@ -181,11 +171,10 @@ export function useNoteScopeScreen(scope: {
     pushScreen({
       target: kind ? { kind, id } : { kind: "none" },
       targetLabel: label,
-      jobs: latest.current.jobs ?? [],
       staffFirstNames: latest.current.staffFirstNames ?? [],
     });
     return () => pushScreen(null);
-  }, [kind, id, label, jobKey, nameKey, pushScreen]);
+  }, [kind, id, label, nameKey, pushScreen]);
 }
 
 /** The same thing as a component, for the server pages that used to wrap
@@ -194,7 +183,6 @@ export function useNoteScopeScreen(scope: {
 export function NoteScopeScreen(props: {
   target?: NoteTarget;
   targetLabel?: string;
-  jobs?: JobCandidate[];
   staffFirstNames?: string[];
 }): null {
   useNoteScopeScreen(props);

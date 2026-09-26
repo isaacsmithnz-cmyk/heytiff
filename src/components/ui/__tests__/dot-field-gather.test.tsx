@@ -10,18 +10,21 @@ import { DotField, GATHER_MS } from "../dot-field";
    part that decides WHETHER it happens and WHEN it stops, and both of those
    are the kind of thing that breaks without anything throwing: a gather that
    never ends leaves the mark permanently mid-flight, and a gather that fires
-   on every surface makes the diary's entry card grow a chevron flying in
-   from a button that is not on the screen.
+   on every surface makes Tiff's ask bar grow a chevron flying in from a
+   button that is not on the screen.
 
-   `from` IS THE WHOLE SWITCH. It is the pressed button's offset, so its
+   `origin` IS THE WHOLE SWITCH. It is the pressed button's centre, so its
    presence is the same question as "did a button open this" — which is why
    nothing here has a `gather` prop to get out of step with it. */
 
-/* The field mounts inside a positioned card in the real app and reads its own
-   offsets against it. jsdom reports 0 for every offset, which is fine: the
-   numbers are the browser's business and the STAGE is this file's. */
-function mount(from?: { dx: number; dy: number } | null) {
-  const view = render(<DotField stage="mark" size={252} from={from} />);
+/** A button's centre on the screen. */
+const BUTTON = { x: 1380, y: 28 };
+
+/* The field measures its own box against the point in the real app. jsdom
+   reports 0 for every box, which is fine: the numbers are pinned at the
+   foot (from a point on the screen), and the STAGE is what these are about. */
+function mount(origin?: { x: number; y: number } | null) {
+  const view = render(<DotField stage="mark" size={252} origin={origin} />);
   return {
     stage: () => document.querySelector(".dotf")?.getAttribute("data-stage"),
     view,
@@ -32,7 +35,7 @@ beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
 
 it("flies the mark in when a button opened it", () => {
-  const f = mount({ dx: 663, dy: -387 });
+  const f = mount(BUTTON);
   expect(f.stage()).toBe("gather");
 });
 
@@ -41,7 +44,7 @@ it("flies the mark in when a button opened it", () => {
    file, which is the sort of pair that drifts the first time either is
    touched. */
 it("hands over to the resting mark once the last dot is seated", () => {
-  const f = mount({ dx: 663, dy: -387 });
+  const f = mount(BUTTON);
 
   act(() => void jest.advanceTimersByTime(GATHER_MS - 50));
   expect(f.stage()).toBe("gather");
@@ -50,8 +53,8 @@ it("hands over to the resting mark once the last dot is seated", () => {
   expect(f.stage()).toBe("mark");
 });
 
-/* Every surface that has no button to have flown out of: the entry card, the
-   note postures, a field's nudge. They get the mark as it always was. */
+/* Every surface that has no button to have flown out of: Tiff's ask bar,
+   the Studio's wait. They get the mark as it always was. */
 it("does not fly in where there is no button", () => {
   const f = mount(null);
   expect(f.stage()).toBe("mark");
@@ -60,20 +63,19 @@ it("does not fly in where there is no button", () => {
   expect(f.stage()).toBe("mark");
 });
 
-/* ONCE PER OPEN, AND ONLY ON THE WAY IN. Choosing Talk mid-flight swaps the
-   body under the field and leaves the field mounted — the mark has to carry
-   on arriving, not start again from the button, which is the whole reason the
-   instrument is mounted above the stage branch in the first place. */
-it("carries the same arrival through a stage change", () => {
-  const from = { dx: 663, dy: -387 };
-  const view = render(<DotField stage="mark" size={252} from={from} />);
+/* ONCE PER OPEN, AND ONLY ON THE WAY IN. The modal renders under the field
+   many times a second while you talk — the clock, the live words — and the
+   mark has to carry on arriving, not start again from the button. */
+it("carries the same arrival through a render", () => {
+  const origin = BUTTON;
+  const view = render(<DotField stage="mark" size={252} origin={origin} />);
   const stage = () => document.querySelector(".dotf")?.getAttribute("data-stage");
 
   act(() => void jest.advanceTimersByTime(300));
   expect(stage()).toBe("gather");
 
-  // the card moves door -> recording; the field is told "mark" again
-  act(() => view.rerender(<DotField stage="mark" size={252} from={from} />));
+  // the modal renders again; the field is told "mark" again
+  act(() => view.rerender(<DotField stage="mark" size={252} origin={origin} />));
   expect(stage()).toBe("gather");
 
   // and it still ends when the ORIGINAL flight ends, not 300ms later
@@ -86,17 +88,17 @@ it("carries the same arrival through a stage change", () => {
    replayed on the way OUT of a wait would be the entrance performing itself
    in the middle of a capture. */
 it("never flies in a second time", () => {
-  const from = { dx: 663, dy: -387 };
-  const view = render(<DotField stage="mark" size={252} from={from} />);
+  const origin = BUTTON;
+  const view = render(<DotField stage="mark" size={252} origin={origin} />);
   const stage = () => document.querySelector(".dotf")?.getAttribute("data-stage");
 
   act(() => void jest.advanceTimersByTime(GATHER_MS + 10));
   expect(stage()).toBe("mark");
 
-  act(() => view.rerender(<DotField stage="cloud" size={252} from={from} />));
+  act(() => view.rerender(<DotField stage="cloud" size={252} origin={origin} />));
   expect(stage()).toBe("cloud");
 
-  act(() => view.rerender(<DotField stage="mark" size={252} from={from} />));
+  act(() => view.rerender(<DotField stage="mark" size={252} origin={origin} />));
   expect(stage()).toBe("mark");
 });
 
@@ -105,7 +107,7 @@ it("never flies in a second time", () => {
    them out — a keyframe reading `var(--gd)` off an element that never got one
    falls back to 0, and every dot leaves at the same instant. */
 it("writes the arrival order onto every dot", () => {
-  mount({ dx: 663, dy: -387 });
+  mount(BUTTON);
   const cells = [...document.querySelectorAll<HTMLElement>(".dotf-cell")];
   expect(cells.length).toBeGreaterThan(80);
 
@@ -169,10 +171,10 @@ describe("the hand-over into the resting mark", () => {
   });
 });
 
-/* THE MODAL'S WAY OF SAYING IT: `origin`, the pressed button's centre on the
-   screen. The Tiff modal draws the field scaled (.6) inside a zone that opens
-   by its own height, so the field measures itself against the point — once,
-   on its resting box — and places the dots in its own units. */
+/* WHERE THE DOTS START: `origin`, the pressed button's centre on the screen.
+   The Tiff modal draws the field scaled (.6) inside a zone that opens by its
+   own height, so the field measures itself against the point — once, on its
+   resting box — and places the dots in its own units. */
 describe("from a point on the screen", () => {
   function mountAt(origin: { x: number; y: number } | null) {
     const rect = (l: number, t: number, w: number) =>

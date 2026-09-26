@@ -1007,9 +1007,10 @@ end, moving, no dark background". That is the same law 18 exemption as the
 button's, on his word, and it runs the button's six loops with no new one.
 
 - **At rest** it runs at the button's pace: the Tiff chat's header and ask
-  bar and its "General knowledge" choice, the answer's ribbon, the palette's
-  footer, the fleet's Tiff total, "Read by Tiff" on a scanned receipt, and
-  the vehicle card's "Tiff value".
+  bar and its "General knowledge" choice, the palette's footer, the fleet's
+  Tiff total, "Read by Tiff" on a scanned receipt, and the vehicle card's
+  "Tiff value". Each stands on paper; the one on ink, the capture card's
+  answer ribbon, went with the old capture UI (2026-09-27).
 - **Working** it runs at the thinking pace: every wait (it replaced the orb
   there; the orb stays the dictation meter), "Tiff is valuing…" on the
   fleet, and a receipt being read.

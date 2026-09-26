@@ -36,10 +36,10 @@ export type MeData = {
   claims: Awaited<ReturnType<typeof myClaims>>;
   notes: Awaited<ReturnType<typeof listMyNotes>>;
   archived: Awaited<ReturnType<typeof listArchivedNotes>>;
-  /* The open work a receipt can be filed against. The SAME list the note
-     capture picks from — three narrow selects, no joins, and Home already
-     rides it on every load, so "which job" costs the same here as it does
-     there and both screens agree about what an open job is. */
+  /* The open work a receipt can be filed against. The SAME list the Tiff
+     modal's "Which job is this for?" answers come from — three narrow
+     selects, no joins — so a receipt and a note agree about what an open
+     job is. */
   jobs: Awaited<ReturnType<typeof jobCandidates>>;
   /** null = no staff card yet; the faces that need one say so. */
   staffId: string | null;

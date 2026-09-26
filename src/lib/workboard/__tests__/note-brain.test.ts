@@ -551,7 +551,7 @@ describe("historyBlock — the router's memory, rendered", () => {
       },
     });
     expect(block).toContain('"Middle rooftop unit tripping" — 3 times, last 2026-08-02');
-    /* The load-bearing sentence: applyNote dedupes by EXACT summary match,
+    /* The load-bearing sentence: the writer dedupes by EXACT summary match,
        so the model must be told to reuse the recorded wording. */
     expect(block).toContain("EXACTLY as recorded");
   });

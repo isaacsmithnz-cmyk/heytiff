@@ -13,8 +13,11 @@ change everywhere. That is deliberate and is the reason the file exists.
 capture UI): every Tiff button opens the Tiff modal
 (`src/components/tiff/modal`), which listens as it opens, sends your words on
 Done and files as it talks, with Undo. Sections 6 to 8 describe the card's
-flow — the box, `Go`, the review — and stay as the record of it; the endings
-table in section 8 is still what those server actions write.
+flow — the box, `Go`, the review — and stay as the record of it. Its server
+actions (`applyNote`, `answerClarify`, `keepNoteOnJob`, `keepNoteForMe`) went
+with it; the endings table in section 8 is what the rows they wrote still
+say. The modal's own endings are `fileNote`, `keepWords`, `dismissNote` and
+`undoNote`, in `src/app/actions/workboard-notes.ts`.
 
 ---
 
@@ -237,13 +240,14 @@ the action's source and fails if the two ever disagree.
 
 ## 9. What gets measured
 
-`src/lib/voice/timing.ts` prints one console line per note. Two links are
-timed separately and **there is no total**, because a person now sits between
-them:
+`src/lib/voice/timing.ts` prints one console line per note:
 
 - `stop → transcript` — the bit the transport changes (measured: **~0.86 s**
   live against 3.9–5.2 s batch)
-- `Go → proposal` — the routing call (**~7.1 s**, variance ±2.6 s)
+
+The capture card also timed `Go → proposal`, the routing call (**~7.1 s**,
+variance ±2.6 s), separately and with no total, because a person sat between
+the two links; that timer went with the card (2026-09-27).
 
 ## 10. The rules that are easy to undo by accident
 

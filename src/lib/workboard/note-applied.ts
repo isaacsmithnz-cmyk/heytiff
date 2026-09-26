@@ -12,7 +12,7 @@
        lines, not what the column said before
 
    `v: 2` is the record Undo needs, written by `applyConfirmed` for every note
-   from now on (the review card's and the modal's alike). Undo refuses a note
+   filed since (the review card's too, while it lasted). Undo refuses a note
    without it rather than guess at a v1 record.
 
    THE JOURNAL'S GROUPS ARE UNTOUCHED. `issueIds` still lists every issue the

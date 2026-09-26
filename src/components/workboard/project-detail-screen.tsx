@@ -144,7 +144,7 @@ export function ProjectDetailScreen({
      a note taken here lands on THIS project without anybody passing a target
      down. The roster is the real one rather than a derivation — this screen
      already has it, and it's what lets a dictated "Dane needs to chase the
-     switchboard" reach the review instead of staying a string in a box. */
+     switchboard" reach the Tiff modal instead of staying a string in a box. */
   useNoteScopeScreen({
     target: { kind: "project", id: project.id },
     targetLabel: project.name,

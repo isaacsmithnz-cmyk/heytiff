@@ -138,8 +138,9 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
   const [picked, setPicked] = useState<string | null>(null);
   /** What the panel still shows while it fades out for a pointer's pick. */
   const [panelHeld, setPanelHeld] = useState<string | null>(null);
-  /** Just saved, lit until it settles. */
-  const [fresh, setFresh] = useState<string | null>(null);
+  /** Just saved, or just put on by Tiff (every date of a repeat), lit
+      until it settles. */
+  const [fresh, setFresh] = useState<readonly string[] | null>(null);
   /** Each counts a fade in to start once the page has drawn what comes in:
       the body's, the panel's, and a filter's (its category, or null when
       only the faded things are to come off). */
@@ -147,6 +148,7 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
   const [panelIn, setPanelIn] = useState(0);
   const [filterIn, setFilterIn] = useState<{ n: number; cat: CalCat | null }>({ n: 0, cat: null });
   const body = useRef<HTMLDivElement>(null);
+  const details = useRef<HTMLElement>(null);
   const swapRun = useRef<Run>(run0());
   const panelRun = useRef<Run>(run0());
   const filterRun = useRef<Run>(run0());
@@ -253,8 +255,10 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
      (his calLand): the action's revalidation brings it a moment after Save,
      and a view scrolled down the weeks would otherwise light it out of
      sight. Once, so the view is the reader's again while it is still lit.
-     A row saved with a pointer grows in as it lands. */
-  const shownFresh = useRef<string | null>(null);
+     Of a repeat's lit dates the first drawn is the earliest, the one
+     chosen: every view draws its days in order. A row saved with a pointer
+     grows in as it lands. */
+  const shownFresh = useRef<readonly string[] | null>(null);
   useLayoutEffect(() => {
     if (!fresh || shownFresh.current === fresh) return;
     const el = body.current?.querySelector<HTMLElement>("[data-fresh]");
@@ -361,10 +365,12 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
   };
 
   /** What landed is chosen, shown and lit — its filter back on, its day in
-      view. State only, so a landing found while drawing can call it. */
-  const land = (id: string, day: string) => {
+      view. `lit` is everything that landed with it: every date of a repeat
+      Tiff put on is lit, and only the first is chosen (his calLand). State
+      only, so a landing found while drawing can call it. */
+  const land = (id: string, day: string, lit: readonly string[] = [id]) => {
     setPicked(id);
-    setFresh(id);
+    setFresh(lit);
     setOff((o) => ({ ...o, event: false }));
     setNav((n) => revealDay(n, day, cal));
   };
@@ -383,7 +389,8 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
   };
 
   /* WHAT TIFF PUT ON LANDS HERE AS THE MODAL CLOSES (his calLand): the
-     first of it is chosen, brought into view and lit, as a Save is. The
+     first of it is chosen and brought into view as a Save is, and all of
+     it is lit, so a weekly line lights every date 4 weeks shows. The
      modal says what it filed as it closes (`landed`, for two seconds), and
      the rows arrive with the refresh that follows, which may be slower than
      that: so what landed is held here until the calendar has it, then
@@ -399,7 +406,7 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
     if (tiff.landed?.ids.length) setLanding(tiff.landed.ids);
   }
   const arrived = landing ? landedEvent(cal.items, landing) : null;
-  if (arrived) {
+  if (landing && arrived) {
     setLanding(null);
     /* Put down now, as a press would land them: the view a pointer chose,
        the filter as it now stands, the panel on what comes. */
@@ -410,7 +417,7 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
     setOffHeld(null);
     setPanelHeld(null);
     setOvertaken((n) => n + 1);
-    land(arrived.id, arrived.start);
+    land(arrived.id, arrived.start, landing.map((id) => `ev:${id}`));
   }
 
   return (
@@ -498,8 +505,24 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
             ) : (
               <CalYear months={yearMonths(vis, nav.anchor, cal)} selected={selected} onPick={pick} />
             )}
-            <aside className="hd-cal-det" data-scroll="" aria-label="Details" aria-live="polite">
-              <CalPanel item={item} items={cal.items} frame={cal} canEdit={cal.canAdd} />
+            {/* Where focus goes after a delete: the form and the Edit that
+                opened it are gone, and what the panel shows next comes
+                with the refresh, so the panel's own column holds it. */}
+            <aside
+              ref={details}
+              className="hd-cal-det"
+              data-scroll=""
+              aria-label="Details"
+              aria-live="polite"
+              tabIndex={-1}
+            >
+              <CalPanel
+                item={item}
+                items={cal.items}
+                frame={cal}
+                canEdit={cal.canAdd}
+                onDeleted={() => details.current?.focus({ preventScroll: true })}
+              />
               {nav.view === "year" && <CalKey />}
             </aside>
           </div>

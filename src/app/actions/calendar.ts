@@ -322,6 +322,12 @@ function formTime(v: unknown): string | null | undefined {
 
 const formText = (v: unknown, max: number): string | null => oneLine(v, max) || null;
 
+/** The calendar's twelve months as the workspace's calendar draws them
+    today (lib/calendar/query reads the same): what "all" of a series is. */
+async function seriesWindow(orgId: string) {
+  return companyWindow(todayInZone(await getSm8Timezone(orgId)));
+}
+
 /** The row the form is about, in the caller's workspace, or null. */
 async function eventRow(orgId: string, id: string) {
   const { data } = await supabaseAdmin
@@ -336,7 +342,13 @@ async function eventRow(orgId: string, id: string) {
 /** Edit: this one, or all of its series. A series' dates are its rule's, one
     day each, so "all" changes what every date says — the name, the hours,
     where, who and the note — and moves only this one's day; each of the
-    others keeps its own. A shutdown has no hours (the table refuses them). */
+    others keeps its own. A shutdown has no hours (the table refuses them).
+
+    "ALL" IS WHAT THE BUTTON COUNTED. "Save all 11" and "Delete all 11" count
+    the dates the calendar shows, its twelve months from the 1st of this
+    one, so all is those dates: a date of the series from a month gone by
+    is not on the calendar, was not counted, and stays as it was, the
+    record of what happened. */
 export async function editCalendarEvent(
   id: string,
   patch: CalendarEventPatch,
@@ -384,11 +396,15 @@ export async function editCalendarEvent(
   };
 
   if (scope === "series" && row.series_id) {
+    const win = await seriesWindow(who.orgId);
+    if (!win) return { ok: false, error: COULDNT_CHANGE };
     const all = await supabaseAdmin
       .from("calendar_events")
       .update(said)
       .eq("org_id", who.orgId)
-      .eq("series_id", row.series_id);
+      .eq("series_id", row.series_id)
+      .gte("starts_on", win.windowStart)
+      .lte("starts_on", win.windowEnd);
     if (all.error) return { ok: false, error: COULDNT_CHANGE };
   }
   const one = await supabaseAdmin
@@ -402,7 +418,8 @@ export async function editCalendarEvent(
   return { ok: true };
 }
 
-/** Delete: this one, or every date in its series. */
+/** Delete: this one, or every date of its series the calendar shows — the
+    dates "Delete all 11" counted (see `editCalendarEvent`). */
 export async function deleteCalendarEvent(
   id: string,
   scope: SeriesScope = "one",
@@ -413,13 +430,18 @@ export async function deleteCalendarEvent(
   const row = await eventRow(who.orgId, id);
   if (!row) return { ok: false, error: GONE };
 
+  const all = scope === "series" && !!row.series_id;
+  const win = all ? await seriesWindow(who.orgId) : null;
+  if (all && !win) return { ok: false, error: COULDNT_CHANGE };
   const gone =
-    scope === "series" && row.series_id
+    win && row.series_id
       ? await supabaseAdmin
           .from("calendar_events")
           .delete()
           .eq("org_id", who.orgId)
           .eq("series_id", row.series_id)
+          .gte("starts_on", win.windowStart)
+          .lte("starts_on", win.windowEnd)
           .select("id")
       : await supabaseAdmin.from("calendar_events").delete().eq("org_id", who.orgId).eq("id", row.id).select("id");
   if (gone.error) return { ok: false, error: COULDNT_CHANGE };

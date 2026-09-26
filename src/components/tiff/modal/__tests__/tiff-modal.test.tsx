@@ -1584,6 +1584,30 @@ describe("the calendar's room", () => {
     expect(fileCalendarLine).toHaveBeenLastCalledWith("Team meeting Monday at 3", "text", []);
   });
 
+  /* What Undo took off is not on the calendar, so closing lands nothing. */
+  it("says nothing landed when the modal closes after Undo", async () => {
+    fileCalendarLine.mockResolvedValue(filedCal);
+    undoCalendarLine.mockResolvedValue({ ok: true, summary: "3 events taken back." });
+    const user = await calendar(LINE);
+    await user.click(within(dialog()).getByRole("button", { name: "Undo" }));
+    await flush();
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
+    expect(grabbed.api!.landed).toBeNull();
+  });
+
+  /* Asked "Which day?" and answered, a line then never read is kept with
+     the answers: every word said for it, not the line alone. */
+  it("keeps the answers with the line when a line asked about is never read", async () => {
+    fileCalendarLine
+      .mockResolvedValueOnce({ ok: false, ask: "Which day?" })
+      .mockResolvedValueOnce({ ok: false, error: "That line couldn't be read just now.", unread: true });
+    keepWords.mockResolvedValue({ ok: true, noteId: "k1" });
+    const user = await calendar("Toolbox talk");
+    await reply(user, "the first Thursday");
+    expect(keepWords).toHaveBeenCalledWith("Toolbox talk\nthe first Thursday", "calendar");
+  });
+
   it("keeps a line it could never read in the diary as said, and a line that never arrived too", async () => {
     fileCalendarLine.mockResolvedValue({ ok: false, error: "That line couldn't be read just now.", unread: true });
     keepWords.mockResolvedValue({ ok: true, noteId: "k1" });

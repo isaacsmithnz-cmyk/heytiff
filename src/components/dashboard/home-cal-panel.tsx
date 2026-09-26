@@ -25,17 +25,25 @@ export function CalPanel({
   items,
   frame,
   canEdit = false,
+  onDeleted,
 }: {
   item: CalItem | null;
   items: readonly CalItem[];
   frame: CompanyCalendar;
   /** Whoever may add to the calendar may change what the company put on it. */
   canEdit?: boolean;
+  /** A delete went in: the form, and the Edit that opened it, are gone, so
+      the page says where focus goes. */
+  onDeleted?: () => void;
 }) {
   /* EDIT OPENS THE FORM IN PLACE (./home-cal-edit), for the one thing it
-     was pressed on: choosing something else closes it. Closed by Save or
-     Cancel, focus goes back to Edit; after a delete there is no Edit left. */
+     was pressed on, and choosing something else closes it: the form is let
+     go as the panel moves on, so choosing that thing again shows it, never
+     the form it had (nor the form's pull on focus). Closed by Save or
+     Cancel, focus goes back to Edit; after a delete there is no Edit left,
+     and the page takes it. */
   const [editing, setEditing] = useState<string | null>(null);
+  if (editing !== null && item?.id !== editing) setEditing(null);
   const editButton = useRef<HTMLButtonElement>(null);
   const backToEdit = useRef(false);
   useLayoutEffect(() => {
@@ -52,13 +60,13 @@ export function CalPanel({
     return (
       <div className="hd-cal-dx" data-c={item.cat}>
         <CalEdit
-          key={item.id}
           item={item}
           items={items}
           frame={frame}
           kicker={d.kicker}
           onDone={(how) => {
             backToEdit.current = how !== "deleted";
+            if (how === "deleted") onDeleted?.();
             setEditing(null);
           }}
         />

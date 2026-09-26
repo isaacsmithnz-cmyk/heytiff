@@ -16,7 +16,14 @@
 type Row = Record<string, unknown>;
 type Insert = { table: string; row: Row };
 /** One call on the table, as the action made it: what it did and what it named. */
-type Call = { table: string; action: "select" | "insert" | "update" | "delete"; eq: [string, unknown][]; in: [string, unknown[]][] };
+type Call = {
+  table: string;
+  action: "select" | "insert" | "update" | "delete";
+  eq: [string, unknown][];
+  in: [string, unknown[]][];
+  /** `gte`/`lte` bounds on ISO days, which compare as strings. */
+  range: [string, "gte" | "lte", string][];
+};
 const inserts: Insert[] = [];
 const calls: Call[] = [];
 /** calendar_events, as the fake database holds it. */
@@ -33,11 +40,13 @@ let session: { orgId?: string; user?: { sub: string } } | null = { orgId: "org-1
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
     from: (table: string) => {
-      const call: Call = { table, action: "select", eq: [], in: [] };
+      const call: Call = { table, action: "select", eq: [], in: [], range: [] };
       let payload: unknown = null;
       let returning = false;
       const matches = (r: Row) =>
-        call.eq.every(([c, v]) => r[c] === v) && call.in.every(([c, vs]) => vs.includes(r[c]));
+        call.eq.every(([c, v]) => r[c] === v) &&
+        call.in.every(([c, vs]) => vs.includes(r[c])) &&
+        call.range.every(([c, op, v]) => (op === "gte" ? String(r[c]) >= v : String(r[c]) <= v));
       const run = async (one: "single" | "maybe" | null) => {
         calls.push(call);
         if (call.action === "insert") {
@@ -73,6 +82,8 @@ jest.mock("@/lib/supabase-server", () => ({
         delete: () => ((call.action = "delete"), q),
         eq: (c: string, v: unknown) => (call.eq.push([c, v]), q),
         in: (c: string, vs: unknown[]) => (call.in.push([c, vs]), q),
+        gte: (c: string, v: string) => (call.range.push([c, "gte", v]), q),
+        lte: (c: string, v: string) => (call.range.push([c, "lte", v]), q),
         single: () => run("single"),
         maybeSingle: () => run("maybe"),
         then: (ok: (v: unknown) => unknown, bad: (e: unknown) => unknown) => run(null).then(ok, bad),
@@ -425,6 +436,26 @@ describe("noteOnCalendarEvents", () => {
     expect(await noteOnCalendarEvents(["a"], "  ")).toEqual({ ok: false, error: "There was nothing to add." });
     expect(byId("a")!.note).toBeNull();
   });
+
+  /* Otherwise Tiff says "Got it. I have added that…" when nothing was kept. */
+  it("says so when the note does not go in, and tells Home nothing", async () => {
+    updateError = { message: "boom" };
+    expect(await noteOnCalendarEvents(["a"], "Put it in the yard")).toEqual({
+      ok: false,
+      error: "Couldn't change that on the calendar.",
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  /* The browser names the rows, so what it names is held to what one filing
+     can put on: strings, each once, and no more than a series has dates. */
+  it("names no more rows than one filing puts on, and only as strings", async () => {
+    const many = [...Array.from({ length: 60 }, (_, i) => `r${i}`), 7, "a"] as unknown as string[];
+    await noteOnCalendarEvents(many, "x");
+    const named = calls[0]!.in.find(([c]) => c === "id")![1];
+    expect(named).toHaveLength(53);
+    expect(named.every((v) => typeof v === "string")).toBe(true);
+  });
 });
 
 describe("undoCalendarLine", () => {
@@ -446,6 +477,14 @@ describe("undoCalendarLine", () => {
     allowed = new Set();
     expect(await undoCalendarLine(["a"])).toEqual({ ok: false, error: "You can't change the calendar." });
     expect(rows).toHaveLength(6);
+  });
+
+  /* A failed delete is not "no longer on the calendar": it still is. */
+  it("says it couldn't, not that it's gone, when the delete does not go in", async () => {
+    deleteError = { message: "boom" };
+    expect(await undoCalendarLine(["a"])).toEqual({ ok: false, error: "Couldn't change that on the calendar." });
+    expect(rows).toHaveLength(6);
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
 
@@ -493,6 +532,25 @@ describe("editCalendarEvent", () => {
     expect(theirs()).toMatchObject({ title: "Toolbox talk", note: "theirs" });
     expect(byId("d")!.title).toBe("Team meeting");
     expect(calls.every(namesBothKeys)).toBe(true);
+  });
+
+  it("changes only itself when it is in no series, whatever scope was asked", async () => {
+    expect(await editCalendarEvent("d", patch({ startsOn: "2026-10-14" }), "series")).toEqual({ ok: true });
+    expect(byId("d")!.title).toBe("Toolbox talk: ladders");
+    // the shutdown is in no series either, and is not this one
+    expect(byId("sd")!.title).toBe("Christmas shutdown");
+    expect(calls.some((c) => c.eq.some(([k]) => k === "series_id"))).toBe(false);
+  });
+
+  /* "Save all 3" counted the dates the calendar shows: all is those. A date
+     from a month gone by is off the calendar, uncounted, and kept as it was. */
+  it("changes the series' dates the calendar shows, and none from a month gone by", async () => {
+    rows.push({ ...byId("a")!, id: "p", starts_on: "2026-08-06", ends_on: "2026-08-06" });
+    rows.push({ ...byId("a")!, id: "f", starts_on: "2027-09-02", ends_on: "2027-09-02" });
+    expect(await editCalendarEvent("b", patch(), "series")).toEqual({ ok: true });
+    for (const id of ["a", "b", "c"]) expect(byId(id)!.title).toBe("Toolbox talk: ladders");
+    expect(byId("p")!.title).toBe("Toolbox talk");
+    expect(byId("f")!.title).toBe("Toolbox talk");
   });
 
   it("keeps a date in a series to one day, and a range to its last day", async () => {
@@ -567,5 +625,27 @@ describe("deleteCalendarEvent", () => {
     allowed = new Set();
     expect(await deleteCalendarEvent("a", "one")).toEqual({ ok: false, error: "You can't change the calendar." });
     expect(rows).toHaveLength(6);
+  });
+
+  /* "Delete all 3" deletes the three it counted: the dates the calendar
+     shows. A date from a month gone by was not on it, and is kept. */
+  it("deletes the series' dates the calendar shows, and none from a month gone by", async () => {
+    rows.push({ ...byId("a")!, id: "p", starts_on: "2026-08-06", ends_on: "2026-08-06" });
+    rows.push({ ...byId("a")!, id: "f", starts_on: "2027-09-02", ends_on: "2027-09-02" });
+    expect(await deleteCalendarEvent("b", "series")).toEqual({ ok: true, count: 3 });
+    expect(rows.map((r) => r.id)).toEqual(["d", "x", "sd", "p", "f"]);
+  });
+
+  /* Otherwise the form closes as deleted while the event stays on. */
+  it("says so when the delete does not go in, and tells Home nothing", async () => {
+    deleteError = { message: "boom" };
+    for (const scope of ["one", "series"] as const) {
+      expect(await deleteCalendarEvent("b", scope)).toEqual({
+        ok: false,
+        error: "Couldn't change that on the calendar.",
+      });
+    }
+    expect(rows).toHaveLength(6);
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,8 @@
-import { act, cleanup, render, screen, within } from "@testing-library/react";
+import { readFileSync } from "fs";
+import { join } from "path";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { pickDate } from "@/components/ui/__tests__/fixtures/pick-date";
 import { HomeCalendarPage } from "../home-cal-page";
 import { revealIn } from "../home-cal-parts";
 import { companyItems, type CompanyCalendar, type CompanyRows } from "@/lib/calendar/items";
@@ -703,6 +706,158 @@ describe("Edit", () => {
     expect(within(panel()).getByRole("textbox", { name: "Name" })).toHaveValue("Team meeting");
   });
 
+  /* Choosing something else lets the form go: choosing the event again shows
+     the event, not the form it had, whose opening would pull focus off the
+     day just pressed and into its Name. */
+  it("shows an event chosen again as itself, not the form it had, and leaves focus on the day pressed", async () => {
+    const user = userEvent.setup();
+    const meeting = eventRow({ id: "e5", title: "Team meeting", startsOn: "2026-10-02", endsOn: "2026-10-02", location: null });
+    draw(calendar({ events: [...ROWS.events, meeting] }));
+    const p = await inPanel(user, "Toolbox talk");
+    await user.click(within(p).getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: /: Team meeting/ }));
+    const talk = screen.getByRole("button", { name: /: Toolbox talk/ });
+    talk.focus();
+    await user.keyboard("{Enter}");
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Toolbox talk");
+    expect(within(panel()).queryByRole("form")).toBeNull();
+    expect(talk).toHaveFocus();
+  });
+
+  /* The form and the Edit that opened it are gone after a delete: focus goes
+     to the panel's own column, never to nowhere. */
+  it("puts focus in the panel's column after a delete from the keyboard", async () => {
+    const user = userEvent.setup();
+    draw();
+    const p = await inPanel(user, "Toolbox talk");
+    await user.click(within(p).getByRole("button", { name: "Edit" }));
+    await user.click(within(p).getByRole("button", { name: "Delete event" }));
+    mockDelete.mockResolvedValueOnce({ ok: true, count: 1 });
+    const ask = within(p).getByRole("group", { name: "Delete for good?" });
+    within(ask).getByRole("button", { name: "Delete event" }).focus();
+    await user.keyboard("{Enter}");
+    expect(mockDelete).toHaveBeenCalledWith("e1", "one");
+    expect(within(panel()).queryByRole("form")).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+    expect(panel()).toHaveFocus();
+  });
+
+  /* A one-day event moved to another day stays one day: its last day is
+     the day it is now on, never the day it was on. */
+  it("moves a one-day event whole: its last day is its new day", async () => {
+    const user = userEvent.setup();
+    draw();
+    const p = await inPanel(user, "Toolbox talk");
+    await user.click(within(p).getByRole("button", { name: "Edit" }));
+    const form = within(panel()).getByRole("form");
+    await pickDate("Day", "2026-09-28", within(form));
+    mockEdit.mockResolvedValueOnce({ ok: true });
+    await user.click(within(form).getByRole("button", { name: "Save changes" }));
+    expect(mockEdit).toHaveBeenCalledWith(
+      "e1",
+      expect.objectContaining({ startsOn: "2026-09-28", endsOn: "2026-09-28" }),
+      "one",
+    );
+  });
+
+  it("carries a range's last day along when its first day moves past it", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(viewBtn("Month"));
+    for (let i = 0; i < 3; i++) await user.click(screen.getByRole("button", { name: "Later" }));
+    await user.click(screen.getAllByRole("button", { name: /^Christmas shutdown/ })[0]!);
+    await user.click(within(panel()).getByRole("button", { name: "Edit" }));
+    const form = within(panel()).getByRole("form");
+    await pickDate("First day", "2027-01-12", within(form));
+    expect(within(form).getByLabelText("Last day")).toHaveTextContent("12/01/2027");
+    mockEdit.mockResolvedValueOnce({ ok: true });
+    await user.click(within(form).getByRole("button", { name: "Save changes" }));
+    expect(mockEdit).toHaveBeenCalledWith(
+      "e2",
+      expect.objectContaining({ startsOn: "2027-01-12", endsOn: "2027-01-12" }),
+      "one",
+    );
+  });
+
+  /* Enter pressed twice before the form has drawn its first press. */
+  it("sends one change for two presses that land before the form redraws", async () => {
+    const user = userEvent.setup();
+    draw();
+    const p = await inPanel(user, "Toolbox talk");
+    await user.click(within(p).getByRole("button", { name: "Edit" }));
+    mockEdit.mockReturnValue(new Promise(() => {}));
+    const form = within(panel()).getByRole("form");
+    act(() => {
+      fireEvent.submit(form);
+      fireEvent.submit(form);
+    });
+    expect(mockEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives a one-day shutdown a first and last day too, and a lone date of a series no choice of all", async () => {
+    const user = userEvent.setup();
+    const oneDay = eventRow({
+      id: "e6",
+      kind: "shutdown",
+      title: "Stocktake",
+      startsOn: "2026-09-30",
+      endsOn: "2026-09-30",
+      startsAt: null,
+      endsAt: null,
+    });
+    draw(calendar({ events: [ROWS.events[1]!, oneDay, SERIES[0]!] }));
+    await user.click(viewBtn("Month"));
+    await user.click(screen.getByRole("button", { name: /: Stocktake/ }));
+    await user.click(within(panel()).getByRole("button", { name: "Edit" }));
+    expect(within(panel()).getByText("First day")).toBeInTheDocument();
+    expect(within(panel()).getByText("Last day")).toBeInTheDocument();
+    await user.click(within(panel()).getByRole("button", { name: "Cancel" }));
+
+    // a series with one date on the calendar is one event to the form
+    await user.click(screen.getByRole("button", { name: /: Toolbox talk/ }));
+    await user.click(within(panel()).getByRole("button", { name: "Edit" }));
+    const form = within(panel()).getByRole("form");
+    expect(within(form).getByRole("button", { name: "Save changes" })).toBeInTheDocument();
+    expect(within(form).queryByRole("button", { name: /^Save all/ })).toBeNull();
+    await user.click(within(form).getByRole("button", { name: "Delete event" }));
+    const ask = within(form).getByRole("group", { name: "Delete for good?" });
+    expect(within(ask).getAllByRole("button").map((b) => b.textContent)).toEqual(["Delete event", "Keep"]);
+  });
+
+  /* Month's day cell has an inner box, `.hd-cal-in`; the form once named its
+     fields the same, and the form's rule, later in the sheet, dressed every
+     day cell in Month as a field. jsdom lays nothing out, so nothing else
+     could see it: the classes the form's own block of the sheet declares
+     are the form's alone, worn by nothing outside it in any view. */
+  it("wears classes of its own, which nothing outside it wears in any view", async () => {
+    const user = userEvent.setup();
+    const sheet = readFileSync(join(process.cwd(), "src/app/dashboard/shell.css"), "utf8");
+    const from = sheet.indexOf("/* THE EDIT FORM");
+    const block = sheet.slice(from, sheet.indexOf("/* THE KEY", from)).replace(/\/\*[\s\S]*?\*\//g, "");
+    const own = new Set(
+      [...block.matchAll(/([^{}]+)\{[^{}]*\}/g)]
+        .flatMap((m) => m[1]!.split(","))
+        .map((s) => /^\.fg (?:[a-z]+)?\.([\w-]+)$/.exec(s.trim())?.[1])
+        .filter((c): c is string => !!c),
+    );
+    expect(own.size).toBeGreaterThan(4);
+    const strays = () =>
+      [...own].flatMap((c) =>
+        [...document.getElementsByClassName(c)].filter((el) => !el.closest(".hd-cal-ed")).map(() => c),
+      );
+
+    draw();
+    const p = await inPanel(user, "Toolbox talk");
+    await user.click(within(p).getByRole("button", { name: "Edit" }));
+    const name = within(panel()).getByRole("textbox", { name: "Name" });
+    expect([...name.classList].some((c) => own.has(c))).toBe(true);
+    expect(strays()).toEqual([]);
+    await user.click(viewBtn("Year"));
+    expect(strays()).toEqual([]);
+    await user.click(viewBtn("4 weeks"));
+    expect(strays()).toEqual([]);
+  });
+
   it("asks twice before a delete, with Keep taking focus and backing out", async () => {
     const user = userEvent.setup();
     draw();
@@ -816,6 +971,40 @@ describe("what Tiff put on", () => {
     expect(rangeTitle()).toHaveTextContent("5 Nov");
     const row = within(agenda()).getByRole("button", { name: "Toolbox talk", pressed: true });
     expect(row.closest(".hd-cal-it")).toHaveAttribute("data-fresh");
+  });
+
+  /* His calLand lights every date of it in view (`items.slice(1)…fresh`),
+     and chooses the first: a weekly line shows its weeks lit, and says in
+     4 weeks, which has no panel, that it repeats. */
+  it("lights every date of a repeat it put on, and chooses only the first", async () => {
+    const user = userEvent.setup();
+    const weekly = ["2026-10-06", "2026-10-13", "2026-10-20"].map((d, i) =>
+      eventRow({
+        id: `w${i + 1}`,
+        title: "Van check",
+        startsOn: d,
+        endsOn: d,
+        startsAt: null,
+        endsAt: null,
+        location: null,
+        seriesId: "wk",
+        repeat: { every: "week", day: "tue" },
+      }),
+    );
+    const cal = calendar({ events: [...ROWS.events, ...weekly] });
+    const { rerender } = render(withTiff(null, cal));
+    rerender(withTiff({ noteIds: [], ids: ["w1", "w2", "w3"] }, cal));
+    const rows = within(agenda()).getAllByRole("button", { name: "Van check" });
+    expect(rows).toHaveLength(3);
+    expect(rows.map((b) => b.closest(".hd-cal-it")!.hasAttribute("data-fresh"))).toEqual([true, true, true]);
+    expect(rows.map((b) => b.getAttribute("aria-pressed"))).toEqual(["true", "false", "false"]);
+    expect(rows[0]!.closest(".hd-cal-it")).toHaveTextContent("Every Tuesday.");
+    // and in October's Month, while they are still lit
+    await user.click(viewBtn("Month"));
+    await user.click(screen.getByRole("button", { name: "Later" }));
+    expect(rangeTitle()).toHaveTextContent("October");
+    const cells = screen.getAllByRole("button", { name: /: Van check/ });
+    expect(cells.filter((b) => b.hasAttribute("data-fresh"))).toHaveLength(3);
   });
 
   it("lets go of what never reaches the calendar, and lands the next thing that does", () => {

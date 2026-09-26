@@ -21,7 +21,8 @@ import type { CalItem, CompanyCalendar } from "@/lib/calendar/items";
    this one" and "Save all 11", as its delete is "Delete this one" and
    "Delete all 11". All of them changes what every date says; the day moves
    only for this one, because each date is its rule's (app/actions/calendar
-   `editCalendarEvent`).
+   `editCalendarEvent`). The number is the dates the calendar shows, and
+   all is exactly those: the server holds "all" to the same twelve months.
 
    A DELETE ASKS TWICE. "Delete event" never deletes: it swaps the buttons
    for the question and the choice, and Keep, which takes focus, so a second
@@ -150,7 +151,7 @@ export function CalEdit({
         <span>Name</span>
         <input
           ref={first}
-          className="hd-cal-in"
+          className="hd-cal-fi"
           value={name}
           maxLength={120}
           onChange={(e) => setName(e.target.value)}
@@ -161,7 +162,7 @@ export function CalEdit({
         <label className="hd-cal-edf">
           <span>{ranged ? "First day" : "Day"}</span>
           <DateField
-            className="hd-cal-in"
+            className="hd-cal-fi"
             value={day}
             today={frame.today}
             min={frame.windowStart}
@@ -177,7 +178,7 @@ export function CalEdit({
           <label className="hd-cal-edf">
             <span>Last day</span>
             <DateField
-              className="hd-cal-in"
+              className="hd-cal-fi"
               value={last}
               today={frame.today}
               min={day}
@@ -192,25 +193,25 @@ export function CalEdit({
         <div className="hd-cal-edr">
           <label className="hd-cal-edf">
             <span>From</span>
-            <input className="hd-cal-in" type="time" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <input className="hd-cal-fi" type="time" value={from} onChange={(e) => setFrom(e.target.value)} />
           </label>
           <label className="hd-cal-edf">
             <span>To</span>
-            <input className="hd-cal-in" type="time" value={to} onChange={(e) => setTo(e.target.value)} />
+            <input className="hd-cal-fi" type="time" value={to} onChange={(e) => setTo(e.target.value)} />
           </label>
         </div>
       )}
       <label className="hd-cal-edf">
         <span>Where</span>
-        <input className="hd-cal-in" value={where} maxLength={120} onChange={(e) => setWhere(e.target.value)} />
+        <input className="hd-cal-fi" value={where} maxLength={120} onChange={(e) => setWhere(e.target.value)} />
       </label>
       <label className="hd-cal-edf">
         <span>Who</span>
-        <input className="hd-cal-in" value={who} maxLength={80} onChange={(e) => setWho(e.target.value)} />
+        <input className="hd-cal-fi" value={who} maxLength={80} onChange={(e) => setWho(e.target.value)} />
       </label>
       <label className="hd-cal-edf">
         <span>Note</span>
-        <textarea className="hd-cal-in" rows={3} value={note} maxLength={2000} onChange={(e) => setNote(e.target.value)} />
+        <textarea className="hd-cal-fi" rows={3} value={note} maxLength={2000} onChange={(e) => setNote(e.target.value)} />
       </label>
 
       {/* Two rows, never one row reused: a button that stayed in the DOM

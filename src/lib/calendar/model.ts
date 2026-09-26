@@ -70,7 +70,8 @@ export type CalItem = {
   timeEnd?: string | null;
   /** The agenda and rail line under the title: "From Assets.", "The yard." */
   sub?: string | null;
-  /** The panel's sentence: "The rego on TC22BJ runs out on Tue 20 Oct." */
+  /** The panel's sentence: "The rego on TC22BJ runs out on Tue 20 Oct." Null
+      says there is none; left out, the line under the title stands in. */
   description?: string | null;
   facts?: ReadonlyArray<readonly [string, string]>;
   action?: CalAction | null;
@@ -877,7 +878,7 @@ export function detail<T extends CalItem>(x: T, items: readonly T[], frame: CalF
   }
   return {
     ...base,
-    description: x.description ?? x.sub ?? null,
+    description: x.description !== undefined ? x.description : (x.sub ?? null),
     facts: (x.facts ?? []).map(([k, v]): [string, string] => [k, v]),
   };
 }

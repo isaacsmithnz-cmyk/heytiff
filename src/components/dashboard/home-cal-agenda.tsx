@@ -30,8 +30,8 @@ export function CalAgenda({
 }: {
   rows: AgendaRow<CalItem>[];
   selected: string | null;
-  /** Just saved: lit for a moment. */
-  fresh: string | null;
+  /** Just saved, or just put on by Tiff (every date of it): lit for a moment. */
+  fresh: readonly string[] | null;
   onPick: Pick;
 }) {
   return (
@@ -81,7 +81,7 @@ function Day({
 }: {
   day: AgendaDay<CalItem>;
   selected: string | null;
-  fresh: string | null;
+  fresh: readonly string[] | null;
   onPick: Pick;
 }) {
   return (
@@ -105,7 +105,7 @@ function Day({
             key={l.item.id}
             line={l}
             on={l.item.id === selected}
-            fresh={l.item.id === fresh}
+            fresh={!!fresh?.includes(l.item.id)}
             onPick={onPick}
           />
         ))}

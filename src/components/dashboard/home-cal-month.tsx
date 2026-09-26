@@ -34,7 +34,7 @@ import { CalSwatch, type Pick } from "./home-cal-parts";
 const DAY_HEAD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const flex = (column: number): CSSProperties => ({ flex: `${MONTH_WEIGHTS[column]} 1 0px` });
 
-type Picks = { selected: string | null; fresh: string | null; onPick: Pick };
+type Picks = { selected: string | null; fresh: readonly string[] | null; onPick: Pick };
 
 export function CalMonth({
   weeks,
@@ -153,7 +153,7 @@ function Cell({ cell: c, lanes, selected, fresh, onPick }: { cell: MonthCell<Cal
                 className="hd-cal-mi"
                 data-c={m.item.cat}
                 data-late={m.overdue ? "" : undefined}
-                data-fresh={m.item.id === fresh ? "" : undefined}
+                data-fresh={fresh?.includes(m.item.id) ? "" : undefined}
                 aria-pressed={m.item.id === selected}
                 aria-label={`${fmtDay(c.day)}: ${m.title}${m.meta ? `, ${m.meta}` : ""}`}
                 title={m.meta ? `${m.title}, ${m.meta}` : m.title}

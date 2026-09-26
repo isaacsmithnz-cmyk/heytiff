@@ -44,8 +44,11 @@ function compile(file: string) {
 describe.each(FILES)("%s", (file) => {
   const { code, events } = compile(file);
 
-  it("compiles every component and hook in it, with none refused", () => {
-    const refused = events.filter((e) => e.kind !== "CompileSuccess" && e.kind !== "CompileSkip");
+  /* A skip is a refusal too: `"use no memo"` on one small part (a Month
+     cell, an agenda line) is reported as a skip, and that part then runs
+     without its memoisation on every pick. */
+  it("compiles every component and hook in it, with none refused or skipped", () => {
+    const refused = events.filter((e) => e.kind !== "CompileSuccess");
     expect(refused.map((e) => `${e.kind} ${e.fnName ?? ""}`)).toEqual([]);
     expect(events.some((e) => e.kind === "CompileSuccess")).toBe(true);
   });

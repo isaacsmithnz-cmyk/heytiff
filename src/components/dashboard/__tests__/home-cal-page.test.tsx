@@ -347,6 +347,37 @@ describe("one choice across the views", () => {
     expect(within(agenda()).getByRole("button", { name: "Labour Day" })).toHaveAttribute("aria-pressed", "true");
   });
 
+  /* "Pick something in any view and every view shows it": 4 weeks' row is
+     filled, Month's item and every week's piece of a bar are pressed, and
+     so is Year's day — and only the one chosen. */
+  it("draws the one choice in every view: 4 weeks' row, Month's item and bar, and Year's day", async () => {
+    const user = userEvent.setup();
+    draw();
+    const talkRow = () => within(agenda()).getByRole("button", { name: "Toolbox talk" }).closest(".hd-cal-it");
+    await user.click(within(agenda()).getByRole("button", { name: "Toolbox talk" }));
+    expect(talkRow()).toHaveAttribute("data-sel");
+
+    await user.click(viewBtn("Month"));
+    await user.click(screen.getByRole("button", { name: "Later" }));
+    expect(screen.getByRole("button", { name: /^Thu 1 Oct: Toolbox talk/ })).toHaveAttribute("aria-pressed", "true");
+    const bar = "School holidays, Mon 28 Sept – Fri 9 Oct";
+    expect(screen.getAllByRole("button", { name: bar })).toHaveLength(2);
+    for (const b of screen.getAllByRole("button", { name: bar })) expect(b).toHaveAttribute("aria-pressed", "false");
+    await user.click(screen.getAllByRole("button", { name: bar })[0]!);
+    for (const b of screen.getAllByRole("button", { name: bar })) expect(b).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /^Thu 1 Oct: Toolbox talk/ })).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(viewBtn("Year"));
+    const labour = () => screen.getByRole("button", { name: "Mon 5 Oct: Labour Day, School holidays" });
+    expect(labour()).toHaveAttribute("aria-pressed", "false");
+    await user.click(labour());
+    expect(labour()).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(viewBtn("4 weeks"));
+    expect(within(agenda()).getByRole("button", { name: "Labour Day" }).closest(".hd-cal-it")).toHaveAttribute("data-sel");
+    expect(talkRow()).not.toHaveAttribute("data-sel");
+  });
+
   it("picks a holiday by its date in Month, and the school holidays by their bar", async () => {
     const user = userEvent.setup();
     draw();
@@ -483,7 +514,7 @@ describe("Save", () => {
     }
   });
 
-  it("stops lighting what landed after the list's flash", async () => {
+  it("lights what landed for his 2.4 s (calFresh), then leaves it chosen", async () => {
     jest.useFakeTimers();
     try {
       const { rerender } = draw();
@@ -511,7 +542,11 @@ describe("Save", () => {
       const it = () => screen.getByRole("button", { name: "Team barbecue" }).closest(".hd-cal-it");
       expect(it()).toHaveAttribute("data-fresh");
       act(() => {
-        jest.advanceTimersByTime(1600);
+        jest.advanceTimersByTime(2399);
+      });
+      expect(it()).toHaveAttribute("data-fresh");
+      act(() => {
+        jest.advanceTimersByTime(1);
       });
       expect(it()).not.toHaveAttribute("data-fresh");
       expect(screen.getByRole("button", { name: "Team barbecue" })).toHaveAttribute("aria-pressed", "true");
@@ -547,14 +582,51 @@ describe("Save", () => {
   });
 });
 
+/* HIS MOTION (calSwap, calPick, calChip, calLand), laid out by hand: every
+   animation the page starts is recorded with its keyframes and options,
+   and while `gate` is set a fade out holds until the test opens it, so
+   what the page draws in between can be seen. */
 describe("motion", () => {
   const real = Element.prototype.animate;
-  let runs: Element[] = [];
+  type Run = { el: Element; kf: Keyframe[]; opt: KeyframeAnimationOptions; cancelled: boolean };
+  let runs: Run[] = [];
+  let gate: { promise: Promise<void>; open: () => void } | null = null;
+  const hold = () => {
+    let open!: () => void;
+    const promise = new Promise<void>((r) => {
+      open = r;
+    });
+    gate = { promise, open };
+  };
+  const release = () =>
+    act(async () => {
+      gate?.open();
+      gate = null;
+    });
+  /** Each run as `class:kind` — out, in (rising or not) or grow. */
+  const said = () =>
+    runs.map(({ el, kf }) => {
+      const kind =
+        kf[0]!.height !== undefined
+          ? "grow"
+          : kf[0]!.opacity === 1
+            ? "out"
+            : `in${kf[0]!.transform === "translateY(4px)" ? " rising" : ""}`;
+      return `${el.classList[0]}:${kind}`;
+    });
   beforeEach(() => {
     runs = [];
-    Element.prototype.animate = function (this: Element) {
-      runs.push(this);
-      return { finished: Promise.resolve(), cancel: () => {} } as unknown as Animation;
+    gate = null;
+    Element.prototype.animate = function (this: Element, kf: Keyframe[], opt: KeyframeAnimationOptions) {
+      const r: Run = { el: this, kf, opt, cancelled: false };
+      runs.push(r);
+      const out = opt?.fill === "forwards";
+      return {
+        finished: out && gate ? gate.promise : Promise.resolve(),
+        cancel: () => {
+          r.cancelled = true;
+        },
+      } as unknown as Animation;
     } as typeof Element.prototype.animate;
     window.matchMedia = ((q: string) => ({ matches: false, media: q })) as typeof window.matchMedia;
   });
@@ -563,15 +635,32 @@ describe("motion", () => {
     delete (window as { matchMedia?: unknown }).matchMedia;
   });
 
-  it("fades a view, a step and a pick in for a pointer, and not for a key", async () => {
+  it("swaps a view, a step and a pick for a pointer as he does: out on --t-fast, then in over 180 ms rising 4px; and not for a key", async () => {
     const user = userEvent.setup();
     draw();
     await user.click(viewBtn("Month"));
-    expect(runs.map((el) => el.className)).toEqual(["hd-cal-body"]);
+    expect(said()).toEqual(["hd-cal-body:out", "hd-cal-body:in rising"]);
+    const [out, fin] = runs;
+    expect(out!.opt).toMatchObject({ duration: 120, easing: "ease-out", fill: "forwards" });
+    expect(fin!.opt).toMatchObject({ duration: 180, easing: "ease-out", fill: "backwards" });
+    expect(fin!.kf).toEqual([
+      { opacity: 0, transform: "translateY(4px)" },
+      { opacity: 1, transform: "none" },
+    ]);
+    // the fade out held the old view at nothing until the new one came in, and is taken off as it does
+    expect(out!.cancelled).toBe(true);
     await user.click(screen.getByRole("button", { name: "School holidays, Mon 28 Sept – Fri 9 Oct" }));
     await user.click(screen.getByRole("button", { name: "Later" }));
     await user.click(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day" }));
-    expect(runs.map((el) => el.className)).toEqual(["hd-cal-body", "hd-cal-body", "hd-cal-dx"]);
+    expect(said()).toEqual([
+      "hd-cal-body:out",
+      "hd-cal-body:in rising",
+      "hd-cal-body:out",
+      "hd-cal-body:in rising",
+      "hd-cal-dx:out",
+      "hd-cal-dx:in rising",
+    ]);
+    expect(runs[4]!.cancelled).toBe(true);
 
     runs = [];
     viewBtn("Year").focus();
@@ -597,13 +686,158 @@ describe("motion", () => {
     expect(runs).toEqual([]);
   });
 
-  it("fades the view once when a pointer brings the panel up, not the panel over it", async () => {
+  it("swaps the view once when a pointer brings the panel up, not the panel over it", async () => {
     const user = userEvent.setup();
     draw();
     await user.click(within(agenda()).getByRole("button", { name: "Toolbox talk" }));
     runs = [];
     await user.click(viewBtn("Month"));
-    expect(runs.map((el) => el.className)).toEqual(["hd-cal-body"]);
+    expect(said()).toEqual(["hd-cal-body:out", "hd-cal-body:in rising"]);
+  });
+
+  /* His calChrome: the toolbar says where you are going at once, and the
+     body follows once it has faded out. */
+  it("says where a pointer is going at once, and draws it once the view has faded out", async () => {
+    const user = userEvent.setup();
+    draw();
+    hold();
+    await user.click(viewBtn("Month"));
+    expect(viewBtn("Month")).toHaveAttribute("aria-pressed", "true");
+    expect(rangeTitle()).toHaveTextContent("September 2026");
+    expect(agenda()).toBeInTheDocument();
+    expect(said()).toEqual(["hd-cal-body:out"]);
+    await release();
+    expect(document.querySelector(".hd-cal-mg")).toBeInTheDocument();
+    expect(document.querySelector(".hd-cal-ag")).toBeNull();
+    expect(said()).toEqual(["hd-cal-body:out", "hd-cal-body:in rising"]);
+  });
+
+  /* His calPick: the views show the pick at once; the panel fades out what
+     it showed, and then fades the pick in. */
+  it("shows a pointer's pick in the view at once, and in the panel once the panel has faded out", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(viewBtn("Month"));
+    await user.click(screen.getByRole("button", { name: "Later" }));
+    runs = [];
+    hold();
+    const labour = screen.getByRole("button", { name: "Mon 5 Oct: Labour Day" });
+    await user.click(labour);
+    expect(labour).toHaveAttribute("aria-pressed", "true");
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("School holidays");
+    expect(said()).toEqual(["hd-cal-dx:out"]);
+    await release();
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Labour Day");
+    expect(said()).toEqual(["hd-cal-dx:out", "hd-cal-dx:in rising"]);
+  });
+
+  /* Anything pressed while a fade is on its way lands it first, so a key
+     is never drawn from what was about to change, and nothing fades for it. */
+  it("lands a pointer's swap at once when a key presses on, and fades nothing for the key", async () => {
+    const user = userEvent.setup();
+    draw();
+    hold();
+    await user.click(viewBtn("Month"));
+    const out = runs[0]!;
+    viewBtn("Year").focus();
+    await user.keyboard("{Enter}");
+    expect(out.cancelled).toBe(true);
+    expect(rangeTitle()).toHaveTextContent("Sept 2026 – Aug 2027");
+    expect(document.querySelector(".hd-cal-yg")).toBeInTheDocument();
+    await release();
+    expect(document.querySelector(".hd-cal-yg")).toBeInTheDocument();
+    expect(said()).toEqual(["hd-cal-body:out"]);
+  });
+
+  /* His calChip: a filter turned off fades its things out, then the view
+     closes up; turned back on, they are drawn and fade in where they stand. */
+  it("fades a filter's things out before the view closes up, and back in where they stand, for a pointer", async () => {
+    const user = userEvent.setup();
+    draw();
+    const talk = () => within(agenda()).queryByRole("button", { name: "Toolbox talk" });
+    const row = talk()!.closest(".hd-cal-it")!;
+    hold();
+    await user.click(filter(/^Events/));
+    expect(filter(/^Events/)).toHaveAttribute("aria-pressed", "false");
+    // still drawn while it fades, and nothing else of another kind fades with it
+    expect(talk()).toBeInTheDocument();
+    expect(runs.map((r) => r.el)).toContain(row);
+    for (const r of runs) {
+      expect(r.kf[0]).toEqual({ opacity: 1 });
+      expect(r.el.matches('[data-c="event"]') || r.el.querySelector('[data-c="event"]')).toBeTruthy();
+      expect(r.el.closest(".hd-cal-det")).toBeNull();
+    }
+    const outs = [...runs];
+    await release();
+    expect(talk()).toBeNull();
+    expect(outs.every((r) => r.cancelled)).toBe(true);
+
+    runs = [];
+    await user.click(filter(/^Events/));
+    const back = talk()!.closest(".hd-cal-it")!;
+    expect(runs.map((r) => r.el)).toContain(back);
+    for (const r of runs) {
+      expect(r.kf).toEqual([
+        { opacity: 0, transform: "translateY(0px)" },
+        { opacity: 1, transform: "none" },
+      ]);
+      expect(r.opt).toMatchObject({ duration: 180 });
+    }
+
+    runs = [];
+    filter(/^Events/).focus();
+    await user.keyboard("{Enter}");
+    expect(talk()).toBeNull();
+    filter(/^Events/).focus();
+    await user.keyboard("{Enter}");
+    expect(talk()).toBeInTheDocument();
+    expect(runs).toEqual([]);
+  });
+
+  /* The choice a filter leaves is made once its things have gone: until
+     then the panel shows what it showed. */
+  it("moves the choice off what a filter hides only once its things have faded", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(viewBtn("Month"));
+    await user.click(screen.getByRole("button", { name: "Later" }));
+    await user.click(screen.getByRole("button", { name: /^Thu 1 Oct: Toolbox talk/ }));
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Toolbox talk");
+    hold();
+    await user.click(filter(/^Events/));
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Toolbox talk");
+    await release();
+    expect(within(panel()).getByRole("heading", { level: 3 })).not.toHaveTextContent("Toolbox talk");
+    expect(screen.queryByRole("button", { name: /^Thu 1 Oct: Toolbox talk/ })).toBeNull();
+  });
+
+  /* His calLand: what Save lands grows in over 280 ms as it is lit — when
+     Save was pressed with a pointer. From the keyboard it is lit, and
+     still. */
+  it("grows in what a pointer's Save landed, and not what a key's did", async () => {
+    const landed = { ...ROWS.events[0]!, id: "e9", title: "Team barbecue", startsOn: TODAY, endsOn: TODAY, startsAt: null, endsAt: null };
+    const saveBy = async (how: "pointer" | "key", id: string) => {
+      const { rerender, unmount } = draw();
+      const add = document.querySelector<HTMLElement>(".hd-cal-add")!;
+      if (how === "pointer") add.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      else add.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      mockAdd.mockResolvedValueOnce({ ok: true, id, day: TODAY });
+      await act(async () => {
+        await box!.save("Team barbecue");
+      });
+      runs = [];
+      rerender(<HomeCalendarPage cal={calendar({ events: [...ROWS.events, { ...landed, id }] })} />);
+      const row = within(agenda()).getByRole("button", { name: "Team barbecue" }).closest(".hd-cal-it")!;
+      expect(row).toHaveAttribute("data-fresh");
+      const grew = runs.filter((r) => r.el === row);
+      unmount();
+      return grew;
+    };
+    const grew = await saveBy("pointer", "e9");
+    expect(grew).toHaveLength(1);
+    expect(grew[0]!.kf[0]).toEqual({ height: "0px", marginTop: "0px", paddingTop: "0px", paddingBottom: "0px", opacity: 0 });
+    expect(grew[0]!.opt).toMatchObject({ duration: 280, easing: "ease-out" });
+    expect(await saveBy("key", "e10")).toEqual([]);
   });
 
   it("fades nothing for a key, wherever the key is pressed", async () => {
@@ -639,6 +873,11 @@ describe("motion", () => {
     await user.click(screen.getByRole("button", { name: "Today" }));
     expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Labour Day");
     expect(rangeTitle()).toHaveTextContent("September 2026");
+    await user.click(viewBtn("4 weeks"));
+    await user.click(filter(/^Events/));
+    expect(within(agenda()).queryByRole("button", { name: "Toolbox talk" })).toBeNull();
+    await user.click(filter(/^Events/));
+    expect(within(agenda()).getByRole("button", { name: "Toolbox talk" })).toBeInTheDocument();
     expect(runs).toEqual([]);
   });
 

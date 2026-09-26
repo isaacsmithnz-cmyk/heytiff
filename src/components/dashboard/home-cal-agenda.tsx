@@ -64,7 +64,7 @@ function Week({ week }: { week: AgendaWeek<CalItem> }) {
         {week.tags.map((t) => (
           /* His span tag: a named exemption (law 26), a capsule where the
              law has a word. */
-          <span key={t.item.id} className="hd-cal-tag" data-kind={t.kind}>
+          <span key={t.item.id} className="hd-cal-tag" data-kind={t.kind} data-c={t.item.cat}>
             {t.label}
           </span>
         ))}

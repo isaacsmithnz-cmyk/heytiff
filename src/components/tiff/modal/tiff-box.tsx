@@ -16,12 +16,19 @@ import { useTiff } from "./tiff-context";
 
      Save          the room's own save, the words filed as typed and Tiff
                    not asked: the diary keeps them (`keepWords`), Tasks makes
-                   you a task (`addTask`), the Calendar an event (its writer
-                   comes with the Calendar). The room passes it in; the box
-                   never knows what it writes.
+                   you a task (`addTask`), the Calendar an event on the day
+                   it adds to (`addCalendarEvent`). The room passes it in;
+                   the box never knows what it writes.
      Sort it out   the modal, opened on the words, which are your first turn
-                   and go to Tiff at once. Enter is the same press, in every
-                   room (Isaac's call, 2026-09-25); Save is a click.
+                   and go to Tiff at once.
+
+   ENTER IS SORT IT OUT in the diary and Tasks (Isaac's call, 2026-09-25),
+   and Save a click. The Calendar's box is a calendar's quick add, where
+   Enter puts the words on the day (Isaac, 2026-09-26: "simplify it. how
+   does a calendar normally add things in?"): a room says so with `enter`,
+   and its Sort it out and Tiff button stay as they are. A room that adds
+   to a day says which (`day`), and Tiff is told it with the words, so a
+   line that names no day goes on it rather than her asking.
 
    The words leave the box when something has taken them: Save's writer said
    yes, or the modal opened on them. Anything else leaves them where they
@@ -42,7 +49,21 @@ export type BoxSave = (text: string) => Promise<BoxSaved>;
 /** Said when a save throws rather than answering. */
 export const SAVE_FAILED = "Couldn't save that.";
 
-export function TiffBox({ room, placeholder, save }: { room: TiffRoom; placeholder: string; save: BoxSave }) {
+export function TiffBox({
+  room,
+  placeholder,
+  save,
+  day,
+  enter = "sort",
+}: {
+  room: TiffRoom;
+  placeholder: string;
+  save: BoxSave;
+  /** The day what is said here is for, ISO, when the words name none. */
+  day?: string;
+  /** What Enter presses: Sort it out, or the room's own Save. */
+  enter?: "sort" | "save";
+}) {
   const tiff = useTiff();
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -90,7 +111,7 @@ export function TiffBox({ room, placeholder, save }: { room: TiffRoom; placehold
       comes back to the box, because the button pressed leaves with them. */
   const sort = (from: HTMLElement, keyboard: boolean) => {
     if (!typed || busy.current) return;
-    const opened = tiff.open({ from, words, room, keyboard, back: field.current ?? undefined });
+    const opened = tiff.open({ from, words, room, keyboard, back: field.current ?? undefined, day });
     if (!opened) return;
     setText("");
     setError(null);
@@ -109,11 +130,12 @@ export function TiffBox({ room, placeholder, save }: { room: TiffRoom; placehold
             if (error) setError(null);
           }}
           onKeyDown={(e) => {
-            /* Enter is Sort it out — never mid-word in an input method,
-               where Enter is choosing the word. */
+            /* Enter is Sort it out, or the room's Save — never mid-word in
+               an input method, where Enter is choosing the word. */
             if (e.key !== "Enter" || e.nativeEvent.isComposing || e.keyCode === 229) return;
             e.preventDefault();
-            sort(sortButton.current ?? e.currentTarget, true);
+            if (enter === "save") void onSave();
+            else sort(sortButton.current ?? e.currentTarget, true);
           }}
           placeholder={placeholder}
           aria-label={placeholder.replace(/…$/, "")}
@@ -138,7 +160,7 @@ export function TiffBox({ room, placeholder, save }: { room: TiffRoom; placehold
             </button>
           </>
         ) : (
-          <TiffButton where="box" room={room} />
+          <TiffButton where="box" room={room} day={day} />
         )}
       </div>
       {error && (

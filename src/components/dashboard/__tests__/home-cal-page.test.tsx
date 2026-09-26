@@ -12,12 +12,15 @@ import { TiffContext, type TiffApi, type TiffLanded } from "@/components/tiff/mo
 /* THE CALENDAR, ON SCREEN (H21). The rows, the maths and the words are
    lib/calendar's and have their own suites; every calendar here is built
    by them from rows like the loader's, so what is pinned is what the page
-   does: its own toolbar, one choice and one set of filters across the
-   three views, the rail built from the list's rows, the arrows resting at
-   the twelve months' edges, and Save.
+   does: its own toolbar, one choice — a thing or a day — and one set of
+   filters across the three views, the rail built from the list's rows, the
+   arrows resting at the twelve months' edges, and Save on the day the box
+   names (Home walk, part 2: "simplify it. how does a calendar normally add
+   things in?").
 
-   The box is Tiff's and has its own suite: stubbed here to the one thing
-   the calendar hands it, its room and its Save. The actions are server
+   The box is Tiff's and has its own suite: stubbed here to a field with
+   what the calendar hands it — its room, its words for the day it adds to,
+   that day, what Enter does, and its Save. The actions are server
    functions ("use server" cannot load in jsdom), and the list's rows bring
    the list's along: stubbed, as on the desk. */
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }) }));
@@ -34,15 +37,16 @@ const mockAdd = jest.fn();
 const mockEdit = jest.fn();
 const mockDelete = jest.fn();
 jest.mock("@/app/actions/calendar", () => ({
-  addCalendarEvent: (text: string) => mockAdd(text),
+  addCalendarEvent: (...a: unknown[]) => mockAdd(...a),
   editCalendarEvent: (...a: unknown[]) => mockEdit(...a),
   deleteCalendarEvent: (...a: unknown[]) => mockDelete(...a),
 }));
-let box: { room: string; placeholder: string; save: BoxSave } | null = null;
+type BoxProps = { room: string; placeholder: string; save: BoxSave; day?: string; enter?: "sort" | "save" };
+let box: BoxProps | null = null;
 jest.mock("@/components/tiff/modal/tiff-box", () => ({
-  TiffBox: (p: { room: string; placeholder: string; save: BoxSave }) => {
+  TiffBox: (p: BoxProps) => {
     box = p;
-    return <div data-testid="tiff-box" data-room={p.room} aria-label={p.placeholder} />;
+    return <input data-testid="tiff-box" data-room={p.room} aria-label={p.placeholder} readOnly />;
   },
 }));
 
@@ -126,6 +130,11 @@ const filter = (name: RegExp) =>
 const agenda = () => document.querySelector<HTMLElement>(".hd-cal-ag")!;
 const panel = () => screen.getByRole("complementary", { name: "Details" });
 const rail = () => screen.getByRole("complementary", { name: "Due and holidays ahead" });
+/** What the panel is headed with: a thing's title, or a day in full. */
+const heading = () => within(panel()).getByRole("heading", { level: 3 });
+/** The right-hand column: the box on top, then the rail or the panel. */
+const side = () => document.querySelector<HTMLElement>(".hd-cal-side")!;
+const field = () => screen.getByTestId("tiff-box");
 /** What is in view: the toolbar's heading (the rail's groups are headings too). */
 const rangeTitle = () => document.querySelector<HTMLElement>(".hd-cal-rt")!;
 /** A box on screen, for a layout jsdom does not have. */
@@ -147,12 +156,24 @@ afterEach(() => {
 });
 
 describe("its own toolbar", () => {
-  it("holds the box, in the calendar's room, and 4 weeks | Month | Year, with 4 weeks chosen", () => {
+  /* "simplify it" (2026-09-26): the box's row went, and the toolbar is one
+     row — ‹ ›, what is in view, Today, the filters, and the switch at its
+     end, with the filters, so the two go to another line together. */
+  it("is one row: ‹ ›, what is in view and Today, then the filters, and 4 weeks | Month | Year at its end", () => {
     draw();
-    const head = document.querySelector(".hd-cal-hd")!;
-    expect(within(head as HTMLElement).getByTestId("tiff-box")).toHaveAttribute("data-room", "calendar");
-    expect(box?.placeholder).toBe("Add to the calendar…");
-    expect(within(screen.getByRole("group", { name: "View" })).getAllByRole("button").map((b) => b.textContent)).toEqual([
+    expect(document.querySelector(".hd-cal-hd")).toBeNull();
+    const bars = document.querySelectorAll(".hd-cal-tb");
+    expect(bars).toHaveLength(1);
+    const tb = bars[0] as HTMLElement;
+    expect(within(tb).queryByTestId("tiff-box")).toBeNull();
+    const views = screen.getByRole("group", { name: "View" });
+    const filters = screen.getByRole("group", { name: "Show on the calendar" });
+    expect(tb.contains(views)).toBe(true);
+    // the switch is the row's last thing, beside the filters
+    expect(views.parentElement).toBe(filters.parentElement);
+    expect(filters.nextElementSibling).toBe(views);
+    expect(views.nextElementSibling).toBeNull();
+    expect(within(views).getAllByRole("button").map((b) => b.textContent)).toEqual([
       "4 weeks4 weeks",
       "MonthMonth",
       "YearYear",
@@ -198,6 +219,62 @@ describe("its own toolbar", () => {
     for (let i = 0; i < 11; i++) await user.click(later);
     expect(rangeTitle()).toHaveTextContent("August 2027");
     expect(later).toHaveAttribute("aria-disabled", "true");
+  });
+});
+
+/* THE BOX, at the top of the right-hand column (2026-09-26): over the rail
+   beside 4 weeks and over the panel beside Month and Year, naming the day
+   it adds to. */
+describe("the box", () => {
+  it("stands at the top of the right-hand column in every view, in the calendar's room, and is the same box throughout", async () => {
+    const user = userEvent.setup();
+    draw();
+    const first = field();
+    expect(first).toHaveAttribute("data-room", "calendar");
+    expect(side().firstElementChild).toContainElement(first);
+    expect(side()).toContainElement(rail());
+    for (const v of ["Month", "Year"]) {
+      await user.click(viewBtn(v));
+      expect(side().firstElementChild).toContainElement(field());
+      expect(side()).toContainElement(panel());
+      // the words typed stay with it: it is never drawn again for a view
+      expect(field()).toBe(first);
+    }
+  });
+
+  it("adds to today while nothing is picked, the first thing from today in the panel or not, and Enter saves", async () => {
+    const user = userEvent.setup();
+    draw();
+    expect(field()).toHaveAccessibleName("Add to today…");
+    expect(box).toMatchObject({ day: TODAY, enter: "save" });
+    await user.click(viewBtn("Month"));
+    expect(heading()).toHaveTextContent("School holidays");
+    expect(box).toMatchObject({ placeholder: "Add to today…", day: TODAY });
+  });
+
+  it("names the day picked, or else the first day of the thing picked", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(within(agenda()).getByRole("button", { name: "Toolbox talk" }));
+    expect(field()).toHaveAccessibleName("Add to Thu 1 Oct…");
+    expect(box?.day).toBe("2026-10-01");
+    await user.click(within(agenda()).getByRole("button", { name: "Fri 25 – Sun 27 Sept, nothing on" }));
+    expect(field()).toHaveAccessibleName("Add to Fri 25 Sept…");
+    expect(box?.day).toBe("2026-09-25");
+    await user.click(within(agenda()).getByRole("button", { name: "Thu 24 Sept" }));
+    expect(field()).toHaveAccessibleName("Add to today…");
+  });
+
+  /* The page's own choice is not a day anyone asked to add to — until it
+     is pressed. */
+  it("follows the first thing from today once it is pressed, not before", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(viewBtn("Month"));
+    expect(field()).toHaveAccessibleName("Add to today…");
+    await user.click(screen.getByRole("button", { name: "School holidays, Mon 28 Sept – Fri 9 Oct" }));
+    expect(heading()).toHaveTextContent("School holidays");
+    expect(field()).toHaveAccessibleName("Add to Mon 28 Sept…");
   });
 });
 
@@ -265,6 +342,62 @@ describe("4 weeks", () => {
     await user.keyboard("{Enter}");
     expect(labour).toHaveAttribute("aria-pressed", "true");
     expect(talk).toHaveAttribute("aria-pressed", "false");
+  });
+
+  /* "There's no way to select different days to add different things to
+     them" (2026-09-26): a press on a day's row that is not on one of its
+     things picks the day, through its date, which is its button. */
+  it("picks a day from its row but its things, and from its date with a key", async () => {
+    const user = userEvent.setup();
+    draw();
+    const today = within(agenda()).getByRole("button", { name: "Thu 24 Sept" });
+    expect(today).toHaveAttribute("aria-current", "date");
+    await user.click(within(agenda()).getByText("Nothing on today."));
+    expect(today).toHaveAttribute("aria-pressed", "true");
+    // a press on a thing on a day picks the thing, and the day lets go
+    const talk = within(agenda()).getByRole("button", { name: "Toolbox talk" });
+    await user.click(talk.closest(".hd-cal-it")!.querySelector(".hd-cal-s")!);
+    expect(talk).toHaveAttribute("aria-pressed", "true");
+    expect(today).toHaveAttribute("aria-pressed", "false");
+    const oct1 = within(agenda()).getByRole("button", { name: "Thu 1 Oct" });
+    expect(oct1).toHaveAttribute("aria-pressed", "false");
+    // the day's own date column, around the thing, is the day's
+    await user.click(oct1.closest(".hd-cal-d")!);
+    expect(oct1).toHaveAttribute("aria-pressed", "true");
+    expect(talk).toHaveAttribute("aria-pressed", "false");
+    const mon = within(agenda()).getByRole("button", { name: "Mon 28 Sept" });
+    mon.focus();
+    await user.keyboard("{Enter}");
+    expect(mon).toHaveAttribute("aria-pressed", "true");
+    expect(oct1).toHaveAttribute("aria-pressed", "false");
+    // an admin date's action is its own, and picks nothing
+    const stay = (e: Event) => e.preventDefault();
+    document.addEventListener("click", stay, true);
+    try {
+      await user.click(within(agenda()).getByRole("link", { name: "Renew rego" }));
+      expect(mon).toHaveAttribute("aria-pressed", "true");
+      expect(within(agenda()).getByRole("button", { name: "Tue 20 Oct" })).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      document.removeEventListener("click", stay, true);
+    }
+  });
+
+  it("picks a quiet run's first day from anywhere on it, and leaves a day chosen in it where it is", async () => {
+    const user = userEvent.setup();
+    draw();
+    const run = within(agenda()).getByRole("button", { name: "Fri 25 – Sun 27 Sept, nothing on" });
+    expect(run).toHaveTextContent("25 – 27");
+    await user.click(within(agenda()).getByText("Fri – Sun, nothing on"));
+    expect(run).toHaveAttribute("aria-pressed", "true");
+    expect(field()).toHaveAccessibleName("Add to Fri 25 Sept…");
+    // Sunday, chosen in Month, is in the run: 4 weeks says so, and a press keeps it
+    await user.click(viewBtn("Month"));
+    await user.click(screen.getByRole("button", { name: "Sun 27 Sept" }));
+    await user.click(viewBtn("4 weeks"));
+    const again = within(agenda()).getByRole("button", { name: "Fri 25 – Sun 27 Sept, nothing on" });
+    expect(again).toHaveAttribute("aria-pressed", "true");
+    await user.click(again);
+    expect(field()).toHaveAccessibleName("Add to Sun 27 Sept…");
   });
 });
 
@@ -338,7 +471,7 @@ describe("one choice across the views", () => {
       await user.click(viewBtn("Year"));
       await user.click(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day, School holidays" }));
       await user.click(viewBtn("4 weeks"));
-      expect(within(agenda()).getByRole("button", { name: "Labour Day" })).toHaveAttribute("aria-pressed", "true");
+      expect(within(agenda()).getByRole("button", { name: "Mon 5 Oct" })).toHaveAttribute("aria-pressed", "true");
       expect(agenda().scrollTop).toBe(900 - 100 - 96);
       expect(document.documentElement.scrollTop).toBe(0);
       expect(document.body.scrollTop).toBe(0);
@@ -347,21 +480,29 @@ describe("one choice across the views", () => {
     }
   });
 
-  it("carries the choice on to Year, and back to 4 weeks", async () => {
+  it("carries the choice on to Year, and back to 4 weeks: a thing, and a day", async () => {
     const user = userEvent.setup();
     draw();
+    await user.click(within(agenda()).getByRole("button", { name: "Labour Day" }));
     await user.click(viewBtn("Year"));
-    await user.click(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day, School holidays" }));
-    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Labour Day");
+    expect(heading()).toHaveTextContent("Labour Day");
     expect(panel()).toHaveTextContent("Public holiday in NSW.");
     expect(within(panel()).getByRole("list", { name: "Key" })).toHaveTextContent("Admin overdue");
+    expect(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day, School holidays" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Tue 29 Sept: School holidays" }));
+    expect(heading()).toHaveTextContent("Tuesday 29 September");
     await user.click(viewBtn("4 weeks"));
-    expect(within(agenda()).getByRole("button", { name: "Labour Day" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(agenda()).getByRole("button", { name: "Tue 29 – Wed 30 Sept, nothing on" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(within(agenda()).getByRole("button", { name: "Labour Day" })).toHaveAttribute("aria-pressed", "false");
   });
 
   /* "Pick something in any view and every view shows it": 4 weeks' row is
      filled, Month's item and every week's piece of a bar are pressed, and
-     so is Year's day — and only the one chosen. */
+     so is Year's day — and only the one chosen. A day picked in Year is
+     4 weeks' day, not the holiday on it. */
   it("draws the one choice in every view: 4 weeks' row, Month's item and bar, and Year's day", async () => {
     const user = userEvent.setup();
     draw();
@@ -386,20 +527,37 @@ describe("one choice across the views", () => {
     expect(labour()).toHaveAttribute("aria-pressed", "true");
 
     await user.click(viewBtn("4 weeks"));
-    expect(within(agenda()).getByRole("button", { name: "Labour Day" }).closest(".hd-cal-it")).toHaveAttribute("data-sel");
+    expect(within(agenda()).getByRole("button", { name: "Mon 5 Oct" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(agenda()).getByRole("button", { name: "Labour Day" }).closest(".hd-cal-it")).not.toHaveAttribute("data-sel");
     expect(talkRow()).not.toHaveAttribute("data-sel");
   });
 
-  it("picks a holiday by its date in Month, and the school holidays by their bar", async () => {
+  /* "Today a holiday's date row picks the holiday — now it picks the day,
+     and the day lists the holiday." */
+  it("picks a day by its date row in Month, a holiday's listing the holiday, and the school holidays by their bar", async () => {
     const user = userEvent.setup();
     draw();
     await user.click(viewBtn("Month"));
     await user.click(screen.getByRole("button", { name: "School holidays, Mon 28 Sept – Fri 9 Oct" }));
-    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("School holidays");
+    expect(heading()).toHaveTextContent("School holidays");
     await user.click(screen.getByRole("button", { name: "Later" }));
-    await user.click(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day" }));
-    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Labour Day");
-    expect(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day" })).toHaveAttribute("aria-pressed", "true");
+    const labour = screen.getByRole("button", { name: "Mon 5 Oct: Labour Day" });
+    await user.click(labour);
+    expect(heading()).toHaveTextContent("Monday 5 October");
+    expect(labour).toHaveAttribute("aria-pressed", "true");
+    expect(labour.closest(".hd-cal-mc")).toHaveAttribute("data-picked");
+    expect(within(panel()).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Labour Day",
+      "School holidays",
+    ]);
+    // the holiday, picked from the day, is still the day's date row's
+    await user.click(within(panel()).getByRole("button", { name: "Labour Day" }));
+    expect(heading()).toHaveTextContent("Labour Day");
+    expect(panel()).toHaveTextContent("Public holiday in NSW.");
+    expect(labour).toHaveAttribute("aria-pressed", "true");
+    // and the same row, pressed, picks the day again
+    await user.click(labour);
+    expect(heading()).toHaveTextContent("Monday 5 October");
   });
 
   it("offers its action in the panel: the business's cover opens where it is renewed", async () => {
@@ -413,6 +571,142 @@ describe("one choice across the views", () => {
       "href",
       "/dashboard/admin/organization?sec=credentials",
     );
+  });
+});
+
+/* "If you go into the month view, you can't click on the day for it to
+   show up on the right" (Isaac, 2026-09-26). A day is picked from anywhere
+   in it, and the panel shows the day in full and everything on it. */
+describe("a day, picked", () => {
+  const month = async (user: ReturnType<typeof userEvent.setup>, steps = 0) => {
+    await user.click(viewBtn("Month"));
+    for (let i = 0; i < steps; i++) await user.click(screen.getByRole("button", { name: "Later" }));
+  };
+  /** Month's cell for a day, found by its date row. */
+  const cell = (name: string) => screen.getByRole("button", { name }).closest<HTMLElement>(".hd-cal-mc")!;
+  const listed = () => within(panel()).queryAllByRole("button").map((b) => b.getAttribute("aria-label"));
+
+  it("shows in Month's panel, from a press anywhere in its cell, with everything on it", async () => {
+    const user = userEvent.setup();
+    draw();
+    await month(user, 1);
+    await user.click(cell("Thu 1 Oct"));
+    expect(heading()).toHaveTextContent("Thursday 1 October");
+    expect(listed()).toEqual(["School holidays", "Toolbox talk, 6:45 am"]);
+    expect(screen.getByRole("button", { name: "Thu 1 Oct" })).toHaveAttribute("aria-pressed", "true");
+    expect(cell("Thu 1 Oct")).toHaveAttribute("data-picked");
+    expect(field()).toHaveAccessibleName("Add to Thu 1 Oct…");
+  });
+
+  it('says "Nothing on." for a day with nothing on it', async () => {
+    const user = userEvent.setup();
+    draw();
+    await month(user, 1);
+    await user.click(cell("Wed 14 Oct"));
+    expect(heading()).toHaveTextContent("Wednesday 14 October");
+    expect(within(panel()).getByText("Nothing on.")).toBeInTheDocument();
+    expect(listed()).toEqual([]);
+  });
+
+  it("leaves a thing in the cell to pick itself, and picks the thing from the day's list", async () => {
+    const user = userEvent.setup();
+    draw();
+    await month(user, 1);
+    await user.click(screen.getByRole("button", { name: /^Thu 1 Oct: Toolbox talk/ }));
+    expect(heading()).toHaveTextContent("Toolbox talk");
+    expect(screen.getByRole("button", { name: "Thu 1 Oct" })).toHaveAttribute("aria-pressed", "false");
+    await user.click(cell("Thu 1 Oct"));
+    expect(heading()).toHaveTextContent("Thursday 1 October");
+    // from the list: the panel shows the thing as it always has, and keeps the focus
+    await user.click(within(panel()).getByRole("button", { name: "Toolbox talk, 6:45 am" }));
+    expect(heading()).toHaveTextContent("Toolbox talk");
+    expect(panel()).toHaveTextContent("Thu 1 Oct, 6:45 – 7:15 am");
+    expect(within(panel()).getByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(panel()).toHaveFocus();
+    expect(screen.getByRole("button", { name: /^Thu 1 Oct: Toolbox talk/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  /* A quick add: the caret goes where the words will be typed — for a
+     pointer. A key leaves focus on the day it pressed (law 8's spirit:
+     nothing moves for the keyboard). */
+  it("puts the caret in the box for a pointer, and leaves focus on the day for a key", async () => {
+    const user = userEvent.setup();
+    draw();
+    await month(user, 1);
+    await user.click(cell("Wed 14 Oct"));
+    expect(field()).toHaveFocus();
+    const day = screen.getByRole("button", { name: "Thu 15 Oct" });
+    day.focus();
+    await user.keyboard("{Enter}");
+    expect(heading()).toHaveTextContent("Thursday 15 October");
+    expect(day).toHaveFocus();
+    expect(field()).toHaveAccessibleName("Add to Thu 15 Oct…");
+  });
+
+  it("offers no day outside the twelve months, where Month's whole weeks reach past them", async () => {
+    const user = userEvent.setup();
+    draw();
+    await month(user);
+    // September's first week begins on Mon 31 Aug, before the calendar does
+    const aug31 = document.querySelector<HTMLElement>(".hd-cal-mc[data-out]")!;
+    expect(aug31).toHaveTextContent("31");
+    expect(aug31).not.toHaveAttribute("data-pick");
+    expect(within(aug31).queryByRole("button")).toBeNull();
+    await user.click(aug31);
+    expect(heading()).toHaveTextContent("School holidays");
+    expect(field()).toHaveAccessibleName("Add to today…");
+    // and the days in view of another month that are on it are the calendar's
+    expect(screen.getByRole("button", { name: "Thu 1 Oct" })).toBeInTheDocument();
+  });
+
+  it("is every day of Year, empty or not, each a button that picks the day", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(viewBtn("Year"));
+    const empty = screen.getByRole("button", { name: "Wed 14 Oct" });
+    expect(empty).toHaveAttribute("aria-pressed", "false");
+    await user.click(empty);
+    expect(empty).toHaveAttribute("aria-pressed", "true");
+    expect(heading()).toHaveTextContent("Wednesday 14 October");
+    expect(within(panel()).getByText("Nothing on.")).toBeInTheDocument();
+    expect(field()).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day, School holidays" }));
+    expect(heading()).toHaveTextContent("Monday 5 October");
+    expect(listed()).toEqual(["Labour Day", "School holidays"]);
+    expect(empty).toHaveAttribute("aria-pressed", "false");
+    // today is marked as today, whatever is picked
+    expect(screen.getByRole("button", { name: "Thu 24 Sept" })).toHaveAttribute("aria-current", "date");
+  });
+
+  it("stays picked whatever the filters hide, its list showing what is left", async () => {
+    const user = userEvent.setup();
+    draw();
+    await month(user, 1);
+    await user.click(cell("Thu 1 Oct"));
+    await user.click(filter(/^Events/));
+    expect(heading()).toHaveTextContent("Thursday 1 October");
+    expect(listed()).toEqual(["School holidays"]);
+    await user.click(filter(/^School holidays/));
+    expect(within(panel()).getByText("Nothing on.")).toBeInTheDocument();
+    await user.click(filter(/^Events/));
+    expect(listed()).toEqual(["Toolbox talk, 6:45 am"]);
+    expect(field()).toHaveAccessibleName("Add to Thu 1 Oct…");
+  });
+
+  it("is one choice across the views: a day picked in Month is 4 weeks' and Year's", async () => {
+    const user = userEvent.setup();
+    draw();
+    await month(user, 1);
+    await user.click(cell("Thu 1 Oct"));
+    await user.click(viewBtn("4 weeks"));
+    expect(within(agenda()).getByRole("button", { name: "Thu 1 Oct" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(agenda()).getByRole("button", { name: "Toolbox talk" })).toHaveAttribute("aria-pressed", "false");
+    await user.click(viewBtn("Year"));
+    expect(screen.getByRole("button", { name: "Thu 1 Oct: School holidays, Toolbox talk" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(heading()).toHaveTextContent("Thursday 1 October");
   });
 });
 
@@ -459,7 +753,7 @@ describe("the filters", () => {
 });
 
 describe("Save", () => {
-  it("puts the words on today as typed, and chooses, lights and shows what landed", async () => {
+  it("puts the words on today as typed while nothing is picked, and chooses, lights and shows what landed", async () => {
     const user = userEvent.setup();
     const { rerender } = draw();
     await user.click(filter(/^Events/));
@@ -468,7 +762,7 @@ describe("Save", () => {
     await act(async () => {
       said = await box!.save("Team barbecue");
     });
-    expect(mockAdd).toHaveBeenCalledWith("Team barbecue");
+    expect(mockAdd).toHaveBeenCalledWith("Team barbecue", TODAY);
     expect(said).toEqual({ ok: true });
     // its filter is back on
     expect(filter(/^Events/)).toHaveAttribute("aria-pressed", "true");
@@ -495,6 +789,54 @@ describe("Save", () => {
     expect(row.closest(".hd-cal-it")).toHaveAttribute("data-fresh");
     expect(row.closest(".hd-cal-r")).toHaveAttribute("data-today");
     expect(within(agenda()).queryByText("Nothing on today.")).toBeNull();
+  });
+
+  /* "Click a day and add to that day" (2026-09-26): the day stays picked,
+     with what went on it lit in its list, so the next thing typed goes on
+     the same day. */
+  it("puts the words on the day picked, and keeps the day picked with the new thing lit in its list", async () => {
+    const user = userEvent.setup();
+    const { rerender } = draw();
+    await user.click(viewBtn("Month"));
+    await user.click(screen.getByRole("button", { name: "Later" }));
+    await user.click(screen.getByRole("button", { name: "Wed 14 Oct" }).closest(".hd-cal-mc")!);
+    expect(box).toMatchObject({ placeholder: "Add to Wed 14 Oct…", day: "2026-10-14" });
+    mockAdd.mockResolvedValueOnce({ ok: true, id: "e9", day: "2026-10-14" });
+    await act(async () => {
+      await box!.save("Team barbecue");
+    });
+    expect(mockAdd).toHaveBeenCalledWith("Team barbecue", "2026-10-14");
+    const bbq = eventRow({ id: "e9", title: "Team barbecue", startsOn: "2026-10-14", endsOn: "2026-10-14", startsAt: null, endsAt: null });
+    rerender(<HomeCalendarPage cal={calendar({ events: [...ROWS.events, bbq] })} />);
+    expect(heading()).toHaveTextContent("Wednesday 14 October");
+    const listed = within(panel()).getByRole("button", { name: "Team barbecue" });
+    expect(listed).toHaveAttribute("data-fresh");
+    expect(screen.getByRole("button", { name: "Wed 14 Oct: Team barbecue" })).toHaveAttribute("data-fresh");
+    expect(screen.getByRole("button", { name: "Wed 14 Oct" })).toHaveAttribute("aria-pressed", "true");
+    expect(box).toMatchObject({ placeholder: "Add to Wed 14 Oct…", day: "2026-10-14" });
+    // and the next goes on the same day
+    mockAdd.mockResolvedValueOnce({ ok: true, id: "e10", day: "2026-10-14" });
+    await act(async () => {
+      await box!.save("Van check");
+    });
+    expect(mockAdd).toHaveBeenLastCalledWith("Van check", "2026-10-14");
+    expect(heading()).toHaveTextContent("Wednesday 14 October");
+  });
+
+  it("puts the words on the first day of the thing picked, and chooses what landed", async () => {
+    const user = userEvent.setup();
+    const { rerender } = draw();
+    await user.click(within(agenda()).getByRole("button", { name: "Toolbox talk" }));
+    mockAdd.mockResolvedValueOnce({ ok: true, id: "e9", day: "2026-10-01" });
+    await act(async () => {
+      await box!.save("Ladder check");
+    });
+    expect(mockAdd).toHaveBeenCalledWith("Ladder check", "2026-10-01");
+    const check = eventRow({ id: "e9", title: "Ladder check", startsOn: "2026-10-01", endsOn: "2026-10-01", startsAt: null, endsAt: null });
+    rerender(<HomeCalendarPage cal={calendar({ events: [...ROWS.events, check] })} />);
+    expect(within(agenda()).getByRole("button", { name: "Ladder check" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(agenda()).getByRole("button", { name: "Toolbox talk" })).toHaveAttribute("aria-pressed", "false");
+    expect(field()).toHaveAccessibleName("Add to Thu 1 Oct…");
   });
 
   /* His calLand: what landed is brought into sight, once, as soon as the
@@ -1122,7 +1464,34 @@ describe("motion", () => {
     await user.keyboard("{Enter}");
     screen.getByRole("button", { name: "Thu 1 Oct: School holidays, Toolbox talk" }).focus();
     await user.keyboard("{Enter}");
-    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Toolbox talk");
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Thursday 1 October");
+    expect(runs).toEqual([]);
+  });
+
+  /* A day is a pick like a thing (his calPick): a pointer's fades the panel
+     over to it, a key's is simply there, and 4 weeks, which has no panel,
+     fades nothing either way. */
+  it("fades the panel over to a pointer's day, and to a key's not at all", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(within(agenda()).getByText("Nothing on today."));
+    expect(runs).toEqual([]);
+    await user.click(viewBtn("Month"));
+    await user.click(screen.getByRole("button", { name: "Later" }));
+    runs = [];
+    hold();
+    await user.click(screen.getByRole("button", { name: "Wed 14 Oct" }).closest(".hd-cal-mc")!);
+    expect(screen.getByRole("button", { name: "Wed 14 Oct" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Thursday 24 September");
+    expect(said()).toEqual(["hd-cal-dx:out"]);
+    await release();
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Wednesday 14 October");
+    expect(said()).toEqual(["hd-cal-dx:out", "hd-cal-dx:in rising"]);
+
+    runs = [];
+    screen.getByRole("button", { name: "Thu 15 Oct" }).focus();
+    await user.keyboard("{Enter}");
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Thursday 15 October");
     expect(runs).toEqual([]);
   });
 
@@ -1180,7 +1549,7 @@ describe("motion", () => {
     expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("School holidays");
     expect(said()).toEqual(["hd-cal-dx:out"]);
     await release();
-    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Labour Day");
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Monday 5 October");
     expect(said()).toEqual(["hd-cal-dx:out", "hd-cal-dx:in rising"]);
   });
 
@@ -1307,11 +1676,18 @@ describe("motion", () => {
     expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("School holidays");
     await press(screen.getByRole("button", { name: "Later" }));
     await press(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day" }));
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Monday 5 October");
+    await press(within(panel()).getByRole("button", { name: "Labour Day" }));
     expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Labour Day");
     await press(screen.getByRole("button", { name: /^Thu 1 Oct: Toolbox talk/ }));
     expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Toolbox talk");
     await press(screen.getByRole("button", { name: "Today" }));
     expect(rangeTitle()).toHaveTextContent("September 2026");
+    await press(viewBtn("Year"));
+    await press(screen.getByRole("button", { name: "Wed 14 Oct" }));
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Wednesday 14 October");
+    await press(viewBtn("4 weeks"));
+    await press(within(agenda()).getByRole("button", { name: "Fri 25 – Sun 27 Sept, nothing on" }));
     expect(runs).toEqual([]);
   });
 
@@ -1323,6 +1699,7 @@ describe("motion", () => {
     await user.click(screen.getByRole("button", { name: "School holidays, Mon 28 Sept – Fri 9 Oct" }));
     await user.click(screen.getByRole("button", { name: "Later" }));
     await user.click(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day" }));
+    await user.click(within(panel()).getByRole("button", { name: "Labour Day" }));
     await user.click(screen.getByRole("button", { name: "Today" }));
     expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Labour Day");
     expect(rangeTitle()).toHaveTextContent("September 2026");

@@ -826,13 +826,32 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
     expect(lowest(ink(sel), grounds)).toBeGreaterThanOrEqual(4.5);
   });
 
+  /* A day's date is its button (2026-09-26): lit under the pointer and
+     filled while the day is chosen, on paper or on a holiday's row in the
+     holiday's own tints; a quiet run's dates the same, on paper. */
+  const DAY_LIT = '.fg .hd-cal-r:hover:not(:has(.hd-cal-it:hover)) .hd-cal-day:not([aria-pressed="true"])';
+  const QUIET_LIT = '.fg .hd-cal-r:hover .hd-cal-qd:not([aria-pressed="true"])';
+  const HOL_DAY_LIT = '.fg .hd-cal-r[data-holiday]:hover:not(:has(.hd-cal-it:hover)) .hd-cal-day:not([aria-pressed="true"])';
+  const DAY_ON = '.fg .hd-cal-day[aria-pressed="true"]';
+  const QUIET_ON = '.fg .hd-cal-qd[aria-pressed="true"]';
+  const HOL_DAY_ON = '.fg .hd-cal-r[data-holiday] .hd-cal-day[aria-pressed="true"]';
+  const dayButton = () => [PAPER, fill(DAY_LIT), fill(DAY_ON)];
+  const holidayButton = () => {
+    const row = fill(".fg .hd-cal-r[data-holiday]");
+    return [row, fill(HOL_DAY_LIT, row), fill(HOL_DAY_ON, row)];
+  };
+
   it.each([
     ["a week's dates", ".fg .hd-cal-wkr", () => [PAPER]],
-    ["a weekday", ".fg .hd-cal-dw", () => [PAPER, fill(".fg .hd-cal-r[data-holiday]")]],
-    ["a weekend's date", ".fg .hd-cal-r[data-weekend] .hd-cal-dn", () => [PAPER]],
-    ["a holiday's date", ".fg .hd-cal-r[data-holiday] .hd-cal-dn", () => [fill(".fg .hd-cal-r[data-holiday]")]],
+    ["a weekday, at rest, lit and chosen", ".fg .hd-cal-dw", () => [...dayButton(), ...holidayButton()]],
+    ["a weekend's date, at rest, lit and chosen", ".fg .hd-cal-r[data-weekend] .hd-cal-dn", dayButton],
+    ["a holiday's date, at rest, lit and chosen", ".fg .hd-cal-r[data-holiday] .hd-cal-dn", holidayButton],
     ["Today, on today's row and on a public holiday's", ".fg .hd-cal-tl", () => [PAPER, fill(".fg .hd-cal-r[data-holiday]")]],
-    ["a quiet run's days", '.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-d', () => [PAPER]],
+    [
+      "a quiet run's days, at rest, lit and chosen",
+      '.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-d',
+      () => [PAPER, fill(QUIET_LIT), fill(QUIET_ON)],
+    ],
     ["a quiet run", '.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-c', () => [PAPER]],
     ["a long weekend", '.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-c[data-long]', () => [PAPER]],
     ["Nothing on today", ".fg .hd-cal-none", () => [PAPER]],
@@ -862,31 +881,37 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
     expect(lowest(ink(sel), grounds())).toBeGreaterThanOrEqual(4.5);
   });
 
+  /* A day's date row is its button (2026-09-26), lit under the pointer
+     anywhere in its cell and filled while the day is chosen: on paper or a
+     weekend's cell, a chosen weekend standing on paper; on a holiday's, in
+     the holiday's own tints. */
+  const ROW_LIT = ".fg .hd-cal-mc[data-pick]:not([data-picked]):hover:not(:has(.hd-cal-mi:hover)) .hd-cal-dr";
+  const HOL_ROW_LIT = ".fg .hd-cal-mc[data-holiday][data-pick]:not([data-picked]):hover:not(:has(.hd-cal-mi:hover)) .hd-cal-dr";
+  const ROW_ON = ".fg .hd-cal-mc[data-picked] .hd-cal-dr";
+  const HOL_ROW_ON = ".fg .hd-cal-mc[data-holiday][data-picked] .hd-cal-dr";
+  const dateRow = () => {
+    const we = fill(".fg .hd-cal-mc[data-weekend]");
+    const weOn = fill(".fg .hd-cal-mc[data-weekend][data-picked]");
+    return [PAPER, we, fill(ROW_LIT), fill(ROW_LIT, we), fill(ROW_ON), fill(ROW_ON, weOn)];
+  };
+  const weekendRow = () => {
+    const we = fill(".fg .hd-cal-mc[data-weekend]");
+    return [we, fill(ROW_LIT, we), fill(ROW_ON, fill(".fg .hd-cal-mc[data-weekend][data-picked]"))];
+  };
+  const holidayRow = () => {
+    const hol = fill(".fg .hd-cal-mc[data-holiday]");
+    return [hol, fill(HOL_ROW_LIT, hol), fill(HOL_ROW_ON, hol)];
+  };
+
   it.each([
     ["a weekday's head", ".fg .hd-cal-mh span", () => [PAPER]],
-    ["a date", ".fg .hd-cal-dr", () => [PAPER]],
-    ["a weekend's date", ".fg .hd-cal-mc[data-weekend] .hd-cal-drn", () => [fill(".fg .hd-cal-mc[data-weekend]")]],
-    ["a date in another month", ".fg .hd-cal-mc[data-out] .hd-cal-drn", () => [PAPER, fill(".fg .hd-cal-mc[data-weekend]")]],
-    [
-      "a holiday's date, at rest, under the pointer and chosen",
-      ".fg .hd-cal-mc[data-holiday] .hd-cal-drn",
-      () => [
-        fill(".fg .hd-cal-mc[data-holiday]"),
-        fill(".fg button.hd-cal-dr:hover"),
-        fill('.fg button.hd-cal-dr[aria-pressed="true"]'),
-      ],
-    ],
-    [
-      "a holiday's name",
-      '.fg .hd-cal-drm[data-kind="holiday"]',
-      () => [
-        fill(".fg .hd-cal-mc[data-holiday]"),
-        fill(".fg button.hd-cal-dr:hover"),
-        fill('.fg button.hd-cal-dr[aria-pressed="true"]'),
-      ],
-    ],
-    ["the month's name", ".fg .hd-cal-drm", () => [PAPER, fill(".fg .hd-cal-mc[data-weekend]")]],
-    ["Today, in its cell", '.fg .hd-cal-drm[data-kind="today"]', () => [PAPER, fill(".fg .hd-cal-mc[data-weekend]")]],
+    ["a date, at rest, lit and chosen", ".fg .hd-cal-dr", dateRow],
+    ["a weekend's date, at rest, lit and chosen", ".fg .hd-cal-mc[data-weekend] .hd-cal-drn", weekendRow],
+    ["a date in another month, at rest, lit and chosen", ".fg .hd-cal-mc[data-out] .hd-cal-drn", dateRow],
+    ["a holiday's date, at rest, lit and chosen", ".fg .hd-cal-mc[data-holiday] .hd-cal-drn", holidayRow],
+    ["a holiday's name, at rest, lit and chosen", '.fg .hd-cal-drm[data-kind="holiday"]', holidayRow],
+    ["the month's name, at rest, lit and chosen", ".fg .hd-cal-drm", dateRow],
+    ["Today, in its cell, at rest, lit and chosen", '.fg .hd-cal-drm[data-kind="today"]', dateRow],
     ["an event's bar", ".fg .hd-cal-bar", () => [fill(".fg .hd-cal-bar")]],
     ["the school holidays' bar", '.fg .hd-cal-bar[data-kind="school"]', hatch],
   ])("Month: %s", (_label, sel, grounds) => {
@@ -922,8 +947,14 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
     ["a month gone by", ".fg .hd-cal-ymt[data-past]", () => [PAPER]],
     ["a month's holidays", ".fg .hd-cal-ymn", () => [PAPER]],
     ["a day's letter", ".fg .hd-cal-ydl", () => [PAPER]],
-    ["a day", ".fg .hd-cal-yc", () => [PAPER]],
-    ["a weekend day, and a day gone by", ".fg .hd-cal-yc[data-past]", () => [PAPER]],
+    /* Every day is a button now (2026-09-26): one with nothing on it answers
+       the pointer with the hover's tint. */
+    ["a day, at rest and under the pointer", ".fg .hd-cal-yc", () => [PAPER, fill(".fg .hd-cal-yc:not([data-fill]):hover")]],
+    [
+      "a weekend day, and a day gone by, at rest and under the pointer",
+      ".fg .hd-cal-yc[data-past]",
+      () => [PAPER, fill(".fg .hd-cal-yc:not([data-fill]):hover")],
+    ],
     ["a day in the school holidays gone by", '.fg .hd-cal-yc[data-fill="school"][data-past]', hatch],
     ["a day in a shutdown", '.fg .hd-cal-yc[data-fill="shutdown"]', () => [fill('.fg .hd-cal-yc[data-fill="shutdown"]')]],
     ["a public holiday", '.fg .hd-cal-yc[data-fill="holiday"]', () => [fill('.fg .hd-cal-yc[data-fill="holiday"]')]],
@@ -953,6 +984,19 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
     ["his capsule, school", '.fg .hd-cal-chip[data-tone="school"]', () => [fill('.fg .hd-cal-chip[data-tone="school"]')]],
     ["a fact's label", ".fg .hd-cal-facts dt", () => [PAPER]],
     ["the action, paper on his ink", ".fg .hd-cal-go", () => [fill(".fg .hd-cal-go")]],
+    /* A day chosen (2026-09-26): its things, each a row, at rest, under the
+       pointer and just added. */
+    [
+      "a thing on the day chosen",
+      ".fg .hd-cal-dli",
+      () => [PAPER, fill(".fg .hd-cal-dli:hover"), fill(".fg .hd-cal-dli[data-fresh]")],
+    ],
+    [
+      "an event's time on the day chosen",
+      ".fg .hd-cal-tm",
+      () => [PAPER, fill(".fg .hd-cal-dli:hover"), fill(".fg .hd-cal-dli[data-fresh]")],
+    ],
+    ["the day chosen, in full", ".fg .hd-cal-dxt", () => [PAPER]],
     /* The edit form (H22), on the panel's paper. */
     ["a field's label", ".fg .hd-cal-edf", () => [PAPER]],
     ["what a field holds", ".fg .hd-cal-fi", () => [fill(".fg .hd-cal-fi")]],

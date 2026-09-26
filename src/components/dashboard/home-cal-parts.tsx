@@ -10,6 +10,8 @@ import type { CalCat, CalItem } from "@/lib/calendar/items";
 /** Where a thing is picked from: a pointer, or a key (law 8: nothing moves
     for a key). */
 export type Pick = (id: string, pointer: boolean) => void;
+/** And a day, by its ISO date: the day the box then adds to. */
+export type PickDay = (day: string, pointer: boolean) => void;
 
 /* HIS MOTION, as the prototype he walked moves it (calSwap, calPick,
    calChip and calLand), for a pointer only and never under reduced motion
@@ -104,6 +106,10 @@ export function actionLink(x: CalItem): { label: string; href: string } | null {
 /* What a press on a row must leave alone: anything that is its own
    control. */
 export const OWN_CONTROL = "a, button, input, select, textarea";
+/* And what a press on a DAY must leave alone: its own controls, and its
+   things, which a press picks for themselves (4 weeks' rows, Month's
+   items). */
+export const OWN_THING = `${OWN_CONTROL}, .hd-cal-it`;
 
 /** Brings a chosen thing into its own scroller's view, near the top, when
     it is out of it. Only the view's own scroller moves: never the page. */

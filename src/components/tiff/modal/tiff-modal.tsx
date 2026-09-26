@@ -59,6 +59,8 @@ export type TiffSession = {
   /** A conversation already had, opened again (./tiff-context). */
   conversation?: readonly EarlierTurn[];
   room?: TiffRoom;
+  /** The day a line that names none goes on (./tiff-context). */
+  day?: string;
   openerId: string | null;
   /** Reduced motion: nothing travels and no wait is held. */
   still: boolean;
@@ -102,6 +104,7 @@ export function TiffModal({
       words: session.words,
       conversation: session.conversation,
       room: session.room,
+      day: session.day,
       origin: session.keyboard ? null : session.origin,
       still: session.still,
       at: session.at,
@@ -387,7 +390,7 @@ function TurnView({
           }}
           tabIndex={0}
         >
-          <LiveWords className="tm-tt" said={c.draft} text={c.interim} />
+          <LiveWords className="tm-tt" free said={c.draft} text={c.interim} />
         </div>
       ) : live === "fix" ? (
         <textarea

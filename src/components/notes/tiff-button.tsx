@@ -61,7 +61,8 @@ import { useNoteScope } from "./note-context";
              box's 36px Save; the modal's reply box ends in the same skin.
              It says what it does there, "Talk to Tiff": the box it ends is
              the way to type, and this is the other way in. It carries the
-             box's room, so what you say is read as said there.
+             box's room, so what you say is read as said there, and the
+             Calendar box's day, so what you say names a day or goes on it.
 
    Everything inside is sized OFF THE BUTTON, in the stylesheet: the mark is
    56% of it, the rings 86% and 72%. The button is 36px on the frame and in
@@ -91,7 +92,7 @@ type Where = (typeof TIFF_BUTTON_PLACES)[number];
 /** A box's button says what it does: the box beside it is for typing. */
 const TALK_TO_TIFF = "Talk to Tiff";
 
-export function TiffButton({ where = "topbar", room }: { where?: Where; room?: TiffRoom }) {
+export function TiffButton({ where = "topbar", room, day }: { where?: Where; room?: TiffRoom; day?: string }) {
   const scope = useNoteScope();
   const flow = useNoteFlow();
   const tiff = useTiff();
@@ -150,7 +151,7 @@ export function TiffButton({ where = "topbar", room }: { where?: Where; room?: T
                modal's blossom, and not this button's own turn. */
             const keyboard = e.detail === 0;
             if (!keyboard) setLit(true);
-            tiff.open({ from: e.currentTarget, id, keyboard, room });
+            tiff.open({ from: e.currentTarget, id, keyboard, room, day });
             return;
           }
           setLit(true);

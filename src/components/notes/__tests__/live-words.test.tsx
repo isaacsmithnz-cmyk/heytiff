@@ -153,6 +153,23 @@ it("scrolls to the newest word", () => {
   expect(el().className).toContain("over");
 });
 
+/* FREE WORDS ARE NOT A WINDOW. On the Tiff modal the box is as tall as what
+   was said, and its only "overflow" is a word arriving 4px low — which the
+   window read as scrolled, fading out the first line of every dictation
+   there ("some of the words are getting cut off", Isaac, 2026-09-26). */
+it("neither rides nor fades when its words are free", () => {
+  const el = () => document.querySelector(".wb2-lwbox") as HTMLElement;
+  const { rerender } = render(<LiveWords free text="the alarm's" />);
+  Object.defineProperty(el(), "scrollHeight", { value: 88, configurable: true });
+  Object.defineProperty(el(), "clientHeight", { value: 84, configurable: true });
+
+  rerender(<LiveWords free text="the alarm's gone mental" />);
+
+  expect(el().scrollTop).toBe(0);
+  expect(el().className).toContain("free");
+  expect(el().className).not.toContain("over");
+});
+
 /* ── THE SAME RIVER, IN A FIELD'S BOX ──
 
    The field mics hand their box over rather than shoving the sentence into

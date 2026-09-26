@@ -3,21 +3,30 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { CalItem, CompanyCalendar } from "@/lib/calendar/items";
-import { detail } from "@/lib/calendar/model";
+import { detail, type DayDetail } from "@/lib/calendar/model";
 import { CalEdit } from "./home-cal-edit";
-import { actionLink } from "./home-cal-parts";
+import { actionLink, CalSwatch, type Pick } from "./home-cal-parts";
 
-/* THE PANEL, beside Month and Year (his handoff "Calendar"): the one thing
-   chosen, whichever view chose it. Never empty — before anything is
-   pressed it holds the first thing from today (`firstSelection`). Its
-   kicker in its category's ink, its title, when, the status in his capsule
-   (a named exemption, law 26), which alone turns late for an admin date
-   past its due, the sentence and the facts the calendar knows (`detail`,
-   lib/calendar/model), and its action: a link for what lives elsewhere, or
-   Edit for the company's own events, to whoever may add to the calendar.
+/* THE PANEL, beside Month and Year (his handoff "Calendar"): the one
+   choice, whichever view made it, under the box that adds to its day.
+   Never empty — before anything is pressed it holds the first thing from
+   today (`firstSelection`).
+
+   A THING (`CalPanel`): its kicker in its category's ink, its title, when,
+   the status in his capsule (a named exemption, law 26), which alone turns
+   late for an admin date past its due, the sentence and the facts the
+   calendar knows (`detail`, lib/calendar/model), and its action: a link
+   for what lives elsewhere, or Edit for the company's own events, to
+   whoever may add to the calendar.
+
+   A DAY (`CalDay`, Isaac, 2026-09-26: "you can't click on the day for it
+   to show up on the right"): the day in full, "Thursday 1 October", and
+   everything shown on it (`dayDetail`), each a row that picks it — the
+   panel then shows that thing as above — or "Nothing on.". What was just
+   added to the day is lit in its list.
 
    It draws what the page hands it and nothing moves here: the page holds
-   the thing shown while a pointer's pick fades it out, and fades the next
+   what was shown while a pointer's pick fades it out, and fades the next
    one in (./home-cal-page, his calPick). */
 
 export function CalPanel({
@@ -107,6 +116,46 @@ export function CalPanel({
             Edit
           </button>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** A day chosen: the day in full, then what is on it, each a row that picks
+    it, with its swatch, its title and an event's time. */
+export function CalDay({
+  day,
+  fresh,
+  onPick,
+}: {
+  day: DayDetail<CalItem>;
+  /** Just added to the day: lit in its list for a moment. */
+  fresh: readonly string[] | null;
+  onPick: Pick;
+}) {
+  return (
+    <div className="hd-cal-dx" data-kind="day">
+      <h3 className="hd-cal-dxt">{day.title}</h3>
+      {day.lines.length > 0 ? (
+        <ul className="hd-cal-dl">
+          {day.lines.map((l) => (
+            <li key={l.item.id}>
+              <button
+                type="button"
+                className="hd-cal-dli"
+                data-fresh={fresh?.includes(l.item.id) ? "" : undefined}
+                aria-label={l.time ? `${l.title}, ${l.time}` : l.title}
+                onClick={(e) => onPick(l.item.id, e.detail > 0)}
+              >
+                <CalSwatch cat={l.item.cat} late={l.late} />
+                <span className="hd-cal-dlt">{l.title}</span>
+                {l.time && <span className="hd-cal-tm">{l.time}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="hd-cal-none">Nothing on.</p>
       )}
     </div>
   );

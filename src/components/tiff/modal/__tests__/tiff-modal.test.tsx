@@ -1498,11 +1498,13 @@ describe("the calendar's room", () => {
     about: "the toolbox talk on Thu 1 Oct",
   };
 
-  async function calendar(words?: string, voice = true) {
+  /** The calendar's room opened, on `words` or listening, and on the day its
+      box adds to when one is given (2026-09-26). */
+  async function calendar(words?: string, voice = true, day?: string) {
     const user = userEvent.setup();
     render(<Harness voice={voice} extra={<Grab />} />);
     await act(async () => {
-      grabbed.api!.open({ from: topButton(), words, room: "calendar" });
+      grabbed.api!.open({ from: topButton(), words, room: "calendar", day });
     });
     await flush();
     return user;
@@ -1515,7 +1517,7 @@ describe("the calendar's room", () => {
   it("sorts the box's words onto the calendar, never through the note router, and files at once with Undo", async () => {
     fileCalendarLine.mockResolvedValue(filedCal);
     await calendar(LINE);
-    expect(fileCalendarLine).toHaveBeenCalledWith(LINE, "text", []);
+    expect(fileCalendarLine).toHaveBeenCalledWith(LINE, "text", [], undefined);
     expect(routeNote).not.toHaveBeenCalled();
     expect(fileNote).not.toHaveBeenCalled();
     const d = dialog();
@@ -1537,7 +1539,7 @@ describe("the calendar's room", () => {
     const user = await calendar();
     expect(mic.start).toHaveBeenCalledTimes(1);
     await say(user, LINE);
-    expect(fileCalendarLine).toHaveBeenCalledWith(LINE, "voice", []);
+    expect(fileCalendarLine).toHaveBeenCalledWith(LINE, "voice", [], undefined);
     expect(routeNote).not.toHaveBeenCalled();
   });
 
@@ -1549,11 +1551,36 @@ describe("the calendar's room", () => {
     const user = await calendar("Toolbox talk");
     expect(within(convo()).getByText("Which day?")).toBeInTheDocument();
     await reply(user, "the first Thursday");
-    expect(fileCalendarLine).toHaveBeenNthCalledWith(2, "Toolbox talk", "text", ["the first Thursday"]);
+    expect(fileCalendarLine).toHaveBeenNthCalledWith(2, "Toolbox talk", "text", ["the first Thursday"], undefined);
     await reply(user, "every month");
-    expect(fileCalendarLine).toHaveBeenNthCalledWith(3, "Toolbox talk", "text", ["the first Thursday", "every month"]);
+    expect(fileCalendarLine).toHaveBeenNthCalledWith(
+      3,
+      "Toolbox talk",
+      "text",
+      ["the first Thursday", "every month"],
+      undefined,
+    );
     expect(within(convo()).getByText(SAID)).toBeInTheDocument();
     expect(routeNote).not.toHaveBeenCalled();
+  });
+
+  /* "simplify it" (Isaac, 2026-09-26): the Calendar's box adds to a day and
+     says which, and Tiff is told it with every line — typed, said, or read
+     again with an answer — so a line that names no day goes on it (the
+     server's to decide, app/actions/calendar `fileCalendarLine`). */
+  it("takes the day the box adds to with every line it reads", async () => {
+    fileCalendarLine.mockResolvedValueOnce({ ok: false, ask: "Which day?" }).mockReturnValue(new Promise(() => {}));
+    const user = await calendar("Toolbox talk", true, "2026-10-01");
+    expect(fileCalendarLine).toHaveBeenCalledWith("Toolbox talk", "text", [], "2026-10-01");
+    await reply(user, "the first Thursday");
+    expect(fileCalendarLine).toHaveBeenLastCalledWith("Toolbox talk", "text", ["the first Thursday"], "2026-10-01");
+  });
+
+  it("takes the box's day with what is said to its Tiff button, too", async () => {
+    fileCalendarLine.mockReturnValue(new Promise(() => {}));
+    const user = await calendar(undefined, true, "2026-10-14");
+    await say(user, "Team barbecue");
+    expect(fileCalendarLine).toHaveBeenCalledWith("Team barbecue", "voice", [], "2026-10-14");
   });
 
   it("keeps a reply after filing on what she filed, and says so", async () => {
@@ -1587,7 +1614,7 @@ describe("the calendar's room", () => {
     fileCalendarLine.mockReturnValue(new Promise(() => {}));
     await reply(user, "Team meeting Monday at 3");
     expect(noteOnCalendarEvents).not.toHaveBeenCalled();
-    expect(fileCalendarLine).toHaveBeenLastCalledWith("Team meeting Monday at 3", "text", []);
+    expect(fileCalendarLine).toHaveBeenLastCalledWith("Team meeting Monday at 3", "text", [], undefined);
   });
 
   /* What Undo took off is not on the calendar, so closing lands nothing. */

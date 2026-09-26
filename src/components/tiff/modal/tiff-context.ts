@@ -25,6 +25,11 @@ export type TiffOpen = {
   conversation?: readonly EarlierTurn[];
   /** Where the words were said, a hint for the router. */
   room?: TiffRoom;
+  /** The day what is said is for, ISO, when the words name none: the
+      Calendar's box adds to a day and says which ("Add to Thu 1 Oct…"), so
+      a line for the calendar that names no day goes on it rather than Tiff
+      asking "Which day?" (app/actions/calendar `fileCalendarLine`). */
+  day?: string;
   /** Which button, so it alone reads as expanded. */
   id?: string;
   /** Pressed from the keyboard: it opens where it sits and nothing flies

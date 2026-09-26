@@ -14,7 +14,9 @@
 
 import type { Capability } from "@/lib/permissions";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { naiveInZone } from "@/lib/workboard/job-story";
 import { DIARY_ENTRY_LIMIT, diaryFeed, type DiaryConversation, type DiaryFeed } from "./diary-feed";
+import { unhidden } from "./diary-hidden";
 import { listDiaryEntries } from "./journal-query";
 import { listMyMentions } from "./mentions-query";
 
@@ -41,13 +43,37 @@ export async function mirrorSyncedAt(orgId: string): Promise<string | null> {
   return (data as { last_finished_at: string | null } | null)?.last_finished_at ?? null;
 }
 
+/** The conversations this person hid from their diary, and when, on the
+    account's clock (actions/diary's `hideConversation`). A read that fails
+    — or a database without the table yet — hides nothing: every
+    conversation shows, as it did before there was a Hide. */
+export async function hiddenConversations(
+  orgId: string,
+  staffId: string,
+  tz: string | null,
+): Promise<Map<string, string>> {
+  const { data, error } = await supabaseAdmin
+    .from("diary_hidden")
+    .select("conversation_key, hidden_at")
+    .eq("org_id", orgId)
+    .eq("staff_id", staffId);
+  const hidden = new Map<string, string>();
+  if (error) return hidden;
+  for (const r of (data ?? []) as { conversation_key: string; hidden_at: string }[]) {
+    const at = naiveInZone(r.hidden_at, tz);
+    if (at) hidden.set(r.conversation_key, at);
+  }
+  return hidden;
+}
+
 /** The Diary tab: your entries and your conversations, newest first, with
     Today split off. A mention read that fails leaves the diary showing
-    your own entries rather than taking Home down. */
+    your own entries rather than taking Home down. A conversation you hid
+    stays out until its asker writes again (./diary-hidden). */
 export async function loadDiaryFeed(ctx: DiaryFeedContext): Promise<DiaryFeed> {
   const mineUuid = ctx.caps.has("workboard") && ctx.viewerStaffId ? ctx.mineUuid : null;
 
-  const [entries, conversations, syncedAt] = await Promise.all([
+  const [entries, conversations, syncedAt, hidden] = await Promise.all([
     ctx.viewerStaffId ? listDiaryEntries(ctx.orgId, ctx.viewerStaffId, ctx.tz) : Promise.resolve([]),
     mineUuid
       ? /* with the tasks the viewer's asks made (mention_asks) */
@@ -61,11 +87,14 @@ export async function loadDiaryFeed(ctx: DiaryFeedContext): Promise<DiaryFeed> {
         )
       : Promise.resolve([] as DiaryConversation[]),
     mineUuid ? mirrorSyncedAt(ctx.orgId).catch(() => null) : Promise.resolve(null),
+    mineUuid && ctx.viewerStaffId
+      ? hiddenConversations(ctx.orgId, ctx.viewerStaffId, ctx.tz).catch(() => new Map<string, string>())
+      : Promise.resolve(new Map<string, string>()),
   ]);
 
   return diaryFeed({
     entries,
-    conversations,
+    conversations: unhidden(conversations, hidden),
     day: ctx.railDay,
     mentions: mineUuid !== null,
     /* listDiaryEntries reads DIARY_ENTRY_LIMIT; a full read may have left

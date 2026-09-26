@@ -28,6 +28,7 @@ import {
   PANEL_IN,
 } from "@/lib/dashboard/day-flip";
 import { railMissing, railSaysEmpty } from "@/lib/dashboard/day-rail";
+import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
 import type { HomeRail } from "@/lib/dashboard/page-data";
 import { HomeDayBar, KEEPS_DAY, type DayBarHandle } from "./home-day-bar";
 import { useDeskJobs } from "./home-job-sheet";
@@ -52,6 +53,22 @@ import { useDeskJobs } from "./home-job-sheet";
    the cross, on Escape, and on a click anywhere else on the page but the
    places that keep it (`KEEPS_DAY`); the last also folds finished work
    back up. Closing by the cross or Escape puts focus back on the card.
+
+   NOTHING ON TODAY: your next booked day in its place ("something to put
+   there as a placeholder that brings in the color of what your day
+   normally shows", Isaac, 2026-09-26). The loader finds it (lib/dashboard/
+   next-day, `rail.next`); the line says it is today's nothing and which
+   day this is, and the bar is that day's, every card still to come, each
+   opening the same panel with Open job. Nothing booked for a fortnight is
+   the plain line it always was.
+
+   IT STEPS ASIDE FOR THE CALENDAR ("increase the space on the screen when
+   the calendar view is in… the your day disappears temporarily", Isaac,
+   2026-09-26): `away`, the desk's to say. Away, it is hidden and its card
+   is left as it was — nothing on the page closes it, it has no Escape —
+   and it comes back as it went. While it folds, the desk's body rises over
+   it (./home-desk), so it stays drawn under the body, `lap` pixels of it
+   overlapped, until the body has covered it.
 
    THE PANEL is his: the place, the number, the state, what the job is,
    Time / Where / With, and one thing to do — Open job, or a task's Mark
@@ -91,16 +108,41 @@ function brace(bar: DayBarHandle | null, section: HTMLElement | null, open: bool
   return { open, under: underDay(section).map((el) => ({ el, top: el.getBoundingClientRect().top })) };
 }
 
-export function HomeDay({ rail }: { rail: HomeRail }) {
+export function HomeDay({
+  rail,
+  away = false,
+  lap = null,
+}: {
+  rail: HomeRail;
+  /** The Calendar is up: the day has stepped aside (above). */
+  away?: boolean;
+  /** While it folds away: how far the body below overlaps it, so the body
+      stands where it will stand once the day is gone. Null at rest. */
+  lap?: number | null;
+}) {
   const { openJob } = useDeskJobs();
   const router = useRouter();
   const [pending, start] = useTransition();
   /* The browser's clock once it has one, the loader's until then — so the
      first render is the server's, and the bar moves on by the minute. */
   const liveNow = useNowMin(rail.dayISO);
-  const nowMin = liveNow ?? rail.nowMin;
+  const todayMin = liveNow ?? rail.nowMin;
 
-  const items = dayItems(rail);
+  /* WHAT SERVICEM8 COULDN'T ADD. `null` is the complete day — including a
+     workspace with no ServiceM8, which has nothing to be missing. */
+  const todays = dayItems(rail);
+  const missing = railMissing(rail);
+  const saysEmpty = railSaysEmpty(todays.length, missing);
+  /* Today's nothing, and the next day with your bookings drawn in its
+     place: another day's clock is not today's, so all of it is to come. */
+  const next = saysEmpty ? (rail.next ?? null) : null;
+  const items = next
+    ? dayItems({ blocks: next.blocks, tasks: [], jobs: next.jobs, where: next.where, crew: next.crew })
+    : todays;
+  const nowMin = next ? null : todayMin;
+  const day = next
+    ? { dayISO: next.dayISO, blocks: next.blocks, jobs: next.jobs }
+    : { dayISO: rail.dayISO, blocks: rail.blocks, jobs: rail.jobs };
   const [selectedKey, setSelectedKey] = useState(() => dayLiveKey(dayItems(rail), rail.nowMin));
   /* The folded block was pressed: every finished card is drawn. */
   const [showFinished, setShowFinished] = useState(false);
@@ -183,7 +225,7 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
      while a dialog is up — the job card and Tiff's answer their own Escape
      — and not from a face, whose box may want it. */
   useEffect(() => {
-    if (openKey === null) return;
+    if (openKey === null || away) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
       if (document.querySelector('[aria-modal="true"]')) return;
@@ -196,7 +238,7 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [openKey]);
+  }, [openKey, away]);
 
   /* A CLICK ELSEWHERE closes the card and folds finished work up again —
      elsewhere ON THIS PAGE. The job card and Tiff are portalled to <body>,
@@ -217,7 +259,7 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
      face's too, and a card that closed under someone typing would pull
      the box they are typing in up the page. */
   useEffect(() => {
-    if (openKey === null && !showFinished) return;
+    if (away || (openKey === null && !showFinished)) return;
     const onClick = (e: MouseEvent) => {
       if (e.detail === 0) return;
       const t = e.target;
@@ -230,21 +272,16 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
     };
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
-  }, [openKey, showFinished]);
-
-  /* WHAT SERVICEM8 COULDN'T ADD. `null` is the complete day — including a
-     workspace with no ServiceM8, which has nothing to be missing. */
-  const missing = railMissing(rail);
-  const saysEmpty = railSaysEmpty(items.length, missing);
+  }, [openKey, showFinished, away]);
 
   /* The panel's one action. */
   let action: ReactNode = null;
   if (selected?.kind === "job") {
-    const block = rail.blocks.find((b) => `job:${b.key}` === selected.key);
-    const job = rail.jobs.find((j) => j.remoteId === selected.remoteId);
-    const row = job ? sheetRowOf(job, rail.dayISO) : null;
+    const block = day.blocks.find((b) => `job:${b.key}` === selected.key);
+    const job = day.jobs.find((j) => j.remoteId === selected.remoteId);
+    const row = job ? sheetRowOf(job, day.dayISO) : null;
     if (block && row) {
-      const clock = { dayISO: rail.dayISO, today: rail.dayISO, nowMin, tracksTime: rail.tracksTime };
+      const clock = { dayISO: day.dayISO, today: rail.dayISO, nowMin: todayMin, tracksTime: rail.tracksTime };
       action = (
         <button
           type="button"
@@ -276,7 +313,14 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
   }
 
   return (
-    <section className="hd-day" aria-labelledby="hd-day-h" ref={section}>
+    <section
+      className="hd-day"
+      aria-labelledby="hd-day-h"
+      ref={section}
+      hidden={away && lap === null}
+      inert={away}
+      style={lap === null ? undefined : { marginBottom: -lap }}
+    >
       <h2 className="hd-dayh" id="hd-day-h">
         Your day
       </h2>
@@ -293,6 +337,12 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
         <p className="hd-daynote">
           Bookings aren’t in this picture: nobody in ServiceM8 is linked to your account yet.{" "}
           {rail.linkHref ? <Link href={rail.linkHref}>Link yourself to the crew</Link> : "The owner can link you to it."}
+        </p>
+      )}
+
+      {next && (
+        <p className="hd-daynone">
+          Nothing on today. Next, {fmtAuWeekdayDateLong(next.dayISO)}.
         </p>
       )}
 

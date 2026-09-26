@@ -844,6 +844,63 @@ describe("what the bar cannot draw", () => {
   });
 });
 
+/* "when there is nothing on your day, it looks very bland… a placeholder
+   that brings in the color of what your day normally shows" (Isaac,
+   2026-09-26): the next day with your bookings, drawn as the bar. */
+describe("nothing on today", () => {
+  const MONDAY = "2026-08-17";
+  const next = () => ({
+    dayISO: MONDAY,
+    blocks: [
+      block({ key: "m1", remoteId: "j2313", jobNumber: "2313", suburb: "Darlinghurst", categoryColour: "#be2d2d", start: `${MONDAY} 09:30:00`, end: `${MONDAY} 11:00:00`, startMin: hm(9, 30), endMin: hm(11) }),
+      block({ key: "m2", remoteId: "j1377", jobNumber: "1377", suburb: "Cremorne", categoryColour: "#8f2dbe", start: `${MONDAY} 12:00:00`, end: `${MONDAY} 15:00:00`, startMin: hm(12), endMin: hm(15) }),
+    ],
+    jobs: [mirror("j2313", "2313", { description: "Unit tripping the breaker" }), mirror("j1377", "1377")],
+    where: { j2313: "Oxford St" },
+    crew: {},
+  });
+
+  it("says so, names the next day, and draws that day's bookings in their colours, all still to come", () => {
+    draw(rail({ next: next() }));
+    expect(document.querySelector(".hd-daynone")).toHaveTextContent("Nothing on today. Next, Monday 17 August.");
+    expect(screen.queryByText("Nothing on your day.")).toBeNull();
+    expect(document.querySelectorAll(".hd-card")).toHaveLength(2);
+    expect(card(/^Darlinghurst, Job 2313, 9:30–11am, To come/)).toBeInTheDocument();
+    expect(card(/^Cremorne, Job 1377/)).toBeInTheDocument();
+    // nothing is on now, on a day that isn't today
+    expect(isOpen()).toBe(false);
+  });
+
+  it("opens a card of that day on its panel, and Open job on that day's card", async () => {
+    const user = userEvent.setup();
+    draw(rail({ next: next() }));
+    await user.click(card(/^Darlinghurst, Job 2313/));
+    expect(isOpen()).toBe(true);
+    expect(within(panel()).getByText("To come")).toBeInTheDocument();
+    expect(within(panel()).getByText("Unit tripping the breaker")).toBeInTheDocument();
+    await user.click(within(panel()).getByRole("button", { name: "Open job" }));
+    expect(await screen.findByRole("dialog", { name: "Job 2313" })).toBeInTheDocument();
+  });
+
+  it("is today's bar, never the next day's, when today has something on", () => {
+    draw(rail({ blocks: [block()], jobs: [mirror("j3342", "3342")], next: next() }));
+    expect(document.querySelector(".hd-daynone")).toBeNull();
+    expect(document.querySelectorAll(".hd-card")).toHaveLength(1);
+  });
+
+  it("says nothing of a next day where the picture of today isn't complete", () => {
+    draw(rail({ linked: false, next: next() }));
+    expect(document.querySelector(".hd-daynone")).toBeNull();
+    expect(document.querySelectorAll(".hd-card")).toHaveLength(0);
+  });
+
+  it("is the plain line when nothing is booked for a fortnight", () => {
+    draw(rail({ next: null }));
+    expect(screen.getByText("Nothing on your day.")).toBeInTheDocument();
+    expect(document.querySelector(".hd-bar")).toBeNull();
+  });
+});
+
 /* THE TRACE: the light that runs round the job on now. Its turn is the
    sheet's (home-day-sheet); here, where it is drawn. */
 describe("the Trace", () => {

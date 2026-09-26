@@ -33,6 +33,17 @@ jest.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
   usePathname: () => "/dashboard",
 }));
+/* The diary's own writes (Edit, Delete, Hide): "use server", stubbed. */
+const editDiaryEntry = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+const deleteDiaryEntry = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+const hideConversation = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+const showConversation = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+jest.mock("@/app/actions/diary", () => ({
+  editDiaryEntry: (...a: unknown[]) => editDiaryEntry(...a),
+  deleteDiaryEntry: (...a: unknown[]) => deleteDiaryEntry(...a),
+  hideConversation: (...a: unknown[]) => hideConversation(...a),
+  showConversation: (...a: unknown[]) => showConversation(...a),
+}));
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: jest.fn(),
@@ -675,5 +686,49 @@ describe("the page coming again", () => {
     rerender(<Face diary={diary} tiffOpen={true} />);
     rerender(<Face diary={diary} tiffOpen={false} />);
     expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* "with the option to hide/archive other peoples" (Isaac, 2026-09-26): a
+   conversation is someone else's, so there is no Edit or Delete, only
+   Hide — out of your diary until they write again. */
+describe("hiding it", () => {
+  const hideOf = () => within(talk().querySelector<HTMLElement>(".hd-dy-mh")!).getByRole("button", { name: "Hide" });
+
+  it("offers Hide, and nothing that would change their words", () => {
+    draw({ diary: diaryOf([ASK, HIS_NUMBER]) });
+    expect(hideOf()).toHaveClass("hd-dy-act");
+    expect(within(talk()).queryByRole("button", { name: "Edit" })).toBeNull();
+    expect(within(talk()).queryByRole("button", { name: "Delete" })).toBeNull();
+  });
+
+  it("folds it to a line that says it is hidden until they write again, with Undo holding the keyboard", async () => {
+    const user = userEvent.setup();
+    draw({ diary: diaryOf([ASK, HIS_NUMBER]) });
+    await user.click(hideOf());
+    expect(hideConversation).toHaveBeenCalledWith(`${J2041}:u-luke`);
+    expect(talk()).toHaveTextContent("Hidden until Luke writes again.");
+    expect(talk().querySelector(".hd-dy-p")).toBeNull();
+    expect(document.activeElement).toBe(within(talk()).getByRole("button", { name: "Undo" }));
+  });
+
+  it("comes back on Undo, and the keyboard goes back to Hide", async () => {
+    const user = userEvent.setup();
+    draw({ diary: diaryOf([ASK]) });
+    await user.click(hideOf());
+    await user.click(within(talk()).getByRole("button", { name: "Undo" }));
+    expect(showConversation).toHaveBeenCalledWith(`${J2041}:u-luke`);
+    expect(talk().querySelector(".hd-dy-p")).toHaveTextContent("Please call Mary to discuss");
+    expect(document.activeElement).toBe(hideOf());
+  });
+
+  it("stays, saying why, when the hide is refused", async () => {
+    const user = userEvent.setup();
+    hideConversation.mockResolvedValueOnce({ ok: false, error: "Couldn't hide that." } as never);
+    draw({ diary: diaryOf([ASK]) });
+    await user.click(hideOf());
+    expect(talk().querySelector(".hd-dy-p")).toHaveTextContent("Please call Mary to discuss");
+    expect(within(talk()).getByRole("status")).toHaveTextContent("Couldn't hide that.");
+    expect(document.activeElement).toBe(hideOf());
   });
 });

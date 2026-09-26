@@ -3,7 +3,7 @@
    A port of the prototype's view maths (his handoff "Calendar", built out in
    proto/calendar.mjs) into pure functions: items in, rows, cells and words
    out. No database, no clock, no DOM. The page keeps the state (view, anchor,
-   filters, the one selection) and draws what these return.
+   filters, the one choice, a thing or a day) and draws what these return.
 
    The calendar is company-wide: public and school holidays, company events
    (a shutdown is an event with a range) and admin due dates (rego, insurance,
@@ -23,6 +23,7 @@ import {
   dateOf,
   datesLabel,
   dayLabel,
+  dayLongLabel,
   dayName,
   dayRangeLabel,
   fromDay,
@@ -122,6 +123,8 @@ const must = (iso: string, what: string): number => {
 
 /** "Mon 5 Oct". */
 export const fmtDay = (iso: string): string => dayLabel(must(iso, "day"));
+/** "Thursday 1 October". */
+export const fmtDayLong = (iso: string): string => dayLongLabel(must(iso, "day"));
 /** "Mon 5 Oct", "Mon 5 – Fri 9 Oct", "Mon 28 Sept – Fri 9 Oct". */
 export const fmtDayRange = (a: string, b: string): string => dayRangeLabel(must(a, "start"), must(b, "end"));
 /** "5 Oct", "5 – 11 Oct", "28 Sept – 2 Oct". */
@@ -194,6 +197,14 @@ function rangeOf(view: CalView, a: number, f: Frame): [number, number] {
   }
   const first = yearStart(a, f.t);
   return [first, monthsOn(first, 12) - 1];
+}
+
+/** Whether a day is on the calendar: a real day inside its twelve months, so
+    one a click may pick and the box may add to. Month's whole weeks reach
+    past the window's edges, and those days are not. */
+export function onCalendar(day: string, frame: CalFrame): boolean {
+  const n = toDay(day);
+  return !Number.isNaN(n) && n >= must(frame.windowStart, "windowStart") && n <= must(frame.windowEnd, "windowEnd");
 }
 
 /** The days a view shows: 4 weeks is the anchor plus 27 days; Month is whole
@@ -329,6 +340,52 @@ export function settleSelection<T extends CalItem>(sel: string | null, vis: read
   return firstSelection(vis, frame) ?? sel;
 }
 
+/* ── the one choice: a thing, or a day ──
+
+   "simplify it. how does a calendar normally add things in?" (Isaac,
+   2026-09-26, walking the new Home): you click a day, it shows on the
+   right, and what you type goes on it. So the choice is a thing OR a day.
+   A thing the page chose rather than you — the first thing from today,
+   before anything is picked, or where a filter moved the choice off the
+   thing you picked — is `settled`: the panel shows it, but nobody asked to
+   add to its day, so the box adds to today. */
+
+export type CalSel = { id: string; settled?: boolean } | { day: string };
+
+/** The same choice: the same day, or the same thing, whoever chose it. */
+export function sameChoice(a: CalSel | null, b: CalSel | null): boolean {
+  if (!a || !b) return false;
+  return "day" in a ? "day" in b && a.day === b.day : "id" in b && a.id === b.id;
+}
+
+/** The choice as the page draws it. A day picked stays picked whatever the
+    filters hide, while it is on the calendar; a thing picked, while it is
+    shown; otherwise the first thing from today, settled, or nothing when
+    nothing is shown. */
+export function choiceOf<T extends CalItem>(picked: CalSel | null, vis: readonly T[], frame: CalFrame): CalSel | null {
+  if (picked && ("day" in picked ? onCalendar(picked.day, frame) : vis.some((x) => x.id === picked.id))) return picked;
+  const first = firstSelection(vis, frame);
+  return first ? { id: first, settled: true } : null;
+}
+
+/** The choice after a filter changed (`settleSelection`'s rule for a thing):
+    a day stays; a thing is kept while it is still shown, otherwise the
+    first thing from today, settled. With nothing shown it stays. */
+export function settleChoice<T extends CalItem>(sel: CalSel | null, vis: readonly T[], frame: CalFrame): CalSel | null {
+  if (sel && "day" in sel) return sel;
+  const id = settleSelection(sel ? sel.id : null, vis, frame);
+  if (!id) return null;
+  return sel && sel.id === id ? sel : { id, settled: true };
+}
+
+/** The day the box adds to: the day picked; else the first day of the thing
+    picked, while that day is on the calendar; else today. */
+export function addDayOf<T extends CalItem>(sel: CalSel | null, items: readonly T[], frame: CalFrame): string {
+  if (sel && "day" in sel) return onCalendar(sel.day, frame) ? sel.day : frame.today;
+  const x = sel && !sel.settled ? items.find((i) => i.id === sel.id) : undefined;
+  return x && onCalendar(x.start, frame) ? x.start : frame.today;
+}
+
 /* ── long weekends ── */
 
 function holidayDays<T extends CalItem>(P: readonly Span<T>[]): Set<number> {
@@ -403,6 +460,10 @@ export type AgendaQuiet = {
   dates: string;
   /** "Fri – Sun, nothing on", "Sat – Sun, long weekend". */
   text: string;
+  /** The same with its dates, "Sat 26 – Sun 27 Sept, nothing on": its name
+      as the button that picks its first day, since "Sat – Sun" comes round
+      every week. */
+  label: string;
   longWeekend: boolean;
 };
 export type AgendaRow<T extends CalItem> = AgendaWeek<T> | AgendaDay<T> | AgendaQuiet;
@@ -466,16 +527,19 @@ export function agendaRows<T extends CalItem>(vis: readonly T[], anchor: string,
   }
 
   const rows: AgendaRow<T>[] = [];
-  const quiet = (a: number, b: number, lw: boolean) =>
+  const quiet = (a: number, b: number, lw: boolean) => {
+    const what = lw ? ", long weekend" : ", nothing on";
     rows.push({
       kind: "quiet",
       key: `q:${fromDay(a)}`,
       start: fromDay(a),
       end: fromDay(b),
       dates: a === b ? String(dateOf(a)) : `${dateOf(a)}${DASH}${dateOf(b)}`,
-      text: (a === b ? dayName(a) : `${dayName(a)}${DASH}${dayName(b)}`) + (lw ? ", long weekend" : ", nothing on"),
+      text: (a === b ? dayName(a) : `${dayName(a)}${DASH}${dayName(b)}`) + what,
+      label: dayRangeLabel(a, b) + what,
       longWeekend: lw,
     });
+  };
   /* A quiet day is a long weekend's by the one rule the holiday's own line
      and the panel use (three or more days off in a row), so no two rows on
      the screen disagree: the prototype asked only whether the run touched a
@@ -627,6 +691,9 @@ export type MonthCell<T extends CalItem> = {
   date: number;
   column: number;
   inMonth: boolean;
+  /** On the calendar's twelve months, so a click picks it: the first
+      month's and the last month's whole weeks reach past them. */
+  inWindow: boolean;
   weekend: boolean;
   today: boolean;
   holiday: T | null;
@@ -705,6 +772,7 @@ export function monthWeeks<T extends CalItem>(
         date: dateOf(n),
         column: i,
         inMonth: monthKey(n) === monthKey(a),
+        inWindow: n >= f.w0 && n <= f.w1,
         weekend: isWeekend(n),
         today,
         holiday,
@@ -730,11 +798,12 @@ export type YearCell<T extends CalItem> = {
   today: boolean;
   fill: "holiday" | "shutdown" | "school" | null;
   dot: "event" | "admin" | "late" | null;
-  /** What a click on the cell selects; null for an empty day, which is not a button. */
+  /** The thing that leads the day, whose choice rings it; null for an empty
+      day. A click picks the day itself, whatever is on it. */
   top: T | null;
   /** The id whose selection rings this cell: a one-day item, or a span's first day. */
   ring: string | null;
-  /** "Mon 5 Oct: Labour Day, School holidays". */
+  /** "Mon 5 Oct: Labour Day, School holidays"; null for an empty day. */
   tip: string | null;
 };
 export type YearMonth<T extends CalItem> = {
@@ -755,9 +824,10 @@ export type YearMonth<T extends CalItem> = {
    draw it with, so each of its days carries the event's dot. */
 const isDot = (x: CalItem): boolean => x.cat === "admin" || (x.cat === "event" && !x.shutdown);
 
-/** Twelve months from the page the anchor is on. A marked day selects, in
-    order: its public holiday, then an event or admin item, then a shutdown,
-    then school holidays. A holiday hides the dot; an overdue dot is late. */
+/** Twelve months from the page the anchor is on. A marked day is led, in
+    order, by its public holiday, then an event or admin item, then a
+    shutdown, then school holidays: the one whose choice rings it. A holiday
+    hides the dot; an overdue dot is late. */
 export function yearMonths<T extends CalItem>(vis: readonly T[], anchor: string, frame: CalFrame): YearMonth<T>[] {
   const f = frameOf(frame);
   const first = yearStart(must(anchor, "anchor"), f.t);
@@ -881,4 +951,32 @@ export function detail<T extends CalItem>(x: T, items: readonly T[], frame: CalF
     description: x.description !== undefined ? x.description : (x.sub ?? null),
     facts: (x.facts ?? []).map(([k, v]): [string, string] => [k, v]),
   };
+}
+
+/** One thing on a day, as the panel lists it: its title, and an event's
+    time. */
+export type DayLine<T extends CalItem> = { item: T; title: string; time: string | null; late: boolean };
+export type DayDetail<T extends CalItem> = {
+  day: string;
+  /** "Thursday 1 October". */
+  title: string;
+  lines: DayLine<T>[];
+};
+
+/** The panel for a day: the day in full, and everything shown that covers
+    it — a public holiday, the school holidays, a shutdown or a course that
+    runs through it, an event, an admin date — in a day's order (holiday,
+    school holidays, events by time, then admin), read as Year reads a day. */
+export function dayDetail<T extends CalItem>(vis: readonly T[], day: string): DayDetail<T> {
+  const n = must(day, "day");
+  const lines = spansOf(vis)
+    .filter((p) => covers(p, n))
+    .sort(byOrder)
+    .map((p) => ({
+      item: p.x,
+      title: p.x.title,
+      time: p.x.cat === "event" ? timeLabel(p.x.time) : null,
+      late: !!p.x.overdue,
+    }));
+  return { day, title: dayLongLabel(n), lines };
 }

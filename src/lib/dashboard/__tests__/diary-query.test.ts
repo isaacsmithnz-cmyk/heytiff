@@ -11,14 +11,26 @@ jest.mock("../journal-query", () => ({ listDiaryEntries: (...a: unknown[]) => li
 jest.mock("../mentions-query", () => ({ listMyMentions: (...a: unknown[]) => listMyMentions(...a) }));
 
 const syncReads: string[] = [];
+/** The conversations the viewer hid (diary_hidden), and what each read asked. */
+let hiddenRows: { conversation_key: string; hidden_at: string }[] | null = [];
+const hiddenAsked: Record<string, unknown>[] = [];
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
     from: (t: string) => {
       syncReads.push(t);
+      const asked: Record<string, unknown> = {};
+      if (t === "diary_hidden") hiddenAsked.push(asked);
       const chain: Record<string, unknown> = {};
       chain.select = () => chain;
-      chain.eq = () => chain;
+      chain.eq = (col: string, val: unknown) => {
+        asked[col] = val;
+        return chain;
+      };
       chain.maybeSingle = () => Promise.resolve({ data: { last_finished_at: "2026-09-25T06:00:00Z" } });
+      chain.then = (res: (v: unknown) => unknown) =>
+        Promise.resolve(
+          hiddenRows === null ? { data: null, error: { code: "42P01" } } : { data: hiddenRows, error: null },
+        ).then(res);
       return chain;
     },
   },
@@ -56,6 +68,30 @@ beforeEach(() => {
   listDiaryEntries.mockReset().mockResolvedValue([ENTRY]);
   listMyMentions.mockReset().mockResolvedValue([CONVO]);
   syncReads.length = 0;
+  hiddenRows = [];
+  hiddenAsked.length = 0;
+});
+
+/* "the option to hide/archive other peoples" (Isaac, 2026-09-26): a
+   conversation you hid stays out until its asker writes again. The zone is
+   Brisbane's, so the hiding is said on the account's clock before it is
+   set beside the asker's message. */
+it("leaves out a conversation you hid, until its asker writes again", async () => {
+  // 04:05Z is 14:05 in Brisbane, after Luke's 13:42 on the 21st
+  hiddenRows = [{ conversation_key: "j-2041:u-luke", hidden_at: "2026-09-21T04:05:00Z" }];
+  const feed = await loadDiaryFeed(ctx());
+  expect(feed.earlier.map((i) => i.key)).toEqual([]);
+  expect(hiddenAsked).toEqual([{ org_id: "org-1", staff_id: "s-isaac" }]);
+
+  // hidden before he last wrote: back
+  hiddenRows = [{ conversation_key: "j-2041:u-luke", hidden_at: "2026-09-21T03:00:00Z" }];
+  expect((await loadDiaryFeed(ctx())).earlier.map((i) => i.key)).toEqual(["mention:j-2041:u-luke"]);
+});
+
+it("hides nothing when the hidden read fails, or before the table exists", async () => {
+  hiddenRows = null;
+  const feed = await loadDiaryFeed(ctx());
+  expect(feed.earlier.map((i) => i.key)).toEqual(["mention:j-2041:u-luke"]);
 });
 
 it("reads your entries on the account's clock and your mentions on its today", async () => {

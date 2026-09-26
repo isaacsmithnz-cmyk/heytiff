@@ -497,6 +497,21 @@ export function railItems(
   return items;
 }
 
+/** THE VIEWER'S OWN LANE of the board's laid-out day, in time order — a
+    lane already IS a person's day, so "just mine" is a filter on the
+    board's own answer rather than a second way of deciding who owns a
+    booking. An unknown viewer has no lane and keeps nothing (see
+    page-data's `linked`). */
+export function viewerLaneBlocks<B extends { startMin: number; key: string }>(
+  lanes: readonly { staffUuid: string; blocks: readonly B[] }[],
+  mineUuid: string | null
+): B[] {
+  return lanes
+    .filter((lane) => mineUuid !== null && lane.staffUuid === mineUuid)
+    .flatMap((lane) => lane.blocks)
+    .sort((a, b) => a.startMin - b.startMin || a.key.localeCompare(b.key));
+}
+
 /** The mirror rows behind the pills, and only those. The day's payload
     carries every job booked on the day, but a job in somebody else's lane is
     not on this band and must not ride to the browser with it. In the order

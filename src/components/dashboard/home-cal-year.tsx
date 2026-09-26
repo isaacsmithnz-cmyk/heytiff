@@ -1,27 +1,35 @@
 "use client";
 
 import type { CalItem } from "@/lib/calendar/items";
-import type { YearCell, YearMonth } from "@/lib/calendar/model";
-import type { Pick } from "./home-cal-parts";
+import { fmtDay, type YearCell, type YearMonth } from "@/lib/calendar/model";
+import type { PickDay } from "./home-cal-parts";
 
 /* YEAR (his handoff "Calendar"): the twelve months from this one, as many
    to a row as the width takes — three at 1180, four at 1440. A day with
-   something on is a button that picks it (`yearMonths`, lib/calendar/model,
-   decides which: its public holiday, then an event or an admin date, then
-   a shutdown, then school holidays), filled for a holiday, a shutdown or
-   the school holidays' hatch, and dotted for an event or an admin date —
-   red once late. Its tooltip, and its name, list everything on the day. */
+   something on is filled for a holiday, a shutdown or the school holidays'
+   hatch, and dotted for an event or an admin date — red once late
+   (`yearMonths`, lib/calendar/model). Its tooltip, and its name, list
+   everything on the day.
+
+   EVERY DAY IS A BUTTON THAT PICKS THE DAY (Isaac, 2026-09-26: "simplify
+   it"), empty or not: the panel then shows the day and everything on it,
+   each of which picks itself there, and the box over the panel adds to the
+   day. A day chosen wears his ring (a named exemption, law 14), and so do
+   the days a chosen thing leads, as they did. */
 
 const LETTERS = ["M", "T", "W", "T", "F", "S", "S"] as const;
 
 export function CalYear({
   months,
   selected,
-  onPick,
+  day,
+  onPickDay,
 }: {
   months: YearMonth<CalItem>[];
   selected: string | null;
-  onPick: Pick;
+  /** The day chosen, when the choice is a day. */
+  day: string | null;
+  onPickDay: PickDay;
 }) {
   return (
     <div className="hd-cal-yg" data-scroll="">
@@ -43,7 +51,7 @@ export function CalYear({
               <span key={`l${i}`} aria-hidden="true" />
             ))}
             {m.cells.map((c) => (
-              <Cell key={c.day} cell={c} selected={selected} onPick={onPick} />
+              <Cell key={c.day} cell={c} selected={selected} day={day} onPickDay={onPickDay} />
             ))}
           </div>
         </section>
@@ -52,31 +60,31 @@ export function CalYear({
   );
 }
 
-function Cell({ cell: c, selected, onPick }: { cell: YearCell<CalItem>; selected: string | null; onPick: Pick }) {
-  const marks = {
-    "data-fill": c.fill ?? undefined,
-    "data-past": c.past ? "" : undefined,
-    /* A day gone by reads quiet, weekend or not. */
-    "data-weekend": c.weekend && !c.past ? "" : undefined,
-    "data-today": c.today ? "" : undefined,
-  };
-  const top = c.top;
-  if (!top) {
-    return (
-      <span className="hd-cal-yc" {...marks}>
-        {c.date}
-      </span>
-    );
-  }
+function Cell({
+  cell: c,
+  selected,
+  day,
+  onPickDay,
+}: {
+  cell: YearCell<CalItem>;
+  selected: string | null;
+  day: string | null;
+  onPickDay: PickDay;
+}) {
   return (
     <button
       type="button"
       className="hd-cal-yc"
-      {...marks}
-      aria-pressed={c.ring !== null && c.ring === selected}
-      aria-label={c.tip ?? undefined}
+      data-fill={c.fill ?? undefined}
+      data-past={c.past ? "" : undefined}
+      /* A day gone by reads quiet, weekend or not. */
+      data-weekend={c.weekend && !c.past ? "" : undefined}
+      data-today={c.today ? "" : undefined}
+      aria-pressed={c.day === day || (c.ring !== null && c.ring === selected)}
+      aria-label={c.tip ?? fmtDay(c.day)}
+      aria-current={c.today ? "date" : undefined}
       title={c.tip ?? undefined}
-      onClick={(e) => onPick(top.id, e.detail > 0)}
+      onClick={(e) => onPickDay(c.day, e.detail > 0)}
     >
       {c.date}
       {c.dot && <i data-dot={c.dot} aria-hidden="true" />}

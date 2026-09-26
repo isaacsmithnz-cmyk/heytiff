@@ -4,8 +4,9 @@
    "Toolbox talk every first Thursday, 6:45", typed into the Calendar's box
    and sorted, or said to its Tiff button. The model (./line-brain) reads the
    line into a `CalendarLine`; this holds that reading to the words
-   (`asSaid`), counts its days inside the calendar's twelve months (a repeat
-   through ./repeat, which is the only thing that counts dates), keeps a
+   (`asSaid`), puts a line that names no day on the day the box adds to
+   (`onBoxDay`), counts its days inside the calendar's twelve months (a
+   repeat through ./repeat, which is the only thing that counts dates), keeps a
    series off the days the business is already closed (`openDays`), and
    writes Tiff's side of it: the line she says, the plan under it, the door,
    and her answer when a reply is kept on what she filed.
@@ -159,6 +160,22 @@ export function asSaid(line: CalendarLine, words: readonly string[], at: LineFra
   const from = read.day && read.day > at.today ? read.day : at.today;
   const next = from > at.windowEnd ? undefined : occurrences(read.repeat, from, at.windowEnd)[0];
   return { ...read, repeat: null, day: next ?? read.day };
+}
+
+/** THE BOX'S DAY, when the words name none (Isaac, 2026-09-26: "simplify it.
+    how does a calendar normally add things in?"). The Calendar's box adds
+    to a day — the one clicked, the first day of the thing picked, or today
+    — and says so ("Add to Thu 1 Oct…"), so a line that names no day goes on
+    that day rather than her asking "Which day?". Words that name a day, a
+    range or a repeat are read as they say. A day that is not one, or is
+    outside the twelve months, is no day, and she asks as ever.
+
+    Filled in after the reading, never asked of the model, whose prompt a
+    real-model check would have to prove again. Pure. */
+export function onBoxDay(line: CalendarLine, day: string | null | undefined, at: LineFrame): CalendarLine {
+  if (typeof day !== "string" || Number.isNaN(toDay(day)) || day < at.windowStart || day > at.windowEnd) return line;
+  const dates = lineDates(line, at);
+  return !dates.ok && dates.why === "no-day" ? { ...line, day, lastDay: null } : line;
 }
 
 /** The days a line goes on. A repeat runs from its start (or today, whichever

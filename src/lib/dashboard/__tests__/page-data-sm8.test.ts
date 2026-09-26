@@ -70,6 +70,7 @@ jest.mock("../home-list-query", () => ({ loadHomeList: jest.fn() }));
 jest.mock("../task-record-query", () => ({ loadTasksFace: jest.fn() }));
 jest.mock("@/lib/calendar/query", () => ({ loadCompanyCalendar: jest.fn() }));
 jest.mock("../diary-query", () => ({ loadDiaryFeed: jest.fn() }));
+jest.mock("../next-day", () => ({ loadNextDay: jest.fn(async () => null) }));
 const sm8QueueStuck = jest.fn();
 jest.mock("@/lib/integrations/sm8-writes", () => ({ sm8QueueStuck: (...a: unknown[]) => sm8QueueStuck(...a) }));
 

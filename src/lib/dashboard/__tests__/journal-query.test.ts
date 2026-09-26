@@ -273,8 +273,51 @@ describe("listDiaryEntries", () => {
     // what was filed, and what was filed and then taken back: never a note
     // still mid-conversation, nor one set aside
     expect(read.in).toEqual(["status", ["applied", "undone"]]);
-    // built on the journal's column list, so the two can't drift apart
-    expect(read.columns).toBe("id, transcript, source, applied, created_at, proposal, status, turns");
+    // built on the journal's column list, so the two can't drift apart, and
+    // with the columns that say ServiceM8 holds a note too (the diary's Edit)
+    expect(read.columns).toBe(
+      "id, transcript, source, applied, created_at, proposal, status, turns, target_kind, reply_to_sm8_note_uuid, is_task_done",
+    );
+  });
+
+  /* "you should only be able to delete your own entries or edit" (Isaac,
+     2026-09-26) — and an edit is refused for a note ServiceM8 holds too,
+     so the diary offers Edit only where it wouldn't be. */
+  it("says which entries ServiceM8 holds too, by the rule an edit is refused on", async () => {
+    rows.workboard_notes = [
+      { ...note("plain", {}), target_kind: "none" },
+      { ...note("on-job", {}), target_kind: "job" },
+      { ...note("queued", {}), target_kind: "job" },
+      { ...note("reply", {}), target_kind: "job", reply_to_sm8_note_uuid: "sm8-1" },
+      { ...note("done", {}), target_kind: "job", is_task_done: true },
+    ];
+    rows.sm8_writes = [{ note_id: "queued" }];
+    const out = await listDiaryEntries("org-1", "s1", null);
+    expect(Object.fromEntries(out.map((e) => [e.id, e.inSm8]))).toEqual({
+      plain: false,
+      "on-job": false,
+      queued: true,
+      reply: true,
+      done: true,
+    });
+    // one read, of the job notes alone
+    const [writes] = of("sm8_writes");
+    expect(writes.in).toEqual(["note_id", ["on-job", "queued", "reply", "done"]]);
+    expect(of("sm8_writes")).toHaveLength(1);
+  });
+
+  it("holds every job note as ServiceM8's when that read fails, and reads nothing with no job notes", async () => {
+    rows.workboard_notes = [{ ...note("plain", {}), target_kind: "none" }];
+    await listDiaryEntries("org-1", "s1", null);
+    expect(of("sm8_writes")).toHaveLength(0);
+
+    rows.workboard_notes = [
+      { ...note("plain", {}), target_kind: "none" },
+      { ...note("on-job", {}), target_kind: "job" },
+    ];
+    failing.add("sm8_writes");
+    const out = await listDiaryEntries("org-1", "s1", null);
+    expect(Object.fromEntries(out.map((e) => [e.id, e.inSm8]))).toEqual({ plain: false, "on-job": true });
   });
 
   it("says when on the account's clock, so an entry sorts beside a ServiceM8 note", async () => {

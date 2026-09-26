@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, type CSSProperties } from "react";
+import { useLayoutEffect, useRef, type CSSProperties, type MouseEvent } from "react";
 import type { CalItem } from "@/lib/calendar/items";
 import {
   MONTH_WEIGHTS,
@@ -12,14 +12,25 @@ import {
   type MonthCell,
   type MonthWeek,
 } from "@/lib/calendar/model";
-import { CalSwatch, type Pick } from "./home-cal-parts";
+import { CalSwatch, OWN_THING, type Pick, type PickDay } from "./home-cal-parts";
 
 /* MONTH (his handoff "Calendar"): Monday first, the weekend columns at
    0.55, the month's whole weeks. Anything over days is a bar in its lane
    across the week (`monthWeeks`, lib/calendar/model: school holidays take
-   the lanes first); a public holiday's name sits in its date row, which
-   picks it; a one-day event or admin date sits in its day. A bar that
-   carries on from last week or into the next is square on that side.
+   the lanes first); a public holiday's name sits in its date row; a
+   one-day event or admin date sits in its day. A bar that carries on from
+   last week or into the next is square on that side.
+
+   A DAY IS PICKED BY A PRESS ANYWHERE IN ITS CELL but on one of its things
+   (Isaac, 2026-09-26: "if you go into the month view, you can't click on
+   the day for it to show up on the right"): the panel then shows the day
+   and everything on it, and the box over the panel adds to it. Its date
+   row is the day's button, on every day of the twelve months, for the
+   keyboard, pressed while the day is the one chosen, or the holiday it
+   names; a holiday's date row picks its day, which lists the holiday. A
+   thing or a bar picks itself.
+   The first month's and the last month's whole weeks reach past the twelve
+   months, and those days are not the calendar's to pick.
 
    OPENS ON TODAY'S WEEK. Under "Your day" the grid has room for about two
    weeks, so the month's first rows could hide today: a month opens at its
@@ -34,14 +45,23 @@ import { CalSwatch, type Pick } from "./home-cal-parts";
 const DAY_HEAD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const flex = (column: number): CSSProperties => ({ flex: `${MONTH_WEIGHTS[column]} 1 0px` });
 
-type Picks = { selected: string | null; fresh: readonly string[] | null; onPick: Pick };
+type Picks = {
+  selected: string | null;
+  /** The day chosen, when the choice is a day. */
+  day: string | null;
+  fresh: readonly string[] | null;
+  onPick: Pick;
+  onPickDay: PickDay;
+};
 
 export function CalMonth({
   weeks,
   anchor,
   selected,
+  day,
   fresh,
   onPick,
+  onPickDay,
 }: {
   weeks: MonthWeek<CalItem>[];
   /** The month on view, so a step to another month brings its own top. */
@@ -94,7 +114,16 @@ export function CalMonth({
       {weeks.map((w) => (
         <div key={w.key} className="hd-cal-wk" data-today={w.cells.some((c) => c.today) ? "" : undefined}>
           {w.cells.map((c) => (
-            <Cell key={c.day} cell={c} lanes={w.lanes} selected={selected} fresh={fresh} onPick={onPick} />
+            <Cell
+              key={c.day}
+              cell={c}
+              lanes={w.lanes}
+              selected={selected}
+              day={day}
+              fresh={fresh}
+              onPick={onPick}
+              onPickDay={onPickDay}
+            />
           ))}
           {w.bars.map((b) => (
             <Bar key={b.item.id} bar={b} selected={selected} onPick={onPick} />
@@ -105,8 +134,20 @@ export function CalMonth({
   );
 }
 
-function Cell({ cell: c, lanes, selected, fresh, onPick }: { cell: MonthCell<CalItem>; lanes: number } & Picks) {
+function Cell({
+  cell: c,
+  lanes,
+  selected,
+  day,
+  fresh,
+  onPick,
+  onPickDay,
+}: { cell: MonthCell<CalItem>; lanes: number } & Picks) {
   const hol = c.holiday;
+  const pickable = c.inWindow;
+  /* Pressed while the day is the one chosen, or the holiday it names is,
+     as Year's day is while the thing that leads it is. */
+  const on = pickable && (c.day === day || (hol !== null && hol.id === selected));
   const row = (
     <>
       <span className="hd-cal-drn">{c.date}</span>
@@ -117,6 +158,14 @@ function Cell({ cell: c, lanes, selected, fresh, onPick }: { cell: MonthCell<Cal
       )}
     </>
   );
+  /* A press in the cell that is not on one of its things or their
+     controls — the date row picks the day itself, from the keyboard too. */
+  const onCell = (e: MouseEvent<HTMLDivElement>) => {
+    if (!pickable) return;
+    const hit = (e.target as Element).closest(OWN_THING);
+    if (hit && e.currentTarget.contains(hit)) return;
+    onPickDay(c.day, true);
+  };
   return (
     <div
       className="hd-cal-mc"
@@ -126,16 +175,20 @@ function Cell({ cell: c, lanes, selected, fresh, onPick }: { cell: MonthCell<Cal
       data-holiday={hol ? "" : undefined}
       data-out={c.inMonth ? undefined : ""}
       data-last={c.column === 6 ? "" : undefined}
+      data-pick={pickable ? "" : undefined}
+      data-picked={on ? "" : undefined}
+      onClick={onCell}
     >
       <div className="hd-cal-in">
-        {hol ? (
+        {pickable ? (
           <button
             type="button"
             className="hd-cal-dr"
-            aria-pressed={hol.id === selected}
-            aria-label={`${fmtDay(c.day)}: ${hol.title}`}
-            title={hol.title}
-            onClick={(e) => onPick(hol.id, e.detail > 0)}
+            aria-pressed={on}
+            aria-label={hol ? `${fmtDay(c.day)}: ${hol.title}` : fmtDay(c.day)}
+            aria-current={c.today ? "date" : undefined}
+            title={hol?.title}
+            onClick={(e) => onPickDay(c.day, e.detail > 0)}
           >
             {row}
           </button>
@@ -175,7 +228,7 @@ function Cell({ cell: c, lanes, selected, fresh, onPick }: { cell: MonthCell<Cal
 
 /** A bar over its days in the week. Where it stands is the model's
     geometry, and stays inline; how it looks is the sheet's. */
-function Bar({ bar: b, selected, onPick }: { bar: MonthBar<CalItem> } & Omit<Picks, "fresh">) {
+function Bar({ bar: b, selected, onPick }: { bar: MonthBar<CalItem>; selected: string | null; onPick: Pick }) {
   const name = `${b.item.title}, ${fmtDayRange(b.item.start, b.item.end)}`;
   return (
     <button

@@ -85,10 +85,11 @@ export function canvasMeasure(family: string): DayMeasure | null {
 
 /** WHERE A CLICK LEAVES THE OPEN CARD OPEN. A click anywhere else on the
     page closes it (the handoff, §2.6); these are the places it does not:
-    the bar and the panel themselves, the row of tabs (the card stays open
-    across faces: "if the card is open, they can just close it if they want
-    more space", Isaac, 2026-09-25), and the Calendar, which his prototype
-    leaves the card open over. Spread onto each. */
+    the bar and the panel themselves, and the row of tabs (the card stays
+    open across faces: "if the card is open, they can just close it if they
+    want more space", Isaac, 2026-09-25). The Calendar needs none: the day
+    steps aside for it, and nothing closes a card that is away
+    (./home-day). Spread onto each. */
 export const KEEPS_DAY = { "data-day-keep": "" } as const;
 
 /** The level parts that slide beside a growing skin, by their class. */

@@ -206,6 +206,11 @@ export type DiaryEntry = JournalEntry & {
   /** Taken back. Your words stay, with Tiff's line saying so, and nothing
       under them: what they made has gone. */
   undone: boolean;
+  /** Something of it has left HeyTiff — queued for ServiceM8, sent there,
+      a reply or a Done posted there — so ServiceM8 holds the words too, and
+      they are changed there, not here (actions/diary's `editDiaryEntry`
+      refuses by the same rule). Absent: HeyTiff's alone. */
+  inSm8?: boolean;
 };
 
 export type JournalDay = {

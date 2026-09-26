@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { deleteDiaryEntry, editDiaryEntry } from "@/app/actions/diary";
 import { keepWords, undoNote, type UndoResult } from "@/app/actions/workboard-notes";
 import { navHref } from "@/components/shell/nav";
 import { TiffBox, type BoxSave } from "@/components/tiff/modal/tiff-box";
@@ -20,6 +21,7 @@ import {
 import type { DiaryItem } from "@/lib/dashboard/diary-feed";
 import type { DiaryEntry } from "@/lib/dashboard/journal";
 import { conversationOf, lastTiff, type EarlierTurn } from "@/lib/workboard/note-turns";
+import { Confirm } from "./home-confirm";
 import { HomeDiaryConversation } from "./home-diary-conversation";
 import { useDiaryRefresh } from "./use-diary-refresh";
 
@@ -45,6 +47,18 @@ import { useDiaryRefresh } from "./use-diary-refresh";
    what was said already there, waiting on the reply box, so the next thing
    you say is read by it. The words land at the top of Today when the modal
    closes, "just now" and lit, like a Save.
+
+   YOUR ENTRY IS YOURS TO EDIT OR DELETE, and somebody else's conversation
+   yours to hide (Isaac, 2026-09-26: "you should only be able to delete
+   your own entries or edit. with the option to hide/archive other
+   peoples"; actions/diary). Edit and Delete sit at the end of the line
+   that says when, shown while the pointer is on the entry or the keyboard
+   is in it (law 24). Edit turns the words into a box of the same words —
+   Save or Enter keeps them, Cancel or Escape leaves them — and is not
+   offered for a note ServiceM8 holds too (`inSm8`), which is changed
+   there. Delete asks twice, as Delete task does, since nothing brings it
+   back; what the entry made stays. Gone, the keyboard lands on the entry
+   under it, or the one above.
 
    UNDO sits at the end of what an entry made, while it can take it back —
    until someone acts on a row it filed (Isaac's call, 2026-09-25). The
@@ -90,6 +104,10 @@ import { useDiaryRefresh } from "./use-diary-refresh";
 
 /** How far under the face's top an entry a door asked for comes to rest. */
 const ENTRY_TOP_PX = 16;
+
+/** An edit or a delete whose answer never came back: pressed again, the
+    server says so if the first one landed. */
+const DIDNT_GO = "That didn't go through. Try again.";
 
 type Who = { viewerStaffId: string | null; names: Readonly<Record<string, string>> };
 
@@ -152,6 +170,94 @@ function Entry({
   onShowThings: (ids: readonly string[], pointer: boolean) => void;
 }) {
   const tiff = useTiff();
+  /* EDIT AND DELETE (above). What an edit kept is drawn at once, and the
+     page's own read says the same once it comes round; a delete that went
+     in takes the entry off at once. A refusal is said under the words, and
+     what was pressed stands as it was. */
+  const [mode, setMode] = useState<"read" | "edit" | "delete">("read");
+  const [draft, setDraft] = useState("");
+  const [kept, setKept] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const [changeSaid, setChangeSaid] = useState<string | null>(null);
+  const editRef = useRef<HTMLTextAreaElement>(null);
+  const editButton = useRef<HTMLButtonElement>(null);
+  const deleteButton = useRef<HTMLButtonElement>(null);
+  const itemRef = useRef<HTMLLIElement>(null);
+  /** Where focus goes once the words are drawn again: back to the button
+      that opened the edit or the question. */
+  const backTo = useRef<"edit" | "delete" | null>(null);
+  useLayoutEffect(() => {
+    if (mode === "edit") {
+      const box = editRef.current;
+      box?.focus({ preventScroll: true });
+      box?.setSelectionRange(box.value.length, box.value.length);
+    } else if (mode === "read" && backTo.current) {
+      const to = backTo.current === "edit" ? editButton.current : deleteButton.current;
+      backTo.current = null;
+      to?.focus({ preventScroll: true });
+    }
+  }, [mode]);
+  const words = kept ?? entry.said;
+  /* A page that brings the words the edit kept lets go of the edit's copy. */
+  if (kept !== null && entry.said === kept) setKept(null);
+
+  const openEdit = () => {
+    setDraft(words);
+    setChangeSaid(null);
+    setMode("edit");
+  };
+  const closeEdit = () => {
+    backTo.current = "edit";
+    setChangeSaid(null);
+    setMode("read");
+  };
+  const saveEdit = async () => {
+    const next = draft.trim();
+    if (changing) return;
+    if (next === words.trim()) return closeEdit();
+    setChanging(true);
+    setChangeSaid(null);
+    let res: { ok: true } | { ok: false; error: string };
+    try {
+      res = await editDiaryEntry(entry.id, next);
+    } catch {
+      res = { ok: false, error: DIDNT_GO };
+    }
+    setChanging(false);
+    if (!res.ok) return setChangeSaid(res.error);
+    setKept(next);
+    closeEdit();
+  };
+  const onEditKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      closeEdit();
+    } else if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      void saveEdit();
+    }
+  };
+  const remove = async () => {
+    if (changing) return;
+    setChanging(true);
+    setChangeSaid(null);
+    let res: { ok: true } | { ok: false; error: string };
+    try {
+      res = await deleteDiaryEntry(entry.id);
+    } catch {
+      res = { ok: false, error: DIDNT_GO };
+    }
+    setChanging(false);
+    if (!res.ok) return setChangeSaid(res.error);
+    /* the keyboard goes to the entry under it, or the one above */
+    const li = itemRef.current;
+    const next = (li?.nextElementSibling ?? li?.previousElementSibling)?.querySelector<HTMLElement>(".hd-dy-en");
+    next?.focus({ preventScroll: true });
+    setGone(true);
+  };
+
   /* UNDO, PRESSED HERE. What it took back is held on the entry at once —
      the page's own read says the same once it has come round — and a
      sentence it said stays under the entry: a refusal in Undo's place, for
@@ -215,18 +321,87 @@ function Entry({
     setUndoSaid({ text: res.error, again: false });
   };
 
+  if (gone) return null;
+
   return (
-    <li className="hd-dy-it" data-item={item} data-entry={entry.id}>
+    <li className="hd-dy-it" data-item={item} data-entry={entry.id} ref={itemRef}>
       {/* focusable by script alone: a door from another face lands here */}
       <div className="hd-dy-en" ref={enRef} tabIndex={-1} data-lit={lit ? "" : undefined}>
         <span className="hd-dy-av" aria-hidden="true">
           {you}
         </span>
         <div className="hd-dy-bd">
-          <p className="hd-dy-m">
-            <b>You</b>, {entryWhen(entry, { today, justNow })}
-          </p>
-          <p className="hd-dy-p">{entry.said}</p>
+          <div className="hd-dy-mh">
+            <p className="hd-dy-m">
+              <b>You</b>, {entryWhen(entry, { today, justNow })}
+            </p>
+            {mode === "read" && (
+              <span className="hd-dy-acts">
+                {!entry.inSm8 && (
+                  <button type="button" className="hd-dy-act" ref={editButton} onClick={openEdit}>
+                    Edit
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="hd-dy-act"
+                  ref={deleteButton}
+                  onClick={() => {
+                    setChangeSaid(null);
+                    setMode("delete");
+                  }}
+                >
+                  Delete
+                </button>
+              </span>
+            )}
+          </div>
+          {mode === "edit" ? (
+            <div className="hd-dy-edit">
+              <textarea
+                ref={editRef}
+                className="hd-dy-ed"
+                aria-label="Your words"
+                value={draft}
+                rows={Math.min(8, Math.max(2, draft.split("\n").length))}
+                readOnly={changing}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={onEditKey}
+              />
+              <div className="hd-dy-edb">
+                <button
+                  type="button"
+                  className="hd-ls-vb hd-tk-go"
+                  aria-disabled={changing || !draft.trim() || undefined}
+                  onClick={() => (draft.trim() ? void saveEdit() : undefined)}
+                >
+                  {changing ? "Saving…" : "Save"}
+                </button>
+                <button type="button" className="hd-ls-vb" onClick={closeEdit}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="hd-dy-p">{words}</p>
+          )}
+          {mode === "delete" && (
+            <Confirm
+              question="Delete this entry for good?"
+              pending={changing}
+              onGo={() => void remove()}
+              onKeep={() => {
+                backTo.current = "delete";
+                setChangeSaid(null);
+                setMode("read");
+              }}
+            />
+          )}
+          {changeSaid && (
+            <p className="hd-dy-note hd-dy-said" role="status">
+              {changeSaid}
+            </p>
+          )}
           {line &&
             /* The door back into the conversation, where this viewer has
                the modal; the same words, and no door, where not. */

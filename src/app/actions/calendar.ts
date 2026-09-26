@@ -27,6 +27,7 @@ import {
   lineDates,
   lineDoor,
   linePlan,
+  onBoxDay,
   openDays,
   outsideLine,
   shutdownOnHolidaysLine,
@@ -51,12 +52,14 @@ import {
    caller's own staff card or nobody.
 
    Four doors:
-     Save          `addCalendarEvent`: the words as typed, on today.
+     Save          `addCalendarEvent`: the words as typed, on the day the box
+                   adds to — the one clicked, or today.
      Sort it out   `fileCalendarLine`: Tiff reads the line — a day, a time,
                    a repeat — and it goes on as she read it, a repeat as one
-                   row per date under one series; a reply after it is kept on
-                   what she filed (`noteOnCalendarEvents`), and Undo takes it
-                   off (`undoCalendarLine`).
+                   row per date under one series, and a line that names no
+                   day on the box's day; a reply after it is kept on what she
+                   filed (`noteOnCalendarEvents`), and Undo takes it off
+                   (`undoCalendarLine`).
      Edit          `editCalendarEvent`: this one, or the whole series.
      Delete        `deleteCalendarEvent`: this one, or all of the series. */
 
@@ -79,6 +82,7 @@ const NO_CHANGE = "You can't change the calendar.";
 const COULDNT_ADD = "Couldn't add that to the calendar.";
 const COULDNT_CHANGE = "Couldn't change that on the calendar.";
 const GONE = "That's no longer on the calendar.";
+const NOT_ON_CALENDAR = "That day isn't on the calendar.";
 
 /* By name, not by path: a revalidate aimed at a moved route fails silently
    (see the note on `refresh` in ./kb). */
@@ -107,21 +111,29 @@ function idsOf(raw: unknown): string[] {
   return [...out].slice(0, MAX_OCCURRENCES);
 }
 
-/** Save: the words as typed, on the workspace's today, all day. Tiff is not
-    asked — what you typed is what goes on the calendar, and a day, a time
-    or a repeat in the words is Sort it out's to read.
+/** Save: the words as typed, all day, on the day the box adds to. Tiff is
+    not asked — what you typed is what goes on the calendar, and a day, a
+    time or a repeat in the words is Sort it out's to read.
+
+    THE DAY YOU CLICKED (Isaac, 2026-09-26: "simplify it. how does a
+    calendar normally add things in?"): the box names the day it adds to,
+    the one clicked or the first day of the thing picked, and sends it. The
+    page is never the control: a day that is not a real one, or is outside
+    the calendar's twelve months as they stand today, is refused with the
+    words, never moved.
 
     AS TYPED, OR NOT AT ALL. Words past the table's 120 are refused, never
     cut: the box keeps whatever a Save refuses and says why, and it empties
     only for a Save that went in, so a line cut short would lose its end
     with nothing to say it had.
 
-    THE WORKSPACE'S DAY, the one the calendar draws Today on and "Your day"
-    above it (lib/calendar/query): the ServiceM8 account's zone, Sydney
-    without one. Sydney's own day would put a late-evening Save in Perth on
-    tomorrow. It is read here rather than taken from the page, so a page
-    left open past midnight still saves on the day it is. */
-export async function addCalendarEvent(text: string): Promise<CalendarAddResult> {
+    NO DAY IS THE WORKSPACE'S TODAY, the one the calendar draws Today on and
+    "Your day" above it (lib/calendar/query): the ServiceM8 account's zone,
+    Sydney without one. Sydney's own day would put a late-evening Save in
+    Perth on tomorrow. It is read here rather than taken from the page, so a
+    page left open past midnight still saves on the day it is, and holds a
+    day sent to the twelve months as they are now. */
+export async function addCalendarEvent(text: string, on?: string | null): Promise<CalendarAddResult> {
   const who = await gate(NO_TEAM);
   if ("error" in who) return { ok: false, error: who.error };
   const { orgId, userId } = who;
@@ -131,7 +143,13 @@ export async function addCalendarEvent(text: string): Promise<CalendarAddResult>
   if ([...title].length > TITLE_MAX) return { ok: false, error: `Keep it to ${TITLE_MAX} characters.` };
 
   const [staffId, tz] = await Promise.all([staffProfileIdFor(orgId, userId), getSm8Timezone(orgId)]);
-  const day = todayInZone(tz);
+  const today = todayInZone(tz);
+  const win = companyWindow(today);
+  if (!win) return { ok: false, error: COULDNT_ADD };
+  const day = on == null ? today : on;
+  if (typeof day !== "string" || Number.isNaN(toDay(day)) || day < win.windowStart || day > win.windowEnd) {
+    return { ok: false, error: NOT_ON_CALENDAR };
+  }
 
   const { data, error } = await supabaseAdmin
     .from("calendar_events")
@@ -181,6 +199,12 @@ export type CalendarLineResult =
     come back with the line, which is read again whole. She asks three times
     at most. The rows are the caller's workspace's, on its own day, as ever.
 
+    THE BOX'S DAY (`day`, Isaac, 2026-09-26): the Calendar's box adds to a
+    day and says which, so a line whose words name none goes on it instead
+    of her asking, and her "Done." names it. Words that name a day win. It
+    is filled in after the reading (lib/calendar/line `onBoxDay`), never
+    asked of the model, and a day outside the twelve months is no day.
+
     HELD TO THE WORDS AND TO THE CALENDAR, in code, whatever the model read
     (the first real-model check): a repeat the words never say ("the last
     Friday of the month", no every) is the next one, once; a public holiday
@@ -193,6 +217,7 @@ export async function fileCalendarLine(
   text: string,
   source: "text" | "voice" = "text",
   answers: readonly string[] = [],
+  day?: string | null,
 ): Promise<CalendarLineResult> {
   const who = await gate(NO_TEAM);
   if ("error" in who) return { ok: false, error: who.error };
@@ -214,9 +239,10 @@ export async function fileCalendarLine(
   if (!read.ok) return { ok: false, error: read.error, unread: true };
   /* What the words said, whatever the model made of them: a repeat they
      never say is the next one, once, and a line called "Public holiday"
-     is a claim that the day is one. */
+     is a claim that the day is one. Then, where they name no day at all,
+     the day the box adds to. */
   const frame = { today, ...win };
-  const l = asSaid(read.line, [line, ...said], frame);
+  const l = onBoxDay(asSaid(read.line, [line, ...said], frame), day, frame);
 
   const dates = lineDates(l, frame);
   if (!dates.ok) {

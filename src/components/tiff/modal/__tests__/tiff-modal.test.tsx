@@ -1476,7 +1476,7 @@ describe("opened again on a conversation", () => {
    after filing is kept on what she filed; a question is still a question;
    and what went on lands on the calendar as the modal closes. */
 describe("the calendar's room", () => {
-  const LINE = "Toolbox talk first Thursday of the month, 6:45";
+  const LINE = "Toolbox talk every first Thursday, 6:45";
   const SAID =
     "Done. Toolbox talk is on the calendar for Thu 1 Oct at 6:45 am, then the first Thursday of every month until Aug 2027.";
   const IDS = ["e1", "e2", "e3"];

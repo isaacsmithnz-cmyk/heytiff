@@ -1,22 +1,29 @@
 import {
   NOTE_MAX,
+  asSaid,
   filedLine,
+  holidayClaimLine,
   landedEvent,
   lineAbout,
   lineDates,
   lineDoor,
   linePlan,
   notedLine,
+  openDays,
   outsideLine,
+  saysRepeat,
+  shutdownOnHolidaysLine,
   takenBackLine,
   withNote,
   type CalendarLine,
   type LineFrame,
 } from "../line";
 
-/* A LINE FOR THE CALENDAR, counted and said (H22). His README's own example
-   is the spine: "Toolbox talk first Thursday of the month, 6:45", on Thu 24
-   Sept 2026, goes on eleven times and Tiff says so in the spec's words. */
+/* A LINE FOR THE CALENDAR, counted and said (H22). His own words are the
+   spine: "Toolbox talk every first Thursday, 6:45", on Thu 24 Sept 2026,
+   goes on eleven times and Tiff says so in the spec's words. Without the
+   every, "the first Thursday of the month" is the next one, once (the first
+   real-model check). */
 
 const AT: LineFrame = { today: "2026-09-24", windowStart: "2026-09-01", windowEnd: "2027-08-31" };
 
@@ -29,6 +36,7 @@ const line = (over: Partial<CalendarLine> = {}): CalendarLine => ({
   time: null,
   endTime: null,
   repeat: null,
+  repeatWord: null,
   where: null,
   who: null,
   ...over,
@@ -153,6 +161,134 @@ describe("what Tiff says", () => {
   it("counts what Undo took back", () => {
     expect(takenBackLine(1)).toBe("1 event taken back.");
     expect(takenBackLine(11)).toBe("11 events taken back.");
+  });
+});
+
+describe("held to the words", () => {
+  it("hears every, each, monthly, weekly and fortnightly as a repeat, and only as whole words", () => {
+    expect(saysRepeat(["toolbox talk every first Thursday"], null)).toBe(true);
+    expect(saysRepeat(["BBQ last Friday of EACH month"], null)).toBe(true);
+    expect(saysRepeat(["Monthly BBQ"], "")).toBe(true);
+    expect(saysRepeat(["site walk, weekly"], null)).toBe(true);
+    expect(saysRepeat(["Fortnightly site meeting"], null)).toBe(true);
+    expect(saysRepeat(["everyone to the beach BBQ last Friday of the month"], null)).toBe(false);
+  });
+
+  it("hears it in an answer to Which day? as in the line", () => {
+    expect(saysRepeat(["toolbox talk", "every first Thursday"], null)).toBe(true);
+  });
+
+  it("takes the speaker's own word only where they said it, whole", () => {
+    expect(saysRepeat(["Werkzeugbesprechung jeden ersten Donnerstag"], "jeden")).toBe(true);
+    expect(saysRepeat(["Werkzeugbesprechung JEDEN ersten Donnerstag"], "jeden")).toBe(true);
+    expect(saysRepeat(["reunión todos  los primeros jueves"], "todos los")).toBe(true);
+    expect(saysRepeat(["toolbox talk first Thursday of the month"], "jeden")).toBe(false);
+    expect(saysRepeat(["Werkzeugbesprechung jedenfalls Donnerstag"], "jeden")).toBe(false);
+    /* Chinese has no spaces to find a word between. */
+    expect(saysRepeat(["每月最后一个星期五烧烤"], "每")).toBe(true);
+    expect(saysRepeat(["最后一个星期五烧烤"], "每")).toBe(false);
+  });
+
+  it("never takes words that only name the day for a repeat", () => {
+    const line = "BBQ at the yard last Friday of the month 3pm";
+    for (const w of ["of the month", "month", "the last Friday", "Last", "  ", "."]) expect(saysRepeat([line], w)).toBe(false);
+  });
+
+  it("puts a weekday of the month the words never say repeats on once, the next one, whatever the reader returned", () => {
+    const bbq = line({ title: "BBQ", time: "15:00", repeat: { every: "month", day: "fri", nth: "last" } });
+    const once = asSaid(bbq, ["BBQ at the yard last Friday of the month 3pm"], AT);
+    expect(once).toEqual({ ...bbq, repeat: null, day: "2026-09-25", lastDay: null });
+    expect(lineDates(once, AT)).toEqual({ ok: true, days: ["2026-09-25"], lastDay: null });
+    /* From the day it names when that is later, and never past the calendar. */
+    expect(asSaid({ ...bbq, day: "2026-11-02" }, ["BBQ last Friday of November"], AT).day).toBe("2026-11-27");
+    expect(asSaid({ ...bbq, day: "2026-08-01" }, ["BBQ last Friday of the month"], AT).day).toBe("2026-09-25");
+    const far = asSaid({ ...bbq, day: "2027-09-03" }, ["BBQ last Friday of September next year"], AT);
+    expect(lineDates(far, AT)).toEqual({ ok: false, why: "far" });
+  });
+
+  it("leaves a repeat the words say as it was read", () => {
+    const bbq = line({ title: "BBQ", repeat: { every: "month", day: "fri", nth: "last" } });
+    expect(asSaid(bbq, ["BBQ every last Friday of the month"], AT)).toBe(bbq);
+    expect(asSaid({ ...bbq, repeatWord: "jeden" }, ["Grillen jeden letzten Freitag"], AT).repeat).toEqual(bbq.repeat);
+    expect(asSaid(line({ day: "2026-10-08" }), ["toolbox talk on the 8th"], AT)).toEqual(line({ day: "2026-10-08" }));
+  });
+
+  it("hears a line called Public holiday as a claim that the day is one, whatever kind it was read as", () => {
+    const said = ["public holiday Monday"];
+    for (const kind of ["shutdown", "event"] as const) {
+      expect(asSaid(line({ title: "Public holiday", kind, day: "2026-09-28", time: "07:00" }), said, AT)).toMatchObject({
+        kind: "public_holiday",
+        day: "2026-09-28",
+        time: null,
+        repeat: null,
+      });
+    }
+    expect(asSaid(line({ title: "public  holidays", kind: "shutdown" }), said, AT).kind).toBe("public_holiday");
+    const weekly = line({ title: "Public holiday", repeat: { every: "week", day: "mon" }, repeatWord: "every" });
+    expect(asSaid(weekly, ["public holiday every Monday"], AT)).toMatchObject({ kind: "public_holiday", repeat: null });
+    /* Something held on one is not a claim. */
+    expect(asSaid(line({ title: "Public holiday BBQ", day: "2026-10-05" }), ["public holiday BBQ"], AT).kind).toBe("event");
+  });
+});
+
+describe("the days the business is already closed", () => {
+  const NSW = [
+    { date: "2026-10-05", name: "Labour Day" },
+    { date: "2026-12-25", name: "Christmas Day" },
+    { date: "2026-12-26", name: "Boxing Day" },
+    { date: "2026-12-28", name: "Boxing Day (additional day)" },
+    { date: "2027-03-26", name: "Good Friday" },
+  ];
+  const one = (day: string, lastDay: string | null = null) => ({ ok: true as const, days: [day], lastDay });
+
+  it("says a claimed public holiday is already on, or that its day isn't one, and never files it", () => {
+    expect(holidayClaimLine(one("2026-10-05"), NSW, "NSW")).toBe("Labour Day is already on the calendar.");
+    expect(holidayClaimLine(one("2026-12-25", "2026-12-26"), NSW, "NSW")).toBe(
+      "Christmas Day and Boxing Day are already on the calendar.",
+    );
+    expect(holidayClaimLine(one("2026-09-28"), NSW, "NSW")).toBe(
+      "Mon 28 Sept isn't a public holiday in NSW. If the yard's closed, say it's a shutdown.",
+    );
+    expect(holidayClaimLine(one("2026-12-25", "2026-12-27"), NSW, "NSW")).toBe(
+      "Sun 27 Dec isn't a public holiday in NSW. If the yard's closed, say it's a shutdown.",
+    );
+    expect(holidayClaimLine(one("2026-10-05"), [], null)).toBe(
+      "Mon 5 Oct isn't a public holiday on the calendar. If the yard's closed, say it's a shutdown.",
+    );
+  });
+
+  it("refuses a shutdown only when every day of it is a public holiday already", () => {
+    expect(shutdownOnHolidaysLine(one("2026-10-05"), NSW)).toBe("Labour Day is already on the calendar.");
+    expect(shutdownOnHolidaysLine(one("2026-12-25", "2026-12-26"), NSW)).toBe(
+      "Christmas Day and Boxing Day are already on the calendar.",
+    );
+    expect(shutdownOnHolidaysLine(one("2026-12-22", "2027-01-06"), NSW)).toBeNull();
+    expect(shutdownOnHolidaysLine(one("2026-10-06"), NSW)).toBeNull();
+  });
+
+  it("leaves a series' holidays and shutdown days out, and names them", () => {
+    expect(openDays(["2026-10-30", "2026-12-25", "2027-01-29", "2027-03-26"], NSW, [])).toEqual({
+      days: ["2026-10-30", "2027-01-29"],
+      skips: "Skips Christmas Day and Good Friday.",
+    });
+    const XMAS = { id: "sd", startsOn: "2026-12-23", endsOn: "2027-01-08" };
+    expect(openDays(["2026-12-21", "2027-01-06", "2027-01-13"], NSW, [XMAS])).toEqual({
+      days: ["2026-12-21", "2027-01-13"],
+      skips: "Skips Wed 6 Jan in the shutdown.",
+    });
+    /* Its first and last days are in it. */
+    expect(openDays(["2026-12-22", "2026-12-23", "2027-01-08", "2027-01-09"], [], [XMAS])).toEqual({
+      days: ["2026-12-22", "2027-01-09"],
+      skips: "Skips 2 dates in the shutdown.",
+    });
+    /* A holiday inside a shutdown is named as the holiday. */
+    expect(openDays(["2026-12-23", "2026-12-28", "2026-12-30", "2027-01-06", "2027-03-26"], NSW, [XMAS])).toEqual({
+      days: [],
+      skips: "Skips Boxing Day (additional day), Good Friday and 3 dates in the shutdown.",
+    });
+    const EASTER = { id: "sd2", startsOn: "2027-03-29", endsOn: "2027-04-02" };
+    expect(openDays(["2026-12-30", "2027-03-31"], [], [XMAS, EASTER]).skips).toBe("Skips 2 dates in shutdowns.");
+    expect(openDays(["2026-10-30"], NSW, [XMAS])).toEqual({ days: ["2026-10-30"], skips: null });
   });
 });
 

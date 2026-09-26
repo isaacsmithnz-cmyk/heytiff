@@ -73,13 +73,14 @@ const TOOLBOX = {
   repeat: "month",
   repeat_day: "thu",
   repeat_nth: "first",
+  repeat_word: "every",
   where: "",
   who: "",
 };
 
 describe("what the reader is sent", () => {
   it("sends the line, the day and the window, held to its schema at low effort, and the record rule", async () => {
-    await readCalendarLine("  Toolbox talk first Thursday of the month, 6:45  ", CTX);
+    await readCalendarLine("  Toolbox talk every first Thursday, 6:45  ", CTX);
     expect(sent).toHaveLength(1);
     const body = sent[0]!;
     expect(body.model).toBe("claude-opus-5");
@@ -89,8 +90,33 @@ describe("what the reader is sent", () => {
     expect(body.system).toContain("The calendar runs to 2027-08-31.");
     expect(body.system).toContain(RECORD_IN_ENGLISH);
     expect(body.messages).toEqual([
-      { role: "user", content: "Line:\nToolbox talk first Thursday of the month, 6:45" },
+      { role: "user", content: "Line:\nToolbox talk every first Thursday, 6:45" },
     ]);
+  });
+
+  /* The first real-model check: "public holiday Monday" came back a
+     shutdown, as the only closed kind it was offered, and "BBQ at the yard
+     last Friday of the month" came back a monthly series. */
+  it("offers a public holiday as its own kind, and says the state's list already has them", () => {
+    expect(LINE_SCHEMA.properties.kind.enum).toEqual(["event", "shutdown", "public_holiday"]);
+    const told = linePrompt(CTX);
+    expect(told).toContain("'public_holiday' when the line");
+    expect(told).toContain("public holidays come from the state's list and are");
+    expect(told).toContain("already on the calendar, so nothing is added for one.");
+    expect(told).toContain("on a public holiday (a Labour Day barbecue) is an 'event'.");
+  });
+
+  it("asks for the word that says it repeats, as the line writes it, and says a weekday of the month alone is once", () => {
+    expect(LINE_SCHEMA.properties.repeat_word).toEqual({ type: "string" });
+    expect(LINE_SCHEMA.required).toContain("repeat_word");
+    const told = linePrompt(CTX);
+    expect(told).toContain("- repeat_word: the word in the line that says it happens again and");
+    expect(told).toContain("language ('jeden' in 'jeden ersten Donnerstag'). '' when the line has");
+    expect(told).toContain("none: 'the last Friday of the month' on its own is the next one, once.");
+    /* The record rule above it says to write everything in English; the
+       word is checked against the line as said, so it must stay as said. */
+    expect(told).toContain("It is a quote, not a record: never translate it into English.");
+    expect(told).not.toContain("Only a repeat the line says.");
   });
 
   it("sends each answer to Which day? after the line, and asks it read again", () => {
@@ -106,9 +132,9 @@ describe("what the reader is sent", () => {
 });
 
 describe("what comes back", () => {
-  it("reads his toolbox talk as a monthly repeat on the first Thursday, at 6:45", async () => {
+  it("reads his toolbox talk as a monthly repeat on the first Thursday, at 6:45, with the word that said so", async () => {
     reply = TOOLBOX;
-    expect(await readCalendarLine("Toolbox talk first Thursday of the month, 6:45", CTX)).toEqual({
+    expect(await readCalendarLine("Toolbox talk every first Thursday, 6:45", CTX)).toEqual({
       ok: true,
       line: {
         title: "Toolbox talk",
@@ -119,6 +145,7 @@ describe("what comes back", () => {
         time: "06:45",
         endTime: null,
         repeat: { every: "month", day: "thu", nth: 1 },
+        repeatWord: "every",
         where: null,
         who: null,
       },
@@ -175,6 +202,28 @@ describe("shaping what the model said into what is true", () => {
       endTime: null,
       repeat: null,
     });
+  });
+
+  it("keeps a public holiday as one, with its days, and gives it no hours and no repeat", () => {
+    expect(
+      shapeLine({ ...TOOLBOX, kind: "public_holiday", day: "2026-10-05", last_day: "2026-10-06", end_time: "08:00" }),
+    ).toMatchObject({
+      kind: "public_holiday",
+      day: "2026-10-05",
+      lastDay: "2026-10-06",
+      time: null,
+      endTime: null,
+      repeat: null,
+      repeatWord: null,
+    });
+    expect(shapeLine({ ...TOOLBOX, kind: "holiday" })!.kind).toBe("event");
+  });
+
+  it("keeps the word that said it repeats as the reader wrote it, a word or two, and only with a repeat", () => {
+    expect(shapeLine({ ...TOOLBOX, repeat_word: "  jeden  " })!.repeatWord).toBe("jeden");
+    expect(shapeLine({ ...TOOLBOX, repeat_word: "" })!.repeatWord).toBeNull();
+    expect(shapeLine({ ...TOOLBOX, repeat_word: "x".repeat(60) })!.repeatWord).toHaveLength(40);
+    expect(shapeLine({ ...TOOLBOX, repeat: "none" })!.repeatWord).toBeNull();
   });
 
   it("refuses a repeat it cannot count, and gives a repeat no range", () => {

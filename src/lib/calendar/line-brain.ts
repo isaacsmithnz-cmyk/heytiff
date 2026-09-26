@@ -2,11 +2,14 @@
 
    One line typed into the Calendar's box and sorted, or said to its Tiff
    button, read into what goes on the calendar: a title, a day, a time, a
-   place, who it is for, whether it is a shutdown, and whether it repeats
-   ("the first Thursday of the month"). The model READS; it never counts. A
-   repeat comes back as a rule and ./repeat counts its dates, so "every first
-   Thursday" lands on the same eleven days whatever the model thinks August
-   holds.
+   place, who it is for, whether it is a shutdown (or says the day is a
+   public holiday), and whether it repeats ("every first Thursday"). The
+   model READS; it never counts. A repeat comes back as a rule and ./repeat
+   counts its dates, so "every first Thursday" lands on the same eleven days
+   whatever the model thinks August holds; and it comes back with the word
+   that said it repeats, which ./line `asSaid` holds to the words, so "the
+   last Friday of the month" with no every is the next one, once, whatever
+   rule the model returned with it.
 
    THE SAME CALL AS THE NOTE ROUTER'S (lib/workboard/note-brain), at LOW
    effort, as the other small readings are (note-english, job-summary): the
@@ -38,7 +41,7 @@ export const LINE_SCHEMA = {
   properties: {
     title: str,
     title_in_sentence: str,
-    kind: { type: "string", enum: ["event", "shutdown"] },
+    kind: { type: "string", enum: ["event", "shutdown", "public_holiday"] },
     day: str,
     last_day: str,
     time: str,
@@ -46,6 +49,7 @@ export const LINE_SCHEMA = {
     repeat: { type: "string", enum: ["none", "week", "fortnight", "month"] },
     repeat_day: { type: "string", enum: ["", "mon", "tue", "wed", "thu", "fri", "sat", "sun"] },
     repeat_nth: { type: "string", enum: ["", "first", "second", "third", "fourth", "last"] },
+    repeat_word: str,
     where: str,
     who: str,
   },
@@ -60,6 +64,7 @@ export const LINE_SCHEMA = {
     "repeat",
     "repeat_day",
     "repeat_nth",
+    "repeat_word",
     "where",
     "who",
   ],
@@ -91,7 +96,12 @@ export function linePrompt(ctx: LineContext): string {
     "  sentence: 'toolbox talk', 'Daikin VRV training', 'Christmas party'.",
     "  Lower-case only the words that are not names.",
     "- kind: 'shutdown' when the business is closed for it (a shutdown, the",
-    "  Christmas break, closed for the day); otherwise 'event'.",
+    "  Christmas break, closed for the day). 'public_holiday' when the line",
+    "  says the day itself is a public holiday ('public holiday Monday',",
+    "  'Labour Day'): public holidays come from the state's list and are",
+    "  already on the calendar, so nothing is added for one. Something held",
+    "  on a public holiday (a Labour Day barbecue) is an 'event'. Otherwise",
+    "  'event'.",
     "- day: the day it happens, or the first day of something that runs over",
     "  several days, as YYYY-MM-DD. For a repeat, the day it starts from only",
     "  when the line says ('from November'). Leave it empty when the line",
@@ -102,12 +112,20 @@ export function linePrompt(ctx: LineContext): string {
     "  without am or pm is a working day's: 6:45 is 06:45, 3:30 is 15:30.",
     "  Empty otherwise. A shutdown has none.",
     "- repeat: 'week' (every Tuesday), 'fortnight' (every second Tuesday),",
-    "  'month' (the first Thursday of the month, the last Friday of the",
-    "  month), or 'none'. Only a repeat the line says.",
+    "  'month' (every first Thursday, the last Friday of each month), or",
+    "  'none'. A weekday of the month ('the last Friday of the month') is",
+    "  'month' even when the line does not say it repeats: its date is",
+    "  counted for you, and repeat_word says whether it happens once.",
     "- repeat_day: the weekday it repeats on, 'mon' to 'sun'; '' when it does",
     "  not repeat.",
     "- repeat_nth: for a monthly repeat, which one in the month: 'first',",
     "  'second', 'third', 'fourth' or 'last'; '' otherwise.",
+    "- repeat_word: the word in the line that says it happens again and",
+    "  again, copied exactly as the line writes it: 'every', 'each',",
+    "  'monthly', 'weekly', 'fortnightly', or that word in the line's own",
+    "  language ('jeden' in 'jeden ersten Donnerstag'). '' when the line has",
+    "  none: 'the last Friday of the month' on its own is the next one, once.",
+    "  It is a quote, not a record: never translate it into English.",
     "- where: the place, when the line names one ('the yard'); otherwise ''.",
     "- who: who it is for, when the line says ('everyone', 'the installers');",
     "  otherwise ''.",
@@ -138,6 +156,8 @@ export function lineContent(text: string, answers: readonly string[] = []): stri
 const TITLE_MAX = 120;
 const WHERE_MAX = 120;
 const WHO_MAX = 80;
+/** "every", "jeden", "todos los": a word or two, never a sentence. */
+const REPEAT_WORD_MAX = 40;
 
 const text = (v: unknown, max: number): string =>
   typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max).trim() : "";
@@ -162,15 +182,16 @@ export function shapeLine(raw: unknown): CalendarLine | null {
   const title = text(o.title, TITLE_MAX);
   if (!title) return null;
   const inSentence = text(o.title_in_sentence, TITLE_MAX);
-  const kind = o.kind === "shutdown" ? "shutdown" : "event";
+  const kind = o.kind === "shutdown" || o.kind === "public_holiday" ? o.kind : "event";
   const day = isoDay(o.day);
   const last = isoDay(o.last_day);
   const repeat = kind === "event" && o.repeat !== "none"
     ? readRepeatRule({ every: o.repeat, day: o.repeat_day, nth: o.repeat_nth })
     : null;
-  /* A shutdown closes the day and has no hours (the table refuses them); an
-     end needs a start and must come after it. A repeat is one day at a time. */
-  const time = kind === "shutdown" ? null : clock(o.time);
+  /* A shutdown closes the day and has no hours (the table refuses them), nor
+     does a public holiday; an end needs a start and must come after it. A
+     repeat is one day at a time. */
+  const time = kind === "event" ? clock(o.time) : null;
   const end = time ? clock(o.end_time) : null;
   return {
     title,
@@ -182,6 +203,8 @@ export function shapeLine(raw: unknown): CalendarLine | null {
     time,
     endTime: end && end > time! ? end : null,
     repeat,
+    /* As the reader reported it; line.ts `asSaid` decides what it is worth. */
+    repeatWord: repeat ? text(o.repeat_word, REPEAT_WORD_MAX) || null : null,
     where: text(o.where, WHERE_MAX) || null,
     who: text(o.who, WHO_MAX) || null,
   };

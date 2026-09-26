@@ -28,6 +28,11 @@ const inserts: Insert[] = [];
 const calls: Call[] = [];
 /** calendar_events, as the fake database holds it. */
 let rows: Row[] = [];
+/** public_holidays, as the fake database holds it: read, never written. */
+let holidays: Row[] = [];
+let holidayError: { message: string } | null = null;
+/** The workspace's state (`stateFor(orgId, "")`), whose holidays these are. */
+let orgState: string | null = "NSW";
 let seq = 0;
 let insertError: { message: string } | null = null;
 let updateError: { message: string } | null = null;
@@ -69,7 +74,8 @@ jest.mock("@/lib/supabase-server", () => ({
           rows = rows.filter((r) => !matches(r));
           return { data: returning ? gone.map((r) => ({ id: r.id })) : null, error: null };
         }
-        const found = rows.filter(matches).map((r) => ({ ...r }));
+        if (table === "public_holidays" && holidayError) return { data: null, error: holidayError };
+        const found = (table === "public_holidays" ? holidays : rows).filter(matches).map((r) => ({ ...r }));
         return { data: one ? (found[0] ?? null) : found, error: null };
       };
       const q: Record<string, unknown> = {
@@ -96,6 +102,10 @@ jest.mock("@/lib/auth0", () => ({ auth0: { getSession: jest.fn(async () => sessi
 jest.mock("@/lib/permissions-server", () => ({ can: jest.fn(async (cap: string) => allowed.has(cap)) }));
 jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: jest.fn(async () => staffId) }));
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: jest.fn(async () => zone) }));
+const stateFor = jest.fn(async (_org: string, _staff: string) => orgState);
+jest.mock("@/lib/timepay/leave-query", () => ({
+  stateFor: (org: string, staff: string) => stateFor(org, staff),
+}));
 const revalidatePath = jest.fn();
 jest.mock("next/cache", () => ({ revalidatePath: (p: string) => revalidatePath(p) }));
 const readCalendarLine = jest.fn();
@@ -118,6 +128,10 @@ beforeEach(() => {
   inserts.length = 0;
   calls.length = 0;
   rows = [];
+  holidays = [];
+  holidayError = null;
+  orgState = "NSW";
+  stateFor.mockClear();
   seq = 0;
   insertError = null;
   updateError = null;
@@ -234,6 +248,7 @@ const line = (over: Partial<CalendarLine> = {}): CalendarLine => ({
   time: "06:45",
   endTime: null,
   repeat: { every: "month", day: "thu", nth: 1 },
+  repeatWord: null,
   where: "The yard",
   who: null,
   ...over,
@@ -257,7 +272,7 @@ const FIRST_THURSDAYS = [
 describe("fileCalendarLine", () => {
   it("puts his toolbox talk on eleven first Thursdays, in one insert under one series, and says so", async () => {
     reads(line());
-    const res = await fileCalendarLine("Toolbox talk first Thursday of the month, 6:45");
+    const res = await fileCalendarLine("Toolbox talk every first Thursday, 6:45");
     expect(res).toEqual({
       ok: true,
       say: "Done. Toolbox talk is on the calendar for Thu 1 Oct at 6:45 am, then the first Thursday of every month until Aug 2027.",
@@ -374,6 +389,367 @@ describe("fileCalendarLine", () => {
     reads(line());
     insertError = { message: "boom" };
     expect(await fileCalendarLine("toolbox talk")).toEqual({ ok: false, error: "Couldn't add that to the calendar." });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+/* ── what the real model said, fixed (H22's first real-model check) ──
+
+   Each of these is a reading the model gave for a line the check sent,
+   brought back on the wire exactly as the model answered and read by the
+   real reader (lib/calendar/line-brain), so the guard that holds it is the
+   action's own and would hold whatever the model says next time. On Sat 26
+   Sept 2026 in Sydney, as the check ran, over NSW's public holidays as
+   `ensureHolidays` fills them. */
+
+/** Every field the reader asks for, empty: the model's answer is this with its own. */
+const ANSWER = {
+  title: "",
+  title_in_sentence: "",
+  kind: "event",
+  day: "",
+  last_day: "",
+  time: "",
+  end_time: "",
+  repeat: "none",
+  repeat_day: "",
+  repeat_nth: "",
+  repeat_word: "",
+  where: "",
+  who: "",
+};
+
+const realFetch = globalThis.fetch;
+const realKey = process.env.ANTHROPIC_API_KEY;
+
+/** The model's answer on the wire, read by the real reader. */
+function modelSays(answer: Partial<typeof ANSWER>) {
+  const real = jest.requireActual<typeof import("@/lib/calendar/line-brain")>("@/lib/calendar/line-brain");
+  readCalendarLine.mockImplementation(real.readCalendarLine);
+  process.env.ANTHROPIC_API_KEY = "test-key";
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        id: "msg_1",
+        type: "message",
+        role: "assistant",
+        model: "claude-opus-5",
+        content: [{ type: "text", text: JSON.stringify({ ...ANSWER, ...answer }) }],
+        stop_reason: "end_turn",
+        stop_sequence: null,
+        usage: { input_tokens: 1, output_tokens: 1 },
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    )) as typeof fetch;
+}
+
+/** NSW's public holidays over the calendar's twelve months (lib/timepay/holiday-rules). */
+const NSW: [string, string][] = [
+  ["2026-10-05", "Labour Day"],
+  ["2026-12-25", "Christmas Day"],
+  ["2026-12-26", "Boxing Day"],
+  ["2026-12-28", "Boxing Day (additional day)"],
+  ["2027-01-01", "New Year's Day"],
+  ["2027-01-26", "Australia Day"],
+  ["2027-03-26", "Good Friday"],
+  ["2027-03-27", "Easter Saturday"],
+  ["2027-03-28", "Easter Sunday"],
+  ["2027-03-29", "Easter Monday"],
+  ["2027-04-25", "Anzac Day"],
+  ["2027-04-26", "Anzac Day (additional day)"],
+  ["2027-06-14", "King's Birthday"],
+];
+
+const holidayRows = (): Row[] => [
+  ...NSW.map(([holiday_date, name]) => ({ org_id: "org-1", state: "NSW", holiday_date, name, suppressed: false })),
+  /* None of these is one of the caller's: a day an admin took off the list,
+     another workspace's, another state's. */
+  { org_id: "org-1", state: "NSW", holiday_date: "2026-09-28", name: "Taken off", suppressed: true },
+  { org_id: "org-2", state: "NSW", holiday_date: "2026-09-28", name: "Theirs", suppressed: false },
+  { org_id: "org-1", state: "VIC", holiday_date: "2026-09-28", name: "Grand Final Friday", suppressed: false },
+];
+
+/** The reads of the state's list the action made. */
+const holidayReads = () => calls.filter((c) => c.table === "public_holidays");
+
+describe("fileCalendarLine, held to what the model said in its first real check", () => {
+  beforeEach(() => {
+    holidays = holidayRows();
+    /* Only the clock is fake: the reader's request runs on real ticks. */
+    jest.useFakeTimers({
+      now: new Date("2026-09-26T00:00:00Z"),
+      doNotFake: [
+        "nextTick",
+        "queueMicrotask",
+        "setImmediate",
+        "clearImmediate",
+        "setTimeout",
+        "clearTimeout",
+        "setInterval",
+        "clearInterval",
+      ],
+    });
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    if (realKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = realKey;
+  });
+
+  const PUBLIC_HOLIDAY = { title: "Public holiday", title_in_sentence: "public holiday" };
+
+  /* "public holiday Monday", read as a shutdown on the next Monday, went
+     straight on: on Labour Day, a second entry beside the state's own. */
+  it("refuses a public holiday read as a shutdown on Labour Day: it is already on the calendar", async () => {
+    modelSays({ ...PUBLIC_HOLIDAY, kind: "shutdown", day: "2026-10-05" });
+    expect(await fileCalendarLine("public holiday Monday")).toEqual({
+      ok: false,
+      error: "Labour Day is already on the calendar.",
+    });
+    expect(inserts).toEqual([]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+    /* The workspace's own list, for its state, as the calendar shows it. */
+    expect(stateFor).toHaveBeenCalledWith("org-1", "");
+    expect(holidayReads()).toHaveLength(1);
+    expect(holidayReads()[0]).toMatchObject({
+      eq: expect.arrayContaining([
+        ["org_id", "org-1"],
+        ["state", "NSW"],
+        ["suppressed", false],
+      ]),
+      range: expect.arrayContaining([
+        ["holiday_date", "gte", "2026-10-05"],
+        ["holiday_date", "lte", "2026-10-05"],
+      ]),
+    });
+  });
+
+  /* And on 26 Sept it landed on Mon 28 Sept, an ordinary working day: the
+     calendar would have shown the business shut on a day it is open. */
+  it("refuses a public holiday on a day that is not one, however it was read, and says to call it a shutdown", async () => {
+    const NOT_ONE = "Mon 28 Sept isn't a public holiday in NSW. If the yard's closed, say it's a shutdown.";
+    modelSays({ ...PUBLIC_HOLIDAY, kind: "shutdown", day: "2026-09-28" });
+    expect(await fileCalendarLine("public holiday Monday")).toEqual({ ok: false, error: NOT_ONE });
+    modelSays({ ...PUBLIC_HOLIDAY, kind: "public_holiday", day: "2026-09-28" });
+    expect(await fileCalendarLine("public holiday Monday")).toEqual({ ok: false, error: NOT_ONE });
+    expect(inserts).toEqual([]);
+  });
+
+  it("refuses a public holiday named as one, on the day it is", async () => {
+    modelSays({ title: "Labour Day", title_in_sentence: "Labour Day", kind: "public_holiday", day: "2026-10-05" });
+    expect(await fileCalendarLine("Labour Day is a public holiday")).toEqual({
+      ok: false,
+      error: "Labour Day is already on the calendar.",
+    });
+    expect(inserts).toEqual([]);
+  });
+
+  it("says a public holiday is not on the calendar when the workspace has no state to take them from", async () => {
+    orgState = null;
+    modelSays({ ...PUBLIC_HOLIDAY, kind: "public_holiday", day: "2026-10-05" });
+    expect(await fileCalendarLine("public holiday Monday week")).toEqual({
+      ok: false,
+      error: "Mon 5 Oct isn't a public holiday on the calendar. If the yard's closed, say it's a shutdown.",
+    });
+    expect(holidayReads()).toEqual([]);
+    expect(inserts).toEqual([]);
+  });
+
+  it("refuses a shutdown whose every day is already a public holiday, and keeps one that only runs over some", async () => {
+    modelSays({ title: "Yard closed", title_in_sentence: "yard closed", kind: "shutdown", day: "2026-12-25" });
+    expect(await fileCalendarLine("yard closed christmas day")).toEqual({
+      ok: false,
+      error: "Christmas Day is already on the calendar.",
+    });
+    modelSays({ title: "Shutdown", title_in_sentence: "shutdown", kind: "shutdown", day: "2026-12-25", last_day: "2026-12-26" });
+    expect(await fileCalendarLine("shutdown 25 to 26 Dec")).toEqual({
+      ok: false,
+      error: "Christmas Day and Boxing Day are already on the calendar.",
+    });
+    expect(inserts).toEqual([]);
+    /* The check's own line: the Christmas break runs over three of them. */
+    modelSays({ title: "Shutdown", title_in_sentence: "shutdown", kind: "shutdown", day: "2026-12-22", last_day: "2027-01-06" });
+    expect(await fileCalendarLine("shutdown 22 Dec to 6 Jan")).toMatchObject({
+      ok: true,
+      say: "Done. Shutdown is on the calendar from Tue 22 Dec to Wed 6 Jan.",
+    });
+    expect(inserts.map((i) => [i.row.kind, i.row.starts_on, i.row.ends_on])).toEqual([
+      ["shutdown", "2026-12-22", "2027-01-06"],
+    ]);
+  });
+
+  it("files nothing when the state's list can't be read, rather than put a date on a holiday", async () => {
+    holidayError = { message: "boom" };
+    modelSays({ ...PUBLIC_HOLIDAY, kind: "public_holiday", day: "2026-10-05" });
+    expect(await fileCalendarLine("public holiday Monday week")).toEqual({
+      ok: false,
+      error: "Couldn't add that to the calendar.",
+    });
+    modelSays({ title: "BBQ", title_in_sentence: "BBQ", repeat: "month", repeat_day: "fri", repeat_nth: "last", repeat_word: "every" });
+    expect(await fileCalendarLine("BBQ every last Friday of the month")).toEqual({
+      ok: false,
+      error: "Couldn't add that to the calendar.",
+    });
+    expect(inserts).toEqual([]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("puts a one-off on a public holiday as said, without reading the list", async () => {
+    modelSays({ title: "Christmas party", title_in_sentence: "Christmas party", day: "2026-12-25", time: "18:00" });
+    expect(await fileCalendarLine("christmas party christmas day 6pm")).toMatchObject({ ok: true });
+    expect(inserts.map((i) => i.row.starts_on)).toEqual(["2026-12-25"]);
+    expect(holidayReads()).toEqual([]);
+  });
+
+  const BBQ = {
+    title: "BBQ",
+    title_in_sentence: "BBQ",
+    time: "15:00",
+    where: "The yard",
+    repeat: "month",
+    repeat_day: "fri",
+    repeat_nth: "last",
+  };
+
+  /* "BBQ at the yard last Friday of the month 3pm" went on as eleven
+     monthly dates: the line never says every. */
+  it("puts the last Friday of the month on once, the next one, when the words never say it repeats", async () => {
+    for (const repeat_word of ["", "monthly", "of the month", "month"]) {
+      inserts.length = 0;
+      modelSays({ ...BBQ, repeat_word });
+      const res = await fileCalendarLine("BBQ at the yard last Friday of the month 3pm");
+      expect(res).toMatchObject({
+        ok: true,
+        say: "Done. BBQ is on the calendar for Fri 30 Oct at 3:00 pm.",
+        plan: [{ lead: "Fri 30 Oct", text: "BBQ, 3:00 pm" }],
+        door: "1 event on the calendar",
+      });
+      expect(inserts.map((i) => [i.row.starts_on, i.row.series_id, i.row.repeat])).toEqual([["2026-10-30", null, null]]);
+    }
+  });
+
+  it("puts on the next one from the day the model gave, never before today", async () => {
+    modelSays({ ...BBQ, day: "2026-09-25" });
+    await fileCalendarLine("BBQ at the yard last Friday of the month 3pm");
+    modelSays({ ...BBQ, day: "2026-11-02" });
+    await fileCalendarLine("BBQ at the yard last Friday of November 3pm");
+    expect(inserts.map((i) => i.row.starts_on)).toEqual(["2026-10-30", "2026-11-27"]);
+  });
+
+  it("keeps a repeat the words say: every, each, monthly, in an answer, or the speaker's own word in the line", async () => {
+    const said: [string, string, string[]][] = [
+      ["BBQ at the yard every last Friday of the month 3pm", "", []],
+      ["BBQ at the yard, last Friday of each month, 3pm", "", []],
+      ["Monthly BBQ at the yard, the last Friday, 3pm", "", []],
+      ["BBQ at the yard 3pm", "", ["every last Friday"]],
+      ["Grillen im Hof jeden letzten Freitag im Monat 15 Uhr", "jeden", []],
+    ];
+    for (const [words, repeat_word, answers] of said) {
+      inserts.length = 0;
+      modelSays({ ...BBQ, repeat_word });
+      expect(await fileCalendarLine(words, "text", answers)).toMatchObject({ ok: true, door: "9 events on the calendar" });
+      expect(new Set(inserts.map((i) => i.row.series_id)).size).toBe(1);
+      expect(inserts[0]!.row.series_id).not.toBeNull();
+    }
+  });
+
+  it("never takes the speaker's word for it when the word isn't in what they said", async () => {
+    modelSays({ ...BBQ, repeat_word: "jeden" });
+    expect(await fileCalendarLine("BBQ at the yard last Friday of the month 3pm")).toMatchObject({
+      ok: true,
+      door: "1 event on the calendar",
+    });
+  });
+
+  /* The same line with every went on over Christmas Day and Good Friday. */
+  it("leaves the public holidays out of a series, and says which", async () => {
+    modelSays({ ...BBQ, repeat_word: "every" });
+    const res = await fileCalendarLine("BBQ at the yard every last Friday of the month 3pm");
+    expect(res).toMatchObject({
+      ok: true,
+      say: "Done. BBQ is on the calendar for Fri 30 Oct at 3:00 pm, then the last Friday of every month until Aug 2027. Skips Christmas Day and Good Friday.",
+      door: "9 events on the calendar",
+    });
+    if (!res.ok) throw new Error("not filed");
+    expect(res.ids).toHaveLength(9);
+    expect(inserts.map((i) => i.row.starts_on)).toEqual([
+      "2026-10-30",
+      "2026-11-27",
+      "2027-01-29",
+      "2027-02-26",
+      "2027-04-30",
+      "2027-05-28",
+      "2027-06-25",
+      "2027-07-30",
+      "2027-08-27",
+    ]);
+    /* The list is read over the series' own dates. */
+    expect(holidayReads()[0]!.range).toEqual(
+      expect.arrayContaining([
+        ["holiday_date", "gte", "2026-10-30"],
+        ["holiday_date", "lte", "2027-08-27"],
+      ]),
+    );
+  });
+
+  /* The check's site meeting landed on Easter Monday and Anzac Day's extra Monday. */
+  it("leaves them out of a fortnightly series too", async () => {
+    modelSays({
+      title: "Site meeting",
+      title_in_sentence: "site meeting",
+      time: "07:00",
+      repeat: "fortnight",
+      repeat_day: "mon",
+      repeat_word: "every",
+    });
+    const res = await fileCalendarLine("every second Monday site meeting 7am");
+    expect(res).toMatchObject({
+      ok: true,
+      say: "Done. Site meeting is on the calendar for Mon 28 Sept at 7:00 am, then every second Monday until Aug 2027. Skips Easter Monday and Anzac Day (additional day).",
+      door: "23 events on the calendar",
+    });
+    expect(inserts.map((i) => i.row.starts_on)).not.toContain("2027-03-29");
+    expect(inserts.map((i) => i.row.starts_on)).not.toContain("2027-04-26");
+  });
+
+  it("leaves a shutdown's days out of a series, the caller's own shutdowns only, and says so", async () => {
+    rows = [
+      { id: "sd", org_id: "org-1", kind: "shutdown", title: "Christmas shutdown", starts_on: "2026-12-23", ends_on: "2027-01-08" },
+      { id: "sd2", org_id: "org-2", kind: "shutdown", title: "Theirs", starts_on: "2027-02-03", ends_on: "2027-02-03" },
+      { id: "ev", org_id: "org-1", kind: "event", title: "Stocktake", starts_on: "2027-03-03", ends_on: "2027-03-03" },
+    ];
+    const WALK = { title: "Site walk", title_in_sentence: "site walk", repeat_word: "every" };
+    modelSays({ ...WALK, repeat: "week", repeat_day: "wed" });
+    const weekly = await fileCalendarLine("site walk every Wednesday");
+    expect(weekly).toMatchObject({ ok: true, say: expect.stringMatching(/ Skips 3 dates in the shutdown\.$/) });
+    const days = inserts.map((i) => i.row.starts_on);
+    for (const d of ["2026-12-23", "2026-12-30", "2027-01-06"]) expect(days).not.toContain(d);
+    for (const d of ["2027-02-03", "2027-03-03"]) expect(days).toContain(d);
+
+    inserts.length = 0;
+    modelSays({ ...WALK, repeat: "month", repeat_day: "wed", repeat_nth: "first" });
+    expect(await fileCalendarLine("site walk every first Wednesday")).toMatchObject({
+      ok: true,
+      say: expect.stringMatching(/ Skips Wed 6 Jan in the shutdown\.$/),
+    });
+  });
+
+  it("puts nothing on when every date a series would land on is already closed, and says so", async () => {
+    rows = [{ id: "sd", org_id: "org-1", kind: "shutdown", title: "Shutdown", starts_on: "2027-08-02", ends_on: "2027-08-06" }];
+    modelSays({
+      title: "Toolbox talk",
+      title_in_sentence: "toolbox talk",
+      day: "2027-08-01",
+      repeat: "month",
+      repeat_day: "thu",
+      repeat_nth: "first",
+      repeat_word: "every",
+    });
+    expect(await fileCalendarLine("toolbox talk every first Thursday from August")).toEqual({
+      ok: false,
+      error: "Every date it lands on is a public holiday or a shutdown, so nothing went on the calendar.",
+    });
+    expect(inserts).toEqual([]);
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

@@ -9,6 +9,7 @@ import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
+import { stateFor } from "@/lib/timepay/leave-query";
 import { companyWindow } from "@/lib/calendar/items";
 import { readCalendarLine } from "@/lib/calendar/line-brain";
 import { MAX_OCCURRENCES } from "@/lib/calendar/repeat";
@@ -17,16 +18,23 @@ import {
   DAY_ASKS,
   NOTE_MAX,
   NO_DAY,
+  NO_OPEN_DAY,
   WHICH_DAY,
+  asSaid,
   filedLine,
+  holidayClaimLine,
   lineAbout,
   lineDates,
   lineDoor,
   linePlan,
+  openDays,
   outsideLine,
+  shutdownOnHolidaysLine,
   takenBackLine,
   withNote,
+  type Holiday,
   type LinePlanRow,
+  type Shutdown,
 } from "@/lib/calendar/line";
 
 /* THE HOME CALENDAR'S WRITES (docs/migrations/calendar_events.sql).
@@ -171,7 +179,16 @@ export type CalendarLineResult =
     to the calendar's window end, all in one insert under one series; a line
     with no day she can read is asked about ("Which day?"), and the answers
     come back with the line, which is read again whole. She asks three times
-    at most. The rows are the caller's workspace's, on its own day, as ever. */
+    at most. The rows are the caller's workspace's, on its own day, as ever.
+
+    HELD TO THE WORDS AND TO THE CALENDAR, in code, whatever the model read
+    (the first real-model check): a repeat the words never say ("the last
+    Friday of the month", no every) is the next one, once; a public holiday
+    is the state's list's, so a line claiming one is never filed and she
+    says whether the day is one; a shutdown on days that are all holidays
+    already is refused; and a series leaves out the dates that land on a
+    public holiday or a shutdown, and she names them ("Skips Christmas Day
+    and Good Friday."). */
 export async function fileCalendarLine(
   text: string,
   source: "text" | "voice" = "text",
@@ -195,22 +212,58 @@ export async function fileCalendarLine(
 
   const read = await readCalendarLine(line, { today, windowEnd: win.windowEnd }, said);
   if (!read.ok) return { ok: false, error: read.error, unread: true };
-  const l = read.line;
+  /* What the words said, whatever the model made of them: a repeat they
+     never say is the next one, once, and a line called "Public holiday"
+     is a claim that the day is one. */
+  const frame = { today, ...win };
+  const l = asSaid(read.line, [line, ...said], frame);
 
-  const dates = lineDates(l, { today, ...win });
+  const dates = lineDates(l, frame);
   if (!dates.ok) {
     if (dates.why !== "no-day") return { ok: false, error: outsideLine(dates.why, win.windowEnd) };
     return said.length >= DAY_ASKS ? { ok: false, error: NO_DAY } : { ok: false, ask: WHICH_DAY };
   }
+  const first = dates.days[0]!;
+  const last = dates.lastDay ?? dates.days.at(-1)!;
+
+  /* A PUBLIC HOLIDAY IS NEVER FILED. The state's list is on the calendar
+     already: she says it is, or that the day isn't one. */
+  if (l.kind === "public_holiday") {
+    const closed = await closedDays(orgId, first, last, false);
+    if (!closed) return { ok: false, error: COULDNT_ADD };
+    return { ok: false, error: holidayClaimLine(dates, closed.holidays, closed.state) };
+  }
+
+  /* NOR IS A DAY THE CALENDAR ALREADY CLOSES TWICE: a shutdown whose every
+     day is a public holiday is refused, and a series leaves out the dates
+     that land on a holiday or a shutdown, and she names them. A list that
+     can't be read files nothing rather than risk either. */
+  let days = dates.days;
+  let skips: string | null = null;
+  if (l.kind === "shutdown" || l.repeat) {
+    const closed = await closedDays(orgId, first, last, !!l.repeat);
+    if (!closed) return { ok: false, error: COULDNT_ADD };
+    if (l.kind === "shutdown") {
+      const twice = shutdownOnHolidaysLine(dates, closed.holidays);
+      if (twice) return { ok: false, error: twice };
+    }
+    if (l.repeat) {
+      const open = openDays(dates.days, closed.holidays, closed.shutdowns);
+      if (!open.days.length) return { ok: false, error: NO_OPEN_DAY };
+      days = open.days;
+      skips = open.skips;
+    }
+  }
+  const put = { ...dates, days };
 
   /* One series for a repeat, its rule kept beside every row it made. */
   const series = l.repeat ? randomUUID() : null;
-  const rows = dates.days.map((day) => ({
+  const rows = put.days.map((day) => ({
     org_id: orgId,
     kind: l.kind,
     title: l.title,
     starts_on: day,
-    ends_on: dates.lastDay ?? day,
+    ends_on: put.lastDay ?? day,
     starts_at: l.time,
     ends_at: l.endTime,
     location: l.where,
@@ -226,12 +279,66 @@ export async function fileCalendarLine(
   refresh();
   return {
     ok: true,
-    say: filedLine(l, dates),
-    plan: linePlan(l, dates),
-    door: lineDoor(dates),
+    say: skips ? `${filedLine(l, put)} ${skips}` : filedLine(l, put),
+    plan: linePlan(l, put),
+    door: lineDoor(put),
     ids: (data as { id: string }[]).map((r) => String(r.id)),
-    about: lineAbout(l, dates),
+    about: lineAbout(l, put),
   };
+}
+
+/** The days the calendar already shows the business closed, between two
+    days: the public holidays on the workspace's state's list, as its
+    Public holidays chip draws them (the same filters as Time & Pay's
+    `holidaysInSpan`, not suppressed), and, when asked, its own shutdowns.
+    Null when either can't be read: the caller files nothing rather than
+    guess. A workspace with no state has no holidays on its calendar. */
+async function closedDays(
+  orgId: string,
+  from: string,
+  to: string,
+  withShutdowns: boolean,
+): Promise<{ state: string | null; holidays: Holiday[]; shutdowns: Shutdown[] } | null> {
+  const state = await stateFor(orgId, "").catch(() => null);
+  const [holidays, shutdowns] = await Promise.all([
+    state ? holidaysBetween(orgId, state, from, to) : Promise.resolve([]),
+    withShutdowns ? shutdownsBetween(orgId, from, to) : Promise.resolve([]),
+  ]);
+  if (!holidays || !shutdowns) return null;
+  return { state, holidays, shutdowns };
+}
+
+async function holidaysBetween(orgId: string, state: string, from: string, to: string): Promise<Holiday[] | null> {
+  const { data, error } = await supabaseAdmin
+    .from("public_holidays")
+    .select("holiday_date, name")
+    .eq("org_id", orgId)
+    .eq("state", state)
+    .eq("suppressed", false)
+    .gte("holiday_date", from)
+    .lte("holiday_date", to);
+  if (error) return null;
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    date: String(r.holiday_date ?? "").slice(0, 10),
+    name: String(r.name ?? ""),
+  }));
+}
+
+/** The workspace's shutdowns that overlap a span. */
+async function shutdownsBetween(orgId: string, from: string, to: string): Promise<Shutdown[] | null> {
+  const { data, error } = await supabaseAdmin
+    .from("calendar_events")
+    .select("id, starts_on, ends_on")
+    .eq("org_id", orgId)
+    .eq("kind", "shutdown")
+    .lte("starts_on", to)
+    .gte("ends_on", from);
+  if (error) return null;
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    startsOn: String(r.starts_on ?? "").slice(0, 10),
+    endsOn: String(r.ends_on ?? "").slice(0, 10),
+  }));
 }
 
 /** A reply to Tiff after she filed: kept on what she filed, as its note (his

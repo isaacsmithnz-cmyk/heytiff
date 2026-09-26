@@ -381,8 +381,9 @@ export async function listJournal(
    (`listDiaryReplies`, below), over the mentions' reach rather than your
    newest DIARY_ENTRY_LIMIT entries, so an older one is still in its thread.
 
-   The old Home keeps `listJournal`, unchanged, until the new one replaces
-   it: it still reads only what is filed, and never a status or a turn. */
+   `listJournal`, above, is the other read of the same rows, for what the
+   list's rows and the Tasks face's doors find an entry by (page-data's
+   `journal`): it reads only what is filed, and never a status or a turn. */
 
 /** Everything this person has told Tiff, newest first, dressed for the
     diary. `tz` is the ServiceM8 account's zone; null is Sydney, the clock

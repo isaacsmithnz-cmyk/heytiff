@@ -12018,6 +12018,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-dy-door:hover { background:var(--tint); }
 .fg .hd-dy-door:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hd-dy-note { font-size:13px; font-weight:500; color:var(--q); }
+/* A reply of yours from HeyTiff says where it stands with ServiceM8
+   (home-diary-reply.tsx) in the quiet line's type, in the state's colour
+   when the sentence is a state (law 31), as the task's line says it. */
+.fg .hd-dy-note.ok { color:var(--ok-t); }
+.fg .hd-dy-note.warn { color:var(--warn-t); }
+.fg .hd-dy-note.bad { color:var(--bad-t); }
 
 /* THE CONVERSATIONS: someone who asked you something in ServiceM8
    (home-diary-conversation.tsx), as his prototype draws them (v12–v17).

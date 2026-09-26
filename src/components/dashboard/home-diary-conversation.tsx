@@ -12,6 +12,7 @@ import {
 import { DIARY_LIT_MS } from "@/lib/dashboard/diary-doors";
 import type { DiaryConversation } from "@/lib/dashboard/diary-feed";
 import { initialsFrom } from "@/lib/staff/derive";
+import { HomeDiaryReplyLine } from "./home-diary-reply";
 import { useDeskJobs } from "./home-job-sheet";
 
 /* SOMEONE WHO ASKED YOU SOMETHING IN SERVICEM8 — one conversation in the
@@ -28,7 +29,10 @@ import { useDeskJobs } from "./home-job-sheet";
    (`onShowThings`), which lights them in the list beside the diary or
    opens them on the Tasks tab, as a task door under an entry does. REPLY
    goes to the job in ServiceM8, in a new tab: the answer is written there,
-   reaches the one who asked, and threads back here with the next sync.
+   reaches the one who asked, and threads back here with the next sync. A
+   reply you sent from HeyTiff (a job card's Reply, or a task's Done) is in
+   the thread from the moment it was saved, and says under it where it
+   stands with ServiceM8 (./home-diary-reply).
 
    HIS NEWEST MESSAGE, while it is today's and you haven't answered it,
    stands on the diary's wash — the whole conversation when it is the ask
@@ -211,6 +215,7 @@ export function HomeDiaryConversation({
                         {said.rest}
                       </p>
                       {m.text ? <p className="hd-dy-p">{m.text}</p> : null}
+                      {m.ours?.line && <HomeDiaryReplyLine noteId={m.id} jobUuid={m.ours.jobUuid} line={m.ours.line} />}
                     </div>
                   </li>
                 );

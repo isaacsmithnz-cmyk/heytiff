@@ -5,18 +5,22 @@
    when there is a you to mention: `workboard`, a staff card, and a link in
    integration_links. Without any of those the diary is your own entries,
    on Sydney's day when there is no ServiceM8 clock to use, which is what
-   the diary has always been.
+   the diary has always been. Where the deployment sends notes, a reply of
+   yours from HeyTiff goes into the conversation holding the note it
+   answers, rather than standing on its own (./diary-reply).
 
    Built for the new Home's loader (desk-data's `loadDesk`), which runs only
    for a viewer the HOME_DESK flag gives the new Home, so nobody on today's
    Home pays for a read here. The context is the loader's own; this takes
    the part of it it needs. */
 
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import type { Capability } from "@/lib/permissions";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { naiveInZone } from "@/lib/workboard/job-story";
-import { DIARY_ENTRY_LIMIT, diaryFeed, type DiaryConversation, type DiaryFeed } from "./diary-feed";
+import { DIARY_ENTRY_LIMIT, diaryFeed, type DiaryConversation, type DiaryFeed, type OurReply } from "./diary-feed";
 import { unhidden } from "./diary-hidden";
+import type { DiaryEntry } from "./journal";
 import { listDiaryEntries } from "./journal-query";
 import { listMyMentions } from "./mentions-query";
 
@@ -73,11 +77,24 @@ export async function hiddenConversations(
 export async function loadDiaryFeed(ctx: DiaryFeedContext): Promise<DiaryFeed> {
   const mineUuid = ctx.caps.has("workboard") && ctx.viewerStaffId ? ctx.mineUuid : null;
 
+  const entryRead = ctx.viewerStaffId ? listDiaryEntries(ctx.orgId, ctx.viewerStaffId, ctx.tz) : Promise.resolve([]);
+  /* YOUR REPLIES FROM HEYTIFF, and a task's Done (two-way phase 2,
+     ./diary-reply): handed to the mentions read as your entries come back,
+     so each is drawn once, in the conversation holding the note it
+     answers, from the moment it was saved. Only where the deployment sends
+     notes: with files only the mentions read is asked exactly as before. */
+  const replies = mineUuid && sm8NotesAllowed() ? entryRead.then(repliesIn, () => []) : null;
+
   const [entries, conversations, syncedAt, hidden] = await Promise.all([
-    ctx.viewerStaffId ? listDiaryEntries(ctx.orgId, ctx.viewerStaffId, ctx.tz) : Promise.resolve([]),
+    entryRead,
     mineUuid
       ? /* with the tasks the viewer's asks made (mention_asks) */
-        listMyMentions(ctx.orgId, mineUuid, ctx.railDay, { staffId: ctx.viewerStaffId }).catch(
+        listMyMentions(
+          ctx.orgId,
+          mineUuid,
+          ctx.railDay,
+          replies ? { staffId: ctx.viewerStaffId, replies } : { staffId: ctx.viewerStaffId },
+        ).catch(
           (err: unknown): DiaryConversation[] => {
             console.error(
               `[diary] couldn't read the mentions for org ${ctx.orgId}: ${err instanceof Error ? err.message : String(err)}`
@@ -102,4 +119,12 @@ export async function loadDiaryFeed(ctx: DiaryFeedContext): Promise<DiaryFeed> {
     entriesCut: entries.length >= DIARY_ENTRY_LIMIT,
     syncedAt,
   });
+}
+
+/** Your entries that are replies to a ServiceM8 note, as a conversation
+    threads them. */
+function repliesIn(entries: readonly DiaryEntry[]): OurReply[] {
+  return entries.flatMap((e) =>
+    e.reply ? [{ id: e.id, to: e.reply.to, jobUuid: e.reply.jobUuid, words: e.reply.words, at: e.stamp, line: e.reply.line }] : [],
+  );
 }

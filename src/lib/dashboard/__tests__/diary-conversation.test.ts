@@ -305,4 +305,27 @@ describe("what a door can land on", () => {
     const holds = diaryHolds(null);
     expect(holds.entries.size + holds.notes.size).toBe(0);
   });
+
+  /* A reply of yours from HeyTiff (two-way phase 2) is one of your
+     entries, drawn in the conversation holding the note it answers: a door
+     to that entry lands on the conversation, and it is never taken for a
+     ServiceM8 note. */
+  it("holds a reply of yours from HeyTiff as your entry, and a door to it lands on its conversation", () => {
+    const reply: DiaryEntry = { ...entryOn("wn-reply", TODAY), said: "on my way" };
+    const conversations = buildConversations({
+      notes: [note(J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary")],
+      me: { uuid: ISAAC.uuid, handle: ISAAC.handle },
+      people: [ISAAC, LUKE],
+      jobs: new Map([[J2041, { label: "2041 Wollstonecraft", live: true }]]),
+      today: TODAY,
+      replies: [{ id: "wn-reply", to: "n1", jobUuid: J2041, words: "@lukeingold on my way", at: `${TODAY} 07:30`, line: null }],
+    });
+    const feed = diaryFeed({ entries: [reply], conversations, day: TODAY, mentions: true, entriesCut: false, syncedAt: null });
+    const holds = diaryHolds(feed);
+    expect([...holds.entries]).toEqual(["wn-reply"]);
+    expect([...holds.notes]).toEqual(["n1"]);
+    expect(diaryItemOf(feed, { kind: "entry", ids: ["wn-reply"] })).toBe(`mention:${J2041}:u-luke`);
+    expect(diaryItemOf(feed, { kind: "conversation", ids: ["wn-reply"] })).toBeNull();
+    expect(diaryItemOf(feed, { kind: "entry", ids: ["n1"] })).toBeNull();
+  });
 });

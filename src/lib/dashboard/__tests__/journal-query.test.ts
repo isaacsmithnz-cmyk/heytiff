@@ -53,6 +53,18 @@ const table = (name: string) => {
 
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { from: (n: string) => table(n) } }));
 
+/* Where a reply of yours stands with ServiceM8 is read as you: the
+   workspace's sending state and who you are there (two-way phase 2). */
+const mockWriteState = jest.fn();
+const mockSender = jest.fn();
+jest.mock("@/lib/integrations/sm8-writes", () => ({
+  readSm8WriteState: (...a: unknown[]) => mockWriteState(...a),
+}));
+jest.mock("@/lib/integrations/links", () => ({
+  ...jest.requireActual("@/lib/integrations/links"),
+  sm8NoteSender: (...a: unknown[]) => mockSender(...a),
+}));
+
 import { listDiaryEntries, listJournal } from "../journal-query";
 
 const note = (id: string, applied: unknown) => ({
@@ -693,5 +705,170 @@ describe("listDiaryEntries: Tiff's line, Undo, and what Undo took back", () => {
       await listDiaryEntries("org-1", "s1", null);
       expect(of("sm8_writes")).toHaveLength(0);
     });
+  });
+});
+
+/* YOUR REPLIES (two-way phase 2): a reply sent from a job card, and a
+   task's Done, are rows of yours the diary draws in the conversation
+   holding the note each answers (diary-reply). The read says which rows
+   they are, what they answer, and where each stands with ServiceM8 in the
+   job card's own line — and, where the deployment sends files only, is
+   the read it always was. */
+describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
+  const had = process.env.SM8_WRITES;
+  afterEach(() => {
+    if (had === undefined) delete process.env.SM8_WRITES;
+    else process.env.SM8_WRITES = had;
+  });
+  const STATE = {
+    readable: true,
+    kinds: ["attachment", "note"],
+    deployment: true,
+    mode: "live",
+    modeStored: "live",
+    pausedReason: null,
+    pausedAt: null,
+    linked: true,
+    connected: true,
+    tenantId: "vendor-1",
+    granted: ["attachment", "note"],
+    refused: [],
+    timezoneName: null,
+    ownerKinds: ["attachment", "note"],
+    ownerKindsRead: true,
+  };
+  const READY = { state: "ready", staffUuid: "u-isaac", remoteId: "u-isaac", sm8Name: "Isaac Smith", handle: "isaacsmith" };
+  const answer = (id: string, to: string, job: string, kept: string, said: string) => ({
+    ...note(id, { jobNotes: [kept], sm8Text: said }),
+    transcript: said,
+    proposal: null,
+    status: "applied",
+    turns: [],
+    target_id: job,
+    reply_to_sm8_note_uuid: to,
+    sm8_refusal: null,
+  });
+  const create = (noteId: string, over: Record<string, unknown>) => ({
+    id: `w-${noteId}`,
+    note_id: noteId,
+    op: "create",
+    depends_on: null,
+    requested_by: "s1",
+    status: "queued",
+    lease_until: null,
+    remote_uuid: `r-${noteId}`,
+    maybe_landed: false,
+    verify_uuids: [],
+    taken_back_at: null,
+    last_error: null,
+    attempts: 0,
+    ...over,
+  });
+  const page = () => {
+    rows.workboard_notes = [
+      // said in Portuguese; the diary keeps the English, with the handle
+      answer("wn-reply", "n-ask", "j-2041", "@lukeingold on my way", "@lukeingold a caminho"),
+      answer("wn-done", "n-grilles", "j-3294", "@lukeingold Done.", "@lukeingold Done."),
+      // refused at the press, before anything was queued: the link waited on your answer
+      { ...answer("wn-asked", "n-quote", "j-2041", "@lukeingold quote's done", "@lukeingold quote's done"), sm8_refusal: "confirm" },
+      { ...note("e-plain", {}), proposal: null, status: "applied", turns: [] },
+    ];
+    rows.sm8_writes = [
+      create("wn-reply", { status: "failed", last_error: "ServiceM8 refused the note." }),
+      create("wn-done", { status: "sent" }),
+    ];
+  };
+  const byId = (out: Awaited<ReturnType<typeof listDiaryEntries>>) => Object.fromEntries(out.map((e) => [e.id, e]));
+
+  beforeEach(() => {
+    mockWriteState.mockReset().mockResolvedValue(STATE);
+    mockSender.mockReset().mockResolvedValue(READY);
+  });
+
+  it("says what each answers, its words in English with the handle, and where it stands, as the job card says it", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    page();
+    const out = byId(await listDiaryEntries("org-1", "s1", null));
+
+    // the diary's own columns (the ones that say ServiceM8 holds a note
+    // too, for the diary's Edit), and a reply's, the note it answers once
+    expect(of("workboard_notes")[0].columns).toBe(
+      "id, transcript, source, applied, created_at, proposal, status, turns, target_kind, reply_to_sm8_note_uuid, is_task_done, target_id, sm8_refusal",
+    );
+    expect(out["wn-reply"].reply).toEqual({
+      to: "n-ask",
+      jobUuid: "j-2041",
+      words: "@lukeingold on my way",
+      line: {
+        text: "Not sent to ServiceM8. ServiceM8 refused the note.",
+        tone: "bad",
+        again: { act: "send_again", label: "Try again" },
+        ask: null,
+      },
+    });
+    expect(out["wn-done"].reply).toEqual({
+      to: "n-grilles",
+      jobUuid: "j-3294",
+      words: "@lukeingold Done.",
+      line: { text: "In ServiceM8", tone: "ok", again: null, ask: null },
+    });
+    // yours, so its doors are yours: answered since, it simply goes again
+    expect(out["wn-asked"].reply?.line).toEqual({
+      text: "Not sent to ServiceM8. Is Isaac Smith you?",
+      tone: "bad",
+      again: { act: "send_again", label: "Try again" },
+      ask: null,
+    });
+    expect(out["e-plain"]).not.toHaveProperty("reply");
+    // read as the one who sent them, on the account connected now
+    expect(mockSender).toHaveBeenCalledWith("org-1", "s1", "vendor-1");
+    // their queue rows, in one read
+    const queue = of("sm8_writes");
+    expect(queue).toHaveLength(1);
+    expect(queue[0].ins).toEqual([
+      ["op", ["create", "delete"]],
+      ["note_id", ["wn-reply", "wn-done", "wn-asked"]],
+    ]);
+  });
+
+  it("reads nothing more for a diary with no reply in it", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    rows.workboard_notes = [{ ...note("e-plain", {}), proposal: null, status: "applied", turns: [] }];
+    await listDiaryEntries("org-1", "s1", null);
+    expect(mockWriteState).not.toHaveBeenCalled();
+    expect(mockSender).not.toHaveBeenCalled();
+    expect(of("sm8_writes")).toHaveLength(0);
+  });
+
+  it("keeps the reply, saying nothing about ServiceM8, when where it stands can't be read", async () => {
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    process.env.SM8_WRITES = "attachment,note";
+    page();
+    failing.add("sm8_writes");
+    const out = byId(await listDiaryEntries("org-1", "s1", null));
+    expect(out["wn-reply"].reply).toMatchObject({ to: "n-ask", line: null });
+    // and says so in the log
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("is the read it always was where the deployment sends files only (production today)", async () => {
+    for (const writes of ["1", undefined]) {
+      if (writes === undefined) delete process.env.SM8_WRITES;
+      else process.env.SM8_WRITES = writes;
+      calls.length = 0;
+      page();
+      const out = await listDiaryEntries("org-1", "s1", null);
+      expect(of("workboard_notes")[0].columns).toBe(
+        "id, transcript, source, applied, created_at, proposal, status, turns, target_kind, reply_to_sm8_note_uuid, is_task_done",
+      );
+      // the reply stays an entry like any other: nothing says it is one
+      expect(out.map((e) => e.id)).toEqual(["wn-reply", "wn-done", "wn-asked", "e-plain"]);
+      expect(out.some((e) => "reply" in e)).toBe(false);
+      expect(of("sm8_writes")).toHaveLength(0);
+      expect(of("staff_profiles")).toHaveLength(0);
+    }
+    expect(mockWriteState).not.toHaveBeenCalled();
+    expect(mockSender).not.toHaveBeenCalled();
   });
 });

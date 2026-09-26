@@ -49,11 +49,16 @@ jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { from: (n: string) =
 /* As the real one answers: which of the uuids it was GIVEN are ours. */
 const ours = new Set<string>();
 const sm8Ours = jest.fn(async (_org: string, ids: readonly string[]) => new Set(ids.filter((id) => ours.has(id))));
+/* The uuids ServiceM8's copies of HeyTiff's own notes carry, by note. */
+const copiesOf = new Map<string, string[]>();
+const sm8CopiesOf = jest.fn(async (_org: string, ids: readonly string[]) => new Set(ids.flatMap((id) => copiesOf.get(id) ?? [])));
 jest.mock("@/lib/integrations/sm8-echo", () => ({
   sm8Ours: (...a: unknown[]) => sm8Ours(...(a as [string, string[]])),
+  sm8CopiesOf: (...a: unknown[]) => sm8CopiesOf(...(a as [string, string[]])),
 }));
 
 import { listMyMentions, MENTION_LIMIT, THREAD_LIMIT } from "../mentions-query";
+import type { OurReply } from "../diary-feed";
 
 const STAFF = [
   { uuid: "u-isaac", first: "Isaac", last: "Smith" },
@@ -82,6 +87,8 @@ beforeEach(() => {
   calls.length = 0;
   ours.clear();
   sm8Ours.mockClear();
+  copiesOf.clear();
+  sm8CopiesOf.mockClear();
 });
 
 it("reads the mentions of the viewer's own handle, from the link, and nobody else's", async () => {
@@ -186,6 +193,62 @@ it("asks again only about a note that joins once an echo is out", async () => {
   expect(sm8Ours.mock.calls.map((call) => [...call[1]].sort())).toEqual([["n-echo", "n1"], ["n-next"]]);
   expect(c.messages.map((m) => m.id)).toEqual(["n1", "n-next"]);
   expect(c).toMatchObject({ answered: false, fresh: true });
+});
+
+/* YOUR REPLY FROM HEYTIFF (two-way phase 2): the diary hands in your
+   replies as your entries come back; each is threaded where the note it
+   answers is, and its copy, known from HeyTiff's side, is never drawn
+   beside it — even when sm8Ours knows nothing (its read failed). */
+describe("your replies from HeyTiff", () => {
+  const REPLY: OurReply = {
+    id: "wn-1",
+    to: "n1",
+    jobUuid: "j-2041",
+    words: "@lukeingold on my way",
+    at: "2026-09-24 10:00",
+    line: { text: "In ServiceM8", tone: "ok", again: null, ask: null },
+  };
+  const page = () => {
+    tables.asks = [row("n1", "j-2041", "u-luke", "2026-09-23 10:00:00", "@isaacsmith call Mary")];
+    tables.thread = [row("r-copy", "j-2041", "u-isaac", "2026-09-24 10:00:05", "@lukeingold on my way")];
+  };
+
+  it("are threaded as HeyTiff saved them, and their copy is left out whatever sm8Ours says", async () => {
+    page();
+    copiesOf.set("wn-1", ["r-copy"]);
+    const [c] = await listMyMentions("org-1", "u-isaac", "2026-09-25", { replies: Promise.resolve([REPLY]) });
+    expect(c.messages.map((m) => [m.id, m.from, m.text])).toEqual([
+      ["n1", "them", "call Mary"],
+      ["wn-1", "you", "on my way"],
+    ]);
+    expect(c.messages[1].ours).toEqual({ jobUuid: "j-2041", line: REPLY.line });
+    // one read of their copies, by HeyTiff's rows
+    expect(sm8CopiesOf.mock.calls.map((call) => call[1])).toEqual([["wn-1"]]);
+    // HeyTiff's own row, and the copy already known, are never asked about
+    expect(sm8Ours.mock.calls.flatMap((call) => [...call[1]])).toEqual(["n1"]);
+  });
+
+  it("read no copies, and ask sm8Ours as before, when there are none", async () => {
+    page();
+    ours.add("r-copy");
+    const [c] = await listMyMentions("org-1", "u-isaac", "2026-09-25", { replies: Promise.resolve([]) });
+    expect(sm8CopiesOf).not.toHaveBeenCalled();
+    expect(c.messages.map((m) => m.id)).toEqual(["n1"]);
+    await listMyMentions("org-1", "u-isaac", "2026-09-25");
+    expect(sm8CopiesOf).not.toHaveBeenCalled();
+  });
+
+  it("leave the conversations as they were when their read failed", async () => {
+    page();
+    ours.add("r-copy");
+    /* rejected only when asked, so nothing is left unhandled meanwhile */
+    const failed: PromiseLike<OurReply[]> = {
+      then: (_ok, fail) => Promise.resolve(fail?.(new Error("boom"))) as never,
+    };
+    const [c] = await listMyMentions("org-1", "u-isaac", "2026-09-25", { replies: failed });
+    expect(c.messages.map((m) => m.id)).toEqual(["n1"]);
+    expect(sm8CopiesOf).not.toHaveBeenCalled();
+  });
 });
 
 it("says a job ServiceM8 deleted isn't live, so it gets no Reply", async () => {

@@ -23,6 +23,7 @@ import type { DiaryEntry } from "@/lib/dashboard/journal";
 import { conversationOf, lastTiff, type EarlierTurn } from "@/lib/workboard/note-turns";
 import { Confirm } from "./home-confirm";
 import { HomeDiaryConversation } from "./home-diary-conversation";
+import { HomeDiaryReplyLine } from "./home-diary-reply";
 import { useDiaryRefresh } from "./use-diary-refresh";
 
 /* THE DIARY — the new Home's Diary tab (docs/design.md, "Home is the day,
@@ -84,7 +85,11 @@ import { useDiaryRefresh } from "./use-diary-refresh";
      conversation in the same column, sorted by their newest message, so
      an answer to last week's ask comes up into Today
      (./home-diary-conversation: the job door, the one task the ask made,
-     which is a row like any other task door's, and Reply).
+     which is a row like any other task door's, and Reply). A reply of
+     yours sent from HeyTiff is drawn there, in its thread, not again here
+     as an entry — unless no conversation holds the note it answers; then
+     it is your entry, saying where it stands with ServiceM8 all the same
+     (lib/dashboard/diary-reply).
 
    A DOOR FROM ANOTHER FACE names an entry (the list's "from your diary", a
    task's Open in diary) or a conversation, by one of its notes (the task
@@ -464,6 +469,11 @@ function Entry({
               )}
             </div>
           ) : null}
+          {/* a reply of yours whose note no conversation holds: where it
+              stands with ServiceM8, as in a conversation */}
+          {entry.reply?.line && (
+            <HomeDiaryReplyLine noteId={entry.id} jobUuid={entry.reply.jobUuid} line={entry.reply.line} />
+          )}
         </div>
       </div>
     </li>

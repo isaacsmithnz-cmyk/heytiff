@@ -9,6 +9,7 @@
    So there is no migration here and no change to the capture flow. */
 
 import type { EarlierTurn } from "@/lib/workboard/note-turns";
+import type { DiaryReply } from "./diary-reply";
 
 /** The groups a capture can produce, in the order the write side records them,
     with the exact words it counts them in.
@@ -211,6 +212,10 @@ export type DiaryEntry = JournalEntry & {
       they are changed there, not here (actions/diary's `editDiaryEntry`
       refuses by the same rule). Absent: HeyTiff's alone. */
   inSm8?: boolean;
+  /** Your reply to a ServiceM8 note, or a task's Done (two-way phase 2):
+      the conversation holding the note it answers draws it there, in its
+      place (./diary-reply). Only where the deployment sends notes. */
+  reply?: DiaryReply;
 };
 
 export type JournalDay = {

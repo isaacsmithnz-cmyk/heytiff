@@ -52,7 +52,7 @@ const ENTRY: DiaryEntry = {
   undo: false,
   undone: false,
 };
-const CONVO = { key: "j-2041:u-luke", lastTheirs: "2026-09-21 13:42:10" } as DiaryConversation;
+const CONVO = { key: "j-2041:u-luke", lastTheirs: "2026-09-21 13:42:10", messages: [] } as unknown as DiaryConversation;
 
 const ctx = (over: Partial<DiaryFeedContext> = {}): DiaryFeedContext => ({
   orgId: "org-1",
@@ -149,4 +149,65 @@ it("with no ServiceM8 is your own entries, on the day the loader gives it", asyn
   expect(listDiaryEntries).toHaveBeenCalledWith("org-1", "s-isaac", null);
   expect(feed).toMatchObject({ day: "2026-09-25", mentions: false });
   expect(feed.today).toHaveLength(1);
+});
+
+/* YOUR REPLIES (two-way phase 2): a reply of yours from HeyTiff, and a
+   task's Done, go to the mentions read as your entries come back, so each
+   is drawn once, in its conversation — and where the deployment sends
+   files only, the mentions read is asked exactly as it always was. */
+describe("your replies from HeyTiff", () => {
+  const had = process.env.SM8_WRITES;
+  afterEach(() => {
+    if (had === undefined) delete process.env.SM8_WRITES;
+    else process.env.SM8_WRITES = had;
+  });
+  const line = { text: "Sending to ServiceM8…", tone: null, again: null, ask: null };
+  const REPLY: DiaryEntry = {
+    ...ENTRY,
+    id: "wn-reply",
+    said: "a caminho",
+    stamp: "2026-09-25 09:10",
+    reply: { to: "n-ask", jobUuid: "j-2041", words: "@lukeingold on my way", line },
+  };
+  /* the conversation as the mentions read threads it: the reply in it */
+  const HOLDING = {
+    ...CONVO,
+    messages: [
+      { id: "n-ask", from: "them", addressed: true, text: "call Mary", named: "Isaac call Mary", at: "2026-09-21 13:42:10" },
+      { id: "wn-reply", from: "you", addressed: true, text: "on my way", named: "Luke on my way", at: "2026-09-25 09:10:00", ours: { jobUuid: "j-2041", line } },
+    ],
+  } as unknown as DiaryConversation;
+
+  it("hands them to the mentions read as your entries come back, and draws each once, in its conversation", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    listDiaryEntries.mockResolvedValue([ENTRY, REPLY]);
+    listMyMentions.mockResolvedValue([HOLDING]);
+
+    const feed = await loadDiaryFeed(ctx());
+
+    const [, , , opts] = listMyMentions.mock.calls[0];
+    expect(opts.staffId).toBe("s-isaac");
+    await expect(opts.replies).resolves.toEqual([
+      { id: "wn-reply", to: "n-ask", jobUuid: "j-2041", words: "@lukeingold on my way", at: "2026-09-25 09:10", line },
+    ]);
+    expect([...feed.today, ...feed.earlier].map((i) => i.key)).toEqual(["entry:e1", "mention:j-2041:u-luke"]);
+  });
+
+  it("leaves them your entries when the entries read fails, as the mentions read is told", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    listDiaryEntries.mockRejectedValue(new Error("network"));
+    await expect(loadDiaryFeed(ctx())).rejects.toThrow("network");
+    const [, , , opts] = listMyMentions.mock.calls[0];
+    await expect(opts.replies).resolves.toEqual([]);
+  });
+
+  it("asks the mentions read exactly as before where the deployment sends files only (production today)", async () => {
+    process.env.SM8_WRITES = "1";
+    listDiaryEntries.mockResolvedValue([ENTRY, REPLY]);
+    listMyMentions.mockResolvedValue([CONVO]);
+    const feed = await loadDiaryFeed(ctx());
+    expect(listMyMentions).toHaveBeenCalledWith("org-1", "u-isaac", "2026-09-25", { staffId: "s-isaac" });
+    // nothing holds the reply, so it is an entry as it always was
+    expect([...feed.today, ...feed.earlier].map((i) => i.key)).toEqual(["entry:wn-reply", "entry:e1", "mention:j-2041:u-luke"]);
+  });
 });

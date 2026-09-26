@@ -1,7 +1,14 @@
 import { authorised } from "@/lib/integrations/cron-auth";
 import { recordSm8CronVisit, runSm8Sync, sweepableSm8Orgs } from "@/lib/integrations/sm8-sync";
-import { orgsWithDueSm8Writes, runSm8Writes } from "@/lib/integrations/sm8-writes";
+import {
+  clearDisconnectedSm8NoteText,
+  clearSm8NoteText,
+  orgsWithDueSm8Writes,
+  runSm8Writes,
+} from "@/lib/integrations/sm8-writes";
 import { WRITE_LEASE_MARGIN_MS, WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { NOTE_TEXT_DAYS } from "@/lib/integrations/sm8-note-plan";
 
 /* The nightly ServiceM8 top-up — the BACKSTOP, not the primary path.
 
@@ -124,6 +131,22 @@ export async function GET(request: Request) {
     }
   }
 
+  /* NOTE WORDS LEAVE THE QUEUE: every note row settled more than 30 days
+     ago, across every workspace, and every settled note row of a workspace
+     with no ServiceM8 connection any more (a send that finished after a
+     disconnect, which the page-load clear can't reach). HeyTiff's own rows
+     keep the words. Only on a deployment that sends notes: on one that
+     sends files alone neither makes a query. */
+  let notesCleared = 0;
+  if (sm8NotesAllowed()) {
+    try {
+      notesCleared += await clearSm8NoteText({ olderThanDays: NOTE_TEXT_DAYS }, Date.now());
+      notesCleared += await clearDisconnectedSm8NoteText(Date.now());
+    } catch {
+      /* the backstop's backstop: the next night tries again */
+    }
+  }
+
   /* Connected orgs only, longest-waiting first — needs_reauth rows are
      skipped because the engine would refuse them anyway, and each refusal
      costs a lease dance. */
@@ -175,5 +198,6 @@ export async function GET(request: Request) {
     rows,
     capped: orgs.length === ORG_CAP,
     writes: { orgs: writers.length, sent: writesSent, failed: writesFailed, deferred: writesDeferred },
+    ...(sm8NotesAllowed() ? { notesCleared } : {}),
   });
 }

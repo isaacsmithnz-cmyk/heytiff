@@ -7,6 +7,7 @@ import type { JournalEntry } from "@/lib/dashboard/journal";
 import type { ScheduleBlock } from "@/lib/workboard/schedule";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { HomeListReads } from "@/lib/dashboard/home-list";
+import type { TaskDoneLine } from "@/lib/dashboard/task-done-query";
 
 /* THE NEW HOME'S FRAME (H11): the date in the band, "Your day" on every
    face, ONE row of tabs that never moves, and a body that slides in tab
@@ -154,7 +155,7 @@ const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
 const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   chips: { self: [], team: [] },
   calendar: { spanStart: "2026-08-03", spanEnd: "2026-11-01", days: [] },
-  tasks: { mine: [], team: null, done: [], reported: [] },
+  tasks: { mine: [], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
   notices: [],
   journal: [],
   assignable: [],
@@ -331,6 +332,7 @@ describe("the one door between faces", () => {
         team: null,
         done: [],
         reported: [],
+        sm8: { lines: {}, sender: null },
       },
     });
 
@@ -358,6 +360,56 @@ describe("the one door between faces", () => {
   }, WHOLE);
 });
 
+/* The bell's door onto a Done that didn't go to ServiceM8 (two-way phase 2,
+   PR C) opens /dashboard?task=<id>, and the desk is the owner's Home: it
+   opens there on the task, and the task's page says where its Done stands,
+   as today's Home does (home-tasks-sm8.test). */
+describe("a task the address names", () => {
+  const T = "3a3a3a3a-0000-4000-8000-00000000000a";
+  const OLD = "00000000-0000-4000-8000-0000000000d1";
+  const stillIn: TaskDoneLine = {
+    noteId: OLD,
+    words: "@lukeingold Done.",
+    state: { key: "line.stillIn", text: "Still in ServiceM8.", tone: "bad", acts: ["take_out_again"] },
+  };
+  const named = () =>
+    data({
+      tasks: {
+        mine: [task({ id: "t0", title: "Ring the Hilux dealer" })],
+        team: null,
+        done: [task({ id: T, title: "Order the grilles", status: "done", doneAt: "2026-08-10T01:00:00Z", doneByName: "Isaac Smith" })],
+        reported: [],
+        sm8: { lines: { [T]: [stillIn] }, sender: null },
+      },
+    });
+  const page = () => screen.getByRole("article", { name: "The task" });
+
+  it("(F) opens the desk on Tasks with that task chosen, and its Done's line on its page", () => {
+    render(<DashboardDesk data={named()} taskId={T} />);
+    expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+    expect(shownFaces()).toEqual(["tasks"]);
+    expect(within(page()).getByText("Order the grilles")).toHaveClass("hm-said");
+    expect(page().querySelector(`[data-note-id="${OLD}"]`)).toHaveTextContent("Still in ServiceM8.");
+  }, WHOLE);
+
+  it("(F) follows the address when only its search changes, and stays put when it stops naming one", () => {
+    const { rerender } = render(<DashboardDesk data={named()} />);
+    expect(tab("Diary")).toHaveAttribute("aria-selected", "true");
+    rerender(<DashboardDesk data={named()} taskId={T} />);
+    expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+    expect(shownFaces()).toEqual(["tasks"]);
+    expect(within(page()).getByText("Order the grilles")).toHaveClass("hm-said");
+    rerender(<DashboardDesk data={named()} />);
+    expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+  }, WHOLE);
+
+  it("without one, lands on the Diary as ever", () => {
+    render(<DashboardDesk data={named()} />);
+    expect(tab("Diary")).toHaveAttribute("aria-selected", "true");
+    expect(shownFaces()).toEqual(["diary"]);
+  }, WHOLE);
+});
+
 describe("the list", () => {
   const theList = () => screen.getByRole("complementary", { name: "The list" });
   const withTasks = (over: Partial<DashboardData> = {}) =>
@@ -371,6 +423,7 @@ describe("the list", () => {
         team: null,
         done: [],
         reported: [],
+        sm8: { lines: {}, sender: null },
       },
       ...over,
     });
@@ -674,7 +727,7 @@ describe("the slide", () => {
           journal: [
             entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
           ],
-          tasks: { mine: [task()], team: null, done: [], reported: [] },
+          tasks: { mine: [task()], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
         })}
       />,
     );

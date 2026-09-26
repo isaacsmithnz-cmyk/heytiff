@@ -321,9 +321,9 @@ export function UrgentTab({
                 onDone={() => {
                   const id = r.taskId!;
                   run(
-                    () => completeTask(id),
+                    () => completeTask(id, { postDone: true }),
                     `Done — ${r.label}`,
-                    undoable(() => reopenTask(id))
+                    undoable(() => reopenTask(id, { takeBackDone: true }))
                   );
                 }}
               />

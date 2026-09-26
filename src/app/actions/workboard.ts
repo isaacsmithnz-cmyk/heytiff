@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { can } from "@/lib/permissions-server";
+import { can, getDbRole } from "@/lib/permissions-server";
 import { DEFAULT_CHECKLIST, isProjectStage, isProjectStatus } from "@/lib/workboard/stages";
 import { searchMirrorJobs, staffIdFor, type JobSearchHit } from "@/lib/workboard/projects-query";
 import { getSm8Timezone } from "@/lib/workboard/query";
@@ -27,13 +27,21 @@ import {
   type JobSummaryRead,
 } from "@/lib/workboard/job-summary";
 import {
+  readFlagStates,
   readJobAttention,
   readOurJobNotes,
+  type NotesViewer,
   type OurJobNote,
 } from "@/lib/workboard/job-notes-query";
 import type { JobAttention } from "@/lib/workboard/job-attention";
 import { sm8JobIsOpen } from "@/lib/workboard/all-jobs";
+import { sm8NotesAllowed, sm8WriteKindsEnabled } from "@/lib/integrations/sm8-kinds";
 import { orgPaymentTermsDays } from "@/lib/org/query";
+import { sm8NoteSender, type NoteSender } from "@/lib/integrations/links";
+import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
+import { offersSend, sendHold, type SendHold } from "@/lib/integrations/sm8-write-plan";
+import type { FlagState } from "@/lib/integrations/sm8-note-plan";
+import { hasMinRole } from "@/lib/roles";
 
 /** Notes always; the ledger only for a reader who holds money. */
 export type JobRecordRead = {
@@ -54,7 +62,27 @@ export type JobRecordRead = {
   /** The stored "Where it's up to" paragraph, its money sentence already
       stripped for a reader without the grant. Null until one is written. */
   summary: JobSummaryRead | null;
+  /* ── notes to ServiceM8 (two-way phase 2, PR B) — read only where the
+     deployment sends notes; without them all three are empty, and the card
+     is exactly what it was ── */
+  /** Who the viewer would send a note as, or why they can't. */
+  sender?: NoteSender | null;
+  /** Set only while notes are offered here: then the card offers Reply,
+      Also in ServiceM8, Send to ServiceM8 and Mark done. `owner` also gets
+      Link people when the viewer can't send yet. */
+  notesSm8?: { trial: boolean; hold: SendHold; owner: boolean } | null;
+  /** Each of ServiceM8's flagged notes, with our marks on it, by its uuid. */
+  flags?: Record<string, FlagState>;
 };
+
+/** Who is looking, for the notes' doors: their staff card, the workspace's
+    sending state and who they'd send as. Read once per card open, and only
+    where the deployment sends notes. */
+async function notesViewer(orgId: string, userId: string): Promise<NotesViewer> {
+  const [staffId, state] = await Promise.all([staffIdFor(orgId, userId), readSm8WriteState(orgId)]);
+  const sender = await sm8NoteSender(orgId, staffId, state.tenantId ?? undefined);
+  return { staffId, state, sender };
+}
 import {
   readMirrorJobDetail,
   readMirrorJobRow,
@@ -526,16 +554,52 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
      follows — so the diary reads the claims' notes beside the job's own,
      each badged with where it was filed. NOT money-gated, like the files. */
   const claims = await familyMediaSources(ctx.orgId, id);
+  /* WHO IS LOOKING, for the notes' doors — only where the deployment sends
+     notes. Without them there is no viewer read at all, and the card is
+     read exactly as it always was. */
+  const viewerRead = sm8NotesAllowed()
+    ? notesViewer(ctx.orgId, ctx.userId).catch((err: unknown) => {
+        console.error(`[sm8] couldn't read who is looking at job ${id}: ${err instanceof Error ? err.message : String(err)}`);
+        return null;
+      })
+    : null;
   /* The summary carries no money by design (the Money face says collection
      once), so it rides ungated beside the notes. */
   const [notes, ourNotes, summary, moneyVisible, timezone, status] = await Promise.all([
     readJobNotes(ctx.orgId, id, claims),
-    readOurJobNotes(ctx.orgId, id),
+    viewerRead ? readOurJobNotes(ctx.orgId, id, 60, viewerRead) : readOurJobNotes(ctx.orgId, id),
     readStoredJobSummary(ctx.orgId, id),
     can("workboard_money"),
     getSm8Timezone(ctx.orgId),
     jobStatusOf(ctx.orgId, id),
   ]);
+
+  /* ServiceM8's flags with our marks on them, and whether the viewer may
+     send: only with notes. */
+  let sm8: Pick<JobRecordRead, "sender" | "notesSm8" | "flags"> = {};
+  let held: Set<string> | undefined;
+  let viewerHandle: string | null = null;
+  const viewer = viewerRead ? await viewerRead : null;
+  if (viewer) {
+    const read = await readFlagStates(ctx.orgId, notes, viewer);
+    held = read.held;
+    const sender = viewer.sender;
+    viewerHandle = sender && "handle" in sender ? sender.handle : null;
+    const offered = offersSend(viewer.state, "note");
+    sm8 = {
+      sender,
+      notesSm8: offered
+        ? {
+            trial: viewer.state.mode === "trial",
+            hold: sendHold(viewer.state, "note"),
+            /* Link people is for an owner, and only asked for when the
+               viewer can't send yet */
+            owner: sender?.state === "ready" ? false : hasMinRole(await getDbRole(), "owner"),
+          }
+        : null,
+      flags: read.flags,
+    };
+  }
 
   const today = todayInZone(timezone);
   /* THE STRIP IS NOT MONEY-GATED. Flags, tasks and ServiceM8's own bookmarks
@@ -547,10 +611,14 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
     notes,
     jobOpen: sm8JobIsOpen(status),
     today,
+    /* readJobNotes already left our own echoes out where the deployment
+       sends notes: one echo read per card open, either way */
+    echoFiltered: sm8WriteKindsEnabled().includes("note"),
+    ...(viewerRead ? { viewerHandle, ourNotes, heldFlags: held } : {}),
   });
 
   if (!moneyVisible) {
-    return { notes, ourNotes, attention, assignable, ledger: null, family: null, summary };
+    return { notes, ourNotes, attention, assignable, ledger: null, family: null, summary, ...sm8 };
   }
 
   /* PAYMENT TERMS COME FROM THE ORGANISATION'S OWN CARD — ServiceM8 mirrors
@@ -564,7 +632,7 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
       readJobFamily(ctx.orgId, id, today, termsDays)
     ),
   ]);
-  return { notes, ourNotes, attention, assignable, ledger, family, summary };
+  return { notes, ourNotes, attention, assignable, ledger, family, summary, ...sm8 };
 }
 
 /** ServiceM8's status word for one job — the one fact the strip needs that

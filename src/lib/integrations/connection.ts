@@ -36,6 +36,9 @@ export type ConnectionRow = {
   /** 'off' | 'trial' | 'live' — whether HeyTiff may write back. ServiceM8
       only today; every other provider's row reads 'off'. */
   write_mode?: string | null;
+  /** The kinds the owner has switched on (ServiceM8 only). Absent on a
+      database without the column: files alone, as before it existed. */
+  write_kinds?: unknown;
 };
 
 /** What crosses to the browser. No tokens, ever. */
@@ -85,8 +88,14 @@ export function parseTenants(raw: unknown): Tenant[] {
   return out;
 }
 
-/** Row → the token-free view a screen may hold. */
-export function toView(row: ConnectionRow, connectedByName: string | null = null): ConnectionView {
+/** Row → the token-free view a screen may hold. `kinds` are the write kinds
+    whose permission counts towards `missing` — for ServiceM8, the ones the
+    deployment allows and the owner has on (store.ts). */
+export function toView(
+  row: ConnectionRow,
+  connectedByName: string | null = null,
+  kinds?: readonly string[]
+): ConnectionView {
   return {
     provider: row.provider,
     status: isConnectionStatus(row.status) ? row.status : "needs_reauth",
@@ -96,8 +105,10 @@ export function toView(row: ConnectionRow, connectedByName: string | null = null
     scopes: (row.scopes ?? "").split(/\s+/).filter(Boolean),
     // Judged against the ROW's provider — a ServiceM8 grant measured with
     // Xero's list would prompt "reconnect to finish" forever — and the row's
-    // own switch: writing on without the permission to write is missing it.
-    missing: missingScopesFor(row.provider, row.scopes, row.write_mode),
+    // own switch: writing on without the permission to write is missing it —
+    // for the kinds that count, so a permission nobody asks for (notes, on a
+    // deployment that sends files only) never reads as missing.
+    missing: missingScopesFor(row.provider, row.scopes, row.write_mode, kinds),
     connectedAt: row.connected_at,
     connectedByName,
     lastError: row.last_error,

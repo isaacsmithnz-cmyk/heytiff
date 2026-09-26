@@ -54,6 +54,8 @@ import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { sm8QueueStuck } from "@/lib/integrations/sm8-writes";
 import { freshenSm8AfterResponse } from "@/lib/integrations/sm8-freshness";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import type { TaskDoneLines, UnsentDone } from "./task-done-query";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
    and live in ./assemble and ./calendar; this file is the thin I/O layer
@@ -79,8 +81,10 @@ export type DashboardData = {
       in it only with `team`. */
   calendar: LeaveCalendar;
   /** Your open tasks (always), the team's (only with `team`), and your
-      recently-completed ones so finishing something leaves a trace. */
-  tasks: { mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[] };
+      recently-completed ones so finishing something leaves a trace.
+      `sm8`: where each task's Done stands with ServiceM8 (two-way phase 2,
+      PR C) — empty, from no read, where the deployment doesn't send notes. */
+  tasks: { mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[]; sm8: TaskDoneLines };
   /** Recent notices with your read state joined in. */
   notices: BoardNotice[];
   /** Everything you've told Tiff, newest first — the Journal tab's record.
@@ -194,7 +198,7 @@ const EMPTY_RAIL: HomeRail = {
 const EMPTY: DashboardData = {
   chips: { self: [], team: [] },
   calendar: { spanStart: "", spanEnd: "", days: [] },
-  tasks: { mine: [], team: null, done: [], reported: [] },
+  tasks: { mine: [], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
   notices: [],
   journal: [],
   assignable: [],
@@ -280,7 +284,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   const [chips, calendar, tasks, notices, assignable, journal, jobs, issues, schedule, sm8Links, deskData] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today, isOwner, shared),
     loadCalendar(orgId, today, viewerStaffId, canManage),
-    loadTasks(orgId, viewerStaffId, canManage, names),
+    loadTasks(orgId, viewerStaffId, canManage, names, caps.has("workboard")),
     listNotices(orgId, viewerStaffId, NOTICE_WINDOW, names).then(sortNotices),
     // the assign picker only needs names, and only when you can assign
     canManage ? listFleetStaff(orgId).then((s) => s.map((x) => ({ id: x.id, name: x.name }))) : Promise.resolve([]),
@@ -449,8 +453,10 @@ async function loadTasks(
   viewerStaffId: string | null,
   canManage: boolean,
   names: StaffNames,
-): Promise<{ mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[] }> {
-  const [mine, team, done, reported] = await Promise.all([
+  /** `workboard`: a Done is a note on a job, and its line is the job's */
+  workboard: boolean,
+): Promise<DashboardData["tasks"]> {
+  const [mine, team, done, reportedAll] = await Promise.all([
     viewerStaffId ? myTasks(orgId, viewerStaffId, names).then(sortTasks) : Promise.resolve([]),
     canManage ? teamTasks(orgId, names).then(sortTasks) : Promise.resolve(null),
     viewerStaffId
@@ -461,7 +467,39 @@ async function loadTasks(
       ? assignedByMeRecentlyDone(orgId, viewerStaffId, RECENT_DONE_DAYS, new Date(), names)
       : Promise.resolve([] as DashTask[]),
   ]);
-  return { mine, team, done, reported };
+  /* Where the deployment sends notes, `done` also holds what you ticked for
+     somebody else (recentlyDoneTasks) — which, when you had handed it out,
+     is in your report too. One row a task: yours, since you ticked it. */
+  const reported = reportedAll.filter((r) => !done.some((d) => d.id === r.id));
+  const sm8 = workboard
+    ? await loadTaskDoneLines(orgId, viewerStaffId, [mine, team ?? [], done, reported])
+    : { lines: {}, sender: null };
+  return { mine, team, done, reported, sm8 };
+}
+
+/** Where each task on the face stands with ServiceM8 — its Done, or the
+    reply that closed it (two-way phase 2, PR C). Where the deployment
+    doesn't send notes this is the empty answer, and the module isn't even
+    loaded: a Home page load gains nothing. A read that fails draws no
+    line and keeps the page. */
+async function loadTaskDoneLines(
+  orgId: string,
+  viewerStaffId: string | null,
+  lists: readonly DashTask[][],
+): Promise<TaskDoneLines> {
+  const none: TaskDoneLines = { lines: {}, sender: null };
+  if (!sm8NotesAllowed() || !viewerStaffId) return none;
+  const { readTaskDoneLines } = await import("./task-done-query");
+  return readTaskDoneLines(orgId, viewerStaffId, lists.flat().map((t) => t.id)).catch(() => none);
+}
+
+/** Your ticks whose Done didn't go to ServiceM8, for the bell — read only
+    where the deployment sends notes, and only for somebody with a staff
+    card, who is the only one a tick can be. */
+async function loadUnsentDones(orgId: string, viewerStaffId: string | null, today: string): Promise<UnsentDone[]> {
+  if (!sm8NotesAllowed() || !viewerStaffId) return [];
+  const { myUnsentDones } = await import("./task-done-query");
+  return myUnsentDones(orgId, viewerStaffId, addDays(today, -CLAIM_NUDGE_DAYS)).catch(() => []);
 }
 
 /* ---------------- chips ---------------- */
@@ -477,6 +515,9 @@ async function loadChips(
       them for the whole page; read here when not (the action-required page). */
   shared?: HomeShared,
 ): Promise<DashboardChips> {
+  /* your ticks whose Done didn't go — a note on a job, so the Workboard's.
+     Started beside the reads below, and it never throws. */
+  const unsentDonesP = caps.has("workboard") ? loadUnsentDones(orgId, viewerStaffId, today) : Promise.resolve([]);
   const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv, detailsGap, swmsSignons, swmsIssues, swmsTemplatePending, sm8Stuck] = await Promise.all([
     viewerStaffId ? listStaffCompliance(orgId, viewerStaffId) : Promise.resolve([]),
     viewerStaffId ? getOwnVehicle(orgId, viewerStaffId) : Promise.resolve(null),
@@ -502,6 +543,7 @@ async function loadChips(
     // unstick them; a read that fails raises no chip
     isOwner ? sm8QueueStuck(orgId).catch(() => null) : Promise.resolve(null),
   ]);
+  const unsentDones = await unsentDonesP;
 
   // Team data is only READ when the capability is held — it never reaches here
   // otherwise, so the scoping is enforced at the query, not just in assembly.
@@ -539,6 +581,7 @@ async function loadChips(
       ownSwmsIssues: swmsIssues,
       swmsTemplatePending,
       sm8Stuck,
+      ownUnsentDones: unsentDones,
     },
     caps,
   );

@@ -27,6 +27,11 @@ const table = (name: string) => {
     call.in = [col, vals];
     return chain;
   };
+  /* a note somebody took back isn't on anybody's journal (two-way phase 2) */
+  chain.is = (col: string, val: unknown) => {
+    call.eq[`${col} is`] = val;
+    return chain;
+  };
   chain.order = () => chain;
   chain.limit = () => chain;
   chain.then = (res: (v: { data: unknown }) => unknown) =>
@@ -250,7 +255,8 @@ describe("listDiaryEntries", () => {
     rows.workboard_notes = [note("e1", {})];
     await listDiaryEntries("org-1", "s1", null);
     const [read] = of("workboard_notes");
-    expect(read.eq).toEqual({ org_id: "org-1", author_id: "s1", status: "applied" });
+    // and, as on the journal, never a note somebody took back (two-way phase 2)
+    expect(read.eq).toEqual({ org_id: "org-1", author_id: "s1", status: "applied", "removed_at is": null });
     // built on the journal's column list, so the two can't drift apart
     expect(read.columns).toBe("id, transcript, source, applied, created_at, proposal");
   });

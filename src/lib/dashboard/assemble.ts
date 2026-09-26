@@ -8,6 +8,7 @@ import {
   licenceChip,
   orgCredentialChips,
   profileChip,
+  sm8DoneChip,
   sm8QueueChip,
   sortChips,
   swmsIssueChip,
@@ -100,7 +101,15 @@ export type ChipSources = {
   swmsTemplatePending?: boolean;
   /** Files waiting to go to ServiceM8 that only the owner can unstick — the
       loader reads it for owners only; `assembleChips` checks again. */
-  sm8Stuck?: { reason: "cap" | "billing" | "reconnect"; waiting: number } | null;
+  sm8Stuck?: {
+    reason: "cap" | "billing" | "reconnect";
+    waiting: number;
+    kinds?: { attachment: number; note: number };
+  } | null;
+  /** YOUR ticks whose Done didn't go to ServiceM8, didn't come out of it, or
+      may not have reached it (two-way phase 2, PR C). Optional so a caller
+      that has not loaded them raises no chip. */
+  ownUnsentDones?: { taskId: string; title: string; op: "post" | "take_back" | "check" }[];
 };
 
 const push = (arr: ActionChip[], chip: ActionChip | null) => {
@@ -151,6 +160,8 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
     for (const p of src.ownSwmsIssues ?? []) push(self, swmsIssueChip(p));
     /* the template is the owner's to approve, and nobody else can clear it */
     if (src.isOwner) push(self, swmsTemplateChip(src.swmsTemplatePending));
+    /* a Done of yours that didn't go: yours to put right, and only yours */
+    for (const d of src.ownUnsentDones ?? []) self.push(sm8DoneChip(d));
   }
   /* The ServiceM8 connection is the owner's whether or not they have a
      staff card, so this sits outside the block above: an owner with no card

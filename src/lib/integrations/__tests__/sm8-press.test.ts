@@ -103,6 +103,23 @@ describe("only a person's press queues a write", () => {
     }
   });
 
+  it("only the note queue's helpers queue a note — nothing else passes kind \"note\"", () => {
+    /* two-way phase 2: a note goes as whoever pressed it, and every rule
+       about who may press it again or take it back lives in one file */
+    const noteQueue = join("app", "actions", "sm8-note-queue.ts");
+    const writers = files.filter(
+      (f) =>
+        relative(SRC, f.path) !== join("lib", "integrations", "sm8-writes.ts") &&
+        /kind:\s*["']note["']/.test(f.text) &&
+        /\benqueueSm8Writes\b/.test(f.text)
+    );
+    expect(writers.map((f) => relative(SRC, f.path))).toEqual([noteQueue]);
+    const queue = files.find((f) => relative(SRC, f.path) === noteQueue)!;
+    expect(isServerAction(queue.path, queue.text)).toBe(true);
+    // and it checks the press before anything else it exports does
+    expect(queue.text.match(/isSm8Press\(press\)/g)?.length).toBeGreaterThanOrEqual(3);
+  });
+
   it("only the \"use server\" actions queue", () => {
     const queuers = files.filter(
       (f) =>

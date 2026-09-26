@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import type { PersonRow } from "@/lib/integrations/people-import";
+import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 import type {
   ImportPersonInput,
   ImportProvider,
@@ -475,6 +476,8 @@ export function PeopleImportCard({
                       <em>
                         is <b>{row.staffName}</b> here
                       </em>
+                      {/* they said this link isn't them: fix it here */}
+                      {row.denied && <em>{NOTE_WORDS.door.peopleDenied}</em>}
                     </div>
                     <div className="sp-act">
                       {meta.unlinkHere ? (

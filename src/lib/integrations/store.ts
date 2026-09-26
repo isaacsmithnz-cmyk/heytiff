@@ -15,6 +15,8 @@ import {
   type Tenant,
 } from "./connection";
 import { open, seal, tokenKey } from "./secrets";
+import { sm8WriteKindsEnabled } from "./sm8-kinds";
+import { readOwnerKinds } from "./sm8-write-plan";
 import {
   refreshTokens,
   revokeRefreshToken,
@@ -25,19 +27,36 @@ import {
 
 const TABLE = "integration_connections";
 
-const COLUMNS =
+const BASE_COLUMNS =
   "id, org_id, provider, status, tenant_id, tenant_name, tenants, scopes, " +
   "access_token_enc, refresh_token_enc, expires_at, connected_by_user_id, " +
   "connected_at, updated_at, last_error, drift_count, drift_checked_at, write_mode";
 
+/* write_kinds is the owner's per-kind switch (docs/migrations/
+   sm8_notes_queue.sql). A database without it yet is read again without
+   it: failing the whole read would draw a live connection as "not
+   connected". */
+const COLUMNS = `${BASE_COLUMNS}, write_kinds`;
+
+type DbError = { code?: string; message?: string } | null;
+const missingColumn = (e: DbError) => e?.code === "PGRST204" || e?.code === "42703";
+
 async function readRow(orgId: string, provider: string): Promise<ConnectionRow | null> {
-  const { data } = await supabaseAdmin
-    .from(TABLE)
-    .select(COLUMNS)
-    .eq("org_id", orgId)
-    .eq("provider", provider)
-    .maybeSingle();
+  const read = (columns: string) =>
+    supabaseAdmin.from(TABLE).select(columns).eq("org_id", orgId).eq("provider", provider).maybeSingle();
+  let { data, error } = await read(COLUMNS);
+  if (missingColumn(error as DbError)) ({ data, error } = await read(BASE_COLUMNS));
   return (data as ConnectionRow | null) ?? null;
+}
+
+/** The write kinds whose permission counts for a ServiceM8 connection: the
+    ones this deployment allows (SM8_WRITES) that the owner has switched on.
+    With SM8_WRITES=1 that is files alone, so the index never lists the
+    notes permission as missing. Undefined for any other provider. */
+function countedKinds(row: ConnectionRow): string[] | undefined {
+  if (row.provider !== "servicem8") return undefined;
+  const owner = readOwnerKinds(row.write_kinds);
+  return sm8WriteKindsEnabled().filter((k) => owner.includes(k));
 }
 
 /** "Is this provider live?" and nothing else — one narrow column, no tokens,
@@ -66,7 +85,7 @@ export async function getConnectionView(
 ): Promise<ConnectionView | null> {
   const row = await readRow(orgId, provider);
   if (!row) return null;
-  return toView(row, await connectorName(row.connected_by_user_id));
+  return toView(row, await connectorName(row.connected_by_user_id), countedKinds(row));
 }
 
 /** How many OTHER HeyTiff workspaces hold a connection to this same provider

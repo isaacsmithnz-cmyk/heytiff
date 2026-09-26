@@ -74,24 +74,52 @@ function offsetOf(el: HTMLElement | null): number {
   return !t || t === "none" ? 0 : new DOMMatrixReadOnly(t).m41;
 }
 
-export function DashboardDesk({ data }: { data: DashboardData }) {
+export function DashboardDesk({
+  data,
+  taskId = null,
+}: {
+  data: DashboardData;
+  /** A task the address names (`/dashboard?task=<id>`, the bell's door onto
+      a Done that didn't go to ServiceM8): the desk opens on Tasks with it
+      chosen, as today's Home does (./home). */
+  taskId?: string | null;
+}) {
   return (
     <DeskJobHost manage={data.rail.manage} moneyVisible={data.rail.moneyVisible}>
-      <Desk data={data} />
+      <Desk data={data} taskId={taskId} />
     </DeskJobHost>
   );
 }
 
-function Desk({ data }: { data: DashboardData }) {
+const taskDoor = (id: string): DeskFocus => ({ face: "tasks", kind: "task", ids: [id] });
+
+function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) {
   const { calendar, tasks, journal, issues, assignable, canManage, viewerStaffId, today, rail } = data;
   /* The list, placed from its own reads and what the page already holds —
      pure, and dated on the server by the workspace's day. */
   const list = useMemo(() => (data.desk ? placeHomeList(data.desk.list, data) : null), [data]);
 
-  const [face, setFace] = useState<DeskFace>(DEFAULT_FACE);
+  const [face, setFace] = useState<DeskFace>(taskId ? "tasks" : DEFAULT_FACE);
   const [motion, setMotion] = useState<Motion | null>(null);
   /* A door from one face to another, until the face it names has shown it. */
-  const [focus, setFocus] = useState<DeskFocus | null>(null);
+  const [focus, setFocus] = useState<DeskFocus | null>(taskId ? taskDoor(taskId) : null);
+
+  /* THE ADDRESS CAN NAME A TASK AFTER THE DESK IS UP — the bell's door onto
+     a Done (two-way phase 2, PR C) is pressed from Home itself, and only the
+     search changes, so nothing remounts the desk (the outlet is keyed on the
+     pathname). A task newly named turns the desk to Tasks with it chosen,
+     in the same paint and without a slide: the address moved, not a hand
+     on the tabs. An address that stops naming one leaves the face where the
+     reader put it. The adjust-in-render idiom today's Home uses. */
+  const [namedTask, setNamedTask] = useState<string | null>(taskId);
+  if (taskId !== namedTask) {
+    setNamedTask(taskId);
+    if (taskId) {
+      setFace("tasks");
+      setMotion(null);
+      setFocus(taskDoor(taskId));
+    }
+  }
   /* The entry today's diary is reading — null reads the newest. */
   const [entryId, setEntryId] = useState<string | null>(null);
 
@@ -177,7 +205,7 @@ function Desk({ data }: { data: DashboardData }) {
     }
     setFocus(to);
   };
-  const openTask = (id: string, pointer: boolean) => show({ face: "tasks", kind: "task", ids: [id] }, pointer);
+  const openTask = (id: string, pointer: boolean) => show(taskDoor(id), pointer);
   const openEntry = (id: string, pointer: boolean) => show({ face: "diary", kind: "entry", ids: [id] }, pointer);
   const taskFocus = focus?.face === "tasks" && focus.kind === "task" ? (focus.ids[0] ?? null) : null;
   /* Rows a door asked to see stand in the list, beside Diary and Tasks
@@ -248,6 +276,10 @@ function Desk({ data }: { data: DashboardData }) {
                         onOpenEntry={openEntry}
                         focusTaskId={taskFocus}
                         onFocusHandled={() => setFocus(null)}
+                        /* where each task's Done stands with ServiceM8 —
+                           empty, from no read, without notes */
+                        sm8Lines={tasks.sm8?.lines}
+                        sm8Sender={tasks.sm8?.sender ?? null}
                       />
                     </div>,
                   )}

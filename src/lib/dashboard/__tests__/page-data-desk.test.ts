@@ -142,6 +142,15 @@ const LIST_READS = {
 const loadHomeList = jest.fn(async (_ctx: unknown) => LIST_READS);
 jest.mock("../home-list-query", () => ({ loadHomeList: (ctx: unknown) => loadHomeList(ctx) }));
 
+/* A task's Done (two-way phase 2, PR C): read only where the deployment
+   sends notes — the module isn't even loaded otherwise. */
+const readTaskDoneLines = jest.fn(async (..._a: unknown[]) => ({ lines: { t1: [] }, sender: null }));
+const myUnsentDones = jest.fn(async (..._a: unknown[]) => [{ taskId: "t1", title: "Order the grilles", noteId: "n1", op: "post" }]);
+jest.mock("../task-done-query", () => ({
+  readTaskDoneLines: (...a: unknown[]) => readTaskDoneLines(...a),
+  myUnsentDones: (...a: unknown[]) => myUnsentDones(...a),
+}));
+
 /* The desk's own loader, watched but real. */
 jest.mock("../desk-data", () => {
   const actual = jest.requireActual("../desk-data");
@@ -149,7 +158,7 @@ jest.mock("../desk-data", () => {
 });
 
 import { loadDesk } from "../desk-data";
-import { loadStaffNames } from "../tasks-query";
+import { loadStaffNames, recentlyDoneTasks } from "../tasks-query";
 import { loadActionRequired, loadDashboard } from "../page-data";
 
 /* A read held open until the test lets it go. */
@@ -342,5 +351,44 @@ describe("the day's new fields", () => {
     vendor = { tz: null, connected: false };
     const { rail } = await loadDashboard();
     expect(rail.connected).toBe(false);
+  });
+});
+
+describe("a task's Done (two-way phase 2, PR C)", () => {
+  const was = process.env.SM8_WRITES;
+  afterEach(() => {
+    if (was === undefined) delete process.env.SM8_WRITES;
+    else process.env.SM8_WRITES = was;
+  });
+  const done = { id: "t1", title: "Order the grilles", status: "done" };
+  const unsentOf = () => (assembleChips.mock.calls.at(-1)![0] as { ownUnsentDones: unknown }).ownUnsentDones;
+
+  it("(F) where the deployment sends files only, Home reads no line and no bell item, and hands the empty answers", async () => {
+    process.env.SM8_WRITES = "1";
+    (recentlyDoneTasks as jest.Mock).mockResolvedValueOnce([done]);
+    const data = await loadDashboard();
+    expect(readTaskDoneLines).not.toHaveBeenCalled();
+    expect(myUnsentDones).not.toHaveBeenCalled();
+    expect(data.tasks.sm8).toEqual({ lines: {}, sender: null });
+    expect(unsentOf()).toEqual([]);
+  });
+
+  it("where notes are sent, reads the lines of the tasks on the face and the viewer's own unsent Dones, and hands them on", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    (recentlyDoneTasks as jest.Mock).mockResolvedValueOnce([done]);
+    const data = await loadDashboard();
+    expect(readTaskDoneLines).toHaveBeenCalledWith("org-1", "s-me", ["t1"]);
+    expect(data.tasks.sm8).toEqual({ lines: { t1: [] }, sender: null });
+    expect(myUnsentDones).toHaveBeenCalledWith("org-1", "s-me", expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
+    expect(unsentOf()).toEqual([{ taskId: "t1", title: "Order the grilles", noteId: "n1", op: "post" }]);
+  });
+
+  it("a read that fails draws no line and raises no item, and keeps the page", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    readTaskDoneLines.mockRejectedValueOnce(new Error("down"));
+    myUnsentDones.mockRejectedValueOnce(new Error("down"));
+    const data = await loadDashboard();
+    expect(data.tasks.sm8).toEqual({ lines: {}, sender: null });
+    expect(unsentOf()).toEqual([]);
   });
 });

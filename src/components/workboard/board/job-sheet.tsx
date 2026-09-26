@@ -77,9 +77,23 @@ import {
 import { JobAttentionStrip } from "./job-attention-strip";
 import { useNoteScopeTarget } from "@/components/notes/note-context";
 import { addJobNote, dismissJobNote, removeJobNote, taskFromJobNote } from "@/app/actions/job-notes";
+import {
+  confirmMySm8Link,
+  markJobNoteDone,
+  readJobNoteStates,
+  replyToJobNote,
+  sendJobNoteToServiceM8,
+  takeBackJobNote,
+  undoJobNoteDone,
+} from "@/app/actions/job-note-sm8";
 import { clearFlag } from "@/app/actions/workboard-notes";
 import type { JobAttention } from "@/lib/workboard/job-attention";
 import type { OurJobNote } from "@/lib/workboard/job-notes-query";
+import type { FlagState, NoteState } from "@/lib/integrations/sm8-note-plan";
+import type { NoteSender } from "@/lib/integrations/links";
+import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
+import { mintPressId } from "@/lib/workboard/press-id";
+import { somethingWaiting, useNoteStatePoll } from "./use-note-poll";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
@@ -295,6 +309,16 @@ export function JobSheet({
      reason: derived state can't be edited. */
   const [ourNotes, setOurNotes] = useState<OurJobNote[] | null>(null);
   const [attention, setAttention] = useState<JobAttention | null>(null);
+  /* NOTES TO SERVICEM8 (two-way phase 2), seeded from the record read and
+     then local for the same reason: who the viewer sends as changes the
+     moment they answer "Is <name> you?", and a flag's line the moment they
+     mark it. All empty where the deployment sends no notes. */
+  const [sender, setSender] = useState<NoteSender | null>(null);
+  const [flags, setFlags] = useState<Record<string, FlagState>>({});
+  /* the note the strip's Reply sent the reader to, by its ServiceM8 uuid */
+  const [replyFor, setReplyFor] = useState<string | null>(null);
+  /* each press kicks the poll, so its own note gets its own looks */
+  const [pollKick, setPollKick] = useState(0);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabKey>(() =>
     initialTab && (initialTab !== "money" || moneyVisible) ? initialTab : "summary"
@@ -743,6 +767,8 @@ export function JobSheet({
         setRecord(r);
         setOurNotes(r?.ourNotes ?? []);
         setAttention(r?.attention ?? null);
+        setSender(r?.sender ?? null);
+        setFlags(r?.flags ?? {});
       })
       .catch(() => {
         if (live) setRecordFailed(true);
@@ -1070,22 +1096,31 @@ export function JobSheet({
      the browser knows its own auth id and not the display name behind it;
      slice 3 shipped that defect on the checklist's stamps and this is the
      same fix, applied before it could happen twice. */
-  const writeNote = (body: string) => {
+  /* THE PEN'S OWN ID (two-way phase 2) is the optimistic row's id and the
+     saved row's, so the same words pressed twice before the save lands are
+     ONE entry — and, ticked Also in ServiceM8, one note. The send goes with
+     the SAVED id, never a temporary one. */
+  const penIds = useRef(new Set<string>());
+  const writeNote = (body: string, alsoSm8 = false, composeId?: string): Promise<void> | undefined => {
     if (!cardId) return;
     const text = body.trim();
     if (!text) return;
+    if (composeId && penIds.current.has(composeId)) return;
+    if (composeId) penIds.current.add(composeId);
     const temp: OurJobNote = {
-      id: `tmp-${Date.now()}`,
+      id: composeId ?? `tmp-${mintPressId()}`,
       text,
       at: new Date().toISOString(),
       author: null,
     };
     setOurNotes((cur) => [temp, ...(cur ?? [])]);
-    void addJobNote(cardId, text)
+    return addJobNote(cardId, text, composeId ? { id: composeId } : undefined)
       .then((saved) => {
         setOurNotes((cur) => (cur ?? []).map((n) => (n.id === temp.id ? saved : n)));
+        if (alsoSm8) sendCopy(saved.id);
       })
       .catch(() => {
+        if (composeId) penIds.current.delete(composeId);
         setOurNotes((cur) => (cur ?? []).filter((n) => n.id !== temp.id));
         onToast("Could not save that note");
       });
@@ -1094,10 +1129,222 @@ export function JobSheet({
   const unwriteNote = (id: string) => {
     const before = ourNotes;
     setOurNotes((cur) => (cur ?? []).filter((n) => n.id !== id));
-    void removeJobNote(id).catch(() => {
-      setOurNotes(before);
-      onToast("Could not remove that note");
-    });
+    void removeJobNote(id)
+      .then((res) => {
+        if (!res || (res.ok && res.gone)) return;
+        /* refused: it stays, and says why */
+        if (!res.ok) {
+          setOurNotes(before);
+          onToast(res.error);
+          return;
+        }
+        /* taken back but something of it may still be in ServiceM8: it
+           stays, removed, while its line says so */
+        setOurNotes((before ?? []).map((n) => (n.id === id ? { ...n, removed: true } : n)));
+        void refreshNoteStates();
+        kickPoll();
+      })
+      .catch(() => {
+        setOurNotes(before);
+        onToast("Could not remove that note");
+      });
+  };
+
+  /* ── NOTES TO SERVICEM8 (two-way phase 2): every door asks the server
+     and draws what it answers — the state, in its own words ── */
+
+  const notesSm8 = record?.notesSm8 ?? null;
+
+  /** One of our notes' line, as the server now says it. */
+  const setNoteState = (id: string, state: NoteState | null, patch: Partial<OurJobNote> = {}) =>
+    setOurNotes((cur) =>
+      (cur ?? []).map((n) => (n.id === id ? { ...n, ...patch, state: state && state.key ? state : null } : n))
+    );
+
+  /** Where everything on the card stands — the poll, and after a press
+      whose answer left something on its way. */
+  const refreshNoteStates = async () => {
+    if (!cardId) return;
+    const s = await readJobNoteStates({ jobUuid: cardId });
+    if (!s || !alive.current) return;
+    setOurNotes((cur) =>
+      (cur ?? []).flatMap((n) => {
+        const line = s.ours[n.id];
+        /* a take-back that settled: nothing of it is left to draw */
+        if (line === undefined) return n.removed ? [] : [n];
+        return [{ ...n, state: line.key ? line : null }];
+      })
+    );
+    setFlags(s.flags);
+  };
+  useNoteStatePoll({
+    waiting: somethingWaiting(ourNotes, flags),
+    kick: pollKick,
+    read: refreshNoteStates,
+  });
+  const kickPoll = () => setPollKick((k) => k + 1);
+
+  const replyNote = async (input: {
+    sourceNoteUuid: string;
+    words: string;
+    spoken: boolean;
+    composeId: string;
+  }): Promise<string | null> => {
+    if (!cardId) return NOTE_WORDS.press.noNote;
+    try {
+      const res = await replyToJobNote({ jobUuid: cardId, ...input });
+      if (!res.ok) {
+        if (res.sender) setSender(res.sender);
+        return res.error;
+      }
+      setOurNotes((cur) => [res.note, ...(cur ?? []).filter((n) => n.id !== res.note.id)]);
+      /* answered: its mention leaves the strip */
+      setAttention((cur) =>
+        cur
+          ? (() => {
+              const items = cur.items.filter((i) => !(i.kind === "mention" && i.noteUuid === input.sourceNoteUuid));
+              return { items, total: Math.max(0, cur.total - (cur.items.length - items.length)) };
+            })()
+          : cur
+      );
+      kickPoll();
+      return null;
+    } catch {
+      return NOTE_WORDS.press.saveFailed;
+    }
+  };
+
+  function sendCopy(noteId: string) {
+    if (!cardId) return;
+    void sendJobNoteToServiceM8({ jobUuid: cardId, noteId })
+      .then((res) => {
+        if (res.ok) setNoteState(noteId, res.state, { hasCreate: true });
+        else {
+          onToast(res.error);
+          if (res.state !== undefined) setNoteState(noteId, res.state);
+        }
+        kickPoll();
+      })
+      .catch(() => onToast(NOTE_WORDS.press.unqueued));
+  }
+
+  const takeBack = (noteId: string) => {
+    if (!cardId) return;
+    void takeBackJobNote({ jobUuid: cardId, noteId })
+      .then((res) => {
+        if (res.ok && res.gone) {
+          setOurNotes((cur) => (cur ?? []).filter((n) => n.id !== noteId));
+          return;
+        }
+        if (res.ok) setNoteState(noteId, res.state, { removed: true });
+        else {
+          onToast(res.error);
+          if (res.state !== undefined) {
+            if (res.state && res.state.key) setNoteState(noteId, res.state, { removed: true });
+            else setOurNotes((cur) => (cur ?? []).filter((n) => n.id !== noteId));
+          }
+        }
+        kickPoll();
+      })
+      .catch(() => onToast(NOTE_WORDS.press.unqueued));
+  };
+
+  /* ONE PRESS PER MARK. A flag's Mark done (and its Undo) carries an id
+     minted once and kept until the server ANSWERS, so a repeat of the same
+     press — a retry after a lost answer — is the same subject and the queue
+     keeps one; a fresh id only follows a settled answer. And while a press
+     on a note is out, its doors are off here and on the strip: a second
+     click never becomes a second mark. The ref is the guard (two clicks in
+     one tick see it); the state only draws it. */
+  const flagPressIds = useRef(new Map<string, string>());
+  const flagOut = useRef(new Set<string>());
+  const [flagsBusy, setFlagsBusy] = useState<ReadonlySet<string>>(() => new Set());
+  const flagPress = (noteUuid: string, doing: "done" | "clear"): string | null => {
+    if (flagOut.current.has(noteUuid)) return null;
+    flagOut.current.add(noteUuid);
+    setFlagsBusy(new Set(flagOut.current));
+    const key = `${doing}:${noteUuid}`;
+    const id = flagPressIds.current.get(key) ?? mintPressId();
+    flagPressIds.current.set(key, id);
+    return id;
+  };
+  const flagSettled = (noteUuid: string, doing: "done" | "clear", answered: boolean) => {
+    if (answered) flagPressIds.current.delete(`${doing}:${noteUuid}`);
+    flagOut.current.delete(noteUuid);
+    if (alive.current) setFlagsBusy(new Set(flagOut.current));
+  };
+
+  const markDone = (noteUuid: string, seenEditDate?: string | null) => {
+    if (!cardId) return;
+    const seen =
+      seenEditDate !== undefined
+        ? seenEditDate
+        : (record?.notes.find((n) => n.remoteId === noteUuid)?.editedAt ?? null);
+    const pressId = flagPress(noteUuid, "done");
+    if (!pressId) return;
+    void markJobNoteDone({ jobUuid: cardId, noteUuid, seenEditDate: seen, pressId })
+      .then((res) => {
+        flagSettled(noteUuid, "done", true);
+        if (res.state) setFlags((cur) => ({ ...cur, [noteUuid]: res.state! }));
+        if (res.ok) {
+          dropAttention(`sm8flag:${noteUuid}`);
+          kickPoll();
+          return;
+        }
+        onToast(res.error);
+        /* changed in ServiceM8 since it was read: look again */
+        if (res.error === NOTE_WORDS.press.changed) void reloadRecord();
+      })
+      .catch(() => {
+        flagSettled(noteUuid, "done", false);
+        onToast(NOTE_WORDS.press.unqueued);
+      });
+  };
+
+  const undoDone = (noteUuid: string) => {
+    if (!cardId) return;
+    const pressId = flagPress(noteUuid, "clear");
+    if (!pressId) return;
+    void undoJobNoteDone({ jobUuid: cardId, noteUuid, pressId })
+      .then((res) => {
+        flagSettled(noteUuid, "clear", true);
+        if (res.state) setFlags((cur) => ({ ...cur, [noteUuid]: res.state! }));
+        if (!res.ok) onToast(res.error);
+        kickPoll();
+      })
+      .catch(() => {
+        flagSettled(noteUuid, "clear", false);
+        onToast(NOTE_WORDS.press.unqueued);
+      });
+  };
+
+  /** "Is <name> you?" — Yes on a saved row's line then sends that row. */
+  const confirmLink = async (answer: "yes" | "no", thenSend?: string): Promise<string | null> => {
+    if (!sender || !("remoteId" in sender)) return NOTE_WORDS.press.unknown;
+    try {
+      const res = await confirmMySm8Link({ remoteId: sender.remoteId, answer });
+      if (!res.ok) {
+        onToast(res.error);
+        return res.error;
+      }
+      setSender(res.sender);
+      if (answer === "yes" && thenSend) sendCopy(thenSend);
+      return null;
+    } catch {
+      return NOTE_WORDS.press.unknown;
+    }
+  };
+
+  /** The whole record again — after a flag somebody changed in ServiceM8. */
+  const reloadRecord = async () => {
+    if (!cardId) return;
+    const r = await readJobRecord(cardId).catch(() => null);
+    if (!r || !alive.current) return;
+    setRecord(r);
+    setOurNotes(r.ourNotes);
+    setAttention(r.attention);
+    setSender(r.sender ?? null);
+    setFlags(r.flags ?? {});
   };
 
   /* STARRING IS OPTIMISTIC AND REVERSIBLE. The star is a curator's gesture,
@@ -1188,7 +1435,10 @@ export function JobSheet({
 
   const go = (key: string) => {
     touchedTab.current = true;
-    if (key !== "diary") setFlagFocus(false);
+    if (key !== "diary") {
+      setFlagFocus(false);
+      setReplyFor(null);
+    }
     setTab(key as TabKey);
   };
 
@@ -1428,6 +1678,21 @@ export function JobSheet({
               }}
               onMakeTask={makeTaskFromNote}
               onDismissNote={answerNote}
+              sm8={
+                record?.flags
+                  ? {
+                      flags,
+                      canReply: !!notesSm8 && (sender?.state === "ready" || sender?.state === "confirm"),
+                      canMark: !!notesSm8,
+                      onReply: (noteUuid) => {
+                        setReplyFor(noteUuid);
+                        go("diary");
+                      },
+                      onMarkDone: (noteUuid) => markDone(noteUuid),
+                      marking: flagsBusy,
+                    }
+                  : null
+              }
             />
           )}
 
@@ -1469,6 +1734,19 @@ export function JobSheet({
                  beat. */
               onWrite={cardId ? writeNote : undefined}
               onRemoveNote={unwriteNote}
+              /* notes to ServiceM8: absent where the deployment sends none */
+              sender={sender}
+              notesSm8={notesSm8}
+              flags={flags}
+              replyFor={replyFor}
+              onReplyShown={() => setReplyFor(null)}
+              onReply={replyNote}
+              onSendCopy={sendCopy}
+              onTakeBack={takeBack}
+              onMarkDone={markDone}
+              onUndoDone={undoDone}
+              flagsBusy={flagsBusy}
+              onConfirm={confirmLink}
             />
           )}
 

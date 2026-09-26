@@ -78,6 +78,26 @@ const TARGET_TABLE = {
   job: { table: "sm8_jobs", id: "uuid", text: "job_description" },
 } as const;
 
+/** The last five things written on a target, whatever their status (a
+    dismissed note still grounds the router, as it always has) — but never
+    one somebody TOOK BACK (removed_at, the tombstone a take-back leaves:
+    two-way phase 2). A database without that column reads as before. */
+async function recentNotesOn(orgId: string, kind: string, id: string) {
+  const read = (tombstones: boolean) => {
+    let q = supabaseAdmin
+      .from("workboard_notes")
+      .select("transcript")
+      .eq("org_id", orgId)
+      .eq("target_kind", kind)
+      .eq("target_id", id);
+    if (tombstones) q = q.is("removed_at", null);
+    return q.order("created_at", { ascending: false }).limit(5);
+  };
+  const first = await read(true);
+  if (first.error?.code === "42703" || first.error?.code === "PGRST204") return read(false);
+  return first;
+}
+
 /** Everything already on record for a job, in one parallel read. This is the
     router's grounding call, so it sits on the measured ~7s routing path —
     four cheap indexed reads together, not one expensive one. */
@@ -96,14 +116,7 @@ export async function jobHistory(orgId: string, target: NoteTarget): Promise<Job
       .eq("active", true)
       .order("created_at", { ascending: false })
       .limit(8),
-    supabaseAdmin
-      .from("workboard_notes")
-      .select("transcript")
-      .eq("org_id", orgId)
-      .eq("target_kind", target.kind)
-      .eq("target_id", target.id)
-      .order("created_at", { ascending: false })
-      .limit(5),
+    recentNotesOn(orgId, target.kind, target.id),
     target.kind === "project"
       ? supabaseAdmin
           .from("project_equipment")

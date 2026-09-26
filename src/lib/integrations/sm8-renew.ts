@@ -25,8 +25,18 @@ import { SM8_REVOKED } from "./sm8-sync-plan";
     - `unreachable`: the renewal couldn't reach ServiceM8. Nothing flagged;
     - `gone`: there is no connection any more;
     - `late`: renewed, but there was no time left to try again (see `retry`).
-      The new token comes back in `access` for the next call. */
-export type RenewVerdict = "ok" | "dead" | "unreachable" | "gone" | "late";
+      The new token comes back in `access` for the next call;
+    - `unconfirmed`: refused twice, and a plain read couldn't say whether
+      the grant still works. Nothing flagged. Only ever with `confirmDead`,
+      so the sync, the reader and the file sender never see it. */
+export type RenewVerdict = "ok" | "dead" | "unreachable" | "gone" | "late" | "unconfirmed";
+
+/** Whether a refusal was the GRANT's. Asked by a caller that acts as one
+    person (a note, x-impersonate-uuid): a 401 there may be that person's
+    impersonation refused, not the token. The caller answers with a plain,
+    un-impersonated read under `access`: a 401 is `dead`, a 2xx is `alive`,
+    anything else (throttled, failed, or no time left) is `unsure`. */
+export type ConfirmDead = (access: Sm8Access) => Promise<"dead" | "alive" | "unsure">;
 
 export type Renewed<T> = {
   /** The last answer the call gave — the refused one, when no second try ran. */
@@ -43,16 +53,32 @@ export type Renewed<T> = {
 
     `retry`, when given, is asked after the renewal whether a second request
     still fits — the sender holds a claim on its row for a bounded time, and a
-    second upload that could outlast it is left for the next run instead. */
+    second upload that could outlast it is left for the next run instead.
+
+    `confirmDead`, when given (only the note sender gives it, and only for a
+    request made AS a person), is asked before each judgement:
+    - on the first refusal, before renewing: `alive` means the token is
+      fine and the person was refused — the refused result comes back as
+      `ok`, and nothing is renewed or flagged;
+    - on the second, under the renewed token, before flagging: `dead` flags
+      the grant as today; `alive` is `ok` (the token had expired, and the
+      person's impersonation is what was refused); `unsure` is the new
+      `unconfirmed`, and nothing is flagged.
+    So one person's bad impersonation can never mark the connection for
+    reconnecting. Without it every path is exactly as before. */
 export async function withSm8Renewal<T>(
   orgId: string,
   access: Sm8Access,
   call: (access: Sm8Access) => Promise<T>,
   refused: (result: T) => boolean,
-  opts: { retry?: () => boolean } = {}
+  opts: { retry?: () => boolean; confirmDead?: ConfirmDead } = {}
 ): Promise<Renewed<T>> {
   const first = await call(access);
   if (!refused(first)) return { result: first, access, tries: 1, verdict: "ok" };
+
+  if (opts.confirmDead && (await opts.confirmDead(access)) === "alive") {
+    return { result: first, access, tries: 1, verdict: "ok" };
+  }
 
   const renewed = await renewSm8Access(orgId, access);
   if (!renewed.ok) {
@@ -67,6 +93,11 @@ export async function withSm8Renewal<T>(
   const second = await call(renewed.access);
   if (!refused(second)) return { result: second, access: renewed.access, tries: 2, verdict: "ok" };
 
+  if (opts.confirmDead) {
+    const grant = await opts.confirmDead(renewed.access);
+    if (grant === "alive") return { result: second, access: renewed.access, tries: 2, verdict: "ok" };
+    if (grant === "unsure") return { result: second, access: renewed.access, tries: 2, verdict: "unconfirmed" };
+  }
   await markSm8NeedsReauth(orgId, SM8_REVOKED, renewed.access);
   return { result: second, access: renewed.access, tries: 2, verdict: "dead" };
 }

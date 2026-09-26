@@ -208,7 +208,7 @@ export function Bell() {
     async (taskId: string) => {
       setRems((r) => r.filter((x) => x.taskId !== taskId));
       setSnoozing(null);
-      await completeTask(taskId).catch(() => {});
+      await completeTask(taskId, { postDone: true }).catch(() => {});
       void loadRems();
     },
     [loadRems],
@@ -230,7 +230,7 @@ export function Bell() {
   const doneGiven = useCallback(
     async (taskId: string) => {
       setGiven((g) => g.filter((x) => x.taskId !== taskId));
-      await completeTask(taskId).catch(() => {});
+      await completeTask(taskId, { postDone: true }).catch(() => {});
       void loadRems();
     },
     [loadRems],

@@ -228,3 +228,40 @@ describe("sm8BusyOf", () => {
     expect(sm8BusyOf({ kind: "response", res: res(200), limit: null })).toBeNull();
   });
 });
+
+/* A NOTE GOES AS A PERSON (two-way phase 2): the door carries ServiceM8's
+   impersonation header, a JSON body and a DELETE — and nothing but a staff
+   uuid ever rides in that header. */
+describe("acting as a person, JSON, and DELETE", () => {
+  const STAFF = "5a1b2c3d-0000-4000-8000-00000000aaaa";
+  const headersOf = (i: number) => (fetchMock.mock.calls[i][1] as RequestInit).headers as Record<string, string>;
+
+  it("sends the impersonation header only when asked", async () => {
+    await sm8Request(CALL, "note.json", { method: "POST", json: { note: "x" }, impersonate: STAFF });
+    expect(headersOf(0)["x-impersonate-uuid"]).toBe(STAFF);
+    await sm8Request(CALL, "note.json");
+    expect(headersOf(1)).toEqual({ Authorization: "Bearer secret-token-xyz" });
+  });
+
+  it("throws on a malformed impersonation value before a turn is taken or anything is fetched", async () => {
+    for (const bad of ["", "not-a-uuid", `${STAFF} `, `${STAFF}\r\nX-Other: 1`, "5a1b2c3d-0000-4000-8000-00000000aaa"]) {
+      await expect(sm8Request(CALL, "note.json", { method: "POST", impersonate: bad })).rejects.toThrow();
+    }
+    expect(taken).toHaveLength(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("sends DELETE, and a JSON body with its content type", async () => {
+    await sm8Request(CALL, `dbonote/${STAFF}.json`, { method: "DELETE", impersonate: STAFF });
+    expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("DELETE");
+    await sm8Request(CALL, "note.json", { method: "POST", json: { a: 1 } });
+    const init = fetchMock.mock.calls[1][1] as RequestInit;
+    expect(init.body).toBe('{"a":1}');
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+  });
+
+  it("refuses a JSON body beside another body", async () => {
+    await expect(sm8Request(CALL, "note.json", { method: "POST", json: {}, body: "x" })).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

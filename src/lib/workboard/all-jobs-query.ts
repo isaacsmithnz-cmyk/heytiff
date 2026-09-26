@@ -20,12 +20,15 @@
    handed in, and when it is false the money columns are never selected. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { sm8Ours, withoutOurs } from "@/lib/integrations/sm8-echo";
 import {
   readJobMediaGroups,
   type JobMediaGroupsRead,
   type MediaSource,
 } from "./job-media-query";
 import { plusDays } from "./dates";
+import { sm8Handle } from "./sm8-mentions";
 import { jobMoneyOf, parseSm8AmountToCents, SM8_JOB_MONEY_COLUMNS } from "./job-money";
 import { materialLineOf, type JobMaterialLine, type JobPaymentEntry } from "./job-ledger";
 import {
@@ -390,6 +393,25 @@ export type JobNoteEntry = {
   /** The claim's job number when this was written on a clone, null on the
       job's own notes — the diary badge that says where a note was filed. */
   fromClaim: string | null;
+  /* ── what a reply and a Mark done need (two-way phase 2, PR B) ──
+     Optional so a reader that predates them (a fixture, the claim modal's
+     own shape) still types; readJobNotes always sets them. */
+  /** ServiceM8's `edit_date` exactly as the mirror holds it: the edit time
+      a Mark done is checked against. */
+  editedAt?: string | null;
+  /** Who wrote it in ServiceM8, by their ServiceM8 uuid — the last editor
+      (the only author column ServiceM8 has), or who it was before our own
+      Mark done made the presser the last editor. */
+  authorSm8Uuid?: string | null;
+  /** That person's @handle, for a reply that addresses them. */
+  authorHandle?: string | null;
+  /** Who marked the flag done in ServiceM8, by name. */
+  doneBy?: string | null;
+  /** ServiceM8's own "action required", whether or not anyone has marked it
+      done since (`actionRequired` is the open half). */
+  flagged?: boolean;
+  /** The object the note hangs off: the job, or one of its claims. */
+  relatedUuid?: string;
 };
 
 export type JobLedgerRead = {
@@ -421,7 +443,9 @@ export async function readJobNotes(
 
   const { data } = await supabaseAdmin
     .from("sm8_job_notes")
-    .select("uuid, note, create_date, action_required, edit_by_staff_uuid, related_object_uuid")
+    .select(
+      "uuid, note, create_date, action_required, action_completed_by_staff_uuid, edit_date, edit_by_staff_uuid, related_object_uuid"
+    )
     .eq("org_id", orgId)
     .in(
       "related_object_uuid",
@@ -436,27 +460,94 @@ export async function readJobNotes(
     note: string | null;
     create_date: string | null;
     action_required: string | null;
+    action_completed_by_staff_uuid: string | null;
+    edit_date: string | null;
     edit_by_staff_uuid: string | null;
     related_object_uuid: string;
   }[];
-  const withText = rows.filter((r) => !!r.note?.trim());
+  let withText = rows.filter((r) => !!r.note?.trim());
   if (withText.length === 0) return [];
 
-  const staffName = await namesForStaff(
-    orgId,
-    withText.map((r) => r.edit_by_staff_uuid)
-  );
+  /* OUR OWN NOTES, MIRRORED BACK, are HeyTiff's rows already (the diary
+     draws those): the twin is left out, by its uuid (sm8-echo). Only where
+     the deployment sends notes — before that there is no note of ours to
+     echo, so a files-only deployment makes no new read. A read that fails
+     shows everything: a duplicate beats a diary that won't open. */
+  if (sm8NotesAllowed()) {
+    const ours = await sm8Ours(
+      orgId,
+      withText.map((r) => r.uuid)
+    );
+    withText = withoutOurs(withText, (r) => r.uuid, ours);
+    if (withText.length === 0) return [];
+  }
 
-  return withText.map((r) => ({
-    remoteId: r.uuid,
-    text: r.note!.trim(),
-    writtenOn: dateOf(r.create_date),
-    writtenAt: r.create_date,
-    writtenBy: r.edit_by_staff_uuid ? staffName.get(r.edit_by_staff_uuid) ?? null : null,
-    /* ServiceM8 sends the flag as "1"/"0" text, like every boolean it owns. */
-    actionRequired: r.action_required === "1",
-    fromClaim: claimOf.get(r.related_object_uuid) ?? null,
-  }));
+  /* THE AUTHOR AFTER OUR OWN MARK DONE. ServiceM8 has no author column,
+     only its last editor, and marking a flag done may make the presser that
+     editor — so the note would read as the presser's, and a reply to it
+     would address the wrong person. Where one of our marks went (or is
+     going) and the mirror's editor is now whoever it went as, the author is
+     who it was when we marked it. Only where the deployment sends notes:
+     before that there is no mark of ours, and no read is added. */
+  const authorOf = new Map<string, string>();
+  if (sm8NotesAllowed()) {
+    const flagged = withText.filter((r) => r.action_required === "1").map((r) => r.uuid);
+    if (flagged.length > 0) {
+      const { data: ops } = await supabaseAdmin
+        .from("sm8_writes")
+        .select("target_uuid, seen_edit_by, as_staff_uuid, created_at")
+        .eq("org_id", orgId)
+        .eq("kind", "note")
+        .eq("op", "update")
+        .eq("flag_done", true)
+        .in("status", ["sending", "sent"])
+        .in("target_uuid", flagged.slice(0, 100))
+        .order("created_at", { ascending: false })
+        .limit(200);
+      const editorOf = new Map(withText.map((r) => [r.uuid, r.edit_by_staff_uuid]));
+      for (const op of (ops ?? []) as {
+        target_uuid: string | null;
+        seen_edit_by: string | null;
+        as_staff_uuid: string | null;
+      }[]) {
+        if (!op.target_uuid || !op.seen_edit_by || authorOf.has(op.target_uuid)) continue;
+        const editor = editorOf.get(op.target_uuid) ?? null;
+        /* the mark made its presser the editor (or hasn't said who yet) */
+        if (editor !== op.seen_edit_by && (!op.as_staff_uuid || editor === op.as_staff_uuid)) {
+          authorOf.set(op.target_uuid, op.seen_edit_by);
+        }
+      }
+    }
+  }
+
+  const staff = await namesForStaff(orgId, [
+    ...withText.map((r) => authorOf.get(r.uuid) ?? r.edit_by_staff_uuid),
+    ...withText.map((r) => r.action_completed_by_staff_uuid),
+  ]);
+
+  return withText.map((r) => {
+    const author = authorOf.get(r.uuid) ?? r.edit_by_staff_uuid ?? null;
+    const who = author ? staff.get(author) : undefined;
+    const completer = r.action_completed_by_staff_uuid || null;
+    return {
+      remoteId: r.uuid,
+      text: r.note!.trim(),
+      writtenOn: dateOf(r.create_date),
+      writtenAt: r.create_date,
+      writtenBy: who?.name ?? null,
+      /* ServiceM8 sends the flag as "1"/"0" text, like every boolean it owns.
+         A flag somebody marked done keeps "1" and gains a completer: it is
+         answered, not open. */
+      actionRequired: r.action_required === "1" && !completer,
+      fromClaim: claimOf.get(r.related_object_uuid) ?? null,
+      editedAt: r.edit_date ?? null,
+      authorSm8Uuid: author,
+      authorHandle: who?.handle ?? null,
+      doneBy: completer ? (staff.get(completer)?.name ?? null) : null,
+      flagged: r.action_required === "1",
+      relatedUuid: r.related_object_uuid,
+    };
+  });
 }
 
 /** The job's line items and payments. MONEY — the caller must hold
@@ -493,7 +584,7 @@ export async function readJobLedger(orgId: string, jobUuid: string): Promise<Job
     timestamp: string | null;
   }[];
 
-  const staffName = await namesForStaff(
+  const staff = await namesForStaff(
     orgId,
     pays.map((p) => p.actioned_by_uuid)
   );
@@ -508,19 +599,21 @@ export async function readJobLedger(orgId: string, jobUuid: string): Promise<Job
       takenOn: dateOf(p.timestamp),
       takenAt: p.timestamp,
       isDeposit: p.is_deposit === 1,
-      takenBy: p.actioned_by_uuid ? staffName.get(p.actioned_by_uuid) ?? null : null,
+      takenBy: p.actioned_by_uuid ? staff.get(p.actioned_by_uuid)?.name ?? null : null,
     })),
   };
 }
 
 /** One staff read for a set of uuids — the same batching the detail read
-    does, so a page of notes costs one query rather than one per author. */
+    does, so a page of notes costs one query rather than one per author.
+    Each person's name, with their @handle beside it (sm8-mentions' one
+    rule) for a reply that addresses them. */
 async function namesForStaff(
   orgId: string,
   ids: readonly (string | null)[]
-): Promise<Map<string, string>> {
+): Promise<Map<string, { name: string; handle: string | null }>> {
   const wanted = [...new Set(ids.filter((id): id is string => !!id))];
-  const out = new Map<string, string>();
+  const out = new Map<string, { name: string; handle: string | null }>();
   if (wanted.length === 0) return out;
   const { data } = await supabaseAdmin
     .from("sm8_staff")
@@ -529,7 +622,7 @@ async function namesForStaff(
     .in("uuid", wanted);
   for (const s of (data ?? []) as { uuid: string; first: string | null; last: string | null }[]) {
     const name = [s.first, s.last].filter(Boolean).join(" ").trim();
-    if (name) out.set(s.uuid, name);
+    if (name) out.set(s.uuid, { name, handle: sm8Handle(s.first, s.last) });
   }
   return out;
 }

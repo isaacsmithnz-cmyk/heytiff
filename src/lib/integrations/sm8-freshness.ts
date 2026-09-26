@@ -22,6 +22,9 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { runSm8Sync, sm8SyncIsStale } from "./sm8-sync";
 import { runSm8Writes, sm8WritesDue, sm8WritesEnabled } from "./sm8-writes";
 import { backgroundBudgetMs, FUNCTION_MAX_MS, WRITE_LEASE_MARGIN_MS } from "./sm8-write-plan";
+import { sm8NotesAllowed } from "./sm8-kinds";
+import { NOTE_TEXT_DAYS } from "./sm8-note-plan";
+import { clearSm8NoteText, sm8NoteTextDue } from "./sm8-write-cancel";
 
 /** A sync slice holds its lease this long; it starts only while that still
     fits in the function. */
@@ -34,6 +37,15 @@ export function freshenSm8AfterResponse(orgId: string): void {
   const calledAt = Date.now();
   after(async () => {
     try {
+      /* A note's words leave the queue 30 days after it settles — before
+         the connected check, so a workspace needing a reconnect is cleared
+         too. Only where the deployment sends notes, and only after a
+         one-row read finds something to clear: a page load that finds
+         nothing gains no write, and on a files-only deployment no read. */
+      if (sm8NotesAllowed() && (await sm8NoteTextDue(orgId, Date.now()))) {
+        await clearSm8NoteText({ orgId, olderThanDays: NOTE_TEXT_DAYS }, Date.now());
+      }
+
       const { data, error } = await supabaseAdmin
         .from("integration_connections")
         .select("status")

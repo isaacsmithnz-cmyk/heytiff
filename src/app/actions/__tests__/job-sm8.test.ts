@@ -39,6 +39,9 @@ const state = {
   granted: ["attachment"] as "attachment"[],
   refused: [] as "attachment"[],
   timezoneName: null as string | null,
+  /* the owner's per-kind switch (two-way phase 2): files on */
+  ownerKinds: ["attachment"] as "attachment"[],
+  ownerKindsRead: true,
 };
 const FRESH = { ...state };
 

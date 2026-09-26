@@ -295,7 +295,7 @@ export function HomeDayBand({ rail }: { rail: HomeRail }) {
                   disabled={pending}
                   onClick={() =>
                     start(async () => {
-                      await completeTask(t.id);
+                      await completeTask(t.id, { postDone: true });
                       router.refresh();
                     })
                   }

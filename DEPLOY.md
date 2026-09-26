@@ -51,7 +51,7 @@ your local `.env.local`), scope = **Production** (and Preview if you want previe
 | `XERO_CLIENT_SECRET` | Same. Server-side only, never `NEXT_PUBLIC_`. |
 | `SM8_CLIENT_ID` | See **ServiceM8** below. ServiceM8 calls it the **App ID**. Optional — unset, the ServiceM8 screen renders but says connecting isn't available. |
 | `SM8_CLIENT_SECRET` | Same — ServiceM8's **App Secret**. Server-side only, never `NEXT_PUBLIC_`. |
-| `SM8_WRITES` | The kinds of write this deployment may make to ServiceM8 (see **Writing to ServiceM8** below): `1` means files, which is what it has always meant; otherwise a comma list of kinds (`attachment` is files, the only kind today). **Unset, empty or `0` ⇒ nothing is ever written** (fail-closed), and the ServiceM8 screen shows no sending setting. Set it on **Production only**: a preview build can be given the same database keys, and a branch must never be able to write to a customer's ServiceM8. |
+| `SM8_WRITES` | The kinds of write this deployment may make to ServiceM8 (see **Writing to ServiceM8** below): `1` means files, which is what it has always meant; otherwise a comma list of kinds: `attachment` is files, `note` is notes, so `attachment,note` enables notes beside files, and `1` still means files only. **Leave it at `1` until phase 1's live walk is done** (see **Notes to ServiceM8** below). **Unset, empty or `0` ⇒ nothing is ever written** (fail-closed), and the ServiceM8 screen shows no sending setting. Set it on **Production only**: a preview build can be given the same database keys, and a branch must never be able to write to a customer's ServiceM8. |
 | `ANTHROPIC_API_KEY` | Claude, server-side: fleet valuations, receipt reading, and the Smart Notes brain. Optional — unset, those features say so instead of failing. Never `NEXT_PUBLIC_`. |
 | `ELEVENLABS_API_KEY` | See **Smart Notes** below. Optional — unset, **notes still work**: the mic simply isn't offered and the paste box does everything. Never `NEXT_PUBLIC_`. |
 | `NEXT_PUBLIC_VOICE_REALTIME` | `1` streams dictation live instead of transcribing on stop. Optional, off by default, build-time. Holds no secret — see **Live transcription** below. |
@@ -273,9 +273,130 @@ the owner switches it back on. The bell also says when files are waiting for
 a **reconnect**, or on a ServiceM8 account that **isn't in good standing**
 (an unpaid ServiceM8 bill holds every file for 12 hours at a time).
 
-**Per-kind switches for the owner come with the second kind** of write. Today
-the deployment's allow-list and the owner's Pause are the switches; the
-owner's per kind will be a column beside `write_mode`.
+#### Notes to ServiceM8 (two-way phase 2)
+
+The second kind of write is a **note**: a reply to a note that mentions you, a
+diary entry sent with **Also in ServiceM8**, a flagged note marked done, a
+task's Done, and the take-back of any of them. Each goes **as the person who
+pressed it** (ServiceM8's `x-impersonate-uuid`), so each person first
+confirms "Is <ServiceM8 name> you?" once. The owner's card is then headed
+**Sending to ServiceM8**, and under Off / Trial run / Paused / On it carries
+**Files** and **Notes**, each Off or On (`integration_connections.write_kinds`).
+**Notes starts Off.** Notes need one more permission, `publish_job_notes`,
+asked for at a reconnect only while the owner has Notes On.
+
+Apply `docs/migrations/sm8_notes_queue.sql` **before the deploy that reads
+it** (it adds the note columns to `sm8_writes`, the tombstone and the Done
+columns to `workboard_notes`, the owner's per-kind switch, and the link
+confirmation). With `SM8_WRITES=1` nothing about notes changes: no screen,
+no read and no write.
+
+**On the job card** (PR B), apply `docs/migrations/sm8_notes_job_card.sql`
+before its deploy too, after A's: one index, for "has anybody replied to
+this note from HeyTiff?". Once notes are offered, a ServiceM8 note that
+@mentions you offers **Reply** in the diary and on the strip; the pen gains
+**Also in ServiceM8**; your own entry offers **Send to ServiceM8**; **Undo**
+(or **Remove**, on a diary entry) takes a note back whatever state it is in;
+and a flagged note offers **Mark done**, as you. **The link question:** the
+first time you'd send, the card asks "Is <your ServiceM8 name> you?" — in
+the reply box, beside the tick box, or on a saved note's line — with **Yes**
+and **Not me**. Yes never sends anything by itself; on a saved note's line
+it then sends that note. Not me is kept, and the owner's people card on the
+ServiceM8 screen says "Says this isn't them." beside that link, which is
+where it gets fixed (a relink asks again). With `SM8_WRITES=1` the card is
+exactly as it was, and every one of these actions answers before any read.
+
+**Done and Undo** (PR C): apply `docs/migrations/task_done_sm8.sql` before
+its deploy, after A's. It adds the one-Done rule (a unique index: one live
+Done per task) and three indexes. Once notes are offered, **ticking a task
+made from a ServiceM8 mention by hand** (the Tasks face, the day band, the
+bell, the Workboard's Urgent tab) files "@<asker> Done." in the job's diary,
+threaded under the note that asked, and sends it to ServiceM8 as whoever
+ticked. **Reopen** takes it back: if it hadn't gone, it never goes; if it
+went, it is taken out of ServiceM8. Only whoever sent it can; anyone else's
+Reopen still reopens the task and is told whose Done it is. A reply that
+closes its task posts that reply and no Done, and Reopen never takes a
+reply back. The task's page says where its Done stands, with Send again or
+Try again; if it didn't go, the ticker's bell says so and opens the task
+(`/dashboard?task=<id>`). Deleting a task never touches its Done: it stays
+in the diary, where its sender can still Undo it. One visible change comes
+with it once notes are on: the Tasks face's **Done** group also lists what
+you ticked for somebody else, so its Done's line is there for you to read.
+With `SM8_WRITES=1` a tick is exactly the one read and one write it always
+was. **The new Home (`HOME_DESK`, the owner's) shows the same lines:** its
+Tasks face is handed each task's Done lines, it opens at `?task=<id>`, and
+its own ticks (Your day's Mark done, the list's tick) and the list's Undo
+pass `postDone` and `takeBackDone`. `task-sm8-callers.test.ts` holds all
+three, for every Home the page can draw. Isaac walks live test 13 ("A Done
+by ticking, then Reopen") on the Home he sees, bell item included. Its
+diary's ServiceM8 conversations aren't on screen yet; when they are, a
+reply HeyTiff sent is an echo there (mentions-query leaves ours out), so
+it has to be threaded from its `workboard_notes` row before notes go on.
+
+**The order, word for word:**
+
+1. Apply A's migration, then B's, then C's. Each goes before the deploy that reads it.
+2. Deploy. With `SM8_WRITES=1` nothing new shows.
+3. **Only after phase 1's live walk** (files on the real account), set `SM8_WRITES=attachment,note`. That needs a redeploy. Do it while Isaac isn't designing, because a redeploy reloads open tabs.
+4. The owner sets **Paused**.
+5. The owner turns **Notes On**.
+6. The owner presses **Reconnect**. A reconnect while Paused still asks for the write scopes. **Never Reconnect in Trial:** it asks for reads only and drops `manage_attachments`.
+7. Each linked person confirms "Is {name} you?".
+8. **Trial run.**
+9. **On.**
+
+**Rollback, word for word, including the SQL:**
+
+1. **If Files are Off, set sending Off** (or Paused) first. Old code has no Files switch, and would offer and send files again.
+2. **Notes Off.** This cancels waiting notes: creates, flag changes and take-backs.
+3. **Set `SM8_WRITES=1` and redeploy.** Then wait two minutes, the longest lease, so no note row is mid-send.
+4. **Run the rollback SQL** in the Supabase SQL editor:
+   ```sql
+   begin;
+   -- every note row that could still move: old code would count it as a
+   -- waiting or failed file, and could never send or settle it
+   update public.sm8_writes
+      set status = 'cancelled',
+          last_error = 'Sending notes to ServiceM8 was switched off before it went.',
+          lease_until = null, claim_id = null, updated_at = now()
+    where kind = 'note' and status in ('queued', 'sending', 'failed', 'trial');
+   -- the note words in the queue: files-only code never clears them, and a
+   -- press on new code puts them back from HeyTiff's own row
+   update public.sm8_writes
+      set note_text = null, text_cleared_at = now(), remote_message = null
+    where kind = 'note' and note_text is not null;
+   -- taken-back rows: old code's diary and journal read status = 'applied'
+   -- and ignore removed_at, so this hides them there. Old code's brain
+   -- (brain/tools.ts:100) reads every row on a target whatever its status,
+   -- as it already does for dismissed notes, so it still reads their words.
+   -- New code reads a removed row whatever its status, so nothing here
+   -- needs undoing on the way back.
+   update public.workboard_notes
+      set status = 'dismissed'
+    where removed_at is not null and status = 'applied';
+   commit;
+   ```
+   The trigger doesn't fire: no update names `requested_by`.
+5. **Revert the code.**
+6. **Tell Isaac** what old code shows until new code returns:
+   - each note HeyTiff sent shows twice on its job (HeyTiff's row and ServiceM8's copy, because old code has no echo filter);
+   - a Done shows as a diary note;
+   - a note whose take-back hadn't finished shows once, as ServiceM8's copy, because it is still in ServiceM8;
+   - **don't Remove a note that went to ServiceM8, or was queued for it, while rolled back.** The database keeps it (the `note_id` key refuses the delete, and old code's Remove quietly does nothing), and it can be taken out of ServiceM8 once new code returns. A note that never went anywhere removes as today;
+   - old code's Retry failed files leaves every note row alone (the trigger refuses it), and after step 4 none is failed;
+   - **the brain still reads a taken-back note's words.** Old code's router grounding (brain/tools.ts:100) reads the last five rows on a job whatever their status, dismissed ones included, as it does today. So a note someone took back can still inform what Tiff proposes on that job until new code returns. It shows nowhere.
+
+**Returning to new code** needs nothing undone. A note the rollback cancelled
+before anything of it could land shows "Not sent to ServiceM8. Sending notes
+to ServiceM8 was switched off before it went." with Send again; one whose
+answer had been lost shows "HeyTiff can't tell whether this reached
+ServiceM8. Look there before you send it again." with Send again and Undo; a
+cancelled take-back shows "Still in ServiceM8" with Try again.
+
+A note's words are kept on its queue row only while they may be needed:
+they leave the queue 30 days after the row settles (the nightly cron, and a
+page load that finds some due), and at once on a disconnect or for the
+account a switch left behind. HeyTiff's own row keeps them.
 
 **Rolling back** past this: switch any workspace that is **Paused** to On or
 Off first. The old code reads Paused as Off, and Off cancels what is waiting.

@@ -21,7 +21,7 @@ import {
   readSm8WriteState,
   sm8WriteKindsEnabled,
 } from "@/lib/integrations/sm8-writes";
-import { SM8_WRITE_KIND_SCOPES, SM8_WRITE_SCOPE_LIST } from "@/lib/integrations/providers";
+import { SM8_WRITE_KIND_SCOPES, SM8_WRITE_SCOPE_LIST, SM8_WRITE_SCOPES } from "@/lib/integrations/providers";
 import type { Sm8WritesView } from "@/components/integrations/sm8-writes-card";
 
 /* The ServiceM8 connection screen. Owner-only, matching the routes it links
@@ -66,22 +66,30 @@ export default async function Servicem8IntegrationPage({
      one Retry failed files can reach. */
   const [queue, previousAccount] = connection
     ? await Promise.all([countSm8Queue(orgId, connection.tenantId), readSm8AccountChange(orgId)])
-    : [{ waiting: 0, failed: 0 }, null];
-  const waitingWrites = queue.waiting;
+    : [{ waiting: 0, failed: 0, waitingKinds: { attachment: 0, note: 0 } }, null];
 
   /* The writes card, WHENEVER THERE IS A CONNECTION and the deployment
      writes — needs_reauth included, which is exactly when the owner needs
      to see what is waiting and why. Settings that can't be read draw no
      card rather than a wrong one. */
   let writes: Sm8WritesView | null = null;
+  /* What "What HeyTiff asks ServiceM8 for" lists beside the reads: the write
+     permissions of the kinds this deployment allows AND the owner has on —
+     the same ones the connect route asks for. With SM8_WRITES=1 that is the
+     files permission alone, whatever the owner's notes switch says. */
+  let writeScopes = SM8_WRITE_SCOPES.filter((s) => allowed.has(s.scope) && s.scope === "manage_attachments");
   if (connection && kinds.length > 0) {
     const [state, recent, sentLately] = await Promise.all([
       readSm8WriteState(orgId),
       listRecentSm8Writes(orgId),
-      // the writes card's one figure: files sent in the last 30 days
+      // the writes card's one figure: sent in the last 30 days
       countSm8WritesSentLately(orgId),
     ]);
     if (state.readable) {
+      const on = new Set<string>(
+        kinds.filter((k) => state.ownerKinds.includes(k)).flatMap((k) => [...SM8_WRITE_KIND_SCOPES[k]])
+      );
+      writeScopes = SM8_WRITE_SCOPES.filter((s) => on.has(s.scope));
       writes = {
         mode: state.mode,
         pausedReason: state.pausedReason,
@@ -93,6 +101,10 @@ export default async function Servicem8IntegrationPage({
         failed: queue.failed,
         recent,
         hourlyCap: WRITE_HOURLY_CAP,
+        kinds: [...kinds],
+        ownerKinds: [...state.ownerKinds],
+        /* per kind: a note waiting behind Notes Off says so, a file doesn't */
+        holds: Object.fromEntries(kinds.map((k) => [k, sendHold(state, k)])),
       };
     }
   }
@@ -132,7 +144,14 @@ export default async function Servicem8IntegrationPage({
       ? sm8SwitchedNotice({
           to: connection.tenantName,
           from: previousAccount.from,
-          cancelled: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at),
+          /* files and notes apart only where the deployment sends notes;
+             otherwise today's one count */
+          ...(kinds.includes("note")
+            ? {
+                cancelled: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "attachment"),
+                notes: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "note"),
+              }
+            : { cancelled: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at) }),
         })
       : null;
 
@@ -164,7 +183,9 @@ export default async function Servicem8IntegrationPage({
       people={people}
       elsewhere={elsewhere}
       writes={writes}
-      waitingWrites={waitingWrites}
+      writeScopes={writeScopes}
+      waitingWrites={queue.waitingKinds.attachment}
+      waitingNotes={queue.waitingKinds.note}
       previousAccount={previousAccount ? { name: previousAccount.from, at: previousAccount.at } : null}
     />
   );

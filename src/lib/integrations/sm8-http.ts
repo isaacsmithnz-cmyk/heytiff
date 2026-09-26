@@ -94,18 +94,39 @@ async function bodyOf(res: Response): Promise<string> {
   }
 }
 
+/** A ServiceM8 staff uuid, and nothing else, may ride in the impersonation
+    header. */
+const STAFF_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** ServiceM8's header for acting as one of the account's staff ("To
+    impersonate an account user, you must set the header x-impersonate-uuid"
+    — their Authentication reference, read 2026-09-25). A note goes as the
+    person who pressed it, so it is theirs in ServiceM8's diary. */
+export const SM8_IMPERSONATE_HEADER = "x-impersonate-uuid";
+
 export async function sm8Request(
   call: Sm8Call,
   path: string,
   init: {
-    method?: "GET" | "POST";
+    method?: "GET" | "POST" | "DELETE";
     body?: BodyInit;
+    /** A JSON body: sent as JSON with its content type. Never with `body`. */
+    json?: unknown;
+    /** A ServiceM8 staff uuid to act as. Checked for its shape BEFORE a turn
+        is taken or anything is fetched: a value that isn't one throws. */
+    impersonate?: string;
     query?: Record<string, string>;
     timeoutMs?: number;
   } = {},
   deps: { sleep?: (ms: number) => Promise<void> } = {}
 ): Promise<Sm8Answer> {
   const url = sm8Url(path, init.query);
+  if (init.json !== undefined && init.body !== undefined) {
+    throw new Error("[sm8] a request carries a JSON body or a body, never both");
+  }
+  if (init.impersonate !== undefined && !STAFF_UUID.test(init.impersonate)) {
+    throw new Error("[sm8] refused to act as something that isn't a ServiceM8 staff uuid");
+  }
 
   if (call.meter !== null) {
     let turn = await takeSm8Call(call.meter, call.lane);
@@ -117,10 +138,15 @@ export async function sm8Request(
     if (!turn.ok) return { kind: "throttled", waitMs: turn.waitMs, why: turn.why };
   }
 
+  const headers: Record<string, string> = { Authorization: `Bearer ${call.accessToken}` };
+  if (init.json !== undefined) headers["Content-Type"] = "application/json";
+  if (init.impersonate !== undefined) headers[SM8_IMPERSONATE_HEADER] = init.impersonate;
+  const body = init.json !== undefined ? JSON.stringify(init.json) : init.body;
+
   const res = await fetch(url.toString(), {
     method: init.method ?? "GET",
-    headers: { Authorization: `Bearer ${call.accessToken}` },
-    ...(init.body !== undefined ? { body: init.body } : {}),
+    headers,
+    ...(body !== undefined ? { body } : {}),
     signal: AbortSignal.timeout(init.timeoutMs ?? DEFAULT_TIMEOUT_MS),
   });
 

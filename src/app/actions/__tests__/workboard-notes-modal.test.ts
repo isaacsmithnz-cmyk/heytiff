@@ -16,7 +16,7 @@
    chain that returns canned rows can't show a row being gone. */
 
 type Row = Record<string, unknown>;
-type Filter = [op: "eq" | "in", column: string, value: unknown];
+type Filter = [op: "eq" | "in" | "is", column: string, value: unknown];
 
 let db: Record<string, Row[]> = {};
 type Write = { op: "insert" | "update" | "delete" | "rpc"; table: string; payload?: unknown; filters: Filter[] };
@@ -25,6 +25,9 @@ let seq = 0;
 /** Runs after every update lands: somebody else acting in the moment between
     two of the server's writes. */
 let onUpdate: ((w: Write) => void) | null = null;
+/** Every table the server opened, and one whose reads fail. */
+const opened: string[] = [];
+let failReads: string | null = null;
 
 /* What the database fills in that the code doesn't send. */
 const DEFAULTS: Record<string, Row> = {
@@ -43,13 +46,18 @@ const DEFAULTS: Record<string, Row> = {
 };
 
 function from(table: string) {
+  opened.push(table);
   const filters: Filter[] = [];
   let mode: "select" | "update" | "delete" = "select";
   let patch: Row = {};
   let returning = false;
   const match = (r: Row) =>
     filters.every(([op, col, val]) =>
-      op === "eq" ? r[col] === val : (val as unknown[]).includes(r[col]),
+      op === "eq"
+        ? r[col] === val
+        : op === "is"
+          ? (r[col] ?? null) === val
+          : (val as unknown[]).includes(r[col]),
     );
   const run = (one = false) => {
     const all = (db[table] ??= []);
@@ -66,6 +74,7 @@ function from(table: string) {
       writes.push({ op: "delete", table, filters: [...filters] });
       return { data: null, error: null };
     }
+    if (failReads === table) return { data: null, error: { message: "unreachable" } };
     if (one) return { data: hit[0] ? structuredClone(hit[0]) : null, error: null };
     return { data: hit.map((r) => structuredClone(r)), error: null };
   };
@@ -76,6 +85,9 @@ function from(table: string) {
   };
   b.eq = (col: string, val: unknown) => (filters.push(["eq", col, val]), b);
   b.in = (col: string, val: unknown[]) => (filters.push(["in", col, val]), b);
+  /* the journal skips a row somebody took back (`removed_at`, two-way
+     phase 2); a row that never had the column reads as null */
+  b.is = (col: string, val: unknown) => (filters.push(["is", col, val]), b);
   b.order = () => b;
   b.limit = () => b;
   b.maybeSingle = async () => run(true);
@@ -278,6 +290,8 @@ beforeEach(() => {
   candidates = [];
   onCandidates = null;
   onUpdate = null;
+  opened.length = 0;
+  failReads = null;
   tzHold = null;
   readNote.mockReset();
   publishFieldNote.mockReset();
@@ -1125,6 +1139,121 @@ describe("undoNote", () => {
   it("refuses a note that was never filed", async () => {
     note();
     expect(await undoNote("n-1")).toEqual({ ok: false, error: "There's nothing filed on that note to take back." });
+  });
+
+  /* A note filed on a job is its author's diary entry, which can go to
+     ServiceM8 (two-way phase 2). Undo moves it to `undone`, which no diary
+     reads: while something of it can still go or may be there, HeyTiff would
+     lose its record of it and nobody could take it out. The diary's Remove
+     takes it back; once that has closed the create, Undo goes as ever. */
+  describe("a note queued for ServiceM8", () => {
+    const QUEUED =
+      "That note was queued for ServiceM8, so nothing was taken back. Remove it from the job's diary first.";
+    const had = process.env.SM8_WRITES;
+    beforeEach(() => {
+      process.env.SM8_WRITES = "attachment,note";
+    });
+    afterEach(() => {
+      if (had === undefined) delete process.env.SM8_WRITES;
+      else process.env.SM8_WRITES = had;
+    });
+
+    function filedOnJob(create: Row | null) {
+      note({
+        target_kind: "job",
+        target_id: "job-1",
+        status: "applied",
+        applied: { v: 2, taskIds: ["t-1"], jobNotes: ["Luke needs to order the grilles"] },
+      });
+      db.tasks = [{ id: "t-1", org_id: "org-1", status: "open" }];
+      db.sm8_writes = create
+        ? [
+            {
+              id: "w-1",
+              org_id: "org-1",
+              kind: "note",
+              op: "create",
+              note_id: "n-1",
+              status: "queued",
+              remote_uuid: "r-1",
+              lease_until: null,
+              maybe_landed: false,
+              verify_uuids: [],
+              taken_back_at: null,
+              ...create,
+            },
+          ]
+        : [];
+    }
+
+    it.each([
+      ["waiting to go", { status: "queued" }],
+      ["sent", { status: "sent" }],
+      ["failed, which its author can send again", { status: "failed" }],
+      ["cancelled after it may have landed", { status: "cancelled", maybe_landed: true }],
+    ])("refuses one %s, and writes nothing", async (_label, create) => {
+      filedOnJob(create);
+      const before = structuredClone(db);
+      expect(await undoNote("n-1")).toEqual({ ok: false, error: QUEUED });
+      expect(db).toEqual(before);
+      expect(writes).toEqual([]);
+    });
+
+    it.each([
+      ["whose create the diary's Remove took back", { status: "sent", taken_back_at: "2026-09-25T02:00:00Z" }],
+      ["whose create was cancelled before anything landed", { status: "cancelled" }],
+      ["that was never queued", null],
+    ])("takes back one %s", async (_label, create) => {
+      filedOnJob(create);
+      expect((await undoNote("n-1")).ok).toBe(true);
+      expect(noteRow().status).toBe("undone");
+      expect(rowsOf("tasks")).toEqual([]);
+    });
+
+    it("holds the Undo when the queue can't be read", async () => {
+      filedOnJob(null);
+      failReads = "sm8_writes";
+      expect(await undoNote("n-1")).toEqual({ ok: false, error: QUEUED });
+      expect(noteRow().status).toBe("applied");
+      expect(rowsOf("tasks")).toHaveLength(1);
+    });
+
+    it("puts the note back as it was when a Send queues it in the moment after the checks", async () => {
+      filedOnJob(null);
+      const turnsBefore = structuredClone(noteRow().turns);
+      onUpdate = (w) => {
+        if (w.table !== "workboard_notes" || (w.payload as Row).status !== "undone") return;
+        rowsOf("sm8_writes").push({
+          id: "w-raced",
+          org_id: "org-1",
+          kind: "note",
+          op: "create",
+          note_id: "n-1",
+          status: "queued",
+          remote_uuid: "r-2",
+          lease_until: null,
+          maybe_landed: false,
+          verify_uuids: [],
+          taken_back_at: null,
+        });
+      };
+      expect(await undoNote("n-1")).toEqual({ ok: false, error: QUEUED });
+      expect(noteRow()).toMatchObject({ status: "applied", undone_at: null, turns: turnsBefore });
+      expect(rowsOf("tasks")).toHaveLength(1);
+    });
+
+    it("reads no queue where the deployment doesn't send notes, and a note on a visit never does", async () => {
+      process.env.SM8_WRITES = "1";
+      filedOnJob({ status: "sent" });
+      expect((await undoNote("n-1")).ok).toBe(true);
+      expect(opened).not.toContain("sm8_writes");
+
+      process.env.SM8_WRITES = "attachment,note";
+      opened.length = 0;
+      await filedEverything();
+      expect((await undoNote("n-1")).ok).toBe(true);
+      expect(opened).not.toContain("sm8_writes");
+    });
   });
 });
 

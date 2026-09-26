@@ -986,7 +986,7 @@ function Strip({
    whether to ask. The offer that appears is dismissible and ignoring it
    costs nothing; the field has already saved either way. */
 
-function useFieldMic(value: string, onChange: (next: string) => void) {
+function useFieldMic(value: string, onChange: (next: string) => void, onSpoken?: () => void) {
   const scope = useNoteScope();
   const [err, setErr] = useState<string | null>(null);
   const [found, setFound] = useState<string | null>(null);
@@ -996,6 +996,7 @@ function useFieldMic(value: string, onChange: (next: string) => void) {
       setErr(null);
       const next = appendSpoken(value, spoken);
       onChange(next);
+      onSpoken?.();
       /* The sieve runs on the WHOLE box, not just the new sentence: dictation
          appends, so "Luke needs to" and "order the grilles before Monday" can
          arrive as two presses and only read as a job together. */
@@ -1054,10 +1055,19 @@ export function NoteToken({
   rows = 3,
   disabled = false,
   className,
+  offer = true,
+  onSpoken,
 }: {
   /** Where this one is standing. No default: the corner — the only posture
       that was ever the obvious one — is now the Tiff button in the frame. */
   as: Posture;
+  /** field/line only — whether words that smell like work offer Tiff's
+      review. False where the words have a job already: a reply to
+      somebody's note is a reply, not a task to sort out. */
+  offer?: boolean;
+  /** field/line only — told when dictation lands words in the box, so a
+      caller can record that they were said rather than typed. */
+  onSpoken?: () => void;
   /** What the token's accessible names say it's for — "a note for this
       visit", "access notes". Never an icon alone. */
   label?: string;
@@ -1099,6 +1109,8 @@ export function NoteToken({
       disabled={disabled}
       className={className}
       flow={flow}
+      offer={offer}
+      onSpoken={onSpoken}
     />
   );
 }
@@ -1114,6 +1126,8 @@ function FieldPosture({
   disabled,
   className,
   flow,
+  offer: offering,
+  onSpoken,
 }: {
   as: Posture;
   label: string;
@@ -1125,8 +1139,10 @@ function FieldPosture({
   disabled: boolean;
   className?: string;
   flow: NoteFlow;
+  offer: boolean;
+  onSpoken?: () => void;
 }) {
-  const mic = useFieldMic(value, onChange);
+  const mic = useFieldMic(value, onChange, onSpoken);
   const { dict } = mic;
   const line = useRef<HTMLInputElement | null>(null);
   const busy = disabled || dict.recording || dict.transcribing;
@@ -1144,7 +1160,7 @@ function FieldPosture({
      second and then forward again is two moves where the design has none. */
   const river = Boolean(dict.interim) || (dict.recording && value.trim() !== "");
 
-  const offer = mic.found && (
+  const offer = offering && mic.found && (
     <Nudge
       onDismiss={mic.dismiss}
       onOpen={() => {

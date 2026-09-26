@@ -7,7 +7,7 @@ import { Icon } from "@/components/shell/icon";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { auDayOf, fmtAuTime, fmtAuWeekdayDate, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { useHydrated } from "@/lib/use-hydrated";
-import { providerById, SM8_SCOPES, SM8_WRITE_SCOPES } from "@/lib/integrations/providers";
+import { providerById, SM8_SCOPES, SM8_WRITE_SCOPES, type ScopeEntry } from "@/lib/integrations/providers";
 import type { ConnectionView } from "@/lib/integrations/connection";
 import type { Sm8ObjectStatus, Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
 import { disconnectServiceM8Action, syncServiceM8NowAction } from "@/app/actions/integrations";
@@ -56,10 +56,30 @@ export type Servicem8ScreenProps = {
   writes?: Sm8WritesView | null;
   /** Files still waiting to go to ServiceM8, which a disconnect cancels. */
   waitingWrites?: number;
+  /** Notes still waiting, where the deployment sends notes. */
+  waitingNotes?: number;
+  /** The write permissions the consent asks for beside the reads: the kinds
+      the deployment allows that the owner has on (the page works them out,
+      as the connect route does). Absent: the files permission alone. */
+  writeScopes?: ScopeEntry[];
   /** The account this workspace was connected to before the current one,
       and when it was replaced; null when it never changed. */
   previousAccount?: { name: string | null; at: string } | null;
 };
+
+/** The files permission alone — what a deployment that sends files asks. */
+const FILES_SCOPES = SM8_WRITE_SCOPES.filter((s) => s.scope === "manage_attachments");
+
+/** What the asks list says of its writes: word for word as before with the
+    files permission alone. */
+function asksLine(writeScopes: readonly ScopeEntry[]): string {
+  const files = writeScopes.some((s) => s.scope === "manage_attachments");
+  const notes = writeScopes.some((s) => s.scope === "publish_job_notes");
+  const tail = "The list below is exactly what the consent screen will show.";
+  if (files && notes) return `Reads, and two writes: adding the files somebody sends from a job, and the notes people write here. ${tail}`;
+  if (notes) return `Reads, and one write: adding the notes people write here. ${tail}`;
+  return `Reads, and one write: adding the files somebody sends from a job. ${tail}`;
+}
 
 /** "just now" / "4 min ago" / "3 hours ago" — the board's staleness language,
     deliberately vague past a day because a mirror that old is the story, not
@@ -98,6 +118,8 @@ export function Servicem8Screen({
   elsewhere = 0,
   writes = null,
   waitingWrites = 0,
+  waitingNotes = 0,
+  writeScopes = FILES_SCOPES,
   previousAccount = null,
 }: Servicem8ScreenProps) {
   const provider = providerById("servicem8")!;
@@ -117,7 +139,9 @@ export function Servicem8Screen({
      status line says HeyTiff adds files only while it is On. */
   const writing = connection?.writeMode === "live";
   const asking = writing || connection?.writeMode === "paused";
-  const asks = asking ? [...SM8_SCOPES, ...SM8_WRITE_SCOPES] : SM8_SCOPES;
+  /* only the permissions this deployment asks for, and the owner has on:
+     never the notes permission on a deployment that sends files alone */
+  const asks = asking ? [...SM8_SCOPES, ...writeScopes] : SM8_SCOPES;
 
   const disconnect = () => {
     setError(null);
@@ -278,7 +302,7 @@ export function Servicem8Screen({
               consequences={[
                 "HeyTiff's stored credentials for this account are deleted.",
                 "Every mirrored row goes with them — clients, jobs, schedule, checklists and staff.",
-                ...[sm8WaitingConsequence(waitingWrites)].filter((c): c is string => c !== null),
+                ...[sm8WaitingConsequence(waitingWrites, waitingNotes)].filter((c): c is string => c !== null),
                 "Workboard rows you created here stay, on the names they already captured.",
                 "Reconnecting the same account rebuilds the mirror in a few minutes.",
               ]}
@@ -327,9 +351,7 @@ export function Servicem8Screen({
               <div>
                 <b>What HeyTiff asks ServiceM8 for</b>
                 <em>
-                  {asking
-                    ? "Reads, and one write: adding the files somebody sends from a job. The list below is exactly what the consent screen will show."
-                    : "Read-only, every one of them. Nothing here writes to ServiceM8, and the list below is exactly what the consent screen will show."}
+                  {asking ? asksLine(writeScopes) : "Read-only, every one of them. Nothing here writes to ServiceM8, and the list below is exactly what the consent screen will show."}
                 </em>
               </div>
             </div>

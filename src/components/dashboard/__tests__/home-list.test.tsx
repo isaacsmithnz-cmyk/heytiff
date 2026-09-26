@@ -267,7 +267,8 @@ describe("ticking a task", () => {
 
     await user.click(within(rowOf("Ring the Hilux dealer")).getByRole("checkbox", { name: "Tick it off" }));
     await flush();
-    expect(completeTask).toHaveBeenCalledWith("t1");
+    // a person's tick: a task made from a mention answers it (two-way phase 2, PR C)
+    expect(completeTask).toHaveBeenCalledWith("t1", { postDone: true });
     expect(within(rowOf("Ring the Hilux dealer")).getByRole("checkbox")).toHaveAttribute("aria-checked", "true");
     expect(lineOf("Ring the Hilux dealer").querySelector(".hd-ls-sub")).toHaveTextContent("Done. Undo");
     // completeTask revalidates Home itself: a second reload would read the whole page again
@@ -299,7 +300,8 @@ describe("ticking a task", () => {
     rerender(onlyT2());
     await user.click(within(rowOf("Ring the Hilux dealer")).getByRole("button", { name: "Undo" }));
     await flush();
-    expect(reopenTask).toHaveBeenCalledWith("t1");
+    // and its Undo takes that answer back
+    expect(reopenTask).toHaveBeenCalledWith("t1", { takeBackDone: true });
     expect(mockRouter.refresh).not.toHaveBeenCalled();
     /* Taken back while the page's list is still the one without it: the row
        stands as it was rather than blinking out until the fresh one comes. */

@@ -11,7 +11,18 @@ import { redirectIfOnboardingPending } from "@/lib/staff/onboarding-gate";
    to the frame's clock, where every screen gets them; the page opens on the
    day's work instead. `getViewerName` and `greetingFor` went with it. */
 
-export default async function DashboardHomePage() {
+/* A TASK THE ADDRESS NAMES — `/dashboard?task=<id>`, the bell's door onto a
+   Done that didn't go to ServiceM8 (two-way phase 2, PR C) — opens Home on
+   the Tasks face with that task chosen. Only a task's id shape is passed
+   on; anything else opens Home as ever. A task no longer on the face (past
+   the last five done) opens the face with the first row chosen. */
+const TASK_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export default async function DashboardHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   // A brand-new org's owner goes to first-run setup before an empty Home can
   // read as a broken product. Home only — sign-in lands here, and the gate's
   // header says why it is neither in the proxy nor the (synchronous) layout.
@@ -20,7 +31,9 @@ export default async function DashboardHomePage() {
   // shape, same soft landing (lib/staff/onboarding-gate.ts).
   await redirectIfOnboardingPending();
 
-  const data = await loadDashboard();
+  const [data, search] = await Promise.all([loadDashboard(), searchParams]);
+  const task = search?.task;
+  const taskId = typeof task === "string" && TASK_ID.test(task) ? task : null;
 
   /* Home is the universal case — nothing here is ABOUT a job, so the default
      target stays none. The staff roster is whoever can be assigned tasks,
@@ -47,7 +60,7 @@ export default async function DashboardHomePage() {
           .map((s) => s.name.trim().split(/\s+/)[0])
           .filter((n) => n.length >= 2)}
       />
-      {data.desk ? <DashboardDesk data={data} /> : <DashboardHome data={data} />}
+      {data.desk ? <DashboardDesk data={data} taskId={taskId} /> : <DashboardHome data={data} taskId={taskId} />}
     </>
   );
 }

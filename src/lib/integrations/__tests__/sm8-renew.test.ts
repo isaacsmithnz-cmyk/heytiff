@@ -88,3 +88,50 @@ describe("withSm8Renewal", () => {
     expect(markSm8NeedsReauth).not.toHaveBeenCalled();
   });
 });
+
+/* ONE PERSON'S BAD IMPERSONATION NEVER MARKS THE CONNECTION (two-way phase
+   2). A note goes as a person; a 401 there may be the person refused, not
+   the token. The note sender hands in confirmDead — a plain read — and the
+   grant is flagged only when that read is refused too, under the renewed
+   token. */
+describe("withSm8Renewal, with confirmDead", () => {
+  const always401 = () => jest.fn(async () => ({ status: 401 }));
+
+  it("(F) alive on the first refusal: nothing renewed, nothing flagged, the refused answer comes back ok", async () => {
+    const confirmDead = jest.fn(async () => "alive" as const);
+    const call = always401();
+    const out = await withSm8Renewal("org-1", first, call, refused, { confirmDead });
+    expect(out).toEqual({ result: { status: 401 }, access: first, tries: 1, verdict: "ok" });
+    expect(renewSm8Access).not.toHaveBeenCalled();
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
+    expect(confirmDead).toHaveBeenCalledWith(first);
+  });
+
+  it("(F) an expired token AND a bad impersonation: dead, renewed, refused again, alive under the new token — ok, nothing flagged", async () => {
+    const confirmDead = jest.fn().mockResolvedValueOnce("dead").mockResolvedValueOnce("alive");
+    const out = await withSm8Renewal("org-1", first, always401(), refused, { confirmDead });
+    expect(out).toMatchObject({ verdict: "ok", tries: 2, access: renewed });
+    expect(confirmDead).toHaveBeenLastCalledWith(renewed);
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
+  });
+
+  it("(F) unsure under the renewed token is unconfirmed, and flags nothing", async () => {
+    const confirmDead = jest.fn().mockResolvedValueOnce("unsure").mockResolvedValueOnce("unsure");
+    const out = await withSm8Renewal("org-1", first, always401(), refused, { confirmDead });
+    expect(out).toMatchObject({ verdict: "unconfirmed", tries: 2 });
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
+  });
+
+  it("dead under the renewed token flags the grant, as before", async () => {
+    const confirmDead = jest.fn(async () => "dead" as const);
+    const out = await withSm8Renewal("org-1", first, always401(), refused, { confirmDead });
+    expect(out.verdict).toBe("dead");
+    expect(markSm8NeedsReauth).toHaveBeenCalledWith("org-1", SM8_REVOKED, renewed);
+  });
+
+  it("without confirmDead, nothing about any path changes", async () => {
+    const out = await withSm8Renewal("org-1", first, always401(), refused);
+    expect(out.verdict).toBe("dead");
+    expect(markSm8NeedsReauth).toHaveBeenCalledTimes(1);
+  });
+});

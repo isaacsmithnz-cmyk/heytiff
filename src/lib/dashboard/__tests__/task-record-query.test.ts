@@ -259,6 +259,65 @@ describe("about", () => {
     expect(of("sm8_staff")[0].eq).toEqual({ org_id: ORG });
   });
 
+  /* ONE TASK PER ASK (H18): a task Tiff made from Luke's ask is his note's,
+     as one the strip made is, so the face says "Luke asked you" as the list
+     does and offers its conversation. Nobody pressed anything: Tiff made it.
+     ServiceM8 keeps only a note's last editor, so the asker the ask
+     recorded names it. */
+  it("joins a task Tiff made from a ServiceM8 ask to its note, who asked and its job", async () => {
+    rows.tasks = [taskRow(1), taskRow(2)];
+    rows.mention_asks = [
+      {
+        org_id: ORG,
+        status: "read",
+        task_id: tid(1),
+        sm8_note_uuid: "note-1",
+        sm8_job_uuid: "job-1",
+        asker_sm8_uuid: "sm8-luke",
+        read_at: "2026-09-21T04:00:00Z",
+      },
+    ];
+    rows.sm8_job_notes = [
+      // Leo edited it since: ServiceM8 names him, and only him
+      { org_id: ORG, uuid: "note-1", note: "@isaacsmith please call Mary", edit_by_staff_uuid: "sm8-leo", create_date: "2026-09-21 13:42:10" },
+    ];
+    rows.sm8_staff = [
+      { org_id: ORG, uuid: "sm8-luke", first: "Luke", last: "Ingold" },
+      { org_id: ORG, uuid: "sm8-leo", first: "Leo", last: "Park" },
+      { org_id: ORG, uuid: "sm8-me", first: "Isaac", last: "Smith" },
+    ];
+    rows.sm8_jobs = [{ org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Wollstonecraft" }];
+    const rec = await loadTasksFace(ctx({ mineUuid: "sm8-me" }, "workboard"), NOW);
+    expect(rec.about[tid(1)]).toMatchObject({
+      source: "sm8",
+      sm8NoteUuid: "note-1",
+      askerName: "Luke Ingold",
+      actedBy: null,
+      said: { day: "2026-09-21", time: "1:42 pm" },
+      words: "please call Mary",
+      job: { label: "2041 Wollstonecraft", uuid: "job-1" },
+    });
+    expect(rec.about[tid(2)].source).toBe("typed");
+    // one read for every task, of the asks that were read
+    expect(of("mention_asks")).toHaveLength(1);
+    expect(of("mention_asks")[0].eq).toEqual({ org_id: ORG, status: "read" });
+    expect(of("mention_asks")[0].in).toEqual(["task_id", [tid(1), tid(2)]]);
+  });
+
+  /* The settle records an ask the strip already answered as read, naming
+     the strip's task: that task is still the one somebody pressed for. */
+  it("keeps a task the strip made as the strip's when the ask recorded it too", async () => {
+    rows.tasks = [taskRow(1)];
+    rows.job_note_actions = [
+      { org_id: ORG, action: "task", task_id: tid(1), sm8_note_uuid: "note-1", sm8_job_uuid: "job-1", acted_by: ME, acted_at: null },
+    ];
+    rows.mention_asks = [
+      { org_id: ORG, status: "read", task_id: tid(1), sm8_note_uuid: "note-1", sm8_job_uuid: "job-1", asker_sm8_uuid: null, read_at: null },
+    ];
+    const rec = await loadTasksFace(ctx({}, "workboard"), NOW);
+    expect(rec.about[tid(1)]).toMatchObject({ source: "sm8", sm8NoteUuid: "note-1", actedBy: ME });
+  });
+
   /* THE DIARY'S QUOTING, not a second one: the handle the note is to (yours)
      goes wherever it stands, another person it names is said by the
      diary's word for them, and an @ that is nobody we know stays. */
@@ -350,6 +409,9 @@ describe("about", () => {
       { org_id: THEM, id: "p8", name: "Their other project", client_name: "Them", defects_task_id: tid(3) },
     ];
     rows.workboard_notes = [note("n9", [tid(3)], { org_id: THEM })];
+    rows.mention_asks = [
+      { org_id: THEM, status: "read", task_id: tid(3), sm8_note_uuid: "note-1", sm8_job_uuid: "job-1", asker_sm8_uuid: "sm8-luke", read_at: null },
+    ];
     rows.task_events = [
       { org_id: THEM, task_id: tid(1), kind: "done", by_staff: LEO, at: "2026-09-22T00:00:00Z", due_from: null, due_to: null, from_staff: null, to_staff: null },
     ];
@@ -379,6 +441,7 @@ describe("about", () => {
     const rec = await loadTasksFace(ctx({}, "team"), NOW);
     for (const t of [
       "job_note_actions",
+      "mention_asks",
       "projects",
       "sm8_job_notes",
       "sm8_staff",
@@ -428,6 +491,7 @@ describe("about", () => {
   it.each([
     ["workboard_notes", { code: "PGRST100", message: "failed to parse logic tree" }],
     ["job_note_actions", { code: "57014", message: "canceling statement due to statement timeout" }],
+    ["mention_asks", { code: "57014", message: "canceling statement due to statement timeout" }],
     ["projects", { code: "57014", message: "canceling statement due to statement timeout" }],
     ["task_events", { code: "57014", message: "canceling statement due to statement timeout" }],
   ])("says in the log when %s could not be read, and still answers", async (t, error) => {
@@ -438,6 +502,14 @@ describe("about", () => {
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0][0]).toContain(`(${t})`);
     expect(warn.mock.calls[0][0]).toContain(error.message);
+  });
+
+  it("reads no asks, and says nothing, before mention_asks.sql runs", async () => {
+    rows.tasks = [taskRow(1)];
+    failing.mention_asks = { code: "PGRST205", message: "Could not find the table 'public.mention_asks'" };
+    const rec = await loadTasksFace(ctx({}, "workboard"), NOW);
+    expect(rec.about[tid(1)]).toMatchObject({ source: "typed" });
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it("names only the people the record mentions, and nobody it cannot name", async () => {

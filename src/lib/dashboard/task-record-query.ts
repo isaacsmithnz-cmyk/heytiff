@@ -37,11 +37,16 @@ import {
      done    what you finished, what you handed out and came back finished,
              and what you ticked: done in the last 90 days, newest first, at
              most 100 (`doneTaskRecord`).
-     about   where each came from and what happened to it since, in four
+     about   where each came from and what happened to it since, in five
              reads side by side, then the names of what they point at:
                (a) the diary entry that made it — `workboard_notes`, applied,
                    whose `applied.taskIds` holds the task;
-               (b) the ServiceM8 note it came off — `job_note_actions`;
+               (b) the ServiceM8 note it came off — `job_note_actions`,
+                   where somebody pressed the job card's strip, or
+                   `mention_asks`, where Tiff made it from an ask of the
+                   person (the new Home's one task per ask); a note the
+                   strip answered and the ask then recorded is the strip's,
+                   who pressed it and all;
                (c) the project whose defects period made it — `projects`;
                (d) its `task_events`.
              (b) and (c), and everything that names a job, a visit, an
@@ -97,10 +102,10 @@ const str = (v: unknown): string | null => (typeof v === "string" && v ? v : nul
    still renders, but a task whose diary entry, ServiceM8 note or project
    could not be read falls through to typed ("Isaac typed it."), and one
    whose events could not be read dates its hand-over to the day it was
-   made. So each of the four reads says in the log when it failed; a page
-   that tells somebody something wrong leaves a line saying why. The one
-   failure that is expected, task_events before its migration runs, stays
-   quiet. */
+   made. So each of the five reads says in the log when it failed; a page
+   that tells somebody something wrong leaves a line saying why. The
+   failures that are expected, task_events or mention_asks before its
+   migration runs, stay quiet. */
 type ReadError = { code?: unknown; message?: unknown } | null;
 function readFailed(what: string, error: ReadError): void {
   if (!error) return;
@@ -204,6 +209,11 @@ type DiaryNote = {
 
 type NoteAction = { taskId: string; noteUuid: string; jobUuid: string | null; actedBy: string | null; actedAt: string | null };
 
+/** An ask Tiff made a task of: its note, its job, who asked (as ServiceM8
+    named the note's writer when the ask was first read — it keeps only the
+    last editor) and when it was read. */
+type AskMade = { taskId: string; noteUuid: string; jobUuid: string | null; askerUuid: string | null; readAt: string | null };
+
 type DefectsProject = { taskId: string; id: string; name: string | null; clientName: string | null };
 
 /** Reads `ids` in chunks, side by side, and puts the answers back together. */
@@ -266,6 +276,31 @@ async function noteActionsFor(orgId: string, ids: readonly string[]): Promise<No
       actedBy: str(r.acted_by),
       actedAt: str(r.acted_at),
     }));
+  });
+}
+
+/** (b) The asks Tiff made these tasks from (docs/migrations/mention_asks.sql).
+    Before that table exists there are none, and nothing in the log: that
+    is expected until its migration runs. */
+async function askTasksFor(orgId: string, ids: readonly string[]): Promise<AskMade[]> {
+  const safe = ids.filter((id) => UUID.test(id));
+  return chunked(safe, CHUNK, async (chunk) => {
+    const { data, error } = await supabaseAdmin
+      .from("mention_asks")
+      .select("task_id, sm8_note_uuid, sm8_job_uuid, asker_sm8_uuid, read_at")
+      .eq("org_id", orgId)
+      .eq("status", "read")
+      .in("task_id", chunk);
+    if (!missingTable((error as ReadError)?.code)) readFailed("the ServiceM8 asks Tiff made tasks of (mention_asks)", error);
+    return ((data ?? []) as Rec[])
+      .filter((r) => str(r.task_id) && str(r.sm8_note_uuid))
+      .map((r) => ({
+        taskId: String(r.task_id),
+        noteUuid: String(r.sm8_note_uuid),
+        jobUuid: str(r.sm8_job_uuid),
+        askerUuid: str(r.asker_sm8_uuid),
+        readAt: str(r.read_at),
+      }));
   });
 }
 
@@ -337,9 +372,10 @@ export async function taskAbout(
   const ids = [...new Set(tasks.map((t) => t.id))];
   if (ids.length === 0) return {};
 
-  const [notes, actions, projects, events] = await Promise.all([
+  const [notes, actions, asks, projects, events] = await Promise.all([
     diaryNotesFor(orgId, ids),
     board ? noteActionsFor(orgId, ids) : Promise.resolve([] as NoteAction[]),
+    board ? askTasksFor(orgId, ids) : Promise.resolve([] as AskMade[]),
     board ? defectsProjectsFor(orgId, ids) : Promise.resolve([] as DefectsProject[]),
     eventsFor(orgId, ids),
   ]);
@@ -348,15 +384,18 @@ export async function taskAbout(
   const noteOf = new Map<string, DiaryNote>();
   for (const n of notes) for (const id of n.taskIds) if (wanted.has(id) && !noteOf.has(id)) noteOf.set(id, n);
   const actionOf = new Map(actions.map((a) => [a.taskId, a]));
+  const askOf = new Map(asks.map((a) => [a.taskId, a]));
   const projectOf = new Map(projects.map((p) => [p.taskId, p]));
 
   /* Then what those point at, side by side: the ServiceM8 notes (and after
      them their writers), the jobs, and the words for any other target. All
      of it is the board's. */
-  const noteUuids = [...new Set(actions.map((a) => a.noteUuid))];
+  const noteUuids = [...new Set([...actions.map((a) => a.noteUuid), ...asks.map((a) => a.noteUuid)])];
+  const askers = new Map(asks.filter((a) => a.askerUuid).map((a) => [a.noteUuid, a.askerUuid!]));
   const jobUuids = [
     ...new Set([
       ...actions.map((a) => a.jobUuid).filter((x): x is string => !!x),
+      ...asks.map((a) => a.jobUuid).filter((x): x is string => !!x),
       ...[...noteOf.values()].filter((n) => asTargetKind(n.targetKind) === "job" && n.targetId).map((n) => n.targetId!),
     ]),
   ];
@@ -365,7 +404,7 @@ export async function taskAbout(
   );
   const [sm8Notes, jobs, where] = board
     ? await Promise.all([
-        sm8NotesFor(orgId, noteUuids, mineUuid),
+        sm8NotesFor(orgId, noteUuids, mineUuid, askers),
         sm8JobsFor(orgId, jobUuids),
         others.length
           ? targetWords(
@@ -380,6 +419,7 @@ export async function taskAbout(
   for (const id of ids) {
     const evts = events.get(id) ?? [];
     const action = actionOf.get(id);
+    const ask = askOf.get(id);
     const note = noteOf.get(id);
     const project = projectOf.get(id);
 
@@ -394,6 +434,20 @@ export async function taskAbout(
         said: sm8Moment(sm8?.createDate) ?? momentOf(action.actedAt),
         words: sm8?.text || null,
         job: jobDoor(action.jobUuid, jobs),
+      };
+    } else if (ask) {
+      /* Tiff made it from the ask, so nobody pressed anything: actedBy is
+         null, and the record says "Tiff made it from Luke Ingold's note". */
+      const sm8 = sm8Notes.get(ask.noteUuid);
+      out[id] = {
+        ...typedAbout(evts),
+        source: "sm8",
+        sm8NoteUuid: ask.noteUuid,
+        askerName: sm8?.author ?? null,
+        actedBy: null,
+        said: sm8Moment(sm8?.createDate) ?? momentOf(ask.readAt),
+        words: sm8?.text || null,
+        job: jobDoor(ask.jobUuid, jobs),
       };
     } else if (note) {
       const kind = asTargetKind(note.targetKind);
@@ -441,11 +495,14 @@ type Sm8Note = { text: string; author: string | null; createDate: string | null 
     named as ServiceM8 spells them — the same "First Last" the job card's
     strip names them by. The roster is every handle there is (sm8Roster, the
     one read the diary and the job card name people from), read beside the
-    notes rather than after them. */
+    notes rather than after them. `askers` is note uuid → who asked, for a
+    note an ask was read from: ServiceM8 keeps only a note's last editor, so
+    the asker the ask recorded names it where there is one. */
 async function sm8NotesFor(
   orgId: string,
   uuids: readonly string[],
   mineUuid: string | null,
+  askers: ReadonlyMap<string, string> = new Map(),
 ): Promise<Map<string, Sm8Note>> {
   const out = new Map<string, Sm8Note>();
   if (uuids.length === 0) return out;
@@ -465,7 +522,7 @@ async function sm8NotesFor(
   const me = mineUuid ? byUuid.get(mineUuid) : undefined;
   const addressing = me ? [me.handle] : [];
   for (const r of rows) {
-    const by = str(r.edit_by_staff_uuid);
+    const by = askers.get(String(r.uuid)) ?? str(r.edit_by_staff_uuid);
     out.set(String(r.uuid), {
       text: quotedNote(typeof r.note === "string" ? r.note : "", { names, addressing }),
       author: (by && byUuid.get(by)?.name) || null,

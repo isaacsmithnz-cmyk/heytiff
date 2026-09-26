@@ -21,9 +21,11 @@
 -- dismissal), so one ask is still one task.
 --
 -- WHAT READS IT. The new Home's diary (mentions-query.ts: "1 task for you"
--- under the conversation, and "Luke asked you" on the list's row), and the
+-- under the conversation, and "Luke asked you" on the list's row), the
 -- job card's strip (job-notes-query.ts), which stops suggesting a task for a
--- note that already made one, and shows that task instead.
+-- note that already made one, and shows that task instead, and the new
+-- Home's Tasks tab (task-record-query.ts), which says the task came from
+-- the asker's note, and opens its conversation, by mention_asks_by_task.
 --
 -- ONE ROW PER (NOTE, PERSON). Unlike job_note_actions (one row per note per
 -- workspace, written when somebody presses the strip's suggestion), a note

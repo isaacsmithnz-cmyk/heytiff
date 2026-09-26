@@ -943,7 +943,6 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
     ["an event's kicker", ".fg .hd-cal-k", () => [PAPER]],
     ["a holiday's kicker", '.fg .hd-cal-dx[data-c="hol"] .hd-cal-k', () => [PAPER]],
     ["an admin date's kicker", '.fg .hd-cal-dx[data-c="admin"] .hd-cal-k', () => [PAPER]],
-    ["a late one's kicker", ".fg .hd-cal-dx[data-late] .hd-cal-k", () => [PAPER]],
     ["the school holidays' kicker", '.fg .hd-cal-dx[data-c="school"] .hd-cal-k', () => [PAPER]],
     ["when", ".fg .hd-cal-w", () => [PAPER]],
     ["his capsule, for an event", ".fg .hd-cal-chip", () => [fill(".fg .hd-cal-chip")]],

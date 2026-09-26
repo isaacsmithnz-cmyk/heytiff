@@ -738,7 +738,26 @@ What the guard cannot count is noted here on the same word:
   says what kind of thing it is, "Public holiday", "Admin, overdue", 13/500
   in the category's ink ("go with your recommendations", 2026-09-25, which
   kept his panel as he drew it): law 10's retired eyebrow, kept in its
-  sentence case and weight, without caps or tracking.
+  sentence case and weight, without caps or tracking. An admin date past
+  its due keeps the admin's ink there; only his capsule under the title
+  turns late, so the late red is said once, as he drew it.
+- **Law 18, motion tokens, and law 8, the Calendar's fades.** The Calendar
+  moves as the prototype he walked moves it ("design exempt for now, but
+  keep a note", 2026-09-24), where law 18 has two tokens and law 8 says a
+  page appears. A view, a step or Today: the toolbar says where you are
+  going at once, the body fades out on `--t-fast` and the new one fades in
+  over his 180 ms, rising his 4px into place (his calSwap). A pick while
+  the panel is up: the views show it at once, and the panel fades out what
+  it showed and fades the pick in the same way (calPick). A filter turned
+  off: its things fade out on `--t-fast` before the view closes up, and
+  turned back on they fade in over 180 ms where they stand (calChip). What
+  Save lands grows in over his 280 ms and stands on his event tint for 55%
+  of his 2.4 s before easing to the choice's grey (calLand, calFresh),
+  past law 8's 300 ms: a flash a row asked for with data, once, never a
+  loop. All of it is for a pointer only: from the keyboard, or under
+  reduced motion, each is simply there, and what Save lands is a still
+  tint for the 2.4 s. Anything pressed while a fade is on its way lands
+  it at once first.
 - **Law 18, motion tokens, and law 8, a tab's content appears.** The faces
   slide, in 280 ms rather than `--t-move`: "Calendar should slide across"
   (2026-09-25). Nothing slides under reduced motion, and nothing slides

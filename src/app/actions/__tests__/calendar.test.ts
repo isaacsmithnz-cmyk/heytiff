@@ -102,12 +102,31 @@ describe("addCalendarEvent", () => {
     expect(inserts).toEqual([]);
   });
 
-  it("needs words, and keeps them to the table's 120 characters", async () => {
+  it("needs words", async () => {
     expect(await addCalendarEvent("   \n  ")).toEqual({ ok: false, error: "Give it a name first." });
     expect(await addCalendarEvent(undefined as unknown as string)).toEqual({ ok: false, error: "Give it a name first." });
     expect(inserts).toEqual([]);
-    await addCalendarEvent(`${"a".repeat(119)} bcd`);
-    expect(inserts[0]!.row.title).toBe("a".repeat(119));
+  });
+
+  /* The box empties only for a Save that went in: a line cut to fit would
+     lose its end with nothing to say so. Past the table's 120 it is
+     refused whole, and the box keeps it with the reason. */
+  it("refuses words past the table's 120 characters rather than cutting them, and writes nothing", async () => {
+    const long = `Quarterly toolbox talk at the yard: ladders, harness checks, the new van racking, and who is on call over Christmas this year`;
+    expect(long.length).toBeGreaterThan(120);
+    expect(await addCalendarEvent(long)).toEqual({ ok: false, error: "Keep it to 120 characters." });
+    expect(inserts).toEqual([]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  /* Postgres counts characters, not UTF-16 units: 118 letters and a
+     barbecue emoji (two units, one character) is 120 characters, and goes
+     in whole, the emoji intact. */
+  it("counts the 120 as the table does, by character, and saves a line that fits as typed", async () => {
+    const fits = `${"a".repeat(118)} \u{1F356}`;
+    expect(fits.length).toBe(121);
+    expect(await addCalendarEvent(fits)).toMatchObject({ ok: true });
+    expect(inserts[0]!.row.title).toBe(fits);
   });
 
   it("writes nobody as its author for a caller with no staff card, rather than refusing them", async () => {

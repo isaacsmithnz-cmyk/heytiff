@@ -26,7 +26,8 @@ import { todayInZone } from "@/lib/workboard/dates";
 
 export type CalendarAddResult = { ok: true; id: string; day: string } | { ok: false; error: string };
 
-/** The table's own ceiling (`calendar_events.title`, 1 to 120 characters). */
+/** The table's own ceiling (`calendar_events.title`, 1 to 120 characters,
+    counted as Postgres counts them: by character, not by UTF-16 unit). */
 const TITLE_MAX = 120;
 
 /* By name, not by path: a revalidate aimed at a moved route fails silently
@@ -36,6 +37,11 @@ const refresh = () => revalidatePath(navHref("home"));
 /** Save: the words as typed, on the workspace's today, all day. Tiff is not
     asked — what you typed is what goes on the calendar, and a day, a time
     or a repeat in the words is Sort it out's to read.
+
+    AS TYPED, OR NOT AT ALL. Words past the table's 120 are refused, never
+    cut: the box keeps whatever a Save refuses and says why, and it empties
+    only for a Save that went in, so a line cut short would lose its end
+    with nothing to say it had.
 
     THE WORKSPACE'S DAY, the one the calendar draws Today on and "Your day"
     above it (lib/calendar/query): the ServiceM8 account's zone, Sydney
@@ -49,8 +55,9 @@ export async function addCalendarEvent(text: string): Promise<CalendarAddResult>
   if (!orgId || !userId) return { ok: false, error: "Not signed in." };
   if (!(await can("team"))) return { ok: false, error: "You can't add to the calendar." };
 
-  const title = typeof text === "string" ? text.replace(/\s+/g, " ").trim().slice(0, TITLE_MAX).trim() : "";
+  const title = typeof text === "string" ? text.replace(/\s+/g, " ").trim() : "";
   if (!title) return { ok: false, error: "Give it a name first." };
+  if ([...title].length > TITLE_MAX) return { ok: false, error: `Keep it to ${TITLE_MAX} characters.` };
 
   const [staffId, tz] = await Promise.all([staffProfileIdFor(orgId, userId), getSm8Timezone(orgId)]);
   const day = todayInZone(tz);

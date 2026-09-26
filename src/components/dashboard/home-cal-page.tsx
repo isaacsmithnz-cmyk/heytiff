@@ -29,10 +29,9 @@ import { motionAllowed } from "@/lib/dashboard/day-flip";
 import { CalAgenda } from "./home-cal-agenda";
 import { CalMonth } from "./home-cal-month";
 import { CalKey, CalPanel } from "./home-cal-panel";
-import { CAL_FADE_MS, CalSwatch, revealIn } from "./home-cal-parts";
+import { CAL_FRESH_MS, CAL_RISE_PX, CalSwatch, fadeIn, fadeOut, growIn, revealIn, thingsOf } from "./home-cal-parts";
 import { CalRail } from "./home-cal-rail";
 import { CalYear } from "./home-cal-year";
-import { FLASH_MS } from "./home-list";
 
 /* THE CALENDAR — the new Home's third face (his handoff "Calendar",
    walked on the prototype to v33). It slides across the whole body, the
@@ -61,13 +60,23 @@ import { FLASH_MS } from "./home-list";
    THE BOX IS TIFF'S (components/tiff/modal/tiff-box), in the calendar's
    room: Save puts the words on today, all day, as typed
    (`addCalendarEvent`); Sort it out and the Tiff button ask Tiff. What was
-   saved is chosen, brought into view and lit for a moment. The box is
+   saved is chosen, brought into view and lit for his 2.4 s. The box is
    there for whoever may add to the calendar (`team`, as posting a notice).
 
    `today` is the server's — the workspace's day, the one "Your day" draws
-   above — so nothing here reads a clock in render. A view, a step or a
-   pick made with a pointer fades in on `--t-fast`; from the keyboard, or
-   under reduced motion, it is simply there (law 8). */
+   above — so nothing here reads a clock in render.
+
+   HIS MOTION, for a pointer (./home-cal-parts; a named exemption from law
+   18's tokens, docs/design.md). A view, a step or Today: the toolbar says
+   where you are going at once, the body fades out, and the new one fades
+   in rising into place (calSwap). A pick while the panel is up: the panel
+   fades out what it showed and fades the pick in (calPick), while the
+   views show the pick at once. A filter turned off: its things fade out,
+   then the view closes up; back on, they fade in where they belong
+   (calChip). What Save lands grows in and is washed (calLand). From the
+   keyboard, or under reduced motion, each is simply there (law 8), and
+   anything pressed while a fade is on its way lands it at once first, so
+   nothing is ever drawn from what was about to change. */
 
 const VIEWS = [
   ["4w", "4 weeks"],
@@ -75,41 +84,127 @@ const VIEWS = [
   ["year", "Year"],
 ] as const satisfies ReadonlyArray<readonly [CalView, string]>;
 
+/** A fade on its way: its animations, what it puts down when it ends, and
+    the token a later change bumps to overtake it. */
+type Run = { tok: number; anims: Animation[]; land: (() => void) | null };
+
+const run0 = (): Run => ({ tok: 0, anims: [], land: null });
+
+/** Lands a fade on its way at once: its animations come off and what it was
+    bringing is put down now. */
+function hurry(run: Run) {
+  run.tok += 1;
+  for (const a of run.anims) a.cancel();
+  run.anims = [];
+  const land = run.land;
+  run.land = null;
+  land?.();
+}
+
+/** When the fade out ends, unless something overtook it: what it brought is
+    put down, and `then` starts what comes in. Its own animations stay on
+    (they hold what left at nothing) until the fade in takes them off. */
+function whenOut(run: Run, then: () => void) {
+  const tok = run.tok;
+  Promise.all(run.anims.map((a) => a.finished)).then(
+    () => {
+      if (run.tok !== tok) return;
+      const land = run.land;
+      run.land = null;
+      land?.();
+      then();
+    },
+    () => {},
+  );
+}
+
 export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
+  /** Where the body is. */
   const [nav, setNav] = useState<CalNav>(() => startNav(cal));
+  /** Where a pointer's view, step or Today is going while the body fades
+      out: the toolbar says it at once (his calChrome). */
+  const [ahead, setAhead] = useState<CalNav | null>(null);
+  /** What the filters say. */
   const [off, setOff] = useState<CalOff>({});
+  /** What the body still draws while a filter's things fade out. */
+  const [offHeld, setOffHeld] = useState<CalOff | null>(null);
   /** What was picked; null until something is. */
   const [picked, setPicked] = useState<string | null>(null);
+  /** What the panel still shows while it fades out for a pointer's pick. */
+  const [panelHeld, setPanelHeld] = useState<string | null>(null);
   /** Just saved, lit until it settles. */
   const [fresh, setFresh] = useState<string | null>(null);
-  /** Each counts the pointer's changes, so each one fades in. */
-  const [bodyFade, setBodyFade] = useState(0);
-  const [panelFade, setPanelFade] = useState(0);
+  /** Each counts a fade in to start once the page has drawn what comes in:
+      the body's, the panel's, and a filter's (its category, or null when
+      only the faded things are to come off). */
+  const [bodyIn, setBodyIn] = useState(0);
+  const [panelIn, setPanelIn] = useState(0);
+  const [filterIn, setFilterIn] = useState<{ n: number; cat: CalCat | null }>({ n: 0, cat: null });
   const body = useRef<HTMLDivElement>(null);
+  const swapRun = useRef<Run>(run0());
+  const panelRun = useRef<Run>(run0());
+  const filterRun = useRef<Run>(run0());
+  /** The choice a filter on its way will leave, once it lands. */
+  const filterPick = useRef<{ id: string | null } | null>(null);
+  /** How the box was last pressed: a Save from the keyboard lands still. */
+  const press = useRef<"pointer" | "key">("key");
+  /** Whether what Save lands grows in. */
+  const landGrow = useRef(false);
 
-  const vis = visibleItems(cal.items, off);
+  /** The toolbar's: where the page is, or is going. */
+  const bar = ahead ?? nav;
+  const vis = visibleItems(cal.items, offHeld ?? off);
   /* The choice, while it is on the calendar and shown; otherwise the first
      thing from today — which also stands in for something just saved until
      the page brings it back. */
   const selected = picked && vis.some((x) => x.id === picked) ? picked : firstSelection(vis, cal);
-  const range = viewRange(nav.view, nav.anchor, cal);
+  const range = viewRange(bar.view, bar.anchor, cal);
   const chips = chipCounts(cal.items, range, {
     admin: cal.items.some((x) => x.cat === "admin"),
     school: cal.hasSchool,
   });
-  const earlier = stepAnchor(nav.view, nav.anchor, -1, cal);
-  const later = stepAnchor(nav.view, nav.anchor, 1, cal);
-  const home = isHome(nav.view, nav.anchor, cal);
-  const item = selected ? (cal.items.find((x) => x.id === selected) ?? null) : null;
+  const earlier = stepAnchor(bar.view, bar.anchor, -1, cal);
+  const later = stepAnchor(bar.view, bar.anchor, 1, cal);
+  const home = isHome(bar.view, bar.anchor, cal);
+  const shown = panelHeld ?? selected;
+  const item = shown ? (cal.items.find((x) => x.id === shown) ?? null) : null;
 
-  const fadeBody = (pointer: boolean) => {
-    if (pointer && motionAllowed()) setBodyFade((n) => n + 1);
-  };
+  /* What comes in fades in once it is drawn, and takes off the fade out
+     that held what left at nothing, in the same frame. */
+  useLayoutEffect(() => {
+    if (bodyIn === 0) return;
+    const run = swapRun.current;
+    for (const a of run.anims) a.cancel();
+    run.anims = body.current ? [fadeIn(body.current, CAL_RISE_PX)] : [];
+  }, [bodyIn]);
 
   useLayoutEffect(() => {
-    if (bodyFade === 0) return;
-    body.current?.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: CAL_FADE_MS, easing: "ease-out" });
-  }, [bodyFade]);
+    if (panelIn === 0) return;
+    const run = panelRun.current;
+    for (const a of run.anims) a.cancel();
+    const dx = body.current?.querySelector(".hd-cal-dx");
+    run.anims = dx ? [fadeIn(dx, CAL_RISE_PX)] : [];
+  }, [panelIn]);
+
+  useLayoutEffect(() => {
+    if (filterIn.n === 0) return;
+    const run = filterRun.current;
+    for (const a of run.anims) a.cancel();
+    run.anims = filterIn.cat ? thingsOf(body.current, filterIn.cat).map((el) => fadeIn(el, 0)) : [];
+  }, [filterIn]);
+
+  /* Nothing on its way outlives the page. */
+  useEffect(() => {
+    const runs = [swapRun.current, panelRun.current, filterRun.current];
+    return () => {
+      for (const run of runs) {
+        run.tok += 1;
+        run.land = null;
+        for (const a of run.anims) a.cancel();
+        run.anims = [];
+      }
+    };
+  }, []);
 
   /* A view you switch to keeps the choice in sight — Month opens on today's
      week instead (./home-cal-month). The page itself opens on today. */
@@ -122,62 +217,132 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
 
   useEffect(() => {
     if (!fresh) return;
-    const t = setTimeout(() => setFresh(null), FLASH_MS);
+    const t = setTimeout(() => setFresh(null), CAL_FRESH_MS);
     return () => clearTimeout(t);
   }, [fresh]);
 
   /* What was saved is brought into its view's sight once it is on the page
      (his calLand): the action's revalidation brings it a moment after Save,
      and a view scrolled down the weeks would otherwise light it out of
-     sight. Once, so the view is the reader's again while it is still lit. */
+     sight. Once, so the view is the reader's again while it is still lit.
+     A row saved with a pointer grows in as it lands. */
   const shownFresh = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (!fresh || shownFresh.current === fresh) return;
-    const el = body.current?.querySelector("[data-fresh]");
+    const el = body.current?.querySelector<HTMLElement>("[data-fresh]");
     if (!el) return;
     shownFresh.current = fresh;
     revealIn(el);
+    if (landGrow.current && el.matches(".hd-cal-it")) growIn(el);
+    landGrow.current = false;
   }, [fresh, cal.items]);
+
+  /** Lands a filter on its way now, and says the choice it leaves. */
+  const hurryFilter = (): string | null => {
+    const left = filterPick.current ? filterPick.current.id : selected;
+    filterPick.current = null;
+    hurry(filterRun.current);
+    return left;
+  };
+
+  /** The body goes to `next`: at once from a key or under reduced motion;
+      for a pointer, his swap. */
+  const go = (next: CalNav, pointer: boolean) => {
+    const run = swapRun.current;
+    hurry(run);
+    hurry(panelRun.current);
+    hurryFilter();
+    const el = body.current;
+    if (!pointer || !motionAllowed() || !el) {
+      setAhead(null);
+      setNav(next);
+      return;
+    }
+    setAhead(next);
+    run.anims = [fadeOut(el)];
+    run.land = () => {
+      setAhead(null);
+      setNav(next);
+    };
+    whenOut(run, () => setBodyIn((n) => n + 1));
+  };
 
   const pick = (id: string, pointer: boolean) => {
     if (id === selected) return;
+    const run = panelRun.current;
+    hurry(run);
+    /* A filter on its way lands first; what the panel shows then is its
+       choice, not this page's, so the pick is simply there. */
+    const filtering = filterRun.current.land !== null;
+    hurryFilter();
     setPicked(id);
-    if (pointer && motionAllowed()) setPanelFade((n) => n + 1);
+    const dx = body.current?.querySelector(".hd-cal-dx");
+    /* In 4 weeks there is no panel; while a view is on its way in, the
+       panel goes with it. */
+    if (!pointer || !motionAllowed() || !dx || swapRun.current.land || filtering) return;
+    setPanelHeld(shown);
+    run.anims = [fadeOut(dx)];
+    run.land = () => setPanelHeld(null);
+    whenOut(run, () => setPanelIn((n) => n + 1));
   };
 
   const view = (to: CalView, pointer: boolean) => {
-    if (to === nav.view) return;
-    setNav(switchView(nav, to, cal));
-    fadeBody(pointer);
+    if (to === bar.view) return;
+    go(switchView(bar, to, cal), pointer);
   };
 
-  const step = (dir: -1 | 1) => (e: MouseEvent<HTMLButtonElement>) => {
-    const anchor = dir < 0 ? earlier : later;
-    if (!anchor) return;
-    setNav({ ...nav, anchor });
-    fadeBody(e.detail > 0);
+  const toEarlier = (e: MouseEvent<HTMLButtonElement>) => {
+    if (earlier) go({ ...bar, anchor: earlier }, e.detail > 0);
   };
-  const toEarlier = step(-1);
-  const toLater = step(1);
+  const toLater = (e: MouseEvent<HTMLButtonElement>) => {
+    if (later) go({ ...bar, anchor: later }, e.detail > 0);
+  };
 
   const toToday = (e: MouseEvent<HTMLButtonElement>) => {
     if (home) return;
-    setNav({ ...nav, anchor: cal.today });
-    fadeBody(e.detail > 0);
+    go({ ...bar, anchor: cal.today }, e.detail > 0);
   };
 
-  const filter = (cat: CalCat) => {
+  const filter = (cat: CalCat, pointer: boolean) => {
+    const from = hurryFilter();
+    hurry(panelRun.current);
     const next = { ...off, [cat]: !off[cat] };
+    const settled = settleSelection(from, visibleItems(cal.items, next), cal);
     setOff(next);
-    setPicked(settleSelection(selected, visibleItems(cal.items, next), cal));
+    /* While a view is on its way in, it draws with the filter as it now
+       stands (his calChip). */
+    const moving = pointer && motionAllowed() && !swapRun.current.land;
+    const leaving = moving && next[cat] ? thingsOf(body.current, cat) : [];
+    if (leaving.length > 0) {
+      const run = filterRun.current;
+      setOffHeld(off);
+      filterPick.current = { id: settled };
+      run.anims = leaving.map(fadeOut);
+      run.land = () => {
+        setOffHeld(null);
+        setPicked(settled);
+      };
+      whenOut(run, () => {
+        filterPick.current = null;
+        setFilterIn((f) => ({ n: f.n + 1, cat: null }));
+      });
+      return;
+    }
+    setPicked(settled);
+    if (moving && !next[cat]) setFilterIn((f) => ({ n: f.n + 1, cat }));
   };
 
   /* Save: the words on today, as typed. What landed is chosen, shown and lit
      — its filter back on, its day in view. */
   const save = async (text: string): Promise<BoxSaved> => {
+    const grow = press.current === "pointer" && motionAllowed();
     const res = await addCalendarEvent(text);
     if (!res.ok) return res;
+    hurry(swapRun.current);
+    hurry(panelRun.current);
+    hurryFilter();
     const id = `ev:${res.id}`;
+    landGrow.current = grow;
     setPicked(id);
     setFresh(id);
     setOff((o) => ({ ...o, event: false }));
@@ -189,7 +354,15 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
     <div className="hd-cal">
       <div className="hd-cal-hd">
         {cal.canAdd && (
-          <div className="hd-cal-add">
+          <div
+            className="hd-cal-add"
+            onPointerDownCapture={() => {
+              press.current = "pointer";
+            }}
+            onKeyDownCapture={() => {
+              press.current = "key";
+            }}
+          >
             <TiffBox room="calendar" placeholder="Add to the calendar…" save={save} />
           </div>
         )}
@@ -199,7 +372,7 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
               key={v}
               type="button"
               className="hd-cal-vb"
-              aria-pressed={nav.view === v}
+              aria-pressed={bar.view === v}
               onClick={(e) => view(v, e.detail > 0)}
             >
               {label}
@@ -220,7 +393,7 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
             <Icon name="chevR" size={16} />
           </button>
           <h2 className="hd-cal-rt" aria-live="polite">
-            {rangeTitle(nav.view, nav.anchor, cal)}
+            {rangeTitle(bar.view, bar.anchor, cal)}
           </h2>
           <button type="button" className="hd-cal-today" aria-disabled={home} onClick={toToday}>
             Today
@@ -233,7 +406,7 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
               type="button"
               className="hd-cal-filter"
               aria-pressed={!off[c.cat]}
-              onClick={() => filter(c.cat)}
+              onClick={(e) => filter(c.cat, e.detail > 0)}
             >
               <CalSwatch cat={c.cat} />
               {c.label}
@@ -263,7 +436,7 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
               <CalYear months={yearMonths(vis, nav.anchor, cal)} selected={selected} onPick={pick} />
             )}
             <aside className="hd-cal-det" data-scroll="" aria-label="Details" aria-live="polite">
-              <CalPanel item={item} items={cal.items} frame={cal} fade={panelFade} />
+              <CalPanel item={item} items={cal.items} frame={cal} />
               {nav.view === "year" && <CalKey />}
             </aside>
           </div>

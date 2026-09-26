@@ -11473,7 +11473,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    Year), walked on the prototype to v33, on the page's tokens. His type is
    on the scale already; his spacing and radii snap to the scales, 4px or
    less each: the gutters 28 → 24, a week's air 26 → 24, the rows' gaps 14
-   → 12 and 7 → 8, the panel's 18 → 16, the year's gaps 26 and 30 → 24;
+   → 12 and 7 → 8, the panel's 18 → 16, the year's gaps 26 → 24 between
+   rows and 30 → 32 between months;
    his tiles 12 and 14 → 10, the view switch's seat 9 → the tray's radius
    less its inset, 8 and 7 → 6, and his swatches, 12px and under, sharp.
    Everything a person taps is 32px tall, as the list's verb is.
@@ -11623,8 +11624,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-it + .hd-cal-it { margin-top:2px; }
 .fg .hd-cal-it:hover { background:var(--tint); }
 .fg .hd-cal-it[data-sel] { background:var(--tint-2); }
-/* Just saved: lit in his event tint for a moment, then chosen. */
-.fg .hd-cal-it[data-fresh] { background:var(--hd-cal-ev-tint); }
+/* Just saved: his calFresh. It stands on his event tint for 55% of 2.4 s,
+   then eases to the choice's grey, which is what it is by then (a named
+   exemption from law 18's tokens, docs/design.md). Under reduced motion it
+   is a still tint for as long as it is lit. */
+.fg .hd-cal-it[data-fresh] { background:var(--hd-cal-ev-tint); animation:hdCalFresh 2.4s var(--ease) forwards; }
+@keyframes hdCalFresh { 0%, 55% { background:var(--hd-cal-ev-tint); } to { background:var(--tint-2); } }
+@media (prefers-reduced-motion:reduce) { .fg .hd-cal-it[data-fresh] { animation:none; } }
 .fg .hd-cal-it > .hd-cal-sw { align-self:flex-start; margin-top:8px; }
 .fg .hd-cal-tx { flex:1; min-width:0; line-height:1.45; }
 .fg .hd-cal-itt { display:block; max-width:100%; padding:0; border:0; border-radius:6px; background:none; font:inherit;
@@ -11712,8 +11718,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-barl { min-width:0; overflow:hidden; text-overflow:ellipsis; }
 
 /* YEAR: twelve months, as many to a row as fit. */
-.fg .hd-cal-yg { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); align-content:start; gap:24px;
-  padding:24px; }
+.fg .hd-cal-yg { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); align-content:start;
+  gap:24px 32px; padding:24px; }
 .fg .hd-cal-ym { display:flex; flex-direction:column; gap:8px; min-width:0; }
 .fg .hd-cal-ymh { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
 .fg .hd-cal-ymt { margin:0; font-size:16px; font-weight:700; line-height:1.2; color:var(--hd-ink); white-space:nowrap; }
@@ -11739,14 +11745,15 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-yc > i[data-dot="admin"] { background:var(--hd-cal-adm); }
 .fg .hd-cal-yc > i[data-dot="late"] { background:var(--hd-late); }
 
-/* THE PANEL beside Month and Year: the one thing chosen. */
+/* THE PANEL beside Month and Year: the one thing chosen. Its kicker is in
+   its category's ink, overdue or not: an admin date past its due says so
+   once, in his late capsule under the title (his calDet). */
 .fg .hd-cal-det { display:flex; flex-direction:column; gap:16px; padding:24px; border-left:1px solid var(--hd-rule); }
 .fg .hd-cal-dx { display:flex; flex-direction:column; gap:16px; }
 .fg .hd-cal-dxh { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
 .fg .hd-cal-k { font-size:13px; font-weight:500; color:var(--hd-cal-ev-t); }
 .fg .hd-cal-dx[data-c="hol"] .hd-cal-k { color:var(--hd-cal-hol-t); }
 .fg .hd-cal-dx[data-c="admin"] .hd-cal-k { color:var(--hd-cal-adm-t); }
-.fg .hd-cal-dx[data-late] .hd-cal-k { color:var(--hd-cal-late-t); }
 .fg .hd-cal-dx[data-c="school"] .hd-cal-k { color:var(--hd-body); }
 .fg .hd-cal-dxt { margin:0; font-size:24px; font-weight:700; line-height:1.2; color:var(--hd-ink); text-wrap:pretty; }
 .fg .hd-cal-w { font-size:14px; font-weight:500; color:var(--hd-body); }

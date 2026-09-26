@@ -182,6 +182,7 @@ function Bar({ bar: b, selected, onPick }: { bar: MonthBar<CalItem> } & Omit<Pic
       type="button"
       className="hd-cal-bar"
       data-kind={b.kind}
+      data-c={b.item.cat}
       data-before={b.continuesBefore ? "" : undefined}
       data-after={b.continuesAfter ? "" : undefined}
       aria-pressed={b.item.id === selected}

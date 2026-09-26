@@ -35,7 +35,9 @@ import { removeJobNote } from "./job-notes";
    SOMEONE ELSE'S CONVERSATION is theirs, in ServiceM8; what you may do is
    put it out of your sight. HIDE keeps one row per person per conversation
    (diary_hidden), and the conversation comes back when its asker writes
-   after you hid it (lib/dashboard/diary-query). Its Undo, `showConversation`,
+   after you hid it, or you reply in it from HeyTiff, your replies in it
+   going and coming back with it (lib/dashboard/diary-hidden, read in
+   lib/dashboard/diary-query). Its Undo, `showConversation`,
    takes the row away. Neither revalidates: the conversation on screen
    stands as "Hidden." with Undo until the page next comes round, and the
    read then leaves it out. */

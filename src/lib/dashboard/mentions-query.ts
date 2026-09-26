@@ -34,10 +34,18 @@
    "1 task for you" (./mention-asks). Two reads more, only when there are
    asks; a table not there yet, or a read that fails, says no task rather
    than taking the conversations with it. The settle (./mention-settle)
-   reads the conversations the same way and asks for none of this. */
+   reads the conversations the same way and asks for none of this.
+
+   AND YOUR REPLIES FROM HEYTIFF (two-way phase 2, ./diary-reply), when the
+   diary hands them in (`replies`, where the deployment sends notes): each
+   is threaded where the note it answers is, as HeyTiff saved it, and
+   ServiceM8's copy of it is known from HeyTiff's side (sm8CopiesOf, one
+   read beside the threads) and never drawn beside it — whatever sm8Ours
+   says, so even a read of it that fails can't show a reply twice. Neither
+   is ever asked about in sm8Ours. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { sm8Ours } from "@/lib/integrations/sm8-echo";
+import { sm8CopiesOf, sm8Ours } from "@/lib/integrations/sm8-echo";
 import { plusDays } from "@/lib/workboard/dates";
 import { sm8Roster, type Sm8Person } from "@/lib/workboard/job-notes-query";
 import { mentionedHandles } from "@/lib/workboard/sm8-mentions";
@@ -47,6 +55,7 @@ import {
   MENTION_DAYS,
   type DiaryConversation,
   type MentionNote,
+  type OurReply,
 } from "./diary-feed";
 import { asksIn, withAskTasks, type AskMade, type AskTaskNow } from "./mention-asks";
 import { missingTable } from "./task-events";
@@ -94,14 +103,21 @@ function jobNotes(rows: unknown): MentionNote[] {
 
     `staffId`, the viewer's staff card, brings each ask's task with it (see
     the note at the top); `people`, the roster when the caller has it
-    already, saves reading it again. */
+    already, saves reading it again; `replies`, the viewer's replies from
+    HeyTiff as their entries read comes back, threads each one where it
+    belongs (see the note at the top). It never rejects: the diary hands
+    in what it has. */
 export async function listMyMentions(
   orgId: string,
   mineUuid: string,
   today: string,
-  opts: { staffId?: string | null; people?: readonly Sm8Person[] } = {},
+  opts: {
+    staffId?: string | null;
+    people?: readonly Sm8Person[];
+    replies?: PromiseLike<readonly OurReply[]>;
+  } = {},
 ): Promise<DiaryConversation[]> {
-  const conversations = await readConversations(orgId, mineUuid, today, opts.people);
+  const conversations = await readConversations(orgId, mineUuid, today, opts.people, opts.replies);
   return opts.staffId ? withTheirTasks(orgId, opts.staffId, conversations, today) : conversations;
 }
 
@@ -110,6 +126,7 @@ async function readConversations(
   mineUuid: string,
   today: string,
   roster?: readonly Sm8Person[],
+  replyRead?: PromiseLike<readonly OurReply[]>,
 ): Promise<DiaryConversation[]> {
   const people = roster ?? (await sm8Roster(orgId));
   const me = people.find((p) => p.uuid === mineUuid);
@@ -137,7 +154,7 @@ async function readConversations(
 
   const jobUuids = [...new Set(asks.map((n) => n.jobUuid))];
   const earliest = asks.reduce((min, n) => (n.at < min ? n.at : min), asks[0].at);
-  const [thread, jobRows] = await Promise.all([
+  const [thread, jobRows, yours] = await Promise.all([
     supabaseAdmin
       .from("sm8_job_notes")
       .select(NOTE_COLUMNS)
@@ -152,6 +169,16 @@ async function readConversations(
       .select("uuid, generated_job_id, geo_city, active")
       .eq("org_id", orgId)
       .in("uuid", jobUuids),
+    /* your replies from HeyTiff, and the uuids ServiceM8's copies of them
+       carry — read only when there are any. A read of them that failed
+       leaves them your entries. */
+    Promise.resolve(replyRead ?? []).then(
+      async (replies) => ({
+        replies,
+        copies: replies.length > 0 ? await sm8CopiesOf(orgId, replies.map((r) => r.id)) : undefined,
+      }),
+      () => ({ replies: [] as readonly OurReply[], copies: undefined }),
+    ),
   ]);
 
   /* The asks first: a thread read that failed, or was cut at its limit,
@@ -193,10 +220,12 @@ async function readConversations(
       people,
       jobs,
       today,
+      ...(yours.replies.length > 0 ? { replies: yours.replies, copies: yours.copies } : {}),
     });
-    const unchecked = [...new Set(conversations.flatMap((c) => c.messages.map((m) => m.id)))].filter(
-      (id) => !checked.has(id)
-    );
+    /* HeyTiff's own rows are ours already: never asked about */
+    const unchecked = [
+      ...new Set(conversations.flatMap((c) => c.messages.filter((m) => !m.ours).map((m) => m.id))),
+    ].filter((id) => !checked.has(id));
     if (unchecked.length === 0) return conversations;
     for (const id of unchecked) checked.add(id);
     const ours = await sm8Ours(orgId, unchecked);

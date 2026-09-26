@@ -14,6 +14,7 @@ import {
   sortStamp,
   type DiaryConversation,
   type MentionNote,
+  type OurReply,
 } from "../diary-feed";
 import type { DiaryEntry } from "../journal";
 import type { Sm8Person } from "@/lib/workboard/job-notes-query";
@@ -306,7 +307,7 @@ describe("diaryFeed", () => {
     undone: false,
   });
   const conversation = (key: string, lastTheirs: string, lastYours: string | null = null): DiaryConversation =>
-    ({ key, lastTheirs, lastYours }) as DiaryConversation;
+    ({ key, lastTheirs, lastYours, messages: [] }) as unknown as DiaryConversation;
   const feedOf = (over: Partial<Parameters<typeof diaryFeed>[0]>) =>
     diaryFeed({ entries: [], conversations: [], day: "2026-09-25", mentions: true, entriesCut: false, syncedAt: null, ...over });
 
@@ -404,5 +405,200 @@ describe("the small helpers", () => {
     expect(sortStamp("2026-09-21")).toBe("2026-09-21 00:00:00");
     expect(sortStamp("0000-00-00 00:00:00")).toBe("");
     expect(sortStamp(null)).toBe("");
+  });
+});
+
+/* YOUR REPLY FROM HEYTIFF (two-way phase 2): a reply sent from a job card,
+   or a task's Done, is HeyTiff's own row, queued to ServiceM8 as you, whose
+   copy the sync brings back into the mirror. The diary shows it ONCE, in
+   the conversation holding the note it answers, from the moment it is
+   saved; the copy is the same message. */
+describe("your reply from HeyTiff", () => {
+  const ASK = { uuid: "n-ask", jobUuid: "j-2041", author: LUKE.uuid, at: "2026-09-25 08:40:00", text: "@isaacsmith Please call Mary" };
+  const line = { text: "Sending to ServiceM8…", tone: null, again: null, ask: null } as const;
+  const reply = (over: Partial<OurReply> = {}): OurReply => ({
+    id: "wn-reply",
+    to: "n-ask",
+    jobUuid: "j-2041",
+    words: "@lukeingold calling her now",
+    at: "2026-09-25 09:10",
+    savedAt: "2026-09-24T23:10:00.000000+00:00",
+    line,
+    ...over,
+  });
+  /* ServiceM8's copy of it, as the sync brings it back: signed as you, its
+     uuid the one HeyTiff minted for the write */
+  const ECHO = { uuid: "R-COPY", jobUuid: "j-2041", author: ISAAC.uuid, at: "2026-09-25 09:10:04", text: "@lukeingold calling her now" };
+  const withReplies = (notes: MentionNote[], replies: OurReply[], copies?: string[]) =>
+    buildConversations({ notes, me, people, jobs: JOBS, today: "2026-09-25", replies, ...(copies ? { copies: new Set(copies) } : {}) });
+  const entryOf = (id: string, stamp: string): DiaryEntry => ({
+    id,
+    said: "calling her now",
+    day: stamp.slice(0, 10),
+    at: "",
+    outcomes: [],
+    spoken: false,
+    stamp,
+    routed: false,
+    taskFor: {},
+    turns: [],
+    undo: false,
+    undone: false,
+  });
+  const feedWith = (entries: DiaryEntry[], conversations: DiaryConversation[]) =>
+    diaryFeed({ entries, conversations, day: "2026-09-25", mentions: true, entriesCut: false, syncedAt: null });
+  const keysOf = (f: ReturnType<typeof diaryFeed>) => [...f.today, ...f.earlier].map((i) => i.key);
+
+  it("is threaded under the note it answers from the moment it is saved, before the sync, with its line", () => {
+    const [c] = withReplies([ASK], [reply()]);
+    expect(c.messages.map((m) => [m.id, m.from, m.text])).toEqual([
+      ["n-ask", "them", "Please call Mary"],
+      ["wn-reply", "you", "calling her now"],
+    ]);
+    expect(c.messages[1]).toMatchObject({ addressed: true, at: "2026-09-25 09:10:00", ours: { jobUuid: "j-2041", line } });
+    // it answered him: nothing is lit
+    expect(c).toMatchObject({ answered: true, fresh: false, lastYours: "2026-09-25 09:10:00" });
+  });
+
+  /* One you took back is drawn only while something of it may still be in
+     ServiceM8, with its Try again (./diary-reply): the thread says which,
+     so it is not offered a Delete it has had. */
+  it("says in its thread that one was taken back, and nothing of the kind for one that wasn't", () => {
+    const [c] = withReplies([ASK], [reply({ takenBack: true })]);
+    expect(c.messages[1].ours).toEqual({ jobUuid: "j-2041", line, takenBack: true });
+    expect(withReplies([ASK], [reply()])[0].messages[1].ours).not.toHaveProperty("takenBack");
+  });
+
+  it("is drawn once after the sync: ServiceM8's copy of it is the same message, whatever its case", () => {
+    const [c] = withReplies([ASK, ECHO], [reply()], ["r-copy"]);
+    expect(c.messages.map((m) => m.id)).toEqual(["n-ask", "wn-reply"]);
+    // the copy's words join by name alone; without knowing it, it would be drawn twice
+    expect(withReplies([ASK, ECHO], [reply()])[0].messages.map((m) => m.id)).toEqual(["n-ask", "wn-reply", "R-COPY"]);
+  });
+
+  it("is not drawn again as your entry once a conversation holds it", () => {
+    const conversations = withReplies([ASK], [reply()]);
+    const feed = feedWith([entryOf("wn-reply", "2026-09-25 09:10"), entryOf("wn-other", "2026-09-25 09:00")], conversations);
+    // and it sorts by his ask, as a reply of yours never moves a conversation
+    expect(keysOf(feed)).toEqual(["entry:wn-other", "mention:j-2041:u-luke"]);
+  });
+
+  it("stays your entry when no conversation holds the note it answers", () => {
+    const conversations = withReplies([ASK], [reply({ to: "n-removed-in-servicem8" })]);
+    expect(conversations[0].messages.map((m) => m.id)).toEqual(["n-ask"]);
+    expect(conversations[0]).toMatchObject({ answered: false, fresh: true });
+    expect(keysOf(feedWith([entryOf("wn-reply", "2026-09-25 09:10")], conversations))).toEqual([
+      "entry:wn-reply",
+      "mention:j-2041:u-luke",
+    ]);
+  });
+
+  it("goes by what it answers, not its words: a Done, and a plain Done. that names nobody", () => {
+    const later = { uuid: "n-later", jobUuid: "j-2041", author: LUKE.uuid, at: "2026-09-25 08:50:00", text: "@isaacsmith the filters too" };
+    const [c] = withReplies(
+      [ASK, later],
+      [
+        reply({ id: "wn-done", to: "n-ask", words: "@lukeingold Done.", at: "2026-09-25 09:00" }),
+        reply({ id: "wn-plain", to: "n-later", words: "Done.", at: "2026-09-25 09:05" }),
+      ],
+    );
+    expect(c.messages.map((m) => [m.id, m.text])).toEqual([
+      ["n-ask", "Please call Mary"],
+      ["n-later", "the filters too"],
+      ["wn-done", "Done."],
+      ["wn-plain", "Done."],
+    ]);
+  });
+
+  it("comes after the note it answers when HeyTiff's clock is behind ServiceM8's, and has answered it", () => {
+    // saved at 08:39 on HeyTiff's clock, answering a note ServiceM8 stamped 08:40:00
+    const [c] = withReplies([ASK], [reply({ at: "2026-09-25 08:39" })]);
+    expect(c.messages.map((m) => [m.id, m.at])).toEqual([
+      ["n-ask", "2026-09-25 08:40:00"],
+      ["wn-reply", "2026-09-25 08:40:00"],
+    ]);
+    expect(c).toMatchObject({ answered: true, fresh: false });
+  });
+
+  it("keeps two replies at one stamp in the order they were saved, whatever their ids", () => {
+    // "can't make it today", then "actually I can, 3pm": both held to his note, stamped after them on ServiceM8's clock
+    const [c] = withReplies(
+      [ASK],
+      [
+        reply({ id: "wn-b", words: "@lukeingold can't make it today", at: "2026-09-25 08:39:05", savedAt: "2026-09-24T22:39:05.100000+00:00" }),
+        reply({ id: "wn-a", words: "@lukeingold actually I can, 3pm", at: "2026-09-25 08:39:40", savedAt: "2026-09-24T22:39:40.200000+00:00" }),
+      ],
+    );
+    expect(c.messages.map((m) => [m.id, m.at])).toEqual([
+      ["n-ask", "2026-09-25 08:40:00"],
+      ["wn-b", "2026-09-25 08:40:00"],
+      ["wn-a", "2026-09-25 08:40:00"],
+    ]);
+    // and two saved in the same second
+    const [same] = withReplies(
+      [ASK],
+      [
+        reply({ id: "wn-b", words: "@lukeingold on my way", at: "2026-09-25 09:10:07", savedAt: "2026-09-24T23:10:07.100000+00:00" }),
+        reply({ id: "wn-a", words: "Done.", at: "2026-09-25 09:10:07", savedAt: "2026-09-24T23:10:07.900000+00:00" }),
+      ],
+    );
+    expect(same.messages.map((m) => m.id)).toEqual(["n-ask", "wn-b", "wn-a"]);
+  });
+
+  it("is your answer: his note after it that names nobody is on the job, not part of the ask", () => {
+    const status = { uuid: "n-status", jobUuid: "j-2041", author: LUKE.uuid, at: "2026-09-25 11:00:00", text: "Invoice sent to client" };
+    expect(withReplies([ASK, status], [reply()])[0].messages.map((m) => m.id)).toEqual(["n-ask", "wn-reply"]);
+    // without it, his note would follow on, as it does before you answer
+    expect(withReplies([ASK, status], [])[0].messages.map((m) => m.id)).toEqual(["n-ask", "n-status"]);
+  });
+
+  /* The entry read came back full, and its oldest is your reply: the
+     entries reach back to it, wherever it is drawn. */
+  const cutFeed = (conversations: DiaryConversation[]) =>
+    diaryFeed({
+      entries: [entryOf("wn-reply", "2026-09-24 09:10"), entryOf("e-new", "2026-09-25 07:00")],
+      conversations,
+      day: "2026-09-25",
+      mentions: true,
+      entriesCut: true,
+      syncedAt: null,
+    });
+
+  it("still marks how far back your entries were read when the read was cut", () => {
+    const asked = { ...ASK, at: "2026-09-24 09:00:00" };
+    // his answer at 10:00 brings the conversation to then; another ask of you at noon, on another job
+    const answer = { uuid: "n-answer", jobUuid: "j-2041", author: LUKE.uuid, at: "2026-09-24 10:00:00", text: "@isaacsmith thanks" };
+    const noon = { uuid: "n-noon", jobUuid: "j-3294", author: LUKE.uuid, at: "2026-09-24 12:00:00", text: "@isaacsmith fans?" };
+    const feed = cutFeed(withReplies([asked, answer, noon], [reply({ at: "2026-09-24 09:10" })]));
+    // both are inside the reach your reply marks, and the reply is drawn once, in its conversation
+    expect(keysOf(feed)).toEqual(["entry:e-new", "mention:j-3294:u-luke", "mention:j-2041:u-luke"]);
+  });
+
+  /* Hidden, a conversation takes your replies in it with it (diary-query,
+     ./diary-hidden's repliesPutAway): not drawn on their own, while the
+     entry read still reaches back as far as it did. */
+  it("is not drawn on its own when the conversation holding it was hidden, and still marks the entries' reach", () => {
+    const asked = { ...ASK, at: "2026-09-24 09:00:00" };
+    const noon = { uuid: "n-noon", jobUuid: "j-3294", author: LUKE.uuid, at: "2026-09-24 12:00:00", text: "@isaacsmith fans?" };
+    const talks = withReplies([asked, noon], [reply({ at: "2026-09-24 09:10" })]);
+    const feed = diaryFeed({
+      entries: [entryOf("wn-reply", "2026-09-24 09:10"), entryOf("e-new", "2026-09-25 07:00")],
+      // the conversation holding the reply is hidden: only the other is on the page
+      conversations: talks.filter((c) => c.key !== "j-2041:u-luke"),
+      putAway: new Set(["wn-reply"]),
+      day: "2026-09-25",
+      mentions: true,
+      entriesCut: true,
+      syncedAt: null,
+    });
+    // his noon ask is after your reply, the oldest entry read, so inside the reach it still marks
+    expect(keysOf(feed)).toEqual(["entry:e-new", "mention:j-3294:u-luke"]);
+  });
+
+  it("is your entry when its conversation is past the reach, never dropped", () => {
+    // his ask, and so the conversation, is older than the oldest entry read
+    const asked = { ...ASK, at: "2026-09-24 09:00:00" };
+    const feed = cutFeed(withReplies([asked], [reply({ at: "2026-09-24 09:10" })]));
+    expect(keysOf(feed)).toEqual(["entry:e-new", "entry:wn-reply"]);
   });
 });

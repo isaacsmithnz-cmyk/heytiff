@@ -20,7 +20,10 @@
    strip, the stored summary and the claim modal) and a task made from a
    note (job-notes' taskFromJobNote). Both of those ask only where the
    deployment sends notes; readJobAttention asks only when readJobNotes
-   hasn't (`echoFiltered`), so a card open makes one echo read. The echo
+   hasn't (`echoFiltered`), so a card open makes one echo read. The new
+   Home's diary leaves it out of its conversations (lib/dashboard/
+   mentions-query), and knows the copy of a reply of yours from HeyTiff's
+   side too (`sm8CopiesOf`), since it draws the reply itself. The echo
    hides OUR COPY from OUR lists; who a note mentions is still read from its
    words. HeyTiff's OWN rows — sm8_writes, the document it sent, a paper, a
    note's workboard_notes row — are never touched: the file or the note
@@ -105,6 +108,45 @@ export async function sm8Ours(orgId: string, uuids: readonly string[]): Promise<
     return new Set();
   }
   return ours;
+}
+
+/** THE OTHER WAY ROUND, for notes: the uuids ServiceM8's copy of each of
+    these HeyTiff notes (workboard_notes ids, two-way phase 2) carries or
+    may carry — its create's own, and any it replaced — lower case. The
+    diary draws your reply as HeyTiff saved it from the moment it is saved
+    (lib/dashboard/diary-reply), so it needs to know its copy when the sync
+    brings it back, whatever sm8Ours says of the notes around it. One read;
+    a read that fails knows no copy, logged. */
+export async function sm8CopiesOf(orgId: string, noteIds: readonly string[]): Promise<Set<string>> {
+  const ids = [...new Set(noteIds.filter((id) => typeof id === "string" && UUID.test(id)))];
+  const copies = new Set<string>();
+  if (ids.length === 0) return copies;
+  const read = (columns: string) =>
+    supabaseAdmin
+      .from("sm8_writes")
+      .select(columns)
+      .eq("org_id", orgId)
+      .eq("kind", "note")
+      .eq("op", "create")
+      .in("note_id", ids);
+  try {
+    let { data, error } = await read("note_id, remote_uuid, replaced_uuids");
+    /* a database without replaced_uuids yet: the uuid each row holds now */
+    if (missingColumn(error)) ({ data, error } = await read("note_id, remote_uuid"));
+    if (error) {
+      console.error(`[sm8] couldn't read which ServiceM8 notes are copies of org ${orgId}'s own:`, error);
+      return copies;
+    }
+    for (const r of (data ?? []) as unknown as EchoRow[]) {
+      for (const u of [r.remote_uuid, ...(r.replaced_uuids ?? [])]) if (u && UUID.test(u)) copies.add(u.toLowerCase());
+    }
+  } catch (err) {
+    console.error(
+      `[sm8] couldn't read which ServiceM8 notes are copies of org ${orgId}'s own: ${err instanceof Error ? err.message : String(err)}`
+    );
+    return new Set();
+  }
+  return copies;
 }
 
 /** `rows` without the ones whose uuid is ours. */

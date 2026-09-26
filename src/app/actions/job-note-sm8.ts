@@ -66,6 +66,17 @@ import { queueFlagChange, queueNoteCreate, queueNoteTakeBack } from "./sm8-note-
 import { completeTask } from "./dashboard";
 
 const WB = "/dashboard/workboard";
+/* The new Home (/dashboard): the desk's one job card opens over it, and its
+   diary threads each reply of yours and says where it stands (lib/
+   dashboard/diary-reply). A press that changes a note of yours asks for
+   Home again as it asks for the board, so the diary under the card shows
+   it at once rather than on its next load. A flag's mark changes nothing
+   the diary draws, and asks for the board alone. */
+const HOME = "/dashboard";
+const revalidateNotes = () => {
+  revalidatePath(WB);
+  revalidatePath(HOME);
+};
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_WORDS = 4000;
 
@@ -354,7 +365,7 @@ export async function replyToJobNote(input: {
 
   if (queued.ok) await settle(orgId, queued.rowIds, startedAt);
 
-  revalidatePath(WB);
+  revalidateNotes();
   /* 10. the row, as it now stands */
   const note = await readOurJobNote(orgId, composeId, viewerOf(orgId, press, g.state));
   if (!note) return { ok: false, error: NOTE_WORDS.press.noNote };
@@ -405,7 +416,7 @@ export async function sendJobNoteToServiceM8(input: { jobUuid: string; noteId: s
   if (!press.staffId || head.author_id !== press.staffId) return { ok: false, error: NOTE_WORDS.press.notAuthor };
 
   const queued = await queueNoteCreate(press, { noteId });
-  revalidatePath(WB);
+  revalidateNotes();
   if (!queued.ok) {
     const error = await refusalWords(queued.refusal, { orgId, press, state: g.state, doing: "send" });
     const now = await readOurJobNote(orgId, noteId, viewerOf(orgId, press, g.state));
@@ -436,7 +447,7 @@ export async function takeBackJobNote(input: { jobUuid: string; noteId: string }
   if (!head || head.target_kind !== "job" || head.target_id !== job) return { ok: false, error: NOTE_WORDS.press.noNote };
 
   const r = await queueNoteTakeBack(press, { noteId });
-  revalidatePath(WB);
+  revalidateNotes();
   const lineNow = async () => readOurJobNote(orgId, noteId, viewerOf(orgId, press));
   if (!r.ok && !r.removed) {
     const owner = r.refusal === "not_yours" ? await senderOfNote(orgId, noteId, head.author_id) : null;
@@ -579,7 +590,7 @@ export async function confirmMySm8Link(input: { remoteId: string; answer: "yes" 
     answer,
   });
   if (!saved.ok) return saved;
-  revalidatePath(WB);
+  revalidateNotes();
   return { ok: true, sender: await sm8NoteSender(orgId, press.staffId, state.tenantId) };
 }
 

@@ -23,6 +23,7 @@ import type { DiaryEntry } from "@/lib/dashboard/journal";
 import { conversationOf, lastTiff, type EarlierTurn } from "@/lib/workboard/note-turns";
 import { Confirm } from "./home-confirm";
 import { HomeDiaryConversation } from "./home-diary-conversation";
+import { HomeDiaryReplyLine } from "./home-diary-reply";
 import { useDiaryRefresh } from "./use-diary-refresh";
 
 /* THE DIARY — the new Home's Diary tab (docs/design.md, "Home is the day,
@@ -58,7 +59,10 @@ import { useDiaryRefresh } from "./use-diary-refresh";
    offered for a note ServiceM8 holds too (`inSm8`), which is changed
    there. Delete asks twice, as Delete task does, since nothing brings it
    back; what the entry made stays. Gone, the keyboard lands on the entry
-   under it, or the one above.
+   under it, or the one above. A reply of yours to a ServiceM8 note is
+   ServiceM8's too, so never an Edit; its Delete takes it back, wherever it
+   is drawn (./home-diary-conversation), and one already taken back has
+   only its line's Try again (lib/dashboard/diary-reply).
 
    UNDO sits at the end of what an entry made, while it can take it back —
    until someone acts on a row it filed (Isaac's call, 2026-09-25). The
@@ -84,7 +88,11 @@ import { useDiaryRefresh } from "./use-diary-refresh";
      conversation in the same column, sorted by their newest message, so
      an answer to last week's ask comes up into Today
      (./home-diary-conversation: the job door, the one task the ask made,
-     which is a row like any other task door's, and Reply).
+     which is a row like any other task door's, and Reply). A reply of
+     yours sent from HeyTiff is drawn there, in its thread, not again here
+     as an entry — unless no conversation holds the note it answers; then
+     it is your entry, saying where it stands with ServiceM8 all the same
+     (lib/dashboard/diary-reply).
 
    A DOOR FROM ANOTHER FACE names an entry (the list's "from your diary", a
    task's Open in diary) or a conversation, by one of its notes (the task
@@ -255,8 +263,15 @@ function Entry({
     const li = itemRef.current;
     const next = (li?.nextElementSibling ?? li?.previousElementSibling)?.querySelector<HTMLElement>(".hd-dy-en");
     next?.focus({ preventScroll: true });
+    setMode("read");
     setGone(true);
   };
+  /* A REPLY OF YOURS TAKEN BACK that the page reads as still, or maybe
+     still, in ServiceM8 (lib/dashboard/diary-reply) has had its Delete:
+     its line's Try again is its door, and it offers nothing else. One
+     deleted here that the page then reads back so is drawn again, saying
+     where it stands, rather than kept off the page it is still on. */
+  const takenBack = !!entry.reply?.takenBack;
 
   /* UNDO, PRESSED HERE. What it took back is held on the entry at once —
      the page's own read says the same once it has come round — and a
@@ -321,7 +336,7 @@ function Entry({
     setUndoSaid({ text: res.error, again: false });
   };
 
-  if (gone) return null;
+  if (gone && !takenBack) return null;
 
   return (
     <li className="hd-dy-it" data-item={item} data-entry={entry.id} ref={itemRef}>
@@ -335,7 +350,7 @@ function Entry({
             <p className="hd-dy-m">
               <b>You</b>, {entryWhen(entry, { today, justNow })}
             </p>
-            {mode === "read" && (
+            {mode === "read" && !takenBack && (
               <span className="hd-dy-acts">
                 {!entry.inSm8 && (
                   <button type="button" className="hd-dy-act" ref={editButton} onClick={openEdit}>
@@ -464,6 +479,11 @@ function Entry({
               )}
             </div>
           ) : null}
+          {/* a reply of yours whose note no conversation holds: where it
+              stands with ServiceM8, as in a conversation */}
+          {entry.reply?.line && (
+            <HomeDiaryReplyLine noteId={entry.id} jobUuid={entry.reply.jobUuid} line={entry.reply.line} />
+          )}
         </div>
       </div>
     </li>

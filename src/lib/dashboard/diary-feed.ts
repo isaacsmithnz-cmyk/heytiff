@@ -23,6 +23,16 @@
    Your notes that name nobody don't join: you write job notes all day, and
    a note on the job is not an answer to Luke unless it says it is to him.
 
+   YOUR REPLY FROM HEYTIFF (two-way phase 2, ./diary-reply) joins by what
+   it answers, not by its words: the conversation that holds the note it
+   answers takes it, at the moment it was saved to the second (never before
+   that note), as HeyTiff saved it — so it is there before the sync, it
+   says where it stands with ServiceM8, and a plain "Done." with nobody
+   named still goes where it belongs. ServiceM8's copy of it (`copies`) is
+   the same message, and never joins beside it. One that answers a note no
+   conversation holds stays one of your entries (diaryFeed leaves out only
+   what a conversation holds, or one you hid took with it: ./diary-hidden).
+
    WHAT A MESSAGE SAYS is the note as written, less its addressing
    (sm8-mentions' quotedNote): the handles it opens with, and the one
    naming the other side of this conversation. Anybody else it names is
@@ -51,6 +61,7 @@
 import { plusDays } from "@/lib/workboard/dates";
 import { mentionedHandles, namedNote, quotedNote } from "@/lib/workboard/sm8-mentions";
 import type { Sm8Person } from "@/lib/workboard/job-notes-query";
+import type { ReplyLine } from "./diary-reply";
 import type { DiaryEntry } from "./journal";
 
 /** How far back a mention is read. */
@@ -62,6 +73,12 @@ export const FOLLOW_ON_DAYS = 3;
 
 /** The most entries the diary reads (journal-query's listDiaryEntries). */
 export const DIARY_ENTRY_LIMIT = 60;
+
+/** The most replies of yours the conversations read, over the mentions'
+    reach (journal-query's listDiaryReplies): each is one uuid in the URL
+    of the reads of their queue rows and their copies, and a hundred keep
+    those near 4 KB, as sm8-echo's ECHO_CHUNK keeps its own. */
+export const DIARY_REPLY_LIMIT = 100;
 
 /** One live ServiceM8 job note, as the read hands it over: text trimmed,
     stamp as ServiceM8 wrote it. HeyTiff's own echoes are already out. */
@@ -75,8 +92,31 @@ export type MentionNote = {
   at: string;
 };
 
+/** A reply of yours as HeyTiff saved it, or a task's Done (./diary-reply):
+    what the conversation holding the note it answers draws in its place. */
+export type OurReply = {
+  /** HeyTiff's row (workboard_notes): your entry's id. */
+  id: string;
+  /** The ServiceM8 note it answers. */
+  to: string;
+  /** The job its row is on: what a press on its line names. */
+  jobUuid: string;
+  /** Its words in the job's diary, with the handle it opens on. */
+  words: string;
+  /** When it was saved, to the second, on the account's clock. */
+  at: string;
+  /** When it was saved, as the database says it: the order of two saved
+      in the same second. */
+  savedAt: string;
+  line: ReplyLine | null;
+  /** Taken back, and drawn only while something of it may still be in
+      ServiceM8 (./diary-reply): its line's Try again is its door. */
+  takenBack?: true;
+};
+
 export type DiaryMessage = {
-  /** The ServiceM8 note's uuid. */
+  /** The ServiceM8 note's uuid — or, for yours as HeyTiff saved it
+      (`ours`), HeyTiff's row. */
   id: string;
   from: "them" | "you";
   /** It names the other side of the conversation: "Luke Ingold to you".
@@ -92,6 +132,10 @@ export type DiaryMessage = {
       of a note written to several people is to. */
   named: string;
   at: string;
+  /** A reply of yours from HeyTiff, or a task's Done, drawn as HeyTiff
+      saved it — ServiceM8's copy never joins beside it: the job its row is
+      on, where it stands with ServiceM8, and whether it was taken back. */
+  ours?: { jobUuid: string; line: ReplyLine | null; takenBack?: true };
 };
 
 export type DiaryConversation = {
@@ -208,6 +252,12 @@ export function buildConversations(input: {
   people: readonly Sm8Person[];
   jobs: ReadonlyMap<string, { label: string | null; live: boolean }>;
   today: string;
+  /** Your replies as HeyTiff saved them, each threaded where the note it
+      answers is (YOUR REPLY FROM HEYTIFF, above). */
+  replies?: readonly OurReply[];
+  /** The uuids ServiceM8's copies of those replies carry, lower case
+      (sm8-echo's sm8CopiesOf): the same messages, never drawn twice. */
+  copies?: ReadonlySet<string>;
 }): DiaryConversation[] {
   const { me, today } = input;
   const byUuid = new Map(input.people.map((p) => [p.uuid, p]));
@@ -220,29 +270,67 @@ export function buildConversations(input: {
   if (myFirst) readNames.set(me.handle, myFirst);
 
   const seen = new Set<string>();
+  const copies = input.copies;
   const notes = input.notes
     .map((n) => ({ ...n, at: sortStamp(n.at) }))
     .filter((n) => {
       if (!n.at || !n.jobUuid || !n.text || seen.has(n.uuid)) return false;
       seen.add(n.uuid);
-      return true;
+      return !copies?.has(n.uuid.toLowerCase());
     })
     .sort((a, b) => (a.at === b.at ? (a.uuid < b.uuid ? -1 : 1) : a.at < b.at ? -1 : 1));
+
+  /* Your replies, each at the moment it was saved — but never before the
+     note it answers: HeyTiff's clock and ServiceM8's are two clocks. */
+  const noteAt = new Map(notes.map((n) => [n.uuid, n.at]));
+  const replies = (input.replies ?? []).flatMap((r) => {
+    const saved = sortStamp(r.at);
+    if (!saved || !r.words.trim() || seen.has(r.id)) return [];
+    seen.add(r.id);
+    const source = noteAt.get(r.to) ?? "";
+    return [{ ...r, at: source > saved ? source : saved }];
+  });
+  /* One stream in time order; a reply comes after a note at the same stamp,
+     so the note it answers is always in before it, and two replies at the
+     same stamp (two held to the note they answer, or two in one second)
+     keep the order they were saved in. */
+  type Step = { at: string; id: string; reply: { savedAt: string } | null };
+  const inOrder = (a: Step, b: Step): number => {
+    if (a.at !== b.at) return a.at < b.at ? -1 : 1;
+    if (!a.reply !== !b.reply) return a.reply ? 1 : -1;
+    if (a.reply && b.reply && a.reply.savedAt !== b.reply.savedAt) return a.reply.savedAt < b.reply.savedAt ? -1 : 1;
+    return a.id < b.id ? -1 : 1;
+  };
+  const stream = [
+    ...notes.map((note) => ({ at: note.at, id: note.uuid, note, reply: null })),
+    ...replies.map((reply) => ({ at: reply.at, id: reply.id, note: null, reply })),
+  ].sort(inOrder);
 
   const open = new Map<string, Draft>();
   /* conversation key → the asker's newest note that mentioned you */
   const askedAt = new Map<string, string>();
-  const say = (c: Draft, n: MentionNote, from: DiaryMessage["from"], addressed = true) => {
+  /* message id → the first conversation that holds it: where a reply to it
+     goes */
+  const holder = new Map<string, Draft>();
+  const say = (
+    c: Draft,
+    n: { id: string; text: string; at: string },
+    from: DiaryMessage["from"],
+    addressed = true,
+    ours?: DiaryMessage["ours"],
+  ) => {
     /* The other side of the conversation is who the note is addressed to. */
     const addressing = [from === "them" ? me.handle : c.asker.handle];
     c.messages.push({
-      id: n.uuid,
+      id: n.id,
       from,
       addressed,
       text: quotedNote(n.text, { names, addressing }),
       named: namedNote(n.text, readNames),
       at: n.at,
+      ...(ours ? { ours } : {}),
     });
+    if (!holder.has(n.id)) holder.set(n.id, c);
     if (from === "them") c.lastTheirs = n.at;
     else c.lastYours = n.at;
   };
@@ -252,7 +340,20 @@ export function buildConversations(input: {
     return msOf(at) - msOf(asked) <= FOLLOW_ON_DAYS * 86_400_000;
   };
 
-  for (const n of notes) {
+  for (const step of stream) {
+    if (step.reply) {
+      const r = step.reply;
+      /* where the note it answers is; nowhere, and it stays your entry */
+      const c = holder.get(r.to);
+      if (c)
+        say(c, { id: r.id, text: r.words, at: r.at }, "you", true, {
+          jobUuid: r.jobUuid,
+          line: r.line,
+          ...(r.takenBack ? { takenBack: true as const } : {}),
+        });
+      continue;
+    }
+    const n = { ...step.note, id: step.note.uuid };
     const named = mentionedHandles(n.text, handles);
 
     if (n.author === me.uuid) {
@@ -296,7 +397,10 @@ export function buildConversations(input: {
 
   return [...open.values()]
     .map((c): DiaryConversation => {
-      const answered = c.lastYours !== null && c.lastYours > c.lastTheirs;
+      /* a reply held to the stamp of the note it answers came after it */
+      const last = c.messages[c.messages.length - 1];
+      const answered =
+        c.lastYours !== null && (c.lastYours > c.lastTheirs || (c.lastYours === c.lastTheirs && !!last?.ours));
       return { ...c, answered, fresh: c.lastTheirs.slice(0, 10) === today && !answered, tasks: [] };
     })
     .sort((a, b) => (a.lastTheirs === b.lastTheirs ? (a.key < b.key ? -1 : 1) : a.lastTheirs < b.lastTheirs ? 1 : -1));
@@ -315,31 +419,45 @@ export function diaryFeed(input: {
       didn't read. */
   entriesCut: boolean;
   syncedAt: string | null;
+  /** Your replies in a conversation you hid (./diary-hidden's
+      repliesPutAway): they went with it, so none is drawn on its own. */
+  putAway?: ReadonlySet<string>;
 }): DiaryFeed {
-  const items: DiaryItem[] = [
-    ...input.entries.map(
-      (entry): DiaryItem => ({ kind: "entry", key: `entry:${entry.id}`, sortAt: sortStamp(entry.stamp), entry })
-    ),
-    ...input.conversations.map(
+  /* The nearer of the two reaches. A bare day compares below every stamp
+     on it, so the whole of that day is in. Every entry read marks how far
+     back the entries reach, wherever it is drawn. */
+  const entryStamps = input.entries.map((e) => sortStamp(e.stamp)).filter(Boolean);
+  const horizon = [
+    input.mentions ? plusDays(input.day, -MENTION_DAYS) : "",
+    input.entriesCut && entryStamps.length ? entryStamps.reduce((min, s) => (s < min ? s : min)) : "",
+  ].reduce((a, b) => (a > b ? a : b));
+  const within = (i: DiaryItem) => i.sortAt !== "" && (!horizon || i.sortAt >= horizon);
+
+  const conversations = input.conversations
+    .map(
       (conversation): DiaryItem => ({
         kind: "conversation",
         key: `mention:${conversation.key}`,
         sortAt: sortStamp(conversation.lastTheirs),
         conversation,
       })
-    ),
-  ]
-    .filter((i) => i.sortAt !== "")
-    .sort((a, b) => (a.sortAt === b.sortAt ? (a.key < b.key ? -1 : 1) : a.sortAt < b.sortAt ? 1 : -1));
-
-  /* The nearer of the two reaches. A bare day compares below every stamp
-     on it, so the whole of that day is in. */
-  const entryStamps = input.entries.map((e) => sortStamp(e.stamp)).filter(Boolean);
-  const horizon = [
-    input.mentions ? plusDays(input.day, -MENTION_DAYS) : "",
-    input.entriesCut && entryStamps.length ? entryStamps.reduce((min, s) => (s < min ? s : min)) : "",
-  ].reduce((a, b) => (a > b ? a : b));
-  const shown = horizon ? items.filter((i) => i.sortAt >= horizon) : items;
+    )
+    .filter(within);
+  /* A reply of yours a conversation on the page holds is drawn there, and
+     not again as an entry of its own. One whose conversation is past the
+     reach is still your entry: never dropped. One whose conversation you
+     hid went with it, and comes back with it. */
+  const held = new Set([
+    ...conversations.flatMap((i) => (i.kind === "conversation" ? i.conversation.messages : []).filter((m) => m.ours).map((m) => m.id)),
+    ...(input.putAway ?? []),
+  ]);
+  const shown: DiaryItem[] = [
+    ...input.entries
+      .filter((entry) => !held.has(entry.id))
+      .map((entry): DiaryItem => ({ kind: "entry", key: `entry:${entry.id}`, sortAt: sortStamp(entry.stamp), entry }))
+      .filter(within),
+    ...conversations,
+  ].sort((a, b) => (a.sortAt === b.sortAt ? (a.key < b.key ? -1 : 1) : a.sortAt < b.sortAt ? 1 : -1));
 
   /* Newest first, so Today is a run off the top. A stamp past today (a
      clock ahead of ours) is still today's news, not history. */

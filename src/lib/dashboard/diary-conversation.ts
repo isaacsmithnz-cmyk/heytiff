@@ -12,7 +12,9 @@
    22 Sept, 3:10 pm"; "Luke Ingold to you, 8:15 am" when he answers you
    today; just "Luke Ingold, Fri 11 Sept, 9:42 am" over his note on the job
    that names nobody, which was not written to you. A time alone is today;
-   a date and a time is before.
+   a date and a time is before. A reply of yours from HeyTiff, or a task's
+   Done, is one of them from the moment it was saved, and says under its
+   words where it stands with ServiceM8 (./diary-reply).
 
    UNDER IT, the doors. The job, by its number and suburb ("2041
    Wollstonecraft"), which opens the desk's one card; Reply, which opens
@@ -185,25 +187,28 @@ export function diaryHolds(feed: DiaryFeed | null): { entries: ReadonlySet<strin
   const notes = new Set<string>();
   for (const item of feed ? [...feed.today, ...feed.earlier] : []) {
     if (item.kind === "entry") entries.add(item.entry.id);
-    else for (const m of item.conversation.messages) notes.add(m.id);
+    /* a reply of yours from HeyTiff is an entry, held in its conversation
+       (./diary-reply) */
+    else for (const m of item.conversation.messages) (m.ours ? entries : notes).add(m.id);
   }
   return { entries, notes };
 }
 
 /** The item a door from another face names (desk-focus's `DeskFocus`), by
-    its key in the feed: an entry by its id, a conversation by any of its
-    notes — the ask a task was made from, or a later message in it. Null
-    when the diary holds none: a conversation older than the mentions
-    reach, or deleted in ServiceM8. */
+    its key in the feed: an entry by its id — a reply of yours by the
+    conversation it is drawn in — a conversation by any of its notes — the
+    ask a task was made from, or a later message in it. Null when the diary
+    holds none: a conversation older than the mentions reach, or deleted in
+    ServiceM8. */
 export function diaryItemOf(feed: DiaryFeed, door: { kind: DeskFocusKind; ids: readonly string[] }): string | null {
   const id = door.ids[0];
   if (id === undefined) return null;
   for (const item of [...feed.today, ...feed.earlier]) {
     if (door.kind === "entry" && item.kind === "entry" && item.entry.id === id) return item.key;
     if (
-      door.kind === "conversation" &&
       item.kind === "conversation" &&
-      item.conversation.messages.some((m) => m.id === id)
+      (door.kind === "conversation" || door.kind === "entry") &&
+      item.conversation.messages.some((m) => m.id === id && (door.kind === "entry") === !!m.ours)
     )
       return item.key;
   }

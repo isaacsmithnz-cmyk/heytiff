@@ -416,10 +416,15 @@ Every decision below is made once, here, and a guard test holds each number.
   note ServiceM8 holds too, which is changed there. Delete asks twice, as
   Delete task does, and takes the entry off by the job card's rule: a note
   that never left HeyTiff is deleted, one that went to ServiceM8 is taken
-  back; what it made stays. Hide folds the conversation to "Hidden until
-  Luke writes again." with Undo, and it stays out of the diary until the
-  asker writes after it was hidden; nothing in ServiceM8 changes, and the
-  task the ask made stays.
+  back; what it made stays. A reply of yours sent from HeyTiff, drawn in
+  the thread of the conversation it answers, is yours the same way: Delete
+  at the end of its line, there while the conversation has the pointer or
+  the keyboard, and never Edit, since ServiceM8 has its words; one already
+  taken back has only its line's Try again. Hide folds the conversation to
+  "Hidden until Luke writes again." with Undo, and it stays out of the
+  diary until the asker writes after it was hidden, or you reply in it
+  from HeyTiff; your replies in it go and come back with it. Nothing in
+  ServiceM8 changes, and the task the ask made stays.
   Someone who asked you something in a ServiceM8 job note is a
   conversation in the same column ("if someone mentions you, it can show
   up in diary", 2026-09-24): their initials ink in his grey disc, "Luke

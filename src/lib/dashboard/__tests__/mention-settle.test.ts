@@ -126,7 +126,8 @@ jest.mock("../mentions-query", () => ({
   listMyMentions: (...a: unknown[]) => listMyMentions(...(a as [string, string, string])),
 }));
 
-type Failure = { ok: false; error: string; why: "refused" | "outage" | "failed" };
+type Failure = { ok: false; error: string; why: "refused" | "outage" | "slow" | "failed" };
+const TOO_LONG: Failure = { ok: false, error: "the reader took too long", why: "slow" };
 type AskArgs = { text: string; tasks: string[]; person: string; at: string };
 type ReplyArgs = { task: string; others: string[]; replies: { text: string; at: string }[] };
 const readingAs = (says: string, dueDate: string | null = null, dueSaid: string | null = null) => ({
@@ -624,8 +625,8 @@ describe("failures that aren't the ask's", () => {
     expect(tasksTable()).toEqual([]);
   });
 
-  /* A rate limit, a timeout, the reader down or its key rotated: an ask is
-     never set aside for it, and the run spends no more reads into it. */
+  /* A rate limit, the reader down or its key rotated: an ask is never set
+     aside for it, and the run spends no more reads into it. */
   it("lets an ask go uncounted in an outage, and stops the run there", async () => {
     notes = [ASK_MARY, ASK_FANS];
     askAnswer = () => ({ ok: false, error: "rate limited", why: "outage" });
@@ -640,6 +641,119 @@ describe("failures that aren't the ask's", () => {
     askAnswer = () => ({ ok: true, read: { kind: "do", title: "Call Mary about 2041 Wollstonecraft", dueDate: null } });
     await settle();
     expect(askRow("n-mary")).toMatchObject({ status: "read", kind: "do" });
+  });
+});
+
+/* A read that runs out of time may be its note's doing or the reader's. The
+   run's next read tells which: one that comes back says the reader is fine,
+   so the slow one is counted; one that runs out of time too says it's the
+   reader, and neither is. */
+describe("a read that runs out of time", () => {
+  const titled = (a: AskArgs) => ({ ok: true as const, read: { kind: "do", title: `Sort out: ${a.text}`, dueDate: null } });
+
+  /* The review's case: before, a note that always took too long was an
+     outage, let go uncounted, and stopped every run, so no ask behind it
+     was ever read. */
+  it(`is counted against its note and the run goes on, so one that always takes too long holds up no ask behind it and is set aside after ${MAX_ATTEMPTS} runs`, async () => {
+    notes = [ASK_MARY, ASK_FANS, ASK_HOLLY];
+    askAnswer = (a) => (a.text.includes("Mary") ? TOO_LONG : titled(a));
+    const first = await settle();
+    expect(first).toMatchObject({ reads: 3, tasks: 2, outage: false });
+    expect(askRow("n-mary")).toMatchObject({ status: "reading", attempts: 1, claimed_at: null, error: "the reader took too long" });
+    expect([askRow("n-fans").status, askRow("n-holly").status]).toEqual(["read", "read"]);
+
+    for (let i = 1; i < MAX_ATTEMPTS; i++) await settle();
+    expect(askRow("n-mary")).toMatchObject({ status: "failed", attempts: MAX_ATTEMPTS });
+    readAsk.mockClear();
+    await settle();
+    expect(readAsk).not.toHaveBeenCalled();
+    expect(tasksTable()).toHaveLength(2);
+  });
+
+  it("is counted when a read after it came back, though a later one runs out of time too", async () => {
+    notes = [ASK_MARY, ASK_FANS, ASK_HOLLY];
+    askAnswer = (a) => (a.text.includes("fans") ? titled(a) : TOO_LONG);
+    const out = await settle();
+    expect(out).toMatchObject({ reads: 3, tasks: 1, outage: false });
+    expect([askRow("n-mary").attempts, askRow("n-holly").attempts]).toEqual([1, 1]);
+  });
+
+  it("is counted when it was the run's last read: nothing after it said it was the reader", async () => {
+    askAnswer = () => TOO_LONG;
+    await settle();
+    expect(askRow("n-mary")).toMatchObject({ status: "reading", attempts: 1, claimed_at: null });
+    await settle();
+    await settle();
+    expect(askRow("n-mary")).toMatchObject({ status: "failed", attempts: MAX_ATTEMPTS });
+    readAsk.mockClear();
+    await settle();
+    expect(readAsk).not.toHaveBeenCalled();
+  });
+
+  /* A slow reader, run after run: nothing is set aside for it. */
+  it("sets nothing aside when the next read runs out of time too, or meets an outage: that's the reader, and the run stops there", async () => {
+    notes = [ASK_MARY, ASK_FANS, ASK_HOLLY];
+    askAnswer = () => TOO_LONG;
+    for (let i = 0; i < MAX_ATTEMPTS + 1; i++) {
+      readAsk.mockClear();
+      expect(await settle()).toMatchObject({ reads: 2, outage: true });
+      expect(readAsk).toHaveBeenCalledTimes(2);
+    }
+    askAnswer = (a) => (a.text.includes("Mary") ? TOO_LONG : { ok: false, error: "the reader is down (529)", why: "outage" });
+    expect(await settle()).toMatchObject({ reads: 2, outage: true });
+    for (const n of ["n-mary", "n-fans"]) {
+      expect(askRow(n)).toMatchObject({ status: "reading", attempts: 0, claimed_at: null });
+    }
+
+    askAnswer = titled;
+    expect(await settle()).toMatchObject({ reads: 3, tasks: 3, outage: false });
+  });
+
+  describe("for your replies", () => {
+    const FANS_READ = () => {
+      db.mention_asks = [readRow("n-fans", "t-fans", { sm8_job_uuid: "j-3294" })];
+      db.tasks = [openTask("t-fans", "Tell Luke how many fans for 3294 Rozelle")];
+    };
+    const THREE = mine("r-fans", "2026-09-16 09:00:00", "three", "j-3294");
+
+    it(`is judged the same way: counted when a read after it came back, or none did, and set aside after ${MAX_ATTEMPTS} runs`, async () => {
+      notes = [ASK_MARY, mine("n-mine", "2026-09-22 15:10:00", "calling her this afternoon"), ASK_FANS];
+      askAnswer = titled;
+      replyAnswer = () => TOO_LONG;
+      expect(await settle()).toMatchObject({ reads: 3, tasks: 2, outage: false });
+      expect(askRow("n-mary")).toMatchObject({ reply_attempts: 1 });
+      expect(askRow("n-mary").last_reply_note ?? null).toBeNull();
+
+      await settle();
+      await settle();
+      expect(askRow("n-mary")).toMatchObject({ last_reply_note: "n-mine", reply_attempts: 0 });
+      readReply.mockClear();
+      await settle();
+      expect(readReply).not.toHaveBeenCalled();
+    });
+
+    it("tells an ask that ran out of time before it that the reader is fine", async () => {
+      FANS_READ();
+      notes = [ASK_MARY, ASK_FANS, THREE, ASK_HOLLY];
+      askAnswer = () => TOO_LONG;
+      replyAnswer = () => readingAs("none");
+      const out = await settle();
+      expect(readReply).toHaveBeenCalledTimes(1);
+      expect(out).toMatchObject({ reads: 3, outage: false });
+      expect([askRow("n-mary").attempts, askRow("n-holly").attempts]).toEqual([1, 1]);
+    });
+
+    it("says it's the reader when it runs out of time after an ask did: neither is counted, and the run stops", async () => {
+      FANS_READ();
+      notes = [ASK_MARY, ASK_FANS, THREE, ASK_HOLLY];
+      askAnswer = () => TOO_LONG;
+      replyAnswer = () => TOO_LONG;
+      const out = await settle();
+      expect(out).toMatchObject({ reads: 2, outage: true });
+      expect(readAsk).toHaveBeenCalledTimes(1);
+      expect(askRow("n-mary")).toMatchObject({ status: "reading", attempts: 0, claimed_at: null });
+      expect(askRow("n-fans")).toMatchObject({ reply_attempts: 0, last_reply_note: null });
+    });
   });
 });
 
@@ -837,7 +951,7 @@ describe("your replies", () => {
 
   it("are never counted against in an outage, and the run stops there", async () => {
     notes = [ASK_MARY, MINE, ASK_FANS];
-    replyAnswer = () => ({ ok: false, error: "the reader took too long", why: "outage" });
+    replyAnswer = () => ({ ok: false, error: "the reader is down (529)", why: "outage" });
     const out = await settle();
     expect(out.outage).toBe(true);
     expect([askRow("n-mary").last_reply_note ?? null, askRow("n-mary").reply_attempts ?? 0]).toEqual([null, 0]);

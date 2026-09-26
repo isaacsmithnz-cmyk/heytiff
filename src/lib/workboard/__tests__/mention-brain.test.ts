@@ -18,6 +18,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { RECORD_IN_ENGLISH } from "@/lib/lang/policy";
 import {
   ASK_SCHEMA,
+  CALL_TIMEOUT_MS,
   askContent,
   askSystemPrompt,
   canReadAsks,
@@ -177,7 +178,8 @@ describe("reading an ask", () => {
 });
 
 /* The settle counts a failure against the note only when the note could be
-   why: a refusal is final, an outage is nobody's, the rest are counted. */
+   why: a refusal is final, an outage is nobody's, a slow read is the
+   settle's to judge, the rest are counted. */
 describe("what kind of failure it was", () => {
   it("is final for a refusal: this note is read no further", async () => {
     answer = "refusal";
@@ -192,15 +194,36 @@ describe("what kind of failure it was", () => {
     }
   });
 
-  /* A read that hangs is cut off at its own timeout, and a slow reader is
-     an outage, not a note that can't be read. */
-  it("is an outage when the reader took too long, or couldn't be reached", () => {
-    expect(failureOf(new Anthropic.APIConnectionTimeoutError())).toEqual({ error: "the reader took too long", why: "outage" });
+  it("is an outage when the reader couldn't be reached", () => {
     expect(failureOf(new Anthropic.APIConnectionError({ message: "reset" }))).toEqual({
       error: "couldn't reach the reader",
       why: "outage",
     });
     expect(failureOf(new Error("anything else"))).toEqual({ error: "couldn't read it", why: "failed" });
+  });
+
+  /* A read that hangs is cut off at its own timeout. That may be the note's
+     doing (one that always takes too long) or the reader's, so it is
+     neither an outage nor a failure: it says it was slow, and the settle
+     tells which from the run's next read. */
+  it("is slow, never an outage, when the read ran past its time", async () => {
+    expect(failureOf(new Anthropic.APIConnectionTimeoutError())).toEqual({ error: "the reader took too long", why: "slow" });
+
+    jest.useFakeTimers();
+    try {
+      globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) =>
+        new Promise((_, reject) =>
+          init?.signal?.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" }))),
+        )) as typeof fetch;
+      let settled = false;
+      const pending = readAsk(ask).finally(() => (settled = true));
+      await jest.advanceTimersByTimeAsync(CALL_TIMEOUT_MS - 1);
+      expect(settled).toBe(false);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(await pending).toEqual({ ok: false, error: "the reader took too long", why: "slow" });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("is counted for a request the reader turned down, or an answer that can't be read", async () => {

@@ -47,8 +47,10 @@
 -- YOUR REPLIES. last_reply_note is the newest reply of yours already read
 -- for this ask; reply_attempts counts reads of the replies after it that
 -- failed, and the MAX-th sets them aside (last_reply_note moves past them).
--- A refusal is final at once; an outage (rate limit, a timeout, the reader
--- down) is never counted against an ask or a reply.
+-- A refusal is final at once; an outage (rate limit, the reader down) is
+-- never counted against an ask or a reply. A read that runs out of time is
+-- counted, unless the run's next read runs out of time too: then it was
+-- the reader, and neither is.
 --
 -- A deleted task sets task_id null and the row stays: the ask was read, the
 -- strip stays quiet, and the diary says "1 task removed.". A disconnect

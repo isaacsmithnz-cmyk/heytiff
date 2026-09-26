@@ -72,11 +72,18 @@ import { logTaskEvent, missingTable } from "./task-events";
 
    FAILURES ARE NOT ALL ALIKE (mention-brain's `why`). A refusal is final:
    the ask is read as asking nothing, the replies as read. An outage — a
-   rate limit, a timeout, the reader down or its key refused — is nobody's
-   fault: the claim is let go uncounted and the run stops, rather than
-   spend its other reads into the same outage. Anything else is counted,
-   for an ask (attempts) and for replies (reply_attempts) alike, and set
-   aside after MAX_ATTEMPTS, so nothing is read for ever.
+   rate limit, the reader down or unreachable, its key refused — is
+   nobody's fault: the claim is let go uncounted and the run stops, rather
+   than spend its other reads into the same outage. A read that runs out of
+   time may be its note's doing or the reader's, so the run goes on to the
+   next read to tell: if that one runs out of time too (or meets an
+   outage), it's the reader, neither is counted and the run stops;
+   otherwise — the next read came back, or there was none — it's the note,
+   and it is counted. So one note that always takes too long is set aside
+   after MAX_ATTEMPTS runs and never holds up the asks behind it, and a
+   slow reader sets nothing aside. Anything else is counted, for an ask
+   (attempts) and for replies (reply_attempts) alike, and set aside after
+   MAX_ATTEMPTS, so nothing is read for ever.
 
    BOUNDED. At most `max` model reads a run (SETTLE_MAX), asks and replies
    together, and each starts only while its own timeout still fits the
@@ -334,6 +341,17 @@ export async function settleMentionAsks(
     if (e) console.error(`[asks] couldn't let an ask go for org ${orgId}:`, e);
   };
 
+  /* A read that ran out of time, held until the run shows whose doing it
+     was (see the top): `settleSlow(true)` counts it against its note — the
+     next read came back, or the run ended — and `settleSlow(false)` lets it
+     go uncounted — the next read ran out of time too, or met an outage. */
+  let slow: ((counted: boolean) => Promise<void>) | null = null;
+  const settleSlow = async (counted: boolean) => {
+    const held = slow;
+    slow = null;
+    if (held) await held(counted);
+  };
+
   /* Claim one ask: the insert is the lease; taking one back is a swap on
      the claim it had, so only one run wins it. */
   const claim = async (r: Reader, c: DiaryConversation, m: DiaryMessage, row: AskRow | undefined) => {
@@ -430,10 +448,23 @@ export async function settleMentionAsks(
       })),
       tasks: made,
     });
-    if (!res.ok && res.why === "outage") {
+    /* the reader's doing — an outage, or a second read in a row that ran
+       out of time — counts against neither, and stops the run */
+    if (!res.ok && (res.why === "outage" || (res.why === "slow" && slow))) {
+      await settleSlow(false);
       await release(held.id, res.error);
       return "outage";
     }
+    /* out of time, and nothing yet says whose doing: the claim is kept
+       until the run can tell */
+    if (!res.ok && res.why === "slow") {
+      const error = res.error;
+      slow = (counted) => (counted ? letGo(held.id, held.attempts, error) : release(held.id, error));
+      return;
+    }
+    /* the reader answered, so a read before it that ran out of time was
+       its note's doing */
+    await settleSlow(true);
     if (!res.ok && res.why === "failed") return letGo(held.id, held.attempts, res.error);
 
     const readAt = iso();
@@ -537,18 +568,36 @@ export async function settleMentionAsks(
         job: c.jobLabel,
         replies: replies.map((x) => ({ text: x.text, at: x.at })),
       });
+      /* the reader's doing, as for an ask: counted against nothing */
+      if (!res.ok && (res.why === "outage" || (res.why === "slow" && slow))) {
+        out.failed += 1;
+        await settleSlow(false);
+        return "outage";
+      }
+      /* the reader answered, so a read before it that ran out of time was
+         its note's doing */
+      if (res.ok || res.why !== "slow") await settleSlow(true);
       if (!res.ok) {
         out.failed += 1;
-        if (res.why === "outage") return "outage";
         /* a refusal is final; anything else is counted, and the replies
            are set aside after the last attempt, so none is read for ever */
         const tried = (a.row.reply_attempts ?? 0) + 1;
-        await heard(
-          a.row,
-          res.why === "refused" || tried >= MAX_ATTEMPTS
-            ? { last_reply_note: newest.id, reply_attempts: 0 }
-            : { reply_attempts: tried },
-        );
+        const row = a.row;
+        const count = () =>
+          heard(
+            row,
+            res.why === "refused" || tried >= MAX_ATTEMPTS
+              ? { last_reply_note: newest.id, reply_attempts: 0 }
+              : { reply_attempts: tried },
+          );
+        /* out of time: held until the run can tell whose doing */
+        if (res.why === "slow") {
+          slow = async (counted) => {
+            if (counted) await count();
+          };
+          continue;
+        }
+        await count();
         continue;
       }
 
@@ -600,25 +649,31 @@ export async function settleMentionAsks(
 
   /* Newest conversation first (the diary's order); in each, its asks in
      the order they were made, then your replies. */
-  for (const r of theirs) {
-    for (const c of r.conversations) {
-      if (!live.has(c.jobUuid)) continue;
-      for (const m of asksIn(c)) {
-        if (m.at.slice(0, 10) < since) continue;
-        const row = rows.get(keyOf(r.staffId, m.id));
-        const act = answered.get(m.id);
-        if (act) {
-          if (!row || row.status === "failed" || claimable(row, now())) await adopt(r, c, m, row, act);
-          continue;
+  const walk = async (): Promise<"outage" | void> => {
+    for (const r of theirs) {
+      for (const c of r.conversations) {
+        if (!live.has(c.jobUuid)) continue;
+        for (const m of asksIn(c)) {
+          if (m.at.slice(0, 10) < since) continue;
+          const row = rows.get(keyOf(r.staffId, m.id));
+          const act = answered.get(m.id);
+          if (act) {
+            if (!row || row.status === "failed" || claimable(row, now())) await adopt(r, c, m, row, act);
+            continue;
+          }
+          if (!claimable(row, now())) continue;
+          if (!fits()) return;
+          if ((await settleAsk(r, c, m)) === "outage") return "outage";
         }
-        if (!claimable(row, now())) continue;
-        if (!fits()) return out;
-        if ((await settleAsk(r, c, m)) === "outage") return { ...out, outage: true };
+        if ((await settleReply(r, c)) === "outage") return "outage";
       }
-      if ((await settleReply(r, c)) === "outage") return { ...out, outage: true };
     }
-  }
-  return out;
+  };
+  const stopped = await walk();
+  /* the run ended with nothing after a read that ran out of time to say it
+     was the reader's, so it was its note's (an outage has let it go) */
+  await settleSlow(true);
+  return stopped === "outage" ? { ...out, outage: true } : out;
 }
 
 const blank = (id: string, staffId: string, note: string): AskRow => ({

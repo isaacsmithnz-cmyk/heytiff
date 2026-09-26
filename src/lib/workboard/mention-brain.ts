@@ -33,9 +33,12 @@
    NEVER THROWS. Every failure comes back as `{ ok: false }`, and says what
    kind it was (`why`), because the settle treats them differently:
      refused  the reader declined this note: final, never asked again;
-     outage   nothing to do with the note — a rate limit, a timeout, the
-              reader down or its key refused: tried again later, and never
+     outage   nothing to do with the note — a rate limit, the reader down or
+              unreachable, or its key refused: tried again later, and never
               counted against the note;
+     slow     the read ran past CALL_TIMEOUT_MS: the note's doing (one that
+              always takes too long) or the reader's (slow for everyone), and
+              only the run can tell which, so the settle decides;
      failed   an answer that couldn't be read: counted, and set aside after
               a few. */
 
@@ -97,7 +100,7 @@ export type ReplyRead = {
   saidOn: string | null;
 };
 
-export type BrainFailure = "refused" | "outage" | "failed";
+export type BrainFailure = "refused" | "outage" | "slow" | "failed";
 
 export type BrainResult<T> = { ok: true; read: T } | { ok: false; error: string; why: BrainFailure };
 
@@ -351,7 +354,7 @@ export function failureOf(err: unknown): { error: string; why: BrainFailure } {
   if (err instanceof Anthropic.AuthenticationError) return { error: "the reader's key was refused", why: "outage" };
   if (err instanceof Anthropic.PermissionDeniedError) return { error: "the reader's key may not read", why: "outage" };
   if (err instanceof Anthropic.RateLimitError) return { error: "rate limited", why: "outage" };
-  if (err instanceof Anthropic.APIConnectionTimeoutError) return { error: "the reader took too long", why: "outage" };
+  if (err instanceof Anthropic.APIConnectionTimeoutError) return { error: "the reader took too long", why: "slow" };
   if (err instanceof Anthropic.APIConnectionError) return { error: "couldn't reach the reader", why: "outage" };
   if (err instanceof Anthropic.InternalServerError) return { error: `the reader is down (${err.status ?? "?"})`, why: "outage" };
   if (err instanceof Anthropic.APIError) return { error: `the reader errored (${err.status ?? "?"})`, why: "failed" };

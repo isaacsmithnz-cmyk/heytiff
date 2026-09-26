@@ -135,11 +135,12 @@ export const NAV_GROUPS: NavGroup[] = [
           // the job and asking for it back is not a privilege.
           { key: "myexpenses", label: "Expenses", icon: "receipt", href: "/dashboard/my-expenses", hint: "Claim money you've spent", accent: "#8A2BE2" },
           { key: "myvehicle", label: "Vehicle", icon: "truck", href: "/dashboard/my-vehicle", hint: "Your vehicle, fuel & issues", accent: "#FF8A00" },
-          /* The note cascade's floor, and the whole reason it may be a
-             destination at all: a note that couldn't be filed against a job or
-             handed to somebody as a task lands here, where its author reads
-             it. */
-          { key: "mynotes", label: "Notes", icon: "note", href: "/dashboard/my-notes", hint: "Anything that didn't belong to a job", accent: "#007FA8" },
+          /* Your own notebook: what you write on it, which only you see. It
+             was also the old capture card's floor ("keep it for me"), and that
+             card went on 2026-09-27: the words the Tiff modal doesn't file go
+             to your diary (`keepWords`), never here. The hint is what ⌘K
+             searches (command-palette), so it says what the page is now. */
+          { key: "mynotes", label: "Notes", icon: "note", href: "/dashboard/my-notes", hint: "Your own notebook — only you see it", accent: "#007FA8" },
         ] },
     ],
   },

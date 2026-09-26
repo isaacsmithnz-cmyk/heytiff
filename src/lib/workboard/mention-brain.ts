@@ -17,7 +17,14 @@
    only what it asks of you is your task. The real read of 2026-09-26 was
    given the diary's quote, with the addressing gone, and made both halves
    one task for Isaac. And a report from the job ("2x drains need to be fit
-   off, Chris needs to talk to the plumber") asks you nothing: it is none.
+   off, Chris needs to talk to the plumber") asks you nothing: it is none,
+   your name in front of it too: written as a name, the addressing that
+   only says who a note is to reads as an order ("Isaac, 2x drains need to
+   be fit off"), and the re-check filed that report as a task on all three
+   reads, so the prompt says a name in front never makes a report an ask.
+   Materials a report says are still to be bought, with nobody named to buy
+   them, stay yours to order (2543 Kirribilli's access panels, a task on
+   both real reads).
 
    NOTHING HERE WRITES. It returns a reading, shaped and checked
    (`shapeAsk`, `shapeReply`, pure so the rules are tested without a
@@ -244,14 +251,18 @@ export function askSystemPrompt(first: string): string {
     "",
     "kind:",
     "- do: it asks them to do something — call someone, order, quote, book, send,",
-    "  check, sort out.",
+    "  check, sort out. Materials a report says are still to be bought for the",
+    "  job, with nobody named to buy them, are theirs to order: that is do.",
     "- question: it asks them something they must answer — 'how many fans for",
     "  this?', 'is this one yours?'.",
     "- none: it asks nothing of them — thanks, an update, a heads-up, a note for",
     "  the record. A report from the job — what was done, what is still to do,",
     `  what someone else will do — is none unless it asks ${first} for something`,
     "  ('can you', 'please', a question put to them): never make them a task out",
-    "  of work the writer or someone else will do. Also none when it only repeats",
+    "  of work the writer or someone else will do. A name at the start of the",
+    "  note only says who it is written to, and never makes a report an ask:",
+    `  '${first} ducting is in, still need to fit off the outdoor' is none.`,
+    "  Also none when it only repeats",
     "  or chases an ask this conversation already made a task of (listed under",
     "  'Tasks already made'): one ask is one task.",
     "",

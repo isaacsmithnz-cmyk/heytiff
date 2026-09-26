@@ -226,6 +226,53 @@ describe("reading an ask", () => {
     expect(read).toEqual({ ok: true, read: { kind: "none", title: "", dueDate: null } });
   });
 
+  /* The re-check of 2026-09-26: the same report as the settle reads it
+     now, "Isaac" in front as David addressed it, was filed as "Fit off 2
+     drains at 1383 Darling Point" on all three reads, though the same words
+     without the name came back none. The name only says who it is to; the
+     reader here takes it for an order unless the prompt says so. */
+  it("never takes the person's name at the head of a report for an ask of them", async () => {
+    respond = (b) =>
+      /A name at the start of the\s+note only says who it is written to, and never makes a report an ask:\s+'Isaac ducting is in, still need to fit off the outdoor' is none\./.test(
+        b.system,
+      )
+        ? { kind: "none", title: "", due_date: "" }
+        : { kind: "do", title: "Fit off 2 drains at 1383 Darling Point", due_date: "" };
+    const text =
+      "Isaac \n2x Drains need to be fit off , I had no hose with me and Chris needs to talk to the plumber about the " +
+      "drain in the laundry first , I fit off the temporary wall control into the cabinet";
+    const read = await readAsk({ ...ask, asker: "David Hann", first: "Isaac", job: "1383 Darling Point", at: "2026-07-21 15:13:53", text });
+    expect(read).toEqual({ ok: true, read: { kind: "none", title: "", dueDate: null } });
+    // the note is read as written, the name in front kept
+    expect(sent[0].messages[0].content).toContain(`<<<\n${text}\n>>>`);
+  });
+
+  /* Kept a task by the same change: David's report on 2543 Kirribilli, to
+     Isaac alone, said the access panels "we still need to purchase" and
+     their sizes, and the real reads made it "Order access panels". A name
+     in front no longer makes a report an ask, so the reader here gives it
+     none unless the prompt says what is still to be bought is theirs to
+     order. */
+  it("still makes a task of materials a report says are still to be bought, with nobody named to buy them", async () => {
+    const order = { kind: "do", title: "Order access panels for 2543 Kirribilli - 3 x 450x450, 2 x 300x300", due_date: "" };
+    respond = (b) =>
+      /Materials a report says are still to be bought for the\s+job, with nobody named to buy them, are theirs to order: that is do\./.test(b.system)
+        ? order
+        : { kind: "none", title: "", due_date: "" };
+    const read = await readAsk({
+      ...ask,
+      asker: "David Hann",
+      first: "Isaac",
+      job: "2543 Kirribilli",
+      at: "2026-04-09 15:34:17",
+      text:
+        "Isaac \nAll the access panels have been cut out and I have installed timber on 4 sides of each hole to " +
+        "accommodate the access panels which we still need to purchase,\n3 x 450x450\n2 x 300x300\n" +
+        "Boston has measured up the sheet metal for the fan downstairs",
+    });
+    expect(read).toEqual({ ok: true, read: { kind: "do", title: order.title, dueDate: null } });
+  });
+
   it("makes no read at all without a key, so no attempt is spent on a deployment that can't read", async () => {
     delete process.env.ANTHROPIC_API_KEY;
     expect(canReadAsks()).toBe(false);

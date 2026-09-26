@@ -207,7 +207,12 @@ jest.mock("../diary-query", () => ({ loadDiaryFeed: (ctx: unknown) => loadDiaryF
 /* The Tasks face's reads are their own suite's too (task-record-query). */
 const TASKS = { open: [], done: [], doneCapped: false, about: {}, people: {} };
 const loadTasksFace = jest.fn(async (_ctx: unknown) => TASKS);
-jest.mock("../task-record-query", () => ({ loadTasksFace: (ctx: unknown) => loadTasksFace(ctx) }));
+const TASK_LINES = { lines: { t9: [] }, sender: null };
+const loadTaskLines = jest.fn(async (_ctx: unknown, _record: unknown) => TASK_LINES);
+jest.mock("../task-record-query", () => ({
+  loadTasksFace: (ctx: unknown) => loadTasksFace(ctx),
+  loadTaskLines: (ctx: unknown, record: unknown) => loadTaskLines(ctx, record),
+}));
 
 /* The desk as the loader hands it over, with the names stub's empty map:
    no initials to be had for a card it does not name, and no first name for
@@ -216,6 +221,7 @@ const DESK = {
   warnDays: 45,
   list: LIST_READS,
   tasks: TASKS,
+  taskLines: TASK_LINES,
   calendar: CAL,
   diary: { feed: DIARY_FEED, you: "?", names: {} },
 };
@@ -577,6 +583,19 @@ describe("the Tasks face's reads", () => {
     expect(ctx).toMatchObject({ orgId: "org-1", viewerStaffId: "s-me", mineUuid: "sm8-me" });
     expect([...ctx.caps].sort()).toEqual(["team", "workboard"]);
   });
+
+  /* Where each task's Done stands is read over the tasks the face holds —
+     which reach back 90 days, where today's Tasks face holds five done —
+     once it holds them, told the same. */
+  it("read where each of the face's own tasks' Done stands, once the face holds them", async () => {
+    process.env.HOME_DESK = "owner";
+    const { desk } = await loadDashboard();
+    expect(loadTaskLines).toHaveBeenCalledTimes(1);
+    const [ctx, rec] = loadTaskLines.mock.calls[0]!;
+    expect(ctx).toMatchObject({ orgId: "org-1", viewerStaffId: "s-me", mineUuid: "sm8-me" });
+    expect(rec).toBe(TASKS);
+    expect(desk?.taskLines).toBe(TASK_LINES);
+  });
 });
 
 describe("the day's new fields", () => {
@@ -621,6 +640,20 @@ describe("a task's Done (two-way phase 2, PR C)", () => {
     expect(readTaskDoneLines).toHaveBeenCalledWith("org-1", "s-me", ["t1"]);
     expect(data.tasks.sm8).toEqual({ lines: { t1: [] }, sender: null });
     expect(myUnsentDones).toHaveBeenCalledWith("org-1", "s-me", expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
+    expect(unsentOf()).toEqual([{ taskId: "t1", title: "Order the grilles", noteId: "n1", op: "post" }]);
+  });
+
+  /* The new Home's Tasks face reads its own lines, over its own tasks
+     (`desk.taskLines`); today's are for today's Tasks face, which its
+     viewer never sees. The bell's item is everyone's. */
+  it("(F) spares a viewer on the new Home today's Tasks face's lines, and still reads the bell's item", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    process.env.HOME_DESK = "owner";
+    (recentlyDoneTasks as jest.Mock).mockResolvedValueOnce([done]);
+    const data = await loadDashboard();
+    expect(readTaskDoneLines).not.toHaveBeenCalled();
+    expect(data.tasks.sm8).toEqual({ lines: {}, sender: null });
+    expect(data.desk?.taskLines).toBe(TASK_LINES);
     expect(unsentOf()).toEqual([{ taskId: "t1", title: "Order the grilles", noteId: "n1", op: "post" }]);
   });
 

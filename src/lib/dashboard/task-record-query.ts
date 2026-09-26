@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import type { Capability } from "@/lib/permissions";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { sm8Roster } from "@/lib/workboard/job-notes-query";
 import { quotedNote } from "@/lib/workboard/sm8-mentions";
 import { handleWords } from "./diary-feed";
@@ -8,6 +9,7 @@ import { isDelegated, sortTasks } from "./tasks";
 import { TASK_COLUMNS, toTask, type StaffNames } from "./tasks-query";
 import { asTargetKind, targetWords } from "./target-words";
 import { TASK_EVENT_KINDS, missingTable, type TaskEventKind } from "./task-events";
+import type { TaskDoneLines } from "./task-done-query";
 import {
   jobLabelOf,
   momentOf,
@@ -127,6 +129,24 @@ export async function loadTasksFace(ctx: TasksFaceContext, now: Date = new Date(
   const tasks = [...open, ...done.done];
   const about = await taskAbout(ctx.orgId, viewer, tasks, ctx.caps.has("workboard"), ctx.mineUuid ?? null);
   return { open, done: done.done, doneCapped: done.capped, about, people: peopleOf(ctx.names, tasks, about) };
+}
+
+const NO_LINES: TaskDoneLines = { lines: {}, sender: null };
+
+/** Where each of the face's tasks stands with ServiceM8 — its Done, or the
+    reply that closed it (two-way phase 2, PR C; ./task-done-query) — read
+    for the tasks THIS face holds, which reach back 90 days where today's
+    Tasks face holds five done. Nothing is read, and the module is not even
+    loaded, until the deployment sends notes; nor without the Workboard, a
+    Done being a note on a job; nor for somebody with no staff card, who
+    ticks nothing. A read that fails draws no line and keeps the page. */
+export async function loadTaskLines(ctx: TasksFaceContext, record: Pick<TaskRecord, "open" | "done">): Promise<TaskDoneLines> {
+  const viewer = ctx.viewerStaffId;
+  if (!viewer || !ctx.caps.has("workboard") || !sm8NotesAllowed()) return NO_LINES;
+  const ids = [...record.open, ...record.done].map((t) => t.id);
+  if (ids.length === 0) return NO_LINES;
+  const { readTaskDoneLines } = await import("./task-done-query");
+  return readTaskDoneLines(ctx.orgId, viewer, ids).catch(() => NO_LINES);
 }
 
 /** Open tasks: yours, and with `team` everyone else's DELEGATED work — a

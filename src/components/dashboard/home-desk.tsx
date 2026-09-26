@@ -260,6 +260,10 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     setFocus({ ...to, pointer });
   };
   const openEntry = (id: string, pointer: boolean) => show({ face: "diary", kind: "entry", ids: [id] }, pointer);
+  /* A task's door to its entry is offered only for an entry the diary
+     holds (`holds`, above): never one that would slide the diary in on
+     nothing. */
+  const inDiary = useCallback((id: string) => holds.entries.has(id), [holds]);
   const taskFocus = focus?.face === "tasks" && focus.kind === "task" ? focus : null;
   /* The diary shows an entry, and a conversation by one of its notes (a
      task an ask made, from the list). */
@@ -350,9 +354,15 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                         assignable={assignable}
                         tz={rail.tz}
                         onOpenEntry={openEntry}
+                        canOpenEntry={inDiary}
                         focusTaskId={taskFocus?.ids[0] ?? null}
                         focusByPointer={taskFocus?.pointer === true}
                         onFocusHandled={focusShown}
+                        /* where each task's Done stands with ServiceM8,
+                           read over the face's own tasks — empty, from no
+                           read, without notes */
+                        sm8Lines={data.desk.taskLines.lines}
+                        sm8Sender={data.desk.taskLines.sender}
                       />
                     ),
                   )}

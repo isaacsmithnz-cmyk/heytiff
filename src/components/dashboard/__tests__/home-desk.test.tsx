@@ -8,6 +8,7 @@ import type { ScheduleBlock } from "@/lib/workboard/schedule";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { HomeListReads } from "@/lib/dashboard/home-list";
 import type { DeskData } from "@/lib/dashboard/desk-data";
+import type { TaskDoneLine, TaskDoneLines } from "@/lib/dashboard/task-done-query";
 import type { CompanyCalendar } from "@/lib/calendar/items";
 import { DIARY_LIT_MS, type DeskDiary } from "@/lib/dashboard/diary-doors";
 import { buildConversations, diaryFeed, type DiaryConversation, type MentionNote } from "@/lib/dashboard/diary-feed";
@@ -136,6 +137,9 @@ const recordTask = (over: Partial<RecordTask> = {}): RecordTask => ({
   ...over,
 });
 
+/** No task's Done has a line: the deployment doesn't send notes. */
+const NO_LINES: TaskDoneLines = { lines: {}, sender: null };
+
 /** The Tasks face's record, as the desk's loader hands it over. */
 const record = (open: RecordTask[] = [], about: TaskRecord["about"] = {}): TaskRecord => ({
   open,
@@ -260,6 +264,7 @@ const deskOf = (journal: readonly JournalEntry[] = [], tasks: TaskRecord = recor
   warnDays: 30,
   list: reads(),
   tasks,
+  taskLines: NO_LINES,
   calendar: cal(),
   diary: diaryOf(journal),
 });
@@ -608,6 +613,22 @@ describe("the one door between faces", () => {
     expect(within(face("tasks")).getByText("Today")).toHaveAttribute("data-state", "today");
   });
 
+  /* Today's diary holds its newest entries, and reads its newest for one
+     it doesn't hold: a task made from an older entry offers no door to it,
+     which would open another. */
+  it("offers a task's Open in diary only for an entry the diary holds", async () => {
+    const user = userEvent.setup();
+    const older = wired();
+    render(
+      <DashboardDesk
+        data={{ ...older, desk: { ...older.desk!, tasks: record([recordTask()], { t1: fromDiary("e-old") }) } }}
+      />,
+    );
+    await user.click(tab("Tasks"));
+    await user.click(taskTitle("Order 2× MERV 11 filters"));
+    expect(within(face("tasks")).queryByRole("button", { name: "Open in diary" })).toBeNull();
+  }, WHOLE);
+
   it("takes a task's Open in diary to the entry that made it, and lights that entry alone", async () => {
     const user = userEvent.setup();
     render(<DashboardDesk data={wired()} />);
@@ -726,20 +747,35 @@ describe("the one door between faces", () => {
 
 /* The bell's door onto a Done that didn't go to ServiceM8 (two-way phase 2,
    PR C) opens /dashboard?task=<id>, and the desk is the owner's Home: it
-   opens there on the task, open on the Tasks face. */
+   opens there on the task, open on the Tasks face, and the task says where
+   its Done stands — from the lines read over the face's own tasks
+   (`desk.taskLines`), which reach back as far as its Done does. */
 describe("a task the address names", () => {
   const T = "3a3a3a3a-0000-4000-8000-00000000000a";
+  const OLD = "00000000-0000-4000-8000-0000000000d1";
+  const stillIn: TaskDoneLine = {
+    noteId: OLD,
+    words: "@lukeingold Done.",
+    state: { key: "line.stillIn", text: "Still in ServiceM8.", tone: "bad", acts: ["take_out_again"] },
+  };
   const finished = recordTask({ id: T, title: "Order the grilles", status: "done", doneAt: "2026-08-10T01:00:00Z", doneById: "s1" });
   const named = () =>
     data({
-      desk: deskOf([], { ...record([recordTask({ id: "t0", title: "Ring the Hilux dealer" })]), done: [finished] }),
+      desk: {
+        ...deskOf([], { ...record([recordTask({ id: "t0", title: "Ring the Hilux dealer" })]), done: [finished] }),
+        taskLines: { lines: { [T]: [stillIn] }, sender: null },
+      },
     });
+  const opened = () => document.getElementById(taskTitle("Order the grilles").getAttribute("aria-controls")!)!;
 
-  it("(F) opens the desk on Tasks with that task open", () => {
+  it("(F) opens the desk on Tasks with that task open, and its Done's line in it", () => {
     render(<DashboardDesk data={named()} taskId={T} />);
     expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
     expect(shownFaces()).toEqual(["tasks"]);
     expect(taskTitle("Order the grilles")).toHaveAttribute("aria-expanded", "true");
+    expect(opened().querySelector(`[data-note-id="${OLD}"]`)).toHaveTextContent("Still in ServiceM8.");
+    // and the row says so, closed or open
+    expect(taskTitle("Order the grilles").closest(".hd-ls-row")).toHaveTextContent("Still in ServiceM8.");
   }, WHOLE);
 
   it("(F) follows the address when only its search changes, and stays put when it stops naming one", () => {
@@ -909,15 +945,7 @@ describe("the list", () => {
     const user = userEvent.setup();
     render(
       <DashboardDesk
-        data={data({
-          desk: {
-            warnDays: 30,
-            list: reads({ wins: [{ job: mirror(), wonOn: TODAY }] }),
-            tasks: record(),
-            calendar: cal(),
-            diary: diaryOf([]),
-          },
-        })}
+        data={data({ desk: { ...deskOf(), list: reads({ wins: [{ job: mirror(), wonOn: TODAY }] }) } })}
       />,
     );
     await user.click(within(theList()).getByRole("button", { name: "Job 1042, Chatswood" }));

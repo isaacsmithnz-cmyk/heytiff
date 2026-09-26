@@ -46,6 +46,12 @@ jest.mock("@/components/notes/tiff-button", () => ({
 }));
 
 import { addTask, completeTask, deleteTask, giveTask, reopenTask, setTaskDue } from "@/app/actions/dashboard";
+// server functions, stubbed for every suite in jest.setup
+import { retryTaskDone } from "@/app/actions/task-sm8";
+import { confirmMySm8Link } from "@/app/actions/job-note-sm8";
+import type { TaskDoneLine } from "@/lib/dashboard/task-done-query";
+import type { NoteState } from "@/lib/integrations/sm8-note-plan";
+import { fillWords, NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 
 const m = <T,>(fn: T) => fn as unknown as jest.Mock;
 
@@ -433,7 +439,8 @@ describe("ticking it off", () => {
     const before = record({ open: [task(), task({ id: "t2", title: "Ring the Hilux dealer" })] });
     const { rerender } = render(<Face rec={before} />);
     await user.click(box("Order the grilles"));
-    expect(completeTask).toHaveBeenCalledWith("t1");
+    // a tick answers the mention it was made from (two-way phase 2, PR C)
+    expect(completeTask).toHaveBeenCalledWith("t1", { postDone: true });
     expect(within(group("Done 1")).getByRole("checkbox", { name: "Order the grilles" })).toHaveAttribute(
       "aria-checked",
       "true",
@@ -495,7 +502,8 @@ describe("ticking it off", () => {
     const acts = [...opened("Order the grilles").querySelectorAll(".hd-tk-a button")].map((b) => b.textContent);
     expect(acts).toEqual(["Not done yet", "Delete task"]);
     await user.click(screen.getByRole("button", { name: "Not done yet" }));
-    expect(reopenTask).toHaveBeenCalledWith("t1");
+    // ...and Not done yet takes that answer back
+    expect(reopenTask).toHaveBeenCalledWith("t1", { takeBackDone: true });
     expect(group("Open 1")).toContainElement(title("Order the grilles"));
   });
 
@@ -721,6 +729,82 @@ describe("focus", () => {
      (jsdom keeps it: stood in for). React gives focus back to what it
      moved, but only to what can still take it: the date field is never
      disabled under the focus it holds. */
+  /* A tick made with the pointer leaves the face where it is: the box
+     takes focus in Done without scrolling there. From the keyboard, focus
+     brings it into view — and so does Mark done, inside the row you are
+     reading, whose Not done yet is then under your hand. */
+  it("keeps the face still for a pointer's tick, and follows a key's tick and Mark done", async () => {
+    const user = userEvent.setup();
+    m(completeTask).mockImplementation(out);
+    const was = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "focus")!;
+    const real = HTMLElement.prototype.focus;
+    const landed: { on: string; preventScroll?: boolean }[] = [];
+    Object.defineProperty(HTMLElement.prototype, "focus", {
+      configurable: true,
+      writable: true,
+      value: function (this: HTMLElement, o?: FocusOptions) {
+        // the face's own landings always say whether to scroll
+        if (o) landed.push({ on: this.getAttribute("aria-label") ?? this.textContent ?? "", preventScroll: o.preventScroll });
+        return real.call(this, o);
+      },
+    });
+    try {
+      render(
+        <Face
+          rec={record({
+            open: [task(), task({ id: "t2", title: "Ring the Hilux dealer" }), task({ id: "t3", title: "Book the trailer in" })],
+          })}
+        />,
+      );
+      await user.click(box("Order the grilles"));
+      expect(box("Order the grilles")).toHaveFocus();
+      expect(landed).toEqual([{ on: "Order the grilles", preventScroll: true }]);
+
+      box("Ring the Hilux dealer").focus();
+      await user.keyboard("{Enter}");
+      expect(box("Ring the Hilux dealer")).toHaveFocus();
+      expect(landed.at(-1)).toEqual({ on: "Ring the Hilux dealer", preventScroll: false });
+
+      await user.click(title("Book the trailer in"));
+      await user.click(screen.getByRole("button", { name: "Mark done" }));
+      expect(screen.getByRole("button", { name: "Not done yet" })).toHaveFocus();
+      expect(landed.at(-1)).toEqual({ on: "Not done yet", preventScroll: false });
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, "focus", was);
+    }
+  });
+
+  /* A door on a Done's line is taken away while it is out, and may be gone
+     when the page comes back: focus it held goes to the row's title. */
+  it("goes to the row's title when a line's door it was on goes", async () => {
+    const user = userEvent.setup();
+    const answer = held<Res>();
+    m(retryTaskDone).mockReset().mockReturnValueOnce(answer.promise);
+    const stillIn: TaskDoneLine = {
+      noteId: "00000000-0000-4000-8000-0000000000d1",
+      words: "@lukeingold Done.",
+      state: { key: "line.stillIn", text: "Still in ServiceM8.", tone: "bad", acts: ["take_out_again"] },
+    };
+    render(
+      <Face
+        rec={record({ done: [task({ status: "done", doneAt: "2026-09-24T01:00:00Z", doneById: ME })], about: { t1: sm8() } })}
+        sm8Lines={{ t1: [stillIn] }}
+      />,
+    );
+    await user.click(title("Order the grilles"));
+    await user.click(screen.getByRole("button", { name: NOTE_WORDS.door.tryAgain }));
+    const door = screen.getByRole("button", { name: NOTE_WORDS.door.tryAgain });
+    expect(door).toBeDisabled();
+    /* A browser lets go of the focus a button held once it is disabled (the
+       focus fixup rule); jsdom keeps it, and won't blur a disabled button:
+       stood in for. */
+    door.removeAttribute("disabled");
+    door.blur();
+    expect(document.activeElement).toBe(document.body);
+    await act(async () => answer.resolve({ ok: true }));
+    expect(title("Order the grilles")).toHaveFocus();
+  });
+
   it("stays on Move due date when a new date moves the row down Open", async () => {
     const user = userEvent.setup();
     m(setTaskDue).mockImplementation(out);
@@ -932,6 +1016,61 @@ describe("the due date", () => {
   });
 });
 
+/* A row a press moved — ticked into Done, taken back to Open, dated down
+   Open or given to someone — is lit where it has gone, for its moment, so
+   the eye finds it again (his prototype's `fresh`). */
+describe("a row a press moved", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  const lit = (name: string) => title(name).closest(".hd-ls-row")!.hasAttribute("data-lit");
+
+  it("is lit where a tick took it, for its moment", async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    m(completeTask).mockImplementation(out);
+    render(<Face rec={record({ open: [task(), task({ id: "t2", title: "Ring the Hilux dealer" })] })} />);
+    await user.click(box("Order the grilles"));
+    expect(group("Done 1")).toContainElement(title("Order the grilles"));
+    expect([lit("Order the grilles"), lit("Ring the Hilux dealer")]).toEqual([true, false]);
+    act(() => jest.advanceTimersByTime(FLASH_MS - 1));
+    expect(lit("Order the grilles")).toBe(true);
+    act(() => jest.advanceTimersByTime(1));
+    expect(lit("Order the grilles")).toBe(false);
+  });
+
+  it("is lit where Not done yet, a new date and a hand-over leave it", async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    m(reopenTask).mockImplementation(out);
+    m(setTaskDue).mockImplementation(out);
+    m(giveTask).mockImplementation(out);
+    render(
+      <Face
+        rec={record({
+          open: [
+            task({ id: "t2", title: "Ring the Hilux dealer", dueDate: "2026-10-02" }),
+            task({ id: "t4", title: "Luke's", assigneeId: LUKE, assigneeName: "Luke Ingold" }),
+          ],
+          done: [task({ status: "done", doneAt: "2026-09-22T01:00:00Z", doneById: ME })],
+        })}
+        assignable={PEOPLE}
+        canManage
+      />,
+    );
+    await user.click(title("Order the grilles"));
+    await user.click(screen.getByRole("button", { name: "Not done yet" }));
+    expect(lit("Order the grilles")).toBe(true);
+    act(() => jest.advanceTimersByTime(FLASH_MS));
+    await user.click(title("Ring the Hilux dealer"));
+    await user.click(screen.getByRole("button", { name: "Move due date" }));
+    await user.click(screen.getByRole("button", { name: "Monday 5 October 2026" }));
+    expect([lit("Ring the Hilux dealer"), lit("Order the grilles")]).toEqual([true, false]);
+    act(() => jest.advanceTimersByTime(FLASH_MS));
+    await user.click(title("Luke's"));
+    await user.click(screen.getByRole("button", { name: "Give it to" }));
+    await user.click(within(giving()).getByRole("button", { name: "Leo Park" }));
+    expect([lit("Luke's"), lit("Ring the Hilux dealer")]).toEqual([true, false]);
+  });
+});
+
 describe("where it came from", () => {
   it("opens your own diary entry, and never someone else's", async () => {
     const user = userEvent.setup();
@@ -964,6 +1103,171 @@ describe("where it came from", () => {
     await user.click(title("Order the grilles"));
     await user.click(screen.getByRole("button", { name: "Open conversation" }));
     expect(onOpenConversation).toHaveBeenCalledWith("note-1", true);
+  });
+
+  /* The Diary holds its newest entries, and reads its newest for one it
+     doesn't hold: a door to an entry it can't open would open another. */
+  it("offers Open in diary only for an entry the Diary can open", async () => {
+    const user = userEvent.setup();
+    const rec = record({ open: [task()], about: { t1: diary({ noteId: "e-old" }) } });
+    const { unmount } = render(<Face rec={rec} onOpenEntry={jest.fn()} canOpenEntry={(id) => id === "e-new"} />);
+    await user.click(title("Order the grilles"));
+    expect(screen.queryByRole("button", { name: "Open in diary" })).toBeNull();
+    unmount();
+    render(<Face rec={rec} onOpenEntry={jest.fn()} canOpenEntry={(id) => id === "e-old"} />);
+    await user.click(title("Order the grilles"));
+    expect(screen.getByRole("button", { name: "Open in diary" })).toBeInTheDocument();
+  });
+});
+
+/* A TASK'S DONE IN SERVICEM8 (two-way phase 2, PR C): a tick answers the
+   mention the task was made from and Not done yet takes it back (the flags
+   are pinned where each is pressed, above, and every caller is read by
+   task-sm8-callers); here, where that answer stands, drawn in the row with
+   its own doors. The line itself is task-sm8-line's, and its words the
+   diary's. */
+describe("a task's Done in ServiceM8", () => {
+  const T = "t1";
+  const OLD = "00000000-0000-4000-8000-0000000000d1";
+  const NEW = "00000000-0000-4000-8000-0000000000d2";
+  const ISAAC_SM8 = "5a1b2c3d-0000-4000-8000-00000000aaaa";
+  const state = (over: Partial<NoteState>): NoteState => ({ key: null, text: null, tone: null, acts: [], ...over });
+  const line = (noteId: string, s: Partial<NoteState>): TaskDoneLine => ({ noteId, words: "@lukeingold Done.", state: state(s) });
+  const sent = line(NEW, { key: "line.sent", text: NOTE_WORDS.line.sent, tone: "ok", acts: ["undo"] });
+  const stillIn = line(OLD, {
+    key: "line.stillIn",
+    text: fillWords(NOTE_WORDS.line.stillIn, { reason: NOTE_WORDS.row.noteRefused }),
+    tone: "bad",
+    acts: ["take_out_again"],
+  });
+  const asking = line(NEW, {
+    key: "line.notSent",
+    text: fillWords(NOTE_WORDS.line.notSent, { reason: fillWords(NOTE_WORDS.press.confirm, { sm8Name: "Isaac Smith" }) }),
+    tone: "bad",
+    acts: ["confirm", "undo"],
+  });
+  const done = () =>
+    record({
+      done: [task({ status: "done", doneAt: "2026-09-24T01:00:00Z", doneById: ME })],
+      about: { t1: sm8() },
+    });
+  const retry = () => m(retryTaskDone);
+  beforeEach(() => {
+    retry().mockReset().mockResolvedValue({ ok: true, state: null });
+    m(confirmMySm8Link)
+      .mockReset()
+      .mockResolvedValue({
+        ok: true,
+        sender: { state: "ready", staffUuid: ISAAC_SM8, remoteId: ISAAC_SM8, sm8Name: "Isaac Smith", handle: "isaacsmith" },
+      });
+  });
+  const drawn = () => [...opened("Order the grilles").querySelectorAll<HTMLElement>("[data-note-id]")];
+
+  it("draws nothing where there is no line", async () => {
+    const user = userEvent.setup();
+    render(<Face rec={done()} />);
+    expect(title("Order the grilles").closest(".hd-ls-row")).toHaveTextContent("You ticked it off.");
+    await user.click(title("Order the grilles"));
+    expect(drawn()).toEqual([]);
+    expect(opened("Order the grilles").querySelector(".hd-tk-sm8")).toBeNull();
+  });
+
+  it("draws each line under what happened to it: the words, then where it stands in its colour", async () => {
+    const user = userEvent.setup();
+    render(<Face rec={done()} sm8Lines={{ [T]: [sent, stillIn] }} />);
+    await user.click(title("Order the grilles"));
+    expect(drawn().map((p) => p.dataset.noteId)).toEqual([NEW, OLD]);
+    expect(drawn()[0]).toHaveTextContent(`“@lukeingold Done.” ${NOTE_WORDS.line.sent}`);
+    expect(within(drawn()[0]!).getByText(NOTE_WORDS.line.sent)).toHaveClass("ok");
+    expect(within(drawn()[1]!).getByText(stillIn.state.text!)).toHaveClass("bad");
+    // under the history, and above what you can do
+    const sm8 = opened("Order the grilles").querySelector(".hd-tk-sm8")!;
+    expect(sm8.previousElementSibling).toHaveClass("hd-tk-h");
+    expect(sm8.nextElementSibling).toHaveClass("hd-tk-a");
+    // Not done yet is the task's Undo: the line draws none of its own
+    expect(within(sm8 as HTMLElement).queryByRole("button", { name: NOTE_WORDS.door.undo })).toBeNull();
+  });
+
+  it("says on the row's own line, closed, when its Done went wrong", () => {
+    const { rerender } = render(<Face rec={done()} sm8Lines={{ [T]: [sent] }} />);
+    const sub = () => title("Order the grilles").closest(".hd-ls-row")!.querySelector(".hd-ls-sub")!;
+    expect(sub()).toHaveTextContent("You ticked it off.");
+    expect(sub()).not.toHaveClass("late");
+    rerender(<Face rec={done()} sm8Lines={{ [T]: [sent, stillIn] }} />);
+    expect(sub()).toHaveTextContent(stillIn.state.text!);
+    expect(sub()).toHaveClass("late");
+  });
+
+  it("re-presses that row's take-back with Try again, sends nothing more while it is out, and asks the page again", async () => {
+    const user = userEvent.setup();
+    const answer = held<Res>();
+    retry().mockReturnValueOnce(answer.promise);
+    render(<Face rec={done()} sm8Lines={{ [T]: [sent, stillIn] }} />);
+    await user.click(title("Order the grilles"));
+    const again = () => within(drawn()[1]!).getByRole("button", { name: NOTE_WORDS.door.tryAgain });
+    await user.click(again());
+    expect(retryTaskDone).toHaveBeenCalledWith({ taskId: T, noteId: OLD, act: "take_out_again" });
+    // the row waits for it: the line's doors, and the row's own
+    expect(again()).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Not done yet" })).toHaveAttribute("aria-disabled", "true");
+    await user.click(screen.getByRole("button", { name: "Not done yet" }));
+    expect(reopenTask).not.toHaveBeenCalled();
+    expect(mockRouter.refresh).not.toHaveBeenCalled();
+    await act(async () => answer.resolve({ ok: true }));
+    expect(retryTaskDone).toHaveBeenCalledTimes(1);
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Yes for the link you hold, then sends that row again", async () => {
+    const user = userEvent.setup();
+    render(
+      <Face
+        rec={done()}
+        sm8Lines={{ [T]: [asking] }}
+        sm8Sender={{ state: "confirm", remoteId: ISAAC_SM8, sm8Name: "Isaac Smith", handle: "isaacsmith" }}
+      />,
+    );
+    await user.click(title("Order the grilles"));
+    await user.click(within(drawn()[0]!).getByRole("button", { name: NOTE_WORDS.door.yes }));
+    await waitFor(() => expect(retryTaskDone).toHaveBeenCalledWith({ taskId: T, noteId: NEW, act: "send_again" }));
+    expect(confirmMySm8Link).toHaveBeenCalledWith({ remoteId: ISAAC_SM8, answer: "yes" });
+  });
+
+  it("says on the row what a line's door was refused, and sends nothing after a refused Yes", async () => {
+    const user = userEvent.setup();
+    retry().mockResolvedValueOnce({ ok: false, error: NOTE_WORDS.press.unlinked });
+    render(<Face rec={done()} sm8Lines={{ [T]: [sent, stillIn] }} />);
+    await user.click(title("Order the grilles"));
+    await user.click(within(drawn()[1]!).getByRole("button", { name: NOTE_WORDS.door.tryAgain }));
+    await waitFor(() => expect(title("Order the grilles").closest(".hd-ls-row")).toHaveTextContent(NOTE_WORDS.press.unlinked));
+
+    m(confirmMySm8Link).mockResolvedValueOnce({ ok: false, error: "That isn't an answer." });
+    retry().mockClear();
+    cleanup();
+    render(
+      <Face
+        rec={done()}
+        sm8Lines={{ [T]: [asking] }}
+        sm8Sender={{ state: "confirm", remoteId: ISAAC_SM8, sm8Name: "Isaac Smith", handle: "isaacsmith" }}
+      />,
+    );
+    await user.click(title("Order the grilles"));
+    await user.click(within(drawn()[0]!).getByRole("button", { name: NOTE_WORDS.door.notMe }));
+    await waitFor(() => expect(title("Order the grilles").closest(".hd-ls-row")).toHaveTextContent("That isn't an answer."));
+    expect(retryTaskDone).not.toHaveBeenCalled();
+  });
+
+  /* A Reopen stands even when somebody else's Done can't come back out of
+     ServiceM8 — and the reader is told, where a refusal would be. */
+  it("says what a Reopen couldn't take back, where a refusal would be", async () => {
+    const user = userEvent.setup();
+    const note = fillWords(NOTE_WORDS.press.notYours, { name: "Luke Ingold" });
+    m(reopenTask).mockResolvedValueOnce({ ok: true, note });
+    render(<Face rec={done()} />);
+    await user.click(title("Order the grilles"));
+    await user.click(screen.getByRole("button", { name: "Not done yet" }));
+    await waitFor(() => expect(title("Order the grilles").closest(".hd-ls-row")!.querySelector(".hd-ls-sub")).toHaveTextContent(note));
+    expect(mockRouter.refresh).not.toHaveBeenCalled();
   });
 });
 
@@ -1020,6 +1324,8 @@ describe("deleting it", () => {
     await user.click(screen.getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(screen.getByText("That task isn't yours to delete.")).toBeInTheDocument());
     expect(title("Order the grilles")).toBeInTheDocument();
+    // closed, as the delete left it: the words stand on its line
+    expect(title("Order the grilles")).toHaveAttribute("aria-expanded", "false");
   });
 });
 
@@ -1033,16 +1339,48 @@ function withMotion(): () => void {
   };
 }
 
+/** The browser can animate, and the reader asked for less (law 8): what
+    would glide is simply there. */
+function withLessMotion(): () => void {
+  const still = withMotion();
+  window.matchMedia = ((q: string) => ({ matches: /reduce/.test(q) })) as unknown as typeof window.matchMedia;
+  return () => {
+    delete (window as { matchMedia?: unknown }).matchMedia;
+    still();
+  };
+}
+
 describe("a door from another face", () => {
   let scrolled: HTMLElement[];
   let glides: (ScrollBehavior | undefined)[];
+  let asked: (ScrollIntoViewOptions | boolean | undefined)[];
   beforeEach(() => {
     scrolled = [];
     glides = [];
+    asked = [];
     Element.prototype.scrollIntoView = jest.fn(function (this: HTMLElement, o?: ScrollIntoViewOptions | boolean) {
       scrolled.push(this);
       glides.push(typeof o === "object" ? o.behavior : undefined);
+      asked.push(o);
     });
+  });
+
+  /* ...and a pointer's door glides only where the reader allows motion:
+     under reduced motion its row is brought to the middle at once. */
+  it("brings a pointer's door to the middle of the face, and does not glide under reduced motion", () => {
+    const rec = record({ open: [task({ id: "t0", title: "Ring the Hilux dealer" }), task()] });
+    let still = withLessMotion();
+    try {
+      const { rerender } = render(<Face rec={rec} focusTaskId="t1" focusByPointer />);
+      expect(asked).toEqual([{ block: "center", behavior: "auto" }]);
+      rerender(<Face rec={rec} focusTaskId={null} />);
+      still();
+      still = withMotion();
+      rerender(<Face rec={rec} focusTaskId="t1" focusByPointer />);
+      expect(asked.at(-1)).toEqual({ block: "center", behavior: "smooth" });
+    } finally {
+      still();
+    }
   });
 
   /* Law 8: a door pressed from the keyboard moves nothing — its row is
@@ -1133,9 +1471,11 @@ describe("the box", () => {
     const user = userEvent.setup();
     const still = withMotion();
     const glides: (ScrollBehavior | undefined)[] = [];
+    const edges: (ScrollLogicalPosition | undefined)[] = [];
     const realScroll = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = jest.fn((o?: ScrollIntoViewOptions | boolean) => {
       glides.push(typeof o === "object" ? o.behavior : undefined);
+      edges.push(typeof o === "object" ? o.block : undefined);
     });
     try {
       m(addTask).mockResolvedValueOnce({ ok: true, taskId: "t9" }).mockResolvedValueOnce({ ok: true, taskId: "t8" });
@@ -1153,11 +1493,57 @@ describe("the box", () => {
       await waitFor(() => expect(field()).toHaveValue(""));
       rerender(<Face rec={record({ open: [task(), saved, task({ id: "t8", title: "Ring the Hilux dealer" })] })} />);
       expect(glides.at(-1)).toBe("smooth");
+      // to the nearest edge of the face: a new task needn't be in its middle
+      expect(new Set(edges)).toEqual(new Set(["nearest"]));
     } finally {
       // an answer left unused must not answer the next test's Save
       m(addTask).mockReset();
       Element.prototype.scrollIntoView = realScroll;
       still();
+    }
+  });
+
+  it("does not glide what a pointer's Save made under reduced motion", async () => {
+    const user = userEvent.setup();
+    const still = withLessMotion();
+    const asked: (ScrollIntoViewOptions | boolean | undefined)[] = [];
+    const realScroll = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = jest.fn((o?: ScrollIntoViewOptions | boolean) => {
+      asked.push(o);
+    });
+    try {
+      m(addTask).mockResolvedValueOnce({ ok: true, taskId: "t9" });
+      const { rerender } = render(<Face rec={record({ open: [task()] })} />);
+      await user.type(screen.getByRole("textbox", { name: "Add a task" }), "Call the strata manager");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(screen.getByRole("textbox", { name: "Add a task" })).toHaveValue(""));
+      rerender(<Face rec={record({ open: [task(), task({ id: "t9", title: "Call the strata manager" })] })} />);
+      expect(asked).toEqual([{ block: "nearest", behavior: "auto" }]);
+    } finally {
+      m(addTask).mockReset();
+      Element.prototype.scrollIntoView = realScroll;
+      still();
+    }
+  });
+
+  it("lights what Save made for its moment, then lets it go", async () => {
+    jest.useFakeTimers();
+    try {
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      m(addTask).mockResolvedValue({ ok: true, taskId: "t9" });
+      const { rerender } = render(<Face rec={record({ open: [task()] })} />);
+      await user.type(screen.getByRole("textbox", { name: "Add a task" }), "Call the strata manager");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(screen.getByRole("textbox", { name: "Add a task" })).toHaveValue(""));
+      rerender(<Face rec={record({ open: [task(), task({ id: "t9", title: "Call the strata manager" })] })} />);
+      const row = () => title("Call the strata manager").closest(".hd-ls-row");
+      expect(row()).toHaveAttribute("data-lit");
+      act(() => jest.advanceTimersByTime(FLASH_MS - 1));
+      expect(row()).toHaveAttribute("data-lit");
+      act(() => jest.advanceTimersByTime(1));
+      expect(row()).not.toHaveAttribute("data-lit");
+    } finally {
+      jest.useRealTimers();
     }
   });
 

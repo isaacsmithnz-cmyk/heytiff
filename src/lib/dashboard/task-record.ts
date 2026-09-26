@@ -505,7 +505,10 @@ export type TaskChange =
   | { id: string; kind: "open" }
   | { id: string; kind: "due"; due: string | null }
   | { id: string; kind: "give"; to: string; name: string }
-  | { id: string; kind: "gone" };
+  | { id: string; kind: "gone" }
+  /** A door on the task's ServiceM8 line: nothing changes on the face
+      until the page comes back, but the row waits for it. */
+  | { id: string; kind: "send" };
 
 const stamp = (iso: string | null) => (iso ? new Date(iso).getTime() || 0 : 0);
 
@@ -540,6 +543,8 @@ export function withChanges(
       case "give":
         /* giveTask clears the old "Got it": the new person has not said it */
         all.set(c.id, { ...t, assigneeId: c.to, assigneeName: c.name, acknowledgedAt: null });
+        break;
+      case "send":
         break;
     }
   }

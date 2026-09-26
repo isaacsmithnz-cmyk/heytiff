@@ -12,11 +12,15 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { addTask, completeTask, deleteTask, giveTask, reopenTask, setTaskDue } from "@/app/actions/dashboard";
+import { confirmMySm8Link } from "@/app/actions/job-note-sm8";
+import { retryTaskDone } from "@/app/actions/task-sm8";
 import { Icon } from "@/components/shell/icon";
 import { TiffBox, type BoxSaved } from "@/components/tiff/modal/tiff-box";
 import { useTiff } from "@/components/tiff/modal/tiff-context";
 import { DateField } from "@/components/ui/date-field";
 import { motionAllowed } from "@/lib/dashboard/day-flip";
+import type { TaskDoneLine } from "@/lib/dashboard/task-done-query";
+import type { NoteSender } from "@/lib/integrations/links";
 import {
   dueWord,
   factsOf,
@@ -36,6 +40,7 @@ import {
 import { Confirm } from "./home-confirm";
 import { useDeskJobs } from "./home-job-sheet";
 import { FLASH_MS, ListDot, ListGroup, ListLine } from "./home-list";
+import { TaskSm8Line, type TaskSm8Doors } from "./task-sm8-line";
 
 /* THE NEW HOME'S TASKS FACE — the diary column's second face, beside the
    list (docs/design.md, "Home is the day, three tabs and the list"). Every
@@ -71,18 +76,30 @@ import { FLASH_MS, ListDot, ListGroup, ListLine } from "./home-list";
    row while its action is out is not sent. A ticked row moves to Done and
    stays open there, so Not done yet is under your hand.
 
+   A TICK ANSWERS THE MENTION a task was made from, and Not done yet takes
+   that answer back (`postDone`, `takeBackDone`: two-way phase 2, PR C) —
+   both nothing where the deployment doesn't send notes. Where that Done
+   stands is drawn in the row, under what happened to it, in the diary's
+   own words and with its own doors (./task-sm8-line, `sm8Lines`); one
+   that went wrong says so on the row's line too, so a closed row shows
+   it. What a Reopen could not take back is said where a refusal is.
+
    FOCUS STAYS WHERE YOUR HAND IS. A press that moves things out from under
    the control it was made with — a row changing groups or places, a
    question answered, a row deleted — puts focus back on that control in
    its new place (the neighbouring task, for a delete), and again if a
    refusal puts the row back; never once focus has gone somewhere else.
+   Focus follows a row out of sight only for the keyboard, and for Mark
+   done, whose row you are reading: a tick made with the pointer leaves
+   the face where it is.
 
    A ROW IS LIT, once, when something sent you to it: a door from another
    face (`focusTaskId`, brought into the middle of the face, and focused
-   when focus was not already here), the task you just saved, or one Tiff
-   has just filed. Only a pointer's door or Save glides it into view. */
+   when focus was not already here), the task you just saved, one Tiff has
+   just filed, or one a press just moved — ticked, taken back, dated or
+   given. Only a pointer's door or Save glides it into view. */
 
-type Res = { ok: true } | { ok: false; error: string };
+type Res = { ok: true; note?: string } | { ok: false; error: string };
 
 /** Someone a task can be given to. */
 type Person = { id: string; name: string };
@@ -109,6 +126,9 @@ type Landing = {
   until: string | null;
   /** The action has been seen out. */
   seen: boolean;
+  /** Focus may bring the control into view: a keyboard's press, or Mark
+      done. A pointer's press elsewhere leaves the face where it is. */
+  scroll: boolean;
 };
 
 const LAND: Record<LandOn, string> = {
@@ -160,6 +180,9 @@ function omit<T>(record: Readonly<Record<string, T>>, key: string): Record<strin
 const EMPTY_ABOUT: TaskAbout = typedAbout();
 /** Nothing pressed and waiting: the base every optimistic change sits on. */
 const NO_CHANGES: readonly TaskChange[] = [];
+/** No ServiceM8 lines: the deployment doesn't send notes, or none is read. */
+const NO_LINES: Readonly<Record<string, readonly TaskDoneLine[]>> = {};
+const NO_DONE_LINES: readonly TaskDoneLine[] = [];
 
 /** Everything a row needs from the face: what it knows, and what it can do. */
 type Ctl = {
@@ -175,16 +198,21 @@ type Ctl = {
   asking: Asking | null;
   errors: Readonly<Record<string, string>>;
   busy: ReadonlySet<string>;
+  sm8Lines: Readonly<Record<string, readonly TaskDoneLine[]>>;
+  sm8Sender: NoteSender | null;
   lit: (id: string) => boolean;
   toggle: (id: string, pointer: boolean) => void;
-  finish: (t: RecordTask, on: "tick" | "finish") => void;
+  finish: (t: RecordTask, on: "tick" | "finish", pointer: boolean) => void;
   move: (t: RecordTask, due: string | null) => void;
   give: (t: RecordTask, to: Person) => void;
   ask: (id: string, what: Asking["what"]) => void;
   keep: (id: string) => void;
   remove: (id: string) => void;
+  /** A door on a Done's line, for the row it stands in. */
+  send: (id: string, run: () => Promise<Res>) => void;
   openJob: (uuid: string, from: HTMLElement) => void;
   onOpenEntry?: (entryId: string, pointer: boolean) => void;
+  canOpenEntry?: (entryId: string) => boolean;
   onOpenConversation?: (noteUuid: string, pointer: boolean) => void;
 };
 
@@ -199,7 +227,10 @@ export function HomeTasksFace({
   focusByPointer = false,
   onFocusHandled,
   onOpenEntry,
+  canOpenEntry,
   onOpenConversation,
+  sm8Lines = NO_LINES,
+  sm8Sender = null,
 }: {
   /** The workspace's day — the one the list beside it places by. */
   today: string;
@@ -220,9 +251,19 @@ export function HomeTasksFace({
   /** The diary entry that made a task — the desk's door to the Diary face.
       `pointer` is false for a press from the keyboard. */
   onOpenEntry?: (entryId: string, pointer: boolean) => void;
+  /** Whether the Diary holds that entry to open: a door to one it doesn't
+      hold would open another. Without it, every entry can be opened. */
+  canOpenEntry?: (entryId: string) => boolean;
   /** The ServiceM8 conversation a task came from, once the Diary shows
       conversations; until then a mention's task has no such door. */
   onOpenConversation?: (noteUuid: string, pointer: boolean) => void;
+  /** Where each task's Done stands with ServiceM8, by task (two-way phase
+      2, PR C) — empty where the deployment doesn't send notes, and then
+      the face is as it would be without them. */
+  sm8Lines?: Readonly<Record<string, readonly TaskDoneLine[]>>;
+  /** Who the viewer is in ServiceM8: the link question's Yes answers for
+      it. */
+  sm8Sender?: NoteSender | null;
 }) {
   const router = useRouter();
   const { openJob } = useDeskJobs();
@@ -235,6 +276,10 @@ export function HomeTasksFace({
   /* The task Save just made, lit while it arrives; `pointer` if a pointer
      pressed Save, which alone may glide it into view. */
   const [fresh, setFresh] = useState<{ id: string; pointer: boolean } | null>(null);
+  /* The row a press just moved — ticked, taken back, dated or given — lit
+     for its moment where it has gone; a new object each press, so a second
+     press starts the moment again. */
+  const [moved, setMoved] = useState<{ id: string } | null>(null);
   /* Where focus goes once the press in hand has moved things (see
      `Landing`); read after each commit, never in render. */
   const landing = useRef<Landing | null>(null);
@@ -285,11 +330,17 @@ export function HomeTasksFace({
       behavior: fresh.pointer && motionAllowed() ? "smooth" : "auto",
     });
   }, [fresh, record]);
+  useEffect(() => {
+    if (!moved) return;
+    const t = setTimeout(() => setMoved(null), FLASH_MS);
+    return () => clearTimeout(t);
+  }, [moved]);
 
   const { open, done } = withChanges(record, changes);
   const busy = new Set(changes.map((c) => c.id));
   const landedIds = landed?.ids ?? [];
-  const lit = (id: string) => id === focusTaskId || id === fresh?.id || landedIds.includes(id);
+  const lit = (id: string) =>
+    id === focusTaskId || id === fresh?.id || id === moved?.id || landedIds.includes(id);
 
   /* THE LANDING, after the commit a press lands in and the one its answer
      lands in, and no other: focus that fell out of the page there goes
@@ -300,30 +351,32 @@ export function HomeTasksFace({
     const l = landing.current;
     if (!l) return;
     const out = l.until !== null && busy.has(l.until);
-    if ((!l.seen || !out) && focusDropped()) landOf(root.current, l)?.focus({ preventScroll: true });
+    if ((!l.seen || !out) && focusDropped()) landOf(root.current, l)?.focus({ preventScroll: !l.scroll });
     if (l.until === null) landing.current = null;
     else if (out) l.seen = true;
     else if (l.seen) landing.current = null;
   });
 
-  const land = (id: string | null, on: LandOn, until: string | null = null) => {
-    landing.current = { id, on, until, seen: false };
+  const land = (id: string | null, on: LandOn, until: string | null = null, scroll = false) => {
+    landing.current = { id, on, until, seen: false, scroll };
   };
 
   /* One action: drawn as done at once, and put back with its words if it
      says no. A row that moves groups under it remounts; it must not grow
-     open a second time, and a question left on it is answered. */
-  const act = (c: TaskChange, run: () => Promise<Res>, words: string) => {
+     open a second time, and a question left on it is answered. An action
+     that stands but has something to say (a Reopen that couldn't take a
+     Done back out of ServiceM8) says it where a refusal would. `ask`: the
+     action doesn't bring the page back itself, so it is asked for. */
+  const act = (c: TaskChange, run: () => Promise<Res>, words: string, ask = false) => {
     setErrors((e) => (c.id in e ? omit(e, c.id) : e));
     setOpened((o) => (o && o.id === c.id && o.grow ? { id: o.id, grow: false } : o));
     setAsking(null);
     startTransition(async () => {
       change(c);
       const res = await settle(run, words);
-      if (!res.ok) {
-        setErrors((e) => ({ ...e, [c.id]: res.error }));
-        router.refresh();
-      }
+      const said = res.ok ? res.note : res.error;
+      if (said) setErrors((e) => ({ ...e, [c.id]: said }));
+      if (!res.ok || ask) router.refresh();
     });
   };
 
@@ -333,17 +386,21 @@ export function HomeTasksFace({
     setOpened((o) => (o?.id === id ? null : { id, grow }));
   };
 
-  const finish = (t: RecordTask, on: "tick" | "finish") => {
+  /* A tick made with the pointer keeps the face still: the box comes back
+     under focus in Done without scrolling there. From the keyboard, and
+     from Mark done inside the row you are reading, focus follows it. */
+  const finish = (t: RecordTask, on: "tick" | "finish", pointer: boolean) => {
     if (busy.has(t.id)) return;
-    land(t.id, on, t.id);
+    land(t.id, on, t.id, on === "finish" || !pointer);
+    setMoved({ id: t.id });
     if (t.status === "open") {
       act(
         { id: t.id, kind: "done", at: new Date().toISOString(), by: viewerStaffId },
-        () => completeTask(t.id),
+        () => completeTask(t.id, { postDone: true }),
         "Couldn't complete that task.",
       );
     } else {
-      act({ id: t.id, kind: "open" }, () => reopenTask(t.id), "Couldn't reopen that task.");
+      act({ id: t.id, kind: "open" }, () => reopenTask(t.id, { takeBackDone: true }), "Couldn't reopen that task.");
     }
   };
 
@@ -352,6 +409,7 @@ export function HomeTasksFace({
      still take focus, which is why the date field is never disabled. */
   const move = (t: RecordTask, due: string | null) => {
     if (busy.has(t.id) || due === t.dueDate) return;
+    setMoved({ id: t.id });
     act({ id: t.id, kind: "due", due }, () => setTaskDue(t.id, due), "Couldn't move that task.");
   };
 
@@ -359,7 +417,18 @@ export function HomeTasksFace({
      action is out, and which any action takes away. */
   const give = (t: RecordTask, to: Person) => {
     land(t.id, "give", t.id);
+    setMoved({ id: t.id });
     act({ id: t.id, kind: "give", to: to.id, name: to.name }, () => giveTask(t.id, to.id), "Couldn't give that task.");
+  };
+
+  /* A door on a Done's line — Try again, Send again, Yes, Not me. It draws
+     nothing ahead of its answer; the row waits for it as for any action
+     (the line's own doors are off while the row's action is out), and the
+     page is asked again for where the Done now stands. Focus left on a
+     door the line takes away goes to the row's title. */
+  const send = (id: string, run: () => Promise<Res>) => {
+    land(id, "title", id);
+    act({ id, kind: "send" }, run, "Couldn't reach ServiceM8.", true);
   };
 
   /* The row goes, and focus goes to the task that took its place: the one
@@ -398,11 +467,14 @@ export function HomeTasksFace({
     asking,
     errors,
     busy,
+    sm8Lines,
+    sm8Sender,
     lit,
     toggle,
     finish,
     move,
     give,
+    send,
     ask: (id, what) => {
       if (!busy.has(id)) setAsking({ id, what });
     },
@@ -415,6 +487,7 @@ export function HomeTasksFace({
     remove,
     openJob: (uuid, from) => openJob(uuid, { from }),
     onOpenEntry,
+    canOpenEntry,
     onOpenConversation,
   };
 
@@ -469,6 +542,10 @@ function TaskRow({ t, ctl }: { t: RecordTask; ctl: Ctl }) {
   const expanded = ctl.opened?.id === t.id;
   const busy = ctl.busy.has(t.id);
   const error = ctl.errors[t.id];
+  /* A Done that went wrong in ServiceM8 says so on the row's own line, so
+     the row says it closed; what the action just said comes first. */
+  const trouble = (ctl.sm8Lines[t.id] ?? NO_DONE_LINES).find((l) => l.state.tone === "bad")?.state.text ?? null;
+  const said = error ?? trouble;
 
   /* The box you tick — or, on work someone else finished for you, a tick
      with no control: yours to read, theirs to take back. */
@@ -485,7 +562,8 @@ function TaskRow({ t, ctl }: { t: RecordTask; ctl: Ctl }) {
            nothing while the row's action is out. */
         aria-disabled={busy || undefined}
         className={isDone ? "hd-ls-cb on" : "hd-ls-cb"}
-        onClick={() => ctl.finish(t, "tick")}
+        /* a click's `detail` is 0 when a key pressed it */
+        onClick={(e) => ctl.finish(t, "tick", e.detail > 0)}
       >
         {isDone ? <Icon name="check" size={12} /> : null}
       </button>
@@ -520,8 +598,8 @@ function TaskRow({ t, ctl }: { t: RecordTask; ctl: Ctl }) {
           </>
         ) : null
       }
-      sub={error ?? sourceLine(about, t, ctl.viewer, ctl.today, ctl.people)}
-      subTone={error ? "late" : ""}
+      sub={said ?? sourceLine(about, t, ctl.viewer, ctl.today, ctl.people)}
+      subTone={said ? "late" : ""}
     >
       {expanded && <TaskDetail id={detailId} t={t} about={about} powers={powers} ctl={ctl} />}
     </ListLine>
@@ -640,7 +718,26 @@ function TaskDetail({
   const noteUuid = about.source === "sm8" ? about.sm8NoteUuid : null;
   const openEntry = ctl.onOpenEntry;
   const entryId =
-    about.source === "diary" && ctl.viewer !== null && about.authorId === ctl.viewer ? about.noteId : null;
+    about.source === "diary" &&
+    ctl.viewer !== null &&
+    about.authorId === ctl.viewer &&
+    about.noteId &&
+    (ctl.canOpenEntry?.(about.noteId) ?? true)
+      ? about.noteId
+      : null;
+  const doneLines = ctl.sm8Lines[t.id] ?? NO_DONE_LINES;
+  /* The line's doors, each on its own row. Yes (or Not me) is kept for the
+     link the viewer holds, and then that row is pressed again: after Yes
+     it goes; after Not me the line says why it can't. */
+  const doors: TaskSm8Doors = {
+    onRetry: (noteId, act) => ctl.send(t.id, () => retryTaskDone({ taskId: t.id, noteId, act })),
+    onConfirm: (noteId, remoteId, answer) =>
+      ctl.send(t.id, async () => {
+        const answered = await confirmMySm8Link({ remoteId, answer });
+        if (!answered.ok) return answered;
+        return retryTaskDone({ taskId: t.id, noteId, act: "send_again" });
+      }),
+  };
 
   let doing: ReactNode;
   if (asking === "delete") {
@@ -658,7 +755,7 @@ function TaskDetail({
             className={isDone ? "hd-ls-vb" : "hd-ls-vb hd-tk-go"}
             data-act="finish"
             aria-disabled={busy || undefined}
-            onClick={() => ctl.finish(t, "finish")}
+            onClick={(e) => ctl.finish(t, "finish", e.detail > 0)}
           >
             {isDone ? "Not done yet" : "Mark done"}
           </button>
@@ -737,6 +834,14 @@ function TaskDetail({
               </li>
             ))}
           </ol>
+        )}
+        {/* THE ANSWER IT SENT, when the task was made from a ServiceM8
+            mention: the Done (or the reply that closed it) in quotes, then
+            where it stands, under the line that says it was done. */}
+        {doneLines.length > 0 && (
+          <div className="hd-tk-sm8">
+            <TaskSm8Line lines={doneLines} sender={ctl.sm8Sender} pending={busy} doors={doors} />
+          </div>
         )}
         {doing}
       </div>

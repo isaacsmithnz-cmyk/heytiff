@@ -66,8 +66,12 @@ const table = (name: string) => {
 };
 
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { from: (n: string) => table(n) } }));
+/* Where a task's Done stands is task-done-query's suite's; here, only when
+   and over what the face asks for it. */
+const readTaskDoneLines = jest.fn(async (..._a: unknown[]) => ({ lines: { x: [] }, sender: null }));
+jest.mock("../task-done-query", () => ({ readTaskDoneLines: (...a: unknown[]) => readTaskDoneLines(...a) }));
 
-import { DONE_LIMIT, doneTaskRecord, loadTasksFace, type TasksFaceContext } from "../task-record-query";
+import { DONE_LIMIT, doneTaskRecord, loadTaskLines, loadTasksFace, type TasksFaceContext } from "../task-record-query";
 import type { Capability } from "@/lib/permissions";
 
 const ORG = "org-1";
@@ -459,5 +463,41 @@ describe("about", () => {
     const rec = await loadTasksFace(ctx({ viewerStaffId: null }), NOW);
     expect(rec.open).toEqual([]);
     expect(calls).toHaveLength(0);
+  });
+});
+
+/* A TASK'S DONE IN SERVICEM8 (two-way phase 2, PR C), read for the tasks
+   the face holds — which reach back 90 days, where today's Tasks face
+   holds five done — and not at all until the deployment sends notes. */
+describe("loadTaskLines", () => {
+  const was = process.env.SM8_WRITES;
+  afterEach(() => {
+    if (was === undefined) delete process.env.SM8_WRITES;
+    else process.env.SM8_WRITES = was;
+  });
+  beforeEach(() => readTaskDoneLines.mockClear());
+  const held = { open: [{ id: tid(1) }], done: [{ id: tid(2) }, { id: tid(3) }] } as unknown as Parameters<typeof loadTaskLines>[1];
+  const none = { lines: {}, sender: null };
+
+  it("(F) reads the lines of every task the face holds, open and done, where notes are sent", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    expect(await loadTaskLines(ctx({}, "workboard"), held)).toEqual({ lines: { x: [] }, sender: null });
+    expect(readTaskDoneLines).toHaveBeenCalledWith(ORG, ME, [tid(1), tid(2), tid(3)]);
+  });
+
+  it("(F) reads nothing where the deployment sends files only, without the Workboard, or without a staff card", async () => {
+    process.env.SM8_WRITES = "attachment";
+    expect(await loadTaskLines(ctx({}, "workboard"), held)).toEqual(none);
+    process.env.SM8_WRITES = "attachment,note";
+    expect(await loadTaskLines(ctx({}), held)).toEqual(none);
+    expect(await loadTaskLines(ctx({ viewerStaffId: null }, "workboard"), held)).toEqual(none);
+    expect(await loadTaskLines(ctx({}, "workboard"), { open: [], done: [] })).toEqual(none);
+    expect(readTaskDoneLines).not.toHaveBeenCalled();
+  });
+
+  it("draws no line, and keeps the page, when the read fails", async () => {
+    process.env.SM8_WRITES = "attachment,note";
+    readTaskDoneLines.mockRejectedValueOnce(new Error("down"));
+    expect(await loadTaskLines(ctx({}, "workboard"), held)).toEqual(none);
   });
 });

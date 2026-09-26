@@ -456,6 +456,13 @@ describe("withChanges", () => {
     expect(out.done).toBe(rec.done);
   });
 
+  /* A door on a Done's ServiceM8 line waits like any action, and draws
+     nothing ahead of its answer. */
+  it("changes nothing for a door on a task's ServiceM8 line", () => {
+    const out = withChanges(rec, [{ id: "d", kind: "send" }]);
+    expect(out).toEqual({ open: rec.open, done: rec.done });
+  });
+
   it("moves a ticked task to the top of Done, ticked by who ticked it, and a reopened one back into Open's order", () => {
     const out = withChanges(rec, [
       { id: "b", kind: "done", at: "2026-09-24T03:00:00Z", by: ME },

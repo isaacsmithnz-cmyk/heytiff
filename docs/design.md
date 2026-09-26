@@ -320,7 +320,12 @@ Every decision below is made once, here, and a guard test holds each number.
   it, since a hand-over rings the new person's bell. Only what the action
   would allow is offered.
   What you press is drawn at once and put back, with the action's words,
-  if it is refused; a ticked row moves to Done and stays open there.
+  if it is refused; a ticked row moves to Done and stays open there, lit
+  where it has gone, as a row a new date or a hand-over moves is. A tick
+  made with the pointer leaves the face where it is. A task made from a
+  ServiceM8 mention says where its Done stands, under what happened to
+  it, in the diary's own words and with its doors; one that went wrong
+  says so on the row itself.
   Issues are the list's now, and the Assign form is gone: Save, then Give
   it to, or telling Tiff.
   The Calendar is his handoff "Calendar": the company's twelve months from

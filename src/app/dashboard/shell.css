@@ -11519,6 +11519,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-tk-h li { display:grid; grid-template-columns:152px minmax(0,1fr); gap:8px; font-size:13px; font-weight:500;
   line-height:1.45; color:var(--hd-ink); }
 .fg .hd-tk-h li > span { color:var(--hd-body); }
+/* Where its Done stands with ServiceM8, under what happened to it: the
+   line the old face draws (task-sm8-line's own dress), one under another. */
+.fg .hd-tk-sm8 { display:flex; flex-direction:column; gap:4px; margin:12px 0 0; }
 /* What you can do, and a question in its place — Delete for good?, or who
    to give it to: the list's verb, Mark done filled in ink, Give it to a
    verb that fits its word, Delete task a red word on the right. */

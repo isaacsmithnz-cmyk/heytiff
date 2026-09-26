@@ -1126,4 +1126,31 @@ describe("the Tasks face's words clear 4.5:1 on every ground they stand on", () 
       expect({ sel, short: short(decl(sel, "color"), well) }).toEqual({ sel, short: [] });
     }
   });
+
+  /* Where its Done stands with ServiceM8 (two-way phase 2, PR C) is drawn
+     in task-sm8-line's own dress — today's Tasks face's `.hm-when` — on the
+     paper under what happened: the words, the state in each of its tones,
+     and the line's doors, pressable and waiting. Those rules are shared
+     with other selectors, so a selector is found in its rule's list. */
+  it("where its Done stands with ServiceM8, in every tone, and its doors, on paper", () => {
+    const shared = (sel: string, prop: string): number[] => {
+      for (const m of code.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        if (!m[1]!.split(",").map((x) => x.trim()).includes(sel)) continue;
+        const d = m[2]!.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`));
+        if (d) return colour(d[1]!.trim(), WHITE);
+      }
+      throw new Error(`no ${prop} on "${sel}"`);
+    };
+    for (const sel of [
+      ".fg .hm-when",
+      ".fg .hm-when b",
+      ".fg .hm-when .ok",
+      ".fg .hm-when .warn",
+      ".fg .hm-when .bad",
+      ".fg .hm-link",
+      ".fg .hm-link:disabled",
+    ]) {
+      expect({ sel, short: short(shared(sel, "color"), { paper: WHITE }) }).toEqual({ sel, short: [] });
+    }
+  });
 });

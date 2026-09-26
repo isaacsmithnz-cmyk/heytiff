@@ -26,12 +26,20 @@
         again without the echoes, and again only if that brings in a note
         not yet asked about.
    docs/migrations/sm8_job_notes_org_created_idx.sql is the index read 2
-   walks. */
+   walks.
+
+   AND FOR THE DIARY, WHAT EACH ASK BECAME: given the viewer's staff card,
+   the tasks Tiff made of their asks (mention_asks, docs/migrations/
+   mention_asks.sql) and whether each is done, so the conversation can say
+   "1 task for you" (./mention-asks). Two reads more, only when there are
+   asks; a table not there yet, or a read that fails, says no task rather
+   than taking the conversations with it. The settle (./mention-settle)
+   reads the conversations the same way and asks for none of this. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { sm8Ours } from "@/lib/integrations/sm8-echo";
 import { plusDays } from "@/lib/workboard/dates";
-import { sm8Roster } from "@/lib/workboard/job-notes-query";
+import { sm8Roster, type Sm8Person } from "@/lib/workboard/job-notes-query";
 import { mentionedHandles } from "@/lib/workboard/sm8-mentions";
 import {
   buildConversations,
@@ -40,6 +48,8 @@ import {
   type DiaryConversation,
   type MentionNote,
 } from "./diary-feed";
+import { asksIn, withAskTasks, type AskMade } from "./mention-asks";
+import { missingTable } from "./task-events";
 
 /** The asks read at most. */
 export const MENTION_LIMIT = 40;
@@ -80,9 +90,28 @@ function jobNotes(rows: unknown): MentionNote[] {
     MENTION_DAYS that @mentions them, threaded (see diary-feed). `mineUuid`
     is the viewer's ServiceM8 staff uuid from integration_links; `today` is
     the account's today. Empty whenever there is nothing to show — a person
-    the roster can't find, a handle nothing can mention, a read that fails. */
-export async function listMyMentions(orgId: string, mineUuid: string, today: string): Promise<DiaryConversation[]> {
-  const people = await sm8Roster(orgId);
+    the roster can't find, a handle nothing can mention, a read that fails.
+
+    `staffId`, the viewer's staff card, brings each ask's task with it (see
+    the note at the top); `people`, the roster when the caller has it
+    already, saves reading it again. */
+export async function listMyMentions(
+  orgId: string,
+  mineUuid: string,
+  today: string,
+  opts: { staffId?: string | null; people?: readonly Sm8Person[] } = {},
+): Promise<DiaryConversation[]> {
+  const conversations = await readConversations(orgId, mineUuid, today, opts.people);
+  return opts.staffId ? withTheirTasks(orgId, opts.staffId, conversations) : conversations;
+}
+
+async function readConversations(
+  orgId: string,
+  mineUuid: string,
+  today: string,
+  roster?: readonly Sm8Person[],
+): Promise<DiaryConversation[]> {
+  const people = roster ?? (await sm8Roster(orgId));
   const me = people.find((p) => p.uuid === mineUuid);
   if (!me || !MENTIONABLE.test(me.handle)) return [];
   const handles = people.map((p) => p.handle);
@@ -174,4 +203,49 @@ export async function listMyMentions(orgId: string, mineUuid: string, today: str
     if (ours.size === 0) return conversations;
     for (const id of ours) echoes.add(id);
   }
+}
+
+/* The viewer's read asks among these conversations, and whether each task
+   they made is done. Tasks are this workspace's only: a task id is looked
+   up with the org, never on its own. */
+async function withTheirTasks(
+  orgId: string,
+  staffId: string,
+  conversations: DiaryConversation[],
+): Promise<DiaryConversation[]> {
+  const asks = conversations.flatMap((c) => asksIn(c).map((m) => m.id));
+  if (asks.length === 0) return conversations;
+
+  const made = await supabaseAdmin
+    .from("mention_asks")
+    .select("sm8_note_uuid, kind, task_id, due_said")
+    .eq("org_id", orgId)
+    .eq("staff_id", staffId)
+    .eq("status", "read")
+    .in("sm8_note_uuid", asks);
+  if (made.error) {
+    /* before docs/migrations/mention_asks.sql runs the table isn't there:
+       expected, and no task is what the diary says */
+    if (!missingTable((made.error as { code?: unknown }).code)) {
+      console.error(`[diary] couldn't read the asks' tasks for org ${orgId}:`, made.error);
+    }
+    return conversations;
+  }
+  const rows = (made.data ?? []) as AskMade[];
+  if (rows.length === 0) return conversations;
+  const ids = [...new Set(rows.map((r) => r.task_id).filter((id): id is string => !!id))];
+
+  const tasks = new Map<string, { done: boolean }>();
+  if (ids.length > 0) {
+    const read = await supabaseAdmin.from("tasks").select("id, status").eq("org_id", orgId).in("id", ids);
+    /* a task whose state can't be read is not said to be gone, or done */
+    if (read.error) {
+      console.error(`[diary] couldn't read the asks' tasks for org ${orgId}:`, read.error);
+      return conversations;
+    }
+    for (const t of (read.data ?? []) as { id: string; status: string | null }[]) {
+      tasks.set(t.id, { done: t.status === "done" });
+    }
+  }
+  return withAskTasks(conversations, rows, tasks);
 }

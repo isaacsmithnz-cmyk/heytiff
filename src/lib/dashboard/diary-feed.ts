@@ -112,6 +112,23 @@ export type DiaryConversation = {
   /** The asker's newest message is today and you haven't answered it —
       the highlight. */
   fresh: boolean;
+  /** The tasks Tiff made of this conversation's asks of you, oldest ask
+      first (mention_asks, ./mention-asks). Empty until the read that knows
+      them fills it in: an ask not read yet, or read as asking nothing, has
+      none. */
+  tasks: AskTask[];
+};
+
+/** The one task an ask of you became. */
+export type AskTask = {
+  /** The ask: the ServiceM8 note that asked. */
+  noteId: string;
+  /** Null when the task has since been deleted. */
+  taskId: string | null;
+  done: boolean;
+  /** When your reply said you'd do it, in its words ("this afternoon"), or
+      null. */
+  dueSaid: string | null;
 };
 
 export type DiaryItem =
@@ -159,7 +176,7 @@ const msOf = (s: string) => {
   return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : NaN;
 };
 
-type Draft = Omit<DiaryConversation, "answered" | "fresh">;
+type Draft = Omit<DiaryConversation, "answered" | "fresh" | "tasks">;
 
 /** handle → the word a quoted note says for them: a first name, unless two
     people share it. The diary's conversations and the Tasks face's quoted
@@ -257,7 +274,7 @@ export function buildConversations(input: {
   return [...open.values()]
     .map((c): DiaryConversation => {
       const answered = c.lastYours !== null && c.lastYours > c.lastTheirs;
-      return { ...c, answered, fresh: c.lastTheirs.slice(0, 10) === today && !answered };
+      return { ...c, answered, fresh: c.lastTheirs.slice(0, 10) === today && !answered, tasks: [] };
     })
     .sort((a, b) => (a.lastTheirs === b.lastTheirs ? (a.key < b.key ? -1 : 1) : a.lastTheirs < b.lastTheirs ? 1 : -1));
 }

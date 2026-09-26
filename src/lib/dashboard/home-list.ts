@@ -200,8 +200,9 @@ export type VisitToBook = {
   dueDate: string;
 };
 
-/** A task a ServiceM8 mention made — filled by the mentions work (the Diary
-    area owns `mention_asks`); empty until then. */
+/** A task a ServiceM8 mention made (`mention_asks`, which the Diary area
+    owns): read off the diary's conversations by mention-asks'
+    `mentionTasksOf`. `asker` is their first name; `day` is the ask's. */
 export type MentionTask = { taskId: string; noteId: string; asker: string; day: string };
 
 export type ListCaps = {

@@ -280,7 +280,9 @@ describe("on a deployment that sends files only (production today)", () => {
     const r = await readJobRecord(JOB);
     expect(r).not.toBeNull();
     /* main's reads, one for one: the record, the diary, the strip (whose
-       roster reads the links through the connection, as it always has) */
+       roster reads the links through the connection, as it always has, and
+       which reads the asks Tiff made tasks of, H18's mention_asks, notes or
+       none) */
     expect(fake.log.map((s) => `${s.table}:${s.op}`).sort()).toEqual(
       [
         "job_summaries",
@@ -294,6 +296,7 @@ describe("on a deployment that sends files only (production today)", () => {
         "workboard_notes",
         "job_note_actions",
         "job_note_actions",
+        "mention_asks",
         "sm8_staff",
         "integration_connections",
         "integration_links",

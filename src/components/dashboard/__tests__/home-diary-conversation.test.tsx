@@ -3,7 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { TiffContext, type TiffApi } from "@/components/tiff/modal/tiff-context";
 import type { DeskArrival } from "@/lib/dashboard/desk-focus";
 import { DIARY_LIT_MS, type DeskDiary } from "@/lib/dashboard/diary-doors";
-import { buildConversations, diaryFeed, type MentionNote } from "@/lib/dashboard/diary-feed";
+import {
+  buildConversations,
+  diaryFeed,
+  type AskTask,
+  type DiaryItem,
+  type MentionNote,
+} from "@/lib/dashboard/diary-feed";
 import { DIARY_RECHECK_MS, DIARY_STALE_MS } from "@/lib/dashboard/diary-refresh";
 import type { DiaryEntry } from "@/lib/dashboard/journal";
 import type { Sm8Person } from "@/lib/workboard/job-notes-query";
@@ -131,8 +137,16 @@ const tiff = (isOpen: boolean): TiffApi => ({
 });
 
 const onFocusShown = jest.fn();
-type Props = { diary: DeskDiary; focus?: DeskArrival | null; tiffOpen?: boolean; showing?: boolean };
-const Face = ({ diary, focus = null, tiffOpen = false, showing = true }: Props) => (
+const onShowThings = jest.fn();
+type Props = {
+  diary: DeskDiary;
+  focus?: DeskArrival | null;
+  tiffOpen?: boolean;
+  showing?: boolean;
+  /** The tasks a row on the page holds. */
+  onPage?: ReadonlySet<string>;
+};
+const Face = ({ diary, focus = null, tiffOpen = false, showing = true, onPage = new Set() }: Props) => (
   <TiffContext.Provider value={tiff(tiffOpen)}>
     <DeskJobHost manage={false} moneyVisible={false}>
       <section className="hd-face" data-testid="face" hidden={!showing}>
@@ -142,13 +156,19 @@ const Face = ({ diary, focus = null, tiffOpen = false, showing = true }: Props) 
           showing={showing}
           focus={focus}
           onFocusShown={onFocusShown}
-          onPage={new Set()}
-          onShowThings={() => {}}
+          onPage={onPage}
+          onShowThings={onShowThings}
         />
       </section>
     </DeskJobHost>
   </TiffContext.Provider>
 );
+/** The diary with the tasks Luke's asks made (H18). */
+const withTasks = (diary: DeskDiary, tasks: AskTask[]): DeskDiary => {
+  const give = (i: DiaryItem): DiaryItem =>
+    i.kind === "conversation" ? { ...i, conversation: { ...i.conversation, tasks } } : i;
+  return { ...diary, feed: { ...diary.feed, today: diary.feed.today.map(give), earlier: diary.feed.earlier.map(give) } };
+};
 const draw = (p: Props) => render(<Face {...p} />);
 const talk = () => document.querySelector<HTMLElement>(`[data-conversation="${J2041}:u-luke"]`)!;
 const headOf = (li: HTMLElement) => li.querySelector<HTMLElement>(":scope > .hd-dy-en")!;
@@ -251,6 +271,58 @@ describe("under it", () => {
     expect([...under.children].map((c) => c.textContent)).toEqual([
       "A job note in ServiceM8.",
       "That job isn't in ServiceM8's copy any more.",
+    ]);
+  });
+});
+
+/* H18: each ask is ONE task for you, made by Tiff when it arrives, and the
+   conversation has a door to it — the Diary spec's words, verbatim. */
+describe("the task his ask made", () => {
+  const MARY: AskTask = { noteId: "n-ask", taskId: "t-mary", done: false, dueSaid: null };
+  const underOf = () => talk().querySelector<HTMLElement>(".hd-dy-doors")!;
+
+  it("is a door between the job and Reply, wearing the diary's door, that shows its row", async () => {
+    const user = userEvent.setup();
+    draw({ diary: withTasks(diaryOf([ASK]), [MARY]), onPage: new Set(["t-mary"]) });
+    expect([...underOf().children].map((c) => c.textContent)).toEqual([
+      "2041 Wollstonecraft",
+      "1 task for you",
+      "Reply",
+      "A job note in ServiceM8.",
+    ]);
+    const door = within(underOf()).getByRole("button", { name: "1 task for you" });
+    expect(door).toHaveClass("hd-dy-door");
+    await user.click(door);
+    expect(onShowThings).toHaveBeenCalledWith(["t-mary"], true);
+  });
+
+  it("says when once your reply said when, and 'Task done' once it is ticked", () => {
+    draw({ diary: withTasks(diaryOf([ASK]), [{ ...MARY, dueSaid: "this afternoon" }]), onPage: new Set(["t-mary"]) });
+    expect(within(underOf()).getByRole("button", { name: "1 task for you, this afternoon" })).toBeInTheDocument();
+    cleanup();
+    draw({ diary: withTasks(diaryOf([ASK]), [{ ...MARY, done: true }]), onPage: new Set(["t-mary"]) });
+    expect(within(underOf()).getByRole("button", { name: "Task done" })).toBeInTheDocument();
+  });
+
+  it("is a door pressed from the keyboard that moves nothing (law 8)", async () => {
+    const user = userEvent.setup();
+    draw({ diary: withTasks(diaryOf([ASK]), [MARY]), onPage: new Set(["t-mary"]) });
+    within(underOf()).getByRole("button", { name: "1 task for you" }).focus();
+    await user.keyboard("{Enter}");
+    expect(onShowThings).toHaveBeenCalledWith(["t-mary"], false);
+  });
+
+  it("is said, not drawn as a door, when no row on the page holds it; and a task since deleted is said too", () => {
+    draw({ diary: withTasks(diaryOf([ASK]), [MARY]) });
+    expect(within(underOf()).queryByRole("button", { name: /task/ })).toBeNull();
+    expect(within(underOf()).getByText("1 task for you.")).toHaveClass("hd-dy-note");
+    cleanup();
+    draw({ diary: withTasks(diaryOf([ASK]), [{ ...MARY, taskId: null }]) });
+    expect([...underOf().children].map((c) => c.textContent)).toEqual([
+      "2041 Wollstonecraft",
+      "Reply",
+      "1 task removed.",
+      "A job note in ServiceM8.",
     ]);
   });
 });

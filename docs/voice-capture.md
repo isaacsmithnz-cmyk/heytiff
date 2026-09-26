@@ -206,6 +206,18 @@ rungs used to share the discard status, which meant saying something, choosing
 journal's own empty state promised that anything you tell Tiff lands there
 with what it turned into.
 
+**The one thing filed with no review is an ask in ServiceM8** (Isaac,
+2026-09-25, the new Home's "one task per ask"). A job note that @mentions a
+person the new Home is on becomes one task for them when it arrives: the
+settle (`src/lib/dashboard/mention-settle.ts`) runs after a sync, reads the
+note (`mention-brain.ts`, `readAsk`), and records what it read in
+`mention_asks` (`docs/migrations/mention_asks.sql`), not in
+`workboard_notes`: nobody said anything, so there is no capture. It reads 30
+days back, at most 5 reads a run, and sends nothing to ServiceM8. Their
+reply to the asker, written in ServiceM8, can move that task or tick it off
+and never makes a second. The review card, and the job card's strip, still
+file nothing on their own.
+
 **`dismissNote` must stay empty-handed.** It is also the walk-away path, so an
 abandonment that recorded an outcome would read there exactly like a note
 somebody filed on purpose. Adding a group means teaching `APPLIED_GROUPS` in

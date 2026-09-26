@@ -257,7 +257,10 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
     REVIEW BEFORE SAVE IS THE LAW HERE TOO. Nothing on this path runs on its
     own: the strip only ever SUGGESTS, a person edits the title and names who
-    it is for, and this function is what they press. Which is also why the
+    it is for, and this function is what they press. (The new Home's one
+    task per ask is the named exception, and is not this path: Tiff files
+    an ask as one task for the person it asks, theirs to tick off or delete
+    — dashboard/mention-settle, docs/voice-capture.md §8.) Which is also why the
     assignee is required — `applyNote` learned the hard way that a task with
     nobody on it is a task nobody does, and it refuses rather than filtering.
 

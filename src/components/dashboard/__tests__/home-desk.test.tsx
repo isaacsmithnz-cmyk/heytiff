@@ -903,38 +903,32 @@ describe("the list", () => {
     expect(litEntries()).toEqual(["e1"]);
   }, WHOLE);
 
-  /* A task one of Luke's asks made (the list reads which, H18) opens the
-     conversation it came from: the diary face comes back, and the
+  /* A task one of Luke's asks made (H18: the conversation's own tasks, so
+     the list reads which off the diary) says whose ask it was, and opens
+     the conversation it came from: the diary face comes back, and the
      conversation is lit whole and given the focus. */
-  it("opens a task an ask made on its conversation in the diary", async () => {
-    const user = userEvent.setup();
-    const ask: MentionNote = {
-      uuid: "n-ask",
-      jobUuid: "3f2b8c1e-0d4a-4b6f-9a2e-1c5d7e9f0a11",
-      author: "u-luke",
-      at: "2026-08-09 13:42:10",
-      text: "@isaacsmith Please call Mary to discuss",
-    };
+  const ASK: MentionNote = {
+    uuid: "n-ask",
+    jobUuid: "3f2b8c1e-0d4a-4b6f-9a2e-1c5d7e9f0a11",
+    author: "u-luke",
+    at: "2026-08-09 13:42:10",
+    text: "@isaacsmith Please call Mary to discuss",
+  };
+  const MARY = task({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" });
+  /** The desk with Luke's ask in the diary, its one task on it. */
+  const asked = (tasks: DiaryConversation["tasks"] = [{ noteId: "n-ask", taskId: "t-mary", done: false, dueSaid: null }]) => {
     const conversations = buildConversations({
-      notes: [ask],
+      notes: [ASK],
       me: { uuid: "u-isaac", handle: "isaacsmith" },
       people: [
         { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" },
         { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" },
       ],
-      jobs: new Map([[ask.jobUuid, { label: "2041 Wollstonecraft", live: true }]]),
+      jobs: new Map([[ASK.jobUuid, { label: "2041 Wollstonecraft", live: true }]]),
       today: TODAY,
-    });
-    const base = withTasks({
-      tasks: {
-        mine: [task({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" })],
-        team: null,
-        done: [],
-        reported: [],
-        sm8: { lines: {}, sender: null },
-      },
-    });
-    const withAsk = {
+    }).map((c) => ({ ...c, tasks }));
+    const base = withTasks({ tasks: { mine: [MARY], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } } });
+    return {
       ...base,
       desk: {
         ...base.desk!,
@@ -943,20 +937,39 @@ describe("the list", () => {
           feed: diaryFeed({ entries: [], conversations, day: TODAY, mentions: true, entriesCut: false, syncedAt: null }),
         },
       },
-      mentions: [{ taskId: "t-mary", noteId: "n-ask", asker: "Luke", day: "2026-08-09" }],
     } as DashboardData;
-    render(<DashboardDesk data={withAsk} />);
+  };
+
+  it("opens a task an ask made on its conversation in the diary", async () => {
+    const user = userEvent.setup();
+    render(<DashboardDesk data={asked()} />);
     await user.click(tab("Tasks"));
     await user.click(within(theList()).getByRole("button", { name: "Call Mary about 2041 Wollstonecraft" }));
     expect(shownFaces()).toEqual(["diary"]);
-    const talk = face("diary").querySelector<HTMLElement>(`[data-conversation="${ask.jobUuid}:u-luke"] > .hd-dy-en`)!;
+    const talk = face("diary").querySelector<HTMLElement>(`[data-conversation="${ASK.jobUuid}:u-luke"] > .hd-dy-en`)!;
     expect(talk).toHaveAttribute("data-lit");
     expect(document.activeElement).toBe(talk);
   }, WHOLE);
 
+  it("says on the list's row whose ask made the task, and when", () => {
+    render(<DashboardDesk data={asked()} />);
+    const row = theList().querySelector<HTMLElement>('[data-thing="t-mary"]')!;
+    expect(row).toHaveTextContent("Luke asked you, Sun 9 Aug.");
+  }, WHOLE);
+
+  /* The other way: the conversation's "1 task for you" lights the task's
+     row in the list beside the diary, and the diary stays. */
+  it("lights the task an ask made in the list from the conversation's door", async () => {
+    const user = userEvent.setup();
+    render(<DashboardDesk data={asked()} />);
+    await user.click(within(face("diary")).getByRole("button", { name: "1 task for you" }));
+    expect(shownFaces()).toEqual(["diary"]);
+    expect(theList().querySelector('[data-thing="t-mary"] .hd-ls-row')).toHaveAttribute("data-lit");
+  }, WHOLE);
+
   /* An ask older than the mentions reach, or one deleted in ServiceM8, is
-     in no conversation the diary holds: its task opens on the Tasks tab
-     instead of sliding the diary in on nothing. */
+     in no conversation the diary holds: its task is an ordinary task, and
+     opens on the Tasks tab instead of sliding the diary in on nothing. */
   it("opens a task an ask made on the Tasks tab when the diary holds no conversation for it", async () => {
     const user = userEvent.setup();
     const base = withTasks(
@@ -971,11 +984,7 @@ describe("the list", () => {
       },
       [recordTask({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" })],
     );
-    const gone = {
-      ...base,
-      desk: { ...base.desk!, diary: diaryOf([], { mentions: true }) },
-      mentions: [{ taskId: "t-mary", noteId: "n-gone", asker: "Luke", day: "2026-05-20" }],
-    } as DashboardData;
+    const gone = { ...base, desk: { ...base.desk!, diary: diaryOf([], { mentions: true }) } } as DashboardData;
     render(<DashboardDesk data={gone} />);
     await user.click(within(theList()).getByRole("button", { name: "Call Mary about 2041 Wollstonecraft" }));
     expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");

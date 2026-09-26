@@ -17,6 +17,8 @@ type Call = {
 let tables: Record<string, Record<string, unknown>[]> = {};
 let asksError: unknown = null;
 let jobsError: unknown = null;
+/** A read of this table fails with this. */
+let tableErrors: Record<string, unknown> = {};
 const calls: Call[] = [];
 
 const table = (name: string) => {
@@ -36,6 +38,7 @@ const table = (name: string) => {
       return Promise.resolve({ data: call.ilike && asksError ? null : tables[key] ?? [], error: call.ilike ? asksError : null }).then(res);
     }
     if (name === "sm8_jobs" && jobsError) return Promise.resolve({ data: null, error: jobsError }).then(res);
+    if (tableErrors[name]) return Promise.resolve({ data: null, error: tableErrors[name] }).then(res);
     return Promise.resolve({ data: tables[name] ?? [], error: null }).then(res);
   };
   return chain;
@@ -75,6 +78,7 @@ beforeEach(() => {
   tables = { sm8_staff: STAFF };
   asksError = null;
   jobsError = null;
+  tableErrors = {};
   calls.length = 0;
   ours.clear();
   sm8Ours.mockClear();
@@ -239,4 +243,61 @@ it("shows nothing, and says so in the log, when the mentions read fails", async 
   expect(await listMyMentions("org-1", "u-isaac", "2026-09-25")).toEqual([]);
   expect(spy).toHaveBeenCalled();
   spy.mockRestore();
+});
+
+/* H18: each ask of you is one task, and the diary says so under the
+   conversation. The tasks are the viewer's own, read with the workspace. */
+describe("the tasks the asks made", () => {
+  beforeEach(() => {
+    tables.asks = [row("n1", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmith Please call Mary")];
+    tables.thread = [row("n2", "j-2041", "u-luke", "2026-09-23 08:00:00", "@isaacsmith did you get hold of her?")];
+  });
+
+  it("are read for the viewer's own staff card, for this conversation's asks, and only the ones read", async () => {
+    tables.mention_asks = [{ sm8_note_uuid: "n1", kind: "do", task_id: "t-mary", due_said: "this afternoon" }];
+    tables.tasks = [{ id: "t-mary", status: "open" }];
+
+    const [c] = await listMyMentions("org-1", "u-isaac", "2026-09-25", { staffId: "s-isaac" });
+
+    const [asked] = of("mention_asks");
+    expect(asked.eq).toEqual({ org_id: "org-1", staff_id: "s-isaac", status: "read" });
+    expect(asked.in).toEqual(["sm8_note_uuid", ["n1", "n2"]]);
+    const [task] = of("tasks");
+    expect(task.eq).toEqual({ org_id: "org-1" });
+    expect(task.in).toEqual(["id", ["t-mary"]]);
+    expect(c.tasks).toEqual([{ noteId: "n1", taskId: "t-mary", done: false, dueSaid: "this afternoon" }]);
+  });
+
+  it("are not read at all without a staff card to read them for", async () => {
+    const [c] = await listMyMentions("org-1", "u-isaac", "2026-09-25");
+    expect(of("mention_asks")).toHaveLength(0);
+    expect(c.tasks).toEqual([]);
+  });
+
+  it("are none, quietly, before the table exists; and none, in the log, when a read fails", async () => {
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    tableErrors = { mention_asks: { code: "PGRST205" } };
+    const [before] = await listMyMentions("org-1", "u-isaac", "2026-09-25", { staffId: "s-isaac" });
+    expect(before.tasks).toEqual([]);
+    expect(spy).not.toHaveBeenCalled();
+
+    /* a task whose state can't be read is not said to be gone, or done */
+    tableErrors = { tasks: { message: "boom" } };
+    tables.mention_asks = [{ sm8_note_uuid: "n1", kind: "do", task_id: "t-mary", due_said: null }];
+    const [after] = await listMyMentions("org-1", "u-isaac", "2026-09-25", { staffId: "s-isaac" });
+    expect(after.tasks).toEqual([]);
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("reads no roster when the caller already has it", async () => {
+    await listMyMentions("org-1", "u-isaac", "2026-09-25", {
+      people: [
+        { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" },
+        { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" },
+      ],
+    });
+    expect(of("sm8_staff")).toHaveLength(0);
+    expect(notesReads()[0].ilike).toEqual(["note", "%@isaacsmith%"]);
+  });
 });

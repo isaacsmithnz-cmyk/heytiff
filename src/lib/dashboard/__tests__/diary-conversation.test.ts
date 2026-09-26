@@ -106,6 +106,7 @@ describe("under it", () => {
     const [c] = talk([note(J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith call Mary")]);
     expect(conversationUnder(c!)).toEqual({
       job: { uuid: J2041, label: "2041 Wollstonecraft" },
+      tasks: null,
       reply: `https://go.servicem8.com/OpenJob/${J2041}`,
       lines: [SOURCE_LINE],
     });
@@ -122,6 +123,7 @@ describe("under it", () => {
     );
     expect(conversationUnder(c!)).toEqual({
       job: null,
+      tasks: null,
       reply: null,
       lines: [SOURCE_LINE, "That job isn't in ServiceM8's copy any more."],
     });
@@ -133,6 +135,70 @@ describe("under it", () => {
       ["j-2041", { label: "2041 Wollstonecraft", live: true }],
     ]));
     expect(conversationUnder(c!)).toMatchObject({ job: { uuid: "j-2041" }, reply: null });
+  });
+});
+
+/* H18: each ask is ONE task for you, and the conversation has a door to
+   it — the Diary spec's words, verbatim. */
+describe("the task an ask made", () => {
+  const asked = (tasks: DiaryConversation["tasks"], jobs?: Map<string, { label: string; live: boolean }>) => {
+    const [c] = talk([note(J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith call Mary")], jobs);
+    return { ...c!, tasks };
+  };
+  const t = (over: Partial<DiaryConversation["tasks"][number]> = {}) => ({
+    noteId: "n1",
+    taskId: "t-mary",
+    done: false,
+    dueSaid: null,
+    ...over,
+  });
+
+  it("is a door to it, between the job and Reply: '1 task for you'", () => {
+    expect(conversationUnder(asked([t()]))).toEqual({
+      job: { uuid: J2041, label: "2041 Wollstonecraft" },
+      tasks: { text: "1 task for you", ids: ["t-mary"] },
+      reply: `https://go.servicem8.com/OpenJob/${J2041}`,
+      lines: [SOURCE_LINE],
+    });
+  });
+
+  it("says when once your reply said when, and 'Task done' once it is ticked", () => {
+    expect(conversationUnder(asked([t({ dueSaid: "this afternoon" })])).tasks).toEqual({
+      text: "1 task for you, this afternoon",
+      ids: ["t-mary"],
+    });
+    expect(conversationUnder(asked([t({ done: true })])).tasks).toEqual({ text: "Task done", ids: ["t-mary"] });
+  });
+
+  it("counts the open ones when two asks made two, and names no one time for two", () => {
+    const two = asked([t(), t({ noteId: "n2", taskId: "t-fans", dueSaid: "tomorrow" })]);
+    expect(conversationUnder(two).tasks).toEqual({ text: "2 tasks for you", ids: ["t-mary", "t-fans"] });
+    const oneDone = asked([t({ done: true }), t({ noteId: "n2", taskId: "t-fans" })]);
+    expect(conversationUnder(oneDone).tasks).toEqual({ text: "1 task for you", ids: ["t-fans"] });
+  });
+
+  it("says a task since deleted as a sentence, as an entry does", () => {
+    expect(conversationUnder(asked([t({ taskId: null })]))).toMatchObject({
+      tasks: null,
+      lines: ["1 task removed.", SOURCE_LINE],
+    });
+  });
+
+  it("is a sentence, not a door, when no row on the page holds the task", () => {
+    expect(conversationUnder(asked([t()]), new Set(["t-other"]))).toMatchObject({
+      tasks: null,
+      lines: ["1 task for you.", SOURCE_LINE],
+    });
+    expect(conversationUnder(asked([t()]), new Set(["t-mary"])).tasks).toEqual({ text: "1 task for you", ids: ["t-mary"] });
+  });
+
+  it("keeps its task door on a job its business deleted: the task is yours either way", () => {
+    const gone = asked([t()], new Map([[J2041, { label: "2041 Wollstonecraft", live: false }]]));
+    expect(conversationUnder(gone)).toMatchObject({
+      job: null,
+      reply: null,
+      tasks: { text: "1 task for you", ids: ["t-mary"] },
+    });
   });
 });
 

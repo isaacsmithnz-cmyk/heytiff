@@ -34,10 +34,22 @@ const order: string[] = [];
 let stale = true;
 let due = true;
 let writing = true;
+/** Whether the sync ran (false: another held the lease), and how long it took. */
+let syncRan = true;
+let syncTakes = 0;
 const runSm8Sync = jest.fn(async () => {
   order.push("sync");
-  return { ran: true, note: "", pagesUsed: 0, rowsPulled: 0, complete: true };
+  clock += syncTakes;
+  return { ran: syncRan, note: "", pagesUsed: 0, rowsPulled: 0, complete: true };
 });
+/* H18: the asks the sync brought in, each made one task. */
+const settleMentionAsks = jest.fn(async (_org: string, _opts: { budgetMs: number }) => {
+  order.push("asks");
+  return { reads: 0, tasks: 0, moved: 0, done: 0, failed: 0, skipped: null };
+});
+jest.mock("@/lib/dashboard/mention-settle", () => ({
+  settleMentionAsks: (...a: unknown[]) => settleMentionAsks(...(a as [string, { budgetMs: number }])),
+}));
 const runSm8Writes = jest.fn(async () => {
   order.push("writes");
   return { done: 0, sent: 0, trial: 0, failed: 0, again: 0, lost: 0, stopped: null };
@@ -65,8 +77,11 @@ beforeEach(() => {
   stale = true;
   due = true;
   writing = true;
+  syncRan = true;
+  syncTakes = 0;
   runSm8Sync.mockClear();
   runSm8Writes.mockClear();
+  settleMentionAsks.mockClear();
   clock = Date.parse("2026-09-25T00:00:00Z");
   jest.spyOn(Date, "now").mockImplementation(() => clock);
   jest.spyOn(console, "error").mockImplementation(() => {});
@@ -88,10 +103,10 @@ describe("freshenSm8AfterResponse", () => {
     expect(runSm8Sync).not.toHaveBeenCalled();
   });
 
-  it("sends what is due before it syncs a stale mirror", async () => {
+  it("sends what is due before it syncs a stale mirror, and reads the asks it brought in last", async () => {
     freshenSm8AfterResponse("org-1");
     await behind();
-    expect(order).toEqual(["writes", "sync"]);
+    expect(order).toEqual(["writes", "sync", "asks"]);
     expect(runSm8Writes).toHaveBeenCalledWith("org-1", "kick", { budgetMs: 90_000 });
     expect(runSm8Sync).toHaveBeenCalledWith("org-1", "kick");
   });
@@ -122,7 +137,7 @@ describe("freshenSm8AfterResponse", () => {
     writing = false;
     freshenSm8AfterResponse("org-1");
     await behind();
-    expect(order).toEqual(["sync"]);
+    expect(order).toEqual(["sync", "asks"]);
   });
 
   it("claims only while a send still fits in the page's function", async () => {
@@ -143,6 +158,46 @@ describe("freshenSm8AfterResponse", () => {
 
   it("never lets a failure escape the after()", async () => {
     runSm8Writes.mockRejectedValueOnce(new Error("boom"));
+    freshenSm8AfterResponse("org-1");
+    await expect(scheduled[0]()).resolves.toBeUndefined();
+    expect(console.error).toHaveBeenCalled();
+  });
+});
+
+/* H18: each ServiceM8 ask of a person the new Home is on becomes one task,
+   settled in the same after() right behind the sync, so the conversation
+   and its task arrive on the same next load. */
+describe("the asks after the sync", () => {
+  it("are read after a sync that ran, with what is left of the function less the writes' margin", async () => {
+    syncTakes = 20_000;
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    // 300 s, less 15 s of margin, less the 20 s the sync took
+    expect(settleMentionAsks).toHaveBeenCalledWith("org-1", { budgetMs: 265_000 });
+  });
+
+  it("are not read when no sync ran: a fresh mirror brought nothing, and a busy one is another run's", async () => {
+    stale = false;
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    syncRan = false;
+    stale = true;
+    scheduled.length = 0;
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(settleMentionAsks).not.toHaveBeenCalled();
+  });
+
+  it("are not read once the function has no time left", async () => {
+    syncTakes = 290_000;
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(runSm8Sync).toHaveBeenCalled();
+    expect(settleMentionAsks).not.toHaveBeenCalled();
+  });
+
+  it("never let a failure of theirs escape the after()", async () => {
+    settleMentionAsks.mockRejectedValueOnce(new Error("boom"));
     freshenSm8AfterResponse("org-1");
     await expect(scheduled[0]()).resolves.toBeUndefined();
     expect(console.error).toHaveBeenCalled();

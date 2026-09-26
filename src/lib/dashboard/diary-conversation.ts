@@ -79,24 +79,66 @@ export function litMessage(c: DiaryConversation): { head: true } | { head: false
 export type ConversationUnder = {
   /** The job's door, or null for a job its business deleted. */
   job: { uuid: string; label: string } | null;
+  /** The door to the task the ask made, which the frame shows as a row
+      (the list beside the diary, or the Tasks tab), or null. */
+  tasks: { text: string; ids: string[] } | null;
   /** Reply: the job in ServiceM8, or null where there is nowhere to go. */
   reply: string | null;
   /** Sentences, each with its full stop. */
   lines: string[];
 };
 
-export function conversationUnder(c: DiaryConversation): ConversationUnder {
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/* WHAT THE ASKS BECAME (H18: each ask is ONE task for you, made by Tiff
+   when it arrives; lib/dashboard/mention-asks). The door counts the ones
+   still open: "1 task for you", and "1 task for you, this afternoon" once
+   your reply has said when; when none is open, "Task done". A task since
+   deleted is a sentence, "1 task removed.", as an entry says it. And as
+   under an entry, a door whose tasks no row on the page holds (`onPage`) is
+   said as a sentence instead: a door that opened on nothing would be worse
+   than none. */
+function askTasks(
+  c: DiaryConversation,
+  onPage: ReadonlySet<string> | undefined,
+): { door: ConversationUnder["tasks"]; lines: string[] } {
+  const there = c.tasks.filter((t): t is typeof t & { taskId: string } => t.taskId !== null);
+  const open = there.filter((t) => !t.done);
+  const removed = c.tasks.length - there.length;
+  const lines: string[] = [];
+  let door: ConversationUnder["tasks"] = null;
+  if (open.length > 0) {
+    const said = open.length === 1 ? open[0].dueSaid : null;
+    door = { text: `${plural(open.length, "task", "tasks")} for you${said ? `, ${said}` : ""}`, ids: open.map((t) => t.taskId) };
+  } else if (there.length > 0) {
+    door = { text: there.length === 1 ? "Task done" : `${there.length} tasks done`, ids: there.map((t) => t.taskId) };
+  }
+  if (door && onPage && !door.ids.some((id) => onPage.has(id))) {
+    lines.push(`${door.text}.`);
+    door = null;
+  }
+  if (removed > 0) lines.push(`${plural(removed, "task", "tasks")} removed.`);
+  return { door, lines };
+}
+
+/** What goes under a conversation. `onPage`, when given, is every task a
+    row on this page holds: a task door none of whose tasks is there is
+    said as a sentence instead. */
+export function conversationUnder(c: DiaryConversation, onPage?: ReadonlySet<string>): ConversationUnder {
+  const asks = askTasks(c, onPage);
   if (!c.jobLive) {
     return {
       job: null,
+      tasks: asks.door,
       reply: null,
-      lines: [SOURCE_LINE, JOB_GONE_LINE],
+      lines: [...asks.lines, SOURCE_LINE, JOB_GONE_LINE],
     };
   }
   return {
     job: { uuid: c.jobUuid, label: c.jobLabel ?? "The job" },
+    tasks: asks.door,
     reply: sm8JobUrl(c.jobUuid),
-    lines: [SOURCE_LINE],
+    lines: [...asks.lines, SOURCE_LINE],
   };
 }
 

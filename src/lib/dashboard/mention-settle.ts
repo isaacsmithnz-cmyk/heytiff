@@ -76,14 +76,25 @@ import { logTaskEvent, missingTable } from "./task-events";
    nobody's fault: the claim is let go uncounted and the run stops, rather
    than spend its other reads into the same outage. A read that runs out of
    time may be its note's doing or the reader's, so the run goes on to the
-   next read to tell: if that one runs out of time too (or meets an
-   outage), it's the reader, neither is counted and the run stops;
-   otherwise — the next read came back, or there was none — it's the note,
-   and it is counted. So one note that always takes too long is set aside
-   after MAX_ATTEMPTS runs and never holds up the asks behind it, and a
-   slow reader sets nothing aside. Anything else is counted, for an ask
-   (attempts) and for replies (reply_attempts) alike, and set aside after
-   MAX_ATTEMPTS, so nothing is read for ever.
+   next read to tell: if that one came back, or there was none, it's the
+   note, and it is counted. If that one runs out of time too, it's the
+   reader or the content the two share — reads side by side share it: one
+   conversation's replies are read once for each of its open tasks, and
+   its asks carry the same history — so both are counted and the run
+   stops. (Released uncounted, a pair like that held up every run for ever,
+   with the asks behind it never read; the price is that a reader slow for
+   everyone sets two asks aside after MAX_ATTEMPTS runs of it.) If it meets
+   an outage, neither is counted and the run stops. Anything else is
+   counted, for an ask (attempts) and for replies (reply_attempts) alike,
+   and set aside after MAX_ATTEMPTS, so nothing is read for ever.
+
+   A NOTE THAT IS ONLY ITS ADDRESSING ("@IsaacSmith", which the diary
+   quotes as nothing) asks nothing, and is recorded so without a read.
+
+   WHAT THE READER SEES is the note with nothing taken out and every handle
+   said by name, yours by your first (./diary-feed's `named`), not the
+   diary's quote: a note to Luke and to you is two asks, and the quote,
+   with its addressing out, ran them together into one task for you.
 
    BOUNDED. At most `max` model reads a run (SETTLE_MAX), asks and replies
    together, and each starts only while its own timeout still fits the
@@ -343,8 +354,9 @@ export async function settleMentionAsks(
 
   /* A read that ran out of time, held until the run shows whose doing it
      was (see the top): `settleSlow(true)` counts it against its note — the
-     next read came back, or the run ended — and `settleSlow(false)` lets it
-     go uncounted — the next read ran out of time too, or met an outage. */
+     next read came back or ran out of time too, or the run ended — and
+     `settleSlow(false)` lets it go uncounted — the next read met an
+     outage. */
   let slow: ((counted: boolean) => Promise<void>) | null = null;
   const settleSlow = async (counted: boolean) => {
     const held = slow;
@@ -383,10 +395,16 @@ export async function settleMentionAsks(
     return !error && (data ?? []).length === 1 ? { id: row.id, attempts: row.attempts } : null;
   };
 
-  /* Record, without a read, what the strip already made of an ask. */
-  const adopt = async (r: Reader, c: DiaryConversation, m: DiaryMessage, row: AskRow | undefined, act: StripAnswer) => {
-    const kind: AskKind = act.action === "task" ? "do" : "none";
-    const taskId = act.action === "task" ? act.task_id : null;
+  /* Record an ask as read without a model read: what the strip already
+     made of it, or none. True when this run recorded it. */
+  const recordUnread = async (
+    r: Reader,
+    c: DiaryConversation,
+    m: DiaryMessage,
+    row: AskRow | undefined,
+    kind: AskKind,
+    taskId: string | null,
+  ): Promise<boolean> => {
     const patch = { status: "read", kind, task_id: taskId, read_at: iso(), claimed_at: null, error: null };
     let id = row?.id ?? "";
     if (!row) {
@@ -404,7 +422,7 @@ export async function settleMentionAsks(
         .select("id")
         .single();
       /* another run recorded it first */
-      if (error || !data) return;
+      if (error || !data) return false;
       id = (data as { id: string }).id;
     } else {
       const { data, error } = await supabaseAdmin
@@ -414,15 +432,22 @@ export async function settleMentionAsks(
         .eq("id", row.id)
         .in("status", ["reading", "failed"])
         .select("id");
-      if (error || (data ?? []).length !== 1) return;
+      if (error || (data ?? []).length !== 1) return false;
     }
-    out.adopted += 1;
     rows.set(keyOf(r.staffId, m.id), {
       ...(row ?? blank(id, r.staffId, m.id)),
       status: "read",
       kind,
       task_id: taskId,
     });
+    return true;
+  };
+
+  /* What the strip already made of an ask: its task as the ask's one task,
+     a dismissal as none. */
+  const adopt = async (r: Reader, c: DiaryConversation, m: DiaryMessage, row: AskRow | undefined, act: StripAnswer) => {
+    const made = act.action === "task";
+    if (await recordUnread(r, c, m, row, made ? "do" : "none", made ? act.task_id : null)) out.adopted += 1;
   };
 
   const settleAsk = async (r: Reader, c: DiaryConversation, m: DiaryMessage): Promise<"outage" | void> => {
@@ -436,23 +461,35 @@ export async function settleMentionAsks(
       .map((x) => rows.get(keyOf(r.staffId, x.id))?.task_id)
       .map((id) => (id ? tasks.get(id)?.title : undefined))
       .filter((t): t is string => !!t);
+    /* the note as written, everybody by name: who each part is to (the
+       diary's quote has the addressing out, so two people's asks read as
+       one) */
     const res = await readAsk({
-      text: m.text,
+      text: m.named,
       asker: c.asker.name,
       person: r.person.name,
+      first: r.person.first,
       job: c.jobLabel,
       at: m.at,
       before: c.messages.slice(0, Math.max(0, at)).map((x) => ({
         who: x.from === "them" ? c.asker.name : r.person.name,
-        text: x.text,
+        text: x.named,
       })),
       tasks: made,
     });
-    /* the reader's doing — an outage, or a second read in a row that ran
-       out of time — counts against neither, and stops the run */
-    if (!res.ok && (res.why === "outage" || (res.why === "slow" && slow))) {
+    /* an outage is the reader's doing: it counts against neither, and
+       stops the run */
+    if (!res.ok && res.why === "outage") {
       await settleSlow(false);
       await release(held.id, res.error);
+      return "outage";
+    }
+    /* a second read in a row that ran out of time: the reader is slow, or
+       the content the two share is, so both are counted (nothing is then
+       read for ever) and the run stops */
+    if (!res.ok && res.why === "slow" && slow) {
+      await settleSlow(true);
+      await letGo(held.id, held.attempts, res.error);
       return "outage";
     }
     /* out of time, and nothing yet says whose doing: the claim is kept
@@ -568,15 +605,18 @@ export async function settleMentionAsks(
         job: c.jobLabel,
         replies: replies.map((x) => ({ text: x.text, at: x.at })),
       });
-      /* the reader's doing, as for an ask: counted against nothing */
-      if (!res.ok && (res.why === "outage" || (res.why === "slow" && slow))) {
+      /* an outage, as for an ask: counted against nothing */
+      if (!res.ok && res.why === "outage") {
         out.failed += 1;
         await settleSlow(false);
         return "outage";
       }
+      /* a second read in a row out of time: both are counted, as for an
+         ask, and the run stops */
+      const second = !res.ok && res.why === "slow" && slow !== null;
       /* the reader answered, so a read before it that ran out of time was
          its note's doing */
-      if (res.ok || res.why !== "slow") await settleSlow(true);
+      if (res.ok || res.why !== "slow" || second) await settleSlow(true);
       if (!res.ok) {
         out.failed += 1;
         /* a refusal is final; anything else is counted, and the replies
@@ -590,6 +630,10 @@ export async function settleMentionAsks(
               ? { last_reply_note: newest.id, reply_attempts: 0 }
               : { reply_attempts: tried },
           );
+        if (second) {
+          await count();
+          return "outage";
+        }
         /* out of time: held until the run can tell whose doing */
         if (res.why === "slow") {
           slow = async (counted) => {
@@ -662,6 +706,12 @@ export async function settleMentionAsks(
             continue;
           }
           if (!claimable(row, now())) continue;
+          /* a note that is nothing but its addressing ("@IsaacSmith")
+             asks nothing, and no read is spent to be told so */
+          if (!m.text.trim()) {
+            await recordUnread(r, c, m, row, "none", null);
+            continue;
+          }
           if (!fits()) return;
           if ((await settleAsk(r, c, m)) === "outage") return "outage";
         }

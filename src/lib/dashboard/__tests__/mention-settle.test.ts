@@ -128,7 +128,7 @@ jest.mock("../mentions-query", () => ({
 
 type Failure = { ok: false; error: string; why: "refused" | "outage" | "slow" | "failed" };
 const TOO_LONG: Failure = { ok: false, error: "the reader took too long", why: "slow" };
-type AskArgs = { text: string; tasks: string[]; person: string; at: string };
+type AskArgs = { text: string; tasks: string[]; person: string; at: string; before: { who: string; text: string }[] };
 type ReplyArgs = { task: string; others: string[]; replies: { text: string; at: string }[] };
 const readingAs = (says: string, dueDate: string | null = null, dueSaid: string | null = null) => ({
   ok: true as const,
@@ -292,10 +292,86 @@ describe("one task per ask", () => {
       }),
     ]);
     expect(logTaskEvent).toHaveBeenCalledWith(ORG, taskId, null, { kind: "created", to: "s-isaac" });
-    // read as the diary quotes it, for the person it asks
+    // read as written, the person it asks by their first name, for them
     expect(readAsk).toHaveBeenCalledWith(
-      expect.objectContaining({ text: "Please call Mary to discuss", person: "Isaac Smith", asker: "Luke Ingold", job: "2041 Wollstonecraft" }),
+      expect.objectContaining({
+        text: "Isaac Please call Mary to discuss",
+        person: "Isaac Smith",
+        first: "Isaac",
+        asker: "Luke Ingold",
+        job: "2041 Wollstonecraft",
+      }),
     );
+  });
+
+  /* The real read of 2026-09-26: Alex's note on 2778 Queenscliff asked
+     Luke for one thing and Isaac for another. Given the diary's quote, the
+     addressing out, the reader couldn't tell whose each was and filed both
+     as one task for Isaac. The reader here does the same with anything
+     that doesn't say who each part is to. */
+  it("reads a note to Luke and to you as written, everybody by name, so Luke's part never goes on your list", async () => {
+    notes = [
+      note(
+        "n-qc",
+        MICHAEL.uuid,
+        "2026-09-19 14:01:58",
+        "@lukeingold when you send invoice can you please send through warranty stuff\n\n" +
+          "@isaacsmith can you send house by rivers contact to David as he needs a good builder",
+      ),
+    ];
+    const his = "Send House by Rivers contact to David for 2041 Wollstonecraft";
+    askAnswer = (a) => ({
+      ok: true,
+      read: {
+        kind: "do",
+        title:
+          a.text.includes("Luke when you send invoice") && a.text.includes("Isaac can you send house by rivers")
+            ? his
+            : "Send warranty documents with the invoice and House by Rivers contact to David for 2041 Wollstonecraft",
+        dueDate: null,
+      },
+    });
+    await settle();
+    expect(readAsk).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text:
+          "Luke when you send invoice can you please send through warranty stuff\n\n" +
+          "Isaac can you send house by rivers contact to David as he needs a good builder",
+      }),
+    );
+    expect(tasksTable().map((t) => t.title)).toEqual([his]);
+  });
+
+  it("gives the reader the conversation before it as written too, everybody by name", async () => {
+    notes = [
+      ASK_MARY,
+      mine("n-mine", "2026-09-22 15:10:00", "calling her this afternoon, @michaeldiamond has her number"),
+      note("n-chase", LUKE.uuid, "2026-09-23 08:00:00", "@isaacsmith did you get hold of her?"),
+    ];
+    await settle();
+    expect(readAsk.mock.calls[1][0]).toMatchObject({
+      text: "Isaac did you get hold of her?",
+      before: [
+        { who: "Luke Ingold", text: "Isaac Please call Mary to discuss" },
+        { who: "Isaac Smith", text: "Luke calling her this afternoon, Michael has her number" },
+      ],
+    });
+  });
+
+  /* The same read: "@IsaacSmith" alone on 2872 Kurraba Point, quoted as
+     nothing, still cost a read. The reader here would make a task of it. */
+  it("records a note that is only its addressing as asking nothing, without a read, and never reads it", async () => {
+    notes = [note("n-bare", LUKE.uuid, "2026-09-22 09:00:00", "@IsaacSmith")];
+    askAnswer = () => ({ ok: true, read: { kind: "do", title: "Follow up with Luke about 2041 Wollstonecraft", dueDate: null } });
+    const out = await settle();
+    expect(readAsk).not.toHaveBeenCalled();
+    expect(out).toMatchObject({ reads: 0, tasks: 0, adopted: 0 });
+    expect(askRow("n-bare")).toMatchObject({ status: "read", kind: "none", attempts: 0, claimed_at: null });
+    expect(askRow("n-bare").task_id ?? null).toBeNull();
+    expect(tasksTable()).toEqual([]);
+    await settle();
+    expect(readAsk).not.toHaveBeenCalled();
+    expect(asksTable()).toHaveLength(1);
   });
 
   /* Nobody gave it to Isaac: it is his own. A task made "by nobody" is
@@ -647,7 +723,8 @@ describe("failures that aren't the ask's", () => {
 /* A read that runs out of time may be its note's doing or the reader's. The
    run's next read tells which: one that comes back says the reader is fine,
    so the slow one is counted; one that runs out of time too says it's the
-   reader, and neither is. */
+   reader or what the two share, so both are counted and the run stops; an
+   outage says it's the reader, and neither is. */
 describe("a read that runs out of time", () => {
   const titled = (a: AskArgs) => ({ ok: true as const, read: { kind: "do", title: `Sort out: ${a.text}`, dueDate: null } });
 
@@ -690,17 +767,30 @@ describe("a read that runs out of time", () => {
     expect(readAsk).not.toHaveBeenCalled();
   });
 
-  /* A slow reader, run after run: nothing is set aside for it. */
-  it("sets nothing aside when the next read runs out of time too, or meets an outage: that's the reader, and the run stops there", async () => {
+  /* Two in a row: the reader is slow, or what the two share is. Let go
+     uncounted, a pair like that stopped every run for ever; counted, it is
+     set aside after MAX_ATTEMPTS runs and the asks behind it are read. */
+  it("counts both when the next read runs out of time too, and stops the run there, so the same pair can't hold up every run for ever", async () => {
     notes = [ASK_MARY, ASK_FANS, ASK_HOLLY];
     askAnswer = () => TOO_LONG;
-    for (let i = 0; i < MAX_ATTEMPTS + 1; i++) {
+    for (let i = 1; i <= MAX_ATTEMPTS; i++) {
       readAsk.mockClear();
       expect(await settle()).toMatchObject({ reads: 2, outage: true });
       expect(readAsk).toHaveBeenCalledTimes(2);
+      for (const n of ["n-mary", "n-fans"]) expect(askRow(n)).toMatchObject({ attempts: i, claimed_at: null });
     }
+    for (const n of ["n-mary", "n-fans"]) expect(askRow(n)).toMatchObject({ status: "failed", attempts: MAX_ATTEMPTS });
+
+    askAnswer = titled;
+    expect(await settle()).toMatchObject({ reads: 1, tasks: 1, outage: false });
+    expect(askRow("n-holly")).toMatchObject({ status: "read", kind: "do" });
+  });
+
+  /* A rate limit or the reader down after it: that's the reader. */
+  it("counts neither when the next read meets an outage, and the run stops there", async () => {
+    notes = [ASK_MARY, ASK_FANS, ASK_HOLLY];
     askAnswer = (a) => (a.text.includes("Mary") ? TOO_LONG : { ok: false, error: "the reader is down (529)", why: "outage" });
-    expect(await settle()).toMatchObject({ reads: 2, outage: true });
+    for (let i = 0; i < MAX_ATTEMPTS + 1; i++) expect(await settle()).toMatchObject({ reads: 2, outage: true });
     for (const n of ["n-mary", "n-fans"]) {
       expect(askRow(n)).toMatchObject({ status: "reading", attempts: 0, claimed_at: null });
     }
@@ -743,7 +833,7 @@ describe("a read that runs out of time", () => {
       expect([askRow("n-mary").attempts, askRow("n-holly").attempts]).toEqual([1, 1]);
     });
 
-    it("says it's the reader when it runs out of time after an ask did: neither is counted, and the run stops", async () => {
+    it("counts both when it runs out of time after an ask did, and the run stops", async () => {
       FANS_READ();
       notes = [ASK_MARY, ASK_FANS, THREE, ASK_HOLLY];
       askAnswer = () => TOO_LONG;
@@ -751,8 +841,42 @@ describe("a read that runs out of time", () => {
       const out = await settle();
       expect(out).toMatchObject({ reads: 2, outage: true });
       expect(readAsk).toHaveBeenCalledTimes(1);
-      expect(askRow("n-mary")).toMatchObject({ status: "reading", attempts: 0, claimed_at: null });
-      expect(askRow("n-fans")).toMatchObject({ reply_attempts: 0, last_reply_note: null });
+      expect(askRow("n-mary")).toMatchObject({ status: "reading", attempts: 1, claimed_at: null });
+      expect(askRow("n-fans")).toMatchObject({ reply_attempts: 1 });
+      expect(askRow("n-fans").last_reply_note ?? null).toBeNull();
+    });
+
+    /* The second review's case: one conversation, two open tasks, and the
+       one reply read once for each — the same content twice in a row.
+       Released uncounted, every run spent both reads on it and stopped,
+       and the asks behind it (fans, Holly) were never read. */
+    it(`sets aside replies that always run out of time, read for two tasks in a row, after ${MAX_ATTEMPTS} runs, and then reads the asks behind them`, async () => {
+      db.mention_asks = [readRow("n-mary", "t-mary"), readRow("n-quote", "t-quote")];
+      db.tasks = [
+        openTask("t-mary", "Call Mary about 2041 Wollstonecraft"),
+        openTask("t-quote", "Send Mary the quote for 2041 Wollstonecraft"),
+      ];
+      notes = [
+        ASK_MARY,
+        note("n-quote", LUKE.uuid, "2026-09-21 13:50:00", "@isaacsmith send her the quote too"),
+        mine("r-called", "2026-09-22 10:00:00", "called her, sorted"),
+        ASK_FANS,
+        ASK_HOLLY,
+      ];
+      askAnswer = titled;
+      replyAnswer = () => TOO_LONG;
+      for (let i = 1; i <= MAX_ATTEMPTS; i++) {
+        readAsk.mockClear();
+        expect(await settle()).toMatchObject({ reads: 2, outage: true });
+        expect(readAsk).not.toHaveBeenCalled();
+      }
+      for (const n of ["n-mary", "n-quote"]) expect(askRow(n)).toMatchObject({ last_reply_note: "r-called", reply_attempts: 0 });
+
+      readReply.mockClear();
+      expect(await settle()).toMatchObject({ reads: 2, tasks: 2, outage: false });
+      expect(readReply).not.toHaveBeenCalled();
+      expect([askRow("n-fans").status, askRow("n-holly").status]).toEqual(["read", "read"]);
+      expect([taskOf("n-mary").status, taskOf("n-quote").status]).toEqual(["open", "open"]);
     });
   });
 });
@@ -956,7 +1080,7 @@ describe("your replies", () => {
     expect(out.outage).toBe(true);
     expect([askRow("n-mary").last_reply_note ?? null, askRow("n-mary").reply_attempts ?? 0]).toEqual([null, 0]);
     // the fans ask, next in line, waits for the next run
-    expect(readAsk.mock.calls.map(([a]) => a.text)).toEqual(["Please call Mary to discuss"]);
+    expect(readAsk.mock.calls.map(([a]) => a.text)).toEqual(["Isaac Please call Mary to discuss"]);
   });
 });
 

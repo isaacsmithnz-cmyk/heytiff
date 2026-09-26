@@ -28,6 +28,9 @@
    naming the other side of this conversation. Anybody else it names is
    said by first name (the whole name when two people share the first), so
    "can you ask @michaeldiamond to bring the ladder" still asks for Michael.
+   What Tiff READS is the note with nothing taken out and every handle said
+   by name, yours by your first (`named`): a note written to Luke and to you
+   is two asks, and only the part in front of your name is yours.
 
    WHERE IT SORTS is the asker's newest message, so your reply never moves
    it and his answer brings the whole conversation up into Today. Its header
@@ -46,7 +49,7 @@
    limit. */
 
 import { plusDays } from "@/lib/workboard/dates";
-import { mentionedHandles, quotedNote } from "@/lib/workboard/sm8-mentions";
+import { mentionedHandles, namedNote, quotedNote } from "@/lib/workboard/sm8-mentions";
 import type { Sm8Person } from "@/lib/workboard/job-notes-query";
 import type { DiaryEntry } from "./journal";
 
@@ -84,6 +87,10 @@ export type DiaryMessage = {
   /** Their words less the addressing; anybody else named, by name
       (quotedNote). */
   text: string;
+  /** Their words with nothing taken out, everybody named by name and you
+      by your first (namedNote): what Tiff reads, so she sees who each part
+      of a note written to several people is to. */
+  named: string;
   at: string;
 };
 
@@ -206,6 +213,11 @@ export function buildConversations(input: {
   const byUuid = new Map(input.people.map((p) => [p.uuid, p]));
   const handles = input.people.map((p) => p.handle);
   const names = handleWords(input.people);
+  /* What Tiff reads: the same words, and you always by your first name,
+     the one her prompt says the note's ask of you is made to. */
+  const readNames = new Map(names);
+  const myFirst = byUuid.get(me.uuid)?.first;
+  if (myFirst) readNames.set(me.handle, myFirst);
 
   const seen = new Set<string>();
   const notes = input.notes
@@ -223,7 +235,14 @@ export function buildConversations(input: {
   const say = (c: Draft, n: MentionNote, from: DiaryMessage["from"], addressed = true) => {
     /* The other side of the conversation is who the note is addressed to. */
     const addressing = [from === "them" ? me.handle : c.asker.handle];
-    c.messages.push({ id: n.uuid, from, addressed, text: quotedNote(n.text, { names, addressing }), at: n.at });
+    c.messages.push({
+      id: n.uuid,
+      from,
+      addressed,
+      text: quotedNote(n.text, { names, addressing }),
+      named: namedNote(n.text, readNames),
+      at: n.at,
+    });
     if (from === "them") c.lastTheirs = n.at;
     else c.lastYours = n.at;
   };

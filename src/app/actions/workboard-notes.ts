@@ -369,12 +369,12 @@ export async function routeNote(input: {
       target_id: target.id ?? null,
       transcript,
       source: input.source === "voice" ? "voice" : "text",
-      /* NO `is_debrief`. There is one door now (Isaac, 2026-09-24: "the
+      /* NO DEBRIEF FLAG. There is one door now (Isaac, 2026-09-24: "the
          diary, tasks and HeyTiff chat window should assist with that"), so
-         there is nothing to record about which one the words came through.
-         The column's own default writes false until it is dropped, and a
-         `debrief` key that a stale page or a direct POST still sends is read
-         by nothing here. */
+         there is nothing to record about which one the words came through,
+         and note_is_debrief_drop.sql drops the column that did. A `debrief`
+         key that a stale page or a direct POST still sends is read by
+         nothing here. */
       ...(talk ? { turns: [said] } : {}),
     })
     .select("id")

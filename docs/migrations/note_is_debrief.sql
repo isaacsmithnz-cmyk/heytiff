@@ -1,3 +1,6 @@
+-- SUPERSEDED by note_is_debrief_drop.sql (the new Home build, H3): the
+-- Debrief went, and this column and its index with it. Kept as it was applied.
+--
 -- A debrief is a different act from a note, and nothing recorded which was which.
 --
 -- THE PROBLEM. Isaac (2026-09-01): "the debrief, you should be able to see all

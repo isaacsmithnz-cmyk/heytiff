@@ -185,9 +185,9 @@ The proposal comes back as tasks, flags, bring-items, progress, readings,
 issues and knowledge entries, each tickable. (The Debrief's "note lines",
 kept as one grouped note, went with it on 2026-09-25; old rows keep their
 door because `noteLines` is still the key *Keep it in my notes* files, and
-the diary no longer reads `is_debrief` at all.) `Save these` calls
-`applyNote` with what is still ticked. Walking away instead dismisses the
-note, so nothing sits at `pending` forever.
+the diary no longer reads `is_debrief`, which note_is_debrief_drop.sql
+drops.) `Save these` calls `applyNote` with what is still ticked. Walking
+away instead dismisses the note, so nothing sits at `pending` forever.
 
 **A capture ends one of four ways, and all four write `workboard_notes`.** The
 `status` on that row is what tells them apart, and the journal on Home reads

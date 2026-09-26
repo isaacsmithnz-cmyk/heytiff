@@ -37,20 +37,19 @@ import { naiveInZone } from "@/lib/workboard/job-story";
 import { describeAppliedResolved, type DiaryEntry, type JournalEntry } from "./journal";
 import { DIARY_ENTRY_LIMIT } from "./diary-feed";
 
-/* NO `is_debrief`, WRITTEN OR READ. The Debrief left the router and this
-   read in the same change, so the column's drop (note_is_debrief_drop.sql) is
-   safe to apply once that change is live, and not before: the code before it
-   names the column here, and PostgREST fails the whole select on a column
-   that isn't there, which would empty every diary. An old Debrief row needs
-   nothing from the column to keep its place: it is an applied note like any
-   other, and its grouped note's door is resolved from `applied.noteLines`
-   below. A test in journal-query.test.ts refuses a migration that drops a
-   column this list still names. */
+/* NO DEBRIEF COLUMN, WRITTEN OR READ. The Debrief left the router and this
+   read in the same change (#818), and note_is_debrief_drop.sql drops the
+   column. Naming it here again would empty every diary once that has run:
+   PostgREST fails the whole select on a column that isn't there. An old
+   Debrief row needs nothing from the column to keep its place: it is an
+   applied note like any other, and its grouped note's door is resolved from
+   `applied.noteLines` below. A test in journal-query.test.ts refuses a
+   migration that drops a column this list still names. */
 const COLUMNS = "id, transcript, source, applied, created_at";
 /* The diary's read is the journal's plus whether Tiff routed the words at
    all. Built ON the journal's list rather than beside it, so whatever the
-   journal stops reading (the Debrief's column is on its way out) the diary
-   stops reading in the same edit. */
+   journal stops reading (as it did the Debrief's column) the diary stops
+   reading in the same edit. */
 const DIARY_COLUMNS = `${COLUMNS}, proposal`;
 
 type Row = {

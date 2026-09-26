@@ -63,3 +63,20 @@ test("without VERCEL_ENV (local) nothing moves", async () => {
   const res = await proxy(req("http://localhost:3000/auth/login", "localhost:3000"));
   expect(res.status).toBe(200);
 });
+
+/* Vercel's scheduler calls a cron on the deployment's own address and does
+   not follow a redirect, so a 308 here is a cron that never runs. */
+test("a scheduled call on the deployment's own address reaches its route: no move, no session work", async () => {
+  const host = "heytiff-bddd85eyg-isaacsmithnz-3848s-projects.vercel.app";
+  for (const path of ["/api/cron/sm8-sync", "/api/cron/reminders", "/api/cron/xero-drift"]) {
+    const res = await proxy(req(`https://${host}${path}`, host));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+  }
+  expect(middlewareSpy).not.toHaveBeenCalled();
+});
+
+test("only the cron routes are let through: another API route on that address still moves", async () => {
+  const res = await proxy(req("https://heytiff.vercel.app/api/cronjobs", "heytiff.vercel.app"));
+  expect(res.status).toBe(308);
+});

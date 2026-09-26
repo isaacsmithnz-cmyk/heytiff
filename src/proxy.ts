@@ -54,8 +54,26 @@ function canonicalHostRedirect(request: NextRequest): NextResponse | null {
   return NextResponse.redirect(to, 308);
 }
 
+/* THE SCHEDULED ROUTES ARE LET STRAIGHT THROUGH. Vercel's scheduler calls a
+   cron on the deployment's own `*.vercel.app` address, not on
+   `go.hey-tiff.com`, and it does not follow redirects: "the job completes
+   without further requests" (Vercel's Managing Cron Jobs page, read
+   2026-09-26). So the canonical-host move above answered every scheduled call
+   with a 308 and the route never ran: the nightly ServiceM8 sync, the
+   reminder letters and the Xero drift sweep all stopped on 8 September, when
+   the move shipped, and nothing logged it (a redirected cron leaves no log
+   line). Seen 2026-09-26: a triggered run met a 308 on
+   heytiff-<id>.vercel.app.
+
+   Nothing here protects them anyway: they need no session and no workspace,
+   and each checks CRON_SECRET itself (lib/integrations/cron-auth), which is
+   the whole gate whichever host the call arrived on. */
+const CRON_PATH = "/api/cron/";
+
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
+
+  if (path.startsWith(CRON_PATH)) return NextResponse.next();
 
   const moved = canonicalHostRedirect(request);
   if (moved) return moved;

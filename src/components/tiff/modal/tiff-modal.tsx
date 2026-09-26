@@ -446,12 +446,14 @@ function TurnView({
           {turn.doors?.map((d) => (
             <span key={d.kind}>{d.label}</span>
           ))}
-          {turn.undo && turn.noteId && (
+          {turn.undo && (turn.noteId || turn.events) && (
             <button
               type="button"
               className="tm-undo"
               disabled={turn.undo === "busy"}
-              onClick={() => void c.undo(turn.key, turn.noteId!)}
+              /* A note's Undo takes back what it filed; a calendar line's
+                 takes its events off. */
+              onClick={() => void (turn.events ? c.undoEvents(turn.key, turn.events) : c.undo(turn.key, turn.noteId!))}
             >
               Undo
             </button>

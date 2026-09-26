@@ -953,8 +953,38 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
     ["his capsule, school", '.fg .hd-cal-chip[data-tone="school"]', () => [fill('.fg .hd-cal-chip[data-tone="school"]')]],
     ["a fact's label", ".fg .hd-cal-facts dt", () => [PAPER]],
     ["the action, paper on his ink", ".fg .hd-cal-go", () => [fill(".fg .hd-cal-go")]],
+    /* The edit form (H22), on the panel's paper. */
+    ["a field's label", ".fg .hd-cal-edf", () => [PAPER]],
+    ["what a field holds", ".fg .hd-cal-fi", () => [fill(".fg .hd-cal-fi")]],
+    [
+      "a quiet button, at rest and under the pointer",
+      ".fg .hd-cal-edb",
+      () => [fill(".fg .hd-cal-edb"), fill(".fg .hd-cal-edb:hover:not(:disabled)")],
+    ],
+    ["the question before a delete", ".fg .hd-cal-edq", () => [PAPER]],
+    /* While a save or a delete is out, the pressed button says "Saving…"
+       or "Deleting…": quieted by colour, still read. */
+    ["Save, resting while it saves", ".fg .hd-cal-go:disabled", () => [fill(".fg .hd-cal-go:disabled")]],
+    ["a quiet button, resting while a change is out", ".fg .hd-cal-edb:disabled", () => [fill(".fg .hd-cal-edb")]],
   ])("the panel: %s", (_label, sel, grounds) => {
     expect(lowest(ink(sel), grounds())).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /* Opacity multiplies the words with the fill: "Saving…" at .5 on his ink
+     read 3.3:1, and nothing above can measure it. A resting button is
+     quieted by its colour, which the rows above do measure. */
+  it("never quiets a resting button by opacity, nor lights it under the pointer", () => {
+    const rules = [...code.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+    const dimmed = rules
+      .filter((m) => /\.hd-cal-[\w-]+:disabled/.test(m[1]!) && /(?:^|;)\s*opacity\s*:/.test(m[2]!))
+      .map((m) => m[1]!.trim());
+    expect(dimmed).toEqual([]);
+    const resting = new Set(rules.flatMap((m) => [...m[1]!.matchAll(/\.(hd-cal-[\w-]+):disabled/g)].map((d) => d[1]!)));
+    expect(resting.size).toBeGreaterThan(0);
+    const lit = rules
+      .flatMap((m) => m[1]!.split(",").map((s) => s.trim()))
+      .filter((s) => [...resting].some((c) => s.includes(`.${c}:hover`)) && !s.includes(":hover:not(:disabled)"));
+    expect(lit).toEqual([]);
   });
 });
 

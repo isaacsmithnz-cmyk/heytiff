@@ -49,6 +49,14 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   keepNoteForMe: jest.fn(),
   answerClarify: jest.fn(),
 }));
+const fileCalendarLine = jest.fn();
+const noteOnCalendarEvents = jest.fn();
+const undoCalendarLine = jest.fn();
+jest.mock("@/app/actions/calendar", () => ({
+  fileCalendarLine: (...a: unknown[]) => fileCalendarLine(...a),
+  noteOnCalendarEvents: (...a: unknown[]) => noteOnCalendarEvents(...a),
+  undoCalendarLine: (...a: unknown[]) => undoCalendarLine(...a),
+}));
 
 /* THE MICROPHONE, faked so it opens and closes like the real engine, and so
    a test can hand it a transcript the way the recorder does. */
@@ -544,14 +552,20 @@ describe("after filing", () => {
       expect(grabbed.api!.landed).toMatchObject({ noteIds: ["k7"], keyboard: true });
     });
 
+    /* Words said to the Calendar are a line for the calendar (H22), so the
+       note that lands from its room is one Tiff could not read and kept as
+       said: the page is told which room it came from, and brings nothing
+       forward over the Calendar for it. */
     it("says the room it was had in", async () => {
-      routeNote.mockResolvedValue({ ok: false, error: KEPT_AS_SAID, kept: true, noteId: "k7" });
+      fileCalendarLine.mockResolvedValue({ ok: false, error: "That line couldn't be read just now.", unread: true });
+      keepWords.mockResolvedValue({ ok: true, noteId: "k7" });
       const user = userEvent.setup();
       render(<Harness voice={false} extra={<Grab />} />);
       await act(async () => {
         grabbed.api!.open({ from: topButton(), words: "toolbox talk every first Thursday", room: "calendar" });
       });
       await flush();
+      expect(keepWords).toHaveBeenCalledWith("toolbox talk every first Thursday", "calendar");
       await user.click(within(dialog()).getByRole("button", { name: "Close" }));
       await flush();
       expect(grabbed.api!.landed).toEqual({ noteIds: ["k7"], ids: [], room: "calendar", keyboard: false });
@@ -1459,5 +1473,195 @@ describe("opened again on a conversation", () => {
     motion(false);
     await reopen();
     expect(calls[0]).toMatchObject({ behavior: "auto" });
+  });
+});
+
+/* THE CALENDAR'S ROOM (H22): what is said there is a line for the calendar.
+   It goes to the calendar's reader and never to the note router; it files at
+   once with Undo; "Which day?" takes the answer back with the line; a reply
+   after filing is kept on what she filed; a question is still a question;
+   and what went on lands on the calendar as the modal closes. */
+describe("the calendar's room", () => {
+  const LINE = "Toolbox talk every first Thursday, 6:45";
+  const SAID =
+    "Done. Toolbox talk is on the calendar for Thu 1 Oct at 6:45 am, then the first Thursday of every month until Aug 2027.";
+  const IDS = ["e1", "e2", "e3"];
+  const filedCal = {
+    ok: true,
+    say: SAID,
+    plan: [
+      { lead: "Thu 1 Oct", text: "toolbox talk, 6:45 am" },
+      { lead: "Every month", text: "the first Thursday, until Aug 2027" },
+    ],
+    door: "3 events on the calendar",
+    ids: IDS,
+    about: "the toolbox talk on Thu 1 Oct",
+  };
+
+  async function calendar(words?: string, voice = true) {
+    const user = userEvent.setup();
+    render(<Harness voice={voice} extra={<Grab />} />);
+    await act(async () => {
+      grabbed.api!.open({ from: topButton(), words, room: "calendar" });
+    });
+    await flush();
+    return user;
+  }
+  const reply = async (user: ReturnType<typeof userEvent.setup>, words: string) => {
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), `${words}{Enter}`);
+    await flush();
+  };
+
+  it("sorts the box's words onto the calendar, never through the note router, and files at once with Undo", async () => {
+    fileCalendarLine.mockResolvedValue(filedCal);
+    await calendar(LINE);
+    expect(fileCalendarLine).toHaveBeenCalledWith(LINE, "text", []);
+    expect(routeNote).not.toHaveBeenCalled();
+    expect(fileNote).not.toHaveBeenCalled();
+    const d = dialog();
+    expect(within(d).getByText("Calendar")).toBeInTheDocument();
+    expect(within(convo()).getByText(SAID)).toBeInTheDocument();
+    expect([...d.querySelectorAll(".tm-row-plan")].map((r) => r.textContent)).toEqual([
+      "Thu 1 Oct, toolbox talk, 6:45 am",
+      "Every month, the first Thursday, until Aug 2027",
+    ]);
+    expect(within(d).getByText("3 events on the calendar")).toBeInTheDocument();
+    expect(within(d).getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    // what is already on the calendar has no cross: taking it off is Undo's job
+    expect(within(d).queryByRole("button", { name: /^Clear toolbox talk/ })).toBeNull();
+    expect(within(d).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
+  });
+
+  it("the calendar's Tiff button listens, and what was said goes on as spoken", async () => {
+    fileCalendarLine.mockReturnValue(new Promise(() => {}));
+    const user = await calendar();
+    expect(mic.start).toHaveBeenCalledTimes(1);
+    await say(user, LINE);
+    expect(fileCalendarLine).toHaveBeenCalledWith(LINE, "voice", []);
+    expect(routeNote).not.toHaveBeenCalled();
+  });
+
+  it("asks Which day?, and each answer goes back with the line", async () => {
+    fileCalendarLine
+      .mockResolvedValueOnce({ ok: false, ask: "Which day?" })
+      .mockResolvedValueOnce({ ok: false, ask: "Which day?" })
+      .mockResolvedValueOnce(filedCal);
+    const user = await calendar("Toolbox talk");
+    expect(within(convo()).getByText("Which day?")).toBeInTheDocument();
+    await reply(user, "the first Thursday");
+    expect(fileCalendarLine).toHaveBeenNthCalledWith(2, "Toolbox talk", "text", ["the first Thursday"]);
+    await reply(user, "every month");
+    expect(fileCalendarLine).toHaveBeenNthCalledWith(3, "Toolbox talk", "text", ["the first Thursday", "every month"]);
+    expect(within(convo()).getByText(SAID)).toBeInTheDocument();
+    expect(routeNote).not.toHaveBeenCalled();
+  });
+
+  it("keeps a reply after filing on what she filed, and says so", async () => {
+    fileCalendarLine.mockResolvedValue(filedCal);
+    noteOnCalendarEvents.mockResolvedValue({ ok: true });
+    const user = await calendar(LINE);
+    await reply(user, "Put it in the yard");
+    expect(noteOnCalendarEvents).toHaveBeenCalledWith(IDS, "Put it in the yard");
+    expect(fileCalendarLine).toHaveBeenCalledTimes(1);
+    expect(within(convo()).getByText("Got it. I have added that to the toolbox talk on Thu 1 Oct.")).toBeInTheDocument();
+  });
+
+  it("still answers a question, and files nothing for it", async () => {
+    askBrain.mockImplementation(() => {});
+    await calendar("is Labour Day a Monday?");
+    expect(askBrain).toHaveBeenCalledTimes(1);
+    expect(askBrain.mock.calls[0][0]).toMatchObject({ question: "is Labour Day a Monday?" });
+    expect(fileCalendarLine).not.toHaveBeenCalled();
+  });
+
+  it("Undo takes the events off, and the next words are a new line, not a note on them", async () => {
+    fileCalendarLine.mockResolvedValue(filedCal);
+    undoCalendarLine.mockResolvedValue({ ok: true, summary: "3 events taken back." });
+    const user = await calendar(LINE);
+    await user.click(within(dialog()).getByRole("button", { name: "Undo" }));
+    await flush();
+    expect(undoCalendarLine).toHaveBeenCalledWith(IDS);
+    expect(within(convo()).getByText("3 events taken back.")).toBeInTheDocument();
+    expect(within(dialog()).queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(within(dialog()).queryByText("3 events on the calendar")).toBeNull();
+    fileCalendarLine.mockReturnValue(new Promise(() => {}));
+    await reply(user, "Team meeting Monday at 3");
+    expect(noteOnCalendarEvents).not.toHaveBeenCalled();
+    expect(fileCalendarLine).toHaveBeenLastCalledWith("Team meeting Monday at 3", "text", []);
+  });
+
+  /* What Undo took off is not on the calendar, so closing lands nothing. */
+  it("says nothing landed when the modal closes after Undo", async () => {
+    fileCalendarLine.mockResolvedValue(filedCal);
+    undoCalendarLine.mockResolvedValue({ ok: true, summary: "3 events taken back." });
+    const user = await calendar(LINE);
+    await user.click(within(dialog()).getByRole("button", { name: "Undo" }));
+    await flush();
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
+    expect(grabbed.api!.landed).toBeNull();
+  });
+
+  /* Asked "Which day?" and answered, a line then never read is kept with
+     the answers: every word said for it, not the line alone. */
+  it("keeps the answers with the line when a line asked about is never read", async () => {
+    fileCalendarLine
+      .mockResolvedValueOnce({ ok: false, ask: "Which day?" })
+      .mockResolvedValueOnce({ ok: false, error: "That line couldn't be read just now.", unread: true });
+    keepWords.mockResolvedValue({ ok: true, noteId: "k1" });
+    const user = await calendar("Toolbox talk");
+    await reply(user, "the first Thursday");
+    expect(keepWords).toHaveBeenCalledWith("Toolbox talk\nthe first Thursday", "calendar");
+  });
+
+  it("keeps a line it could never read in the diary as said, and a line that never arrived too", async () => {
+    fileCalendarLine.mockResolvedValue({ ok: false, error: "That line couldn't be read just now.", unread: true });
+    keepWords.mockResolvedValue({ ok: true, noteId: "k1" });
+    await calendar("Toolbox talk");
+    expect(keepWords).toHaveBeenCalledWith("Toolbox talk", "calendar");
+    expect(within(convo()).getByText(KEPT_AS_SAID)).toBeInTheDocument();
+    cleanup();
+
+    fileCalendarLine.mockRejectedValue(new Error("offline"));
+    await calendar("Toolbox talk Friday");
+    expect(keepWords).toHaveBeenLastCalledWith("Toolbox talk Friday", "calendar");
+  });
+
+  it("says why a line it read went nowhere, and keeps nothing", async () => {
+    const why = "The calendar runs to Aug 2027, so I haven't put that on it.";
+    fileCalendarLine.mockResolvedValue({ ok: false, error: why });
+    await calendar("toolbox talk next September");
+    expect(within(convo()).getByText(why)).toBeInTheDocument();
+    expect(keepWords).not.toHaveBeenCalled();
+  });
+
+  it("says what landed as it closes: the events, with no note, and the page refreshed", async () => {
+    fileCalendarLine.mockResolvedValue(filedCal);
+    const user = await calendar(LINE);
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
+    expect(grabbed.api!.landed).toStrictEqual({ noteIds: [], ids: IDS, room: "calendar", keyboard: false });
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes off what went on when the modal was closed before she answered, as a note left waiting files nothing", async () => {
+    let answer!: (v: unknown) => void;
+    fileCalendarLine.mockReturnValue(
+      new Promise((r) => {
+        answer = r;
+      }),
+    );
+    undoCalendarLine.mockResolvedValue({ ok: true, summary: "3 events taken back." });
+    const user = await calendar(LINE);
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
+    await act(async () => {
+      answer(filedCal);
+    });
+    await flush();
+    expect(undoCalendarLine).toHaveBeenCalledWith(IDS);
+    // nothing landed, so the page is told nothing and not refreshed for it
+    expect(grabbed.api!.landed).toBeNull();
+    expect(refresh).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 import { planRows, type PlanLane } from "@/lib/workboard/note-draft";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
 import type { Turn } from "@/lib/workboard/note-turns";
+import type { LinePlanRow } from "@/lib/calendar/line";
 
 /* WHAT TIFF WILL FILE, AS SHE SAYS IT — pure.
 
@@ -15,7 +16,8 @@ import type { Turn } from "@/lib/workboard/note-turns";
 
 export type PlanRowView = {
   key: string;
-  lane: PlanLane;
+  /** Where the row lands: a lane of the note, or the calendar. */
+  lane: PlanLane | "calendar";
   index: number;
   /** The bold word that leads the row: a first name, "Who", or the lane. */
   lead: string;
@@ -82,6 +84,21 @@ export function planView(
       ...(row.lane === "kbEntries" ? { kb: "ready" as const } : {}),
     };
   });
+}
+
+/** What she put on the calendar, as the same rows: "**Thu 1 Oct**, toolbox
+    talk, 6:45 am", "**Every month**, the first Thursday, until Aug 2027". It
+    is already on, so nothing asks and nothing waits for a press. */
+export function calendarRows(plan: readonly LinePlanRow[]): PlanRowView[] {
+  return plan.map((row, index) => ({
+    key: `calendar:${index}`,
+    lane: "calendar",
+    index,
+    lead: row.lead,
+    join: ", ",
+    text: row.text,
+    needs: false,
+  }));
 }
 
 /** Tiff's question, said once: her line already ends with it when the model

@@ -20,10 +20,18 @@ import {
   type RouteResult,
   type UndoResult,
 } from "@/app/actions/workboard-notes";
+import {
+  fileCalendarLine,
+  noteOnCalendarEvents,
+  undoCalendarLine,
+  type CalendarLineResult,
+  type CalendarResult,
+} from "@/app/actions/calendar";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
-import type { NoteDoor } from "@/lib/workboard/note-applied";
+import type { NoteDoor, NoteDoorKind } from "@/lib/workboard/note-applied";
 import { KEPT_AS_SAID, WHICH_JOB, earlierTurns, type EarlierTurn, type TiffRoom } from "@/lib/workboard/note-turns";
-import { askLine, lastTiff, planView, tiffSince, type PlanRowView } from "./plan-view";
+import { notedLine } from "@/lib/calendar/line";
+import { askLine, calendarRows, lastTiff, planView, tiffSince, type PlanRowView } from "./plan-view";
 import type { TiffLanded } from "./tiff-context";
 
 /* ONE CONVERSATION WITH TIFF — the modal's state, once.
@@ -40,6 +48,17 @@ import type { TiffLanded } from "./tiff-context";
      it reads as a question        the ask stream, with the turns before it
      anything else                 a new note in the same conversation,
                                    read by the turns before it
+
+   THE CALENDAR'S ROOM IS ITS OWN (the Calendar's box and its Tiff button,
+   H22). What is said there is a line for the calendar, never a note, so it
+   goes to the calendar's reader rather than the note router, which is left
+   exactly as it was:
+     waiting on "Which day?"       the line again, with every answer since
+     it reads as a question        the ask stream, as anywhere
+     after she has filed           kept on what she filed, as its note
+     anything else                 a line for the calendar, read and filed
+   A line she could not read at all is kept in the diary as said, the way a
+   note that could not be routed is.
 
    THE WAITS HAVE FLOORS, and they are motion, not padding. The dots gather
    from the button you pressed for GATHER_MS, and the cloud Tiff thinks in
@@ -71,6 +90,9 @@ export type Point = { x: number; y: number };
 
 export type QuickAnswer = { label: string; target?: NoteTarget };
 
+/** A door under Tiff's line: what a note filed, or what went on the calendar. */
+export type TurnDoor = Omit<NoteDoor, "kind"> & { kind: NoteDoorKind | "events" };
+
 export type ModalTurn = {
   key: string;
   who: "you" | "tiff";
@@ -82,9 +104,11 @@ export type ModalTurn = {
   /** Answers you can tap, under her question. */
   quick?: QuickAnswer[];
   /** What landed, once filed. */
-  doors?: NoteDoor[];
+  doors?: TurnDoor[];
   /** The note this turn is about: Undo, the rows' crosses, the Library. */
   noteId?: string;
+  /** The calendar events this turn put on: what its Undo takes off. */
+  events?: string[];
   undo?: "ready" | "busy";
   /** This turn filed its note, and Undo has not taken it back. */
   filed?: boolean;
@@ -132,6 +156,12 @@ type Note = {
       that state is never set aside: it may be filed. */
   lost: boolean;
 };
+
+/** A calendar line Tiff asked "Which day?" about, and the answers since. */
+type DayAsk = { line: string; source: "voice" | "text"; answers: string[] };
+
+/** What the last calendar line put on, for a reply to be kept on. */
+type OnCalendar = { ids: string[]; about: string };
 
 const NONE: NoteTarget = { kind: "none" };
 
@@ -200,10 +230,15 @@ export function useConversation({
   const note = useRef<Note | null>(null);
   const leave = useRef<string[]>([]);
   const changed = useRef(false);
-  const filed = useRef<{ noteId: string; ids: string[] }[]>([]);
+  /** Everything this conversation filed: a note's rows, or a calendar
+      line's events, which have no note. */
+  const filed = useRef<{ noteId?: string; ids: string[] }[]>([]);
   const awaitingVoice = useRef(false);
   const asking = useRef<AbortController | null>(null);
   const sent = useRef(false);
+  const dayAsk = useRef<DayAsk | null>(null);
+  const onCalendar = useRef<OnCalendar | null>(null);
+  const calendar = room === "calendar";
 
   useEffect(() => {
     alive.current = true;
@@ -479,8 +514,84 @@ export function useConversation({
     );
   };
 
+  /* ── the calendar's room ── */
+
+  /** Everything said for a line that is kept as said: the line and its answers. */
+  const saidAll = (a: DayAsk) => [a.line, ...a.answers].join("\n");
+
+  /** A line for the calendar: read, and on the calendar at once, or asked
+      about. It files live, as a note does, with Undo on what landed. */
+  const fileLine = async (a: DayAsk) => {
+    dayAsk.current = null;
+    let r: CalendarLineResult;
+    try {
+      r = await fileCalendarLine(a.line, a.source, a.answers);
+    } catch {
+      /* Whether it went on is unknown; the words are kept, where a second
+         copy costs nothing, rather than risk the calendar twice. */
+      return keep(saidAll(a));
+    }
+    const res = r;
+    if (!alive.current) {
+      /* Closed before she answered: what she put on comes off again, as a
+         note left waiting is set aside and files nothing (`walkAway`). The
+         turn that would have said so, and its Undo, went with the modal, so
+         nothing would ever have told the page it landed. */
+      if (res.ok) void undoCalendarLine(res.ids).catch(() => {});
+      return;
+    }
+    if (res.ok) {
+      changed.current = true;
+      onCalendar.current = { ids: res.ids, about: res.about };
+      filed.current = [...filed.current, { ids: res.ids }];
+      const door: TurnDoor = { kind: "events", count: res.ids.length, label: res.door, ids: res.ids };
+      return settle(() =>
+        tiffSays(res.say, "filed", {
+          rows: calendarRows(res.plan),
+          doors: [door],
+          events: res.ids,
+          undo: "ready",
+          filed: true,
+        })
+      );
+    }
+    if ("ask" in res) {
+      dayAsk.current = a;
+      return settle(() => tiffSays(res.ask, "asking"));
+    }
+    /* Never read: the words go in the diary as said, as a note's would. */
+    if (res.unread) return keep(saidAll(a));
+    return settle(() => tiffSays(res.error, "failed"));
+  };
+
+  /** A reply after she filed: kept on what she filed, as its note. */
+  const noteOn = async (on: OnCalendar, words: string) => {
+    let r: CalendarResult;
+    try {
+      r = await noteOnCalendarEvents(on.ids, words);
+    } catch {
+      return settle(() => tiffSays(NOT_REACHED, "filed"));
+    }
+    const res = r;
+    if (!alive.current) return;
+    if (!res.ok) return settle(() => tiffSays(res.error, "filed"));
+    changed.current = true;
+    settle(() => tiffSays(notedLine(on.about), "filed"));
+  };
+
+  /** Where words said in the calendar's room go (see the header). */
+  const toCalendar = (words: string, source: "voice" | "text", before: readonly ModalTurn[]) => {
+    const waiting = dayAsk.current;
+    if (waiting) return void fileLine({ ...waiting, answers: [...waiting.answers, words] });
+    if (looksLikeQuestion(words)) return ask(words, before);
+    const on = onCalendar.current;
+    if (on) return void noteOn(on, words);
+    void fileLine({ line: words, source, answers: [] });
+  };
+
   /** Where a reply goes. `before` is the conversation ahead of these words. */
   const submit = (words: string, source: "voice" | "text", before: readonly ModalTurn[]) => {
+    if (calendar) return toCalendar(words, source, before);
     const n = note.current;
     if (n?.waiting) return void reply(n, words);
     if (looksLikeQuestion(words)) return ask(words, before);
@@ -692,6 +803,32 @@ export function useConversation({
     addTurn({ who: "tiff", text: res.error });
   };
 
+  /** Undo on a calendar line: what it put on comes off. `ids` are the
+      turn's own, so its filing is the one whose first row they start with. */
+  const undoEvents = async (turnKey: string, ids: string[]) => {
+    patchTurn(turnKey, () => ({ undo: "busy" }));
+    let r: Awaited<ReturnType<typeof undoCalendarLine>>;
+    try {
+      r = await undoCalendarLine(ids);
+    } catch {
+      if (!alive.current) return;
+      patchTurn(turnKey, () => ({ undo: "ready" }));
+      return addTurn({ who: "tiff", text: NOT_REACHED });
+    }
+    const res = r;
+    if (!alive.current) return;
+    if (res.ok) {
+      changed.current = true;
+      filed.current = filed.current.filter((f) => f.noteId || f.ids[0] !== ids[0]);
+      /* A reply is kept on what is on the calendar, and this no longer is. */
+      if (onCalendar.current && onCalendar.current.ids[0] === ids[0]) onCalendar.current = null;
+      patchTurn(turnKey, () => ({ undo: undefined, doors: [], filed: false }));
+      return addTurn({ who: "tiff", text: res.summary });
+    }
+    patchTurn(turnKey, () => ({ undo: undefined }));
+    addTurn({ who: "tiff", text: res.error });
+  };
+
   /** "Add to the Library": the one row that waits for a press. */
   const publishKb = async (turnKey: string, noteId: string, index: number) => {
     const mark = (kb: PlanRowView["kb"]) =>
@@ -731,7 +868,10 @@ export function useConversation({
     const n = note.current;
     if (n?.waiting && !n.busy && !n.lost) walkAway(n.id);
     const landed = filed.current.length
-      ? { noteIds: filed.current.map((f) => f.noteId), ids: filed.current.flatMap((f) => f.ids) }
+      ? {
+          noteIds: filed.current.flatMap((f) => (f.noteId ? [f.noteId] : [])),
+          ids: filed.current.flatMap((f) => f.ids),
+        }
       : null;
     return { changed: changed.current, landed };
   };
@@ -763,6 +903,7 @@ export function useConversation({
     answer,
     clearRow,
     undo,
+    undoEvents,
     publishKb,
     close,
   };

@@ -95,8 +95,8 @@ export function CalSwatch({ cat, late = false, round = false }: { cat: CalCat; l
   );
 }
 
-/** The link an item's action opens, or null: an event's Edit comes with
-    the calendar's edit form, not before it. */
+/** The link an item's action opens, or null: an event's Edit is not a
+    link but the panel's own form (./home-cal-edit). */
 export function actionLink(x: CalItem): { label: string; href: string } | null {
   return x.action && x.action !== "edit" ? x.action : null;
 }

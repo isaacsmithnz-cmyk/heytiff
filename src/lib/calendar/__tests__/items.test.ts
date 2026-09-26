@@ -17,10 +17,13 @@ import {
   type CompanyRows,
   type VehicleExpiryRow,
 } from "../items";
+import { detail } from "../model";
 import { expiryDue } from "@/lib/expiry-due";
 import type { OrgCredential } from "@/lib/org/credentials";
 
 const TODAY = "2026-09-25";
+/** The panel's frame, for what the panel makes of an item. */
+const FRAME = { today: TODAY, windowStart: "2026-09-01", windowEnd: "2027-08-31", stateName: "NSW" };
 
 const van = (over: Partial<VehicleExpiryRow> = {}): VehicleExpiryRow => ({
   id: "v1",
@@ -276,17 +279,87 @@ describe("events", () => {
       time: "06:45",
       timeEnd: "07:15",
       sub: "The yard. This month: working at heights.",
-      description: "This month: working at heights.",
+      description: null,
       facts: [
         ["Where", "The yard"],
         ["Who", "Everyone"],
         ["Added", "Isaac, Thu 24 Sept"],
+        ["Note", "This month: working at heights"],
       ],
       action: "edit",
       shutdown: false,
       seriesId: null,
       repeat: null,
+      event: { kind: "event", location: "The yard", audience: "Everyone", note: "This month: working at heights" },
     });
+  });
+
+  /* The edit form holds what the row says, not the sentence the panel made
+     of it: no full stop added, and nothing where nothing was written. */
+  it("carries the row's own words for the edit form", () => {
+    const [x] = eventItems([event({ note: "  Bring a harness ", location: null, audience: " " })]);
+    expect(x!.event).toEqual({ kind: "event", location: null, audience: null, note: "Bring a harness" });
+    expect(x!.sub).toBe("Bring a harness.");
+  });
+
+  /* The Calendar spec's event facts are Where, Who, Repeats, Added, Note, and
+     a reply to Tiff after she filed is kept "as a Note fact" (his calFile's
+     reply): the note is a labelled fact, never the panel's sentence too. */
+  it("keeps the note as its Note fact, last, and never says it again as the panel's sentence", () => {
+    const [x] = eventItems([event({ location: null, audience: null, note: "Put it in the yard." })]);
+    expect(x!.facts).toEqual([["Note", "Put it in the yard."]]);
+    expect(x!.description).toBeNull();
+    expect(detail(x!, [x!], FRAME)?.description).toBeNull();
+    // with nothing to say, no Note at all
+    const [bare] = eventItems([event({ note: "   " })]);
+    expect(bare!.facts!.map(([k]) => k)).not.toContain("Note");
+  });
+
+  /* His calNew: a repeat's line says when it repeats, so 4 weeks, which has
+     no panel, shows "toolbox talk every first Thursday" as a repeat. */
+  it("opens a repeat's line and its panel sentence with when it repeats", () => {
+    const monthly = { every: "month", day: "thu", nth: 1 };
+    const [bare] = eventItems([event({ seriesId: "s-1", repeat: monthly, location: null, audience: null, note: null })]);
+    expect(bare).toMatchObject({
+      sub: "The first Thursday of every month.",
+      description: "The first Thursday of every month.",
+    });
+    const [full] = eventItems([event({ seriesId: "s-1", repeat: monthly, note: "Put it in the yard" })]);
+    expect(full).toMatchObject({
+      sub: "The first Thursday of every month. The yard. Put it in the yard.",
+      description: "The first Thursday of every month.",
+    });
+    const [other] = eventItems([
+      event({ seriesId: "s-2", repeat: { every: "fortnight", day: "tue" }, location: null, note: null }),
+    ]);
+    expect(other!.sub).toBe("Every second Tuesday.");
+    // a one-off says nothing of repeating
+    const [once] = eventItems([event({ location: null, note: null })]);
+    expect(once).toMatchObject({ sub: null, description: null });
+  });
+
+  it("says when a series repeats and when it stops, from its rule and its last date on the calendar", () => {
+    const rule = { every: "month", day: "thu", nth: 1 };
+    const rows = ["2026-10-01", "2027-08-05", "2026-11-05"].map((d, i) =>
+      event({ id: `e${i}`, startsOn: d, endsOn: d, seriesId: "s-1", repeat: rule, createdAt: "2026-09-24T02:00:00Z" }),
+    );
+    const items = eventItems(rows, new Map());
+    for (const x of items) {
+      expect(x.facts).toEqual([
+        ["Where", "The yard"],
+        ["Who", "Everyone"],
+        ["Repeats", "Monthly, until Aug 2027"],
+        ["Added", "Thu 24 Sept"],
+        ["Note", "This month: working at heights"],
+      ]);
+    }
+  });
+
+  it("says nothing of repeating for a rule it cannot count, or for an event on its own", () => {
+    const odd = eventItems([event({ seriesId: "s-2", repeat: { every: "yearly", day: "thu" } })]);
+    expect(odd[0]!.facts!.map(([k]) => k)).not.toContain("Repeats");
+    const single = eventItems([event({ repeat: { every: "week", day: "mon" } })]);
+    expect(single[0]!.facts!.map(([k]) => k)).not.toContain("Repeats");
   });
 
   it("reads the day it was added on the yard's clock, not UTC's", () => {

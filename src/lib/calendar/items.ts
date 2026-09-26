@@ -1,6 +1,7 @@
 import { auDayOf, fmtAuWeekdayDate, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { expiryDue } from "@/lib/expiry-due";
 import type { OrgCredential } from "@/lib/org/credentials";
+import { readRepeatRule, repeatPhrase, repeatsFact } from "./repeat";
 
 /* THE HOME CALENDAR'S ITEMS: rows in, calendar items out.
 
@@ -56,7 +57,8 @@ export type CalItem = {
   timeEnd?: string | null;
   /** The agenda and rail line under the title: "From Assets.", "The yard." */
   sub?: string | null;
-  /** The panel's sentence: "The rego on TC22BJ runs out on Tue 20 Oct." */
+  /** The panel's sentence: "The rego on TC22BJ runs out on Tue 20 Oct." Null
+      says there is none; left out, `sub` stands in (lib/calendar/model `detail`). */
   description?: string | null;
   facts?: ReadonlyArray<readonly [string, string]>;
   action?: CalAction | null;
@@ -71,6 +73,14 @@ export type CalItem = {
       were counted from (calendar_events.repeat, read by repeat.ts). */
   seriesId?: string | null;
   repeat?: unknown;
+  /** A company event's own fields, as the edit form holds them: what the
+      facts and the sentence say, before they were worded. */
+  event?: {
+    kind: "event" | "shutdown";
+    location: string | null;
+    audience: string | null;
+    note: string | null;
+  } | null;
 };
 
 /** Everything the Home calendar is drawn from. The model's frame is the
@@ -189,6 +199,9 @@ function sentence(v: string | null | undefined): string | null {
 
 const clean = (v: string | null | undefined): string | null => String(v ?? "").trim() || null;
 
+/** "the first Thursday of every month" opening a sentence. */
+const upperFirst = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
 /* "Public liability" reads "public liability" inside a sentence; "ARC
    authorisation" keeps its capitals, because a second capital says the
    first is part of a name. */
@@ -235,8 +248,29 @@ export function schoolItems(rows: readonly SchoolHolidayRow[]): CalItem[] {
 /* ── events ── */
 
 /** The company's own events, shutdowns included. Anyone who could add one can
-    change it, so the panel's action is Edit. */
+    change it, so the panel's action is Edit.
+
+    A REPEAT SAYS WHEN IT REPEATS, AND WHEN IT STOPS (his calNew): its line
+    and the panel's sentence open "The first Thursday of every month.", so
+    4 weeks, which has no panel, still says it repeats; and its facts say
+    "Repeats, Monthly, until Aug 2027", from the rule its rows were counted
+    from and the last of them on the calendar. A series never rolls on by
+    itself, so its last date is its end.
+
+    ITS NOTE IS A FACT, "Note", last (the Calendar spec's event facts: Where,
+    Who, Repeats, Added, Note): where a reply to Tiff after she filed is kept
+    (his calFile's reply), and what the edit form's Note holds. The panel's
+    sentence is the repeat's alone, never the note again or the place its
+    facts already name; the line under the title in 4 weeks carries the
+    repeat, the place and the note, as his agenda line does. */
 export function eventItems(rows: readonly CalendarEventRow[], names?: ReadonlyMap<string, string>): CalItem[] {
+  const lastOf = new Map<string, string>();
+  for (const r of rows) {
+    const d = dayOf(r.startsOn);
+    if (!r.seriesId || !d) continue;
+    const had = lastOf.get(r.seriesId);
+    if (!had || d > had) lastOf.set(r.seriesId, d);
+  }
   const out: CalItem[] = [];
   for (const r of rows) {
     const s = dayOf(r.startsOn);
@@ -246,13 +280,18 @@ export function eventItems(rows: readonly CalendarEventRow[], names?: ReadonlyMa
     const shutdown = r.kind === "shutdown";
     const where = clean(r.location);
     const who = clean(r.audience);
-    const note = sentence(r.note);
+    const note = clean(r.note);
     const added = auDayOf(r.createdAt ?? "");
     const by = r.createdBy ? names?.get(r.createdBy) : undefined;
     const facts: [string, string][] = [];
     if (where) facts.push(["Where", where]);
     if (who) facts.push(["Who", who]);
+    const rule = r.seriesId ? readRepeatRule(r.repeat) : null;
+    const last = r.seriesId ? lastOf.get(r.seriesId) : undefined;
+    const repeats = rule && last ? sentence(upperFirst(repeatPhrase(rule))) : null;
+    if (rule && last) facts.push(["Repeats", repeatsFact(rule, last)]);
     if (added) facts.push(["Added", by ? `${by}, ${fmtAuWeekdayDayMonth(added)}` : fmtAuWeekdayDayMonth(added)]);
+    if (note) facts.push(["Note", note]);
     out.push({
       id: `ev:${r.id}`,
       cat: "event",
@@ -262,13 +301,14 @@ export function eventItems(rows: readonly CalendarEventRow[], names?: ReadonlyMa
       /* A shutdown closes the day; it has no hours (the table refuses them). */
       time: shutdown ? null : wallClock(r.startsAt),
       timeEnd: shutdown ? null : wallClock(r.endsAt),
-      sub: [sentence(where), note].filter(Boolean).join(" ") || null,
-      description: note,
+      sub: [repeats, sentence(where), sentence(note)].filter(Boolean).join(" ") || null,
+      description: repeats,
       facts,
       action: "edit",
       shutdown,
       seriesId: r.seriesId ?? null,
       repeat: r.seriesId ? r.repeat ?? null : null,
+      event: { kind: r.kind, location: where, audience: who, note },
     });
   }
   return out;

@@ -37,6 +37,12 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   keepNoteForMe: jest.fn(),
   answerClarify: jest.fn(),
 }));
+const fileCalendarLine = jest.fn();
+jest.mock("@/app/actions/calendar", () => ({
+  fileCalendarLine: (...a: unknown[]) => fileCalendarLine(...a),
+  noteOnCalendarEvents: jest.fn(),
+  undoCalendarLine: jest.fn(),
+}));
 
 const mic = { start: jest.fn(), stop: jest.fn(), cancel: jest.fn() };
 jest.mock("@/components/notes/dictation", () => {

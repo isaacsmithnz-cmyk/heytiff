@@ -1,4 +1,4 @@
-import { askLine, firstName, lastTiff, planView, tiffSince, whenOf } from "../plan-view";
+import { askLine, calendarRows, firstName, lastTiff, planView, tiffSince, whenOf } from "../plan-view";
 import type { NoteProposal } from "@/lib/workboard/note-brain";
 
 /* The plan as Tiff says it: who, then what, then when. The words are the
@@ -102,5 +102,29 @@ describe("the words around it", () => {
 
   it("takes the first name however the name is spaced", () => {
     expect(firstName(staff[0]!.fullName)).toBe("Callum");
+  });
+});
+
+/* What went on the calendar, as the same rows (H22): already on, so nothing
+   asks and nothing waits for a press, and each row is its own key. */
+describe("calendar rows", () => {
+  it("leads each line with its day or its repeat, and asks nothing", () => {
+    const rows = calendarRows([
+      { lead: "Thu 1 Oct", text: "toolbox talk, 6:45 am" },
+      { lead: "Every month", text: "the first Thursday, until Aug 2027" },
+    ]);
+    expect(rows).toEqual([
+      { key: "calendar:0", lane: "calendar", index: 0, lead: "Thu 1 Oct", join: ", ", text: "toolbox talk, 6:45 am", needs: false },
+      {
+        key: "calendar:1",
+        lane: "calendar",
+        index: 1,
+        lead: "Every month",
+        join: ", ",
+        text: "the first Thursday, until Aug 2027",
+        needs: false,
+      },
+    ]);
+    expect(rows.some((r) => "kb" in r)).toBe(false);
   });
 });

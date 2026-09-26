@@ -79,8 +79,8 @@ export type DashboardData = {
       list's rows and the day's timed tasks. The Tasks face reads its own
       record (`desk.tasks`). */
   tasks: { mine: DashTask[]; team: DashTask[] | null };
-  /** Everything you've told Tiff, newest first — what the list's rows and
-      the Tasks face's doors find an entry by. Empty for an account with no
+  /** Everything you've told Tiff, newest first — what the list's rows
+      find an entry by. Empty for an account with no
       staff profile, which has no captures. */
   journal: JournalEntry[];
   /** Staff you can assign a task to — populated only with `team`. */

@@ -1,7 +1,8 @@
 #!/bin/sh
 # HeyTiff pre-push — run the suite before anything leaves the machine.
 #
-# THREE THINGS THIS HAD TO LEARN, all from one evening that cost about an hour:
+# FOUR THINGS THIS HAD TO LEARN, the first three from one evening that cost
+# about an hour:
 #
 #   1. A DELETION IS NOT A CHANGE. `git push --delete <branch>` ran all 5,900
 #      tests before removing a ref, and so did pushing a branch that was already
@@ -20,6 +21,15 @@
 #      end, so the reason is the last thing on screen rather than something you
 #      scroll back through thousands of lines to find.
 #
+#   4. A SHARED FILE IS NOT YOUR FILE. The log and the exit code used to live at
+#      fixed paths in $TMPDIR, shared by every worktree on the box, and pushes
+#      from sibling worktrees overlap. On 2026-09-25 two did: the failure summary
+#      listed two runs (10,550 tests and 10,290), one of them another branch's.
+#      Worse, the exit code was shared too, so a push could read a sibling's —
+#      a red branch pushed as green, or a green one aborted. Each run now makes
+#      its own pair with mktemp and removes them on exit; a failed run keeps its
+#      log and names it, above the suite list so the reason stays last.
+#
 # The full suite still runs on every real push, deliberately. Scoping it to
 # `--findRelatedTests` was considered and rejected: this repo's guard tests read
 # their input with fs.readFileSync — the contrast sweep reads shell.css, the
@@ -29,9 +39,6 @@
 # POSIX sh only: no PIPESTATUS, no arrays. The status of a piped command is
 # carried out in a file, because `cmd | tee` reports tee's exit code.
 export PATH="$HOME/.local/bin:$PATH"
-
-LOG=${TMPDIR:-/tmp}/heytiff-prepush.log
-RC=${TMPDIR:-/tmp}/heytiff-prepush.rc
 
 # ------------------------------------------------ is anything actually being pushed?
 # one line per ref: <local ref> <local sha> <remote ref> <remote sha>
@@ -48,9 +55,30 @@ if [ "$work" -eq 0 ]; then
   exit 0
 fi
 
+# ------------------------------------------------ this run's own files (see 4)
+LOG= RC= keep_log=0
+cleanup() {
+  [ -n "$RC" ] && rm -f "$RC"
+  if [ -n "$LOG" ] && [ "$keep_log" -eq 0 ]; then rm -f "$LOG"; fi
+}
+trap cleanup EXIT
+trap 'exit 129' HUP   # dash skips the EXIT trap when a signal kills it; exiting runs it
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+tmp=${TMPDIR:-/tmp}
+tmp=${tmp%/}
+LOG=$(mktemp "$tmp/heytiff-prepush-log.XXXXXX") &&
+  RC=$(mktemp "$tmp/heytiff-prepush-rc.XXXXXX") || {
+  echo "pre-push: could not create temp files in $tmp — push aborted."
+  exit 1
+}
+
 run() {  # $1 = extra jest args; leaves the real exit code in $RC
+  : > "$RC"   # a retry must never read the previous run's code
   { npm test -- --passWithNoTests $1 2>&1; echo $? > "$RC"; } | tee "$LOG"
-  return "$(cat "$RC" 2>/dev/null || echo 1)"
+  rc=$(cat "$RC" 2>/dev/null)
+  return "${rc:-1}"
 }
 
 is_killed() {  # 128+N for a signal: 134 ABRT, 137 KILL, 139 SEGV, 143 TERM
@@ -81,9 +109,11 @@ fi
 
 if [ "$code" -ne 0 ]; then
   echo ""
-  echo "pre-push: tests FAILED (exit $code). Push aborted. The suites were:"
+  echo "pre-push: tests FAILED (exit $code). Push aborted. Full log: $LOG"
+  echo "          The suites were:"
   # jest prints FAIL once as it runs and again in the summary — say each once
   grep -E "^(FAIL|Tests:)" "$LOG" | sed 's/ ([0-9.]* s)$//' | sort -u | sed 's/^/          /'
+  keep_log=1
   exit 1
 fi
 

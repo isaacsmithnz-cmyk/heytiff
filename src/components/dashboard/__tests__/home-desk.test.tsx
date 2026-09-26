@@ -12,6 +12,8 @@ import type { CompanyCalendar } from "@/lib/calendar/items";
 import { DIARY_LIT_MS, type DeskDiary } from "@/lib/dashboard/diary-doors";
 import { buildConversations, diaryFeed, type DiaryConversation, type MentionNote } from "@/lib/dashboard/diary-feed";
 import { TiffContext, type TiffApi, type TiffLanded } from "@/components/tiff/modal/tiff-context";
+import type { HomeIssue } from "@/lib/dashboard/issues";
+import { FLASH_MS } from "../home-list";
 import { typedAbout, type RecordTask, type TaskAbout, type TaskRecord } from "@/lib/dashboard/task-record";
 
 /* THE NEW HOME'S FRAME (H11): the date in the band, "Your day" on every
@@ -142,6 +144,11 @@ const record = (open: RecordTask[] = [], about: TaskRecord["about"] = {}): TaskR
   about,
   people: { s1: "Isaac Smith" },
 });
+
+/** Handed to Luke: on your Tasks face, and not in the list beside it,
+    which is your own work. */
+const lukes = (over: Partial<RecordTask> = {}): RecordTask =>
+  recordTask({ assigneeId: "s2", assigneeName: "Luke Ingold", ...over });
 
 /** Made by Tiff from the viewer's own diary entry. */
 const fromDiary = (noteId: string): TaskAbout => ({
@@ -554,6 +561,52 @@ describe("the one door between faces", () => {
     expect(taskTitle("Order 2× MERV 11 filters")).toHaveAttribute("aria-expanded", "true");
     expect(taskTitle("Ring the Hilux dealer")).toHaveAttribute("aria-expanded", "false");
   }, WHOLE);
+
+  /* An issue is the list's now — the Tasks face has none — so its door in
+     the diary lights its row on the list beside the diary, which stays. */
+  it("takes a diary's issue door to its row on the list, lit, and stays on the diary", async () => {
+    const user = userEvent.setup();
+    const issue: HomeIssue = {
+      id: "i1",
+      summary: "Rooftop unit keeps tripping",
+      equipmentRef: null,
+      occurrences: 1,
+      firstSeen: TODAY,
+      lastSeen: TODAY,
+      targetKind: "none",
+      targetId: null,
+      where: null,
+    };
+    render(
+      <DashboardDesk
+        data={data({
+          journal: [entry({ outcomes: [{ kind: "kept", text: "Rooftop unit keeps tripping", go: { type: "issue", id: "i1" } }] })],
+          issues: [issue],
+        })}
+      />,
+    );
+    await user.click(within(face("diary")).getByRole("button", { name: "Rooftop unit keeps tripping" }));
+    expect(shownFaces()).toEqual(["diary"]);
+    const list = screen.getByRole("complementary", { name: "The list" });
+    const row = within(list).getByRole("button", { name: "Rooftop unit keeps tripping" }).closest(".hd-ls-row");
+    expect(row).toHaveAttribute("data-lit");
+  }, WHOLE);
+
+  /* The Tasks face is dated by the workspace's day, the one the list
+     beside it places by — not the page's own `today` — so a task due
+     today reads Today in both. */
+  it("dates the Tasks face by the workspace's day, as the list is", () => {
+    render(
+      <DashboardDesk
+        data={data({
+          today: "2026-08-09",
+          rail: rail({ dayISO: TODAY }),
+          desk: deskOf([], record([recordTask({ dueDate: TODAY })])),
+        })}
+      />,
+    );
+    expect(within(face("tasks")).getByText("Today")).toHaveAttribute("data-state", "today");
+  });
 
   it("takes a task's Open in diary to the entry that made it, and lights that entry alone", async () => {
     const user = userEvent.setup();
@@ -1120,10 +1173,7 @@ describe("the slide", () => {
       <DashboardDesk
         data={data({
           journal,
-          desk: deskOf(
-            journal,
-            record([recordTask({ assigneeId: "s2", assigneeName: "Luke Ingold" })], { t1: fromDiary("e1") }),
-          ),
+          desk: deskOf(journal, record([lukes()], { t1: fromDiary("e1") })),
         })}
       />,
     );
@@ -1200,6 +1250,83 @@ describe("the slide", () => {
     } finally {
       Element.prototype.scrollIntoView = realInto;
       Element.prototype.scrollTo = realTo;
+    }
+  }, WHOLE);
+
+  /* ...and the door carries which it was on to the face it opens, so the
+     row it names glides into view only for the pointer's press. The task
+     is Luke's, so the list — your own work — does not hold it, and the
+     diary's door opens it on the Tasks face. */
+  it("brings a door's task into view gliding for the pointer, and without moving for the keyboard", async () => {
+    const user = userEvent.setup();
+    const real = Element.prototype.scrollIntoView;
+    const glides: { thing?: string; behavior?: ScrollBehavior }[] = [];
+    Element.prototype.scrollIntoView = function (this: HTMLElement, o?: ScrollIntoViewOptions | boolean) {
+      glides.push({ thing: this.dataset.thing, behavior: typeof o === "object" ? o.behavior : undefined });
+    };
+    try {
+      const journal = [
+        entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
+      ];
+      render(<DashboardDesk data={data({ journal, desk: deskOf(journal, record([lukes()])) })} />);
+      const door = () => within(face("diary")).getByRole("button", { name: "1 task" });
+      await user.click(door());
+      expect(glides).toEqual([{ thing: "t1", behavior: "smooth" }]);
+      await settle();
+      await user.click(tab("Diary"));
+      await settle();
+      door().focus();
+      await user.keyboard("{Enter}");
+      expect(glides.at(-1)).toEqual({ thing: "t1", behavior: "auto" });
+    } finally {
+      Element.prototype.scrollIntoView = real;
+    }
+  }, WHOLE);
+
+  /* A door pressed from the keyboard leaves focus on a face that has gone
+     from sight (hidden and inert, which jsdom does not blur): it comes on
+     to the title of the task the door opened. */
+  it("brings a keyboard door's focus to the task it opens", async () => {
+    const user = userEvent.setup();
+    const journal = [
+      entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
+    ];
+    render(
+      <DashboardDesk
+        data={data({
+          journal,
+          desk: deskOf(journal, record([recordTask({ id: "t0", title: "Ring the Hilux dealer" }), lukes()])),
+        })}
+      />,
+    );
+    within(face("diary")).getByRole("button", { name: "1 task" }).focus();
+    await user.keyboard("{Enter}");
+    expect(shownFaces()).toEqual(["tasks"]);
+    expect(taskTitle("Order 2× MERV 11 filters")).toHaveFocus();
+  }, WHOLE);
+
+  /* A door's row is lit for its moment from the press, not from whenever
+     the desk last drew: the face waits on the desk's one callback, and a
+     new one each render — the slide ending is one — would start the wait
+     again. */
+  it("lights a door's task for its moment from the press, however the desk draws meanwhile", async () => {
+    jest.useFakeTimers();
+    try {
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      const journal = [
+        entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
+      ];
+      render(<DashboardDesk data={data({ journal, desk: deskOf(journal, record([lukes()])) })} />);
+      await user.click(within(face("diary")).getByRole("button", { name: "1 task" }));
+      const row = () => taskTitle("Order 2× MERV 11 filters").closest(".hd-ls-row");
+      expect(row()).toHaveAttribute("data-lit");
+      act(() => jest.advanceTimersByTime(FLASH_MS - 400));
+      await settle();
+      expect(shownFaces()).toEqual(["tasks"]);
+      act(() => jest.advanceTimersByTime(400));
+      expect(row()).not.toHaveAttribute("data-lit");
+    } finally {
+      jest.useRealTimers();
     }
   }, WHOLE);
 

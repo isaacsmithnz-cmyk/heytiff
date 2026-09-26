@@ -205,7 +205,7 @@ describe("factsOf", () => {
     const facts = factsOf(task({ dueDate: "2026-08-25", assigneeId: LUKE, assigneeName: "Luke Ingold" }), typedAbout(), ME, TODAY, null);
     expect(facts).toEqual([
       { label: "For", value: "Luke Ingold" },
-      { label: "Due", value: "Tue 25 Aug, 30 days late", late: true },
+      { label: "Due", value: "Tue 25 Aug", late: "30 days late" },
     ]);
   });
 

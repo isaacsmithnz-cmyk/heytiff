@@ -260,7 +260,7 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     setFocus({ ...to, pointer });
   };
   const openEntry = (id: string, pointer: boolean) => show({ face: "diary", kind: "entry", ids: [id] }, pointer);
-  const taskFocus = focus?.face === "tasks" && focus.kind === "task" ? (focus.ids[0] ?? null) : null;
+  const taskFocus = focus?.face === "tasks" && focus.kind === "task" ? focus : null;
   /* The diary shows an entry, and a conversation by one of its notes (a
      task an ask made, from the list). */
   const diaryFocus =
@@ -350,7 +350,8 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                         assignable={assignable}
                         tz={rail.tz}
                         onOpenEntry={openEntry}
-                        focusTaskId={taskFocus}
+                        focusTaskId={taskFocus?.ids[0] ?? null}
+                        focusByPointer={taskFocus?.pointer === true}
                         onFocusHandled={focusShown}
                       />
                     ),

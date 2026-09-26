@@ -314,7 +314,11 @@ Every decision below is made once, here, and a guard test holds each number.
   words it came from (your own diary entry, never someone else's, or the
   ServiceM8 note), what has happened to it, and what you may do — Mark
   done, Move due date, Give it to (a manager's), Open in diary, and Delete
-  task, which asks twice. Only what the action would allow is offered.
+  task, which asks twice. Give it to asks in the same place: the names
+  where the actions were, and the task changes hands only on the name you
+  press, never on an arrow key or a typed letter as a select would give
+  it, since a hand-over rings the new person's bell. Only what the action
+  would allow is offered.
   What you press is drawn at once and put back, with the action's words,
   if it is refused; a ticked row moves to Done and stays open there.
   Issues are the list's now, and the Assign form is gone: Save, then Give

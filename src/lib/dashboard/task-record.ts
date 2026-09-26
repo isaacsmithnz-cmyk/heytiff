@@ -308,7 +308,9 @@ export function wordsCaption(about: TaskAbout, today: string): { strong: string;
 }
 
 export type TaskFact =
-  | { label: "For" | "Due" | "Done" | "Time"; value: string; late?: boolean }
+  /** `late`: how late, said after the day in the late red — his fact keeps
+      the day in ink ("Tue 25 Aug, **30 days late**"). */
+  | { label: "For" | "Due" | "Done" | "Time"; value: string; late?: string }
   | { label: "Job"; value: string; job: string | null };
 
 /** The facts of an open row: For, Due (Done once finished), Time only when
@@ -332,8 +334,8 @@ export function factsOf(
     const late = -daysUntil(t.dueDate, today);
     out.push({
       label: "Due",
-      value: `${dateWords(t.dueDate, today)}, ${late === 1 ? "1 day late" : `${late} days late`}`,
-      late: true,
+      value: dateWords(t.dueDate, today),
+      late: late === 1 ? "1 day late" : `${late} days late`,
     });
   } else {
     out.push({ label: "Due", value: dateWords(t.dueDate, today) });

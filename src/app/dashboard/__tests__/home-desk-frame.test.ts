@@ -180,6 +180,31 @@ describe("the Tasks face", () => {
   });
 });
 
+/* WHAT OPENS UNDER A TASK, as his prototype draws it and as real words
+   make it. The words a task came from are a person's: a link or an email
+   address with no space in it must break rather than widen the face past
+   its column (law 13) — jsdom lays nothing out, so the rule is read. His
+   late fact keeps the day in ink and colours only how late; his Job door
+   is 13/500 in both his looks, where the list's link is 600 at the size
+   it stands in. */
+describe("what opens under a task", () => {
+  it("breaks a word with no space in it rather than widen the face", () => {
+    const d = rule(".fg .hd-tk-d");
+    expect(d["overflow-wrap"]).toBe("anywhere");
+    expect(d["min-width"]).toBe("0");
+  });
+
+  it("colours only how late a late fact is, never the day", () => {
+    expect(rule(".fg .hd-tk-f dd").color).toBe("var(--hd-ink)");
+    expect(rule(".fg .hd-tk-f [data-late]").color).toBe("var(--hd-late)");
+    expect(() => rule(".fg .hd-tk-f dd[data-late]")).toThrow();
+  });
+
+  it("sets the Job's door at his 13/500", () => {
+    expect(rule(".fg .hd-tk-f .hd-ls-link")).toEqual({ "font-size": "13px", "font-weight": "500" });
+  });
+});
+
 /* THE DIARY (H16), in the Diary tab. What the sheet promises for it: its
    rules are two classes deep, like the family's, so the frame's reset never
    beats a door; it scrolls with its face, never on its own (only a face

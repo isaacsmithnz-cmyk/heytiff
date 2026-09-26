@@ -1101,7 +1101,7 @@ describe("the Tasks face's words clear 4.5:1 on every ground they stand on", () 
   it.each([
     ["a fact's label", ".fg .hd-tk-f dt"],
     ["a fact", ".fg .hd-tk-f dd"],
-    ["a late fact", ".fg .hd-tk-f dd[data-late]"],
+    ["how late a late fact is", ".fg .hd-tk-f [data-late]"],
     ["the detail", ".fg .hd-tk-note"],
     ["what happened", ".fg .hd-tk-h li"],
     ["when it happened", ".fg .hd-tk-h li > span"],

@@ -13,8 +13,12 @@ import { actionLink, CAL_FADE_MS } from "./home-cal-parts";
    law 26), the sentence and the facts the calendar knows (`detail`,
    lib/calendar/model), and its action.
 
-   A thing picked with a pointer fades in (`--t-fast`); one picked from
-   the keyboard, or under reduced motion, is simply there (law 8). */
+   A thing picked with a pointer while the panel is up fades in
+   (`--t-fast`); one picked from the keyboard, or under reduced motion, is
+   simply there (law 8). The panel coming up is not a pick: it opens with
+   Month or Year, which fade in themselves for a pointer and not for a key,
+   so the picks counted before it came up (in 4 weeks, which has no panel)
+   are what it starts from, never a reason to fade. */
 
 export function CalPanel({
   item,
@@ -29,8 +33,11 @@ export function CalPanel({
   fade: number;
 }) {
   const box = useRef<HTMLDivElement>(null);
+  /** The count the panel has already shown. */
+  const seen = useRef(fade);
   useLayoutEffect(() => {
-    if (fade === 0) return;
+    if (fade === seen.current) return;
+    seen.current = fade;
     box.current?.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: CAL_FADE_MS, easing: "ease-out" });
   }, [fade]);
 

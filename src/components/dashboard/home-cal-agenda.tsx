@@ -16,7 +16,11 @@ import { actionLink, CalSwatch, OWN_CONTROL, type Pick } from "./home-cal-parts"
    A row is picked by a press anywhere on it, which goes through its title:
    the title is the row's button, pressed while its thing is the one
    chosen, so the keyboard picks it with Enter or Space. The action is its
-   own. */
+   own.
+
+   ONLY AN ADMIN DATE CARRIES ITS ACTION HERE (his calLine): an event's row
+   says its time on the right and nothing else. A noticeboard event's
+   "Open notice" is the panel's, as an event's Edit will be. */
 
 export function CalAgenda({
   rows,
@@ -113,7 +117,7 @@ function Day({
 
 function Line({ line, on, fresh, onPick }: { line: AgendaLine<CalItem>; on: boolean; fresh: boolean; onPick: Pick }) {
   const x = line.item;
-  const go = actionLink(x);
+  const go = x.cat === "admin" ? actionLink(x) : null;
   const onRow = (e: MouseEvent<HTMLDivElement>) => {
     const hit = (e.target as Element).closest(OWN_CONTROL);
     if (hit && e.currentTarget.contains(hit)) return;

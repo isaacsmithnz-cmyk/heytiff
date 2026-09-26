@@ -830,7 +830,7 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
     ["a weekday", ".fg .hd-cal-dw", () => [PAPER, fill(".fg .hd-cal-r[data-holiday]")]],
     ["a weekend's date", ".fg .hd-cal-r[data-weekend] .hd-cal-dn", () => [PAPER]],
     ["a holiday's date", ".fg .hd-cal-r[data-holiday] .hd-cal-dn", () => [fill(".fg .hd-cal-r[data-holiday]")]],
-    ["Today", ".fg .hd-cal-tl", () => [PAPER]],
+    ["Today, on today's row and on a public holiday's", ".fg .hd-cal-tl", () => [PAPER, fill(".fg .hd-cal-r[data-holiday]")]],
     ["a quiet run's days", '.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-d', () => [PAPER]],
     ["a quiet run", '.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-c', () => [PAPER]],
     ["a long weekend", '.fg .hd-cal-r[data-kind="quiet"] > .hd-cal-c[data-long]', () => [PAPER]],
@@ -845,8 +845,16 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
     ["Today, and Today resting", ".fg .hd-cal-today", () => [PAPER, HOVER()]],
     ["Today resting", '.fg .hd-cal-today[aria-disabled="true"]', () => [PAPER]],
     ["a filter", ".fg .hd-cal-filter", () => [PAPER, HOVER()]],
-    ["a filter turned off", '.fg .hd-cal-filter[aria-pressed="false"]', () => [HOVER()]],
-    ["a filter's count, on and off", ".fg .hd-cal-n", () => [PAPER, HOVER()]],
+    [
+      "a filter turned off, at rest and under the pointer",
+      '.fg .hd-cal-filter[aria-pressed="false"]',
+      () => [fill('.fg .hd-cal-filter[aria-pressed="false"]'), fill('.fg .hd-cal-filter[aria-pressed="false"]:hover')],
+    ],
+    [
+      "a filter's count, on and off, at rest and under the pointer",
+      ".fg .hd-cal-n",
+      () => [PAPER, HOVER(), fill('.fg .hd-cal-filter[aria-pressed="false"]:hover')],
+    ],
     ["a view's word, on the tray", ".fg .hd-cal-vb", () => [fill(".fg .hd-cal-vs")]],
     ["the chosen view, on its seat", '.fg .hd-cal-vb[aria-pressed="true"]', () => [fill('.fg .hd-cal-vb[aria-pressed="true"]')]],
   ])("%s", (_label, sel, grounds) => {
@@ -884,18 +892,22 @@ describe("the Calendar's words clear 4.5:1 on every fill they stand on", () => {
     expect(lowest(ink(sel), grounds())).toBeGreaterThanOrEqual(4.5);
   });
 
-  /* A thing in a day cell stands on its cell (paper or the weekend's) with
-     the pointer's tint over it, or on the tint of what it is once chosen. */
+  /* A thing in a day cell stands on its cell (paper, the weekend's, or a
+     public holiday's: an event can fall on Labour Day) with the pointer's
+     tint over it, or on the tint of what it is once chosen. */
   it.each([
     ["its title", ".fg .hd-cal-mi"],
     ["its time or its plate", ".fg .hd-cal-mtm"],
   ])("Month: a thing's %s, on every ground it has", (_label, sel) => {
     const we = fill(".fg .hd-cal-mc[data-weekend]");
+    const hol = fill(".fg .hd-cal-mc[data-holiday]");
     const grounds = [
       PAPER,
       we,
+      hol,
       colour("var(--tint-2)", PAPER),
       colour("var(--tint-2)", we),
+      colour("var(--tint-2)", hol),
       fill('.fg .hd-cal-mi[aria-pressed="true"]'),
       fill('.fg .hd-cal-mi[aria-pressed="true"][data-c="admin"]'),
       fill('.fg .hd-cal-mi[aria-pressed="true"][data-late]'),

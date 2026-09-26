@@ -11484,11 +11484,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    events his teal, admin his amber, each with its tint and its ink; late
    his pale red with its ink, and the late mark itself the page's one late
    red; the school holidays his grey hatch, two of his gradients (a named
-   exemption). Hover and a choice are the app's own tints, as on the list. */
+   exemption); and his shadow under the view switch's chosen seat (another).
+   Hover and a choice are the app's own tints, as on the list. */
 .fg .hd-cal { --hd-cal-hol:#7c5ce0; --hd-cal-hol-tint:#e8e1fb; --hd-cal-hol-hover:#efeafd; --hd-cal-hol-day:#f6f3fe;
   --hd-cal-hol-t:#4f3a99; --hd-cal-ev:#0f9488; --hd-cal-ev-tint:#d5f0ec; --hd-cal-ev-t:#0f5e57;
   --hd-cal-adm:#d9860f; --hd-cal-adm-tint:#fbecd2; --hd-cal-adm-t:#8a5608; --hd-cal-late-tint:#fbe0db;
   --hd-cal-late-t:#a8202f; --hd-cal-sch:#aeb6c4; --hd-cal-sch-t:#39465a; --hd-cal-we:#fafbfc;
+  --hd-cal-seat:rgba(21,26,36,.08);
   --hd-cal-hatch:repeating-linear-gradient(135deg, #eef0f3 0 5px, #e1e5eb 5px 10px) #e1e5eb;
   --hd-cal-hatch-sw:repeating-linear-gradient(135deg, #aeb6c4 0 2px, #eef0f3 2px 4px);
   flex:1; min-height:0; display:flex; flex-direction:column; color:var(--hd-ink); }
@@ -11511,9 +11513,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   border-bottom:1px solid var(--hd-rule); }
 .fg .hd-cal-add { flex:1 1 auto; min-width:0; max-width:520px; }
 /* THE VIEW SWITCH: a segmented tray, a tint of whatever it stands on
-   (segmented-tray-contrast), the chosen seat paper. Each seat is as wide as
-   its bold word from the start, as the tabs are, so choosing one never
-   moves the others. */
+   (segmented-tray-contrast prefers a tint to his fixed #eef0f3, which only
+   holds on the ground it was picked on), the chosen seat paper lifted by
+   his small shadow (a named exemption, docs/design.md). Each seat is as
+   wide as its bold word from the start, as the tabs are, so choosing one
+   never moves the others. */
 .fg .hd-cal-vs { flex:none; display:flex; gap:2px; margin-left:auto; padding:4px; border-radius:10px;
   background:var(--tint-2); }
 .fg .hd-cal-vb { display:inline-flex; flex-direction:column; align-items:center; justify-content:center; height:36px;
@@ -11521,7 +11525,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   line-height:1.2; color:var(--hd-body); white-space:nowrap; cursor:pointer;
   transition:color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease); }
 .fg .hd-cal-vb:hover { color:var(--hd-ink); }
-.fg .hd-cal-vb[aria-pressed="true"] { background:var(--paper); color:var(--hd-ink); font-weight:700; cursor:default; }
+.fg .hd-cal-vb[aria-pressed="true"] { background:var(--paper); color:var(--hd-ink); font-weight:700; cursor:default;
+  box-shadow:0 1px 2px var(--hd-cal-seat); }
 .fg .hd-cal-vbw { height:0; overflow:hidden; visibility:hidden; font-weight:700; pointer-events:none; user-select:none; }
 
 .fg .hd-cal-tb { flex:none; display:flex; align-items:center; flex-wrap:wrap; gap:8px 0; padding:12px 24px;
@@ -11552,6 +11557,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .hd-cal-filter:hover { background:var(--tint); }
 .fg .hd-cal-filter[aria-pressed="false"] { background:var(--tint); color:var(--q); }
+/* Off, it already stands on the hover's tint: the pointer takes it one step
+   darker, so an off filter answers the pointer as an on one does. */
+.fg .hd-cal-filter[aria-pressed="false"]:hover { background:var(--tint-2); }
 .fg .hd-cal-filter[aria-pressed="false"] .hd-cal-sw { border:2px solid var(--hd-cal-c); background:transparent; }
 .fg .hd-cal-n { font-weight:600; color:var(--q); font-variant-numeric:tabular-nums; }
 /* The toolbar is one line in every view, so the body never moves when the

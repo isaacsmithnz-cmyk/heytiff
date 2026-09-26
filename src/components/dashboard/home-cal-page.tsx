@@ -126,6 +126,19 @@ export function HomeCalendarPage({ cal }: { cal: CompanyCalendar }) {
     return () => clearTimeout(t);
   }, [fresh]);
 
+  /* What was saved is brought into its view's sight once it is on the page
+     (his calLand): the action's revalidation brings it a moment after Save,
+     and a view scrolled down the weeks would otherwise light it out of
+     sight. Once, so the view is the reader's again while it is still lit. */
+  const shownFresh = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!fresh || shownFresh.current === fresh) return;
+    const el = body.current?.querySelector("[data-fresh]");
+    if (!el) return;
+    shownFresh.current = fresh;
+    revealIn(el);
+  }, [fresh, cal.items]);
+
   const pick = (id: string, pointer: boolean) => {
     if (id === selected) return;
     setPicked(id);

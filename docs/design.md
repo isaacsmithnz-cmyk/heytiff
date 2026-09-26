@@ -685,6 +685,7 @@ day he said them.
 | `.hd-cal` | gradients | 2 | "design exempt for now, but keep a note": the Calendar's school holidays wear his grey hatch, a striped gradient declared once as the calendar's token, and its swatch the same hatch drawn finer | 2026-09-24 |
 | `.hd-cal-tag` | pills | 1 | "go with your recommendations", which kept his span tags: a week in the Calendar's 4 weeks carries a tinted capsule for what runs through it, "School holidays all week", where law 26 says a plain word | 2026-09-25 |
 | `.hd-cal-chip` | pills | 1 | "go with your recommendations", which kept his status chip: the Calendar's panel says where the chosen thing stands, "Due in 8 days", in a capsule in the tint of what it says | 2026-09-25 |
+| `.hd-cal-vb` | shadows | 1 | "design exempt for now, but keep a note": the chosen seat in the Calendar's 4 weeks, Month and Year switch is paper lifted off its tray by his small shadow, `0 1px 2px`, its colour the calendar's token | 2026-09-24 |
 
 What the guard cannot count is noted here on the same word:
 
@@ -703,12 +704,41 @@ What the guard cannot count is noted here on the same word:
   category — holidays his purple `#7c5ce0`, events his teal `#0f9488`,
   admin his amber `#d9860f` — with its tint and its ink, his pale late
   red `#fbe0db` with its ink `#a8202f`, the school holidays' grey and its
-  hatch, the holiday day's tint and the weekend's. A thing says its
+  hatch, the holiday day's tint and the weekend's, and the shadow under
+  the view switch's chosen seat. A thing says its
   category with `data-c`, never an inline colour. The late mark itself is
   the page's one late red, and a hover and a choice are the app's own
   tints, as on the list. `text-contrast` holds every pair that is text to
   4.5:1 on the fill it stands on; the swatches, the bars' fills and the
   year's dots are marks, and the filters beside them name what they mean.
+  The switch's tray is the one thing of his the calendar does not take:
+  his `#eef0f3` holds only on the ground it was picked on, so the tray is
+  the app's tint of whatever it stands on (`--tint-2`, law 1), which
+  `segmented-tray-contrast` checks on every ground.
+- **Law 26 and the radius scale, the Calendar's filters and Today.** His
+  filters, which are also the legend, and his Today are capsules,
+  `999px`, where law 26 gives a filter you tap a hairline and the tile
+  radius and the scale gives a button `10px` ("go with your
+  recommendations", 2026-09-25, which kept his shapes). They keep law
+  26's hairline, and a filter says whether it is on with `aria-pressed`,
+  its fill and its swatch, never a word in a box. The pills counter reads
+  only rules named for a pill, chip, tag or badge, so these two are held
+  here, by class: `.hd-cal-filter` and `.hd-cal-today`.
+- **Law 14, the Calendar's choice on Month's bars and Year's days.** A
+  chosen bar or day wears his ring, 2px of ink hugging its edge, where
+  law 14 makes a selection a fill ("go with your recommendations",
+  2026-09-25): a bar and a holiday's day are already filled with what
+  they are, and a fill over them would hide it. Everywhere else in the
+  calendar a choice is a fill. The keyboard's focus is law 32's outline,
+  2px of ink standing 2px off the edge with paper between, so on Year's
+  days the two are told apart by that gap: the choice sits on the day,
+  the focus stands off it, and today's own ring is inside it. The panel
+  beside them names the choice in words.
+- **Law 10, the panel's kicker.** Above the chosen thing's title the panel
+  says what kind of thing it is, "Public holiday", "Admin, overdue", 13/500
+  in the category's ink ("go with your recommendations", 2026-09-25, which
+  kept his panel as he drew it): law 10's retired eyebrow, kept in its
+  sentence case and weight, without caps or tracking.
 - **Law 18, motion tokens, and law 8, a tab's content appears.** The faces
   slide, in 280 ms rather than `--t-move`: "Calendar should slide across"
   (2026-09-25). Nothing slides under reduced motion, and nothing slides

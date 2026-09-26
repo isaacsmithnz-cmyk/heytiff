@@ -80,6 +80,15 @@ describe("addCalendarEvent", () => {
     expect(inserts[0]!.row).toMatchObject({ starts_on: "2026-09-24", ends_on: "2026-09-24" });
   });
 
+  /* A workspace without ServiceM8 has no zone: its calendar draws Today on
+     Sydney's day, so Save lands there too — never UTC's, still Thursday. */
+  it("lands on Sydney's day for a workspace with no ServiceM8 zone", async () => {
+    zone = null;
+    const res = await addCalendarEvent("Toolbox talk");
+    expect(res).toMatchObject({ ok: true, day: "2026-09-25" });
+    expect(inserts[0]!.row).toMatchObject({ starts_on: "2026-09-25", ends_on: "2026-09-25" });
+  });
+
   it("is refused without `team`, and writes nothing", async () => {
     allowed = new Set(["assets_all"]);
     expect(await addCalendarEvent("Toolbox talk")).toEqual({ ok: false, error: "You can't add to the calendar." });

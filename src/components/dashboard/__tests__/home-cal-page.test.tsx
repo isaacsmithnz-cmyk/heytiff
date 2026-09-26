@@ -1,6 +1,7 @@
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HomeCalendarPage } from "../home-cal-page";
+import { revealIn } from "../home-cal-parts";
 import { companyItems, type CompanyCalendar, type CompanyRows } from "@/lib/calendar/items";
 import type { BoxSave } from "@/components/tiff/modal/tiff-box";
 
@@ -117,6 +118,15 @@ const panel = () => screen.getByRole("complementary", { name: "Details" });
 const rail = () => screen.getByRole("complementary", { name: "Due and holidays ahead" });
 /** What is in view: the toolbar's heading (the rail's groups are headings too). */
 const rangeTitle = () => document.querySelector<HTMLElement>(".hd-cal-rt")!;
+/** A box on screen, for a layout jsdom does not have. */
+const at = (top: number, height: number) =>
+  ({ top, bottom: top + height, left: 0, right: 0, width: 0, height, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+/** Lays out the page: each element that matches a selector is the box it gives, everything else nowhere. */
+const layout = (boxes: [string, (el: HTMLElement) => DOMRect][]) =>
+  jest.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+    const hit = boxes.find(([sel]) => this.matches(sel));
+    return hit ? hit[1](this as HTMLElement) : at(0, 0);
+  });
 
 afterEach(() => {
   cleanup();
@@ -200,6 +210,38 @@ describe("4 weeks", () => {
     );
   });
 
+  /* His calLine: an event's row says its time on the right, and only an
+     admin date carries an action there. */
+  it("gives a noticeboard event its time and no action on its row, and leaves Open notice to the panel", async () => {
+    const user = userEvent.setup();
+    draw(calendar({ notices: [{ id: "n1", title: "Staff BBQ", date: "2026-10-02", time: "17:30:00", location: "Yard" }] }));
+    const title = within(agenda()).getByRole("button", { name: "Staff BBQ" });
+    const row = title.closest<HTMLElement>(".hd-cal-it")!;
+    expect(within(row).getByText("5:30 pm")).toHaveClass("hd-cal-tm");
+    expect(within(row).queryByRole("link")).toBeNull();
+    await user.click(title);
+    await user.click(viewBtn("Month"));
+    expect(within(panel()).getByRole("link", { name: "Open notice" })).toHaveAttribute("href", "/dashboard/notices");
+  });
+
+  /* The action is the row's own control: pressing it opens where the thing
+     is renewed and leaves the calendar's choice where it was. */
+  it("leaves the choice alone when an admin date's action is pressed", async () => {
+    const user = userEvent.setup();
+    draw();
+    const stay = (e: Event) => e.preventDefault();
+    document.addEventListener("click", stay, true);
+    try {
+      const renew = within(agenda()).getByRole("link", { name: "Renew rego" });
+      await user.click(renew);
+      const row = renew.closest<HTMLElement>(".hd-cal-it")!;
+      expect(within(row).getByRole("button", { name: "Trailer, TC22BJ rego" })).toHaveAttribute("aria-pressed", "false");
+      expect(row).not.toHaveAttribute("data-sel");
+    } finally {
+      document.removeEventListener("click", stay, true);
+    }
+  });
+
   it("picks a thing from anywhere on its row, and from its title with a key", async () => {
     const user = userEvent.setup();
     draw();
@@ -270,6 +312,27 @@ describe("one choice across the views", () => {
     expect(within(p).getByText("Where").nextSibling).toHaveTextContent("The yard");
     expect(within(p).queryByRole("button")).toBeNull();
     expect(within(p).queryByRole("link")).toBeNull();
+  });
+
+  /* The page never scrolls: only the view's own scroller moves. */
+  it("keeps the choice in sight in the view it switches to, moving that view's scroller and never the page", async () => {
+    const user = userEvent.setup();
+    const spy = layout([
+      [".hd-cal-ag", () => at(100, 300)],
+      ['.hd-cal-ag [aria-pressed="true"]', () => at(900, 24)],
+    ]);
+    try {
+      draw();
+      await user.click(viewBtn("Year"));
+      await user.click(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day, School holidays" }));
+      await user.click(viewBtn("4 weeks"));
+      expect(within(agenda()).getByRole("button", { name: "Labour Day" })).toHaveAttribute("aria-pressed", "true");
+      expect(agenda().scrollTop).toBe(900 - 100 - 96);
+      expect(document.documentElement.scrollTop).toBe(0);
+      expect(document.body.scrollTop).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("carries the choice on to Year, and back to 4 weeks", async () => {
@@ -391,6 +454,35 @@ describe("Save", () => {
     expect(within(agenda()).queryByText("Nothing on today.")).toBeNull();
   });
 
+  /* His calLand: what landed is brought into sight, once, as soon as the
+     action's revalidation has put it on the page. */
+  it("brings what landed into its view's sight once it is on the page, and only once", async () => {
+    const spy = layout([
+      [".hd-cal-ag", () => at(100, 240)],
+      // today's row, above the scroller: the agenda was scrolled down to next week
+      [".hd-cal-it[data-fresh]", () => at(-300, 40)],
+    ]);
+    try {
+      const { rerender } = draw();
+      agenda().scrollTop = 600;
+      mockAdd.mockResolvedValueOnce({ ok: true, id: "e9", day: TODAY });
+      await act(async () => {
+        await box!.save("Team barbecue");
+      });
+      // not on the page yet: nothing to bring
+      expect(agenda().scrollTop).toBe(600);
+      const landed = { ...ROWS.events[0]!, id: "e9", title: "Team barbecue", startsOn: TODAY, endsOn: TODAY, startsAt: null, endsAt: null };
+      rerender(<HomeCalendarPage cal={calendar({ events: [...ROWS.events, landed] })} />);
+      expect(agenda().scrollTop).toBe(600 + (-300 - 100 - 96));
+      // the reader scrolls on while it is still lit; the page comes back again, and leaves the view to them
+      agenda().scrollTop = 600;
+      rerender(<HomeCalendarPage cal={calendar({ events: [...ROWS.events, landed] })} />);
+      expect(agenda().scrollTop).toBe(600);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("stops lighting what landed after the list's flash", async () => {
     jest.useFakeTimers();
     try {
@@ -492,25 +584,210 @@ describe("motion", () => {
     expect(runs).toEqual([]);
   });
 
-  it("opens Month on today's week, and holds it there until the grid is moved", async () => {
+  /* The panel coming up with Month is not a pick: what was picked with a
+     pointer in 4 weeks, which has no panel, is what it starts from. */
+  it("does not fade the panel in when a key brings it up, whatever a pointer picked before", async () => {
     const user = userEvent.setup();
-    const realTop = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetTop")!;
+    draw();
+    await user.click(within(agenda()).getByRole("button", { name: "Toolbox talk" }));
+    runs = [];
+    viewBtn("Month").focus();
+    await user.keyboard("{Enter}");
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Toolbox talk");
+    expect(runs).toEqual([]);
+  });
+
+  it("fades the view once when a pointer brings the panel up, not the panel over it", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(within(agenda()).getByRole("button", { name: "Toolbox talk" }));
+    runs = [];
+    await user.click(viewBtn("Month"));
+    expect(runs.map((el) => el.className)).toEqual(["hd-cal-body"]);
+  });
+
+  it("fades nothing for a key, wherever the key is pressed", async () => {
+    const user = userEvent.setup();
+    draw();
+    const press = async (el: HTMLElement) => {
+      el.focus();
+      await user.keyboard("{Enter}");
+    };
+    await press(within(agenda()).getByRole("button", { name: "Toolbox talk" }));
+    await press(within(rail()).getByRole("button", { name: "Trailer, TC22BJ rego" }));
+    await press(viewBtn("Month"));
+    await press(screen.getByRole("button", { name: "School holidays, Mon 28 Sept – Fri 9 Oct" }));
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("School holidays");
+    await press(screen.getByRole("button", { name: "Later" }));
+    await press(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day" }));
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Labour Day");
+    await press(screen.getByRole("button", { name: /^Thu 1 Oct: Toolbox talk/ }));
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Toolbox talk");
+    await press(screen.getByRole("button", { name: "Today" }));
+    expect(rangeTitle()).toHaveTextContent("September 2026");
+    expect(runs).toEqual([]);
+  });
+
+  it("fades nothing under reduced motion, whatever the pointer does", async () => {
+    window.matchMedia = ((q: string) => ({ matches: q.includes("prefers-reduced-motion: reduce"), media: q })) as typeof window.matchMedia;
+    const user = userEvent.setup();
+    draw();
+    await user.click(viewBtn("Month"));
+    await user.click(screen.getByRole("button", { name: "School holidays, Mon 28 Sept – Fri 9 Oct" }));
+    await user.click(screen.getByRole("button", { name: "Later" }));
+    await user.click(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day" }));
+    await user.click(screen.getByRole("button", { name: "Today" }));
+    expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Labour Day");
+    expect(rangeTitle()).toHaveTextContent("September 2026");
+    expect(runs).toEqual([]);
+  });
+
+  /* "Muted and inert when today is already in view." */
+  it("does nothing on Today while it rests: no step, no fade, and the grid stays where it was moved", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(viewBtn("Month"));
+    await user.click(screen.getByRole("button", { name: "Later" }));
+    await user.click(screen.getByRole("button", { name: "Earlier" }));
+    expect(rangeTitle()).toHaveTextContent("September 2026");
+    const grid = document.querySelector<HTMLElement>(".hd-cal-mg")!;
+    grid.dispatchEvent(new Event("wheel"));
+    grid.scrollTop = 100;
+    runs = [];
+    const today = screen.getByRole("button", { name: "Today" });
+    expect(today).toHaveAttribute("aria-disabled", "true");
+    await user.click(today);
+    expect(rangeTitle()).toHaveTextContent("September 2026");
+    expect(runs).toEqual([]);
+    expect(grid.scrollTop).toBe(100);
+  });
+});
+
+/* MONTH OPENS ON TODAY'S WEEK (his calToWeek), laid out here by hand: the
+   grid 240 tall at 100, today's week `weekAt` down its content. jsdom's
+   ResizeObserver never calls back, so a fake stands in that the test fires
+   as the grid settling. */
+describe("Month on today's week", () => {
+  const realRO = window.ResizeObserver;
+  const realTop = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetTop")!;
+  let observers: { cb: ResizeObserverCallback; on: boolean }[] = [];
+  let weekAt = 540;
+  let gridHeight = 240;
+  let spy: jest.SpyInstance;
+  const grid = () => document.querySelector<HTMLElement>(".hd-cal-mg")!;
+  const settles = () =>
+    act(() => {
+      for (const o of observers) if (o.on) o.cb([], {} as ResizeObserver);
+    });
+
+  beforeEach(() => {
+    observers = [];
+    weekAt = 540;
+    gridHeight = 240;
+    window.ResizeObserver = class {
+      private o: { cb: ResizeObserverCallback; on: boolean };
+      constructor(cb: ResizeObserverCallback) {
+        this.o = { cb, on: false };
+        observers.push(this.o);
+      }
+      observe() {
+        this.o.on = true;
+      }
+      unobserve() {}
+      disconnect() {
+        this.o.on = false;
+      }
+    } as unknown as typeof ResizeObserver;
+    spy = layout([
+      [".hd-cal-mg", () => at(100, gridHeight)],
+      [".hd-cal-wk[data-today]", (el) => at(100 + weekAt - el.closest<HTMLElement>(".hd-cal-mg")!.scrollTop, 124)],
+    ]);
+    // where the week sits in its grid, for anything that reads it that way
     Object.defineProperty(HTMLElement.prototype, "offsetTop", {
       configurable: true,
       get(this: HTMLElement) {
-        return this.matches(".hd-cal-wk[data-today]") ? 540 : 0;
+        return this.matches(".hd-cal-wk[data-today]") ? weekAt : 0;
       },
     });
+  });
+  afterEach(() => {
+    window.ResizeObserver = realRO;
+    spy.mockRestore();
+    Object.defineProperty(HTMLElement.prototype, "offsetTop", realTop);
+  });
+
+  it("brings today's week up when it is out of sight, and holds it there until the grid is moved", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(viewBtn("Month"));
+    expect(grid().scrollTop).toBe(540);
+    // the grid settles (the day's card opening above it): the week is held
+    grid().scrollTop = 200;
+    settles();
+    expect(grid().scrollTop).toBe(540);
+    // moved by hand: the grid is the reader's from then on
+    grid().dispatchEvent(new Event("wheel"));
+    grid().scrollTop = 100;
+    settles();
+    expect(grid().scrollTop).toBe(100);
+    // October has no today in it: its grid opens at its top
+    await user.click(screen.getByRole("button", { name: "Later" }));
+    expect(grid().scrollTop).toBe(0);
+  });
+
+  it("leaves a week already in sight where it is, with the days' heads above it, until the grid settles smaller round it", async () => {
+    const user = userEvent.setup();
+    weekAt = 60;
+    draw();
+    await user.click(viewBtn("Month"));
+    expect(grid().scrollTop).toBe(0);
+    settles();
+    expect(grid().scrollTop).toBe(0);
+    // the day's card opens above: the grid is shorter, and the week falls out of it
+    gridHeight = 150;
+    settles();
+    expect(grid().scrollTop).toBe(60);
+  });
+
+  it("opens a month you step back to at its top, and at today's week only if it must", async () => {
+    const user = userEvent.setup();
+    weekAt = 60;
+    draw();
+    await user.click(viewBtn("Month"));
+    await user.click(screen.getByRole("button", { name: "Later" }));
+    grid().dispatchEvent(new Event("wheel"));
+    grid().scrollTop = 300;
+    await user.click(screen.getByRole("button", { name: "Earlier" }));
+    expect(rangeTitle()).toHaveTextContent("September 2026");
+    expect(grid().scrollTop).toBe(0);
+  });
+});
+
+describe("revealIn", () => {
+  it("moves nothing for a thing in its scroller's sight, and only the scroller for one out of it", () => {
+    const sc = document.createElement("div");
+    sc.setAttribute("data-scroll", "");
+    const el = document.createElement("div");
+    sc.append(el);
+    document.body.append(sc);
+    let top = 150;
+    const spy = layout([
+      ["[data-scroll]", () => at(100, 300)],
+      ["[data-scroll] > div", () => at(top, 24)],
+    ]);
     try {
-      draw();
-      await user.click(viewBtn("Month"));
-      const grid = document.querySelector<HTMLElement>(".hd-cal-mg")!;
-      expect(grid.scrollTop).toBe(540);
-      await user.click(screen.getByRole("button", { name: "Later" }));
-      // October has no today in it: its grid opens at its top
-      expect(document.querySelector<HTMLElement>(".hd-cal-mg")!.scrollTop).toBe(0);
+      revealIn(el);
+      expect(sc.scrollTop).toBe(0);
+      top = 500;
+      revealIn(el);
+      expect(sc.scrollTop).toBe(500 - 100 - 96);
+      expect(document.documentElement.scrollTop).toBe(0);
+      // nothing to reveal, or nowhere to reveal it in: nothing happens
+      expect(() => revealIn(null)).not.toThrow();
+      expect(() => revealIn(document.createElement("div"))).not.toThrow();
     } finally {
-      Object.defineProperty(HTMLElement.prototype, "offsetTop", realTop);
+      spy.mockRestore();
+      sc.remove();
     }
   });
 });

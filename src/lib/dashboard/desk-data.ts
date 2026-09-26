@@ -19,8 +19,17 @@
    reading for themselves — `readHomeShared` is those same two reads moved
    up, not new ones). Which ServiceM8 person the viewer is comes from the
    link map, which is two reads in a row and so is NOT waited for before the
-   batch: `loadDesk` starts inside the batch as soon as that map is in, with
-   `mineUuid` in its context, so only the new Home's own reads wait for it. */
+   batch: `loadDesk` starts with the batch and is handed the map's answer
+   still coming (`mine`). A read that takes the whole context, `mineUuid`
+   and all, waits for it; a read that asks nothing of it starts at once.
+
+   The calendar asks nothing of it, and its own reads are two in a row (the
+   workspace's state, then its holidays): started behind the map it was
+   the page's slowest path by a round trip. The list is handed the whole
+   context, as the areas still to come will be (the diary asks who the
+   viewer is), and so goes once the map is in, which costs the page
+   nothing: the map and the list's one read are back by the time the
+   calendar's two are. */
 
 import { loadCompanyCalendar } from "@/lib/calendar/query";
 import type { CompanyCalendar } from "@/lib/calendar/items";
@@ -51,7 +60,13 @@ export async function readHomeShared(orgId: string, isOwner: boolean): Promise<H
 
 /** Everything `loadDashboard` knows when the batch starts, plus `mineUuid`,
     which is in once the link map is. */
-export type DeskContext = {
+export type DeskContext = DeskStart & {
+  /** Which ServiceM8 person the viewer is, or null when nobody has said. */
+  mineUuid: string | null;
+};
+
+/** Everything `loadDashboard` knows when the batch starts. */
+export type DeskStart = {
   orgId: string;
   viewerStaffId: string | null;
   caps: ReadonlySet<Capability>;
@@ -61,8 +76,6 @@ export type DeskContext = {
   /** Today in the ServiceM8 account's zone — the day the bar draws. */
   railDay: string;
   tz: string | null;
-  /** Which ServiceM8 person the viewer is, or null when nobody has said. */
-  mineUuid: string | null;
   names: StaffNames;
   shared: HomeShared;
   /** Does the workspace hold a ServiceM8 copy at all — `sm8VendorOf`'s
@@ -88,8 +101,10 @@ export type DeskData = {
   calendar: CompanyCalendar;
 };
 
-export async function loadDesk(ctx: DeskContext): Promise<DeskData> {
+export async function loadDesk(start: DeskStart, mine: Promise<string | null>): Promise<DeskData> {
+  /** The whole context, once the link map is in. */
+  const ctx = mine.then((mineUuid): DeskContext => ({ ...start, mineUuid }));
   /* Each area's read joins here as a Promise.all over its own gates. */
-  const [list, calendar] = await Promise.all([loadHomeList(ctx), loadCompanyCalendar(ctx)]);
-  return { warnDays: ctx.shared.expiry.warnDays, list, calendar };
+  const [list, calendar] = await Promise.all([ctx.then(loadHomeList), loadCompanyCalendar(start)]);
+  return { warnDays: start.shared.expiry.warnDays, list, calendar };
 }

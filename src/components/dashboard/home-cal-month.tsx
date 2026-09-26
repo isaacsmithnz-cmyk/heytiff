@@ -22,11 +22,14 @@ import { CalSwatch, type Pick } from "./home-cal-parts";
    carries on from last week or into the next is square on that side.
 
    OPENS ON TODAY'S WEEK. Under "Your day" the grid has room for about two
-   weeks, so the month's first rows would hide today: when today is in the
-   month, its week is brought to the top of the grid. The grid can still be
-   settling as it draws (the day's card opening above it, or the face
-   coming back into view), so the week is held there until you move the
-   grid yourself. */
+   weeks, so the month's first rows could hide today: a month opens at its
+   top, and when today is in it and its week is not wholly in sight, that
+   week is brought to the top of the grid (his calToWeek). A week already
+   in sight is left where it is, with the days' heads above it. The grid
+   can still be settling as it draws (the day's card opening above it, or
+   the face coming back into view), so the grid is measured again as it
+   settles: a week that falls out of sight is brought up then, and one
+   brought up is held there, until you move the grid yourself. */
 
 const DAY_HEAD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const flex = (column: number): CSSProperties => ({ flex: `${MONTH_WEIGHTS[column]} 1 0px` });
@@ -49,9 +52,22 @@ export function CalMonth({
   useLayoutEffect(() => {
     const sc = grid.current;
     if (!sc) return;
+    sc.scrollTop = 0;
+    const wk = sc.querySelector<HTMLElement>(".hd-cal-wk[data-today]");
+    if (!wk) return;
+    /** Where today's week was brought to, once it had to be. */
+    let want: number | null = null;
     const fit = () => {
-      const wk = sc.querySelector<HTMLElement>(".hd-cal-wk[data-today]");
-      sc.scrollTop = wk ? wk.offsetTop : 0;
+      if (want !== null) {
+        sc.scrollTop = want;
+        return;
+      }
+      const r = wk.getBoundingClientRect();
+      const s = sc.getBoundingClientRect();
+      if (r.top < s.top - 1 || r.bottom > s.bottom + 1) {
+        want = sc.scrollTop + (r.top - s.top);
+        sc.scrollTop = want;
+      }
     };
     fit();
     if (typeof ResizeObserver !== "function") return;

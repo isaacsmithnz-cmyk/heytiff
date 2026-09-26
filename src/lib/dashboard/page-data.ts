@@ -77,8 +77,9 @@ import type { TaskDoneLines, UnsentDone } from "./task-done-query";
 
 export type DashboardData = {
   chips: DashboardChips;
-  /** Your leave and the org's closures — for everyone. Colleagues' leave is
-      in it only with `team`. */
+  /** Your leave and the org's closures — for everyone on today's Home.
+      Colleagues' leave is in it only with `team`. Empty, and unread, for a
+      viewer on the new Home, whose Calendar is `desk.calendar`. */
   calendar: LeaveCalendar;
   /** Your open tasks (always), the team's (only with `team`), and your
       recently-completed ones so finishing something leaves a trace.
@@ -195,9 +196,11 @@ const EMPTY_RAIL: HomeRail = {
   crew: {},
 };
 
+const NO_LEAVE_CALENDAR: LeaveCalendar = { spanStart: "", spanEnd: "", days: [] };
+
 const EMPTY: DashboardData = {
   chips: { self: [], team: [] },
-  calendar: { spanStart: "", spanEnd: "", days: [] },
+  calendar: NO_LEAVE_CALENDAR,
   tasks: { mine: [], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
   notices: [],
   journal: [],
@@ -283,7 +286,9 @@ export async function loadDashboard(): Promise<DashboardData> {
 
   const [chips, calendar, tasks, notices, assignable, journal, jobs, issues, schedule, sm8Links, deskData] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today, isOwner, shared),
-    loadCalendar(orgId, today, viewerStaffId, canManage),
+    /* Today's Home's calendar. The new Home draws its own (`desk.calendar`)
+       and never this one, so its viewer is spared the reads. */
+    desk ? Promise.resolve(NO_LEAVE_CALENDAR) : loadCalendar(orgId, today, viewerStaffId, canManage),
     loadTasks(orgId, viewerStaffId, canManage, names, caps.has("workboard")),
     listNotices(orgId, viewerStaffId, NOTICE_WINDOW, names).then(sortNotices),
     // the assign picker only needs names, and only when you can assign
@@ -301,10 +306,11 @@ export async function loadDashboard(): Promise<DashboardData> {
     caps.has("workboard") ? loadScheduleDay(orgId, railDay) : Promise.resolve(EMPTY_SCHEDULE),
     linksP,
     /* The new Home's reads, in this same wait — and only for its viewers.
-       It waits for the link map itself, so nobody else does. */
+       Its reads that need the link map wait for it themselves, so nobody
+       else does. */
     desk
-      ? linksP.then((links) =>
-          loadDesk({
+      ? loadDesk(
+          {
             orgId,
             viewerStaffId,
             caps,
@@ -312,11 +318,11 @@ export async function loadDashboard(): Promise<DashboardData> {
             today,
             railDay,
             tz: railTz,
-            mineUuid: mineOf(links),
             names,
             shared,
             connected: vendor.connected,
-          })
+          },
+          linksP.then(mineOf)
         )
       : Promise.resolve(null),
   ]);

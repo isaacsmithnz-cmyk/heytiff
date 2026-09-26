@@ -881,6 +881,24 @@ describe("motion", () => {
     expect(runs).toEqual([]);
   });
 
+  /* The grow runs through el.animate, which the stylesheet's reduced-motion
+     rules cannot reach: what a pointer's Save lands is lit and still. */
+  it("lights what a pointer's Save landed under reduced motion, and never grows it", async () => {
+    window.matchMedia = ((q: string) => ({ matches: q.includes("prefers-reduced-motion: reduce"), media: q })) as typeof window.matchMedia;
+    const { rerender } = draw();
+    document.querySelector<HTMLElement>(".hd-cal-add")!.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    mockAdd.mockResolvedValueOnce({ ok: true, id: "e9", day: TODAY });
+    await act(async () => {
+      await box!.save("Team barbecue");
+    });
+    const landed = { ...ROWS.events[0]!, id: "e9", title: "Team barbecue", startsOn: TODAY, endsOn: TODAY, startsAt: null, endsAt: null };
+    rerender(<HomeCalendarPage cal={calendar({ events: [...ROWS.events, landed] })} />);
+    const row = within(agenda()).getByRole("button", { name: "Team barbecue" }).closest(".hd-cal-it")!;
+    expect(row).toHaveAttribute("data-fresh");
+    expect(runs.filter((r) => r.el === row)).toEqual([]);
+    expect(runs).toEqual([]);
+  });
+
   /* "Muted and inert when today is already in view." */
   it("does nothing on Today while it rests: no step, no fade, and the grid stays where it was moved", async () => {
     const user = userEvent.setup();

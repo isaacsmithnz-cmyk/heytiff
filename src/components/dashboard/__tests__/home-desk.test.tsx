@@ -17,9 +17,9 @@ import type { HomeIssue } from "@/lib/dashboard/issues";
 import { FLASH_MS } from "../home-list";
 import { typedAbout, type RecordTask, type TaskAbout, type TaskRecord } from "@/lib/dashboard/task-record";
 
-/* THE NEW HOME'S FRAME (H11): the date in the band, "Your day" on every
-   face, ONE row of tabs that never moves, and a body that slides in tab
-   order. The diary is its own (H16), and so is the Tasks face (H20); each
+/* THE NEW HOME'S FRAME (H11): the date in the band, "Your day" over Diary
+   and Tasks (it steps aside for the Calendar), ONE row of tabs, and a body
+   that slides in tab order. The diary is its own (H16), and so is the Tasks face (H20); each
    has its own suite, so this one is about the frame around them — and
    about the doors between them and the one job card they share. The list
    beside Diary and Tasks (H19) and the Calendar (H21) have their own
@@ -424,14 +424,29 @@ describe("the faces", () => {
     expect(face("tasks")).toBe(tasks);
   }, WHOLE);
 
-  it("keep Your day on every face, the Calendar's too", async () => {
+  it("keep Your day over Diary and Tasks", async () => {
     const user = userEvent.setup();
     draw();
     const day = screen.getByRole("region", { name: "Your day" });
-    for (const name of ["Tasks", "Calendar"]) {
+    await user.click(tab("Tasks"));
+    expect(screen.getByRole("region", { name: "Your day" })).toBe(day);
+    expect(day.closest("[hidden]")).toBeNull();
+  }, WHOLE);
+
+  /* "increase the space on the screen when the calendar view is in… the
+     your day disappears temporarily" (Isaac, 2026-09-26). */
+  it("fold Your day away for the Calendar, and bring the same one back for Diary and Tasks", async () => {
+    const user = userEvent.setup();
+    draw();
+    const day = document.querySelector<HTMLElement>(".hd-day")!;
+    await user.click(tab("Calendar"));
+    expect(day).toHaveAttribute("hidden");
+    expect(day).toHaveAttribute("inert");
+    expect(screen.queryByRole("region", { name: "Your day" })).toBeNull();
+    for (const name of ["Diary", "Calendar", "Tasks"]) {
       await user.click(tab(name));
-      expect(screen.getByRole("region", { name: "Your day" })).toBe(day);
-      expect(day.closest("[hidden]")).toBeNull();
+      expect(document.querySelector(".hd-day")).toBe(day);
+      expect(day.hasAttribute("hidden")).toBe(name === "Calendar");
     }
   }, WHOLE);
 
@@ -1040,12 +1055,18 @@ describe("the one job card", () => {
 });
 
 /* "if the card is open, they can just close it if they want more space"
-   (Isaac, 2026-09-25): the day's open card is not closed by changing face,
-   nor by a press in the Calendar, as his prototype leaves it; a press in
-   the Diary or Tasks is a click elsewhere and closes it. */
+   (Isaac, 2026-09-25): the day's open card is not closed by changing face;
+   while the day is away for the Calendar nothing closes it, and it comes
+   back as it went; a press in the Diary or Tasks is a click elsewhere and
+   closes it. */
 describe("the day's open card", () => {
   const onNow = () => rail({ blocks: [block()], jobs: [mirror()], nowMin: 9 * 60 });
-  const isOpen = () => screen.getByRole("button", { name: /^Chatswood, Job 1042,/ }).getAttribute("aria-expanded");
+  const card = () =>
+    within(document.querySelector<HTMLElement>(".hd-day")!).getByRole("button", {
+      name: /^Chatswood, Job 1042,/,
+      hidden: true,
+    });
+  const isOpen = () => card().getAttribute("aria-expanded");
 
   it("stays open on every face, and for a press on the tabs or in the Calendar", async () => {
     const user = userEvent.setup();
@@ -1058,6 +1079,11 @@ describe("the day's open card", () => {
       expect(document.querySelector(".hd-pan")).toBe(panel);
     }
     await user.click(face("calendar"));
+    await user.click(document.querySelector<HTMLElement>(".wb2-h1")!);
+    await user.keyboard("{Escape}");
+    expect(isOpen()).toBe("true");
+    await user.click(tab("Diary"));
+    expect(screen.getByRole("region", { name: "Your day" })).toContainElement(card());
     expect(isOpen()).toBe("true");
   }, WHOLE);
 
@@ -1150,6 +1176,81 @@ describe("the slide", () => {
       { who: "hd-main", frames: ["translateX(-1000px)", "none"] },
     ]);
   }, WHOLE);
+
+  /* THE DAY STEPS ASIDE FOR THE CALENDAR, and the body rises over it on
+     the slide's clock. jsdom lays nothing out, so the places are stated:
+     the day stands at 100 and is 200 tall, so the body stands at 300 under
+     it and at 100 without it — or while it laps over it. */
+  describe("with the day's places stated", () => {
+    const realRect = Element.prototype.getBoundingClientRect;
+    const realTop = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetTop")!;
+    const day = () => document.querySelector<HTMLElement>(".hd-day")!;
+    const inFlow = () => !day().hidden && !day().style.marginBottom;
+    beforeEach(() => {
+      Element.prototype.getBoundingClientRect = function (this: Element) {
+        const top = this.classList.contains("hd-body") ? (inFlow() ? 300 : 100) : 0;
+        return { top, bottom: top, left: 0, right: 0, width: 0, height: 0, x: 0, y: top } as DOMRect;
+      };
+      Object.defineProperty(HTMLElement.prototype, "offsetTop", {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains("hd-body") ? (inFlow() ? 300 : 100) : this.classList.contains("hd-day") ? 100 : 0;
+        },
+      });
+    });
+    afterEach(() => {
+      Element.prototype.getBoundingClientRect = realRect;
+      Object.defineProperty(HTMLElement.prototype, "offsetTop", realTop);
+    });
+
+    it("rises the body over the day as the Calendar slides in, then lets the day go", async () => {
+      const user = userEvent.setup();
+      draw();
+      await user.click(tab("Calendar"));
+      expect(moves()).toContainEqual({ who: "hd-body", frames: ["translateY(200px)", "translateY(0px)"] });
+      const rise = runs.find((r) => r.el.classList.contains("hd-body"))!;
+      expect(rise.opts).toMatchObject({ duration: 280, easing: "ease-out" });
+      // still drawn under the body, which laps over it, until it is covered
+      expect(day()).not.toHaveAttribute("hidden");
+      expect(day()).toHaveAttribute("inert");
+      expect(day().style.marginBottom).toBe("-200px");
+      await settle();
+      expect(day()).toHaveAttribute("hidden");
+      expect(day().style.marginBottom).toBe("");
+    }, WHOLE);
+
+    it("brings the body down to uncover the day when Diary comes back", async () => {
+      const user = userEvent.setup();
+      draw();
+      await user.click(tab("Calendar"));
+      await settle();
+      runs = [];
+      await user.click(tab("Diary"));
+      expect(moves()).toContainEqual({ who: "hd-body", frames: ["translateY(-200px)", "translateY(0px)"] });
+      expect(day()).not.toHaveAttribute("hidden");
+      expect(day().style.marginBottom).toBe("");
+    }, WHOLE);
+
+    it("moves nothing between Diary and Tasks, where the day stays", async () => {
+      const user = userEvent.setup();
+      draw();
+      await user.click(tab("Tasks"));
+      expect(runs.some((r) => r.el.classList.contains("hd-body"))).toBe(false);
+    }, WHOLE);
+
+    it("folds the day away at once from the keyboard", async () => {
+      const user = userEvent.setup();
+      draw();
+      tab("Diary").focus();
+      await user.keyboard("{End}");
+      expect(tab("Calendar")).toHaveAttribute("aria-selected", "true");
+      expect(runs).toEqual([]);
+      expect(day()).toHaveAttribute("hidden");
+      await user.keyboard("{Home}");
+      expect(runs).toEqual([]);
+      expect(day()).not.toHaveAttribute("hidden");
+    }, WHOLE);
+  });
 
   it("keeps the face on its way out on the page until its slide ends, then lets it go", async () => {
     const user = userEvent.setup();

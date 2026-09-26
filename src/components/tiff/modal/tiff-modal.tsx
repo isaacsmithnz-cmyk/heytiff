@@ -387,7 +387,7 @@ function TurnView({
           }}
           tabIndex={0}
         >
-          <LiveWords className="tm-tt" said={c.draft} text={c.interim} />
+          <LiveWords className="tm-tt" free said={c.draft} text={c.interim} />
         </div>
       ) : live === "fix" ? (
         <textarea

@@ -266,13 +266,15 @@ Every decision below is made once, here, and a guard test holds each number.
   his handoff "Home - Diagonal day" and his walks of the prototype to v32).
   Built behind `HOME_DESK`: the owner's until he has walked it, and the
   crew keep the Home above until the flip. The date is the h1, in the band
-  every screen wears. Under it "Your day", on every face ("The top hero can
-  stay as it is, that says Your day"). Under that one row of tabs, Diary,
-  Tasks and Calendar in that order ("swap Tasks and calendar around"), in
-  the same place on every face ("the diary, calendar and tasks tabs
-  shouldn't move positions each time"): his grey words, the chosen one ink
-  and bold, and each tab as wide as its bold word from the start, so
-  choosing one never moves the next. What belongs to one face, the
+  every screen wears. Under it "Your day" ("The top hero can stay as it
+  is, that says Your day"), over Diary and Tasks: it steps aside for the
+  Calendar, which wants the room ("the your day disappears temporarily",
+  2026-09-26), the tabs and the body rising over it as the Calendar slides
+  in, and it comes back as it went, its open card with it. Under that one
+  row of tabs, Diary, Tasks and Calendar in that order ("swap Tasks and
+  calendar around"): his grey words, the chosen one ink and bold, and each
+  tab as wide as its bold word from the start, so choosing one never moves
+  the next. What belongs to one face, the
   Calendar's box and its views, stands in that face's own toolbar, never
   in the row. Under the tabs the body slides in tab order ("Calendar should
   slide across"): the Calendar across the whole body, Tasks across the
@@ -286,7 +288,8 @@ Every decision below is made once, here, and a guard test holds each number.
   its panel under the bar says the place, the number, the state, the
   job, Time, Where and With, beside Open job and the close cross. The
   open card stays open whatever face is up ("if the card is open, they
-  can just close it if they want more space"). A card grows as it opens
+  can just close it if they want more space"), and away with the day while
+  the Calendar is up, where nothing closes it. A card grows as it opens
   and its place name slides to its middle, the panel fades in under it
   as the body makes room, and a white light runs round the job on now
   (the Trace); under reduced motion, and for a change made from the
@@ -864,7 +867,12 @@ What the guard cannot count is noted here on the same word:
   prototype's `land()` did — simply there when the keyboard drove the
   conversation (opened with a key, closed with Escape or a key), and not
   at all for words said in the Calendar's own room, which land on the
-  Calendar (his `calLand`).
+  Calendar (his `calLand`). The day stepping aside for the Calendar rides
+  the same 280 ms: the tabs and the body rise over it as the Calendar
+  slides in, and go down to uncover it as the Calendar leaves — never from
+  the keyboard, never under reduced motion, and not when Tiff's landing
+  brings the Diary back, which is decided while rendering, where nothing
+  can be measured: the day is simply there.
 - **Law 18, motion tokens, and law 8, the grow.** A card that opens grows,
   and the cards beside it give way, in his 350 ms on his `ease`, as the
   prototype he walked eased it: past law 8's 300 ms and off `--t-move`

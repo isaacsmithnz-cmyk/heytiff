@@ -53,6 +53,14 @@ import { useDeskJobs } from "./home-job-sheet";
    places that keep it (`KEEPS_DAY`); the last also folds finished work
    back up. Closing by the cross or Escape puts focus back on the card.
 
+   IT STEPS ASIDE FOR THE CALENDAR ("increase the space on the screen when
+   the calendar view is in… the your day disappears temporarily", Isaac,
+   2026-09-26): `away`, the desk's to say. Away, it is hidden and its card
+   is left as it was — nothing on the page closes it, it has no Escape —
+   and it comes back as it went. While it folds, the desk's body rises over
+   it (./home-desk), so it stays drawn under the body, `lap` pixels of it
+   overlapped, until the body has covered it.
+
    THE PANEL is his: the place, the number, the state, what the job is,
    Time / Where / With, and one thing to do — Open job, or a task's Mark
    done — beside the close cross. A booking the mirror could not name has
@@ -91,7 +99,18 @@ function brace(bar: DayBarHandle | null, section: HTMLElement | null, open: bool
   return { open, under: underDay(section).map((el) => ({ el, top: el.getBoundingClientRect().top })) };
 }
 
-export function HomeDay({ rail }: { rail: HomeRail }) {
+export function HomeDay({
+  rail,
+  away = false,
+  lap = null,
+}: {
+  rail: HomeRail;
+  /** The Calendar is up: the day has stepped aside (above). */
+  away?: boolean;
+  /** While it folds away: how far the body below overlaps it, so the body
+      stands where it will stand once the day is gone. Null at rest. */
+  lap?: number | null;
+}) {
   const { openJob } = useDeskJobs();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -183,7 +202,7 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
      while a dialog is up — the job card and Tiff's answer their own Escape
      — and not from a face, whose box may want it. */
   useEffect(() => {
-    if (openKey === null) return;
+    if (openKey === null || away) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
       if (document.querySelector('[aria-modal="true"]')) return;
@@ -196,7 +215,7 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [openKey]);
+  }, [openKey, away]);
 
   /* A CLICK ELSEWHERE closes the card and folds finished work up again —
      elsewhere ON THIS PAGE. The job card and Tiff are portalled to <body>,
@@ -217,7 +236,7 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
      face's too, and a card that closed under someone typing would pull
      the box they are typing in up the page. */
   useEffect(() => {
-    if (openKey === null && !showFinished) return;
+    if (away || (openKey === null && !showFinished)) return;
     const onClick = (e: MouseEvent) => {
       if (e.detail === 0) return;
       const t = e.target;
@@ -230,7 +249,7 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
     };
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
-  }, [openKey, showFinished]);
+  }, [openKey, showFinished, away]);
 
   /* WHAT SERVICEM8 COULDN'T ADD. `null` is the complete day — including a
      workspace with no ServiceM8, which has nothing to be missing. */
@@ -276,7 +295,14 @@ export function HomeDay({ rail }: { rail: HomeRail }) {
   }
 
   return (
-    <section className="hd-day" aria-labelledby="hd-day-h" ref={section}>
+    <section
+      className="hd-day"
+      aria-labelledby="hd-day-h"
+      ref={section}
+      hidden={away && lap === null}
+      inert={away}
+      style={lap === null ? undefined : { marginBottom: -lap }}
+    >
       <h2 className="hd-dayh" id="hd-day-h">
         Your day
       </h2>

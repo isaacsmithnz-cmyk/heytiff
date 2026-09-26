@@ -16,14 +16,13 @@ import {
   type SlidePart,
   type SlidePlan,
 } from "@/lib/dashboard/desk-focus";
-import { motionAllowed } from "@/lib/dashboard/day-flip";
+import { liftFrames, liftOf, motionAllowed } from "@/lib/dashboard/day-flip";
 import { diaryHolds } from "@/lib/dashboard/diary-conversation";
 import { placeHomeList, thingsOnList, type HomeListBase } from "@/lib/dashboard/home-list";
 import { mentionTasksOf } from "@/lib/dashboard/mention-asks";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 import { HomeCalendarPage } from "./home-cal-page";
 import { HomeDay } from "./home-day";
-import { KEEPS_DAY } from "./home-day-bar";
 import { HomeDiaryFeed } from "./home-diary-feed";
 import { HomeFaceTabs } from "./home-face-tabs";
 import { DeskJobHost } from "./home-job-sheet";
@@ -34,12 +33,21 @@ import { HomeTasksFace } from "./home-tasks-face";
    the list", 2026-09-25). Behind HOME_DESK (lib/dashboard/desk-flag): the
    owner's until the flip, and the crew's Home (./home) does not change.
 
-   The date is the h1, in the band every screen wears. Under it "Your day",
-   which stays on every face (Isaac, 2026-09-25: "The top hero can stay as it
-   is, that says Your day"). Under that ONE row of tabs, Diary | Tasks |
-   Calendar, which never moves, and under the tabs the body, which SLIDES:
-   the Calendar across the whole body, Tasks across the diary column, in tab
-   order ("Calendar should slide across"). Only the faces scroll.
+   The date is the h1, in the band every screen wears. Under it "Your day"
+   (Isaac, 2026-09-25: "The top hero can stay as it is, that says Your
+   day"), over Diary and Tasks; it steps aside for the Calendar, which wants
+   the room (2026-09-26: "the your day disappears temporarily"), and comes
+   back as it went. Under that ONE row of tabs, Diary | Tasks | Calendar,
+   and under the tabs the body, which SLIDES: the Calendar across the whole
+   body, Tasks across the diary column, in tab order ("Calendar should slide
+   across"). Only the faces scroll.
+
+   AS THE DAY STEPS ASIDE the tabs and the body rise over it to where it
+   stood, while the Calendar slides in, on the slide's own clock; coming
+   back, they go down and uncover it. The rise is a FLIP of the body, read
+   before the change and run after it: the day stays drawn under the body,
+   overlapped, until it is covered (./home-day's `lap`). From the keyboard,
+   and under reduced motion, each is simply there (law 8).
 
    THE FACES ARE BUILT ONE BY ONE. "Your day" is his own already
    (./home-day), and so are THE DIARY (./home-diary-feed), THE LIST in the
@@ -49,9 +57,9 @@ import { HomeTasksFace } from "./home-tasks-face";
    across the column and the list alike. Every new file mounts here and
    nowhere else, which is what keeps the crew's Home as it is.
 
-   THE DAY'S OPEN CARD STAYS OPEN across faces, so a press on the tabs or
-   in the Calendar does not close it (`KEEPS_DAY`); a click anywhere else
-   on the page does.
+   THE DAY'S OPEN CARD STAYS OPEN across faces: a press on the tabs does
+   not close it (`KEEPS_DAY`), the Calendar leaves it as it was while the
+   day is away, and a click anywhere else on the page closes it.
 
    ALL MOUNTED, NEVER KEYED. A face is shown or hidden, so what you typed in
    one is still there when you come back, and the row of tabs is one node
@@ -72,6 +80,11 @@ type Motion = {
       slide starts from where that face is, not from rest. */
   x0: number;
 };
+
+/** The day stepping aside or back, while the body rises over it or goes
+    down to uncover it: where the body was drawn before the change, and —
+    stepping aside — how far it overlaps the day meanwhile. */
+type Fold = { from: number; lap: number | null };
 
 /** How far across its slide a part stands right now, in pixels. */
 function offsetOf(el: HTMLElement | null): number {
@@ -131,6 +144,9 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
 
   const [face, setFace] = useState<DeskFace>(taskId ? "tasks" : DEFAULT_FACE);
   const [motion, setMotion] = useState<Motion | null>(null);
+  /** The day stepping aside for the Calendar, or back, while the body
+      rises over it or goes down to uncover it (below). */
+  const [fold, setFold] = useState<Fold | null>(null);
   /* A door from one face to another, until the face it names has shown it
      — with how it was pressed, so that face moves nothing for a key. */
   const [focus, setFocus] = useState<DeskArrival | null>(taskId ? addressed(taskId) : null);
@@ -148,6 +164,7 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     if (taskId) {
       setFace("tasks");
       setMotion(null);
+      setFold(null);
       setFocus(addressed(taskId));
     }
   }
@@ -166,6 +183,21 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     p === "main" ? mainRef.current : p === "diary" ? diaryRef.current : p === "tasks" ? tasksRef.current : calendarRef.current;
   const boxOf = (b: SlidePlan["box"]): HTMLElement | null => (b === "body" ? bodyRef.current : columnRef.current);
 
+  /* What stands under the day — the tabs and the body — and the rise that
+     carries it as the day steps aside or back (above). */
+  const underRef = useRef<HTMLDivElement>(null);
+  const lifts = useRef<Animation[]>([]);
+  /** Read before the change. The day stands right above the body, as the
+      day reads it the other way (./home-day, `underDay`). The overlap is
+      the layout's, never the paint's: a rise in flight moves the body's
+      drawing, not its place. */
+  const foldFrom = (away: boolean): Fold | null => {
+    const under = underRef.current;
+    const day = under?.previousElementSibling;
+    if (!under || !(day instanceof HTMLElement)) return null;
+    return { from: under.getBoundingClientRect().top, lap: away ? under.offsetTop - day.offsetTop : null };
+  };
+
   /* `pointer` false: a face chosen from the keyboard (the arrows, Home and
      End, a tab pressed with a key, or a door between faces pressed with a
      key) is simply there — law 8, no motion on a keyboard-driven action —
@@ -179,8 +211,11 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     const x0 = plan && was && was.arriving === plan.leaving ? offsetOf(partOf(plan.leaving)) : 0;
     for (const a of runs.current) a.cancel();
     runs.current = [];
+    const moving = pointer && motionAllowed();
+    /* only to and from the Calendar does the day step aside or come back */
+    if ((face === "calendar") !== (next === "calendar")) setFold(moving ? foldFrom(next === "calendar") : null);
     setFace(next);
-    setMotion(pointer && motionAllowed() ? { from: face, to: next, x0 } : null);
+    setMotion(moving ? { from: face, to: next, x0 } : null);
   };
 
   /* A TIFF LANDING WHILE THE CALENDAR IS UP. What her modal filed lands in
@@ -202,6 +237,9 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     if (landed && landed.noteIds.length > 0 && landed.room !== "calendar" && face === "calendar" && !motion) {
       setFace("diary");
       setMotion(!landed.keyboard && motionAllowed() ? { from: "calendar", to: "diary", x0: 0 } : null);
+      /* The day comes back without the body's rise: a rise is read before
+         the change, and this change is made while rendering. */
+      setFold(null);
       setLandings((n) => n + 1);
     }
   }
@@ -252,6 +290,34 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
       live = false;
     };
   }, [motion]);
+
+  /* THE RISE, after the commit that stepped the day aside or back and
+     before the paint: the body is drawn where it was and travels to where
+     it now stands, on the slide's clock, so the two land together. Once it
+     is there the day, if it is stepping aside, is let go. Whatever rise was
+     in flight stops first, so the place read now is the layout's own. */
+  useLayoutEffect(() => {
+    for (const a of lifts.current) a.cancel();
+    lifts.current = [];
+    const under = underRef.current;
+    if (!fold || !under) return;
+    let live = true;
+    const settle = () => {
+      if (live) setFold(null);
+    };
+    const dy = liftOf(fold.from, under.getBoundingClientRect().top);
+    if (dy === null) {
+      void Promise.resolve().then(settle);
+    } else {
+      const rise = under.animate(liftFrames(dy), { duration: FACE_SLIDE_MS, easing: "ease-out" });
+      lifts.current = [rise];
+      /* cancelled by the next press, which has its own */
+      rise.finished.then(settle, () => {});
+    }
+    return () => {
+      live = false;
+    };
+  }, [fold]);
 
   /* THE ONE DOOR. The face it names shows it and hands it back: the diary
      brings an entry or a conversation up and lights it, the Tasks face
@@ -316,7 +382,6 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
       aria-labelledby={`hdtab-${f}`}
       hidden={!shown(f)}
       inert={f !== face}
-      {...(f === "calendar" ? KEEPS_DAY : {})}
     >
       {body}
     </section>
@@ -330,9 +395,13 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
         <div className="stg hd-page">
           <ScreenBand title={fmtAuWeekdayDateLong(today)} />
 
-          <HomeDay rail={rail} />
+          <HomeDay
+            rail={rail}
+            away={face === "calendar"}
+            lap={face === "calendar" ? (fold?.lap ?? null) : null}
+          />
 
-          <div className="hd-body">
+          <div className="hd-body" ref={underRef}>
             <HomeFaceTabs face={face} onGo={go} />
             <div className="hd-fx" ref={bodyRef}>
               <div className="hd-main" ref={mainRef} hidden={!shown("main")}>

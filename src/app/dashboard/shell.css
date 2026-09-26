@@ -9029,6 +9029,11 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   -webkit-mask:linear-gradient(180deg, transparent 0, #000 1.5em);
   mask:linear-gradient(180deg, transparent 0, #000 1.5em);
 }
+/* FREE WORDS (the Tiff modal) are as tall as what was said, and the
+   conversation around them scrolls. `clip`, never `hidden` or `visible`: a
+   word arrives 4px low, and that 4px must neither make this box a scroller
+   nor reach the conversation's, which would ride it and jog every line. */
+.wb2-lwbox.free { overflow:clip; }
 /* …and on one line the words leave to the LEFT, so the fade does too. */
 .wb2-lwbox.one.over {
   -webkit-mask:linear-gradient(90deg, transparent 0, #000 2.2em);
@@ -11169,17 +11174,21 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-page { --hd-ink:#151a24; --hd-body:#5b6472; --hd-rule:#e6e9ee; --hd-rule2:#eef0f3; --hd-edge:#e2e5ea;
   --hd-late:var(--bad-t); --hd-today:#0f766e; --hd-done:#16a34a; --hd-dot:#c3cad4; --hd-fresh:#e6f7f3; }
 
-/* ── YOUR DAY: across the top, on every face ──
-   A rule under the band and one under the day, in his grey. */
+/* ── YOUR DAY: across the top of Diary and Tasks ──
+   A rule under the band and one under the day, in his grey. The one under
+   the day is the body's own top edge, so when the day steps aside for the
+   Calendar that rule rises with the body and is the band's (home-desk). */
 .fg .hd-day { flex:none; display:flex; flex-direction:column; gap:12px; padding:16px 24px;
-  border-top:1px solid var(--hd-rule); border-bottom:1px solid var(--hd-rule); }
+  border-top:1px solid var(--hd-rule); }
+.fg .hd-day[hidden] { display:none; }
 .fg .hd-dayh { margin:0; font-size:16px; font-weight:600; line-height:1.2; color:var(--hd-ink); }
 
 /* ── THE BODY: the tabs, then the one cell the faces slide through ──
    On the page's own paper, so that while it travels down to make room for
    the day's panel (home-day.tsx) it covers the panel it is uncovering,
    rather than its words passing over the panel's. */
-.fg .hd-body { flex:1; min-height:0; display:flex; flex-direction:column; background:var(--paper); }
+.fg .hd-body { flex:1; min-height:0; display:flex; flex-direction:column; background:var(--paper);
+  border-top:1px solid var(--hd-rule); }
 
 /* THE TABS. His grey words, no underline; the chosen one is ink and bold.
    The row is `flex:none` above the body, so it is pinned by where it

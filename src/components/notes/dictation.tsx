@@ -909,11 +909,20 @@ const WORD_STEP_MAX_MS = 210;
 
     `said` is NOT split into words. It is the record, not the arrival — it
     has already been read, it never animates, and splitting it would put
-    hundreds of spans in front of the handful that matter. */
+    hundreds of spans in front of the handful that matter.
+
+    FREE WORDS ARE NOT A WINDOW. On the Tiff modal your words stand free in
+    the conversation (his v10: "appear freely not in a text box"): the box is
+    as tall as what you have said, and the conversation around it is what
+    scrolls. So it neither rides nor fades. Measured as a window it misread
+    its own glide: each arriving word starts 4px low, that 4px was overflow,
+    and the fade took the whole first line of a box nothing had scrolled —
+    "some of the words are getting cut off" (Isaac, 2026-09-26). */
 export function LiveWords({
   said = "",
   text,
   line = false,
+  free = false,
   rows,
   className,
   label = "What you have said so far",
@@ -922,6 +931,8 @@ export function LiveWords({
   text: string;
   /** One line, riding sideways — the two field mics that ARE one line. */
   line?: boolean;
+  /** Free on the page, not a window (above): no ride, no fade. */
+  free?: boolean;
   /** What the textarea this stands in for was sized to. Block field mic only. */
   rows?: number;
   /** THE BOX IT IS STANDING IN. `.wb2-livetext` on the capture card, and in a
@@ -971,6 +982,7 @@ export function LiveWords({
        are one line have the same problem in the other axis, and a disabled
        input never scrolled at all, so the words being spoken sat off the
        right-hand edge where nobody could read them. */
+    if (free) return;
     if (line) {
       el.scrollLeft = el.scrollWidth;
       setScrolled(el.scrollWidth > el.clientWidth + 1);
@@ -978,7 +990,7 @@ export function LiveWords({
       el.scrollTop = el.scrollHeight;
       setScrolled(el.scrollHeight > el.clientHeight + 1);
     }
-  }, [said, text, line]);
+  }, [said, text, line, free]);
 
   /* AND MEASURED AGAIN WHEN THE BOX HAS FINISHED OPENING. The window eases
      three lines open over 300 ms the first time there is anything to show,
@@ -992,7 +1004,7 @@ export function LiveWords({
      box's own counts, or this re-renders once per word for nothing. */
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || free) return;
     const settle = (e: AnimationEvent) => {
       if (e.target !== el) return;
       setScrolled(
@@ -1001,7 +1013,7 @@ export function LiveWords({
     };
     el.addEventListener("animationend", settle);
     return () => el.removeEventListener("animationend", settle);
-  }, [line]);
+  }, [line, free]);
 
   return (
     <p
@@ -1009,7 +1021,7 @@ export function LiveWords({
         (className ? `${className} ` : "") +
         "wb2-lwbox" +
         (line ? " one" : "") +
-        (scrolled ? " over" : "")
+        (free ? " free" : scrolled ? " over" : "")
       }
       /* The block field mic stands in for a textarea sized by `rows`, and a
          paragraph has no such thing — the sheet does that arithmetic. */

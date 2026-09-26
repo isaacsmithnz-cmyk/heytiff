@@ -687,7 +687,7 @@ export type HomeListReads = {
   visits: VisitToBook[];
 };
 
-/** What the page already loads for today's Home, which the list places too.
+/** What the page already loads for Home, which the list places too.
     `DashboardData` is one of these as it stands. */
 export type HomeListBase = {
   viewerStaffId: string | null;

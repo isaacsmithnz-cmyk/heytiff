@@ -74,16 +74,17 @@ import { useNoteScope } from "./note-context";
    the sheet's button went 0×0). So the places are a list, and a test holds
    the stylesheet to a size rule for each.
 
-   ── TWO THINGS IT CAN OPEN, AND THE SWITCH DECIDES ──
+   ── IT OPENS THE TIFF MODAL ──
 
-   Where HOME_DESK gives this viewer the new Home (the owner first, then
-   everyone at the flip), the button opens THE TIFF MODAL — one light
-   conversation, app-wide, and opening means listening (Isaac, 2026-09-25:
-   "opening means listening, from every Tiff button", which reverses the
-   18 August door above for the people the switch lets in). Everyone else
-   keeps the capture sheet exactly as it is until the flip. The modal lives
-   in the frame's host (components/tiff/modal), so a second button cannot
-   start a second conversation over the first. */
+   The button opens THE TIFF MODAL — one light conversation, app-wide, and
+   opening means listening (Isaac, 2026-09-25: "opening means listening,
+   from every Tiff button", which reverses the 18 August door above). It
+   was the owner's first, behind HOME_DESK, and everyone's once the new
+   Home was (2026-09-26); the switch went with the old Home. The modal
+   lives in the frame's host (components/tiff/modal), so a second button
+   cannot start a second conversation over the first. A button drawn with
+   no host round it — nowhere in the frame — still opens the capture sheet,
+   until the old capture UI goes. */
 
 /** Where a Tiff button stands; each one is a `.tiffbtn-<place>` rule. */
 export const TIFF_BUTTON_PLACES = ["topbar", "sheet", "box"] as const;

@@ -7,23 +7,10 @@ import { Icon } from "./icon";
 import { Clock } from "./clock";
 import { Bell } from "./bell";
 import { TiffButton } from "@/components/notes/tiff-button";
-import { useTiffModalSwitch } from "@/components/tiff/modal/tiff-context";
 import type { ShellUser } from "./sidebar";
 import { useCommandPalette } from "./command-palette-context";
 
-export function Topbar({
-  user,
-  today,
-  tiffModal = false,
-}: {
-  user: ShellUser;
-  today: string;
-  /** HOME_DESK gives this viewer the Tiff modal. Asked on the server, where
-      the role is, and reported up to the frame's host from here — the way a
-      screen reports what it is about into the note scope. */
-  tiffModal?: boolean;
-}) {
-  useTiffModalSwitch(tiffModal);
+export function Topbar({ user, today }: { user: ShellUser; today: string }) {
   /* The opener comes from context, not a prop: this component is rendered as a
      SERVER slot (it needs the viewer's name and role), and a server slot can't
      be handed a client callback. */

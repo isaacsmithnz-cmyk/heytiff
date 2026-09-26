@@ -1,7 +1,7 @@
 import { daysUntil } from "@/lib/au-dates";
 import { daysDuration } from "@/lib/format/duration";
 import { fmtAuDayMonth as fmtDate } from "@/lib/au-dates";
-import type { DueState, NoticeKind, NoticeWithRead } from "./tasks";
+import type { DueState, NoticeKind } from "./tasks";
 
 /* The noticeboard's lifecycle rules — what a post IS, and whether it's still
    current. Pure, so the "is this expired" question is decided in one place and
@@ -83,15 +83,6 @@ export function partitionNotices<T extends Lifecycled>(
   return { active, archived };
 }
 
-/* Only CURRENT notices can be unread. An announcement that expired before you
-   opened the board is not something you're behind on — badging it would be
-   asking people to catch up on the past. */
-export function currentUnreadCount(
-  notices: readonly (NoticeWithRead & Lifecycled)[],
-  today: string,
-): number {
-  return notices.reduce(
-    (n, x) => n + (!x.mine && x.state !== "read" && isCurrent(x, today) ? 1 : 0),
-    0,
-  );
-}
+/* `currentUnreadCount` lived here: only a CURRENT notice could be unread,
+   and the old Home's rail badged the count. It went with that Home
+   (2026-09-26), and its tests with it. */

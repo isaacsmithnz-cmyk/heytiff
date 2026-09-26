@@ -149,7 +149,6 @@ const tiff = (isOpen: boolean): TiffApi => ({
   openedBy: null,
   isOpen,
   landed: null,
-  report: () => {},
 });
 
 const onFocusShown = jest.fn();

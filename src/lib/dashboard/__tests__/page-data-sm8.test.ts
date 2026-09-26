@@ -48,15 +48,12 @@ jest.mock("@/lib/expenses/query", () => ({
   ownDeclinedClaims: jest.fn(async () => []),
   pendingClaimsCount: jest.fn(async () => 0),
 }));
-jest.mock("../calendar", () => ({ buildCalendar: jest.fn(), calendarSpan: jest.fn() }));
 jest.mock("../journal-query", () => ({ listJournal: jest.fn() }));
 jest.mock("../job-candidates", () => ({ jobCandidates: jest.fn() }));
 jest.mock("../issues-query", () => ({ listOpenIssues: jest.fn() }));
 jest.mock("../tasks-query", () => ({
   myTasks: jest.fn(),
   teamTasks: jest.fn(),
-  recentlyDoneTasks: jest.fn(),
-  assignedByMeRecentlyDone: jest.fn(),
   listNotices: jest.fn(),
   NOTICE_WINDOW: 0,
   loadStaffNames: jest.fn(),
@@ -65,7 +62,7 @@ jest.mock("../tasks-query", () => ({
 jest.mock("@/lib/workboard/query", () => ({ sm8VendorOf: jest.fn(async () => ({ tz: null, connected: false })) }));
 jest.mock("@/lib/workboard/schedule-query", () => ({ EMPTY_SCHEDULE: {}, loadScheduleDay: jest.fn() }));
 jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: jest.fn() }));
-// the new Home's list, Tasks, calendar and diary reads (behind HOME_DESK) are page-data-desk's and their own suites'
+// the desk's list, Tasks, calendar and diary reads are page-data-desk's and their own suites'
 jest.mock("../home-list-query", () => ({ loadHomeList: jest.fn() }));
 jest.mock("../task-record-query", () => ({ loadTasksFace: jest.fn() }));
 jest.mock("@/lib/calendar/query", () => ({ loadCompanyCalendar: jest.fn() }));

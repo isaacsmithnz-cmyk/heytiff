@@ -1,18 +1,17 @@
-/* THE NEW HOME'S READS — one door, behind the flag (./desk-flag).
+/* THE NEW HOME'S READS — one door.
 
-   Six areas are being built into the new Home — the day, the diary, the
-   list, tasks, the calendar and Tiff — and every one of them needs
-   something the old Home never read. Left to themselves they would each
-   edit `loadDashboard`'s Promise.all, and two of them would read the same
-   rows again: the list and the calendar both place things by the expiry
-   window, and the calendar draws the org's credentials the bell already
-   reads.
+   Six areas were built into the new Home — the day, the diary, the list,
+   tasks, the calendar and Tiff — and every one of them needs something the
+   old Home never read. Left to themselves they would each edit
+   `loadDashboard`'s Promise.all, and two of them would read the same rows
+   again: the list and the calendar both place things by the expiry window,
+   and the calendar draws the org's credentials the bell already reads.
 
-   So there is one door. `loadDashboard` calls `loadDesk` only when the
-   viewer gets the new Home, inside the batch it already waits on, so the
-   crew on today's Home pay for nothing here. Each area adds ONE field to
-   `DeskData` and its read to `loadDesk`, and takes what it shares from the
-   context rather than asking again.
+   So there is one door. `loadDashboard` calls `loadDesk` inside the batch
+   it already waits on. (It was behind a switch, HOME_DESK, until the new
+   Home was everyone's on 2026-09-26; the switch went with the old Home.)
+   Each area adds ONE field to `DeskData` and its read to `loadDesk`, and
+   takes what it shares from the context rather than asking again.
 
    WHAT IS SHARED is read once, for everyone, before that batch: the expiry
    window and the org's credentials (which the bell's chips were already
@@ -91,8 +90,8 @@ export type DeskStart = {
   connected: boolean;
 };
 
-/** What the new Home carries beyond the old one's data. Null on
-    `DashboardData` whenever the viewer is on today's Home. */
+/** What the new Home carries beyond the page's shared data. Null on
+    `DashboardData` only for nobody signed in. */
 export type DeskData = {
   /** The expiry window, in days — the one the bell warns by, so the list's
       rows and the calendar's Due can never disagree with it. */

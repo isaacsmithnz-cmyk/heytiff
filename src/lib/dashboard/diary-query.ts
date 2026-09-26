@@ -9,10 +9,8 @@
    yours from HeyTiff goes into the conversation holding the note it
    answers, rather than standing on its own (./diary-reply).
 
-   Built for the new Home's loader (desk-data's `loadDesk`), which runs only
-   for a viewer the HOME_DESK flag gives the new Home, so nobody on today's
-   Home pays for a read here. The context is the loader's own; this takes
-   the part of it it needs. */
+   Built for Home's loader (desk-data's `loadDesk`). The context is the
+   loader's own; this takes the part of it it needs. */
 
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import type { Capability } from "@/lib/permissions";

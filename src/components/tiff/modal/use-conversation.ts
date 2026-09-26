@@ -37,7 +37,7 @@ import type { TiffLanded } from "./tiff-context";
 /* ONE CONVERSATION WITH TIFF — the modal's state, once.
 
    It replaces the review card's flow for the modal (the old `useNoteFlow`
-   keeps the crew's CaptureSheet until the flip). There is no Talk/Type door
+   stays with the old capture UI until that goes). There is no Talk/Type door
    and no review: opening means listening (Isaac, 2026-09-25, "opening means
    listening, from every Tiff button"), your words become a turn, Tiff
    answers with what she will file, asks only what she cannot work out, and

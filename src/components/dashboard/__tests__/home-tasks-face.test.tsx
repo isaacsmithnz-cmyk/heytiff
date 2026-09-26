@@ -116,7 +116,7 @@ const tiffOpen = jest.fn((_o: unknown) => true);
 type FaceProps = Partial<Parameters<typeof HomeTasksFace>[0]> & { rec: TaskRecord; landed?: TiffLanded | null };
 
 function Face({ rec, landed = null, ...over }: FaceProps) {
-  const tiff: TiffApi = { enabled: true, open: tiffOpen, openedBy: null, isOpen: false, landed, report: () => {} };
+  const tiff: TiffApi = { enabled: true, open: tiffOpen, openedBy: null, isOpen: false, landed };
   return (
     <TiffContext.Provider value={tiff}>
       <DeskJobHost manage={false} moneyVisible={false}>

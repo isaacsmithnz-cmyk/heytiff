@@ -1,12 +1,4 @@
-import { issueSeen, issueWhere } from "../issues";
-
-describe("issueSeen", () => {
-  it("says once for one, and counts the rest", () => {
-    expect(issueSeen(1)).toBe("once");
-    expect(issueSeen(0)).toBe("once");
-    expect(issueSeen(3)).toBe("3 times");
-  });
-});
+import { issueWhere } from "../issues";
 
 describe("issueWhere", () => {
   it("leads with the job number when there is one", () => {

@@ -1,39 +1,10 @@
-import { agoLabel, entryForTask, outcomeSummary, type JournalEntry, type Outcome } from "../journal";
+import { agoLabel, entryForTask, type JournalEntry, type Outcome } from "../journal";
 
-/* The diary's list row has one quiet line for what an entry made; the pane
-   says when it was made as a sentence; and a task finds the entry that made
-   it by looking, not by asking. Three derivations, tested as arithmetic. */
+/* How long ago, in whole units; and a task finds the entry that made it by
+   looking, not by asking. Two derivations, tested as arithmetic. (The old
+   diary's one-line count of what an entry made went with the old Home.) */
 
 const door = (text: string, id: string): Outcome => ({ kind: "todo", text, go: { type: "task", id } });
-
-describe("outcomeSummary", () => {
-  it("counts the doors by what they open and keeps the counts as they were said", () => {
-    expect(
-      outcomeSummary([
-        door("Order 2× MERV 11 filters", "t1"),
-        door("Hire a scissor lift", "t2"),
-        { kind: "kept", text: "Daikin VRV notes", go: { type: "kb", id: "k1" } },
-        { kind: "todo", text: "1 flag" },
-        { kind: "kept", text: "1 line kept", go: { type: "note", id: "n1" } },
-        { kind: "todo", text: "Middle rooftop unit has tripped again", go: { type: "issue", id: "i1" } },
-      ]),
-    ).toBe("2 tasks, 1 issue, 1 knowledge entry, 1 flag, 1 line kept");
-  });
-
-  it("speaks in the singular for one", () => {
-    expect(outcomeSummary([door("Order grilles", "t4")])).toBe("1 task");
-  });
-
-  it("is empty for an entry that made nothing — a real outcome, not an error", () => {
-    expect(outcomeSummary([])).toBe("");
-  });
-
-  it("reads a removed task as the count the resolver already made of it", () => {
-    expect(outcomeSummary([{ kind: "todo", text: "1 task removed" }, { kind: "todo", text: "1 issue" }])).toBe(
-      "1 task removed, 1 issue",
-    );
-  });
-});
 
 describe("agoLabel", () => {
   const today = "2026-09-14";

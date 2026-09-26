@@ -11,8 +11,8 @@ import type { NewAssignment } from "@/lib/dashboard/assignments";
    from there.
 
    NO CAPABILITY GATES EITHER OF THESE, and that is deliberate rather than an
-   oversight — the same reasoning `reminders.ts` spells out. `createTask`
-   requires `team` because assigning work to somebody else is a management
+   oversight — the same reasoning `reminders.ts` spells out. `giveTask`
+   requires `team` because handing work to somebody else is a management
    action; being told what you were given is not, and gating it would mean a
    tradesperson without `team` could be assigned work and never told.
 

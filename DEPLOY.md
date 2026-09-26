@@ -59,6 +59,7 @@ your local `.env.local`), scope = **Production** (and Preview if you want previe
 | `MAIL_FROM` | Overrides the sender on those letters. Optional — defaults to `HeyTiff <no-reply@mail.hey-tiff.com>`. Must be an address on a **verified** Resend domain, or every send is refused. |
 | `INTEGRATIONS_TOKEN_KEY` | 32-byte key that seals OAuth tokens before they reach the database. Required to connect anything — without it the Connect button is switched off rather than storing tokens in plaintext. |
 | `CRON_SECRET` | Guards the scheduled routes (`/api/cron/*`). **You create it**: Vercel → Settings → Environment Variables, Production, a random string of at least 16 characters. Once it exists, Vercel sends it as `Authorization: Bearer <CRON_SECRET>` on every scheduled call. **Unset ⇒ every cron request is refused** (fail-closed): the routes run with no session and service-role access, so the secret is the only gate. |
+| `HOME_DESK` | **Gone — nothing reads it.** It switched the new Home on (`off`, `owner`, `on`) while it was built; it was set to `on` on 2026-09-26, and the switch went with the old Home. The new Home, the Tiff modal and the ServiceM8 asks' tasks are everyone's with or without it. Delete it from Vercel whenever convenient. |
 
 ---
 
@@ -309,8 +310,9 @@ exactly as it was, and every one of these actions answers before any read.
 **Done and Undo** (PR C): apply `docs/migrations/task_done_sm8.sql` before
 its deploy, after A's. It adds the one-Done rule (a unique index: one live
 Done per task) and three indexes. Once notes are offered, **ticking a task
-made from a ServiceM8 mention by hand** (the Tasks face, the day band, the
-bell, the Workboard's Urgent tab) files "@<asker> Done." in the job's diary,
+made from a ServiceM8 mention by hand** (on Home: Your day's Mark done,
+the list's tick, the Tasks face; the bell; the Workboard's Urgent tab)
+files "@<asker> Done." in the job's diary,
 threaded under the note that asked, and sends it to ServiceM8 as whoever
 ticked. **Reopen** takes it back: if it hadn't gone, it never goes; if it
 went, it is taken out of ServiceM8. Only whoever sent it can; anyone else's
@@ -319,16 +321,16 @@ closes its task posts that reply and no Done, and Reopen never takes a
 reply back. The task's page says where its Done stands, with Send again or
 Try again; if it didn't go, the ticker's bell says so and opens the task
 (`/dashboard?task=<id>`). Deleting a task never touches its Done: it stays
-in the diary, where its sender can still Undo it. One visible change comes
-with it once notes are on: the Tasks face's **Done** group also lists what
-you ticked for somebody else, so its Done's line is there for you to read.
-With `SM8_WRITES=1` a tick is exactly the one read and one write it always
-was. **The new Home (`HOME_DESK`, the owner's) shows the same lines:** its
-Tasks face is handed each task's Done lines, it opens at `?task=<id>`, and
-its own ticks (Your day's Mark done, the list's tick) and the list's Undo
-pass `postDone` and `takeBackDone`. `task-sm8-callers.test.ts` holds all
-three, for every Home the page can draw. Isaac walks live test 13 ("A Done
-by ticking, then Reopen") on the Home he sees, bell item included. Its
+in the diary, where its sender can still Undo it. The Tasks face's **Done**
+group lists what you ticked for somebody else too, so its Done's line is
+there for you to read. With `SM8_WRITES=1` a tick is exactly the one read
+and one write it always was. Home's Tasks face is handed each task's Done
+lines, Home opens at `?task=<id>`, and every tick on it (Your day's Mark
+done, the list's tick, the Tasks face) and every Undo or Not done yet pass
+`postDone` and `takeBackDone`. `task-sm8-callers.test.ts` holds all
+three. (The old Home, with its own Tasks face and day band, went on
+2026-09-26 with the `HOME_DESK` switch.) Isaac walks live test 13 ("A Done
+by ticking, then Reopen") on Home, bell item included. Its
 diary's ServiceM8 conversations aren't on screen yet; when they are, a
 reply HeyTiff sent is an echo there (mentions-query leaves ours out), so
 it has to be threaded from its `workboard_notes` row before notes go on.

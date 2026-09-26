@@ -120,7 +120,6 @@ const tiff = (over: Partial<TiffApi> = {}): TiffApi => ({
   openedBy: null,
   isOpen: false,
   landed: null,
-  report: () => {},
   ...over,
 });
 

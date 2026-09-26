@@ -1,12 +1,10 @@
 import {
   asNoticeKind,
-  currentUnreadCount,
   expiryLabel,
   isCurrent,
   noticeLifecycle,
   partitionNotices,
 } from "../notices";
-import type { NoticeWithRead } from "../tasks";
 
 const TODAY = "2026-07-20";
 
@@ -122,41 +120,3 @@ describe("partitionNotices", () => {
   });
 });
 
-describe("currentUnreadCount", () => {
-  const notice = (id: string, over: Partial<NoticeWithRead> = {}): NoticeWithRead => ({
-    id,
-    title: id,
-    body: null,
-    pinned: false,
-    postedById: null,
-    postedByName: null,
-    createdAt: "2026-07-01T00:00:00Z",
-    revision: 1,
-    editedAt: null,
-    kind: "notice",
-    expiresAt: null,
-    archivedAt: null,
-    ackedRevision: null,
-    state: "unread",
-    mine: false,
-    readBy: 0,
-    audience: 0,
-    ...over,
-  });
-
-  it("counts unread notices still on the board", () => {
-    expect(currentUnreadCount([notice("a"), notice("b", { state: "read" })], TODAY)).toBe(1);
-  });
-
-  it("never asks anyone to catch up on an expired notice", () => {
-    expect(currentUnreadCount([notice("a", { expiresAt: "2026-07-01" })], TODAY)).toBe(0);
-  });
-
-  it("ignores archived notices", () => {
-    expect(currentUnreadCount([notice("a", { archivedAt: "2026-07-02T00:00:00Z" })], TODAY)).toBe(0);
-  });
-
-  it("still never counts your own", () => {
-    expect(currentUnreadCount([notice("a", { mine: true })], TODAY)).toBe(0);
-  });
-});

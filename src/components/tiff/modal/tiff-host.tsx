@@ -7,20 +7,16 @@ import { prefersStill } from "./box-motion";
 import { TiffContext, type TiffApi, type TiffLanded, type TiffOpen } from "./tiff-context";
 import { TiffModal, type TiffClosed, type TiffSession } from "./tiff-modal";
 
-export { useTiff, useTiffModalSwitch } from "./tiff-context";
+export { useTiff } from "./tiff-context";
 export type { TiffLanded, TiffOpen } from "./tiff-context";
 
 /* THE TIFF MODAL'S HOST — one conversation, app-wide.
 
    Mounted once, in the dashboard layout, inside the note scope, and INERT:
-   nothing renders and nothing is read until a Tiff button opens it. The
-   layout stays synchronous — whether this viewer gets the modal is not
-   something the layout awaits. The top bar already knows the viewer's role
-   (its slot is a server component), so it asks `deskOn(role)` there and
-   reports the answer UP, the way a screen reports what it is about into the
-   note scope. Until it has, and for everyone the switch leaves out, every
-   Tiff button opens the capture sheet it always has (the crew keep it until
-   the flip).
+   nothing renders and nothing is read until a Tiff button opens it. Every
+   Tiff button opens it, for everyone (the HOME_DESK switch that once kept
+   the crew on the capture sheet went with the old Home, 2026-09-26), so
+   the layout stays synchronous and awaits nothing for it.
 
    ONE AT A TIME. A second press while a conversation is open is refused
    rather than starting another over it.
@@ -38,16 +34,13 @@ export const LANDED_MS = 2000;
 
 export function TiffModalProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [enabled, setEnabled] = useState(false);
   const [session, setSession] = useState<TiffSession | null>(null);
   const [landed, setLanded] = useState<TiffLanded | null>(null);
   const opened = useRef(0);
 
-  const report = useCallback((on: boolean) => setEnabled(on), []);
-
   const open = useCallback(
     (o: TiffOpen) => {
-      if (!enabled || session) return false;
+      if (session) return false;
       const r = o.from.getBoundingClientRect();
       const next: TiffSession = {
         n: ++opened.current,
@@ -70,7 +63,7 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
       setSession((s) => s ?? next);
       return true;
     },
-    [enabled, session]
+    [session]
   );
 
   const closed = useCallback(
@@ -96,14 +89,13 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
 
   const api = useMemo<TiffApi>(
     () => ({
-      enabled,
+      enabled: true,
       open,
       openedBy: session?.openerId ?? null,
       isOpen: !!session,
       landed,
-      report,
     }),
-    [enabled, open, session, landed, report]
+    [open, session, landed]
   );
 
   return (

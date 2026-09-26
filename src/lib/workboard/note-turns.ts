@@ -1,6 +1,6 @@
 /* A NOTE IS A CONVERSATION — the turns, pure.
 
-   The Tiff modal (the new Home's, behind HOME_DESK) talks rather than showing
+   The Tiff modal (every Tiff button's, app-wide) talks rather than showing
    a review card: you say it, Tiff answers with what she will file and asks
    what she cannot work out, you reply, and she files the moment nothing is
    left to ask. `workboard_notes.turns` (docs/migrations/tiff_modal_turns.sql)

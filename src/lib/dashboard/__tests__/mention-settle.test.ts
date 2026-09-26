@@ -220,7 +220,6 @@ const openTask = (id: string, title: string, over: Row = {}): Row => ({
 });
 
 beforeEach(() => {
-  process.env.HOME_DESK = "owner";
   keyed = true;
   clock = Date.parse("2026-09-25T00:00:00Z");
   readTakes = 0;
@@ -258,9 +257,6 @@ beforeEach(() => {
   jest.spyOn(console, "error").mockImplementation(() => {});
 });
 afterEach(() => jest.restoreAllMocks());
-afterAll(() => {
-  delete process.env.HOME_DESK;
-});
 
 describe("one task per ask", () => {
   it("makes the ask one task on the list of the person asked, and records it", async () => {
@@ -375,9 +371,9 @@ describe("one task per ask", () => {
   });
 
   /* Nobody gave it to Isaac: it is his own. A task made "by nobody" is
-     delegated work (tasks.ts isDelegated), and today's Home shows the
+     delegated work (tasks.ts isDelegated), and Home's list shows the
      team's delegated work to anyone with `team` — an admin would see
-     Isaac's automatic tasks on the old Tasks face before the flip. */
+     Isaac's automatic tasks there. */
   it("makes it the person's own task, never delegated work a manager's team list shows", async () => {
     await settle();
     const [t] = tasksTable();
@@ -458,33 +454,20 @@ describe("an ask the job card's strip already answered", () => {
 });
 
 describe("who it reads for", () => {
-  it("reads nothing at all while the flag is off", async () => {
-    process.env.HOME_DESK = "off";
-    const out = await settle();
-    expect(out.skipped).toBe("off");
-    expect(sm8StaffLinkMap).not.toHaveBeenCalled();
-    expect(listMyMentions).not.toHaveBeenCalled();
-  });
-
-  /* The crew's old Tasks face never shows a task Tiff made before the flip:
-     under `owner`, Michael (staff) is not read for, even when Luke asks him. */
-  it("reads only for the people the flag gives the new Home, asked of their own role", async () => {
+  /* The new Home is everyone's (2026-09-26): the HOME_DESK switch that kept
+     the crew's old Tasks face free of tasks it had no words for went with
+     it, so Michael (staff) is read for as Isaac (the owner) is. */
+  it("reads for everyone linked who can see the board, whatever their role", async () => {
     notes = [ASK_MARY, note("n-ladder", LUKE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
-    await settle();
-    expect(listMyMentions.mock.calls.map((c) => c[1])).toEqual([ISAAC.uuid]);
-    expect(tasksTable().map((t) => t.assigned_to)).toEqual(["s-isaac"]);
-
-    // after the flip, Michael too
-    process.env.HOME_DESK = "on";
-    listMyMentions.mockClear();
     await settle();
     expect(listMyMentions.mock.calls.map((c) => c[1]).sort()).toEqual([ISAAC.uuid, MICHAEL.uuid].sort());
     expect(tasksTable().map((t) => t.assigned_to).sort()).toEqual(["s-isaac", "s-michael"]);
   });
 
-  /* Michael owns a workspace of his own. Here he is crew, and his role
-     here is the one that counts. */
+  /* Michael owns a workspace of his own. Here he is crew without the board,
+     and what he holds here is what counts. */
   it("asks a person's role in this workspace, never one they hold in another", async () => {
+    db.memberships[1].permissions = { workboard: false };
     db.memberships.push({ user_id: "auth|michael", org_id: "org-2", role: "owner", permissions: null });
     notes = [note("n-ladder", LUKE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
     await settle();
@@ -507,7 +490,6 @@ describe("who it reads for", () => {
   });
 
   it("reads for nobody who can't see the board, or whom integration_links doesn't name", async () => {
-    process.env.HOME_DESK = "on";
     db.memberships[1].permissions = { workboard: false };
     links = new Map([[ISAAC.uuid, "s-isaac"]]);
     notes = [note("n-ladder", LUKE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];

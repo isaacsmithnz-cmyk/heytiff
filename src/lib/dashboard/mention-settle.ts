@@ -7,7 +7,6 @@ import { plusDays, todayInZone } from "@/lib/workboard/dates";
 import { sm8Roster, type Sm8Person } from "@/lib/workboard/job-notes-query";
 import { canReadAsks, readAsk, readReply, READ_TIMEOUT_MS, type AskKind } from "@/lib/workboard/mention-brain";
 import { sm8VendorOf } from "@/lib/workboard/query";
-import { deskMode, deskOn } from "./desk-flag";
 import type { DiaryConversation, DiaryMessage } from "./diary-feed";
 import { asksIn, taskAfterReply } from "./mention-asks";
 import { listMyMentions } from "./mentions-query";
@@ -22,18 +21,16 @@ import { logTaskEvent, missingTable } from "./task-events";
    nightly cron — and files what the mirror brought in.
 
    WHO IT READS FOR. A person integration_links names (a name is never a
-   link), whose role the HOME_DESK flag gives the new Home (./desk-flag's
-   `deskOn`, asked of THEIR role in THIS workspace, not the viewer's), and
-   who holds `workboard`, the gate the diary's mentions sit behind. So until
-   the flip the crew's Home — whose Tasks face would show an automatic task
-   it has no words for — never gets one, and with the flag off nothing here
-   reads at all.
+   link) who holds `workboard` in THIS workspace — asked of their role, not
+   the viewer's — the gate the diary's mentions sit behind. (Until the new
+   Home was everyone's, 2026-09-26, the HOME_DESK switch narrowed this to
+   the people it gave the new Home, so the old Tasks face never showed an
+   automatic task it had no words for. The switch went with the old Home.)
 
    ON THEIR OWN LIST. The task is made as the person's own (created_by is
    them): nobody gave it to them, so it is nobody's delegated work, and no
-   manager's team list (tasks-query's teamTasks, which today's Home shows
-   anyone with `team`) picks it up before the flip. It is theirs to tick
-   off, move or delete.
+   manager's team list (tasks-query's teamTasks, which the list shows anyone
+   with `team`) picks it up. It is theirs to tick off, move or delete.
 
    WHAT AN ASK IS: the diary's own reading (./mentions-query's
    listMyMentions and ./diary-feed's threads, `asksIn`), so the settle and
@@ -131,7 +128,7 @@ export type SettleOutcome = {
   /** The reader was out, and the run stopped there. */
   outage: boolean;
   /** Why nothing was tried, when it wasn't. */
-  skipped: null | "off" | "no-key" | "no-time" | "nobody" | "no-table";
+  skipped: null | "no-key" | "no-time" | "nobody" | "no-table";
 };
 
 type Status = "reading" | "read" | "failed";
@@ -200,7 +197,7 @@ async function readersOf(orgId: string, links: ReadonlyMap<string, string>, peop
   const may = new Set<string>();
   for (const m of (members ?? []) as { user_id: string; role: unknown; permissions: unknown }[]) {
     const role = roleOf(m.role);
-    if (deskOn(role) && resolve(role, m.permissions).has("workboard")) may.add(m.user_id);
+    if (resolve(role, m.permissions).has("workboard")) may.add(m.user_id);
   }
 
   const out: Reader[] = [];
@@ -231,7 +228,6 @@ export async function settleMentionAsks(
   /* A read starts only while its own timeout still fits the budget. */
   const fits = () => out.reads < max && now() - started + READ_TIMEOUT_MS <= opts.budgetMs;
 
-  if (deskMode() === "off") return { ...out, skipped: "off" };
   if (!canReadAsks()) return { ...out, skipped: "no-key" };
   if (!fits()) return { ...out, skipped: "no-time" };
 

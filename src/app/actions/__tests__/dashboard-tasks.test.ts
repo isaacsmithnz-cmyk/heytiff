@@ -70,7 +70,7 @@ jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: jest.fn(async () => s
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: jest.fn(async () => null) }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
-import { addTask, completeTask, createTask, giveTask, reopenTask, setTaskDue } from "../dashboard";
+import { addTask, completeTask, giveTask, reopenTask, setTaskDue } from "../dashboard";
 
 const events = () => inserts.filter((w) => w.table === "task_events").map((w) => w.row);
 const taskUpdates = () => updates.filter((w) => w.table === "tasks").map((w) => w.row);
@@ -274,23 +274,5 @@ describe("every task read and write stays inside the caller's workspace", () => 
       expect(scope).toEqual({ org_id: "org-1", id: "t1" });
       expect([undefined, "open", "done"]).toContain(status);
     }
-  });
-});
-
-describe("createTask — the old Home's Assign form, unchanged but for its history", () => {
-  it("still makes the task for the person picked, and records who that was", async () => {
-    allowed = new Set(["team"]);
-    expect(await createTask({ assignedTo: "s-luke", title: "Order the grilles", dueDate: "2026-10-02" })).toEqual({
-      ok: true,
-    });
-    expect(inserts[0].row).toMatchObject({ assigned_to: "s-luke", created_by: "s-me", due_date: "2026-10-02" });
-    expect(events()).toEqual([expect.objectContaining({ kind: "created", to_staff: "s-luke", by_staff: "s-me" })]);
-  });
-
-  it("still needs `team`", async () => {
-    expect(await createTask({ assignedTo: "s-luke", title: "Order the grilles" })).toEqual({
-      ok: false,
-      error: "You can't assign tasks.",
-    });
   });
 });

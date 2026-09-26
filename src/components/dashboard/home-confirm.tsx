@@ -7,9 +7,9 @@ import { useEffect, useRef } from "react";
    question, the verb again, and Keep — and focus lands on Keep, so a
    second Enter backs out rather than deletes.
 
-   Today's Home has its own copy in its Tasks face (./home-tasks), in the
-   `hm-` dress that goes with it at the flip; this one wears the new Home's
-   and is the one its faces share. */
+   The old Home's Tasks face had its own copy, in the `hm-` dress, and it
+   went with that Home (2026-09-26); this one wears the new Home's and is
+   the one its faces share. */
 export function Confirm({
   question = "Delete for good?",
   verb = "Delete",

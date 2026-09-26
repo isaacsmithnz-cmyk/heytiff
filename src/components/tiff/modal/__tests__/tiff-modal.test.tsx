@@ -5,7 +5,7 @@ import { NoteScopeProvider, NoteScopeScreen } from "@/components/notes/note-cont
 import { TiffButton } from "@/components/notes/tiff-button";
 import { GATHER_MS } from "@/components/ui/dot-field";
 import { KEPT_AS_SAID, WHICH_JOB } from "@/lib/workboard/note-turns";
-import { TiffModalProvider, useTiff, useTiffModalSwitch } from "../tiff-host";
+import { TiffModalProvider, useTiff } from "../tiff-host";
 import { CLOUD_MS, NOT_REACHED } from "../use-conversation";
 
 /* THE TIFF MODAL, walked as Isaac will walk it: the top bar's button, owner
@@ -123,16 +123,12 @@ function motion(still: boolean) {
   })) as unknown as typeof window.matchMedia;
 }
 
-function Switch({ on }: { on: boolean }) {
-  useTiffModalSwitch(on);
-  return null;
-}
-
-function Harness({ voice = true, on = true, extra }: { voice?: boolean; on?: boolean; extra?: React.ReactNode }) {
+/* The host is on for everyone it is mounted for: nothing switches it on
+   (the HOME_DESK switch went with the old Home, 2026-09-26). */
+function Harness({ voice = true, extra }: { voice?: boolean; extra?: React.ReactNode }) {
   return (
     <NoteScopeProvider voiceEnabled={voice}>
       <TiffModalProvider>
-        <Switch on={on} />
         <TiffButton />
         {extra}
       </TiffModalProvider>
@@ -257,9 +253,13 @@ describe("opening", () => {
     expect(within(dialog()).getByRole("button", { name: "Clear the tag — not about Meridian Data, CRACs" })).toBeInTheDocument();
   });
 
-  it("leaves the crew on the capture sheet: switched off, the button opens what it always has", async () => {
+  it("opens the capture sheet only for a button with no host round it, which nothing in the frame is", async () => {
     const user = userEvent.setup();
-    render(<Harness on={false} />);
+    render(
+      <NoteScopeProvider voiceEnabled>
+        <TiffButton />
+      </NoteScopeProvider>
+    );
     await user.click(topButton());
     expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
     expect(document.querySelector(".wb2-capcard")).not.toBeNull();

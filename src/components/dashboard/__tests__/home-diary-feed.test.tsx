@@ -22,6 +22,17 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }),
   usePathname: () => "/dashboard",
 }));
+/* The diary's own writes (Edit, Delete, Hide): "use server", stubbed. */
+const editDiaryEntry = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+const deleteDiaryEntry = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+const hideConversation = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+const showConversation = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+jest.mock("@/app/actions/diary", () => ({
+  editDiaryEntry: (...a: unknown[]) => editDiaryEntry(...a),
+  deleteDiaryEntry: (...a: unknown[]) => deleteDiaryEntry(...a),
+  hideConversation: (...a: unknown[]) => hideConversation(...a),
+  showConversation: (...a: unknown[]) => showConversation(...a),
+}));
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
 /* A conversation's job door opens the desk's card, which with its server
    action cannot load here; the conversations have their own suite. */
@@ -802,5 +813,96 @@ describe("what Tiff made of it", () => {
     });
     expect(lit("e-talked")).toBe(false);
     expect(itemOf("e-talked").querySelector(".hd-dy-m")!.textContent).toBe("You, just now");
+  });
+});
+
+/* "you should only be able to delete your own entries or edit" (Isaac,
+   2026-09-26) — every entry in this column is your own. */
+describe("your own entry", () => {
+  const acts = (id: string) => within(itemOf(id).querySelector<HTMLElement>(".hd-dy-mh")!);
+
+  it("offers Edit and Delete at the end of the line that says when", () => {
+    draw();
+    expect(acts("e1").getByRole("button", { name: "Edit" })).toHaveClass("hd-dy-act");
+    expect(acts("e1").getByRole("button", { name: "Delete" })).toHaveClass("hd-dy-act");
+  });
+
+  it("offers no Edit for a note ServiceM8 holds too, which is changed there — Delete takes it back", () => {
+    draw({ diary: diary([entry({ inSm8: true })]) });
+    expect(acts("e1").queryByRole("button", { name: "Edit" })).toBeNull();
+    expect(acts("e1").getByRole("button", { name: "Delete" })).toBeInTheDocument();
+  });
+
+  it("edits the words in place: Save keeps them, and they show at once", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(acts("e1").getByRole("button", { name: "Edit" }));
+    const words = within(itemOf("e1")).getByRole("textbox", { name: "Your words" });
+    expect(words).toHaveValue(SICK.said);
+    expect(document.activeElement).toBe(words);
+    await user.clear(words);
+    await user.type(words, "Mark me sick for Monday");
+    await user.click(within(itemOf("e1")).getByRole("button", { name: "Save" }));
+    expect(editDiaryEntry).toHaveBeenCalledWith("e1", "Mark me sick for Monday");
+    expect(itemOf("e1").querySelector(".hd-dy-p")!.textContent).toBe("Mark me sick for Monday");
+    // back where it was pressed
+    expect(document.activeElement).toBe(acts("e1").getByRole("button", { name: "Edit" }));
+  });
+
+  it("keeps them on Enter, lets them go on Escape, and takes a new line on Shift+Enter", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(acts("e1").getByRole("button", { name: "Edit" }));
+    let words = within(itemOf("e1")).getByRole("textbox", { name: "Your words" });
+    await user.type(words, "{Escape}");
+    expect(within(itemOf("e1")).queryByRole("textbox")).toBeNull();
+    expect(editDiaryEntry).not.toHaveBeenCalled();
+
+    await user.click(acts("e1").getByRole("button", { name: "Edit" }));
+    words = within(itemOf("e1")).getByRole("textbox", { name: "Your words" });
+    await user.type(words, "{Shift>}{Enter}{/Shift}and Tuesday{Enter}");
+    expect(editDiaryEntry).toHaveBeenCalledWith("e1", `${SICK.said}\nand Tuesday`);
+  });
+
+  it("says why when the edit is refused, and keeps the box open with your words", async () => {
+    const user = userEvent.setup();
+    editDiaryEntry.mockResolvedValueOnce({ ok: false, error: "That one is in ServiceM8 now, so change it there." } as never);
+    draw();
+    await user.click(acts("e1").getByRole("button", { name: "Edit" }));
+    await user.type(within(itemOf("e1")).getByRole("textbox", { name: "Your words" }), " too");
+    await user.click(within(itemOf("e1")).getByRole("button", { name: "Save" }));
+    expect(within(itemOf("e1")).getByRole("status")).toHaveTextContent("That one is in ServiceM8 now, so change it there.");
+    expect(within(itemOf("e1")).getByRole("textbox", { name: "Your words" })).toHaveValue(`${SICK.said} too`);
+  });
+
+  it("asks twice before a delete, with Keep taking the keyboard, and Keep leaves it be", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(acts("e1").getByRole("button", { name: "Delete" }));
+    const ask = within(itemOf("e1")).getByRole("group", { name: "Delete this entry for good?" });
+    expect(document.activeElement).toBe(within(ask).getByRole("button", { name: "Keep" }));
+    await user.click(within(ask).getByRole("button", { name: "Keep" }));
+    expect(deleteDiaryEntry).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(acts("e1").getByRole("button", { name: "Delete" }));
+  });
+
+  it("deletes it on the second press: it goes, and the keyboard lands on the entry under it", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(acts("e1").getByRole("button", { name: "Delete" }));
+    await user.click(within(itemOf("e1")).getByRole("button", { name: "Delete" }));
+    expect(deleteDiaryEntry).toHaveBeenCalledWith("e1");
+    expect(document.querySelector('[data-entry="e1"]')).toBeNull();
+    expect(document.activeElement).toBe(itemOf("e-wipers").querySelector(".hd-dy-en"));
+  });
+
+  it("stays, saying why, when the delete is refused", async () => {
+    const user = userEvent.setup();
+    deleteDiaryEntry.mockResolvedValueOnce({ ok: false, error: "Couldn't delete that." } as never);
+    draw();
+    await user.click(acts("e1").getByRole("button", { name: "Delete" }));
+    await user.click(within(itemOf("e1")).getByRole("button", { name: "Delete" }));
+    expect(itemOf("e1")).toBeInTheDocument();
+    expect(within(itemOf("e1")).getByRole("status")).toHaveTextContent("Couldn't delete that.");
   });
 });

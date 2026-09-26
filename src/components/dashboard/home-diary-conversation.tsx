@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { hideConversation, showConversation } from "@/app/actions/diary";
 import {
   conversationHead,
   conversationUnder,
@@ -40,7 +41,19 @@ import { useDeskJobs } from "./home-job-sheet";
    message from him is a new light. A door from another face (a task the
    ask made) lights the
    whole conversation the same way; the diary brings it up and gives it the
-   focus. */
+   focus.
+
+   HIDE is the one thing you may do to somebody else's conversation (Isaac,
+   2026-09-26: "the option to hide/archive other peoples"): it goes out of
+   your diary until they write again (actions/diary, lib/dashboard/
+   diary-hidden). It sits at the end of the line that says who and when,
+   shown while the pointer is on it or the keyboard is in it (law 24). The
+   conversation folds to one line that says so, with Undo, until the page
+   next comes round and leaves it out; nothing in ServiceM8 changes, and
+   the task the ask made stays where it is. */
+
+/** A press whose answer never came back: pressed again, it is said again. */
+const DIDNT_GO = "That didn't go through. Try again.";
 
 export function HomeDiaryConversation({
   item,
@@ -92,6 +105,58 @@ export function HomeDiaryConversation({
   }, [freshKey, showing]);
   const lit = fresh !== null && freshKey !== spent ? fresh : null;
 
+  /* HIDE (above): drawn hidden at once, and put back, with the action's
+     words, if it is refused. The keyboard follows the one button there is:
+     Undo once hidden, Hide once back. */
+  const [hidden, setHidden] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+  const hideButton = useRef<HTMLButtonElement>(null);
+  const undoButton = useRef<HTMLButtonElement>(null);
+  const follow = useRef(false);
+  useLayoutEffect(() => {
+    if (!follow.current) return;
+    follow.current = false;
+    (hidden ? undoButton.current : hideButton.current)?.focus({ preventScroll: true });
+  }, [hidden]);
+  const toggle = async (hide: boolean) => {
+    if (busy) return;
+    setBusy(true);
+    setSaid(null);
+    follow.current = true;
+    setHidden(hide);
+    let res: { ok: true } | { ok: false; error: string };
+    try {
+      res = hide ? await hideConversation(c.key) : await showConversation(c.key);
+    } catch {
+      res = { ok: false, error: DIDNT_GO };
+    }
+    setBusy(false);
+    if (res.ok) return;
+    follow.current = true;
+    setHidden(!hide);
+    setSaid(res.error);
+  };
+
+  if (hidden) {
+    return (
+      <li className="hd-dy-it" data-item={item} data-conversation={c.key}>
+        <p className="hd-dy-hid">
+          <span role="status">Hidden until {c.asker.first} writes again.</span>
+          <button
+            type="button"
+            className="hd-dy-undo"
+            ref={undoButton}
+            aria-disabled={busy || undefined}
+            onClick={() => void toggle(false)}
+          >
+            Undo
+          </button>
+        </p>
+      </li>
+    );
+  }
+
   return (
     <li className="hd-dy-it" data-item={item} data-conversation={c.key}>
       {/* focusable by script alone: a door from another face lands here */}
@@ -100,10 +165,28 @@ export function HomeDiaryConversation({
           {theirs}
         </span>
         <div className="hd-dy-bd">
-          <p className="hd-dy-m">
-            <b>{head.who}</b>
-            {head.rest}
-          </p>
+          <div className="hd-dy-mh">
+            <p className="hd-dy-m">
+              <b>{head.who}</b>
+              {head.rest}
+            </p>
+            <span className="hd-dy-acts">
+              <button
+                type="button"
+                className="hd-dy-act"
+                ref={hideButton}
+                aria-disabled={busy || undefined}
+                onClick={() => void toggle(true)}
+              >
+                Hide
+              </button>
+            </span>
+          </div>
+          {said && (
+            <p className="hd-dy-note hd-dy-said" role="status">
+              {said}
+            </p>
+          )}
           {ask?.text ? <p className="hd-dy-p">{ask.text}</p> : null}
           {thread.length > 0 && (
             <ol className="hd-dy-thread">

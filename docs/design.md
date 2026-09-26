@@ -380,6 +380,21 @@ Every decision below is made once, here, and a guard test holds each number.
   be refused, and not while nothing it made is left. Taken back, your
   words stay and Tiff's line says what went, counting only what was still
   there.
+  Your own entry is yours to edit or delete, and someone else's
+  conversation yours only to hide ("you should only be able to delete
+  your own entries or edit. with the option to hide/archive other
+  peoples", 2026-09-26). Edit and Delete, and a conversation's Hide, are
+  quiet words at the end of the line that says who and when, there while
+  the pointer is on the entry or the keyboard is in it (law 24), a fill on
+  hover. Edit turns the words into a box of the same words, Save or Enter
+  keeping them and Cancel or Escape leaving them; it is not offered for a
+  note ServiceM8 holds too, which is changed there. Delete asks twice, as
+  Delete task does, and takes the entry off by the job card's rule: a note
+  that never left HeyTiff is deleted, one that went to ServiceM8 is taken
+  back; what it made stays. Hide folds the conversation to "Hidden until
+  Luke writes again." with Undo, and it stays out of the diary until the
+  asker writes after it was hidden; nothing in ServiceM8 changes, and the
+  task the ask made stays.
   Someone who asked you something in a ServiceM8 job note is a
   conversation in the same column ("if someone mentions you, it can show
   up in diary", 2026-09-24): their initials ink in his grey disc, "Luke

@@ -45,6 +45,17 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   answerClarify: jest.fn(),
   dismissNote: jest.fn(),
 }));
+/* The diary's own writes (Edit, Delete, Hide): "use server", stubbed. */
+const editDiaryEntry = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+const deleteDiaryEntry = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+const hideConversation = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+const showConversation = jest.fn(async (..._a: unknown[]) => ({ ok: true as const }));
+jest.mock("@/app/actions/diary", () => ({
+  editDiaryEntry: (...a: unknown[]) => editDiaryEntry(...a),
+  deleteDiaryEntry: (...a: unknown[]) => deleteDiaryEntry(...a),
+  hideConversation: (...a: unknown[]) => hideConversation(...a),
+  showConversation: (...a: unknown[]) => showConversation(...a),
+}));
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: jest.fn(), push: jest.fn() }),

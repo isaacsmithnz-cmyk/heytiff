@@ -12005,6 +12005,31 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-dy-undo[aria-disabled="true"] { color:var(--q); cursor:default; }
 .fg .hd-dy-undo:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hd-dy-said:empty { position:absolute; }
+/* YOUR ENTRY'S EDIT AND DELETE, SOMEONE ELSE'S HIDE (home-diary-feed,
+   home-diary-conversation): quiet words at the end of the line that says
+   who and when, there while the pointer is on the entry or the keyboard is
+   in it (law 24). A hover is a fill (law 23). */
+.fg .hd-dy-mh { display:flex; align-items:center; gap:8px; }
+.fg .hd-dy-mh > .hd-dy-m { flex:1; min-width:0; }
+.fg .hd-dy-acts { display:flex; flex:none; gap:4px; opacity:0; transition:opacity var(--t-fast) var(--ease); }
+.fg .hd-dy-en:hover .hd-dy-acts, .fg .hd-dy-en:focus-within .hd-dy-acts { opacity:1; }
+.fg .hd-dy-act { height:28px; padding:0 8px; border:0; border-radius:6px; background:none; font:inherit;
+  font-size:13px; font-weight:500; color:var(--hd-body); cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-dy-act:hover { background:var(--tint); }
+.fg .hd-dy-act[aria-disabled="true"] { cursor:default; }
+.fg .hd-dy-act:focus-visible { outline:none; box-shadow:var(--ring); }
+/* The words, in a box of the same words, and Save and Cancel under it. */
+.fg .hd-dy-edit { margin-top:2px; }
+.fg .hd-dy-ed { display:block; width:100%; padding:8px 12px; border:1px solid var(--hd-edge); border-radius:6px;
+  background:var(--paper); font:inherit; font-size:14px; line-height:1.5; color:var(--hd-ink); resize:vertical;
+  transition:border-color var(--t-fast) var(--ease); }
+.fg .hd-dy-ed:focus { outline:none; border-color:var(--hd-ink); }
+.fg .hd-dy-edb { display:flex; gap:8px; margin-top:8px; }
+.fg .hd-dy-en .hd-cf { margin-top:8px; }
+/* A conversation you hid, until the page comes round without it. */
+.fg .hd-dy-hid { display:flex; align-items:center; gap:8px; margin:0; padding:16px 0; font-size:13px;
+  font-weight:500; color:var(--q); }
 @media (prefers-reduced-motion:reduce) {
   .fg .hd-dy-en[data-lit] { animation:none; }
   .fg .hd-dy-tr[data-lit] { animation:none; }

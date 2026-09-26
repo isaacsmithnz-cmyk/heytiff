@@ -72,6 +72,9 @@ const COLUMNS = "id, transcript, source, applied, created_at";
    `undone` status are tiff_modal_turns.sql's, applied before the modal
    shipped. */
 const DIARY_COLUMNS = `${COLUMNS}, proposal, status, turns`;
+/** Whether ServiceM8 holds a note too — the diary's Edit is not offered
+    for one that does (`inSm8`). */
+const SM8_COLUMNS = "target_kind, reply_to_sm8_note_uuid, is_task_done";
 /** What the diary reads: what was filed, and what Undo has taken back since
     — your words stay when what they made goes. */
 const DIARY_STATUSES = ["applied", "undone"];
@@ -86,6 +89,11 @@ type Row = {
   proposal?: unknown;
   status?: string;
   turns?: unknown;
+  /** Only in the diary's read, where the database has them (two-way
+      phase 2): where the note went, and whether ServiceM8 holds it. */
+  target_kind?: string | null;
+  reply_to_sm8_note_uuid?: string | null;
+  is_task_done?: boolean | null;
 };
 
 /** What the chips on this page can be doors to. Everything here was read
@@ -355,7 +363,9 @@ export async function listDiaryEntries(
   const read = (tombstones: boolean) => {
     let q = supabaseAdmin
       .from("workboard_notes")
-      .select(DIARY_COLUMNS)
+      /* the tombstone came with the columns that say ServiceM8 holds a
+         note, so a database without one has neither */
+      .select(tombstones ? `${DIARY_COLUMNS}, ${SM8_COLUMNS}` : DIARY_COLUMNS)
       .eq("org_id", orgId)
       .eq("author_id", staffId)
       .in("status", DIARY_STATUSES);
@@ -365,17 +375,21 @@ export async function listDiaryEntries(
   let { data, error } = await read(true);
   if (error?.code === "42703" || error?.code === "PGRST204") ({ data, error } = await read(false));
 
-  const rows = (data ?? []) as Row[];
+  /* either select, so the typed parser can't read it: the row is ours */
+  const rows = (data ?? []) as unknown as Row[];
   if (rows.length === 0) return [];
   const undone = (r: Row) => r.status === "undone";
   const filed = rows.filter((r) => !undone(r));
-  const [found, held] = await Promise.all([
+  const [found, held, sent] = await Promise.all([
     resolveOutcomes(orgId, staffId, filed, true),
     heldBySm8(
       orgId,
       filed.filter((r) => appliedOf(r.applied).v === APPLIED_V).map((r) => r.id),
     ),
+    sentToSm8(orgId, rows.filter((r) => r.target_kind === "job").map((r) => r.id)),
   ]);
+  const inSm8 = (r: Row) =>
+    !!r.reply_to_sm8_note_uuid || !!r.is_task_done || (r.target_kind === "job" && (sent === "all" || sent.has(r.id)));
   return rows.flatMap((r): DiaryEntry[] => {
     const stamp = naiveInZone(r.created_at, tz);
     if (!stamp) return [];
@@ -392,7 +406,7 @@ export async function listDiaryEntries(
       turns: lastTiff(turns) ? turns : [],
     };
     const entry = toEntry(r, found);
-    if (undone(r)) return [{ ...entry, ...said, outcomes: [], taskFor: {}, undo: false, undone: true }];
+    if (undone(r)) return [{ ...entry, ...said, outcomes: [], taskFor: {}, undo: false, undone: true, inSm8: inSm8(r) }];
 
     const taskFor: Record<string, string | null> = {};
     for (const id of appliedIds(r.applied, "taskIds"))
@@ -404,8 +418,24 @@ export async function listDiaryEntries(
       takesBack(stillThere(record, found.now)) &&
       held !== "all" &&
       !held.has(r.id);
-    return [{ ...entry, ...said, taskFor, undo, undone: false }];
+    return [{ ...entry, ...said, taskFor, undo, undone: false, inSm8: inSm8(r) }];
   });
+}
+
+/* A NOTE SERVICEM8 HOLDS TOO: a create was ever queued for it, whatever
+   became of it — the rule actions/diary's `editDiaryEntry` refuses by, so
+   Edit is drawn only where a press would not be refused. Job notes only,
+   the one kind that goes; a read that fails holds every one of them. */
+async function sentToSm8(orgId: string, noteIds: readonly string[]): Promise<ReadonlySet<string> | "all"> {
+  if (noteIds.length === 0) return new Set();
+  const { data, error } = await supabaseAdmin
+    .from("sm8_writes")
+    .select("note_id")
+    .eq("org_id", orgId)
+    .eq("kind", "note")
+    .in("note_id", [...noteIds]);
+  if (error) return "all";
+  return new Set(((data ?? []) as { note_id: string }[]).map((r) => String(r.note_id)));
 }
 
 /* A NOTE QUEUED FOR SERVICEM8 is taken back from the job's diary, not by

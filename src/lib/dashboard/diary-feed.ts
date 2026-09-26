@@ -31,7 +31,7 @@
    named still goes where it belongs. ServiceM8's copy of it (`copies`) is
    the same message, and never joins beside it. One that answers a note no
    conversation holds stays one of your entries (diaryFeed leaves out only
-   what a conversation holds).
+   what a conversation holds, or one you hid took with it: ./diary-hidden).
 
    WHAT A MESSAGE SAYS is the note as written, less its addressing
    (sm8-mentions' quotedNote): the handles it opens with, and the one
@@ -109,6 +109,9 @@ export type OurReply = {
       in the same second. */
   savedAt: string;
   line: ReplyLine | null;
+  /** Taken back, and drawn only while something of it may still be in
+      ServiceM8 (./diary-reply): its line's Try again is its door. */
+  takenBack?: true;
 };
 
 export type DiaryMessage = {
@@ -131,8 +134,8 @@ export type DiaryMessage = {
   at: string;
   /** A reply of yours from HeyTiff, or a task's Done, drawn as HeyTiff
       saved it — ServiceM8's copy never joins beside it: the job its row is
-      on, and where it stands with ServiceM8. */
-  ours?: { jobUuid: string; line: ReplyLine | null };
+      on, where it stands with ServiceM8, and whether it was taken back. */
+  ours?: { jobUuid: string; line: ReplyLine | null; takenBack?: true };
 };
 
 export type DiaryConversation = {
@@ -342,7 +345,12 @@ export function buildConversations(input: {
       const r = step.reply;
       /* where the note it answers is; nowhere, and it stays your entry */
       const c = holder.get(r.to);
-      if (c) say(c, { id: r.id, text: r.words, at: r.at }, "you", true, { jobUuid: r.jobUuid, line: r.line });
+      if (c)
+        say(c, { id: r.id, text: r.words, at: r.at }, "you", true, {
+          jobUuid: r.jobUuid,
+          line: r.line,
+          ...(r.takenBack ? { takenBack: true as const } : {}),
+        });
       continue;
     }
     const n = { ...step.note, id: step.note.uuid };
@@ -411,6 +419,9 @@ export function diaryFeed(input: {
       didn't read. */
   entriesCut: boolean;
   syncedAt: string | null;
+  /** Your replies in a conversation you hid (./diary-hidden's
+      repliesPutAway): they went with it, so none is drawn on its own. */
+  putAway?: ReadonlySet<string>;
 }): DiaryFeed {
   /* The nearer of the two reaches. A bare day compares below every stamp
      on it, so the whole of that day is in. Every entry read marks how far
@@ -434,10 +445,12 @@ export function diaryFeed(input: {
     .filter(within);
   /* A reply of yours a conversation on the page holds is drawn there, and
      not again as an entry of its own. One whose conversation is past the
-     reach is still your entry: never dropped. */
-  const held = new Set(
-    conversations.flatMap((i) => (i.kind === "conversation" ? i.conversation.messages : []).filter((m) => m.ours).map((m) => m.id)),
-  );
+     reach is still your entry: never dropped. One whose conversation you
+     hid went with it, and comes back with it. */
+  const held = new Set([
+    ...conversations.flatMap((i) => (i.kind === "conversation" ? i.conversation.messages : []).filter((m) => m.ours).map((m) => m.id)),
+    ...(input.putAway ?? []),
+  ]);
   const shown: DiaryItem[] = [
     ...input.entries
       .filter((entry) => !held.has(entry.id))

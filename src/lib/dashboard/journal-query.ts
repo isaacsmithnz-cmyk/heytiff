@@ -521,7 +521,9 @@ function replyOf(r: Row, tz: string | null, lines: ReadonlyMap<string, ReplyLine
 
     Each comes as an entry of yours carrying its `reply`: what threads it,
     and, for one taken back that no conversation holds, all its entry
-    draws. Nothing is read where the deployment sends files only. */
+    draws — ServiceM8's too (`inSm8`), as every reply is, so the diary
+    offers no Edit on it. Nothing is read where the deployment sends files
+    only. */
 export async function listDiaryReplies(
   orgId: string,
   staffId: string,
@@ -575,6 +577,8 @@ export async function listDiaryReplies(
         turns: [],
         undo: false,
         undone: false,
+        /* it answers a ServiceM8 note: changed there, never here */
+        inSm8: true,
         reply,
       },
     ];

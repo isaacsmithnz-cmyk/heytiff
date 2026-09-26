@@ -412,6 +412,144 @@ describe("a reply of yours from HeyTiff", () => {
     draw({ diary: diaryOf([ASK], { entries: [SICK] }) });
     expect(document.querySelector("[data-reply-line]")).toBeNull();
   });
+
+  /* YOURS TO DELETE, NEVER TO EDIT (actions/diary, Isaac, 2026-09-26:
+     "you should only be able to delete your own entries or edit"). A reply
+     is ServiceM8's too, so its words are changed there, never here: no
+     Edit, wherever it is drawn. Delete takes it back by the job card's
+     rule, in its thread as in the column, asking twice. One already taken
+     back has its Try again and nothing else, and one the page reads back
+     as still in ServiceM8 after a Delete is drawn saying so. */
+  describe("yours to delete", () => {
+    const TAKING_OUT: ReplyLine = { text: "Taking it out of ServiceM8…", tone: null, again: null, ask: null };
+    const STILL_IN: ReplyLine = {
+      text: "Still in ServiceM8. HeyTiff hasn't taken it out yet.",
+      tone: "bad",
+      again: { act: "take_out_again", label: "Try again" },
+      ask: null,
+    };
+    /** As the page reads one you took back: the replies' own read's entry, and its thread's reply. */
+    const takenBack = (line: ReplyLine, to = "n-ask") => {
+      const e = entryOf(line, to);
+      return diaryOf([ASK], {
+        entries: [{ ...e, inSm8: true, reply: { ...e.reply!, takenBack: true } }],
+        replies: [{ ...reply(line, to), takenBack: true }],
+      });
+    };
+    const inSm8 = (line: ReplyLine | null, to = "n-ask") =>
+      diaryOf([ASK, HIS_NUMBER], { entries: [{ ...entryOf(line, to), inSm8: true }], replies: [reply(line, to)] });
+    const rowOf = () => thread(talk()).find((r) => r.querySelector('[data-reply-line="wn-reply"]'))!;
+    const actsOf = (el: HTMLElement) => within(el.querySelector<HTMLElement>(".hd-dy-mh")!);
+    const entryEl = () => document.querySelector<HTMLElement>('[data-entry="wn-reply"]')!;
+
+    it("offers Delete at the end of its line in the thread, and no Edit — nor anything on his", () => {
+      draw({ diary: inSm8(SENDING) });
+      expect(actsOf(rowOf()).getByRole("button", { name: "Delete" })).toHaveClass("hd-dy-act");
+      expect(within(talk()).queryByRole("button", { name: "Edit" })).toBeNull();
+      // his follow-on in the same thread is his
+      const his = thread(talk()).find((r) => r !== rowOf())!;
+      expect(within(his).queryByRole("button")).toBeNull();
+    });
+
+    it("asks twice, and Keep leaves it be with the keyboard back on Delete", async () => {
+      const user = userEvent.setup();
+      draw({ diary: inSm8(SENDING) });
+      await user.click(actsOf(rowOf()).getByRole("button", { name: "Delete" }));
+      const ask = within(rowOf()).getByRole("group", { name: "Delete this reply for good?" });
+      expect(document.activeElement).toBe(within(ask).getByRole("button", { name: "Keep" }));
+      await user.click(within(ask).getByRole("button", { name: "Keep" }));
+      expect(deleteDiaryEntry).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(actsOf(rowOf()).getByRole("button", { name: "Delete" }));
+    });
+
+    it("goes from the thread on the second press, the keyboard landing on the conversation", async () => {
+      const user = userEvent.setup();
+      draw({ diary: inSm8(SENDING) });
+      await user.click(actsOf(rowOf()).getByRole("button", { name: "Delete" }));
+      await user.click(within(rowOf()).getByRole("button", { name: "Delete" }));
+      expect(deleteDiaryEntry).toHaveBeenCalledWith("wn-reply");
+      expect(document.querySelector('[data-reply-line="wn-reply"]')).toBeNull();
+      expect(thread(talk())).toHaveLength(1);
+      expect(document.activeElement).toBe(headOf(talk()));
+    });
+
+    it("is one delete while it is out, however quickly it is pressed again", async () => {
+      const user = userEvent.setup();
+      let answer!: (v: { ok: true }) => void;
+      deleteDiaryEntry.mockReturnValueOnce(new Promise((r) => (answer = r)));
+      draw({ diary: inSm8(SENDING) });
+      await user.click(actsOf(rowOf()).getByRole("button", { name: "Delete" }));
+      const go = within(rowOf()).getByRole("button", { name: "Delete" });
+      act(() => {
+        fireEvent.click(go);
+        fireEvent.click(go);
+      });
+      expect(deleteDiaryEntry).toHaveBeenCalledTimes(1);
+      await act(async () => answer({ ok: true }));
+      expect(document.querySelector('[data-reply-line="wn-reply"]')).toBeNull();
+    });
+
+    it("stays, saying why, when the delete is refused", async () => {
+      const user = userEvent.setup();
+      deleteDiaryEntry.mockResolvedValueOnce({ ok: false, error: "Only whoever sent it can take it out of ServiceM8." } as never);
+      draw({ diary: inSm8(SENDING) });
+      await user.click(actsOf(rowOf()).getByRole("button", { name: "Delete" }));
+      await user.click(within(rowOf()).getByRole("button", { name: "Delete" }));
+      expect(rowOf()).toBeInTheDocument();
+      expect(within(rowOf()).getAllByRole("status")[0]).toHaveTextContent("Only whoever sent it can take it out of ServiceM8.");
+    });
+
+    it("is drawn again, saying where it stands, when the page reads it back as still in ServiceM8", async () => {
+      const user = userEvent.setup();
+      const { rerender } = draw({ diary: inSm8(SENDING) });
+      await user.click(actsOf(rowOf()).getByRole("button", { name: "Delete" }));
+      await user.click(within(rowOf()).getByRole("button", { name: "Delete" }));
+      expect(document.querySelector('[data-reply-line="wn-reply"]')).toBeNull();
+      // the page comes round: taken back, and on its way out
+      rerender(<Face diary={takenBack(TAKING_OUT)} />);
+      expect(within(rowOf()).getByText(TAKING_OUT.text)).toHaveClass("hd-dy-note");
+      // the question it answered is not asked again
+      expect(within(rowOf()).queryByRole("group")).toBeNull();
+      expect(within(rowOf()).queryByRole("button", { name: "Delete" })).toBeNull();
+    });
+
+    it("offers no Delete on one taken back, in its thread or as your entry: its Try again is its door", () => {
+      const { unmount } = draw({ diary: takenBack(STILL_IN) });
+      expect(within(rowOf()).queryByRole("button", { name: "Delete" })).toBeNull();
+      expect(within(rowOf()).getByRole("button", { name: "Try again" })).toHaveClass("hd-dy-door");
+      unmount();
+
+      // no conversation holds the note it answers: your entry, with no Edit or Delete either
+      draw({ diary: takenBack(STILL_IN, "n-removed-in-servicem8") });
+      expect(within(entryEl()).queryByRole("button", { name: "Edit" })).toBeNull();
+      expect(within(entryEl()).queryByRole("button", { name: "Delete" })).toBeNull();
+      expect(within(entryEl()).getByRole("button", { name: "Try again" })).toHaveClass("hd-dy-door");
+    });
+
+    it("as your entry, offers Delete and no Edit, and is drawn again as the page reads it back", async () => {
+      const user = userEvent.setup();
+      const { rerender } = draw({ diary: inSm8(SENDING, "n-removed-in-servicem8") });
+      expect(within(entryEl()).queryByRole("button", { name: "Edit" })).toBeNull();
+      await user.click(actsOf(entryEl()).getByRole("button", { name: "Delete" }));
+      await user.click(within(entryEl()).getByRole("button", { name: "Delete" }));
+      expect(deleteDiaryEntry).toHaveBeenCalledWith("wn-reply");
+      expect(document.querySelector('[data-entry="wn-reply"]')).toBeNull();
+      rerender(<Face diary={takenBack(TAKING_OUT, "n-removed-in-servicem8")} />);
+      expect(within(entryEl()).getByText(TAKING_OUT.text)).toHaveClass("hd-dy-note");
+      // the question it answered is not asked again, and nothing is offered on it
+      expect(within(entryEl()).queryByRole("group")).toBeNull();
+      expect(within(entryEl()).queryByRole("button", { name: "Delete" })).toBeNull();
+    });
+
+    it("folds away with the conversation when you hide it", async () => {
+      const user = userEvent.setup();
+      draw({ diary: inSm8(SENDING) });
+      await user.click(within(talk().querySelector<HTMLElement>(".hd-dy-mh")!).getByRole("button", { name: "Hide" }));
+      expect(talk()).toHaveTextContent("Hidden until Luke writes again.");
+      expect(document.querySelector('[data-reply-line="wn-reply"]')).toBeNull();
+      expect(document.querySelector('[data-entry="wn-reply"]')).toBeNull();
+    });
+  });
 });
 
 describe("under it", () => {

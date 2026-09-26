@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { hideConversation, showConversation } from "@/app/actions/diary";
+import { deleteDiaryEntry, hideConversation, showConversation, type DiaryResult } from "@/app/actions/diary";
 import {
   conversationHead,
   conversationUnder,
@@ -10,8 +10,9 @@ import {
   type TaskWho,
 } from "@/lib/dashboard/diary-conversation";
 import { DIARY_LIT_MS } from "@/lib/dashboard/diary-doors";
-import type { DiaryConversation } from "@/lib/dashboard/diary-feed";
+import type { DiaryConversation, DiaryMessage } from "@/lib/dashboard/diary-feed";
 import { initialsFrom } from "@/lib/staff/derive";
+import { Confirm } from "./home-confirm";
 import { HomeDiaryReplyLine } from "./home-diary-reply";
 import { useDeskJobs } from "./home-job-sheet";
 
@@ -34,6 +35,17 @@ import { useDeskJobs } from "./home-job-sheet";
    the thread from the moment it was saved, and says under it where it
    stands with ServiceM8 (./home-diary-reply).
 
+   THAT REPLY IS YOURS TO DELETE, as your entry is (./home-diary-feed;
+   Isaac, 2026-09-26: "you should only be able to delete your own entries
+   or edit"): Delete at the end of its line, there while the conversation
+   has the pointer or the keyboard (law 24), asks twice and takes it back
+   by the job card's rule (actions/diary's deleteDiaryEntry). Never Edit:
+   ServiceM8 has its words too, and they are changed there. One already
+   taken back has only its line's Try again. Gone, it leaves the thread at
+   once and the keyboard lands on the conversation; one the page then reads
+   back as still in ServiceM8 is drawn again, saying so. Nothing of his is
+   yours to change.
+
    HIS NEWEST MESSAGE, while it is today's and you haven't answered it,
    stands on the diary's wash — the whole conversation when it is the ask
    itself — for the wash's seven seconds of being seen, then goes out, as
@@ -54,7 +66,8 @@ import { useDeskJobs } from "./home-job-sheet";
    shown while the pointer is on it or the keyboard is in it (law 24). The
    conversation folds to one line that says so, with Undo, until the page
    next comes round and leaves it out; nothing in ServiceM8 changes, and
-   the task the ask made stays where it is. */
+   the task the ask made stays where it is. Your replies in it go with it,
+   and come back with it (lib/dashboard/diary-hidden). */
 
 /** A press whose answer never came back: pressed again, it is said again. */
 const DIDNT_GO = "That didn't go through. Try again.";
@@ -129,9 +142,12 @@ export function HomeDiaryConversation({
     setSaid(null);
     follow.current = true;
     setHidden(hide);
-    let res: { ok: true } | { ok: false; error: string };
+    /* chosen before the try: the React Compiler skips a component with a
+       conditional inside one, silently */
+    const press = hide ? hideConversation : showConversation;
+    let res: DiaryResult;
     try {
-      res = hide ? await hideConversation(c.key) : await showConversation(c.key);
+      res = await press(c.key);
     } catch {
       res = { ok: false, error: DIDNT_GO };
     }
@@ -194,32 +210,16 @@ export function HomeDiaryConversation({
           {ask?.text ? <p className="hd-dy-p">{ask.text}</p> : null}
           {thread.length > 0 && (
             <ol className="hd-dy-thread">
-              {thread.map((m) => {
-                const said = messageHead(m, c, today);
-                return (
-                  <li
-                    key={m.id}
-                    className="hd-dy-tr"
-                    data-lit={lit && !lit.head && lit.id === m.id ? "" : undefined}
-                  >
-                    <span
-                      className="hd-dy-av"
-                      data-who={m.from === "them" ? "them" : undefined}
-                      aria-hidden="true"
-                    >
-                      {m.from === "them" ? theirs : you}
-                    </span>
-                    <div className="hd-dy-bd">
-                      <p className="hd-dy-m">
-                        <b>{said.who}</b>
-                        {said.rest}
-                      </p>
-                      {m.text ? <p className="hd-dy-p">{m.text}</p> : null}
-                      {m.ours?.line && <HomeDiaryReplyLine noteId={m.id} jobUuid={m.ours.jobUuid} line={m.ours.line} />}
-                    </div>
-                  </li>
-                );
-              })}
+              {thread.map((m) => (
+                <ThreadMessage
+                  key={m.id}
+                  m={m}
+                  c={c}
+                  today={today}
+                  disc={m.from === "them" ? theirs : you}
+                  lit={!!lit && !lit.head && lit.id === m.id}
+                />
+              ))}
             </ol>
           )}
           <div className="hd-dy-doors">
@@ -252,6 +252,122 @@ export function HomeDiaryConversation({
             ))}
           </div>
         </div>
+      </div>
+    </li>
+  );
+}
+
+/* ONE MESSAGE UNDER THE ASK: its disc, who and when, the words, and — for
+   a reply of yours from HeyTiff — where it stands with ServiceM8 and its
+   Delete (YOUR REPLY IS YOURS TO DELETE, above). */
+function ThreadMessage({
+  m,
+  c,
+  today,
+  disc,
+  lit,
+}: {
+  m: DiaryMessage;
+  c: DiaryConversation;
+  today: string;
+  /** The initials in its disc: his, or yours. */
+  disc: string;
+  lit: boolean;
+}) {
+  const said = messageHead(m, c, today);
+  const ours = m.ours;
+  const [asking, setAsking] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
+  const row = useRef<HTMLLIElement>(null);
+  const deleteButton = useRef<HTMLButtonElement>(null);
+  /** A second press before the first one's render is not a second delete. */
+  const busy = useRef(false);
+  /** Keep puts the keyboard back on Delete, once Delete is drawn again. */
+  const backToDelete = useRef(false);
+  useLayoutEffect(() => {
+    if (asking || !backToDelete.current) return;
+    backToDelete.current = false;
+    deleteButton.current?.focus({ preventScroll: true });
+  }, [asking]);
+
+  const remove = async () => {
+    if (busy.current) return;
+    busy.current = true;
+    setPending(true);
+    setRefused(null);
+    let res: DiaryResult;
+    try {
+      res = await deleteDiaryEntry(m.id);
+    } catch {
+      res = { ok: false, error: DIDNT_GO };
+    }
+    busy.current = false;
+    setPending(false);
+    if (!res.ok) return setRefused(res.error);
+    /* the keyboard goes to the conversation it was in */
+    row.current?.closest<HTMLElement>(".hd-dy-en")?.focus({ preventScroll: true });
+    setAsking(false);
+    setGone(true);
+  };
+
+  /* taken back since: drawn as the page says, with its Try again alone */
+  if (gone && !ours?.takenBack) return null;
+  const deletable = !!ours && !ours.takenBack;
+  const head = (
+    <p className="hd-dy-m">
+      <b>{said.who}</b>
+      {said.rest}
+    </p>
+  );
+  return (
+    <li ref={row} className="hd-dy-tr" data-lit={lit ? "" : undefined}>
+      <span className="hd-dy-av" data-who={m.from === "them" ? "them" : undefined} aria-hidden="true">
+        {disc}
+      </span>
+      <div className="hd-dy-bd">
+        {deletable ? (
+          <div className="hd-dy-mh">
+            {head}
+            {!asking && (
+              <span className="hd-dy-acts">
+                <button
+                  type="button"
+                  className="hd-dy-act"
+                  ref={deleteButton}
+                  onClick={() => {
+                    setRefused(null);
+                    setAsking(true);
+                  }}
+                >
+                  Delete
+                </button>
+              </span>
+            )}
+          </div>
+        ) : (
+          head
+        )}
+        {m.text ? <p className="hd-dy-p">{m.text}</p> : null}
+        {asking && (
+          <Confirm
+            question="Delete this reply for good?"
+            pending={pending}
+            onGo={() => void remove()}
+            onKeep={() => {
+              backToDelete.current = true;
+              setRefused(null);
+              setAsking(false);
+            }}
+          />
+        )}
+        {refused && (
+          <p className="hd-dy-note hd-dy-said" role="status">
+            {refused}
+          </p>
+        )}
+        {ours?.line && <HomeDiaryReplyLine noteId={m.id} jobUuid={ours.jobUuid} line={ours.line} />}
       </div>
     </li>
   );

@@ -370,6 +370,8 @@ describe("your replies from HeyTiff", () => {
         ["n-ask", null],
         ["wn-back", STILL_IN.text],
       ]);
+      // and says it was taken back: its Try again is its door, not a Delete
+      expect(talkIn(feed)?.messages[1].ours?.takenBack).toBe(true);
       expect(itemsOf(feed).map((i) => i.key)).toEqual(["entry:e1", "mention:j-2041:u-luke"]);
     });
 
@@ -394,6 +396,37 @@ describe("your replies from HeyTiff", () => {
       const keys = itemsOf(feed).map((i) => i.key);
       expect(keys).not.toContain("entry:wn-back");
       expect(keys).toContain("entry:wn-back-later");
+    });
+  });
+
+  /* HIDE puts someone else's conversation out of your diary until they
+     write again (actions/diary, ../diary-hidden). Your reply in it is part
+     of it now, and goes with it: never left behind as an entry of its own,
+     which the page would draw the moment it came round after the fold. It
+     comes back with it — and one you send from HeyTiff after you hid it is
+     you writing in it again, so it brings the conversation back rather
+     than going out of your diary unseen. Brisbane's clock: 23:20Z the day
+     before is 09:20 on the 25th. */
+  describe("in a conversation you hid", () => {
+    beforeEach(() => {
+      process.env.SM8_WRITES = "attachment,note";
+      listDiaryEntries.mockResolvedValue([ENTRY, REPLY]);
+      listMyMentions.mockImplementation(threads([luke("n-ask", "2026-09-25 08:00:00", "@isaacsmith please call Mary")]));
+    });
+
+    it("goes with it, and is not drawn on its own", async () => {
+      // hidden at 09:20, after your reply of 09:10 and his ask of 08:00
+      hiddenRows = [{ conversation_key: "j-2041:u-luke", hidden_at: "2026-09-24T23:20:00Z" }];
+      const feed = await loadDiaryFeed(ctx());
+      expect(itemsOf(feed).map((i) => i.key)).toEqual(["entry:e1"]);
+    });
+
+    it("brings it back, threaded, when you sent it after you hid it", async () => {
+      // hidden at 09:00: his ask was before it, your reply of 09:10 after
+      hiddenRows = [{ conversation_key: "j-2041:u-luke", hidden_at: "2026-09-24T23:00:00Z" }];
+      const feed = await loadDiaryFeed(ctx());
+      expect(itemsOf(feed).map((i) => i.key)).toEqual(["entry:e1", "mention:j-2041:u-luke"]);
+      expect(talkIn(feed)?.messages.map((m) => m.id)).toEqual(["n-ask", "wn-reply"]);
     });
   });
 

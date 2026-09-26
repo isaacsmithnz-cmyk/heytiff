@@ -460,6 +460,15 @@ describe("your reply from HeyTiff", () => {
     expect(c).toMatchObject({ answered: true, fresh: false, lastYours: "2026-09-25 09:10:00" });
   });
 
+  /* One you took back is drawn only while something of it may still be in
+     ServiceM8, with its Try again (./diary-reply): the thread says which,
+     so it is not offered a Delete it has had. */
+  it("says in its thread that one was taken back, and nothing of the kind for one that wasn't", () => {
+    const [c] = withReplies([ASK], [reply({ takenBack: true })]);
+    expect(c.messages[1].ours).toEqual({ jobUuid: "j-2041", line, takenBack: true });
+    expect(withReplies([ASK], [reply()])[0].messages[1].ours).not.toHaveProperty("takenBack");
+  });
+
   it("is drawn once after the sync: ServiceM8's copy of it is the same message, whatever its case", () => {
     const [c] = withReplies([ASK, ECHO], [reply()], ["r-copy"]);
     expect(c.messages.map((m) => m.id)).toEqual(["n-ask", "wn-reply"]);
@@ -563,6 +572,27 @@ describe("your reply from HeyTiff", () => {
     const feed = cutFeed(withReplies([asked, answer, noon], [reply({ at: "2026-09-24 09:10" })]));
     // both are inside the reach your reply marks, and the reply is drawn once, in its conversation
     expect(keysOf(feed)).toEqual(["entry:e-new", "mention:j-3294:u-luke", "mention:j-2041:u-luke"]);
+  });
+
+  /* Hidden, a conversation takes your replies in it with it (diary-query,
+     ./diary-hidden's repliesPutAway): not drawn on their own, while the
+     entry read still reaches back as far as it did. */
+  it("is not drawn on its own when the conversation holding it was hidden, and still marks the entries' reach", () => {
+    const asked = { ...ASK, at: "2026-09-24 09:00:00" };
+    const noon = { uuid: "n-noon", jobUuid: "j-3294", author: LUKE.uuid, at: "2026-09-24 12:00:00", text: "@isaacsmith fans?" };
+    const talks = withReplies([asked, noon], [reply({ at: "2026-09-24 09:10" })]);
+    const feed = diaryFeed({
+      entries: [entryOf("wn-reply", "2026-09-24 09:10"), entryOf("e-new", "2026-09-25 07:00")],
+      // the conversation holding the reply is hidden: only the other is on the page
+      conversations: talks.filter((c) => c.key !== "j-2041:u-luke"),
+      putAway: new Set(["wn-reply"]),
+      day: "2026-09-25",
+      mentions: true,
+      entriesCut: true,
+      syncedAt: null,
+    });
+    // his noon ask is after your reply, the oldest entry read, so inside the reach it still marks
+    expect(keysOf(feed)).toEqual(["entry:e-new", "mention:j-3294:u-luke"]);
   });
 
   it("is your entry when its conversation is past the reach, never dropped", () => {

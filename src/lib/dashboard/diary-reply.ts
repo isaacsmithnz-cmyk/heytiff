@@ -25,6 +25,13 @@
    still be in ServiceM8 (decision 8), with its Try again. Undo stays the
    job card's.
 
+   IT IS YOURS, as your entries are (actions/diary): the diary's Delete
+   takes it back by the job card's rule, in its thread as in the column,
+   and it is never edited here, since ServiceM8 has its words too (the read
+   says so, `inSm8`, of every reply). One taken back has only its Try
+   again. In a conversation you hid it goes with it, and comes back with it
+   (./diary-hidden).
+
    Nothing here exists where the deployment sends files only
    (SM8_WRITES=1): the read that fills it asks sm8NotesAllowed() first. */
 

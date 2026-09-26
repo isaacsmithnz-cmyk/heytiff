@@ -28,7 +28,7 @@ import {
   type DiaryFeed,
   type OurReply,
 } from "./diary-feed";
-import { unhidden } from "./diary-hidden";
+import { repliesPutAway, unhidden } from "./diary-hidden";
 import type { DiaryEntry } from "./journal";
 import { listDiaryEntries, listDiaryReplies, replyViewerOf } from "./journal-query";
 import { listMyMentions } from "./mentions-query";
@@ -82,7 +82,8 @@ export async function hiddenConversations(
 /** The Diary tab: your entries and your conversations, newest first, with
     Today split off. A mention read that fails leaves the diary showing
     your own entries rather than taking Home down. A conversation you hid
-    stays out until its asker writes again (./diary-hidden). */
+    stays out until its asker writes again, or you reply in it from
+    HeyTiff, and your replies in it stay out with it (./diary-hidden). */
 export async function loadDiaryFeed(ctx: DiaryFeedContext): Promise<DiaryFeed> {
   const mineUuid = ctx.caps.has("workboard") && ctx.viewerStaffId ? ctx.mineUuid : null;
   /* YOUR REPLIES FROM HEYTIFF, and a task's Done (two-way phase 2,
@@ -146,13 +147,15 @@ export async function loadDiaryFeed(ctx: DiaryFeedContext): Promise<DiaryFeed> {
   /* listDiaryEntries reads DIARY_ENTRY_LIMIT; a full read may have left
      older entries unread, and the column stops where they do. */
   const cut = entries.length >= DIARY_ENTRY_LIMIT;
+  const shown = unhidden(conversations, hidden);
   return diaryFeed({
     entries: [...entries, ...takenBackIn(yours, entries, cut)],
-    conversations: unhidden(conversations, hidden),
+    conversations: shown,
     day: ctx.railDay,
     mentions: mineUuid !== null,
     entriesCut: cut,
     syncedAt,
+    putAway: repliesPutAway(conversations, shown),
   });
 }
 
@@ -161,7 +164,18 @@ export async function loadDiaryFeed(ctx: DiaryFeedContext): Promise<DiaryFeed> {
 function repliesIn(entries: readonly DiaryEntry[]): OurReply[] {
   return entries.flatMap((e) =>
     e.reply
-      ? [{ id: e.id, to: e.reply.to, jobUuid: e.reply.jobUuid, words: e.reply.words, at: e.reply.at, savedAt: e.reply.savedAt, line: e.reply.line }]
+      ? [
+          {
+            id: e.id,
+            to: e.reply.to,
+            jobUuid: e.reply.jobUuid,
+            words: e.reply.words,
+            at: e.reply.at,
+            savedAt: e.reply.savedAt,
+            line: e.reply.line,
+            ...(e.reply.takenBack ? { takenBack: true as const } : {}),
+          },
+        ]
       : [],
   );
 }

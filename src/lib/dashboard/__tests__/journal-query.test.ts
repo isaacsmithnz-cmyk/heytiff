@@ -1054,6 +1054,26 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
       ]);
     });
 
+    /* The diary's Edit is not offered for a note ServiceM8 holds too
+       (`inSm8`, actions/diary's editDiaryEntry refusing by the same rule),
+       and a reply always is: it answers a ServiceM8 note. One of these
+       drawn as your entry — taken back, and no conversation on the page
+       holding it — says so as the entry read's own replies do. */
+    it("says each is ServiceM8's too, as the entry read says of a reply, so none is offered an Edit", async () => {
+      process.env.SM8_WRITES = "attachment,note";
+      rows.workboard_notes = [back("wn-stuck"), answer("wn-reply", "n-ask", "j-2041", "@lukeingold on my way", "@lukeingold a caminho")];
+      rows.sm8_writes = [
+        create("wn-stuck", { status: "sent", taken_back_at: "2026-08-12T01:00:00Z" }),
+        { ...create("wn-stuck", { op: "delete", depends_on: "w-wn-stuck", status: "failed", last_error: "ServiceM8 refused the note." }), id: "d-wn-stuck" },
+        create("wn-reply", { status: "sent" }),
+      ];
+      const out = await listDiaryReplies("org-1", "s1", null, "2026-07-27");
+      expect(out.map((e) => [e.id, e.inSm8])).toEqual([
+        ["wn-stuck", true],
+        ["wn-reply", true],
+      ]);
+    });
+
     it("leaves out every one you took back when its queue can't be read, and keeps the rest with no line", async () => {
       const spy = jest.spyOn(console, "error").mockImplementation(() => {});
       process.env.SM8_WRITES = "attachment,note";

@@ -495,11 +495,14 @@ async function targetLabel(orgId: string, target: NoteTarget): Promise<string | 
 
 /** Answer the brain's clarifying question and route again with it folded in.
 
-    The review card's clarify box, kept until the old capture UI goes (H25).
-    It sends what it always sent: the note, the question, the answer and "Do
-    not ask again" (`ClarifyAnswer`), read with the card's own context, so no
-    plan, no turns, no "who?" and no line from Tiff. `continueNote` is the
-    modal's reply, and shares only the write that stores what came back. */
+    The review card's clarify box. The old capture UI went (H25, 2026-09-27)
+    and nothing calls this any more; it is left, with the rest of the review
+    card's server path (`applyNote`, `keepNoteOnJob`, `keepNoteForMe`), for
+    the change that takes that path out. It sends what it always sent: the
+    note, the question, the answer and "Do not ask again" (`ClarifyAnswer`),
+    read with the card's own context, so no plan, no turns, no "who?" and no
+    line from Tiff. `continueNote` is the modal's reply, and shares only the
+    write that stores what came back. */
 export async function answerClarify(noteId: string, answer: string): Promise<RouteResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };

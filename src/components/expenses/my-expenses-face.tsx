@@ -7,7 +7,7 @@ import { FaceSwitch } from "@/components/me/face-switch";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { DateField } from "@/components/ui/date-field";
-import { JobPicker } from "@/components/notes/review-card";
+import { JobPicker } from "./job-picker";
 import { targetOf } from "@/lib/workboard/note-draft";
 import type { JobCandidate } from "@/lib/workboard/note-match";
 import {
@@ -123,9 +123,9 @@ export function MyExpensesFace({
 }: {
   claims: Claim[];
   today: string;
-  /* The open work this receipt could belong to — the SAME list the note
-     capture picks from (`jobCandidates`), through the same `JobPicker`, so
-     "which job" is asked once in this app and answered the same way. An empty
+  /* The open work this receipt could belong to — the SAME list the Tiff
+     modal's "Which job is this for?" reads (`jobCandidates`), so "which job"
+     is answered the same way wherever this app asks it. An empty
      list hides the control rather than offering an empty picker: a workspace
      with no open work has nothing to attach to, and a dead row saying so is
      the hint text this app doesn't write. */
@@ -466,10 +466,12 @@ export function MyExpensesFace({
                   would either stop the capture or fill the column with the
                   wrong answer.
 
-                  It is the app's ONE job picker — the same `JobPicker` and the
-                  same `jobCandidates` the note capture uses — because "which
-                  job" asked twice in two shapes is how two lists stop agreeing
-                  about what an open job is. */}
+                  It picks from the same `jobCandidates` the Tiff modal's
+                  "Which job is this for?" answers come from, because "which
+                  job" read off two lists is how two lists stop agreeing about
+                  what an open job is. The picker itself was the note
+                  capture's, and came here with this form when that card went
+                  (./job-picker). */}
               {jobs.length > 0 && (
                 <div className={"xc-job" + (draft.job ? " on" : "")}>
                   <Icon name={draft.job ? "check" : "activity"} size={14} />
@@ -499,9 +501,8 @@ export function MyExpensesFace({
                   chosenId={draft.job?.id ?? null}
                   onPick={(picked) => {
                     /* The picker speaks "kind:id" and `targetOf` is the parser
-                       that goes with it — the note capture uses the same pair.
-                       "" is its own "nothing in particular", and it means the
-                       same thing here: this was not for a job. */
+                       that goes with it. "" is its own "nothing in
+                       particular", and here it means this was not for a job. */
                     const t = targetOf(picked);
                     const hit = t && jobs.find((j) => j.kind === t.kind && j.id === t.id);
                     set({ job: hit ? { kind: hit.kind, id: hit.id, label: describe(hit) } : null });

@@ -215,8 +215,6 @@ describe("opening", () => {
     expect(within(d).getByRole("button", { name: "Done" })).toBeInTheDocument();
     // listening is a plain row: no box to type in yet
     expect(within(d).queryByRole("textbox", { name: "Reply to Tiff" })).toBeNull();
-    // the capture sheet is not what opened
-    expect(document.querySelector(".wb2-capcard")).toBeNull();
   });
 
   it("without a microphone it opens on the reply box and no mic runs", async () => {

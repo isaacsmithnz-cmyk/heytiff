@@ -1908,16 +1908,18 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   .orb-spin { animation:none; transform:rotateX(-16deg) rotateY(24deg); }
 }
 
-/* ══════════════════ THE DOT FIELD (.dotf) — THE CAPTURE CARD ══════════════
-   The mark itself, as the instrument. While you talk it is the HeyTiff
-   chevron with a wave swelling through it; when Tiff takes the words away
-   every dot flies out into a turning cloud and darts about until the answer
-   comes back; then the whole thing drops out of the card.
+/* ══════════════════ THE DOT FIELD (.dotf) — TIFF'S MARK ══════════════════
+   The mark itself, as the instrument, in the Tiff modal's face and the ask
+   bar's recording card. While you talk it is the HeyTiff chevron with a wave
+   swelling through it; when Tiff takes the words away every dot flies out
+   into a turning cloud and darts about until the answer comes back; then the
+   whole thing drops out of its zone.
 
    ONE SET OF ELEMENTS THROUGHOUT — see components/ui/dot-field for why, and
-   for what the four nested wrappers each do. Unscoped, like the orb: the
-   capture sheet portals to document.body, where anything under `.fg` is
-   absent rather than merely outranked.
+   for what the four nested wrappers each do. Unscoped, like the orb: it was
+   born on the capture sheet (gone with the old capture UI, 2026-09-27), which
+   portalled to document.body, where anything under `.fg` is absent rather
+   than merely outranked.
 
    THE ORB IS NOT REPLACED BY THIS. The three note rows still mount the sphere
    at 18–30px, because a chevron of dots needs room the size of a card and a
@@ -2033,21 +2035,18 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   .dotf[data-stage="gather"] .dotf-wander {
     animation:dotfArrive 800ms both;
     animation-delay:calc(var(--gd,0) * 614ms); }
-  /* AND THE CARD HAS TO LET THEM IN. Both boxes above the field clip by
-     default — `.wb2-capfield` so the collapse at the END of a wait can eat the
-     field from the top, and the card so a long review can scroll — and the
-     dots start hundreds of pixels outside BOTH. Built without this, the whole
-     journey happens off-screen and the mark simply fades up inside its own
-     box: the first cut of this shipped exactly that, and it looked like the
-     animation had not been added at all.
+  /* AND THE MODAL HAS TO LET THEM IN. Both boxes above the field clip by
+     default — the face zone and the modal itself — and the dots start
+     hundreds of pixels outside BOTH. Built without this, the whole journey
+     happens off-screen and the mark simply fades up inside its own box: the
+     first cut of this shipped exactly that, on the capture card the modal
+     replaced, and it looked like the animation had not been added at all.
 
-     Opened for the gather alone, and put back the moment it ends. The stage
-     only ever exists on a short card (the door, or a recording), so there is
-     no scroll position to lose in the swap; and the field's own `overflow` is
-     wanted again by the time anything collapses it. */
-  .wb2-capcard:has(.dotf[data-stage="gather"]),
+     Opened for the gather alone, and put back the moment it ends. (The
+     capture card's own pair of these went with it, 2026-09-27: the Tiff
+     chat's recording card, the one card left, has no button to gather
+     from.) */
   .tm:has(.dotf[data-stage="gather"]) { overflow:visible; }
-  .wb2-capfield:has(.dotf[data-stage="gather"]),
   .tm-face:has(.dotf[data-stage="gather"]) { overflow:visible; }
 }
 
@@ -2166,14 +2165,15 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    dots that meant "someone is typing" when nobody was, and two sizes of flat
    grey sentence.
 
-   UNSCOPED, and it has to be: the capture sheet PORTALS to document.body, so
-   anything declared under `.fg` is simply absent out there. The capture card
-   shipped once with colourless primary buttons for exactly this reason.
+   UNSCOPED, and it has to be: a sheet PORTALS to document.body, so anything
+   declared under `.fg` is simply absent out there. The capture card shipped
+   once with colourless primary buttons for exactly this reason.
 
    IT TAKES ITS INK FROM THE SURFACE. `--say-ink` is the resting colour and
-   `--say-lit` is what the sweep lights it to; the light surfaces below leave
-   the defaults and the dusk card re-points both. A colour baked into the chip
-   would be wrong on at least one of the four places it now stands.
+   `--say-lit` is what the sweep lights it to; every surface it stands on is
+   light and leaves the defaults. (The dusk capture card re-pointed both for a
+   chip it never held, and went with the old capture UI, 2026-09-27.) A
+   colour baked into the chip would be wrong on the next surface that does.
 
    IT IS EXACTLY AS TALL AS THE LINE IT BECOMES, in the transcript: 30px of
    orb on a 30px row, and the sheet's own line-height for the word, so the box
@@ -2184,22 +2184,23 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 
    `--teal-d` #00A389 is the brand's teal for fills, dots and icons; as text it
    measures **3.18:1** on white and **2.77** on the light well, and EVERY
-   surface this chip actually stands on is a light one — see the note on the
-   dusk rule below, which turns out to guard a surface it never reaches.
+   surface this chip actually stands on is a light one.
    `--ok-t` #00735f is the same hue taken down until it clears: **5.81** on the
    white card (Tiff's transcript, all three note postures) and **5.05** on
-   `.fg .outlet` #EDEFF4, the darkest of them, under the ask bar. It is also
-   already what `.wb2-waiting` forty lines below uses for the identical idea —
-   two "working" states in one block were reading two different teals.
+   `.fg .outlet` #EDEFF4, the darkest of them, under the ask bar. It was also
+   what the capture card's wordless wait (`.wb2-waiting`) used for the
+   identical idea — two "working" states in one block had been reading two
+   different teals.
 
    `--ok-t` defuses a second trap for free: `--teal-d` is repointed to #16a34a
    inside `.tpr`/`.mts2`/`.lv-*`/`.tw`, and that value is 3.30 on white — still
    failing. `--ok-t` is declared once, on `.fg`.
 
    ⚠ THE FALLBACK IS LOAD-BEARING HERE, more than anywhere else in the sheet.
-   The capture sheet portals to document.body, so `--ok-t` — declared on `.fg`
-   — does not reach it and the literal is what actually paints. It has to be
-   the readable value, not the brand one.
+   A sheet portals to document.body (the note postures' chip stands in the
+   visit and agreement sheets), so `--ok-t` — declared on `.fg` — does not
+   reach it and the literal is what actually paints. It has to be the
+   readable value, not the brand one.
 
    The GRADIENT reads these vars directly rather than through `color`, so it
    is unaffected by the two rules below that outrank the chip's own colour —
@@ -2288,61 +2289,31 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .orb-say.tvsay .tiffmk, .orb-say.wb2-dicthint .tiffmk { --tb:20px; }
 .orb-say.tvsay b, .orb-say.wb2-dicthint b { font-size:13px; font-weight:700; }
 
-/* ── the wait with no words of its own ──
-   The capture card's transcribing stage. Its ribbon already names the stage,
-   so the body shows the instrument and nothing else — the same division the
-   recording stage uses, where the ribbon says "Recording" and the body shows
-   the clock and the meter. Sized between the two: bigger than the chip's
-   30px because it is alone in a 680px card, smaller than the recording orb
-   because nothing is being measured. */
-.wb2-waiting { display:flex; justify-content:center; padding:24px 0 16px;
-  --orb:44px; color:var(--ok-t); }
-.wb2-dusk .wb2-waiting { color:#00E5C0; }
-
-/* ── on ink ──
-   The dusk capture surface, where the resting teal would be too dark to read
-   and the lit end cannot be `--ink`. Same two properties, re-pointed; nothing
-   else about the chip is restated.
-
-   ⚠ THIS RULE CURRENTLY MATCHES NOTHING, and it is kept deliberately. Traced
-   in full: `.wb2-dusk` has four mount points, and none of them contains a
-   `<Waiting>` — the capture sheet's transcribing stage shows `.wb2-waiting`,
-   a bare sphere with no word, and the recording card is the SIBLING branch of
-   the ternary that emits the chip, so the card has unmounted by the time the
-   chip appears. Every one of the five live sites is on white or on the light
-   well.
-
-   It stays because the chip is one branch change from a dusk surface and this
-   is the only thing standing between that and a 3:1 word — and because the
-   both-literal values are what would paint out there anyway: the capture sheet
-   portals to document.body, where nothing declared on `.fg` reaches. Do not
-   "clean it up" as unused. */
-.wb2-dusk .orb-say { --say-ink:#00E5C0; --say-lit:#ffffff; }
+/* (Its dusk re-point, `.wb2-dusk .orb-say`, went with the capture card on
+   2026-09-27. It matched nothing even then — no dark surface ever held the
+   chip — and was kept for the card's transcribing stage, one branch change
+   away. The one dark card left, the Tiff chat's recording card below, holds
+   no wait at all. A dark mount would need its own `--say-ink` and
+   `--say-lit`: the light values are under 4.5:1 on ink.) */
 
 /* ══════════ TIFF — THE RECORDING CARD, IN THE COMPOSER (.tk-rec) ══════════
    The ask bar hands its space to the shared recording card while the mic is
-   open (notes/recording-card), so the sequence you get here is the sequence
-   the Tiff button's sheet and the diary's entry card give you. Isaac: "the
-   input section should be identical throughout the software — they just
-   appear in different places."
+   open (notes/recording-card). Isaac: "the input section should be identical
+   throughout the software — they just appear in different places." It is
+   the card the Tiff button's sheet and the diary's entry row showed too, and
+   the last of them standing: those went with the old capture UI on
+   2026-09-27, when the Tiff modal was every Tiff button's.
 
-   THIS RULE IS ONLY ABOUT WHERE IT STANDS, exactly as `.hm-cap` is for the
-   entry card. Nothing here says anything about material: the dusk skin, the
-   button fills, the type sizes and the 68px orb all arrive from
-   `.wb2-capcard` and `.wb2-capcard.wb2-dusk`, and a background declared here
-   would beat them on source order and quietly undo the point. The debrief
-   learned that the expensive way — its first version restated forty rules
-   under `.fg .hm-cap` and had already drifted from the sheet by the time
-   anyone compared them side by side. */
-.fg .tk-rec {
-                                                         
-  position:static; transform:none; z-index:auto;
-  width:auto; max-width:none; min-width:0;
-                                                                                            
-  max-height:none; overflow:visible;
-                                                                                                                             
-  animation:tkRecIn .2s var(--ease) both;
-}
+   THIS RULE IS ONLY ABOUT HOW IT ARRIVES. Nothing here says anything about
+   material: the dusk skin, the button fills and the type sizes all arrive
+   from `.wb2-capcard` and `.wb2-capcard.wb2-dusk`, and a background declared
+   here would beat them on source order and quietly undo the point. The
+   debrief learned that the expensive way — its first version restated forty
+   rules and had already drifted from the sheet by the time anyone compared
+   them side by side. (It used to take the sheet's placement back off, too —
+   fixed, centred, over a dim — until the sheet went and `.wb2-capcard`
+   stopped placing anything.) */
+.fg .tk-rec { min-width:0; animation:tkRecIn .2s var(--ease) both; }
 @keyframes tkRecIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion:reduce) { .fg .tk-rec { animation:none; } }
 /* NO CHIP IN THIS RIBBON, so the close × takes the margin the chip would have
@@ -4953,9 +4924,10 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .xc-payer { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
 .fg .xc-payerk { font-size:13px; font-weight:700; color:var(--gray500); }
 /* WHICH JOB — the form's line, and the row's. Same posture as the note
-   capture's `wb2-capjob`, which asks the same question with the same picker;
-   `on` is the answered state, and it is the only place a tint appears, because
-   "against a job" is a fact rather than a warning. */
+   capture's job line had (`wb2-capjob`, which went with the old capture UI
+   on 2026-09-27), asking the same question with the same picker; `on` is the
+   answered state, and it is the only place a tint appears, because "against
+   a job" is a fact rather than a warning. */
 .fg .xc-job { display:flex; align-items:center; gap:8px; margin-bottom:16px; padding:8px 12px;
   border-radius:var(--r-button); background:var(--tint); color:var(--gray500);
   font-size:13px; font-weight:600; }
@@ -5199,85 +5171,6 @@ button.wb-hit { width:100%; text-align:left; border:1px solid var(--line); backg
    overflow rule and the neighbours in every row are spaced for it. */
 .wb-lvl .orb-ball { --orb-k:calc(.5 + .55 * var(--lvl)); }
 
-/* smart notes — the review card */
-.wb-review { border-top:1px solid var(--line); margin-top:12px; padding-top:12px; }
-.wb-review .wb-notetext { background:var(--tint); border-radius:var(--r-button); padding:12px 12px; margin:0 0 8px; }
-.wb-ask { background:var(--tint); border:1px solid var(--line); border-radius:var(--r-button); padding:12px 12px; margin-bottom:12px; }
-.wb-ask > b { display:block; font-size:14px; margin-bottom:8px; }
-.wb-review .wb-row { gap:8px; }
-.wb-review .wb-select { max-width:170px; }
-
-/* THE TASK ROW WRAPS RATHER THAN CRUSHING ITS OWN TITLE.
-
-   It carried four controls — tick, title, person, date — and `input.wb-inline`
-   is `flex:1; min-width:0`, so the title is whatever is left over. That was
-   fine at four. The reminder chip made it five, and on the real card (680px,
-   less 36px of padding) the title collapsed to about 75px: "Check with Luke
-   ab". The one field you have to READ to know what you are agreeing to was the
-   one paying for the new control, and on a phone the card is 343px wide, where
-   it would have had nothing at all.
-
-   So the row wraps and the title claims a floor. Everything still sits on one
-   line where there is room; where there isn't, the chip at the end drops to
-   its own line instead of taking the words with it. `flex-basis` rather than a
-   width so it still grows into whatever space a wide card has. */
-.wb-review .wb-row { flex-wrap:wrap; }
-.wb-review input.wb-inline { flex:1 1 240px; min-width:180px; }
-
-/* THE REMINDER CONTROL — a day plus a time is a reminder.
-
-   It wears `.wb-select` so it takes the row's control styling (and the dusk
-   skin's override of it) rather than restating either, and adds only what a
-   BUTTON needs that a select doesn't: a row for the glyph beside the label.
-   `.on` is the state that matters — a task carrying a nudge has to be
-   distinguishable at a glance from one merely offering the option, or the
-   control reads as decoration and nobody presses it twice. */
-.wb-review .wb2-remind { display:flex; align-items:center; gap:4px; max-width:none; white-space:nowrap; font-weight:700; color:var(--gray500); }
-.wb-review .wb2-remind.on { color:var(--ink); border-color:var(--ink); }
-/* `.wb-select` IS IN THE COMPOUND, and that is why these two carry it too.
-
-   The chip wears `.wb-select` to inherit the row's control styling, which also
-   puts it inside `.wb2-capcard.wb2-dusk :is(input.wb-inline, .wb-select)` —
-   and `:is()` takes the specificity of its most specific argument, so that rule
-   is (0,3,1) and quietly beat a (0,3,0) written for this button by name. Both
-   states came out pure white on the dusk card: the control still worked, and
-   "a reminder is set" looked exactly like "you could set one".
-
-   Naming `.wb-select` here makes these (0,4,0) and (0,5,0), which wins on class
-   count rather than on being written further down the file. Found by measuring
-   the rendered colour, not by reading the cascade — the same shape as the
-   `.fg button` trap, one selector along. */
-.wb2-capcard.wb2-dusk .wb-select.wb2-remind { color:var(--on-ink-q); }
-.wb2-capcard.wb2-dusk .wb-select.wb2-remind.on { color:var(--paper); border-color:var(--on-ink-line); }
-
-/* The wheel, opened UNDER the row it belongs to rather than beside it. Three
-   scrolling columns do not fit in a row that already carries a title, a person
-   and a date, and a control that squeezes the title to 40px to make room has
-   made the card worse to read in order to be easier to reach. */
-.wb2-remindbox { display:flex; flex-direction:column; gap:8px; margin:0 8px 8px; padding:8px; border-radius:var(--r-button); background:var(--tint); }
-.wb2-capcard.wb2-dusk .wb2-remindbox { background:var(--on-ink-tint); }
-/* AT, OR BY. Two words above the wheel, because the time underneath means
-   opposite things depending on which is lit — "do it at four" and "be done by
-   four" are the same number and different instructions. The model reads it off
-   the note; this is where someone who was there disagrees.
-
-   A PAIR OF PILLS RATHER THAN A SWITCH. A switch has an off state, and there
-   isn't one: every time is one of the two, so both words are always visible
-   and one is always lit. Nothing here is a hint — the labels ARE the control. */
-.wb2-rkind { display:inline-flex; gap:2px; padding:2px; border-radius:var(--r-button); background:var(--tint-2); }
-.wb2-rkindb { padding:4px 12px; border:0; border-radius:var(--r-control); background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-rkindb:hover:not(.on) { color:var(--ink); }
-.wb2-rkindb.on { background:var(--paper); color:var(--ink); }
-.wb2-rkindb:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-capcard.wb2-dusk .wb2-rkind { background:var(--on-ink-tint); }
-.wb2-capcard.wb2-dusk .wb2-rkindb { color:var(--paper); }
-.wb2-capcard.wb2-dusk .wb2-rkindb:hover:not(.on) { color:var(--paper); }
-.wb2-capcard.wb2-dusk .wb2-rkindb.on { background:var(--paper); color:var(--ink); }
-.wb2-remindoff { align-self:flex-start; padding:4px 8px; border:0; border-radius:var(--r-control); background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; }
-.wb2-remindoff:hover { background:var(--tint-2); color:var(--ink); }
-.wb2-capcard.wb2-dusk .wb2-remindoff { color:var(--paper); }
-.wb2-capcard.wb2-dusk .wb2-remindoff:hover { background:var(--on-ink-tint-2); color:var(--paper); }
-
 /* visits */
 .wb-chip:disabled { cursor:default; opacity:.7; }
 /* This rule already existed to win the TYPE back, but stopped there — so a
@@ -5418,11 +5311,11 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    didn't happen — "it just doesn't react when you put your mouse over it"
    (Isaac). So a disabled button loses its colour entirely, keeps its shape,
    and says so with the cursor. Wins over the fills above by specificity. */
-.wb2 .pbtn:disabled, .wb2-sheet .pbtn:disabled, .wb2-capcard .pbtn:disabled,
+.wb2 .pbtn:disabled, .wb2-sheet .pbtn:disabled,
 .wb2-daymodal .pbtn:disabled, .swz .pbtn:disabled {
   background:#eef0f4; border-color:#e3e6ec; color:var(--q); box-shadow:none;;
   cursor:not-allowed; opacity:1; }
-.wb2 .pbtn.ghost:disabled, .wb2-sheet .pbtn.ghost:disabled, .wb2-capcard .pbtn.ghost:disabled,
+.wb2 .pbtn.ghost:disabled, .wb2-sheet .pbtn.ghost:disabled,
 .wb2-daymodal .pbtn.ghost:disabled, .swz .pbtn.ghost:disabled { background:var(--tint); color:var(--q); }
 
 /* ── the view tabs — joined to the card ── */
@@ -5550,19 +5443,13 @@ button.wb-chip:hover:not(:disabled) { background:var(--tint); }
    The centring translate has to be carried through every frame instead. */
 @keyframes wb2ModalIn { from { opacity:0; transform:translate(-50%,calc(-50% + 8px)); }
                         to   { opacity:1; transform:translate(-50%,-50%); } }
-/* `wb2DropIn` CARRIES THE CAPTURE CARD'S CENTRING. `.wb2-capcard` is
-   `position:fixed; left:50%`, so the -50% translate in both keyframes is
-   what holds it centred — drop it and the card sits half a width to the
-   right. That makes this animation UNSAFE for anything not centred that
-   way, because `both` fill mode holds the final frame forever: a
-   normal-flow element borrowing it is parked half its own width to the
-   LEFT, permanently. The job picker did exactly that and rendered off the
-   side of the card with the client name — the one column that tells two
-   jobs apart — clipped out of view. Anything that isn't `left:50%` wants
-   `wb2PickIn` below. */
-@keyframes wb2DropIn  { from { opacity:0; transform:translate(-50%,8px); }
-                        to   { opacity:1; transform:translateX(-50%); } }
-/** The same drop, for elements that sit where they already are. */
+/* A short drop for elements that sit where they already are. It had a twin,
+   `wb2DropIn`, that carried the capture card's centring translate in both
+   frames (`position:fixed; left:50%`); the job picker once borrowed that one
+   and, with `both` fill holding the last frame forever, was parked half its
+   own width to the left for good, the client name clipped out of view. The
+   twin went with the capture card (2026-09-27); nothing that is not centred
+   by transform should ever carry a translate in its last frame. */
 @keyframes wb2PickIn  { from { opacity:0; transform:translateY(-6px); }
                         to   { opacity:1; transform:none; } }
 @keyframes wb2CardOut { from { opacity:1; transform:none; } to { opacity:0; transform:translateY(-6px); } }
@@ -6579,7 +6466,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    list in step with the createPortal roots in components/workboard. */
 /* `.swz` is the SWMS wizard (components/swms), which opens inside the job
    card's portal and wears the card's buttons and segmented choices. */
-.wb2-sheet, .wb2-daymodal, .wb2-capcard, .wb2-toasts, .wb2-scrim, .wb2-capdim, .swz {
+.wb2-sheet, .wb2-daymodal, .wb2-capcard, .wb2-toasts, .wb2-scrim, .swz {
   --ink:#050505; --gray400:var(--q); --gray500:var(--q); --gray700:var(--ink);
   color:var(--ink);
 }
@@ -8383,49 +8270,18 @@ html[data-wb-display] .fg .wb2-mcdow { flex:none; }
    in the loaders, where a reader without the capability never receives it. */
 html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 
-/* the pill — near-zero idle footprint, docked at the tab row's right end.
-   ONE object: a white capsule holding the typing half, with the mic as a
-   filled red disc at its end. Red because recording is the one destructive-
-   feeling act on the board (it's listening), and the disc is what your eye
-   finds when you're holding a torch in the other hand. */
-
-/* the overlay — the one scrim in the app that BLURS. "A dim, never a blur"
-   held here until the premium capture sheet (Isaac, 2026-08-08): the capture
-   moment is Tiff taking the floor, and the room going soft behind the card
-   is half of that. Every other scrim (.wb2-scrim, sheets, day modal) stays a
-   plain dim — they are workaday covers, not an arrival. UNPREFIXED ONLY: a
-   -webkit- twin makes the build ship the prefixed one alone and the blur
-   dies (see the backdrop-filter trap). */
-/* ON THE MODAL LAYER, WITH THE SHEETS IT OPENS OVER. A note field on the
-   visit or agreement sheet hands over to this card in a portal of its own,
-   added after the sheet, so the equal layer puts it on top. On the overlay
-   layer it opened under the sheet. */
-.wb2-capdim { position:fixed; inset:0; z-index:var(--z-modal); background:rgba(4,6,10,.62);
-  backdrop-filter:blur(10px) saturate(120%); animation:wb2Fade .3s both; }
-/* the halo, pooled under where the card rests — the button's glow arriving
-   with the sheet. On the dim, not the card: the card scrolls (overflow-y),
-   so a bloom child of it would be clipped or ride the scroll. */
-.wb2-capdim::after { content:""; position:absolute; left:50%; bottom:0; width:min(560px, 80vw);
-  height:180px; transform:translateX(-50%); border-radius:50%; pointer-events:none;
-  background:var(--ink);
-  filter:blur(64px); opacity:.14; }
-/* IT POOLS UNDER THE CARD, so it has to follow it. Bottom-anchored is right
-   for the phone's bottom sheet and was right for the desk too until the
-   card moved to the middle — left alone it went on glowing at the foot of
-   an empty screen, a long way from the thing it belongs to. */
-@media (min-width:760px) {
-  .wb2-capdim::after { top:50%; bottom:auto; height:260px;
-    transform:translate(-50%,-50%); }
-}
-.wb2-capcard { position:fixed; top:9vh; left:50%; transform:translateX(-50%); z-index:var(--z-modal);
-  width:min(680px, calc(100vw - 32px)); max-height:80vh; overflow-y:auto; overscroll-behavior:contain;
-  background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:var(--r-card);
-  box-shadow:0 30px 80px -30px rgba(10,12,20,.6); padding:16px 16px 16px;
-  animation:wb2DropIn .32s var(--ease) both; }
+/* ── the recording card ──
+   What is left of the capture card: the Tiff chat's recording card
+   (`.wb2-capcard.tk-rec.wb2-dusk`, in the composer), which stands in the
+   page. The sheet it grew from — fixed and centred over a blurred dim, its
+   halo pooled beneath it, grown out of the Tiff button — went with the old
+   capture UI on 2026-09-27, and its placement, dim and halo with it. The
+   card keeps the material. */
+.wb2-capcard { background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:var(--r-card);
+  padding:16px 16px 16px; }
 .wb2-capribbon { display:flex; align-items:center; gap:8px; padding-bottom:12px; margin-bottom:12px;
   border-bottom:1px solid rgba(5,5,5,.06); color:var(--gray700); }
 .wb2-capribbon b { font-size:14px; font-weight:700; color:var(--ink); }
-.wb2-capribbon .wb2-chip { margin-left:auto; }
 .wb2-capribbon .wb2-ico { margin-left:0; flex:none; }
 /* ── THE TIFF BUTTON: GIMBAL LIGHT (Isaac, 2026-09-25) ──
    The logo as a gyroscope: a solid chevron that leans and circles, inside two
@@ -8592,8 +8448,8 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    THREE ZONES THAT STAY WHERE THEY ARE: the face, the conversation and the
    dock. Each opens and closes by its own box (Web Animations, in
    box-motion.ts) and the modal is never given a height. The motion is the
-   two tokens; the dots are the capture card's own field and its named loops
-   (`dotf*`, `fgPulse` on the recording dot, the caret on an answer). */
+   two tokens; the dots are the field the capture card had, and its named
+   loops (`dotf*`, `fgPulse` on the recording dot, the caret on an answer). */
 .fg .cal-pop, .tm { box-shadow:var(--shadow-overlay); }
 .tm-scrim { position:fixed; inset:0; z-index:var(--z-modal); background:var(--scrim); }
 .tm { position:fixed; z-index:var(--z-modal); top:104px; left:0; right:0; margin:0 auto;
@@ -8714,18 +8570,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   .fg .tm-hmark, .fg .tm-turns { transition:none; }
 }
 
-/* THE CONTEXT TAG. It rides in the capture ribbon as a normal blue chip; the
-   only thing added is a way off it. The × is deliberately quiet — the tag
-   being RIGHT is the common case, and a dismiss that shouts invites people to
-   clear something they wanted. It fills in on hover so it is unmistakable
-   once you go looking. Portalled surface, so no `.fg` scope here. */
-.wb2-aim { padding-right:4px; gap:2px; }
-.wb2-aimx { display:inline-flex; align-items:center; justify-content:center; flex:none;
-  width:18px; height:18px; margin-left:2px; border:0; border-radius:var(--r-control); padding:0;
-  background:transparent; color:inherit; opacity:.55; cursor:pointer; transition:background-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.wb2-aimx:hover, .wb2-aimx:focus-within { opacity:1; background:rgba(0,137,184,.16); }
-.wb2-aimx:focus-visible { outline:none; opacity:1; box-shadow:var(--ring);; }
-
 .wb2-capclock { font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:var(--gray700); white-space:nowrap; }
 /* Leading the trace rather than hiding in the ribbon corner. Tabular figures
    are load-bearing at this size — proportional digits make the whole line
@@ -8739,13 +8583,14 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .wb2-recdot { width:10px; height:10px; border-radius:50%; background:var(--bad); flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion:reduce) { .wb2-recdot { animation:none; } }
 .wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:12px; flex-wrap:wrap; }
-/* the ribbon's target, when the note has to be told where it belongs */
 
 /* ── which job — confirm it, or search for the right one ──
    The control sits ON the line it changes, not above it: "instead of saying
    change it above, I'll hit the wrong one" (Isaac). And it's a SEARCH, not a
    select — a select is a list you navigate past the answer, this is one you
-   narrow onto it. */
+   narrow onto it. The capture card's job line was its first home; the
+   expense form's (components/expenses) is its one home since that card
+   went, 2026-09-27. */
 .wb2-capchange { margin-left:auto; flex:none; height:26px; padding:0 12px; border-radius:var(--r-pill);
   border:1px solid rgba(5,5,5,.14); background:#fff; font:inherit; font-size:12px; font-weight:700;
   color:var(--gray700); cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
@@ -8769,63 +8614,31 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .wb2-jobopt:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-joblist .wb2-hint { padding:8px; margin:0; }
 @media (prefers-reduced-motion:reduce) { .wb2-jobpick { animation:none; } }
-/* a row that CANNOT be saved says so here, and Save stays off until it can */
-.wb2-capstop { display:flex; align-items:flex-start; gap:8px; margin:8px 0 0; padding:8px 12px; border-radius:var(--r-button);
-  background:rgba(255,138,0,.09); border:1px solid rgba(255,138,0,.32);
-  font-size:13px; font-weight:700; color:var(--wb2-warn-t, #B45309); }
+/* A quiet line under a row: when a note on my notes was made and how, and an
+   entry's heading in the Library's queue. It was the review card's "said:"
+   first, and outlived that card (2026-09-27). */
 .wb2-capsaid { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); white-space:nowrap; }
-/* WHICH JOB — said back to you with its number, so agreeing is a glance */
-.wb2-capjob { display:flex; align-items:flex-start; gap:8px; margin:8px 0 0; padding:8px 12px; border-radius:var(--r-button);
-  background:rgba(5,5,5,.035); border:1px solid var(--wb2-line2, rgba(5,5,5,.06));
-  font-size:13px; font-weight:600; color:var(--gray700); }
-.wb2-capjob b { font-weight:700; color:var(--ink); }
-.wb2-capjob svg { flex:none; margin-top:1px; color:var(--gray400); }
-.wb2-capjob.on { background:var(--tint); border-color:var(--line); }
-.wb2-capjob.on svg { color:var(--wb2-ok, var(--ink)); }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 0 2px; }
 
-/* THE WAIT, SAID WHERE ONLY A SCREEN READER HEARS IT. Nothing on the card
-   names the read-back any more — the field is the whole statement — and a
-   field of dots announces exactly nothing, so the sentence moves here rather
-   than being deleted. That is the same bug the three bouncing dots had, in
-   reverse: meaning that lived only in a decorative element's label.
-
-   UNSCOPED, and it has to be. `.fg .sr-only` exists a thousand lines up and
-   would have been the obvious thing to reuse — but the capture sheet portals
-   to document.body, where anything under `.fg` is absent rather than merely
-   outranked, so it would have hidden nothing and printed the words on the
-   card. Same reason the orb and the field are unscoped. */
+/* SAID WHERE ONLY A SCREEN READER HEARS IT: the Schedule's word beside a
+   crew member's presence dot, for anyone who cannot see the dot. It was the
+   capture card's first, where the read-back said itself while a field of
+   dots announced nothing, and it was written UNSCOPED because that card
+   portalled to document.body, where `.fg .sr-only` would have hidden
+   nothing. The card went with the old capture UI (2026-09-27). */
 .wb2-sr { position:absolute; width:1px; height:1px; margin:-1px; padding:0;
   overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
 
 /* ── where the field stands ──
-   Above the stage's own body and outside it, because the mark and the cloud
-   are the same dots and a branch each would make the flight a cut. `overflow`
-   is what stops the drop: dots are pushed toward the camera, and an element
-   with depth paints by that depth rather than by document order — left
-   unclipped the falling cloud comes down THROUGH whatever has risen beneath
-   it. Clipped, a dot that leaves the field is gone. */
+   Above the card's own body and outside it, mounted by the door (the Tiff
+   chat's ask bar) rather than by the card. `overflow` is what stops a dot
+   straying: dots are pushed toward the camera, and an element with depth
+   paints by that depth rather than by document order. Clipped, a dot that
+   leaves the field is gone. (It also closed behind a falling cloud on the
+   capture card, where a review rose into its place; that card and its
+   `.go` went on 2026-09-27, and the chat's field only ever shows the mark.) */
 .wb2-capfield { display:flex; justify-content:center; overflow:hidden;
   height:268px; margin:2px 0 4px; }
-/* AND CLOSES BEHIND THEM. 268px disappearing in one frame was fine while the
-   next stage was another wait; the review lands here now, and a dense card
-   arriving with a 268px jump under it undoes the whole point of one
-   continuous flight. The close starts LATE — the dots have most of `dotfFall`
-   to themselves — and finishes with them, so what you see is the cloud
-   draining out of the bottom of the card while the review rises. Clipping is
-   already this element's job (see above), so shrinking it simply eats the
-   field from the top. */
-@keyframes wb2CapFieldGo {
-  from { height:268px; margin-top:2px; margin-bottom:4px; }
-  to   { height:0; margin-top:0; margin-bottom:0; }
-}
-.wb2-capfield.go { animation:wb2CapFieldGo .5s var(--ease) .55s both; }
-/* Motion off: the field has nothing to perform, so it simply is not there —
-   `dotfFall` is already off, which would otherwise leave a 268px hole for a
-   second with a frozen cloud in it. */
-@media (prefers-reduced-motion:reduce) {
-  .wb2-capfield.go { animation:none; height:0; margin:0; }
-}
 /* The clock leads the actions row; the row is flush right, so one auto margin
    pushes every button across. */
 .wb2-capact .wb2-capclock { margin-right:auto; }
@@ -8850,14 +8663,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    reason. */
 .wb2-recwave { display:flex; align-items:center; justify-content:center; gap:16px;
   align-self:stretch; padding:8px 0 12px; }
-/* 68px: the sphere is the thing you look at on this card, and at the meter's
-   own resting scale that still draws a 34px ball in a silent room — five
-   times the 6.1px the audit found and legible across a van. */
-/* The ink is the dusk skin's, not restated here: this stage is dusk in both
-   doors it appears in (the sheet's `duskClass` and the entry card's
-   hardcoded one), and a second declaration of the same colour is a second
-   place for it to drift. See `.wb2-dusk .wb-lvl`. */
-.wb2-caprec .wb-lvl { --orb:68px; padding-left:0; }
 /* ── the same instrument, laid along a line ──
    The three note postures put their microphone in a row — a strip beside a
    job, a dictation bar, an add row — and each of them showed an orb and a
@@ -8884,25 +8689,9 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    not shove the note sideways when the room went quiet, and two lines' worth
    of height so they did not shove it downward instead. The sentence is gone
    (see the note against `RecordingMeter`), the meta is a clock, and a clock
-   is four characters wide in every state a recording has.
+   is four characters wide in every state a recording has. */
 
-/* Words have arrived and taken the room; the sphere drops back rather than
-   competing with what it is there to produce. */
-.wb2-recwave.with-words { padding-bottom:8px; gap:12px; }
-.wb2-recwave.with-words .wb-lvl { --orb:30px; }
-
-/* THE METER, IN WORDS. The bars have always carried this and nobody could
-   read them. Colour alone would not do it either — the two states have to
-   differ by their text, because "is it hearing me" is a question people ask
-   in words and answer by reading. */
-/* THE SILENT STATE IS THE READABLE ONE. Measured at .42 it came out at
-   4.09:1 — the same AA failure as the Default label above, on the one line
-   whose whole job is to be legible when something is wrong. The quiet state
-   here is not decoration to be dimmed; it is the warning. */
-/* The hint stays centred under the meter — it is a status line and belongs
-   with the bars. The transcript is not, which is why it stretches instead. */
-.wb2-caprec .wb2-hint { text-align:center; max-width:44ch; }
-/* Nor is the actions row: this column CENTRES and shrink-wraps its
+/* The actions row stretches: this column CENTRES and shrink-wraps its
    children, so the row was only as wide as its buttons and the Default
    switch's `margin-right:auto` had nothing to push against — it sat
    hard against the recording's Go instead of holding the left like it
@@ -9046,43 +8835,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .wb2-lw { display:inline-block;
   animation:wb2WordIn .26s var(--ease) both; }
 @media (prefers-reduced-motion:reduce) { .wb2-lw { animation:none; } }
-/* ── the router is thinking ──
-   Seven measured seconds with nothing moving is indistinguishable from a
-   hang, so this state exists to move. Top-level selectors, never nested
-   under `.fg`: the capture card is PORTALLED to body, where a `.fg` rule is
-   absent rather than merely outranked.
-
-   The sweep reuses the route skeleton's `pkSweep` at its own 1.6s, and the
-   reasoning there holds here too — a fast shimmer reads as an error state,
-   and this is on screen for several seconds every single time. */
-/* A conic crescent rather than a bordered ring. Compared side by side at
-   actual size against the record dot: a 2px arc on a .14 track is barely
-   separable from its own track at 15px, and a pulsing dot reads as a STATUS
-   — too close to what the red dot two states earlier already means. The
-   crescent is the only one of the four that reads as "working" at a glance
-   and can't be mistaken for "recording".
-   Both mask declarations survive lightningcss (checked — the backdrop-filter
-   prefix trap does not apply to `mask`). */
-.wb2-sorting { display:flex; flex-direction:column; gap:12px; padding:4px 0 2px; }
-/* The transcript, as WORDS — it left the disabled textarea because the next
-   screen asks you to confirm what was made of it, and this is the only quiet
-   moment you get to re-read it. */
-.wb2-sortnote {
-  margin:0; font-size:14px; line-height:1.55; font-weight:500;
-  color:var(--gray800, var(--ink));
-}
-/* THE SKELETON ROWS ARE GONE (2026-08-17), and so are their rules. Three
-   sweeping bars stood here for the seven seconds of the sort, which was one
-   working-indicator too many the moment the dot field learned to span the
-   whole wait — and the one that had to be cut short to make room for them
-   was the honest one. Their CSS goes with the markup: a sheet that keeps
-   styling elements nobody renders is how `.fg .me` ended up quietly skinning
-   a mention chip nobody could find. */
-.wb2-sorting .wb2-hint { margin:0; }
-/* Motion off, signal kept: the state still says "Sorting it out" in words
-   either way — the animation was always the enhancement, not the message. */
-.wb2-capcard .wb2-sherr { margin:0 0 8px; }
-.wb2-capcard .wb2-notes { margin-bottom:0; }
 
 /* The separate WALL composition (Urgent + four weeks, zero interactivity)
    that used to live here is gone — 2026-08-02, Isaac: display mode has to
@@ -10272,7 +10024,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 }
 
 /* ===================================================================
-   THE NOTE TOKEN — one control, four postures
+   THE NOTE TOKEN — one control, three postures
    ===================================================================
    Five separate voice/note controls collapse into this. Everything here
    wears the BOARD'S OWN tokens (--wb2-cy #007fa8, --wb2-cy2 #0089b8,
@@ -10291,42 +10043,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    plain single-class rule on a <button> or <input> outside that namespace
    silently loses. */
 
-/* ── the sheet ──
-   `.wb2-capcard` is also on this element and is doing the real work (button
-   fills, type, disabled states out in the portal). This block ONLY moves it.
-   The animation override is not optional: `wb2DropIn` carries the centring
-   `translateX(-50%)` in both keyframes with `both` fill, so a sheet that
-   inherited it would sit half its own width to the left, permanently. */
-.wb2-capcard.wb2-caps { top:auto; bottom:0; left:0; right:0; transform:none;
-  width:100%; max-width:none; max-height:88vh; border-radius:var(--r-card) var(--r-card) 0 0;
-  padding:8px 16px 24px; animation:wb2SheetUp .3s var(--ease) both; }
-@keyframes wb2SheetUp { from { transform:translateY(14%); opacity:.5; } to { transform:none; opacity:1; } }
-.wb2-grab { display:block; width:38px; height:4px; border-radius:var(--r-pill); flex:none;
-  background:var(--tint-2); margin:2px auto 8px; }
-@media (min-width:760px) {
-  /* On a desk it stops being a thumb surface and becomes a card again —
-     bottom-anchored full width across a 1400px screen is a lot of nothing.
-
-     AND IT SITS IN THE MIDDLE (Isaac, 2026-08-09). `bottom:4vh` was the
-     bottom sheet keeping its habit on a big screen: the card opened down
-     by your feet, a long way from the button that opened it and from where
-     you are looking. Centred, it lands where the eye already is. Both
-     keyframes carry the FULL centring transform — `both` fill holds the
-     last frame forever, so a keyframe that drops half of it parks the card
-     permanently off-centre (the wb2DropIn lesson, twice learned). */
-  .wb2-capcard.wb2-caps { left:50%; right:auto; top:50%; bottom:auto;
-    width:min(680px, calc(100vw - 32px));
-    transform:translate(-50%,-50%); border-radius:var(--r-card);
-    animation:wb2SheetUpWide .3s var(--ease) both; }
-  @keyframes wb2SheetUpWide {
-    from { transform:translate(-50%,-50%) translateY(14px); opacity:.5; }
-    to   { transform:translate(-50%,-50%); opacity:1; } }
-  .wb2-grab { display:none; }
-}
-
 /* ── the strip ──
-   Lives in the column with the notes it joins, so the review can grow in
-   place: the whole argument of this posture is that you keep seeing the job. */
+   Lives in the column with the notes it joins: the whole argument of this
+   posture is that you keep seeing the job. */
 .wb2-strip { display:flex; align-items:center; gap:8px; padding:4px 4px 4px 16px;
   border:1px solid var(--line); border-radius:var(--r-pill); background:var(--tint);
   transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
@@ -10343,21 +10062,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .wb2-striprnd.go:hover:not(:disabled) { background:var(--ink2); border-color:var(--ink); }
 .wb2-striprnd:disabled { background:var(--tint); border-color:var(--line); color:var(--q); cursor:not-allowed; }
 .wb2-striprnd:focus-visible { outline:none; box-shadow:var(--ring);; }
-/* the review, in place — no portal, no dim, nothing covered */
-.wb2-stripopen { border:1px solid var(--wb2-cy, var(--ink)); border-radius:var(--r-card); background:var(--paper);
-  box-shadow:var(--ring);; padding:12px 12px 16px; }
-
-/* ── the cascade ──
-   Where the note is about to go, as fact rather than as a menu: by the time
-   this shows, what's ticked and what job is named have already decided. */
-.wb2-casc { display:grid; gap:8px; margin-top:12px; padding:12px 12px;
-  border:1px solid var(--line); border-radius:var(--r-button); background:var(--tint); }
-.wb2-cascrow { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--gray400); }
-.wb2-cascrow.on { color:var(--ink); font-weight:600; }
-.wb2-cascrow b { font-weight:700; }
-.wb2-cascn { flex:none; width:20px; height:20px; border-radius:50%; display:grid; place-items:center;
-  font-size:12px; font-weight:700; background:var(--tint-2); color:var(--gray500); }
-.wb2-cascrow.on .wb2-cascn { background:var(--wb2-cy, var(--ink)); color:var(--paper); }
 
 /* ── the quiet nudge ──
    A field mic filled the box; the words happen to contain something to do.
@@ -10370,30 +10074,27 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .wb2-nudgetext { flex:1; min-width:0; }
 @keyframes wb2NudgeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion:reduce) {
-  .wb2-nudge, .wb2-capcard.wb2-caps { animation:none; }
+  .wb2-nudge { animation:none; }
   }
 
 /* A smaller primary, for the nudge's inline action. Joins the portal-safe
    list rather than relying on `.fg`, which does not reach out here. */
-.wb2 .pbtn.sm, .wb2-sheet .pbtn.sm, .wb2-capcard .pbtn.sm, .wb2-stripopen .pbtn.sm,
+.wb2 .pbtn.sm, .wb2-sheet .pbtn.sm,
 .wb2-nudge .pbtn.sm, .swz .pbtn.sm, .sws .pbtn.sm { height:29px; padding:0 12px; font-size:12px; border-radius:var(--r-button); }
 
 /* THE TOKEN HAS TO WORK OFF THE BOARD TOO. The fills above are scoped to
    `.wb2` / `.wb2-sheet` / `.wb2-capcard`, which is fine while a control only
    ever renders inside the workboard — and this one is meant to end up on
-   every screen. A `.pbtn` in the strip's in-place review or in a nudge on a
-   staff card would otherwise be dark text on white, indistinguishable from a
-   label; that exact bug shipped once on the capture overlay. So these two
-   surfaces carry the fill themselves rather than inheriting an ancestor. */
-.wb2-stripopen .pbtn:not(.ghost), .wb2-nudge .pbtn:not(.ghost) {
+   every screen. A `.pbtn` in a nudge on a staff card would otherwise be dark
+   text on white, indistinguishable from a label; that exact bug shipped once
+   on the capture overlay. So the nudge carries its fill itself rather than
+   inheriting an ancestor, as the strip's in-place review did until it went
+   with the old capture UI (2026-09-27). The nudge's one button is its
+   primary, never off, so it needs no ghost or disabled dress. */
+.wb2-nudge .pbtn:not(.ghost) {
   background:var(--wb2-cy, var(--ink)); border:1px solid var(--wb2-cy, var(--ink)); color:var(--paper);
   font-weight:700;box-shadow:var(--shadow-overlay); }
-.wb2-stripopen .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-nudge .pbtn:not(.ghost):hover:not(:disabled) { background:var(--ink2); border-color:var(--ink); }
-.wb2-stripopen .pbtn.ghost, .wb2-nudge .pbtn.ghost {
-  background:var(--paper); border:1px solid rgba(5,5,5,.12); color:var(--gray700); font-weight:700; }
-.wb2-stripopen .pbtn:disabled, .wb2-nudge .pbtn:disabled {
-  background:#eef0f4; border-color:#e3e6ec; color:var(--q); box-shadow:none;; cursor:not-allowed; }
 
 /* ── the debrief ── DELETED, deliberately.
 
@@ -10405,14 +10106,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    live components at equal specificity twice, so they are removed rather
    than left for the next person to trip over. */
 
-/* ── the LEARN rows ──
-   A title line and a method box under it — the one section on the review
-   card whose blast radius is the whole org, so it gets a little more room
-   than a one-line row. */
-.wb2-kbrow { display:grid; gap:4px; padding:2px 0 8px; }
-.wb2-kbrow .wb2-kbbody { margin:0 0 0 32px; width:auto; min-height:46px;
-  font-size:13px; }
-
 /* ── the KB curation queue ── */
 .fg .adm-badge { flex:none; margin-right:8px; color:var(--ink); font-size:14px; font-weight:500; }
 .wb2-kbqrow { display:grid; gap:8px; padding:16px 16px; border-bottom:1px solid var(--line); }
@@ -10422,161 +10115,77 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .wb2-kbqbody { margin:0; font-size:13px; line-height:1.55; color:var(--gray700); max-width:70ch; }
 .wb2-kbqrow .wb2-noteact { justify-content:flex-start; }
 
-/* ── the answer ──
-   The ask loop streaming into the same sheet every other stage uses. The
-   tool chips are REAL progress — each one is a read that actually happened —
-   which is what earns them the space the sorting skeleton refuses to fake. */
-.wb2-ans { display:grid; gap:12px; }
-.wb2-ansq { margin:0; padding:8px 12px; border-radius:var(--r-button); background:var(--tint);
-  border:1px solid var(--line); font-size:13px; font-weight:600; color:var(--gray700); }
-.wb2-anstools { display:flex; flex-wrap:wrap; gap:4px; }
-.wb2-anstool { display:inline-flex; align-items:center; gap:4px; padding:4px 8px;
-  border-radius:var(--r-pill); border:1px solid rgba(0,127,168,.25); background:rgba(0,127,168,.07);
-  font-size:12px; font-weight:700; color:var(--ink); }
-.wb2-anstext { margin:0; font-size:14px; line-height:1.65; color:var(--ink);
-  white-space:pre-wrap; overflow-wrap:anywhere; min-height:24px; }
+/* ── the caret ──
+   An answer still arriving ends in it: the Tiff modal's, as Tiff's answer
+   streams. It was the capture card's answer stage's first — the question
+   echoed above it, a chip for each read that actually happened — and that
+   stage went with the old capture UI (2026-09-27). */
 .wb2-anscursor { display:inline-block; width:2px; height:15px; margin-left:2px;
   vertical-align:text-bottom; background:var(--wb2-cy, var(--ink));
   animation:wb2CursorBlink 1s steps(2, start) infinite; color:var(--paper); }
 @keyframes wb2CursorBlink { to { visibility:hidden; } }
 @media (prefers-reduced-motion:reduce) { .wb2-anscursor { animation:none; } }
 
-/* ═══════════ THE CAPTURE SHEET'S DUSK SKIN — Isaac, 2026-08-08 ═══════════
+/* ═══════════ THE RECORDING CARD'S DUSK SKIN — Isaac, 2026-08-08 ═══════════
 
-   The card wears the frame's own material, start to finish: ink glass, white
-   type, the halo pooled beneath it on the dim.
+   The card wears the frame's own material: ink glass and white type. It was
+   the capture sheet's skin, every stage of it and the review too (Isaac,
+   2026-08-17: "it's also still got a white card instead of the dark glass"),
+   and what is left is what the Tiff chat's recording card wears in the
+   composer (`.wb2-capcard.tk-rec.wb2-dusk`): the card, the ribbon, the words
+   arriving and the three ways out. The sheet, its door, its answer and its
+   review went with the old capture UI on 2026-09-27, and their dark clothes
+   with them.
 
-   IT USED TO HAND BACK TO WHITE AT THE REVIEW, and that split lasted as long
-   as the review had no dark clothes. It has them now — see THE REVIEW, IN
-   THE DARK below — so `wb2-dusk` stays on for every stage and the card you
-   press a button to open is the card you save from (Isaac, 2026-08-17).
+   The gradient appears once — the primary button — and the words get NONE
+   of it. The box had a breathing gradient hairline in the mockup and Isaac
+   called it hectic: the words are where the colour stops. */
 
-   EVERY COLOUR IN HERE IS A LITERAL. This card portals to <body>, where
-   `.fg`'s custom properties are ABSENT, not outranked — a var() reference
-   out here quietly computes to inherit. The tiffbtn-sheet block above made
-   the same call for the same reason.
-
-   The gradient appears exactly three times — the dim's pooled bloom, the
-   primary button, the level bars — and the textarea gets NONE of it. It had
-   a breathing gradient hairline in the mockup and Isaac called it hectic:
-   the box you type into is where the colour stops. */
-
-/* the card itself. The transition is what is left of the dawn crossfade —
-   nothing swaps ground mid-flow any more, and it costs nothing to leave a
-   colour change eased rather than cut. */
-.wb2-capcard.wb2-caps { transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+/* the card itself */
 .wb2-capcard.wb2-dusk { background:var(--ink2); border-color:var(--on-ink-line);
   color:var(--paper);
   box-shadow:var(--shadow-overlay); }
-.wb2-dusk .wb2-grab { background:var(--on-ink-line); }
 
-/* the ribbon — it takes the button's own words up top, white on ink */
+/* the ribbon — "Recording" up top, white on ink */
 .wb2-dusk .wb2-capribbon { border-bottom-color:var(--on-ink-line); color:var(--paper); }
 .wb2-dusk .wb2-capribbon b { color:var(--paper); }
-.wb2-dusk .wb2-chip { color:var(--paper); }
-.wb2-dusk .wb2-chip.blue { color:#9DB9FF; }
-.wb2-dusk .wb2-chip.ok { color:#7CEFD9; }
-.wb2-dusk .wb2-aimx:hover { background:rgba(46,104,255,.32); }
 .wb2-dusk .wb2-ico { background:var(--on-ink-tint); color:var(--paper); }
 .wb2-dusk .wb2-ico:hover { background:var(--on-ink-tint-2); color:var(--paper); }
 .wb2-dusk .wb2-capclock { color:var(--paper); }
-.wb2-dusk .wb2-sherr { background:rgba(224,38,79,.18); color:#FF9FB3; }
 
-/* the box — NOT A BOX AT ALL (Isaac, second pass): white words straight on
-   the card. No well, no border, no focus chrome — the teal caret is the
-   focus, and it is already blinking when the sheet arrives. The border goes
-   transparent rather than to zero so nothing reflows against the light
-   skin, and the side padding drops to sit the words on the ribbon's own
-   left edge instead of a ghost box's inset. */
-.wb2-dusk .wb2-notes { background:transparent; border-color:transparent;
-  padding:8px 2px; color:var(--paper); caret-color:#00E5C0;
-  /* no box means the resize grip would float on nothing */ resize:none; }
-.wb2-dusk .wb2-notes::placeholder { color:var(--on-ink-q); }
-.wb2-dusk .wb2-notes:focus { border-color:transparent; }
-.wb2-dusk .wb2-hint { color:var(--on-ink-q); }
-
-/* the actions — glass ghosts, one gradient primary, and Talk tinted just
-   enough to read as a door rather than a fallback */
+/* the actions — glass ghosts and one gradient primary */
 .wb2-capcard.wb2-dusk .pbtn.ghost { background:var(--on-ink-tint); color:var(--paper);
   border-color:var(--on-ink-line); }
 .wb2-capcard.wb2-dusk .pbtn.ghost:hover:not(:disabled) { background:var(--on-ink-tint-2);
   border-color:var(--on-ink-line); color:var(--paper); }
-/* THE MIC HOLDS THE LEFT OF THE ROW so it does not MOVE: `Go` arrives only
-   once there are words, and with everything flush right it would slide
-   sideways the moment you started typing.
+/* THE WAY TO THE KEYBOARD HOLDS THE LEFT OF THE ROW, after the clock, so it
+   does not MOVE: the row is flush right, and the rest stands with Done. It
+   shared this anchor with the capture card's mic, which moved across to Go
+   once there were words; the card went, 2026-09-27. */
+.wb2-capact .pbtn.wb2-modeone { margin-right:auto; }
 
-   (The DEFAULT switch that used to share this anchor is gone — the card asks
-   Talk or Type when it opens now, so there is no stored preference left to
-   put a control on. Its rules went with it; a sheet that keeps styling
-   elements nobody renders is how `.fg .me` ended up skinning a mention chip
-   nobody could find.) */
-.wb2-capact .pbtn.wb2-talk, .wb2-capact .pbtn.wb2-modeone { margin-right:auto; }
-/* EXCEPT WHEN IT IS THE WAY ONWARD. The row is `justify-content:flex-end`, so
-   the anchor above is the only thing holding the mic on the LEFT — where this
-   row keeps its settings. Once there are words in the box the mic stops being
-   a mode control and becomes "keep talking", which belongs with Go. Dropping
-   the margin is the whole move; the teal tint stays because `.wb2-talk` is
-   still on the element. Compound so it wins on specificity rather than on
-   source order. */
-.wb2-capact .pbtn.wb2-talk.wb2-keeptalk { margin-right:0; }
-
-/* ── THE DOOR ──
-   Talk or Type, asked every time the sheet opens (Isaac, 2026-08-18). Two
-   buttons, equal width, at a size a thumb finds without aiming — this is the
-   whole stage, so they get the room the box would have had. `.pbtn`'s own
-   dusk fills do the rest; nothing here restates a skin. */
-.wb2-capdoor { display:flex; gap:12px; padding:8px 0 4px; }
-.wb2-capcard .wb2-capdoor .pbtn { flex:1 0 0; justify-content:center; height:54px;
-  font-size:16px; gap:8px; border-radius:var(--r-button); }
-.wb2-capcard.wb2-dusk .pbtn.ghost.wb2-talk { background:rgba(0,229,192,.09);
-  border-color:rgba(0,229,192,.42); color:#9FF4E4; }
-.wb2-capcard.wb2-dusk .pbtn.ghost.wb2-talk:hover:not(:disabled) { background:rgba(0,229,192,.16);
-  border-color:rgba(0,229,192,.6); color:#C8FBF1; }
-.wb2-capcard.wb2-dusk .pbtn:not(.ghost) { background:linear-gradient(120deg,#00E5C0,#19B8FF);
-  border-color:transparent; color:#04262B;
-  box-shadow:0 10px 24px -10px rgba(0,229,192,.45); }
-.wb2-capcard.wb2-dusk .pbtn:not(.ghost):hover:not(:disabled) {
-  background:linear-gradient(120deg,#00E5C0,#19B8FF); border-color:transparent;
-  filter:brightness(1.07); }
-.wb2-capcard.wb2-dusk .pbtn:disabled { background:var(--on-ink-tint);
-  border-color:var(--on-ink-line); color:var(--on-ink-q); box-shadow:none; filter:none; }
-/* The focus ring, restated ABOVE the dusk primary's own shadow — the shared
-   `.wb2-capcard .pbtn:focus-visible` ring is (0,3,0) and the gradient fill
-   here is (0,4,0), so without this line a focused primary loses its ring. */
-.wb2-capcard.wb2-dusk .pbtn:focus-visible { box-shadow:var(--ring); }
-
-/* ── THE CAPTURE FLOW'S PRIMARY IS GREEN (Isaac, 2026-08-10) ──
-   Two buttons wear it, one per stage, and they never share a screen: `Done`
-   ends the recording, `Go` commits the words. `Save these` on the review
-   keeps the cyan primary, so no stage ever shows two of these at once.
-
-   It was `wb2-go` for half a day, when both stages said Go. The word moved
-   and the class followed — a hook named for a label it no longer carries is
-   how a stylesheet starts lying about the markup.
+/* ── THE RECORDING'S PRIMARY IS GREEN (Isaac, 2026-08-10) ──
+   `Done` wears it: it ends the recording. It shared the green with the
+   capture card's `Go`, which committed the words, and it was `wb2-go` for
+   half a day, when both said Go. The word moved and the class followed — a
+   hook named for a label it no longer carries is how a stylesheet starts
+   lying about the markup. (`Go`, and the cyan-ended gradient every other
+   primary on the card wore, went with the card on 2026-09-27.)
 
    THE HOUSE GREEN, NOT A NEW ONE. `#00A389` is already the teal-green this
    app is built from; inventing a truer, brighter green would rhyme with
    nothing, which is the design-system note's whole point. It IS the colour
    this app also uses for ok/done, and that is a deliberate acceptance rather
-   than an oversight — these are static controls, so neither needs green to
-   be available as a state CHANGE the way a tick or a pill does.
+   than an oversight — this is a static control, so it does not need green
+   to be available as a state CHANGE the way a tick or a pill does.
 
-   DUSK ONLY, AND THAT IS NOT AN OMISSION. `duskClass` gives every stage but
-   review the dark card, and both buttons live outside review — so the card
-   under them is always dusk, and a light-ground twin would be a rule that
-   matches nothing. The gradient is what the neighbouring primaries wear on
-   this ground; a flat green here would be the only flat fill on the sheet.
-   Same teal top end as its neighbours, landing on the green instead of the
-   blue.
+   DUSK ONLY, AND THAT IS NOT AN OMISSION: the card under it is always dusk,
+   so a light-ground twin would be a rule that matches nothing.
 
-   EVERY RULE CARRIES `:not(:disabled)`. The shared disabled fill is
-   `.wb2-capcard.wb2-dusk .pbtn:disabled` at (0,5,0), and a green at (0,6,0)
-   would otherwise paint a disabled button — which this one is, for the whole
-   time it says "Reading…". AND THOSE TWO `:not()`s ARE WHY THE FOCUS RING
-   CARRIES THEM TOO. The dusk primary above gets away with a bare
-   `:focus-visible` because its own fill is the same weight and sits earlier;
-   this fill is two classes heavier, so a bare ring would be outranked by the
-   very rule it is meant to sit on top of — measured in the harness, where a
+   EVERY RULE CARRIES `:not(:disabled)`, from when `Go` wore this too and was
+   disabled for as long as it said "Reading…". AND THOSE TWO `:not()`s ARE
+   WHY THE FOCUS RING CARRIES THEM TOO: a bare ring would be outranked by the
+   very fill it is meant to sit on top of — measured in the harness, where a
    focused primary showed the fill's drop shadow and no ring at all. */
 .wb2-capcard.wb2-dusk .pbtn.wb2-prim:not(.ghost):not(:disabled) {
   background:linear-gradient(120deg,#00E5C0,#00A389); border-color:transparent; color:#04262B;
@@ -10586,226 +10195,34 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   filter:brightness(1.07); }
 .wb2-capcard.wb2-dusk .pbtn.wb2-prim:not(.ghost):focus-visible:not(:disabled) {
   box-shadow:var(--ring); }
-/* The stop mark, eased off the button's own ink. `#04262B` at full strength
-   on a bright green fill is the loudest thing the glyph set can draw, which
-   is what made an 11px outlined square read as a dark blob. */
-.wb2-capcard .pbtn.wb2-prim svg { opacity:.72; }
 
-/* listening — the orb goes brand, the dot stays the one honest red.
-   The bars carried a teal→blue gradient down their height; a 3px sphere dot
-   has no height to run one down, and fifty-four of them at the same origin
-   would each paint an identical smear. The teal end of that gradient, flat,
-   is the same statement without the pretence. */
-.wb2-dusk .wb-lvl { color:var(--paper); }
+/* the words arriving, white on ink */
 .wb2-dusk .wb2-livetext { color:var(--paper); }
 /* The record, in the dark. Not `opacity` — a dimmed white on this ground is
    a contrast figure nobody can read off the sheet, and this is the one the
    textarea it replaced was already carrying. */
 .wb2-dusk .wb2-lwsaid { color:var(--paper); }
 
-/* sorting — the words you just said, held while Tiff works out what they
-   become. The skeleton rows that used to need an ink cut of their own are
-   gone; the field of dots above is the wait now. */
-.wb2-dusk .wb2-sortnote { color:var(--paper); }
-
-/* the answer — Tiff speaking is peak dusk */
-.wb2-dusk .wb2-ansq { background:var(--on-ink-tint); color:var(--paper); }
-.wb2-dusk .wb2-anstool { background:var(--on-ink-tint); color:var(--paper); }
-.wb2-dusk .wb2-anstext { color:var(--paper); }
-.wb2-dusk .wb2-anscursor { background:var(--paper); }
-
-/* ── the entrance: the sheet grows OUT OF THE BUTTON ──
-
-   Only the Tiff button hands in `wb2-blossom`; a field's nudge keeps the
-   plain rise, because a grow anchored on the topbar would be growing out of
-   a corner with nothing in it.
-
-   IT USED TO GUESS. The first version was a clip circle at a hardcoded
-   `86% -48px` — roughly where the button sits on a 1400px screen with the
-   card down at `bottom:4vh`. Both halves of that guess were wrong the
-   moment either changed, and centring the card broke it outright: the
-   reveal grew from a point floating above the card's top edge, nowhere
-   near the topbar. It also only ever masked the card, so nothing actually
-   travelled.
-
-   Now the button MEASURES ITSELF on click and hands its offset from the
-   viewport centre in as `--cap-dx/--cap-dy` (see tiff-button). The card
-   starts scaled down with its centre exactly on the button and expands
-   into place, so the motion is real at any viewport width and wherever the
-   button ends up living next.
-
-   The composition is `translate(-50%,-50%) translate(dx,dy) scale(s)`, and
-   the order is load-bearing: the two translates are unaffected by the
-   scale to their right, so the card's centre lands at the layout point
-   plus (dx,dy) — the button — while `scale` works about the card's own
-   centre. Both keyframes carry the full centring translate, for the same
-   `both`-fill reason as above.
-
-   Opacity is full by 45% so the illegibly-small card is never actually
-   read; what you see is the last two thirds of the growth. */
-@media (min-width:760px) {
-  @keyframes wb2BlossomWide {
-    from { opacity:0;
-           transform:translate(-50%,-50%) translate(var(--cap-dx,0px), var(--cap-dy,0px)) scale(.3); }
-    45%  { opacity:1; }
-    to   { opacity:1; transform:translate(-50%,-50%) scale(1); }
-  }
-  .wb2-capcard.wb2-caps.wb2-blossom { animation:wb2BlossomWide .44s var(--ease) both; }
-}
-
-/* the contents land a beat behind the card, in two soft steps — and because
-   these ride the dusk class, each STAGE's body arrives the same way */
+/* the contents land a beat behind the card, in two soft steps */
 @keyframes wb2CapRise { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
 .wb2-capcard.wb2-dusk .wb2-capribbon { animation:wb2CapRise .38s var(--ease) .05s both; }
-.wb2-capcard.wb2-dusk :is(.wb2-notes, .wb2-caprec, .wb2-sorting, .wb2-ans) {
-  animation:wb2CapRise .38s var(--ease) .12s both; }
+.wb2-capcard.wb2-dusk .wb2-caprec { animation:wb2CapRise .38s var(--ease) .12s both; }
 .wb2-capcard.wb2-dusk .wb2-capact { animation:wb2CapRise .38s var(--ease) .19s both; }
 
-/* Motion off: everything above collapses to plain appearance. The blossom
-   override is not optional — at (0,3,0) it outranks the generic
-   `.wb2-capcard.wb2-caps { animation:none }` in the sheet's own reduce
-   block, so left alone it would keep animating. */
+/* Motion off: everything above collapses to plain appearance. */
 @media (prefers-reduced-motion:reduce) {
-  .wb2-capcard.wb2-caps.wb2-blossom { animation:none; }
   .wb2-capcard.wb2-dusk .wb2-capribbon, .wb2-capcard.wb2-dusk .wb2-capact,
-  .wb2-capcard.wb2-dusk :is(.wb2-notes, .wb2-caprec, .wb2-sorting, .wb2-ans) { animation:none; }
+  .wb2-capcard.wb2-dusk .wb2-caprec { animation:none; }
   /* …and the live window opens with them. `animation:none` here is the whole
      rule: without it the box keeps easing three lines open under the words,
      which is the one movement on this card motion-off has to stop. */
   .wb2-livetext { animation:none; }
-  .wb2-capdim::after { animation:none; }
 }
 
-/* ── THE REVIEW, IN THE DARK ──────────────────────────────────────────────
-   Every `.wb-*` and `.wb2-casc*` component was written for a white sheet
-   floating over a white page, in light values: grey headings, a white tick,
-   white fields, a near-white cascade panel. The card stays dusk THROUGH the
-   review — one ground for the whole card, all the way down (Isaac,
-   2026-08-13: "All sections of the debrief part should have the same
-   background. No white.") — so the review family needs dark clothes.
-
-   THAT RULING NOW COVERS THE SHEET TOO (Isaac, 2026-08-17: "it's also still
-   got a white card instead of the dark glass"). The debrief card was the
-   first to stay dark all the way down and these rules were written for it;
-   the sheet went on handing back to white at the review, so the same flow
-   through the same stages ended on a different surface depending on which
-   door opened it. It doesn't any more — and because this block was scoped
-   to the SKIN rather than to that one posture, it cost nothing to say so.
-
-   SCOPED TO THE SKIN, NOT THE POSTURE. These used to be `.fg .hm-cap …`,
-   which tied them to the one card that happened to want them and left them
-   to drift; `.wb2-capcard.wb2-dusk` says what is actually true — a review on
-   the dusk surface reads like this, wherever that surface is standing.
-
-   LITERALS, NOT `--hm-*`. Those vars were declared on `.hm-wrap`, and this
-   selector also matches the PORTALLED card, which renders at document.body
-   where nothing under `.fg` reaches it. A var that resolves on one surface
-   and not the other is the same bug wearing a variable.
-
-   STATE COLOURS KEEP THEIR MEANING and only change ground: the stop stays the
-   warn family (it is "fix this before it saves", not a failure), and the tick
-   takes the ok-teal the Tasks tab's tick wears two panels away. */
-.wb2-capcard.wb2-dusk .wb-dayhead { color:var(--on-ink-q); }
-.wb2-capcard.wb2-dusk .wb-dayhead i { color:var(--on-ink-q); }
-.wb2-capcard.wb2-dusk .wb-notetext { color:var(--paper); }
-.wb2-capcard.wb2-dusk .wb-review .wb-notetext { background:var(--on-ink-tint); }
-.wb2-capcard.wb2-dusk .wb-row:hover { background:var(--on-ink-tint); }
-.wb2-capcard.wb2-dusk .wb-tick { background:transparent; border-color:var(--on-ink-line);
-  color:transparent; }
-/* the mark on a dark ground is paper: the tick box fills paper and the check is ink */
-.wb2-capcard.wb2-dusk .wb-tick:not(.done):hover { border-color:var(--paper); color:var(--on-ink-q); }
-.wb2-capcard.wb2-dusk .wb-tick.done { background:var(--paper);
-  border-color:var(--paper); color:var(--ink); }
-/* the fields — dark glass, the same recipe the assign form on the Tasks tab
-   uses, so the two editable surfaces on this card agree */
-.wb2-capcard.wb2-dusk :is(input.wb-inline, .wb-select) { background:var(--on-ink-tint);
-  border-color:var(--on-ink-line); color:var(--paper); }
-.wb2-capcard.wb2-dusk input.wb-inline::placeholder { color:var(--on-ink-q); }
-.wb2-capcard.wb2-dusk :is(input.wb-inline, .wb-select):focus { border-color:var(--paper);
-  box-shadow:var(--ring); }
-/* a native <option> list is drawn by the OS, so the dark field needs a dark
-   option too or the menu opens as white text on white */
-.wb2-capcard.wb2-dusk .wb-select option { background:var(--ink); color:var(--paper); }
-/* WHAT WAS SAID ABOUT WHEN — "said: before Monday". Measured on the card
-   rather than assumed: `.45` reads 4.49 against this ground at 11px/700,
-   which is not large text and so is the wrong side of AA by a hair. The one
-   piece of a task that explains its urgency does not get to be the thing
-   nobody can read. */
-.wb2-capcard.wb2-dusk .wb2-capsaid { color:var(--paper); }
-/* THE KNOWLEDGE BODY GETS ITS BOX BACK. It is a `.wb2-notes`, and the dusk
-   skin deliberately strips that class to bare words on the card — right for
-   the capture box, which is the one thing you are writing in, wrong for a
-   field sitting inside a list of rows. */
-.wb2-capcard.wb2-dusk .wb2-kbrow .wb2-kbbody { background:var(--on-ink-tint);
-  border:1px solid var(--on-ink-line); border-radius:var(--r-button); padding:8px 12px; }
-.wb2-capcard.wb2-dusk .wb2-kbrow .wb2-kbbody:focus { border-color:rgba(0,229,192,.55);
-  box-shadow:var(--ring); }
-.wb2-capcard.wb2-dusk .wb-chip { color:var(--paper); }
-.wb2-capcard.wb2-dusk button.wb-chip { background:var(--on-ink-tint); border-color:var(--on-ink-line); color:var(--paper); }
-.wb2-capcard.wb2-dusk button.wb-chip:hover:not(:disabled) { background:var(--on-ink-tint-2); }
-/* the cascade — where the note is going, in three numbered lines */
-.wb2-capcard.wb2-dusk .wb2-casc { background:var(--on-ink-tint);
-  border-color:var(--on-ink-line); }
-/* A row that is NOT carrying anything is still a sentence you have to read —
-   "No job named" is the one that tells you where the note is about to land.
-   `.4` measured 3.74 here, which is de-emphasis written as an alpha, the
-   fourth way past the `-t` guard and the one this app keeps re-learning. The
-   step down to the `.on` rows below stays; it just starts above the floor. */
-.wb2-capcard.wb2-dusk .wb2-cascrow { color:var(--on-ink-q); }
-.wb2-capcard.wb2-dusk .wb2-cascrow.on { color:var(--paper); }
-.wb2-capcard.wb2-dusk .wb2-cascn { background:var(--on-ink-tint); color:var(--on-ink-q); }
-.wb2-capcard.wb2-dusk .wb2-cascrow.on .wb2-cascn { background:#00E5C0; color:#04262B; }
-/* the stop — WARN, not danger: nothing has failed, something is unfinished */
-.wb2-capcard.wb2-dusk .wb2-capstop { background:rgba(255,138,0,.16); color:#FFC07A; }
-/* the job line and its picker, the same dark glass as the fields */
-.wb2-capcard.wb2-dusk .wb2-capjob { background:var(--on-ink-tint);
-  border-color:var(--on-ink-line); color:var(--paper); }
-.wb2-capcard.wb2-dusk .wb2-capjob.on { background:rgba(0,229,192,.1);
-  border-color:rgba(0,229,192,.34); color:#9FF4E4; }
-.wb2-capcard.wb2-dusk .wb2-capjob b { color:var(--paper); }
-.wb2-capcard.wb2-dusk .wb2-capchange { background:rgba(0,229,192,.1);
-  border-color:rgba(0,229,192,.34); color:#9FF4E4; }
-.wb2-capcard.wb2-dusk .wb2-capchange:hover { background:rgba(0,229,192,.18);
-  border-color:rgba(0,229,192,.5); color:var(--paper); }
-.wb2-capcard.wb2-dusk .wb2-jobpick { background:var(--on-ink-tint);
-  border-color:var(--on-ink-line); }
-.wb2-capcard.wb2-dusk .wb2-jobopt { color:var(--paper); }
-.wb2-capcard.wb2-dusk .wb2-jobopt:hover { background:var(--on-ink-tint-2); }
-.wb2-capcard.wb2-dusk .wb2-jobopt.on { background:rgba(0,229,192,.14); color:var(--paper); }
-.wb2-capcard.wb2-dusk .wb2-jobopt em { color:var(--on-ink-q); }
-
-/* ============================ HOME ============================
-   The old Home — one card, three rooms (the handoff of 2026-09-14, redrawn
-   to the laws) — and its `.hm-*` family went on 2026-09-26, when the new
-   Home (the desk, below) became everyone's. Its day band, rail, rows,
-   pages and calendar face went with it. What is left of the family is the
-   capture card's, which the old capture UI still draws (notes/note-token's
-   entry row) and which goes with that.
-
-   RULES ARE `.fg .hm-*`, two classes deep, because `.fg button` and
-   `.fg input` are (0,1,1) resets and a one-class rule loses to them. */
-
-/* THE COMPOSER — the entry row `NoteToken` draws. A control: the control
-   radius, one height, the hairline that goes ink under the pointer. */
-.fg .hm-adde { display:flex; align-items:center; gap:8px; height:40px; padding:0 4px 0 12px;
-  border:1px solid var(--line); border-radius:6px; background:var(--paper);
-  transition:border-color var(--t-fast) var(--ease); }
-.fg .hm-adde:hover, .fg .hm-adde:focus-within { border-color:var(--ink); }
-.fg .hm-addetx { flex:1; min-width:0; height:100%; padding:0; border:0; background:none; text-align:left;
-  cursor:text; font-size:14px; font-weight:400; color:var(--q); }
-.fg .hm-addetx:focus-visible { outline:none; }
-/* The mic: one of the two icon-only buttons the doc names as candidates. */
-.fg .hm-addemic { flex:none; display:grid; place-items:center; width:32px; height:32px; border:0;
-  border-radius:10px; background:var(--tint); color:var(--ink); cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hm-addemic:hover { background:var(--tint-2); }
-.fg .hm-addemic:focus-visible { outline:none; box-shadow:var(--ring); }
-/* THE CAPTURE CARD, IN PLACE. Pressing the composer swaps it for the
-   sheet's own card (`wb2-capcard wb2-dusk`) — this rule says only WHERE IT
-   STANDS. Declaring a background here would beat the skin on source order. */
-.fg .hm-cap { position:static; transform:none; z-index:auto; width:auto; min-width:0; max-width:none;
-  max-height:none; overflow:visible; box-shadow:none; animation:none; }
-.fg .hm-cap .wb2-sherr { margin:12px 0 0; }
+/* ── HOME's `.hm-*` family ── DELETED. The old Home's went on 2026-09-26,
+   when the new Home (the desk, below) became everyone's; the last of it,
+   the Diary's entry row and the capture card it opened in the page
+   (`.hm-adde`, `.hm-cap`), went with the old capture UI on 2026-09-27. */
 
 /* ======================= THE NEW HOME: THE DESK =======================
    Everyone's since 2026-09-26 (it was built behind HOME_DESK, the owner's

@@ -473,9 +473,9 @@ screen. Until then the overnight top-up does nothing at all.
 
 ## 3d. Smart Notes voice (optional — the mic on the Workboard)
 
-**Unset, nothing breaks.** The mic button isn't rendered, the paste box is still
-there, and a typed note goes through the identical brain → review card → apply
-path. This key buys dictation, not the feature.
+**Unset, nothing breaks.** The mic button isn't rendered, the Tiff modal opens
+on its reply box instead of listening, and a typed note goes through the
+identical brain → Tiff → file path. This key buys dictation, not the feature.
 
 1. Create an ElevenLabs account, then an API key at
    <https://elevenlabs.io/app/settings/api-keys>.

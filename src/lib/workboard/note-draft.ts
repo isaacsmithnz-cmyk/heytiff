@@ -9,12 +9,14 @@ import type { NoteProposal, ProposedTask, Severity } from "./note-brain";
    modal files on the SERVER (`fileNote`, Isaac's call: filing live, with
    Undo as the net), from the proposal the server stored rather than one a
    browser posts, so the rules moved here where both can reach them. The
-   review card imports them back; nothing about them changed on the way.
+   review card went with the old capture UI (2026-09-27); `targetOf` still
+   reads the expense form's job picker, and `blockers` and `nothingTicked`,
+   the card's own Save rules, have no caller left.
 
    THE ENGINE'S CONTRACT IS UNCHANGED: `applyNote` applies what the review
-   card confirmed, and `fileNote` applies `toConfirmed(toDraft(stored))`
-   minus the rows the person took off. Neither ever applies a payload the
-   model or a browser shaped directly. */
+   card confirmed (nothing calls it since the card went), and `fileNote`
+   applies `toConfirmed(toDraft(stored))` minus the rows the person took off.
+   Neither ever applies a payload the model or a browser shaped directly. */
 
 export type Draft = {
   tasks: {

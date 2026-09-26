@@ -139,10 +139,11 @@ export type WaitingProps = {
    The five places it actually stands, traced: Tiff's transcript bubble and
    under its ask bar, and the notes postures' three rows — the strip on the
    notes board, the line in a visit sheet, and the field in every sheet and
-   modal that takes a note. All five are light. The dusk capture card is NOT
-   one of them, whatever the older wording here said: its transcribing stage
-   shows a bare `.wb2-waiting` sphere with no word at all. `.wb2-dusk .orb-say`
-   in the sheet is a guard for a surface this chip does not yet reach. */
+   modal that takes a note. All five are light. No dark surface holds it: the
+   dusk capture card never did, and it went with the old capture UI
+   (2026-09-27), its re-point `.wb2-dusk .orb-say` with it. A dark mount would
+   need its own `--say-ink` and `--say-lit`, since the light values are under
+   4.5:1 on ink. */
 export function Waiting({ note, className }: WaitingProps) {
   return (
     <span className={className ? `orb-say ${className}` : "orb-say"} role="status">

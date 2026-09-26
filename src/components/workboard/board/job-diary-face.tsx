@@ -42,7 +42,9 @@ import { StateLine } from "./state-line";
    diary entry immediately — no round trip to wait on, because a diary you
    have to wait for is a form. The token's own sniff then decides whether
    what you wrote smells like work and offers to sort it out; that path is
-   Tiff's review card, unchanged, and nothing is created until you say so.
+   the Tiff modal, opened on your words (it was Tiff's review card until the
+   old capture UI went, 2026-09-27), and nothing leaves the diary unless you
+   take the offer.
 
    OUR NOTES AND SERVICEM8'S SIT IN ONE STREAM. They are the same act — a
    person wrote on this job — and only the entry's `origin` says which

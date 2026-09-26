@@ -248,11 +248,12 @@ export function useDictation({
   onError,
 }: {
   /* TWO WAYS A RECORDING CAN END, and the caller still has to tell them
-     apart — though no longer to decide whether to ROUTE. Nothing routes off
-     a transcript any more (see note-flow): the words land in the box to be
-     checked whichever way the recording ended, which is what killed the
-     third case. `handedOver` existed only to carve out "keep these, do not
-     route them", and that is now simply what happens.
+     apart. The capture card this was written for put the words in its box
+     to be checked whichever way the recording ended, which is what killed
+     a third case: `handedOver` existed only to carve out "keep these, do not
+     route them". The card went with the old capture UI (2026-09-27); the
+     Tiff modal (components/tiff/modal/use-conversation) sends the words on
+     Done and holds a capped take to be fixed.
 
        (not capped)  you stopped, or handed over to the keyboard. The words
                      are yours to look at; there is nothing to explain.

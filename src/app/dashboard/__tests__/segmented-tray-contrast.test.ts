@@ -111,7 +111,8 @@ const ALPHA: [string, string][] = [
      Urgent tabs' filters are the board toolbar's chips, each with its own
      hairline, so there is no shared track left to lose against its ground. */
   [".wb2-ckseg", "workboard checklist"],
-  [".wb2-rkind", "a reminder's at / by"],
+  /* `.wb2-rkind`, a reminder's at / by, left with the review card it stood
+     in, when the old capture UI went (2026-09-27). */
 ];
 
 describe("a tint tray survives any ground it is put on", () => {

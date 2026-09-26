@@ -265,8 +265,11 @@ describe("the private .tpr palette resolves to readable text", () => {
 /* ===== `.orb-say` — the wait, named, on four surfaces and one portal =====
 
    The chip that says what is happening when there is nothing to show for it:
-   Tiff's transcript, under its ask bar, and the three note postures — plus the
-   dusk capture card, which re-points both inks.
+   Tiff's transcript, under its ask bar, and the three note postures. (The dusk
+   capture card re-pointed both inks for a chip it never held; the card and
+   its re-point went with the old capture UI, 2026-09-27, and so did the two
+   cases that pinned it. A dark mount would need its own: the light values
+   are under 4.5:1 on ink.)
 
    It is checked apart from everything above because it is the one text in the
    sheet whose GLYPHS ARE A GRADIENT. `background-clip:text` + `color:transparent`
@@ -278,10 +281,6 @@ describe("the private .tpr palette resolves to readable text", () => {
 describe("the orb-say chip is readable on every surface it stands on", () => {
   const SAY_INK = scoped(".orb-say {", "say-ink");
   const SAY_LIT = scoped(".orb-say {", "say-lit");
-  /* `.wb2-capcard.wb2-dusk` is the elevated dark by token, opaque, since the
-     board's dark surfaces took the tokens (2026-09-16); it was an alpha over
-     whatever stood behind it, measured composited onto white. */
-  const DUSK = hex(CSS.match(/--ink2:(#[0-9A-Fa-f]{6})/)![1]!);
 
   /* THE GROUNDS IT ACTUALLY STANDS ON, traced site by site — not the shared
      list, which bottoms out at #f1f2f4 and would have passed this by luck.
@@ -328,11 +327,13 @@ describe("the orb-say chip is readable on every surface it stands on", () => {
     expect(ratio(hex("#00A389"), WHITE)).toBeLessThan(4.5);
   });
 
-  /* THE FALLBACK IS WHAT ACTUALLY PAINTS ON THE PORTALLED SURFACE. The capture
-     sheet portals to document.body, so `--ok-t` — declared on `.fg` — is simply
-     absent out there and `var(--ok-t, X)` resolves to X. If X and the token ever
-     disagree, the portal renders a colour nothing else on the screen uses, and
-     no ground-based test would see it because the token side still passes. */
+  /* THE FALLBACK IS WHAT ACTUALLY PAINTS ON THE PORTALLED SURFACE. A sheet
+     portals to document.body (the note postures' chip stands in the visit and
+     agreement sheets, as it stood on the capture sheet), so `--ok-t` —
+     declared on `.fg` — is simply absent out there and `var(--ok-t, X)`
+     resolves to X. If X and the token ever disagree, the portal renders a
+     colour nothing else on the screen uses, and no ground-based test would see
+     it because the token side still passes. */
   it.each([
     ["--say-ink", /--say-ink: *var\(--ok-t, *(#[0-9a-f]{6})\)/i, () => SAY_INK],
     ["--say-lit", /--say-lit: *var\(--ink, *(#[0-9a-f]{6})\)/i, () => SAY_LIT],
@@ -340,30 +341,6 @@ describe("the orb-say chip is readable on every surface it stands on", () => {
     const m = CSS.match(re);
     expect(m).not.toBeNull();
     expect(m![1]!.toLowerCase()).toBe(resolved().toLowerCase());
-  });
-
-  it("the dusk card re-points both, and both clear on ink", () => {
-    const body = CSS.slice(CSS.indexOf(".wb2-dusk .orb-say {"));
-    const ink = body.match(/--say-ink: *(#[0-9a-f]{6})/i)![1]!;
-    const lit = body.match(/--say-lit: *(#[0-9a-f]{6})/i)![1]!;
-    expect(ratio(hex(ink), DUSK)).toBeGreaterThanOrEqual(4.5);
-    expect(ratio(hex(lit), DUSK)).toBeGreaterThanOrEqual(4.5);
-  });
-
-  /* WHY THE DUSK RULE STAYS THOUGH IT MATCHES NOTHING TODAY.
-
-     Traced in full: `.wb2-dusk` has four mount points and none contains a
-     `<Waiting>` — the capture sheet's transcribing stage shows a bare
-     `.wb2-waiting` sphere, and the recording card is the sibling branch of the
-     ternary that emits the chip. So this chip has never stood on ink.
-
-     The assertion is the arithmetic that makes the rule load-bearing the
-     moment it does: the light value is BELOW 4.5 on that surface, so a dusk
-     mount without the re-point is a 3:1 word. Deleting the rule as unused is
-     the mistake this pins. */
-  it("keeps the dusk re-point, because the light value cannot serve on ink", () => {
-    expect(ratio(hex(SAY_INK), DUSK)).toBeLessThan(4.5);
-    expect(CSS).toMatch(/\.wb2-dusk \.orb-say \{[^}]*--say-ink/);
   });
 
   /* The two rules that outranked the chip. `.fg .tvsay` is (0,2,0) and

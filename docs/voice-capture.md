@@ -5,9 +5,16 @@ How a spoken note gets from a microphone to a saved row, as the code stands on
 production for the first time.
 
 Everything here is one engine — `useDictation` in
-`src/components/notes/dictation.tsx` — wearing different clothes. The capture
-card, Tiff's ask bar and the field mics all call it, so a change here is a
+`src/components/notes/dictation.tsx` — wearing different clothes. The Tiff
+modal, Tiff's ask bar and the field mics all call it, so a change here is a
 change everywhere. That is deliberate and is the reason the file exists.
+
+**The capture card this was written about is gone** (2026-09-27, with the old
+capture UI): every Tiff button opens the Tiff modal
+(`src/components/tiff/modal`), which listens as it opens, sends your words on
+Done and files as it talks, with Undo. Sections 6 to 8 describe the card's
+flow — the box, `Go`, the review — and stay as the record of it; the endings
+table in section 8 is still what those server actions write.
 
 ---
 
@@ -262,8 +269,8 @@ them:
 | file | what |
 |---|---|
 | `src/components/notes/dictation.tsx` | the engine: recorder, meter, chimes, endings |
-| `src/components/notes/note-token.tsx` | the card and its stages |
-| `src/components/notes/note-flow.ts` | what happens to the words |
+| `src/components/notes/note-token.tsx` | the field mics: a strip, a line and a box, and the offer that opens the Tiff modal |
+| `src/components/tiff/modal/use-conversation.ts` | what happens to the words (the capture card's `note-flow.ts` until 2026-09-27) |
 | `src/lib/voice/realtime-stream.ts` | mic tap → PCM → WebSocket (browser only) |
 | `src/lib/voice/realtime.ts` | the protocol, pure and tested |
 | `src/lib/voice/transcribe.ts` | the batch adapter and keyterms |

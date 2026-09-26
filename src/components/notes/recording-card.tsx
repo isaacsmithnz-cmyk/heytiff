@@ -5,17 +5,20 @@ import { DictClock, LevelOrb, LiveWords, type DictationState } from "./dictation
 
 /* THE RECORDING STAGE, ONCE.
 
-   Every door into the microphone shows this: the Tiff button's sheet, the
+   Every door into the microphone showed this: the Tiff button's sheet, the
    debrief card in Home's journal, and Tiff's own ask bar. Isaac's rule, and
    the reason this file exists — "the input section should be identical
-   throughout the software; they just appear in different places."
+   throughout the software; they just appear in different places." The
+   debrief card went on 2026-09-25 and the sheet with the old capture UI on
+   2026-09-27 — every Tiff button opens the Tiff modal, which listens in its
+   own dock — so Tiff's ask bar is where it stands now.
 
-   IT IS THE CONTENT, NOT THE CONTAINER, and that split is what lets the same
-   card stand in three places that are shaped differently. The sheet portals
-   itself over a scrim, the debrief and Tiff's composer grow in the page, and
-   none of that is decided here. What IS decided here is everything you look
-   at while you are talking: what you have said so far, the sphere, the clock,
-   and the three ways out.
+   IT IS THE CONTENT, NOT THE CONTAINER, and that split is what let the same
+   card stand in three places that were shaped differently. The sheet
+   portalled itself over a scrim, the debrief and Tiff's composer grew in the
+   page, and none of that was decided here. What IS decided here is
+   everything you look at while you are talking: what you have said so far,
+   the clock, and the three ways out.
 
    THE THREE WAYS OUT ARE ALL THE ENGINE'S, so this needs no callbacks and
    no flow. `handOver` stops and keeps the words for the box, `restart` bins
@@ -33,10 +36,10 @@ import { DictClock, LevelOrb, LiveWords, type DictationState } from "./dictation
    think about.
 
    WHAT HAPPENS TO THE WORDS AFTERWARDS IS NOT THIS CARD'S BUSINESS, and it
-   genuinely differs. The note flow sorts them and asks you to check what was
-   made of them; Tiff drops them in the ask box and waits for you to press
-   send, because a question already knows what it is. Identical up to `Done`,
-   and deliberately not past it. */
+   genuinely differed. The note flow sorted them and asked you to check what
+   was made of them; Tiff drops them in the ask box and waits for you to
+   press send, because a question already knows what it is. Identical up to
+   `Done`, and deliberately not past it. */
 
 export type RecordingMeterProps = {
   dict: DictationState;
@@ -53,8 +56,6 @@ export type RecordingMeterProps = {
      the live words joined into it, and no Type/Start again/Done row because
      the bar carries its own stop and discard. */
   compact?: boolean;
-  /** The card's `with-words` state; nothing else passes one. */
-  className?: string;
 };
 
 /* THE INSTRUMENT — the sphere, and the clock beside it.
@@ -76,13 +77,9 @@ export type RecordingMeterProps = {
    explain that it might not be working is hedging in the one moment the
    product should be confident, and the hedge was redundant besides — an orb
    sitting still IS the bad news, demonstrated rather than disclaimed. */
-export function RecordingMeter({ dict, compact, className }: RecordingMeterProps) {
+export function RecordingMeter({ dict, compact }: RecordingMeterProps) {
   return (
-    <div
-      className={
-        "wb2-recwave" + (compact ? " compact" : "") + (className ? ` ${className}` : "")
-      }
-    >
+    <div className={"wb2-recwave" + (compact ? " compact" : "")}>
       <DictClock seconds={dict.seconds} big={!compact} />
       <LevelOrb innerRef={dict.barsRef} />
     </div>
@@ -131,10 +128,10 @@ export function RecordingCard({ dict, text }: RecordingCardProps) {
       {shows && <LiveWords className="wb2-livetext" said={text} text={dict.interim} />}
       {/* THE CLOCK HOLDS THE BOTTOM LEFT. It used to stand beside the meter,
           above the words; with the instrument lifted out of this card (the
-          field spans stages, so it is mounted by the door — see `Body` in
-          ./note-token) there is nothing for it to stand beside. On the actions
-          row it needs no wrapper: `.wb2-capact` is flush right, and one auto
-          margin pushes everything else across.
+          field spans stages, so it is mounted by the door — see the ask bar
+          in ../tiff/assistant) there is nothing for it to stand beside. On
+          the actions row it needs no wrapper: `.wb2-capact` is flush right,
+          and one auto margin pushes everything else across.
 
           Tabular figures are load-bearing at this size — proportional digits
           make the whole row twitch on every tick. */}

@@ -31,13 +31,16 @@ export type NoteScope = {
   /** What a note lands against by default. `{ kind: "none" }` is the
       universal case and is NOT an error state — most of the app is that. */
   target: NoteTarget;
-  /** "Meridian Data · Server room CRACs" — what the ribbon says out loud so
-      the person speaking can see where their words are going. Absent means
-      the token says "General note" instead. */
+  /** "Meridian Data · Server room CRACs" — what the Tiff modal's header (and
+      a sheet's Tiff button) says out loud so the person speaking can see
+      where their words are going. Absent means they are going nowhere in
+      particular. */
   targetLabel?: string;
-  /** Jobs a note can be pinned to when it arrived against nothing. Empty on
-      screens with no board behind them, which simply means the token won't
-      offer a job picker. */
+  /** Jobs a note can be pinned to when it arrived against nothing. Screens
+      still report them, and NOTHING READS THEM: the capture card's job
+      picker was their one reader, and it went with the old capture UI
+      (2026-09-27). The Tiff modal asks "Which job is this for?" from the
+      server's own read instead. */
   jobs: JobCandidate[];
   /** Staff first names, for the field mics' local sniff — a named person is
       the single strongest signal that a sentence is a job for somebody, and

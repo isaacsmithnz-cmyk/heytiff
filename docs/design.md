@@ -637,7 +637,7 @@ approved together.
     nudges or grows a shadow under the pointer, and a press moves 1px. A page
     appears, a panel appears, a tab's content appears: nothing arrives
     staggered. What may loop: a spinner, a skeleton sweep, a caret, a live
-    dot, the orb and the capture card's mark while the microphone is open or
+    dot, the orb and Tiff's mark while the microphone is open or
     Tiff is working, and a flash a row asked for with data. A halo, a
     breathing glow, a logo drawing itself and a dot that nudges toward the
     next step do not. Every loop that runs is named under Guards.
@@ -770,12 +770,12 @@ infinite loop into a strobe.
 | `tkFlow` ×2 | a lane of the research trace, out to a shelf being searched and back from the shelf the answer is drawn from | a spinner, drawn as a pulse along the line that is waiting |
 | `tkCaret` | the last paragraph of an answer still streaming | a caret: "is that all of it" |
 | `wb2CursorBlink` | the board's answer while it streams | a caret |
-| `fgPulse` ×3 | the recording dot beside the capture clock; the row microphone while it listens; Time & Pay's live period | a live dot: something is open right now |
+| `fgPulse` ×3 | the recording dot beside the recording clock (the Tiff modal's dock, the ask bar's recording card); the row microphone while it listens; Time & Pay's live period | a live dot: something is open right now |
 | `int-pulse` | an integration's backfill while it runs | a live dot |
 | `orbSpin` | the orb, as the dictation meter | the orb: the microphone is open |
 | `orbSaySweep` | the wait's word beside the working mark | the wait's label, lit while Tiff works: the caret's job on a word |
-| `dotfSwell` | the capture card's mark while you talk | the microphone is open: a wave through the mark |
-| `dotfTurn`, `dotfZip`, `dotfFire` | the capture card's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
+| `dotfSwell` | the mark while you talk, in the Tiff modal and the ask bar's recording card | the microphone is open: a wave through the mark |
+| `dotfTurn`, `dotfZip`, `dotfFire` | the Tiff modal's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
 | `wb2Flash` | a calendar day the board's data asked to flash | a flash a row asked for with data |
 | `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button, on the frame and in a sheet's header; and the mark wherever it stands for Tiff (at rest, at the thinking pace while Tiff works, or on hover in a list) | not feedback or state: Isaac's override of law 18 (2026-09-24, "make it gently alive all the time"), the one thing in the app that moves at rest. See "The Tiff button" below |
 | `hdTrace` | the Trace: the white light round the job on now, on Home's day bar | Isaac's override of law 18 (2026-09-24, "design exempt for now, but keep a note"): his live job, marked by a light that runs round its edge once every 8 seconds while it is on. It goes when the job finishes, and stands still under reduced motion. See "Named exemptions" below |
@@ -793,7 +793,7 @@ this list the way it holds the loops: both ways, by name.
 |---|---|---|
 | `mic` | `wb2-striprnd`, `wb2-micgo`, `tmic` | the microphone of the dictation controls, on a note strip, a note row and the ask bar: the field beside it is the word, and a microphone is the one glyph the trade reads without one |
 | `square` | `wb2-striprnd`, `wb2-micgo`, `wb2-dictmic` | stop, in the same controls: it takes the microphone's seat while it listens |
-| `x` | `wb2-striprnd`, `wb2-dictx` ×2, `wb2-ico` ×2 | the recording's cross beside stop, and the capture card's own cross: each closes a recording, and its label says what closing costs ("Discard") |
+| `x` | `wb2-striprnd`, `wb2-dictx` ×2, `wb2-ico` | the recording's cross beside stop, and the recording card's own cross in Tiff's ask bar (the capture card had a second, and went with the old capture UI, 2026-09-27): each closes a recording, and its label says what closing costs ("Discard") |
 | `plus` | `wb2-striprnd`, `wb2-addgo` | a note composer's commit at the end of its one-line field: the placeholder is the word and Enter is the same press. A form's save is a word; a composer's send is the glyph |
 | `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
 | `chevR` | `railtg` | the rail's handle, a chevron riding the seam between rail and content; the shell stands as it is |
@@ -1084,8 +1084,9 @@ button's, on his word, and it runs the button's six loops with no new one.
    you go. The hover-only controls, the icon-only buttons, the spinners and
    the ten footer families are fixed family by family here (laws 24, 25, 27,
    28). By rule count: `wb2-` 1,316 · `ds-` 325 · `hq-` 287 · `tk-` 281 ·
-   `hm-` 265 (all but the capture card's, gone with the old Home on
-   2026-09-26) · `vm-` 245 · `fl-` 203 · `mts2-` 155 · `dsd-` 129 · `wb-` 102 ·
+   `hm-` 265 (all gone: the old Home's on 2026-09-26, the capture card's
+   with the old capture UI on 2026-09-27) · `vm-` 245 · `fl-` 203 ·
+   `mts2-` 155 · `dsd-` 129 · `wb-` 102 ·
    the rest. The v3 Studio glass chrome in `shell.css` (`.fg .dhead`,
    `.dtools`, `.dstatus`, `.dprops`, `.dview`, `.dread`) has no consumer and
    goes first. Target: both big stylesheets halved.

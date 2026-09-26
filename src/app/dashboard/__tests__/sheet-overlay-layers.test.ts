@@ -5,8 +5,10 @@ import path from "node:path";
 
    The Workboard's sheets sit on the modal layer. Four things open over one,
    each a scrim and a surface: an invoice's own modal, the media viewer and
-   the SWMS wizard inside the job card's portal, and the capture card in a
-   portal of its own when a note field on a sheet hands over to it.
+   the SWMS wizard inside the job card's portal, and the Tiff modal in a
+   portal of its own when a sheet's Tiff button, or a note field's offer on
+   a sheet, opens it. (The capture card was the fourth, and held this layer
+   for the same reason, until it went with the old capture UI, 2026-09-27.)
 
    When the layers were named (#683) the sheet went to the modal layer and
    the first three pairs it had then went to the overlay layer, so each
@@ -52,8 +54,6 @@ describe("what opens over a card sits on the card's layer", () => {
     [".wb2-claim", "the invoice"],
     [".wb2-mvscrim", "the viewer's scrim"],
     [".wb2-mv", "the viewer"],
-    [".wb2-capdim", "the capture card's dim"],
-    [".wb2-capcard", "the capture card"],
     [".swz-scrim", "the SWMS wizard's scrim"],
     [".swz", "the SWMS wizard"],
     [".tm-scrim", "the Tiff modal's scrim"],

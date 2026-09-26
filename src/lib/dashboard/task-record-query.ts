@@ -25,15 +25,15 @@ import {
 /* THE TASKS FACE — the reads. The words are ./task-record; this file fetches
    the tasks and what the face says about each.
 
-   One door, `loadTasksFace(ctx)`, for the new Home's loader (desk-data's
-   `loadDesk`, behind HOME_DESK). It reads its own tasks rather than taking
-   the old Home's: `loadDesk` runs inside the same batch as today's
-   `loadTasks`, so neither can wait for the other, and the face wants three
-   columns and a Done list today's Home never read. For a manager that is
-   one read of the org's open tasks, the same read `teamTasks` makes.
+   One door, `loadTasksFace(ctx)`, for Home's loader (desk-data's
+   `loadDesk`). It reads its own tasks rather than taking the page's:
+   `loadDesk` runs inside the same batch as the page's `loadTasks` (the
+   list's rows), so neither can wait for the other, and the face wants three
+   columns and a Done list the page never reads. For a manager that is one
+   read of the org's open tasks, the same read `teamTasks` makes.
 
      open    yours, and with `team` the team's delegated work — the same set
-             today's Tasks face shows (its own mine + team's others).
+             the list holds (the page's mine + team's others).
      done    what you finished, what you handed out and came back finished,
              and what you ticked: done in the last 90 days, newest first, at
              most 100 (`doneTaskRecord`).

@@ -11,7 +11,7 @@ import { dueReminders, reminderTask, workdayHours } from "@/lib/dashboard/remind
 /* REMINDERS — the bell's read, and the one thing you can do to one from there.
 
    NO CAPABILITY GATES ANY OF THIS, and that is deliberate rather than an
-   oversight. `createTask` requires `team` because assigning work to somebody
+   oversight. `giveTask` requires `team` because handing work to somebody
    else is a management action; asking to be nudged about your own task is not,
    and gating it would mean a tradesperson without `team` could dictate "remind
    me on Monday" and never be reminded. `keepNoteForMe` takes the same posture

@@ -1,4 +1,3 @@
-import { DashboardHome } from "@/components/dashboard/home";
 import { DashboardDesk } from "@/components/dashboard/home-desk";
 import { loadDashboard } from "@/lib/dashboard/page-data";
 import { NoteScopeScreen } from "@/components/notes/note-context";
@@ -47,11 +46,10 @@ export default async function DashboardHomePage({
      "I mentioned a job, but I couldn't find one"). They are candidates, not a
      target: pinning is still an explicit choice on the review.
 
-     TWO HOMES, ONE SWITCH. `desk` is the new Home's own data, and the loader
-     sets it only for a viewer `HOME_DESK` gives the new Home to (the owner,
-     until the flip; lib/dashboard/desk-flag) — so the switch is the data's
-     presence, decided on the server, and everyone else gets today's Home
-     exactly as it was. The capture's scope is the same for both. */
+     ONE HOME. The new Home — the day, three tabs and the list — is
+     everyone's (2026-09-26). It was built behind a switch, HOME_DESK, that
+     gave it to the owner while the crew kept the old Home; the switch and
+     the old Home went together. */
   return (
     <>
       <NoteScopeScreen
@@ -60,7 +58,7 @@ export default async function DashboardHomePage({
           .map((s) => s.name.trim().split(/\s+/)[0])
           .filter((n) => n.length >= 2)}
       />
-      {data.desk ? <DashboardDesk data={data} taskId={taskId} /> : <DashboardHome data={data} taskId={taskId} />}
+      <DashboardDesk data={data} taskId={taskId} />
     </>
   );
 }

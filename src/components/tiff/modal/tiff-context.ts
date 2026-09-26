@@ -1,13 +1,22 @@
 "use client";
 
-import { createContext, useContext, useEffect } from "react";
+import { createContext, useContext } from "react";
 import type { EarlierTurn, TiffRoom } from "@/lib/workboard/note-turns";
 
 /* WHAT A TIFF BUTTON NEEDS TO KNOW ABOUT THE MODAL, and nothing heavier.
 
-   Kept apart from the host (./tiff-host) because the top bar reports into
-   it and every Tiff button reads it, and neither should carry the modal and
-   its server actions along just to ask whether it is on. */
+   Kept apart from the host (./tiff-host) because every Tiff button reads
+   it, and none should carry the modal and its server actions along just to
+   open it.
+
+   THERE IS NOTHING TO ASK FIRST. Until the new Home was everyone's
+   (2026-09-26) the top bar asked the HOME_DESK switch and reported whether
+   this viewer got the modal, and everyone it left out kept the capture
+   sheet. The switch went with the old Home, and so did the report: the
+   host is mounted round every screen in the dashboard's frame, and every
+   Tiff button opens it. The default below is only what a component drawn
+   with no host round it reads — a test's, never a screen's: nothing opens
+   and nothing has landed. */
 
 export type TiffOpen = {
   /** The button pressed. The modal grows from it and gives focus back to it. */
@@ -53,9 +62,8 @@ export type TiffLanded = {
 };
 
 export type TiffApi = {
-  /** HOME_DESK gives this viewer the modal. */
-  enabled: boolean;
-  /** Open a conversation. False when one is already open or it is off. */
+  /** Open a conversation. False when one is already open, or when there is
+      no host to open it. */
   open: (o: TiffOpen) => boolean;
   /** The id of the button that opened the one that is open. */
   openedBy: string | null;
@@ -63,27 +71,13 @@ export type TiffApi = {
   /** What the last conversation filed, for about two seconds after it
       closed, so the place underneath can light what arrived. */
   landed: TiffLanded | null;
-  /** The top bar's report. */
-  report: (on: boolean) => void;
 };
 
 export const TiffContext = createContext<TiffApi>({
-  enabled: false,
   open: () => false,
   openedBy: null,
   isOpen: false,
   landed: null,
-  report: () => {},
 });
 
 export const useTiff = () => useContext(TiffContext);
-
-/** The top bar's report: this viewer gets the modal, or does not. Called
-    where the answer is known — the top bar's server slot asks `deskOn`. */
-export function useTiffModalSwitch(on: boolean): void {
-  const { report } = useTiff();
-  useEffect(() => {
-    report(on);
-    return () => report(false);
-  }, [on, report]);
-}

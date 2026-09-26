@@ -2,12 +2,10 @@ import {
   DAYS_PER_MONTH,
   agoLabel,
   daysDuration,
-  dueIn,
   durationDays,
   expiresIn,
   expiryClause,
   inLabel,
-  magnitudeLabel,
 } from "../duration";
 
 /* The thresholds are the product decision, so they are pinned literally rather
@@ -107,20 +105,6 @@ describe("expiresIn / expiryClause", () => {
   });
 });
 
-describe("dueIn", () => {
-  it("counts down, then says so plainly once it is past", () => {
-    expect(dueIn(12)).toBe("Due in 12 days");
-    expect(dueIn(0)).toBe("Due today");
-    expect(dueIn(1)).toBe("Due tomorrow");
-    expect(dueIn(-14)).toBe("Overdue 2 weeks");
-  });
-
-  it("says how overdue, not when — 'Overdue yesterday' is not English", () => {
-    expect(dueIn(-1)).toBe("Overdue 1 day");
-    expect(dueIn(-4)).toBe("Overdue 4 days");
-  });
-});
-
 describe("agoLabel", () => {
   it("puts elapsed time in the past tense", () => {
     expect(agoLabel(45)).toBe("6 weeks ago");
@@ -138,19 +122,12 @@ describe("agoLabel", () => {
   });
 });
 
-describe("inLabel / magnitudeLabel", () => {
+describe("inLabel", () => {
   it("supplies the preposition only when there is a quantity to precede", () => {
     expect(inLabel(45)).toBe("in 6 weeks");
     expect(inLabel(0)).toBe("today"); // never "in today"
     expect(inLabel(1)).toBe("tomorrow");
     expect(`renews ${inLabel(21)}`).toBe("renews in 3 weeks");
-  });
-
-  it("strips every special and tense down to the bare quantity", () => {
-    expect(magnitudeLabel(1)).toBe("1 day");
-    expect(magnitudeLabel(-1)).toBe("1 day");
-    expect(magnitudeLabel(0)).toBe("0 days");
-    expect(magnitudeLabel(-45)).toBe("6 weeks");
   });
 });
 

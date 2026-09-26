@@ -418,11 +418,12 @@ describe("quiet text on the dark chrome", () => {
   });
 
   /* THE SWEEP. Every white-alpha `color:` under a shell selector, held to the
-     text floor — scoped to the chrome, because `.wb2-dusk` (the elevated dark),
-     `.hm-card` (a backdrop-filter over several washes) and `.idc` are dark
-     surfaces with DIFFERENT grounds and would be measured against the wrong one
-     here. Those are named so the omission is a decision, not an oversight. */
-  const OTHER_DARK = /wb2-dusk|wb2-capcard|wb2-caprec|wb2-toast|hm-|idc|nb-lb-open/;
+     text floor — scoped to the chrome, because `.wb2-dusk` (the elevated dark)
+     and `.idc` are dark surfaces with DIFFERENT grounds and would be measured
+     against the wrong one here. Those are named so the omission is a decision,
+     not an oversight. (The old Home's dark `.hm-card` was one, and went with
+     that Home.) */
+  const OTHER_DARK = /wb2-dusk|wb2-capcard|wb2-caprec|wb2-toast|idc|nb-lb-open/;
   const code = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
   /* The chrome's text is written as the tokens since the sweep (2026-09-15):
      `--on-ink-q` is the quiet paper, `--paper` the full one. Both resolve to an
@@ -1202,10 +1203,11 @@ describe("the Tasks face's words clear 4.5:1 on every ground they stand on", () 
   });
 
   /* Where its Done stands with ServiceM8 (two-way phase 2, PR C) is drawn
-     in task-sm8-line's own dress — today's Tasks face's `.hm-when` — on the
-     paper under what happened: the words, the state in each of its tones,
-     and the line's doors, pressable and waiting. Those rules are shared
-     with other selectors, so a selector is found in its rule's list. */
+     in task-sm8-line's own dress — the old Tasks face's, which came over
+     with it as `.hd-tk-sm8line` — on the paper under what happened: the
+     words, the state in each of its tones, and the line's doors, pressable
+     and waiting. A selector is found in its rule's list, should a rule be
+     shared. */
   it("where its Done stands with ServiceM8, in every tone, and its doors, on paper", () => {
     const shared = (sel: string, prop: string): number[] => {
       for (const m of code.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
@@ -1216,13 +1218,13 @@ describe("the Tasks face's words clear 4.5:1 on every ground they stand on", () 
       throw new Error(`no ${prop} on "${sel}"`);
     };
     for (const sel of [
-      ".fg .hm-when",
-      ".fg .hm-when b",
-      ".fg .hm-when .ok",
-      ".fg .hm-when .warn",
-      ".fg .hm-when .bad",
-      ".fg .hm-link",
-      ".fg .hm-link:disabled",
+      ".fg .hd-tk-sm8line",
+      ".fg .hd-tk-sm8line b",
+      ".fg .hd-tk-sm8line .ok",
+      ".fg .hd-tk-sm8line .warn",
+      ".fg .hd-tk-sm8line .bad",
+      ".fg .hd-tk-sm8door",
+      ".fg .hd-tk-sm8door:disabled",
     ]) {
       expect({ sel, short: short(shared(sel, "color"), { paper: WHITE }) }).toEqual({ sel, short: [] });
     }

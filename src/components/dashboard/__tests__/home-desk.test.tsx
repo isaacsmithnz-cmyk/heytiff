@@ -28,13 +28,11 @@ import { typedAbout, type RecordTask, type TaskAbout, type TaskRecord } from "@/
 
    The capture controls and the job card reach server actions, and "use
    server" modules cannot be imported into jsdom: stubbed, as on Home. The
-   diary's box is the real one; with no modal host around it, its Tiff
-   button carries the capture sheet, stubbed with the rest of note-token. */
+   diary's box is the real one, and its Tiff button opens only the modal. */
 jest.mock("@/components/notes/note-token", () => ({
   NoteToken: ({ placeholder }: { placeholder?: string }) => (
     <button aria-label={placeholder ?? "Add to the diary…"} />
   ),
-  CaptureSheet: () => null,
 }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: jest.fn(),
@@ -77,7 +75,6 @@ jest.mock("@/app/actions/dashboard", () => ({
   addTask: jest.fn(),
   giveTask: jest.fn(),
   completeTask: jest.fn(),
-  createTask: jest.fn(),
   reopenTask: jest.fn(),
   deleteTask: jest.fn(),
   setTaskDue: jest.fn(),
@@ -297,9 +294,7 @@ const talkOf = (notes: MentionNote[]) =>
 
 const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   chips: { self: [], team: [] },
-  calendar: { spanStart: "2026-08-03", spanEnd: "2026-11-01", days: [] },
-  tasks: { mine: [], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
-  notices: [],
+  tasks: { mine: [], team: null },
   journal: [],
   assignable: [],
   jobs: [],
@@ -344,8 +339,6 @@ describe("the frame", () => {
     const day = screen.getByRole("region", { name: "Your day" });
     expect(within(day).getByRole("heading", { level: 2 })).toHaveTextContent("Your day");
     expect(within(day).getByRole("button", { name: /^Chatswood, Job 1042, 8–10am/ })).toHaveClass("hd-card");
-    // today's band is gone from the desk; the crew's Home keeps it
-    expect(document.querySelector(".hm-track")).toBeNull();
   });
 
   it("says Debrief nowhere", () => {
@@ -490,8 +483,6 @@ describe("the faces", () => {
     expect(row.contains(views)).toBe(false);
     expect(row.contains(add)).toBe(false);
     expect(within(row).getAllByRole("tab")).toHaveLength(3);
-    // today's calendar face stands nowhere on the desk
-    expect(document.querySelector(".hm-cal, .hm-face.one")).toBeNull();
   }, WHOLE);
 
   /* Luke's answer, lit, while you are on another face: the diary is
@@ -547,9 +538,6 @@ describe("the one door between faces", () => {
       tasks: {
         mine: [task({ id: "t0", title: "Ring the Hilux dealer" }), task()],
         team: null,
-        done: [],
-        reported: [],
-        sm8: { lines: {}, sender: null },
       },
       desk: deskOf(
         journal,
@@ -575,13 +563,9 @@ describe("the one door between faces", () => {
      keeps what is done — is where it still stands. */
   it("takes a diary door to its task on the Tasks face when the list does not hold it", async () => {
     const user = userEvent.setup();
-    const done = task({ status: "done", doneAt: "2026-08-10T01:00:00Z" });
     const tasks = {
       mine: [task({ id: "t0", title: "Ring the Hilux dealer" })],
       team: null,
-      done: [done],
-      reported: [],
-      sm8: { lines: {}, sender: null },
     };
     const base = wired();
     const onFace = {
@@ -703,9 +687,6 @@ describe("the one door between faces", () => {
       tasks: {
         mine: [task({ id: "t0", title: "Ring the Hilux dealer" }), task()],
         team: null,
-        done: [],
-        reported: [],
-        sm8: { lines: {}, sender: null },
       },
       desk: {
         ...deskOf(
@@ -801,9 +782,6 @@ describe("the one door between faces", () => {
           tasks: {
             mine: [task({ id: "t0", title: "Ring the Hilux dealer" })],
             team: null,
-            done: [],
-            reported: [],
-            sm8: { lines: {}, sender: null },
           },
         })}
       />,
@@ -879,9 +857,6 @@ describe("the list", () => {
       tasks: {
         mine: [task({ id: "t0", title: "Ring the Hilux dealer", dueDate: "2026-08-07" }), task()],
         team: null,
-        done: [],
-        reported: [],
-        sm8: { lines: {}, sender: null },
       },
       desk: deskOf(
         journal,
@@ -958,7 +933,7 @@ describe("the list", () => {
       jobs: new Map([[ASK.jobUuid, { label: "2041 Wollstonecraft", live: true }]]),
       today: TODAY,
     }).map((c) => ({ ...c, tasks }));
-    const base = withTasks({ tasks: { mine: [MARY], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } } });
+    const base = withTasks({ tasks: { mine: [MARY], team: null } });
     return {
       ...base,
       desk: {
@@ -1008,9 +983,6 @@ describe("the list", () => {
         tasks: {
           mine: [task({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" })],
           team: null,
-          done: [],
-          reported: [],
-          sm8: { lines: {}, sender: null },
         },
       },
       [recordTask({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" })],
@@ -1423,7 +1395,7 @@ describe("the slide", () => {
         <DashboardDesk
           data={data({
             journal,
-            tasks: { mine: [task()], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
+            tasks: { mine: [task()], team: null },
             desk: deskOf(journal, record([recordTask()], { t1: fromDiary("e1") })),
           })}
         />,
@@ -1553,12 +1525,10 @@ describe("the slide", () => {
      land() did, and the entry is lit there once the page brings it. */
   describe("a Tiff landing", () => {
     const host = (landed: TiffLanded | null): TiffApi => ({
-      enabled: true,
       open: () => false,
       openedBy: null,
       isOpen: false,
       landed,
-      report: () => {},
     });
     const LANDED = { noteIds: ["e9"], ids: [] };
     const before = data();

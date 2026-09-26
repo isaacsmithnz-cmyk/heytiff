@@ -101,7 +101,6 @@ import { replyToJobNote, sendJobNoteToServiceM8, takeBackJobNote } from "../job-
 import { myUnsentDones, readTaskDoneLines } from "@/lib/dashboard/task-done-query";
 import { readJobAttention, readOurJobNotes } from "@/lib/workboard/job-notes-query";
 import { readJobNotes } from "@/lib/workboard/all-jobs-query";
-import { recentlyDoneTasks } from "@/lib/dashboard/tasks-query";
 import { sm8DoneChip } from "@/lib/dashboard/chips";
 import { assembleChips } from "@/lib/dashboard/assemble";
 import { fillWords, NOTE_WORDS, noteSubject } from "@/lib/integrations/sm8-note-plan";
@@ -269,13 +268,6 @@ describe("on a deployment that sends files only (production today)", () => {
     expect(await linesFor("staff-isaac")).toEqual({ lines: {}, sender: null });
     expect(await myUnsentDones(ORG, "staff-isaac", SINCE)).toEqual([]);
     expect(fake.log).toHaveLength(0);
-  });
-
-  it("(F) 28. the done list is only your own assignments, as it always was", async () => {
-    Object.assign(task(PLAIN_TASK), { assigned_to: "staff-luke", status: "done", done_by: "staff-isaac", done_at: new Date().toISOString() });
-    expect((await recentlyDoneTasks(ORG, "staff-isaac", 7)).map((t) => t.id)).toEqual([]);
-    process.env.SM8_WRITES = "attachment,note";
-    expect((await recentlyDoneTasks(ORG, "staff-isaac", 7)).map((t) => t.id)).toEqual([PLAIN_TASK]);
   });
 });
 
@@ -958,11 +950,5 @@ describe("the bell, for the one whose tick it was", () => {
     const done = liveDone()!;
     Object.assign(createOf(done.id)!, { status: "failed", maybe_landed: true, last_error: NOTE_WORDS.row.noteUnsure });
     expect((await myUnsentDones(ORG, "staff-isaac", SINCE))[0]).toMatchObject({ op: "check" });
-  });
-
-  it("(F) 28. where notes are sent, the done list holds what you ticked for somebody else", async () => {
-    Object.assign(task(PLAIN_TASK), { assigned_to: "staff-luke", status: "done", done_by: "staff-isaac", done_at: new Date().toISOString() });
-    expect((await recentlyDoneTasks(ORG, "staff-isaac", 7)).map((t) => t.id)).toEqual([PLAIN_TASK]);
-    expect((await recentlyDoneTasks(ORG, "staff-luke", 7)).map((t) => t.id)).toEqual([PLAIN_TASK]);
   });
 });

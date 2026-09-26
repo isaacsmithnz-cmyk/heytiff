@@ -1288,12 +1288,10 @@ describe("Edit", () => {
 
 describe("what Tiff put on", () => {
   const api = (landed: TiffLanded | null): TiffApi => ({
-    enabled: true,
     open: () => false,
     openedBy: null,
     isOpen: false,
     landed,
-    report: () => {},
   });
   const withTiff = (landed: TiffLanded | null, cal = calendar()) => (
     <TiffContext.Provider value={api(landed)}>
@@ -1752,7 +1750,7 @@ describe("motion", () => {
   /* What Tiff put on, landing as the modal closes (his calLand). */
   const tiffOn = (landed: TiffLanded | null, cal = calendar()) => (
     <TiffContext.Provider
-      value={{ enabled: true, open: () => false, openedBy: null, isOpen: false, landed, report: () => {} }}
+      value={{ open: () => false, openedBy: null, isOpen: false, landed }}
     >
       <HomeCalendarPage cal={cal} />
     </TiffContext.Provider>

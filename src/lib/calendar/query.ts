@@ -17,14 +17,13 @@ import {
   type VehicleExpiryRow,
 } from "./items";
 
-/* THE HOME CALENDAR'S READS — one call, for the new Home only.
+/* THE HOME CALENDAR'S READS — one call.
 
-   `loadCompanyCalendar` is what the new Home's loader (`loadDesk`,
-   lib/dashboard/desk-data) runs when the viewer is behind HOME_DESK; nobody
-   on today's Home pays for any of it. It takes the loader's context as it
-   is, and uses the two things that context has already read for the whole
-   page, the expiry window and the org's credentials, rather than asking for
-   them again.
+   `loadCompanyCalendar` is what Home's loader (`loadDesk`,
+   lib/dashboard/desk-data) runs for the Calendar tab. It takes the loader's
+   context as it is, and uses the two things that context has already read
+   for the whole page, the expiry window and the org's credentials, rather
+   than asking for them again.
 
    Six sources, each read over the calendar's twelve months:
    - public holidays: the org's own table, topped up by `ensureHolidays`

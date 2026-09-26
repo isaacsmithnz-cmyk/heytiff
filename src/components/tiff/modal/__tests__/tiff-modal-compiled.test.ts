@@ -15,9 +15,10 @@ import { transformSync } from "@babel/core";
    own report and its cache slots. Run here against the source, with the
    plugin the build uses. */
 
+/* tiff-context.ts left this list with the top bar's report (2026-09-26): what
+   is left in it is types and a plain context read, with nothing to memoise. */
 const FILES = [
   "src/components/tiff/modal/tiff-host.tsx",
-  "src/components/tiff/modal/tiff-context.ts",
   "src/components/tiff/modal/tiff-modal.tsx",
   "src/components/tiff/modal/use-conversation.ts",
   "src/components/tiff/modal/box-motion.ts",

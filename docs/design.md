@@ -51,7 +51,8 @@ Every decision below is made once, here, and a guard test holds each number.
   connectors will carry the providers' own logos, later.
 - **Home is one card with three rooms** (decided 2026-09-15, from the
   three-room handoff; **superseded 2026-09-25** by "Home is the day, three
-  tabs and the list", below, and still the crew's Home until the flip):
+  tabs and the list", below, and gone with its rules on 2026-09-26, when
+  that Home became everyone's):
   the day across the top, a rail of the faces (four
   until the Debrief went; Isaac, 2026-09-24: "the diary, tasks and HeyTiff
   chat window should assist with that"), the face's list, and the page the
@@ -264,8 +265,9 @@ Every decision below is made once, here, and a guard test holds each number.
   corner come off and it IS the screen.
 - **Home is the day, three tabs and the list** (decided 2026-09-25, from
   his handoff "Home - Diagonal day" and his walks of the prototype to v32).
-  Built behind `HOME_DESK`: the owner's until he has walked it, and the
-  crew keep the Home above until the flip. The date is the h1, in the band
+  Built behind `HOME_DESK`, the owner's until he had walked it; everyone's
+  since 2026-09-26, when the switch and the Home above went. The date is
+  the h1, in the band
   every screen wears. Under it "Your day" ("The top hero can stay as it
   is, that says Your day"), over Diary and Tasks: it steps aside for the
   Calendar, which wants the room ("the your day disappears temporarily",
@@ -1082,7 +1084,8 @@ button's, on his word, and it runs the button's six loops with no new one.
    you go. The hover-only controls, the icon-only buttons, the spinners and
    the ten footer families are fixed family by family here (laws 24, 25, 27,
    28). By rule count: `wb2-` 1,316 · `ds-` 325 · `hq-` 287 · `tk-` 281 ·
-   `hm-` 265 · `vm-` 245 · `fl-` 203 · `mts2-` 155 · `dsd-` 129 · `wb-` 102 ·
+   `hm-` 265 (all but the capture card's, gone with the old Home on
+   2026-09-26) · `vm-` 245 · `fl-` 203 · `mts2-` 155 · `dsd-` 129 · `wb-` 102 ·
    the rest. The v3 Studio glass chrome in `shell.css` (`.fg .dhead`,
    `.dtools`, `.dstatus`, `.dprops`, `.dview`, `.dread`) has no consumer and
    goes first. Target: both big stylesheets halved.

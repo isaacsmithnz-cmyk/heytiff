@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react";
 
-/* TWO HOMES, ONE SWITCH. The loader sets `desk` only for a viewer
-   `HOME_DESK` gives the new Home to (its own suite holds that rule), and
-   the page draws the desk exactly then — everyone else gets today's Home as
-   it was. Both keep the capture's scope. The pages themselves have suites of
-   their own; here they are names. */
+/* ONE HOME. The new Home is everyone's (2026-09-26): the page draws the
+   desk whatever the loader handed it, and keeps the capture's scope. It was
+   two Homes behind a switch, HOME_DESK, until then; the switch and the old
+   Home went together. The desk itself has a suite of its own; here it is a
+   name. */
 
 const loadDashboard = jest.fn();
 jest.mock("@/lib/dashboard/page-data", () => ({ loadDashboard: () => loadDashboard() }));
@@ -15,7 +15,6 @@ jest.mock("@/components/notes/note-context", () => ({
     <i data-testid="scope">{staffFirstNames.join(",")}</i>
   ),
 }));
-jest.mock("@/components/dashboard/home", () => ({ DashboardHome: () => <p>today&apos;s Home</p> }));
 jest.mock("@/components/dashboard/home-desk", () => ({ DashboardDesk: () => <p>the desk</p> }));
 
 import DashboardHomePage from "../page";
@@ -26,18 +25,12 @@ const loaded = (desk: { warnDays: number } | null) => ({
   desk,
 });
 
-it("draws the desk for a viewer the loader gave the new Home's data", async () => {
-  loadDashboard.mockResolvedValueOnce(loaded({ warnDays: 30 }));
+it.each([
+  ["with the desk's own reads", { warnDays: 30 }],
+  ["with none (nobody signed in)", null],
+])("draws the desk, %s, with the capture's scope", async (_case, desk) => {
+  loadDashboard.mockResolvedValueOnce(loaded(desk));
   render(await DashboardHomePage({ searchParams: Promise.resolve({}) }));
   expect(screen.getByText("the desk")).toBeInTheDocument();
-  expect(screen.queryByText("today's Home")).toBeNull();
-  expect(screen.getByTestId("scope")).toHaveTextContent("Dane");
-});
-
-it("keeps everyone else on today's Home", async () => {
-  loadDashboard.mockResolvedValueOnce(loaded(null));
-  render(await DashboardHomePage({ searchParams: Promise.resolve({}) }));
-  expect(screen.getByText("today's Home")).toBeInTheDocument();
-  expect(screen.queryByText("the desk")).toBeNull();
   expect(screen.getByTestId("scope")).toHaveTextContent("Dane");
 });

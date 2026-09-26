@@ -3,8 +3,8 @@
 
    Everything else on the list — your tasks and the team's, the bell's dated
    chips, the open issues, the diary a task came from — is already in the
-   page's hands for today's Home, so the list places those and reads none of
-   them again (`placeHomeList`). What is new is two questions:
+   page's hands, so the list places those and reads none of them again
+   (`placeHomeList`). What is new is two questions:
 
      1. Which ServiceM8 Work Orders were won in the last 90 days and never
         booked at all? Three narrow reads: the work orders, then any scheduled

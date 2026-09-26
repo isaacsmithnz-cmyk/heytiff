@@ -3,7 +3,6 @@ import { Topbar } from "./topbar";
 import { CommandPalette } from "./command-palette";
 import { loadShell } from "@/lib/shell/data";
 import { todayInAu } from "@/lib/au-dates";
-import { deskOn } from "@/lib/dashboard/desk-flag";
 
 /* The three pieces of chrome that need to know who you are.
 
@@ -32,13 +31,8 @@ export async function ShellTopbar() {
   const { user } = await loadShell();
   /* The AU calendar date, read once here on the server so the topbar's clock
      paints with the frame instead of blank until hydration. Synchronous, so it
-     adds nothing to what this slot already awaits.
-
-     WHETHER THIS VIEWER GETS THE TIFF MODAL is asked here too, for the same
-     reason: the role is already in hand, and `deskOn` is an env read. The
-     layout stays synchronous; the top bar reports the answer up to the
-     modal's host. */
-  return <Topbar user={user} today={todayInAu()} tiffModal={deskOn(user.role)} />;
+     adds nothing to what this slot already awaits. */
+  return <Topbar user={user} today={todayInAu()} />;
 }
 
 export async function ShellPalette() {

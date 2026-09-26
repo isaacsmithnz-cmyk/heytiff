@@ -56,7 +56,7 @@ export function TaskSm8Line({
            there already, was a trial, or was cancelled is sent again */
         const failed = state.key === "line.notSent" && state.tone === "bad";
         return (
-          <p key={line.noteId} className="hm-when" data-note-id={line.noteId}>
+          <p key={line.noteId} className="hd-tk-sm8line" data-note-id={line.noteId}>
             {`“${line.words}”`}
             {state.text && (
               <>
@@ -69,7 +69,7 @@ export function TaskSm8Line({
                 {" "}
                 <button
                   type="button"
-                  className="hm-link"
+                  className="hd-tk-sm8door"
                   disabled={pending}
                   onClick={() => doors.onConfirm(line.noteId, asking.remoteId, "yes")}
                 >
@@ -77,7 +77,7 @@ export function TaskSm8Line({
                 </button>{" "}
                 <button
                   type="button"
-                  className="hm-link"
+                  className="hd-tk-sm8door"
                   disabled={pending}
                   onClick={() => doors.onConfirm(line.noteId, asking.remoteId, "no")}
                 >
@@ -90,7 +90,7 @@ export function TaskSm8Line({
                 {" "}
                 <button
                   type="button"
-                  className="hm-link"
+                  className="hd-tk-sm8door"
                   disabled={pending}
                   onClick={() => doors.onRetry(line.noteId, "send_again")}
                 >
@@ -103,7 +103,7 @@ export function TaskSm8Line({
                 {" "}
                 <button
                   type="button"
-                  className="hm-link"
+                  className="hd-tk-sm8door"
                   disabled={pending}
                   onClick={() => doors.onRetry(line.noteId, "take_out_again")}
                 >
@@ -114,7 +114,7 @@ export function TaskSm8Line({
             {acts.includes("undo") && doors.onUndo && (
               <>
                 {" "}
-                <button type="button" className="hm-link" disabled={pending} onClick={() => doors.onUndo!(line.noteId)}>
+                <button type="button" className="hd-tk-sm8door" disabled={pending} onClick={() => doors.onUndo!(line.noteId)}>
                   {NOTE_WORDS.door.undo}
                 </button>
               </>

@@ -539,8 +539,8 @@ describe("about", () => {
 });
 
 /* A TASK'S DONE IN SERVICEM8 (two-way phase 2, PR C), read for the tasks
-   the face holds — which reach back 90 days, where today's Tasks face
-   holds five done — and not at all until the deployment sends notes. */
+   the face holds — which reach back 90 days — and not at all until the
+   deployment sends notes. */
 describe("loadTaskLines", () => {
   const was = process.env.SM8_WRITES;
   afterEach(() => {

@@ -7,7 +7,6 @@ import type { Vehicle } from "@/components/fleet/logic";
 import type { Capability } from "@/lib/permissions";
 import { getPaySettings, ownSentBackPeriod } from "@/lib/timepay/query";
 import { addDays, periodLabel } from "@/lib/timepay/period";
-import { approvedInSpan, holidaysInSpan, stateFor } from "@/lib/timepay/leave-query";
 import { assembleChips, type DashboardChips } from "./assemble";
 import { CLAIM_NUDGE_DAYS } from "./chips";
 import { listStaffCompliance, type StaffCompliance } from "./query";
@@ -15,7 +14,6 @@ import { ownDetailsGap } from "@/lib/staff/onboarding";
 import { isLibraryApproved, pendingSignons, raisedIssues } from "@/lib/swms/query";
 import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
 import { ownDeclinedLeave, pendingLeaveCount } from "@/lib/timepay/leave-query";
-import { buildCalendar, calendarSpan, type LeaveCalendar } from "./calendar";
 import { listJournal } from "./journal-query";
 import { jobCandidates } from "./job-candidates";
 import { listOpenIssues } from "./issues-query";
@@ -25,8 +23,6 @@ import type { JournalEntry } from "./journal";
 import {
   myTasks,
   teamTasks,
-  recentlyDoneTasks,
-  assignedByMeRecentlyDone,
   listNotices,
   NOTICE_WINDOW,
   loadStaffNames,
@@ -35,7 +31,7 @@ import {
 } from "./tasks-query";
 import type { MentionTarget } from "./comments";
 import type { BoardNotice } from "./board";
-import { RECENT_DONE_DAYS, sortNotices, sortTasks, type DashTask } from "./tasks";
+import { sortNotices, sortTasks, type DashTask } from "./tasks";
 import { sm8VendorOf } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { EMPTY_SCHEDULE, loadScheduleDay } from "@/lib/workboard/schedule-query";
@@ -50,25 +46,25 @@ import {
   type RailTask,
 } from "./day-rail";
 import { loadNextDay, type NextDay } from "./next-day";
-import { deskOn } from "./desk-flag";
 import { loadDesk, readHomeShared, type DeskData, type HomeShared } from "./desk-data";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { sm8QueueStuck } from "@/lib/integrations/sm8-writes";
 import { freshenSm8AfterResponse } from "@/lib/integrations/sm8-freshness";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
-import type { TaskDoneLines, UnsentDone } from "./task-done-query";
+import type { UnsentDone } from "./task-done-query";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
-   and live in ./assemble and ./calendar; this file is the thin I/O layer
-   that resolves the session once, reads only the data the viewer may see, and
-   hands it over.
+   and live in ./assemble, ./day-rail and the new Home's own modules; this
+   file is the thin I/O layer that resolves the session once, reads only the
+   data the viewer may see, and hands it over.
 
-   The two sections mirror the spec:
-     chips    — action-required expiries. self is intrinsic; team/fleet gated.
-     calendar — your leave and the office closures (everyone), plus who else is
-                off (`team` only). It replaced `roster`, which answered the same
-                question for today alone.
+   ONE HOME (2026-09-26). The new Home — the day, three tabs and the list —
+   is everyone's, and its own reads are `loadDesk`'s (./desk-data), in this
+   same batch. What the old Home alone read went with it: its leave calendar
+   (leave lives on Time & Pay now), the noticeboard's rows for its unread
+   count, and its Tasks face's done lists and their ServiceM8 lines — the new
+   Tasks face reads its own (`desk.tasks`, `desk.taskLines`).
 
    MONEY IS NOT HERE ANY MORE. Home carried a pay-run strip under the card
    until the desk rebuild took it off (Isaac, 2026-08-30) — the day, the
@@ -79,21 +75,13 @@ import type { TaskDoneLines, UnsentDone } from "./task-done-query";
 
 export type DashboardData = {
   chips: DashboardChips;
-  /** Your leave and the org's closures — for everyone on today's Home.
-      Colleagues' leave is in it only with `team`. Empty, and unread, for a
-      viewer on the new Home, whose Calendar is `desk.calendar`. */
-  calendar: LeaveCalendar;
-  /** Your open tasks (always), the team's (only with `team`), and your
-      recently-completed ones so finishing something leaves a trace.
-      `sm8`: where each task's Done stands with ServiceM8 (two-way phase 2,
-      PR C) — empty, from no read, where the deployment doesn't send notes,
-      and for a viewer on the new Home, whose Tasks face reads its own
-      (`desk.taskLines`). */
-  tasks: { mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[]; sm8: TaskDoneLines };
-  /** Recent notices with your read state joined in. */
-  notices: BoardNotice[];
-  /** Everything you've told Tiff, newest first — the Journal tab's record.
-      Empty for an account with no staff profile, which has no captures. */
+  /** Your open tasks (always) and the team's (only with `team`) — the
+      list's rows and the day's timed tasks. The Tasks face reads its own
+      record (`desk.tasks`). */
+  tasks: { mine: DashTask[]; team: DashTask[] | null };
+  /** Everything you've told Tiff, newest first — what the list's rows and
+      the Tasks face's doors find an entry by. Empty for an account with no
+      staff profile, which has no captures. */
   journal: JournalEntry[];
   /** Staff you can assign a task to — populated only with `team`. */
   assignable: { id: string; name: string }[];
@@ -114,8 +102,8 @@ export type DashboardData = {
   /** The day beside the diary: today's bookings and the tasks that named an
       hour. See ./day-rail for what earns a place on it. */
   rail: HomeRail;
-  /** The new Home's own data, or null for a viewer still on today's Home
-      (`HOME_DESK`, ./desk-flag). Nothing reads it for them. */
+  /** The new Home's own reads (./desk-data) — null only for nobody signed
+      in, who has no Home to draw. */
   desk: DeskData | null;
 };
 
@@ -182,8 +170,8 @@ export type HomeRail = {
   crew: Record<string, string[]>;
   /** NOTHING ON TODAY: the next day in the fortnight with your bookings,
       for the new Home to draw in its place (./next-day). Absent or null
-      when today has something on, when nothing is booked for two weeks,
-      and on today's Home, which never asks. */
+      when today has something on, and when nothing is booked for two
+      weeks. */
   next?: NextDay | null;
 };
 
@@ -205,13 +193,9 @@ const EMPTY_RAIL: HomeRail = {
   crew: {},
 };
 
-const NO_LEAVE_CALENDAR: LeaveCalendar = { spanStart: "", spanEnd: "", days: [] };
-
 const EMPTY: DashboardData = {
   chips: { self: [], team: [] },
-  calendar: NO_LEAVE_CALENDAR,
-  tasks: { mine: [], team: null, done: [], reported: [], sm8: { lines: {}, sender: null } },
-  notices: [],
+  tasks: { mine: [], team: null },
   journal: [],
   assignable: [],
   jobs: [],
@@ -242,9 +226,6 @@ export async function loadDashboard(): Promise<DashboardData> {
      capability that does not gate the page it points at. */
   const role = await getDbRole();
   const isOwner = hasMinRole(role, "owner");
-  /* The new Home is built behind HOME_DESK and shown to whoever the flag
-     names; everyone else gets today's Home and none of its reads. */
-  const desk = deskOn(role);
   const today = todayInAu();
   const viewerStaffId = await staffProfileIdFor(orgId, userId);
 
@@ -257,7 +238,7 @@ export async function loadDashboard(): Promise<DashboardData> {
      the other (the connection, then its links), and the wait below is one,
      so holding the whole page for it would start every read in the batch a
      round trip late. It is needed only after the batch, for the rail, and by
-     the new Home's loader, which waits for it on its own. Caught at once so
+     the desk's loader, which waits for it on its own. Caught at once so
      a failure while the first wait is still out is no unhandled rejection;
      the batch below still awaits the promise itself, so it fails the page as
      it always did. */
@@ -281,7 +262,7 @@ export async function loadDashboard(): Promise<DashboardData> {
      on the other, and this one gates a query in the batch below.
 
      And the expiry window and the org's credentials, which the chips have
-     always read for themselves: read once here and shared, so the new Home's
+     always read for themselves: read once here and shared, so the desk's
      areas never read them a second time (./desk-data). They are one round
      trip, as the names are, so this wait takes no longer for them. */
   const [names, vendor, shared] = await Promise.all([
@@ -293,17 +274,10 @@ export async function loadDashboard(): Promise<DashboardData> {
   const railDay = todayInZone(railTz);
   const railNowMin = nowMinInZone(railTz);
 
-  const [chips, calendar, tasks, notices, assignable, journal, jobs, issues, schedule, sm8Links, deskData] = await Promise.all([
+  const [chips, tasks, assignable, journal, jobs, issues, schedule, sm8Links, desk] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today, isOwner, shared),
-    /* Today's Home's calendar. The new Home draws its own (`desk.calendar`)
-       and never this one, so its viewer is spared the reads. */
-    desk ? Promise.resolve(NO_LEAVE_CALENDAR) : loadCalendar(orgId, today, viewerStaffId, canManage),
-    /* A task's Done lines are read for the face that draws them: today's
-       Tasks face here, and the new Home's over its own tasks in its own
-       batch (`desk.taskLines`), so its viewer is spared these. */
-    loadTasks(orgId, viewerStaffId, canManage, names, caps.has("workboard") && !desk),
-    listNotices(orgId, viewerStaffId, NOTICE_WINDOW, names).then(sortNotices),
-    // the assign picker only needs names, and only when you can assign
+    loadTasks(orgId, viewerStaffId, canManage, names),
+    // the give-it-to picker only needs names, and only when you can give
     canManage ? listFleetStaff(orgId).then((s) => s.map((x) => ({ id: x.id, name: x.name }))) : Promise.resolve([]),
     /* An account with no staff record has never captured anything — there is
        no author_id it could have been filed under, so don't go and ask. */
@@ -317,26 +291,23 @@ export async function loadDashboard(): Promise<DashboardData> {
        `workboard` may not see the crew's bookings, on Home or anywhere. */
     caps.has("workboard") ? loadScheduleDay(orgId, railDay) : Promise.resolve(EMPTY_SCHEDULE),
     linksP,
-    /* The new Home's reads, in this same wait — and only for its viewers.
-       Its reads that need the link map wait for it themselves, so nobody
-       else does. */
-    desk
-      ? loadDesk(
-          {
-            orgId,
-            viewerStaffId,
-            caps,
-            isOwner,
-            today,
-            railDay,
-            tz: railTz,
-            names,
-            shared,
-            connected: vendor.connected,
-          },
-          linksP.then(mineOf)
-        )
-      : Promise.resolve(null),
+    /* The desk's own reads, in this same wait. Those that need the link
+       map wait for it themselves, so nothing else does. */
+    loadDesk(
+      {
+        orgId,
+        viewerStaffId,
+        caps,
+        isOwner,
+        today,
+        railDay,
+        tz: railTz,
+        names,
+        shared,
+        connected: vendor.connected,
+      },
+      linksP.then(mineOf)
+    ),
   ]);
   const mineUuid = mineOf(sm8Links);
 
@@ -364,16 +335,15 @@ export async function loadDashboard(): Promise<DashboardData> {
   const railBlocks: ScheduleBlock[] = day ? viewerLaneBlocks(day.lanes, mineUuid) : [];
   const railTasks = railTasksOf(tasks.mine, railDay, railTz, railNowMin);
   /* NOTHING ON TODAY: the new Home draws your next booked day instead of a
-     bare line (./next-day, Isaac 2026-09-26). Asked only then, only for the
-     new Home, and only of a viewer ServiceM8 knows; a day with a timed task
-     on it is not empty. */
+     bare line (./next-day, Isaac 2026-09-26). Asked only then, and only of a
+     viewer ServiceM8 knows; a day with a timed task on it is not empty. */
   const next =
-    desk && day && mineUuid && railBlocks.length === 0 && railTasks.length === 0
+    day && mineUuid && railBlocks.length === 0 && railTasks.length === 0
       ? await loadNextDay(orgId, mineUuid, railDay).catch(() => null)
       : null;
 
   return {
-    chips, calendar, tasks, notices, assignable, journal, jobs, issues, canManage, viewerStaffId, today,
+    chips, tasks, assignable, journal, jobs, issues, canManage, viewerStaffId, today,
     rail: {
       dayISO: railDay,
       tz: railTz,
@@ -403,7 +373,7 @@ export async function loadDashboard(): Promise<DashboardData> {
       crew: day ? railCrewOf(day.lanes, railBlocks, mineUuid) : {},
       next,
     },
-    desk: deskData,
+    desk,
   };
 }
 
@@ -476,46 +446,12 @@ async function loadTasks(
   viewerStaffId: string | null,
   canManage: boolean,
   names: StaffNames,
-  /** Read where each task's Done stands with ServiceM8: with `workboard`
-      (a Done is a note on a job, and its line is the job's), and only for
-      today's Tasks face, which draws them. */
-  lines: boolean,
 ): Promise<DashboardData["tasks"]> {
-  const [mine, team, done, reportedAll] = await Promise.all([
-    viewerStaffId ? myTasks(orgId, viewerStaffId, names).then(sortTasks) : Promise.resolve([]),
+  const [mine, team] = await Promise.all([
+    viewerStaffId ? myTasks(orgId, viewerStaffId, names).then(sortTasks) : Promise.resolve([] as DashTask[]),
     canManage ? teamTasks(orgId, names).then(sortTasks) : Promise.resolve(null),
-    viewerStaffId
-      ? recentlyDoneTasks(orgId, viewerStaffId, RECENT_DONE_DAYS, new Date(), names)
-      : Promise.resolve([] as DashTask[]),
-    // work you handed out that has come back done — the assigner's report
-    viewerStaffId
-      ? assignedByMeRecentlyDone(orgId, viewerStaffId, RECENT_DONE_DAYS, new Date(), names)
-      : Promise.resolve([] as DashTask[]),
   ]);
-  /* Where the deployment sends notes, `done` also holds what you ticked for
-     somebody else (recentlyDoneTasks) — which, when you had handed it out,
-     is in your report too. One row a task: yours, since you ticked it. */
-  const reported = reportedAll.filter((r) => !done.some((d) => d.id === r.id));
-  const sm8 = lines
-    ? await loadTaskDoneLines(orgId, viewerStaffId, [mine, team ?? [], done, reported])
-    : { lines: {}, sender: null };
-  return { mine, team, done, reported, sm8 };
-}
-
-/** Where each task on the face stands with ServiceM8 — its Done, or the
-    reply that closed it (two-way phase 2, PR C). Where the deployment
-    doesn't send notes this is the empty answer, and the module isn't even
-    loaded: a Home page load gains nothing. A read that fails draws no
-    line and keeps the page. */
-async function loadTaskDoneLines(
-  orgId: string,
-  viewerStaffId: string | null,
-  lists: readonly DashTask[][],
-): Promise<TaskDoneLines> {
-  const none: TaskDoneLines = { lines: {}, sender: null };
-  if (!sm8NotesAllowed() || !viewerStaffId) return none;
-  const { readTaskDoneLines } = await import("./task-done-query");
-  return readTaskDoneLines(orgId, viewerStaffId, lists.flat().map((t) => t.id)).catch(() => none);
+  return { mine, team };
 }
 
 /** Your ticks whose Done didn't go to ServiceM8, for the bell — read only
@@ -625,32 +561,3 @@ async function loadOwnSheet(
   const { settings } = await getPaySettings(orgId);
   return { status: "sent_back", periodStart: start, periodLabel: periodLabel(start, settings) };
 }
-
-/* ---------------- the calendar ---------------- */
-
-/* THE SAME TWO QUERIES THE ROSTER RAN. It passed `today, today` to both and got
-   one day back; the span it always accepted is what makes four weeks free.
-
-   Not gated. Your own leave and the days the business closes are yours whatever
-   your role — it was the `team` gate on the old roster that left the office
-   closure announced to managers only. What `team` buys is everyone ELSE's
-   leave, and that is cut here rather than in the view: without it, a colleague's
-   row never reaches the browser. */
-async function loadCalendar(
-  orgId: string,
-  today: string,
-  viewerStaffId: string | null,
-  canManage: boolean,
-): Promise<LeaveCalendar> {
-  const { spanStart, spanEnd } = calendarSpan(today);
-  const state = await stateFor(orgId, ""); // "" → the org's home state
-  const [approved, holidays] = await Promise.all([
-    approvedInSpan(orgId, spanStart, spanEnd),
-    holidaysInSpan(orgId, state, spanStart, spanEnd),
-  ]);
-  const visible = canManage
-    ? approved
-    : approved.filter((r) => viewerStaffId !== null && r.staffId === viewerStaffId);
-  return buildCalendar(visible, holidays, today, viewerStaffId);
-}
-

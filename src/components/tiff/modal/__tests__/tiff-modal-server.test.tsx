@@ -81,8 +81,8 @@ it("renders one opened on typed words, with no window", () => {
 
 /* THE HOST IS MOUNTED, AND THE LAYOUT STAYS SYNCHRONOUS. Drop the host from
    the dashboard layout and nothing fails loudly: every Tiff button quietly
-   goes back to the capture sheet. It sits inside the note scope because the
-   modal reads it, and the layout must never await (see its own header). */
+   opens nothing. It sits inside the note scope because the modal reads it,
+   and the layout must never await (see its own header). */
 it("the dashboard layout mounts the host inside the note scope, and never awaits", async () => {
   const { readFileSync } = await import("node:fs");
   const { join } = await import("node:path");

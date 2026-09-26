@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NoteScopeProvider } from "../note-context";
-import { TiffButton } from "../tiff-button";
+import { CaptureDoor } from "./fixtures/capture-door";
 
 /* WHAT A RECORDING TURNS INTO, AND WHEN.
 
@@ -75,7 +75,7 @@ const openSheet = async () => {
   const user = userEvent.setup();
   render(
     <NoteScopeProvider voiceEnabled>
-      <TiffButton />
+      <CaptureDoor />
     </NoteScopeProvider>
   );
   await user.click(screen.getByLabelText(/Ask or tell Tiff/));

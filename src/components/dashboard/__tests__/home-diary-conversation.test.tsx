@@ -144,12 +144,10 @@ const diaryOf = (
 });
 
 const tiff = (isOpen: boolean): TiffApi => ({
-  enabled: true,
   open: () => true,
   openedBy: null,
   isOpen,
   landed: null,
-  report: () => {},
 });
 
 const onFocusShown = jest.fn();

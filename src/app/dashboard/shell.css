@@ -430,7 +430,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    against a white card, but `.lv-form` is the only thing under it and that
    sits straight on `.stg` — so the tray was 3% lighter than a ground that is
    already tinted, and came out at 1.075 against it. A `rgba(5,5,5,.05)` tray
-   is 1.114 on ANY light ground, which is what `.hm-calseg` and `.wb2-ckseg`
+   is 1.114 on ANY light ground, which is what `.hd-cal-vs` and `.wb2-ckseg`
    already do and the reason neither could drift. */
 .fg .nb-kinds { display:inline-flex; gap:4px; padding:4px; border-radius:var(--r-button); background:var(--tint-2); margin-bottom:4px; }
 .fg .nb-kind { padding:4px 16px; border:0; border-radius:var(--r-button); background:none; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:700; color:var(--gray500); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
@@ -5769,16 +5769,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
   background:var(--wb2-ok); color:var(--paper); box-shadow:none;; }
 .wb2-mcc[data-tone="done"] .wb2-mcdone span { background:var(--ok-t); }
 /* `.wb2-mcsum` and `.wb2-mchead` went into the toolbar (`.wb2-tbsum`,
-   `.wb2-tbstep` + `.wb2-tbh2`); `.wb2-mcarrow` and `.wb2-mcnow` below stay,
-   because Home's calendar face still wears them. */
-.wb2-mcarrow { width:30px; height:30px; flex:none; display:grid; place-items:center; border-radius:var(--r-button);
-  border:1px solid var(--wb2-line); background:var(--paper); color:var(--gray500); cursor:pointer;
-  transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.wb2-mcarrow:hover { border-color:rgba(5,5,5,.24); color:var(--ink); background:#fbfbfc; }
-.wb2-mcarrow:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-mcnow { height:26px; padding:0 12px; border-radius:var(--r-pill); border:1px solid var(--wb2-line); background:var(--paper);
-  font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; }
-.wb2-mcnow:hover { color:var(--ink); border-color:rgba(5,5,5,.24); }
+   `.wb2-tbstep` + `.wb2-tbh2`). */
 .wb2-mcc[data-tone="flash"] { animation:wb2Flash 2.4s ease-in-out infinite; }
 @keyframes wb2Flash { 0%,100% {  box-shadow:0 0 0 0 var(--bad); } 50% {  box-shadow:0 0 0 5px var(--bad); } }
 .wb2-mcn { display:flex; align-items:baseline; gap:4px; font-variant-numeric:tabular-nums; }
@@ -6341,8 +6332,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    rail's do: the `.fg button` reset is (0,1,1) and silently strips the
    background off any single-class button. */
 
-/* the crew button rides the header's chip cluster — mcnow's shape, plus the
-   icon, because it opens the list every number on the month divides by */
+/* the crew button rides the header's chip cluster — a pill, with the icon,
+   because it opens the list every number on the month divides by */
 .wb2-scmcrew { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 12px;
   border-radius:var(--r-pill); border:1px solid var(--wb2-line); background:var(--paper);
   font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer;
@@ -10706,7 +10697,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    to drift; `.wb2-capcard.wb2-dusk` says what is actually true — a review on
    the dusk surface reads like this, wherever that surface is standing.
 
-   LITERALS, NOT `--hm-*`. Those vars are declared on `.hm-wrap`, and this
+   LITERALS, NOT `--hm-*`. Those vars were declared on `.hm-wrap`, and this
    selector also matches the PORTALLED card, which renders at document.body
    where nothing under `.fg` reaches it. A var that resolves on one surface
    and not the other is the same bug wearing a variable.
@@ -10784,184 +10775,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .wb2-capcard.wb2-dusk .wb2-jobopt em { color:var(--on-ink-q); }
 
 /* ============================ HOME ============================
-   ONE CARD, THREE ROOMS (the handoff of 2026-09-14, redrawn to the laws).
-   The day across the top; under it a rail of the three faces, the list the
-   face holds, and the page the chosen row opens onto. Ink and paper: every
-   colour below is a token, the only chroma is a state word, and the shell
-   around the card is untouched.
-
-   THIS BLOCK REPLACED 1,170 LINES. The desk's family — the ink card, the
-   glass, the day rail down the left, the sticky diary headings, the board's
-   task rows restyled twice, the three coloured washes on the well — went
-   with the layout it dressed. The face the handoff did not draw, the
-   Calendar, keeps its markup and its rules follow at the end of this block,
-   ported onto the tokens. (The Debrief was the other one, and went with its
-   rules on 2026-09-25.)
+   The old Home — one card, three rooms (the handoff of 2026-09-14, redrawn
+   to the laws) — and its `.hm-*` family went on 2026-09-26, when the new
+   Home (the desk, below) became everyone's. Its day band, rail, rows,
+   pages and calendar face went with it. What is left of the family is the
+   capture card's, which the old capture UI still draws (notes/note-token's
+   entry row) and which goes with that.
 
    RULES ARE `.fg .hm-*`, two classes deep, because `.fg button` and
    `.fg input` are (0,1,1) resets and a one-class rule loses to them. */
 
-/* ── THE CARD FILLS THE WINDOW ──
-   page → wrap → stg → card all flex-column, `min-height:0` at every level or
-   the children refuse to shrink, and the body takes whatever is left. Scoped
-   with `:has` so it is Home's layout and not every screen's. `height:100%`
-   and not `min-height`: an auto-height flex container has no free space to
-   hand out. */
-.fg .page:has(> .hm-wrap) { height:100%; display:flex; flex-direction:column; }
-.fg .hm-wrap { flex:1; min-height:0; display:flex; flex-direction:column;
-  width:100%; max-width:none; margin:0; align-self:center; padding:16px; }
-/* HOME'S ONE GREEN (Isaac, 2026-09-15: "we're missing a little bit of
-   colour"). Two places and no more: the part of the day that has gone, and
-   the entry being read. The handoff's own green, at a text tone that clears
-   4.5:1 on its tint (5.2 on paper) and a mark that clears 3:1. The new Home
-   (`.hd-page`) takes it too while it holds today's day band and faces, and
-   gives it back when they go. */
-.fg .hm-wrap, .fg .hd-page { --hm-green:#12a594; --hm-green-t:#137a6e; --hm-green-tint:#e6f7f3; }
-.fg .hm-wrap > .stg { flex:1; min-height:0; display:flex; flex-direction:column; }
-.fg .hm-card { flex:1; min-height:0; display:flex; flex-direction:column;
-  background:var(--paper); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
-/* ON THE FRAME the card IS the screen: the 16px margin around it comes off
-   with `.page.full`'s wrap reset, and an edge drawn on the frame's own inset
-   is two lines a pixel apart (2026-09-20). */
-.fg .page.full .hm-card { border:0; border-radius:0; }
-
-/* ── THE DAY, ACROSS THE TOP ──
-   The date is the h1 — the shell's rail already says Home — and the day is
-   drawn under it. The track's height is the lanes' (see home-day-band). */
-.fg .hm-band { flex:none; display:flex; flex-direction:column; gap:12px;
-  padding:12px 24px 8px; border-bottom:1px solid var(--line); }
-.fg .hm-date { margin:0; font-size:24px; font-weight:700; line-height:1.2; color:var(--ink); }
-/* What ServiceM8 could not add, above the day rather than instead of it. */
-.fg .hm-daynote { margin:0; font-size:14px; color:var(--q); }
-.fg .hm-daynote a { color:var(--link); font-weight:500; text-decoration:underline; text-underline-offset:3px; }
-.fg .hm-track { position:relative; }
-/* the axis: a 3px track, the elapsed part in ink, a tick an hour */
-.fg .hm-axis { position:absolute; left:0; right:0; bottom:24px; height:3px; border-radius:999px; background:var(--tint-2); }
-.fg .hm-elapsed { position:absolute; left:0; bottom:24px; height:3px; border-radius:999px; background:var(--hm-green); }
-.fg .hm-hrtick { position:absolute; bottom:24px; width:1px; height:8px; background:var(--tint-2); }
-.fg .hm-hour { position:absolute; bottom:0; transform:translateX(-50%); white-space:nowrap;
-  font-size:12px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-/* NOW: an ink dot on the track with the minute written over it. The label
-   is a fact the hour labels cannot give — "2" is not "2:41". */
-.fg .hm-now { position:absolute; bottom:20px; transform:translateX(-50%); width:8px; height:8px;
-  border-radius:50%; background:var(--hm-green); border:2px solid var(--paper); outline:1px solid var(--hm-green);
-  box-sizing:content-box; }
-.fg .hm-now::after { content:attr(data-now); position:absolute; left:50%; bottom:16px;
-  transform:translateX(-50%); white-space:nowrap; font-size:12px; font-weight:600; color:var(--hm-green-t);
-  font-variant-numeric:tabular-nums; }
-/* Only when the band has everything — see railSaysEmpty. */
-.fg .hm-daynone { position:absolute; left:0; top:8px; margin:0; font-size:14px; font-weight:500; color:var(--q); }
-/* THE PILLS. A pill is as wide as its hours and never narrower than its
-   words (min-width:max-content), so a short booking grows past its hour
-   rather than clipping the one fact a glance is after. Lanes are 40 apart
-   and a pill is 32, which is the 8px of air between two; nothing needs a
-   halo to separate it. */
-.fg .hm-job, .fg .hm-tsk { position:absolute; height:32px; min-width:max-content; box-sizing:border-box;
-  display:flex; align-items:center; gap:8px; padding:0 12px; border-radius:10px; white-space:nowrap; }
-/* A BOOKING WEARS THE DISPATCH DIARY'S PAINT (Isaac, 2026-09-15: "the job
-   cards should be coloured to correspond to what the workboard says"). Every
-   colour arrives from `blockPaint` as the same six custom properties the
-   Schedule tab sets — the wash at 94% light, the cap walked down until it
-   clears 3:1 against its own wash, the stated neutral for finished work — so
-   one booking is one colour on the two screens that draw it. The cap is the
-   board's own vocabulary (law 14 names it), mirrored here at the pill's
-   height. Its number, its name and its span step down by size and weight,
-   never by alpha. */
-.fg .hm-job { background:var(--fill, var(--tint)); color:var(--btext, var(--ink)); border:0; padding-left:16px;
-  text-align:left; transition:background-color var(--t-fast) var(--ease); }
-/* A PILL IS A DOOR (Isaac, 2026-09-15): a booking opens the job card the
-   Schedule tab opens, over Home. So it is a button whose name is its words;
-   its hover is one step of its own fill, its focus the ink outline the rows
-   wear. A booking the mirror did not hand over stays a plain view. */
-.fg .hm-job:hover { background:color-mix(in srgb, var(--fill, var(--tint)) 93%, var(--ink)); }
-.fg .hm-job:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
-.fg .hm-job::before { content:""; position:absolute; left:5px; top:7px; bottom:7px; width:4px;
-  border-radius:999px; background:var(--bar, #7a818c); }
-.fg .hm-job u { flex:none; padding:1px 4px; border-radius:6px; background:var(--chip, var(--tint-2));
-  text-decoration:none; font-size:12px; font-weight:500; font-variant-numeric:tabular-nums; }
-.fg .hm-job b { flex:none; font-size:13px; font-weight:600; }
-.fg .hm-jobsp { flex:none; font-size:12px; font-weight:500; font-variant-numeric:tabular-nums; }
-.fg .hm-job svg { flex:none; }
-/* FINISHED is the board's stated neutral with a tick and no cap — colour
-   on this band means work still to do; a QUOTE is dashed in its own hue,
-   the board's vocabulary; LATE — past its start with nothing clocked on —
-   wears a red dot, ringed in paper. */
-.fg .hm-job.done { background:var(--pale, var(--tint)); color:var(--ink); border:1px solid var(--pale-edge, var(--line)); padding-left:12px; }
-.fg .hm-job.done::before { display:none; }
-.fg .hm-job.done u { background:var(--tint-2); }
-.fg .hm-job.done:hover { background:color-mix(in srgb, var(--pale, var(--tint)) 93%, var(--ink)); }
-.fg .hm-job.qt { background:var(--paper); border:1px dashed var(--bar, var(--ink)); }
-.fg .hm-job.qt:hover { background:var(--tint); }
-.fg .hm-jobdot { flex:none; width:8px; height:8px; border-radius:50%; background:var(--bad);
-  border:2px solid var(--paper); box-sizing:content-box; }
-/* A timed task is paper and a hairline, with a real checkbox: it can be
-   ticked off here and a booking cannot. `at` sits quietly at its hour; a
-   `by` deadline says the word in the warning colour; past either is red. */
-.fg .hm-tsk { background:var(--paper); color:var(--ink); border:1px solid var(--line); padding-left:8px; }
-.fg .hm-tsk b { flex:none; font-size:13px; font-weight:500; }
-.fg .hm-tsk u { flex:none; text-decoration:none; font-size:12px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-.fg .hm-tsk.by u { color:var(--warn-t); }
-.fg .hm-tsk.over u { color:var(--bad-t); }
-
-/* ── THE CHECKBOX, one square for the band and the list ──
-   A control, so the control radius; the quiet colour for its edge because a
-   hairline at 8% is not an edge a thumb can find. */
-.fg .hm-cb { flex:none; width:18px; height:18px; padding:0; border-radius:6px; border:1px solid var(--q);
-  background:var(--paper); color:var(--paper); display:grid; place-items:center; cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .hm-cb:hover:not(:disabled) { border-color:var(--ink); }
-.fg .hm-cb.on { background:var(--ink); border-color:var(--ink); }
-.fg .hm-cb:disabled { cursor:default; }
-.fg .hm-cb:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .hm-tsk .hm-cb { width:16px; height:16px; }
-/* Someone else's completion of work you handed out: no control, a tick. */
-.fg .hm-tick { width:18px; height:18px; display:grid; place-items:center; color:var(--q); margin-top:2px; }
-/* AN ISSUE'S SLOT: nothing to tick, so a dot in the warning colour — state
-   is a word or a dot in the state colour (law 14), and "open issue" is the
-   word beside it. The same dot, smaller, marks an issue's door in the diary. */
-.fg .hm-idot { width:18px; height:18px; display:grid; place-items:center; margin-top:2px; }
-.fg .hm-idot::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--warn-t); }
-.fg .hm-door .hm-idot { width:14px; height:14px; margin:0; }
-
-/* ── THE THREE ROOMS ──
-   The rail, then the face. A two-column face is the list and its page; a
-   one-column face (the Calendar) takes the whole width. */
-.fg .hm-body { flex:1; min-height:0; display:grid; grid-template-columns:200px minmax(0,1fr); }
-.fg .hm-face { min-height:0; }
-.fg .hm-face[hidden] { display:none; }
-.fg .hm-face.two { display:grid; grid-template-columns:380px minmax(0,1fr); }
-.fg .hm-face.one { display:flex; flex-direction:column; min-height:0; overflow-y:auto; padding:24px 32px; }
-
-/* ── THE RAIL: an edge, not a fill ──
-   A hairline on its right and nothing behind it (law 1). The active face is
-   the ink tint, because selection is a fill (law 14); the count is a quiet
-   figure, red when it counts what is past its date. */
-.fg .hm-rail { display:flex; flex-direction:column; gap:2px; min-height:0; overflow-y:auto;
-  padding:12px 8px; border-right:1px solid var(--line); }
-.fg .hm-railtabs, .fg .hm-raildoors { display:flex; flex-direction:column; gap:2px; }
-.fg .hm-rail hr { width:100%; margin:8px 0; border:0; border-top:1px solid var(--line); }
-.fg .hm-rl { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; height:38px;
-  padding:0 12px; border:0; border-radius:10px; background:none; color:var(--q); font-size:14px; font-weight:500;
-  text-align:left; text-decoration:none; cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .hm-rl:hover { background:var(--tint); }
-.fg .hm-rl.on { background:var(--tint-2); color:var(--ink); font-weight:600; }
-.fg .hm-rl:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .hm-rln { font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-.fg .hm-rln.bad { color:var(--bad-t); font-weight:600; }
-.fg .hm-rln.warn { color:var(--warn-t); font-weight:600; }
-
-/* ── THE LIST COLUMN ──
-   A heading and a count, the composer, then the rows in their own scroller.
-   The column keeps its head while the rows move. */
-.fg .hm-list { min-height:0; display:flex; flex-direction:column; border-right:1px solid var(--line); }
-.fg .hm-lhead { flex:none; display:flex; flex-direction:column; gap:12px; padding:16px 16px 12px;
-  border-bottom:1px solid var(--line); }
-.fg .hm-lt { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
-.fg .hm-lt h2 { margin:0; font-size:20px; font-weight:600; line-height:1.2; color:var(--ink); }
-.fg .hm-lc { font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-.fg .hm-rows { flex:1; min-height:0; overflow-y:auto; margin:0; padding:0; list-style:none; }
-.fg .hm-rows ul { margin:0; padding:0; list-style:none; }
 /* THE COMPOSER — the entry row `NoteToken` draws. A control: the control
    radius, one height, the hairline that goes ink under the pointer. */
 .fg .hm-adde { display:flex; align-items:center; gap:8px; height:40px; padding:0 4px 0 12px;
@@ -10977,182 +10800,17 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   transition:background-color var(--t-fast) var(--ease); }
 .fg .hm-addemic:hover { background:var(--tint-2); }
 .fg .hm-addemic:focus-visible { outline:none; box-shadow:var(--ring); }
-/* "Assign a task", the typed path with a person and a date on it. */
-.fg .hm-link { align-self:flex-start; padding:0; border:0; background:none; font-size:14px; font-weight:500;
-  color:var(--link); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
-.fg .hm-link:disabled { color:var(--q); cursor:default; }
-.fg .hm-assign { margin:12px 16px 0; }
-
-/* THE CAPTURE CARD, IN THE COLUMN. Pressing the composer swaps it for the
+/* THE CAPTURE CARD, IN PLACE. Pressing the composer swaps it for the
    sheet's own card (`wb2-capcard wb2-dusk`) — this rule says only WHERE IT
-   STANDS. Declaring a background here would beat the skin on source order.
-   And the column has to scroll as a whole while it is open: at the review
-   stage the card is several times the column's height, and a scroller that
-   stayed on the rows would put Save out of reach (the #360 × #370 bug —
-   see notes/__tests__/debrief-reachable). */
+   STANDS. Declaring a background here would beat the skin on source order. */
 .fg .hm-cap { position:static; transform:none; z-index:auto; width:auto; min-width:0; max-width:none;
   max-height:none; overflow:visible; box-shadow:none; animation:none; }
 .fg .hm-cap .wb2-sherr { margin:12px 0 0; }
-.fg .hm-list:has(.hm-cap) { overflow-y:auto; }
-.fg .hm-list:has(.hm-cap) .hm-rows { flex:none; overflow:visible; }
-
-/* ── A DIARY ROW ──
-   The day and the time, two lines of the words, and what they made. The
-   chosen row is the ink tint; a hover is one step below it. */
-.fg .hm-row { display:flex; flex-direction:column; gap:4px; width:100%; padding:12px 16px; border:0;
-  border-bottom:1px solid var(--line); background:none; color:var(--ink); text-align:left; cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hm-row:hover { background:var(--tint); }
-.fg .hm-row.on { background:var(--hm-green-tint); }
-.fg .hm-row.on .hm-rowm > span:first-child { color:var(--hm-green-t); }
-.fg .hm-row:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }
-.fg .hm-rowm { display:flex; justify-content:space-between; gap:12px; font-size:13px; font-weight:500;
-  color:var(--q); font-variant-numeric:tabular-nums; }
-.fg .hm-rowp { margin:0; font-size:14px; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2;
-  -webkit-box-orient:vertical; overflow:hidden; }
-.fg .hm-rowo { font-size:13px; font-weight:500; color:var(--q); }
-
-/* ── A TASK ROW ──
-   The checkbox leads; the title and one line of who and when follow. The
-   group label above each run is the same quiet label as everywhere. */
-.fg .hm-tgrp { display:flex; justify-content:space-between; padding:16px 16px 4px; font-size:13px;
-  font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
-.fg .hm-trow { display:grid; grid-template-columns:18px minmax(0,1fr); gap:0 12px; align-items:start;
-  padding:12px 16px; border-bottom:1px solid var(--line); transition:background-color var(--t-fast) var(--ease); }
-.fg .hm-trow:hover { background:var(--tint); }
-.fg .hm-trow.on { background:var(--hm-green-tint); }
-.fg .hm-trow .hm-cb { margin-top:2px; }
-.fg .hm-tsel { display:flex; flex-direction:column; gap:4px; width:100%; padding:0; border:0; background:none;
-  color:var(--ink); text-align:left; cursor:pointer; }
-.fg .hm-tsel:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
-.fg .hm-tt { font-size:14px; font-weight:500; line-height:1.4; }
-.fg .hm-trow.done .hm-tt { color:var(--q); text-decoration:line-through; }
-.fg .hm-tm { font-size:13px; font-weight:500; color:var(--q); }
-.fg .hm-tm .ok, .fg .hm-when .ok { color:var(--ok-t); }
-.fg .hm-tm .warn, .fg .hm-when .warn { color:var(--warn-t); }
-.fg .hm-tm .bad, .fg .hm-when .bad { color:var(--bad-t); }
-/* ARRIVING FROM A DIARY DOOR: the row says "this one" for a moment, then
-   stops. A flash a row asked for with data — the loop the doc allows. */
-.fg .hm-tkfl { animation:hm-tkfl 1.8s var(--ease) both; }
-@keyframes hm-tkfl { 0%, 70% { background:var(--tint-2); } 100% { background:transparent; } }
-@media (prefers-reduced-motion:reduce) { .fg .hm-tkfl { animation:none; background:var(--tint-2); } }
-
-/* ── THE PAGE: the chosen entry, or the chosen task ──
-   The words at reading size, the facts under them at body size, the groups
-   below as hairline-topped groups (law 9: a box is for something you act
-   on), and the actions pinned to the foot. */
-.fg .hm-read { min-width:0; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:24px;
-  padding:24px 32px; }
-.fg .hm-said { margin:0; max-width:640px; font-size:24px; font-weight:400; line-height:1.4; color:var(--ink);
-  text-wrap:pretty; }
-.fg .hm-when { margin:0; max-width:640px; font-size:14px; color:var(--q); }
-.fg .hm-when b { font-weight:500; color:var(--ink); }
-.fg .hm-group { display:flex; flex-direction:column; gap:12px; max-width:640px; padding-top:16px;
-  border-top:1px solid var(--line); }
-.fg .hm-gl { font-size:13px; font-weight:500; color:var(--q); }
-.fg .hm-doors { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
-/* A door keeps a chip's form because it is tapped (law 26); a count is a word. */
-.fg .hm-door { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 12px 0 8px;
-  border:1px solid var(--line); border-radius:6px; background:none; color:var(--ink); font-size:13px;
-  font-weight:500; text-decoration:none; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg .hm-door:hover { background:var(--tint); }
-.fg .hm-door:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .hm-door svg { flex:none; }
-.fg .hm-word { font-size:13px; font-weight:500; color:var(--q); }
-.fg .hm-facts { display:grid; grid-template-columns:repeat(3, minmax(120px, 1fr)); gap:16px; max-width:640px;
-  margin:0; padding:16px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
-.fg .hm-facts div { display:flex; flex-direction:column; gap:4px; }
-.fg .hm-facts dt { font-size:13px; font-weight:500; color:var(--q); }
-.fg .hm-facts dd { margin:0; font-size:14px; font-weight:500; color:var(--ink); }
-.fg .hm-facts dd.bad { color:var(--bad-t); }
-.fg .hm-facts dd.unset { color:var(--q); font-weight:400; }
-.fg .hm-quote { margin:0; font-size:16px; line-height:1.5; color:var(--ink); text-wrap:pretty; }
-.fg .hm-qm { display:flex; justify-content:space-between; align-items:baseline; gap:16px; font-size:13px;
-  font-weight:500; color:var(--q); }
-.fg .hm-acts { display:flex; align-items:center; flex-wrap:wrap; gap:8px; max-width:640px; margin-top:auto;
-  padding-top:16px; }
-.fg .hm-btn { display:inline-flex; align-items:center; height:40px; padding:0 16px; border:1px solid var(--line);
-  border-radius:10px; background:var(--paper); color:var(--ink); font-size:14px; font-weight:600; cursor:pointer;
-  transition:background-color var(--t-fast) var(--ease); }
-.fg .hm-btn:hover:not(:disabled) { background:var(--tint); }
-.fg .hm-btn.primary { background:var(--ink); border-color:var(--ink); color:var(--paper); }
-.fg .hm-btn.primary:hover:not(:disabled) { background:var(--ink); }
-.fg .hm-btn.text { border-color:transparent; background:none; font-weight:500; }
-.fg .hm-btn.text:hover:not(:disabled) { background:var(--tint); }
-.fg .hm-btn.del { color:var(--bad-t); }
-.fg .hm-acts > .hm-btn.del, .fg .hm-acts > .hm-confirm { margin-left:auto; }
-.fg .hm-btn:disabled { cursor:default; color:var(--q); }
-.fg .hm-btn:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .hm-confirm { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--ink); }
-.fg .hm-none { margin:0; padding:16px; font-size:14px; color:var(--q); }
-
-/* ── THE CALENDAR FACE: one window, three readings ──
-   The stepper and the view switcher share a row and belong to the WINDOW.
-   The switcher is a tint tray (law 1; segmented-tray-contrast reads it). */
-.fg .hm-cal { display:flex; flex-direction:column; min-height:0; }
-.fg .hm-calhead { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding-bottom:12px; }
-.fg .hm-calstep { display:flex; align-items:center; gap:8px; }
-.fg .hm-calstep b { font-size:14px; font-weight:600; color:var(--ink); min-width:132px; }
-.fg .hm-calseg { margin-left:auto; display:inline-flex; gap:2px; padding:2px; border-radius:10px; background:var(--tint-2); }
-.fg .hm-calsegb { height:28px; padding:0 12px; border:0; border-radius:6px; background:none; font-size:13px;
-  font-weight:500; color:var(--q); cursor:pointer;
-  transition:color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease); }
-.fg .hm-calsegb:hover { color:var(--ink); }
-.fg .hm-calsegb.on { background:var(--paper); color:var(--ink); font-weight:600; }
-.fg .hm-calsegb:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .hm-calsum { display:flex; flex-wrap:wrap; gap:8px 16px; padding:0 0 12px; font-size:14px; color:var(--q); }
-/* the list: date on the left, what is on that day beside it */
-.fg .hm-lv { display:flex; flex-direction:column; }
-.fg .hm-lvr { display:grid; grid-template-columns:72px minmax(0,1fr); gap:12px; align-items:center;
-  min-height:38px; padding:4px 0; border-bottom:1px solid var(--line); }
-.fg .hm-lvr:last-child { border-bottom:0; }
-.fg .hm-lvd { display:flex; align-items:baseline; gap:8px; font-variant-numeric:tabular-nums; }
-.fg .hm-lvd b { font-size:12px; font-weight:500; color:var(--q); min-width:24px; }
-.fg .hm-lvd em { font-style:normal; font-size:16px; font-weight:600; color:var(--ink); }
-.fg .hm-lvd u { text-decoration:none; font-size:12px; font-weight:500; color:var(--q); }
-/* The weekend is quieter, not absent — quieter by colour, never by alpha. */
-.fg .hm-lvr.wknd .hm-lvd em { color:var(--q); font-weight:500; }
-/* Today is the one marked row, marked by weight: no bar (law 14). */
-.fg .hm-lvr.today .hm-lvd em, .fg .hm-lvr.today .hm-lvd b { color:var(--ink); font-weight:700; }
-.fg .hm-lvw { display:flex; flex-wrap:wrap; gap:4px 16px; min-width:0; }
-/* Who is off is a label, so it is a word: a colleague quiet, yours ink, a
-   closed office in the info colour — never a state colour, because the
-   office being shut is not a warning. */
-.fg .hm-lvp { font-size:13px; font-weight:500; color:var(--q); max-width:100%; overflow:hidden;
-  text-overflow:ellipsis; white-space:nowrap; }
-.fg .hm-lvp.mine { color:var(--ink); font-weight:600; }
-.fg .hm-lvp.closed { color:var(--info-t); }
-/* the grid: the board's own cells, plus the two facts the board has no word
-   for — your leave as an ink band, and a closed office */
-.fg .hm-cal .wb2-mcc { min-height:104px; cursor:default; background:var(--paper); }
-.fg .hm-cal .wb2-mcc.we { background:var(--tint); }
-.fg .hm-cal .wb2-mcc.today { border-color:var(--ink); }
-.fg .hm-calph, .fg .hm-cal .wb2-mcc.hm-calph { border-color:var(--info-t); }
-.fg .hm-calphl { margin-top:4px; font-size:12px; font-weight:500; color:var(--info-t); line-height:1.3; }
-.fg .hm-calmine { margin:8px -9px 0; margin-top:auto; padding:4px 8px; min-height:24px; display:flex;
-  align-items:center; background:var(--ink); color:var(--paper); font-size:12px; font-weight:600;
-  line-height:1.25; white-space:nowrap; overflow:hidden; }
-.fg .hm-calmine.s { margin-left:-1px; border-radius:6px 0 0 6px; }
-.fg .hm-calmine.e { margin-right:-1px; border-radius:0 6px 6px 0; }
-.fg .hm-caloffs { margin-top:auto; margin-bottom:4px; display:flex; flex-direction:column; gap:4px; padding-top:4px; }
-.fg .hm-caloff { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:500; color:var(--q);
-  max-width:100%; overflow:hidden; }
-.fg .hm-caloff b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
-.fg .hm-caloff i { flex:none; display:grid; place-items:center; width:18px; height:18px; border-radius:50%;
-  background:var(--tint-2); font-style:normal; font-size:12px; font-weight:500; color:var(--ink); }
-
-/* ── UNDER A LAPTOP'S WIDTH the rail and the list give first, the page last. */
-@media (max-width:1280px) {
-  .fg .hm-body { grid-template-columns:160px minmax(0,1fr); }
-  .fg .hm-face.two { grid-template-columns:300px minmax(0,1fr); }
-  .fg .hm-read { padding:24px 32px 24px; }
-  .fg .hm-face.one { padding:24px 32px; }
-}
 
 /* ======================= THE NEW HOME: THE DESK =======================
-   Behind HOME_DESK (lib/dashboard/desk-flag): the owner's until the flip,
-   while the crew keep the Home above, untouched. docs/design.md, "Home is
-   the day, three tabs and the list" (2026-09-25).
+   Everyone's since 2026-09-26 (it was built behind HOME_DESK, the owner's
+   until he had walked it). docs/design.md, "Home is the day, three tabs and
+   the list" (2026-09-25).
 
    The band with the date, then "Your day" on every face, then ONE row of
    tabs that never moves, then the body, which slides (home-desk.tsx). The
@@ -11227,9 +10885,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* A face scrolls on its own; the tabs above it stay where they are. */
 .fg .hd-face { display:flex; flex-direction:column; overflow-y:auto; }
 .fg .hd-main[hidden], .fg .hd-face[hidden] { display:none; }
-/* TODAY'S FACES, HELD until their own land: the old components in their
-   old dress, filling the face. This rule goes with them. */
-.fg .hd-face > .hm-face { flex:1; }
 
 /* ── YOUR DAY: his slanted bar (handoff "Home - Diagonal day", §2) ──
    home-day-bar.tsx. What a card is, how wide, what it says and its colours
@@ -11412,7 +11067,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-ls-dot { width:8px; height:8px; border-radius:50%; background:var(--hd-dot); }
 .fg .hd-ls-dot[data-dot="late"] { background:var(--hd-late); }
 .fg .hd-ls-dot[data-dot="today"] { background:var(--hd-today); }
-/* THE BOX, copied from today's Home into this family, which outlives it:
+/* THE BOX, copied from the old Home into this family, which outlived it:
    a control, so the control radius, and the quiet colour for its edge. */
 .fg .hd-ls-cb { display:grid; place-items:center; width:18px; height:18px; padding:0; border:1px solid var(--q);
   border-radius:6px; background:var(--paper); color:var(--paper); cursor:pointer;
@@ -11528,9 +11183,19 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-tk-h li { display:grid; grid-template-columns:152px minmax(0,1fr); gap:8px; font-size:13px; font-weight:500;
   line-height:1.45; color:var(--hd-ink); }
 .fg .hd-tk-h li > span { color:var(--hd-body); }
-/* Where its Done stands with ServiceM8, under what happened to it: the
-   line the old face draws (task-sm8-line's own dress), one under another. */
+/* Where its Done stands with ServiceM8, under what happened to it: one line
+   a row (task-sm8-line), one under another — the words and where they stand,
+   the state in its own colour and nowhere else, and the line's doors as
+   links. Its dress came over from the old Tasks face with it (2026-09-26). */
 .fg .hd-tk-sm8 { display:flex; flex-direction:column; gap:4px; margin:12px 0 0; }
+.fg .hd-tk-sm8line { margin:0; max-width:640px; font-size:14px; color:var(--q); }
+.fg .hd-tk-sm8line b { font-weight:500; color:var(--ink); }
+.fg .hd-tk-sm8line .ok { color:var(--ok-t); }
+.fg .hd-tk-sm8line .warn { color:var(--warn-t); }
+.fg .hd-tk-sm8line .bad { color:var(--bad-t); }
+.fg .hd-tk-sm8door { align-self:flex-start; padding:0; border:0; background:none; font-size:14px; font-weight:500;
+  color:var(--link); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.fg .hd-tk-sm8door:disabled { color:var(--q); cursor:default; }
 /* What you can do, and a question in its place — Delete for good?, or who
    to give it to: the list's verb, Mark done filled in ink, Give it to a
    verb that fits its word, Delete task a red word on the right. */

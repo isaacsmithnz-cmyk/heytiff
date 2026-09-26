@@ -10,8 +10,8 @@ import type { HomeIssue } from "@/lib/dashboard/issues";
    until somebody says it is not. So its row has no door to go through. It
    opens where it stands: where it is, what it is on, how often it has been
    seen, the diary entry that raised it, and its one action, Mark resolved.
-   Ported from the issue pane of today's Tasks face (./home-tasks), which
-   the crew keep until the flip; nothing here is shared with it.
+   Ported from the issue pane of the old Home's Tasks face, which went with
+   that Home (2026-09-26).
 
    Resolving is a single press, so it is reversible: the detail closes and
    the row says "Resolved." with Undo (`reopenIssue`) before it folds away

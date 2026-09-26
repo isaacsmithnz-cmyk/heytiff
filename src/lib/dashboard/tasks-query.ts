@@ -14,7 +14,6 @@ import type { BoardNotice } from "./board";
 import { documentsForNotices } from "@/lib/documents/query";
 import { displayNameOf } from "@/lib/staff/name";
 import { isDelegated, noticeReadState, type DashTask } from "./tasks";
-import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 
 /* Queries for the task list and noticeboard. Org-scoped throughout.
 
@@ -107,38 +106,6 @@ export async function myTasks(
   return ((data ?? []) as Record<string, unknown>[]).map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"));
 }
 
-/* Your recently-completed tasks. A done task is kept, not deleted, so finishing
-   one leaves a trace you can check — and undo if the tap was a mistake.
-
-   WHAT YOU TICKED, TOO, where the deployment sends notes (two-way phase 2,
-   PR C). Ticking a task made from a ServiceM8 mention sends a Done to
-   ServiceM8 as you, and whether it went is said on the task's page — so a
-   task you ticked for somebody else has to be there for you to read it,
-   and for the bell's link to land on. Without notes this is exactly the
-   read it always was. */
-export async function recentlyDoneTasks(
-  orgId: string,
-  staffProfileId: string,
-  sinceDays: number,
-  now = new Date(),
-  known?: StaffNames,
-): Promise<DashTask[]> {
-  const since = new Date(now.getTime() - sinceDays * 86_400_000).toISOString();
-  const base = supabaseAdmin.from("tasks").select(TASK_COLUMNS).eq("org_id", orgId);
-  const whose = sm8NotesAllowed()
-    ? base.or(`assigned_to.eq.${staffProfileId},done_by.eq.${staffProfileId}`)
-    : base.eq("assigned_to", staffProfileId);
-  const [{ data }, names] = await Promise.all([
-    whose
-      .eq("status", "done")
-      .gte("done_at", since)
-      .order("done_at", { ascending: false })
-      .limit(5),
-    namesFor(orgId, known),
-  ]);
-  return ((data ?? []) as Record<string, unknown>[]).map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"));
-}
-
 /* Open DELEGATED work across the org — the `team` management view.
 
    Self-assigned tasks are deliberately excluded: a to-do someone wrote for
@@ -157,34 +124,6 @@ export async function teamTasks(orgId: string, known?: StaffNames): Promise<Dash
   return ((data ?? []) as Record<string, unknown>[])
     .map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"))
     .filter(isDelegated);
-}
-
-/* Work YOU handed to someone else that has since been completed — the "it's
-   done" report back to whoever assigned it. Self-assigned tasks never appear:
-   you don't need telling that you finished your own to-do. */
-export async function assignedByMeRecentlyDone(
-  orgId: string,
-  staffProfileId: string,
-  sinceDays: number,
-  now = new Date(),
-  known?: StaffNames,
-): Promise<DashTask[]> {
-  const since = new Date(now.getTime() - sinceDays * 86_400_000).toISOString();
-  const [{ data }, names] = await Promise.all([
-    supabaseAdmin
-      .from("tasks")
-      .select(TASK_COLUMNS)
-      .eq("org_id", orgId)
-      .eq("created_by", staffProfileId)
-      .eq("status", "done")
-      .gte("done_at", since)
-      .order("done_at", { ascending: false })
-      .limit(5),
-    namesFor(orgId, known),
-  ]);
-  return ((data ?? []) as Record<string, unknown>[])
-    .map((r) => toTask(r, (id) => names.get(id) ?? "Unnamed"))
-    .filter((t) => t.assigneeId !== staffProfileId);
 }
 
 /* How far back the board reads, for EVERYONE who reads it.

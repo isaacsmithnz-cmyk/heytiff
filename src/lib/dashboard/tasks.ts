@@ -1,10 +1,8 @@
-import { daysUntil, fmtAuDayMonth as fmtDate } from "@/lib/au-dates";
 import type { RemindKind } from "./reminders";
-import { dueIn } from "@/lib/format/duration";
 
 /* Tasks & notices — the two writable dashboard surfaces.
 
-   Types plus the pure display helpers (due labels, ordering). Queries live in
+   Types plus the pure display helpers (ordering). Queries live in
    ./tasks-query, mutations in app/actions/dashboard. Kept pure and separate so
    the ordering and the "overdue" rule are unit-tested without a database. */
 
@@ -39,12 +37,6 @@ export type DashTask = {
       and every reminder written before the column existed was one. */
   remindKind: RemindKind;
 };
-
-/* Completing a task hides it from the open list, but it must not vanish: one
-   tap is easy to make by accident, and "did I already do that?" is a real
-   question. Recently-completed tasks stay visible for this long, with an undo.
-   The same window covers what an assigner sees come back completed. */
-export const RECENT_DONE_DAYS = 7;
 
 /* A task you wrote for yourself is a private to-do; a task someone gave you is
    delegated work. Only delegated work is management's business — it's what
@@ -115,22 +107,6 @@ export function noticeReadState(revision: number, ackedRevision: number | null):
 
 export type DueState = "bad" | "warn" | "ok";
 
-/** A task is "soon" within this many days of its due date. */
-export const DUE_SOON_DAYS = 7;
-
-/** The due-date label and its urgency, or null when no date is set. */
-export function dueLabel(
-  dueDate: string | null,
-  today: string,
-): { label: string; state: DueState } | null {
-  if (!dueDate) return null;
-  const days = daysUntil(dueDate, today);
-  // Inside the window the gap is what matters, so it reads as a duration; past
-  // it, the date itself is more use than "due in 4 months".
-  if (days <= DUE_SOON_DAYS) return { label: dueIn(days), state: days < 0 ? "bad" : "warn" };
-  return { label: `Due ${fmtDate(dueDate)}`, state: "ok" };
-}
-
 /* Open tasks, most urgent first: anything with a due date sorts by that date
    ascending (overdue → soonest → later), and undated tasks trail, newest of
    those first. Stable so equal keys keep insertion order. */
@@ -152,9 +128,5 @@ export function sortNotices<T extends { pinned: boolean; createdAt: string }>(no
 }
 
 /* `unreadCount` lived here and had no callers left: `currentUnreadCount` in
-   ./notices replaced it, adding the rule that only a CURRENT notice can be
-   unread — nobody is behind on an announcement that expired before they opened
-   the board. Two functions answering "how many unread" with different answers
-   is the shape of a badge disagreeing with its own screen, which this feature
-   has already had once (see NOTICE_WINDOW in ./tasks-query). Its own test kept
-   it alive; the test went with it. */
+   ./notices replaced it, and that went in its turn with the old Home's rail,
+   the one place that badged the count. */

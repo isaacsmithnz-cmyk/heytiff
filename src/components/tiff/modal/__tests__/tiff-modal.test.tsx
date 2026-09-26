@@ -5,7 +5,7 @@ import { NoteScopeProvider, NoteScopeScreen } from "@/components/notes/note-cont
 import { TiffButton } from "@/components/notes/tiff-button";
 import { GATHER_MS } from "@/components/ui/dot-field";
 import { KEPT_AS_SAID, WHICH_JOB } from "@/lib/workboard/note-turns";
-import { TiffModalProvider, useTiff, useTiffModalSwitch } from "../tiff-host";
+import { TiffModalProvider, useTiff } from "../tiff-host";
 import { CLOUD_MS, NOT_REACHED } from "../use-conversation";
 
 /* THE TIFF MODAL, walked as Isaac will walk it: the top bar's button, owner
@@ -43,11 +43,6 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: (...a: unknown[]) => keepWords(...a),
   publishNoteKb: (...a: unknown[]) => publishNoteKb(...a),
   dismissNote: (...a: unknown[]) => dismissNote(...a),
-  // the capture sheet's, which the button still carries for everyone else
-  applyNote: jest.fn(),
-  keepNoteOnJob: jest.fn(),
-  keepNoteForMe: jest.fn(),
-  answerClarify: jest.fn(),
 }));
 const fileCalendarLine = jest.fn();
 const noteOnCalendarEvents = jest.fn();
@@ -123,16 +118,12 @@ function motion(still: boolean) {
   })) as unknown as typeof window.matchMedia;
 }
 
-function Switch({ on }: { on: boolean }) {
-  useTiffModalSwitch(on);
-  return null;
-}
-
-function Harness({ voice = true, on = true, extra }: { voice?: boolean; on?: boolean; extra?: React.ReactNode }) {
+/* The host is on for everyone it is mounted for: nothing switches it on
+   (the HOME_DESK switch went with the old Home, 2026-09-26). */
+function Harness({ voice = true, extra }: { voice?: boolean; extra?: React.ReactNode }) {
   return (
     <NoteScopeProvider voiceEnabled={voice}>
       <TiffModalProvider>
-        <Switch on={on} />
         <TiffButton />
         {extra}
       </TiffModalProvider>
@@ -257,13 +248,15 @@ describe("opening", () => {
     expect(within(dialog()).getByRole("button", { name: "Clear the tag — not about Meridian Data, CRACs" })).toBeInTheDocument();
   });
 
-  it("leaves the crew on the capture sheet: switched off, the button opens what it always has", async () => {
-    const user = userEvent.setup();
-    render(<Harness on={false} />);
-    await user.click(topButton());
+  /* The button holds no state of its own about it: it reads as expanded
+     exactly while the conversation it started is open. */
+  it("reads the pressed button as expanded while its modal is open, and not once it has closed", async () => {
+    const user = await openModal();
+    expect(topButton()).toHaveAttribute("aria-expanded", "true");
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
     expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
-    expect(document.querySelector(".wb2-capcard")).not.toBeNull();
-    expect(mic.start).not.toHaveBeenCalled();
+    expect(topButton()).toHaveAttribute("aria-expanded", "false");
   });
 });
 

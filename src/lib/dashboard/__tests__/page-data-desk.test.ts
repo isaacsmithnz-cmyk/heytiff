@@ -2,24 +2,24 @@
  * @jest-environment node
  */
 
-/* Home's loader and the new Home behind HOME_DESK.
+/* Home's loader and the desk's reads.
 
-   What is pinned: the new Home's reads happen only for a viewer the flag
-   names, so the crew on today's Home pay for nothing; the expiry window and
-   the org's credentials are read ONCE for the page and handed to the chips
-   and the desk alike; the link map (two reads in a row) holds up nobody's
-   batch, and within the desk only the reads that take the viewer's
+   What is pinned: the desk's reads happen for everyone (the new Home is
+   everyone's since 2026-09-26, and the HOME_DESK switch went with the old
+   one), and nothing the old Home alone read is read any more; the expiry
+   window and the org's credentials are read ONCE for the page and handed to
+   the chips and the desk alike; the link map (two reads in a row) holds up
+   nobody's batch, and within the desk only the reads that take the viewer's
    ServiceM8 person from it; and the day's new fields — connected, where,
    crew — carry the viewer's own jobs and nobody else's. The list's own
-   reads (H19) join the desk's batch, told whether the workspace has
-   ServiceM8 at all, and so do the Calendar's (H21), on the workspace's day
-   and the page's shared reads, started with the batch rather than behind
-   the link map, and the diary's (H16), which asks for your ServiceM8
-   conversations (H17) as the ServiceM8 person the link map names — in a
-   workspace that holds a ServiceM8 copy to read them from, and the Tasks
-   face's (H20), told which ServiceM8 person you are; and a viewer on the
-   new Home is spared the old Home's calendar. Every other read is
-   stubbed with an honest empty answer: they are their own suites'. */
+   reads join the desk's batch, told whether the workspace has ServiceM8 at
+   all, and so do the Calendar's, on the workspace's day and the page's
+   shared reads, started with the batch rather than behind the link map,
+   and the diary's, which asks for your ServiceM8 conversations as the
+   ServiceM8 person the link map names — in a workspace that holds a
+   ServiceM8 copy to read them from, and the Tasks face's, told which
+   ServiceM8 person you are. Every other read is stubbed with an honest
+   empty answer: they are their own suites'. */
 
 jest.mock("@/lib/auth0", () => ({
   auth0: { getSession: jest.fn(async () => ({ orgId: "org-1", user: { sub: "auth0|me" } })) },
@@ -66,18 +66,12 @@ jest.mock("@/lib/expenses/query", () => ({
   ownDeclinedClaims: jest.fn(async () => []),
   pendingClaimsCount: jest.fn(async () => 0),
 }));
-jest.mock("../calendar", () => ({
-  buildCalendar: jest.fn(() => ({ spanStart: "", spanEnd: "", days: [] })),
-  calendarSpan: jest.fn(() => ({ spanStart: "2026-09-21", spanEnd: "2026-10-18" })),
-}));
 jest.mock("../journal-query", () => ({ listJournal: jest.fn(async () => []) }));
 jest.mock("../job-candidates", () => ({ jobCandidates: jest.fn(async () => []) }));
 jest.mock("../issues-query", () => ({ listOpenIssues: jest.fn(async () => []) }));
 jest.mock("../tasks-query", () => ({
   myTasks: jest.fn(async () => []),
   teamTasks: jest.fn(async () => []),
-  recentlyDoneTasks: jest.fn(async () => []),
-  assignedByMeRecentlyDone: jest.fn(async () => []),
   listNotices: jest.fn(async () => []),
   NOTICE_WINDOW: 0,
   loadStaffNames: jest.fn(async () => new Map()),
@@ -152,8 +146,9 @@ const LIST_READS = {
 const loadHomeList = jest.fn(async (_ctx: unknown) => LIST_READS);
 jest.mock("../home-list-query", () => ({ loadHomeList: (ctx: unknown) => loadHomeList(ctx) }));
 
-/* A task's Done (two-way phase 2, PR C): read only where the deployment
-   sends notes — the module isn't even loaded otherwise. */
+/* A task's Done (two-way phase 2, PR C): the bell's item is read only where
+   the deployment sends notes — the module isn't even loaded otherwise. The
+   Tasks face's lines are the desk's (`loadTaskLines`, below). */
 const readTaskDoneLines = jest.fn(async (..._a: unknown[]) => ({ lines: { t1: [] }, sender: null }));
 const myUnsentDones = jest.fn(async (..._a: unknown[]) => [{ taskId: "t1", title: "Order the grilles", noteId: "n1", op: "post" }]);
 jest.mock("../task-done-query", () => ({
@@ -238,7 +233,7 @@ jest.mock("../desk-data", () => {
 
 import { loadDesk } from "../desk-data";
 import type { DiaryFeed } from "../diary-feed";
-import { loadStaffNames, recentlyDoneTasks } from "../tasks-query";
+import { listNotices, loadStaffNames } from "../tasks-query";
 import { approvedInSpan, holidaysInSpan } from "@/lib/timepay/leave-query";
 import { loadActionRequired, loadDashboard } from "../page-data";
 
@@ -258,42 +253,27 @@ const LINKS = () => new Map([["sm8-me", "s-me"], ["sm8-luke", "s-luke"]]);
 const chipsInput = () =>
   assembleChips.mock.calls.at(-1)![0] as { warnDays: number; orgCredentials: unknown[] };
 
-const before = process.env.HOME_DESK;
 beforeEach(() => {
   role = "owner";
   vendor = { tz: "Australia/Sydney", connected: true };
-  delete process.env.HOME_DESK;
   jest.clearAllMocks();
 });
-afterAll(() => {
-  if (before === undefined) delete process.env.HOME_DESK;
-  else process.env.HOME_DESK = before;
-});
 
-describe("the new Home behind HOME_DESK", () => {
-  it("is null, and reads nothing of its own, for a viewer the flag does not name", async () => {
-    const data = await loadDashboard();
-    expect(data.desk).toBeNull();
-    expect(loadDesk).not.toHaveBeenCalled();
+describe("the desk's reads", () => {
+  it.each(["owner", "admin", "staff"])("are loaded for everyone — here, a viewer who is %s", async (who) => {
+    role = who;
+    expect((await loadDashboard()).desk).toEqual(DESK);
+    expect(loadDesk).toHaveBeenCalledTimes(1);
+  });
 
-    process.env.HOME_DESK = "owner";
-    role = "admin";
+  it("are no reads at all for a visitor with no workspace", async () => {
+    const { auth0 } = jest.requireMock("@/lib/auth0") as { auth0: { getSession: jest.Mock } };
+    auth0.getSession.mockResolvedValueOnce(null);
     expect((await loadDashboard()).desk).toBeNull();
     expect(loadDesk).not.toHaveBeenCalled();
   });
 
-  it("is loaded for the owner on `owner`, and for everyone on `on`", async () => {
-    process.env.HOME_DESK = "owner";
-    expect((await loadDashboard()).desk).toEqual(DESK);
-
-    process.env.HOME_DESK = "on";
-    role = "staff";
-    expect((await loadDashboard()).desk).toEqual(DESK);
-    expect(loadDesk).toHaveBeenCalledTimes(2);
-  });
-
   it("tells the desk which ServiceM8 person the viewer is, and nobody when the viewer is unlinked", async () => {
-    process.env.HOME_DESK = "owner";
     await loadDashboard();
     expect(loadDesk).toHaveBeenCalledWith(expect.objectContaining({ viewerStaffId: "s-me", isOwner: true }), expect.any(Promise));
     expect(loadHomeList).toHaveBeenCalledWith(expect.objectContaining({ mineUuid: "sm8-me", viewerStaffId: "s-me" }));
@@ -305,12 +285,8 @@ describe("the new Home behind HOME_DESK", () => {
 
   /* The link map is two reads one after the other; the wait before the batch
      is one. Waiting for the map there would start every read in the batch a
-     round trip late — for the crew on today's Home too. */
-  it.each([
-    ["today's Home", undefined],
-    ["the new Home", "owner"],
-  ])("on %s, the batch starts without waiting for the link map", async (_home, flag) => {
-    if (flag) process.env.HOME_DESK = flag;
+     round trip late. */
+  it("start with the batch, which does not wait for the link map", async () => {
     const links = held<Map<string, string>>();
     sm8StaffLinkMap.mockImplementationOnce(() => links.promise);
 
@@ -325,13 +301,8 @@ describe("the new Home behind HOME_DESK", () => {
     const { rail, desk } = await page;
     expect(rail.linked).toBe(true);
     expect(rail.blocks.map((b) => b.key)).toEqual(["a1"]);
-    if (flag) {
-      expect(desk).toEqual(DESK);
-      expect(loadHomeList).toHaveBeenCalledWith(expect.objectContaining({ mineUuid: "sm8-me" }));
-    } else {
-      expect(desk).toBeNull();
-      expect(loadDesk).not.toHaveBeenCalled();
-    }
+    expect(desk).toEqual(DESK);
+    expect(loadHomeList).toHaveBeenCalledWith(expect.objectContaining({ mineUuid: "sm8-me" }));
   });
 
   /* Started before a wait that is not for it, the map could fail with
@@ -359,7 +330,6 @@ describe("the new Home behind HOME_DESK", () => {
 
 describe("the reads the chips and the desk share", () => {
   it("reads the expiry window and the org's credentials once, and hands both the same answer", async () => {
-    process.env.HOME_DESK = "owner";
     const data = await loadDashboard();
     expect(orgExpiryWindow).toHaveBeenCalledTimes(1);
     expect(listOrgCredentials).toHaveBeenCalledTimes(1);
@@ -369,13 +339,6 @@ describe("the reads the chips and the desk share", () => {
       expect.objectContaining({ shared: { expiry: { warnDays: 45, email: true }, orgCredentials: [CRED] } }),
       expect.any(Promise)
     );
-  });
-
-  it("reads the same two for the crew on today's Home — moved, not added", async () => {
-    await loadDashboard();
-    expect(orgExpiryWindow).toHaveBeenCalledTimes(1);
-    expect(listOrgCredentials).toHaveBeenCalledTimes(1);
-    expect(chipsInput()).toMatchObject({ warnDays: 45, orgCredentials: [CRED] });
   });
 
   it("still reads the org's credentials for the owner alone", async () => {
@@ -394,11 +357,7 @@ describe("the reads the chips and the desk share", () => {
 });
 
 describe("the list's reads", () => {
-  it("are the desk's, and the crew on today's Home make none", async () => {
-    await loadDashboard();
-    expect(loadHomeList).not.toHaveBeenCalled();
-
-    process.env.HOME_DESK = "owner";
+  it("are the desk's", async () => {
     const { desk } = await loadDashboard();
     expect(loadHomeList).toHaveBeenCalledTimes(1);
     expect(desk?.list).toBe(LIST_READS);
@@ -412,7 +371,6 @@ describe("the list's reads", () => {
     [{ tz: null, connected: true }],
     [{ tz: null, connected: false }],
   ])("are told whether the workspace has ServiceM8, from the vendor row (%o)", async (v) => {
-    process.env.HOME_DESK = "owner";
     vendor = v;
     await loadDashboard();
     expect(loadDesk).toHaveBeenCalledWith(expect.objectContaining({ connected: v.connected }), expect.any(Promise));
@@ -423,11 +381,7 @@ describe("the list's reads", () => {
 });
 
 describe("the Calendar's reads", () => {
-  it("are the desk's, and the crew on today's Home make none", async () => {
-    await loadDashboard();
-    expect(loadCompanyCalendar).not.toHaveBeenCalled();
-
-    process.env.HOME_DESK = "owner";
+  it("are the desk's", async () => {
     const { desk } = await loadDashboard();
     expect(loadCompanyCalendar).toHaveBeenCalledTimes(1);
     expect(desk?.calendar).toBe(CAL);
@@ -436,7 +390,6 @@ describe("the Calendar's reads", () => {
   /* The calendar counts late on the workspace's day and draws the org's
      papers from the page's own read of them, never a second one. */
   it("are handed the workspace's day and the page's shared reads, and read neither again", async () => {
-    process.env.HOME_DESK = "owner";
     await loadDashboard();
     expect(loadCompanyCalendar).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -451,7 +404,6 @@ describe("the Calendar's reads", () => {
   });
 
   it("run beside the list's, not after them", async () => {
-    process.env.HOME_DESK = "owner";
     const list = held<typeof LIST_READS>();
     loadHomeList.mockImplementationOnce(() => list.promise);
     const page = loadDashboard();
@@ -465,7 +417,6 @@ describe("the Calendar's reads", () => {
      a row: behind the map's two, it was the page's slowest path by a round
      trip. */
   it("start with the batch, not behind the link map", async () => {
-    process.env.HOME_DESK = "owner";
     const links = held<Map<string, string>>();
     sm8StaffLinkMap.mockImplementationOnce(() => links.promise);
     const page = loadDashboard();
@@ -478,30 +429,28 @@ describe("the Calendar's reads", () => {
   });
 });
 
-describe("the old Home's calendar", () => {
-  /* The new Home draws its own Calendar (`desk.calendar`) and never today's
-     leave calendar: its viewer is spared the leave and holiday reads. */
-  it("is read for the crew on today's Home, and not for a viewer on the new Home", async () => {
-    await loadDashboard();
-    expect(approvedInSpan).toHaveBeenCalledTimes(1);
-    expect(holidaysInSpan).toHaveBeenCalledTimes(1);
-
-    jest.clearAllMocks();
-    process.env.HOME_DESK = "owner";
+describe("what the old Home alone read", () => {
+  /* It went with the old Home (2026-09-26): its leave calendar (leave lives
+     on Time & Pay; the desk draws its own Calendar), the noticeboard's rows
+     it counted unread, and its Tasks face's done lists and their lines
+     (the desk's Tasks face reads its own). Nothing draws them, so nothing
+     reads them — and nothing ships them to the browser. */
+  it("(F) is read no more, and is not on the page's data", async () => {
     const data = await loadDashboard();
     expect(approvedInSpan).not.toHaveBeenCalled();
     expect(holidaysInSpan).not.toHaveBeenCalled();
-    expect(data.calendar).toEqual({ spanStart: "", spanEnd: "", days: [] });
+    expect(listNotices).not.toHaveBeenCalled();
+    expect(readTaskDoneLines).not.toHaveBeenCalled();
+    expect(Object.keys(data).sort()).toEqual(
+      ["assignable", "canManage", "chips", "desk", "issues", "jobs", "journal", "rail", "tasks", "today", "viewerStaffId"],
+    );
+    expect(Object.keys(data.tasks).sort()).toEqual(["mine", "team"]);
     expect(data.desk?.calendar).toBe(CAL);
   });
 });
 
 describe("the diary's reads", () => {
-  it("are the desk's, and the crew on today's Home make none", async () => {
-    await loadDashboard();
-    expect(loadDiaryFeed).not.toHaveBeenCalled();
-
-    process.env.HOME_DESK = "owner";
+  it("are the desk's", async () => {
     const { desk } = await loadDashboard();
     expect(loadDiaryFeed).toHaveBeenCalledTimes(1);
     expect(desk?.diary.feed).toBe(DIARY_FEED);
@@ -510,7 +459,6 @@ describe("the diary's reads", () => {
   /* The conversations of those who @mention you (H17): asked for as the
      ServiceM8 person the link map says you are, on the workspace's day. */
   it("ask for your conversations as the ServiceM8 person you are, on the workspace's day", async () => {
-    process.env.HOME_DESK = "owner";
     await loadDashboard();
     expect(loadDiaryFeed).toHaveBeenCalledWith(
       expect.objectContaining({ orgId: "org-1", viewerStaffId: "s-me", mineUuid: "sm8-me", tz: "Australia/Sydney", railDay: expect.any(String) }),
@@ -521,7 +469,6 @@ describe("the diary's reads", () => {
      from, and a person left in the link map is no reason to try: the
      diary is your own entries, and not cut at the mentions' reach. */
   it("ask for your own entries alone in a workspace with no ServiceM8 copy, and for a viewer ServiceM8 doesn't know", async () => {
-    process.env.HOME_DESK = "owner";
     vendor = { tz: null, connected: false };
     await loadDashboard();
     expect(loadDiaryFeed).toHaveBeenLastCalledWith(expect.objectContaining({ mineUuid: null }));
@@ -533,7 +480,6 @@ describe("the diary's reads", () => {
   });
 
   it("carry your initials, and the first names of the people its tasks are on and nobody else's", async () => {
-    process.env.HOME_DESK = "owner";
     (loadStaffNames as jest.Mock).mockResolvedValueOnce(
       new Map([
         ["s-me", "Isaac Smith"],
@@ -546,7 +492,6 @@ describe("the diary's reads", () => {
   });
 
   it("carry the whole name of each of two people its tasks are on who share a first name", async () => {
-    process.env.HOME_DESK = "owner";
     const [today] = DIARY_FEED.today;
     const twoLukes: DiaryFeed = {
       ...DIARY_FEED,
@@ -570,18 +515,13 @@ describe("the diary's reads", () => {
 });
 
 describe("the Tasks face's reads", () => {
-  it("are the desk's, and the crew on today's Home make none", async () => {
-    await loadDashboard();
-    expect(loadTasksFace).not.toHaveBeenCalled();
-
-    process.env.HOME_DESK = "owner";
+  it("are the desk's", async () => {
     const { desk } = await loadDashboard();
     expect(loadTasksFace).toHaveBeenCalledTimes(1);
     expect(desk?.tasks).toBe(TASKS);
   });
 
   it("are told who the viewer is, what they may see, and which ServiceM8 person they are", async () => {
-    process.env.HOME_DESK = "owner";
     await loadDashboard();
     const ctx = loadTasksFace.mock.calls[0]![0] as { orgId: string; viewerStaffId: string; caps: Set<string>; mineUuid: string };
     expect(ctx).toMatchObject({ orgId: "org-1", viewerStaffId: "s-me", mineUuid: "sm8-me" });
@@ -589,10 +529,8 @@ describe("the Tasks face's reads", () => {
   });
 
   /* Where each task's Done stands is read over the tasks the face holds —
-     which reach back 90 days, where today's Tasks face holds five done —
-     once it holds them, told the same. */
+     which reach back 90 days — once it holds them, told the same. */
   it("read where each of the face's own tasks' Done stands, once the face holds them", async () => {
-    process.env.HOME_DESK = "owner";
     const { desk } = await loadDashboard();
     expect(loadTaskLines).toHaveBeenCalledTimes(1);
     const [ctx, rec] = loadTaskLines.mock.calls[0]!;
@@ -618,9 +556,10 @@ describe("the day's new fields", () => {
   });
 
   /* "when there is nothing on your day, it looks very bland" (Isaac,
-     2026-09-26): the new Home draws your next booked day instead. */
-  it("reads your next booked day for the new Home when today has nothing on for you, and only then", async () => {
-    process.env.HOME_DESK = "owner";
+     2026-09-26): the new Home draws your next booked day instead — the
+     crew's as well as the owner's, since the new Home is everyone's. */
+  it("reads your next booked day when today has nothing on for you, and only then", async () => {
+    role = "staff";
     // today has the viewer's a1: nothing more is read
     expect((await loadDashboard()).rail.next).toBeNull();
     expect(loadNextDay).not.toHaveBeenCalled();
@@ -640,20 +579,15 @@ describe("the day's new fields", () => {
     expect(rail.next).toBe(NEXT);
   });
 
-  it("reads no next day for the crew on today's Home, nor for a viewer ServiceM8 doesn't know", async () => {
-    const empty = async (_o: string, dayISO: string) => ({
+  it("reads no next day for a viewer ServiceM8 doesn't know", async () => {
+    loadScheduleDay.mockImplementationOnce(async (_o: string, dayISO: string) => ({
       dayISO,
       activities: [],
       staff: [],
       jobs: [],
       onSite: [],
       addresses: { j1: "Carrington St", j2: "Brightmore St" },
-    });
-    loadScheduleDay.mockImplementationOnce(empty);
-    expect((await loadDashboard()).rail.next).toBeNull();
-
-    process.env.HOME_DESK = "owner";
-    loadScheduleDay.mockImplementationOnce(empty);
+    }));
     sm8StaffLinkMap.mockImplementationOnce(async () => new Map([["sm8-luke", "s-luke"]]));
     expect((await loadDashboard()).rail.next).toBeNull();
     expect(loadNextDay).not.toHaveBeenCalled();
@@ -666,49 +600,31 @@ describe("a task's Done (two-way phase 2, PR C)", () => {
     if (was === undefined) delete process.env.SM8_WRITES;
     else process.env.SM8_WRITES = was;
   });
-  const done = { id: "t1", title: "Order the grilles", status: "done" };
   const unsentOf = () => (assembleChips.mock.calls.at(-1)![0] as { ownUnsentDones: unknown }).ownUnsentDones;
 
-  it("(F) where the deployment sends files only, Home reads no line and no bell item, and hands the empty answers", async () => {
+  it("(F) where the deployment sends files only, Home reads no bell item, and hands the empty answer", async () => {
     process.env.SM8_WRITES = "1";
-    (recentlyDoneTasks as jest.Mock).mockResolvedValueOnce([done]);
-    const data = await loadDashboard();
-    expect(readTaskDoneLines).not.toHaveBeenCalled();
+    await loadDashboard();
     expect(myUnsentDones).not.toHaveBeenCalled();
-    expect(data.tasks.sm8).toEqual({ lines: {}, sender: null });
     expect(unsentOf()).toEqual([]);
   });
 
-  it("where notes are sent, reads the lines of the tasks on the face and the viewer's own unsent Dones, and hands them on", async () => {
+  /* The Tasks face reads its own lines, over its own tasks
+     (`desk.taskLines`); the page reads none of its own. The bell's item is
+     everyone's. */
+  it("where notes are sent, reads the viewer's own unsent Dones for the bell, and leaves the lines to the desk", async () => {
     process.env.SM8_WRITES = "attachment,note";
-    (recentlyDoneTasks as jest.Mock).mockResolvedValueOnce([done]);
     const data = await loadDashboard();
-    expect(readTaskDoneLines).toHaveBeenCalledWith("org-1", "s-me", ["t1"]);
-    expect(data.tasks.sm8).toEqual({ lines: { t1: [] }, sender: null });
+    expect(readTaskDoneLines).not.toHaveBeenCalled();
+    expect(data.desk?.taskLines).toBe(TASK_LINES);
     expect(myUnsentDones).toHaveBeenCalledWith("org-1", "s-me", expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
     expect(unsentOf()).toEqual([{ taskId: "t1", title: "Order the grilles", noteId: "n1", op: "post" }]);
   });
 
-  /* The new Home's Tasks face reads its own lines, over its own tasks
-     (`desk.taskLines`); today's are for today's Tasks face, which its
-     viewer never sees. The bell's item is everyone's. */
-  it("(F) spares a viewer on the new Home today's Tasks face's lines, and still reads the bell's item", async () => {
+  it("a read that fails raises no item, and keeps the page", async () => {
     process.env.SM8_WRITES = "attachment,note";
-    process.env.HOME_DESK = "owner";
-    (recentlyDoneTasks as jest.Mock).mockResolvedValueOnce([done]);
-    const data = await loadDashboard();
-    expect(readTaskDoneLines).not.toHaveBeenCalled();
-    expect(data.tasks.sm8).toEqual({ lines: {}, sender: null });
-    expect(data.desk?.taskLines).toBe(TASK_LINES);
-    expect(unsentOf()).toEqual([{ taskId: "t1", title: "Order the grilles", noteId: "n1", op: "post" }]);
-  });
-
-  it("a read that fails draws no line and raises no item, and keeps the page", async () => {
-    process.env.SM8_WRITES = "attachment,note";
-    readTaskDoneLines.mockRejectedValueOnce(new Error("down"));
     myUnsentDones.mockRejectedValueOnce(new Error("down"));
-    const data = await loadDashboard();
-    expect(data.tasks.sm8).toEqual({ lines: {}, sender: null });
+    await loadDashboard();
     expect(unsentOf()).toEqual([]);
   });
 });

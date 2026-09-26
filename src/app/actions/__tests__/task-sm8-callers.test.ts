@@ -9,12 +9,12 @@ import * as ts from "typescript";
 /* CODE NEVER POSTS A DONE (two-way phase 2, PR C).
 
    A task's Done goes to ServiceM8 as whoever ticked, so it may only follow a
-   PERSON'S tick on a screen made for ticking: the Tasks face, the day band,
-   the bell and the Workboard's Urgent tab, and on the new Home (HOME_DESK's)
-   Your day, the list and its own Tasks face. `postDone: true` is how such a
-   screen says so, and `takeBackDone: true` is how the screens with a Reopen
-   or an Undo (both Tasks faces, the Urgent tab, the list) say it about
-   taking the tick back.
+   PERSON'S tick on a screen made for ticking: on Home, Your day, the list
+   and the Tasks face; the bell; and the Workboard's Urgent tab.
+   `postDone: true` is how such a screen says so, and `takeBackDone: true` is
+   how the screens with a Reopen or an Undo (the Tasks face, the Urgent tab,
+   the list) say it about taking the tick back. (The old Home's Tasks face
+   and day band ticked too, and went with it on 2026-09-26.)
    Read as source, because the danger is a new
    caller — a cron, a route, a reply that closes its task, a bulk action —
    that would post a Done nobody pressed for, or a new Undo that reopens a
@@ -29,10 +29,9 @@ import * as ts from "typescript";
 
    AND WHERE THE DONE IS READ BACK. The bell's door onto a Done that didn't
    go opens `/dashboard?task=<id>`, and a Done's state is drawn on the
-   task's page. Every Home the address can open is handed the task it
-   names, and every screen that draws the task's page is handed its lines —
-   so a second Home (HOME_DESK's) can't open with the owner's Done nowhere
-   on it. */
+   task's page. The Home the address opens is handed the task it names,
+   and every screen that draws the task's page is handed its lines — so
+   Home can't open with the owner's Done nowhere on it. */
 
 const SRC = join(process.cwd(), "src");
 
@@ -119,13 +118,11 @@ it("(F) nothing hands a tick or a Reopen on by reference: every use is a call th
 
 it("(F) exactly the ticking screens post a Done, on every tick they make", () => {
   expect(where(ticks.calls, "postDone")).toEqual([
-    "components/dashboard/home-day-band.tsx",
-    // the new Home's (HOME_DESK's): Your day's Mark done, and the list's tick
+    // Home's: Your day's Mark done, and the list's tick
     "components/dashboard/home-day.tsx",
     "components/dashboard/home-list.tsx",
     // and its Tasks face's tick and Mark done
     "components/dashboard/home-tasks-face.tsx",
-    "components/dashboard/home-tasks.tsx",
     "components/shell/bell.tsx",
     "components/workboard/board/urgent-tab.tsx",
   ]);
@@ -137,11 +134,10 @@ it("(F) exactly the ticking screens post a Done, on every tick they make", () =>
 
 it("(F) exactly the screens with a Reopen or an Undo take one back, on every Reopen they make", () => {
   expect(where(reopens.calls, "takeBackDone")).toEqual([
-    // the new Home's list: the Undo on a row it just ticked
+    // Home's list: the Undo on a row it just ticked
     "components/dashboard/home-list.tsx",
     // and its Tasks face's Not done yet
     "components/dashboard/home-tasks-face.tsx",
-    "components/dashboard/home-tasks.tsx",
     "components/workboard/board/urgent-tab.tsx",
   ]);
   expect(onScreens(reopens.calls).filter((c) => !flagged(reopens.calls, "takeBackDone")(c))).toEqual([]);
@@ -174,13 +170,13 @@ function elementsOf(test: (tag: string) => boolean): { path: string; tag: string
 }
 
 it("(F) every screen that draws a task's page hands it the task's Done lines", () => {
-  // today's Tasks face, and the new Home's (HOME_DESK's), where a task opens in place
-  const pages = elementsOf((t) => t === "HomeTasks" || t === "HomeTasksFace");
-  expect(new Set(pages.map((e) => e.tag))).toEqual(new Set(["HomeTasks", "HomeTasksFace"]));
+  // Home's Tasks face, where a task opens in place
+  const pages = elementsOf((t) => t === "HomeTasksFace");
+  expect(new Set(pages.map((e) => e.tag))).toEqual(new Set(["HomeTasksFace"]));
   expect(pages.filter((e) => !e.attrs.includes("sm8Lines") || !e.attrs.includes("sm8Sender"))).toEqual([]);
 });
 
-it("(F) every Home the address can open is handed the task it names", () => {
+it("(F) the Home the address opens is handed the task it names", () => {
   const homes = elementsOf((t) => /^Dashboard[A-Z]/.test(t)).filter((e) => e.path === "app/dashboard/page.tsx");
   expect(homes.length).toBeGreaterThan(0);
   expect(homes.filter((e) => !e.attrs.includes("taskId"))).toEqual([]);

@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import { NoteScopeProvider } from "@/components/notes/note-context";
 import type { TiffRoom } from "@/lib/workboard/note-turns";
-import { TiffModalProvider, useTiffModalSwitch } from "../tiff-host";
+import { TiffModalProvider } from "../tiff-host";
 import { SAVE_FAILED, TiffBox, type BoxSaved } from "../tiff-box";
 import { TiffContext, type TiffApi } from "../tiff-context";
 
@@ -32,11 +32,6 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: jest.fn(),
   publishNoteKb: jest.fn(),
   dismissNote: jest.fn(),
-  // the capture sheet's, which the button still carries for everyone else
-  applyNote: jest.fn(),
-  keepNoteOnJob: jest.fn(),
-  keepNoteForMe: jest.fn(),
-  answerClarify: jest.fn(),
 }));
 const fileCalendarLine = jest.fn();
 jest.mock("@/app/actions/calendar", () => ({
@@ -90,34 +85,25 @@ function motion(still: boolean) {
   })) as unknown as typeof window.matchMedia;
 }
 
-function Switch({ on }: { on: boolean }) {
-  useTiffModalSwitch(on);
-  return null;
-}
-
 const save = jest.fn<Promise<BoxSaved>, [string]>();
 
+/** `hosted` false: the box with no modal host round it, where nothing can
+    open the modal. */
 function Room({
-  on = true,
+  hosted = true,
   room = "diary",
   placeholder = "Add to the diary…",
   day,
   enter,
 }: {
-  on?: boolean;
+  hosted?: boolean;
   room?: TiffRoom;
   placeholder?: string;
   day?: string;
   enter?: "sort" | "save";
 }) {
-  return (
-    <NoteScopeProvider voiceEnabled>
-      <TiffModalProvider>
-        <Switch on={on} />
-        <TiffBox room={room} placeholder={placeholder} save={save} day={day} enter={enter} />
-      </TiffModalProvider>
-    </NoteScopeProvider>
-  );
+  const box = <TiffBox room={room} placeholder={placeholder} save={save} day={day} enter={enter} />;
+  return <NoteScopeProvider voiceEnabled>{hosted ? <TiffModalProvider>{box}</TiffModalProvider> : box}</NoteScopeProvider>;
 }
 
 /** The Calendar's box, as its page holds it (2026-09-26): on a day, and
@@ -397,7 +383,7 @@ describe("Sort it out", () => {
 
   it("takes nothing when the modal cannot open: the words stay where they were", async () => {
     const user = userEvent.setup();
-    render(<Room on={false} />);
+    render(<Room hosted={false} />);
     await user.type(field(), "Callum to grab the filters");
     await user.click(button("Sort it out")!);
     await user.keyboard("{Enter}");
@@ -463,7 +449,7 @@ describe("a box whose Enter is its Save", () => {
 
   it("hands the day to Tiff from Sort it out and from its Tiff button", async () => {
     const open = jest.fn((_o: Parameters<TiffApi["open"]>[0]) => true);
-    const api: TiffApi = { enabled: true, open, openedBy: null, isOpen: false, landed: null, report: () => {} };
+    const api: TiffApi = { open, openedBy: null, isOpen: false, landed: null };
     const user = userEvent.setup();
     render(
       <NoteScopeProvider voiceEnabled>

@@ -29,9 +29,10 @@ import { DeskJobHost } from "./home-job-sheet";
 import { HomeList } from "./home-list";
 import { HomeTasksFace } from "./home-tasks-face";
 
-/* THE NEW HOME — the desk (docs/design.md, "Home is the day, three tabs and
-   the list", 2026-09-25). Behind HOME_DESK (lib/dashboard/desk-flag): the
-   owner's until the flip, and the crew's Home (./home) does not change.
+/* HOME — the desk (docs/design.md, "Home is the day, three tabs and the
+   list", 2026-09-25). Everyone's since 2026-09-26: it was built behind a
+   switch, HOME_DESK, the owner's until he had walked it, and the old Home
+   went with the switch.
 
    The date is the h1, in the band every screen wears. Under it "Your day"
    (Isaac, 2026-09-25: "The top hero can stay as it is, that says Your
@@ -49,13 +50,12 @@ import { HomeTasksFace } from "./home-tasks-face";
    overlapped, until it is covered (./home-day's `lap`). From the keyboard,
    and under reduced motion, each is simply there (law 8).
 
-   THE FACES ARE BUILT ONE BY ONE. "Your day" is his own already
-   (./home-day), and so are THE DIARY (./home-diary-feed), THE LIST in the
-   right-hand column beside Diary and Tasks (./home-list), THE TASKS FACE
-   (./home-tasks-face), every task you have a hand in, open and done, each
-   opening in place, and THE CALENDAR (./home-cal-page), which slides
-   across the column and the list alike. Every new file mounts here and
-   nowhere else, which is what keeps the crew's Home as it is.
+   THE FACES. "Your day" is his own (./home-day), and so are THE DIARY
+   (./home-diary-feed), THE LIST in the right-hand column beside Diary and
+   Tasks (./home-list), THE TASKS FACE (./home-tasks-face), every task you
+   have a hand in, open and done, each opening in place, and THE CALENDAR
+   (./home-cal-page), which slides across the column and the list alike.
+   Each mounts here and nowhere else.
 
    THE DAY'S OPEN CARD STAYS OPEN across faces: a press on the tabs does
    not close it (`KEEPS_DAY`), the Calendar leaves it as it was while the
@@ -100,7 +100,7 @@ export function DashboardDesk({
   data: DashboardData;
   /** A task the address names (`/dashboard?task=<id>`, the bell's door onto
       a Done that didn't go to ServiceM8): the desk opens on Tasks with it
-      chosen, as today's Home does (./home). */
+      chosen. */
   taskId?: string | null;
 }) {
   return (
@@ -157,7 +157,7 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
      pathname). A task newly named turns the desk to Tasks with it chosen,
      in the same paint and without a slide: the address moved, not a hand
      on the tabs. An address that stops naming one leaves the face where the
-     reader put it. The adjust-in-render idiom today's Home uses. */
+     reader put it. The adjust-in-render idiom, so it lands in one paint. */
   const [namedTask, setNamedTask] = useState<string | null>(taskId);
   if (taskId !== namedTask) {
     setNamedTask(taskId);

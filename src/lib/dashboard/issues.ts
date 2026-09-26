@@ -31,11 +31,6 @@ export type HomeIssue = {
   where: string | null;
 };
 
-/** "once" · "3 times" — the count, as it is said. */
-export function issueSeen(occurrences: number): string {
-  return occurrences <= 1 ? "once" : `${occurrences} times`;
-}
-
 /** Where an issue is, from what its target has to say for itself. One rule
     for every kind, so the read module carries no words of its own:
     a job number leads when there is one, otherwise the client and what the

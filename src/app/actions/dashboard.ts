@@ -25,8 +25,8 @@ import { sendTaskDone, takeBackTaskDone } from "./task-sm8";
 
    The UI is never the control; every rule is re-decided here.
 
-     ASSIGN / POST   creating a task for someone, or posting a notice, needs
-                     `team`. It's a management action about other people.
+     POST            posting a notice needs `team`. It's a management action
+                     about other people.
      ADD             a task for yourself needs nothing: your own to-do, in
                      `reminders.ts`'s posture. Ownership is the enforcement.
      GIVE            handing a task to someone else is assigning it, so it
@@ -104,51 +104,6 @@ async function claimDocuments(
 const isISODate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 /* ---------------- tasks ---------------- */
-
-export async function createTask(input: {
-  assignedTo: string;
-  title: string;
-  detail?: string;
-  dueDate?: string;
-}): Promise<DashResult> {
-  const ctx = await context();
-  if (!ctx) return { ok: false, error: "Not signed in." };
-  if (!(await can("team"))) return { ok: false, error: "You can't assign tasks." };
-
-  const title = input.title.trim();
-  if (!title) return { ok: false, error: "Give the task a title." };
-  if (input.dueDate && !isISODate(input.dueDate)) return { ok: false, error: "Check the due date." };
-
-  // the assignee must belong to this org — scoped lookup, never id alone
-  const { data: target } = await supabaseAdmin
-    .from("staff_profiles")
-    .select("id")
-    .eq("org_id", ctx.orgId)
-    .eq("id", input.assignedTo)
-    .maybeSingle();
-  if (!target) return { ok: false, error: "That person isn't in this organisation." };
-
-  const { data: made, error } = await supabaseAdmin
-    .from("tasks")
-    .insert({
-      org_id: ctx.orgId,
-      title: title.slice(0, 200),
-      detail: input.detail?.trim().slice(0, 1000) || null,
-      assigned_to: input.assignedTo,
-      created_by: ctx.staffId,
-      due_date: input.dueDate || null,
-      status: "open",
-    })
-    .select("id")
-    .single();
-  if (error || !made) return { ok: false, error: "Couldn't create that task." };
-  await logTaskEvent(ctx.orgId, String((made as { id: string }).id), ctx.staffId, {
-    kind: "created",
-    to: input.assignedTo,
-  });
-  refresh();
-  return { ok: true };
-}
 
 export type AddTaskResult = { ok: true; taskId: string } | { ok: false; error: string };
 

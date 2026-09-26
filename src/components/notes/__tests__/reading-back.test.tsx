@@ -3,7 +3,7 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NoteToken } from "../note-token";
 import { NoteScopeProvider } from "../note-context";
-import { TiffButton } from "../tiff-button";
+import { CaptureDoor } from "./fixtures/capture-door";
 import { READING_BACK_NOTE } from "../waits";
 
 /* READING IT BACK, WHEREVER YOU ARE STANDING.
@@ -85,7 +85,7 @@ const chip = () => screen.queryByText(READING_BACK_NOTE);
    and "Reading it back…" two lines under it. */
 describe("the capture sheet", () => {
   const open = async () => {
-    mount(<TiffButton where="topbar" />);
+    mount(<CaptureDoor />);
     await userEvent.setup().click(screen.getByRole("button", { name: /Ask or tell Tiff/i }));
   };
 

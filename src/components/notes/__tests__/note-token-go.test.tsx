@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NoteScopeProvider } from "../note-context";
-import { TiffButton } from "../tiff-button";
+import { CaptureDoor } from "./fixtures/capture-door";
 
 /* ONLY ONE BUTTON IS ALLOWED TO SAY GO.
 
@@ -97,7 +97,7 @@ const openSheet = async () => {
   const user = userEvent.setup();
   render(
     <NoteScopeProvider voiceEnabled>
-      <TiffButton />
+      <CaptureDoor />
     </NoteScopeProvider>
   );
   await user.click(screen.getByLabelText(/Ask or tell Tiff/));
@@ -123,7 +123,7 @@ const openTyping = async () => {
   const user = userEvent.setup();
   render(
     <NoteScopeProvider voiceEnabled>
-      <TiffButton />
+      <CaptureDoor />
     </NoteScopeProvider>
   );
   await user.click(screen.getByLabelText(/Ask or tell Tiff/));
@@ -220,7 +220,7 @@ it("carries the same mark from the door into the recording", async () => {
   const user = userEvent.setup();
   render(
     <NoteScopeProvider voiceEnabled>
-      <TiffButton />
+      <CaptureDoor />
     </NoteScopeProvider>
   );
   await user.click(screen.getByLabelText(/Ask or tell Tiff/));

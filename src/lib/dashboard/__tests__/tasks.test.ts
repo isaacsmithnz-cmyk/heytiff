@@ -1,15 +1,10 @@
 import {
-  dueLabel,
   isDelegated,
   noticeReadState,
   sortNotices,
   sortTasks,
   type DashTask,
-  type NoticeWithRead,
 } from "../tasks";
-import { currentUnreadCount } from "../notices";
-
-const TODAY = "2026-07-20";
 
 const task = (over: Partial<DashTask>): DashTask => ({
   id: "t1",
@@ -26,28 +21,6 @@ const task = (over: Partial<DashTask>): DashTask => ({
   remindAt: null,
   remindKind: "at" as const,
   ...over,
-});
-
-describe("dueLabel", () => {
-  it("is null with no due date", () => {
-    expect(dueLabel(null, TODAY)).toBeNull();
-  });
-
-  it("is bad and counts days when overdue", () => {
-    expect(dueLabel("2026-07-16", TODAY)).toEqual({ label: "Overdue 4 days", state: "bad" });
-  });
-
-  it("says due today", () => {
-    expect(dueLabel(TODAY, TODAY)).toEqual({ label: "Due today", state: "warn" });
-  });
-
-  it("warns within the soon window", () => {
-    expect(dueLabel("2026-07-27", TODAY)).toEqual({ label: "Due in 7 days", state: "warn" });
-  });
-
-  it("is calm and dated beyond the window", () => {
-    expect(dueLabel("2026-08-15", TODAY)).toEqual({ label: "Due 15 Aug", state: "ok" });
-  });
 });
 
 describe("sortTasks", () => {
@@ -124,59 +97,5 @@ describe("noticeReadState", () => {
   it("treats an ack ahead of the revision as read, never stale", () => {
     // shouldn't happen, but a stale-looking ack must never be invented
     expect(noticeReadState(1, 2)).toBe("read");
-  });
-});
-
-/* These three rules moved off `unreadCount`, which had no callers left, onto
-   `currentUnreadCount` — the survivor, which adds the lifecycle rule on top of
-   them. The rules themselves are unchanged and still need proving; only the
-   function under test moved. */
-describe("currentUnreadCount", () => {
-  const notice = (
-    id: string,
-    over: Partial<NoticeWithRead> = {},
-  ): NoticeWithRead => ({
-    id,
-    title: id,
-    body: null,
-    pinned: false,
-    postedById: null,
-    postedByName: null,
-    createdAt: "2026-07-01T00:00:00Z",
-    revision: 1,
-    editedAt: null,
-    kind: "notice",
-    expiresAt: null,
-    archivedAt: null,
-    ackedRevision: null,
-    state: "unread",
-    mine: false,
-    readBy: 0,
-    audience: 0,
-    ...over,
-  });
-
-  const count = (ns: NoticeWithRead[]) => currentUnreadCount(ns, TODAY);
-
-  it("counts notices never read", () => {
-    expect(count([notice("a", { state: "read" }), notice("b"), notice("c")])).toBe(2);
-    expect(count([])).toBe(0);
-  });
-
-  it("counts a stale ack as still wanting attention", () => {
-    expect(count([notice("a", { state: "stale", ackedRevision: 1, revision: 2 })])).toBe(1);
-  });
-
-  it("never counts your own notices — you wrote them", () => {
-    expect(count([notice("a", { mine: true }), notice("b", { mine: true, state: "stale" })])).toBe(0);
-  });
-
-  /* The rule `unreadCount` did not have, and the reason it was replaced: an
-     announcement that expired before you opened the board is not something you
-     are behind on. */
-  it("ignores an unread notice that has already dropped off the board", () => {
-    expect(count([notice("a", { expiresAt: "2026-07-19" })])).toBe(0);
-    expect(count([notice("b", { archivedAt: "2026-07-10T00:00:00Z" })])).toBe(0);
-    expect(count([notice("c", { expiresAt: TODAY })])).toBe(1); // inclusive last day
   });
 });

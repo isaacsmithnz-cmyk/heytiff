@@ -213,10 +213,14 @@ settle (`src/lib/dashboard/mention-settle.ts`) runs after a sync, reads the
 note (`mention-brain.ts`, `readAsk`), and records what it read in
 `mention_asks` (`docs/migrations/mention_asks.sql`), not in
 `workboard_notes`: nobody said anything, so there is no capture. It reads 30
-days back, at most 5 reads a run, and sends nothing to ServiceM8. Their
-reply to the asker, written in ServiceM8, can move that task or tick it off
-and never makes a second. The review card, and the job card's strip, still
-file nothing on their own.
+days back, at most 5 reads a run, and sends nothing to ServiceM8. The task
+goes on their own list, as if they had typed it (nobody gave it to them), in
+Australian English that is checked and repaired (`note-english.ts`,
+`englishStrings`), not only asked for. An ask the job card's strip already
+answered is never read again: the strip's task is its one task. Their
+replies to the asker, written in ServiceM8, can move that task or tick it
+off and never make a second. The review card, and the job card's strip,
+still file nothing on their own.
 
 **`dismissNote` must stay empty-handed.** It is also the walk-away path, so an
 abandonment that recorded an outcome would read there exactly like a note

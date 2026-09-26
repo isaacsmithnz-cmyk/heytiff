@@ -5,7 +5,15 @@
    2026); the replies are examples. */
 
 import { buildConversations, diaryFeed, type MentionNote } from "../diary-feed";
-import { asksIn, mentionTasksOf, taskAfterReply, withAskTasks, type TaskNow } from "../mention-asks";
+import {
+  asksIn,
+  mentionTasksOf,
+  taskAfterReply,
+  withAskTasks,
+  type AskMade,
+  type AskTaskNow,
+  type TaskNow,
+} from "../mention-asks";
 import type { ReplyRead } from "@/lib/workboard/mention-brain";
 import type { Sm8Person } from "@/lib/workboard/job-notes-query";
 
@@ -46,49 +54,75 @@ describe("which messages are asks", () => {
 });
 
 describe("what each ask became", () => {
-  it("is a task per ask that made one, oldest first: open, done, or deleted since", () => {
+  const made = (note: string, task: string | null, over: Partial<AskMade> = {}): AskMade => ({
+    sm8_note_uuid: note,
+    kind: "do",
+    task_id: task,
+    due_said: null,
+    due_said_on: null,
+    due_said_for: null,
+    ...over,
+  });
+  const now = (over: Partial<AskTaskNow> = {}): AskTaskNow => ({ done: false, dueDate: null, ownerId: "s-isaac", ...over });
+
+  it("is a task per ask that made one, oldest first: open, done, or deleted since, and whose it is", () => {
     const [c] = withAskTasks(
       talk([ASK, MINE, AGAIN]),
-      [
-        { sm8_note_uuid: "n-again", kind: "do", task_id: "t-chase", due_said: null },
-        { sm8_note_uuid: "n-ask", kind: "do", task_id: "t-mary", due_said: "this afternoon" },
-      ],
-      new Map([["t-mary", { done: true }], ["t-chase", { done: false }]]),
+      [made("n-again", "t-chase"), made("n-ask", "t-mary")],
+      new Map([
+        ["t-mary", now({ done: true })],
+        ["t-chase", now({ ownerId: "s-leo" })],
+      ]),
+      TODAY,
     );
     expect(c.tasks).toEqual([
-      { noteId: "n-ask", taskId: "t-mary", done: true, dueSaid: "this afternoon" },
-      { noteId: "n-again", taskId: "t-chase", done: false, dueSaid: null },
+      { noteId: "n-ask", taskId: "t-mary", done: true, dueSaid: null, ownerId: "s-isaac" },
+      { noteId: "n-again", taskId: "t-chase", done: false, dueSaid: null, ownerId: "s-leo" },
     ]);
   });
 
   it("is no task for an ask read as asking nothing", () => {
-    const [c] = withAskTasks(
-      talk([ASK]),
-      [{ sm8_note_uuid: "n-ask", kind: "none", task_id: null, due_said: null }],
-      new Map(),
-    );
+    const [c] = withAskTasks(talk([ASK]), [made("n-ask", null, { kind: "none" })], new Map(), TODAY);
     expect(c.tasks).toEqual([]);
   });
 
   it("says a task deleted since — or one the task read didn't find — is gone, never open", () => {
-    const [c] = withAskTasks(
-      talk([ASK]),
-      [{ sm8_note_uuid: "n-ask", kind: "question", task_id: "t-gone", due_said: null }],
-      new Map(),
-    );
-    expect(c.tasks).toEqual([{ noteId: "n-ask", taskId: null, done: false, dueSaid: null }]);
+    const [c] = withAskTasks(talk([ASK]), [made("n-ask", "t-gone", { kind: "question" })], new Map(), TODAY);
+    expect(c.tasks).toEqual([{ noteId: "n-ask", taskId: null, done: false, dueSaid: null, ownerId: null }]);
   });
 
   it("only joins an ask to the conversation that holds it", () => {
     const out = withAskTasks(
       talk([ASK, note("n-fans", LUKE.uuid, "2026-09-15 08:00:00", "@isaacsmith how many fans", "j-3294")]),
-      [{ sm8_note_uuid: "n-fans", kind: "question", task_id: "t-fans", due_said: null }],
-      new Map([["t-fans", { done: false }]]),
+      [made("n-fans", "t-fans", { kind: "question" })],
+      new Map([["t-fans", now()]]),
+      TODAY,
     );
     expect(out.map((c) => [c.jobUuid, c.tasks.map((t) => t.taskId)])).toEqual([
       ["j-2041", []],
       ["j-3294", ["t-fans"]],
     ]);
+  });
+
+  /* "Will ring her tomorrow", said on Thursday: true on Thursday, and only
+     of Friday. */
+  describe("the words your reply said for when", () => {
+    const said = made("n-ask", "t-mary", { due_said: "tomorrow", due_said_on: TODAY, due_said_for: "2026-09-26" });
+    const dueSaidOf = (task: AskTaskNow, today = TODAY) =>
+      withAskTasks(talk([ASK]), [said], new Map([["t-mary", task]]), today)[0].tasks[0].dueSaid;
+
+    it("are said on the day they were written, while the task is still due on the day they named", () => {
+      expect(dueSaidOf(now({ dueDate: "2026-09-26" }))).toBe("tomorrow");
+    });
+
+    it("are not said the next day, when 'tomorrow' is today", () => {
+      expect(dueSaidOf(now({ dueDate: "2026-09-26" }), "2026-09-26")).toBeNull();
+    });
+
+    it("are not said once the task has been moved by hand", () => {
+      expect(dueSaidOf(now({ dueDate: "2026-10-02" }))).toBeNull();
+      expect(dueSaidOf(now({ dueDate: null }))).toBeNull();
+    });
   });
 });
 
@@ -97,10 +131,11 @@ describe("the list's word for it", () => {
     const [c] = withAskTasks(
       talk([ASK, MINE, AGAIN]),
       [
-        { sm8_note_uuid: "n-ask", kind: "do", task_id: "t-mary", due_said: null },
-        { sm8_note_uuid: "n-again", kind: "do", task_id: "t-gone", due_said: null },
+        { sm8_note_uuid: "n-ask", kind: "do", task_id: "t-mary", due_said: null, due_said_on: null, due_said_for: null },
+        { sm8_note_uuid: "n-again", kind: "do", task_id: "t-gone", due_said: null, due_said_on: null, due_said_for: null },
       ],
-      new Map([["t-mary", { done: false }]]),
+      new Map([["t-mary", { done: false, dueDate: null, ownerId: "s-isaac" }]]),
+      TODAY,
     );
     const feed = diaryFeed({ entries: [], conversations: [c], day: TODAY, mentions: true, entriesCut: false, syncedAt: null });
     expect(mentionTasksOf(feed)).toEqual([{ taskId: "t-mary", noteId: "n-ask", asker: "Luke", day: "2026-09-21" }]);
@@ -114,6 +149,7 @@ describe("what your reply does to the task", () => {
     says: s,
     dueDate,
     dueSaid,
+    saidOn: dueDate,
   });
 
   it("moves it to the day it names, keeping its words", () => {
@@ -137,6 +173,11 @@ describe("what your reply does to the task", () => {
     expect(taskAfterReply("do", says("later"), open)).toBeNull();
     expect(taskAfterReply("question", says("later"), open)).toBeNull();
     expect(taskAfterReply("do", says("none"), open)).toBeNull();
+    /* a reply to a question that doesn't put it off is its answer (the
+       reader says "answer"); "none" is a reply about something else — the
+       call Luke also asked for, in the same conversation — and must not
+       tick the fans question off */
+    expect(taskAfterReply("question", says("none"), open)).toBeNull();
   });
 
   it("leaves a task that is done, or given an hour by hand, where it is", () => {

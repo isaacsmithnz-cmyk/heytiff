@@ -11,7 +11,7 @@ import {
   taskOwners,
   type DiaryDoor,
 } from "../diary-doors";
-import { diaryFeed, type DiaryConversation } from "../diary-feed";
+import { buildConversations, diaryFeed, type DiaryConversation } from "../diary-feed";
 import type { DiaryEntry, Outcome } from "../journal";
 
 const ME = "s-isaac";
@@ -262,5 +262,31 @@ describe("taskOwners", () => {
       syncedAt: null,
     });
     expect(taskOwners(feed).sort()).toEqual(["s-lorenzo", "s-luke"]);
+  });
+
+  /* H18: a task Luke's ask made, given to Leo since, is "1 task for Leo"
+     under the conversation — so Leo is somebody the diary must name. */
+  it("counts the people the asks' tasks are on too", () => {
+    const [asked] = buildConversations({
+      notes: [{ uuid: "n1", jobUuid: "j-2041", author: "u-luke", at: "2026-09-21 13:42:10", text: "@isaacsmith call Mary" }],
+      me: { uuid: "u-isaac", handle: "isaacsmith" },
+      people: [
+        { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" },
+        { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" },
+      ],
+      jobs: new Map([["j-2041", { label: "2041 Wollstonecraft", live: true }]]),
+      today: "2026-09-25",
+    });
+    const feed = diaryFeed({
+      entries: [entry({ taskFor: { t1: "s-lorenzo" } })],
+      conversations: [
+        { ...asked!, tasks: [{ noteId: "n1", taskId: "t-mary", done: false, dueSaid: null, ownerId: "s-leo" }] },
+      ],
+      day: "2026-09-25",
+      mentions: true,
+      entriesCut: false,
+      syncedAt: null,
+    });
+    expect(taskOwners(feed).sort()).toEqual(["s-leo", "s-lorenzo"]);
   });
 });

@@ -254,8 +254,17 @@ describe("the tasks the asks made", () => {
   });
 
   it("are read for the viewer's own staff card, for this conversation's asks, and only the ones read", async () => {
-    tables.mention_asks = [{ sm8_note_uuid: "n1", kind: "do", task_id: "t-mary", due_said: "this afternoon" }];
-    tables.tasks = [{ id: "t-mary", status: "open" }];
+    tables.mention_asks = [
+      {
+        sm8_note_uuid: "n1",
+        kind: "do",
+        task_id: "t-mary",
+        due_said: "this afternoon",
+        due_said_on: "2026-09-25",
+        due_said_for: "2026-09-25",
+      },
+    ];
+    tables.tasks = [{ id: "t-mary", status: "open", due_date: "2026-09-25", assigned_to: "s-isaac" }];
 
     const [c] = await listMyMentions("org-1", "u-isaac", "2026-09-25", { staffId: "s-isaac" });
 
@@ -265,7 +274,29 @@ describe("the tasks the asks made", () => {
     const [task] = of("tasks");
     expect(task.eq).toEqual({ org_id: "org-1" });
     expect(task.in).toEqual(["id", ["t-mary"]]);
-    expect(c.tasks).toEqual([{ noteId: "n1", taskId: "t-mary", done: false, dueSaid: "this afternoon" }]);
+    expect(c.tasks).toEqual([
+      { noteId: "n1", taskId: "t-mary", done: false, dueSaid: "this afternoon", ownerId: "s-isaac" },
+    ]);
+  });
+
+  /* "Calling her this afternoon", said on Thursday: on Friday the task is
+     late, and the door says so plainly rather than "this afternoon". And a
+     task given to Leo since is Leo's. */
+  it("say the words for when only on the day they were said, and whose the task is now", async () => {
+    tables.mention_asks = [
+      {
+        sm8_note_uuid: "n1",
+        kind: "do",
+        task_id: "t-mary",
+        due_said: "this afternoon",
+        due_said_on: "2026-09-24",
+        due_said_for: "2026-09-24",
+      },
+    ];
+    tables.tasks = [{ id: "t-mary", status: "open", due_date: "2026-09-24", assigned_to: "s-leo" }];
+    const [c] = await listMyMentions("org-1", "u-isaac", "2026-09-25", { staffId: "s-isaac" });
+    expect(of("tasks")[0].columns).toBe("id, status, due_date, assigned_to");
+    expect(c.tasks).toEqual([{ noteId: "n1", taskId: "t-mary", done: false, dueSaid: null, ownerId: "s-leo" }]);
   });
 
   it("are not read at all without a staff card to read them for", async () => {
@@ -283,7 +314,9 @@ describe("the tasks the asks made", () => {
 
     /* a task whose state can't be read is not said to be gone, or done */
     tableErrors = { tasks: { message: "boom" } };
-    tables.mention_asks = [{ sm8_note_uuid: "n1", kind: "do", task_id: "t-mary", due_said: null }];
+    tables.mention_asks = [
+      { sm8_note_uuid: "n1", kind: "do", task_id: "t-mary", due_said: null, due_said_on: null, due_said_for: null },
+    ];
     const [after] = await listMyMentions("org-1", "u-isaac", "2026-09-25", { staffId: "s-isaac" });
     expect(after.tasks).toEqual([]);
     expect(spy).toHaveBeenCalled();

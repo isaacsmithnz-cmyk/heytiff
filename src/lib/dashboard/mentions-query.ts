@@ -48,7 +48,7 @@ import {
   type DiaryConversation,
   type MentionNote,
 } from "./diary-feed";
-import { asksIn, withAskTasks, type AskMade } from "./mention-asks";
+import { asksIn, withAskTasks, type AskMade, type AskTaskNow } from "./mention-asks";
 import { missingTable } from "./task-events";
 
 /** The asks read at most. */
@@ -102,7 +102,7 @@ export async function listMyMentions(
   opts: { staffId?: string | null; people?: readonly Sm8Person[] } = {},
 ): Promise<DiaryConversation[]> {
   const conversations = await readConversations(orgId, mineUuid, today, opts.people);
-  return opts.staffId ? withTheirTasks(orgId, opts.staffId, conversations) : conversations;
+  return opts.staffId ? withTheirTasks(orgId, opts.staffId, conversations, today) : conversations;
 }
 
 async function readConversations(
@@ -205,20 +205,24 @@ async function readConversations(
   }
 }
 
-/* The viewer's read asks among these conversations, and whether each task
-   they made is done. Tasks are this workspace's only: a task id is looked
-   up with the org, never on its own. */
+/* The viewer's read asks among these conversations, and each task they
+   made as it is now: done or not, the day it is due (the door's words for
+   when hold only while it is still the day they named), and whose it is
+   (one given away since is "1 task for Leo", not "for you"). Tasks are
+   this workspace's only: a task id is looked up with the org, never on its
+   own. */
 async function withTheirTasks(
   orgId: string,
   staffId: string,
   conversations: DiaryConversation[],
+  today: string,
 ): Promise<DiaryConversation[]> {
   const asks = conversations.flatMap((c) => asksIn(c).map((m) => m.id));
   if (asks.length === 0) return conversations;
 
   const made = await supabaseAdmin
     .from("mention_asks")
-    .select("sm8_note_uuid, kind, task_id, due_said")
+    .select("sm8_note_uuid, kind, task_id, due_said, due_said_on, due_said_for")
     .eq("org_id", orgId)
     .eq("staff_id", staffId)
     .eq("status", "read")
@@ -235,17 +239,26 @@ async function withTheirTasks(
   if (rows.length === 0) return conversations;
   const ids = [...new Set(rows.map((r) => r.task_id).filter((id): id is string => !!id))];
 
-  const tasks = new Map<string, { done: boolean }>();
+  const tasks = new Map<string, AskTaskNow>();
   if (ids.length > 0) {
-    const read = await supabaseAdmin.from("tasks").select("id, status").eq("org_id", orgId).in("id", ids);
+    const read = await supabaseAdmin
+      .from("tasks")
+      .select("id, status, due_date, assigned_to")
+      .eq("org_id", orgId)
+      .in("id", ids);
     /* a task whose state can't be read is not said to be gone, or done */
     if (read.error) {
       console.error(`[diary] couldn't read the asks' tasks for org ${orgId}:`, read.error);
       return conversations;
     }
-    for (const t of (read.data ?? []) as { id: string; status: string | null }[]) {
-      tasks.set(t.id, { done: t.status === "done" });
+    for (const t of (read.data ?? []) as {
+      id: string;
+      status: string | null;
+      due_date: string | null;
+      assigned_to: string | null;
+    }[]) {
+      tasks.set(t.id, { done: t.status === "done", dueDate: t.due_date, ownerId: t.assigned_to });
     }
   }
-  return withAskTasks(conversations, rows, tasks);
+  return withAskTasks(conversations, rows, tasks, today);
 }

@@ -454,6 +454,7 @@ export function HomeDiaryFeed({
         conversation={i.conversation}
         today={feed.day}
         you={you}
+        who={who}
         asked={askedItem === i.key}
         showing={showing}
         onPage={onPage}

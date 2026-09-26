@@ -330,6 +330,19 @@ describe("tasks", () => {
     expect(sub("later")).toBe("Due Tue 20 Oct.");
   });
 
+  /* Luke asked you, and a manager gave the task to Leo since: it is Leo's
+     row now, his name on it, and "asked you" beside his name would say it
+     was his to do from the start (the Tasks spec's words). */
+  it("say who asked, without 'you', on an ask's task given to someone else", () => {
+    const list = placeList(
+      input({
+        tasks: [task({ id: "given", assigneeId: "s3", assigneeName: "Leo Marsh", createdBy: "me" })],
+        mentions: [{ taskId: "given", noteId: "n1", asker: "Luke", day: "2026-09-21" }],
+      }),
+    );
+    expect(find<ListTaskRow>(list, "given")).toMatchObject({ who: "Leo", sub: "Luke asked, Mon 21 Sept." });
+  });
+
   it("date an added task by the workspace's clock, not the server's", () => {
     // 10:30 pm in Perth on Mon 14 Sept is already Tuesday in Sydney
     const t = task({ createdAt: "2026-09-14T14:30:00Z" });

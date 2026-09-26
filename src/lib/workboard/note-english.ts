@@ -146,20 +146,28 @@ export function alignTranslations(
 
 /* ── the pass (impure) ────────────────────────────────────────────────── */
 
-async function translate(strings: readonly string[]): Promise<Map<string, string>> {
+/* `request` is for a caller with a deadline (`englishStrings`); the review
+   card's path passes none, so its request is what it always was. */
+async function translate(
+  strings: readonly string[],
+  request?: { timeout: number; maxRetries: number },
+): Promise<Map<string, string>> {
   const client = new Anthropic();
   const numbered = strings.map((s, i) => `${i + 1}. ${s}`).join("\n");
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    output_config: {
-      effort: "low",
-      format: { type: "json_schema", schema: SCHEMA },
+  const response = await client.messages.create(
+    {
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: SCHEMA },
+      },
+      system: SYSTEM,
+      messages: [{ role: "user", content: `${strings.length} strings:\n\n${numbered}` }],
     },
-    system: SYSTEM,
-    messages: [{ role: "user", content: `${strings.length} strings:\n\n${numbered}` }],
-  });
+    request,
+  );
 
   /* A refusal is a content outcome, not an error — and here it simply means
      the record keeps the words it already had. */
@@ -232,5 +240,42 @@ export async function englishLine(words: string): Promise<string> {
   } catch (err) {
     console.error(`[note-english] a line wasn't repaired: ${err instanceof Error ? err.message : String(err)}`);
     return words;
+  }
+}
+
+/**
+ * The same repair for loose strings, for a record no review card stands in
+ * front of: the new Home's one task per ask (./mention-brain), whose title
+ * goes straight onto somebody's list. Each string the check finds foreign
+ * comes back translated, keyed by the original; one it couldn't repair is
+ * simply not in the map, so it keeps its own words.
+ *
+ * Bounded — it runs inside a read with a deadline, so it is sent once, and
+ * not at all with no time left — and, like `englishProposal`, it never
+ * throws and never loses words.
+ */
+export async function englishStrings(
+  strings: readonly string[],
+  opts: { timeoutMs: number },
+): Promise<Map<string, string>> {
+  const foreign = [...new Set(strings.filter((s) => s.trim() !== "" && checkEnglish(s).foreign))].slice(0, MAX_STRINGS);
+  if (foreign.length === 0) return new Map();
+  if (!process.env.ANTHROPIC_API_KEY || opts.timeoutMs <= 0) {
+    console.error(`[note-english] ${foreign.length} string(s) left unrepaired: no key or no time`);
+    return new Map();
+  }
+  try {
+    const map = await translate(foreign, { timeout: opts.timeoutMs, maxRetries: 0 });
+    const stubborn = foreign.filter((s) => {
+      const after = map.get(s);
+      return after === undefined || checkEnglish(after).foreign;
+    });
+    if (stubborn.length > 0) {
+      console.error(`[note-english] still not English after repair: ${stubborn.length} string(s)`);
+    }
+    return map;
+  } catch (err) {
+    console.error(`[note-english] repair failed: ${err instanceof Error ? err.message : String(err)}`);
+    return new Map();
   }
 }

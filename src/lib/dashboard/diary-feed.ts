@@ -126,9 +126,13 @@ export type AskTask = {
   /** Null when the task has since been deleted. */
   taskId: string | null;
   done: boolean;
-  /** When your reply said you'd do it, in its words ("this afternoon"), or
-      null. */
+  /** When your reply said you'd do it, in its words ("this afternoon"),
+      while they are still true: today, and the day they named still the
+      task's. Otherwise null. */
   dueSaid: string | null;
+  /** The staff card it is on now: yours, or whoever it was given to since.
+      Null when that isn't known (the task since deleted). */
+  ownerId: string | null;
 };
 
 export type DiaryItem =

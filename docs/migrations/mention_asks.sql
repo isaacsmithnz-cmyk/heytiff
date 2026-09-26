@@ -10,7 +10,15 @@
 -- readAsk), at most 5 reads a run, and files each ask as one task for them.
 -- A later reply of theirs to the asker, written in ServiceM8, can move that
 -- task or tick it off (readReply); it never makes a second one. Nothing here
--- is ever sent to ServiceM8: no sm8_writes row, no write of any kind.
+-- is ever sent to ServiceM8: no sm8_writes row, no write of any kind. The
+-- task goes on the person's OWN list (created_by = assigned_to): nobody gave
+-- it to them, so it is nobody's delegated work, and no manager's team list
+-- shows it.
+--
+-- A NOTE THE JOB CARD'S STRIP ALREADY ANSWERED (job_note_actions: somebody
+-- pressed its suggestion, or dismissed it) is never read: its row is written
+-- straight as 'read', naming the strip's task (kind 'do') or none (a
+-- dismissal), so one ask is still one task.
 --
 -- WHAT READS IT. The new Home's diary (mentions-query.ts: "1 task for you"
 -- under the conversation, and "Luke asked you" on the list's row), and the
@@ -29,7 +37,18 @@
 -- keeps the note's uuid, the job's, and who asked (asker_sm8_uuid: the
 -- editor ServiceM8 named when the ask was first read, since ServiceM8 keeps
 -- only the LAST editor). due_said is the reply's own words for when ("this
--- afternoon"), in Australian English, as the task door says them.
+-- afternoon"), in Australian English, as the task door says them; words
+-- like that are only true on the day they were written, so due_said_on is
+-- that day (on the account's clock) and due_said_for the day they named,
+-- and the door says them only on due_said_on, and only while the task is
+-- still due on due_said_for (a task moved by hand since keeps no stale
+-- "this afternoon").
+--
+-- YOUR REPLIES. last_reply_note is the newest reply of yours already read
+-- for this ask; reply_attempts counts reads of the replies after it that
+-- failed, and the MAX-th sets them aside (last_reply_note moves past them).
+-- A refusal is final at once; an outage (rate limit, a timeout, the reader
+-- down) is never counted against an ask or a reply.
 --
 -- A deleted task sets task_id null and the row stays: the ask was read, the
 -- strip stays quiet, and the diary says "1 task removed.". A disconnect
@@ -64,13 +83,16 @@
 --   select count(*) from public.mention_asks;                       -- expect 0
 --   select relrowsecurity from pg_class where oid = 'public.mention_asks'::regclass;  -- t
 --   select count(*) from pg_policies where tablename = 'mention_asks';                -- 0
+--   select column_name, data_type from information_schema.columns
+--     where table_schema = 'public' and table_name = 'mention_asks' order by ordinal_position;
+--     -- 19 columns, reply_attempts integer, due_said_on and due_said_for date
 --   select conname, pg_get_constraintdef(oid) from pg_constraint
 --     where conrelid = 'public.mention_asks'::regclass order by 1;
 --   select indexname, indexdef from pg_indexes
 --     where schemaname = 'public' and tablename = 'mention_asks' order by 1;
 --
 -- ROLLBACK: drop table if exists public.mention_asks;
---           (the tasks it made stay, as ordinary tasks with nobody as maker)
+--           (the tasks it made stay, as the person's own tasks)
 
 create table if not exists public.mention_asks (
   id               uuid primary key default gen_random_uuid(),
@@ -87,7 +109,10 @@ create table if not exists public.mention_asks (
                      check (kind in ('do', 'question', 'none')),
   task_id          uuid references public.tasks (id) on delete set null,
   due_said         text,
+  due_said_on      date,
+  due_said_for     date,
   last_reply_note  text,
+  reply_attempts   integer not null default 0,
   attempts         integer not null default 0,
   error            text,
   claimed_at       timestamptz default now(),

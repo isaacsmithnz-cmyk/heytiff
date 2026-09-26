@@ -6,6 +6,7 @@ import {
   conversationUnder,
   litMessage,
   messageHead,
+  type TaskWho,
 } from "@/lib/dashboard/diary-conversation";
 import { DIARY_LIT_MS } from "@/lib/dashboard/diary-doors";
 import type { DiaryConversation } from "@/lib/dashboard/diary-feed";
@@ -46,6 +47,7 @@ export function HomeDiaryConversation({
   conversation: c,
   today,
   you,
+  who,
   asked,
   showing,
   onPage,
@@ -58,6 +60,9 @@ export function HomeDiaryConversation({
   today: string;
   /** Your initials, for your own replies. */
   you: string;
+  /** Whose tasks need no name, and what to call everyone else: a task his
+      ask made that was given to Leo since is "1 task for Leo". */
+  who: TaskWho;
   /** A door asked for this conversation: it is lit as a whole. */
   asked: boolean;
   /** The Diary is the face on screen: the light's seconds run only then. */
@@ -70,9 +75,8 @@ export function HomeDiaryConversation({
   const { openJob } = useDeskJobs();
   const theirs = initialsFrom(c.asker.name);
   const head = conversationHead(c, today);
-  const under = conversationUnder(c, onPage);
+  const under = conversationUnder(c, who, onPage);
   const job = under.job;
-  const tasks = under.tasks;
   const [ask, ...thread] = c.messages;
 
   /* The light has its own clock, which runs while the Diary is on screen;
@@ -136,13 +140,18 @@ export function HomeDiaryConversation({
                 {job.label}
               </button>
             )}
-            {tasks && (
+            {under.tasks.map((door) => (
               /* a click with no pointer behind it came from the keyboard,
                  and the frame moves nothing for a keyboard press (law 8) */
-              <button type="button" className="hd-dy-door" onClick={(e) => onShowThings(tasks.ids, e.detail > 0)}>
-                {tasks.text}
+              <button
+                key={door.ids[0]}
+                type="button"
+                className="hd-dy-door"
+                onClick={(e) => onShowThings(door.ids, e.detail > 0)}
+              >
+                {door.text}
               </button>
-            )}
+            ))}
             {under.reply && (
               <a className="hd-dy-door" href={under.reply} target="_blank" rel="noopener noreferrer">
                 Reply

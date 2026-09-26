@@ -15,11 +15,21 @@
      - a day moves it, and keeps the words that named it ("this
        afternoon") for the door;
      - "done" ticks it off;
-     - an answer to a question ticks it off: the question was the task;
-     - a promise with no time, or putting it off, changes nothing;
+     - an answer to a question ticks it off: the question was the task.
+       Any reply to a question that doesn't put it off is that answer
+       (Isaac, v16); the reader says so, "answer", because only it can tell
+       a reply to THIS question from one about something else — the other
+       task in the same conversation, say — which is "none";
+     - a promise with no time, putting it off, or a reply about something
+       else changes nothing;
      - a task already done, or deleted, is left alone, and so is one given
        an hour by hand (its reminder is on a day of its own choosing, and
-       moving the day under it would part the two). */
+       moving the day under it would part the two).
+
+   THE WORDS FOR WHEN ARE TRUE FOR A DAY. "This afternoon" and "tomorrow"
+   are only true on the day your reply said them, and only of the day they
+   named: the door says them that day, while the task is still due then,
+   and plain "1 task for you" after (`withAskTasks`). */
 
 import type { MentionTask } from "./home-list";
 import type { AskTask, DiaryConversation, DiaryFeed, DiaryMessage } from "./diary-feed";
@@ -37,16 +47,30 @@ export type AskMade = {
   kind: AskKind | null;
   task_id: string | null;
   due_said: string | null;
+  /** The day your reply said `due_said`, and the day it named. */
+  due_said_on: string | null;
+  due_said_for: string | null;
+};
+
+/** A task an ask made, as it is now. */
+export type AskTaskNow = {
+  done: boolean;
+  dueDate: string | null;
+  /** Whose it is: the staff card it is on. */
+  ownerId: string | null;
 };
 
 /** Each conversation with the tasks its asks made (`AskTask`). `made` is
-    the viewer's read asks; `tasks` is task id → whether it is done, for
-    every task still there. A row whose task is not among them names a task
-    since deleted. An ask read as asking nothing made no task, and has none. */
+    the viewer's read asks; `tasks` is task id → the task now, for every
+    task still there; `today` is the account's day. A row whose task is not
+    among them names a task since deleted. An ask read as asking nothing
+    made no task, and has none. The words for when go only while they are
+    true (see the note at the top). */
 export function withAskTasks(
   conversations: readonly DiaryConversation[],
   made: readonly AskMade[],
-  tasks: ReadonlyMap<string, { done: boolean }>,
+  tasks: ReadonlyMap<string, AskTaskNow>,
+  today: string,
 ): DiaryConversation[] {
   const byNote = new Map(made.filter((r) => r.kind === "do" || r.kind === "question").map((r) => [r.sm8_note_uuid, r]));
   return conversations.map((c) => {
@@ -55,7 +79,15 @@ export function withAskTasks(
       const r = byNote.get(m.id);
       if (!r) continue;
       const task = r.task_id ? tasks.get(r.task_id) : undefined;
-      out.push({ noteId: m.id, taskId: task ? r.task_id : null, done: task?.done ?? false, dueSaid: r.due_said || null });
+      const stillSo =
+        !!task && !!r.due_said && r.due_said_on === today && !!task.dueDate && task.dueDate.slice(0, 10) === r.due_said_for;
+      out.push({
+        noteId: m.id,
+        taskId: task ? r.task_id : null,
+        done: task?.done ?? false,
+        dueSaid: stillSo ? r.due_said : null,
+        ownerId: task?.ownerId ?? null,
+      });
     }
     return out.length ? { ...c, tasks: out } : c;
   });
@@ -63,7 +95,9 @@ export function withAskTasks(
 
 /** What the list and the Tasks tab know of a task an ask made: whose ask,
     on which day, and the note that asked, which is the door back to its
-    conversation. Only for tasks still there. */
+    conversation. Only for tasks still there. (The ask was the viewer's;
+    the task may since have been given to someone else, and the list says
+    "Luke asked" rather than "Luke asked you" on a row that isn't yours.) */
 export function mentionTasksOf(feed: DiaryFeed | null): MentionTask[] {
   const out: MentionTask[] = [];
   for (const item of feed ? [...feed.today, ...feed.earlier] : []) {
@@ -92,7 +126,11 @@ export type TaskChange = { to: "due"; dueDate: string; dueSaid: string | null } 
 
 /** What a reply of yours to the asker does to the task their ask made
     (see the note at the top). Null is nothing. */
-export function taskAfterReply(kind: Exclude<AskKind, "none">, reply: ReplyRead, task: TaskNow): TaskChange | null {
+export function taskAfterReply(
+  kind: Exclude<AskKind, "none">,
+  reply: Pick<ReplyRead, "says" | "dueDate" | "dueSaid">,
+  task: TaskNow,
+): TaskChange | null {
   if (!task.open) return null;
   switch (reply.says) {
     case "done":

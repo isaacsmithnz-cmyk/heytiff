@@ -482,7 +482,10 @@ export function placeList(input: ListInput): HomeList {
     } else if (at && at.day === day) {
       sub = `${t.remindKind === "by" ? "By" : "At"} ${clock(at.min)}.`;
     } else if (mention) {
-      sub = `${mention.asker} asked you, ${fmt(mention.day)}.`;
+      /* the ask was yours; a task given to someone else since is theirs,
+         and "asked you" beside their name would say it was theirs to do */
+      const yours = viewerStaffId !== null && t.assigneeId === viewerStaffId;
+      sub = `${mention.asker} asked${yours ? " you" : ""}, ${fmt(mention.day)}.`;
     } else if (entry) {
       sub = `Your diary, ${fmt(entry.day)}.`;
     } else {

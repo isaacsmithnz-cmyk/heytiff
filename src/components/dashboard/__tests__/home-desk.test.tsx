@@ -916,7 +916,9 @@ describe("the list", () => {
   };
   const MARY = task({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" });
   /** The desk with Luke's ask in the diary, its one task on it. */
-  const asked = (tasks: DiaryConversation["tasks"] = [{ noteId: "n-ask", taskId: "t-mary", done: false, dueSaid: null }]) => {
+  const asked = (
+    tasks: DiaryConversation["tasks"] = [{ noteId: "n-ask", taskId: "t-mary", done: false, dueSaid: null, ownerId: "s1" }],
+  ) => {
     const conversations = buildConversations({
       notes: [ASK],
       me: { uuid: "u-isaac", handle: "isaacsmith" },

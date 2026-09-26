@@ -297,6 +297,21 @@ export async function taskFromJobNote(input: NoteTaskInput): Promise<NoteTaskRes
     return { ok: false, error: "That note is no longer here." };
   }
 
+  /* ONE TASK PER ASK. Tiff may have made this note somebody's task since
+     the card was drawn (the new Home's settle, dashboard/mention-settle), and
+     a press on the suggestion the card still shows must not make a second.
+     A read that fails, or a table not there yet, stops nothing. */
+  const { data: asked } = await supabaseAdmin
+    .from("mention_asks")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("sm8_note_uuid", noteUuid)
+    .eq("status", "read")
+    .in("kind", ["do", "question"])
+    .limit(1)
+    .maybeSingle();
+  if (asked) return { ok: false, error: "That note is already a task." };
+
   const { data: person } = await supabaseAdmin
     .from("staff_profiles")
     .select("id")

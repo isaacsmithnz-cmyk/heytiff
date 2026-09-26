@@ -278,8 +278,24 @@ describe("under it", () => {
 /* H18: each ask is ONE task for you, made by Tiff when it arrives, and the
    conversation has a door to it — the Diary spec's words, verbatim. */
 describe("the task his ask made", () => {
-  const MARY: AskTask = { noteId: "n-ask", taskId: "t-mary", done: false, dueSaid: null };
+  const MARY: AskTask = { noteId: "n-ask", taskId: "t-mary", done: false, dueSaid: null, ownerId: "s-isaac" };
   const underOf = () => talk().querySelector<HTMLElement>(".hd-dy-doors")!;
+
+  /* A manager gave it to Leo since: the door says whose it is now, by the
+     name the diary knows him by, and still shows its row. */
+  it("says whose it is when it was given to someone else since", async () => {
+    const user = userEvent.setup();
+    const diary = { ...withTasks(diaryOf([ASK]), [{ ...MARY, ownerId: "s-leo" }]), names: { "s-leo": "Leo" } };
+    draw({ diary, onPage: new Set(["t-mary"]) });
+    expect([...underOf().children].map((c) => c.textContent)).toEqual([
+      "2041 Wollstonecraft",
+      "1 task for Leo",
+      "Reply",
+      "A job note in ServiceM8.",
+    ]);
+    await user.click(within(underOf()).getByRole("button", { name: "1 task for Leo" }));
+    expect(onShowThings).toHaveBeenCalledWith(["t-mary"], true);
+  });
 
   it("is a door between the job and Reply, wearing the diary's door, that shows its row", async () => {
     const user = userEvent.setup();

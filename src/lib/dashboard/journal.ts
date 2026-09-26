@@ -8,6 +8,8 @@
 
    So there is no migration here and no change to the capture flow. */
 
+import type { EarlierTurn } from "@/lib/workboard/note-turns";
+
 /** The groups a capture can produce, in the order the write side records them,
     with the exact words it counts them in.
 
@@ -189,6 +191,21 @@ export type DiaryEntry = JournalEntry & {
       this entry made that still exists. A removed task isn't here; its
       outcome already says "removed". */
   taskFor: Record<string, string | null>;
+  /** The conversation with Tiff the entry came out of, as the modal said
+      it (note-turns' `conversationOf`): her last turn is the line under the
+      words, and the line opens the rest. Empty when she said nothing — a
+      Save, a note the review card filed, one from before the modal. */
+  turns: EarlierTurn[];
+  /** Undo would take back what it filed: a note filed with the record Undo
+      reads, something it made is still there, and nobody has acted on a row
+      it filed (a task ticked, "Got it", given, moved or reopened, a flag
+      cleared, an issue counted again, a line bought, the job's notes
+      edited) — the rule `undoNote` refuses on (note-applied's
+      `undoBlocked`). */
+  undo: boolean;
+  /** Taken back. Your words stay, with Tiff's line saying so, and nothing
+      under them: what they made has gone. */
+  undone: boolean;
 };
 
 export type JournalDay = {

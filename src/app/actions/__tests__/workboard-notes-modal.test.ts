@@ -60,7 +60,9 @@ function from(table: string) {
           : (val as unknown[]).includes(r[col]),
     );
   const run = (one = false) => {
-    const all = (db[table] ??= []);
+    /* A read or a write makes no table of its own: "changes nothing" is
+       checked against the whole database. */
+    const all = db[table] ?? [];
     const hit = all.filter(match);
     if (mode === "update") {
       for (const r of hit) Object.assign(r, structuredClone(patch));
@@ -70,7 +72,7 @@ function from(table: string) {
       return { data: returning ? hit.map((r) => ({ ...r })) : null, error: null };
     }
     if (mode === "delete") {
-      db[table] = all.filter((r) => !match(r));
+      if (db[table]) db[table] = all.filter((r) => !match(r));
       writes.push({ op: "delete", table, filters: [...filters] });
       return { data: null, error: null };
     }
@@ -344,12 +346,14 @@ describe("routeNote", () => {
   it("files the modal's words as said when routing fails, and says so", async () => {
     readNote.mockResolvedValue({ ok: false, error: "Too busy right now — the note was saved as written." });
     const res = await routeNote({ transcript: "gate code 4821", target: { kind: "none" }, conversation: true });
+    const row = rowsOf("workboard_notes")[0];
     expect(res).toEqual({
       ok: false,
       error: "I couldn't sort that out just now, so it's in your diary as you said it.",
       kept: true,
+      // the note they were filed as, so the diary lands it lit
+      noteId: row.id,
     });
-    const row = rowsOf("workboard_notes")[0];
     expect(row).toMatchObject({ status: "applied", applied: {} });
     expect((row.turns as Row[]).at(-1)).toMatchObject({ who: "tiff", text: expect.stringContaining("in your diary") });
   });
@@ -729,6 +733,52 @@ describe("fileNote", () => {
     expect((noteRow().turns as Row[]).at(-1)).toMatchObject({ text: "Done. A flag on the roof hatch." });
   });
 
+  /* Opened again from the diary, the conversation reads as it was said:
+     her question, the job you picked, "Done. …". The pick used to live only
+     in the browser, and the note came back as three lines from Tiff. */
+  it("keeps the job you picked as your turn, between her question and Done.", async () => {
+    note({
+      transcript: "Meridian roof hatch is seized",
+      proposal: { ...EMPTY, flags: [{ message: "Roof hatch seized", severity: "warn" }], say: "A flag on the roof hatch." },
+      turns: [t("you", "Meridian roof hatch is seized"), t("tiff", "A flag on the roof hatch.")],
+    });
+    db.maintenance_visits = [{ id: "v-1", org_id: "org-1", notes: null }];
+    expect((await fileNote("n-1")).ok).toBe(false);
+
+    const res = await fileNote("n-1", {
+      retarget: { kind: "visit", id: "v-1" },
+      answer: "Meridian Data — Quarterly service, job #1042",
+    });
+    expect(res.ok).toBe(true);
+    expect((noteRow().turns as Row[]).map((x) => [x.who, x.text])).toEqual([
+      ["you", "Meridian roof hatch is seized"],
+      ["tiff", "A flag on the roof hatch."],
+      ["tiff", "Which job is this for?"],
+      ["you", "Meridian Data — Quarterly service, job #1042"],
+      ["tiff", "Done. A flag on the roof hatch."],
+    ]);
+    if (res.ok) expect(res.turns).toEqual(noteRow().turns);
+  });
+
+  it("names the job itself as your turn when the pick sent no words", async () => {
+    note({
+      proposal: { ...EMPTY, flags: [{ message: "Roof hatch seized", severity: "warn" }], say: "A flag on the roof hatch." },
+      turns: [t("you", "Kingsford roof hatch is seized"), t("tiff", "A flag on the roof hatch.")],
+    });
+    db.projects = [{ id: "p-1", org_id: "org-1", name: "Ducted change-over", client_name: "Kingsford Medical" }];
+    expect((await fileNote("n-1")).ok).toBe(false);
+    expect((await fileNote("n-1", { retarget: { kind: "project", id: "p-1" } })).ok).toBe(true);
+    expect((noteRow().turns as Row[]).at(-2)).toMatchObject({ who: "you", text: "Ducted change-over — Kingsford Medical" });
+  });
+
+  it("adds no turn of yours where no job was asked for", async () => {
+    note({ proposal: { ...EMPTY, flags: [{ message: "Roof hatch seized", severity: "warn" }], say: "A flag on the roof hatch." } });
+    db.maintenance_visits = [{ id: "v-1", org_id: "org-1", notes: null }];
+    const res = await fileNote("n-1", { retarget: { kind: "visit", id: "v-1" }, answer: "Meridian Data" });
+    expect(res.ok).toBe(true);
+    expect((noteRow().turns as Row[]).filter((x) => x.who === "you")).toHaveLength(1);
+  });
+
   it("a job does not answer any other question", async () => {
     note({
       status: "clarifying",
@@ -1021,6 +1071,54 @@ describe("undoNote", () => {
     expect(db).toEqual(before);
   });
 
+  /* A task still open can have been acted on all the same: given to
+     somebody else, moved to another day, ticked and reopened, or answered
+     "Got it" by the person it went to. The row says only the last; the rest
+     is its history. Taking it back then would delete work somebody holds. */
+  it.each([
+    ["given to someone else", "given"],
+    ["moved to another day", "due"],
+    ["ticked off and reopened", "reopened"],
+    ["ticked off once, and reopened since", "done"],
+  ])("refuses, and changes nothing, when a task it made was %s", async (_label, kind) => {
+    await filedEverything();
+    db.task_events = [{ id: "ev-1", org_id: "org-1", task_id: rowsOf("tasks")[0].id, kind }];
+    const before = structuredClone(db);
+    const res = await undoNote("n-1");
+    expect(res).toEqual({ ok: false, error: "Someone has already acted on one of those, so nothing was taken back." });
+    expect(db).toEqual(before);
+  });
+
+  it("refuses, and changes nothing, when the person a task went to said Got it", async () => {
+    await filedEverything();
+    rowsOf("tasks")[0].acknowledged_at = "2026-09-25T02:00:00Z";
+    const before = structuredClone(db);
+    const res = await undoNote("n-1");
+    expect(res).toEqual({ ok: false, error: "Someone has already acted on one of those, so nothing was taken back." });
+    expect(db).toEqual(before);
+  });
+
+  it("is not stopped by a task's being made, nor by another task's history", async () => {
+    await filedEverything();
+    db.task_events = [
+      { id: "ev-1", org_id: "org-1", task_id: rowsOf("tasks")[0].id, kind: "created" },
+      { id: "ev-2", org_id: "org-1", task_id: "t-someone-elses", kind: "given" },
+      { id: "ev-3", org_id: "org-2", task_id: rowsOf("tasks")[0].id, kind: "given" },
+    ];
+    expect((await undoNote("n-1")).ok).toBe(true);
+    expect(rowsOf("tasks")).toEqual([]);
+  });
+
+  it("leaves a task alone that is answered Got it in the moment after the checks", async () => {
+    await filedEverything();
+    onUpdate = (w) => {
+      if (w.table !== "workboard_notes" || (w.payload as Row).status !== "undone") return;
+      rowsOf("tasks")[0].acknowledged_at = "2026-09-25T02:00:00Z";
+    };
+    expect((await undoNote("n-1")).ok).toBe(true);
+    expect(rowsOf("tasks")).toHaveLength(1);
+  });
+
   /** A note that filed a project's bring-items and a job's, as a v2 record. */
   function filedBringItems() {
     note({
@@ -1101,6 +1199,59 @@ describe("undoNote", () => {
     expect(rowsOf("workboard_issues").map((i) => i.summary)).toEqual(["Tripped again", "New rattle"]);
   });
 
+  /* Undo lasts days now, so it meets rows somebody deleted in between.
+     Those stop nothing (there is nothing of anybody's in them to protect),
+     and they are not said to have been taken back: Tiff's line is a record,
+     and "2 tasks taken back." of one would be a thing she made up. */
+  it("says only what was still there: one of two tasks deleted since is not counted", async () => {
+    note({
+      proposal: { ...EMPTY, tasks: [task(), task({ title: "Book the crane" })], say: "Two for Luke." },
+    });
+    expect((await fileNote("n-1")).ok).toBe(true);
+    db.tasks = rowsOf("tasks").slice(1);
+
+    const res = await undoNote("n-1");
+    expect(res).toMatchObject({ ok: true, summary: "1 task taken back." });
+    expect((noteRow().turns as Row[]).at(-1)).toMatchObject({ who: "tiff", text: "1 task taken back." });
+    expect(rowsOf("tasks")).toEqual([]);
+  });
+
+  it("counts a bring-item that became a row by its row, a project entry and a library entry by theirs", async () => {
+    note({
+      status: "applied",
+      applied: {
+        v: 2,
+        bringItems: ["coil cleaner", "1060 grille"],
+        checklistIds: ["c-1", "c-2"],
+        entryIds: ["e-1", "e-2"],
+        kbIds: ["kb-1"],
+      },
+    });
+    db.project_checklist_items = [{ id: "c-2", org_id: "org-1", done: false }];
+    db.project_entries = [{ id: "e-1", org_id: "org-1" }];
+    db.kb_documents = [];
+    const res = await undoNote("n-1");
+    expect(res).toMatchObject({ ok: true, summary: "1 thing to bring and 1 line taken back." });
+  });
+
+  it("refuses, and changes nothing, when every row it made has been deleted since", async () => {
+    note({ status: "applied", applied: { v: 2, taskIds: ["t-1", "t-2"], flagIds: ["f-1"], kbIds: ["kb-1"] } });
+    db.tasks = [];
+    db.workboard_flags = [];
+    // not a field note Tiff published: not hers to take back
+    db.kb_documents = [{ id: "kb-1", org_id: "org-1", category: "install" }];
+    const before = structuredClone(db);
+    const res = await undoNote("n-1");
+    expect(res).toEqual({ ok: false, error: "Those have all been deleted since, so nothing was taken back." });
+    expect(db).toEqual(before);
+    expect(noteRow().status).toBe("applied");
+  });
+
+  it("still takes back a note that only ever kept its words, as it always has", async () => {
+    note({ status: "applied", applied: { v: 2, noteLines: ["Ring the wholesaler"] } });
+    expect(await undoNote("n-1")).toMatchObject({ ok: true, summary: "Taken back." });
+  });
+
   it("refuses someone who is neither the author nor team", async () => {
     await filedEverything();
     me = "s-callum";
@@ -1130,10 +1281,22 @@ describe("undoNote", () => {
     await filedEverything();
     const [a, b] = await Promise.all([undoNote("n-1"), undoNote("n-1")]);
     expect([a.ok, b.ok].sort()).toEqual([false, true]);
-    expect([a, b].find((r) => !r.ok)).toEqual({ ok: false, error: "That was already taken back." });
+    /* The press that lost the claim is answered as a later press is: with
+       the conversation as it now stands, so the page that pressed it (a
+       second tab, another device) shows what went instead of a refusal
+       beside rows that have gone. */
+    expect([a, b].find((r) => !r.ok)).toEqual({
+      ok: false,
+      error: "That was already taken back.",
+      turns: noteRow().turns,
+    });
     // Tiff's "taken back" line is on the note once
     expect((noteRow().turns as Row[]).filter((x) => /taken back/.test(String(x.text)))).toHaveLength(1);
-    expect(await undoNote("n-1")).toEqual({ ok: false, error: "That was already taken back." });
+    /* Pressed again later — its first answer lost — it says so, with the
+       conversation as it now stands, so the page can show what went. */
+    const again = await undoNote("n-1");
+    expect(again).toEqual({ ok: false, error: "That was already taken back.", turns: noteRow().turns });
+    expect((again as { turns: Row[] }).turns.at(-1)).toMatchObject({ who: "tiff", text: expect.stringMatching(/taken back\.$/) });
   });
 
   it("refuses a note that was never filed", async () => {

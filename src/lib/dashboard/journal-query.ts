@@ -32,9 +32,26 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { auDayOf, fmtAuTime } from "@/lib/au-dates";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 import { todayInZone } from "@/lib/workboard/dates";
 import { naiveInZone } from "@/lib/workboard/job-story";
+import {
+  APPLIED_V,
+  TEXT_COLUMNS,
+  appliedOf,
+  stillThere,
+  takesBack,
+  textKey,
+  undoBlocked,
+  type AppliedRecord,
+  type FiledNow,
+  type NowRow,
+  type TextTable,
+} from "@/lib/workboard/note-applied";
+import { conversationOf, lastTiff, turnsOf } from "@/lib/workboard/note-turns";
 import { describeAppliedResolved, type DiaryEntry, type JournalEntry } from "./journal";
+import { ACTED_KINDS } from "./task-events";
 import { DIARY_ENTRY_LIMIT } from "./diary-feed";
 
 /* NO `is_debrief`, WRITTEN OR READ. The Debrief left the router and this
@@ -48,10 +65,16 @@ import { DIARY_ENTRY_LIMIT } from "./diary-feed";
    column this list still names. */
 const COLUMNS = "id, transcript, source, applied, created_at";
 /* The diary's read is the journal's plus whether Tiff routed the words at
-   all. Built ON the journal's list rather than beside it, so whatever the
-   journal stops reading (the Debrief's column is on its way out) the diary
-   stops reading in the same edit. */
-const DIARY_COLUMNS = `${COLUMNS}, proposal`;
+   all, where the note ended up and the conversation it was. Built ON the
+   journal's list rather than beside it, so whatever the journal stops
+   reading (the Debrief's column is on its way out) the diary stops reading
+   in the same edit. `status` has always been there; `turns` and the
+   `undone` status are tiff_modal_turns.sql's, applied before the modal
+   shipped. */
+const DIARY_COLUMNS = `${COLUMNS}, proposal, status, turns`;
+/** What the diary reads: what was filed, and what Undo has taken back since
+    — your words stay when what they made goes. */
+const DIARY_STATUSES = ["applied", "undone"];
 
 type Row = {
   id: string;
@@ -61,6 +84,8 @@ type Row = {
   created_at: string;
   /** Only in the diary's read. */
   proposal?: unknown;
+  status?: string;
+  turns?: unknown;
 };
 
 /** What the chips on this page can be doors to. Everything here was read
@@ -70,6 +95,11 @@ type Resolved = {
   tasks: Map<string, string>;
   /** taskId → the staff card it is on (null: nobody), for the same tasks. */
   owners: Map<string, string | null>;
+  /** Every row a filed record names, as it reads now, in the shape Undo's
+      rule reads (note-applied's `undoBlocked`). Asked only by the diary,
+      whose Undo is drawn where a press would not be refused; empty for the
+      journal. */
+  now: FiledNow;
   /** kb documentId → title, for the documents that still exist. */
   kb: Map<string, string>;
   /** journal entry id → the grouped note its kept lines were filed as. */
@@ -110,20 +140,59 @@ function appliedIds(applied: unknown, key: string): string[] {
    Org-scoped like everything else, and the notes read is person-scoped too:
    `staff_notes` is somebody's own notebook, and the door only opens onto the
    reader's own. A row that isn't returned is a row that has been deleted since
-   — that is the whole point of resolving rather than trusting the stored id. */
-async function resolveOutcomes(orgId: string, staffId: string, rows: readonly Row[]): Promise<Resolved> {
+   — that is the whole point of resolving rather than trusting the stored id.
+
+   THE DIARY ASKS MORE (`withStatus`): whether Undo would still take each
+   filed note back, which is every row its record names, as it reads now.
+   The chips' own reads carry the extra columns (a task's status, an
+   issue's count, a Library entry's kind); what no chip reads — flags,
+   checklist and picklist rows, project entries, the text a note appended
+   to — is one read more per kind, only for records Undo reads (`v: 2`),
+   and only where one of them names any. */
+async function resolveOutcomes(
+  orgId: string,
+  staffId: string,
+  rows: readonly Row[],
+  /** The diary's read: every row a filed record names, for its Undo. */
+  withStatus = false,
+): Promise<Resolved> {
   const taskIds = [...new Set(rows.flatMap((r) => appliedIds(r.applied, "taskIds")))];
   const kbIds = [...new Set(rows.flatMap((r) => appliedIds(r.applied, "kbIds")))];
   const issueIds = [...new Set(rows.flatMap((r) => appliedIds(r.applied, "issueIds")))];
   // only the entries that actually kept lines have a note to find
   const keptIds = rows.filter((r) => appliedIds(r.applied, "noteLines").length > 0).map((r) => r.id);
+  const taskColumns: string = withStatus
+    ? "id, title, assigned_to, status, acknowledged_at"
+    : "id, title, assigned_to";
 
-  const [tasks, kb, notes, issues] = await Promise.all([
+  /* What only Undo reads, from the records it reads. */
+  const undoable = withStatus ? rows.map((r) => appliedOf(r.applied)).filter((a) => a.v === APPLIED_V) : [];
+  const ids = (pick: (a: AppliedRecord) => readonly string[]) => [...new Set(undoable.flatMap(pick))];
+  const byStatus = (table: string, columns: string, list: readonly string[]) =>
+    list.length
+      ? supabaseAdmin.from(table).select(columns).eq("org_id", orgId).in("id", list)
+      : Promise.resolve({ data: [] });
+  const written = new Map<TextTable, Set<string>>();
+  for (const w of undoable.flatMap((a) => a.textWrites)) {
+    const at = written.get(w.table) ?? new Set<string>();
+    written.set(w.table, at.add(w.id));
+  }
+  const history = ids((a) => a.taskIds);
+
+  const [tasks, kb, notes, issues, events, flags, checklist, picklist, entries, text] = await Promise.all([
     taskIds.length
-      ? supabaseAdmin.from("tasks").select("id, title, assigned_to").eq("org_id", orgId).in("id", taskIds)
+      ? supabaseAdmin
+          .from("tasks")
+          .select(taskColumns)
+          .eq("org_id", orgId)
+          .in("id", taskIds)
       : Promise.resolve({ data: [] }),
     kbIds.length
-      ? supabaseAdmin.from("kb_documents").select("id, title").eq("org_id", orgId).in("id", kbIds)
+      ? supabaseAdmin
+          .from("kb_documents")
+          .select(withStatus ? "id, title, category" : "id, title")
+          .eq("org_id", orgId)
+          .in("id", kbIds)
       : Promise.resolve({ data: [] }),
     keptIds.length
       ? supabaseAdmin
@@ -136,21 +205,67 @@ async function resolveOutcomes(orgId: string, staffId: string, rows: readonly Ro
     /* Resolved or not — the row keeps its words either way, and Home's
        issues list is where the door lands. */
     issueIds.length
-      ? supabaseAdmin.from("workboard_issues").select("id, summary").eq("org_id", orgId).in("id", issueIds)
+      ? supabaseAdmin
+          .from("workboard_issues")
+          .select(withStatus ? "id, summary, occurrences, resolved" : "id, summary")
+          .eq("org_id", orgId)
+          .in("id", issueIds)
       : Promise.resolve({ data: [] }),
+    /* What an open task's row cannot say: given, moved, ticked and reopened
+       (task_events). The diary's only. */
+    history.length
+      ? supabaseAdmin
+          .from("task_events")
+          .select("task_id")
+          .eq("org_id", orgId)
+          .in("task_id", history)
+          .in("kind", ACTED_KINDS)
+      : Promise.resolve({ data: [] }),
+    byStatus("workboard_flags", "id, active", ids((a) => a.flagIds)),
+    byStatus("project_checklist_items", "id, done", ids((a) => a.checklistIds)),
+    byStatus("job_picklist_items", "id, picked", ids((a) => a.picklistIds)),
+    byStatus("project_entries", "id", ids((a) => a.entryIds)),
+    /* The rows a note appended to, one read per table, every column a note
+       may write there. */
+    Promise.all(
+      [...written].map(([table, at]) =>
+        byStatus(table, ["id", ...TEXT_COLUMNS[table]].join(", "), [...at]).then(({ data }) =>
+          ((data ?? []) as unknown as Record<string, unknown>[]).map(
+            (r): [string, NowRow] => [textKey(table, String(r.id)), r],
+          ),
+        ),
+      ),
+    ),
   ]);
 
-  const found: Resolved = { tasks: new Map(), owners: new Map(), kb: new Map(), notes: new Map(), issues: new Map() };
-  for (const r of (tasks.data ?? []) as Record<string, unknown>[]) {
+  // the column lists are chosen at run time, so the client cannot type the rows
+  const list = (res: { data: unknown }) => (res.data ?? []) as Record<string, unknown>[];
+  const byId = (res: { data: unknown }) => new Map(list(res).map((r): [string, NowRow] => [String(r.id), r]));
+  const found: Resolved = {
+    tasks: new Map(),
+    owners: new Map(),
+    now: {
+      tasks: withStatus ? byId(tasks) : new Map(),
+      taskHistory: new Set(list(events).map((r) => String(r.task_id))),
+      flags: byId(flags),
+      issues: withStatus ? byId(issues) : new Map(),
+      checklist: byId(checklist),
+      picklist: byId(picklist),
+      entries: new Set(list(entries).map((r) => String(r.id))),
+      kb: new Set(withStatus ? list(kb).filter((r) => r.category === "field").map((r) => String(r.id)) : []),
+      text: new Map(text.flat()),
+    },
+    kb: new Map(),
+    notes: new Map(),
+    issues: new Map(),
+  };
+  for (const r of list(tasks)) {
     found.tasks.set(String(r.id), String(r.title ?? ""));
     found.owners.set(String(r.id), typeof r.assigned_to === "string" && r.assigned_to ? r.assigned_to : null);
   }
-  for (const r of (kb.data ?? []) as Record<string, unknown>[])
-    found.kb.set(String(r.id), String(r.title ?? ""));
-  for (const r of (notes.data ?? []) as Record<string, unknown>[])
-    found.notes.set(String(r.source_note_id), String(r.id));
-  for (const r of (issues.data ?? []) as Record<string, unknown>[])
-    found.issues.set(String(r.id), String(r.summary ?? ""));
+  for (const r of list(kb)) found.kb.set(String(r.id), String(r.title ?? ""));
+  for (const r of list(notes)) found.notes.set(String(r.source_note_id), String(r.id));
+  for (const r of list(issues)) found.issues.set(String(r.id), String(r.summary ?? ""));
   return found;
 }
 
@@ -201,8 +316,29 @@ export async function listJournal(
      taskFor   who each task it made is on, so the diary can say "2 tasks for
                Luke", and "1 task" for your own.
 
+   And what the Tiff modal left on the row (H23):
+
+     turns     the conversation, as the modal said it: Tiff's last turn is
+               the line under your words ("Tiff: Done. …"), and the line
+               opens the rest in the modal again.
+     undo      whether Undo would take back what it filed, by the rule
+               `undoNote` refuses on (note-applied's `undoBlocked`), so a
+               press on it is never refused for something already known.
+               The record must be the one Undo reads (`v: 2`), something it
+               made must still be there (a row somebody deleted is not Undo's
+               to take), and nobody may have acted on a row it filed: a task
+               ticked off, answered "Got it", given on, moved or reopened, a
+               flag cleared, an issue counted again or resolved, a line
+               bought or ticked, the job's notes edited since. Read in
+               `resolveOutcomes`, a batch per kind for the page. Nor may
+               it be queued for ServiceM8 (two-way phase 2): such a note
+               is taken back from the job's diary (`heldBySm8`, below).
+     undone    Undo took it back. The row stays in the diary, your words with
+               Tiff's "1 task taken back." under them, and nothing else: what
+               they made has gone, so nothing is looked up for it.
+
    The old Home keeps `listJournal`, unchanged, until the new one replaces
-   it. */
+   it: it still reads only what is filed, and never a status or a turn. */
 
 /** Everything this person has told Tiff, newest first, dressed for the
     diary. `tz` is the ServiceM8 account's zone; null is Sydney, the clock
@@ -214,14 +350,15 @@ export async function listDiaryEntries(
   limit = DIARY_ENTRY_LIMIT,
 ): Promise<DiaryEntry[]> {
   /* A note somebody took back is on nobody's diary, as on the journal
-     (listJournal): the same rows. */
+     (listJournal): the same rows. An entry Undo took back stays — its words
+     stay when what they made goes. */
   const read = (tombstones: boolean) => {
     let q = supabaseAdmin
       .from("workboard_notes")
       .select(DIARY_COLUMNS)
       .eq("org_id", orgId)
       .eq("author_id", staffId)
-      .eq("status", "applied");
+      .in("status", DIARY_STATUSES);
     if (tombstones) q = q.is("removed_at", null);
     return q.order("created_at", { ascending: false }).limit(limit);
   };
@@ -230,27 +367,69 @@ export async function listDiaryEntries(
 
   const rows = (data ?? []) as Row[];
   if (rows.length === 0) return [];
-  const found = await resolveOutcomes(orgId, staffId, rows);
+  const undone = (r: Row) => r.status === "undone";
+  const filed = rows.filter((r) => !undone(r));
+  const [found, held] = await Promise.all([
+    resolveOutcomes(orgId, staffId, filed, true),
+    heldBySm8(
+      orgId,
+      filed.filter((r) => appliedOf(r.applied).v === APPLIED_V).map((r) => r.id),
+    ),
+  ]);
   return rows.flatMap((r): DiaryEntry[] => {
     const stamp = naiveInZone(r.created_at, tz);
     if (!stamp) return [];
     const when = new Date(r.created_at);
+    const turns = conversationOf(turnsOf(r.turns));
+    const said = {
+      day: todayInZone(tz, when),
+      at: clockIn(tz, when),
+      stamp,
+      /* Every row written before Save existed went through the router and
+         carries its proposal; a Save writes none. */
+      routed: r.proposal !== null && r.proposal !== undefined,
+      /* A note Tiff never answered has no conversation to open. */
+      turns: lastTiff(turns) ? turns : [],
+    };
+    const entry = toEntry(r, found);
+    if (undone(r)) return [{ ...entry, ...said, outcomes: [], taskFor: {}, undo: false, undone: true }];
+
     const taskFor: Record<string, string | null> = {};
     for (const id of appliedIds(r.applied, "taskIds"))
       if (found.owners.has(id)) taskFor[id] = found.owners.get(id) ?? null;
-    return [
-      {
-        ...toEntry(r, found),
-        day: todayInZone(tz, when),
-        at: clockIn(tz, when),
-        stamp,
-        /* Every row written before Save existed went through the router and
-           carries its proposal; a Save writes none. */
-        routed: r.proposal !== null && r.proposal !== undefined,
-        taskFor,
-      },
-    ];
+    const record = appliedOf(r.applied);
+    const undo =
+      record.v === APPLIED_V &&
+      !undoBlocked(record, found.now) &&
+      takesBack(stillThere(record, found.now)) &&
+      held !== "all" &&
+      !held.has(r.id);
+    return [{ ...entry, ...said, taskFor, undo, undone: false }];
   });
+}
+
+/* A NOTE QUEUED FOR SERVICEM8 is taken back from the job's diary, not by
+   Undo (two-way phase 2): undoNote refuses one while something of it can
+   still go or may be in ServiceM8, so the diary doesn't offer it, by the
+   same rule (sm8-note-plan's `undoHeldBySm8`). One read for the page, of
+   the records Undo reads; only where this deployment sends notes, so
+   production gains no read; and a read that fails holds every Undo, as it
+   holds the press. */
+async function heldBySm8(orgId: string, noteIds: readonly string[]): Promise<ReadonlySet<string> | "all"> {
+  if (noteIds.length === 0 || !sm8NotesAllowed()) return new Set();
+  const { data, error } = await supabaseAdmin
+    .from("sm8_writes")
+    .select(`note_id, ${UNDO_HOLD_COLUMNS}`)
+    .eq("org_id", orgId)
+    .eq("kind", "note")
+    .eq("op", "create")
+    .in("note_id", [...noteIds]);
+  if (error) return "all";
+  const now = Date.now();
+  const held = new Set<string>();
+  for (const c of (data ?? []) as unknown as (CreateRow & { note_id: string })[])
+    if (undoHeldBySm8(c, now)) held.add(String(c.note_id));
+  return held;
 }
 
 /* fmtAuTime's words, on the account's clock. */

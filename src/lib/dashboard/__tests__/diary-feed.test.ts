@@ -61,7 +61,9 @@ describe("buildConversations", () => {
       answered: false,
       fresh: false,
     });
-    expect(c.messages).toEqual([{ id: "n1", from: "them", text: "Please call Mary to discuss", at: "2026-09-21 13:42:10" }]);
+    expect(c.messages).toEqual([
+      { id: "n1", from: "them", addressed: true, text: "Please call Mary to discuss", at: "2026-09-21 13:42:10" },
+    ]);
   });
 
   it("is only the two of you on that job, in time order", () => {
@@ -188,6 +190,22 @@ describe("buildConversations", () => {
     expect(c.messages.map((m) => m.id)).toEqual([ask.uuid, soon.uuid]);
   });
 
+  /* The diary says "Luke Ingold to you" over what he wrote to you, and
+     just "Luke Ingold" over a note he wrote on the job that names nobody. */
+  it("marks what was written to the other side, and his follow-up that names nobody as not", () => {
+    const ask = note("j-2749", LUKE.uuid, "2026-09-09 10:00:00", "@isaacsmith can you advise Holly");
+    const soon = note("j-2749", LUKE.uuid, "2026-09-11 09:42:00", "Holly's number is on the job card");
+    const yours = note("j-2749", ISAAC.uuid, "2026-09-11 10:00:00", "@lukeingold rang her");
+    const again = note("j-2749", LUKE.uuid, "2026-09-12 08:00:00", "@isaacsmith thanks");
+    const [c] = build([ask, soon, yours, again]);
+    expect(c.messages.map((m) => [m.from, m.addressed])).toEqual([
+      ["them", true],
+      ["them", false],
+      ["you", true],
+      ["them", true],
+    ]);
+  });
+
   it("measures a follow-up from his last mention of you, so status notes can't chain on", () => {
     const ask = note("j-2749", LUKE.uuid, "2026-09-09 10:00:00", "@isaacsmith can you advise Holly");
     const soon = note("j-2749", LUKE.uuid, "2026-09-11 09:42:00", "Holly's number is on the job card");
@@ -251,6 +269,9 @@ describe("diaryFeed", () => {
     stamp,
     routed: true,
     taskFor: {},
+    turns: [],
+    undo: false,
+    undone: false,
   });
   const conversation = (key: string, lastTheirs: string, lastYours: string | null = null): DiaryConversation =>
     ({ key, lastTheirs, lastYours }) as DiaryConversation;

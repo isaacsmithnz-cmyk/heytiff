@@ -20,6 +20,12 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 export const TASK_EVENT_KINDS = ["created", "due", "given", "done", "reopened"] as const;
 export type TaskEventKind = (typeof TASK_EVENT_KINDS)[number];
 
+/** What somebody DID to a task after it was made: every kind but `created`.
+    Any one of these ends Tiff's Undo on the note that made the task — a
+    task given to Callum, moved to Friday or ticked and reopened is work a
+    person has acted on, though it is still open. */
+export const ACTED_KINDS = TASK_EVENT_KINDS.filter((k) => k !== "created");
+
 /** What one change says, by kind. The columns a kind does not use stay null,
     which is what the table's own checks ask for. */
 export type TaskEventWrite =

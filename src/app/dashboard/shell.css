@@ -11163,9 +11163,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    to 4.5:1 on the page's fills by text-contrast. The late red is the app's
    own `--bad-t`: his #d6293e is 4.15:1 on the selection tint, and one late
    red serves the whole page. `--hd-dot` is his quiet dot on the list: a
-   mark, not text, and the group's title says what it means. */
+   mark, not text, and the group's title says what it means. `--hd-fresh`
+   is his pale teal under a diary entry that has just landed: a fill, and
+   every text token clears 4.5:1 on it too. */
 .fg .hd-page { --hd-ink:#151a24; --hd-body:#5b6472; --hd-rule:#e6e9ee; --hd-rule2:#eef0f3; --hd-edge:#e2e5ea;
-  --hd-late:var(--bad-t); --hd-today:#0f766e; --hd-done:#16a34a; --hd-dot:#c3cad4; }
+  --hd-late:var(--bad-t); --hd-today:#0f766e; --hd-done:#16a34a; --hd-dot:#c3cad4; --hd-fresh:#e6f7f3; }
 
 /* ── YOUR DAY: across the top, on every face ──
    A rule under the band and one under the day, in his grey. */
@@ -11794,6 +11796,106 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hd-cal-filter:focus-visible, .fg .hd-cal-itt:focus-visible, .fg .hd-cal-ab:focus-visible,
 .fg .hd-cal-dr:focus-visible, .fg .hd-cal-mi:focus-visible, .fg .hd-cal-bar:focus-visible,
 .fg .hd-cal-yc:focus-visible, .fg .hd-cal-go:focus-visible { outline:2px solid var(--hd-ink); outline-offset:2px; }
+/* ── THE DIARY: the Diary tab's column ──
+   home-diary-feed.tsx. His diary (the prototype's, v12–v33) on the page's
+   tokens: the entry box at the top (tiff-box.tsx, which dresses itself),
+   then "Today" in the one teal over a rule, then the entries, each over a
+   rule of its own — your initials in an ink disc, "You" and when, your
+   words at body size, and under them the doors and the quiet lines. His
+   numbers snap to the scales, 4px or less each: the column's padding
+   28 → 24, the avatar's gap 14 → 12. A door is tapped, so it keeps a chip's
+   edge (law 26): it is the app's door, the one the old diary's `.hm-door`
+   drew and the diary spec reuses, 28px tall (law 33's small control) with
+   12px either side where his drew 26 and 10, on his edge, the line; its
+   words are ink and underlined, as the prototype drew them: a link's
+   dress (law 34), on the one link token.
+
+   THE WASH: an entry you just saved, or one a door asked for, stands on his
+   pale teal for three quarters of seven seconds (DIARY_LIT_MS), then fades,
+   on his keyframes (`protoFresh`), a flash a row asked for with data — a
+   named exemption from law 18's tokens (docs/design.md). Under reduced
+   motion it is a still tint for as long as it is lit. Like a list row, its
+   fill reaches 8px past the column's words on each side, so the words
+   never move; the rule under it is the item's own and stays on the
+   column. A door lands on the entry itself, so it takes the focus ring. */
+.fg .hd-dy { padding:4px 24px 24px; }
+.fg .hd-dy-box { margin:0 0 16px; }
+.fg .hd-dy-day { margin:0; padding:0 0 8px; border-bottom:1px solid var(--hd-rule); font-size:13px; font-weight:500;
+  color:var(--hd-today); }
+.fg .hd-dy-none { margin:0; padding:12px 0; border-bottom:1px solid var(--hd-rule); font-size:14px; color:var(--q); }
+.fg .hd-dy-list { margin:0; padding:0; list-style:none; }
+.fg .hd-dy-it { border-bottom:1px solid var(--hd-rule); }
+.fg .hd-dy-en { display:grid; grid-template-columns:32px minmax(0,1fr); column-gap:12px; margin:0 -8px; padding:16px 8px;
+  border-radius:6px; }
+.fg .hd-dy-en[data-lit] { background:var(--hd-fresh); animation:hdDyLit 7s var(--ease) both; }
+@keyframes hdDyLit { 0%, 75% { background:var(--hd-fresh); } to { background:transparent; } }
+.fg .hd-dy-en:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .hd-dy-av { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; background:var(--hd-ink);
+  font-size:12px; font-weight:700; color:var(--paper); }
+.fg .hd-dy-bd { min-width:0; }
+.fg .hd-dy-m { margin:0; font-size:13px; font-weight:500; line-height:32px; color:var(--hd-body); }
+.fg .hd-dy-m b { font-weight:600; color:var(--hd-ink); }
+.fg .hd-dy-p { margin:2px 0 0; font-size:14px; line-height:1.5; color:var(--hd-ink); white-space:pre-wrap;
+  overflow-wrap:anywhere; }
+.fg .hd-dy-doors { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
+.fg .hd-dy-door { display:inline-flex; align-items:center; height:28px; padding:0 12px; border:1px solid var(--line);
+  border-radius:6px; background:none; font:inherit; font-size:13px; font-weight:500; color:var(--link);
+  text-decoration:underline; text-underline-offset:3px; white-space:nowrap; cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease); }
+.fg .hd-dy-door:hover { background:var(--tint); }
+.fg .hd-dy-door:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .hd-dy-note { font-size:13px; font-weight:500; color:var(--q); }
+
+/* THE CONVERSATIONS: someone who asked you something in ServiceM8
+   (home-diary-conversation.tsx), as his prototype draws them (v12–v17).
+   The entry's own grid, type and doors; their initials in his grey disc,
+   ink on the selection tint, where yours are paper on ink. Under the ask,
+   the thread, as his v33 renders it at 1440: each message a 24px disc at
+   12/600 (his thread disc; the 700 is the entry's own) at the top of the
+   entry's 32px line (his render's — its later .tent .m outranks the
+   .tr .m 24px), and his 10px gap down to 8. His spacing is kept: 12px from
+   the words above to the first message and from one message to the next,
+   and 8px from the last down to the doors, as under an ask with no thread.
+   It is shared between a message's own 4px padding and the space round
+   it, so a lit message's fill reaches past its words on every side
+   without moving them. His newest message lights as an entry you saved
+   does, on the one wash. */
+.fg .hd-dy-av[data-who="them"] { background:var(--tint-2); color:var(--hd-ink); }
+.fg .hd-dy-thread { margin:8px 0 0; padding:0; list-style:none; }
+.fg .hd-dy-tr { display:grid; grid-template-columns:24px minmax(0,1fr); column-gap:8px; margin:0 -8px; padding:4px 8px;
+  border-radius:6px; }
+.fg .hd-dy-tr + .hd-dy-tr { margin-top:4px; }
+.fg .hd-dy-thread + .hd-dy-doors { margin-top:4px; }
+.fg .hd-dy-tr .hd-dy-av { width:24px; height:24px; font-weight:600; }
+.fg .hd-dy-tr[data-lit] { background:var(--hd-fresh); animation:hdDyLit 7s var(--ease) both; }
+
+/* TIFF'S LINE, under your words: her last word on them, in his prototype's
+   quiet line with her name in ink ("Tiff: Done. …"). Where the modal is on,
+   the line is the door back into the conversation, so her name wears the
+   one link token, ink and underlined on the line's edge like the doors
+   (law 34); the words go ink under the pointer, and it takes the focus
+   ring. UNDO, at the end of what the entry made, is the page's one Undo,
+   the list's and the modal's: ink, 600, underlined, at the doors' height,
+   gone quiet while it is out. Its sentence's place is kept while Undo can
+   speak, and takes no room in the row while it is empty. */
+.fg .hd-dy-tiff { display:block; margin:8px 0 0; padding:0; border:0; border-radius:6px; background:none;
+  font:inherit; font-size:13px; font-weight:500; line-height:1.5; color:var(--hd-body); text-align:left;
+  overflow-wrap:anywhere; }
+.fg .hd-dy-tiff b { font-weight:600; color:var(--hd-ink); }
+.fg .hd-dy-tiff.opens { cursor:pointer; transition:color var(--t-fast) var(--ease); }
+.fg .hd-dy-tiff.opens b { text-decoration:underline; text-underline-offset:3px; }
+.fg .hd-dy-tiff.opens:hover { color:var(--hd-ink); }
+.fg .hd-dy-tiff.opens:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .hd-dy-undo { height:28px; padding:0 8px; border:0; border-radius:6px; background:none; font:inherit;
+  font-size:13px; font-weight:600; color:var(--hd-ink); text-decoration:underline; text-underline-offset:3px;
+  cursor:pointer; transition:color var(--t-fast) var(--ease); }
+.fg .hd-dy-undo[aria-disabled="true"] { color:var(--q); cursor:default; }
+.fg .hd-dy-undo:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .hd-dy-said:empty { position:absolute; }
+@media (prefers-reduced-motion:reduce) {
+  .fg .hd-dy-en[data-lit] { animation:none; }
+  .fg .hd-dy-tr[data-lit] { animation:none; }
+}
 /* ===================================================================
    VEHICLE MODAL v2 (components/fleet/vehicle-modal/)
 

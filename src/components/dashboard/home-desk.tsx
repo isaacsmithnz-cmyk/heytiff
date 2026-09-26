@@ -2,24 +2,28 @@
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ScreenBand } from "@/components/shell/screen-band";
+import { useTiff, type TiffLanded } from "@/components/tiff/modal/tiff-context";
 import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
 import {
   DEFAULT_FACE,
   FACE_SLIDE_MS,
   partShown,
   slidePlan,
+  thingsDoor,
+  type DeskArrival,
   type DeskFace,
   type DeskFocus,
   type SlidePart,
   type SlidePlan,
 } from "@/lib/dashboard/desk-focus";
 import { motionAllowed } from "@/lib/dashboard/day-flip";
-import { placeHomeList } from "@/lib/dashboard/home-list";
+import { diaryHolds } from "@/lib/dashboard/diary-conversation";
+import { placeHomeList, thingsOnList, type HomeListBase } from "@/lib/dashboard/home-list";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 import { HomeCalendarPage } from "./home-cal-page";
 import { HomeDay } from "./home-day";
 import { KEEPS_DAY } from "./home-day-bar";
-import { HomeDiary } from "./home-diary";
+import { HomeDiaryFeed } from "./home-diary-feed";
 import { HomeFaceTabs } from "./home-face-tabs";
 import { DeskJobHost } from "./home-job-sheet";
 import { HomeList } from "./home-list";
@@ -36,13 +40,13 @@ import { HomeTasks } from "./home-tasks";
    the Calendar across the whole body, Tasks across the diary column, in tab
    order ("Calendar should slide across"). Only the faces scroll.
 
-   THE FACES ARE HELD UNTIL THEIR OWN LAND: today's diary and tasks stand
-   in theirs, in their own dress, until each face's own lands. "Your day"
-   is his own already (./home-day), and so are THE LIST in the right-hand
-   column beside Diary and Tasks (./home-list), and THE CALENDAR
+   THE FACES ARE BUILT ONE BY ONE. "Your day" is his own already
+   (./home-day), and so are THE DIARY (./home-diary-feed), THE LIST in the
+   right-hand column beside Diary and Tasks (./home-list), and THE CALENDAR
    (./home-cal-page), which slides across the column and the list alike.
-   Every new file mounts here and nowhere else, which is what keeps the
-   crew's Home as it is.
+   Today's tasks stand in their face, in their own dress, until its own
+   lands. Every new file mounts here and nowhere else, which is what keeps
+   the crew's Home as it is.
 
    THE DAY'S OPEN CARD STAYS OPEN across faces, so a press on the tabs or
    in the Calendar does not close it (`KEEPS_DAY`); a click anywhere else
@@ -92,18 +96,40 @@ export function DashboardDesk({
   );
 }
 
-const taskDoor = (id: string): DeskFocus => ({ face: "tasks", kind: "task", ids: [id] });
+/* A task the address names arrives as a door no hand pressed: nothing
+   slides for it, and the face it lands on moves nothing (law 8). */
+const addressed = (id: string): DeskArrival => ({ face: "tasks", kind: "task", ids: [id], pointer: false });
 
 function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) {
-  const { tasks, journal, issues, assignable, canManage, viewerStaffId, today, rail } = data;
+  const { tasks, issues, assignable, canManage, viewerStaffId, today, rail } = data;
+  /* A DOOR INTO THE DIARY ONLY FOR WHAT IT HOLDS. The page's journal is
+     your sixty newest entries whatever their age, and the diary reaches
+     back only sixty days once it reads ServiceM8 (diary-feed's ONE
+     HORIZON); an ask ServiceM8 deleted leaves its task with no
+     conversation. So the list and the Tasks tab are handed the entries and
+     the asks the diary holds, and nothing else: a task from an entry before
+     then opens on the Tasks tab, as one typed there does, rather than
+     sliding the diary in on nothing and dropping the focus with the face it
+     was pressed on. */
+  const holds = useMemo(() => diaryHolds(data.desk?.diary.feed ?? null), [data.desk]);
+  const journal = useMemo(() => data.journal.filter((e) => holds.entries.has(e.id)), [data.journal, holds]);
   /* The list, placed from its own reads and what the page already holds —
      pure, and dated on the server by the workspace's day. */
-  const list = useMemo(() => (data.desk ? placeHomeList(data.desk.list, data) : null), [data]);
+  const list = useMemo(() => {
+    if (!data.desk) return null;
+    const base: HomeListBase = data;
+    return placeHomeList(data.desk.list, {
+      ...base,
+      journal,
+      mentions: base.mentions?.filter((m) => holds.notes.has(m.noteId)),
+    });
+  }, [data, journal, holds]);
 
   const [face, setFace] = useState<DeskFace>(taskId ? "tasks" : DEFAULT_FACE);
   const [motion, setMotion] = useState<Motion | null>(null);
-  /* A door from one face to another, until the face it names has shown it. */
-  const [focus, setFocus] = useState<DeskFocus | null>(taskId ? taskDoor(taskId) : null);
+  /* A door from one face to another, until the face it names has shown it
+     — with how it was pressed, so that face moves nothing for a key. */
+  const [focus, setFocus] = useState<DeskArrival | null>(taskId ? addressed(taskId) : null);
 
   /* THE ADDRESS CAN NAME A TASK AFTER THE DESK IS UP — the bell's door onto
      a Done (two-way phase 2, PR C) is pressed from Home itself, and only the
@@ -118,11 +144,9 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     if (taskId) {
       setFace("tasks");
       setMotion(null);
-      setFocus(taskDoor(taskId));
+      setFocus(addressed(taskId));
     }
   }
-  /* The entry today's diary is reading — null reads the newest. */
-  const [entryId, setEntryId] = useState<string | null>(null);
 
   /* What slides, and what clips each slide. Read only in the effect and the
      handlers, never in render. */
@@ -154,6 +178,37 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     setFace(next);
     setMotion(pointer && motionAllowed() ? { from: face, to: next, x0 } : null);
   };
+
+  /* A TIFF LANDING WHILE THE CALENDAR IS UP. What her modal filed lands in
+     the diary, which the Calendar covers, so the Diary comes in first — in
+     tab order, from the left, as his prototype's did (v33, `land()`, the
+     top bar's Tiff) — and the entry lights there once it is on screen
+     (./home-diary-feed). Words said in the Calendar's own room are the
+     Calendar's, and it keeps them (his `calLand`): nothing comes over it.
+     Still under reduced motion, like every slide, and simply there for a
+     conversation the keyboard drove (law 8). Taken from the host as it
+     changes, while rendering, as the diary takes it; at rest there is no
+     slide in flight to stop, so this is state alone. */
+  const { landed } = useTiff();
+  const [heard, setHeard] = useState<TiffLanded | null>(null);
+  /** Counts the landings that brought the Diary in, for the focus below. */
+  const [landings, setLandings] = useState(0);
+  if (landed !== heard) {
+    setHeard(landed);
+    if (landed && landed.noteIds.length > 0 && landed.room !== "calendar" && face === "calendar" && !motion) {
+      setFace("diary");
+      setMotion(!landed.keyboard && motionAllowed() ? { from: "calendar", to: "diary", x0: 0 } : null);
+      setLandings((n) => n + 1);
+    }
+  }
+  /* The modal gave focus back as it closed; where that was in the Calendar,
+     the Calendar has just gone inert, and focus would fall to the top of
+     the page. The tab of the face that came in holds it instead. */
+  useLayoutEffect(() => {
+    if (!landings) return;
+    if (calendarRef.current?.contains(document.activeElement))
+      document.getElementById("hdtab-diary")?.focus({ preventScroll: true });
+  }, [landings]);
 
   /* THE SLIDE. After the commit that shows both parts and before the paint:
      the one leaving goes out the far side and holds there, the one arriving
@@ -194,25 +249,43 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
     };
   }, [motion]);
 
-  /* THE ONE DOOR. Today's diary reads a chosen entry rather than taking a
-     door, so an entry is chosen here; today's tasks take a task by id and
-     hand the door back once it is shown. A door pressed with a pointer
-     slides its face in like a tab; one pressed from the keyboard does not. */
+  /* THE ONE DOOR. The face it names shows it and hands it back: the diary
+     brings an entry or a conversation up and lights it, today's tasks
+     choose a task by id. A door pressed with a pointer slides its face in
+     like a tab; one pressed from the keyboard does not, and the face it
+     lands on scrolls to what it names at once rather than smoothly
+     (law 8). */
   const show = (to: DeskFocus, pointer: boolean) => {
     go(to.face, pointer);
-    if (to.face === "diary" && to.kind === "entry") {
-      setEntryId(to.ids[0] ?? null);
-      return;
-    }
-    setFocus(to);
+    setFocus({ ...to, pointer });
   };
-  const openTask = (id: string, pointer: boolean) => show(taskDoor(id), pointer);
   const openEntry = (id: string, pointer: boolean) => show({ face: "diary", kind: "entry", ids: [id] }, pointer);
   const taskFocus = focus?.face === "tasks" && focus.kind === "task" ? (focus.ids[0] ?? null) : null;
+  /* The diary shows an entry, and a conversation by one of its notes (a
+     task an ask made, from the list). */
+  const diaryFocus =
+    focus?.face === "diary" && (focus.kind === "entry" || focus.kind === "conversation") ? focus : null;
   /* Rows a door asked to see stand in the list, beside Diary and Tasks
      alike; the list lights them once and hands the door back. */
   const rowsFocus = focus?.kind === "rows" ? focus : null;
-  const rowsShown = useCallback(() => setFocus(null), []);
+  const focusShown = useCallback(() => setFocus(null), []);
+  /* A diary door names tasks, or an issue. Where the list beside it holds
+     them, they light there and the diary stays; one the list does not hold
+     (a task ticked off today) opens on the Tasks tab, if that has a row for
+     it: your open work, the team's when you see it, what was done lately
+     and the open issues. One that neither holds (ticked off long ago, an
+     issue resolved) has nowhere to land, and the diary says it rather than
+     drawing a door that would open on some other row. */
+  const onList = useMemo(() => (list ? thingsOnList(list) : new Set<string>()), [list]);
+  const onTasks = useMemo(
+    () => new Set([...tasks.mine, ...(tasks.team ?? []), ...tasks.done, ...tasks.reported, ...issues].map((t) => t.id)),
+    [tasks, issues],
+  );
+  const onPage = useMemo(() => new Set([...onList, ...onTasks]), [onList, onTasks]);
+  const showThings = (ids: readonly string[], pointer: boolean) => {
+    const to = thingsDoor(ids, { list: onList, tasks: onTasks });
+    if (to) show(to, pointer);
+  };
 
   const leaving = motion?.from ?? null;
   const shown = (p: SlidePart) => partShown(p, face, leaving);
@@ -248,16 +321,17 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                 <div className="hd-col" ref={columnRef}>
                   {facePanel(
                     "diary",
-                    <div className="hm-face two">
-                      <HomeDiary
-                        entries={journal}
-                        today={today}
-                        selectedId={entryId}
-                        onSelect={setEntryId}
-                        onOpenTask={openTask}
-                        onOpenIssue={openTask}
+                    data.desk && (
+                      <HomeDiaryFeed
+                        diary={data.desk.diary}
+                        showing={face === "diary"}
+                        viewerStaffId={viewerStaffId}
+                        focus={diaryFocus}
+                        onFocusShown={focusShown}
+                        onPage={onPage}
+                        onShowThings={showThings}
                       />
-                    </div>,
+                    ),
                   )}
                   {facePanel(
                     "tasks",
@@ -294,7 +368,7 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                     list={list}
                     onShow={show}
                     flash={rowsFocus}
-                    onFlashDone={rowsShown}
+                    onFlashDone={focusShown}
                     inert={face === "calendar"}
                   />
                 )}

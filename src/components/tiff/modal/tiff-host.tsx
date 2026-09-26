@@ -55,6 +55,7 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
         back: o.back,
         origin: { x: r.left + r.width / 2, y: r.top + r.height / 2 },
         words: o.words?.trim() || undefined,
+        conversation: o.conversation?.filter((t) => (t.who === "you" || t.who === "tiff") && t.text.trim() !== ""),
         room: o.room,
         openerId: o.id ?? null,
         /* Two different things. Reduced motion stills all of it; a keyboard
@@ -74,7 +75,9 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
   const closed = useCallback(
     (c: TiffClosed) => {
       setSession(null);
-      if (c.landed) setLanded(c.landed);
+      /* with where it was said and whether the keyboard drove it, so the
+         page underneath knows what to bring forward, and how */
+      if (c.landed) setLanded({ ...c.landed, room: c.room, keyboard: c.keyboard });
       /* The results land on the page after it closes — and only when
          something was written; closing on nothing costs no refetch. */
       if (c.changed) router.refresh();

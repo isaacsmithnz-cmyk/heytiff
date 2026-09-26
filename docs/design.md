@@ -317,6 +317,71 @@ Every decision below is made once, here, and a guard test holds each number.
   chosen in a panel beside them, never empty. One choice and one set of
   filters serve all three views, and nothing steps past the twelve
   months.
+  The Diary is one column, newest first. At the top the entry box, "Add
+  to the diary…", with the Tiff button at its end: Save keeps the words
+  as typed and the entry lands at the top of Today, lit on his pale teal,
+  which fades over seven seconds; Sort it out, or Enter, takes them to
+  Tiff. Then
+  "Today", a quiet teal label over a rule, and today's entries or
+  "Nothing yet."; everything older follows with no more dividers, each
+  entry saying its own date. An entry is your initials in an ink disc,
+  "You" and when, your words as you said them, and under them what they
+  became: tasks counted by whose they are ("2 tasks for Luke", and "1
+  task" for your own; two people who share a first name each get their
+  whole name), each count a door that lights those rows in the list
+  beside it, or opens the Tasks tab for one the list no longer holds;
+  the Library's, a kept note's and an issue's doors as they were; and a
+  sentence for what has nowhere to go ("1 line kept.", "Nothing filed.",
+  and a task or an issue no row on the page holds any more). A door is
+  the app's door, 28px tall with 12px either side where his drew 26 and
+  10, ink and underlined on the line's edge. A door from the list or the
+  Tasks tab brings its entry up, lights it the same way and gives it the
+  focus. An entry Tiff sorted out says her last word under yours, "Tiff:
+  Done. …", in his quiet line with her name in ink, and lands at the top
+  of Today lit when her modal closes, the Diary sliding in first if the
+  Calendar is up, as his prototype's did; its wash starts when the entry
+  is on screen. The line opens that conversation in the modal again,
+  waiting on its reply box rather than listening, so her name wears the
+  link token, underlined like the doors. Undo, the page's one Undo (ink,
+  underlined, as the list's and the modal's are) at the doors' height,
+  ends what the entry made while it can take it back: until someone acts
+  on a row it filed ("go with your recommendations", 2026-09-25) — ticks
+  a task off, says "Got it", gives it on or moves it, clears a flag, buys
+  a line — the one rule the server refuses by, so it is never offered to
+  be refused, and not while nothing it made is left. Taken back, your
+  words stay and Tiff's line says what went, counting only what was still
+  there.
+  Someone who asked you something in a ServiceM8 job note is a
+  conversation in the same column ("if someone mentions you, it can show
+  up in diary", 2026-09-24): their initials ink in his grey disc, "Luke
+  Ingold to you" and when he asked, his words as written less the handle,
+  then every later message either way threaded under it, each with a 24px
+  disc and "You to Luke" or "Luke Ingold to you" and when ("show replies
+  from luke in the diary too"), set as his v33 renders it at 1440: the
+  message's line is the entry's 32px with its disc at the top, the disc's
+  initials 12/600, 12px above each message and 8px from the last down to
+  the doors. It sorts by his newest message, so his
+  answer brings the whole conversation up into Today, lit on the same
+  wash, while the header keeps the day he asked; the wash's seven seconds
+  run only while the Diary is the face on screen, so an answer that came
+  in while Tasks or the Calendar was up is still lit when you come back.
+  Under it the job, a door
+  onto the page's one card; Reply, which opens the job in ServiceM8 in a
+  new tab until HeyTiff writes notes there ("go with your
+  recommendations", 2026-09-25), so the answer reaches him and threads
+  back on the next sync; and "A job note in ServiceM8.". A job ServiceM8
+  has deleted is no door and gets no Reply, and says it has gone, in the
+  card's own words, "That job isn't in ServiceM8's copy any more." — only
+  when the copy holds the job as deleted, never because a read failed. A
+  task an ask made opens its conversation from the list the way an
+  entry's does. A door into the diary is offered only for what the diary
+  holds: once it reads ServiceM8 it reaches back sixty days, so a task
+  from an older entry, or from an ask ServiceM8 deleted, opens on the
+  Tasks tab instead. A diary that reads ServiceM8 asks for the page again
+  a minute after it opens on a copy more than ten minutes old, when you
+  come back to the tab to a page that old, and a minute after that when
+  the page the return brought was drawn from a stale copy too (the sync
+  it set off runs after it has gone out); never while Tiff is open.
   **His design is the default here.** A redraw to the laws "looks far
   worse", so where his numbers break a law this file names the exemption
   instead of bending the design ("design exempt for now, but keep a note",
@@ -693,10 +758,11 @@ What the guard cannot count is noted here on the same word:
   no rule on the page writes a colour literal: the ink `#151a24`, the body
   grey `#5b6472`, the rules `#e6e9ee`, `#eef0f3` (which also fills his
   name tag, solid, so a lit row cannot darken it) and `#e2e5ea`, the teal
-  of Today `#0f766e`, the green of done `#16a34a`, and the list's quiet
-  dot `#c3cad4`. `text-contrast` holds every one that is text to 4.5:1 on
-  the page's fills; the quiet dot is a mark at 1.65:1, and a row's group
-  title says what it means. The Trace's
+  of Today `#0f766e`, the green of done `#16a34a`, the list's quiet
+  dot `#c3cad4`, and the diary's wash `#e6f7f3`, his pale teal under an
+  entry that has just landed. `text-contrast` holds every one that is
+  text to 4.5:1 on the page's fills, the wash among them; the quiet dot
+  is a mark at 1.65:1, and a row's group title says what it means. The Trace's
   masks are `#000`, which a mask reads only for its alpha, and its light
   is `--paper`.
 - **Law 16, the Calendar's colours.** `.hd-cal` declares his calendar's
@@ -763,7 +829,12 @@ What the guard cannot count is noted here on the same word:
   (2026-09-25). Nothing slides under reduced motion, and nothing slides
   for a face chosen from the keyboard, a tab or a door between faces:
   law 8's "none on keyboard-driven actions" still holds there. A door
-  pressed with a pointer slides its face in as its tab would.
+  pressed with a pointer slides its face in as its tab would, and so does
+  the Diary when Tiff lands something while the Calendar is up, as his
+  prototype's `land()` did — simply there when the keyboard drove the
+  conversation (opened with a key, closed with Escape or a key), and not
+  at all for words said in the Calendar's own room, which land on the
+  Calendar (his `calLand`).
 - **Law 18, motion tokens, and law 8, the grow.** A card that opens grows,
   and the cards beside it give way, in his 350 ms on his `ease`, as the
   prototype he walked eased it: past law 8's 300 ms and off `--t-move`
@@ -781,6 +852,16 @@ What the guard cannot count is noted here on the same word:
   `--t-fast`, and the body under the day moves to make room for it on
   `--t-move`. Nothing grows under reduced motion, or for a change made
   from the keyboard: a card, the folded block, the cross or Escape.
+- **Law 18, motion tokens, and law 8, the diary's wash.** An entry that
+  has just landed in the diary, a message from someone who asked you
+  something that is today's and unanswered, or what a door asked for,
+  stands on his pale teal and fades on his keyframes, as his prototype's
+  `protoFresh` did: on at once, held for three quarters of seven seconds, then gone
+  over the last quarter, where law 18 has two tokens and law 8 says under
+  300 ms ("design exempt for now, but keep a note", 2026-09-24). It is a
+  flash a row asked for with data, once, never a loop. Under reduced
+  motion it is a still tint for the seven seconds. The door that brings
+  an entry up scrolls smoothly only when a pointer pressed it.
 - **Law 18, loops.** The Trace moves while the job it marks is on, the
   one thing on the page that does: `hdTrace`, 8 seconds a turn, in the
   loops table above. It is a rotation, which the compositor runs without

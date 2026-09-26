@@ -248,6 +248,18 @@ function clock(min: number): string {
 
 const DETAIL_MAX = 60;
 
+/** Staff id → first name: "From Callum", not "From Callum Reid". The list's
+    reads say names by it (home-list-query), and the diary says the people
+    its tasks are on by the same rule (desk-data). */
+export function firstNames(names: ReadonlyMap<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [id, name] of names) {
+    const first = name.trim().split(/\s+/)[0];
+    if (first) out[id] = first;
+  }
+  return out;
+}
+
 /** The first sentence of a task's detail, cut at 60 characters. */
 export function firstSentence(detail: string | null): string {
   const flat = (detail ?? "").replace(/\s+/g, " ").trim();
@@ -638,6 +650,24 @@ export function placeList(input: ListInput): HomeList {
     if (rows.length) out.push({ key, title: GROUP_TITLE[key], count: countOf(rows), rows });
   }
   return { day, groups: out, jobs: wins.map((w) => w.job) };
+}
+
+/** The things the list has a row for, by the id a door between faces names
+    them with — a task's id, an issue's, an alert's and a roll-up's own, and
+    what a roll-up holds — the same ids its rows carry as `data-thing`. A
+    door from the diary lights these rows where the list has them, and
+    opens the Tasks tab for a thing the list does not hold (a task already
+    ticked off). */
+export function thingsOnList(list: HomeList): Set<string> {
+  const out = new Set<string>();
+  const walk = (rows: readonly ListRow[]) => {
+    for (const r of rows) {
+      out.add(r.kind === "issue" ? r.issue.id : r.id);
+      if (r.kind === "rollup") walk(r.rows);
+    }
+  };
+  for (const g of list.groups) walk(g.rows);
+  return out;
 }
 
 /* ── the list, from the page's data ── */

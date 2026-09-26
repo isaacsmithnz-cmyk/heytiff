@@ -22,7 +22,7 @@ import {
 } from "@/app/actions/workboard-notes";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
 import type { NoteDoor } from "@/lib/workboard/note-applied";
-import { KEPT_AS_SAID, WHICH_JOB, earlierTurns, type TiffRoom } from "@/lib/workboard/note-turns";
+import { KEPT_AS_SAID, WHICH_JOB, earlierTurns, type EarlierTurn, type TiffRoom } from "@/lib/workboard/note-turns";
 import { askLine, lastTiff, planView, tiffSince, type PlanRowView } from "./plan-view";
 import type { TiffLanded } from "./tiff-context";
 
@@ -105,6 +105,9 @@ export type Face = {
 
 export type Opening = {
   words?: string;
+  /** A conversation already had (a diary entry's): on screen from the
+      start, and what you say next is read by it. */
+  conversation?: readonly EarlierTurn[];
   room?: TiffRoom;
   /** The pressed button's centre; the dots gather from it. None for a
       keyboard press, which moves nothing (law 8). */
@@ -153,19 +156,30 @@ export function useConversation({
   const still = opening.still;
   const room = opening.room;
   const words0 = opening.words?.trim() ?? "";
-  const listensFirst = !words0 && voiceEnabled;
+  /* OPENED AGAIN ON A CONVERSATION (a diary entry's Tiff line): what was
+     said is on screen from the start, Tiff has already answered so her face
+     has fallen, and the modal waits on the reply box. It is a door to what
+     was said, not a Tiff button, so the microphone stays shut until the
+     box's own Tiff button is pressed. */
+  const [had] = useState<ModalTurn[]>(() =>
+    (opening.conversation ?? []).map((t, i) => ({ key: `had${i}`, who: t.who, text: t.text, enter: false }))
+  );
+  const resumed = had.length > 0 && !words0;
+  const listensFirst = !words0 && !resumed && voiceEnabled;
 
   const [stage, setStage] = useState<Stage>(words0 ? "thinking" : listensFirst ? "listening" : "editing");
   const [turns, setTurns] = useState<ModalTurn[]>(() =>
-    words0 ? [{ key: "you0", who: "you", text: words0, enter: false }] : []
+    words0 ? [...had, { key: "you0", who: "you", text: words0, enter: false }] : had
   );
   const [live, setLive] = useState<LiveTurn | null>(
     listensFirst ? { key: "you0", said: null, enter: false } : null
   );
   const [draft, setDraft] = useState("");
   const [fixing, setFixing] = useState(false);
-  const [face, setFace] = useState<Face>({ stage: "mark", key: 0, origin: still ? null : opening.origin });
-  const [faceOpen, setFaceOpen] = useState(true);
+  const [face, setFace] = useState<Face>(
+    resumed ? { stage: null, key: 0, origin: null } : { stage: "mark", key: 0, origin: still ? null : opening.origin }
+  );
+  const [faceOpen, setFaceOpen] = useState(!resumed);
   /** Any of the words being composed arrived by voice. */
   const [spoke, setSpoke] = useState(listensFirst);
   /** A complaint about the microphone, not something Tiff said. */
@@ -181,7 +195,7 @@ export function useConversation({
   const alive = useRef(true);
   const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const fold = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const gatherUntil = useRef(!still && opening.origin ? opening.at + GATHER_MS : 0);
+  const gatherUntil = useRef(!still && !resumed && opening.origin ? opening.at + GATHER_MS : 0);
   const cloudAt = useRef(0);
   const note = useRef<Note | null>(null);
   const leave = useRef<string[]>([]);
@@ -280,7 +294,7 @@ export function useConversation({
     tiffSays(text, "asking", { rows, quick, noteId: n.id });
   };
 
-  const file = async (n: Note, opts: { retarget?: NoteTarget }) => {
+  const file = async (n: Note, opts: { retarget?: NoteTarget; answer?: string }) => {
     n.busy = true;
     let r: FileResult;
     try {
@@ -383,8 +397,10 @@ export function useConversation({
       return;
     }
     if (!res.ok) {
-      /* `kept`: routing failed and the server filed the words as said. */
+      /* `kept`: routing failed and the server filed the words as said — a
+         note the diary lands lit on close, like any other it filed. */
       if (res.kept) changed.current = true;
+      if (res.kept && res.noteId) filed.current = [...filed.current, { noteId: res.noteId, ids: [] }];
       return settle(() => tiffSays(res.error, res.kept ? "filed" : "failed"));
     }
     read(res);
@@ -543,7 +559,7 @@ export function useConversation({
     const wait = still ? 0 : gatherUntil.current - Date.now();
     cloudAt.current = wait > 0 ? gatherUntil.current : Date.now();
     later(Math.max(0, wait), toCloud);
-    submit(words0, "text", []);
+    submit(words0, "text", had);
   });
   useEffect(() => {
     if (words0) sendOpening();
@@ -642,7 +658,8 @@ export function useConversation({
     if (!n || stage !== "asking") return;
     addTurn({ who: "you", text: q.label });
     think();
-    if (q.target) void file(n, { retarget: q.target });
+    /* the words you picked go too, so the note keeps them as your turn */
+    if (q.target) void file(n, { retarget: q.target, answer: q.label });
     else void reply(n, q.label);
   };
 

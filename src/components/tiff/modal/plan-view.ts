@@ -103,8 +103,6 @@ export function tiffSince(turns: readonly Turn[] | undefined): string {
   return out.join(" ");
 }
 
-/** Tiff's last line in what a server call returned. */
-export function lastTiff(turns: readonly Turn[] | undefined): string {
-  for (let i = (turns?.length ?? 0) - 1; i >= 0; i--) if (turns![i]!.who === "tiff") return turns![i]!.text;
-  return "";
-}
+/** Tiff's last line in what a server call returned — the diary's line under
+    the words too, so it is said once, with the turns (note-turns). */
+export { lastTiff } from "@/lib/workboard/note-turns";

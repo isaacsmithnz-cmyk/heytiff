@@ -11,6 +11,7 @@ import {
   firstSentence,
   placeHomeList,
   placeList,
+  thingsOnList,
   type HomeList,
   type ListAlertRow,
   type ListCaps,
@@ -822,5 +823,35 @@ describe("the list as a whole", () => {
     expect(find<ListIssueRow>(list, "issue:i1")).toBeTruthy();
     // service chips are built too; none is due here
     expect(serviceChip(vehicle(), { subject: "x", href: "/x", warnDays: 30, today: DAY })).toBeNull();
+  });
+});
+
+/* A door from the diary lights its tasks in the list when the list holds
+   them, and opens the Tasks tab when it doesn't: what the list holds, by
+   the ids its rows are named by (`data-thing`). */
+describe("thingsOnList", () => {
+  it("names each row the way a door names it: a task and an alert by id, an issue by the issue's, a roll-up and what it holds", () => {
+    const list = placeList(
+      input({
+        tasks: [task({ id: "t-open", dueDate: DAY })],
+        issues: [issue({ id: "i1" })],
+        wins: [won("fresh", "3323", "Randwick", "2026-09-23"), won("old", "3050", "Oatley", "2026-07-20")],
+      }),
+    );
+    const things = thingsOnList(list);
+    expect(things.has("t-open")).toBe(true);
+    // the issue's own id, not its row's
+    expect(things.has("i1")).toBe(true);
+    expect(things.has("issue:i1")).toBe(false);
+    expect(things.has("job:fresh")).toBe(true);
+    // a roll-up, and the job inside it
+    expect(things.has("rollup:wins")).toBe(true);
+    expect(things.has("job:old")).toBe(true);
+  });
+
+  it("does not hold a task that is not on the list — one already ticked off", () => {
+    const list = placeList(input({ tasks: [task({ id: "t-done", status: "done", doneAt: "2026-09-24T01:00:00Z" })] }));
+    expect(thingsOnList(list).has("t-done")).toBe(false);
+    expect(thingsOnList(placeList(input())).size).toBe(0);
   });
 });

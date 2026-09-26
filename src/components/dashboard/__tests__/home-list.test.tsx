@@ -11,7 +11,7 @@ import {
   type ListInput,
 } from "@/lib/dashboard/home-list";
 import { vehicleChips } from "@/lib/dashboard/chips";
-import type { DeskFocus } from "@/lib/dashboard/desk-focus";
+import type { DeskArrival } from "@/lib/dashboard/desk-focus";
 import type { DashTask } from "@/lib/dashboard/tasks";
 import type { JournalEntry } from "@/lib/dashboard/journal";
 import type { HomeIssue } from "@/lib/dashboard/issues";
@@ -160,7 +160,7 @@ const visit = { id: "vis1", clientName: "Bayview Apartments", label: "annual ser
 
 /* ── drawing it ── */
 
-function draw(list: HomeListData, props: { flash?: DeskFocus | null; onFlashDone?: () => void; inert?: boolean } = {}) {
+function draw(list: HomeListData, props: { flash?: DeskArrival | null; onFlashDone?: () => void; inert?: boolean } = {}) {
   const onShow = jest.fn();
   const tree = (l: HomeListData) => (
     <DeskJobHost manage={false} moneyVisible={false}>
@@ -760,7 +760,7 @@ describe("a door that asks for rows", () => {
     };
     try {
       const onFlashDone = jest.fn();
-      const flash: DeskFocus = { face: "diary", kind: "rows", ids: ["t2", "i1"] };
+      const flash: DeskArrival = { face: "diary", kind: "rows", ids: ["t2", "i1"], pointer: true };
       draw(
         place({
           tasks: [task({ id: "t1", title: "Not asked for" }), task({ id: "t2", title: "Asked for", dueDate: "2026-09-21" })],
@@ -781,7 +781,33 @@ describe("a door that asks for rows", () => {
   });
 
   it("is not a door of any other kind", () => {
-    draw(place({ tasks: [task({ title: "Asked for" })] }), { flash: { face: "tasks", kind: "task", ids: ["t1"] } });
+    draw(place({ tasks: [task({ title: "Asked for" })] }), {
+      flash: { face: "tasks", kind: "task", ids: ["t1"], pointer: true },
+    });
     expect(lineOf("Asked for")).not.toHaveAttribute("data-lit");
+  });
+
+  /* Law 8: no motion on a keyboard-driven action. Where the browser may
+     move at all, a door a pointer pressed brings its row in smoothly, and
+     one a key pressed brings it at once. */
+  it("brings the row in smoothly for a pointer's door, and at once for a key's", () => {
+    const how: (ScrollBehavior | undefined)[] = [];
+    const real = { scroll: Element.prototype.scrollIntoView, animate: Element.prototype.animate };
+    Element.prototype.scrollIntoView = function (this: Element, arg?: boolean | ScrollIntoViewOptions) {
+      how.push(typeof arg === "object" ? arg.behavior : undefined);
+    };
+    Element.prototype.animate = jest.fn() as unknown as typeof Element.prototype.animate;
+    window.matchMedia = ((q: string) => ({ matches: !q.includes("reduce") })) as typeof window.matchMedia;
+    try {
+      const list = place({ tasks: [task({ id: "t2", title: "Asked for" })] });
+      const one = draw(list, { flash: { face: "diary", kind: "rows", ids: ["t2"], pointer: true } });
+      one.unmount();
+      draw(list, { flash: { face: "diary", kind: "rows", ids: ["t2"], pointer: false } });
+      expect(how).toEqual(["smooth", "auto"]);
+    } finally {
+      Element.prototype.scrollIntoView = real.scroll;
+      Element.prototype.animate = real.animate;
+      delete (window as { matchMedia?: unknown }).matchMedia;
+    }
   });
 });

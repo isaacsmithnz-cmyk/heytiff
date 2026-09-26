@@ -8,7 +8,7 @@ import { DictClock, LiveWords } from "@/components/notes/dictation";
 import { useNoteScope } from "@/components/notes/note-context";
 import { MARK_MASK, TiffGlyph, TiffMark } from "@/components/notes/tiff-mark";
 import { DotField, useDotFieldExit } from "@/components/ui/dot-field";
-import type { TiffRoom } from "@/lib/workboard/note-turns";
+import type { EarlierTurn, TiffRoom } from "@/lib/workboard/note-turns";
 import { EASE, MOVE_MS, canAnimate, prefersStill, tokenMs, useBoxMotion, useGrow } from "./box-motion";
 import type { PlanRowView } from "./plan-view";
 import {
@@ -56,6 +56,8 @@ export type TiffSession = {
   back?: HTMLElement;
   origin: Point;
   words?: string;
+  /** A conversation already had, opened again (./tiff-context). */
+  conversation?: readonly EarlierTurn[];
   room?: TiffRoom;
   openerId: string | null;
   /** Reduced motion: nothing travels and no wait is held. */
@@ -65,7 +67,14 @@ export type TiffSession = {
   at: number;
 };
 
-export type TiffClosed = Closed & { from: HTMLElement; back?: HTMLElement };
+export type TiffClosed = Closed & {
+  from: HTMLElement;
+  back?: HTMLElement;
+  /** The room it was had in, as it opened. */
+  room?: TiffRoom;
+  /** Opened or closed from the keyboard. */
+  keyboard: boolean;
+};
 
 const ROOM: Record<TiffRoom, string> = { home: "Home", diary: "Diary", tasks: "Tasks", calendar: "Calendar" };
 
@@ -91,6 +100,7 @@ export function TiffModal({
   const c = useConversation({
     opening: {
       words: session.words,
+      conversation: session.conversation,
       room: session.room,
       origin: session.keyboard ? null : session.origin,
       still: session.still,
@@ -126,12 +136,20 @@ export function TiffModal({
   }, [session, fadeOnly]);
 
   /** Close: the conversation lets go of everything, then the modal folds
-      back toward the button and the host takes it away. */
-  const close = () => {
+      back toward the button and the host takes it away. `byKey`: closed
+      with a key (Escape, or × or Done pressed from the keyboard), which the
+      host tells whatever lands, so it moves nothing either (law 8). */
+  const close = (byKey: boolean) => {
     if (left.current) return;
     left.current = true;
     setLeaving(true);
-    const result: TiffClosed = { ...c.close(), from: session.from, back: session.back };
+    const result: TiffClosed = {
+      ...c.close(),
+      from: session.from,
+      back: session.back,
+      room: session.room,
+      keyboard: session.keyboard || byKey,
+    };
     const finish = () => onClosed(result);
     const m = dialog.current;
     if (!canAnimate(m)) return finish();
@@ -151,7 +169,7 @@ export function TiffModal({
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
-      close();
+      close(true);
       return;
     }
     if (e.key !== "Tab") return;
@@ -203,9 +221,14 @@ export function TiffModal({
 
   const turnsRef = useRef<HTMLDivElement | null>(null);
   const tail = all.length ? `${all.length}:${all.at(-1)!.text.length}:${c.interim.length}` : "";
+  /* A conversation opened again is at its newest turn as the modal appears,
+     not scrolled there in front of you; only what arrives after is. */
+  const openedOn = useRef(tail);
   useLayoutEffect(() => {
     const el = turnsRef.current;
-    if (el && typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight, behavior: session.still ? "auto" : "smooth" });
+    const first = tail === openedOn.current;
+    if (el && typeof el.scrollTo === "function")
+      el.scrollTo({ top: el.scrollHeight, behavior: session.still || first ? "auto" : "smooth" });
   }, [tail, session.still]);
 
   return (
@@ -237,7 +260,7 @@ export function TiffModal({
               </button>
             )}
           </span>
-          <button type="button" className="tm-x" aria-label="Close" onClick={close}>
+          <button type="button" className="tm-x" aria-label="Close" onClick={(e) => close(e.detail === 0)}>
             <Icon name="x" size={16} />
           </button>
         </header>
@@ -513,7 +536,7 @@ function Quick({ answers, onAnswer }: { answers: QuickAnswer[]; onAnswer: (q: Qu
 
 type DockMode = "listen" | "fix" | "reply";
 
-function Dock({ c, onEmpty }: { c: Conversation; onEmpty: () => void }) {
+function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => void }) {
   const mode: DockMode | null =
     c.stage === "listening" ? "listen" : c.stage === "thinking" || c.stage === "answering" ? null : c.fixing ? "fix" : "reply";
   /* While it folds away it keeps showing what it was. */
@@ -551,8 +574,8 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: () => void }) {
             ref={(el) => {
               first.current = el;
             }}
-            onClick={() => {
-              if (!c.done()) onEmpty();
+            onClick={(e) => {
+              if (!c.done()) onEmpty(e.detail === 0);
             }}
           >
             Done

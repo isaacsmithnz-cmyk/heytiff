@@ -130,7 +130,16 @@ export async function listMyMentions(orgId: string, mineUuid: string, today: str
   const pool = new Map<string, MentionNote>();
   for (const n of [...asks, ...jobNotes(thread.data)]) if (!pool.has(n.uuid)) pool.set(n.uuid, n);
 
-  const jobs = new Map<string, { label: string | null; live: boolean }>();
+  /* GONE ONLY WHEN THE COPY SAYS SO. A job is taken to have gone — no
+     door, no Reply, and #809's sentence — only when the mirror holds its
+     row as deleted. A jobs read that failed, or a job the mirror holds no
+     row for, says nothing about the job: it keeps its door and its Reply,
+     and the desk's card says #809's sentence itself if the job really has
+     gone (openMirrorJob finds no live row). */
+  if (jobRows.error) console.error(`[diary] couldn't read the jobs for org ${orgId}'s mentions:`, jobRows.error);
+  const jobs = new Map<string, { label: string | null; live: boolean }>(
+    jobUuids.map((uuid) => [uuid, { label: null, live: true }]),
+  );
   for (const j of (jobRows.data ?? []) as {
     uuid: string;
     generated_job_id: string | number | null;

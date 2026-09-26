@@ -345,7 +345,12 @@ describe("talking", () => {
     await flush();
     await user.click(within(dialog()).getByRole("button", { name: "#3323 Randwick" }));
     await flush();
-    expect(fileNote).toHaveBeenLastCalledWith("n1", { leaveOut: [], retarget: { kind: "job", id: "j1" } });
+    // with the words you picked, which the note keeps as your turn
+    expect(fileNote).toHaveBeenLastCalledWith("n1", {
+      leaveOut: [],
+      retarget: { kind: "job", id: "j1" },
+      answer: "#3323 Randwick",
+    });
     expect(continueNote).not.toHaveBeenCalled();
   });
 
@@ -481,6 +486,76 @@ describe("after filing", () => {
     await user.click(within(dialog()).getByRole("button", { name: "Close" }));
     await flush();
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  /* Filed as said is filed: the diary lands it lit as the modal closes,
+     as it does a note Tiff filed or one kept when the server was out. */
+  it("lands a note routing failed on, kept as said, in the diary as the modal closes", async () => {
+    routeNote.mockResolvedValue({ ok: false, error: KEPT_AS_SAID, kept: true, noteId: "k7" });
+    const user = userEvent.setup();
+    render(<Harness extra={<Grab />} />);
+    await user.click(topButton());
+    await say(user, "something the router choked on");
+    await flush();
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
+    expect(grabbed.api!.landed).toEqual({ noteIds: ["k7"], ids: [], keyboard: false });
+  });
+
+  /* What lands says where it was said and whether the keyboard drove it,
+     so the page underneath brings forward only what is its to, and with
+     no slide for a key (law 8). */
+  describe("what the landing says of itself", () => {
+    const filedThenClosed = async (close: (user: ReturnType<typeof userEvent.setup>) => Promise<void>) => {
+      routeNote.mockResolvedValue({ ok: false, error: KEPT_AS_SAID, kept: true, noteId: "k7" });
+      const user = userEvent.setup();
+      render(<Harness extra={<Grab />} />);
+      await user.click(topButton());
+      await say(user, "something the router choked on");
+      await flush();
+      await close(user);
+      await flush();
+      return grabbed.api!.landed;
+    };
+
+    it("was driven by the keyboard when Escape closed it", async () => {
+      const landed = await filedThenClosed((user) => user.keyboard("{Escape}"));
+      expect(landed).toMatchObject({ noteIds: ["k7"], keyboard: true });
+    });
+
+    it("was driven by the keyboard when × was pressed with a key", async () => {
+      const landed = await filedThenClosed(async (user) => {
+        within(dialog()).getByRole("button", { name: "Close" }).focus();
+        await user.keyboard("{Enter}");
+      });
+      expect(landed).toMatchObject({ noteIds: ["k7"], keyboard: true });
+    });
+
+    it("was driven by the keyboard when it was opened with a key, however it closed", async () => {
+      routeNote.mockResolvedValue({ ok: false, error: KEPT_AS_SAID, kept: true, noteId: "k7" });
+      const user = userEvent.setup();
+      render(<Harness voice={false} extra={<Grab />} />);
+      await act(async () => {
+        grabbed.api!.open({ from: topButton(), words: "the router chokes on this", keyboard: true });
+      });
+      await flush();
+      await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+      await flush();
+      expect(grabbed.api!.landed).toMatchObject({ noteIds: ["k7"], keyboard: true });
+    });
+
+    it("says the room it was had in", async () => {
+      routeNote.mockResolvedValue({ ok: false, error: KEPT_AS_SAID, kept: true, noteId: "k7" });
+      const user = userEvent.setup();
+      render(<Harness voice={false} extra={<Grab />} />);
+      await act(async () => {
+        grabbed.api!.open({ from: topButton(), words: "toolbox talk every first Thursday", room: "calendar" });
+      });
+      await flush();
+      await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+      await flush();
+      expect(grabbed.api!.landed).toEqual({ noteIds: ["k7"], ids: [], room: "calendar", keyboard: false });
+    });
   });
 
   it("words the server never got are kept as said", async () => {
@@ -1275,5 +1350,114 @@ describe("the conversation", () => {
     const added = within(dialog()).getByText("In the Library");
     expect(added).toHaveClass("tm-added");
     expect(added).not.toHaveClass("tm-needs");
+  });
+});
+
+/* ── OPENED AGAIN ON A CONVERSATION (H23): a diary entry's Tiff line opens
+   the modal on the conversation the entry came out of. ── */
+
+describe("opened again on a conversation", () => {
+  const HAD = [
+    { who: "you" as const, text: "Luke has the Bellevue Hill head on the ute" },
+    { who: "tiff" as const, text: DONE },
+  ];
+  /** The diary's door: a button on the page, the conversation, the diary's room. */
+  async function reopen(opts: { voice?: boolean } = {}) {
+    const user = userEvent.setup();
+    render(<Harness voice={opts.voice} extra={<Grab />} />);
+    await act(async () => {
+      grabbed.api!.open({ from: topButton(), conversation: HAD, room: "diary", id: "hd-dy-tiff-e1" });
+    });
+    return user;
+  }
+
+  it("has what was said on screen, Tiff's face already fallen, in the diary's room", async () => {
+    await reopen();
+    const turns = within(convo()).getAllByText(/./, { selector: ".tm-tt" }).map((t) => t.textContent);
+    expect(turns).toEqual(["Luke has the Bellevue Hill head on the ute", DONE]);
+    expect(within(convo()).getAllByText(/^(You|Tiff)$/).map((l) => l.textContent)).toEqual(["You", "Tiff"]);
+    // she has already answered: no dots gather, and the header holds her mark
+    expect(dialog().querySelector(".tm-face")).toBeNull();
+    expect(dialog()).toHaveClass("speaking");
+    expect(within(dialog()).getByText("Diary")).toBeInTheDocument();
+  });
+
+  it("waits on the reply box: a door to what was said is not a Tiff button, so nothing listens", async () => {
+    await reopen();
+    const box = within(dialog()).getByRole("textbox", { name: "Reply to Tiff" });
+    expect(box).toHaveFocus();
+    expect(mic.start).not.toHaveBeenCalled();
+    expect(routeNote).not.toHaveBeenCalled();
+    expect(askBrain).not.toHaveBeenCalled();
+    // the box's own Tiff button is how to talk
+    expect(within(dialog()).getByRole("button", { name: "Talk to Tiff" })).toBeInTheDocument();
+  });
+
+  it("listens once the box's Tiff button is pressed", async () => {
+    const user = await reopen();
+    await user.click(within(dialog()).getByRole("button", { name: "Talk to Tiff" }));
+    expect(mic.start).toHaveBeenCalledTimes(1);
+    expect(within(dialog()).getByRole("button", { name: "Done" })).toBeInTheDocument();
+  });
+
+  it("reads what you say next by the conversation, in the diary's room", async () => {
+    routeNote.mockReturnValue(new Promise(() => {}));
+    const user = await reopen({ voice: false });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "and the same for Smith St{Enter}");
+    expect(routeNote).toHaveBeenCalledWith({
+      transcript: "and the same for Smith St",
+      target: { kind: "none" },
+      source: "text",
+      room: "diary",
+      conversation: true,
+      before: HAD,
+    });
+    expect(within(convo()).getByText("and the same for Smith St")).toBeInTheDocument();
+  });
+
+  it("asks a question with the conversation as its history", async () => {
+    askBrain.mockImplementationOnce(() => {});
+    const user = await reopen({ voice: false });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "when is Luke at Bellevue Hill?{Enter}");
+    expect(askBrain.mock.calls[0][0]).toMatchObject({ question: "when is Luke at Bellevue Hill?", history: HAD });
+  });
+
+  it("closes on nothing new without asking the page to read again, and gives focus back to the door", async () => {
+    const user = await reopen();
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(dismissNote).not.toHaveBeenCalled();
+    expect(topButton()).toHaveFocus();
+  });
+
+  /* Tiff's face had already fallen when it opened, so the first reply
+     brings her cloud up where it sits: no dots fly in from the diary's line
+     behind the scrim, and no wait for a gather that was never drawn. */
+  it("thinks at once on the first reply, the cloud rising where it sits, nothing flying from the line", async () => {
+    motion(false);
+    jest.useFakeTimers();
+    routeNote.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    render(<Harness voice={false} extra={<Grab />} />);
+    await act(async () => {
+      grabbed.api!.open({ from: topButton(), conversation: HAD, room: "diary", id: "hd-dy-tiff-e1" });
+    });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "and the same for Smith St{Enter}");
+    const field = dialog().querySelector<HTMLElement>(".dotf");
+    expect(field).not.toBeNull();
+    expect(field).toHaveAttribute("data-stage", "cloud");
+    // measured from no button: the dots start where the field is
+    expect(field!.style.getPropertyValue("--gox")).toBe("");
+  });
+
+  it("lands at its newest turn as it appears, rather than scrolling there in front of you", async () => {
+    const calls: ScrollToOptions[] = [];
+    proto.scrollTo = function (this: Element, o: ScrollToOptions) {
+      if (this === document.querySelector(".tm-turns")) calls.push(o);
+    };
+    motion(false);
+    await reopen();
+    expect(calls[0]).toMatchObject({ behavior: "auto" });
   });
 });

@@ -118,3 +118,51 @@ export const WHICH_JOB = "Which job is this for?";
 /** The room the note was first said in, if it said. */
 export const roomOf = (turns: readonly Turn[]): TiffRoom | undefined =>
   turns.find((t) => t.who === "you")?.room;
+
+/* ── A FILED NOTE, SAID BACK ─────────────────────────────────────────────
+
+   Filing ends a note on Tiff's "Done." turn, which repeats the line she
+   said her plan in: "Luke puts the head on the ute." then "Done. Luke puts
+   the head on the ute." The modal only ever showed the second, and the
+   diary says it under the words ("Tiff: Done. …"). One shape, here, for the
+   server that writes it and the pages that read it back. */
+
+/** Tiff's turn when a note is filed: "Done." and her plan's line. */
+export const doneLine = (say: string): string => (say.trim() ? `Done. ${say.trim()}` : "Done.");
+
+/** Tiff's last word in a conversation: the diary's line under the words.
+    "" when she has said nothing (a Save, or a note from before the modal). */
+export function lastTiff(turns: readonly EarlierTurn[] | undefined): string {
+  for (let i = (turns?.length ?? 0) - 1; i >= 0; i--) if (turns![i]!.who === "tiff") return turns![i]!.text;
+  return "";
+}
+
+/** Her "Done." line: its own turn in the modal, and so is what follows it. */
+const isDone = (text: string): boolean => text === "Done." || text.startsWith("Done. ");
+
+/** The conversation as the modal said it, to open it again. Every turn, in
+    order, but:
+      - the plan's line goes where a "Done." after it, before you speak
+        again, says it again (with a question between, when a job answered
+        one before the pick was kept: "Which job is this for?");
+      - her line and the question she asked after it are ONE turn, as the
+        modal joined them (`tiffSince`): "A task for Luke. Which job is this
+        for?". A "Done." stands alone, and so does what came after it (Undo's
+        "1 task taken back."), as they did there. */
+export function conversationOf(turns: readonly EarlierTurn[]): EarlierTurn[] {
+  const out: EarlierTurn[] = [];
+  turns.forEach((t, i) => {
+    if (t.who === "tiff") {
+      for (let j = i + 1; j < turns.length && turns[j]!.who === "tiff"; j++) {
+        if (turns[j]!.text === doneLine(t.text)) return;
+      }
+      const last = out.at(-1);
+      if (last?.who === "tiff" && !isDone(last.text) && !isDone(t.text)) {
+        out[out.length - 1] = { who: "tiff", text: `${last.text} ${t.text}` };
+        return;
+      }
+    }
+    out.push({ who: t.who, text: t.text });
+  });
+  return out;
+}

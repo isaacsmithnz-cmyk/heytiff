@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { DIARY_LIT_MS } from "@/lib/dashboard/diary-doors";
 
 /* THE NEW HOME'S FRAME, IN THE SHEET (docs/design.md, "Home is the day,
    three tabs and the list").
@@ -145,5 +146,180 @@ describe("the list", () => {
     expect(quiet).toBeDefined();
     expect(quiet).toMatch(/\.fg \.hd-ls-it \{ transition:none; \}/);
     expect(quiet).toMatch(/\.fg \.hd-ls-in\[data-grow\] \{ animation:none; \}/);
+  });
+});
+
+/* THE DIARY (H16), in the Diary tab. What the sheet promises for it: its
+   rules are two classes deep, like the family's, so the frame's reset never
+   beats a door; it scrolls with its face, never on its own (only a face
+   scrolls, and the diary's door brings an entry up by moving the face); an
+   entry's wash reaches past the column by exactly its own side padding, so
+   the words never move when it lights, and the rule under it stays on the
+   column; the wash is his, a fill that moves nothing — held for three
+   quarters of its seven seconds and faded over the last, a still tint under
+   reduced motion (a named exemption in docs/design.md); and a door, and
+   the entry a door lands on, wear the focus ring (law 32). */
+describe("the diary", () => {
+  /** The sheet without its @media blocks: the rules as they stand for
+      everyone, before reduced motion takes anything away. */
+  const atRest = CSS.replace(/@media[^{]*\{((?:[^{}]*\{[^{}]*\})*)\s*\}/g, "");
+  const restRule = (sel: string): Record<string, string> => {
+    const out: Record<string, string> = {};
+    for (const m of atRest.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (m[1]!.trim() !== sel) continue;
+      for (const d of m[2]!.split(";")) {
+        const at = d.indexOf(":");
+        if (at > 0) out[d.slice(0, at).trim()] = d.slice(at + 1).trim();
+      }
+    }
+    return out;
+  };
+
+  it("sets every one of its rules two classes deep, under the frame", () => {
+    const parts: string[] = [];
+    for (const m of CSS.matchAll(/([^{}]+)\{[^{}]*\}/g)) {
+      const sel = m[1]!.trim();
+      if (!/\.hd-dy\b|\.hd-dy-/.test(sel)) continue;
+      parts.push(...sel.split(",").map((s) => s.trim()));
+    }
+    expect(parts.length).toBeGreaterThan(10);
+    expect(parts.filter((p) => !/^\.fg \.hd-[\w-]/.test(p))).toEqual([]);
+  });
+
+  it("scrolls with its face, never on its own", () => {
+    for (const m of CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!/\.hd-dy\b|\.hd-dy-/.test(m[1]!)) continue;
+      expect(m[2]).not.toMatch(/overflow(-y)?\s*:\s*(auto|scroll)/);
+    }
+  });
+
+  it("reaches an entry's wash past the column by the entry's own side padding, with the rule on the item", () => {
+    const en = rule(".fg .hd-dy-en");
+    const [, side] = en.padding!.split(" ");
+    expect(en.margin).toBe(`0 -${side}`);
+    expect(en["border-bottom"]).toBeUndefined();
+    expect(rule(".fg .hd-dy-it")["border-bottom"]).toBe("1px solid var(--hd-rule)");
+  });
+
+  /* His prototype's `protoFresh 7s var(--ease) both`: on at once, held to
+     75%, gone at the end — the same seven seconds the face keeps it lit. */
+  it("lights an entry with his wash, held for three quarters of seven seconds and then faded, and moves nothing", () => {
+    const lit = restRule(".fg .hd-dy-en[data-lit]");
+    expect(lit).toEqual({ background: "var(--hd-fresh)", animation: "hdDyLit 7s var(--ease) both" });
+    expect(DIARY_LIT_MS).toBe(7000);
+    const frames = CSS.match(/@keyframes hdDyLit \{((?:[^{}]*\{[^{}]*\})*)\s*\}/);
+    expect(frames).not.toBeNull();
+    const steps = [...frames![1]!.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1]!.trim(), m[2]!.trim()]);
+    expect(steps).toEqual([
+      ["0%, 75%", "background:var(--hd-fresh);"],
+      ["to", "background:transparent;"],
+    ]);
+    // it comes on at once: nothing eases it in
+    expect(restRule(".fg .hd-dy-en").transition).toBeUndefined();
+  });
+
+  /* The global rule under reduced motion cuts every animation to a
+     thousandth of a second, which would put the wash out at once: the
+     wash is taken off instead, and the lit rule's own fill stands still. */
+  it("stands the wash still under reduced motion", () => {
+    const quiet = [...CSS.matchAll(/@media \(prefers-reduced-motion:reduce\) \{((?:[^{}]*\{[^{}]*\})*)\s*\}/g)]
+      .map((m) => m[1]!)
+      .find((body) => body.includes(".hd-dy-"));
+    expect(quiet).toBeDefined();
+    expect(quiet).toMatch(/\.fg \.hd-dy-en\[data-lit\] \{ animation:none; \}/);
+    expect(restRule(".fg .hd-dy-en[data-lit]").background).toBe("var(--hd-fresh)");
+    // and a message in a conversation's thread (H17), the same way
+    expect(quiet).toMatch(/\.fg \.hd-dy-tr\[data-lit\] \{ animation:none; \}/);
+    expect(restRule(".fg .hd-dy-tr[data-lit]").background).toBe("var(--hd-fresh)");
+  });
+
+  /* A conversation's thread (H17): his newest message lights on the
+     entry's own wash, and its fill reaches past its words by its own
+     padding, so they never move when it lights or goes out. */
+  it("lights a message in a thread with the entry's wash, reaching past its words by its own padding", () => {
+    expect(restRule(".fg .hd-dy-tr[data-lit]")).toEqual(restRule(".fg .hd-dy-en[data-lit]"));
+    const tr = rule(".fg .hd-dy-tr");
+    const [, side] = tr.padding!.split(" ");
+    expect(tr.margin).toBe(`0 -${side}`);
+    expect(restRule(".fg .hd-dy-tr").transition).toBeUndefined();
+  });
+
+  /* His spacing round a thread, as his v33 renders it at 1440 (H17
+     review): 12px from the words above to the first message and from one
+     message to the next, and 8px from the last message's words down to the
+     doors, as under an ask with no thread. Each message's own padding is
+     given back by the space round it. */
+  it("keeps his spacing round a thread, whatever a message's own padding", () => {
+    const px = (v: string | undefined) => Number((v ?? "").replace(/px$/, "")) || 0;
+    const [padY] = rule(".fg .hd-dy-tr").padding!.split(" ").map(px);
+    const [top] = rule(".fg .hd-dy-thread").margin!.split(" ").map(px);
+    const between = px(rule(".fg .hd-dy-tr + .hd-dy-tr")["margin-top"]);
+    const doors = px(rule(".fg .hd-dy-thread + .hd-dy-doors")["margin-top"]);
+    expect(padY).toBeGreaterThan(0);
+    expect(top + padY).toBe(12);
+    expect(padY + between + padY).toBe(12);
+    expect(padY + doors).toBe(8);
+    // and under an ask with no thread, the doors' own 8px
+    expect(px(rule(".fg .hd-dy-doors")["margin-top"])).toBe(8);
+  });
+
+  /* His v33 render draws a thread message on the entry's own 32px line
+     (its later `.tent .m` outranks the `.tr .m` 24px), with its 24px disc
+     at the top of it, and the disc's initials at 12/600: the 700 is only
+     the entry's own disc (`.tent>.av2`). */
+  it("sets a thread message on the entry's 32px line, its disc 24px at 12/600", () => {
+    expect(restRule(".fg .hd-dy-tr .hd-dy-m")["line-height"]).toBeUndefined();
+    expect(rule(".fg .hd-dy-m")["line-height"]).toBe("32px");
+    const disc = rule(".fg .hd-dy-tr .hd-dy-av");
+    expect([disc.width, disc.height, disc["font-weight"]]).toEqual(["24px", "24px", "600"]);
+    expect(disc["margin-top"]).toBeUndefined();
+    expect(rule(".fg .hd-dy-av")["font-size"]).toBe("12px");
+  });
+
+  it("rings a door, and the entry a door lands on, for the keyboard (law 32)", () => {
+    expect(rule(".fg .hd-dy-door:focus-visible")).toEqual({ outline: "none", "box-shadow": "var(--ring)" });
+    expect(rule(".fg .hd-dy-en:focus-visible")).toEqual({ outline: "none", "box-shadow": "var(--ring)" });
+  });
+
+  /* Tiff's line that opens her conversation again, and the entry's Undo,
+     are buttons the keyboard lands on too. */
+  it("rings Tiff's line and Undo for the keyboard (law 32)", () => {
+    expect(rule(".fg .hd-dy-tiff.opens:focus-visible")).toEqual({ outline: "none", "box-shadow": "var(--ring)" });
+    expect(rule(".fg .hd-dy-undo:focus-visible")).toEqual({ outline: "none", "box-shadow": "var(--ring)" });
+  });
+
+  /* His door (`.dr.real`) is ink on his edge, the line: ink is the one
+     link token, and its words are underlined (law 34). */
+  it("dresses a door as a link, on the one link token and the line's edge", () => {
+    const door = rule(".fg .hd-dy-door");
+    expect(door.color).toBe("var(--link)");
+    expect(door.border).toBe("1px solid var(--line)");
+    expect(door["text-decoration"]).toBe("underline");
+  });
+
+  /* ONE UNDO ON THE PAGE: the list's, the modal's and the diary's alike,
+     ink, 600 and underlined (law 34), and gone quiet while it is out. */
+  it("gives the diary the page's one Undo, which goes quiet while it is out", () => {
+    const undo = rule(".fg .hd-dy-undo");
+    const list = rule(".fg .hd-ls-undo, .fg .hd-ls-link");
+    expect(undo.color).toBe(list.color);
+    expect(undo["font-weight"]).toBe(list["font-weight"]);
+    expect(undo["text-decoration"]).toBe("underline");
+    expect(rule('.fg .hd-dy-undo[aria-disabled="true"]').color).toBe("var(--q)");
+  });
+
+  /* Tiff's line is a door where the modal is on: her name wears the link
+     token on the line, as the doors do. Where it is not a door it does not. */
+  it("underlines Tiff's name where her line is a door, and only there", () => {
+    expect(rule(".fg .hd-dy-tiff b").color).toBe("var(--hd-ink)");
+    expect(rule(".fg .hd-dy-tiff b")["text-decoration"]).toBeUndefined();
+    expect(rule(".fg .hd-dy-tiff.opens b")["text-decoration"]).toBe("underline");
+  });
+
+  /* The place Undo's sentence is written into is there before it is said
+     (a live region mounted with its words is often not read out), and
+     takes no room in the row while it is empty. */
+  it("keeps Undo's sentence place out of the row while it is empty", () => {
+    expect(rule(".fg .hd-dy-said:empty")).toEqual({ position: "absolute" });
   });
 });

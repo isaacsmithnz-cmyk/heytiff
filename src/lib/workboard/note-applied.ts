@@ -169,6 +169,134 @@ export function doorsOf(a: AppliedRecord): NoteDoor[] {
   return doors;
 }
 
+/** Whether Undo has anything to take back: a row it made, an issue it
+    counted, or words it added to somebody else's row. A note whose record
+    is only words kept (a line in your notes, a note on a job) has nothing
+    Undo reaches, so it offers nothing. */
+export function takesBack(a: AppliedRecord): boolean {
+  return (
+    a.taskIds.length +
+      a.flagIds.length +
+      a.entryIds.length +
+      a.issueIds.length +
+      a.checklistIds.length +
+      a.picklistIds.length +
+      a.textWrites.length +
+      a.kbIds.length >
+    0
+  );
+}
+
+/* ── WHETHER UNDO WOULD STILL TAKE IT BACK ──────────────────────────────
+
+   Asked in two places, answered here once: `undoNote`, which refuses on
+   it, and the new Home's diary, which offers Undo only where the press
+   would not be refused. Each reads the rows the record names and hands
+   them in, so "someone has acted on a filed row" cannot mean one thing
+   when the diary draws Undo and another when it is pressed.
+
+   A row that is not handed in has been deleted since: there is nothing of
+   anybody's in it to protect, so it stops nothing — and it is not taken
+   back either, so `stillThere` leaves it out of what Undo says it took. */
+
+/** A filed row as it reads now: the columns Undo's checks look at. */
+export type NowRow = Readonly<Record<string, unknown>>;
+
+export type FiledNow = {
+  /** Its tasks still there, by id: `status`, `acknowledged_at`. */
+  tasks: ReadonlyMap<string, NowRow>;
+  /** Its tasks somebody has given, moved, ticked or reopened since they
+      were made (their history, task_events). */
+  taskHistory: ReadonlySet<string>;
+  /** `active`. */
+  flags: ReadonlyMap<string, NowRow>;
+  /** Bumped and fresh alike: `occurrences`, `resolved`. */
+  issues: ReadonlyMap<string, NowRow>;
+  /** `done`. */
+  checklist: ReadonlyMap<string, NowRow>;
+  /** `picked`. */
+  picklist: ReadonlyMap<string, NowRow>;
+  /** Project entries still there. They have no state anyone acts on. */
+  entries: ReadonlySet<string>;
+  /** Library entries still there (field notes, the only kind Undo takes). */
+  kb: ReadonlySet<string>;
+  /** Each row a text write went to, by `textKey`: its columns as they read
+      now. */
+  text: ReadonlyMap<string, NowRow>;
+};
+
+export const textKey = (table: TextTable, id: string): string => `${table}:${id}`;
+
+/** Why Undo would be refused: a task ticked off (named, so the sentence can
+    say by whom), a row somebody acted on, or a job's notes that have
+    changed since the note wrote to them. */
+export type UndoBlock = { why: "ticked"; taskId: string } | { why: "acted" } | { why: "text" };
+
+/** Undo lasts until someone acts on a filed row (the spec's call): a task
+    ticked off, given on, moved, reopened or answered "Got it", a flag
+    cleared, an issue counted again or resolved, a line bought or ticked,
+    the job's notes edited since. Null: nothing stops it. */
+export function undoBlocked(a: AppliedRecord, now: FiledNow): UndoBlock | null {
+  const there = (m: ReadonlyMap<string, NowRow>, ids: readonly string[]): NowRow[] =>
+    ids.flatMap((id) => {
+      const r = m.get(id);
+      return r ? [r] : [];
+    });
+  const ticked = a.taskIds.find((id) => {
+    const t = now.tasks.get(id);
+    return !!t && t.status !== "open";
+  });
+  if (ticked) return { why: "ticked", taskId: ticked };
+  const issue = (id: string) => now.issues.get(id);
+  if (
+    a.taskIds.some((id) => now.taskHistory.has(id)) ||
+    there(now.tasks, a.taskIds).some((t) => t.acknowledged_at != null) ||
+    there(now.flags, a.flagIds).some((f) => f.active !== true) ||
+    a.issueBumps.some((b) => {
+      const i = issue(b.id);
+      return !!i && i.occurrences !== b.occurrences + 1;
+    }) ||
+    freshIssueIds(a).some((id) => {
+      const i = issue(id);
+      return !!i && (i.occurrences !== 1 || i.resolved === true);
+    }) ||
+    there(now.checklist, a.checklistIds).some((c) => c.done === true) ||
+    there(now.picklist, a.picklistIds).some((p) => p.picked === true)
+  ) {
+    return { why: "acted" };
+  }
+  for (const w of a.textWrites) {
+    const said = now.text.get(textKey(w.table, w.id))?.[w.column] ?? null;
+    if (said !== w.after) return { why: "text" };
+  }
+  return null;
+}
+
+/** The record narrowed to what is still there to take back — what Undo
+    counts when it says what it took, so "2 tasks taken back." is never
+    said of one. Words it added to a row's text stand while the column
+    still says them (`undoBlocked` refuses otherwise). A bring-item that
+    became a row goes with its row; one that became words on an
+    agreement's list stands with the words. */
+export function stillThere(a: AppliedRecord, now: FiledNow): AppliedRecord {
+  const kept = (m: { has(id: string): boolean }, ids: readonly string[]) => ids.filter((id) => m.has(id));
+  const bringRows = [...a.checklistIds, ...a.picklistIds];
+  const rowLeft = (id: string | undefined) => !!id && (now.checklist.has(id) || now.picklist.has(id));
+  return {
+    ...a,
+    taskIds: kept(now.tasks, a.taskIds),
+    flagIds: kept(now.flags, a.flagIds),
+    entryIds: kept(now.entries, a.entryIds),
+    issueIds: kept(now.issues, a.issueIds),
+    issueBumps: a.issueBumps.filter((b) => now.issues.has(b.id)),
+    checklistIds: kept(now.checklist, a.checklistIds),
+    picklistIds: kept(now.picklist, a.picklistIds),
+    /* inserted in the order they were said, so the i-th row is the i-th item */
+    bringItems: bringRows.length ? a.bringItems.filter((_, i) => rowLeft(bringRows[i])) : a.bringItems,
+    kbIds: kept(now.kb, a.kbIds),
+  };
+}
+
 /** What Undo says it took back: "2 tasks taken back.", "1 task and 1 flag
     taken back." A note that filed nothing but its words says "Taken back." */
 export function undoSummary(a: AppliedRecord): string {

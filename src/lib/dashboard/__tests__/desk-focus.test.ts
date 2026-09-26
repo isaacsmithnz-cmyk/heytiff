@@ -7,6 +7,7 @@ import {
   slideDir,
   slidePlan,
   stepFace,
+  thingsDoor,
   type DeskFace,
   type SlidePart,
 } from "../desk-focus";
@@ -88,5 +89,26 @@ describe("the tab row's keys", () => {
     expect(stepFace("diary", "End")).toBe("calendar");
     expect(stepFace("diary", "ArrowDown")).toBeNull();
     expect(stepFace("diary", "Enter")).toBeNull();
+  });
+});
+
+/* A diary door naming tasks or an issue lands where a row holds it: the
+   list beside the diary first, then the Tasks tab — and nowhere else, so
+   the Tasks tab is never opened on a thing it does not have, where it
+   would show its first row instead. */
+describe("thingsDoor", () => {
+  const on = { list: new Set(["t1", "i1"]), tasks: new Set(["t1", "t2", "t3", "i1"]) };
+
+  it("lights in the list what the list holds, and only that", () => {
+    expect(thingsDoor(["t9", "t1", "i1"], on)).toEqual({ face: "diary", kind: "rows", ids: ["t1", "i1"] });
+  });
+
+  it("chooses on the Tasks tab the first the Tasks tab holds, when the list holds none", () => {
+    expect(thingsDoor(["t9", "t3", "t2"], on)).toEqual({ face: "tasks", kind: "task", ids: ["t3"] });
+  });
+
+  it("goes nowhere for what neither holds: a task ticked off long ago, a resolved issue", () => {
+    expect(thingsDoor(["t9", "i9"], on)).toBeNull();
+    expect(thingsDoor([], on)).toBeNull();
   });
 });

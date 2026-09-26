@@ -37,6 +37,9 @@ import { listOrgCredentials, orgExpiryWindow } from "@/lib/org/query";
 import type { OrgCredential } from "@/lib/org/credentials";
 import type { ExpiryWindow } from "@/lib/expiry";
 import type { Capability } from "@/lib/permissions";
+import { initialsFrom } from "@/lib/staff/derive";
+import { ownerNames, type DeskDiary } from "./diary-doors";
+import { loadDiaryFeed } from "./diary-query";
 import type { HomeListReads } from "./home-list";
 import { loadHomeList } from "./home-list-query";
 import type { StaffNames } from "./tasks-query";
@@ -99,12 +102,36 @@ export type DeskData = {
       renewals the viewer may see — on the workspace's day
       (lib/calendar/query). */
   calendar: CompanyCalendar;
+  /** The Diary tab: your entries and the conversations of those who asked
+      you something in ServiceM8, newest first, with Today split off, and
+      what it needs to say them — your initials, and the names of the
+      people their tasks are on (./diary-doors' `ownerNames`). */
+  diary: DeskDiary;
 };
 
 export async function loadDesk(start: DeskStart, mine: Promise<string | null>): Promise<DeskData> {
   /** The whole context, once the link map is in. */
   const ctx = mine.then((mineUuid): DeskContext => ({ ...start, mineUuid }));
   /* Each area's read joins here as a Promise.all over its own gates. */
-  const [list, calendar] = await Promise.all([ctx.then(loadHomeList), loadCompanyCalendar(start)]);
-  return { warnDays: start.shared.expiry.warnDays, list, calendar };
+  const [list, calendar, diary] = await Promise.all([
+    ctx.then(loadHomeList),
+    loadCompanyCalendar(start),
+    ctx.then(loadDeskDiary),
+  ]);
+  return { warnDays: start.shared.expiry.warnDays, list, calendar, diary };
+}
+
+/* THE DIARY: your entries, and the ServiceM8 notes that @mention you as
+   conversations, for a viewer integration_links says ServiceM8 knows, in a
+   workspace that holds a ServiceM8 copy to read them from (diary-query
+   gates the rest: `workboard` and a staff card). Anyone else gets their
+   own entries alone — and is not cut at the mentions' horizon (diary-feed's
+   ONE HORIZON) for a source they have none of. */
+async function loadDeskDiary(ctx: DeskContext): Promise<DeskDiary> {
+  const feed = await loadDiaryFeed({ ...ctx, mineUuid: ctx.connected ? ctx.mineUuid : null });
+  return {
+    feed,
+    you: initialsFrom(ctx.viewerStaffId ? ctx.names.get(ctx.viewerStaffId) : null),
+    names: ownerNames(feed, ctx.names),
+  };
 }

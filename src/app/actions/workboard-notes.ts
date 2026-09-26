@@ -22,6 +22,7 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { fullNameOf } from "@/lib/staff/name";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
+import { ACTED_KINDS } from "@/lib/dashboard/task-events";
 import { remindAtFrom, isRemindKind } from "@/lib/dashboard/reminders";
 import { workdayHours } from "@/lib/dashboard/reminders-query";
 import { jobCandidates } from "@/lib/dashboard/job-candidates";
@@ -43,15 +44,21 @@ import {
   appliedOf,
   doorsOf,
   freshIssueIds,
+  stillThere,
+  takesBack,
+  textKey,
+  undoBlocked,
   undoSummary,
   type IssueBump,
   type NoteDoor,
+  type NowRow,
   type TextWrite,
 } from "@/lib/workboard/note-applied";
 import {
   KEPT_AS_SAID,
   REPLIES_MAX,
   WHICH_JOB,
+  doneLine,
   earlierTurns,
   isTiffRoom,
   repliesIn,
@@ -64,7 +71,7 @@ import {
   type Turn,
 } from "@/lib/workboard/note-turns";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
-import { undoPlan, type CreateRow } from "@/lib/integrations/sm8-note-plan";
+import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 
 /* Smart Notes — capture, route, review, apply.
 
@@ -125,6 +132,9 @@ export type RouteResult =
       /** The modal's notes only: routing failed and the words were filed as
           they were said, so they are in the diary and nothing is lost. */
       kept?: boolean;
+      /** With `kept`: the note they were filed as, so the diary lands it
+          lit, as it does every other note the modal filed. */
+      noteId?: string;
     };
 
 export type ApplyResult = { ok: true; summary: string } | { ok: false; error: string };
@@ -141,7 +151,11 @@ export type FileResult =
   /** `turns` when it asked: the conversation with the question on the end. */
   | { ok: false; error: string; ask?: FileAsk; turns?: Turn[] };
 
-export type UndoResult = { ok: true; summary: string; turns: Turn[] } | { ok: false; error: string };
+export type UndoResult =
+  | { ok: true; summary: string; turns: Turn[] }
+  /** `turns` when it had been taken back already: the conversation as it
+      now stands, Tiff's "taken back" line on the end. */
+  | { ok: false; error: string; turns?: Turn[] };
 
 export type KeepResult = { ok: true; noteId: string } | { ok: false; error: string };
 
@@ -404,7 +418,7 @@ export async function routeNote(input: {
         .eq("org_id", ctx.orgId)
         .eq("id", noteId);
       refreshHome(target);
-      return { ok: false, error: KEPT_AS_SAID, kept: true };
+      return { ok: false, error: KEPT_AS_SAID, kept: true, noteId };
     }
     refresh(target);
     return { ok: false, error: read.error };
@@ -1347,14 +1361,17 @@ async function agreementOfVisit(orgId: string, visitId: string): Promise<string 
     with up to three jobs the words match as answers that carry the job).
     A question it asks is kept on the note (`askFirst`), so the reply is read
     as the answer to it. A job the answer carries files straight past its
-    own question.
+    own question, and the conversation keeps the pick as your turn (`answer`,
+    the words the answer showed; the job's own name where none came), so
+    opened again from the diary it reads as it was said: her question, your
+    job, "Done. …". Only words: the job itself is `retarget`, checked here.
 
     CLAIMED BEFORE IT WRITES. Nothing reviews this, so two presses must not
     file twice: the note moves to `applied` only if it is still waiting, and
     goes back to where it was if the write is refused part-way. */
 export async function fileNote(
   noteId: string,
-  opts: { leaveOut?: string[]; retarget?: NoteTarget } = {},
+  opts: { leaveOut?: string[]; retarget?: NoteTarget; answer?: string } = {},
 ): Promise<FileResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: NOT_SIGNED_IN };
@@ -1426,9 +1443,16 @@ export async function fileNote(
     return { ok: false, error: done.error };
   }
 
+  /* The job that answered "Which job is this for?" is your turn in the
+     conversation, as the modal showed it. */
+  const jobWords =
+    jobAsked && picked.moved
+      ? trim(opts.answer, 300) || ((await targetLabel(ctx.orgId, target)) ?? "")
+      : "";
   const filed = withTurns(
     turns.length ? turns : [turn("you", note.transcript)],
-    turn("tiff", plan.say ? `Done. ${plan.say}` : "Done."),
+    ...(jobWords ? [turn("you", jobWords)] : []),
+    turn("tiff", doneLine(plan.say)),
   );
   await supabaseAdmin
     .from("workboard_notes")
@@ -1501,15 +1525,18 @@ const UNDO = {
   acted: "Someone has already acted on one of those, so nothing was taken back.",
   ticked: (first: string) => `${first} has already ticked off one of those, so nothing was taken back.`,
   sm8: "That note was queued for ServiceM8, so nothing was taken back. Remove it from the job's diary first.",
+  gone: "Those have all been deleted since, so nothing was taken back.",
 };
 
 /* A NOTE QUEUED FOR SERVICEM8 IS TAKEN BACK FROM THE JOB'S DIARY, NOT HERE
    (two-way phase 2). A note filed on a job is its author's diary entry, and
-   its author can send it to ServiceM8. Undo moves it to `undone`, which no
-   diary reads: while something of it can still go or may be in ServiceM8,
-   HeyTiff would lose its record of it and nobody could take it out. The
-   diary's Remove takes it back whatever state it is in (decision 8), and
-   once that has closed the create Undo goes as ever.
+   its author can send it to ServiceM8. Undo moves it to `undone`, which the
+   job's diary never reads: while something of it can still go or may be in
+   ServiceM8, HeyTiff would lose its record of it and nobody could take it
+   out. The job diary's Remove takes it back whatever state it is in
+   (decision 8), and once that has closed the create Undo goes as ever. The
+   rule is sm8-note-plan's `undoHeldBySm8`, the one the Home's diary offers
+   its Undo by (journal-query), so the two never disagree.
 
    Read after the claim as well as before it (decision 11): a Send reads the
    note again once it has queued, and gives its create back when the note is
@@ -1520,15 +1547,14 @@ async function heldBySm8(orgId: string, note: NoteRow): Promise<boolean> {
   if (note.target_kind !== "job" || !sm8NotesAllowed()) return false;
   const { data, error } = await supabaseAdmin
     .from("sm8_writes")
-    .select("id, status, remote_uuid, lease_until, maybe_landed, verify_uuids, taken_back_at")
+    .select(UNDO_HOLD_COLUMNS)
     .eq("org_id", orgId)
     .eq("kind", "note")
     .eq("op", "create")
     .eq("note_id", note.id)
     .maybeSingle();
   if (error) return true;
-  const create = data as CreateRow | null;
-  return !!create && !create.taken_back_at && undoPlan(create, Date.now()) !== "nothing";
+  return undoHeldBySm8(data as CreateRow | null, Date.now());
 }
 
 type Rows = Record<string, unknown>[];
@@ -1539,10 +1565,23 @@ type Rows = Record<string, unknown>[];
     restored to what the column said before.
 
     ALL OR NOTHING, CHECKED FIRST. Undo lasts until someone acts on a filed
-    row (the spec's call): a task ticked off, a flag cleared, an issue counted
-    again, a line bought, the job's notes edited since. Any one of those and
-    nothing is taken back, and the sentence says why — a half-undone note is
-    worse than either.
+    row (the spec's call): a task ticked off, given to someone else, moved to
+    another day, reopened or answered "Got it", a flag cleared, an issue
+    counted again, a line bought, the job's notes edited since. Any one of
+    those and nothing is taken back, and the sentence says why — a
+    half-undone note is worse than either. A task still open says only some
+    of that on its row; the rest is its history (task_events), read with it.
+    The rule is note-applied's `undoBlocked`, the one the diary draws its
+    Undo by, so the two never disagree about what a press would do.
+
+    WHAT IT SAYS IT TOOK is what was still there: a row somebody deleted
+    since stops nothing and is not counted, and a note whose every row has
+    gone is refused rather than said to have taken something back.
+
+    TAKEN BACK ALREADY — the first press landed and its answer was lost, or
+    somebody else pressed it — is refused with the conversation as it now
+    stands, so the page that asked can say what went rather than offer Undo
+    on rows that have gone.
 
     For the author, or anyone with `team` (deleteTask's rule), on a `v: 2`
     note that is still `applied`. The words stay, and so does `applied`: it is
@@ -1556,7 +1595,7 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
   if (!note) return { ok: false, error: GONE };
   const mine = !!ctx.staffId && note.author_id === ctx.staffId;
   if (!mine && !(await can("team"))) return { ok: false, error: UNDO.notYours };
-  if (note.status === "undone") return { ok: false, error: UNDO.undone };
+  if (note.status === "undone") return { ok: false, error: UNDO.undone, turns: turnsOf(note.turns) };
   if (note.status !== "applied") return { ok: false, error: UNDO.notFiled };
 
   const a = appliedOf(note.applied);
@@ -1572,22 +1611,63 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
       .in("id", ids);
     return (data ?? []) as unknown as Rows;
   };
+  const byId = (rows: Rows) => new Map(rows.map((r): [string, NowRow] => [String(r.id), r]));
 
-  /* ── every check, before a single write ── */
-  const [tasks, flags, bumped, created, checklist, picklist] = await Promise.all([
-    read("tasks", "id, status, assigned_to, done_by", a.taskIds),
+  /* ── every check, before a single write: the rows as they read now,
+     judged by the one rule the diary's Undo is drawn by (note-applied) ── */
+  const [tasks, flags, issues, checklist, picklist, entries, kb, history, text] = await Promise.all([
+    read("tasks", "id, status, assigned_to, done_by, acknowledged_at", a.taskIds),
     read("workboard_flags", "id, active", a.flagIds),
-    read("workboard_issues", "id, occurrences", a.issueBumps.map((b) => b.id)),
-    read("workboard_issues", "id, occurrences, resolved", fresh),
+    read("workboard_issues", "id, occurrences, resolved", a.issueIds),
     read("project_checklist_items", "id, done", a.checklistIds),
     read("job_picklist_items", "id, picked", a.picklistIds),
+    read("project_entries", "id", a.entryIds),
+    read("kb_documents", "id, category", a.kbIds),
+    /* What an open task's row cannot say: it was given, moved, or ticked
+       and reopened since. One is enough. */
+    a.taskIds.length
+      ? supabaseAdmin
+          .from("task_events")
+          .select("task_id")
+          .eq("org_id", ctx.orgId)
+          .in("task_id", a.taskIds)
+          .in("kind", ACTED_KINDS)
+          .limit(1)
+          .then(({ data }) => (data ?? []) as unknown as Rows)
+      : Promise.resolve([] as Rows),
+    Promise.all(
+      a.textWrites.map(async (w): Promise<[string, NowRow] | null> => {
+        const { data } = await supabaseAdmin
+          .from(w.table)
+          .select(w.column)
+          .eq("org_id", ctx.orgId)
+          .eq("id", w.id)
+          .maybeSingle();
+        return data ? [textKey(w.table, w.id), data as unknown as NowRow] : null;
+      }),
+    ),
   ]);
+  const found = {
+    tasks: byId(tasks),
+    taskHistory: new Set(history.map((e) => String(e.task_id))),
+    flags: byId(flags),
+    issues: byId(issues),
+    checklist: byId(checklist),
+    picklist: byId(picklist),
+    entries: new Set(entries.map((e) => String(e.id))),
+    kb: new Set(kb.filter((d) => d.category === "field").map((d) => String(d.id))),
+    /* two writes to one row (its notes and its bring list) read one column
+       each: merged, so each check sees its own */
+    text: text.reduce((m, hit) => {
+      if (hit) m.set(hit[0], { ...m.get(hit[0]), ...hit[1] });
+      return m;
+    }, new Map<string, NowRow>()),
+  };
 
-  /* A row somebody deleted since is simply gone — there is nothing of theirs
-     to protect in it, so it does not stop the rest. */
-  const ticked = tasks.find((t) => t.status !== "open");
-  if (ticked) {
-    const who = String(ticked.done_by ?? ticked.assigned_to ?? "");
+  const blocked = undoBlocked(a, found);
+  if (blocked?.why === "ticked") {
+    const t = found.tasks.get(blocked.taskId);
+    const who = String(t?.done_by ?? t?.assigned_to ?? "");
     const { data: person } = who
       ? await supabaseAdmin
           .from("staff_profiles")
@@ -1599,30 +1679,18 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
     const first = person ? fullNameOf(person as Record<string, unknown>).split(" ")[0] : "";
     return { ok: false, error: first ? UNDO.ticked(first) : UNDO.acted };
   }
-  const prior = new Map(a.issueBumps.map((b) => [b.id, b]));
-  if (
-    flags.some((f) => f.active !== true) ||
-    bumped.some((i) => i.occurrences !== (prior.get(String(i.id))?.occurrences ?? 0) + 1) ||
-    created.some((i) => i.occurrences !== 1 || i.resolved === true) ||
-    checklist.some((c) => c.done === true) ||
-    picklist.some((p) => p.picked === true)
-  ) {
-    return { ok: false, error: UNDO.acted };
-  }
-  for (const w of a.textWrites) {
-    const { data } = await supabaseAdmin
-      .from(w.table)
-      .select(w.column)
-      .eq("org_id", ctx.orgId)
-      .eq("id", w.id)
-      .maybeSingle();
-    const now = (data as Record<string, unknown> | null)?.[w.column] ?? null;
-    if (now !== w.after) return { ok: false, error: UNDO.text };
-  }
+  if (blocked) return { ok: false, error: blocked.why === "text" ? UNDO.text : UNDO.acted };
+
+  /* What is still there to take back, counted: a row somebody deleted
+     since is not said to have been taken back, and a note whose every row
+     has gone takes nothing back at all. A note that never made a row (only
+     words kept) is taken back as it always was: "Taken back." */
+  const left = stillThere(a, found);
+  if (takesBack(a) && !takesBack(left)) return { ok: false, error: UNDO.gone };
   if (await heldBySm8(ctx.orgId, note)) return { ok: false, error: UNDO.sm8 };
 
   /* ── claimed: only one Undo lands ── */
-  const summary = undoSummary(a);
+  const summary = undoSummary(left);
   const so = turnsOf(note.turns);
   const turns = withTurns(so.length ? so : [turn("you", note.transcript)], turn("tiff", summary));
   const { data: claimed } = await supabaseAdmin
@@ -1632,7 +1700,16 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
     .eq("id", noteId)
     .eq("status", "applied")
     .select("id");
-  if (!((claimed ?? []) as unknown[]).length) return { ok: false, error: UNDO.undone };
+  if (!((claimed ?? []) as unknown[]).length) {
+    /* Somebody else's press claimed it first: answered as a press on a
+       note taken back already is, with the conversation as it now stands,
+       so the page that pressed can show what went rather than offer Undo
+       beside rows that have gone. */
+    const again = await noteIn(ctx.orgId, noteId, TALK_COLUMNS);
+    return again?.status === "undone"
+      ? { ok: false, error: UNDO.undone, turns: turnsOf(again.turns) }
+      : { ok: false, error: UNDO.undone };
+  }
   /* a Send that queued in the moment since: the note goes back as it was */
   if (await heldBySm8(ctx.orgId, note)) {
     await supabaseAdmin
@@ -1650,7 +1727,7 @@ export async function undoNote(noteId: string): Promise<UndoResult> {
     supabaseAdmin.from(table).delete().eq("org_id", ctx.orgId).in("id", ids);
   const now = new Date().toISOString();
   await Promise.all([
-    a.taskIds.length ? gone("tasks", a.taskIds).eq("status", "open") : null,
+    a.taskIds.length ? gone("tasks", a.taskIds).eq("status", "open").is("acknowledged_at", null) : null,
     a.flagIds.length ? gone("workboard_flags", a.flagIds).eq("active", true) : null,
     a.entryIds.length ? gone("project_entries", a.entryIds) : null,
     fresh.length ? gone("workboard_issues", fresh).eq("occurrences", 1).eq("resolved", false) : null,

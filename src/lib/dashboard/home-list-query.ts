@@ -32,6 +32,7 @@ import { jobMoneyOf, parseSm8AmountToCents, SM8_JOB_MONEY_COLUMNS } from "@/lib/
 import {
   VISIT_WINDOW_DAYS,
   WON_WINDOW_DAYS,
+  firstNames,
   type HomeListReads,
   type ListCaps,
   type VisitToBook,
@@ -80,16 +81,6 @@ export async function loadHomeList(ctx: HomeListContext): Promise<HomeListReads>
     wins,
     visits,
   };
-}
-
-/** Staff id → first name: "From Callum", not "From Callum Reid". */
-function firstNames(names: StaffNames): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [id, name] of names) {
-    const first = name.trim().split(/\s+/)[0];
-    if (first) out[id] = first;
-  }
-  return out;
 }
 
 /** The two reads, side by side. Without ServiceM8 there are no work orders

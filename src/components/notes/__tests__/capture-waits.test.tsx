@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NoteScopeProvider } from "../note-context";
-import { TiffButton } from "../tiff-button";
+import { CaptureDoor } from "./fixtures/capture-door";
 import { READING_BACK_NOTE } from "../waits";
 
 /* THE THREE THINGS YOU SEE BETWEEN PRESSING THE BUTTON AND SAVING.
@@ -95,7 +95,7 @@ beforeEach(() => {
 const open = async () => {
   render(
     <NoteScopeProvider voiceEnabled>
-      <TiffButton />
+      <CaptureDoor />
     </NoteScopeProvider>
   );
   await userEvent.click(screen.getByRole("button", { name: /Ask or tell Tiff/i }));

@@ -115,7 +115,6 @@ const diary = (entries: DiaryEntry[]): DeskDiary => ({
 
 const open = jest.fn((_o: unknown) => true);
 const tiff = (over: Partial<TiffApi> = {}): TiffApi => ({
-  enabled: true,
   open: open as TiffApi["open"],
   openedBy: null,
   isOpen: false,
@@ -129,7 +128,7 @@ type Props = {
   onFocusShown?: () => void;
   onPage?: ReadonlySet<string>;
   onShowThings?: (ids: readonly string[], pointer: boolean) => void;
-  /** What the modal's host says: on or off, who opened it, what just landed. */
+  /** What the modal's host says: who opened it, what just landed. */
   tiff?: Partial<TiffApi>;
   /** The Diary is the face on screen (the frame's say). */
   showing?: boolean;
@@ -547,14 +546,6 @@ describe("what Tiff made of it", () => {
     expect(open.mock.calls[0]![0]).toMatchObject({ keyboard: true });
     rerender(<Face diary={diary([TALKED])} onPage={onPage} tiff={{ openedBy: "hd-dy-tiff-e-talked", isOpen: true }} />);
     expect(line()).toHaveAttribute("aria-expanded", "true");
-  });
-
-  it("is her words and no door where this viewer has no modal", () => {
-    draw({ diary: diary([TALKED]), onPage, tiff: { enabled: false } });
-    expect(within(under()).queryByRole("button", { name: /^Tiff:/ })).toBeNull();
-    const theLine = under().querySelector(".hd-dy-tiff")!;
-    expect(theLine.tagName).toBe("P");
-    expect(theLine.textContent).toBe(`Tiff: ${DONE}`);
   });
 
   it("offers Undo at the end of what it made, and only where it can take something back", () => {

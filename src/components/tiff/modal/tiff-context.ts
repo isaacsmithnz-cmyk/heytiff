@@ -9,12 +9,14 @@ import type { EarlierTurn, TiffRoom } from "@/lib/workboard/note-turns";
    it, and none should carry the modal and its server actions along just to
    open it.
 
-   IT IS ON WHEREVER THERE IS A HOST. Until the new Home was everyone's
+   THERE IS NOTHING TO ASK FIRST. Until the new Home was everyone's
    (2026-09-26) the top bar asked the HOME_DESK switch and reported whether
    this viewer got the modal, and everyone it left out kept the capture
    sheet. The switch went with the old Home, and so did the report: the
-   host is on for everyone it is mounted for, which is every screen in the
-   dashboard's frame. */
+   host is mounted round every screen in the dashboard's frame, and every
+   Tiff button opens it. The default below is only what a component drawn
+   with no host round it reads — a test's, never a screen's: nothing opens
+   and nothing has landed. */
 
 export type TiffOpen = {
   /** The button pressed. The modal grows from it and gives focus back to it. */
@@ -60,10 +62,6 @@ export type TiffLanded = {
 };
 
 export type TiffApi = {
-  /** A host is mounted to open the modal: always, inside the dashboard's
-      frame. False only from the default below — a Tiff button drawn with no
-      host round it, which still opens the capture sheet until that goes. */
-  enabled: boolean;
   /** Open a conversation. False when one is already open, or when there is
       no host to open it. */
   open: (o: TiffOpen) => boolean;
@@ -76,7 +74,6 @@ export type TiffApi = {
 };
 
 export const TiffContext = createContext<TiffApi>({
-  enabled: false,
   open: () => false,
   openedBy: null,
   isOpen: false,

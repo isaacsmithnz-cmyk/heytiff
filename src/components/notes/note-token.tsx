@@ -764,11 +764,17 @@ function EntryRow({
 const DUSK = " wb2-dusk";
 
 /** The capture surface, portalled. One copy: the Tiff button and the field
-    postures open the SAME sheet, which is the whole argument of the
+    postures opened the SAME sheet, which is the whole argument of the
     unification — what you get should not depend on which control you reached
-    it through. `entrance` only changes how it ARRIVES: the Tiff button hands
-    in "blossom" so the sheet grows out of the button, and `from` is where —
-    the button's own offset from the viewport centre, measured on click. */
+    it through. `entrance` only changes how it ARRIVES: the Tiff button handed
+    in "blossom" so the sheet grew out of the button, and `from` is where —
+    the button's own offset from the viewport centre, measured on click.
+
+    NOTHING ON A SCREEN OPENS IT NOW. The Tiff button opens the Tiff modal
+    for everyone since the new Home was everyone's (2026-09-26); only its
+    tests' door does (__tests__/fixtures/capture-door), because what it is
+    made of still answers a field's and a strip's "Have a look". It goes
+    with the rest of the old capture UI. */
 export function CaptureSheet({
   flow,
   entrance,

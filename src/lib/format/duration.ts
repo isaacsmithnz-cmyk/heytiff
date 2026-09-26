@@ -93,14 +93,6 @@ export function daysDuration(days: number): Duration {
   return { value: String(value), unit, label: `${value} ${unit}`, past };
 }
 
-/** Bare magnitude, no specials and no tense: "1 day", "6 weeks". For sentences
-    that supply their own tense word ("Overdue 2 weeks"). */
-export function magnitudeLabel(days: number): string {
-  const n = Math.abs(Math.trunc(days) || 0);
-  const { value, unit } = quantity(n);
-  return `${value} ${unit}`;
-}
-
 /** "6 weeks ago" / "yesterday" / "today". Takes elapsed days; sign ignored, so
     a raw negative day-count from `daysUntil` works as-is. */
 export function agoLabel(days: number): string {
@@ -140,18 +132,6 @@ export function expiryClause(days: number): string {
 /** "Expires in 6 weeks" / "Expires tomorrow" / "Expired 2 weeks ago". */
 export function expiresIn(days: number): string {
   return capitalise(expiryClause(days));
-}
-
-/** "due in 12 days" / "due today" / "overdue 2 weeks". */
-export function dueClause(days: number): string {
-  const d = daysDuration(days);
-  if (d.past) return `overdue ${magnitudeLabel(days)}`;
-  return d.unit === "" ? `due ${d.label}` : `due in ${d.label}`;
-}
-
-/** "Due in 12 days" / "Due today" / "Overdue 2 weeks". */
-export function dueIn(days: number): string {
-  return capitalise(dueClause(days));
 }
 
 /* There used to be an HTML-string twin here (durationHtml/inHtml) for the

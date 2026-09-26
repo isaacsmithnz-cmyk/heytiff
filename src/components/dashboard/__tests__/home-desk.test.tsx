@@ -28,13 +28,11 @@ import { typedAbout, type RecordTask, type TaskAbout, type TaskRecord } from "@/
 
    The capture controls and the job card reach server actions, and "use
    server" modules cannot be imported into jsdom: stubbed, as on Home. The
-   diary's box is the real one; with no modal host around it, its Tiff
-   button carries the capture sheet, stubbed with the rest of note-token. */
+   diary's box is the real one, and its Tiff button opens only the modal. */
 jest.mock("@/components/notes/note-token", () => ({
   NoteToken: ({ placeholder }: { placeholder?: string }) => (
     <button aria-label={placeholder ?? "Add to the diary…"} />
   ),
-  CaptureSheet: () => null,
 }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: jest.fn(),
@@ -1527,7 +1525,6 @@ describe("the slide", () => {
      land() did, and the entry is lit there once the page brings it. */
   describe("a Tiff landing", () => {
     const host = (landed: TiffLanded | null): TiffApi => ({
-      enabled: true,
       open: () => false,
       openedBy: null,
       isOpen: false,

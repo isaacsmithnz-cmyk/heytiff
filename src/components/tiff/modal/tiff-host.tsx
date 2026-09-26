@@ -89,7 +89,6 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
 
   const api = useMemo<TiffApi>(
     () => ({
-      enabled: true,
       open,
       openedBy: session?.openerId ?? null,
       isOpen: !!session,

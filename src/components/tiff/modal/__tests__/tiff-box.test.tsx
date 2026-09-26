@@ -32,11 +32,6 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: jest.fn(),
   publishNoteKb: jest.fn(),
   dismissNote: jest.fn(),
-  // the capture sheet's, which the button still carries for everyone else
-  applyNote: jest.fn(),
-  keepNoteOnJob: jest.fn(),
-  keepNoteForMe: jest.fn(),
-  answerClarify: jest.fn(),
 }));
 const fileCalendarLine = jest.fn();
 jest.mock("@/app/actions/calendar", () => ({
@@ -454,7 +449,7 @@ describe("a box whose Enter is its Save", () => {
 
   it("hands the day to Tiff from Sort it out and from its Tiff button", async () => {
     const open = jest.fn((_o: Parameters<TiffApi["open"]>[0]) => true);
-    const api: TiffApi = { enabled: true, open, openedBy: null, isOpen: false, landed: null };
+    const api: TiffApi = { open, openedBy: null, isOpen: false, landed: null };
     const user = userEvent.setup();
     render(
       <NoteScopeProvider voiceEnabled>

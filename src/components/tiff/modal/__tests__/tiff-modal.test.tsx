@@ -43,11 +43,6 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: (...a: unknown[]) => keepWords(...a),
   publishNoteKb: (...a: unknown[]) => publishNoteKb(...a),
   dismissNote: (...a: unknown[]) => dismissNote(...a),
-  // the capture sheet's, which the button still carries for everyone else
-  applyNote: jest.fn(),
-  keepNoteOnJob: jest.fn(),
-  keepNoteForMe: jest.fn(),
-  answerClarify: jest.fn(),
 }));
 const fileCalendarLine = jest.fn();
 const noteOnCalendarEvents = jest.fn();
@@ -253,17 +248,15 @@ describe("opening", () => {
     expect(within(dialog()).getByRole("button", { name: "Clear the tag — not about Meridian Data, CRACs" })).toBeInTheDocument();
   });
 
-  it("opens the capture sheet only for a button with no host round it, which nothing in the frame is", async () => {
-    const user = userEvent.setup();
-    render(
-      <NoteScopeProvider voiceEnabled>
-        <TiffButton />
-      </NoteScopeProvider>
-    );
-    await user.click(topButton());
+  /* The button holds no state of its own about it: it reads as expanded
+     exactly while the conversation it started is open. */
+  it("reads the pressed button as expanded while its modal is open, and not once it has closed", async () => {
+    const user = await openModal();
+    expect(topButton()).toHaveAttribute("aria-expanded", "true");
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
     expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
-    expect(document.querySelector(".wb2-capcard")).not.toBeNull();
-    expect(mic.start).not.toHaveBeenCalled();
+    expect(topButton()).toHaveAttribute("aria-expanded", "false");
   });
 });
 

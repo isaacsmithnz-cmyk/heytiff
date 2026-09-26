@@ -218,22 +218,6 @@ export type DiaryEntry = JournalEntry & {
   reply?: DiaryReply;
 };
 
-/** "today" · "yesterday" · "6 days ago" · "3 weeks ago" · "2 months ago".
-    Whole units, rounded: a reader wants the size of the gap, not a date they
-    can already see beside it. Both arguments are ISO calendar days. */
-export function agoLabel(day: string, today: string): string {
-  const at = Date.parse(`${day}T00:00:00Z`);
-  const now = Date.parse(`${today}T00:00:00Z`);
-  if (Number.isNaN(at) || Number.isNaN(now)) return "";
-  const days = Math.round((now - at) / 86_400_000);
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 14) return `${days} days ago`;
-  if (days < 60) return `${Math.round(days / 7)} weeks ago`;
-  const months = Math.round(days / 30);
-  return `${months} ${months === 1 ? "month" : "months"} ago`;
-}
-
 /** The entry a task came from, or null for a task that was typed straight in.
 
     No query and no column: a task's door is recorded on the entry that made

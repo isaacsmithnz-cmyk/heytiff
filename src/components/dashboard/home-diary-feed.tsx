@@ -417,34 +417,28 @@ function Entry({
               {changeSaid}
             </p>
           )}
-          {line &&
-            /* The door back into the conversation, where this viewer has
-               the modal; the same words, and no door, where not. */
-            (tiff.enabled ? (
-              <button
-                ref={lineRef}
-                type="button"
-                className="hd-dy-tiff opens"
-                aria-haspopup="dialog"
-                aria-expanded={tiff.openedBy === opener}
-                onClick={(e) =>
-                  tiff.open({
-                    from: e.currentTarget,
-                    conversation: shown.turns,
-                    room: "diary",
-                    id: opener,
-                    /* no pointer behind the click: nothing flies (law 8) */
-                    keyboard: e.detail === 0,
-                  })
-                }
-              >
-                <b>Tiff</b>: {line}
-              </button>
-            ) : (
-              <p className="hd-dy-tiff">
-                <b>Tiff</b>: {line}
-              </p>
-            ))}
+          {line && (
+            /* The door back into the conversation. */
+            <button
+              ref={lineRef}
+              type="button"
+              className="hd-dy-tiff opens"
+              aria-haspopup="dialog"
+              aria-expanded={tiff.openedBy === opener}
+              onClick={(e) =>
+                tiff.open({
+                  from: e.currentTarget,
+                  conversation: shown.turns,
+                  room: "diary",
+                  id: opener,
+                  /* no pointer behind the click: nothing flies (law 8) */
+                  keyboard: e.detail === 0,
+                })
+              }
+            >
+              <b>Tiff</b>: {line}
+            </button>
+          )}
           {doors.length + lines.length > 0 || canUndo || undoSaid ? (
             <div className="hd-dy-doors">
               {doors.map((d, i) => (

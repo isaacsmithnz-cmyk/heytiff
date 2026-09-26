@@ -34,8 +34,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <NoteScopeProvider voiceEnabled={isTranscriptionConfigured()}>
       {/* THE TIFF MODAL'S HOST, inside the note scope because the modal
-          reads it, and inert: whether this viewer gets the modal arrives
-          later, from the top bar's slot, so nothing here awaits it. */}
+          reads it, and inert until a Tiff button opens it: every screen
+          gets the modal, so there is nothing here to await. */}
       <TiffModalProvider>
         {/* the sidebar's remembered size, applied BEFORE the frame paints — a
             collapsed rail must never flash wide. Synchronous inline script; the

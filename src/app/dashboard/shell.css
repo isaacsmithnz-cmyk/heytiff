@@ -5769,16 +5769,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
   background:var(--wb2-ok); color:var(--paper); box-shadow:none;; }
 .wb2-mcc[data-tone="done"] .wb2-mcdone span { background:var(--ok-t); }
 /* `.wb2-mcsum` and `.wb2-mchead` went into the toolbar (`.wb2-tbsum`,
-   `.wb2-tbstep` + `.wb2-tbh2`); `.wb2-mcarrow` and `.wb2-mcnow` below stay,
-   because Home's calendar face still wears them. */
-.wb2-mcarrow { width:30px; height:30px; flex:none; display:grid; place-items:center; border-radius:var(--r-button);
-  border:1px solid var(--wb2-line); background:var(--paper); color:var(--gray500); cursor:pointer;
-  transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.wb2-mcarrow:hover { border-color:rgba(5,5,5,.24); color:var(--ink); background:#fbfbfc; }
-.wb2-mcarrow:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-mcnow { height:26px; padding:0 12px; border-radius:var(--r-pill); border:1px solid var(--wb2-line); background:var(--paper);
-  font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; }
-.wb2-mcnow:hover { color:var(--ink); border-color:rgba(5,5,5,.24); }
+   `.wb2-tbstep` + `.wb2-tbh2`). */
 .wb2-mcc[data-tone="flash"] { animation:wb2Flash 2.4s ease-in-out infinite; }
 @keyframes wb2Flash { 0%,100% {  box-shadow:0 0 0 0 var(--bad); } 50% {  box-shadow:0 0 0 5px var(--bad); } }
 .wb2-mcn { display:flex; align-items:baseline; gap:4px; font-variant-numeric:tabular-nums; }
@@ -6341,8 +6332,8 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
    rail's do: the `.fg button` reset is (0,1,1) and silently strips the
    background off any single-class button. */
 
-/* the crew button rides the header's chip cluster — mcnow's shape, plus the
-   icon, because it opens the list every number on the month divides by */
+/* the crew button rides the header's chip cluster — a pill, with the icon,
+   because it opens the list every number on the month divides by */
 .wb2-scmcrew { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 12px;
   border-radius:var(--r-pill); border:1px solid var(--wb2-line); background:var(--paper);
   font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer;

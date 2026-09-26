@@ -71,7 +71,7 @@ import {
   type Turn,
 } from "@/lib/workboard/note-turns";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
-import { undoPlan, type CreateRow } from "@/lib/integrations/sm8-note-plan";
+import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 
 /* Smart Notes — capture, route, review, apply.
 
@@ -1530,11 +1530,13 @@ const UNDO = {
 
 /* A NOTE QUEUED FOR SERVICEM8 IS TAKEN BACK FROM THE JOB'S DIARY, NOT HERE
    (two-way phase 2). A note filed on a job is its author's diary entry, and
-   its author can send it to ServiceM8. Undo moves it to `undone`, which no
-   diary reads: while something of it can still go or may be in ServiceM8,
-   HeyTiff would lose its record of it and nobody could take it out. The
-   diary's Remove takes it back whatever state it is in (decision 8), and
-   once that has closed the create Undo goes as ever.
+   its author can send it to ServiceM8. Undo moves it to `undone`, which the
+   job's diary never reads: while something of it can still go or may be in
+   ServiceM8, HeyTiff would lose its record of it and nobody could take it
+   out. The job diary's Remove takes it back whatever state it is in
+   (decision 8), and once that has closed the create Undo goes as ever. The
+   rule is sm8-note-plan's `undoHeldBySm8`, the one the Home's diary offers
+   its Undo by (journal-query), so the two never disagree.
 
    Read after the claim as well as before it (decision 11): a Send reads the
    note again once it has queued, and gives its create back when the note is
@@ -1545,15 +1547,14 @@ async function heldBySm8(orgId: string, note: NoteRow): Promise<boolean> {
   if (note.target_kind !== "job" || !sm8NotesAllowed()) return false;
   const { data, error } = await supabaseAdmin
     .from("sm8_writes")
-    .select("id, status, remote_uuid, lease_until, maybe_landed, verify_uuids, taken_back_at")
+    .select(UNDO_HOLD_COLUMNS)
     .eq("org_id", orgId)
     .eq("kind", "note")
     .eq("op", "create")
     .eq("note_id", note.id)
     .maybeSingle();
   if (error) return true;
-  const create = data as CreateRow | null;
-  return !!create && !create.taken_back_at && undoPlan(create, Date.now()) !== "nothing";
+  return undoHeldBySm8(data as CreateRow | null, Date.now());
 }
 
 type Rows = Record<string, unknown>[];

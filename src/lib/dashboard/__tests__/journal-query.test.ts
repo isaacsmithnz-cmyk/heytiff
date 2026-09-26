@@ -16,6 +16,8 @@ type Call = {
 };
 
 let rows: Record<string, Record<string, unknown>[]> = {};
+/** Tables whose read answers with an error. */
+const failing = new Set<string>();
 const calls: Call[] = [];
 
 const table = (name: string) => {
@@ -42,8 +44,10 @@ const table = (name: string) => {
   };
   chain.order = () => chain;
   chain.limit = () => chain;
-  chain.then = (res: (v: { data: unknown }) => unknown) =>
-    Promise.resolve({ data: rows[name] ?? [] }).then(res);
+  chain.then = (res: (v: { data: unknown; error?: unknown }) => unknown) =>
+    Promise.resolve(
+      failing.has(name) ? { data: null, error: { message: "unreachable" } } : { data: rows[name] ?? [] },
+    ).then(res);
   return chain;
 };
 
@@ -63,6 +67,7 @@ const note = (id: string, applied: unknown) => ({
 
 beforeEach(() => {
   rows = {};
+  failing.clear();
   calls.length = 0;
 });
 
@@ -565,5 +570,85 @@ describe("listDiaryEntries: Tiff's line, Undo, and what Undo took back", () => {
     expect(entry.turns.at(-1)).toEqual({ who: "tiff", text: "1 task taken back." });
     // its task has gone: there is nothing to resolve
     expect(of("tasks")).toHaveLength(0);
+  });
+
+  /* A NOTE QUEUED FOR SERVICEM8 (two-way phase 2) is taken back from the
+     job's diary, not by Undo: undoNote refuses it while something of it can
+     still go or may be in ServiceM8. So the diary does not offer Undo on
+     one, by the same rule (sm8-note-plan's `undoHeldBySm8`); only where the
+     deployment sends notes, so production makes no new read; and a read
+     that fails holds every Undo, as it holds the press. */
+  describe("on a note queued for ServiceM8", () => {
+    const had = process.env.SM8_WRITES;
+    afterEach(() => {
+      if (had === undefined) delete process.env.SM8_WRITES;
+      else process.env.SM8_WRITES = had;
+    });
+    const create = (noteId: string, over: Record<string, unknown> = {}) => ({
+      id: `w-${noteId}`,
+      note_id: noteId,
+      status: "queued",
+      remote_uuid: `r-${noteId}`,
+      lease_until: null,
+      maybe_landed: false,
+      verify_uuids: [],
+      taken_back_at: null,
+      ...over,
+    });
+    const page = () => {
+      rows.workboard_notes = [
+        filed("queued", { v: 2, flagIds: ["f1"] }),
+        filed("sent", { v: 2, flagIds: ["f1"] }),
+        filed("cancelled", { v: 2, flagIds: ["f1"] }),
+        filed("taken-back", { v: 2, flagIds: ["f1"] }),
+        filed("never-sent", { v: 2, flagIds: ["f1"] }),
+        filed("v1", { flagIds: ["f1"] }),
+      ];
+      rows.workboard_flags = [{ id: "f1", active: true }];
+      rows.sm8_writes = [
+        create("queued"),
+        create("sent", { status: "sent" }),
+        create("cancelled", { status: "cancelled" }),
+        create("taken-back", { status: "sent", taken_back_at: "2026-09-25T03:00:00Z" }),
+      ];
+    };
+    const undos = (out: Awaited<ReturnType<typeof listDiaryEntries>>) =>
+      Object.fromEntries(out.map((e) => [e.id, e.undo]));
+
+    it("offers no Undo while something of it can still go or may be there, in one read for the page", async () => {
+      process.env.SM8_WRITES = "attachment,note";
+      page();
+      expect(undos(await listDiaryEntries("org-1", "s1", null))).toEqual({
+        queued: false,
+        sent: false,
+        // cancelled before anything went, or taken back from the job's diary
+        cancelled: true,
+        "taken-back": true,
+        "never-sent": true,
+        v1: false,
+      });
+      const [read] = of("sm8_writes");
+      expect(of("sm8_writes")).toHaveLength(1);
+      expect(read.eq).toEqual({ org_id: "org-1", kind: "note", op: "create" });
+      // only the records Undo reads
+      expect(read.in).toEqual(["note_id", ["queued", "sent", "cancelled", "taken-back", "never-sent"]]);
+    });
+
+    it("holds every Undo when that read fails", async () => {
+      process.env.SM8_WRITES = "note";
+      page();
+      failing.add("sm8_writes");
+      const out = await listDiaryEntries("org-1", "s1", null);
+      expect(out.every((e) => e.undo === false)).toBe(true);
+    });
+
+    it("makes no queue read where the deployment sends files only (production today)", async () => {
+      process.env.SM8_WRITES = "1";
+      page();
+      expect(undos(await listDiaryEntries("org-1", "s1", null))).toMatchObject({ queued: true, sent: true });
+      delete process.env.SM8_WRITES;
+      await listDiaryEntries("org-1", "s1", null);
+      expect(of("sm8_writes")).toHaveLength(0);
+    });
   });
 });

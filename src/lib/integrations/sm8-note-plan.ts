@@ -194,6 +194,17 @@ export function undoPlan(create: CreateRow | null, now: number): UndoPlan {
 /** Whether a plan needs a request to ServiceM8. */
 export const planNeedsSm8 = (plan: UndoPlan) => plan === "delete" || plan === "cancel_and_delete";
 
+/** Whether a note's create holds Tiff's Undo on it: something of it can
+    still go or may be in ServiceM8, and it hasn't been taken back from the
+    job's diary, which is where such a note is taken back. One rule for the
+    press (undoNote) and for the diary that offers it (listDiaryEntries). */
+export function undoHeldBySm8(create: CreateRow | null, now: number): boolean {
+  return !!create && !create.taken_back_at && undoPlan(create, now) !== "nothing";
+}
+
+/** The columns of a note's create (sm8_writes) that `undoHeldBySm8` reads. */
+export const UNDO_HOLD_COLUMNS = "id, status, remote_uuid, lease_until, maybe_landed, verify_uuids, taken_back_at";
+
 /** The uuids a take-back deletes: a sent create's own; otherwise its own
     only if it may have landed, and every uuid still waiting for its check. */
 export function deleteTargets(create: CreateRow): string[] {

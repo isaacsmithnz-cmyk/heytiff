@@ -32,6 +32,8 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { auDayOf, fmtAuTime } from "@/lib/au-dates";
+import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { UNDO_HOLD_COLUMNS, undoHeldBySm8, type CreateRow } from "@/lib/integrations/sm8-note-plan";
 import { todayInZone } from "@/lib/workboard/dates";
 import { naiveInZone } from "@/lib/workboard/job-story";
 import {
@@ -328,7 +330,9 @@ export async function listJournal(
                ticked off, answered "Got it", given on, moved or reopened, a
                flag cleared, an issue counted again or resolved, a line
                bought or ticked, the job's notes edited since. Read in
-               `resolveOutcomes`, a batch per kind for the page.
+               `resolveOutcomes`, a batch per kind for the page. Nor may
+               it be queued for ServiceM8 (two-way phase 2): such a note
+               is taken back from the job's diary (`heldBySm8`, below).
      undone    Undo took it back. The row stays in the diary, your words with
                Tiff's "1 task taken back." under them, and nothing else: what
                they made has gone, so nothing is looked up for it.
@@ -364,12 +368,14 @@ export async function listDiaryEntries(
   const rows = (data ?? []) as Row[];
   if (rows.length === 0) return [];
   const undone = (r: Row) => r.status === "undone";
-  const found = await resolveOutcomes(
-    orgId,
-    staffId,
-    rows.filter((r) => !undone(r)),
-    true,
-  );
+  const filed = rows.filter((r) => !undone(r));
+  const [found, held] = await Promise.all([
+    resolveOutcomes(orgId, staffId, filed, true),
+    heldBySm8(
+      orgId,
+      filed.filter((r) => appliedOf(r.applied).v === APPLIED_V).map((r) => r.id),
+    ),
+  ]);
   return rows.flatMap((r): DiaryEntry[] => {
     const stamp = naiveInZone(r.created_at, tz);
     if (!stamp) return [];
@@ -393,9 +399,37 @@ export async function listDiaryEntries(
       if (found.owners.has(id)) taskFor[id] = found.owners.get(id) ?? null;
     const record = appliedOf(r.applied);
     const undo =
-      record.v === APPLIED_V && !undoBlocked(record, found.now) && takesBack(stillThere(record, found.now));
+      record.v === APPLIED_V &&
+      !undoBlocked(record, found.now) &&
+      takesBack(stillThere(record, found.now)) &&
+      held !== "all" &&
+      !held.has(r.id);
     return [{ ...entry, ...said, taskFor, undo, undone: false }];
   });
+}
+
+/* A NOTE QUEUED FOR SERVICEM8 is taken back from the job's diary, not by
+   Undo (two-way phase 2): undoNote refuses one while something of it can
+   still go or may be in ServiceM8, so the diary doesn't offer it, by the
+   same rule (sm8-note-plan's `undoHeldBySm8`). One read for the page, of
+   the records Undo reads; only where this deployment sends notes, so
+   production gains no read; and a read that fails holds every Undo, as it
+   holds the press. */
+async function heldBySm8(orgId: string, noteIds: readonly string[]): Promise<ReadonlySet<string> | "all"> {
+  if (noteIds.length === 0 || !sm8NotesAllowed()) return new Set();
+  const { data, error } = await supabaseAdmin
+    .from("sm8_writes")
+    .select(`note_id, ${UNDO_HOLD_COLUMNS}`)
+    .eq("org_id", orgId)
+    .eq("kind", "note")
+    .eq("op", "create")
+    .in("note_id", [...noteIds]);
+  if (error) return "all";
+  const now = Date.now();
+  const held = new Set<string>();
+  for (const c of (data ?? []) as unknown as (CreateRow & { note_id: string })[])
+    if (undoHeldBySm8(c, now)) held.add(String(c.note_id));
+  return held;
 }
 
 /* fmtAuTime's words, on the account's clock. */

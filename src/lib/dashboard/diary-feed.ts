@@ -76,6 +76,11 @@ export type DiaryMessage = {
   /** The ServiceM8 note's uuid. */
   id: string;
   from: "them" | "you";
+  /** It names the other side of the conversation: "Luke Ingold to you".
+      Always so for yours (a note of yours joins only when it names the
+      asker) and for his that mention you; not for his follow-on that
+      names nobody, which was written on the job, not to you. */
+  addressed: boolean;
   /** Their words less the addressing; anybody else named, by name
       (quotedNote). */
   text: string;
@@ -187,10 +192,10 @@ export function buildConversations(input: {
   const open = new Map<string, Draft>();
   /* conversation key → the asker's newest note that mentioned you */
   const askedAt = new Map<string, string>();
-  const say = (c: Draft, n: MentionNote, from: DiaryMessage["from"]) => {
+  const say = (c: Draft, n: MentionNote, from: DiaryMessage["from"], addressed = true) => {
     /* The other side of the conversation is who the note is addressed to. */
     const addressing = [from === "them" ? me.handle : c.asker.handle];
-    c.messages.push({ id: n.uuid, from, text: quotedNote(n.text, { names, addressing }), at: n.at });
+    c.messages.push({ id: n.uuid, from, addressed, text: quotedNote(n.text, { names, addressing }), at: n.at });
     if (from === "them") c.lastTheirs = n.at;
     else c.lastYours = n.at;
   };
@@ -238,7 +243,7 @@ export function buildConversations(input: {
       }
       askedAt.set(key, n.at);
     } else if (c && named.length === 0 && followsOn(c, n.at)) {
-      say(c, n, "them");
+      say(c, n, "them", false);
     }
   }
 

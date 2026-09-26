@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { keepWords } from "@/app/actions/workboard-notes";
 import { navHref } from "@/components/shell/nav";
 import { TiffBox, type BoxSave } from "@/components/tiff/modal/tiff-box";
 import type { DeskArrival } from "@/lib/dashboard/desk-focus";
 import { motionAllowed } from "@/lib/dashboard/day-flip";
+import { diaryItemOf } from "@/lib/dashboard/diary-conversation";
 import {
   DIARY_LIT_MS,
   entryUnder,
@@ -16,6 +17,8 @@ import {
 } from "@/lib/dashboard/diary-doors";
 import type { DiaryItem } from "@/lib/dashboard/diary-feed";
 import type { DiaryEntry } from "@/lib/dashboard/journal";
+import { HomeDiaryConversation } from "./home-diary-conversation";
+import { useDiaryRefresh } from "./use-diary-refresh";
 
 /* THE DIARY — the new Home's Diary tab (docs/design.md, "Home is the day,
    three tabs and the list"). One column, newest first, as his prototype
@@ -40,19 +43,26 @@ import type { DiaryEntry } from "@/lib/dashboard/journal";
    no row on the page holds (`onPage`) is said, not drawn as a door. A
    Library entry and a kept note are screens, so those are links.
 
-   A DOOR FROM ANOTHER FACE (the list's "from your diary", a task's Open in
-   diary) names an entry. It is scrolled to 16px under the face's top —
-   smoothly only for a door a pointer pressed (law 8) — lit, and given the
-   focus, since the door that was pressed may have gone with its face; and
-   it is handed back once its light has gone. What an entry holds by way
-   of light is the one wash, his prototype's: an entry you just saved here,
-   or one a door asked for, on his pale teal for three quarters of seven
-   seconds, then fading (shell.css; a still tint under reduced motion).
+     SOMEONE WHO ASKED YOU SOMETHING in a ServiceM8 job note is a
+     conversation in the same column, sorted by their newest message, so
+     an answer to last week's ask comes up into Today
+     (./home-diary-conversation, the job door and Reply included).
 
-   Your own entries only, for now: the ServiceM8 notes that @mention you
-   join this column with their conversations (desk-data says why they are
-   not read yet). A viewer without ServiceM8 gets this same diary for
-   good. */
+   A DOOR FROM ANOTHER FACE names an entry (the list's "from your diary", a
+   task's Open in diary) or a conversation, by one of its notes (the task
+   an ask made). It is scrolled to 16px under the face's top — smoothly
+   only for a door a pointer pressed (law 8) — lit, and given the focus,
+   since the door that was pressed may have gone with its face; and it is
+   handed back once its light has gone. What an entry holds by way of light
+   is the one wash, his prototype's: an entry you just saved here, a
+   message from someone that is today's and unanswered, or one a door asked
+   for, on his pale teal for three quarters of seven seconds, then fading
+   (shell.css; a still tint under reduced motion).
+
+   THE PAGE COMES AGAIN on its own for a diary that reads ServiceM8, so
+   what was written there reaches it without a reload (./use-diary-refresh).
+   A viewer without ServiceM8, or whom ServiceM8 doesn't know, gets their
+   own entries alone. */
 
 /** How far under the face's top an entry a door asked for comes to rest. */
 const ENTRY_TOP_PX = 16;
@@ -96,6 +106,7 @@ function DoorControl({
 }
 
 function Entry({
+  item,
   entry,
   you,
   who,
@@ -105,6 +116,8 @@ function Entry({
   onPage,
   onShowThings,
 }: {
+  /** Its key in the feed, which a door from another face finds it by. */
+  item: string;
   entry: DiaryEntry;
   you: string;
   who: Who;
@@ -116,7 +129,7 @@ function Entry({
 }) {
   const { doors, lines } = entryUnder(entry, who, onPage);
   return (
-    <li className="hd-dy-it" data-entry={entry.id}>
+    <li className="hd-dy-it" data-item={item} data-entry={entry.id}>
       {/* focusable by script alone: a door from another face lands here */}
       <div className="hd-dy-en" tabIndex={-1} data-lit={lit ? "" : undefined}>
         <span className="hd-dy-av" aria-hidden="true">
@@ -156,9 +169,10 @@ export function HomeDiaryFeed({
 }: {
   diary: DeskDiary;
   viewerStaffId: string | null;
-  /** A door from another face. This face acts on `kind: "entry"`. */
+  /** A door from another face. This face acts on `kind: "entry"` and
+      `kind: "conversation"`. */
   focus: DeskArrival | null;
-  /** The entry a door asked for has been shown, and its light has gone. */
+  /** What a door asked for has been shown, and its light has gone. */
   onFocusShown: () => void;
   /** Every task and issue a row on this page holds: where a door can land. */
   onPage: ReadonlySet<string>;
@@ -206,12 +220,14 @@ export function HomeDiaryFeed({
      scrolls, not this column (the frame's rule: only a face scrolls), so it
      is the face that is moved — measured here, after the commit that showed
      it. Asked for again while it is lit or after, its wash starts over. */
-  const asked = focus?.kind === "entry" ? focus : null;
+  const asked = focus?.kind === "entry" || focus?.kind === "conversation" ? focus : null;
+  /* What it names, as the feed keys it — read afresh from each page the
+     diary is given, so a page that comes again while it is lit keeps it. */
+  const askedItem = useMemo(() => (asked ? diaryItemOf(feed, asked) : null), [asked, feed]);
   useEffect(() => {
     if (!asked) return;
-    const id = asked.ids[0];
-    const el = [...(root.current?.querySelectorAll<HTMLElement>("[data-entry]") ?? [])].find(
-      (e) => e.dataset.entry === id,
+    const el = [...(root.current?.querySelectorAll<HTMLElement>("[data-item]") ?? [])].find(
+      (e) => askedItem !== null && e.dataset.item === askedItem,
     );
     const face = root.current?.closest<HTMLElement>(".hd-face");
     if (el && face) {
@@ -227,25 +243,35 @@ export function HomeDiaryFeed({
     wash?.focus({ preventScroll: true });
     const t = setTimeout(onFocusShown, DIARY_LIT_MS);
     return () => clearTimeout(t);
-  }, [asked, onFocusShown]);
+  }, [asked, askedItem, onFocusShown]);
+
+  useDiaryRefresh(feed);
 
   const who: Who = { viewerStaffId, names };
   const item = (i: DiaryItem, today: boolean) =>
-    /* The conversations of those who @mention you come with their own
-       read; none is asked for yet (desk-data). */
     i.kind === "entry" ? (
       <Entry
         key={i.key}
+        item={i.key}
         entry={i.entry}
         you={you}
         who={who}
         today={today}
         justNow={justNow.includes(i.entry.id)}
-        lit={saved.includes(i.entry.id) || (asked?.ids.includes(i.entry.id) ?? false)}
+        lit={saved.includes(i.entry.id) || askedItem === i.key}
         onPage={onPage}
         onShowThings={onShowThings}
       />
-    ) : null;
+    ) : (
+      <HomeDiaryConversation
+        key={i.key}
+        item={i.key}
+        conversation={i.conversation}
+        today={feed.day}
+        you={you}
+        asked={askedItem === i.key}
+      />
+    );
 
   return (
     <div className="hd-dy" ref={root}>

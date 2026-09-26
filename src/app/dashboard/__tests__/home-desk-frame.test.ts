@@ -228,6 +228,20 @@ describe("the diary", () => {
     expect(quiet).toBeDefined();
     expect(quiet).toMatch(/\.fg \.hd-dy-en\[data-lit\] \{ animation:none; \}/);
     expect(restRule(".fg .hd-dy-en[data-lit]").background).toBe("var(--hd-fresh)");
+    // and a message in a conversation's thread (H17), the same way
+    expect(quiet).toMatch(/\.fg \.hd-dy-tr\[data-lit\] \{ animation:none; \}/);
+    expect(restRule(".fg .hd-dy-tr[data-lit]").background).toBe("var(--hd-fresh)");
+  });
+
+  /* A conversation's thread (H17): his newest message lights on the
+     entry's own wash, and its fill reaches past its words by its own
+     padding, so they never move when it lights or goes out. */
+  it("lights a message in a thread with the entry's wash, reaching past its words by its own padding", () => {
+    expect(restRule(".fg .hd-dy-tr[data-lit]")).toEqual(restRule(".fg .hd-dy-en[data-lit]"));
+    const tr = rule(".fg .hd-dy-tr");
+    const [, side] = tr.padding!.split(" ");
+    expect(tr.margin).toBe(`0 -${side}`);
+    expect(restRule(".fg .hd-dy-tr").transition).toBeUndefined();
   });
 
   it("rings a door, and the entry a door lands on, for the keyboard (law 32)", () => {

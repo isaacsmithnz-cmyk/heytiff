@@ -198,17 +198,21 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
   }, [motion]);
 
   /* THE ONE DOOR. The face it names shows it and hands it back: the diary
-     brings an entry up and lights it, today's tasks choose a task by id. A
-     door pressed with a pointer slides its face in like a tab; one pressed
-     from the keyboard does not, and the face it lands on scrolls to what it
-     names at once rather than smoothly (law 8). */
+     brings an entry or a conversation up and lights it, today's tasks
+     choose a task by id. A door pressed with a pointer slides its face in
+     like a tab; one pressed from the keyboard does not, and the face it
+     lands on scrolls to what it names at once rather than smoothly
+     (law 8). */
   const show = (to: DeskFocus, pointer: boolean) => {
     go(to.face, pointer);
     setFocus({ ...to, pointer });
   };
   const openEntry = (id: string, pointer: boolean) => show({ face: "diary", kind: "entry", ids: [id] }, pointer);
   const taskFocus = focus?.face === "tasks" && focus.kind === "task" ? (focus.ids[0] ?? null) : null;
-  const entryFocus = focus?.face === "diary" && focus.kind === "entry" ? focus : null;
+  /* The diary shows an entry, and a conversation by one of its notes (a
+     task an ask made, from the list). */
+  const diaryFocus =
+    focus?.face === "diary" && (focus.kind === "entry" || focus.kind === "conversation") ? focus : null;
   /* Rows a door asked to see stand in the list, beside Diary and Tasks
      alike; the list lights them once and hands the door back. */
   const rowsFocus = focus?.kind === "rows" ? focus : null;
@@ -269,7 +273,7 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                       <HomeDiaryFeed
                         diary={data.desk.diary}
                         viewerStaffId={viewerStaffId}
-                        focus={entryFocus}
+                        focus={diaryFocus}
                         onFocusShown={focusShown}
                         onPage={onPage}
                         onShowThings={showThings}

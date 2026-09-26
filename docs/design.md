@@ -337,6 +337,24 @@ Every decision below is made once, here, and a guard test holds each number.
   10, ink and underlined on the line's edge. A door from the list or the
   Tasks tab brings its entry up, lights it the same way and gives it the
   focus.
+  Someone who asked you something in a ServiceM8 job note is a
+  conversation in the same column ("if someone mentions you, it can show
+  up in diary", 2026-09-24): their initials ink in his grey disc, "Luke
+  Ingold to you" and when he asked, his words as written less the handle,
+  then every later message either way threaded under it, each with a 24px
+  disc and "You to Luke" or "Luke Ingold to you" and when ("show replies
+  from luke in the diary too"). It sorts by his newest message, so his
+  answer brings the whole conversation up into Today, lit on the same
+  wash, while the header keeps the day he asked. Under it the job, a door
+  onto the page's one card; Reply, which opens the job in ServiceM8 in a
+  new tab until HeyTiff writes notes there ("go with your
+  recommendations", 2026-09-25), so the answer reaches him and threads
+  back on the next sync; and "A job note in ServiceM8.". A job ServiceM8
+  has deleted is no door and gets no Reply, and says it has gone. A
+  task an ask made opens its conversation from the list the way an
+  entry's does. A diary that reads ServiceM8 asks for the page again a
+  minute after it opens on a copy more than ten minutes old, and when you
+  come back to the tab to a page that old, never while Tiff is open.
   **His design is the default here.** A redraw to the laws "looks far
   worse", so where his numbers break a law this file names the exemption
   instead of bending the design ("design exempt for now, but keep a note",
@@ -803,9 +821,10 @@ What the guard cannot count is noted here on the same word:
   `--t-move`. Nothing grows under reduced motion, or for a change made
   from the keyboard: a card, the folded block, the cross or Escape.
 - **Law 18, motion tokens, and law 8, the diary's wash.** An entry that
-  has just landed in the diary, or that a door asked for, stands on his
-  pale teal and fades on his keyframes, as his prototype's `protoFresh`
-  did: on at once, held for three quarters of seven seconds, then gone
+  has just landed in the diary, a message from someone who asked you
+  something that is today's and unanswered, or what a door asked for,
+  stands on his pale teal and fades on his keyframes, as his prototype's
+  `protoFresh` did: on at once, held for three quarters of seven seconds, then gone
   over the last quarter, where law 18 has two tokens and law 8 says under
   300 ms ("design exempt for now, but keep a note", 2026-09-24). It is a
   flash a row asked for with data, once, never a loop. Under reduced

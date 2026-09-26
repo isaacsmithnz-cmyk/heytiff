@@ -14,10 +14,11 @@
    reads (H19) join the desk's batch, told whether the workspace has
    ServiceM8 at all, and so do the Calendar's (H21), on the workspace's day
    and the page's shared reads, started with the batch rather than behind
-   the link map, and the diary's (H16), asked for your own entries alone
-   until the mentions come onto the page; and a viewer on the new Home is
-   spared the old Home's calendar. Every other read is stubbed with an
-   honest empty answer: they are their own suites'. */
+   the link map, and the diary's (H16), which asks for your ServiceM8
+   conversations (H17) as the ServiceM8 person the link map names — in a
+   workspace that holds a ServiceM8 copy to read them from; and a viewer on
+   the new Home is spared the old Home's calendar. Every other read is
+   stubbed with an honest empty answer: they are their own suites'. */
 
 jest.mock("@/lib/auth0", () => ({
   auth0: { getSession: jest.fn(async () => ({ orgId: "org-1", user: { sub: "auth0|me" } })) },
@@ -486,15 +487,29 @@ describe("the diary's reads", () => {
     expect(desk?.diary.feed).toBe(DIARY_FEED);
   });
 
-  /* The mentions come onto the page with their conversations; until then
-     not one of their reads is made, even for a viewer ServiceM8 knows. */
-  it("ask for your own entries alone, as for a viewer with no ServiceM8 person, on the workspace's day", async () => {
+  /* The conversations of those who @mention you (H17): asked for as the
+     ServiceM8 person the link map says you are, on the workspace's day. */
+  it("ask for your conversations as the ServiceM8 person you are, on the workspace's day", async () => {
     process.env.HOME_DESK = "owner";
     await loadDashboard();
-    expect(loadHomeList).toHaveBeenCalledWith(expect.objectContaining({ mineUuid: "sm8-me" }));
     expect(loadDiaryFeed).toHaveBeenCalledWith(
-      expect.objectContaining({ orgId: "org-1", viewerStaffId: "s-me", mineUuid: null, tz: "Australia/Sydney", railDay: expect.any(String) }),
+      expect.objectContaining({ orgId: "org-1", viewerStaffId: "s-me", mineUuid: "sm8-me", tz: "Australia/Sydney", railDay: expect.any(String) }),
     );
+  });
+
+  /* Without a copy of ServiceM8 there is nothing to read the mentions
+     from, and a person left in the link map is no reason to try: the
+     diary is your own entries, and not cut at the mentions' reach. */
+  it("ask for your own entries alone in a workspace with no ServiceM8 copy, and for a viewer ServiceM8 doesn't know", async () => {
+    process.env.HOME_DESK = "owner";
+    vendor = { tz: null, connected: false };
+    await loadDashboard();
+    expect(loadDiaryFeed).toHaveBeenLastCalledWith(expect.objectContaining({ mineUuid: null }));
+
+    vendor = { tz: "Australia/Sydney", connected: true };
+    sm8StaffLinkMap.mockImplementationOnce(async () => new Map([["sm8-luke", "s-luke"]]));
+    await loadDashboard();
+    expect(loadDiaryFeed).toHaveBeenLastCalledWith(expect.objectContaining({ mineUuid: null }));
   });
 
   it("carry your initials, and the first names of the people its tasks are on and nobody else's", async () => {

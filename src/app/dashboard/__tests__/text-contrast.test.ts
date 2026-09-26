@@ -1018,4 +1018,26 @@ describe("the diary's words clear 4.5:1 on an entry at rest and lit", () => {
     const disc = decl(".fg .hd-dy-av", "background");
     expect(+ratio(decl(".fg .hd-dy-av", "color"), disc).toFixed(2)).toBeGreaterThanOrEqual(4.5);
   });
+
+  /* A conversation (H17): the asker's initials are ink on his grey disc, a
+     tint that shows whatever it stands on — paper, or the wash while the
+     conversation is lit. A message in the thread stands on paper, and on
+     the wash while it is his newest and lit, and says what an entry says
+     in the same rules. */
+  it("their initials, ink on the grey disc, on a conversation at rest and lit", () => {
+    const THEM = '.fg .hd-dy-av[data-who="them"]';
+    const discs = Object.fromEntries(
+      Object.entries(ENTRY()).map(([ground, bg]) => [ground, decl(THEM, "background", bg)]),
+    );
+    expect(short(decl(THEM, "color"), discs)).toEqual([]);
+  });
+
+  it.each([
+    ["who and when", ".fg .hd-dy-m"],
+    ["who", ".fg .hd-dy-m b"],
+    ["the words", ".fg .hd-dy-p"],
+  ])("%s, on a message in the thread at rest and lit", (_label, sel) => {
+    const grounds = { "at rest": WHITE, lit: decl(".fg .hd-dy-tr[data-lit]", "background") };
+    expect(short(decl(sel, "color"), grounds)).toEqual([]);
+  });
 });

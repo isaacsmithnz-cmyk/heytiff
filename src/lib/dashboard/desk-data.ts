@@ -102,7 +102,8 @@ export type DeskData = {
       renewals the viewer may see — on the workspace's day
       (lib/calendar/query). */
   calendar: CompanyCalendar;
-  /** The Diary tab: your entries, newest first, with Today split off, and
+  /** The Diary tab: your entries and the conversations of those who asked
+      you something in ServiceM8, newest first, with Today split off, and
       what it needs to say them — your initials, and the names of the
       people their tasks are on (./diary-doors' `ownerNames`). */
   diary: DeskDiary;
@@ -120,15 +121,14 @@ export async function loadDesk(start: DeskStart, mine: Promise<string | null>): 
   return { warnDays: start.shared.expiry.warnDays, list, calendar, diary };
 }
 
-/* THE DIARY, YOUR OWN ENTRIES FOR NOW. The ServiceM8 notes that @mention
-   you come onto the page with their conversations (the Diary spec's second
-   PR), and until then they are not read at all: a read the page cannot
-   show would cost round trips, and would cut the column at the mentions'
-   horizon (diary-feed's ONE HORIZON) for a source nobody can see. So the
-   feed is asked as for a viewer with no ServiceM8 person — which is exactly
-   the diary every viewer without one gets. */
+/* THE DIARY: your entries, and the ServiceM8 notes that @mention you as
+   conversations, for a viewer integration_links says ServiceM8 knows, in a
+   workspace that holds a ServiceM8 copy to read them from (diary-query
+   gates the rest: `workboard` and a staff card). Anyone else gets their
+   own entries alone — and is not cut at the mentions' horizon (diary-feed's
+   ONE HORIZON) for a source they have none of. */
 async function loadDeskDiary(ctx: DeskContext): Promise<DeskDiary> {
-  const feed = await loadDiaryFeed({ ...ctx, mineUuid: null });
+  const feed = await loadDiaryFeed({ ...ctx, mineUuid: ctx.connected ? ctx.mineUuid : null });
   return {
     feed,
     you: initialsFrom(ctx.viewerStaffId ? ctx.names.get(ctx.viewerStaffId) : null),

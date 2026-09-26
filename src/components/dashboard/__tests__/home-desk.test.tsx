@@ -10,7 +10,7 @@ import type { HomeListReads } from "@/lib/dashboard/home-list";
 import type { TaskDoneLine } from "@/lib/dashboard/task-done-query";
 import type { CompanyCalendar } from "@/lib/calendar/items";
 import type { DeskDiary } from "@/lib/dashboard/diary-doors";
-import { diaryFeed } from "@/lib/dashboard/diary-feed";
+import { buildConversations, diaryFeed, type MentionNote } from "@/lib/dashboard/diary-feed";
 
 /* THE NEW HOME'S FRAME (H11): the date in the band, "Your day" on every
    face, ONE row of tabs that never moves, and a body that slides in tab
@@ -609,6 +609,57 @@ describe("the list", () => {
     await user.click(within(theList()).getByRole("button", { name: "Order 2× MERV 11 filters" }));
     expect(shownFaces()).toEqual(["diary"]);
     expect(litEntries()).toEqual(["e1"]);
+  }, WHOLE);
+
+  /* A task one of Luke's asks made (the list reads which, H18) opens the
+     conversation it came from: the diary face comes back, and the
+     conversation is lit whole and given the focus. */
+  it("opens a task an ask made on its conversation in the diary", async () => {
+    const user = userEvent.setup();
+    const ask: MentionNote = {
+      uuid: "n-ask",
+      jobUuid: "3f2b8c1e-0d4a-4b6f-9a2e-1c5d7e9f0a11",
+      author: "u-luke",
+      at: "2026-08-09 13:42:10",
+      text: "@isaacsmith Please call Mary to discuss",
+    };
+    const conversations = buildConversations({
+      notes: [ask],
+      me: { uuid: "u-isaac", handle: "isaacsmith" },
+      people: [
+        { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" },
+        { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" },
+      ],
+      jobs: new Map([[ask.jobUuid, { label: "2041 Wollstonecraft", live: true }]]),
+      today: TODAY,
+    });
+    const base = withTasks({
+      tasks: {
+        mine: [task({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" })],
+        team: null,
+        done: [],
+        reported: [],
+        sm8: { lines: {}, sender: null },
+      },
+    });
+    const withAsk = {
+      ...base,
+      desk: {
+        ...base.desk!,
+        diary: {
+          ...base.desk!.diary,
+          feed: diaryFeed({ entries: [], conversations, day: TODAY, mentions: true, entriesCut: false, syncedAt: null }),
+        },
+      },
+      mentions: [{ taskId: "t-mary", noteId: "n-ask", asker: "Luke", day: "2026-08-09" }],
+    } as DashboardData;
+    render(<DashboardDesk data={withAsk} />);
+    await user.click(tab("Tasks"));
+    await user.click(within(theList()).getByRole("button", { name: "Call Mary about 2041 Wollstonecraft" }));
+    expect(shownFaces()).toEqual(["diary"]);
+    const talk = face("diary").querySelector<HTMLElement>(`[data-conversation="${ask.jobUuid}:u-luke"] > .hd-dy-en`)!;
+    expect(talk).toHaveAttribute("data-lit");
+    expect(document.activeElement).toBe(talk);
   }, WHOLE);
 
   it("opens a won job on the desk's one card", async () => {

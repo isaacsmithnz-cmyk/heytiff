@@ -22,6 +22,10 @@ jest.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
 }));
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
+/* A conversation's job door opens the desk's card, which with its server
+   action cannot load here; the conversations have their own suite. */
+jest.mock("@/app/actions/workboard", () => ({ openMirrorJob: jest.fn(async () => null) }));
+jest.mock("@/components/workboard/board/job-sheet", () => ({ JobSheet: () => null }));
 const keepWords = jest.fn();
 jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: (...a: unknown[]) => keepWords(...a),

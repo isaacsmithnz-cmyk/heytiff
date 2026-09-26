@@ -41,7 +41,8 @@ import type { DiaryEntry } from "./journal";
 
 /** The Diary tab's part of the new Home's data (desk-data's `loadDesk`). */
 export type DeskDiary = {
-  /** Your entries, newest first, with Today split off (./diary-feed). */
+  /** Your entries and your ServiceM8 conversations, newest first, with
+      Today split off (./diary-feed). */
   feed: DiaryFeed;
   /** Your initials, for your own avatar, from the name your staff card
       goes by. */

@@ -657,6 +657,41 @@ describe("focus", () => {
     expect(document.activeElement).toBe(document.body);
   });
 
+  /* Backing out of a question puts focus back once, on the commit it lands
+     in: a redraw after focus has gone elsewhere — the page coming back with
+     a new task, a Tiff filing — never pulls it back to the button. */
+  it("is never taken back to Delete task by a later redraw after Keep", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<Face rec={record({ open: [task()] })} />);
+    await user.click(title("Order the grilles"));
+    await user.click(screen.getByRole("button", { name: "Delete task" }));
+    await user.click(screen.getByRole("button", { name: "Keep" }));
+    expect(screen.getByRole("button", { name: "Delete task" })).toHaveFocus();
+    (document.activeElement as HTMLElement).blur();
+    rerender(<Face rec={record({ open: [task(), task({ id: "t2", title: "Ring the Hilux dealer" })] })} />);
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("is never taken back to Give it to by a later redraw after Cancel", async () => {
+    const user = userEvent.setup();
+    const luke = task({ assigneeId: LUKE, assigneeName: "Luke Ingold" });
+    const { rerender } = render(<Face rec={record({ open: [luke] })} assignable={PEOPLE} canManage />);
+    await user.click(title("Order the grilles"));
+    await user.click(screen.getByRole("button", { name: "Give it to" }));
+    await user.click(within(giving()).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("button", { name: "Give it to" })).toHaveFocus();
+    (document.activeElement as HTMLElement).blur();
+    rerender(
+      <Face
+        rec={record({ open: [luke, task({ id: "t2", title: "Ring the Hilux dealer" })] })}
+        assignable={PEOPLE}
+        canManage
+      />,
+    );
+    expect(document.activeElement).toBe(document.body);
+    expect(giveTask).not.toHaveBeenCalled();
+  });
+
   it("goes to the next task's title when a row is deleted, else the one before, else the box", async () => {
     const user = userEvent.setup();
     m(deleteTask).mockImplementation(out);

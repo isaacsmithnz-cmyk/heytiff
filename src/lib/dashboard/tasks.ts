@@ -49,11 +49,11 @@ export function isDelegated(task: Pick<DashTask, "assigneeId" | "createdBy">): b
   return task.createdBy !== task.assigneeId;
 }
 
-/* Late is ONE comparison: an open task whose day is before today — the test
-   the rail's red count makes over your open tasks, so the new Home's late
-   rows are exactly the tasks that count makes red. (Today's Home writes the
-   same comparison inline in two places; they go when it does.) A finished
-   task is never late, whatever its date said. */
+/* Late is ONE comparison: an open task whose day is before today. The Tasks
+   face (./task-record) and the list's Late group (home-list.ts, the same
+   comparison written inline) make this one test, so what the list calls late
+   is exactly what the Tasks face does. A finished task is never late,
+   whatever its date said. */
 export function isLate(task: Pick<DashTask, "dueDate" | "status">, today: string): boolean {
   return task.status === "open" && task.dueDate !== null && task.dueDate < today;
 }

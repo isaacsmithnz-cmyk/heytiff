@@ -59,10 +59,9 @@ import { ACTED_KINDS } from "./task-events";
 import { DIARY_ENTRY_LIMIT, DIARY_REPLY_LIMIT } from "./diary-feed";
 
 /* NO `is_debrief`, WRITTEN OR READ. The Debrief left the router and this
-   read in the same change, so the column's drop (note_is_debrief_drop.sql) is
-   safe to apply once that change is live, and not before: the code before it
-   names the column here, and PostgREST fails the whole select on a column
-   that isn't there, which would empty every diary. An old Debrief row needs
+   read in the same change, and the column is gone (note_is_debrief_drop.sql,
+   applied 2026-09-27). Never name it again: PostgREST fails the whole select
+   on a column that isn't there, which would empty every diary. An old Debrief row needs
    nothing from the column to keep its place: it is an applied note like any
    other, and its grouped note's door is resolved from `applied.noteLines`
    below. A test in journal-query.test.ts refuses a migration that drops a
@@ -382,7 +381,7 @@ export async function listJournal(
    newest DIARY_ENTRY_LIMIT entries, so an older one is still in its thread.
 
    `listJournal`, above, is the other read of the same rows, for what the
-   list's rows and the Tasks face's doors find an entry by (page-data's
+   list's rows find an entry by (page-data's
    `journal`): it reads only what is filed, and never a status or a turn. */
 
 /** Everything this person has told Tiff, newest first, dressed for the

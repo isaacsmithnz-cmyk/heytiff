@@ -9,8 +9,8 @@
    booking in the viewer's own lane, narrowed to that lane exactly as
    today's is, with the same mirror rows, streets and crew. Nothing on for
    two weeks is nothing to draw: the day says it is clear, as it always
-   has. Only for the new Home (page-data asks), only with `workboard`, and
-   only for a viewer ServiceM8 knows. */
+   has. Asked by Home's loader (page-data) only then, only with `workboard`,
+   and only for a viewer ServiceM8 knows. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";

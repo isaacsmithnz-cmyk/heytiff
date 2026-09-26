@@ -1,0 +1,34 @@
+-- The Debrief's flag goes: `workboard_notes.is_debrief` and its index.
+--
+-- WHY. The Debrief left Home (#812) and the router (#818) on 2026-09-25, at
+-- Isaac's word (2026-09-24: "the diary, tasks and HeyTiff chat window should
+-- assist with that"), and nothing has written or read the column since #818
+-- (journal-query.ts and workboard-notes.ts say so where it used to be). It
+-- was dropped with the old Home's cleanup (#838), at Isaac's word
+-- (2026-09-27: "do it now, no one is using it").
+--
+-- APPLIED 2026-09-27, after #838 deployed. Deploy-then-drop: a build that
+-- still named the column in a select would empty every diary, because
+-- PostgREST fails the whole select on a column that isn't there, so this
+-- runs only on a database whose live code never names it. That has been true
+-- since #818.
+--
+-- WHAT WAS THERE. 45 notes; one carried `is_debrief = true`, a dismissed test
+-- note ("Test debrief to check this log renders. Nothing to action", id
+-- c047a8d0-6508-434b-a5c3-75425686d841). Nothing else depended on the
+-- column: no view, function or constraint; only its own index.
+--
+-- READ-ONLY CHECKS, BEFORE:
+--   select count(*) from information_schema.columns
+--     where table_schema = 'public' and column_name = 'is_debrief';   -- 1
+--   select is_debrief, count(*) from public.workboard_notes group by 1;
+-- AFTER:
+--   select count(*) from information_schema.columns
+--     where table_schema = 'public' and column_name = 'is_debrief';   -- 0
+--   select count(*) from pg_indexes where indexname = 'workboard_notes_debrief_idx';  -- 0
+--   select count(*) from public.workboard_notes;                      -- unchanged
+--
+-- Idempotent: running it again changes nothing.
+
+drop index if exists public.workboard_notes_debrief_idx;
+alter table public.workboard_notes drop column if exists is_debrief;

@@ -46,8 +46,10 @@ import {
   railCrewOf,
   railTasksOf,
   railWhereOf,
+  viewerLaneBlocks,
   type RailTask,
 } from "./day-rail";
+import { loadNextDay, type NextDay } from "./next-day";
 import { deskOn } from "./desk-flag";
 import { loadDesk, readHomeShared, type DeskData, type HomeShared } from "./desk-data";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
@@ -178,6 +180,11 @@ export type HomeRail = {
   /** job uuid → everyone else booked on it today, by first name; a job
       nobody else is on has no entry. This day's jobs only. */
   crew: Record<string, string[]>;
+  /** NOTHING ON TODAY: the next day in the fortnight with your bookings,
+      for the new Home to draw in its place (./next-day). Absent or null
+      when today has something on, when nothing is booked for two weeks,
+      and on today's Home, which never asks. */
+  next?: NextDay | null;
 };
 
 const EMPTY_RAIL: HomeRail = {
@@ -354,12 +361,16 @@ export async function loadDashboard(): Promise<DashboardData> {
      crew would make the rail mean "my day" or "everyone's day" depending on
      a table row the reader cannot see, and the two look identical. `linked`
      says which case this is instead. */
-  const railBlocks: ScheduleBlock[] = day
-    ? day.lanes
-        .filter((lane) => mineUuid !== null && lane.staffUuid === mineUuid)
-        .flatMap((lane) => lane.blocks)
-        .sort((a, b) => a.startMin - b.startMin || a.key.localeCompare(b.key))
-    : [];
+  const railBlocks: ScheduleBlock[] = day ? viewerLaneBlocks(day.lanes, mineUuid) : [];
+  const railTasks = railTasksOf(tasks.mine, railDay, railTz, railNowMin);
+  /* NOTHING ON TODAY: the new Home draws your next booked day instead of a
+     bare line (./next-day, Isaac 2026-09-26). Asked only then, only for the
+     new Home, and only of a viewer ServiceM8 knows; a day with a timed task
+     on it is not empty. */
+  const next =
+    desk && day && mineUuid && railBlocks.length === 0 && railTasks.length === 0
+      ? await loadNextDay(orgId, mineUuid, railDay).catch(() => null)
+      : null;
 
   return {
     chips, calendar, tasks, notices, assignable, journal, jobs, issues, canManage, viewerStaffId, today,
@@ -374,7 +385,7 @@ export async function loadDashboard(): Promise<DashboardData> {
          yourself to the crew" and bounced back to Home by the page. The band
          tells everyone else who can do it instead. */
       linkHref: isOwner ? "/dashboard/admin/integrations/servicem8" : null,
-      tasks: railTasksOf(tasks.mine, railDay, railTz, railNowMin),
+      tasks: railTasks,
       nowMin: railNowMin,
       enabled: caps.has("workboard"),
       jobs: jobsOnRail(railBlocks, schedule.jobs),
@@ -390,6 +401,7 @@ export async function loadDashboard(): Promise<DashboardData> {
          knows every booking on it, and the rest are other people's. */
       where: railWhereOf(railBlocks, schedule.addresses),
       crew: day ? railCrewOf(day.lanes, railBlocks, mineUuid) : {},
+      next,
     },
     desk: deskData,
   };

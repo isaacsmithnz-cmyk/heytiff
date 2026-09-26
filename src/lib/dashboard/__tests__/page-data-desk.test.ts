@@ -131,6 +131,10 @@ const sm8StaffLinkMap = jest.fn(
   async (_orgId: string): Promise<Map<string, string>> => new Map([["sm8-me", "s-me"], ["sm8-luke", "s-luke"]])
 );
 jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: (orgId: string) => sm8StaffLinkMap(orgId) }));
+/* Your next booked day, when today has nothing on (./next-day). */
+const NEXT = { dayISO: "2026-09-28", blocks: [], jobs: [], where: {}, crew: {} };
+const loadNextDay = jest.fn(async (..._a: unknown[]) => NEXT);
+jest.mock("../next-day", () => ({ loadNextDay: (...a: unknown[]) => loadNextDay(...a) }));
 jest.mock("@/lib/integrations/sm8-writes", () => ({ sm8QueueStuck: jest.fn(async () => null) }));
 jest.mock("@/lib/integrations/sm8-freshness", () => ({ freshenSm8AfterResponse: jest.fn() }));
 
@@ -611,6 +615,48 @@ describe("the day's new fields", () => {
     vendor = { tz: null, connected: false };
     const { rail } = await loadDashboard();
     expect(rail.connected).toBe(false);
+  });
+
+  /* "when there is nothing on your day, it looks very bland" (Isaac,
+     2026-09-26): the new Home draws your next booked day instead. */
+  it("reads your next booked day for the new Home when today has nothing on for you, and only then", async () => {
+    process.env.HOME_DESK = "owner";
+    // today has the viewer's a1: nothing more is read
+    expect((await loadDashboard()).rail.next).toBeNull();
+    expect(loadNextDay).not.toHaveBeenCalled();
+
+    // today is Luke's alone
+    loadScheduleDay.mockImplementationOnce(async (_o: string, dayISO: string) => ({
+      dayISO,
+      activities: [act("a3", "j2", "sm8-luke", "13:00", "14:00")],
+      staff: [{ uuid: "sm8-luke", name: "Luke Ingold" }],
+      jobs: [mirror("j2")],
+      onSite: [],
+      addresses: { j1: "Carrington St", j2: "Brightmore St" },
+    }));
+    const { rail } = await loadDashboard();
+    expect(rail.blocks).toEqual([]);
+    expect(loadNextDay).toHaveBeenCalledWith("org-1", "sm8-me", rail.dayISO);
+    expect(rail.next).toBe(NEXT);
+  });
+
+  it("reads no next day for the crew on today's Home, nor for a viewer ServiceM8 doesn't know", async () => {
+    const empty = async (_o: string, dayISO: string) => ({
+      dayISO,
+      activities: [],
+      staff: [],
+      jobs: [],
+      onSite: [],
+      addresses: { j1: "Carrington St", j2: "Brightmore St" },
+    });
+    loadScheduleDay.mockImplementationOnce(empty);
+    expect((await loadDashboard()).rail.next).toBeNull();
+
+    process.env.HOME_DESK = "owner";
+    loadScheduleDay.mockImplementationOnce(empty);
+    sm8StaffLinkMap.mockImplementationOnce(async () => new Map([["sm8-luke", "s-luke"]]));
+    expect((await loadDashboard()).rail.next).toBeNull();
+    expect(loadNextDay).not.toHaveBeenCalled();
   });
 });
 

@@ -292,7 +292,13 @@ Every decision below is made once, here, and a guard test holds each number.
   the Calendar is up, where nothing closes it. A card grows as it opens
   and its place name slides to its middle, the panel fades in under it
   as the body makes room, and a white light runs round the job on now
-  (the Trace); under reduced motion, and for a change made from the
+  (the Trace). A day with nothing on is not a bare line: "Nothing on
+  today. Next, Monday 28 September." over that next day's bookings, his
+  bar in their Workboard colours, every card still to come and each
+  opening its panel and its job ("a placeholder that brings in the color
+  of what your day normally shows", 2026-09-26); only when nothing is
+  booked for a fortnight is it "Nothing on your day." alone. Under
+  reduced motion, and for a change made from the
   keyboard, each is simply there.
   The list is what is waiting on you in five groups by urgency — Late,
   Today, Jobs to book, No date, Later — each row placed by its own date

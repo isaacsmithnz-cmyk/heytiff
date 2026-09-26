@@ -996,6 +996,13 @@ describe("the diary's words clear 4.5:1 on an entry at rest and lit", () => {
     ["the words", ".fg .hd-dy-p"],
     ["a quiet line", ".fg .hd-dy-note"],
     ["a door", ".fg .hd-dy-door"],
+    // H23: what Tiff made of the words, and taking it back
+    ["Tiff's line", ".fg .hd-dy-tiff"],
+    ["Tiff, in her line", ".fg .hd-dy-tiff b"],
+    ["her line under the pointer", ".fg .hd-dy-tiff.opens:hover"],
+    ["Undo", ".fg .hd-dy-undo"],
+    ["Undo under the pointer", ".fg .hd-dy-undo:hover"],
+    ["Undo while it is out", ".fg .hd-dy-undo:disabled"],
   ])("%s, on an entry at rest and lit", (_label, sel) => {
     expect(short(decl(sel, "color"), ENTRY())).toEqual([]);
   });

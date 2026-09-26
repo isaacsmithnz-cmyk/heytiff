@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TiffContext, type TiffApi } from "@/components/tiff/modal/tiff-context";
+import { NOT_REACHED } from "@/components/tiff/modal/use-conversation";
 import type { DeskArrival } from "@/lib/dashboard/desk-focus";
 import { DIARY_LIT_MS, type DeskDiary } from "@/lib/dashboard/diary-doors";
 import { diaryFeed } from "@/lib/dashboard/diary-feed";
@@ -27,12 +28,13 @@ jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
 jest.mock("@/app/actions/workboard", () => ({ openMirrorJob: jest.fn(async () => null) }));
 jest.mock("@/components/workboard/board/job-sheet", () => ({ JobSheet: () => null }));
 const keepWords = jest.fn();
+const undoNote = jest.fn();
 jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: (...a: unknown[]) => keepWords(...a),
   routeNote: jest.fn(),
   continueNote: jest.fn(),
   fileNote: jest.fn(),
-  undoNote: jest.fn(),
+  undoNote: (...a: unknown[]) => undoNote(...a),
   publishNoteKb: jest.fn(),
   dismissNote: jest.fn(),
   applyNote: jest.fn(),
@@ -54,6 +56,9 @@ const entry = (over: Partial<DiaryEntry> = {}): DiaryEntry => ({
   stamp: "2026-09-08 20:42:00",
   routed: true,
   taskFor: {},
+  turns: [],
+  undo: false,
+  undone: false,
   ...over,
 });
 
@@ -90,13 +95,14 @@ const diary = (entries: DiaryEntry[]): DeskDiary => ({
 });
 
 const open = jest.fn((_o: unknown) => true);
-const tiff = (): TiffApi => ({
+const tiff = (over: Partial<TiffApi> = {}): TiffApi => ({
   enabled: true,
   open: open as TiffApi["open"],
   openedBy: null,
   isOpen: false,
   landed: null,
   report: () => {},
+  ...over,
 });
 
 type Props = {
@@ -105,6 +111,8 @@ type Props = {
   onFocusShown?: () => void;
   onPage?: ReadonlySet<string>;
   onShowThings?: (ids: readonly string[], pointer: boolean) => void;
+  /** What the modal's host says: on or off, who opened it, what just landed. */
+  tiff?: Partial<TiffApi>;
 };
 /** Every task and issue the entries made has a row on the page. */
 const ALL_ON_PAGE: ReadonlySet<string> = new Set(["t2", "t3", "i1"]);
@@ -113,7 +121,7 @@ const onFocusShown = jest.fn();
 /* The face the frame puts the diary in: the one thing on the page that
    scrolls. */
 const Face = (p: Props) => (
-  <TiffContext.Provider value={tiff()}>
+  <TiffContext.Provider value={tiff(p.tiff)}>
     <section className="hd-face" data-testid="face">
       <HomeDiaryFeed
         diary={p.diary ?? diary([TODAYS, SICK, WIPERS])}
@@ -441,5 +449,205 @@ describe("a door from another face", () => {
     } finally {
       proto.getAnimations = real;
     }
+  });
+});
+
+/* ── WHAT TIFF MADE OF IT (H23): her line under your words, the door back
+   into the conversation, and Undo. ── */
+
+describe("what Tiff made of it", () => {
+  const DONE = "Done. A task for Luke: the filters from Reece, before 1398 Waterloo at 7:00 tomorrow.";
+  const TALKED = entry({
+    id: "e-talked",
+    said: "Luke needs the filters from Reece before 1398 Waterloo tomorrow",
+    day: TODAY,
+    at: "3:12 pm",
+    stamp: `${TODAY} 15:12:00`,
+    outcomes: [{ kind: "todo", text: "Filters from Reece", go: { type: "task", id: "t9" } }],
+    taskFor: { t9: "s-luke" },
+    turns: [
+      { who: "you", text: "Luke needs the filters from Reece before 1398 Waterloo tomorrow" },
+      { who: "tiff", text: DONE },
+    ],
+    undo: true,
+  });
+  const onPage = new Set(["t9"]);
+  /** Her line's name, as a browser reads it. jsdom spaces the bold name
+      off its colon ("Tiff : Done."), where a browser runs inline words
+      together, so the space is taken out before comparing. */
+  const named = (text: string) => (name: string) => name.replace(/^Tiff :/, "Tiff:") === text;
+  const under = () => itemOf("e-talked").querySelector<HTMLElement>(".hd-dy-bd")!;
+  const line = () => within(under()).getByRole("button", { name: named(`Tiff: ${DONE}`) });
+  const at = "2026-09-25T05:13:00.000Z";
+  const takenBack = {
+    ok: true,
+    summary: "1 task taken back.",
+    turns: [
+      { who: "you", text: TALKED.said, at },
+      { who: "tiff", text: "A task for Luke: the filters from Reece, before 1398 Waterloo at 7:00 tomorrow.", at },
+      { who: "tiff", text: DONE, at },
+      { who: "tiff", text: "1 task taken back.", at },
+    ],
+  };
+
+  it("says her last word under yours, after Tiff, and before what it made", () => {
+    draw({ diary: diary([TALKED, SICK]), onPage });
+    const theLine = line();
+    expect(theLine).toHaveClass("hd-dy-tiff");
+    expect(theLine.querySelector("b")).toHaveTextContent(/^Tiff$/);
+    // under the words, over the doors
+    expect(under().querySelector(".hd-dy-p")!.nextElementSibling).toBe(theLine);
+    expect(theLine.nextElementSibling).toHaveClass("hd-dy-doors");
+    // nothing where she never answered: a Save, an entry from before her
+    expect(itemOf("e1").querySelector(".hd-dy-tiff")).toBeNull();
+  });
+
+  it("opens the conversation again from her line, in the diary's room, growing from the line", async () => {
+    const user = userEvent.setup();
+    draw({ diary: diary([TALKED]), onPage });
+    const theLine = line();
+    expect(theLine).toHaveAttribute("aria-haspopup", "dialog");
+    expect(theLine).toHaveAttribute("aria-expanded", "false");
+    await user.click(theLine);
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(open.mock.calls[0]![0]).toEqual({
+      from: theLine,
+      conversation: TALKED.turns,
+      room: "diary",
+      id: "hd-dy-tiff-e-talked",
+      keyboard: false,
+    });
+  });
+
+  it("opens it from the keyboard with nothing flying from the line (law 8), and reads as open while it is", async () => {
+    const user = userEvent.setup();
+    const { rerender } = draw({ diary: diary([TALKED]), onPage });
+    line().focus();
+    await user.keyboard("{Enter}");
+    expect(open.mock.calls[0]![0]).toMatchObject({ keyboard: true });
+    rerender(<Face diary={diary([TALKED])} onPage={onPage} tiff={{ openedBy: "hd-dy-tiff-e-talked", isOpen: true }} />);
+    expect(line()).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("is her words and no door where this viewer has no modal", () => {
+    draw({ diary: diary([TALKED]), onPage, tiff: { enabled: false } });
+    expect(within(under()).queryByRole("button", { name: /^Tiff:/ })).toBeNull();
+    const theLine = under().querySelector(".hd-dy-tiff")!;
+    expect(theLine.tagName).toBe("P");
+    expect(theLine.textContent).toBe(`Tiff: ${DONE}`);
+  });
+
+  it("offers Undo at the end of what it made, and only where it can take something back", () => {
+    draw({ diary: diary([TALKED, SICK, WIPERS]), onPage });
+    const doors = itemOf("e-talked").querySelector<HTMLElement>(".hd-dy-doors")!;
+    const undo = within(doors).getByRole("button", { name: "Undo" });
+    expect(undo).toHaveClass("hd-dy-undo");
+    expect(doors.lastElementChild).toBe(undo);
+    expect(within(itemOf("e1")).queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(within(itemOf("e-wipers")).queryByRole("button", { name: "Undo" })).toBeNull();
+  });
+
+  it("takes it back: Tiff's line says what went, and what it made and Undo go with it", async () => {
+    undoNote.mockResolvedValue(takenBack);
+    const user = userEvent.setup();
+    draw({ diary: diary([TALKED]), onPage });
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(undoNote).toHaveBeenCalledWith("e-talked");
+    expect(within(under()).getByRole("button", { name: named("Tiff: 1 task taken back.") })).toBeInTheDocument();
+    expect(within(under()).queryByRole("button", { name: "1 task for Luke" })).toBeNull();
+    expect(within(under()).queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(under().querySelector(".hd-dy-doors")).toBeNull();
+    // your words stay
+    expect(under().querySelector(".hd-dy-p")!.textContent).toBe(TALKED.said);
+  });
+
+  it("opens the conversation it took back as the modal said it, the taking back included", async () => {
+    undoNote.mockResolvedValue(takenBack);
+    const user = userEvent.setup();
+    draw({ diary: diary([TALKED]), onPage });
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await user.click(within(under()).getByRole("button", { name: named("Tiff: 1 task taken back.") }));
+    expect(open.mock.calls[0]![0]).toMatchObject({
+      conversation: [
+        { who: "you", text: TALKED.said },
+        { who: "tiff", text: DONE },
+        { who: "tiff", text: "1 task taken back." },
+      ],
+    });
+  });
+
+  it("puts a refusal in Undo's place, for good, and leaves what it made where it is", async () => {
+    const refusal = "Luke has already ticked off one of those, so nothing was taken back.";
+    undoNote.mockResolvedValue({ ok: false, error: refusal });
+    const user = userEvent.setup();
+    draw({ diary: diary([TALKED]), onPage });
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(within(under()).getByRole("status")).toHaveTextContent(refusal);
+    expect(within(under()).getByRole("status")).toHaveClass("hd-dy-note");
+    expect(within(under()).queryByRole("button", { name: "Undo" })).toBeNull();
+    expect(within(under()).getByRole("button", { name: "1 task for Luke" })).toBeInTheDocument();
+    expect(line()).toBeInTheDocument();
+  });
+
+  it("says so when Undo's answer never comes, and can be pressed again", async () => {
+    undoNote.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(takenBack);
+    const user = userEvent.setup();
+    draw({ diary: diary([TALKED]), onPage });
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(within(under()).getByRole("status")).toHaveTextContent(NOT_REACHED);
+    const again = within(under()).getByRole("button", { name: "Undo" });
+    expect(again).toBeEnabled();
+    await user.click(again);
+    expect(undoNote).toHaveBeenCalledTimes(2);
+    expect(within(under()).queryByRole("status")).toBeNull();
+    expect(within(under()).getByRole("button", { name: named("Tiff: 1 task taken back.") })).toBeInTheDocument();
+  });
+
+  it("is one press while it is out", async () => {
+    let answer: (v: unknown) => void = () => {};
+    undoNote.mockReturnValue(new Promise((r) => (answer = r)));
+    draw({ diary: diary([TALKED]), onPage });
+    const undo = screen.getByRole("button", { name: "Undo" });
+    await act(async () => {
+      fireEvent.click(undo);
+      fireEvent.click(undo);
+    });
+    expect(undoNote).toHaveBeenCalledTimes(1);
+    expect(undo).toBeDisabled();
+    await act(async () => answer(takenBack));
+    expect(within(under()).getByRole("button", { name: named("Tiff: 1 task taken back.") })).toBeInTheDocument();
+  });
+
+  it("keeps an entry the page reads as taken back: your words, Tiff's line, and nothing under them", () => {
+    const back = entry({
+      ...TALKED,
+      outcomes: [],
+      taskFor: {},
+      turns: [...TALKED.turns, { who: "tiff", text: "1 task taken back." }],
+      undo: false,
+      undone: true,
+    });
+    draw({ diary: diary([back]), onPage });
+    expect(within(under()).getByRole("button", { name: named("Tiff: 1 task taken back.") })).toBeInTheDocument();
+    expect(under().querySelector(".hd-dy-doors")).toBeNull();
+    expect(within(under()).queryByText("Nothing filed.")).toBeNull();
+  });
+
+  /* The modal says what it filed for two seconds after it closes; its notes
+     are entries here once the page has read them again. */
+  it("lights what the modal filed as it closes, \"just now\", for the wash's seven seconds", () => {
+    jest.useFakeTimers();
+    const { rerender } = draw({ diary: diary([SICK]) });
+    rerender(<Face diary={diary([SICK])} tiff={{ landed: { noteIds: ["e-talked"], ids: ["t9"] } }} />);
+    // the page comes round with the entry in it
+    rerender(<Face diary={diary([TALKED, SICK])} onPage={onPage} tiff={{ landed: null }} />);
+    expect(itemOf("e-talked").querySelector(".hd-dy-m")!.textContent).toBe("You, just now");
+    expect(lit("e-talked")).toBe(true);
+    expect(lit("e1")).toBe(false);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_LIT_MS);
+    });
+    expect(lit("e-talked")).toBe(false);
+    expect(itemOf("e-talked").querySelector(".hd-dy-m")!.textContent).toBe("You, just now");
   });
 });

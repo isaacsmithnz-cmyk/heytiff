@@ -83,6 +83,9 @@ const SICK: DiaryEntry = {
   stamp: "2026-09-23 20:42:00",
   routed: false,
   taskFor: {},
+  turns: [],
+  undo: false,
+  undone: false,
 };
 
 /** A sync that finished a minute before the page opened: nothing to ask. */

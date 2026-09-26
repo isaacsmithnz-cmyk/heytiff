@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { keepWords } from "@/app/actions/workboard-notes";
+import { keepWords, undoNote, type UndoResult } from "@/app/actions/workboard-notes";
 import { navHref } from "@/components/shell/nav";
 import { TiffBox, type BoxSave } from "@/components/tiff/modal/tiff-box";
+import { useTiff, type TiffLanded } from "@/components/tiff/modal/tiff-context";
+import { NOT_REACHED } from "@/components/tiff/modal/use-conversation";
 import type { DeskArrival } from "@/lib/dashboard/desk-focus";
 import { motionAllowed } from "@/lib/dashboard/day-flip";
 import { diaryItemOf } from "@/lib/dashboard/diary-conversation";
@@ -17,6 +19,7 @@ import {
 } from "@/lib/dashboard/diary-doors";
 import type { DiaryItem } from "@/lib/dashboard/diary-feed";
 import type { DiaryEntry } from "@/lib/dashboard/journal";
+import { conversationOf, lastTiff, type EarlierTurn } from "@/lib/workboard/note-turns";
 import { HomeDiaryConversation } from "./home-diary-conversation";
 import { useDiaryRefresh } from "./use-diary-refresh";
 
@@ -35,6 +38,20 @@ import { useDiaryRefresh } from "./use-diary-refresh";
      AN ENTRY is your initials, "You" and when, your words verbatim, and
      under them what they became: a door to each thing still there, a
      sentence for the rest (lib/dashboard/diary-doors decides the words).
+
+   WHAT TIFF MADE OF THEM (H23). An entry that came out of a conversation
+   with her says her last word under yours, "Tiff: Done. …", and that line
+   is the door back into the conversation: the modal opens on it again,
+   what was said already there, waiting on the reply box, so the next thing
+   you say is read by it. The words land at the top of Today when the modal
+   closes, "just now" and lit, like a Save.
+
+   UNDO sits at the end of what an entry made, while it can take it back —
+   until someone acts on a row it filed (Isaac's call, 2026-09-25). A task
+   ticked off is known before you press it, so Undo is not offered; the rest
+   (a flag cleared, a line bought) the server finds when pressed, and the
+   sentence it says takes Undo's place. Taken back, the entry keeps your
+   words, and Tiff's line says what went.
 
    DOORS STAY ON THIS PAGE WHERE THEIR THING IS. A task or an issue is a
    row, so its door hands its ids to the frame (`onShowThings`), which
@@ -127,7 +144,43 @@ function Entry({
   onPage: ReadonlySet<string>;
   onShowThings: (ids: readonly string[], pointer: boolean) => void;
 }) {
-  const { doors, lines } = entryUnder(entry, who, onPage);
+  const tiff = useTiff();
+  /* UNDO, PRESSED HERE. What it took back is held on the entry at once —
+     the page's own read says the same once it has come round — and a
+     sentence it said stays under the entry: a refusal in Undo's place, for
+     good (someone acted on a row, and that will not come right later), or
+     an answer that never came back beside it, to press again. */
+  const [taken, setTaken] = useState<EarlierTurn[] | null>(null);
+  const [undoSaid, setUndoSaid] = useState<{ text: string; again: boolean } | null>(null);
+  const [undoing, setUndoing] = useState(false);
+  /** A second press before the first one's render is not a second Undo. */
+  const busy = useRef(false);
+
+  const shown: DiaryEntry = taken ? { ...entry, turns: taken, undo: false, undone: true } : entry;
+  const { doors, lines } = entryUnder(shown, who, onPage);
+  const line = lastTiff(shown.turns);
+  const canUndo = shown.undo && (undoSaid === null || undoSaid.again);
+  const opener = `hd-dy-tiff-${entry.id}`;
+
+  const undo = async () => {
+    if (busy.current) return;
+    busy.current = true;
+    setUndoing(true);
+    setUndoSaid(null);
+    let res: UndoResult | null = null;
+    try {
+      res = await undoNote(entry.id);
+    } catch {
+      /* The answer was lost, not the call: pressed again, the server says
+         so if the first one landed. */
+    }
+    busy.current = false;
+    setUndoing(false);
+    if (!res) return setUndoSaid({ text: NOT_REACHED, again: true });
+    if (res.ok) return setTaken(conversationOf(res.turns));
+    setUndoSaid({ text: res.error, again: false });
+  };
+
   return (
     <li className="hd-dy-it" data-item={item} data-entry={entry.id}>
       {/* focusable by script alone: a door from another face lands here */}
@@ -140,7 +193,34 @@ function Entry({
             <b>You</b>, {entryWhen(entry, { today, justNow })}
           </p>
           <p className="hd-dy-p">{entry.said}</p>
-          {doors.length + lines.length > 0 && (
+          {line &&
+            /* The door back into the conversation, where this viewer has
+               the modal; the same words, and no door, where not. */
+            (tiff.enabled ? (
+              <button
+                type="button"
+                className="hd-dy-tiff opens"
+                aria-haspopup="dialog"
+                aria-expanded={tiff.openedBy === opener}
+                onClick={(e) =>
+                  tiff.open({
+                    from: e.currentTarget,
+                    conversation: shown.turns,
+                    room: "diary",
+                    id: opener,
+                    /* no pointer behind the click: nothing flies (law 8) */
+                    keyboard: e.detail === 0,
+                  })
+                }
+              >
+                <b>Tiff</b>: {line}
+              </button>
+            ) : (
+              <p className="hd-dy-tiff">
+                <b>Tiff</b>: {line}
+              </p>
+            ))}
+          {doors.length + lines.length > 0 || canUndo || undoSaid ? (
             <div className="hd-dy-doors">
               {doors.map((d, i) => (
                 // by place: two doors may honestly say the same words
@@ -151,8 +231,18 @@ function Entry({
                   {l}
                 </span>
               ))}
+              {canUndo && (
+                <button type="button" className="hd-dy-undo" disabled={undoing} onClick={() => void undo()}>
+                  Undo
+                </button>
+              )}
+              {undoSaid && (
+                <span className="hd-dy-note" role="status">
+                  {undoSaid.text}
+                </span>
+              )}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </li>
@@ -187,37 +277,70 @@ export function HomeDiaryFeed({
   const todayId = useId();
   const root = useRef<HTMLDivElement>(null);
 
-  /* What was saved from this box since the page opened: "just now", for
-     good, and lit while the wash lasts. Each light has its own clock, so a
-     second save does not cut the first one's short. */
+  /* What landed since the page opened — saved from this box, or filed by
+     Tiff when her modal closed: "just now", for good, and lit while the
+     wash lasts. Each lighting is counted, and each count has its own clock
+     (below), so a second landing neither cuts the first one's short nor
+     holds it on, and an entry lit again starts over. */
   const [justNow, setJustNow] = useState<readonly string[]>([]);
-  const [saved, setSaved] = useState<readonly string[]>([]);
-  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  useEffect(() => {
-    const pending = timers.current;
-    return () => {
-      for (const t of pending.values()) clearTimeout(t);
-      pending.clear();
-    };
-  }, []);
+  const [lit, setLit] = useState<Readonly<Record<string, number>>>({});
+  const light = (ids: readonly string[]) => {
+    setJustNow((s) => [...s, ...ids.filter((id) => !s.includes(id))]);
+    setLit((s) => {
+      const next = { ...s };
+      for (const id of ids) next[id] = (s[id] ?? 0) + 1;
+      return next;
+    });
+  };
 
   const save: BoxSave = async (text) => {
     const res = await keepWords(text, "diary");
     if (!res.ok) return { ok: false, error: res.error };
-    const id = res.noteId;
-    setJustNow((s) => (s.includes(id) ? s : [...s, id]));
-    setSaved((s) => (s.includes(id) ? s : [...s, id]));
-    const was = timers.current.get(id);
-    if (was !== undefined) clearTimeout(was);
-    timers.current.set(
-      id,
-      setTimeout(() => {
-        timers.current.delete(id);
-        setSaved((s) => s.filter((x) => x !== id));
-      }, DIARY_LIT_MS),
-    );
+    light([res.noteId]);
     return { ok: true };
   };
+
+  /* THE MODAL CLOSED ON SOMETHING FILED (it says so for two seconds): its
+     notes are entries here, whose words land at the top of Today once the
+     page has read them again, which the modal asks for as it closes. They
+     are lit from now, whenever the read comes round. Taken from the host as
+     it changes, while rendering — the diary lights its own rows, and asks
+     nothing of anyone else. */
+  const { landed } = useTiff();
+  const [heard, setHeard] = useState<TiffLanded | null>(null);
+  if (landed !== heard) {
+    setHeard(landed);
+    if (landed) light(landed.noteIds);
+  }
+
+  /* THE CLOCKS. A lighting's seven seconds start once it is on the page;
+     one whose count has moved on is started again, and one that runs out
+     puts its light out only if nothing has lit it since. */
+  const clocks = useRef(new Map<string, { n: number; t: ReturnType<typeof setTimeout> }>());
+  useEffect(() => {
+    for (const [id, n] of Object.entries(lit)) {
+      const was = clocks.current.get(id);
+      if (was?.n === n) continue;
+      if (was) clearTimeout(was.t);
+      const t = setTimeout(() => {
+        clocks.current.delete(id);
+        setLit((s) => {
+          if (s[id] !== n) return s;
+          const next = { ...s };
+          delete next[id];
+          return next;
+        });
+      }, DIARY_LIT_MS);
+      clocks.current.set(id, { n, t });
+    }
+  }, [lit]);
+  useEffect(() => {
+    const pending = clocks.current;
+    return () => {
+      for (const c of pending.values()) clearTimeout(c.t);
+      pending.clear();
+    };
+  }, []);
 
   /* A door from another face: brought to 16px under the face's top, lit,
      given the focus, and handed back once the light has gone. The face
@@ -262,7 +385,7 @@ export function HomeDiaryFeed({
         who={who}
         today={today}
         justNow={justNow.includes(i.entry.id)}
-        lit={saved.includes(i.entry.id) || askedItem === i.key}
+        lit={lit[i.entry.id] !== undefined || askedItem === i.key}
         onPage={onPage}
         onShowThings={onShowThings}
       />

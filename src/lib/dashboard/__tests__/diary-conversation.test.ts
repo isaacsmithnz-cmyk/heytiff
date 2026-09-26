@@ -147,6 +147,9 @@ describe("the item a door names", () => {
     stamp: `${TODAY} 07:30:00`,
     routed: false,
     taskFor: {},
+    turns: [],
+    undo: false,
+    undone: false,
   };
   /* built in each test, after the note numbers start again */
   const feedOf = () => {
@@ -186,6 +189,9 @@ describe("what a door can land on", () => {
     stamp: `${day} 07:30:00`,
     routed: false,
     taskFor: {},
+    turns: [],
+    undo: false,
+    undone: false,
   });
 
   /* With mentions read, the column reaches back sixty days and no further,

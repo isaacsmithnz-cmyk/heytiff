@@ -336,7 +336,14 @@ Every decision below is made once, here, and a guard test holds each number.
   the app's door, 28px tall with 12px either side where his drew 26 and
   10, ink and underlined on the line's edge. A door from the list or the
   Tasks tab brings its entry up, lights it the same way and gives it the
-  focus.
+  focus. An entry Tiff sorted out says her last word under yours, "Tiff:
+  Done. …", in his quiet line with her name in ink, and lands at the top
+  of Today lit when her modal closes; the line opens that conversation in
+  the modal again, waiting on its reply box rather than listening. Undo,
+  his quiet underlined word at the doors' height, ends what the entry
+  made while it can take it back: until someone acts on a row it filed
+  ("go with your recommendations", 2026-09-25). Taken back, your words
+  stay and Tiff's line says what went.
   Someone who asked you something in a ServiceM8 job note is a
   conversation in the same column ("if someone mentions you, it can show
   up in diary", 2026-09-24): their initials ink in his grey disc, "Luke

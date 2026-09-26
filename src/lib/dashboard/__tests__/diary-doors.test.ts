@@ -31,6 +31,9 @@ const entry = (over: Partial<DiaryEntry> = {}): DiaryEntry => ({
   stamp: "2026-08-28 06:43:00",
   routed: true,
   taskFor: {},
+  turns: [],
+  undo: false,
+  undone: false,
   ...over,
 });
 
@@ -149,6 +152,13 @@ describe("entryUnder: the quiet lines", () => {
   it("never says \"Nothing filed.\" under an entry that filed something", () => {
     const { lines } = entryUnder(entry({ outcomes: [task("t1")], taskFor: { t1: ME } }), who);
     expect(lines).toEqual([]);
+  });
+
+  it("says nothing under an entry Undo took back: what it made has gone, and Tiff's line says so", () => {
+    // routed, and its outcomes still in hand where Undo was pressed on the page
+    const back = entry({ routed: true, outcomes: [task("t1")], taskFor: { t1: "s-luke" }, undone: true });
+    expect(entryUnder(back, who)).toEqual({ doors: [], lines: [] });
+    expect(entryUnder({ ...back, outcomes: [] }, who)).toEqual({ doors: [], lines: [] });
   });
 });
 

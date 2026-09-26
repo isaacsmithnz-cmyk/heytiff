@@ -1277,3 +1277,92 @@ describe("the conversation", () => {
     expect(added).not.toHaveClass("tm-needs");
   });
 });
+
+/* ── OPENED AGAIN ON A CONVERSATION (H23): a diary entry's Tiff line opens
+   the modal on the conversation the entry came out of. ── */
+
+describe("opened again on a conversation", () => {
+  const HAD = [
+    { who: "you" as const, text: "Luke has the Bellevue Hill head on the ute" },
+    { who: "tiff" as const, text: DONE },
+  ];
+  /** The diary's door: a button on the page, the conversation, the diary's room. */
+  async function reopen(opts: { voice?: boolean } = {}) {
+    const user = userEvent.setup();
+    render(<Harness voice={opts.voice} extra={<Grab />} />);
+    await act(async () => {
+      grabbed.api!.open({ from: topButton(), conversation: HAD, room: "diary", id: "hd-dy-tiff-e1" });
+    });
+    return user;
+  }
+
+  it("has what was said on screen, Tiff's face already fallen, in the diary's room", async () => {
+    await reopen();
+    const turns = within(convo()).getAllByText(/./, { selector: ".tm-tt" }).map((t) => t.textContent);
+    expect(turns).toEqual(["Luke has the Bellevue Hill head on the ute", DONE]);
+    expect(within(convo()).getAllByText(/^(You|Tiff)$/).map((l) => l.textContent)).toEqual(["You", "Tiff"]);
+    // she has already answered: no dots gather, and the header holds her mark
+    expect(dialog().querySelector(".tm-face")).toBeNull();
+    expect(dialog()).toHaveClass("speaking");
+    expect(within(dialog()).getByText("Diary")).toBeInTheDocument();
+  });
+
+  it("waits on the reply box: a door to what was said is not a Tiff button, so nothing listens", async () => {
+    await reopen();
+    const box = within(dialog()).getByRole("textbox", { name: "Reply to Tiff" });
+    expect(box).toHaveFocus();
+    expect(mic.start).not.toHaveBeenCalled();
+    expect(routeNote).not.toHaveBeenCalled();
+    expect(askBrain).not.toHaveBeenCalled();
+    // the box's own Tiff button is how to talk
+    expect(within(dialog()).getByRole("button", { name: "Talk to Tiff" })).toBeInTheDocument();
+  });
+
+  it("listens once the box's Tiff button is pressed", async () => {
+    const user = await reopen();
+    await user.click(within(dialog()).getByRole("button", { name: "Talk to Tiff" }));
+    expect(mic.start).toHaveBeenCalledTimes(1);
+    expect(within(dialog()).getByRole("button", { name: "Done" })).toBeInTheDocument();
+  });
+
+  it("reads what you say next by the conversation, in the diary's room", async () => {
+    routeNote.mockReturnValue(new Promise(() => {}));
+    const user = await reopen({ voice: false });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "and the same for Smith St{Enter}");
+    expect(routeNote).toHaveBeenCalledWith({
+      transcript: "and the same for Smith St",
+      target: { kind: "none" },
+      source: "text",
+      room: "diary",
+      conversation: true,
+      before: HAD,
+    });
+    expect(within(convo()).getByText("and the same for Smith St")).toBeInTheDocument();
+  });
+
+  it("asks a question with the conversation as its history", async () => {
+    askBrain.mockImplementationOnce(() => {});
+    const user = await reopen({ voice: false });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "when is Luke at Bellevue Hill?{Enter}");
+    expect(askBrain.mock.calls[0][0]).toMatchObject({ question: "when is Luke at Bellevue Hill?", history: HAD });
+  });
+
+  it("closes on nothing new without asking the page to read again, and gives focus back to the door", async () => {
+    const user = await reopen();
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(dismissNote).not.toHaveBeenCalled();
+    expect(topButton()).toHaveFocus();
+  });
+
+  it("lands at its newest turn as it appears, rather than scrolling there in front of you", async () => {
+    const calls: ScrollToOptions[] = [];
+    proto.scrollTo = function (this: Element, o: ScrollToOptions) {
+      if (this === document.querySelector(".tm-turns")) calls.push(o);
+    };
+    motion(false);
+    await reopen();
+    expect(calls[0]).toMatchObject({ behavior: "auto" });
+  });
+});

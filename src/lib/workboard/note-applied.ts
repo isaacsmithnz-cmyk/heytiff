@@ -169,6 +169,24 @@ export function doorsOf(a: AppliedRecord): NoteDoor[] {
   return doors;
 }
 
+/** Whether Undo has anything to take back: a row it made, an issue it
+    counted, or words it added to somebody else's row. A note whose record
+    is only words kept (a line in your notes, a note on a job) has nothing
+    Undo reaches, so it offers nothing. */
+export function takesBack(a: AppliedRecord): boolean {
+  return (
+    a.taskIds.length +
+      a.flagIds.length +
+      a.entryIds.length +
+      a.issueIds.length +
+      a.checklistIds.length +
+      a.picklistIds.length +
+      a.textWrites.length +
+      a.kbIds.length >
+    0
+  );
+}
+
 /** What Undo says it took back: "2 tasks taken back.", "1 task and 1 flag
     taken back." A note that filed nothing but its words says "Taken back." */
 export function undoSummary(a: AppliedRecord): string {

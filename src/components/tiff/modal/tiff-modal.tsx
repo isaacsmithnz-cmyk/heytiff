@@ -8,7 +8,7 @@ import { DictClock, LiveWords } from "@/components/notes/dictation";
 import { useNoteScope } from "@/components/notes/note-context";
 import { MARK_MASK, TiffGlyph, TiffMark } from "@/components/notes/tiff-mark";
 import { DotField, useDotFieldExit } from "@/components/ui/dot-field";
-import type { TiffRoom } from "@/lib/workboard/note-turns";
+import type { EarlierTurn, TiffRoom } from "@/lib/workboard/note-turns";
 import { EASE, MOVE_MS, canAnimate, prefersStill, tokenMs, useBoxMotion, useGrow } from "./box-motion";
 import type { PlanRowView } from "./plan-view";
 import {
@@ -56,6 +56,8 @@ export type TiffSession = {
   back?: HTMLElement;
   origin: Point;
   words?: string;
+  /** A conversation already had, opened again (./tiff-context). */
+  conversation?: readonly EarlierTurn[];
   room?: TiffRoom;
   openerId: string | null;
   /** Reduced motion: nothing travels and no wait is held. */
@@ -91,6 +93,7 @@ export function TiffModal({
   const c = useConversation({
     opening: {
       words: session.words,
+      conversation: session.conversation,
       room: session.room,
       origin: session.keyboard ? null : session.origin,
       still: session.still,
@@ -203,9 +206,14 @@ export function TiffModal({
 
   const turnsRef = useRef<HTMLDivElement | null>(null);
   const tail = all.length ? `${all.length}:${all.at(-1)!.text.length}:${c.interim.length}` : "";
+  /* A conversation opened again is at its newest turn as the modal appears,
+     not scrolled there in front of you; only what arrives after is. */
+  const openedOn = useRef(tail);
   useLayoutEffect(() => {
     const el = turnsRef.current;
-    if (el && typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight, behavior: session.still ? "auto" : "smooth" });
+    const first = tail === openedOn.current;
+    if (el && typeof el.scrollTo === "function")
+      el.scrollTo({ top: el.scrollHeight, behavior: session.still || first ? "auto" : "smooth" });
   }, [tail, session.still]);
 
   return (

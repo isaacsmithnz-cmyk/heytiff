@@ -118,3 +118,33 @@ export const WHICH_JOB = "Which job is this for?";
 /** The room the note was first said in, if it said. */
 export const roomOf = (turns: readonly Turn[]): TiffRoom | undefined =>
   turns.find((t) => t.who === "you")?.room;
+
+/* ── A FILED NOTE, SAID BACK ─────────────────────────────────────────────
+
+   Filing ends a note on Tiff's "Done." turn, which repeats the line she
+   said her plan in: "Luke puts the head on the ute." then "Done. Luke puts
+   the head on the ute." The modal only ever showed the second, and the
+   diary says it under the words ("Tiff: Done. …"). One shape, here, for the
+   server that writes it and the pages that read it back. */
+
+/** Tiff's turn when a note is filed: "Done." and her plan's line. */
+export const doneLine = (say: string): string => (say.trim() ? `Done. ${say.trim()}` : "Done.");
+
+/** Tiff's last word in a conversation: the diary's line under the words.
+    "" when she has said nothing (a Save, or a note from before the modal). */
+export function lastTiff(turns: readonly EarlierTurn[] | undefined): string {
+  for (let i = (turns?.length ?? 0) - 1; i >= 0; i--) if (turns![i]!.who === "tiff") return turns![i]!.text;
+  return "";
+}
+
+/** The conversation as the modal said it, to open it again: every turn, in
+    order, but for the plan's line where her "Done." straight after it says
+    it again. */
+export function conversationOf(turns: readonly EarlierTurn[]): EarlierTurn[] {
+  return turns
+    .filter((t, i) => {
+      const next = turns[i + 1];
+      return !(t.who === "tiff" && next?.who === "tiff" && next.text === doneLine(t.text));
+    })
+    .map(({ who, text }) => ({ who, text }));
+}

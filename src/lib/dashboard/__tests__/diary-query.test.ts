@@ -36,6 +36,9 @@ const ENTRY: DiaryEntry = {
   stamp: "2026-09-25 08:42",
   routed: false,
   taskFor: {},
+  turns: [],
+  undo: false,
+  undone: false,
 };
 const CONVO = { key: "j-2041:u-luke", lastTheirs: "2026-09-21 13:42:10" } as DiaryConversation;
 

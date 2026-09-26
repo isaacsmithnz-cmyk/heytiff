@@ -195,7 +195,15 @@ const diaryOf = (
   { mentions = false, conversations = [] }: { mentions?: boolean; conversations?: DiaryConversation[] } = {},
 ): DeskDiary => ({
   feed: diaryFeed({
-    entries: entries.map((e) => ({ ...e, stamp: `${e.day} 12:00:00`, routed: true, taskFor: {} })),
+    entries: entries.map((e) => ({
+      ...e,
+      stamp: `${e.day} 12:00:00`,
+      routed: true,
+      taskFor: {},
+      turns: [],
+      undo: false,
+      undone: false,
+    })),
     conversations,
     day: TODAY,
     mentions,

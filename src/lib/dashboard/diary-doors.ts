@@ -32,7 +32,12 @@
      would be worse than none.
      "Nothing filed." is Tiff's read that made nothing, and only that: a
      Save files the words as typed and routes nothing, so it says nothing
-     under them at all. */
+     under them at all. Nor does an entry Undo took back: what it made has
+     gone, and Tiff's line under the words says so ("1 task taken back.").
+
+   TIFF'S LINE is her last turn in the conversation the entry came out of
+   (journal-query reads it off the row), said after "Tiff: " — nothing when
+   she never answered. */
 
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import type { DiaryFeed } from "./diary-feed";
@@ -92,6 +97,8 @@ export function entryUnder(
 ): EntryUnder {
   const doors: DiaryDoor[] = [];
   const lines: string[] = [];
+  /* Taken back: what it made has gone, and Tiff's line says so. */
+  if (entry.undone) return { doors, lines };
   /* One door per staff card, standing where that card's first task stood.
      Keyed by the card, not the name on it: two Lukes are two people. */
   const tasksOf = new Map<string, Extract<DiaryDoor, { to: "tasks" }>>();

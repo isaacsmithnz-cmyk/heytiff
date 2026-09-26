@@ -269,6 +269,9 @@ describe("diaryFeed", () => {
     stamp,
     routed: true,
     taskFor: {},
+    turns: [],
+    undo: false,
+    undone: false,
   });
   const conversation = (key: string, lastTheirs: string, lastYours: string | null = null): DiaryConversation =>
     ({ key, lastTheirs, lastYours }) as DiaryConversation;

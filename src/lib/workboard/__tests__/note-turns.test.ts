@@ -2,7 +2,18 @@
    sit in it, so it is read through `turnsOf`; and the database caps it at 40
    turns, so an append can never be what trips the check. */
 
-import { REPLIES_MAX, TURNS_MAX, repliesIn, roomOf, turn, turnsOf, withTurns } from "../note-turns";
+import {
+  REPLIES_MAX,
+  TURNS_MAX,
+  conversationOf,
+  doneLine,
+  lastTiff,
+  repliesIn,
+  roomOf,
+  turn,
+  turnsOf,
+  withTurns,
+} from "../note-turns";
 
 describe("turnsOf", () => {
   it("keeps the turns we write and drops anything else", () => {
@@ -52,5 +63,44 @@ describe("replies", () => {
   it("remember the room the note was said in", () => {
     expect(roomOf([{ ...turn("you", "note"), room: "diary" }, turn("you", "reply")])).toBe("diary");
     expect(roomOf([turn("tiff", "hi")])).toBeUndefined();
+  });
+});
+
+/* ── a filed note, said back (H23): the diary's line under the words, and
+   the conversation its line opens again ── */
+
+describe("a filed note, said back", () => {
+  it("files on Done. and her plan's line, or Done. alone", () => {
+    expect(doneLine(" A task for Callum. ")).toBe("Done. A task for Callum.");
+    expect(doneLine("")).toBe("Done.");
+  });
+
+  it("says Tiff's last word, whoever spoke after it", () => {
+    expect(lastTiff([turn("you", "note"), turn("tiff", "Who books it?"), turn("you", "Luke")])).toBe("Who books it?");
+    expect(lastTiff([turn("you", "Ring the wholesaler")])).toBe("");
+    expect(lastTiff([])).toBe("");
+  });
+
+  it("opens the conversation as the modal said it: the plan's line goes where Done says it again", () => {
+    const said = [
+      turn("you", "Luke books 3323"),
+      turn("tiff", "Who should do this: Book 3323?"),
+      turn("you", "Luke"),
+      turn("tiff", "Luke books 3323 in for Monday."),
+      turn("tiff", doneLine("Luke books 3323 in for Monday.")),
+      turn("tiff", "1 task taken back."),
+    ];
+    expect(conversationOf(said)).toEqual([
+      { who: "you", text: "Luke books 3323" },
+      { who: "tiff", text: "Who should do this: Book 3323?" },
+      { who: "you", text: "Luke" },
+      { who: "tiff", text: "Done. Luke books 3323 in for Monday." },
+      { who: "tiff", text: "1 task taken back." },
+    ]);
+  });
+
+  it("keeps a line Done does not repeat, and your words whatever they say", () => {
+    const said = [turn("you", "Done."), turn("tiff", "Worth everyone knowing."), turn("tiff", "Done.")];
+    expect(conversationOf(said).map((t) => t.text)).toEqual(["Done.", "Worth everyone knowing.", "Done."]);
   });
 });

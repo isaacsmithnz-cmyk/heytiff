@@ -52,6 +52,7 @@ import {
   KEPT_AS_SAID,
   REPLIES_MAX,
   WHICH_JOB,
+  doneLine,
   earlierTurns,
   isTiffRoom,
   repliesIn,
@@ -1426,10 +1427,7 @@ export async function fileNote(
     return { ok: false, error: done.error };
   }
 
-  const filed = withTurns(
-    turns.length ? turns : [turn("you", note.transcript)],
-    turn("tiff", plan.say ? `Done. ${plan.say}` : "Done."),
-  );
+  const filed = withTurns(turns.length ? turns : [turn("you", note.transcript)], turn("tiff", doneLine(plan.say)));
   await supabaseAdmin
     .from("workboard_notes")
     .update({

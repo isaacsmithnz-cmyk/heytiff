@@ -251,14 +251,17 @@ describe("the Debrief's column", () => {
 /* ── the new Home's diary: the same read, three more facts ── */
 
 describe("listDiaryEntries", () => {
-  it("reads the journal's own rows, the same person and status, plus the proposal", async () => {
+  it("reads the journal's own rows and person, what Undo took back too, plus the proposal, status and turns", async () => {
     rows.workboard_notes = [note("e1", {})];
     await listDiaryEntries("org-1", "s1", null);
     const [read] = of("workboard_notes");
     // and, as on the journal, never a note somebody took back (two-way phase 2)
-    expect(read.eq).toEqual({ org_id: "org-1", author_id: "s1", status: "applied", "removed_at is": null });
+    expect(read.eq).toEqual({ org_id: "org-1", author_id: "s1", "removed_at is": null });
+    // what was filed, and what was filed and then taken back: never a note
+    // still mid-conversation, nor one set aside
+    expect(read.in).toEqual(["status", ["applied", "undone"]]);
     // built on the journal's column list, so the two can't drift apart
-    expect(read.columns).toBe("id, transcript, source, applied, created_at, proposal");
+    expect(read.columns).toBe("id, transcript, source, applied, created_at, proposal, status, turns");
   });
 
   it("says when on the account's clock, so an entry sorts beside a ServiceM8 note", async () => {
@@ -302,7 +305,8 @@ describe("listDiaryEntries", () => {
       { id: "t-nobody", title: "Chase the warranty", assigned_to: null },
     ];
     const [entry] = await listDiaryEntries("org-1", "s1", null);
-    expect(of("tasks")[0].columns).toBe("id, title, assigned_to");
+    // and whether each is still open, which Undo needs (below)
+    expect(of("tasks")[0].columns).toBe("id, title, assigned_to, status");
     expect(entry.taskFor).toEqual({ "t-luke": "s-luke", "t-mine": "s1", "t-nobody": null });
     // the removed one is still counted where it always was
     expect(chips([entry])).toContainEqual(["1 task removed", null]);
@@ -312,7 +316,102 @@ describe("listDiaryEntries", () => {
     rows.workboard_notes = [note("e1", { taskIds: ["t1"] })];
     rows.tasks = [{ id: "t1", title: "Call Mary", assigned_to: "s-luke" }];
     const [entry] = await listJournal("org-1", "s1");
-    for (const added of ["stamp", "routed", "taskFor"]) expect(entry).not.toHaveProperty(added);
-    expect(of("workboard_notes")[0].columns).not.toContain("proposal");
+    for (const added of ["stamp", "routed", "taskFor", "turns", "undo", "undone"]) expect(entry).not.toHaveProperty(added);
+    const [read] = of("workboard_notes");
+    expect(read.columns).not.toContain("proposal");
+    expect(read.columns).not.toContain("turns");
+    // the old Home still reads only what is filed, and asks no task its state
+    expect(read.eq.status).toBe("applied");
+    expect(read.in).toBeUndefined();
+    expect(of("tasks")[0].columns).toBe("id, title, assigned_to");
+  });
+});
+
+/* ── what the Tiff modal left on the row (H23) ── */
+
+describe("listDiaryEntries: Tiff's line, Undo, and what Undo took back", () => {
+  const at = "2026-09-25T00:00:00.000Z";
+  const t = (who: "you" | "tiff", text: string) => ({ who, text, at });
+  /** A note the modal filed: the record Undo reads, and the conversation. */
+  const filed = (id: string, applied: Record<string, unknown>, turns: unknown = [], status = "applied") => ({
+    ...note(id, applied),
+    proposal: { tasks: [] },
+    status,
+    turns,
+  });
+
+  it("carries the conversation as the modal said it: the plan's line goes where Done says it again", async () => {
+    rows.workboard_notes = [
+      filed("e1", { v: 2, taskIds: [] }, [
+        t("you", "Callum grabs the filters from Reece"),
+        t("tiff", "A task for Callum: the filters from Reece."),
+        t("tiff", "Done. A task for Callum: the filters from Reece."),
+      ]),
+    ];
+    const [entry] = await listDiaryEntries("org-1", "s1", null);
+    expect(entry.turns).toEqual([
+      { who: "you", text: "Callum grabs the filters from Reece" },
+      { who: "tiff", text: "Done. A task for Callum: the filters from Reece." },
+    ]);
+  });
+
+  it("has no conversation where Tiff never answered: a Save, the review card, before the modal", async () => {
+    rows.workboard_notes = [
+      { ...filed("saved", {}, [t("you", "Ring the wholesaler")]), proposal: null },
+      filed("card", { taskIds: ["t1"] }, []),
+      { ...note("old", { taskIds: [] }), proposal: { tasks: [] }, status: "applied" },
+    ];
+    const out = await listDiaryEntries("org-1", "s1", null);
+    expect(out.map((e) => [e.id, e.turns])).toEqual([
+      ["saved", []],
+      ["card", []],
+      ["old", []],
+    ]);
+  });
+
+  it("offers Undo on a filed record that made something, while none of its tasks is ticked off", async () => {
+    rows.workboard_notes = [
+      filed("open", { v: 2, taskIds: ["t-open", "t-gone"] }),
+      filed("ticked", { v: 2, taskIds: ["t-open", "t-done"] }),
+      filed("flag", { v: 2, flagIds: ["f1"] }),
+      filed("v1", { taskIds: ["t-open"] }),
+      filed("nothing", { v: 2, taskIds: [], noteLines: ["kept"] }),
+      { ...filed("saved", {}), proposal: null },
+    ];
+    rows.tasks = [
+      { id: "t-open", title: "Call Mary", assigned_to: "s-luke", status: "open" },
+      { id: "t-done", title: "Order filters", assigned_to: "s-luke", status: "done" },
+    ];
+    const out = await listDiaryEntries("org-1", "s1", null);
+    expect(Object.fromEntries(out.map((e) => [e.id, e.undo]))).toEqual({
+      // a task somebody deleted since is simply gone, and stops nothing
+      open: true,
+      // one ticked off ends it: Undo would refuse the lot
+      ticked: false,
+      // a flag Undo checks when pressed, like the rest of a row's state
+      flag: true,
+      // filed before Undo existed
+      v1: false,
+      // words kept in your notes are nothing Undo reaches
+      nothing: false,
+      saved: false,
+    });
+    expect(out.every((e) => e.undone === false)).toBe(true);
+  });
+
+  it("keeps an entry Undo took back: your words, Tiff saying so, and nothing looked up for what went", async () => {
+    rows.workboard_notes = [
+      filed(
+        "back",
+        { v: 2, taskIds: ["t1"] },
+        [t("you", "Luke books 3323"), t("tiff", "Done. Luke books 3323."), t("tiff", "1 task taken back.")],
+        "undone",
+      ),
+    ];
+    const [entry] = await listDiaryEntries("org-1", "s1", null);
+    expect(entry).toMatchObject({ said: "said back", undone: true, undo: false, outcomes: [], taskFor: {} });
+    expect(entry.turns.at(-1)).toEqual({ who: "tiff", text: "1 task taken back." });
+    // its task has gone: there is nothing to resolve
+    expect(of("tasks")).toHaveLength(0);
   });
 });

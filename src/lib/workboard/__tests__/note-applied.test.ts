@@ -4,7 +4,7 @@
    to a table or column that isn't one a note appends to is dropped, whatever
    the stored record says. */
 
-import { appliedOf, doorsOf, freshIssueIds, TEXT_COLUMNS, undoSummary } from "../note-applied";
+import { appliedOf, doorsOf, freshIssueIds, takesBack, TEXT_COLUMNS, undoSummary } from "../note-applied";
 
 describe("appliedOf", () => {
   it("reads every group, and nothing that isn't one", () => {
@@ -86,5 +86,28 @@ describe("undoSummary", () => {
     expect(undoSummary(appliedOf({ taskIds: ["t-1", "t-2"] }))).toBe("2 tasks taken back.");
     expect(undoSummary(appliedOf({ taskIds: ["t-1"], flagIds: ["f-1"] }))).toBe("1 task and 1 flag taken back.");
     expect(undoSummary(appliedOf({}))).toBe("Taken back.");
+  });
+});
+
+describe("takesBack — whether Undo has anything to reach", () => {
+  it("is a row the note made, an issue it counted, or words it added to a row", () => {
+    expect(takesBack(appliedOf({ v: 2, taskIds: ["t-1"] }))).toBe(true);
+    expect(takesBack(appliedOf({ v: 2, flagIds: ["f-1"] }))).toBe(true);
+    expect(takesBack(appliedOf({ v: 2, issueIds: ["i-1"], issueBumps: [{ id: "i-1", occurrences: 2 }] }))).toBe(true);
+    expect(takesBack(appliedOf({ v: 2, checklistIds: ["c-1"] }))).toBe(true);
+    expect(
+      takesBack(
+        appliedOf({
+          v: 2,
+          textWrites: [{ table: "maintenance_visits", id: "v-1", column: "notes", before: null, after: "Filters" }],
+        }),
+      ),
+    ).toBe(true);
+    expect(takesBack(appliedOf({ v: 2, kbIds: ["k-1"] }))).toBe(true);
+  });
+
+  it("is nothing for words kept in your notes or on a job, or a record with nothing in it", () => {
+    expect(takesBack(appliedOf({ v: 2, noteLines: ["the words"], jobNotes: ["the words"] }))).toBe(false);
+    expect(takesBack(appliedOf({}))).toBe(false);
   });
 });

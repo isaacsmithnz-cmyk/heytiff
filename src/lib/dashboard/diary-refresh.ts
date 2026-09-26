@@ -4,12 +4,17 @@
    copy up AFTER the response (sm8-freshness): a mirror more than ten
    minutes old is synced once the page has gone out, so what Luke wrote
    since lands in the copy a moment after you have been shown the page
-   without it. The diary asks for the page again, twice and no more:
+   without it. The diary asks for the page again, and no more than this:
 
      A MINUTE AFTER IT OPENS, when the copy it was drawn from was stale —
      the sync the page itself set off has had its minute;
      WHEN YOU COME BACK TO THE TAB, when the page is more than ten minutes
-     old — whatever came in while you were away.
+     old — whatever HeyTiff holds that came in while you were away;
+     A MINUTE AFTER THAT, when the page it brought was drawn from a stale
+     copy too — what came in to ServiceM8 while you were away. Away that
+     long, the copy is stale as a rule (the one timed sync is daily), and
+     the page asked for is drawn from it before the sync its own load sets
+     off has run. Once for one return.
 
    Neither while Tiff is open: a new page under a conversation would move
    what she is talking about. It waits for her to close.

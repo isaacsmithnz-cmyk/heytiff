@@ -7,11 +7,12 @@ import type { DiaryFeed } from "@/lib/dashboard/diary-feed";
 import { DIARY_RECHECK_MS, mirrorStale, pageStale } from "@/lib/dashboard/diary-refresh";
 
 /* THE DIARY ASKS FOR THE PAGE AGAIN — lib/dashboard/diary-refresh says
-   when, and why: a minute after it opens on a stale copy of ServiceM8, and
-   when you come back to the tab to a page more than ten minutes old; never
-   while Tiff is open, but as soon as she closes. Only for a diary that
-   reads ServiceM8. The clock is read in the effects and the handlers,
-   never in render. */
+   when, and why: a minute after it opens on a stale copy of ServiceM8,
+   when you come back to the tab to a page more than ten minutes old, and a
+   minute after the page that return brought when it too was drawn from a
+   stale copy; never while Tiff is open, but as soon as she closes. Only
+   for a diary that reads ServiceM8. The clock is read in the effects and
+   the handlers, never in render. */
 export function useDiaryRefresh(feed: DiaryFeed): void {
   const router = useRouter();
   const { isOpen } = useTiff();
@@ -55,6 +56,34 @@ export function useDiaryRefresh(feed: DiaryFeed): void {
     return () => clearTimeout(t);
   }, [opened, ask]);
 
+  /* A minute after the page a return asked for, when that page too was
+     drawn from a stale copy. Away that long, the copy is stale as a rule
+     (the one timed sync is daily), and the page asked for is drawn from it
+     before the sync its own load sets off has run — so what came in while
+     you were away lands a moment after it. Once for one return, so a sync
+     that never lands can't have the diary asking for ever; and it keeps
+     its minute when some other page comes in it. */
+  const returned = useRef(false);
+  const recheck = useRef<{ t: ReturnType<typeof setTimeout> | null }>({ t: null });
+  useEffect(() => {
+    if (!returned.current) return;
+    returned.current = false;
+    if (!mirrorStale(feed.syncedAt, Date.now())) return;
+    const box = recheck.current;
+    if (box.t !== null) clearTimeout(box.t);
+    box.t = setTimeout(() => {
+      box.t = null;
+      ask();
+    }, DIARY_RECHECK_MS);
+  }, [feed, ask]);
+  useEffect(() => {
+    const box = recheck.current;
+    return () => {
+      if (box.t !== null) clearTimeout(box.t);
+      box.t = null;
+    };
+  }, []);
+
   /* Back to the tab, to a page more than ten minutes old. Once for one
      return: the page it asked for is on its way. */
   useEffect(() => {
@@ -65,6 +94,7 @@ export function useDiaryRefresh(feed: DiaryFeed): void {
       const now = Date.now();
       if (at === null || !pageStale(at, now)) return;
       loadedAt.current = now;
+      returned.current = true;
       ask();
     };
     document.addEventListener("visibilitychange", back);

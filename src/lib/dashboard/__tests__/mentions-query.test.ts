@@ -16,6 +16,7 @@ type Call = {
 
 let tables: Record<string, Record<string, unknown>[]> = {};
 let asksError: unknown = null;
+let jobsError: unknown = null;
 const calls: Call[] = [];
 
 const table = (name: string) => {
@@ -34,6 +35,7 @@ const table = (name: string) => {
       const key = call.ilike ? "asks" : "thread";
       return Promise.resolve({ data: call.ilike && asksError ? null : tables[key] ?? [], error: call.ilike ? asksError : null }).then(res);
     }
+    if (name === "sm8_jobs" && jobsError) return Promise.resolve({ data: null, error: jobsError }).then(res);
     return Promise.resolve({ data: tables[name] ?? [], error: null }).then(res);
   };
   return chain;
@@ -72,6 +74,7 @@ const notesReads = () => of("sm8_job_notes");
 beforeEach(() => {
   tables = { sm8_staff: STAFF };
   asksError = null;
+  jobsError = null;
   calls.length = 0;
   ours.clear();
   sm8Ours.mockClear();
@@ -186,6 +189,38 @@ it("says a job ServiceM8 deleted isn't live, so it gets no Reply", async () => {
   tables.sm8_jobs = [{ uuid: "j-2749", generated_job_id: 2749, geo_city: "Woolloomooloo", active: 0 }];
   const [c] = await listMyMentions("org-1", "u-isaac", "2026-09-25");
   expect(c).toMatchObject({ jobLabel: "2749 Woolloomooloo", jobLive: false });
+});
+
+/* Only the copy saying so makes a job gone: a read that failed, or a job
+   it holds no row for, would otherwise say "That job isn't in ServiceM8's
+   copy any more." over every conversation, and take their doors away. */
+it("keeps every job live when the jobs read fails, and says so in the log", async () => {
+  const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+  jobsError = { message: "boom" };
+  tables.asks = [
+    row("n2", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
+    row("n1", "j-2749", "u-luke", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly"),
+  ];
+  const out = await listMyMentions("org-1", "u-isaac", "2026-09-25");
+  expect(out.map((c) => [c.jobUuid, c.jobLive, c.jobLabel])).toEqual([
+    ["j-2041", true, null],
+    ["j-2749", true, null],
+  ]);
+  expect(spy).toHaveBeenCalled();
+  spy.mockRestore();
+});
+
+it("keeps a job the copy holds no row for live, and names the one it does", async () => {
+  tables.asks = [
+    row("n2", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
+    row("n1", "j-2749", "u-luke", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly"),
+  ];
+  tables.sm8_jobs = [{ uuid: "j-2041", generated_job_id: 2041, geo_city: "Wollstonecraft", active: 1 }];
+  const out = await listMyMentions("org-1", "u-isaac", "2026-09-25");
+  expect(out.map((c) => [c.jobUuid, c.jobLive, c.jobLabel])).toEqual([
+    ["j-2041", true, "2041 Wollstonecraft"],
+    ["j-2749", true, null],
+  ]);
 });
 
 it("takes only notes on a job", async () => {

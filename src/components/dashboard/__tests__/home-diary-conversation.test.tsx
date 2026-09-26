@@ -120,14 +120,15 @@ const tiff = (isOpen: boolean): TiffApi => ({
 });
 
 const onFocusShown = jest.fn();
-type Props = { diary: DeskDiary; focus?: DeskArrival | null; tiffOpen?: boolean };
-const Face = ({ diary, focus = null, tiffOpen = false }: Props) => (
+type Props = { diary: DeskDiary; focus?: DeskArrival | null; tiffOpen?: boolean; showing?: boolean };
+const Face = ({ diary, focus = null, tiffOpen = false, showing = true }: Props) => (
   <TiffContext.Provider value={tiff(tiffOpen)}>
     <DeskJobHost manage={false} moneyVisible={false}>
-      <section className="hd-face" data-testid="face">
+      <section className="hd-face" data-testid="face" hidden={!showing}>
         <HomeDiaryFeed
           diary={diary}
           viewerStaffId="s-isaac"
+          showing={showing}
           focus={focus}
           onFocusShown={onFocusShown}
           onPage={new Set()}
@@ -228,7 +229,8 @@ describe("under it", () => {
     expect(await screen.findByRole("dialog", { name: "Job 2041" })).toHaveTextContent("Mary Jones");
   });
 
-  /* #809: nothing goes to a job its business deleted. */
+  /* #809: nothing goes to a job its business deleted — said in the Diary
+     spec's words, verbatim, the card's own for a job that has gone. */
   it("is no door and no Reply on a job ServiceM8 has deleted, and says so", () => {
     draw({ diary: diaryOf([note("n-holly", J2749, LUKE.uuid, "2026-09-09 10:04:00", "@isaacsmith can you advise Holly")]) });
     const li = document.querySelector<HTMLElement>(`[data-conversation="${J2749}:u-luke"]`)!;
@@ -237,7 +239,7 @@ describe("under it", () => {
     expect(within(under).queryByRole("link")).toBeNull();
     expect([...under.children].map((c) => c.textContent)).toEqual([
       "A job note in ServiceM8.",
-      "2749 Woolloomooloo isn't in ServiceM8's copy any more.",
+      "That job isn't in ServiceM8's copy any more.",
     ]);
   });
 });
@@ -286,6 +288,52 @@ describe("his newest message", () => {
     const more = note("n-more", J2041, LUKE.uuid, `${TODAY} 10:30:00`, "@isaacsmith she rang back");
     rerender(<Face diary={diaryOf([ASK, MINE, HIS_ANSWER, more])} />);
     expect(thread(talk()).map(lit)).toEqual([false, false, true]);
+  });
+
+  /* His reply can come in with the page while Tasks or the Calendar is up.
+     A hidden face draws nothing, so its seven seconds wait to be seen, and
+     then it has all of them. */
+  it("waits to be seen when it comes in while another face is up, then has its whole seven seconds", () => {
+    jest.useFakeTimers();
+    const { rerender } = draw({ diary: diaryOf([ASK, MINE]), showing: false });
+    rerender(<Face diary={diaryOf([ASK, MINE, HIS_ANSWER])} showing={false} />);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_LIT_MS * 3);
+    });
+    expect(thread(talk()).map(lit)).toEqual([false, true]);
+    rerender(<Face diary={diaryOf([ASK, MINE, HIS_ANSWER])} showing />);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_LIT_MS - 1);
+    });
+    expect(thread(talk()).map(lit)).toEqual([false, true]);
+    act(() => {
+      jest.advanceTimersByTime(1);
+    });
+    expect(thread(talk()).map(lit)).toEqual([false, false]);
+  });
+
+  /* Hidden part way through, the face starts its wash again when it comes
+     back, and the light starts its seconds again with it — so the wash
+     fades out rather than being cut off in its hold. */
+  it("starts its seven seconds again when the face comes back before they were spent", () => {
+    jest.useFakeTimers();
+    const { rerender } = draw({ diary: diaryOf([ASK, MINE, HIS_ANSWER]) });
+    act(() => {
+      jest.advanceTimersByTime(DIARY_LIT_MS / 2);
+    });
+    rerender(<Face diary={diaryOf([ASK, MINE, HIS_ANSWER])} showing={false} />);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_LIT_MS);
+    });
+    rerender(<Face diary={diaryOf([ASK, MINE, HIS_ANSWER])} showing />);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_LIT_MS - 1);
+    });
+    expect(thread(talk()).map(lit)).toEqual([false, true]);
+    act(() => {
+      jest.advanceTimersByTime(1);
+    });
+    expect(thread(talk()).map(lit)).toEqual([false, false]);
   });
 });
 
@@ -398,6 +446,105 @@ describe("the page coming again", () => {
     document.dispatchEvent(new Event("visibilitychange"));
     expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
     document.dispatchEvent(new Event("visibilitychange"));
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  /* Ten minutes from the page on screen: one that came in two minutes ago
+     (a save's, or the diary's own minute) is not stale, however old the
+     first page is. */
+  it("counts its ten minutes from the newest page, not the first", () => {
+    jest.useFakeTimers();
+    const { rerender } = draw({ diary: diaryOf([ASK]) });
+    act(() => {
+      jest.advanceTimersByTime(DIARY_STALE_MS - 60_000);
+    });
+    rerender(<Face diary={diaryOf([ASK, MINE])} />);
+    act(() => {
+      jest.advanceTimersByTime(120_000);
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(mockRouter.refresh).not.toHaveBeenCalled();
+    act(() => {
+      jest.advanceTimersByTime(DIARY_STALE_MS);
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  /* Away more than ten minutes, the copy is stale too, and the page the
+     return asks for is drawn from it before the sync that page sets off
+     has run: so a minute later it is asked for once more, and no more
+     than once for one return, even when the sync never lands. */
+  const backAfterTen = () => {
+    act(() => {
+      jest.advanceTimersByTime(DIARY_STALE_MS + 1);
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
+  };
+
+  it("is asked for once more a minute after a return brings a page drawn from a stale copy", () => {
+    jest.useFakeTimers();
+    const { rerender } = draw({ diary: diaryOf([ASK]) });
+    backAfterTen();
+    rerender(<Face diary={diaryOf([ASK], { syncedAt: stale() })} />);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_RECHECK_MS - 1);
+    });
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
+    act(() => {
+      jest.advanceTimersByTime(1);
+    });
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(2);
+    // what that brings is still stale: nothing more for the one return
+    rerender(<Face diary={diaryOf([ASK, MINE], { syncedAt: stale() })} />);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_RECHECK_MS * 10);
+    });
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("is not asked for again when the page a return brings is drawn from a fresh copy", () => {
+    jest.useFakeTimers();
+    const { rerender } = draw({ diary: diaryOf([ASK]) });
+    backAfterTen();
+    rerender(<Face diary={diaryOf([ASK, HIS_ANSWER])} />);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_RECHECK_MS * 10);
+    });
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the return's minute when another page comes in it, and asks nothing for a page no return asked for", () => {
+    jest.useFakeTimers();
+    const { rerender } = draw({ diary: diaryOf([ASK]) });
+    // a page no return asked for, stale or not, sets nothing going
+    rerender(<Face diary={diaryOf([ASK, MINE], { syncedAt: stale() })} />);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_RECHECK_MS * 2);
+    });
+    expect(mockRouter.refresh).not.toHaveBeenCalled();
+    backAfterTen();
+    rerender(<Face diary={diaryOf([ASK], { syncedAt: stale() })} />);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_RECHECK_MS / 2);
+    });
+    rerender(<Face diary={diaryOf([ASK, MINE], { syncedAt: stale() })} />);
+    act(() => {
+      jest.advanceTimersByTime(DIARY_RECHECK_MS / 2);
+    });
+    expect(mockRouter.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("asks nothing once the diary has gone", () => {
+    jest.useFakeTimers();
+    const { rerender, unmount } = draw({ diary: diaryOf([ASK]) });
+    backAfterTen();
+    rerender(<Face diary={diaryOf([ASK], { syncedAt: stale() })} />);
+    unmount();
+    act(() => {
+      jest.advanceTimersByTime(DIARY_RECHECK_MS * 2);
+    });
     expect(mockRouter.refresh).toHaveBeenCalledTimes(1);
   });
 

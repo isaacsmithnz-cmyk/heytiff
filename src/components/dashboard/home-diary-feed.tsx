@@ -162,6 +162,7 @@ function Entry({
 export function HomeDiaryFeed({
   diary,
   viewerStaffId,
+  showing,
   focus,
   onFocusShown,
   onPage,
@@ -169,6 +170,9 @@ export function HomeDiaryFeed({
 }: {
   diary: DeskDiary;
   viewerStaffId: string | null;
+  /** The Diary is the face on screen. A light that came in while another
+      face was up waits to be seen before its seven seconds start. */
+  showing: boolean;
   /** A door from another face. This face acts on `kind: "entry"` and
       `kind: "conversation"`. */
   focus: DeskArrival | null;
@@ -270,6 +274,7 @@ export function HomeDiaryFeed({
         today={feed.day}
         you={you}
         asked={askedItem === i.key}
+        showing={showing}
       />
     );
 

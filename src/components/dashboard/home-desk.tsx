@@ -16,7 +16,8 @@ import {
   type SlidePlan,
 } from "@/lib/dashboard/desk-focus";
 import { motionAllowed } from "@/lib/dashboard/day-flip";
-import { placeHomeList, thingsOnList } from "@/lib/dashboard/home-list";
+import { diaryHolds } from "@/lib/dashboard/diary-conversation";
+import { placeHomeList, thingsOnList, type HomeListBase } from "@/lib/dashboard/home-list";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 import { HomeCalendarPage } from "./home-cal-page";
 import { HomeDay } from "./home-day";
@@ -99,10 +100,29 @@ export function DashboardDesk({
 const addressed = (id: string): DeskArrival => ({ face: "tasks", kind: "task", ids: [id], pointer: false });
 
 function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) {
-  const { tasks, journal, issues, assignable, canManage, viewerStaffId, today, rail } = data;
+  const { tasks, issues, assignable, canManage, viewerStaffId, today, rail } = data;
+  /* A DOOR INTO THE DIARY ONLY FOR WHAT IT HOLDS. The page's journal is
+     your sixty newest entries whatever their age, and the diary reaches
+     back only sixty days once it reads ServiceM8 (diary-feed's ONE
+     HORIZON); an ask ServiceM8 deleted leaves its task with no
+     conversation. So the list and the Tasks tab are handed the entries and
+     the asks the diary holds, and nothing else: a task from an entry before
+     then opens on the Tasks tab, as one typed there does, rather than
+     sliding the diary in on nothing and dropping the focus with the face it
+     was pressed on. */
+  const holds = useMemo(() => diaryHolds(data.desk?.diary.feed ?? null), [data.desk]);
+  const journal = useMemo(() => data.journal.filter((e) => holds.entries.has(e.id)), [data.journal, holds]);
   /* The list, placed from its own reads and what the page already holds —
      pure, and dated on the server by the workspace's day. */
-  const list = useMemo(() => (data.desk ? placeHomeList(data.desk.list, data) : null), [data]);
+  const list = useMemo(() => {
+    if (!data.desk) return null;
+    const base: HomeListBase = data;
+    return placeHomeList(data.desk.list, {
+      ...base,
+      journal,
+      mentions: base.mentions?.filter((m) => holds.notes.has(m.noteId)),
+    });
+  }, [data, journal, holds]);
 
   const [face, setFace] = useState<DeskFace>(taskId ? "tasks" : DEFAULT_FACE);
   const [motion, setMotion] = useState<Motion | null>(null);
@@ -273,6 +293,7 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
                       <HomeDiaryFeed
                         diary={data.desk.diary}
                         viewerStaffId={viewerStaffId}
+                        showing={face === "diary"}
                         focus={diaryFocus}
                         onFocusShown={focusShown}
                         onPage={onPage}

@@ -118,6 +118,7 @@ const Face = (p: Props) => (
       <HomeDiaryFeed
         diary={p.diary ?? diary([TODAYS, SICK, WIPERS])}
         viewerStaffId={ME}
+        showing
         focus={p.focus ?? null}
         onFocusShown={p.onFocusShown ?? onFocusShown}
         onPage={p.onPage ?? ALL_ON_PAGE}

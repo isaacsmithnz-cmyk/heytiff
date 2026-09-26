@@ -343,18 +343,31 @@ Every decision below is made once, here, and a guard test holds each number.
   Ingold to you" and when he asked, his words as written less the handle,
   then every later message either way threaded under it, each with a 24px
   disc and "You to Luke" or "Luke Ingold to you" and when ("show replies
-  from luke in the diary too"). It sorts by his newest message, so his
+  from luke in the diary too"), set as his v33 renders it at 1440: the
+  message's line is the entry's 32px with its disc at the top, the disc's
+  initials 12/600, 12px above each message and 8px from the last down to
+  the doors. It sorts by his newest message, so his
   answer brings the whole conversation up into Today, lit on the same
-  wash, while the header keeps the day he asked. Under it the job, a door
+  wash, while the header keeps the day he asked; the wash's seven seconds
+  run only while the Diary is the face on screen, so an answer that came
+  in while Tasks or the Calendar was up is still lit when you come back.
+  Under it the job, a door
   onto the page's one card; Reply, which opens the job in ServiceM8 in a
   new tab until HeyTiff writes notes there ("go with your
   recommendations", 2026-09-25), so the answer reaches him and threads
   back on the next sync; and "A job note in ServiceM8.". A job ServiceM8
-  has deleted is no door and gets no Reply, and says it has gone. A
+  has deleted is no door and gets no Reply, and says it has gone, in the
+  card's own words, "That job isn't in ServiceM8's copy any more." — only
+  when the copy holds the job as deleted, never because a read failed. A
   task an ask made opens its conversation from the list the way an
-  entry's does. A diary that reads ServiceM8 asks for the page again a
-  minute after it opens on a copy more than ten minutes old, and when you
-  come back to the tab to a page that old, never while Tiff is open.
+  entry's does. A door into the diary is offered only for what the diary
+  holds: once it reads ServiceM8 it reaches back sixty days, so a task
+  from an older entry, or from an ask ServiceM8 deleted, opens on the
+  Tasks tab instead. A diary that reads ServiceM8 asks for the page again
+  a minute after it opens on a copy more than ten minutes old, when you
+  come back to the tab to a page that old, and a minute after that when
+  the page the return brought was drawn from a stale copy too (the sync
+  it set off runs after it has gone out); never while Tiff is open.
   **His design is the default here.** A redraw to the laws "looks far
   worse", so where his numbers break a law this file names the exemption
   instead of bending the design ("design exempt for now, but keep a note",

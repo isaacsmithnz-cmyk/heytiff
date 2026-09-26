@@ -21,7 +21,8 @@
    reply is made there, and threads back here on the next sync); then
    where it came from, "A job note in ServiceM8.". A job its business has
    deleted keeps its conversation, but is no door and gets no Reply —
-   nothing goes to a deleted job (#809) — and says so, in #809's words.
+   nothing goes to a deleted job (#809) — and says so, in #809's words
+   exactly, "That job isn't in ServiceM8's copy any more.".
 
    LIT, his reply: when the asker's newest message is today and you haven't
    answered it (`fresh`), that message stands on the diary's wash — the
@@ -37,6 +38,9 @@ import { clock12 } from "./task-record";
 export type Said = { who: string; rest: string };
 
 export const SOURCE_LINE = "A job note in ServiceM8.";
+
+/** #809's words, the ones the desk's card says for a job that has gone. */
+export const JOB_GONE_LINE = "That job isn't in ServiceM8's copy any more.";
 
 /** "1:42 pm" on `today`, "Mon 21 Sept, 1:42 pm" before it — from a naive
     stamp on the account's clock ("2026-09-21 13:42:10"). */
@@ -86,7 +90,7 @@ export function conversationUnder(c: DiaryConversation): ConversationUnder {
     return {
       job: null,
       reply: null,
-      lines: [SOURCE_LINE, `${c.jobLabel ?? "That job"} isn't in ServiceM8's copy any more.`],
+      lines: [SOURCE_LINE, JOB_GONE_LINE],
     };
   }
   return {
@@ -94,6 +98,24 @@ export function conversationUnder(c: DiaryConversation): ConversationUnder {
     reply: sm8JobUrl(c.jobUuid),
     lines: [SOURCE_LINE],
   };
+}
+
+/** What a door from another face can land on in the diary: its entries
+    by id, and every note in its conversations. The page's journal, which
+    the list and the Tasks tab find an entry in, is your sixty newest
+    entries whatever their age, while the diary reaches back only as far as
+    its ONE HORIZON (./diary-feed) — MENTION_DAYS once it reads ServiceM8.
+    And an ask ServiceM8 deleted leaves its task behind with no
+    conversation. So the desk offers a door into the diary only for what is
+    here, and none opens the diary on nothing. No diary holds nothing. */
+export function diaryHolds(feed: DiaryFeed | null): { entries: ReadonlySet<string>; notes: ReadonlySet<string> } {
+  const entries = new Set<string>();
+  const notes = new Set<string>();
+  for (const item of feed ? [...feed.today, ...feed.earlier] : []) {
+    if (item.kind === "entry") entries.add(item.entry.id);
+    else for (const m of item.conversation.messages) notes.add(m.id);
+  }
+  return { entries, notes };
 }
 
 /** The item a door from another face names (desk-focus's `DeskFocus`), by

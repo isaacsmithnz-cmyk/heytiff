@@ -11850,18 +11850,23 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    (home-diary-conversation.tsx), as his prototype draws them (v12–v17).
    The entry's own grid, type and doors; their initials in his grey disc,
    ink on the selection tint, where yours are paper on ink. Under the ask,
-   the thread: each message a 24px disc and its line, his 10px gap down to
-   8, and his 12px from one message to the next kept, shared between a
-   message's own padding and the space between them, so a lit message's
-   fill reaches past its words on every side without moving them. His
-   newest message lights as an entry you saved does, on the one wash. */
+   the thread, as his v33 renders it at 1440: each message a 24px disc at
+   12/600 (his thread disc; the 700 is the entry's own) at the top of the
+   entry's 32px line (his render's — its later .tent .m outranks the
+   .tr .m 24px), and his 10px gap down to 8. His spacing is kept: 12px from
+   the words above to the first message and from one message to the next,
+   and 8px from the last down to the doors, as under an ask with no thread.
+   It is shared between a message's own 4px padding and the space round
+   it, so a lit message's fill reaches past its words on every side
+   without moving them. His newest message lights as an entry you saved
+   does, on the one wash. */
 .fg .hd-dy-av[data-who="them"] { background:var(--tint-2); color:var(--hd-ink); }
 .fg .hd-dy-thread { margin:8px 0 0; padding:0; list-style:none; }
 .fg .hd-dy-tr { display:grid; grid-template-columns:24px minmax(0,1fr); column-gap:8px; margin:0 -8px; padding:4px 8px;
   border-radius:6px; }
 .fg .hd-dy-tr + .hd-dy-tr { margin-top:4px; }
-.fg .hd-dy-tr .hd-dy-av { width:24px; height:24px; }
-.fg .hd-dy-tr .hd-dy-m { line-height:24px; }
+.fg .hd-dy-thread + .hd-dy-doors { margin-top:4px; }
+.fg .hd-dy-tr .hd-dy-av { width:24px; height:24px; font-weight:600; }
 .fg .hd-dy-tr[data-lit] { background:var(--hd-fresh); animation:hdDyLit 7s var(--ease) both; }
 @media (prefers-reduced-motion:reduce) {
   .fg .hd-dy-en[data-lit] { animation:none; }

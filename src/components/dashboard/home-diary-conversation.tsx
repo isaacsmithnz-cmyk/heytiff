@@ -27,9 +27,14 @@ import { useDeskJobs } from "./home-job-sheet";
 
    HIS NEWEST MESSAGE, while it is today's and you haven't answered it,
    stands on the diary's wash — the whole conversation when it is the ask
-   itself — for the wash's seven seconds from when it came onto the page,
-   then goes out, as an entry you saved does. A new message from him is a
-   new light. A door from another face (a task the ask made) lights the
+   itself — for the wash's seven seconds of being seen, then goes out, as
+   an entry you saved does. The seconds run only while the Diary is the
+   face on screen: his reply can come in with the page while Tasks or the
+   Calendar is up, and a face hidden under another starts its wash again
+   when it comes back (a hidden face draws nothing), so the light waits
+   for it and then has its whole seven seconds, fade and all. A new
+   message from him is a new light. A door from another face (a task the
+   ask made) lights the
    whole conversation the same way; the diary brings it up and gives it the
    focus. */
 
@@ -39,6 +44,7 @@ export function HomeDiaryConversation({
   today,
   you,
   asked,
+  showing,
 }: {
   /** Its key in the feed, which a door from another face finds it by. */
   item: string;
@@ -49,6 +55,8 @@ export function HomeDiaryConversation({
   you: string;
   /** A door asked for this conversation: it is lit as a whole. */
   asked: boolean;
+  /** The Diary is the face on screen: the light's seconds run only then. */
+  showing: boolean;
 }) {
   const { openJob } = useDeskJobs();
   const theirs = initialsFrom(c.asker.name);
@@ -57,16 +65,17 @@ export function HomeDiaryConversation({
   const job = under.job;
   const [ask, ...thread] = c.messages;
 
-  /* The light has its own clock, from when this message came onto the
-     page; a newer one from him starts it again. */
+  /* The light has its own clock, which runs while the Diary is on screen;
+     a newer message from him starts it again, and so does the face coming
+     back before it was spent, as its wash does. */
   const fresh = litMessage(c);
   const freshKey = fresh ? (fresh.head ? `head:${c.askNoteUuid}` : fresh.id) : null;
   const [spent, setSpent] = useState<string | null>(null);
   useEffect(() => {
-    if (freshKey === null) return;
+    if (freshKey === null || !showing) return;
     const t = setTimeout(() => setSpent(freshKey), DIARY_LIT_MS);
     return () => clearTimeout(t);
-  }, [freshKey]);
+  }, [freshKey, showing]);
   const lit = fresh !== null && freshKey !== spent ? fresh : null;
 
   return (

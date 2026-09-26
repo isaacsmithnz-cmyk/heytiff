@@ -244,6 +244,38 @@ describe("the diary", () => {
     expect(restRule(".fg .hd-dy-tr").transition).toBeUndefined();
   });
 
+  /* His spacing round a thread, as his v33 renders it at 1440 (H17
+     review): 12px from the words above to the first message and from one
+     message to the next, and 8px from the last message's words down to the
+     doors, as under an ask with no thread. Each message's own padding is
+     given back by the space round it. */
+  it("keeps his spacing round a thread, whatever a message's own padding", () => {
+    const px = (v: string | undefined) => Number((v ?? "").replace(/px$/, "")) || 0;
+    const [padY] = rule(".fg .hd-dy-tr").padding!.split(" ").map(px);
+    const [top] = rule(".fg .hd-dy-thread").margin!.split(" ").map(px);
+    const between = px(rule(".fg .hd-dy-tr + .hd-dy-tr")["margin-top"]);
+    const doors = px(rule(".fg .hd-dy-thread + .hd-dy-doors")["margin-top"]);
+    expect(padY).toBeGreaterThan(0);
+    expect(top + padY).toBe(12);
+    expect(padY + between + padY).toBe(12);
+    expect(padY + doors).toBe(8);
+    // and under an ask with no thread, the doors' own 8px
+    expect(px(rule(".fg .hd-dy-doors")["margin-top"])).toBe(8);
+  });
+
+  /* His v33 render draws a thread message on the entry's own 32px line
+     (its later `.tent .m` outranks the `.tr .m` 24px), with its 24px disc
+     at the top of it, and the disc's initials at 12/600: the 700 is only
+     the entry's own disc (`.tent>.av2`). */
+  it("sets a thread message on the entry's 32px line, its disc 24px at 12/600", () => {
+    expect(restRule(".fg .hd-dy-tr .hd-dy-m")["line-height"]).toBeUndefined();
+    expect(rule(".fg .hd-dy-m")["line-height"]).toBe("32px");
+    const disc = rule(".fg .hd-dy-tr .hd-dy-av");
+    expect([disc.width, disc.height, disc["font-weight"]]).toEqual(["24px", "24px", "600"]);
+    expect(disc["margin-top"]).toBeUndefined();
+    expect(rule(".fg .hd-dy-av")["font-size"]).toBe("12px");
+  });
+
   it("rings a door, and the entry a door lands on, for the keyboard (law 32)", () => {
     expect(rule(".fg .hd-dy-door:focus-visible")).toEqual({ outline: "none", "box-shadow": "var(--ring)" });
     expect(rule(".fg .hd-dy-en:focus-visible")).toEqual({ outline: "none", "box-shadow": "var(--ring)" });

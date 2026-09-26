@@ -9,8 +9,8 @@ import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { HomeListReads } from "@/lib/dashboard/home-list";
 import type { TaskDoneLine } from "@/lib/dashboard/task-done-query";
 import type { CompanyCalendar } from "@/lib/calendar/items";
-import type { DeskDiary } from "@/lib/dashboard/diary-doors";
-import { buildConversations, diaryFeed, type MentionNote } from "@/lib/dashboard/diary-feed";
+import { DIARY_LIT_MS, type DeskDiary } from "@/lib/dashboard/diary-doors";
+import { buildConversations, diaryFeed, type DiaryConversation, type MentionNote } from "@/lib/dashboard/diary-feed";
 
 /* THE NEW HOME'S FRAME (H11): the date in the band, "Your day" on every
    face, ONE row of tabs that never moves, and a body that slides in tab
@@ -190,18 +190,36 @@ const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
 /** The diary as the desk's loader hands it over, from the same entries the
     page's journal holds — the Tasks tab and the list read those, and the
     two are the same rows. */
-const diaryOf = (entries: readonly JournalEntry[]): DeskDiary => ({
+const diaryOf = (
+  entries: readonly JournalEntry[],
+  { mentions = false, conversations = [] }: { mentions?: boolean; conversations?: DiaryConversation[] } = {},
+): DeskDiary => ({
   feed: diaryFeed({
     entries: entries.map((e) => ({ ...e, stamp: `${e.day} 12:00:00`, routed: true, taskFor: {} })),
-    conversations: [],
+    conversations,
     day: TODAY,
-    mentions: false,
+    mentions,
     entriesCut: false,
     syncedAt: null,
   }),
   you: "IS",
   names: {},
 });
+
+/* Luke's ask of Isaac on a job, and what came after it, as the diary's
+   conversations. */
+const JOB_2041 = "3f2b8c1e-0d4a-4b6f-9a2e-1c5d7e9f0a11";
+const talkOf = (notes: MentionNote[]) =>
+  buildConversations({
+    notes,
+    me: { uuid: "u-isaac", handle: "isaacsmith" },
+    people: [
+      { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" },
+      { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" },
+    ],
+    jobs: new Map([[JOB_2041, { label: "2041 Wollstonecraft", live: true }]]),
+    today: TODAY,
+  });
 
 const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   chips: { self: [], team: [] },
@@ -382,6 +400,35 @@ describe("the faces", () => {
     expect(document.querySelector(".hm-cal, .hm-face.one")).toBeNull();
   }, WHOLE);
 
+  /* Luke's answer, lit, while you are on another face: the diary is
+     hidden, so the light's seven seconds wait for it to be seen. */
+  it("keep his newest message lit while the Diary is not the face on screen", async () => {
+    jest.useFakeTimers();
+    try {
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      const conversations = talkOf([
+        { uuid: "n-ask", jobUuid: JOB_2041, author: "u-luke", at: "2026-08-09 13:42:10", text: "@isaacsmith call Mary" },
+        { uuid: "n-mine", jobUuid: JOB_2041, author: "u-isaac", at: "2026-08-09 15:10:00", text: "@lukeingold on it" },
+        { uuid: "n-his", jobUuid: JOB_2041, author: "u-luke", at: `${TODAY} 08:15:00`, text: "@isaacsmith she rang back" },
+      ]);
+      draw({ desk: { warnDays: 30, list: reads(), calendar: cal(), diary: diaryOf([], { mentions: true, conversations }) } });
+      const his = () => face("diary").querySelectorAll<HTMLElement>(".hd-dy-tr")[1]!;
+      expect(his()).toHaveAttribute("data-lit");
+      await user.click(tab("Tasks"));
+      act(() => {
+        jest.advanceTimersByTime(DIARY_LIT_MS * 2);
+      });
+      await user.click(tab("Diary"));
+      expect(his()).toHaveAttribute("data-lit");
+      act(() => {
+        jest.advanceTimersByTime(DIARY_LIT_MS);
+      });
+      expect(his()).not.toHaveAttribute("data-lit");
+    } finally {
+      jest.useRealTimers();
+    }
+  }, WHOLE);
+
   it("put Diary and Tasks in the same column", () => {
     draw();
     const col = document.querySelector(".hd-col")!;
@@ -466,6 +513,59 @@ describe("the one door between faces", () => {
     await user.keyboard("{Enter}");
     expect(shownFaces()).toEqual(["diary"]);
     expect(document.activeElement?.closest("[data-entry]")).toBe(face("diary").querySelector('[data-entry="e1"]'));
+  }, WHOLE);
+
+  /* Once the diary reads ServiceM8 it reaches back sixty days (diary-feed's
+     ONE HORIZON), while the page's journal is its sixty newest entries
+     whatever their age. A task Tiff filed from an entry before then has no
+     entry in the diary to open, so it is offered none: its row opens it on
+     the Tasks tab, as a task typed there does, and its panel there has no
+     Open in diary to slide the diary in on nothing. */
+  const pastHorizon = () => {
+    const journal = [
+      entry({
+        id: "e-old",
+        said: "Order the filters for Bayview",
+        day: "2026-06-01",
+        at: "9:14 am",
+        outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }],
+      }),
+    ];
+    return data({
+      journal,
+      tasks: {
+        mine: [task({ id: "t0", title: "Ring the Hilux dealer" }), task()],
+        team: null,
+        done: [],
+        reported: [],
+        sm8: { lines: {}, sender: null },
+      },
+      desk: { warnDays: 30, list: reads(), calendar: cal(), diary: diaryOf(journal, { mentions: true }) },
+    });
+  };
+
+  it("opens a task from an entry past the diary's reach on the Tasks tab, not on a diary without it", async () => {
+    const user = userEvent.setup();
+    render(<DashboardDesk data={pastHorizon()} />);
+    expect(face("diary").querySelector('[data-entry="e-old"]')).toBeNull();
+    const list = screen.getByRole("complementary", { name: "The list" });
+    expect(list).not.toHaveTextContent("Your diary");
+    await user.click(within(list).getByRole("button", { name: "Order 2× MERV 11 filters" }));
+    expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+    expect(shownFaces()).toEqual(["tasks"]);
+    expect(document.querySelector('[data-task-id="t1"]')).toHaveClass("on");
+  }, WHOLE);
+
+  it("offers no Open in diary on the Tasks tab for an entry the diary does not hold, so the face and the focus stay", async () => {
+    const user = userEvent.setup();
+    render(<DashboardDesk data={pastHorizon()} />);
+    await user.click(tab("Tasks"));
+    const row = within(face("tasks")).getByRole("button", { name: /^Order 2× MERV 11 filters/ });
+    await user.click(row);
+    expect(document.querySelector('[data-task-id="t1"]')).toHaveClass("on");
+    expect(screen.queryByRole("button", { name: "Open in diary" })).toBeNull();
+    expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+    expect(shownFaces()).toEqual(["tasks"]);
   }, WHOLE);
 
   /* A resolved issue and a task ticked off long ago are on neither the
@@ -660,6 +760,32 @@ describe("the list", () => {
     const talk = face("diary").querySelector<HTMLElement>(`[data-conversation="${ask.jobUuid}:u-luke"] > .hd-dy-en`)!;
     expect(talk).toHaveAttribute("data-lit");
     expect(document.activeElement).toBe(talk);
+  }, WHOLE);
+
+  /* An ask older than the mentions reach, or one deleted in ServiceM8, is
+     in no conversation the diary holds: its task opens on the Tasks tab
+     instead of sliding the diary in on nothing. */
+  it("opens a task an ask made on the Tasks tab when the diary holds no conversation for it", async () => {
+    const user = userEvent.setup();
+    const base = withTasks({
+      tasks: {
+        mine: [task({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" })],
+        team: null,
+        done: [],
+        reported: [],
+        sm8: { lines: {}, sender: null },
+      },
+    });
+    const gone = {
+      ...base,
+      desk: { ...base.desk!, diary: diaryOf([], { mentions: true }) },
+      mentions: [{ taskId: "t-mary", noteId: "n-gone", asker: "Luke", day: "2026-05-20" }],
+    } as DashboardData;
+    render(<DashboardDesk data={gone} />);
+    await user.click(within(theList()).getByRole("button", { name: "Call Mary about 2041 Wollstonecraft" }));
+    expect(tab("Tasks")).toHaveAttribute("aria-selected", "true");
+    expect(shownFaces()).toEqual(["tasks"]);
+    expect(document.querySelector('[data-task-id="t-mary"]')).toHaveClass("on");
   }, WHOLE);
 
   it("opens a won job on the desk's one card", async () => {

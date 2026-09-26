@@ -6,7 +6,9 @@
 import {
   conversationHead,
   conversationUnder,
+  diaryHolds,
   diaryItemOf,
+  JOB_GONE_LINE,
   litMessage,
   messageHead,
   SOURCE_LINE,
@@ -110,8 +112,10 @@ describe("under it", () => {
     expect(SOURCE_LINE).toBe("A job note in ServiceM8.");
   });
 
-  /* #809: nothing goes to a job its business deleted. */
-  it("is no door and no Reply for a deleted job, and says it has gone, in #809's words", () => {
+  /* #809: nothing goes to a job its business deleted. The Diary spec's
+     words, verbatim: the ones the desk's card says for a job that has
+     gone, whatever the job was called. */
+  it("is no door and no Reply for a deleted job, and says it has gone, in #809's words exactly", () => {
     const [c] = talk(
       [note(J2749, LUKE.uuid, "2026-09-09 10:04:00", "@isaacsmith can you advise Holly")],
       new Map([[J2749, { label: "2749 Woolloomooloo", live: false }]]),
@@ -119,10 +123,9 @@ describe("under it", () => {
     expect(conversationUnder(c!)).toEqual({
       job: null,
       reply: null,
-      lines: [SOURCE_LINE, "2749 Woolloomooloo isn't in ServiceM8's copy any more."],
+      lines: [SOURCE_LINE, "That job isn't in ServiceM8's copy any more."],
     });
-    const [unknown] = talk([note(J2749, LUKE.uuid, "2026-09-09 10:04:00", "@isaacsmith advise Holly")], new Map());
-    expect(conversationUnder(unknown!).lines).toEqual([SOURCE_LINE, "That job isn't in ServiceM8's copy any more."]);
+    expect(JOB_GONE_LINE).toBe("That job isn't in ServiceM8's copy any more.");
   });
 
   it("offers no Reply for a job whose id ServiceM8 could not open", () => {
@@ -169,5 +172,46 @@ describe("the item a door names", () => {
     expect(diaryItemOf(feed, { kind: "conversation", ids: ["e1"] })).toBeNull();
     expect(diaryItemOf(feed, { kind: "entry", ids: ["n1"] })).toBeNull();
     expect(diaryItemOf(feed, { kind: "entry", ids: [] })).toBeNull();
+  });
+});
+
+describe("what a door can land on", () => {
+  const entryOn = (id: string, day: string): DiaryEntry => ({
+    id,
+    said: "Van booked in for Tuesday",
+    day,
+    at: "7:30 am",
+    outcomes: [],
+    spoken: false,
+    stamp: `${day} 07:30:00`,
+    routed: false,
+    taskFor: {},
+  });
+
+  /* With mentions read, the column reaches back sixty days and no further,
+     whatever the page's journal holds: an entry from before then has no
+     place to land, and neither has an ask the diary holds no conversation
+     for. */
+  it("is every entry and every note the diary holds, and nothing past its horizon", () => {
+    const conversations = talk([
+      note(J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
+      note(J2041, ISAAC.uuid, "2026-09-22 15:10:00", "@lukeingold calling her"),
+    ]);
+    const feed = diaryFeed({
+      entries: [entryOn("e-now", TODAY), entryOn("e-july", "2026-07-20")],
+      conversations,
+      day: TODAY,
+      mentions: true,
+      entriesCut: false,
+      syncedAt: null,
+    });
+    const holds = diaryHolds(feed);
+    expect([...holds.entries]).toEqual(["e-now"]);
+    expect([...holds.notes].sort()).toEqual(["n1", "n2"]);
+  });
+
+  it("is nothing without a diary", () => {
+    const holds = diaryHolds(null);
+    expect(holds.entries.size + holds.notes.size).toBe(0);
   });
 });

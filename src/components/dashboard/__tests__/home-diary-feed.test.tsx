@@ -27,6 +27,14 @@ jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
    action cannot load here; the conversations have their own suite. */
 jest.mock("@/app/actions/workboard", () => ({ openMirrorJob: jest.fn(async () => null) }));
 jest.mock("@/components/workboard/board/job-sheet", () => ({ JobSheet: () => null }));
+/* The modal reads a line said to the Calendar with the calendar's own
+   actions (H22), whose module cannot load here; the diary's conversations
+   never reach them. */
+jest.mock("@/app/actions/calendar", () => ({
+  fileCalendarLine: jest.fn(),
+  noteOnCalendarEvents: jest.fn(),
+  undoCalendarLine: jest.fn(),
+}));
 const keepWords = jest.fn();
 const undoNote = jest.fn();
 jest.mock("@/app/actions/workboard-notes", () => ({

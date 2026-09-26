@@ -552,14 +552,20 @@ describe("after filing", () => {
       expect(grabbed.api!.landed).toMatchObject({ noteIds: ["k7"], keyboard: true });
     });
 
+    /* Words said to the Calendar are a line for the calendar (H22), so the
+       note that lands from its room is one Tiff could not read and kept as
+       said: the page is told which room it came from, and brings nothing
+       forward over the Calendar for it. */
     it("says the room it was had in", async () => {
-      routeNote.mockResolvedValue({ ok: false, error: KEPT_AS_SAID, kept: true, noteId: "k7" });
+      fileCalendarLine.mockResolvedValue({ ok: false, error: "That line couldn't be read just now.", unread: true });
+      keepWords.mockResolvedValue({ ok: true, noteId: "k7" });
       const user = userEvent.setup();
       render(<Harness voice={false} extra={<Grab />} />);
       await act(async () => {
         grabbed.api!.open({ from: topButton(), words: "toolbox talk every first Thursday", room: "calendar" });
       });
       await flush();
+      expect(keepWords).toHaveBeenCalledWith("toolbox talk every first Thursday", "calendar");
       await user.click(within(dialog()).getByRole("button", { name: "Close" }));
       await flush();
       expect(grabbed.api!.landed).toEqual({ noteIds: ["k7"], ids: [], room: "calendar", keyboard: false });
@@ -1634,7 +1640,7 @@ describe("the calendar's room", () => {
     const user = await calendar(LINE);
     await user.click(within(dialog()).getByRole("button", { name: "Close" }));
     await flush();
-    expect(grabbed.api!.landed).toStrictEqual({ noteIds: [], ids: IDS });
+    expect(grabbed.api!.landed).toStrictEqual({ noteIds: [], ids: IDS, room: "calendar", keyboard: false });
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 

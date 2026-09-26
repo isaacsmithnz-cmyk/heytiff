@@ -41,6 +41,14 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   keepNoteForMe: jest.fn(),
   answerClarify: jest.fn(),
 }));
+/* The modal reads a line said to the Calendar with the calendar's own
+   actions (H22), whose module cannot load here; the diary's conversations
+   never reach them. */
+jest.mock("@/app/actions/calendar", () => ({
+  fileCalendarLine: jest.fn(),
+  noteOnCalendarEvents: jest.fn(),
+  undoCalendarLine: jest.fn(),
+}));
 const mockOpenMirrorJob = jest.fn();
 jest.mock("@/app/actions/workboard", () => ({ openMirrorJob: (id: string) => mockOpenMirrorJob(id) }));
 jest.mock("@/components/workboard/board/job-sheet", () => ({

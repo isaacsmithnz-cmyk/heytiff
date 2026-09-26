@@ -3,6 +3,7 @@ import {
   sm8Handle,
   taskTitleFromNote,
   withoutHandles,
+  namedNote,
   quotedNote,
   withoutKnownHandles,
 } from "@/lib/workboard/sm8-mentions";
@@ -213,5 +214,44 @@ describe("quotedNote", () => {
 
   it("names a handle that ends in a full stop without losing the sentence's", () => {
     expect(toIsaac("@isaacsmith ask @ross. about it")).toBe("ask Ross about it");
+  });
+});
+
+describe("namedNote", () => {
+  /* What Tiff reads: nothing taken out, so a note written to two people
+     keeps who each part is to. The real one, Alex's on 2778 Queenscliff,
+     was read without its addressing as one task for Isaac with Luke's
+     half in it. */
+  const names = new Map([
+    ["lukeingold", "Luke"],
+    ["michaeldiamond", "Michael"],
+    ["isaacsmith", "Isaac"],
+    ["ross.", "Ross"],
+  ]);
+  const named = (text: string) => namedNote(text, names);
+
+  it("says every handle it knows by name, the opening run and the reader's own included", () => {
+    expect(
+      named(
+        "@lukeingold when you send invoice can you please send through warranty stuff\n\n" +
+          "@isaacsmith can you send house by rivers contact to David",
+      ),
+    ).toBe(
+      "Luke when you send invoice can you please send through warranty stuff\n\n" +
+        "Isaac can you send house by rivers contact to David",
+    );
+    expect(named("@isaacsmith @michaeldiamond please sort the invoice")).toBe("Isaac Michael please sort the invoice");
+    expect(named("Thanks @IsaacSmith.")).toBe("Thanks Isaac.");
+  });
+
+  it("leaves an address, an unknown @word and a possessive as written, and a handle's full stop the sentence's", () => {
+    expect(named("@isaacsmith email susie@peterson.com about it")).toBe("Isaac email susie@peterson.com about it");
+    expect(named("@isaacsmith ask @nobodyhere first")).toBe("Isaac ask @nobodyhere first");
+    expect(named("@michaeldiamond's van is at the yard")).toBe("@michaeldiamond's van is at the yard");
+    expect(named("ask @ross. about it")).toBe("ask Ross about it");
+  });
+
+  it("is the note as written when nobody is known", () => {
+    expect(namedNote("  @lukeingold call Mary ", new Map())).toBe("@lukeingold call Mary");
   });
 });

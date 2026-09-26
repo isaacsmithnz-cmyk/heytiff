@@ -7,6 +7,8 @@
 const inserts: { table: string; payload: unknown }[] = [];
 const upserts: { table: string; payload: unknown }[] = [];
 const deletes: string[] = [];
+/** Every filter a read of mention_asks was given. */
+const askFilters: [string, unknown][] = [];
 
 let rows: Record<string, Record<string, unknown> | null> = {};
 
@@ -18,9 +20,13 @@ jest.mock("@/lib/supabase-server", () => ({
       chain.select = self;
       chain.eq = (...args: unknown[]) => {
         if (table === "workboard_notes" && args[0] === "target_kind") deletes.push(String(args[1]));
+        if (table === "mention_asks") askFilters.push([String(args[0]), args[1]]);
         return chain;
       };
-      chain.in = self;
+      chain.in = (...args: unknown[]) => {
+        if (table === "mention_asks") askFilters.push([String(args[0]), args[1]]);
+        return chain;
+      };
       chain.order = self;
       chain.limit = self;
       chain.maybeSingle = async () => ({ data: rows[table] ?? null });
@@ -64,6 +70,7 @@ beforeEach(() => {
   inserts.length = 0;
   upserts.length = 0;
   deletes.length = 0;
+  askFilters.length = 0;
   caps = new Set(["workboard"]);
   rows = {
     sm8_jobs: { uuid: "job-uuid" },
@@ -168,6 +175,23 @@ describe("taskFromJobNote", () => {
     const res = await taskFromJobNote(input);
     expect(res.ok).toBe(false);
     expect(inserts).toHaveLength(0);
+  });
+
+  /* ONE TASK PER ASK (H18): Tiff made this ask somebody's task after the
+     card was drawn. The suggestion the card still shows must not make a
+     second. */
+  it("refuses a note Tiff has already made a task, and writes nothing", async () => {
+    rows.mention_asks = { id: "ma-1" };
+    const res = await taskFromJobNote(input);
+    expect(res).toEqual({ ok: false, error: "That note is already a task." });
+    expect(inserts).toHaveLength(0);
+    expect(upserts).toHaveLength(0);
+    expect(askFilters).toEqual([
+      ["org_id", "org-1"],
+      ["sm8_note_uuid", "n-1"],
+      ["status", "read"],
+      ["kind", ["do", "question"]],
+    ]);
   });
 
   it("keeps a due date only when it is a real ISO day", async () => {

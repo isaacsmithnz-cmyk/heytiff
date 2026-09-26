@@ -23,6 +23,11 @@
      mention    a ServiceM8 note that @mentions one of the crew and has not
                 been answered. A SUGGESTION, never an action: it offers to
                 become a task and nothing is created until a person says so.
+                The one named exception is the new Home's ONE TASK PER ASK
+                (Isaac, 2026-09-25; dashboard/mention-settle): for a person
+                the new Home is on, Tiff makes the ask their task when it
+                arrives, with no review. That note is then answered, and
+                its task stands here as a task row instead.
 
    STRIP = STATE, STORY = RECORD. Every one of these also exists in the diary
    as history; clearing the strip never rewrites it.

@@ -28,6 +28,9 @@
    naming the other side of this conversation. Anybody else it names is
    said by first name (the whole name when two people share the first), so
    "can you ask @michaeldiamond to bring the ladder" still asks for Michael.
+   What Tiff READS is the note with nothing taken out and every handle said
+   by name, yours by your first (`named`): a note written to Luke and to you
+   is two asks, and only the part in front of your name is yours.
 
    WHERE IT SORTS is the asker's newest message, so your reply never moves
    it and his answer brings the whole conversation up into Today. Its header
@@ -46,7 +49,7 @@
    limit. */
 
 import { plusDays } from "@/lib/workboard/dates";
-import { mentionedHandles, quotedNote } from "@/lib/workboard/sm8-mentions";
+import { mentionedHandles, namedNote, quotedNote } from "@/lib/workboard/sm8-mentions";
 import type { Sm8Person } from "@/lib/workboard/job-notes-query";
 import type { DiaryEntry } from "./journal";
 
@@ -84,6 +87,10 @@ export type DiaryMessage = {
   /** Their words less the addressing; anybody else named, by name
       (quotedNote). */
   text: string;
+  /** Their words with nothing taken out, everybody named by name and you
+      by your first (namedNote): what Tiff reads, so she sees who each part
+      of a note written to several people is to. */
+  named: string;
   at: string;
 };
 
@@ -112,6 +119,27 @@ export type DiaryConversation = {
   /** The asker's newest message is today and you haven't answered it —
       the highlight. */
   fresh: boolean;
+  /** The tasks Tiff made of this conversation's asks of you, oldest ask
+      first (mention_asks, ./mention-asks). Empty until the read that knows
+      them fills it in: an ask not read yet, or read as asking nothing, has
+      none. */
+  tasks: AskTask[];
+};
+
+/** The one task an ask of you became. */
+export type AskTask = {
+  /** The ask: the ServiceM8 note that asked. */
+  noteId: string;
+  /** Null when the task has since been deleted. */
+  taskId: string | null;
+  done: boolean;
+  /** When your reply said you'd do it, in its words ("this afternoon"),
+      while they are still true: today, and the day they named still the
+      task's. Otherwise null. */
+  dueSaid: string | null;
+  /** The staff card it is on now: yours, or whoever it was given to since.
+      Null when that isn't known (the task since deleted). */
+  ownerId: string | null;
 };
 
 export type DiaryItem =
@@ -159,7 +187,7 @@ const msOf = (s: string) => {
   return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : NaN;
 };
 
-type Draft = Omit<DiaryConversation, "answered" | "fresh">;
+type Draft = Omit<DiaryConversation, "answered" | "fresh" | "tasks">;
 
 /** handle → the word a quoted note says for them: a first name, unless two
     people share it. The diary's conversations and the Tasks face's quoted
@@ -185,6 +213,11 @@ export function buildConversations(input: {
   const byUuid = new Map(input.people.map((p) => [p.uuid, p]));
   const handles = input.people.map((p) => p.handle);
   const names = handleWords(input.people);
+  /* What Tiff reads: the same words, and you always by your first name,
+     the one her prompt says the note's ask of you is made to. */
+  const readNames = new Map(names);
+  const myFirst = byUuid.get(me.uuid)?.first;
+  if (myFirst) readNames.set(me.handle, myFirst);
 
   const seen = new Set<string>();
   const notes = input.notes
@@ -202,7 +235,14 @@ export function buildConversations(input: {
   const say = (c: Draft, n: MentionNote, from: DiaryMessage["from"], addressed = true) => {
     /* The other side of the conversation is who the note is addressed to. */
     const addressing = [from === "them" ? me.handle : c.asker.handle];
-    c.messages.push({ id: n.uuid, from, addressed, text: quotedNote(n.text, { names, addressing }), at: n.at });
+    c.messages.push({
+      id: n.uuid,
+      from,
+      addressed,
+      text: quotedNote(n.text, { names, addressing }),
+      named: namedNote(n.text, readNames),
+      at: n.at,
+    });
     if (from === "them") c.lastTheirs = n.at;
     else c.lastYours = n.at;
   };
@@ -257,7 +297,7 @@ export function buildConversations(input: {
   return [...open.values()]
     .map((c): DiaryConversation => {
       const answered = c.lastYours !== null && c.lastYours > c.lastTheirs;
-      return { ...c, answered, fresh: c.lastTheirs.slice(0, 10) === today && !answered };
+      return { ...c, answered, fresh: c.lastTheirs.slice(0, 10) === today && !answered, tasks: [] };
     })
     .sort((a, b) => (a.lastTheirs === b.lastTheirs ? (a.key < b.key ? -1 : 1) : a.lastTheirs < b.lastTheirs ? 1 : -1));
 }

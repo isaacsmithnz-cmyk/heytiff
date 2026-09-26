@@ -124,6 +124,23 @@ export function quotedNote(
   );
 }
 
+/** A note as Tiff READS it for one reader: nothing taken out, and every
+    handle we know said as `names`' word for it.
+
+    The quote takes the addressing out, which is right for a row that
+    already says who is talking to whom and wrong for a reader deciding
+    what the note asks of whom: "@lukeingold when you send invoice can you
+    send the warranty stuff / @isaacsmith can you send David the builder's
+    contact" quoted to Isaac is two asks with nobody in front of either,
+    and the real read (2026-09-26) made Luke's half part of Isaac's task.
+    Here each part keeps the person it is to — "Luke when you send
+    invoice… / Isaac can you send David…" — and an address, an unknown
+    @word and a possessive stay as written, as the quote leaves them. */
+export function namedNote(text: string, names: ReadonlyMap<string, string>): string {
+  const words = new Map([...names].filter(([h, w]) => h && w).map(([h, w]) => [h.toLowerCase(), w]));
+  return sayKnownHandles(text, new Set(words.keys()), (h) => words.get(h) ?? null);
+}
+
 const lowerSet = (hs: Iterable<string>) => new Set([...hs].filter(Boolean).map((h) => h.toLowerCase()));
 
 /* Longest first, as mentionedHandles reads it: "ross." is a handle before

@@ -560,10 +560,13 @@ export async function readJobAttention(
      mark stays when the link goes. A reply that closed its task is a reply,
      and a mention like any other. */
   const ourMentions = notesOn ? (input.ourNotes ?? []).filter((n) => n.hasCreate && !n.removed && !n.isTaskDone) : [];
+  /* ONE read of the asks Tiff made tasks of on this job serves both: their
+     tasks are this job's tasks, and their notes are answered. */
+  const asks = askedOnJob(orgId, jobUuid);
   const [flags, taskIds, answered, people, assignable, ours, repliedTo] = await Promise.all([
     readJobFlags(orgId, jobUuid),
-    noteBornTaskIds(orgId, jobUuid),
-    answeredNotes(orgId, jobUuid),
+    noteBornTaskIds(orgId, jobUuid, asks),
+    answeredNotes(orgId, jobUuid, asks),
     readMentionPeople(orgId),
     mentionableStaff(orgId),
     /* notes HeyTiff wrote itself, mirrored back (lib/integrations/sm8-echo) */
@@ -680,11 +683,13 @@ async function readJobFlags(orgId: string, jobUuid: string): Promise<AttentionFl
     aimed at this job and it recorded the ids it created. The journal already
     resolves outcomes this way; this is the same trick on a card.
 
-    Two sources, because a task about this job can be born two ways: through
-    the review card (`workboard_notes.applied.taskIds`) or straight off one
-    of ServiceM8's own notes on the strip (`job_note_actions.task_id`). */
-async function noteBornTaskIds(orgId: string, jobUuid: string): Promise<string[]> {
-  const [{ data: notes }, { data: acts }] = await Promise.all([
+    Three sources, because a task about this job can be born three ways:
+    through the review card (`workboard_notes.applied.taskIds`), straight
+    off one of ServiceM8's own notes on the strip (`job_note_actions.task_id`),
+    or by Tiff, from a note on it that asked somebody something
+    (`mention_asks.task_id`, the new Home's one task per ask). */
+async function noteBornTaskIds(orgId: string, jobUuid: string, asks: Promise<JobAsk[]>): Promise<string[]> {
+  const [{ data: notes }, { data: acts }, asked] = await Promise.all([
     supabaseAdmin
       .from("workboard_notes")
       .select("applied")
@@ -700,6 +705,7 @@ async function noteBornTaskIds(orgId: string, jobUuid: string): Promise<string[]
       .eq("sm8_job_uuid", jobUuid)
       .eq("action", "task")
       .limit(200),
+    asks,
   ]);
 
   const ids = new Set<string>();
@@ -711,7 +717,34 @@ async function noteBornTaskIds(orgId: string, jobUuid: string): Promise<string[]
   for (const a of (acts ?? []) as { task_id: string | null }[]) {
     if (a.task_id) ids.add(a.task_id);
   }
+  for (const a of asked) if (a.taskId) ids.add(a.taskId);
   return [...ids];
+}
+
+/** An ask on this job that Tiff made a task of. */
+type JobAsk = { noteUuid: string; taskId: string | null };
+
+/** THE ASKS ON THIS JOB THAT BECAME TASKS (docs/migrations/mention_asks.sql).
+    Read whatever became of the task since: one deleted is still an ask
+    somebody dealt with, and the strip doesn't offer it again, as a deleted
+    task's job_note_actions row doesn't. An ask read as asking nothing is
+    not here, and the strip may still offer it to whoever it names. Before
+    the table exists, or when the read fails, there are none: the strip is
+    what it was. */
+async function askedOnJob(orgId: string, jobUuid: string): Promise<JobAsk[]> {
+  const { data, error } = await supabaseAdmin
+    .from("mention_asks")
+    .select("sm8_note_uuid, task_id")
+    .eq("org_id", orgId)
+    .eq("sm8_job_uuid", jobUuid)
+    .eq("status", "read")
+    .in("kind", ["do", "question"])
+    .limit(500);
+  if (error) return [];
+  return ((data ?? []) as { sm8_note_uuid: string; task_id: string | null }[]).map((r) => ({
+    noteUuid: r.sm8_note_uuid,
+    taskId: r.task_id,
+  }));
 }
 
 /** The ones still open, with who they're on. */
@@ -741,15 +774,23 @@ async function openTasks(orgId: string, ids: readonly string[]): Promise<Attenti
   }));
 }
 
-/** ServiceM8 notes on this job that somebody has already dealt with. */
-async function answeredNotes(orgId: string, jobUuid: string): Promise<Set<string>> {
-  const { data } = await supabaseAdmin
-    .from("job_note_actions")
-    .select("sm8_note_uuid")
-    .eq("org_id", orgId)
-    .eq("sm8_job_uuid", jobUuid)
-    .limit(500);
-  return new Set(((data ?? []) as { sm8_note_uuid: string }[]).map((r) => r.sm8_note_uuid));
+/** ServiceM8 notes on this job that somebody has already dealt with — on
+    the strip, or by Tiff, who made the ask a task (its task shows as a
+    task row instead). */
+async function answeredNotes(orgId: string, jobUuid: string, asks: Promise<JobAsk[]>): Promise<Set<string>> {
+  const [{ data }, asked] = await Promise.all([
+    supabaseAdmin
+      .from("job_note_actions")
+      .select("sm8_note_uuid")
+      .eq("org_id", orgId)
+      .eq("sm8_job_uuid", jobUuid)
+      .limit(500),
+    asks,
+  ]);
+  return new Set([
+    ...((data ?? []) as { sm8_note_uuid: string }[]).map((r) => r.sm8_note_uuid),
+    ...asked.map((a) => a.noteUuid),
+  ]);
 }
 
 /** WHO EACH SERVICEM8 HANDLE IS — the first read-time consumer

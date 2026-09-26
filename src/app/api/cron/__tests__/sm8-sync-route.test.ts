@@ -45,6 +45,18 @@ jest.mock("@/lib/integrations/sm8-writes", () => ({
   }),
 }));
 
+/* The asks (H18): each workspace's settle, after every sync. */
+const settled: { org: string; budgetMs: number }[] = [];
+let settleTakes: number[] = [];
+jest.mock("@/lib/dashboard/mention-settle", () => ({
+  settleMentionAsks: jest.fn(async (org: string, opts: { budgetMs: number }) => {
+    events.push(`asks:${org}`);
+    settled.push({ org, budgetMs: opts.budgetMs });
+    clock += settleTakes.shift() ?? 0;
+    return { reads: 2, tasks: 1, moved: 0, done: 0, failed: 0, skipped: null };
+  }),
+}));
+
 import { GET, maxDuration } from "../sm8-sync/route";
 import { WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
 
@@ -53,6 +65,7 @@ const { recordSm8CronVisit, runSm8Sync } = jest.requireMock("@/lib/integrations/
   runSm8Sync: jest.Mock;
 };
 const { runSm8Writes } = jest.requireMock("@/lib/integrations/sm8-writes") as { runSm8Writes: jest.Mock };
+const { settleMentionAsks } = jest.requireMock("@/lib/dashboard/mention-settle") as { settleMentionAsks: jest.Mock };
 
 beforeEach(() => {
   authorised = true;
@@ -65,6 +78,9 @@ beforeEach(() => {
   recordSm8CronVisit.mockClear();
   runSm8Sync.mockClear();
   runSm8Writes.mockClear();
+  settleMentionAsks.mockClear();
+  settled.length = 0;
+  settleTakes = [];
   jest.spyOn(Date, "now").mockImplementation(() => clock);
   jest.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -106,7 +122,7 @@ describe("the night's order", () => {
 
   it("records Vercel's visit against each workspace before its sync", async () => {
     await GET(byScheduler());
-    expect(events.filter((e) => !e.startsWith("writes:"))).toEqual(["visit:s1", "sync:s1", "visit:s2", "sync:s2"]);
+    expect(events.filter((e) => /^(visit|sync):/.test(e))).toEqual(["visit:s1", "sync:s1", "visit:s2", "sync:s2"]);
   });
 
   it("counts the visit even when another sync held the lease", async () => {
@@ -145,7 +161,7 @@ describe("the writes' one budget", () => {
     takes = [44_000, WRITE_LEASE_MS];
     const body = await (await GET(byScheduler())).json();
     expect(budgets).toEqual([30_000, 1_000]);
-    expect(events.filter((e) => !e.startsWith("writes:"))).toEqual(["visit:s1", "sync:s1", "visit:s2", "sync:s2"]);
+    expect(events.filter((e) => /^(visit|sync):/.test(e))).toEqual(["visit:s1", "sync:s1", "visit:s2", "sync:s2"]);
     expect(body).toMatchObject({ ran: 2, deferred: 0 });
     // ...and it all ends inside the function
     expect(clock - Date.parse("2026-09-25T20:00:00Z")).toBeLessThan(maxDuration * 1000);
@@ -194,5 +210,44 @@ describe("note words", () => {
     expect(clearSm8NoteText).toHaveBeenCalledWith({ olderThanDays: 30 }, expect.any(Number));
     expect(clearDisconnectedSm8NoteText).toHaveBeenCalled();
     expect(body.notesCleared).toBe(3);
+  });
+});
+
+/* H18: a ServiceM8 ask of a person the new Home is on becomes one task. A
+   sync is what brings an ask in, so the asks are read after every sync, in
+   what is left of the night, and one workspace's reading never puts off
+   another's sync. */
+describe("the asks", () => {
+  it("are read after every workspace has synced, each with what is left of the window", async () => {
+    settleTakes = [10_000, 0];
+    const body = await (await GET(byScheduler())).json();
+    const lastSync = events.map((e) => e.startsWith("sync:")).lastIndexOf(true);
+    expect(events.findIndex((e) => e.startsWith("asks:"))).toBeGreaterThan(lastSync);
+    expect(settled.map((s) => s.org)).toEqual(["s1", "s2"]);
+    // nothing else took time: 300 s less the 15 s margin, then 10 s fewer for the second
+    expect(settled.map((s) => s.budgetMs)).toEqual([285_000, 275_000]);
+    expect(body.asks).toEqual({ read: 4, tasks: 2, deferred: 0 });
+  });
+
+  it("are left for another night when the window is spent, and says how many waited", async () => {
+    // the writes and the first sync used the whole window, margin and all
+    takes = [44_000];
+    syncTakes = [241_000];
+    const body = await (await GET(byScheduler())).json();
+    expect(settleMentionAsks).not.toHaveBeenCalled();
+    expect(body.asks).toEqual({ read: 0, tasks: 0, deferred: 2 });
+  });
+
+  it("one workspace's failure doesn't stop the next one's", async () => {
+    settleMentionAsks.mockRejectedValueOnce(new Error("boom"));
+    const body = await (await GET(byScheduler())).json();
+    expect(settleMentionAsks).toHaveBeenCalledTimes(2);
+    expect(body.asks).toEqual({ read: 2, tasks: 1, deferred: 1 });
+  });
+
+  it("reads none on a call that doesn't pass CRON_SECRET", async () => {
+    authorised = false;
+    await GET(byScheduler());
+    expect(settleMentionAsks).not.toHaveBeenCalled();
   });
 });

@@ -50,12 +50,15 @@ export async function loadDiaryFeed(ctx: DiaryFeedContext): Promise<DiaryFeed> {
   const [entries, conversations, syncedAt] = await Promise.all([
     ctx.viewerStaffId ? listDiaryEntries(ctx.orgId, ctx.viewerStaffId, ctx.tz) : Promise.resolve([]),
     mineUuid
-      ? listMyMentions(ctx.orgId, mineUuid, ctx.railDay).catch((err: unknown): DiaryConversation[] => {
-          console.error(
-            `[diary] couldn't read the mentions for org ${ctx.orgId}: ${err instanceof Error ? err.message : String(err)}`
-          );
-          return [];
-        })
+      ? /* with the tasks the viewer's asks made (mention_asks) */
+        listMyMentions(ctx.orgId, mineUuid, ctx.railDay, { staffId: ctx.viewerStaffId }).catch(
+          (err: unknown): DiaryConversation[] => {
+            console.error(
+              `[diary] couldn't read the mentions for org ${ctx.orgId}: ${err instanceof Error ? err.message : String(err)}`
+            );
+            return [];
+          },
+        )
       : Promise.resolve([] as DiaryConversation[]),
     mineUuid ? mirrorSyncedAt(ctx.orgId).catch(() => null) : Promise.resolve(null),
   ]);

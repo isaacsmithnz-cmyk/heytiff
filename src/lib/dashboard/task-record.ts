@@ -31,7 +31,8 @@ export { isLate };
 export type TaskSource =
   /** Tiff made it from something someone told Tiff (`workboard_notes`). */
   | "diary"
-  /** It came off a ServiceM8 job note (`job_note_actions`). */
+  /** It came off a ServiceM8 job note: somebody pressed the job card's
+      strip (`job_note_actions`), or Tiff made it from an ask (`mention_asks`). */
   | "sm8"
   /** A project's defects period made it (`projects.defects_task_id`). */
   | "project"

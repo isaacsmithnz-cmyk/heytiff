@@ -69,7 +69,8 @@ import { useDiaryRefresh } from "./use-diary-refresh";
      SOMEONE WHO ASKED YOU SOMETHING in a ServiceM8 job note is a
      conversation in the same column, sorted by their newest message, so
      an answer to last week's ask comes up into Today
-     (./home-diary-conversation, the job door and Reply included).
+     (./home-diary-conversation: the job door, the one task the ask made,
+     which is a row like any other task door's, and Reply).
 
    A DOOR FROM ANOTHER FACE names an entry (the list's "from your diary", a
    task's Open in diary) or a conversation, by one of its notes (the task
@@ -453,8 +454,11 @@ export function HomeDiaryFeed({
         conversation={i.conversation}
         today={feed.day}
         you={you}
+        who={who}
         asked={askedItem === i.key}
         showing={showing}
+        onPage={onPage}
+        onShowThings={onShowThings}
       />
     );
 

@@ -1,3 +1,4 @@
+import { settleMentionAsks } from "@/lib/dashboard/mention-settle";
 import { authorised } from "@/lib/integrations/cron-auth";
 import { recordSm8CronVisit, runSm8Sync, sweepableSm8Orgs } from "@/lib/integrations/sm8-sync";
 import {
@@ -20,8 +21,10 @@ import { NOTE_TEXT_DAYS } from "@/lib/integrations/sm8-note-plan";
    unexercised — so an unopened board still tells the truth at 7am.
 
    WHY IT IS SAFE TO RUN AS NOBODY: it moves ServiceM8's data into that same
-   org's own mirror rows, sends only what a person pressed Send on, and
-   returns counts. No org ids, no client names, no job numbers leave it.
+   org's own mirror rows, sends only what a person pressed Send on, makes
+   each new ask of a person the new Home is on into that person's one task
+   (in that same org, never sent anywhere), and returns counts. No org ids,
+   no client names, no job numbers leave it.
 
    WHY IT IS STILL LOCKED: it walks every connected workspace through the
    service-role client, so an open version would be a way to spend somebody
@@ -89,6 +92,16 @@ const CRON_SYNC_START_BY_MS = maxDuration * 1000 - SYNC_LEASE_MS - WRITE_LEASE_M
     screen says the overnight run never came. 45 s. Past it, what is left
     waits for the next page load or the next night. */
 const CRON_WRITE_TOTAL_MS = CRON_SYNC_START_BY_MS - WRITE_LEASE_MS;
+
+/** THE ASKS GO LAST (dashboard/mention-settle: each ServiceM8 ask of a
+    person the new Home is on becomes one task). After every sync, in what
+    is left of the night's window, workspace by workspace in the sweep's
+    order: a sync is what brings an ask in, and one workspace's reading
+    must never put off another's sync. The settle measures each read
+    against the budget it is handed, less this margin; what doesn't fit
+    waits for the next page load or the next night. Nothing it does is
+    sent to ServiceM8. */
+const CRON_SETTLE_MARGIN_MS = WRITE_LEASE_MARGIN_MS;
 
 /** Whether Vercel's scheduler made this call, rather than a person. */
 function fromScheduler(request: Request): boolean {
@@ -185,6 +198,25 @@ export async function GET(request: Request) {
     }
   }
 
+  /* The asks, after every sync (CRON_SETTLE_MARGIN_MS). */
+  let asksRead = 0;
+  let asksMade = 0;
+  let asksDeferred = 0;
+  for (const orgId of orgs) {
+    const budgetMs = startedAt + maxDuration * 1000 - CRON_SETTLE_MARGIN_MS - Date.now();
+    if (budgetMs <= 0) {
+      asksDeferred += 1;
+      continue;
+    }
+    try {
+      const settled = await settleMentionAsks(orgId, { budgetMs });
+      asksRead += settled.reads;
+      asksMade += settled.tasks;
+    } catch {
+      asksDeferred += 1;
+    }
+  }
+
   /* Counts only — enough to see the top-up is alive in the Vercel logs, and
      useless to anybody else. */
   return Response.json({
@@ -199,5 +231,6 @@ export async function GET(request: Request) {
     capped: orgs.length === ORG_CAP,
     writes: { orgs: writers.length, sent: writesSent, failed: writesFailed, deferred: writesDeferred },
     ...(sm8NotesAllowed() ? { notesCleared } : {}),
+    asks: { read: asksRead, tasks: asksMade, deferred: asksDeferred },
   });
 }

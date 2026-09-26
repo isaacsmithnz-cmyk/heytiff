@@ -6,6 +6,7 @@ import {
   conversationUnder,
   litMessage,
   messageHead,
+  type TaskWho,
 } from "@/lib/dashboard/diary-conversation";
 import { DIARY_LIT_MS } from "@/lib/dashboard/diary-doors";
 import type { DiaryConversation } from "@/lib/dashboard/diary-feed";
@@ -21,9 +22,12 @@ import { useDeskJobs } from "./home-job-sheet";
    word).
 
    THE JOB is a door onto the desk's one card (`useDeskJobs`), the card any
-   other door on this Home opens. REPLY goes to the job in ServiceM8, in a
-   new tab: the answer is written there, reaches the one who asked, and
-   threads back here with the next sync.
+   other door on this Home opens. THE TASK the ask made ("1 task for you",
+   H18) is a row on this page, so its door hands the ids to the frame
+   (`onShowThings`), which lights them in the list beside the diary or
+   opens them on the Tasks tab, as a task door under an entry does. REPLY
+   goes to the job in ServiceM8, in a new tab: the answer is written there,
+   reaches the one who asked, and threads back here with the next sync.
 
    HIS NEWEST MESSAGE, while it is today's and you haven't answered it,
    stands on the diary's wash — the whole conversation when it is the ask
@@ -43,8 +47,11 @@ export function HomeDiaryConversation({
   conversation: c,
   today,
   you,
+  who,
   asked,
   showing,
+  onPage,
+  onShowThings,
 }: {
   /** Its key in the feed, which a door from another face finds it by. */
   item: string;
@@ -53,15 +60,22 @@ export function HomeDiaryConversation({
   today: string;
   /** Your initials, for your own replies. */
   you: string;
+  /** Whose tasks need no name, and what to call everyone else: a task his
+      ask made that was given to Leo since is "1 task for Leo". */
+  who: TaskWho;
   /** A door asked for this conversation: it is lit as a whole. */
   asked: boolean;
   /** The Diary is the face on screen: the light's seconds run only then. */
   showing: boolean;
+  /** Every task a row on this page holds: where the task door can land. */
+  onPage: ReadonlySet<string>;
+  /** The task door: the frame shows those rows. */
+  onShowThings: (ids: readonly string[], pointer: boolean) => void;
 }) {
   const { openJob } = useDeskJobs();
   const theirs = initialsFrom(c.asker.name);
   const head = conversationHead(c, today);
-  const under = conversationUnder(c);
+  const under = conversationUnder(c, who, onPage);
   const job = under.job;
   const [ask, ...thread] = c.messages;
 
@@ -126,6 +140,18 @@ export function HomeDiaryConversation({
                 {job.label}
               </button>
             )}
+            {under.tasks.map((door) => (
+              /* a click with no pointer behind it came from the keyboard,
+                 and the frame moves nothing for a keyboard press (law 8) */
+              <button
+                key={door.ids[0]}
+                type="button"
+                className="hd-dy-door"
+                onClick={(e) => onShowThings(door.ids, e.detail > 0)}
+              >
+                {door.text}
+              </button>
+            ))}
             {under.reply && (
               <a className="hd-dy-door" href={under.reply} target="_blank" rel="noopener noreferrer">
                 Reply

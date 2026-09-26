@@ -45,8 +45,10 @@ import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
    mis-assigns "tell Luke" to the wrong Luke, or reads an urgent flag as a
    bullet point, costs more in trust than the tokens save. Thinking is ON by
    default on this model and shares the max_tokens budget with the response,
-   which is why the budget is generous for such a small output. */
-const MODEL = "claude-opus-5";
+   which is why the budget is generous for such a small output. Exported for
+   the reader of ServiceM8 asks (./mention-brain), which is the same router
+   reading the same kind of words. */
+export const MODEL = "claude-opus-5";
 const MAX_TOKENS = 16_000;
 
 /* MEASURED, NOT ASSUMED. At `high` — the API default, and what this shipped

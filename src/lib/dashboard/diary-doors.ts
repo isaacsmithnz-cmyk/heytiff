@@ -177,13 +177,17 @@ export function entryWhen(entry: DiaryEntry, at: { today: boolean; justNow: bool
   return day ? `${day}, ${entry.at}` : entry.at;
 }
 
-/** The staff this feed's tasks are on — whose first names the diary needs,
-    and nobody else's. */
+/** The staff this feed's tasks are on — an entry's, and a ServiceM8 ask's
+    (one given to Leo since is "1 task for Leo") — whose first names the
+    diary needs, and nobody else's. */
 export function taskOwners(feed: DiaryFeed): string[] {
   const out = new Set<string>();
   for (const item of [...feed.today, ...feed.earlier]) {
-    if (item.kind !== "entry") continue;
-    for (const owner of Object.values(item.entry.taskFor)) if (owner) out.add(owner);
+    if (item.kind === "entry") {
+      for (const owner of Object.values(item.entry.taskFor)) if (owner) out.add(owner);
+    } else {
+      for (const t of item.conversation.tasks) if (t.ownerId) out.add(t.ownerId);
+    }
   }
   return [...out];
 }

@@ -15,10 +15,19 @@
 
    Only a connected workspace is touched: a grant that needs reconnecting
    can't sync or send, and asking it to only burns the attempt. On a
-   deployment that doesn't write, only the sync runs. */
+   deployment that doesn't write, only the sync runs.
+
+   THEN THE ASKS. A sync that ran may have brought in a note that asks
+   somebody something, and the new Home makes each ask one task
+   (dashboard/mention-settle): settled in the same after(), right behind
+   the sync, so the conversation and its task arrive on the same next
+   load. Only after a sync that ran — a fresh mirror brought nothing new —
+   and only in what is left of the function, which the settle measures
+   each read against. It never sends anything to ServiceM8. */
 
 import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { settleMentionAsks } from "@/lib/dashboard/mention-settle";
 import { runSm8Sync, sm8SyncIsStale } from "./sm8-sync";
 import { runSm8Writes, sm8WritesDue, sm8WritesEnabled } from "./sm8-writes";
 import { backgroundBudgetMs, FUNCTION_MAX_MS, WRITE_LEASE_MARGIN_MS } from "./sm8-write-plan";
@@ -60,7 +69,13 @@ export function freshenSm8AfterResponse(orgId: string): void {
       }
 
       if (Date.now() - calledAt > FUNCTION_MAX_MS - SYNC_LEASE_MS - WRITE_LEASE_MARGIN_MS) return;
-      if (await sm8SyncIsStale(orgId, Date.now())) await runSm8Sync(orgId, "kick");
+      if (!(await sm8SyncIsStale(orgId, Date.now()))) return;
+      const synced = await runSm8Sync(orgId, "kick");
+      if (!synced.ran) return;
+
+      /* what is left of the function, less the margin its writes keep */
+      const budgetMs = calledAt + FUNCTION_MAX_MS - WRITE_LEASE_MARGIN_MS - Date.now();
+      if (budgetMs > 0) await settleMentionAsks(orgId, { budgetMs });
     } catch (err) {
       console.error(
         `[sm8] the page-load top-up for org ${orgId} threw: ${err instanceof Error ? err.message : String(err)}`

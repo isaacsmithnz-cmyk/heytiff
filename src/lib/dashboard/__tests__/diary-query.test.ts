@@ -61,7 +61,9 @@ beforeEach(() => {
 it("reads your entries on the account's clock and your mentions on its today", async () => {
   const feed = await loadDiaryFeed(ctx());
   expect(listDiaryEntries).toHaveBeenCalledWith("org-1", "s-isaac", "Australia/Brisbane");
-  expect(listMyMentions).toHaveBeenCalledWith("org-1", "u-isaac", "2026-09-25");
+  /* with the viewer's own staff card: the tasks their asks made are theirs
+     alone (H18) */
+  expect(listMyMentions).toHaveBeenCalledWith("org-1", "u-isaac", "2026-09-25", { staffId: "s-isaac" });
   expect(feed.today.map((i) => i.key)).toEqual(["entry:e1"]);
   expect(feed.earlier.map((i) => i.key)).toEqual(["mention:j-2041:u-luke"]);
   expect(feed).toMatchObject({ day: "2026-09-25", mentions: true, syncedAt: "2026-09-25T06:00:00Z" });

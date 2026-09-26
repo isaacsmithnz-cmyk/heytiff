@@ -200,8 +200,9 @@ export type VisitToBook = {
   dueDate: string;
 };
 
-/** A task a ServiceM8 mention made — filled by the mentions work (the Diary
-    area owns `mention_asks`); empty until then. */
+/** A task a ServiceM8 mention made (`mention_asks`, which the Diary area
+    owns): read off the diary's conversations by mention-asks'
+    `mentionTasksOf`. `asker` is their first name; `day` is the ask's. */
 export type MentionTask = { taskId: string; noteId: string; asker: string; day: string };
 
 export type ListCaps = {
@@ -481,7 +482,10 @@ export function placeList(input: ListInput): HomeList {
     } else if (at && at.day === day) {
       sub = `${t.remindKind === "by" ? "By" : "At"} ${clock(at.min)}.`;
     } else if (mention) {
-      sub = `${mention.asker} asked you, ${fmt(mention.day)}.`;
+      /* the ask was yours; a task given to someone else since is theirs,
+         and "asked you" beside their name would say it was theirs to do */
+      const yours = viewerStaffId !== null && t.assigneeId === viewerStaffId;
+      sub = `${mention.asker} asked${yours ? " you" : ""}, ${fmt(mention.day)}.`;
     } else if (entry) {
       sub = `Your diary, ${fmt(entry.day)}.`;
     } else {

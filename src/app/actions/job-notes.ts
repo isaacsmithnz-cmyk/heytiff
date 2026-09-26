@@ -257,7 +257,10 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
     REVIEW BEFORE SAVE IS THE LAW HERE TOO. Nothing on this path runs on its
     own: the strip only ever SUGGESTS, a person edits the title and names who
-    it is for, and this function is what they press. Which is also why the
+    it is for, and this function is what they press. (The new Home's one
+    task per ask is the named exception, and is not this path: Tiff files
+    an ask as one task for the person it asks, theirs to tick off or delete
+    — dashboard/mention-settle, docs/voice-capture.md §8.) Which is also why the
     assignee is required — `applyNote` learned the hard way that a task with
     nobody on it is a task nobody does, and it refuses rather than filtering.
 
@@ -293,6 +296,21 @@ export async function taskFromJobNote(input: NoteTaskInput): Promise<NoteTaskRes
   if (sm8NotesAllowed() && (await sm8Ours(orgId, [noteUuid])).has(noteUuid)) {
     return { ok: false, error: "That note is no longer here." };
   }
+
+  /* ONE TASK PER ASK. Tiff may have made this note somebody's task since
+     the card was drawn (the new Home's settle, dashboard/mention-settle), and
+     a press on the suggestion the card still shows must not make a second.
+     A read that fails, or a table not there yet, stops nothing. */
+  const { data: asked } = await supabaseAdmin
+    .from("mention_asks")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("sm8_note_uuid", noteUuid)
+    .eq("status", "read")
+    .in("kind", ["do", "question"])
+    .limit(1)
+    .maybeSingle();
+  if (asked) return { ok: false, error: "That note is already a task." };
 
   const { data: person } = await supabaseAdmin
     .from("staff_profiles")

@@ -19,6 +19,7 @@ import {
 import { motionAllowed } from "@/lib/dashboard/day-flip";
 import { diaryHolds } from "@/lib/dashboard/diary-conversation";
 import { placeHomeList, thingsOnList, type HomeListBase } from "@/lib/dashboard/home-list";
+import { mentionTasksOf } from "@/lib/dashboard/mention-asks";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 import { HomeCalendarPage } from "./home-cal-page";
 import { HomeDay } from "./home-day";
@@ -114,16 +115,19 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
   const holds = useMemo(() => diaryHolds(data.desk?.diary.feed ?? null), [data.desk]);
   const journal = useMemo(() => data.journal.filter((e) => holds.entries.has(e.id)), [data.journal, holds]);
   /* The list, placed from its own reads and what the page already holds —
-     pure, and dated on the server by the workspace's day. */
+     pure, and dated on the server by the workspace's day. A task one of
+     your ServiceM8 asks made (H18) says whose ask it was, "Luke asked you",
+     and opens the conversation it came from: read off the diary's own
+     conversations, so it names only asks the diary holds. */
   const list = useMemo(() => {
     if (!data.desk) return null;
     const base: HomeListBase = data;
     return placeHomeList(data.desk.list, {
       ...base,
       journal,
-      mentions: base.mentions?.filter((m) => holds.notes.has(m.noteId)),
+      mentions: mentionTasksOf(data.desk.diary.feed),
     });
-  }, [data, journal, holds]);
+  }, [data, journal]);
 
   const [face, setFace] = useState<DeskFace>(taskId ? "tasks" : DEFAULT_FACE);
   const [motion, setMotion] = useState<Motion | null>(null);

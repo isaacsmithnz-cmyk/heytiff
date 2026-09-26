@@ -62,7 +62,14 @@ describe("buildConversations", () => {
       fresh: false,
     });
     expect(c.messages).toEqual([
-      { id: "n1", from: "them", addressed: true, text: "Please call Mary to discuss", at: "2026-09-21 13:42:10" },
+      {
+        id: "n1",
+        from: "them",
+        addressed: true,
+        text: "Please call Mary to discuss",
+        named: "Isaac Please call Mary to discuss",
+        at: "2026-09-21 13:42:10",
+      },
     ]);
   });
 
@@ -143,6 +150,31 @@ describe("buildConversations", () => {
       note("j-2041", ISAAC.uuid, "2026-09-21 14:00:00", "Rang her, thanks @lukeingold. @michaeldiamond has the key"),
     ]);
     expect(c.messages[1]).toMatchObject({ from: "you", text: "Rang her, thanks. Michael has the key" });
+  });
+
+  /* What Tiff reads when she makes an ask a task. The real read of
+     2026-09-26 was given the quote, and Alex's note to Luke and to Isaac
+     became one task for Isaac with Luke's half in it. */
+  it("gives Tiff each message as written: nothing taken out, everybody by name, you by your first", () => {
+    const [c] = build([
+      note(
+        "j-2041",
+        LUKE.uuid,
+        "2026-09-21 13:42:10",
+        "@michaeldiamond can you please book in 6 monthly service\n\n@isaacsmith can you please organise a time to show the girls",
+      ),
+      note("j-2041", ISAAC.uuid, "2026-09-21 14:00:00", "Will do @lukeingold. @michaeldiamond has the key"),
+      note("j-2041", LUKE.uuid, "2026-09-21 15:00:00", "@isaacsmith can you and @isaacsmithy go"),
+    ]);
+    expect(c.messages.map((m) => m.named)).toEqual([
+      "Michael can you please book in 6 monthly service\n\nIsaac can you please organise a time to show the girls",
+      "Will do Luke. Michael has the key",
+      // you by your first, though another Isaac is said in full
+      "Isaac can you and Isaac Smithy go",
+    ]);
+    // the diary still quotes them less their addressing, which is why Tiff
+    // can't read the quote: whose each ask is has gone from it
+    expect(c.messages[0].text).toBe("can you please book in 6 monthly service\n\ncan you please organise a time to show the girls");
   });
 
   it("says a person by full name when another on the roster shares the first", () => {

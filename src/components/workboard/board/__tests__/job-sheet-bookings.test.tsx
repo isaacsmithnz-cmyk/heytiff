@@ -394,6 +394,43 @@ describe("a leftover (D-7)", () => {
     expect(visits().queryByRole("button", { name: BOOKING_WORDS.door.clearBooking })).toBeNull();
   });
 
+  /** A Clear of the leftover, above the list, with its line. */
+  const clearVerb = (state: BookingState): VerbView => ({
+    verbId: "press-clear",
+    presses: ["press-clear"],
+    at: "2026-10-05T21:30:00.000Z",
+    status: null,
+    bookings: [
+      { rowId: "d-1", op: "clear", uuid: LEFT, staffUuid: SAM, name: "Sam Tester", start: "2026-10-08 09:00:00", end: "2026-10-08 11:00:00", state, standing: false },
+    ],
+  });
+  const clearDoors = () => visits().queryAllByRole("button", { name: BOOKING_WORDS.door.clearBooking });
+
+  it.each([
+    ["a trial", { key: "line.clearTrial", text: BOOKING_WORDS.line.clearTrial, tone: null, acts: [] }, 1],
+    ["one that asks for a fresh look", { key: "line.notCleared", text: "Not cleared. Changed in ServiceM8. Look again.", tone: null, acts: ["look_again"] }, 1],
+    ["one on its way", { key: "line.clearing", text: BOOKING_WORDS.line.clearing, tone: null, acts: [] }, 0],
+    ["one waiting", { key: "line.clearWaiting", text: "Not cleared yet. Sending is paused.", tone: null, acts: [] }, 0],
+    ["one with its own Try again", { key: "line.notCleared", text: "Not cleared. ServiceM8 refused to remove the booking.", tone: "bad", acts: ["try_again"] }, 0],
+  ] as const)("(F) after %s, the leftover's own Clear door is there %i time(s)", async (_what, state, doors) => {
+    leftover("Completed");
+    readJobRecord.mockResolvedValue(record(bookings({ canBook: false, verbs: [clearVerb({ ...state, acts: [...state.acts] })] })));
+    await open();
+    await visits().findByText(BOOKING_WORDS.line.leftover);
+    expect(clearDoors()).toHaveLength(doors);
+  });
+
+  it("(F) Look again on a Clear reads the card again and asks again while it is still a leftover", async () => {
+    leftover("Completed");
+    const look: BookingState = { key: "line.notCleared", text: "Not cleared. Changed in ServiceM8. Look again.", tone: null, acts: ["look_again"] };
+    readJobRecord.mockResolvedValue(record(bookings({ canBook: false, verbs: [clearVerb(look)] })));
+    await open();
+    const reads = readMirrorJob.mock.calls.length;
+    await userEvent.click(await visits().findByRole("button", { name: BOOKING_WORDS.door.lookAgain }));
+    expect(await visits().findByRole("button", { name: BOOKING_WORDS.door.keep })).toHaveFocus();
+    expect(readMirrorJob.mock.calls.length).toBe(reads + 1);
+  });
+
   it("Keep backs out; a door that came to clear opens with the question asked", async () => {
     leftover("Completed");
     readJobRecord.mockResolvedValue(record(bookings({ canBook: false })));

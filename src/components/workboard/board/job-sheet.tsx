@@ -1421,6 +1421,13 @@ export function JobSheet({
     .filter((v) => !!v.status?.state.text || v.bookings.some((b) => !!b.state.text));
   const verbLineOf = (uuid: string, op: VerbLine["op"]) =>
     bkVerbs.flatMap((v) => v.bookings).find((b) => b.uuid === uuid && b.op === op) ?? null;
+  /** A Clear of this leftover holds its entry's door: one on its way, or
+      one that didn't go and offers its own Try again. A trial, or one that
+      asks for a fresh look, leaves the door to be pressed again. */
+  const clearHolds = (uuid: string) => {
+    const c = verbLineOf(uuid, "clear");
+    return !!c && (c.state.key === "line.clearing" || c.state.key === "line.clearWaiting" || c.state.acts.includes("try_again"));
+  };
 
   /** Where every booking line on the card stands: the poll, and after each
       press. */
@@ -1476,7 +1483,7 @@ export function JobSheet({
   };
 
   /** A door on one of our bookings' lines (or a Clear's). */
-  const bookingAct = (act: BookingAct, line: { rowId: string; op: VerbLine["op"]; seed: BookInSeed | null }) => {
+  const bookingAct = (act: BookingAct, line: { rowId: string; op: VerbLine["op"]; uuid: string; seed: BookInSeed | null }) => {
     if (!cardId) return;
     const jobUuid = cardId;
     if (act === "undo" || act === "cancel") {
@@ -1487,7 +1494,14 @@ export function JobSheet({
       /* a fresh read: the panel with the booking in it, or — for a Clear,
          or where Book in isn't offered — the card read again */
       if (line.op === "create" && bookings?.canBook) openPanel(line.seed);
-      else void reloadVisits();
+      else if (line.op === "clear") {
+        /* a Clear's fresh look: read again, and ask again while it is
+           still a leftover */
+        const u = line.uuid.trim().toLowerCase();
+        void reloadVisits().then((d) => {
+          if (alive.current && d?.booked?.some((b) => b.leftover && b.uuid.trim().toLowerCase() === u)) setClearAsk(u);
+        });
+      } else void reloadVisits();
     }
   };
 
@@ -1519,11 +1533,12 @@ export function JobSheet({
   };
 
   /** The Visits face read again: the job's bookings and every line. */
-  const reloadVisits = async () => {
+  const reloadVisits = async (): Promise<MirrorJobDetail | null> => {
     const res = await readMirrorJob(row.id).catch(() => null);
     if (res && alive.current) setDetail(res.detail);
     await reloadRecord();
     await refreshBookings();
+    return res?.detail ?? null;
   };
 
   const seedOf = (b: { staffUuid: string | null; start: string | null; end: string | null }): BookInSeed => ({
@@ -1546,12 +1561,12 @@ export function JobSheet({
           sm8Url={sm8Url}
           busy={!!rowId && bkBusy.has(rowId)}
           canPanel={!!bookings?.canBook}
-          onAct={(act) => rowId && bookingAct(act, { rowId, op: "create", seed: seedOf(b) })}
+          onAct={(act) => rowId && bookingAct(act, { rowId, op: "create", uuid: u, seed: seedOf(b) })}
         />
       );
     }
     if (!b.leftover) return null;
-    if (clearAsk === u && bookings?.canClear && !verbLineOf(u, "clear")) {
+    if (clearAsk === u && bookings?.canClear && !clearHolds(u)) {
       return (
         <ClearConfirm
           name={b.staffName}
@@ -1567,7 +1582,7 @@ export function JobSheet({
     return (
       <div className="wb2-jcattsave">
         <span className="wb2-evmeta">{leftoverWords(detail?.status ?? null)}</span>
-        {bookings?.canClear && !verbLineOf(u, "clear") && (
+        {bookings?.canClear && !clearHolds(u) && (
           <button type="button" className="wb2-evdoor" onClick={() => setClearAsk(u)}>
             {BOOKING_WORDS.door.clearBooking}
           </button>
@@ -2166,7 +2181,7 @@ export function JobSheet({
                             sm8Url={sm8Url}
                             busy={bkBusy.has(b.rowId)}
                             canPanel={b.op === "clear" || !!bookings?.canBook}
-                            onAct={(act) => bookingAct(act, { rowId: b.rowId, op: b.op, seed: seedOf(b) })}
+                            onAct={(act) => bookingAct(act, { rowId: b.rowId, op: b.op, uuid: b.uuid, seed: seedOf(b) })}
                           />
                         </Fragment>
                       ))}

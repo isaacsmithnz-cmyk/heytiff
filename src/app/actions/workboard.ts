@@ -35,7 +35,9 @@ import {
 } from "@/lib/workboard/job-notes-query";
 import type { JobAttention } from "@/lib/workboard/job-attention";
 import { sm8JobIsOpen } from "@/lib/workboard/all-jobs";
-import { sm8NotesAllowed, sm8WriteKindsEnabled } from "@/lib/integrations/sm8-kinds";
+import { sm8BookingsAllowed, sm8NotesAllowed, sm8WriteKindsEnabled } from "@/lib/integrations/sm8-kinds";
+import { bookingZone, readBookingLines, type VerbView } from "@/lib/integrations/sm8-booking-read";
+import { BOOKINGS_OPEN_TO_MANAGERS, type BookingState } from "@/lib/integrations/sm8-booking-plan";
 import { orgPaymentTermsDays } from "@/lib/org/query";
 import { sm8NoteSender, type NoteSender } from "@/lib/integrations/links";
 import { readSm8WriteState } from "@/lib/integrations/sm8-writes";
@@ -73,6 +75,33 @@ export type JobRecordRead = {
   notesSm8?: { trial: boolean; hold: SendHold; owner: boolean } | null;
   /** Each of ServiceM8's flagged notes, with our marks on it, by its uuid. */
   flags?: Record<string, FlagState>;
+  /** BOOKINGS TO SERVICEM8 (two-way phase 3, PR D) — absent where the
+      deployment books nothing, and then the card is exactly what it was;
+      null when they couldn't be read. */
+  bookings?: JobBookings | null;
+};
+
+/** What the Visits face knows about booking this job in ServiceM8. */
+export type JobBookings = {
+  /** offersSend(state, "booking"). */
+  offered: boolean;
+  /** Book in is offered: offered, Workboard manage (and the owner while
+      bookings are the owner's), and an active Quote or Work Order. */
+  canBook: boolean;
+  /** Clear booking is offered on a leftover: offered, and the viewer may
+      press (Workboard manage, and the owner while bookings are the
+      owner's). A Clear has no owner of its own. */
+  canClear: boolean;
+  trial: boolean;
+  hold: SendHold;
+  /** The account's zone; null when HeyTiff doesn't know it. */
+  zone: string | null;
+  /** Every press on the job, newest first: status lines, and our bookings'
+      lines — each drawn above the list unless the card lists the booking
+      and `lines` has it. */
+  verbs: VerbView[];
+  /** The line on each standing booking of ours, by lower-case uuid. */
+  lines: Record<string, BookingState>;
 };
 
 /** Who is looking, for the notes' doors: their staff card, the workspace's
@@ -617,8 +646,12 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
     ...(viewerRead ? { viewerHandle, ourNotes, heldFlags: held } : {}),
   });
 
+  /* BOOKINGS, only where the deployment books: without them not one read
+     more is made, and the record has no `bookings` key at all */
+  const booking = sm8BookingsAllowed() ? { bookings: await readJobBookings(ctx.orgId, ctx.userId, id) } : {};
+
   if (!moneyVisible) {
-    return { notes, ourNotes, attention, assignable, ledger: null, family: null, summary, ...sm8 };
+    return { notes, ourNotes, attention, assignable, ledger: null, family: null, summary, ...sm8, ...booking };
   }
 
   /* PAYMENT TERMS COME FROM THE ORGANISATION'S OWN CARD — ServiceM8 mirrors
@@ -632,7 +665,50 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
       readJobFamily(ctx.orgId, id, today, termsDays)
     ),
   ]);
-  return { notes, ourNotes, attention, assignable, ledger, family, summary, ...sm8 };
+  return { notes, ourNotes, attention, assignable, ledger, family, summary, ...sm8, ...booking };
+}
+
+/** Whether the viewer may press a booking's door: Workboard manage, and the
+    owner while bookings are the owner's (spec 1.1). Doubt is no. */
+async function mayPressBookings(): Promise<boolean> {
+  try {
+    if (!(await can("workboard_manage"))) return false;
+    return BOOKINGS_OPEN_TO_MANAGERS || (await getDbRole()) === "owner";
+  } catch {
+    return false;
+  }
+}
+
+/** The Visits face's bookings: whether Book in and Clear are offered here,
+    and the lines of every press on the job (sm8-booking-read), with doors
+    only for a viewer who may press. Null when it couldn't be read: the card
+    then offers nothing and draws no line. */
+async function readJobBookings(orgId: string, userId: string, jobUuid: string): Promise<JobBookings | null> {
+  try {
+    const [state, mayPress, zone, job] = await Promise.all([
+      readSm8WriteState(orgId),
+      mayPressBookings(),
+      bookingZone(orgId),
+      supabaseAdmin.from("sm8_jobs").select("status, active").eq("org_id", orgId).eq("uuid", jobUuid).maybeSingle(),
+    ]);
+    const read = await readBookingLines(orgId, state, jobUuid, mayPress ? userId : null);
+    const offered = offersSend(state, "booking");
+    const row = job.data as { status: string | null; active: number | string | null } | null;
+    const bookable = !!row && Number(row.active) === 1 && (row.status === "Quote" || row.status === "Work Order");
+    return {
+      offered,
+      canBook: offered && mayPress && bookable,
+      canClear: offered && mayPress,
+      trial: state.mode === "trial",
+      hold: sendHold(state, "booking"),
+      zone: zone.zone,
+      verbs: read.verbs,
+      lines: read.lines,
+    };
+  } catch (err) {
+    console.error(`[sm8] couldn't read job ${jobUuid}'s bookings: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
 }
 
 /** ServiceM8's status word for one job — the one fact the strip needs that
@@ -668,7 +744,12 @@ export async function scheduleDay(dayISO: string): Promise<SchedulePayload> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dayISO)) return EMPTY_SCHEDULE;
   const ctx = await context();
   if (!ctx || !(await can("workboard"))) return EMPTY_SCHEDULE;
-  return loadScheduleDay(ctx.orgId, dayISO);
+  const payload = await loadScheduleDay(ctx.orgId, dayISO);
+  /* a leftover booking's Clear, for a viewer who may press it where
+     bookings are offered — asked only where the deployment books */
+  if (!sm8BookingsAllowed()) return payload;
+  const [state, mayPress] = await Promise.all([readSm8WriteState(ctx.orgId), mayPressBookings()]);
+  return offersSend(state, "booking") && mayPress ? { ...payload, canClear: true } : payload;
 }
 
 /** Four weeks of capacity from `startISO` — the Schedule's other view. Same

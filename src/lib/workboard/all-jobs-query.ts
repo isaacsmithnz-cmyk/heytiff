@@ -20,8 +20,16 @@
    handed in, and when it is false the money columns are never selected. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { sm8BookingsAllowed, sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { sm8Ours, withoutOurs } from "@/lib/integrations/sm8-echo";
+import {
+  readBookingOverlay,
+  type BookingOverlayAsk,
+  type BookingOverlayRow,
+  type SentNotMirrored,
+} from "@/lib/integrations/sm8-booking-overlay";
+import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
+import { isLeftover } from "@/lib/integrations/sm8-booking-plan";
 import {
   readJobMediaGroups,
   type JobMediaGroupsRead,
@@ -116,6 +124,73 @@ async function inChunks<T>(
   return out;
 }
 
+/* ── our bookings over the mirror (two-way phase 3, PR D) ──
+
+   HEYTIFF NEVER WRITES ITS COPY OF SERVICEM8, so between a booking going
+   and the next sync the readers that draw bookings ask the overlay: a
+   booking we sent that the mirror doesn't hold yet IS in ServiceM8 and is
+   drawn, and one we took out is hidden. Only where the deployment books
+   (SM8_WRITES names `booking`): anywhere else this reads nothing at all, and
+   every reader is exactly what it was. */
+
+/** What the overlay says for one reader, with the account's zone. */
+export type BookingsOver = {
+  /** Lower case: of the uuids asked, the ones we took out. */
+  gone: ReadonlySet<string>;
+  sentNotMirrored: SentNotMirrored[];
+  rows: BookingOverlayRow[];
+  /** The account's own zone; null when HeyTiff doesn't know it. */
+  zone: string | null;
+};
+
+/** The overlay for a reader, read once with the write state and the zone.
+    Null where the deployment books nothing: no read of any kind is made. */
+export async function readBookingsOver(orgId: string, ask: BookingOverlayAsk, now: number): Promise<BookingsOver | null> {
+  if (!sm8BookingsAllowed()) return null;
+  /* loaded here, not at the top: the write engine brings the session with
+     it, which none of this file's other readers needs */
+  const { readSm8WriteState } = await import("@/lib/integrations/sm8-writes");
+  const [state, zone] = await Promise.all([readSm8WriteState(orgId), bookingZone(orgId)]);
+  const over = await readBookingOverlay(orgId, state, ask, now);
+  return { gone: over.gone, sentNotMirrored: over.sentNotMirrored, rows: over.rows, zone: zone.zone };
+}
+
+/** A uuid as the overlay keys it: ServiceM8 and the mirror may case it. */
+export const lowUuid = (u: string | null | undefined) => (u ?? "").trim().toLowerCase();
+
+/** Each job's soonest booking from today on, by the job's uuid as `jobIds`
+    spell it: the mirror's scheduled rows, less the ones we took out, plus
+    the ones we sent that the mirror doesn't hold yet. Without bookings, the
+    mirror's first row per job, as it always was. */
+export async function nextBookingOf(
+  orgId: string,
+  jobIds: readonly string[],
+  acts: readonly { uuid?: string | null; job_uuid: string; start_date: string | null }[],
+  today: string
+): Promise<Map<string, string>> {
+  const next = new Map<string, string>();
+  const over = await readBookingsOver(
+    orgId,
+    { uuids: acts.map((a) => a.uuid ?? "").filter(Boolean), from: today, rows: false },
+    Date.now()
+  );
+  if (!over) {
+    for (const a of acts) if (a.start_date && !next.has(a.job_uuid)) next.set(a.job_uuid, a.start_date);
+    return next;
+  }
+  const spelled = new Map(jobIds.map((id) => [lowUuid(id), id]));
+  const floor = `${today} 00:00:00`;
+  const offer = (job: string, start: string) => {
+    const id = spelled.get(lowUuid(job));
+    if (!id || start < floor) return;
+    const seen = next.get(id);
+    if (seen === undefined || start < seen) next.set(id, start);
+  };
+  for (const a of acts) if (a.start_date && !over.gone.has(lowUuid(a.uuid))) offer(a.job_uuid, a.start_date);
+  for (const s of over.sentNotMirrored) if (!over.gone.has(lowUuid(s.uuid))) offer(s.jobUuid, s.start);
+  return next;
+}
+
 export async function loadAllJobs(
   orgId: string,
   today: string,
@@ -200,14 +275,16 @@ export async function loadAllJobs(
     inChunks(jobIds, 200, async (chunk) => {
       const { data } = await supabaseAdmin
         .from("sm8_job_activities")
-        .select("job_uuid, start_date")
+        /* with its uuid where the deployment books: the overlay is asked
+           which of these we took out */
+        .select(sm8BookingsAllowed() ? "uuid, job_uuid, start_date" : "job_uuid, start_date")
         .eq("org_id", orgId)
         .eq("active", 1)
         .eq("activity_was_scheduled", 1)
         .in("job_uuid", chunk)
         .gte("start_date", `${today} 00:00:00`)
         .order("start_date", { ascending: true });
-      return (data ?? []) as { job_uuid: string; start_date: string | null }[];
+      return (data ?? []) as unknown as { uuid?: string; job_uuid: string; start_date: string | null }[];
     }),
     /* WHAT HAS ACTUALLY BEEN PAID, per job. This is the collection story —
        the flags are not. `payment_received` is set on 45 jobs while 1,819
@@ -238,11 +315,7 @@ export async function loadAllJobs(
     ])
   );
 
-  const nextBooking = new Map<string, string>();
-  for (const a of activities) {
-    if (!a.start_date) continue;
-    if (!nextBooking.has(a.job_uuid)) nextBooking.set(a.job_uuid, a.start_date);
-  }
+  const nextBooking = await nextBookingOf(orgId, jobIds, activities, today);
 
   /* Summed here rather than in SQL, through the same parser the rest of the
      money uses — an amount is a ServiceM8 string, and one place reads them. */
@@ -308,6 +381,12 @@ export type MirrorJobDetail = {
     /** The booked tech's title, same source and same rule as a visit's crew. */
     staffTitle: string | null;
   } | null;
+  /** EVERY STANDING BOOKING from today on, in start order — the mirror's
+      scheduled bookings less the ones we took out, plus the ones we sent that
+      the mirror doesn't hold yet (two-way phase 3). `nextBooking` is its
+      first. Present only where the deployment books: without it the key is
+      absent and the detail is exactly what it was. */
+  booked?: BookedEntry[];
   /** Recorded time across the job — the sum of NON-scheduled activity rows,
       which is what ServiceM8's own billing tab calls Job Time. Validated
       against the live account: job #3137 sums to exactly its 18h 30m. */
@@ -345,6 +424,22 @@ export type MirrorJobDetail = {
       inputs (designs, picklist). ServiceM8's stamps are already naive
       account-local strings and never need it. */
   timezone: string | null;
+};
+
+/** One standing booking on the Visits face (two-way phase 3). */
+export type BookedEntry = {
+  /** The booking in ServiceM8, as the mirror (or our row) spells it. */
+  uuid: string;
+  staffUuid: string | null;
+  staffName: string | null;
+  staffTitle: string | null;
+  /** The account's wall clock, "YYYY-MM-DD HH:MM:SS". */
+  start: string;
+  end: string | null;
+  /** Our sent create's row, when the booking is ours: its doors name it. */
+  ourRow: string | null;
+  /** A future booking on a Completed or Unsuccessful job (isLeftover). */
+  leftover: boolean;
 };
 
 /** One day somebody was on site, as the Visits list renders it. */
@@ -637,6 +732,7 @@ export async function readMirrorJobDetail(
 ): Promise<MirrorJobDetail | null> {
   const includeMoney = opts.includeMoney ?? true;
   const includeDesigns = opts.includeDesigns ?? false;
+  const bookingsOn = sm8BookingsAllowed();
   const base =
     "uuid, generated_job_id, status, company_uuid, job_address, geo_city, geo_state, geo_postcode, " +
     "category_uuid, queue_uuid, queue_expiry_date, queue_assigned_staff_uuid, " +
@@ -694,7 +790,13 @@ export async function readMirrorJobDetail(
       : Promise.resolve({ data: null }),
     supabaseAdmin
       .from("sm8_job_activities")
-      .select("start_date, end_date, staff_uuid, activity_was_scheduled")
+      /* each booking's uuid and edit time too, where the deployment books:
+         the overlay is asked about it, and a line compares its edit time */
+      .select(
+        bookingsOn
+          ? "uuid, start_date, end_date, staff_uuid, activity_was_scheduled, edit_date"
+          : "start_date, end_date, staff_uuid, activity_was_scheduled"
+      )
       .eq("org_id", orgId)
       .eq("active", 1)
       .eq("job_uuid", remoteId)
@@ -736,21 +838,64 @@ export async function readMirrorJobDetail(
       : Promise.resolve({ data: [] }),
   ]);
 
-  const acts = (actRows ?? []) as {
+  const acts = (actRows ?? []) as unknown as {
+    uuid?: string;
     start_date: string | null;
     end_date: string | null;
     staff_uuid: string | null;
     activity_was_scheduled: number | null;
+    edit_date?: string | null;
   }[];
   const todayFloor = `${today} 00:00:00`;
   /* Only a dispatched booking may say "next on site". A recorded session
      (activity_was_scheduled=0) can share the same day — and its clock-off
      end time reads as nonsense in a booking line. */
-  const next =
+  const mirrorNext =
     acts.find(
       (a) =>
         a.activity_was_scheduled === 1 && a.start_date !== null && a.start_date >= todayFloor
     ) ?? null;
+
+  /* EVERY STANDING BOOKING, worked out here and nowhere else (two-way phase
+     3): the mirror's scheduled bookings from today on, less the ones we took
+     out, plus the ones we sent that the mirror doesn't hold yet, in start
+     order — each with whether it is a leftover (isLeftover, by the account's
+     clock) and the row that made it when it is ours. Only where the
+     deployment books; without it `next` is the mirror's, as it always was. */
+  const now = Date.now();
+  const over = bookingsOn
+    ? await readBookingsOver(
+        orgId,
+        {
+          jobUuids: [remoteId],
+          uuids: acts.filter((a) => a.activity_was_scheduled === 1 && a.uuid).map((a) => a.uuid!),
+        },
+        now
+      )
+    : null;
+  const standing: { uuid: string; staffUuid: string | null; start: string; end: string | null; ourRow: string | null }[] = [];
+  if (over) {
+    const ours = new Map(
+      over.rows.filter((r) => r.op === "create" && r.status === "sent" && r.remote_uuid).map((r) => [lowUuid(r.remote_uuid), r.id])
+    );
+    for (const a of acts) {
+      if (a.activity_was_scheduled !== 1 || !a.uuid || a.start_date === null || a.start_date < todayFloor) continue;
+      if (over.gone.has(lowUuid(a.uuid))) continue;
+      standing.push({ uuid: a.uuid, staffUuid: a.staff_uuid, start: a.start_date, end: a.end_date, ourRow: ours.get(lowUuid(a.uuid)) ?? null });
+    }
+    const listed = new Set(standing.map((b) => lowUuid(b.uuid)));
+    for (const s of over.sentNotMirrored) {
+      if (lowUuid(s.jobUuid) !== lowUuid(remoteId) || s.start < todayFloor) continue;
+      if (over.gone.has(lowUuid(s.uuid)) || listed.has(lowUuid(s.uuid))) continue;
+      standing.push({ uuid: s.uuid, staffUuid: s.staffUuid, start: s.start, end: s.end, ourRow: s.rowId });
+    }
+    standing.sort((x, y) => x.start.localeCompare(y.start) || lowUuid(x.uuid).localeCompare(lowUuid(y.uuid)));
+  }
+  const next: { start_date: string | null; end_date: string | null; staff_uuid: string | null } | null = over
+    ? standing[0]
+      ? { start_date: standing[0].start, end_date: standing[0].end, staff_uuid: standing[0].staffUuid }
+      : null
+    : mirrorNext;
 
   /* The sessions, counted AND kept. The tally is what the header says; the
      per-day rows are the Visits list, which is the same read the sheet was
@@ -791,6 +936,7 @@ export async function readMirrorJobDetail(
         job.queue_assigned_staff_uuid,
         ...checks.map((c) => c.completed_by_staff_uuid),
         ...acts.map((a) => a.staff_uuid),
+        ...standing.map((b) => b.staffUuid),
       ].filter((id): id is string => !!id)
     ),
   ];
@@ -927,6 +1073,25 @@ export async function readMirrorJobDetail(
       })
       .filter((c) => c.name || c.phone || c.email),
     money: includeMoney ? jobMoneyOf(job) : null,
+    ...(over
+      ? {
+          booked: standing.map((b) => ({
+            uuid: b.uuid,
+            staffUuid: b.staffUuid,
+            staffName: b.staffUuid ? staffName.get(b.staffUuid) ?? null : null,
+            staffTitle: b.staffUuid ? staffTitle.get(b.staffUuid) ?? null : null,
+            start: b.start,
+            end: b.end,
+            ourRow: b.ourRow,
+            leftover: isLeftover(
+              { scheduled: 1, active: 1, start: b.start, end: b.end, staffUuid: b.staffUuid },
+              job.status,
+              over.zone,
+              now
+            ),
+          })),
+        }
+      : {}),
     designs: ((designRows ?? []) as {
       id: string;
       name: string | null;
@@ -1490,17 +1655,19 @@ async function hydrateMirrorJobs(
 
   const { data: actRows } = await supabaseAdmin
     .from("sm8_job_activities")
-    .select("job_uuid, start_date")
+    .select(sm8BookingsAllowed() ? "uuid, job_uuid, start_date" : "job_uuid, start_date")
     .eq("org_id", orgId)
     .eq("active", 1)
     .eq("activity_was_scheduled", 1)
     .in("job_uuid", found.map((r) => r.uuid))
     .gte("start_date", `${today} 00:00:00`)
     .order("start_date", { ascending: true });
-  const nextBooking = new Map<string, string>();
-  for (const a of (actRows ?? []) as { job_uuid: string; start_date: string | null }[]) {
-    if (a.start_date && !nextBooking.has(a.job_uuid)) nextBooking.set(a.job_uuid, a.start_date);
-  }
+  const nextBooking = await nextBookingOf(
+    orgId,
+    found.map((r) => r.uuid),
+    (actRows ?? []) as unknown as { uuid?: string; job_uuid: string; start_date: string | null }[],
+    today
+  );
 
   /* Payments here too, or the same job would report a different collection
      state depending on whether it was scrolled to or searched for. */

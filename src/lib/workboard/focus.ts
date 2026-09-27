@@ -18,8 +18,17 @@ import { scheduleBlockPaint, TRACKED_PAINT, type BlockPaint } from "./schedule-c
 
 /** One person on the job, and what their booking is doing. */
 export type FocusEntry = {
+  /** The booking's activity uuid. */
   key: string;
   who: string;
+  /** Who is booked, as ServiceM8 names them; null in the unassigned lane. */
+  staffUuid: string | null;
+  /** The booking's start, the account's wall clock "YYYY-MM-DD HH:MM:SS":
+      what a Clear says it saw. */
+  start: string;
+  /** A future booking on a finished job, which may be cleared (two-way
+      phase 3): the block's own, decided on the server. */
+  leftover: boolean;
   startMin: number;
   endMin: number;
   /** The word for this booking's state, decided once so the two surfaces can
@@ -39,6 +48,10 @@ export type FocusMark = {
 };
 
 export type FocusJob = {
+  /** The job's uuid, which a Clear names. */
+  remoteId: string;
+  /** ServiceM8's status word, verbatim — a Clear's confirm says it. */
+  status: string | null;
   jobNumber: string | null;
   clientName: string | null;
   suburb: string | null;
@@ -137,6 +150,9 @@ export function focusJobOf(day: ScheduleDay, jobUuid: string, clock: DayClock): 
       .map((b) => ({
         key: b.key,
         who: l.name,
+        staffUuid: l.staffUuid || null,
+        start: b.start,
+        leftover: b.leftover === true,
         startMin: b.startMin,
         endMin: b.endMin,
         state: blockState(b, clock).word,
@@ -149,6 +165,8 @@ export function focusJobOf(day: ScheduleDay, jobUuid: string, clock: DayClock): 
   const all = day.lanes.flatMap((l) => l.blocks).filter((b) => b.remoteId === jobUuid);
   const first = all[0];
   return {
+    remoteId: first.remoteId,
+    status: first.status,
     jobNumber: first.jobNumber,
     clientName: first.clientName,
     suburb: first.suburb,

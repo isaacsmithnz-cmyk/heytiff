@@ -219,6 +219,10 @@ describe("the overlay (B-24)", () => {
     expect(o.sentNotMirrored.map((s) => s.rowId).sort()).toEqual([a.id, other.id].sort());
     const j = await readBookingOverlay(ORG, STATE, { jobUuids: [JOB] });
     expect(j.sentNotMirrored.map((s) => s.rowId).sort()).toEqual([a.id, b.id].sort());
+    /* a job asked for in capitals is the same job (review R2-9) */
+    const upper = await readBookingOverlay(ORG, STATE, { jobUuids: [JOB.toUpperCase()] });
+    expect(upper.sentNotMirrored.map((s) => s.rowId).sort()).toEqual([a.id, b.id].sort());
+    expect(upper.rows.map((r) => r.id).sort()).toEqual([a.id, b.id].sort());
   });
 
   it("the rows a job's lines are drawn from: creates from 30 days back, their status rows and take-backs, and the Clears", async () => {

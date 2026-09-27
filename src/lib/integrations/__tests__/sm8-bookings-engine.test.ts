@@ -1069,6 +1069,40 @@ describe("the status change itself (B-4)", () => {
     expect(await lineOf(c)).toMatchObject({ acts: ["look_again"] });
   });
 
+  it("(F, R2-9) an edit time our own last status change on the job left is as seen, whatever case that row spells the job in", async () => {
+    const q = await bookIn([slot()], { seen: SEEN });
+    sm8.jobs.get(JOB)!.editDate = "2026-09-27 16:30:00";
+    fake.db.sm8_writes.push({
+      id: randomUUID(),
+      org_id: ORG,
+      tenant_id: TENANT,
+      kind: "booking",
+      op: "update",
+      sm8_job_uuid: JOB.toUpperCase(),
+      subject: "status:wo:2026-09-27T15:00:00",
+      payload: { name: BOOKING_WORDS.label.status },
+      remote_uuid: randomUUID(),
+      status: "sent",
+      attempts: 1,
+      next_attempt_at: new Date().toISOString(),
+      created_at: new Date(Date.now() - 3_600_000).toISOString(),
+      updated_at: new Date(Date.now() - 3_600_000).toISOString(),
+      target_uuid: JOB.toUpperCase(),
+      job_status_from: "Quote",
+      job_status_to: "Work Order",
+      seen_edit_date: "2026-09-27 15:00:00",
+      verb_id: randomUUID(),
+      landed_edit_date: "2026-09-27 16:30:00",
+      lease_until: null,
+      maybe_landed: false,
+      verify_uuids: [],
+      replaced_uuids: [],
+    });
+    await run();
+    expect(byId(q.ok && q.statusRowId)).toMatchObject({ status: "sent" });
+    expect(postSm8JobStatus).toHaveBeenCalledTimes(1);
+  });
+
   it("(F) a job already a Work Order is sent with no POST, and its booking goes", async () => {
     const q = await bookIn([slot()], { seen: SEEN });
     Object.assign(sm8.jobs.get(JOB)!, { status: "Work Order", editDate: "2026-09-27 16:40:00" });
@@ -2455,6 +2489,49 @@ describe("one DELETE per booking, and never one sooner (review: M2, R2-1, R2-2, 
     await run();
     expect(sm8.deletes).toEqual([c.remote_uuid]);
     expect(takeBackOf(c.id)).toMatchObject({ status: "sent" });
+  });
+});
+
+describe("a job's uuid, whatever its case (review: R2-9)", () => {
+  it("(F) is one spelling at the queue door: pressed in capitals, it is the same row and key", async () => {
+    const q = await queueBookIn(await pressAs(), await state(), {
+      jobUuid: JOB.toUpperCase(),
+      verbId: randomUUID(),
+      zone: ZONE,
+      status: { seenEditDate: SEEN },
+      slots: [slot()],
+    });
+    expect(q).toMatchObject({ ok: true });
+    expect(writes().map((w) => [w.sm8_job_uuid, w.op === "update" ? w.target_uuid : JOB])).toEqual([
+      [JOB, JOB],
+      [JOB, JOB],
+    ]);
+    expect(await bookIn([slot()], { seen: SEEN })).toMatchObject({ ok: true, rowIds: [], already: [`slot:${SAM_SM8}:${TOMORROW}T20:00`] });
+    expect(creates()).toHaveLength(1);
+    expect(statusRows()).toHaveLength(1);
+  });
+
+  it("(F) a Clear finds its job in the mirror whatever case it spells it in, and its row carries it lower case", async () => {
+    leftover();
+    fake.db.sm8_jobs[1].uuid = OTHER_JOB.toUpperCase();
+    (fake.db.sm8_job_activities as Row[])[0].job_uuid = OTHER_JOB.toUpperCase();
+    const q = await queueClear(await pressAs(), await state(), {
+      jobUuid: OTHER_JOB.toUpperCase(),
+      activityUuid: LEFT,
+      seen: { staffUuid: SAM_SM8, start: at(TOMORROW, "09:00") },
+      verbId: randomUUID(),
+    });
+    expect(q).toMatchObject({ ok: true });
+    expect(clearRow()).toMatchObject({ sm8_job_uuid: OTHER_JOB });
+  });
+
+  it("(F) a guard names the job by its number, whatever case the mirror spells its uuid in", async () => {
+    fake.db.sm8_jobs[0].uuid = JOB.toUpperCase();
+    sm8.knobs.keeps = (b) => (b.staffUuid === SAM_SM8 ? { start: hourOn(b.start), end: hourOn(b.end) } : {});
+    await bookIn([slot(SAM_SM8, "18:00", "19:00"), slot(ALEX_SM8, "18:00", "19:00")]);
+    await run();
+    const [, alex] = creates();
+    expect(alex).toMatchObject({ status: "cancelled", last_error: GUARD_9001 });
   });
 });
 

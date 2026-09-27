@@ -150,6 +150,9 @@ const ROW_COLUMNS =
 const same = (a: string | null | undefined, b: string | null | undefined) =>
   !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
 
+/** The spellings a mirror row's uuid may carry. */
+const spellings = (u: string) => [...new Set([u, u.toLowerCase(), u.toUpperCase()])];
+
 async function readRow(orgId: string, id: string): Promise<BookingRow | null | "failed"> {
   if (!UUID.test(id)) return null;
   const { data, error } = await supabaseAdmin.from(WRITES).select(ROW_COLUMNS).eq("org_id", orgId).eq("kind", "booking").eq("id", id).maybeSingle();
@@ -306,11 +309,11 @@ export async function queueBookIn(
     return { ok: false, refusal: "unqueued" };
   }
   const orgId = press.orgId;
-  const { jobUuid, verbId, zone, status } = input ?? ({} as never);
+  const { jobUuid: given, verbId, zone, status } = input ?? ({} as never);
   const slots = Array.isArray(input?.slots) ? input.slots : [];
   if (
-    typeof jobUuid !== "string" ||
-    !UUID.test(jobUuid) ||
+    typeof given !== "string" ||
+    !UUID.test(given) ||
     typeof verbId !== "string" ||
     !UUID.test(verbId) ||
     typeof zone !== "string" ||
@@ -322,6 +325,8 @@ export async function queueBookIn(
   ) {
     return { ok: false, refusal: "unqueued" };
   }
+  /* ONE SPELLING OF A JOB: its rows, and so their keys, carry it lower case */
+  const jobUuid = given.toLowerCase();
 
   /* 1. readable and offered */
   if (!state.readable) return { ok: false, refusal: "unreadable" };
@@ -588,7 +593,7 @@ export async function queueBookingTakeBack(
     {
       kind: "booking",
       op: "delete",
-      jobUuid: stopped.sm8_job_uuid,
+      jobUuid: stopped.sm8_job_uuid?.toLowerCase() ?? null,
       subject: bookingSubject.undo(stopped.id),
       payload: { name: BOOKING_WORDS.label.undo },
       ref: stopped.id,
@@ -641,10 +646,11 @@ export async function queueClear(
     return { ok: false, refusal: "unqueued" };
   }
   const orgId = press.orgId;
-  const { jobUuid, activityUuid, seen, verbId } = input ?? ({} as never);
-  if (!UUID.test(jobUuid ?? "") || !UUID.test(activityUuid ?? "") || !UUID.test(verbId ?? "")) {
+  const { jobUuid: given, activityUuid, seen, verbId } = input ?? ({} as never);
+  if (!UUID.test(given ?? "") || !UUID.test(activityUuid ?? "") || !UUID.test(verbId ?? "")) {
     return { ok: false, refusal: "unqueued" };
   }
+  const jobUuid = given.toLowerCase();
 
   /* 1. offered */
   if (!state.readable) return { ok: false, refusal: "unreadable" };
@@ -665,14 +671,16 @@ export async function queueClear(
   const m = mirror.get(activityUuid.toLowerCase());
   if (!m || !same(m.jobUuid, jobUuid)) return { ok: false, refusal: "not_leftover" };
   if (Number(m.scheduled) !== 1) return { ok: false, refusal: "check_in" };
-  const { data: job, error: jobError } = await supabaseAdmin
+  /* its job, whatever case the mirror spells it in */
+  const jobOf = (m.jobUuid ?? jobUuid).toLowerCase();
+  const { data: jobs, error: jobError } = await supabaseAdmin
     .from("sm8_jobs")
     .select("uuid, status, active")
     .eq("org_id", orgId)
-    .eq("uuid", m.jobUuid ?? jobUuid)
-    .maybeSingle();
+    .in("uuid", spellings(jobOf));
   if (jobError) return { ok: false, refusal: "unqueued" };
-  const jobStatus = job && Number((job as { active: unknown }).active) === 1 ? ((job as { status: string | null }).status ?? null) : null;
+  const job = ((jobs ?? []) as { uuid: string; status: string | null; active: unknown }[]).find((j) => same(j.uuid, jobOf));
+  const jobStatus = job && Number(job.active) === 1 ? (job.status ?? null) : null;
   const z = await bookingZone(orgId);
   if (z.zone === null) return { ok: false, refusal: z.why === "unread" ? "unqueued" : "zone_unknown" };
   const now = Date.now();
@@ -689,7 +697,7 @@ export async function queueClear(
     {
       kind: "booking",
       op: "delete",
-      jobUuid: m.jobUuid ?? jobUuid,
+      jobUuid: jobOf,
       subject: bookingSubject.clear(m.uuid),
       payload: { name: BOOKING_WORDS.label.clear },
       ref: m.uuid,

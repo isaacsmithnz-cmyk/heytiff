@@ -1896,8 +1896,14 @@ async function bringBookings(orgId: string, statusRowId: string, now: number): P
 async function stopBookings(orgId: string, jobUuid: string | null, now: number): Promise<void> {
   let number: string | null = null;
   if (jobUuid) {
-    const { data } = await supabaseAdmin.from("sm8_jobs").select("generated_job_id").eq("org_id", orgId).eq("uuid", jobUuid).maybeSingle();
-    const g = (data as { generated_job_id?: unknown } | null)?.generated_job_id;
+    /* the mirror's job, whatever case it spells the uuid in */
+    const { data } = await supabaseAdmin
+      .from("sm8_jobs")
+      .select("uuid, generated_job_id")
+      .eq("org_id", orgId)
+      .in("uuid", [...new Set([jobUuid, jobUuid.toLowerCase(), jobUuid.toUpperCase()])]);
+    const job = ((data ?? []) as { uuid: string; generated_job_id?: unknown }[]).find((j) => j.uuid.toLowerCase() === jobUuid.toLowerCase());
+    const g = job?.generated_job_id;
     number = typeof g === "string" && g.trim() ? g.trim() : null;
   }
   const reason = fillWords(BOOKING_WORDS.row.guardStopped, { number: number ?? (jobUuid ?? "").slice(0, 8) });

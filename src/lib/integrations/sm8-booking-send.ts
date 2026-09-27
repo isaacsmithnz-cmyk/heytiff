@@ -1235,7 +1235,7 @@ async function lastLandedStatus(orgId: string, jobUuid: string, exceptId: string
     .eq("org_id", orgId)
     .eq("kind", "booking")
     .eq("op", "update")
-    .eq("sm8_job_uuid", jobUuid)
+    .in("sm8_job_uuid", spellings(jobUuid))
     .eq("status", "sent")
     .order("updated_at", { ascending: false })
     .limit(5);

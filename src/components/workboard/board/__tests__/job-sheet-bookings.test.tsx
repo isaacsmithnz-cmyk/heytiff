@@ -292,6 +292,16 @@ describe("each booking drawn once (D-15)", () => {
     expect(face.getByText(BOOKING_WORDS.line.takingOut).closest(".wb2-nextv")).not.toBeNull();
   });
 
+  it("(F) a booking pressed after the card loaded — a line of its own, but not on the list yet — is drawn once, above the list", async () => {
+    readMirrorJob.mockResolvedValue({ detail: detail({ booked: [entry()] }), focusRemoteId: null });
+    readJobRecord.mockResolvedValue(record(bookings({ verbs: [ourVerb()], lines: { [MINE]: sentLine } })));
+    await open();
+    const face = visits();
+    expect(await face.findAllByText(BOOKING_WORDS.line.sent)).toHaveLength(1);
+    expect(face.getAllByRole("button", { name: BOOKING_WORDS.door.undo })).toHaveLength(1);
+    expect(face.getByText(BOOKING_WORDS.line.sent).compareDocumentPosition(face.getByText("Next on site")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("(F) a booking the list doesn't hold is drawn once, above the list, with its line", async () => {
     const moved: BookingState = { key: "line.keptOther", text: BOOKING_WORDS.line.keptOther, tone: "bad", acts: ["undo", "open_in_sm8"] };
     const v = ourVerb(moved);

@@ -211,6 +211,13 @@ describe("readMirrorJobDetail, where the deployment books (D-9)", () => {
     ]);
   });
 
+  it("(F) lists a booking of ours pressed under another spelling of the job's uuid, as ours", async () => {
+    const shouted = sent(uuid(9), { sm8_job_uuid: JOB.toUpperCase() });
+    fake.db.sm8_writes.push(shouted);
+    const d = await readMirrorJobDetail(ORG, JOB, TODAY);
+    expect(d?.booked?.map((b) => [b.uuid, b.ourRow])).toEqual([[uuid(9), shouted.id]]);
+  });
+
   it("(F) says the next on site is the first of them", async () => {
     seedJob();
     fake.db.sm8_job_activities = fake.db.sm8_job_activities.filter((a) => a.uuid !== uuid(1));

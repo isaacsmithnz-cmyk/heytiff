@@ -109,12 +109,14 @@ describe("opening (D-2)", () => {
     expect(nextWeekday("2026-10-06")).toBe("2026-10-07");
     expect(nextWeekday("2026-10-09")).toBe("2026-10-12");
     expect(nextWeekday("2026-10-10")).toBe("2026-10-12");
+    /* 2 am on Friday 9 October in Sydney, still Thursday by UTC: the next
+       weekday on the account's clock is Monday, where UTC's would be Friday */
+    const now = jest.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-08T15:00:00Z"));
     panel({ zone: "Australia/Sydney" });
     await waitFor(() => expect(readBookInContext).toHaveBeenCalled());
+    now.mockRestore();
     const [first] = readBookInContext.mock.calls[0];
-    expect(first.jobUuid).toBe(JOB);
-    expect(first.days).toHaveLength(1);
-    expect(nextWeekday(first.days[0])).not.toBe("");
+    expect(first).toEqual({ jobUuid: JOB, days: ["2026-10-12"] });
     await screen.findByText(/Already booked|Pick who/);
     expect((screen.getAllByLabelText(P.start)[0] as HTMLSelectElement).value).toBe("07:00");
     expect((screen.getAllByLabelText(P.length)[0] as HTMLSelectElement).value).toBe("120");

@@ -12,7 +12,7 @@
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
 
 import { askMessages, streamBrainAnswer, type AskBrainEvent } from "../ask";
-import type { BrainTool } from "../tools";
+import type { TiffTool, Viewer } from "@/lib/tiff/registry";
 
 const text = (m: { content: { text: string }[] }) => m.content.map((c) => c.text);
 
@@ -77,19 +77,29 @@ describe("streamBrainAnswer", () => {
     else process.env.ANTHROPIC_API_KEY = realKey;
   });
 
-  const tool: BrainTool = {
+  const tool: TiffTool = {
     name: "job_history",
     description: "A job's history.",
     label: "Reading the job's history",
-    capability: "workboard",
+    risk: "read",
+    gate: { capability: "workboard" },
     inputSchema: { type: "object", properties: {} },
-    run: async () => ({}),
+    run: async () => ({ kind: "result", value: {} }),
+  };
+  const viewer: Viewer = {
+    orgId: "org-1",
+    userId: "auth0|u1",
+    staffId: null,
+    role: "owner",
+    caps: new Set(["workboard"]),
+    tz: "Australia/Sydney",
+    today: "2026-09-25",
   };
 
   async function ask(history?: { who: "you" | "tiff"; text: string }[]) {
     const events: AskBrainEvent[] = [];
     for await (const e of streamBrainAnswer({
-      orgId: "org-1",
+      viewer,
       question: "and the one at Smith St?",
       tools: [tool],
       todayISO: "2026-09-25",

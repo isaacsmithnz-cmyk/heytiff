@@ -1,9 +1,8 @@
 import { auth0 } from "@/lib/auth0";
-import { can } from "@/lib/permissions-server";
 import { streamBrainAnswer, type AskHistoryTurn } from "@/lib/brain/ask";
-import { TARGET_KINDS, toolsFor } from "@/lib/brain/tools";
-import { todayInZone } from "@/lib/workboard/dates";
-import { getSm8Timezone } from "@/lib/workboard/query";
+import { TARGET_KINDS } from "@/lib/brain/tools";
+import { toolsFor } from "@/lib/tiff/registry";
+import { viewerForUser } from "@/lib/tiff/registry/viewer";
 
 /* Asking the brain. Same wire as /api/tiff/ask — NDJSON, one event per line,
    ordered so the screen renders honestly at every moment: `tool` chips as
@@ -88,14 +87,15 @@ function shapeBody(raw: unknown): AskBody | null {
 export async function POST(request: Request) {
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
-  if (!session || !orgId) return Response.json({ error: "Not signed in." }, { status: 401 });
+  const userId = session?.user?.sub as string | undefined;
+  if (!session || !orgId || !userId) return Response.json({ error: "Not signed in." }, { status: 401 });
 
-  const caps = new Set<string>();
-  const [workboard, tiff] = await Promise.all([can("workboard"), can("tiff")]);
-  if (workboard) caps.add("workboard");
-  if (tiff) caps.add("tiff");
-  const tools = toolsFor(caps);
-  if (tools.length === 0) return Response.json({ error: NO_ACCESS }, { status: 403 });
+  /* Who is asking, read once: their capabilities decide which tools the loop
+     may hold (the registry's gates), exactly as they decide which screens
+     they may see. */
+  const viewer = await viewerForUser(orgId, userId);
+  const tools = toolsFor(viewer);
+  if (!tools.some((t) => t.risk === "read")) return Response.json({ error: NO_ACCESS }, { status: 403 });
 
   let body: AskBody | null;
   try {
@@ -104,8 +104,6 @@ export async function POST(request: Request) {
     return Response.json({ error: UNREADABLE }, { status: 400 });
   }
   if (!body) return Response.json({ error: UNREADABLE }, { status: 400 });
-
-  const tz = await getSm8Timezone(orgId);
 
   /* The client going away has to reach the model call — a closed sheet must
      not leave Opus reading the task list to nobody. */
@@ -130,12 +128,12 @@ export async function POST(request: Request) {
 
       try {
         for await (const event of streamBrainAnswer({
-          orgId,
+          viewer,
           question,
           tools,
           targetLabel,
           targetRef: target,
-          todayISO: todayInZone(tz),
+          todayISO: viewer.today,
           signal: abort.signal,
           history,
         })) {

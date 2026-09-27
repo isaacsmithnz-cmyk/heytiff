@@ -75,7 +75,25 @@ jest.mock("@/lib/tiff/retrieve", () => ({
   retrieveForQuestion: (...a: unknown[]) => retrieveForQuestion(...(a as [])),
 }));
 
-import { BRAIN_TOOLS, jobHistory, openTaskLoad, runTool, toolDefs } from "../tools";
+import { jobHistory, openTaskLoad } from "../tools";
+import { TIFF_TOOLS, runTool as run, toolDefs, type Viewer } from "@/lib/tiff/registry";
+
+/* The reads now live in Tiff's registry and run with a viewer (lib/tiff/
+   registry); these tests reach them the way the ask loop does. */
+const VIEWER: Viewer = {
+  orgId: "org-1",
+  userId: "auth0|u1",
+  staffId: null,
+  role: "owner",
+  caps: new Set(["workboard", "tiff"]),
+  tz: "Australia/Sydney",
+  today: "2026-08-06",
+};
+const runTool = (name: string, input: Record<string, unknown>) => run(VIEWER, name, input, TIFF_TOOLS);
+const BRAIN_TOOLS = TIFF_TOOLS;
+/** What a read hands back, as the old registry's `result` did. */
+const valueOf = (res: Awaited<ReturnType<typeof run>>) =>
+  res.ok && res.outcome.kind === "result" ? res.outcome.value : undefined;
 
 beforeEach(() => {
   lists = {};
@@ -157,7 +175,7 @@ describe("openTaskLoad", () => {
 
 describe("the registry", () => {
   it("definitions are API-shaped — name, description, input_schema", () => {
-    for (const def of toolDefs()) {
+    for (const def of toolDefs(TIFF_TOOLS)) {
       expect(def.name).toBeTruthy();
       expect(def.description.length).toBeGreaterThan(20);
       expect(def.input_schema).toHaveProperty("type", "object");
@@ -165,7 +183,7 @@ describe("the registry", () => {
   });
 
   it("dispatches by name", async () => {
-    const res = await runTool("org-1", "search_jobs", { query: "meridian" });
+    const res = await runTool("search_jobs", { query: "meridian" });
     expect(res.ok).toBe(true);
     expect(searchMirrorJobs).toHaveBeenCalledWith("org-1", "meridian");
   });
@@ -180,10 +198,9 @@ describe("the registry", () => {
   });
 
   it("a search_jobs hit carries the kind and id job_history takes, not the picker's remoteId", async () => {
-    const res = await runTool("org-1", "search_jobs", { query: "meridian" });
-    expect(res).toEqual({
-      ok: true,
-      result: [
+    const res = await runTool("search_jobs", { query: "meridian" });
+    expect(res.ok).toBe(true);
+    expect(valueOf(res)).toEqual([
         {
           kind: "job",
           id: "sm8-uuid-3323",
@@ -195,41 +212,40 @@ describe("the registry", () => {
           description: "Supply and install 12.5kW ducted",
           linkedTo: [],
         },
-      ],
-    });
+      ]);
   });
 
   it("handing a search hit straight to job_history reads that mirror job by its uuid", async () => {
     /* The round trip the loop makes: search, then read one in depth. The hit
        must fit job_history's own schema as it stands, and land on the
        ServiceM8 row — its description is the job's own words. */
-    const found = await runTool("org-1", "search_jobs", { query: "3323" });
-    const [hit] = (found as { ok: true; result: { kind: string; id: string }[] }).result;
+    const found = await runTool("search_jobs", { query: "3323" });
+    const [hit] = valueOf(found) as { kind: string; id: string }[];
     const schema = BRAIN_TOOLS.find((t) => t.name === "job_history")!.inputSchema;
     expect((schema.properties as Record<string, { enum: string[] }>).kind.enum).toContain(hit.kind);
 
     rows.sm8_jobs = { job_description: "Supply and install 12.5kW ducted" };
-    const res = await runTool("org-1", "job_history", { kind: hit.kind, id: hit.id });
-    expect(res).toMatchObject({ ok: true, result: { jobNotes: "Supply and install 12.5kW ducted" } });
+    const res = await runTool("job_history", { kind: hit.kind, id: hit.id });
+    expect(valueOf(res)).toMatchObject({ jobNotes: "Supply and install 12.5kW ducted" });
     expect(eqFilters).toContain("sm8_jobs.uuid=sm8-uuid-3323");
     expect(eqFilters).toContain("workboard_notes.target_kind=job");
   });
 
   it("an unknown tool is an error value the loop can show the model — never a throw", async () => {
-    const res = await runTool("org-1", "drop_tables", {});
+    const res = await runTool("drop_tables", {});
     expect(res).toEqual({ ok: false, error: "No such tool: drop_tables" });
   });
 
   it("a tool blowing up is contained the same way", async () => {
     retrieveForQuestion.mockRejectedValueOnce(new Error("voyage down"));
-    const res = await runTool("org-1", "kb_search", { query: "E6" });
+    const res = await runTool("kb_search", { query: "E6" });
     expect(res).toEqual({ ok: false, error: "kb_search failed — answer without it." });
   });
 
   it("kb_search trims the retrieval to loop-sized excerpts", async () => {
-    const res = await runTool("org-1", "kb_search", { query: "E6" });
+    const res = await runTool("kb_search", { query: "E6" });
     expect(res.ok).toBe(true);
-    const items = (res as { ok: true; result: unknown }).result as Record<string, unknown>[];
+    const items = valueOf(res) as Record<string, unknown>[];
     expect(items[0]).toMatchObject({
       title: "Clearing an E6",
       category: "field",

@@ -94,3 +94,9 @@ next-env.d.ts
 # a copy of tmp/auth0-preview, served so the letters can be clicked through
 # at localhost while reviewing them. Never part of the app.
 /public/__preview/
+
+# The Tiff probes read real notes and questions about real jobs
+# (src/lib/tiff/probes). Their cases and results stay on the machine.
+/probes/cases/*
+!/probes/cases/README.md
+/probes/results/

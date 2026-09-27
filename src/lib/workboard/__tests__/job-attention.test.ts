@@ -19,7 +19,7 @@ const inputs = (over: Partial<AttentionInputs> = {}): AttentionInputs => ({
 const note = (over: Partial<AttentionInputs["notes"][number]> = {}) => ({
   remoteId: "n-1",
   text: "@lyleirving still need another day on site",
-  author: "David Hann",
+  author: "David Hanby",
   at: "2026-08-20 09:14:00",
   actionRequired: false,
   handles: ["lyleirving"],

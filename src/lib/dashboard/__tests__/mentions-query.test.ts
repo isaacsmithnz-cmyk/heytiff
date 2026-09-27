@@ -63,7 +63,7 @@ import type { OurReply } from "../diary-feed";
 const STAFF = [
   { uuid: "u-isaac", first: "Isaac", last: "Smith" },
   { uuid: "u-lyle", first: "Lyle", last: "Irving" },
-  { uuid: "u-michael", first: "Michael", last: "Diamond" },
+  { uuid: "u-michael", first: "Michael", last: "Dixon" },
   { uuid: "u-brent", first: "Brent (Service)", last: "Gilmore" },
 ];
 
@@ -165,7 +165,7 @@ it("leaves out what HeyTiff wrote itself, mirrored back, asking only about the c
   ];
   tables.thread = [
     // on the asked jobs, but in no conversation: never asked about
-    row("n-other", "j-2041", "u-lyle", "2026-09-21 14:00:00", "@michaeldiamond grab the ladder"),
+    row("n-other", "j-2041", "u-lyle", "2026-09-21 14:00:00", "@michaeldixon grab the ladder"),
     row("n-mine", "j-2041", "u-isaac", "2026-09-21 16:00:00", "Unit tested, all good"),
   ];
   ours.add("n-echo");

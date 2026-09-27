@@ -83,7 +83,7 @@ beforeEach(() => {
       booking("a-2", "j-1", "07:30", "08:30"),
       booking("a-3", "j-2", "13:00", "15:00"),
     ],
-    sm8_staff: [{ uuid: "s-1", first: "Alex", last: "Lorenz" }],
+    sm8_staff: [{ uuid: "s-1", first: "Alex", last: "Lomond" }],
     sm8_jobs: [
       { uuid: "j-1", active: 1, generated_job_id: "1377", status: "Work Order", company_uuid: null, geo_city: null, category_uuid: null, job_description: null, date: "2026-04-10 09:00:00", quote_date: null, completion_date: null },
       { uuid: "j-2", active: 1, generated_job_id: "2771", status: "Unsuccessful", company_uuid: null, geo_city: null, category_uuid: null, job_description: null, date: "2026-04-02 09:00:00", quote_date: null, completion_date: null },

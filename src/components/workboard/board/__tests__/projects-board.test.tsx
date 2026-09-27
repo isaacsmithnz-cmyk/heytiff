@@ -615,18 +615,18 @@ describe("the project card — one card, every booking on it", () => {
       days: [
         {
           day: "2026-07-24",
-          booked: [{ id: "s-al", name: "Alex Lorenz", title: null }],
+          booked: [{ id: "s-al", name: "Alex Lomond", title: null }],
           bookedStart: "2026-07-24 07:00:00",
           bookedEnd: "2026-07-24 15:00:00",
           sessionMinutes: 507,
-          sessionCrew: [{ id: "s-al", name: "Alex Lorenz", title: null }],
+          sessionCrew: [{ id: "s-al", name: "Alex Lomond", title: null }],
         },
       ],
     });
     mount(data({ projects: [projectFix({ id: "p-1", jobs: [job279] })] }));
     const card = await openCard();
     await userEvent.click(card.getByRole("tab", { name: "Visits" }));
-    expect(await card.findByText("Alex Lorenz")).toBeInTheDocument();
+    expect(await card.findByText("Alex Lomond")).toBeInTheDocument();
     // the mirror's own session time, stated as recorded
     expect(card.getByText("8h 27m")).toBeInTheDocument();
     await userEvent.click(card.getByRole("button", { name: "Write on this day" }));

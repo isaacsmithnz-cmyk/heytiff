@@ -12,8 +12,8 @@ import {
 
 const staff = new Map<string, { name: string; title: string | null }>([
   ["s-alex", { name: "Alex Morozoff", title: "HVAC" }],
-  ["s-cal", { name: "Callum Vrieze", title: "Apprentice" }],
-  ["s-dave", { name: "David Hann", title: null }],
+  ["s-cal", { name: "Callum Vallis", title: "Apprentice" }],
+  ["s-dave", { name: "David Hanby", title: null }],
 ]);
 
 const row = (over: Partial<DiaryActivityRow>): DiaryActivityRow => ({
@@ -37,7 +37,7 @@ describe("buildProjectDiary", () => {
     );
     expect(days).toHaveLength(1);
     expect(days[0].day).toBe("2026-03-04");
-    expect(days[0].booked.map((p) => p.name)).toEqual(["Alex Morozoff", "Callum Vrieze"]);
+    expect(days[0].booked.map((p) => p.name)).toEqual(["Alex Morozoff", "Callum Vallis"]);
     expect(days[0].bookedStart).toBe("2026-03-04 07:00:00");
     expect(days[0].bookedEnd).toBe("2026-03-04 15:15:00");
     expect(days[0].sessionMinutes).toBe(0);
@@ -65,7 +65,7 @@ describe("buildProjectDiary", () => {
     expect(days).toHaveLength(1);
     // 133 + 75 minutes, two sessions, one person
     expect(days[0].sessionMinutes).toBe(133 + 75);
-    expect(days[0].sessionCrew.map((p) => p.name)).toEqual(["Callum Vrieze"]);
+    expect(days[0].sessionCrew.map((p) => p.name)).toEqual(["Callum Vallis"]);
     expect(days[0].booked.map((p) => p.name)).toEqual(["Alex Morozoff"]);
   });
 

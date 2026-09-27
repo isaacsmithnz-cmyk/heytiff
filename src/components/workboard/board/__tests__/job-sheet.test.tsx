@@ -276,26 +276,26 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
   nextBooking: {
     start: "2026-08-14 07:30:00",
     end: "2026-08-14 15:30:00",
-    staffName: "Alex Lorenz",
+    staffName: "Alex Lomond",
     staffTitle: "Senior HVAC",
   },
   timeOnSite: { minutes: 1110, sessions: 2 },
   dateOn: "2026-08-08",
   dateLabel: "raised",
   visits: [
-    { day: "2026-08-14", minutes: 620, crew: [{ name: "Alex Lorenz", title: "Senior HVAC" }] },
+    { day: "2026-08-14", minutes: 620, crew: [{ name: "Alex Lomond", title: "Senior HVAC" }] },
     {
       day: "2026-08-13",
       minutes: 490,
       crew: [
-        { name: "Callum Vrieze", title: null },
-        { name: "Alex Lorenz", title: "Senior HVAC" },
+        { name: "Callum Vallis", title: null },
+        { name: "Alex Lomond", title: "Senior HVAC" },
       ],
     },
   ],
   queue: { name: "Parts on Order", expiry: "2026-08-20", staffName: "Lyle Irving" },
   checklist: [
-    { name: "Isolate power", itemType: "Todo", section: null, done: true, doneOn: "2026-08-13", doneAt: "2026-08-13 15:40:00", doneBy: "Callum Vrieze" },
+    { name: "Isolate power", itemType: "Todo", section: null, done: true, doneOn: "2026-08-13", doneAt: "2026-08-13 15:40:00", doneBy: "Callum Vallis" },
     { name: "Site photos", itemType: "Photo", section: "Handover", done: false, doneOn: null, doneAt: null, doneBy: null },
     { name: "DAS Service Call", itemType: "Form", section: "Handover", done: false, doneOn: null, doneAt: null, doneBy: null },
   ],
@@ -782,7 +782,7 @@ describe("the Diary face", () => {
     expect(f.getByText("Lyle Irving")).toBeInTheDocument();
     /* the visits are entries now, with the crew named */
     expect(f.getByText("Site visit — 10h 20m")).toBeInTheDocument();
-    expect(f.getByText("Callum Vrieze, Alex Lorenz")).toBeInTheDocument();
+    expect(f.getByText("Callum Vallis, Alex Lomond")).toBeInTheDocument();
     /* the tick echoes in the diary */
     expect(f.getByText("Checked off — Isolate power")).toBeInTheDocument();
     /* and the milestone sinks to its day's end */
@@ -799,7 +799,7 @@ describe("the Diary face", () => {
             text: "Grille sizes to order",
             writtenOn: "2026-08-12",
             writtenAt: "2026-08-12 09:14:00",
-            writtenBy: "David Hann",
+            writtenBy: "David Hanby",
             actionRequired: false,
             fromClaim: null,
           },
@@ -839,7 +839,7 @@ describe("the Diary face", () => {
             text: "Please make double detection",
             writtenOn: "2026-08-21",
             writtenAt: "2026-08-21 16:00:00",
-            writtenBy: "Michael Diamond",
+            writtenBy: "Michael Dixon",
             actionRequired: true,
             fromClaim: "2380A",
           },
@@ -865,7 +865,7 @@ describe("the Diary face", () => {
             text: "@lyleirving still need another day on site",
             writtenOn: "2026-08-12",
             writtenAt: "2026-08-12 09:14:00",
-            writtenBy: "David Hann",
+            writtenBy: "David Hanby",
             actionRequired: false,
             fromClaim: null,
           },
@@ -1036,7 +1036,7 @@ describe("the attention strip", () => {
     text: "Send a 20% deposit invoice",
     writtenOn: "2026-08-27",
     writtenAt: "2026-08-27 14:44:40",
-    writtenBy: "David Hann",
+    writtenBy: "David Hanby",
     actionRequired: true,
     fromClaim: null,
     ...over,
@@ -1047,7 +1047,7 @@ describe("the attention strip", () => {
     key: "sm8flag:n-1",
     noteUuid: "n-1",
     text: "Send a 20% deposit invoice",
-    author: "David Hann",
+    author: "David Hanby",
     at: "2026-08-27 14:44:40",
   };
 
@@ -1056,7 +1056,7 @@ describe("the attention strip", () => {
     key: "mention:n-2",
     noteUuid: "n-2",
     text: "@lyleirving still need another day on site to finish",
-    author: "David Hann",
+    author: "David Hanby",
     at: "2026-08-26 09:00:00",
     named: [{ name: "Lyle Irving", staffId: null }],
   };
@@ -1264,7 +1264,7 @@ describe("writing on the job", () => {
             text: "Please make double detection",
             writtenOn: "2026-08-21",
             writtenAt: "2026-08-21 16:02:00",
-            writtenBy: "Michael Diamond",
+            writtenBy: "Michael Dixon",
             actionRequired: false,
             fromClaim: null,
           },
@@ -1599,7 +1599,7 @@ describe("the Visits face", () => {
     /* A NAME PLUS WHAT THEY ARE, and only on this face: the dash separates
        the two people because a comma cannot, once a title is in the line;
        a mate with no title in ServiceM8 keeps just his name. */
-    expect(crewLine(f, "Thu 13 Aug")).toBe("Callum Vrieze — Alex Lorenz, Senior HVAC");
+    expect(crewLine(f, "Thu 13 Aug")).toBe("Callum Vallis — Alex Lomond, Senior HVAC");
     expect(f.getByText("10h 20m")).toBeInTheDocument();
     /* the next booking leads, with its end time */
     expect(f.getByText("Next on site")).toBeInTheDocument();
@@ -1613,7 +1613,7 @@ describe("the Visits face", () => {
     const many = Array.from({ length: 12 }, (_, i) => ({
       day: `2026-08-${String(20 - i).padStart(2, "0")}`,
       minutes: 60,
-      crew: [{ name: "Alex Lorenz", title: null }],
+      crew: [{ name: "Alex Lomond", title: null }],
     }));
     readMirrorJob.mockResolvedValueOnce(card(detail({ visits: many })));
     render(<JobSheet row={row()} {...props} />);
@@ -1656,7 +1656,7 @@ describe("the Checklist face", () => {
 
     const done = screen.getByText("Isolate power").closest(".wb2-ckrow")!;
     expect(done.className).toContain("done");
-    expect(within(done as HTMLElement).getByText("Callum Vrieze, Thu 13 Aug")).toBeInTheDocument();
+    expect(within(done as HTMLElement).getByText("Callum Vallis, Thu 13 Aug")).toBeInTheDocument();
 
     const form = screen.getByText("DAS Service Call").closest(".wb2-ckrow")!;
     expect(form.className).not.toContain("done");
@@ -3005,7 +3005,7 @@ describe("files on the job", () => {
   it("opens a SWMS in the card's own viewer, not a new tab", async () => {
     const swmsActions = jest.requireMock("@/app/actions/swms") as { listSwmsForJob: jest.Mock };
     swmsActions.listSwmsForJob.mockResolvedValueOnce([
-      { swmsId: "s-1", versionId: "v-2", version: 2, issuedAt: "2026-09-16T07:42:00", responsible: "Alex Lorenz", signed: 1, total: 2, waitingOn: ["Callum Vrieze"], issues: [], viewerCanSign: false, viewerSigned: false },
+      { swmsId: "s-1", versionId: "v-2", version: 2, issuedAt: "2026-09-16T07:42:00", responsible: "Alex Lomond", signed: 1, total: 2, waitingOn: ["Callum Vallis"], issues: [], viewerCanSign: false, viewerSigned: false },
     ]);
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);

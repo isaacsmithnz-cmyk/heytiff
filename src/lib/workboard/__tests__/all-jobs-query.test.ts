@@ -151,7 +151,7 @@ describe("who went, and what they are", () => {
     ];
     rowsBy["sm8_staff"] = [
       /* Live titles arrive with trailing spaces — "HVAC " is a real row. */
-      { uuid: "s-1", first: "Oleksii", last: "Ivanov", job_title: "Senior HVAC " },
+      { uuid: "s-1", first: "Oleh", last: "Ivanov", job_title: "Senior HVAC " },
       { uuid: "s-2", first: "Sam", last: "Petrie", job_title: null },
     ];
 
@@ -164,7 +164,7 @@ describe("who went, and what they are", () => {
         day: "2026-08-13",
         minutes: 480,
         crew: [
-          { name: "Oleksii Ivanov", title: "Senior HVAC" },
+          { name: "Oleh Ivanov", title: "Senior HVAC" },
           /* 3 of the 21 live staff have no title; a name alone is the
              honest answer, never an invented one. */
           { name: "Sam Petrie", title: null },
@@ -179,14 +179,14 @@ describe("who went, and what they are", () => {
       onSite("s-1", "2026-08-13 12:00:00", "2026-08-13 14:00:00"),
     ];
     rowsBy["sm8_staff"] = [
-      { uuid: "s-1", first: "Oleksii", last: "Ivanov", job_title: "HVAC" },
+      { uuid: "s-1", first: "Oleh", last: "Ivanov", job_title: "HVAC" },
     ];
 
     const detail = await readMirrorJobDetail("org-1", "j-3188", TODAY, {
       includeMoney: false,
     });
 
-    expect(detail?.visits[0].crew).toEqual([{ name: "Oleksii Ivanov", title: "HVAC" }]);
+    expect(detail?.visits[0].crew).toEqual([{ name: "Oleh Ivanov", title: "HVAC" }]);
     expect(detail?.timeOnSite).toEqual({ minutes: 360, sessions: 2 });
   });
 

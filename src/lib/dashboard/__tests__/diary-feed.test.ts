@@ -21,7 +21,7 @@ import type { Sm8Person } from "@/lib/workboard/job-notes-query";
 
 const ISAAC: Sm8Person = { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" };
 const LYLE: Sm8Person = { uuid: "u-lyle", handle: "lyleirving", name: "Lyle Irving", first: "Lyle" };
-const MICHAEL: Sm8Person = { uuid: "u-michael", handle: "michaeldiamond", name: "Michael Diamond", first: "Michael" };
+const MICHAEL: Sm8Person = { uuid: "u-michael", handle: "michaeldixon", name: "Michael Dixon", first: "Michael" };
 const SMITHY: Sm8Person = { uuid: "u-smithy", handle: "isaacsmithy", name: "Isaac Smithy", first: "Isaac" };
 const people = [ISAAC, LYLE, MICHAEL, SMITHY];
 const me = { uuid: ISAAC.uuid, handle: ISAAC.handle };
@@ -79,9 +79,9 @@ describe("buildConversations", () => {
       note("j-2041", ISAAC.uuid, "2026-09-22 15:10:00", "@lyleirving calling her this afternoon"),
       note("j-2041", LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary to discuss"),
       // Lyle to somebody else, on the same job — not to you
-      note("j-2041", LYLE.uuid, "2026-09-21 14:00:00", "@michaeldiamond grab the ladder"),
+      note("j-2041", LYLE.uuid, "2026-09-21 14:00:00", "@michaeldixon grab the ladder"),
       // you to somebody else
-      note("j-2041", ISAAC.uuid, "2026-09-21 14:05:00", "@michaeldiamond thanks"),
+      note("j-2041", ISAAC.uuid, "2026-09-21 14:05:00", "@michaeldixon thanks"),
       // you to Lyle, but on another job
       note("j-3294", ISAAC.uuid, "2026-09-22 09:00:00", "@lyleirving see the fans"),
     ]);
@@ -139,16 +139,16 @@ describe("buildConversations", () => {
   it("quotes the ask less its addressing, and names anybody else it asks about", () => {
     const quote = (text: string) =>
       build([note("j-2041", LYLE.uuid, "2026-09-21 13:42:10", text)])[0].messages[0].text;
-    expect(quote("Hi @isaacsmith, can you ask @michaeldiamond to bring the ladder")).toBe(
+    expect(quote("Hi @isaacsmith, can you ask @michaeldixon to bring the ladder")).toBe(
       "Hi, can you ask Michael to bring the ladder",
     );
-    expect(quote("@isaacsmith and @michaeldiamond please sort the invoice")).toBe("please sort the invoice");
+    expect(quote("@isaacsmith and @michaeldixon please sort the invoice")).toBe("please sort the invoice");
   });
 
   it("quotes your reply less the asker's handle, and names the rest", () => {
     const [c] = build([
       note("j-2041", LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
-      note("j-2041", ISAAC.uuid, "2026-09-21 14:00:00", "Rang her, thanks @lyleirving. @michaeldiamond has the key"),
+      note("j-2041", ISAAC.uuid, "2026-09-21 14:00:00", "Rang her, thanks @lyleirving. @michaeldixon has the key"),
     ]);
     expect(c.messages[1]).toMatchObject({ from: "you", text: "Rang her, thanks. Michael has the key" });
   });
@@ -162,9 +162,9 @@ describe("buildConversations", () => {
         "j-2041",
         LYLE.uuid,
         "2026-09-21 13:42:10",
-        "@michaeldiamond can you please book in 6 monthly service\n\n@isaacsmith can you please organise a time to show the girls",
+        "@michaeldixon can you please book in 6 monthly service\n\n@isaacsmith can you please organise a time to show the girls",
       ),
-      note("j-2041", ISAAC.uuid, "2026-09-21 14:00:00", "Will do @lyleirving. @michaeldiamond has the key"),
+      note("j-2041", ISAAC.uuid, "2026-09-21 14:00:00", "Will do @lyleirving. @michaeldixon has the key"),
       note("j-2041", LYLE.uuid, "2026-09-21 15:00:00", "@isaacsmith can you and @isaacsmithy go"),
     ]);
     expect(c.messages.map((m) => m.named)).toEqual([
@@ -195,7 +195,7 @@ describe("buildConversations", () => {
     const out = build([
       note("j-2041", LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
       note("j-2041", MICHAEL.uuid, "2026-09-21 13:50:00", "@isaacsmith is the unit in?"),
-      note("j-2041", ISAAC.uuid, "2026-09-21 14:00:00", "@lyleirving @michaeldiamond on it, and yes"),
+      note("j-2041", ISAAC.uuid, "2026-09-21 14:00:00", "@lyleirving @michaeldixon on it, and yes"),
     ]);
     for (const c of out)
       expect(c.messages[c.messages.length - 1]).toMatchObject({ from: "you", text: "on it, and yes" });

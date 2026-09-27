@@ -108,7 +108,7 @@ const serverRead = (over: Partial<JobStoryServerRead> = {}): JobStoryServerRead 
       quoteDate: null,
       workOrderDate: null,
       completionDate: "2026-08-21",
-      visits: [{ day: "2026-08-13", minutes: 260, crew: [{ name: "David Hann", title: null }] }],
+      visits: [{ day: "2026-08-13", minutes: 260, crew: [{ name: "David Hanby", title: null }] }],
       checklist: [],
       designs: [],
     },
@@ -118,7 +118,7 @@ const serverRead = (over: Partial<JobStoryServerRead> = {}): JobStoryServerRead 
         text: "Please make double detection",
         writtenOn: "2026-08-21",
         writtenAt: "2026-08-21 16:02:00",
-        writtenBy: "Michael Diamond",
+        writtenBy: "Michael Dixon",
         actionRequired: false,
         fromClaim: null,
       },
@@ -152,8 +152,8 @@ describe("summaryPrompt — the writer never sees money", () => {
 
     const prompt = summaryPrompt(read);
     expect(prompt).toContain("Supply and install a new 14kW system");
-    expect(prompt).toContain('note by Michael Diamond: "Please make double detection"');
-    expect(prompt).toContain("site visit, 4h 20m (David Hann)");
+    expect(prompt).toContain('note by Michael Dixon: "Please make double detection"');
+    expect(prompt).toContain("site visit, 4h 20m (David Hanby)");
     expect(prompt).toContain("Job completed");
     /* no claim lines, no payment lines, no dollars at all */
     expect(prompt).not.toContain("Payment 1 — Deposit");
@@ -240,7 +240,7 @@ describe("refreshJobSummary — the cost guard", () => {
     timeOnSite: null,
     dateOn: "2026-08-21",
     dateLabel: "completed",
-    visits: [{ day: "2026-08-13", minutes: 260, crew: [{ name: "David Hann", title: null }] }],
+    visits: [{ day: "2026-08-13", minutes: 260, crew: [{ name: "David Hanby", title: null }] }],
     queue: null,
     checklist: [],
     contacts: [],
@@ -258,7 +258,7 @@ describe("refreshJobSummary — the cost guard", () => {
         text: "Please make double detection",
         writtenOn: "2026-08-21",
         writtenAt: "2026-08-21 16:02:00",
-        writtenBy: "Michael Diamond",
+        writtenBy: "Michael Dixon",
         actionRequired: false,
         fromClaim: null,
       },

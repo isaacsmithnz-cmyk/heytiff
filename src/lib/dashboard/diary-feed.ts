@@ -37,7 +37,7 @@
    (sm8-mentions' quotedNote): the handles it opens with, and the one
    naming the other side of this conversation. Anybody else it names is
    said by first name (the whole name when two people share the first), so
-   "can you ask @michaeldiamond to bring the ladder" still asks for Michael.
+   "can you ask @michaeldixon to bring the ladder" still asks for Michael.
    What Tiff READS is the note with nothing taken out and every handle said
    by name, yours by your first (`named`): a note written to Lyle and to you
    is two asks, and only the part in front of your name is yours.

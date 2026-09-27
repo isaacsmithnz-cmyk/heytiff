@@ -93,13 +93,13 @@ export function withoutKnownHandles(text: string, known: Iterable<string>): stri
     out, and every other person it names said by name.
 
     Taking out every handle we know changed what was asked: "Hi @isaacsmith,
-    can you ask @michaeldiamond to bring the ladder" became "Hi, can you ask
+    can you ask @michaeldixon to bring the ladder" became "Hi, can you ask
     to bring the ladder". A handle is addressing in two places only:
-      - the run of handles the note opens with ("@isaacsmith @michaeldiamond
-        please…", "@isaacsmith and @michaeldiamond please…"), which is who
+      - the run of handles the note opens with ("@isaacsmith @michaeldixon
+        please…", "@isaacsmith and @michaeldixon please…"), which is who
         the note is to, not what it says — the run goes whole, with the
         colon or dash that closes it. Unless the sentence carries on from
-        it with "and" ("@michaeldiamond and I will sort it"): then the run
+        it with "and" ("@michaeldixon and I will sort it"): then the run
         is who the sentence is ABOUT, and each handle in it is said by
         name, the reader's own included;
       - `addressing` wherever it is: the reader's own handle in a note to
@@ -184,7 +184,7 @@ function sayKnownHandles(
    carries the sentence's full stop ends the run. `end` is where the rest
    of the note starts, past the colon, dash or line break that closes the
    run; 0 when it opens with no handle we know. `subject` when the sentence
-   carries on from the run with "and" or "&" — "@michaeldiamond and I will
+   carries on from the run with "and" or "&" — "@michaeldixon and I will
    sort it" — so the run is who it is about; `end` is then the run's own. */
 const RUN_HANDLE = /^@([a-z0-9.'-]+)/i;
 const RUN_JOIN = /^(?:[ \t]*[,&+/][ \t]*|[ \t]+and[ \t]+|[ \t]+)(?=@)/i;
@@ -217,7 +217,7 @@ function addressRun(text: string, known: ReadonlySet<string>): { end: number; su
 /** The note's words with its handles taken out — what a task drafted from it
     should be TITLED.
 
-    A mention is addressing, not content: "@lyleirving @michaeldiamond still
+    A mention is addressing, not content: "@lyleirving @michaeldixon still
     need another day on site" is a task called "Still need another day on
     site", and the people are the assignment, not the sentence. Capitalised
     because a title starts like one, and clipped at a sentence so a rambling

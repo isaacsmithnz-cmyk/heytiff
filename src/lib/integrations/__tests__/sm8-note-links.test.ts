@@ -88,7 +88,7 @@ describe("who a note goes as", () => {
     });
     expect(link().confirmed_answer).toBeNull();
     // someone else's staff card matches nothing
-    expect((await confirmSm8Link({ orgId: ORG, tenantId: T, staffId: "staff-luke", userId: "u", remoteId: OTHER, answer: "yes" })).ok).toBe(false);
+    expect((await confirmSm8Link({ orgId: ORG, tenantId: T, staffId: "staff-lyle", userId: "u", remoteId: OTHER, answer: "yes" })).ok).toBe(false);
   });
 
   it("(F) Not me is a denial, and denied and inactive senders carry the handle", async () => {
@@ -106,7 +106,7 @@ describe("who a note goes as", () => {
 
   it("names the rest: no card, unlinked, a broken link, a staff member ServiceM8 no longer has, and a read that fails", async () => {
     expect(await sm8NoteSender(ORG, null)).toEqual({ state: "unlinked", noCard: true });
-    expect(await sm8NoteSender(ORG, "staff-luke")).toEqual({ state: "unlinked", noCard: false });
+    expect(await sm8NoteSender(ORG, "staff-lyle")).toEqual({ state: "unlinked", noCard: false });
     link().remote_id = "not-a-uuid";
     expect(await sm8NoteSender(ORG, "staff-isaac")).toEqual({ state: "bad_link", remoteId: "not-a-uuid" });
     link().remote_id = "5a1b2c3d-0000-4000-8000-000000000fff";
@@ -136,9 +136,9 @@ describe("what a note answers, and where it goes", () => {
       origin: "sm8",
     });
     const OURS = "7e7e7e7e-0000-4000-8000-000000000002";
-    fake.db.workboard_notes = [{ org_id: ORG, id: "n1", applied: { jobNotes: ["english"], sm8Text: "@lukeingold tiếng việt" } }];
+    fake.db.workboard_notes = [{ org_id: ORG, id: "n1", applied: { jobNotes: ["english"], sm8Text: "@lyleirving tiếng việt" } }];
     fake.db.sm8_writes = [{ org_id: ORG, kind: "note", op: "create", status: "sent", remote_uuid: OURS, sm8_job_uuid: JOB, note_id: "n1", as_staff_uuid: ISAAC }];
-    expect(await noteSourceOf(ORG, OURS)).toMatchObject({ relatedUuid: JOB, text: "@lukeingold tiếng việt", origin: "heytiff", authorSm8Uuid: ISAAC });
+    expect(await noteSourceOf(ORG, OURS)).toMatchObject({ relatedUuid: JOB, text: "@lyleirving tiếng việt", origin: "heytiff", authorSm8Uuid: ISAAC });
     expect(await noteSourceOf(ORG, "not-a-uuid")).toBeNull();
   });
 

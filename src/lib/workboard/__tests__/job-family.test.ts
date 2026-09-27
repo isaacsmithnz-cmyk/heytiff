@@ -474,7 +474,7 @@ describe("isPartialInvoiceStubNote", () => {
   /* The tempting rule — "a note on a clone is noise" — would bin 212 live
      notes that are somebody's actual writing. */
   it("leaves real writing alone, including ServiceM8's other lifecycle note", () => {
-    expect(isPartialInvoiceStubNote("@lukeingold Please order new grill 1687x235")).toBe(false);
+    expect(isPartialInvoiceStubNote("@lyleirving Please order new grill 1687x235")).toBe(false);
     expect(isPartialInvoiceStubNote("Job was re-opened after being completed.")).toBe(false);
     expect(isPartialInvoiceStubNote("Partial invoice raised but customer disputes the 30%")).toBe(false);
     expect(isPartialInvoiceStubNote("")).toBe(false);

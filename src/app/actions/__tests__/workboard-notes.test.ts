@@ -200,9 +200,9 @@ describe("the gate", () => {
 
   it("filing is the WORKBOARD tier — managing isn't required to file your own note", async () => {
     caps = new Set(["workboard"]);
-    lists.staff_profiles = [{ id: "s-luke" }];
+    lists.staff_profiles = [{ id: "s-lyle" }];
     const res = await file(
-      confirmed({ tasks: [{ title: "Order grilles", detail: "", assigneeId: "s-luke", dueDate: null }] })
+      confirmed({ tasks: [{ title: "Order grilles", detail: "", assigneeId: "s-lyle", dueDate: null }] })
     );
     expect(res.ok).toBe(true);
   });
@@ -217,11 +217,11 @@ describe("the gate", () => {
 
 describe("tasks", () => {
   it("creates through the existing tasks table so assignment comes free", async () => {
-    lists.staff_profiles = [{ id: "s-luke" }];
+    lists.staff_profiles = [{ id: "s-lyle" }];
     await file(
       confirmed({
         tasks: [
-          { title: "Order the grilles", detail: "4 × 595", assigneeId: "s-luke", dueDate: "2026-08-04" },
+          { title: "Order the grilles", detail: "4 × 595", assigneeId: "s-lyle", dueDate: "2026-08-04" },
         ],
       })
     );
@@ -229,7 +229,7 @@ describe("tasks", () => {
     expect(task).toMatchObject({
       org_id: "org-1",
       title: "Order the grilles",
-      assigned_to: "s-luke",
+      assigned_to: "s-lyle",
       created_by: "staff-me",
       due_date: "2026-08-04",
       status: "open",
@@ -241,12 +241,12 @@ describe("tasks", () => {
        through `remindKindOf`, so writing the word would be a second way to
        say the identical thing — and a row that can one day disagree with
        itself. See docs/migrations/task_remind_kind.sql. */
-    lists.staff_profiles = [{ id: "s-luke" }];
+    lists.staff_profiles = [{ id: "s-lyle" }];
     await file(
       confirmed({
         tasks: [
-          { title: "Crane truck back", detail: "", assigneeId: "s-luke", dueDate: "2026-08-04", remindTime: "16:00", remindKind: "by" },
-          { title: "Service the Hilux", detail: "", assigneeId: "s-luke", dueDate: "2026-08-04", remindTime: "07:30", remindKind: "at" },
+          { title: "Crane truck back", detail: "", assigneeId: "s-lyle", dueDate: "2026-08-04", remindTime: "16:00", remindKind: "by" },
+          { title: "Service the Hilux", detail: "", assigneeId: "s-lyle", dueDate: "2026-08-04", remindTime: "07:30", remindKind: "at" },
         ],
       })
     );
@@ -260,11 +260,11 @@ describe("tasks", () => {
     /* The database refuses the pair outright — a deadline with no moment is
        not a weaker fact, it is a meaningless one — so the filing must not
        offer it one. */
-    lists.staff_profiles = [{ id: "s-luke" }];
+    lists.staff_profiles = [{ id: "s-lyle" }];
     await file(
       confirmed({
         tasks: [
-          { title: "Order the grilles", detail: "", assigneeId: "s-luke", dueDate: "2026-08-04", remindTime: null, remindKind: "by" },
+          { title: "Order the grilles", detail: "", assigneeId: "s-lyle", dueDate: "2026-08-04", remindTime: null, remindKind: "by" },
         ],
       })
     );
@@ -298,9 +298,9 @@ describe("tasks", () => {
   });
 
   it("ignores a junk due date instead of failing the whole filing", async () => {
-    lists.staff_profiles = [{ id: "s-luke" }];
+    lists.staff_profiles = [{ id: "s-lyle" }];
     await file(
-      confirmed({ tasks: [{ title: "T", detail: "", assigneeId: "s-luke", dueDate: "next tuesday" }] })
+      confirmed({ tasks: [{ title: "T", detail: "", assigneeId: "s-lyle", dueDate: "next tuesday" }] })
     );
     expect(rowsFor("tasks")[0].due_date).toBeNull();
   });
@@ -427,7 +427,7 @@ describe("entries and bring-items", () => {
   /* THE RULE IS PER BUCKET NOW, NOT PER NOTE (2026-08-05). It used to refuse
      every targetless note outright, which was right about the things that are
      text on somebody else's row and wrong about tasks — `tasks` has no job
-     column at all, so "tell Luke to ring the wholesaler" was being refused
+     column at all, so "tell Lyle to ring the wholesaler" was being refused
      for naming no job it never needed. */
   it("ASKS which job for a bring-list with no job to sit on", async () => {
     rows.workboard_notes = { ...NOTE, target_kind: "none", target_id: null };
@@ -439,11 +439,11 @@ describe("entries and bring-items", () => {
 
   it("ACCEPTS a targetless note that is only tasks — a task stands on its own", async () => {
     rows.workboard_notes = { ...NOTE, target_kind: "none", target_id: null };
-    lists.staff_profiles = [{ id: "s-luke" }]; // the scoped org lookup finds them
+    lists.staff_profiles = [{ id: "s-lyle" }]; // the scoped org lookup finds them
     const res = await file(
       confirmed({
         tasks: [
-          { title: "Ring the wholesaler back", detail: "", assigneeId: "s-luke", dueDate: null },
+          { title: "Ring the wholesaler back", detail: "", assigneeId: "s-lyle", dueDate: null },
         ],
       })
     );
@@ -493,10 +493,10 @@ describe("entries and bring-items", () => {
 
 describe("the note's own record", () => {
   it("records what the confirmation actually created", async () => {
-    lists.staff_profiles = [{ id: "s-luke" }];
+    lists.staff_profiles = [{ id: "s-lyle" }];
     const res = await file(
       confirmed({
-        tasks: [{ title: "T", detail: "", assigneeId: "s-luke", dueDate: null }],
+        tasks: [{ title: "T", detail: "", assigneeId: "s-lyle", dueDate: null }],
         flags: [{ message: "F", severity: "warn" }],
       })
     );
@@ -654,11 +654,11 @@ describe("the Debrief is out of the router", () => {
       status: "clarifying",
       proposal: {
         ...PROPOSAL,
-        clarify: { question: "Which Luke?", options: ["Luke Nguyen", "Luke Tran"] },
+        clarify: { question: "Which Lyle?", options: ["Lyle Nguyen", "Lyle Tran"] },
         debrief: true,
       },
     };
-    const res = await continueNote("n-1", "Luke Nguyen");
+    const res = await continueNote("n-1", "Lyle Nguyen");
     expect(res.ok).toBe(true);
 
     expect(readNote.mock.calls[0][1]).not.toHaveProperty("debrief");
@@ -708,14 +708,14 @@ describe("a job target", () => {
   });
 
   it("puts the words in the diary whatever else the note did", async () => {
-    lists.staff_profiles = [{ id: "s-luke" }];
+    lists.staff_profiles = [{ id: "s-lyle" }];
     const res = await file(
       confirmed({
-        tasks: [{ title: "Order the grilles", detail: "", assigneeId: "s-luke", dueDate: null }],
+        tasks: [{ title: "Order the grilles", detail: "", assigneeId: "s-lyle", dueDate: null }],
       })
     );
     expect(res.ok).toBe(true);
-    /* "Get Luke to order the grilles" is a task AND a thing that was said on
+    /* "Get Lyle to order the grilles" is a task AND a thing that was said on
        this job; a feed that showed only the half that grew a row would lie. */
     expect(record()).toMatchObject({ taskIds: expect.any(Array), jobNotes: ["…"] });
     expect(res).toMatchObject({ summary: expect.stringContaining("note on the job") });
@@ -764,11 +764,11 @@ describe("a job target", () => {
 describe("walking away, on a row that isn't waiting", () => {
   const APPLIED = {
     id: "n-9",
-    transcript: "@lukeingold on my way",
+    transcript: "@lyleirving on my way",
     status: "applied",
     target_kind: "job",
     target_id: "job-uuid",
-    proposal: { clarify: { question: "Which Luke?" } },
+    proposal: { clarify: { question: "Which Lyle?" } },
   };
 
   it("(F) refuses an applied row, and changes nothing", async () => {

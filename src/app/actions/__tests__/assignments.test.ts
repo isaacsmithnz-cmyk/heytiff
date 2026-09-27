@@ -89,13 +89,13 @@ describe("myNewAssignments", () => {
 
   it("resolves the giver's display name, and shrugs when there isn't one", async () => {
     lists.tasks = [
-      { id: "t-1", title: "Order the box", detail: null, created_by: "staff-luke", due_date: "2026-09-04", created_at: "2026-08-28T09:00:00.000Z" },
+      { id: "t-1", title: "Order the box", detail: null, created_by: "staff-lyle", due_date: "2026-09-04", created_at: "2026-08-28T09:00:00.000Z" },
       { id: "t-2", title: "Ring the builder", detail: null, created_by: null, due_date: null, created_at: "2026-08-28T08:00:00.000Z" },
     ];
-    lists.staff_profiles = [{ id: "staff-luke", first_name: "Luke", last_name: "Ingold" }];
+    lists.staff_profiles = [{ id: "staff-lyle", first_name: "Lyle", last_name: "Irving" }];
 
     const out = await myNewAssignments();
-    expect(out[0]).toMatchObject({ taskId: "t-1", fromName: "Luke Ingold", dueDate: "2026-09-04" });
+    expect(out[0]).toMatchObject({ taskId: "t-1", fromName: "Lyle Irving", dueDate: "2026-09-04" });
     /* A task whose author has no staff card is still work somebody gave you. */
     expect(out[1]).toMatchObject({ taskId: "t-2", fromName: null, dueDate: null });
   });

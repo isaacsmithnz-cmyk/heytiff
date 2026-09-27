@@ -31,7 +31,7 @@ import { EARLIER_TEXT_MAX, EARLIER_TURNS, earlierTurns } from "../note-turns";
 const ISAAC = { id: "s-me", fullName: "Isaac Smith" };
 const STAFF = [
   ISAAC,
-  { id: "s-luke", fullName: "Luke Nguyen" },
+  { id: "s-lyle", fullName: "Lyle Nguyen" },
   { id: "s-callum", fullName: "Callum Reid" },
   { id: "s-jo", fullName: "Jo Baker" },
 ];
@@ -126,37 +126,37 @@ describe("say", () => {
   });
 
   it("is empty on the card's notes even when the shaper asks the question", () => {
-    const twoLukes = [...STAFF, { id: "s-luke-t", fullName: "Luke Tran" }];
+    const twoLyles = [...STAFF, { id: "s-lyle-t", fullName: "Lyle Tran" }];
     const { say: _none, ...cardRaw } = raw({
-      tasks: [{ title: "Order the grilles", detail: "", assignee_hint: "Luke", due_hint: "", due_date: "", remind_time: "", remind_kind: "at" }],
+      tasks: [{ title: "Order the grilles", detail: "", assignee_hint: "Lyle", due_hint: "", due_date: "", remind_time: "", remind_kind: "at" }],
     });
     void _none;
-    const card = shapeProposal(cardRaw, { ...ctx, staff: twoLukes });
-    expect(card.clarify?.question).toBe("Which Luke did you mean?");
+    const card = shapeProposal(cardRaw, { ...ctx, staff: twoLyles });
+    expect(card.clarify?.question).toBe("Which Lyle did you mean?");
     expect(card.say).toBe("");
     // the modal's line carries the question it did not write itself
-    expect(shapeProposal(cardRaw, { ...modal, staff: twoLukes }).say).toBe("Which Luke did you mean?");
+    expect(shapeProposal(cardRaw, { ...modal, staff: twoLyles }).say).toBe("Which Lyle did you mean?");
   });
 
   it("is left in the language it was spoken in by the English check", () => {
     const p: NoteProposal = {
       ...shapeProposal(raw({ plain_note: "Front desk has the key" }), ctx),
-      say: "Anh Luke sẽ đặt hàng lưới tản nhiệt vào thứ Sáu.",
+      say: "Anh Lyle sẽ đặt hàng lưới tản nhiệt vào thứ Sáu.",
     };
     expect(recordStrings(p)).not.toContain(p.say);
     expect(foreignStrings(p)).toEqual([]);
     // even a translation keyed to its exact words does not reach it
-    expect(withTranslations(p, new Map([[p.say, "Luke orders the grilles Friday."]])).say).toBe(p.say);
+    expect(withTranslations(p, new Map([[p.say, "Lyle orders the grilles Friday."]])).say).toBe(p.say);
   });
 });
 
 describe("a task with nobody on it", () => {
   it("becomes a question on the modal's notes: Me, then the people the note names", () => {
-    const p = shapeProposal(nobodysTask, modal, "Callum reckons the grilles need ordering, ask Luke or Jo");
+    const p = shapeProposal(nobodysTask, modal, "Callum reckons the grilles need ordering, ask Lyle or Jo");
     expect(p.tasks[0].assigneeId).toBeNull();
     expect(p.clarify).toEqual({
       question: "Who should do this: Order the grilles?",
-      options: ["Me", "Callum", "Luke"],
+      options: ["Me", "Callum", "Lyle"],
     });
     // her line was written for a plan the app just stopped: the question is all she says
     expect(p.say).toBe("Who should do this: Order the grilles?");
@@ -204,15 +204,15 @@ describe("a task with nobody on it", () => {
 
 describe("namesMentioned", () => {
   it("offers only people on the roster, in the order said, never the speaker, at most two", () => {
-    expect(namesMentioned("Dave and Jo, then Luke, then Callum; me too Isaac", STAFF, "s-me")).toEqual([
+    expect(namesMentioned("Dave and Jo, then Lyle, then Callum; me too Isaac", STAFF, "s-me")).toEqual([
       "Jo",
-      "Luke",
+      "Lyle",
     ]);
   });
 
   it("offers a shared first name whole, so picking it can't ask again", () => {
-    const twoLukes = [...STAFF, { id: "s-luke-t", fullName: "Luke Tran" }];
-    expect(namesMentioned("tell luke", twoLukes, "s-me")).toEqual(["Luke Nguyen", "Luke Tran"]);
+    const twoLyles = [...STAFF, { id: "s-lyle-t", fullName: "Lyle Tran" }];
+    expect(namesMentioned("tell lyle", twoLyles, "s-me")).toEqual(["Lyle Nguyen", "Lyle Tran"]);
   });
 
   it("matches whole words only", () => {
@@ -249,8 +249,8 @@ describe("the second read", () => {
       {
         title: "Ring the sparky",
         detail: "",
-        assigneeId: "s-luke",
-        assigneeHint: "Luke",
+        assigneeId: "s-lyle",
+        assigneeHint: "Lyle",
         dueHint: "Friday",
         dueDate: "2026-09-26",
         remindTime: "07:00",
@@ -262,7 +262,7 @@ describe("the second read", () => {
     clarify: { question: "Who should do this: Order the grilles?", options: ["Me", "Callum"] },
   };
   const turns = (reply: string) => [
-    { who: "you" as const, text: "grilles need ordering, Luke ring the sparky Friday", at: "" },
+    { who: "you" as const, text: "grilles need ordering, Lyle ring the sparky Friday", at: "" },
     { who: "tiff" as const, text: "Who should do this: Order the grilles?", at: "" },
     { who: "you" as const, text: reply, at: "" },
   ];
@@ -275,7 +275,7 @@ describe("the second read", () => {
     const content = noteContent("grilles need ordering", { plan, turns: turns("Callum"), leftOut: ["flags:0", "nope:1"] }, STAFF);
     expect(content).toContain("Your plan so far:");
     expect(content).toContain("- Task for nobody yet: Order the grilles");
-    expect(content).toContain("- Task for Luke Nguyen: Ring the sparky, due 2026-09-26 at 07:00");
+    expect(content).toContain("- Task for Lyle Nguyen: Ring the sparky, due 2026-09-26 at 07:00");
     expect(content).toContain("- Your question: Who should do this: Order the grilles?");
     expect(content).toContain("The conversation since:\nYou: Who should do this: Order the grilles?\nThey: Callum");
     // the note's own turn is the note, not part of "since"
@@ -287,7 +287,7 @@ describe("the second read", () => {
   it("says Do not ask again only on a plain answer", () => {
     const plain = noteContent("n", { plan, turns: turns("callum "), leftOut: [] });
     expect(plain).toContain("Do not ask again.");
-    const free = noteContent("n", { plan, turns: turns("no, Luke's doing both, drop the flag"), leftOut: [] });
+    const free = noteContent("n", { plan, turns: turns("no, Lyle's doing both, drop the flag"), leftOut: [] });
     expect(free).not.toContain("Do not ask again");
     expect(free).toContain("Ask again only if something is still unclear.");
     expect(isPlainAnswer(plan, "ME")).toBe(true);
@@ -297,15 +297,15 @@ describe("the second read", () => {
 
 describe("the conversation before a new note", () => {
   const earlier = [
-    { who: "you" as const, text: "Luke has the Bellevue Hill head on the ute" },
-    { who: "tiff" as const, text: "Done. Luke puts the Bellevue Hill head on the ute." },
+    { who: "you" as const, text: "Lyle has the Bellevue Hill head on the ute" },
+    { who: "tiff" as const, text: "Done. Lyle puts the Bellevue Hill head on the ute." },
   ];
 
   it("is told to the router as context to read the note by, never as more to file", () => {
     const prompt = systemPrompt({ ...modal, earlier });
     expect(prompt).toContain(earlierBlock(earlier));
     expect(prompt).toContain(
-      "They: Luke has the Bellevue Hill head on the ute\nYou: Done. Luke puts the Bellevue Hill head on the ute."
+      "They: Lyle has the Bellevue Hill head on the ute\nYou: Done. Lyle puts the Bellevue Hill head on the ute."
     );
     expect(prompt).toContain("route nothing from it again");
   });

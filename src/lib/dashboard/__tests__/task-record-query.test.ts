@@ -76,11 +76,11 @@ import type { Capability } from "@/lib/permissions";
 
 const ORG = "org-1";
 const ME = "11111111-1111-4111-8111-111111111111";
-const LUKE = "22222222-2222-4222-8222-222222222222";
+const LYLE = "22222222-2222-4222-8222-222222222222";
 const LEO = "33333333-3333-4333-8333-333333333333";
 const names = new Map([
   [ME, "Isaac Smith"],
-  [LUKE, "Luke Ingold"],
+  [LYLE, "Lyle Irving"],
   [LEO, "Leo Park"],
   ["44444444-4444-4444-8444-444444444444", "Nobody Here"],
 ]);
@@ -138,9 +138,9 @@ describe("open", () => {
   it("adds the team's delegated work with `team`, and never a colleague's own to-do", async () => {
     rows.tasks = [
       taskRow(1),
-      taskRow(2, { assigned_to: LUKE, created_by: ME, due_date: "2026-09-20" }),
-      // Luke's private to-do: his business, not management's
-      taskRow(3, { assigned_to: LUKE, created_by: LUKE }),
+      taskRow(2, { assigned_to: LYLE, created_by: ME, due_date: "2026-09-20" }),
+      // Lyle's private to-do: his business, not management's
+      taskRow(3, { assigned_to: LYLE, created_by: LYLE }),
     ];
     const rec = await loadTasksFace(ctx({}, "team"), NOW);
     const [open] = of("tasks").filter((c) => c.eq.status === "open");
@@ -150,7 +150,7 @@ describe("open", () => {
   });
 
   it("carries the three facts the face adds to a task", async () => {
-    rows.tasks = [taskRow(1, { assigned_to: LUKE, acknowledged_at: "2026-09-19T00:00:00Z" })];
+    rows.tasks = [taskRow(1, { assigned_to: LYLE, acknowledged_at: "2026-09-19T00:00:00Z" })];
     const [t] = (await loadTasksFace(ctx({}, "team"), NOW)).open;
     expect(t).toMatchObject({ createdByName: "Isaac Smith", doneById: null, acknowledgedAt: "2026-09-19T00:00:00Z" });
     expect(of("tasks")[0].columns).toContain("acknowledged_at");
@@ -159,7 +159,7 @@ describe("open", () => {
 
 describe("doneTaskRecord", () => {
   it("reads the viewer's done work of the last 90 days, newest first, at most 100", async () => {
-    rows.tasks = [taskRow(1, { status: "done", done_at: "2026-09-20T00:00:00Z", done_by: LUKE })];
+    rows.tasks = [taskRow(1, { status: "done", done_at: "2026-09-20T00:00:00Z", done_by: LYLE })];
     const { done, capped } = await doneTaskRecord(ORG, ME, names, NOW);
     const [call] = of("tasks");
     expect(call.eq).toEqual({ org_id: ORG, status: "done" });
@@ -167,7 +167,7 @@ describe("doneTaskRecord", () => {
     expect(call.or).toBe(`assigned_to.eq.${ME},created_by.eq.${ME},done_by.eq.${ME}`);
     expect(call.order).toEqual(["done_at", { ascending: false }]);
     expect(call.limit).toBe(DONE_LIMIT);
-    expect(done.map((t) => [t.id, t.doneById])).toEqual([[tid(1), LUKE]]);
+    expect(done.map((t) => [t.id, t.doneById])).toEqual([[tid(1), LYLE]]);
     expect(capped).toBe(false);
   });
 
@@ -221,12 +221,12 @@ describe("about", () => {
   });
 
   it("gives the diary's words to their author and to nobody else", async () => {
-    rows.tasks = [taskRow(1, { assigned_to: LUKE })];
+    rows.tasks = [taskRow(1, { assigned_to: LYLE })];
     rows.workboard_notes = [note("n1", [tid(1)])];
     const mine = await loadTasksFace(ctx({}, "team"), NOW);
     expect(mine.about[tid(1)].words).toBe("words of n1");
-    const luke = await loadTasksFace(ctx({ viewerStaffId: LUKE }), NOW);
-    expect(luke.about[tid(1)]).toMatchObject({ source: "diary", authorId: ME, words: null });
+    const lyle = await loadTasksFace(ctx({ viewerStaffId: LYLE }), NOW);
+    expect(lyle.about[tid(1)]).toMatchObject({ source: "diary", authorId: ME, words: null });
   });
 
   it("joins a ServiceM8 task to its note, its writer and its job", async () => {
@@ -235,10 +235,10 @@ describe("about", () => {
       { org_id: ORG, action: "task", task_id: tid(1), sm8_note_uuid: "note-1", sm8_job_uuid: "job-1", acted_by: null, acted_at: "2026-09-21T04:00:00Z" },
     ];
     rows.sm8_job_notes = [
-      { org_id: ORG, uuid: "note-1", note: "@isaacsmith grilles for susie@peterson.com", edit_by_staff_uuid: "sm8-luke", create_date: "2026-09-21 13:42:10" },
+      { org_id: ORG, uuid: "note-1", note: "@isaacsmith grilles for susie@peterson.com", edit_by_staff_uuid: "sm8-lyle", create_date: "2026-09-21 13:42:10" },
     ];
     rows.sm8_staff = [
-      { org_id: ORG, uuid: "sm8-luke", first: "Luke", last: "Ingold" },
+      { org_id: ORG, uuid: "sm8-lyle", first: "Lyle", last: "Irving" },
       { org_id: ORG, uuid: "sm8-me", first: "Isaac", last: "Smith" },
     ];
     rows.sm8_jobs = [{ org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Wollstonecraft" }];
@@ -246,7 +246,7 @@ describe("about", () => {
     expect(rec.about[tid(1)]).toMatchObject({
       source: "sm8",
       sm8NoteUuid: "note-1",
-      askerName: "Luke Ingold",
+      askerName: "Lyle Irving",
       actedBy: null,
       said: { day: "2026-09-21", time: "1:42 pm" },
       // quoted as the diary quotes it: who it was to goes, an address stays whole
@@ -259,8 +259,8 @@ describe("about", () => {
     expect(of("sm8_staff")[0].eq).toEqual({ org_id: ORG });
   });
 
-  /* ONE TASK PER ASK (H18): a task Tiff made from Luke's ask is his note's,
-     as one the strip made is, so the face says "Luke asked you" as the list
+  /* ONE TASK PER ASK (H18): a task Tiff made from Lyle's ask is his note's,
+     as one the strip made is, so the face says "Lyle asked you" as the list
      does and offers its conversation. Nobody pressed anything: Tiff made it.
      ServiceM8 keeps only a note's last editor, so the asker the ask
      recorded names it. */
@@ -273,7 +273,7 @@ describe("about", () => {
         task_id: tid(1),
         sm8_note_uuid: "note-1",
         sm8_job_uuid: "job-1",
-        asker_sm8_uuid: "sm8-luke",
+        asker_sm8_uuid: "sm8-lyle",
         read_at: "2026-09-21T04:00:00Z",
       },
     ];
@@ -282,7 +282,7 @@ describe("about", () => {
       { org_id: ORG, uuid: "note-1", note: "@isaacsmith please call Mary", edit_by_staff_uuid: "sm8-leo", create_date: "2026-09-21 13:42:10" },
     ];
     rows.sm8_staff = [
-      { org_id: ORG, uuid: "sm8-luke", first: "Luke", last: "Ingold" },
+      { org_id: ORG, uuid: "sm8-lyle", first: "Lyle", last: "Irving" },
       { org_id: ORG, uuid: "sm8-leo", first: "Leo", last: "Park" },
       { org_id: ORG, uuid: "sm8-me", first: "Isaac", last: "Smith" },
     ];
@@ -291,7 +291,7 @@ describe("about", () => {
     expect(rec.about[tid(1)]).toMatchObject({
       source: "sm8",
       sm8NoteUuid: "note-1",
-      askerName: "Luke Ingold",
+      askerName: "Lyle Irving",
       actedBy: null,
       said: { day: "2026-09-21", time: "1:42 pm" },
       words: "please call Mary",
@@ -330,20 +330,20 @@ describe("about", () => {
       {
         org_id: ORG,
         uuid: "note-1",
-        note: "Hi @isaacsmith, can you ask @lukeingold to email @bobsmith at bob@peterson.com",
+        note: "Hi @isaacsmith, can you ask @lyleirving to email @bobsmith at bob@peterson.com",
         edit_by_staff_uuid: "sm8-leo",
         create_date: "2026-09-21 13:42:10",
       },
     ];
     rows.sm8_staff = [
-      { org_id: ORG, uuid: "sm8-luke", first: "Luke", last: "Ingold" },
+      { org_id: ORG, uuid: "sm8-lyle", first: "Lyle", last: "Irving" },
       { org_id: ORG, uuid: "sm8-me", first: "Isaac", last: "Smith" },
       { org_id: ORG, uuid: "sm8-leo", first: "Leo", last: "Park" },
     ];
     const rec = await loadTasksFace(ctx({ mineUuid: "sm8-me" }, "workboard"), NOW);
     expect(rec.about[tid(1)]).toMatchObject({
       askerName: "Leo Park",
-      words: "Hi, can you ask Luke to email @bobsmith at bob@peterson.com",
+      words: "Hi, can you ask Lyle to email @bobsmith at bob@peterson.com",
     });
   });
 
@@ -392,12 +392,12 @@ describe("about", () => {
       { org_id: THEM, action: "task", task_id: tid(3), sm8_note_uuid: "note-9", sm8_job_uuid: "job-9", acted_by: null, acted_at: null },
     ];
     rows.sm8_job_notes = [
-      { org_id: ORG, uuid: "note-1", note: "grilles for Susie", edit_by_staff_uuid: "sm8-luke", create_date: "2026-09-21 13:42:10" },
-      { org_id: THEM, uuid: "note-1", note: "their words", edit_by_staff_uuid: "sm8-luke", create_date: "2026-01-01 09:00:00" },
+      { org_id: ORG, uuid: "note-1", note: "grilles for Susie", edit_by_staff_uuid: "sm8-lyle", create_date: "2026-09-21 13:42:10" },
+      { org_id: THEM, uuid: "note-1", note: "their words", edit_by_staff_uuid: "sm8-lyle", create_date: "2026-01-01 09:00:00" },
     ];
     rows.sm8_staff = [
-      { org_id: ORG, uuid: "sm8-luke", first: "Luke", last: "Ingold" },
-      { org_id: THEM, uuid: "sm8-luke", first: "Their", last: "Person" },
+      { org_id: ORG, uuid: "sm8-lyle", first: "Lyle", last: "Irving" },
+      { org_id: THEM, uuid: "sm8-lyle", first: "Their", last: "Person" },
     ];
     rows.sm8_jobs = [
       { org_id: ORG, uuid: "job-1", generated_job_id: "2041", geo_city: "Wollstonecraft" },
@@ -410,7 +410,7 @@ describe("about", () => {
     ];
     rows.workboard_notes = [note("n9", [tid(3)], { org_id: THEM })];
     rows.mention_asks = [
-      { org_id: THEM, status: "read", task_id: tid(3), sm8_note_uuid: "note-1", sm8_job_uuid: "job-1", asker_sm8_uuid: "sm8-luke", read_at: null },
+      { org_id: THEM, status: "read", task_id: tid(3), sm8_note_uuid: "note-1", sm8_job_uuid: "job-1", asker_sm8_uuid: "sm8-lyle", read_at: null },
     ];
     rows.task_events = [
       { org_id: THEM, task_id: tid(1), kind: "done", by_staff: LEO, at: "2026-09-22T00:00:00Z", due_from: null, due_to: null, from_staff: null, to_staff: null },
@@ -420,7 +420,7 @@ describe("about", () => {
     expect(rec.about[tid(1)]).toMatchObject({
       source: "sm8",
       sm8NoteUuid: "note-1",
-      askerName: "Luke Ingold",
+      askerName: "Lyle Irving",
       said: { day: "2026-09-21", time: "1:42 pm" },
       words: "grilles for Susie",
       job: { label: "2041 Wollstonecraft", uuid: "job-1" },
@@ -459,7 +459,7 @@ describe("about", () => {
   it("reads the events oldest first, and a missing table as none", async () => {
     rows.tasks = [taskRow(1)];
     rows.task_events = [
-      { org_id: ORG, task_id: tid(1), kind: "due", by_staff: LUKE, at: "2026-09-21T00:00:00Z", due_from: "2026-09-25", due_to: "2026-10-02", from_staff: null, to_staff: null },
+      { org_id: ORG, task_id: tid(1), kind: "due", by_staff: LYLE, at: "2026-09-21T00:00:00Z", due_from: "2026-09-25", due_to: "2026-10-02", from_staff: null, to_staff: null },
       { org_id: ORG, task_id: tid(1), kind: "created", by_staff: ME, at: "2026-09-18T00:00:00Z", due_from: null, due_to: null, from_staff: null, to_staff: ME },
       // a kind this code has never heard of is not guessed at
       { org_id: ORG, task_id: tid(1), kind: "renamed", by_staff: ME, at: "2026-09-22T00:00:00Z" },
@@ -469,7 +469,7 @@ describe("about", () => {
     expect(rec.about[tid(1)].events[1]).toEqual({
       kind: "due",
       at: "2026-09-21T00:00:00Z",
-      by: LUKE,
+      by: LYLE,
       dueFrom: "2026-09-25",
       dueTo: "2026-10-02",
       from: null,
@@ -514,15 +514,15 @@ describe("about", () => {
 
   it("names only the people the record mentions, and nobody it cannot name", async () => {
     rows.tasks = [
-      taskRow(1, { assigned_to: LUKE }),
+      taskRow(1, { assigned_to: LYLE }),
       // made by a card that is no longer in the staff list: no name, no entry
-      taskRow(2, { assigned_to: LUKE, created_by: "55555555-5555-4555-8555-555555555555" }),
+      taskRow(2, { assigned_to: LYLE, created_by: "55555555-5555-4555-8555-555555555555" }),
     ];
     rows.task_events = [
-      { org_id: ORG, task_id: tid(1), kind: "given", by_staff: ME, at: "2026-09-21T00:00:00Z", due_from: null, due_to: null, from_staff: LEO, to_staff: LUKE },
+      { org_id: ORG, task_id: tid(1), kind: "given", by_staff: ME, at: "2026-09-21T00:00:00Z", due_from: null, due_to: null, from_staff: LEO, to_staff: LYLE },
     ];
     const rec = await loadTasksFace(ctx({}, "team"), NOW);
-    expect(rec.people).toEqual({ [ME]: "Isaac Smith", [LUKE]: "Luke Ingold", [LEO]: "Leo Park" });
+    expect(rec.people).toEqual({ [ME]: "Isaac Smith", [LYLE]: "Lyle Irving", [LEO]: "Leo Park" });
   });
 
   it("asks nothing further when there are no tasks", async () => {

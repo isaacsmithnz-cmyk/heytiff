@@ -26,8 +26,8 @@ import {
 
 const STAFF = [
   { id: "s-me", fullName: "Isaac Smith" },
-  { id: "s-luke", fullName: "Luke Nguyen" },
-  { id: "s-luke-t", fullName: "Luke Tran" },
+  { id: "s-lyle", fullName: "Lyle Nguyen" },
+  { id: "s-lyle-t", fullName: "Lyle Tran" },
 ];
 /* A read with none of the modal's options: what the old review card sent. */
 const card: NoteContext = {
@@ -89,7 +89,7 @@ afterAll(() => {
 
 const lanes = {
   tasks: [
-    { title: "Order the grilles", detail: "", assignee_hint: "Luke", due_hint: "", due_date: "", remind_time: "", remind_kind: "at" },
+    { title: "Order the grilles", detail: "", assignee_hint: "Lyle", due_hint: "", due_date: "", remind_time: "", remind_kind: "at" },
   ],
   bring_items: [],
   flags: [],
@@ -105,7 +105,7 @@ const lanes = {
 
 describe("a read without `speak`", () => {
   it("asks for no `say`: the card's prompt and the schema without it", async () => {
-    await readNote("  tell Luke to order the grilles  ", card);
+    await readNote("  tell Lyle to order the grilles  ", card);
     expect(sent).toHaveLength(1);
     const body = sent[0];
     expect(body.system).toBe(systemPrompt(card));
@@ -113,22 +113,22 @@ describe("a read without `speak`", () => {
     expect(body.system).not.toMatch(/`say`/);
     expect(body.output_config.format).toEqual({ type: "json_schema", schema: NOTE_SCHEMA });
     expect(JSON.stringify(body.output_config.format.schema)).not.toContain('"say"');
-    expect(body.messages).toEqual([{ role: "user", content: "Note:\ntell Luke to order the grilles" }]);
+    expect(body.messages).toEqual([{ role: "user", content: "Note:\ntell Lyle to order the grilles" }]);
   });
 
-  it("comes back with no line from Tiff, even when the app asks which Luke", async () => {
+  it("comes back with no line from Tiff, even when the app asks which Lyle", async () => {
     reply = lanes;
-    const read = await readNote("tell Luke to order the grilles", card);
+    const read = await readNote("tell Lyle to order the grilles", card);
     expect(read.ok).toBe(true);
     if (!read.ok) return;
-    expect(read.proposal.clarify?.question).toBe("Which Luke did you mean?");
+    expect(read.proposal.clarify?.question).toBe("Which Lyle did you mean?");
     expect(read.proposal.say).toBe("");
   });
 });
 
 describe("the Tiff modal's read", () => {
   it("asks for `say`: the block in the prompt and the schema with it", async () => {
-    await readNote("tell Luke to order the grilles", modal);
+    await readNote("tell Lyle to order the grilles", modal);
     const body = sent[0];
     expect(body.system).toBe(systemPrompt(modal));
     expect(body.system).toContain(sayBlock());
@@ -137,7 +137,7 @@ describe("the Tiff modal's read", () => {
 
   it("reads back only the question the app had to ask, not a line written without it", async () => {
     reply = { ...lanes, say: "A task to order the grilles." };
-    const read = await readNote("tell Luke to order the grilles", modal);
-    expect(read.ok && read.proposal.say).toBe("Which Luke did you mean?");
+    const read = await readNote("tell Lyle to order the grilles", modal);
+    expect(read.ok && read.proposal.say).toBe("Which Lyle did you mean?");
   });
 });

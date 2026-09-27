@@ -153,10 +153,10 @@ const record = (open: RecordTask[] = [], about: TaskRecord["about"] = {}): TaskR
   people: { s1: "Isaac Smith" },
 });
 
-/** Handed to Luke: on your Tasks face, and not in the list beside it,
+/** Handed to Lyle: on your Tasks face, and not in the list beside it,
     which is your own work. */
-const lukes = (over: Partial<RecordTask> = {}): RecordTask =>
-  recordTask({ assigneeId: "s2", assigneeName: "Luke Ingold", ...over });
+const lyles = (over: Partial<RecordTask> = {}): RecordTask =>
+  recordTask({ assigneeId: "s2", assigneeName: "Lyle Irving", ...over });
 
 /** Made by Tiff from the viewer's own diary entry. */
 const fromDiary = (noteId: string): TaskAbout => ({
@@ -273,7 +273,7 @@ const deskOf = (journal: readonly JournalEntry[] = [], tasks: TaskRecord = recor
   diary: diaryOf(journal),
 });
 
-/* Luke's ask of Isaac on a job, and what came after it, as the diary's
+/* Lyle's ask of Isaac on a job, and what came after it, as the diary's
    conversations. */
 const JOB_2041 = "3f2b8c1e-0d4a-4b6f-9a2e-1c5d7e9f0a11";
 const talkOf = (notes: MentionNote[]) =>
@@ -282,7 +282,7 @@ const talkOf = (notes: MentionNote[]) =>
     me: { uuid: "u-isaac", handle: "isaacsmith" },
     people: [
       { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" },
-      { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" },
+      { uuid: "u-lyle", handle: "lyleirving", name: "Lyle Irving", first: "Lyle" },
     ],
     jobs: new Map([[JOB_2041, { label: "2041 Wollstonecraft", live: true }]]),
     today: TODAY,
@@ -480,16 +480,16 @@ describe("the faces", () => {
     expect(within(row).getAllByRole("tab")).toHaveLength(3);
   }, WHOLE);
 
-  /* Luke's answer, lit, while you are on another face: the diary is
+  /* Lyle's answer, lit, while you are on another face: the diary is
      hidden, so the light's seven seconds wait for it to be seen. */
   it("keep his newest message lit while the Diary is not the face on screen", async () => {
     jest.useFakeTimers();
     try {
       const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
       const conversations = talkOf([
-        { uuid: "n-ask", jobUuid: JOB_2041, author: "u-luke", at: "2026-08-09 13:42:10", text: "@isaacsmith call Mary" },
-        { uuid: "n-mine", jobUuid: JOB_2041, author: "u-isaac", at: "2026-08-09 15:10:00", text: "@lukeingold on it" },
-        { uuid: "n-his", jobUuid: JOB_2041, author: "u-luke", at: `${TODAY} 08:15:00`, text: "@isaacsmith she rang back" },
+        { uuid: "n-ask", jobUuid: JOB_2041, author: "u-lyle", at: "2026-08-09 13:42:10", text: "@isaacsmith call Mary" },
+        { uuid: "n-mine", jobUuid: JOB_2041, author: "u-isaac", at: "2026-08-09 15:10:00", text: "@lyleirving on it" },
+        { uuid: "n-his", jobUuid: JOB_2041, author: "u-lyle", at: `${TODAY} 08:15:00`, text: "@isaacsmith she rang back" },
       ]);
       draw({ desk: { ...deskOf(), diary: diaryOf([], { mentions: true, conversations }) } });
       const his = () => face("diary").querySelectorAll<HTMLElement>(".hd-dy-tr")[1]!;
@@ -716,19 +716,19 @@ describe("the one door between faces", () => {
     expect(shownFaces()).toEqual(["tasks"]);
   }, WHOLE);
 
-  /* A task one of Luke's asks made opens the conversation it came from, from
+  /* A task one of Lyle's asks made opens the conversation it came from, from
      its row on the Tasks face as from the list: the Diary comes back, and
      the conversation is lit whole and given the focus. An ask the diary
      holds no conversation for — older than the mentions reach, or deleted
      in ServiceM8 — offers no such door, which would slide the diary in on
      nothing. */
-  const ASK: MentionNote = { uuid: "n-ask", jobUuid: JOB_2041, author: "u-luke", at: "2026-08-09 13:42:10", text: "@isaacsmith call Mary" };
+  const ASK: MentionNote = { uuid: "n-ask", jobUuid: JOB_2041, author: "u-lyle", at: "2026-08-09 13:42:10", text: "@isaacsmith call Mary" };
   const asked = (notes: MentionNote[]) => {
     const about: TaskAbout = {
       ...typedAbout(),
       source: "sm8",
       sm8NoteUuid: ASK.uuid,
-      askerName: "Luke Ingold",
+      askerName: "Lyle Irving",
       words: ASK.text,
     };
     const onFace = record([recordTask({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" })], { "t-mary": about });
@@ -744,7 +744,7 @@ describe("the one door between faces", () => {
     await user.click(taskTitle("Call Mary about 2041 Wollstonecraft"));
     await user.click(within(face("tasks")).getByRole("button", { name: "Open conversation" }));
     expect(shownFaces()).toEqual(["diary"]);
-    const talk = face("diary").querySelector<HTMLElement>(`[data-conversation="${JOB_2041}:u-luke"] > .hd-dy-en`)!;
+    const talk = face("diary").querySelector<HTMLElement>(`[data-conversation="${JOB_2041}:u-lyle"] > .hd-dy-en`)!;
     expect(talk).toHaveAttribute("data-lit");
     expect(document.activeElement).toBe(talk);
   }, WHOLE);
@@ -799,7 +799,7 @@ describe("a task the address names", () => {
   const OLD = "00000000-0000-4000-8000-0000000000d1";
   const stillIn: TaskDoneLine = {
     noteId: OLD,
-    words: "@lukeingold Done.",
+    words: "@lyleirving Done.",
     state: { key: "line.stillIn", text: "Still in ServiceM8.", tone: "bad", acts: ["take_out_again"] },
   };
   const finished = recordTask({ id: T, title: "Order the grilles", status: "done", doneAt: "2026-08-10T01:00:00Z", doneById: "s1" });
@@ -902,19 +902,19 @@ describe("the list", () => {
     expect(litEntries()).toEqual(["e1"]);
   }, WHOLE);
 
-  /* A task one of Luke's asks made (H18: the conversation's own tasks, so
+  /* A task one of Lyle's asks made (H18: the conversation's own tasks, so
      the list reads which off the diary) says whose ask it was, and opens
      the conversation it came from: the diary face comes back, and the
      conversation is lit whole and given the focus. */
   const ASK: MentionNote = {
     uuid: "n-ask",
     jobUuid: "3f2b8c1e-0d4a-4b6f-9a2e-1c5d7e9f0a11",
-    author: "u-luke",
+    author: "u-lyle",
     at: "2026-08-09 13:42:10",
     text: "@isaacsmith Please call Mary to discuss",
   };
   const MARY = task({ id: "t-mary", title: "Call Mary about 2041 Wollstonecraft" });
-  /** The desk with Luke's ask in the diary, its one task on it. */
+  /** The desk with Lyle's ask in the diary, its one task on it. */
   const asked = (
     tasks: DiaryConversation["tasks"] = [{ noteId: "n-ask", taskId: "t-mary", done: false, dueSaid: null, ownerId: "s1" }],
   ) => {
@@ -923,7 +923,7 @@ describe("the list", () => {
       me: { uuid: "u-isaac", handle: "isaacsmith" },
       people: [
         { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" },
-        { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" },
+        { uuid: "u-lyle", handle: "lyleirving", name: "Lyle Irving", first: "Lyle" },
       ],
       jobs: new Map([[ASK.jobUuid, { label: "2041 Wollstonecraft", live: true }]]),
       today: TODAY,
@@ -947,7 +947,7 @@ describe("the list", () => {
     await user.click(tab("Tasks"));
     await user.click(within(theList()).getByRole("button", { name: "Call Mary about 2041 Wollstonecraft" }));
     expect(shownFaces()).toEqual(["diary"]);
-    const talk = face("diary").querySelector<HTMLElement>(`[data-conversation="${ASK.jobUuid}:u-luke"] > .hd-dy-en`)!;
+    const talk = face("diary").querySelector<HTMLElement>(`[data-conversation="${ASK.jobUuid}:u-lyle"] > .hd-dy-en`)!;
     expect(talk).toHaveAttribute("data-lit");
     expect(document.activeElement).toBe(talk);
   }, WHOLE);
@@ -955,7 +955,7 @@ describe("the list", () => {
   it("says on the list's row whose ask made the task, and when", () => {
     render(<DashboardDesk data={asked()} />);
     const row = theList().querySelector<HTMLElement>('[data-thing="t-mary"]')!;
-    expect(row).toHaveTextContent("Luke asked you, Sun 9 Aug.");
+    expect(row).toHaveTextContent("Lyle asked you, Sun 9 Aug.");
   }, WHOLE);
 
   /* The other way: the conversation's "1 task for you" lights the task's
@@ -1324,7 +1324,7 @@ describe("the slide", () => {
   /* A door between faces is a way to change face like a tab: pressed with a
      pointer its face slides in, and pressed from the keyboard it is simply
      there (law 8) — both ways, the diary's door to a task and the task's
-     Open in diary. The task is Luke's, so the list — your own work — does
+     Open in diary. The task is Lyle's, so the list — your own work — does
      not hold it, and the diary's door goes to the Tasks tab, where what you
      handed out still stands. */
   it("slides a face in for a door pressed with the pointer, and not for one pressed from the keyboard", async () => {
@@ -1336,7 +1336,7 @@ describe("the slide", () => {
       <DashboardDesk
         data={data({
           journal,
-          desk: deskOf(journal, record([lukes()], { t1: fromDiary("e1") })),
+          desk: deskOf(journal, record([lyles()], { t1: fromDiary("e1") })),
         })}
       />,
     );
@@ -1418,7 +1418,7 @@ describe("the slide", () => {
 
   /* ...and the door carries which it was on to the face it opens, so the
      row it names glides into view only for the pointer's press. The task
-     is Luke's, so the list — your own work — does not hold it, and the
+     is Lyle's, so the list — your own work — does not hold it, and the
      diary's door opens it on the Tasks face. */
   it("brings a door's task into view gliding for the pointer, and without moving for the keyboard", async () => {
     const user = userEvent.setup();
@@ -1431,7 +1431,7 @@ describe("the slide", () => {
       const journal = [
         entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
       ];
-      render(<DashboardDesk data={data({ journal, desk: deskOf(journal, record([lukes()])) })} />);
+      render(<DashboardDesk data={data({ journal, desk: deskOf(journal, record([lyles()])) })} />);
       const door = () => within(face("diary")).getByRole("button", { name: "1 task" });
       await user.click(door());
       expect(glides).toEqual([{ thing: "t1", behavior: "smooth" }]);
@@ -1458,7 +1458,7 @@ describe("the slide", () => {
       <DashboardDesk
         data={data({
           journal,
-          desk: deskOf(journal, record([recordTask({ id: "t0", title: "Ring the Hilux dealer" }), lukes()])),
+          desk: deskOf(journal, record([recordTask({ id: "t0", title: "Ring the Hilux dealer" }), lyles()])),
         })}
       />,
     );
@@ -1479,7 +1479,7 @@ describe("the slide", () => {
       const journal = [
         entry({ outcomes: [{ kind: "todo", text: "Order 2× MERV 11 filters", go: { type: "task", id: "t1" } }] }),
       ];
-      render(<DashboardDesk data={data({ journal, desk: deskOf(journal, record([lukes()])) })} />);
+      render(<DashboardDesk data={data({ journal, desk: deskOf(journal, record([lyles()])) })} />);
       await user.click(within(face("diary")).getByRole("button", { name: "1 task" }));
       const row = () => taskTitle("Order 2× MERV 11 filters").closest(".hd-ls-row");
       expect(row()).toHaveAttribute("data-lit");
@@ -1527,7 +1527,7 @@ describe("the slide", () => {
     });
     const LANDED = { noteIds: ["e9"], ids: [] };
     const before = data();
-    const after = data({ journal: [entry({ id: "e9", said: "Luke books 3323" })] });
+    const after = data({ journal: [entry({ id: "e9", said: "Lyle books 3323" })] });
     const at = (landed: TiffLanded | null, d: DashboardData = before) => (
       <TiffContext.Provider value={host(landed)}>
         <DashboardDesk data={d} />

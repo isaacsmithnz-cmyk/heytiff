@@ -177,7 +177,7 @@ function data(over: Partial<MaintenanceBoardData> = {}): MaintenanceBoardData {
     agreements: [],
     staff: [
       { id: "s-1", name: "Dane Poulos" },
-      { id: "s-2", name: "Luke Mercer" },
+      { id: "s-2", name: "Lyle Mercer" },
     ],
     tagPool: [],
     categories: [],
@@ -850,7 +850,7 @@ describe("Completed — actuals, never estimates (L3/B12)", () => {
         done({
           techs: [
             { id: "s-1", name: "Dane Poulos" },
-            { id: "s-2", name: "Luke Mercer" },
+            { id: "s-2", name: "Lyle Mercer" },
           ],
         })
       );
@@ -1127,7 +1127,7 @@ describe("Urgent quick actions — each row fixes ITS fact (A1/A4)", () => {
       "s-2"
     );
     expect(act.assignVisitTech).toHaveBeenCalledWith("v-1", "s-2");
-    const toast = screen.getByText("Luke Mercer assigned — Halston Freight").closest(".wb2-toast")!;
+    const toast = screen.getByText("Lyle Mercer assigned — Halston Freight").closest(".wb2-toast")!;
     await userEvent.click(within(toast as HTMLElement).getByRole("button", { name: "Undo" }));
     expect(act.unassignVisitTech).toHaveBeenCalledWith("v-1", "s-2");
   });

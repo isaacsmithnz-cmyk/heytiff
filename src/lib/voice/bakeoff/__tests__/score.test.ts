@@ -43,14 +43,14 @@ describe("wordErrorRate", () => {
 describe("similarity", () => {
   it("scores a near-miss high and an unrelated word low", () => {
     expect(similarity("wyndham", "windham")).toBeGreaterThan(0.8);
-    expect(similarity("luke", "bunnings")).toBeLessThan(0.3);
+    expect(similarity("lyle", "bunnings")).toBeLessThan(0.3);
   });
 
   it("is unforgiving on short words, which is deliberate", () => {
-    // "luke" vs "look" is only 0.25 — three of four characters differ. Short
+    // "lyle" vs "look" is only 0.25 — three of four characters differ. Short
     // names have no redundancy to spare, so a mishearing of one is a genuine
     // miss and the picker should open rather than the harness inventing a hit.
-    expect(similarity("luke", "look")).toBeLessThan(MATCH_THRESHOLD);
+    expect(similarity("lyle", "look")).toBeLessThan(MATCH_THRESHOLD);
   });
 });
 
@@ -71,7 +71,7 @@ describe("findPhrase", () => {
   });
 
   it("does not invent a match between different words", () => {
-    expect(findPhrase("order the grills for mick", "luke").hit).toBe(false);
+    expect(findPhrase("order the grills for mick", "lyle").hit).toBe(false);
   });
 
   it("finds a name through a plausible mishearing only if it is close enough", () => {
@@ -100,13 +100,13 @@ describe("findSite", () => {
 });
 
 describe("scoreCase", () => {
-  const truth = "at 36 Wyndham Street for job 337, Luke needs to order the grills";
+  const truth = "at 36 Wyndham Street for job 337, Lyle needs to order the grills";
 
   it("is routable when every hard expectation survives", () => {
     const score = scoreCase("c1", truth, truth, {
       job: "337",
       site: "36 Wyndham Street",
-      people: ["Luke"],
+      people: ["Lyle"],
       terms: ["grills"],
     });
     expect(score.routable).toBe(true);
@@ -114,22 +114,22 @@ describe("scoreCase", () => {
   });
 
   it("is NOT routable when the site is lost, however good the words were", () => {
-    const heard = "at 36 Kingston Street for job 337, Luke needs to order the grills";
+    const heard = "at 36 Kingston Street for job 337, Lyle needs to order the grills";
     const score = scoreCase("c2", truth, heard, {
       job: "337",
       site: "36 Wyndham Street",
-      people: ["Luke"],
+      people: ["Lyle"],
     });
     expect(score.routable).toBe(false);
     expect(score.wer).toBeLessThan(0.2); // word-perfect enough to look fine
   });
 
   it("stays routable when only a trade term is mangled", () => {
-    const heard = "at 36 Wyndham Street for job 337, Luke needs to order the girls";
+    const heard = "at 36 Wyndham Street for job 337, Lyle needs to order the girls";
     const score = scoreCase("c3", truth, heard, {
       job: "337",
       site: "36 Wyndham Street",
-      people: ["Luke"],
+      people: ["Lyle"],
       terms: ["grills"],
     });
     expect(score.routable).toBe(true);
@@ -137,7 +137,7 @@ describe("scoreCase", () => {
   });
 
   it("counts a job number as heard whichever way it was spoken", () => {
-    const heard = "at 36 Wyndham Street for job three three seven, Luke needs the grills";
+    const heard = "at 36 Wyndham Street for job three three seven, Lyle needs the grills";
     expect(scoreCase("c4", truth, heard, { job: "337" }).routable).toBe(true);
   });
 });

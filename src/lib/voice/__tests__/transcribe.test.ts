@@ -17,8 +17,8 @@ import {
 
 describe("prepareKeyterms", () => {
   it("keeps ordinary trade words and staff names", () => {
-    expect(prepareKeyterms(["Luke", "condensate", "return air"])).toEqual([
-      "Luke",
+    expect(prepareKeyterms(["Lyle", "condensate", "return air"])).toEqual([
+      "Lyle",
       "condensate",
       "return air",
     ]);
@@ -161,8 +161,8 @@ describe("an upstream refusal", () => {
       return { ok: true, json: async () => ({ text: "hi" }) };
     }) as unknown as typeof fetch;
 
-    await transcribeAudio(new Blob(["x"]), { keyterms: ["Luke", "grilles"] });
-    expect(sent!.getAll("keyterms")).toEqual(["Luke", "grilles"]);
+    await transcribeAudio(new Blob(["x"]), { keyterms: ["Lyle", "grilles"] });
+    expect(sent!.getAll("keyterms")).toEqual(["Lyle", "grilles"]);
   });
 
   it("an unreadable body still logs the status rather than throwing", async () => {

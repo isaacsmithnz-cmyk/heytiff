@@ -35,7 +35,7 @@ const task = (over: Partial<NoteProposal["tasks"][number]> = {}) => ({
   title: "Order the grilles",
   detail: "Smith Street, ducted change-over",
   assigneeId: null,
-  assigneeHint: "Luke",
+  assigneeHint: "Lyle",
   dueHint: "before Monday",
   dueDate: "2026-08-10",
   remindTime: "",
@@ -51,13 +51,13 @@ describe("what the crew reads", () => {
       flags: [{ message: "Roof hatch padlock seized", severity: "warn" }],
       kbEntries: [{ title: "Clearing an E6", body: "Power the outdoor board separately" }],
       plainNote: "Front desk has the key",
-      clarify: { question: "Which Luke?", options: ["Luke N", "Luke T"] },
+      clarify: { question: "Which Lyle?", options: ["Lyle N", "Lyle T"] },
     };
     const all = recordStrings(p);
     expect(all).toContain("Order the grilles");
     expect(all).toContain("Roof hatch padlock seized");
     expect(all).toContain("Clearing an E6");
-    expect(all).toContain("Which Luke?");
+    expect(all).toContain("Which Lyle?");
   });
 
   it("never offers a name or a model string for translation", () => {
@@ -65,11 +65,11 @@ describe("what the crew reads", () => {
        against the roster, and equipmentHint is a model string. */
     const p: NoteProposal = {
       ...EMPTY,
-      tasks: [task({ assigneeHint: "Luke" })],
+      tasks: [task({ assigneeHint: "Lyle" })],
       commissioningEntries: [{ body: "Superheat 8K", equipmentHint: "PUZ-ZM250VKA" }],
     };
     const all = recordStrings(p);
-    expect(all).not.toContain("Luke");
+    expect(all).not.toContain("Lyle");
     expect(all).not.toContain("PUZ-ZM250VKA");
   });
 

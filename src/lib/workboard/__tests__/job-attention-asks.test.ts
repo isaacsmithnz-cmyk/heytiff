@@ -45,11 +45,11 @@ import { readJobAttention } from "../job-notes-query";
 
 const ORG = "org-1";
 const JOB = "j-2041";
-/* Luke's real ask of Isaac, 21 September 2026. */
+/* Lyle's real ask of Isaac, 21 September 2026. */
 const ASK = {
   remoteId: "n-mary",
   text: "@isaacsmith Please call Mary to discuss",
-  writtenBy: "Luke Ingold",
+  writtenBy: "Lyle Irving",
   writtenAt: "2026-09-21 13:42:10",
   actionRequired: false,
 };
@@ -62,7 +62,7 @@ beforeEach(() => {
   tables = {
     sm8_staff: [
       { uuid: "u-isaac", first: "Isaac", last: "Smith" },
-      { uuid: "u-luke", first: "Luke", last: "Ingold" },
+      { uuid: "u-lyle", first: "Lyle", last: "Irving" },
     ],
     staff_profiles: [{ id: "s-isaac", first_name: "Isaac", last_name: "Smith" }],
   };

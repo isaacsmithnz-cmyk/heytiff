@@ -11,18 +11,18 @@ const inputs = (over: Partial<AttentionInputs> = {}): AttentionInputs => ({
   notes: [],
   jobOpen: true,
   answered: new Set<string>(),
-  people: new Map([["lukeingold", { name: "Luke Ingold", staffId: null }]]),
+  people: new Map([["lyleirving", { name: "Lyle Irving", staffId: null }]]),
   today: "2026-08-28",
   ...over,
 });
 
 const note = (over: Partial<AttentionInputs["notes"][number]> = {}) => ({
   remoteId: "n-1",
-  text: "@lukeingold still need another day on site",
+  text: "@lyleirving still need another day on site",
   author: "David Hann",
   at: "2026-08-20 09:14:00",
   actionRequired: false,
-  handles: ["lukeingold"],
+  handles: ["lyleirving"],
   ours: false,
   ...over,
 });
@@ -38,7 +38,7 @@ describe("buildJobAttention", () => {
         flags: [
           { id: "f-1", message: "Timber needs replacing", severity: "urgent", raised: "2026-08-12" },
         ],
-        tasks: [{ id: "t-1", title: "Order controllers", assignee: "Luke", dueDate: null }],
+        tasks: [{ id: "t-1", title: "Order controllers", assignee: "Lyle", dueDate: null }],
         notes: [note({ actionRequired: true })],
       })
     );
@@ -117,7 +117,7 @@ describe("buildJobAttention", () => {
       const built = buildJobAttention(inputs({ notes: [note()] }));
       expect(built.items[0]).toMatchObject({
         kind: "mention",
-        named: [{ name: "Luke Ingold", staffId: null }],
+        named: [{ name: "Lyle Irving", staffId: null }],
       });
     });
 
@@ -125,7 +125,7 @@ describe("buildJobAttention", () => {
       const built = buildJobAttention(
         inputs({
           notes: [note()],
-          people: new Map([["lukeingold", { name: "Luke Ingold", staffId: "staff-9" }]]),
+          people: new Map([["lyleirving", { name: "Lyle Irving", staffId: "staff-9" }]]),
         })
       );
       expect(built.items[0]).toMatchObject({ named: [{ staffId: "staff-9" }] });
@@ -133,7 +133,7 @@ describe("buildJobAttention", () => {
 
     it("never offer HeyTiff's own note back as a mention or a flag", () => {
       /* A reply HeyTiff posts to ServiceM8 comes back with the next sync as
-         one of ServiceM8's notes. Offered as a suggestion, it would ask Luke
+         one of ServiceM8's notes. Offered as a suggestion, it would ask Lyle
          to answer his own words; HeyTiff's own row is where it lives. */
       const built = buildJobAttention(
         inputs({ notes: [note({ ours: true }), note({ remoteId: "n-2", ours: true, actionRequired: true })] })
@@ -141,12 +141,12 @@ describe("buildJobAttention", () => {
       expect(built).toEqual({ items: [], total: 0 });
     });
 
-    it("still names Luke from the same words when the note isn't ours, and reads the handles unchanged", () => {
+    it("still names Lyle from the same words when the note isn't ours, and reads the handles unchanged", () => {
       const mine = note({ ours: true });
       const theirs = note({ ours: false });
       expect(buildJobAttention(inputs({ notes: [theirs] })).items[0]).toMatchObject({
         kind: "mention",
-        named: [{ name: "Luke Ingold" }],
+        named: [{ name: "Lyle Irving" }],
       });
       expect(mine.handles).toEqual(theirs.handles);
     });

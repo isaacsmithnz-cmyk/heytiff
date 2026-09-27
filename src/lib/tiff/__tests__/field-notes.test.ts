@@ -49,7 +49,7 @@ const { embedTexts } = require("../embeddings") as { embedTexts: jest.Mock };
 const INPUT = {
   orgId: "org-1",
   authorId: "s-1",
-  authorName: "Luke Mercer",
+  authorName: "Lyle Mercer",
   title: "Clearing an E6 without the manual",
   body: "Power the outdoor board separately before resetting — the manual reset alone doesn't clear it.",
   jobLabel: "Meridian Data, CRACs",
@@ -76,7 +76,7 @@ describe("publishFieldNote", () => {
       kind: "NOTE",
       status: "ready",
       title: INPUT.title,
-      source: "Luke Mercer",
+      source: "Lyle Mercer",
       uploaded_by: "s-1",
     });
   });
@@ -90,7 +90,7 @@ describe("publishFieldNote", () => {
       page_from: 1,
       page_to: 1,
       content: INPUT.body,
-      heading: "Learned on the job — Luke Mercer, Wed 6 Aug, at Meridian Data, CRACs",
+      heading: "Learned on the job — Lyle Mercer, Wed 6 Aug, at Meridian Data, CRACs",
     });
     expect(chunk.embedding).toBe(JSON.stringify([0.1, 0.2]));
   });
@@ -118,13 +118,13 @@ describe("publishFieldNote", () => {
 describe("the provenance line", () => {
   it("names the person, the day and the job", () => {
     expect(fieldNoteHeading(INPUT)).toBe(
-      "Learned on the job — Luke Mercer, Wed 6 Aug, at Meridian Data, CRACs"
+      "Learned on the job — Lyle Mercer, Wed 6 Aug, at Meridian Data, CRACs"
     );
   });
 
   it("drops the job cleanly when there wasn't one", () => {
     expect(fieldNoteHeading({ ...INPUT, jobLabel: null })).toBe(
-      "Learned on the job — Luke Mercer, Wed 6 Aug"
+      "Learned on the job — Lyle Mercer, Wed 6 Aug"
     );
   });
 });

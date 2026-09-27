@@ -363,10 +363,10 @@ describe("shapes as the privacy boundary", () => {
   it("the staff shape is names and title only — never contact or location", () => {
     const shaped = spec("staff").shape({
       uuid: "s-1",
-      first: "Luke",
+      first: "Lyle",
       last: "Nguyen",
       job_title: "Technician",
-      email: "luke@example.com",
+      email: "lyle@example.com",
       mobile: "0400 000 000",
       lat: -27.47,
       lng: 153.02,
@@ -375,7 +375,7 @@ describe("shapes as the privacy boundary", () => {
       active: 1,
       edit_date: "2026-07-28 09:00:00",
     })!;
-    expect(shaped).toMatchObject({ first: "Luke", last: "Nguyen", job_title: "Technician" });
+    expect(shaped).toMatchObject({ first: "Lyle", last: "Nguyen", job_title: "Technician" });
     for (const banned of ["email", "mobile", "lat", "lng", "status_message", "navigating_to_job_uuid"]) {
       expect(shaped).not.toHaveProperty(banned);
     }

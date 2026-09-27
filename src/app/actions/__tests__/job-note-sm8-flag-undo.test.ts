@@ -57,7 +57,7 @@ const ORG = "org-1";
 const TENANT = "vendor-1";
 const JOB = "0f8c2b9e-1111-4a4a-8b8b-000000000001";
 const ISAAC_SM8 = "5a1b2c3d-0000-4000-8000-00000000aaaa";
-const LUKE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
+const LYLE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
 const FLAG = "7e7e7e7e-0000-4000-8000-00000000f1a9";
 const LANDED = "2026-09-21 08:00:00";
 const PRESS = "00000000-0000-4000-8000-0000000000a1";
@@ -96,7 +96,7 @@ beforeEach(() => {
     {
       id: "u1", org_id: ORG, tenant_id: TENANT, kind: "note", op: "update", flag_done: true, status: "sent",
       target_uuid: FLAG, subject: `flag:${FLAG}:p0`, sm8_job_uuid: JOB, seen_edit_date: "2026-09-20 10:00:00",
-      seen_edit_by: LUKE_SM8, landed_edit_date: LANDED, requested_by: "staff-isaac", remote_uuid: "00000000-0000-4000-8000-0000000000f0",
+      seen_edit_by: LYLE_SM8, landed_edit_date: LANDED, requested_by: "staff-isaac", remote_uuid: "00000000-0000-4000-8000-0000000000f0",
       created_at: "2026-09-21T00:00:00Z", attempts: 1, last_error: null, maybe_landed: false, verify_uuids: [],
     },
   ];

@@ -44,15 +44,15 @@ it("says nothing under the title for a workspace with no name yet", () => {
 });
 
 it("offers back what the card already holds, to be confirmed", () => {
-  setup({ first_name: "luke", emergency_relationship: "Partner" });
-  expect(screen.getByLabelText(/^First name/)).toHaveValue("luke");
+  setup({ first_name: "lyle", emergency_relationship: "Partner" });
+  expect(screen.getByLabelText(/^First name/)).toHaveValue("lyle");
   expect(screen.getByLabelText("Relationship")).toHaveValue("Partner");
 });
 
 /* The name is the one thing nothing else in the flow can answer. The screen
    says so on the fields, before a round trip, and sends nothing. */
 it("insists on a first and last name before saving", async () => {
-  const { actions, user } = setup({ first_name: "luke" });
+  const { actions, user } = setup({ first_name: "lyle" });
   await user.click(screen.getByRole("button", { name: "Save details" }));
   expect(screen.getByRole("alert")).toHaveTextContent("Add your first and last name.");
   expect(screen.getByLabelText(/^Last name/)).toHaveAttribute("aria-invalid", "true");
@@ -66,7 +66,7 @@ it("insists on a first and last name before saving", async () => {
 
 it("saves the two groups it collects, and goes Home", async () => {
   const { actions, user } = setup();
-  await user.type(screen.getByLabelText(/^First name/), "Luke");
+  await user.type(screen.getByLabelText(/^First name/), "Lyle");
   await user.type(screen.getByLabelText(/^Last name/), "Brennan");
   await user.type(screen.getByLabelText("Date of birth"), "11/02/1994");
   await user.type(screen.getByLabelText("Mobile"), "0412 345 678");
@@ -76,7 +76,7 @@ it("saves the two groups it collects, and goes Home", async () => {
 
   expect(actions.onComplete).toHaveBeenCalledWith(
     {
-      first_name: "Luke",
+      first_name: "Lyle",
       last_name: "Brennan",
       preferred_name: "",
       birthday: "11/02/1994",
@@ -89,7 +89,7 @@ it("saves the two groups it collects, and goes Home", async () => {
 });
 
 it("puts a rejected save beside the field it names", async () => {
-  const { actions, user } = setup({ first_name: "Luke", last_name: "Brennan", birthday: "31/31/1994" });
+  const { actions, user } = setup({ first_name: "Lyle", last_name: "Brennan", birthday: "31/31/1994" });
   actions.onComplete.mockResolvedValue({
     ok: false,
     error: "Check the date format — use dd/mm/yyyy.",

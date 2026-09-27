@@ -43,7 +43,7 @@ export async function POST() {
     .eq("org_id", orgId)
     .limit(200);
 
-  /* Names first: with only fifty slots, "Luke" earns its place ahead of
+  /* Names first: with only fifty slots, "Lyle" earns its place ahead of
      "scissor lift" — a misheard name routes a task to nobody. */
   const names = ((data ?? []) as { full_name: string | null }[])
     .flatMap((s) => (s.full_name ?? "").trim().split(/\s+/))

@@ -72,7 +72,7 @@ jest.mock("@/lib/workboard/job-notes-query", () => ({
     async () =>
       new Map([
         ["staff-isaac", "Isaac Smith"],
-        ["staff-luke", "Luke Ingold"],
+        ["staff-lyle", "Lyle Irving"],
       ])
   ),
 }));
@@ -97,7 +97,7 @@ const ORG = "org-1";
 const TENANT = "vendor-1";
 const JOB = "0f8c2b9e-1111-4a4a-8b8b-000000000001";
 const ISAAC_SM8 = "5a1b2c3d-0000-4000-8000-00000000aaaa";
-const LUKE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
+const LYLE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
 const FLAG = "7e7e7e7e-0000-4000-8000-00000000f1a9";
 const ACCESS = { accessToken: "token-1", tenantId: TENANT, grant: "g1", meter: TENANT };
 const RENEWED = { accessToken: "token-2", tenantId: TENANT, grant: "g2", meter: TENANT };
@@ -226,11 +226,11 @@ beforeEach(() => {
   ];
   fake.db.integration_links = [
     { org_id: ORG, provider: "servicem8", kind: "staff", tenant_id: TENANT, staff_profile_id: "staff-isaac", remote_id: ISAAC_SM8, confirmed_remote_id: ISAAC_SM8, confirmed_answer: "yes" },
-    { org_id: ORG, provider: "servicem8", kind: "staff", tenant_id: TENANT, staff_profile_id: "staff-luke", remote_id: LUKE_SM8, confirmed_remote_id: LUKE_SM8, confirmed_answer: "yes" },
+    { org_id: ORG, provider: "servicem8", kind: "staff", tenant_id: TENANT, staff_profile_id: "staff-lyle", remote_id: LYLE_SM8, confirmed_remote_id: LYLE_SM8, confirmed_answer: "yes" },
   ];
   fake.db.sm8_staff = [
     { org_id: ORG, uuid: ISAAC_SM8, first: "Isaac", last: "Smith", active: 1 },
-    { org_id: ORG, uuid: LUKE_SM8, first: "Luke", last: "Ingold", active: 1 },
+    { org_id: ORG, uuid: LYLE_SM8, first: "Lyle", last: "Irving", active: 1 },
   ];
   fake.db.sm8_jobs = [{ org_id: ORG, uuid: JOB, active: 1, generated_job_id: "2380" }];
   fake.db.sm8_writes = [];
@@ -719,7 +719,7 @@ describe("a take-back never goes ahead of its note", () => {
       created_at: new Date().toISOString(),
       note_id: id,
       depends_on: c.id,
-      requested_by: "staff-luke",
+      requested_by: "staff-lyle",
       lease_until: null,
       maybe_landed: false,
       verify_uuids: [],
@@ -981,9 +981,9 @@ describe("only whoever pressed a note can press it again or take it back", () =>
     const id = seedNote();
     await queueNoteCreate(await pressAs("staff-isaac"), { noteId: id });
     await run();
-    const luke = await pressAs("staff-luke");
+    const lyle = await pressAs("staff-lyle");
     // a live row
-    expect(await queueNoteTakeBack(luke, { noteId: id })).toEqual({ ok: false, refusal: "not_yours", removed: false });
+    expect(await queueNoteTakeBack(lyle, { noteId: id })).toEqual({ ok: false, refusal: "not_yours", removed: false });
     expect(noteRow(id).removed_at).toBeNull();
     // a removed row whose take-back failed
     inServiceM8(createOf(id).remote_uuid);
@@ -992,12 +992,12 @@ describe("only whoever pressed a note can press it again or take it back", () =>
     await run();
     expect(deleteOf(createOf(id).id as string)?.status).toBe("failed");
     const before = JSON.stringify(writes());
-    expect(await queueNoteTakeBack(await pressAs("staff-luke"), { noteId: id })).toEqual({ ok: false, refusal: "not_yours", removed: false });
+    expect(await queueNoteTakeBack(await pressAs("staff-lyle"), { noteId: id })).toEqual({ ok: false, refusal: "not_yours", removed: false });
     expect(JSON.stringify(writes())).toBe(before);
     // a note with no create: only its author
     const other = seedNote();
-    expect(await queueNoteTakeBack(await pressAs("staff-luke"), { noteId: other })).toEqual({ ok: false, refusal: "not_yours", removed: false });
-    expect(await queueNoteCreate(await pressAs("staff-luke"), { noteId: other })).toEqual({ ok: false, refusal: "not_yours" });
+    expect(await queueNoteTakeBack(await pressAs("staff-lyle"), { noteId: other })).toEqual({ ok: false, refusal: "not_yours", removed: false });
+    expect(await queueNoteCreate(await pressAs("staff-lyle"), { noteId: other })).toEqual({ ok: false, refusal: "not_yours" });
   });
 
   it("(F) a note row pressed by another card is left alone in `others`, and no note patch names the presser", async () => {
@@ -1203,7 +1203,7 @@ describe("only whoever pressed a note can press it again or take it back", () =>
          this presser's lands as it sets the tombstone */
       if (s.op === "update" && s.patch && "removed_at" in s.patch && !planted) {
         planted = true;
-        fake.db.sm8_writes.push(plantCreate(id, { requested_by: "staff-luke", status: "sent" }));
+        fake.db.sm8_writes.push(plantCreate(id, { requested_by: "staff-lyle", status: "sent" }));
       }
     };
     const t = await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
@@ -1211,7 +1211,7 @@ describe("only whoever pressed a note can press it again or take it back", () =>
     expect(planted).toBe(true);
     expect(t).toEqual({ ok: true, plan: "nothing", removed: true });
     expect(noteRow(id).removed_at).toBeTruthy();
-    expect(createOf(id)).toMatchObject({ status: "sent", taken_back_at: null, requested_by: "staff-luke" });
+    expect(createOf(id)).toMatchObject({ status: "sent", taken_back_at: null, requested_by: "staff-lyle" });
     expect(writes().filter((w) => w.op === "delete")).toHaveLength(0);
   });
 
@@ -1221,14 +1221,14 @@ describe("only whoever pressed a note can press it again or take it back", () =>
       /* between this press's read of the create and its insert: another
          person's create lands, and a take-back tombstones the note */
       if (s.op === "upsert" && !writes().some((w) => w.note_id === id)) {
-        fake.db.sm8_writes.push(plantCreate(id, { requested_by: "staff-luke", status: "sent" }));
+        fake.db.sm8_writes.push(plantCreate(id, { requested_by: "staff-lyle", status: "sent" }));
         noteRow(id).removed_at = new Date().toISOString();
       }
     };
     const r = await queueNoteCreate(await pressAs("staff-isaac"), { noteId: id });
     fake.before.sm8_writes = undefined;
     expect(r).toEqual({ ok: false, refusal: "no_note" });
-    expect(createOf(id)).toMatchObject({ status: "sent", taken_back_at: null, requested_by: "staff-luke" });
+    expect(createOf(id)).toMatchObject({ status: "sent", taken_back_at: null, requested_by: "staff-lyle" });
     expect(writes().filter((w) => w.op === "delete")).toHaveLength(0);
   });
 
@@ -1255,11 +1255,11 @@ describe("only whoever pressed a note can press it again or take it back", () =>
        changed by hand (a branch without it), as the take-back closes it —
        after the take-back's own check, before queueDelete's */
     fake.before.sm8_writes = (s) => {
-      if (s.op === "update" && s.patch && "taken_back_at" in s.patch && !("status" in s.patch)) createOf(id).requested_by = "staff-luke";
+      if (s.op === "update" && s.patch && "taken_back_at" in s.patch && !("status" in s.patch)) createOf(id).requested_by = "staff-lyle";
     };
     const t = await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
     fake.before.sm8_writes = undefined;
-    expect(createOf(id).requested_by).toBe("staff-luke");
+    expect(createOf(id).requested_by).toBe("staff-lyle");
     expect(t).toEqual({ ok: false, refusal: "unqueued", removed: true });
     expect(writes().filter((w) => w.op === "delete")).toHaveLength(0);
   });
@@ -1633,7 +1633,7 @@ describe("a flag marked done, as the person pressing", () => {
         uuid: FLAG,
         related_object_uuid: JOB,
         note: "@isaacsmith order the grilles",
-        edit_by_staff_uuid: LUKE_SM8,
+        edit_by_staff_uuid: LYLE_SM8,
         edit_date: "2026-09-20 10:00:00",
         action_required: "1",
         action_completed_by_staff_uuid: null,
@@ -1658,13 +1658,13 @@ describe("a flag marked done, as the person pressing", () => {
 
   it("refuses a moved edit time at the press, and a note that isn't flagged is already answered", async () => {
     expect(await queueFlagChange(await pressAs("staff-isaac"), { noteUuid: FLAG, done: true, seenEditDate: "2026-09-19 10:00:00", pressId: PRESS })).toEqual({ ok: false, refusal: "changed" });
-    fake.db.sm8_job_notes[0].action_completed_by_staff_uuid = LUKE_SM8;
+    fake.db.sm8_job_notes[0].action_completed_by_staff_uuid = LYLE_SM8;
     expect(await queueFlagChange(await pressAs("staff-isaac"), { noteUuid: FLAG, done: true, seenEditDate: "2026-09-20 10:00:00", pressId: PRESS })).toEqual({ ok: true, rowIds: [], already: true });
   });
 
   it("a flag already done in ServiceM8 is sent with no request; a moved edit time is cancelled changed; the mirror's and the live shape compare equal", async () => {
     await queueFlagChange(await pressAs("staff-isaac"), { noteUuid: FLAG, done: true, seenEditDate: "2026-09-20 10:00:00", pressId: PRESS });
-    readSm8Note.mockResolvedValueOnce(found({ flagged: true, completedBy: LUKE_SM8, editDate: "2026-09-20 10:00:00" }));
+    readSm8Note.mockResolvedValueOnce(found({ flagged: true, completedBy: LYLE_SM8, editDate: "2026-09-20 10:00:00" }));
     await run();
     expect(updateSm8NoteCompleter).not.toHaveBeenCalled();
     expect(flagRow()).toMatchObject({ status: "sent", landed_edit_date: "2026-09-20 10:00:00" });
@@ -1703,7 +1703,7 @@ describe("a flag marked done, as the person pressing", () => {
 
   it("(F) Clear of a waiting mark cancels it with nothing checked — it works with Notes Off; anyone else gets not_yours", async () => {
     await queueFlagChange(await pressAs("staff-isaac"), { noteUuid: FLAG, done: true, seenEditDate: "2026-09-20 10:00:00", pressId: PRESS });
-    expect(await queueFlagChange(await pressAs("staff-luke"), { noteUuid: FLAG, done: false, pressId: PRESS2 })).toEqual({ ok: false, refusal: "not_yours" });
+    expect(await queueFlagChange(await pressAs("staff-lyle"), { noteUuid: FLAG, done: false, pressId: PRESS2 })).toEqual({ ok: false, refusal: "not_yours" });
     fake.db.integration_connections[0].write_kinds = ["attachment"];
     fake.db.integration_links.length = 0;
     expect(await queueFlagChange(await pressAs("staff-isaac"), { noteUuid: FLAG, done: false, pressId: PRESS2 })).toEqual({ ok: true, rowIds: [], already: false });

@@ -55,7 +55,7 @@ const payment = (over: Partial<JobPaymentEntry> = {}): JobPaymentEntry => ({
   takenOn: "2026-04-02",
   takenAt: "2026-04-02 10:12:00",
   isDeposit: true,
-  takenBy: "Luke Ingold",
+  takenBy: "Lyle Irving",
   ...over,
 });
 

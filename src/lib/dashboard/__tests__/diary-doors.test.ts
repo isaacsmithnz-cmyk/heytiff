@@ -16,7 +16,7 @@ import type { DiaryEntry, Outcome } from "../journal";
 
 const ME = "s-isaac";
 // yours is named too, so a door that said "for Isaac" to Isaac would show
-const names = { [ME]: "Isaac", "s-luke": "Luke", "s-lorenzo": "Lorenzo", "s-leo": "Leo" };
+const names = { [ME]: "Isaac", "s-lyle": "Lyle", "s-lorenzo": "Lorenzo", "s-leo": "Leo" };
 const who = { viewerStaffId: ME, names };
 
 const task = (id: string, text = "a task"): Outcome => ({ kind: "todo", text, go: { type: "task", id } });
@@ -42,13 +42,13 @@ describe("entryUnder: the doors", () => {
     const { doors } = entryUnder(
       entry({
         outcomes: [task("t1"), task("t2"), task("t3"), task("t4")],
-        taskFor: { t1: "s-lorenzo", t2: "s-luke", t3: "s-luke", t4: ME },
+        taskFor: { t1: "s-lorenzo", t2: "s-lyle", t3: "s-lyle", t4: ME },
       }),
       who,
     );
     expect(doors).toEqual<DiaryDoor[]>([
       { to: "tasks", text: "1 task for Lorenzo", ids: ["t1"] },
-      { to: "tasks", text: "2 tasks for Luke", ids: ["t2", "t3"] },
+      { to: "tasks", text: "2 tasks for Lyle", ids: ["t2", "t3"] },
       { to: "tasks", text: "1 task", ids: ["t4"] },
     ]);
   });
@@ -61,20 +61,20 @@ describe("entryUnder: the doors", () => {
     expect(doors).toEqual([{ to: "tasks", text: "2 tasks", ids: ["t1", "t2"] }]);
   });
 
-  /* By the card, never by the name on it: two Lukes are two people, and
-     one door for both would light the other Luke's rows too — whatever
+  /* By the card, never by the name on it: two Lyles are two people, and
+     one door for both would light the other Lyle's rows too — whatever
      they are called (`ownerNames` gives them their whole names). */
   it("gives two people a door each, even when they are called the same", () => {
     const { doors } = entryUnder(
       entry({
         outcomes: [task("t1"), task("t2"), task("t3")],
-        taskFor: { t1: "s-luke", t2: "s-luke-2", t3: "s-luke" },
+        taskFor: { t1: "s-lyle", t2: "s-lyle-2", t3: "s-lyle" },
       }),
-      { viewerStaffId: ME, names: { "s-luke": "Luke", "s-luke-2": "Luke" } },
+      { viewerStaffId: ME, names: { "s-lyle": "Lyle", "s-lyle-2": "Lyle" } },
     );
     expect(doors).toEqual<DiaryDoor[]>([
-      { to: "tasks", text: "2 tasks for Luke", ids: ["t1", "t3"] },
-      { to: "tasks", text: "1 task for Luke", ids: ["t2"] },
+      { to: "tasks", text: "2 tasks for Lyle", ids: ["t1", "t3"] },
+      { to: "tasks", text: "1 task for Lyle", ids: ["t2"] },
     ]);
   });
 
@@ -156,7 +156,7 @@ describe("entryUnder: the quiet lines", () => {
 
   it("says nothing under an entry Undo took back: what it made has gone, and Tiff's line says so", () => {
     // routed, and its outcomes still in hand where Undo was pressed on the page
-    const back = entry({ routed: true, outcomes: [task("t1")], taskFor: { t1: "s-luke" }, undone: true });
+    const back = entry({ routed: true, outcomes: [task("t1")], taskFor: { t1: "s-lyle" }, undone: true });
     expect(entryUnder(back, who)).toEqual({ doors: [], lines: [] });
     expect(entryUnder({ ...back, outcomes: [] }, who)).toEqual({ doors: [], lines: [] });
   });
@@ -173,7 +173,7 @@ describe("entryUnder: a door with nowhere to land", () => {
       { kind: "kept", text: "Isolator sizes for a 7.1 kW", go: { type: "kb", id: "k1" } },
       { kind: "kept", text: "1 line kept", go: { type: "note", id: "n1" } },
     ],
-    taskFor: { t1: "s-luke", t2: "s-luke", t3: ME },
+    taskFor: { t1: "s-lyle", t2: "s-lyle", t3: ME },
   });
 
   /* The Tasks tab keeps what was done lately and the open issues, the
@@ -188,12 +188,12 @@ describe("entryUnder: a door with nowhere to land", () => {
       { to: "note", text: "1 line kept", id: "n1" },
     ]);
     // one full stop, whether or not the words brought their own
-    expect(lines).toEqual(["2 tasks for Luke.", "Condensate pump is noisy."]);
+    expect(lines).toEqual(["2 tasks for Lyle.", "Condensate pump is noisy."]);
   });
 
   it("keeps a task door that can show any of its tasks, carrying them all", () => {
     const { doors } = entryUnder(made, who, new Set(["t2"]));
-    expect(doors[0]).toEqual({ to: "tasks", text: "2 tasks for Luke", ids: ["t1", "t2"] });
+    expect(doors[0]).toEqual({ to: "tasks", text: "2 tasks for Lyle", ids: ["t1", "t2"] });
   });
 
   it("draws every door when it is not told what the page holds", () => {
@@ -213,8 +213,8 @@ describe("ownerNames", () => {
     });
   const staff = new Map([
     [ME, "Isaac Smith"],
-    ["s-luke", "Luke Ingold"],
-    ["s-luke-2", "Luke  Moreau"],
+    ["s-lyle", "Lyle Irving"],
+    ["s-lyle-2", "Lyle  Moreau"],
     ["s-lorenzo", "Lorenzo Russo"],
     ["s-leo", "Leo Park"],
   ]);
@@ -227,9 +227,9 @@ describe("ownerNames", () => {
   });
 
   it("gives each the whole name when two of them share the first", () => {
-    expect(ownerNames(feedOf({ t1: "s-luke", t2: "s-luke-2", t3: "s-lorenzo" }), staff)).toEqual({
-      "s-luke": "Luke Ingold",
-      "s-luke-2": "Luke Moreau",
+    expect(ownerNames(feedOf({ t1: "s-lyle", t2: "s-lyle-2", t3: "s-lorenzo" }), staff)).toEqual({
+      "s-lyle": "Lyle Irving",
+      "s-lyle-2": "Lyle Moreau",
       "s-lorenzo": "Lorenzo",
     });
   });
@@ -252,8 +252,8 @@ describe("taskOwners", () => {
   it("is everyone this diary's tasks are on, once each, and nobody for a task on no one", () => {
     const feed = diaryFeed({
       entries: [
-        entry({ id: "a", stamp: "2026-09-25 09:00:00", day: "2026-09-25", taskFor: { t1: "s-luke", t2: null } }),
-        entry({ id: "b", stamp: "2026-08-28 06:43:00", taskFor: { t3: "s-lorenzo", t4: "s-luke" } }),
+        entry({ id: "a", stamp: "2026-09-25 09:00:00", day: "2026-09-25", taskFor: { t1: "s-lyle", t2: null } }),
+        entry({ id: "b", stamp: "2026-08-28 06:43:00", taskFor: { t3: "s-lorenzo", t4: "s-lyle" } }),
       ],
       conversations: [] as DiaryConversation[],
       day: "2026-09-25",
@@ -261,18 +261,18 @@ describe("taskOwners", () => {
       entriesCut: false,
       syncedAt: null,
     });
-    expect(taskOwners(feed).sort()).toEqual(["s-lorenzo", "s-luke"]);
+    expect(taskOwners(feed).sort()).toEqual(["s-lorenzo", "s-lyle"]);
   });
 
-  /* H18: a task Luke's ask made, given to Leo since, is "1 task for Leo"
+  /* H18: a task Lyle's ask made, given to Leo since, is "1 task for Leo"
      under the conversation — so Leo is somebody the diary must name. */
   it("counts the people the asks' tasks are on too", () => {
     const [asked] = buildConversations({
-      notes: [{ uuid: "n1", jobUuid: "j-2041", author: "u-luke", at: "2026-09-21 13:42:10", text: "@isaacsmith call Mary" }],
+      notes: [{ uuid: "n1", jobUuid: "j-2041", author: "u-lyle", at: "2026-09-21 13:42:10", text: "@isaacsmith call Mary" }],
       me: { uuid: "u-isaac", handle: "isaacsmith" },
       people: [
         { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" },
-        { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" },
+        { uuid: "u-lyle", handle: "lyleirving", name: "Lyle Irving", first: "Lyle" },
       ],
       jobs: new Map([["j-2041", { label: "2041 Wollstonecraft", live: true }]]),
       today: "2026-09-25",

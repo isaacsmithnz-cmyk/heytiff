@@ -1,7 +1,7 @@
 /* Scoring a transcript — on OUTCOMES first, word error rate second.
 
    WHY NOT WER: the leaderboards rank on it and it is the wrong question for us.
-   A note that mangles "condensate" but still lands on job 337 assigned to Luke
+   A note that mangles "condensate" but still lands on job 337 assigned to Lyle
    routes perfectly and the tech never notices. A note that is 98% word-perfect
    but hears "Wyndham" as "Windham" files a commissioning entry against the
    wrong site. Those two failures are not the same size, and any single

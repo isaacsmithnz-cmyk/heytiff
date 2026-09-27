@@ -9,12 +9,12 @@ import {
 } from "@/lib/workboard/sm8-mentions";
 
 /* The handles are LIVE FACTS, checked against the mirror before the module
-   was written: @lukeingold appears 783 times, @michaeldiamond 161,
-   @isaacsmith 130, and one account row's surname really is ".". */
+   was written: one handle appears 783 times, two others 161 and 130,
+   and one account row's surname really is ".". */
 
 describe("sm8Handle", () => {
   it("is first and last run together, lower case", () => {
-    expect(sm8Handle("Luke", "Ingold")).toBe("lukeingold");
+    expect(sm8Handle("Lyle", "Irving")).toBe("lyleirving");
     expect(sm8Handle("Oleksii", "Khalameida")).toBe("oleksiikhalameida");
   });
 
@@ -31,16 +31,16 @@ describe("sm8Handle", () => {
 });
 
 describe("mentionedHandles", () => {
-  const roster = ["lukeingold", "michaeldiamond", "davidhann", "ross."];
+  const roster = ["lyleirving", "michaeldiamond", "davidhann", "ross."];
 
   it("finds the handles a note names, in order, deduped", () => {
     expect(
-      mentionedHandles("@lukeingold @michaeldiamond still need another day @lukeingold", roster)
-    ).toEqual(["lukeingold", "michaeldiamond"]);
+      mentionedHandles("@lyleirving @michaeldiamond still need another day @lyleirving", roster)
+    ).toEqual(["lyleirving", "michaeldiamond"]);
   });
 
   it("stops at punctuation rather than swallowing it", () => {
-    expect(mentionedHandles("@lukeingold, can you look?", roster)).toEqual(["lukeingold"]);
+    expect(mentionedHandles("@lyleirving, can you look?", roster)).toEqual(["lyleirving"]);
     expect(mentionedHandles("ask @davidhann.", roster)).toEqual(["davidhann"]);
   });
 
@@ -56,14 +56,14 @@ describe("mentionedHandles", () => {
   });
 
   it("answers nothing when the roster is empty", () => {
-    expect(mentionedHandles("@lukeingold", [])).toEqual([]);
+    expect(mentionedHandles("@lyleirving", [])).toEqual([]);
   });
 });
 
 describe("taskTitleFromNote", () => {
   it("takes the handles out — a mention is addressing, not content", () => {
     expect(
-      taskTitleFromNote("@lukeingold @michaeldiamond still need another day on site to finish")
+      taskTitleFromNote("@lyleirving @michaeldiamond still need another day on site to finish")
     ).toBe("Still need another day on site to finish");
   });
 
@@ -87,20 +87,20 @@ describe("taskTitleFromNote", () => {
   });
 
   it("is empty when the note was nothing but mentions", () => {
-    expect(taskTitleFromNote("@lukeingold @michaeldiamond")).toBe("");
+    expect(taskTitleFromNote("@lyleirving @michaeldiamond")).toBe("");
   });
 });
 
 describe("withoutHandles", () => {
   it("takes the addressing out and leaves the words alone", () => {
-    /* A walk on live data drew `Luke Ingold — "@LukeIngold Bill 90%"` — the
+    /* A walk on live data drew `Lyle Irving — "@LyleIrving Bill 90%"` — the
        same person named twice in one line, because the row already opens
        with who it is about. */
-    expect(withoutHandles("@LukeIngold Bill 90%")).toBe("Bill 90%");
+    expect(withoutHandles("@LyleIrving Bill 90%")).toBe("Bill 90%");
   });
 
   it("does NOT capitalise or clip — that is the title's job, not a quote's", () => {
-    expect(withoutHandles("@lukeingold can you please order the grille")).toBe(
+    expect(withoutHandles("@lyleirving can you please order the grille")).toBe(
       "can you please order the grille",
     );
   });
@@ -114,7 +114,7 @@ describe("withoutHandles", () => {
 
 describe("withoutKnownHandles", () => {
   /* The diary QUOTES a person, so only what is addressing may go. */
-  const roster = ["lukeingold", "michaeldiamond", "isaacsmith", "davidhann", "ross."];
+  const roster = ["lyleirving", "michaeldiamond", "isaacsmith", "davidhann", "ross."];
 
   it("keeps an email address whole, where withoutHandles cut it in half", () => {
     const note = "@isaacsmith email susie@peterson.com about it";
@@ -130,16 +130,16 @@ describe("withoutKnownHandles", () => {
   });
 
   it("takes a known handle out and leaves an unknown @word alone", () => {
-    expect(withoutKnownHandles("@lukeingold ask @nobodyhere first", roster)).toBe("ask @nobodyhere first");
+    expect(withoutKnownHandles("@lyleirving ask @nobodyhere first", roster)).toBe("ask @nobodyhere first");
   });
 
   it("closes the gap a handle leaves, without a double space or a space before a comma", () => {
-    expect(withoutKnownHandles("@lukeingold @michaeldiamond still need another day", roster)).toBe(
+    expect(withoutKnownHandles("@lyleirving @michaeldiamond still need another day", roster)).toBe(
       "still need another day",
     );
-    expect(withoutKnownHandles("call @lukeingold about it", roster)).toBe("call about it");
-    expect(withoutKnownHandles("hi @lukeingold, call Mary", roster)).toBe("hi, call Mary");
-    expect(withoutKnownHandles("thanks @lukeingold", roster)).toBe("thanks");
+    expect(withoutKnownHandles("call @lyleirving about it", roster)).toBe("call about it");
+    expect(withoutKnownHandles("hi @lyleirving, call Mary", roster)).toBe("hi, call Mary");
+    expect(withoutKnownHandles("thanks @lyleirving", roster)).toBe("thanks");
   });
 
   it("keeps the full stop a handle ended the sentence with", () => {
@@ -156,21 +156,21 @@ describe("withoutKnownHandles", () => {
   });
 
   it("leaves a possessive alone, as mentionedHandles does", () => {
-    expect(withoutKnownHandles("@lukeingold's van is at the yard", roster)).toBe(
-      "@lukeingold's van is at the yard",
+    expect(withoutKnownHandles("@lyleirving's van is at the yard", roster)).toBe(
+      "@lyleirving's van is at the yard",
     );
   });
 
   it("changes nothing but the ends when no handle is known", () => {
-    expect(withoutKnownHandles("  @lukeingold call Mary ", [])).toBe("@lukeingold call Mary");
+    expect(withoutKnownHandles("  @lyleirving call Mary ", [])).toBe("@lyleirving call Mary");
   });
 });
 
 describe("quotedNote", () => {
-  /* The diary quotes Luke to Isaac: only the addressing goes, and anybody
-     else Luke asks about stays in the sentence, by name. */
+  /* The diary quotes Lyle to Isaac: only the addressing goes, and anybody
+     else Lyle asks about stays in the sentence, by name. */
   const names = new Map([
-    ["lukeingold", "Luke"],
+    ["lyleirving", "Lyle"],
     ["michaeldiamond", "Michael"],
     ["isaacsmith", "Isaac"],
     ["ross.", "Ross"],
@@ -187,7 +187,7 @@ describe("quotedNote", () => {
   it("takes out the run of handles a note opens with, however it is joined", () => {
     expect(toIsaac("@isaacsmith @michaeldiamond please sort the invoice")).toBe("please sort the invoice");
     expect(toIsaac("@isaacsmith and @michaeldiamond please sort the invoice")).toBe("please sort the invoice");
-    expect(toIsaac("@michaeldiamond, @IsaacSmith & @lukeingold: roof access Monday")).toBe("roof access Monday");
+    expect(toIsaac("@michaeldiamond, @IsaacSmith & @lyleirving: roof access Monday")).toBe("roof access Monday");
     expect(toIsaac("@isaacsmith - please call Mary")).toBe("please call Mary");
     expect(toIsaac("@isaacsmith\nPlease call Mary\nabout the quote")).toBe("Please call Mary\nabout the quote");
   });
@@ -220,10 +220,10 @@ describe("quotedNote", () => {
 describe("namedNote", () => {
   /* What Tiff reads: nothing taken out, so a note written to two people
      keeps who each part is to. The real one, Alex's on 2778 Queenscliff,
-     was read without its addressing as one task for Isaac with Luke's
+     was read without its addressing as one task for Isaac with Lyle's
      half in it. */
   const names = new Map([
-    ["lukeingold", "Luke"],
+    ["lyleirving", "Lyle"],
     ["michaeldiamond", "Michael"],
     ["isaacsmith", "Isaac"],
     ["ross.", "Ross"],
@@ -233,11 +233,11 @@ describe("namedNote", () => {
   it("says every handle it knows by name, the opening run and the reader's own included", () => {
     expect(
       named(
-        "@lukeingold when you send invoice can you please send through warranty stuff\n\n" +
+        "@lyleirving when you send invoice can you please send through warranty stuff\n\n" +
           "@isaacsmith can you send house by rivers contact to David",
       ),
     ).toBe(
-      "Luke when you send invoice can you please send through warranty stuff\n\n" +
+      "Lyle when you send invoice can you please send through warranty stuff\n\n" +
         "Isaac can you send house by rivers contact to David",
     );
     expect(named("@isaacsmith @michaeldiamond please sort the invoice")).toBe("Isaac Michael please sort the invoice");
@@ -252,6 +252,6 @@ describe("namedNote", () => {
   });
 
   it("is the note as written when nobody is known", () => {
-    expect(namedNote("  @lukeingold call Mary ", new Map())).toBe("@lukeingold call Mary");
+    expect(namedNote("  @lyleirving call Mary ", new Map())).toBe("@lyleirving call Mary");
   });
 });

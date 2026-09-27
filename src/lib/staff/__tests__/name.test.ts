@@ -132,11 +132,11 @@ describe("withDerivedFullName", () => {
    twice and was wrong in one of the two places. */
 describe("seedNameFor", () => {
   it("prefers what the org typed on the invitation", () => {
-    expect(seedNameFor({ name: "Luke B", email: "luke@diamondairsolutions.com" }, "Luke Brennan")).toBe("Luke Brennan");
+    expect(seedNameFor({ name: "Lyle B", email: "lyle@diamondairsolutions.com" }, "Lyle Brennan")).toBe("Lyle Brennan");
   });
 
   it("takes a provider claim that is really a name", () => {
-    expect(seedNameFor({ name: "Luke Brennan", email: "luke@diamondairsolutions.com" })).toBe("Luke Brennan");
+    expect(seedNameFor({ name: "Lyle Brennan", email: "lyle@diamondairsolutions.com" })).toBe("Lyle Brennan");
   });
 
   /* The production bug: a password sign-up's `name` claim IS the address, and
@@ -145,8 +145,8 @@ describe("seedNameFor", () => {
     expect(seedNameFor({ name: "isaacsmithnz+test@gmail.com", email: "isaacsmithnz+test@gmail.com" })).toBe(
       "isaacsmithnz+test"
     );
-    expect(seedNameFor({ name: "luke@diamondairsolutions.com", email: "luke@diamondairsolutions.com" }, "a@b.co")).toBe(
-      "luke"
+    expect(seedNameFor({ name: "lyle@diamondairsolutions.com", email: "lyle@diamondairsolutions.com" }, "a@b.co")).toBe(
+      "lyle"
     );
   });
 
@@ -158,13 +158,13 @@ describe("seedNameFor", () => {
 
 describe("looksLikeAName", () => {
   it("offers back what could be somebody's name", () => {
-    for (const n of ["luke", "Mary Anne", "van der Berg", "O'Brien", "Jean-Luc", "Zoë", "J. R."]) {
+    for (const n of ["lyle", "Mary Anne", "van der Berg", "O'Brien", "Jean-Luc", "Zoë", "J. R."]) {
       expect(looksLikeAName(n)).toBe(true);
     }
   });
 
   it("holds back a handle somebody would have to delete before typing", () => {
-    for (const n of ["isaacsmithnz+test", "luke@diamondairsolutions.com", "ben_91", "user123", "", "  "]) {
+    for (const n of ["isaacsmithnz+test", "lyle@diamondairsolutions.com", "ben_91", "user123", "", "  "]) {
       expect(looksLikeAName(n)).toBe(false);
     }
   });

@@ -99,10 +99,10 @@ afterAll(() => {
   else process.env.ANTHROPIC_API_KEY = realKey;
 });
 
-/* Luke's real ask of Isaac, 21 September 2026. */
+/* Lyle's real ask of Isaac, 21 September 2026. */
 const ask: AskInput = {
   text: "Please call Mary to discuss",
-  asker: "Luke Ingold",
+  asker: "Lyle Irving",
   person: "Isaac Smith",
   job: "2041 Wollstonecraft",
   at: "2026-09-21 13:42:10",
@@ -115,7 +115,7 @@ const reply: ReplyInput = {
   kind: "do",
   task: "Call Mary about 2041 Wollstonecraft",
   others: [],
-  asker: "Luke Ingold",
+  asker: "Lyle Irving",
   person: "Isaac Smith",
   job: "2041 Wollstonecraft",
   replies: [{ text: "calling her this afternoon", at: "2026-09-22 15:10:00" }],
@@ -155,21 +155,21 @@ describe("reading an ask", () => {
       text: "did you get hold of her?",
       at: "2026-09-23 09:00:00",
       before: [
-        { who: "Luke Ingold", text: "Please call Mary to discuss" },
+        { who: "Lyle Irving", text: "Please call Mary to discuss" },
         { who: "Isaac Smith", text: "calling her this afternoon" },
       ],
       tasks: ["Call Mary about 2041 Wollstonecraft"],
     });
     expect(content).toContain(
-      "Earlier in this conversation, oldest first:\n- Luke Ingold: Please call Mary to discuss\n- Isaac Smith: calling her this afternoon",
+      "Earlier in this conversation, oldest first:\n- Lyle Irving: Please call Mary to discuss\n- Isaac Smith: calling her this afternoon",
     );
     expect(content).toContain("Tasks already made from this conversation:\n- Call Mary about 2041 Wollstonecraft");
     expect(askSystemPrompt("Isaac")).toMatch(/only repeats\s+or chases an ask this\s+conversation already made a task of/);
   });
 
   /* The real read of 2026-09-26: Alex's note on 2778 Queenscliff asked
-     Luke for one thing and Isaac for another, and was read (quoted, with
-     the addressing out) as one task for Isaac with Luke's half in it. The
+     Lyle for one thing and Isaac for another, and was read (quoted, with
+     the addressing out) as one task for Isaac with Lyle's half in it. The
      reader here gives that bad reading unless the request says who each
      part is to and that only Isaac's part is his. */
   it("reads a note written to several people as each part to its own, and titles only what it asks of the person", async () => {
@@ -181,7 +181,7 @@ describe("reading an ask", () => {
     const his = { kind: "do", title: "Send House by Rivers contact to David for 2778 Queenscliff", due_date: "" };
     respond = (b) =>
       /only what it\s+asks of Isaac is their task, and what it asks of anyone else never goes\s+into the title/.test(b.system) &&
-      b.messages[0].content.includes("Luke when you send invoice")
+      b.messages[0].content.includes("Lyle when you send invoice")
         ? his
         : both;
     const read = await readAsk({
@@ -190,7 +190,7 @@ describe("reading an ask", () => {
       job: "2778 Queenscliff",
       at: "2026-05-19 14:01:58",
       text:
-        "Luke when you send invoice can you please send through warranty stuff\n\n" +
+        "Lyle when you send invoice can you please send through warranty stuff\n\n" +
         "Isaac can you send house by rivers contact to David as he needs a good builder",
     });
     expect(read).toEqual({ ok: true, read: { kind: "do", title: his.title, dueDate: null } });
@@ -199,7 +199,7 @@ describe("reading an ask", () => {
 
   it("calls the person what the note calls them: the roster's first name, which may be two words", async () => {
     answer = { kind: "none", title: "", due_date: "" };
-    await readAsk({ ...ask, person: "Mary Anne Smith", first: "Mary Anne", text: "Mary Anne can you call Luke" });
+    await readAsk({ ...ask, person: "Mary Anne Smith", first: "Mary Anne", text: "Mary Anne can you call Lyle" });
     expect(sent[0].system).toMatch(/the person\s+it asks is Mary Anne\. The note may be written to several people; only what it\s+asks of Mary Anne is their task/);
     expect(sent[0].messages[0].content).toContain('To: Mary Anne Smith ("Mary Anne")');
   });
@@ -415,12 +415,12 @@ describe("shaping an ask", () => {
   });
 
   it("keeps a question as a question, and drops the title and day of a none", () => {
-    expect(shapeAsk({ kind: "question", title: "Tell Luke how many fans for 3294 Rozelle", due_date: "" }, ask.at)).toEqual({
+    expect(shapeAsk({ kind: "question", title: "Tell Lyle how many fans for 3294 Rozelle", due_date: "" }, ask.at)).toEqual({
       kind: "question",
-      title: "Tell Luke how many fans for 3294 Rozelle",
+      title: "Tell Lyle how many fans for 3294 Rozelle",
       dueDate: null,
     });
-    expect(shapeAsk({ kind: "none", title: "Thank Luke", due_date: "2026-09-22" }, ask.at)).toEqual({
+    expect(shapeAsk({ kind: "none", title: "Thank Lyle", due_date: "2026-09-22" }, ask.at)).toEqual({
       kind: "none",
       title: "",
       dueDate: null,

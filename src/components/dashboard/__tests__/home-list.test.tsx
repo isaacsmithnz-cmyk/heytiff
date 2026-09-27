@@ -482,7 +482,7 @@ describe("a row's door", () => {
   it("opens a mention's task on its conversation", async () => {
     const user = userEvent.setup();
     const { onShow } = draw(
-      place({ tasks: [task({ id: "t1", title: "Call Mary" })], mentions: [{ taskId: "t1", noteId: "n1", asker: "Luke", day: "2026-09-21" }] }),
+      place({ tasks: [task({ id: "t1", title: "Call Mary" })], mentions: [{ taskId: "t1", noteId: "n1", asker: "Lyle", day: "2026-09-21" }] }),
     );
     await user.click(screen.getByRole("button", { name: "Call Mary" }));
     expect(onShow).toHaveBeenLastCalledWith({ face: "diary", kind: "conversation", ids: ["n1"] }, true);

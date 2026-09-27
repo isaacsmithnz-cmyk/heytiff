@@ -1,7 +1,7 @@
 /* ONE TASK PER ASK, pure (H18): which messages are asks, what each became
    under its conversation and on the list, and what your reply does to the
    task — which is never to make a second one. The people and jobs are the
-   real ones the design was drawn from (Luke's asks of Isaac, September
+   real ones the design was drawn from (Lyle's asks of Isaac, September
    2026); the replies are examples. */
 
 import { buildConversations, diaryFeed, type MentionNote } from "../diary-feed";
@@ -18,7 +18,7 @@ import type { ReplyRead } from "@/lib/workboard/mention-brain";
 import type { Sm8Person } from "@/lib/workboard/job-notes-query";
 
 const ISAAC: Sm8Person = { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" };
-const LUKE: Sm8Person = { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" };
+const LYLE: Sm8Person = { uuid: "u-lyle", handle: "lyleirving", name: "Lyle Irving", first: "Lyle" };
 const TODAY = "2026-09-25";
 
 const note = (uuid: string, author: string, at: string, text: string, jobUuid = "j-2041"): MentionNote => ({
@@ -32,7 +32,7 @@ const talk = (notes: MentionNote[]) =>
   buildConversations({
     notes,
     me: { uuid: ISAAC.uuid, handle: ISAAC.handle },
-    people: [ISAAC, LUKE],
+    people: [ISAAC, LYLE],
     jobs: new Map([
       ["j-2041", { label: "2041 Wollstonecraft", live: true }],
       ["j-3294", { label: "3294 Rozelle", live: true }],
@@ -40,10 +40,10 @@ const talk = (notes: MentionNote[]) =>
     today: TODAY,
   });
 
-const ASK = note("n-ask", LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary to discuss");
-const HIS_NUMBER = note("n-num", LUKE.uuid, "2026-09-22 09:42:00", "her number is on the card");
-const MINE = note("n-mine", ISAAC.uuid, "2026-09-22 15:10:00", "@lukeingold calling her this afternoon");
-const AGAIN = note("n-again", LUKE.uuid, "2026-09-23 08:00:00", "@isaacsmith did you get hold of her?");
+const ASK = note("n-ask", LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary to discuss");
+const HIS_NUMBER = note("n-num", LYLE.uuid, "2026-09-22 09:42:00", "her number is on the card");
+const MINE = note("n-mine", ISAAC.uuid, "2026-09-22 15:10:00", "@lyleirving calling her this afternoon");
+const AGAIN = note("n-again", LYLE.uuid, "2026-09-23 08:00:00", "@isaacsmith did you get hold of her?");
 
 describe("which messages are asks", () => {
   it("is every note of the asker's to you: the ask, and each later one that mentions you — not his note to the job, and not yours", () => {
@@ -93,7 +93,7 @@ describe("what each ask became", () => {
 
   it("only joins an ask to the conversation that holds it", () => {
     const out = withAskTasks(
-      talk([ASK, note("n-fans", LUKE.uuid, "2026-09-15 08:00:00", "@isaacsmith how many fans", "j-3294")]),
+      talk([ASK, note("n-fans", LYLE.uuid, "2026-09-15 08:00:00", "@isaacsmith how many fans", "j-3294")]),
       [made("n-fans", "t-fans", { kind: "question" })],
       new Map([["t-fans", now()]]),
       TODAY,
@@ -138,7 +138,7 @@ describe("the list's word for it", () => {
       TODAY,
     );
     const feed = diaryFeed({ entries: [], conversations: [c], day: TODAY, mentions: true, entriesCut: false, syncedAt: null });
-    expect(mentionTasksOf(feed)).toEqual([{ taskId: "t-mary", noteId: "n-ask", asker: "Luke", day: "2026-09-21" }]);
+    expect(mentionTasksOf(feed)).toEqual([{ taskId: "t-mary", noteId: "n-ask", asker: "Lyle", day: "2026-09-21" }]);
     expect(mentionTasksOf(null)).toEqual([]);
   });
 });
@@ -175,7 +175,7 @@ describe("what your reply does to the task", () => {
     expect(taskAfterReply("do", says("none"), open)).toBeNull();
     /* a reply to a question that doesn't put it off is its answer (the
        reader says "answer"); "none" is a reply about something else — the
-       call Luke also asked for, in the same conversation — and must not
+       call Lyle also asked for, in the same conversation — and must not
        tick the fans question off */
     expect(taskAfterReply("question", says("none"), open)).toBeNull();
   });

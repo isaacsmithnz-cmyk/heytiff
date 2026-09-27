@@ -16,8 +16,8 @@ const P: NoteProposal = {
     {
       title: "Order the grilles",
       detail: "",
-      assigneeId: "s-luke",
-      assigneeHint: "Luke",
+      assigneeId: "s-lyle",
+      assigneeHint: "Lyle",
       dueHint: "",
       dueDate: "",
       remindTime: "",
@@ -63,7 +63,7 @@ describe("planRows", () => {
 describe("withoutRows", () => {
   it("takes off exactly the rows named, even when two say the same words", () => {
     const c = toConfirmed(withoutRows(toDraft(P), ["tasks:1", "flags:0"]));
-    expect(c.tasks.map((t) => t.assigneeId)).toEqual(["s-luke"]);
+    expect(c.tasks.map((t) => t.assigneeId)).toEqual(["s-lyle"]);
     expect(c.flags).toEqual([]);
     expect(c.bringItems).toEqual(["coil cleaner"]);
   });
@@ -86,7 +86,7 @@ describe("withoutRows", () => {
 describe("storedProposal", () => {
   it("reads a proposal stored before say, the library lane and reminders existed", () => {
     const old = {
-      tasks: [{ title: "Order the grilles", detail: "", assigneeId: "s-luke", assigneeHint: "Luke", dueHint: "" }],
+      tasks: [{ title: "Order the grilles", detail: "", assigneeId: "s-lyle", assigneeHint: "Lyle", dueHint: "" }],
       bringItems: ["coil cleaner", 7, ""],
       flags: [{ message: "Roof hatch", severity: "catastrophic" }, { severity: "warn" }],
       progressBullets: [],
@@ -100,8 +100,8 @@ describe("storedProposal", () => {
     expect(p.tasks[0]).toEqual({
       title: "Order the grilles",
       detail: "",
-      assigneeId: "s-luke",
-      assigneeHint: "Luke",
+      assigneeId: "s-lyle",
+      assigneeHint: "Lyle",
       dueHint: "",
       dueDate: "",
       remindTime: "",
@@ -123,8 +123,8 @@ describe("storedProposal", () => {
   });
 
   it("keeps a question only when it has one", () => {
-    expect(storedProposal({ clarify: { question: "Which Luke?", options: ["A", 1] } })!.clarify).toEqual({
-      question: "Which Luke?",
+    expect(storedProposal({ clarify: { question: "Which Lyle?", options: ["A", 1] } })!.clarify).toEqual({
+      question: "Which Lyle?",
       options: ["A"],
     });
     expect(storedProposal({ clarify: { question: "  " } })!.clarify).toBeNull();
@@ -170,7 +170,7 @@ describe("the draft rules", () => {
     ...EMPTY,
     tasks: [
       {
-        title: "Check with Luke about quote to Chris from Scott Group",
+        title: "Check with Lyle about quote to Chris from Scott Group",
         detail: "Did the quote go out?",
         assigneeId: "s-isaac",
         assigneeHint: "me",

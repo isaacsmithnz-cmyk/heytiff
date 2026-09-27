@@ -26,7 +26,7 @@ describe("word boundaries in any script", () => {
        and every cue matched somewhere in Vietnamese. */
     expect(hasWord("necesitamos rejillas", "sita")).toBe(false);
     expect(hasWord("cần thay lọc gió", "cần")).toBe(true);
-    expect(hasWord("bảo Luke gọi lại", "gọi")).toBe(true);
+    expect(hasWord("bảo Lyle gọi lại", "gọi")).toBe(true);
   });
 
   it("matches Chinese and Arabic loosely, because a boundary is a Latin idea", () => {
@@ -79,7 +79,7 @@ describe("counting words without spaces", () => {
   it("counts English exactly as splitting on whitespace did", () => {
     expect(looseWordCount("gate code 4417")).toBe(3);
     expect(looseWordCount("   ")).toBe(0);
-    expect(looseWordCount("tell Luke to order the grilles")).toBe(6);
+    expect(looseWordCount("tell Lyle to order the grilles")).toBe(6);
   });
 
   it("counts a dense script by character, two to the word", () => {

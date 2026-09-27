@@ -13,7 +13,7 @@ jest.mock("../profile", () => ({
   saveMyProfileSection: (...a: unknown[]) => saveMyProfileSection(...a),
 }));
 jest.mock("@/lib/permissions-server", () => ({
-  requireOrg: jest.fn(() => Promise.resolve({ orgId: "org-1", userId: "auth0|luke" })),
+  requireOrg: jest.fn(() => Promise.resolve({ orgId: "org-1", userId: "auth0|lyle" })),
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("@/lib/supabase-server", () => ({
@@ -41,7 +41,7 @@ jest.mock("@/lib/supabase-server", () => ({
 import { completeMyOnboarding, skipMyOnboarding } from "../onboarding";
 
 const PERSONAL = {
-  first_name: "Luke",
+  first_name: "Lyle",
   last_name: "Brennan",
   preferred_name: "",
   birthday: "11/02/1994",
@@ -64,7 +64,7 @@ describe("completeMyOnboarding", () => {
     expect(stamps).toHaveLength(1);
     expect(stamps[0].patch).toEqual({ onboarded_at: expect.any(String) });
     // YOUR card, and only the first answer
-    expect(stamps[0].eqs).toEqual([["org_id", "org-1"], ["user_id", "auth0|luke"]]);
+    expect(stamps[0].eqs).toEqual([["org_id", "org-1"], ["user_id", "auth0|lyle"]]);
     expect(stamps[0].is).toEqual(["onboarded_at", null]);
   });
 

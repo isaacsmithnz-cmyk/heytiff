@@ -93,7 +93,7 @@ describe("railCrewOf — who else is on your jobs today", () => {
   });
   const staff = [
     { uuid: "me", name: "Isaac Smith" },
-    { uuid: "luke", name: "Luke Ingold" },
+    { uuid: "lyle", name: "Lyle Irving" },
     { uuid: "cal", name: "Callum Reid" },
     { uuid: "cal2", name: "Callum Brown" },
     { uuid: "dan", name: "Dane Park" },
@@ -107,16 +107,16 @@ describe("railCrewOf — who else is on your jobs today", () => {
   it("names everyone else booked on the same job that day, by first name, and never the viewer", () => {
     const { lanes, mine } = lay([
       act("a1", "3342", "me", "16:45", "17:45"),
-      act("a2", "3342", "luke", "16:45", "17:45"),
+      act("a2", "3342", "lyle", "16:45", "17:45"),
       // a different hour on the same job still counts: the job is shared
       act("a3", "3342", "dan", "07:00", "08:00"),
       act("a4", "1377", "dan", "09:00", "10:00"),
     ]);
-    expect(railCrewOf(lanes, mine, "me")).toEqual({ "3342": ["Dane", "Luke"] });
+    expect(railCrewOf(lanes, mine, "me")).toEqual({ "3342": ["Dane", "Lyle"] });
   });
 
   it("leaves out a job nobody else is on — With is dropped, not 'Solo'", () => {
-    const { lanes, mine } = lay([act("a1", "3315", "me", "17:00", "18:00"), act("a2", "1377", "luke", "17:00", "18:00")]);
+    const { lanes, mine } = lay([act("a1", "3315", "me", "17:00", "18:00"), act("a2", "1377", "lyle", "17:00", "18:00")]);
     expect(railCrewOf(lanes, mine, "me")).toEqual({});
   });
 

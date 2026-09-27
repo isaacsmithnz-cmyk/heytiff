@@ -17,7 +17,7 @@ const theirs: AttentionItem = {
   key: `mention:${ASK}`,
   noteUuid: ASK,
   text: "@isaacsmith can you order the grilles",
-  author: "Luke Ingold",
+  author: "Lyle Irving",
   at: "2026-09-20 09:00:00",
   named: [{ name: "Isaac Smith", staffId: "staff-isaac" }],
   you: true,
@@ -28,16 +28,16 @@ const ours = (over: Partial<Extract<AttentionItem, { kind: "mention" }>> = {}): 
   kind: "mention",
   key: "mention:r1",
   noteUuid: SENT_AS,
-  text: "@lukeingold on my way",
+  text: "@lyleirving on my way",
   author: "Isaac Smith",
   at: "2026-09-20T01:00:00.000Z",
-  named: [{ name: "Luke Ingold", staffId: "staff-luke" }],
+  named: [{ name: "Lyle Irving", staffId: "staff-lyle" }],
   you: true,
   origin: "heytiff",
   rowId: "r1",
   ...over,
 });
-const flag: AttentionItem = { kind: "sm8flag", key: `sm8flag:${FLAG}`, noteUuid: FLAG, text: "call the builder", author: "Luke Ingold", at: null };
+const flag: AttentionItem = { kind: "sm8flag", key: `sm8flag:${FLAG}`, noteUuid: FLAG, text: "call the builder", author: "Lyle Irving", at: null };
 
 function strip(items: AttentionItem[], sm8: Partial<StripSm8> | null = {}) {
   const h = {

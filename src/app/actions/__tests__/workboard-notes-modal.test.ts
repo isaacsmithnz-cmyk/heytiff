@@ -224,7 +224,7 @@ const { readNote } = jest.requireMock("@/lib/workboard/note-brain") as { readNot
 
 const STAFF = [
   { id: "s-me", first_name: "Isaac", last_name: "Smith", full_name: "Isaac Smith", org_id: "org-1" },
-  { id: "s-luke", first_name: "Luke", last_name: "Nguyen", full_name: "Luke Nguyen", org_id: "org-1" },
+  { id: "s-lyle", first_name: "Lyle", last_name: "Nguyen", full_name: "Lyle Nguyen", org_id: "org-1" },
   { id: "s-callum", first_name: "Callum", last_name: "Reid", full_name: "Callum Reid", org_id: "org-1" },
 ];
 
@@ -244,8 +244,8 @@ const EMPTY: NoteProposal = {
 const task = (over: Partial<NoteProposal["tasks"][number]> = {}) => ({
   title: "Order the grilles",
   detail: "",
-  assigneeId: "s-luke",
-  assigneeHint: "Luke",
+  assigneeId: "s-lyle",
+  assigneeHint: "Lyle",
   dueHint: "",
   dueDate: "",
   remindTime: "",
@@ -263,12 +263,12 @@ function note(over: Row = {}): Row {
     author_id: "s-me",
     target_kind: "none",
     target_id: null,
-    transcript: "Luke needs to order the grilles",
+    transcript: "Lyle needs to order the grilles",
     source: "text",
     status: "pending",
-    proposal: { ...EMPTY, tasks: [task()], say: "A task for Luke to order the grilles." },
+    proposal: { ...EMPTY, tasks: [task()], say: "A task for Lyle to order the grilles." },
     applied: null,
-    turns: [t("you", "Luke needs to order the grilles"), t("tiff", "A task for Luke to order the grilles.")],
+    turns: [t("you", "Lyle needs to order the grilles"), t("tiff", "A task for Lyle to order the grilles.")],
     undone_at: null,
     created_at: "2026-09-25T00:00:00Z",
     ...over,
@@ -307,12 +307,12 @@ function held<T = void>() {
 /* ── routeNote: the modal's door ────────────────────────────────────── */
 
 describe("routeNote", () => {
-  const proposal: NoteProposal = { ...EMPTY, tasks: [task()], say: "A task for Luke." };
+  const proposal: NoteProposal = { ...EMPTY, tasks: [task()], say: "A task for Lyle." };
 
   it("keeps the note as a conversation, and routes it asking who", async () => {
     readNote.mockResolvedValue({ ok: true, proposal });
     const res = await routeNote({
-      transcript: "Luke needs to order the grilles",
+      transcript: "Lyle needs to order the grilles",
       target: { kind: "none" },
       room: "tasks",
     });
@@ -322,8 +322,8 @@ describe("routeNote", () => {
 
     const row = rowsOf("workboard_notes")[0];
     expect((row.turns as Row[]).map((x) => [x.who, x.text, x.room])).toEqual([
-      ["you", "Luke needs to order the grilles", "tasks"],
-      ["tiff", "A task for Luke.", undefined],
+      ["you", "Lyle needs to order the grilles", "tasks"],
+      ["tiff", "A task for Lyle.", undefined],
     ]);
     expect(res.ok && res.turns).toHaveLength(2);
   });
@@ -374,7 +374,7 @@ describe("routeNote", () => {
     // what was said before is context: it is not written into this note's turns
     expect((rowsOf("workboard_notes")[0].turns as Row[]).map((x) => x.text)).toEqual([
       "and the same for Smith St",
-      "A task for Luke.",
+      "A task for Lyle.",
     ]);
   });
 
@@ -440,7 +440,7 @@ describe("continueNote", () => {
   });
 
   it("refuses somebody else's note", async () => {
-    note({ author_id: "s-luke" });
+    note({ author_id: "s-lyle" });
     expect((await continueNote("n-1", "Callum")).ok).toBe(false);
     expect(readNote).not.toHaveBeenCalled();
   });
@@ -462,10 +462,10 @@ describe("continueNote", () => {
         tasks: [task({ assigneeId: null, assigneeHint: "" }), task({ title: "Ring the sparky" })],
         flags: [{ message: "Roof hatch seized", severity: "warn" }],
         say: "Who should do this: Order the grilles?",
-        clarify: { question: "Who should do this: Order the grilles?", options: ["Me", "Luke"] },
+        clarify: { question: "Who should do this: Order the grilles?", options: ["Me", "Lyle"] },
       },
       turns: [
-        { ...t("you", "Luke needs to order the grilles"), room: "diary" },
+        { ...t("you", "Lyle needs to order the grilles"), room: "diary" },
         t("tiff", "Who should do this: Order the grilles?"),
       ],
     });
@@ -479,7 +479,7 @@ describe("continueNote", () => {
     expect(ctx).toMatchObject({ askWho: true, speak: true, room: "diary" });
     expect(follow.plan.clarify.question).toBe("Who should do this: Order the grilles?");
     expect(follow.turns.map((x: Row) => x.text)).toEqual([
-      "Luke needs to order the grilles",
+      "Lyle needs to order the grilles",
       "Who should do this: Order the grilles?",
       "Callum",
     ]);
@@ -490,7 +490,7 @@ describe("continueNote", () => {
     expect(row.proposal).toEqual(next);
     expect(row.status).toBe("pending");
     expect((row.turns as Row[]).map((x) => [x.who, x.text])).toEqual([
-      ["you", "Luke needs to order the grilles"],
+      ["you", "Lyle needs to order the grilles"],
       ["tiff", "Who should do this: Order the grilles?"],
       ["you", "Callum"],
       ["tiff", "A task for Callum."],
@@ -517,7 +517,7 @@ describe("continueNote", () => {
     const res = await continueNote("n-1", "and the filters");
     expect(res).toEqual({ ok: false, error: "That note has already been filed." });
     expect(noteRow().status).toBe("applied");
-    expect((noteRow().proposal as NoteProposal).say).toBe("A task for Luke to order the grilles.");
+    expect((noteRow().proposal as NoteProposal).say).toBe("A task for Lyle to order the grilles.");
   });
 
   it("a failed read changes nothing", async () => {
@@ -541,7 +541,7 @@ describe("fileNote", () => {
     } as Parameters<typeof fileNote>[1]);
     expect(res.ok).toBe(true);
     expect(rowsOf("tasks").map((r) => [r.title, r.assigned_to, r.created_by])).toEqual([
-      ["Order the grilles", "s-luke", "s-me"],
+      ["Order the grilles", "s-lyle", "s-me"],
     ]);
   });
 
@@ -566,13 +566,13 @@ describe("fileNote", () => {
   it("asks instead of filing while Tiff's own question is open", async () => {
     note({
       status: "clarifying",
-      proposal: { ...EMPTY, tasks: [task()], clarify: { question: "Which Luke?", options: ["Luke Nguyen", "Luke Tran"] } },
+      proposal: { ...EMPTY, tasks: [task()], clarify: { question: "Which Lyle?", options: ["Lyle Nguyen", "Lyle Tran"] } },
     });
     const res = await fileNote("n-1");
     expect(res).toEqual({
       ok: false,
-      error: "Which Luke?",
-      ask: { question: "Which Luke?", options: [{ label: "Luke Nguyen" }, { label: "Luke Tran" }] },
+      error: "Which Lyle?",
+      ask: { question: "Which Lyle?", options: [{ label: "Lyle Nguyen" }, { label: "Lyle Tran" }] },
     });
     expect(rowsOf("tasks")).toEqual([]);
     expect(noteRow().status).toBe("clarifying");
@@ -580,7 +580,7 @@ describe("fileNote", () => {
 
   it("asks who when a task has nobody on it, offering Me and the people the note names", async () => {
     note({
-      transcript: "Callum said the grilles need ordering, tell Luke too",
+      transcript: "Callum said the grilles need ordering, tell Lyle too",
       proposal: { ...EMPTY, tasks: [task({ assigneeId: null, assigneeHint: "" })] },
     });
     const res = await fileNote("n-1");
@@ -589,7 +589,7 @@ describe("fileNote", () => {
       error: "Who should do this: Order the grilles?",
       ask: {
         question: "Who should do this: Order the grilles?",
-        options: [{ label: "Me" }, { label: "Callum" }, { label: "Luke" }],
+        options: [{ label: "Me" }, { label: "Callum" }, { label: "Lyle" }],
       },
       turns: expect.any(Array),
     });
@@ -778,12 +778,12 @@ describe("fileNote", () => {
       proposal: {
         ...EMPTY,
         flags: [{ message: "Roof hatch seized", severity: "warn" }],
-        clarify: { question: "Which Luke?", options: ["Luke Nguyen", "Luke Tran"] },
+        clarify: { question: "Which Lyle?", options: ["Lyle Nguyen", "Lyle Tran"] },
       },
     });
     db.maintenance_visits = [{ id: "v-1", org_id: "org-1", notes: null }];
     const res = await fileNote("n-1", { retarget: { kind: "visit", id: "v-1" } });
-    expect(!res.ok && res.error).toBe("Which Luke?");
+    expect(!res.ok && res.error).toBe("Which Lyle?");
     expect(rowsOf("workboard_flags")).toEqual([]);
   });
 
@@ -811,7 +811,7 @@ describe("fileNote", () => {
   });
 
   it("a filing the writer refuses part-way puts the note back to waiting", async () => {
-    // Luke's card was deleted after the note was routed
+    // Lyle's card was deleted after the note was routed
     note({ proposal: { ...EMPTY, tasks: [task({ assigneeId: "s-gone" })] } });
     const res = await fileNote("n-1");
     expect(res).toEqual({ ok: false, error: "That person isn't on this workspace any more." });
@@ -832,13 +832,13 @@ describe("fileNote", () => {
     const res = await fileNote("n-1");
     expect(res.ok).toBe(true);
     if (res.ok) {
-      expect(res.turns.at(-1)).toMatchObject({ who: "tiff", text: "Done. A task for Luke to order the grilles." });
+      expect(res.turns.at(-1)).toMatchObject({ who: "tiff", text: "Done. A task for Lyle to order the grilles." });
       expect(res.doors).toEqual([
         { kind: "tasks", count: 1, label: "1 task filed", ids: [rowsOf("tasks")[0].id] },
       ]);
     }
     expect(noteRow()).toMatchObject({ status: "applied" });
-    expect((noteRow().turns as Row[]).at(-1)).toMatchObject({ text: "Done. A task for Luke to order the grilles." });
+    expect((noteRow().turns as Row[]).at(-1)).toMatchObject({ text: "Done. A task for Lyle to order the grilles." });
   });
 
   it("files once, however many times it is pressed", async () => {
@@ -849,7 +849,7 @@ describe("fileNote", () => {
   });
 
   it("refuses somebody else's note", async () => {
-    note({ author_id: "s-luke" });
+    note({ author_id: "s-lyle" });
     expect((await fileNote("n-1")).ok).toBe(false);
     expect(rowsOf("tasks")).toEqual([]);
   });
@@ -942,7 +942,7 @@ describe("undoNote", () => {
           { body: "New rattle", equipmentHint: "" },
         ],
         bringItems: ["coil cleaner"],
-        say: "Luke orders the grilles.",
+        say: "Lyle orders the grilles.",
       },
     });
     db.maintenance_visits = [{ id: "v-1", org_id: "org-1", agreement_id: "a-1", notes: "gate 4417" }];
@@ -973,7 +973,7 @@ describe("undoNote", () => {
     expect(rowsOf("maintenance_agreements")[0].bring_list).toBe("ladder");
     expect(noteRow()).toMatchObject({ status: "undone", undone_at: expect.any(String) });
     // the words and the record of what existed both stay
-    expect(noteRow().transcript).toBe("Luke needs to order the grilles");
+    expect(noteRow().transcript).toBe("Lyle needs to order the grilles");
     expect((noteRow().applied as Row).taskIds).toHaveLength(1);
   });
 
@@ -1005,20 +1005,20 @@ describe("undoNote", () => {
   it("refuses, and changes nothing, when one task has been ticked off", async () => {
     await filedEverything();
     rowsOf("tasks")[0].status = "done";
-    rowsOf("tasks")[0].done_by = "s-luke";
+    rowsOf("tasks")[0].done_by = "s-lyle";
     const before = structuredClone(db);
 
     const res = await undoNote("n-1");
     expect(res).toEqual({
       ok: false,
-      error: "Luke has already ticked off one of those, so nothing was taken back.",
+      error: "Lyle has already ticked off one of those, so nothing was taken back.",
     });
     expect(db).toEqual(before);
   });
 
   it("refuses, and changes nothing, when the job's notes changed since", async () => {
     await filedEverything();
-    rowsOf("maintenance_visits")[0].notes = "gate 4417\nBelts swapped\nLuke: done";
+    rowsOf("maintenance_visits")[0].notes = "gate 4417\nBelts swapped\nLyle: done";
     const before = structuredClone(db);
 
     const res = await undoNote("n-1");
@@ -1183,7 +1183,7 @@ describe("undoNote", () => {
      and "2 tasks taken back." of one would be a thing she made up. */
   it("says only what was still there: one of two tasks deleted since is not counted", async () => {
     note({
-      proposal: { ...EMPTY, tasks: [task(), task({ title: "Book the crane" })], say: "Two for Luke." },
+      proposal: { ...EMPTY, tasks: [task(), task({ title: "Book the crane" })], say: "Two for Lyle." },
     });
     expect((await fileNote("n-1")).ok).toBe(true);
     db.tasks = rowsOf("tasks").slice(1);
@@ -1304,7 +1304,7 @@ describe("undoNote", () => {
         target_kind: "job",
         target_id: "job-1",
         status: "applied",
-        applied: { v: 2, taskIds: ["t-1"], jobNotes: ["Luke needs to order the grilles"] },
+        applied: { v: 2, taskIds: ["t-1"], jobNotes: ["Lyle needs to order the grilles"] },
       });
       db.tasks = [{ id: "t-1", org_id: "org-1", status: "open" }];
       db.sm8_writes = create
@@ -1472,7 +1472,7 @@ describe("publishNoteKb", () => {
   });
 
   it("publishes nothing on somebody else's note, or on one set aside", async () => {
-    withKb({ author_id: "s-luke" });
+    withKb({ author_id: "s-lyle" });
     expect(await publishNoteKb("n-1", 0)).toEqual({ ok: false, error: "That note isn't yours." });
     withKb({ status: "dismissed" });
     expect(await publishNoteKb("n-1", 0)).toEqual({ ok: false, error: "That note was set aside." });

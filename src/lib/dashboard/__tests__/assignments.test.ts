@@ -10,7 +10,7 @@ const a = (over: Partial<NewAssignment> = {}): NewAssignment => ({
   taskId: "t-1",
   title: "Order the return air box",
   detail: null,
-  fromName: "Luke Ingold",
+  fromName: "Lyle Irving",
   dueDate: "2026-09-04",
   createdAt: "2026-08-28T09:00:00.000Z",
   ...over,
@@ -18,11 +18,11 @@ const a = (over: Partial<NewAssignment> = {}): NewAssignment => ({
 
 describe("assignmentLine", () => {
   it("names who gave it to you and when it is wanted", () => {
-    expect(assignmentLine(a(), day)).toBe("From Luke Ingold, Due on 2026-09-04");
+    expect(assignmentLine(a(), day)).toBe("From Lyle Irving, Due on 2026-09-04");
   });
 
   it("reads correctly with no due date — an ordinary task, not a broken one", () => {
-    expect(assignmentLine(a({ dueDate: null }), day)).toBe("From Luke Ingold");
+    expect(assignmentLine(a({ dueDate: null }), day)).toBe("From Lyle Irving");
   });
 
   it("falls back to the date alone when the giver can't be named", () => {

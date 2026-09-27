@@ -340,14 +340,14 @@ export async function listJournal(
    the journal never needed because it never stood beside anything else:
 
      stamp     the moment as a naive stamp in the ServiceM8 account's zone,
-               so an entry sorts beside Luke's note from the same afternoon.
+               so an entry sorts beside Lyle's note from the same afternoon.
                `day` and `at` are said on that same clock here, so an entry
                can't file under one day and sort under another.
      routed    whether Tiff read the words at all. A Save files them as they
                were typed and routes nothing; an entry Tiff read that filed
                nothing can say "Nothing filed." and a Save says nothing.
      taskFor   who each task it made is on, so the diary can say "2 tasks for
-               Luke", and "1 task" for your own.
+               Lyle", and "1 task" for your own.
 
    And what the Tiff modal left on the row (H23):
 

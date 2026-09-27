@@ -25,10 +25,10 @@ const words = () => Array.from(document.querySelectorAll(".wb2-lw"));
 afterEach(cleanup);
 
 it("splits the line into one span per word", () => {
-  render(<LiveWords text="tell Luke about the grilles" />);
+  render(<LiveWords text="tell Lyle about the grilles" />);
   expect(words().map((w) => w.textContent)).toEqual([
     "tell",
-    "Luke",
+    "Lyle",
     "about",
     "the",
     "grilles",
@@ -36,11 +36,11 @@ it("splits the line into one span per word", () => {
 });
 
 it("keeps the words already said, and mounts only what arrived", () => {
-  const { rerender } = render(<LiveWords text="tell Luke" />);
+  const { rerender } = render(<LiveWords text="tell Lyle" />);
   const before = words();
   expect(before).toHaveLength(2);
 
-  rerender(<LiveWords text="tell Luke about the grilles" />);
+  rerender(<LiveWords text="tell Lyle about the grilles" />);
   const after = words();
 
   expect(after).toHaveLength(5);
@@ -65,14 +65,14 @@ it("corrects a word without re-mounting it", () => {
 });
 
 it("ignores the engine's stray whitespace rather than rendering empty words", () => {
-  render(<LiveWords text="  tell   Luke  " />);
-  expect(words().map((w) => w.textContent)).toEqual(["tell", "Luke"]);
+  render(<LiveWords text="  tell   Lyle  " />);
+  expect(words().map((w) => w.textContent)).toEqual(["tell", "Lyle"]);
 });
 
 /* The words are what the person is checking while they talk, so they are
    announced — but the paragraph is one region, not one per word. */
 it("stays a single polite region", () => {
-  render(<LiveWords text="tell Luke" />);
+  render(<LiveWords text="tell Lyle" />);
   const region = screen.getByText(/tell/).closest("p");
   expect(region).toHaveAttribute("aria-live", "polite");
   expect(document.querySelectorAll("[aria-live]")).toHaveLength(1);
@@ -85,16 +85,16 @@ it("stays a single polite region", () => {
    split into words: it is one span of ink the new words join onto, which is
    `appendSpoken`'s join kept by construction rather than by calling it. */
 it("keeps what was already said out of the words that are arriving", () => {
-  render(<LiveWords said="middle rooftop unit tripped again" text="tell Luke" />);
+  render(<LiveWords said="middle rooftop unit tripped again" text="tell Lyle" />);
 
   expect(document.querySelector(".wb2-lwsaid")).toHaveTextContent(
     "middle rooftop unit tripped again"
   );
-  expect(words().map((w) => w.textContent)).toEqual(["tell", "Luke"]);
+  expect(words().map((w) => w.textContent)).toEqual(["tell", "Lyle"]);
 });
 
 it("shows no record at all when there is nothing already said", () => {
-  render(<LiveWords text="tell Luke" />);
+  render(<LiveWords text="tell Lyle" />);
   expect(document.querySelector(".wb2-lwsaid")).toBeNull();
 });
 
@@ -112,7 +112,7 @@ it("steps the words that arrived together, and leaves the ones already read", ()
   const { rerender } = render(<LiveWords text="tell" />);
   expect(words().map((w) => (w as HTMLElement).style.animationDelay)).toEqual(["0ms"]);
 
-  rerender(<LiveWords text="tell Luke the grilles need replacing" />);
+  rerender(<LiveWords text="tell Lyle the grilles need replacing" />);
   expect(words().map((w) => (w as HTMLElement).style.animationDelay)).toEqual([
     "0ms",
     "0ms",
@@ -145,7 +145,7 @@ it("scrolls to the newest word", () => {
   Object.defineProperty(el(), "scrollHeight", { value: 200, configurable: true });
   Object.defineProperty(el(), "clientHeight", { value: 65, configurable: true });
 
-  rerender(<LiveWords text="tell Luke" />);
+  rerender(<LiveWords text="tell Lyle" />);
 
   expect(el().scrollTop).toBe(200);
   /* …and once something has gone out of sight above, the top fades rather
@@ -178,7 +178,7 @@ it("neither rides nor fades when its words are free", () => {
    real sheet — 30px, 34px and 74px, either way — but which classes end up on
    the element is jsdom's to check. */
 it("wears the box it was handed", () => {
-  render(<LiveWords className="wb2-stripin" line text="tell Luke" />);
+  render(<LiveWords className="wb2-stripin" line text="tell Lyle" />);
   const box = document.querySelector(".wb2-lwbox")!;
 
   expect(box.className).toContain("wb2-stripin");
@@ -188,7 +188,7 @@ it("wears the box it was handed", () => {
 /* A paragraph has no `rows`, so the block posture hands the number down and
    the sheet works out the height the textarea would have had. */
 it("carries the row count the textarea was sized to", () => {
-  render(<LiveWords className="wb2-notes" rows={3} text="tell Luke" />);
+  render(<LiveWords className="wb2-notes" rows={3} text="tell Lyle" />);
   expect(document.querySelector<HTMLElement>(".wb2-lwbox")!.style.getPropertyValue("--lwrows")).toBe(
     "3"
   );
@@ -204,7 +204,7 @@ it("rides sideways on one line, and fades what has gone off the left", () => {
   Object.defineProperty(el(), "scrollWidth", { value: 900, configurable: true });
   Object.defineProperty(el(), "clientWidth", { value: 151, configurable: true });
 
-  rerender(<LiveWords line text="tell Luke" />);
+  rerender(<LiveWords line text="tell Lyle" />);
 
   expect(el().scrollLeft).toBe(900);
   expect(el().className).toContain("over");
@@ -219,7 +219,7 @@ it("does not read the vertical axis on a one-line box", () => {
   Object.defineProperty(el(), "scrollHeight", { value: 900, configurable: true });
   Object.defineProperty(el(), "clientHeight", { value: 30, configurable: true });
 
-  rerender(<LiveWords line text="tell Luke" />);
+  rerender(<LiveWords line text="tell Lyle" />);
 
   expect(el().className).not.toContain("over");
 });

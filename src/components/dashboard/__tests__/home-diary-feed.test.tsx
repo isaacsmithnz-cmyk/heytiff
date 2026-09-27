@@ -91,7 +91,7 @@ const TODAYS = entry({
     { kind: "todo", text: "Rooftop unit keeps tripping", go: { type: "issue", id: "i1" } },
     { kind: "todo", text: "1 task removed" },
   ],
-  taskFor: { t2: "s-luke", t3: "s-luke" },
+  taskFor: { t2: "s-lyle", t3: "s-lyle" },
 });
 const SICK = entry();
 const WIPERS = entry({
@@ -106,7 +106,7 @@ const WIPERS = entry({
 const diary = (entries: DiaryEntry[]): DeskDiary => ({
   feed: diaryFeed({ entries, conversations: [], day: TODAY, mentions: false, entriesCut: false, syncedAt: null }),
   you: "IS",
-  names: { "s-luke": "Luke" },
+  names: { "s-lyle": "Lyle" },
 });
 
 const open = jest.fn((_o: unknown) => true);
@@ -197,7 +197,7 @@ describe("under the words", () => {
   it("groups the tasks by whose they are, keeps the Library's, the note's and the issue's doors, and says the rest", () => {
     draw();
     const under = itemOf("e-today").querySelector<HTMLElement>(".hd-dy-doors")!;
-    expect(within(under).getByRole("button", { name: "2 tasks for Luke" })).toHaveClass("hd-dy-door");
+    expect(within(under).getByRole("button", { name: "2 tasks for Lyle" })).toHaveClass("hd-dy-door");
     expect(within(under).getByRole("link", { name: "Isolator sizes for a 7.1 kW" })).toHaveAttribute(
       "href",
       "/dashboard/tiff/library?doc=k1",
@@ -218,7 +218,7 @@ describe("under the words", () => {
   it("hands a task door's every task to the frame, saying whether a pointer pressed it", async () => {
     const user = userEvent.setup();
     draw();
-    await user.click(screen.getByRole("button", { name: "2 tasks for Luke" }));
+    await user.click(screen.getByRole("button", { name: "2 tasks for Lyle" }));
     expect(onShowThings).toHaveBeenLastCalledWith(["t2", "t3"], true);
     screen.getByRole("button", { name: "Rooftop unit keeps tripping" }).focus();
     await user.keyboard("{Enter}");
@@ -230,14 +230,14 @@ describe("under the words", () => {
   it("says a task or an issue no row on the page holds, rather than drawing a door to it", () => {
     draw({ onPage: new Set(["t3"]) });
     const under = itemOf("e-today").querySelector<HTMLElement>(".hd-dy-doors")!;
-    expect(within(under).getByRole("button", { name: "2 tasks for Luke" })).toBeInTheDocument();
+    expect(within(under).getByRole("button", { name: "2 tasks for Lyle" })).toBeInTheDocument();
     expect(within(under).queryByRole("button", { name: "Rooftop unit keeps tripping" })).toBeNull();
     expect(within(under).getByText("Rooftop unit keeps tripping.")).toHaveClass("hd-dy-note");
     cleanup();
     draw({ onPage: new Set() });
     const none = itemOf("e-today").querySelector<HTMLElement>(".hd-dy-doors")!;
     expect(within(none).queryByRole("button")).toBeNull();
-    expect(within(none).getByText("2 tasks for Luke.")).toHaveClass("hd-dy-note");
+    expect(within(none).getByText("2 tasks for Lyle.")).toHaveClass("hd-dy-note");
     // the Library's and the note's are screens, always there to open
     expect(within(none).getAllByRole("link")).toHaveLength(2);
   });
@@ -471,17 +471,17 @@ describe("a door from another face", () => {
    into the conversation, and Undo. ── */
 
 describe("what Tiff made of it", () => {
-  const DONE = "Done. A task for Luke: the filters from Reece, before 1398 Waterloo at 7:00 tomorrow.";
+  const DONE = "Done. A task for Lyle: the filters from Reece, before 1398 Waterloo at 7:00 tomorrow.";
   const TALKED = entry({
     id: "e-talked",
-    said: "Luke needs the filters from Reece before 1398 Waterloo tomorrow",
+    said: "Lyle needs the filters from Reece before 1398 Waterloo tomorrow",
     day: TODAY,
     at: "3:12 pm",
     stamp: `${TODAY} 15:12:00`,
     outcomes: [{ kind: "todo", text: "Filters from Reece", go: { type: "task", id: "t9" } }],
-    taskFor: { t9: "s-luke" },
+    taskFor: { t9: "s-lyle" },
     turns: [
-      { who: "you", text: "Luke needs the filters from Reece before 1398 Waterloo tomorrow" },
+      { who: "you", text: "Lyle needs the filters from Reece before 1398 Waterloo tomorrow" },
       { who: "tiff", text: DONE },
     ],
     undo: true,
@@ -499,7 +499,7 @@ describe("what Tiff made of it", () => {
     summary: "1 task taken back.",
     turns: [
       { who: "you", text: TALKED.said, at },
-      { who: "tiff", text: "A task for Luke: the filters from Reece, before 1398 Waterloo at 7:00 tomorrow.", at },
+      { who: "tiff", text: "A task for Lyle: the filters from Reece, before 1398 Waterloo at 7:00 tomorrow.", at },
       { who: "tiff", text: DONE, at },
       { who: "tiff", text: "1 task taken back.", at },
     ],
@@ -551,7 +551,7 @@ describe("what Tiff made of it", () => {
     expect(undo).toHaveClass("hd-dy-undo");
     // the last thing it made says, then Undo, then the place its sentence
     // will be written into: there, and empty, before anything is said
-    expect(undo.previousElementSibling).toHaveTextContent("1 task for Luke");
+    expect(undo.previousElementSibling).toHaveTextContent("1 task for Lyle");
     expect(undo.nextElementSibling).toBe(doors.lastElementChild);
     expect(doors.lastElementChild).toHaveAttribute("role", "status");
     expect(doors.lastElementChild).toBeEmptyDOMElement();
@@ -566,7 +566,7 @@ describe("what Tiff made of it", () => {
     await user.click(screen.getByRole("button", { name: "Undo" }));
     expect(undoNote).toHaveBeenCalledWith("e-talked");
     expect(within(under()).getByRole("button", { name: named("Tiff: 1 task taken back.") })).toBeInTheDocument();
-    expect(within(under()).queryByRole("button", { name: "1 task for Luke" })).toBeNull();
+    expect(within(under()).queryByRole("button", { name: "1 task for Lyle" })).toBeNull();
     expect(within(under()).queryByRole("button", { name: "Undo" })).toBeNull();
     expect(under().querySelector(".hd-dy-doors")).toBeNull();
     // your words stay
@@ -589,7 +589,7 @@ describe("what Tiff made of it", () => {
   });
 
   it("puts a refusal in Undo's place, for good, and leaves what it made where it is", async () => {
-    const refusal = "Luke has already ticked off one of those, so nothing was taken back.";
+    const refusal = "Lyle has already ticked off one of those, so nothing was taken back.";
     undoNote.mockResolvedValue({ ok: false, error: refusal });
     const user = userEvent.setup();
     draw({ diary: diary([TALKED]), onPage });
@@ -597,7 +597,7 @@ describe("what Tiff made of it", () => {
     expect(within(under()).getByRole("status")).toHaveTextContent(refusal);
     expect(within(under()).getByRole("status")).toHaveClass("hd-dy-note");
     expect(within(under()).queryByRole("button", { name: "Undo" })).toBeNull();
-    expect(within(under()).getByRole("button", { name: "1 task for Luke" })).toBeInTheDocument();
+    expect(within(under()).getByRole("button", { name: "1 task for Lyle" })).toBeInTheDocument();
     expect(line()).toBeInTheDocument();
   });
 
@@ -648,7 +648,7 @@ describe("what Tiff made of it", () => {
     await user.click(within(under()).getByRole("button", { name: "Undo" }));
     expect(undoNote).toHaveBeenCalledTimes(2);
     expect(within(under()).getByRole("button", { name: named("Tiff: 1 task taken back.") })).toBeInTheDocument();
-    expect(within(under()).queryByRole("button", { name: "1 task for Luke" })).toBeNull();
+    expect(within(under()).queryByRole("button", { name: "1 task for Lyle" })).toBeNull();
     expect(under().querySelector(".hd-dy-doors")).toBeNull();
     expect(under()).not.toHaveTextContent("That was already taken back.");
   });

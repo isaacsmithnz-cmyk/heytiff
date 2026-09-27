@@ -6,7 +6,7 @@ import type { TaskDoneLine } from "@/lib/dashboard/task-done-query";
 
 /* A TASK'S DONE, ON THE TASK (two-way phase 2, PR C).
 
-   Ticking a task made from a ServiceM8 mention files "@lukeingold Done." in
+   Ticking a task made from a ServiceM8 mention files "@lyleirving Done." in
    the job's diary and sends it to ServiceM8 as whoever ticked. This is where
    the task says what became of it: one line per row — the Done, or the
    reply that closed the task; then any Done taken back that is still on its

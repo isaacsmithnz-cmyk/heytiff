@@ -96,7 +96,7 @@ export function noteLabel(via: NoteLabelVia): string {
 
 const cap = (s: string) => s.slice(0, NOTE_TEXT_MAX);
 
-/** A reply as it goes to ServiceM8: "@lukeingold on my way". The @handle
+/** A reply as it goes to ServiceM8: "@lyleirving on my way". The @handle
     keeps ServiceM8's mention alert; the words are as said. */
 export function replyText(handle: string | null, words: string): string {
   const said = words.trim();
@@ -104,7 +104,7 @@ export function replyText(handle: string | null, words: string): string {
   return cap(h ? `@${h} ${said}` : said);
 }
 
-/** A task's Done: "@lukeingold Done." to whoever asked, or plain "Done."
+/** A task's Done: "@lyleirving Done." to whoever asked, or plain "Done."
     when the asker isn't known or is the sender. Handles are lower case
     (sm8-mentions' sm8Handle). */
 export function doneText(

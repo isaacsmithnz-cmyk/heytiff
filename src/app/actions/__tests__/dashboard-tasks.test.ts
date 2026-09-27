@@ -81,7 +81,7 @@ beforeEach(() => {
   updates.length = 0;
   reads.length = 0;
   taskRow = { assigned_to: "s-me", created_by: "s-me", status: "open", remind_at: null, due_date: null };
-  staffRow = { id: "s-luke" };
+  staffRow = { id: "s-lyle" };
   insertError = null;
   eventError = null;
   eventThrows = false;
@@ -146,17 +146,17 @@ describe("giveTask — only managers give a task away", () => {
 
   it("needs `team`", async () => {
     allowed = new Set();
-    expect(await giveTask("t1", "s-luke")).toEqual({ ok: false, error: "You can't give tasks to other people." });
+    expect(await giveTask("t1", "s-lyle")).toEqual({ ok: false, error: "You can't give tasks to other people." });
     expect(updates).toEqual([]);
   });
 
   it("hands it over, and the new person's bell and reminder start afresh", async () => {
-    expect(await giveTask("t1", "s-luke")).toEqual({ ok: true });
+    expect(await giveTask("t1", "s-lyle")).toEqual({ ok: true });
     expect(taskUpdates()).toEqual([
-      { assigned_to: "s-luke", acknowledged_at: null, reminder_emailed_at: null, updated_at: expect.any(String) },
+      { assigned_to: "s-lyle", acknowledged_at: null, reminder_emailed_at: null, updated_at: expect.any(String) },
     ]);
     expect(events()).toEqual([
-      expect.objectContaining({ kind: "given", by_staff: "s-me", from_staff: "s-me", to_staff: "s-luke", task_id: "t1" }),
+      expect.objectContaining({ kind: "given", by_staff: "s-me", from_staff: "s-me", to_staff: "s-lyle", task_id: "t1" }),
     ]);
   });
 
@@ -170,15 +170,15 @@ describe("giveTask — only managers give a task away", () => {
 
   it("refuses a done task and a task that has gone", async () => {
     taskRow = { assigned_to: "s-me", status: "done" };
-    expect(await giveTask("t1", "s-luke")).toEqual({ ok: false, error: "That task is done." });
+    expect(await giveTask("t1", "s-lyle")).toEqual({ ok: false, error: "That task is done." });
     taskRow = null;
-    expect(await giveTask("t1", "s-luke")).toEqual({ ok: false, error: "That task no longer exists." });
+    expect(await giveTask("t1", "s-lyle")).toEqual({ ok: false, error: "That task no longer exists." });
     expect(updates).toEqual([]);
   });
 
   it("writes nothing when it goes to the person who already has it", async () => {
-    taskRow = { assigned_to: "s-luke", status: "open" };
-    expect(await giveTask("t1", "s-luke")).toEqual({ ok: true });
+    taskRow = { assigned_to: "s-lyle", status: "open" };
+    expect(await giveTask("t1", "s-lyle")).toEqual({ ok: true });
     expect(updates).toEqual([]);
     expect(events()).toEqual([]);
     expect(reads.filter((r) => r.table === "staff_profiles")).toEqual([]);
@@ -241,7 +241,7 @@ describe("completeTask and reopenTask log every done and reopen", () => {
   });
 
   it("writes no history for a completion that was refused", async () => {
-    taskRow = { assigned_to: "s-luke", status: "open" };
+    taskRow = { assigned_to: "s-lyle", status: "open" };
     expect(await completeTask("t1")).toEqual({ ok: false, error: "That task isn't yours to complete." });
     expect(events()).toEqual([]);
   });
@@ -252,7 +252,7 @@ describe("completeTask and reopenTask log every done and reopen", () => {
    task id from somewhere else must find nothing and change nothing. */
 describe("every task read and write stays inside the caller's workspace", () => {
   const cases: [string, () => Promise<unknown>, Record<string, unknown> | null][] = [
-    ["giveTask", () => giveTask("t1", "s-luke"), null],
+    ["giveTask", () => giveTask("t1", "s-lyle"), null],
     ["completeTask", () => completeTask("t1"), null],
     ["reopenTask", () => reopenTask("t1"), { assigned_to: "s-me", status: "done" }],
     ["setTaskDue", () => setTaskDue("t1", "2026-10-02"), null],

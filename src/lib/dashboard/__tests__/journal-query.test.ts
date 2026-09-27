@@ -388,23 +388,23 @@ describe("listDiaryEntries", () => {
   });
 
   it("says who each task is on, for the tasks that are still there", async () => {
-    rows.workboard_notes = [note("e1", { taskIds: ["t-luke", "t-mine", "t-nobody", "t-gone"] })];
+    rows.workboard_notes = [note("e1", { taskIds: ["t-lyle", "t-mine", "t-nobody", "t-gone"] })];
     rows.tasks = [
-      { id: "t-luke", title: "Call Mary", assigned_to: "s-luke" },
+      { id: "t-lyle", title: "Call Mary", assigned_to: "s-lyle" },
       { id: "t-mine", title: "Order the grille", assigned_to: "s1" },
       { id: "t-nobody", title: "Chase the warranty", assigned_to: null },
     ];
     const [entry] = await listDiaryEntries("org-1", "s1", null);
     // and whether anyone has acted on each, which Undo needs (below)
     expect(of("tasks")[0].columns).toBe("id, title, assigned_to, status, acknowledged_at");
-    expect(entry.taskFor).toEqual({ "t-luke": "s-luke", "t-mine": "s1", "t-nobody": null });
+    expect(entry.taskFor).toEqual({ "t-lyle": "s-lyle", "t-mine": "s1", "t-nobody": null });
     // the removed one is still counted where it always was
     expect(chips([entry])).toContainEqual(["1 task removed", null]);
   });
 
   it("leaves the old journal's entries as they were", async () => {
     rows.workboard_notes = [note("e1", { taskIds: ["t1"] })];
-    rows.tasks = [{ id: "t1", title: "Call Mary", assigned_to: "s-luke" }];
+    rows.tasks = [{ id: "t1", title: "Call Mary", assigned_to: "s-lyle" }];
     const [entry] = await listJournal("org-1", "s1");
     for (const added of ["stamp", "routed", "taskFor", "turns", "undo", "undone"]) expect(entry).not.toHaveProperty(added);
     const [read] = of("workboard_notes");
@@ -470,8 +470,8 @@ describe("listDiaryEntries: Tiff's line, Undo, and what Undo took back", () => {
       { ...filed("saved", {}), proposal: null },
     ];
     rows.tasks = [
-      { id: "t-open", title: "Call Mary", assigned_to: "s-luke", status: "open" },
-      { id: "t-done", title: "Order filters", assigned_to: "s-luke", status: "done" },
+      { id: "t-open", title: "Call Mary", assigned_to: "s-lyle", status: "open" },
+      { id: "t-done", title: "Order filters", assigned_to: "s-lyle", status: "done" },
     ];
     rows.workboard_flags = [{ id: "f1", active: true }];
     const out = await listDiaryEntries("org-1", "s1", null);
@@ -527,7 +527,7 @@ describe("listDiaryEntries: Tiff's line, Undo, and what Undo took back", () => {
     rows.job_picklist_items = [{ id: "p-picked", picked: true }];
     rows.maintenance_visits = [
       { id: "v-same", notes: "Belts swapped" },
-      { id: "v-edited", notes: "Belts swapped\nLuke: done" },
+      { id: "v-edited", notes: "Belts swapped\nLyle: done" },
     ];
     const out = await listDiaryEntries("org-1", "s1", null);
     expect(Object.fromEntries(out.map((e) => [e.id, e.undo]))).toEqual({
@@ -592,7 +592,7 @@ describe("listDiaryEntries: Tiff's line, Undo, and what Undo took back", () => {
       filed("library", { v: 2, kbIds: ["k-field"] }),
       filed("not-hers", { v: 2, kbIds: ["k-manual"] }),
     ];
-    rows.tasks = [{ id: "t-open", title: "Call Mary", assigned_to: "s-luke", status: "open" }];
+    rows.tasks = [{ id: "t-open", title: "Call Mary", assigned_to: "s-lyle", status: "open" }];
     rows.kb_documents = [
       { id: "k-field", title: "Clearing an E6", category: "field" },
       { id: "k-manual", title: "Daikin manual", category: "install" },
@@ -617,9 +617,9 @@ describe("listDiaryEntries: Tiff's line, Undo, and what Undo took back", () => {
       filed("gotit", { v: 2, taskIds: ["t-ack"] }),
     ];
     rows.tasks = [
-      { id: "t-open", title: "Call Mary", assigned_to: "s-luke", status: "open", acknowledged_at: null },
+      { id: "t-open", title: "Call Mary", assigned_to: "s-lyle", status: "open", acknowledged_at: null },
       { id: "t-given", title: "Order filters", assigned_to: "s-callum", status: "open", acknowledged_at: null },
-      { id: "t-ack", title: "Book 3323", assigned_to: "s-luke", status: "open", acknowledged_at: "2026-09-25T02:00:00Z" },
+      { id: "t-ack", title: "Book 3323", assigned_to: "s-lyle", status: "open", acknowledged_at: "2026-09-25T02:00:00Z" },
     ];
     rows.task_events = [{ task_id: "t-given" }];
     const out = await listDiaryEntries("org-1", "s1", null);
@@ -638,7 +638,7 @@ describe("listDiaryEntries: Tiff's line, Undo, and what Undo took back", () => {
       filed(
         "back",
         { v: 2, taskIds: ["t1"] },
-        [t("you", "Luke books 3323"), t("tiff", "Done. Luke books 3323."), t("tiff", "1 task taken back.")],
+        [t("you", "Lyle books 3323"), t("tiff", "Done. Lyle books 3323."), t("tiff", "1 task taken back.")],
         "undone",
       ),
     ];
@@ -789,10 +789,10 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
   const page = () => {
     rows.workboard_notes = [
       // said in Portuguese; the diary keeps the English, with the handle
-      answer("wn-reply", "n-ask", "j-2041", "@lukeingold on my way", "@lukeingold a caminho"),
-      answer("wn-done", "n-grilles", "j-3294", "@lukeingold Done.", "@lukeingold Done."),
+      answer("wn-reply", "n-ask", "j-2041", "@lyleirving on my way", "@lyleirving a caminho"),
+      answer("wn-done", "n-grilles", "j-3294", "@lyleirving Done.", "@lyleirving Done."),
       // refused at the press, before anything was queued: the link waited on your answer
-      { ...answer("wn-asked", "n-quote", "j-2041", "@lukeingold quote's done", "@lukeingold quote's done"), sm8_refusal: "confirm" },
+      { ...answer("wn-asked", "n-quote", "j-2041", "@lyleirving quote's done", "@lyleirving quote's done"), sm8_refusal: "confirm" },
       { ...note("e-plain", {}), proposal: null, status: "applied", turns: [] },
     ];
     rows.sm8_writes = [
@@ -820,7 +820,7 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
     expect(out["wn-reply"].reply).toEqual({
       to: "n-ask",
       jobUuid: "j-2041",
-      words: "@lukeingold on my way",
+      words: "@lyleirving on my way",
       at: "2026-08-12 08:00:00",
       savedAt: "2026-08-11T22:00:00Z",
       line: {
@@ -833,7 +833,7 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
     expect(out["wn-done"].reply).toEqual({
       to: "n-grilles",
       jobUuid: "j-3294",
-      words: "@lukeingold Done.",
+      words: "@lyleirving Done.",
       at: "2026-08-12 08:00:00",
       savedAt: "2026-08-11T22:00:00Z",
       line: { text: "In ServiceM8", tone: "ok", again: null, ask: null },
@@ -870,7 +870,7 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
     const spy = jest.spyOn(console, "error").mockImplementation(() => {});
     process.env.SM8_WRITES = "attachment,note";
     page();
-    rows.workboard_notes.push(answer("wn-lost", "n-ask", "j-2041", "@lukeingold on my way", "@lukeingold on my way"));
+    rows.workboard_notes.push(answer("wn-lost", "n-ask", "j-2041", "@lyleirving on my way", "@lyleirving on my way"));
     failing.add("sm8_writes");
     const out = byId(await listDiaryEntries("org-1", "s1", null));
     expect(out["wn-reply"].reply).toMatchObject({ to: "n-ask", line: null });
@@ -926,7 +926,7 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
     process.env.SM8_WRITES = "attachment,note";
     page();
     // saved, then the press's second read of the settings found notes switched off: no create, and nothing kept
-    rows.workboard_notes.push(answer("wn-lost", "n-ask", "j-2041", "@lukeingold on my way", "@lukeingold on my way"));
+    rows.workboard_notes.push(answer("wn-lost", "n-ask", "j-2041", "@lyleirving on my way", "@lyleirving on my way"));
     const IN_HEYTIFF = { text: "In HeyTiff", tone: null, again: { act: "send_again", label: "Send to ServiceM8" }, ask: null };
     expect(byId(await listDiaryEntries("org-1", "s1", null))["wn-lost"].reply?.line).toEqual(IN_HEYTIFF);
 
@@ -969,7 +969,7 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
      took back that may still be in ServiceM8 (decision 8). */
   describe("listDiaryReplies", () => {
     const back = (id: string, over: Record<string, unknown> = {}) => ({
-      ...answer(id, "n-ask", "j-2041", "@lukeingold on my way", "@lukeingold on my way"),
+      ...answer(id, "n-ask", "j-2041", "@lyleirving on my way", "@lyleirving on my way"),
       removed_at: "2026-08-12T01:00:00Z",
       ...over,
     });
@@ -991,7 +991,7 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
 
       expect(out.map((e) => e.id)).toEqual(["wn-reply", "wn-done", "wn-asked"]);
       expect(out[0]).toMatchObject({
-        said: "@lukeingold a caminho",
+        said: "@lyleirving a caminho",
         stamp: "2026-08-12 08:00",
         outcomes: [],
         undo: false,
@@ -999,7 +999,7 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
         reply: {
           to: "n-ask",
           jobUuid: "j-2041",
-          words: "@lukeingold on my way",
+          words: "@lyleirving on my way",
           at: "2026-08-12 08:00:00",
           savedAt: "2026-08-11T22:00:00Z",
           line: { text: "Not sent to ServiceM8. ServiceM8 refused the note.", again: { act: "send_again", label: "Try again" } },
@@ -1014,7 +1014,7 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
       rows.sm8_writes = [
         // taken back here, its create not closed yet and nothing queued to take it out: read as taken back, it is still there
         create("wn-racing", { status: "sent" }),
-        // went, and its take-back failed: Luke still has it
+        // went, and its take-back failed: Lyle still has it
         create("wn-stuck", { status: "sent", taken_back_at: "2026-08-12T01:00:00Z" }),
         { ...create("wn-stuck", { op: "delete", depends_on: "w-wn-stuck", status: "failed", last_error: "ServiceM8 refused the note." }), id: "d-wn-stuck" },
         // went, and came out
@@ -1063,7 +1063,7 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
        holding it — says so as the entry read's own replies do. */
     it("says each is ServiceM8's too, as the entry read says of a reply, so none is offered an Edit", async () => {
       process.env.SM8_WRITES = "attachment,note";
-      rows.workboard_notes = [back("wn-stuck"), answer("wn-reply", "n-ask", "j-2041", "@lukeingold on my way", "@lukeingold a caminho")];
+      rows.workboard_notes = [back("wn-stuck"), answer("wn-reply", "n-ask", "j-2041", "@lyleirving on my way", "@lyleirving a caminho")];
       rows.sm8_writes = [
         create("wn-stuck", { status: "sent", taken_back_at: "2026-08-12T01:00:00Z" }),
         { ...create("wn-stuck", { op: "delete", depends_on: "w-wn-stuck", status: "failed", last_error: "ServiceM8 refused the note." }), id: "d-wn-stuck" },
@@ -1079,7 +1079,7 @@ describe("listDiaryEntries: your replies to ServiceM8 notes", () => {
     it("leaves out every one you took back when its queue can't be read, and keeps the rest with no line", async () => {
       const spy = jest.spyOn(console, "error").mockImplementation(() => {});
       process.env.SM8_WRITES = "attachment,note";
-      rows.workboard_notes = [back("wn-stuck"), answer("wn-reply", "n-ask", "j-2041", "@lukeingold on my way", "@lukeingold a caminho")];
+      rows.workboard_notes = [back("wn-stuck"), answer("wn-reply", "n-ask", "j-2041", "@lyleirving on my way", "@lyleirving a caminho")];
       failing.add("sm8_writes");
       const out = await listDiaryReplies("org-1", "s1", null, "2026-07-27");
       expect(out.map((e) => [e.id, e.reply?.line])).toEqual([["wn-reply", null]]);

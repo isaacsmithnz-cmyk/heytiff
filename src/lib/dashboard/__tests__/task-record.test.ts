@@ -26,9 +26,9 @@ import {
    so 03:42Z is 1:42 pm. */
 const TODAY = "2026-09-24";
 const ME = "s-isaac";
-const LUKE = "s-luke";
+const LYLE = "s-lyle";
 const LEO = "s-leo";
-const people = { [ME]: "Isaac Smith", [LUKE]: "Luke Ingold", [LEO]: "Leo Park" };
+const people = { [ME]: "Isaac Smith", [LYLE]: "Lyle Irving", [LEO]: "Leo Park" };
 
 const task = (over: Partial<RecordTask> = {}): RecordTask => ({
   id: "t1",
@@ -66,7 +66,7 @@ const diary = (over: Partial<TaskAbout> = {}): TaskAbout => ({
   authorId: ME,
   spoken: true,
   said: { day: "2026-08-22", time: "11:42 pm" },
-  words: "Luke to order the grilles by Friday",
+  words: "Lyle to order the grilles by Friday",
   ...over,
 });
 
@@ -74,7 +74,7 @@ const sm8 = (over: Partial<TaskAbout> = {}): TaskAbout => ({
   ...typedAbout(),
   source: "sm8",
   sm8NoteUuid: "note-1",
-  askerName: "Luke Ingold",
+  askerName: "Lyle Irving",
   said: { day: "2026-09-21", time: "1:42 pm" },
   words: "@isaacsmith can you order the grilles",
   job: { label: "2041 Wollstonecraft", uuid: "job-1" },
@@ -129,13 +129,13 @@ describe("isLate", () => {
 describe("sourceLine", () => {
   it("names the diary it came from", () => {
     expect(sourceLine(diary(), task(), ME, TODAY, people)).toBe("Your diary, Sat 22 Aug.");
-    expect(sourceLine(diary(), task({ assigneeId: LUKE }), LUKE, TODAY, people)).toBe("Isaac's diary, Sat 22 Aug.");
-    expect(sourceLine(diary({ authorId: null }), task(), LUKE, TODAY, people)).toBe("A diary entry, Sat 22 Aug.");
+    expect(sourceLine(diary(), task({ assigneeId: LYLE }), LYLE, TODAY, people)).toBe("Isaac's diary, Sat 22 Aug.");
+    expect(sourceLine(diary({ authorId: null }), task(), LYLE, TODAY, people)).toBe("A diary entry, Sat 22 Aug.");
   });
 
   it("says who asked, and whether it was you they asked", () => {
-    expect(sourceLine(sm8(), task(), ME, TODAY, people)).toBe("Luke asked you, Mon 21 Sept.");
-    expect(sourceLine(sm8(), task({ assigneeId: LEO }), ME, TODAY, people)).toBe("Luke asked, Mon 21 Sept.");
+    expect(sourceLine(sm8(), task(), ME, TODAY, people)).toBe("Lyle asked you, Mon 21 Sept.");
+    expect(sourceLine(sm8(), task({ assigneeId: LEO }), ME, TODAY, people)).toBe("Lyle asked, Mon 21 Sept.");
     expect(sourceLine(sm8({ askerName: null }), task(), ME, TODAY, people)).toBe("Someone asked you, Mon 21 Sept.");
   });
 
@@ -152,16 +152,16 @@ describe("sourceLine", () => {
   });
 
   it("says who gave it to whom, from the viewer's side", () => {
-    const given = task({ assigneeId: LUKE, assigneeName: "Luke Ingold" });
-    expect(sourceLine(typedAbout(), given, LUKE, TODAY, people)).toBe("Isaac gave it to you, Fri 18 Sept.");
-    expect(sourceLine(typedAbout(), given, ME, TODAY, people)).toBe("You gave it to Luke, Fri 18 Sept.");
-    expect(sourceLine(typedAbout(), given, LEO, TODAY, people)).toBe("Isaac gave it to Luke, Fri 18 Sept.");
+    const given = task({ assigneeId: LYLE, assigneeName: "Lyle Irving" });
+    expect(sourceLine(typedAbout(), given, LYLE, TODAY, people)).toBe("Isaac gave it to you, Fri 18 Sept.");
+    expect(sourceLine(typedAbout(), given, ME, TODAY, people)).toBe("You gave it to Lyle, Fri 18 Sept.");
+    expect(sourceLine(typedAbout(), given, LEO, TODAY, people)).toBe("Isaac gave it to Lyle, Fri 18 Sept.");
   });
 
   it("follows the latest hand-over, not the first", () => {
     const about = typedAbout([
-      event({ kind: "created", at: "2026-09-18T03:42:00Z", to: LUKE }),
-      event({ kind: "given", at: "2026-09-21T03:42:00Z", from: LUKE, to: LEO }),
+      event({ kind: "created", at: "2026-09-18T03:42:00Z", to: LYLE }),
+      event({ kind: "given", at: "2026-09-21T03:42:00Z", from: LYLE, to: LEO }),
     ]);
     const t = task({ assigneeId: LEO, assigneeName: "Leo Park" });
     expect(sourceLine(about, t, LEO, TODAY, people)).toBe("Isaac gave it to you, Mon 21 Sept.");
@@ -169,8 +169,8 @@ describe("sourceLine", () => {
   });
 
   it("says who ticked a done row off", () => {
-    const done = task({ status: "done", doneAt: "2026-09-21T03:42:00Z", doneById: LUKE });
-    expect(sourceLine(typedAbout(), done, ME, TODAY, people)).toBe("Luke ticked it off.");
+    const done = task({ status: "done", doneAt: "2026-09-21T03:42:00Z", doneById: LYLE });
+    expect(sourceLine(typedAbout(), done, ME, TODAY, people)).toBe("Lyle ticked it off.");
     expect(sourceLine(typedAbout(), { ...done, doneById: ME }, ME, TODAY, people)).toBe("You ticked it off.");
   });
 });
@@ -182,8 +182,8 @@ describe("wordsCaption", () => {
   });
 
   it("names the ServiceM8 writer and the job", () => {
-    expect(wordsCaption(sm8(), TODAY)).toEqual({ strong: "Luke Ingold", rest: " wrote, in a job note on 2041 Wollstonecraft" });
-    expect(wordsCaption(sm8({ job: null }), TODAY)).toEqual({ strong: "Luke Ingold", rest: " wrote, in a job note" });
+    expect(wordsCaption(sm8(), TODAY)).toEqual({ strong: "Lyle Irving", rest: " wrote, in a job note on 2041 Wollstonecraft" });
+    expect(wordsCaption(sm8({ job: null }), TODAY)).toEqual({ strong: "Lyle Irving", rest: " wrote, in a job note" });
   });
 
   it("captions nothing when there are no words to read", () => {
@@ -202,9 +202,9 @@ describe("factsOf", () => {
   });
 
   it("dates a late task and says how late", () => {
-    const facts = factsOf(task({ dueDate: "2026-08-25", assigneeId: LUKE, assigneeName: "Luke Ingold" }), typedAbout(), ME, TODAY, null);
+    const facts = factsOf(task({ dueDate: "2026-08-25", assigneeId: LYLE, assigneeName: "Lyle Irving" }), typedAbout(), ME, TODAY, null);
     expect(facts).toEqual([
-      { label: "For", value: "Luke Ingold" },
+      { label: "For", value: "Lyle Irving" },
       { label: "Due", value: "Tue 25 Aug", late: "30 days late" },
     ]);
   });
@@ -241,19 +241,19 @@ describe("factsOf", () => {
 describe("historyOf", () => {
   it("says how each kind of task was made", () => {
     expect(texts(historyOf(task(), diary(), people, ME, TODAY))).toEqual(["Tiff made it from your diary."]);
-    expect(texts(historyOf(task({ assigneeId: LUKE, createdBy: ME }), diary(), people, LUKE, TODAY))).toEqual([
+    expect(texts(historyOf(task({ assigneeId: LYLE, createdBy: ME }), diary(), people, LYLE, TODAY))).toEqual([
       "Tiff made it from Isaac's diary.",
       "Tiff gave it to you.",
     ]);
     expect(texts(historyOf(task({ createdBy: null }), sm8(), people, ME, TODAY))).toEqual([
-      "Tiff made it from Luke Ingold's note in ServiceM8.",
+      "Tiff made it from Lyle Irving's note in ServiceM8.",
       "Tiff gave it to you.",
     ]);
     expect(texts(historyOf(task(), sm8({ actedBy: ME }), people, ME, TODAY))).toEqual([
-      "You made it from Luke Ingold's note in ServiceM8.",
+      "You made it from Lyle Irving's note in ServiceM8.",
     ]);
     expect(texts(historyOf(task(), typedAbout(), people, ME, TODAY))).toEqual(["You typed it."]);
-    expect(texts(historyOf(task(), typedAbout(), people, LUKE, TODAY))).toEqual(["Isaac typed it."]);
+    expect(texts(historyOf(task(), typedAbout(), people, LYLE, TODAY))).toEqual(["Isaac typed it."]);
     const project = { ...typedAbout(), source: "project" as const, project: "Harbour St fit-out" };
     expect(texts(historyOf(task(), project, people, ME, TODAY))).toEqual(["Made from Harbour St fit-out's defects period."]);
   });
@@ -266,11 +266,11 @@ describe("historyOf", () => {
   });
 
   it("says Got it only on work someone was given", () => {
-    const given = task({ assigneeId: LUKE, acknowledgedAt: "2026-09-19T00:00:00Z" });
+    const given = task({ assigneeId: LYLE, acknowledgedAt: "2026-09-19T00:00:00Z" });
     expect(texts(historyOf(given, typedAbout(), people, ME, TODAY))).toEqual([
       "You typed it.",
-      "You gave it to Luke.",
-      "Luke said Got it.",
+      "You gave it to Lyle.",
+      "Lyle said Got it.",
     ]);
     // your own to-do has nobody to say it to
     const own = task({ acknowledgedAt: "2026-09-19T00:00:00Z" });
@@ -280,7 +280,7 @@ describe("historyOf", () => {
   it("puts the logged changes in time order, saying who when it was not you", () => {
     const about = typedAbout([
       event({ kind: "created", at: "2026-09-18T03:42:00Z", to: ME }),
-      event({ kind: "due", at: "2026-09-21T03:42:00Z", dueFrom: "2026-09-25", dueTo: "2026-10-02", by: LUKE }),
+      event({ kind: "due", at: "2026-09-21T03:42:00Z", dueFrom: "2026-09-25", dueTo: "2026-10-02", by: LYLE }),
       event({ kind: "due", at: "2026-09-19T03:42:00Z", dueFrom: null, dueTo: "2026-09-25" }),
       event({ kind: "due", at: "2026-09-22T03:42:00Z", dueFrom: "2026-10-02", dueTo: null }),
     ]);
@@ -288,30 +288,30 @@ describe("historyOf", () => {
     expect(texts(historyOf(task(), about, people, ME, TODAY))).toEqual([
       "You typed it.",
       "Due set for Fri 25 Sept.",
-      "Due moved to Fri 2 Oct by Luke.",
+      "Due moved to Fri 2 Oct by Lyle.",
       "Due date taken off.",
     ]);
   });
 
   it("says who a hand-over went to, and who it started with", () => {
     const about = typedAbout([
-      event({ kind: "created", at: "2026-09-18T03:42:00Z", to: LUKE }),
-      event({ kind: "given", at: "2026-09-21T03:42:00Z", from: LUKE, to: LEO }),
+      event({ kind: "created", at: "2026-09-18T03:42:00Z", to: LYLE }),
+      event({ kind: "given", at: "2026-09-21T03:42:00Z", from: LYLE, to: LEO }),
     ]);
     const t = task({ assigneeId: LEO });
     expect(texts(historyOf(t, about, people, ME, TODAY))).toEqual([
       "You typed it.",
-      "You gave it to Luke.",
+      "You gave it to Lyle.",
       "Given to Leo.",
     ]);
     expect(texts(historyOf(t, about, people, LEO, TODAY)).at(-1)).toBe("Given to you.");
   });
 
   it("knows the first holder from the first hand-over when the task predates `created`", () => {
-    const about = typedAbout([event({ kind: "given", at: "2026-09-21T03:42:00Z", from: LUKE, to: LEO })]);
+    const about = typedAbout([event({ kind: "given", at: "2026-09-21T03:42:00Z", from: LYLE, to: LEO })]);
     expect(texts(historyOf(task({ assigneeId: LEO }), about, people, ME, TODAY))).toEqual([
       "You typed it.",
-      "You gave it to Luke.",
+      "You gave it to Lyle.",
       "Given to Leo.",
     ]);
   });
@@ -325,36 +325,36 @@ describe("historyOf", () => {
 
   it("logs every completion and reopening", () => {
     const about = typedAbout([
-      event({ kind: "done", at: "2026-09-20T03:42:00Z", by: LUKE }),
+      event({ kind: "done", at: "2026-09-20T03:42:00Z", by: LYLE }),
       event({ kind: "reopened", at: "2026-09-21T03:42:00Z" }),
       event({ kind: "done", at: "2026-09-22T03:42:00Z" }),
     ]);
     const t = task({ status: "done", doneAt: "2026-09-22T03:42:00Z", doneById: ME });
     expect(texts(historyOf(t, about, people, ME, TODAY))).toEqual([
       "You typed it.",
-      "Done. Luke ticked it off.",
+      "Done. Lyle ticked it off.",
       "Not done yet. Back on the list.",
       "Done. You ticked it off.",
     ]);
   });
 
   it("derives Done from the row only when no logged completion follows the last reopening", () => {
-    const done = task({ status: "done", doneAt: "2026-09-22T03:42:00Z", doneById: LUKE });
+    const done = task({ status: "done", doneAt: "2026-09-22T03:42:00Z", doneById: LYLE });
     // finished before task_events existed: the row is the only witness
     expect(texts(historyOf(done, typedAbout(), people, ME, TODAY))).toEqual([
       "You typed it.",
-      "Done. Luke ticked it off.",
+      "Done. Lyle ticked it off.",
     ]);
     // reopened and finished again with the second completion unlogged
     const after = typedAbout([
-      event({ kind: "done", at: "2026-09-20T03:42:00Z", by: LUKE }),
+      event({ kind: "done", at: "2026-09-20T03:42:00Z", by: LYLE }),
       event({ kind: "reopened", at: "2026-09-21T03:42:00Z" }),
     ]);
     expect(texts(historyOf(done, after, people, ME, TODAY))).toEqual([
       "You typed it.",
-      "Done. Luke ticked it off.",
+      "Done. Lyle ticked it off.",
       "Not done yet. Back on the list.",
-      "Done. Luke ticked it off.",
+      "Done. Lyle ticked it off.",
     ]);
     // an open task has no Done line, whatever its events said
     expect(texts(historyOf(task(), after, people, ME, TODAY))).not.toContain("Done.");
@@ -362,32 +362,32 @@ describe("historyOf", () => {
 });
 
 describe("powersOf", () => {
-  const theirs = task({ assigneeId: LUKE, createdBy: ME });
+  const theirs = task({ assigneeId: LYLE, createdBy: ME });
 
   it("lets the assignee or a manager finish it, and never the creator alone", () => {
-    expect(powersOf(theirs, LUKE, false).finish).toBe(true);
+    expect(powersOf(theirs, LYLE, false).finish).toBe(true);
     expect(powersOf(theirs, ME, false).finish).toBe(false);
     expect(powersOf(theirs, LEO, true).finish).toBe(true);
   });
 
   it("lets the assignee, the creator or a manager move an open one", () => {
-    expect(powersOf(theirs, LUKE, false).move).toBe(true);
+    expect(powersOf(theirs, LYLE, false).move).toBe(true);
     expect(powersOf(theirs, ME, false).move).toBe(true);
     expect(powersOf(theirs, LEO, false).move).toBe(false);
-    expect(powersOf({ ...theirs, status: "done" }, LUKE, true).move).toBe(false);
+    expect(powersOf({ ...theirs, status: "done" }, LYLE, true).move).toBe(false);
   });
 
   it("lets only a manager give an open one away", () => {
     expect(powersOf(theirs, ME, false).give).toBe(false);
-    expect(powersOf(theirs, LUKE, false).give).toBe(false);
+    expect(powersOf(theirs, LYLE, false).give).toBe(false);
     expect(powersOf(theirs, LEO, true).give).toBe(true);
     expect(powersOf({ ...theirs, status: "done" }, LEO, true).give).toBe(false);
   });
 
   it("lets the creator or a manager delete it", () => {
     expect(powersOf(theirs, ME, false).remove).toBe(true);
-    expect(powersOf(theirs, LUKE, false).remove).toBe(false);
-    expect(powersOf(theirs, LUKE, true).remove).toBe(true);
+    expect(powersOf(theirs, LYLE, false).remove).toBe(false);
+    expect(powersOf(theirs, LYLE, true).remove).toBe(true);
   });
 
   it("never reads an ownerless task as yours when you have no staff card", () => {
@@ -433,7 +433,7 @@ describe("moments and labels", () => {
    and nothing on your own. A viewer with no staff card is nobody's task. */
 describe("nameTag", () => {
   it("names someone else's task by first name, and yours not at all", () => {
-    expect(nameTag(task({ assigneeId: LUKE, assigneeName: "Luke Ingold" }), ME)).toBe("Luke");
+    expect(nameTag(task({ assigneeId: LYLE, assigneeName: "Lyle Irving" }), ME)).toBe("Lyle");
     expect(nameTag(task(), ME)).toBeNull();
     expect(nameTag(task(), null)).toBe("Isaac");
   });
@@ -475,7 +475,7 @@ describe("withChanges", () => {
   });
 
   it("re-sorts Open by a moved date, hands a task over without its old Got it, and takes a deleted one away", () => {
-    const acked = task({ id: "e", title: "E", assigneeId: LUKE, assigneeName: "Luke Ingold", acknowledgedAt: "2026-09-19T00:00:00Z" });
+    const acked = task({ id: "e", title: "E", assigneeId: LYLE, assigneeName: "Lyle Irving", acknowledgedAt: "2026-09-19T00:00:00Z" });
     const out = withChanges({ open: [a, b, acked], done: [d] }, [
       { id: "b", kind: "due", due: "2026-09-10" },
       { id: "e", kind: "give", to: LEO, name: "Leo Park" },

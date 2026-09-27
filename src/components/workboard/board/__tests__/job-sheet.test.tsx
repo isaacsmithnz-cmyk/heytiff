@@ -293,7 +293,7 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
       ],
     },
   ],
-  queue: { name: "Parts on Order", expiry: "2026-08-20", staffName: "Luke Ingold" },
+  queue: { name: "Parts on Order", expiry: "2026-08-20", staffName: "Lyle Irving" },
   checklist: [
     { name: "Isolate power", itemType: "Todo", section: null, done: true, doneOn: "2026-08-13", doneAt: "2026-08-13 15:40:00", doneBy: "Callum Vrieze" },
     { name: "Site photos", itemType: "Photo", section: "Handover", done: false, doneOn: null, doneAt: null, doneBy: null },
@@ -762,7 +762,7 @@ describe("the Diary face", () => {
             text: "Units being delivered direct to site",
             writtenOn: "2026-08-12",
             writtenAt: "2026-08-12 09:14:00",
-            writtenBy: "Luke Ingold",
+            writtenBy: "Lyle Irving",
             actionRequired: false,
             fromClaim: null,
           },
@@ -779,7 +779,7 @@ describe("the Diary face", () => {
        of the three months en-AU genuinely spells in full. */
     expect(f.getByText("Since Thu 30 July")).toBeInTheDocument();
     expect(f.getByText("Units being delivered direct to site")).toBeInTheDocument();
-    expect(f.getByText("Luke Ingold")).toBeInTheDocument();
+    expect(f.getByText("Lyle Irving")).toBeInTheDocument();
     /* the visits are entries now, with the crew named */
     expect(f.getByText("Site visit — 10h 20m")).toBeInTheDocument();
     expect(f.getByText("Callum Vrieze, Alex Lorenz")).toBeInTheDocument();
@@ -862,7 +862,7 @@ describe("the Diary face", () => {
         notes: [
           {
             remoteId: "n-1",
-            text: "@lukeingold still need another day on site",
+            text: "@lyleirving still need another day on site",
             writtenOn: "2026-08-12",
             writtenAt: "2026-08-12 09:14:00",
             writtenBy: "David Hann",
@@ -876,7 +876,7 @@ describe("the Diary face", () => {
     await detailLanded();
     await openTab("Diary");
 
-    const mention = screen.getByText("@lukeingold");
+    const mention = screen.getByText("@lyleirving");
     expect(mention).toHaveClass("wb2-mention");
   });
 
@@ -969,7 +969,7 @@ describe("the ServiceM8 chip", () => {
   /* The fixtures' "j-1" is not an id ServiceM8 would ever send, and the URL
      builder refuses anything that isn't a uuid — so a card with a real one
      is what proves the door. */
-  const UUID = "0f11827a-29ad-4575-a5a4-21cfb0c5c75b";
+  const UUID = "0e0e0e0e-0000-4000-8000-0000000000c5";
   const realId = () => card(detail({ remoteId: UUID }));
 
   it("says how fresh the card is, and IS the door back to ServiceM8", async () => {
@@ -1055,10 +1055,10 @@ describe("the attention strip", () => {
     kind: "mention" as const,
     key: "mention:n-2",
     noteUuid: "n-2",
-    text: "@lukeingold still need another day on site to finish",
+    text: "@lyleirving still need another day on site to finish",
     author: "David Hann",
     at: "2026-08-26 09:00:00",
-    named: [{ name: "Luke Ingold", staffId: null }],
+    named: [{ name: "Lyle Irving", staffId: null }],
   };
 
   it("is ABSENT on a quiet job — no header, no empty furniture", async () => {
@@ -1297,7 +1297,7 @@ describe("notes to ServiceM8 on the card", () => {
     text: "@isaacsmith can you order the grilles",
     writtenOn: "2026-08-26",
     writtenAt: "2026-08-26 09:00:00",
-    writtenBy: "Luke Ingold",
+    writtenBy: "Lyle Irving",
     actionRequired: false,
     fromClaim: null,
     editedAt: "2026-08-26 09:00:00",
@@ -1318,7 +1318,7 @@ describe("notes to ServiceM8 on the card", () => {
             key: `mention:${ASK}`,
             noteUuid: ASK,
             text: askNote.text,
-            author: "Luke Ingold",
+            author: "Lyle Irving",
             at: askNote.writtenAt,
             named: [{ name: "Isaac Smith", staffId: "staff-1" }],
             you: true,
@@ -1332,7 +1332,7 @@ describe("notes to ServiceM8 on the card", () => {
     });
   const reply = (over: Partial<import("@/lib/workboard/job-notes-query").OurJobNote> = {}) => ({
     id: "r-1",
-    text: "@lukeingold on my way",
+    text: "@lyleirving on my way",
     at: "2026-08-26T00:00:00.000Z",
     author: "Isaac Smith",
     authorId: "staff-1",
@@ -1472,7 +1472,7 @@ describe("notes to ServiceM8 on the card", () => {
     expect(await f.findByText("Still in ServiceM8. Sending notes is switched off.")).toBeInTheDocument();
     noteSm8.takeBackJobNote.mockResolvedValueOnce({ ok: true, gone: true, state: null });
     await userEvent.click(f.getByRole("button", { name: NOTE_WORDS.door.tryAgain }));
-    await waitFor(() => expect(f.queryByText("@lukeingold on my way")).toBeNull());
+    await waitFor(() => expect(f.queryByText("@lyleirving on my way")).toBeNull());
   });
 
   it("Remove on an entry that went keeps it, taking it out, until it has gone", async () => {
@@ -1559,7 +1559,7 @@ describe("notes to ServiceM8 on the card", () => {
         notes: [askNote],
         attention: {
           items: [
-            { kind: "mention", key: `mention:${ASK}`, noteUuid: ASK, text: askNote.text, author: "Luke Ingold", at: askNote.writtenAt, named: [{ name: "Isaac Smith", staffId: "staff-1" }] },
+            { kind: "mention", key: `mention:${ASK}`, noteUuid: ASK, text: askNote.text, author: "Lyle Irving", at: askNote.writtenAt, named: [{ name: "Isaac Smith", staffId: "staff-1" }] },
           ],
           total: 1,
         },
@@ -1606,7 +1606,7 @@ describe("the Visits face", () => {
     expect(f.getByText("7:30am–3:30pm Fri 14 Aug")).toBeInTheDocument();
     /* and the queue keeps its own fact */
     expect(f.getByText("Parts on Order")).toBeInTheDocument();
-    expect(f.getByText(/Luke Ingold, until Thu 20 Aug/)).toBeInTheDocument();
+    expect(f.getByText(/Lyle Irving, until Thu 20 Aug/)).toBeInTheDocument();
   });
 
   it("shows the recent visits and opens the rest in place", async () => {
@@ -2445,7 +2445,7 @@ describe("one claim, opened", () => {
             takenOn: "2026-04-02",
             takenAt: "2026-04-02 10:12:00",
             isDeposit: true,
-            takenBy: "Luke Ingold",
+            takenBy: "Lyle Irving",
           },
         ],
       },
@@ -3677,7 +3677,7 @@ describe("the ledger obeys the money grant", () => {
         takenOn: "2026-08-01",
         takenAt: "2026-08-01 09:15:00",
         isDeposit: true,
-        takenBy: "Luke Ingold",
+        takenBy: "Lyle Irving",
       },
     ],
   };
@@ -3703,7 +3703,7 @@ describe("the ledger obeys the money grant", () => {
     await openTab("Money");
 
     await screen.findByText("Bank Transfer");
-    expect(screen.getByText(/deposit, Sat 1 Aug, Luke Ingold/)).toBeInTheDocument();
+    expect(screen.getByText(/deposit, Sat 1 Aug, Lyle Irving/)).toBeInTheDocument();
   });
 
   it("renders no ledger at all when the server sent none", async () => {

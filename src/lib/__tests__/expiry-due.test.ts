@@ -38,7 +38,7 @@ describe("expiryDue", () => {
         const iso = plus(n);
         const chip = licenceChip(
           { id: "l1", typeName: "White Card", expiryDate: iso },
-          { subject: "Luke", href: "/dashboard/profile", today: TODAY, warnDays },
+          { subject: "Lyle", href: "/dashboard/profile", today: TODAY, warnDays },
         );
         const due = expiryDue(iso, TODAY, warnDays)!;
         expect([iso, warnDays, due.state]).toEqual([iso, warnDays, chip?.state ?? "ok"]);

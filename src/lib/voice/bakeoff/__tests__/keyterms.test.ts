@@ -23,15 +23,15 @@ describe("cleanTerm", () => {
 describe("buildKeyterms", () => {
   it("fills the cap in pool priority order — people before vocabulary", () => {
     const { terms } = buildKeyterms(
-      { people: ["Luke", "Mick"], vocab: ["condensate"] },
+      { people: ["Lyle", "Mick"], vocab: ["condensate"] },
       { max: 2 },
     );
-    expect(terms).toEqual(["Luke", "Mick"]);
+    expect(terms).toEqual(["Lyle", "Mick"]);
   });
 
   it("reports what it had to drop rather than silently truncating", () => {
     const { terms, rejected } = buildKeyterms(
-      { people: ["Luke"], vocab: ["condensate", "penetrations"] },
+      { people: ["Lyle"], vocab: ["condensate", "penetrations"] },
       { max: 2 },
     );
     expect(terms).toHaveLength(2);
@@ -39,8 +39,8 @@ describe("buildKeyterms", () => {
   });
 
   it("de-duplicates case-insensitively across pools", () => {
-    const { terms } = buildKeyterms({ people: ["Luke"], clients: ["luke"] });
-    expect(terms).toEqual(["Luke"]);
+    const { terms } = buildKeyterms({ people: ["Lyle"], clients: ["lyle"] });
+    expect(terms).toEqual(["Lyle"]);
   });
 
   it("defaults to the conservative documented cap", () => {
@@ -57,20 +57,20 @@ describe("buildKeyterms", () => {
 describe("assertNotSeeded", () => {
   it("throws when the pools are just this case's answers", () => {
     expect(() =>
-      assertNotSeeded({ people: ["Luke"], vocab: ["condensate"] }, ["Luke", "condensate"]),
+      assertNotSeeded({ people: ["Lyle"], vocab: ["condensate"] }, ["Lyle", "condensate"]),
     ).toThrow(/seeded/i);
   });
 
   it("accepts a real roster where most people are not in this note", () => {
     expect(() =>
       assertNotSeeded(
-        { people: ["Luke", "Mick", "Dave", "Sam", "Jo", "Pat", "Alex", "Kim"] },
-        ["Luke"],
+        { people: ["Lyle", "Mick", "Dave", "Sam", "Jo", "Pat", "Alex", "Kim"] },
+        ["Lyle"],
       ),
     ).not.toThrow();
   });
 
   it("says nothing about empty pools — that is a missing vocab file, not cheating", () => {
-    expect(() => assertNotSeeded({}, ["Luke"])).not.toThrow();
+    expect(() => assertNotSeeded({}, ["Lyle"])).not.toThrow();
   });
 });

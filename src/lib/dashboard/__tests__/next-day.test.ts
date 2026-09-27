@@ -68,7 +68,7 @@ beforeEach(() => {
   layoutScheduleDay.mockReset().mockReturnValue({
     lanes: [
       { staffUuid: "u-isaac", name: "Isaac Smith", blocks: [blk("m2", "j1377", 720), blk("m1", "j2313", 570)] },
-      { staffUuid: "u-luke", name: "Luke Ingold", blocks: [blk("l1", "j2313", 570), blk("l2", "j9", 600)] },
+      { staffUuid: "u-lyle", name: "Lyle Irving", blocks: [blk("l1", "j2313", 570), blk("l2", "j9", 600)] },
     ],
     tracksTime: false,
   });
@@ -94,7 +94,7 @@ it("finds the first booked day of yours in the next fortnight, and reads that da
       { remoteId: "j1377", jobNumber: "1377" },
     ],
     where: { j2313: "Oxford St" },
-    crew: { j2313: ["Luke"] },
+    crew: { j2313: ["Lyle"] },
   });
 });
 
@@ -107,6 +107,6 @@ it("is no next day when nothing is booked for a fortnight, or the read fails", a
 });
 
 it("is no next day when the day's layout puts nothing in your lane", async () => {
-  layoutScheduleDay.mockReturnValue({ lanes: [{ staffUuid: "u-luke", name: "Luke Ingold", blocks: [blk("l1", "j9", 600)] }], tracksTime: false });
+  layoutScheduleDay.mockReturnValue({ lanes: [{ staffUuid: "u-lyle", name: "Lyle Irving", blocks: [blk("l1", "j9", 600)] }], tracksTime: false });
   expect(await loadNextDay("org-1", "u-isaac", "2026-09-26")).toBeNull();
 });

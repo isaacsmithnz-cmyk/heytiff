@@ -17,9 +17,9 @@ jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: { from: (t: string) => fake.from(t), rpc: (n: string, a: Record<string, unknown>) => fake.rpc(n, a) },
 }));
 jest.mock("@/lib/permissions-server", () => ({
-  requireOrg: async () => ({ orgId: "org-1", userId: "auth0|luke" }),
+  requireOrg: async () => ({ orgId: "org-1", userId: "auth0|lyle" }),
 }));
-jest.mock("@/lib/workboard/projects-query", () => ({ staffIdFor: async () => "staff-luke" }));
+jest.mock("@/lib/workboard/projects-query", () => ({ staffIdFor: async () => "staff-lyle" }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("@/lib/auth0", () => ({ auth0: { getSession: async () => null } }));
 
@@ -33,7 +33,7 @@ const ORG = "org-1";
 const TENANT = "vendor-1";
 const JOB = "0f8c2b9e-1111-4a4a-8b8b-000000000001";
 const ISAAC_SM8 = "5a1b2c3d-0000-4000-8000-00000000aaaa";
-const LUKE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
+const LYLE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
 const ASK = "7e7e7e7e-0000-4000-8000-00000000a5c1";
 const FLAG = "7e7e7e7e-0000-4000-8000-00000000f1a9";
 const SENT_AS = "9a9a9a9a-0000-4000-8000-000000000001";
@@ -51,7 +51,7 @@ const mirror = (uuid: string, over: Row = {}) => ({
   create_date: "2026-09-20 09:00:00",
   action_required: "0",
   action_completed_by_staff_uuid: null,
-  edit_by_staff_uuid: LUKE_SM8,
+  edit_by_staff_uuid: LYLE_SM8,
   edit_date: EDITED,
   active: 1,
   ...over,
@@ -67,7 +67,7 @@ function seedOurs(over: Row = {}): string {
     status: "applied",
     author_id: "staff-isaac",
     transcript: "on my way",
-    applied: { jobNotes: ["@lukeingold on my way"], sm8Text: "@lukeingold on my way" },
+    applied: { jobNotes: ["@lyleirving on my way"], sm8Text: "@lyleirving on my way" },
     applied_at: "2026-09-21T01:00:00.000Z",
     created_at: "2026-09-21T01:00:00.000Z",
     removed_at: null,
@@ -149,15 +149,15 @@ beforeEach(() => {
   ];
   fake.db.integration_links = [
     { org_id: ORG, provider: "servicem8", kind: "staff", tenant_id: TENANT, staff_profile_id: "staff-isaac", remote_id: ISAAC_SM8 },
-    { org_id: ORG, provider: "servicem8", kind: "staff", tenant_id: TENANT, staff_profile_id: "staff-luke", remote_id: LUKE_SM8 },
+    { org_id: ORG, provider: "servicem8", kind: "staff", tenant_id: TENANT, staff_profile_id: "staff-lyle", remote_id: LYLE_SM8 },
   ];
   fake.db.sm8_staff = [
     { org_id: ORG, uuid: ISAAC_SM8, first: "Isaac", last: "Smith", active: 1 },
-    { org_id: ORG, uuid: LUKE_SM8, first: "Luke", last: "Ingold", active: 1 },
+    { org_id: ORG, uuid: LYLE_SM8, first: "Lyle", last: "Irving", active: 1 },
   ];
   fake.db.staff_profiles = [
     { org_id: ORG, id: "staff-isaac", first_name: "Isaac", last_name: "Smith", status: "Active" },
-    { org_id: ORG, id: "staff-luke", first_name: "Luke", last_name: "Ingold", status: "Active" },
+    { org_id: ORG, id: "staff-lyle", first_name: "Lyle", last_name: "Irving", status: "Active" },
   ];
   fake.db.sm8_job_notes = [mirror(ASK)];
   fake.db.sm8_writes = [];
@@ -179,10 +179,10 @@ describe("ServiceM8's notes, with our marks on them", () => {
     fake.db.sm8_job_notes = [mirror(FLAG, { action_required: "1", action_completed_by_staff_uuid: ISAAC_SM8, edit_by_staff_uuid: ISAAC_SM8 })];
     fake.db.sm8_writes.push({
       id: "u1", org_id: ORG, kind: "note", op: "update", flag_done: true, status: "sent", target_uuid: FLAG,
-      seen_edit_by: LUKE_SM8, as_staff_uuid: ISAAC_SM8, created_at: "2026-09-21T00:00:00Z",
+      seen_edit_by: LYLE_SM8, as_staff_uuid: ISAAC_SM8, created_at: "2026-09-21T00:00:00Z",
     });
     const [n] = await readJobNotes(ORG, JOB);
-    expect(n).toMatchObject({ writtenBy: "Luke Ingold", authorSm8Uuid: LUKE_SM8, authorHandle: "lukeingold", doneBy: "Isaac Smith", actionRequired: false, flagged: true, editedAt: EDITED, relatedUuid: JOB });
+    expect(n).toMatchObject({ writtenBy: "Lyle Irving", authorSm8Uuid: LYLE_SM8, authorHandle: "lyleirving", doneBy: "Isaac Smith", actionRequired: false, flagged: true, editedAt: EDITED, relatedUuid: JOB });
     // files only: no queue read, and the mirror's own editor
     process.env.SM8_WRITES = "1";
     fake.log.length = 0;
@@ -201,7 +201,7 @@ describe("our own notes, each with where it stands", () => {
     const [mine] = await readOurJobNotes(ORG, JOB, 60, await viewer("staff-isaac"));
     expect(mine).toMatchObject({ id, replyTo: ASK, removed: false, sm8Uuid: SENT_AS, hasCreate: true, mine: true, authorId: "staff-isaac" });
     expect(mine.state).toMatchObject({ key: "line.sent", text: NOTE_WORDS.line.sent, acts: ["undo"] });
-    const [theirs] = await readOurJobNotes(ORG, JOB, 60, await viewer("staff-luke"));
+    const [theirs] = await readOurJobNotes(ORG, JOB, 60, await viewer("staff-lyle"));
     expect(theirs.state).toMatchObject({ key: "line.sent", acts: [] });
     expect(theirs.mine).toBe(false);
   });
@@ -266,7 +266,7 @@ describe("our own notes, each with where it stands", () => {
 /* ── the strip ── */
 
 describe("the strip", () => {
-  const attention = async (viewerHandle: string | null, ourNotesFor = "staff-luke") => {
+  const attention = async (viewerHandle: string | null, ourNotesFor = "staff-lyle") => {
     const notes = await readJobNotes(ORG, JOB);
     const ourNotes = await readOurJobNotes(ORG, JOB, 60, await viewer(ourNotesFor));
     return readJobAttention(ORG, JOB, { notes, jobOpen: true, today: "2026-09-25", echoFiltered: true, viewerHandle, ourNotes });
@@ -275,13 +275,13 @@ describe("the strip", () => {
   it("(F) our sent reply is a mention for the person it names, and ServiceM8's copy of it is not drawn", async () => {
     const id = seedOurs();
     seedCreate(id);
-    fake.db.sm8_job_notes.push(mirror(SENT_AS, { note: "@lukeingold on my way", edit_by_staff_uuid: ISAAC_SM8 }));
-    // Isaac's reply answered Luke's ask
+    fake.db.sm8_job_notes.push(mirror(SENT_AS, { note: "@lyleirving on my way", edit_by_staff_uuid: ISAAC_SM8 }));
+    // Isaac's reply answered Lyle's ask
     fake.db.sm8_job_notes[0].note = "@isaacsmith can you order the grilles";
-    const { attention: a } = await attention("lukeingold");
+    const { attention: a } = await attention("lyleirving");
     const ours = a.items.filter((i) => i.kind === "mention");
     expect(ours).toHaveLength(1);
-    expect(ours[0]).toMatchObject({ origin: "heytiff", rowId: id, noteUuid: SENT_AS, you: true, named: [{ name: "Luke Ingold" }] });
+    expect(ours[0]).toMatchObject({ origin: "heytiff", rowId: id, noteUuid: SENT_AS, you: true, named: [{ name: "Lyle Irving" }] });
     // Isaac looking: not a mention of him
     const { attention: b } = await attention("isaacsmith", "staff-isaac");
     expect(b.items.find((i) => i.kind === "mention")).toMatchObject({ origin: "heytiff", you: false });
@@ -289,17 +289,17 @@ describe("the strip", () => {
     expect((await readJobNotes(ORG, JOB)).map((n) => n.remoteId)).toEqual([ASK]);
   });
 
-  it("(F) (verifier r3 10) Luke's Not work on it clears it with no reply, before it went and after, and it stays cleared under a new uuid", async () => {
+  it("(F) (verifier r3 10) Lyle's Not work on it clears it with no reply, before it went and after, and it stays cleared under a new uuid", async () => {
     const id = seedOurs();
     const c = seedCreate(id, { status: "queued", remote_uuid: SENT_AS });
-    let { attention: a } = await attention("lukeingold");
+    let { attention: a } = await attention("lyleirving");
     expect(a.items.find((i) => i.kind === "mention")).toMatchObject({ rowId: id, noteUuid: null });
     await dismissJobNote(JOB, id);
-    ({ attention: a } = await attention("lukeingold"));
+    ({ attention: a } = await attention("lyleirving"));
     expect(a.items.filter((i) => i.kind === "mention")).toHaveLength(0);
     c.status = "sent";
     c.remote_uuid = LATER_AS;
-    ({ attention: a } = await attention("lukeingold"));
+    ({ attention: a } = await attention("lyleirving"));
     expect(a.items.filter((i) => i.kind === "mention")).toHaveLength(0);
   });
 
@@ -307,7 +307,7 @@ describe("the strip", () => {
     const before = await attention("isaacsmith", "staff-isaac");
     expect(before.attention.items.find((i) => i.kind === "mention" && i.noteUuid === ASK)).toMatchObject({ you: true, origin: "sm8" });
     const first = seedOurs();
-    const second = seedOurs({ transcript: "done", applied: { jobNotes: ["@lukeingold done"], sm8Text: "@lukeingold done" } });
+    const second = seedOurs({ transcript: "done", applied: { jobNotes: ["@lyleirving done"], sm8Text: "@lyleirving done" } });
     fake.db.job_note_actions.push({ org_id: ORG, sm8_note_uuid: ASK, sm8_job_uuid: JOB, action: "task", task_id: "t1" });
     const stillAsking = async () =>
       (await attention("isaacsmith", "staff-isaac")).attention.items.some((i) => i.kind === "mention" && i.noteUuid === ASK);

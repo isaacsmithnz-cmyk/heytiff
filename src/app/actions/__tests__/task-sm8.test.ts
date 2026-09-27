@@ -4,7 +4,7 @@
 
 /* A task's Done, to ServiceM8 and back (two-way phase 2, PR C).
 
-   Ticking a task made from a ServiceM8 mention files "@lukeingold Done." in
+   Ticking a task made from a ServiceM8 mention files "@lyleirving Done." in
    the job's diary and sends it as whoever ticked; Reopen takes it back; the
    task's page and the bell say what became of it. Held here against the
    in-memory database that keeps the notes migrations' rules (fixtures/
@@ -111,8 +111,8 @@ const ORG = "org-1";
 const TENANT = "vendor-1";
 const JOB = "0f8c2b9e-1111-4a4a-8b8b-000000000001";
 const ISAAC_SM8 = "5a1b2c3d-0000-4000-8000-00000000aaaa";
-const LUKE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
-/** Luke's note on the job, asking Isaac */
+const LYLE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
+/** Lyle's note on the job, asking Isaac */
 const ASK = "7e7e7e7e-0000-4000-8000-00000000a5c1";
 /** the task made from it, on Isaac */
 const TASK = "3a3a3a3a-0000-4000-8000-00000000000a";
@@ -185,15 +185,15 @@ beforeEach(() => {
   ];
   fake.db.integration_links = [
     { id: "l1", org_id: ORG, provider: "servicem8", kind: "staff", tenant_id: TENANT, staff_profile_id: "staff-isaac", remote_id: ISAAC_SM8, confirmed_remote_id: ISAAC_SM8, confirmed_answer: "yes" },
-    { id: "l2", org_id: ORG, provider: "servicem8", kind: "staff", tenant_id: TENANT, staff_profile_id: "staff-luke", remote_id: LUKE_SM8, confirmed_remote_id: LUKE_SM8, confirmed_answer: "yes" },
+    { id: "l2", org_id: ORG, provider: "servicem8", kind: "staff", tenant_id: TENANT, staff_profile_id: "staff-lyle", remote_id: LYLE_SM8, confirmed_remote_id: LYLE_SM8, confirmed_answer: "yes" },
   ];
   fake.db.sm8_staff = [
     { org_id: ORG, uuid: ISAAC_SM8, first: "Isaac", last: "Smith", active: 1 },
-    { org_id: ORG, uuid: LUKE_SM8, first: "Luke", last: "Ingold", active: 1 },
+    { org_id: ORG, uuid: LYLE_SM8, first: "Lyle", last: "Irving", active: 1 },
   ];
   fake.db.staff_profiles = [
     { org_id: ORG, id: "staff-isaac", first_name: "Isaac", last_name: "Smith", full_name: null, preferred_name: null },
-    { org_id: ORG, id: "staff-luke", first_name: "Luke", last_name: "Ingold", full_name: null, preferred_name: null },
+    { org_id: ORG, id: "staff-lyle", first_name: "Lyle", last_name: "Irving", full_name: null, preferred_name: null },
   ];
   fake.db.sm8_jobs = [{ org_id: ORG, uuid: JOB, active: 1, generated_job_id: "2380", status: "Work Order" }];
   fake.db.sm8_job_notes = [
@@ -205,7 +205,7 @@ beforeEach(() => {
       create_date: "2026-09-20 09:00:00",
       action_required: "0",
       action_completed_by_staff_uuid: null,
-      edit_by_staff_uuid: LUKE_SM8,
+      edit_by_staff_uuid: LYLE_SM8,
       edit_date: "2026-09-20 10:00:00",
       active: 1,
     },
@@ -216,7 +216,7 @@ beforeEach(() => {
     title,
     detail: null,
     assigned_to: "staff-isaac",
-    created_by: "staff-luke",
+    created_by: "staff-lyle",
     due_date: null,
     status: "open",
     created_at: "2026-09-20T00:00:00.000Z",
@@ -298,7 +298,7 @@ describe("ticking a task made from a mention", () => {
     expect(postSm8Note).not.toHaveBeenCalled();
   });
 
-  it("(F) 2. a hand tick files '@lukeingold Done.' in the diary under Luke's note, and it goes as Isaac under the task's own subject", async () => {
+  it("(F) 2. a hand tick files '@lyleirving Done.' in the diary under Lyle's note, and it goes as Isaac under the task's own subject", async () => {
     expect(await tick()).toEqual({ ok: true });
     expect(dones()).toHaveLength(1);
     const done = liveDone()!;
@@ -310,12 +310,12 @@ describe("ticking a task made from a mention", () => {
       task_id: TASK,
       is_task_done: true,
       reply_to_sm8_note_uuid: ASK,
-      applied: { jobNotes: ["@lukeingold Done."], sm8Text: "@lukeingold Done." },
+      applied: { jobNotes: ["@lyleirving Done."], sm8Text: "@lyleirving Done." },
     });
     expect(done.applied_at).toBeTruthy();
     // the diary shows it
     const diary = await readOurJobNotes(ORG, JOB);
-    expect(diary.map((n) => [n.id, n.text, n.isTaskDone, n.taskId])).toEqual([[done.id, "@lukeingold Done.", true, TASK]]);
+    expect(diary.map((n) => [n.id, n.text, n.isTaskDone, n.taskId])).toEqual([[done.id, "@lyleirving Done.", true, TASK]]);
     // one note create, under task:<id>:done:<noteId>, as whoever ticked
     const noteRows = writes().filter((w) => w.kind === "note");
     expect(noteRows).toHaveLength(1);
@@ -327,7 +327,7 @@ describe("ticking a task made from a mention", () => {
       status: "sent",
     });
     expect(postSm8Note).toHaveBeenCalledTimes(1);
-    expect(postSm8Note.mock.calls[0][1]).toMatchObject({ relatedUuid: JOB, text: "@lukeingold Done.", asStaffUuid: ISAAC_SM8 });
+    expect(postSm8Note.mock.calls[0][1]).toMatchObject({ relatedUuid: JOB, text: "@lyleirving Done.", asStaffUuid: ISAAC_SM8 });
   });
 
   it("the Done addresses nobody when the asker is the one who ticked", async () => {
@@ -432,7 +432,7 @@ describe("ticking a task made from a mention", () => {
   });
 
   it("nobody but the ticker sends a tick's Done", async () => {
-    Object.assign(task(), { status: "done", done_by: "staff-luke", done_at: new Date().toISOString() });
+    Object.assign(task(), { status: "done", done_by: "staff-lyle", done_at: new Date().toISOString() });
     expect(await sendTaskDone({ taskId: TASK })).toEqual({ ok: true, state: null });
     expect(notes()).toHaveLength(0);
   });
@@ -445,7 +445,7 @@ describe("ticking a task made from a mention", () => {
       expect(postSm8Note).not.toHaveBeenCalled();
     };
 
-    it("Luke deleted his note in ServiceM8, then Isaac ticks: the tick stands, and no Done is filed or sent", async () => {
+    it("Lyle deleted his note in ServiceM8, then Isaac ticks: the tick stands, and no Done is filed or sent", async () => {
       (fake.db.sm8_job_notes as Row[])[0].active = 0;
       expect(await tick()).toEqual({ ok: true });
       await nothingFiled();
@@ -461,7 +461,7 @@ describe("ticking a task made from a mention", () => {
       notes().push({
         id: ourRow,
         org_id: ORG,
-        author_id: "staff-luke",
+        author_id: "staff-lyle",
         target_kind: "job",
         target_id: JOB,
         status: "applied",
@@ -478,8 +478,8 @@ describe("ticking a task made from a mention", () => {
         note_id: ourRow,
         remote_uuid: OURS,
         sm8_job_uuid: JOB,
-        as_staff_uuid: LUKE_SM8,
-        requested_by: "staff-luke",
+        as_staff_uuid: LYLE_SM8,
+        requested_by: "staff-lyle",
         taken_back_at: new Date().toISOString(),
       });
       (fake.db.job_note_actions as Row[])[0].sm8_note_uuid = OURS;
@@ -518,7 +518,7 @@ describe("ticking a task made from a mention", () => {
     expect(lines[TASK]).toEqual([
       {
         noteId: done.id,
-        words: "@lukeingold Done.",
+        words: "@lyleirving Done.",
         state: expect.objectContaining({
           key: "line.notSent",
           text: fillWords(NOTE_WORDS.line.notSent, { reason: NOTE_WORDS.press.unreadable }),
@@ -591,7 +591,7 @@ describe("reopening takes the Done back", () => {
   it("(F) 14. someone else's Reopen after the tick answered: the task reopens, the Done stays, and they're told whose it is", async () => {
     await tick();
     const done = liveDone()!;
-    as("staff-luke");
+    as("staff-lyle");
     caps = new Set(["workboard", "team"]);
     const r = await reopen();
     expect(r).toEqual({ ok: true, note: fillWords(NOTE_WORDS.press.notYours, { name: "Isaac Smith" }) });
@@ -656,7 +656,7 @@ describe("reopening takes the Done back", () => {
     });
 
     it("someone else's Reopen while the tick files its Done: the ticker's own press takes it back", async () => {
-      // Luke reopens; his take-back found no Done yet
+      // Lyle reopens; his take-back found no Done yet
       onFirst("workboard_notes", "insert", reopenedBy);
       await tick();
       expect(liveDone()).toBeUndefined();
@@ -664,7 +664,7 @@ describe("reopening takes the Done back", () => {
     });
 
     it("someone else's Reopen that answers not_yours, while the tick's Done waits: the tick takes it back, and what went is deleted", async () => {
-      // the Done is filed and queued; then Luke reopens (his take-back is
+      // the Done is filed and queued; then Lyle reopens (his take-back is
       // refused: not his) before the tick reads the task again
       let ran = false;
       fake.before.tasks = (s) => {
@@ -681,12 +681,12 @@ describe("reopening takes the Done back", () => {
 
     it("someone else's Reopen and re-tick in that window: the Done stands, and their tick posts none", async () => {
       onFirst("workboard_notes", "insert", () =>
-        Object.assign(task(), { status: "done", done_by: "staff-luke", done_at: new Date().toISOString() })
+        Object.assign(task(), { status: "done", done_by: "staff-lyle", done_at: new Date().toISOString() })
       );
       await tick();
       expect(liveDone()).toMatchObject({ author_id: "staff-isaac" });
       expect(postSm8Note).toHaveBeenCalledTimes(1);
-      as("staff-luke");
+      as("staff-lyle");
       expect(await sendTaskDone({ taskId: TASK })).toMatchObject({ ok: true });
       expect(dones()).toHaveLength(1);
       expect(postSm8Note).toHaveBeenCalledTimes(1);
@@ -701,7 +701,7 @@ describe("the task's line and its doors", () => {
     await tick();
     const done = liveDone()!;
     expect((await linesFor("staff-isaac")).lines[TASK]).toEqual([
-      { noteId: done.id, words: "@lukeingold Done.", state: expect.objectContaining({ key: "line.sent", tone: "ok" }) },
+      { noteId: done.id, words: "@lyleirving Done.", state: expect.objectContaining({ key: "line.sent", tone: "ok" }) },
     ]);
 
     done.sm8_refusal = "unlinked";
@@ -710,7 +710,7 @@ describe("the task's line and its doors", () => {
       text: fillWords(NOTE_WORDS.line.notSent, { reason: NOTE_WORDS.press.unlinked }),
       acts: ["send_again", "undo"],
     });
-    expect((await linesFor("staff-luke")).lines[TASK][0].state).toMatchObject({
+    expect((await linesFor("staff-lyle")).lines[TASK][0].state).toMatchObject({
       text: fillWords(NOTE_WORDS.line.notSent, { reason: fillWords(NOTE_WORDS.row.unlinked, { name: "Isaac Smith" }) }),
       acts: [],
     });
@@ -734,14 +734,14 @@ describe("the task's line and its doors", () => {
     expect(task().status).toBe("done");
     expect(createOf(composeId)).toMatchObject({ status: "failed" });
     const [line] = (await linesFor("staff-isaac")).lines[TASK];
-    expect(line).toMatchObject({ noteId: composeId, words: "@lukeingold ordered them", state: { key: "line.notSent", acts: ["send_again", "undo"] } });
+    expect(line).toMatchObject({ noteId: composeId, words: "@lyleirving ordered them", state: { key: "line.notSent", acts: ["send_again", "undo"] } });
 
     expect(await retryTaskDone({ taskId: TASK, noteId: composeId, act: "send_again" })).toMatchObject({
       ok: true,
       state: { key: "line.sent" },
     });
     expect(postSm8Note).toHaveBeenCalledTimes(2);
-    expect(postSm8Note.mock.calls[1][1]).toMatchObject({ text: "@lukeingold ordered them" });
+    expect(postSm8Note.mock.calls[1][1]).toMatchObject({ text: "@lyleirving ordered them" });
     expect(dones()).toHaveLength(0);
     expect(postSm8Note.mock.calls.some((c) => /Done\./.test(String((c[1] as Row).text)))).toBe(false);
   });
@@ -817,7 +817,7 @@ describe("the task's line and its doors", () => {
     const del = deleteOf(done.id)!;
     expect(del).toMatchObject({ status: "failed" });
     const before = JSON.stringify(writes());
-    as("staff-luke");
+    as("staff-lyle");
     expect(await retryTaskDone({ taskId: TASK, noteId: String(done.id), act: "take_out_again" })).toEqual({
       ok: false,
       error: fillWords(NOTE_WORDS.press.notYours, { name: "Isaac Smith" }),
@@ -880,7 +880,7 @@ describe("deleting a task, and a reply that closes one", () => {
     expect(postSm8Note).toHaveBeenCalledTimes(1);
     expect(dones()).toHaveLength(0);
     expect((await linesFor("staff-isaac")).lines[TASK]).toEqual([
-      { noteId: composeId, words: "@lukeingold ordered them", state: expect.objectContaining({ key: "line.sent" }) },
+      { noteId: composeId, words: "@lyleirving ordered them", state: expect.objectContaining({ key: "line.sent" }) },
     ]);
 
     expect(await reopen()).toEqual({ ok: true });
@@ -906,16 +906,16 @@ describe("deleting a task, and a reply that closes one", () => {
     expect(postSm8Note).toHaveBeenCalledTimes(1);
   });
 
-  it("(F) 25. a Done is never a mention, even after its task is deleted; a reply that closed its task and names Luke is one", async () => {
+  it("(F) 25. a Done is never a mention, even after its task is deleted; a reply that closed its task and names Lyle is one", async () => {
     caps = new Set(["workboard", "team"]);
     const mentions = async () => {
-      const ourNotes = await readOurJobNotes(ORG, JOB, 60, { staffId: "staff-luke", state: await readSm8WriteState(ORG), sender: null });
+      const ourNotes = await readOurJobNotes(ORG, JOB, 60, { staffId: "staff-lyle", state: await readSm8WriteState(ORG), sender: null });
       const { attention } = await readJobAttention(ORG, JOB, {
         notes: await readJobNotes(ORG, JOB),
         jobOpen: true,
         today: "2026-09-25",
         echoFiltered: true,
-        viewerHandle: "lukeingold",
+        viewerHandle: "lyleirving",
         ourNotes,
       });
       return attention.items.flatMap((i) => (i.kind === "mention" && i.origin === "heytiff" ? [i.rowId] : []));
@@ -927,7 +927,7 @@ describe("deleting a task, and a reply that closes one", () => {
     expect(notes().find((n) => n.id === done.id)).toMatchObject({ task_id: null, is_task_done: true });
     expect(await mentions()).toEqual([]);
 
-    // a closing reply on the other task, naming Luke, is a mention for him
+    // a closing reply on the other task, naming Lyle, is a mention for him
     fake.db.job_note_actions.push({ org_id: ORG, sm8_note_uuid: ASK, sm8_job_uuid: JOB, action: "task", task_id: PLAIN_TASK });
     const composeId = newId();
     await replyToJobNote({ jobUuid: JOB, sourceNoteUuid: ASK, words: "ordered them", composeId, closesTaskId: PLAIN_TASK });
@@ -945,7 +945,7 @@ describe("the bell, for the one whose tick it was", () => {
     const done = liveDone()!;
     const mine = await myUnsentDones(ORG, "staff-isaac", SINCE);
     expect(mine).toEqual([{ taskId: TASK, title: "Order the grilles", noteId: done.id, op: "post" }]);
-    expect(await myUnsentDones(ORG, "staff-luke", SINCE)).toEqual([]);
+    expect(await myUnsentDones(ORG, "staff-lyle", SINCE)).toEqual([]);
 
     expect(sm8DoneChip({ taskId: TASK, title: "Order the grilles", op: "post" })).toEqual({
       key: `sm8-done:${TASK}`,

@@ -1,10 +1,10 @@
 /* The routing rules the schema can't enforce.
 
    `output_config.format` guarantees the model returns valid JSON in the right
-   shape. It cannot guarantee that "Luke" is a real person, that a severity is
+   shape. It cannot guarantee that "Lyle" is a real person, that a severity is
    one we render, or that an unresolvable name becomes a question instead of a
    guess. That's what shapeProposal does, and it's what this file pins —
-   especially the two-Lukes case, because assigning real work to the wrong
+   especially the two-Lyles case, because assigning real work to the wrong
    person is the one failure this feature must not have. */
 
 /* The real module is imported, SDK and all — jest.setup.ts polyfills the
@@ -26,15 +26,15 @@ import {
 } from "../note-brain";
 
 const STAFF = [
-  { id: "s-luke-n", fullName: "Luke Nguyen" },
+  { id: "s-lyle-n", fullName: "Lyle Nguyen" },
   { id: "s-mick", fullName: "Mick Farrow" },
   { id: "s-jo", fullName: "Jo Baker" },
 ];
 
 const ctx: NoteContext = { staff: STAFF, todayISO: "2026-07-28" };
-const twoLukes: NoteContext = {
+const twoLyles: NoteContext = {
   ...ctx,
-  staff: [...STAFF, { id: "s-luke-t", fullName: "Luke Tran" }],
+  staff: [...STAFF, { id: "s-lyle-t", fullName: "Lyle Tran" }],
 };
 
 /* The note is being dictated BY somebody. Isaac is on the roster like anyone
@@ -67,8 +67,8 @@ const raw = (over: Record<string, unknown> = {}) => ({
 
 describe("resolveAssignee", () => {
   it("matches on the first name, which is how a site note says it", () => {
-    expect(resolveAssignee("Luke", STAFF)).toEqual({ kind: "one", id: "s-luke-n" });
-    expect(resolveAssignee("  luke  ", STAFF)).toEqual({ kind: "one", id: "s-luke-n" });
+    expect(resolveAssignee("Lyle", STAFF)).toEqual({ kind: "one", id: "s-lyle-n" });
+    expect(resolveAssignee("  lyle  ", STAFF)).toEqual({ kind: "one", id: "s-lyle-n" });
   });
 
   it("matches a full name", () => {
@@ -76,15 +76,15 @@ describe("resolveAssignee", () => {
   });
 
   it("REFUSES TO GUESS between two people with the same first name", () => {
-    const match = resolveAssignee("Luke", twoLukes.staff);
+    const match = resolveAssignee("Lyle", twoLyles.staff);
     expect(match.kind).toBe("ambiguous");
     if (match.kind === "ambiguous") {
-      expect(match.names.sort()).toEqual(["Luke Nguyen", "Luke Tran"]);
+      expect(match.names.sort()).toEqual(["Lyle Nguyen", "Lyle Tran"]);
     }
   });
 
   it("a full name still resolves even when the first name is ambiguous", () => {
-    expect(resolveAssignee("Luke Tran", twoLukes.staff)).toEqual({ kind: "one", id: "s-luke-t" });
+    expect(resolveAssignee("Lyle Tran", twoLyles.staff)).toEqual({ kind: "one", id: "s-lyle-t" });
   });
 
   it("an unknown or empty name matches nobody", () => {
@@ -94,14 +94,14 @@ describe("resolveAssignee", () => {
 });
 
 describe("shapeProposal — tasks", () => {
-  it("routes 'tell Luke to order the grilles' to a real person", () => {
+  it("routes 'tell Lyle to order the grilles' to a real person", () => {
     const p = shapeProposal(
       raw({
         tasks: [
           {
             title: "Order the grilles",
             detail: "For Smith St — 4 × 595 return air",
-            assignee_hint: "Luke",
+            assignee_hint: "Lyle",
             due_hint: "before the next visit",
           },
         ],
@@ -111,8 +111,8 @@ describe("shapeProposal — tasks", () => {
     expect(p.tasks).toHaveLength(1);
     expect(p.tasks[0]).toMatchObject({
       title: "Order the grilles",
-      assigneeId: "s-luke-n",
-      assigneeHint: "Luke",
+      assigneeId: "s-lyle-n",
+      assigneeHint: "Lyle",
       dueHint: "before the next visit",
     });
     expect(p.clarify).toBeNull();
@@ -120,14 +120,14 @@ describe("shapeProposal — tasks", () => {
 
   it("an ambiguous name becomes a QUESTION, and the task keeps no assignee", () => {
     const p = shapeProposal(
-      raw({ tasks: [{ title: "Order the grilles", detail: "", assignee_hint: "Luke", due_hint: "" }] }),
-      twoLukes
+      raw({ tasks: [{ title: "Order the grilles", detail: "", assignee_hint: "Lyle", due_hint: "" }] }),
+      twoLyles
     );
     // the task survives — it's real work — but nobody is assigned to it
     expect(p.tasks[0].assigneeId).toBeNull();
-    expect(p.tasks[0].assigneeHint).toBe("Luke");
-    expect(p.clarify?.question).toContain("Luke");
-    expect(p.clarify?.options.sort()).toEqual(["Luke Nguyen", "Luke Tran"]);
+    expect(p.tasks[0].assigneeHint).toBe("Lyle");
+    expect(p.clarify?.question).toContain("Lyle");
+    expect(p.clarify?.options.sort()).toEqual(["Lyle Nguyen", "Lyle Tran"]);
   });
 
   it("an unknown name leaves the task unassigned rather than dropping it", () => {
@@ -141,7 +141,7 @@ describe("shapeProposal — tasks", () => {
 
   it("drops a task with no title — that isn't a task", () => {
     const p = shapeProposal(
-      raw({ tasks: [{ title: "   ", detail: "something", assignee_hint: "Luke", due_hint: "" }] }),
+      raw({ tasks: [{ title: "   ", detail: "something", assignee_hint: "Lyle", due_hint: "" }] }),
       ctx
     );
     expect(p.tasks).toEqual([]);
@@ -205,17 +205,17 @@ describe("shapeProposal — the other lanes", () => {
 
 describe("one note, several outcomes", () => {
   it("splits a real dictation across lanes at once", () => {
-    // "Tell Luke he needs to order the grilles for this, the middle rooftop
+    // "Tell Lyle he needs to order the grilles for this, the middle rooftop
     //  unit tripped again, and we'll need the 595 filters next visit."
     const p = shapeProposal(
       raw({
-        tasks: [{ title: "Order the grilles", detail: "", assignee_hint: "Luke", due_hint: "" }],
+        tasks: [{ title: "Order the grilles", detail: "", assignee_hint: "Lyle", due_hint: "" }],
         issue_entries: [{ summary: "Tripped again", equipment_hint: "middle rooftop unit" }],
         bring_items: ["2 × 595 filters"],
       }),
       ctx
     );
-    expect(p.tasks[0].assigneeId).toBe("s-luke-n");
+    expect(p.tasks[0].assigneeId).toBe("s-lyle-n");
     expect(p.issueEntries).toHaveLength(1);
     expect(p.bringItems).toEqual(["2 × 595 filters"]);
     expect(isEmptyProposal(p)).toBe(false);
@@ -252,12 +252,12 @@ describe("clarify", () => {
     // one question at a time — the card asks the model's, then re-runs
     const p = shapeProposal(
       raw({
-        tasks: [{ title: "Order grilles", detail: "", assignee_hint: "Luke", due_hint: "" }],
+        tasks: [{ title: "Order grilles", detail: "", assignee_hint: "Lyle", due_hint: "" }],
         clarify_needed: true,
         clarify_question: "Which site is this for?",
         clarify_options: ["Smith St", "Warehouse"],
       }),
-      twoLukes
+      twoLyles
     );
     expect(p.clarify?.question).toBe("Which site is this for?");
     expect(p.tasks[0].assigneeId).toBeNull();
@@ -370,7 +370,7 @@ describe("no debrief mode is left", () => {
 
    THE NOTE THAT MADE THIS EXIST, dictated into Tiff on 2026-08-22:
 
-     "I need to check with Luke whether he sent the quote to Chris from Scott
+     "I need to check with Lyle whether he sent the quote to Chris from Scott
       Group. Remind me to do that on Monday morning."
 
    The router did its half perfectly — one task, well titled, dated the right
@@ -388,7 +388,7 @@ describe("a note that asks to be reminded", () => {
     raw({
       tasks: [
         {
-          title: "Check with Luke about quote to Chris from Scott Group",
+          title: "Check with Lyle about quote to Chris from Scott Group",
           detail: "Did the quote go out?",
           assignee_hint: "me",
           due_hint: "Monday morning",
@@ -425,8 +425,8 @@ describe("a note that asks to be reminded", () => {
   });
 
   it("still gives a NAMED person the task, not the speaker", () => {
-    expect(shapeProposal(remindMe({ assignee_hint: "Luke" }), spoken).tasks[0].assigneeId).toBe(
-      "s-luke-n",
+    expect(shapeProposal(remindMe({ assignee_hint: "Lyle" }), spoken).tasks[0].assigneeId).toBe(
+      "s-lyle-n",
     );
   });
 
@@ -476,7 +476,7 @@ describe("a note that asks to be reminded", () => {
           {
             title: "Order the grilles",
             detail: "",
-            assignee_hint: "Luke",
+            assignee_hint: "Lyle",
             due_hint: "Friday",
             due_date: "2026-07-31",
             remind_time: "",
@@ -499,7 +499,7 @@ describe("what the router is told about who and when", () => {
   it("says nothing about an author when there isn't one", () => {
     expect(whoBlock(ctx)).not.toContain("The person speaking");
     // but still lists who can be given work — the old behaviour, intact
-    expect(whoBlock(ctx)).toContain("Luke Nguyen");
+    expect(whoBlock(ctx)).toContain("Lyle Nguyen");
   });
 
   it("resolves morning against THIS person's day, not a number in the prompt", () => {

@@ -25,14 +25,14 @@ it("sends the conversation ahead of the question", async () => {
       question: "and the day after?",
       history: [
         { who: "you", text: "who's at 3323 tomorrow?" },
-        { who: "tiff", text: "Luke, from 9:00." },
+        { who: "tiff", text: "Lyle, from 9:00." },
       ],
     },
     done
   );
   expect(sent(fetch).history).toEqual([
     { who: "you", text: "who's at 3323 tomorrow?" },
-    { who: "tiff", text: "Luke, from 9:00." },
+    { who: "tiff", text: "Lyle, from 9:00." },
   ]);
 });
 

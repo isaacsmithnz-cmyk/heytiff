@@ -22,7 +22,7 @@ import { NoteScopeProvider, NoteScopeScreen, useNoteScope } from "../note-contex
    as the frame has it. */
 
 /** The screen's roster: what the field mics' sieve reads names from. */
-const CREW = ["Luke", "Dane"];
+const CREW = ["Lyle", "Dane"];
 
 function Probe() {
   const s = useNoteScope();
@@ -241,7 +241,7 @@ describe("what it is pointed at", () => {
     const { rerender } = render(
       <NoteScopeProvider voiceEnabled>
         <Probe />
-        <NoteScopeScreen target={{ kind: "project", id: "p-1" }} staffFirstNames={["Luke"]} />
+        <NoteScopeScreen target={{ kind: "project", id: "p-1" }} staffFirstNames={["Lyle"]} />
         <TiffButton />
       </NoteScopeProvider>
     );

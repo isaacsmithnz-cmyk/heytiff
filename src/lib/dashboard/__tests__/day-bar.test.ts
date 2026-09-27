@@ -173,10 +173,10 @@ describe("dayItems — the day, in order", () => {
       rail([block({ remoteId: "j1" })], [], {
         jobs: [{ remoteId: "j1", description: "Service AC units" }],
         where: { j1: "Carrington St" },
-        crew: { j1: ["Luke"] },
+        crew: { j1: ["Lyle"] },
       })
     );
-    expect(item).toMatchObject({ summary: "Service AC units", where: "Carrington St", crew: ["Luke"], place: "Sydney" });
+    expect(item).toMatchObject({ summary: "Service AC units", where: "Carrington St", crew: ["Lyle"], place: "Sydney" });
     const [alone] = dayItems(rail([block({ remoteId: "j2" })], [], { where: { j1: "Carrington St" } }));
     expect(alone).toMatchObject({ summary: null, where: null, crew: [] });
   });
@@ -331,9 +331,9 @@ describe("the panel's words", () => {
   it("says who else is on the job, and leaves With out when you are alone", () => {
     const crew = (names: string[]) => dayPanelFacts(one({}, { crew: { j1: names } })).with;
     expect(crew([])).toBeNull();
-    expect(crew(["Luke"])).toBe("Luke");
-    expect(crew(["Luke", "Callum"])).toBe("Luke and Callum");
-    expect(crew(["Luke", "Callum", "Leo"])).toBe("Luke, Callum and Leo");
+    expect(crew(["Lyle"])).toBe("Lyle");
+    expect(crew(["Lyle", "Callum"])).toBe("Lyle and Callum");
+    expect(crew(["Lyle", "Callum", "Leo"])).toBe("Lyle, Callum and Leo");
   });
 
   it("falls back to the suburb for Where, and to the name for a title when there is no suburb", () => {

@@ -572,7 +572,7 @@ export async function readJobAttention(
 ): Promise<JobAttentionRead> {
   const notesOn = sm8NotesAllowed();
   /* our notes that may carry a mention: queued once, not taken back — and
-     never a Done. "@lukeingold Done." names Luke to address him, not to ask
+     never a Done. "@lyleirving Done." names Lyle to address him, not to ask
      him anything: the task it closes was made from HIS note, so it answers
      a mention and is none (PR C). Still none after its task is deleted: the
      mark stays when the link goes. A reply that closed its task is a reply,
@@ -842,9 +842,9 @@ export type Sm8Person = {
   uuid: string;
   /** What a note writes after the "@" — see sm8Handle. */
   handle: string;
-  /** "Luke Ingold", as ServiceM8 spells it. */
+  /** "Lyle Irving", as ServiceM8 spells it. */
   name: string;
-  /** "Luke", for a line that says "You to Luke". */
+  /** "Lyle", for a line that says "You to Lyle". */
   first: string;
 };
 

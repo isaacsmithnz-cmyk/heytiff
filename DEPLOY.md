@@ -547,8 +547,8 @@ identical brain → Tiff → file path. This key buys dictation, not the feature
 
 The adapter is `src/lib/voice/transcribe.ts`: `POST /v1/speech-to-text`,
 `xi-api-key` header, `model_id=scribe_v2`. Keyterms are built per request from
-the roster and client book — "tell Luke" only becomes a task for Luke if the
-transcriber heard Luke. ElevenLabs allows **1000 keyterms of 50 chars** in batch
+the roster and client book — "tell Lyle" only becomes a task for Lyle if the
+transcriber heard Lyle. ElevenLabs allows **1000 keyterms of 50 chars** in batch
 mode; **we cap at 60 deliberately**, because past 100 they bill a 20-second
 minimum per request and site notes are often shorter than that.
 

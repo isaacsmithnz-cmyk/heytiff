@@ -382,7 +382,7 @@ Every decision below is made once, here, and a guard test holds each number.
   "Nothing yet."; everything older follows with no more dividers, each
   entry saying its own date. An entry is your initials in an ink disc,
   "You" and when, your words as you said them, and under them what they
-  became: tasks counted by whose they are ("2 tasks for Luke", and "1
+  became: tasks counted by whose they are ("2 tasks for Lyle", and "1
   task" for your own; two people who share a first name each get their
   whole name), each count a door that lights those rows in the list
   beside it, or opens the Tasks tab for one the list no longer holds;
@@ -423,17 +423,17 @@ Every decision below is made once, here, and a guard test holds each number.
   at the end of its line, there while the conversation has the pointer or
   the keyboard, and never Edit, since ServiceM8 has its words; one already
   taken back has only its line's Try again. Hide folds the conversation to
-  "Hidden until Luke writes again." with Undo, and it stays out of the
+  "Hidden until Lyle writes again." with Undo, and it stays out of the
   diary until the asker writes after it was hidden, or you reply in it
   from HeyTiff; your replies in it go and come back with it. Nothing in
   ServiceM8 changes, and the task the ask made stays.
   Someone who asked you something in a ServiceM8 job note is a
   conversation in the same column ("if someone mentions you, it can show
-  up in diary", 2026-09-24): their initials ink in his grey disc, "Luke
-  Ingold to you" and when he asked, his words as written less the handle,
+  up in diary", 2026-09-24): their initials ink in his grey disc, "Lyle
+  Irving to you" and when he asked, his words as written less the handle,
   then every later message either way threaded under it, each with a 24px
-  disc and "You to Luke" or "Luke Ingold to you" and when ("show replies
-  from luke in the diary too"), set as his v33 renders it at 1440: the
+  disc and "You to Lyle" or "Lyle Irving to you" and when ("show replies
+  from [them] in the diary too"), set as his v33 renders it at 1440: the
   message's line is the entry's 32px with its disc at the top, the disc's
   initials 12/600, 12px above each message and 8px from the last down to
   the doors. It sorts by his newest message, so his

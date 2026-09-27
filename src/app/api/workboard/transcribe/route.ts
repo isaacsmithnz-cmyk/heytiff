@@ -60,8 +60,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "That recording couldn't be read." }, { status: 400 });
   }
 
-  /* Staff first names are the keyterms that matter most — "tell Luke" only
-     routes if the transcriber heard "Luke". They are boosted alongside the
+  /* Staff first names are the keyterms that matter most — "tell Lyle" only
+     routes if the transcriber heard "Lyle". They are boosted alongside the
      trade vocabulary a general model mishears on an Australian site. */
   const { data } = await supabaseAdmin
     .from("staff_profiles")

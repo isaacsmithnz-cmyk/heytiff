@@ -21,7 +21,7 @@
 -- dismissal), so one ask is still one task.
 --
 -- WHAT READS IT. The new Home's diary (mentions-query.ts: "1 task for you"
--- under the conversation, and "Luke asked you" on the list's row), the
+-- under the conversation, and "Lyle asked you" on the list's row), the
 -- job card's strip (job-notes-query.ts), which stops suggesting a task for a
 -- note that already made one, and shows that task instead, and the new
 -- Home's Tasks tab (task-record-query.ts), which says the task came from

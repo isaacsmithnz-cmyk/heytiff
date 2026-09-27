@@ -86,15 +86,15 @@ describe("the words around it", () => {
   });
 
   it("says the question once", () => {
-    expect(askLine("Luke has it. Who books 3323?", "Who books 3323?")).toBe("Luke has it. Who books 3323?");
-    expect(askLine("Luke has it.", "Who books 3323?")).toBe("Luke has it. Who books 3323?");
+    expect(askLine("Lyle has it. Who books 3323?", "Who books 3323?")).toBe("Lyle has it. Who books 3323?");
+    expect(askLine("Lyle has it.", "Who books 3323?")).toBe("Lyle has it. Who books 3323?");
     expect(askLine("", "Who books 3323?")).toBe("Who books 3323?");
   });
 
   it("reads Tiff's lines off what the server returned", () => {
     const t = (who: "you" | "tiff", text: string) => ({ who, text, at: "" });
-    const turns = [t("you", "a"), t("tiff", "Old."), t("you", "b"), t("tiff", "Luke has it."), t("tiff", "Who books it?")];
-    expect(tiffSince(turns)).toBe("Luke has it. Who books it?");
+    const turns = [t("you", "a"), t("tiff", "Old."), t("you", "b"), t("tiff", "Lyle has it."), t("tiff", "Who books it?")];
+    expect(tiffSince(turns)).toBe("Lyle has it. Who books it?");
     expect(lastTiff(turns)).toBe("Who books it?");
     expect(tiffSince([t("you", "a")])).toBe("");
     expect(lastTiff(undefined)).toBe("");

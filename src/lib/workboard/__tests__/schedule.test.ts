@@ -52,7 +52,7 @@ const act = (over: Partial<ScheduleActivity> & { uuid: string }): ScheduleActivi
 
 const STAFF = [
   { uuid: "s-1", name: "Alex Lorenz" },
-  { uuid: "s-2", name: "Luke Ingold" },
+  { uuid: "s-2", name: "Lyle Irving" },
   { uuid: "s-3", name: "Callum Vrieze" },
   { uuid: "s-4", name: "Oleksii Khalameida" },
 ];
@@ -183,7 +183,7 @@ describe("lanes", () => {
       staff: STAFF,
       jobs: [job({ remoteId: "j-1" })],
     });
-    expect(day.lanes.map((l) => l.name)).toEqual(["Alex Lorenz", "Luke Ingold"]);
+    expect(day.lanes.map((l) => l.name)).toEqual(["Alex Lorenz", "Lyle Irving"]);
   });
 
   it("lands a booking nobody owns in a named last lane — said, not dropped", () => {

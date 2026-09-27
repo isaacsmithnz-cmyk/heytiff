@@ -209,17 +209,17 @@ describe("subjects, labels and words", () => {
   });
 
   it("a reply keeps the @handle; a Done addresses the asker unless it is the sender or unknown", () => {
-    expect(replyText("lukeingold", " on my way ")).toBe("@lukeingold on my way");
+    expect(replyText("lyleirving", " on my way ")).toBe("@lyleirving on my way");
     expect(replyText(null, "on my way")).toBe("on my way");
-    expect(replyText("LukeIngold", "tôi đang đến")).toBe("@lukeingold tôi đang đến");
-    expect(doneText({ handle: "LukeIngold", sm8Uuid: "a" }, "b")).toBe("@lukeingold Done.");
+    expect(replyText("LyleIrving", "tôi đang đến")).toBe("@lyleirving tôi đang đến");
+    expect(doneText({ handle: "LyleIrving", sm8Uuid: "a" }, "b")).toBe("@lyleirving Done.");
     expect(doneText({ handle: "isaacsmith", sm8Uuid: "a" }, "a")).toBe("Done.");
     expect(doneText(null, "b")).toBe("Done.");
     expect(doneText({ handle: null, sm8Uuid: "a" }, "b")).toBe("Done.");
   });
 
   it("the words come from the row: sm8Text first, then the kept words, trimmed and capped", () => {
-    expect(noteWords({ jobNotes: ["english"], sm8Text: "@luke tiếng việt" })).toBe("@luke tiếng việt");
+    expect(noteWords({ jobNotes: ["english"], sm8Text: "@lyle tiếng việt" })).toBe("@lyle tiếng việt");
     expect(noteWords({ jobNotes: [" one ", "two"] })).toBe("one\n\ntwo");
     expect(noteWords({ jobNotes: ["x".repeat(5000)] })).toHaveLength(4000);
     expect(noteWords({ jobNotes: [" "], sm8Text: "  " })).toBeNull();
@@ -321,7 +321,7 @@ describe("whether a flag is ours", () => {
       ops: [sent],
       hold: null,
       trialNow: false,
-      viewerStaffId: "staff-luke",
+      viewerStaffId: "staff-lyle",
     });
     expect(reopened.acts).toEqual(["mark_done_again"]);
     const afterTrial = flagState({
@@ -345,7 +345,7 @@ describe("whether a flag is ours", () => {
         viewerStaffId,
       });
     expect(input("staff-isaac").acts).toEqual(["unmark"]);
-    expect(input("staff-luke").acts).toEqual([]);
+    expect(input("staff-lyle").acts).toEqual([]);
     expect(input(null).acts).toEqual([]);
     // a sent mark: no Undo until live test 5 flips the switch
     const sent = flagState({

@@ -222,7 +222,7 @@ async function assignableStaff(orgId: string): Promise<NoteStaff[]> {
 
     ONE READ FOR BOTH BECAUSE THEY ARE ONE FACT: "remind me" and "morning" are
     both statements about the person holding the phone. Every routing call makes
-    it — the first pass and every clarify round — or answering "which Luke?"
+    it — the first pass and every clarify round — or answering "which Lyle?"
     would quietly cost the note its author and turn a saved reminder back into
     the unassignable task this feature exists to fix. */
 async function authorContext(
@@ -281,7 +281,7 @@ async function resolveTarget(orgId: string, target: NoteTarget): Promise<NoteTar
 /** Everything the router is told about a note besides its words: who can be
     given work, who is speaking, the job and what the workspace already knows
     about it. One function because every read of a note makes it — the first
-    pass and every reply — and an answer to "which Luke?" must not cost the
+    pass and every reply — and an answer to "which Lyle?" must not cost the
     model everything it knew about the job.
 
     Four independent reads against a remote database, so they go together
@@ -690,7 +690,7 @@ async function applyConfirmed(
      at all — org, title, assignee, due date, status. A task from a note has
      always stood on its own and always landed on the assignee's dashboard.
      The only thing insisting otherwise was this guard and the review card's
-     Save rule, which is why "tell Luke to ring the wholesaler" — a perfectly
+     Save rule, which is why "tell Lyle to ring the wholesaler" — a perfectly
      good task about no job in particular — could not be saved at all.
 
      So the question is per bucket, not per note (Isaac, 2026-08-05). A
@@ -1104,7 +1104,7 @@ async function applyConfirmed(
      Every other target has somewhere for the transcript to go and a sheet
      that reads it back; a ServiceM8 job's written record is its DIARY, and
      the diary reads this row. So a note dictated on a job card lands there
-     whatever else it did — "get Luke to order the grilles" is a task AND a
+     whatever else it did — "get Lyle to order the grilles" is a task AND a
      thing that was said on this job, and the feed would be lying if it only
      showed the half that grew a row of its own.
 

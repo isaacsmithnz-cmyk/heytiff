@@ -82,13 +82,13 @@ describe.each([
     mount(<Harness as={as} />);
     act(() => {
       ctl.setRecording!(true);
-      ctl.setInterim!("tell Luke the grilles");
+      ctl.setInterim!("tell Lyle the grilles");
     });
 
     const box = river()!;
     expect(box.className).toContain(fieldClass);
     expect(box.className.includes("one")).toBe(oneLine);
-    expect(box).toHaveTextContent("tell Luke the grilles");
+    expect(box).toHaveTextContent("tell Lyle the grilles");
     /* And the words are SHOWN, never held — the field is gone, so there is
        nothing left that could commit a half-heard sentence. */
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
@@ -113,7 +113,7 @@ describe.each([
     mount(<Harness as={as} />);
     act(() => {
       ctl.setRecording!(true);
-      ctl.setInterim!("tell Luke the grilles");
+      ctl.setInterim!("tell Lyle the grilles");
     });
     act(() => ctl.setRecording!(false));
     expect(river()).not.toBeNull();

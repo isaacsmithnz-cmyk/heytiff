@@ -1,9 +1,9 @@
 /* The note router — server only.
 
-   A note is not a notepad entry. Someone says "tell Luke he needs to order
+   A note is not a notepad entry. Someone says "tell Lyle he needs to order
    the grilles for Smith St, and the middle rooftop unit tripped again on
    Tuesday", and three different things should happen: a task assigned to
-   Luke, an issue-log entry against that unit, and nothing else invented.
+   Lyle, an issue-log entry against that unit, and nothing else invented.
    This module turns the sentence into a PROPOSAL of those things.
 
    THREE LANES, ONE CALL:
@@ -28,7 +28,7 @@
 
    TWO LAYERS OF VALIDATION, ON PURPOSE. `output_config.format` guarantees
    the SHAPE — valid JSON matching the schema, no parsing roulette. It cannot
-   guarantee the SEMANTICS: that "Luke" is a real person in this org, that a
+   guarantee the SEMANTICS: that "Lyle" is a real person in this org, that a
    severity is one we render, that an unresolvable name becomes a question
    instead of a guess. `shapeProposal` does that, and it is pure so the rules
    are tested without a network call. */
@@ -41,7 +41,7 @@ import { planRows, type PlanRow } from "./note-draft";
 import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
 
 /* Opus 5: the routing decision is the whole product. A cheaper model that
-   mis-assigns "tell Luke" to the wrong Luke, or reads an urgent flag as a
+   mis-assigns "tell Lyle" to the wrong Lyle, or reads an urgent flag as a
    bullet point, costs more in trust than the tokens save. Thinking is ON by
    default on this model and shares the max_tokens budget with the response,
    which is why the budget is generous for such a small output. Exported for
@@ -61,7 +61,7 @@ const MAX_TOKENS = 16_000;
    the second rung, not the bottom.
 
    The file's original argument still stands and is why this isn't `low`:
-   the routing decision IS the product, and a mis-assigned "tell Luke" costs
+   the routing decision IS the product, and a mis-assigned "tell Lyle" costs
    more trust than the tokens save. What changed is that `high` stopped
    being free. Watch the Tiff modal's plans — if assignees or dates start
    coming back wrong, this is the line to move back. */
@@ -185,7 +185,7 @@ export type NoteContext = {
   room?: TiffRoom;
   /** ASK WHO rather than leave a task with nobody on it. The Tiff modal has
       no assign dropdown — it asks — so for its notes a task nobody can be
-      matched to becomes a question, the way two Lukes already do. The old
+      matched to becomes a question, the way two Lyles already do. The old
       review card had the dropdown and read without it: this is off unless
       the caller turns it on, and every read the app makes now does. */
   askWho?: boolean;
@@ -425,7 +425,7 @@ export function whenBlock(ctx: NoteContext): string {
 /** WHO CAN BE GIVEN WORK, and who is doing the giving.
 
     Its own function for the same reason as `whenBlock`. The author line
-    is the fix for the note that started this: "remind me to check with Luke"
+    is the fix for the note that started this: "remind me to check with Lyle"
     produced a perfectly good task with nobody on it, because the router had
     never been told that a "me" was in the room. */
 export function whoBlock(ctx: NoteContext): string {
@@ -547,8 +547,8 @@ export function systemPrompt(ctx: NoteContext): string {
     RECORD_IN_ENGLISH,
     "",
     "Route each part of the note into exactly one place:",
-    "- tasks: someone must DO something later. 'Tell Luke to order the",
-    "  grilles' is a task for Luke, not a note. Put the job's own details in",
+    "- tasks: someone must DO something later. 'Tell Lyle to order the",
+    "  grilles' is a task for Lyle, not a note. Put the job's own details in",
     "  `detail` so the task stands alone when read next week.",
     "- bring_items: something to physically bring next visit.",
     "- flags: a problem that should be visible on the board until handled.",
@@ -644,8 +644,8 @@ const SELF: readonly string[] = [
 
 /** Match what the note said against the people who can be assigned work.
 
-    First names are how a site note refers to people ("tell Luke"), so a
-    first-name match counts — but ONLY when it is unique. Two Lukes is the
+    First names are how a site note refers to people ("tell Lyle"), so a
+    first-name match counts — but ONLY when it is unique. Two Lyles is the
     case that matters: guessing picks a person at random and assigns real
     work to them, so it returns `ambiguous` and the caller turns that into a
     question instead.

@@ -1,6 +1,6 @@
 /* What the diary says over, in and under a ServiceM8 conversation, and
    which item a door from another face names. The people and the jobs are
-   the real ones the design was drawn from (Luke's asks of Isaac in
+   the real ones the design was drawn from (Lyle's asks of Isaac in
    September 2026); the replies are examples. */
 
 import {
@@ -19,7 +19,7 @@ import type { DiaryEntry } from "../journal";
 import type { Sm8Person } from "@/lib/workboard/job-notes-query";
 
 const ISAAC: Sm8Person = { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" };
-const LUKE: Sm8Person = { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" };
+const LYLE: Sm8Person = { uuid: "u-lyle", handle: "lyleirving", name: "Lyle Irving", first: "Lyle" };
 const TODAY = "2026-09-25";
 /** Whose tasks need no name, and the names of the rest. */
 const WHO = { viewerStaffId: "s-isaac", names: { "s-leo": "Leo" } };
@@ -38,7 +38,7 @@ const talk = (notes: MentionNote[], jobs = new Map([[J2041, { label: "2041 Wolls
   buildConversations({
     notes,
     me: { uuid: ISAAC.uuid, handle: ISAAC.handle },
-    people: [ISAAC, LUKE],
+    people: [ISAAC, LYLE],
     jobs,
     today: TODAY,
   });
@@ -59,22 +59,22 @@ describe("when", () => {
 
 describe("over the ask and in the thread", () => {
   const [c] = talk([
-    note(J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary to discuss"),
-    note(J2041, LUKE.uuid, "2026-09-22 09:42:00", "her number is on the card"),
-    note(J2041, ISAAC.uuid, "2026-09-22 15:10:00", "@lukeingold calling her this afternoon"),
-    note(J2041, LUKE.uuid, `${TODAY} 08:15:00`, "@isaacsmith thanks, she's expecting you"),
+    note(J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary to discuss"),
+    note(J2041, LYLE.uuid, "2026-09-22 09:42:00", "her number is on the card"),
+    note(J2041, ISAAC.uuid, "2026-09-22 15:10:00", "@lyleirving calling her this afternoon"),
+    note(J2041, LYLE.uuid, `${TODAY} 08:15:00`, "@isaacsmith thanks, she's expecting you"),
   ]);
 
   it("heads the conversation with who asked and when they asked, whatever came after", () => {
-    expect(conversationHead(c!, TODAY)).toEqual({ who: "Luke Ingold", rest: " to you, Mon 21 Sept, 1:42 pm" });
+    expect(conversationHead(c!, TODAY)).toEqual({ who: "Lyle Irving", rest: " to you, Mon 21 Sept, 1:42 pm" });
   });
 
   it("says who each later message was to: you to him, him to you, and his note on the job to nobody", () => {
     const heads = c!.messages.slice(1).map((m) => messageHead(m, c!, TODAY));
     expect(heads).toEqual([
-      { who: "Luke Ingold", rest: ", Tue 22 Sept, 9:42 am" },
-      { who: "You", rest: " to Luke, Tue 22 Sept, 3:10 pm" },
-      { who: "Luke Ingold", rest: " to you, 8:15 am" },
+      { who: "Lyle Irving", rest: ", Tue 22 Sept, 9:42 am" },
+      { who: "You", rest: " to Lyle, Tue 22 Sept, 3:10 pm" },
+      { who: "Lyle Irving", rest: " to you, 8:15 am" },
     ]);
   });
 });
@@ -82,30 +82,30 @@ describe("over the ask and in the thread", () => {
 describe("what is lit", () => {
   it("is his answer, while it is today's and yours hasn't followed it", () => {
     const notes = [
-      note(J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
-      note(J2041, ISAAC.uuid, "2026-09-22 15:10:00", "@lukeingold calling her this afternoon"),
-      note(J2041, LUKE.uuid, `${TODAY} 08:15:00`, "@isaacsmith thanks"),
+      note(J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
+      note(J2041, ISAAC.uuid, "2026-09-22 15:10:00", "@lyleirving calling her this afternoon"),
+      note(J2041, LYLE.uuid, `${TODAY} 08:15:00`, "@isaacsmith thanks"),
     ];
     const [c] = talk(notes);
     expect(litMessage(c!)).toEqual({ head: false, id: "n3" });
-    const [answered] = talk([...notes, note(J2041, ISAAC.uuid, `${TODAY} 09:00:00`, "@lukeingold done")]);
+    const [answered] = talk([...notes, note(J2041, ISAAC.uuid, `${TODAY} 09:00:00`, "@lyleirving done")]);
     expect(litMessage(answered!)).toBeNull();
   });
 
   it("is the whole conversation when the ask itself is today's", () => {
-    const [c] = talk([note(J2041, LUKE.uuid, `${TODAY} 07:00:00`, "@isaacsmith call Mary")]);
+    const [c] = talk([note(J2041, LYLE.uuid, `${TODAY} 07:00:00`, "@isaacsmith call Mary")]);
     expect(litMessage(c!)).toEqual({ head: true });
   });
 
   it("is nothing for a conversation from before today", () => {
-    const [c] = talk([note(J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith call Mary")]);
+    const [c] = talk([note(J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith call Mary")]);
     expect(litMessage(c!)).toBeNull();
   });
 });
 
 describe("under it", () => {
   it("is the job's door, Reply to the job in ServiceM8, and where it came from", () => {
-    const [c] = talk([note(J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith call Mary")]);
+    const [c] = talk([note(J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith call Mary")]);
     expect(conversationUnder(c!, WHO)).toEqual({
       job: { uuid: J2041, label: "2041 Wollstonecraft" },
       tasks: [],
@@ -120,7 +120,7 @@ describe("under it", () => {
      gone, whatever the job was called. */
   it("is no door and no Reply for a deleted job, and says it has gone, in #809's words exactly", () => {
     const [c] = talk(
-      [note(J2749, LUKE.uuid, "2026-09-09 10:04:00", "@isaacsmith can you advise Holly")],
+      [note(J2749, LYLE.uuid, "2026-09-09 10:04:00", "@isaacsmith can you advise Holly")],
       new Map([[J2749, { label: "2749 Woolloomooloo", live: false }]]),
     );
     expect(conversationUnder(c!, WHO)).toEqual({
@@ -133,7 +133,7 @@ describe("under it", () => {
   });
 
   it("offers no Reply for a job whose id ServiceM8 could not open", () => {
-    const [c] = talk([note("j-2041", LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith call Mary")], new Map([
+    const [c] = talk([note("j-2041", LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith call Mary")], new Map([
       ["j-2041", { label: "2041 Wollstonecraft", live: true }],
     ]));
     expect(conversationUnder(c!, WHO)).toMatchObject({ job: { uuid: "j-2041" }, reply: null });
@@ -144,7 +144,7 @@ describe("under it", () => {
    it — the Diary spec's words, verbatim. */
 describe("the task an ask made", () => {
   const asked = (tasks: DiaryConversation["tasks"], jobs?: Map<string, { label: string; live: boolean }>) => {
-    const [c] = talk([note(J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith call Mary")], jobs);
+    const [c] = talk([note(J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith call Mary")], jobs);
     return { ...c!, tasks };
   };
   const t = (over: Partial<DiaryConversation["tasks"][number]> = {}): DiaryConversation["tasks"][number] => ({
@@ -179,7 +179,7 @@ describe("the task an ask made", () => {
     expect(conversationUnder(oneDone, WHO).tasks).toEqual([{ text: "1 task for you", ids: ["t-fans"] }]);
   });
 
-  /* A manager gave the task Luke's ask made to Leo: it is Leo's now, and
+  /* A manager gave the task Lyle's ask made to Leo: it is Leo's now, and
      the door says so, as an entry's does. */
   it("says whose a task given away since is, one door each, yours first", () => {
     expect(conversationUnder(asked([t({ ownerId: "s-leo" })]), WHO).tasks).toEqual([
@@ -239,9 +239,9 @@ describe("the item a door names", () => {
   /* built in each test, after the note numbers start again */
   const feedOf = () => {
     const conversations: DiaryConversation[] = talk([
-      note(J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
-      note(J2041, ISAAC.uuid, "2026-09-22 15:10:00", "@lukeingold calling her"),
-      note(J2041, LUKE.uuid, "2026-09-23 08:00:00", "@isaacsmith and the quote?"),
+      note(J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
+      note(J2041, ISAAC.uuid, "2026-09-22 15:10:00", "@lyleirving calling her"),
+      note(J2041, LYLE.uuid, "2026-09-23 08:00:00", "@isaacsmith and the quote?"),
     ]);
     return diaryFeed({ entries: [entry], conversations, day: TODAY, mentions: true, entriesCut: false, syncedAt: null });
   };
@@ -249,9 +249,9 @@ describe("the item a door names", () => {
   it("finds an entry by its id, and a conversation by any of its notes", () => {
     const feed = feedOf();
     expect(diaryItemOf(feed, { kind: "entry", ids: ["e1"] })).toBe("entry:e1");
-    expect(diaryItemOf(feed, { kind: "conversation", ids: ["n1"] })).toBe(`mention:${J2041}:u-luke`);
+    expect(diaryItemOf(feed, { kind: "conversation", ids: ["n1"] })).toBe(`mention:${J2041}:u-lyle`);
     // a second ask of his, which joined the first one's conversation
-    expect(diaryItemOf(feed, { kind: "conversation", ids: ["n3"] })).toBe(`mention:${J2041}:u-luke`);
+    expect(diaryItemOf(feed, { kind: "conversation", ids: ["n3"] })).toBe(`mention:${J2041}:u-lyle`);
   });
 
   it("finds nothing the diary does not hold, or of another kind", () => {
@@ -285,8 +285,8 @@ describe("what a door can land on", () => {
      for. */
   it("is every entry and every note the diary holds, and nothing past its horizon", () => {
     const conversations = talk([
-      note(J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
-      note(J2041, ISAAC.uuid, "2026-09-22 15:10:00", "@lukeingold calling her"),
+      note(J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
+      note(J2041, ISAAC.uuid, "2026-09-22 15:10:00", "@lyleirving calling her"),
     ]);
     const feed = diaryFeed({
       entries: [entryOn("e-now", TODAY), entryOn("e-july", "2026-07-20")],
@@ -313,18 +313,18 @@ describe("what a door can land on", () => {
   it("holds a reply of yours from HeyTiff as your entry, and a door to it lands on its conversation", () => {
     const reply: DiaryEntry = { ...entryOn("wn-reply", TODAY), said: "on my way" };
     const conversations = buildConversations({
-      notes: [note(J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary")],
+      notes: [note(J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary")],
       me: { uuid: ISAAC.uuid, handle: ISAAC.handle },
-      people: [ISAAC, LUKE],
+      people: [ISAAC, LYLE],
       jobs: new Map([[J2041, { label: "2041 Wollstonecraft", live: true }]]),
       today: TODAY,
-      replies: [{ id: "wn-reply", to: "n1", jobUuid: J2041, words: "@lukeingold on my way", at: `${TODAY} 07:30:00`, savedAt: `${TODAY}T07:30:00Z`, line: null }],
+      replies: [{ id: "wn-reply", to: "n1", jobUuid: J2041, words: "@lyleirving on my way", at: `${TODAY} 07:30:00`, savedAt: `${TODAY}T07:30:00Z`, line: null }],
     });
     const feed = diaryFeed({ entries: [reply], conversations, day: TODAY, mentions: true, entriesCut: false, syncedAt: null });
     const holds = diaryHolds(feed);
     expect([...holds.entries]).toEqual(["wn-reply"]);
     expect([...holds.notes]).toEqual(["n1"]);
-    expect(diaryItemOf(feed, { kind: "entry", ids: ["wn-reply"] })).toBe(`mention:${J2041}:u-luke`);
+    expect(diaryItemOf(feed, { kind: "entry", ids: ["wn-reply"] })).toBe(`mention:${J2041}:u-lyle`);
     expect(diaryItemOf(feed, { kind: "conversation", ids: ["wn-reply"] })).toBeNull();
     expect(diaryItemOf(feed, { kind: "entry", ids: ["n1"] })).toBeNull();
   });

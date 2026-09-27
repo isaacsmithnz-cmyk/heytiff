@@ -6,7 +6,7 @@ import type { LinePlanRow } from "@/lib/calendar/line";
 /* WHAT TIFF WILL FILE, AS SHE SAYS IT — pure.
 
    The plan is a list inside Tiff's turn, one row per thing, each read the
-   way she would say it: who, then what, then when. "**Luke**, the Bellevue
+   way she would say it: who, then what, then when. "**Lyle**, the Bellevue
    Hill head is on the ute". A task with nobody on it is the one thing she
    cannot work out, so its row asks instead: "**Who** books 3323 in" beside
    "Needs an answer". The other lanes name themselves by where they land.
@@ -21,7 +21,7 @@ export type PlanRowView = {
   index: number;
   /** The bold word that leads the row: a first name, "Who", or the lane. */
   lead: string;
-  /** What joins the lead to the rest: "**Luke**, the head is on the ute"
+  /** What joins the lead to the rest: "**Lyle**, the head is on the ute"
       reads with a comma, and "**Who** books 3323 in" is one clause. */
   join: ", " | " ";
   /** The rest of the row: the title and, for a task, when. */

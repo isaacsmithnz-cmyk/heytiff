@@ -10,8 +10,8 @@
    regex would make a task of "@isaacsmith thanks mate" and none of "can you
    give Mary a ring"; a person reads both at once, and so does this.
 
-   IT READS WHO EACH PART IS TO. A note may be written to Luke and to you
-   ("@lukeingold send the warranty stuff / @isaacsmith send David the
+   IT READS WHO EACH PART IS TO. A note may be written to Lyle and to you
+   ("@lyleirving send the warranty stuff / @isaacsmith send David the
    builder's contact"), so the reader gets it with nothing taken out and
    every handle said by name (sm8-mentions' namedNote), and the prompt says
    only what it asks of you is your task. The real read of 2026-09-26 was
@@ -128,7 +128,7 @@ export type AskInput = {
       person's own by their first (sm8-mentions' namedNote), so a note
       written to several people keeps who each part is to. */
   text: string;
-  /** "Luke Ingold". */
+  /** "Lyle Irving". */
   asker: string;
   /** Who it asks: "Isaac Smith". */
   person: string;
@@ -269,7 +269,7 @@ export function askSystemPrompt(first: string): string {
     "title: for do and question, the task in a few words, as the person would",
     "write it on their own list: start with a verb, name who to call or tell",
     "where the note does, and end with the job ('Call Mary about 2041",
-    "Wollstonecraft', 'Tell Luke how many fans for 3294 Rozelle'). Sentence",
+    "Wollstonecraft', 'Tell Lyle how many fans for 3294 Rozelle'). Sentence",
     `case, no full stop, under ${TITLE_MAX} characters, in ${RECORD_LANGUAGE}. Empty for none.`,
     "",
     "due_date: YYYY-MM-DD when the note says when it wants it ('today', 'by",

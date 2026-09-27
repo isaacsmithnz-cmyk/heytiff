@@ -137,6 +137,13 @@ const side = () => document.querySelector<HTMLElement>(".hd-cal-side")!;
 const field = () => screen.getByTestId("tiff-box");
 /** What is in view: the toolbar's heading (the rail's groups are headings too). */
 const rangeTitle = () => document.querySelector<HTMLElement>(".hd-cal-rt")!;
+/** A day of Year, by its name. Every day of Year is a button, and asking
+    the whole page for a button by name computes every one's name. */
+const yearDay = (name: string) => {
+  const el = document.querySelector<HTMLElement>(`.hd-cal-yg button[aria-label="${name}"]`);
+  if (!el) throw new Error(`no day of Year named "${name}"`);
+  return el;
+};
 /** A box on screen, for a layout jsdom does not have. */
 const at = (top: number, height: number) =>
   ({ top, bottom: top + height, left: 0, right: 0, width: 0, height, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
@@ -205,9 +212,15 @@ describe("its own toolbar", () => {
 
     await user.click(viewBtn("Year"));
     expect(title()).toHaveTextContent("Sept 2026 – Aug 2027");
-    expect(screen.getByRole("button", { name: "Earlier" })).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByRole("button", { name: "Later" })).toHaveAttribute("aria-disabled", "true");
-    await user.click(screen.getByRole("button", { name: "Later" }));
+    expect(within(document.querySelector<HTMLElement>(".hd-cal-tb")!).getByRole("button", { name: "Earlier" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(within(document.querySelector<HTMLElement>(".hd-cal-tb")!).getByRole("button", { name: "Later" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await user.click(within(document.querySelector<HTMLElement>(".hd-cal-tb")!).getByRole("button", { name: "Later" }));
     expect(title()).toHaveTextContent("Sept 2026 – Aug 2027");
   });
 
@@ -469,7 +482,7 @@ describe("one choice across the views", () => {
     try {
       draw();
       await user.click(viewBtn("Year"));
-      await user.click(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day, School holidays" }));
+      await user.click(yearDay("Mon 5 Oct: Labour Day, School holidays"));
       await user.click(viewBtn("4 weeks"));
       expect(within(agenda()).getByRole("button", { name: "Mon 5 Oct" })).toHaveAttribute("aria-pressed", "true");
       expect(agenda().scrollTop).toBe(900 - 100 - 96);
@@ -488,8 +501,8 @@ describe("one choice across the views", () => {
     expect(heading()).toHaveTextContent("Labour Day");
     expect(panel()).toHaveTextContent("Public holiday in NSW.");
     expect(within(panel()).getByRole("list", { name: "Key" })).toHaveTextContent("Admin overdue");
-    expect(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day, School holidays" })).toHaveAttribute("aria-pressed", "true");
-    await user.click(screen.getByRole("button", { name: "Tue 29 Sept: School holidays" }));
+    expect(yearDay("Mon 5 Oct: Labour Day, School holidays")).toHaveAttribute("aria-pressed", "true");
+    await user.click(yearDay("Tue 29 Sept: School holidays"));
     expect(heading()).toHaveTextContent("Tuesday 29 September");
     await user.click(viewBtn("4 weeks"));
     expect(within(agenda()).getByRole("button", { name: "Tue 29 – Wed 30 Sept, nothing on" })).toHaveAttribute(
@@ -521,7 +534,7 @@ describe("one choice across the views", () => {
     expect(screen.getByRole("button", { name: /^Thu 1 Oct: Toolbox talk/ })).toHaveAttribute("aria-pressed", "false");
 
     await user.click(viewBtn("Year"));
-    const labour = () => screen.getByRole("button", { name: "Mon 5 Oct: Labour Day, School holidays" });
+    const labour = () => yearDay("Mon 5 Oct: Labour Day, School holidays");
     expect(labour()).toHaveAttribute("aria-pressed", "false");
     await user.click(labour());
     expect(labour()).toHaveAttribute("aria-pressed", "true");
@@ -663,19 +676,21 @@ describe("a day, picked", () => {
     const user = userEvent.setup();
     draw();
     await user.click(viewBtn("Year"));
-    const empty = screen.getByRole("button", { name: "Wed 14 Oct" });
+    const empty = yearDay("Wed 14 Oct");
+    // a button to a reader too: asked for by role and name, in its month
+    expect(within(screen.getByRole("region", { name: "October" })).getByRole("button", { name: "Wed 14 Oct" })).toBe(empty);
     expect(empty).toHaveAttribute("aria-pressed", "false");
     await user.click(empty);
     expect(empty).toHaveAttribute("aria-pressed", "true");
     expect(heading()).toHaveTextContent("Wednesday 14 October");
     expect(within(panel()).getByText("Nothing on.")).toBeInTheDocument();
     expect(field()).toHaveFocus();
-    await user.click(screen.getByRole("button", { name: "Mon 5 Oct: Labour Day, School holidays" }));
+    await user.click(yearDay("Mon 5 Oct: Labour Day, School holidays"));
     expect(heading()).toHaveTextContent("Monday 5 October");
     expect(listed()).toEqual(["Labour Day", "School holidays"]);
     expect(empty).toHaveAttribute("aria-pressed", "false");
     // today is marked as today, whatever is picked
-    expect(screen.getByRole("button", { name: "Thu 24 Sept" })).toHaveAttribute("aria-current", "date");
+    expect(yearDay("Thu 24 Sept")).toHaveAttribute("aria-current", "date");
   });
 
   it("stays picked whatever the filters hide, its list showing what is left", async () => {
@@ -702,10 +717,7 @@ describe("a day, picked", () => {
     expect(within(agenda()).getByRole("button", { name: "Thu 1 Oct" })).toHaveAttribute("aria-pressed", "true");
     expect(within(agenda()).getByRole("button", { name: "Toolbox talk" })).toHaveAttribute("aria-pressed", "false");
     await user.click(viewBtn("Year"));
-    expect(screen.getByRole("button", { name: "Thu 1 Oct: School holidays, Toolbox talk" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(yearDay("Thu 1 Oct: School holidays, Toolbox talk")).toHaveAttribute("aria-pressed", "true");
     expect(heading()).toHaveTextContent("Thursday 1 October");
   });
 });
@@ -1458,9 +1470,9 @@ describe("motion", () => {
     runs = [];
     viewBtn("Year").focus();
     await user.keyboard("{Enter}");
-    screen.getByRole("button", { name: "Earlier" }).focus();
+    within(document.querySelector<HTMLElement>(".hd-cal-tb")!).getByRole("button", { name: "Earlier" }).focus();
     await user.keyboard("{Enter}");
-    screen.getByRole("button", { name: "Thu 1 Oct: School holidays, Toolbox talk" }).focus();
+    yearDay("Thu 1 Oct: School holidays, Toolbox talk").focus();
     await user.keyboard("{Enter}");
     expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Thursday 1 October");
     expect(runs).toEqual([]);
@@ -1682,7 +1694,7 @@ describe("motion", () => {
     await press(screen.getByRole("button", { name: "Today" }));
     expect(rangeTitle()).toHaveTextContent("September 2026");
     await press(viewBtn("Year"));
-    await press(screen.getByRole("button", { name: "Wed 14 Oct" }));
+    await press(yearDay("Wed 14 Oct"));
     expect(within(panel()).getByRole("heading", { level: 3 })).toHaveTextContent("Wednesday 14 October");
     await press(viewBtn("4 weeks"));
     await press(within(agenda()).getByRole("button", { name: "Fri 25 – Sun 27 Sept, nothing on" }));

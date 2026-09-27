@@ -18,10 +18,15 @@ import { createAgreement } from "./workboard-maintenance";
    foundations migration (blocked state, money target, variations, claims,
    scope, milestones, hand-made visits with per-visit bring lists).
 
-   Same two capability tiers as the rest of the Workboard:
+   The two capability tiers of the rest of the Workboard, and money on top:
 
-     MANAGE (`workboard_manage`) — state calls: blocking, money, variations,
-             claims, scope, milestones, creating and deleting trips.
+     MANAGE (`workboard_manage`) — state calls: blocking, scope, milestones,
+             dates, the hours budget, creating and deleting trips.
+     MONEY (`workboard_manage` AND `workboard_money`) — anything that writes
+             a dollar figure: the budget, variations, claims. Reading them
+             has always needed `workboard_money`; writing them must too, or
+             an admin (manage by default, never money) could set a total they
+             are not allowed to see by posting straight to the action.
      TICKING (`workboard`) — site facts: the bring list. The tech who says
              "chuck the vac pump on next visit's list" IS the record; making
              them radio an admin recreates the exact gap this board closes.
@@ -38,6 +43,10 @@ const NO_VIEW: ProjectsResult = { ok: false, error: "You don't have access to th
 const NO_MANAGE: ProjectsResult = {
   ok: false,
   error: "You don't have access to manage the Workboard.",
+};
+const NO_MONEY: ProjectsResult = {
+  ok: false,
+  error: "You don't have access to the Workboard's money.",
 };
 const GONE: ProjectsResult = { ok: false, error: "That project is no longer here." };
 
@@ -193,6 +202,7 @@ export async function setProjectBudget(
   const ctx = await context();
   if (!ctx) return NOT_SIGNED_IN;
   if (!(await can("workboard_manage"))) return NO_MANAGE;
+  if (!(await can("workboard_money"))) return NO_MONEY;
   if (!(await projectIn(ctx.orgId, projectId))) return GONE;
 
   let cents: number | null = null;
@@ -217,6 +227,11 @@ export async function setProjectBudget(
   return { ok: true };
 }
 
+/** HOURS ARE NOT MONEY, so this one asks only for manage. The loaders select
+    `hours_budget` for every reader and the board shows "40 of 48 h" to the
+    techs doing the hours; its row lives in the Dates card, not the Money one.
+    Turning hours into dollars needs a charge-out rate, and that is
+    `financials`, which nothing here reads. */
 export async function setProjectHoursBudget(
   projectId: string,
   hours: number | null
@@ -490,6 +505,7 @@ export async function addVariation(
   const ctx = await context();
   if (!ctx) return NOT_SIGNED_IN;
   if (!(await can("workboard_manage"))) return NO_MANAGE;
+  if (!(await can("workboard_money"))) return NO_MONEY;
   if (!(await projectIn(ctx.orgId, projectId))) return GONE;
 
   const title = trim(input.title, 200);
@@ -526,6 +542,7 @@ export async function decideVariation(
   const ctx = await context();
   if (!ctx) return NOT_SIGNED_IN;
   if (!(await can("workboard_manage"))) return NO_MANAGE;
+  if (!(await can("workboard_money"))) return NO_MONEY;
   if (!["approved", "declined", "pending"].includes(decision)) {
     return { ok: false, error: "That isn't a decision this ledger knows." };
   }
@@ -565,6 +582,7 @@ export async function removeVariation(variationId: string): Promise<ProjectsResu
   const ctx = await context();
   if (!ctx) return NOT_SIGNED_IN;
   if (!(await can("workboard_manage"))) return NO_MANAGE;
+  if (!(await can("workboard_money"))) return NO_MONEY;
 
   const { data } = await supabaseAdmin
     .from("project_variations")
@@ -597,6 +615,7 @@ export async function addClaim(
   const ctx = await context();
   if (!ctx) return NOT_SIGNED_IN;
   if (!(await can("workboard_manage"))) return NO_MANAGE;
+  if (!(await can("workboard_money"))) return NO_MONEY;
   if (!(await projectIn(ctx.orgId, projectId))) return GONE;
 
   const label = trim(input.label, 200);
@@ -652,6 +671,7 @@ export async function setClaimPaid(
   const ctx = await context();
   if (!ctx) return NOT_SIGNED_IN;
   if (!(await can("workboard_manage"))) return NO_MANAGE;
+  if (!(await can("workboard_money"))) return NO_MONEY;
 
   const { data } = await supabaseAdmin
     .from("project_claims")
@@ -702,6 +722,7 @@ export async function removeClaim(claimId: string): Promise<ProjectsResult> {
   const ctx = await context();
   if (!ctx) return NOT_SIGNED_IN;
   if (!(await can("workboard_manage"))) return NO_MANAGE;
+  if (!(await can("workboard_money"))) return NO_MONEY;
 
   const { data } = await supabaseAdmin
     .from("project_claims")

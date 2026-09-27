@@ -57,7 +57,7 @@ beforeEach(() => {
   updates.length = 0;
   deletes.length = 0;
   rows = {};
-  caps = new Set(["workboard", "workboard_manage"]);
+  caps = new Set(["workboard", "workboard_manage", "workboard_money"]);
 });
 
 describe("setClaimPaid", () => {

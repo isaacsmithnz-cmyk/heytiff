@@ -111,6 +111,44 @@ function Defs({ ground }: { ground: Ground }) {
   );
 }
 
+/** The gradients one skin's marks draw from, for a layer that draws the rings
+    without a button of its own (the Tiff modal's flying rings). */
+export const TiffMarkDefs = Defs;
+
+/** A ring's line is drawn at r=48 of its 100 box: 0.96 of the box across.
+    Anything that takes over from a ring's line starts at this size. */
+export const RING_DRAWN = (2 * R) / 100;
+
+/** A ring's own colour, faint, on each ground: A teal, B blue. */
+export const RING_COLOUR: Record<Ground, Record<"a" | "b", string>> = {
+  ink: { a: "var(--mark-teal)", b: "var(--mark-blue-l)" },
+  paper: { a: "var(--mark-teal-d)", b: "var(--mark-blue)" },
+};
+
+/* A GIMBAL RING THAT FLIES (the Tiff modal, ./tiff/modal/rings). The
+   button's run is a 120° dash on a circle under non-scaling-stroke, and
+   Chrome lays that dash out in screen pixels: on a 31px ring it covers the
+   whole ring, and on a 700px ring it repeats eight times. So a flying ring
+   carries both: `.runfull` is the button's own circle, identical to it as
+   it leaves, and `.runarc` a true 120° arc, the same run at any size. The
+   flight hands over from the first to the second while the ring is small. */
+export function FlyingRingSvg({ axis, ground, className }: { axis: "a" | "b"; ground: Ground; className: string }) {
+  const run = `url(#${axis === "a" ? IDS[ground].runA : IDS[ground].runB})`;
+  return (
+    <svg className={className} viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+      <circle className="tiffbtn-ring" cx="50" cy="50" r={R} style={{ stroke: RING_COLOUR[ground][axis] }} vectorEffect="non-scaling-stroke" />
+      <circle className="runfull" cx="50" cy="50" r={R} stroke={run} pathLength={360} strokeDasharray="120 240" vectorEffect="non-scaling-stroke" />
+      <path
+        className="runarc"
+        d={`M ${50 + R} 50 A ${R} ${R} 0 0 1 ${HEAD.x.toFixed(3)} ${HEAD.y.toFixed(3)}`}
+        stroke={run}
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+}
+
 function Layer({ stroke, z, opacity, face }: { stroke: string; z: number; opacity: number; face?: boolean }) {
   return (
     <svg
@@ -206,10 +244,10 @@ export function TiffMark({ ground }: { ground: Ground }) {
    header and ask bar, the palette's footer, and the round end of a Tiff
    button (`.tiffkey`).
 
-   IT STANDS ON PAPER, every one of them. Its one mark on ink was the
-   capture card's answer ribbon, which went with the old capture UI
-   (2026-09-27), so the glyph takes no ground: the ink skin is the frame's
-   button's alone (`TiffMark`, `.tiffbtn-topbar`).
+   THE GROUND DECIDES ITS SKIN, as it does the button's. Every one stands on
+   paper but the Tiff modal's own, beside the context in its header: the
+   modal is ink (Isaac, 2026-09-27, "dark, everywhere"), so that one takes
+   the frame's skin (`.tiffmk-ink`, with `.tiffbtn-topbar`).
 
    WORKING it runs them at the thinking pace: a wait, a valuation, a receipt
    being read. It starts when the work starts and goes when it is done.
@@ -223,11 +261,14 @@ export function TiffMark({ ground }: { ground: Ground }) {
    Sized by `size`, or by the slot's stylesheet when the slot has more than
    one size, because an inline size would beat every one of them. */
 export function TiffGlyph({
+  ground = "paper",
   working = false,
   quiet = false,
   size,
   label,
 }: {
+  /** The ground it stands on: paper everywhere but the Tiff modal's ink. */
+  ground?: Ground;
   working?: boolean;
   /** Moves only while its control is hovered or focused: for a control repeated down a list. */
   quiet?: boolean;
@@ -237,11 +278,11 @@ export function TiffGlyph({
 }) {
   return (
     <span
-      className={`tiffmk tiffmk-paper${working ? " working" : ""}${quiet ? " quiet" : ""}`}
+      className={`tiffmk tiffmk-${ground}${working ? " working" : ""}${quiet ? " quiet" : ""}`}
       style={{ "--tiffbtn-mask": MARK_MASK, ...(size ? { "--tb": `${size}px` } : {}) } as CSSProperties}
       {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}
     >
-      <TiffMark ground="paper" />
+      <TiffMark ground={ground} />
     </span>
   );
 }

@@ -120,6 +120,10 @@
   --ring:0 0 0 2px var(--paper), 0 0 0 4px var(--ink);
   --ring-bad:0 0 0 2px var(--paper), 0 0 0 4px var(--bad-t);
   --ring-warn:0 0 0 2px var(--paper), 0 0 0 4px var(--warn-t);
+  /* the ring on ink (the Tiff modal, 2026-09-27, dark): the same two rings the
+     other way round, ink inside and paper out, so it shows on the dark ground
+     where the paper ring's ink edge would vanish (law 32) */
+  --ring-ink:0 0 0 2px var(--ink2), 0 0 0 4px var(--paper);
   --shadow-overlay:0 12px 32px rgba(10,12,20,.16);
   --scrim:rgba(10,11,16,.45); /* the one veil under a modal or a sheet; a lightbox is darker on purpose */
 
@@ -142,7 +146,7 @@
   --day-ph:#8A2BE2; --day-ph-d:#7322c4; --day-ph-tint:rgba(138,43,226,.09);
   --day-off:var(--q); --day-off-tint:rgba(120,126,140,.1);
   --day-empty:#d8dbe1; --day-empty-tint:rgba(216,219,225,.14);
-  --ok-tint:rgba(25,107,45,.12); --bad:#e0264f; --bad-tint:rgba(224,38,79,.1); --warn:#F0A431; --warn-tint:rgba(240,164,49,.13); --info-tint:rgba(37,84,216,.1);
+  --ok-tint:rgba(25,107,45,.12); --bad:#e0264f; /* words in the bad colour on ink (the dark Tiff modal's error): --bad is 4.27:1 on --ink2, this is 6.6:1 */ --bad-on-ink:#ff5c7a; --bad-tint:rgba(224,38,79,.1); --warn:#F0A431; --warn-tint:rgba(240,164,49,.13); --info-tint:rgba(37,84,216,.1);
   --t-fast:120ms; --t-move:200ms; --ease:ease-out;
   --z-raised:1; --z-sticky:10; --z-overlay:100; --z-modal:200; --z-toast:300;
   --r-control:6px; --r-button:10px; --r-card:16px; --r-pill:999px;

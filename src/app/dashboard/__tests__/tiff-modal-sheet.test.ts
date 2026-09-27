@@ -5,12 +5,14 @@ import path from "node:path";
    about it. A stylesheet-text guard, like its neighbours: it cannot resolve a
    cascade, but it can hold the facts the modal stands on.
 
-   - It floats: paper, the card radius, the one overlay shadow, the one scrim,
-     the modal layer (the layer itself is held in sheet-overlay-layers).
+   - It floats: ink (the frame's own, "dark, everywhere", 2026-09-27), 780
+     wide, the card radius, the one overlay shadow, the one scrim, the modal
+     layer (the layer itself is held in sheet-overlay-layers).
    - Its words are readable: every colour a `.tm-` rule sets on text is one of
-     four tokens, and each clears 4.5:1 on paper and on the hover tint.
-   - The tick on a row it will file is ink: colour only where it means
-     something, and the OK colour is a state.
+     four tokens on paper (the page's entry box) or four on ink (the modal),
+     and each clears 4.5:1 on its ground and that ground's hover tint.
+   - The tick on a row it will file is ink, or paper on the dark modal:
+     colour only where it means something, and the OK colour is a state.
    - The dots may leave it while they gather from the button, and the arrival
      that starts lit is motion-only.
    - Every control in it, and the box you type into, wears the ring from
@@ -47,7 +49,9 @@ function mediaRules(query: RegExp): (readonly [string, string])[] {
 const MODAL = fs.readFileSync(path.join(process.cwd(), "src/components/tiff/modal/tiff-modal.tsx"), "utf8");
 const BOX = fs.readFileSync(path.join(process.cwd(), "src/components/tiff/modal/tiff-box.tsx"), "utf8");
 /** The family's views: the modal, and the entry box that opens it. */
-const VIEW = `${MODAL}\n${BOX}`;
+const RINGS = fs.readFileSync(path.join(process.cwd(), "src/components/tiff/modal/tiff-rings.tsx"), "utf8");
+/** The family's views: the modal, its rings' layers, and the entry box that opens it. */
+const VIEW = `${MODAL}\n${RINGS}\n${BOX}`;
 const selectors = (sel: string) => sel.split(",").map((s) => s.trim());
 
 const body = (selector: string) => {
@@ -87,13 +91,21 @@ const PAPER = [255, 255, 255];
 const HOVER = rgbaOver(token("tint"), PAPER);
 
 describe("the Tiff modal floats", () => {
-  it("is paper on the card radius, on the modal layer", () => {
+  it("is ink on the card radius, 780 wide, on the modal layer", () => {
     const tm = body(".tm");
-    expect(tm).toMatch(/background:var\(--paper\)/);
+    expect(tm).toMatch(/background:var\(--ink2\)/);
+    expect(tm).toMatch(/color:var\(--paper\)/);
     expect(tm).toMatch(/border-radius:var\(--r-card\)/);
     expect(tm).toMatch(/z-index:var\(--z-modal\)/);
     expect(tm).toMatch(/top:104px/);
-    expect(tm).toMatch(/width:min\(600px/);
+    expect(tm).toMatch(/width:min\(780px/);
+  });
+
+  it("puts its rings' layers on its own layer, under a pointer never", () => {
+    const layers = body(".tm-fill, .tm-over");
+    expect(layers).toMatch(/position:fixed/);
+    expect(layers).toMatch(/z-index:var\(--z-modal\)/);
+    expect(layers).toMatch(/pointer-events:none/);
   });
 
   it("wears the one overlay shadow over the one scrim", () => {
@@ -107,22 +119,34 @@ describe("the Tiff modal floats", () => {
 });
 
 describe("its words are readable", () => {
-  const ALLOWED = ["ink", "q", "warn-t", "bad-t"];
+  /* On paper: the entry box on the page, which keeps the light rules. On ink:
+     the modal itself (2026-09-27, "dark, everywhere"). */
+  const LIGHT = ["ink", "q", "warn-t", "bad-t"];
+  const DARK = ["paper", "on-ink-q", "warn", "bad-on-ink"];
+  const INK = hex(token("ink2"));
+  const INK_HOVER = rgbaOver(token("on-ink-tint"), INK);
+  const onInk = (name: string, ground: number[]) => (token(name).startsWith("rgba") ? rgbaOver(token(name), ground) : colour(name));
 
-  it("sets text only in the four tokens", () => {
+  it("sets text only in the four tokens of each ground", () => {
     const set = new Set<string>();
     for (const [, b] of tmRules) for (const m of b.matchAll(/(?:^|[;\s{])color\s*:\s*([^;]+)/g)) set.add(m[1]!.trim());
     expect(set.size).toBeGreaterThan(0);
-    for (const v of set) expect(ALLOWED.map((t) => `var(--${t})`)).toContain(v);
+    for (const v of set) expect([...LIGHT, ...DARK].map((t) => `var(--${t})`)).toContain(v);
   });
 
-  it.each(ALLOWED)("--%s clears 4.5:1 on paper and on the hover tint", (name) => {
+  it.each(LIGHT)("--%s clears 4.5:1 on paper and on the hover tint", (name) => {
     expect(ratio(colour(name), PAPER)).toBeGreaterThanOrEqual(4.5);
     expect(ratio(colour(name), HOVER)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("draws the tick of a row it will file in ink, not the OK colour", () => {
+  it.each(DARK)("--%s clears 4.5:1 on ink and on its hover tint", (name) => {
+    expect(ratio(onInk(name, INK), INK)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(onInk(name, INK_HOVER), INK_HOVER)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("draws the tick of a row it will file in ink, or paper on ink, never the OK colour", () => {
     expect(body(".fg .tm-ok")).toMatch(/color:var\(--ink\)/);
+    expect(body(".fg .tm .tm-ok")).toMatch(/color:var\(--paper\)/);
     for (const [, b] of tmRules) expect(b).not.toMatch(/var\(--ok(-t)?\)/);
   });
 });
@@ -169,21 +193,35 @@ describe("the view and the sheet agree", () => {
   });
 
   it("ends the reply box and the entry box in the box's Tiff button", () => {
-    expect(MODAL).toMatch(/className="tiffbtn tiffbtn-box"/);
+    expect(MODAL).toMatch(/className="tiffbtn tiffbtn-box tiffbtn-onink"/);
     expect(MODAL).not.toMatch(/tiffbtn-sheet/);
     expect(BOX).toMatch(/<TiffButton where="box"/);
-    // one size rule for a box's button: the dock carries none of its own
+    // one size rule for a box's button on the page, and one in the modal (1.3x): the dock carries none of its own
     expect(rules.some(([sel]) => /\.tm-dock\s+\.tiffbtn/.test(sel))).toBe(false);
+    expect(body(".fg .tm .tiffbtn-box")).toMatch(/--tb:48px/);
   });
 
   it("gives the live words the live type on the element the settle reads", () => {
     expect(rules.some(([sel, b]) => sel.includes(".tm-turn.live .tm-words") && /font-size:20px/.test(b))).toBe(true);
+    // and the modal's, the step up on the scale
+    expect(rules.some(([sel, b]) => sel.includes(".fg .tm .tm-turn.live .tm-words") && /font-size:24px/.test(b))).toBe(true);
   });
 });
 
 describe("the keyboard and reduced motion", () => {
   /* Every control in the modal, and the words you click into to fix. */
   const RINGED = [".fg .tm-aimx", ".fg .tm-x", ".fg .tm-clear", ".fg .tm-rm", ".fg .tm-undo", ".fg .tm-words", ".fg .tm .pbtn", ".fg .tm-entry .pbtn"];
+
+  /* On ink the ring is the ring on ink: paper outside, so it shows (law 32). */
+  it.each(RINGED.filter((c) => c !== ".fg .tm-entry .pbtn").map((c) => c.replace(/^\.fg (\.tm )?/, ".fg .tm ")))(
+    "%s wears the ring on ink from the keyboard (law 32)",
+    (control) => {
+      const ringed = rules.some(
+        ([sel, b]) => selectors(sel).includes(`${control}:focus-visible`) && /box-shadow:var\(--ring-ink\)/.test(b)
+      );
+      expect(ringed).toBe(true);
+    }
+  );
 
   it.each(RINGED)("%s wears the ring from the keyboard (law 32)", (control) => {
     const ringed = rules.some(

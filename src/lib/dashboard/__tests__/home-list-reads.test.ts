@@ -222,3 +222,11 @@ it("reads the sending state and the account's zone once for the whole page", asy
   expect(readSm8WriteState).toHaveBeenCalledTimes(1);
   expect(fake.on("sm8_vendor")).toHaveLength(1);
 });
+
+/* PR D's Schedule reads the write state once and hands it on: a state
+   handed in is the one used, and the request's is never read for it */
+it("takes the state a caller hands in over the request's", async () => {
+  const over = await readBookingsOver(ORG, { from: TODAY, to: TOMORROW, rows: false }, NOW, { linked: true, tenantId: "vendor-handed" });
+  expect(readSm8WriteState).not.toHaveBeenCalled();
+  expect(over?.tenantId).toBe("vendor-handed");
+});

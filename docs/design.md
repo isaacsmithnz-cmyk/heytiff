@@ -1046,8 +1046,17 @@ Opened to listen, it asks ("needs to prompt you to talk to it"): "Go ahead,
 I'm listening" stands where your words will go, in the quiet colour, and
 your turn is named only once you have said something.
 
-The microphone opens when the modal opens to listen, and when you press the
-reply box's Tiff button. Nothing else opens it. The dock's cross stops: the
+The microphone opens when the modal opens to listen, when you press the
+reply box's Tiff button, and when she asks you something after words you
+said: she listens for the answer ("1 but have a text box that allows you to
+type instead"). After words you typed she waits at the reply box, because
+she answers the way you talk. Her quick answers stay while she listens. The
+listening dock is the reply box with the recording in it, "Type instead…"
+in its field. Clicking into the field keeps listening. The first key stops
+the recording ("as soon as you start typing, the recording will stop"), and
+the words go on in the same field. If you had already said something, those
+words are kept for you to fix, as clicking into them does. Nothing else
+opens the microphone. The dock's cross stops: the
 take is thrown away and you are back where you were, at the reply box or her
 question ("if I hit X down the bottom, it restarts the microphone"). Done
 with nothing said closes a modal that has nothing in it. In a conversation it

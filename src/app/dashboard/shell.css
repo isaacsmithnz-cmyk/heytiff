@@ -8635,7 +8635,8 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .fg .tm .tm-rec .wb2-capclock { font-size:16px; color:var(--paper); }
 .fg .tm .wb2-recdot { width:12px; height:12px; }
 .fg .tm .tm-box { gap:12px; min-height:56px; padding:4px 4px 4px 16px; border-color:var(--on-ink-line); background:var(--on-ink-tint); }
-.fg .tm .tm-box:focus-within { border-color:var(--paper); }
+/* the edge lights for the field, not for whatever in the box has focus: listening, Done has it and the box is not being typed in */
+.fg .tm .tm-box:has(> .tm-in:focus) { border-color:var(--paper); }
 .fg .tm .tm-in { height:48px; font-size:16px; color:var(--paper); caret-color:var(--paper); }
 .fg .tm .tm-in::placeholder { color:var(--on-ink-q); }
 .fg .tm .tm-err { margin-top:12px; font-size:16px; color:var(--bad-on-ink); }

@@ -290,8 +290,10 @@ export function TiffModal({
     ? [...c.turns, { key: c.live.key, who: "you", text: c.live.said ?? c.draft, enter: c.live.enter }]
     : c.turns;
   let lastYou = -1;
+  let lastTiff = -1;
   all.forEach((t, i) => {
     if (t.who === "you") lastYou = i;
+    else lastTiff = i;
   });
 
   const turnsRef = useRef<HTMLDivElement | null>(null);
@@ -388,7 +390,7 @@ export function TiffModal({
               turn={t}
               past={i < lastYou}
               live={c.live?.key === t.key && c.live.said === null ? (c.fixing ? "fix" : "words") : null}
-              active={i === all.length - 1}
+              question={c.questionOpen && i === lastTiff}
               c={c}
             />
           ))}
@@ -426,13 +428,14 @@ function TurnView({
   turn,
   past,
   live,
-  active,
+  question,
   c,
 }: {
   turn: ModalTurn;
   past: boolean;
   live: "words" | "fix" | null;
-  active: boolean;
+  /** Her question, still standing: asked, or asked and being listened for. */
+  question: boolean;
   c: Conversation;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -477,7 +480,7 @@ function TurnView({
     el.style.height = `${el.scrollHeight}px`;
   }, [live, c.draft, c.reading]);
 
-  const asking = active && c.stage === "asking";
+  const asking = question;
   /** Listening, and nothing said yet. */
   const asked = live === "words" && !c.draft.trim() && !c.interim.trim();
   const rows = turn.rows ?? [];
@@ -680,30 +683,6 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => vo
      twice, or close the modal on words still being read back. */
   return (
     <footer className="tm-dock" ref={ref} inert={mode === null}>
-      {held === "listen" && (
-        <div className="tm-bar">
-          <span className="tm-rec">
-            <span className="wb2-recdot" aria-hidden="true" />
-            <DictClock seconds={c.seconds} />
-          </span>
-          <span className="tm-sp" />
-          <button type="button" className="tm-clear" aria-label="Clear what you said" onClick={c.clear}>
-            <Icon name="x" size={20} />
-          </button>
-          <button
-            type="button"
-            className="pbtn primary"
-            ref={(el) => {
-              first.current = el;
-            }}
-            onClick={(e) => {
-              if (!c.done()) onEmpty(e.detail === 0);
-            }}
-          >
-            Done
-          </button>
-        </div>
-      )}
       {held === "fix" && (
         <div className="tm-bar">
           <span className="tm-sp" />
@@ -715,26 +694,54 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => vo
           </button>
         </div>
       )}
-      {held === "reply" && (
+      {/* LISTENING AND THE REPLY BOX ARE ONE BOX, so the words you start to
+          type while she listens stay where you are typing them: the same
+          field, kept by React across the two. Typing stops the recording
+          (`typeInstead`); clicking into it does not. */}
+      {(held === "listen" || held === "reply") && (
         <form
           className="tm-box"
           onSubmit={(e) => {
             e.preventDefault();
-            c.send();
+            if (held === "reply") c.send();
           }}
         >
+          {held === "listen" && (
+            <span className="tm-rec">
+              <span className="wb2-recdot" aria-hidden="true" />
+              <DictClock seconds={c.seconds} />
+            </span>
+          )}
           <input
             className="tm-in"
             ref={(el) => {
-              first.current = el;
+              if (held === "reply") first.current = el;
             }}
-            value={c.draft}
-            onChange={(e) => c.setDraft(e.target.value)}
-            placeholder="Reply to Tiff…"
-            aria-label="Reply to Tiff"
+            value={held === "listen" ? "" : c.draft}
+            onChange={(e) => (held === "listen" ? c.typeInstead(e.target.value) : c.setDraft(e.target.value))}
+            placeholder={held === "listen" ? "Type instead…" : "Reply to Tiff…"}
+            aria-label={held === "listen" ? "Type instead" : "Reply to Tiff"}
             autoComplete="off"
           />
-          {typed ? (
+          {held === "listen" ? (
+            <>
+              <button type="button" className="tm-clear" aria-label="Clear what you said" onClick={c.clear}>
+                <Icon name="x" size={20} />
+              </button>
+              <button
+                type="button"
+                className="pbtn primary"
+                ref={(el) => {
+                  first.current = el;
+                }}
+                onClick={(e) => {
+                  if (!c.done()) onEmpty(e.detail === 0);
+                }}
+              >
+                Done
+              </button>
+            </>
+          ) : typed ? (
             <button type="submit" className="pbtn primary">
               Send
             </button>

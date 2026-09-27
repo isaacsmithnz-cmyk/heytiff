@@ -241,7 +241,9 @@ export function useConversation({
   const filed = useRef<{ noteId?: string; ids: string[] }[]>([]);
   const awaitingVoice = useRef(false);
   /** Where the conversation was before this take: the reply box, or her question with its quick answers. */
-  const beforeTake = useRef<Stage>("editing");
+  const [takeFrom, setTakeFrom] = useState<Stage>("editing");
+  /** Your last words were said, not typed, so her next question is listened for. */
+  const listenBack = useRef(false);
   const asking = useRef<AbortController | null>(null);
   const sent = useRef(false);
   const dayAsk = useRef<DayAsk | null>(null);
@@ -609,6 +611,7 @@ export function useConversation({
 
   /** Your words become a turn — the live one, if they arrived there. */
   const commit = (words: string, source: "voice" | "text") => {
+    listenBack.current = source === "voice";
     const key = live?.key ?? nextKey("you");
     const enter = live ? live.enter : true;
     const before = turns;
@@ -651,9 +654,10 @@ export function useConversation({
         fall();
       } else if (stage === "listening") {
         /* The microphone would not open (blocked, or none): a modal with no
-           microphone opens on the reply box, so this one goes to it. */
+           microphone opens on the reply box, so this one goes to it, or back
+           to her question. */
         setLive(null);
-        setStage("editing");
+        setStage(takeFrom);
       }
       setError(message);
     },
@@ -733,6 +737,7 @@ export function useConversation({
       (2026-09-27). */
   const clear = () => {
     if (stage !== "listening" && !fixing) return;
+    listenBack.current = false;
     dict.cancel();
     setReading(null);
     setDraft("");
@@ -740,7 +745,7 @@ export function useConversation({
     setFixing(false);
     setSpoke(false);
     setLive(null);
-    setStage(beforeTake.current);
+    setStage(takeFrom);
     /* the face was opened for the take: a conversation folds it away again; opened on it, it stays as it opened */
     if (turns.length) fall();
   };
@@ -762,7 +767,7 @@ export function useConversation({
       unless it was pressed from the keyboard, which moves nothing (law 8). */
   const talk = (from: HTMLElement | null, keyboard = false) => {
     if (!voiceEnabled || stage === "listening" || stage === "thinking" || stage === "answering") return;
-    beforeTake.current = stage;
+    setTakeFrom(stage);
     const r = from?.getBoundingClientRect();
     const origin = !still && !keyboard && r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
     stopFold();
@@ -777,11 +782,45 @@ export function useConversation({
     dict.start();
   };
 
+  /* HER QUESTION, LISTENED FOR. Isaac (2026-09-27, the reply options: "1
+     but have a text box that allows you to type instead"): a question she
+     asks after words you SAID opens the microphone again, as the modal
+     opened on it, and the listening dock keeps a box to type into instead.
+     After words you typed she waits at the reply box: she answers the way
+     you talk. Once per question: the cross or Done on nothing is back at
+     the question, and nothing listens again until you press Tiff. */
+  const listenNow = useEffectEvent(() => {
+    listenBack.current = false;
+    talk(null);
+  });
+  useEffect(() => {
+    if (stage === "asking" && listenBack.current) listenNow();
+  }, [stage]);
+
+  /** Typing into the listening dock's box: the recording stops as the first
+      key lands (Isaac, 2026-09-27: "as soon as you start typing, the
+      recording will stop"). With nothing said, the take goes and the key is
+      the start of a typed reply. With words said, they are kept as yours to
+      fix, as clicking into them does; the key waits, because the read-back
+      is still out and typing then would put it in front of what you said. */
+  const typeInstead = (text: string) => {
+    if (stage !== "listening" || awaitingVoice.current) return;
+    if (draft.trim() || dict.interim.trim()) return fix();
+    clear();
+    setDraft(text);
+  };
+
+  /** Her question stands: asked, or asked and listened for. */
+  const questionOpen = stage === "asking" || ((stage === "listening" || fixing) && takeFrom === "asking");
+
   /** A quick answer, tapped: a job files straight past its question; a
-      person or anything else is a reply. */
+      person or anything else is a reply. Tapped while she listens for the
+      answer, the take goes first. */
   const answer = (q: QuickAnswer) => {
     const n = note.current;
-    if (!n || stage !== "asking") return;
+    if (!n || !questionOpen) return;
+    if (stage !== "asking") clear();
+    listenBack.current = false;
     addTurn({ who: "you", text: q.label });
     think();
     /* the words you picked go too, so the note keeps them as your turn */
@@ -914,6 +953,8 @@ export function useConversation({
     send,
     clear,
     fix,
+    typeInstead,
+    questionOpen,
     talk,
     answer,
     clearRow,

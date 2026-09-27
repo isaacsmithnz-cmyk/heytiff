@@ -211,7 +211,8 @@ describe("opening", () => {
     expect(within(d).getByText("0:03")).toBeInTheDocument();
     expect(within(d).getByRole("button", { name: "Clear what you said" })).toBeInTheDocument();
     expect(within(d).getByRole("button", { name: "Done" })).toBeInTheDocument();
-    // listening is a plain row: no box to type in yet
+    // listening: a box to type instead, not yet the reply box
+    expect(within(d).getByRole("textbox", { name: "Type instead" })).toHaveValue("");
     expect(within(d).queryByRole("textbox", { name: "Reply to Tiff" })).toBeNull();
   });
 
@@ -392,7 +393,10 @@ describe("talking", () => {
     expect(routeNote).toHaveBeenCalledWith(expect.objectContaining({ target: { kind: "visit", id: "v1" } }));
   });
 
-  it("sends a typed reply, and the box's Tiff button listens and then sends", async () => {
+  /* Isaac (2026-09-27): after words you said, her question is listened
+     for, with a box to type instead; "as soon as you start typing, the
+     recording will stop". Typed, she waits at the reply box. */
+  it("listens for the answer to her question after words you said; typing stops it, and a typed reply waits at the box", async () => {
     routeNote.mockResolvedValue(
       routed({ say: "Who books it?", tasks: [task("Book 3323 in", null)], clarify: { question: "Who books it?", options: ["Me"] } })
     );
@@ -403,12 +407,20 @@ describe("talking", () => {
     await say(user, "3323 needs booking");
     await flush();
 
-    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Luke books it{Enter}");
+    // she asked, after words you said: she listens, her quick answers still there
+    expect(mic.start).toHaveBeenCalledTimes(2);
+    expect(within(dialog()).getByText("Go ahead, I’m listening")).toBeInTheDocument();
+    expect(within(dialog()).getByRole("button", { name: "Me" })).toBeInTheDocument();
+    // the first key stops the recording and is the start of the reply
+    await user.type(within(dialog()).getByRole("textbox", { name: "Type instead" }), "Luke books it{Enter}");
+    expect(mic.cancel).toHaveBeenCalledTimes(1);
     await flush();
     expect(continueNote).toHaveBeenNthCalledWith(1, "n1", "Luke books it", []);
 
-    await user.click(within(dialog()).getByRole("button", { name: "Talk to Tiff" }));
+    // typed, so she waits at the box; its Tiff button listens
     expect(mic.start).toHaveBeenCalledTimes(2);
+    await user.click(within(dialog()).getByRole("button", { name: "Talk to Tiff" }));
+    expect(mic.start).toHaveBeenCalledTimes(3);
     await say(user, "no, Luke does it Monday");
     await flush();
     expect(continueNote).toHaveBeenNthCalledWith(2, "n1", "no, Luke does it Monday", []);
@@ -1080,7 +1092,9 @@ describe("the dock folding away", () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     render(<Harness />);
     await user.click(topButton());
-    await say(user, "3323 needs booking");
+    // typed, so her question waits at the reply box rather than listening
+    await user.click(within(dialog()).getByRole("button", { name: "Clear what you said" }));
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "3323 needs booking{Enter}");
     await act(async () => {
       jest.advanceTimersByTime(GATHER_MS + CLOUD_MS);
     });
@@ -1283,14 +1297,14 @@ describe("your words, while you say them", () => {
      never the end of the conversation ("done will um, finish the chat"). */
   describe("talking again in a conversation", () => {
     const ASK = "Who books it?";
-    /** A conversation, then the reply box's Tiff button; `opens: false` is a mic still arming as you press Done. */
+    /** Words said, and her question listened for; `opens: false` is a mic still arming as you press Done. */
     async function talkAgain({ opens = true } = {}) {
       routeNote.mockResolvedValue(routed({ say: ASK, tasks: [task("Book 3323 in", null)], clarify: { question: ASK, options: ["Me"] } }));
       const user = await openModal();
+      // the first take is already recording; this is the one her question opens
+      engine.opens = opens;
       await say(user, "3323 needs booking");
       await flush();
-      engine.opens = opens;
-      await user.click(within(dialog()).getByRole("button", { name: "Talk to Tiff" }));
       expect(within(dialog()).getByRole("button", { name: "Done" })).toBeInTheDocument();
       return user;
     }
@@ -1302,6 +1316,36 @@ describe("your words, while you say them", () => {
       expect(within(convo()).getByText(ASK)).toBeInTheDocument();
       expect(within(dialog()).getByRole("button", { name: "Me" })).toBeInTheDocument();
       expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
+    });
+
+    it("a quick answer tapped while she listens drops the take and answers", async () => {
+      continueNote.mockReturnValue(new Promise(() => {}));
+      const user = await talkAgain();
+      await user.click(within(dialog()).getByRole("button", { name: "Me" }));
+      expect(mic.cancel).toHaveBeenCalledTimes(1);
+      expect(continueNote).toHaveBeenCalledWith("n1", "Me", []);
+    });
+
+    it("clicking into the box to type keeps listening; the first key stops it, in the same field", async () => {
+      const user = await talkAgain();
+      const box = within(dialog()).getByRole("textbox", { name: "Type instead" });
+      await user.click(box);
+      expect(mic.cancel).not.toHaveBeenCalled();
+      expect(within(dialog()).getByRole("button", { name: "Done" })).toBeInTheDocument();
+      await user.keyboard("L");
+      expect(mic.cancel).toHaveBeenCalledTimes(1);
+      const reply = within(dialog()).getByRole("textbox", { name: "Reply to Tiff" });
+      expect(reply).toBe(box);
+      expect(reply).toHaveValue("L");
+      expect(reply).toHaveFocus();
+    });
+
+    it("with words already said, the first key keeps them for you to fix", async () => {
+      const user = await talkAgain();
+      await act(async () => engine.say!("Luke books"));
+      await user.type(within(dialog()).getByRole("textbox", { name: "Type instead" }), "x");
+      expect(mic.handOver).toHaveBeenCalledTimes(1);
+      expect(within(dialog()).getByRole("textbox", { name: "What you said" })).toBeInTheDocument();
     });
 
     it("Done with nothing said keeps the conversation open, at the reply box", async () => {

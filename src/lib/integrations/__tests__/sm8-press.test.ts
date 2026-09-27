@@ -120,6 +120,23 @@ describe("only a person's press queues a write", () => {
     expect(queue.text.match(/isSm8Press\(press\)/g)?.length).toBeGreaterThanOrEqual(3);
   });
 
+  it("only the booking queue's helpers queue a booking — nothing else passes kind \"booking\"", () => {
+    /* two-way phase 3 (B-13): every rule about which booking row may go, and
+       who may take one back, lives in one file */
+    const bookingQueue = join("app", "actions", "sm8-booking-queue.ts");
+    const writers = files.filter(
+      (f) =>
+        relative(SRC, f.path) !== join("lib", "integrations", "sm8-writes.ts") &&
+        /kind:\s*["']booking["']/.test(f.text) &&
+        /\benqueueSm8Writes\b/.test(f.text)
+    );
+    expect(writers.map((f) => relative(SRC, f.path))).toEqual([bookingQueue]);
+    const queue = files.find((f) => relative(SRC, f.path) === bookingQueue)!;
+    expect(isServerAction(queue.path, queue.text)).toBe(true);
+    // each of its four doors checks the press before anything else
+    expect(queue.text.match(/isSm8Press\(press\)/g)?.length).toBeGreaterThanOrEqual(4);
+  });
+
   it("only the \"use server\" actions queue", () => {
     const queuers = files.filter(
       (f) =>

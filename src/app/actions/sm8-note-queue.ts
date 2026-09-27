@@ -30,7 +30,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { isSm8Press, type Sm8Press } from "@/lib/integrations/sm8-press";
-import { enqueueSm8Writes, readSm8WriteState, type Sm8WriteToQueue } from "@/lib/integrations/sm8-writes";
+import { enqueueSm8Writes, readSm8WriteState, stopCreateRow, type Sm8WriteToQueue } from "@/lib/integrations/sm8-writes";
 import { sm8NoteSender, type NoteSender } from "@/lib/integrations/links";
 import { noteSourceOf } from "@/lib/integrations/sm8-note-source";
 import { familyMediaSources } from "@/lib/workboard/all-jobs-query";
@@ -122,11 +122,6 @@ async function readCreate(orgId: string, noteId: string): Promise<Create | null 
   return (data as unknown as Create | null) ?? null;
 }
 
-async function readCreateById(orgId: string, id: string): Promise<Create | null> {
-  const { data } = await supabaseAdmin.from(WRITES).select(CREATE_COLUMNS).eq("org_id", orgId).eq("id", id).maybeSingle();
-  return (data as unknown as Create | null) ?? null;
-}
-
 async function readTakeBack(orgId: string, createId: string): Promise<QueueRowIn | null> {
   const { data } = await supabaseAdmin
     .from(WRITES)
@@ -184,40 +179,11 @@ const pressedBy = (create: Create, press: Sm8Press) => !!press.staffId && create
 
 /* ── stopping a create, and taking out what went ── */
 
-/** Close a create and stop it if it could still go. Needs no ServiceM8
-    call, and checks nothing but what its caller already checked (who):
-    1. taken_back_at = now where null — from here it is never claimed, no
-       press can queue it again, and a sender holding it stops at its next
-       POST attempt;
-    2. read again;
-    3. if it could still go (queued, failed, trial, a lapsed send), cancel
-       it on the status read, leaving maybe_landed and verify_uuids for the
-       delete. A miss reads it again.
-    Returns the create as it now stands. */
-async function stopCreate(orgId: string, create: Create, now: number): Promise<Create> {
-  const iso = new Date(now).toISOString();
-  await supabaseAdmin.from(WRITES).update({ taken_back_at: iso }).eq("org_id", orgId).eq("id", create.id).is("taken_back_at", null);
-  let current = (await readCreateById(orgId, create.id)) ?? create;
-  for (let tries = 0; tries < 3 && createCanStillGo(current, now); tries++) {
-    let q = supabaseAdmin
-      .from(WRITES)
-      .update({
-        status: "cancelled",
-        last_error: NOTE_WORDS.row.takenBackBeforeSent,
-        lease_until: null,
-        claim_id: null,
-        updated_at: iso,
-      })
-      .eq("org_id", orgId)
-      .eq("id", current.id)
-      .eq("status", current.status);
-    if (current.status === "sending") q = q.lt("lease_until", iso);
-    const { data } = await q.select("id");
-    current = (await readCreateById(orgId, current.id)) ?? current;
-    if ((data ?? []).length > 0) break;
-  }
-  return current;
-}
+/** Close a create and stop it if it could still go: sm8-writes'
+    stopCreateRow (the one function notes and bookings both call), reading
+    the create back with this file's own columns. */
+const stopCreate = (orgId: string, create: Create, now: number): Promise<Create> =>
+  stopCreateRow(orgId, create, now, CREATE_COLUMNS);
 
 type DeleteQueued = { ok: true; ids: string[]; already: boolean } | { ok: false; refusal: NoteRefusal };
 

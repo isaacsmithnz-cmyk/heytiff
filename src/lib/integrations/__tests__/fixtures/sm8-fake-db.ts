@@ -10,9 +10,16 @@
    - the note_id key, ON DELETE NO ACTION: a workboard_notes row any queue
      row names can't be deleted (23503);
    - the two functions (sm8_mark_kind_refused, sm8_set_write_kind), the
-     second switching the three kinds sm8_bookings_queue.sql allows.
+     second switching the three kinds sm8_bookings_queue.sql allows;
+   - sm8_bookings_queue.sql's kind check and its ONE SHAPE RULE FOR EVERY
+     KIND (sm8_writes_shape_check), on every insert and every update, a row
+     that breaks either refused with 23514 as the database would;
+   - dedupe_key GENERATED, so a subject that changes (a booking slot given
+     back, ":was:<id>") moves its key, and meets the unique index again.
    Every statement is logged, so a test can hold a path to the queries it
    makes. It lives under fixtures/ so jest doesn't run it as a suite. */
+
+import { randomUUID } from "node:crypto";
 
 type Row = Record<string, unknown>;
 type Err = { code: string; message: string };
@@ -65,6 +72,111 @@ function parseOr(expr: string): (r: Row) => boolean {
 
 const dedupe = (r: Row) => `${r.kind}:${r.sm8_job_uuid ?? ""}:${r.subject}`;
 
+/** A booking's time as the shape check wants it: the wall clock, on the
+    minute. */
+const BOOKING_STAMP = /^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:00$/;
+
+const BOOKING_COLUMNS = ["verb_id", "booking_staff_uuid", "booking_start", "booking_end", "booking_zone", "job_status_from", "job_status_to"];
+
+/** sm8_writes_kind_check and sm8_writes_shape_check, exactly as
+    sm8_bookings_queue.sql writes them: one CASE per kind, every column a
+    branch needs named "is not null", and the whole in coalesce(…, false),
+    so nothing passes by being null. `op` is the column's default,
+    'create', when a row doesn't name it. */
+export function sm8WriteShapeOk(r: Row): boolean {
+  const none = (c: string) => r[c] == null;
+  const some = (c: string) => r[c] != null;
+  const op = r.op ?? "create";
+  const bookingNone = BOOKING_COLUMNS.every(none);
+  switch (r.kind) {
+    case "attachment":
+      return (
+        op === "create" &&
+        none("note_id") &&
+        none("depends_on") &&
+        none("target_uuid") &&
+        none("flag_done") &&
+        none("note_text") &&
+        none("taken_back_at") &&
+        bookingNone
+      );
+    case "note":
+      if (!bookingNone) return false;
+      if (op === "create") return some("note_id") && none("depends_on") && none("target_uuid") && none("flag_done") && some("requested_by");
+      if (op === "update") {
+        return (
+          none("note_id") &&
+          some("target_uuid") &&
+          some("flag_done") &&
+          none("depends_on") &&
+          none("note_text") &&
+          none("taken_back_at") &&
+          some("requested_by")
+        );
+      }
+      if (op === "delete") {
+        return (
+          some("note_id") &&
+          some("depends_on") &&
+          none("flag_done") &&
+          none("note_text") &&
+          none("taken_back_at") &&
+          some("requested_by")
+        );
+      }
+      return false;
+    case "booking": {
+      if (!(none("note_id") && none("flag_done") && none("note_text") && some("sm8_job_uuid") && some("verb_id"))) return false;
+      const start = String(r.booking_start ?? "");
+      const end = String(r.booking_end ?? "");
+      if (op === "create") {
+        return (
+          none("target_uuid") &&
+          none("job_status_from") &&
+          none("job_status_to") &&
+          some("booking_staff_uuid") &&
+          some("booking_zone") &&
+          some("booking_start") &&
+          some("booking_end") &&
+          BOOKING_STAMP.test(start) &&
+          BOOKING_STAMP.test(end) &&
+          start.slice(0, 10) === end.slice(0, 10) &&
+          start < end
+        );
+      }
+      if (op === "update") {
+        return (
+          some("target_uuid") &&
+          r.target_uuid === r.sm8_job_uuid &&
+          none("depends_on") &&
+          r.job_status_from === "Quote" &&
+          r.job_status_to === "Work Order" &&
+          some("seen_edit_date") &&
+          none("booking_staff_uuid") &&
+          none("booking_start") &&
+          none("booking_end") &&
+          none("booking_zone")
+        );
+      }
+      if (op === "delete") {
+        return (
+          none("taken_back_at") &&
+          none("job_status_from") &&
+          none("job_status_to") &&
+          none("booking_zone") &&
+          ((some("depends_on") && none("booking_staff_uuid") && none("booking_start") && none("booking_end")) ||
+            (none("depends_on") && some("target_uuid") && some("booking_staff_uuid") && some("booking_start") && some("booking_end")))
+        );
+      }
+      return false;
+    }
+    default:
+      return false;
+  }
+}
+
+const SHAPE_REFUSED = { code: "23514", message: "fake: sm8_writes_shape_check" };
+
 export function makeFakeDb() {
   const db: Record<string, Row[]> = {};
   const log: Statement[] = [];
@@ -72,8 +184,9 @@ export function makeFakeDb() {
   const failing = new Set<string>();
   /** Columns this database doesn't have: a select naming one is refused. */
   const missing = new Set<string>();
-  /** Runs before every statement on a table, to interleave a race by hand. */
-  const before: Record<string, ((s: Statement) => void) | undefined> = {};
+  /** Runs before every statement on a table, to interleave a race by hand.
+      Answering "fail" fails that one statement, as a blip would. */
+  const before: Record<string, ((s: Statement) => void | "fail") | undefined> = {};
   let rpcMissing = false;
   let idSeq = 0;
 
@@ -138,7 +251,9 @@ export function makeFakeDb() {
         ...r,
       });
     }
-    if (row.id === undefined) row.id = `${table.slice(0, 2)}${++idSeq}`;
+    /* a queue row's id is the database's gen_random_uuid(): the queue's
+       helpers check a row id's shape before they read it */
+    if (row.id === undefined) row.id = table === "sm8_writes" ? randomUUID() : `${table.slice(0, 2)}${++idSeq}`;
     return row;
   }
 
@@ -160,9 +275,9 @@ export function makeFakeDb() {
 
     const exec = (): Result => {
       const stmt: Statement = { table, op, columns, patch: op === "update" ? patch : undefined, filters: described };
-      before[table]?.(stmt);
+      const blip = before[table]?.(stmt) === "fail";
       log.push(stmt);
-      if (failing.has(table)) return { data: null, count: null, error: { code: "XX000", message: "fake: down" } };
+      if (blip || failing.has(table)) return { data: null, count: null, error: { code: "XX000", message: "fake: down" } };
       const rows = db[table];
 
       if (filterCols.some((c) => missing.has(c))) return { data: null, error: { code: "42703", message: "fake: no such column" } };
@@ -182,6 +297,8 @@ export function makeFakeDb() {
         for (const r of incoming) {
           if (Object.keys(r).some((c) => missing.has(c))) return { data: null, error: { code: "PGRST204", message: "fake: no such column" } };
           const row = withDefaults(table, r);
+          /* a CHECK is evaluated on the row before any conflict is looked for */
+          if (table === "sm8_writes" && !sm8WriteShapeOk(row)) return { data: null, error: SHAPE_REFUSED };
           const clash =
             op === "upsert" && conflict.length > 0
               ? rows.find((x) => conflict.every((c) => x[c] != null && x[c] === row[c]))
@@ -237,7 +354,24 @@ export function makeFakeDb() {
         ) {
           return { data: null, error: { code: "23514", message: "a note row never changes who pressed it" } };
         }
-        for (const r of hit) Object.assign(r, patch);
+        if (table === "sm8_writes") {
+          for (const r of hit) {
+            const next = { ...r, ...patch };
+            /* the shape check holds on an update too. A row a suite wrote by
+               hand, short of a column, is held to it only once it has met it
+               — an update never makes a shaped row unshaped */
+            if (sm8WriteShapeOk(r) && !sm8WriteShapeOk(next)) return { data: null, error: SHAPE_REFUSED };
+            /* the generated key follows the subject, into the unique index */
+            const key = dedupe(next);
+            if ("subject" in patch && rows.some((x) => x !== r && x.org_id === next.org_id && x.dedupe_key === key)) {
+              return { data: null, error: { code: "23505", message: "fake: sm8_writes_dedupe_uniq" } };
+            }
+          }
+        }
+        for (const r of hit) {
+          Object.assign(r, patch);
+          if (table === "sm8_writes" && "subject" in patch) r.dedupe_key = dedupe(r);
+        }
         return { data: hit.map((r) => ({ ...r })), error: null };
       }
       if (order) {

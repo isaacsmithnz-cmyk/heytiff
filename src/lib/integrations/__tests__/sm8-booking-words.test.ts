@@ -70,9 +70,8 @@ describe("the booking words", () => {
    is EXACT: a PR that starts using one takes it off, and nothing is added
    (a ratchet, as docs/design.md's are). */
 const LATER: Record<string, string[]> = {
-  // B: the queue helpers name each row by its label; the run's "no kind ready"
-  B: ["label.create", "label.status", "label.undo", "label.clear", "kindWords.heldAny", "kindWords.offAll"],
-  // B and C: the queue helpers' and the actions' refusals
+  // B and C: the queue helpers' and the actions' refusals (PR B names each
+  // row by its label, and says the run's "no kind ready" in bookings' words)
   C: [
     "press.unavailable",
     "press.ownerOnly",

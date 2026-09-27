@@ -996,12 +996,17 @@ export async function readMirrorJobDetail(
   /* The titles ride the SAME read — one column more on a query that was
      already running, which is the whole cost of naming what a person is. */
   const staffTitle = new Map<string, string>();
+  /* ...and by lower-case uuid, where the deployment books */
+  const staffNameLow = new Map<string, string>();
+  const staffTitleLow = new Map<string, string>();
   if (staffIds.length) {
     const { data: staffRows } = await supabaseAdmin
       .from("sm8_staff")
       .select("uuid, first, last, job_title")
       .eq("org_id", orgId)
-      .in("uuid", staffIds);
+      /* every spelling of a person where the deployment books: a booking of
+         ours names them as it was pressed */
+      .in("uuid", over ? [...new Set(staffIds.flatMap((u) => [u, u.toLowerCase(), u.toUpperCase()]))] : staffIds);
     for (const s of (staffRows ?? []) as {
       uuid: string;
       first: string | null;
@@ -1010,10 +1015,12 @@ export async function readMirrorJobDetail(
     }[]) {
       const name = [s.first, s.last].filter(Boolean).join(" ").trim();
       if (name) staffName.set(s.uuid, name);
+      if (name && over) staffNameLow.set(lowUuid(s.uuid), name);
       /* Live titles arrive with trailing spaces ("HVAC ", "Apprentice ") —
          trim, and an empty one is simply no title. */
       const title = s.job_title?.trim();
       if (title) staffTitle.set(s.uuid, title);
+      if (title && over) staffTitleLow.set(lowUuid(s.uuid), title);
     }
   }
 
@@ -1047,8 +1054,8 @@ export async function readMirrorJobDetail(
       ? {
           start: next.start_date,
           end: next.end_date,
-          staffName: next.staff_uuid ? staffName.get(next.staff_uuid) ?? null : null,
-          staffTitle: next.staff_uuid ? staffTitle.get(next.staff_uuid) ?? null : null,
+          staffName: next.staff_uuid ? (over ? staffNameLow.get(lowUuid(next.staff_uuid)) : staffName.get(next.staff_uuid)) ?? null : null,
+          staffTitle: next.staff_uuid ? (over ? staffTitleLow.get(lowUuid(next.staff_uuid)) : staffTitle.get(next.staff_uuid)) ?? null : null,
         }
       : null,
     timeOnSite: sessions > 0 ? { minutes, sessions } : null,
@@ -1130,8 +1137,8 @@ export async function readMirrorJobDetail(
           booked: standing.map((b) => ({
             uuid: b.uuid,
             staffUuid: b.staffUuid,
-            staffName: b.staffUuid ? staffName.get(b.staffUuid) ?? null : null,
-            staffTitle: b.staffUuid ? staffTitle.get(b.staffUuid) ?? null : null,
+            staffName: b.staffUuid ? staffNameLow.get(lowUuid(b.staffUuid)) ?? null : null,
+            staffTitle: b.staffUuid ? staffTitleLow.get(lowUuid(b.staffUuid)) ?? null : null,
             start: b.start,
             end: b.end,
             ourRow: b.ourRow,

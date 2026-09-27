@@ -247,6 +247,13 @@ describe("Book in on the card (D-1)", () => {
     expect(bk.readBookInContext).toHaveBeenCalledWith(expect.objectContaining({ jobUuid: JOB }));
   });
 
+  it("names nobody on a booking with no person in the words' own fill", async () => {
+    readMirrorJob.mockResolvedValue({ detail: detail({ booked: [entry({ staffUuid: null, staffName: null })] }), focusRemoteId: null });
+    readJobRecord.mockResolvedValue(record(bookings()));
+    await open();
+    expect(await visits().findByText(BOOKING_WORDS.fill.person)).toBeInTheDocument();
+  });
+
   it("(F) is absent where the record doesn't offer it", async () => {
     readMirrorJob.mockResolvedValue({ detail: detail({ booked: [entry()] }), focusRemoteId: null });
     readJobRecord.mockResolvedValue(record(bookings({ canBook: false })));

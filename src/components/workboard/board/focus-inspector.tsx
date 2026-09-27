@@ -5,8 +5,7 @@ import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { clockLabel, fmtHoursShort } from "@/lib/workboard/schedule";
 import type { FocusEntry, FocusJob, FocusMark } from "@/lib/workboard/focus";
 import { clearLeftoverBooking } from "@/app/actions/booking-sm8";
-import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-plan";
-import type { SendLine } from "@/lib/integrations/sm8-write-plan";
+import { BOOKING_WORDS, bookingActWord, type BookingState } from "@/lib/integrations/sm8-booking-plan";
 import { mintPressId } from "@/lib/workboard/press-id";
 import { ClearConfirm } from "./book-in-panel";
 import { StateLine } from "./state-line";
@@ -63,7 +62,7 @@ export function FocusInspector({
 }) {
   /* the leftover whose Clear is being asked, and what each Clear answered */
   const [asking, setAsking] = useState<string | null>(null);
-  const [said, setSaid] = useState<Record<string, SendLine>>({});
+  const [said, setSaid] = useState<Record<string, BookingState>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const out = useRef<string | null>(null);
   const pressIds = useRef(new Map<string, string>());
@@ -85,11 +84,13 @@ export function FocusInspector({
         pressIds.current.delete(e.key);
         setBusy(null);
         setAsking(null);
-        const line: SendLine | null = res.ok
+        /* its line with its own doors (Try again goes again in place), or
+           the refusal */
+        const line: BookingState | null = res.ok
           ? res.line?.text
-            ? { word: res.line.text, tone: res.line.tone }
+            ? res.line
             : null
-          : { word: res.error, tone: "bad" };
+          : { key: null, text: res.error, tone: "bad", acts: [] };
         setSaid((cur) => {
           const next = { ...cur };
           if (line) next[e.key] = line;
@@ -103,7 +104,7 @@ export function FocusInspector({
       () => {
         out.current = null;
         setBusy(null);
-        setSaid((cur) => ({ ...cur, [e.key]: { word: BOOKING_WORDS.press.unqueued, tone: "bad" } }));
+        setSaid((cur) => ({ ...cur, [e.key]: { key: null, text: BOOKING_WORDS.press.unqueued, tone: "bad", acts: [] } }));
       }
     );
   };
@@ -197,7 +198,14 @@ export function FocusInspector({
                   door, asked in place (two-way phase 3) */}
               {canClear && e.leftover && e.staffUuid && (
                 <em>
-                  {said[e.key] && <StateLine as="span" line={said[e.key]} />}
+                  {said[e.key]?.text && (
+                    <StateLine as="em" line={{ word: said[e.key].text ?? "", tone: said[e.key].tone }} />
+                  )}
+                  {said[e.key]?.acts.includes("try_again") && asking !== e.key && (
+                    <button type="button" className="wb2-evdoor" disabled={busy === e.key} onClick={() => clear(e)}>
+                      {bookingActWord("try_again")}
+                    </button>
+                  )}
                   {asking === e.key ? (
                     <ClearConfirm
                       name={e.who}

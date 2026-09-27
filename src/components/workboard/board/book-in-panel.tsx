@@ -10,6 +10,7 @@ import {
   BOOKING_WORDS,
   BOOKINGS_PER_PRESS,
   bookingActWord,
+  fmtLength,
   fmtRange,
   fmtTime,
   localNow,
@@ -63,14 +64,6 @@ const STARTS: readonly string[] = Array.from({ length: (24 * 60) / BOOKING_STEP_
   const m = i * BOOKING_STEP_MIN;
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 });
-
-/** "30 min", "1 h", "1 h 30", "2 h". */
-function lengthLabel(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h === 0) return `${m} min`;
-  return m === 0 ? `${h} h` : `${h} h ${m}`;
-}
 
 const DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -334,7 +327,7 @@ export function BookInPanel({
             >
               {BOOKING_LENGTHS_MIN.map((m) => (
                 <option key={m} value={String(m)}>
-                  {lengthLabel(m)}
+                  {fmtLength(m)}
                 </option>
               ))}
             </select>
@@ -470,11 +463,13 @@ function Facts({
     const slot = r.staffUuid && DAY.test(r.day) ? slotOf(r.day, r.start, r.minutes) : null;
     if (!slot) continue;
     for (const a of elsewhere(r.staffUuid, r.day) ?? []) {
+      if ((a.start ?? "") >= slot.end || (a.end ?? "") <= slot.start) continue;
       const number = ctx.jobNumbers[low(a.jobUuid)];
-      /* a job the mirror can't number yet is still in the day's line above */
-      if (!number || (a.start ?? "") >= slot.end || (a.end ?? "") <= slot.start) continue;
       const parts = rangeParts(a.start ?? "", a.end ?? "");
-      const text = fillWords(BOOKING_WORDS.panel.clash, { number, start: parts.start, end: parts.end });
+      /* a job the mirror can't number yet still warns, as another job */
+      const text = number
+        ? fillWords(BOOKING_WORDS.panel.clash, { number, start: parts.start, end: parts.end })
+        : fillWords(BOOKING_WORDS.panel.clashUnnumbered, { start: parts.start, end: parts.end });
       if (!clashes.includes(text)) clashes.push(text);
     }
   }
@@ -646,11 +641,13 @@ export function ClearConfirm({
     number,
     status: status ?? BOOKING_WORDS.fill.status,
   });
-  /* spans all through: it stands in a crew row's line on the Schedule as
-     well as on the card */
+  /* phrasing all through: it stands in a crew row's line on the Schedule as
+     well as on the card. The question is a <small>, not a span, so the
+     crew list's own rule for its spans (the time, 14px in ink) never
+     reaches it: it keeps the quiet line's dress in both places */
   return (
     <span role="group" aria-label={question}>
-      <span className="wb2-evmeta">{question}</span>
+      <small className="wb2-evmeta">{question}</small>
       <span className="wb2-jcattsave">
         <button type="button" className="pbtn ghost sm dan" disabled={busy} onClick={onClear}>
           {BOOKING_WORDS.door.clearBooking}

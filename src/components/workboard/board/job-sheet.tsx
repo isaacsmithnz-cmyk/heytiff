@@ -2197,7 +2197,7 @@ export function JobSheet({
                     <span className="wb2-sect">Next on site</span>
                     <b>{bookingLabel(standing[0].start, standing[0].end)}</b>
                     <em>
-                      {standing[0].staffName ?? "Nobody named"}
+                      {standing[0].staffName ?? BOOKING_WORDS.fill.person}
                       {standing[0].staffName && standing[0].staffTitle && (
                         <i className="wb2-jcrole">{`, ${standing[0].staffTitle}`}</i>
                       )}

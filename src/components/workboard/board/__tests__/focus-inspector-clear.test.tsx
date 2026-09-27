@@ -118,6 +118,28 @@ it("(F) two leftovers on one job clear each its own booking, asked in place with
   expect(clearLeftoverBooking).toHaveBeenLastCalledWith(expect.objectContaining({ activityUuid: LATER_SAM, seen: { staffUuid: SAM, start: `${DAY} 14:00:00` } }));
 });
 
+it("(F) asks its question in the quiet line's own element, never one of the crew row's spans", async () => {
+  render(<FocusInspector job={focus()} day={DAY} canClear onOpen={() => {}} onClose={() => {}} />);
+  await userEvent.click(rowOf("Alex Sample", "3pm–").getByRole("button", { name: BOOKING_WORDS.door.clearBooking }));
+  const q = screen.getByText(/^Take Alex Sample's booking/);
+  expect(q.tagName).not.toBe("SPAN");
+  expect(q).toHaveClass("wb2-evmeta");
+});
+
+it("(F) a Clear that didn't go offers its own Try again in place, which clears again", async () => {
+  clearLeftoverBooking.mockResolvedValueOnce({
+    ok: true,
+    line: { key: "line.notCleared", text: "Not cleared. ServiceM8 refused to remove the booking.", tone: "bad", acts: ["try_again"] },
+  });
+  render(<FocusInspector job={focus()} day={DAY} canClear onOpen={() => {}} onClose={() => {}} />);
+  await userEvent.click(rowOf("Alex Sample", "3pm–").getByRole("button", { name: BOOKING_WORDS.door.clearBooking }));
+  await userEvent.click(screen.getAllByRole("button", { name: BOOKING_WORDS.door.clearBooking }).find((b) => b.closest("[role=group]"))!);
+  expect(await screen.findByText("Not cleared. ServiceM8 refused to remove the booking.")).toHaveClass("sw-state", "bad");
+  await userEvent.click(rowOf("Alex Sample", "3pm–").getByRole("button", { name: BOOKING_WORDS.door.tryAgain }));
+  await waitFor(() => expect(clearLeftoverBooking).toHaveBeenCalledTimes(2));
+  expect(clearLeftoverBooking.mock.calls[1][0]).toMatchObject({ activityUuid: LATER_ALEX, seen: { staffUuid: ALEX, start: `${DAY} 15:00:00` } });
+});
+
 it("says a Clear that didn't go, in its colour, and Keep backs out", async () => {
   clearLeftoverBooking.mockResolvedValueOnce({ ok: false, error: BOOKING_WORDS.press.notLeftover });
   render(<FocusInspector job={focus()} day={DAY} canClear onOpen={() => {}} onClose={() => {}} />);

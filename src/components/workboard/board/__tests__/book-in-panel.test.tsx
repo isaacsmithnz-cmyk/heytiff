@@ -137,6 +137,34 @@ describe("opening (D-2)", () => {
     expect(screen.queryByText(/That overlaps/)).toBeNull();
   });
 
+  it("(F) warns of an overlap with a job the mirror can't number yet, as another job", async () => {
+    readBookInContext.mockImplementation(async () =>
+      context({
+        jobNumbers: { [JOB]: "3342" },
+        days: { [DAY]: [live({ uuid: "7e7e7e7e-0000-4000-8000-000000000002", jobUuid: OTHER_JOB, staffUuid: ALEX })] },
+      })
+    );
+    panel();
+    await waitFor(() => expect(who().options.length).toBe(3));
+    await userEvent.selectOptions(who(), ALEX);
+    expect(screen.getByText("That overlaps another job, 8:00 to 10:00 am.")).toHaveClass("sw-state", "warn");
+    expect(bookButton()).toBeEnabled();
+  });
+
+  it("offers the lengths in the plan's words", async () => {
+    panel();
+    expect([...(screen.getAllByLabelText(P.length)[0] as HTMLSelectElement).options].map((o) => o.textContent)).toEqual([
+      "30 min",
+      "1 h",
+      "1 h 30",
+      "2 h",
+      "3 h",
+      "4 h",
+      "6 h",
+      "8 h",
+    ]);
+  });
+
   it("says a day ServiceM8 couldn't read, and still offers Book in", async () => {
     readBookInContext.mockImplementation(async () => context({ days: { [DAY]: null } }));
     panel();

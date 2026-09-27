@@ -86,37 +86,8 @@ describe("the booking words", () => {
    is EXACT: a PR that starts using one takes it off, and nothing is added
    (a ratchet, as docs/design.md's are). */
 const LATER: Record<string, string[]> = {
-  // B and C: the queue helpers' and the actions' refusals (PR B names each
-  // row by its label, and says the run's "no kind ready" in bookings' words)
-  C: [
-    "press.unavailable",
-    "press.ownerOnly",
-    "press.noManage",
-    "press.zoneUnknown",
-    "press.stale",
-    "press.changed",
-    "press.notBookable",
-    "press.jobGone",
-    "press.past",
-    "press.tooSoon",
-    "press.crossesMidnight",
-    "press.sameSlot",
-    "press.twice",
-    "press.tooMany",
-    "press.techInactive",
-    "press.onItsWay",
-    "press.takingOut",
-    "press.notYours",
-    "press.changedNoUndo",
-    "press.notFuture",
-    "press.keptOtherFirst",
-    "press.inFlight",
-    "press.notLeftover",
-    "press.checkIn",
-    "press.unqueued",
-    "press.capped",
-    "press.unreadable",
-  ],
+  // B and C use every refusal they were given (the actions, app/actions/
+  // booking-sm8, say each press.* line), so neither has a list left
   // D: the Book in panel, a leftover on the Visits face and its confirm's doors
   D: [
     ...Object.keys(BOOKING_WORDS.panel).map((k) => `panel.${k}`),

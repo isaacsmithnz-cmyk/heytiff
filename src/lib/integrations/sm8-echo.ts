@@ -29,6 +29,10 @@
    note's workboard_notes row — are never touched: the file or the note
    stays one row, ours.
 
+   A BOOKING IS NEVER LEFT OUT (two-way phase 3): no reader hides one of our
+   bookings because it is ours. Its twin IS the booking; what goes once the
+   twin arrives is our queue row's own drawing (sm8-booking-overlay).
+
    DOUBT SHOWS IT TWICE. A read that fails returns nothing as ours, logged: a
    duplicate on screen is better than a card that won't open. */
 

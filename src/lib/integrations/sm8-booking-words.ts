@@ -83,6 +83,9 @@ export const BOOKING_WORDS = {
     past: "That time has passed.",
     tooSoon: "That starts too soon to make the job a Work Order first. Pick a later time, or untick Make it a Work Order.",
     crossesMidnight: "A booking ends on the day it starts. Book the next day as its own.",
+    /** A start or an end in the hour the account's clocks skip when they go
+        forward (Sydney: 2026-10-04, 2:00 to 2:59 am): no instant reads it. */
+    clocksForward: "The clocks go forward in {place} that day, so that time doesn't happen. Pick another time.",
     sameSlot: "{name} is already booked on this job at that time.",
     twice: "That's the same person at the same time twice.",
     tooMany: "Book up to 8 at a time.",

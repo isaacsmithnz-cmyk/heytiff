@@ -594,13 +594,16 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
     : null;
   /* The summary carries no money by design (the Money face says collection
      once), so it rides ungated beside the notes. */
-  const [notes, ourNotes, summary, moneyVisible, timezone, status] = await Promise.all([
+  /* BOOKINGS ride the same round, only where the deployment books: without
+     them not one read more is made, and the record has no `bookings` key */
+  const [notes, ourNotes, summary, moneyVisible, timezone, status, bookingsRead] = await Promise.all([
     readJobNotes(ctx.orgId, id, claims),
     viewerRead ? readOurJobNotes(ctx.orgId, id, 60, viewerRead) : readOurJobNotes(ctx.orgId, id),
     readStoredJobSummary(ctx.orgId, id),
     can("workboard_money"),
     getSm8Timezone(ctx.orgId),
     jobStatusOf(ctx.orgId, id),
+    sm8BookingsAllowed() ? readJobBookings(ctx.orgId, ctx.userId, id) : Promise.resolve(undefined),
   ]);
 
   /* ServiceM8's flags with our marks on them, and whether the viewer may
@@ -646,9 +649,7 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
     ...(viewerRead ? { viewerHandle, ourNotes, heldFlags: held } : {}),
   });
 
-  /* BOOKINGS, only where the deployment books: without them not one read
-     more is made, and the record has no `bookings` key at all */
-  const booking = sm8BookingsAllowed() ? { bookings: await readJobBookings(ctx.orgId, ctx.userId, id) } : {};
+  const booking = bookingsRead === undefined ? {} : { bookings: bookingsRead };
 
   if (!moneyVisible) {
     return { notes, ourNotes, attention, assignable, ledger: null, family: null, summary, ...sm8, ...booking };
@@ -744,11 +745,12 @@ export async function scheduleDay(dayISO: string): Promise<SchedulePayload> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dayISO)) return EMPTY_SCHEDULE;
   const ctx = await context();
   if (!ctx || !(await can("workboard"))) return EMPTY_SCHEDULE;
-  const payload = await loadScheduleDay(ctx.orgId, dayISO);
+  if (!sm8BookingsAllowed()) return loadScheduleDay(ctx.orgId, dayISO);
   /* a leftover booking's Clear, for a viewer who may press it where
-     bookings are offered — asked only where the deployment books */
-  if (!sm8BookingsAllowed()) return payload;
+     bookings are offered — asked only where the deployment books, with the
+     write state read once for the day's overlay and the Clear alike */
   const [state, mayPress] = await Promise.all([readSm8WriteState(ctx.orgId), mayPressBookings()]);
+  const payload = await loadScheduleDay(ctx.orgId, dayISO, { state });
   return offersSend(state, "booking") && mayPress ? { ...payload, canClear: true } : payload;
 }
 

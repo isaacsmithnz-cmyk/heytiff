@@ -38,9 +38,10 @@ jest.mock("@/lib/permissions-server", () => ({
 }));
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: async () => "Australia/Sydney" }));
 jest.mock("@/lib/org/query", () => ({ orgPaymentTermsDays: async () => null }));
+const readJobNotes = jest.fn(async (): Promise<unknown[]> => []);
 jest.mock("@/lib/workboard/all-jobs-query", () => ({
   familyMediaSources: async () => [],
-  readJobNotes: async () => [],
+  readJobNotes: () => readJobNotes(),
   readJobLedger: async () => null,
   readJobFamily: async () => null,
 }));
@@ -52,8 +53,9 @@ jest.mock("@/lib/workboard/job-notes-query", () => ({
 }));
 
 const DAY_PAYLOAD = { dayISO: "2026-10-07", activities: [], staff: [], jobs: [], onSite: [], addresses: {} };
+const loadScheduleDay = jest.fn(async (..._a: unknown[]) => ({ ...DAY_PAYLOAD }));
 jest.mock("@/lib/workboard/schedule-query", () => ({
-  loadScheduleDay: async () => ({ ...DAY_PAYLOAD }),
+  loadScheduleDay: (...a: unknown[]) => loadScheduleDay(...a),
   EMPTY_SCHEDULE: { dayISO: "", activities: [], staff: [], jobs: [], onSite: [], addresses: {} },
 }));
 
@@ -103,6 +105,8 @@ beforeEach(() => {
   jobRow = { status: "Quote", active: 1 };
   readSm8WriteState.mockClear();
   readBookingLines.mockClear();
+  readJobNotes.mockReset().mockResolvedValue([]);
+  loadScheduleDay.mockClear();
   bookingZone.mockClear();
   process.env.SM8_WRITES = "attachment,booking";
 });
@@ -138,6 +142,8 @@ describe("where the deployment doesn't book (D-14)", () => {
     const p = await scheduleDay("2026-10-07");
     expect(Object.keys(p)).toEqual(Object.keys(DAY_PAYLOAD));
     expect(readSm8WriteState).not.toHaveBeenCalled();
+    /* the loader as it always was called */
+    expect(loadScheduleDay.mock.calls).toEqual([["org-1", "2026-10-07"]]);
   });
 });
 
@@ -181,6 +187,29 @@ describe("Book in and Clear on the card (D-1)", () => {
     expect(await bookings()).toMatchObject({ offered: true, trial: true });
     state = { ...STATE, mode: "paused" };
     expect(await bookings()).toMatchObject({ hold: "paused" });
+  });
+
+  it("(F) reads the bookings in the same round as the notes, not after them", async () => {
+    /* the notes answer only once the bookings have been asked for: read one
+       after the other, the card would never open */
+    let asked: () => void = () => {};
+    const bookingsAsked = new Promise<void>((r) => (asked = r));
+    readBookingLines.mockImplementationOnce(async () => {
+      asked();
+      return { verbs: [], lines: {}, gone: [], untried: [] };
+    });
+    readJobNotes.mockImplementationOnce(async () => {
+      await bookingsAsked;
+      return [];
+    });
+    const r = await Promise.race([readJobRecord(JOB), new Promise((r) => setTimeout(() => r("stuck"), 500))]);
+    expect(r).not.toBe("stuck");
+  });
+
+  it("(F) the Schedule reads the write state once, for the day's overlay and the Clear alike", async () => {
+    await scheduleDay("2026-10-07");
+    expect(readSm8WriteState).toHaveBeenCalledTimes(1);
+    expect(loadScheduleDay).toHaveBeenCalledWith("org-1", "2026-10-07", { state: STATE });
   });
 
   it("(F) the Schedule offers a leftover's Clear only to a viewer who may press, where bookings are offered", async () => {

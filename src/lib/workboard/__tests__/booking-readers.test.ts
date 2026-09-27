@@ -26,7 +26,7 @@ jest.mock("@/lib/supabase-server", () => ({
 const readSm8WriteState = jest.fn(async () => STATE);
 jest.mock("@/lib/integrations/sm8-writes", () => ({ readSm8WriteState: () => readSm8WriteState() }));
 
-import { nextBookingOf, readMirrorJobDetail } from "../all-jobs-query";
+import { nextBookingOf, readMirrorJobDetail, readMirrorJobRow } from "../all-jobs-query";
 import { loadScheduleDay } from "../schedule-query";
 import { layoutScheduleDay } from "../schedule";
 import type { Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
@@ -241,6 +241,20 @@ describe("readMirrorJobDetail, where the deployment books (D-9)", () => {
     }
   });
 
+  it("(F) a card open asks about the bookings it can list only — today on — and reads our rows' two columns, never their lines", async () => {
+    const { ours } = seedJob();
+    fake.log.length = 0;
+    const d = await readMirrorJobDetail(ORG, JOB, TODAY);
+    expect(d?.booked?.find((b) => b.uuid === uuid(2))?.ourRow).toBe(ours.id);
+    const writes = fake.on("sm8_writes");
+    /* yesterday's booking (4) is never asked about */
+    expect(writes.filter((s) => s.filters.some((f) => f.includes(uuid(4))))).toEqual([]);
+    expect(writes.some((s) => s.filters.some((f) => f.includes(uuid(1))))).toBe(true);
+    /* no line is drawn from this read: the whole row is never selected */
+    expect(writes.filter((s) => /verb_id/.test(s.columns ?? ""))).toEqual([]);
+    expect(writes.filter((s) => s.columns === "id, remote_uuid")).toHaveLength(1);
+  });
+
   it("marks nothing a leftover on an open job, or where the account's zone isn't known", async () => {
     fake.db.sm8_job_activities = [act(1)];
     expect((await readMirrorJobDetail(ORG, JOB, TODAY))?.booked?.map((b) => b.leftover)).toEqual([false]);
@@ -330,6 +344,18 @@ describe("the board's next booking", () => {
       TODAY
     );
     expect(Object.fromEntries(next)).toEqual({ [JOB]: `${TOMORROW} 14:00:00`, [DONE_JOB]: `${TOMORROW} 12:00:00` });
+  });
+
+  it("(F) one job's row asks only about that job's bookings of ours, never the whole workspace's", async () => {
+    fake.db.sm8_job_payments = [];
+    fake.db.sm8_writes.push(sent(uuid(9), { sm8_job_uuid: DONE_JOB }));
+    fake.db.sm8_job_activities.push(act(1));
+    fake.log.length = 0;
+    const r = await readMirrorJobRow(ORG, JOB, TODAY);
+    expect(r?.nextBooking).toBe(`${TOMORROW} 08:00:00`);
+    const sentReads = fake.on("sm8_writes").filter((s) => /booking_start/.test(s.columns ?? ""));
+    expect(sentReads.length).toBeGreaterThan(0);
+    for (const s of sentReads) expect(s.filters).toContain("sm8_job_uuid in");
   });
 
   it("(F) is the mirror's first row per job, reading nothing more, where the deployment doesn't book", async () => {

@@ -24,6 +24,7 @@ import { sm8CategoryColour, type AllJobsMirrorJob } from "./all-jobs";
 import { onSiteKey, type ScheduleActivity, type ScheduleStaff } from "./schedule";
 import { lowUuid, readBookingsOver } from "./all-jobs-query";
 import { isLeftover } from "@/lib/integrations/sm8-booking-plan";
+import type { Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import { streetLine } from "@/lib/studio/job-link";
 
 export type SchedulePayload = {
@@ -64,7 +65,12 @@ function oneLine(text: string | null, max = 160): string | null {
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }
 
-export async function loadScheduleDay(orgId: string, dayISO: string): Promise<SchedulePayload> {
+export async function loadScheduleDay(
+  orgId: string,
+  dayISO: string,
+  /** The write state, where the caller has read it already. */
+  opts: { state?: Pick<Sm8WriteState, "linked" | "tenantId"> } = {}
+): Promise<SchedulePayload> {
   const dayFloor = `${dayISO} 00:00:00`;
   const dayCeil = `${plusDays(dayISO, 1)} 00:00:00`;
 
@@ -125,7 +131,8 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
   const over = await readBookingsOver(
     orgId,
     { uuids: acts.map((a) => a.uuid), from: dayISO, to: plusDays(dayISO, 1), rows: false },
-    now
+    now,
+    opts.state
   );
   const mirrored = over ? acts.filter((a) => !over.gone.has(lowUuid(a.uuid))) : acts;
   const activities: ScheduleActivity[] = mirrored

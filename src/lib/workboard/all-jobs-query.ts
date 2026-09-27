@@ -30,6 +30,7 @@ import {
 } from "@/lib/integrations/sm8-booking-overlay";
 import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
 import { isLeftover } from "@/lib/integrations/sm8-booking-plan";
+import type { Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import {
   readJobMediaGroups,
   type JobMediaGroupsRead,
@@ -141,18 +142,56 @@ export type BookingsOver = {
   rows: BookingOverlayRow[];
   /** The account's own zone; null when HeyTiff doesn't know it. */
   zone: string | null;
+  /** The ServiceM8 account connected now, whose rows the overlay read;
+      null with none. */
+  tenantId: string | null;
 };
 
 /** The overlay for a reader, read once with the write state and the zone.
-    Null where the deployment books nothing: no read of any kind is made. */
-export async function readBookingsOver(orgId: string, ask: BookingOverlayAsk, now: number): Promise<BookingsOver | null> {
+    Null where the deployment books nothing: no read of any kind is made. A
+    caller that has read the write state already hands it in. */
+export async function readBookingsOver(
+  orgId: string,
+  ask: BookingOverlayAsk,
+  now: number,
+  known?: Pick<Sm8WriteState, "linked" | "tenantId">
+): Promise<BookingsOver | null> {
   if (!sm8BookingsAllowed()) return null;
   /* loaded here, not at the top: the write engine brings the session with
      it, which none of this file's other readers needs */
-  const { readSm8WriteState } = await import("@/lib/integrations/sm8-writes");
-  const [state, zone] = await Promise.all([readSm8WriteState(orgId), bookingZone(orgId)]);
+  const read = known ? null : (await import("@/lib/integrations/sm8-writes")).readSm8WriteState(orgId);
+  const [state, zone] = await Promise.all([known ?? read!, bookingZone(orgId)]);
   const over = await readBookingOverlay(orgId, state, ask, now);
-  return { gone: over.gone, sentNotMirrored: over.sentNotMirrored, rows: over.rows, zone: zone.zone };
+  return {
+    gone: over.gone,
+    sentNotMirrored: over.sentNotMirrored,
+    rows: over.rows,
+    zone: zone.zone,
+    tenantId: state.linked ? state.tenantId : null,
+  };
+}
+
+/** Our sent bookings on one job, for the account connected now: which row
+    made each booking, by lower-case uuid — two columns, nothing more. A read
+    that fails names none (logged): the list then draws them as anyone's. */
+async function ourSentBookings(orgId: string, tenantId: string | null, jobUuid: string): Promise<Map<string, string>> {
+  const ours = new Map<string, string>();
+  if (!tenantId) return ours;
+  const { data, error } = await supabaseAdmin
+    .from("sm8_writes")
+    .select("id, remote_uuid")
+    .eq("org_id", orgId)
+    .eq("tenant_id", tenantId)
+    .eq("kind", "booking")
+    .eq("op", "create")
+    .eq("status", "sent")
+    .in("sm8_job_uuid", [...new Set([jobUuid, jobUuid.toLowerCase(), jobUuid.toUpperCase()])]);
+  if (error) {
+    console.error(`[sm8] couldn't read org ${orgId}'s bookings on job ${jobUuid}:`, error);
+    return ours;
+  }
+  for (const r of (data ?? []) as { id: string; remote_uuid: string | null }[]) if (r.remote_uuid) ours.set(lowUuid(r.remote_uuid), r.id);
+  return ours;
 }
 
 /** A uuid as the overlay keys it: ServiceM8 and the mirror may case it. */
@@ -166,12 +205,21 @@ export async function nextBookingOf(
   orgId: string,
   jobIds: readonly string[],
   acts: readonly { uuid?: string | null; job_uuid: string; start_date: string | null }[],
-  today: string
+  today: string,
+  /** Only these jobs' bookings of ours: a read of a few rows (a search, one
+      card's row) never asks about the whole workspace's. The board's whole
+      book leaves it out. */
+  only?: { jobUuids: readonly string[] }
 ): Promise<Map<string, string>> {
   const next = new Map<string, string>();
   const over = await readBookingsOver(
     orgId,
-    { uuids: acts.map((a) => a.uuid ?? "").filter(Boolean), from: today, rows: false },
+    {
+      uuids: acts.map((a) => a.uuid ?? "").filter(Boolean),
+      from: today,
+      rows: false,
+      ...(only ? { jobUuids: only.jobUuids } : {}),
+    },
     Date.now()
   );
   if (!over) {
@@ -863,21 +911,25 @@ export async function readMirrorJobDetail(
      clock) and the row that made it when it is ours. Only where the
      deployment books; without it `next` is the mirror's, as it always was. */
   const now = Date.now();
+  /* only what the list can draw is asked about: the scheduled bookings from
+     today on. The job's lines are the record read's, so no row is read for
+     them here */
   const over = bookingsOn
     ? await readBookingsOver(
         orgId,
         {
           jobUuids: [remoteId],
-          uuids: acts.filter((a) => a.activity_was_scheduled === 1 && a.uuid).map((a) => a.uuid!),
+          uuids: acts
+            .filter((a) => a.activity_was_scheduled === 1 && a.uuid && a.start_date !== null && a.start_date >= todayFloor)
+            .map((a) => a.uuid!),
+          rows: false,
         },
         now
       )
     : null;
   const standing: { uuid: string; staffUuid: string | null; start: string; end: string | null; ourRow: string | null }[] = [];
   if (over) {
-    const ours = new Map(
-      over.rows.filter((r) => r.op === "create" && r.status === "sent" && r.remote_uuid).map((r) => [lowUuid(r.remote_uuid), r.id])
-    );
+    const ours = await ourSentBookings(orgId, over.tenantId, remoteId);
     for (const a of acts) {
       if (a.activity_was_scheduled !== 1 || !a.uuid || a.start_date === null || a.start_date < todayFloor) continue;
       if (over.gone.has(lowUuid(a.uuid))) continue;
@@ -1666,7 +1718,8 @@ async function hydrateMirrorJobs(
     orgId,
     found.map((r) => r.uuid),
     (actRows ?? []) as unknown as { uuid?: string; job_uuid: string; start_date: string | null }[],
-    today
+    today,
+    { jobUuids: found.map((r) => r.uuid) }
   );
 
   /* Payments here too, or the same job would report a different collection

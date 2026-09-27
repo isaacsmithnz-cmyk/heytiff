@@ -87,21 +87,14 @@ describe("the booking words", () => {
    (a ratchet, as docs/design.md's are). */
 const LATER: Record<string, string[]> = {
   // B and C use every refusal they were given (the actions, app/actions/
-  // booking-sm8, say each press.* line), so neither has a list left
-  // D: the Book in panel, a leftover on the Visits face and its confirm's doors
-  D: [
-    // panel.readFailed is said already, by the panel's read (PR C)
-    ...Object.keys(BOOKING_WORDS.panel)
-      .filter((k) => k !== "readFailed")
-      .map((k) => `panel.${k}`),
-    "line.leftover",
-    "line.leftoverUnsuccessful",
-    "door.clearBooking",
-    "door.keep",
-  ],
+  // booking-sm8, say each press.* line), and D the Book in panel, a leftover
+  // on the Visits face and its confirm's doors, so none has a list left
   // E: Home's alert and verb, the bell, and the owner's guard chip
   E: [
-    ...Object.keys(BOOKING_WORDS.home).map((k) => `home.${k}`),
+    // the Clear's confirm is said by the card and the Schedule already (PR D)
+    ...Object.keys(BOOKING_WORDS.home)
+      .filter((k) => k !== "clearConfirm")
+      .map((k) => `home.${k}`),
     ...Object.keys(BOOKING_WORDS.bell).map((k) => `bell.${k}`),
     "door.clear",
     "card.guardChip",

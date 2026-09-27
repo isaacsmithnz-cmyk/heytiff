@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -75,6 +75,7 @@ import {
   setJobPhotoFavourite,
 } from "@/app/actions/job-photo-favourites";
 import { JobAttentionStrip } from "./job-attention-strip";
+import { StateLine } from "./state-line";
 import { useNoteScopeTarget } from "@/components/notes/note-context";
 import { addJobNote, dismissJobNote, removeJobNote, taskFromJobNote } from "@/app/actions/job-notes";
 import {
@@ -94,7 +95,26 @@ import type { NoteSender } from "@/lib/integrations/links";
 import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 import { mintPressId } from "@/lib/workboard/press-id";
 import { somethingWaiting, useNoteStatePoll } from "./use-note-poll";
-import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
+import {
+  clearLeftoverBooking,
+  readBookingStates,
+  retryBooking,
+  takeBackBooking,
+  type BookingLineResult,
+  type VerbLine,
+  type VerbView,
+} from "@/app/actions/booking-sm8";
+import { BOOKING_WORDS, type BookingAct, type BookingState } from "@/lib/integrations/sm8-booking-plan";
+import {
+  BookInPanel,
+  BookingEntryLine,
+  BookingStateLine,
+  ClearConfirm,
+  bookingsWaiting,
+  leftoverWords,
+  type BookInSeed,
+} from "./book-in-panel";
+import type { BookedEntry, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
   fmtMinutesAsHours,
@@ -108,12 +128,14 @@ import { syncedAgo, type Sm8Health } from "./sm8-chip";
 import { useHydrated } from "@/lib/use-hydrated";
 import type { ScheduleJobState } from "./schedule-tab";
 
-/* One ServiceM8 job, read-only — a CARD OF TABS.
+/* One ServiceM8 job — a CARD OF TABS.
 
-   READ-ONLY IS THE WHOLE POSTURE. ServiceM8 is mirrored under a read
-   charter; nothing here writes back, and the sheet says so rather than
-   offering controls that would lie. What it DOES offer is promotion — the
-   Actions tab, last on purpose, where the ⋯ menu retired.
+   The card writes to ServiceM8 only through a person's press: Send (files),
+   notes, Book in, Undo and Clear. Each goes through the queue and its
+   sender, which read ServiceM8 before anything goes; the card itself never
+   writes the mirror, and offers no control that would lie. What it also
+   offers is promotion — the Actions tab, last on purpose, where the ⋯ menu
+   retired.
 
    THE CARD IS TABS (Isaac, 2026-08-28): the two-zone anatomy is dead. One
    card, eight faces — Summary · Diary · Money · Visits · Checklist ·
@@ -253,6 +275,8 @@ export function JobSheet({
   sm8 = null,
   scheduleState = null,
   initialTab,
+  openBookIn,
+  openClear,
   onClose,
   onCreateAgreement,
   onOpenTracked,
@@ -272,6 +296,13 @@ export function JobSheet({
       mention opens the job's Diary. Summary otherwise, and Summary for Money
       without the grant, because that face is absent. */
   initialTab?: JobSheetTab;
+  /** Open on the Visits face with Book in's panel open, for a door that
+      came to book the job (two-way phase 3). The panel draws once the card
+      knows Book in is offered here. */
+  openBookIn?: true;
+  /** Open on the Visits face with this leftover booking's Clear asked (an
+      activity uuid). */
+  openClear?: string;
   onClose: () => void;
   /** Hands this job to the existing new-agreement modal, prefilled. */
   onCreateAgreement: (row: AllJobRow, detail: MirrorJobDetail | null) => void;
@@ -319,9 +350,30 @@ export function JobSheet({
   const [replyFor, setReplyFor] = useState<string | null>(null);
   /* each press kicks the poll, so its own note gets its own looks */
   const [pollKick, setPollKick] = useState(0);
+  /* BOOKINGS TO SERVICEM8 (two-way phase 3), seeded from the record read
+     and then local, the notes' way: every press on the job as a verb, the
+     line on each standing booking of ours (by lower-case uuid), the job's
+     bookings we took out, and the rows a Book in queued that no read has
+     shown yet — the poll runs while any of them waits. All empty where the
+     deployment books nothing. */
+  const [bkVerbs, setBkVerbs] = useState<VerbView[]>([]);
+  const [bkLines, setBkLines] = useState<Record<string, BookingState>>({});
+  const [bkGone, setBkGone] = useState<ReadonlySet<string>>(() => new Set());
+  const [bkPending, setBkPending] = useState<ReadonlySet<string>>(() => new Set());
+  const [bkKick, setBkKick] = useState(0);
+  /* the Book in panel, keyed so a Look again opens a fresh one */
+  const [bookIn, setBookIn] = useState<{ n: number; seed: BookInSeed | null } | null>(() =>
+    openBookIn ? { n: 0, seed: null } : null
+  );
+  /* the leftover whose Clear is being asked, by lower-case uuid */
+  const [clearAsk, setClearAsk] = useState<string | null>(() => (openClear ? openClear.trim().toLowerCase() : null));
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabKey>(() =>
-    initialTab && (initialTab !== "money" || moneyVisible) ? initialTab : "summary"
+    openBookIn || openClear
+      ? "visits"
+      : initialTab && (initialTab !== "money" || moneyVisible)
+        ? initialTab
+        : "summary"
   );
   const [naming, setNaming] = useState(false);
   const [allVisits, setAllVisits] = useState(false);
@@ -383,7 +435,7 @@ export function JobSheet({
   /* Whether the reader has chosen a tab themselves — the one thing that
      outranks the clone-open landing on Money. A face the door asked for is
      that choice made on the reader's behalf, and outranks it the same way. */
-  const touchedTab = useRef(initialTab !== undefined);
+  const touchedTab = useRef(initialTab !== undefined || !!openBookIn || !!openClear);
   const alive = useRef(true);
 
   useEffect(() => {
@@ -769,6 +821,8 @@ export function JobSheet({
         setAttention(r?.attention ?? null);
         setSender(r?.sender ?? null);
         setFlags(r?.flags ?? {});
+        setBkVerbs(r?.bookings?.verbs ?? []);
+        setBkLines(r?.bookings?.lines ?? {});
       })
       .catch(() => {
         if (live) setRecordFailed(true);
@@ -1345,6 +1399,181 @@ export function JobSheet({
     setAttention(r.attention);
     setSender(r.sender ?? null);
     setFlags(r.flags ?? {});
+    setBkVerbs(r.bookings?.verbs ?? []);
+    setBkLines(r.bookings?.lines ?? {});
+  };
+
+  /* ── BOOKINGS TO SERVICEM8 (two-way phase 3): every door asks the server
+     and the card draws what the next read says ── */
+
+  const bookings = record?.bookings ?? null;
+  /* EACH BOOKING IS DRAWN ONCE. The standing list is the detail's (the
+     mirror's, less what we took out, plus what we sent that it doesn't hold
+     yet), less what a later read says we took out; a press's booking is
+     drawn above the list unless the list holds it AND the read gave it a
+     line of its own, which it then carries on its entry. */
+  const standing: BookedEntry[] | null = detail?.booked
+    ? detail.booked.filter((b) => !bkGone.has(b.uuid.trim().toLowerCase()))
+    : null;
+  const listed = new Set((standing ?? []).map((b) => b.uuid.trim().toLowerCase()));
+  const above = bkVerbs
+    .map((v) => ({ ...v, bookings: v.bookings.filter((b) => !(listed.has(b.uuid) && bkLines[b.uuid])) }))
+    .filter((v) => !!v.status?.state.text || v.bookings.some((b) => !!b.state.text));
+  const verbLineOf = (uuid: string, op: VerbLine["op"]) =>
+    bkVerbs.flatMap((v) => v.bookings).find((b) => b.uuid === uuid && b.op === op) ?? null;
+
+  /** Where every booking line on the card stands: the poll, and after each
+      press. */
+  const refreshBookings = async () => {
+    if (!cardId) return;
+    const s = await readBookingStates({ jobUuid: cardId });
+    if (!s || !alive.current) return;
+    setBkVerbs(s.verbs);
+    setBkLines(s.lines);
+    setBkGone(new Set(s.gone.map((u) => u.trim().toLowerCase())));
+    const seen = new Set(s.verbs.flatMap((v) => [...(v.status ? [v.status.rowId] : []), ...v.bookings.map((b) => b.rowId)]));
+    setBkPending((cur) => (cur.size === 0 ? cur : new Set([...cur].filter((id) => !seen.has(id)))));
+  };
+  useNoteStatePoll({
+    waiting: !!bookings && (bookingsWaiting(bkVerbs, bkLines) || bkPending.size > 0),
+    kick: bkKick,
+    read: refreshBookings,
+  });
+
+  /* ONE PRESS PER LINE. While a press on a line is out its doors are off:
+     the ref is the guard (two clicks in one tick see it), the state only
+     draws it. */
+  const bkOut = useRef(new Set<string>());
+  const [bkBusy, setBkBusy] = useState<ReadonlySet<string>>(() => new Set());
+  const clearPressIds = useRef(new Map<string, string>());
+
+  const openPanel = (seed: BookInSeed | null) => setBookIn((cur) => ({ n: (cur?.n ?? 0) + 1, seed }));
+
+  const bkPress = (key: string, run: () => Promise<BookingLineResult>, seed: BookInSeed | null, answered?: () => void) => {
+    if (bkOut.current.has(key)) return;
+    bkOut.current.add(key);
+    setBkBusy(new Set(bkOut.current));
+    const done = () => {
+      bkOut.current.delete(key);
+      if (alive.current) setBkBusy(new Set(bkOut.current));
+    };
+    void run().then(
+      (res) => {
+        done();
+        answered?.();
+        if (!res.ok) {
+          onToast(res.error);
+          if (res.lookAgain && bookings?.canBook) openPanel(seed);
+        }
+        void refreshBookings();
+        setBkKick((k) => k + 1);
+      },
+      () => {
+        done();
+        onToast(BOOKING_WORDS.press.unqueued);
+      }
+    );
+  };
+
+  /** A door on one of our bookings' lines (or a Clear's). */
+  const bookingAct = (act: BookingAct, line: { rowId: string; op: VerbLine["op"]; seed: BookInSeed | null }) => {
+    if (!cardId) return;
+    const jobUuid = cardId;
+    if (act === "undo" || act === "cancel") {
+      bkPress(line.rowId, () => takeBackBooking({ jobUuid, rowId: line.rowId }), line.seed);
+    } else if (act === "try_again" || act === "take_out_again") {
+      bkPress(line.rowId, () => retryBooking({ jobUuid, rowId: line.rowId }), line.seed);
+    } else if (act === "look_again" || act === "book_again") {
+      /* a fresh read: the panel with the booking in it, or — for a Clear,
+         or where Book in isn't offered — the card read again */
+      if (line.op === "create" && bookings?.canBook) openPanel(line.seed);
+      else void reloadVisits();
+    }
+  };
+
+  /** Clear a leftover, as its confirm showed it. One press id per booking
+      until it is answered, so a retry after a lost answer is one Clear. */
+  const clearBooking = (b: BookedEntry) => {
+    if (!cardId) return;
+    const jobUuid = cardId;
+    const key = b.uuid.trim().toLowerCase();
+    const pressId = clearPressIds.current.get(key) ?? mintPressId();
+    clearPressIds.current.set(key, pressId);
+    bkPress(
+      `clear:${key}`,
+      () => clearLeftoverBooking({ jobUuid, activityUuid: b.uuid, seen: { staffUuid: b.staffUuid ?? "", start: b.start }, pressId }),
+      null,
+      () => {
+        clearPressIds.current.delete(key);
+        setClearAsk(null);
+      }
+    );
+  };
+
+  /** Book in went: its lines join the card, and the poll looks for its rows. */
+  const bookedIn = (verb: VerbView, rowIds: string[]) => {
+    setBookIn(null);
+    setBkVerbs((cur) => [verb, ...cur.filter((v) => v.verbId !== verb.verbId)]);
+    setBkPending((cur) => new Set([...cur, ...rowIds]));
+    setBkKick((k) => k + 1);
+  };
+
+  /** The Visits face read again: the job's bookings and every line. */
+  const reloadVisits = async () => {
+    const res = await readMirrorJob(row.id).catch(() => null);
+    if (res && alive.current) setDetail(res.detail);
+    await reloadRecord();
+    await refreshBookings();
+  };
+
+  const seedOf = (b: { staffUuid: string | null; start: string | null; end: string | null }): BookInSeed => ({
+    staffUuid: b.staffUuid,
+    start: b.start,
+    end: b.end,
+  });
+  const sm8Url = sm8JobUrl(cardId);
+
+  /** What a standing booking says on its own entry: our line and its doors,
+      or a leftover's words and Clear booking — asked in place. */
+  const entryState = (b: BookedEntry) => {
+    const u = b.uuid.trim().toLowerCase();
+    const line = bkLines[u];
+    if (line) {
+      const rowId = b.ourRow ?? verbLineOf(u, "create")?.rowId ?? null;
+      return (
+        <BookingStateLine
+          state={rowId ? line : { ...line, acts: line.acts.filter((a) => a === "open_in_sm8") }}
+          sm8Url={sm8Url}
+          busy={!!rowId && bkBusy.has(rowId)}
+          canPanel={!!bookings?.canBook}
+          onAct={(act) => rowId && bookingAct(act, { rowId, op: "create", seed: seedOf(b) })}
+        />
+      );
+    }
+    if (!b.leftover) return null;
+    if (clearAsk === u && bookings?.canClear && !verbLineOf(u, "clear")) {
+      return (
+        <ClearConfirm
+          name={b.staffName}
+          start={b.start}
+          number={detail?.jobNumber ?? row.number ?? null}
+          status={detail?.status ?? null}
+          busy={bkBusy.has(`clear:${u}`)}
+          onClear={() => clearBooking(b)}
+          onKeep={() => setClearAsk(null)}
+        />
+      );
+    }
+    return (
+      <div className="wb2-jcattsave">
+        <span className="wb2-evmeta">{leftoverWords(detail?.status ?? null)}</span>
+        {bookings?.canClear && !verbLineOf(u, "clear") && (
+          <button type="button" className="wb2-evdoor" onClick={() => setClearAsk(u)}>
+            {BOOKING_WORDS.door.clearBooking}
+          </button>
+        )}
+      </div>
+    );
   };
 
   /* STARRING IS OPTIMISTIC AND REVERSIBLE. The star is a curator's gesture,
@@ -1895,9 +2124,84 @@ export function JobSheet({
           {panel(
             "visits",
             <>
+              {/* BOOK IN (two-way phase 3): the door, or its panel in place,
+                  then every press on the job whose booking isn't standing
+                  on the list below — newest first, a status change said
+                  once above its bookings. Nothing of it where the
+                  deployment books nothing. */}
+              {bookings?.canBook && cardId && !bookIn && (
+                <div className="wb2-jcattsave">
+                  <button type="button" className="pbtn" onClick={() => openPanel(null)}>
+                    {BOOKING_WORDS.panel.book}
+                  </button>
+                </div>
+              )}
+              {bookings?.canBook && cardId && bookIn && (
+                <BookInPanel
+                  key={bookIn.n}
+                  jobUuid={cardId}
+                  number={detail?.jobNumber ?? row.number ?? null}
+                  zone={bookings.zone}
+                  seed={bookIn.seed}
+                  onDone={bookedIn}
+                  onCancel={() => setBookIn(null)}
+                />
+              )}
+              {above.length > 0 && (
+                <div className="wb2-jcsec">
+                  {above.map((v) => (
+                    <Fragment key={v.verbId}>
+                      {v.status?.state.text && (
+                        <div className="wb2-evmeta">
+                          <StateLine as="span" line={{ word: v.status.state.text, tone: v.status.state.tone }} />
+                        </div>
+                      )}
+                      {v.bookings.map((b) => (
+                        <Fragment key={b.rowId}>
+                          {b.start && (
+                            <BookingEntryLine start={b.start} end={b.end} name={b.name} startOnly={b.op === "clear"} />
+                          )}
+                          <BookingStateLine
+                            state={b.state}
+                            sm8Url={sm8Url}
+                            busy={bkBusy.has(b.rowId)}
+                            canPanel={b.op === "clear" || !!bookings?.canBook}
+                            onAct={(act) => bookingAct(act, { rowId: b.rowId, op: b.op, seed: seedOf(b) })}
+                          />
+                        </Fragment>
+                      ))}
+                    </Fragment>
+                  ))}
+                </div>
+              )}
+              {standing ? (
+                standing[0] && (
+                  <div className="wb2-nextv">
+                    <span className="wb2-sect">Next on site</span>
+                    <b>{bookingLabel(standing[0].start, standing[0].end)}</b>
+                    <em>
+                      {standing[0].staffName ?? "Nobody named"}
+                      {standing[0].staffName && standing[0].staffTitle && (
+                        <i className="wb2-jcrole">{`, ${standing[0].staffTitle}`}</i>
+                      )}
+                    </em>
+                    {entryState(standing[0])}
+                  </div>
+                )
+              ) : null}
+              {standing && standing.length > 1 && (
+                <div className="wb2-jcsec">
+                  {standing.slice(1).map((b) => (
+                    <Fragment key={b.uuid}>
+                      <BookingEntryLine start={b.start} end={b.end} name={b.staffName} title={b.staffTitle} />
+                      {entryState(b)}
+                    </Fragment>
+                  ))}
+                </div>
+              )}
               {/* SITE VISITS IS ONE SECTION — the next booking FIRST, in the
                   accent, then every past visit under the same roof. */}
-              {detail?.nextBooking && (
+              {!standing && detail?.nextBooking && (
                 <div className="wb2-nextv">
                   <span className="wb2-sect">Next on site</span>
                   <b>{bookingLabel(detail.nextBooking.start, detail.nextBooking.end)}</b>
@@ -1980,7 +2284,7 @@ export function JobSheet({
                   )}
                 </div>
               ) : (
-                !detail?.nextBooking &&
+                !(standing ? standing.length > 0 || above.length > 0 : detail?.nextBooking) &&
                 !detail?.queue && (
                   <p className="int-hint">
                     {loading && !detail

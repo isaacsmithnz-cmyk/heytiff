@@ -64,6 +64,10 @@ import {
 } from "./home-list";
 import type { StaffNames } from "./tasks-query";
 
+/** When a booking row was last pressed: a re-press keeps the row and its
+    created_at. Its making, for a row that never says. */
+const pressedAt = (r: { pressed_at?: string | null; created_at: string }): string => r.pressed_at ?? r.created_at;
+
 /** What the list needs from the page loader — a part of the new Home's
     shared context (`DeskContext`, ./desk-data), which `loadDesk` hands in as
     it is. */
@@ -448,7 +452,7 @@ async function wonBookingLines(
 
   const lines: Record<string, BookingState> = {};
   const newestFirst = [...creates].sort(
-    (a, b) => b.created_at.localeCompare(a.created_at) || (a.booking_start ?? "").localeCompare(b.booking_start ?? ""),
+    (a, b) => pressedAt(b).localeCompare(pressedAt(a)) || (a.booking_start ?? "").localeCompare(b.booking_start ?? ""),
   );
   for (const c of newestFirst) {
     const job = (c.sm8_job_uuid ?? "").toLowerCase();

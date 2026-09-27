@@ -241,6 +241,21 @@ describe("E-2: which won jobs are still to book, over our bookings", () => {
     expect((await loadHomeList(ctx())).bookingLines![job(1)].text).toBe(BOOKING_WORDS.line.trial);
   });
 
+  /* S1: a Try again keeps its row, and the row's created_at */
+  it("counts a press by when it was last pressed, not when its row was made", async () => {
+    fake.db.sm8_jobs.push(workOrder(job(1), "4001"));
+    fake.db.sm8_writes.push(
+      ours(job(1), {
+        status: "failed",
+        last_error: BOOKING_WORDS.row.refused,
+        created_at: "2026-10-01T01:00:00.000Z",
+        pressed_at: "2026-10-05T21:00:00.000Z",
+      }),
+      ours(job(1), { status: "trial", created_at: "2026-10-04T01:00:00.000Z", pressed_at: "2026-10-04T01:00:00.000Z" }),
+    );
+    expect((await loadHomeList(ctx())).bookingLines![job(1)].text).toBe("Not booked. ServiceM8 refused the booking.");
+  });
+
   it("reads only the account connected now: an old account's booking books nothing", async () => {
     fake.db.sm8_jobs.push(workOrder(job(1), "4001"));
     fake.db.sm8_writes.push(ours(job(1), { tenant_id: "vendor-old" }));

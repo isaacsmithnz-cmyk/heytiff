@@ -64,7 +64,7 @@ const LIVE: Sm8WriteState = {
 let seq = 0;
 const row = (jobUuid: string, over: Row = {}): Row => {
   seq += 1;
-  return {
+  const made: Row = {
     id: `r${seq}`,
     org_id: ORG,
     tenant_id: TENANT,
@@ -97,6 +97,8 @@ const row = (jobUuid: string, over: Row = {}): Row => {
     updated_at: "2026-10-05T01:00:00.000Z",
     ...over,
   };
+  // pressed when it was made, unless the test re-pressed it
+  return { ...made, pressed_at: over.pressed_at ?? made.created_at };
 };
 
 beforeEach(() => {
@@ -189,6 +191,24 @@ describe("the presser's items", () => {
       row(job(2), { status: "failed", last_error: BOOKING_WORDS.row.refused, tenant_id: "vendor-old" }),
     );
     expect(await myBookingTrouble(ORG, ME, SINCE, NOW)).toEqual([]);
+  });
+
+  /* S1: Try again, or a fresh press on a slot given back, reuses the row
+     and keeps its created_at — it is the press that counts */
+  it("goes by when it was last pressed: first pressed eight days ago, failing again today, is today's", async () => {
+    fake.db.sm8_writes.push(
+      row(job(1), {
+        status: "failed",
+        last_error: BOOKING_WORDS.row.refused,
+        created_at: "2026-09-27T01:00:00.000Z",
+        pressed_at: "2026-10-05T20:00:00.000Z",
+      }),
+      // pressed within the week, and not since
+      row(job(2), { status: "failed", last_error: BOOKING_WORDS.row.refused, created_at: "2026-10-04T01:00:00.000Z" }),
+    );
+    const got = await myBookingTrouble(ORG, ME, SINCE, NOW);
+    // the re-pressed one is found, and it is the newest
+    expect(got.map((t) => t.jobUuid)).toEqual([job(1), job(2)]);
   });
 
   it("opens the job's card where the line is, and files under the Workboard", () => {

@@ -36,10 +36,13 @@ const MOST = 5;
 const ROWS_CAP = 200;
 
 const COLUMNS =
-  "id, op, status, subject, sm8_job_uuid, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, taken_back_at, last_error, attempts, depends_on, target_uuid, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, landed_edit_date, seen_edit_date, requested_by, requested_by_user, lease_until, created_at";
+  "id, op, status, subject, sm8_job_uuid, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, taken_back_at, last_error, attempts, depends_on, target_uuid, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, landed_edit_date, seen_edit_date, requested_by, requested_by_user, lease_until, created_at, pressed_at";
 
 /** The spellings a uuid may carry in the mirror. */
 const spellings = (u: string) => [...new Set([u, u.toLowerCase(), u.toUpperCase()])];
+
+/** When a row was last pressed; its making, for a row that never says. */
+const pressedAt = (r: { pressed_at?: string | null; created_at: string }): string => r.pressed_at ?? r.created_at;
 
 /** The sending state, for the account connected now — or null with none.
     Loaded here, not at the top: the write engine brings the session. */
@@ -65,7 +68,10 @@ function opOf(said: BookingState): BookingTroubleOp {
 }
 
 /** YOUR bookings whose line is bad, pressed (or taken back, or cleared) in
-    the last seven days: one item per job, newest first, at most five. A
+    the last seven days — by when each was last PRESSED: a Try again or a
+    fresh press on a slot given back reuses its row, and keeps the row's
+    created_at, so a booking first pressed a week ago that fails again
+    today is today's — one item per job, newest first, at most five. A
     job the mirror doesn't hold says nothing. Empty where the deployment
     books nothing, and on any read that fails (logged). */
 export async function myBookingTrouble(
@@ -86,8 +92,8 @@ export async function myBookingTrouble(
     .eq("tenant_id", tenant)
     .eq("kind", "booking")
     .eq("requested_by_user", userId)
-    .gte("created_at", sinceIso)
-    .order("created_at", { ascending: false })
+    .gte("pressed_at", sinceIso)
+    .order("pressed_at", { ascending: false })
     .limit(ROWS_CAP);
   if (error) {
     console.error(`[sm8] couldn't read org ${orgId}'s bookings for the bell:`, error);
@@ -115,7 +121,7 @@ export async function myBookingTrouble(
   const statusRows = new Map(statuses.map((s) => [s.id, s]));
   const takeBacks = new Map<string, BookingOverlayRow>();
   // the newest take-back of each create
-  for (const b of [...backs].sort((x, y) => x.created_at.localeCompare(y.created_at))) takeBacks.set(b.depends_on!, b);
+  for (const b of [...backs].sort((x, y) => pressedAt(x).localeCompare(pressedAt(y)))) takeBacks.set(b.depends_on!, b);
 
   const hold = state.readable ? sendHold(state, "booking") : null;
   const offered = offersSend(state, "booking");
@@ -140,11 +146,11 @@ export async function myBookingTrouble(
     });
     if (said.tone !== "bad" || !c.sm8_job_uuid) continue;
     const back = takeBacks.get(c.id);
-    bad.push({ at: back && back.created_at > c.created_at ? back.created_at : c.created_at, job: c.sm8_job_uuid, op: opOf(said) });
+    bad.push({ at: back && pressedAt(back) > pressedAt(c) ? pressedAt(back) : pressedAt(c), job: c.sm8_job_uuid, op: opOf(said) });
   }
   for (const r of clears) {
     const said = clearLine(r, hold);
-    if (said?.tone === "bad" && r.sm8_job_uuid) bad.push({ at: r.created_at, job: r.sm8_job_uuid, op: "leftover" });
+    if (said?.tone === "bad" && r.sm8_job_uuid) bad.push({ at: pressedAt(r), job: r.sm8_job_uuid, op: "leftover" });
   }
   if (bad.length === 0) return [];
 

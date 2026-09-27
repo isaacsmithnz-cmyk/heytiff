@@ -216,7 +216,7 @@ describe("reading an ask", () => {
         : { kind: "do", title: "Fit off 2x drains at 1383 Darling Point", due_date: "" };
     const read = await readAsk({
       ...ask,
-      asker: "David Hann",
+      asker: "David Hanby",
       job: "1383 Darling Point",
       at: "2026-07-21 15:13:53",
       text:
@@ -241,7 +241,7 @@ describe("reading an ask", () => {
     const text =
       "Isaac \n2x Drains need to be fit off , I had no hose with me and Chris needs to talk to the plumber about the " +
       "drain in the laundry first , I fit off the temporary wall control into the cabinet";
-    const read = await readAsk({ ...ask, asker: "David Hann", first: "Isaac", job: "1383 Darling Point", at: "2026-07-21 15:13:53", text });
+    const read = await readAsk({ ...ask, asker: "David Hanby", first: "Isaac", job: "1383 Darling Point", at: "2026-07-21 15:13:53", text });
     expect(read).toEqual({ ok: true, read: { kind: "none", title: "", dueDate: null } });
     // the note is read as written, the name in front kept
     expect(sent[0].messages[0].content).toContain(`<<<\n${text}\n>>>`);
@@ -261,14 +261,14 @@ describe("reading an ask", () => {
         : { kind: "none", title: "", due_date: "" };
     const read = await readAsk({
       ...ask,
-      asker: "David Hann",
+      asker: "David Hanby",
       first: "Isaac",
       job: "2543 Kirribilli",
       at: "2026-04-09 15:34:17",
       text:
         "Isaac \nAll the access panels have been cut out and I have installed timber on 4 sides of each hole to " +
         "accommodate the access panels which we still need to purchase,\n3 x 450x450\n2 x 300x300\n" +
-        "Boston has measured up the sheet metal for the fan downstairs",
+        "Bosley has measured up the sheet metal for the fan downstairs",
     });
     expect(read).toEqual({ ok: true, read: { kind: "do", title: order.title, dueDate: null } });
   });

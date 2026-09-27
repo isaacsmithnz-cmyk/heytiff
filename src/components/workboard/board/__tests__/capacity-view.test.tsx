@@ -49,7 +49,7 @@ const dayPayload = (): SchedulePayload => ({
     {
       uuid: "a-1",
       jobUuid: "j-3171",
-      staffUuid: "s-lorenz",
+      staffUuid: "s-lomond",
       start: `${TODAY} 07:00:00`,
       end: `${TODAY} 15:00:00`,
       wasScheduled: 1,
@@ -57,7 +57,7 @@ const dayPayload = (): SchedulePayload => ({
     {
       uuid: "a-2",
       jobUuid: "j-3145",
-      staffUuid: "s-hann",
+      staffUuid: "s-hanby",
       start: `${TODAY} 07:00:00`,
       end: `${TODAY} 16:00:00`,
       wasScheduled: 1,
@@ -65,15 +65,15 @@ const dayPayload = (): SchedulePayload => ({
     {
       uuid: "a-3",
       jobUuid: "j-3145",
-      staffUuid: "s-lorenz",
+      staffUuid: "s-lomond",
       start: `${TODAY} 15:00:00`,
       end: `${TODAY} 16:00:00`,
       wasScheduled: 1,
     },
   ],
   staff: [
-    { uuid: "s-lorenz", name: "Alex Lorenz" },
-    { uuid: "s-hann", name: "David Hann" },
+    { uuid: "s-lomond", name: "Alex Lomond" },
+    { uuid: "s-hanby", name: "David Hanby" },
   ],
   jobs: [
     {
@@ -122,7 +122,7 @@ const capPayload = (over: Partial<CapacityPayload> = {}): CapacityPayload => ({
     {
       uuid: "c-sat",
       jobUuid: "j-3171",
-      staffUuid: "s-lorenz",
+      staffUuid: "s-lomond",
       start: "2026-08-15 08:00:00",
       end: "2026-08-15 12:00:00",
       wasScheduled: 1,
@@ -130,19 +130,19 @@ const capPayload = (over: Partial<CapacityPayload> = {}): CapacityPayload => ({
     {
       uuid: "c-mon",
       jobUuid: "j-3145",
-      staffUuid: "s-hann",
+      staffUuid: "s-hanby",
       start: "2026-08-17 07:00:00",
       end: "2026-08-17 11:00:00",
       wasScheduled: 1,
     },
   ],
   allocation: [
-    { staffUuid: "s-lorenz", name: "Alex Lorenz", included: true, dailyMinutes: 480 },
-    { staffUuid: "s-hann", name: "David Hann", included: true, dailyMinutes: 480 },
+    { staffUuid: "s-lomond", name: "Alex Lomond", included: true, dailyMinutes: 480 },
+    { staffUuid: "s-hanby", name: "David Hanby", included: true, dailyMinutes: 480 },
   ],
   staffNames: [
-    ["s-lorenz", "Alex Lorenz"],
-    ["s-hann", "David Hann"],
+    ["s-lomond", "Alex Lomond"],
+    ["s-hanby", "David Hanby"],
   ],
   ...over,
 });
@@ -257,8 +257,8 @@ it("scores nothing for an unset crew and says so, rather than printing zeros", a
   scheduleCapacity.mockResolvedValue(
     capPayload({
       allocation: [
-        { staffUuid: "s-lorenz", name: "Alex Lorenz", included: false, dailyMinutes: 480 },
-        { staffUuid: "s-hann", name: "David Hann", included: false, dailyMinutes: 480 },
+        { staffUuid: "s-lomond", name: "Alex Lomond", included: false, dailyMinutes: 480 },
+        { staffUuid: "s-hanby", name: "David Hanby", included: false, dailyMinutes: 480 },
       ],
     })
   );
@@ -318,7 +318,7 @@ it("opens a day into its jobs, hours and everyone on them — in the inspector, 
   expect(within(dayCard).getByText("Rifkin, Julian")).toBeInTheDocument();
   expect(within(dayCard).getByText("10h")).toBeInTheDocument();
   // the crew job names EVERYONE on it
-  expect(within(dayCard).getByText("Alex Lorenz, David Hann")).toBeInTheDocument();
+  expect(within(dayCard).getByText("Alex Lomond, David Hanby")).toBeInTheDocument();
   expect(within(dayCard).getByText("Install, Enmore")).toBeInTheDocument();
 
   // Escape dismisses and hands focus back to the day it came from
@@ -362,7 +362,7 @@ it("brings a job forward out of the day, in the rail's own reading", async () =>
   const card = screen.getByRole("complementary", { name: /Rifkin, Julian/ });
   expect(
     [...card.querySelectorAll(".wb2-inspcrew li")].map((c) => c.textContent)
-  ).toEqual(["Alex Lorenz3pm–4pm", "David Hann7am–4pm"]);
+  ).toEqual(["Alex Lomond3pm–4pm", "David Hanby7am–4pm"]);
 
   // "Back to the day" is literally that, and focus lands on the row it left
   await userEvent.click(screen.getByRole("button", { name: "Back to the day" }));
@@ -404,7 +404,7 @@ it("explains an unset crew to a reader WITHOUT offering the editor", async () =>
   scheduleCapacity.mockResolvedValue(
     capPayload({
       allocation: [
-        { staffUuid: "s-lorenz", name: "Alex Lorenz", included: false, dailyMinutes: 480 },
+        { staffUuid: "s-lomond", name: "Alex Lomond", included: false, dailyMinutes: 480 },
       ],
     })
   );
@@ -421,17 +421,17 @@ it("edits the crew as a list, saves it in one write and re-reads the month", asy
   expect(screen.getByText("2 people, 16h a day")).toBeInTheDocument();
 
   // set David aside — his hours survive the toggle, so the line halves
-  await userEvent.click(screen.getByRole("switch", { name: /David Hann/ }));
+  await userEvent.click(screen.getByRole("switch", { name: /David Hanby/ }));
   expect(screen.getByText("1 person, 8h a day")).toBeInTheDocument();
 
   // and step Alex up half an hour
-  await userEvent.click(screen.getByRole("button", { name: "More hours for Alex Lorenz" }));
+  await userEvent.click(screen.getByRole("button", { name: "More hours for Alex Lomond" }));
   expect(screen.getByText("1 person, 8h30 a day")).toBeInTheDocument();
 
   await userEvent.click(screen.getByRole("button", { name: "Save" }));
   expect(setScheduleCapacity).toHaveBeenCalledWith([
-    { staffUuid: "s-lorenz", included: true, dailyMinutes: 510 },
-    { staffUuid: "s-hann", included: false, dailyMinutes: 480 },
+    { staffUuid: "s-lomond", included: true, dailyMinutes: 510 },
+    { staffUuid: "s-hanby", included: false, dailyMinutes: 480 },
   ]);
   // the modal closes and the month is asked again — the denominator moved
   await waitFor(() =>

@@ -212,10 +212,10 @@ describe("a scored month", () => {
     const day = capacityMonth({
       anyDayISO: "2026-08-20",
       allocation: crew(2),
-      staffNames: new Map([["s-0", "Alex Lorenz"]]),
+      staffNames: new Map([["s-0", "Alex Lomond"]]),
       activities: [booking({ staffUuid: "s-0" }), booking({ staffUuid: null })],
     }).find((d) => d.dayISO === "2026-08-20")!;
-    expect(day.people).toEqual(["Alex Lorenz", "Nobody named"]);
+    expect(day.people).toEqual(["Alex Lomond", "Nobody named"]);
   });
 });
 

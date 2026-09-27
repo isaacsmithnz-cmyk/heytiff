@@ -55,7 +55,7 @@ const PERIODS: PayPeriod[] = [
 /** Overtime on Wednesday — lands in "Need review". */
 const OVERTIME: StaffWeek = {
   id: "staff-ot",
-  name: "Boston Hayes",
+  name: "Bosley Hayes",
   role: "Installer",
   rate: 42,
   days: [w8, w8, W("07:00", "18:00", 11), w8, w8, EM, EM],
@@ -146,7 +146,7 @@ beforeEach(() => {
 describe("TimePay screen", () => {
   it("sorts people into review and ready by what derive() flags", () => {
     renderTimePay();
-    expect(within(section("Need review")).getByText("Boston Hayes")).toBeInTheDocument();
+    expect(within(section("Need review")).getByText("Bosley Hayes")).toBeInTheDocument();
     expect(within(section("Ready to approve")).getByText("Marcus Webb")).toBeInTheDocument();
   });
 
@@ -170,7 +170,7 @@ describe("TimePay screen", () => {
       "staff-ot": { status: "sent_back", submittedAt: null, reviewNote: "why the OT?", reviewedBy: null },
     };
     renderTimePay({ sheets });
-    expect(within(section("Waiting on them")).getByText("Boston Hayes")).toBeInTheDocument();
+    expect(within(section("Waiting on them")).getByText("Bosley Hayes")).toBeInTheDocument();
     expect(screen.queryByText("Need review", { selector: ".st" })).toBeNull();
   });
 
@@ -213,7 +213,7 @@ describe("TimePay screen", () => {
   });
 
   it("totals the period's payroll hours across everyone", () => {
-    // Boston 40 + 3×1.5 = 44.5;  Marcus a clean 40
+    // Bosley 40 + 3×1.5 = 44.5;  Marcus a clean 40
     const { container } = renderTimePay();
     const tile = container.querySelector(".stat.hrs") as HTMLElement;
     expect(within(tile).getByText("84.5h")).toBeInTheDocument();
@@ -294,7 +294,7 @@ describe("TimePay screen", () => {
   it("totals the buckets under the same name the person's own sheet uses", () => {
     const { container } = renderTimePay();
     const panel = container.querySelector(".card.flag .cside") as HTMLElement;
-    // Boston: 40 regular + 3 at 1.5 = 44.5
+    // Bosley: 40 regular + 3 at 1.5 = 44.5
     expect(within(panel).getByText("Actual worked")).toBeInTheDocument();
     expect(within(panel).getByText("Payroll hrs")).toBeInTheDocument();
     expect(panel.querySelector(".bkt.total .bv")?.textContent).toBe("44.5h");
@@ -328,7 +328,7 @@ describe("TimePay screen", () => {
   it("send back won't send without a question", async () => {
     const user = userEvent.setup();
     renderTimePay();
-    const card = screen.getByText("Boston Hayes").closest(".card") as HTMLElement;
+    const card = screen.getByText("Bosley Hayes").closest(".card") as HTMLElement;
     await user.click(within(card).getByText("Send back"));
     const send = within(card).getByText("Send", { selector: "button.qsend" });
     expect(send).toBeDisabled(); // a sent-back sheet with no reason is a dead end
@@ -371,7 +371,7 @@ describe("capability gating on the screen", () => {
     renderTimePay({ canApprove: false });
     expect(screen.queryByText("Approve")).toBeNull();
     expect(screen.queryByText("Send back")).toBeNull();
-    expect(screen.getByText("Boston Hayes")).toBeInTheDocument(); // still readable
+    expect(screen.getByText("Bosley Hayes")).toBeInTheDocument(); // still readable
   });
 
   it("without `financials` (and not an admin) the settings gear is absent", () => {

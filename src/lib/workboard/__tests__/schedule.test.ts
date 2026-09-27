@@ -3,7 +3,7 @@
    to prevent were both found in real rows:
 
    - a person's BOOKED hour and their RECORDED time overlap on the same job
-     (Alex Lorenz, job 3163: booked 08:00–09:00, recorded 08:09–09:25) — so
+     (Alex Lomond, job 3163: booked 08:00–09:00, recorded 08:09–09:25) — so
      drawing anything but `activity_was_scheduled = 1` shows one person in
      two places;
    - a crew job is one row PER PERSON (job 2694: four techs, 07:00–15:00
@@ -51,10 +51,10 @@ const act = (over: Partial<ScheduleActivity> & { uuid: string }): ScheduleActivi
 });
 
 const STAFF = [
-  { uuid: "s-1", name: "Alex Lorenz" },
+  { uuid: "s-1", name: "Alex Lomond" },
   { uuid: "s-2", name: "Lyle Irving" },
-  { uuid: "s-3", name: "Callum Vrieze" },
-  { uuid: "s-4", name: "Oleksii Khalameida" },
+  { uuid: "s-3", name: "Callum Vallis" },
+  { uuid: "s-4", name: "Oleh Kovalenko" },
 ];
 
 describe("minutesOfNaive", () => {
@@ -91,7 +91,7 @@ describe("labels", () => {
 
 describe("the scheduled-only filter — the most important line in the feature", () => {
   it("draws the booked hour and NOT the recorded time on the same job", () => {
-    // Alex Lorenz on 2026-08-10, job 3163, verbatim from the live mirror.
+    // Alex Lomond on 2026-08-10, job 3163, verbatim from the live mirror.
     const day = layoutScheduleDay({
       activities: [
         act({ uuid: "booked", start: "2026-08-10 08:00:00", end: "2026-08-10 09:00:00" }),
@@ -183,7 +183,7 @@ describe("lanes", () => {
       staff: STAFF,
       jobs: [job({ remoteId: "j-1" })],
     });
-    expect(day.lanes.map((l) => l.name)).toEqual(["Alex Lorenz", "Lyle Irving"]);
+    expect(day.lanes.map((l) => l.name)).toEqual(["Alex Lomond", "Lyle Irving"]);
   });
 
   it("lands a booking nobody owns in a named last lane — said, not dropped", () => {

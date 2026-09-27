@@ -46,8 +46,8 @@ const dayOf = (
   layoutScheduleDay({
     activities,
     staff: [
-      { uuid: "s-alex", name: "Alex Lorenz" },
-      { uuid: "s-david", name: "David Hann" },
+      { uuid: "s-alex", name: "Alex Lomond" },
+      { uuid: "s-david", name: "David Hanby" },
     ],
     jobs,
     onSite: new Set(onSite),
@@ -137,7 +137,7 @@ describe("the job brought forward", () => {
     ], [job({ remoteId: "j-1" }), job({ remoteId: "j-2", jobNumber: "3171" })]);
 
     const focus = focusJobOf(day, "j-1", clock())!;
-    expect(focus.entries.map((e) => e.who)).toEqual(["Alex Lorenz", "David Hann"]);
+    expect(focus.entries.map((e) => e.who)).toEqual(["Alex Lomond", "David Hanby"]);
     expect(focus.jobNumber).toBe("3145");
     expect(focus.paint).toEqual(scheduleBlockPaint("#e7b5ff"));
     // the category leads the key, and the day-state rides behind it
@@ -150,7 +150,7 @@ describe("the job brought forward", () => {
   it("puts a tracked job in the board's blue and names the board, not the category", () => {
     const day = layoutScheduleDay({
       activities: [act({ uuid: "a-1" })],
-      staff: [{ uuid: "s-alex", name: "Alex Lorenz" }],
+      staff: [{ uuid: "s-alex", name: "Alex Lomond" }],
       jobs: [job({ remoteId: "j-1" })],
       tracked: new Map([["j-1", { kind: "project" as const, label: "Project" }]]),
     });

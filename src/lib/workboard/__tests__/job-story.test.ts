@@ -27,7 +27,7 @@ const note = (over: Partial<JobNoteEntry> = {}): JobNoteEntry => ({
   text: "Need to do drain kit on outdoor in carpark",
   writtenOn: "2026-06-12",
   writtenAt: "2026-06-12 14:31:00",
-  writtenBy: "David Hann",
+  writtenBy: "David Hanby",
   actionRequired: false,
   fromClaim: null,
   ...over,
@@ -122,7 +122,7 @@ describe("buildJobStory — order", () => {
           note({ remoteId: "n-old", writtenAt: "2026-06-12 08:00:00", writtenOn: "2026-06-12" }),
           note({ remoteId: "n-new", writtenAt: "2026-06-12 16:00:00", writtenOn: "2026-06-12" }),
         ],
-        detail: detail({ visits: [{ day: "2026-06-12", minutes: 260, crew: [{ name: "David Hann", title: "HVAC" }] }] }),
+        detail: detail({ visits: [{ day: "2026-06-12", minutes: 260, crew: [{ name: "David Hanby", title: "HVAC" }] }] }),
       })
     );
     // one day: the later note, the earlier note, then the date-only visit —
@@ -549,7 +549,7 @@ describe("storyLineOf — the writer's raw material", () => {
       inputs({ notes: [note({ actionRequired: true, text: "Please make double detection" })] })
     );
     expect(storyLineOf(story[0])).toBe(
-      '2026-06-12 14:31 — note by David Hann [action required]: "Please make double detection"'
+      '2026-06-12 14:31 — note by David Hanby [action required]: "Please make double detection"'
     );
   });
 });

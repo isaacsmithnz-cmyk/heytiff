@@ -105,7 +105,7 @@ jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: () => sm8StaffLi
 
 const ISAAC = { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" };
 const LYLE = { uuid: "u-lyle", handle: "lyleirving", name: "Lyle Irving", first: "Lyle" };
-const MICHAEL = { uuid: "u-michael", handle: "michaeldiamond", name: "Michael Diamond", first: "Michael" };
+const MICHAEL = { uuid: "u-michael", handle: "michaeldixon", name: "Michael Dixon", first: "Michael" };
 const PEOPLE = [ISAAC, LYLE, MICHAEL];
 jest.mock("@/lib/workboard/job-notes-query", () => ({ sm8Roster: async () => PEOPLE }));
 jest.mock("@/lib/workboard/query", () => ({ sm8VendorOf: async () => ({ tz: "Australia/Sydney", connected: true }) }));
@@ -341,7 +341,7 @@ describe("one task per ask", () => {
   it("gives the reader the conversation before it as written too, everybody by name", async () => {
     notes = [
       ASK_MARY,
-      mine("n-mine", "2026-09-22 15:10:00", "calling her this afternoon, @michaeldiamond has her number"),
+      mine("n-mine", "2026-09-22 15:10:00", "calling her this afternoon, @michaeldixon has her number"),
       note("n-chase", LYLE.uuid, "2026-09-23 08:00:00", "@isaacsmith did you get hold of her?"),
     ];
     await settle();
@@ -458,7 +458,7 @@ describe("who it reads for", () => {
      the crew's old Tasks face free of tasks it had no words for went with
      it, so Michael (staff) is read for as Isaac (the owner) is. */
   it("reads for everyone linked who can see the board, whatever their role", async () => {
-    notes = [ASK_MARY, note("n-ladder", LYLE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
+    notes = [ASK_MARY, note("n-ladder", LYLE.uuid, "2026-09-22 09:00:00", "@michaeldixon bring the ladder")];
     await settle();
     expect(listMyMentions.mock.calls.map((c) => c[1]).sort()).toEqual([ISAAC.uuid, MICHAEL.uuid].sort());
     expect(tasksTable().map((t) => t.assigned_to).sort()).toEqual(["s-isaac", "s-michael"]);
@@ -469,7 +469,7 @@ describe("who it reads for", () => {
   it("asks a person's role in this workspace, never one they hold in another", async () => {
     db.memberships[1].permissions = { workboard: false };
     db.memberships.push({ user_id: "auth|michael", org_id: "org-2", role: "owner", permissions: null });
-    notes = [note("n-ladder", LYLE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
+    notes = [note("n-ladder", LYLE.uuid, "2026-09-22 09:00:00", "@michaeldixon bring the ladder")];
     await settle();
     expect(listMyMentions.mock.calls.map((c) => c[1])).toEqual([ISAAC.uuid]);
     expect(tasksTable()).toEqual([]);
@@ -483,7 +483,7 @@ describe("who it reads for", () => {
       [ISAAC.uuid, "s-isaac"],
       [MICHAEL.uuid, "s-elsewhere"],
     ]);
-    notes = [note("n-ladder", LYLE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
+    notes = [note("n-ladder", LYLE.uuid, "2026-09-22 09:00:00", "@michaeldixon bring the ladder")];
     await settle();
     expect(listMyMentions.mock.calls.map((c) => c[1])).toEqual([ISAAC.uuid]);
     expect(tasksTable()).toEqual([]);
@@ -492,7 +492,7 @@ describe("who it reads for", () => {
   it("reads for nobody who can't see the board, or whom integration_links doesn't name", async () => {
     db.memberships[1].permissions = { workboard: false };
     links = new Map([[ISAAC.uuid, "s-isaac"]]);
-    notes = [note("n-ladder", LYLE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
+    notes = [note("n-ladder", LYLE.uuid, "2026-09-22 09:00:00", "@michaeldixon bring the ladder")];
     db.memberships[0].permissions = null;
     await settle();
     expect(listMyMentions.mock.calls.map((c) => c[1])).toEqual([ISAAC.uuid]);

@@ -31,7 +31,7 @@ const payload = (over: Partial<SchedulePayload> = {}): SchedulePayload => ({
     {
       uuid: "a-1",
       jobUuid: "j-3171",
-      staffUuid: "s-lorenz",
+      staffUuid: "s-lomond",
       start: `${TODAY} 07:00:00`,
       end: `${TODAY} 15:00:00`,
       wasScheduled: 1,
@@ -39,7 +39,7 @@ const payload = (over: Partial<SchedulePayload> = {}): SchedulePayload => ({
     {
       uuid: "a-2",
       jobUuid: "j-3145",
-      staffUuid: "s-hann",
+      staffUuid: "s-hanby",
       start: `${TODAY} 07:00:00`,
       end: `${TODAY} 16:00:00`,
       wasScheduled: 1,
@@ -47,15 +47,15 @@ const payload = (over: Partial<SchedulePayload> = {}): SchedulePayload => ({
     {
       uuid: "a-3",
       jobUuid: "j-3145",
-      staffUuid: "s-lorenz",
+      staffUuid: "s-lomond",
       start: `${TODAY} 15:00:00`,
       end: `${TODAY} 16:00:00`,
       wasScheduled: 1,
     },
   ],
   staff: [
-    { uuid: "s-lorenz", name: "Alex Lorenz" },
-    { uuid: "s-hann", name: "David Hann" },
+    { uuid: "s-lomond", name: "Alex Lomond" },
+    { uuid: "s-hanby", name: "David Hanby" },
   ],
   jobs: [
     {
@@ -92,7 +92,7 @@ const payload = (over: Partial<SchedulePayload> = {}): SchedulePayload => ({
     },
   ],
   // both techs have clocked on against their own bookings — the ordinary day
-  onSite: ["j-3171|s-lorenz", "j-3145|s-hann", "j-3145|s-lorenz"],
+  onSite: ["j-3171|s-lomond", "j-3145|s-hanby", "j-3145|s-lomond"],
   addresses: {},
   ...over,
 });
@@ -123,14 +123,14 @@ beforeEach(() => {
 
 it("fetches today on open and lays out a lane per person", async () => {
   render(tab());
-  expect(await screen.findByText("Alex Lorenz")).toBeInTheDocument();
-  expect(screen.getByText("David Hann")).toBeInTheDocument();
+  expect(await screen.findByText("Alex Lomond")).toBeInTheDocument();
+  expect(screen.getByText("David Hanby")).toBeInTheDocument();
   expect(scheduleDay).toHaveBeenCalledWith(TODAY);
   // the crew job draws once per person — two blocks carry it, and the CLIENT
   // is what each one leads with, with the job number as a chip beside it
   expect(screen.getAllByText("Rifkin, Julian")).toHaveLength(2);
   expect(screen.getAllByText("3145")).toHaveLength(2);
-  // lane load is spoken: Lorenz has 8h + 1h across two bookings
+  // lane load is spoken: Lomond has 8h + 1h across two bookings
   expect(screen.getByText("2 bookings, 9h")).toBeInTheDocument();
 });
 
@@ -231,13 +231,13 @@ describe("clicking a block", () => {
   });
 
   it("brings EVERYONE on the job forward, with their own hours", async () => {
-    // #3145 is booked twice today — Hann 7am–4pm and Lorenz 3pm–4pm
+    // #3145 is booked twice today — Hanby 7am–4pm and Lomond 3pm–4pm
     render(tab());
     await userEvent.click((await screen.findAllByRole("button", { name: /Job #3145/ }))[0]);
     expect(screen.getByText("2 people on this job")).toBeInTheDocument();
     const panel = stack()!;
-    expect(within(panel).getByText("David Hann")).toBeInTheDocument();
-    expect(within(panel).getByText("Alex Lorenz")).toBeInTheDocument();
+    expect(within(panel).getByText("David Hanby")).toBeInTheDocument();
+    expect(within(panel).getByText("Alex Lomond")).toBeInTheDocument();
     expect(within(panel).getByText("7am–4pm")).toBeInTheDocument();
     expect(within(panel).getByText("3pm–4pm")).toBeInTheDocument();
   });
@@ -246,7 +246,7 @@ describe("clicking a block", () => {
     render(tab());
     await userEvent.click((await screen.findAllByRole("button", { name: /Job #3171/ }))[0]);
     expect(screen.getByText("On this job")).toBeInTheDocument();
-    expect(within(stack()!).getByText("Alex Lorenz")).toBeInTheDocument();
+    expect(within(stack()!).getByText("Alex Lomond")).toBeInTheDocument();
   });
 
   it("tells the status of the job and what its colours mean, in the inspector", async () => {
@@ -263,7 +263,7 @@ describe("clicking a block", () => {
 
   it("says what each person's booking is doing, in words", async () => {
     const p = payload();
-    scheduleDay.mockResolvedValue({ ...p, onSite: ["j-3145|s-hann"] });
+    scheduleDay.mockResolvedValue({ ...p, onSite: ["j-3145|s-hanby"] });
     render(tab());
     await userEvent.click((await screen.findAllByRole("button", { name: /Job #3145/ }))[0]);
     const panel = stack()!;
@@ -323,7 +323,7 @@ it("steps a WEEK on the header's stepper, because the strip already picks the da
      inside it. */
   scheduleDay.mockImplementation(async (dayISO: string) => ({ ...payload(), dayISO }));
   render(tab());
-  await screen.findByText("Alex Lorenz");
+  await screen.findByText("Alex Lomond");
   await userEvent.click(screen.getByRole("button", { name: "The week after" }));
   expect(scheduleDay).toHaveBeenLastCalledWith("2026-08-21");
   await userEvent.click(screen.getByRole("button", { name: "The week before" }));
@@ -334,7 +334,7 @@ it("steps a WEEK on the header's stepper, because the strip already picks the da
 it("names the window once it is not this week, and offers the way back", async () => {
   scheduleDay.mockImplementation(async (dayISO: string) => ({ ...payload(), dayISO }));
   render(tab());
-  await screen.findByText("Alex Lorenz");
+  await screen.findByText("Alex Lomond");
   // on today, in this week, the filled day chip already says both — and
   // there is nowhere to come back from
   expect(screen.queryByText("This week")).toBeNull();
@@ -355,15 +355,15 @@ it("names the window once it is not this week, and offers the way back", async (
 it("caches a day — stepping back to it asks the server nothing", async () => {
   scheduleDay.mockImplementation(async (day: string) => payload({ dayISO: day }));
   render(tab());
-  await screen.findByText("Alex Lorenz");
+  await screen.findByText("Alex Lomond");
   expect(scheduleDay).toHaveBeenCalledTimes(1);
 
   await userEvent.click(screen.getByRole("button", { name: "The week after" }));
-  await screen.findByText("Alex Lorenz");
+  await screen.findByText("Alex Lomond");
   expect(scheduleDay).toHaveBeenCalledTimes(2);
 
   await userEvent.click(screen.getByRole("button", { name: "Today" }));
-  await screen.findByText("Alex Lorenz");
+  await screen.findByText("Alex Lomond");
   expect(scheduleDay).toHaveBeenCalledTimes(2); // today came from the cache
 });
 
@@ -397,7 +397,7 @@ it("waits out the first backfill instead of drawing a half-built day", () => {
 
 it("names the category in words, not only in colour", async () => {
   render(tab());
-  await screen.findByText("Alex Lorenz");
+  await screen.findByText("Alex Lomond");
   // #3145 is an Install — twice on the rail, plus once in the day's legend.
   // #3171 has no category at all, and the block says that rather than
   // leaving a grey rectangle to be interpreted. On a block the category
@@ -408,7 +408,7 @@ it("names the category in words, not only in colour", async () => {
 
 it("hands the block a fill, a label colour and a cap that measure up", async () => {
   render(tab());
-  await screen.findByText("Alex Lorenz");
+  await screen.findByText("Alex Lomond");
   const block = screen.getAllByRole("button", { name: /Job #3145/ })[0];
   const fill = block.style.getPropertyValue("--fill");
   const ink = block.style.getPropertyValue("--btext");
@@ -432,7 +432,7 @@ it("goes pale when the job is closed, rather than fading out", async () => {
     jobs: p.jobs.map((j) => ({ ...j, status: "Completed" })),
   });
   render(tab());
-  await screen.findByText("Alex Lorenz");
+  await screen.findByText("Alex Lomond");
   const block = screen.getAllByRole("button", { name: /Job #3145/ })[0];
   expect(block).toHaveClass("done");
   // the pale is a STATED colour — the old rule was opacity:.58, which drags
@@ -452,10 +452,10 @@ describe("nobody has started it", () => {
     );
 
   it("hollows the booking nobody has clocked on to", async () => {
-    // Hann's booking on #3145 has no recorded time; everything else does
-    scheduleDay.mockResolvedValue({ ...payload(), onSite: ["j-3171|s-lorenz", "j-3145|s-lorenz"] });
+    // Hanby's booking on #3145 has no recorded time; everything else does
+    scheduleDay.mockResolvedValue({ ...payload(), onSite: ["j-3171|s-lomond", "j-3145|s-lomond"] });
     render(tab());
-    await screen.findByText("Alex Lorenz");
+    await screen.findByText("Alex Lomond");
     expect(idle()).toHaveLength(1);
     // and it is spoken, not left to the outline — a ring reaches nobody on a
     // screen reader
@@ -471,9 +471,9 @@ describe("nobody has started it", () => {
     // Midday on the fixture's day: the 7am booking should have started.
     jest.useFakeTimers({ now: new Date(2026, 7, 14, 12, 0, 0) });
     try {
-      scheduleDay.mockResolvedValue({ ...payload(), onSite: ["j-3171|s-lorenz"] });
+      scheduleDay.mockResolvedValue({ ...payload(), onSite: ["j-3171|s-lomond"] });
       render(tab());
-      await screen.findByText("Alex Lorenz");
+      await screen.findByText("Alex Lomond");
       // the 7am booking should have started hours ago and has nothing on it
       expect(
         screen.getByRole("button", { name: /Job #3145.*7am to 4pm.*nothing recorded yet/ })
@@ -491,9 +491,9 @@ describe("nobody has started it", () => {
   it("does not claim lateness when the viewer's clock is on another date", async () => {
     // an overseas viewer: no mark beats one that is hours wrong, so the block
     // is hollow but never accused
-    scheduleDay.mockResolvedValue({ ...payload(), onSite: ["j-3171|s-lorenz"] });
+    scheduleDay.mockResolvedValue({ ...payload(), onSite: ["j-3171|s-lomond"] });
     render(tab());
-    await screen.findByText("Alex Lorenz");
+    await screen.findByText("Alex Lomond");
     expect(idle().every((b) => !b.classList.contains("late"))).toBe(true);
   });
 
@@ -502,7 +502,7 @@ describe("nobody has started it", () => {
     // Hollowing every block would be a screenful of alarm about nothing.
     scheduleDay.mockResolvedValue({ ...payload(), onSite: [] });
     render(tab());
-    await screen.findByText("Alex Lorenz");
+    await screen.findByText("Alex Lomond");
     expect(idle()).toHaveLength(0);
     expect(screen.queryByText("Not started")).not.toBeInTheDocument();
   });
@@ -513,14 +513,14 @@ describe("nobody has started it", () => {
     scheduleDay.mockImplementation(async (dayISO: string) => ({
       ...payload(),
       dayISO,
-      onSite: dayISO === TODAY ? ["j-3171|s-lorenz"] : [],
+      onSite: dayISO === TODAY ? ["j-3171|s-lomond"] : [],
     }));
     render(tab());
-    await screen.findByText("Alex Lorenz");
+    await screen.findByText("Alex Lomond");
     // #3145 is booked twice today and neither booking has recorded time
     expect(idle()).toHaveLength(2);
     await userEvent.click(screen.getByRole("button", { name: "The week after" }));
-    await screen.findByText("Alex Lorenz");
+    await screen.findByText("Alex Lomond");
     expect(idle()).toHaveLength(0); // a week out, nothing is "not started" yet
   });
 
@@ -534,10 +534,10 @@ describe("nobody has started it", () => {
         { ...p.jobs[0], status: "Completed" },
         { ...p.jobs[1], status: "Unsuccessful" },
       ],
-      onSite: ["j-3145|s-lorenz"],
+      onSite: ["j-3145|s-lomond"],
     });
     render(tab());
-    await screen.findByText("Alex Lorenz");
+    await screen.findByText("Alex Lomond");
     expect(idle()).toHaveLength(0);
   });
 
@@ -552,7 +552,7 @@ describe("nobody has started it", () => {
       jobs: [p.jobs[0], { ...p.jobs[1], status: "Unsuccessful" }],
     });
     render(tab());
-    await screen.findByText("Alex Lorenz");
+    await screen.findByText("Alex Lomond");
     const failed = screen.getAllByRole("button", { name: /didn't go ahead/ });
     expect(failed.length).toBeGreaterThan(0);
     for (const b of failed) expect(b).toHaveClass("dan");
@@ -574,7 +574,7 @@ describe("a job closed before this booking's day", () => {
       ),
     });
     render(tab());
-    await screen.findByText("Alex Lorenz");
+    await screen.findByText("Alex Lomond");
     const stale = screen.getAllByRole("button", { name: /Job #3145/ });
     for (const b of stale) {
       // still on somebody's run, so it must not recede like finished work
@@ -603,11 +603,11 @@ describe("a job closed before this booking's day", () => {
     const p = payload();
     scheduleDay.mockResolvedValue({
       ...p,
-      /* Hann's booking on the closed job HAS recorded time, which is what
+      /* Hanby's booking on the closed job HAS recorded time, which is what
          makes `tracksTime` true — without a single started booking anywhere
          the whole reading is off and this test would pass for the wrong
-         reason. Lorenz's booking on the same job, and #3171, have none. */
-      onSite: ["j-3145|s-hann"],
+         reason. Lomond's booking on the same job, and #3171, have none. */
+      onSite: ["j-3145|s-hanby"],
       jobs: p.jobs.map((j) =>
         j.remoteId === "j-3145"
           ? { ...j, status: "Completed", completionDate: "2026-08-11 16:00:00" }
@@ -615,7 +615,7 @@ describe("a job closed before this booking's day", () => {
       ),
     });
     render(tab());
-    await screen.findByText("Alex Lorenz");
+    await screen.findByText("Alex Lomond");
     for (const b of screen.getAllByRole("button", { name: /Job #3145/ })) {
       expect(b).toHaveClass("stale");
       expect(b).not.toHaveClass("late");
@@ -640,7 +640,7 @@ describe("a job closed before this booking's day", () => {
       ),
     });
     render(tab());
-    await screen.findByText("Alex Lorenz");
+    await screen.findByText("Alex Lomond");
     for (const b of screen.getAllByRole("button", { name: /Job #3145/ })) {
       expect(b).toHaveClass("done");
       expect(b).not.toHaveClass("stale");
@@ -657,7 +657,7 @@ describe("a job closed before this booking's day", () => {
       ),
     });
     render(tab());
-    await screen.findByText("Alex Lorenz");
+    await screen.findByText("Alex Lomond");
     for (const b of screen.getAllByRole("button", { name: /Job #3145/ })) {
       expect(b).not.toHaveClass("stale");
     }
@@ -669,17 +669,17 @@ describe("the presence dot", () => {
     screen.getByText(name).closest("b")!.querySelector(".wb2-schpd");
 
   it("says who has started, in a word as well as a colour", async () => {
-    // Lorenz has recorded time; Hann has not, and his 7am booking has gone
+    // Lomond has recorded time; Hanby has not, and his 7am booking has gone
     jest.useFakeTimers({ now: new Date(2026, 7, 14, 12, 0, 0) });
     try {
-      scheduleDay.mockResolvedValue({ ...payload(), onSite: ["j-3171|s-lorenz"] });
+      scheduleDay.mockResolvedValue({ ...payload(), onSite: ["j-3171|s-lomond"] });
       render(tab());
-      await screen.findByText("Alex Lorenz");
-      expect(dotFor("Alex Lorenz")).toHaveClass("on");
-      expect(dotFor("David Hann")).toHaveClass("late");
+      await screen.findByText("Alex Lomond");
+      expect(dotFor("Alex Lomond")).toHaveClass("on");
+      expect(dotFor("David Hanby")).toHaveClass("late");
       // the colour is never carrying it alone
-      expect(screen.getByText("Alex Lorenz").closest("b")).toHaveTextContent("started");
-      expect(screen.getByText("David Hann").closest("b")).toHaveTextContent(
+      expect(screen.getByText("Alex Lomond").closest("b")).toHaveTextContent("started");
+      expect(screen.getByText("David Hanby").closest("b")).toHaveTextContent(
         "nothing recorded yet"
       );
     } finally {
@@ -692,10 +692,10 @@ describe("the presence dot", () => {
     // this reading does not exist, not that everybody is idle
     scheduleDay.mockResolvedValue({ ...payload(), onSite: [] });
     render(tab());
-    await screen.findByText("Alex Lorenz");
+    await screen.findByText("Alex Lomond");
     // the dot's seat stays, so every name starts on one line — empty of state
-    expect(dotFor("Alex Lorenz")).toHaveAttribute("class", "wb2-schpd");
-    expect(dotFor("David Hann")).toHaveAttribute("class", "wb2-schpd");
+    expect(dotFor("Alex Lomond")).toHaveAttribute("class", "wb2-schpd");
+    expect(dotFor("David Hanby")).toHaveAttribute("class", "wb2-schpd");
   });
 });
 
@@ -705,7 +705,7 @@ it("wears the board's word on a tracked block", async () => {
       tracked: new Map([["j-3145", { kind: "project" as const, label: "Enmore install" }]]),
     })
   );
-  await screen.findByText("Alex Lorenz");
+  await screen.findByText("Alex Lomond");
   // both of the crew job's blocks name the board that owns it, in words —
   // the tracked blue is never the only thing carrying that
   expect(screen.getAllByText(/^Project(,|$)/)).toHaveLength(2);
@@ -738,7 +738,7 @@ it("shows native day-bookings on the shelf and routes their clicks by kind", asy
       ],
     })
   );
-  await screen.findByText("Alex Lorenz");
+  await screen.findByText("Alex Lomond");
   // only the open day's shelf shows
   expect(screen.queryByText("Project — elsewhere")).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: /Project — Enmore install/ }));

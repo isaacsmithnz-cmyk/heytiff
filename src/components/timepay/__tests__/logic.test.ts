@@ -49,7 +49,7 @@ const demoTimepayWeek: WeekDay[] = [
 const demoTimepayToday = 4;
 
 const demoTimepayStaff: StaffWeek[] = [
-  { id: "s1", name: "Boston Hayes", role: "Installer", rate: 44,
+  { id: "s1", name: "Bosley Hayes", role: "Installer", rate: 44,
     days: [w("07:00", "16:00", 9), w("07:00", "15:00", 8), w("07:00", "16:00", 9), w("07:00", "15:00", 8), w("07:00", "15:00", 8), NO, NO] },
   { id: "s2", name: "Priya Nair", role: "Service Technician", rate: 46,
     days: [w("08:00", "16:00", 8), w("06:30", "19:30", 11.5), w("08:00", "16:00", 8), w("08:00", "16:00", 8), w("08:00", "16:00", 8), NO, NO] },
@@ -107,8 +107,8 @@ describe("derive — demo staff on default settings", () => {
     demoTimepayStaff.map((s) => [s.name, derive(s, DEFAULT_SETTINGS, ctx)])
   );
 
-  it("Boston: two 9h days -> 2h at 1.5x, review", () => {
-    const d = byName["Boston Hayes"];
+  it("Bosley: two 9h days -> 2h at 1.5x, review", () => {
+    const d = byName["Bosley Hayes"];
     expect([d.normal, d.ot, d.ot2]).toEqual([40, 2, 0]);
     expect(d.worked).toBe(42);
     expect(d.weighted).toBe(43);
@@ -346,7 +346,7 @@ describe("formatting helpers", () => {
     expect(fmt(null)).toBe("—");
   });
   it("initials and rule summaries", () => {
-    expect(initials("Boston Hayes")).toBe("BH");
+    expect(initials("Bosley Hayes")).toBe("BH");
     expect(ruleSummary({ on: true, rate: 2, up: null })).toBe("2× all day");
     expect(ruleSummary({ on: true, rate: 1.5, up: 2 })).toBe("1.5× first 2h, then 2×");
   });
@@ -403,7 +403,7 @@ describe("the avatar carries its initials at the same ratio on every name", () =
   });
 
   it("keeps the hue — the identity half of the avatar is untouched", () => {
-    for (const name of ["Boston Hayes", "Marcus Webb", "Ana De Souza"]) {
+    for (const name of ["Bosley Hayes", "Marcus Webb", "Ana De Souza"]) {
       expect(stops(avatarFill(name))[0]!.h).toBe(nameHue(name));
     }
   });

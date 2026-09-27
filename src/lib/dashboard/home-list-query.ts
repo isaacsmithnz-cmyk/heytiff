@@ -526,7 +526,7 @@ export async function loadLeftovers(
   if (acts.length === 0) return [];
 
   const jobIds = [...new Set(acts.map((a) => a.job_uuid!))];
-  const jobs = new Map<string, { number: string | null; status: string }>();
+  const jobs = new Map<string, { number: string; status: string }>();
   for (const chunk of chunks(jobIds)) {
     const { data: rows, error: jobError } = await supabaseAdmin
       .from("sm8_jobs")
@@ -540,7 +540,10 @@ export async function loadLeftovers(
       return [];
     }
     for (const j of (rows ?? []) as { uuid: string; generated_job_id: string | null; status: string }[]) {
-      jobs.set(j.uuid, { number: j.generated_job_id, status: j.status });
+      /* the alert is "Job {number} is finished but still booked": a job with
+         no number would say its placeholder, so it says nothing, as the bell
+         does (booking-bell-query's jobNumbers) */
+      if (j.generated_job_id?.trim()) jobs.set(j.uuid, { number: j.generated_job_id.trim(), status: j.status });
     }
   }
   const left = acts.filter((a) => {

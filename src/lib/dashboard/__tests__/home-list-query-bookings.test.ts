@@ -330,6 +330,14 @@ describe("E-3: the leftover bookings", () => {
     expect((await loadHomeList(ctx())).leftovers!.map((l) => l.activityUuid)).toEqual([act(2)]);
   });
 
+  /* S2: the alert is "Job {number} is finished but still booked" */
+  it("says nothing of a job with no number, rather than a sentence with a hole in it", async () => {
+    fake.db.sm8_jobs.push(finished(job(10), "4010"), finished(job(11), "4011", "Unsuccessful"));
+    (fake.db.sm8_jobs.at(-1) as Row).generated_job_id = null;
+    fake.db.sm8_job_activities.push(activity(act(10), job(10)), activity(act(11), job(11)));
+    expect((await loadHomeList(ctx())).leftovers!.map((l) => l.jobNumber)).toEqual(["4010"]);
+  });
+
   it("lists none without the account's zone: there is no Sydney fallback", async () => {
     fake.db.sm8_vendor = [{ org_id: ORG, timezone_name: null }];
     fake.db.sm8_jobs.push(finished(job(10), "4010"));

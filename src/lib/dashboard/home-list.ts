@@ -244,7 +244,7 @@ export type ListCaps = {
 export type LeftoverRow = {
   activityUuid: string;
   jobUuid: string;
-  jobNumber: string | null;
+  jobNumber: string;
   /** "Completed" or "Unsuccessful". */
   jobStatus: string;
   /** Who is booked, by first name; null when the mirror names nobody. */

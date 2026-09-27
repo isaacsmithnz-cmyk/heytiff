@@ -40,6 +40,8 @@ const RESULTS = path.join(ROOT, "results");
 const CONCURRENCY = 3;
 const OPUS_5 = "claude-opus-5";
 const OPUS_55 = "claude-opus-5-5";
+/** The loop's model in P0 (TIFF_LOOP_MODEL), Opus 5 unless named. */
+const LOOP_MODEL = process.env.TIFF_LOOP_MODEL ?? OPUS_5;
 /** A smoke run: `TIFF_PROBE_LIMIT=2` reads two notes, or two phrases. */
 const LIMIT = Number(process.env.TIFF_PROBE_LIMIT) || Number.POSITIVE_INFINITY;
 
@@ -145,17 +147,17 @@ async function p0(client: Anthropic) {
     client,
     notes,
     (n, ctx) => routerRead(client, n.transcript, ctx, OPUS_5),
-    (n, ctx) => loopRead(client, n.transcript, ctx, n.orgId, OPUS_5),
+    (n, ctx) => loopRead(client, n.transcript, ctx, n.orgId, LOOP_MODEL),
   );
   const effort = process.env.TIFF_LOOP_EFFORT ?? "medium";
   const strict = process.env.TIFF_LOOP_STRICT !== "0";
   const nolookup = process.env.TIFF_LOOP_NOLOOKUP === "1";
-  const variant = `${effort === "medium" ? "" : `-${effort}`}${strict ? "" : "-loose"}${nolookup ? "-nolookup" : ""}`;
+  const variant = `${LOOP_MODEL === OPUS_5 ? "" : `-${LOOP_MODEL}`}${effort === "medium" ? "" : `-${effort}`}${strict ? "" : "-loose"}${nolookup ? "-nolookup" : ""}`;
   await save(
     `p0${variant}`,
     rows,
     pairReport(
-      `P0: notes through today's router and through the loop (loop effort ${effort}, file_note ${strict ? "strict" : "not strict"}${nolookup ? ", no look-ups before filing" : ""})`,
+      `P0: notes through today's router and through the loop (loop on ${LOOP_MODEL}, effort ${effort}, file_note ${strict ? "strict" : "not strict"}${nolookup ? ", no look-ups before filing" : ""})`,
       "Router",
       "Loop",
       rows,

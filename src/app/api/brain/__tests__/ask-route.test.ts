@@ -169,8 +169,31 @@ describe("the wire", () => {
     expect(loopInput().history).toEqual([]);
   });
 
+  it("a ServiceM8 job sheet's target reaches the loop — the job IS the scope", async () => {
+    /* The job sheet aims the Tiff modal at `{ kind: "job", id }`, its card's
+       ServiceM8 uuid. Dropping it sent "what's wrong with this job?" out
+       about no job at all, and the label with nothing to call job_history
+       with. */
+    await POST(
+      req({
+        question: "what's wrong with this job?",
+        target: { kind: "job", id: "sm8-uuid-3323" },
+        targetLabel: "#3323 — Meridian Data",
+      })
+    );
+    expect(loopInput()).toMatchObject({
+      targetLabel: "#3323 — Meridian Data",
+      targetRef: { kind: "job", id: "sm8-uuid-3323" },
+    });
+  });
+
   it("a junk target is dropped rather than trusted", async () => {
     await POST(req({ question: "hi?", target: { kind: "drop table", id: 5 } }));
+    expect(loopInput().targetRef).toBeUndefined();
+  });
+
+  it("an unaimed target is no target — `none` names nothing to read", async () => {
+    await POST(req({ question: "hi?", target: { kind: "none", id: "x" } }));
     expect(loopInput().targetRef).toBeUndefined();
   });
 

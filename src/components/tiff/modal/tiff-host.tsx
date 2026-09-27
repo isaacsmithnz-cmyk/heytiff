@@ -74,7 +74,11 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
       if (c.landed) setLanded({ ...c.landed, room: c.room, keyboard: c.keyboard });
       /* The results land on the page after it closes — and only when
          something was written; closing on nothing costs no refetch. */
-      if (c.changed) router.refresh();
+      /* A move goes now, with the modal gone (a job's sheet portals to the
+         same layer, and one opened under a folding modal would paint over
+         it); the push fetches the page, so it needs no refresh besides. */
+      if (c.moveTo) router.push(c.moveTo);
+      else if (c.changed) router.refresh();
       const to = c.back?.isConnected ? c.back : c.from;
       if (to.isConnected) to.focus({ preventScroll: true });
     },

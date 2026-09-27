@@ -55,17 +55,20 @@ describe("the gates", () => {
     expect(passes({ anyOf: ["team", "workboard"] }, v)).toBe(false);
   });
 
-  it("a workboard-only viewer holds the four workboard reads and not the library", () => {
+  it("a workboard-only viewer holds the four workboard reads and the record search, and not the library", () => {
     expect(toolsFor(viewer(["workboard"])).map((t) => t.name)).toEqual([
       "job_history",
       "search_jobs",
       "open_task_load",
       "issue_log",
+      "open_screen",
+      "find_record",
+      "open_record",
     ]);
   });
 
-  it("a library-only viewer holds kb_search alone", () => {
-    expect(toolsFor(viewer(["tiff"])).map((t) => t.name)).toEqual(["kb_search"]);
+  it("a library-only viewer holds kb_search, and can move only to a screen", () => {
+    expect(toolsFor(viewer(["tiff"])).map((t) => t.name)).toEqual(["kb_search", "open_screen"]);
   });
 
   it("a viewer with neither holds no read", () => {

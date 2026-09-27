@@ -74,6 +74,9 @@ export type AskBrainEvent =
   /** The loop picked up a tool — `label` is the human line for the chip. */
   | { type: "tool"; name: string; label: string }
   | { type: "error"; message: string }
+  /** A tool moved the screen: the page goes to `href` (built by the tool from
+      a fixed set, never from words the model read). The turn ends with it. */
+  | { type: "screen"; href: string; label: string }
   | { type: "done" };
 
 export type AskBrainInput = {
@@ -147,8 +150,9 @@ export function askSystemPrompt(input: Pick<AskBrainInput, "targetLabel" | "targ
   return [
     "You are Tiff, the assistant inside an Australian HVAC business's own",
     "workspace, answering a colleague's question about their jobs, tasks,",
-    "issues and knowledge base. You have read-only tools; everything you can",
-    "know about this workspace comes from them.",
+    "issues and knowledge base, and taking them where they ask to go. Your",
+    "tools read, or move the screen; everything you can know about this",
+    "workspace comes from them.",
     "",
     "Use the tools rather than guessing — one or two reads usually answer",
     "the question. Say what you're doing in a short clause when you reach",
@@ -164,9 +168,12 @@ export function askSystemPrompt(input: Pick<AskBrainInput, "targetLabel" | "targ
     "with what it rests on ('3 open tasks, oldest from Monday'). Numbers",
     "and names beat adjectives.",
     "",
-    "You cannot create, change or complete anything — you only read. If the",
-    "question asks you to DO something, say that saving it as a note is how",
-    "things get done here, and answer whatever part is answerable.",
+    "To go somewhere, use open_screen for a screen, or find_record and then",
+    "open_record for a person, client, project or job. If find_record finds",
+    "more than one that could be meant, ask which, naming them. Apart from",
+    "moving the screen you can't change anything yet: if asked to do something",
+    "else, say you can't do that from here yet, offer to open the screen where",
+    "it's done, and answer whatever part is answerable.",
     "",
     `Today is ${input.todayISO}. When a tool needs today's date, use it.`,
     input.targetLabel && input.targetRef
@@ -249,10 +256,15 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
     const abort = () => stream.controller.abort();
     input.signal?.addEventListener("abort", abort, { once: true });
 
+    /* Whether this round said anything of its own, so a move's line is
+       added only when she said nothing (her own line, in the language she
+       was asked in, is never doubled). */
+    let spoke = false;
     try {
       for await (const event of stream) {
         if (input.signal?.aborted) return;
         if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+          if (event.delta.text) spoke = true;
           yield { type: "delta", text: event.delta.text };
         }
       }
@@ -282,10 +294,20 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
         const tool = input.tools.find((t) => t.name === call.name);
         yield { type: "tool", name: call.name, label: tool?.label ?? call.name };
         const res = await runTool(input.viewer, call.name, call.input ?? {}, input.tools);
+        /* A MOVE ENDS THE TURN. The first screen outcome stops the round:
+           calls after it in the same round never run, so no second move can
+           follow, and no model round follows either — her line is built
+           from where she's going (2 to 4 s saved on every move). */
+        if (res.ok && res.outcome.kind === "screen") {
+          if (!spoke) yield { type: "delta", text: res.outcome.line };
+          yield { type: "screen", href: res.outcome.href, label: res.outcome.label };
+          yield { type: "done" };
+          return;
+        }
         results.push({
           type: "tool_result",
           tool_use_id: call.id,
-          content: res.ok ? JSON.stringify(res.outcome.kind === "result" ? res.outcome.value : res.outcome.label).slice(0, 20_000) : res.error,
+          content: res.ok ? JSON.stringify(res.outcome.kind === "result" ? res.outcome.value : null).slice(0, 20_000) : res.error,
           is_error: !res.ok,
         });
       }

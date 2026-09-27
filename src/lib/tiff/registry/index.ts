@@ -7,18 +7,17 @@
    Reads reachable by ASKING are the same set reachable by LOOKING: a tool
    whose gate the viewer doesn't pass is not in their request at all. */
 
+import { passes } from "./gates";
 import { READS } from "./reads";
-import type { Gate, TiffTool, Viewer } from "./types";
+import { SCREEN_TOOLS } from "./screens";
+import type { TiffTool, Viewer } from "./types";
+
+export { passes } from "./gates";
 
 export type { Gate, Outcome, Risk, TiffTool, Viewer } from "./types";
 
-export const TIFF_TOOLS: readonly TiffTool[] = [...READS];
+export const TIFF_TOOLS: readonly TiffTool[] = [...READS, ...SCREEN_TOOLS];
 
-export function passes(gate: Gate, viewer: Viewer): boolean {
-  if ("open" in gate) return true;
-  if ("capability" in gate) return viewer.caps.has(gate.capability);
-  return gate.anyOf.some((c) => viewer.caps.has(c));
-}
 
 /** The tools this viewer may hold, in registry order. */
 export const toolsFor = (viewer: Viewer, tools: readonly TiffTool[] = TIFF_TOOLS): TiffTool[] =>

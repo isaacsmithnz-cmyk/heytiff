@@ -78,6 +78,9 @@ export type TiffClosed = Closed & {
   room?: TiffRoom;
   /** Opened or closed from the keyboard. */
   keyboard: boolean;
+  /** Tiff moved the screen: the host goes here once the modal is gone, so a
+      sheet the page opens never lands under a modal still folding away. */
+  moveTo?: string;
 };
 
 const ROOM: Record<TiffRoom, string> = { home: "Home", diary: "Diary", tasks: "Tasks", calendar: "Calendar" };
@@ -115,7 +118,13 @@ export function TiffModal({
     voiceEnabled: scope.voiceEnabled,
     target: scope.target,
     targetLabel: scope.targetLabel,
+    onLeave: (href) => leave.current(href),
   });
+
+  /* A MOVE CLOSES THE MODAL, THEN THE PAGE MOVES. `leave` is set once
+     `close` exists (below); the conversation calls it after her line shows. */
+  const moveTo = useRef<string | null>(null);
+  const leave = useRef<(href: string) => void>(() => {});
 
   const dialog = useRef<HTMLElement | null>(null);
   const scrim = useRef<HTMLDivElement | null>(null);
@@ -201,6 +210,7 @@ export function TiffModal({
       back: session.back,
       room: session.room,
       keyboard: session.keyboard || byKey,
+      ...(moveTo.current ? { moveTo: moveTo.current } : {}),
     };
     const m = dialog.current;
     const p = parts.current;
@@ -237,6 +247,13 @@ export function TiffModal({
     if (!out.clock) return finish();
     out.clock.finished.then(finish, finish);
   };
+
+  useEffect(() => {
+    leave.current = (href: string) => {
+      moveTo.current = href;
+      close(false);
+    };
+  });
 
   /* ESCAPE CLOSES THIS AND ONLY THIS. Caught on the way down, before a sheet
      underneath hears it and closes itself too. Tab stays inside. */

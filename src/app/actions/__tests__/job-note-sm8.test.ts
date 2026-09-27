@@ -16,6 +16,7 @@
    about notes may change there until Isaac's phase-1 live walk. */
 
 import { makeFakeDb } from "@/lib/integrations/__tests__/fixtures/sm8-fake-db";
+import { makeSm8Notes, type Sm8Notes } from "@/lib/integrations/__tests__/fixtures/sm8-live-notes";
 
 type Row = Record<string, unknown>;
 
@@ -160,9 +161,25 @@ const as = (staff: string | null) => {
   who = staff;
 };
 
+/** ServiceM8's copy of our notes, as the live account behaves. */
+let sm8: Sm8Notes;
+
+/** This note's create landed in ServiceM8, and from here ServiceM8 answers
+    reads and DELETEs as the live account does (fixtures/sm8-live-notes): a
+    DELETE takes a note out, and one reaching a note already out puts it
+    back. */
+function inServiceM8(noteId: string): { live: Sm8Notes; uuid: string } {
+  const uuid = String(createOf(noteId)!.remote_uuid);
+  sm8.put(uuid);
+  readSm8Note.mockImplementation(sm8.read);
+  deleteSm8Note.mockImplementation(sm8.del);
+  return { live: sm8, uuid };
+}
+
 beforeEach(() => {
   fake.reset();
   seq = 0;
+  sm8 = makeSm8Notes(JOB);
   who = "staff-isaac";
   caps = new Set(["workboard"]);
   process.env.SM8_WRITES = "attachment,note";
@@ -770,10 +787,25 @@ describe("Undo and Remove on a note that went, or was queued", () => {
   it("Undo of a sent reply takes it out of ServiceM8, and the row goes", async () => {
     const a = newId();
     await reply({ composeId: a });
+    const { live, uuid } = inServiceM8(a);
     const r = await takeBackJobNote({ jobUuid: JOB, noteId: a });
     expect(r).toEqual({ ok: true, gone: true, state: null });
-    expect(deleteOf(a)).toMatchObject({ status: "sent" });
+    expect(deleteOf(a)).toMatchObject({ status: "sent", http_status: 200 });
     expect(deleteSm8Note).toHaveBeenCalledTimes(1);
+    expect(live.active(uuid)).toBe(false);
+  });
+
+  it("(F) (the live walk, 2026-09-27) a note sent, removed inside ServiceM8, then Remove: no DELETE goes, it isn't put back, and the row goes", async () => {
+    const id = seedEntry();
+    await sendJobNoteToServiceM8({ jobUuid: JOB, noteId: id });
+    expect(createOf(id)).toMatchObject({ status: "sent" });
+    const { live, uuid } = inServiceM8(id);
+    // the owner deletes it inside ServiceM8
+    live.removeThere(uuid);
+    expect(await removeJobNote(id)).toEqual({ ok: true, gone: true });
+    expect(deleteSm8Note).not.toHaveBeenCalled();
+    expect(live.active(uuid)).toBe(false);
+    expect(deleteOf(id)).toMatchObject({ status: "sent", http_status: null });
   });
 
   describe("(F) (verifier r2 1) by anyone but its sender: refused, naming them, and nothing queued", () => {
@@ -797,6 +829,7 @@ describe("Undo and Remove on a note that went, or was queued", () => {
     it("on a removed row still in ServiceM8, its delete failed (case 3)", async () => {
       const a = newId();
       await reply({ composeId: a });
+      inServiceM8(a);
       deleteSm8Note.mockResolvedValueOnce(refused(422));
       await takeBackJobNote({ jobUuid: JOB, noteId: a });
       expect(deleteOf(a)).toMatchObject({ status: "failed" });

@@ -185,10 +185,16 @@ export async function readSm8Attachment(call: Sm8Call, uuid: string): Promise<Sm
      POST   note.json               "Create a new Note"   (publish_job_notes)
      POST   dbonote/{uuid}.json     "Update a Note"       (publish_job_notes)
      DELETE dbonote/{uuid}.json     "Delete a Note"       (publish_job_notes;
-                                     a delete sets active = 0, and a note
-                                     already gone answers 404)
+                                     a delete sets active = 0)
      GET    note.json?$filter=uuid eq '…'                 (read_job_notes)
-   Live test 1 proves them on the real account. */
+   Live test 1 proves them on the real account.
+
+   A DELETE ON A NOTE ALREADY OUT OF SERVICEM8 PUTS IT BACK. The reference
+   says a note already gone answers 404; the live walk of 2026-09-27 found
+   otherwise: a note its sender had removed inside ServiceM8 read active
+   again the same second HeyTiff's DELETE reached it. So nothing here is
+   trusted to say a note is gone — the sender reads it live before every
+   DELETE and after one (sm8-note-send's sendDelete). */
 
 /** One note request's answer: the decision, the status, what ServiceM8 said
     when it refused, and the uuid it names the record by. */
@@ -261,8 +267,10 @@ export async function updateSm8NoteCompleter(
   });
 }
 
-/** Take one note out of ServiceM8, as `asStaffUuid`. A 404 means it is gone
-    already, which the sender counts as done. */
+/** Take one note out of ServiceM8, as `asStaffUuid`. Sent only after a live
+    read found the note there and active: on a note already out it puts the
+    note back (see above). Its answer, a 2xx or a 404 alike, proves nothing
+    about where the note stands; the sender reads it back. */
 export async function deleteSm8Note(call: Sm8Call, uuid: string, asStaffUuid: string): Promise<Sm8NoteResult> {
   if (!UUID.test(uuid)) return NOT_A_NOTE;
   return noteRequest(call, "DELETE dbonote", `dbonote/${uuid}.json`, { method: "DELETE", impersonate: asStaffUuid });

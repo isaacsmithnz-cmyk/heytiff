@@ -17,6 +17,7 @@
    about notes may change there until Isaac's phase-1 live walk. */
 
 import { makeFakeDb } from "@/lib/integrations/__tests__/fixtures/sm8-fake-db";
+import { makeSm8Notes, type Sm8Notes } from "@/lib/integrations/__tests__/fixtures/sm8-live-notes";
 
 type Row = Record<string, unknown>;
 
@@ -145,9 +146,24 @@ const reopen = (id = TASK) => reopenTask(id, { takeBackDone: true });
 const linesFor = async (viewer: string | null, ids = [TASK]) => readTaskDoneLines(ORG, viewer, ids);
 const SINCE = "2026-01-01";
 
+/** ServiceM8's copy of our notes, as the live account behaves. */
+let sm8: Sm8Notes;
+
+/** This Done landed in ServiceM8, and from here ServiceM8 answers reads and
+    DELETEs as the live account does (fixtures/sm8-live-notes): a DELETE
+    takes a note out, and one reaching a note already out puts it back. */
+function inServiceM8(doneId: unknown): { live: Sm8Notes; uuid: string } {
+  const uuid = String(createOf(doneId)!.remote_uuid);
+  sm8.put(uuid);
+  readSm8Note.mockImplementation(sm8.read);
+  deleteSm8Note.mockImplementation(sm8.del);
+  return { live: sm8, uuid };
+}
+
 beforeEach(() => {
   fake.reset();
   seq = 0;
+  sm8 = makeSm8Notes(JOB);
   who = "staff-isaac";
   caps = new Set(["workboard"]);
   process.env.SM8_WRITES = "attachment,note";
@@ -400,6 +416,7 @@ describe("ticking a task made from a mention", () => {
   it("(F) two Reopens at once reopen it once, and take its Done back once; the loser is told", async () => {
     await tick();
     const done = liveDone()!;
+    inServiceM8(done.id);
     const [a, b] = await Promise.all([reopen(), reopen()]);
     expect([a, b]).toContainEqual({ ok: false, error: "That task is already open." });
     expect([a, b]).toContainEqual({ ok: true });
@@ -546,13 +563,29 @@ describe("reopening takes the Done back", () => {
     await tick();
     const done = liveDone()!;
     const create = createOf(done.id)!;
+    const { live, uuid } = inServiceM8(done.id);
     await reopen();
     expect(notes().find((n) => n.id === done.id)!.removed_at).toBeTruthy();
-    expect(deleteOf(done.id)).toMatchObject({ depends_on: create.id, subject: noteSubject.undo(String(create.id)), status: "sent" });
+    expect(deleteOf(done.id)).toMatchObject({ depends_on: create.id, subject: noteSubject.undo(String(create.id)), status: "sent", http_status: 200 });
     expect(deleteSm8Note).toHaveBeenCalledTimes(1);
     expect(deleteSm8Note.mock.calls[0].slice(1)).toEqual([create.remote_uuid, ISAAC_SM8]);
+    expect(live.active(uuid)).toBe(false);
     // settled: nothing of it is there, so the task shows nothing
     expect((await linesFor("staff-isaac")).lines).toEqual({});
+  });
+
+  it("(F) (the live walk, 2026-09-27) a Done removed inside ServiceM8, then Reopen: no DELETE goes, it isn't put back, and the task shows nothing", async () => {
+    await tick();
+    const done = liveDone()!;
+    const { live, uuid } = inServiceM8(done.id);
+    // the owner deletes it inside ServiceM8
+    live.removeThere(uuid);
+    expect(await reopen()).toEqual({ ok: true });
+    expect(deleteSm8Note).not.toHaveBeenCalled();
+    expect(live.active(uuid)).toBe(false);
+    expect(deleteOf(done.id)).toMatchObject({ status: "sent", http_status: null });
+    expect((await linesFor("staff-isaac")).lines).toEqual({});
+    expect(await myUnsentDones(ORG, "staff-isaac", SINCE)).toEqual([]);
   });
 
   it("(F) 14. someone else's Reopen after the tick answered: the task reopens, the Done stays, and they're told whose it is", async () => {
@@ -716,9 +749,11 @@ describe("the task's line and its doors", () => {
   it("(F) 18. a Done whose take-back failed stays on its task with Try again, even after the task is ticked again; the bell names it and Try again re-presses its delete", async () => {
     await tick();
     const first = liveDone()!;
+    const { live, uuid } = inServiceM8(first.id);
     deleteSm8Note.mockResolvedValueOnce(refused(422));
     await reopen();
     expect(deleteOf(first.id)).toMatchObject({ status: "failed" });
+    expect(live.active(uuid)).toBe(true);
     // ticked again: a new Done goes beside it
     await tick();
     const second = liveDone()!;
@@ -737,6 +772,7 @@ describe("the task's line and its doors", () => {
     expect(await retryTaskDone({ taskId: TASK, noteId: String(first.id), act: "take_out_again" })).toMatchObject({ ok: true });
     expect(writes().filter((w) => w.op === "delete")).toHaveLength(deletes);
     expect(deleteOf(first.id)).toMatchObject({ status: "sent" });
+    expect(live.active(uuid)).toBe(false);
     expect((await linesFor("staff-isaac")).lines[TASK].map((l) => l.noteId)).toEqual([second.id]);
     expect(await myUnsentDones(ORG, "staff-isaac", SINCE)).toEqual([]);
   });
@@ -775,6 +811,7 @@ describe("the task's line and its doors", () => {
   it("(F) 33. Try again on a Done still in ServiceM8, by anyone but its sender: told whose it is, and nothing queued or re-pressed", async () => {
     await tick();
     const done = liveDone()!;
+    inServiceM8(done.id);
     deleteSm8Note.mockResolvedValueOnce(refused(422));
     await reopen();
     const del = deleteOf(done.id)!;

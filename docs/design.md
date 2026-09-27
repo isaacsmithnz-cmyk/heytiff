@@ -311,9 +311,12 @@ Every decision below is made once, here, and a guard test holds each number.
   their first name in his tag; ticking says "Done." with Undo for four
   seconds before the row folds away. Alerts follow, a dot and a door:
   the whole row opens its thing, and it carries at most one verb. Book
-  in and Book open the Schedule with the card, until the booking phase
-  books from here; a visit's Book in picks its day in the row, which is
-  real now. A roll-up and an issue open in place. Without ServiceM8 the
+  in and Book open the Schedule with the card; where bookings to
+  ServiceM8 are offered, a won job's Book in opens Home's one card on
+  its Visits face with Book in open, a booking of ours that hasn't gone
+  says so where "No day yet." was, and a finished job still booked is an
+  alert of its own whose Clear opens the card on that booking's confirm.
+  A visit's Book in picks its day in the row, which is real now. A roll-up and an issue open in place. Without ServiceM8 the
   list is HeyTiff's own: no won jobs, no money, no Create job.
   Tasks is every task you have a hand in, open and done (his answer to
   the review, 2026-09-24): the one entry box on top,

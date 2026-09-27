@@ -22,7 +22,13 @@ import type { AllJobRow } from "@/lib/workboard/all-jobs";
    The card is the board's own, on the same row and wearing the day-state a
    booking wore; its agreement door lands on the board with the job open
    (`?job=`), where the modal it needs lives. Closing it puts focus back
-   where the press came from. */
+   where the press came from.
+
+   A DOOR THAT CAME TO BOOK OR TO CLEAR (two-way phase 3): the list's Book
+   in opens the card on its Visits face with Book in's panel open, and a
+   leftover booking's Clear with that booking's confirm. Still one card: a
+   door like that is a fresh one even on the job already open, so what it
+   came for is what the card opens on. */
 
 export type OpenJobOptions = {
   /** What today's schedule says the job is doing — only when a booking
@@ -33,6 +39,11 @@ export type OpenJobOptions = {
   /** Where focus goes back to on close. The element that has focus when
       the card is asked for, unless the door says otherwise. */
   from?: HTMLElement | null;
+  /** Open on the Visits face with Book in's panel open. */
+  bookIn?: true;
+  /** Open on the Visits face with this leftover booking's Clear asked (an
+      activity uuid). */
+  clear?: string;
 };
 
 export type DeskJobs = {
@@ -53,6 +64,9 @@ type Open = {
   state: ScheduleJobState | null;
   tab: JobSheetTab | undefined;
   from: HTMLElement | null;
+  /** What a booking door came for — Book in, or a leftover's Clear — and
+      the ask that brought it, so the card opens afresh on it. */
+  door: { bookIn: boolean; clear: string | null; n: number } | null;
 };
 
 /** The element that has focus now, when it is something focus can go back
@@ -86,8 +100,9 @@ export function DeskJobHost({
     (job: AllJobRow | string, opts: OpenJobOptions = {}) => {
       const n = ++asked.current;
       const from = opts.from !== undefined ? opts.from : focused();
+      const door = opts.bookIn || opts.clear ? { bookIn: !!opts.bookIn, clear: opts.clear ?? null, n } : null;
       const land = (row: AllJobRow) =>
-        setOpen({ row, state: opts.state ?? null, tab: opts.tab, from });
+        setOpen({ row, state: opts.state ?? null, tab: door ? "visits" : opts.tab, from, door });
       if (typeof job !== "string") {
         land(job);
         return;
@@ -124,12 +139,14 @@ export function DeskJobHost({
           card says "Open in ServiceM8" in its place. */}
       {open && (
         <JobSheet
-          key={open.row.id}
+          key={open.door ? `${open.row.id}:${open.door.n}` : open.row.id}
           row={open.row}
           manage={manage}
           moneyVisible={moneyVisible}
           scheduleState={open.state}
           initialTab={open.tab}
+          {...(open.door?.bookIn ? { openBookIn: true as const } : {})}
+          {...(open.door?.clear ? { openClear: open.door.clear } : {})}
           onClose={close}
           onCreateAgreement={(row) => {
             setOpen(null);

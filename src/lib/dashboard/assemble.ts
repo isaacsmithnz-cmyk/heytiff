@@ -8,8 +8,11 @@ import {
   licenceChip,
   orgCredentialChips,
   profileChip,
+  sm8BookingChip,
   sm8DoneChip,
+  sm8GuardChip,
   sm8QueueChip,
+  type BookingTroubleOp,
   sortChips,
   swmsIssueChip,
   swmsSignonChip,
@@ -110,6 +113,13 @@ export type ChipSources = {
       may not have reached it (two-way phase 2, PR C). Optional so a caller
       that has not loaded them raises no chip. */
   ownUnsentDones?: { taskId: string; title: string; op: "post" | "take_back" | "check" }[];
+  /** YOUR bookings to ServiceM8 whose line is bad, one per job (two-way
+      phase 3, PR E). Optional so a caller that has not loaded them raises
+      no chip; read only where the deployment books. */
+  ownBookingTrouble?: { jobUuid: string; number: string; op: BookingTroubleOp }[];
+  /** A read-back guard switched bookings off in the last seven days — the
+      loader reads it for owners only; `assembleChips` checks again. */
+  sm8BookingGuard?: { number: string } | null;
 };
 
 const push = (arr: ActionChip[], chip: ActionChip | null) => {
@@ -167,6 +177,11 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
      staff card, so this sits outside the block above: an owner with no card
      still owns the files stuck on their way to ServiceM8. */
   if (src.isOwner) push(self, sm8QueueChip(src.sm8Stuck ?? null));
+  /* A booking is pressed as a person, staff card or not: yours to put
+     right, and only yours. The guard that switched bookings off is the
+     owner's, as the switch is. */
+  for (const b of src.ownBookingTrouble ?? []) self.push(sm8BookingChip(b));
+  if (src.isOwner) push(self, sm8GuardChip(src.sm8BookingGuard ?? null));
 
   const team: ActionChip[] = [];
   if (caps.has("team")) {

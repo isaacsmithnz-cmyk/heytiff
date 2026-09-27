@@ -87,18 +87,9 @@ describe("the booking words", () => {
    (a ratchet, as docs/design.md's are). */
 const LATER: Record<string, string[]> = {
   // B and C use every refusal they were given (the actions, app/actions/
-  // booking-sm8, say each press.* line), and D the Book in panel, a leftover
-  // on the Visits face and its confirm's doors, so none has a list left
-  // E: Home's alert and verb, the bell, and the owner's guard chip
-  E: [
-    // the Clear's confirm is said by the card and the Schedule already (PR D)
-    ...Object.keys(BOOKING_WORDS.home)
-      .filter((k) => k !== "clearConfirm")
-      .map((k) => `home.${k}`),
-    ...Object.keys(BOOKING_WORDS.bell).map((k) => `bell.${k}`),
-    "door.clear",
-    "card.guardChip",
-  ],
+  // booking-sm8, say each press.* line), D the Book in panel, a leftover on
+  // the Visits face and its confirm's doors, and E Home's alert and verb,
+  // the bell, and the owner's guard chip, so none has a list left
 };
 
 function sources(dir: string, out: string[] = []): string[] {

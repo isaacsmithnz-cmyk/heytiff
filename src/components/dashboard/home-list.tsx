@@ -51,6 +51,9 @@ import { useDeskJobs } from "./home-job-sheet";
    means: a URL is followed, a job opens the desk's one card
    (`useDeskJobs`), a diary entry, a mention or a task is a `DeskFocus`
    handed up (`onShow`). A roll-up and an issue open in place instead.
+   Where bookings are offered (two-way phase 3), a won job's Book in opens
+   that one card on its Visits face with Book in's panel open, and a
+   leftover booking's Clear opens it with that booking's confirm.
 
    UNTIL THE ROW HAS FOLDED, THE LIST HOLDS STILL. Every action here
    brings the page back fresh, and the list the server sends no longer has
@@ -341,6 +344,10 @@ type Ctl = {
   tick: (row: ListTaskRow) => void;
   resolve: (row: ListIssueRow) => void;
   book: (rowId: string, visitId: string, day: string) => void;
+  /** Book a won job in ServiceM8 on its card: the Visits face, the panel open. */
+  bookIn: (jobUuid: string, from: HTMLElement) => void;
+  /** Clear a leftover booking on its job's card: the Visits face, its confirm open. */
+  clear: (at: { jobUuid: string; activityUuid: string }, from: HTMLElement) => void;
   undo: (rowId: string) => void;
   showEntry: (entryId: string, pointer: boolean) => void;
 };
@@ -531,6 +538,17 @@ export function HomeList({
     }
   };
 
+  /* The card's own row for a job the list carries — the one the job door
+     opens on — or its uuid for the mirror to be asked. */
+  const cardOf = (jobUuid: string) => {
+    const job = shown.jobs.find((j) => j.remoteId === jobUuid);
+    return (job ? sheetRowOf(job, shown.day) : null) ?? jobUuid;
+  };
+  const bookIn = (jobUuid: string, from: HTMLElement) =>
+    openJob(cardOf(jobUuid), { from, tab: "visits", bookIn: true });
+  const clear = (at: { jobUuid: string; activityUuid: string }, from: HTMLElement) =>
+    openJob(cardOf(at.jobUuid), { from, tab: "visits", clear: at.activityUuid });
+
   /* Opened by a pointer, what opens grows; from the keyboard, or under
      reduced motion, it is simply there (law 8). */
   const toggle = (rowId: string, pointer: boolean) => {
@@ -574,6 +592,8 @@ export function HomeList({
     tick,
     resolve,
     book,
+    bookIn,
+    clear,
     undo: (rowId) => void undo(rowId),
     showEntry: (entryId, pointer) => onShow({ face: "diary", kind: "entry", ids: [entryId] }, pointer),
   };
@@ -666,8 +686,26 @@ function TaskItem({ row, ctl }: { row: ListTaskRow; ctl: Ctl }) {
   );
 }
 
-/** The one verb an alert carries: a URL, a door, or a visit's day picker. */
+/** The one verb an alert carries: a URL, a door, a visit's day picker, or
+    — where bookings are offered — a won job's Book in or a leftover's Clear
+    on the job's own card. */
 function VerbControl({ verb, rowId, pickId, ctl }: { verb: Verb; rowId: string; pickId: string; ctl: Ctl }) {
+  if ("bookIn" in verb) {
+    const jobUuid = verb.bookIn;
+    return (
+      <button type="button" className="hd-ls-vb" onClick={(e) => ctl.bookIn(jobUuid, e.currentTarget)}>
+        {verb.label}
+      </button>
+    );
+  }
+  if ("clear" in verb) {
+    const at = verb.clear;
+    return (
+      <button type="button" className="hd-ls-vb" onClick={(e) => ctl.clear(at, e.currentTarget)}>
+        {verb.label}
+      </button>
+    );
+  }
   if ("placeVisit" in verb) {
     return (
       <button

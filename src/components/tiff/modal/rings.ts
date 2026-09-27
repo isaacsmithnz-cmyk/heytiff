@@ -70,6 +70,8 @@ export type Flight = {
   clock: Animation | null;
   /** the button's own rings, hidden while theirs are out */
   hold: Animation[];
+  /** the modal changed size while it opened (you started talking): the outline and fill aim at its new box */
+  retarget?: () => void;
 };
 type Key = "a" | "b";
 const KEYS: Key[] = ["a", "b"];
@@ -103,7 +105,7 @@ const f3 = (x: number) => x.toFixed(3);
 const W: Record<Key, number> = { a: 360 / 7000, b: 360 / 5000 };
 const WARC = 360 / 2600;
 const TILT: Record<Key, number> = { a: -20, b: 25 };
-const DT = 8;
+const DT = 12;
 /** A ring's own line: at rest, in flight (so it reads over the veil), and as the outline, resting and reshaping. */
 const FAINT = 0.18;
 const FLY = 0.7;
@@ -117,25 +119,28 @@ export const NSEG = 20;
 /** Laps a millisecond for each ring's run once landed: 18 and 14 seconds a lap. */
 const LAP: Record<Key, number> = { a: 18000, b: 14000 };
 
-/* The open: flat at TL, the rectangle at TM, filled as it gets there, the zones as it lands. */
-const TL = 760;
-const MD = 650;
+/* The open: flat at TL, the rectangle at TM, filled as it gets there, the zones as it lands. Isaac watched it live
+   (2026-09-27, "needs to be faster and smoother on open"): 1,660ms became about 1,100. */
+const TL = 520;
+const MD = 380;
 const TM = TL + MD;
-const FS = TL + 250;
+const FS = TL + 120;
 const FD = TM - FS;
-const CI = TM - 60;
-const CD = 220;
-const CS = 30;
+const CI = TM - 80;
+const CD = 180;
+const CS = 24;
 const END = CI + 3 * CS + CD;
 /* The close: the fill drains and the outline rounds off; the rings take over at TH and are home at T. */
-const TU = 120;
-const UD = 380;
+const TU = 60;
+const UD = 260;
 const TH = TU + UD;
-const F = 520;
+const F = 400;
 const T = TH + F;
 const TS = 20;
 const TMF = 40;
-const DD = 260;
+const DD = 200;
+/** How long a ring's run of light takes to go out before it lands, or to come back once it has left the outline. */
+const RUNFADE = 120;
 
 const GROW = profile(0.5, 1.5);
 const GO = profile(1.8, 3);
@@ -256,7 +261,8 @@ function outlineFrame(k: Key, m: number, u: number, c: number, land: Land, box: 
 }
 /** The fill at reshape m, e of the way in: the inner ring's shape (the modal's own box at m = 1), with a hole of
     the same shape shrinking to its centre. The hole is always there, zero-sized when full, so every frame has the
-    same commands. */
+    same commands. The hole is the path's `fill-rule` attribute (tiff-rings.tsx): the `d` property takes no rule,
+    and a `path(evenodd, …)` in it is no path at all (the band never drew, and the fill was only its fading centre). */
 function fillBox(m: number, land: Land, box: Box) {
   const d0 = land.d.b * RING_DRAWN;
   return {
@@ -270,7 +276,7 @@ function fillBox(m: number, land: Land, box: Box) {
 function fillD(m: number, e: number, land: Land, box: Box): string {
   const b = fillBox(m, land, box);
   const k = 1 - clamp(e);
-  return `path(evenodd, "${raw(b.cx, b.cy, b.w, b.h, b.r)} ${raw(b.cx, b.cy, b.w * k, b.h * k, b.r * k)}")`;
+  return `path("${raw(b.cx, b.cy, b.w, b.h, b.r)} ${raw(b.cx, b.cy, b.w * k, b.h * k, b.r * k)}")`;
 }
 function fillU(m: number, land: Land, box: Box): string {
   const b = fillBox(m, land, box);
@@ -349,7 +355,8 @@ function flyRing(anim: Anim, r: FlyRing, T: number, S: (t: number) => Sample, ar
   anim(r.size, kf((s) => ({ width: `${f2(s.size)}px`, height: `${f2(s.size)}px` })), o);
   anim(r.gim, kf((s) => ({ transform: `perspective(${f2(s.P)}px) rotateZ(${f3(s.z)}deg) rotateY(${f3(s.y3)}deg) rotateX(${f3(s.x3)}deg)` })), o);
   const fl = (s: Sample) => (s.line - FAINT) / (FLY - FAINT);
-  for (const e of r.rings) anim(e, kf((s) => ({ strokeWidth: `${f3(1.2 + 0.3 * s.g + 0.3 * fl(s))}px`, strokeOpacity: f3(s.line) })), o);
+  /* never over the outline's 1.5px: grown full or showing full, the ring is the width of the line it hands to */
+  for (const e of r.rings) anim(e, kf((s) => ({ strokeWidth: `${f3(1.2 + 0.3 * Math.min(1, Math.max(s.g, fl(s))))}px`, strokeOpacity: f3(s.line) })), o);
   for (const e of [...r.runs, ...r.runfull]) anim(e, kf((s) => ({ strokeWidth: `${f3(1.2 + 1.3 * Math.min(1, s.g / 0.35))}px` })), o);
   anim(r.arc, kf((_, t) => ({ transform: `rotate(${f3(arc(t))}deg)` })), o);
   return { ts, sm };
@@ -396,12 +403,28 @@ export function fadeOut(p: RingParts, s: Scene, ms: number): Flight {
   return { kind: "close", anims, clock: anims[0] ?? null, hold: [] };
 }
 
+/** The modal's own box as it will stand: its parts open by their own heights as it mounts (./box-motion), so
+    measured then it was a 77px bar, and the rings shaped the outline and the fill to that while the modal grew under
+    them (Isaac, live: "it looks bad"). Its parts are hidden while the rings arrive, so their openings are simply
+    finished first. A loop cannot finish, and is left alone. */
+function settled(dialog: HTMLElement): Box {
+  for (const a of dialog.getAnimations?.({ subtree: true }) ?? []) {
+    if (a.effect?.getTiming().iterations === Infinity) continue;
+    try {
+      a.finish();
+    } catch {
+      /* a paused or unresolved one: leave it */
+    }
+  }
+  return boxOf(dialog);
+}
+
 /** THE OPEN. Returns null when there is no button to fly from, and the modal simply fades. */
 export function flyIn(p: RingParts, s: Scene): Flight | null {
   const btn = readButton(s.from);
   if (!btn) return null;
   const { anims, anim } = recorder();
-  const box = boxOf(s.dialog);
+  let box = settled(s.dialog);
   const land = landing(box);
   const tr = track(btn, land);
   const clock = anim(s.dialog, [], { duration: END });
@@ -448,7 +471,9 @@ export function flyIn(p: RingParts, s: Scene): Flight | null {
       const g = GROW(u);
       const q = tr.at(GO(u));
       const lens = (btn.hov ? 1 : smooth(t / 180)) / (btn.rho * sizeA(t));
-      const line = FAINT + (FLY - FAINT) * (smooth(t / 160) - smooth((t - 0.62 * TL) / (0.38 * TL)));
+      /* the line hands to the outline at the outline's own strength: with the lights out for the reshape, a line
+         that dipped to the ring's resting strength there was the ring all but gone as it landed */
+      const line = FAINT + (FLY - FAINT) * smooth(t / 160) - (FLY - SHOW) * smooth((t - 0.62 * TL) / (0.38 * TL));
       return { x: q.x, y: q.y, size: tr.size(k, g), g, z: TILT[k] * (1 - smooth(t / (0.9 * TL))), y3: k === "a" ? phi(t) : 0, x3: k === "b" ? phi(t) : 0, P: persp(lens), line };
     };
     const { ts, sm } = flyRing(anim, r, TL, S, th);
@@ -456,9 +481,14 @@ export function flyIn(p: RingParts, s: Scene): Flight | null {
     ts.forEach((t, i) => {
       if (sm[i]!.size <= 46) tHand = t;
     });
-    const lin = { duration: 90, delay: Math.max(0, tHand - 90), easing: "linear", fill: "both" } as const;
-    for (const e of r.runfull) anim(e, [{ opacity: 1 }, { opacity: 0 }], lin);
-    for (const e of r.runs) anim(e, [{ opacity: 0 }, { opacity: 1 }], lin);
+    /* the button's dashed run hands to the true arc while the ring is small; the run goes out as the ring lands, so
+       the outline reshapes as a plain line, and the lights come back on it once the modal is down (the stylesheet's
+       fade): forty dash paths reshaping every frame is what made the live open stutter */
+    const h0 = Math.max(0, tHand - 90) / TL;
+    const h1 = Math.max(0, tHand) / TL;
+    const g0 = (TL - RUNFADE) / TL;
+    for (const e of r.runfull) anim(e, [{ opacity: 1 }, { opacity: 1, offset: h0 }, { opacity: 0, offset: Math.max(h0, h1) }, { opacity: 0 }], { duration: TL, easing: "linear", fill: "both" });
+    for (const e of r.runs) anim(e, [{ opacity: 0 }, { opacity: 0, offset: h0 }, { opacity: 1, offset: Math.max(h0, h1) }, { opacity: 1, offset: Math.max(g0, h1) }, { opacity: 0 }], { duration: TL, easing: "linear", fill: "both" });
     /* the ground decides the skin: the button's own as it leaves, the frame's (ink) over the dark modal */
     if (btn.ground === "ink") {
       anim(r.ink, [{ opacity: o0 }, { opacity: 1 }], { duration: 120, easing: "linear", fill: "both" });
@@ -481,26 +511,33 @@ export function flyIn(p: RingParts, s: Scene): Flight | null {
 
   /* the outline, reshaping from the flat rings into the modal, their runs going round it */
   const T2 = END - TL;
+  const lines: Record<Key, Animation | null> = { a: null, b: null };
+  const lineFrames = (k: Key, b: Box) => {
+    const lineOp = (t: number) => SHOW - (SHOW - REST) * smooth((t - (FS - TL)) / FD);
+    return grid(T2).map((t) => {
+      const f = outlineFrame(k, SHP(t / MD), 0, RUN1, land, b);
+      return { offset: t / T2, d: f.d, strokeOpacity: f3(lineOp(t)) };
+    });
+  };
   anim(p.outline, [{ opacity: 0 }, { opacity: 0, offset: TL / END }, { opacity: 1, offset: TL / END }, { opacity: 1 }], { duration: END, easing: "linear", fill: "both" });
   for (const k of KEYS) {
     const wu = 1 / LAP[k];
-    const frames = grid(T2).map((t) => ({ t, f: outlineFrame(k, SHP(t / MD), u0[k] + wu * t, lerp(RUN0, RUN1, SHP(t / MD)), land, box) }));
-    const o: KeyframeAnimationOptions = { duration: T2, delay: TL, easing: "linear", fill: "backwards" };
-    const lineOp = (t: number) => FAINT + (SHOW - FAINT) * smooth(t / 180) - (SHOW - REST) * smooth((t - (FS - TL)) / FD);
-    anim(p.line[k], frames.map(({ t, f }) => ({ offset: t / T2, d: f.d, strokeOpacity: f3(lineOp(t)) })), o);
-    p.segs[k].forEach((seg, i) =>
-      anim(seg, frames.map(({ t, f }) => ({ offset: t / T2, d: f.d, strokeDasharray: `${f3(f.seg)}px ${f3(f.P - f.seg)}px`, strokeDashoffset: `${f3(f.off(i))}px` })), o)
-    );
-    /* the stylesheet's loop carries the run on from exactly where these frames leave it */
+    lines[k] = anim(p.line[k], lineFrames(k, box), { duration: T2, delay: TL, easing: "linear", fill: "backwards" });
+    /* the lights come back on the outline where the ring's run was, once it has landed */
     p.comet[k].style.setProperty("--tm-u0", mod(u0[k] + wu * T2, 1).toFixed(6));
     p.comet[k].style.setProperty("--tm-lap", `${LAP[k]}ms`);
   }
 
-  /* the fill, inside the reshaping inner ring; then the modal's own, fully on before the shaped one goes */
+  /* the fill, inside the reshaping inner ring; then the modal's own, on at TM, and the shaped one staying under it to
+     the end. The two are not on one clock: the fill's opacity runs on the compositor and the modal's colour on the
+     page's thread, which can be a frame late, and a fill that went at TM left that frame with neither (the flash Isaac
+     saw live, 2026-09-27) */
   const tsF = grid(FD);
-  anim(p.fp, tsF.map((t) => ({ offset: t / FD, d: fillD(SHP((FS + t - TL) / MD), INE(t / FD), land, box) })), { duration: FD, delay: FS, easing: "linear", fill: "both" });
-  anim(p.fu, tsF.map((t) => ({ offset: t / FD, d: fillU(SHP((FS + t - TL) / MD), land, box), opacity: f3(INE(t / FD)) })), { duration: FD, delay: FS, easing: "linear", fill: "both" });
-  anim(p.fill, [{ opacity: 0 }, { opacity: 0, offset: FS / END }, { opacity: 1, offset: FS / END }, { opacity: 1, offset: (TM + 2) / END }, { opacity: 0, offset: (TM + 2) / END }, { opacity: 0 }], { duration: END, easing: "linear", fill: "both" });
+  const fpFrames = (b: Box) => tsF.map((t) => ({ offset: t / FD, d: fillD(SHP((FS + t - TL) / MD), INE(t / FD), land, b) }));
+  const fuFrames = (b: Box) => tsF.map((t) => ({ offset: t / FD, d: fillU(SHP((FS + t - TL) / MD), land, b), opacity: f3(INE(t / FD)) }));
+  const fpA = anim(p.fp, fpFrames(box), { duration: FD, delay: FS, easing: "linear", fill: "both" });
+  const fuA = anim(p.fu, fuFrames(box), { duration: FD, delay: FS, easing: "linear", fill: "both" });
+  anim(p.fill, [{ opacity: 0 }, { opacity: 0, offset: FS / END }, { opacity: 1, offset: FS / END }, { opacity: 1, offset: 1 }, { opacity: 0, offset: 1 }], { duration: END, easing: "linear", fill: "both" });
   const cs = getComputedStyle(s.dialog);
   const bg = cs.backgroundColor;
   const sh = cs.boxShadow;
@@ -519,7 +556,15 @@ export function flyIn(p: RingParts, s: Scene): Flight | null {
   zonesOf(s.dialog).forEach((z, i) =>
     anim(z, [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }], { duration: CD, delay: CI + i * CS, easing: "ease-out", fill: "both" })
   );
-  return { kind: "open", anims, clock, hold };
+  const retarget = () => {
+    const b = boxOf(s.dialog);
+    if (Math.abs(b.w - box.w) < 1 && Math.abs(b.h - box.h) < 1 && Math.abs(b.y - box.y) < 1) return;
+    box = b;
+    for (const k of KEYS) (lines[k]?.effect as KeyframeEffect | null | undefined)?.setKeyframes?.(lineFrames(k, b));
+    (fpA.effect as KeyframeEffect | null)?.setKeyframes?.(fpFrames(b));
+    (fuA.effect as KeyframeEffect | null)?.setKeyframes?.(fuFrames(b));
+  };
+  return { kind: "open", anims, clock, hold, retarget };
 }
 
 /** THE CLOSE, from the landed modal: the fill drains, the outline rounds back into the rings, and they fly home.
@@ -528,7 +573,7 @@ export function flyOut(p: RingParts, s: Scene): Flight | null {
   const btn = readButton(s.from);
   if (!btn) return null;
   const { anims, anim } = recorder();
-  const box = boxOf(s.dialog);
+  const box = settled(s.dialog);
   const land = landing(box);
   const tr = track(btn, land);
   const clock = anim(s.dialog, [], { duration: T + 1 });
@@ -560,11 +605,9 @@ export function flyOut(p: RingParts, s: Scene): Flight | null {
       return { t, f: outlineFrame(k, m, uNow + wu * t, lerp(RUN0, RUN1, m), land, box) };
     });
     const o: KeyframeAnimationOptions = { duration: TH, easing: "linear", fill: "both" };
-    const lineOp = (t: number) => REST + (SHOW - REST) * smooth(t / 150) - (SHOW - FAINT) * smooth((t - (TH - 150)) / 150);
+    const lineOp = (t: number) => REST + (SHOW - REST) * smooth(t / 150);
     anim(p.line[k], frames.map(({ t, f }) => ({ offset: t / TH, d: f.d, strokeOpacity: f3(lineOp(t)) })), o);
-    p.segs[k].forEach((seg, i) =>
-      anim(seg, frames.map(({ t, f }) => ({ offset: t / TH, d: f.d, strokeDasharray: `${f3(f.seg)}px ${f3(f.P - f.seg)}px`, strokeDashoffset: `${f3(f.off(i))}px` })), o)
-    );
+    anim(p.comet[k], [{ opacity: 1 }, { opacity: 0 }], { duration: 100, easing: "linear", fill: "both" });
 
     /* the flying ring, from that circle back into the button: it tips into its spin, lifts off and climbs, arriving
        in the pose the button's own ring has reached by then, at its speed, in its skin */
@@ -583,7 +626,7 @@ export function flyOut(p: RingParts, s: Scene): Flight | null {
       const q = tr.at(1 - BACK(w));
       const phi = (W[k] * span * v * v) / 2 + D * RESPIN(v);
       const lens = (btn.hov ? 1 : 1 - smooth((t - (F - 170)) / 170)) / (btn.rho * sizeA(t));
-      const line = FAINT + (FLY - FAINT) * (smooth((t - 60) / 140) - smooth((t - (F - 150)) / 150));
+      const line = SHOW + (FLY - SHOW) * smooth((t - 60) / 140) - (FLY - FAINT) * smooth((t - (F - 150)) / 150);
       return { x: q.x, y: q.y, size: tr.size(k, g), g, z: TILT[k] * smooth((t - TS) / (0.85 * span)), y3: k === "a" ? phi : 0, x3: k === "b" ? phi : 0, P: persp(lens), line };
     };
     const { ts, sm } = flyRing(anim, r, F, S, th, TH);
@@ -592,9 +635,11 @@ export function flyOut(p: RingParts, s: Scene): Flight | null {
       if (tHand === null && sm[i]!.size <= 46) tHand = t;
     });
     const hand = tHand ?? F - 90;
-    const lin = { duration: Math.max(20, F - 10 - hand), delay: TH + hand, easing: "linear", fill: "both" } as const;
-    for (const e of r.runfull) anim(e, [{ opacity: 0 }, { opacity: 1 }], lin);
-    for (const e of r.runs) anim(e, [{ opacity: 1 }, { opacity: 0 }], lin);
+    const q0 = RUNFADE / F;
+    const q1 = Math.max(q0, hand / F);
+    const q2 = Math.max(q1, (F - 10) / F);
+    for (const e of r.runfull) anim(e, [{ opacity: 0 }, { opacity: 0, offset: q1 }, { opacity: 1, offset: q2 }, { opacity: 1 }], { duration: F, delay: TH, easing: "linear", fill: "both" });
+    for (const e of r.runs) anim(e, [{ opacity: 0 }, { opacity: 1, offset: q0 }, { opacity: 1, offset: q1 }, { opacity: 0, offset: q2 }, { opacity: 0 }], { duration: F, delay: TH, easing: "linear", fill: "both" });
     const oR = btn.hov ? 1 : 0.85;
     if (btn.ground === "ink") {
       anim(r.ink, [{ opacity: 1 }, { opacity: 1, offset: (T - 150) / T }, { opacity: oR }], { duration: T, easing: "linear", fill: "both" });

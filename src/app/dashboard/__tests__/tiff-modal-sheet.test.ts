@@ -206,6 +206,13 @@ describe("the view and the sheet agree", () => {
     // and the modal's, the step up on the scale
     expect(rules.some(([sel, b]) => sel.includes(".fg .tm .tm-turn.live .tm-words") && /font-size:24px/.test(b))).toBe(true);
   });
+
+  /* The ask wears the words' own class, whose paper outranked a bare
+     `.tm-ask` by coming later: the ask came out as loud as your words. */
+  it("asks in the quiet colour, over the words' paper", () => {
+    expect(body(".fg .tm .tm-tt.tm-ask")).toMatch(/color:var\(--on-ink-q\)/);
+    expect(rules.some(([sel, b]) => selectors(sel).some((x) => /\.tm-ask\b/.test(x) && !/\.tm-tt\.tm-ask/.test(x)) && /color:/.test(b))).toBe(false);
+  });
 });
 
 describe("the keyboard and reduced motion", () => {

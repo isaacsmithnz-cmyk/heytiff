@@ -215,6 +215,17 @@ describe("opening", () => {
     expect(within(d).queryByRole("textbox", { name: "Reply to Tiff" })).toBeNull();
   });
 
+  /* Isaac, live (2026-09-27): "needs to prompt you to talk to it. the 'you' looks a bit vague" */
+  it("asks you to talk, and names your turn only once you have said something", async () => {
+    await openModal();
+    const d = dialog();
+    expect(within(d).getByText("Go ahead, I’m listening")).toBeInTheDocument();
+    expect(within(d).queryByText("You")).toBeNull();
+    await act(async () => engine.say!("the head for Bellevue Hill"));
+    expect(within(d).queryByText("Go ahead, I’m listening")).toBeNull();
+    expect(within(d).getByText("You")).toBeInTheDocument();
+  });
+
   it("without a microphone it opens on the reply box and no mic runs", async () => {
     await openModal({ voice: false });
     expect(mic.start).not.toHaveBeenCalled();
@@ -911,6 +922,33 @@ describe("the rings", () => {
     expect(flying()).toHaveLength(out + 2);
     await flush();
     expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
+  });
+
+  /* Both were live and unseen (2026-09-27): a `path(evenodd, …)` is no value
+     for `d`, so the fill's ink never drew; and a fill that went at the very
+     instant the modal's own colour came on left a frame with neither, as the
+     two are not on one clock. */
+  it("draws every shape as a plain path, and the fill stays under the modal to the end", async () => {
+    motion(false);
+    const svg: { el: Element; frames: Keyframe[] }[] = [];
+    const proto = Element.prototype as unknown as { animate?: unknown };
+    proto.animate = function (this: Element, frames: Keyframe[]) {
+      svg.push({ el: this, frames });
+      return { finished: Promise.resolve(), cancel() {} };
+    };
+    try {
+      const user = await openModal();
+      const fill = svg.find((a) => a.el.classList.contains("tm-fill"))!.frames;
+      const on = fill.findIndex((f) => f.opacity === 1);
+      expect(on).toBeGreaterThan(0);
+      expect(fill.slice(on).filter((f) => f.opacity === 0).map((f) => f.offset)).toEqual([1]);
+      await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    } finally {
+      delete proto.animate;
+    }
+    const ds = svg.flatMap((a) => a.frames.map((f) => f.d)).filter((d): d is string => typeof d === "string");
+    expect(ds.length).toBeGreaterThan(0);
+    for (const d of ds) expect(d).toMatch(/^path\("[^"]*"\)$/);
   });
 
   it("under reduced motion it only fades, and nothing leaves the button", async () => {

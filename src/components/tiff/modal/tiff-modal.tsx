@@ -145,7 +145,11 @@ export function TiffModal({
     const p = partsOf(fill, over);
     parts.current = p;
     if (!p) return;
-    const rest = () => restOutline(p, m);
+    /* the resting outline keeps to the modal's edge; while it is still opening, the flight re-aims at it */
+    const rest = () => {
+      restOutline(p, m);
+      flight.current?.retarget?.();
+    };
     rest();
     const ro = typeof ResizeObserver === "function" ? new ResizeObserver(rest) : null;
     ro?.observe(m);
@@ -164,12 +168,15 @@ export function TiffModal({
     flight.current = f;
     held.current = f.hold;
     if (!flown) p.outline.dataset.landed = "";
-    /* Landed: everything lets go but the button's hidden rings, so what
-       stands is the stylesheet's, and the runs of light lap the edge. */
+    /* Landed: the runs of light come back on the edge. What the open left
+       standing stays as it is — it already matches the stylesheet — because
+       letting go of it all at once rebuilt the modal's layers, and one frame
+       painted before they were back: the page flashed through the modal as
+       it landed (Isaac, watching it live). The outline's frames let go by
+       themselves; the rest goes with the modal. */
     f.clock?.finished.then(
       () => {
         if (flight.current !== f) return;
-        for (const a of f.anims) if (!f.hold.includes(a)) a.cancel();
         flight.current = null;
         p.outline.dataset.landed = "";
       },
@@ -204,9 +211,14 @@ export function TiffModal({
     const m = dialog.current;
     const p = parts.current;
     let out: Flight | null = null;
+    /* Done: the button gets its own rings back, and everything else is left
+       where the close put it (gone) until the host takes the modal away.
+       Letting go of it all here put the whole modal and its veil back on the
+       page for the frame before it unmounted — the flash on close Isaac saw
+       live. */
     const finish = () => {
-      release(out);
       for (const a of held.current) a.cancel();
+      for (const a of out?.hold ?? []) a.cancel();
       held.current = [];
       onClosed(result);
     };
@@ -434,6 +446,8 @@ function TurnView({
   }, [live, c.draft, c.reading]);
 
   const asking = active && c.stage === "asking";
+  /** Listening, and nothing said yet. */
+  const asked = live === "words" && !c.draft.trim() && !c.interim.trim();
   const rows = turn.rows ?? [];
 
   return (
@@ -441,7 +455,10 @@ function TurnView({
       ref={ref}
       className={"tm-turn" + (past ? " past" : "") + (live ? " live" : "")}
     >
-      <div className="tm-label">{turn.who === "you" ? "You" : "Tiff"}</div>
+      {/* Until you say something, the modal asks you to (Isaac, watching it
+          live: "needs to prompt you to talk to it"); "You" arrives with your
+          first words, where it no longer stands over nothing. */}
+      {!asked && <div className="tm-label">{turn.who === "you" ? "You" : "Tiff"}</div>}
       {live === "words" ? (
         <div
           className="tm-words"
@@ -458,7 +475,7 @@ function TurnView({
           }}
           tabIndex={0}
         >
-          <LiveWords className="tm-tt" free said={c.draft} text={c.interim} />
+          {asked ? <p className="tm-tt tm-ask">Go ahead, I’m listening</p> : <LiveWords className="tm-tt" free said={c.draft} text={c.interim} />}
         </div>
       ) : live === "fix" ? (
         <textarea

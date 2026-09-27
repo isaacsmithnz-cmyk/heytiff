@@ -27,7 +27,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { REPLY_IN_KIND } from "@/lib/lang/policy";
-import { logUsage } from "@/lib/tiff/usage";
+import { logUsage, type TokenUsage } from "@/lib/tiff/usage";
 import { runTool, toolDefs, type TiffTool, type Viewer } from "@/lib/tiff/registry";
 
 const MODEL = "claude-opus-5";
@@ -92,6 +92,9 @@ export type AskBrainInput = {
       turns, already capped and filtered by the route. "And the one at Smith
       St?" means nothing without the question before it. */
   history?: readonly AskHistoryTurn[];
+  /** Each round's usage, for a caller keeping count (the eval runner's cost
+      cap). The route passes none; `logUsage` still prints every round. */
+  onUsage?: (model: string, usage: TokenUsage) => void;
 };
 
 /** One earlier turn, in the modal's own words for who said it. */
@@ -260,6 +263,7 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
          `final.model` rather than MODEL — a request the fallback rescued was
          answered, and billed, by the other one. */
       logUsage(`ask:${round}`, final.model, final.usage);
+      input.onUsage?.(final.model, final.usage);
       const blocks = final.content as ContentBlock[];
       const calls = blocks.filter((b): b is Extract<ContentBlock, { type: "tool_use" }> => b.type === "tool_use");
 

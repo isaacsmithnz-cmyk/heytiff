@@ -1,0 +1,6 @@
+{
+  "id": "lookup-task-load",
+  "say": "Who's carrying the most right now?",
+  "expect": { "tools": ["open_task_load"], "answers": true },
+  "never": ["open_screen"]
+}

@@ -22,6 +22,10 @@
 const PRICES: Record<string, readonly [number, number]> = {
   "claude-opus-5": [5, 25],
   "claude-opus-4-8": [5, 25],
+  /* Added 2026-09-27 for the universal-Tiff probes and evals. Its cache read
+     is $0.20, a twentieth of input, not the tenth `costOf` assumes, so a
+     cached Opus 5.5 round reads slightly high here — the safe direction. */
+  "claude-opus-5-5": [4, 20],
   "claude-sonnet-5": [2, 10],
 };
 

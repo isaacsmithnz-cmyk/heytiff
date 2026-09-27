@@ -21,11 +21,14 @@
 --     -- kind in ('attachment','note'); the note shape CASE; write_kinds <@ {attachment,note}
 --   select kind, op, status, count(*) from public.sm8_writes group by 1, 2, 3;   -- note this
 --   select write_kinds, write_mode from public.integration_connections where provider = 'servicem8';
---   select position('''note''' in pg_get_functiondef(
---     'public.sm8_set_write_kind(uuid,text,boolean,timestamptz)'::regprocedure)) > 0;  -- true
+--   select position('''booking''' in pg_get_functiondef(
+--     'public.sm8_set_write_kind(uuid,text,boolean,timestamptz)'::regprocedure)) > 0;  -- false
 -- AFTER:
---   the same constraint query: kind lists 'booking'; sm8_writes_note_shape_check is
---     gone; sm8_writes_shape_check is present; write_kinds allows 'booking'
+--   select conname, pg_get_constraintdef(oid) from pg_constraint
+--    where conname in ('sm8_writes_kind_check', 'sm8_writes_note_shape_check',
+--                      'sm8_writes_shape_check', 'integration_connections_write_kinds_check');
+--     -- kind lists 'booking'; sm8_writes_note_shape_check is gone;
+--     -- sm8_writes_shape_check is present; write_kinds allows 'booking'
 --   select kind, op, status, count(*) from public.sm8_writes group by 1, 2, 3;   -- as BEFORE
 --   select count(*) from public.sm8_writes where kind = 'booking';              -- 0
 --   select count(*) from information_schema.columns where table_schema = 'public'

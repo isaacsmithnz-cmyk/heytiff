@@ -18,6 +18,7 @@ import {
 import { BOOKING_WORDS } from "../sm8-booking-words";
 import { NOTE_WORDS } from "../sm8-note-words";
 import {
+  classifyWrite,
   grantedKinds,
   kindCount,
   kindReady,
@@ -145,34 +146,42 @@ describe("a booking's verdicts", () => {
     }
   });
 
+  /* every answer below goes through classifyWrite, as the sender's will:
+     the verdict is what ServiceM8's status becomes, not a shape a test
+     made up */
+  const answer = (status: number, op: Sm8WriteOp) => verdictFor(classifyWrite(status, null), 1, ctx(op));
+
   it("(F) a 404: gone already on a delete; the job's words on a create; never a verdict the sender takes on an update", () => {
-    expect(verdictFor({ kind: "rejected", status: 404 }, 1, ctx("delete"))).toMatchObject({ status: "sent", error: null });
-    expect(verdictFor({ kind: "rejected", status: 404 }, 1, ctx("create"))).toMatchObject({ status: "failed", error: WRITE_WORDS.noJob });
+    expect(answer(404, "delete")).toMatchObject({ status: "sent", error: null });
+    expect(answer(404, "create")).toMatchObject({ status: "failed", error: WRITE_WORDS.noJob });
     /* the sender cancels an update's 404 itself (row.jobGone); a verdict is
        never `cancelled`, and asked anyway it is the same words, failed */
-    const update = verdictFor({ kind: "rejected", status: 404 }, 1, ctx("update"));
-    expect(update).toMatchObject({ status: "failed", error: BOOKING_WORDS.row.jobGone });
+    expect(answer(404, "update")).toMatchObject({ status: "failed", error: BOOKING_WORDS.row.jobGone });
     for (const op of ["create", "update", "delete"] as const) {
       for (const status of [400, 404, 405, 409, 413, 422]) {
-        expect(["sent", "queued", "failed"]).toContain(verdictFor({ kind: "rejected", status }, 1, ctx(op)).status);
+        expect(["sent", "queued", "failed"]).toContain(answer(status, op).status);
       }
     }
   });
 
+  it("(F) a 409 is never sent unread: each op is refused in its own words", () => {
+    // classifyWrite reads every 409 as `exists`, which a file's sender confirms before it counts
+    expect(classifyWrite(409, null)).toEqual({ kind: "exists" });
+    expect(answer(409, "create")).toMatchObject({ status: "failed", error: BOOKING_WORDS.row.refused });
+    expect(answer(409, "update")).toMatchObject({ status: "failed", error: BOOKING_WORDS.row.statusRefused });
+    expect(answer(409, "delete")).toMatchObject({ status: "failed", error: BOOKING_WORDS.row.removeRefused });
+    // a file's 409, which its sender read back first, is sent as it always was
+    expect(verdictFor(classifyWrite(409, null), 1)).toMatchObject({ status: "sent" });
+  });
+
   it("(F) any other 4xx fails the row in its op's words", () => {
-    for (const status of [400, 409, 422]) {
-      expect(verdictFor({ kind: "rejected", status }, 1, ctx("create"))).toMatchObject({ status: "failed", error: BOOKING_WORDS.row.refused });
-      expect(verdictFor({ kind: "rejected", status }, 1, ctx("update"))).toMatchObject({
-        status: "failed",
-        error: BOOKING_WORDS.row.statusRefused,
-      });
-      expect(verdictFor({ kind: "rejected", status }, 1, ctx("delete"))).toMatchObject({
-        status: "failed",
-        error: BOOKING_WORDS.row.removeRefused,
-      });
+    for (const status of [400, 405, 422]) {
+      expect(answer(status, "create")).toMatchObject({ status: "failed", error: BOOKING_WORDS.row.refused });
+      expect(answer(status, "update")).toMatchObject({ status: "failed", error: BOOKING_WORDS.row.statusRefused });
+      expect(answer(status, "delete")).toMatchObject({ status: "failed", error: BOOKING_WORDS.row.removeRefused });
     }
     // no op named is a create
-    expect(verdictFor({ kind: "rejected", status: 400 }, 1, { now: 0, timezoneName: null, freeRetries: 0, kind: "booking" }).error).toBe(
+    expect(verdictFor(classifyWrite(400, null), 1, { now: 0, timezoneName: null, freeRetries: 0, kind: "booking" }).error).toBe(
       BOOKING_WORDS.row.refused
     );
   });

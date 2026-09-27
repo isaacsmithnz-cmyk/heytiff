@@ -132,12 +132,23 @@ describe.each([
   });
 
   it("(F) a run cancels nothing in bookings' words and makes no booking query, whatever the owner's switch holds", async () => {
-    fake.db.sm8_writes.push(write("booking"));
-    fake.db.integration_connections = [connection({ write_mode: "paused", write_kinds: ["attachment", "note", "booking"] })];
-    await runSm8Writes(ORG, "kick");
-    expect(namesBooking()).toEqual([]);
-    expect(writes().some((w) => w.last_error === BOOKING_WORDS.row.switchedOff)).toBe(false);
-    expect(byId("w3").status).toBe("queued");
+    /* production's own switch values first — {attachment} and {attachment,
+       note} — then one that holds booking: a switched-off kind is only ever
+       one the deployment allows */
+    for (const owner of [["attachment"], ["attachment", "note"], ["attachment", "note", "booking"]]) {
+      seq = 0;
+      fake.db.sm8_writes = [write("attachment"), write("note"), write("booking")];
+      fake.db.integration_connections = [connection({ write_mode: "paused", write_kinds: owner })];
+      fake.log.length = 0;
+      await runSm8Writes(ORG, "kick");
+      expect([owner, namesBooking()]).toEqual([owner, []]);
+      expect([owner, writes().some((w) => w.last_error === BOOKING_WORDS.row.switchedOff)]).toEqual([owner, false]);
+      expect([owner, byId("w3").status]).toEqual([owner, "queued"]);
+      // files are never cancelled for a switch; notes only where they are allowed and switched off, as today
+      expect(byId("w1").status).toBe("queued");
+      const notesOff = setting === "attachment,note" && !owner.includes("note");
+      expect([owner, byId("w2").status]).toEqual([owner, notesOff ? "cancelled" : "queued"]);
+    }
   });
 
   it("names files and notes in the owner's list as before", async () => {

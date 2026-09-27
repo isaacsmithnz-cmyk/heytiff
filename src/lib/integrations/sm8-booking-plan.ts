@@ -21,8 +21,15 @@
      on a job, a version of the job, an Undo per create, a Clear per
      activity.
    - HEYTIFF NEVER SAYS "NOT BOOKED" OVER A BOOKING THAT MAY BE IN
-     SERVICEM8: a create whose answer was lost reads `line.unsure`, and a
-     status change whose answer was lost `line.statusUnsure`.
+     SERVICEM8 once it has stopped: a create whose answer was lost reads
+     `line.unsure` when it failed, was cancelled or was a trial, and a
+     status change whose answer was lost `line.statusUnsure`. While such a
+     create still waits in the queue it reads case 10, "Not booked yet."
+     and why it waits: the sender reads it back before anything goes again.
+   - A BOOKING THE MIRROR SHOWS REMOVED IS NEVER OFFERED A DOOR. ServiceM8's
+     DELETE of a record already deleted RESTORES it (the notes walk,
+     2026-09-27), so an Undo, a Cancel booking or a take-back's Try again
+     pointed at it would put back what someone removed.
    - A BOOKING SOMEONE CHANGED IN SERVICEM8 IS THEIRS. What was booked — its
      job, person, start and end — is compared, never its edit time alone:
      the booked person opening it moves that (U21; P1 saw it move with the
@@ -298,7 +305,11 @@ export type BookingReasonKey =
   | keyof typeof BOOKING_WORDS.row
   | "takenBackBeforeSent"
   | "nothingToTakeBack"
-  | (typeof REUSED_WRITE_WORDS)[number];
+  | (typeof REUSED_WRITE_WORDS)[number]
+  /** WRITE_WORDS.switchedOff: the owner's whole Off cancels every waiting
+      row in these words, booking rows among them. Its own key, apart from
+      bookings' own switch (row.switchedOff). */
+  | "sendingSwitchedOff";
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -312,6 +323,7 @@ const REASONS: readonly (readonly [BookingReasonKey, RegExp])[] = (
     ["takenBackBeforeSent", NOTE_WORDS.row.takenBackBeforeSent],
     ["nothingToTakeBack", NOTE_WORDS.row.nothingToTakeBack],
     ...REUSED_WRITE_WORDS.map((k) => [k, WRITE_WORDS[k]] as const),
+    ["sendingSwitchedOff", WRITE_WORDS.switchedOff],
   ] as (readonly [BookingReasonKey, string])[]
 )
   .map(([key, template]) => ({ key, template, open: /\{\w+\}/.test(template) }))
@@ -451,10 +463,16 @@ const sameId = (a: string | null | undefined, b: string | null | undefined) =>
 const mayBeThere = (create: BookingRowIn) =>
   create.status === "sending" || create.status === "sent" || mayHaveLanded(create);
 
-/** Whether a create's take-back has settled — its line is case 4 or 6: the
-    take-back went, or found nothing to take back; or it was stopped before
-    anything of it could land. */
-function takeBackSettled(create: BookingRowIn, takeBack: TakeBackIn | null): boolean {
+/** The mirror has our booking, and it is removed (inactive). */
+const removedThere = (mirror: BookingMirrorIn | null | undefined) => !!mirror && !flagOn(mirror.active);
+
+/** Whether a create's take-back has settled — its line is case 4 or 6, or
+    says nothing because the mirror shows the booking removed: the take-back
+    went, or found nothing to take back; or it was stopped before anything
+    of it could land; or the booking is out of ServiceM8 whatever the
+    take-back says. */
+function takeBackSettled(create: BookingRowIn, takeBack: TakeBackIn | null, mirror: BookingMirrorIn | null): boolean {
+  if (removedThere(mirror)) return true;
   if (takeBack) {
     return takeBack.status === "sent" || (takeBack.status === "cancelled" && reasonOf(takeBack.last_error) === "nothingToTakeBack");
   }
@@ -483,7 +501,7 @@ const LOOK_AGAIN: ReadonlySet<BookingReasonKey> = new Set([
     |  4 | a take-back sent, or cancelled with nothing to take back       | none                                  |
     |  5 | taken back, no take-back row, and it may be there              | stillIn + why, bad, Try again         |
     |  6 | taken back, and nothing of it can be there                     | none                                  |
-    |  7 | cancelled: someone removed it in ServiceM8                     | removedThere                          |
+    |  7 | someone removed it in ServiceM8: cancelled so, or not sent and the mirror shows it | removedThere        |
     |  8 | queued behind a hold                                           | waitingWhy + the hold, Cancel booking |
     |  9 | queued, waiting on its status row                              | waitingWhy + waitingOnStatus          |
     | 10 | queued with an error                                           | waitingWhy + the error, warn          |
@@ -502,11 +520,20 @@ const LOOK_AGAIN: ReadonlySet<BookingReasonKey> = new Set([
     | 23 | a trial                                                        | trial                                 |
     | 24 | cancelled for any other reason                                 | notSent + the reason, Try again       |
 
-    Every door is the presser's, except Open in ServiceM8. */
+    Ahead of them all: taken back, with the mirror showing it removed, it
+    has settled and says nothing (cases 1 to 6 never offer a take-back at a
+    booking that is gone). A booking the mirror shows removed has no door in
+    any case. Every door is the presser's, except Open in ServiceM8. */
 export function bookingLine(input: BookingLineIn): BookingState {
   const { create, statusRow, takeBack, hold, offered, trial, viewerIsPresser, mirror, now, zone } = input;
   const door = (acts: BookingAct[]): BookingAct[] => acts.filter((a) => a === "open_in_sm8" || viewerIsPresser);
   const reason = reasonOf(create.last_error);
+
+  /* The mirror shows it removed: taken back, it is settled and says
+     nothing, whatever its take-back row says; never taken back, it reads as
+     removed there (case 7, or case 14 once sent). No door either way. */
+  const removed = removedThere(mirror);
+  if (removed && (takeBack || create.taken_back_at)) return NONE;
 
   /* ── 1–4: its take-back ── */
   if (takeBack) {
@@ -532,8 +559,9 @@ export function bookingLine(input: BookingLineIn): BookingState {
     return line("line.stillIn", fillWords(BOOKING_WORDS.line.stillIn, { reason: why }), "bad", door(["take_out_again"]));
   }
 
-  /* ── 7: someone removed it in ServiceM8 ── */
-  if (create.status === "cancelled" && reason === "bookingGone") {
+  /* ── 7: someone removed it in ServiceM8 — the sender read it back so, or
+     the mirror already shows it (sent, it is case 14) ── */
+  if ((create.status === "cancelled" && reason === "bookingGone") || (removed && create.status !== "sent")) {
     return line("line.removedThere", BOOKING_WORDS.line.removedThere, null, []);
   }
 
@@ -572,7 +600,7 @@ export function bookingLine(input: BookingLineIn): BookingState {
       const text = reason === "personNotKept" ? BOOKING_WORDS.line.keptOtherPerson : BOOKING_WORDS.line.keptOther;
       return line(key, text, "bad", door(["undo", "open_in_sm8"]));
     }
-    if (mirror && !flagOn(mirror.active)) return line("line.removedThere", BOOKING_WORDS.line.removedThere, null, []);
+    if (removed) return line("line.removedThere", BOOKING_WORDS.line.removedThere, null, []);
     const changed =
       reason === "movedThere" ||
       (!!mirror &&
@@ -650,9 +678,10 @@ export function lineDrawnAt(state: BookingState, standing: boolean): "entry" | "
     - queued or sending: statusSending;
     - sent, having changed more than the status (the fields guard):
       statusSent and the reason, bad;
-    - sent, with every booking behind it taken back AND SETTLED: takenBack.
-      Until each take-back has settled it stays statusSent, so "Taken back."
-      never sits above "Taking it out of ServiceM8…";
+    - sent, with every booking behind it taken back AND SETTLED (or shown
+      removed by the mirror, each create's own, when it is handed in):
+      takenBack. Until each take-back has settled it stays statusSent, so
+      "Taken back." never sits above "Taking it out of ServiceM8…";
     - sent: statusSent, ok;
     - failed, cancelled or a trial, and it may have landed: statusUnsure —
       the card is never silent on a change that may be in ServiceM8;
@@ -665,7 +694,7 @@ export function lineDrawnAt(state: BookingState, standing: boolean): "entry" | "
     its bookings do (case 8). */
 export function statusLine(
   statusRow: StatusRowIn,
-  creates: readonly { create: BookingRowIn; takeBack: TakeBackIn | null }[],
+  creates: readonly { create: BookingRowIn; takeBack: TakeBackIn | null; mirror?: BookingMirrorIn | null }[],
   _hold: SendHold
 ): BookingState | null {
   const st = statusRow.status;
@@ -674,7 +703,8 @@ export function statusLine(
     if (reasonOf(statusRow.last_error) === "fieldsNotKept") {
       return line("line.statusSent", `${BOOKING_WORDS.line.statusSent}. ${statusRow.last_error}`, "bad", []);
     }
-    if (creates.length > 0 && creates.every((c) => !!c.create.taken_back_at && takeBackSettled(c.create, c.takeBack))) {
+    const settled = (c: (typeof creates)[number]) => !!c.create.taken_back_at && takeBackSettled(c.create, c.takeBack, c.mirror ?? null);
+    if (creates.length > 0 && creates.every(settled)) {
       return line("line.takenBack", BOOKING_WORDS.line.takenBack, null, []);
     }
     return line("line.statusSent", BOOKING_WORDS.line.statusSent, "ok", []);

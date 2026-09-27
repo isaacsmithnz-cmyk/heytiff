@@ -49,6 +49,17 @@ describe("the bookings migration", () => {
     expect(sql).toMatch(/AFTER THIS FILE, NEVER RE-RUN sm8_notes_queue\.sql/);
   });
 
+  it("(F) checks what tells before from after: the new shape check by name, and the function naming 'booking'", () => {
+    const before = sql.slice(sql.indexOf("READ-ONLY, BEFORE:"), sql.indexOf("-- AFTER:"));
+    const after = sql.slice(sql.indexOf("-- AFTER:"), sql.indexOf("ROLLING BACK THE CODE"));
+    // the AFTER constraint query names the shape check it says is present
+    expect(flat(after.replace(/--/g, ""))).toMatch(/where conname in \([^)]*'sm8_writes_shape_check'[^)]*\)/);
+    // the function check reads 'booking' on both sides: false before, true after ('note' is true on both)
+    const functionCheck = (s: string) => /position\('''(\w+)''' in pg_get_functiondef\([\s\S]*?\)\) > 0;\s*--\s*(true|false)/.exec(s);
+    expect(functionCheck(before)?.slice(1)).toEqual(["booking", "false"]);
+    expect(functionCheck(after)?.slice(1)).toEqual(["booking", "true"]);
+  });
+
   it("is wrapped in one transaction", () => {
     expect(code.trim().startsWith("begin;")).toBe(true);
     expect(code.trim().endsWith("commit;")).toBe(true);

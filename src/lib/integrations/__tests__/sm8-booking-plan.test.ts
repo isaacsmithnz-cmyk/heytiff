@@ -41,6 +41,7 @@ import {
   slotOf,
   STATUS_KEPT_FIELDS,
   statusLine,
+  type BookingAct,
   type BookingLineIn,
   type BookingReasonKey,
   type BookingRowIn,
@@ -635,6 +636,104 @@ describe("a booking's line, case by case", () => {
   });
 });
 
+/* ServiceM8's DELETE of a record already deleted RESTORES it (the notes
+   walk, 2026-09-27). So a booking the mirror shows removed is never handed
+   a door that could take it out again: taken back, it has settled; never
+   taken back, it reads as removed there. */
+describe("a booking the mirror shows removed", () => {
+  const gone = mirrorOf({ active: 0 });
+
+  it("(F) taken back, it has settled: no line and no door, whatever its take-back row says", () => {
+    const takenBack = { status: "sent", taken_back_at: "t" };
+    for (const takeBack of [
+      { status: "failed", last_error: W.row.removeRefused }, // 3
+      { status: "trial", last_error: null }, // 3
+      { status: "cancelled", last_error: W.row.switchedOff }, // 3
+      { status: "cancelled", last_error: W.row.changedNoTakeBack }, // 3, no door already
+      { status: "queued", last_error: null }, // 1 and 2
+      { status: "sending", last_error: null }, // 2
+    ]) {
+      expect(lineOf(takenBack, { takeBack, mirror: gone, hold: "paused" })).toEqual(NONE);
+    }
+    // 5: no take-back row, and it may be there by its own row: the mirror says it isn't
+    expect(lineOf(takenBack, { mirror: gone })).toEqual(NONE);
+    expect(lineOf({ status: "cancelled", taken_back_at: "t", maybe_landed: true }, { mirror: gone })).toEqual(NONE);
+    // with the mirror showing it standing, the same rows still offer their Try again
+    expect(lineOf(takenBack, { mirror: mirrorOf() }).acts).toEqual(["take_out_again"]);
+    expect(lineOf(takenBack, { takeBack: { status: "failed", last_error: W.row.removeRefused }, mirror: mirrorOf() }).acts).toEqual([
+      "take_out_again",
+    ]);
+  });
+
+  it("(F) never taken back, it reads as removed there, with no door — sent or not", () => {
+    const removedThere = { key: "line.removedThere", text: "Removed in ServiceM8", tone: null, acts: [] };
+    // an answer lost, the booking landed, and someone removed it: the sender will read it back so (bookingGone)
+    expect(lineOf({ status: "failed", maybe_landed: true, last_error: W.row.bookingUnsure }, { mirror: gone })).toEqual(removedThere);
+    expect(lineOf({ status: "queued", maybe_landed: true, attempts: 1, last_error: WRITE_WORDS.unreachable }, { mirror: gone })).toEqual(
+      removedThere
+    );
+    // sent: case 14, a guard's booking included
+    expect(lineOf({ status: "sent" }, { mirror: gone })).toEqual(removedThere);
+    expect(lineOf({ status: "sent", last_error: W.row.timeNotKept, landed_edit_date: "2026-10-05 16:00:00" }, { mirror: gone })).toEqual(
+      removedThere
+    );
+  });
+
+  it("(F) no case offers a door that could take out a booking the mirror shows removed", () => {
+    const takesOut = new Set<BookingAct>(["undo", "cancel", "take_out_again"]);
+    const takeBacks: (BookingLineIn["takeBack"])[] = [
+      null,
+      ...["queued", "sending", "sent", "failed", "trial"].map((status) => ({ status, last_error: null })),
+      { status: "cancelled", last_error: W.row.switchedOff },
+      { status: "cancelled", last_error: W.row.changedNoTakeBack },
+    ];
+    const errors = [
+      null,
+      W.row.timeNotKept,
+      W.row.personNotKept,
+      W.row.movedThere,
+      W.row.statusFirst,
+      W.row.refused,
+      W.row.stale,
+      W.row.bookingUnsure,
+      W.row.switchedOff,
+      WRITE_WORDS.unreachable,
+    ];
+    let lines = 0;
+    let openDoorsWhenStanding = 0;
+    for (const status of ["queued", "sending", "sent", "failed", "cancelled", "trial"]) {
+      for (const taken_back_at of [null, "t"]) {
+        for (const maybe_landed of [false, true]) {
+          for (const takeBack of takeBacks) {
+            for (const last_error of errors) {
+              for (const hold of [null, "paused"] as const) {
+                const create = { status, taken_back_at, maybe_landed, last_error, attempts: 1, landed_edit_date: "2026-10-05 16:00:00" };
+                const doors = lineOf(create, { takeBack, hold, mirror: gone }).acts.filter((a) => takesOut.has(a));
+                expect([create, takeBack, doors]).toEqual([create, takeBack, []]);
+                lines += 1;
+                // the same rows, the booking standing: the sweep can see these doors
+                if (lineOf(create, { takeBack, hold, mirror: mirrorOf() }).acts.some((a) => takesOut.has(a))) openDoorsWhenStanding += 1;
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(lines).toBeGreaterThan(2000);
+    expect(openDoorsWhenStanding).toBeGreaterThan(100);
+  });
+
+  it("(F) counts as taken back and settled under a status change that went", () => {
+    const create = createRow({ status: "sent", taken_back_at: "t" });
+    const failedTakeBack = { status: "failed", last_error: W.row.removeRefused };
+    // the take-back didn't finish, but the booking is out of ServiceM8
+    expect(statusLine(statusRow(), [{ create, takeBack: failedTakeBack, mirror: gone }], null)?.key).toBe("line.takenBack");
+    // standing, it stays "Made a Work Order" until the take-back settles
+    expect(statusLine(statusRow(), [{ create, takeBack: failedTakeBack, mirror: mirrorOf() }], null)?.key).toBe("line.statusSent");
+    expect(statusLine(statusRow(), [{ create, takeBack: failedTakeBack }], null)?.key).toBe("line.statusSent");
+  });
+});
+
 describe("a door's word", () => {
   it("says Try again for a take-back's Try again too", () => {
     expect(bookingActWord("take_out_again")).toBe("Try again");
@@ -698,11 +797,21 @@ describe("a stored reason", () => {
     expect(reasonOf("Something else entirely.")).toBeNull();
   });
 
+  it("(F) knows the owner's whole Off apart from Bookings Off", () => {
+    expect(reasonOf(WRITE_WORDS.switchedOff)).toBe("sendingSwitchedOff");
+    expect(reasonOf(W.row.switchedOff)).toBe("switchedOff");
+    // either is a cancel for another reason: Try again
+    for (const reason of [WRITE_WORDS.switchedOff, W.row.switchedOff]) {
+      expect(lineOf({ status: "cancelled", last_error: reason }).acts).toEqual(["try_again"]);
+    }
+  });
+
   it("(F) no filled sentence matches two templates", () => {
     const sentences: [BookingReasonKey, string][] = [
       ...rowKeys.map((k) => [k, fillAll(W.row[k])] as [BookingReasonKey, string]),
       ["takenBackBeforeSent", NOTE_WORDS.row.takenBackBeforeSent],
       ["nothingToTakeBack", NOTE_WORDS.row.nothingToTakeBack],
+      ["sendingSwitchedOff", WRITE_WORDS.switchedOff],
     ];
     for (const [key, sentence] of sentences) expect(reasonsMatching(sentence)).toEqual([key]);
   });

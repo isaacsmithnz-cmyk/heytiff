@@ -767,6 +767,11 @@ export function verdictForGuard(status: "sent" | "failed", error: string): Write
   return verdict({ status, error, stop: true });
 }
 
+/** A booking refused, in its op's words: the booking, the change to Work
+    Order, or its removal. No op named is a create. */
+const bookingRefused = (op: Sm8WriteOp | undefined): string =>
+  op === "update" ? BOOKING_WORDS.row.statusRefused : op === "delete" ? BOOKING_WORDS.row.removeRefused : BOOKING_WORDS.row.refused;
+
 /** What a row becomes after one attempt. `attempts` counts this one. */
 export function verdictFor(
   outcome: Sm8WriteOutcome,
@@ -775,7 +780,14 @@ export function verdictFor(
 ): WriteVerdict {
   switch (outcome.kind) {
     case "created":
+      return verdict({ status: "sent" });
     case "exists":
+      /* A file's 409 reaches here only once its sender has read the record
+         back and found it ours, live, on the job. A BOOKING'S 409 IS NEVER
+         SENT UNREAD: a status change or a removal that met one is refused
+         in its op's words, and a booking's own read-back after a 409 is its
+         sender's (sm8-booking-send, PR B). */
+      if (ctx.kind === "booking") return verdict({ status: "failed", error: bookingRefused(ctx.op) });
       return verdict({ status: "sent" });
     case "unauthorized":
       /* waits for a reconnect, then goes: nothing about the file was wrong */
@@ -901,9 +913,7 @@ export function verdictFor(
           if (op === "update") return verdict({ status: "failed", error: BOOKING_WORDS.row.jobGone });
           return verdict({ status: "failed", error: WRITE_WORDS.noJob });
         }
-        const refused =
-          op === "update" ? BOOKING_WORDS.row.statusRefused : op === "delete" ? BOOKING_WORDS.row.removeRefused : BOOKING_WORDS.row.refused;
-        return verdict({ status: "failed", error: refused });
+        return verdict({ status: "failed", error: bookingRefused(op) });
       }
       return verdict({
         status: "failed",

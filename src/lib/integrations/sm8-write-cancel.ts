@@ -14,7 +14,7 @@
    so it is left to land or not, and only counted. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { sm8NotesAllowed } from "./sm8-kinds";
+import { sm8NotesAllowed, sm8WriteKindsEnabled } from "./sm8-kinds";
 import { NOTE_TEXT_DAYS } from "./sm8-note-plan";
 import type { Sm8WriteKind } from "./sm8-write-plan";
 
@@ -24,10 +24,10 @@ const TABLE = "sm8_writes";
 const waitingAt = (iso: string) => `status.eq.queued,and(status.eq.sending,lease_until.lt.${iso})`;
 
 /** One write that was cancelled, named as it would have gone, and of which
-    kind (a file, or a note — whose name is only its label). */
+    kind (a file; a note or a booking, whose name is only its label). */
 export type CancelledWrite = { id: string; name: string | null; kind: Sm8WriteKind };
 
-const kindOf = (v: unknown): Sm8WriteKind => (v === "note" ? "note" : "attachment");
+const kindOf = (v: unknown): Sm8WriteKind => (v === "note" ? "note" : v === "booking" ? "booking" : "attachment");
 
 function payloadName(payload: unknown): string | null {
   const p = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
@@ -42,9 +42,10 @@ function payloadName(payload: unknown): string | null {
     of account cancels only what was asked of the old one. (tenant_id is NOT
     NULL on every row, so the inequality can't drop one silently.)
 
-    `kind` narrows it to one kind: the owner switching Notes (or Files) off
-    cancels only that kind's waiting rows — for notes, creates, flag changes
-    and take-backs alike. */
+    `kind` narrows it to one kind: the owner switching Notes (or Files, or
+    Bookings) off cancels only that kind's waiting rows — for notes,
+    creates, flag changes and take-backs alike; for bookings, creates,
+    status changes, take-backs and clears. */
 export async function cancelWaitingSm8Writes(
   orgId: string,
   reason: string,
@@ -83,15 +84,22 @@ export async function countWaitingSm8Writes(orgId: string, now: number = Date.no
   return error ? 0 : count ?? 0;
 }
 
-/** The same count, files and notes apart. ONLY WHEN THE DEPLOYMENT ALLOWS
-    NOTES does it count per kind (one head count each); otherwise it is
-    today's one query, and every row it counts is a file — so the owner's
-    card, chip and bell gain no query on a deployment that sends files. */
+/** The same count, kind by kind. ONLY WHEN THE DEPLOYMENT ALLOWS MORE THAN
+    FILES does it count per kind (one head count each): files and notes
+    where it allows notes, and all three where it allows bookings, so the
+    kinds always add up to what a cancel would take. Otherwise it is today's
+    one query, and every row it counts is a file — so the owner's card, chip
+    and bell gain no query on a deployment that sends files, and none for
+    bookings on one that sends files and notes. */
 export async function countWaitingSm8WritesByKind(
   orgId: string,
   now: number = Date.now()
-): Promise<{ attachment: number; note: number }> {
-  if (!sm8NotesAllowed()) return { attachment: await countWaitingSm8Writes(orgId, now), note: 0 };
+): Promise<{ attachment: number; note: number; booking: number }> {
+  const kinds = sm8WriteKindsEnabled();
+  const bookings = kinds.includes("booking");
+  if (!kinds.includes("note") && !bookings) {
+    return { attachment: await countWaitingSm8Writes(orgId, now), note: 0, booking: 0 };
+  }
   const iso = new Date(now).toISOString();
   const one = async (kind: Sm8WriteKind) => {
     const { count, error } = await supabaseAdmin
@@ -102,8 +110,12 @@ export async function countWaitingSm8WritesByKind(
       .or(waitingAt(iso));
     return error ? 0 : count ?? 0;
   };
-  const [attachment, note] = await Promise.all([one("attachment"), one("note")]);
-  return { attachment, note };
+  const [attachment, note, booking] = await Promise.all([
+    one("attachment"),
+    one("note"),
+    bookings ? one("booking") : Promise.resolve(0),
+  ]);
+  return { attachment, note, booking };
 }
 
 /* ── a note's words leave the queue ──

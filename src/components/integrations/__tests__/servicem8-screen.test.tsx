@@ -859,3 +859,172 @@ describe("sending files and notes", () => {
     expect(setWriteKind).toHaveBeenCalledWith("note", false);
   });
 });
+
+/* ── files, notes and bookings (two-way phase 3) ──
+   A row per kind wherever the deployment allows more than one, Bookings
+   among them; the consent line for Bookings only while it is On and its
+   permission isn't held; the asks line in the same pattern; and, where the
+   deployment doesn't name booking, the card and the asks list exactly as
+   they were. */
+describe("sending files, notes and bookings", () => {
+  const view = (over: Partial<Sm8WritesView> = {}): Sm8WritesView => ({
+    mode: "live",
+    pausedReason: null,
+    hold: null,
+    granted: ["attachment", "note", "booking"],
+    refused: [],
+    sentLately: 3,
+    waiting: 0,
+    failed: 0,
+    recent: [],
+    hourlyCap: 60,
+    kinds: ["attachment", "note", "booking"],
+    ownerKinds: ["attachment", "note", "booking"],
+    ...over,
+  });
+  const groups = () => screen.queryAllByRole("radiogroup").map((g) => g.getAttribute("aria-label"));
+  const live = toView(row({ write_mode: "live" }));
+
+  it("(F) where the deployment doesn't name booking, the card draws exactly today's rows", () => {
+    const { unmount } = render(<Servicem8Screen connection={live} {...ready} writes={view({ kinds: ["attachment"] })} />);
+    expect(groups()).toEqual(["Sending files to ServiceM8"]);
+    unmount();
+    render(<Servicem8Screen connection={live} {...ready} writes={view({ kinds: ["attachment", "note"] })} />);
+    expect(groups()).toEqual(["Sending to ServiceM8", "Sending files to ServiceM8", "Sending notes to ServiceM8"]);
+    expect(screen.queryByText("Bookings")).not.toBeInTheDocument();
+  });
+
+  it("(F) with all three allowed: Files, Notes and Bookings, in that order, each Off or On", async () => {
+    const user = userEvent.setup();
+    setWriteKind.mockResolvedValue({ ok: true, note: "Bookings are off. 2 bookings that were waiting won't go." });
+    render(<Servicem8Screen connection={live} {...ready} writes={view()} />);
+    expect(groups()).toEqual([
+      "Sending to ServiceM8",
+      "Sending files to ServiceM8",
+      "Sending notes to ServiceM8",
+      "Sending bookings to ServiceM8",
+    ]);
+    const bookings = screen.getByRole("radiogroup", { name: "Sending bookings to ServiceM8" });
+    expect(within(bookings).getByRole("radio", { name: "On" })).toHaveAttribute("aria-checked", "true");
+    await user.click(within(bookings).getByRole("radio", { name: "Off" }));
+    expect(setWriteKind).toHaveBeenCalledWith("booking", false);
+    expect(await screen.findByText("Bookings are off. 2 bookings that were waiting won't go.")).toBeInTheDocument();
+  });
+
+  it("(F) on attachment,booking: Files and Bookings — the rows need more than one kind, not notes", () => {
+    render(<Servicem8Screen connection={live} {...ready} writes={view({ kinds: ["attachment", "booking"], ownerKinds: ["attachment"] })} />);
+    expect(groups()).toEqual(["Sending to ServiceM8", "Sending files to ServiceM8", "Sending bookings to ServiceM8"]);
+    const bookings = screen.getByRole("radiogroup", { name: "Sending bookings to ServiceM8" });
+    expect(within(bookings).getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("(F) says ServiceM8 hasn't given permission to book only while Bookings is On and it isn't held", () => {
+    const consent = /hasn't given HeyTiff permission to book yet, so no booking can go/;
+    const { unmount } = render(<Servicem8Screen connection={live} {...ready} writes={view({ granted: ["attachment", "note"] })} />);
+    expect(screen.getByText(consent)).toBeInTheDocument();
+    unmount();
+    // Bookings Off: nothing to ask for
+    const off = render(
+      <Servicem8Screen connection={live} {...ready} writes={view({ granted: ["attachment", "note"], ownerKinds: ["attachment", "note"] })} />
+    );
+    expect(screen.queryByText(consent)).not.toBeInTheDocument();
+    off.unmount();
+    // held
+    const held = render(<Servicem8Screen connection={live} {...ready} writes={view()} />);
+    expect(screen.queryByText(consent)).not.toBeInTheDocument();
+    held.unmount();
+    // refused since the last connect: said again
+    const refused = render(<Servicem8Screen connection={live} {...ready} writes={view({ refused: ["booking"] })} />);
+    expect(screen.getByText(consent)).toBeInTheDocument();
+    refused.unmount();
+    // a trial run asks for nothing
+    render(
+      <Servicem8Screen
+        connection={toView(row({ write_mode: "trial" }))}
+        {...ready}
+        writes={view({ mode: "trial", granted: ["attachment", "note"] })}
+      />
+    );
+    expect(screen.queryByText(consent)).not.toBeInTheDocument();
+  });
+
+  it("says what each booking permission allows, and that it isn't granted yet, when the page lists it", () => {
+    const scopes = `${SM8_SCOPE_LIST.join(" ")} manage_attachments publish_job_notes`;
+    render(
+      <Servicem8Screen
+        connection={toViewOf(row({ write_mode: "live", scopes }), null, ["attachment", "note", "booking"])}
+        {...ready}
+        writes={view()}
+        writeScopes={SM8_WRITE_SCOPES}
+      />
+    );
+    for (const scope of ["manage_schedule", "manage_jobs"]) {
+      const item = screen.getByText(scope).closest("li")!;
+      expect(within(item as HTMLElement).getByText("Not granted yet")).toBeInTheDocument();
+    }
+    expect(screen.getByText(/never touches allocations, booking windows or availability/)).toBeInTheDocument();
+    expect(screen.getByText(/It never removes a job\./)).toBeInTheDocument();
+  });
+
+  it("(F) says its writes in one pattern: three, two with bookings, bookings alone — and files, and files and notes, as before", () => {
+    const tail = "The list below is exactly what the consent screen will show.";
+    const scopes = (...names: string[]) => SM8_WRITE_SCOPES.filter((s) => names.includes(s.scope));
+    const asks = (writeScopes: typeof SM8_WRITE_SCOPES) => {
+      const { unmount } = render(<Servicem8Screen connection={live} {...ready} writes={view()} writeScopes={writeScopes} />);
+      const text = screen.getByText(/^Reads, and /).textContent;
+      unmount();
+      return text;
+    };
+    expect(asks(scopes("manage_attachments", "publish_job_notes", "manage_schedule", "manage_jobs"))).toBe(
+      `Reads, and three writes: adding the files somebody sends from a job, the notes people write here, and the bookings people make here. ${tail}`
+    );
+    expect(asks(scopes("manage_attachments", "manage_schedule", "manage_jobs"))).toBe(
+      `Reads, and two writes: adding the files somebody sends from a job, and the bookings people make here. ${tail}`
+    );
+    expect(asks(scopes("publish_job_notes", "manage_schedule", "manage_jobs"))).toBe(
+      `Reads, and two writes: adding the notes people write here, and the bookings people make here. ${tail}`
+    );
+    expect(asks(scopes("manage_schedule", "manage_jobs"))).toBe(`Reads, and one write: adding the bookings people make here. ${tail}`);
+    // main's, word for word
+    expect(asks(scopes("manage_attachments"))).toBe(`Reads, and one write: adding the files somebody sends from a job. ${tail}`);
+    expect(asks(scopes("manage_attachments", "publish_job_notes"))).toBe(
+      `Reads, and two writes: adding the files somebody sends from a job, and the notes people write here. ${tail}`
+    );
+  });
+
+  it("(F) lists a booking under its label, and a sent one with a guard's words says them", () => {
+    const at = "2026-09-27T10:00:00Z";
+    render(
+      <Servicem8Screen
+        connection={live}
+        {...ready}
+        writes={view({
+          recent: [
+            { id: "b1", kind: "booking", name: "Booking", jobNumber: "3370", status: "sent", attempts: 1, error: "ServiceM8 kept a different time for this booking. HeyTiff switched bookings off.", at, by: "Isaac Smith" },
+            { id: "b2", kind: "booking", name: "Quote made a Work Order", jobNumber: "288", status: "sent", attempts: 1, error: null, at, by: "Isaac Smith" },
+            // a file that went never says a reason, as before
+            { id: "f1", kind: "attachment", name: "Plan.pdf", jobNumber: "2380", status: "sent", attempts: 1, error: "left over", at, by: "Troy Porter" },
+          ],
+        })}
+      />
+    );
+    expect(screen.getByText("Booking")).toBeInTheDocument();
+    expect(
+      screen.getByText("Job 3370, Isaac Smith, Sun 27 Sept. ServiceM8 kept a different time for this booking. HeyTiff switched bookings off.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Quote made a Work Order")).toBeInTheDocument();
+    expect(screen.getByText("Job 288, Isaac Smith, Sun 27 Sept")).toBeInTheDocument();
+    expect(screen.getByText("Job 2380, Troy Porter, Sun 27 Sept")).toBeInTheDocument();
+  });
+
+  it("(F) counts waiting bookings apart in the disconnect confirm, and says today's words with none", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<Servicem8Screen connection={live} waitingWrites={2} waitingBookings={1} {...ready} />);
+    await openConfirm(user);
+    expect(screen.getByText("2 files and 1 booking still waiting to go to ServiceM8 are cancelled.")).toBeInTheDocument();
+    unmount();
+    render(<Servicem8Screen connection={live} waitingWrites={2} waitingBookings={0} {...ready} />);
+    await openConfirm(user);
+    expect(screen.getByText("2 files still waiting to go to ServiceM8 are cancelled.")).toBeInTheDocument();
+  });
+});

@@ -789,14 +789,16 @@ export function sm8QueueChip(
   stuck: {
     reason: "cap" | "billing" | "reconnect";
     waiting: number;
-    /** Files and notes apart, where the deployment sends notes. */
-    kinds?: { attachment: number; note: number };
+    /** Kind by kind, where the deployment sends more than files. */
+    kinds?: { attachment: number; note: number; booking?: number };
   } | null
 ): ActionChip | null {
   if (!stuck) return null;
-  /* "1 file", or "1 file and 2 notes" once notes go: word for word today's
-     with no notes (kindCount) */
-  const files = (n: number) => kindCount(stuck.kinds && stuck.kinds.note > 0 ? stuck.kinds : { attachment: n, note: 0 });
+  /* "1 file"; once any kind but files is waiting, each kind apart ("1 file
+     and 2 notes", "1 file, 2 notes and 1 booking"): word for word today's
+     with none (kindCount) */
+  const others = !!stuck.kinds && (stuck.kinds.note > 0 || (stuck.kinds.booking ?? 0) > 0);
+  const files = (n: number) => kindCount(others && stuck.kinds ? stuck.kinds : { attachment: n, note: 0 });
   const base = {
     key: "sm8-writes",
     kind: "sm8-writes" as const,

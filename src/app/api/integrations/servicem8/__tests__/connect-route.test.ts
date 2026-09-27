@@ -105,4 +105,34 @@ describe("the ServiceM8 connect route", () => {
     readSm8WriteState.mockResolvedValue(state({ ownerKinds: ["attachment", "note"] }));
     expect(asked(await connect())).not.toContain("publish_job_notes");
   });
+
+  /* two-way phase 3: a deployment that doesn't name booking asks exactly
+     today's scopes, even with the owner's switch holding booking; one that
+     does asks the two booking permissions while Bookings is On */
+  it("(F) asks exactly today's scopes where the deployment doesn't name booking, whatever the owner's switch holds", async () => {
+    const holdsBooking = { ownerKinds: ["attachment", "note", "booking"] };
+    readSm8WriteState.mockResolvedValue(state({ ...holdsBooking }));
+    expect(asked(await connect())).toEqual([...SM8_SCOPE_LIST, "manage_attachments"]);
+    readSm8WriteState.mockResolvedValue(state({ ...holdsBooking, kinds: ["attachment", "note"] }));
+    expect(asked(await connect())).toEqual([...SM8_SCOPE_LIST, "manage_attachments", "publish_job_notes"]);
+  });
+
+  it("asks for manage_schedule and manage_jobs only while the owner has Bookings on", async () => {
+    const all = { kinds: ["attachment", "note", "booking"] };
+    readSm8WriteState.mockResolvedValue(state({ ...all, ownerKinds: ["attachment", "note"] }));
+    expect(asked(await connect())).toEqual([...SM8_SCOPE_LIST, "manage_attachments", "publish_job_notes"]);
+    readSm8WriteState.mockResolvedValue(state({ ...all, ownerKinds: ["attachment", "note", "booking"] }));
+    expect(asked(await connect())).toEqual([
+      ...SM8_SCOPE_LIST,
+      "manage_attachments",
+      "publish_job_notes",
+      "manage_schedule",
+      "manage_jobs",
+    ]);
+    // Paused keeps asking; a trial run asks for reads alone
+    readSm8WriteState.mockResolvedValue(state({ ...all, ownerKinds: ["booking"], mode: "paused", modeStored: "paused" }));
+    expect(asked(await connect())).toEqual([...SM8_SCOPE_LIST, "manage_schedule", "manage_jobs"]);
+    readSm8WriteState.mockResolvedValue(state({ ...all, ownerKinds: ["attachment", "note", "booking"], mode: "trial", modeStored: "trial" }));
+    expect(asked(await connect())).toEqual(SM8_SCOPE_LIST);
+  });
 });

@@ -69,7 +69,12 @@ describe("toView", () => {
       toView(row({ provider: "servicem8", scopes: SM8_SCOPE_LIST.join(" "), ...over }));
     expect(sm8({ write_mode: "trial" }).missing).toEqual([]);
     // with no kinds handed in, every write kind counts (only a test reads it so)
-    expect(sm8({ write_mode: "live" }).missing).toEqual(["manage_attachments", "publish_job_notes"]);
+    expect(sm8({ write_mode: "live" }).missing).toEqual([
+      "manage_attachments",
+      "publish_job_notes",
+      "manage_schedule",
+      "manage_jobs",
+    ]);
   });
 
   it("counts only the kinds it is handed: files alone never miss the notes permission", () => {

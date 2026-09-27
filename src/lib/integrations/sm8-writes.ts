@@ -62,6 +62,7 @@ import { cancelWaitingSm8Writes, countWaitingSm8WritesByKind, type CancelledWrit
 import { postSm8Attachment, readSm8Attachment } from "./sm8-write";
 import { sm8NotesAllowed, sm8WriteKindsEnabled } from "./sm8-kinds";
 import { NOTE_WORDS } from "./sm8-note-plan";
+import { BOOKING_WORDS } from "./sm8-booking-words";
 import { sendNoteRow } from "./sm8-note-send";
 import {
   capAllows,
@@ -304,16 +305,28 @@ async function markSm8KindRefused(orgId: string, kind: Sm8WriteKind, now: number
 
 export type KindChange = { ok: true; cancelled: CancelledWrite[] } | { ok: false };
 
-/** The owner's switch for ONE KIND (Files, Notes), under the one Off /
-    Trial run / Paused / On. A single atomic update (sm8_set_write_kind), so
-    two switches pressed at once can't lose one. Off also cancels that
-    kind's waiting rows — for notes, creates, flag changes and take-backs
-    alike — in that kind's words, and says what it cancelled. */
+/** The words a kind's waiting rows are cancelled with when the owner
+    switches that kind off: each kind's own. */
+function kindSwitchedOffWords(kind: Sm8WriteKind): string {
+  if (kind === "note") return NOTE_WORDS.row.notesSwitchedOff;
+  if (kind === "booking") return BOOKING_WORDS.row.switchedOff;
+  return NOTE_WORDS.row.filesSwitchedOff;
+}
+
+/** The owner's switch for ONE KIND (Files, Notes, Bookings), under the one
+    Off / Trial run / Paused / On. A single atomic update
+    (sm8_set_write_kind), so two switches pressed at once can't lose one.
+    Off also cancels that kind's waiting rows — for notes, creates, flag
+    changes and take-backs alike; for bookings, creates, status changes,
+    take-backs and clears — in that kind's words, and says what it
+    cancelled. `reason` puts other words on them: a read-back guard
+    switching Bookings off says why (PR B's stopBookings). */
 export async function setSm8WriteKind(
   orgId: string,
   kind: Sm8WriteKind,
   on: boolean,
-  now: number = Date.now()
+  now: number = Date.now(),
+  opts: { reason?: string } = {}
 ): Promise<KindChange> {
   const iso = new Date(now).toISOString();
   const { data, error } = await supabaseAdmin.rpc("sm8_set_write_kind", {
@@ -330,12 +343,7 @@ export async function setSm8WriteKind(
   }
   const cancelled = on
     ? []
-    : await cancelWaitingSm8Writes(
-        orgId,
-        kind === "note" ? NOTE_WORDS.row.notesSwitchedOff : NOTE_WORDS.row.filesSwitchedOff,
-        now,
-        { kind }
-      );
+    : await cancelWaitingSm8Writes(orgId, opts.reason ?? kindSwitchedOffWords(kind), now, { kind });
   return { ok: true, cancelled };
 }
 
@@ -1377,8 +1385,8 @@ async function sendOne(
        flight at the disconnect finishes back in the queue, and goes here);
     4. the owner's Off, as stored: cancel. A stored value that isn't a
        setting holds;
-    4b. a kind the owner switched off (Files, Notes): cancel that kind's
-       waiting rows, in its words — paused or not;
+    4b. a kind the owner switched off (Files, Notes, Bookings): cancel that
+       kind's waiting rows, in its words — paused or not;
     5. no account named: stop;
     6. paused: hold, cancel nothing;
     7. On with a grant that doesn't work: stop for the reconnect;
@@ -1419,12 +1427,7 @@ export async function runSm8Writes(
      too. None unless the deployment allows a kind the owner has off, so a
      files-only deployment with files on makes no query here. */
   for (const kind of kindsSwitchedOff(state)) {
-    await cancelWaitingSm8Writes(
-      orgId,
-      kind === "note" ? NOTE_WORDS.row.notesSwitchedOff : NOTE_WORDS.row.filesSwitchedOff,
-      started,
-      { kind }
-    );
+    await cancelWaitingSm8Writes(orgId, kindSwitchedOffWords(kind), started, { kind });
   }
   if (!state.tenantId) return { ...NONE, stopped: "ServiceM8 isn't connected." };
   if (state.mode === "paused") return { ...NONE, stopped: WRITE_WORDS.paused };
@@ -1622,10 +1625,10 @@ export async function readJobSends(orgId: string, jobUuid: string): Promise<JobS
 
 export type RecentSm8Write = {
   id: string;
-  /** A file or a note. */
+  /** A file, a note or a booking. */
   kind: Sm8WriteKind;
   /** The file's name as it went; a note's label ("Reply", "Done."), never
-      its words. */
+      its words; a booking's label ("Booking", "Quote made a Work Order"). */
   name: string;
   /** "2380", when the job is still in the mirror. */
   jobNumber: string | null;
@@ -1705,11 +1708,13 @@ export async function listRecentSm8Writes(orgId: string, now: number = Date.now(
 
   return rows.map((r) => {
     const p = (r.payload && typeof r.payload === "object" ? r.payload : {}) as Record<string, unknown>;
-    const note = r.kind === "note";
+    const kind: Sm8WriteKind = r.kind === "note" ? "note" : r.kind === "booking" ? "booking" : "attachment";
+    const fallback =
+      kind === "note" ? NOTE_WORDS.label.fallback : kind === "booking" ? BOOKING_WORDS.label.fallback : "A file";
     return {
       id: r.id,
-      kind: note ? ("note" as const) : ("attachment" as const),
-      name: typeof p.name === "string" && p.name ? p.name : note ? NOTE_WORDS.label.fallback : "A file",
+      kind,
+      name: typeof p.name === "string" && p.name ? p.name : fallback,
       jobNumber: r.sm8_job_uuid ? numbers.get(r.sm8_job_uuid) ?? null : null,
       status: readWriteStatus(r.status),
       attempts: r.attempts ?? 0,
@@ -1731,10 +1736,10 @@ export async function countSm8Queue(
   orgId: string,
   tenantId: string | null,
   now: number = Date.now()
-): Promise<{ waiting: number; failed: number; waitingKinds: { attachment: number; note: number } }> {
+): Promise<{ waiting: number; failed: number; waitingKinds: { attachment: number; note: number; booking: number } }> {
   const [waitingKinds, failed] = await Promise.all([
-    /* per kind only where the deployment sends notes; otherwise today's one
-       count, every row of it a file */
+    /* per kind only where the deployment sends more than files; otherwise
+       today's one count, every row of it a file */
     countWaitingSm8WritesByKind(orgId, now),
     /* what Retry failed files can take: files only */
     tenantId
@@ -1748,7 +1753,7 @@ export async function countSm8Queue(
       : Promise.resolve({ count: 0, error: null }),
   ]);
   return {
-    waiting: waitingKinds.attachment + waitingKinds.note,
+    waiting: waitingKinds.attachment + waitingKinds.note + waitingKinds.booking,
     failed: failed.error ? 0 : failed.count ?? 0,
     waitingKinds,
   };
@@ -1766,8 +1771,8 @@ export async function countSm8Queue(
 export type Sm8QueueStuck = {
   reason: "cap" | "billing" | "reconnect";
   waiting: number;
-  /** The same, files and notes apart (all files where notes aren't sent). */
-  kinds: { attachment: number; note: number };
+  /** The same, kind by kind (all files where only files are sent). */
+  kinds: { attachment: number; note: number; booking: number };
 };
 
 export async function sm8QueueStuck(orgId: string, now: number = Date.now()): Promise<Sm8QueueStuck | null> {
@@ -1776,7 +1781,7 @@ export async function sm8QueueStuck(orgId: string, now: number = Date.now()): Pr
   if (!state.readable || !state.linked) return null;
   const counted = async () => {
     const kinds = await countWaitingSm8WritesByKind(orgId, now);
-    return { waiting: kinds.attachment + kinds.note, kinds };
+    return { waiting: kinds.attachment + kinds.note + kinds.booking, kinds };
   };
   if (state.mode === "paused" && state.pausedReason === "cap") return { reason: "cap", ...(await counted()) };
   if (state.mode !== "live") return null;

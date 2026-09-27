@@ -10,11 +10,14 @@
 
 import { kindCount, WRITE_HOURLY_CAP } from "./sm8-write-plan";
 import { fillWords, NOTE_WORDS } from "./sm8-note-words";
+import { BOOKING_WORDS } from "./sm8-booking-words";
 
-/* FILES AND NOTES, COUNTED APART. Where the deployment sends notes, what a
-   switch, a disconnect or the owner's Off cancelled is counted per kind and
-   worded with kindCount ("1 file and 2 notes"). With no notes every
-   sentence below is word for word what it always was. */
+/* FILES, NOTES AND BOOKINGS, COUNTED APART. Where the deployment sends more
+   than files, what a switch, a disconnect or the owner's Off cancelled is
+   counted per kind and worded with kindCount ("1 file and 2 notes", "1
+   file, 2 notes and 1 booking"). With no notes and no bookings every
+   sentence below is word for word what it always was, and with no bookings
+   word for word what it was with notes. */
 
 const isAre = (n: number) => (n === 1 ? "is" : "are");
 const wasWere = (n: number) => (n === 1 ? "was" : "were");
@@ -113,6 +116,8 @@ export function sm8SwitchedNotice(input: {
   cancelled: number;
   /** Notes among them, where the deployment sends notes. */
   notes?: number;
+  /** Bookings among them, where the deployment sends bookings. */
+  bookings?: number;
 }): string {
   const old = input.from ?? "that account";
   const parts = [
@@ -121,9 +126,11 @@ export function sm8SwitchedNotice(input: {
     `HeyTiff cleared its copy of ${old} and switched sending to ServiceM8 off.`,
   ];
   const notes = input.notes ?? 0;
-  if (notes > 0) {
-    const n = input.cancelled + notes;
-    parts.push(`${kindCount({ attachment: input.cancelled, note: notes })} waiting to go to ${old} ${wasWere(n)} cancelled.`);
+  const bookings = input.bookings ?? 0;
+  if (notes > 0 || bookings > 0) {
+    const n = input.cancelled + notes + bookings;
+    const what = kindCount({ attachment: input.cancelled, note: notes, booking: bookings });
+    parts.push(`${what} waiting to go to ${old} ${wasWere(n)} cancelled.`);
   } else if (input.cancelled === 1) parts.push(`1 file waiting to go to ${old} was cancelled.`);
   else if (input.cancelled > 1) parts.push(`${input.cancelled} files waiting to go to ${old} were cancelled.`);
   return parts.join(" ");
@@ -131,20 +138,23 @@ export function sm8SwitchedNotice(input: {
 
 /** The note after a disconnect: what it cancelled, by name, and what was
     already on its way and may still arrive. `unnamed` counts cancelled files
-    whose name couldn't be read; `notes` counts cancelled notes (named by
-    nothing: a note's name is only its label). */
+    whose name couldn't be read; `notes` and `bookings` count cancelled notes
+    and bookings (named by nothing: their name is only a label). */
 export function sm8DisconnectNote(input: {
   cancelled: readonly string[];
   unnamed: number;
   inFlight: number;
   notes?: number;
+  bookings?: number;
 }): string {
   const parts = ["Disconnected here."];
   const n = input.cancelled.length + input.unnamed;
   const notes = input.notes ?? 0;
-  if (notes > 0) {
+  const bookings = input.bookings ?? 0;
+  if (notes > 0 || bookings > 0) {
     const names = nameList(input.cancelled, input.unnamed);
-    const what = `${kindCount({ attachment: n, note: notes })} waiting to go to ServiceM8 ${wasWere(n + notes)} cancelled`;
+    const counted = kindCount({ attachment: n, note: notes, booking: bookings });
+    const what = `${counted} waiting to go to ServiceM8 ${wasWere(n + notes + bookings)} cancelled`;
     parts.push(names ? `${what}: ${names}.` : `${what}.`);
   } else if (n > 0) {
     const names = nameList(input.cancelled, input.unnamed);
@@ -160,11 +170,13 @@ export function sm8DisconnectNote(input: {
 }
 
 /** The disconnect confirm's line for what is still waiting to go. `waiting`
-    counts files; `notes` the notes, where the deployment sends them. */
-export function sm8WaitingConsequence(waiting: number, notes: number = 0): string | null {
-  if (notes > 0) {
-    const n = Math.max(0, waiting) + notes;
-    return `${kindCount({ attachment: Math.max(0, waiting), note: notes })} still waiting to go to ServiceM8 ${isAre(n)} cancelled.`;
+    counts files; `notes` and `bookings` the notes and the bookings, where
+    the deployment sends them. */
+export function sm8WaitingConsequence(waiting: number, notes: number = 0, bookings: number = 0): string | null {
+  if (notes > 0 || bookings > 0) {
+    const n = Math.max(0, waiting) + notes + bookings;
+    const what = kindCount({ attachment: Math.max(0, waiting), note: notes, booking: bookings });
+    return `${what} still waiting to go to ServiceM8 ${isAre(n)} cancelled.`;
   }
   if (waiting <= 0) return null;
   return waiting === 1
@@ -173,11 +185,13 @@ export function sm8WaitingConsequence(waiting: number, notes: number = 0): strin
 }
 
 /** The note after the owner switches sending Off: how many files (and
-    notes) that were waiting won't go now. Null when nothing was waiting. */
-export function sm8OffNote(cancelled: number, notes: number = 0): string | null {
-  if (notes > 0) {
-    const n = Math.max(0, cancelled) + notes;
-    return `Sending is off. ${kindCount({ attachment: Math.max(0, cancelled), note: notes })} that ${wasWere(n)} waiting won't go.`;
+    notes, and bookings) that were waiting won't go now. Null when nothing
+    was waiting. */
+export function sm8OffNote(cancelled: number, notes: number = 0, bookings: number = 0): string | null {
+  if (notes > 0 || bookings > 0) {
+    const n = Math.max(0, cancelled) + notes + bookings;
+    const what = kindCount({ attachment: Math.max(0, cancelled), note: notes, booking: bookings });
+    return `Sending is off. ${what} that ${wasWere(n)} waiting won't go.`;
   }
   if (cancelled <= 0) return null;
   return cancelled === 1
@@ -191,6 +205,9 @@ export function sm8KindOffNote(kind: string, cancelled: number): string | null {
   if (cancelled <= 0) return null;
   if (kind === "note") {
     return cancelled === 1 ? NOTE_WORDS.card.notesOffOne : fillWords(NOTE_WORDS.card.notesOffMany, { n: cancelled });
+  }
+  if (kind === "booking") {
+    return cancelled === 1 ? BOOKING_WORDS.card.bookingsOffOne : fillWords(BOOKING_WORDS.card.bookingsOffMany, { n: cancelled });
   }
   return cancelled === 1 ? NOTE_WORDS.card.filesOffOne : fillWords(NOTE_WORDS.card.filesOffMany, { n: cancelled });
 }

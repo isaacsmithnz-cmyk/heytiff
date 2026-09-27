@@ -248,7 +248,7 @@ describe("setServiceM8WriteKindAction", () => {
   it("refuses a kind the deployment doesn't allow, and anything that isn't a kind", async () => {
     allowed = ["attachment"];
     expect(await setServiceM8WriteKindAction("note", true)).toEqual({ ok: false, error: "Notes can't be sent from this deployment yet." });
-    expect(await setServiceM8WriteKindAction("booking", true)).toEqual({ ok: false, error: "That isn't something HeyTiff sends." });
+    expect(await setServiceM8WriteKindAction("photo", true)).toEqual({ ok: false, error: "That isn't something HeyTiff sends." });
     expect(setSm8WriteKind).not.toHaveBeenCalled();
   });
 
@@ -276,5 +276,111 @@ describe("setServiceM8WriteKindAction", () => {
     setSm8WriteKind.mockResolvedValue({ ok: true, cancelled: [{ id: "w1", name: "Reply", kind: "note" }, { id: "w2", name: "Note", kind: "note" }] });
     expect(await setServiceM8WriteKindAction("note", false)).toEqual({ ok: true, note: "Notes are off. 2 notes that were waiting won't go." });
     expect(scheduled).toHaveLength(0);
+  });
+});
+
+/* THE THIRD KIND (two-way phase 3, A-10): Bookings, Off or On, beside Files
+   and Notes — only where the deployment names it, and wherever it allows
+   more than one kind. */
+describe("setServiceM8WriteKindAction, for bookings", () => {
+  beforeEach(() => {
+    allowed = ["attachment", "note", "booking"];
+    setSm8WriteKind.mockReset().mockResolvedValue({ ok: true, cancelled: [] });
+  });
+  afterEach(() => {
+    allowed = ["attachment"];
+  });
+
+  it("is an owner's", async () => {
+    role = "admin";
+    expect(await setServiceM8WriteKindAction("booking", true)).toEqual({ ok: false, error: "Only an owner can change connected apps." });
+    expect(setSm8WriteKind).not.toHaveBeenCalled();
+  });
+
+  it("(F) is refused unless the deployment names booking — files alone, and files and notes, change nothing", async () => {
+    for (const kinds of [["attachment"], ["attachment", "note"]]) {
+      allowed = kinds;
+      expect(await setServiceM8WriteKindAction("booking", true)).toEqual({
+        ok: false,
+        error: "Bookings can't be sent from this deployment yet.",
+      });
+    }
+    expect(setSm8WriteKind).not.toHaveBeenCalled();
+    expect(scheduled).toHaveLength(0);
+  });
+
+  it("(F) switches on attachment,booking: the gate is more than one kind, not notes", async () => {
+    allowed = ["attachment", "booking"];
+    expect(await setServiceM8WriteKindAction("booking", true)).toEqual({ ok: true });
+    expect(setSm8WriteKind).toHaveBeenCalledWith("org-1", "booking", true);
+    // and a deployment that names bookings alone draws no row, so it switches nothing
+    allowed = ["booking"];
+    setSm8WriteKind.mockClear();
+    expect(await setServiceM8WriteKindAction("booking", true)).toEqual({ ok: false, error: "That isn't a setting." });
+    expect(setSm8WriteKind).not.toHaveBeenCalled();
+  });
+
+  it("(F) Bookings Off says how many that were waiting won't go, in bookings' words, and drains nothing", async () => {
+    setSm8WriteKind.mockResolvedValue({ ok: true, cancelled: [{ id: "w1", name: "Booking", kind: "booking" }] });
+    expect(await setServiceM8WriteKindAction("booking", false)).toEqual({
+      ok: true,
+      note: "Bookings are off. 1 booking that was waiting won't go.",
+    });
+    setSm8WriteKind.mockResolvedValue({
+      ok: true,
+      cancelled: [
+        { id: "w1", name: "Booking", kind: "booking" },
+        { id: "w2", name: "Quote made a Work Order", kind: "booking" },
+        { id: "w3", name: "Leftover booking cleared", kind: "booking" },
+      ],
+    });
+    expect(await setServiceM8WriteKindAction("booking", false)).toEqual({
+      ok: true,
+      note: "Bookings are off. 3 bookings that were waiting won't go.",
+    });
+    expect(setSm8WriteKind).toHaveBeenLastCalledWith("org-1", "booking", false);
+    expect(scheduled).toHaveLength(0);
+    // with nothing waiting, nothing to say
+    setSm8WriteKind.mockResolvedValue({ ok: true, cancelled: [] });
+    expect(await setServiceM8WriteKindAction("booking", false)).toEqual({ ok: true });
+  });
+
+  it("switches Bookings on and drains while sending is On", async () => {
+    expect(await setServiceM8WriteKindAction("booking", true)).toEqual({ ok: true });
+    expect(scheduled).toHaveLength(1);
+  });
+});
+
+describe("what the owner is told, counting bookings", () => {
+  it("(F) a disconnect counts cancelled bookings apart from the files it names", async () => {
+    disconnectSm8.mockResolvedValue({
+      cancelled: [
+        { id: "w1", name: "Public liability.pdf", kind: "attachment" },
+        { id: "w2", name: "Reply", kind: "note" },
+        { id: "w3", name: "Booking", kind: "booking" },
+        { id: "w4", name: "Quote made a Work Order", kind: "booking" },
+      ],
+      inFlight: 0,
+    });
+    expect(((await disconnectServiceM8Action()) as { note: string }).note).toBe(
+      "Disconnected here. 1 file, 1 note and 2 bookings waiting to go to ServiceM8 were cancelled: Public liability.pdf. " +
+        "To fully revoke access, also remove HeyTiff from your ServiceM8 account's add-ons."
+    );
+  });
+
+  it("(F) the owner's Off counts bookings apart, and says today's words without them", async () => {
+    setSm8WriteMode.mockResolvedValue({
+      ok: true,
+      cancelled: [
+        { id: "w1", name: "a.pdf", kind: "attachment" },
+        { id: "w2", name: "Booking", kind: "booking" },
+      ],
+    });
+    expect(await setServiceM8WriteModeAction("off")).toEqual({
+      ok: true,
+      note: "Sending is off. 1 file and 1 booking that were waiting won't go.",
+    });
+    setSm8WriteMode.mockResolvedValue({ ok: true, cancelled: [{ id: "w1", name: "a.pdf", kind: "attachment" }] });
+    expect(await setServiceM8WriteModeAction("off")).toEqual({ ok: true, note: "Sending is off. 1 file that was waiting won't go." });
   });
 });

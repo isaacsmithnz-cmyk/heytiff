@@ -347,13 +347,14 @@ describe("Sort it out", () => {
     expect(field()).toHaveValue("東京");
   });
 
-  it("grows from the button you pressed: the dots leave it", async () => {
+  it("sends the words straight to Tiff: the button's rings are what travel now, not the dots", async () => {
     motion(false);
     const user = userEvent.setup();
     render(<Room />);
     await user.type(field(), "Callum to grab the filters");
     await user.click(button("Sort it out")!);
-    expect(dialog()!.querySelector('.dotf[data-stage="gather"]')).not.toBeNull();
+    // no gather to wait out: the mark is already Tiff's cloud
+    expect(dialog()!.querySelector<HTMLElement>(".dotf")!.dataset.stage).toBe("cloud");
   });
 
   it("from the keyboard nothing flies (law 8)", async () => {

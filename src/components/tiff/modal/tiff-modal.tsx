@@ -10,6 +10,8 @@ import { MARK_MASK, TiffGlyph, TiffMark } from "@/components/notes/tiff-mark";
 import { DotField, useDotFieldExit } from "@/components/ui/dot-field";
 import type { EarlierTurn, TiffRoom } from "@/lib/workboard/note-turns";
 import { EASE, MOVE_MS, canAnimate, prefersStill, tokenMs, useBoxMotion, useGrow } from "./box-motion";
+import { fadeIn, fadeOut, flyIn, flyOut, release, restOutline, reverse, type Flight, type RingParts } from "./rings";
+import { RingsOver, RingsUnder, partsOf } from "./tiff-rings";
 import type { PlanRowView } from "./plan-view";
 import {
   useConversation,
@@ -105,7 +107,8 @@ export function TiffModal({
       conversation: session.conversation,
       room: session.room,
       day: session.day,
-      origin: session.keyboard ? null : session.origin,
+      /* the rings travel from the button now (./rings); the dots appear in place */
+      origin: null,
       still: session.still,
       at: session.at,
     },
@@ -121,21 +124,66 @@ export function TiffModal({
   /** Only a fade: reduced motion, or a keyboard press (law 8). */
   const fadeOnly = session.still || session.keyboard;
 
-  /* THE ENTRANCE, on the resting box: the origin is where the button is,
-     relative to where the modal will sit, measured before anything moves. */
+  /* THE RINGS (./rings, ./tiff-rings): the fill under the modal, the
+     outline and the flying rings over it. `flight` is whatever is moving
+     now; `held` keeps the button's own rings hidden while theirs are out. */
+  const fillRef = useRef<SVGSVGElement | null>(null);
+  const overRef = useRef<HTMLDivElement | null>(null);
+  const parts = useRef<RingParts | null>(null);
+  const flight = useRef<Flight | null>(null);
+  const held = useRef<Animation[]>([]);
+
+  /* THE ENTRANCE: the rings leave the button pressed and become the
+     modal's edge (./rings). Measured on the resting box, before anything
+     moves. The outline then keeps to the modal's edge as it grows and
+     shrinks with what is in it. */
   useLayoutEffect(() => {
     const m = dialog.current;
-    if (!canAnimate(m)) return;
-    const r = m.getBoundingClientRect();
-    m.style.transformOrigin = `${(session.origin.x - r.left).toFixed(1)}px ${(session.origin.y - r.top).toFixed(1)}px`;
-    const timing: KeyframeAnimationOptions = { duration: tokenMs("--t-move", MOVE_MS), easing: EASE, fill: "backwards" };
-    m.animate(
-      fadeOnly
-        ? [{ opacity: 0 }, { opacity: 1 }]
-        : [{ opacity: 0, transform: "scale(.94)" }, { opacity: 1, offset: 0.4 }, { opacity: 1, transform: "none" }],
-      timing
+    const fill = fillRef.current;
+    const over = overRef.current;
+    if (!m || !fill || !over) return;
+    const p = partsOf(fill, over);
+    parts.current = p;
+    if (!p) return;
+    const rest = () => restOutline(p, m);
+    rest();
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(rest) : null;
+    ro?.observe(m);
+    window.addEventListener("resize", rest);
+    const stop = () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", rest);
+    };
+    if (!canAnimate(m)) {
+      p.outline.dataset.landed = "";
+      return stop;
+    }
+    const scene = { dialog: m, scrim: scrim.current, from: session.from };
+    const flown = fadeOnly ? null : flyIn(p, scene);
+    const f = flown ?? fadeIn(p, scene, tokenMs("--t-move", MOVE_MS));
+    flight.current = f;
+    held.current = f.hold;
+    if (!flown) p.outline.dataset.landed = "";
+    /* Landed: everything lets go but the button's hidden rings, so what
+       stands is the stylesheet's, and the runs of light lap the edge. */
+    f.clock?.finished.then(
+      () => {
+        if (flight.current !== f) return;
+        for (const a of f.anims) if (!f.hold.includes(a)) a.cancel();
+        flight.current = null;
+        p.outline.dataset.landed = "";
+      },
+      () => {}
     );
-    if (canAnimate(scrim.current)) scrim.current.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+    /* An effect run twice (React's development check) must not fly twice. */
+    return () => {
+      stop();
+      if (flight.current === f) {
+        release(f);
+        flight.current = null;
+        held.current = [];
+      }
+    };
   }, [session, fadeOnly]);
 
   /** Close: the conversation lets go of everything, then the modal folds
@@ -153,17 +201,35 @@ export function TiffModal({
       room: session.room,
       keyboard: session.keyboard || byKey,
     };
-    const finish = () => onClosed(result);
     const m = dialog.current;
-    if (!canAnimate(m)) return finish();
-    const timing: KeyframeAnimationOptions = { duration: tokenMs("--t-move", MOVE_MS), easing: EASE, fill: "forwards" };
-    if (canAnimate(scrim.current)) scrim.current.animate([{ opacity: 1 }, { opacity: 0 }], timing);
-    m.animate(
-      fadeOnly
-        ? [{ opacity: 1 }, { opacity: 0 }]
-        : [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.97)" }],
-      timing
-    ).finished.then(finish, finish);
+    const p = parts.current;
+    let out: Flight | null = null;
+    const finish = () => {
+      release(out);
+      for (const a of held.current) a.cancel();
+      held.current = [];
+      onClosed(result);
+    };
+    if (!canAnimate(m) || !p) return finish();
+    const now = flight.current;
+    if (now && now.kind === "open" && now.clock && now.clock.playState !== "finished") {
+      /* closed while it is still opening: the open plays itself backwards
+         from where it is, so what is in the air goes back the way it came */
+      out = reverse(now);
+    } else {
+      /* the rings go home into the button pressed, or into the one that
+         stands where it did (Sort it out leaves; the box's own Tiff button
+         comes back in its place) */
+      const home =
+        session.from.isConnected && session.from.querySelector(".tiffbtn-gw")
+          ? session.from
+          : (session.back?.closest(".tm-box")?.querySelector<HTMLElement>(".tiffbtn") ?? null);
+      const scene = { dialog: m, scrim: scrim.current, from: home };
+      out = (fadeOnly || byKey ? null : flyOut(p, scene)) ?? fadeOut(p, scene, tokenMs("--t-move", MOVE_MS));
+    }
+    flight.current = out;
+    if (!out.clock) return finish();
+    out.clock.finished.then(finish, finish);
   };
 
   /* ESCAPE CLOSES THIS AND ONLY THIS. Caught on the way down, before a sheet
@@ -237,6 +303,7 @@ export function TiffModal({
   return (
     <>
       <div className="tm-scrim" ref={scrim} aria-hidden="true" />
+      <RingsUnder fillRef={fillRef} />
       <section
         ref={dialog}
         className={"tm" + (c.faceOpen ? "" : " speaking")}
@@ -249,7 +316,7 @@ export function TiffModal({
         <header className="tm-head">
           <span className="tm-who">
             <span className="tm-hmark" aria-hidden="true">
-              <TiffGlyph quiet size={20} />
+              <TiffGlyph ground="ink" quiet size={24} />
             </span>
             {context && <span className="tm-ctx">{context}</span>}
             {c.aimed && c.targetLabel && (
@@ -259,12 +326,12 @@ export function TiffModal({
                 aria-label={`Clear the tag — not about ${c.targetLabel}`}
                 onClick={c.dropAim}
               >
-                <Icon name="x" size={12} />
+                <Icon name="x" size={16} />
               </button>
             )}
           </span>
           <button type="button" className="tm-x" aria-label="Close" onClick={(e) => close(e.detail === 0)}>
-            <Icon name="x" size={16} />
+            <Icon name="x" size={20} />
           </button>
         </header>
 
@@ -288,6 +355,7 @@ export function TiffModal({
 
         <Dock c={c} onEmpty={close} />
       </section>
+      <RingsOver overRef={overRef} />
     </>
   );
 }
@@ -489,7 +557,7 @@ function PlanRow({
         </span>
       ) : (
         <span className="tm-ok" aria-hidden="true">
-          <Icon name="check" size={14} />
+          <Icon name="check" size={18} />
         </span>
       )}
       <span>
@@ -509,7 +577,7 @@ function PlanRow({
         )
       ) : clearable ? (
         <button type="button" className="tm-rm" aria-label={`Clear ${row.text} from the plan`} onClick={onClear}>
-          <Icon name="x" size={12} />
+          <Icon name="x" size={16} />
         </button>
       ) : (
         <span />
@@ -571,7 +639,7 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => vo
           </span>
           <span className="tm-sp" />
           <button type="button" className="tm-clear" aria-label="Clear what you said" onClick={c.clear}>
-            <Icon name="x" size={16} />
+            <Icon name="x" size={20} />
           </button>
           <button
             type="button"
@@ -591,7 +659,7 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => vo
         <div className="tm-bar">
           <span className="tm-sp" />
           <button type="button" className="tm-clear" aria-label="Clear what you said" onClick={c.clear}>
-            <Icon name="x" size={16} />
+            <Icon name="x" size={20} />
           </button>
           <button type="button" className="pbtn primary" disabled={!typed} onClick={c.send}>
             Send
@@ -624,13 +692,13 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => vo
           ) : c.voiceEnabled ? (
             <button
               type="button"
-              className="tiffbtn tiffbtn-box"
+              className="tiffbtn tiffbtn-box tiffbtn-onink"
               aria-label="Talk to Tiff"
               style={{ "--tiffbtn-mask": MARK_MASK } as CSSProperties}
               onClick={(e) => c.talk(e.currentTarget, e.detail === 0)}
             >
               <span className="tiffbtn-burst" aria-hidden="true" />
-              <TiffMark ground="paper" />
+              <TiffMark ground="ink" />
             </button>
           ) : null}
         </form>

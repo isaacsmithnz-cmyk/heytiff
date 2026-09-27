@@ -778,6 +778,7 @@ infinite loop into a strobe.
 | `dotfTurn`, `dotfZip`, `dotfFire` | the Tiff modal's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
 | `wb2Flash` | a calendar day the board's data asked to flash | a flash a row asked for with data |
 | `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button, on the frame and in a sheet's header; and the mark wherever it stands for Tiff (at rest, at the thinking pace while Tiff works, or on hover in a list) | not feedback or state: Isaac's override of law 18 (2026-09-24, "make it gently alive all the time"), the one thing in the app that moves at rest. See "The Tiff button" below |
+| `tmLap` | the Tiff modal's edge: the two runs of light lapping its outline while it is open, 18 and 14 seconds a lap | Isaac's override of law 18, the Tiff button's own: the button's rings become the modal's edge (2026-09-27, "C is the one") and the light on them keeps going round it. It stands still under reduced motion. See "The Tiff modal" below |
 | `hdTrace` | the Trace: the white light round the job on now, on Home's day bar | Isaac's override of law 18 (2026-09-24, "design exempt for now, but keep a note"): his live job, marked by a light that runs round its edge once every 8 seconds while it is on. It goes when the job finishes, and stands still under reduced motion. See "Named exemptions" below |
 
 ### The buttons that keep their glyph
@@ -1024,6 +1025,51 @@ button's, on his word, and it runs the button's six loops with no new one.
   (Ask Tiff, Value with Tiff) has a full circle for its left end. The mark
   sits in it, concentric, with no disc behind it: the rings are the circle.
   The radius is on the scale (the pill and the button's own).
+
+### The Tiff modal
+
+The one conversation with Tiff, from every Tiff button (Isaac, 2026-09-27,
+picked as "C" from the "Tiff Circle Modal" board). Pressing a Tiff button
+sends its two gimbal rings out: they leave the button still turning, dive
+down a bowed arc and spin down flat over where the modal will be. Then each
+circle reshapes into the modal's rectangle, the two lines meet as one
+outline, and the modal fills in from that outline inwards. Its zones arrive
+last. While it is open the outline is its edge, and the rings' two runs of
+light keep lapping it. Close runs the same way back: the fill drains, the
+outline rounds back into the rings, and they climb home into the button, in
+the pose the button's own rings have reached. Closed before it has landed,
+the open plays itself backwards from where it is. The choreography and its
+reasons are in `components/tiff/modal/rings.ts`.
+
+It is ink, the frame's `--ink2`, for everyone ("dark, everywhere"), and about
+1.3 times the light modal it replaces ("make the modal bigger approximately
+thirty percent"): 780 wide, with every size the step above the old one on the
+scales ("round to the allowed sizes"). The words go 13 to 16, 14 to 16, 16 to
+20 and 20 to 24; the spacing 8 to 12, 12 to 16, 16 to 24 and 24 to 32. Text is
+`--paper` and `--on-ink-q`. "Needs an answer" is `--warn`, and an error is
+`--bad-on-ink`, the bad colour lifted to 6.6:1 on ink. Every line is the dark
+chrome's one hairline, `--on-ink-line` (law 22). The focus ring is `--ring-ink`,
+the ring the other way round, paper outside (law 32). The rings on it keep the
+frame's skin all the way down.
+
+It breaks three laws, on his word. This is the note:
+
+- **Law 8, under 300 ms, and law 18, the motion tokens.** The open takes
+  1,660 ms and the close 1,020 ms, where law 8 says under 300. Its clocks and
+  eases are its own. They are sampled every 8 ms into linear keyframes, so no
+  curve of its own appears anywhere. The reshape is slow on purpose ("make the
+  reshape slower": 650 ms). Opened from the keyboard, or under reduced motion,
+  nothing flies: the modal and its outline fade in where they stand on
+  `--t-move`, and the button keeps its rings. That is law 8's "none on
+  keyboard-driven actions", kept.
+- **Law 18, loops.** `tmLap` is in the loops table above. It is the Tiff
+  button's own override carried on to the rings that left it.
+- **No handover crossfades.** Two identical layers at half strength each
+  showed the page through for an instant, which at a quarter speed was a
+  visible flash ("fix that. watch it slowly"). The fills overlap: the
+  incoming one is fully on before the outgoing one goes. The rings and the
+  outline are thin lines that would double up bright, so they swap on one
+  exact instant.
 
 ## The order of work
 

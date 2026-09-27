@@ -824,7 +824,7 @@ describe("focus goes back", () => {
 });
 
 describe("the waits have floors", () => {
-  it("holds Tiff's answer until the dots have gathered and the cloud has turned", async () => {
+  it("holds Tiff's answer until the cloud has turned", async () => {
     motion(false);
     jest.useFakeTimers();
     routeNote.mockResolvedValue(routed({ say: "Luke has it.", tasks: [task("Head on the ute", LUKE.id)] }));
@@ -832,8 +832,8 @@ describe("the waits have floors", () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     render(<Harness />);
     await user.click(topButton());
-    // the dots leave the button: the field is gathering, not simply there
-    expect(dialog().querySelector('.dotf[data-stage="gather"]')).not.toBeNull();
+    // the button's rings are what travel now (./rings): the mark is simply there, and holds nothing up
+    expect(dialog().querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
 
     await say(user, "Luke has the head");
     await flush();
@@ -841,7 +841,7 @@ describe("the waits have floors", () => {
     expect(within(convo()).queryByText(DONE)).toBeNull();
 
     await act(async () => {
-      jest.advanceTimersByTime(GATHER_MS + CLOUD_MS - 200);
+      jest.advanceTimersByTime(CLOUD_MS - 200);
     });
     expect(within(convo()).queryByText(DONE)).toBeNull();
     expect(dialog().querySelector('.dotf[data-stage="cloud"]')).not.toBeNull();
@@ -874,7 +874,7 @@ describe("the waits have floors", () => {
   });
 });
 
-describe("the blossom", () => {
+describe("the rings", () => {
   const anims: { el: Element; frames: Keyframe[] }[] = [];
   beforeEach(() => {
     anims.length = 0;
@@ -889,26 +889,35 @@ describe("the blossom", () => {
     delete (HTMLElement.prototype as unknown as { getAnimations?: unknown }).getAnimations;
   });
 
-  it("grows from the pressed button and folds back toward it", async () => {
+  const flying = () => anims.filter((a) => (a.el as HTMLElement).classList.contains("tm-fr-pos"));
+
+  /* ./rings: the pressed button's two rings leave it and become the modal's
+     edge, and the modal fills in after them; close sends them home. */
+  it("sends the pressed button's rings out, and brings them home on close", async () => {
     motion(false);
     const user = await openModal();
     const m = dialog();
-    expect(m.style.transformOrigin).not.toBe("");
-    const grow = anims.find((a) => a.el === m)!;
-    expect(grow.frames[0]).toMatchObject({ opacity: 0, transform: "scale(.94)" });
+    expect(flying()).toHaveLength(2);
+    // the button's own rings go on the instant the flying copies leave
+    const gw = topButton().querySelector(".tiffbtn-gw")!;
+    expect(anims.find((a) => a.el === gw)!.frames.at(-1)).toMatchObject({ opacity: 0 });
+    // the modal is only its rings' outline until the fill reaches it
+    const fill = anims.find((a) => a.el === m && a.frames[0] && "backgroundColor" in a.frames[0])!;
+    expect(fill.frames[0]).toMatchObject({ backgroundColor: "transparent" });
     expect(anims.some((a) => (a.el as HTMLElement).classList.contains("tm-scrim"))).toBe(true);
 
+    const out = flying().length;
     await user.click(within(m).getByRole("button", { name: "Close" }));
-    const fold = anims.filter((a) => a.el === m).at(-1)!;
-    expect(fold.frames.at(-1)).toMatchObject({ opacity: 0, transform: "scale(.97)" });
+    expect(flying()).toHaveLength(out + 2);
     await flush();
     expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
   });
 
-  it("under reduced motion it only fades", async () => {
+  it("under reduced motion it only fades, and nothing leaves the button", async () => {
     await openModal();
     const grow = anims.find((a) => a.el === dialog())!;
     expect(grow.frames).toEqual([{ opacity: 0 }, { opacity: 1 }]);
+    expect(flying()).toHaveLength(0);
   });
 
   it("opened from the keyboard it only fades, in and out (law 8)", async () => {

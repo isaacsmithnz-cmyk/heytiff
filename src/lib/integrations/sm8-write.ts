@@ -493,7 +493,7 @@ function readFailure(page: Extract<Sm8Page, { ok: false }>): Sm8ReadFailure {
 
 /** A raw jobactivity row, shaped as the mirror shapes one, plus whether it
     was recorded. Null without a uuid. */
-function shapeLiveActivity(r: Record<string, unknown>): Sm8LiveActivity | null {
+export function shapeLiveActivity(r: Record<string, unknown>): Sm8LiveActivity | null {
   const uuid = textOrNull(r.uuid);
   if (!uuid) return null;
   return {

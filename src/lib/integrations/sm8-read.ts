@@ -27,9 +27,12 @@ import type { ReadResult } from "./xero-read";
 
 const HTTP_TIMEOUT_MS = 10_000;
 
-const NOT_CONNECTED = "ServiceM8 isn't connected for this workspace.";
-const UNAVAILABLE = "ServiceM8 couldn't be reached just now. Try again shortly.";
-const REAUTH = "The ServiceM8 connection needs reconnecting.";
+/* The three sentences, and the two helpers below that choose between them,
+   are exported for the booking panel's live reads (sm8-booking-read), which
+   say a failure in these same words. */
+export const NOT_CONNECTED = "ServiceM8 isn't connected for this workspace.";
+export const UNAVAILABLE = "ServiceM8 couldn't be reached just now. Try again shortly.";
+export const REAUTH = "The ServiceM8 connection needs reconnecting.";
 /** The account's call limit had no room for this read. */
 export const BUSY = "ServiceM8 is busy for this account. Try again in a minute.";
 /** ...and the limit with no room is a daily one: the counter's day cap, or
@@ -38,13 +41,13 @@ export const BUSY_DAY = "ServiceM8's daily limit for this account is used up. Tr
 
 /** Why there was no token to read with, as the screen's sentence: a refresh
     that couldn't reach ServiceM8 is "try again shortly", never "reconnect". */
-function noAccess(r: Extract<Sm8AccessResult, { ok: false }>): string {
+export function noAccess(r: Extract<Sm8AccessResult, { ok: false }>): string {
   return r.reason === "unreachable" ? UNAVAILABLE : r.reason === "reauth" ? REAUTH : NOT_CONNECTED;
 }
 
 /** A renewal that ended the read, as the screen's sentence; null when the
     answer it came back with should be read as usual. */
-function renewalEnded(verdict: RenewVerdict): string | null {
+export function renewalEnded(verdict: RenewVerdict): string | null {
   if (verdict === "dead") return REAUTH; // flagged already, for this grant only
   if (verdict === "unreachable") return UNAVAILABLE;
   if (verdict === "gone") return NOT_CONNECTED;

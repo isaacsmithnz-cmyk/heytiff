@@ -65,6 +65,7 @@ Read on main at `3c60eb95` (#848).
 | D6 | What the person is looking at goes in the conversation, never the system prompt. | Rule 7. A client's name is outside text. |
 | D7 | Evals run locally and opt-in, at most 30 cases and US$2 a run, never in CI. | CI has no secrets by design, and the probes' cost was noticed. |
 | D8 | Phase 1 records are the job, visit, project, staff card and client. Agreements and vehicles wait. | Agreements have no link of their own; vehicles have no search. |
+| D9 | Effort by job, as Isaac decided on 27 September: low for moving the screen (and, from Phase 2, filing notes); medium for answering questions and the Library. A request `looksLikeMove` sends goes with `intent: "move"`, and the route runs that loop at low. Questions stay at medium. | In Phase 0 the loop at low matched the router's rows as closely as the router matches itself, for about 18% less. Low is untested on questions. |
 
 ---
 
@@ -204,7 +205,7 @@ The palette imports them; its behaviour is unchanged.
 - **A screen:** one of "take me to", "bring me to", "go to", "open", "open up", "pull up", "bring up", "show me", "switch to", "jump to", then optional "the" or "my", then exactly a screen label from `NAV`, then optional "screen", "page" or "tab", then nothing but punctuation. All labels, not only the viewer's: the server decides what they may see.
 - **A record:** one of "take me to", "bring me to", "open", "open up", "pull up", "bring up", "show me", then "the" or a name with a possessive ("Dane's"), then words, then one of "card", "profile", "job", "project", "sheet", "visit". "Go to" never counts for a record: "go to the Smith St job and grab the grilles" is a site instruction.
 
-`submit` checks `looksLikeMove` before `looksLikeQuestion`, and a yes goes to `ask`.
+`submit` checks `looksLikeMove` before `looksLikeQuestion`, and a yes goes to `ask` with `intent: "move"`, which the route runs at effort low (D9). The route accepts `intent` only as that one value and ignores anything else.
 
 | Words | Goes to |
 | --- | --- |
@@ -336,7 +337,7 @@ Cases live in `evals/tiff/cases/`, which git ignores except its README and one e
 
 - The note router, `fileNote`, Undo and the diary.
 - The calendar room and its reader.
-- The model (`claude-opus-5`), effort, round cap and fallback.
+- The model (`claude-opus-5`), the round cap and the fallback. Effort changes only for move requests (D9).
 - Anything that writes. The only new outcome is a move.
 
 ---
@@ -371,7 +372,8 @@ Section 0, in prod, after 1F merges. Each step is a check box in the plan's Phas
 5. **The staff card's client component.** `src/app/dashboard/team/[staff]/page.tsx` (`StaffProfilePage`) is a server component. Find the client screen it renders, which calls `useNoteScopeSubject`.
 6. **Visits in `find_record`.** No visit search exists. A visit is opened only with an id another tool returned (`job_history`, later Phase 3 tools).
 7. **The loop's model.** Phase 1 stays on `claude-opus-5`. Moving to Opus 5.5 is the plan's decision 7.
-8. **`strict` on tools with a viewer-dependent `enum`.** Each distinct enum compiles its own grammar the first time it's used. With three roles that is a handful of grammars; confirm the first call's extra time in the evals.
+8. **Effort per round, for Phase 2.** One loop can't know before it reads the words whether they are a note or a question. The plan for Phase 2 is round one at low (a note files, a move moves), and any round after a read at medium, set with a mid-conversation effort message so the cache holds (beta `mid-conversation-output-config-2026-07-01` per the claude-api reference; confirm against the docs when Phase 2 is specced).
+9. **`strict` on tools with a viewer-dependent `enum`.** Each distinct enum compiles its own grammar the first time it's used. With three roles that is a handful of grammars; confirm the first call's extra time in the evals.
 
 ---
 

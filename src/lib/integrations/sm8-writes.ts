@@ -621,7 +621,10 @@ function bookingRepressPatch(
     ? { verb_id: w.verbId ?? null, booking_staff_uuid: w.staffUuid ?? null, booking_start: w.start ?? null, booking_end: w.end ?? null }
     : {};
   if (queued) return { tenant_id: tenantId, payload: w.payload, ...presser, updated_at: iso, ...clear };
-  const tried = (row.status === "failed" || row.status === "cancelled") && row.attempts > 0;
+  /* tried: an attempt counted, or a DELETE that reached a booking (its
+     verify_uuids) — a go that let its row go after a DELETE hands its
+     attempt back, and Bookings Off may cancel it before it goes again */
+  const tried = (row.status === "failed" || row.status === "cancelled") && (row.attempts > 0 || (row.verify_uuids?.length ?? 0) > 0);
   const finished = tried && row.updated_at ? Date.parse(row.updated_at) : NaN;
   const settled = Number.isNaN(finished) ? iso : new Date(Math.max(Date.parse(iso), finished + BOOKING_DELETE_SETTLE_MS)).toISOString();
   return { ...againPatch(row, press, tenantId, iso), next_attempt_at: settled, payload: w.payload, verify_uuids: [], ...clear };

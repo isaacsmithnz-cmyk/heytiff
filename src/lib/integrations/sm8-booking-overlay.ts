@@ -427,6 +427,10 @@ export type DeleteOn = {
   names: string[];
   /** One that went: the uuids it took out, lower case (see `gone`). */
   tookOut: string[];
+  /** One that hasn't gone: the uuids its DELETE reached, lower case —
+      whatever its attempts say, since a go that let its row go after a
+      DELETE hands its attempt back. */
+  reached: string[];
 };
 
 type DeleteRead = {
@@ -451,6 +455,7 @@ const shapeDelete = (r: DeleteRead, via: DeleteOn["via"], names: readonly string
   attempts: r.attempts ?? 0,
   names: lowerUuids([...names, r.target_uuid, ...(r.verify_uuids ?? [])]),
   tookOut: r.status === "sent" ? lowerUuids(r.verify_uuids ?? []) : [],
+  reached: r.status === "sent" ? [] : lowerUuids(r.verify_uuids ?? []),
 });
 
 /** EVERY TAKE-BACK AND CLEAR OF THESE BOOKINGS, whatever its status and

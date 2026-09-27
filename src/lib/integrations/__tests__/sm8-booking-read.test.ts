@@ -455,7 +455,7 @@ describe("what our rows say (C-11's lines)", () => {
     fake.db.sm8_writes = [];
   });
 
-  const read = async (viewer = OWNER) => readBookingLines(ORG, await readSm8WriteState(ORG), JOB, viewer);
+  const read = async (viewer: string | null = OWNER) => readBookingLines(ORG, await readSm8WriteState(ORG), JOB, viewer);
 
   it("(F) gives every door to the presser alone, but Open in ServiceM8; a standing booking's line is by its uuid, lower case", async () => {
     const s = statusRow(V1);
@@ -477,6 +477,18 @@ describe("what our rows say (C-11's lines)", () => {
     const theirs = await read(OTHER);
     expect(theirs.lines[key].acts).toEqual(["open_in_sm8"]);
     expect(theirs.verbs[0].bookings.map((b) => b.state.acts)).toEqual([["open_in_sm8"], []]);
+    /* the presser, once they may press nothing, keeps the lines and loses the doors */
+    const nobody = await read(null);
+    expect(nobody.lines[key].acts).toEqual(["open_in_sm8"]);
+    expect(nobody.verbs[0].bookings.map((b) => b.state.acts)).toEqual([["open_in_sm8"], []]);
+  });
+
+  it("(F) finds the job's rows whatever the case of its uuid", async () => {
+    const s = statusRow(V1);
+    create(V1, { depends_on: s.id });
+    const upper = await readBookingLines(ORG, await readSm8WriteState(ORG), JOB.toUpperCase(), OWNER);
+    expect(upper.verbs).toHaveLength(1);
+    expect(upper.untried).toHaveLength(1);
   });
 
   it("(F) says a status change two presses share once, above both presses' bookings", async () => {
@@ -520,13 +532,14 @@ describe("what our rows say (C-11's lines)", () => {
     expect(gone).toEqual([String(undone.remote_uuid), "e0000000-0000-4000-8000-00000000dead", cleared].map((u) => u.toLowerCase()).sort());
   });
 
-  it("(F) gives a Clear's doors to its presser alone, and says nothing once it went", async () => {
+  it("(F) gives a Clear's doors to anyone who may press — a Clear has no owner — none to a viewer who may press nothing, and says nothing once it went", async () => {
     const target = "e0000000-0000-4000-8000-0000000c1ea5";
     const c = clear(V2, target, { status: "failed", last_error: BOOKING_WORDS.row.removeRefused });
     let mine = (await read(OWNER)).verbs[0].bookings[0];
     expect(mine).toMatchObject({ rowId: c.id, op: "clear", uuid: target, name: "Casey Tester", standing: false });
     expect(mine.state).toMatchObject({ key: "line.notCleared", acts: ["try_again"] });
-    expect((await read(OTHER)).verbs[0].bookings[0].state.acts).toEqual([]);
+    expect((await read(OTHER)).verbs[0].bookings[0].state.acts).toEqual(["try_again"]);
+    expect((await read(null)).verbs[0].bookings[0].state.acts).toEqual([]);
     c.status = "sent";
     mine = (await read(OWNER)).verbs[0]?.bookings[0];
     expect(mine).toBeUndefined();

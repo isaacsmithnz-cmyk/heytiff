@@ -138,7 +138,7 @@ import {
   takeBackBooking,
 } from "../booking-sm8";
 import { BOOKING_WORDS, localNow } from "@/lib/integrations/sm8-booking-plan";
-import { UNAVAILABLE } from "@/lib/integrations/sm8-read";
+import { revalidatePath } from "next/cache";
 
 const actualWrites = jest.requireActual("@/lib/integrations/sm8-writes");
 const actualDrain = jest.requireActual("@/lib/integrations/sm8-drain");
@@ -407,6 +407,15 @@ describe("the gates (C-4)", () => {
     nothingRead();
   });
 
+  it("(F) a role or a session that can't be read refuses the press, never a server error", async () => {
+    getDbRole.mockRejectedValue(new Error("the database fell over"));
+    for (const press of presses()) expect(await press()).toEqual({ ok: false, error: BOOKING_WORDS.press.noManage });
+    getDbRole.mockImplementation(async () => role);
+    getSession.mockRejectedValue(new Error("the session store fell over"));
+    for (const press of presses()) expect(await press()).toEqual({ ok: false, error: BOOKING_WORDS.press.noManage });
+    expect(writes()).toEqual([]);
+  });
+
   it("(F) with no press, or a press for another workspace, nothing is read or queued", async () => {
     getSession.mockResolvedValue(null);
     fake.log.length = 0;
@@ -479,14 +488,20 @@ describe("the panel's read", () => {
   it("(F) with no zone, or Bookings not offered, says so before asking ServiceM8 anything; a zone it couldn't read is a read that failed", async () => {
     fake.db.sm8_vendor = [{ org_id: ORG, uuid: TENANT, timezone_name: null }];
     expect(await readBookInContext({ jobUuid: JOB, days: [TOMORROW] })).toEqual({ ok: false, error: BOOKING_WORDS.press.zoneUnknown });
+    /* HeyTiff's own database, not ServiceM8: said as the panel's failed read */
     fake.failing.add("sm8_vendor");
-    expect(await readBookInContext({ jobUuid: JOB, days: [TOMORROW] })).toEqual({ ok: false, error: UNAVAILABLE });
+    expect(await readBookInContext({ jobUuid: JOB, days: [TOMORROW] })).toEqual({ ok: false, error: BOOKING_WORDS.panel.readFailed });
     fake.failing.clear();
     fake.db.sm8_vendor = [{ org_id: ORG, uuid: TENANT, timezone_name: ZONE }];
     (fake.db.integration_connections[0] as Row).write_kinds = ["attachment", "note"];
     expect(await readBookInContext({ jobUuid: JOB, days: [TOMORROW] })).toEqual({ ok: false, error: BOOKING_WORDS.press.kindOff });
     expect(readSm8Job).not.toHaveBeenCalled();
     expect(sm8AccessResult).not.toHaveBeenCalled();
+  });
+
+  it("(F) a people list it couldn't read is the panel's failed read, not ServiceM8's", async () => {
+    fake.failing.add("sm8_staff");
+    expect(await readBookInContext({ jobUuid: JOB, days: [] })).toEqual({ ok: false, error: BOOKING_WORDS.panel.readFailed });
   });
 
   it("says a trial run, and what holds a booking", async () => {
@@ -617,7 +632,7 @@ describe("Book in's zone (C-3)", () => {
     fake.db.sm8_vendor = [{ org_id: ORG, uuid: TENANT, timezone_name: "Mars/Base" }];
     expect(await book()).toEqual({ ok: false, error: BOOKING_WORDS.press.zoneUnknown });
     fake.failing.add("sm8_vendor");
-    expect(await book()).toEqual({ ok: false, error: UNAVAILABLE });
+    expect(await book()).toEqual({ ok: false, error: BOOKING_WORDS.press.unreadable });
     expect(booking()).toEqual([]);
   });
 });
@@ -698,6 +713,45 @@ describe("a press of Book in, again", () => {
     expect(second).toEqual(first);
   });
 
+  it("(F) the same press id from someone else is their own press, never an answer from mine", async () => {
+    const pressId = randomUUID();
+    const mine = await book({ pressId });
+    expect(mine.ok).toBe(true);
+    as(COOWNER);
+    expect(await book({ pressId })).toEqual({ ok: false, error: "Alex Tester is already booked on this job at that time." });
+    expect(creates()).toHaveLength(1);
+  });
+
+  it("(F) the job in another spelling is the same job: one slot, one row, under the mirror's uuid, and its lines read", async () => {
+    const first = await book({ jobUuid: JOB.toUpperCase() });
+    expect(first.ok && first.verb.bookings).toHaveLength(1);
+    expect(creates().map((c) => c.sm8_job_uuid)).toEqual([JOB]);
+    expect(await book()).toEqual({ ok: false, error: "Alex Tester is already booked on this job at that time." });
+    expect(creates()).toHaveLength(1);
+    /* the second press, in the other spelling, answers the same verb */
+    const pressId = randomUUID();
+    settlePressedWrites.mockResolvedValue(undefined);
+    const a = await book({ pressId, bookings: [one({ start: "18:00" })] });
+    const b = await book({ pressId, jobUuid: JOB.toUpperCase(), bookings: [one({ start: "18:00" })] });
+    expect(b).toEqual(a);
+    expect(creates()).toHaveLength(2);
+    /* the poll and a line's own presses find them whatever the spelling */
+    expect((await readBookingStates({ jobUuid: JOB.toUpperCase() }))?.verbs).toHaveLength(2);
+    const c = creates()[0];
+    settlePressedWrites.mockImplementation(actualDrain.settlePressedWrites);
+    expect(await takeBackBooking({ jobUuid: JOB.toUpperCase(), rowId: String(c.id) })).toEqual({ ok: true, line: null });
+  });
+
+  it("(F) answers with the rows it queued when its lines couldn't be read, so the card polls for them", async () => {
+    let failNow = false;
+    fake.before.sm8_writes = (s) => (failNow && s.op === "select" && (s.columns ?? "").includes("created_at") ? "fail" : undefined);
+    settlePressedWrites.mockImplementation(async () => {
+      failNow = true;
+    });
+    const r = await book();
+    expect(r).toMatchObject({ ok: true, verb: { bookings: [] }, rowIds: [creates()[0].id] });
+  });
+
   it("(F) a slot already booked by another press is refused by name; one already on its way says so", async () => {
     await sentBooking();
     expect(await book()).toEqual({ ok: false, error: "Alex Tester is already booked on this job at that time." });
@@ -767,6 +821,16 @@ describe("Undo (C-8, C-8b)", () => {
 });
 
 describe("Try again", () => {
+  it("(F) a row that isn't this job's booking is refused changed, and nothing goes", async () => {
+    postSm8Booking.mockImplementationOnce(refusedOnce);
+    await book();
+    const [c] = creates();
+    expect(c.status).toBe("failed");
+    expect(await retryBooking({ jobUuid: WO_JOB, rowId: String(c.id) })).toEqual({ ok: false, error: BOOKING_WORDS.press.changed });
+    expect(c.status).toBe("failed");
+    expect(postSm8Booking).toHaveBeenCalledTimes(1);
+  });
+
   it("(F) goes again through its one door, and answers with the line", async () => {
     postSm8Booking.mockImplementationOnce(refusedOnce);
     const r = await book();
@@ -911,6 +975,25 @@ describe("the card's poll (C-11)", () => {
     expect(runSm8Writes).not.toHaveBeenCalled();
   });
 
+  it("(F) a presser who may no longer press keeps the lines, not the doors — nor anyone's Clear", async () => {
+    const c = await sentBooking();
+    const key = String(c.remote_uuid).toLowerCase();
+    settlePressedWrites.mockResolvedValue(undefined);
+    const a = leftover();
+    await clearLeftoverBooking({ jobUuid: DONE_JOB, activityUuid: String(a.uuid), seen: { staffUuid: CASEY, start: String(a.start_date) }, pressId: randomUUID() });
+    const d = deletes().find((x) => x.target_uuid === a.uuid)!;
+    Object.assign(d, { status: "failed", last_error: BOOKING_WORDS.row.removeRefused });
+    as(OWNER, "admin");
+    expect((await readBookingStates({ jobUuid: JOB }))?.lines[key]?.acts).toEqual(["open_in_sm8"]);
+    as(OWNER);
+    caps = new Set(["workboard"]);
+    expect((await readBookingStates({ jobUuid: JOB }))?.lines[key]?.acts).toEqual(["open_in_sm8"]);
+    const clearLine = (await readBookingStates({ jobUuid: DONE_JOB }))?.verbs[0].bookings[0];
+    expect(clearLine?.state.acts).toEqual([]);
+    caps = new Set(["workboard", "workboard_manage"]);
+    expect((await readBookingStates({ jobUuid: DONE_JOB }))?.verbs[0].bookings[0].state.acts).toEqual(["try_again"]);
+  });
+
   it("(F) reads the lines with the presser's doors, and the job's bookings we removed", async () => {
     const c = await sentBooking();
     const key = String(c.remote_uuid).toLowerCase();
@@ -920,6 +1003,29 @@ describe("the card's poll (C-11)", () => {
     as(OWNER);
     await takeBackBooking({ jobUuid: JOB, rowId: String(c.id) });
     expect(await readBookingStates({ jobUuid: JOB })).toEqual({ verbs: [], lines: {}, gone: [key] });
+  });
+});
+
+/* ── what a press asks the pages for again ── */
+
+describe("a press asks the pages again only when it changed something", () => {
+  it("(F) a refused press revalidates nothing; one that queued does", async () => {
+    const c = await sentBooking();
+    const revalidate = revalidatePath as jest.Mock;
+    expect(revalidate).toHaveBeenCalled();
+    revalidate.mockClear();
+    expect((await book()).ok).toBe(false);
+    as(COOWNER);
+    expect((await takeBackBooking({ jobUuid: JOB, rowId: String(c.id) })).ok).toBe(false);
+    expect((await retryBooking({ jobUuid: JOB, rowId: String(c.id) })).ok).toBe(false);
+    const a = leftover(WO_JOB);
+    expect(
+      (await clearLeftoverBooking({ jobUuid: WO_JOB, activityUuid: String(a.uuid), seen: { staffUuid: CASEY, start: String(a.start_date) }, pressId: randomUUID() })).ok
+    ).toBe(false);
+    expect(revalidate).not.toHaveBeenCalled();
+    as(OWNER);
+    await takeBackBooking({ jobUuid: JOB, rowId: String(c.id) });
+    expect(revalidate).toHaveBeenCalled();
   });
 });
 

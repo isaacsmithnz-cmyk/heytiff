@@ -90,7 +90,10 @@ const LATER: Record<string, string[]> = {
   // booking-sm8, say each press.* line), so neither has a list left
   // D: the Book in panel, a leftover on the Visits face and its confirm's doors
   D: [
-    ...Object.keys(BOOKING_WORDS.panel).map((k) => `panel.${k}`),
+    // panel.readFailed is said already, by the panel's read (PR C)
+    ...Object.keys(BOOKING_WORDS.panel)
+      .filter((k) => k !== "readFailed")
+      .map((k) => `panel.${k}`),
     "line.leftover",
     "line.leftoverUnsuccessful",
     "door.clearBooking",

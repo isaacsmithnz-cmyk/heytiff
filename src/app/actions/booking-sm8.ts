@@ -47,13 +47,12 @@
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { getDbRole, requireOrg } from "@/lib/permissions-server";
+import { can, getDbRole, requireOrg } from "@/lib/permissions-server";
 import { sm8PressFromSession, type Sm8Press } from "@/lib/integrations/sm8-press";
 import { sm8BookingsAllowed } from "@/lib/integrations/sm8-kinds";
 import { readSm8WriteState, runSm8Writes } from "@/lib/integrations/sm8-writes";
 import { offersSend, sendHold, sendRefusal, type SendHold, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import { settlePressedWrites } from "@/lib/integrations/sm8-drain";
-import { UNAVAILABLE } from "@/lib/integrations/sm8-read";
 import { fillWords } from "@/lib/integrations/sm8-note-words";
 import { listSm8StaffLinks, sm8DeniedLinks } from "@/lib/integrations/links";
 import { staffDisplayNames } from "@/lib/workboard/job-notes-query";
@@ -96,9 +95,9 @@ export type { VerbLine, VerbView } from "@/lib/integrations/sm8-booking-read";
 export type BookInContext =
   | {
       ok: true;
-      /** True whenever it answers: where bookings aren't offered it is
-          refused instead, in sendRefusal's words, before ServiceM8 is read. */
-      offered: boolean;
+      /** Always true: where bookings aren't offered it is refused instead,
+          in sendRefusal's words, before ServiceM8 is read. */
+      offered: true;
       /** Sending is a trial run: nothing goes, everything is checked. */
       trial: boolean;
       /** What holds what is booked now (a pause, a reconnect). */
@@ -122,7 +121,11 @@ export type BookInContext =
     }
   | { ok: false; error: string };
 
-export type BookJobInResult = { ok: true; verb: VerbView } | { ok: false; error: string; lookAgain?: true };
+/** `rowIds`: the rows the press queued (or, pressed again, had queued) —
+    what the card polls for, whatever `verb` could be read to say. */
+export type BookJobInResult =
+  | { ok: true; verb: VerbView; rowIds: string[] }
+  | { ok: false; error: string; lookAgain?: true };
 
 /** A line's own press (Undo, Cancel booking, Try again, Clear): the line
     it reads now — null once there is nothing to say. */
@@ -177,12 +180,31 @@ async function gate(): Promise<Gated> {
   } catch {
     return { ok: false, error: BOOKING_WORDS.press.noManage };
   }
-  if (!BOOKINGS_OPEN_TO_MANAGERS && (await getDbRole()) !== "owner") {
-    return { ok: false, error: BOOKING_WORDS.press.ownerOnly };
+  /* a role or a session that can't be read refuses, as requireOrg's throw
+     does: nothing here escapes as a server error */
+  let role: Awaited<ReturnType<typeof getDbRole>>;
+  let press: Sm8Press | null;
+  try {
+    role = BOOKINGS_OPEN_TO_MANAGERS ? null : await getDbRole();
+    press = await sm8PressFromSession();
+  } catch {
+    return { ok: false, error: BOOKING_WORDS.press.noManage };
   }
-  const press = await sm8PressFromSession();
+  if (!BOOKINGS_OPEN_TO_MANAGERS && role !== "owner") return { ok: false, error: BOOKING_WORDS.press.ownerOnly };
   if (!press || press.orgId !== orgId) return { ok: false, error: BOOKING_WORDS.press.noManage };
   return { ok: true, orgId, press };
+}
+
+/** Whether the viewer may press a door at all: Workboard manage, and the
+    owner while bookings are the owner's (spec 1.1). A viewer who may not
+    reads the lines with no door but Open in ServiceM8. Doubt is no. */
+async function mayPress(): Promise<boolean> {
+  try {
+    if (!(await can("workboard_manage"))) return false;
+    return BOOKINGS_OPEN_TO_MANAGERS || (await getDbRole()) === "owner";
+  } catch {
+    return false;
+  }
 }
 
 /** Why bookings aren't offered here, in the owner's order of fixes. */
@@ -355,9 +377,10 @@ export async function readBookInContext(input: { jobUuid: string; days: string[]
   const state = await readSm8WriteState(orgId);
   if (!offersSend(state, "booking")) return { ok: false, error: notOffered(state) };
   /* no zone, no booking: there is no fallback. A zone that couldn't be read
-     is a read that failed, not an account with none */
+     from HeyTiff's own database is a read that failed, not an account with
+     none (ServiceM8's own failures say sm8-read's words) */
   const z = await bookingZone(orgId);
-  if (z.zone === null) return { ok: false, error: z.why === "unread" ? UNAVAILABLE : BOOKING_WORDS.press.zoneUnknown };
+  if (z.zone === null) return { ok: false, error: z.why === "unread" ? BOOKING_WORDS.panel.readFailed : BOOKING_WORDS.press.zoneUnknown };
   const zone = z.zone;
 
   const now = Date.now();
@@ -376,7 +399,7 @@ export async function readBookInContext(input: { jobUuid: string; days: string[]
     staffChoices(orgId, state.tenantId, press.staffId),
     jobNumbersOf(orgId, [jobUuid, ...bookings.map((a) => a.jobUuid), ...onDays.map((a) => a.jobUuid)]),
   ]);
-  if (!staff) return { ok: false, error: UNAVAILABLE };
+  if (!staff) return { ok: false, error: BOOKING_WORDS.panel.readFailed };
   if (job.kept.generated_job_id) jobNumbers[low(jobUuid)] = job.kept.generated_job_id;
 
   return {
@@ -425,20 +448,24 @@ export async function bookJobIn(input: {
   if (!UUID.test(pressId)) return { ok: false, error: BOOKING_WORDS.press.unqueued };
   if (!UUID.test(jobUuid)) return { ok: false, error: BOOKING_WORDS.press.jobGone };
 
-  /* a second press of this very Book in: its bookings are queued already */
+  /* a second press of this very Book in, by the same person: its bookings
+     are queued already, under the job in whatever spelling it went */
   const { data: mine, error: mineError } = await supabaseAdmin
     .from("sm8_writes")
-    .select("id")
+    .select("id, sm8_job_uuid")
     .eq("org_id", orgId)
     .eq("kind", "booking")
     .eq("op", "create")
-    .eq("sm8_job_uuid", jobUuid)
+    .in("sm8_job_uuid", spellings([jobUuid]))
     .eq("verb_id", pressId)
-    .eq("requested_by_user", press.userId)
-    .limit(1);
-  if (!mineError && (mine ?? []).length > 0) {
+    .eq("requested_by_user", press.userId);
+  const again = mineError
+    ? []
+    : ((mine ?? []) as { id: string; sm8_job_uuid: string }[]).filter((r) => low(r.sm8_job_uuid) === low(jobUuid));
+  if (again.length > 0) {
     await settle(orgId, [], startedAt);
-    return { ok: true, verb: await verbOf(orgId, jobUuid, pressId, press.userId, startedAt) };
+    const verb = await verbOf(orgId, again[0].sm8_job_uuid, pressId, press.userId, startedAt);
+    return { ok: true, verb, rowIds: again.map((r) => r.id) };
   }
 
   /* 2. the shape */
@@ -487,7 +514,7 @@ export async function bookJobIn(input: {
 
   /* 3. the zone, and the times on its clock */
   const z = await bookingZone(orgId);
-  if (z.zone === null) return { ok: false, error: z.why === "unread" ? UNAVAILABLE : BOOKING_WORDS.press.zoneUnknown };
+  if (z.zone === null) return { ok: false, error: z.why === "unread" ? BOOKING_WORDS.press.unreadable : BOOKING_WORDS.press.zoneUnknown };
   const zone = z.zone;
   if (slots.some((s) => !happens(s.start, zone) || !happens(s.end, zone))) {
     return { ok: false, error: fillWords(BOOKING_WORDS.press.clocksForward, { place: placeName(zone) }) };
@@ -510,28 +537,31 @@ export async function bookJobIn(input: {
   if (!(age >= -CLOCK_SKEW_MS && age <= BOOKING_CONTEXT_TTL_MS)) return { ok: false, error: BOOKING_WORDS.press.stale, lookAgain: true };
   if (seenEdit && job.editDate && job.editDate > seenEdit) return { ok: false, error: BOOKING_WORDS.press.changed, lookAgain: true };
 
-  /* 6. queue: the status change follows the tick alone, whatever the job */
+  /* 6. queue: the status change follows the tick alone, whatever the job —
+     under the job's own uuid, as the mirror spells it, so two spellings of
+     one job are one slot */
   const queued = await queueBookIn(press, state, {
-    jobUuid,
+    jobUuid: job.uuid,
     verbId: pressId,
     zone,
     status: makeWorkOrder && seenEdit ? { seenEditDate: seenEdit } : null,
     slots,
   });
-  revalidateBookings();
   if (!queued.ok) return { ok: false, error: await refusedWords(orgId, state, queued, "book") };
   /* every booking asked for is on its way under an earlier press */
   if (queued.rowIds.length === 0) return { ok: false, error: BOOKING_WORDS.press.onItsWay };
+  revalidateBookings();
 
   /* 7. settle */
   await settle(orgId, queued.rowIds, startedAt);
 
   /* 8. the press's lines, read after the settle */
-  return { ok: true, verb: await verbOf(orgId, jobUuid, pressId, press.userId, startedAt) };
+  return { ok: true, verb: await verbOf(orgId, job.uuid, pressId, press.userId, startedAt), rowIds: queued.rowIds };
 }
 
 /** A press's verb on the job as it reads now. Empty when nothing of it has
-    a line to say. */
+    a line to say, or the lines couldn't be read: the answer's `rowIds` still
+    say what the press queued, so the card polls for them. */
 async function verbOf(orgId: string, jobUuid: string, pressId: string, userId: string, at: number): Promise<VerbView> {
   const read = await readBookingLines(orgId, await readSm8WriteState(orgId), jobUuid, userId);
   return (
@@ -567,7 +597,7 @@ async function readPeople(orgId: string, uuids: readonly string[]): Promise<Map<
 async function readMirrorJob(
   orgId: string,
   jobUuid: string
-): Promise<{ active: number | null; status: string | null; editDate: string | null } | null | "failed"> {
+): Promise<{ uuid: string; active: number | null; status: string | null; editDate: string | null } | null | "failed"> {
   const { data, error } = await supabaseAdmin
     .from("sm8_jobs")
     .select("uuid, active, status, edit_date")
@@ -577,6 +607,7 @@ async function readMirrorJob(
   const r = ((data ?? []) as { uuid: string; active: unknown; status: unknown; edit_date: unknown }[]).find((x) => low(x.uuid) === low(jobUuid));
   if (!r) return null;
   return {
+    uuid: r.uuid,
     active: r.active == null ? null : Number(r.active),
     status: typeof r.status === "string" ? r.status : null,
     editDate: typeof r.edit_date === "string" ? r.edit_date : null,
@@ -602,15 +633,18 @@ export async function takeBackBooking(input: { jobUuid: string; rowId: string })
   if (head === "failed") return { ok: false, error: BOOKING_WORDS.press.unqueued };
   if (!head || head.op !== "create" || low(head.sm8_job_uuid) !== low(jobUuid)) return { ok: false, error: BOOKING_WORDS.press.changed };
 
+  const job = head.sm8_job_uuid!;
+
   const state = await readSm8WriteState(orgId);
   const r = await queueBookingTakeBack(press, state, { createRowId: rowId });
-  revalidateBookings();
   if (!r.ok) {
     const error = await refusedWords(orgId, state, r, "take_back");
-    return { ok: false, error, line: await lineNow(orgId, jobUuid, rowId, press.userId) };
+    return { ok: false, error, line: await lineNow(orgId, job, rowId, press.userId) };
   }
+  /* something changed: a delete queued, or a booking stopped before it went */
+  if (r.rowIds.length > 0 || r.plan === "cancelled") revalidateBookings();
   await settle(orgId, r.rowIds, startedAt);
-  return { ok: true, line: await lineNow(orgId, jobUuid, rowId, press.userId) };
+  return { ok: true, line: await lineNow(orgId, job, rowId, press.userId) };
 }
 
 /** Try again on a line: a booking that didn't go, a take-back that didn't
@@ -630,17 +664,18 @@ export async function retryBooking(input: { jobUuid: string; rowId: string }): P
   if (!head || low(head.sm8_job_uuid) !== low(jobUuid)) return { ok: false, error: BOOKING_WORDS.press.changed };
   /* a take-back's line is its booking's */
   const lineRow = head.op === "delete" && head.depends_on ? head.depends_on : rowId;
+  const job = head.sm8_job_uuid!;
 
   const state = await readSm8WriteState(orgId);
   const r = await queueBookingRetry(press, state, { rowId });
-  revalidateBookings();
   if (!r.ok) {
     const error = await refusedWords(orgId, state, r, "retry");
-    const line = await lineNow(orgId, jobUuid, lineRow, press.userId);
+    const line = await lineNow(orgId, job, lineRow, press.userId);
     return r.lookAgain ? { ok: false, error, line, lookAgain: true } : { ok: false, error, line };
   }
+  if (r.rowIds.length > 0) revalidateBookings();
   await settle(orgId, r.rowIds, startedAt);
-  return { ok: true, line: await lineNow(orgId, jobUuid, lineRow, press.userId) };
+  return { ok: true, line: await lineNow(orgId, job, lineRow, press.userId) };
 }
 
 /** Clear a finished job's leftover booking — a future booking on a job
@@ -670,8 +705,8 @@ export async function clearLeftoverBooking(input: {
     seen: { staffUuid: text(input?.seen?.staffUuid), start: text(input?.seen?.start) },
     verbId: pressId,
   });
-  revalidateBookings();
   if (!r.ok) return { ok: false, error: await refusedWords(orgId, state, r, "clear") };
+  if (r.rowIds.length > 0) revalidateBookings();
   await settle(orgId, r.rowIds, startedAt);
 
   /* the Clear's line, found by the booking it clears */
@@ -686,7 +721,9 @@ export async function clearLeftoverBooking(input: {
 
 /** Where every booking of ours on this job stands, as the viewer sees it —
     what the card asks every few seconds while something is on its way.
-    Anyone who can open the card reads it; the doors are the presser's. Null
+    Anyone who can open the card reads it; the doors are the presser's, and
+    only while they may press (Workboard manage, and the owner while
+    bookings are the owner's). The job is matched in any spelling. Null
     where the deployment books nothing, where the viewer can't open the job,
     and when the write settings couldn't be read: the card keeps what it has.
 
@@ -713,7 +750,8 @@ export async function readBookingStates(input: { jobUuid: string }): Promise<Boo
   const state = await readSm8WriteState(orgId);
   if (!state.readable) return null;
 
-  const read = await readBookingLines(orgId, state, jobUuid, userId);
+  /* a presser since demoted keeps their lines, not their doors */
+  const read = await readBookingLines(orgId, state, jobUuid, (await mayPress()) ? userId : null);
   if (read.untried.length > 0) {
     const ids = read.untried;
     after(async () => {

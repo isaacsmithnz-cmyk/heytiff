@@ -301,16 +301,22 @@ export async function sm8StaffNames(orgId: string, uuids: readonly (string | nul
 const mirrorIn = (m: MirrorBooking | undefined): BookingMirrorIn | null =>
   m ? { active: m.active, jobUuid: m.jobUuid, staffUuid: m.staffUuid, start: m.start, end: m.end, editDate: m.editDate } : null;
 
-/** The job's lines as `viewerUserId` sees them: their doors on their own
-    rows, and none on anyone else's but Open in ServiceM8. */
+/** The job's lines as `viewerUserId` sees them: a booking's doors on their
+    own rows only (Decision 5: only whoever booked it takes it back), a
+    Clear's for anyone who may press (a Clear has no owner), and nothing
+    but Open in ServiceM8 for a viewer who may press nothing — null: no
+    Workboard manage, or not an owner while bookings are the owner's.
+
+    The job is matched whatever the case of its uuid: every spelling is
+    asked for, and every comparison is lower case. */
 export async function readBookingLines(
   orgId: string,
   state: Sm8WriteState,
   jobUuid: string,
-  viewerUserId: string,
+  viewerUserId: string | null,
   now: number = Date.now()
 ): Promise<BookingLines> {
-  const overlay = await readBookingOverlay(orgId, state, { jobUuids: [jobUuid] }, now);
+  const overlay = await readBookingOverlay(orgId, state, { jobUuids: spellings(jobUuid) }, now);
   const rows = overlay.rows.filter((r) => low(r.sm8_job_uuid) === low(jobUuid));
   if (rows.length === 0) return { verbs: [], lines: {}, gone: [], untried: [] };
 
@@ -333,7 +339,7 @@ export async function readBookingLines(
   const offered = offersSend(state, "booking");
   const trial = state.mode === "trial";
   const notMirrored = new Set(overlay.sentNotMirrored.map((s) => s.rowId));
-  const presser = (r: BookingOverlayRow) => (r.requested_by_user ?? null) === viewerUserId;
+  const presser = (r: BookingOverlayRow) => viewerUserId !== null && (r.requested_by_user ?? null) === viewerUserId;
 
   /** On the Visits face's list: the mirror's scheduled, active booking on
       this job from today on, not one we removed; or sent, not mirrored yet. */
@@ -421,8 +427,8 @@ export async function readBookingLines(
       name: names.get(low(r.booking_staff_uuid)) ?? null,
       start: r.booking_start,
       end: r.booking_end,
-      /* a Clear's doors are its presser's too */
-      state: presser(r) ? said : { ...said, acts: said.acts.filter((a) => a === "open_in_sm8") },
+      /* a Clear has no owner: its doors are anyone's who may press */
+      state: viewerUserId !== null ? said : { ...said, acts: said.acts.filter((a) => a === "open_in_sm8") },
       standing: false,
     });
   }

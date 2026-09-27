@@ -38,8 +38,9 @@
    limit is a daily one, and the sender hands the attempt back. */
 
 import { sm8BusyOf, sm8Request, type Sm8Call } from "./sm8-http";
-import { fetchSm8Page } from "./sm8-read";
+import { fetchSm8Page, type Sm8Page } from "./sm8-read";
 import { dateOrNull, intOrNull, textOrNull } from "./sm8-sync-plan";
+import { STATUS_KEPT_FIELDS } from "./sm8-booking-plan";
 import {
   classifyWrite,
   readRemoteError,
@@ -334,5 +335,291 @@ export async function readSm8Note(call: Sm8Call, uuid: string): Promise<Sm8NoteC
     completedBy: textOrNull(row.action_completed_by_staff_uuid),
     editDate: dateOrNull(row.edit_date),
     editBy: textOrNull(row.edit_by_staff_uuid),
+  };
+}
+
+/* ── bookings (two-way phase 3) ──
+
+   A BOOKING GOES AS THE APP, never as a person: no request here carries
+   x-impersonate-uuid, and every read is the account asking.
+
+   THE PATHS, read off ServiceM8's developer reference on 2026-09-26
+   (the spec's F1 to F7, and F19):
+     POST   jobactivity.json               create a booking   (manage_schedule)
+     DELETE jobactivity/{uuid}.json        remove one         (manage_schedule;
+                                           it sets active = 0)
+     GET    jobactivity.json?$filter=…     one by uuid, or a job's (read_schedule)
+     POST   job/{uuid}.json                a job's status, and nothing else
+                                           (manage_jobs)
+     GET    job.json?$filter=uuid eq '…'   one job            (read_jobs)
+   NEVER a DELETE on a job, never `active` in a body, and nothing on job
+   allocations, allocation windows or availability, though manage_schedule
+   and manage_jobs reach them (a test reads this source for each).
+
+   A DELETE ON A BOOKING ALREADY REMOVED MAY PUT IT BACK. ServiceM8's DELETE
+   of a note already out of it restored the note on the live walk of
+   2026-09-27, and a booking is taken to do the same. So nothing here is
+   trusted to say a booking is gone: the sender reads it live before every
+   DELETE and after one (sm8-booking-send).
+
+   SHAPED EXACTLY AS THE MIRROR SHAPES THEM (sm8-sync-plan's shapeActivity
+   and shapeJob): uuids and text through textOrNull, times through
+   dateOrNull, flags through intOrNull. A booking's start and end are the
+   account's wall clock as text, "YYYY-MM-DD HH:MM:SS" (P1 read one booked
+   by hand back as exactly the time chosen), compared as text and never
+   parsed into a Date. */
+
+/** One booking request's answer: the decision, the status, what ServiceM8
+    said when it refused, and the uuid it names the record by
+    (x-record-uuid). */
+export type Sm8BookingResult = Sm8WriteResult & { recordUuid: string | null };
+
+/** A booking's time as it goes: the account's wall clock, on the minute. */
+const BOOKING_STAMP = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:00$/;
+
+/** A request HeyTiff refused to build (a malformed uuid or time): nothing
+    went, and the row fails as refused — never as gone. */
+const NOT_SENT: Sm8BookingResult = { status: null, outcome: { kind: "rejected", status: 400 }, remote: null, recordUuid: null };
+
+async function bookingRequest(
+  call: Sm8Call,
+  what: string,
+  path: string,
+  init: { method: "POST" | "DELETE"; json?: unknown }
+): Promise<Sm8BookingResult> {
+  let res: Response;
+  let limit: "minute" | "day" | null = null;
+  try {
+    const answer = await sm8Request(call, path, { ...init, timeoutMs: WRITE_NOTE_TIMEOUT_MS });
+    if (answer.kind === "throttled") {
+      /* nothing went: the account's own counter had no turn for it */
+      const busy = sm8BusyOf(answer) ?? { waitMs: answer.waitMs, day: false };
+      return {
+        status: null,
+        outcome: { kind: "rate_limited", limit: "ours", waitMs: busy.waitMs, day: busy.day },
+        remote: null,
+        recordUuid: null,
+      };
+    }
+    res = answer.res;
+    limit = answer.limit;
+  } catch (err) {
+    console.error(`[sm8] ${what} request failed: ${err instanceof Error ? err.message : String(err)}`);
+    return { status: null, outcome: { kind: "unavailable", status: null }, remote: null, recordUuid: null };
+  }
+  const remote = res.ok ? null : await readRefusal(what, res);
+  const recordUuid = res.headers.get("x-record-uuid");
+  let outcome = classifyWrite(res.status, recordUuid, remote);
+  if (outcome.kind === "rate_limited" && limit === "day") outcome = { kind: "rate_limited", limit: "day" };
+  return { status: res.status, outcome, remote, recordUuid };
+}
+
+/** Book one person on one job, under OUR uuid (so a retry names the same
+    record), with EXACTLY these six fields: the uuid, the job, the person,
+    the start and the end on the account's wall clock, and the flag that
+    makes it a scheduled booking — a string, as ServiceM8's schema types it
+    (U13). Never `active`, never a status, never anything else. */
+export async function postSm8Booking(
+  call: Sm8Call,
+  b: { uuid: string; jobUuid: string; staffUuid: string; start: string; end: string }
+): Promise<Sm8BookingResult> {
+  if (!UUID.test(b.uuid) || !UUID.test(b.jobUuid) || !UUID.test(b.staffUuid)) return NOT_SENT;
+  if (!BOOKING_STAMP.test(b.start) || !BOOKING_STAMP.test(b.end)) return NOT_SENT;
+  return bookingRequest(call, "POST jobactivity.json", "jobactivity.json", {
+    method: "POST",
+    json: {
+      uuid: b.uuid,
+      job_uuid: b.jobUuid,
+      staff_uuid: b.staffUuid,
+      start_date: b.start,
+      end_date: b.end,
+      activity_was_scheduled: "1",
+    },
+  });
+}
+
+/** Make a Quote a Work Order: the status ALONE, which ServiceM8's update
+    schema requires (F7). The type allows no other status, and the body no
+    other field. */
+export async function postSm8JobStatus(call: Sm8Call, jobUuid: string, status: "Work Order"): Promise<Sm8BookingResult> {
+  if (!UUID.test(jobUuid) || status !== "Work Order") return NOT_SENT;
+  return bookingRequest(call, "POST job", `job/${jobUuid}.json`, { method: "POST", json: { status } });
+}
+
+/** Take one booking out of ServiceM8. Sent only after a live read found it
+    there and active on its job: on a booking already removed it may put it
+    back (see above). Its answer, a 2xx or a 404 alike, proves nothing about
+    where the booking stands; the sender reads it back. */
+export async function deleteSm8Booking(call: Sm8Call, uuid: string): Promise<Sm8BookingResult> {
+  if (!UUID.test(uuid)) return NOT_SENT;
+  return bookingRequest(call, "DELETE jobactivity", `jobactivity/${uuid}.json`, { method: "DELETE" });
+}
+
+/** One of ServiceM8's job activities as HeyTiff reads it live: a booking
+    (scheduled 1) or recorded time (a check-in, or time added by hand). */
+export type Sm8LiveActivity = {
+  uuid: string;
+  jobUuid: string | null;
+  staffUuid: string | null;
+  start: string | null;
+  end: string | null;
+  /** activity_was_scheduled */
+  scheduled: number | null;
+  /** activity_was_recorded */
+  recorded: number | null;
+  active: number | null;
+  editDate: string | null;
+};
+
+/** A read that couldn't be made: `limited` when the call limit had no room
+    (the outcome to hand the attempt back with), `unauthorized` on a 401. */
+export type Sm8ReadFailure = {
+  ok: false;
+  limited?: Extract<Sm8WriteOutcome, { kind: "rate_limited" }>;
+  unauthorized?: boolean;
+};
+
+function readFailure(page: Extract<Sm8Page, { ok: false }>): Sm8ReadFailure {
+  if (page.failure === "throttled") {
+    const busy = page.busy ?? { waitMs: 0, day: false };
+    return { ok: false, limited: { kind: "rate_limited", limit: "ours", waitMs: busy.waitMs, day: busy.day } };
+  }
+  if (page.failure === "rate_limited") {
+    return { ok: false, limited: { kind: "rate_limited", limit: page.busy?.day ? "day" : "minute" } };
+  }
+  if (page.failure === "unauthorized") return { ok: false, unauthorized: true };
+  return { ok: false };
+}
+
+/** A raw jobactivity row, shaped as the mirror shapes one, plus whether it
+    was recorded. Null without a uuid. */
+function shapeLiveActivity(r: Record<string, unknown>): Sm8LiveActivity | null {
+  const uuid = textOrNull(r.uuid);
+  if (!uuid) return null;
+  return {
+    uuid,
+    jobUuid: textOrNull(r.job_uuid),
+    staffUuid: textOrNull(r.staff_uuid),
+    start: dateOrNull(r.start_date),
+    end: dateOrNull(r.end_date),
+    scheduled: intOrNull(r.activity_was_scheduled),
+    recorded: intOrNull(r.activity_was_recorded),
+    active: intOrNull(r.active),
+    editDate: dateOrNull(r.edit_date),
+  };
+}
+
+export type Sm8BookingCheck =
+  | { ok: true; found: false }
+  | { ok: true; found: true; activity: Sm8LiveActivity }
+  | Sm8ReadFailure;
+
+/** Read one booking back by its uuid, the account asking, through the list
+    endpoint filtered to the one uuid (the path the mirror reads through;
+    the single-record path answers 404 once deleted, F4). Matched whatever
+    the case. */
+export async function readSm8Booking(call: Sm8Call, uuid: string): Promise<Sm8BookingCheck> {
+  if (!UUID.test(uuid)) return { ok: true, found: false };
+  const page = await fetchSm8Page(call, "jobactivity.json", {
+    cursor: "-1",
+    filter: `uuid eq '${uuid}'`,
+    timeoutMs: WRITE_READ_TIMEOUT_MS,
+  });
+  if (!page.ok) return readFailure(page);
+  const want = uuid.toLowerCase();
+  const row = page.rows.find((r) => typeof r.uuid === "string" && r.uuid.toLowerCase() === want);
+  const activity = row ? shapeLiveActivity(row) : null;
+  return activity ? { ok: true, found: true, activity } : { ok: true, found: false };
+}
+
+/** The pages one job's bookings may take before the read gives up: a job
+    with more than this many thousand active activities is read as a read
+    that failed, never as a partial answer. */
+const JOB_BOOKING_PAGES = 3;
+
+export type Sm8JobBookingsCheck = { ok: true; activities: Sm8LiveActivity[] } | Sm8ReadFailure;
+
+/** Every active activity on one job — its bookings and its recorded time —
+    the account asking. A job's check-ins are what a take-back looks for, so
+    it is the whole list or nothing: a read cut short is a read that failed. */
+export async function readSm8JobBookings(call: Sm8Call, jobUuid: string): Promise<Sm8JobBookingsCheck> {
+  if (!UUID.test(jobUuid)) return { ok: true, activities: [] };
+  const activities: Sm8LiveActivity[] = [];
+  let cursor = "-1";
+  for (let pages = 0; pages < JOB_BOOKING_PAGES; pages++) {
+    const page = await fetchSm8Page(call, "jobactivity.json", {
+      cursor,
+      filter: `job_uuid eq '${jobUuid}' and active eq 1`,
+      timeoutMs: WRITE_READ_TIMEOUT_MS,
+    });
+    if (!page.ok) return readFailure(page);
+    for (const r of page.rows) {
+      const a = shapeLiveActivity(r);
+      if (a) activities.push(a);
+    }
+    if (!page.nextCursor) return { ok: true, activities };
+    cursor = page.nextCursor;
+  }
+  console.error(`[sm8] job ${jobUuid}'s bookings passed ${JOB_BOOKING_PAGES} pages — read as a read that failed`);
+  return { ok: false };
+}
+
+/** The six fields a change to Work Order must leave as they were. */
+export type StatusKeptField = (typeof STATUS_KEPT_FIELDS)[number];
+
+/** One job as HeyTiff reads it live, shaped as the mirror shapes it: its
+    status, whether it is active, its edit time, the six fields the status
+    change guards, and the four it only logs. */
+export type Sm8LiveJob = {
+  uuid: string;
+  status: string | null;
+  active: number | null;
+  editDate: string | null;
+  kept: Record<StatusKeptField, string | null>;
+  /** May change with the status: logged, never guarded. */
+  logged: {
+    work_order_date: string | null;
+    total_invoice_amount: string | null;
+    work_done_description: string | null;
+    queue_uuid: string | null;
+  };
+};
+
+export type Sm8JobCheck = { ok: true; found: false } | { ok: true; found: true; job: Sm8LiveJob } | Sm8ReadFailure;
+
+/** Read one job, the account asking (read_jobs, F19), filtered to its uuid.
+    Matched whatever the case. */
+export async function readSm8Job(call: Sm8Call, jobUuid: string): Promise<Sm8JobCheck> {
+  if (!UUID.test(jobUuid)) return { ok: true, found: false };
+  const page = await fetchSm8Page(call, "job.json", {
+    cursor: "-1",
+    filter: `uuid eq '${jobUuid}'`,
+    timeoutMs: WRITE_READ_TIMEOUT_MS,
+  });
+  if (!page.ok) return readFailure(page);
+  const want = jobUuid.toLowerCase();
+  const r = page.rows.find((x) => typeof x.uuid === "string" && x.uuid.toLowerCase() === want);
+  const uuid = r ? textOrNull(r.uuid) : null;
+  if (!r || !uuid) return { ok: true, found: false };
+  const kept = Object.fromEntries(STATUS_KEPT_FIELDS.map((f) => [f, textOrNull(r[f])])) as Record<
+    StatusKeptField,
+    string | null
+  >;
+  return {
+    ok: true,
+    found: true,
+    job: {
+      uuid,
+      status: textOrNull(r.status),
+      active: intOrNull(r.active),
+      editDate: dateOrNull(r.edit_date),
+      kept,
+      logged: {
+        work_order_date: dateOrNull(r.work_order_date),
+        total_invoice_amount: textOrNull(r.total_invoice_amount),
+        work_done_description: textOrNull(r.work_done_description),
+        queue_uuid: textOrNull(r.queue_uuid),
+      },
+    },
   };
 }

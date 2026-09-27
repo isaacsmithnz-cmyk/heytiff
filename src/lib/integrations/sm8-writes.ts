@@ -61,9 +61,11 @@ import { sm8CallOf } from "./sm8-http";
 import { cancelWaitingSm8Writes, countWaitingSm8WritesByKind, type CancelledWrite } from "./sm8-write-cancel";
 import { postSm8Attachment, readSm8Attachment } from "./sm8-write";
 import { sm8NotesAllowed, sm8WriteKindsEnabled } from "./sm8-kinds";
-import { NOTE_WORDS } from "./sm8-note-plan";
+import { createCanStillGo, fillWords, NOTE_WORDS } from "./sm8-note-plan";
 import { BOOKING_WORDS } from "./sm8-booking-words";
+import { BOOKING_DELETE_SETTLE_MS } from "./sm8-booking-plan";
 import { sendNoteRow } from "./sm8-note-send";
+import { sendBookingRow } from "./sm8-booking-send";
 import {
   capAllows,
   dedupeKey,
@@ -387,6 +389,24 @@ export type Sm8WriteToQueue = {
   seenEditBy?: string | null;
   /** The words a create goes with, from HeyTiff's row. */
   noteText?: string;
+  /* A BOOKING'S DETAILS (docs/migrations/sm8_bookings_queue.sql), in
+     columns of their own beside `op`, `dependsOn`, `targetUuid` and
+     `seenEditDate`: written only for kind "booking", so a file row and a
+     note row insert exactly as they did. The payload holds only
+     `{ name: <label> }`, never a booking's details. */
+  /** The press a row belongs to (the panel's press id); a status row keeps
+      its first press's for good. */
+  verbId?: string;
+  /** The person booked (a create), or the booking a Clear removes. */
+  staffUuid?: string;
+  /** "YYYY-MM-DD HH:MM:00", the account's wall clock, never converted. */
+  start?: string;
+  end?: string;
+  /** The zone the times were chosen in (a create). */
+  zone?: string;
+  /** A status change: Quote to Work Order, and nothing else. */
+  statusFrom?: "Quote";
+  statusTo?: "Work Order";
 };
 
 export type Enqueued = {
@@ -416,6 +436,10 @@ type ExistingRow = {
   requested_by?: string | null;
   taken_back_at?: string | null;
   op?: string | null;
+  verb_id?: string | null;
+  /** A booking row's (read only when the writes hold one): when it last
+      finished, which a delete's re-press waits a minute past. */
+  updated_at?: string | null;
 };
 
 const EXISTING_COLUMNS =
@@ -489,18 +513,121 @@ function withoutPresser(patch: Record<string, unknown>): Record<string, unknown>
   return rest;
 }
 
-/** The columns a fresh note row carries beside the common ones. */
-function noteColumns(w: Sm8WriteToQueue): Record<string, unknown> {
+/* THE COLUMNS A FRESH ROW CARRIES beside the common ones, by kind: a file
+   writes none of them, so it still inserts on a database without the notes
+   or the bookings migration; a note writes the op's and its own; a booking
+   the op's and its own. */
+
+/** The op and what it acts on: a note's or a booking's. */
+function opColumns(w: Sm8WriteToQueue) {
   return {
     op: w.op ?? "create",
-    note_id: w.noteId ?? null,
     depends_on: w.dependsOn ?? null,
     target_uuid: w.targetUuid ?? null,
-    flag_done: w.flagDone ?? null,
     seen_edit_date: w.seenEditDate ?? null,
+  };
+}
+
+/** A note's own: HeyTiff's row, the flag and the words. */
+function noteOnlyColumns(w: Sm8WriteToQueue) {
+  return {
+    note_id: w.noteId ?? null,
+    flag_done: w.flagDone ?? null,
     seen_edit_by: w.seenEditBy ?? null,
     note_text: w.noteText ?? null,
   };
+}
+
+/** A fresh note row's columns, in the order they have always gone. */
+function noteColumns(w: Sm8WriteToQueue): Record<string, unknown> {
+  const o = opColumns(w);
+  const n = noteOnlyColumns(w);
+  return {
+    op: o.op,
+    note_id: n.note_id,
+    depends_on: o.depends_on,
+    target_uuid: o.target_uuid,
+    flag_done: n.flag_done,
+    seen_edit_date: o.seen_edit_date,
+    seen_edit_by: n.seen_edit_by,
+    note_text: n.note_text,
+  };
+}
+
+/** A booking's own: its press, the booking, its zone, and a status change's
+    two statuses. */
+function bookingColumns(w: Sm8WriteToQueue): Record<string, unknown> {
+  return {
+    verb_id: w.verbId ?? null,
+    booking_staff_uuid: w.staffUuid ?? null,
+    booking_start: w.start ?? null,
+    booking_end: w.end ?? null,
+    booking_zone: w.zone ?? null,
+    job_status_from: w.statusFrom ?? null,
+    job_status_to: w.statusTo ?? null,
+  };
+}
+
+/** The patch a booking row pressed again gets (the spec's 2.10), by op.
+    - A STATUS ROW: joined while queued, it only comes forward and renews its
+      press (pressed_at), so its two-minute wait covers this press's
+      bookings and its day-old clock starts again; failed, cancelled or a
+      trial, it goes again (againPatch). Neither ever names verb_id: a
+      status row keeps its first press's for good.
+    - A CREATE: this press's details go on it — its press, its end, its
+      zone and the status row it now waits on — so a new length, or a status
+      row that is new or gone, takes effect. The person and the start are
+      in its subject and can't differ.
+    - A TAKE-BACK (an Undo): as a file's. A CLEAR: with this press's copy of
+      the booking as the mirror has it now.
+    A TAKE-BACK OR A CLEAR GOING AGAIN FORGETS THE UUIDS ITS DELETE REACHED
+    (verify_uuids, on a delete row): its sender never sends a second DELETE
+    to one of them by itself, and a person's Try again is what may — after
+    it reads the booking live first.
+    A TAKE-BACK OR A CLEAR NEVER COMES FORWARD. A DELETE whose answer was
+    lost may have landed, and a read may not show it for a moment (U23):
+    one that comes forward could read the booking still there and send it a
+    second DELETE, which puts it back. So a queued one keeps its time (the
+    queue helpers don't press one again at all), and one that failed or was
+    cancelled after a try goes again no sooner than a minute after that try
+    finished (BOOKING_DELETE_SETTLE_MS). */
+function bookingRepressPatch(
+  row: ExistingRow,
+  w: Sm8WriteToQueue,
+  press: Sm8Press,
+  tenantId: string,
+  iso: string,
+  queued: boolean
+): Record<string, unknown> {
+  const op = w.op ?? "create";
+  const presser = { requested_by: press.staffId, requested_by_user: press.userId };
+  if (op === "update") {
+    return queued ? { tenant_id: tenantId, next_attempt_at: iso, updated_at: iso, pressed_at: iso } : againPatch(row, press, tenantId, iso);
+  }
+  if (op === "create") {
+    const mine = {
+      verb_id: w.verbId ?? null,
+      booking_end: w.end ?? null,
+      booking_zone: w.zone ?? null,
+      depends_on: w.dependsOn ?? null,
+    };
+    return queued
+      ? { tenant_id: tenantId, next_attempt_at: iso, updated_at: iso, ...mine, ...presser }
+      : { ...againPatch(row, press, tenantId, iso), ...mine };
+  }
+  /* a delete: a Clear names the activity and carries the booking as this
+     press's confirm showed it; an Undo names its create */
+  const clear = !w.dependsOn
+    ? { verb_id: w.verbId ?? null, booking_staff_uuid: w.staffUuid ?? null, booking_start: w.start ?? null, booking_end: w.end ?? null }
+    : {};
+  if (queued) return { tenant_id: tenantId, payload: w.payload, ...presser, updated_at: iso, ...clear };
+  /* tried: an attempt counted, or a DELETE that reached a booking (its
+     verify_uuids) — a go that let its row go after a DELETE hands its
+     attempt back, and Bookings Off may cancel it before it goes again */
+  const tried = (row.status === "failed" || row.status === "cancelled") && (row.attempts > 0 || (row.verify_uuids?.length ?? 0) > 0);
+  const finished = tried && row.updated_at ? Date.parse(row.updated_at) : NaN;
+  const settled = Number.isNaN(finished) ? iso : new Date(Math.max(Date.parse(iso), finished + BOOKING_DELETE_SETTLE_MS)).toISOString();
+  return { ...againPatch(row, press, tenantId, iso), next_attempt_at: settled, payload: w.payload, verify_uuids: [], ...clear };
 }
 
 /** Queue writes for the press that asked for them. Null when the queue
@@ -523,7 +650,13 @@ function noteColumns(w: Sm8WriteToQueue): Record<string, unknown> {
     - a create's patch writes its words and note again (the 30-day clear
       may have taken the words), leaves the payload alone, and misses on a
       create somebody took back (taken_back_at), which is answered in
-      `already` — the helper then reads the note again and says so. */
+      `already` — the helper then reads the note again and says so.
+
+    A BOOKING ROW (only sm8-booking-queue queues one) writes its op's and
+    its own columns, and is pressed again by its op (bookingRepressPatch): a
+    re-press by someone else makes it theirs; a create or a status row taken
+    back is never queued again (the patch misses, answered in `already`);
+    and a status row never has its verb_id rewritten. */
 export async function enqueueSm8Writes(
   press: Sm8Press,
   state: Sm8WriteState,
@@ -550,9 +683,14 @@ export async function enqueueSm8Writes(
   }
 
   const holdsNote = writes.some((w) => w.kind === "note");
+  const holdsBooking = writes.some((w) => w.kind === "booking");
+  /* a booking's columns are read only when the writes hold one, so a file
+     or a note press reads exactly what it always did */
+  const existingColumns =
+    holdsNote || holdsBooking ? `${EXISTING_COLUMNS}, op, taken_back_at${holdsBooking ? ", verb_id, updated_at" : ""}` : EXISTING_COLUMNS;
   const { data, error } = await supabaseAdmin
     .from(TABLE)
-    .select(holdsNote ? `${EXISTING_COLUMNS}, op, taken_back_at` : EXISTING_COLUMNS)
+    .select(existingColumns)
     .eq("org_id", orgId)
     .in("dedupe_key", [...byKey.keys()]);
   if (error) {
@@ -591,6 +729,7 @@ export async function enqueueSm8Writes(
   for (const [key, w] of byKey) {
     const row = existing.get(key);
     const note = w.kind === "note";
+    const booking = w.kind === "booking";
     if (!row) {
       fresh.push({
         key,
@@ -612,7 +751,7 @@ export async function enqueueSm8Writes(
           requested_by_user: press.userId,
           created_at: iso,
           updated_at: iso,
-          ...(note ? noteColumns(w) : {}),
+          ...(note ? noteColumns(w) : booking ? { ...opColumns(w), ...bookingColumns(w) } : {}),
         },
       });
       continue;
@@ -629,6 +768,10 @@ export async function enqueueSm8Writes(
       continue;
     }
     const create = note && (w.op ?? "create") === "create";
+    /* a booking create or status row taken back is never queued again, as a
+       note create isn't: the patch misses, and the helper answers from the
+       row (sm8-booking-queue) */
+    const bookingTakeBackable = booking && ((w.op ?? "create") === "create" || w.op === "update");
     /* a create's words and note, again: the 30-day clear may have taken the
        words, and the press puts them back from HeyTiff's own row */
     const createCols = create ? { note_text: w.noteText ?? null, note_id: w.noteId ?? null } : {};
@@ -636,16 +779,18 @@ export async function enqueueSm8Writes(
       ? status === "queued"
         ? { tenant_id: tenantId, next_attempt_at: iso, updated_at: iso, ...createCols }
         : { ...withoutPresser(againPatch(row, press, tenantId, iso)), ...createCols }
-      : status === "queued"
-        ? {
-            tenant_id: tenantId,
-            payload: w.payload,
-            next_attempt_at: iso,
-            requested_by: press.staffId,
-            requested_by_user: press.userId,
-            updated_at: iso,
-          }
-        : { ...againPatch(row, press, tenantId, iso), payload: w.payload };
+      : booking
+        ? bookingRepressPatch(row, w, press, tenantId, iso, status === "queued")
+        : status === "queued"
+          ? {
+              tenant_id: tenantId,
+              payload: w.payload,
+              next_attempt_at: iso,
+              requested_by: press.staffId,
+              requested_by_user: press.userId,
+              updated_at: iso,
+            }
+          : { ...againPatch(row, press, tenantId, iso), payload: w.payload };
     /* conditional on the status it was read in: a sender that claimed it in
        between owns it now, and this press is answered "on its way". A write
        that FAILED is not that: it queued nothing, and saying "already" would
@@ -658,7 +803,7 @@ export async function enqueueSm8Writes(
       .eq("org_id", orgId)
       .eq("id", row.id)
       .eq("status", row.status);
-    if (create) again$ = again$.is("taken_back_at", null);
+    if (create || bookingTakeBackable) again$ = again$.is("taken_back_at", null);
     const { data: again, error: againError } = await again$.select("id");
     if (againError) {
       console.error(`[sm8] couldn't queue write ${row.id} again for org ${orgId}:`, againError);
@@ -870,6 +1015,60 @@ export async function retryFailedSm8Writes(
   return { queued, left, capped: room === 0, byHour: left > 0 && byHourRoom <= RETRY_BATCH };
 }
 
+/* ── taking a row back before it goes ── */
+
+/** The columns stopCreateRow reads a row back with, unless its caller names
+    its own. */
+const STOP_COLUMNS =
+  "id, kind, op, sm8_job_uuid, tenant_id, status, lease_until, remote_uuid, maybe_landed, verify_uuids, taken_back_at, last_error, attempts, requested_by_user";
+
+/** Close a row a person took back, and stop it if it could still go —
+    a note's create, a booking's create, or a booking's status row (moved
+    here from the note queue's stopCreate, and the one function both kinds
+    call). Needs no ServiceM8 call, and checks nothing but what its caller
+    already checked (who):
+    1. taken_back_at = now where null, whatever the status — from here it is
+       never claimed, no press can queue it again, and a sender holding it
+       stops at its next POST attempt;
+    2. read again (`columns`, the caller's own list);
+    3. if it could still go (queued, failed, trial, a lapsed send), cancel
+       it on the status read, leaving maybe_landed and verify_uuids for the
+       delete. A miss reads it again.
+    Returns the row as it now stands. */
+export async function stopCreateRow<T extends { id: string; status: string; lease_until: string | null }>(
+  orgId: string,
+  row: T,
+  now: number,
+  columns: string = STOP_COLUMNS
+): Promise<T> {
+  const iso = new Date(now).toISOString();
+  await supabaseAdmin.from(TABLE).update({ taken_back_at: iso }).eq("org_id", orgId).eq("id", row.id).is("taken_back_at", null);
+  const reread = async (): Promise<T | null> => {
+    const { data } = await supabaseAdmin.from(TABLE).select(columns).eq("org_id", orgId).eq("id", row.id).maybeSingle();
+    return (data as unknown as T | null) ?? null;
+  };
+  let current = (await reread()) ?? row;
+  for (let tries = 0; tries < 3 && createCanStillGo(current, now); tries++) {
+    let q = supabaseAdmin
+      .from(TABLE)
+      .update({
+        status: "cancelled",
+        last_error: NOTE_WORDS.row.takenBackBeforeSent,
+        lease_until: null,
+        claim_id: null,
+        updated_at: iso,
+      })
+      .eq("org_id", orgId)
+      .eq("id", current.id)
+      .eq("status", current.status);
+    if (current.status === "sending") q = q.lt("lease_until", iso);
+    const { data } = await q.select("id");
+    current = (await reread()) ?? current;
+    if ((data ?? []).length > 0) break;
+  }
+  return current;
+}
+
 /* ── sending ── */
 
 export type Sm8WriteTrigger = "send" | "kick" | "cron";
@@ -921,6 +1120,15 @@ export type WriteRow = {
   pressed_at?: string | null;
   next_attempt_at?: string | null;
   taken_back_at?: string | null;
+  /* a booking's (read only where the run's kinds include booking) */
+  verb_id?: string | null;
+  booking_staff_uuid?: string | null;
+  booking_start?: string | null;
+  booking_end?: string | null;
+  booking_zone?: string | null;
+  job_status_from?: string | null;
+  job_status_to?: string | null;
+  landed_edit_date?: string | null;
 };
 
 const PHASE0_COLUMNS =
@@ -928,7 +1136,38 @@ const PHASE0_COLUMNS =
 
 const ROW_COLUMNS = `${PHASE0_COLUMNS}, op, note_id, depends_on, target_uuid, flag_done, seen_edit_date, seen_edit_by, note_text, requested_by, pressed_at, next_attempt_at, taken_back_at`;
 
+/** ROW_COLUMNS and a booking's own — read only when the run's kinds include
+    booking, so a files-and-notes run reads exactly ROW_COLUMNS, and a
+    database without the bookings migration can never push it into the
+    files-only fallback. */
+const BOOKING_ROW_COLUMNS = `${ROW_COLUMNS}, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, job_status_from, job_status_to, landed_edit_date`;
+
 const isNoteCreate = (r: WriteRow) => r.kind === "note" && (r.op ?? "create") === "create";
+
+/** A row a person can take back before it goes: a note's create, or a
+    booking's create or status row. One that is taken back is never
+    claimed, and the run cancels it where it stands. */
+const takeBackable = (r: WriteRow) =>
+  isNoteCreate(r) || (r.kind === "booking" && ((r.op ?? "create") === "create" || r.op === "update"));
+
+/** A booking's status row (a Quote made a Work Order). */
+const isBookingStatus = (r: WriteRow) => r.kind === "booking" && r.op === "update";
+
+/** In a batch, BOOKING STATUS ROWS GO AHEAD OF EVERY OTHER BOOKING ROW: a
+    create never waits behind its own status row and misses the press's
+    drain. Stable, and only the bookings' places move — files and notes
+    keep theirs. */
+function statusRowsFirst(rows: readonly WriteRow[]): WriteRow[] {
+  const at = rows.flatMap((r, i) => (r.kind === "booking" ? [i] : []));
+  if (at.length < 2) return [...rows];
+  const bookings = at.map((i) => rows[i]);
+  const ordered = [...bookings.filter(isBookingStatus), ...bookings.filter((r) => !isBookingStatus(r))];
+  const out = [...rows];
+  at.forEach((i, k) => {
+    out[i] = ordered[k];
+  });
+  return out;
+}
 
 /** Rows of the `kinds` ready to go, due now, oldest first: queued ones whose
     wait is over, and sends whose claim lapsed (a worker that died
@@ -954,7 +1193,15 @@ async function dueRows(
     if (ids) q = q.in("id", [...ids]);
     return q.order("created_at", { ascending: true }).limit(WRITE_BATCH * 3);
   };
-  let { data, error } = await read(ROW_COLUMNS, kinds);
+  const withBookings = kinds.includes("booking");
+  let { data, error } = await read(withBookings ? BOOKING_ROW_COLUMNS : ROW_COLUMNS, kinds);
+  /* a database without the bookings migration: the other kinds, as today */
+  if (withBookings && missingColumn(error as DbError)) {
+    ({ data, error } = await read(
+      ROW_COLUMNS,
+      kinds.filter((k) => k !== "booking")
+    ));
+  }
   if (missingColumn(error as DbError)) {
     ({ data, error } = await read(PHASE0_COLUMNS, kinds.filter((k) => k === "attachment")));
   }
@@ -1048,10 +1295,11 @@ async function claim(orgId: string, row: WriteRow, now: number, live: boolean): 
     .eq("id", row.id)
     .eq("attempts", row.attempts);
   q = row.status === "sending" ? q.eq("status", "sending").lt("lease_until", iso) : q.eq("status", "queued");
-  /* A NOTE TAKEN BACK IS NEVER CLAIMED: an Undo that lands after dueRows
-     read the row makes this miss. File rows are claimed exactly as before
-     (a database without the column must still claim files). */
-  if (row.kind === "note") q = q.is("taken_back_at", null);
+  /* A NOTE TAKEN BACK IS NEVER CLAIMED, and nor is a booking's create or
+     status row: an Undo that lands after dueRows read the row makes this
+     miss. File rows are claimed exactly as before (a database without the
+     column must still claim files). */
+  if (row.kind === "note" || takeBackable(row)) q = q.is("taken_back_at", null);
   const { data } = await q.select("id");
   return (data ?? []).length > 0 ? claimId : null;
 }
@@ -1091,6 +1339,11 @@ export type Finish = {
       trusted — none, a 408, a 5xx, a 409 it couldn't confirm. It may have
       landed. */
   uploadLost?: boolean;
+  /** A booking's read-back guard tripped: ServiceM8 kept a booking at
+      another time or on someone else, changed more than a job's status, or
+      answered a booking OK that two reads can't find (call 15). The run
+      switches Bookings off at once (stopBookings) and stops. */
+  guard?: boolean;
 };
 
 /** Record what a row became — ONLY WHILE THIS SENDER STILL HOLDS IT. A
@@ -1120,7 +1373,11 @@ async function finish(orgId: string, row: WriteRow, claimId: string, f: Finish, 
   if (f.verifyUuids) patch.verify_uuids = f.verifyUuids;
   if (f.status === "sent") {
     patch.sent_at = iso;
-    patch.verify_uuids = [];
+    /* A BOOKING'S TAKE-BACK OR CLEAR THAT WENT KEEPS THE UUIDS IT TOOK OUT
+       (each one it DELETEd or read inactive, never one it didn't find):
+       they are the overlay's `gone`. Every other row that went waits for
+       nothing. */
+    patch.verify_uuids = row.kind === "booking" && row.op === "delete" ? (f.verifyUuids ?? []) : [];
   }
   /* What is known about the row's uuid, over the claim's mark: it stays
      marked once any upload under it was lost, until it is sent or spent. It
@@ -1129,7 +1386,11 @@ async function finish(orgId: string, row: WriteRow, claimId: string, f: Finish, 
   const spent = f.status === "sent" || f.verdict?.freshUuid === true;
   const before = f.ownRuledOut ? false : row.maybe_landed === true;
   patch.maybe_landed = spent ? false : before || f.uploadLost === true;
-  const creates = row.kind !== "note" || (row.op ?? "create") === "create";
+  /* KEYED ON THE OP, NOT THE KIND: only a create names a record of its own.
+     A status change's or a take-back's x-record-uuid is someone else's
+     record (a job, a booking), and stored it would read as one of ours. A
+     file is always a create. */
+  const creates = (row.op ?? "create") === "create";
   let replacedNow = replaced;
   if (f.replacedUuids && f.replacedUuids.length > 0 && creates) {
     replacedNow = [...new Set([...replaced, ...f.replacedUuids])];
@@ -1146,8 +1407,9 @@ async function finish(orgId: string, row: WriteRow, claimId: string, f: Finish, 
   }
   if (f.verdict?.freeRetry) patch.free_retries = (row.free_retries ?? 0) + 1;
   if (f.asStaffUuid) patch.as_staff_uuid = f.asStaffUuid;
-  if (f.targetUuid && row.kind === "note" && row.op === "delete") patch.target_uuid = f.targetUuid;
-  if (f.landedEditDate !== undefined && row.kind === "note") patch.landed_edit_date = f.landedEditDate;
+  const noteOrBooking = row.kind === "note" || row.kind === "booking";
+  if (f.targetUuid && noteOrBooking && row.op === "delete") patch.target_uuid = f.targetUuid;
+  if (f.landedEditDate !== undefined && noteOrBooking) patch.landed_edit_date = f.landedEditDate;
 
   const { data, error } = await supabaseAdmin
     .from(TABLE)
@@ -1287,15 +1549,18 @@ async function sendOne(
   row: WriteRow,
   attempts: number,
   access: Sm8Access | null,
-  t: { claimedAt: number; clock: () => number }
+  t: { claimedAt: number; clock: () => number; sleep?: (ms: number) => Promise<void>; track?: { wrote: boolean } }
 ): Promise<{ finish: Finish; access: Sm8Access | null }> {
   /* the reconnect accident with writes in it: never another account */
   if (row.tenant_id !== state.tenantId) {
     return { finish: { status: "cancelled", error: WRITE_WORDS.otherAccount, httpStatus: null }, access };
   }
   /* a note is its own engine (sm8-note-send): as a person, with read-backs
-     and take-backs. Files go on exactly as before. */
+     and take-backs. So is a booking (sm8-booking-send): as the app, read
+     live before every change and read back after it. Files go on exactly
+     as before. */
   if (row.kind === "note") return sendNoteRow(orgId, state, row, attempts, access, t);
+  if (row.kind === "booking") return sendBookingRow(orgId, state, row, attempts, access, t);
   const payload = row.kind === "attachment" ? readPayload(row) : null;
   if (!payload || !row.sm8_job_uuid) {
     return { finish: { status: "cancelled", error: WRITE_WORDS.fileGone, httpStatus: null }, access };
@@ -1392,16 +1657,29 @@ async function sendOne(
     7. On with a grant that doesn't work: stop for the reconnect;
     8. no kind ready (switched on, permission held): stop, holding them.
 
-    AND AGAIN BEFORE EVERY CLAIM AFTER A SEND, AND BEFORE EVERY NOTE. Pause
-    changes no row, so a run already going when the owner presses it would
-    carry on claiming on the setting it started with; the switch and the
-    account are read again (one row), and a run whose setting or account has
-    moved stops there. A row whose kind isn't ready in the fresh reading is
-    skipped, not claimed: Notes Off stops the notes, and files go on. */
+    AND AGAIN BEFORE EVERY CLAIM AFTER A SEND, AND BEFORE EVERY NOTE OR
+    BOOKING. Pause changes no row, so a run already going when the owner
+    presses it would carry on claiming on the setting it started with; the
+    switch and the account are read again (one row), and a run whose setting
+    or account has moved stops there. A row whose kind isn't ready in the
+    fresh reading is skipped, not claimed: Notes Off stops the notes,
+    Bookings Off the bookings, and files go on.
+
+    BOOKINGS (two-way phase 3) keep three more rules here:
+    - in a batch, a booking's status row goes ahead of every other booking
+      row (statusRowsFirst);
+    - a status row that finishes sent brings its bookings: its queued
+      creates are due at once and join this run right behind it
+      (bringBookings), within the batch;
+    - a read-back guard that tripped switches Bookings off at once
+      (stopBookings), and the run stops.
+
+    `sleep` is how long a booking's second read-back waits (about 2 s, U23);
+    a test hands in one that moves its clock instead. */
 export async function runSm8Writes(
   orgId: string,
   trigger: Sm8WriteTrigger,
-  opts: { ids?: readonly string[]; budgetMs?: number; clock?: () => number } = {}
+  opts: { ids?: readonly string[]; budgetMs?: number; clock?: () => number; sleep?: (ms: number) => Promise<void> } = {}
 ): Promise<Sm8WriteRun> {
   const clock = opts.clock ?? Date.now;
   const started = clock();
@@ -1438,6 +1716,11 @@ export async function runSm8Writes(
     /* files alone allowed: exactly today's words */
     if (state.kinds.length === 1 && state.kinds[0] === "attachment") return { ...NONE, stopped: WRITE_WORDS.scopeHeld };
     const anyOn = state.kinds.some((k) => state.ownerKinds.includes(k));
+    /* bookings allowed: their own words for every kind; otherwise files
+       and notes as today */
+    if (state.kinds.includes("booking")) {
+      return { ...NONE, stopped: anyOn ? BOOKING_WORDS.kindWords.heldAny : BOOKING_WORDS.kindWords.offAll };
+    }
     return { ...NONE, stopped: anyOn ? NOTE_WORDS.kindWords.heldAll : NOTE_WORDS.kindWords.allOff };
   }
 
@@ -1461,20 +1744,33 @@ export async function runSm8Writes(
   let refusedInARow = 0;
   let current: Sm8WriteState = state;
   let sentSinceRead = false;
-  for (const row of due) {
+  /* the batch, a booking's status rows first; a sent status row's bookings
+     join it behind that row, so it is walked by index */
+  const batch = statusRowsFirst(due);
+  const walked = new Set<string>();
+  for (let at = 0; at < batch.length; at++) {
+    const row = batch[at];
     if (run.done >= WRITE_BATCH) break;
+    walked.add(row.id);
     const note = row.kind === "note";
+    const booking = row.kind === "booking";
     /* A NOTE TAKEN BACK IS CANCELLED, NEVER CLAIMED: its create closed by an
        Undo, or its note's tombstone set by a take-back that raced a Send
-       (whose create is closed here first). No request goes. */
+       (whose create is closed here first). No request goes. So is a
+       booking's create or status row that its presser took back. */
     if (isNoteCreate(row) && (row.taken_back_at || (row.note_id && removedNotes.has(row.note_id)))) {
       await cancelTakenBack(orgId, row, clock());
       continue;
     }
-    /* Before a NOTE the switch is read again every time, not only after a
-       send: Notes Off, or a note's permission refused, stops a run already
-       going from claiming another note, while files behind it still go. */
-    if (sentSinceRead || note) {
+    if (booking && takeBackable(row) && row.taken_back_at) {
+      await cancelTakenBack(orgId, row, clock());
+      continue;
+    }
+    /* Before a NOTE or a BOOKING the switch is read again every time, not
+       only after a send: Notes Off or Bookings Off, or a kind's permission
+       refused, stops a run already going from claiming another of it, while
+       files behind it still go. */
+    if (sentSinceRead || note || booking) {
       const moved = await switchMoved(orgId, state);
       if (typeof moved === "string") {
         run.stopped = moved;
@@ -1493,21 +1789,31 @@ export async function runSm8Writes(
     sentSinceRead = true;
 
     let f: Finish;
+    /* a booking's sender marks the moment a POST or a DELETE starts */
+    const track = { wrote: false };
     try {
-      const sent = await sendOne(orgId, current, row, row.attempts + 1, access, { claimedAt, clock });
+      const sent = await sendOne(orgId, current, row, row.attempts + 1, access, { claimedAt, clock, sleep: opts.sleep, track });
       f = sent.finish;
       access = sent.access;
     } catch (err) {
       /* nothing above should throw; if something does, the row is not left
          claimed until its lease lapses — and, not knowing whether an upload
-         went, a live send keeps its uuid marked as maybe landed */
+         went, a live send keeps its uuid marked as maybe landed. A booking
+         knows: only one whose POST or DELETE started is marked, and one
+         that threw before any is a plain retry. Each kind says it in its
+         own words. */
       console.error(`[sm8] write ${row.id} (${trigger}) threw: ${err instanceof Error ? err.message : String(err)}`);
       f = {
-        ...fromVerdict(verdictForUnreadable(row.attempts + 1, note ? "note" : "attachment")),
-        uploadLost: live,
+        ...fromVerdict(verdictForUnreadable(row.attempts + 1, note ? "note" : booking ? "booking" : "attachment")),
+        uploadLost: booking ? track.wrote : live,
       };
     }
     const landed = await finish(orgId, row, claimId, f, clock());
+
+    /* A READ-BACK GUARD THAT TRIPPED switches Bookings off at once, landed
+       or not — what ServiceM8 kept is a fact about the account, whoever
+       recorded the row — and its verdict stops the run below. */
+    if (booking && f.guard) await stopBookings(orgId, row.sm8_job_uuid, clock());
 
     /* What the answer says about the ACCOUNT holds whoever recorded the row:
        a refused kind waits for a reconnect, and an unpaid bill or a limit
@@ -1535,8 +1841,83 @@ export async function runSm8Writes(
       run.stopped = WRITE_WORDS.forbidden;
       break;
     }
+    /* A SENT STATUS ROW BRINGS ITS BOOKINGS: they are due at once, and go
+       right behind it in this run, within the batch. */
+    if (landed && isBookingStatus(row) && f.status === "sent") {
+      const behind = await bringBookings(orgId, row.id, clock());
+      const fresh = behind.filter((r) => !walked.has(r.id));
+      const ids = new Set(fresh.map((r) => r.id));
+      /* one already in the batch is moved up behind it, never added twice */
+      const rest = batch.slice(at + 1).filter((r) => !ids.has(r.id));
+      batch.splice(at + 1, batch.length - at - 1, ...fresh, ...rest);
+    }
   }
   return run;
+}
+
+/** A status row just sent: its queued bookings are due now (the next run
+    takes any this one has no room for) and come back to join this run,
+    read with a booking's columns. Only bookings that could go: queued, or a
+    send whose claim lapsed, and not taken back. A read that fails brings
+    none, logged: they go on their own time, or with the next press. */
+async function bringBookings(orgId: string, statusRowId: string, now: number): Promise<WriteRow[]> {
+  const iso = new Date(now).toISOString();
+  const { error: dueError } = await supabaseAdmin
+    .from(TABLE)
+    .update({ next_attempt_at: iso })
+    .eq("org_id", orgId)
+    .eq("kind", "booking")
+    .eq("op", "create")
+    .eq("depends_on", statusRowId)
+    .eq("status", "queued")
+    .is("taken_back_at", null);
+  if (dueError) console.error(`[sm8] couldn't bring forward the bookings behind status row ${statusRowId}:`, dueError);
+  const { data, error } = await supabaseAdmin
+    .from(TABLE)
+    .select(BOOKING_ROW_COLUMNS)
+    .eq("org_id", orgId)
+    .eq("kind", "booking")
+    .eq("op", "create")
+    .eq("depends_on", statusRowId)
+    .in("status", ["queued", "sending"])
+    .order("created_at", { ascending: true })
+    .limit(WRITE_BATCH);
+  if (error) {
+    console.error(`[sm8] couldn't read the bookings behind status row ${statusRowId}:`, error);
+    return [];
+  }
+  return ((data ?? []) as unknown as WriteRow[]).filter(
+    (r) => !r.taken_back_at && (r.status === "queued" || (r.lease_until !== null && Date.parse(r.lease_until) < now))
+  );
+}
+
+/** A read-back guard tripped (the spec's call 9, and call 15): Bookings is
+    switched off at once, and every booking row still waiting is cancelled
+    in the guard's words, naming the job. It asks twice before it gives up,
+    because a Bookings that stays on after a guard would send the next
+    booking into the same trouble. */
+async function stopBookings(orgId: string, jobUuid: string | null, now: number): Promise<void> {
+  let number: string | null = null;
+  if (jobUuid) {
+    /* the mirror's job, whatever case it spells the uuid in */
+    const { data } = await supabaseAdmin
+      .from("sm8_jobs")
+      .select("uuid, generated_job_id")
+      .eq("org_id", orgId)
+      .in("uuid", [...new Set([jobUuid, jobUuid.toLowerCase(), jobUuid.toUpperCase()])]);
+    const job = ((data ?? []) as { uuid: string; generated_job_id?: unknown }[]).find((j) => j.uuid.toLowerCase() === jobUuid.toLowerCase());
+    const g = job?.generated_job_id;
+    number = typeof g === "string" && g.trim() ? g.trim() : null;
+  }
+  const reason = fillWords(BOOKING_WORDS.row.guardStopped, { number: number ?? (jobUuid ?? "").slice(0, 8) });
+  for (let tries = 0; tries < 2; tries++) {
+    const off = await setSm8WriteKind(orgId, "booking", false, now, { reason });
+    if (off.ok) {
+      console.warn(`[sm8] bookings stopped by a guard for org ${orgId} (job ${number ?? jobUuid})`);
+      return;
+    }
+  }
+  console.error(`[sm8] a booking guard tripped for org ${orgId}, and Bookings couldn't be switched off`);
 }
 
 /** The switch and the account, read again mid-run: the fresh state when

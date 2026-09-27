@@ -22,15 +22,33 @@ jest.mock("@/lib/supabase-server", () => ({
     rpc: (n: string, a: Record<string, unknown>) => fake.rpc(n, a),
   },
 }));
-jest.mock("@/lib/auth0", () => ({ auth0: { getSession: jest.fn(async () => null) } }));
-jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: jest.fn(async () => "staff-isaac") }));
+jest.mock("@/lib/auth0", () => ({
+  auth0: { getSession: jest.fn(async () => ({ orgId: "org-1", user: { sub: "auth0|sam" } })) },
+}));
+jest.mock("../sm8-store", () => ({
+  sm8AccessResult: jest.fn(async () => ({ ok: true, access: { accessToken: "t", tenantId: "vendor-1", grant: "g", meter: "vendor-1" } })),
+  renewSm8Access: jest.fn(),
+  markSm8NeedsReauth: jest.fn(),
+}));
+jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: jest.fn(async () => "staff-sam") }));
 jest.mock("next/server", () => ({ after: () => {} }));
 jest.mock("@/lib/workboard/job-notes-query", () => ({
-  staffDisplayNames: jest.fn(async () => new Map([["staff-isaac", "Isaac Smith"]])),
+  staffDisplayNames: jest.fn(async () => new Map([["staff-sam", "Sam Tester"]])),
 }));
 
 import { cancelWaitingSm8Writes, countWaitingSm8WritesByKind } from "../sm8-write-cancel";
-import { countSm8Queue, listRecentSm8Writes, runSm8Writes, setSm8WriteKind, sm8QueueStuck } from "../sm8-writes";
+import {
+  countSm8Queue,
+  enqueueAttachments,
+  enqueueSm8Writes,
+  listRecentSm8Writes,
+  readSm8WriteState,
+  runSm8Writes,
+  setSm8WriteKind,
+  sm8QueueStuck,
+} from "../sm8-writes";
+import { readBookingOverlay } from "../sm8-booking-overlay";
+import { sm8PressFromSession } from "../sm8-press";
 import { sm8BookingsAllowed } from "../sm8-kinds";
 import { BOOKING_WORDS } from "../sm8-booking-words";
 import { NOTE_WORDS } from "../sm8-note-words";
@@ -39,7 +57,7 @@ import { WRITE_WORDS } from "../sm8-write-plan";
 type Row = Record<string, unknown>;
 
 const ORG = "org-1";
-const JOB = "a0a0a0a0-0000-4000-8000-0000000000b1";
+const JOB = "0b1e0b1e-0000-4000-8000-000000009001";
 const LONG_AGO = new Date(Date.now() - 3_600_000).toISOString();
 
 let seq = 0;
@@ -57,7 +75,7 @@ const write = (kind: string, over: Row = {}): Row => ({
   next_attempt_at: LONG_AGO,
   lease_until: null,
   last_error: null,
-  requested_by: "staff-isaac",
+  requested_by: "staff-sam",
   updated_at: LONG_AGO,
   ...over,
 });
@@ -88,7 +106,7 @@ beforeEach(() => {
   seq = 0;
   fake.db.sm8_writes = [write("attachment"), write("note")];
   fake.db.integration_connections = [connection()];
-  fake.db.sm8_jobs = [{ org_id: ORG, uuid: JOB, generated_job_id: "3370" }];
+  fake.db.sm8_jobs = [{ org_id: ORG, uuid: JOB, generated_job_id: "9001" }];
   process.env.SM8_WRITES = "1";
   jest.spyOn(console, "error").mockImplementation(() => {});
   jest.spyOn(console, "warn").mockImplementation(() => {});
@@ -206,7 +224,7 @@ describe("where the deployment names booking", () => {
 
   it("(F) a guard switching Bookings off puts its own words on what it cancels", async () => {
     fake.db.sm8_writes.push(write("booking"));
-    const reason = BOOKING_WORDS.row.guardStopped.replace("{number}", "3370");
+    const reason = BOOKING_WORDS.row.guardStopped.replace("{number}", "9001");
     await setSm8WriteKind(ORG, "booking", false, Date.now(), { reason });
     expect(byId("w3")).toMatchObject({ status: "cancelled", last_error: reason });
     // and the other kinds' switches keep their own words
@@ -249,7 +267,7 @@ describe("where the deployment names booking", () => {
         ["booking", "A booking"],
       ])
     );
-    expect(list.every((w) => w.jobNumber === "3370")).toBe(true);
+    expect(list.every((w) => w.jobNumber === "9001")).toBe(true);
   });
 
   it("(F) the owner's bell counts bookings, and asks for a reconnect only while Bookings is On without its permissions", async () => {
@@ -265,5 +283,118 @@ describe("where the deployment names booking", () => {
     // Bookings Off: a kind switched off never asks for a reconnect
     fake.db.integration_connections[0].write_kinds = ["attachment", "note"];
     expect(await sm8QueueStuck(ORG, Date.now())).toBeNull();
+  });
+});
+
+/* ── B-12: PR B's reads and writes, as production has them ── */
+
+/** The columns the sender read its due rows with on main, word for word. */
+const MAIN_ROW_COLUMNS =
+  "id, tenant_id, kind, sm8_job_uuid, subject, payload, remote_uuid, status, attempts, lease_until, replaced_uuids, maybe_landed, verify_uuids, free_retries, op, note_id, depends_on, target_uuid, flag_done, seen_edit_date, seen_edit_by, note_text, requested_by, pressed_at, next_attempt_at, taken_back_at";
+const MAIN_EXISTING_COLUMNS =
+  "id, dedupe_key, kind, requested_by, status, attempts, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, pressed_at";
+
+const dueReads = () =>
+  onWrites().filter((s) => s.op === "select" && s.filters.includes("status in") && s.filters.some((f) => f.startsWith("next_attempt_at")));
+
+describe.each([
+  ["1", ["attachment"]],
+  ["attachment,note", ["attachment", "note"]],
+])("with SM8_WRITES=%s, PR B changes nothing (B-12)", (setting, owner) => {
+  beforeEach(() => {
+    process.env.SM8_WRITES = setting;
+    fake.db.integration_connections = [connection({ write_kinds: owner })];
+    fake.db.sm8_writes = [];
+    fake.db.workboard_notes = [];
+  });
+
+  it("(F) the run reads its due rows with exactly main's columns, and never a booking row", async () => {
+    const b = write("booking", { verb_id: "v" });
+    fake.db.sm8_writes = [b];
+    await runSm8Writes(ORG, "kick");
+    const reads = dueReads();
+    expect(reads).toHaveLength(1);
+    expect(reads[0].columns).toBe(MAIN_ROW_COLUMNS);
+    expect(namesBooking()).toEqual([]);
+    expect(b).toMatchObject({ status: "queued", attempts: 0 });
+  });
+
+  it("(F) a file press reads the queue with main's columns and inserts a row with no note or booking column", async () => {
+    const press = (await sm8PressFromSession())!;
+    const q = await enqueueAttachments(press, await readSm8WriteState(ORG), [
+      { jobUuid: JOB, documentId: "doc-1", name: "Quote.pdf", mimeType: "application/pdf", sizeBytes: 4, key: "k" },
+    ]);
+    expect(q?.ids).toHaveLength(1);
+    expect(onWrites().find((s) => s.op === "select")?.columns).toBe(MAIN_EXISTING_COLUMNS);
+    const row = byId(q!.ids[0]);
+    for (const col of ["op", "note_id", "depends_on", "target_uuid", "verb_id", "booking_staff_uuid", "booking_start", "booking_zone", "job_status_to"]) {
+      expect([col, col in row && row[col] !== "create" ? row[col] : null]).toEqual([col, null]);
+    }
+  });
+
+  it("(F) a note press reads the queue with main's columns and inserts main's note columns, in main's order, and none of a booking's", async () => {
+    if (!owner.includes("note")) return;
+    fake.db.workboard_notes = [{ id: "n1", org_id: ORG }];
+    const press = (await sm8PressFromSession())!;
+    const q = await enqueueSm8Writes(press, await readSm8WriteState(ORG), [
+      { kind: "note", op: "create", jobUuid: JOB, subject: "jobnote:n1", payload: { name: "Note" }, ref: "n1", noteId: "n1", noteText: "hi" },
+    ]);
+    expect(q?.ids).toHaveLength(1);
+    expect(onWrites().find((s) => s.op === "select")?.columns).toBe(`${MAIN_EXISTING_COLUMNS}, op, taken_back_at`);
+    const row = byId(q!.ids[0]);
+    const keys = Object.keys(row);
+    const noteKeys = ["op", "note_id", "depends_on", "target_uuid", "flag_done", "seen_edit_date", "seen_edit_by", "note_text"];
+    expect(keys.filter((k) => noteKeys.includes(k))).toEqual(noteKeys);
+    expect(keys.filter((k) => /^(verb_id|booking_|job_status_)/.test(k))).toEqual([]);
+  });
+
+  it("(F) the overlay reads nothing", async () => {
+    fake.db.sm8_writes = [write("booking", { status: "sent", booking_start: "2099-01-01 09:00:00" })];
+    expect(await readBookingOverlay(ORG, { linked: true, tenantId: "vendor-1" }, { jobUuids: [JOB] })).toEqual({
+      gone: new Set(),
+      sentNotMirrored: [],
+      rows: [],
+    });
+    expect(fake.log).toHaveLength(0);
+  });
+});
+
+describe("with booking named (B-12)", () => {
+  beforeEach(() => {
+    process.env.SM8_WRITES = "attachment,note,booking";
+    fake.db.integration_connections = [connection({ write_kinds: ["attachment", "note", "booking"] })];
+    fake.db.sm8_writes = [];
+  });
+
+  it("(F) no kind ready: the run says it in bookings' words for every kind", async () => {
+    fake.db.integration_connections = [connection({ write_kinds: ["attachment", "note", "booking"], scopes: "vendor" })];
+    expect((await runSm8Writes(ORG, "kick")).stopped).toBe(BOOKING_WORDS.kindWords.heldAny);
+    fake.db.integration_connections = [connection({ write_kinds: [] })];
+    expect((await runSm8Writes(ORG, "kick")).stopped).toBe(BOOKING_WORDS.kindWords.offAll);
+    /* without bookings, today's words */
+    process.env.SM8_WRITES = "attachment,note";
+    fake.db.integration_connections = [connection({ write_kinds: ["attachment", "note"], scopes: "vendor" })];
+    expect((await runSm8Writes(ORG, "kick")).stopped).toBe(NOTE_WORDS.kindWords.heldAll);
+  });
+
+  it("(F) the run reads its due rows with a booking's columns too", async () => {
+    await runSm8Writes(ORG, "kick");
+    const reads = dueReads();
+    expect(reads).toHaveLength(1);
+    expect(reads[0].columns).toBe(
+      `${MAIN_ROW_COLUMNS}, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, job_status_from, job_status_to, landed_edit_date`
+    );
+  });
+
+  it("(F) ...but Bookings Off reads exactly main's again, and a database without the bookings migration still sends files and notes", async () => {
+    fake.db.integration_connections = [connection({ write_kinds: ["attachment", "note"] })];
+    await runSm8Writes(ORG, "kick");
+    expect(dueReads()[0].columns).toBe(MAIN_ROW_COLUMNS);
+
+    fake.log.length = 0;
+    fake.db.integration_connections = [connection({ write_kinds: ["attachment", "note", "booking"] })];
+    fake.missing.add("verb_id");
+    await runSm8Writes(ORG, "kick");
+    expect(dueReads().map((s) => s.columns)).toEqual([expect.stringContaining("verb_id"), MAIN_ROW_COLUMNS]);
   });
 });

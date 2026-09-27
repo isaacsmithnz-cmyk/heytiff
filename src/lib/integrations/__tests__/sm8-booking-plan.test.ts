@@ -41,6 +41,9 @@ import {
   slotOf,
   STATUS_KEPT_FIELDS,
   statusLine,
+  wallInstant,
+  wallInstants,
+  wallTimeExists,
   type BookingAct,
   type BookingLineIn,
   type BookingReasonKey,
@@ -54,17 +57,17 @@ import { dedupeKey, WRITE_WORDS } from "../sm8-write-plan";
 const W = BOOKING_WORDS;
 const SYDNEY = "Australia/Sydney";
 const PERTH = "Australia/Perth";
-const JOB = "a0a0a0a0-0000-4000-8000-0000000000b1";
-const LYLE = "3c3c3c3c-0000-4000-8000-00000000beef";
-const ISAAC = "9d9d9d9d-0000-4000-8000-0000000000aa";
+const JOB = "0b1e0b1e-0000-4000-8000-000000009001";
+const ALEX = "a1e0a1e0-0000-4000-8000-00000000a002";
+const SAM = "5a0e5a0e-0000-4000-8000-00000000a001";
 
 /* ── A-5: subjects ── */
 
 describe("a booking row's subject", () => {
   it("round-trips every kind of subject, with no space in any", () => {
-    const slot = bookingSubject.slot(LYLE.toUpperCase(), "2026-10-06 09:00:00");
-    expect(slot).toBe(`slot:${LYLE}:2026-10-06T09:00`);
-    expect(parseBookingSubject(slot)).toEqual({ via: "slot", staffUuid: LYLE, start: "2026-10-06 09:00:00", released: false });
+    const slot = bookingSubject.slot(ALEX.toUpperCase(), "2026-10-06 09:00:00");
+    expect(slot).toBe(`slot:${ALEX}:2026-10-06T09:00`);
+    expect(parseBookingSubject(slot)).toEqual({ via: "slot", staffUuid: ALEX, start: "2026-10-06 09:00:00", released: false });
     const status = bookingSubject.status("2026-09-26 22:05:45");
     expect(status).toBe("status:wo:2026-09-26T22:05:45");
     expect(parseBookingSubject(status)).toEqual({ via: "status", seenEditDate: "2026-09-26 22:05:45", released: false });
@@ -77,10 +80,10 @@ describe("a booking row's subject", () => {
   });
 
   it("reads a released subject (`:was:<id>`) as released, whatever it was", () => {
-    const slot = bookingSubject.slot(LYLE, "2026-10-06 09:00:00");
+    const slot = bookingSubject.slot(ALEX, "2026-10-06 09:00:00");
     expect(parseBookingSubject(`${slot}:was:row-7`)).toEqual({
       via: "slot",
-      staffUuid: LYLE,
+      staffUuid: ALEX,
       start: "2026-10-06 09:00:00",
       released: true,
     });
@@ -92,12 +95,12 @@ describe("a booking row's subject", () => {
   });
 
   it("keys a slot as the generated column does: one live booking per job, person and start", () => {
-    const slot = bookingSubject.slot(LYLE, "2026-10-06 09:00:00");
-    expect(dedupeKey("booking", JOB, slot)).toBe(`booking:${JOB}:slot:${LYLE}:2026-10-06T09:00`);
+    const slot = bookingSubject.slot(ALEX, "2026-10-06 09:00:00");
+    expect(dedupeKey("booking", JOB, slot)).toBe(`booking:${JOB}:slot:${ALEX}:2026-10-06T09:00`);
     const sql = readFileSync(join(process.cwd(), "docs/migrations/sm8_writes_safety.sql"), "utf8");
     expect(sql).toContain("generated always as (kind || ':' || coalesce(sm8_job_uuid, '') || ':' || subject) stored");
     // the same person at the same start on the same job is the same key, however cased
-    expect(bookingSubject.slot(LYLE.toUpperCase(), "2026-10-06 09:00:00")).toBe(slot);
+    expect(bookingSubject.slot(ALEX.toUpperCase(), "2026-10-06 09:00:00")).toBe(slot);
   });
 });
 
@@ -178,11 +181,45 @@ describe("the account's clock", () => {
     expect(isFuture("2026-10-04 01:00:00", PERTH, later)).toBe(true);
   });
 
-  it("compares to the second, as fixed-width text, and takes nothing that isn't a stamp", () => {
+  it("compares to the second, and takes nothing that isn't a stamp", () => {
     const now = Date.parse("2026-10-05T23:00:00Z"); // 10:00:00 in Sydney
     expect(isFuture("2026-10-06 10:00:00", SYDNEY, now)).toBe(false);
     expect(isFuture("2026-10-06 10:00:01", SYDNEY, now)).toBe(true);
     for (const junk of [null, "", "2026-10-06T10:30:00", "2026-10-06 10:30"]) expect(isFuture(junk, SYDNEY, now)).toBe(false);
+  });
+
+  it("(F) a wall time the clocks skip names no instant, and one they repeat names two (review R2-13, R2-14)", () => {
+    expect(wallInstants("2026-10-04 02:30:00", SYDNEY)).toEqual([]);
+    expect(wallTimeExists("2026-10-04 02:30:00", SYDNEY)).toBe(false);
+    expect(wallTimeExists("2026-10-04 01:59:00", SYDNEY)).toBe(true);
+    expect(wallInstants("2026-10-04 03:00:00", SYDNEY)).toEqual([Date.parse("2026-10-03T16:00:00Z")]);
+    expect(wallInstants("2027-04-04 02:30:00", SYDNEY)).toEqual([Date.parse("2027-04-03T15:30:00Z"), Date.parse("2027-04-03T16:30:00Z")]);
+    expect(wallInstants("2026-10-06 09:00:00", SYDNEY)).toEqual([Date.parse("2026-10-05T22:00:00Z")]);
+    expect(wallInstants("2026-10-06 09:00:00", PERTH)).toEqual([Date.parse("2026-10-06T01:00:00Z")]);
+    // Perth keeps no daylight saving: that night is a plain night there
+    expect(wallTimeExists("2026-10-04 02:30:00", PERTH)).toBe(true);
+    for (const [stamp, zone] of [
+      ["2026-02-31 09:00:00", SYDNEY],
+      ["2026-10-06 09:00:00", "Mars/Base"],
+      ["2026-10-06 09:00", SYDNEY],
+      ["2026-10-06 09:00:00", null],
+    ] as const) {
+      expect(wallInstants(stamp, zone)).toEqual([]);
+    }
+  });
+
+  it("(F) a booking in the hour the clocks go back has started from its first pass, and never reads ahead again (review R2-13)", () => {
+    const start = "2027-04-04 02:30:00";
+    expect(isFuture(start, SYDNEY, Date.parse("2027-04-03T15:10:00Z"))).toBe(true); // 2:10 am, +11
+    expect(isFuture(start, SYDNEY, Date.parse("2027-04-03T15:40:00Z"))).toBe(false); // 2:40 am, +11
+    expect(isFuture(start, SYDNEY, Date.parse("2027-04-03T16:10:00Z"))).toBe(false); // 2:10 am again, +10
+    // its line stays a visit through the hour again: no Undo on a booking under way
+    const booked = { status: "sent", booking_start: start, booking_end: "2027-04-04 03:30:00" };
+    expect(lineOf(booked, { now: Date.parse("2027-04-03T15:10:00Z") }).acts).toEqual(["undo", "open_in_sm8"]);
+    expect(lineOf(booked, { now: Date.parse("2027-04-03T16:10:00Z") })).toEqual(NONE);
+    // one the clocks skip reads by the earliest it could mean
+    expect(wallInstant("2026-10-04 02:30:00", SYDNEY, "earliest")).toBe(Date.parse("2026-10-03T15:30:00Z"));
+    expect(wallInstant("2026-10-04 02:30:00", SYDNEY, "latest")).toBe(Date.parse("2026-10-03T16:30:00Z"));
   });
 });
 
@@ -193,7 +230,7 @@ describe("a leftover", () => {
     active: 1,
     start: "2026-10-06 14:00:00",
     end: "2026-10-06 16:00:00",
-    staffUuid: LYLE,
+    staffUuid: ALEX,
     ...over,
   });
 
@@ -258,7 +295,7 @@ const createRow = (over: Partial<BookingRowIn> = {}): BookingRowIn => ({
   last_error: null,
   attempts: 0,
   sm8_job_uuid: JOB,
-  booking_staff_uuid: LYLE,
+  booking_staff_uuid: ALEX,
   booking_start: "2026-10-06 14:00:00",
   booking_end: "2026-10-06 16:00:00",
   landed_edit_date: null,
@@ -277,7 +314,7 @@ const statusRow = (over: Partial<StatusRowIn> = {}): StatusRowIn => ({
 const mirrorOf = (over: Partial<NonNullable<BookingLineIn["mirror"]>> = {}): NonNullable<BookingLineIn["mirror"]> => ({
   active: 1,
   jobUuid: JOB,
-  staffUuid: LYLE,
+  staffUuid: ALEX,
   start: "2026-10-06 14:00:00",
   end: "2026-10-06 16:00:00",
   editDate: "2026-10-05 16:00:00",
@@ -303,10 +340,10 @@ const NONE = { key: null, text: null, tone: null, acts: [] };
 
 /* the reasons as the sender stores them: filled */
 const filled = {
-  slotTaken: fillWords(W.row.slotTaken, { name: "Lyle Irving" }),
-  techInactive: fillWords(W.row.techInactive, { name: "Lyle Irving" }),
+  slotTaken: fillWords(W.row.slotTaken, { name: "Alex Sample" }),
+  techInactive: fillWords(W.row.techInactive, { name: "Alex Sample" }),
   jobNotBookable: fillWords(W.row.jobNotBookable, { status: "Completed" }),
-  guardStopped: fillWords(W.row.guardStopped, { number: "3370" }),
+  guardStopped: fillWords(W.row.guardStopped, { number: "9001" }),
 };
 
 describe("a booking's line, case by case", () => {
@@ -350,8 +387,8 @@ describe("a booking's line, case by case", () => {
     ).toEqual(NONE);
   });
 
-  it("(F) 3: a take-back that met something a re-press would meet again has no door and no tone", () => {
-    for (const reason of [W.row.changedNoTakeBack, W.row.checkIn, W.row.notFuture]) {
+  it("(F) 3: a take-back that met something a re-press would meet again has no door and no tone — a job that's gone included (review N3)", () => {
+    for (const reason of [W.row.changedNoTakeBack, W.row.checkIn, W.row.notFuture, W.row.jobGone]) {
       expect(lineOf({ status: "sent", taken_back_at: "t" }, { takeBack: { status: "cancelled", last_error: reason } })).toEqual({
         key: "line.stillIn",
         text: `Still in ServiceM8. ${reason}`,
@@ -454,15 +491,15 @@ describe("a booking's line, case by case", () => {
 
   it("(F) 13: on someone else reads keptOtherPerson, and compares only its job and edit time with the mirror", () => {
     const kept = { status: "sent", last_error: W.row.personNotKept, landed_edit_date: "2026-10-05 16:00:00" };
-    const onIsaac = mirrorOf({ staffUuid: ISAAC });
-    expect(lineOf(kept, { mirror: onIsaac })).toEqual({
+    const onSam = mirrorOf({ staffUuid: SAM });
+    expect(lineOf(kept, { mirror: onSam })).toEqual({
       key: "line.keptOtherPerson",
       text: "Booked in ServiceM8 on someone else. HeyTiff switched bookings off.",
       tone: "bad",
       acts: ["undo", "open_in_sm8"],
     });
     // another job is a change
-    expect(lineOf(kept, { mirror: mirrorOf({ staffUuid: ISAAC, jobUuid: "another-job" }) }).key).toBe("line.changedThere");
+    expect(lineOf(kept, { mirror: mirrorOf({ staffUuid: SAM, jobUuid: "another-job" }) }).key).toBe("line.changedThere");
   });
 
   it("14: sent, and removed in ServiceM8 since", () => {
@@ -475,7 +512,7 @@ describe("a booking's line, case by case", () => {
   });
 
   it("(F) 15: changed in ServiceM8 — its job, person, start or end, never its edit time alone — has no Undo", () => {
-    for (const moved of [{ start: "2026-10-06 14:30:00" }, { end: "2026-10-06 17:00:00" }, { staffUuid: ISAAC }, { jobUuid: "another-job" }]) {
+    for (const moved of [{ start: "2026-10-06 14:30:00" }, { end: "2026-10-06 17:00:00" }, { staffUuid: SAM }, { jobUuid: "another-job" }]) {
       expect(lineOf({ status: "sent" }, { mirror: mirrorOf(moved) })).toEqual({
         key: "line.changedThere",
         text: "Changed in ServiceM8",
@@ -486,7 +523,7 @@ describe("a booking's line, case by case", () => {
     // the booked person opened it (U21): the edit time moved, nothing booked did
     expect(lineOf({ status: "sent" }, { mirror: mirrorOf({ editDate: "2026-10-06 07:12:00" }) }).key).toBe("line.sent");
     // a uuid the mirror cases differently is the same booking
-    expect(lineOf({ status: "sent" }, { mirror: mirrorOf({ staffUuid: LYLE.toUpperCase() }) }).key).toBe("line.sent");
+    expect(lineOf({ status: "sent" }, { mirror: mirrorOf({ staffUuid: ALEX.toUpperCase() }) }).key).toBe("line.sent");
   });
 
   it("(F) 15: from the movedThere marker alone, with no mirror row", () => {
@@ -589,8 +626,17 @@ describe("a booking's line, case by case", () => {
     expect(lineOf({ status: "trial" }, { offered: false }).acts).toEqual(["cancel"]);
   });
 
+  it("(F) 20: a booking a guard stopped offers Look again — a Try again would meet the guard again (review S1)", () => {
+    expect(lineOf({ status: "cancelled", last_error: filled.guardStopped })).toEqual({
+      key: "line.notSent",
+      text: `Not booked. ${filled.guardStopped}`,
+      tone: null,
+      acts: ["look_again"],
+    });
+  });
+
   it("24: cancelled for any other reason offers Try again", () => {
-    for (const reason of [W.row.switchedOff, filled.guardStopped, WRITE_WORDS.disconnected, WRITE_WORDS.switchedOff]) {
+    for (const reason of [W.row.switchedOff, WRITE_WORDS.disconnected, WRITE_WORDS.switchedOff]) {
       expect(lineOf({ status: "cancelled", last_error: reason })).toEqual({
         key: "line.notSent",
         text: `Not booked. ${reason}`,
@@ -781,7 +827,7 @@ describe("where a line is drawn", () => {
 
 describe("a stored reason", () => {
   const rowKeys = Object.keys(W.row) as (keyof typeof W.row)[];
-  const fillAll = (t: string) => fillWords(t, { name: "Lyle Irving", status: "Completed", number: "3370" });
+  const fillAll = (t: string) => fillWords(t, { name: "Alex Sample", status: "Completed", number: "9001" });
 
   it("(F) is recognised by its template, filled and unfilled", () => {
     for (const key of rowKeys) {

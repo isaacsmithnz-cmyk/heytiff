@@ -28,10 +28,16 @@ jest.mock("../sm8-meter", () => {
 });
 
 import {
+  deleteSm8Booking,
   deleteSm8Note,
   postSm8Attachment,
+  postSm8Booking,
+  postSm8JobStatus,
   postSm8Note,
   readSm8Attachment,
+  readSm8Booking,
+  readSm8Job,
+  readSm8JobBookings,
   readSm8Note,
   updateSm8NoteCompleter,
 } from "../sm8-write";
@@ -290,14 +296,14 @@ describe("a note, as the person who pressed it", () => {
 
   it("posts exactly its four fields to note.json, impersonated, and never action_required", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 200, headers: { "x-record-uuid": NOTE } }));
-    const r = await postSm8Note(W("t"), { relatedUuid: "job-1", uuid: NOTE, text: "@lyleirving on my way", asStaffUuid: STAFF });
+    const r = await postSm8Note(W("t"), { relatedUuid: "job-1", uuid: NOTE, text: "@samtester on my way", asStaffUuid: STAFF });
     const [url, init] = call();
     expect(url).toBe("https://api.servicem8.com/api_1.0/note.json");
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body as string)).toEqual({
       related_object: "job",
       related_object_uuid: "job-1",
-      note: "@lyleirving on my way",
+      note: "@samtester on my way",
       uuid: NOTE,
     });
     expect((init.headers as Record<string, string>)["x-impersonate-uuid"]).toBe(STAFF);
@@ -371,5 +377,170 @@ describe("a note, as the person who pressed it", () => {
     expect(await readSm8Note(W("t"), NOTE)).toEqual({ ok: false, unauthorized: true });
     fetchSm8Page.mockResolvedValueOnce({ ok: true, rows: [{ uuid: NOTE, active: 0 }], nextCursor: null });
     expect(await readSm8Note(W("t"), NOTE)).toMatchObject({ found: true, active: false });
+  });
+});
+
+describe("a booking, as the app (two-way phase 3)", () => {
+  const JOB = "0b1e0b1e-0000-4000-8000-000000009001";
+  const STAFF = "5a0e5a0e-0000-4000-8000-00000000a001";
+  const BOOKING = "7d3f2c1e-5b6a-4c8d-9e0f-00000000b00c";
+  const call = (i = 0) => fetchMock.mock.calls[i] as [string, RequestInit];
+  const b = { uuid: BOOKING, jobUuid: JOB, staffUuid: STAFF, start: "2026-10-06 20:00:00", end: "2026-10-06 21:00:00" };
+
+  it("(F, B-5) posts EXACTLY its six fields to jobactivity.json, as the app: never active, never a status, never a person to act as", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 200, headers: { "x-record-uuid": BOOKING } }));
+    const r = await postSm8Booking(W("t"), b);
+    const [url, init] = call();
+    expect(url).toBe("https://api.servicem8.com/api_1.0/jobactivity.json");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({
+      uuid: BOOKING,
+      job_uuid: JOB,
+      staff_uuid: STAFF,
+      start_date: "2026-10-06 20:00:00",
+      end_date: "2026-10-06 21:00:00",
+      activity_was_scheduled: "1",
+    });
+    expect(Object.keys(JSON.parse(init.body as string))).toHaveLength(6);
+    expect((init.headers as Record<string, string>)["x-impersonate-uuid"]).toBeUndefined();
+    expect(takeTurn).toHaveBeenCalledWith("vendor-1", "write");
+    expect(r).toEqual({ status: 200, outcome: { kind: "created", remoteUuid: BOOKING }, remote: null, recordUuid: BOOKING });
+  });
+
+  it("(F, B-4) makes a Quote a Work Order with the status ALONE, on job/{uuid}.json", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+    await postSm8JobStatus(W("t"), JOB, "Work Order");
+    const [url, init] = call();
+    expect(url).toBe(`https://api.servicem8.com/api_1.0/job/${JOB}.json`);
+    expect(init.method).toBe("POST");
+    expect(init.body).toBe('{"status":"Work Order"}');
+  });
+
+  it("takes a booking out with DELETE on jobactivity/{uuid}.json, and never builds a request it can't vouch for", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+    await deleteSm8Booking(W("t"), BOOKING);
+    const [url, init] = call();
+    expect(url).toBe(`https://api.servicem8.com/api_1.0/jobactivity/${BOOKING}.json`);
+    expect(init.method).toBe("DELETE");
+    expect(init.body).toBeUndefined();
+    fetchMock.mockClear();
+    /* refused here, never a 404 (which a take-back would read as gone) */
+    expect(await deleteSm8Booking(W("t"), "../job/x")).toMatchObject({ status: null, outcome: { kind: "rejected", status: 400 } });
+    expect(await postSm8Booking(W("t"), { ...b, start: "2026-10-06T20:00:00" })).toMatchObject({ outcome: { kind: "rejected" } });
+    expect(await postSm8Booking(W("t"), { ...b, staffUuid: "someone" })).toMatchObject({ outcome: { kind: "rejected" } });
+    expect(await postSm8JobStatus(W("t"), JOB, "Completed" as "Work Order")).toMatchObject({ outcome: { kind: "rejected" } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("an answer that didn't come is unavailable; the counter's refusal sends nothing", async () => {
+    fetchMock.mockRejectedValue(new Error("socket hang up"));
+    expect(await postSm8Booking(W("t"), b)).toMatchObject({ status: null, outcome: { kind: "unavailable" } });
+    takeTurn.mockResolvedValue({ ok: false, why: "minute", waitMs: 9_000 });
+    fetchMock.mockClear();
+    expect(await deleteSm8Booking(W("t"), BOOKING)).toMatchObject({ status: null, outcome: { kind: "rate_limited", limit: "ours" } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("(F) reads a booking back by its uuid through the list endpoint, shaped as the mirror shapes one, whatever the case", async () => {
+    fetchSm8Page.mockResolvedValueOnce({
+      ok: true,
+      rows: [
+        {
+          uuid: BOOKING.toUpperCase(),
+          job_uuid: JOB,
+          staff_uuid: "",
+          start_date: "2026-10-06 20:00:00",
+          end_date: "0000-00-00 00:00:00",
+          activity_was_scheduled: "1",
+          activity_was_recorded: "0",
+          active: "1",
+          edit_date: "2026-09-27 14:53:16",
+        },
+      ],
+      nextCursor: null,
+    });
+    expect(await readSm8Booking(W("t"), BOOKING)).toEqual({
+      ok: true,
+      found: true,
+      activity: {
+        uuid: BOOKING.toUpperCase(),
+        jobUuid: JOB,
+        staffUuid: null,
+        start: "2026-10-06 20:00:00",
+        end: null,
+        scheduled: 1,
+        recorded: 0,
+        active: 1,
+        editDate: "2026-09-27 14:53:16",
+      },
+    });
+    const [, endpoint, opts] = fetchSm8Page.mock.calls[0];
+    expect(endpoint).toBe("jobactivity.json");
+    expect(opts).toMatchObject({ cursor: "-1", filter: `uuid eq '${BOOKING}'` });
+    fetchSm8Page.mockResolvedValueOnce({ ok: true, rows: [], nextCursor: null });
+    expect(await readSm8Booking(W("t"), BOOKING)).toEqual({ ok: true, found: false });
+    fetchSm8Page.mockResolvedValueOnce({ ok: false, failure: "unauthorized" });
+    expect(await readSm8Booking(W("t"), BOOKING)).toEqual({ ok: false, unauthorized: true });
+    fetchSm8Page.mockResolvedValueOnce({ ok: false, failure: "throttled", busy: { waitMs: 5_000, day: false } });
+    expect(await readSm8Booking(W("t"), BOOKING)).toEqual({ ok: false, limited: { kind: "rate_limited", limit: "ours", waitMs: 5_000, day: false } });
+    expect(await readSm8Booking(W("t"), "not a uuid")).toEqual({ ok: true, found: false });
+  });
+
+  it("(F) reads a job's active bookings whole, or not at all: three pages at most, and a fourth is a read that failed", async () => {
+    fetchSm8Page
+      .mockResolvedValueOnce({ ok: true, rows: [{ uuid: BOOKING, job_uuid: JOB, active: 1, activity_was_scheduled: 1 }], nextCursor: "c2" })
+      .mockResolvedValueOnce({ ok: true, rows: [{ uuid: "x2", job_uuid: JOB, active: 1, activity_was_scheduled: 0, activity_was_recorded: 1 }], nextCursor: null });
+    const r = await readSm8JobBookings(W("t"), JOB);
+    expect(r).toMatchObject({ ok: true, activities: [{ uuid: BOOKING, scheduled: 1 }, { uuid: "x2", scheduled: 0, recorded: 1 }] });
+    expect(fetchSm8Page.mock.calls[0][2]).toMatchObject({ cursor: "-1", filter: `job_uuid eq '${JOB}' and active eq 1` });
+    expect(fetchSm8Page.mock.calls[1][2]).toMatchObject({ cursor: "c2" });
+    fetchSm8Page.mockReset();
+    fetchSm8Page.mockResolvedValue({ ok: true, rows: [], nextCursor: "more" });
+    expect(await readSm8JobBookings(W("t"), JOB)).toEqual({ ok: false });
+    expect(fetchSm8Page).toHaveBeenCalledTimes(3);
+  });
+
+  it("(F) reads a job with its status, its edit time, the six fields a status change guards and the four it logs", async () => {
+    fetchSm8Page.mockResolvedValueOnce({
+      ok: true,
+      rows: [
+        {
+          uuid: JOB,
+          status: "Quote",
+          active: "1",
+          edit_date: "2026-09-27 16:26:33",
+          company_uuid: "c0c0c0c0-0000-4000-8000-00000000c0c0",
+          job_address: "",
+          job_description: "A made-up job",
+          category_uuid: "",
+          purchase_order_number: "",
+          generated_job_id: "9001",
+          work_order_date: "0000-00-00 00:00:00",
+          total_invoice_amount: "0.0000",
+        },
+      ],
+      nextCursor: null,
+    });
+    const r = await readSm8Job(W("t"), JOB);
+    expect(r).toEqual({
+      ok: true,
+      found: true,
+      job: {
+        uuid: JOB,
+        status: "Quote",
+        active: 1,
+        editDate: "2026-09-27 16:26:33",
+        kept: {
+          company_uuid: "c0c0c0c0-0000-4000-8000-00000000c0c0",
+          job_address: null,
+          job_description: "A made-up job",
+          category_uuid: null,
+          purchase_order_number: null,
+          generated_job_id: "9001",
+        },
+        logged: { work_order_date: null, total_invoice_amount: "0.0000", work_done_description: null, queue_uuid: null },
+      },
+    });
+    expect(fetchSm8Page.mock.calls[0].slice(1, 3)).toEqual(["job.json", expect.objectContaining({ filter: `uuid eq '${JOB}'` })]);
   });
 });

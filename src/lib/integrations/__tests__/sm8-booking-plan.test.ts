@@ -41,6 +41,9 @@ import {
   slotOf,
   STATUS_KEPT_FIELDS,
   statusLine,
+  wallInstant,
+  wallInstants,
+  wallTimeExists,
   type BookingAct,
   type BookingLineIn,
   type BookingReasonKey,
@@ -178,11 +181,45 @@ describe("the account's clock", () => {
     expect(isFuture("2026-10-04 01:00:00", PERTH, later)).toBe(true);
   });
 
-  it("compares to the second, as fixed-width text, and takes nothing that isn't a stamp", () => {
+  it("compares to the second, and takes nothing that isn't a stamp", () => {
     const now = Date.parse("2026-10-05T23:00:00Z"); // 10:00:00 in Sydney
     expect(isFuture("2026-10-06 10:00:00", SYDNEY, now)).toBe(false);
     expect(isFuture("2026-10-06 10:00:01", SYDNEY, now)).toBe(true);
     for (const junk of [null, "", "2026-10-06T10:30:00", "2026-10-06 10:30"]) expect(isFuture(junk, SYDNEY, now)).toBe(false);
+  });
+
+  it("(F) a wall time the clocks skip names no instant, and one they repeat names two (review R2-13, R2-14)", () => {
+    expect(wallInstants("2026-10-04 02:30:00", SYDNEY)).toEqual([]);
+    expect(wallTimeExists("2026-10-04 02:30:00", SYDNEY)).toBe(false);
+    expect(wallTimeExists("2026-10-04 01:59:00", SYDNEY)).toBe(true);
+    expect(wallInstants("2026-10-04 03:00:00", SYDNEY)).toEqual([Date.parse("2026-10-03T16:00:00Z")]);
+    expect(wallInstants("2027-04-04 02:30:00", SYDNEY)).toEqual([Date.parse("2027-04-03T15:30:00Z"), Date.parse("2027-04-03T16:30:00Z")]);
+    expect(wallInstants("2026-10-06 09:00:00", SYDNEY)).toEqual([Date.parse("2026-10-05T22:00:00Z")]);
+    expect(wallInstants("2026-10-06 09:00:00", PERTH)).toEqual([Date.parse("2026-10-06T01:00:00Z")]);
+    // Perth keeps no daylight saving: that night is a plain night there
+    expect(wallTimeExists("2026-10-04 02:30:00", PERTH)).toBe(true);
+    for (const [stamp, zone] of [
+      ["2026-02-31 09:00:00", SYDNEY],
+      ["2026-10-06 09:00:00", "Mars/Base"],
+      ["2026-10-06 09:00", SYDNEY],
+      ["2026-10-06 09:00:00", null],
+    ] as const) {
+      expect(wallInstants(stamp, zone)).toEqual([]);
+    }
+  });
+
+  it("(F) a booking in the hour the clocks go back has started from its first pass, and never reads ahead again (review R2-13)", () => {
+    const start = "2027-04-04 02:30:00";
+    expect(isFuture(start, SYDNEY, Date.parse("2027-04-03T15:10:00Z"))).toBe(true); // 2:10 am, +11
+    expect(isFuture(start, SYDNEY, Date.parse("2027-04-03T15:40:00Z"))).toBe(false); // 2:40 am, +11
+    expect(isFuture(start, SYDNEY, Date.parse("2027-04-03T16:10:00Z"))).toBe(false); // 2:10 am again, +10
+    // its line stays a visit through the hour again: no Undo on a booking under way
+    const booked = { status: "sent", booking_start: start, booking_end: "2027-04-04 03:30:00" };
+    expect(lineOf(booked, { now: Date.parse("2027-04-03T15:10:00Z") }).acts).toEqual(["undo", "open_in_sm8"]);
+    expect(lineOf(booked, { now: Date.parse("2027-04-03T16:10:00Z") })).toEqual(NONE);
+    // one the clocks skip reads by the earliest it could mean
+    expect(wallInstant("2026-10-04 02:30:00", SYDNEY, "earliest")).toBe(Date.parse("2026-10-03T15:30:00Z"));
+    expect(wallInstant("2026-10-04 02:30:00", SYDNEY, "latest")).toBe(Date.parse("2026-10-03T16:30:00Z"));
   });
 });
 

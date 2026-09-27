@@ -80,7 +80,8 @@ jest.mock("@/lib/workboard/job-notes-query", () => ({
 
 import { sm8PressFromSession, type Sm8Press } from "../sm8-press";
 import { enqueueSm8Writes, readSm8WriteState, runSm8Writes } from "../sm8-writes";
-import { BOOKING_WORDS, bookingLine, localNow, statusLine, type BookingMirrorIn } from "../sm8-booking-plan";
+import { BOOKING_STATUS_WAIT_MS, BOOKING_WORDS, bookingLine, localNow, statusLine, wallInstant, type BookingMirrorIn } from "../sm8-booking-plan";
+import { checkedIn } from "../sm8-booking-send";
 import { NOTE_WORDS } from "../sm8-note-words";
 import { WRITE_WORDS, offersSend, sendHold } from "../sm8-write-plan";
 import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear } from "@/app/actions/sm8-booking-queue";
@@ -2532,6 +2533,68 @@ describe("a job's uuid, whatever its case (review: R2-9)", () => {
     await run();
     const [, alex] = creates();
     expect(alex).toMatchObject({ status: "cancelled", last_error: GUARD_9001 });
+  });
+});
+
+describe("the account's clock where its offset changes (review: R2-13, R2-14, R2-15, and C-5's twelve minutes)", () => {
+  const press = async (slots: { staffUuid: string; start: string; end: string }[], zone = ZONE) =>
+    queueBookIn(await pressAs(), await state(), { jobUuid: JOB, verbId: randomUUID(), zone, status: null, slots });
+
+  it("(F, R2-14) Book in refuses a start or an end the clocks skip that day, clocks_forward, and a zone Intl doesn't know — and queues nothing", async () => {
+    const skipStart = { staffUuid: SAM_SM8, start: "2026-10-04 02:30:00", end: "2026-10-04 03:30:00" };
+    const skipEnd = { staffUuid: SAM_SM8, start: "2026-10-04 01:30:00", end: "2026-10-04 02:30:00" };
+    expect(await press([skipStart])).toEqual({ ok: false, refusal: "clocks_forward", slot: skipStart });
+    expect(await press([slot(), skipEnd])).toEqual({ ok: false, refusal: "clocks_forward", slot: skipEnd });
+    expect(await press([slot()], "Mars/Base")).toEqual({ ok: false, refusal: "zone_unknown" });
+    expect(writes()).toHaveLength(0);
+    /* 3:00 am that day happens; so does 2:30 am in Perth */
+    expect(await press([{ staffUuid: SAM_SM8, start: "2026-10-04 03:00:00", end: "2026-10-04 04:00:00" }])).toMatchObject({ ok: true });
+    expect(await press([skipStart], "Australia/Perth")).toMatchObject({ ok: true });
+  });
+
+  it("(F, R2-15) the overlap rule's window is two real hours: the night the clocks go forward it reaches back past 1 am, and the night they go back it stops at the real two hours", () => {
+    const target = { uuid: OLD, jobUuid: JOB, staffUuid: SAM_SM8, start: "", end: "", scheduled: 1, recorded: 0, active: 1, editDate: null } as Parameters<typeof checkedIn>[0];
+    const checkIn = (start: string) => ({ ...target, uuid: randomUUID(), start, end: null, scheduled: 0, recorded: 1 });
+    /* 3:30 am the night they go forward is 1:30 am plus the skipped hour: 1:00 am is 90 real minutes before */
+    const forward = { ...target, start: "2026-10-04 03:30:00", end: "2026-10-04 04:30:00" };
+    expect(checkedIn(forward, [checkIn("2026-10-04 01:00:00")], ZONE)).toBe(true);
+    expect(checkedIn(forward, [checkIn("2026-10-04 00:15:00")], ZONE)).toBe(false);
+    /* 3:30 am the night they go back: 1:45 am, first time round, is 2 h 45 min before */
+    const back = { ...target, start: "2027-04-04 03:30:00", end: "2027-04-04 04:30:00" };
+    expect(checkedIn(back, [checkIn("2027-04-04 01:45:00")], ZONE)).toBe(false);
+    expect(checkedIn(back, [checkIn("2027-04-04 02:45:00")], ZONE)).toBe(true);
+    /* on any other day it is the two hours it always was */
+    const plain = { ...target, start: "2026-10-06 09:00:00", end: "2026-10-06 10:00:00" };
+    expect(checkedIn(plain, [checkIn("2026-10-06 07:00:00")], ZONE)).toBe(true);
+    expect(checkedIn(plain, [checkIn("2026-10-06 06:59:00")], ZONE)).toBe(false);
+    expect(checkedIn(plain, [checkIn("2026-10-06 10:00:00")], ZONE)).toBe(true);
+    expect(checkedIn(plain, [checkIn("2026-10-06 10:01:00")], ZONE)).toBe(false);
+  });
+
+  it("(F, C-5) a booking pressed exactly 12 minutes ahead: at exactly two minutes on, its status change goes, and then the booking", async () => {
+    /* a start on the minute, and a press exactly 12 minutes before it */
+    const s = soon(30);
+    const startsAt = wallInstant(s.start, ZONE, "earliest")!;
+    const pressedAt = startsAt - 12 * 60_000;
+    const q = await bookIn([{ staffUuid: SAM_SM8, ...s }], { seen: SEEN });
+    if (!q.ok || !q.statusRowId) throw new Error("no verb");
+    const st = byId(q.statusRowId);
+    for (const r of [st, ...creates()]) r.pressed_at = new Date(pressedAt).toISOString();
+    const at = pressedAt + BOOKING_STATUS_WAIT_MS;
+    await run({ clock: () => at });
+    expect(postSm8JobStatus).toHaveBeenCalledTimes(1);
+    expect(st.status).toBe("sent");
+    expect(creates()[0].status).toBe("sent");
+  });
+
+  it("(F, C-5) Try again on a booking exactly 12 minutes ahead, behind a status change that failed, is not too soon", async () => {
+    const { s, cs } = await verb({ slots: [{ staffUuid: SAM_SM8, ...soon(30) }] });
+    Object.assign(s, { status: "failed", last_error: BOOKING_WORDS.row.statusRefused });
+    const [c] = cs;
+    Object.assign(c, { status: "cancelled", last_error: BOOKING_WORDS.row.statusFirst });
+    const startsAt = wallInstant(c.booking_start as string, ZONE, "earliest")!;
+    jest.spyOn(Date, "now").mockReturnValue(startsAt - 12 * 60_000);
+    expect(await queueBookingRetry(await pressAs(), await state(), { rowId: c.id as string })).toMatchObject({ ok: true });
   });
 });
 

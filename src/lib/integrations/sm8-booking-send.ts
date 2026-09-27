@@ -98,6 +98,7 @@ import {
   isFuture,
   reasonOf,
   STATUS_KEPT_FIELDS,
+  wallInstant,
 } from "./sm8-booking-plan";
 import { bookingZone } from "./sm8-booking-zone";
 import { readDeletesOn } from "./sm8-booking-overlay";
@@ -235,12 +236,28 @@ const zeroLength = (a: Sm8LiveActivity) => !!a.start && !!a.end && a.start === a
     booking a guard recorded on someone else, or at another time, is
     checked against whoever and whenever ServiceM8 holds it. Zero-length
     rows are nothing; time added by hand with no start (P4: it lands at
-    00:00) counts, which only ever refuses. */
-export function checkedIn(target: Sm8LiveActivity, activities: readonly Sm8LiveActivity[]): boolean {
+    00:00) counts, which only ever refuses.
+    TWO REAL HOURS, in the account's zone: the window runs from two hours
+    before the start's earliest instant to the end's latest, and a check-in
+    counts by its start's earliest — so the night the clocks go forward
+    it is not one hour of wall clock, nor three the night they go back.
+    With no zone to read the instants in, it is two hours of wall clock. */
+export function checkedIn(target: Sm8LiveActivity, activities: readonly Sm8LiveActivity[], zone?: string | null): boolean {
   if (!target.start || !target.staffUuid) return false;
-  const from = shiftStamp(target.start, -120);
-  const to = target.end ?? target.start;
-  if (!from) return false;
+  const start = wallInstant(target.start, zone, "earliest");
+  const end = wallInstant(target.end ?? target.start, zone, "latest");
+  let within: (x: string) => boolean;
+  if (start !== null && end !== null) {
+    within = (x) => {
+      const at = wallInstant(x, zone, "earliest");
+      return at !== null && at >= start - 2 * 3_600_000 && at <= end;
+    };
+  } else {
+    const from = shiftStamp(target.start, -120);
+    const to = target.end ?? target.start;
+    if (!from) return false;
+    within = (x) => x >= from && x <= to;
+  }
   return activities.some(
     (x) =>
       !same(x.uuid, target.uuid) &&
@@ -248,8 +265,7 @@ export function checkedIn(target: Sm8LiveActivity, activities: readonly Sm8LiveA
       isRecorded(x) &&
       !zeroLength(x) &&
       !!x.start &&
-      x.start >= from &&
-      x.start <= to
+      within(x.start)
   );
 }
 
@@ -932,7 +948,7 @@ async function sendBooking(
         const now = refusal(booked);
         if (now) return held(now, target);
       }
-      if (checkedIn(booked, b.got.activities)) return held(done("cancelled", BOOKING_WORDS.row.checkIn), target);
+      if (checkedIn(booked, b.got.activities, zone)) return held(done("cancelled", BOOKING_WORDS.row.checkIn), target);
 
       /* 5 */
       const other = await otherDeletes(key);
@@ -1152,12 +1168,14 @@ type BehindRead = {
 
 /** A create that could go right behind its status row, as far as its own
     row says: not taken back, queued or sending, starting at least
-    BOOKING_STATUS_LEAD_MS ahead, and pressed less than a day less that
-    lead ago, so its own day-old rule can't stop it just after the status
-    change. */
+    BOOKING_STATUS_LEAD_MS ahead — exactly that far counts, so a booking
+    pressed exactly 12 minutes ahead still has its status change go after
+    the full two-minute wait (the spec's C-5) — and pressed less than a
+    day less that lead ago, so its own day-old rule can't stop it just
+    after the status change. */
 function behindByRow(c: BehindRead, zone: string, now: number): boolean {
   if (c.taken_back_at || (c.status !== "queued" && c.status !== "sending")) return false;
-  if (!isFuture(c.booking_start, zone, now + BOOKING_STATUS_LEAD_MS)) return false;
+  if (!isFuture(c.booking_start, zone, now + BOOKING_STATUS_LEAD_MS - 1)) return false;
   if (!c.pressed_at) return false;
   const pressed = Date.parse(c.pressed_at);
   return !Number.isNaN(pressed) && now - pressed < BOOKING_TTL_MS - BOOKING_STATUS_LEAD_MS;

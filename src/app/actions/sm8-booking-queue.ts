@@ -52,8 +52,10 @@ import {
   clearLine,
   isFuture,
   isLeftover,
+  localNow,
   parseBookingSubject,
   reasonOf,
+  wallTimeExists,
   type BookingMirrorIn,
 } from "@/lib/integrations/sm8-booking-plan";
 import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
@@ -70,7 +72,8 @@ import {
     taking_out takingOut, in_flight inFlight, not_yours notYours, changed
     changed (or changedNoUndo on a take-back), not_future notFuture,
     not_leftover notLeftover, check_in checkIn, past past, too_soon tooSoon,
-    zone_unknown zoneUnknown, capped capped, unreadable unreadable,
+    zone_unknown zoneUnknown, clocks_forward clocksForward (PR C's: a wall
+    time the clocks skip that day), capped capped, unreadable unreadable,
     not_offered the kind's own refusal, and no_row and unqueued unqueued. */
 export type BookingRefusal =
   | "unqueued"
@@ -89,7 +92,8 @@ export type BookingRefusal =
   | "check_in"
   | "past"
   | "too_soon"
-  | "zone_unknown";
+  | "zone_unknown"
+  | "clocks_forward";
 
 export type BookInSlot = { staffUuid: string; start: string; end: string };
 
@@ -327,6 +331,13 @@ export async function queueBookIn(
   }
   /* ONE SPELLING OF A JOB: its rows, and so their keys, carry it lower case */
   const jobUuid = given.toLowerCase();
+
+  /* THE TIMES ARE REAL ONES in the zone the panel read: a zone Intl doesn't
+     know books nothing, and a start or an end the clocks skip that day (the
+     hour they go forward) doesn't happen */
+  if (localNow(zone, Date.now()) === null) return { ok: false, refusal: "zone_unknown" };
+  const skipped = slots.find((s) => !wallTimeExists(s.start, zone) || !wallTimeExists(s.end, zone));
+  if (skipped) return { ok: false, refusal: "clocks_forward", slot: skipped };
 
   /* 1. readable and offered */
   if (!state.readable) return { ok: false, refusal: "unreadable" };
@@ -786,9 +797,10 @@ export async function queueBookingRetry(press: Sm8Press, state: Sm8WriteState, i
     const s = await readRow(orgId, row.depends_on);
     if (s === "failed") return { ok: false, refusal: "unqueued" };
     if (!s || s.taken_back_at || !s.seen_edit_date) return { ok: false, refusal: "changed", lookAgain: true };
+    /* exactly that far ahead counts, as at the press (C-5) */
     if (
       (s.status === "failed" || s.status === "cancelled") &&
-      !isFuture(row.booking_start, row.booking_zone, now + BOOKING_STATUS_LEAD_MS + BOOKING_STATUS_WAIT_MS)
+      !isFuture(row.booking_start, row.booking_zone, now + BOOKING_STATUS_LEAD_MS + BOOKING_STATUS_WAIT_MS - 1)
     ) {
       return { ok: false, refusal: "too_soon", lookAgain: true };
     }

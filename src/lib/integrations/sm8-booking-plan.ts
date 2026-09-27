@@ -195,22 +195,120 @@ export function localNow(zone: string | null | undefined, now: number): string |
   return sm8LocalStamp(now, zone);
 }
 
-/** Whether a booking starting at `start` is still ahead, on the account's
-    clock: fixed-width text compared as text, which is collate "C". An
-    unknown zone, or a start that isn't a stamp, is never in the future. */
-export function isFuture(start: string | null | undefined, zone: string | null | undefined, now: number): boolean {
-  const at = localNow(zone, now);
-  if (!at || !start || !STAMP_RE.test(start)) return false;
-  return start > at;
+/* ── a wall-clock time's instants ──
+
+   A WALL TIME IS NOT ALWAYS ONE INSTANT. In the hour the clocks go forward
+   it is none (in Sydney, 02:00 to 02:59 on the first Sunday of October),
+   and in the hour they go back it is two (02:00 to 02:59 on the first
+   Sunday of April). Compared as text against the wall clock now, a booking
+   in the repeated hour would read started on the first pass and ahead
+   again on the second, so a time is compared by the instant it names:
+   A START BY ITS EARLIEST, so once a booking has started it stays started,
+   and nothing ever takes out a booking that may be under way. */
+
+/** Offsets are read either side of a stamp, far enough out that every
+    instant it could name (UTC-12 to UTC+14) lies between them. */
+const OFFSET_PROBES_MS = [-15 * 3_600_000, 0, 13 * 3_600_000];
+
+/** One formatter per zone (null: one Intl doesn't know), so a time's
+    instants cost no new Intl.DateTimeFormat each: sm8LocalStamp's own
+    options, and its own shape. */
+const WALL_FORMATS = new Map<string, Intl.DateTimeFormat | null>();
+
+function wallStamp(ms: number, zone: string): string | null {
+  let f = WALL_FORMATS.get(zone);
+  if (f === undefined) {
+    try {
+      f = new Intl.DateTimeFormat("en-CA", {
+        timeZone: zone,
+        hourCycle: "h23",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+    } catch {
+      f = null;
+    }
+    WALL_FORMATS.set(zone, f);
+  }
+  if (!f) return null;
+  const parts = f.formatToParts(new Date(ms));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const stamp = `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
+  return STAMP_RE.test(stamp) ? stamp : null;
 }
 
-/** Whether a booking has started. Unknown — no zone, no start — is NOT
-    started: a line keeps its words and doors, and the press and the sender
-    ask again, with the zone, before anything is taken out. */
+/** A stamp's fields read as if it were UTC: the offset arithmetic's
+    starting point. */
+function naiveMs(stamp: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(stamp);
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : null;
+}
+
+/** The zone's offsets around a stamp, or null for a zone Intl doesn't know. */
+function offsetsAround(naive: number, zone: string): number[] | null {
+  const out = new Set<number>();
+  for (const d of OFFSET_PROBES_MS) {
+    const at = Math.floor((naive + d) / 1000) * 1000;
+    const wall = wallStamp(at, zone);
+    const wallMs = wall ? naiveMs(wall) : null;
+    if (wallMs === null) return null;
+    out.add(wallMs - at);
+  }
+  return [...out];
+}
+
+/** Every instant a wall-clock stamp names in the zone, earliest first:
+    none in the hour the clocks skip (or for a day that isn't one), two in
+    the hour they repeat, one otherwise. Empty for no zone, or a stamp that
+    isn't one. */
+export function wallInstants(stamp: string | null | undefined, zone: string | null | undefined): number[] {
+  if (!zone || !stamp || !STAMP_RE.test(stamp)) return [];
+  const naive = naiveMs(stamp);
+  const offsets = naive === null ? null : offsetsAround(naive, zone);
+  if (naive === null || !offsets) return [];
+  return [...new Set(offsets.map((o) => naive - o))].filter((t) => wallStamp(t, zone) === stamp).sort((a, b) => a - b);
+}
+
+/** Whether a wall time happens in the zone (the clocks skip none of it). */
+export function wallTimeExists(stamp: string | null | undefined, zone: string | null | undefined): boolean {
+  return wallInstants(stamp, zone).length > 0;
+}
+
+/** The instant a wall time names in the zone: its earliest, or latest. One
+    in the hour the clocks skip, which names none, is read with the offset
+    that gives the earliest (or latest) it could mean. Null for no zone, or
+    a stamp that isn't one. */
+export function wallInstant(stamp: string | null | undefined, zone: string | null | undefined, which: "earliest" | "latest"): number | null {
+  const all = wallInstants(stamp, zone);
+  if (all.length > 0) return which === "earliest" ? all[0] : all[all.length - 1];
+  if (!zone || !stamp || !STAMP_RE.test(stamp)) return null;
+  const naive = naiveMs(stamp);
+  const offsets = naive === null ? null : offsetsAround(naive, zone);
+  if (naive === null || !offsets) return null;
+  return which === "earliest" ? naive - Math.max(...offsets) : naive - Math.min(...offsets);
+}
+
+/** Whether a booking starting at `start` is still ahead: the earliest
+    instant its start names in the zone is after `now` — so it is never
+    ahead again once it has started, not even in the hour the clocks go
+    back. An unknown zone, or a start that isn't a stamp, is never in the
+    future. */
+export function isFuture(start: string | null | undefined, zone: string | null | undefined, now: number): boolean {
+  const at = wallInstant(start, zone, "earliest");
+  return at !== null && at > now;
+}
+
+/** Whether a booking has started (its start's earliest instant has come).
+    Unknown — no zone, no start — is NOT started: a line keeps its words
+    and doors, and the press and the sender ask again, with the zone,
+    before anything is taken out. */
 function hasStarted(start: string | null | undefined, zone: string | null | undefined, now: number): boolean {
-  const at = localNow(zone, now);
-  if (!at || !start || !STAMP_RE.test(start)) return false;
-  return start <= at;
+  const at = wallInstant(start, zone, "earliest");
+  return at !== null && at <= now;
 }
 
 const flagOn = (v: unknown) => v === 1 || v === "1" || v === true;

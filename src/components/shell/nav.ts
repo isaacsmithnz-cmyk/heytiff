@@ -253,3 +253,17 @@ export function isActive(item: NavItem, pathname: string): boolean {
     onHref(item.href, pathname) || (item.subItems ?? []).some((s) => onHref(s.href, pathname))
   );
 }
+
+/** The screen a pathname is on, by its nav name: the entry, row or face,
+    whose own link is the longest that matches. Where a row and its face share
+    a link (Me and Timesheet), the face wins, being the more exact name.
+    "" off the nav. Shared by the Tiff modal's header and the page Tiff is
+    told about. */
+export function screenLabelFor(pathname: string): string {
+  let best: NavItem | null = null;
+  for (const n of ALL_SCREENS) {
+    if (!onHref(n.href, pathname)) continue;
+    if (!best || n.href.length >= best.href.length) best = n;
+  }
+  return best?.label ?? "";
+}

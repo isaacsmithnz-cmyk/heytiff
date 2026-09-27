@@ -38,6 +38,8 @@ export function movesTo(href: string, origin: string): string | null {
 export async function askBrain(
   input: {
     question: string;
+    /** The screen they're on, by its nav name. */
+    screen?: string;
     target?: NoteTarget;
     targetLabel?: string;
     /** The Tiff modal's conversation so far, oldest first. The route keeps
@@ -59,11 +61,14 @@ export async function askBrain(
       signal: input.signal,
       body: JSON.stringify({
         question: input.question,
-        target:
-          input.target && input.target.kind !== "none" && input.target.id
-            ? { kind: input.target.kind, id: input.target.id }
-            : undefined,
-        targetLabel: input.targetLabel,
+        /* Where they are: the screen, and the record the modal is aimed at.
+           The route checks every part; the model reads it as place. */
+        page: {
+          ...(input.screen ? { screen: input.screen } : {}),
+          ...(input.target && input.target.kind !== "none" && input.target.id
+            ? { target: { kind: input.target.kind, id: input.target.id, label: input.targetLabel } }
+            : {}),
+        },
         ...(input.history?.length
           ? { history: input.history.map((t) => ({ who: t.who, text: t.text })) }
           : {}),

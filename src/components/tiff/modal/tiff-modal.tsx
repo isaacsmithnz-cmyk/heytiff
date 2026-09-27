@@ -3,7 +3,7 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { NAV, isActive } from "@/components/shell/nav";
+import { screenLabelFor } from "@/components/shell/nav";
 import { DictClock, LiveWords } from "@/components/notes/dictation";
 import { useNoteScope } from "@/components/notes/note-context";
 import { MARK_MASK, TiffGlyph, TiffMark } from "@/components/notes/tiff-mark";
@@ -85,16 +85,6 @@ export type TiffClosed = Closed & {
 
 const ROOM: Record<TiffRoom, string> = { home: "Home", diary: "Diary", tasks: "Tasks", calendar: "Calendar" };
 
-/** The screen's own name, off the nav, when the words have no room. */
-function screenWord(pathname: string): string {
-  let best: { label: string; href: string } | null = null;
-  for (const n of NAV) {
-    if (!isActive({ ...n, subItems: undefined }, pathname)) continue;
-    if (!best || n.href.length > best.href.length) best = n;
-  }
-  return best?.label ?? "";
-}
-
 export function TiffModal({
   session,
   onClosed,
@@ -118,6 +108,7 @@ export function TiffModal({
     voiceEnabled: scope.voiceEnabled,
     target: scope.target,
     targetLabel: scope.targetLabel,
+    screen: screenLabelFor(pathname),
     onLeave: (href) => leave.current(href),
   });
 
@@ -280,7 +271,7 @@ export function TiffModal({
     return () => window.removeEventListener("keydown", listen, true);
   }, []);
 
-  const context = c.targetLabel ?? (session.room ? ROOM[session.room] : screenWord(pathname));
+  const context = c.targetLabel ?? (session.room ? ROOM[session.room] : screenLabelFor(pathname));
 
   /* WHILE THE DOCK IS FOLDED AWAY, THE DIALOG HOLDS FOCUS. Whatever sent the
      words — Done, Send, a quick answer, Enter in your words — is leaving,

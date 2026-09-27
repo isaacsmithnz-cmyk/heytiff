@@ -6,6 +6,7 @@ import {
   navFor,
   navGroupsFor,
   type NavItem,
+  screenLabelFor,
   type NavViewer,
 } from "../nav";
 import { CAPABILITIES, resolve } from "@/lib/permissions";
@@ -302,5 +303,22 @@ describe("isActive", () => {
     for (const key of ["myvehicle", "myexpenses"]) {
       expect(isActive(byKey(key), "/dashboard/my-leave")).toBe(false);
     }
+  });
+});
+
+describe("screenLabelFor — the screen Tiff is told the person is on", () => {
+  it("names the screen by its most exact link", () => {
+    expect(screenLabelFor("/dashboard")).toBe("Home");
+    expect(screenLabelFor("/dashboard/workboard")).toBe("Workboard");
+    expect(screenLabelFor("/dashboard/workboard/projects/p-1")).toBe("Workboard");
+    expect(screenLabelFor("/dashboard/tiff/library")).toBe("All documents");
+  });
+
+  it("prefers the face where a row and its face share a link", () => {
+    expect(screenLabelFor("/dashboard/my-timesheet")).toBe("Timesheet");
+  });
+
+  it("is nothing off the nav", () => {
+    expect(screenLabelFor("/handover/abc")).toBe("");
   });
 });

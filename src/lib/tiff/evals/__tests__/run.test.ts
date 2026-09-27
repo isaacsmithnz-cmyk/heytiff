@@ -83,8 +83,7 @@ it(
       for (let i = 0; i < (c.runs ?? 1); i++) {
         const body = m.shapeAsk({
           question: c.say,
-          target: c.page?.target ? { kind: c.page.target.kind, id: c.page.target.id } : undefined,
-          targetLabel: c.page?.target?.label,
+          page: c.page,
           history: c.history,
         });
         const run: CapturedRun = { tools: [], moves: [], text: "" };

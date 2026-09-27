@@ -7,12 +7,12 @@
    (docs/universal-tiff-phase-1-spec.md, PR 1E). The fast path for moves
    joins it in 1C. Not lib/tiff/answer, which is the Library's own answer. */
 
-import { streamBrainAnswer, type AskBrainEvent, type AskHistoryTurn } from "@/lib/brain/ask";
+import { streamBrainAnswer, type AskBrainEvent, type AskHistoryTurn, type AskPage } from "@/lib/brain/ask";
 import { TARGET_KINDS } from "@/lib/brain/tools";
 import { toolsFor, type TiffTool, type Viewer } from "@/lib/tiff/registry";
 import { screenLine } from "@/lib/tiff/registry/lines";
 import { parseMove } from "@/lib/tiff/moves";
-import { navFor } from "@/components/shell/nav";
+import { ALL_SCREENS, navFor } from "@/components/shell/nav";
 import type { TokenUsage } from "@/lib/tiff/usage";
 
 const QUESTION_MAX = 1_000;
@@ -29,10 +29,32 @@ export type AskBody = {
   /** The modal's word that these were a move request; the only value taken. */
   intent?: "move";
   question: string;
-  target?: { kind: (typeof TARGET_KINDS)[number]; id: string };
-  targetLabel?: string;
+  /** Where they are: the screen, and the record the modal is aimed at. */
+  page?: AskPage;
   history: AskHistoryTurn[];
 };
+
+/** An id longer than this isn't one of ours; a label is trimmed to it. */
+const PAGE_ID_MAX = 64;
+const PAGE_LABEL_MAX = 200;
+const SCREEN_LABELS = new Set(ALL_SCREENS.map((n) => n.label));
+
+/* WHERE THEY ARE, CHECKED. It reaches the model as text in their message, so
+   each part is checked and anything off is dropped rather than refused: a
+   screen must be one of the nav's names; a target a kind job_history reads
+   (a ServiceM8 job sheet aims the modal at `job`), with an id of ours kept
+   whole; a label trimmed. */
+function shapePage(raw: unknown): AskPage | undefined {
+  const p = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const screen = typeof p.screen === "string" && SCREEN_LABELS.has(p.screen) ? p.screen : undefined;
+  const t = (p.target && typeof p.target === "object" ? p.target : {}) as Record<string, unknown>;
+  const kind = TARGET_KINDS.find((k) => k === t.kind);
+  const id = typeof t.id === "string" ? t.id.trim() : "";
+  const label = typeof t.label === "string" ? t.label.trim().slice(0, PAGE_LABEL_MAX) : "";
+  const target = kind && id && id.length <= PAGE_ID_MAX ? { kind, id, ...(label ? { label } : {}) } : undefined;
+  if (!screen && !target) return undefined;
+  return { ...(screen ? { screen } : {}), ...(target ? { target } : {}) };
+}
 
 /* The history is replayed into the model as earlier turns, so it is the one
    input a caller could use to put words in Tiff's mouth: text only, the last
@@ -57,24 +79,10 @@ export function shapeAsk(raw: unknown): AskBody | null {
     typeof body.question === "string" ? body.question.trim().slice(0, QUESTION_MAX) : "";
   if (!question) return null;
 
-  /* A target is whatever job_history can read — the system prompt tells the
-     loop to call it with this — and nothing else. A ServiceM8 job sheet aims
-     the modal at `job`, so a list without it drops the target in silence and
-     "what's wrong with this job?" arrives about no job at all. */
-  let target: AskBody["target"];
-  const t = (body.target ?? null) as Record<string, unknown> | null;
-  const kind = TARGET_KINDS.find((k) => k === t?.kind);
-  if (kind && typeof t?.id === "string" && t.id) {
-    target = { kind, id: t.id };
-  }
-
-  const targetLabel =
-    typeof body.targetLabel === "string" ? body.targetLabel.trim().slice(0, 200) : undefined;
-
+  const page = shapePage(body.page);
   return {
     question,
-    target,
-    targetLabel: targetLabel || undefined,
+    ...(page ? { page } : {}),
     history: shapeHistory(body.history),
     ...(body.intent === "move" ? { intent: "move" as const } : {}),
   };
@@ -102,8 +110,7 @@ export function answer(
     viewer,
     question: body.question,
     tools: opts.tools ?? toolsFor(viewer),
-    targetLabel: body.targetLabel,
-    targetRef: body.target,
+    page: body.page,
     todayISO: viewer.today,
     signal: opts.signal,
     history: body.history,

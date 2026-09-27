@@ -175,12 +175,16 @@ export function useConversation({
   voiceEnabled,
   target: aimTarget,
   targetLabel: aimLabel,
+  screen,
   onLeave,
 }: {
   opening: Opening;
   voiceEnabled: boolean;
   target: NoteTarget;
   targetLabel?: string;
+  /** The screen the modal was opened over, by its nav name: part of where
+      Tiff is told the person is. */
+  screen?: string;
   /** Tiff moved the screen: the modal closes, and the page goes to `href`
       once it has. Called after her line has been shown. */
   onLeave?: (href: string) => void;
@@ -507,6 +511,7 @@ export function useConversation({
     void askBrain(
       {
         question,
+        screen,
         target,
         targetLabel,
         history: spoken(before),

@@ -209,6 +209,20 @@ describe("the rows (D-3)", () => {
     expect(screen.getByRole("button", { name: P.addAnother })).toBeInTheDocument();
   });
 
+  it("(F) refuses a row that runs past midnight in its own place, keeps Book in off, and never shows a placeholder", async () => {
+    const { container } = panel();
+    await waitFor(() => expect(who().options.length).toBe(3));
+    await userEvent.selectOptions(who(), SAM);
+    await userEvent.selectOptions(screen.getAllByLabelText(P.start)[0], "23:00");
+    expect(screen.getByText(BOOKING_WORDS.press.crossesMidnight)).toHaveClass("sw-state", "bad");
+    expect(bookButton()).toBeDisabled();
+    expect(container.textContent).not.toMatch(/\{\w+\}/);
+    await userEvent.selectOptions(screen.getAllByLabelText(P.length)[0], "30");
+    expect(screen.queryByText(BOOKING_WORDS.press.crossesMidnight)).toBeNull();
+    expect(bookButton()).toBeEnabled();
+    expect(screen.getByText("Books Sam Tester on Wed 7 Oct, 11:00 to 11:30 pm.")).toBeInTheDocument();
+  });
+
   it("says what Book in will book, one or several", async () => {
     panel();
     await waitFor(() => expect(who().options.length).toBe(3));

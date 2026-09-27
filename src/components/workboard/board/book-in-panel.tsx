@@ -108,6 +108,10 @@ function seededRow(id: number, seed: BookInSeed | null | undefined): Row {
   };
 }
 
+/** A row whose booking would end past midnight: no slot of that day holds
+    it (a booking ends on the day it starts). */
+const crossesMidnight = (r: Row) => DAY.test(r.day) && !slotOf(r.day, r.start, r.minutes);
+
 /** The browser's own zone, or null where it can't say. */
 function browserZone(): string | null {
   try {
@@ -239,7 +243,7 @@ export function BookInPanel({
   };
 
   const staffName = (uuid: string) => ctx?.staff.find((s) => low(s.uuid) === low(uuid))?.name ?? null;
-  const complete = !!ctx && rows.every((r) => !!r.staffUuid && DAY.test(r.day));
+  const complete = !!ctx && rows.every((r) => !!r.staffUuid && DAY.test(r.day) && !crossesMidnight(r));
   const quote = ctx?.job.status === "Quote";
 
   const book = () => {
@@ -339,6 +343,13 @@ export function BookInPanel({
             <button type="button" className="wb2-evdoor" onClick={() => removeRow(r.id)}>
               {BOOKING_WORDS.panel.remove}
             </button>
+          )}
+          {/* a row that runs past midnight is refused here, before anything
+              is pressed: Book in stays off until it ends on its own day */}
+          {crossesMidnight(r) && (
+            <p className="wb2-jcattgap">
+              <StateLine as="span" line={{ word: BOOKING_WORDS.press.crossesMidnight, tone: "bad" }} />
+            </p>
           )}
         </div>
       ))}

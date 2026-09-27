@@ -1438,8 +1438,10 @@ export function JobSheet({
     setBkVerbs(s.verbs);
     setBkLines(s.lines);
     setBkGone(new Set(s.gone.map((u) => u.trim().toLowerCase())));
-    const seen = new Set(s.verbs.flatMap((v) => [...(v.status ? [v.status.rowId] : []), ...v.bookings.map((b) => b.rowId)]));
-    setBkPending((cur) => (cur.size === 0 ? cur : new Set([...cur].filter((id) => !seen.has(id)))));
+    /* a read that answered is the truth about what a press queued: from
+       here the lines alone say whether anything waits. A row with no line
+       to say (a trial's status change) never keeps the card asking */
+    setBkPending((cur) => (cur.size === 0 ? cur : new Set()));
   };
   useNoteStatePoll({
     waiting: !!bookings && (bookingsWaiting(bkVerbs, bkLines) || bkPending.size > 0),

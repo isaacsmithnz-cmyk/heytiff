@@ -211,6 +211,8 @@ beforeEach(() => {
   readJobRecord.mockReset().mockResolvedValue(record());
   for (const f of Object.values(bk)) f.mockClear();
   bk.readBookingStates.mockReset().mockResolvedValue(null);
+  bk.readBookInContext.mockReset().mockResolvedValue({ ok: false, error: "Not in a test." });
+  bk.bookJobIn.mockReset().mockResolvedValue({ ok: false, error: "Not in a test." });
   bk.takeBackBooking.mockReset().mockResolvedValue({ ok: true, line: null });
   bk.retryBooking.mockReset().mockResolvedValue({ ok: true, line: null });
   bk.clearLeftoverBooking.mockReset().mockResolvedValue({ ok: true, line: null });
@@ -500,6 +502,50 @@ describe("the poll (D-11)", () => {
     });
     expect(bk.readBookingStates).toHaveBeenCalledTimes(1);
     for (let i = 0; i < 5; i++) {
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(10_000);
+      });
+    }
+    expect(bk.readBookingStates).toHaveBeenCalledTimes(1);
+  });
+
+  it("(F) a trial Book in that makes a Quote a Work Order stops asking once a read has answered", async () => {
+    jest.useFakeTimers({ doNotFake: ["queueMicrotask", "nextTick", "setImmediate"] });
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    /* a trial's status change has no line to say; its booking says Trial run */
+    const trial: VerbView = {
+      ...ourVerb({ key: "line.trial", text: BOOKING_WORDS.line.trial, tone: null, acts: ["cancel"] }),
+      status: null,
+    };
+    trial.bookings[0] = { ...trial.bookings[0], uuid: NOT_YET, standing: false };
+    readMirrorJob.mockResolvedValue({ detail: detail({ booked: [] }), focusRemoteId: null });
+    readJobRecord.mockResolvedValue(record(bookings()));
+    bk.readBookInContext.mockResolvedValue({
+      ok: true,
+      offered: true,
+      trial: true,
+      hold: null,
+      zone: "Australia/Sydney",
+      today: "2026-10-06",
+      job: { uuid: JOB, number: "3342", status: "Quote", editDate: "2026-10-01 10:00:00" },
+      bookings: [],
+      days: { "2026-10-07": [] },
+      jobNumbers: {},
+      staff: [{ uuid: SAM, name: "Sam Tester", you: true, linked: true }],
+      readAt: "2026-10-05T22:00:00.000Z",
+    } as never);
+    bk.bookJobIn.mockResolvedValue({ ok: true, verb: trial, rowIds: ["s-1", "c-2"] } as never);
+    bk.readBookingStates.mockResolvedValue({ verbs: [trial], lines: {}, gone: [] });
+    render(<JobSheet row={row()} {...props} openBookIn />);
+    const who = await screen.findByRole("combobox", { name: BOOKING_WORDS.panel.who });
+    await waitFor(() => expect((who as HTMLSelectElement).options.length).toBe(2));
+    await user.selectOptions(who, SAM);
+    await user.click(screen.getByRole("button", { name: BOOKING_WORDS.panel.book }));
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(0);
+    });
+    expect(bk.bookJobIn).toHaveBeenCalledTimes(1);
+    for (let i = 0; i < 6; i++) {
       await act(async () => {
         await jest.advanceTimersByTimeAsync(10_000);
       });

@@ -1635,7 +1635,8 @@ describe("Undo takes a booking back (B-8)", () => {
     await run();
     expect(sm8.deletes).toEqual([]);
     expect(sm8.active(c.remote_uuid as string)).toBe(false);
-    expect(takeBackOf(c.id)).toMatchObject({ status: "sent", http_status: null });
+    /* read inactive, it counts as taken out: the overlay's gone holds it */
+    expect(takeBackOf(c.id)).toMatchObject({ status: "sent", http_status: null, verify_uuids: [c.remote_uuid] });
   });
 
   it("(F) the mirror already shows it removed: the take-back settles, and no DELETE is even queued", async () => {
@@ -1943,6 +1944,8 @@ describe("Undo takes a booking back (B-8)", () => {
     await bookIn();
     const [c] = creates();
     Object.assign(c, { status: "sending", lease_until: new Date(Date.now() + 90_000).toISOString(), maybe_landed: true, claim_id: "x" });
+    /* its POST has landed; its sender hasn't finished */
+    sm8.put({ uuid: c.remote_uuid as string, jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
     expect(await undo(c)).toMatchObject({ ok: true, plan: "deleting" });
     await run();
     const d = takeBackOf(c.id)!;

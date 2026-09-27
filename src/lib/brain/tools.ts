@@ -78,6 +78,13 @@ const TARGET_TABLE = {
   job: { table: "sm8_jobs", id: "uuid", text: "job_description" },
 } as const;
 
+/** Every kind job_history can read, in one list: its own schema enum and the
+    ask route's target check are both this, so a job the Tiff modal is aimed
+    at is always one the loop can be told to read. Three hand-kept copies of
+    it drifted once — `job` reached this table and neither of the others,
+    and a question asked from a job sheet went out with no target. */
+export const TARGET_KINDS = Object.keys(TARGET_TABLE) as (keyof typeof TARGET_TABLE)[];
+
 /** The last five things written on a target, whatever their status (a
     dismissed note still grounds the router, as it always has) — but never
     one somebody TOOK BACK (removed_at, the tombstone a take-back leaves:
@@ -250,6 +257,12 @@ export type BrainTool = {
 
 const str = { type: "string" } as const;
 
+/** One search_jobs candidate, shaped to be handed straight to job_history. */
+export type JobSearchResult = { kind: "job"; id: string } & Pick<
+  JobSearchHit,
+  "jobNumber" | "status" | "clientName" | "suburb" | "address" | "description" | "linkedTo"
+>;
+
 export const BRAIN_TOOLS: readonly BrainTool[] = [
   {
     name: "job_history",
@@ -258,11 +271,12 @@ export const BRAIN_TOOLS: readonly BrainTool[] = [
     description:
       "Everything already on record for one job: open issues with how often each has recurred, " +
       "active flags, the last few notes, equipment on site, and the job's own notes. Call this " +
-      "before answering anything about a specific job.",
+      "before answering anything about a specific job. A ServiceM8 job is kind \"job\" — pass " +
+      "the kind and id a search_jobs result gives you.",
     inputSchema: {
       type: "object",
       properties: {
-        kind: { type: "string", enum: ["project", "visit", "agreement"] },
+        kind: { type: "string", enum: TARGET_KINDS },
         id: str,
       },
       required: ["kind", "id"],
@@ -279,16 +293,32 @@ export const BRAIN_TOOLS: readonly BrainTool[] = [
     label: "Searching the board's jobs",
     capability: "workboard",
     description:
-      "Find jobs by client, site, service or job number. Returns candidates with their ids — " +
-      "use job_history on a result to read one in depth.",
+      "Find ServiceM8 jobs by client, site, service or job number. Each candidate carries the " +
+      "kind and id job_history takes — pass them as they are to read one in depth.",
     inputSchema: {
       type: "object",
       properties: { query: str },
       required: ["query"],
       additionalProperties: false,
     },
-    run: async (orgId, input): Promise<JobSearchHit[]> =>
-      searchMirrorJobs(orgId, String(input.query ?? "")),
+    /* A hit is a mirror job, known by its ServiceM8 uuid — `remoteId` to the
+       attach picker, which is no name a model would think to hand job_history
+       as an `id`. So each one says outright what job_history wants, `kind`
+       and `id`. The rest is named field by field: the client's company uuid
+       answers nothing, and a column the picker grows later should not reach
+       the prompt unasked. */
+    run: async (orgId, input): Promise<JobSearchResult[]> =>
+      (await searchMirrorJobs(orgId, String(input.query ?? ""))).map((h) => ({
+        kind: "job",
+        id: h.remoteId,
+        jobNumber: h.jobNumber,
+        status: h.status,
+        clientName: h.clientName,
+        suburb: h.suburb,
+        address: h.address,
+        description: h.description,
+        linkedTo: h.linkedTo,
+      })),
   },
   {
     name: "open_task_load",

@@ -10,6 +10,8 @@ let lists: Record<string, Record<string, unknown>[]> = {};
 let rows: Record<string, Record<string, unknown> | null> = {};
 /** `.is(col, null)` filters asked for, as `table.col`. */
 const tombstoneFilters: string[] = [];
+/** `.eq(col, value)` filters asked for, as `table.col=value`. */
+const eqFilters: string[] = [];
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
@@ -17,7 +19,10 @@ jest.mock("@/lib/supabase-server", () => ({
       const chain: Record<string, unknown> = {};
       const self = () => chain;
       chain.select = self;
-      chain.eq = self;
+      chain.eq = (col: string, value: unknown) => {
+        eqFilters.push(`${table}.${col}=${value}`);
+        return chain;
+      };
       chain.in = self;
       chain.is = (col: string) => {
         tombstoneFilters.push(`${table}.${col}`);
@@ -33,7 +38,21 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-const searchMirrorJobs = jest.fn(async () => [{ id: "j-1", label: "Meridian" }]);
+/* A hit as the attach picker has it: the job known by its ServiceM8 uuid,
+   `remoteId`, beside the client's company uuid. */
+const searchMirrorJobs = jest.fn(async () => [
+  {
+    remoteId: "sm8-uuid-3323",
+    jobNumber: "3323",
+    status: "Work Order",
+    clientName: "Meridian Data",
+    companyId: "sm8-co-9",
+    suburb: "Randwick",
+    address: "2 Spring St\nRandwick NSW 2031",
+    description: "Supply and install 12.5kW ducted",
+    linkedTo: [],
+  },
+]);
 jest.mock("@/lib/workboard/projects-query", () => ({
   searchMirrorJobs: (...a: unknown[]) => searchMirrorJobs(...(a as [])),
 }));
@@ -61,6 +80,7 @@ import { BRAIN_TOOLS, jobHistory, openTaskLoad, runTool, toolDefs } from "../too
 beforeEach(() => {
   lists = {};
   rows = {};
+  eqFilters.length = 0;
   searchMirrorJobs.mockClear();
 });
 
@@ -146,8 +166,53 @@ describe("the registry", () => {
 
   it("dispatches by name", async () => {
     const res = await runTool("org-1", "search_jobs", { query: "meridian" });
-    expect(res).toEqual({ ok: true, result: [{ id: "j-1", label: "Meridian" }] });
+    expect(res.ok).toBe(true);
     expect(searchMirrorJobs).toHaveBeenCalledWith("org-1", "meridian");
+  });
+
+  it("job_history takes every kind it can read — a ServiceM8 job included", () => {
+    /* The job sheet aims the Tiff modal at `job`, and the system prompt tells
+       the loop to call job_history with whatever it is aimed at. An enum
+       without `job` is a tool the model is told to call and can't. */
+    const tool = BRAIN_TOOLS.find((t) => t.name === "job_history")!;
+    const kind = (tool.inputSchema.properties as Record<string, { enum: string[] }>).kind;
+    expect(kind.enum).toEqual(["project", "visit", "agreement", "job"]);
+  });
+
+  it("a search_jobs hit carries the kind and id job_history takes, not the picker's remoteId", async () => {
+    const res = await runTool("org-1", "search_jobs", { query: "meridian" });
+    expect(res).toEqual({
+      ok: true,
+      result: [
+        {
+          kind: "job",
+          id: "sm8-uuid-3323",
+          jobNumber: "3323",
+          status: "Work Order",
+          clientName: "Meridian Data",
+          suburb: "Randwick",
+          address: "2 Spring St\nRandwick NSW 2031",
+          description: "Supply and install 12.5kW ducted",
+          linkedTo: [],
+        },
+      ],
+    });
+  });
+
+  it("handing a search hit straight to job_history reads that mirror job by its uuid", async () => {
+    /* The round trip the loop makes: search, then read one in depth. The hit
+       must fit job_history's own schema as it stands, and land on the
+       ServiceM8 row — its description is the job's own words. */
+    const found = await runTool("org-1", "search_jobs", { query: "3323" });
+    const [hit] = (found as { ok: true; result: { kind: string; id: string }[] }).result;
+    const schema = BRAIN_TOOLS.find((t) => t.name === "job_history")!.inputSchema;
+    expect((schema.properties as Record<string, { enum: string[] }>).kind.enum).toContain(hit.kind);
+
+    rows.sm8_jobs = { job_description: "Supply and install 12.5kW ducted" };
+    const res = await runTool("org-1", "job_history", { kind: hit.kind, id: hit.id });
+    expect(res).toMatchObject({ ok: true, result: { jobNotes: "Supply and install 12.5kW ducted" } });
+    expect(eqFilters).toContain("sm8_jobs.uuid=sm8-uuid-3323");
+    expect(eqFilters).toContain("workboard_notes.target_kind=job");
   });
 
   it("an unknown tool is an error value the loop can show the model — never a throw", async () => {

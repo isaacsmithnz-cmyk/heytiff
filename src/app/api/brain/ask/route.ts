@@ -1,7 +1,7 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { streamBrainAnswer, type AskHistoryTurn } from "@/lib/brain/ask";
-import { toolsFor } from "@/lib/brain/tools";
+import { TARGET_KINDS, toolsFor } from "@/lib/brain/tools";
 import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
 
@@ -35,7 +35,7 @@ const FAILED = "That couldn't be answered just now. Try again.";
 
 type AskBody = {
   question: string;
-  target?: { kind: "project" | "visit" | "agreement"; id: string };
+  target?: { kind: (typeof TARGET_KINDS)[number]; id: string };
   targetLabel?: string;
   history: AskHistoryTurn[];
 };
@@ -63,15 +63,15 @@ function shapeBody(raw: unknown): AskBody | null {
     typeof body.question === "string" ? body.question.trim().slice(0, QUESTION_MAX) : "";
   if (!question) return null;
 
+  /* A target is whatever job_history can read — the system prompt tells the
+     loop to call it with this — and nothing else. A ServiceM8 job sheet aims
+     the modal at `job`, so a list without it drops the target in silence and
+     "what's wrong with this job?" arrives about no job at all. */
   let target: AskBody["target"];
   const t = (body.target ?? null) as Record<string, unknown> | null;
-  if (
-    t &&
-    (t.kind === "project" || t.kind === "visit" || t.kind === "agreement") &&
-    typeof t.id === "string" &&
-    t.id
-  ) {
-    target = { kind: t.kind, id: t.id };
+  const kind = TARGET_KINDS.find((k) => k === t?.kind);
+  if (kind && typeof t?.id === "string" && t.id) {
+    target = { kind, id: t.id };
   }
 
   const targetLabel =

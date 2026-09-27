@@ -111,6 +111,10 @@ const OPEN_SCREEN = {
    is strict (TIFF_LOOP_STRICT=0 turns it off, to see what the grammar costs). */
 const LOOP_EFFORT = (process.env.TIFF_LOOP_EFFORT ?? EFFORT) as "low" | "medium" | "high";
 const LOOP_STRICT = process.env.TIFF_LOOP_STRICT !== "0";
+/* TIFF_LOOP_NOLOOKUP=1: tell the loop not to look a job up before filing.
+   The router never does (a note is filed on what was said, and "which job?"
+   is asked after), and in P0 the loop spent 3 to 6 s doing it on 4 notes. */
+const LOOP_NOLOOKUP = process.env.TIFF_LOOP_NOLOOKUP === "1";
 
 const FILE_NOTE = {
   name: "file_note",
@@ -137,6 +141,9 @@ function loopSystem(ctx: NoteContext): string {
     "When they ask you something, answer it, using the read tools for anything about this workspace.",
     "When they ask to go somewhere, call open_screen.",
     "Words that are noise, a test or not meant for you still go to file_note, kept as the rules say.",
+    ...(LOOP_NOLOOKUP
+      ? ["Never look anything up before filing a note: file it on what they said. Which job it is gets asked afterwards."]
+      : []),
     "",
     REPLY_IN_KIND,
     "",

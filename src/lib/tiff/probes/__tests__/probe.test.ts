@@ -4,6 +4,7 @@
 /* THE PHASE 0 PROBES. Opt-in, never part of `npm test`.
 
        TIFF_PROBE=p0 npm run probe:tiff      notes: today's router against the loop
+       TIFF_PROBE=p0base npm run probe:tiff  notes: today's router against itself
        TIFF_PROBE=p1 npm run probe:tiff      Opus 5 against Opus 5.5, notes and questions
        TIFF_PROBE=p3 npm run probe:tiff      tool search against every tool loaded
 
@@ -148,12 +149,32 @@ async function p0(client: Anthropic) {
   );
   const effort = process.env.TIFF_LOOP_EFFORT ?? "medium";
   const strict = process.env.TIFF_LOOP_STRICT !== "0";
-  const variant = effort === "medium" && strict ? "" : `-${effort}${strict ? "" : "-loose"}`;
+  const nolookup = process.env.TIFF_LOOP_NOLOOKUP === "1";
+  const variant = `${effort === "medium" ? "" : `-${effort}`}${strict ? "" : "-loose"}${nolookup ? "-nolookup" : ""}`;
   await save(
     `p0${variant}`,
     rows,
-    pairReport(`P0: notes through today's router and through the loop (loop effort ${effort}, file_note ${strict ? "strict" : "not strict"})`, "Router", "Loop", rows),
+    pairReport(
+      `P0: notes through today's router and through the loop (loop effort ${effort}, file_note ${strict ? "strict" : "not strict"}${nolookup ? ", no look-ups before filing" : ""})`,
+      "Router",
+      "Loop",
+      rows,
+    ),
   );
+}
+
+/** How often today's router agrees with itself: the yardstick P0's "same
+    rows" needs, because a router that disagrees with itself one note in five
+    makes 24 of 30 noise rather than a loss. */
+async function p0base(client: Anthropic) {
+  const notes = (await storedNotes()).slice(0, LIMIT);
+  const rows = await pairs(
+    client,
+    notes,
+    (n, ctx) => routerRead(client, n.transcript, ctx, OPUS_5),
+    (n, ctx) => routerRead(client, n.transcript, ctx, OPUS_5),
+  );
+  await save("p0base", rows, pairReport("P0 baseline: today's router against itself", "Router", "Router again", rows));
 }
 
 type Question = { ask: string; expect?: string };
@@ -275,9 +296,10 @@ describe("Tiff's Phase 0 probes", () => {
       }
       const client = new Anthropic({ maxRetries: 4 });
       if (PROBE === "p0") await p0(client);
+      else if (PROBE === "p0base") await p0base(client);
       else if (PROBE === "p1") await p1(client);
       else if (PROBE === "p3") await p3(client);
-      else console.log(`No probe called ${PROBE}. Try p0, p1 or p3.`);
+      else console.log(`No probe called ${PROBE}. Try p0, p0base, p1 or p3.`);
     },
     3 * 60 * 60 * 1000,
   );

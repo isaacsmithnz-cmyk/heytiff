@@ -1546,7 +1546,7 @@ async function sendOne(
   row: WriteRow,
   attempts: number,
   access: Sm8Access | null,
-  t: { claimedAt: number; clock: () => number; sleep?: (ms: number) => Promise<void> }
+  t: { claimedAt: number; clock: () => number; sleep?: (ms: number) => Promise<void>; track?: { wrote: boolean } }
 ): Promise<{ finish: Finish; access: Sm8Access | null }> {
   /* the reconnect accident with writes in it: never another account */
   if (row.tenant_id !== state.tenantId) {
@@ -1786,19 +1786,23 @@ export async function runSm8Writes(
     sentSinceRead = true;
 
     let f: Finish;
+    /* a booking's sender marks the moment a POST or a DELETE starts */
+    const track = { wrote: false };
     try {
-      const sent = await sendOne(orgId, current, row, row.attempts + 1, access, { claimedAt, clock, sleep: opts.sleep });
+      const sent = await sendOne(orgId, current, row, row.attempts + 1, access, { claimedAt, clock, sleep: opts.sleep, track });
       f = sent.finish;
       access = sent.access;
     } catch (err) {
       /* nothing above should throw; if something does, the row is not left
          claimed until its lease lapses — and, not knowing whether an upload
-         went, a live send keeps its uuid marked as maybe landed. Each kind
-         says it in its own words. */
+         went, a live send keeps its uuid marked as maybe landed. A booking
+         knows: only one whose POST or DELETE started is marked, and one
+         that threw before any is a plain retry. Each kind says it in its
+         own words. */
       console.error(`[sm8] write ${row.id} (${trigger}) threw: ${err instanceof Error ? err.message : String(err)}`);
       f = {
         ...fromVerdict(verdictForUnreadable(row.attempts + 1, note ? "note" : booking ? "booking" : "attachment")),
-        uploadLost: live,
+        uploadLost: booking ? track.wrote : live,
       };
     }
     const landed = await finish(orgId, row, claimId, f, clock());

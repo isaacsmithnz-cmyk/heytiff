@@ -655,6 +655,78 @@ describe("a booking ServiceM8 kept differently trips a guard (B-7)", () => {
   });
 });
 
+/* ── what a booking's read-back decides (review) ── */
+
+describe("a booking's read-back, after its POST and before it (review: S4, R2-7, R2-10, N1, B-7)", () => {
+  it("(F, S4) found INACTIVE right after our own 2xx: read again, and still inactive it is the guard — sent, Bookings off", async () => {
+    await bookIn();
+    const [c] = creates();
+    postSm8Booking.mockImplementationOnce(async (call: unknown, b: { uuid: string }) => {
+      const res = await sm8.postBooking(call, b as never);
+      sm8.removeThere(b.uuid);
+      return res;
+    });
+    const r = await run();
+    expect(readSm8Booking.mock.calls.map((x) => x[1])).toEqual([c.remote_uuid, c.remote_uuid]);
+    expect(c).toMatchObject({ status: "sent", last_error: BOOKING_WORDS.row.timeNotKept, remote_uuid: c.remote_uuid });
+    expect(c.landed_edit_date).toBe(sm8.get(c.remote_uuid as string)!.editDate);
+    expect(r.stopped).toBe(BOOKING_WORDS.row.timeNotKept);
+    expect(bookingsOn()).toBe(false);
+  });
+
+  it("(F, R2-7) ...decided on two reads: inactive on the first only, and as booked on the second, it is sent as booked", async () => {
+    await bookIn();
+    const [c] = creates();
+    readSm8Booking.mockImplementationOnce(async (call: unknown, uuid: string) => {
+      const got = await sm8.readBooking(call, uuid);
+      return got.found ? { ...got, activity: { ...got.activity, active: 0 } } : got;
+    });
+    await run();
+    expect(readSm8Booking).toHaveBeenCalledTimes(2);
+    expect(c).toMatchObject({ status: "sent", last_error: null });
+    expect(bookingsOn()).toBe(true);
+  });
+
+  it("(F, B-7) a 400 whose read-back finds ours landed at another time trips the guard too", async () => {
+    await bookIn();
+    const [c] = creates();
+    postSm8Booking.mockImplementationOnce(async (call: unknown, b: { start: string; end: string }) => {
+      await sm8.postBooking(call, { ...b, start: hourOn(b.start), end: hourOn(b.end) } as never);
+      return { status: 400, outcome: { kind: "rejected", status: 400 }, remote: null, recordUuid: null };
+    });
+    const r = await run();
+    expect(c).toMatchObject({ status: "sent", last_error: BOOKING_WORDS.row.timeNotKept, http_status: 400, remote_uuid: c.remote_uuid });
+    expect(r.stopped).toBe(BOOKING_WORDS.row.timeNotKept);
+    expect(bookingsOn()).toBe(false);
+  });
+
+  it("(F, R2-10) our own uuid unsure and an older attempt's found as booked: sent under the older, and ours stays among the uuids it spent", async () => {
+    await bookIn();
+    const [c] = creates();
+    const own = c.remote_uuid as string;
+    Object.assign(c, { maybe_landed: true, verify_uuids: [OLD] });
+    sm8.put({ uuid: OLD, jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
+    await run();
+    expect(postSm8Booking).not.toHaveBeenCalled();
+    expect(c).toMatchObject({ status: "sent", remote_uuid: OLD, verify_uuids: [] });
+    expect(c.replaced_uuids).toEqual([own]);
+  });
+
+  it("(F, N1) a send that throws before its POST is a plain retry; one that throws after it keeps its uuid marked as maybe landed", async () => {
+    await bookIn();
+    const [c] = creates();
+    readSm8JobBookings.mockRejectedValueOnce(new Error("the list read fell over"));
+    await run();
+    expect(postSm8Booking).not.toHaveBeenCalled();
+    expect(c).toMatchObject({ status: "queued", last_error: BOOKING_WORDS.row.threw, maybe_landed: false });
+    due(c);
+    readSm8Booking.mockRejectedValueOnce(new Error("the read-back fell over"));
+    await run();
+    expect(postSm8Booking).toHaveBeenCalledTimes(1);
+    expect(c).toMatchObject({ status: "queued", last_error: BOOKING_WORDS.row.threw, maybe_landed: true });
+  });
+});
+
 /* ── a 2xx the read-back can't find ── */
 
 describe("a booking answered OK that the read-back can't find (B-23, B-23b, B-23c)", () => {
@@ -2911,14 +2983,14 @@ describe("the run, with bookings beside files and notes", () => {
     expect(c.status).toBe("failed");
   });
 
-  it("(F) a booking send that throws goes back to the queue in bookings' words, its uuid still maybe landed", async () => {
+  it("(F) a booking send that throws goes back to the queue in bookings' words — before its POST, not marked as maybe landed (N1)", async () => {
     await bookIn();
     const [c] = creates();
     readSm8Job.mockImplementationOnce(async () => {
       throw new Error("boom");
     });
     await run();
-    expect(c).toMatchObject({ status: "queued", last_error: BOOKING_WORDS.row.threw, maybe_landed: true });
+    expect(c).toMatchObject({ status: "queued", last_error: BOOKING_WORDS.row.threw, maybe_landed: false });
   });
 
   it("(F) a booking is never posted again under a fresh uuid: an answer that asks for one fails the row instead", async () => {

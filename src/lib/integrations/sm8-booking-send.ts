@@ -129,9 +129,17 @@ const TABLE = "sm8_writes";
 
 type Sent = { finish: Finish; access: Sm8Access | null };
 
-/** The claim's clocks, and how the second read-back waits (a test hands in
-    one that moves its clock). */
-export type BookingClock = { claimedAt: number; clock: () => number; sleep?: (ms: number) => Promise<void> };
+/** The claim's clocks, how the second read-back waits (a test hands in one
+    that moves its clock), and `track`, which the run reads if the send
+    throws: `wrote` is set the moment a POST or a DELETE is started, so a
+    throw before any is a plain retry and one after keeps the row's uuid
+    marked as maybe landed. */
+export type BookingClock = {
+  claimedAt: number;
+  clock: () => number;
+  sleep?: (ms: number) => Promise<void>;
+  track?: { wrote: boolean };
+};
 
 const done = (status: Sm8WriteStatus, error: string | null, extra: Partial<Finish> = {}): Finish => ({
   status,
@@ -365,6 +373,7 @@ async function sendBooking(
         if (w) return { finish: w };
         const stop = before ? await before(a) : null;
         if (stop) return { finish: stop };
+        if (t.track) t.track.wrote = true;
         return { res: await request(a) };
       },
       (r) => r.res?.outcome.kind === "unauthorized",
@@ -588,7 +597,9 @@ async function sendBooking(
       if ("finish" in r) return { ...r.finish, verifyUuids: verify };
       const c = r.got;
       if (c.found && same(c.activity.jobUuid, jobUuid)) {
-        if (c.activity.active === 1) return landedEarlier(uuid, own, c.activity);
+        /* an older attempt's found while our own is unsure: ours stays ours,
+           among the uuids the row spent */
+        if (c.activity.active === 1) return landedEarlier(uuid, own, c.activity, !own && unsure ? [row.remote_uuid] : []);
         /* inactive: somebody removed it */
         if (own) return done("cancelled", BOOKING_WORDS.row.bookingGone, { verifyUuids: verify });
         verify = verify.filter((u) => u !== uuid);
@@ -671,17 +682,16 @@ async function sendBooking(
     /* 5. a 2xx: FROM HERE THE ROW IS NEVER LET GO */
     if (res.outcome.kind === "created") {
       const theirs = res.recordUuid && !same(res.recordUuid, postUuid) ? res.recordUuid : null;
-      const ours = await readBack(postUuid);
+      const ours = await readBack(postUuid, "2xx");
       if (ours.state === "failed") {
         /* the 2xx stands; a read that failed never makes "not found" */
         return done("sent", null, { ...base, landedEditDate: null, ...(theirs ? { remoteUuid: theirs, replacedUuids: [postUuid] } : {}) });
       }
       if (ours.state === "found") return landedNow(postUuid, ours, base);
-      if (ours.state === "gone") return done("cancelled", BOOKING_WORDS.row.bookingGone, base);
       /* ours not found on two reads: ServiceM8 may have kept a uuid of its
          own (U1) */
       if (theirs) {
-        const other = await readBack(theirs);
+        const other = await readBack(theirs, "2xx");
         if (other.state === "failed") {
           return done("sent", null, { ...base, landedEditDate: null, remoteUuid: theirs, replacedUuids: [postUuid] });
         }
@@ -689,7 +699,6 @@ async function sendBooking(
           console.warn(`[sm8] booking kept under ServiceM8's own uuid (row ${row.id})`);
           return landedNow(theirs, other, { ...base, replacedUuids: [postUuid] });
         }
-        if (other.state === "gone") return done("cancelled", BOOKING_WORDS.row.bookingGone, base);
       }
       /* NOT FOUND UNDER EITHER UUID, on two reads of each: unsure, the mark
          kept, the answer's uuid waiting for its check so a take-back names
@@ -705,7 +714,7 @@ async function sendBooking(
 
     /* 6. a 400 or a 409: is ours there after all? */
     if (res.status === 400 || res.status === 409) {
-      const ours = await readBack(postUuid);
+      const ours = await readBack(postUuid, "refused");
       if (ours.state === "failed") return { ...ours.why, ...base, uploadLost: true };
       if (ours.state === "found") return landedNow(postUuid, ours, base);
       if (ours.state === "gone") return done("cancelled", BOOKING_WORDS.row.bookingGone, base);
@@ -723,9 +732,12 @@ async function sendBooking(
       time guard (a lost answer is no way round it). Anything else — another
       person, or an older attempt at other times — was changed in ServiceM8,
       or is an older attempt's: sent with the `movedThere` marker, no
-      Undo. */
-  async function landedEarlier(uuid: string, own: boolean, a: Sm8LiveActivity): Promise<Finish> {
-    const sentAs = (extra: Partial<Finish>): Finish => done("sent", null, { remoteUuid: uuid, verifyUuids: [], ...extra });
+      Undo. Sent under an older attempt's uuid, the row's own uuid, where a
+      POST under it may have landed, is `spent`: kept among the row's
+      replaced uuids, so it stays ours. */
+  async function landedEarlier(uuid: string, own: boolean, a: Sm8LiveActivity, spent: string[] = []): Promise<Finish> {
+    const kept = spent.length > 0 ? { replacedUuids: spent } : {};
+    const sentAs = (extra: Partial<Finish>): Finish => done("sent", null, { remoteUuid: uuid, verifyUuids: [], ...kept, ...extra });
     const how = compare(a, row);
     if (how === "equal") return sentAs({ landedEditDate: a.editDate });
     if (own && how === "time") {
@@ -743,13 +755,14 @@ async function sendBooking(
         guard: true,
       };
     }
-    return done("sent", BOOKING_WORDS.row.movedThere, { remoteUuid: uuid, verifyUuids: [], landedEditDate: a.editDate });
+    return done("sent", BOOKING_WORDS.row.movedThere, { remoteUuid: uuid, verifyUuids: [], ...kept, landedEditDate: a.editDate });
   }
 
   /** A booking found right after our own POST (or its 400 or 409): nobody
       can have moved it yet, so any difference is ServiceM8's, and trips a
       guard — `personNotKept` for another person or none, `timeNotKept`
-      for other times or flag. It is recorded SENT under the uuid it was
+      for other times or flag, or found inactive after our 2xx. It is
+      recorded SENT under the uuid it was
       found under (it exists, so Undo can remove it), with the edit time the
       last read found. */
   function landedNow(uuid: string, found: Extract<ReadBack, { state: "found" }>, extra: Partial<Finish>): Finish {
@@ -766,22 +779,25 @@ async function sendBooking(
   }
 
   /** Our booking read back AFTER our POST, on two reads where the first
-      doesn't settle it (U23): `found` on this job and active (with how it
-      compares, a difference read twice or with no second read to make),
-      `gone` on this job and inactive, `none` when neither read finds it on
-      this job, and `failed` when a read couldn't be made — never "not
-      found". */
+      doesn't settle it (U23): `found` on this job (with how it compares, a
+      difference read twice or with no second read to make), `gone` on this
+      job and inactive, `none` when neither read finds it on this job, and
+      `failed` when a read couldn't be made — never "not found".
+      INACTIVE RIGHT AFTER OUR OWN 2xx IS A DIFFERENCE like any other (2.7
+      create step 5: it must be found active), read again and, still so, a
+      guard; only after a 400 or a 409 (`refused`) is it somebody's
+      removal, `gone`. */
   type ReadBack =
     | { state: "found"; activity: Sm8LiveActivity; how: Compared }
     | { state: "gone" }
     | { state: "none" }
     | { state: "failed"; why: Finish };
 
-  async function readBack(uuid: string): Promise<ReadBack> {
+  async function readBack(uuid: string, answer: "2xx" | "refused"): Promise<ReadBack> {
     const read = (a: Sm8Access) => readSm8Booking(sm8CallOf(a, "write"), uuid);
     const classify = (c: { found: false } | { found: true; activity: Sm8LiveActivity }): ReadBack => {
       if (!c.found || !same(c.activity.jobUuid, jobUuid)) return { state: "none" };
-      if (c.activity.active !== 1) return { state: "gone" };
+      if (c.activity.active !== 1) return answer === "2xx" ? { state: "found", activity: c.activity, how: "time" } : { state: "gone" };
       return { state: "found", activity: c.activity, how: compare(c.activity, row) };
     };
     const first = await readLive(read, true);

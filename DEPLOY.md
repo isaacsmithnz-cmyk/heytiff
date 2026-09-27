@@ -337,7 +337,7 @@ it has to be threaded from its `workboard_notes` row before notes go on.
 
 **The order, word for word:**
 
-1. Apply A's migration, then B's, then C's. Each goes before the deploy that reads it.
+1. Apply A's migration, then B's, then C's. Each goes before the deploy that reads it. Once phase 3's `sm8_bookings_queue.sql` is applied, **never re-run `sm8_notes_queue.sql`**: it would narrow the kind check back to files and notes, and refuse every booking.
 2. Deploy. With `SM8_WRITES=1` nothing new shows.
 3. **Only after phase 1's live walk** (files on the real account), set `SM8_WRITES=attachment,note`. That needs a redeploy. Do it while Isaac isn't designing, because a redeploy reloads open tabs.
 4. The owner sets **Paused**.
@@ -409,6 +409,61 @@ names it.
 **Try it on a ServiceM8 account that isn't a live business first**, or use Trial
 run on the live one. A file sent to a job is visible to everyone who can open
 that job in ServiceM8.
+
+#### Bookings to ServiceM8 (two-way phase 3)
+
+The third kind of write is a **booking**. **Book in** on a job card books
+people on the job in ServiceM8, one booking per person and time, and first
+makes a Quote a Work Order when **Make it a Work Order** is ticked. **Undo**
+takes one of those bookings back, and **Clear** removes a future booking
+left on a Completed or Unsuccessful job. A booking goes as the app, never as
+a person. The owner's card carries **Bookings** beside Files and Notes, each
+Off or On (`integration_connections.write_kinds`). **Bookings starts Off.**
+Bookings need two more permissions, `manage_schedule` and `manage_jobs`,
+asked for at a reconnect only while the owner has Bookings On. The migration
+`docs/migrations/sm8_bookings_queue.sql` adds the kind, its columns on
+`sm8_writes`, one shape check for every kind, and the owner's third switch.
+With `SM8_WRITES` not naming `booking` nothing about bookings changes: no
+screen, no read and no write.
+
+**The order, word for word:**
+
+1. Apply `docs/migrations/sm8_bookings_queue.sql` before PR A's deploy. Run its read-only checks before and after. **Never re-run `sm8_notes_queue.sql` after it.**
+2. Deploy A to E as they merge. With `SM8_WRITES` not naming `booking`, nothing new shows.
+3. **Only after P0 to P6, the notes walk, and PR D:** set `SM8_WRITES=attachment,note,booking` (DECISIONS 14: notes are walked before bookings). That needs a redeploy. Do it while Isaac isn't designing, because a redeploy reloads open tabs.
+4. The owner sets **Paused**, then **Bookings On**.
+5. The owner presses **Reconnect** and approves `manage_schedule` and `manage_jobs`. **Never Reconnect in Trial.**
+6. **Trial run**, then L1.
+7. **On**, then L2 to L13.
+8. PR F's flips, in order, each after Isaac's word.
+
+**Rollback, word for word:**
+
+1. The owner turns **Bookings Off**. This cancels every waiting booking row: creates, status changes, take-backs and clears.
+2. Set `SM8_WRITES` without `booking` and redeploy. Wait two minutes, the longest lease.
+3. Run in the Supabase SQL editor:
+
+   ```sql
+   begin;
+   -- any booking row that could still move: old code can't send or settle it
+   update public.sm8_writes
+      set status = 'cancelled',
+          last_error = 'Sending bookings to ServiceM8 was switched off before it went.',
+          lease_until = null, claim_id = null, updated_at = now()
+    where kind = 'booking' and status in ('queued', 'sending', 'failed', 'trial');
+   commit;
+   ```
+
+4. Revert the code. The migration stays: old code never reads the new columns, and the widened checks allow every old row.
+5. **Tell Isaac:**
+   - bookings HeyTiff sent are real ServiceM8 bookings, and stay; remove any in ServiceM8 if needed (**Cancel booking**, H16);
+   - until the next sync, Home may list a job as still to book, because old code has no overlay;
+   - a status change that went stays a Work Order;
+   - a status change whose answer was lost may be a Work Order in ServiceM8 with no booking. The lead lists them with QW: `op = 'update'` rows with `maybe_landed`, or with a uuid in `verify_uuids`. Isaac looks at each of those jobs in ServiceM8.
+
+**Returning to new code** needs nothing undone:
+- a row the rollback cancelled reads "Not booked. Sending bookings to ServiceM8 was switched off before it went." with Try again;
+- one whose answer had been lost reads the unsure line.
 
 ### Calls, echo and freshness
 

@@ -1,5 +1,8 @@
 -- Notes in the ServiceM8 queue (two-way phase 2, PR A).
 --
+-- SUPERSEDED IN PART by sm8_bookings_queue.sql (the kind check, the shape
+-- check and sm8_set_write_kind): never re-run this file after that one.
+--
 -- WHEN TO APPLY: BEFORE THE DEPLOY OF PR A — a hard rule. The code falls
 -- back where it can (links without the confirm columns, state without
 -- write_kinds, the queue read without the note columns), but a note row

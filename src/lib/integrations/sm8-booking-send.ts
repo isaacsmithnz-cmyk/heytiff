@@ -23,7 +23,8 @@
       zone, its person active, starting at least 10 minutes ahead, and not
       within 10 minutes of its own day-old limit. None, and it waits out the
       two minutes after its press for its creates, then is cancelled.
-   4. The job, active in the mirror.
+   4. The job, active in the mirror — a booking's and a status change's; a
+      take-back or a Clear reads its booking live, and that decides.
    5. A create's person, active in the mirror.
    6. A create's start, still ahead.
    7. A create's status row: sent, it goes; waiting, it waits; a trial, it
@@ -61,7 +62,9 @@
    itself, whatever a read says later — a person's Try again, which reads
    first, is the only way another goes. Its targets are one each, whatever
    their case. A lost answer, a retry or a lapsed lease reads before any
-   DELETE, at least a minute on.
+   DELETE, at least a minute on. And ONE DELETE PER BOOKING, across rows: an
+   Undo and a Clear of one booking never both send one — the second waits
+   for the first, and one that went and took it out is out.
 
    A BOOKING IS NEVER POSTED AGAIN UNDER A FRESH UUID: our own uuid found on
    another job is marked changed there, never re-posted, and no answer here
@@ -85,6 +88,7 @@ import {
 import { createCanStillGo, deleteTargets, leaseLive, mayHaveLanded, sameEditDate } from "./sm8-note-plan";
 import { fillWords, NOTE_WORDS } from "./sm8-note-words";
 import {
+  BOOKING_DELETE_SETTLE_MS,
   BOOKING_READBACK_SEES_INACTIVE,
   BOOKING_REREAD_MS,
   BOOKING_STATUS_LEAD_MS,
@@ -96,9 +100,11 @@ import {
   STATUS_KEPT_FIELDS,
 } from "./sm8-booking-plan";
 import { bookingZone } from "./sm8-booking-zone";
+import { readDeletesOn } from "./sm8-booking-overlay";
 import {
   NOTE_READ_BY_MS,
   NOTE_SEND_BY_MS,
+  WRITE_LEASE_MS,
   verdictFor,
   verdictForAccountUnknown,
   verdictForCheckFailed,
@@ -417,10 +423,17 @@ async function sendBooking(
     }
   }
 
-  /* ── 4. the job, in the mirror ── */
-  const mirrorJob = await readMirrorJob(orgId, jobUuid);
-  if (mirrorJob === "failed") return end(checkFailed());
-  if (!mirrorJob || mirrorJob.active !== 1) return end(done("cancelled", BOOKING_WORDS.row.jobGone));
+  /* ── 4. the job, in the mirror: a booking's and a status change's. A
+     take-back or a Clear reads its booking live, and that decides — a job
+     gone from the mirror neither makes a DELETE safe nor stops one that is
+     wanted, and a take-back cancelled on it could never go again ── */
+  let jobNumber: string | null = null;
+  if (op !== "delete") {
+    const mirrorJob = await readMirrorJob(orgId, jobUuid);
+    if (mirrorJob === "failed") return end(checkFailed());
+    if (!mirrorJob || mirrorJob.active !== 1) return end(done("cancelled", BOOKING_WORDS.row.jobGone));
+    jobNumber = mirrorJob.number;
+  }
 
   /* ── 5. a create's person ── */
   let person = "";
@@ -452,7 +465,7 @@ async function sendBooking(
     /* a status change a guard recorded: Bookings is off, and nothing goes
        behind it */
     if (reasonOf(s.last_error) === "fieldsNotKept") {
-      return end(done("cancelled", fillWords(BOOKING_WORDS.row.guardStopped, { number: mirrorJob.number ?? jobUuid.slice(0, 8) })));
+      return end(done("cancelled", fillWords(BOOKING_WORDS.row.guardStopped, { number: jobNumber ?? jobUuid.slice(0, 8) })));
     }
   }
 
@@ -791,25 +804,45 @@ async function sendBooking(
 
   /* ── an Undo or a Clear ──
 
-     FOR EACH TARGET, IN THIS ORDER — because a DELETE on a booking already
-     out of ServiceM8 may put it back:
-     1. READ IT LIVE. Not there, or there and inactive: out already, and no
-        DELETE goes. A read that fails is never "out": the row goes back to
-        the queue, and its next go reads first again. A target this
-        take-back's DELETE already reached (remembered on the row) is only
-        read, never sent a second DELETE by itself: out, it is out; still
-        there on a second read, the row fails in words that say so.
+     ONE DELETE PER BOOKING, AND NONE TO A BOOKING ALREADY OUT — a DELETE on
+     a booking already out of ServiceM8 may put it back. First, a Clear's
+     job is read live (still finished), so the reads of its booking are the
+     last before its DELETE. Then FOR EACH TARGET, IN THIS ORDER:
+     1. READ IT LIVE. There and inactive: out already, and no DELETE goes.
+        Not there: out too — except for an Undo whose booking never went
+        (its answer was lost, so it may land yet): not there reads as out
+        only a minute after its create last tried, and before that the row
+        waits and reads again. A read that fails is never "out": the row
+        goes back to the queue, and its next go reads first again. A target
+        this take-back's DELETE already reached (remembered on the row) is
+        only read, never sent a second DELETE by itself: out, it is out;
+        still there on a second read, the row fails in words that say so.
      2 and 3. The checks an Undo or a Clear makes against what it read.
-     4. THE OVERLAP RULE: no check-in by the booking's person in its window.
-     5. THE DELETE, the account checked inside every attempt; the one after
+     4. THE JOB'S BOOKINGS, read live: the target's last read before its
+        DELETE. Not among them, it is out, and no DELETE goes; there with a
+        newer edit time, the checks are made again on that copy. Then THE
+        OVERLAP RULE: no check-in by the booking's person in its window.
+     5. NO OTHER DELETE ON IT (sm8-booking-overlay's readDeletesOn): another
+        take-back or Clear of this booking that went and took it out, and it
+        is out; one being sent under a claim that began before this one's,
+        or one that tried in the last minute, and this row waits, handed
+        back, with no request.
+     6. THE DELETE, the account checked inside every attempt; the one after
         a token renewal reads again first.
-     6. READ IT BACK: still there on a second read fails; a read that fails,
-        or no longer fits the claim, counts as out — the DELETE answered.
+     7. READ IT BACK: still there on a second read fails. After a 2xx or a
+        404 a read that fails, or no longer fits the claim, counts as out —
+        the DELETE answered; after a 409 it goes back to the queue, and its
+        next go reads first.
      Between targets the row may let go (the next attempt reads every
      target again); after a DELETE in this attempt it waits the second
-     read's time first. The DELETE's status is kept on the row. */
+     read's time first. The DELETE's status is kept on the row, and a row
+     that goes keeps THE UUIDS IT TOOK OUT — each one it DELETEd or read
+     inactive, never one it merely didn't find: the overlay's `gone`. */
   async function sendDelete(): Promise<Finish> {
     const reached = new Set((row.verify_uuids ?? []).map((u) => u.toLowerCase()));
+    const tookOut = new Set<string>();
+    /* when a target an Undo's booking may still land under is read again */
+    let landing: number | null = null;
     let httpStatus: number | null = null;
     let deletedNow = false;
     let landedEditDate: string | null = null;
@@ -824,40 +857,76 @@ async function sendBooking(
     const seen = new Set<string>();
     const unique = targets.filter((u) => (seen.has(u.toLowerCase()) ? false : (seen.add(u.toLowerCase()), true)));
 
+    /* a Clear's job, read live before its booking */
+    let jobStatus: string | null = null;
+    if (!undoCreate) {
+      if (!readInTime()) return held(letGoHere());
+      const j = await readJob();
+      if ("finish" in j) return held(j.finish);
+      jobStatus = j.got.found && j.got.job.active === 1 ? j.got.job.status : null;
+    }
+    const refusal = (a: Sm8LiveActivity): Finish | null => (undoCreate ? undoRefusal(undoCreate, a) : clearRefusal(a, jobStatus));
+
     for (const [i, target] of unique.entries()) {
+      const key = target.toLowerCase();
+      const read = (a: Sm8Access) => readSm8Booking(sm8CallOf(a, "write"), target);
+      /* out: DELETEd by this row, or read inactive */
+      const tookIt = (a: Sm8LiveActivity | null) => {
+        tookOut.add(key);
+        if (i === 0 && a) landedEditDate = a.editDate;
+      };
+
       /* 1 */
       if (!readInTime()) return held(letGoHere());
-      const first = await readLive((a) => readSm8Booking(sm8CallOf(a, "write"), target));
+      const first = await readLive(read);
       if ("finish" in first) return held(first.finish);
-      if (!first.got.found || first.got.activity.active !== 1) {
-        if (i === 0 && first.got.found) landedEditDate = first.got.activity.editDate;
+      if (!first.got.found) {
+        const until = mayStillLand();
+        if (until !== null) landing = Math.max(landing ?? 0, until);
         continue;
       }
-      if (reached.has(target.toLowerCase())) {
+      if (first.got.activity.active !== 1) {
+        tookIt(first.got.activity);
+        continue;
+      }
+      if (reached.has(key)) {
         /* our DELETE reached it already: read again, never sent another */
-        const again = await readAgain((a) => readSm8Booking(sm8CallOf(a, "write"), target));
+        const again = await readAgain(read);
         if (again === null) return held(letGoHere());
         if ("finish" in again) return held(again.finish);
         if (!again.got.found || again.got.activity.active !== 1) {
-          if (i === 0 && again.got.found) landedEditDate = again.got.activity.editDate;
+          tookIt(again.got.found ? again.got.activity : null);
           continue;
         }
         return held(done("failed", BOOKING_WORDS.row.removeNotKept), target);
       }
-      const booked = first.got.activity;
+      let booked = first.got.activity;
 
       /* 2 and 3 */
-      const refused = undoCreate ? undoRefusal(undoCreate, booked) : await clearRefusal(booked);
+      const refused = refusal(booked);
       if (refused) return held(refused, target);
 
       /* 4 */
       const b = await readLive((a) => readSm8JobBookings(sm8CallOf(a, "write"), booked.jobUuid ?? jobUuid));
       if ("finish" in b) return held(b.finish);
+      const latest = b.got.activities.find((a) => same(a.uuid, target));
+      if (!latest) continue;
+      if (!sameEditDate(latest.editDate, booked.editDate)) {
+        booked = latest;
+        const now = refusal(booked);
+        if (now) return held(now, target);
+      }
       if (checkedIn(booked, b.got.activities)) return held(done("cancelled", BOOKING_WORDS.row.checkIn), target);
 
       /* 5 */
+      const other = await otherDeletes(key);
+      if (other === "failed") return held(checkFailed());
+      if (other === "out") continue;
+      if (other !== null) return held(fromVerdict(verdictForWaitingOn(other, t.clock())));
+
+      /* 6 */
       if (!sendInTime()) return held(letGoHere());
-      let outMeanwhile = false;
+      let outMeanwhile = null as Sm8LiveActivity | "none" | null;
       let tries = 0;
       const sent = await writeApp(
         (a) => deleteSm8Booking(sm8CallOf(a, "write"), target),
@@ -868,30 +937,45 @@ async function sendBooking(
           const again = await readSm8Booking(sm8CallOf(a, "write"), target).catch(() => ({ ok: false }) as Sm8ReadFailure);
           if (!again.ok) return fromVerdict(verdictFor(again.limited ?? UNAVAILABLE, attempts, ctx()));
           if (!again.found || again.activity.active !== 1) {
-            outMeanwhile = true;
+            outMeanwhile = again.found ? again.activity : "none";
             return done("sent", null);
           }
           return sendInTime() ? null : letGoHere();
         }
       );
-      if (outMeanwhile) continue;
+      if (outMeanwhile) {
+        if (outMeanwhile !== "none") tookIt(outMeanwhile);
+        continue;
+      }
       if ("finish" in sent) return held(sent.finish);
       const { res } = sent;
       httpStatus = res.status;
 
-      /* 6: an answer that could mean it moved — a 2xx, a 404 or a 409 */
-      if (res.outcome.kind === "created" || res.status === 404 || res.status === 409) {
-        reached.add(target.toLowerCase());
+      /* 7: an answer that could mean it moved — a 2xx, a 404 or a 409. Only
+         a 2xx or a 404 counts a read that fails as out. */
+      const took = res.outcome.kind === "created" || res.status === 404;
+      if (took || res.status === 409) {
+        reached.add(key);
         deletedNow = true;
-        const after = await readLive((a) => readSm8Booking(sm8CallOf(a, "write"), target), true);
-        /* the DELETE answered: a read that fails counts as out */
-        if ("finish" in after || !after.got.found || after.got.activity.active !== 1) {
-          if (i === 0 && !("finish" in after) && after.got.found) landedEditDate = after.got.activity.editDate;
+        const unread = (f: Finish): Finish => ({ ...f, httpStatus: res.status, remote: res.remote });
+        const after = await readLive(read, true);
+        if ("finish" in after) {
+          if (!took) return held(unread(after.finish));
+          tookIt(null);
           continue;
         }
-        const again = await readAgain((a) => readSm8Booking(sm8CallOf(a, "write"), target));
-        if (again === null || "finish" in again || !again.got.found || again.got.activity.active !== 1) {
-          if (i === 0 && again && !("finish" in again) && again.got.found) landedEditDate = again.got.activity.editDate;
+        if (!after.got.found || after.got.activity.active !== 1) {
+          tookIt(after.got.found ? after.got.activity : null);
+          continue;
+        }
+        const again = await readAgain(read);
+        if (again === null || "finish" in again) {
+          if (!took) return held(unread(again ? again.finish : failedRead()));
+          tookIt(null);
+          continue;
+        }
+        if (!again.got.found || again.got.activity.active !== 1) {
+          tookIt(again.got.found ? again.got.activity : null);
           continue;
         }
         /* still there: never another DELETE by itself */
@@ -899,11 +983,53 @@ async function sendBooking(
         return held(done("failed", words, { httpStatus: res.status, remote: res.remote }), target);
       }
 
-      /* 7: any other answer goes by the verdict rules; a lost one (none, a
+      /* 8: any other answer goes by the verdict rules; a lost one (none, a
          408, a 5xx) goes back to the queue and reads first, a minute on */
       return held({ ...fromVerdict(verdictFor(res.outcome, attempts, ctx()), res.status), remote: res.remote });
     }
-    return done("sent", null, { httpStatus, targetUuid: unique[0], landedEditDate, verifyUuids: [] });
+    /* a booking that may land yet: the rest taken out, it is read again */
+    if (landing !== null) return held(fromVerdict(verdictForWaitingOn(landing, t.clock())));
+    return done("sent", null, { httpStatus, targetUuid: unique[0], landedEditDate, verifyUuids: [...tookOut] });
+  }
+
+  /** An Undo whose booking never went — its answer was lost, so it may land
+      yet: until a minute after its create last tried, the time a target
+      read as not there is read again. Null when that is past, and for a
+      booking that went (not there is out) or a Clear. */
+  function mayStillLand(): number | null {
+    if (!undoCreate || undoCreate.status === "sent" || !undoCreate.updated_at) return null;
+    const until = Date.parse(undoCreate.updated_at) + BOOKING_DELETE_SETTLE_MS;
+    return !Number.isNaN(until) && until > t.clock() ? until : null;
+  }
+
+  /** 5: THE OTHER TAKE-BACKS AND CLEARS OF THIS BOOKING (`key`, lower
+      case). One that went and took it out: "out". One being sent under a
+      live claim that began before this one's (a tie goes by id), or one
+      that tried in the last minute — whose DELETE may have landed where a
+      read can't see it yet: the time to wait for. Null when none is in the
+      way; "failed" when they couldn't be read, which is never "none". */
+  async function otherDeletes(key: string): Promise<"out" | "failed" | number | null> {
+    const on = await readDeletesOn(orgId, [key]);
+    if (on === null) return "failed";
+    const now = t.clock();
+    const mine = on.find((d) => d.id === row.id);
+    const myLease = mine?.lease_until ? Date.parse(mine.lease_until) : t.claimedAt + WRITE_LEASE_MS;
+    let until: number | null = null;
+    for (const d of on) {
+      if (d.id === row.id || !d.names.includes(key)) continue;
+      if (d.status === "sent") {
+        if (d.tookOut.includes(key)) return "out";
+        continue;
+      }
+      if (leaseLive(d, now)) {
+        const theirs = Date.parse(d.lease_until!);
+        if (theirs < myLease || (theirs === myLease && d.id < row.id)) until = Math.max(until ?? 0, theirs);
+        continue;
+      }
+      const tried = d.attempts > 0 && d.updated_at ? Date.parse(d.updated_at) + BOOKING_DELETE_SETTLE_MS : NaN;
+      if (!Number.isNaN(tried) && tried > now) until = Math.max(until ?? 0, tried);
+    }
+    return until;
   }
 
   /** An Undo's checks against the booking as read live (2.7 delete step 2).
@@ -934,19 +1060,16 @@ async function sendBooking(
   }
 
   /** A Clear's checks (2.7 delete step 3): the booking as read live, against
-      the one its presser's confirm showed, and the job, read live, still
-      finished. */
-  async function clearRefusal(a: Sm8LiveActivity): Promise<Finish | null> {
+      the one its presser's confirm showed, and its job (`jobStatus`, read
+      live before it, active) still finished. */
+  function clearRefusal(a: Sm8LiveActivity, jobStatus: string | null): Finish | null {
     if (!same(a.jobUuid, row.sm8_job_uuid)) return done("cancelled", BOOKING_WORDS.row.notLeftover);
     if (isRecorded(a)) return done("cancelled", BOOKING_WORDS.row.checkIn);
     if (!isFuture(a.start, zone, t.clock())) return done("cancelled", BOOKING_WORDS.row.notFuture);
     if (!same(a.staffUuid, row.booking_staff_uuid) || a.start !== (row.booking_start ?? null) || a.end !== (row.booking_end ?? null)) {
       return done("cancelled", BOOKING_WORDS.row.changed);
     }
-    const j = await readJob();
-    if ("finish" in j) return j.finish;
-    const status = j.got.found ? j.got.job.status : null;
-    if (status !== "Completed" && status !== "Unsuccessful") return done("cancelled", BOOKING_WORDS.row.notLeftover);
+    if (jobStatus !== "Completed" && jobStatus !== "Unsuccessful") return done("cancelled", BOOKING_WORDS.row.notLeftover);
     return null;
   }
 }
@@ -1133,10 +1256,11 @@ type CreateRead = {
   booking_staff_uuid: string | null;
   booking_start: string | null;
   booking_end: string | null;
+  updated_at: string | null;
 };
 
 const CREATE_COLUMNS =
-  "id, tenant_id, status, lease_until, remote_uuid, maybe_landed, verify_uuids, taken_back_at, attempts, last_error, landed_edit_date, sm8_job_uuid, booking_staff_uuid, booking_start, booking_end";
+  "id, tenant_id, status, lease_until, remote_uuid, maybe_landed, verify_uuids, taken_back_at, attempts, last_error, landed_edit_date, sm8_job_uuid, booking_staff_uuid, booking_start, booking_end, updated_at";
 
 /** Rule 8: settled exactly as the note sender settles a take-back's create,
     without the presser check (the queue helper made it). Its account

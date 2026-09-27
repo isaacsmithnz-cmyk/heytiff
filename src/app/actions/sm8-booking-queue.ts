@@ -27,7 +27,16 @@
      reads the job first.
    - A BOOKING THE MIRROR SHOWS REMOVED IS NEVER SENT A DELETE: ServiceM8's
      DELETE of a record already removed may put it back (the notes walk,
-     2026-09-27), so a take-back of one settles with nothing queued. */
+     2026-09-27), so a take-back of one settles with nothing queued.
+   - ONE DELETE PER BOOKING, AND NEVER ONE SOONER. A take-back or a Clear
+     already on its way is left as it is — a second press of it changes
+     nothing, since one brought forward could meet a DELETE whose answer
+     was lost and put the booking back — and an Undo and a Clear of the
+     same booking are never on their way together: the second press is
+     answered `taking_out`. The sender holds the same rule for what gets
+     past a press (sm8-booking-send).
+   - A PRESS DECIDES ON ALL OF WHAT WE SENT AND TOOK OUT, OR NOTHING: an
+     overlay that couldn't be read whole queues nothing. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { isSm8Press, type Sm8Press } from "@/lib/integrations/sm8-press";
@@ -48,7 +57,13 @@ import {
   type BookingMirrorIn,
 } from "@/lib/integrations/sm8-booking-plan";
 import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
-import { readBookingOverlay, readMirrorBookings, type MirrorBooking } from "@/lib/integrations/sm8-booking-overlay";
+import {
+  readBookingOverlayStrict,
+  readDeletesOn,
+  readMirrorBookings,
+  type DeleteOn,
+  type MirrorBooking,
+} from "@/lib/integrations/sm8-booking-overlay";
 
 /** Why a press queued nothing. Each is answered in `press.*` words by the
     action (PR C): already_booked is sameSlot, kept_other keptOtherFirst,
@@ -191,6 +206,9 @@ async function release(orgId: string, row: BookingRow): Promise<boolean> {
     answer under it was lost. */
 const mayBeThere = (c: BookingRow) => c.status === "sending" || c.status === "sent" || mayHaveLanded(c);
 
+/** A take-back or a Clear on its way: queued, or being sent. */
+const onItsWay = (d: Pick<DeleteOn, "status">) => d.status === "queued" || d.status === "sending";
+
 /** A sent create a guard recorded at another time or on someone else. */
 const guarded = (c: BookingRow) => {
   const r = reasonOf(c.last_error);
@@ -315,7 +333,13 @@ export async function queueBookIn(
   const found = await readByKeys(orgId, keys);
   if (!found) return { ok: false, refusal: "unqueued" };
   const existing = [...found.values()];
-  const overlay = await readBookingOverlay(orgId, state, { jobUuids: [jobUuid] });
+  /* what we sent and took out, whole or not at all */
+  const overlay = await readBookingOverlayStrict(orgId, state, {
+    jobUuids: [jobUuid],
+    uuids: existing.map((r) => r.remote_uuid),
+    rows: false,
+  });
+  if (!overlay) return { ok: false, refusal: "unqueued" };
   const mirror = existing.length > 0 ? await readMirrorBookings(orgId, existing.map((r) => r.remote_uuid)) : new Map<string, MirrorBooking>();
   if (!mirror) return { ok: false, refusal: "unqueued" };
   const snm = new Set(overlay.sentNotMirrored.map((s) => s.rowId));
@@ -494,6 +518,13 @@ export async function queueBookingTakeBack(
   }
   const now = Date.now();
 
+  /* 2b. ITS TAKE-BACK ALREADY ON ITS WAY: a second press changes nothing —
+     one brought forward could meet its lost DELETE's booking before a read
+     shows it out, and put it back */
+  const going = await readTakeBack(orgId, create.id);
+  if (going === "failed") return { ok: false, refusal: "unqueued" };
+  if (going && onItsWay(going)) return { ok: true, plan: "already", rowIds: [] };
+
   /* the mirror's copy, when the booking may be there */
   const mirror = mayBeThere(create) ? await readMirrorBookings(orgId, [create.remote_uuid]) : new Map<string, MirrorBooking>();
   if (!mirror) return { ok: false, refusal: "unqueued" };
@@ -523,6 +554,14 @@ export async function queueBookingTakeBack(
     const z = await bookingZone(orgId);
     const start = m?.start ?? create.booking_start;
     if (z.zone && start && !isFuture(start, z.zone, now)) return { ok: false, refusal: "not_future" };
+  }
+
+  /* 3c. A CLEAR OF IT ON ITS WAY: one DELETE per booking, so this waits
+     for that, and nothing changes */
+  if (mayBeThere(create)) {
+    const others = await readDeletesOn(orgId, [create.remote_uuid, ...(create.replaced_uuids ?? []), ...(create.verify_uuids ?? [])]);
+    if (!others) return { ok: false, refusal: "unqueued" };
+    if (others.some((d) => d.via === "clear" && onItsWay(d))) return { ok: false, refusal: "taking_out" };
   }
 
   /* 4. stop it: closed whatever its status, cancelled if it could still go */
@@ -610,6 +649,15 @@ export async function queueClear(
   /* 1. offered */
   if (!state.readable) return { ok: false, refusal: "unreadable" };
   if (!offersSend(state, "booking")) return { ok: false, refusal: "not_offered" };
+
+  /* 1b. ONE DELETE PER BOOKING: this Clear already on its way changes
+     nothing (one brought forward could meet its lost DELETE's booking
+     before a read shows it out, and put it back), and an Undo of it on its
+     way is left to go alone */
+  const others = await readDeletesOn(orgId, [activityUuid]);
+  if (!others) return { ok: false, refusal: "unqueued" };
+  if (others.some((d) => d.via === "clear" && onItsWay(d))) return { ok: true, rowIds: [] };
+  if (others.some((d) => d.via === "undo" && onItsWay(d))) return { ok: false, refusal: "taking_out" };
 
   /* 2. the mirror's booking, and its job */
   const mirror = await readMirrorBookings(orgId, [activityUuid]);

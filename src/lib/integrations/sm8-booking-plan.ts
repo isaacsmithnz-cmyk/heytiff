@@ -80,6 +80,14 @@ export const BOOKING_PRESS_BUDGET_MS = 8_000;
     can call a write "not kept" or "not found". */
 export const BOOKING_REREAD_MS = 2_000;
 
+/** A DELETE's aftermath, and a lost POST's: a read may not show either for
+    a moment (U23), and a DELETE on a booking already out puts it back. So
+    no DELETE goes to a booking within this long of the last try another
+    take-back or Clear of it made, none goes again sooner after its own row
+    last tried, whoever presses, and an Undo whose booking never went reads
+    "not there" as out only this long after its create's last try. */
+export const BOOKING_DELETE_SETTLE_MS = 60_000;
+
 /** Book in and Clear are the owner's until the walk passes; PR F flips it
     (DECISIONS 7). */
 export const BOOKINGS_OPEN_TO_MANAGERS = false;
@@ -497,7 +505,7 @@ const LOOK_AGAIN: ReadonlySet<BookingReasonKey> = new Set([
     |  # | case                                                           | line                                  |
     |  1 | a take-back queued behind a hold                               | stillIn + the hold, warn              |
     |  2 | a take-back queued or sending                                  | takingOut                             |
-    |  3 | a take-back failed, a trial, or cancelled for any other reason than nothing to take back | stillIn + its reason, bad, Try again — none, and no tone, for changed, a check-in or started |
+    |  3 | a take-back failed, a trial, or cancelled for any other reason than nothing to take back | stillIn + its reason, bad, Try again — none, and no tone, for changed, a check-in, started or a job that's gone |
     |  4 | a take-back sent, or cancelled with nothing to take back       | none                                  |
     |  5 | taken back, no take-back row, and it may be there              | stillIn + why, bad, Try again         |
     |  6 | taken back, and nothing of it can be there                     | none                                  |
@@ -545,8 +553,8 @@ export function bookingLine(input: BookingLineIn): BookingState {
     if (st === "sent" || (st === "cancelled" && itsReason === "nothingToTakeBack")) return NONE;
     const said = st === "trial" ? BOOKING_WORDS.why.trial : takeBack.last_error || BOOKING_WORDS.why.notTakenOut;
     const text = fillWords(BOOKING_WORDS.line.stillIn, { reason: said });
-    /* a re-press would meet the same thing */
-    if (itsReason === "changedNoTakeBack" || itsReason === "checkIn" || itsReason === "notFuture") {
+    /* a re-press would meet the same thing — a job that's gone included */
+    if (itsReason === "changedNoTakeBack" || itsReason === "checkIn" || itsReason === "notFuture" || itsReason === "jobGone") {
       return line("line.stillIn", text, null, []);
     }
     return line("line.stillIn", text, "bad", door(["take_out_again"]));

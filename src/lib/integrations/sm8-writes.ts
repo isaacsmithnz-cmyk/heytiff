@@ -63,6 +63,7 @@ import { postSm8Attachment, readSm8Attachment } from "./sm8-write";
 import { sm8NotesAllowed, sm8WriteKindsEnabled } from "./sm8-kinds";
 import { createCanStillGo, fillWords, NOTE_WORDS } from "./sm8-note-plan";
 import { BOOKING_WORDS } from "./sm8-booking-words";
+import { BOOKING_DELETE_SETTLE_MS } from "./sm8-booking-plan";
 import { sendNoteRow } from "./sm8-note-send";
 import { sendBookingRow } from "./sm8-booking-send";
 import {
@@ -436,6 +437,9 @@ type ExistingRow = {
   taken_back_at?: string | null;
   op?: string | null;
   verb_id?: string | null;
+  /** A booking row's (read only when the writes hold one): when it last
+      finished, which a delete's re-press waits a minute past. */
+  updated_at?: string | null;
 };
 
 const EXISTING_COLUMNS =
@@ -579,7 +583,14 @@ function bookingColumns(w: Sm8WriteToQueue): Record<string, unknown> {
     A TAKE-BACK OR A CLEAR GOING AGAIN FORGETS THE UUIDS ITS DELETE REACHED
     (verify_uuids, on a delete row): its sender never sends a second DELETE
     to one of them by itself, and a person's Try again is what may — after
-    it reads the booking live first. */
+    it reads the booking live first.
+    A TAKE-BACK OR A CLEAR NEVER COMES FORWARD. A DELETE whose answer was
+    lost may have landed, and a read may not show it for a moment (U23):
+    one that comes forward could read the booking still there and send it a
+    second DELETE, which puts it back. So a queued one keeps its time (the
+    queue helpers don't press one again at all), and one that failed or was
+    cancelled after a try goes again no sooner than a minute after that try
+    finished (BOOKING_DELETE_SETTLE_MS). */
 function bookingRepressPatch(
   row: ExistingRow,
   w: Sm8WriteToQueue,
@@ -609,9 +620,11 @@ function bookingRepressPatch(
   const clear = !w.dependsOn
     ? { verb_id: w.verbId ?? null, booking_staff_uuid: w.staffUuid ?? null, booking_start: w.start ?? null, booking_end: w.end ?? null }
     : {};
-  return queued
-    ? { tenant_id: tenantId, payload: w.payload, next_attempt_at: iso, ...presser, updated_at: iso, ...clear }
-    : { ...againPatch(row, press, tenantId, iso), payload: w.payload, verify_uuids: [], ...clear };
+  if (queued) return { tenant_id: tenantId, payload: w.payload, ...presser, updated_at: iso, ...clear };
+  const tried = (row.status === "failed" || row.status === "cancelled") && row.attempts > 0;
+  const finished = tried && row.updated_at ? Date.parse(row.updated_at) : NaN;
+  const settled = Number.isNaN(finished) ? iso : new Date(Math.max(Date.parse(iso), finished + BOOKING_DELETE_SETTLE_MS)).toISOString();
+  return { ...againPatch(row, press, tenantId, iso), next_attempt_at: settled, payload: w.payload, verify_uuids: [], ...clear };
 }
 
 /** Queue writes for the press that asked for them. Null when the queue
@@ -671,7 +684,7 @@ export async function enqueueSm8Writes(
   /* a booking's columns are read only when the writes hold one, so a file
      or a note press reads exactly what it always did */
   const existingColumns =
-    holdsNote || holdsBooking ? `${EXISTING_COLUMNS}, op, taken_back_at${holdsBooking ? ", verb_id" : ""}` : EXISTING_COLUMNS;
+    holdsNote || holdsBooking ? `${EXISTING_COLUMNS}, op, taken_back_at${holdsBooking ? ", verb_id, updated_at" : ""}` : EXISTING_COLUMNS;
   const { data, error } = await supabaseAdmin
     .from(TABLE)
     .select(existingColumns)
@@ -1357,7 +1370,11 @@ async function finish(orgId: string, row: WriteRow, claimId: string, f: Finish, 
   if (f.verifyUuids) patch.verify_uuids = f.verifyUuids;
   if (f.status === "sent") {
     patch.sent_at = iso;
-    patch.verify_uuids = [];
+    /* A BOOKING'S TAKE-BACK OR CLEAR THAT WENT KEEPS THE UUIDS IT TOOK OUT
+       (each one it DELETEd or read inactive, never one it didn't find):
+       they are the overlay's `gone`. Every other row that went waits for
+       nothing. */
+    patch.verify_uuids = row.kind === "booking" && row.op === "delete" ? (f.verifyUuids ?? []) : [];
   }
   /* What is known about the row's uuid, over the claim's mark: it stays
      marked once any upload under it was lost, until it is sent or spent. It

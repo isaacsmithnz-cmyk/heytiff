@@ -5,16 +5,21 @@
    of sm8_job_activities and sm8_jobs (sm8_calls_echo_freshness.sql), and
    phase 3 adds none. So between a booking going and the next sync, a
    reader asks here instead:
-   - `gone`: the bookings WE removed — the activity of every Clear that was
-     sent, and every uuid of the create behind every Undo that was sent.
+   - `gone`: of the uuids a reader asks about (and the bookings it draws
+     from sentNotMirrored), THE ONES WE TOOK OUT — each one a take-back or
+     a Clear that went DELETEd, or read inactive (the row keeps them, in
+     verify_uuids), never one it merely didn't find: a booking whose POST
+     was lost may land after its take-back looked, and is never hidden.
      UNWINDOWED: a uuid stays gone for as long as its delete row exists,
-     not only until the mirror shows it inactive.
+     not only until the mirror shows it inactive. Read only for the uuids
+     asked, fifty to a request, so it never grows with the queue.
    - `sentNotMirrored`: the bookings we sent that the mirror doesn't hold
      yet, from today on — they ARE in ServiceM8. A uuid the mirror holds
      speaks for itself (active is booked, inactive is removed there), a job
      the mirror doesn't hold draws nothing, and a booking ServiceM8 kept at
      another time or on someone else, or that someone changed there, is
-     never drawn at the row's time.
+     never drawn at the row's time. One taken back is drawn until its
+     take-back settles: a take-back that failed leaves it standing.
    - `rows`: for the jobs asked, each booking row a line is drawn from —
      every create from 30 days back, its status row and its take-back, and
      the Clears.
@@ -24,6 +29,11 @@
    scoped to the connection's tenant, or the old account's bookings would
    be drawn as live. Nothing is read at all unless the deployment allows
    bookings (sm8BookingsAllowed) and a ServiceM8 account is connected.
+
+   A READER DRAWS ON WHAT IT COULD READ; A PRESS DECIDES ON ALL OF IT OR
+   NOTHING. readBookingOverlay says nothing for a part it couldn't read
+   (logged); readBookingOverlayStrict is null then, and the queue's press
+   queues nothing on it.
 
    NO READER HIDES A TWIN OF OURS. The mirror's copy of a booking we sent
    IS the booking; what goes away once it arrives is our row's own
@@ -40,11 +50,17 @@ const TABLE = "sm8_writes";
     ECHO_CHUNK has the reasoning). */
 const CHUNK = 50;
 
+/** Uuids per read of the delete rows on a booking: each rides in three
+    lists, in up to three spellings, so ten keep that request near 4 KB. */
+const DELETES_CHUNK = 10;
+
 /** How many rows one job's lines are read from, newest first. */
 const ROWS_CAP = 500;
 
 /** A line reaches back this far (by the booking's start). */
 const LINE_DAYS = 30;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** A booking we sent that the mirror doesn't hold yet, drawn as the
     activity it is. */
@@ -92,82 +108,117 @@ const ROW_COLUMNS =
   "id, op, status, subject, sm8_job_uuid, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, taken_back_at, last_error, attempts, depends_on, target_uuid, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, landed_edit_date, seen_edit_date, requested_by, requested_by_user, lease_until, created_at";
 
 export type BookingOverlay = {
-  /** Lower case. */
+  /** Lower case: of the uuids asked, and the ones sentNotMirrored draws. */
   gone: ReadonlySet<string>;
   sentNotMirrored: SentNotMirrored[];
   rows: BookingOverlayRow[];
 };
 
+/** What a reader asks the overlay for. `uuids` are the bookings it will
+    draw (their mirror uuids): `gone` answers for these. `jobUuids` narrows
+    sentNotMirrored to those jobs and reads their `rows` (unless `rows` is
+    false); `from` and `to` window sentNotMirrored by the booking's start
+    ("YYYY-MM-DD" or a stamp; from inclusive, to exclusive). */
+export type BookingOverlayAsk = {
+  uuids?: readonly string[];
+  jobUuids?: readonly string[];
+  from?: string;
+  to?: string;
+  rows?: boolean;
+};
+
 const empty = (): BookingOverlay => ({ gone: new Set(), sentNotMirrored: [], rows: [] });
 
-const chunks = <T>(xs: readonly T[]): T[][] => {
+const chunks = <T>(xs: readonly T[], size = CHUNK): T[][] => {
   const out: T[][] = [];
-  for (let i = 0; i < xs.length; i += CHUNK) out.push(xs.slice(i, i + CHUNK));
+  for (let i = 0; i < xs.length; i += size) out.push(xs.slice(i, i + size));
   return out;
 };
 
-/** The spellings a mirror row's uuid may carry. */
+/** The spellings a stored uuid may carry. */
 const spellings = (u: string) => [...new Set([u, u.toLowerCase(), u.toUpperCase()])];
+
+/** Well-formed uuids, lower case, each once: only these ever go in a filter. */
+const lowerUuids = (uuids: readonly (string | null | undefined)[]) =>
+  [...new Set(uuids.filter((u): u is string => typeof u === "string" && UUID.test(u)).map((u) => u.toLowerCase()))];
 
 /** A day "YYYY-MM-DD", `days` before `now`, by UTC — a floor a day wider
     than any zone's, which each row then narrows by its own zone. */
 const utcDay = (now: number, days: number) => new Date(now - days * 86_400_000).toISOString().slice(0, 10);
 
-/** The overlay for one workspace, for the account connected now: `jobUuids`
-    narrows sentNotMirrored to those jobs and reads their `rows`; `from` and
-    `to` window sentNotMirrored by the booking's start ("YYYY-MM-DD" or a
-    stamp; from inclusive, to exclusive). `gone` is never windowed. */
+/** The overlay for one workspace, for the account connected now, for a
+    reader: a part that couldn't be read says nothing (logged). */
 export async function readBookingOverlay(
   orgId: string,
   state: Pick<Sm8WriteState, "linked" | "tenantId">,
-  opts: { jobUuids?: readonly string[]; from?: string; to?: string } = {},
+  ask: BookingOverlayAsk = {},
   now: number = Date.now()
 ): Promise<BookingOverlay> {
-  if (!sm8BookingsAllowed() || !state.linked || !state.tenantId) return empty();
-  const tenant = state.tenantId;
-  const gone = await readGone(orgId, tenant);
-  const sentNotMirrored = await readSentNotMirrored(orgId, tenant, gone, opts, now);
-  const rows = opts.jobUuids && opts.jobUuids.length > 0 ? await readRows(orgId, tenant, opts.jobUuids, now) : [];
-  return { gone, sentNotMirrored, rows };
+  return (await overlay(orgId, state, ask, now, false)) ?? empty();
 }
 
-/** The uuids we removed, lower case: the activity of every sent Clear, and
-    through every sent Undo, its create's uuids (the one it went under and
-    every one it replaced). A read that fails removes nothing, logged: a
-    booking we removed then shows until the sync, never one we didn't. */
-async function readGone(orgId: string, tenant: string): Promise<Set<string>> {
+/** The overlay for a PRESS: null when any read it needs failed, so the
+    queue never decides a slot on half of what we sent or took out. */
+export async function readBookingOverlayStrict(
+  orgId: string,
+  state: Pick<Sm8WriteState, "linked" | "tenantId">,
+  ask: BookingOverlayAsk = {},
+  now: number = Date.now()
+): Promise<BookingOverlay | null> {
+  return overlay(orgId, state, ask, now, true);
+}
+
+async function overlay(
+  orgId: string,
+  state: Pick<Sm8WriteState, "linked" | "tenantId">,
+  ask: BookingOverlayAsk,
+  now: number,
+  strict: boolean
+): Promise<BookingOverlay | null> {
+  if (!sm8BookingsAllowed() || !state.linked || !state.tenantId) return empty();
+  const tenant = state.tenantId;
+  let sent = await readSentCandidates(orgId, tenant, ask, now);
+  if (sent === null) {
+    if (strict) return null;
+    sent = [];
+  }
+  let gone = await readGoneOf(orgId, tenant, [...(ask.uuids ?? []), ...sent.map((r) => r.remote_uuid)]);
+  if (gone === null) {
+    if (strict) return null;
+    gone = new Set();
+  }
+  const drawn = await notMirrored(orgId, sent, gone);
+  if (drawn === null && strict) return null;
+  const wantRows = ask.rows !== false && !!ask.jobUuids && ask.jobUuids.length > 0;
+  const rows = wantRows ? await readRows(orgId, tenant, ask.jobUuids!, now) : [];
+  if (rows === null && strict) return null;
+  return { gone, sentNotMirrored: drawn ?? [], rows: rows ?? [] };
+}
+
+/** Of these uuids, the ones we took out, lower case: each one a take-back
+    or a Clear that WENT took out — DELETEd, or read inactive — as the row
+    keeps them (verify_uuids, lower case, on a sent delete row). Never one
+    it merely didn't find. Null when it couldn't be read. */
+async function readGoneOf(orgId: string, tenant: string, uuids: readonly string[]): Promise<Set<string> | null> {
+  const wanted = lowerUuids(uuids);
   const gone = new Set<string>();
-  const { data, error } = await supabaseAdmin
-    .from(TABLE)
-    .select("id, target_uuid, depends_on")
-    .eq("org_id", orgId)
-    .eq("tenant_id", tenant)
-    .eq("kind", "booking")
-    .eq("op", "delete")
-    .eq("status", "sent");
-  if (error) {
-    console.error(`[sm8] couldn't read the bookings org ${orgId} removed:`, error);
-    return gone;
-  }
-  const deletes = (data ?? []) as { id: string; target_uuid: string | null; depends_on: string | null }[];
-  const creates: string[] = [];
-  for (const d of deletes) {
-    if (d.target_uuid) gone.add(d.target_uuid.toLowerCase());
-    if (d.depends_on) creates.push(d.depends_on);
-  }
-  for (const part of chunks([...new Set(creates)])) {
-    const { data: made, error: madeError } = await supabaseAdmin
+  const asked = new Set(wanted);
+  for (const part of chunks(wanted)) {
+    const { data, error } = await supabaseAdmin
       .from(TABLE)
-      .select("id, remote_uuid, replaced_uuids")
+      .select("verify_uuids")
       .eq("org_id", orgId)
+      .eq("tenant_id", tenant)
       .eq("kind", "booking")
-      .in("id", part);
-    if (madeError) {
-      console.error(`[sm8] couldn't read the bookings behind org ${orgId}'s take-backs:`, madeError);
-      continue;
+      .eq("op", "delete")
+      .eq("status", "sent")
+      .or(`verify_uuids.ov.{${part.join(",")}}`);
+    if (error) {
+      console.error(`[sm8] couldn't read the bookings org ${orgId} removed:`, error);
+      return null;
     }
-    for (const c of (made ?? []) as { remote_uuid: string | null; replaced_uuids: string[] | null }[]) {
-      for (const u of [c.remote_uuid, ...(c.replaced_uuids ?? [])]) if (u) gone.add(u.toLowerCase());
+    for (const r of (data ?? []) as { verify_uuids: string[] | null }[]) {
+      for (const u of r.verify_uuids ?? []) if (asked.has(u.toLowerCase())) gone.add(u.toLowerCase());
     }
   }
   return gone;
@@ -182,6 +233,7 @@ type SentRow = {
   booking_end: string | null;
   booking_zone: string | null;
   last_error: string | null;
+  taken_back_at: string | null;
 };
 
 /** A sent create's own words say the booking stands somewhere else, or as
@@ -191,45 +243,67 @@ const standsElsewhere = (lastError: string | null) => {
   return r === "timeNotKept" || r === "personNotKept" || r === "movedThere";
 };
 
-async function readSentNotMirrored(
-  orgId: string,
-  tenant: string,
-  gone: ReadonlySet<string>,
-  opts: { jobUuids?: readonly string[]; from?: string; to?: string },
-  now: number
-): Promise<SentNotMirrored[]> {
+/** The sent creates that could be drawn, from today on by each booking's
+    own zone, not standing elsewhere, and not taken back BY A TAKE-BACK THAT
+    SETTLED (it went, or found nothing to take back): one whose take-back
+    failed, or was never queued, still stands. Null when it couldn't be
+    read. */
+async function readSentCandidates(orgId: string, tenant: string, ask: BookingOverlayAsk, now: number): Promise<SentRow[] | null> {
   let q = supabaseAdmin
     .from(TABLE)
-    .select("id, remote_uuid, sm8_job_uuid, booking_staff_uuid, booking_start, booking_end, booking_zone, last_error")
+    .select("id, remote_uuid, sm8_job_uuid, booking_staff_uuid, booking_start, booking_end, booking_zone, last_error, taken_back_at")
     .eq("org_id", orgId)
     .eq("tenant_id", tenant)
     .eq("kind", "booking")
     .eq("op", "create")
     .eq("status", "sent")
-    .is("taken_back_at", null)
     .gte("booking_start", utcDay(now, 1));
-  if (opts.jobUuids && opts.jobUuids.length > 0) q = q.in("sm8_job_uuid", [...opts.jobUuids]);
-  if (opts.from) q = q.gte("booking_start", opts.from);
-  if (opts.to) q = q.lt("booking_start", opts.to);
+  if (ask.jobUuids && ask.jobUuids.length > 0) q = q.in("sm8_job_uuid", ask.jobUuids.flatMap(spellings));
+  if (ask.from) q = q.gte("booking_start", ask.from);
+  if (ask.to) q = q.lt("booking_start", ask.to);
   const { data, error } = await q.order("booking_start", { ascending: true }).limit(ROWS_CAP);
   if (error) {
     console.error(`[sm8] couldn't read the bookings org ${orgId} sent:`, error);
-    return [];
+    return null;
   }
-  /* from today on, by each booking's own zone */
   const sent = ((data ?? []) as SentRow[]).filter((r) => {
     if (!r.remote_uuid || !r.sm8_job_uuid || !r.booking_staff_uuid || !r.booking_start || !r.booking_end) return false;
-    if (standsElsewhere(r.last_error) || gone.has(r.remote_uuid.toLowerCase())) return false;
+    if (standsElsewhere(r.last_error)) return false;
     const today = localNow(r.booking_zone, now)?.slice(0, 10);
     return !today || r.booking_start.slice(0, 10) >= today;
   });
-  if (sent.length === 0) return [];
+  const takenBack = sent.filter((r) => r.taken_back_at).map((r) => r.id);
+  if (takenBack.length === 0) return sent;
+  const settled = new Set<string>();
+  for (const part of chunks(takenBack)) {
+    const { data: backs, error: backError } = await supabaseAdmin
+      .from(TABLE)
+      .select("depends_on, status, last_error")
+      .eq("org_id", orgId)
+      .eq("kind", "booking")
+      .eq("op", "delete")
+      .in("depends_on", part);
+    if (backError) {
+      console.error(`[sm8] couldn't read the take-backs of org ${orgId}'s bookings:`, backError);
+      return null;
+    }
+    for (const b of (backs ?? []) as { depends_on: string; status: string; last_error: string | null }[]) {
+      if (b.status === "sent" || (b.status === "cancelled" && reasonOf(b.last_error) === "nothingToTakeBack")) settled.add(b.depends_on);
+    }
+  }
+  return sent.filter((r) => !settled.has(r.id));
+}
 
-  /* one read of the mirror's activities and one of its jobs, lower case */
-  const mirrored = await presentIn(orgId, "sm8_job_activities", sent.map((r) => r.remote_uuid));
-  const jobs = await presentIn(orgId, "sm8_jobs", [...new Set(sent.map((r) => r.sm8_job_uuid!))]);
-  if (!mirrored || !jobs) return [];
-  return sent
+/** Of the candidates, the ones to draw: not taken out, not in the mirror,
+    and on a job the mirror holds — one read of the mirror's activities and
+    one of its jobs, lower case. Null when either couldn't be read. */
+async function notMirrored(orgId: string, sent: readonly SentRow[], gone: ReadonlySet<string>): Promise<SentNotMirrored[] | null> {
+  const left = sent.filter((r) => !gone.has(r.remote_uuid.toLowerCase()));
+  if (left.length === 0) return [];
+  const mirrored = await presentIn(orgId, "sm8_job_activities", left.map((r) => r.remote_uuid));
+  const jobs = await presentIn(orgId, "sm8_jobs", [...new Set(left.map((r) => r.sm8_job_uuid!))]);
+  if (!mirrored || !jobs) return null;
+  return left
     .filter((r) => !mirrored.has(r.remote_uuid.toLowerCase()) && jobs.has(r.sm8_job_uuid!.toLowerCase()))
     .map((r) => ({
       rowId: r.id,
@@ -262,20 +336,21 @@ async function presentIn(orgId: string, table: "sm8_job_activities" | "sm8_jobs"
 
 /** Every booking row a line on these jobs is drawn from: each create from
     30 days back (by its start), the status row each depends on, each one's
-    take-back, and the Clears from the same days. */
-async function readRows(orgId: string, tenant: string, jobUuids: readonly string[], now: number): Promise<BookingOverlayRow[]> {
+    take-back, and the Clears from the same days. Null when it couldn't be
+    read. */
+async function readRows(orgId: string, tenant: string, jobUuids: readonly string[], now: number): Promise<BookingOverlayRow[] | null> {
   const { data, error } = await supabaseAdmin
     .from(TABLE)
     .select(ROW_COLUMNS)
     .eq("org_id", orgId)
     .eq("tenant_id", tenant)
     .eq("kind", "booking")
-    .in("sm8_job_uuid", [...jobUuids])
+    .in("sm8_job_uuid", jobUuids.flatMap(spellings))
     .order("created_at", { ascending: false })
     .limit(ROWS_CAP);
   if (error) {
     console.error(`[sm8] couldn't read the booking rows of org ${orgId}'s jobs:`, error);
-    return [];
+    return null;
   }
   const all = (data ?? []) as unknown as BookingOverlayRow[];
   const since = utcDay(now, LINE_DAYS + 1);
@@ -334,4 +409,105 @@ export async function readMirrorBookings(orgId: string, uuids: readonly string[]
     }
   }
   return out;
+}
+
+/* ── the take-backs and Clears of a booking ── */
+
+/** One of our delete rows on a booking: an Undo (via its create) or a
+    Clear (via its activity). */
+export type DeleteOn = {
+  id: string;
+  via: "undo" | "clear";
+  status: string;
+  lease_until: string | null;
+  updated_at: string | null;
+  attempts: number;
+  /** The booking uuids it names, lower case: a Clear its activity; an Undo
+      every uuid its create has had, and every one its DELETE reached. */
+  names: string[];
+  /** One that went: the uuids it took out, lower case (see `gone`). */
+  tookOut: string[];
+};
+
+type DeleteRead = {
+  id: string;
+  status: string;
+  lease_until: string | null;
+  updated_at: string | null;
+  attempts: number | null;
+  target_uuid: string | null;
+  depends_on: string | null;
+  verify_uuids: string[] | null;
+};
+
+const DELETE_COLUMNS = "id, status, lease_until, updated_at, attempts, target_uuid, depends_on, verify_uuids";
+
+const shapeDelete = (r: DeleteRead, via: DeleteOn["via"], names: readonly string[]): DeleteOn => ({
+  id: r.id,
+  via,
+  status: r.status,
+  lease_until: r.lease_until,
+  updated_at: r.updated_at,
+  attempts: r.attempts ?? 0,
+  names: lowerUuids([...names, r.target_uuid, ...(r.verify_uuids ?? [])]),
+  tookOut: r.status === "sent" ? lowerUuids(r.verify_uuids ?? []) : [],
+});
+
+/** EVERY TAKE-BACK AND CLEAR OF THESE BOOKINGS, whatever its status and
+    whatever case the uuids are in: the Clears that name one, and the take-
+    backs of every create of ours that has had one (as its uuid, one it
+    replaced, or one waiting for its check). ONE DELETE PER BOOKING rests on
+    it — the press refuses beside another in flight, and the sender waits
+    for one being sent or just tried. Null when it couldn't be read. */
+export async function readDeletesOn(orgId: string, uuids: readonly string[]): Promise<DeleteOn[] | null> {
+  const wanted = lowerUuids(uuids);
+  const found = new Map<string, DeleteOn>();
+  for (const part of chunks(wanted, DELETES_CHUNK)) {
+    const list = part.flatMap(spellings);
+    const { data: clears, error: clearError } = await supabaseAdmin
+      .from(TABLE)
+      .select(DELETE_COLUMNS)
+      .eq("org_id", orgId)
+      .eq("kind", "booking")
+      .eq("op", "delete")
+      .is("depends_on", null)
+      .in("target_uuid", list);
+    if (clearError) {
+      console.error(`[sm8] couldn't read the Clears of org ${orgId}'s bookings:`, clearError);
+      return null;
+    }
+    for (const r of (clears ?? []) as DeleteRead[]) found.set(r.id, shapeDelete(r, "clear", []));
+
+    const joined = list.join(",");
+    const { data: made, error: madeError } = await supabaseAdmin
+      .from(TABLE)
+      .select("id, remote_uuid, replaced_uuids, verify_uuids")
+      .eq("org_id", orgId)
+      .eq("kind", "booking")
+      .eq("op", "create")
+      .or(`remote_uuid.in.(${joined}),replaced_uuids.ov.{${joined}},verify_uuids.ov.{${joined}}`);
+    if (madeError) {
+      console.error(`[sm8] couldn't read the bookings behind org ${orgId}'s take-backs:`, madeError);
+      return null;
+    }
+    const creates = new Map(
+      ((made ?? []) as { id: string; remote_uuid: string | null; replaced_uuids: string[] | null; verify_uuids: string[] | null }[]).map(
+        (c) => [c.id, [c.remote_uuid, ...(c.replaced_uuids ?? []), ...(c.verify_uuids ?? [])].filter((u): u is string => !!u)] as const
+      )
+    );
+    if (creates.size === 0) continue;
+    const { data: undos, error: undoError } = await supabaseAdmin
+      .from(TABLE)
+      .select(DELETE_COLUMNS)
+      .eq("org_id", orgId)
+      .eq("kind", "booking")
+      .eq("op", "delete")
+      .in("depends_on", [...creates.keys()]);
+    if (undoError) {
+      console.error(`[sm8] couldn't read the take-backs of org ${orgId}'s bookings:`, undoError);
+      return null;
+    }
+    for (const r of (undos ?? []) as DeleteRead[]) found.set(r.id, shapeDelete(r, "undo", creates.get(r.depends_on ?? "") ?? []));
+  }
+  return [...found.values()];
 }

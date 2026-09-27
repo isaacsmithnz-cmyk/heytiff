@@ -350,8 +350,8 @@ describe("a booking's line, case by case", () => {
     ).toEqual(NONE);
   });
 
-  it("(F) 3: a take-back that met something a re-press would meet again has no door and no tone", () => {
-    for (const reason of [W.row.changedNoTakeBack, W.row.checkIn, W.row.notFuture]) {
+  it("(F) 3: a take-back that met something a re-press would meet again has no door and no tone — a job that's gone included (review N3)", () => {
+    for (const reason of [W.row.changedNoTakeBack, W.row.checkIn, W.row.notFuture, W.row.jobGone]) {
       expect(lineOf({ status: "sent", taken_back_at: "t" }, { takeBack: { status: "cancelled", last_error: reason } })).toEqual({
         key: "line.stillIn",
         text: `Still in ServiceM8. ${reason}`,

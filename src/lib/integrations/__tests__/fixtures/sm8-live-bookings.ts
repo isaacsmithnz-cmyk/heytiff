@@ -18,7 +18,8 @@
    Knobs a test turns: ServiceM8 keeping a uuid of its own (U1 false),
    keeping another time or another person (the guards), changing a guarded
    field with a status, and READS THAT LAG A WRITE (U23): the next n reads
-   of a record show it as it was before the last write.
+   of a record by its uuid show it as it was before the last write, and so
+   does its job's list of bookings until they are spent.
 
    Each suite wires these into its own mocks of sm8-write's booking
    requests, so a mockResolvedValueOnce it queues still answers first. It
@@ -68,8 +69,9 @@ export function makeSm8Bookings() {
   const posts: Record<string, unknown>[] = [];
   /** Every status POST, in order: [job, status]. */
   const statusPosts: [string, string][] = [];
-  /** Reads that still show a record as it was before its last write. */
-  const lagging = new Map<string, { was: Activity | null; reads: number }>();
+  /** Reads that still show a record as it was before its last write: for
+      so many reads by its uuid, or until a time. */
+  const lagging = new Map<string, { was: Activity | null; reads: number; until: number }>();
   let seq = 0;
   const knobs = {
     /** ServiceM8 keeps the uuid we send (U1). */
@@ -81,6 +83,10 @@ export function makeSm8Bookings() {
     statusAlsoSets: null as null | Record<string, string | null>,
     /** The next write's record reads as it was for this many reads (U23). */
     lagNextWrite: 0,
+    /** ...or for this long, by `clock` (a read a minute on is past it). */
+    lagNextWriteMs: 0,
+    /** The time a timed lag is measured by: the suite's own clock. */
+    clock: (() => Date.now()) as () => number,
   };
 
   const tick = () => {
@@ -92,16 +98,22 @@ export function makeSm8Bookings() {
     if (j) j.editDate = tick();
   };
   const remember = (uuid: string) => {
-    if (knobs.lagNextWrite > 0) {
+    if (knobs.lagNextWrite > 0 || knobs.lagNextWriteMs > 0) {
       const was = activities.get(key(uuid));
-      lagging.set(key(uuid), { was: was ? { ...was } : null, reads: knobs.lagNextWrite });
+      lagging.set(key(uuid), { was: was ? { ...was } : null, reads: knobs.lagNextWrite, until: knobs.clock() + knobs.lagNextWriteMs });
       knobs.lagNextWrite = 0;
+      knobs.lagNextWriteMs = 0;
     }
+  };
+  /** Whether a record's reads still lag its last write. */
+  const lags = (uuid: string) => {
+    const lag = lagging.get(key(uuid));
+    return !!lag && (lag.reads > 0 || lag.until > knobs.clock());
   };
   const seen = (uuid: string): Activity | null => {
     const lag = lagging.get(key(uuid));
-    if (lag && lag.reads > 0) {
-      lag.reads -= 1;
+    if (lag && lags(uuid)) {
+      if (lag.reads > 0) lag.reads -= 1;
       return lag.was;
     }
     return activities.get(key(uuid)) ?? null;
@@ -178,9 +190,15 @@ export function makeSm8Bookings() {
       if (!a) return { ok: true as const, found: false as const };
       return { ok: true as const, found: true as const, activity: shaped(a) };
     },
+    /** A job's active bookings: a record whose reads still lag shows as it
+        was before its last write, as a read by its uuid does (and spends
+        none of those reads). */
     readJobBookings: async (_call: unknown, jobUuid: string) => ({
       ok: true as const,
-      activities: [...activities.values()].filter((a) => a.active === 1 && key(a.jobUuid) === key(jobUuid)).map(shaped),
+      activities: [...activities.values()]
+        .map((a) => (lags(a.uuid) ? lagging.get(key(a.uuid))!.was : a))
+        .filter((a): a is Activity => !!a && a.active === 1 && key(a.jobUuid) === key(jobUuid))
+        .map(shaped),
     }),
     readJob: async (_call: unknown, jobUuid: string) => {
       const j = jobs.get(key(jobUuid));

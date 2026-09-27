@@ -84,6 +84,7 @@ import { BOOKING_WORDS, bookingLine, localNow, statusLine, type BookingMirrorIn 
 import { NOTE_WORDS } from "../sm8-note-words";
 import { WRITE_WORDS, offersSend, sendHold } from "../sm8-write-plan";
 import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear } from "@/app/actions/sm8-booking-queue";
+import { readBookingOverlay } from "../sm8-booking-overlay";
 
 const ORG = "org-1";
 const TENANT = "vendor-1";
@@ -207,6 +208,7 @@ beforeEach(() => {
   skew = 0;
   sleeps.length = 0;
   sm8 = makeSm8Bookings();
+  sm8.knobs.clock = clock;
   sm8.job(JOB);
   sm8.job(OTHER_JOB, { kept: { generated_job_id: "9002" } as never });
   fake.db.integration_connections = [connection()];
@@ -1452,11 +1454,53 @@ describe("Undo takes a booking back (B-8)", () => {
     await run();
     expect(sm8.deletes).toEqual([c.remote_uuid]);
     expect(readSm8Booking.mock.calls.filter((x) => x[1] === c.remote_uuid).length).toBeGreaterThanOrEqual(3);
-    expect(d).toMatchObject({ status: "sent", target_uuid: c.remote_uuid, http_status: 200, verify_uuids: [] });
+    /* it keeps what it took out: the overlay's gone */
+    expect(d).toMatchObject({ status: "sent", target_uuid: c.remote_uuid, http_status: 200, verify_uuids: [c.remote_uuid] });
     /* the read-back's inactive record is the evidence L4 reads for U10 */
     expect(d.landed_edit_date).toBe(sm8.get(c.remote_uuid as string)!.editDate);
     expect(sm8.active(c.remote_uuid as string)).toBe(false);
     expect((await lineOf(c)).key).toBeNull();
+  });
+
+  it("(F, R2-4) someone cancels it between the take-back's read and its DELETE: the job's bookings, read last, don't hold it — no DELETE, and it stays out", async () => {
+    const c = await sentBooking();
+    const uuid = c.remote_uuid as string;
+    /* the read finds it; the owner removes it inside ServiceM8 in the moment after */
+    readSm8Booking.mockImplementationOnce(async (call: unknown, u: string) => {
+      const seen = await sm8.readBooking(call, u);
+      sm8.removeThere(u);
+      return seen;
+    });
+    await undo(c);
+    await run();
+    expect(deleteSm8Booking).not.toHaveBeenCalled();
+    expect(sm8.active(uuid)).toBe(false);
+    /* out, though it never read it inactive itself: nothing to hide it by */
+    expect(takeBackOf(c.id)).toMatchObject({ status: "sent", http_status: null, verify_uuids: [] });
+  });
+
+  it("(F, R2-4) moved between the take-back's read and the job's bookings read: checked again on the newer copy, and refused with no DELETE; only opened, it goes", async () => {
+    const c = await sentBooking();
+    readSm8Booking.mockImplementationOnce(async (call: unknown, u: string) => {
+      const seen = await sm8.readBooking(call, u);
+      sm8.moveThere(u, { start: at(TOMORROW, "20:30"), end: at(TOMORROW, "21:30") });
+      return seen;
+    });
+    await undo(c);
+    await run();
+    expect(deleteSm8Booking).not.toHaveBeenCalled();
+    expect(takeBackOf(c.id)).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.changedNoTakeBack });
+
+    const e = await sentBooking(slot(SAM_SM8, "15:00", "16:00"));
+    readSm8Booking.mockImplementationOnce(async (call: unknown, u: string) => {
+      const seen = await sm8.readBooking(call, u);
+      sm8.openThere(u);
+      return seen;
+    });
+    await undo(e);
+    await run();
+    expect(sm8.deletes).toEqual([e.remote_uuid]);
+    expect(takeBackOf(e.id)?.status).toBe("sent");
   });
 
   it("(F) the live walk, for bookings: removed inside ServiceM8, then Undo — read first, no DELETE, never put back, and it ends taken out", async () => {
@@ -1479,29 +1523,30 @@ describe("Undo takes a booking back (B-8)", () => {
     expect(await lineOf(c, { mirror: mirrorOf(fake.db.sm8_job_activities[0] as Row) })).toMatchObject({ key: null });
   });
 
-  it("(F) a DELETE answered 2xx whose booking still reads active twice fails removeNotKept, gets no second DELETE by itself, and Try again reads first", async () => {
+  it("(F) a DELETE answered 2xx whose booking still reads active twice fails removeNotKept, gets no second DELETE by itself, and Try again reads first, a minute on", async () => {
     const c = await sentBooking();
     const uuid = c.remote_uuid as string;
-    /* the read finds it; the owner removes it inside ServiceM8 in the moment before the DELETE, which puts it back */
-    readSm8Booking.mockImplementationOnce(async (call: unknown, u: string) => {
-      const seen = await sm8.readBooking(call, u);
-      sm8.removeThere(u);
-      return seen;
-    });
+    /* ServiceM8 answers the DELETE and keeps the booking */
+    deleteSm8Booking.mockResolvedValueOnce({ status: 200, outcome: { kind: "created", remoteUuid: null }, remote: null, recordUuid: null });
     await undo(c);
     await run();
     const d = takeBackOf(c.id)!;
-    expect(sm8.deletes).toEqual([uuid]);
+    expect(deleteSm8Booking).toHaveBeenCalledTimes(1);
     expect(sm8.active(uuid)).toBe(true);
     expect(d).toMatchObject({ status: "failed", last_error: BOOKING_WORDS.row.removeNotKept, http_status: 200, target_uuid: uuid });
     expect(await lineOf(c)).toMatchObject({ key: "line.stillIn", acts: ["take_out_again"] });
+    const triedAt = Date.parse(d.updated_at as string);
     await run();
-    expect(sm8.deletes).toEqual([uuid]);
-    /* a person looks, and presses Try again: read first, there and active, taken out */
+    expect(deleteSm8Booking).toHaveBeenCalledTimes(1);
+    /* a person looks, and presses Try again: it waits a minute from the last try, then reads first — there and active, taken out */
     expect(await queueBookingRetry(await pressAs(), await state(), { rowId: d.id as string })).toMatchObject({ ok: true });
     expect(d).toMatchObject({ status: "queued", verify_uuids: [] });
+    expect(Date.parse(d.next_attempt_at as string)).toBe(triedAt + 60_000);
     await run();
-    expect(sm8.deletes).toEqual([uuid, uuid]);
+    expect(deleteSm8Booking).toHaveBeenCalledTimes(1);
+    due(d);
+    await run();
+    expect(deleteSm8Booking).toHaveBeenCalledTimes(2);
     expect(sm8.active(uuid)).toBe(false);
     expect(d.status).toBe("sent");
   });
@@ -1535,8 +1580,10 @@ describe("Undo takes a booking back (B-8)", () => {
     expect(sm8.deletes).toEqual([own]);
     expect(sm8.active(own)).toBe(false);
     expect(d).toMatchObject({ status: "failed", last_error: BOOKING_WORDS.row.removeNotKept, target_uuid: own });
-    /* once the reads catch up, a person's Try again reads it gone and takes out the other */
+    /* once the reads catch up, a person's Try again — a minute on from its
+       last try — reads it gone and takes out the other */
     await queueBookingRetry(await pressAs(), await state(), { rowId: d.id as string });
+    due(d);
     await run();
     expect(sm8.deletes).toEqual([own, OLD]);
     expect([sm8.active(own), sm8.active(OLD)]).toEqual([false, false]);
@@ -1936,6 +1983,8 @@ describe("Clear takes a leftover booking off a finished job (B-10)", () => {
     expect(await clear({ staffUuid: SAM_SM8, start: at(TOMORROW, "09:30") })).toMatchObject({ ok: true });
     expect(deletesOf()).toHaveLength(1);
     expect(row).toMatchObject({ status: "queued", booking_start: at(TOMORROW, "09:30"), booking_end: at(TOMORROW, "11:30") });
+    /* it tried a moment ago: it goes a minute on from that try */
+    due(row);
     await run();
     expect(row.status).toBe("sent");
     expect(sm8.active(LEFT)).toBe(false);
@@ -1963,6 +2012,7 @@ describe("Clear takes a leftover booking off a finished job (B-10)", () => {
     const row = clearRow();
     expect(row).toMatchObject({ status: "failed", last_error: BOOKING_WORDS.row.removeRefused });
     expect(await queueBookingRetry(await pressAs(), await state(), { rowId: row.id as string })).toMatchObject({ ok: true });
+    due(row);
     await run();
     expect(row.status).toBe("sent");
     /* moved since that press: Try again is refused changed, and Look again shows it afresh */
@@ -1973,6 +2023,365 @@ describe("Clear takes a leftover booking off a finished job (B-10)", () => {
     await run();
     Object.assign((fake.db.sm8_job_activities as Row[])[0], { start_date: at(TOMORROW, "10:00"), end_date: at(TOMORROW, "12:00") });
     expect(await queueBookingRetry(await pressAs(), await state(), { rowId: clearRow().id as string })).toEqual({ ok: false, refusal: "changed" });
+  });
+});
+
+/* ── one DELETE per booking ── */
+
+describe("one DELETE per booking, and never one sooner (review: M2, R2-1, R2-2, R2-5, S2, R2-8)", () => {
+  const R409 = { status: 409, outcome: { kind: "exists" }, remote: null, recordUuid: null };
+
+  /** One of our bookings, on a job then finished: a leftover as well. */
+  async function finishedBooking(s = slot()): Promise<Row> {
+    const status = (to: string) => {
+      sm8.jobs.get(JOB)!.status = to;
+      fake.db.sm8_jobs[0].status = to;
+    };
+    status("Work Order");
+    const c = await sentBooking(s);
+    status("Completed");
+    mirrored(c.remote_uuid as string);
+    return c;
+  }
+  const clearOf = async (c: Row) =>
+    queueClear(await pressAs(), await state(), {
+      jobUuid: JOB,
+      activityUuid: c.remote_uuid as string,
+      seen: { staffUuid: c.booking_staff_uuid as string, start: c.booking_start as string },
+      verbId: randomUUID(),
+    });
+  const clearOn = (c: Row) => deletesOf().find((d) => !d.depends_on && d.target_uuid === c.remote_uuid);
+
+  it("(F, M2) a Clear pressed while an Undo of that booking is on its way is refused taking_out; an Undo pressed while a Clear of it is on its way likewise — and nothing changes", async () => {
+    const c = await finishedBooking();
+    expect(await undo(c)).toMatchObject({ ok: true, plan: "deleting" });
+    expect(await clearOf(c)).toEqual({ ok: false, refusal: "taking_out" });
+    expect(deletesOf()).toHaveLength(1);
+
+    const e = await finishedBooking(slot(SAM_SM8, "15:00", "16:00"));
+    expect(await clearOf(e)).toMatchObject({ ok: true });
+    /* ServiceM8's copy spells its uuid the other way: the same booking */
+    clearOn(e)!.target_uuid = String(e.remote_uuid).toUpperCase();
+    const before = JSON.stringify(writes());
+    expect(await undo(e)).toEqual({ ok: false, refusal: "taking_out" });
+    expect(JSON.stringify(writes())).toBe(before);
+    expect(e.taken_back_at).toBeNull();
+  });
+
+  it("(F, R2-1) a second Undo while its take-back is on its way, and a second Clear while it is, change nothing at all", async () => {
+    const c = await sentBooking();
+    await undo(c);
+    const d = takeBackOf(c.id)!;
+    d.next_attempt_at = new Date(Date.now() + 60_000).toISOString();
+    const was = { ...d };
+    expect(await undo(c)).toEqual({ ok: true, plan: "already", rowIds: [] });
+    expect(d).toEqual(was);
+
+    leftover();
+    await clear();
+    const row = clearRow();
+    row.next_attempt_at = new Date(Date.now() + 60_000).toISOString();
+    const rowWas = { ...row };
+    expect(await clear()).toEqual({ ok: true, rowIds: [] });
+    expect(row).toEqual(rowWas);
+  });
+
+  it("(F, R2-1) a take-back on its way, pressed again through the queue itself, never comes forward", async () => {
+    const c = await sentBooking();
+    await undo(c);
+    const d = takeBackOf(c.id)!;
+    const later = new Date(Date.now() + 60_000).toISOString();
+    d.next_attempt_at = later;
+    const again = await enqueueSm8Writes(await pressAs(), await state(), [
+      { kind: "booking", op: "delete", jobUuid: JOB, subject: `undo:${c.id}`, payload: { name: BOOKING_WORDS.label.undo }, ref: String(c.id), dependsOn: String(c.id), verbId: String(c.verb_id) },
+    ]);
+    expect(again?.ids).toEqual([d.id]);
+    expect(d.next_attempt_at).toBe(later);
+  });
+
+  it("(F, R2-1) an Undo's DELETE lands and its answer is lost: a double press, a stale tab and Home's Clear bring nothing forward — one DELETE, and it stays out", async () => {
+    const c = await finishedBooking();
+    const x = c.remote_uuid as string;
+    /* it lands; the answer never comes; reads lag it a moment (U23) */
+    sm8.knobs.lagNextWriteMs = 5_000;
+    deleteSm8Booking.mockImplementationOnce(async (call: unknown, u: string) => {
+      await sm8.deleteBooking(call, u);
+      return LOST;
+    });
+    await undo(c);
+    await run();
+    const d = takeBackOf(c.id)!;
+    expect(d).toMatchObject({ status: "queued", attempts: 1 });
+    const due1 = d.next_attempt_at;
+    expect(await undo(c)).toEqual({ ok: true, plan: "already", rowIds: [] });
+    expect(await queueBookingTakeBack(await pressAs(), await state(), { createRowId: c.id as string })).toEqual({ ok: true, plan: "already", rowIds: [] });
+    expect(await clearOf(c)).toEqual({ ok: false, refusal: "taking_out" });
+    expect(d.next_attempt_at).toBe(due1);
+    /* the presses' drain: nothing of it is due */
+    await run();
+    expect(sm8.deletes).toEqual([x]);
+    /* a minute on, the read shows it out */
+    skew += 61_000;
+    await run();
+    expect(sm8.deletes).toEqual([x]);
+    expect(sm8.active(x)).toBe(false);
+    expect(d).toMatchObject({ status: "sent", verify_uuids: [x] });
+  });
+
+  it("(F, R2-1) a DELETE that took, read back while reads lag, fails removeNotKept; Try again seconds later waits out the minute, then reads it out — one DELETE", async () => {
+    const c = await sentBooking();
+    const x = c.remote_uuid as string;
+    sm8.knobs.lagNextWriteMs = 5_000;
+    await undo(c);
+    await run();
+    const d = takeBackOf(c.id)!;
+    expect(d).toMatchObject({ status: "failed", last_error: BOOKING_WORDS.row.removeNotKept, verify_uuids: [x] });
+    expect(sm8.active(x)).toBe(false);
+    expect(await queueBookingRetry(await pressAs(), await state(), { rowId: d.id as string })).toMatchObject({ ok: true });
+    await run();
+    expect(sm8.deletes).toEqual([x]);
+    skew += 61_000;
+    await run();
+    expect(sm8.deletes).toEqual([x]);
+    expect(sm8.active(x)).toBe(false);
+    expect(d.status).toBe("sent");
+  });
+
+  it("(F, M2) an Undo and a Clear of one booking drained at once: the one claimed first DELETEs, the other waits for it and then finds it out — one DELETE", async () => {
+    const c = await finishedBooking();
+    const x = c.remote_uuid as string;
+    await undo(c);
+    const d = takeBackOf(c.id)!;
+    /* a Clear pressed in the same moment, before either could see the other */
+    fake.db.sm8_writes.push({
+      id: randomUUID(),
+      org_id: ORG,
+      tenant_id: TENANT,
+      kind: "booking",
+      op: "delete",
+      sm8_job_uuid: JOB,
+      subject: `clear:${x}`,
+      payload: { name: BOOKING_WORDS.label.clear },
+      remote_uuid: randomUUID(),
+      status: "queued",
+      attempts: 0,
+      next_attempt_at: new Date(Date.now() - 1000).toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      target_uuid: x,
+      depends_on: null,
+      verb_id: randomUUID(),
+      booking_staff_uuid: SAM_SM8,
+      booking_start: c.booking_start,
+      booking_end: c.booking_end,
+      lease_until: null,
+      maybe_landed: false,
+      verify_uuids: [],
+      replaced_uuids: [],
+    });
+    const cl = clearOn(c)!;
+    /* the Undo's run is held at its DELETE */
+    let release = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    deleteSm8Booking.mockImplementationOnce(async (call: unknown, u: string) => {
+      await gate;
+      return sm8.deleteBooking(call, u);
+    });
+    const first = run({ ids: [d.id as string] });
+    while (deleteSm8Booking.mock.calls.length === 0) await new Promise((r) => setImmediate(r));
+    /* the Clear's run, claimed a moment later, reaches its DELETE while the Undo's is in flight */
+    skew += 1_000;
+    await run({ ids: [cl.id as string] });
+    expect(cl).toMatchObject({ status: "queued", attempts: 0 });
+    release();
+    await first;
+    expect(d).toMatchObject({ status: "sent", verify_uuids: [x] });
+    skew += 150_000;
+    await run();
+    expect(sm8.deletes).toEqual([x]);
+    expect(sm8.active(x)).toBe(false);
+    expect(cl).toMatchObject({ status: "sent", verify_uuids: [x] });
+  });
+
+  it("(F, R2-2) a Clear whose read-back lags fails removeNotKept; an Undo then reading it active waits a minute from the Clear's try, and finds it out — one DELETE", async () => {
+    const c = await finishedBooking();
+    const x = c.remote_uuid as string;
+    expect(await clearOf(c)).toMatchObject({ ok: true });
+    sm8.knobs.lagNextWriteMs = 5_000;
+    await run();
+    const cl = clearOn(c)!;
+    expect(cl).toMatchObject({ status: "failed", last_error: BOOKING_WORDS.row.removeNotKept });
+    expect(await undo(c)).toMatchObject({ ok: true, plan: "deleting" });
+    await run();
+    const d = takeBackOf(c.id)!;
+    expect(sm8.deletes).toEqual([x]);
+    expect(d).toMatchObject({ status: "queued" });
+    const settled = Date.parse(cl.updated_at as string) + 60_000;
+    expect(Date.parse(d.next_attempt_at as string)).toBeGreaterThanOrEqual(settled);
+    expect(Date.parse(d.next_attempt_at as string)).toBeLessThan(settled + 1_000);
+    skew += 61_000;
+    await run();
+    expect(sm8.deletes).toEqual([x]);
+    expect(sm8.active(x)).toBe(false);
+    expect(d).toMatchObject({ status: "sent", verify_uuids: [x] });
+  });
+
+  it("(F, R2-2) a Clear that went and took it out, while reads still show it: the Undo counts it out, with no DELETE", async () => {
+    const c = await finishedBooking();
+    const x = c.remote_uuid as string;
+    sm8.knobs.lagNextWriteMs = 5_000;
+    await sm8.deleteBooking(null, x);
+    fake.db.sm8_writes.push({
+      id: randomUUID(),
+      org_id: ORG,
+      tenant_id: TENANT,
+      kind: "booking",
+      op: "delete",
+      sm8_job_uuid: JOB,
+      subject: `clear:${x}`,
+      payload: { name: BOOKING_WORDS.label.clear },
+      remote_uuid: randomUUID(),
+      status: "sent",
+      attempts: 1,
+      next_attempt_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date(Date.now() - 120_000).toISOString(),
+      target_uuid: x,
+      depends_on: null,
+      verb_id: randomUUID(),
+      booking_staff_uuid: SAM_SM8,
+      booking_start: c.booking_start,
+      booking_end: c.booking_end,
+      lease_until: null,
+      maybe_landed: false,
+      verify_uuids: [x],
+      replaced_uuids: [],
+    });
+    expect(await undo(c)).toMatchObject({ ok: true, plan: "deleting" });
+    await run();
+    expect(sm8.deletes).toEqual([x]);
+    expect(sm8.active(x)).toBe(false);
+    expect(takeBackOf(c.id)).toMatchObject({ status: "sent", http_status: null, verify_uuids: [] });
+  });
+
+  it("(F, M2) the other take-backs and Clears of a booking that can't be read are never 'none': back to the queue, no DELETE", async () => {
+    const c = await sentBooking();
+    await undo(c);
+    fake.before.sm8_writes = (s) => (s.op === "select" && s.filters.includes("depends_on is null") ? "fail" : undefined);
+    await run();
+    expect(deleteSm8Booking).not.toHaveBeenCalled();
+    expect(takeBackOf(c.id)).toMatchObject({ status: "queued" });
+  });
+
+  it("(F, R2-5) a booking whose POST answer was lost, taken back at once: not there is read again for a minute — it lands, the overlay still shows it, the take-back is still on its way, and it goes out", async () => {
+    await bookIn();
+    const [c] = creates();
+    const x = c.remote_uuid as string;
+    postSm8Booking.mockResolvedValueOnce(LOST);
+    await run();
+    expect(c).toMatchObject({ status: "queued", maybe_landed: true });
+    expect(await undo(c)).toMatchObject({ ok: true, plan: "deleting" });
+    await run();
+    const d = takeBackOf(c.id)!;
+    expect(d).toMatchObject({ status: "queued", verify_uuids: [] });
+    expect(deleteSm8Booking).not.toHaveBeenCalled();
+    /* it lands after all */
+    sm8.put({ uuid: x, jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
+    mirrored(x);
+    expect((await readBookingOverlay(ORG, await state(), { uuids: [x] })).gone.has(x)).toBe(false);
+    expect(await lineOf(c)).toMatchObject({ key: "line.takingOut" });
+    skew += 61_000;
+    await run();
+    expect(sm8.deletes).toEqual([x]);
+    expect(sm8.active(x)).toBe(false);
+    expect(d).toMatchObject({ status: "sent", verify_uuids: [x] });
+    expect((await readBookingOverlay(ORG, await state(), { uuids: [x] })).gone.has(x)).toBe(true);
+  });
+
+  it("(F, R2-5) ...and one that never lands: a minute on, not there is out, and it hides nothing", async () => {
+    await bookIn();
+    const [c] = creates();
+    const x = c.remote_uuid as string;
+    postSm8Booking.mockResolvedValueOnce(LOST);
+    await run();
+    await undo(c);
+    skew += 61_000;
+    await run();
+    expect(deleteSm8Booking).not.toHaveBeenCalled();
+    expect(takeBackOf(c.id)).toMatchObject({ status: "sent", verify_uuids: [] });
+    expect((await readBookingOverlay(ORG, await state(), { uuids: [x] })).gone.has(x)).toBe(false);
+  });
+
+  it("(F, S2, R2-3) a DELETE answered 409: read back out, it counts as out; its read-back failing, it goes back to the queue remembering it — never gone — and its next go only reads", async () => {
+    const c = await sentBooking();
+    const x = c.remote_uuid as string;
+    deleteSm8Booking.mockImplementationOnce(async (_call: unknown, u: string) => {
+      sm8.removeThere(u);
+      return R409;
+    });
+    await undo(c);
+    await run();
+    expect(takeBackOf(c.id)).toMatchObject({ status: "sent", http_status: 409, verify_uuids: [x] });
+
+    const e = await sentBooking(slot(SAM_SM8, "15:00", "16:00"));
+    const y = e.remote_uuid as string;
+    let deleted = false;
+    deleteSm8Booking.mockImplementationOnce(async (_call: unknown, u: string) => {
+      deleted = true;
+      sm8.removeThere(u);
+      return R409;
+    });
+    readSm8Booking.mockImplementation(async (call: unknown, u: string) => (deleted ? { ok: false } : sm8.readBooking(call, u)));
+    await undo(e);
+    await run();
+    const f = takeBackOf(e.id)!;
+    expect(f).toMatchObject({ status: "queued", http_status: 409, verify_uuids: [y] });
+    readSm8Booking.mockImplementation(sm8.readBooking);
+    skew += 150_000;
+    await run();
+    expect(deleteSm8Booking).toHaveBeenCalledTimes(2);
+    expect(f).toMatchObject({ status: "sent", verify_uuids: [y] });
+  });
+
+  it("(F, R2-4) a Clear reads its job before its booking: one cancelled while its job is read gets no DELETE, even where the job's list lags", async () => {
+    leftover();
+    await clear();
+    readSm8Job.mockImplementationOnce(async (call: unknown, u: string) => {
+      sm8.removeThere(LEFT);
+      return sm8.readJob(call, u);
+    });
+    /* the job's list of bookings still shows it */
+    readSm8JobBookings.mockImplementationOnce(async () => ({ ok: true, activities: [{ ...sm8.get(LEFT)!, active: 1 }] }));
+    await run();
+    expect(deleteSm8Booking).not.toHaveBeenCalled();
+    expect(sm8.active(LEFT)).toBe(false);
+    expect(clearRow()).toMatchObject({ status: "sent", verify_uuids: [LEFT] });
+  });
+
+  it("(F, R2-8) a take-back on a job gone from the mirror still reads its booking, and takes it out", async () => {
+    const c = await sentBooking();
+    fake.db.sm8_jobs[0].active = 0;
+    await undo(c);
+    await run();
+    expect(sm8.deletes).toEqual([c.remote_uuid]);
+    expect(takeBackOf(c.id)).toMatchObject({ status: "sent" });
+  });
+});
+
+describe("a press decides on the whole overlay, or queues nothing (review: S3)", () => {
+  it("(F) what we took out, or what we sent, unreadable: Book in is unqueued, and nothing is queued", async () => {
+    await sentBooking();
+    for (const pick of [
+      (f: string[]) => f.includes("status=sent") && f.includes("op=delete"),
+      (f: string[]) => f.includes("status=sent") && f.includes("op=create"),
+    ]) {
+      fake.before.sm8_writes = (s) => (s.op === "select" && pick(s.filters) ? "fail" : undefined);
+      const before = JSON.stringify(writes());
+      expect(await bookIn([slot(SAM_SM8, "15:00", "16:00")])).toEqual({ ok: false, refusal: "unqueued" });
+      expect(JSON.stringify(writes())).toBe(before);
+    }
+    delete fake.before.sm8_writes;
+    expect(await bookIn([slot(SAM_SM8, "15:00", "16:00")])).toMatchObject({ ok: true });
   });
 });
 
@@ -2183,6 +2592,7 @@ describe("Try again goes through its one door (B-11)", () => {
     expect(d).toMatchObject({ status: "failed", last_error: BOOKING_WORDS.row.removeRefused });
     expect(await queueBookingRetry(await pressAs("alex"), await state(), { rowId: d.id as string })).toEqual({ ok: false, refusal: "changed" });
     expect(await queueBookingRetry(await pressAs(), await state(), { rowId: d.id as string })).toMatchObject({ ok: true });
+    due(d);
     await run();
     expect(d.status).toBe("sent");
     expect(sm8.active(c.remote_uuid as string)).toBe(false);

@@ -12,8 +12,19 @@ const getSession = jest.fn();
 jest.mock("@/lib/auth0", () => ({ auth0: { getSession: () => getSession() } }));
 
 let caps = new Set<string>();
-jest.mock("@/lib/permissions-server", () => ({
-  can: async (c: string) => caps.has(c),
+/* Who is asking comes from one read of the membership (lib/tiff/registry/
+   viewer); stubbed at that seam so the REAL registry filters by it. */
+const viewerForUser = jest.fn(async (orgId: string, userId: string) => ({
+  orgId,
+  userId,
+  staffId: null,
+  role: "staff",
+  caps,
+  tz: "Australia/Brisbane",
+  today: "2026-08-06",
+}));
+jest.mock("@/lib/tiff/registry/viewer", () => ({
+  viewerForUser: (orgId: string, userId: string) => viewerForUser(orgId, userId),
 }));
 
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: async () => "Australia/Brisbane" }));
@@ -127,8 +138,10 @@ describe("the wire", () => {
         targetLabel: "Meridian Data, CRACs",
       })
     );
+    expect(viewerForUser).toHaveBeenCalledTimes(1);
+    expect(viewerForUser).toHaveBeenCalledWith("org-1", "auth0|me");
     expect(loopInput()).toMatchObject({
-      orgId: "org-1",
+      viewer: expect.objectContaining({ orgId: "org-1", userId: "auth0|me" }),
       todayISO: "2026-08-06",
       targetLabel: "Meridian Data, CRACs",
       targetRef: { kind: "visit", id: "v-1" },

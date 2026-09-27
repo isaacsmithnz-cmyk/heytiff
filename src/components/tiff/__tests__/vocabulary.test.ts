@@ -153,7 +153,7 @@ const SPARKLE = /name="(?:sparkles|bot)"|icon:\s*"(?:sparkles|bot)"/;
    because a new screen was easier to add here than to fix. */
 const MODEL_FACING = [
   "lib/brain/ask.ts",
-  "lib/brain/tools.ts",
+  "lib/tiff/registry/reads.ts",
   "lib/workboard/note-brain.ts",
   "app/api/brain/ask/route.ts",
 ];

@@ -2,7 +2,7 @@
 
    The same engine shape as Claude Code over a repo: a model, a registry of
    read-only tools, and a loop that runs until the model stops asking for
-   them. The tools are lib/brain/tools; the loop is here; the wire is
+   them. The tools are Tiff's registry (lib/tiff/registry); the loop is here; the wire is
    /api/brain/ask. Nothing in this file writes anything, ever — the tool
    registry is read-only by hard rule, and this loop holds no other way to
    touch the database.
@@ -28,7 +28,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { REPLY_IN_KIND } from "@/lib/lang/policy";
 import { logUsage } from "@/lib/tiff/usage";
-import { runTool, toolDefs, type BrainTool } from "./tools";
+import { runTool, toolDefs, type TiffTool, type Viewer } from "@/lib/tiff/registry";
 
 const MODEL = "claude-opus-5";
 const MAX_TOKENS = 16_000;
@@ -77,10 +77,11 @@ export type AskBrainEvent =
   | { type: "done" };
 
 export type AskBrainInput = {
-  orgId: string;
+  /** Who is asking: their org, identity and capabilities (lib/tiff/registry/viewer). */
+  viewer: Viewer;
   question: string;
   /** The tools THIS viewer may reach — already capability-filtered. */
-  tools: readonly BrainTool[];
+  tools: readonly TiffTool[];
   /** "Meridian Data · CRACs" and its target — when the token was standing on
       a job, the loop should start there rather than searching for it. */
   targetLabel?: string;
@@ -276,11 +277,11 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
       for (const call of calls) {
         const tool = input.tools.find((t) => t.name === call.name);
         yield { type: "tool", name: call.name, label: tool?.label ?? call.name };
-        const res = await runTool(input.orgId, call.name, call.input ?? {}, input.tools);
+        const res = await runTool(input.viewer, call.name, call.input ?? {}, input.tools);
         results.push({
           type: "tool_result",
           tool_use_id: call.id,
-          content: res.ok ? JSON.stringify(res.result).slice(0, 20_000) : res.error,
+          content: res.ok ? JSON.stringify(res.outcome.kind === "result" ? res.outcome.value : res.outcome.label).slice(0, 20_000) : res.error,
           is_error: !res.ok,
         });
       }

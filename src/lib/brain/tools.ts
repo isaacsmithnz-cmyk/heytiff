@@ -1,37 +1,30 @@
-/* THE BRAIN'S HANDS — server only, org-scoped, read only.
+/* THE BRAIN'S READERS — server only, org-scoped, read only.
 
    The design lesson this module is built on: Claude Code doesn't memorise a
    repository, it has grep and read and a loop that uses them on demand. The
    app's equivalent of the repo is the database, and the database is already
-   the memory — what's been missing is hands. Each tool here is a thin,
+   the memory — what's been missing is hands. Each reader here is a thin,
    compact reader over a query module that already exists; nothing in this
    file invents a new question to ask the data.
 
-   TWO CALLERS, ONE SHAPE. Today the note router pre-fetches `jobHistory` to
-   ground a routing call (lib/workboard/note-brain). Next, the ask-mode loop
-   hands `toolDefs()` to the API and dispatches through `runTool` — which is
-   why every tool carries a JSON-schema definition it doesn't strictly need
-   yet. Building the registry now and the loop later is the point: the loop
-   is an afternoon once the hands exist.
+   TWO CALLERS. The note router pre-fetches `jobHistory` to ground a routing
+   call (lib/workboard/note-brain), and Tiff's registry (lib/tiff/registry)
+   wraps these readers as the tools the ask loop holds. The registry imports
+   from here and never the other way round, so there is no cycle: the note
+   router loads this module without loading the registry.
 
-   READ ONLY IS A HARD RULE, not a phase. The house safety model is that a
-   model's understanding is probabilistic and effect is deterministic —
-   writes happen through the review card, where a human confirms every row.
-   A write tool here would hand the model the review card's job. Don't add
-   one.
+   Writes are not this module's business. Tiff's writes, when they come, are
+   registry tools that call the action a screen would call, each with its own
+   checks and its undo (docs/universal-tiff-phase-1-spec.md).
 
    NO SESSION HERE: callers establish the right to ask and hand in an orgId,
-   the same posture as every read module this wraps. Person-scoped data (My
-   notes) is deliberately ABSENT until the ask loop can carry a viewer
-   identity — an org-keyed tool must never read one person's private notes.
+   the same posture as every read module this wraps.
 
    EVERYTHING RETURNED IS CAPPED AND COMPACT. Tool output lands in a prompt;
    an unbounded list is a cost and a distraction. The caps are the contract. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { listIssues, type IssueRow } from "@/lib/workboard/notes-query";
-import { searchMirrorJobs, type JobSearchHit } from "@/lib/workboard/projects-query";
-import { retrieveForQuestion } from "@/lib/tiff/retrieve";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
 import { displayNameOf } from "@/lib/staff/name";
 import type { NoteTarget } from "@/app/actions/workboard-notes";
@@ -235,171 +228,4 @@ export async function issueLog(orgId: string, limit = 25): Promise<OrgIssue[]> {
     targetKind: String(i.target_kind),
     targetId: (i.target_id as string) ?? null,
   }));
-}
-
-/* ── the registry — what the future ask-loop hands to the API ──────────── */
-
-/** One tool the brain can call. `input` is already validated against the
-    schema by the API before `run` sees it; `run` still treats it as data. */
-export type BrainTool = {
-  name: string;
-  description: string;
-  /** What the person sees while the loop is using it — "Reading the job's
-      history", present tense, no jargon. Real progress, not fake. */
-  label: string;
-  /** The capability whose holders may reach this data through the loop.
-      The ask route filters the registry per viewer with `toolsFor` — the
-      same read behind a screen gate must not be reachable by asking. */
-  capability: "workboard" | "tiff";
-  inputSchema: Record<string, unknown>;
-  run: (orgId: string, input: Record<string, unknown>) => Promise<unknown>;
-};
-
-const str = { type: "string" } as const;
-
-/** One search_jobs candidate, shaped to be handed straight to job_history. */
-export type JobSearchResult = { kind: "job"; id: string } & Pick<
-  JobSearchHit,
-  "jobNumber" | "status" | "clientName" | "suburb" | "address" | "description" | "linkedTo"
->;
-
-export const BRAIN_TOOLS: readonly BrainTool[] = [
-  {
-    name: "job_history",
-    label: "Reading the job's history",
-    capability: "workboard",
-    description:
-      "Everything already on record for one job: open issues with how often each has recurred, " +
-      "active flags, the last few notes, equipment on site, and the job's own notes. Call this " +
-      "before answering anything about a specific job. A ServiceM8 job is kind \"job\" — pass " +
-      "the kind and id a search_jobs result gives you.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        kind: { type: "string", enum: TARGET_KINDS },
-        id: str,
-      },
-      required: ["kind", "id"],
-      additionalProperties: false,
-    },
-    run: (orgId, input) =>
-      jobHistory(orgId, {
-        kind: input.kind as NoteTarget["kind"],
-        id: String(input.id ?? ""),
-      }),
-  },
-  {
-    name: "search_jobs",
-    label: "Searching the board's jobs",
-    capability: "workboard",
-    description:
-      "Find ServiceM8 jobs by client, site, service or job number. Each candidate carries the " +
-      "kind and id job_history takes — pass them as they are to read one in depth.",
-    inputSchema: {
-      type: "object",
-      properties: { query: str },
-      required: ["query"],
-      additionalProperties: false,
-    },
-    /* A hit is a mirror job, known by its ServiceM8 uuid — `remoteId` to the
-       attach picker, which is no name a model would think to hand job_history
-       as an `id`. So each one says outright what job_history wants, `kind`
-       and `id`. The rest is named field by field: the client's company uuid
-       answers nothing, and a column the picker grows later should not reach
-       the prompt unasked. */
-    run: async (orgId, input): Promise<JobSearchResult[]> =>
-      (await searchMirrorJobs(orgId, String(input.query ?? ""))).map((h) => ({
-        kind: "job",
-        id: h.remoteId,
-        jobNumber: h.jobNumber,
-        status: h.status,
-        clientName: h.clientName,
-        suburb: h.suburb,
-        address: h.address,
-        description: h.description,
-        linkedTo: h.linkedTo,
-      })),
-  },
-  {
-    name: "open_task_load",
-    label: "Checking who's carrying what",
-    capability: "workboard",
-    description:
-      "Open tasks per person, heaviest first, with overdue counts — who is already carrying " +
-      "what. `today` must be the org's own date (YYYY-MM-DD).",
-    inputSchema: {
-      type: "object",
-      properties: { today: str },
-      required: ["today"],
-      additionalProperties: false,
-    },
-    run: (orgId, input) => openTaskLoad(orgId, String(input.today ?? "")),
-  },
-  {
-    name: "issue_log",
-    label: "Scanning recurring issues",
-    capability: "workboard",
-    description:
-      "Open recurring issues across every job, most-repeated first — the cross-job pattern " +
-      "view. Use it for 'what keeps breaking' questions.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
-    run: (orgId) => issueLog(orgId),
-  },
-  {
-    name: "kb_search",
-    label: "Searching the library",
-    capability: "tiff",
-    description:
-      "Search the knowledge base — manuals AND field notes the crew has taught. Returns " +
-      "excerpts with their sources; field notes carry who learned them and where.",
-    inputSchema: {
-      type: "object",
-      properties: { query: str },
-      required: ["query"],
-      additionalProperties: false,
-    },
-    run: async (orgId, input) => {
-      const found = await retrieveForQuestion(orgId, String(input.query ?? ""));
-      /* The loop wants excerpts, not the full retrieval trace. */
-      return found.chunks.slice(0, 8).map((c) => ({
-        title: c.title,
-        category: c.category,
-        heading: c.heading,
-        pages: c.pageFrom === c.pageTo ? `${c.pageFrom}` : `${c.pageFrom}–${c.pageTo}`,
-        content: c.content.slice(0, 1200),
-      }));
-    },
-  },
-];
-
-/** The registry a viewer is allowed: reads reachable by ASKING must be the
-    same set reachable by LOOKING. Someone without the workboard capability
-    can't see the board, so the loop must not read it to them either. */
-export const toolsFor = (caps: ReadonlySet<string>): BrainTool[] =>
-  BRAIN_TOOLS.filter((t) => caps.has(t.capability));
-
-/** Anthropic-shaped tool definitions, for the ask-loop's API call. */
-export const toolDefs = (tools: readonly BrainTool[] = BRAIN_TOOLS) =>
-  tools.map((t) => ({
-    name: t.name,
-    description: t.description,
-    input_schema: t.inputSchema,
-  }));
-
-/** Dispatch one call. Unknown names are an error VALUE, not a throw — inside
-    an agentic loop a throw kills the answer, and the honest failure is to
-    tell the model it asked for a tool that doesn't exist. */
-export async function runTool(
-  orgId: string,
-  name: string,
-  input: Record<string, unknown>,
-  allowed: readonly BrainTool[] = BRAIN_TOOLS
-): Promise<{ ok: true; result: unknown } | { ok: false; error: string }> {
-  const tool = allowed.find((t) => t.name === name);
-  if (!tool) return { ok: false, error: `No such tool: ${name}` };
-  try {
-    return { ok: true, result: await tool.run(orgId, input) };
-  } catch {
-    return { ok: false, error: `${name} failed — answer without it.` };
-  }
 }

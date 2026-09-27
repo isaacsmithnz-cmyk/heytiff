@@ -27,13 +27,23 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { contextFor, storedNotes, type StoredNote } from "../context";
-import { askRead, loopRead, routerRead, type AskRead, type NoteRead } from "../paths";
+import type { StoredNote } from "../context";
+import type { AskRead, NoteRead } from "../paths";
 import { compareRows, costOf, percentile, type RowVerdict } from "../rows";
 import { DRAFT_PHRASES } from "../drafts";
-import { pickTool, type SearchPick } from "../search";
-import { getSm8Timezone } from "@/lib/workboard/query";
-import { todayInZone } from "@/lib/workboard/dates";
+import type { SearchPick } from "../search";
+
+/* The modules that reach the database or the API are loaded only when a
+   probe runs: the Supabase client is made the moment its module loads, and
+   an ordinary `npm test` has no credentials to make it with. */
+const load = async () => ({
+  ...(await import("../context")),
+  ...(await import("../paths")),
+  ...(await import("../search")),
+  ...(await import("@/lib/workboard/query")),
+  ...(await import("@/lib/workboard/dates")),
+});
+let m: Awaited<ReturnType<typeof load>>;
 
 const PROBE = process.env.TIFF_PROBE ?? "";
 const ROOT = path.resolve(process.cwd(), "probes");
@@ -77,11 +87,11 @@ type Pair = { note: StoredNote; a: NoteRead; b: NoteRead; verdict: RowVerdict | 
 async function pairs(
   client: Anthropic,
   notes: StoredNote[],
-  first: (note: StoredNote, ctx: Awaited<ReturnType<typeof contextFor>>) => Promise<NoteRead>,
-  second: (note: StoredNote, ctx: Awaited<ReturnType<typeof contextFor>>) => Promise<NoteRead>,
+  first: (note: StoredNote, ctx: Awaited<ReturnType<(typeof m)["contextFor"]>>) => Promise<NoteRead>,
+  second: (note: StoredNote, ctx: Awaited<ReturnType<(typeof m)["contextFor"]>>) => Promise<NoteRead>,
 ): Promise<Pair[]> {
   return mapLimit(notes, CONCURRENCY, async (note, i) => {
-    const ctx = await contextFor(note);
+    const ctx = await m.contextFor(note);
     let a: NoteRead;
     let b: NoteRead;
     if (i % 2 === 0) {
@@ -143,12 +153,12 @@ function pairReport(title: string, aName: string, bName: string, rows: Pair[]): 
 }
 
 async function p0(client: Anthropic) {
-  const notes = (await storedNotes()).slice(0, LIMIT);
+  const notes = (await m.storedNotes()).slice(0, LIMIT);
   const rows = await pairs(
     client,
     notes,
-    (n, ctx) => routerRead(client, n.transcript, ctx, OPUS_5),
-    (n, ctx) => loopRead(client, n.transcript, ctx, n.orgId, LOOP_MODEL),
+    (n, ctx) => m.routerRead(client, n.transcript, ctx, OPUS_5),
+    (n, ctx) => m.loopRead(client, n.transcript, ctx, n.orgId, LOOP_MODEL),
   );
   const effort = process.env.TIFF_LOOP_EFFORT ?? "medium";
   const strict = process.env.TIFF_LOOP_STRICT !== "0";
@@ -170,12 +180,12 @@ async function p0(client: Anthropic) {
     rows" needs, because a router that disagrees with itself one note in five
     makes 24 of 30 noise rather than a loss. */
 async function p0base(client: Anthropic) {
-  const notes = (await storedNotes()).slice(0, LIMIT);
+  const notes = (await m.storedNotes()).slice(0, LIMIT);
   const rows = await pairs(
     client,
     notes,
-    (n, ctx) => routerRead(client, n.transcript, ctx, OPUS_5),
-    (n, ctx) => routerRead(client, n.transcript, ctx, OPUS_5),
+    (n, ctx) => m.routerRead(client, n.transcript, ctx, OPUS_5),
+    (n, ctx) => m.routerRead(client, n.transcript, ctx, OPUS_5),
   );
   await save("p0base", rows, pairReport("P0 baseline: today's router against itself", "Router", "Router again", rows));
 }
@@ -184,12 +194,12 @@ async function p0base(client: Anthropic) {
     whether the note path can take the effort split decided on 27 September
     (low for filing notes) without its rows moving. */
 async function p0effort(client: Anthropic) {
-  const notes = (await storedNotes()).slice(0, LIMIT);
+  const notes = (await m.storedNotes()).slice(0, LIMIT);
   const rows = await pairs(
     client,
     notes,
-    (n, ctx) => routerRead(client, n.transcript, ctx, OPUS_5, "medium"),
-    (n, ctx) => routerRead(client, n.transcript, ctx, OPUS_5, "low"),
+    (n, ctx) => m.routerRead(client, n.transcript, ctx, OPUS_5, "medium"),
+    (n, ctx) => m.routerRead(client, n.transcript, ctx, OPUS_5, "low"),
   );
   await save("p0effort", rows, pairReport("P0 effort: today's router at medium against low", "Medium", "Low", rows));
 }
@@ -197,12 +207,12 @@ async function p0effort(client: Anthropic) {
 type Question = { ask: string; expect?: string };
 
 async function p1(client: Anthropic) {
-  const notes = (await storedNotes()).slice(0, LIMIT);
+  const notes = (await m.storedNotes()).slice(0, LIMIT);
   const rows = await pairs(
     client,
     notes,
-    (n, ctx) => routerRead(client, n.transcript, ctx, OPUS_5),
-    (n, ctx) => routerRead(client, n.transcript, ctx, OPUS_55),
+    (n, ctx) => m.routerRead(client, n.transcript, ctx, OPUS_5),
+    (n, ctx) => m.routerRead(client, n.transcript, ctx, OPUS_55),
   );
   let questions: Question[] = [];
   try {
@@ -211,9 +221,9 @@ async function p1(client: Anthropic) {
     console.log("No probes/cases/questions.json: P1 reads the notes only.");
   }
   const orgId = notes[0]?.orgId ?? "";
-  const today = todayInZone(await getSm8Timezone(orgId));
+  const today = m.todayInZone(await m.getSm8Timezone(orgId));
   const asked = await mapLimit(questions, CONCURRENCY, async (q, i) => {
-    const one = async (model: string) => askRead(client, q.ask, orgId, today, model);
+    const one = async (model: string) => m.askRead(client, q.ask, orgId, today, model);
     const [a, b] = i % 2 === 0 ? [await one(OPUS_5), await one(OPUS_55)] : (([y, x]) => [x, y])([await one(OPUS_55), await one(OPUS_5)]);
     return { q, a, b };
   });
@@ -253,8 +263,8 @@ async function p3(client: Anthropic) {
   const picks = await mapLimit(DRAFT_PHRASES.slice(0, LIMIT), CONCURRENCY, async (phrase, i) => {
     /* Every fifth phrase also sends a second round, to watch the cache. */
     const followUp = i % 5 === 0;
-    const loaded = await pickTool(client, phrase.say, "loaded", OPUS_5, followUp);
-    const searched = await pickTool(client, phrase.say, "searched", OPUS_5, followUp);
+    const loaded = await m.pickTool(client, phrase.say, "loaded", OPUS_5, followUp);
+    const searched = await m.pickTool(client, phrase.say, "searched", OPUS_5, followUp);
     return { phrase, loaded, searched };
   });
   const right = (p: SearchPick, want: string) => p.picked === want;
@@ -311,6 +321,7 @@ describe("Tiff's Phase 0 probes", () => {
         console.log("TIFF_PROBE is set but ANTHROPIC_API_KEY or SUPABASE_SERVICE_ROLE_KEY is missing: nothing ran.");
         return;
       }
+      m = await load();
       const client = new Anthropic({ maxRetries: 4 });
       if (PROBE === "p0") await p0(client);
       else if (PROBE === "p0base") await p0base(client);

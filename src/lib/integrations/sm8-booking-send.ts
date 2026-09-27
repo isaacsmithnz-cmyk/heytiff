@@ -400,7 +400,7 @@ async function sendBooking(
     if (!job || job.active !== 1) return { finish: done("cancelled", BOOKING_WORDS.row.jobGone, cleared), access };
     if (job.status === "Work Order") return { finish: done("sent", null, { landedEditDate: job.editDate }), access };
     if (job.status !== "Quote") {
-      return { finish: done("cancelled", fillWords(BOOKING_WORDS.row.jobNotBookable, { status: job.status ?? "closed" }), cleared), access };
+      return { finish: done("cancelled", fillWords(BOOKING_WORDS.row.jobNotBookable, { status: job.status ?? BOOKING_WORDS.fill.status }), cleared), access };
     }
     /* still a Quote: nothing landed, and the mark goes whatever the row
        finishes as — unless a POST in this attempt loses its answer again */
@@ -449,7 +449,7 @@ async function sendBooking(
   if (op === "create") {
     const who = await readMirrorStaff(orgId, row.booking_staff_uuid ?? "");
     if (who === "failed") return end(checkFailed());
-    person = who?.name ?? THE_PERSON;
+    person = who?.name ?? BOOKING_WORDS.fill.person;
     if (!who || who.active !== 1) return end(done("cancelled", fillWords(BOOKING_WORDS.row.techInactive, { name: person })));
   }
 
@@ -513,7 +513,7 @@ async function sendBooking(
     }
     if (!job || job.active !== 1) return done("cancelled", BOOKING_WORDS.row.jobGone);
     if (job.status === "Work Order") return done("sent", null, { landedEditDate: job.editDate });
-    if (job.status !== "Quote") return done("cancelled", fillWords(BOOKING_WORDS.row.jobNotBookable, { status: job.status ?? "closed" }));
+    if (job.status !== "Quote") return done("cancelled", fillWords(BOOKING_WORDS.row.jobNotBookable, { status: job.status ?? BOOKING_WORDS.fill.status }));
     if (!sameEditDate(job.editDate, row.seen_edit_date ?? null)) {
       /* our own last status change on this job left its edit time: that is
          as seen */
@@ -638,7 +638,7 @@ async function sendBooking(
     const job = j.got.found ? j.got.job : null;
     if (!job || job.active !== 1) return done("cancelled", BOOKING_WORDS.row.jobGone, kept);
     if (job.status !== "Quote" && job.status !== "Work Order") {
-      return done("cancelled", fillWords(BOOKING_WORDS.row.jobNotBookable, { status: job.status ?? "closed" }), kept);
+      return done("cancelled", fillWords(BOOKING_WORDS.row.jobNotBookable, { status: job.status ?? BOOKING_WORDS.fill.status }), kept);
     }
     const b = await readLive((a) => readSm8JobBookings(sm8CallOf(a, "write"), jobUuid));
     if ("finish" in b) return { ...b.finish, ...kept };
@@ -1091,9 +1091,6 @@ async function sendBooking(
 }
 
 /* ── the database reads a booking send makes ── */
-
-/** Whoever it was booked for, when the mirror doesn't name them. */
-const THE_PERSON = "The person booked";
 
 async function readMirrorJob(orgId: string, jobUuid: string): Promise<{ active: number | null; number: string | null } | null | "failed"> {
   const { data, error } = await supabaseAdmin

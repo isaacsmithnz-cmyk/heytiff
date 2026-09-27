@@ -589,8 +589,17 @@ describe("a booking's line, case by case", () => {
     expect(lineOf({ status: "trial" }, { offered: false }).acts).toEqual(["cancel"]);
   });
 
+  it("(F) 20: a booking a guard stopped offers Look again — a Try again would meet the guard again (review S1)", () => {
+    expect(lineOf({ status: "cancelled", last_error: filled.guardStopped })).toEqual({
+      key: "line.notSent",
+      text: `Not booked. ${filled.guardStopped}`,
+      tone: null,
+      acts: ["look_again"],
+    });
+  });
+
   it("24: cancelled for any other reason offers Try again", () => {
-    for (const reason of [W.row.switchedOff, filled.guardStopped, WRITE_WORDS.disconnected, WRITE_WORDS.switchedOff]) {
+    for (const reason of [W.row.switchedOff, WRITE_WORDS.disconnected, WRITE_WORDS.switchedOff]) {
       expect(lineOf({ status: "cancelled", last_error: reason })).toEqual({
         key: "line.notSent",
         text: `Not booked. ${reason}`,

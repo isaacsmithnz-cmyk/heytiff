@@ -56,6 +56,22 @@ describe("the booking words", () => {
     );
   });
 
+  it("(F) are the booking engine's only words: its sender, queue, overlay and zone say no sentence, name or status of their own (review S5)", () => {
+    const fills = new Set<string>(Object.values(BOOKING_WORDS.fill));
+    for (const file of [
+      "src/lib/integrations/sm8-booking-send.ts",
+      "src/app/actions/sm8-booking-queue.ts",
+      "src/lib/integrations/sm8-booking-overlay.ts",
+      "src/lib/integrations/sm8-booking-zone.ts",
+    ]) {
+      const src = readFileSync(join(ROOT, file), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/^\s*\/\/.*$/gm, "");
+      const own = [...src.matchAll(/"([^"\n]*)"/g)].map((m) => m[1]).filter((t) => /^[A-Z][a-z]+ [a-z]/.test(t) || fills.has(t));
+      expect([file, own]).toEqual([file, []]);
+    }
+  });
+
   it("say manage_schedule's whole reach: allocations, booking windows and availability", () => {
     expect(BOOKING_WORDS.scope.schedule).toMatch(/job allocations, booking windows and availability/);
     expect(BOOKING_WORDS.scope.schedule).toMatch(/never touches allocations, booking windows or availability/);

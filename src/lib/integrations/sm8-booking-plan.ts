@@ -488,7 +488,10 @@ function takeBackSettled(create: BookingRowIn, takeBack: TakeBackIn | null, mirr
 }
 
 /** The reasons a re-press would meet again: the line offers Look again,
-    where the booking, the job and the time can be seen afresh. */
+    where the booking, the job and the time can be seen afresh. A booking a
+    guard stopped is one: its Try again would go behind the same status
+    change the guard recorded and meet it again, where a fresh look books
+    it on the job as it is now (a Work Order, with no status change). */
 const LOOK_AGAIN: ReadonlySet<BookingReasonKey> = new Set([
   "changed",
   "slotTaken",
@@ -497,6 +500,7 @@ const LOOK_AGAIN: ReadonlySet<BookingReasonKey> = new Set([
   "past",
   "techInactive",
   "jobGone",
+  "guardStopped",
 ]);
 
 /** What one of our bookings says about ServiceM8, and the doors it offers —

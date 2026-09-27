@@ -208,6 +208,13 @@ export const BOOKING_WORDS = {
     /** Home's verb */
     clear: "Clear",
   },
+  /* What fills a sentence's {name} or {status} when ServiceM8 names nobody,
+     or no status: "The person booked isn't active in ServiceM8.", "The job
+     is closed in ServiceM8 now." */
+  fill: {
+    person: "The person booked",
+    status: "closed",
+  },
   /* The name the owner's list and a cancel's note call a booking row by:
      its payload is `{ name: <this> }` and nothing else. */
   label: {

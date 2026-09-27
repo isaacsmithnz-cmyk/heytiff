@@ -1121,6 +1121,24 @@ describe("the fields guard (B-9)", () => {
     });
   });
 
+  it("(F, S1) a booking the guard stopped offers Look again, never a Try again that meets the guard again; booked afresh on the Work Order, it goes", async () => {
+    sm8.knobs.statusAlsoSets = { job_address: "1 Somewhere St" };
+    await bookIn([slot()], { seen: SEEN });
+    await run();
+    const [c] = creates();
+    expect(c).toMatchObject({ status: "cancelled", last_error: GUARD_9001 });
+    expect(await lineOf(c)).toMatchObject({ key: "line.notSent", acts: ["look_again"] });
+    /* the owner looks, and switches Bookings back on */
+    fake.db.integration_connections[0].write_kinds = ["attachment", "note", "booking"];
+    expect(await queueBookingRetry(await pressAs(), await state(), { rowId: c.id as string })).toEqual({ ok: false, refusal: "changed", lookAgain: true });
+    /* Look again: the job is a Work Order now, so the panel books with no status change */
+    sm8.knobs.statusAlsoSets = null;
+    expect(await bookIn([slot()])).toMatchObject({ ok: true });
+    expect(c).toMatchObject({ status: "queued", depends_on: null });
+    await run();
+    expect(c.status).toBe("sent");
+  });
+
   it("(F) a changed total_invoice_amount alone is logged, never guarded", async () => {
     postSm8JobStatus.mockImplementationOnce(async (call: unknown, j: string, st: string) => {
       const res = await sm8.postJobStatus(call, j, st);
@@ -2584,6 +2602,31 @@ describe("one row per job, person and start; a slot comes back only once it no l
     expect(takeBackOf(e.id)?.status).toBe("sent");
     expect(await bookIn([slot(SAM_SM8, "15:00", "16:00")])).toMatchObject({ ok: true });
     expect(e.subject).toMatch(/:was:/);
+  });
+
+  it("(F, review gap) a slot held by a booking ServiceM8 put on someone else answers kept_other too", async () => {
+    sm8.knobs.keeps = () => ({ staffUuid: ALEX_SM8 });
+    await bookIn();
+    await run();
+    const [c] = creates();
+    expect(c.last_error).toBe(BOOKING_WORDS.row.personNotKept);
+    fake.db.integration_connections[0].write_kinds = ["attachment", "note", "booking"];
+    sm8.knobs.keeps = null;
+    expect(await bookIn()).toEqual({ ok: false, refusal: "kept_other", slot: slot() });
+    expect(creates()).toHaveLength(1);
+  });
+
+  it("(F, B-11 gap) a re-press writes this press's status row on the booking: a new one, and then none", async () => {
+    await bookIn();
+    const [c] = creates();
+    Object.assign(c, { status: "failed", last_error: BOOKING_WORDS.row.refused, attempts: 1 });
+    expect(c.depends_on).toBeNull();
+    expect(await bookIn([slot()], { seen: SEEN })).toMatchObject({ ok: true });
+    const [s] = statusRows();
+    expect(c).toMatchObject({ status: "queued", depends_on: s.id });
+    Object.assign(c, { status: "failed", last_error: BOOKING_WORDS.row.refused, attempts: 1 });
+    expect(await bookIn()).toMatchObject({ ok: true });
+    expect(c).toMatchObject({ status: "queued", depends_on: null });
   });
 
   /** A booking the time guard recorded. */

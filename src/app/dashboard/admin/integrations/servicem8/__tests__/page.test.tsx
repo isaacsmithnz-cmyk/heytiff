@@ -46,7 +46,7 @@ const readSm8WriteState = jest.fn();
 const countSm8Queue = jest.fn(async (..._a: unknown[]) => ({
   waiting: 3,
   failed: 1,
-  waitingKinds: { attachment: 3, note: 0 },
+  waitingKinds: { attachment: 3, note: 0, booking: 0 },
 }));
 jest.mock("@/lib/integrations/sm8-writes", () => ({
   sm8WriteKindsEnabled: () => kinds,
@@ -195,5 +195,65 @@ describe("the ServiceM8 screen's loader", () => {
       kind: "error",
       text: "HeyTiff couldn't read this workspace's ServiceM8 settings, so nothing changed. Try again.",
     });
+  });
+});
+
+/* two-way phase 3: bookings, the third kind. Where the deployment doesn't
+   name booking the page asks nothing about bookings (A-1); where it does,
+   the booking permissions are listed only while Bookings is On, and what is
+   waiting and what a switch cancelled are counted apart. */
+describe("the ServiceM8 screen's loader, with bookings", () => {
+  const cancelledSince = (jest.requireMock("@/lib/integrations/sm8-write-cancel") as { countSm8WritesCancelledSince: jest.Mock })
+    .countSm8WritesCancelledSince;
+  const accountChange = (jest.requireMock("@/lib/integrations/sm8-store") as { readSm8AccountChange: jest.Mock }).readSm8AccountChange;
+  const switched = { connected: "1", switched: "1" };
+
+  beforeEach(() => {
+    cancelledSince.mockReset().mockImplementation(async (_o: string, _r: string, _at: string, kind?: string) =>
+      kind === "booking" ? 2 : kind === "note" ? 1 : 3
+    );
+    accountChange.mockReset().mockResolvedValue({ from: "Beta Cooling", at: "2026-09-26T00:00:00.000Z" });
+  });
+  afterEach(() => {
+    accountChange.mockReset().mockResolvedValue(null);
+  });
+
+  it("(F) with files alone, or files and notes, a switch of account counts no booking, and nothing waits to be booked", async () => {
+    for (const setting of [["attachment"], ["attachment", "note"]]) {
+      kinds = setting;
+      cancelledSince.mockClear();
+      const p = (await load(switched)) as Props & { waitingBookings?: number };
+      expect(cancelledSince.mock.calls.map((c) => c[3])).toEqual(setting.length === 1 ? [undefined] : ["attachment", "note"]);
+      expect(p.notice?.text).not.toMatch(/booking/);
+      expect(p.waitingBookings ?? 0).toBe(0);
+    }
+  });
+
+  it("(F) with bookings allowed, a switch of account counts the bookings it cancelled", async () => {
+    kinds = ["attachment", "note", "booking"];
+    const p = await load(switched);
+    expect(cancelledSince.mock.calls.map((c) => c[3])).toEqual(["attachment", "note", "booking"]);
+    expect(p.notice?.text).toBe(
+      "Connected to Acme Air. It replaced Beta Cooling. HeyTiff cleared its copy of Beta Cooling and switched sending to ServiceM8 off. " +
+        "3 files, 1 note and 2 bookings waiting to go to Beta Cooling were cancelled."
+    );
+  });
+
+  it("lists the booking permissions only while the owner has Bookings on, and says what holds each kind", async () => {
+    kinds = ["attachment", "note", "booking"];
+    readSm8WriteState.mockResolvedValue(state({ kinds, ownerKinds: ["attachment", "note"] }));
+    let p = await load();
+    expect(p.writeScopes.map((s) => s.scope)).toEqual(["manage_attachments", "publish_job_notes"]);
+    expect(p.writes).toMatchObject({ kinds, holds: { attachment: null, note: "reconnect", booking: "off" } });
+    readSm8WriteState.mockResolvedValue(state({ kinds, ownerKinds: ["attachment", "note", "booking"] }));
+    p = await load();
+    expect(p.writeScopes.map((s) => s.scope)).toEqual(["manage_attachments", "publish_job_notes", "manage_schedule", "manage_jobs"]);
+  });
+
+  it("hands the screen the bookings waiting, for the disconnect confirm", async () => {
+    kinds = ["attachment", "note", "booking"];
+    countSm8Queue.mockResolvedValueOnce({ waiting: 6, failed: 0, waitingKinds: { attachment: 3, note: 1, booking: 2 } });
+    const p = (await load()) as Props & { waitingBookings?: number };
+    expect([p.waitingWrites, p.waitingNotes, p.waitingBookings]).toEqual([3, 1, 2]);
   });
 });

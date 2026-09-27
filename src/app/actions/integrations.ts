@@ -19,6 +19,7 @@ import {
 import { drainSm8WritesAfterResponse } from "@/lib/integrations/sm8-drain";
 import { readWriteMode, sendRefusal, type Sm8WriteKind } from "@/lib/integrations/sm8-write-plan";
 import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
+import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-words";
 import { sm8DisconnectNote, sm8KindOffNote, sm8OffNote, sm8RetryNote } from "@/lib/integrations/outcome";
 
 /* The two things you can do to an existing connection from the screen.
@@ -79,8 +80,11 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
      job on their side is a one-off the owner does in ServiceM8 itself. The
      note also says which files that were waiting to go won't, and how many
      were already on their way and may still arrive. */
-  /* files by name; a note's name is only its label, so notes are counted */
-  const files = cancelled.filter((c) => c.kind !== "note");
+  /* files by name; a note's or a booking's name is only its label, so notes
+     and bookings are counted */
+  const notes = cancelled.filter((c) => c.kind === "note").length;
+  const bookings = cancelled.filter((c) => c.kind === "booking").length;
+  const files = cancelled.filter((c) => c.kind !== "note" && c.kind !== "booking");
   const names = files.map((c) => c.name).filter((n): n is string => n !== null);
   return {
     ok: true,
@@ -88,7 +92,8 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
       cancelled: names,
       unnamed: files.length - names.length,
       inFlight,
-      notes: cancelled.length - files.length,
+      notes,
+      bookings,
     }),
   };
 }
@@ -129,36 +134,43 @@ export async function setServiceM8WriteModeAction(mode: string): Promise<Integra
   if (!changed.ok) return { ok: false, error: "Couldn't change it. Reload the page and try again." };
   if (want === "live" || want === "trial") drainSm8WritesAfterResponse(ctx.orgId, { startedAt });
   revalidate();
-  /* files and notes apart: with no notes, today's words exactly */
+  /* files, notes and bookings apart: with no notes and no bookings, today's
+     words exactly */
   const notes = changed.cancelled.filter((c) => c.kind === "note").length;
-  const note = want === "off" ? sm8OffNote(changed.cancelled.length - notes, notes) : null;
+  const bookings = changed.cancelled.filter((c) => c.kind === "booking").length;
+  const note = want === "off" ? sm8OffNote(changed.cancelled.length - notes - bookings, notes, bookings) : null;
   return note ? { ok: true, note } : { ok: true };
 }
 
-/** The owner's switch for ONE KIND — Files or Notes — under the one Off /
-    Trial run / Paused / On. Only a kind this deployment allows (SM8_WRITES)
-    can be switched, and only where it allows two: the card draws the Files
-    and Notes rows only then, and a switch the card doesn't draw can't be
-    switched back from it. On a deployment that sends files alone (SM8_WRITES=1,
-    production today) the one Off / On is the only switch, as before, and a
-    direct POST changes nothing. Off cancels that kind's waiting rows and says
-    how many; On drains, while sending is On or a Trial run, so what waits
-    goes. */
+/** The owner's switch for ONE KIND — Files, Notes or Bookings — under the
+    one Off / Trial run / Paused / On. Only a kind this deployment allows
+    (SM8_WRITES) can be switched, and only where it allows more than one:
+    the card draws a row per kind only then, and a switch the card doesn't
+    draw can't be switched back from it. On a deployment that sends files
+    alone (SM8_WRITES=1) the one Off / On is the only switch, as before, and
+    a direct POST changes nothing. Off cancels that kind's waiting rows and
+    says how many; On drains, while sending is On or a Trial run, so what
+    waits goes. */
 export async function setServiceM8WriteKindAction(kind: string, on: boolean): Promise<IntegrationResult> {
   const startedAt = Date.now();
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
-  if (kind !== "attachment" && kind !== "note") return { ok: false, error: NOTE_WORDS.card.notAKind };
+  if (kind !== "attachment" && kind !== "note" && kind !== "booking") return { ok: false, error: NOTE_WORDS.card.notAKind };
   const allowed = sm8WriteKindsEnabled();
   if (!allowed.includes(kind)) {
     return {
       ok: false,
-      error: kind === "note" ? NOTE_WORDS.card.notesUnavailable : "Sending to ServiceM8 isn't available yet.",
+      error:
+        kind === "note"
+          ? NOTE_WORDS.card.notesUnavailable
+          : kind === "booking"
+            ? BOOKING_WORDS.card.bookingsUnavailable
+            : "Sending to ServiceM8 isn't available yet.",
     };
   }
   if (typeof on !== "boolean") return { ok: false, error: "That isn't a setting." };
-  /* the card's own test for drawing the two rows (sm8-writes-card `both`) */
-  if (!(allowed.includes("attachment") && allowed.includes("note"))) return { ok: false, error: "That isn't a setting." };
+  /* the card's own test for drawing a row per kind (sm8-writes-card `more`) */
+  if (allowed.length < 2) return { ok: false, error: "That isn't a setting." };
   const changed = await setSm8WriteKind(ctx.orgId, kind as Sm8WriteKind, on);
   if (!changed.ok) return { ok: false, error: "Couldn't change it. Reload the page and try again." };
   if (on) {

@@ -58,6 +58,8 @@ export type Servicem8ScreenProps = {
   waitingWrites?: number;
   /** Notes still waiting, where the deployment sends notes. */
   waitingNotes?: number;
+  /** Bookings still waiting, where the deployment sends bookings. */
+  waitingBookings?: number;
   /** The write permissions the consent asks for beside the reads: the kinds
       the deployment allows that the owner has on (the page works them out,
       as the connect route does). Absent: the files permission alone. */
@@ -70,12 +72,26 @@ export type Servicem8ScreenProps = {
 /** The files permission alone — what a deployment that sends files asks. */
 const FILES_SCOPES = SM8_WRITE_SCOPES.filter((s) => s.scope === "manage_attachments");
 
+/** How many writes the asks line counts, by word. */
+const WRITES = ["one write", "two writes", "three writes"];
+
 /** What the asks list says of its writes: word for word as before with the
-    files permission alone. */
+    files permission alone, and with files and notes. Bookings, with either
+    or both, are said in the same pattern. */
 function asksLine(writeScopes: readonly ScopeEntry[]): string {
   const files = writeScopes.some((s) => s.scope === "manage_attachments");
   const notes = writeScopes.some((s) => s.scope === "publish_job_notes");
+  const bookings = writeScopes.some((s) => s.scope === "manage_schedule" || s.scope === "manage_jobs");
   const tail = "The list below is exactly what the consent screen will show.";
+  if (bookings) {
+    const parts = [
+      ...(files ? ["the files somebody sends from a job"] : []),
+      ...(notes ? ["the notes people write here"] : []),
+      "the bookings people make here",
+    ];
+    const said = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
+    return `Reads, and ${WRITES[parts.length - 1]}: adding ${said}. ${tail}`;
+  }
   if (files && notes) return `Reads, and two writes: adding the files somebody sends from a job, and the notes people write here. ${tail}`;
   if (notes) return `Reads, and one write: adding the notes people write here. ${tail}`;
   return `Reads, and one write: adding the files somebody sends from a job. ${tail}`;
@@ -119,6 +135,7 @@ export function Servicem8Screen({
   writes = null,
   waitingWrites = 0,
   waitingNotes = 0,
+  waitingBookings = 0,
   writeScopes = FILES_SCOPES,
   previousAccount = null,
 }: Servicem8ScreenProps) {
@@ -302,7 +319,9 @@ export function Servicem8Screen({
               consequences={[
                 "HeyTiff's stored credentials for this account are deleted.",
                 "Every mirrored row goes with them — clients, jobs, schedule, checklists and staff.",
-                ...[sm8WaitingConsequence(waitingWrites, waitingNotes)].filter((c): c is string => c !== null),
+                ...[sm8WaitingConsequence(waitingWrites, waitingNotes, waitingBookings)].filter(
+                  (c): c is string => c !== null
+                ),
                 "Workboard rows you created here stay, on the names they already captured.",
                 "Reconnecting the same account rebuilds the mirror in a few minutes.",
               ]}

@@ -432,10 +432,12 @@ describe("kinds", () => {
     expect(sm8WriteKindsFrom("")).toEqual([]);
     expect(sm8WriteKindsFrom("0")).toEqual([]);
     expect(sm8WriteKindsFrom(undefined)).toEqual([]);
-    // notes are the second kind (two-way phase 2); anything else is still nothing
+    // notes are the second kind (two-way phase 2), bookings the third
+    // (phase 3); anything else is still nothing
     expect(sm8WriteKindsFrom("note")).toEqual(["note"]);
     expect(sm8WriteKindsFrom("attachment,note")).toEqual(["attachment", "note"]);
-    expect(sm8WriteKindsFrom("booking")).toEqual([]);
+    expect(sm8WriteKindsFrom("booking")).toEqual(["booking"]);
+    expect(sm8WriteKindsFrom("photo")).toEqual([]);
   });
 
   it("a kind is granted only when the grant holds every scope it needs", () => {

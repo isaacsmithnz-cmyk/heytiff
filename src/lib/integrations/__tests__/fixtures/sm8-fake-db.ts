@@ -9,7 +9,8 @@
      or requested_by_user (sm8_writes_note_sender_fixed);
    - the note_id key, ON DELETE NO ACTION: a workboard_notes row any queue
      row names can't be deleted (23503);
-   - the two functions (sm8_mark_kind_refused, sm8_set_write_kind).
+   - the two functions (sm8_mark_kind_refused, sm8_set_write_kind), the
+     second switching the three kinds sm8_bookings_queue.sql allows.
    Every statement is logged, so a test can hold a path to the queries it
    makes. It lives under fixtures/ so jest doesn't run it as a suite. */
 
@@ -334,7 +335,7 @@ export function makeFakeDb() {
       return Promise.resolve({ data: !!conn, error: null });
     }
     if (name === "sm8_set_write_kind") {
-      if (!conn || (args.p_kind !== "attachment" && args.p_kind !== "note")) return Promise.resolve({ data: null, error: null });
+      if (!conn || !["attachment", "note", "booking"].includes(String(args.p_kind))) return Promise.resolve({ data: null, error: null });
       const was = Array.isArray(conn.write_kinds) ? (conn.write_kinds as string[]) : ["attachment"];
       const kind = String(args.p_kind);
       conn.write_kinds = args.p_on ? [...new Set([...was, kind])].sort() : was.filter((k) => k !== kind);

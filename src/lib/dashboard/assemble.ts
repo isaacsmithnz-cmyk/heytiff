@@ -104,7 +104,7 @@ export type ChipSources = {
   sm8Stuck?: {
     reason: "cap" | "billing" | "reconnect";
     waiting: number;
-    kinds?: { attachment: number; note: number };
+    kinds?: { attachment: number; note: number; booking?: number };
   } | null;
   /** YOUR ticks whose Done didn't go to ServiceM8, didn't come out of it, or
       may not have reached it (two-way phase 2, PR C). Optional so a caller

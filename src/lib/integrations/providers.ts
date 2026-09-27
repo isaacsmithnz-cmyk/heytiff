@@ -9,6 +9,10 @@
    the screen — an integrations page that says "connect Xero" without saying
    what for is asking for a grant on trust. */
 
+/* the two booking permissions' sentences, from the words module that
+   imports nothing (sm8-booking-words), so this file stays pure data */
+import { BOOKING_WORDS } from "./sm8-booking-words";
+
 export type ProviderId = "xero" | "servicem8";
 
 export type ProviderStatus = "live" | "planned";
@@ -333,8 +337,12 @@ export const SM8_SCOPE_LIST: string[] = SM8_SCOPES.map((s) => s.scope);
 
    EACH SCOPE CAME WITH ITS FEATURE. manage_attachments puts a file on a
    job; publish_job_notes adds a note to one, marks a flagged note done and
-   takes a note back (two-way phase 2). Every later write brings its own
-   scope and its own sentence when it ships, not before.
+   takes a note back (two-way phase 2); manage_schedule and manage_jobs book
+   people on a job, make a Quote a Work Order and take a booking back
+   (two-way phase 3). Every later write brings its own scope and its own
+   sentence when it ships, not before. A kind's scopes are asked for only
+   where the deployment allows the kind (SM8_WRITES) and the owner has it
+   on, so a deployment that doesn't name `booking` never asks for either.
 
    THE SENTENCE SAYS WHAT THE PERMISSION ALLOWS AS WELL AS WHAT WE DO WITH
    IT. "Manage" covers changing and deleting a job's files too. HeyTiff only
@@ -350,7 +358,17 @@ export const SM8_SCOPE_LIST: string[] = SM8_SCOPES.map((s) => s.scope);
    the paths note.json and dbonote/{uuid}.json (update and delete) were read
    off ServiceM8's developer reference on 2026-09-25: "Create a new Note",
    "Update a Note", "Delete a Note", and the impersonation paragraph of
-   Authentication. Live test 1 proves them on the real account. */
+   Authentication. Live test 1 proves them on the real account.
+
+   manage_schedule and manage_jobs, and the paths jobactivity.json (a new
+   booking), jobactivity/{uuid}.json (its update and delete), job.json (a
+   job read by uuid) and job/{uuid}.json (a job's status), were read off the
+   reference on 2026-09-26 (two-way phase 3). A booking needs BOTH: Book in
+   writes a booking, and a Quote it makes a Work Order is the job's status.
+   Each sentence says the scope's whole reach — manage_schedule also covers
+   job allocations, booking windows and availability, and manage_jobs can
+   remove jobs, though not create them — and HeyTiff touches none of that.
+   A booking goes as the app, never as a person. */
 
 export const SM8_WRITE_SCOPES: ScopeEntry[] = [
   {
@@ -363,6 +381,8 @@ export const SM8_WRITE_SCOPES: ScopeEntry[] = [
     area: "Workboard",
     why: "Lets HeyTiff add, change and remove notes on a job. HeyTiff adds the notes people write or reply with here, each sent as that person, marks a flagged note done when someone answers it here, and removes a note only when whoever sent it takes it back.",
   },
+  { scope: "manage_schedule", area: "Workboard", why: BOOKING_WORDS.scope.schedule },
+  { scope: "manage_jobs", area: "Workboard", why: BOOKING_WORDS.scope.jobs },
 ];
 
 export const SM8_WRITE_SCOPE_LIST: string[] = SM8_WRITE_SCOPES.map((s) => s.scope);
@@ -375,6 +395,7 @@ export const SM8_WRITE_SCOPE_LIST: string[] = SM8_WRITE_SCOPES.map((s) => s.scop
 export const SM8_WRITE_KIND_SCOPES = {
   attachment: ["manage_attachments"],
   note: ["publish_job_notes"],
+  booking: ["manage_schedule", "manage_jobs"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Sm8WriteKindName = keyof typeof SM8_WRITE_KIND_SCOPES;

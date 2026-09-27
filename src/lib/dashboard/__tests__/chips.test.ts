@@ -402,6 +402,26 @@ describe("sm8QueueChip", () => {
     expect(sm8QueueChip({ reason: "reconnect", waiting: 0 })).toBeNull();
     expect(chipGroup("sm8-writes")).toBe("Business");
   });
+
+  /* two-way phase 3: bookings count as their own kind once any is waiting,
+     and with none the words are today's */
+  it("(F) counts waiting bookings as their own kind, and says today's words with none", () => {
+    expect(sm8QueueChip({ reason: "reconnect", waiting: 3, kinds: { attachment: 2, note: 0, booking: 1 } })?.subject).toBe(
+      "2 files and 1 booking waiting to go"
+    );
+    expect(sm8QueueChip({ reason: "cap", waiting: 4, kinds: { attachment: 1, note: 2, booking: 1 } })?.subject).toBe(
+      "More than 60 in an hour, 1 file, 2 notes and 1 booking waiting"
+    );
+    expect(sm8QueueChip({ reason: "billing", waiting: 2, kinds: { attachment: 0, note: 0, booking: 2 } })?.subject).toBe(
+      "2 bookings waiting to go"
+    );
+    expect(sm8QueueChip({ reason: "reconnect", waiting: 2, kinds: { attachment: 2, note: 0, booking: 0 } })?.subject).toBe(
+      "2 files waiting to go"
+    );
+    expect(sm8QueueChip({ reason: "reconnect", waiting: 3, kinds: { attachment: 1, note: 2, booking: 0 } })?.subject).toBe(
+      "1 file and 2 notes waiting to go"
+    );
+  });
 });
 
 describe("vehicleLabel", () => {

@@ -159,9 +159,13 @@ describe("missing scopes are judged per provider", () => {
    exactly which writes exist, and that none is asked for unless the owner
    has switched sending on. */
 describe("the write ask", () => {
-  it("is two scopes, each with its feature: files on a job, and notes (two-way phase 2)", () => {
-    expect(SM8_WRITE_SCOPE_LIST).toEqual(["manage_attachments", "publish_job_notes"]);
-    expect(SM8_WRITE_KIND_SCOPES).toEqual({ attachment: ["manage_attachments"], note: ["publish_job_notes"] });
+  it("is four scopes, each with its feature: files on a job, notes (two-way phase 2), and bookings, which need two (phase 3)", () => {
+    expect(SM8_WRITE_SCOPE_LIST).toEqual(["manage_attachments", "publish_job_notes", "manage_schedule", "manage_jobs"]);
+    expect(SM8_WRITE_KIND_SCOPES).toEqual({
+      attachment: ["manage_attachments"],
+      note: ["publish_job_notes"],
+      booking: ["manage_schedule", "manage_jobs"],
+    });
   });
 
   it("says what the notes permission allows, and what HeyTiff does with it", () => {

@@ -7,7 +7,11 @@
    only) nothing about notes may change: no new read on a page load, a tick
    or a card open, no new write in a run, the nightly cron, a disconnect or
    an account switch. Every new note read and write asks sm8NotesAllowed()
-   first, and a test holds each of them to it (sm8-notes-prod.test). */
+   first, and a test holds each of them to it (sm8-notes-prod.test).
+
+   AND THE SAME FOR BOOKINGS (two-way phase 3). With SM8_WRITES=1, or
+   attachment,note, nothing about bookings may change: every new booking
+   read and write asks sm8BookingsAllowed() first (sm8-bookings-prod.test). */
 
 import { sm8WriteKindsFrom, type Sm8WriteKind } from "./sm8-write-plan";
 
@@ -21,4 +25,9 @@ export function sm8WriteKindsEnabled(): Sm8WriteKind[] {
 /** Whether this deployment writes notes (SM8_WRITES names `note`). */
 export function sm8NotesAllowed(): boolean {
   return sm8WriteKindsEnabled().includes("note");
+}
+
+/** Whether this deployment writes bookings (SM8_WRITES names `booking`). */
+export function sm8BookingsAllowed(): boolean {
+  return sm8WriteKindsEnabled().includes("booking");
 }

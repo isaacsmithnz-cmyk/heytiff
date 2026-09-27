@@ -5,6 +5,7 @@ import {
   nameList,
   sm8ConnectMessage,
   sm8DisconnectNote,
+  sm8KindOffNote,
   sm8OffNote,
   sm8RetryNote,
   sm8SwitchedNotice,
@@ -140,5 +141,60 @@ describe("what Retry failed files did", () => {
       "60 have gone to ServiceM8 in the last hour. Try again in an hour."
     );
     expect(sm8RetryNote({ queued: 0, left: 0, capped: false, byHour: false })).toBe("Nothing is waiting to go again.");
+  });
+});
+
+/* BOOKINGS, THE THIRD KIND (two-way phase 3): counted as their own kind in
+   every sentence that counts what waits — and with none, each sentence is
+   exactly what it was (A-1). */
+describe("counting bookings", () => {
+  const TAIL = "To fully revoke access, also remove HeyTiff from your ServiceM8 account's add-ons.";
+
+  it("(F) with no bookings, every sentence is today's, notes or none", () => {
+    for (const bookings of [undefined, 0]) {
+      expect(sm8SwitchedNotice({ to: "Beta Cooling", from: "Acme Air", cancelled: 2, bookings })).toMatch(
+        / 2 files waiting to go to Acme Air were cancelled\.$/
+      );
+      expect(sm8SwitchedNotice({ to: "Beta Cooling", from: "Acme Air", cancelled: 1, notes: 2, bookings })).toMatch(
+        / 1 file and 2 notes waiting to go to Acme Air were cancelled\.$/
+      );
+      expect(sm8DisconnectNote({ cancelled: ["a.pdf"], unnamed: 0, inFlight: 0, bookings })).toBe(
+        `Disconnected here. 1 file waiting to go to ServiceM8 was cancelled: a.pdf. ${TAIL}`
+      );
+      expect(sm8DisconnectNote({ cancelled: [], unnamed: 0, inFlight: 0, bookings })).toBe(`Disconnected here. ${TAIL}`);
+    }
+    expect(sm8WaitingConsequence(2, 0, 0)).toBe("2 files still waiting to go to ServiceM8 are cancelled.");
+    expect(sm8WaitingConsequence(0, 0, 0)).toBeNull();
+    expect(sm8WaitingConsequence(1, 2, 0)).toBe("1 file and 2 notes still waiting to go to ServiceM8 are cancelled.");
+    expect(sm8OffNote(2, 0, 0)).toBe("Sending is off. 2 files that were waiting won't go.");
+    expect(sm8OffNote(0, 0, 0)).toBeNull();
+    expect(sm8OffNote(1, 1, 0)).toBe("Sending is off. 1 file and 1 note that were waiting won't go.");
+    expect(sm8KindOffNote("attachment", 2)).toBe("Files are off. 2 files that were waiting won't go.");
+    expect(sm8KindOffNote("note", 1)).toBe("Notes are off. 1 note that was waiting won't go.");
+  });
+
+  it("(F) counts bookings as their own kind: 1 file, 2 notes and 1 booking", () => {
+    expect(sm8SwitchedNotice({ to: "Beta Cooling", from: "Acme Air", cancelled: 1, notes: 2, bookings: 1 })).toMatch(
+      / 1 file, 2 notes and 1 booking waiting to go to Acme Air were cancelled\.$/
+    );
+    expect(sm8SwitchedNotice({ to: "Beta Cooling", from: "Acme Air", cancelled: 0, bookings: 1 })).toMatch(
+      / 1 booking waiting to go to Acme Air was cancelled\.$/
+    );
+    expect(sm8DisconnectNote({ cancelled: ["a.pdf"], unnamed: 1, inFlight: 0, notes: 0, bookings: 3 })).toBe(
+      `Disconnected here. 2 files and 3 bookings waiting to go to ServiceM8 were cancelled: a.pdf and 1 more. ${TAIL}`
+    );
+    expect(sm8DisconnectNote({ cancelled: [], unnamed: 0, inFlight: 0, bookings: 1 })).toBe(
+      `Disconnected here. 1 booking waiting to go to ServiceM8 was cancelled. ${TAIL}`
+    );
+    expect(sm8WaitingConsequence(0, 0, 1)).toBe("1 booking still waiting to go to ServiceM8 is cancelled.");
+    expect(sm8WaitingConsequence(1, 2, 1)).toBe("1 file, 2 notes and 1 booking still waiting to go to ServiceM8 are cancelled.");
+    expect(sm8OffNote(0, 0, 2)).toBe("Sending is off. 2 bookings that were waiting won't go.");
+    expect(sm8OffNote(1, 0, 1)).toBe("Sending is off. 1 file and 1 booking that were waiting won't go.");
+  });
+
+  it("(F) says what Bookings Off cancelled in bookings' words", () => {
+    expect(sm8KindOffNote("booking", 1)).toBe("Bookings are off. 1 booking that was waiting won't go.");
+    expect(sm8KindOffNote("booking", 4)).toBe("Bookings are off. 4 bookings that were waiting won't go.");
+    expect(sm8KindOffNote("booking", 0)).toBeNull();
   });
 });

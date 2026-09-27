@@ -12,6 +12,7 @@ import {
   type Sm8WriteMode,
 } from "@/lib/integrations/sm8-write-plan";
 import { fillWords, NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
+import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-words";
 import type { RecentSm8Write } from "@/lib/integrations/sm8-writes";
 import {
   retryFailedServiceM8WritesAction,
@@ -58,8 +59,8 @@ export type Sm8WritesView = {
   /** Files one ServiceM8 account may take in an hour before sending pauses. */
   hourlyCap: number;
   /** The kinds this deployment sends (SM8_WRITES). With files alone the card
-      is word for word as it always was; with notes too it carries the
-      owner's switch per kind. Absent: files alone. */
+      is word for word as it always was; with more than one kind it carries
+      the owner's switch per kind. Absent: files alone. */
   kinds?: Sm8WriteKind[];
   /** The kinds the owner has switched on. */
   ownerKinds?: Sm8WriteKind[];
@@ -77,17 +78,25 @@ const MODES: { id: Sm8WriteMode; label: string }[] = [
 /** How many rows the list draws before it asks. */
 const SHOWN = 20;
 
-/** The setting as a sentence, with the one figure worth having. With notes
-    as well as files it speaks of sends, not files (`both`). */
-function modeLine(view: Sm8WritesView, both: boolean): string {
+/** The owner's switch per kind, in this order, a row for each kind the
+    deployment allows — drawn only where it allows more than one. */
+const KIND_ROWS: { kind: Sm8WriteKind; label: string; group: string }[] = [
+  { kind: "attachment", label: NOTE_WORDS.card.files, group: NOTE_WORDS.card.filesGroup },
+  { kind: "note", label: NOTE_WORDS.card.notes, group: NOTE_WORDS.card.notesGroup },
+  { kind: "booking", label: BOOKING_WORDS.card.bookings, group: BOOKING_WORDS.card.bookingsGroup },
+];
+
+/** The setting as a sentence, with the one figure worth having. With more
+    than one kind it speaks of sends, not files (`more`). */
+function modeLine(view: Sm8WritesView, more: boolean): string {
   const { mode, sentLately, waiting } = view;
   if (mode === "off") return "Off. Nothing HeyTiff does changes your ServiceM8.";
   if (mode === "trial") {
-    return both
+    return more
       ? NOTE_WORDS.card.trialLine
       : "Trial run. The office can press Send to ServiceM8 on a job, and each send is checked and listed here. Nothing reaches ServiceM8.";
   }
-  if (both && mode === "live") {
+  if (more && mode === "live") {
     return sentLately && sentLately > 0 ? fillWords(NOTE_WORDS.card.onLine, { n: sentLately }) : NOTE_WORDS.card.onLineNone;
   }
   if (mode === "paused") {
@@ -106,6 +115,11 @@ function facts(w: RecentSm8Write): string {
   const day = fmtAuWeekdayDayMonth(auDayOf(w.at));
   return [w.jobNumber ? `Job ${w.jobNumber}` : null, w.by, day].filter(Boolean).join(", ");
 }
+
+/** Whether a write's line carries its reason: every write that hasn't gone,
+    and a booking that went with a guard's words on it (it landed at another
+    time, or on someone else, or changed more than the job's status). */
+const saysWhy = (w: RecentSm8Write) => !!w.error && (w.status !== "sent" || w.kind === "booking");
 
 export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
   const router = useRouter();
@@ -140,9 +154,10 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
     });
   };
 
-  /* FILES AND NOTES: two kinds allowed, and the owner switches each. */
+  /* FILES, NOTES AND BOOKINGS: more than one kind allowed, and the owner
+     switches each. */
   const kinds = view.kinds ?? ["attachment"];
-  const both = kinds.includes("attachment") && kinds.includes("note");
+  const more = kinds.length > 1;
   const ownerKinds = view.ownerKinds ?? ["attachment"];
   const switchKind = (kind: Sm8WriteKind, on: boolean) => {
     if (busy || ownerKinds.includes(kind) === on) return;
@@ -159,20 +174,21 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
 
   /* Asked for while On or Paused (a pause keeps the permission), and said
      until ServiceM8 gives it — or while ServiceM8 has refused it since. With
-     two kinds, said for each kind switched on whose permission is missing. */
+     more than one kind, said for each kind switched on whose permission is
+     missing. */
   const unheldKind = (k: Sm8WriteKind) => !view.granted.includes(k) || view.refused.includes(k);
   const unheld = unheldKind("attachment");
-  const consentFor: Sm8WriteKind[] = both ? kinds.filter((k) => ownerKinds.includes(k) && unheldKind(k)) : unheld ? ["attachment"] : [];
+  const consentFor: Sm8WriteKind[] = more ? kinds.filter((k) => ownerKinds.includes(k) && unheldKind(k)) : unheld ? ["attachment"] : [];
   const shown = all ? view.recent : view.recent.slice(0, SHOWN);
-  const holdOf = (w: RecentSm8Write): SendHold => (both ? view.holds?.[w.kind] ?? view.hold : view.hold);
-  const heading = both ? NOTE_WORDS.card.heading : "Sending files to ServiceM8";
+  const holdOf = (w: RecentSm8Write): SendHold => (more ? view.holds?.[w.kind] ?? view.hold : view.hold);
+  const heading = more ? NOTE_WORDS.card.heading : "Sending files to ServiceM8";
 
   return (
     <div className="int-grp">
       <div className="c2h">
         <div style={{ minWidth: 0 }}>
           <b>{heading}</b>
-          <em>{modeLine(view, both)}</em>
+          <em>{modeLine(view, more)}</em>
         </div>
       </div>
 
@@ -192,10 +208,8 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
         ))}
       </div>
 
-      {both &&
-        (["attachment", "note"] as const).map((k) => {
-          const label = k === "note" ? NOTE_WORDS.card.notes : NOTE_WORDS.card.files;
-          const group = k === "note" ? NOTE_WORDS.card.notesGroup : NOTE_WORDS.card.filesGroup;
+      {more &&
+        KIND_ROWS.filter((r) => kinds.includes(r.kind)).map(({ kind: k, label, group }) => {
           const on = ownerKinds.includes(k);
           return (
             <div className="c2h" key={k}>
@@ -237,6 +251,8 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
             <p>
               {k === "note" ? (
                 NOTE_WORDS.card.notesConsent
+              ) : k === "booking" ? (
+                BOOKING_WORDS.card.bookingsConsent
               ) : (
                 <>
                   ServiceM8 hasn&apos;t given HeyTiff permission to add files yet, so nothing can go. Reconnect
@@ -268,7 +284,7 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
                   <b className="int-wname">{w.name}</b>
                   <span className={word.tone ? `int-tag ${word.tone}` : "int-tag"}>{word.word}</span>
                 </div>
-                <p>{w.error && w.status !== "sent" ? `${facts(w)}. ${w.error}` : facts(w)}</p>
+                <p>{saysWhy(w) ? `${facts(w)}. ${w.error}` : facts(w)}</p>
               </li>
             );
           })}

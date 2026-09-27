@@ -23,6 +23,7 @@
 
 import { SM8_WRITE_KIND_SCOPES } from "./providers";
 import { fillWords, NOTE_WORDS } from "./sm8-note-words";
+import { BOOKING_WORDS } from "./sm8-booking-words";
 
 /* ── the owner's switch ── */
 
@@ -140,8 +141,8 @@ export type Sm8WriteState = {
   refused: readonly Sm8WriteKind[];
   /** The ServiceM8 account's time zone, for when its daily limit resets. */
   timezoneName: string | null;
-  /** The kinds the owner has switched on, per kind (Files, Notes), under the
-      one Off / Trial run / Paused / On. */
+  /** The kinds the owner has switched on, per kind (Files, Notes, Bookings),
+      under the one Off / Trial run / Paused / On. */
   ownerKinds: readonly Sm8WriteKind[];
   /** The owner's per-kind switch was READ (the write_kinds column exists).
       False on a database without it: files read as on, and nothing is
@@ -172,21 +173,24 @@ const WHERE = "An owner can change that in Integrations, ServiceM8.";
     it can. The order is the order of the fixes: nothing an owner does helps
     a deployment that can't write, a switch that is off outranks a pause, and
     both outrank a permission nobody has been asked for. The owner's switch
-    for this one kind comes straight after the whole switch. */
+    for this one kind comes straight after the whole switch, and it and the
+    permission are said in the kind's own words. */
 export function sendRefusal(s: Sm8WriteState, kind: Sm8WriteKind = "attachment"): string | null {
   if (!s.kinds.includes(kind)) return "Sending to ServiceM8 isn't available yet.";
   if (!s.readable) return WRITE_WORDS.settingsUnread;
   if (!s.tenantId) return "ServiceM8 isn't connected.";
   if (s.mode === "off") return `Sending to ServiceM8 is switched off. ${WHERE}`;
   if (!s.ownerKinds.includes(kind)) {
-    return kind === "note" ? NOTE_WORDS.press.kindOff : `Sending files to ServiceM8 is switched off. ${WHERE}`;
+    if (kind === "note") return NOTE_WORDS.press.kindOff;
+    if (kind === "booking") return BOOKING_WORDS.press.kindOff;
+    return `Sending files to ServiceM8 is switched off. ${WHERE}`;
   }
   if (s.mode === "paused") return WRITE_WORDS.paused;
   if (!s.connected) return `ServiceM8 needs reconnecting. ${WHERE}`;
   if (s.mode === "live" && !kindReady(s, kind)) {
-    return kind === "note"
-      ? NOTE_WORDS.press.notesScope
-      : `ServiceM8 hasn't given HeyTiff permission to add files yet. ${WHERE}`;
+    if (kind === "note") return NOTE_WORDS.press.notesScope;
+    if (kind === "booking") return BOOKING_WORDS.press.scope;
+    return `ServiceM8 hasn't given HeyTiff permission to add files yet. ${WHERE}`;
   }
   return null;
 }
@@ -216,15 +220,32 @@ export function sendHold(s: Sm8WriteState, kind: Sm8WriteKind = "attachment"): S
   return null;
 }
 
-/** "1 file", "3 notes", "1 file and 2 notes". With no notes it is exactly
-    the files' words the screens have always said. */
-export function kindCount(n: { attachment: number; note: number }): string {
+/** "1 file", "3 notes", "1 file and 2 notes", "1 file, 2 notes and 1
+    booking". With no notes it is exactly the files' words the screens have
+    always said, and with no bookings exactly the files' and notes'. */
+export function kindCount(n: { attachment: number; note: number; booking?: number }): string {
   const files =
     n.attachment === 1 ? NOTE_WORDS.kindWords.fileOne : fillWords(NOTE_WORDS.kindWords.fileMany, { n: n.attachment });
+  const booking = n.booking ?? 0;
+  if (booking > 0) return withBookings(n.attachment > 0 ? files : null, n.note, booking);
   if (n.note <= 0) return files;
   const notes = n.note === 1 ? NOTE_WORDS.kindWords.noteOne : fillWords(NOTE_WORDS.kindWords.noteMany, { n: n.note });
   if (n.attachment <= 0) return notes;
   return fillWords(NOTE_WORDS.kindWords.both, { files, notes });
+}
+
+/** kindCount once there are bookings: each kind there is, in the order
+    files, notes, bookings — two joined as files and notes are, three as a
+    list. */
+function withBookings(files: string | null, note: number, booking: number): string {
+  const notes =
+    note <= 0 ? null : note === 1 ? NOTE_WORDS.kindWords.noteOne : fillWords(NOTE_WORDS.kindWords.noteMany, { n: note });
+  const bookings =
+    booking === 1 ? BOOKING_WORDS.kindWords.bookingOne : fillWords(BOOKING_WORDS.kindWords.bookingMany, { n: booking });
+  const parts = [files, notes, bookings].filter((p): p is string => p !== null);
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return fillWords(NOTE_WORDS.kindWords.both, { files: parts[0], notes: parts[1] });
+  return fillWords(BOOKING_WORDS.kindWords.three, { a: parts[0], b: parts[1], c: parts[2] });
 }
 
 /* ── the row ── */
@@ -600,13 +621,15 @@ const verdict = (v: Partial<WriteVerdict> & Pick<WriteVerdict, "status">): Write
 });
 
 /** A write's operation: every file is a create; a note may also be an
-    update (a flag marked done or cleared) or a delete (a take-back). */
+    update (a flag marked done or cleared) or a delete (a take-back); a
+    booking is a create (one booking), an update (a Quote made a Work Order)
+    or a delete (an Undo or a Clear). */
 export type Sm8WriteOp = "create" | "update" | "delete";
 
 /** What a verdict needs to know besides the answer: the time (for a daily
     limit's reset), the account's zone, how many free goes the row has had,
-    and — for a note — which kind and op it is, because a note's refusals
-    mean other things than a file's. */
+    and — for a note or a booking — which kind and op it is, because their
+    refusals mean other things than a file's. */
 export type VerdictContext = {
   now: number;
   timezoneName: string | null;
@@ -620,18 +643,18 @@ const retryAfter = (attempts: number): number =>
   WRITE_RETRY_AFTER_MS[Math.min(Math.max(0, attempts - 1), WRITE_RETRY_AFTER_MS.length - 1)];
 
 /** What a row becomes when the file couldn't be read HERE — the bucket, not
-    ServiceM8 — or, for a note, when its send threw. Ours to retry, with the
-    same patience, and the run goes on: the next row may be fine. */
+    ServiceM8 — or, for a note or a booking, when its send threw. Ours to
+    retry, with the same patience, and the run goes on: the next row may be
+    fine. Each kind says it in its own words. */
 export function verdictForUnreadable(attempts: number, kind: Sm8WriteKind = "attachment"): WriteVerdict {
-  const note = kind === "note";
-  if (attempts >= WRITE_MAX_ATTEMPTS) {
-    return verdict({ status: "failed", error: note ? NOTE_WORDS.row.noteThrewGaveUp : WRITE_WORDS.unreadableGaveUp });
-  }
-  return verdict({
-    status: "queued",
-    error: note ? NOTE_WORDS.row.noteThrew : WRITE_WORDS.unreadable,
-    retryAfterMs: retryAfter(attempts),
-  });
+  const [again, gaveUp] =
+    kind === "note"
+      ? [NOTE_WORDS.row.noteThrew, NOTE_WORDS.row.noteThrewGaveUp]
+      : kind === "booking"
+        ? [BOOKING_WORDS.row.threw, BOOKING_WORDS.row.threwGaveUp]
+        : [WRITE_WORDS.unreadable, WRITE_WORDS.unreadableGaveUp];
+  if (attempts >= WRITE_MAX_ATTEMPTS) return verdict({ status: "failed", error: gaveUp });
+  return verdict({ status: "queued", error: again, retryAfterMs: retryAfter(attempts) });
 }
 
 /** A take-back whose note is still being sent under a live claim: it waits
@@ -662,10 +685,18 @@ export function verdictForLinkUnknown(error: string): WriteVerdict {
   return verdict({ status: "queued", error, retryAfterMs: 60_000, refund: true });
 }
 
-/** The check inside a note's POST attempt (was it taken back?) couldn't be
-    read. Nothing is POSTed: back to the queue, handed back, a minute. */
-export function verdictForCheckFailed(): WriteVerdict {
-  return verdict({ status: "queued", error: NOTE_WORDS.row.noteThrew, retryAfterMs: 60_000, refund: true });
+/** A database check a send makes before its request (a note's: was it taken
+    back?; a booking's: can a booking go right behind this status change?)
+    couldn't be read. Nothing is POSTed: back to the queue, handed back, a
+    minute. A booking says so in its own words; a note, or a caller that
+    names no kind, as it always did. */
+export function verdictForCheckFailed(kind?: Sm8WriteKind): WriteVerdict {
+  return verdict({
+    status: "queued",
+    error: kind === "booking" ? BOOKING_WORDS.row.threw : NOTE_WORDS.row.noteThrew,
+    retryAfterMs: 60_000,
+    refund: true,
+  });
 }
 
 /** A refused send whose token couldn't be renewed because ServiceM8 couldn't
@@ -717,9 +748,23 @@ export function verdictForRenewLate(): WriteVerdict {
     WRITE_FREE_RETRIES of those it stops for a person. */
 export function verdictForLetGo(freeRetries: number, kind: Sm8WriteKind = "attachment"): WriteVerdict {
   if (freeRetries >= WRITE_FREE_RETRIES) {
-    return verdict({ status: "failed", error: kind === "note" ? NOTE_WORDS.row.noteTooSlow : WRITE_WORDS.tooSlowGaveUp });
+    const error =
+      kind === "note" ? NOTE_WORDS.row.noteTooSlow : kind === "booking" ? BOOKING_WORDS.row.tooSlow : WRITE_WORDS.tooSlowGaveUp;
+    return verdict({ status: "failed", error });
   }
   return verdict({ status: "queued", retryAfterMs: 0, refund: true, freeRetry: true });
+}
+
+/** A booking's read-back guard (two-way phase 3): ServiceM8 kept something
+    other than what HeyTiff sent — a booking at another time or on someone
+    else, a job with more than its status changed — or answered a booking OK
+    and it can't be found on two reads (call 15). The row finishes as the
+    sender chose, `sent` for the two guards (the write landed, so it can
+    still be taken back) and `failed` for the unsure booking, with the
+    guard's words; and the run ends there, because Bookings is switched off
+    before another booking is claimed (sm8-writes, PR B). */
+export function verdictForGuard(status: "sent" | "failed", error: string): WriteVerdict {
+  return verdict({ status, error, stop: true });
 }
 
 /** What a row becomes after one attempt. `attempts` counts this one. */
@@ -804,6 +849,19 @@ export function verdictFor(
         }
         return verdict({ status: "failed", error: NOTE_WORDS.row.personForbidden, personal: true });
       }
+      /* A BOOKING GOES AS THE APP, never as a person, so a 403 that names no
+         scope is about this booking, as a file's is: it fails its row, not
+         `personal`, and counts towards the two-in-a-row stop. Whether a
+         write's 403 names its scope, as a read's did, is unconfirmed (U22):
+         a refusal of scope in other words is this one. A 403 that names the
+         scope holds bookings only, and doesn't stop the run: files and
+         notes behind it still go. */
+      if (ctx.kind === "booking") {
+        if (outcome.scope) {
+          return verdict({ status: "queued", error: BOOKING_WORDS.row.scopeHeld, refund: true, blockKind: true });
+        }
+        return verdict({ status: "failed", error: BOOKING_WORDS.row.forbidden });
+      }
       if (outcome.scope) {
         return verdict({ status: "queued", error: WRITE_WORDS.scopeHeld, refund: true, stop: true, blockKind: true });
       }
@@ -828,6 +886,24 @@ export function verdictFor(
         }
         if (outcome.status === 413) return verdict({ status: "failed", error: NOTE_WORDS.row.noteTooLong });
         return verdict({ status: "failed", error: NOTE_WORDS.row.noteRefused });
+      }
+      if (ctx.kind === "booking") {
+        const op = ctx.op ?? "create";
+        /* A 404 on a delete: the booking is already gone, which is what an
+           Undo or a Clear wanted (the sender checked the account first, so
+           it is this account's 404). On an UPDATE it is not a verdict at
+           all — the sender cancels that row itself with the job's gone
+           words (sm8-booking-send, PR B), because a verdict is never
+           `cancelled`; asked anyway, it fails in the same words. On a
+           create it is undocumented (F1): the job's words, failed. */
+        if (outcome.status === 404) {
+          if (op === "delete") return verdict({ status: "sent" });
+          if (op === "update") return verdict({ status: "failed", error: BOOKING_WORDS.row.jobGone });
+          return verdict({ status: "failed", error: WRITE_WORDS.noJob });
+        }
+        const refused =
+          op === "update" ? BOOKING_WORDS.row.statusRefused : op === "delete" ? BOOKING_WORDS.row.removeRefused : BOOKING_WORDS.row.refused;
+        return verdict({ status: "failed", error: refused });
       }
       return verdict({
         status: "failed",

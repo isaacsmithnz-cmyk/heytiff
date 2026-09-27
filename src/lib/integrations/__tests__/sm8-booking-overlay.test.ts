@@ -26,9 +26,9 @@ type Row = Record<string, unknown>;
 const ORG = "org-1";
 const TENANT = "vendor-1";
 const ZONE = "Australia/Sydney";
-const JOB = "01a0dd9a-0000-4000-8000-000000003370";
-const GONE_JOB = "01a0dd9a-0000-4000-8000-00000000dead";
-const ISAAC = "985a32ef-398b-489f-882a-20fe666a5ebb";
+const JOB = "0b1e0b1e-0000-4000-8000-000000009001";
+const GONE_JOB = "0b1e0b1e-0000-4000-8000-00000000dead";
+const SAM = "5a0e5a0e-0000-4000-8000-00000000a001";
 const STATE = { linked: true, tenantId: TENANT };
 
 const day = (days: number) => localNow(ZONE, Date.now() + days * 86_400_000)!.slice(0, 10);
@@ -46,11 +46,11 @@ function create(over: Row = {}): Row {
     kind: "booking",
     op: "create",
     status: "sent",
-    subject: `slot:${ISAAC}:${TOMORROW}T${String(seq).padStart(2, "0")}:00`,
+    subject: `slot:${SAM}:${TOMORROW}T${String(seq).padStart(2, "0")}:00`,
     sm8_job_uuid: JOB,
     remote_uuid: uuid(seq),
     replaced_uuids: [],
-    booking_staff_uuid: ISAAC,
+    booking_staff_uuid: SAM,
     booking_start: `${TOMORROW} ${String(seq).padStart(2, "0")}:00:00`,
     booking_end: `${TOMORROW} ${String(seq).padStart(2, "0")}:30:00`,
     booking_zone: ZONE,
@@ -117,7 +117,7 @@ describe("the overlay (B-24)", () => {
         rowId: shown.id,
         uuid: shown.remote_uuid,
         jobUuid: JOB,
-        staffUuid: ISAAC,
+        staffUuid: SAM,
         start: shown.booking_start,
         end: shown.booking_end,
       },
@@ -152,7 +152,7 @@ describe("the overlay (B-24)", () => {
   it("windows what we sent by the booking's start, from inclusive and to exclusive, and narrows it to the jobs asked", async () => {
     const a = create();
     const b = create({ booking_start: `${day(2)} 09:00:00`, booking_end: `${day(2)} 10:00:00` });
-    const other = create({ sm8_job_uuid: "01a0dd9a-0000-4000-8000-000000000288" });
+    const other = create({ sm8_job_uuid: "0b1e0b1e-0000-4000-8000-000000009002" });
     fake.db.sm8_jobs.push({ org_id: ORG, uuid: other.sm8_job_uuid, active: 1 });
     fake.db.sm8_writes.push(a, b, other);
     const o = await readBookingOverlay(ORG, STATE, { from: TOMORROW, to: day(2) });
@@ -175,10 +175,10 @@ describe("the overlay (B-24)", () => {
 
   it("reads the mirror's copy of a booking by uuid, whatever its case", async () => {
     fake.db.sm8_job_activities = [
-      { org_id: ORG, uuid: uuid(5).toUpperCase(), job_uuid: JOB, staff_uuid: ISAAC, start_date: "2026-10-06 09:00:00", end_date: "2026-10-06 10:00:00", activity_was_scheduled: 1, active: 0, edit_date: "2026-10-01 10:00:00" },
+      { org_id: ORG, uuid: uuid(5).toUpperCase(), job_uuid: JOB, staff_uuid: SAM, start_date: "2026-10-06 09:00:00", end_date: "2026-10-06 10:00:00", activity_was_scheduled: 1, active: 0, edit_date: "2026-10-01 10:00:00" },
     ];
     const m = await readMirrorBookings(ORG, [uuid(5)]);
-    expect(m?.get(uuid(5))).toMatchObject({ active: 0, staffUuid: ISAAC, start: "2026-10-06 09:00:00" });
+    expect(m?.get(uuid(5))).toMatchObject({ active: 0, staffUuid: SAM, start: "2026-10-06 09:00:00" });
     fake.failing.add("sm8_job_activities");
     expect(await readMirrorBookings(ORG, [uuid(5)])).toBeNull();
   });

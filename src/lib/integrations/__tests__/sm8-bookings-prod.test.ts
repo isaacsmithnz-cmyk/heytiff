@@ -23,17 +23,17 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 jest.mock("@/lib/auth0", () => ({
-  auth0: { getSession: jest.fn(async () => ({ orgId: "org-1", user: { sub: "auth0|isaac" } })) },
+  auth0: { getSession: jest.fn(async () => ({ orgId: "org-1", user: { sub: "auth0|sam" } })) },
 }));
 jest.mock("../sm8-store", () => ({
   sm8AccessResult: jest.fn(async () => ({ ok: true, access: { accessToken: "t", tenantId: "vendor-1", grant: "g", meter: "vendor-1" } })),
   renewSm8Access: jest.fn(),
   markSm8NeedsReauth: jest.fn(),
 }));
-jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: jest.fn(async () => "staff-isaac") }));
+jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: jest.fn(async () => "staff-sam") }));
 jest.mock("next/server", () => ({ after: () => {} }));
 jest.mock("@/lib/workboard/job-notes-query", () => ({
-  staffDisplayNames: jest.fn(async () => new Map([["staff-isaac", "Isaac Smith"]])),
+  staffDisplayNames: jest.fn(async () => new Map([["staff-sam", "Sam Tester"]])),
 }));
 
 import { cancelWaitingSm8Writes, countWaitingSm8WritesByKind } from "../sm8-write-cancel";
@@ -57,7 +57,7 @@ import { WRITE_WORDS } from "../sm8-write-plan";
 type Row = Record<string, unknown>;
 
 const ORG = "org-1";
-const JOB = "a0a0a0a0-0000-4000-8000-0000000000b1";
+const JOB = "0b1e0b1e-0000-4000-8000-000000009001";
 const LONG_AGO = new Date(Date.now() - 3_600_000).toISOString();
 
 let seq = 0;
@@ -75,7 +75,7 @@ const write = (kind: string, over: Row = {}): Row => ({
   next_attempt_at: LONG_AGO,
   lease_until: null,
   last_error: null,
-  requested_by: "staff-isaac",
+  requested_by: "staff-sam",
   updated_at: LONG_AGO,
   ...over,
 });
@@ -106,7 +106,7 @@ beforeEach(() => {
   seq = 0;
   fake.db.sm8_writes = [write("attachment"), write("note")];
   fake.db.integration_connections = [connection()];
-  fake.db.sm8_jobs = [{ org_id: ORG, uuid: JOB, generated_job_id: "3370" }];
+  fake.db.sm8_jobs = [{ org_id: ORG, uuid: JOB, generated_job_id: "9001" }];
   process.env.SM8_WRITES = "1";
   jest.spyOn(console, "error").mockImplementation(() => {});
   jest.spyOn(console, "warn").mockImplementation(() => {});
@@ -224,7 +224,7 @@ describe("where the deployment names booking", () => {
 
   it("(F) a guard switching Bookings off puts its own words on what it cancels", async () => {
     fake.db.sm8_writes.push(write("booking"));
-    const reason = BOOKING_WORDS.row.guardStopped.replace("{number}", "3370");
+    const reason = BOOKING_WORDS.row.guardStopped.replace("{number}", "9001");
     await setSm8WriteKind(ORG, "booking", false, Date.now(), { reason });
     expect(byId("w3")).toMatchObject({ status: "cancelled", last_error: reason });
     // and the other kinds' switches keep their own words
@@ -267,7 +267,7 @@ describe("where the deployment names booking", () => {
         ["booking", "A booking"],
       ])
     );
-    expect(list.every((w) => w.jobNumber === "3370")).toBe(true);
+    expect(list.every((w) => w.jobNumber === "9001")).toBe(true);
   });
 
   it("(F) the owner's bell counts bookings, and asks for a reconnect only while Bookings is On without its permissions", async () => {

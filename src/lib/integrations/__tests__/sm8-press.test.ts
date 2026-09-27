@@ -19,16 +19,16 @@ jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: (...a: unknown[]) => 
 import { isSm8Press, sm8PressFromSession, SM8_PRESS_MAX_AGE_MS, type Sm8Press } from "../sm8-press";
 
 beforeEach(() => {
-  getSession.mockReset().mockResolvedValue({ orgId: "org-1", user: { sub: "auth0|isaac" } });
-  staffProfileIdFor.mockReset().mockResolvedValue("staff-isaac");
+  getSession.mockReset().mockResolvedValue({ orgId: "org-1", user: { sub: "auth0|sam" } });
+  staffProfileIdFor.mockReset().mockResolvedValue("staff-sam");
 });
 
 describe("a press", () => {
   it("is made from the session: the workspace, the person and their staff card", async () => {
     const press = await sm8PressFromSession();
-    expect(press).toMatchObject({ orgId: "org-1", userId: "auth0|isaac", staffId: "staff-isaac" });
+    expect(press).toMatchObject({ orgId: "org-1", userId: "auth0|sam", staffId: "staff-sam" });
     expect(isSm8Press(press)).toBe(true);
-    expect(staffProfileIdFor).toHaveBeenCalledWith("org-1", "auth0|isaac");
+    expect(staffProfileIdFor).toHaveBeenCalledWith("org-1", "auth0|sam");
     // and can't be edited into another workspace's
     expect(Object.isFrozen(press)).toBe(true);
   });
@@ -43,7 +43,7 @@ describe("a press", () => {
   it("isn't made without a session", async () => {
     getSession.mockResolvedValue(null);
     expect(await sm8PressFromSession()).toBeNull();
-    getSession.mockResolvedValue({ user: { sub: "auth0|isaac" } });
+    getSession.mockResolvedValue({ user: { sub: "auth0|sam" } });
     expect(await sm8PressFromSession()).toBeNull();
   });
 

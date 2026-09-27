@@ -71,11 +71,11 @@ jest.mock("../sm8-write", () => ({
 
 const getSession = jest.fn();
 jest.mock("@/lib/auth0", () => ({ auth0: { getSession: (...a: unknown[]) => getSession(...a) } }));
-let whoIsSignedIn: { user: string; staff: string | null } = { user: "auth0|isaac", staff: "staff-isaac" };
+let whoIsSignedIn: { user: string; staff: string | null } = { user: "auth0|sam", staff: "staff-sam" };
 jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: jest.fn(async () => whoIsSignedIn.staff) }));
 jest.mock("next/server", () => ({ after: () => {} }));
 jest.mock("@/lib/workboard/job-notes-query", () => ({
-  staffDisplayNames: jest.fn(async () => new Map([["staff-isaac", "Isaac Smith"]])),
+  staffDisplayNames: jest.fn(async () => new Map([["staff-sam", "Sam Tester"]])),
 }));
 
 import { sm8PressFromSession, type Sm8Press } from "../sm8-press";
@@ -88,10 +88,10 @@ import { queueBookIn, queueBookingRetry, queueBookingTakeBack, queueClear } from
 const ORG = "org-1";
 const TENANT = "vendor-1";
 const ZONE = "Australia/Sydney";
-const JOB = "01a0dd9a-0000-4000-8000-000000003370";
-const OTHER_JOB = "01a0dd9a-0000-4000-8000-000000000288";
-const ISAAC_SM8 = "985a32ef-398b-489f-882a-20fe666a5ebb";
-const LUKE_SM8 = "3edd29df-0000-4000-8000-00000000bbbb";
+const JOB = "0b1e0b1e-0000-4000-8000-000000009001";
+const OTHER_JOB = "0b1e0b1e-0000-4000-8000-000000009002";
+const SAM_SM8 = "5a0e5a0e-0000-4000-8000-00000000a001";
+const ALEX_SM8 = "a1e0a1e0-0000-4000-8000-00000000a002";
 const ACCESS = { accessToken: "token-1", tenantId: TENANT, grant: "g1", meter: TENANT };
 const RENEWED = { accessToken: "token-2", tenantId: TENANT, grant: "g2", meter: TENANT };
 
@@ -99,7 +99,7 @@ const RENEWED = { accessToken: "token-2", tenantId: TENANT, grant: "g2", meter: 
 const day = (days: number) => localNow(ZONE, Date.now() + days * 86_400_000)!.slice(0, 10);
 const TOMORROW = day(1);
 const at = (d: string, hhmm: string) => `${d} ${hhmm}:00`;
-const slot = (staffUuid = ISAAC_SM8, start = "20:00", end = "21:00", d = TOMORROW) => ({
+const slot = (staffUuid = SAM_SM8, start = "20:00", end = "21:00", d = TOMORROW) => ({
   staffUuid,
   start: at(d, start),
   end: at(d, end),
@@ -112,12 +112,12 @@ const statusRows = () => writes().filter((w) => w.kind === "booking" && w.op ===
 const deletesOf = () => writes().filter((w) => w.kind === "booking" && w.op === "delete");
 const takeBackOf = (createId: unknown) => deletesOf().find((w) => w.depends_on === createId);
 
-async function pressAs(who: "isaac" | "luke" | "nocard" = "isaac"): Promise<Sm8Press> {
+async function pressAs(who: "sam" | "alex" | "nocard" = "sam"): Promise<Sm8Press> {
   whoIsSignedIn =
-    who === "isaac"
-      ? { user: "auth0|isaac", staff: "staff-isaac" }
-      : who === "luke"
-        ? { user: "auth0|luke", staff: "staff-luke" }
+    who === "sam"
+      ? { user: "auth0|sam", staff: "staff-sam" }
+      : who === "alex"
+        ? { user: "auth0|alex", staff: "staff-alex" }
         : { user: "auth0|owner", staff: null };
   getSession.mockResolvedValue({ orgId: ORG, user: { sub: whoIsSignedIn.user } });
   return (await sm8PressFromSession())!;
@@ -128,9 +128,9 @@ const state = () => readSm8WriteState(ORG);
 /** Book in on JOB: the slots, after a status change when `seen` is given. */
 async function bookIn(
   slots: { staffUuid: string; start: string; end: string }[] = [slot()],
-  opts: { seen?: string | null; who?: "isaac" | "luke"; verbId?: string } = {}
+  opts: { seen?: string | null; who?: "sam" | "alex"; verbId?: string } = {}
 ) {
-  const press = await pressAs(opts.who ?? "isaac");
+  const press = await pressAs(opts.who ?? "sam");
   return queueBookIn(press, await state(), {
     jobUuid: JOB,
     verbId: opts.verbId ?? randomUUID(),
@@ -208,16 +208,16 @@ beforeEach(() => {
   sleeps.length = 0;
   sm8 = makeSm8Bookings();
   sm8.job(JOB);
-  sm8.job(OTHER_JOB, { kept: { generated_job_id: "288" } as never });
+  sm8.job(OTHER_JOB, { kept: { generated_job_id: "9002" } as never });
   fake.db.integration_connections = [connection()];
   fake.db.sm8_vendor = [{ org_id: ORG, uuid: TENANT, name: "Acme Air", timezone_name: ZONE }];
   fake.db.sm8_staff = [
-    { org_id: ORG, uuid: ISAAC_SM8, first: "Isaac", last: "Smith", active: 1 },
-    { org_id: ORG, uuid: LUKE_SM8, first: "Luke", last: "Ingold", active: 1 },
+    { org_id: ORG, uuid: SAM_SM8, first: "Sam", last: "Tester", active: 1 },
+    { org_id: ORG, uuid: ALEX_SM8, first: "Alex", last: "Sample", active: 1 },
   ];
   fake.db.sm8_jobs = [
-    { org_id: ORG, uuid: JOB, active: 1, status: "Quote", generated_job_id: "3370" },
-    { org_id: ORG, uuid: OTHER_JOB, active: 1, status: "Completed", generated_job_id: "288" },
+    { org_id: ORG, uuid: JOB, active: 1, status: "Quote", generated_job_id: "9001" },
+    { org_id: ORG, uuid: OTHER_JOB, active: 1, status: "Completed", generated_job_id: "9002" },
   ];
   fake.db.sm8_job_activities = [];
   fake.db.sm8_writes = [];
@@ -251,23 +251,23 @@ describe("a booking goes, as the app, and is read back", () => {
       kind: "booking",
       op: "create",
       sm8_job_uuid: JOB,
-      subject: `slot:${ISAAC_SM8}:${TOMORROW}T20:00`,
+      subject: `slot:${SAM_SM8}:${TOMORROW}T20:00`,
       payload: { name: BOOKING_WORDS.label.create },
-      booking_staff_uuid: ISAAC_SM8,
+      booking_staff_uuid: SAM_SM8,
       booking_start: at(TOMORROW, "20:00"),
       booking_end: at(TOMORROW, "21:00"),
       booking_zone: ZONE,
       depends_on: null,
       status: "queued",
-      requested_by: "staff-isaac",
-      requested_by_user: "auth0|isaac",
+      requested_by: "staff-sam",
+      requested_by_user: "auth0|sam",
     });
     await run();
     expect(postSm8Booking).toHaveBeenCalledTimes(1);
     expect(postSm8Booking.mock.calls[0][1]).toEqual({
       uuid: c.remote_uuid,
       jobUuid: JOB,
-      staffUuid: ISAAC_SM8,
+      staffUuid: SAM_SM8,
       start: at(TOMORROW, "20:00"),
       end: at(TOMORROW, "21:00"),
     });
@@ -320,7 +320,7 @@ describe("a lost answer is read back before anything goes again (B-1, B-2, B-22)
     const [c] = creates();
     const old = c.remote_uuid as string;
     c.maybe_landed = true;
-    sm8.put({ uuid: old, jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00"), active: 0 });
+    sm8.put({ uuid: old, jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00"), active: 0 });
     await run();
     expect(c).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.bookingGone });
     expect(postSm8Booking).not.toHaveBeenCalled();
@@ -328,7 +328,7 @@ describe("a lost answer is read back before anything goes again (B-1, B-2, B-22)
     /* pressed again: the old row gives its slot back, and never goes again */
     const again = await bookIn();
     expect(again.ok).toBe(true);
-    expect(c.subject).toBe(`slot:${ISAAC_SM8}:${TOMORROW}T20:00:was:${c.id}`);
+    expect(c.subject).toBe(`slot:${SAM_SM8}:${TOMORROW}T20:00:was:${c.id}`);
     expect(c.status).toBe("cancelled");
     const fresh = creates().find((x) => x.id !== c.id)!;
     expect(fresh.remote_uuid).not.toBe(old);
@@ -341,17 +341,17 @@ describe("a lost answer is read back before anything goes again (B-1, B-2, B-22)
     await bookIn();
     const [c] = creates();
     c.verify_uuids = [OLD];
-    sm8.put({ uuid: OLD, jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00"), active: 0 });
+    sm8.put({ uuid: OLD, jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00"), active: 0 });
     await run();
     expect(postSm8Booking.mock.calls.map((x) => x[1].uuid)).toEqual([c.remote_uuid]);
     expect(c).toMatchObject({ status: "sent", verify_uuids: [] });
   });
 
   it("(F, B-22) a verify uuid found active on this job at another end (the length before a re-press) is sent with the changed-there marker, no POST, and no Undo", async () => {
-    await bookIn([slot(ISAAC_SM8, "20:00", "22:00")]);
+    await bookIn([slot(SAM_SM8, "20:00", "22:00")]);
     const [c] = creates();
     c.verify_uuids = [OLD];
-    sm8.put({ uuid: OLD, jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
+    sm8.put({ uuid: OLD, jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
     await run();
     expect(postSm8Booking).not.toHaveBeenCalled();
     expect(c).toMatchObject({ status: "sent", remote_uuid: OLD, last_error: BOOKING_WORDS.row.movedThere, verify_uuids: [] });
@@ -364,7 +364,7 @@ describe("a lost answer is read back before anything goes again (B-1, B-2, B-22)
     await bookIn();
     const [c] = creates();
     c.maybe_landed = true;
-    sm8.put({ uuid: c.remote_uuid as string, jobUuid: JOB, staffUuid: LUKE_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
+    sm8.put({ uuid: c.remote_uuid as string, jobUuid: JOB, staffUuid: ALEX_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
     await run();
     expect(postSm8Booking).not.toHaveBeenCalled();
     expect(c).toMatchObject({ status: "sent", last_error: BOOKING_WORDS.row.movedThere });
@@ -377,7 +377,7 @@ describe("a lost answer is read back before anything goes again (B-1, B-2, B-22)
     const [c] = creates();
     const own = c.remote_uuid as string;
     c.maybe_landed = true;
-    sm8.put({ uuid: own, jobUuid: OTHER_JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
+    sm8.put({ uuid: own, jobUuid: OTHER_JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
     await run();
     expect(postSm8Booking).not.toHaveBeenCalled();
     expect(c).toMatchObject({ status: "sent", remote_uuid: own, last_error: BOOKING_WORDS.row.movedThere });
@@ -401,10 +401,10 @@ describe("the checks before a booking goes (B-6)", () => {
   it("(F) a live booking of the same person at the same start cancels it slotTaken, with their name, and posts nothing", async () => {
     await bookIn();
     const [c] = creates();
-    sm8.put({ uuid: "01a0e135-d4c9-7c94-9d9b-6a43fbb6eaab", jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "20:30") });
+    sm8.put({ uuid: "acac0135-0000-4000-8000-00000000ac35", jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "20:30") });
     await run();
     expect(postSm8Booking).not.toHaveBeenCalled();
-    expect(c).toMatchObject({ status: "cancelled", last_error: "Isaac Smith is already booked on this job at that time in ServiceM8." });
+    expect(c).toMatchObject({ status: "cancelled", last_error: "Sam Tester is already booked on this job at that time in ServiceM8." });
     expect(await lineOf(c)).toMatchObject({ key: "line.notSent", acts: ["look_again"] });
   });
 
@@ -415,7 +415,7 @@ describe("the checks before a booking goes (B-6)", () => {
     await run();
     expect(c).toMatchObject({ status: "cancelled", last_error: "The job is Completed in ServiceM8 now. Look again." });
     expect(postSm8Booking).not.toHaveBeenCalled();
-    const again = await bookIn([slot(ISAAC_SM8, "18:00", "19:00")]);
+    const again = await bookIn([slot(SAM_SM8, "18:00", "19:00")]);
     expect(again.ok).toBe(true);
     sm8.jobs.get(JOB)!.active = 0;
     await run();
@@ -429,12 +429,12 @@ describe("the checks before a booking goes (B-6)", () => {
     await run();
     expect(c).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.past });
     expect(readSm8Job).not.toHaveBeenCalled();
-    await bookIn([slot(LUKE_SM8)]);
+    await bookIn([slot(ALEX_SM8)]);
     fake.db.sm8_staff[1].active = 0;
     await run();
-    expect(creates().find((x) => x.booking_staff_uuid === LUKE_SM8)).toMatchObject({
+    expect(creates().find((x) => x.booking_staff_uuid === ALEX_SM8)).toMatchObject({
       status: "cancelled",
-      last_error: "Luke Ingold isn't active in ServiceM8.",
+      last_error: "Alex Sample isn't active in ServiceM8.",
     });
     expect(postSm8Booking).not.toHaveBeenCalled();
   });
@@ -448,10 +448,10 @@ describe("the checks before a booking goes (B-6)", () => {
     expect(postSm8Booking).not.toHaveBeenCalled();
     expect(await lineOf(c)).toMatchObject({ key: "line.notSent", acts: ["book_again"] });
 
-    await bookIn([slot(ISAAC_SM8, "18:00", "19:00")]);
+    await bookIn([slot(SAM_SM8, "18:00", "19:00")]);
     const landed = creates().find((x) => x.id !== c.id)!;
     Object.assign(landed, { maybe_landed: true, pressed_at: new Date(Date.now() - 2 * 86_400_000).toISOString() });
-    sm8.put({ uuid: landed.remote_uuid as string, jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "18:00"), end: at(TOMORROW, "19:00") });
+    sm8.put({ uuid: landed.remote_uuid as string, jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "18:00"), end: at(TOMORROW, "19:00") });
     await run();
     expect(landed.status).toBe("sent");
   });
@@ -462,7 +462,7 @@ describe("the checks before a booking goes (B-6)", () => {
     fake.db.sm8_vendor[0].timezone_name = "Australia/Perth";
     await run();
     expect(c).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.zoneChanged });
-    await bookIn([slot(ISAAC_SM8, "18:00", "19:00")]);
+    await bookIn([slot(SAM_SM8, "18:00", "19:00")]);
     const other = creates().find((x) => x.id !== c.id)!;
     fake.db.sm8_vendor[0].timezone_name = null;
     await run();
@@ -479,7 +479,7 @@ describe("the checks before a booking goes (B-6)", () => {
 /** An hour later on the wall clock, as text. */
 const hourOn = (stamp: string) => `${stamp.slice(0, 11)}${String(Number(stamp.slice(11, 13)) + 1).padStart(2, "0")}${stamp.slice(13)}`;
 const bookingsOn = () => (fake.db.integration_connections[0].write_kinds as string[]).includes("booking");
-const GUARD_3370 = "HeyTiff switched bookings off after ServiceM8 kept something different on job 3370.";
+const GUARD_9001 = "HeyTiff switched bookings off after ServiceM8 kept something different on job 9001.";
 
 /** A mirror row (sm8_job_activities) for one of ServiceM8's bookings, as a
     sync would bring it. */
@@ -513,9 +513,9 @@ const mirrorOf = (r: Row): BookingMirrorIn => ({
 
 describe("a booking ServiceM8 kept differently trips a guard (B-7)", () => {
   it("(F) a start an hour off, read twice, is SENT under our uuid with timeNotKept; the run stops, Bookings goes off, and what was waiting is cancelled in the guard's words — files and notes left as they were", async () => {
-    sm8.knobs.keeps = (b) => (b.staffUuid === ISAAC_SM8 ? { start: hourOn(b.start), end: hourOn(b.end) } : {});
-    await bookIn([slot(ISAAC_SM8, "18:00", "19:00"), slot(LUKE_SM8, "18:00", "19:00")]);
-    const [isaac, luke] = creates();
+    sm8.knobs.keeps = (b) => (b.staffUuid === SAM_SM8 ? { start: hourOn(b.start), end: hourOn(b.end) } : {});
+    await bookIn([slot(SAM_SM8, "18:00", "19:00"), slot(ALEX_SM8, "18:00", "19:00")]);
+    const [sam, alex] = creates();
     fake.db.sm8_writes.push({
       id: "file-1",
       org_id: ORG,
@@ -539,21 +539,21 @@ describe("a booking ServiceM8 kept differently trips a guard (B-7)", () => {
     const r = await run();
     expect(postSm8Booking).toHaveBeenCalledTimes(1);
     /* read, then read again about 2 s later (U23) */
-    expect(readSm8Booking.mock.calls.map((x) => x[1])).toEqual([isaac.remote_uuid, isaac.remote_uuid]);
+    expect(readSm8Booking.mock.calls.map((x) => x[1])).toEqual([sam.remote_uuid, sam.remote_uuid]);
     expect(sleeps).toEqual([2_000]);
-    expect(isaac).toMatchObject({ status: "sent", last_error: BOOKING_WORDS.row.timeNotKept, remote_uuid: isaac.remote_uuid });
-    expect(isaac.landed_edit_date).toBe(sm8.get(isaac.remote_uuid as string)!.editDate);
+    expect(sam).toMatchObject({ status: "sent", last_error: BOOKING_WORDS.row.timeNotKept, remote_uuid: sam.remote_uuid });
+    expect(sam.landed_edit_date).toBe(sm8.get(sam.remote_uuid as string)!.editDate);
     expect(r.stopped).toBe(BOOKING_WORDS.row.timeNotKept);
     expect(bookingsOn()).toBe(false);
-    expect(luke).toMatchObject({ status: "cancelled", last_error: GUARD_3370 });
+    expect(alex).toMatchObject({ status: "cancelled", last_error: GUARD_9001 });
     expect(byId("file-1")).toMatchObject({ status: "queued", last_error: null });
     /* case 13: it exists, so it can be taken back */
-    expect(await lineOf(isaac)).toMatchObject({ key: "line.keptOther", tone: "bad", acts: ["undo", "open_in_sm8"] });
+    expect(await lineOf(sam)).toMatchObject({ key: "line.keptOther", tone: "bad", acts: ["undo", "open_in_sm8"] });
   });
 
   it("(F) Undo removes the mistimed booking, comparing its job and its edit time — and once someone corrects it in ServiceM8, Undo is refused and the line is Changed", async () => {
     sm8.knobs.keeps = (b) => ({ start: hourOn(b.start), end: hourOn(b.end) });
-    await bookIn([slot(ISAAC_SM8, "18:00", "19:00")]);
+    await bookIn([slot(SAM_SM8, "18:00", "19:00")]);
     await run();
     const [c] = creates();
     expect(c.last_error).toBe(BOOKING_WORDS.row.timeNotKept);
@@ -569,7 +569,7 @@ describe("a booking ServiceM8 kept differently trips a guard (B-7)", () => {
 
     /* another, corrected in ServiceM8 by a person: its edit time moved */
     sm8.knobs.keeps = (b) => ({ start: hourOn(b.start), end: hourOn(b.end) });
-    await bookIn([slot(ISAAC_SM8, "15:00", "16:00")]);
+    await bookIn([slot(SAM_SM8, "15:00", "16:00")]);
     await run();
     const d = creates().find((x) => x.id !== c.id)!;
     fake.db.integration_connections[0].write_kinds = ["attachment", "note", "booking"];
@@ -581,7 +581,7 @@ describe("a booking ServiceM8 kept differently trips a guard (B-7)", () => {
     expect(takeBackOf(d.id)).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.changedNoTakeBack });
     expect(await lineOf(d)).toMatchObject({ key: "line.stillIn", tone: null, acts: [] });
     /* after it: refused at the press, and the line is case 15 */
-    const e = await bookIn([slot(ISAAC_SM8, "11:00", "12:00")]);
+    const e = await bookIn([slot(SAM_SM8, "11:00", "12:00")]);
     fake.db.integration_connections[0].write_kinds = ["attachment", "note", "booking"];
     expect(e.ok).toBe(true);
     await run();
@@ -595,7 +595,7 @@ describe("a booking ServiceM8 kept differently trips a guard (B-7)", () => {
   });
 
   it("(F) another person, or none, right after our own POST, read twice: SENT with personNotKept, Bookings off, and Undo removes it", async () => {
-    sm8.knobs.keeps = () => ({ staffUuid: LUKE_SM8 });
+    sm8.knobs.keeps = () => ({ staffUuid: ALEX_SM8 });
     await bookIn();
     const [c] = creates();
     await run();
@@ -611,7 +611,7 @@ describe("a booking ServiceM8 kept differently trips a guard (B-7)", () => {
 
     /* nobody at all: the same guard */
     sm8.knobs.keeps = () => ({ staffUuid: null });
-    await bookIn([slot(ISAAC_SM8, "15:00", "16:00")]);
+    await bookIn([slot(SAM_SM8, "15:00", "16:00")]);
     await run();
     expect(creates().find((x) => x.id !== c.id)).toMatchObject({ status: "sent", last_error: BOOKING_WORDS.row.personNotKept });
   });
@@ -620,7 +620,7 @@ describe("a booking ServiceM8 kept differently trips a guard (B-7)", () => {
     await bookIn();
     const [c] = creates();
     postSm8Booking.mockImplementationOnce(async (call: unknown, b: { uuid: string; jobUuid: string; start: string; end: string }) => {
-      await sm8.postBooking(call, { ...b, staffUuid: LUKE_SM8 });
+      await sm8.postBooking(call, { ...b, staffUuid: ALEX_SM8 });
       return { status: 409, outcome: { kind: "exists" }, remote: null, recordUuid: null };
     });
     await run();
@@ -632,7 +632,7 @@ describe("a booking ServiceM8 kept differently trips a guard (B-7)", () => {
     await bookIn();
     const [c] = creates();
     c.maybe_landed = true;
-    sm8.put({ uuid: c.remote_uuid as string, jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "21:00"), end: at(TOMORROW, "22:00") });
+    sm8.put({ uuid: c.remote_uuid as string, jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "21:00"), end: at(TOMORROW, "22:00") });
     await run();
     expect(postSm8Booking).not.toHaveBeenCalled();
     expect(c).toMatchObject({ status: "sent", last_error: BOOKING_WORDS.row.timeNotKept });
@@ -664,7 +664,7 @@ describe("a booking answered OK that the read-back can't find (B-23, B-23b, B-23
   });
 
   it("(F, B-23) not found on a read and again 2 s later: failed unsure, the mark kept — and Bookings off (call 15)", async () => {
-    await bookIn([slot(ISAAC_SM8, "18:00", "19:00"), slot(LUKE_SM8, "18:00", "19:00")]);
+    await bookIn([slot(SAM_SM8, "18:00", "19:00"), slot(ALEX_SM8, "18:00", "19:00")]);
     const [c, other] = creates();
     postSm8Booking.mockImplementationOnce(okNotKept);
     const r = await run();
@@ -672,7 +672,7 @@ describe("a booking answered OK that the read-back can't find (B-23, B-23b, B-23
     expect(c).toMatchObject({ status: "failed", last_error: BOOKING_WORDS.row.bookingUnsure, maybe_landed: true });
     expect(r.stopped).toBe(BOOKING_WORDS.row.bookingUnsure);
     expect(bookingsOn()).toBe(false);
-    expect(other).toMatchObject({ status: "cancelled", last_error: GUARD_3370 });
+    expect(other).toMatchObject({ status: "cancelled", last_error: GUARD_9001 });
     expect((await lineOf(c)).key).toBe("line.unsure");
   });
 
@@ -705,13 +705,13 @@ describe("a booking answered OK that the read-back can't find (B-23, B-23b, B-23
   it("(F, B-23b) found under neither uuid: failed unsure with the answer's uuid waiting for its check, and a take-back deletes it", async () => {
     await bookIn();
     const [c] = creates();
-    const THEIRS = "01a0e1ff-d4c9-7c94-9d9b-6a43fbb6eaab";
+    const THEIRS = "acac01ff-0000-4000-8000-00000000acff";
     postSm8Booking.mockImplementationOnce(async () => ({ status: 200, outcome: { kind: "created", remoteUuid: THEIRS }, remote: null, recordUuid: THEIRS }));
     await run();
     expect(c).toMatchObject({ status: "failed", last_error: BOOKING_WORDS.row.bookingUnsure, maybe_landed: true, verify_uuids: [THEIRS] });
     expect(readSm8Booking.mock.calls.map((x) => x[1])).toEqual([c.remote_uuid, c.remote_uuid, THEIRS, THEIRS]);
     /* it turns up there after all; the presser takes it back */
-    sm8.put({ uuid: THEIRS, jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
+    sm8.put({ uuid: THEIRS, jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
     fake.db.integration_connections[0].write_kinds = ["attachment", "note", "booking"];
     expect(await queueBookingTakeBack(await pressAs(), await state(), { createRowId: c.id as string })).toMatchObject({ ok: true, plan: "deleting" });
     await run();
@@ -733,7 +733,7 @@ describe("a booking answered OK that the read-back can't find (B-23, B-23b, B-23
   it("(F, B-23c) the claim's time runs out after the POST: never let go, never posted again unread — sent under the answer's uuid, or ours with no edit time", async () => {
     await bookIn();
     const [c] = creates();
-    const THEIRS = "01a0e1ee-d4c9-7c94-9d9b-6a43fbb6eaab";
+    const THEIRS = "acac01ee-0000-4000-8000-00000000acee";
     postSm8Booking.mockImplementationOnce(async (call: unknown, b: never) => {
       await sm8.postBooking(call, b);
       skew += 96_000; // the POST outlived the reads' time
@@ -745,7 +745,7 @@ describe("a booking answered OK that the read-back can't find (B-23, B-23b, B-23
     expect(c.replaced_uuids).toContain(sm8.posts[0].uuid);
 
     skew = 0;
-    await bookIn([slot(ISAAC_SM8, "15:00", "16:00")]);
+    await bookIn([slot(SAM_SM8, "15:00", "16:00")]);
     const d = creates().find((x) => x.id !== c.id)!;
     postSm8Booking.mockImplementationOnce(async (call: unknown, b: never) => {
       const res = await sm8.postBooking(call, b);
@@ -786,7 +786,7 @@ describe("a booking answered OK that the read-back can't find (B-23, B-23b, B-23
     /* a booking at another time on the only read: its guard */
     skew = 0;
     sm8.knobs.keeps = (b) => ({ start: hourOn(b.start), end: hourOn(b.end) });
-    await bookIn([slot(ISAAC_SM8, "15:00", "16:00")]);
+    await bookIn([slot(SAM_SM8, "15:00", "16:00")]);
     const d = creates().find((x) => x.id !== c.id)!;
     postSm8Booking.mockImplementationOnce(async (call: unknown, b: never) => {
       const res = await sm8.postBooking(call, b);
@@ -870,7 +870,7 @@ describe("a status change goes first, and the verb is one (B-3)", () => {
     expect(await lineOf(c)).toMatchObject({ key: "line.notSent", tone: "bad", acts: ["try_again"] });
     expect(postSm8Booking).not.toHaveBeenCalled();
 
-    const r = await bookIn([slot(ISAAC_SM8, "15:00", "16:00")], { seen: "2026-09-27 16:00:01" });
+    const r = await bookIn([slot(SAM_SM8, "15:00", "16:00")], { seen: "2026-09-27 16:00:01" });
     const s2 = byId(r.ok && r.statusRowId);
     Object.assign(s2, { status: "failed", last_error: WRITE_WORDS.gaveUp, maybe_landed: true });
     await run();
@@ -932,11 +932,11 @@ describe("the hourly cap never splits a verb (B-3b)", () => {
   });
 
   it("(F) ...but a status row another press's booking already depends on stays", async () => {
-    const a = await bookIn([slot(LUKE_SM8)], { seen: SEEN });
+    const a = await bookIn([slot(ALEX_SM8)], { seen: SEEN });
     const s = byId(a.ok && a.statusRowId);
     s.next_attempt_at = future();
     pressedThisHour(58);
-    const b = await bookIn([slot(ISAAC_SM8)], { seen: SEEN });
+    const b = await bookIn([slot(SAM_SM8)], { seen: SEEN });
     expect(b).toEqual({ ok: false, refusal: "capped" });
     expect(s).toMatchObject({ status: "queued", taken_back_at: null });
     /* and its verb stays its first press's */
@@ -971,7 +971,7 @@ describe("the hourly cap never splits a verb (B-3b)", () => {
   it("(F) a press whose slots are all already on their way, booked, or being taken out queues no status row", async () => {
     await bookIn([slot()]);
     const again = await bookIn([slot()], { seen: SEEN });
-    expect(again).toEqual({ ok: true, rowIds: [], statusRowId: null, already: [`slot:${ISAAC_SM8}:${TOMORROW}T20:00`] });
+    expect(again).toEqual({ ok: true, rowIds: [], statusRowId: null, already: [`slot:${SAM_SM8}:${TOMORROW}T20:00`] });
     expect(statusRows()).toHaveLength(0);
     await run();
     expect(await bookIn([slot()], { seen: SEEN })).toMatchObject({ ok: false, refusal: "already_booked" });
@@ -1038,7 +1038,7 @@ describe("the fields guard (B-9)", () => {
     expect(s.landed_edit_date).toBe(sm8.jobs.get(JOB)!.editDate);
     expect(r.stopped).toBe(BOOKING_WORDS.row.fieldsNotKept);
     expect(bookingsOn()).toBe(false);
-    expect(creates()[0]).toMatchObject({ status: "cancelled", last_error: GUARD_3370 });
+    expect(creates()[0]).toMatchObject({ status: "cancelled", last_error: GUARD_9001 });
     expect(postSm8Booking).not.toHaveBeenCalled();
     expect(await statusLineOf(s)).toMatchObject({
       key: "line.statusSent",
@@ -1126,7 +1126,7 @@ describe("a status change never goes alone (B-4b)", () => {
   it("(F) one whose bookings were all taken back or failed is cancelled statusAlone, with no request — and reads Still a Quote", async () => {
     const a = await verb();
     Object.assign(a.cs[0], { status: "failed", last_error: BOOKING_WORDS.row.refused });
-    const b = await verb({ seen: "2026-09-27 16:00:01", slots: [slot(LUKE_SM8)] });
+    const b = await verb({ seen: "2026-09-27 16:00:01", slots: [slot(ALEX_SM8)] });
     Object.assign(b.cs[0], { status: "cancelled", taken_back_at: new Date().toISOString(), last_error: NOTE_WORDS.row.takenBackBeforeSent });
     await run();
     for (const s of [a.s, b.s]) expect(s).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.statusAlone });
@@ -1136,7 +1136,7 @@ describe("a status change never goes alone (B-4b)", () => {
   });
 
   it("(F) a doomed booking never holds it open: its start passed while ServiceM8 couldn't be reached", async () => {
-    const { s, cs } = await verb({ slots: [{ staffUuid: ISAAC_SM8, ...soon(25) }] });
+    const { s, cs } = await verb({ slots: [{ staffUuid: SAM_SM8, ...soon(25) }] });
     /* the job read before the POST can't be made: back to the queue for a minute, the run stopped */
     readSm8Job.mockResolvedValueOnce({ ok: false });
     const first = await run();
@@ -1160,7 +1160,7 @@ describe("a status change never goes alone (B-4b)", () => {
       ["within 10 minutes of its own day-old limit", (c) => (c.pressed_at = new Date(Date.now() - 86_400_000 + 5 * 60_000).toISOString())],
     ];
     for (const [i, [why, doom]] of doomed.entries()) {
-      const { s, cs } = await verb({ seen: `2026-09-27 16:00:1${i}`, slots: [slot(LUKE_SM8, `1${i}:00`, `1${i}:30`)] });
+      const { s, cs } = await verb({ seen: `2026-09-27 16:00:1${i}`, slots: [slot(ALEX_SM8, `1${i}:00`, `1${i}:30`)] });
       doom(cs[0]);
       await run();
       expect([why, s.status, s.last_error]).toEqual([why, "cancelled", BOOKING_WORDS.row.statusAlone]);
@@ -1224,7 +1224,7 @@ describe("a status change never goes alone (B-4b)", () => {
   });
 
   it("(F) ...and with none able to go once the two minutes are up, it is cancelled statusAlone; a doomed booking's status row waits first, the same", async () => {
-    const { s, cs } = await verb({ ago: 0, slots: [{ staffUuid: ISAAC_SM8, ...soon(8) }] });
+    const { s, cs } = await verb({ ago: 0, slots: [{ staffUuid: SAM_SM8, ...soon(8) }] });
     await run();
     expect(s).toMatchObject({ status: "queued", attempts: 0 });
     expect(cs[0].status).toBe("queued");
@@ -1239,12 +1239,12 @@ describe("a status change never goes alone (B-4b)", () => {
   it("(F) a second press that joins a queued status row renews its press, so it waits for that press's bookings rather than being cancelled", async () => {
     const a = await verb({ ago: 10 });
     Object.assign(a.cs[0], { status: "failed", last_error: BOOKING_WORDS.row.refused });
-    const b = await bookIn([slot(LUKE_SM8)], { seen: SEEN });
+    const b = await bookIn([slot(ALEX_SM8)], { seen: SEEN });
     expect(b).toMatchObject({ ok: true, statusRowId: a.s.id });
     expect(Date.parse(a.s.pressed_at as string)).toBeGreaterThan(Date.now() - 5_000);
     await run();
     expect(a.s.status).toBe("sent");
-    expect(creates().find((c) => c.booking_staff_uuid === LUKE_SM8)!.status).toBe("sent");
+    expect(creates().find((c) => c.booking_staff_uuid === ALEX_SM8)!.status).toBe("sent");
   });
 
   it("(F) a database read that fails — the bookings behind it, the people, or the check inside the POST attempt — goes back to the queue, handed back, and posts nothing", async () => {
@@ -1321,7 +1321,7 @@ describe("a status change whose answer was lost is read before anything ends it 
     await run();
     expect(s).toMatchObject({ status: "sent", maybe_landed: false });
 
-    const b = await verb({ seen: "2026-09-27 16:00:01", slots: [slot(LUKE_SM8)] });
+    const b = await verb({ seen: "2026-09-27 16:00:01", slots: [slot(ALEX_SM8)] });
     b.s.maybe_landed = true;
     sm8.jobs.get(JOB)!.status = "Quote";
     b.s.pressed_at = minutesAgo(2 * 24 * 60);
@@ -1398,7 +1398,7 @@ describe("a status change whose answer was lost is read before anything ends it 
        the status row goes again, and the cap stop leaves it — it may have
        landed */
     pressedThisHour(59);
-    const q = await bookIn([slot(), slot(LUKE_SM8, "15:00", "16:00")], { seen: SEEN });
+    const q = await bookIn([slot(), slot(ALEX_SM8, "15:00", "16:00")], { seen: SEEN });
     expect(q).toEqual({ ok: false, refusal: "capped" });
     expect(s).toMatchObject({ status: "queued", taken_back_at: null, maybe_landed: false });
     expect(s.verify_uuids).toHaveLength(1);
@@ -1414,7 +1414,7 @@ describe("a status change whose answer was lost is read before anything ends it 
 
 /* ── Undo ── */
 
-/** One of Isaac's bookings, sent, in ServiceM8. */
+/** One of Sam's bookings, sent, in ServiceM8. */
 async function sentBooking(s = slot()): Promise<Row> {
   await bookIn([s]);
   const c = creates().find((x) => x.booking_start === s.start && x.booking_staff_uuid === s.staffUuid)!;
@@ -1422,7 +1422,7 @@ async function sentBooking(s = slot()): Promise<Row> {
   expect(c.status).toBe("sent");
   return c;
 }
-const undo = async (c: Row, who: "isaac" | "luke" = "isaac") =>
+const undo = async (c: Row, who: "sam" | "alex" = "sam") =>
   queueBookingTakeBack(await pressAs(who), await state(), { createRowId: c.id as string });
 
 describe("Undo takes a booking back (B-8)", () => {
@@ -1435,7 +1435,7 @@ describe("Undo takes a booking back (B-8)", () => {
     expect(deletesOf()).toHaveLength(0);
     expect(await lineOf(q)).toMatchObject({ key: null });
 
-    const c = await sentBooking(slot(ISAAC_SM8, "15:00", "16:00"));
+    const c = await sentBooking(slot(SAM_SM8, "15:00", "16:00"));
     const t = await undo(c);
     expect(t).toMatchObject({ ok: true, plan: "deleting" });
     const d = takeBackOf(c.id)!;
@@ -1512,7 +1512,7 @@ describe("Undo takes a booking back (B-8)", () => {
     const [c] = creates();
     const own = c.remote_uuid as string;
     Object.assign(c, { status: "failed", last_error: BOOKING_WORDS.row.bookingUnsure, maybe_landed: true, verify_uuids: [OLD] });
-    for (const u of [own, OLD]) sm8.put({ uuid: u, jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
+    for (const u of [own, OLD]) sm8.put({ uuid: u, jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
     await undo(c);
     const d = takeBackOf(c.id)!;
     /* the first DELETE lands, its read-back can't be made, and the claim runs
@@ -1548,7 +1548,7 @@ describe("Undo takes a booking back (B-8)", () => {
     const [c] = creates();
     const own = c.remote_uuid as string;
     Object.assign(c, { status: "cancelled", last_error: BOOKING_WORDS.row.bookingUnsure, maybe_landed: true, verify_uuids: [OLD] });
-    for (const u of [own, OLD]) sm8.put({ uuid: u, jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
+    for (const u of [own, OLD]) sm8.put({ uuid: u, jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
     await undo(c);
     const d = takeBackOf(c.id)!;
     /* the first DELETE takes long enough that the second can't start in the claim */
@@ -1579,7 +1579,7 @@ describe("Undo takes a booking back (B-8)", () => {
     const [c] = creates();
     const own = c.remote_uuid as string;
     Object.assign(c, { status: "failed", last_error: BOOKING_WORDS.row.bookingUnsure, maybe_landed: true, verify_uuids: [own.toUpperCase()] });
-    sm8.put({ uuid: own, jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
+    sm8.put({ uuid: own, jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "20:00"), end: at(TOMORROW, "21:00") });
     await undo(c);
     readSm8Booking.mockClear();
     await run();
@@ -1607,7 +1607,7 @@ describe("Undo takes a booking back (B-8)", () => {
     expect(sm8.deletes).toEqual([uuid]);
     expect(d.status).toBe("sent");
 
-    const e = await sentBooking(slot(ISAAC_SM8, "15:00", "16:00"));
+    const e = await sentBooking(slot(SAM_SM8, "15:00", "16:00"));
     deleteSm8Booking.mockResolvedValueOnce({ status: 503, outcome: { kind: "unavailable", status: 503 }, remote: null, recordUuid: null });
     await undo(e);
     await run();
@@ -1630,7 +1630,7 @@ describe("Undo takes a booking back (B-8)", () => {
     await run();
     expect(takeBackOf(c.id)).toMatchObject({ status: "sent", http_status: 404 });
 
-    const e = await sentBooking(slot(ISAAC_SM8, "15:00", "16:00"));
+    const e = await sentBooking(slot(SAM_SM8, "15:00", "16:00"));
     deleteSm8Booking.mockResolvedValueOnce({ status: 409, outcome: { kind: "exists" }, remote: null, recordUuid: null });
     await undo(e);
     await run();
@@ -1663,13 +1663,13 @@ describe("Undo takes a booking back (B-8)", () => {
     expect(takeBackOf(c.id)).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.changedNoTakeBack });
     expect(await lineOf(c)).toMatchObject({ key: "line.stillIn", tone: null, acts: [] });
 
-    const e = await sentBooking(slot(ISAAC_SM8, "15:00", "16:00"));
-    sm8.moveThere(e.remote_uuid as string, { staffUuid: LUKE_SM8 });
+    const e = await sentBooking(slot(SAM_SM8, "15:00", "16:00"));
+    sm8.moveThere(e.remote_uuid as string, { staffUuid: ALEX_SM8 });
     await undo(e);
     await run();
     expect(takeBackOf(e.id)).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.changedNoTakeBack });
 
-    const f = await sentBooking(slot(ISAAC_SM8, "11:00", "12:00"));
+    const f = await sentBooking(slot(SAM_SM8, "11:00", "12:00"));
     sm8.openThere(f.remote_uuid as string);
     await undo(f);
     await run();
@@ -1679,20 +1679,20 @@ describe("Undo takes a booking back (B-8)", () => {
 
   it("(F) a check-in by its person in its window is never taken out; for a booking ServiceM8 put on someone else, that person's check-in counts; a zero-length row is nothing", async () => {
     const c = await sentBooking();
-    sm8.put({ uuid: "01a0e185-92be-7c94-9d9b-4d8c13f7b83b", jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "19:30"), end: null, scheduled: 0, recorded: 1 });
+    sm8.put({ uuid: "acac0185-0000-4000-8000-00000000ac85", jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "19:30"), end: null, scheduled: 0, recorded: 1 });
     await undo(c);
     await run();
     expect(sm8.deletes).toEqual([]);
     expect(takeBackOf(c.id)).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.checkIn });
 
-    /* ServiceM8 put it on Luke; Luke is checked in */
-    sm8.knobs.keeps = () => ({ staffUuid: LUKE_SM8 });
-    await bookIn([slot(ISAAC_SM8, "15:00", "16:00")]);
+    /* ServiceM8 put it on Alex; Alex is checked in */
+    sm8.knobs.keeps = () => ({ staffUuid: ALEX_SM8 });
+    await bookIn([slot(SAM_SM8, "15:00", "16:00")]);
     await run();
     const e = creates().find((x) => x.booking_start === at(TOMORROW, "15:00"))!;
     expect(e.last_error).toBe(BOOKING_WORDS.row.personNotKept);
     fake.db.integration_connections[0].write_kinds = ["attachment", "note", "booking"];
-    sm8.put({ uuid: "01a0e186-92be-7c94-9d9b-4d8c13f7b83b", jobUuid: JOB, staffUuid: LUKE_SM8, start: at(TOMORROW, "15:05"), end: at(TOMORROW, "15:40"), scheduled: 0, recorded: 1 });
+    sm8.put({ uuid: "acac0186-0000-4000-8000-00000000ac86", jobUuid: JOB, staffUuid: ALEX_SM8, start: at(TOMORROW, "15:05"), end: at(TOMORROW, "15:40"), scheduled: 0, recorded: 1 });
     await undo(e);
     await run();
     expect(sm8.deletes).toEqual([]);
@@ -1700,8 +1700,8 @@ describe("Undo takes a booking back (B-8)", () => {
 
     /* recorded time cleared in ServiceM8 leaves a zero-length row: it is nothing */
     sm8.knobs.keeps = null;
-    const f = await sentBooking(slot(ISAAC_SM8, "11:00", "12:00"));
-    sm8.put({ uuid: "01a0e187-92be-7c94-9d9b-4d8c13f7b83b", jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "10:30"), end: at(TOMORROW, "10:30"), scheduled: 0 });
+    const f = await sentBooking(slot(SAM_SM8, "11:00", "12:00"));
+    sm8.put({ uuid: "acac0187-0000-4000-8000-00000000ac87", jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "10:30"), end: at(TOMORROW, "10:30"), scheduled: 0 });
     await undo(f);
     await run();
     expect(sm8.deletes).toEqual([f.remote_uuid]);
@@ -1713,7 +1713,7 @@ describe("Undo takes a booking back (B-8)", () => {
     expect(await undo(c)).toEqual({ ok: false, refusal: "not_future" });
     expect(c.taken_back_at).toBeNull();
 
-    const e = await sentBooking(slot(ISAAC_SM8, "15:00", "16:00"));
+    const e = await sentBooking(slot(SAM_SM8, "15:00", "16:00"));
     await undo(e);
     /* it starts before the take-back goes: ServiceM8 holds it at a time now past */
     sm8.moveThere(e.remote_uuid as string, { start: at(day(-1), "15:00"), end: at(day(-1), "16:00") });
@@ -1723,7 +1723,7 @@ describe("Undo takes a booking back (B-8)", () => {
     expect(takeBackOf(e.id)).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.notFuture });
     expect(await lineOf(e)).toMatchObject({ key: "line.stillIn", acts: [] });
 
-    await bookIn([slot(ISAAC_SM8, "11:00", "12:00")]);
+    await bookIn([slot(SAM_SM8, "11:00", "12:00")]);
     const q = creates().find((x) => x.booking_start === at(TOMORROW, "11:00"))!;
     Object.assign(q, { booking_start: at(day(-1), "11:00"), booking_end: at(day(-1), "12:00") });
     expect(await undo(q)).toMatchObject({ ok: true, plan: "cancelled" });
@@ -1763,7 +1763,7 @@ describe("Undo takes a booking back (B-8)", () => {
   it("(F) only whoever booked it takes it back: anyone else is refused, and nothing changes", async () => {
     const c = await sentBooking();
     const before = JSON.stringify(writes());
-    expect(await undo(c, "luke")).toEqual({ ok: false, refusal: "not_yours", presser: "staff-isaac" });
+    expect(await undo(c, "alex")).toEqual({ ok: false, refusal: "not_yours", presser: "staff-sam" });
     expect(JSON.stringify(writes())).toBe(before);
   });
 
@@ -1789,7 +1789,7 @@ describe("Undo takes a booking back (B-8)", () => {
 
     const b = await verb({ seen: "2026-09-27 16:00:01" });
     b.s.next_attempt_at = future();
-    await bookIn([slot(LUKE_SM8, "15:00", "16:00")], { seen: "2026-09-27 16:00:01" });
+    await bookIn([slot(ALEX_SM8, "15:00", "16:00")], { seen: "2026-09-27 16:00:01" });
     await undo(b.cs[0]);
     expect(b.s).toMatchObject({ status: "queued", taken_back_at: null });
   });
@@ -1832,15 +1832,15 @@ describe("every request checks its account (B-19)", () => {
 
 /* ── Clear ── */
 
-const LEFT = "01a0e199-d4c9-7c94-9d9b-6a43fbb6eaab";
+const LEFT = "acac0199-0000-4000-8000-00000000ac99";
 
-/** A leftover: a booking tomorrow on job 288, which is Completed. */
+/** A leftover: a booking tomorrow on job 9002, which is Completed. */
 function leftover(over: Row = {}): void {
-  sm8.job(OTHER_JOB, { status: "Completed", kept: { generated_job_id: "288" } as never });
-  sm8.put({ uuid: LEFT, jobUuid: OTHER_JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "09:00"), end: at(TOMORROW, "11:00"), ...over });
+  sm8.job(OTHER_JOB, { status: "Completed", kept: { generated_job_id: "9002" } as never });
+  sm8.put({ uuid: LEFT, jobUuid: OTHER_JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "09:00"), end: at(TOMORROW, "11:00"), ...over });
   mirrored(LEFT);
 }
-const clear = async (seen: { staffUuid: string; start: string } = { staffUuid: ISAAC_SM8, start: at(TOMORROW, "09:00") }) =>
+const clear = async (seen: { staffUuid: string; start: string } = { staffUuid: SAM_SM8, start: at(TOMORROW, "09:00") }) =>
   queueClear(await pressAs(), await state(), { jobUuid: OTHER_JOB, activityUuid: LEFT, seen, verbId: randomUUID() });
 const clearRow = () => deletesOf().find((d) => d.target_uuid === LEFT && !d.depends_on)!;
 
@@ -1856,7 +1856,7 @@ describe("Clear takes a leftover booking off a finished job (B-10)", () => {
       target_uuid: LEFT,
       depends_on: null,
       sm8_job_uuid: OTHER_JOB,
-      booking_staff_uuid: ISAAC_SM8,
+      booking_staff_uuid: SAM_SM8,
       booking_start: at(TOMORROW, "09:00"),
       booking_end: at(TOMORROW, "11:00"),
       payload: { name: BOOKING_WORDS.label.clear },
@@ -1872,11 +1872,11 @@ describe("Clear takes a leftover booking off a finished job (B-10)", () => {
     fake.db.sm8_jobs[1].status = "Work Order";
     expect(await clear()).toEqual({ ok: false, refusal: "not_leftover" });
     fake.db.sm8_jobs[1].status = "Unsuccessful";
-    expect(await clear({ staffUuid: LUKE_SM8, start: at(TOMORROW, "09:00") })).toEqual({ ok: false, refusal: "changed" });
+    expect(await clear({ staffUuid: ALEX_SM8, start: at(TOMORROW, "09:00") })).toEqual({ ok: false, refusal: "changed" });
     (fake.db.sm8_job_activities as Row[])[0].activity_was_scheduled = 0;
     expect(await clear()).toEqual({ ok: false, refusal: "check_in" });
     Object.assign((fake.db.sm8_job_activities as Row[])[0], { activity_was_scheduled: 1, start_date: at(day(-1), "09:00"), end_date: at(day(-1), "11:00") });
-    expect(await clear({ staffUuid: ISAAC_SM8, start: at(day(-1), "09:00") })).toEqual({ ok: false, refusal: "not_future" });
+    expect(await clear({ staffUuid: SAM_SM8, start: at(day(-1), "09:00") })).toEqual({ ok: false, refusal: "not_future" });
     Object.assign((fake.db.sm8_job_activities as Row[])[0], { start_date: at(TOMORROW, "09:00"), end_date: null });
     expect(await clear()).toEqual({ ok: false, refusal: "not_leftover" });
     expect(deletesOf()).toHaveLength(0);
@@ -1933,7 +1933,7 @@ describe("Clear takes a leftover booking off a finished job (B-10)", () => {
     expect(row).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.changed });
     /* the sync brings the move; the person looks again and clears it */
     mirrored(LEFT);
-    expect(await clear({ staffUuid: ISAAC_SM8, start: at(TOMORROW, "09:30") })).toMatchObject({ ok: true });
+    expect(await clear({ staffUuid: SAM_SM8, start: at(TOMORROW, "09:30") })).toMatchObject({ ok: true });
     expect(deletesOf()).toHaveLength(1);
     expect(row).toMatchObject({ status: "queued", booking_start: at(TOMORROW, "09:30"), booking_end: at(TOMORROW, "11:30") });
     await run();
@@ -1979,7 +1979,7 @@ describe("Clear takes a leftover booking off a finished job (B-10)", () => {
 /* ── the queue's slot rules ── */
 
 describe("one row per job, person and start; a slot comes back only once it no longer stands (B-11)", () => {
-  const SUBJECT = `slot:${ISAAC_SM8}:${TOMORROW}T20:00`;
+  const SUBJECT = `slot:${SAM_SM8}:${TOMORROW}T20:00`;
 
   it("(F) same-slot presses make one row, and a slot still standing answers already_booked — in the mirror, or sent and not mirrored yet", async () => {
     await bookIn();
@@ -2000,16 +2000,16 @@ describe("one row per job, person and start; a slot comes back only once it no l
     expect(c.subject).toBe(`${SUBJECT}:was:${c.id}`);
     expect(creates().filter((x) => x.subject === SUBJECT)).toHaveLength(1);
 
-    const e = await sentBooking(slot(ISAAC_SM8, "15:00", "16:00"));
+    const e = await sentBooking(slot(SAM_SM8, "15:00", "16:00"));
     sm8.removeThere(e.remote_uuid as string);
     mirrored(e.remote_uuid as string);
-    expect(await bookIn([slot(ISAAC_SM8, "15:00", "16:00")])).toMatchObject({ ok: true });
+    expect(await bookIn([slot(SAM_SM8, "15:00", "16:00")])).toMatchObject({ ok: true });
     expect(e.subject).toMatch(/:was:/);
   });
 
   it("(F) a slot whose take-back ended cancelled for good: the mirror decides — standing is already_booked, otherwise it is released", async () => {
     const c = await sentBooking();
-    sm8.put({ uuid: "01a0e185-92be-7c94-9d9b-4d8c13f7b83b", jobUuid: JOB, staffUuid: ISAAC_SM8, start: at(TOMORROW, "19:30"), end: null, scheduled: 0, recorded: 1 });
+    sm8.put({ uuid: "acac0185-0000-4000-8000-00000000ac85", jobUuid: JOB, staffUuid: SAM_SM8, start: at(TOMORROW, "19:30"), end: null, scheduled: 0, recorded: 1 });
     await undo(c);
     await run();
     expect(takeBackOf(c.id)).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.checkIn });
@@ -2038,7 +2038,7 @@ describe("one row per job, person and start; a slot comes back only once it no l
     Object.assign(first.s, { status: "failed", last_error: BOOKING_WORDS.row.statusRefused });
     Object.assign(c, { status: "cancelled", last_error: BOOKING_WORDS.row.statusFirst });
     const verbId = randomUUID();
-    await bookIn([slot(ISAAC_SM8, "20:00", "22:00")], { verbId });
+    await bookIn([slot(SAM_SM8, "20:00", "22:00")], { verbId });
     expect(c).toMatchObject({ status: "queued", booking_end: at(TOMORROW, "22:00"), verb_id: verbId, depends_on: null });
     expect(creates()).toHaveLength(1);
   });
@@ -2093,7 +2093,7 @@ describe("one row per job, person and start; a slot comes back only once it no l
     /* ...or taken back through Undo, before any sync: its uuid is gone */
     creates().find((x) => x.subject === SUBJECT)!.next_attempt_at = future();
     sm8.knobs.keeps = (b) => ({ start: hourOn(b.start), end: hourOn(b.end) });
-    await bookIn([slot(ISAAC_SM8, "15:00", "16:00")]);
+    await bookIn([slot(SAM_SM8, "15:00", "16:00")]);
     await run();
     const e = creates().find((x) => x.booking_start === at(TOMORROW, "15:00"))!;
     fake.db.integration_connections[0].write_kinds = ["attachment", "note", "booking"];
@@ -2101,7 +2101,7 @@ describe("one row per job, person and start; a slot comes back only once it no l
     await undo(e);
     await run();
     expect(takeBackOf(e.id)?.status).toBe("sent");
-    expect(await bookIn([slot(ISAAC_SM8, "15:00", "16:00")])).toMatchObject({ ok: true });
+    expect(await bookIn([slot(SAM_SM8, "15:00", "16:00")])).toMatchObject({ ok: true });
     expect(e.subject).toMatch(/:was:/);
   });
 
@@ -2124,12 +2124,12 @@ describe("Try again goes through its one door (B-11)", () => {
     expect(c.subject).toMatch(/:was:/);
     expect(await queueBookingRetry(await pressAs(), await state(), { rowId: c.id as string })).toEqual({ ok: false, refusal: "changed" });
 
-    const e = await sentBooking(slot(ISAAC_SM8, "15:00", "16:00"));
+    const e = await sentBooking(slot(SAM_SM8, "15:00", "16:00"));
     expect(await queueBookingRetry(await pressAs(), await state(), { rowId: e.id as string })).toEqual({ ok: false, refusal: "changed" });
 
     /* a row given back is refused before its line is even read: a newer row
        holds its slot (this one written by hand, its line offering Try again) */
-    await bookIn([slot(ISAAC_SM8, "11:00", "12:00")]);
+    await bookIn([slot(SAM_SM8, "11:00", "12:00")]);
     const f = creates().find((x) => x.booking_start === at(TOMORROW, "11:00"))!;
     Object.assign(f, { status: "failed", last_error: BOOKING_WORDS.row.refused, subject: `${f.subject}:was:${f.id}` });
     expect(await lineOf(f)).toMatchObject({ acts: ["try_again", "cancel"] });
@@ -2181,7 +2181,7 @@ describe("Try again goes through its one door (B-11)", () => {
     await run();
     const d = takeBackOf(c.id)!;
     expect(d).toMatchObject({ status: "failed", last_error: BOOKING_WORDS.row.removeRefused });
-    expect(await queueBookingRetry(await pressAs("luke"), await state(), { rowId: d.id as string })).toEqual({ ok: false, refusal: "changed" });
+    expect(await queueBookingRetry(await pressAs("alex"), await state(), { rowId: d.id as string })).toEqual({ ok: false, refusal: "changed" });
     expect(await queueBookingRetry(await pressAs(), await state(), { rowId: d.id as string })).toMatchObject({ ok: true });
     await run();
     expect(d.status).toBe("sent");
@@ -2193,7 +2193,7 @@ describe("Try again goes through its one door (B-11)", () => {
 
 describe("a trial run checks everything and sends nothing, for every op (B-15)", () => {
   it("(F) a booking, a status change, a take-back and a Clear each end trial, with no ServiceM8 call", async () => {
-    const c = await sentBooking(slot(ISAAC_SM8, "15:00", "16:00"));
+    const c = await sentBooking(slot(SAM_SM8, "15:00", "16:00"));
     leftover();
     fake.db.integration_connections[0].write_mode = "trial";
     for (const m of [readSm8Booking, readSm8Job, readSm8JobBookings, postSm8Booking, postSm8JobStatus, deleteSm8Booking]) m.mockClear();
@@ -2211,16 +2211,16 @@ describe("a trial run checks everything and sends nothing, for every op (B-15)",
 
   it("(F) ...and still checks the zone, the job, the person and the time", async () => {
     fake.db.integration_connections[0].write_mode = "trial";
-    await bookIn([slot(LUKE_SM8)]);
+    await bookIn([slot(ALEX_SM8)]);
     fake.db.sm8_staff[1].active = 0;
-    await bookIn([slot(ISAAC_SM8, "15:00", "16:00")]);
+    await bookIn([slot(SAM_SM8, "15:00", "16:00")]);
     const past = creates().find((x) => x.booking_start === at(TOMORROW, "15:00"))!;
     Object.assign(past, { booking_start: at(day(-1), "15:00"), booking_end: at(day(-1), "16:00") });
     await run();
-    expect(creates().find((x) => x.booking_staff_uuid === LUKE_SM8)).toMatchObject({ status: "cancelled", last_error: "Luke Ingold isn't active in ServiceM8." });
+    expect(creates().find((x) => x.booking_staff_uuid === ALEX_SM8)).toMatchObject({ status: "cancelled", last_error: "Alex Sample isn't active in ServiceM8." });
     expect(past).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.past });
     fake.db.sm8_jobs[0].active = 0;
-    await bookIn([slot(ISAAC_SM8, "11:00", "12:00")]);
+    await bookIn([slot(SAM_SM8, "11:00", "12:00")]);
     await run();
     expect(creates().find((x) => x.booking_start === at(TOMORROW, "11:00"))).toMatchObject({ status: "cancelled", last_error: BOOKING_WORDS.row.jobGone });
   });
@@ -2272,7 +2272,7 @@ describe("a booking's refusals (B-17)", () => {
   });
 
   it("(F) two booking 403s that name no scope stop the run; each fails its row", async () => {
-    await bookIn([slot(ISAAC_SM8), slot(LUKE_SM8), slot(ISAAC_SM8, "15:00", "16:00")]);
+    await bookIn([slot(SAM_SM8), slot(ALEX_SM8), slot(SAM_SM8, "15:00", "16:00")]);
     postSm8Booking.mockResolvedValue(refused(false));
     const r = await run();
     expect(r.stopped).toBe(WRITE_WORDS.forbidden);
@@ -2282,7 +2282,7 @@ describe("a booking's refusals (B-17)", () => {
 
   it("(F) a 403 that names the scope holds bookings — recorded through the function — and a file after it still goes", async () => {
     fake.db.documents = [{ org_id: ORG, id: "doc-1", storage_ref: `org/${ORG}/doc-1.pdf`, mime_type: "application/pdf", uploaded_at: new Date().toISOString() }];
-    await bookIn([slot(ISAAC_SM8), slot(LUKE_SM8)]);
+    await bookIn([slot(SAM_SM8), slot(ALEX_SM8)]);
     fake.db.sm8_writes.push({
       id: randomUUID(),
       org_id: ORG,
@@ -2331,7 +2331,7 @@ describe("finish keys on the op, not the kind (B-18)", () => {
     const deleteUuid = d.remote_uuid;
     deleteSm8Booking.mockImplementationOnce(async (call: unknown, u: string) => ({
       ...(await sm8.deleteBooking(call, u)),
-      recordUuid: "01a0e1aa-d4c9-7c94-9d9b-6a43fbb6eaab",
+      recordUuid: "acac01aa-0000-4000-8000-00000000acaa",
     }));
     await run();
     expect(d).toMatchObject({ status: "sent", remote_uuid: deleteUuid, target_uuid: c.remote_uuid });
@@ -2381,10 +2381,10 @@ describe("every booking row inserts under the shape the database checks (B-20)",
 
   it("the fake's shape check is the migration's: the spec's legal booking rows pass, and each illegal one is refused", () => {
     const base = { kind: "booking", sm8_job_uuid: JOB, verb_id: randomUUID(), note_id: null, flag_done: null, note_text: null };
-    const create = { ...base, op: "create", booking_staff_uuid: ISAAC_SM8, booking_zone: ZONE, booking_start: "2026-10-06 20:00:00", booking_end: "2026-10-06 21:00:00" };
+    const create = { ...base, op: "create", booking_staff_uuid: SAM_SM8, booking_zone: ZONE, booking_start: "2026-10-06 20:00:00", booking_end: "2026-10-06 21:00:00" };
     const update = { ...base, op: "update", target_uuid: JOB, job_status_from: "Quote", job_status_to: "Work Order", seen_edit_date: SEEN };
     const undoRow = { ...base, op: "delete", depends_on: randomUUID() };
-    const clearRowShape = { ...base, op: "delete", target_uuid: LEFT, booking_staff_uuid: ISAAC_SM8, booking_start: "2026-10-06 09:00:00", booking_end: "2026-10-06 11:00:00" };
+    const clearRowShape = { ...base, op: "delete", target_uuid: LEFT, booking_staff_uuid: SAM_SM8, booking_start: "2026-10-06 09:00:00", booking_end: "2026-10-06 11:00:00" };
     for (const legal of [create, update, undoRow, clearRowShape]) expect(sm8WriteShapeOk(legal)).toBe(true);
     const illegal: [string, Row][] = [
       ["a create with a T in its time", { ...create, booking_start: "2026-10-06T20:00:00" }],
@@ -2462,7 +2462,7 @@ describe("the run, with bookings beside files and notes", () => {
     Object.assign(s, { status: "sent", last_error: BOOKING_WORDS.row.fieldsNotKept, landed_edit_date: SEEN });
     await run();
     expect(postSm8Booking).not.toHaveBeenCalled();
-    expect(cs[0]).toMatchObject({ status: "cancelled", last_error: GUARD_3370 });
+    expect(cs[0]).toMatchObject({ status: "cancelled", last_error: GUARD_9001 });
   });
 
   it("(F) a take-back landing between the run's read and its claim: the claim misses, and the next run cancels it without claiming", async () => {

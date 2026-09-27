@@ -35,8 +35,8 @@ import { runSm8Writes } from "../sm8-writes";
 type Row = Record<string, unknown>;
 
 const ORG = "org-1";
-const JOB = "01a0dd9a-0000-4000-8000-000000003370";
-const THEIRS = "01a0e1aa-d4c9-7c94-9d9b-6a43fbb6eaab";
+const JOB = "0b1e0b1e-0000-4000-8000-000000009001";
+const THEIRS = "acac01aa-0000-4000-8000-00000000acaa";
 const OURS = "7e7e7e7e-0000-4000-8000-00000000000a";
 
 const row = (op: string, over: Row = {}): Row => ({
@@ -108,7 +108,7 @@ describe("finish keys on the op, not the kind (B-18)", () => {
 
   it("a booking's own create does take the uuid ServiceM8 kept it under", async () => {
     const c = row("create", {
-      booking_staff_uuid: "985a32ef-398b-489f-882a-20fe666a5ebb",
+      booking_staff_uuid: "5a0e5a0e-0000-4000-8000-00000000a001",
       booking_start: "2026-10-06 20:00:00",
       booking_end: "2026-10-06 21:00:00",
       booking_zone: "Australia/Sydney",

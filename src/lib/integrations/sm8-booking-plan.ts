@@ -331,7 +331,7 @@ const REASONS: readonly (readonly [BookingReasonKey, RegExp])[] = (
   .map(({ key, template }) => [key, new RegExp(`^${template.split(/\{\w+\}/).map(escapeRe).join("[\\s\\S]+")}$`)] as const);
 
 /** Which sentence a stored reason is. A row stores the FILLED sentence
-    ("Lyle is already booked on this job at that time in ServiceM8."), so it
+    ("Sam is already booked on this job at that time in ServiceM8."), so it
     is recognised by its template, never by comparing strings. Null for none
     of them. */
 export function reasonOf(lastError: string | null | undefined): BookingReasonKey | null {

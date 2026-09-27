@@ -123,12 +123,12 @@ export function makeSm8Bookings() {
         active: 1,
         editDate: "2026-09-27 16:00:00",
         kept: {
-          company_uuid: "ff6cd691-2385-4367-9787-2149df3804ab",
+          company_uuid: "c0c0c0c0-0000-4000-8000-00000000c0c0",
           job_address: null,
-          job_description: "HeyTiff test Z — please ignore",
+          job_description: "A made-up job",
           category_uuid: null,
           purchase_order_number: null,
-          generated_job_id: "3370",
+          generated_job_id: "9001",
         },
         logged: { work_order_date: null, total_invoice_amount: "0.0000", work_done_description: null, queue_uuid: null },
         ...over,
@@ -190,7 +190,7 @@ export function makeSm8Bookings() {
     postBooking: async (_call: unknown, b: { uuid: string; jobUuid: string; staffUuid: string; start: string; end: string }) => {
       posts.push({ ...b });
       if (activities.has(key(b.uuid))) return answer(409);
-      const uuid = knobs.keepsOurUuid ? b.uuid : `01a0e1${String(posts.length).padStart(2, "0")}-d4c9-7c94-9d9b-6a43fbb6eaab`;
+      const uuid = knobs.keepsOurUuid ? b.uuid : `f1f1f1${String(posts.length).padStart(2, "0")}-0000-4000-8000-00000000f1f1`;
       remember(uuid);
       const kept = knobs.keeps ? knobs.keeps({ staffUuid: b.staffUuid, start: b.start, end: b.end }) : {};
       activities.set(key(uuid), {

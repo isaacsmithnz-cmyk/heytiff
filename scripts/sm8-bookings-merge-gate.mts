@@ -97,7 +97,7 @@ function report(ok: boolean, name: string, detail = ""): void {
 
 /* a job and two people of this run's own */
 const job = randomUUID();
-const isaac = randomUUID();
+const person = randomUUID();
 const verb = randomUUID();
 const tenant = "a16-scratch";
 const day = "2026-10-06";
@@ -147,12 +147,12 @@ async function gate(name: string, row: Record<string, unknown>, subject: string)
   return got[0]?.id ?? null;
 }
 
-const slotSubject = bookingSubject.slot(isaac, `${day} 20:00:00`);
+const slotSubject = bookingSubject.slot(person, `${day} 20:00:00`);
 const statusSubject = bookingSubject.status("2026-09-27 16:00:00");
 const slotRow = () => ({
   ...common(slotSubject),
   op: "create",
-  booking_staff_uuid: isaac,
+  booking_staff_uuid: person,
   booking_start: `${day} 20:00:00`,
   booking_end: `${day} 21:00:00`,
   booking_zone: "Australia/Sydney",
@@ -185,7 +185,7 @@ async function cases(): Promise<void> {
       ...common(clearSubject),
       op: "delete",
       target_uuid: activity,
-      booking_staff_uuid: isaac,
+      booking_staff_uuid: person,
       booking_start: `${day} 09:00:00`,
       booking_end: `${day} 11:00:00`,
     },

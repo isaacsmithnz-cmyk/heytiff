@@ -296,14 +296,14 @@ describe("a note, as the person who pressed it", () => {
 
   it("posts exactly its four fields to note.json, impersonated, and never action_required", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 200, headers: { "x-record-uuid": NOTE } }));
-    const r = await postSm8Note(W("t"), { relatedUuid: "job-1", uuid: NOTE, text: "@lyleirving on my way", asStaffUuid: STAFF });
+    const r = await postSm8Note(W("t"), { relatedUuid: "job-1", uuid: NOTE, text: "@samtester on my way", asStaffUuid: STAFF });
     const [url, init] = call();
     expect(url).toBe("https://api.servicem8.com/api_1.0/note.json");
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body as string)).toEqual({
       related_object: "job",
       related_object_uuid: "job-1",
-      note: "@lyleirving on my way",
+      note: "@samtester on my way",
       uuid: NOTE,
     });
     expect((init.headers as Record<string, string>)["x-impersonate-uuid"]).toBe(STAFF);
@@ -381,8 +381,8 @@ describe("a note, as the person who pressed it", () => {
 });
 
 describe("a booking, as the app (two-way phase 3)", () => {
-  const JOB = "01a0dd9a-0000-4000-8000-000000003370";
-  const STAFF = "985a32ef-398b-489f-882a-20fe666a5ebb";
+  const JOB = "0b1e0b1e-0000-4000-8000-000000009001";
+  const STAFF = "5a0e5a0e-0000-4000-8000-00000000a001";
   const BOOKING = "7d3f2c1e-5b6a-4c8d-9e0f-00000000b00c";
   const call = (i = 0) => fetchMock.mock.calls[i] as [string, RequestInit];
   const b = { uuid: BOOKING, jobUuid: JOB, staffUuid: STAFF, start: "2026-10-06 20:00:00", end: "2026-10-06 21:00:00" };
@@ -427,7 +427,7 @@ describe("a booking, as the app (two-way phase 3)", () => {
     /* refused here, never a 404 (which a take-back would read as gone) */
     expect(await deleteSm8Booking(W("t"), "../job/x")).toMatchObject({ status: null, outcome: { kind: "rejected", status: 400 } });
     expect(await postSm8Booking(W("t"), { ...b, start: "2026-10-06T20:00:00" })).toMatchObject({ outcome: { kind: "rejected" } });
-    expect(await postSm8Booking(W("t"), { ...b, staffUuid: "luke" })).toMatchObject({ outcome: { kind: "rejected" } });
+    expect(await postSm8Booking(W("t"), { ...b, staffUuid: "someone" })).toMatchObject({ outcome: { kind: "rejected" } });
     expect(await postSm8JobStatus(W("t"), JOB, "Completed" as "Work Order")).toMatchObject({ outcome: { kind: "rejected" } });
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -509,12 +509,12 @@ describe("a booking, as the app (two-way phase 3)", () => {
           status: "Quote",
           active: "1",
           edit_date: "2026-09-27 16:26:33",
-          company_uuid: "ff6cd691-2385-4367-9787-2149df3804ab",
+          company_uuid: "c0c0c0c0-0000-4000-8000-00000000c0c0",
           job_address: "",
-          job_description: "HeyTiff test Z — please ignore",
+          job_description: "A made-up job",
           category_uuid: "",
           purchase_order_number: "",
-          generated_job_id: "3370",
+          generated_job_id: "9001",
           work_order_date: "0000-00-00 00:00:00",
           total_invoice_amount: "0.0000",
         },
@@ -531,12 +531,12 @@ describe("a booking, as the app (two-way phase 3)", () => {
         active: 1,
         editDate: "2026-09-27 16:26:33",
         kept: {
-          company_uuid: "ff6cd691-2385-4367-9787-2149df3804ab",
+          company_uuid: "c0c0c0c0-0000-4000-8000-00000000c0c0",
           job_address: null,
-          job_description: "HeyTiff test Z — please ignore",
+          job_description: "A made-up job",
           category_uuid: null,
           purchase_order_number: null,
-          generated_job_id: "3370",
+          generated_job_id: "9001",
         },
         logged: { work_order_date: null, total_invoice_amount: "0.0000", work_done_description: null, queue_uuid: null },
       },

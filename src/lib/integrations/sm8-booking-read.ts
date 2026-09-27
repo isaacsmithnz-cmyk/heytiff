@@ -249,8 +249,9 @@ export type BookingLines = {
   /** By booking uuid, lower case: the line on each of our bookings that
       stands, drawn on its entry. */
   lines: Record<string, BookingState>;
-  /** The job's bookings we removed, lower case: the card hides an entry of
-      its list that is one of these. */
+  /** The job's bookings we took out (lower case), of those the card may
+      draw — its list's mirror bookings and ours: the card hides an entry
+      of its list that is one of these. */
   gone: string[];
   /** The job's queued bookings behind a status change that has gone, when
       every one of them is untried: what the card's poll may send. */
@@ -298,6 +299,28 @@ export async function sm8StaffNames(orgId: string, uuids: readonly (string | nul
   return names;
 }
 
+/** The job's bookings the Visits face lists from the mirror: scheduled and
+    active, from yesterday on by UTC (a floor a day wider than any zone's).
+    A read that fails lists none, logged: nothing is then hidden. */
+async function drawnOn(orgId: string, jobUuids: readonly string[], now: number): Promise<string[]> {
+  const { data, error } = await supabaseAdmin
+    .from("sm8_job_activities")
+    .select("uuid")
+    .eq("org_id", orgId)
+    .in("job_uuid", [...jobUuids])
+    .eq("active", 1)
+    .eq("activity_was_scheduled", 1)
+    .gte("start_date", `${new Date(now - 86_400_000).toISOString().slice(0, 10)} 00:00:00`);
+  if (error) {
+    console.error(`[sm8] couldn't read the bookings org ${orgId}'s card lists:`, error);
+    return [];
+  }
+  return ((data ?? []) as { uuid: string }[]).map((r) => r.uuid);
+}
+
+/** The mirror's copy of a booking as bookingLine reads it: whether it is
+    active is the MIRROR'S word alone. A uuid the overlay counts gone is
+    never passed in as inactive — that is the take-back's own line to say. */
 const mirrorIn = (m: MirrorBooking | undefined): BookingMirrorIn | null =>
   m ? { active: m.active, jobUuid: m.jobUuid, staffUuid: m.staffUuid, start: m.start, end: m.end, editDate: m.editDate } : null;
 
@@ -316,14 +339,26 @@ export async function readBookingLines(
   viewerUserId: string | null,
   now: number = Date.now()
 ): Promise<BookingLines> {
-  const overlay = await readBookingOverlay(orgId, state, { jobUuids: spellings(jobUuid) }, now);
-  const rows = overlay.rows.filter((r) => low(r.sm8_job_uuid) === low(jobUuid));
+  const jobUuids = spellings(jobUuid);
+  const { rows: all } = await readBookingOverlay(orgId, state, { jobUuids }, now);
+  const rows = all.filter((r) => low(r.sm8_job_uuid) === low(jobUuid));
   if (rows.length === 0) return { verbs: [], lines: {}, gone: [], untried: [] };
 
   const creates = rows.filter((r) => r.op === "create");
   const clears = rows.filter((r) => r.op === "delete" && !r.depends_on);
   const statusRows = new Map(rows.filter((r) => r.op === "update").map((r) => [r.id, r]));
   const takeBacks = new Map(rows.filter((r) => r.op === "delete" && !!r.depends_on).map((r) => [r.depends_on as string, r]));
+
+  /* WHAT IS GONE IS ASKED ABOUT WHAT MAY BE DRAWN: the job's bookings the
+     Visits face lists from the mirror (a leftover a Clear took out, an
+     older attempt of ours an Undo took out), and every booking of ours on
+     it (a card loaded before a take-back went drew it from
+     sentNotMirrored). The
+     overlay answers only for those, and never counts one gone that its
+     take-back or Clear merely didn't find. */
+  const asked = await drawnOn(orgId, jobUuids, now);
+  for (const c of creates) asked.push(c.remote_uuid, ...(c.replaced_uuids ?? []));
+  const overlay = await readBookingOverlay(orgId, state, { jobUuids, uuids: asked, rows: false }, now);
 
   const [mirrorRead, z, names] = await Promise.all([
     readMirrorBookings(orgId, [...creates.map((c) => c.remote_uuid), ...clears.map((c) => c.target_uuid ?? "")]),
@@ -444,12 +479,8 @@ export async function readBookingLines(
     }))
     .sort((a, b) => b.at.localeCompare(a.at));
 
-  /* the bookings of this job we removed: its creates' uuids and its Clears'
-     targets that the overlay counts gone */
-  const ours = new Set<string>();
-  for (const c of creates) for (const u of [c.remote_uuid, ...(c.replaced_uuids ?? [])]) if (u) ours.add(low(u));
-  for (const r of clears) if (r.target_uuid) ours.add(low(r.target_uuid));
-  const gone = [...overlay.gone].filter((u) => ours.has(u)).sort();
+  /* the job's bookings we took out, of those it may draw */
+  const gone = [...overlay.gone].sort();
 
   /* the poll's to send: the queued bookings behind a status change that has
      gone, while every one of them is untried */

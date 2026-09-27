@@ -570,7 +570,7 @@ describe("Book in's refusals before anything is queued (C-5)", () => {
       expect(statusRows()).toEqual([]);
     });
 
-    it("(F) a start exactly 12 minutes off passes, and its status change still goes after the two-minute wait", async () => {
+    it("(F) a start exactly 12 minutes off passes, and its status change still goes at the end of the full two-minute wait", async () => {
       const now = at12(eight - 12 * 60_000);
       /* the press's own send held back, to be run at the wait's end */
       settlePressedWrites.mockResolvedValue(undefined);
@@ -579,7 +579,9 @@ describe("Book in's refusals before anything is queued (C-5)", () => {
       const [s] = statusRows();
       const [c] = creates();
       expect(c.depends_on).toBe(s.id);
-      await runSm8Writes(ORG, "send", { clock: () => now + 2 * 60_000 - 1 });
+      /* exactly two minutes on: the booking is exactly 10 minutes off, and
+         the alone rule's lead is inclusive */
+      await runSm8Writes(ORG, "send", { clock: () => now + 2 * 60_000 });
       expect(s.status).toBe("sent");
       expect(c.status).toBe("sent");
       expect(sm8.statusPosts).toEqual([[JOB, "Work Order"]]);
@@ -821,6 +823,22 @@ describe("Undo (C-8, C-8b)", () => {
 });
 
 describe("Try again", () => {
+  it("(F) a time the clocks skip that day is said in the clocks' words", async () => {
+    /* Sydney's clocks go from 2:00 to 3:00 am on Sunday 4 October 2026 */
+    const before = Date.parse("2026-09-30T00:00:00Z");
+    jest.spyOn(Date, "now").mockReturnValue(before);
+    postSm8Booking.mockImplementationOnce(refusedOnce);
+    await book({ bookings: [one({ day: "2026-10-03" })] }, before);
+    const [c] = creates();
+    expect(c.status).toBe("failed");
+    Object.assign(c, { booking_start: "2026-10-04 02:30:00", booking_end: "2026-10-04 03:30:00" });
+    expect(await retryBooking({ jobUuid: JOB, rowId: String(c.id) })).toMatchObject({
+      ok: false,
+      error: BOOKING_WORDS.press.clocksForward.replace("{place}", "Sydney"),
+    });
+    expect(c.status).toBe("failed");
+  });
+
   it("(F) a row that isn't this job's booking is refused changed, and nothing goes", async () => {
     postSm8Booking.mockImplementationOnce(refusedOnce);
     await book();
@@ -1082,33 +1100,75 @@ describe("every press drains (C-13)", () => {
 /* ── the queue's calm answers ── */
 
 describe("an Undo or a Clear that meets one already on its way", () => {
-  it("a take-back already queued or sending answers with its line, queues nothing and asks ServiceM8 nothing", async () => {
+  /** Book in, sent, then the job finished in the mirror with the booking
+      listed: a leftover a Clear can take. */
+  async function sentThenFinished(): Promise<Row> {
     const c = await sentBooking();
+    (fake.db.sm8_jobs[0] as Row).status = "Completed";
+    sm8.jobs.get(JOB)!.status = "Completed";
+    mirrored({ uuid: c.remote_uuid, job_uuid: JOB, staff_uuid: ALEX, start_date: c.booking_start, end_date: c.booking_end });
+    return c;
+  }
+  const clearOf = (c: Row) =>
+    clearLeftoverBooking({
+      jobUuid: JOB,
+      activityUuid: String(c.remote_uuid),
+      seen: { staffUuid: ALEX, start: String(c.booking_start) },
+      pressId: randomUUID(),
+    });
+  /** Nothing the setting-up sent is counted, and nothing more goes. */
+  const hold = () => {
+    settlePressedWrites.mockReset().mockResolvedValue(undefined);
+    deleteSm8Booking.mockClear();
+  };
+
+  it("(F) Undo pressed again while its take-back is on its way answers with its line, and queues nothing and asks ServiceM8 nothing", async () => {
+    const c = await sentBooking();
+    hold();
+    await takeBackBooking({ jobUuid: JOB, rowId: String(c.id) });
+    expect(deletes()).toHaveLength(1);
     settlePressedWrites.mockClear();
-    postSm8Booking.mockClear();
-    takeBackQueue.mockResolvedValueOnce({ ok: true, plan: "already", rowIds: [] });
-    const r = await takeBackBooking({ jobUuid: JOB, rowId: String(c.id) });
-    expect(r).toMatchObject({ ok: true });
-    expect(deletes()).toEqual([]);
-    expect(settled0()).toEqual([[]]);
+    expect(await takeBackBooking({ jobUuid: JOB, rowId: String(c.id) })).toEqual({
+      ok: true,
+      line: expect.objectContaining({ key: "line.takingOut" }),
+    });
+    expect(deletes()).toHaveLength(1);
+    expect(settlePressedWrites.mock.calls.map((x) => x[1])).toEqual([[]]);
     expect(deleteSm8Booking).not.toHaveBeenCalled();
-    expect(postSm8Booking).not.toHaveBeenCalled();
   });
 
-  it("(F) a take-back that meets a Clear of its booking on its way, or a Clear that meets our take-back, says it's still being taken out — and settles nothing", async () => {
-    const c = await sentBooking();
+  it("(F) Clear pressed again while it is on its way answers with its line, and queues nothing", async () => {
+    const c = await sentThenFinished();
+    hold();
+    expect((await clearOf(c)).ok).toBe(true);
     settlePressedWrites.mockClear();
-    takeBackQueue.mockResolvedValueOnce({ ok: false, refusal: "taking_out" });
+    expect(await clearOf(c)).toEqual({ ok: true, line: expect.objectContaining({ key: "line.clearing" }) });
+    expect(deletes()).toHaveLength(1);
+    expect(settlePressedWrites.mock.calls.map((x) => x[1])).toEqual([[]]);
+    expect(deleteSm8Booking).not.toHaveBeenCalled();
+  });
+
+  it("(F) Undo that meets a Clear of its booking on its way says it's still being taken out, and changes nothing", async () => {
+    const c = await sentThenFinished();
+    hold();
+    expect((await clearOf(c)).ok).toBe(true);
+    settlePressedWrites.mockClear();
     expect(await takeBackBooking({ jobUuid: JOB, rowId: String(c.id) })).toMatchObject({ ok: false, error: BOOKING_WORDS.press.takingOut });
-    const a = leftover();
-    clearQueue.mockResolvedValueOnce({ ok: false, refusal: "taking_out" });
-    expect(
-      await clearLeftoverBooking({ jobUuid: DONE_JOB, activityUuid: String(a.uuid), seen: { staffUuid: CASEY, start: String(a.start_date) }, pressId: randomUUID() })
-    ).toEqual({ ok: false, error: BOOKING_WORDS.press.takingOut });
+    expect(c.taken_back_at).toBeNull();
+    expect(deletes()).toHaveLength(1);
     expect(settlePressedWrites).not.toHaveBeenCalled();
-    expect(deletes()).toEqual([]);
     expect(deleteSm8Booking).not.toHaveBeenCalled();
   });
 
-  const settled0 = () => settlePressedWrites.mock.calls.map((c) => c[1]);
+  it("(F) Clear that meets our take-back of its booking on its way says it's still being taken out, and changes nothing", async () => {
+    const c = await sentThenFinished();
+    hold();
+    await takeBackBooking({ jobUuid: JOB, rowId: String(c.id) });
+    expect(deletes()).toHaveLength(1);
+    settlePressedWrites.mockClear();
+    expect(await clearOf(c)).toEqual({ ok: false, error: BOOKING_WORDS.press.takingOut });
+    expect(deletes()).toHaveLength(1);
+    expect(settlePressedWrites).not.toHaveBeenCalled();
+    expect(deleteSm8Booking).not.toHaveBeenCalled();
+  });
 });

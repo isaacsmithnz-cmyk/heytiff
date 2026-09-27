@@ -521,15 +521,42 @@ describe("what our rows say (C-11's lines)", () => {
     expect((await read()).untried).toEqual([]);
   });
 
-  it("(F) counts gone only this job's bookings we removed", async () => {
-    const undone = create(V1, { status: "sent", taken_back_at: minute(9), replaced_uuids: ["e0000000-0000-4000-8000-00000000dead"] });
-    bookingRow({ op: "delete", status: "sent", depends_on: undone.id, verb_id: V1 });
+  /** A booking the mirror lists, not yet synced as removed. */
+  const listed = (uuid: string, job = JOB) =>
+    fake.db.sm8_job_activities.push({
+      org_id: ORG,
+      uuid,
+      job_uuid: job,
+      staff_uuid: CASEY,
+      start_date: at("07:00"),
+      end_date: at("09:00"),
+      activity_was_scheduled: 1,
+      active: 1,
+      edit_date: "2026-09-27 17:00:00",
+    });
+
+  it("(F) answers gone for the bookings the card may draw that we took out, and only those", async () => {
+    /* a leftover the mirror still lists, which our Clear took out */
     const cleared = "e0000000-0000-4000-8000-0000000c1ea4";
-    clear(V2, cleared, { status: "sent" });
-    /* another job's Clear is its own */
-    clear(V2, "e0000000-0000-4000-8000-0000000e15e0", { status: "sent", sm8_job_uuid: OTHER_JOB });
+    listed(cleared);
+    clear(V2, cleared, { status: "sent", verify_uuids: [cleared] });
+    /* ours, taken back: the card drew it from sentNotMirrored before */
+    const undone = create(V1, { status: "sent", taken_back_at: minute(9) });
+    bookingRow({ op: "delete", status: "sent", depends_on: undone.id, verb_id: V1, verify_uuids: [undone.remote_uuid] });
+    /* an older attempt of ours the mirror lists, which an Undo took out */
+    const older = "e0000000-0000-4000-8000-0000000001de";
+    listed(older);
+    const retried = create(V1, { status: "sent", taken_back_at: minute(11), verify_uuids: [older], booking_start: at("06:00"), booking_end: at("07:00") });
+    bookingRow({ op: "delete", status: "sent", depends_on: retried.id, verb_id: V1, verify_uuids: [retried.remote_uuid, older] });
+    /* a take-back that found nothing to take out never counts it gone */
+    const unfound = create(V1, { status: "sent", taken_back_at: minute(10), booking_start: at("22:00"), booking_end: at("23:00") });
+    bookingRow({ op: "delete", status: "sent", depends_on: unfound.id, verb_id: V1, verify_uuids: [] });
+    /* another job's booking we cleared is that card's to hide */
+    const elsewhere = "e0000000-0000-4000-8000-0000000e15e0";
+    listed(elsewhere, OTHER_JOB);
+    clear(V2, elsewhere, { status: "sent", sm8_job_uuid: OTHER_JOB, verify_uuids: [elsewhere] });
     const { gone } = await read();
-    expect(gone).toEqual([String(undone.remote_uuid), "e0000000-0000-4000-8000-00000000dead", cleared].map((u) => u.toLowerCase()).sort());
+    expect(gone).toEqual([cleared, older, String(undone.remote_uuid), String(retried.remote_uuid)].map((u) => u.toLowerCase()).sort());
   });
 
   it("(F) gives a Clear's doors to anyone who may press — a Clear has no owner — none to a viewer who may press nothing, and says nothing once it went", async () => {

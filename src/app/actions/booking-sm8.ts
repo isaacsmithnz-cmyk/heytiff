@@ -38,7 +38,8 @@
    TIME IS THE ACCOUNT'S WALL CLOCK, as text, never converted: whether a
    start has passed, or is far enough off to make the job a Work Order
    first, is sm8-booking-plan's isFuture, and nothing here works it out
-   again. A time the account's clocks skip going forward is refused.
+   again. A time the account's clocks skip going forward is refused by the
+   queue, in the clocks' words (press.clocksForward).
 
    Words come from BOOKING_WORDS, and a failed read says sm8-read's. Ids in,
    states out: the job card, the Schedule and Home call these as they are
@@ -148,10 +149,8 @@ const revalidateBookings = () => {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EDIT_STAMP = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
-const STAMP_PARTS = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const DAY_MS = 86_400_000;
 
 /** How far ahead of this server's clock a panel's `readAt` may be: it was
     stamped by whichever server read ServiceM8 for the panel. */
@@ -249,6 +248,10 @@ async function refusedWords(orgId: string, state: Sm8WriteState, r: Refused, doi
       return BOOKING_WORDS.press.tooSoon;
     case "zone_unknown":
       return BOOKING_WORDS.press.zoneUnknown;
+    case "clocks_forward": {
+      const zone = (await bookingZone(orgId)).zone;
+      return zone ? fillWords(BOOKING_WORDS.press.clocksForward, { place: placeName(zone) }) : BOOKING_WORDS.press.zoneUnknown;
+    }
     case "capped":
       return BOOKING_WORDS.press.capped;
     case "unreadable":
@@ -293,29 +296,6 @@ async function readHead(orgId: string, id: string): Promise<RowHead | null | "fa
     .maybeSingle();
   if (error) return "failed";
   return (data as RowHead | null) ?? null;
-}
-
-/* ── the account's wall clock ── */
-
-const asUtc = (stamp: string): number | null => {
-  const m = STAMP_PARTS.exec(stamp);
-  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : null;
-};
-
-/** Whether a wall-clock time happens at all in `zone`. The hour the clocks
-    skip going forward never does (Sydney: 2026-10-04, 2:00 to 2:59 am), and
-    ServiceM8 would keep a time HeyTiff didn't send — which the read-back
-    takes for its time guard, and switches bookings off. Some instant reads
-    it, at one of the offsets the zone has within a day of it, or none does. */
-function happens(stamp: string, zone: string): boolean {
-  const wall = asUtc(stamp);
-  if (wall === null) return false;
-  for (const probe of [wall - DAY_MS, wall, wall + DAY_MS]) {
-    const seen = localNow(zone, probe);
-    const there = seen ? asUtc(seen) : null;
-    if (there !== null && localNow(zone, wall - (there - probe)) === stamp) return true;
-  }
-  return false;
 }
 
 /* ── the panel's live read ── */
@@ -516,9 +496,9 @@ export async function bookJobIn(input: {
   const z = await bookingZone(orgId);
   if (z.zone === null) return { ok: false, error: z.why === "unread" ? BOOKING_WORDS.press.unreadable : BOOKING_WORDS.press.zoneUnknown };
   const zone = z.zone;
-  if (slots.some((s) => !happens(s.start, zone) || !happens(s.end, zone))) {
-    return { ok: false, error: fillWords(BOOKING_WORDS.press.clocksForward, { place: placeName(zone) }) };
-  }
+  /* a start or an end in the hour the clocks skip going forward is the
+     queue's refusal (queueBookIn, clocks_forward), said in the clocks'
+     words below */
   if (slots.some((s) => !isFuture(s.start, zone, startedAt))) return { ok: false, error: BOOKING_WORDS.press.past };
   /* the status change goes only ahead of a booking 10 minutes off, and may
      wait 2 minutes for its bookings: 12 minutes ahead, or more */

@@ -1,6 +1,6 @@
 # Universal Tiff, Phase 1: take me there
 
-Revision 2, 27 September 2026, after an independent facts review and design review of revision 1. Plan: [Universal Tiff build plan](https://claude.ai/artifact/2ywAmHAy5nXjQwjVAxCCwE). Research: [Universal Tiff](https://claude.ai/artifact/GbUfqKwKf4TGWnDBhbMTyn).
+Revision 2, 27 September 2026, after an independent facts review and design review of revision 1. Built the same night as six stacked PRs (1A, 1E, 1B, 1C, 1D, 1F); section 12 lists where the build departed from this text. Plan: [Universal Tiff build plan](https://claude.ai/artifact/2ywAmHAy5nXjQwjVAxCCwE). Research: [Universal Tiff](https://claude.ai/artifact/GbUfqKwKf4TGWnDBhbMTyn).
 
 Phase 1 makes "Take me to the workboard" work, lets Tiff open a record she can find, tells her what the person is looking at, and lays the registry every later phase adds tools to. It adds no writes. The note router, the calendar reader, Undo and the diary keep their behaviour.
 
@@ -316,3 +316,15 @@ The note router and its effort (a separate PR, measured on 27 September, moves i
 | Instructions hidden in a record | No record text in the system prompt; links built from lookups; href checked in the browser; injection cases |
 | Resume surprises Isaac | Only after a move, only for a bare press, only for 10 minutes, only words |
 | Cost | A fast-path move is free; a record move is about 2c at low effort; evals cap at US$2 a run and run only with Isaac's say-so |
+
+---
+
+## 12. Where the build departed from this spec
+
+- **`answer()` lives in `src/lib/brain/turn.ts`**, not `src/lib/tiff/answer.ts`, which is already the Library's own answer module.
+- **UNCONFIRMED 1, resolved:** the palette's query modules (`searchStaff`, `searchClients`, `searchProjects`) never look at a database error; they return an empty list. So `find_record`'s "couldn't check" covers a search that throws, and a failed query still reads as "none". Making it real means those modules reporting their errors, a follow-up.
+- **`ALL_SCREENS` drops repeats.** A nav row's first face is usually the row itself (Home's faces start with Home), so 26 entries were 18 names; a repeated enum value is a schema the API may refuse.
+- **The reply box is not folded during the 900 ms hold.** Any key or press in the modal cancels the move instead. Folding it is part of the design pass.
+- **The org switcher calls `forget()`**, but it isn't mounted anywhere today; the wiring is there for when it is.
+- **The modal ignoring a move after it closed** is held by the conversation's existing guard on its answer; the extra guard on the move itself couldn't be made to fail on its own, so the test holds the behaviour rather than that line.
+- **The evals have not run.** Every paid run is Isaac's call. The first run (about 35 cases, about US$1) is the gate before the Phase 1 stack merges, as the plan's evals section says for any change to a prompt or a tool.

@@ -3,14 +3,14 @@
    them; the face is components/dashboard/home-diary-conversation), decided
    here where a test can see it. Nothing here reads a clock.
 
-   OVER THE ASK, who asked and when: "Luke Ingold to you, Mon 21 Sept,
+   OVER THE ASK, who asked and when: "Lyle Irving to you, Mon 21 Sept,
    1:42 pm", on the ask's own date whatever came after it — the
    conversation sorts by his newest message, and the header still says
    when he asked.
 
-   IN THE THREAD, each later message and who it was to: "You to Luke, Tue
-   22 Sept, 3:10 pm"; "Luke Ingold to you, 8:15 am" when he answers you
-   today; just "Luke Ingold, Fri 11 Sept, 9:42 am" over his note on the job
+   IN THE THREAD, each later message and who it was to: "You to Lyle, Tue
+   22 Sept, 3:10 pm"; "Lyle Irving to you, 8:15 am" when he answers you
+   today; just "Lyle Irving, Fri 11 Sept, 9:42 am" over his note on the job
    that names nobody, which was not written to you. A time alone is today;
    a date and a time is before. A reply of yours from HeyTiff, or a task's
    Done, is one of them from the moment it was saved, and says under its
@@ -55,7 +55,7 @@ export function stampWhen(stamp: string, today: string): string {
   return day ? `${day}, ${time}` : time;
 }
 
-/** "Luke Ingold" + " to you, Mon 21 Sept, 1:42 pm": the ask's date, always. */
+/** "Lyle Irving" + " to you, Mon 21 Sept, 1:42 pm": the ask's date, always. */
 export function conversationHead(c: DiaryConversation, today: string): Said {
   return { who: c.asker.name, rest: ` to you, ${stampWhen(c.openedAt, today)}` };
 }

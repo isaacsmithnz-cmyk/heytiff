@@ -18,7 +18,7 @@ import { useDeskJobs } from "./home-job-sheet";
 
 /* SOMEONE WHO ASKED YOU SOMETHING IN SERVICEM8 — one conversation in the
    new Home's diary (./home-diary-feed), as his prototype draws it (v12–v17):
-   their initials in a grey disc where yours are ink, "Luke Ingold to you"
+   their initials in a grey disc where yours are ink, "Lyle Irving to you"
    and when he asked, his words as he wrote them less the handle, then every
    later message either way threaded under it with its own smaller disc, and
    under the lot its doors (lib/dashboard/diary-conversation decides every

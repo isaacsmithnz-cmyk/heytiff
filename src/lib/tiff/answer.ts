@@ -138,7 +138,7 @@ export function systemPromptFor(mode: AnswerMode): string {
     dressed up as a manual, which is the one thing provenance must never do.
     It says what it is instead, and the chunk's own heading (author, date,
     job) rides in the excerpt beneath. The answer can then honestly say "the
-    manual says X, but a field note from Luke says Y worked". */
+    manual says X, but a field note from Lyle says Y worked". */
 export function documentTitleOf(doc: {
   title: string;
   pageFrom: number;

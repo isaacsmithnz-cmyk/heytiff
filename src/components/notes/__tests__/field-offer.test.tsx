@@ -57,13 +57,13 @@ const mount = (ui: React.ReactElement) =>
   render(
     <NoteScopeProvider voiceEnabled>
       <TiffContext.Provider value={tiff}>
-        <NoteScopeScreen staffFirstNames={["Luke"]} />
+        <NoteScopeScreen staffFirstNames={["Lyle"]} />
         {ui}
       </TiffContext.Provider>
     </NoteScopeProvider>
   );
 
-const WORK = "Tell Luke he needs to order the grilles before Monday";
+const WORK = "Tell Lyle he needs to order the grilles before Monday";
 
 describe("the field's Tiff offer", () => {
   it("is made on dictated words that sound like work, as ever", () => {

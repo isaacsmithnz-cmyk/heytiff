@@ -290,14 +290,14 @@ describe("a note, as the person who pressed it", () => {
 
   it("posts exactly its four fields to note.json, impersonated, and never action_required", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 200, headers: { "x-record-uuid": NOTE } }));
-    const r = await postSm8Note(W("t"), { relatedUuid: "job-1", uuid: NOTE, text: "@lukeingold on my way", asStaffUuid: STAFF });
+    const r = await postSm8Note(W("t"), { relatedUuid: "job-1", uuid: NOTE, text: "@lyleirving on my way", asStaffUuid: STAFF });
     const [url, init] = call();
     expect(url).toBe("https://api.servicem8.com/api_1.0/note.json");
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body as string)).toEqual({
       related_object: "job",
       related_object_uuid: "job-1",
-      note: "@lukeingold on my way",
+      note: "@lyleirving on my way",
       uuid: NOTE,
     });
     expect((init.headers as Record<string, string>)["x-impersonate-uuid"]).toBe(STAFF);

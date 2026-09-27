@@ -21,16 +21,16 @@ beforeEach(() => {
   redirect.mockClear();
   getDbRole.mockReset().mockResolvedValue("staff");
   onboardingPending.mockReset().mockResolvedValue(true);
-  session = { user: { sub: "auth0|luke" }, orgId: "org-1" };
+  session = { user: { sub: "auth0|lyle" }, orgId: "org-1" };
 });
 
 it("sends a member who has never been asked to /welcome/details", async () => {
   await redirectIfOnboardingPending();
-  expect(onboardingPending).toHaveBeenCalledWith("org-1", "auth0|luke");
+  expect(onboardingPending).toHaveBeenCalledWith("org-1", "auth0|lyle");
   expect(redirect).toHaveBeenCalledWith("/welcome/details");
 });
 
-/* luke is an admin in production and was seeded "luke" like anybody else — an
+/* lyle is an admin in production and was seeded "lyle" like anybody else — an
    admin's card is no better than a crew member's. */
 it("asks staff, managers and admins alike", async () => {
   for (const role of ["staff", "manager", "admin"]) {

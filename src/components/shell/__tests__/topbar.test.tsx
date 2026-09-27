@@ -99,7 +99,7 @@ const assigned = (n: number, over: Partial<NewAssignment> = {}): NewAssignment =
   taskId: `a${n}`,
   title: `Order the return air box ${n}`,
   detail: null,
-  fromName: "Luke Ingold",
+  fromName: "Lyle Irving",
   dueDate: "2026-09-04",
   createdAt: new Date(Date.now() - 20 * 60_000).toISOString(),
   ...over,
@@ -108,7 +108,7 @@ const assigned = (n: number, over: Partial<NewAssignment> = {}): NewAssignment =
 /** One due reminder, as the bell receives it. */
 const reminder = (n: number, over: Partial<DueReminder> = {}): DueReminder => ({
   taskId: `t${n}`,
-  title: `Check with Luke about quote ${n}`,
+  title: `Check with Lyle about quote ${n}`,
   detail: null,
   /* RELATIVE, NOT A LITERAL. This was a fixed timestamp, and the row's own
      copy is relative ("just now" / "20m ago" / "yesterday") — so the day the
@@ -391,7 +391,7 @@ describe("reminders in the bell", () => {
     remsMock.mockResolvedValue([reminder(1)]);
     itemsMock.mockResolvedValue([]);
     await openPanel();
-    expect(remRows()[0].textContent).toContain("Check with Luke about quote 1");
+    expect(remRows()[0].textContent).toContain("Check with Lyle about quote 1");
     // the row carries its own lateness rather than a bare timestamp
     expect(remRows()[0].querySelector(".bp-main em")?.textContent).toMatch(/now|ago/);
   });
@@ -415,7 +415,7 @@ describe("reminders in the bell", () => {
     const done = remRows()[0].querySelector(".bp-remdo") as HTMLButtonElement;
     /* Named, not "Done" alone — a column of identical buttons is one button to
        anyone reading it out. */
-    expect(done.getAttribute("aria-label")).toBe("Mark done — Check with Luke about quote 1");
+    expect(done.getAttribute("aria-label")).toBe("Mark done — Check with Lyle about quote 1");
 
     remsMock.mockResolvedValue([reminder(2)]);
     await act(async () => {
@@ -512,7 +512,7 @@ describe("work somebody gave you", () => {
     await openPanel();
     const row = remRows()[0];
     expect(row.textContent).toContain("Order the return air box 1");
-    expect(row.querySelector(".bp-main em")?.textContent).toBe("From Luke Ingold, Due Fri 4 Sept");
+    expect(row.querySelector(".bp-main em")?.textContent).toBe("From Lyle Irving, Due Fri 4 Sept");
   });
 
   it("still rings when nobody can be named, and draws no second line at all", async () => {
@@ -534,7 +534,7 @@ describe("work somebody gave you", () => {
     givenMock.mockResolvedValue([assigned(1)]);
     await openPanel();
 
-    const rem = remRows().find((r) => r.textContent?.includes("Check with Luke"))!;
+    const rem = remRows().find((r) => r.textContent?.includes("Check with Lyle"))!;
     const give = remRows().find((r) => r.textContent?.includes("return air box"))!;
     expect(
       rem.compareDocumentPosition(give) & Node.DOCUMENT_POSITION_FOLLOWING,

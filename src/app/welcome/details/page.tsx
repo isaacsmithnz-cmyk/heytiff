@@ -20,7 +20,7 @@ import { StaffOnboarding, type OnboardingDraft } from "@/components/onboarding/s
    THE DRAFT PREFILLS FROM THE CARD, with one exception. A name the org typed on
    the invitation, or that the person already corrected, is offered back to be
    confirmed. A name that is really an address prefix is offered back only if it
-   could be a name — `luke`, to be capitalised, yes; `isaacsmithnz+test`, which
+   could be a name — `lyle`, to be capitalised, yes; `isaacsmithnz+test`, which
    they would have to delete before they could type, no. */
 export default async function StaffDetailsPage() {
   const session = await auth0.getSession();

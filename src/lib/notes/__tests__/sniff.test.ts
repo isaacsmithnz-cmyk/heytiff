@@ -3,11 +3,11 @@ import { sniff } from "../sniff";
 /* The sieve in front of the router.
 
    Every case here is a real sentence someone would say into a field on this
-   app — gate codes, roof access, a fault, a job for Luke. The point of the
+   app — gate codes, roof access, a fault, a job for Lyle. The point of the
    file is the asymmetry: a wrong YES costs one wasted routing call, a wrong
    NO is invisible to everyone forever. So the misses are what these guard. */
 
-const STAFF = ["Luke", "Dane", "Priya", "Isaac"];
+const STAFF = ["Lyle", "Dane", "Priya", "Isaac"];
 
 describe("things that must never cost a routing call", () => {
   it.each([
@@ -46,11 +46,11 @@ describe("things that must never cost a routing call", () => {
 describe("things that must always be offered", () => {
   it("the canonical note — a person, a job and a deadline", () => {
     const s = sniff(
-      "Tell Luke he needs to order the grilles for Smith Street before Monday's visit",
+      "Tell Lyle he needs to order the grilles for Smith Street before Monday's visit",
       STAFF
     );
     expect(s.actionable).toBe(true);
-    expect(s.reasons.some((r) => r.includes("Luke"))).toBe(true);
+    expect(s.reasons.some((r) => r.includes("Lyle"))).toBe(true);
   });
 
   it("a bare imperative with a deadline", () => {
@@ -69,7 +69,7 @@ describe("things that must always be offered", () => {
 
   it("the roof-hatch case from the design deck", () => {
     expect(
-      sniff("Roof hatch padlock is seized, Luke needs to bring bolt cutters before Monday", STAFF)
+      sniff("Roof hatch padlock is seized, Lyle needs to bring bolt cutters before Monday", STAFF)
         .actionable
     ).toBe(true);
   });
@@ -90,8 +90,8 @@ describe("a named person is load-bearing", () => {
   });
 
   it("an empty roster doesn't crash the sieve — it just loses a signal", () => {
-    expect(() => sniff("Tell Luke to order the grilles", [])).not.toThrow();
-    expect(sniff("Tell Luke to order the grilles", []).actionable).toBe(true);
+    expect(() => sniff("Tell Lyle to order the grilles", [])).not.toThrow();
+    expect(sniff("Tell Lyle to order the grilles", []).actionable).toBe(true);
   });
 });
 
@@ -101,7 +101,7 @@ describe("a note dictated in another language is still a note", () => {
      five languages. */
   it.each([
     // Spanish — an obligation, a name and a deadline
-    ["Dile a Luke que pida las rejillas antes del lunes"],
+    ["Dile a Lyle que pida las rejillas antes del lunes"],
     // Vietnamese — obligation plus a day
     ["Cần thay lọc gió tuần sau, bảo Dane mang theo"],
     // Tagalog — the request prefix "paki" and a deadline
@@ -131,14 +131,14 @@ describe("a note dictated in another language is still a note", () => {
 
 describe("the verdict is diagnosable", () => {
   it("says why, so a wrong call can be read rather than re-derived", () => {
-    const s = sniff("Luke needs to order the grilles before Monday", STAFF);
+    const s = sniff("Lyle needs to order the grilles before Monday", STAFF);
     expect(s.reasons.length).toBeGreaterThanOrEqual(3);
     expect(s.score).toBeGreaterThan(0.6);
   });
 
   it("score is clamped to 1 no matter how many signals pile up", () => {
     const s = sniff(
-      "Tell Luke he must order and replace the faulty leaking unit today, urgent, it tripped again",
+      "Tell Lyle he must order and replace the faulty leaking unit today, urgent, it tripped again",
       STAFF
     );
     expect(s.score).toBeLessThanOrEqual(1);

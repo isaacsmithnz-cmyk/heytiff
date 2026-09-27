@@ -22,7 +22,7 @@
    The traps that shaped the opener list:
      · "can you order the grilles" is question-SHAPED and is a task. All the
        request modals (can/could/will/would/should) are excluded.
-     · "tell Luke to order the grilles" is a task; "tell me about Meridian"
+     · "tell Lyle to order the grilles" is a task; "tell me about Meridian"
        is a question. The opener is "tell me", never "tell".
      · "is the crane booked" is a genuine question; "isolated the unit" is
        not — hence word-boundary matching, not prefixes.

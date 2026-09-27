@@ -62,7 +62,7 @@ import type { OurReply } from "../diary-feed";
 
 const STAFF = [
   { uuid: "u-isaac", first: "Isaac", last: "Smith" },
-  { uuid: "u-luke", first: "Luke", last: "Ingold" },
+  { uuid: "u-lyle", first: "Lyle", last: "Irving" },
   { uuid: "u-michael", first: "Michael", last: "Diamond" },
   { uuid: "u-brent", first: "Brent (Service)", last: "Gilmore" },
 ];
@@ -92,7 +92,7 @@ beforeEach(() => {
 });
 
 it("reads the mentions of the viewer's own handle, from the link, and nobody else's", async () => {
-  tables.asks = [row("n1", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmith Please call Mary")];
+  tables.asks = [row("n1", "j-2041", "u-lyle", "2026-09-21 13:42:10", "@isaacsmith Please call Mary")];
   tables.sm8_jobs = [{ uuid: "j-2041", generated_job_id: "2041", geo_city: "Wollstonecraft", active: 1 }];
 
   const out = await listMyMentions("org-1", "u-isaac", "2026-09-25");
@@ -109,13 +109,13 @@ it("reads the mentions of the viewer's own handle, from the link, and nobody els
   expect(out[0]).toMatchObject({
     jobLabel: "2041 Wollstonecraft",
     jobLive: true,
-    asker: { name: "Luke Ingold" },
+    asker: { name: "Lyle Irving" },
     messages: [{ text: "Please call Mary" }],
   });
 });
 
 it("reads nothing from the mirror for a person the roster can't find", async () => {
-  tables.asks = [row("n1", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmith Please call Mary")];
+  tables.asks = [row("n1", "j-2041", "u-lyle", "2026-09-21 13:42:10", "@isaacsmith Please call Mary")];
   expect(await listMyMentions("org-1", "u-not-in-servicem8", "2026-09-25")).toEqual([]);
   expect(notesReads()).toHaveLength(0);
 });
@@ -129,10 +129,10 @@ it("reads nothing for a handle a mention can never be written with", async () =>
 
 it("reads the threads only on the asked jobs, from the earliest ask on, and labels those jobs", async () => {
   tables.asks = [
-    row("n2", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
-    row("n1", "j-2749", "u-luke", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly"),
+    row("n2", "j-2041", "u-lyle", "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
+    row("n1", "j-2749", "u-lyle", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly"),
   ];
-  tables.thread = [row("n3", "j-2041", "u-isaac", "2026-09-22 15:10:00", "@lukeingold calling her this afternoon")];
+  tables.thread = [row("n3", "j-2041", "u-isaac", "2026-09-22 15:10:00", "@lyleirving calling her this afternoon")];
 
   const out = await listMyMentions("org-1", "u-isaac", "2026-09-25");
 
@@ -149,8 +149,8 @@ it("reads the threads only on the asked jobs, from the earliest ask on, and labe
 
 it("makes no thread read when nothing is really an ask", async () => {
   tables.asks = [
-    // the ILIKE lets these through; neither is Luke asking Isaac
-    row("n1", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmithy grab the gauges"),
+    // the ILIKE lets these through; neither is Lyle asking Isaac
+    row("n1", "j-2041", "u-lyle", "2026-09-21 13:42:10", "@isaacsmithy grab the gauges"),
     row("n2", "j-2041", "u-isaac", "2026-09-21 13:45:00", "@isaacsmith note to self"),
   ];
   expect(await listMyMentions("org-1", "u-isaac", "2026-09-25")).toEqual([]);
@@ -160,12 +160,12 @@ it("makes no thread read when nothing is really an ask", async () => {
 
 it("leaves out what HeyTiff wrote itself, mirrored back, asking only about the conversations' messages", async () => {
   tables.asks = [
-    row("n1", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
-    row("n-echo", "j-3294", "u-luke", "2026-09-22 09:00:00", "@isaacsmith sent from HeyTiff"),
+    row("n1", "j-2041", "u-lyle", "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
+    row("n-echo", "j-3294", "u-lyle", "2026-09-22 09:00:00", "@isaacsmith sent from HeyTiff"),
   ];
   tables.thread = [
     // on the asked jobs, but in no conversation: never asked about
-    row("n-other", "j-2041", "u-luke", "2026-09-21 14:00:00", "@michaeldiamond grab the ladder"),
+    row("n-other", "j-2041", "u-lyle", "2026-09-21 14:00:00", "@michaeldiamond grab the ladder"),
     row("n-mine", "j-2041", "u-isaac", "2026-09-21 16:00:00", "Unit tested, all good"),
   ];
   ours.add("n-echo");
@@ -178,13 +178,13 @@ it("leaves out what HeyTiff wrote itself, mirrored back, asking only about the c
 });
 
 it("asks again only about a note that joins once an echo is out", async () => {
-  /* HeyTiff posted "@lukeingold done" as Isaac. Without it the ask is
-     unanswered, so Luke's note the next day follows on, and that note has
+  /* HeyTiff posted "@lyleirving done" as Isaac. Without it the ask is
+     unanswered, so Lyle's note the next day follows on, and that note has
      not been asked about yet. */
-  tables.asks = [row("n1", "j-2041", "u-luke", "2026-09-23 10:00:00", "@isaacsmith call Mary")];
+  tables.asks = [row("n1", "j-2041", "u-lyle", "2026-09-23 10:00:00", "@isaacsmith call Mary")];
   tables.thread = [
-    row("n-echo", "j-2041", "u-isaac", "2026-09-24 10:00:00", "@lukeingold done"),
-    row("n-next", "j-2041", "u-luke", "2026-09-25 08:00:00", "Invoice sent to client"),
+    row("n-echo", "j-2041", "u-isaac", "2026-09-24 10:00:00", "@lyleirving done"),
+    row("n-next", "j-2041", "u-lyle", "2026-09-25 08:00:00", "Invoice sent to client"),
   ];
   ours.add("n-echo");
 
@@ -204,14 +204,14 @@ describe("your replies from HeyTiff", () => {
     id: "wn-1",
     to: "n1",
     jobUuid: "j-2041",
-    words: "@lukeingold on my way",
+    words: "@lyleirving on my way",
     at: "2026-09-24 10:00:00",
     savedAt: "2026-09-24T00:00:00.000000+00:00",
     line: { text: "In ServiceM8", tone: "ok", again: null, ask: null },
   };
   const page = () => {
-    tables.asks = [row("n1", "j-2041", "u-luke", "2026-09-23 10:00:00", "@isaacsmith call Mary")];
-    tables.thread = [row("r-copy", "j-2041", "u-isaac", "2026-09-24 10:00:05", "@lukeingold on my way")];
+    tables.asks = [row("n1", "j-2041", "u-lyle", "2026-09-23 10:00:00", "@isaacsmith call Mary")];
+    tables.thread = [row("r-copy", "j-2041", "u-isaac", "2026-09-24 10:00:05", "@lyleirving on my way")];
   };
 
   it("are threaded as HeyTiff saved them, and their copy is left out whatever sm8Ours says", async () => {
@@ -253,7 +253,7 @@ describe("your replies from HeyTiff", () => {
 });
 
 it("says a job ServiceM8 deleted isn't live, so it gets no Reply", async () => {
-  tables.asks = [row("n1", "j-2749", "u-luke", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly")];
+  tables.asks = [row("n1", "j-2749", "u-lyle", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly")];
   tables.sm8_jobs = [{ uuid: "j-2749", generated_job_id: 2749, geo_city: "Woolloomooloo", active: 0 }];
   const [c] = await listMyMentions("org-1", "u-isaac", "2026-09-25");
   expect(c).toMatchObject({ jobLabel: "2749 Woolloomooloo", jobLive: false });
@@ -266,8 +266,8 @@ it("keeps every job live when the jobs read fails, and says so in the log", asyn
   const spy = jest.spyOn(console, "error").mockImplementation(() => {});
   jobsError = { message: "boom" };
   tables.asks = [
-    row("n2", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
-    row("n1", "j-2749", "u-luke", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly"),
+    row("n2", "j-2041", "u-lyle", "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
+    row("n1", "j-2749", "u-lyle", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly"),
   ];
   const out = await listMyMentions("org-1", "u-isaac", "2026-09-25");
   expect(out.map((c) => [c.jobUuid, c.jobLive, c.jobLabel])).toEqual([
@@ -280,8 +280,8 @@ it("keeps every job live when the jobs read fails, and says so in the log", asyn
 
 it("keeps a job the copy holds no row for live, and names the one it does", async () => {
   tables.asks = [
-    row("n2", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
-    row("n1", "j-2749", "u-luke", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly"),
+    row("n2", "j-2041", "u-lyle", "2026-09-21 13:42:10", "@isaacsmith Please call Mary"),
+    row("n1", "j-2749", "u-lyle", "2026-09-09 10:00:00", "@isaacsmith can you advise Holly"),
   ];
   tables.sm8_jobs = [{ uuid: "j-2041", generated_job_id: 2041, geo_city: "Wollstonecraft", active: 1 }];
   const out = await listMyMentions("org-1", "u-isaac", "2026-09-25");
@@ -293,8 +293,8 @@ it("keeps a job the copy holds no row for live, and names the one it does", asyn
 
 it("takes only notes on a job", async () => {
   tables.asks = [
-    row("n1", "c-1", "u-luke", "2026-09-21 13:42:10", "@isaacsmith the client rang", "company"),
-    row("n2", "j-2041", "u-luke", "2026-09-21 13:43:00", "@isaacsmith Please call Mary", "JOB"),
+    row("n1", "c-1", "u-lyle", "2026-09-21 13:42:10", "@isaacsmith the client rang", "company"),
+    row("n2", "j-2041", "u-lyle", "2026-09-21 13:43:00", "@isaacsmith Please call Mary", "JOB"),
   ];
   const out = await listMyMentions("org-1", "u-isaac", "2026-09-25");
   expect(out.map((c) => c.askNoteUuid)).toEqual(["n2"]);
@@ -303,7 +303,7 @@ it("takes only notes on a job", async () => {
 it("shows nothing, and says so in the log, when the mentions read fails", async () => {
   const spy = jest.spyOn(console, "error").mockImplementation(() => {});
   asksError = { message: "boom" };
-  tables.asks = [row("n1", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmith Please call Mary")];
+  tables.asks = [row("n1", "j-2041", "u-lyle", "2026-09-21 13:42:10", "@isaacsmith Please call Mary")];
   expect(await listMyMentions("org-1", "u-isaac", "2026-09-25")).toEqual([]);
   expect(spy).toHaveBeenCalled();
   spy.mockRestore();
@@ -313,8 +313,8 @@ it("shows nothing, and says so in the log, when the mentions read fails", async 
    conversation. The tasks are the viewer's own, read with the workspace. */
 describe("the tasks the asks made", () => {
   beforeEach(() => {
-    tables.asks = [row("n1", "j-2041", "u-luke", "2026-09-21 13:42:10", "@isaacsmith Please call Mary")];
-    tables.thread = [row("n2", "j-2041", "u-luke", "2026-09-23 08:00:00", "@isaacsmith did you get hold of her?")];
+    tables.asks = [row("n1", "j-2041", "u-lyle", "2026-09-21 13:42:10", "@isaacsmith Please call Mary")];
+    tables.thread = [row("n2", "j-2041", "u-lyle", "2026-09-23 08:00:00", "@isaacsmith did you get hold of her?")];
   });
 
   it("are read for the viewer's own staff card, for this conversation's asks, and only the ones read", async () => {
@@ -391,7 +391,7 @@ describe("the tasks the asks made", () => {
     await listMyMentions("org-1", "u-isaac", "2026-09-25", {
       people: [
         { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" },
-        { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" },
+        { uuid: "u-lyle", handle: "lyleirving", name: "Lyle Irving", first: "Lyle" },
       ],
     });
     expect(of("sm8_staff")).toHaveLength(0);

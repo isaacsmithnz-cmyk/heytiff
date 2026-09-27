@@ -75,7 +75,7 @@ export type TaskAbout = {
   spoken: boolean;
   /** sm8: the note that made it — "Open conversation". */
   sm8NoteUuid: string | null;
-  /** sm8: who wrote the note, as ServiceM8 spells them ("Luke Ingold"). */
+  /** sm8: who wrote the note, as ServiceM8 spells them ("Lyle Irving"). */
   askerName: string | null;
   /** sm8: who pressed "make a task", or null when Tiff made it. */
   actedBy: string | null;
@@ -198,13 +198,13 @@ type People = Readonly<Record<string, string>>;
 
 const firstOf = (name: string | null | undefined): string | null => name?.trim().split(/\s+/)[0] || null;
 
-/** Who, at the start of a sentence: "You", "Luke", or "Someone". */
+/** Who, at the start of a sentence: "You", "Lyle", or "Someone". */
 function Who(id: string | null | undefined, people: People, viewer: string | null): string {
   if (id && viewer && id === viewer) return "You";
   return (id && firstOf(people[id])) || "Someone";
 }
 
-/** Who, inside a sentence: "you", "Luke", or "someone who has left". */
+/** Who, inside a sentence: "you", "Lyle", or "someone who has left". */
 function whom(id: string | null | undefined, people: People, viewer: string | null): string {
   if (id && viewer && id === viewer) return "you";
   return (id && firstOf(people[id])) || "someone who has left";
@@ -288,7 +288,7 @@ export function sourceLine(
 }
 
 /** The caption over their words: "**You said**, Sat 22 Aug, 11:42 pm", or
-    "**Luke Ingold** wrote, in a job note on 2041 Wollstonecraft". `strong`
+    "**Lyle Irving** wrote, in a job note on 2041 Wollstonecraft". `strong`
     is the part set in weight; the caption reads `strong + rest`. Null when
     there are no words to caption. */
 export function wordsCaption(about: TaskAbout, today: string): { strong: string; rest: string } | null {

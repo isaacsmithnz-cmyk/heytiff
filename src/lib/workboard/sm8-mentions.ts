@@ -3,7 +3,7 @@
    ServiceM8's notes carry @mentions, and the handle is not an id — it is the
    staff member's first and last name run together in lower case, spaces
    removed. Verified against the live mirror before this was written:
-   @lukeingold appears 783 times, @michaeldiamond 161, @isaacsmith 130, and
+   one handle appears 783 times, two others 161 and 130, and
    every handle in the account resolves that way, including the odd one whose
    surname is a full stop.
 
@@ -26,7 +26,7 @@ export function sm8Handle(first: string | null, last: string | null): string | n
    because one live account holds a surname of ".", and hyphens because a
    double-barrelled surname keeps its own. Anything else — a comma, an
    apostrophe, the end of a sentence — ends the handle, which is what stops
-   "@lukeingold's van" naming nobody. */
+   "@lyleirving's van" naming nobody. */
 const TOKEN = /@([a-z0-9.'-]+)/gi;
 
 /** Every handle this text mentions, in the order it says them, deduped.
@@ -55,7 +55,7 @@ export function mentionedHandles(text: string, known: Iterable<string>): string[
     them — what a row that has ALREADY NAMED the person should quote.
 
     A walk on live data caught why this is needed: the strip drew
-    `Luke Ingold — "@LukeIngold Bill 90%"`, which says the same person twice
+    `Lyle Irving — "@LyleIrving Bill 90%"`, which says the same person twice
     in one line. The handle is addressing, and a row that opens with the name
     has already done the addressing. */
 export function withoutHandles(text: string): string {
@@ -129,11 +129,11 @@ export function quotedNote(
 
     The quote takes the addressing out, which is right for a row that
     already says who is talking to whom and wrong for a reader deciding
-    what the note asks of whom: "@lukeingold when you send invoice can you
+    what the note asks of whom: "@lyleirving when you send invoice can you
     send the warranty stuff / @isaacsmith can you send David the builder's
     contact" quoted to Isaac is two asks with nobody in front of either,
-    and the real read (2026-09-26) made Luke's half part of Isaac's task.
-    Here each part keeps the person it is to — "Luke when you send
+    and the real read (2026-09-26) made the other half part of Isaac's task.
+    Here each part keeps the person it is to — "Lyle when you send
     invoice… / Isaac can you send David…" — and an address, an unknown
     @word and a possessive stay as written, as the quote leaves them. */
 export function namedNote(text: string, names: ReadonlyMap<string, string>): string {
@@ -217,7 +217,7 @@ function addressRun(text: string, known: ReadonlySet<string>): { end: number; su
 /** The note's words with its handles taken out — what a task drafted from it
     should be TITLED.
 
-    A mention is addressing, not content: "@lukeingold @michaeldiamond still
+    A mention is addressing, not content: "@lyleirving @michaeldiamond still
     need another day on site" is a task called "Still need another day on
     site", and the people are the assignment, not the sentence. Capitalised
     because a title starts like one, and clipped at a sentence so a rambling

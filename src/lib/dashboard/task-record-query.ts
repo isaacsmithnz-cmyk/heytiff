@@ -57,7 +57,7 @@ import {
 
    THEIR OWN WORDS. A diary entry's words come back only to its author —
    journal-query's rule: nobody reads someone else's diary, and a task Tiff
-   made for Luke from Isaac's diary tells Luke where it came from, never what
+   made for Lyle from Isaac's diary tells Lyle where it came from, never what
    Isaac said. A ServiceM8 note comes back quoted the way the diary quotes
    one (sm8-mentions' `quotedNote`): the handles it opens with, and the
    viewer's own, are who it was to and go; every other handle ServiceM8
@@ -437,7 +437,7 @@ export async function taskAbout(
       };
     } else if (ask) {
       /* Tiff made it from the ask, so nobody pressed anything: actedBy is
-         null, and the record says "Tiff made it from Luke Ingold's note". */
+         null, and the record says "Tiff made it from Lyle Irving's note". */
       const sm8 = sm8Notes.get(ask.noteUuid);
       out[id] = {
         ...typedAbout(evts),

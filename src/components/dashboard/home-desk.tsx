@@ -129,7 +129,7 @@ function Desk({ data, taskId }: { data: DashboardData; taskId: string | null }) 
   const journal = useMemo(() => data.journal.filter((e) => holds.entries.has(e.id)), [data.journal, holds]);
   /* The list, placed from its own reads and what the page already holds —
      pure, and dated on the server by the workspace's day. A task one of
-     your ServiceM8 asks made (H18) says whose ask it was, "Luke asked you",
+     your ServiceM8 asks made (H18) says whose ask it was, "Lyle asked you",
      and opens the conversation it came from: read off the diary's own
      conversations, so it names only asks the diary holds. */
   const list = useMemo(() => {

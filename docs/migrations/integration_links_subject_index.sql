@@ -12,7 +12,7 @@
 --
 --   42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification
 --
--- (postgres log, 2026-09-24 06:25 UTC: Isaac linking Luke Ingold from the
+-- (postgres log, 2026-09-24 06:25 UTC: Isaac linking a staff member from the
 -- People in ServiceM8 card. Reproduced with an EXPLAIN of the same upsert.)
 --
 -- THE FIX IS THE SAME RULE WITHOUT THE PREDICATE. A unique index treats NULLs

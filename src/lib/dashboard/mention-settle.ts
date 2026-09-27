@@ -90,7 +90,7 @@ import { logTaskEvent, missingTable } from "./task-events";
 
    WHAT THE READER SEES is the note with nothing taken out and every handle
    said by name, yours by your first (./diary-feed's `named`), not the
-   diary's quote: a note to Luke and to you is two asks, and the quote,
+   diary's quote: a note to Lyle and to you is two asks, and the quote,
    with its addressing out, ran them together into one task for you.
 
    BOUNDED. At most `max` model reads a run (SETTLE_MAX), asks and replies
@@ -101,10 +101,10 @@ import { logTaskEvent, missingTable } from "./task-events";
 
    NEVER A SERVICEM8 WRITE. Nothing here imports the write queue, and no
    sm8_writes row is ever made: a task, its history and the ask's row are
-   HeyTiff's own. Before phase 2, ticking the task tells Luke nothing. */
+   HeyTiff's own. Before phase 2, ticking the task tells Lyle nothing. */
 
-/** How far back an ask becomes a task (Isaac, 2026-09-25: 30 days, so Luke's
-    three September asks become tasks). */
+/** How far back an ask becomes a task (Isaac, 2026-09-25: 30 days, so the
+    three September asks waiting then become tasks). */
 export const SETTLE_DAYS = 30;
 /** Model reads a run, asks and replies together. */
 export const SETTLE_MAX = 5;
@@ -522,7 +522,7 @@ export async function settleMentionAsks(
         detail: null,
         assigned_to: r.staffId,
         /* nobody gave it to them: it is their own (see the top), made by
-           Tiff from Luke's note */
+           Tiff from Lyle's note */
         created_by: r.staffId,
         due_date: res.read.dueDate,
         status: "open",

@@ -59,7 +59,7 @@ const ENTRY: DiaryEntry = {
   undo: false,
   undone: false,
 };
-const CONVO = { key: "j-2041:u-luke", lastTheirs: "2026-09-21 13:42:10", messages: [] } as unknown as DiaryConversation;
+const CONVO = { key: "j-2041:u-lyle", lastTheirs: "2026-09-21 13:42:10", messages: [] } as unknown as DiaryConversation;
 
 const ctx = (over: Partial<DiaryFeedContext> = {}): DiaryFeedContext => ({
   orgId: "org-1",
@@ -90,21 +90,21 @@ beforeEach(() => {
    Brisbane's, so the hiding is said on the account's clock before it is
    set beside the asker's message. */
 it("leaves out a conversation you hid, until its asker writes again", async () => {
-  // 04:05Z is 14:05 in Brisbane, after Luke's 13:42 on the 21st
-  hiddenRows = [{ conversation_key: "j-2041:u-luke", hidden_at: "2026-09-21T04:05:00Z" }];
+  // 04:05Z is 14:05 in Brisbane, after Lyle's 13:42 on the 21st
+  hiddenRows = [{ conversation_key: "j-2041:u-lyle", hidden_at: "2026-09-21T04:05:00Z" }];
   const feed = await loadDiaryFeed(ctx());
   expect(feed.earlier.map((i) => i.key)).toEqual([]);
   expect(hiddenAsked).toEqual([{ org_id: "org-1", staff_id: "s-isaac" }]);
 
   // hidden before he last wrote: back
-  hiddenRows = [{ conversation_key: "j-2041:u-luke", hidden_at: "2026-09-21T03:00:00Z" }];
-  expect((await loadDiaryFeed(ctx())).earlier.map((i) => i.key)).toEqual(["mention:j-2041:u-luke"]);
+  hiddenRows = [{ conversation_key: "j-2041:u-lyle", hidden_at: "2026-09-21T03:00:00Z" }];
+  expect((await loadDiaryFeed(ctx())).earlier.map((i) => i.key)).toEqual(["mention:j-2041:u-lyle"]);
 });
 
 it("hides nothing when the hidden read fails, or before the table exists", async () => {
   hiddenRows = null;
   const feed = await loadDiaryFeed(ctx());
-  expect(feed.earlier.map((i) => i.key)).toEqual(["mention:j-2041:u-luke"]);
+  expect(feed.earlier.map((i) => i.key)).toEqual(["mention:j-2041:u-lyle"]);
 });
 
 it("reads your entries on the account's clock and your mentions on its today", async () => {
@@ -114,7 +114,7 @@ it("reads your entries on the account's clock and your mentions on its today", a
      alone (H18) */
   expect(listMyMentions).toHaveBeenCalledWith("org-1", "u-isaac", "2026-09-25", { staffId: "s-isaac" });
   expect(feed.today.map((i) => i.key)).toEqual(["entry:e1"]);
-  expect(feed.earlier.map((i) => i.key)).toEqual(["mention:j-2041:u-luke"]);
+  expect(feed.earlier.map((i) => i.key)).toEqual(["mention:j-2041:u-lyle"]);
   expect(feed).toMatchObject({ day: "2026-09-25", mentions: true, syncedAt: "2026-09-25T06:00:00Z" });
 });
 
@@ -149,12 +149,12 @@ it("stops the column at your oldest entry when the entry read came back full", a
   const full = Array.from({ length: DIARY_ENTRY_LIMIT }, (_, i) => ({ ...ENTRY, id: `e${i}`, stamp: "2026-09-24 08:00" }));
   listDiaryEntries.mockResolvedValue(full);
   const feed = await loadDiaryFeed(ctx());
-  // Luke's ask of the 21st is older than every entry read, so older ones may be missing
-  expect(feed.earlier.map((i) => i.key)).not.toContain("mention:j-2041:u-luke");
+  // Lyle's ask of the 21st is older than every entry read, so older ones may be missing
+  expect(feed.earlier.map((i) => i.key)).not.toContain("mention:j-2041:u-lyle");
   expect(feed.earlier).toHaveLength(DIARY_ENTRY_LIMIT);
 
   listDiaryEntries.mockResolvedValue(full.slice(1));
-  expect((await loadDiaryFeed(ctx())).earlier.map((i) => i.key)).toContain("mention:j-2041:u-luke");
+  expect((await loadDiaryFeed(ctx())).earlier.map((i) => i.key)).toContain("mention:j-2041:u-lyle");
 });
 
 it("with no ServiceM8 is your own entries, on the day the loader gives it", async () => {
@@ -189,7 +189,7 @@ describe("your replies from HeyTiff", () => {
     reply: {
       to: "n-ask",
       jobUuid: "j-2041",
-      words: "@lukeingold on my way",
+      words: "@lyleirving on my way",
       at: "2026-09-25 09:10:42",
       savedAt: "2026-09-24T23:10:42.123456+00:00",
       line,
@@ -200,29 +200,29 @@ describe("your replies from HeyTiff", () => {
     ...CONVO,
     messages: [
       { id: "n-ask", from: "them", addressed: true, text: "call Mary", named: "Isaac call Mary", at: "2026-09-21 13:42:10" },
-      { id: "wn-reply", from: "you", addressed: true, text: "on my way", named: "Luke on my way", at: "2026-09-25 09:10:42", ours: { jobUuid: "j-2041", line } },
+      { id: "wn-reply", from: "you", addressed: true, text: "on my way", named: "Lyle on my way", at: "2026-09-25 09:10:42", ours: { jobUuid: "j-2041", line } },
     ],
   } as unknown as DiaryConversation;
 
   /* The mentions read, as far as the diary's threading goes: the real
      conversations of these notes, with the replies the loader hands in. */
   const ISAAC_P: Sm8Person = { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" };
-  const LUKE_P: Sm8Person = { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" };
+  const LYLE_P: Sm8Person = { uuid: "u-lyle", handle: "lyleirving", name: "Lyle Irving", first: "Lyle" };
   const threads =
     (notes: MentionNote[]) =>
     async (_org: string, _mine: string, today: string, opts: { replies?: PromiseLike<readonly OurReply[]> }) =>
       buildConversations({
         notes,
         me: { uuid: ISAAC_P.uuid, handle: ISAAC_P.handle },
-        people: [ISAAC_P, LUKE_P],
+        people: [ISAAC_P, LYLE_P],
         jobs: new Map([["j-2041", { label: "2041 Wollstonecraft", live: true }]]),
         today,
         ...(opts.replies ? { replies: await opts.replies } : {}),
       });
-  const luke = (uuid: string, at: string, text: string): MentionNote => ({ uuid, jobUuid: "j-2041", author: "u-luke", at, text });
+  const lyle = (uuid: string, at: string, text: string): MentionNote => ({ uuid, jobUuid: "j-2041", author: "u-lyle", at, text });
   const itemsOf = (feed: Awaited<ReturnType<typeof loadDiaryFeed>>) => [...feed.today, ...feed.earlier];
   const talkIn = (feed: Awaited<ReturnType<typeof loadDiaryFeed>>) => {
-    const item = itemsOf(feed).find((i) => i.key === "mention:j-2041:u-luke");
+    const item = itemsOf(feed).find((i) => i.key === "mention:j-2041:u-lyle");
     return item?.kind === "conversation" ? item.conversation : null;
   };
 
@@ -240,14 +240,14 @@ describe("your replies from HeyTiff", () => {
         id: "wn-reply",
         to: "n-ask",
         jobUuid: "j-2041",
-        words: "@lukeingold on my way",
+        words: "@lyleirving on my way",
         // to the second, as it was saved: not the entry's minute
         at: "2026-09-25 09:10:42",
         savedAt: "2026-09-24T23:10:42.123456+00:00",
         line,
       },
     ]);
-    expect(itemsOf(feed).map((i) => i.key)).toEqual(["entry:e1", "mention:j-2041:u-luke"]);
+    expect(itemsOf(feed).map((i) => i.key)).toEqual(["entry:e1", "mention:j-2041:u-lyle"]);
   });
 
   it("reads your replies over the mentions' reach on their own, with one read of who you are to ServiceM8 for both reads", async () => {
@@ -279,10 +279,10 @@ describe("your replies from HeyTiff", () => {
     listDiaryReplies.mockResolvedValue([OLD]);
     listMyMentions.mockImplementation(
       threads([
-        luke("n-ask", "2026-09-05 10:00:00", "@isaacsmith please call Mary"),
+        lyle("n-ask", "2026-09-05 10:00:00", "@isaacsmith please call Mary"),
         // his note on the job the next day, naming nobody: after your answer, not part of the ask
-        luke("n-invoice", "2026-09-06 09:00:00", "Invoice sent to client"),
-        luke("n-thanks", "2026-09-25 07:00:00", "@isaacsmith thanks"),
+        lyle("n-invoice", "2026-09-06 09:00:00", "Invoice sent to client"),
+        lyle("n-thanks", "2026-09-25 07:00:00", "@isaacsmith thanks"),
       ]),
     );
 
@@ -306,13 +306,13 @@ describe("your replies from HeyTiff", () => {
       ...REPLY,
       id: "wn-done",
       stamp: "2026-09-25 13:42",
-      reply: { ...REPLY.reply!, words: "@lukeingold Done.", at: "2026-09-25 13:42:50", savedAt: "2026-09-25T03:42:50.000000+00:00" },
+      reply: { ...REPLY.reply!, words: "@lyleirving Done.", at: "2026-09-25 13:42:50", savedAt: "2026-09-25T03:42:50.000000+00:00" },
     };
     listDiaryEntries.mockResolvedValue([DONE]);
     listMyMentions.mockImplementation(
       threads([
-        luke("n-ask", "2026-09-25 08:00:00", "@isaacsmith please call Mary"),
-        luke("n-update", "2026-09-25 13:42:20", "@isaacsmith any update?"),
+        lyle("n-ask", "2026-09-25 08:00:00", "@isaacsmith please call Mary"),
+        lyle("n-update", "2026-09-25 13:42:20", "@isaacsmith any update?"),
       ]),
     );
 
@@ -364,7 +364,7 @@ describe("your replies from HeyTiff", () => {
     it("is drawn in its thread, and not again as your entry", async () => {
       process.env.SM8_WRITES = "attachment,note";
       listDiaryReplies.mockResolvedValue([GONE_BACK("n-ask", "2026-09-25 09:10")]);
-      listMyMentions.mockImplementation(threads([luke("n-ask", "2026-09-25 08:00:00", "@isaacsmith please call Mary")]));
+      listMyMentions.mockImplementation(threads([lyle("n-ask", "2026-09-25 08:00:00", "@isaacsmith please call Mary")]));
       const feed = await loadDiaryFeed(ctx());
       expect(talkIn(feed)?.messages.map((m) => [m.id, m.ours?.line?.text ?? null])).toEqual([
         ["n-ask", null],
@@ -372,13 +372,13 @@ describe("your replies from HeyTiff", () => {
       ]);
       // and says it was taken back: its Try again is its door, not a Delete
       expect(talkIn(feed)?.messages[1].ours?.takenBack).toBe(true);
-      expect(itemsOf(feed).map((i) => i.key)).toEqual(["entry:e1", "mention:j-2041:u-luke"]);
+      expect(itemsOf(feed).map((i) => i.key)).toEqual(["entry:e1", "mention:j-2041:u-lyle"]);
     });
 
     it("is your entry when no conversation holds the note it answers, never dropped", async () => {
       process.env.SM8_WRITES = "attachment,note";
       listDiaryReplies.mockResolvedValue([GONE_BACK("n-removed-in-servicem8", "2026-09-25 09:10")]);
-      listMyMentions.mockImplementation(threads([luke("n-ask", "2026-09-25 08:00:00", "@isaacsmith please call Mary")]));
+      listMyMentions.mockImplementation(threads([lyle("n-ask", "2026-09-25 08:00:00", "@isaacsmith please call Mary")]));
       const feed = await loadDiaryFeed(ctx());
       const entry = itemsOf(feed).find((i) => i.key === "entry:wn-back");
       expect(entry?.kind === "entry" && entry.entry.reply?.line).toEqual(STILL_IN);
@@ -411,21 +411,21 @@ describe("your replies from HeyTiff", () => {
     beforeEach(() => {
       process.env.SM8_WRITES = "attachment,note";
       listDiaryEntries.mockResolvedValue([ENTRY, REPLY]);
-      listMyMentions.mockImplementation(threads([luke("n-ask", "2026-09-25 08:00:00", "@isaacsmith please call Mary")]));
+      listMyMentions.mockImplementation(threads([lyle("n-ask", "2026-09-25 08:00:00", "@isaacsmith please call Mary")]));
     });
 
     it("goes with it, and is not drawn on its own", async () => {
       // hidden at 09:20, after your reply of 09:10 and his ask of 08:00
-      hiddenRows = [{ conversation_key: "j-2041:u-luke", hidden_at: "2026-09-24T23:20:00Z" }];
+      hiddenRows = [{ conversation_key: "j-2041:u-lyle", hidden_at: "2026-09-24T23:20:00Z" }];
       const feed = await loadDiaryFeed(ctx());
       expect(itemsOf(feed).map((i) => i.key)).toEqual(["entry:e1"]);
     });
 
     it("brings it back, threaded, when you sent it after you hid it", async () => {
       // hidden at 09:00: his ask was before it, your reply of 09:10 after
-      hiddenRows = [{ conversation_key: "j-2041:u-luke", hidden_at: "2026-09-24T23:00:00Z" }];
+      hiddenRows = [{ conversation_key: "j-2041:u-lyle", hidden_at: "2026-09-24T23:00:00Z" }];
       const feed = await loadDiaryFeed(ctx());
-      expect(itemsOf(feed).map((i) => i.key)).toEqual(["entry:e1", "mention:j-2041:u-luke"]);
+      expect(itemsOf(feed).map((i) => i.key)).toEqual(["entry:e1", "mention:j-2041:u-lyle"]);
       expect(talkIn(feed)?.messages.map((m) => m.id)).toEqual(["n-ask", "wn-reply"]);
     });
   });
@@ -441,7 +441,7 @@ describe("your replies from HeyTiff", () => {
     expect(listDiaryReplies).not.toHaveBeenCalled();
     expect(replyViewerOf).not.toHaveBeenCalled();
     // nothing holds the reply, so it is an entry as it always was
-    expect(itemsOf(feed).map((i) => i.key)).toEqual(["entry:wn-reply", "entry:e1", "mention:j-2041:u-luke"]);
+    expect(itemsOf(feed).map((i) => i.key)).toEqual(["entry:wn-reply", "entry:e1", "mention:j-2041:u-lyle"]);
   });
 
   it("reads none of your replies on their own without a conversation to hold them", async () => {

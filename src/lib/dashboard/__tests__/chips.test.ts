@@ -713,25 +713,25 @@ describe("honours the org's window", () => {
 
 describe("profileChip", () => {
   it("raises nothing when nothing required is missing, or nothing was read", () => {
-    expect(profileChip({ requiredMissing: 0, firstLabel: null }, { subject: "Luke" })).toBeNull();
-    expect(profileChip(null, { subject: "Luke" })).toBeNull();
-    expect(profileChip(undefined, { subject: "Luke" })).toBeNull();
+    expect(profileChip({ requiredMissing: 0, firstLabel: null }, { subject: "Lyle" })).toBeNull();
+    expect(profileChip(null, { subject: "Lyle" })).toBeNull();
+    expect(profileChip(undefined, { subject: "Lyle" })).toBeNull();
   });
 
   /* One gap names itself; several are counted — the way Summary's record line
      says it, so the chip and the button it leads to agree. */
   it("names a single gap, and counts several", () => {
-    expect(profileChip({ requiredMissing: 1, firstLabel: "Date of birth" }, { subject: "Luke" })?.label).toBe(
+    expect(profileChip({ requiredMissing: 1, firstLabel: "Date of birth" }, { subject: "Lyle" })?.label).toBe(
       "Date of birth missing"
     );
-    expect(profileChip({ requiredMissing: 3, firstLabel: "Last name" }, { subject: "Luke" })?.label).toBe(
+    expect(profileChip({ requiredMissing: 3, firstLabel: "Last name" }, { subject: "Lyle" })?.label).toBe(
       "3 details missing"
     );
   });
 
   /* Nothing here has passed a date, so it can never outrank something that has. */
   it("is a warning, never overdue, and ranks behind anything bad", () => {
-    const chip = profileChip({ requiredMissing: 4, firstLabel: "First name" }, { subject: "Luke" })!;
+    const chip = profileChip({ requiredMissing: 4, firstLabel: "First name" }, { subject: "Lyle" })!;
     expect(chip.state).toBe("warn");
     expect(chip.href).toBe("/dashboard/profile");
     const bad = timesheetChip({ status: "sent_back", periodStart: "2026-07-13", periodLabel: "13 – 19 Jul" })!;
@@ -830,7 +830,7 @@ describe("a chip's day and what it is about", () => {
         { id: "r1", kind: "annual", startDate: "2026-08-01", endDate: "2026-08-02", decidedOn: "2026-07-18" },
         { today: TODAY },
       ),
-      profileChip({ requiredMissing: 1, firstLabel: "Mobile" }, { subject: "Luke" }),
+      profileChip({ requiredMissing: 1, firstLabel: "Mobile" }, { subject: "Lyle" }),
       swmsSignonChip(
         { versionId: "w1", again: false, jobNumber: "12", site: null, issuedAt: "2026-07-18T00:00:00Z" },
         { today: TODAY },

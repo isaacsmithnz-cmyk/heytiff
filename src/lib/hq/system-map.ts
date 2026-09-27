@@ -643,7 +643,7 @@ export const NODES: MapNode[] = [
     group: "External services",
     blurb: "Speech to text for dictated site notes.",
     detail:
-      "Chosen on accuracy, not price — at this volume the whole bill is a few dollars a month, so cost isn't a selection input. What decided it was keyterm capacity: the roster, the client book, street names and model strings all go in per request, because \"tell Luke\" only becomes a task for Luke if the transcriber heard Luke. Speech is transcribed in whatever language it was spoken and never translated here — that's the brain's job. ONE vendor, no runtime failover: the adapter exists so the vendor can be SWAPPED, and a failed transcription falls through to the paste box, which always works.",
+      "Chosen on accuracy, not price — at this volume the whole bill is a few dollars a month, so cost isn't a selection input. What decided it was keyterm capacity: the roster, the client book, street names and model strings all go in per request, because \"tell Lyle\" only becomes a task for Lyle if the transcriber heard Lyle. Speech is transcribed in whatever language it was spoken and never translated here — that's the brain's job. ONE vendor, no runtime failover: the adapter exists so the vendor can be SWAPPED, and a failed transcription falls through to the paste box, which always works.",
   },
   {
     id: "voyage",

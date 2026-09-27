@@ -105,13 +105,13 @@ const mirror = (remoteId: string) => ({
   money: null,
   paidCents: 0,
 });
-/* The viewer (sm8-me) and Luke share j1; j2 is Luke's alone. */
+/* The viewer (sm8-me) and Lyle share j1; j2 is Lyle's alone. */
 const loadScheduleDay = jest.fn(async (_orgId: string, dayISO: string) => ({
   dayISO,
-  activities: [act("a1", "j1", "sm8-me", "09:00", "10:00"), act("a2", "j1", "sm8-luke", "09:00", "10:00"), act("a3", "j2", "sm8-luke", "13:00", "14:00")],
+  activities: [act("a1", "j1", "sm8-me", "09:00", "10:00"), act("a2", "j1", "sm8-lyle", "09:00", "10:00"), act("a3", "j2", "sm8-lyle", "13:00", "14:00")],
   staff: [
     { uuid: "sm8-me", name: "Isaac Smith" },
-    { uuid: "sm8-luke", name: "Luke Ingold" },
+    { uuid: "sm8-lyle", name: "Lyle Irving" },
   ],
   jobs: [mirror("j1"), mirror("j2")],
   onSite: [],
@@ -122,7 +122,7 @@ jest.mock("@/lib/workboard/schedule-query", () => ({
   loadScheduleDay: (orgId: string, dayISO: string) => loadScheduleDay(orgId, dayISO),
 }));
 const sm8StaffLinkMap = jest.fn(
-  async (_orgId: string): Promise<Map<string, string>> => new Map([["sm8-me", "s-me"], ["sm8-luke", "s-luke"]])
+  async (_orgId: string): Promise<Map<string, string>> => new Map([["sm8-me", "s-me"], ["sm8-lyle", "s-lyle"]])
 );
 jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: (orgId: string) => sm8StaffLinkMap(orgId) }));
 /* Your next booked day, when today has nothing on (./next-day). */
@@ -172,7 +172,7 @@ jest.mock("@/lib/calendar/query", () => ({ loadCompanyCalendar: (ctx: unknown) =
 
 /* The diary's read is its own suite's (diary-query): here, what it was
    asked and that its answer is the desk's. One entry of today, whose two
-   tasks are on Luke and on nobody. */
+   tasks are on Lyle and on nobody. */
 const DIARY_FEED: DiaryFeed = {
   day: "2026-09-24",
   today: [
@@ -182,14 +182,14 @@ const DIARY_FEED: DiaryFeed = {
       sortAt: "2026-09-24 08:42:00",
       entry: {
         id: "e1",
-        said: "Luke, grab the spare remote from the office before tomorrow.",
+        said: "Lyle, grab the spare remote from the office before tomorrow.",
         day: "2026-09-24",
         at: "8:42 am",
         outcomes: [],
         spoken: true,
         stamp: "2026-09-24 08:42",
         routed: true,
-        taskFor: { t1: "s-luke", t2: null },
+        taskFor: { t1: "s-lyle", t2: null },
         turns: [],
         undo: false,
         undone: false,
@@ -215,7 +215,7 @@ jest.mock("../task-record-query", () => ({
 
 /* The desk as the loader hands it over, with the names stub's empty map:
    no initials to be had for a card it does not name, and no first name for
-   Luke's task. */
+   Lyle's task. */
 const DESK = {
   warnDays: 45,
   list: LIST_READS,
@@ -249,7 +249,7 @@ const held = <T,>() => {
 /* Every read that is not held has answered once this returns: the stubs are
    all promises, and a macrotask runs only when their chains have drained. */
 const settle = () => new Promise<void>((res) => setImmediate(res));
-const LINKS = () => new Map([["sm8-me", "s-me"], ["sm8-luke", "s-luke"]]);
+const LINKS = () => new Map([["sm8-me", "s-me"], ["sm8-lyle", "s-lyle"]]);
 
 const chipsInput = () =>
   assembleChips.mock.calls.at(-1)![0] as { warnDays: number; orgCredentials: unknown[] };
@@ -279,7 +279,7 @@ describe("the desk's reads", () => {
     expect(loadDesk).toHaveBeenCalledWith(expect.objectContaining({ viewerStaffId: "s-me", isOwner: true }), expect.any(Promise));
     expect(loadHomeList).toHaveBeenCalledWith(expect.objectContaining({ mineUuid: "sm8-me", viewerStaffId: "s-me" }));
 
-    sm8StaffLinkMap.mockImplementationOnce(async () => new Map([["sm8-luke", "s-luke"]]));
+    sm8StaffLinkMap.mockImplementationOnce(async () => new Map([["sm8-lyle", "s-lyle"]]));
     await loadDashboard();
     expect(loadHomeList).toHaveBeenLastCalledWith(expect.objectContaining({ mineUuid: null }));
   });
@@ -479,7 +479,7 @@ describe("the diary's reads", () => {
     expect(loadDiaryFeed).toHaveBeenLastCalledWith(expect.objectContaining({ mineUuid: null }));
 
     vendor = { tz: "Australia/Sydney", connected: true };
-    sm8StaffLinkMap.mockImplementationOnce(async () => new Map([["sm8-luke", "s-luke"]]));
+    sm8StaffLinkMap.mockImplementationOnce(async () => new Map([["sm8-lyle", "s-lyle"]]));
     await loadDashboard();
     expect(loadDiaryFeed).toHaveBeenLastCalledWith(expect.objectContaining({ mineUuid: null }));
   });
@@ -488,34 +488,34 @@ describe("the diary's reads", () => {
     (loadStaffNames as jest.Mock).mockResolvedValueOnce(
       new Map([
         ["s-me", "Isaac Smith"],
-        ["s-luke", "Luke Ingold"],
+        ["s-lyle", "Lyle Irving"],
         ["s-leo", "Leo Park"],
       ]),
     );
     const { desk } = await loadDashboard();
-    expect(desk?.diary).toEqual({ feed: DIARY_FEED, you: "IS", names: { "s-luke": "Luke" } });
+    expect(desk?.diary).toEqual({ feed: DIARY_FEED, you: "IS", names: { "s-lyle": "Lyle" } });
   });
 
   it("carry the whole name of each of two people its tasks are on who share a first name", async () => {
     const [today] = DIARY_FEED.today;
-    const twoLukes: DiaryFeed = {
+    const twoLyles: DiaryFeed = {
       ...DIARY_FEED,
       today: [
         today!.kind === "entry"
-          ? { ...today!, entry: { ...today!.entry, taskFor: { t1: "s-luke", t2: "s-luke-2" } } }
+          ? { ...today!, entry: { ...today!.entry, taskFor: { t1: "s-lyle", t2: "s-lyle-2" } } }
           : today!,
       ],
     };
-    loadDiaryFeed.mockResolvedValueOnce(twoLukes);
+    loadDiaryFeed.mockResolvedValueOnce(twoLyles);
     (loadStaffNames as jest.Mock).mockResolvedValueOnce(
       new Map([
         ["s-me", "Isaac Smith"],
-        ["s-luke", "Luke Ingold"],
-        ["s-luke-2", "Luke Moreau"],
+        ["s-lyle", "Lyle Irving"],
+        ["s-lyle-2", "Lyle Moreau"],
       ]),
     );
     const { desk } = await loadDashboard();
-    expect(desk?.diary.names).toEqual({ "s-luke": "Luke Ingold", "s-luke-2": "Luke Moreau" });
+    expect(desk?.diary.names).toEqual({ "s-lyle": "Lyle Irving", "s-lyle-2": "Lyle Moreau" });
   });
 });
 
@@ -550,7 +550,7 @@ describe("the day's new fields", () => {
     const { rail } = await loadDashboard();
     expect(rail.blocks.map((b) => b.key)).toEqual(["a1"]);
     expect(rail.where).toEqual({ j1: "Carrington St" });
-    expect(rail.crew).toEqual({ j1: ["Luke"] });
+    expect(rail.crew).toEqual({ j1: ["Lyle"] });
     expect(rail.connected).toBe(true);
   });
 
@@ -569,11 +569,11 @@ describe("the day's new fields", () => {
     expect((await loadDashboard()).rail.next).toBeNull();
     expect(loadNextDay).not.toHaveBeenCalled();
 
-    // today is Luke's alone
+    // today is Lyle's alone
     loadScheduleDay.mockImplementationOnce(async (_o: string, dayISO: string) => ({
       dayISO,
-      activities: [act("a3", "j2", "sm8-luke", "13:00", "14:00")],
-      staff: [{ uuid: "sm8-luke", name: "Luke Ingold" }],
+      activities: [act("a3", "j2", "sm8-lyle", "13:00", "14:00")],
+      staff: [{ uuid: "sm8-lyle", name: "Lyle Irving" }],
       jobs: [mirror("j2")],
       onSite: [],
       addresses: { j1: "Carrington St", j2: "Brightmore St" },
@@ -593,7 +593,7 @@ describe("the day's new fields", () => {
       onSite: [],
       addresses: { j1: "Carrington St", j2: "Brightmore St" },
     }));
-    sm8StaffLinkMap.mockImplementationOnce(async () => new Map([["sm8-luke", "s-luke"]]));
+    sm8StaffLinkMap.mockImplementationOnce(async () => new Map([["sm8-lyle", "s-lyle"]]));
     expect((await loadDashboard()).rail.next).toBeNull();
     expect(loadNextDay).not.toHaveBeenCalled();
   });

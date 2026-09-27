@@ -406,7 +406,7 @@ function faceOf(item: AttentionItem): Face {
            from every other note in the diary: somebody was asked — and the
            quote drops the handles, because a row that opens with the name
            has already done the addressing. Live data made that obvious:
-           `Luke Ingold — "@LukeIngold Bill 90%"` names him twice in one
+           `Lyle Irving — "@LyleIrving Bill 90%"` names him twice in one
            line. */
         title: `${item.named.map((n) => n.name).join(" and ")} — ${quoted(withoutHandles(item.text), 90)}`,
         meta: [item.author, dayOf(item.at), "Mentioned in ServiceM8"].filter(Boolean).join(", "),

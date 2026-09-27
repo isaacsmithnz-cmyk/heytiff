@@ -101,10 +101,10 @@ const TENANT = "vendor-1";
 const JOB = "0f8c2b9e-1111-4a4a-8b8b-000000000001";
 const CLAIM = "0f8c2b9e-1111-4a4a-8b8b-0000000000c1";
 const ISAAC_SM8 = "5a1b2c3d-0000-4000-8000-00000000aaaa";
-const LUKE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
-/** Luke's note on the job, asking Isaac */
+const LYLE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
+/** Lyle's note on the job, asking Isaac */
 const ASK = "7e7e7e7e-0000-4000-8000-00000000a5c1";
-/** Luke's note on a claim, asking Isaac */
+/** Lyle's note on a claim, asking Isaac */
 const CLAIM_ASK = "7e7e7e7e-0000-4000-8000-00000000a5c2";
 /** a note that asks nobody */
 const PLAIN = "7e7e7e7e-0000-4000-8000-00000000a5c3";
@@ -201,15 +201,15 @@ beforeEach(() => {
   ];
   fake.db.integration_links = [
     { id: "l1", org_id: ORG, provider: "servicem8", kind: "staff", tenant_id: TENANT, staff_profile_id: "staff-isaac", remote_id: ISAAC_SM8, confirmed_remote_id: ISAAC_SM8, confirmed_answer: "yes" },
-    { id: "l2", org_id: ORG, provider: "servicem8", kind: "staff", tenant_id: TENANT, staff_profile_id: "staff-luke", remote_id: LUKE_SM8, confirmed_remote_id: LUKE_SM8, confirmed_answer: "yes" },
+    { id: "l2", org_id: ORG, provider: "servicem8", kind: "staff", tenant_id: TENANT, staff_profile_id: "staff-lyle", remote_id: LYLE_SM8, confirmed_remote_id: LYLE_SM8, confirmed_answer: "yes" },
   ];
   fake.db.sm8_staff = [
     { org_id: ORG, uuid: ISAAC_SM8, first: "Isaac", last: "Smith", active: 1 },
-    { org_id: ORG, uuid: LUKE_SM8, first: "Luke", last: "Ingold", active: 1 },
+    { org_id: ORG, uuid: LYLE_SM8, first: "Lyle", last: "Irving", active: 1 },
   ];
   fake.db.staff_profiles = [
     { org_id: ORG, id: "staff-isaac", first_name: "Isaac", last_name: "Smith", full_name: null, preferred_name: null },
-    { org_id: ORG, id: "staff-luke", first_name: "Luke", last_name: "Ingold", full_name: null, preferred_name: null },
+    { org_id: ORG, id: "staff-lyle", first_name: "Lyle", last_name: "Irving", full_name: null, preferred_name: null },
   ];
   fake.db.sm8_jobs = [
     { org_id: ORG, uuid: JOB, active: 1, generated_job_id: "2380", status: "Work Order" },
@@ -223,7 +223,7 @@ beforeEach(() => {
     create_date: "2026-09-20 09:00:00",
     action_required: "0",
     action_completed_by_staff_uuid: null,
-    edit_by_staff_uuid: LUKE_SM8,
+    edit_by_staff_uuid: LYLE_SM8,
     edit_date: EDITED,
     active: 1,
     ...over,
@@ -259,14 +259,14 @@ afterAll(() => {
 
 describe("the words a reply goes with", () => {
   it("replyText addresses the asker, keeps the words alone without one, and leaves other languages as said", () => {
-    expect(replyText("lukeingold", "on my way")).toBe("@lukeingold on my way");
+    expect(replyText("lyleirving", "on my way")).toBe("@lyleirving on my way");
     expect(replyText(null, "on my way")).toBe("on my way");
-    expect(replyText("lukeingold", "Tôi đang đến")).toBe("@lukeingold Tôi đang đến");
+    expect(replyText("lyleirving", "Tôi đang đến")).toBe("@lyleirving Tôi đang đến");
   });
 
-  it("mentionedHandles finds @LukeIngold. and not luke@x.com", () => {
-    expect(mentionedHandles("Thanks @LukeIngold.", ["lukeingold"])).toEqual(["lukeingold"]);
-    expect(mentionedHandles("mail luke@x.com", ["lukeingold"])).toEqual([]);
+  it("mentionedHandles finds @LyleIrving. and not lyle@x.com", () => {
+    expect(mentionedHandles("Thanks @LyleIrving.", ["lyleirving"])).toEqual(["lyleirving"]);
+    expect(mentionedHandles("mail lyle@x.com", ["lyleirving"])).toEqual([]);
   });
 });
 
@@ -372,12 +372,12 @@ describe("replying to a note that mentions you", () => {
       author_id: "staff-isaac",
       reply_to_sm8_note_uuid: ASK,
       status: "applied",
-      applied: { jobNotes: ["@lukeingold on my way"], sm8Text: "@lukeingold on my way" },
+      applied: { jobNotes: ["@lyleirving on my way"], sm8Text: "@lyleirving on my way" },
     });
     expect(noteRow(composeId)!.applied_at).toBeTruthy();
     expect(createOf(composeId)).toMatchObject({ subject: `jobnote:${composeId}`, sm8_job_uuid: JOB, payload: { name: "Reply" } });
     expect(postSm8Note).toHaveBeenCalledTimes(1);
-    expect(postSm8Note.mock.calls[0][1]).toMatchObject({ relatedUuid: JOB, text: "@lukeingold on my way", asStaffUuid: ISAAC_SM8 });
+    expect(postSm8Note.mock.calls[0][1]).toMatchObject({ relatedUuid: JOB, text: "@lyleirving on my way", asStaffUuid: ISAAC_SM8 });
     // the line, as the person who sent it reads it
     if (!r.ok) throw new Error("reply refused");
     expect(r.note.state).toMatchObject({ key: "line.sent", acts: ["undo"] });
@@ -398,13 +398,13 @@ describe("replying to a note that mentions you", () => {
     expect(noteRow(composeId)).toMatchObject({
       transcript: "Tôi đang đến",
       source: "voice",
-      applied: { jobNotes: ["@lukeingold I'm on my way"], sm8Text: "@lukeingold Tôi đang đến" },
+      applied: { jobNotes: ["@lyleirving I'm on my way"], sm8Text: "@lyleirving Tôi đang đến" },
     });
-    expect(createOf(composeId)).toMatchObject({ status: "failed", note_text: "@lukeingold Tôi đang đến" });
+    expect(createOf(composeId)).toMatchObject({ status: "failed", note_text: "@lyleirving Tôi đang đến" });
     // Send again: the words as said, never the English
     expect(await sendJobNoteToServiceM8({ jobUuid: JOB, noteId: composeId })).toMatchObject({ ok: true });
     expect(postSm8Note).toHaveBeenCalledTimes(2);
-    expect(postSm8Note.mock.calls[1][1]).toMatchObject({ text: "@lukeingold Tôi đang đến" });
+    expect(postSm8Note.mock.calls[1][1]).toMatchObject({ text: "@lyleirving Tôi đang đến" });
   });
 
   describe("is refused with nothing saved, and the words stay in the box", () => {
@@ -507,8 +507,8 @@ describe("replying to a note that mentions you", () => {
   });
 
   describe("(F) a note that no longer stands is not answered, and nothing is saved or queued", () => {
-    /** Isaac's two replies to Luke's ask, both in ServiceM8; each mentions
-        Luke, so Luke may answer either. */
+    /** Isaac's two replies to Lyle's ask, both in ServiceM8; each mentions
+        Lyle, so Lyle may answer either. */
     const twoSent = async () => {
       const a = newId();
       const b = newId();
@@ -518,8 +518,8 @@ describe("replying to a note that mentions you", () => {
       expect(createOf(b)).toMatchObject({ status: "sent" });
       return { a, b, aUuid: createOf(a)!.remote_uuid as string, bUuid: createOf(b)!.remote_uuid as string };
     };
-    const lukeAnswers = (sourceNoteUuid: string) => {
-      as("staff-luke");
+    const lyleAnswers = (sourceNoteUuid: string) => {
+      as("staff-lyle");
       return reply({ sourceNoteUuid, words: "cheers" });
     };
     const nothingNew = (notesBefore: number, writesBefore: number) => {
@@ -540,10 +540,10 @@ describe("replying to a note that mentions you", () => {
       expect(deleteOf(a)).toMatchObject({ status: "queued" });
       conn().write_mode = "live";
       const [n, w] = [notes().length, writes().length];
-      expect(await lukeAnswers(aUuid)).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
+      expect(await lyleAnswers(aUuid)).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
       nothingNew(n, w);
       // the one still standing is answered as ever
-      expect(await lukeAnswers(bUuid)).toMatchObject({ ok: true, note: { replyTo: bUuid } });
+      expect(await lyleAnswers(bUuid)).toMatchObject({ ok: true, note: { replyTo: bUuid } });
     });
 
     it("one of ours whose create was closed by a take-back that stopped before its row was removed", async () => {
@@ -551,7 +551,7 @@ describe("replying to a note that mentions you", () => {
       createOf(a)!.taken_back_at = new Date().toISOString();
       expect(noteRow(a)!.removed_at).toBeNull();
       const [n, w] = [notes().length, writes().length];
-      expect(await lukeAnswers(aUuid)).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
+      expect(await lyleAnswers(aUuid)).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
       nothingNew(n, w);
     });
 
@@ -560,15 +560,15 @@ describe("replying to a note that mentions you", () => {
       noteRow(a)!.removed_at = new Date().toISOString();
       expect(createOf(a)!.taken_back_at).toBeNull();
       const [n, w] = [notes().length, writes().length];
-      expect(await lukeAnswers(aUuid)).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
+      expect(await lyleAnswers(aUuid)).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
       nothingNew(n, w);
     });
 
     it("one of ours taken back whose copy the mirror still holds as active (the sync hasn't caught up)", async () => {
       const { a, aUuid, bUuid } = await twoSent();
       for (const [uuid, text] of [
-        [aUuid, "@lukeingold on my way"],
-        [bUuid, "@lukeingold grilles ordered"],
+        [aUuid, "@lyleirving on my way"],
+        [bUuid, "@lyleirving grilles ordered"],
       ]) {
         fake.db.sm8_job_notes.push({
           org_id: ORG,
@@ -587,9 +587,9 @@ describe("replying to a note that mentions you", () => {
       await takeBackJobNote({ jobUuid: JOB, noteId: a });
       conn().write_mode = "live";
       const [n, w] = [notes().length, writes().length];
-      expect(await lukeAnswers(aUuid)).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
+      expect(await lyleAnswers(aUuid)).toEqual({ ok: false, error: NOTE_WORDS.press.noNote });
       nothingNew(n, w);
-      expect(await lukeAnswers(bUuid)).toMatchObject({ ok: true });
+      expect(await lyleAnswers(bUuid)).toMatchObject({ ok: true });
     });
 
     it("and where that can't be read, nothing is saved on a guess", async () => {
@@ -606,7 +606,7 @@ describe("replying to a note that mentions you", () => {
 describe("sending a diary entry", () => {
   it("(F) only its author; anyone else is refused and nothing is queued", async () => {
     const id = seedEntry();
-    as("staff-luke");
+    as("staff-lyle");
     expect(await sendJobNoteToServiceM8({ jobUuid: JOB, noteId: id })).toEqual({ ok: false, error: NOTE_WORDS.press.notAuthor });
     expect(writes()).toHaveLength(0);
     as("staff-isaac");
@@ -680,7 +680,7 @@ describe("\"Is <name> you?\"", () => {
   });
 
   it("(F) Yes after an owner relinked you says so and confirms nothing", async () => {
-    fake.db.integration_links[0].remote_id = LUKE_SM8.replace("bbbb", "cccc");
+    fake.db.integration_links[0].remote_id = LYLE_SM8.replace("bbbb", "cccc");
     expect(await confirmMySm8Link({ remoteId: ISAAC_SM8, answer: "yes" })).toEqual({ ok: false, error: NOTE_WORDS.press.linkChanged });
     expect(fake.db.integration_links[0].confirmed_answer).toBeNull();
   });
@@ -692,8 +692,8 @@ describe("\"Is <name> you?\"", () => {
   });
 
   it("answers only for your own card", async () => {
-    await confirmMySm8Link({ remoteId: LUKE_SM8, answer: "yes" });
-    expect(fake.db.integration_links[1]).toMatchObject({ confirmed_answer: "yes" }); // Luke's own, untouched
+    await confirmMySm8Link({ remoteId: LYLE_SM8, answer: "yes" });
+    expect(fake.db.integration_links[1]).toMatchObject({ confirmed_answer: "yes" }); // Lyle's own, untouched
     expect(fake.db.integration_links[0].confirmed_answer).toBeNull();
   });
 });
@@ -740,7 +740,7 @@ describe("taking a Mark done back", () => {
 
   it("(F) somebody else's Undo names who marked it, and their card offers them no Undo", async () => {
     await mark();
-    as("staff-luke");
+    as("staff-lyle");
     expect(await undo()).toMatchObject({ ok: false, error: "Only Isaac Smith, who marked it done, can take that back." });
     expect(writes().find((w) => w.op === "update")).toMatchObject({ status: "queued" });
     const states = await readJobNoteStates({ jobUuid: JOB });
@@ -810,7 +810,7 @@ describe("Undo and Remove on a note that went, or was queued", () => {
 
   describe("(F) (verifier r2 1) by anyone but its sender: refused, naming them, and nothing queued", () => {
     const refusedFor = async (id: string) => {
-      as("staff-luke");
+      as("staff-lyle");
       const before = JSON.stringify(writes());
       expect(await takeBackJobNote({ jobUuid: JOB, noteId: id })).toEqual({
         ok: false,
@@ -858,7 +858,7 @@ describe("Undo and Remove on a note that went, or was queued", () => {
 describe("Remove (removeJobNote)", () => {
   it("a plain entry that never left HeyTiff is deleted, by anyone with Workboard access", async () => {
     const id = seedEntry();
-    as("staff-luke");
+    as("staff-lyle");
     expect(await removeJobNote(id)).toEqual({ ok: true, gone: true });
     expect(noteRow(id)).toBeUndefined();
   });
@@ -896,7 +896,7 @@ describe("Remove (removeJobNote)", () => {
   it("someone else can't remove a copy that went", async () => {
     const id = seedEntry();
     await sendJobNoteToServiceM8({ jobUuid: JOB, noteId: id });
-    as("staff-luke");
+    as("staff-lyle");
     expect(await removeJobNote(id)).toEqual({ ok: false, error: "Only Isaac Smith, who sent it, can take it out of ServiceM8." });
     expect(noteRow(id)!.removed_at).toBeNull();
   });
@@ -908,7 +908,7 @@ describe("Remove (removeJobNote)", () => {
     await takeBackJobNote({ jobUuid: JOB, noteId: id });
     expect(noteRow(id)!.removed_at).toBeTruthy();
     const before = JSON.stringify(writes());
-    as("staff-luke");
+    as("staff-lyle");
     expect(await removeJobNote(id)).toEqual({ ok: false, error: "Only Isaac Smith, who sent it, can take it out of ServiceM8." });
     expect(JSON.stringify(writes())).toBe(before);
     expect(noteRow(id)).toBeDefined();
@@ -952,7 +952,7 @@ describe("Remove (removeJobNote)", () => {
     expect(noteRow(mine.id)!.removed_at).toBeTruthy();
     expect(createOf(mine.id)).toMatchObject({ status: "cancelled" });
 
-    const theirs = await race("staff-luke");
+    const theirs = await race("staff-lyle");
     expect(theirs.r).toEqual({ ok: false, error: "Only Isaac Smith, who sent it, can take it out of ServiceM8." });
     expect(noteRow(theirs.id)!.removed_at).toBeNull();
     expect(createOf(theirs.id)).toMatchObject({ status: "queued" });
@@ -988,7 +988,7 @@ describe("the pen saves once per compose id (verifier r2 12)", () => {
   it("someone else's id is never theirs to write under", async () => {
     const id = newId();
     await addJobNote(JOB, "mine", { id });
-    as("staff-luke");
+    as("staff-lyle");
     await expect(addJobNote(JOB, "mine", { id })).rejects.toThrow("Couldn't save that note");
     expect(notes()).toHaveLength(1);
   });
@@ -1004,7 +1004,7 @@ describe("readJobNoteStates", () => {
     const s = await readJobNoteStates({ jobUuid: JOB });
     expect(s!.ours[a]).toMatchObject({ key: "line.waitingWhy", acts: ["undo"] });
     expect(s!.flags[FLAG]).toMatchObject({ key: "flag.flagged", acts: ["mark_done"] });
-    as("staff-luke");
+    as("staff-lyle");
     expect((await readJobNoteStates({ jobUuid: JOB }))!.ours[a].acts).toEqual([]);
   });
 });

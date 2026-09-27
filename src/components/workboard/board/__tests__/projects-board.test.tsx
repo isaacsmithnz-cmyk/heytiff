@@ -149,7 +149,7 @@ function data(over: Partial<ProjectsBoardData> = {}): ProjectsBoardData {
     projects: [projectFix({ id: "p-1" })],
     visits: [],
     staff: [
-      { id: "s-1", name: "Luke Nguyen" },
+      { id: "s-1", name: "Lyle Nguyen" },
       { id: "s-2", name: "Mia Ortiz" },
     ],
     ...over,
@@ -579,7 +579,7 @@ describe("the project card — one card, every booking on it", () => {
     jobNumber: "279",
     role: "primary",
     provider: "servicem8",
-    remoteId: "e4ba0fc4-2977-4962-b8d6-2147021fda7b",
+    remoteId: "e4e4e4e4-0000-4000-8000-000000000279",
     mirrorStatus: "Work Order",
     mirrorNextStart: null,
   };

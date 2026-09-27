@@ -105,10 +105,10 @@ describe("on a deployment that sends files only (production today)", () => {
   });
 
   it("(F) taskFromJobNote makes no queue read", async () => {
-    fake.db.staff_profiles = [{ org_id: ORG, id: "staff-luke" }];
+    fake.db.staff_profiles = [{ org_id: ORG, id: "staff-lyle" }];
     fake.db.tasks = [];
     fake.db.job_note_actions = [];
-    const r = await taskFromJobNote({ jobUuid: JOB, noteUuid: OURS, title: "Order the grilles", assigneeId: "staff-luke" });
+    const r = await taskFromJobNote({ jobUuid: JOB, noteUuid: OURS, title: "Order the grilles", assigneeId: "staff-lyle" });
     expect(r.ok).toBe(true);
     expect(writesTouched()).toHaveLength(0);
   });
@@ -164,7 +164,7 @@ describe("where the deployment sends notes", () => {
   });
 
   it("(F) taskFromJobNote refuses a note HeyTiff sent", async () => {
-    const r = await taskFromJobNote({ jobUuid: JOB, noteUuid: OURS, title: "x", assigneeId: "staff-luke" });
+    const r = await taskFromJobNote({ jobUuid: JOB, noteUuid: OURS, title: "x", assigneeId: "staff-lyle" });
     expect(r).toEqual({ ok: false, error: "That note is no longer here." });
   });
 

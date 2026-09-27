@@ -62,7 +62,7 @@ const retrieveForQuestion = jest.fn(async () => ({
     {
       title: "Clearing an E6",
       category: "field",
-      heading: "Learned on the job — Luke, Wed 6 Aug",
+      heading: "Learned on the job — Lyle, Wed 6 Aug",
       pageFrom: 1,
       pageTo: 1,
       content: "Power the outdoor board separately.",
@@ -146,11 +146,11 @@ describe("openTaskLoad", () => {
       { assigned_to: "s-2", due_date: null },
     ];
     lists.staff_profiles = [
-      { id: "s-1", first_name: "Luke", last_name: "Mercer", full_name: "Luke Mercer" },
+      { id: "s-1", first_name: "Lyle", last_name: "Mercer", full_name: "Lyle Mercer" },
       { id: "s-2", first_name: "Dane", last_name: "P", full_name: "Dane P" },
     ];
     const load = await openTaskLoad("org-1", "2026-08-06");
-    expect(load[0]).toMatchObject({ name: "Luke Mercer", open: 3, overdue: 1 });
+    expect(load[0]).toMatchObject({ name: "Lyle Mercer", open: 3, overdue: 1 });
     expect(load[1]).toMatchObject({ open: 1, overdue: 0 });
   });
 });
@@ -233,7 +233,7 @@ describe("the registry", () => {
     expect(items[0]).toMatchObject({
       title: "Clearing an E6",
       category: "field",
-      heading: "Learned on the job — Luke, Wed 6 Aug",
+      heading: "Learned on the job — Lyle, Wed 6 Aug",
       pages: "1",
     });
   });

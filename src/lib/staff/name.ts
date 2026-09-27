@@ -113,7 +113,7 @@ export function seedNameFor(
 }
 
 /* WHETHER A STORED FIRST NAME COULD BE SOMEBODY'S NAME, for prefilling a form
-   only. A seed from an address prefix can be `luke` — plausible, so offered
+   only. A seed from an address prefix can be `lyle` — plausible, so offered
    back to be corrected — or `isaacsmithnz+test`, which is a handle and would
    sit in the box looking like a mistake the person has to delete before they
    can type. Letters, spaces, hyphens, apostrophes and full stops; nothing

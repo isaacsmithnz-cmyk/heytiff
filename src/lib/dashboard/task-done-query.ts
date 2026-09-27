@@ -1,7 +1,7 @@
 /* A TASK'S DONE, AS THE TASK SHOWS IT — server only (two-way phase 2, PR C).
 
    Ticking a task made from a ServiceM8 mention files a Done in the job's
-   diary ("@lukeingold Done.", threaded under Luke's note) and sends it to
+   diary ("@lyleirving Done.", threaded under Lyle's note) and sends it to
    ServiceM8 as whoever ticked (actions/task-sm8). The diary draws that row
    like any reply of ours. This module is the other two places it shows:
 

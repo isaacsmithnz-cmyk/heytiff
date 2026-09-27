@@ -25,7 +25,7 @@ import { DeskJobHost } from "../home-job-sheet";
    onto the desk's one card, Reply into ServiceM8, the light on his newest
    message, a door from another face, and the diary asking for the page
    again. The people and the jobs are the real ones the design was drawn
-   from (Luke's asks of Isaac in September 2026); the replies are
+   from (Lyle's asks of Isaac in September 2026); the replies are
    examples.
 
    The diary is the real one, inside the desk's real card host; the card
@@ -78,7 +78,7 @@ jest.mock("@/components/workboard/board/job-sheet", () => ({
 
 const TODAY = "2026-09-25";
 const ISAAC: Sm8Person = { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" };
-const LUKE: Sm8Person = { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" };
+const LYLE: Sm8Person = { uuid: "u-lyle", handle: "lyleirving", name: "Lyle Irving", first: "Lyle" };
 const J2041 = "3f2b8c1e-0d4a-4b6f-9a2e-1c5d7e9f0a11";
 const J2749 = "7a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
 const JOBS = new Map([
@@ -93,10 +93,10 @@ const note = (uuid: string, jobUuid: string, author: string, at: string, text: s
   at,
   text,
 });
-const ASK = note("n-ask", J2041, LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary to discuss");
-const HIS_NUMBER = note("n-num", J2041, LUKE.uuid, "2026-09-22 09:42:00", "her number is on the card");
-const MINE = note("n-mine", J2041, ISAAC.uuid, "2026-09-22 15:10:00", "@lukeingold calling her this afternoon");
-const HIS_ANSWER = note("n-thanks", J2041, LUKE.uuid, `${TODAY} 08:15:00`, "@isaacsmith thanks, she's expecting you");
+const ASK = note("n-ask", J2041, LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary to discuss");
+const HIS_NUMBER = note("n-num", J2041, LYLE.uuid, "2026-09-22 09:42:00", "her number is on the card");
+const MINE = note("n-mine", J2041, ISAAC.uuid, "2026-09-22 15:10:00", "@lyleirving calling her this afternoon");
+const HIS_ANSWER = note("n-thanks", J2041, LYLE.uuid, `${TODAY} 08:15:00`, "@isaacsmith thanks, she's expecting you");
 
 const SICK: DiaryEntry = {
   id: "e1",
@@ -125,7 +125,7 @@ const diaryOf = (
     conversations: buildConversations({
       notes,
       me: { uuid: ISAAC.uuid, handle: ISAAC.handle },
-      people: [ISAAC, LUKE],
+      people: [ISAAC, LYLE],
       jobs: JOBS,
       today: TODAY,
       ...(opts.replies ? { replies: opts.replies } : {}),
@@ -173,14 +173,14 @@ const Face = ({ diary, focus = null, tiffOpen = false, showing = true, onPage = 
     </DeskJobHost>
   </TiffContext.Provider>
 );
-/** The diary with the tasks Luke's asks made (H18). */
+/** The diary with the tasks Lyle's asks made (H18). */
 const withTasks = (diary: DeskDiary, tasks: AskTask[]): DeskDiary => {
   const give = (i: DiaryItem): DiaryItem =>
     i.kind === "conversation" ? { ...i, conversation: { ...i.conversation, tasks } } : i;
   return { ...diary, feed: { ...diary.feed, today: diary.feed.today.map(give), earlier: diary.feed.earlier.map(give) } };
 };
 const draw = (p: Props) => render(<Face {...p} />);
-const talk = () => document.querySelector<HTMLElement>(`[data-conversation="${J2041}:u-luke"]`)!;
+const talk = () => document.querySelector<HTMLElement>(`[data-conversation="${J2041}:u-lyle"]`)!;
 const headOf = (li: HTMLElement) => li.querySelector<HTMLElement>(":scope > .hd-dy-en")!;
 const thread = (li: HTMLElement) => [...li.querySelectorAll<HTMLElement>(".hd-dy-tr")];
 const lit = (el: Element) => el.hasAttribute("data-lit");
@@ -201,7 +201,7 @@ describe("a conversation", () => {
     expect(disc).toHaveTextContent("LI");
     expect(disc).toHaveAttribute("data-who", "them");
     expect(disc).toHaveAttribute("aria-hidden", "true");
-    expect(headOf(li).querySelector(".hd-dy-m")!.textContent).toBe("Luke Ingold to you, Mon 21 Sept, 1:42 pm");
+    expect(headOf(li).querySelector(".hd-dy-m")!.textContent).toBe("Lyle Irving to you, Mon 21 Sept, 1:42 pm");
     expect(within(li).getByText("Please call Mary to discuss")).toHaveClass("hd-dy-p");
     expect(li).not.toHaveTextContent("@isaacsmith");
   });
@@ -210,9 +210,9 @@ describe("a conversation", () => {
     draw({ diary: diaryOf([HIS_ANSWER, MINE, ASK, HIS_NUMBER]) });
     const rows = thread(talk());
     expect(rows.map((r) => r.querySelector(".hd-dy-m")!.textContent)).toEqual([
-      "Luke Ingold, Tue 22 Sept, 9:42 am",
-      "You to Luke, Tue 22 Sept, 3:10 pm",
-      "Luke Ingold to you, 8:15 am",
+      "Lyle Irving, Tue 22 Sept, 9:42 am",
+      "You to Lyle, Tue 22 Sept, 3:10 pm",
+      "Lyle Irving to you, 8:15 am",
     ]);
     expect(rows.map((r) => r.querySelector(".hd-dy-p")!.textContent)).toEqual([
       "her number is on the card",
@@ -238,7 +238,7 @@ describe("a conversation", () => {
     // your reply on the 22nd does not move it above your entry of the 23rd
     expect([...earlier.children].map((li) => (li as HTMLElement).dataset.item)).toEqual([
       "entry:e1",
-      `mention:${J2041}:u-luke`,
+      `mention:${J2041}:u-lyle`,
     ]);
   });
 });
@@ -260,7 +260,7 @@ describe("a reply of yours from HeyTiff", () => {
     id: "wn-reply",
     to,
     jobUuid: J2041,
-    words: "@lukeingold calling her now",
+    words: "@lyleirving calling her now",
     at: `${TODAY} 09:10:00`,
     savedAt: `${TODAY}T09:10:00Z`,
     line,
@@ -273,7 +273,7 @@ describe("a reply of yours from HeyTiff", () => {
     at: "9:10 am",
     stamp: `${TODAY} 09:10`,
     spoken: false,
-    reply: { to, jobUuid: J2041, words: "@lukeingold calling her now", at: `${TODAY} 09:10:00`, savedAt: `${TODAY}T09:10:00Z`, line },
+    reply: { to, jobUuid: J2041, words: "@lyleirving calling her now", at: `${TODAY} 09:10:00`, savedAt: `${TODAY}T09:10:00Z`, line },
   });
   const withReply = (line: ReplyLine | null, to = "n-ask", ask = ASK) =>
     diaryOf([ask], { entries: [entryOf(line, to)], replies: [reply(line, to)] });
@@ -281,10 +281,10 @@ describe("a reply of yours from HeyTiff", () => {
 
   it("is in the thread as you to him, from the moment it was saved, saying where it stands — and not again as your entry", () => {
     // his ask of this morning, answered before the sync brought anything back
-    const asked = note("n-ask", J2041, LUKE.uuid, `${TODAY} 08:00:00`, "@isaacsmith Please call Mary to discuss");
+    const asked = note("n-ask", J2041, LYLE.uuid, `${TODAY} 08:00:00`, "@isaacsmith Please call Mary to discuss");
     draw({ diary: withReply(SENDING, "n-ask", asked) });
     const [row] = thread(talk());
-    expect(row.querySelector(".hd-dy-m")!.textContent).toBe("You to Luke, 9:10 am");
+    expect(row.querySelector(".hd-dy-m")!.textContent).toBe("You to Lyle, 9:10 am");
     expect(row.querySelector(".hd-dy-p")!.textContent).toBe("calling her now");
     expect(within(row).getByText("Sending to ServiceM8…")).toHaveClass("hd-dy-note");
     expect(within(lineOf()).queryByRole("button")).toBeNull();
@@ -539,7 +539,7 @@ describe("a reply of yours from HeyTiff", () => {
       const user = userEvent.setup();
       draw({ diary: inSm8(SENDING) });
       await user.click(within(talk().querySelector<HTMLElement>(".hd-dy-mh")!).getByRole("button", { name: "Hide" }));
-      expect(talk()).toHaveTextContent("Hidden until Luke writes again.");
+      expect(talk()).toHaveTextContent("Hidden until Lyle writes again.");
       expect(document.querySelector('[data-reply-line="wn-reply"]')).toBeNull();
       expect(document.querySelector('[data-entry="wn-reply"]')).toBeNull();
     });
@@ -576,8 +576,8 @@ describe("under it", () => {
   /* #809: nothing goes to a job its business deleted — said in the Diary
      spec's words, verbatim, the card's own for a job that has gone. */
   it("is no door and no Reply on a job ServiceM8 has deleted, and says so", () => {
-    draw({ diary: diaryOf([note("n-holly", J2749, LUKE.uuid, "2026-09-09 10:04:00", "@isaacsmith can you advise Holly")]) });
-    const li = document.querySelector<HTMLElement>(`[data-conversation="${J2749}:u-luke"]`)!;
+    draw({ diary: diaryOf([note("n-holly", J2749, LYLE.uuid, "2026-09-09 10:04:00", "@isaacsmith can you advise Holly")]) });
+    const li = document.querySelector<HTMLElement>(`[data-conversation="${J2749}:u-lyle"]`)!;
     const under = li.querySelector<HTMLElement>(".hd-dy-doors")!;
     expect(within(under).queryByRole("button")).toBeNull();
     expect(within(under).queryByRole("link")).toBeNull();
@@ -662,19 +662,19 @@ describe("his newest message", () => {
     const today = screen.getByRole("region", { name: "Today" });
     expect(within(today).queryByText("Nothing yet.")).toBeNull();
     expect(within(today).getAllByRole("listitem")[0]).toBe(talk());
-    expect(headOf(talk()).querySelector(".hd-dy-m")!.textContent).toBe("Luke Ingold to you, Mon 21 Sept, 1:42 pm");
+    expect(headOf(talk()).querySelector(".hd-dy-m")!.textContent).toBe("Lyle Irving to you, Mon 21 Sept, 1:42 pm");
     expect(thread(talk()).map(lit)).toEqual([false, true]);
     // his reply is lit, not the whole conversation
     expect(lit(headOf(talk()))).toBe(false);
   });
 
   it("lights the whole conversation when the ask itself is today's", () => {
-    draw({ diary: diaryOf([note("n-today", J2041, LUKE.uuid, `${TODAY} 07:00:00`, "@isaacsmith call Mary")]) });
+    draw({ diary: diaryOf([note("n-today", J2041, LYLE.uuid, `${TODAY} 07:00:00`, "@isaacsmith call Mary")]) });
     expect(lit(headOf(talk()))).toBe(true);
   });
 
   it("is not lit once you have answered it, nor from before today", () => {
-    draw({ diary: diaryOf([ASK, MINE, HIS_ANSWER, note("n-done", J2041, ISAAC.uuid, `${TODAY} 09:00:00`, "@lukeingold done")]) });
+    draw({ diary: diaryOf([ASK, MINE, HIS_ANSWER, note("n-done", J2041, ISAAC.uuid, `${TODAY} 09:00:00`, "@lyleirving done")]) });
     expect(thread(talk()).map(lit)).toEqual([false, false, false]);
     expect(lit(headOf(talk()))).toBe(false);
     cleanup();
@@ -697,7 +697,7 @@ describe("his newest message", () => {
     rerender(<Face diary={diaryOf([ASK, MINE, HIS_ANSWER])} />);
     expect(thread(talk()).map(lit)).toEqual([false, false]);
     // and again with another from him
-    const more = note("n-more", J2041, LUKE.uuid, `${TODAY} 10:30:00`, "@isaacsmith she rang back");
+    const more = note("n-more", J2041, LYLE.uuid, `${TODAY} 10:30:00`, "@isaacsmith she rang back");
     rerender(<Face diary={diaryOf([ASK, MINE, HIS_ANSWER, more])} />);
     expect(thread(talk()).map(lit)).toEqual([false, false, true]);
   });
@@ -1008,8 +1008,8 @@ describe("hiding it", () => {
     const user = userEvent.setup();
     draw({ diary: diaryOf([ASK, HIS_NUMBER]) });
     await user.click(hideOf());
-    expect(hideConversation).toHaveBeenCalledWith(`${J2041}:u-luke`);
-    expect(talk()).toHaveTextContent("Hidden until Luke writes again.");
+    expect(hideConversation).toHaveBeenCalledWith(`${J2041}:u-lyle`);
+    expect(talk()).toHaveTextContent("Hidden until Lyle writes again.");
     expect(talk().querySelector(".hd-dy-p")).toBeNull();
     expect(document.activeElement).toBe(within(talk()).getByRole("button", { name: "Undo" }));
   });
@@ -1019,7 +1019,7 @@ describe("hiding it", () => {
     draw({ diary: diaryOf([ASK]) });
     await user.click(hideOf());
     await user.click(within(talk()).getByRole("button", { name: "Undo" }));
-    expect(showConversation).toHaveBeenCalledWith(`${J2041}:u-luke`);
+    expect(showConversation).toHaveBeenCalledWith(`${J2041}:u-lyle`);
     expect(talk().querySelector(".hd-dy-p")).toHaveTextContent("Please call Mary to discuss");
     expect(document.activeElement).toBe(hideOf());
   });

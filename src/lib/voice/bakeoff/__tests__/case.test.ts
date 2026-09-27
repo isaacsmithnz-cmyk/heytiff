@@ -4,10 +4,10 @@ import { scribeForm, mimeFor } from "../scribe";
 const good = {
   audio: "van-01.m4a",
   conditions: "van idling, windows down",
-  speaker: "Luke",
+  speaker: "Lyle",
   language: "en",
-  truth: "tell Luke we are at 36 Wyndham Street for job 337, condensate still to run",
-  expect: { job: "337", site: "36 Wyndham Street", people: ["Luke"], terms: ["condensate"] },
+  truth: "tell Lyle we are at 36 Wyndham Street for job 337, condensate still to run",
+  expect: { job: "337", site: "36 Wyndham Street", people: ["Lyle"], terms: ["condensate"] },
 };
 
 describe("parseCase", () => {
@@ -15,7 +15,7 @@ describe("parseCase", () => {
     const c = parseCase("van-01", good, "van-01.json");
     expect(c.id).toBe("van-01");
     expect(c.expect.job).toBe("337");
-    expect(c.expect.people).toEqual(["Luke"]);
+    expect(c.expect.people).toEqual(["Lyle"]);
   });
 
   it("defaults language to English when unstated", () => {
@@ -38,7 +38,7 @@ describe("parseCase", () => {
   it("rejects malformed expectation fields rather than ignoring them", () => {
     expect(() => parseCase("x", { ...good, expect: { job: 337 } })).toThrow(/expect\.job/);
     expect(() =>
-      parseCase("x", { ...good, expect: { job: "337", people: "Luke" } }),
+      parseCase("x", { ...good, expect: { job: "337", people: "Lyle" } }),
     ).toThrow(/expect\.people/);
   });
 
@@ -69,7 +69,7 @@ describe("parseCase", () => {
     expect(() =>
       parseCase("x", {
         ...good,
-        truth: "tell Luke we are at 36 Wyndham Street for job 337, condensate still to run",
+        truth: "tell Lyle we are at 36 Wyndham Street for job 337, condensate still to run",
       }),
     ).not.toThrow();
   });
@@ -83,11 +83,11 @@ describe("scribe request shape", () => {
       audio: new Uint8Array([1, 2, 3]),
       filename: "van-01.m4a",
       language: "en",
-      keyterms: ["Luke", "condensate"],
+      keyterms: ["Lyle", "condensate"],
     });
     expect(form.get("model_id")).toBe("scribe_v2");
     expect(form.get("language_code")).toBe("en");
-    expect(form.get("keyterms")).toBe('["Luke","condensate"]');
+    expect(form.get("keyterms")).toBe('["Lyle","condensate"]');
     expect(form.get("file")).toBeInstanceOf(Blob);
   });
 

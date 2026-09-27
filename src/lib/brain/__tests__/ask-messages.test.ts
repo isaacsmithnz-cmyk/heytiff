@@ -41,7 +41,7 @@ describe("askMessages", () => {
 
   it("opens on the person, alternates, and joins a question to a turn of their own", () => {
     const m = askMessages("which one?", [
-      { who: "tiff", text: "Done. A task for Luke." },
+      { who: "tiff", text: "Done. A task for Lyle." },
       { who: "you", text: "thanks" },
       { who: "you", text: "and the filters" },
       { who: "tiff", text: "  " },

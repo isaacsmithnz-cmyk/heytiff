@@ -2,11 +2,11 @@
 
 /* A TASK'S DONE, TO SERVICEM8 AND BACK (two-way phase 2, PR C).
 
-   Luke writes "@isaacsmith can you order the grilles" in ServiceM8, and a
+   Lyle writes "@isaacsmith can you order the grilles" in ServiceM8, and a
    task is made from it on the job card's strip (job_note_actions records
    which note it came from). When Isaac ticks that task by hand, HeyTiff:
-   - files a Done in the job's diary, "@lukeingold Done.", threaded under
-     Luke's note — one of HeyTiff's own rows (workboard_notes), marked
+   - files a Done in the job's diary, "@lyleirving Done.", threaded under
+     Lyle's note — one of HeyTiff's own rows (workboard_notes), marked
      is_task_done and linked to the task;
    - sends the same words to ServiceM8 as Isaac, through the one door a note
      is queued by (sm8-note-queue).
@@ -275,13 +275,13 @@ export async function sendTaskDone(input: { taskId: string }): Promise<TaskDoneR
   }
   if (standing !== true) return QUIET;
 
-  /* 6. who asked, and who it goes as: "@lukeingold Done.", or plain
+  /* 6. who asked, and who it goes as: "@lyleirving Done.", or plain
      "Done." when nobody can be named or the asker is the sender */
   const asker = await noteAskerOf(orgId, mention.sm8_note_uuid, source);
   const { sender } = await viewer();
   const text = doneText(asker, sender && "remoteId" in sender ? sender.remoteId : null);
 
-  /* 7. RECORD FIRST: the Done, in the job's diary, under Luke's note */
+  /* 7. RECORD FIRST: the Done, in the job's diary, under Lyle's note */
   const noteId = randomUUID();
   const { error } = await supabaseAdmin.from("workboard_notes").insert({
     id: noteId,

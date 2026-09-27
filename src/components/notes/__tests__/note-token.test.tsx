@@ -104,7 +104,7 @@ describe("the strip — a job card's note row", () => {
     );
   }
 
-  const WORK = "Tell Luke he needs to order the grilles before Monday";
+  const WORK = "Tell Lyle he needs to order the grilles before Monday";
 
   it("COMMITS INSTANTLY — writing a gate code must never wait on Tiff", async () => {
     mount(<Harness />);
@@ -140,7 +140,7 @@ describe("the strip — a job card's note row", () => {
   });
 
   it("offers Tiff only once the words look like a job for somebody", async () => {
-    mount(<Harness />, { staffFirstNames: ["Luke"] });
+    mount(<Harness />, { staffFirstNames: ["Lyle"] });
     await userEvent.type(screen.getByLabelText("a note for this visit"), `${WORK}{Enter}`);
     expect(await screen.findByText(/something to do in this/)).toBeInTheDocument();
     /* Still nothing opened — the offer is an offer. */
@@ -148,7 +148,7 @@ describe("the strip — a job card's note row", () => {
   });
 
   it("ignoring the offer costs nothing and leaves nothing behind", async () => {
-    mount(<Harness />, { staffFirstNames: ["Luke"] });
+    mount(<Harness />, { staffFirstNames: ["Lyle"] });
     await userEvent.type(screen.getByLabelText("a note for this visit"), `${WORK}{Enter}`);
     await screen.findByText(/something to do in this/);
     await userEvent.click(screen.getByLabelText(/leave it as a note/));
@@ -160,7 +160,7 @@ describe("the strip — a job card's note row", () => {
      it opens the Tiff modal on them now, with the same words as its first
      turn, and focus comes back to the field the offer stood under. */
   it("taking the offer opens the Tiff modal on the committed words", async () => {
-    mount(<Harness />, { staffFirstNames: ["Luke"] });
+    mount(<Harness />, { staffFirstNames: ["Lyle"] });
     await userEvent.type(screen.getByLabelText("a note for this visit"), `${WORK}{Enter}`);
     await screen.findByText(/something to do in this/);
     const look = screen.getByRole("button", { name: "Have a look" });
@@ -181,7 +181,7 @@ describe("the strip — a job card's note row", () => {
   it("keeps the offer when the modal could not open", async () => {
     /* One is already open: nothing took the words, so nothing is lost. */
     open.mockImplementation(() => false);
-    mount(<Harness />, { staffFirstNames: ["Luke"] });
+    mount(<Harness />, { staffFirstNames: ["Lyle"] });
     await userEvent.type(screen.getByLabelText("a note for this visit"), `${WORK}{Enter}`);
     await userEvent.click(await screen.findByRole("button", { name: "Have a look" }));
     expect(open).toHaveBeenCalledTimes(1);
@@ -204,10 +204,10 @@ describe("the field", () => {
   });
 
   it("says nothing about typed words — the sieve is for dictation", async () => {
-    mount(<FieldHarness />, { staffFirstNames: ["Luke"] });
+    mount(<FieldHarness />, { staffFirstNames: ["Lyle"] });
     await userEvent.type(
       screen.getByRole("textbox"),
-      "Tell Luke he needs to order the grilles before Monday"
+      "Tell Lyle he needs to order the grilles before Monday"
     );
     expect(screen.queryByText(/something to do in this/)).not.toBeInTheDocument();
   });

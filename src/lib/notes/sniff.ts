@@ -175,7 +175,7 @@ const anyOf = (hay: string, list: readonly string[]): string | null =>
   list.find((w) => hasWord(hay, w)) ?? null;
 
 /** A person's first name, spoken. The caller passes the roster, because
-    "Luke needs to order the grilles" is only a task if Luke is real —
+    "Lyle needs to order the grilles" is only a task if Lyle is real —
     and a name is the single strongest signal there is. */
 function namedPerson(hay: string, firstNames: readonly string[]): string | null {
   return firstNames.find((n) => n.length >= 2 && hasWord(hay, n.toLowerCase())) ?? null;
@@ -206,7 +206,7 @@ export function sniff(text: string, firstNames: readonly string[] = []): Sniff {
   }
 
   /* WEIGHTED TO CLEAR THE BAR ALONE, and that is a decision rather than a
-     tuned number. "Someone needs to chase the supplier" and "Tell Luke to
+     tuned number. "Someone needs to chase the supplier" and "Tell Lyle to
      order the grilles" carry exactly one signal each — an obligation — and
      both are plainly jobs for somebody. At 0.4 they fell through silently,
      which is the invisible failure this file is most afraid of. A phrase

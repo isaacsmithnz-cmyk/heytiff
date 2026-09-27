@@ -34,7 +34,7 @@ const MERIDIAN: JobCandidate = {
 const ROSTER = [ARDEX, MERIDIAN, KINGSFORD_TRIP];
 
 const SAID =
-  "Luke needs to organize some filters for Kingsford Medical Center. We're supposed to go " +
+  "Lyle needs to organize some filters for Kingsford Medical Center. We're supposed to go " +
   "there on the third of August. We need two twenty by twenty by two filters, and we also " +
   "need to hire a scissor lift to get access to the outdoor unit";
 

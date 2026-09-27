@@ -69,26 +69,26 @@ describe("pcm encoding", () => {
 
 describe("transcript accumulation", () => {
   it("shows the partial while the sentence is still in the air", () => {
-    const state = fold([{ message_type: "partial_transcript", text: "tell Luke he needs" }]);
-    expect(visibleText(state)).toBe("tell Luke he needs");
+    const state = fold([{ message_type: "partial_transcript", text: "tell Lyle he needs" }]);
+    expect(visibleText(state)).toBe("tell Lyle he needs");
     expect(state.committed).toBe("");
   });
 
   it("clears the partial once it commits", () => {
     const state = fold([
-      { message_type: "partial_transcript", text: "tell Luke he needs" },
-      { message_type: "committed_transcript", text: "Tell Luke he needs to order the grilles." },
+      { message_type: "partial_transcript", text: "tell Lyle he needs" },
+      { message_type: "committed_transcript", text: "Tell Lyle he needs to order the grilles." },
     ]);
     expect(state.partial).toBe("");
-    expect(visibleText(state)).toBe("Tell Luke he needs to order the grilles.");
+    expect(visibleText(state)).toBe("Tell Lyle he needs to order the grilles.");
   });
 
   it("joins successive segments", () => {
     const state = fold([
-      { message_type: "committed_transcript", text: "Tell Luke to order the grilles." },
+      { message_type: "committed_transcript", text: "Tell Lyle to order the grilles." },
       { message_type: "committed_transcript", text: "The rooftop unit tripped again." },
     ]);
-    expect(state.committed).toBe("Tell Luke to order the grilles. The rooftop unit tripped again.");
+    expect(state.committed).toBe("Tell Lyle to order the grilles. The rooftop unit tripped again.");
   });
 
   /* The two readings of the docs, both handled — see mergeCommitted. If the
@@ -96,10 +96,10 @@ describe("transcript accumulation", () => {
      on screen; this is the test that says it doesn't. */
   it("replaces rather than duplicates when the vendor sends cumulative text", () => {
     const state = fold([
-      { message_type: "committed_transcript", text: "Tell Luke" },
-      { message_type: "committed_transcript", text: "Tell Luke to order the grilles" },
+      { message_type: "committed_transcript", text: "Tell Lyle" },
+      { message_type: "committed_transcript", text: "Tell Lyle to order the grilles" },
     ]);
-    expect(state.committed).toBe("Tell Luke to order the grilles");
+    expect(state.committed).toBe("Tell Lyle to order the grilles");
   });
 
   it("drops a segment it already ends with", () => {
@@ -120,8 +120,8 @@ describe("transcript accumulation", () => {
   });
 
   it("keeps blank commits from padding the transcript", () => {
-    expect(mergeCommitted("Tell Luke", "   ")).toBe("Tell Luke");
-    expect(mergeCommitted("", "Tell Luke")).toBe("Tell Luke");
+    expect(mergeCommitted("Tell Lyle", "   ")).toBe("Tell Lyle");
+    expect(mergeCommitted("", "Tell Lyle")).toBe("Tell Lyle");
   });
 });
 
@@ -153,7 +153,7 @@ describe("errors", () => {
 });
 
 describe("keyterms on the live transport", () => {
-  const NAMES = ["Luke", "Dane", "Isaac", "Tiffany"];
+  const NAMES = ["Lyle", "Dane", "Isaac", "Tiffany"];
 
   it("obeys the socket's smaller caps, not the batch endpoint's", () => {
     const raw = Array.from({ length: 120 }, (_, i) => `term${i}`);

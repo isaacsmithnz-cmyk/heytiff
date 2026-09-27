@@ -24,7 +24,7 @@ jest.mock("@/app/actions/workboard-notes", () => ({
 const ASK = "7e7e7e7e-0000-4000-8000-00000000a5c1";
 const FLAG = "7e7e7e7e-0000-4000-8000-00000000f1a9";
 const ISAAC_SM8 = "5a1b2c3d-0000-4000-8000-00000000aaaa";
-const LUKE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
+const LYLE_SM8 = "5a1b2c3d-0000-4000-8000-00000000bbbb";
 const SENT_AS = "9a9a9a9a-0000-4000-8000-000000000001";
 
 type Note = Extract<StoryEntry, { kind: "note" }>;
@@ -34,14 +34,14 @@ const theirs = (over: Partial<Note> = {}): Note => ({
   key: `note:${ASK}`,
   day: "2026-09-20",
   at: "2026-09-20 09:00:00",
-  author: "Luke Ingold",
+  author: "Lyle Irving",
   text: "@isaacsmith can you order the grilles",
   actionRequired: false,
   fromClaim: null,
   origin: "servicem8",
   id: null,
   sm8Uuid: ASK,
-  authorSm8Uuid: LUKE_SM8,
+  authorSm8Uuid: LYLE_SM8,
   editedAt: "2026-09-20 09:00:00",
   ...over,
 });
@@ -52,7 +52,7 @@ const ours = (over: Partial<Note> = {}): Note => ({
   day: "2026-09-20",
   at: "2026-09-20 10:00:00",
   author: "Isaac Smith",
-  text: "@lukeingold on my way",
+  text: "@lyleirving on my way",
   actionRequired: false,
   fromClaim: null,
   origin: "heytiff",
@@ -223,29 +223,29 @@ describe("Reply", () => {
   });
 
   it("a reply of ours that went, and mentions you, can be answered too — not by its author", () => {
-    const luke: NoteSender = { state: "ready", staffUuid: LUKE_SM8, remoteId: LUKE_SM8, sm8Name: "Luke Ingold", handle: "lukeingold" };
+    const lyle: NoteSender = { state: "ready", staffUuid: LYLE_SM8, remoteId: LYLE_SM8, sm8Name: "Lyle Irving", handle: "lyleirving" };
     const sent = ours({ sm8Uuid: SENT_AS, mine: false, state: lineFor(create({ status: "sent" }), { viewerIsSender: false }) });
-    const { unmount } = draw([sent], { sender: luke });
-    expect(within(evOf("@lukeingold")).getByRole("button", { name: "Reply" })).toBeInTheDocument();
+    const { unmount } = draw([sent], { sender: lyle });
+    expect(within(evOf("@lyleirving")).getByRole("button", { name: "Reply" })).toBeInTheDocument();
     unmount();
     // not yet in ServiceM8: nothing to answer
-    draw([{ ...sent, sm8Uuid: null }], { sender: luke });
+    draw([{ ...sent, sm8Uuid: null }], { sender: lyle });
     expect(screen.queryByRole("button", { name: "Reply" })).toBeNull();
   });
 
   it("(F) one of ours its author took back is never answered, while it is still on its way out of ServiceM8", () => {
-    const luke: NoteSender = { state: "ready", staffUuid: LUKE_SM8, remoteId: LUKE_SM8, sm8Name: "Luke Ingold", handle: "lukeingold" };
+    const lyle: NoteSender = { state: "ready", staffUuid: LYLE_SM8, remoteId: LYLE_SM8, sm8Name: "Lyle Irving", handle: "lyleirving" };
     const takingOut: NoteState = { key: "line.takingOut", text: NOTE_WORDS.line.takingOut, tone: null, acts: [] };
     const stillIn: NoteState = { key: "line.stillIn", text: "Still in ServiceM8. Sending notes is switched off.", tone: "bad", acts: [] };
     for (const state of [takingOut, stillIn]) {
       /* its create went, so it still carries the uuid its copy went under */
-      const { unmount } = draw([ours({ sm8Uuid: SENT_AS, mine: false, removed: true, state })], { sender: luke });
+      const { unmount } = draw([ours({ sm8Uuid: SENT_AS, mine: false, removed: true, state })], { sender: lyle });
       expect(screen.getByText(state.text!)).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Reply" })).toBeNull();
       unmount();
     }
     // nor where the strip's Reply named it
-    draw([ours({ sm8Uuid: SENT_AS, mine: false, removed: true, state: takingOut })], { sender: luke, replyFor: SENT_AS });
+    draw([ours({ sm8Uuid: SENT_AS, mine: false, removed: true, state: takingOut })], { sender: lyle, replyFor: SENT_AS });
     expect(screen.queryByPlaceholderText(NOTE_WORDS.door.replyPlaceholder)).toBeNull();
   });
 });
@@ -267,7 +267,7 @@ describe("our own notes' lines and doors", () => {
 
   it.each(cases)("(F) (verifier r3 1) %s: your reply offers Undo, your diary entry Remove, and nobody else's anything", (_name, state) => {
     const { unmount } = draw([ours({ state })]);
-    expect(within(evOf("@lukeingold")).getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    expect(within(evOf("@lyleirving")).getByRole("button", { name: "Undo" })).toBeInTheDocument();
     expect(screen.getByText(state.text!)).toBeInTheDocument();
     expect(screen.queryByText("In HeyTiff")).toBeNull();
     unmount();
@@ -277,7 +277,7 @@ describe("our own notes' lines and doors", () => {
     entry.unmount();
 
     draw([ours({ mine: false, state: { ...state, acts: [] } })]);
-    expect(within(evOf("@lukeingold")).queryAllByRole("button")).toHaveLength(0);
+    expect(within(evOf("@lyleirving")).queryAllByRole("button")).toHaveLength(0);
   });
 
   it("a failed reply says why, with Send again and Undo", async () => {
@@ -292,23 +292,23 @@ describe("our own notes' lines and doors", () => {
   it("one removed in ServiceM8 reads so, with only Undo (Remove on an entry)", () => {
     draw([ours({ state: lineFor(create({ status: "cancelled", last_error: NOTE_WORDS.row.noteGone })) })]);
     expect(screen.getByText(NOTE_WORDS.line.removedThere)).toBeInTheDocument();
-    expect(within(evOf("@lukeingold")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Undo"]);
+    expect(within(evOf("@lyleirving")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Undo"]);
   });
 
   it("an unsure one says look first, with Send again and Undo; a cancelled or refused one, Not sent, with both", () => {
     const { unmount } = draw([ours({ state: lineFor(create({ status: "failed", maybe_landed: true })) })]);
     expect(screen.getByText(NOTE_WORDS.line.unsure)).toBeInTheDocument();
-    expect(within(evOf("@lukeingold")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Send again", "Undo"]);
+    expect(within(evOf("@lyleirving")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Send again", "Undo"]);
     unmount();
     draw([ours({ state: lineFor(null, { refusal: "unlinked" }) })]);
     expect(screen.getByText(`Not sent to ServiceM8. ${NOTE_WORDS.press.unlinked}`)).toBeInTheDocument();
-    expect(within(evOf("@lukeingold")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Send again", "Undo"]);
+    expect(within(evOf("@lyleirving")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Send again", "Undo"]);
   });
 
   it("(F) (verifier r3 3) a saved row holding the question asks it beside Undo; Yes answers for that row, Not me for nobody", async () => {
     const confirm: NoteSender = { state: "confirm", remoteId: ISAAC_SM8, sm8Name: "Isaac Smith", handle: "isaacsmith" };
     const view = draw([ours({ state: lineFor(null, { refusal: "confirm" }) })], { sender: confirm });
-    const ev = evOf("@lukeingold");
+    const ev = evOf("@lyleirving");
     expect(within(ev).getAllByText("Is Isaac Smith you?").length).toBeGreaterThan(0);
     expect(within(ev).getByRole("button", { name: "Undo" })).toBeInTheDocument();
     await userEvent.click(within(ev).getByRole("button", { name: NOTE_WORDS.door.yes }));
@@ -319,7 +319,7 @@ describe("our own notes' lines and doors", () => {
 
   it("a row that asked the question offers Send again once you've answered it elsewhere", async () => {
     const view = draw([ours({ state: lineFor(null, { refusal: "confirm" }) })]);
-    expect(within(evOf("@lukeingold")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Send again", "Undo"]);
+    expect(within(evOf("@lyleirving")).getAllByRole("button").map((b) => b.textContent)).toEqual(["Send again", "Undo"]);
     await userEvent.click(screen.getByRole("button", { name: NOTE_WORDS.door.sendAgain }));
     expect(view.onSendCopy).toHaveBeenCalledWith("r1");
   });
@@ -340,21 +340,21 @@ describe("our own notes' lines and doors", () => {
 describe("where a reply is drawn (verifier 14)", () => {
   it("(F) under the note it answers; a reply to one of ours under ours; one whose source isn't drawn in the day — never missing", () => {
     const isaacReply = ours({ sm8Uuid: SENT_AS, state: lineFor(create({ status: "sent" })) });
-    const lukeReply = ours({ key: "ournote:r2", id: "r2", text: "@isaacsmith cheers", replyTo: SENT_AS, author: "Luke Ingold", at: "2026-09-20 11:00:00", mine: false });
-    const orphan = ours({ key: "ournote:r3", id: "r3", text: "@lukeingold done that", replyTo: "7e7e7e7e-0000-4000-8000-0000000000ff", at: "2026-09-20 12:00:00" });
-    draw([orphan, lukeReply, isaacReply, theirs()]);
+    const lyleReply = ours({ key: "ournote:r2", id: "r2", text: "@isaacsmith cheers", replyTo: SENT_AS, author: "Lyle Irving", at: "2026-09-20 11:00:00", mine: false });
+    const orphan = ours({ key: "ournote:r3", id: "r3", text: "@lyleirving done that", replyTo: "7e7e7e7e-0000-4000-8000-0000000000ff", at: "2026-09-20 12:00:00" });
+    draw([orphan, lyleReply, isaacReply, theirs()]);
     const ask = evOf("@isaacsmith can you order the grilles");
     const thread = ask.querySelector(".wb2-evthread") as HTMLElement;
-    expect(cards(thread).map((c) => c.textContent)).toContain("@lukeingold on my way");
-    // Luke's reply to Isaac's reply sits under Isaac's
-    const isaac = evOf("@lukeingold on my way");
+    expect(cards(thread).map((c) => c.textContent)).toContain("@lyleirving on my way");
+    // Lyle's reply to Isaac's reply sits under Isaac's
+    const isaac = evOf("@lyleirving on my way");
     expect(cards(isaac.querySelector(".wb2-evthread") as HTMLElement).map((c) => c.textContent)).toEqual(["@isaacsmith cheers"]);
     // the one whose note isn't drawn stands in the day, on its own
-    const alone = evOf("@lukeingold done that");
+    const alone = evOf("@lyleirving done that");
     expect(alone.closest(".wb2-evthread")).toBeNull();
     // all four are there, each once
     expect(cards().map((c) => c.textContent).sort()).toEqual(
-      ["@isaacsmith can you order the grilles", "@lukeingold on my way", "@isaacsmith cheers", "@lukeingold done that"].sort()
+      ["@isaacsmith can you order the grilles", "@lyleirving on my way", "@isaacsmith cheers", "@lyleirving done that"].sort()
     );
   });
 });

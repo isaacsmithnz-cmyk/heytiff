@@ -563,7 +563,7 @@ describe("a new invitee sets a password instead of signing up", () => {
 
   beforeEach(() => {
     sessionValue = null;
-    inviteRow = validInvite({ name: "Luke Brennan" });
+    inviteRow = validInvite({ name: "Lyle Brennan" });
   });
 
   const memberships = () => calls.filter((c) => c.table === "memberships" && c.op === "upsert");
@@ -580,7 +580,7 @@ describe("a new invitee sets a password instead of signing up", () => {
     expect(res.headers.get("location")).toBe(TICKET);
     // the address and the name are the invitation's
     expect(mgmt.calls.find((c) => c.fn === "find")?.args).toEqual([EMAIL]);
-    expect(mgmt.calls.find((c) => c.fn === "create")?.args).toEqual([{ email: EMAIL, name: "Luke Brennan" }]);
+    expect(mgmt.calls.find((c) => c.fn === "create")?.args).toEqual([{ email: EMAIL, name: "Lyle Brennan" }]);
     expect(mgmt.calls.find((c) => c.fn === "ticket")?.args).toEqual([NEW_USER]);
     // accepted now, against the login just made
     expect(memberships()).toHaveLength(1);
@@ -590,7 +590,7 @@ describe("a new invitee sets a password instead of signing up", () => {
     expect(staffInserts()).toHaveLength(1);
     expect(staffInserts()[0].payload).toMatchObject({
       user_id: NEW_USER,
-      first_name: "Luke",
+      first_name: "Lyle",
       last_name: "Brennan",
     });
     // no session is written on this door — they sign in after choosing a password
@@ -616,7 +616,7 @@ describe("a new invitee sets a password instead of signing up", () => {
   /* Clicked once, closed the tab, clicked again: the unused login from the
      first click is theirs, and the invitation is already accepted. */
   it("reuses the unused login an earlier click made, and accepts only once", async () => {
-    inviteRow = validInvite({ name: "Luke Brennan", accepted_at: "2026-09-16T01:00:00Z" });
+    inviteRow = validInvite({ name: "Lyle Brennan", accepted_at: "2026-09-16T01:00:00Z" });
     mgmt.find = [{ ok: true, value: [{ userId: NEW_USER, loginsCount: 0 }] }];
     mgmt.ticket = { ok: true, value: TICKET };
 
@@ -699,7 +699,7 @@ describe("a new invitee sets a password instead of signing up", () => {
     await GET(new NextRequest("https://app.test/invite/accept?token=tok-1&email=owner@diamondairsolutions.com"));
 
     expect(mgmt.calls.find((c) => c.fn === "find")?.args).toEqual([EMAIL]);
-    expect(mgmt.calls.find((c) => c.fn === "create")?.args).toEqual([{ email: EMAIL, name: "Luke Brennan" }]);
+    expect(mgmt.calls.find((c) => c.fn === "create")?.args).toEqual([{ email: EMAIL, name: "Lyle Brennan" }]);
   });
 });
 

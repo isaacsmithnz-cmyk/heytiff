@@ -946,7 +946,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    so its first few words carry the whole meaning and an ellipsis costs a
    subject you can also read underneath. A reminder's title is a sentence
    somebody dictated, and it is the entire content of the row: measured on the
-   real font, "Check with Luke about quote to Chris from Scott Group" wants
+   real font, "Check with Lyle about quote to Chris from Scott Group" wants
    335px and the two buttons leave 187, so an ellipsis cut it at "quote…" —
    which is the half that says nothing. Clamped at two lines rather than
    unbounded, so one long note can't push the rest of the list off the panel. */

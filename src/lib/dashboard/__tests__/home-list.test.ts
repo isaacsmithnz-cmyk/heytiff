@@ -294,7 +294,7 @@ describe("tasks", () => {
       input({
         tasks: [task({ id: "t-diary" }), task({ id: "t-mention" }), task({ id: "t-plain" })],
         journal: [entry("e1", "2026-08-28", ["t-diary"])],
-        mentions: [{ taskId: "t-mention", noteId: "n1", asker: "Luke", day: "2026-09-21" }],
+        mentions: [{ taskId: "t-mention", noteId: "n1", asker: "Lyle", day: "2026-09-21" }],
       }),
     );
     expect(find<ListTaskRow>(list, "t-diary").door).toEqual({ to: "entry", id: "e1" });
@@ -316,7 +316,7 @@ describe("tasks", () => {
           task({ id: "later", dueDate: "2026-10-20" }),
         ],
         journal: [entry("e1", "2026-08-28", ["diary"])],
-        mentions: [{ taskId: "mention", noteId: "n1", asker: "Luke", day: "2026-09-21" }],
+        mentions: [{ taskId: "mention", noteId: "n1", asker: "Lyle", day: "2026-09-21" }],
       }),
     );
     const sub = (id: string) => find<ListTaskRow>(list, id).sub;
@@ -324,23 +324,23 @@ describe("tasks", () => {
     expect(sub("at")).toBe("At 4:30 pm.");
     expect(sub("by")).toBe("By 4:30 pm.");
     expect(sub("diary")).toBe("Your diary, Fri 28 Aug.");
-    expect(sub("mention")).toBe("Luke asked you, Mon 21 Sept.");
+    expect(sub("mention")).toBe("Lyle asked you, Mon 21 Sept.");
     expect(sub("from")).toBe("From Callum, Mon 21 Sept.");
     expect(sub("added")).toBe("Added Tue 15 Sept.");
     expect(sub("later")).toBe("Due Tue 20 Oct.");
   });
 
-  /* Luke asked you, and a manager gave the task to Leo since: it is Leo's
+  /* Lyle asked you, and a manager gave the task to Leo since: it is Leo's
      row now, his name on it, and "asked you" beside his name would say it
      was his to do from the start (the Tasks spec's words). */
   it("say who asked, without 'you', on an ask's task given to someone else", () => {
     const list = placeList(
       input({
         tasks: [task({ id: "given", assigneeId: "s3", assigneeName: "Leo Marsh", createdBy: "me" })],
-        mentions: [{ taskId: "given", noteId: "n1", asker: "Luke", day: "2026-09-21" }],
+        mentions: [{ taskId: "given", noteId: "n1", asker: "Lyle", day: "2026-09-21" }],
       }),
     );
-    expect(find<ListTaskRow>(list, "given")).toMatchObject({ who: "Leo", sub: "Luke asked, Mon 21 Sept." });
+    expect(find<ListTaskRow>(list, "given")).toMatchObject({ who: "Leo", sub: "Lyle asked, Mon 21 Sept." });
   });
 
   it("date an added task by the workspace's clock, not the server's", () => {
@@ -438,7 +438,7 @@ describe("expiries", () => {
           ...van({ id: "v4", name: "Canter", plate: "", serviceIntervalKm: null, serviceDays: -3 }),
           ...van({ id: "v5", name: "Crafter", plate: "", odometer: 99_200 }),
           ...van({ id: "v6", name: "Transit", plate: "", odometer: 97_200 }),
-          licence("White Card", "2026-09-14", { kind: "staff", id: "s3" }, "Luke Ingold"),
+          licence("White Card", "2026-09-14", { kind: "staff", id: "s3" }, "Lyle Irving"),
           licence("White Card", "2026-10-20", { kind: "self", id: "me" }, "Isaac Smith"),
           ...orgCredentialChips(
             [{ id: "pl", kind: "insurance", name: "Public liability", issuer: "QBE", expiryDate: "2026-11-10" }],
@@ -455,7 +455,7 @@ describe("expiries", () => {
     expect(alert("chip:service:v4").sub).toBe("Service was due Tue 22 Sept.");
     expect(alert("chip:service:v5").sub).toBe("Service overdue 1,200 km.");
     expect(alert("chip:service:v6").sub).toBe("Service due in 800 km.");
-    expect(alert("chip:licence:s3-White Card")).toMatchObject({ title: "White Card, Luke Ingold", sub: "Ran out Mon 14 Sept." });
+    expect(alert("chip:licence:s3-White Card")).toMatchObject({ title: "White Card, Lyle Irving", sub: "Ran out Mon 14 Sept." });
     expect(alert("chip:licence:me-White Card")).toMatchObject({ title: "Your White Card", sub: "Runs out Tue 20 Oct." });
     expect(alert("chip:org-cred:pl")).toMatchObject({ title: "Public liability", sub: "Runs out Tue 10 Nov. QBE." });
   });
@@ -550,7 +550,7 @@ describe("expiries", () => {
     const list = placeList(
       input({
         chips: [
-          licence("White Card", "2026-09-14", { kind: "staff", id: "s3" }, "Luke Ingold"),
+          licence("White Card", "2026-09-14", { kind: "staff", id: "s3" }, "Lyle Irving"),
           licence("White Card", "2026-09-20", { kind: "self", id: "me" }, "Isaac Smith"),
           ...orgCredentialChips(
             [{ id: "pl", kind: "insurance", name: "Public liability", issuer: null, expiryDate: "2026-09-01" }],

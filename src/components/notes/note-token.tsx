@@ -215,7 +215,7 @@ function useFieldMic(value: string, onChange: (next: string) => void, onSpoken?:
       onChange(next);
       onSpoken?.();
       /* The sieve runs on the WHOLE box, not just the new sentence: dictation
-         appends, so "Luke needs to" and "order the grilles before Monday" can
+         appends, so "Lyle needs to" and "order the grilles before Monday" can
          arrive as two presses and only read as a job together. */
       setFound(sniff(next, scope.staffFirstNames).actionable ? next : null);
     },

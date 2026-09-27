@@ -243,7 +243,7 @@ function mount(p: ProjectDetail, trips: ProjectBoardVisit[] = [], manage = true)
     <ProjectDetailScreen
       project={p}
       trips={trips}
-      staff={[{ id: "s-1", name: "Luke Nguyen" }]}
+      staff={[{ id: "s-1", name: "Lyle Nguyen" }]}
       today={TODAY}
       manage={manage}
       sm8Connected={false}

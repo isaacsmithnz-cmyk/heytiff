@@ -72,7 +72,7 @@ jest.mock("../job-notes", () => ({ removeJobNote: (...a: unknown[]) => removeJob
 import { revalidatePath } from "next/cache";
 import { deleteDiaryEntry, editDiaryEntry, hideConversation, showConversation } from "../diary";
 
-const ID = "7817c989-a2d3-43c6-974e-9f14d5cecc8d";
+const ID = "7b7b7b7b-0000-4000-8000-00000000d1a7";
 const mine = (over: Record<string, unknown> = {}) => ({
   id: ID,
   author_id: "s-me",
@@ -99,12 +99,12 @@ beforeEach(() => {
 
 describe("editDiaryEntry", () => {
   it("puts your words right, scoped to your own row, and refreshes Home", async () => {
-    expect(await editDiaryEntry(ID, "  Luke to order two 20x20x2 filters for Kingsford  ")).toEqual({ ok: true });
+    expect(await editDiaryEntry(ID, "  Lyle to order two 20x20x2 filters for Kingsford  ")).toEqual({ ok: true });
     const [w] = writes();
     expect(w).toMatchObject({
       table: "workboard_notes",
       op: "update",
-      payload: { transcript: "Luke to order two 20x20x2 filters for Kingsford" },
+      payload: { transcript: "Lyle to order two 20x20x2 filters for Kingsford" },
       eq: { org_id: "org-1", id: ID, author_id: "s-me" },
       is: ["removed_at", null],
     });
@@ -112,7 +112,7 @@ describe("editDiaryEntry", () => {
   });
 
   it("refuses somebody else's entry, and writes nothing", async () => {
-    rows.workboard_notes = mine({ author_id: "s-luke" });
+    rows.workboard_notes = mine({ author_id: "s-lyle" });
     expect(await editDiaryEntry(ID, "mine now")).toEqual({ ok: false, error: "Only whoever wrote an entry can change it." });
     expect(writes()).toEqual([]);
   });
@@ -189,7 +189,7 @@ describe("deleteDiaryEntry", () => {
 
   it("refuses somebody else's entry, whatever kind it is", async () => {
     for (const kind of ["none", "job"]) {
-      rows.workboard_notes = mine({ author_id: "s-luke", target_kind: kind });
+      rows.workboard_notes = mine({ author_id: "s-lyle", target_kind: kind });
       expect(await deleteDiaryEntry(ID)).toEqual({ ok: false, error: "Only whoever wrote an entry can change it." });
     }
     expect(writes()).toEqual([]);

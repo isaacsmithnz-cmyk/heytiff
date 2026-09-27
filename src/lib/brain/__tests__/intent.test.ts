@@ -9,7 +9,7 @@ describe("things that are questions", () => {
   it.each([
     ["what's outstanding at Meridian"],
     ["whats left on the smith st job"],
-    ["how many open tasks does Luke have"],
+    ["how many open tasks does Lyle have"],
     ["who's booked for Thursday"],
     ["where is the roof key at Meridian"],
     ["is there anything open on the CRAC job"],
@@ -30,8 +30,8 @@ describe("things that are notes, however question-shaped", () => {
     ["can you order the grilles for smith st"],
     ["could someone chase the supplier"],
     ["should get the belts replaced next visit"],
-    // "tell Luke" is a task; only "tell me" asks
-    ["tell Luke he needs to order the grilles"],
+    // "tell Lyle" is a task; only "tell me" asks
+    ["tell Lyle he needs to order the grilles"],
     // a question buried mid-note belongs to the note
     ["gate code changed, and ask Dane what's left on the list"],
     // plain statements that happen to open with an s-word
@@ -56,7 +56,7 @@ describe("questions in the other languages", () => {
     // conjunction, and ¿ is carried by nothing but a question
     ["dónde está la llave del techo"],
     ["¿hay algo abierto en el trabajo de Meridian"],
-    ["cuántas tareas tiene Luke"],
+    ["cuántas tareas tiene Lyle"],
     ["por qué saltó el diferencial"],
     // Vietnamese — the marker trails
     ["máy lạnh sửa xong chưa"],
@@ -101,7 +101,7 @@ describe("notes in the other languages, however question-shaped", () => {
     // opens with somebody's name is the commonest note there is
     ["Ilan needs to order the grilles for smith st"],
     // a task, not a question, in Spanish
-    ["dile a Luke que pida las rejillas"],
+    ["dile a Lyle que pida las rejillas"],
   ])("%j records", (text) => {
     expect(looksLikeQuestion(text)).toBe(false);
   });

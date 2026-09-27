@@ -1,6 +1,6 @@
 /* Which job did the note mean?
 
-   A note says a client's name out loud — "Luke needs to organise some
+   A note says a client's name out loud — "Lyle needs to organise some
    filters for Kingsford Medical Center" — and when it lands on no job, Tiff
    asks "Which job is this for?" with the JOB CARDS the words named as the
    answers, job number and all, so a person taps the right one rather than

@@ -244,7 +244,7 @@ export function railWhereOf<V>(
 }
 
 /** Who else is on each of the viewer's jobs today, by first name — the
-    panel's "With Luke". Read off the board's own lanes, so "booked on it"
+    panel's "With Lyle". Read off the board's own lanes, so "booked on it"
     means exactly what the Schedule tab draws.
 
     Everyone else booked on the SAME JOB on this day counts, whether or not

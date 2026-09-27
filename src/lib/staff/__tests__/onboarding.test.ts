@@ -35,28 +35,28 @@ beforeEach(() => {
 describe("onboardingPending", () => {
   it("is owed while the card carries no stamp", async () => {
     result = { data: { onboarded_at: null }, error: null };
-    await expect(onboardingPending("org-1", "auth0|luke")).resolves.toBe(true);
-    expect(eqs).toEqual([["org_id", "org-1"], ["user_id", "auth0|luke"]]);
+    await expect(onboardingPending("org-1", "auth0|lyle")).resolves.toBe(true);
+    expect(eqs).toEqual([["org_id", "org-1"], ["user_id", "auth0|lyle"]]);
   });
 
   it("is answered once stamped", async () => {
     result = { data: { onboarded_at: "2026-09-16T01:00:00Z" }, error: null };
-    await expect(onboardingPending("org-1", "auth0|luke")).resolves.toBe(false);
+    await expect(onboardingPending("org-1", "auth0|lyle")).resolves.toBe(false);
   });
 
   /* Including the window before the migration reaches a database: the select
      of a column that does not exist is an error, and it must not block Home. */
   it("fails open on an error or a missing card", async () => {
     result = { data: null, error: { message: 'column "onboarded_at" does not exist' } };
-    await expect(onboardingPending("org-1", "auth0|luke")).resolves.toBe(false);
+    await expect(onboardingPending("org-1", "auth0|lyle")).resolves.toBe(false);
     result = { data: null, error: null };
-    await expect(onboardingPending("org-1", "auth0|luke")).resolves.toBe(false);
+    await expect(onboardingPending("org-1", "auth0|lyle")).resolves.toBe(false);
   });
 });
 
 describe("ownDetailsGap", () => {
   const complete = {
-    first_name: "Luke",
+    first_name: "Lyle",
     last_name: "Brennan",
     birthday: "1994-02-11",
     address: "4 Pitt St, Sydney NSW 2000",
@@ -67,13 +67,13 @@ describe("ownDetailsGap", () => {
     emergency_name: null,
     emergency_phone: null,
     photo_url: null,
-    full_name: "Luke Brennan",
+    full_name: "Lyle Brennan",
   };
 
   it("counts only the REQUIRED gaps, and names the first", async () => {
-    result = { data: { ...complete, first_name: "luke", last_name: null, birthday: null }, error: null };
+    result = { data: { ...complete, first_name: "lyle", last_name: null, birthday: null }, error: null };
     const gap = await ownDetailsGap("org-1", "sp-1");
-    expect(gap).toEqual({ requiredMissing: 2, firstLabel: "Last name", name: "luke" });
+    expect(gap).toEqual({ requiredMissing: 2, firstLabel: "Last name", name: "lyle" });
     expect(eqs).toEqual([["org_id", "org-1"], ["id", "sp-1"]]);
   });
 

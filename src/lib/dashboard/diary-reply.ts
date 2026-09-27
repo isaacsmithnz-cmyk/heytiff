@@ -4,7 +4,7 @@
    own row (workboard_notes, `reply_to_sm8_note_uuid` naming the note it
    answers) queued to ServiceM8 as you. The Diary shows it ONCE, where it
    belongs: in the conversation that holds the note it answers, as "You to
-   Luke", from the moment it is saved — not only once the sync has brought
+   Lyle", from the moment it is saved — not only once the sync has brought
    ServiceM8's copy back. That copy (a note whose uuid is one HeyTiff minted
    for it, sm8-echo) is the same thing, and never drawn beside it. Your
    replies are read for the conversations on their own, over the mentions'
@@ -67,7 +67,7 @@ export type DiaryReply = {
   /** The job its row is on: what a press on its line names. */
   jobUuid: string;
   /** Its words in the job's diary — English, with the handle it opens on
-      ("@lukeingold on my way", "@lukeingold Done."). */
+      ("@lyleirving on my way", "@lyleirving Done."). */
   words: string;
   /** When it was saved, to the second, on the account's clock: where it
       threads among ServiceM8's notes, which carry seconds. The entry's own

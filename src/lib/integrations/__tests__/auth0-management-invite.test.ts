@@ -65,9 +65,9 @@ describe("findUsersByEmail", () => {
         ],
       },
     ];
-    const res = await findUsersByEmail("luke+crew@diamondairsolutions.com");
+    const res = await findUsersByEmail("lyle+crew@diamondairsolutions.com");
     expect(apiCall().url).toBe(
-      "https://dev-tenant.us.auth0.com/api/v2/users-by-email?email=luke%2Bcrew%40diamondairsolutions.com"
+      "https://dev-tenant.us.auth0.com/api/v2/users-by-email?email=lyle%2Bcrew%40diamondairsolutions.com"
     );
     expect(res).toEqual({
       ok: true,
@@ -90,7 +90,7 @@ describe("createPasswordUser", () => {
     const { createPasswordUser, PASSWORD_CONNECTION } = await load();
     replies = [{ status: 201, body: { user_id: "auth0|new" } }];
 
-    const res = await createPasswordUser({ email: "luke@diamondairsolutions.com", name: "Luke Brennan" });
+    const res = await createPasswordUser({ email: "lyle@diamondairsolutions.com", name: "Lyle Brennan" });
 
     expect(res).toEqual({ ok: true, value: { userId: "auth0|new" } });
     const call = apiCall();
@@ -100,10 +100,10 @@ describe("createPasswordUser", () => {
     expect(PASSWORD_CONNECTION).toBe("Username-Password-Authentication");
     expect(body).toMatchObject({
       connection: "Username-Password-Authentication",
-      email: "luke@diamondairsolutions.com",
+      email: "lyle@diamondairsolutions.com",
       email_verified: false,
       verify_email: false,
-      name: "Luke Brennan",
+      name: "Lyle Brennan",
     });
     // long, random, and never the same twice
     expect(typeof body.password).toBe("string");

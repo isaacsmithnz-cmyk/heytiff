@@ -19,7 +19,7 @@
      - anything at all going to ServiceM8;
      - your replies making a second task, moving the wrong one, or one
        hiding another, instead of moving or ticking the one.
-   The people and jobs are the real ones the design was drawn from (Luke's
+   The people and jobs are the real ones the design was drawn from (Lyle's
    asks of Isaac, September 2026); the replies are examples. The database
    is a small fake that keeps rows and records every write; the model is a
    stub; nothing here reaches ServiceM8. */
@@ -104,9 +104,9 @@ const sm8StaffLinkMap = jest.fn(async () => links);
 jest.mock("@/lib/integrations/links", () => ({ sm8StaffLinkMap: () => sm8StaffLinkMap() }));
 
 const ISAAC = { uuid: "u-isaac", handle: "isaacsmith", name: "Isaac Smith", first: "Isaac" };
-const LUKE = { uuid: "u-luke", handle: "lukeingold", name: "Luke Ingold", first: "Luke" };
+const LYLE = { uuid: "u-lyle", handle: "lyleirving", name: "Lyle Irving", first: "Lyle" };
 const MICHAEL = { uuid: "u-michael", handle: "michaeldiamond", name: "Michael Diamond", first: "Michael" };
-const PEOPLE = [ISAAC, LUKE, MICHAEL];
+const PEOPLE = [ISAAC, LYLE, MICHAEL];
 jest.mock("@/lib/workboard/job-notes-query", () => ({ sm8Roster: async () => PEOPLE }));
 jest.mock("@/lib/workboard/query", () => ({ sm8VendorOf: async () => ({ tz: "Australia/Sydney", connected: true }) }));
 
@@ -175,11 +175,11 @@ const note = (uuid: string, author: string, at: string, text: string, jobUuid = 
   at,
   text,
 });
-/* Luke's three September asks of Isaac (21, 15 and 9 Sept). */
-const ASK_MARY = note("n-mary", LUKE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary to discuss");
-const ASK_FANS = note("n-fans", LUKE.uuid, "2026-09-15 08:00:00", "@isaacsmith how many fans for this", "j-3294");
-const ASK_HOLLY = note("n-holly", LUKE.uuid, "2026-09-09 10:04:00", "@isaacsmith can you advise Holly", "j-2749");
-const mine = (uuid: string, at: string, text: string, jobUuid = "j-2041") => note(uuid, ISAAC.uuid, at, `@lukeingold ${text}`, jobUuid);
+/* Lyle's three September asks of Isaac (21, 15 and 9 Sept). */
+const ASK_MARY = note("n-mary", LYLE.uuid, "2026-09-21 13:42:10", "@isaacsmith Please call Mary to discuss");
+const ASK_FANS = note("n-fans", LYLE.uuid, "2026-09-15 08:00:00", "@isaacsmith how many fans for this", "j-3294");
+const ASK_HOLLY = note("n-holly", LYLE.uuid, "2026-09-09 10:04:00", "@isaacsmith can you advise Holly", "j-2749");
+const mine = (uuid: string, at: string, text: string, jobUuid = "j-2041") => note(uuid, ISAAC.uuid, at, `@lyleirving ${text}`, jobUuid);
 
 const settle = (over: { budgetMs?: number; max?: number } = {}): Promise<SettleOutcome> =>
   settleMentionAsks(ORG, { budgetMs: 250_000, now: () => clock, ...over });
@@ -280,7 +280,7 @@ describe("one task per ask", () => {
         sm8_note_uuid: "n-mary",
         sm8_job_uuid: "j-2041",
         staff_id: "s-isaac",
-        asker_sm8_uuid: LUKE.uuid,
+        asker_sm8_uuid: LYLE.uuid,
         status: "read",
         kind: "do",
         task_id: taskId,
@@ -294,24 +294,24 @@ describe("one task per ask", () => {
         text: "Isaac Please call Mary to discuss",
         person: "Isaac Smith",
         first: "Isaac",
-        asker: "Luke Ingold",
+        asker: "Lyle Irving",
         job: "2041 Wollstonecraft",
       }),
     );
   });
 
   /* The real read of 2026-09-26: Alex's note on 2778 Queenscliff asked
-     Luke for one thing and Isaac for another. Given the diary's quote, the
+     Lyle for one thing and Isaac for another. Given the diary's quote, the
      addressing out, the reader couldn't tell whose each was and filed both
      as one task for Isaac. The reader here does the same with anything
      that doesn't say who each part is to. */
-  it("reads a note to Luke and to you as written, everybody by name, so Luke's part never goes on your list", async () => {
+  it("reads a note to Lyle and to you as written, everybody by name, so Lyle's part never goes on your list", async () => {
     notes = [
       note(
         "n-qc",
         MICHAEL.uuid,
         "2026-09-19 14:01:58",
-        "@lukeingold when you send invoice can you please send through warranty stuff\n\n" +
+        "@lyleirving when you send invoice can you please send through warranty stuff\n\n" +
           "@isaacsmith can you send house by rivers contact to David as he needs a good builder",
       ),
     ];
@@ -321,7 +321,7 @@ describe("one task per ask", () => {
       read: {
         kind: "do",
         title:
-          a.text.includes("Luke when you send invoice") && a.text.includes("Isaac can you send house by rivers")
+          a.text.includes("Lyle when you send invoice") && a.text.includes("Isaac can you send house by rivers")
             ? his
             : "Send warranty documents with the invoice and House by Rivers contact to David for 2041 Wollstonecraft",
         dueDate: null,
@@ -331,7 +331,7 @@ describe("one task per ask", () => {
     expect(readAsk).toHaveBeenCalledWith(
       expect.objectContaining({
         text:
-          "Luke when you send invoice can you please send through warranty stuff\n\n" +
+          "Lyle when you send invoice can you please send through warranty stuff\n\n" +
           "Isaac can you send house by rivers contact to David as he needs a good builder",
       }),
     );
@@ -342,14 +342,14 @@ describe("one task per ask", () => {
     notes = [
       ASK_MARY,
       mine("n-mine", "2026-09-22 15:10:00", "calling her this afternoon, @michaeldiamond has her number"),
-      note("n-chase", LUKE.uuid, "2026-09-23 08:00:00", "@isaacsmith did you get hold of her?"),
+      note("n-chase", LYLE.uuid, "2026-09-23 08:00:00", "@isaacsmith did you get hold of her?"),
     ];
     await settle();
     expect(readAsk.mock.calls[1][0]).toMatchObject({
       text: "Isaac did you get hold of her?",
       before: [
-        { who: "Luke Ingold", text: "Isaac Please call Mary to discuss" },
-        { who: "Isaac Smith", text: "Luke calling her this afternoon, Michael has her number" },
+        { who: "Lyle Irving", text: "Isaac Please call Mary to discuss" },
+        { who: "Isaac Smith", text: "Lyle calling her this afternoon, Michael has her number" },
       ],
     });
   });
@@ -357,8 +357,8 @@ describe("one task per ask", () => {
   /* The same read: "@IsaacSmith" alone on 2872 Kurraba Point, quoted as
      nothing, still cost a read. The reader here would make a task of it. */
   it("records a note that is only its addressing as asking nothing, without a read, and never reads it", async () => {
-    notes = [note("n-bare", LUKE.uuid, "2026-09-22 09:00:00", "@IsaacSmith")];
-    askAnswer = () => ({ ok: true, read: { kind: "do", title: "Follow up with Luke about 2041 Wollstonecraft", dueDate: null } });
+    notes = [note("n-bare", LYLE.uuid, "2026-09-22 09:00:00", "@IsaacSmith")];
+    askAnswer = () => ({ ok: true, read: { kind: "do", title: "Follow up with Lyle about 2041 Wollstonecraft", dueDate: null } });
     const out = await settle();
     expect(readAsk).not.toHaveBeenCalled();
     expect(out).toMatchObject({ reads: 0, tasks: 0, adopted: 0 });
@@ -403,7 +403,7 @@ describe("one task per ask", () => {
   });
 
   it("tells the reader what a chase's conversation already made, so a chase isn't a second task", async () => {
-    notes = [ASK_MARY, note("n-chase", LUKE.uuid, "2026-09-23 08:00:00", "@isaacsmith did you get hold of her?")];
+    notes = [ASK_MARY, note("n-chase", LYLE.uuid, "2026-09-23 08:00:00", "@isaacsmith did you get hold of her?")];
     askAnswer = (a) =>
       a.tasks.length
         ? { ok: true, read: { kind: "none", title: "", dueDate: null } }
@@ -458,7 +458,7 @@ describe("who it reads for", () => {
      the crew's old Tasks face free of tasks it had no words for went with
      it, so Michael (staff) is read for as Isaac (the owner) is. */
   it("reads for everyone linked who can see the board, whatever their role", async () => {
-    notes = [ASK_MARY, note("n-ladder", LUKE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
+    notes = [ASK_MARY, note("n-ladder", LYLE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
     await settle();
     expect(listMyMentions.mock.calls.map((c) => c[1]).sort()).toEqual([ISAAC.uuid, MICHAEL.uuid].sort());
     expect(tasksTable().map((t) => t.assigned_to).sort()).toEqual(["s-isaac", "s-michael"]);
@@ -469,7 +469,7 @@ describe("who it reads for", () => {
   it("asks a person's role in this workspace, never one they hold in another", async () => {
     db.memberships[1].permissions = { workboard: false };
     db.memberships.push({ user_id: "auth|michael", org_id: "org-2", role: "owner", permissions: null });
-    notes = [note("n-ladder", LUKE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
+    notes = [note("n-ladder", LYLE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
     await settle();
     expect(listMyMentions.mock.calls.map((c) => c[1])).toEqual([ISAAC.uuid]);
     expect(tasksTable()).toEqual([]);
@@ -483,7 +483,7 @@ describe("who it reads for", () => {
       [ISAAC.uuid, "s-isaac"],
       [MICHAEL.uuid, "s-elsewhere"],
     ]);
-    notes = [note("n-ladder", LUKE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
+    notes = [note("n-ladder", LYLE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
     await settle();
     expect(listMyMentions.mock.calls.map((c) => c[1])).toEqual([ISAAC.uuid]);
     expect(tasksTable()).toEqual([]);
@@ -492,7 +492,7 @@ describe("who it reads for", () => {
   it("reads for nobody who can't see the board, or whom integration_links doesn't name", async () => {
     db.memberships[1].permissions = { workboard: false };
     links = new Map([[ISAAC.uuid, "s-isaac"]]);
-    notes = [note("n-ladder", LUKE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
+    notes = [note("n-ladder", LYLE.uuid, "2026-09-22 09:00:00", "@michaeldiamond bring the ladder")];
     db.memberships[0].permissions = null;
     await settle();
     expect(listMyMentions.mock.calls.map((c) => c[1])).toEqual([ISAAC.uuid]);
@@ -518,7 +518,7 @@ describe("who it reads for", () => {
 
 describe("which asks", () => {
   it("takes asks back 30 days and no further", async () => {
-    notes = [ASK_MARY, note("n-old", LUKE.uuid, "2026-08-25 23:59:00", "@isaacsmith can you quote this"), note("n-edge", LUKE.uuid, "2026-08-26 07:00:00", "@isaacsmith quote this one", "j-3294")];
+    notes = [ASK_MARY, note("n-old", LYLE.uuid, "2026-08-25 23:59:00", "@isaacsmith can you quote this"), note("n-edge", LYLE.uuid, "2026-08-26 07:00:00", "@isaacsmith quote this one", "j-3294")];
     await settle();
     expect(asksTable().map((r) => r.sm8_note_uuid).sort()).toEqual(["n-edge", "n-mary"]);
   });
@@ -548,7 +548,7 @@ describe("which asks", () => {
 describe("bounded", () => {
   it(`stops at ${SETTLE_MAX} reads a run, newest first, and the next run takes the rest`, async () => {
     notes = Array.from({ length: 7 }, (_, i) =>
-      note(`n${i}`, LUKE.uuid, `2026-09-${String(10 + i).padStart(2, "0")} 09:00:00`, "@isaacsmith quote this", `j-${i}`),
+      note(`n${i}`, LYLE.uuid, `2026-09-${String(10 + i).padStart(2, "0")} 09:00:00`, "@isaacsmith quote this", `j-${i}`),
     );
     db.sm8_jobs = notes.map((n) => ({ uuid: n.jobUuid, org_id: ORG, active: 1 }));
     const first = await settle();
@@ -562,7 +562,7 @@ describe("bounded", () => {
   /* Five new asks, each already answered: asks and replies share the cap. */
   it(`holds ${SETTLE_MAX} reads a run with replies counted in`, async () => {
     notes = Array.from({ length: 5 }, (_, i) => [
-      note(`n${i}`, LUKE.uuid, `2026-09-${String(10 + i).padStart(2, "0")} 09:00:00`, "@isaacsmith quote this", `j-${i}`),
+      note(`n${i}`, LYLE.uuid, `2026-09-${String(10 + i).padStart(2, "0")} 09:00:00`, "@isaacsmith quote this", `j-${i}`),
       mine(`r${i}`, `2026-09-${String(10 + i).padStart(2, "0")} 10:00:00`, "on it", `j-${i}`),
     ]).flat();
     db.sm8_jobs = notes.map((n) => ({ uuid: n.jobUuid, org_id: ORG, active: 1 }));
@@ -784,7 +784,7 @@ describe("a read that runs out of time", () => {
   describe("for your replies", () => {
     const FANS_READ = () => {
       db.mention_asks = [readRow("n-fans", "t-fans", { sm8_job_uuid: "j-3294" })];
-      db.tasks = [openTask("t-fans", "Tell Luke how many fans for 3294 Rozelle")];
+      db.tasks = [openTask("t-fans", "Tell Lyle how many fans for 3294 Rozelle")];
     };
     const THREE = mine("r-fans", "2026-09-16 09:00:00", "three", "j-3294");
 
@@ -840,7 +840,7 @@ describe("a read that runs out of time", () => {
       ];
       notes = [
         ASK_MARY,
-        note("n-quote", LUKE.uuid, "2026-09-21 13:50:00", "@isaacsmith send her the quote too"),
+        note("n-quote", LYLE.uuid, "2026-09-21 13:50:00", "@isaacsmith send her the quote too"),
         mine("r-called", "2026-09-22 10:00:00", "called her, sorted"),
         ASK_FANS,
         ASK_HOLLY,
@@ -924,12 +924,12 @@ describe("your replies", () => {
     expect(readReply).not.toHaveBeenCalled();
   });
 
-  /* Luke asked two things on the job: a call, then a quote. "Called her"
+  /* Lyle asked two things on the job: a call, then a quote. "Called her"
      is about the call, and must tick off the call, not the newer quote. */
   it("are read for each open task, told of the other, and move only the one they are about", async () => {
     notes = [
       ASK_MARY,
-      note("n-quote", LUKE.uuid, "2026-09-22 08:00:00", "@isaacsmith can you also quote the ducting"),
+      note("n-quote", LYLE.uuid, "2026-09-22 08:00:00", "@isaacsmith can you also quote the ducting"),
       mine("n-called", "2026-09-22 15:10:00", "called her"),
     ];
     askAnswer = (a) =>
@@ -946,13 +946,13 @@ describe("your replies", () => {
     expect(taskOf("n-quote")).toMatchObject({ status: "open" });
   });
 
-  /* Your "done" answered Luke's thanks, before he asked for the ducting:
+  /* Your "done" answered Lyle's thanks, before he asked for the ducting:
      it can't be about the task his later ask made. */
   it("never count a reply written before the ask", async () => {
     notes = [
-      note("n-thanks", LUKE.uuid, "2026-09-20 08:00:00", "@isaacsmith thanks for today"),
+      note("n-thanks", LYLE.uuid, "2026-09-20 08:00:00", "@isaacsmith thanks for today"),
       mine("n-done", "2026-09-20 09:00:00", "done, called her"),
-      note("n-quote", LUKE.uuid, "2026-09-22 08:00:00", "@isaacsmith can you quote the ducting"),
+      note("n-quote", LYLE.uuid, "2026-09-22 08:00:00", "@isaacsmith can you quote the ducting"),
     ];
     askAnswer = (a) =>
       a.text.includes("ducting")
@@ -964,7 +964,7 @@ describe("your replies", () => {
     expect(taskOf("n-quote")).toMatchObject({ status: "open" });
   });
 
-  /* A manager gave the task to Leo: it is his now, and your reply to Luke
+  /* A manager gave the task to Leo: it is his now, and your reply to Lyle
      is not his to have ticked off. */
   it("never move a task given to someone else since", async () => {
     db.mention_asks = [readRow("n-mary", "t-mary")];
@@ -976,10 +976,10 @@ describe("your replies", () => {
     expect(db.tasks[0].status).toBe("open");
   });
 
-  /* Luke asked 31 days ago, before the window of new asks; the task is
+  /* Lyle asked 31 days ago, before the window of new asks; the task is
      still open, and today you tell him it's done. */
   it("still reach the task of an ask older than the 30 days, with no newer ask about", async () => {
-    notes = [note("n-old", LUKE.uuid, "2026-08-25 09:00:00", "@isaacsmith quote this"), mine("n-done", "2026-09-24 09:00:00", "done")];
+    notes = [note("n-old", LYLE.uuid, "2026-08-25 09:00:00", "@isaacsmith quote this"), mine("n-done", "2026-09-24 09:00:00", "done")];
     db.mention_asks = [readRow("n-old", "t-old")];
     db.tasks = [openTask("t-old", "Quote 2041 Wollstonecraft")];
     replyAnswer = () => readingAs("done");

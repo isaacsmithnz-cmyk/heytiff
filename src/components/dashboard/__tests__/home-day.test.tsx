@@ -143,7 +143,7 @@ const thursday = (over: Partial<HomeRail> = {}) =>
       mirror(`j${no}`, no, no === "3342" ? { description: "Service AC units" } : {}),
     ),
     where: { j3342: "Carrington St, Sydney" },
-    crew: { j3315: ["Luke", "Callum"] },
+    crew: { j3315: ["Lyle", "Callum"] },
     ...over,
   });
 
@@ -242,7 +242,7 @@ describe("on the first paint", () => {
     draw(thursday());
     await user.click(card(/^Willoughby East/));
     const facts = [...panel().querySelectorAll(".hd-px > div")].map((d) => d.textContent);
-    expect(facts).toEqual(["Time5–6pm", "WhereWilloughby East", "WithLuke and Callum"]);
+    expect(facts).toEqual(["Time5–6pm", "WhereWilloughby East", "WithLyle and Callum"]);
   });
 
   it("opens nothing when nothing is on", () => {

@@ -12,7 +12,7 @@
    there, and QUIET LINES for the rest.
 
      Tasks go by whose they are — by the staff card, never by the name on
-     it — one door each: "2 tasks for Luke", "1 task for Lorenzo", and just
+     it — one door each: "2 tasks for Lyle", "1 task for Lorenzo", and just
      "1 task" when it is yours, or nobody's (a task on no one is nobody
      else's either). Two people who share a first name are two doors, each
      with the whole name (`ownerNames`); a card the workspace no longer
@@ -28,7 +28,7 @@
      "1 task removed." — what the entry really made, that really isn't
      there to open. So is a task or an issue that is still there but that
      no row on this page holds (a task ticked off long ago, an issue
-     resolved): "1 task for Luke." A door that opened on something else
+     resolved): "1 task for Lyle." A door that opened on something else
      would be worse than none.
      "Nothing filed." is Tiff's read that made nothing, and only that: a
      Save files the words as typed and routes nothing, so it says nothing
@@ -53,7 +53,7 @@ export type DeskDiary = {
       goes by. */
   you: string;
   /** Staff id → what to call them, for the people this diary's tasks are
-      on and nobody else: "2 tasks for Luke" (`ownerNames`). */
+      on and nobody else: "2 tasks for Lyle" (`ownerNames`). */
   names: Record<string, string>;
 };
 
@@ -100,7 +100,7 @@ export function entryUnder(
   /* Taken back: what it made has gone, and Tiff's line says so. */
   if (entry.undone) return { doors, lines };
   /* One door per staff card, standing where that card's first task stood.
-     Keyed by the card, not the name on it: two Lukes are two people. */
+     Keyed by the card, not the name on it: two Lyles are two people. */
   const tasksOf = new Map<string, Extract<DiaryDoor, { to: "tasks" }>>();
 
   for (const o of entry.outcomes) {
@@ -150,7 +150,7 @@ export function entryUnder(
 }
 
 /** Staff id → what the diary calls the people its tasks are on: their
-    first name ("2 tasks for Luke"), or the whole name their card goes by
+    first name ("2 tasks for Lyle"), or the whole name their card goes by
     when another of them shares the first (as diary-feed says a mention's
     names), so two people never read as one. Nobody else is named. */
 export function ownerNames(feed: DiaryFeed, names: ReadonlyMap<string, string>): Record<string, string> {

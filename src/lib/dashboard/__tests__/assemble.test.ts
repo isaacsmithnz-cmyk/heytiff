@@ -238,14 +238,14 @@ describe("assembleChips — leave", () => {
 describe("assembleChips — your own details", () => {
   it("reminds you, among your own chips, while a required detail is missing", () => {
     const { self, team } = assembleChips(
-      { ...FULL, selfCompleteness: { requiredMissing: 2, firstLabel: "Last name" }, selfName: "luke" },
+      { ...FULL, selfCompleteness: { requiredMissing: 2, firstLabel: "Last name" }, selfName: "lyle" },
       caps("team"),
     );
     const chip = self.find((c) => c.kind === "profile");
     expect(chip).toMatchObject({
       state: "warn",
       label: "2 details missing",
-      subject: "luke",
+      subject: "lyle",
       href: "/dashboard/profile",
     });
     expect(chipGroup("profile")).toBe("People");

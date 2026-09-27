@@ -311,7 +311,7 @@ export function dayGroupLabel(count: number): string {
   return `Show ${count} finished jobs`;
 }
 
-/** "Luke", "Luke and Callum", "Luke, Callum and Leo". */
+/** "Lyle", "Lyle and Callum", "Lyle, Callum and Leo". */
 function andList(names: readonly string[]): string {
   return names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }

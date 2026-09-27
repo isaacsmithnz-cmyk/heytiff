@@ -2,7 +2,7 @@
 
    The conversations come from ServiceM8's copy, and opening Home tops that
    copy up AFTER the response (sm8-freshness): a mirror more than ten
-   minutes old is synced once the page has gone out, so what Luke wrote
+   minutes old is synced once the page has gone out, so what Lyle wrote
    since lands in the copy a moment after you have been shown the page
    without it. The diary asks for the page again, and no more than this:
 

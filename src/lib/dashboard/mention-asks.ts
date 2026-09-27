@@ -97,7 +97,7 @@ export function withAskTasks(
     on which day, and the note that asked, which is the door back to its
     conversation. Only for tasks still there. (The ask was the viewer's;
     the task may since have been given to someone else, and the list says
-    "Luke asked" rather than "Luke asked you" on a row that isn't yours.) */
+    "Lyle asked" rather than "Lyle asked you" on a row that isn't yours.) */
 export function mentionTasksOf(feed: DiaryFeed | null): MentionTask[] {
   const out: MentionTask[] = [];
   for (const item of feed ? [...feed.today, ...feed.earlier] : []) {

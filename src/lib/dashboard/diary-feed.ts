@@ -2,7 +2,7 @@
    a test can see it: your own entries and the ServiceM8 notes that @mention
    you, in one column, newest first, with Today split off the top.
 
-   A MENTION IS A CONVERSATION, not a row. Luke's "@isaacsmith please call
+   A MENTION IS A CONVERSATION, not a row. Lyle's "@isaacsmith please call
    Mary" is the first message; everything either of you writes to the other
    on that job after it threads under it, in time order. One conversation per
    job per person who asked: two people asking you on the same job are two
@@ -21,7 +21,7 @@
        same reason yours that name nobody never join. A note that names
        somebody else is to somebody else.
    Your notes that name nobody don't join: you write job notes all day, and
-   a note on the job is not an answer to Luke unless it says it is to him.
+   a note on the job is not an answer to Lyle unless it says it is to him.
 
    YOUR REPLY FROM HEYTIFF (two-way phase 2, ./diary-reply) joins by what
    it answers, not by its words: the conversation that holds the note it
@@ -39,7 +39,7 @@
    said by first name (the whole name when two people share the first), so
    "can you ask @michaeldiamond to bring the ladder" still asks for Michael.
    What Tiff READS is the note with nothing taken out and every handle said
-   by name, yours by your first (`named`): a note written to Luke and to you
+   by name, yours by your first (`named`): a note written to Lyle and to you
    is two asks, and only the part in front of your name is yours.
 
    WHERE IT SORTS is the asker's newest message, so your reply never moves
@@ -119,7 +119,7 @@ export type DiaryMessage = {
       (`ours`), HeyTiff's row. */
   id: string;
   from: "them" | "you";
-  /** It names the other side of the conversation: "Luke Ingold to you".
+  /** It names the other side of the conversation: "Lyle Irving to you".
       Always so for yours (a note of yours joins only when it names the
       asker) and for his that mention you; not for his follow-on that
       names nobody, which was written on the job, not to you. */

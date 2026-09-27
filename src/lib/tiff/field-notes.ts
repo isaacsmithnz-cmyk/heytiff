@@ -63,7 +63,7 @@ export async function publishFieldNote(input: FieldNoteInput): Promise<PublishRe
   /* The embedding happens BEFORE the rows exist, so a vector failure can
      degrade gracefully into a keyword-only chunk rather than a document
      with no chunk. The text embedded is heading + body: the heading names
-     the job and author, which is exactly what a "what did Luke do at
+     the job and author, which is exactly what a "what did Lyle do at
      Meridian" question needs the vector to carry. */
   const embedded = await embedTexts([`${heading}\n${title}\n${body}`], "document");
   const vector = embedded.ok ? (embedded.vectors?.[0] ?? null) : null;

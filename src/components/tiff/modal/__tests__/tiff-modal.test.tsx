@@ -149,7 +149,7 @@ async function say(user: ReturnType<typeof userEvent.setup>, words: string) {
   await act(async () => engine.opts!.onTranscript(words, { capped: false }));
 }
 
-const LUKE = { id: "s-luke", fullName: "Luke Ingold" };
+const LYLE = { id: "s-lyle", fullName: "Lyle Irving" };
 const task = (title: string, assigneeId: string | null, extra: Record<string, unknown> = {}) => ({
   title,
   detail: "",
@@ -179,14 +179,14 @@ const routed = (p: Record<string, unknown>) => ({
   ok: true,
   noteId: "n1",
   proposal: proposal(p),
-  staff: [LUKE],
+  staff: [LYLE],
 });
-const DONE = "Done. Luke puts the Bellevue Hill head on the ute.";
+const DONE = "Done. Lyle puts the Bellevue Hill head on the ute.";
 const filedOk = {
   ok: true,
   summary: "Saved.",
   doors: [{ kind: "tasks", count: 1, label: "1 task filed", ids: ["t1"] }],
-  turns: [turn("you", "x"), turn("tiff", "Luke puts the Bellevue Hill head on the ute."), turn("tiff", DONE)],
+  turns: [turn("you", "x"), turn("tiff", "Lyle puts the Bellevue Hill head on the ute."), turn("tiff", DONE)],
 };
 
 beforeEach(() => {
@@ -272,16 +272,16 @@ describe("talking", () => {
   it("Done makes your words a turn, folds the dock and says Tiff is sorting it out", async () => {
     routeNote.mockReturnValue(new Promise(() => {}));
     const user = await openModal();
-    await say(user, "Luke has the Bellevue Hill head on the ute");
+    await say(user, "Lyle has the Bellevue Hill head on the ute");
 
     const d = dialog();
     expect(mic.stop).toHaveBeenCalledTimes(1);
     expect(within(d).getByText("You")).toBeInTheDocument();
-    expect(within(d).getByText("Luke has the Bellevue Hill head on the ute")).toBeInTheDocument();
+    expect(within(d).getByText("Lyle has the Bellevue Hill head on the ute")).toBeInTheDocument();
     expect(d.querySelector(".tm-dock")).toBeNull();
     expect(within(d).getByRole("status")).toHaveTextContent("Tiff is sorting it out");
     expect(routeNote).toHaveBeenCalledWith({
-      transcript: "Luke has the Bellevue Hill head on the ute",
+      transcript: "Lyle has the Bellevue Hill head on the ute",
       target: { kind: "none" },
       source: "voice",
       room: undefined,
@@ -291,13 +291,13 @@ describe("talking", () => {
   it("files a plan with nothing unclear at once, and says so with Undo", async () => {
     routeNote.mockResolvedValue(
       routed({
-        say: "Luke puts the Bellevue Hill head on the ute.",
-        tasks: [task("Put the Bellevue Hill head on the ute", LUKE.id, { dueDate: "2026-09-25", remindTime: "07:00" })],
+        say: "Lyle puts the Bellevue Hill head on the ute.",
+        tasks: [task("Put the Bellevue Hill head on the ute", LYLE.id, { dueDate: "2026-09-25", remindTime: "07:00" })],
       })
     );
     fileNote.mockResolvedValue(filedOk);
     const user = await openModal();
-    await say(user, "Luke has the Bellevue Hill head on the ute");
+    await say(user, "Lyle has the Bellevue Hill head on the ute");
     await flush();
 
     expect(fileNote).toHaveBeenCalledWith("n1", { leaveOut: [] });
@@ -306,7 +306,7 @@ describe("talking", () => {
     expect(within(d).getByText("1 task filed")).toBeInTheDocument();
     expect(within(d).getByRole("button", { name: "Undo" })).toBeInTheDocument();
     const row = d.querySelector(".tm-row-plan")!;
-    expect(row).toHaveTextContent("Luke, Put the Bellevue Hill head on the ute, Fri 7:00");
+    expect(row).toHaveTextContent("Lyle, Put the Bellevue Hill head on the ute, Fri 7:00");
     // a filed row has no cross: taking one back is Undo's job
     expect(within(d).queryByRole("button", { name: /^Clear Put the/ })).toBeNull();
     // and the dock is back as the reply box
@@ -316,9 +316,9 @@ describe("talking", () => {
   it("asks when something is unclear: the rows, the one that needs an answer, and quick answers", async () => {
     routeNote.mockResolvedValue(
       routed({
-        say: "Luke has the head on the ute. Who books 3323 in?",
-        tasks: [task("Put the head on the ute", LUKE.id), task("Book 3323 Randwick in", null)],
-        clarify: { question: "Who books 3323 in?", options: ["Luke", "Me"] },
+        say: "Lyle has the head on the ute. Who books 3323 in?",
+        tasks: [task("Put the head on the ute", LYLE.id), task("Book 3323 Randwick in", null)],
+        clarify: { question: "Who books 3323 in?", options: ["Lyle", "Me"] },
       })
     );
     continueNote.mockReturnValue(new Promise(() => {}));
@@ -328,14 +328,14 @@ describe("talking", () => {
 
     const d = dialog();
     expect(fileNote).not.toHaveBeenCalled();
-    expect(within(convo()).getByText("Luke has the head on the ute. Who books 3323 in?")).toBeInTheDocument();
+    expect(within(convo()).getByText("Lyle has the head on the ute. Who books 3323 in?")).toBeInTheDocument();
     const rows = [...d.querySelectorAll(".tm-row-plan")];
-    expect(rows[0]).toHaveTextContent("Luke, Put the head on the ute");
+    expect(rows[0]).toHaveTextContent("Lyle, Put the head on the ute");
     expect(rows[1]).toHaveTextContent("Who Book 3323 Randwick in");
     expect(rows[1]).toHaveTextContent("Needs an answer");
 
-    await user.click(within(d).getByRole("button", { name: "Luke" }));
-    expect(continueNote).toHaveBeenCalledWith("n1", "Luke", []);
+    await user.click(within(d).getByRole("button", { name: "Lyle" }));
+    expect(continueNote).toHaveBeenCalledWith("n1", "Lyle", []);
   });
 
   it("files straight past a job question when the answer is a job", async () => {
@@ -412,25 +412,25 @@ describe("talking", () => {
     expect(within(dialog()).getByText("Go ahead, I’m listening")).toBeInTheDocument();
     expect(within(dialog()).getByRole("button", { name: "Me" })).toBeInTheDocument();
     // the first key stops the recording and is the start of the reply
-    await user.type(within(dialog()).getByRole("textbox", { name: "Type instead" }), "Luke books it{Enter}");
+    await user.type(within(dialog()).getByRole("textbox", { name: "Type instead" }), "Lyle books it{Enter}");
     expect(mic.cancel).toHaveBeenCalledTimes(1);
     await flush();
-    expect(continueNote).toHaveBeenNthCalledWith(1, "n1", "Luke books it", []);
+    expect(continueNote).toHaveBeenNthCalledWith(1, "n1", "Lyle books it", []);
 
     // typed, so she waits at the box; its Tiff button listens
     expect(mic.start).toHaveBeenCalledTimes(2);
     await user.click(within(dialog()).getByRole("button", { name: "Talk to Tiff" }));
     expect(mic.start).toHaveBeenCalledTimes(3);
-    await say(user, "no, Luke does it Monday");
+    await say(user, "no, Lyle does it Monday");
     await flush();
-    expect(continueNote).toHaveBeenNthCalledWith(2, "n1", "no, Luke does it Monday", []);
+    expect(continueNote).toHaveBeenNthCalledWith(2, "n1", "no, Lyle does it Monday", []);
   });
 
   it("a row's cross takes it off the plan and names it on the next call", async () => {
     routeNote.mockResolvedValue(
       routed({
         say: "Who books 3323?",
-        tasks: [task("Put the head on the ute", LUKE.id), task("Book 3323 in", null)],
+        tasks: [task("Put the head on the ute", LYLE.id), task("Book 3323 in", null)],
         clarify: { question: "Who books 3323?", options: ["Me"] },
       })
     );
@@ -451,10 +451,10 @@ describe("talking", () => {
 
 describe("after filing", () => {
   async function filed() {
-    routeNote.mockResolvedValue(routed({ say: "Luke puts it on the ute.", tasks: [task("Head on the ute", LUKE.id)] }));
+    routeNote.mockResolvedValue(routed({ say: "Lyle puts it on the ute.", tasks: [task("Head on the ute", LYLE.id)] }));
     fileNote.mockResolvedValue(filedOk);
     const user = await openModal();
-    await say(user, "Luke has the head on the ute");
+    await say(user, "Lyle has the head on the ute");
     await flush();
     return user;
   }
@@ -471,7 +471,7 @@ describe("after filing", () => {
   });
 
   it("a refused Undo says why, in its own sentence", async () => {
-    const why = "Luke has already ticked off one of those, so nothing was taken back.";
+    const why = "Lyle has already ticked off one of those, so nothing was taken back.";
     undoNote.mockResolvedValue({ ok: false, error: why });
     const user = await filed();
     await user.click(within(dialog()).getByRole("button", { name: "Undo" }));
@@ -597,7 +597,7 @@ describe("after filing", () => {
 describe("asking", () => {
   it("streams an answer to a question, and a follow-up carries the conversation", async () => {
     askBrain.mockImplementationOnce((_input, h) => {
-      h.onDelta("Luke is at 3323 ");
+      h.onDelta("Lyle is at 3323 ");
       h.onDelta("from 9:00.");
       h.onDone();
     });
@@ -609,13 +609,13 @@ describe("asking", () => {
     expect(routeNote).not.toHaveBeenCalled();
     expect(askBrain.mock.calls[0][0]).toMatchObject({ question: "who's at 3323 tomorrow?" });
     expect(askBrain.mock.calls[0][0].history ?? []).toEqual([]);
-    expect(within(convo()).getByText("Luke is at 3323 from 9:00.")).toBeInTheDocument();
+    expect(within(convo()).getByText("Lyle is at 3323 from 9:00.")).toBeInTheDocument();
 
     await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "and the day after?{Enter}");
     await flush();
     expect(askBrain.mock.calls[1][0].history).toEqual([
       { who: "you", text: "who's at 3323 tomorrow?" },
-      { who: "tiff", text: "Luke is at 3323 from 9:00." },
+      { who: "tiff", text: "Lyle is at 3323 from 9:00." },
     ]);
   });
 });
@@ -654,10 +654,10 @@ describe("leaving", () => {
     expect(topButton()).toHaveFocus();
     expect(refresh).not.toHaveBeenCalled();
 
-    routeNote.mockResolvedValue(routed({ say: "Luke has it.", tasks: [task("Head on the ute", LUKE.id)] }));
+    routeNote.mockResolvedValue(routed({ say: "Lyle has it.", tasks: [task("Head on the ute", LYLE.id)] }));
     fileNote.mockResolvedValue(filedOk);
     await user.click(topButton());
-    await say(user, "Luke has the head");
+    await say(user, "Lyle has the head");
     await flush();
     await user.click(within(dialog()).getByRole("button", { name: "Close" }));
     await flush();
@@ -753,10 +753,10 @@ describe("leaving", () => {
     let answer: (v: unknown) => void = () => {};
     routeNote.mockReturnValue(new Promise((r) => (answer = r)));
     const user = await openModal();
-    await say(user, "Luke has the head");
+    await say(user, "Lyle has the head");
     await user.keyboard("{Escape}");
     await flush();
-    await act(async () => answer(routed({ say: "Luke has it.", tasks: [task("Head", LUKE.id)] })));
+    await act(async () => answer(routed({ say: "Lyle has it.", tasks: [task("Head", LYLE.id)] })));
     expect(fileNote).not.toHaveBeenCalled();
     expect(dismissNote).toHaveBeenCalledWith("n1");
   });
@@ -850,7 +850,7 @@ describe("the waits have floors", () => {
   it("holds Tiff's answer until the cloud has turned", async () => {
     motion(false);
     jest.useFakeTimers();
-    routeNote.mockResolvedValue(routed({ say: "Luke has it.", tasks: [task("Head on the ute", LUKE.id)] }));
+    routeNote.mockResolvedValue(routed({ say: "Lyle has it.", tasks: [task("Head on the ute", LYLE.id)] }));
     fileNote.mockResolvedValue(filedOk);
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     render(<Harness />);
@@ -858,7 +858,7 @@ describe("the waits have floors", () => {
     // the button's rings are what travel now (./rings): the mark is simply there, and holds nothing up
     expect(dialog().querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
 
-    await say(user, "Luke has the head");
+    await say(user, "Lyle has the head");
     await flush();
     expect(fileNote).toHaveBeenCalled();
     expect(within(convo()).queryByText(DONE)).toBeNull();
@@ -886,12 +886,12 @@ describe("the waits have floors", () => {
   });
 
   it("under reduced motion nothing flies and nothing is held", async () => {
-    routeNote.mockResolvedValue(routed({ say: "Luke has it.", tasks: [task("Head on the ute", LUKE.id)] }));
+    routeNote.mockResolvedValue(routed({ say: "Lyle has it.", tasks: [task("Head on the ute", LYLE.id)] }));
     fileNote.mockResolvedValue(filedOk);
     const user = await openModal();
     expect(dialog().querySelector('.dotf[data-stage="gather"]')).toBeNull();
     expect(dialog().querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
-    await say(user, "Luke has the head");
+    await say(user, "Lyle has the head");
     await flush();
     expect(within(convo()).getByText(DONE)).toBeInTheDocument();
   });
@@ -1007,7 +1007,7 @@ describe("the rings", () => {
     routeNote.mockReturnValue(new Promise(() => {}));
     const user = await openModal();
     const dock = dialog().querySelector(".tm-dock")!;
-    await say(user, "Luke has the head");
+    await say(user, "Lyle has the head");
     const shut = anims.find((a) => a.el === dock && a.frames.at(-1)?.height === "0px");
     expect(shut?.frames.at(-1)).toMatchObject({ opacity: 0, height: "0px", paddingTop: "0px", paddingBottom: "0px" });
     expect(dialog().querySelector(".tm-dock")).toBe(dock);
@@ -1079,7 +1079,7 @@ describe("the dock folding away", () => {
     await user.click(done);
     await flush();
     expect(screen.getByRole("dialog", { name: "Tiff" })).toBeInTheDocument();
-    await act(async () => engine.opts!.onTranscript("Luke has the head", { capped: false }));
+    await act(async () => engine.opts!.onTranscript("Lyle has the head", { capped: false }));
     expect(routeNote).toHaveBeenCalledTimes(1);
   });
 
@@ -1113,8 +1113,8 @@ describe("reduced motion", () => {
     const anims = recordAnimations();
     routeNote.mockReturnValue(new Promise(() => {}));
     const user = await openModal();
-    await say(user, "Luke has the head");
-    const words = within(convo()).getByText("Luke has the head");
+    await say(user, "Lyle has the head");
+    const words = within(convo()).getByText("Lyle has the head");
     expect(anims.some((a) => a.el === words && a.frames.some((f) => "fontSize" in f))).toBe(true);
   });
 
@@ -1128,7 +1128,7 @@ describe("reduced motion", () => {
       },
     });
     await openModal();
-    await act(async () => engine.say!("Luke has the head on the ute"));
+    await act(async () => engine.say!("Lyle has the head on the ute"));
     const live = dialog().querySelector(".tm-turn.live")!;
     expect(anims.some((a) => a.el === live && a.frames.some((f) => "height" in f))).toBe(true);
   });
@@ -1156,7 +1156,7 @@ describe("the keyboard", () => {
   it("opened from it with motion allowed, Tiff's answer still waits for the cloud's floor", async () => {
     motion(false);
     jest.useFakeTimers();
-    routeNote.mockResolvedValue(routed({ say: "Luke has it.", tasks: [task("Head on the ute", LUKE.id)] }));
+    routeNote.mockResolvedValue(routed({ say: "Lyle has it.", tasks: [task("Head on the ute", LYLE.id)] }));
     fileNote.mockResolvedValue(filedOk);
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     render(<Harness />);
@@ -1165,7 +1165,7 @@ describe("the keyboard", () => {
     });
     // nothing flew from the button
     expect(dialog().querySelector('.dotf[data-stage="gather"]')).toBeNull();
-    await say(user, "Luke has the head");
+    await say(user, "Lyle has the head");
     await flush();
     expect(fileNote).toHaveBeenCalled();
     await act(async () => {
@@ -1221,10 +1221,10 @@ describe("a screen reader", () => {
     routeNote.mockReturnValue(new Promise((r) => (answer = r)));
     fileNote.mockResolvedValue(filedOk);
     const user = await openModal();
-    await say(user, "Luke has the head");
+    await say(user, "Lyle has the head");
     expect(dialog()).toHaveFocus();
     expect(within(dialog()).getByRole("status")).toHaveTextContent("Tiff is sorting it out");
-    await act(async () => answer(routed({ say: "Luke has it.", tasks: [task("Head on the ute", LUKE.id)] })));
+    await act(async () => answer(routed({ say: "Lyle has it.", tasks: [task("Head on the ute", LYLE.id)] })));
     await flush();
     expect(within(dialog()).getByRole("status")).toHaveTextContent(DONE);
     expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toHaveFocus();
@@ -1243,25 +1243,25 @@ describe("your words, while you say them", () => {
   it("clicked into, stay on screen until the read-back lands, and nothing is typed in front of them", async () => {
     routeNote.mockReturnValue(new Promise(() => {}));
     const user = await openModal();
-    await act(async () => engine.say!("Luke has the head"));
+    await act(async () => engine.say!("Lyle has the head"));
     const words = dialog().querySelector<HTMLElement>(".tm-words")!;
-    expect(words).toHaveTextContent("Luke has the head");
+    expect(words).toHaveTextContent("Lyle has the head");
     await user.click(words);
     expect(mic.handOver).toHaveBeenCalledTimes(1);
 
     const box = within(dialog()).getByRole("textbox", { name: "What you said" });
-    expect(box).toHaveValue("Luke has the head");
+    expect(box).toHaveValue("Lyle has the head");
     await user.type(box, "x");
-    expect(box).toHaveValue("Luke has the head");
+    expect(box).toHaveValue("Lyle has the head");
     expect(within(dialog()).getByRole("button", { name: "Send" })).toBeDisabled();
     await user.type(box, "{Enter}");
     expect(routeNote).not.toHaveBeenCalled();
 
-    await act(async () => engine.opts!.onTranscript("Luke has the head on the ute", { capped: false }));
-    expect(box).toHaveValue("Luke has the head on the ute");
+    await act(async () => engine.opts!.onTranscript("Lyle has the head on the ute", { capped: false }));
+    expect(box).toHaveValue("Lyle has the head on the ute");
     await user.type(box, " today{Enter}");
     expect(routeNote).toHaveBeenCalledWith(
-      expect.objectContaining({ transcript: "Luke has the head on the ute today", source: "voice" })
+      expect.objectContaining({ transcript: "Lyle has the head on the ute today", source: "voice" })
     );
   });
 
@@ -1269,20 +1269,20 @@ describe("your words, while you say them", () => {
      microphone". The cross stops: the take goes, and the mic stays shut. */
   it("the cross throws the take away and stops: the reply box, and the mic is not opened again", async () => {
     const user = await openModal();
-    await act(async () => engine.say!("Luke has"));
+    await act(async () => engine.say!("Lyle has"));
     await user.click(within(dialog()).getByRole("button", { name: "Clear what you said" }));
     expect(mic.cancel).toHaveBeenCalledTimes(1);
     expect(mic.restart).not.toHaveBeenCalled();
     expect(mic.start).toHaveBeenCalledTimes(1);
     expect(within(dialog()).queryByRole("button", { name: "Done" })).toBeNull();
     expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toHaveValue("");
-    expect(within(dialog()).queryByText("Luke has")).toBeNull();
+    expect(within(dialog()).queryByText("Lyle has")).toBeNull();
     expect(routeNote).not.toHaveBeenCalled();
   });
 
   it("the cross on your words, clicked into, bins the read-back and stops the same way", async () => {
     const user = await openModal();
-    await act(async () => engine.say!("Luke has"));
+    await act(async () => engine.say!("Lyle has"));
     await user.click(dialog().querySelector<HTMLElement>(".tm-words")!);
     expect(within(dialog()).getByRole("textbox", { name: "What you said" })).toBeInTheDocument();
     await user.click(within(dialog()).getByRole("button", { name: "Clear what you said" }));
@@ -1342,7 +1342,7 @@ describe("your words, while you say them", () => {
 
     it("with words already said, the first key keeps them for you to fix", async () => {
       const user = await talkAgain();
-      await act(async () => engine.say!("Luke books"));
+      await act(async () => engine.say!("Lyle books"));
       await user.type(within(dialog()).getByRole("textbox", { name: "Type instead" }), "x");
       expect(mic.handOver).toHaveBeenCalledTimes(1);
       expect(within(dialog()).getByRole("textbox", { name: "What you said" })).toBeInTheDocument();
@@ -1441,25 +1441,25 @@ describe("when the words never reached Tiff", () => {
     await user.click(within(dialog()).getByRole("button", { name: "Me" }));
     await flush();
     expect(within(convo()).getByText(NOT_REACHED)).toBeInTheDocument();
-    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Luke{Enter}");
-    expect(continueNote).toHaveBeenLastCalledWith("n1", "Luke", []);
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Lyle{Enter}");
+    expect(continueNote).toHaveBeenLastCalledWith("n1", "Lyle", []);
   });
 
   it("says so when a filing never answers", async () => {
-    routeNote.mockResolvedValue(routed({ say: "Luke has it.", tasks: [task("Head on the ute", LUKE.id)] }));
+    routeNote.mockResolvedValue(routed({ say: "Lyle has it.", tasks: [task("Head on the ute", LYLE.id)] }));
     fileNote.mockRejectedValue(new Error("offline"));
     const user = await openModal();
-    await say(user, "Luke has the head");
+    await say(user, "Lyle has the head");
     await flush();
     expect(within(convo()).getByText(NOT_REACHED)).toBeInTheDocument();
   });
 
   it("says so when Undo never answers, and Undo can be pressed again", async () => {
-    routeNote.mockResolvedValue(routed({ say: "Luke has it.", tasks: [task("Head on the ute", LUKE.id)] }));
+    routeNote.mockResolvedValue(routed({ say: "Lyle has it.", tasks: [task("Head on the ute", LYLE.id)] }));
     fileNote.mockResolvedValue(filedOk);
     undoNote.mockRejectedValue(new Error("offline"));
     const user = await openModal();
-    await say(user, "Luke has the head");
+    await say(user, "Lyle has the head");
     await flush();
     await user.click(within(dialog()).getByRole("button", { name: "Undo" }));
     await flush();
@@ -1499,10 +1499,10 @@ describe("the conversation", () => {
   });
 
   it("a new note after Tiff has filed one is read by the turns before it", async () => {
-    routeNote.mockResolvedValueOnce(routed({ say: "Luke puts it on the ute.", tasks: [task("Head on the ute", LUKE.id)] }));
+    routeNote.mockResolvedValueOnce(routed({ say: "Lyle puts it on the ute.", tasks: [task("Head on the ute", LYLE.id)] }));
     fileNote.mockResolvedValue(filedOk);
     const user = await openModal({ voice: false });
-    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Luke has the Bellevue Hill head on the ute{Enter}");
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Lyle has the Bellevue Hill head on the ute{Enter}");
     await flush();
     routeNote.mockReturnValue(new Promise(() => {}));
     await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "and the same for Smith St{Enter}");
@@ -1514,7 +1514,7 @@ describe("the conversation", () => {
       source: "text",
       room: undefined,
       before: [
-        { who: "you", text: "Luke has the Bellevue Hill head on the ute" },
+        { who: "you", text: "Lyle has the Bellevue Hill head on the ute" },
         { who: "tiff", text: DONE },
       ],
     });
@@ -1542,7 +1542,7 @@ describe("the conversation", () => {
 
 describe("opened again on a conversation", () => {
   const HAD = [
-    { who: "you" as const, text: "Luke has the Bellevue Hill head on the ute" },
+    { who: "you" as const, text: "Lyle has the Bellevue Hill head on the ute" },
     { who: "tiff" as const, text: DONE },
   ];
   /** The diary's door: a button on the page, the conversation, the diary's room. */
@@ -1558,7 +1558,7 @@ describe("opened again on a conversation", () => {
   it("has what was said on screen, Tiff's face already fallen, in the diary's room", async () => {
     await reopen();
     const turns = within(convo()).getAllByText(/./, { selector: ".tm-tt" }).map((t) => t.textContent);
-    expect(turns).toEqual(["Luke has the Bellevue Hill head on the ute", DONE]);
+    expect(turns).toEqual(["Lyle has the Bellevue Hill head on the ute", DONE]);
     expect(within(convo()).getAllByText(/^(You|Tiff)$/).map((l) => l.textContent)).toEqual(["You", "Tiff"]);
     // she has already answered: no dots gather, and the header holds her mark
     expect(dialog().querySelector(".tm-face")).toBeNull();
@@ -1601,8 +1601,8 @@ describe("opened again on a conversation", () => {
   it("asks a question with the conversation as its history", async () => {
     askBrain.mockImplementationOnce(() => {});
     const user = await reopen({ voice: false });
-    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "when is Luke at Bellevue Hill?{Enter}");
-    expect(askBrain.mock.calls[0][0]).toMatchObject({ question: "when is Luke at Bellevue Hill?", history: HAD });
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "when is Lyle at Bellevue Hill?{Enter}");
+    expect(askBrain.mock.calls[0][0]).toMatchObject({ question: "when is Lyle at Bellevue Hill?", history: HAD });
   });
 
   it("closes on nothing new without asking the page to read again, and gives focus back to the door", async () => {

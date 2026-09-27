@@ -9,7 +9,7 @@
 
 import { sm8JobUrl } from "../sm8-links";
 
-const UUID = "0f11827a-29ad-4575-a5a4-21cfb0c5c75b";
+const UUID = "0e0e0e0e-0000-4000-8000-0000000000c5";
 
 describe("sm8JobUrl", () => {
   it("builds the documented job door", () => {

@@ -54,17 +54,17 @@ import { dedupeKey, WRITE_WORDS } from "../sm8-write-plan";
 const W = BOOKING_WORDS;
 const SYDNEY = "Australia/Sydney";
 const PERTH = "Australia/Perth";
-const JOB = "a0c2c09a-6f3c-4907-adfa-2149d061251b";
-const LUKE = "3edd29df-0000-4000-8000-00000000beef";
-const ISAAC = "985a32ef-398b-489f-882a-20fe666a5ebb";
+const JOB = "a0a0a0a0-0000-4000-8000-0000000000b1";
+const LYLE = "3c3c3c3c-0000-4000-8000-00000000beef";
+const ISAAC = "9d9d9d9d-0000-4000-8000-0000000000aa";
 
 /* ── A-5: subjects ── */
 
 describe("a booking row's subject", () => {
   it("round-trips every kind of subject, with no space in any", () => {
-    const slot = bookingSubject.slot(LUKE.toUpperCase(), "2026-10-06 09:00:00");
-    expect(slot).toBe(`slot:${LUKE}:2026-10-06T09:00`);
-    expect(parseBookingSubject(slot)).toEqual({ via: "slot", staffUuid: LUKE, start: "2026-10-06 09:00:00", released: false });
+    const slot = bookingSubject.slot(LYLE.toUpperCase(), "2026-10-06 09:00:00");
+    expect(slot).toBe(`slot:${LYLE}:2026-10-06T09:00`);
+    expect(parseBookingSubject(slot)).toEqual({ via: "slot", staffUuid: LYLE, start: "2026-10-06 09:00:00", released: false });
     const status = bookingSubject.status("2026-09-26 22:05:45");
     expect(status).toBe("status:wo:2026-09-26T22:05:45");
     expect(parseBookingSubject(status)).toEqual({ via: "status", seenEditDate: "2026-09-26 22:05:45", released: false });
@@ -77,10 +77,10 @@ describe("a booking row's subject", () => {
   });
 
   it("reads a released subject (`:was:<id>`) as released, whatever it was", () => {
-    const slot = bookingSubject.slot(LUKE, "2026-10-06 09:00:00");
+    const slot = bookingSubject.slot(LYLE, "2026-10-06 09:00:00");
     expect(parseBookingSubject(`${slot}:was:row-7`)).toEqual({
       via: "slot",
-      staffUuid: LUKE,
+      staffUuid: LYLE,
       start: "2026-10-06 09:00:00",
       released: true,
     });
@@ -92,12 +92,12 @@ describe("a booking row's subject", () => {
   });
 
   it("keys a slot as the generated column does: one live booking per job, person and start", () => {
-    const slot = bookingSubject.slot(LUKE, "2026-10-06 09:00:00");
-    expect(dedupeKey("booking", JOB, slot)).toBe(`booking:${JOB}:slot:${LUKE}:2026-10-06T09:00`);
+    const slot = bookingSubject.slot(LYLE, "2026-10-06 09:00:00");
+    expect(dedupeKey("booking", JOB, slot)).toBe(`booking:${JOB}:slot:${LYLE}:2026-10-06T09:00`);
     const sql = readFileSync(join(process.cwd(), "docs/migrations/sm8_writes_safety.sql"), "utf8");
     expect(sql).toContain("generated always as (kind || ':' || coalesce(sm8_job_uuid, '') || ':' || subject) stored");
     // the same person at the same start on the same job is the same key, however cased
-    expect(bookingSubject.slot(LUKE.toUpperCase(), "2026-10-06 09:00:00")).toBe(slot);
+    expect(bookingSubject.slot(LYLE.toUpperCase(), "2026-10-06 09:00:00")).toBe(slot);
   });
 });
 
@@ -193,7 +193,7 @@ describe("a leftover", () => {
     active: 1,
     start: "2026-10-06 14:00:00",
     end: "2026-10-06 16:00:00",
-    staffUuid: LUKE,
+    staffUuid: LYLE,
     ...over,
   });
 
@@ -258,7 +258,7 @@ const createRow = (over: Partial<BookingRowIn> = {}): BookingRowIn => ({
   last_error: null,
   attempts: 0,
   sm8_job_uuid: JOB,
-  booking_staff_uuid: LUKE,
+  booking_staff_uuid: LYLE,
   booking_start: "2026-10-06 14:00:00",
   booking_end: "2026-10-06 16:00:00",
   landed_edit_date: null,
@@ -277,7 +277,7 @@ const statusRow = (over: Partial<StatusRowIn> = {}): StatusRowIn => ({
 const mirrorOf = (over: Partial<NonNullable<BookingLineIn["mirror"]>> = {}): NonNullable<BookingLineIn["mirror"]> => ({
   active: 1,
   jobUuid: JOB,
-  staffUuid: LUKE,
+  staffUuid: LYLE,
   start: "2026-10-06 14:00:00",
   end: "2026-10-06 16:00:00",
   editDate: "2026-10-05 16:00:00",
@@ -303,8 +303,8 @@ const NONE = { key: null, text: null, tone: null, acts: [] };
 
 /* the reasons as the sender stores them: filled */
 const filled = {
-  slotTaken: fillWords(W.row.slotTaken, { name: "Luke Ingold" }),
-  techInactive: fillWords(W.row.techInactive, { name: "Luke Ingold" }),
+  slotTaken: fillWords(W.row.slotTaken, { name: "Lyle Irving" }),
+  techInactive: fillWords(W.row.techInactive, { name: "Lyle Irving" }),
   jobNotBookable: fillWords(W.row.jobNotBookable, { status: "Completed" }),
   guardStopped: fillWords(W.row.guardStopped, { number: "3370" }),
 };
@@ -486,7 +486,7 @@ describe("a booking's line, case by case", () => {
     // the booked person opened it (U21): the edit time moved, nothing booked did
     expect(lineOf({ status: "sent" }, { mirror: mirrorOf({ editDate: "2026-10-06 07:12:00" }) }).key).toBe("line.sent");
     // a uuid the mirror cases differently is the same booking
-    expect(lineOf({ status: "sent" }, { mirror: mirrorOf({ staffUuid: LUKE.toUpperCase() }) }).key).toBe("line.sent");
+    expect(lineOf({ status: "sent" }, { mirror: mirrorOf({ staffUuid: LYLE.toUpperCase() }) }).key).toBe("line.sent");
   });
 
   it("(F) 15: from the movedThere marker alone, with no mirror row", () => {
@@ -781,7 +781,7 @@ describe("where a line is drawn", () => {
 
 describe("a stored reason", () => {
   const rowKeys = Object.keys(W.row) as (keyof typeof W.row)[];
-  const fillAll = (t: string) => fillWords(t, { name: "Luke Ingold", status: "Completed", number: "3370" });
+  const fillAll = (t: string) => fillWords(t, { name: "Lyle Irving", status: "Completed", number: "3370" });
 
   it("(F) is recognised by its template, filled and unfilled", () => {
     for (const key of rowKeys) {

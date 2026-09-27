@@ -57,7 +57,7 @@ const m = <T,>(fn: T) => fn as unknown as jest.Mock;
 
 const TODAY = "2026-09-24"; // a Thursday
 const ME = "s-isaac";
-const LUKE = "s-luke";
+const LYLE = "s-lyle";
 const LEO = "s-leo";
 
 const task = (over: Partial<RecordTask> = {}): RecordTask => ({
@@ -85,7 +85,7 @@ const record = (over: Partial<TaskRecord> = {}): TaskRecord => ({
   done: [],
   doneCapped: false,
   about: {},
-  people: { [ME]: "Isaac Smith", [LUKE]: "Luke Ingold", [LEO]: "Leo Park" },
+  people: { [ME]: "Isaac Smith", [LYLE]: "Lyle Irving", [LEO]: "Leo Park" },
   ...over,
 });
 
@@ -96,7 +96,7 @@ const diary = (over: Partial<TaskAbout> = {}): TaskAbout => ({
   authorId: ME,
   spoken: true,
   said: { day: "2026-08-22", time: "11:42 pm" },
-  words: "Luke to order the grilles by Friday",
+  words: "Lyle to order the grilles by Friday",
   ...over,
 });
 
@@ -104,7 +104,7 @@ const sm8 = (over: Partial<TaskAbout> = {}): TaskAbout => ({
   ...typedAbout(),
   source: "sm8",
   sm8NoteUuid: "note-1",
-  askerName: "Luke Ingold",
+  askerName: "Lyle Irving",
   said: { day: "2026-09-21", time: "1:42 pm" },
   words: "can you order the grilles",
   job: { label: "2041 Wollstonecraft", uuid: "job-1" },
@@ -192,7 +192,7 @@ const opened = (name: string) => document.getElementById(title(name).getAttribut
 /** Who a task can be given to, as the loader hands them to a manager. */
 const PEOPLE = [
   { id: ME, name: "Isaac Smith" },
-  { id: LUKE, name: "Luke Ingold" },
+  { id: LYLE, name: "Lyle Irving" },
   { id: LEO, name: "Leo Park" },
 ];
 /** Give it to, asking who. */
@@ -257,7 +257,7 @@ describe("a row", () => {
         rec={record({
           open: [
             task({ dueDate: "2026-08-25" }),
-            task({ id: "t2", title: "Head to Waverley", dueDate: TODAY, assigneeId: LUKE, assigneeName: "Luke Ingold" }),
+            task({ id: "t2", title: "Head to Waverley", dueDate: TODAY, assigneeId: LYLE, assigneeName: "Lyle Irving" }),
           ],
           about: { t1: diary() },
         })}
@@ -267,23 +267,23 @@ describe("a row", () => {
     expect(late).toHaveTextContent("Your diary, Sat 22 Aug.");
     expect(within(late as HTMLElement).getByText("30 days late")).toHaveAttribute("data-state", "bad");
     expect(late.querySelector(".hd-ls-tag")).toBeNull();
-    const luke = title("Head to Waverley").closest(".hd-ls-row")!;
-    expect(within(luke as HTMLElement).getByText("Luke")).toHaveClass("hd-ls-tag");
-    expect(within(luke as HTMLElement).getByText("Today")).toHaveAttribute("data-state", "today");
+    const lyle = title("Head to Waverley").closest(".hd-ls-row")!;
+    expect(within(lyle as HTMLElement).getByText("Lyle")).toHaveClass("hd-ls-tag");
+    expect(within(lyle as HTMLElement).getByText("Today")).toHaveAttribute("data-state", "today");
   });
 
   it("strikes a done row through and says who ticked it and the day", () => {
     render(
       <Face
         rec={record({
-          done: [task({ status: "done", doneAt: "2026-09-21T03:42:00Z", doneById: LUKE, assigneeId: LUKE, assigneeName: "Luke Ingold" })],
+          done: [task({ status: "done", doneAt: "2026-09-21T03:42:00Z", doneById: LYLE, assigneeId: LYLE, assigneeName: "Lyle Irving" })],
         })}
         canManage
       />,
     );
     const row = title("Order the grilles").closest(".hd-ls-row")!;
     expect(row).toHaveClass("done");
-    expect(row).toHaveTextContent("Luke ticked it off.");
+    expect(row).toHaveTextContent("Lyle ticked it off.");
     expect(row).toHaveTextContent("Mon 21 Sept");
     expect(box("Order the grilles")).toHaveAttribute("aria-checked", "true");
   });
@@ -382,14 +382,14 @@ describe("opening a row", () => {
           open: [
             task(),
             task({ id: "t2", title: "Typed one" }),
-            task({ id: "t3", title: "From Luke" }),
-            task({ id: "t4", title: "Luke's diary" }),
+            task({ id: "t3", title: "From Lyle" }),
+            task({ id: "t4", title: "Lyle's diary" }),
           ],
           about: {
             t1: diary(),
             t2: diary({ spoken: false, words: "Order grilles" }),
             t3: sm8(),
-            t4: diary({ authorId: LUKE, words: null }),
+            t4: diary({ authorId: LYLE, words: null }),
           },
         })}
       />,
@@ -399,14 +399,14 @@ describe("opening a row", () => {
       return opened(name).querySelector("figure");
     };
     expect((await quote("Order the grilles"))!.textContent).toBe(
-      "You said, Sat 22 Aug, 11:42 pmLuke to order the grilles by Friday",
+      "You said, Sat 22 Aug, 11:42 pmLyle to order the grilles by Friday",
     );
     expect((await quote("Typed one"))!.querySelector("figcaption")!.textContent).toBe("You typed, Sat 22 Aug, 11:42 pm");
-    expect((await quote("From Luke"))!.querySelector("figcaption")!.textContent).toBe(
-      "Luke Ingold wrote, in a job note on 2041 Wollstonecraft",
+    expect((await quote("From Lyle"))!.querySelector("figcaption")!.textContent).toBe(
+      "Lyle Irving wrote, in a job note on 2041 Wollstonecraft",
     );
     // nobody reads someone else's diary: no words, no figure
-    expect(await quote("Luke's diary")).toBeNull();
+    expect(await quote("Lyle's diary")).toBeNull();
   });
 
   it("tells what happened to it, oldest first", async () => {
@@ -414,7 +414,7 @@ describe("opening a row", () => {
     render(
       <Face
         rec={record({
-          open: [task({ createdBy: LUKE, createdByName: "Luke Ingold", createdAt: "2026-09-21T03:42:00Z", acknowledgedAt: "2026-09-22T00:00:00Z" })],
+          open: [task({ createdBy: LYLE, createdByName: "Lyle Irving", createdAt: "2026-09-21T03:42:00Z", acknowledgedAt: "2026-09-22T00:00:00Z" })],
         })}
       />,
     );
@@ -424,8 +424,8 @@ describe("opening a row", () => {
       li.textContent!.slice(li.querySelector("span")!.textContent!.length),
     ]);
     expect(lines).toEqual([
-      ["Mon 21 Sept, 1:42 pm", "Luke typed it."],
-      ["Mon 21 Sept, 1:42 pm", "Luke gave it to you."],
+      ["Mon 21 Sept, 1:42 pm", "Lyle typed it."],
+      ["Mon 21 Sept, 1:42 pm", "Lyle gave it to you."],
       ["Tue 22 Sept, 10:00 am", "You said Got it."],
     ]);
   });
@@ -480,7 +480,7 @@ describe("ticking it off", () => {
     render(
       <Face
         rec={record({
-          done: [task(finished), task({ ...finished, id: "t2", title: "From Luke" })],
+          done: [task(finished), task({ ...finished, id: "t2", title: "From Lyle" })],
           about: { t1: diary(), t2: sm8() },
         })}
         onOpenEntry={jest.fn()}
@@ -489,8 +489,8 @@ describe("ticking it off", () => {
     );
     await user.click(title("Order the grilles"));
     expect(actionsOf("Order the grilles")).toEqual(["Not done yet", "Delete task"]);
-    await user.click(title("From Luke"));
-    expect(actionsOf("From Luke")).toEqual(["Not done yet", "Delete task"]);
+    await user.click(title("From Lyle"));
+    expect(actionsOf("From Lyle")).toEqual(["Not done yet", "Delete task"]);
   });
 
   it("takes a done one back with Not done yet", async () => {
@@ -682,8 +682,8 @@ describe("focus", () => {
 
   it("is never taken back to Give it to by a later redraw after Cancel", async () => {
     const user = userEvent.setup();
-    const luke = task({ assigneeId: LUKE, assigneeName: "Luke Ingold" });
-    const { rerender } = render(<Face rec={record({ open: [luke] })} assignable={PEOPLE} canManage />);
+    const lyle = task({ assigneeId: LYLE, assigneeName: "Lyle Irving" });
+    const { rerender } = render(<Face rec={record({ open: [lyle] })} assignable={PEOPLE} canManage />);
     await user.click(title("Order the grilles"));
     await user.click(screen.getByRole("button", { name: "Give it to" }));
     await user.click(within(giving()).getByRole("button", { name: "Cancel" }));
@@ -691,7 +691,7 @@ describe("focus", () => {
     (document.activeElement as HTMLElement).blur();
     rerender(
       <Face
-        rec={record({ open: [luke, task({ id: "t2", title: "Ring the Hilux dealer" })] })}
+        rec={record({ open: [lyle, task({ id: "t2", title: "Ring the Hilux dealer" })] })}
         assignable={PEOPLE}
         canManage
       />,
@@ -782,7 +782,7 @@ describe("focus", () => {
     m(retryTaskDone).mockReset().mockReturnValueOnce(answer.promise);
     const stillIn: TaskDoneLine = {
       noteId: "00000000-0000-4000-8000-0000000000d1",
-      words: "@lukeingold Done.",
+      words: "@lyleirving Done.",
       state: { key: "line.stillIn", text: "Still in ServiceM8.", tone: "bad", acts: ["take_out_again"] },
     };
     render(
@@ -827,20 +827,20 @@ describe("focus", () => {
 });
 
 describe("who may do what", () => {
-  /* Work you gave Luke that he finished: yours to read, his to take back. */
+  /* Work you gave Lyle that he finished: yours to read, his to take back. */
   it("gives a creator who is neither the assignee nor a manager no box and no Mark done", async () => {
     const user = userEvent.setup();
     render(
       <Face
         rec={record({
-          open: [task({ id: "t2", title: "Luke's open one", assigneeId: LUKE, assigneeName: "Luke Ingold" })],
-          done: [task({ assigneeId: LUKE, assigneeName: "Luke Ingold", status: "done", doneAt: "2026-09-22T01:00:00Z", doneById: LUKE })],
+          open: [task({ id: "t2", title: "Lyle's open one", assigneeId: LYLE, assigneeName: "Lyle Irving" })],
+          done: [task({ assigneeId: LYLE, assigneeName: "Lyle Irving", status: "done", doneAt: "2026-09-22T01:00:00Z", doneById: LYLE })],
         })}
       />,
     );
     expect(screen.queryByRole("checkbox")).toBeNull();
     expect(screen.getByRole("img", { name: "Done" })).toHaveClass("hd-tk-tick");
-    await user.click(title("Luke's open one"));
+    await user.click(title("Lyle's open one"));
     expect(screen.queryByRole("button", { name: "Mark done" })).toBeNull();
     // still theirs to move and to delete: they made it
     expect(screen.getByRole("button", { name: "Set due date" })).toBeInTheDocument();
@@ -849,19 +849,19 @@ describe("who may do what", () => {
 
   it("offers Delete task to the creator or a manager, and to nobody else", async () => {
     const user = userEvent.setup();
-    const lukes = task({ createdBy: LUKE, createdByName: "Luke Ingold" });
-    const { unmount } = render(<Face rec={record({ open: [lukes] })} />);
+    const lyles = task({ createdBy: LYLE, createdByName: "Lyle Irving" });
+    const { unmount } = render(<Face rec={record({ open: [lyles] })} />);
     await user.click(title("Order the grilles"));
     expect(screen.queryByRole("button", { name: "Delete task" })).toBeNull();
     unmount();
-    render(<Face rec={record({ open: [lukes] })} canManage />);
+    render(<Face rec={record({ open: [lyles] })} canManage />);
     await user.click(title("Order the grilles"));
     expect(screen.getByRole("button", { name: "Delete task" })).toBeInTheDocument();
   });
 
   it("offers Give it to only to a manager: you, then everyone else, never who has it", async () => {
     const user = userEvent.setup();
-    const rec = record({ open: [task({ assigneeId: LUKE, assigneeName: "Luke Ingold", createdBy: ME })] });
+    const rec = record({ open: [task({ assigneeId: LYLE, assigneeName: "Lyle Irving", createdBy: ME })] });
     const { unmount } = render(<Face rec={rec} assignable={PEOPLE} />);
     await user.click(title("Order the grilles"));
     expect(screen.queryByRole("button", { name: "Give it to" })).toBeNull();
@@ -887,7 +887,7 @@ describe("who may do what", () => {
      hand-over rings the new person's bell. */
   it("gives on the name you press and nothing else: keys back out, and focus waits on Cancel", async () => {
     const user = userEvent.setup();
-    const rec = record({ open: [task({ assigneeId: LUKE, assigneeName: "Luke Ingold" })] });
+    const rec = record({ open: [task({ assigneeId: LYLE, assigneeName: "Lyle Irving" })] });
     render(<Face rec={rec} assignable={[...PEOPLE, { id: "s-lorenzo", name: "Lorenzo Bianchi-Rossi" }]} canManage />);
     await user.click(title("Order the grilles"));
     const giveIt = screen.getByRole("button", { name: "Give it to" });
@@ -914,13 +914,13 @@ describe("who may do what", () => {
     render(<Face rec={record({ open: [task()] })} assignable={PEOPLE} canManage />);
     await user.click(title("Order the grilles"));
     await user.click(screen.getByRole("button", { name: "Give it to" }));
-    expect(names()).toEqual(["Luke Ingold", "Leo Park", "Cancel"]);
+    expect(names()).toEqual(["Lyle Irving", "Leo Park", "Cancel"]);
   });
 
   it("puts focus back on Give it to once it has given, wherever the row stands", async () => {
     const user = userEvent.setup();
     m(giveTask).mockImplementation(out);
-    render(<Face rec={record({ open: [task({ assigneeId: LUKE, assigneeName: "Luke Ingold" })] })} assignable={PEOPLE} canManage />);
+    render(<Face rec={record({ open: [task({ assigneeId: LYLE, assigneeName: "Lyle Irving" })] })} assignable={PEOPLE} canManage />);
     await user.click(title("Order the grilles"));
     await user.click(screen.getByRole("button", { name: "Give it to" }));
     await user.click(within(giving()).getByRole("button", { name: "Leo Park" }));
@@ -982,7 +982,7 @@ describe("the due date", () => {
     m(setTaskDue).mockImplementation(out);
     render(
       <Face
-        rec={record({ open: [task({ dueDate: "2026-10-02", assigneeId: LUKE, assigneeName: "Luke Ingold" })] })}
+        rec={record({ open: [task({ dueDate: "2026-10-02", assigneeId: LYLE, assigneeName: "Lyle Irving" })] })}
         assignable={PEOPLE}
         canManage
       />,
@@ -1006,7 +1006,7 @@ describe("the due date", () => {
   it("gives nothing away twice while the first is out", async () => {
     const user = userEvent.setup();
     m(giveTask).mockImplementation(out);
-    render(<Face rec={record({ open: [task({ assigneeId: LUKE, assigneeName: "Luke Ingold" })] })} assignable={PEOPLE} canManage />);
+    render(<Face rec={record({ open: [task({ assigneeId: LYLE, assigneeName: "Lyle Irving" })] })} assignable={PEOPLE} canManage />);
     await user.click(title("Order the grilles"));
     await user.click(screen.getByRole("button", { name: "Give it to" }));
     await user.click(within(giving()).getByRole("button", { name: "Leo Park" }));
@@ -1047,7 +1047,7 @@ describe("a row a press moved", () => {
         rec={record({
           open: [
             task({ id: "t2", title: "Ring the Hilux dealer", dueDate: "2026-10-02" }),
-            task({ id: "t4", title: "Luke's", assigneeId: LUKE, assigneeName: "Luke Ingold" }),
+            task({ id: "t4", title: "Lyle's", assigneeId: LYLE, assigneeName: "Lyle Irving" }),
           ],
           done: [task({ status: "done", doneAt: "2026-09-22T01:00:00Z", doneById: ME })],
         })}
@@ -1064,10 +1064,10 @@ describe("a row a press moved", () => {
     await user.click(screen.getByRole("button", { name: "Monday 5 October 2026" }));
     expect([lit("Ring the Hilux dealer"), lit("Order the grilles")]).toEqual([true, false]);
     act(() => jest.advanceTimersByTime(FLASH_MS));
-    await user.click(title("Luke's"));
+    await user.click(title("Lyle's"));
     await user.click(screen.getByRole("button", { name: "Give it to" }));
     await user.click(within(giving()).getByRole("button", { name: "Leo Park" }));
-    expect([lit("Luke's"), lit("Ring the Hilux dealer")]).toEqual([true, false]);
+    expect([lit("Lyle's"), lit("Ring the Hilux dealer")]).toEqual([true, false]);
   });
 });
 
@@ -1078,13 +1078,13 @@ describe("where it came from", () => {
     render(
       <Face
         rec={record({
-          open: [task(), task({ id: "t2", title: "From Luke's diary" })],
-          about: { t1: diary(), t2: diary({ noteId: "n2", authorId: LUKE, words: null }) },
+          open: [task(), task({ id: "t2", title: "From Lyle's diary" })],
+          about: { t1: diary(), t2: diary({ noteId: "n2", authorId: LYLE, words: null }) },
         })}
         onOpenEntry={onOpenEntry}
       />,
     );
-    await user.click(title("From Luke's diary"));
+    await user.click(title("From Lyle's diary"));
     expect(screen.queryByRole("button", { name: "Open in diary" })).toBeNull();
     await user.click(title("Order the grilles"));
     await user.click(screen.getByRole("button", { name: "Open in diary" }));
@@ -1149,7 +1149,7 @@ describe("a task's Done in ServiceM8", () => {
   const NEW = "00000000-0000-4000-8000-0000000000d2";
   const ISAAC_SM8 = "5a1b2c3d-0000-4000-8000-00000000aaaa";
   const state = (over: Partial<NoteState>): NoteState => ({ key: null, text: null, tone: null, acts: [], ...over });
-  const line = (noteId: string, s: Partial<NoteState>): TaskDoneLine => ({ noteId, words: "@lukeingold Done.", state: state(s) });
+  const line = (noteId: string, s: Partial<NoteState>): TaskDoneLine => ({ noteId, words: "@lyleirving Done.", state: state(s) });
   const sent = line(NEW, { key: "line.sent", text: NOTE_WORDS.line.sent, tone: "ok", acts: ["undo"] });
   const stillIn = line(OLD, {
     key: "line.stillIn",
@@ -1194,7 +1194,7 @@ describe("a task's Done in ServiceM8", () => {
     render(<Face rec={done()} sm8Lines={{ [T]: [sent, stillIn] }} />);
     await user.click(title("Order the grilles"));
     expect(drawn().map((p) => p.dataset.noteId)).toEqual([NEW, OLD]);
-    expect(drawn()[0]).toHaveTextContent(`“@lukeingold Done.” ${NOTE_WORDS.line.sent}`);
+    expect(drawn()[0]).toHaveTextContent(`“@lyleirving Done.” ${NOTE_WORDS.line.sent}`);
     expect(within(drawn()[0]!).getByText(NOTE_WORDS.line.sent)).toHaveClass("ok");
     expect(within(drawn()[1]!).getByText(stillIn.state.text!)).toHaveClass("bad");
     // under the history, and above what you can do
@@ -1278,7 +1278,7 @@ describe("a task's Done in ServiceM8", () => {
      ServiceM8 — and the reader is told, where a refusal would be. */
   it("says what a Reopen couldn't take back, where a refusal would be", async () => {
     const user = userEvent.setup();
-    const note = fillWords(NOTE_WORDS.press.notYours, { name: "Luke Ingold" });
+    const note = fillWords(NOTE_WORDS.press.notYours, { name: "Lyle Irving" });
     m(reopenTask).mockResolvedValueOnce({ ok: true, note });
     render(<Face rec={done()} />);
     await user.click(title("Order the grilles"));
@@ -1578,10 +1578,10 @@ describe("the box", () => {
     const user = userEvent.setup();
     render(<Face rec={record()} />);
     const field = screen.getByRole("textbox", { name: "Add a task" });
-    await user.type(field, "Luke to order grilles by Friday");
+    await user.type(field, "Lyle to order grilles by Friday");
     await user.click(screen.getByRole("button", { name: "Sort it out" }));
     expect(tiffOpen).toHaveBeenLastCalledWith(
-      expect.objectContaining({ words: "Luke to order grilles by Friday", room: "tasks" }),
+      expect.objectContaining({ words: "Lyle to order grilles by Friday", room: "tasks" }),
     );
     await user.type(field, "Book 3323 Randwick{Enter}");
     expect(tiffOpen).toHaveBeenLastCalledWith(expect.objectContaining({ words: "Book 3323 Randwick", room: "tasks" }));

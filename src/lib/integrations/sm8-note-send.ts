@@ -34,7 +34,15 @@
    A LOST ANSWER IS READ BACK BEFORE ANYTHING GOES AGAIN, and a uuid of ours
    found inactive means a PERSON REMOVED THE NOTE: it ends there, never
    posted again. Where HeyTiff can't tell (READBACK_SEES_INACTIVE false),
-   nothing is posted and the person decides. */
+   nothing is posted and the person decides.
+
+   EVERY DELETE IS READ FOR, BEFORE IT AND AFTER IT. ServiceM8's DELETE on a
+   note that is already out of it PUTS THE NOTE BACK (the live walk of
+   2026-09-27: a note its sender had removed inside ServiceM8 read active
+   again the same second HeyTiff's DELETE reached it). A note not there, or
+   there and inactive, is out already, and no DELETE goes to it; one still
+   active after a DELETE answered is never sent another by itself
+   (sendDelete). */
 
 import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase-server";
@@ -277,10 +285,11 @@ async function sendNote(
 
   /** One impersonated request, renewed once on a 401 whose grant a plain
       read can't vouch for. `before` runs inside every attempt, after the
-      account check; a Finish from it goes back without a request. */
+      account check, with that attempt's access; a Finish from it goes back
+      without a request. */
   const writeAs = async (
     request: (a: Sm8Access) => Promise<Sm8NoteResult>,
-    before?: () => Promise<Finish | null>
+    before?: (a: Sm8Access) => Promise<Finish | null>
   ): Promise<{ res: Sm8NoteResult } | { finish: Finish }> => {
     const got = await withSm8Renewal<{ res?: Sm8NoteResult; finish?: Finish }>(
       orgId,
@@ -288,7 +297,7 @@ async function sendNote(
       async (a) => {
         const w = tokenMismatch(row, a);
         if (w) return { finish: w };
-        const stop = before ? await before() : null;
+        const stop = before ? await before(a) : null;
         if (stop) return { finish: stop };
         return { res: await request(a) };
       },
@@ -312,18 +321,78 @@ async function sendNote(
   if (op === "update") return { finish: await sendUpdate(), access };
   return { finish: await sendCreate(), access };
 
-  /* ── a take-back ── */
+  /* ── a take-back ──
+
+     FOR EACH UUID, IN THIS ORDER — because a DELETE on a note already out
+     of ServiceM8 puts it back:
+     1. READ IT, the account asking. Not there, or there and inactive: it is
+        out already. No DELETE goes, and it counts as taken out. A read that
+        fails is never "out": the row goes back by the verdict rules, and
+        its next go reads first again.
+     2. THE DELETE, as its sender. The one after a token renewal reads again
+        first, inside its attempt, under the renewed token.
+     3. AN ANSWER THAT COULD MEAN THE NOTE MOVED IS READ BACK — a 2xx, a 404
+        or a 409, none of which says where it stands. Out: taken out. STILL
+        ACTIVE: the DELETE didn't hold, or it put back a note somebody
+        removed in the moment between the read and it. The row fails in
+        words that say so, and no DELETE goes to it again by itself: a
+        person looks, and their Try again reads first. A read-back that
+        fails sends the row back, to read first next time.
+     4. Any other answer goes by the verdict rules. One that was lost (none,
+        a 408, ServiceM8's own trouble) goes back to the queue, and its next
+        go reads first: a DELETE is never sent again unread.
+     The last DELETE's status is kept on the row, whatever it ends as. */
   async function sendDelete(): Promise<Finish> {
+    let httpStatus: number | null = null;
+    const out = (c: ReadNote) => !c.found || !c.active;
+    const held = (f: Finish, targetUuid?: string): Finish => ({
+      ...f,
+      httpStatus: f.httpStatus ?? httpStatus,
+      asStaffUuid: as,
+      ...(targetUuid ? { targetUuid } : {}),
+    });
     for (const target of targets) {
-      if (!sendInTime()) return { ...letGo(), asStaffUuid: as };
-      const sent = await writeAs((a) => deleteSm8Note(sm8CallOf(a, "write"), target, as));
-      if ("finish" in sent) return { ...sent.finish, asStaffUuid: as };
+      /* 1 */
+      const first = await readBack(target);
+      if ("finish" in first) return held(first.finish);
+      if (out(first.check)) continue;
+
+      /* 2 */
+      if (!sendInTime()) return held(letGo());
+      let outMeanwhile = false;
+      let tries = 0;
+      const sent = await writeAs(
+        (a) => deleteSm8Note(sm8CallOf(a, "write"), target, as),
+        async (a) => {
+          /* the first attempt goes on the read just made */
+          if (tries++ === 0) return null;
+          if (!readInTime()) return letGo();
+          const again = await readSm8Note(sm8CallOf(a, "write"), target).catch(() => ({ ok: false }) as Sm8NoteCheck);
+          if (!again.ok) return fromVerdict(verdictFor(again.limited ?? UNAVAILABLE, attempts, ctx()));
+          if (out(again)) {
+            outMeanwhile = true;
+            return done("sent", null);
+          }
+          return sendInTime() ? null : letGo();
+        }
+      );
+      if (outMeanwhile) continue;
+      if ("finish" in sent) return held(sent.finish);
       const { res } = sent;
-      /* gone now, or gone already */
-      if (res.outcome.kind === "created" || res.status === 404) continue;
+      httpStatus = res.status;
+
+      /* 3 */
+      if (res.outcome.kind === "created" || res.outcome.kind === "exists" || res.status === 404) {
+        const after = await readBack(target);
+        if ("finish" in after) return held(after.finish, target);
+        if (out(after.check)) continue;
+        return done("failed", NOTE_WORDS.row.stillShown, { httpStatus: res.status, asStaffUuid: as, targetUuid: target });
+      }
+
+      /* 4 */
       return { ...fromVerdict(verdictFor(res.outcome, attempts, ctx()), res.status), remote: res.remote, asStaffUuid: as };
     }
-    return done("sent", null, { asStaffUuid: as, targetUuid: targets[0] });
+    return done("sent", null, { httpStatus, asStaffUuid: as, targetUuid: targets[0] });
   }
 
   /* ── a flag marked done, or its mark taken off ── */

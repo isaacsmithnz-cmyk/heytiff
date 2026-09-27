@@ -816,10 +816,13 @@ export function verdictFor(
       return verdict({ status: "queued", retryAfterMs: 0, refund: true, freshUuid: true, freeRetry: true });
     case "rejected":
       if (ctx.kind === "note") {
-        /* A 404 on a delete: the note is already gone, which is what a
-           take-back wanted. A 404 on an UPDATE is not a verdict at all —
-           the sender cancels that row itself (sm8-note-send), because a
-           verdict is never `cancelled`. On a create it is the job. */
+        /* A 404 on a delete reads as gone here — but the note sender never
+           hands a delete's 404 to a verdict, nor its 2xx or 409: a DELETE
+           on a note already out of ServiceM8 puts it back, so it reads each
+           of those back instead (sm8-note-send's sendDelete). A 404 on an
+           UPDATE is not a verdict at all — the sender cancels that row
+           itself, because a verdict is never `cancelled`. On a create it is
+           the job. */
         if (outcome.status === 404) {
           return ctx.op === "delete" ? verdict({ status: "sent" }) : verdict({ status: "failed", error: WRITE_WORDS.noJob });
         }

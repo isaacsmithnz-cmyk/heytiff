@@ -14,9 +14,13 @@
    - a take-back is final, never goes ahead of its note, and every race
      between a press and a take-back ends taken back;
    - only whoever pressed a note can press it again or take it back;
-   - every request checks its account, the one after a renewal included. */
+   - every request checks its account, the one after a renewal included;
+   - a take-back reads the note live before every DELETE and after it,
+     against a ServiceM8 that puts a note back when a DELETE reaches one
+     already out (fixtures/sm8-live-notes: the live walk of 2026-09-27). */
 
 import { makeFakeDb } from "./fixtures/sm8-fake-db";
+import { makeSm8Notes, type Sm8Notes } from "./fixtures/sm8-live-notes";
 
 type Row = Record<string, unknown>;
 
@@ -173,9 +177,37 @@ async function lineOf(id: string, viewerIsSender = true) {
 
 const run = () => runSm8Writes(ORG, "send");
 
+/** ServiceM8's copy of our notes, as the live account behaves. */
+let sm8: Sm8Notes;
+
+/** These uuids landed in ServiceM8, active, and from here ServiceM8 answers
+    reads and DELETEs as the live account does: a DELETE takes a note out,
+    and one reaching a note already out puts it back. */
+function inServiceM8(...uuids: unknown[]): Sm8Notes {
+  for (const u of uuids) sm8.put(String(u));
+  readSm8Note.mockImplementation(sm8.read);
+  deleteSm8Note.mockImplementation(sm8.del);
+  return sm8;
+}
+
+/** A note of Isaac's, sent to ServiceM8. */
+async function sentNote(): Promise<{ id: string; c: Row; uuid: string }> {
+  const id = seedNote();
+  await queueNoteCreate(await pressAs("staff-isaac"), { noteId: id });
+  await run();
+  const c = createOf(id);
+  expect(c.status).toBe("sent");
+  return { id, c, uuid: c.remote_uuid as string };
+}
+
+const due = (r: Row) => {
+  r.next_attempt_at = new Date(Date.now() - 1000).toISOString();
+};
+
 beforeEach(() => {
   fake.reset();
   seq = 0;
+  sm8 = makeSm8Notes(JOB);
   fake.db.integration_connections = [
     {
       org_id: ORG,
@@ -511,11 +543,14 @@ describe("a take-back never goes ahead of its note", () => {
     expect(noteRow(id).removed_at).toBeTruthy();
     const d = deleteOf(c.id as string)!;
     expect(d).toMatchObject({ kind: "note", op: "delete", subject: `undo:${c.id}`, note_id: id, payload: { name: "Note taken out of ServiceM8" } });
+    // both landed after all
+    inServiceM8(c.remote_uuid, "5a1b2c3d-0000-4000-8000-00000000000e");
     await run();
     expect(postSm8Note).not.toHaveBeenCalled();
     expect(deleteSm8Note.mock.calls.map((x) => x[1])).toEqual([c.remote_uuid, "5a1b2c3d-0000-4000-8000-00000000000e"]);
     expect(deleteSm8Note.mock.calls[0][2]).toBe(ISAAC_SM8);
     expect(deleteOf(c.id as string)).toMatchObject({ status: "sent", target_uuid: c.remote_uuid });
+    expect([sm8.active(c.remote_uuid as string), sm8.active("5a1b2c3d-0000-4000-8000-00000000000e")]).toEqual([false, false]);
     // the create keeps its uuid: it hides the twin while the sync catches up
     expect(createOf(id).remote_uuid).toBe(c.remote_uuid);
     expect((await lineOf(id)).key).toBeNull();
@@ -611,6 +646,8 @@ describe("a take-back never goes ahead of its note", () => {
     const c = createOf(id);
     expect(c).toMatchObject({ status: "queued", maybe_landed: true });
     expect(Date.parse(c.next_attempt_at as string)).toBeGreaterThan(Date.now());
+    // it landed, whatever the 503 said
+    inServiceM8(c.remote_uuid);
     await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
     await run();
     expect(postSm8Note).toHaveBeenCalledTimes(1);
@@ -711,7 +748,8 @@ describe("a take-back never goes ahead of its note", () => {
     await run();
     await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
     deleteSm8Note.mockResolvedValueOnce(answered(401, { kind: "unauthorized" }));
-    readSm8Note.mockResolvedValue({ ok: false, unauthorized: true });
+    // the read before the DELETE finds it there; the grant's plain read is refused
+    readSm8Note.mockResolvedValueOnce(found()).mockResolvedValue({ ok: false, unauthorized: true });
     renewSm8Access.mockResolvedValue({ ok: true, access: { ...RENEWED, tenantId: "vendor-other" } });
     await run();
     expect(deleteSm8Note).toHaveBeenCalledTimes(1);
@@ -733,8 +771,10 @@ describe("a take-back never goes ahead of its note", () => {
     const again = await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
     expect(again).toEqual({ ok: true, plan: "deleting", removed: true });
     expect(writes().filter((w) => w.op === "delete")).toHaveLength(1);
+    inServiceM8(c.remote_uuid);
     await run();
     expect(deleteSm8Note).toHaveBeenCalledTimes(1);
+    expect(sm8.active(c.remote_uuid as string)).toBe(false);
     expect((await lineOf(id)).key).toBeNull();
   });
 
@@ -751,6 +791,189 @@ describe("a take-back never goes ahead of its note", () => {
   });
 });
 
+/* ── a DELETE reads first ── */
+
+describe("a take-back reads the note live before every DELETE, and after it", () => {
+  it("(F) the live walk: sent, removed inside ServiceM8, then Remove — no DELETE goes, it is never put back, and it ends taken out", async () => {
+    const { id, c, uuid } = await sentNote();
+    const live = inServiceM8(uuid);
+    // the owner deletes it inside ServiceM8, and the sync sees it
+    live.removeThere(uuid);
+    expect(await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id })).toEqual({ ok: true, plan: "deleting", removed: true });
+    await run();
+    expect(deleteSm8Note).not.toHaveBeenCalled();
+    expect(live.active(uuid)).toBe(false);
+    expect(readSm8Note.mock.calls.map((x) => x[1])).toEqual([uuid]);
+    expect(deleteOf(c.id as string)).toMatchObject({ status: "sent", last_error: null, http_status: null });
+    expect((await lineOf(id)).key).toBeNull();
+
+    // one ServiceM8 doesn't show at all is out too: nothing is sent to a uuid it can't show
+    const other = await sentNote();
+    await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: other.id });
+    await run();
+    expect(deleteSm8Note).not.toHaveBeenCalled();
+    expect(deleteOf(other.c.id as string)).toMatchObject({ status: "sent", http_status: null });
+  });
+
+  it("(F) a DELETE answered 2xx whose read-back still shows the note fails stillShown, sends no second DELETE by itself, and Try again reads first", async () => {
+    const { id, c, uuid } = await sentNote();
+    const live = inServiceM8(uuid);
+    // the read finds it; the owner removes it inside ServiceM8 in the moment before the DELETE, which puts it back
+    readSm8Note.mockImplementationOnce(async (call: unknown, u: string) => {
+      const seen = await live.read(call, u);
+      live.removeThere(u);
+      return seen;
+    });
+    await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
+    await run();
+    expect(deleteSm8Note).toHaveBeenCalledTimes(1);
+    expect(live.active(uuid)).toBe(true);
+    const d = deleteOf(c.id as string)!;
+    expect(d).toMatchObject({ status: "failed", last_error: NOTE_WORDS.row.stillShown, http_status: 200, target_uuid: uuid });
+    expect(await lineOf(id)).toMatchObject({
+      key: "line.stillIn",
+      text: `Still in ServiceM8. ${NOTE_WORDS.row.stillShown}`,
+      acts: ["take_out_again"],
+    });
+    // nothing sends it again by itself
+    await run();
+    expect(deleteSm8Note).toHaveBeenCalledTimes(1);
+    // the person looks, and presses Try again: read first, there and active, taken out
+    expect(await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id })).toEqual({ ok: true, plan: "deleting", removed: true });
+    await run();
+    expect(deleteSm8Note).toHaveBeenCalledTimes(2);
+    expect(live.active(uuid)).toBe(false);
+    expect(d).toMatchObject({ status: "sent", http_status: 200 });
+    expect((await lineOf(id)).key).toBeNull();
+  });
+
+  it("(F) a DELETE whose answer was lost reads before it goes again: landed, no second DELETE; a sender that died mid-DELETE the same", async () => {
+    const lost = { status: null, outcome: { kind: "unavailable", status: null }, remote: null, recordUuid: null };
+    const { id, c, uuid } = await sentNote();
+    const live = inServiceM8(uuid);
+    // it lands, and the answer never comes
+    deleteSm8Note.mockImplementationOnce(async (call: unknown, u: string) => {
+      await live.del(call, u);
+      return lost;
+    });
+    await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
+    await run();
+    const d = deleteOf(c.id as string)!;
+    expect(d).toMatchObject({ status: "queued", attempts: 1 });
+    expect(live.active(uuid)).toBe(false);
+    due(d);
+    await run();
+    expect(deleteSm8Note).toHaveBeenCalledTimes(1);
+    expect(live.active(uuid)).toBe(false);
+    expect(d).toMatchObject({ status: "sent" });
+
+    // a sender that died after its DELETE went: its claim lapses, and the next run reads first
+    const other = await sentNote();
+    live.put(other.uuid);
+    await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: other.id });
+    const d2 = deleteOf(other.c.id as string)!;
+    await live.del(null, other.uuid);
+    Object.assign(d2, { status: "sending", attempts: 1, claim_id: "died", lease_until: new Date(Date.now() - 1000).toISOString() });
+    await run();
+    expect(deleteSm8Note).toHaveBeenCalledTimes(1);
+    expect(live.active(other.uuid)).toBe(false);
+    expect(d2).toMatchObject({ status: "sent" });
+  });
+
+  it("(F) ...and a lost DELETE that never landed goes once more, after its read finds the note still there", async () => {
+    const { id, c, uuid } = await sentNote();
+    const live = inServiceM8(uuid);
+    deleteSm8Note.mockResolvedValueOnce({ status: 503, outcome: { kind: "unavailable", status: 503 }, remote: null, recordUuid: null });
+    await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
+    await run();
+    const d = deleteOf(c.id as string)!;
+    expect(d).toMatchObject({ status: "queued", http_status: 503 });
+    due(d);
+    await run();
+    expect(deleteSm8Note).toHaveBeenCalledTimes(2);
+    expect(live.active(uuid)).toBe(false);
+    expect(d).toMatchObject({ status: "sent", http_status: 200 });
+  });
+
+  it("(F) a live read that fails never counts the note as gone — before the DELETE, and after it", async () => {
+    const { id, c, uuid } = await sentNote();
+    const live = inServiceM8(uuid);
+    // before: nothing is sent, and the row goes back to the queue
+    readSm8Note.mockResolvedValueOnce({ ok: false });
+    await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
+    await run();
+    const d = deleteOf(c.id as string)!;
+    expect(deleteSm8Note).not.toHaveBeenCalled();
+    expect(live.active(uuid)).toBe(true);
+    expect(d).toMatchObject({ status: "queued", attempts: 1, last_error: WRITE_WORDS.unreachable });
+    expect((await lineOf(id)).key).toBe("line.takingOut");
+
+    // after: the DELETE answered, and its read-back failed — back to the queue, never counted gone
+    due(d);
+    readSm8Note.mockImplementationOnce(live.read).mockResolvedValueOnce({ ok: false });
+    await run();
+    expect(deleteSm8Note).toHaveBeenCalledTimes(1);
+    expect(d).toMatchObject({ status: "queued", http_status: 200 });
+    // its next go reads first, finds it out, and sends no second DELETE
+    due(d);
+    await run();
+    expect(deleteSm8Note).toHaveBeenCalledTimes(1);
+    expect(live.active(uuid)).toBe(false);
+    expect(d).toMatchObject({ status: "sent" });
+  });
+
+  it("(F) the DELETE's status is kept: a 200; a 404 read back out; a 409 read back still there fails stillShown", async () => {
+    const one = await sentNote();
+    const live = inServiceM8(one.uuid);
+    await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: one.id });
+    await run();
+    expect(deleteOf(one.c.id as string)).toMatchObject({ status: "sent", http_status: 200, target_uuid: one.uuid });
+
+    // gone in the moment between the read and the DELETE: a 404, read back out
+    const two = await sentNote();
+    live.put(two.uuid);
+    deleteSm8Note.mockImplementationOnce(async (_call: unknown, u: string) => {
+      live.removeThere(u);
+      return answered(404, { kind: "rejected", status: 404 });
+    });
+    await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: two.id });
+    await run();
+    expect(deleteOf(two.c.id as string)).toMatchObject({ status: "sent", http_status: 404 });
+
+    // a 409 says nothing about where it stands: read back, still there
+    const three = await sentNote();
+    live.put(three.uuid);
+    deleteSm8Note.mockResolvedValueOnce(answered(409, { kind: "exists" }));
+    await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: three.id });
+    await run();
+    expect(live.active(three.uuid)).toBe(true);
+    expect(deleteOf(three.c.id as string)).toMatchObject({ status: "failed", last_error: NOTE_WORDS.row.stillShown, http_status: 409 });
+  });
+
+  it("(F) the DELETE after a token renewal reads again first: a note out meanwhile gets no second DELETE", async () => {
+    const { id, c, uuid } = await sentNote();
+    const live = inServiceM8(uuid);
+    await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
+    const d = deleteOf(c.id as string)!;
+    deleteSm8Note.mockResolvedValueOnce(answered(401, { kind: "unauthorized" }));
+    // the grant's plain read (it probes the row's own uuid) is refused too, so the token is renewed
+    readSm8Note.mockImplementation(async (call: unknown, u: string) =>
+      u === d.remote_uuid ? { ok: false, unauthorized: true } : live.read(call, u)
+    );
+    // the owner removes it inside ServiceM8 while the token is renewed
+    renewSm8Access.mockImplementation(async () => {
+      live.removeThere(uuid);
+      return { ok: true, access: RENEWED };
+    });
+    await run();
+    expect(renewSm8Access).toHaveBeenCalledTimes(1);
+    expect(deleteSm8Note).toHaveBeenCalledTimes(1);
+    expect(live.active(uuid)).toBe(false);
+    expect(d).toMatchObject({ status: "sent" });
+    expect(markSm8NeedsReauth).not.toHaveBeenCalled();
+  });
+});
+
 /* ── who may press ── */
 
 describe("only whoever pressed a note can press it again or take it back", () => {
@@ -763,6 +986,7 @@ describe("only whoever pressed a note can press it again or take it back", () =>
     expect(await queueNoteTakeBack(luke, { noteId: id })).toEqual({ ok: false, refusal: "not_yours", removed: false });
     expect(noteRow(id).removed_at).toBeNull();
     // a removed row whose take-back failed
+    inServiceM8(createOf(id).remote_uuid);
     deleteSm8Note.mockResolvedValueOnce(answered(422, { kind: "rejected", status: 422 }));
     await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
     await run();
@@ -1132,6 +1356,7 @@ describe("record first", () => {
     fake.db.integration_connections[0].write_mode = "live";
     const again = await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: id });
     expect(again).toEqual({ ok: true, plan: "deleting", removed: true });
+    inServiceM8(createOf(id).remote_uuid);
     await run();
     expect(deleteSm8Note).toHaveBeenCalledTimes(1);
     expect((await lineOf(id)).key).toBeNull();
@@ -1167,6 +1392,7 @@ describe("record first", () => {
     expect(await lineOf(b)).toMatchObject({ text: "Still in ServiceM8. Sending notes is switched off.", acts: ["take_out_again"] });
     await setSm8WriteKind(ORG, "note", true);
     expect(await queueNoteTakeBack(await pressAs("staff-isaac"), { noteId: b })).toMatchObject({ ok: true, plan: "deleting" });
+    inServiceM8(createOf(b).remote_uuid);
     await run();
     expect(deleteSm8Note).toHaveBeenCalledTimes(1);
     expect((await lineOf(b)).key).toBeNull();
@@ -1386,7 +1612,10 @@ describe("the run, with notes beside files", () => {
     const d = deleteOf(c.id as string)!;
     const own = d.remote_uuid;
     deleteSm8Note.mockResolvedValue({ status: 200, outcome: { kind: "created", remoteUuid: "someone-elses" }, remote: null, recordUuid: "someone-elses" });
+    // there before the DELETE, out after it
+    readSm8Note.mockResolvedValueOnce(found()).mockResolvedValueOnce(found({ active: false }));
     await run();
+    expect(deleteSm8Note).toHaveBeenCalledTimes(1);
     expect(d.status).toBe("sent");
     expect(d.remote_uuid).toBe(own);
   });
@@ -1453,6 +1682,14 @@ describe("a flag marked done, as the person pressing", () => {
     updateSm8NoteCompleter.mockResolvedValueOnce(answered(404, { kind: "rejected", status: 404 }));
     await run();
     expect(flagRow()).toMatchObject({ status: "cancelled", last_error: NOTE_WORDS.row.noteGone, http_status: 404 });
+  });
+
+  it("(F) a Mark done on a note removed inside ServiceM8 reads it first and is cancelled noteGone: nothing is sent to it", async () => {
+    await queueFlagChange(await pressAs("staff-isaac"), { noteUuid: FLAG, done: true, seenEditDate: "2026-09-20 10:00:00", pressId: PRESS });
+    readSm8Note.mockResolvedValueOnce(found({ flagged: true, active: false, editDate: "2026-09-20 10:00:00" }));
+    await run();
+    expect(updateSm8NoteCompleter).not.toHaveBeenCalled();
+    expect(flagRow()).toMatchObject({ status: "cancelled", last_error: NOTE_WORDS.row.noteGone, http_status: null });
   });
 
   it("a change ServiceM8 took but didn't keep fails notKept", async () => {

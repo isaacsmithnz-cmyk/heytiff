@@ -112,6 +112,7 @@ export const NOTE_WORDS = {
     noteGone: "The note isn't in ServiceM8 any more.",
     noteUnsure: "HeyTiff couldn't tell whether the note reached ServiceM8. Send it again if it isn't there.",
     notKept: "ServiceM8 took the change but didn't keep it.",
+    stillShown: "ServiceM8 still shows the note after HeyTiff tried to take it out. Look there before you try again.",
     noteWordsCleared: "The note's words were cleared after 30 days, so it can't go now.",
     jobGone: "That job isn't in ServiceM8's copy any more.",
     changed: "Changed in ServiceM8. Look again.",

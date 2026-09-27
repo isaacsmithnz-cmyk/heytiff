@@ -32,7 +32,25 @@ import {
 } from "@/lib/workboard/note-brain";
 import { englishProposal } from "@/lib/workboard/note-english";
 import { askSystemPrompt } from "@/lib/brain/ask";
-import { BRAIN_TOOLS, runTool, toolDefs } from "@/lib/brain/tools";
+import { TIFF_TOOLS, runTool, toolDefs, type Viewer } from "@/lib/tiff/registry";
+
+/* The probes read as the workspace, not as a person: every read in the
+   registry, no gate, the reads' own org scoping still applied. */
+const probeViewer = (orgId: string): Viewer => ({
+  orgId,
+  userId: "probe",
+  staffId: null,
+  role: null,
+  caps: new Set(),
+  tz: null,
+  today: new Date().toISOString().slice(0, 10),
+});
+
+async function runRead(orgId: string, name: string, input: Record<string, unknown>) {
+  const res = await runTool(probeViewer(orgId), name, input, TIFF_TOOLS);
+  if (!res.ok) return res;
+  return { ok: true as const, result: res.outcome.kind === "result" ? res.outcome.value : res.outcome };
+}
 import { navFor } from "@/components/shell/nav";
 import { CAPABILITIES } from "@/lib/permissions";
 import { REPLY_IN_KIND } from "@/lib/lang/policy";
@@ -171,7 +189,7 @@ export async function loopRead(
 ): Promise<NoteRead> {
   const out = blank();
   const system = loopSystem(ctx);
-  const defs = [...toolDefs(BRAIN_TOOLS), OPEN_SCREEN, FILE_NOTE];
+  const defs = [...toolDefs(TIFF_TOOLS), OPEN_SCREEN, FILE_NOTE];
   const tools = defs.map((d, i) => (i === defs.length - 1 ? { ...d, cache_control: EPHEMERAL } : d));
   const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: words }];
   const started = performance.now();
@@ -214,7 +232,7 @@ export async function loopRead(
       messages.push({ role: "assistant", content: blocks });
       const results = [];
       for (const call of calls) {
-        const res = await runTool(orgId, call.name, call.input ?? {}, BRAIN_TOOLS);
+        const res = await runRead(orgId, call.name, call.input ?? {});
         results.push({
           type: "tool_result",
           tool_use_id: call.id,
@@ -251,7 +269,7 @@ export async function askRead(
   maxRounds = 5,
 ): Promise<AskRead> {
   const out: AskRead = { answer: "", tools: [], modelMs: 0, rounds: [] };
-  const defs = toolDefs(BRAIN_TOOLS);
+  const defs = toolDefs(TIFF_TOOLS);
   const tools = defs.map((d, i) => (i === defs.length - 1 ? { ...d, cache_control: EPHEMERAL } : d));
   const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: question }];
   try {
@@ -280,7 +298,7 @@ export async function askRead(
       const results = [];
       for (const call of calls) {
         out.tools.push(call.name);
-        const res = await runTool(orgId, call.name, call.input ?? {}, BRAIN_TOOLS);
+        const res = await runRead(orgId, call.name, call.input ?? {});
         results.push({
           type: "tool_result",
           tool_use_id: call.id,

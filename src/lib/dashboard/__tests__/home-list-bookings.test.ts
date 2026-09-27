@@ -213,17 +213,35 @@ describe("E-3: the leftover booking alert (DECISIONS 3)", () => {
 });
 
 describe("E-5: placeList stays pure", () => {
-  it("reads no clock: the same input places the same list at any time", () => {
-    const spy = jest.spyOn(Date, "now").mockImplementation(() => {
+  it("reads no clock — neither Date.now() nor a bare new Date(): the same input places the same list at any time", () => {
+    /* a Date that throws when it is asked what time it is, and is any other
+       Date when it is handed one */
+    const RealDate = Date;
+    const trap = (): never => {
       throw new Error("placeList read the clock");
-    });
+    };
+    class ClockTrap extends RealDate {
+      constructor(...args: [] | ConstructorParameters<typeof Date>) {
+        if (args.length === 0) trap();
+        super(...(args as ConstructorParameters<typeof Date>));
+      }
+      static now(): number {
+        return trap();
+      }
+    }
+    const arm = () => {
+      global.Date = ClockTrap as unknown as DateConstructor;
+    };
     try {
+      arm();
+      // the trap is armed: it is what it says
+      expect(() => new Date()).toThrow("placeList read the clock");
+      expect(() => Date.now()).toThrow("placeList read the clock");
       const a = placeList(input({ wins: [fresh, older], caps: BOOKS, bookingLines: { [JOB]: line("x", "bad") }, leftovers: [left()] }));
       const b = placeList(input({ wins: [fresh, older], caps: BOOKS, bookingLines: { [JOB]: line("x", "bad") }, leftovers: [left()] }));
       expect(a).toEqual(b);
-      expect(spy).not.toHaveBeenCalled();
     } finally {
-      spy.mockRestore();
+      global.Date = RealDate;
     }
   });
 });

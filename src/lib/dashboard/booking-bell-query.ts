@@ -173,8 +173,9 @@ export async function myBookingTrouble(
 const GUARD_WORDS = [BOOKING_WORDS.row.timeNotKept, BOOKING_WORDS.row.personNotKept, BOOKING_WORDS.row.fieldsNotKept];
 
 /** The job a read-back guard last switched bookings off on, in the last
-    seven days — for the owner's bell. Null with none, where the deployment
-    books nothing, or on a read that fails (logged).
+    seven days, while bookings are still off — for the owner's bell. Null
+    with none, once the owner has switched bookings on again, where the
+    deployment books nothing, or on a read that fails (logged).
 
     CALL 15 (decided yes): a create ServiceM8 answered OK that two read-
     backs can't find switches bookings off too. That row keeps the answer's
@@ -183,7 +184,9 @@ const GUARD_WORDS = [BOOKING_WORDS.row.timeNotKept, BOOKING_WORDS.row.personNotK
 export async function bookingGuardTripped(orgId: string, sinceIso: string): Promise<{ number: string } | null> {
   if (!sm8BookingsAllowed()) return null;
   const state = await connectedState(orgId);
-  if (!state) return null;
+  /* the owner has switched bookings back on since: "HeyTiff switched
+     bookings off" would be stale, and wrong */
+  if (!state || state.ownerKinds.includes("booking")) return null;
   const base = () =>
     supabaseAdmin
       .from("sm8_writes")

@@ -219,6 +219,20 @@ describe("the presser's items", () => {
 });
 
 describe("the owner's guard item", () => {
+  // a guard switched the owner's Bookings off
+  const OFF: Sm8WriteState = { ...LIVE, ownerKinds: ["attachment", "note"] };
+  beforeEach(() => {
+    state = OFF;
+  });
+
+  /* N2: once the owner has switched Bookings back on, the item is stale */
+  it("goes once the owner has switched bookings back on", async () => {
+    fake.db.sm8_writes.push(row(job(2), { last_error: BOOKING_WORDS.row.timeNotKept, updated_at: "2026-10-03T01:00:00.000Z" }));
+    expect(await bookingGuardTripped(ORG, SINCE)).toEqual({ number: "5020" });
+    state = LIVE;
+    expect(await bookingGuardTripped(ORG, SINCE)).toBeNull();
+  });
+
   it("names the job a guard switched bookings off on, and opens the ServiceM8 screen", async () => {
     fake.db.sm8_writes.push(row(job(2), { last_error: BOOKING_WORDS.row.timeNotKept, updated_at: "2026-10-03T01:00:00.000Z" }));
     const guard = await bookingGuardTripped(ORG, SINCE);

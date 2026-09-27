@@ -51,6 +51,9 @@ import {
    folded away the dialog itself holds focus, so it never falls out of the
    modal onto the page underneath. */
 
+/** How long her line stays up after she moves you, before the modal closes. */
+export const HOLD_MS = 900;
+
 export type TiffSession = {
   n: number;
   from: HTMLElement;
@@ -69,6 +72,8 @@ export type TiffSession = {
   /** Opened from the keyboard: nothing flies from the button (law 8). */
   keyboard: boolean;
   at: number;
+  /** Carrying on the conversation she moved you from (./use-conversation). */
+  carryOn?: boolean;
 };
 
 export type TiffClosed = Closed & {
@@ -104,6 +109,7 @@ export function TiffModal({
       origin: null,
       still: session.still,
       at: session.at,
+      carryOn: session.carryOn,
     },
     voiceEnabled: scope.voiceEnabled,
     target: scope.target,
@@ -239,12 +245,38 @@ export function TiffModal({
     out.clock.finished.then(finish, finish);
   };
 
+  /* THE HOLD (universal Tiff 1F, interim until Isaac designs the panel or
+     bar): her line stays up for HOLD_MS, then the modal closes and the page
+     moves. Not motion, so it holds under reduced motion and from the keyboard
+     too. Any key or press in the modal during it cancels the move and keeps
+     the conversation open. */
+  const holding = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     leave.current = (href: string) => {
       moveTo.current = href;
-      close(false);
+      holding.current = setTimeout(() => {
+        holding.current = null;
+        close(false);
+      }, HOLD_MS);
     };
   });
+  useEffect(() => {
+    const m = dialog.current;
+    if (!m) return;
+    const stay = () => {
+      if (!holding.current) return;
+      clearTimeout(holding.current);
+      holding.current = null;
+      moveTo.current = null;
+    };
+    m.addEventListener("keydown", stay);
+    m.addEventListener("pointerdown", stay);
+    return () => {
+      m.removeEventListener("keydown", stay);
+      m.removeEventListener("pointerdown", stay);
+      if (holding.current) clearTimeout(holding.current);
+    };
+  }, []);
 
   /* ESCAPE CLOSES THIS AND ONLY THIS. Caught on the way down, before a sheet
      underneath hears it and closes itself too. Tab stays inside. */

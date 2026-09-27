@@ -71,6 +71,9 @@ export type TiffApi = {
   /** What the last conversation filed, for about two seconds after it
       closed, so the place underneath can light what arrived. */
   landed: TiffLanded | null;
+  /** Drop a conversation kept after a move, so the next press starts fresh.
+      The org switcher calls it: one workspace's words never reach another. */
+  forget?: () => void;
 };
 
 export const TiffContext = createContext<TiffApi>({
@@ -78,6 +81,7 @@ export const TiffContext = createContext<TiffApi>({
   openedBy: null,
   isOpen: false,
   landed: null,
+  forget: () => {},
 });
 
 export const useTiff = () => useContext(TiffContext);

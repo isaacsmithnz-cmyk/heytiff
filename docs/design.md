@@ -1102,6 +1102,17 @@ It breaks these laws, on his word. This is the note:
   flash"). The rings and the outline are thin lines that would double up
   bright, so they swap on one exact instant, at the same strength.
 
+**While she moves you** (interim, universal Tiff Phase 1). When Tiff moves the
+screen, her line stays up for 900 ms, then the modal closes the way it always
+does, and the page moves once it has gone, so a sheet the page opens never
+lands under it. A key or a press in the modal during the hold keeps it open
+and moves nothing. The hold is not motion, so it holds under reduced motion
+and from the keyboard too. The next bare press of a Tiff button within ten
+minutes opens on the conversation she moved you from, listening; a diary
+entry's door, "Sort it out" and the calendar box open as they always have.
+Nothing on screen says it carried on (law 3). This stands until the modal's
+panel or bar is designed.
+
 ## The order of work
 
 1. **The shell**, still, with a white active item. Decided.

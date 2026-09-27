@@ -3,7 +3,8 @@ import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NoteScopeProvider } from "@/components/notes/note-context";
 import { TiffButton } from "@/components/notes/tiff-button";
-import { TiffModalProvider } from "../tiff-host";
+import { TiffModalProvider, useTiff } from "../tiff-host";
+import { HOLD_MS } from "../tiff-modal";
 
 /* THE MODAL WHILE THE SCREEN MOVES UNDER IT — probe P2 of the universal-Tiff
    plan, kept as a test because Phase 1 builds on it.
@@ -107,6 +108,7 @@ function Shell({ at }: { at: string }) {
 const dialog = () => screen.getByRole("dialog", { name: "Tiff" });
 const convo = () => dialog().querySelector<HTMLElement>(".tm-turns")!;
 const flush = () => act(async () => {});
+const wait = (ms: number) => act(() => new Promise<void>((r) => setTimeout(r, ms)));
 const SCREENS = ["/dashboard/workboard", "/dashboard/team", "/dashboard/my-leave", "/dashboard/assets", "/dashboard"];
 
 beforeEach(() => {
@@ -198,7 +200,10 @@ describe("a move", () => {
     await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
     await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "take me to the workboard?{Enter}");
     await flush();
-    await flush();
+    // her line holds first (1F), and the page hasn't moved yet
+    expect(within(convo()).getByText("Opening the Workboard.")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    await wait(HOLD_MS + 100);
     expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
     expect(push).toHaveBeenCalledWith("/dashboard/workboard");
     expect(refresh).not.toHaveBeenCalled();
@@ -241,7 +246,7 @@ describe("a move", () => {
     await flush();
     await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Dane Porter{Enter}");
     await flush();
-    await flush();
+    await wait(HOLD_MS + 100);
     expect(routeNote).not.toHaveBeenCalled();
     expect(askBrain).toHaveBeenCalledTimes(2);
     expect(push).toHaveBeenCalledWith("/dashboard/team/s-1");
@@ -273,5 +278,119 @@ describe("a move request without a question mark", () => {
     await flush();
     expect(routeNote).toHaveBeenCalled();
     expect(askBrain).not.toHaveBeenCalled();
+  });
+});
+
+/* ── carrying on after a move (universal Tiff 1F, interim) ───────────── */
+
+function Forget() {
+  const tiff = useTiff();
+  return (
+    <button type="button" onClick={() => tiff.forget?.()}>
+      Switch workspace
+    </button>
+  );
+}
+
+async function moveFromTopBar(user: ReturnType<typeof userEvent.setup>) {
+  askBrain.mockImplementationOnce((_input, h) => {
+    h.onDelta("Opening the Workboard.");
+    h.onScreen("/dashboard/workboard", "Workboard");
+    h.onDone();
+  });
+  await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+  await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "take me to the workboard?{Enter}");
+  await flush();
+  await wait(HOLD_MS + 100);
+  expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
+}
+
+describe("after she moves you", () => {
+  it("a press in the modal during the hold keeps it open and moves nothing", async () => {
+    askBrain.mockImplementationOnce((_input, h) => {
+      h.onDelta("Opening the Workboard.");
+      h.onScreen("/dashboard/workboard", "Workboard");
+      h.onDone();
+    });
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "take me to the workboard?{Enter}");
+    await flush();
+    await user.click(within(convo()).getByText("Opening the Workboard."));
+    await wait(HOLD_MS + 100);
+    expect(dialog()).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("the next bare press carries on the same conversation, and a question after it brings those turns", async () => {
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await moveFromTopBar(user);
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    expect(within(convo()).getByText("take me to the workboard?")).toBeInTheDocument();
+    expect(within(convo()).getByText("Opening the Workboard.")).toBeInTheDocument();
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "and who's on it?{Enter}");
+    await flush();
+    expect(askBrain.mock.calls.at(-1)?.[0].history).toEqual([
+      { who: "you", text: "take me to the workboard?" },
+      { who: "tiff", text: "Opening the Workboard." },
+    ]);
+  });
+
+  it("any other way in opens as it always has, and drops what was kept", async () => {
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await moveFromTopBar(user);
+    await user.click(screen.getByLabelText("Talk to Tiff"));
+    expect(within(convo()).queryByText("Opening the Workboard.")).toBeNull();
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    expect(within(convo()).queryByText("Opening the Workboard.")).toBeNull();
+  });
+
+  it("keeps nothing after ten minutes", async () => {
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await moveFromTopBar(user);
+    const now = Date.now();
+    const spy = jest.spyOn(Date, "now").mockReturnValue(now + 10 * 60 * 1000 + 1);
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    spy.mockRestore();
+    expect(within(convo()).queryByText("Opening the Workboard.")).toBeNull();
+  });
+
+  it("keeps nothing when you close it yourself", async () => {
+    askBrain.mockImplementationOnce((_input, h) => {
+      h.onDelta("Lyle has 20 open tasks.");
+      h.onDone();
+    });
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "who's busiest?{Enter}");
+    await flush();
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    expect(within(convo()).queryByText("Lyle has 20 open tasks.")).toBeNull();
+  });
+
+  it("forget drops it, so another workspace starts fresh", async () => {
+    const user = userEvent.setup();
+    render(
+      <NoteScopeProvider voiceEnabled={false}>
+        <TiffModalProvider>
+          <TiffButton />
+          <Forget />
+          <Page key={path} at={path} />
+        </TiffModalProvider>
+      </NoteScopeProvider>
+    );
+    await moveFromTopBar(user);
+    await user.click(screen.getByRole("button", { name: "Switch workspace" }));
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    expect(within(convo()).queryByText("Opening the Workboard.")).toBeNull();
   });
 });

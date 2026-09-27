@@ -145,9 +145,19 @@ export type Opening = {
   still: boolean;
   /** When it opened (ms), read in the click, never in render. */
   at: number;
+  /** A Tiff button pressed within ten minutes of Tiff moving the screen: the
+      conversation she moved you from is on screen, and she listens, as any
+      press does (universal Tiff 1F). A diary entry's door has `conversation`
+      without this, and opens on the reply box instead. */
+  carryOn?: boolean;
 };
 
-export type Closed = { changed: boolean; landed: TiffLanded | null };
+export type Closed = {
+  changed: boolean;
+  landed: TiffLanded | null;
+  /** What was said, words only, for the host to keep when she moved you. */
+  turns: EarlierTurn[];
+};
 
 type Note = {
   id: string;
@@ -208,7 +218,7 @@ export function useConversation({
   const [had] = useState<ModalTurn[]>(() =>
     (opening.conversation ?? []).map((t, i) => ({ key: `had${i}`, who: t.who, text: t.text, enter: false }))
   );
-  const resumed = had.length > 0 && !words0;
+  const resumed = had.length > 0 && !words0 && !opening.carryOn;
   const listensFirst = !words0 && !resumed && voiceEnabled;
 
   const [stage, setStage] = useState<Stage>(words0 ? "thinking" : listensFirst ? "listening" : "editing");
@@ -237,6 +247,11 @@ export function useConversation({
 
   const seq = useRef(0);
   const alive = useRef(true);
+  /** The turns as they are now, for a close that runs from a timer. */
+  const turnsNow = useRef(turns);
+  useEffect(() => {
+    turnsNow.current = turns;
+  });
   const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const fold = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gatherUntil = useRef(!still && !resumed && opening.origin ? opening.at + GATHER_MS : 0);
@@ -969,7 +984,12 @@ export function useConversation({
           ids: filed.current.flatMap((f) => f.ids),
         }
       : null;
-    return { changed: changed.current, landed };
+    /* From the ref, not this render's `turns`: after a move the close runs
+       from a timer set before her line had rendered. */
+    const said = turnsNow.current
+      .filter((t) => (t.who === "you" || t.who === "tiff") && t.text.trim() && !t.streaming)
+      .map((t) => ({ who: t.who, text: t.text }));
+    return { changed: changed.current, landed, turns: said };
   };
 
   return {

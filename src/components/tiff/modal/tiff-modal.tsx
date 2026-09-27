@@ -158,27 +158,21 @@ export function TiffModal({
       ro?.disconnect();
       window.removeEventListener("resize", rest);
     };
-    if (!canAnimate(m)) {
-      p.outline.dataset.landed = "";
-      return stop;
-    }
+    if (!canAnimate(m)) return stop;
     const scene = { dialog: m, scrim: scrim.current, from: session.from };
     const flown = fadeOnly ? null : flyIn(p, scene);
     const f = flown ?? fadeIn(p, scene, tokenMs("--t-move", MOVE_MS));
     flight.current = f;
     held.current = f.hold;
-    if (!flown) p.outline.dataset.landed = "";
-    /* Landed: the runs of light come back on the edge. What the open left
-       standing stays as it is — it already matches the stylesheet — because
-       letting go of it all at once rebuilt the modal's layers, and one frame
-       painted before they were back: the page flashed through the modal as
-       it landed (Isaac, watching it live). The outline's frames let go by
-       themselves; the rest goes with the modal. */
+    /* Landed. What the open left standing stays as it is — it already
+       matches the stylesheet — because letting go of it all at once rebuilt
+       the modal's layers, and one frame painted before they were back: the
+       page flashed through the modal as it landed (Isaac, watching it live).
+       The outline's frames let go by themselves; the rest goes with the
+       modal. */
     f.clock?.finished.then(
       () => {
-        if (flight.current !== f) return;
-        flight.current = null;
-        p.outline.dataset.landed = "";
+        if (flight.current === f) flight.current = null;
       },
       () => {}
     );
@@ -296,8 +290,10 @@ export function TiffModal({
     ? [...c.turns, { key: c.live.key, who: "you", text: c.live.said ?? c.draft, enter: c.live.enter }]
     : c.turns;
   let lastYou = -1;
+  let lastTiff = -1;
   all.forEach((t, i) => {
     if (t.who === "you") lastYou = i;
+    else lastTiff = i;
   });
 
   const turnsRef = useRef<HTMLDivElement | null>(null);
@@ -305,12 +301,50 @@ export function TiffModal({
   /* A conversation opened again is at its newest turn as the modal appears,
      not scrolled there in front of you; only what arrives after is. */
   const openedOn = useRef(tail);
+  /** The list is at its newest, unless you have scrolled back through it yourself. */
+  const atEnd = useRef(true);
   useLayoutEffect(() => {
     const el = turnsRef.current;
     const first = tail === openedOn.current;
+    atEnd.current = true;
     if (el && typeof el.scrollTo === "function")
       el.scrollTo({ top: el.scrollHeight, behavior: session.still || first ? "auto" : "smooth" });
   }, [tail, session.still]);
+  /* KEPT AT THE NEWEST AS THE LIST ITSELF CHANGES SIZE. Talking again opens
+     the face above the list, which gives the list less room; a list kept
+     where it was then showed an earlier part of the conversation, not the
+     words you were saying (Isaac, live: it "goes back to the top of the
+     chat"). While it is at its newest it stays there, frame by frame. A
+     scroll away from the end that a wheel, a touch or a key made is you
+     reading back, and it is left alone; the list's own smooth scroll to a
+     new turn passes through the middle too, and is not. */
+  useEffect(() => {
+    const el = turnsRef.current;
+    if (!el || typeof ResizeObserver !== "function") return;
+    let handAt = -Infinity;
+    const reading = () => {
+      handAt = performance.now();
+    };
+    const scrolled = () => {
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 4) atEnd.current = true;
+      else if (performance.now() - handAt < 400) atEnd.current = false;
+    };
+    const ro = new ResizeObserver(() => {
+      if (atEnd.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+    el.addEventListener("wheel", reading, { passive: true });
+    el.addEventListener("touchstart", reading, { passive: true });
+    el.addEventListener("keydown", reading);
+    el.addEventListener("scroll", scrolled, { passive: true });
+    return () => {
+      ro.disconnect();
+      el.removeEventListener("wheel", reading);
+      el.removeEventListener("touchstart", reading);
+      el.removeEventListener("keydown", reading);
+      el.removeEventListener("scroll", scrolled);
+    };
+  }, []);
 
   return (
     <>
@@ -356,7 +390,7 @@ export function TiffModal({
               turn={t}
               past={i < lastYou}
               live={c.live?.key === t.key && c.live.said === null ? (c.fixing ? "fix" : "words") : null}
-              active={i === all.length - 1}
+              question={c.questionOpen && i === lastTiff}
               c={c}
             />
           ))}
@@ -394,13 +428,14 @@ function TurnView({
   turn,
   past,
   live,
-  active,
+  question,
   c,
 }: {
   turn: ModalTurn;
   past: boolean;
   live: "words" | "fix" | null;
-  active: boolean;
+  /** Her question, still standing: asked, or asked and being listened for. */
+  question: boolean;
   c: Conversation;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -445,7 +480,7 @@ function TurnView({
     el.style.height = `${el.scrollHeight}px`;
   }, [live, c.draft, c.reading]);
 
-  const asking = active && c.stage === "asking";
+  const asking = question;
   /** Listening, and nothing said yet. */
   const asked = live === "words" && !c.draft.trim() && !c.interim.trim();
   const rows = turn.rows ?? [];
@@ -648,30 +683,6 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => vo
      twice, or close the modal on words still being read back. */
   return (
     <footer className="tm-dock" ref={ref} inert={mode === null}>
-      {held === "listen" && (
-        <div className="tm-bar">
-          <span className="tm-rec">
-            <span className="wb2-recdot" aria-hidden="true" />
-            <DictClock seconds={c.seconds} />
-          </span>
-          <span className="tm-sp" />
-          <button type="button" className="tm-clear" aria-label="Clear what you said" onClick={c.clear}>
-            <Icon name="x" size={20} />
-          </button>
-          <button
-            type="button"
-            className="pbtn primary"
-            ref={(el) => {
-              first.current = el;
-            }}
-            onClick={(e) => {
-              if (!c.done()) onEmpty(e.detail === 0);
-            }}
-          >
-            Done
-          </button>
-        </div>
-      )}
       {held === "fix" && (
         <div className="tm-bar">
           <span className="tm-sp" />
@@ -683,26 +694,54 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => vo
           </button>
         </div>
       )}
-      {held === "reply" && (
+      {/* LISTENING AND THE REPLY BOX ARE ONE BOX, so the words you start to
+          type while she listens stay where you are typing them: the same
+          field, kept by React across the two. Typing stops the recording
+          (`typeInstead`); clicking into it does not. */}
+      {(held === "listen" || held === "reply") && (
         <form
           className="tm-box"
           onSubmit={(e) => {
             e.preventDefault();
-            c.send();
+            if (held === "reply") c.send();
           }}
         >
+          {held === "listen" && (
+            <span className="tm-rec">
+              <span className="wb2-recdot" aria-hidden="true" />
+              <DictClock seconds={c.seconds} />
+            </span>
+          )}
           <input
             className="tm-in"
             ref={(el) => {
-              first.current = el;
+              if (held === "reply") first.current = el;
             }}
-            value={c.draft}
-            onChange={(e) => c.setDraft(e.target.value)}
-            placeholder="Reply to Tiff…"
-            aria-label="Reply to Tiff"
+            value={held === "listen" ? "" : c.draft}
+            onChange={(e) => (held === "listen" ? c.typeInstead(e.target.value) : c.setDraft(e.target.value))}
+            placeholder={held === "listen" ? "Type instead…" : "Reply to Tiff…"}
+            aria-label={held === "listen" ? "Type instead" : "Reply to Tiff"}
             autoComplete="off"
           />
-          {typed ? (
+          {held === "listen" ? (
+            <>
+              <button type="button" className="tm-clear" aria-label="Clear what you said" onClick={c.clear}>
+                <Icon name="x" size={20} />
+              </button>
+              <button
+                type="button"
+                className="pbtn primary"
+                ref={(el) => {
+                  first.current = el;
+                }}
+                onClick={(e) => {
+                  if (!c.done()) onEmpty(e.detail === 0);
+                }}
+              >
+                Done
+              </button>
+            </>
+          ) : typed ? (
             <button type="submit" className="pbtn primary">
               Send
             </button>

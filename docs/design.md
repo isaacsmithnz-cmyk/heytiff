@@ -778,7 +778,6 @@ infinite loop into a strobe.
 | `dotfTurn`, `dotfZip`, `dotfFire` | the Tiff modal's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
 | `wb2Flash` | a calendar day the board's data asked to flash | a flash a row asked for with data |
 | `tiffGyro`, `tiffNod`, `tiffSheen`, `tiffGimbalA`, `tiffGimbalB`, `tiffArc` | the Tiff button, on the frame and in a sheet's header; and the mark wherever it stands for Tiff (at rest, at the thinking pace while Tiff works, or on hover in a list) | not feedback or state: Isaac's override of law 18 (2026-09-24, "make it gently alive all the time"), the one thing in the app that moves at rest. See "The Tiff button" below |
-| `tmLap` | the Tiff modal's edge: the two runs of light lapping its outline while it is open, 18 and 14 seconds a lap | Isaac's override of law 18, the Tiff button's own: the button's rings become the modal's edge (2026-09-27, "C is the one") and the light on them keeps going round it. It stands still under reduced motion. See "The Tiff modal" below |
 | `hdTrace` | the Trace: the white light round the job on now, on Home's day bar | Isaac's override of law 18 (2026-09-24, "design exempt for now, but keep a note"): his live job, marked by a light that runs round its edge once every 8 seconds while it is on. It goes when the job finishes, and stands still under reduced motion. See "Named exemptions" below |
 
 ### The buttons that keep their glyph
@@ -1034,10 +1033,10 @@ sends its two gimbal rings out: they leave the button still turning, dive
 down a bowed arc and spin down flat over where the modal will be. Then each
 circle reshapes into the modal's rectangle, the two lines meet as one
 outline, and the modal fills in from that outline inwards. Its zones arrive
-last. While it is open the outline is its edge, and the rings' two runs of
-light keep lapping it. The runs go out as the rings land and come back on
-the outline once the modal is down: forty dashes reshaping every frame is
-what made the live open stutter. Close runs the same way back: the fill drains, the
+last. While it is open the outline is its border, and it stands still: the
+rings' runs of light go out as they land and do not come back. Two lights
+lapping the edge were "a bit distracting" ("leave it as a border without
+the trace moving around"). Close runs the same way back: the fill drains, the
 outline rounds back into the rings, and they climb home into the button, in
 the pose the button's own rings have reached. Closed before it has landed,
 the open plays itself backwards from where it is. The choreography and its
@@ -1046,6 +1045,24 @@ reasons are in `components/tiff/modal/rings.ts`.
 Opened to listen, it asks ("needs to prompt you to talk to it"): "Go ahead,
 I'm listening" stands where your words will go, in the quiet colour, and
 your turn is named only once you have said something.
+
+The microphone opens when the modal opens to listen, when you press the
+reply box's Tiff button, and when she asks you something after words you
+said: she listens for the answer ("1 but have a text box that allows you to
+type instead"). After words you typed she waits at the reply box, because
+she answers the way you talk. Her quick answers stay while she listens. The
+listening dock is the reply box with the recording in it, "Type instead…"
+in its field. Clicking into the field keeps listening. The first key stops
+the recording ("as soon as you start typing, the recording will stop"), and
+the words go on in the same field. If you had already said something, those
+words are kept for you to fix, as clicking into them does. Nothing else
+opens the microphone. The dock's cross stops: the
+take is thrown away and you are back where you were, at the reply box or her
+question ("if I hit X down the bottom, it restarts the microphone"). Done
+with nothing said closes a modal that has nothing in it. In a conversation it
+does what the cross does, and the conversation stays ("done will um, finish
+the chat"). The list keeps to its newest turn when the face opens above it
+and takes its room, unless you have scrolled back through it yourself.
 
 It is ink, the frame's `--ink2`, for everyone ("dark, everywhere"), and about
 1.3 times the light modal it replaces ("make the modal bigger approximately
@@ -1070,8 +1087,6 @@ It breaks these laws, on his word. This is the note:
   nothing flies: the modal and its outline fade in where they stand on
   `--t-move`, and the button keeps its rings. That is law 8's "none on
   keyboard-driven actions", kept.
-- **Law 18, loops.** `tmLap` is in the loops table above. It is the Tiff
-  button's own override carried on to the rings that left it.
 - **Law 10, the label.** The name over a turn is 16, weight 600, in
   `--paper`, not a quiet 500 label. In the quiet colour it read as nobody's
   ("the 'you' looks a bit vague"). A past turn's name goes quiet with its

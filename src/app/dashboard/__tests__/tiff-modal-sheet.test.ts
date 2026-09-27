@@ -192,6 +192,13 @@ describe("the view and the sheet agree", () => {
     expect(selectors(sized![0])).toContain(".fg .tm .pbtn");
   });
 
+  /* Listening, the modal's box holds Done too, and Done has the focus: an
+     edge lit for anything focused in it lit a box nobody was typing in. */
+  it("lights the modal's box for its field alone, not for Done beside it", () => {
+    expect(body(".fg .tm .tm-box:has(> .tm-in:focus)")).toMatch(/border-color:var\(--paper\)/);
+    expect(rules.some(([sel]) => selectors(sel).includes(".fg .tm .tm-box:focus-within"))).toBe(false);
+  });
+
   it("ends the reply box and the entry box in the box's Tiff button", () => {
     expect(MODAL).toMatch(/className="tiffbtn tiffbtn-box tiffbtn-onink"/);
     expect(MODAL).not.toMatch(/tiffbtn-sheet/);

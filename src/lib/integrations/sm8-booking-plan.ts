@@ -369,6 +369,15 @@ export function fmtTime(t: string): string {
   return c ? `${h12(c.h)}:${c.m} ${half(c.h)}` : "";
 }
 
+/** A booking's length as the panel offers it: "30 min", "1 h", "1 h 30",
+    "2 h". */
+export function fmtLength(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} h` : `${h} h ${m}`;
+}
+
 /** A range's two halves as the words place them ("{start} to {end}"): the
     meridiem said once when both share it — "9:00" and "11:00 am" — and on
     each across noon — "11:00 am" and "1:00 pm". */

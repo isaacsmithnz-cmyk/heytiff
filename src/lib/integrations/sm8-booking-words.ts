@@ -61,7 +61,11 @@ export const BOOKING_WORDS = {
     dayOf: "{name} that day: {list}.",
     dayFree: "{name} has nothing else that day.",
     dayUnread: "HeyTiff couldn't check {name}'s day in ServiceM8.",
+    /** One booking in dayOf's {list}: "job 3342, 8:00 to 11:00 am" (PR D). */
+    dayJob: "job {number}, {start} to {end}",
     clash: "That overlaps job {number}, {start} to {end}.",
+    /** The same, for a job the mirror can't number yet (PR D). */
+    clashUnnumbered: "That overlaps another job, {start} to {end}.",
     trial: "Trial run. Nothing goes to ServiceM8. It's checked and listed on the ServiceM8 screen.",
     heldPaused: "Sending is paused, so this waits until it's back on.",
     heldReconnect: "ServiceM8 needs reconnecting, so this waits until it is.",

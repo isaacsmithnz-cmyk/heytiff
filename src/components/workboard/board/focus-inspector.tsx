@@ -1,9 +1,14 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { clockLabel, fmtHoursShort } from "@/lib/workboard/schedule";
-import type { FocusJob, FocusMark } from "@/lib/workboard/focus";
+import type { FocusEntry, FocusJob, FocusMark } from "@/lib/workboard/focus";
+import { clearLeftoverBooking } from "@/app/actions/booking-sm8";
+import { BOOKING_WORDS, bookingActWord, type BookingState } from "@/lib/integrations/sm8-booking-plan";
+import { mintPressId } from "@/lib/workboard/press-id";
+import { ClearConfirm } from "./book-in-panel";
+import { StateLine } from "./state-line";
 import { Fact, Inspector, Ledger, Reading } from "./inspector";
 
 /* ONE JOB OFF THE DAY, in the inspector — what the focus stack was, without
@@ -35,6 +40,8 @@ const HEAD_STATE: { kind: FocusMark["kind"]; tone: "dan" | "warn" | "ok" | "" }[
 export function FocusInspector({
   job,
   day,
+  canClear = false,
+  onCleared,
   onOpen,
   onClose,
   onBack,
@@ -42,11 +49,66 @@ export function FocusInspector({
   job: FocusJob;
   /** The day the job was read off, for the line under the title. */
   day?: string;
+  /** The viewer may Clear a leftover booking here: bookings are offered and
+      they may press (two-way phase 3). Each leftover entry then carries
+      Clear booking. */
+  canClear?: boolean;
+  /** A Clear went: the day is read again, and the booking goes with it. */
+  onCleared?: () => void;
   onOpen: () => void;
   onClose: () => void;
   /** Present when the job was opened out of a day: puts the day back. */
   onBack?: () => void;
 }) {
+  /* the leftover whose Clear is being asked, and what each Clear answered */
+  const [asking, setAsking] = useState<string | null>(null);
+  const [said, setSaid] = useState<Record<string, BookingState>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const out = useRef<string | null>(null);
+  const pressIds = useRef(new Map<string, string>());
+
+  const clear = (e: FocusEntry) => {
+    if (out.current || !e.staffUuid) return;
+    out.current = e.key;
+    setBusy(e.key);
+    const pressId = pressIds.current.get(e.key) ?? mintPressId();
+    pressIds.current.set(e.key, pressId);
+    void clearLeftoverBooking({
+      jobUuid: job.remoteId,
+      activityUuid: e.key,
+      seen: { staffUuid: e.staffUuid, start: e.start },
+      pressId,
+    }).then(
+      (res) => {
+        out.current = null;
+        pressIds.current.delete(e.key);
+        setBusy(null);
+        setAsking(null);
+        /* its line with its own doors (Try again goes again in place), or
+           the refusal */
+        const line: BookingState | null = res.ok
+          ? res.line?.text
+            ? res.line
+            : null
+          : { key: null, text: res.error, tone: "bad", acts: [] };
+        setSaid((cur) => {
+          const next = { ...cur };
+          if (line) next[e.key] = line;
+          else delete next[e.key];
+          return next;
+        });
+        /* it went, or is going: the day is read again, and a booking we
+           took out leaves it */
+        if (res.ok) onCleared?.();
+      },
+      () => {
+        out.current = null;
+        setBusy(null);
+        setSaid((cur) => ({ ...cur, [e.key]: { key: null, text: BOOKING_WORDS.press.unqueued, tone: "bad", acts: [] } }));
+      }
+    );
+  };
+
   const crew = job.entries.length;
   const head = HEAD_STATE.map((h) => ({ ...h, mark: job.marks.find((m) => m.kind === h.kind) })).find(
     (h) => h.mark
@@ -132,6 +194,37 @@ export function FocusInspector({
               <b>{e.who}</b>
               <span>{`${clockLabel(e.startMin)}–${clockLabel(e.endMin)}`}</span>
               {e.state && <em>{e.state}</em>}
+              {/* A LEFTOVER'S CLEAR, on its own line: each booking its own
+                  door, asked in place (two-way phase 3) */}
+              {canClear && e.leftover && e.staffUuid && (
+                <em>
+                  {said[e.key]?.text && (
+                    <StateLine as="em" line={{ word: said[e.key].text ?? "", tone: said[e.key].tone }} />
+                  )}
+                  {said[e.key]?.acts.includes("try_again") && asking !== e.key && (
+                    <button type="button" className="wb2-evdoor" disabled={busy === e.key} onClick={() => clear(e)}>
+                      {bookingActWord("try_again")}
+                    </button>
+                  )}
+                  {asking === e.key ? (
+                    <ClearConfirm
+                      name={e.who}
+                      start={e.start}
+                      number={job.jobNumber}
+                      status={job.status}
+                      busy={busy === e.key}
+                      onClear={() => clear(e)}
+                      onKeep={() => setAsking(null)}
+                    />
+                  ) : (
+                    !said[e.key] && (
+                      <button type="button" className="wb2-evdoor" onClick={() => setAsking(e.key)}>
+                        {BOOKING_WORDS.door.clearBooking}
+                      </button>
+                    )
+                  )}
+                </em>
+              )}
             </li>
           ))}
         </ul>

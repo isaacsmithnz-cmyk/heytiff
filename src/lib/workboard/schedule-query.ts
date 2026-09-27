@@ -22,6 +22,9 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { plusDays } from "./dates";
 import { sm8CategoryColour, type AllJobsMirrorJob } from "./all-jobs";
 import { onSiteKey, type ScheduleActivity, type ScheduleStaff } from "./schedule";
+import { lowUuid, readBookingsOver } from "./all-jobs-query";
+import { isLeftover } from "@/lib/integrations/sm8-booking-plan";
+import type { Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import { streetLine } from "@/lib/studio/job-link";
 
 export type SchedulePayload = {
@@ -38,6 +41,10 @@ export type SchedulePayload = {
       them: `AllJobsMirrorJob` is the one row shape every sheet opens on, and
       a street line is only what Home's day panel says under Where. */
   addresses: Record<string, string>;
+  /** The viewer may Clear a leftover booking here: bookings are offered and
+      they may press (two-way phase 3). Set by `scheduleDay` for its viewer,
+      and only when true; absent everywhere else. */
+  canClear?: true;
 };
 
 export const EMPTY_SCHEDULE: SchedulePayload = {
@@ -58,7 +65,12 @@ function oneLine(text: string | null, max = 160): string | null {
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }
 
-export async function loadScheduleDay(orgId: string, dayISO: string): Promise<SchedulePayload> {
+export async function loadScheduleDay(
+  orgId: string,
+  dayISO: string,
+  /** The write state, where the caller has read it already. */
+  opts: { state?: Pick<Sm8WriteState, "linked" | "tenantId"> } = {}
+): Promise<SchedulePayload> {
   const dayFloor = `${dayISO} 00:00:00`;
   const dayCeil = `${plusDays(dayISO, 1)} 00:00:00`;
 
@@ -110,7 +122,20 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
     ),
   ];
 
-  const activities: ScheduleActivity[] = acts
+  /* OUR BOOKINGS OVER THE MIRROR (two-way phase 3), only where the
+     deployment books: the day's bookings we took out are dropped, and the
+     ones we sent that the mirror doesn't hold yet join the day as the
+     ServiceM8 bookings they are. Anywhere else nothing more is read and the
+     payload is exactly what it was. */
+  const now = Date.now();
+  const over = await readBookingsOver(
+    orgId,
+    { uuids: acts.map((a) => a.uuid), from: dayISO, to: plusDays(dayISO, 1), rows: false },
+    now,
+    opts.state
+  );
+  const mirrored = over ? acts.filter((a) => !over.gone.has(lowUuid(a.uuid))) : acts;
+  const activities: ScheduleActivity[] = mirrored
     .filter((a): a is typeof a & { start_date: string } => !!a.start_date)
     .map((a) => ({
       uuid: a.uuid,
@@ -120,6 +145,14 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
       end: a.end_date,
       wasScheduled: a.activity_was_scheduled,
     }));
+  if (over) {
+    const drawn = new Set(activities.map((a) => lowUuid(a.uuid)));
+    for (const s of over.sentNotMirrored) {
+      if (s.start < dayFloor || s.start >= dayCeil || drawn.has(lowUuid(s.uuid)) || over.gone.has(lowUuid(s.uuid))) continue;
+      activities.push({ uuid: s.uuid, jobUuid: s.jobUuid, staffUuid: s.staffUuid, start: s.start, end: s.end, wasScheduled: 1 });
+    }
+    activities.sort((x, y) => x.start.localeCompare(y.start));
+  }
 
   if (activities.length === 0) {
     return { ...EMPTY_SCHEDULE, dayISO };
@@ -145,9 +178,18 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
           )
           .eq("org_id", orgId)
           .eq("active", 1)
-          .in("uuid", jobIds)
+          /* a booking of ours names its job as it was pressed: every
+             spelling is asked for where the deployment books */
+          .in("uuid", over ? [...new Set(jobIds.flatMap((u) => [u, u.toLowerCase(), u.toUpperCase()]))] : jobIds)
       : Promise.resolve({ data: [] }),
   ]);
+
+  /* ...and each of ours then names its job as the mirror spells it, so the
+     layout's join finds it */
+  if (over) {
+    const spelled = new Map(((jobRows ?? []) as unknown as { uuid: string }[]).map((j) => [lowUuid(j.uuid), j.uuid]));
+    for (const a of activities) if (a.jobUuid) a.jobUuid = spelled.get(lowUuid(a.jobUuid)) ?? a.jobUuid;
+  }
 
   const jobs = (jobRows ?? []) as unknown as {
     uuid: string;
@@ -162,6 +204,22 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
     quote_date: string | null;
     completion_date: string | null;
   }[];
+
+  /* A LEFTOVER IS DECIDED HERE, on the server's clock and the account's
+     zone (isLeftover, the one definition): the blocks are laid out in the
+     browser, which copies it and never reads a clock for it. Absent where
+     the deployment books nothing, or the zone isn't known. */
+  if (over?.zone) {
+    const statusOf = new Map(jobs.map((j) => [lowUuid(j.uuid), j.status]));
+    for (const a of activities) {
+      a.leftover = isLeftover(
+        { scheduled: a.wasScheduled, active: 1, start: a.start, end: a.end, staffUuid: a.staffUuid },
+        statusOf.get(lowUuid(a.jobUuid)) ?? null,
+        over.zone,
+        now
+      );
+    }
+  }
 
   const companyIds = [...new Set(jobs.map((j) => j.company_uuid).filter(Boolean) as string[])];
   const categoryIds = [...new Set(jobs.map((j) => j.category_uuid).filter(Boolean) as string[])];

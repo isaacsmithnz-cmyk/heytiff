@@ -43,6 +43,11 @@ export type ScheduleActivity = {
   start: string;
   end: string | null;
   wasScheduled: number | null;
+  /** A future booking on a Completed or Unsuccessful job, which a person may
+      Clear (two-way phase 3). Decided on the server (loadScheduleDay, by
+      isLeftover and the account's clock); absent where the deployment
+      books nothing or the account's zone isn't known. */
+  leftover?: boolean;
 };
 
 export type ScheduleStaff = { uuid: string; name: string };
@@ -85,6 +90,11 @@ export type ScheduleBlock = {
       and is still on somebody's run — "stale", which is a thing to fix rather
       than a thing to grey out. */
   closure: "open" | "done" | "stale";
+  /** Its activity's `leftover`, copied — false when the activity carried
+      none. Never worked out here: a layout that runs in the browser reads no
+      clock (two-way phase 3). Optional only so a block built by hand in a
+      test needn't say it; layoutScheduleDay always does. */
+  leftover?: boolean;
   /** Minutes past midnight on the rail. endMin is always > startMin: a
       zero or reversed span still has to draw something clickable, so it
       becomes 30 minutes; a booking that crosses midnight is clamped to the
@@ -316,6 +326,7 @@ export function layoutScheduleDay(input: {
       tracked: tracked.get(a.jobUuid) ?? null,
       onSite: onSite.has(onSiteKey(a.jobUuid, a.staffUuid)),
       closure: closureOf(job?.status, job?.completionDate, a.start),
+      leftover: a.leftover === true,
       startMin,
       endMin,
       start: a.start,

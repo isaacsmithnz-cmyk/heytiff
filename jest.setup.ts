@@ -160,3 +160,18 @@ jest.mock('@/app/actions/task-sm8', () => ({
   takeBackTaskDone: jest.fn(async () => ({ ok: true, state: null })),
   retryTaskDone: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
 }))
+
+/* Booking a job in ServiceM8 (two-way phase 3, PR D), for the same reason:
+   the job card imports it for its Visits face and the Schedule's inspector
+   for a leftover's Clear, and both are inside the board, Home's day band and
+   the gallery. The defaults offer nothing and book nothing — every press
+   refused, no lines to poll — so no suite sees a door it didn't ask for.
+   booking-sm8.test.ts tests the real module and `jest.unmock`s it. */
+jest.mock('@/app/actions/booking-sm8', () => ({
+  readBookInContext: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  bookJobIn: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  takeBackBooking: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  retryBooking: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  clearLeftoverBooking: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  readBookingStates: jest.fn(async () => null),
+}))

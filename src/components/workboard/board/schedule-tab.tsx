@@ -527,6 +527,12 @@ export function ScheduleTab({
             <FocusInspector
               job={focus}
               day={openDay}
+              canClear={current?.canClear === true}
+              onCleared={() => {
+                /* the day again: a booking we took out leaves it */
+                dayCache.current.delete(openDay);
+                load(openDay);
+              }}
               onClose={closeFocus}
               onOpen={() => {
                 if (focusJob) openJob(focusJob);

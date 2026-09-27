@@ -349,12 +349,12 @@ export async function queueBookIn(
   const found = await readByKeys(orgId, keys);
   if (!found) return { ok: false, refusal: "unqueued" };
   const existing = [...found.values()];
-  /* what we sent and took out, whole or not at all */
-  const overlay = await readBookingOverlayStrict(orgId, state, {
-    jobUuids: [jobUuid],
-    uuids: existing.map((r) => r.remote_uuid),
-    rows: false,
-  });
+  /* what we sent and took out, whole or not at all — read only when a
+     slot holds a row for it to decide */
+  const overlay =
+    existing.length > 0
+      ? await readBookingOverlayStrict(orgId, state, { jobUuids: [jobUuid], uuids: existing.map((r) => r.remote_uuid), rows: false })
+      : { gone: new Set<string>(), sentNotMirrored: [], rows: [] };
   if (!overlay) return { ok: false, refusal: "unqueued" };
   const mirror = existing.length > 0 ? await readMirrorBookings(orgId, existing.map((r) => r.remote_uuid)) : new Map<string, MirrorBooking>();
   if (!mirror) return { ok: false, refusal: "unqueued" };
@@ -474,6 +474,9 @@ export async function queueBookIn(
     else already.push(ref);
   }
   if (takingOut.length > 0 && queued.ids.length === 0) {
+    /* nothing of this press is on its way: a status row it made doesn't
+       wait alone, as behind a cap */
+    if (statusRowId && statusPressedHere) await stopLoneStatusRow(orgId, statusRowId, verbId);
     const i = subjects.indexOf(takingOut[0]);
     return { ok: false, refusal: "taking_out", slot: slots[i] };
   }

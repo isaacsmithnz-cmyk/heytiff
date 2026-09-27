@@ -2599,7 +2599,7 @@ describe("the account's clock where its offset changes (review: R2-13, R2-14, R2
 });
 
 describe("a press decides on the whole overlay, or queues nothing (review: S3)", () => {
-  it("(F) what we took out, or what we sent, unreadable: Book in is unqueued, and nothing is queued", async () => {
+  it("(F) what we took out, or what we sent, unreadable: Book in on a slot that holds a row is unqueued, and nothing is queued", async () => {
     await sentBooking();
     for (const pick of [
       (f: string[]) => f.includes("status=sent") && f.includes("op=delete"),
@@ -2607,11 +2607,20 @@ describe("a press decides on the whole overlay, or queues nothing (review: S3)",
     ]) {
       fake.before.sm8_writes = (s) => (s.op === "select" && pick(s.filters) ? "fail" : undefined);
       const before = JSON.stringify(writes());
-      expect(await bookIn([slot(SAM_SM8, "15:00", "16:00")])).toEqual({ ok: false, refusal: "unqueued" });
+      expect(await bookIn([slot(), slot(SAM_SM8, "15:00", "16:00")])).toEqual({ ok: false, refusal: "unqueued" });
       expect(JSON.stringify(writes())).toBe(before);
     }
     delete fake.before.sm8_writes;
+    /* read whole, the booking sent and not mirrored yet stands */
+    expect(await bookIn([slot(), slot(SAM_SM8, "15:00", "16:00")])).toEqual({ ok: false, refusal: "already_booked", slot: slot() });
+  });
+
+  it("(F, N6) a press whose slots hold no row reads no overlay at all", async () => {
+    await sentBooking();
+    fake.log.length = 0;
     expect(await bookIn([slot(SAM_SM8, "15:00", "16:00")])).toMatchObject({ ok: true });
+    const overlayReads = fake.on("sm8_writes").filter((st) => st.op === "select" && st.filters.includes("status=sent"));
+    expect(overlayReads).toEqual([]);
   });
 });
 
@@ -2695,6 +2704,23 @@ describe("one row per job, person and start; a slot comes back only once it no l
     fake.before.sm8_writes = undefined;
     expect(q).toEqual({ ok: false, refusal: "taking_out", slot: slot() });
     expect(c.status).toBe("failed");
+  });
+
+  it("(F, N7) ...and a status row that press made for it is stopped, never left to wait alone", async () => {
+    await bookIn();
+    const [c] = creates();
+    Object.assign(c, { status: "failed", last_error: BOOKING_WORDS.row.refused });
+    fake.before.sm8_writes = (st) => {
+      if (st.op === "update" && st.patch?.status === "queued" && st.filters.includes(`id=${c.id}`)) {
+        c.taken_back_at = new Date().toISOString();
+      }
+    };
+    const q = await bookIn([slot()], { seen: SEEN });
+    fake.before.sm8_writes = undefined;
+    expect(q).toEqual({ ok: false, refusal: "taking_out", slot: slot() });
+    const [s] = statusRows();
+    expect(s).toMatchObject({ status: "cancelled", last_error: NOTE_WORDS.row.takenBackBeforeSent });
+    expect(s.taken_back_at).toBeTruthy();
   });
 
   it("(F) a status row taken back by a trial's Cancel booking gives its key back, and a later Book in at the same edit time makes a fresh one that goes (L1, then L6)", async () => {

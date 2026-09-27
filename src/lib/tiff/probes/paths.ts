@@ -65,6 +65,7 @@ export async function routerRead(
   transcript: string,
   ctx: NoteContext,
   model: string,
+  effort: "low" | "medium" | "high" = EFFORT,
 ): Promise<NoteRead> {
   const out = blank();
   const started = performance.now();
@@ -72,7 +73,7 @@ export async function routerRead(
     const response = await client.messages.create({
       model,
       max_tokens: MAX_TOKENS,
-      output_config: { effort: EFFORT, format: { type: "json_schema", schema: TIFF_NOTE_SCHEMA } },
+      output_config: { effort, format: { type: "json_schema", schema: TIFF_NOTE_SCHEMA } },
       system: systemPrompt(ctx),
       messages: [{ role: "user", content: noteContent(transcript) }],
     });

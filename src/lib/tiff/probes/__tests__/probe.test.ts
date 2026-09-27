@@ -5,6 +5,7 @@
 
        TIFF_PROBE=p0 npm run probe:tiff      notes: today's router against the loop
        TIFF_PROBE=p0base npm run probe:tiff  notes: today's router against itself
+       TIFF_PROBE=p0effort npm run probe:tiff  notes: the router at medium against low
        TIFF_PROBE=p1 npm run probe:tiff      Opus 5 against Opus 5.5, notes and questions
        TIFF_PROBE=p3 npm run probe:tiff      tool search against every tool loaded
 
@@ -179,6 +180,20 @@ async function p0base(client: Anthropic) {
   await save("p0base", rows, pairReport("P0 baseline: today's router against itself", "Router", "Router again", rows));
 }
 
+/** Today's router at its medium effort against the same router at low:
+    whether the note path can take the effort split decided on 27 September
+    (low for filing notes) without its rows moving. */
+async function p0effort(client: Anthropic) {
+  const notes = (await storedNotes()).slice(0, LIMIT);
+  const rows = await pairs(
+    client,
+    notes,
+    (n, ctx) => routerRead(client, n.transcript, ctx, OPUS_5, "medium"),
+    (n, ctx) => routerRead(client, n.transcript, ctx, OPUS_5, "low"),
+  );
+  await save("p0effort", rows, pairReport("P0 effort: today's router at medium against low", "Medium", "Low", rows));
+}
+
 type Question = { ask: string; expect?: string };
 
 async function p1(client: Anthropic) {
@@ -299,6 +314,7 @@ describe("Tiff's Phase 0 probes", () => {
       const client = new Anthropic({ maxRetries: 4 });
       if (PROBE === "p0") await p0(client);
       else if (PROBE === "p0base") await p0base(client);
+      else if (PROBE === "p0effort") await p0effort(client);
       else if (PROBE === "p1") await p1(client);
       else if (PROBE === "p3") await p3(client);
       else console.log(`No probe called ${PROBE}. Try p0, p0base, p1 or p3.`);

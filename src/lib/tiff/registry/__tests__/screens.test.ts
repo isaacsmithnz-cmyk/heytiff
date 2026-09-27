@@ -87,6 +87,8 @@ describe("open_screen", () => {
     const tool = TIFF_TOOLS.find((t) => t.name === "open_screen")!;
     const e = (tool.inputSchema.properties as Record<string, { enum: string[] }>).screen.enum;
     expect(e).toEqual(ALL_SCREENS.map((n) => n.label));
+    // one of each: a repeated enum value is a schema the API may refuse
+    expect(new Set(e).size).toBe(e.length);
   });
 
   it("moves to a screen the viewer may see, with its own line", async () => {

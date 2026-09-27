@@ -189,9 +189,13 @@ export function navHref(key: string): string {
 }
 
 /** Who is looking: their capabilities, plus the role for role-intrinsic entries. */
-/** Every entry, rows and their faces, for every viewer: the names Tiff may
-    be asked for. What a given viewer may open is still `navFor`. */
-export const ALL_SCREENS: NavItem[] = NAV.flatMap((n) => [n, ...(n.subItems ?? [])]);
+/** Every entry, rows and their faces, once each, for every viewer: the names
+    Tiff may be asked for. A row's first face is usually the row itself
+    (Home's faces start with Home), so a name is kept the first time it
+    appears. What a given viewer may open is still `navFor`. */
+export const ALL_SCREENS: NavItem[] = NAV.flatMap((n) => [n, ...(n.subItems ?? [])]).filter(
+  (n, i, all) => all.findIndex((m) => m.label === n.label) === i
+);
 
 /** Other words people use for a screen, squashed as `squash` squashes them.
     Tiff's move test and `open_screen` read these; a label is always its own

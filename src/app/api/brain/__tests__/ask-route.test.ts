@@ -146,6 +146,35 @@ describe("the wire", () => {
     ]);
   });
 
+  it("moves to a named screen with no model call at all", async () => {
+    const res = await POST(req({ question: "Take me to the workboard", intent: "move" }));
+    expect(await eventsOf(res)).toEqual([
+      { t: "delta", text: "Opening the Workboard." },
+      { t: "screen", href: "/dashboard/workboard", label: "Workboard" },
+      { t: "done" },
+    ]);
+    expect(streamBrainAnswer).not.toHaveBeenCalled();
+  });
+
+  it("refuses in words a screen the viewer can't see, also with no model call", async () => {
+    caps = new Set(["workboard"]);
+    const res = await POST(req({ question: "can you take me to time and pay?" }));
+    expect(await eventsOf(res)).toEqual([{ t: "delta", text: "You can't open Time & Pay." }, { t: "done" }]);
+    expect(streamBrainAnswer).not.toHaveBeenCalled();
+  });
+
+  it("runs a record move through the loop at low effort, and a question at medium", async () => {
+    await POST(req({ question: "Open Dane's card", intent: "move" }));
+    expect(loopInput()).toMatchObject({ effort: "low" });
+    await POST(req({ question: "who's carrying the most?" }));
+    expect(loopInput()).not.toHaveProperty("effort");
+  });
+
+  it("takes only \"move\" as an intent", async () => {
+    await POST(req({ question: "Open Dane's card", intent: "anything" }));
+    expect(loopInput()).not.toHaveProperty("effort");
+  });
+
   it("hands the loop the org's own today and the scope's target", async () => {
     await POST(
       req({

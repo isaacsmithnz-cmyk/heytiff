@@ -21,7 +21,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { sm8BookingsAllowed } from "@/lib/integrations/sm8-kinds";
-import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
+import { readBookingWriteState, readBookingZone } from "@/lib/integrations/sm8-booking-request";
 import { readMirrorBookings, type BookingOverlayRow } from "@/lib/integrations/sm8-booking-overlay";
 import { BOOKING_WORDS, bookingLine, clearLine, type BookingState } from "@/lib/integrations/sm8-booking-plan";
 import { offersSend, sendHold, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
@@ -45,10 +45,9 @@ const spellings = (u: string) => [...new Set([u, u.toLowerCase(), u.toUpperCase(
 const pressedAt = (r: { pressed_at?: string | null; created_at: string }): string => r.pressed_at ?? r.created_at;
 
 /** The sending state, for the account connected now — or null with none.
-    Loaded here, not at the top: the write engine brings the session. */
+    Once per request, with the list's and the day's (sm8-booking-request). */
 async function connectedState(orgId: string): Promise<Sm8WriteState | null> {
-  const { readSm8WriteState } = await import("@/lib/integrations/sm8-writes");
-  const state = await readSm8WriteState(orgId);
+  const state = await readBookingWriteState(orgId);
   return state.linked && state.tenantId ? state : null;
 }
 
@@ -115,7 +114,7 @@ export async function myBookingTrouble(
     byIds(orgId, tenant, statusIds),
     takeBacksOf(orgId, tenant, [...creates.keys()]),
     readMirrorBookings(orgId, [...creates.values()].map((c) => c.remote_uuid)),
-    bookingZone(orgId),
+    readBookingZone(orgId),
   ]);
   if (!statuses || !backs) return [];
   const statusRows = new Map(statuses.map((s) => [s.id, s]));

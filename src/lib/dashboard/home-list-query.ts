@@ -43,8 +43,13 @@ import { oneLine } from "@/lib/workboard/all-jobs-query";
 import { plusDays } from "@/lib/workboard/dates";
 import { jobMoneyOf, parseSm8AmountToCents, SM8_JOB_MONEY_COLUMNS } from "@/lib/workboard/job-money";
 import { sm8BookingsAllowed } from "@/lib/integrations/sm8-kinds";
-import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
-import { readBookingOverlay, readMirrorBookings, type BookingOverlayRow } from "@/lib/integrations/sm8-booking-overlay";
+import { readBookingWriteState, readBookingZone } from "@/lib/integrations/sm8-booking-request";
+import {
+  readBookingOverlay,
+  readMirrorBookings,
+  type BookingOverlay,
+  type BookingOverlayRow,
+} from "@/lib/integrations/sm8-booking-overlay";
 import {
   BOOKINGS_OPEN_TO_MANAGERS,
   bookingLine,
@@ -108,14 +113,12 @@ export type ListBookings = {
 
 /** The list's booking side, or null where the deployment books nothing (no
     read of any kind is made), or it couldn't be read (logged: the list is
-    then the one it always was). The write engine is loaded here, not at the
-    top: it brings the session with it, which the list's other reads don't
-    need. */
+    then the one it always was). The state and the zone are the request's
+    (sm8-booking-request): the day, the next day and the bell ask the same. */
 async function readListBookings(ctx: HomeListContext): Promise<ListBookings | null> {
   if (!sm8BookingsAllowed()) return null;
   try {
-    const { readSm8WriteState } = await import("@/lib/integrations/sm8-writes");
-    const [state, zone] = await Promise.all([readSm8WriteState(ctx.orgId), bookingZone(ctx.orgId)]);
+    const [state, zone] = await Promise.all([readBookingWriteState(ctx.orgId), readBookingZone(ctx.orgId)]);
     const offered = offersSend(state, "booking");
     return {
       state,
@@ -191,13 +194,21 @@ export async function loadJobsToBook(
     return { wins, visits };
   }
   const now = opts.now ?? Date.now();
+  /* the booking rows of the jobs with no booking standing, read once with
+     the question of whether they are booked (everBookedOver), and their
+     lines drawn from them */
+  const sink: RowSink = { rows: [] };
   const [wins, visits] = await Promise.all([
-    opts.sm8 ? loadWins(orgId, day, opts.money, bookings, now) : Promise.resolve([] as WonJob[]),
+    opts.sm8 ? loadWins(orgId, day, opts.money, bookings, now, sink) : Promise.resolve([] as WonJob[]),
     loadVisits(orgId, day),
   ]);
-  const bookingLines = wins.length > 0 ? await wonBookingLines(orgId, bookings, wins.map((w) => w.job.remoteId), now) : {};
+  const bookingLines =
+    wins.length > 0 ? await wonBookingLines(orgId, bookings, sink.rows, wins.map((w) => w.job.remoteId), now) : {};
   return { wins, visits, bookingLines };
 }
+
+/** Where the booked question leaves the booking rows it read. */
+type RowSink = { rows: BookingOverlayRow[] };
 
 /* ── won and never booked ── */
 
@@ -256,6 +267,7 @@ async function loadWins(
   money: boolean,
   bookings: ListBookings | null = null,
   now: number = Date.now(),
+  sink: RowSink = { rows: [] },
 ): Promise<WonJob[]> {
   const since = plusDays(day, -WON_WINDOW_DAYS);
   const { data, error } = await supabaseAdmin
@@ -277,7 +289,7 @@ async function loadWins(
   if (rows.length === 0) return [];
 
   const booked = bookings
-    ? await everBookedOver(orgId, rows.map((r) => r.uuid), bookings, now)
+    ? await everBookedOver(orgId, day, rows.map((r) => r.uuid), bookings, now, sink)
     : await everBooked(orgId, rows.map((r) => r.uuid));
   if (booked === null) return [];
   const left = rows.filter((r) => !booked.has(r.uuid));
@@ -378,23 +390,53 @@ async function everBooked(orgId: string, ids: readonly string[]): Promise<Set<st
   return results.every(Boolean) ? booked : null;
 }
 
+/** What the overlay says of these booking uuids alone: the ones we took
+    out. Its window of our sent bookings is empty ("from" the end of time),
+    so it reads none of them — one empty read of the queue, and the gone
+    uuids fifty to a request — where a reader needs no booking of ours drawn. */
+async function goneOf(orgId: string, bookings: ListBookings, uuids: readonly string[], now: number): Promise<ReadonlySet<string>> {
+  if (uuids.length === 0) return new Set();
+  const over = await readBookingOverlay(orgId, bookings.state, { uuids, rows: false, from: GONE_ONLY }, now);
+  return over.gone;
+}
+
+/** A day after any booking: the overlay's window of our sent bookings from
+    here on is empty. */
+const GONE_ONLY = "9999-12-31";
+
+/** Jobs asked of the overlay at a time: each rides in its filters in up to
+    three spellings. */
+const JOBS_CHUNK = 15;
+
 /** `everBooked`, over our bookings (two-way phase 3): the same question
-    with each block's uuid, so a booking we took out books nothing, and a
-    booking we sent that the mirror doesn't hold yet books its job. Null
-    when a read fails, as `everBooked` is. */
+    with each block's uuid and start, so a booking we took out books
+    nothing, and a booking we sent that the mirror doesn't hold yet books
+    its job. Null when a read fails, as `everBooked` is.
+
+    IT ASKS ONLY WHAT CAN MOVE THE ANSWER (review S3):
+    - a block that started before yesterday is never one we took out — an
+      Undo or a Clear takes out only a booking that hasn't started, and
+      the sync has long since shown it — so its job is booked outright;
+    - of the rest, only the blocks from yesterday on are asked about as
+      gone;
+    - only the jobs left with no block standing are asked for our sent
+      bookings, fifteen to a request, side by side — and that same read
+      brings their booking rows, which `sink` keeps for their lines. */
 async function everBookedOver(
   orgId: string,
+  day: string,
   ids: readonly string[],
   bookings: ListBookings,
   now: number,
+  sink: RowSink,
 ): Promise<Set<string> | null> {
-  const blocks: { uuid: string; job: string }[] = [];
+  const blocks: { uuid: string; job: string; start: string | null }[] = [];
   const results = await Promise.all(
     chunks(ids).map(async (chunk) => {
       for (let from = 0; ; from += PAGE) {
         const { data, error } = await supabaseAdmin
           .from("sm8_job_activities")
-          .select("uuid, job_uuid")
+          .select("uuid, job_uuid, start_date")
           .eq("org_id", orgId)
           .eq("active", 1)
           .eq("activity_was_scheduled", 1)
@@ -405,45 +447,60 @@ async function everBookedOver(
           console.error(`[home-list] couldn't read the bookings for org ${orgId}:`, error);
           return false;
         }
-        const got = (data ?? []) as { uuid: string | null; job_uuid: string | null }[];
-        for (const a of got) if (a.uuid && a.job_uuid) blocks.push({ uuid: a.uuid, job: a.job_uuid });
+        const got = (data ?? []) as { uuid: string | null; job_uuid: string | null; start_date: string | null }[];
+        for (const a of got) if (a.uuid && a.job_uuid) blocks.push({ uuid: a.uuid, job: a.job_uuid, start: a.start_date });
         if (got.length < PAGE) return true;
       }
     }),
   );
   if (!results.every(Boolean)) return null;
 
-  const over = await readBookingOverlay(orgId, bookings.state, { uuids: blocks.map((b) => b.uuid), rows: false }, now);
-  const spelled = new Map(ids.map((id) => [id.toLowerCase(), id]));
+  const floor = `${plusDays(day, -1)} 00:00:00`;
   const booked = new Set<string>();
-  for (const b of blocks) if (!over.gone.has(b.uuid.toLowerCase())) booked.add(b.job);
-  for (const s of over.sentNotMirrored) {
-    const id = spelled.get(s.jobUuid.toLowerCase());
-    if (id && !over.gone.has(s.uuid.toLowerCase())) booked.add(id);
+  const recent = blocks.filter((b) => {
+    if (b.start && b.start >= floor) return true;
+    booked.add(b.job);
+    return false;
+  });
+  const gone = await goneOf(
+    orgId,
+    bookings,
+    recent.filter((b) => !booked.has(b.job)).map((b) => b.uuid),
+    now,
+  );
+  for (const b of recent) if (!gone.has(b.uuid.toLowerCase())) booked.add(b.job);
+
+  const open = ids.filter((id) => !booked.has(id));
+  const overs: BookingOverlay[] = await Promise.all(
+    Array.from({ length: Math.ceil(open.length / JOBS_CHUNK) }, (_, i) =>
+      readBookingOverlay(orgId, bookings.state, { jobUuids: open.slice(i * JOBS_CHUNK, (i + 1) * JOBS_CHUNK) }, now),
+    ),
+  );
+  const spelled = new Map(ids.map((id) => [id.toLowerCase(), id]));
+  for (const over of overs) {
+    sink.rows.push(...over.rows);
+    for (const s of over.sentNotMirrored) {
+      const id = spelled.get(s.jobUuid.toLowerCase());
+      if (id && !over.gone.has(s.uuid.toLowerCase())) booked.add(id);
+    }
   }
   return booked;
 }
 
-/** Won jobs asked of the overlay at a time: each rides in a filter in up
-    to three spellings. */
-const LINE_CHUNK = 15;
-
 /** Each of these jobs' booking line, by the job's uuid in lower case: the
     line of the newest booking of ours on it that has something to say —
     the card's own line (sm8-booking-plan's bookingLine), so the two never
-    disagree. A job with none has no entry. A read that fails says nothing
-    for its jobs (logged by the overlay). */
+    disagree — from the rows the booked question read. A job with none has
+    no entry. */
 async function wonBookingLines(
   orgId: string,
   bookings: ListBookings,
+  read: readonly BookingOverlayRow[],
   jobUuids: readonly string[],
   now: number,
 ): Promise<Record<string, BookingState>> {
-  const rows: BookingOverlayRow[] = [];
-  for (let i = 0; i < jobUuids.length; i += LINE_CHUNK) {
-    const over = await readBookingOverlay(orgId, bookings.state, { jobUuids: jobUuids.slice(i, i + LINE_CHUNK) }, now);
-    rows.push(...over.rows);
-  }
+  const wanted = new Set(jobUuids.map((j) => j.toLowerCase()));
+  const rows = read.filter((r) => wanted.has((r.sm8_job_uuid ?? "").toLowerCase()));
   const creates = rows.filter((r) => r.op === "create");
   if (creates.length === 0) return {};
   const statusRows = new Map(rows.filter((r) => r.op === "update").map((r) => [r.id, r]));
@@ -560,9 +617,10 @@ export async function loadLeftovers(
   });
   if (left.length === 0) return [];
 
-  /* the ones we cleared stay hidden for as long as the Clear's row exists */
-  const over = await readBookingOverlay(orgId, bookings.state, { uuids: left.map((a) => a.uuid), rows: false }, now);
-  const kept = left.filter((a) => !over.gone.has(a.uuid.toLowerCase())).slice(0, LEFTOVERS_CAP);
+  /* the ones we cleared stay hidden for as long as the Clear's row exists;
+     a leftover is the mirror's, so none of ours in flight is read */
+  const gone = await goneOf(orgId, bookings, left.map((a) => a.uuid), now);
+  const kept = left.filter((a) => !gone.has(a.uuid.toLowerCase())).slice(0, LEFTOVERS_CAP);
   if (kept.length === 0) return [];
 
   const staffIds = [...new Set(kept.map((a) => a.staff_uuid!))];

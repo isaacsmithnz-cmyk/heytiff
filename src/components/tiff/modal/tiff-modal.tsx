@@ -158,27 +158,21 @@ export function TiffModal({
       ro?.disconnect();
       window.removeEventListener("resize", rest);
     };
-    if (!canAnimate(m)) {
-      p.outline.dataset.landed = "";
-      return stop;
-    }
+    if (!canAnimate(m)) return stop;
     const scene = { dialog: m, scrim: scrim.current, from: session.from };
     const flown = fadeOnly ? null : flyIn(p, scene);
     const f = flown ?? fadeIn(p, scene, tokenMs("--t-move", MOVE_MS));
     flight.current = f;
     held.current = f.hold;
-    if (!flown) p.outline.dataset.landed = "";
-    /* Landed: the runs of light come back on the edge. What the open left
-       standing stays as it is — it already matches the stylesheet — because
-       letting go of it all at once rebuilt the modal's layers, and one frame
-       painted before they were back: the page flashed through the modal as
-       it landed (Isaac, watching it live). The outline's frames let go by
-       themselves; the rest goes with the modal. */
+    /* Landed. What the open left standing stays as it is — it already
+       matches the stylesheet — because letting go of it all at once rebuilt
+       the modal's layers, and one frame painted before they were back: the
+       page flashed through the modal as it landed (Isaac, watching it live).
+       The outline's frames let go by themselves; the rest goes with the
+       modal. */
     f.clock?.finished.then(
       () => {
-        if (flight.current !== f) return;
-        flight.current = null;
-        p.outline.dataset.landed = "";
+        if (flight.current === f) flight.current = null;
       },
       () => {}
     );
@@ -305,12 +299,50 @@ export function TiffModal({
   /* A conversation opened again is at its newest turn as the modal appears,
      not scrolled there in front of you; only what arrives after is. */
   const openedOn = useRef(tail);
+  /** The list is at its newest, unless you have scrolled back through it yourself. */
+  const atEnd = useRef(true);
   useLayoutEffect(() => {
     const el = turnsRef.current;
     const first = tail === openedOn.current;
+    atEnd.current = true;
     if (el && typeof el.scrollTo === "function")
       el.scrollTo({ top: el.scrollHeight, behavior: session.still || first ? "auto" : "smooth" });
   }, [tail, session.still]);
+  /* KEPT AT THE NEWEST AS THE LIST ITSELF CHANGES SIZE. Talking again opens
+     the face above the list, which gives the list less room; a list kept
+     where it was then showed an earlier part of the conversation, not the
+     words you were saying (Isaac, live: it "goes back to the top of the
+     chat"). While it is at its newest it stays there, frame by frame. A
+     scroll away from the end that a wheel, a touch or a key made is you
+     reading back, and it is left alone; the list's own smooth scroll to a
+     new turn passes through the middle too, and is not. */
+  useEffect(() => {
+    const el = turnsRef.current;
+    if (!el || typeof ResizeObserver !== "function") return;
+    let handAt = -Infinity;
+    const reading = () => {
+      handAt = performance.now();
+    };
+    const scrolled = () => {
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 4) atEnd.current = true;
+      else if (performance.now() - handAt < 400) atEnd.current = false;
+    };
+    const ro = new ResizeObserver(() => {
+      if (atEnd.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+    el.addEventListener("wheel", reading, { passive: true });
+    el.addEventListener("touchstart", reading, { passive: true });
+    el.addEventListener("keydown", reading);
+    el.addEventListener("scroll", scrolled, { passive: true });
+    return () => {
+      ro.disconnect();
+      el.removeEventListener("wheel", reading);
+      el.removeEventListener("touchstart", reading);
+      el.removeEventListener("keydown", reading);
+      el.removeEventListener("scroll", scrolled);
+    };
+  }, []);
 
   return (
     <>

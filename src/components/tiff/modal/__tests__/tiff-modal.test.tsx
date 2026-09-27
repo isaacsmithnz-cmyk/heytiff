@@ -1251,20 +1251,113 @@ describe("your words, while you say them", () => {
     );
   });
 
-  it("Clear starts that one again: a fresh take while listening, and back to listening from your words", async () => {
+  /* Isaac, live (2026-09-27): "if I hit X down the bottom, it restarts the
+     microphone". The cross stops: the take goes, and the mic stays shut. */
+  it("the cross throws the take away and stops: the reply box, and the mic is not opened again", async () => {
     const user = await openModal();
+    await act(async () => engine.say!("Luke has"));
     await user.click(within(dialog()).getByRole("button", { name: "Clear what you said" }));
-    expect(mic.restart).toHaveBeenCalledTimes(1);
+    expect(mic.cancel).toHaveBeenCalledTimes(1);
+    expect(mic.restart).not.toHaveBeenCalled();
+    expect(mic.start).toHaveBeenCalledTimes(1);
+    expect(within(dialog()).queryByRole("button", { name: "Done" })).toBeNull();
+    expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toHaveValue("");
+    expect(within(dialog()).queryByText("Luke has")).toBeNull();
+    expect(routeNote).not.toHaveBeenCalled();
+  });
 
+  it("the cross on your words, clicked into, bins the read-back and stops the same way", async () => {
+    const user = await openModal();
     await act(async () => engine.say!("Luke has"));
     await user.click(dialog().querySelector<HTMLElement>(".tm-words")!);
     expect(within(dialog()).getByRole("textbox", { name: "What you said" })).toBeInTheDocument();
     await user.click(within(dialog()).getByRole("button", { name: "Clear what you said" }));
-    // the read-back in the air is binned, and the mic opens again
     expect(mic.cancel).toHaveBeenCalledTimes(1);
-    expect(mic.start).toHaveBeenCalledTimes(2);
+    expect(mic.start).toHaveBeenCalledTimes(1);
     expect(within(dialog()).queryByRole("textbox", { name: "What you said" })).toBeNull();
-    expect(within(dialog()).getByRole("button", { name: "Done" })).toBeInTheDocument();
+    expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
+  });
+
+  /* Talking again from the reply box, mid-conversation: whatever ends the
+     take without words is back where you were, her question and all, and
+     never the end of the conversation ("done will um, finish the chat"). */
+  describe("talking again in a conversation", () => {
+    const ASK = "Who books it?";
+    /** A conversation, then the reply box's Tiff button; `opens: false` is a mic still arming as you press Done. */
+    async function talkAgain({ opens = true } = {}) {
+      routeNote.mockResolvedValue(routed({ say: ASK, tasks: [task("Book 3323 in", null)], clarify: { question: ASK, options: ["Me"] } }));
+      const user = await openModal();
+      await say(user, "3323 needs booking");
+      await flush();
+      engine.opens = opens;
+      await user.click(within(dialog()).getByRole("button", { name: "Talk to Tiff" }));
+      expect(within(dialog()).getByRole("button", { name: "Done" })).toBeInTheDocument();
+      return user;
+    }
+
+    it("the cross is back at her question, with its answers", async () => {
+      const user = await talkAgain();
+      await user.click(within(dialog()).getByRole("button", { name: "Clear what you said" }));
+      expect(mic.start).toHaveBeenCalledTimes(2);
+      expect(within(convo()).getByText(ASK)).toBeInTheDocument();
+      expect(within(dialog()).getByRole("button", { name: "Me" })).toBeInTheDocument();
+      expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
+    });
+
+    it("Done with nothing said keeps the conversation open, at the reply box", async () => {
+      const user = await talkAgain({ opens: false });
+      await user.click(within(dialog()).getByRole("button", { name: "Done" }));
+      await flush();
+      expect(dialog()).toBeInTheDocument();
+      expect(within(convo()).getByText(ASK)).toBeInTheDocument();
+      expect(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
+      expect(continueNote).not.toHaveBeenCalled();
+    });
+  });
+
+  /* Isaac, live: pressing Tiff to talk again "goes back to the top of the
+     chat". The face opens above the list and gives it less room; the list
+     must keep to its newest as it shrinks, unless you scrolled back. */
+  it("keeps the list at its newest as it loses room, and leaves it where you scrolled back to", async () => {
+    const seen: ResizeObserverCallback[] = [];
+    const real = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      constructor(cb: ResizeObserverCallback) {
+        seen.push(cb);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+    try {
+      await openModal();
+      const list = convo();
+      let top = 0;
+      let room = 400;
+      Object.defineProperty(list, "scrollHeight", { configurable: true, get: () => 900 });
+      Object.defineProperty(list, "clientHeight", { configurable: true, get: () => room });
+      Object.defineProperty(list, "scrollTop", {
+        configurable: true,
+        get: () => top,
+        set: (v: number) => {
+          top = Math.max(0, Math.min(v, 900 - room));
+        },
+      });
+      const resized = () => act(() => seen.forEach((cb) => cb([], {} as ResizeObserver)));
+      top = 500;
+      room = 220;
+      await resized();
+      expect(top).toBe(680);
+
+      fireEvent.wheel(list);
+      top = 120;
+      fireEvent.scroll(list);
+      room = 150;
+      await resized();
+      expect(top).toBe(120);
+    } finally {
+      globalThis.ResizeObserver = real;
+    }
   });
 
   it("the two-minute ceiling keeps them in your turn to fix and send, and routes nothing", async () => {

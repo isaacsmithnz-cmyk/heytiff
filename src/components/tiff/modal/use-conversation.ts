@@ -240,6 +240,8 @@ export function useConversation({
       line's events, which have no note. */
   const filed = useRef<{ noteId?: string; ids: string[] }[]>([]);
   const awaitingVoice = useRef(false);
+  /** Where the conversation was before this take: the reply box, or her question with its quick answers. */
+  const beforeTake = useRef<Stage>("editing");
   const asking = useRef<AbortController | null>(null);
   const sent = useRef(false);
   const dayAsk = useRef<DayAsk | null>(null);
@@ -686,7 +688,9 @@ export function useConversation({
   /* ── what the person does ── */
 
   /** Done: stop listening and send what was said. False when there was
-      nothing to send, which closes the modal.
+      nothing to send and nothing had been said before, which closes the
+      modal; in a conversation it is back to the reply box, and the
+      conversation stays (Isaac, live: Done on nothing "will finish the chat").
 
       ONCE, AND ONLY WHILE LISTENING. A second press lands on a dock that is
       folding away, after the mic has stopped and before the read-back has
@@ -703,7 +707,11 @@ export function useConversation({
       return true;
     }
     if (dict.arming) dict.stop();
-    if (!draft.trim()) return false;
+    if (!draft.trim()) {
+      if (!turns.length) return false;
+      clear();
+      return true;
+    }
     send();
     return true;
   };
@@ -718,24 +726,23 @@ export function useConversation({
     commit(words, spoke ? "voice" : "text");
   };
 
-  /** "Clear what you said": start that one again. */
+  /** The dock's cross: this take is thrown away, the microphone let go,
+      and it is back where it was before you talked: the reply box, or her
+      question. It never listens again by itself; the reply box's Tiff button
+      does that. Isaac pressed it to stop, and it started listening again
+      (2026-09-27). */
   const clear = () => {
+    if (stage !== "listening" && !fixing) return;
+    dict.cancel();
+    setReading(null);
     setDraft("");
     setError(null);
-    if (stage === "listening") {
-      if (dict.recording) dict.restart();
-      else if (!dict.arming) dict.start();
-      return;
-    }
-    if (fixing) {
-      if (dict.transcribing || reading !== null) dict.cancel();
-      setReading(null);
-      setFixing(false);
-      if (voiceEnabled) {
-        setStage("listening");
-        dict.start();
-      }
-    }
+    setFixing(false);
+    setSpoke(false);
+    setLive(null);
+    setStage(beforeTake.current);
+    /* the face was opened for the take: a conversation folds it away again; opened on it, it stays as it opened */
+    if (turns.length) fall();
   };
 
   /** Clicking into your words stops the mic and keeps them for typing —
@@ -755,6 +762,7 @@ export function useConversation({
       unless it was pressed from the keyboard, which moves nothing (law 8). */
   const talk = (from: HTMLElement | null, keyboard = false) => {
     if (!voiceEnabled || stage === "listening" || stage === "thinking" || stage === "answering") return;
+    beforeTake.current = stage;
     const r = from?.getBoundingClientRect();
     const origin = !still && !keyboard && r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
     stopFold();

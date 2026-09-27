@@ -1,8 +1,8 @@
 "use client";
 
-import type { CSSProperties, RefObject } from "react";
+import type { RefObject } from "react";
 import { FlyingRingSvg, TiffMarkDefs } from "@/components/notes/tiff-mark";
-import { NSEG, type FlyRing, type RingParts } from "./rings";
+import type { FlyRing, RingParts } from "./rings";
 
 /* THE RINGS' LAYERS (./rings has the choreography and the reasons).
 
@@ -11,29 +11,13 @@ import { NSEG, type FlyRing, type RingParts } from "./rings";
 
      under   the fill while it reshapes: the modal's own ink, grown inside
              the rings' outline, before the modal itself takes over.
-     over    the outline on the modal's edge, and the two flying rings.
+     over    the outline, the modal's border, and the two flying rings.
 
    Both are fixed to the viewport and drawn in its pixels, so nothing here
    needs a viewBox or a resize; neither takes a pointer. */
 
 type Key = "a" | "b";
 const KEYS: Key[] = ["a", "b"];
-
-/* Each step of a run of light takes the colour the ring's own run has at that
-   point (./tiff-mark: a gradient along the 120° arc's chord, clear at the
-   tail, the ring's colour at .6, the head's from .95), so the light keeps its
-   look when the outline takes over from the ring. */
-function step(i: number, k: Key): CSSProperties {
-  const a = ((2 * Math.PI) / 3) * ((i + 0.5) / NSEG);
-  const t = ((1 - Math.cos(a)) * 1.5 + Math.sin(a) * 0.866) / 3;
-  const w = Math.min(1, Math.max(0, (t - 0.6) / 0.35));
-  const colour = k === "a" ? "var(--mark-teal)" : "var(--mark-blue-l)";
-  return {
-    "--i": i,
-    stroke: `color-mix(in srgb, var(--paper) ${(100 * w).toFixed(1)}%, ${colour})`,
-    opacity: t < 0.6 ? ((0.92 * t) / 0.6).toFixed(3) : (0.92 + 0.08 * w).toFixed(3),
-  } as CSSProperties;
-}
 
 export function RingsUnder({ fillRef }: { fillRef: RefObject<SVGSVGElement | null> }) {
   return (
@@ -47,8 +31,8 @@ export function RingsUnder({ fillRef }: { fillRef: RefObject<SVGSVGElement | nul
 /* Every class is written out whole: a class built from a template is one a
    stylesheet sweep cannot see (the dead-CSS sweep deleted `.tiffbtn-sheet`). */
 const CLS = {
-  a: { line: "tm-line tm-a", comet: "tm-comet tm-a" },
-  b: { line: "tm-line tm-b", comet: "tm-comet tm-b" },
+  a: { line: "tm-line tm-a" },
+  b: { line: "tm-line tm-b" },
 } as const;
 
 /* A ring, A first then B: `partsOf` finds them in that order. */
@@ -78,13 +62,6 @@ export function RingsOver({ overRef }: { overRef: RefObject<HTMLDivElement | nul
       <svg className="tm-rim" focusable="false">
         {KEYS.map((k) => (
           <path key={k} className={CLS[k].line} />
-        ))}
-        {KEYS.map((k) => (
-          <g key={k} className={CLS[k].comet}>
-            {Array.from({ length: NSEG }, (_, i) => (
-              <path key={i} className={i === NSEG - 1 ? "tm-seg head" : "tm-seg"} style={step(i, k)} />
-            ))}
-          </g>
         ))}
       </svg>
       <div className="tm-fly">
@@ -126,17 +103,13 @@ export function partsOf(fill: SVGSVGElement, over: HTMLDivElement): RingParts | 
   const outline = q<SVGSVGElement>(over, ".tm-rim");
   const la = q<SVGPathElement>(over, ".tm-line.tm-a");
   const lb = q<SVGPathElement>(over, ".tm-line.tm-b");
-  const ca = q<SVGGElement>(over, ".tm-comet.tm-a");
-  const cb = q<SVGGElement>(over, ".tm-comet.tm-b");
   const fp = q<SVGPathElement>(fill, ".tm-fp");
   const fu = q<SVGPathElement>(fill, ".tm-fu");
-  if (!a || !b || !outline || !la || !lb || !ca || !cb || !fp || !fu) return null;
+  if (!a || !b || !outline || !la || !lb || !fp || !fu) return null;
   return {
     fly: { a, b },
     outline,
     line: { a: la, b: lb },
-    comet: { a: ca, b: cb },
-    segs: { a: [...ca.querySelectorAll<SVGPathElement>(".tm-seg")], b: [...cb.querySelectorAll<SVGPathElement>(".tm-seg")] },
     fill,
     fp,
     fu,

@@ -8646,31 +8646,16 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    order in the body: the fill under the modal, the outline and the flying
    rings over it. Fixed to the viewport, drawn in its pixels, never under a
    pointer. What stands between a flight's frames is this: the flying rings
-   hidden, the fill hidden, the outline on the modal's edge. */
+   hidden, the fill hidden, the outline on the modal's edge, still, as its
+   border (the lights that lapped it were "a bit distracting", Isaac). */
 .tm-fill, .tm-over { position:fixed; inset:0; z-index:var(--z-modal); pointer-events:none; }
 .tm-fill { width:100%; height:100%; overflow:visible; opacity:0; }
 .tm-fp, .tm-fu { fill:var(--ink2); }
 .tm-fu { opacity:0; }
 .tm-rim { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
-.tm-line, .tm-seg { fill:none; }
-.tm-line { stroke-width:1.5px; stroke-opacity:.28; }
+.tm-line { fill:none; stroke-width:1.5px; stroke-opacity:.28; }
 .tm-line.tm-a { stroke:var(--mark-teal); }
 .tm-line.tm-b { stroke:var(--mark-blue-l); }
-/* A run of light round the edge, as twenty steps of the ring's own run, each
-   step's colour and strength set on it (tiff-rings.tsx). Where its head is:
-   `--tm-u0` (where the flight left it) plus `--tm-ro` (laps since), of the
-   outline's length `--tm-p`; it is `--tm-l` long. */
-@property --tm-ro { syntax:"<number>"; inherits:true; initial-value:0; }
-.tm-comet.tm-a { --tm-lap:18000ms; }
-.tm-comet.tm-b { --tm-lap:14000ms; }
-.tm-seg { stroke-width:2.5px;
-  stroke-dasharray:calc(var(--tm-seg, 40) * 1px) calc((var(--tm-p, 2000) - var(--tm-seg, 40)) * 1px);
-  stroke-dashoffset:calc(-1px * ((var(--tm-u0, 0) + var(--tm-ro)) * var(--tm-p, 2000) - var(--tm-l, 480) + var(--i) * var(--tm-seg, 40))); }
-.tm-seg.head { stroke-linecap:round; }
-/* the lights sit out the reshape and come back on the outline once the modal is down */
-.tm-comet { opacity:0; transition:opacity var(--t-move) var(--ease); }
-.tm-rim[data-landed] .tm-comet { opacity:1; animation:tmLap var(--tm-lap) linear infinite; }
-@keyframes tmLap { to { --tm-ro:1; } }
 .tm-fly { position:absolute; inset:0; }
 .tm-fr { position:absolute; left:0; top:0; width:0; height:0; opacity:0; }
 .tm-fr-pos, .tm-fr-gim { position:absolute; left:0; top:0; width:0; height:0; }
@@ -8683,9 +8668,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .tm-sk .runfull { opacity:0; }
 /* the frame's skin shows by default; the paper skin only while a ring leaves a button on paper */
 .tm-sk + .tm-sk { opacity:0; }
-@media (prefers-reduced-motion:reduce) {
-  .tm-rim[data-landed] .tm-comet { animation:none; }
-}
 
 
 .wb2-capclock { font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:var(--gray700); white-space:nowrap; }

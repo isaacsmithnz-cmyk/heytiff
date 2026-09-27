@@ -60,12 +60,20 @@ const MAX_TOKENS = 16_000;
    giving strong quality "at a fraction of the tokens and latency". This is
    the second rung, not the bottom.
 
-   The file's original argument still stands and is why this isn't `low`:
-   the routing decision IS the product, and a mis-assigned "tell Lyle" costs
-   more trust than the tokens save. What changed is that `high` stopped
-   being free. Watch the Tiff modal's plans — if assignees or dates start
-   coming back wrong, this is the line to move back. */
-const DEFAULT_EFFORT = "medium" as const;
+   `low` since 2026-09-27, measured again. The universal-Tiff probes read
+   the real notes in the diary through this router at medium and at low
+   (src/lib/tiff/probes, `TIFF_PROBE=p0effort`): the same rows on 14 of 15,
+   where medium agrees with ITSELF on about 42 of 47, and nobody given the
+   wrong work. Low was 1.3 s faster at the median (3.5 s against 4.8 s),
+   2.6 s faster at p90, and about 8% cheaper. Isaac decided the split the
+   same day: low for filing notes and moving the screen, medium for answering
+   questions and the Library.
+
+   The file's original argument still stands: the routing decision IS the
+   product, and a mis-assigned "tell Lyle" costs more trust than the tokens
+   save. Watch the Tiff modal's plans — if assignees or dates start coming
+   back wrong, this is the line to move back, to `medium` first. */
+const DEFAULT_EFFORT = "low" as const;
 
 /* ── what a proposal is ───────────────────────────────────────────────── */
 

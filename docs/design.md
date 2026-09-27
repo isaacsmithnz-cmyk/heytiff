@@ -1035,11 +1035,17 @@ down a bowed arc and spin down flat over where the modal will be. Then each
 circle reshapes into the modal's rectangle, the two lines meet as one
 outline, and the modal fills in from that outline inwards. Its zones arrive
 last. While it is open the outline is its edge, and the rings' two runs of
-light keep lapping it. Close runs the same way back: the fill drains, the
+light keep lapping it. The runs go out as the rings land and come back on
+the outline once the modal is down: forty dashes reshaping every frame is
+what made the live open stutter. Close runs the same way back: the fill drains, the
 outline rounds back into the rings, and they climb home into the button, in
 the pose the button's own rings have reached. Closed before it has landed,
 the open plays itself backwards from where it is. The choreography and its
 reasons are in `components/tiff/modal/rings.ts`.
+
+Opened to listen, it asks ("needs to prompt you to talk to it"): "Go ahead,
+I'm listening" stands where your words will go, in the quiet colour, and
+your turn is named only once you have said something.
 
 It is ink, the frame's `--ink2`, for everyone ("dark, everywhere"), and about
 1.3 times the light modal it replaces ("make the modal bigger approximately
@@ -1052,24 +1058,34 @@ chrome's one hairline, `--on-ink-line` (law 22). The focus ring is `--ring-ink`,
 the ring the other way round, paper outside (law 32). The rings on it keep the
 frame's skin all the way down.
 
-It breaks three laws, on his word. This is the note:
+It breaks these laws, on his word. This is the note:
 
 - **Law 8, under 300 ms, and law 18, the motion tokens.** The open takes
-  1,660 ms and the close 1,020 ms, where law 8 says under 300. Its clocks and
-  eases are its own. They are sampled every 8 ms into linear keyframes, so no
-  curve of its own appears anywhere. The reshape is slow on purpose ("make the
-  reshape slower": 650 ms). Opened from the keyboard, or under reduced motion,
+  about 1,070 ms and the close 720 ms, where law 8 says under 300. Its clocks
+  and eases are its own. They are sampled every 12 ms into linear keyframes,
+  so no curve of its own appears anywhere. The reshape was slowed on the
+  board ("make the reshape slower": 650 ms). Watched live, the whole open
+  was cut from 1,660 ms ("needs to be faster and smoother on open"), and the
+  reshape is now 380 ms of it. Opened from the keyboard, or under reduced motion,
   nothing flies: the modal and its outline fade in where they stand on
   `--t-move`, and the button keeps its rings. That is law 8's "none on
   keyboard-driven actions", kept.
 - **Law 18, loops.** `tmLap` is in the loops table above. It is the Tiff
   button's own override carried on to the rings that left it.
+- **Law 10, the label.** The name over a turn is 16, weight 600, in
+  `--paper`, not a quiet 500 label. In the quiet colour it read as nobody's
+  ("the 'you' looks a bit vague"). A past turn's name goes quiet with its
+  words.
 - **No handover crossfades.** Two identical layers at half strength each
   showed the page through for an instant, which at a quarter speed was a
   visible flash ("fix that. watch it slowly"). The fills overlap: the
-  incoming one is fully on before the outgoing one goes. The rings and the
-  outline are thin lines that would double up bright, so they swap on one
-  exact instant.
+  incoming one is fully on before the outgoing one goes. The shaped fill
+  stays under the modal to the end of the open, not to the instant the
+  modal's own colour comes on: the fill's opacity runs on the compositor and
+  the colour on the page's thread, which can be a frame late, and a fill
+  that went on that instant left one frame with neither (live, "theres a
+  flash"). The rings and the outline are thin lines that would double up
+  bright, so they swap on one exact instant, at the same strength.
 
 ## The order of work
 

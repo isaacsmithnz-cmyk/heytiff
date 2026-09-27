@@ -8603,7 +8603,12 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .fg .tm .tm-turns { max-height:572px; padding:0 32px 12px; }
 .fg .tm:not(:has(.tm-dock)) .tm-turns { padding-bottom:32px; }
 .fg .tm .tm-turn + .tm-turn { margin-top:24px; }
-.fg .tm .tm-label { font-size:16px; color:var(--on-ink-q); }
+/* the turn's label is paper and weighted, so it reads as who is speaking (Isaac, live: "the 'you' looks a bit vague");
+   an earlier turn's goes quiet with its words */
+.fg .tm .tm-label { font-size:16px; font-weight:600; color:var(--paper); }
+.fg .tm .tm-turn.past .tm-label { color:var(--on-ink-q); }
+/* the ask while it listens, before your first word: the live words' size, quiet */
+.fg .tm .tm-tt.tm-ask { color:var(--on-ink-q); }
 .fg .tm .tm-tt { min-height:32px; font-size:20px; color:var(--paper); }
 .fg .tm .tm-turn.past .tm-tt { color:var(--on-ink-q); }
 .fg .tm .tm-turn.live .tm-tt, .fg .tm .tm-turn.live .tm-words { min-height:36px; font-size:24px; }
@@ -8662,7 +8667,9 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   stroke-dasharray:calc(var(--tm-seg, 40) * 1px) calc((var(--tm-p, 2000) - var(--tm-seg, 40)) * 1px);
   stroke-dashoffset:calc(-1px * ((var(--tm-u0, 0) + var(--tm-ro)) * var(--tm-p, 2000) - var(--tm-l, 480) + var(--i) * var(--tm-seg, 40))); }
 .tm-seg.head { stroke-linecap:round; }
-.tm-rim[data-landed] .tm-comet { animation:tmLap var(--tm-lap) linear infinite; }
+/* the lights sit out the reshape and come back on the outline once the modal is down */
+.tm-comet { opacity:0; transition:opacity var(--t-move) var(--ease); }
+.tm-rim[data-landed] .tm-comet { opacity:1; animation:tmLap var(--tm-lap) linear infinite; }
 @keyframes tmLap { to { --tm-ro:1; } }
 .tm-fly { position:absolute; inset:0; }
 .tm-fr { position:absolute; left:0; top:0; width:0; height:0; opacity:0; }

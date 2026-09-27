@@ -272,7 +272,8 @@ describe("readMirrorJobDetail, where the deployment doesn't book (D-14)", () => 
 describe("loadScheduleDay (D-10)", () => {
   it("(F) drops the day's bookings we took out, carries the ones we sent the mirror doesn't hold with their jobs, and marks each leftover on the server", async () => {
     fake.db.sm8_job_activities.push(act(1), act(3, { start_date: `${TOMORROW} 10:00:00` }));
-    const done = sent(uuid(9), { sm8_job_uuid: DONE_JOB, booking_start: `${TOMORROW} 12:00:00`, booking_end: `${TOMORROW} 13:00:00` });
+    /* pressed under the job's uuid in another case: one job, whatever the spelling */
+    const done = sent(uuid(9), { sm8_job_uuid: DONE_JOB.toUpperCase(), booking_start: `${TOMORROW} 12:00:00`, booking_end: `${TOMORROW} 13:00:00` });
     fake.db.sm8_writes.push(cleared(uuid(3)), done);
     const p = await loadScheduleDay(ORG, TOMORROW);
     expect(p.activities.map((a) => [a.uuid, a.jobUuid, a.wasScheduled, a.leftover])).toEqual([

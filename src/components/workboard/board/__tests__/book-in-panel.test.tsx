@@ -6,7 +6,7 @@
    and a double press is one press. The actions are mocked: what they answer
    is PR C's to hold. */
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { BookInContext, BookJobInResult, VerbView } from "@/app/actions/booking-sm8";
 import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-plan";
@@ -45,6 +45,7 @@ const live = (over: Partial<Extract<BookInContext, { ok: true }>["bookings"][num
   end: `${DAY} 10:00:00`,
   scheduled: 1,
   recorded: 0,
+  active: 1,
   editDate: "2026-10-01 10:00:00",
   ...over,
 });
@@ -258,8 +259,15 @@ describe("a Quote (D-4)", () => {
     readBookInContext.mockImplementation(async () => context({ job: { uuid: JOB, number: "3342", status: "Work Order", editDate: null } }));
     bookJobIn.mockClear();
     render(<BookInPanel jobUuid={JOB} number="3342" zone={null} onDone={onDone} onCancel={onCancel} />);
+    /* once ServiceM8 has answered for the Work Order's panel too */
     await waitFor(() => expect(screen.getAllByLabelText(P.who)).toHaveLength(2));
+    await waitFor(() => expect((screen.getAllByLabelText(P.who)[1] as HTMLSelectElement).options.length).toBe(3));
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    /* and Book in on a Work Order never asks for the change */
+    const wo = screen.getAllByRole("group", { name: "Book in job 3342" })[1];
+    await userEvent.selectOptions(screen.getAllByLabelText(P.who)[1], SAM);
+    await userEvent.click(within(wo).getByRole("button", { name: P.book }));
+    expect(bookJobIn.mock.calls[0][0].makeWorkOrder).toBe(false);
   });
 });
 

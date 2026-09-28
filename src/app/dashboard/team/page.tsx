@@ -7,7 +7,7 @@ import { InviteButton } from "@/components/team/invite-modal";
 import { can, getCapabilities, getDbRole } from "@/lib/permissions-server";
 import { hasMinRole } from "@/lib/roles-shared";
 import { invitableRoles } from "@/lib/permissions";
-import { listMembersWithoutCard, listPendingInvites, listStaff } from "@/lib/staff/query";
+import { listMembersWithoutCard, listPendingInvites, listStaff, staffCardsInUse } from "@/lib/staff/query";
 import { orgExpiryWindow } from "@/lib/org/query";
 
 // Capability-gated (`team`, default admin+): the directory exposes every staff
@@ -44,6 +44,18 @@ export default async function TeamPage() {
   const canInvite = invitableAt.length > 0;
   // tokens/ids ride along only when this viewer may act on them
   const pending = await listPendingInvites(orgId, { withLinks: canInvite });
+
+  /* WHICH CARDS MAY OFFER DELETE — owners only, and only a card nothing on the
+     records points at (a test account, someone added by mistake). A failed
+     read offers it on none. The owner's own card and any owner's never; the
+     action and the database refuse all of these again. */
+  const isOwner = hasMinRole(actorRole, "owner");
+  const inUse = isOwner ? await staffCardsInUse(orgId) : null;
+  const deletable = inUse
+    ? staff
+        .filter((s) => !inUse.has(s.id) && !s.isMaster && s.orgRole !== "owner" && s.userId !== session?.user?.sub)
+        .map((s) => s.id)
+    : [];
 
   // Prefer the configured base URL; otherwise derive it from the incoming
   // request so invite links are always correct in production (never localhost).
@@ -106,7 +118,8 @@ export default async function TeamPage() {
               invite={canInvite ? <InviteButton roles={invitableAt} /> : null}
               appUrl={appUrl}
               inviteRoles={invitableAt}
-              canRemoveMembers={hasMinRole(actorRole, "owner")}
+              canRemoveMembers={isOwner}
+              deletable={deletable}
             />
           )}
         </div>

@@ -108,7 +108,10 @@ describe("freshenSm8AfterResponse", () => {
     await behind();
     expect(order).toEqual(["writes", "sync", "asks"]);
     expect(runSm8Writes).toHaveBeenCalledWith("org-1", "kick", { budgetMs: 90_000 });
-    expect(runSm8Sync).toHaveBeenCalledWith("org-1", "kick");
+    // the page's function: the platform's 300 s, less the 20 s margin
+    expect(runSm8Sync).toHaveBeenCalledWith("org-1", "kick", clock, {
+      deadline: Date.parse("2026-09-25T00:00:00Z") + 280_000,
+    });
   });
 
   it("does neither when the mirror is fresh and nothing is due", async () => {

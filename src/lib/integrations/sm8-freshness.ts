@@ -30,6 +30,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { settleMentionAsks } from "@/lib/dashboard/mention-settle";
 import { runSm8Sync, sm8SyncIsStale } from "./sm8-sync";
 import { SYNC_LEASE_MS, whenSm8LeaseFree } from "./sm8-lease";
+import { functionDeadline } from "./sm8-hook-plan";
 import { runSm8Writes, sm8WritesDue, sm8WritesEnabled } from "./sm8-writes";
 import { backgroundBudgetMs, FUNCTION_MAX_MS, WRITE_LEASE_MARGIN_MS } from "./sm8-write-plan";
 import { sm8NotesAllowed } from "./sm8-kinds";
@@ -74,7 +75,11 @@ export function freshenSm8AfterResponse(orgId: string): void {
       const syncStartBy = calledAt + FUNCTION_MAX_MS - SYNC_LEASE_MS - WRITE_LEASE_MARGIN_MS;
       if (Date.now() > syncStartBy) return;
       if (!(await sm8SyncIsStale(orgId, Date.now()))) return;
-      const synced = await whenSm8LeaseFree(() => runSm8Sync(orgId, "kick"), {
+      /* the page's function: no route sets a maxDuration, so the platform's
+         default (FUNCTION_MAX_MS); the sync extends its lease while a whole
+         one still ends inside it */
+      const deadline = functionDeadline(calledAt, FUNCTION_MAX_MS / 1000);
+      const synced = await whenSm8LeaseFree(() => runSm8Sync(orgId, "kick", Date.now(), { deadline }), {
         tries: KICK_TRIES,
         waitMs: KICK_WAIT_MS,
         startBy: syncStartBy,

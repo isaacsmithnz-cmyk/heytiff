@@ -176,7 +176,7 @@ describe("syncServiceM8NowAction", () => {
   it("syncs in the foreground, and drains what is waiting to go behind the answer", async () => {
     runSm8Sync.mockResolvedValue({ ran: true, note: "Synced 3 changes across 13 objects.", pagesUsed: 1, rowsPulled: 3, complete: true });
     expect(await syncServiceM8NowAction()).toEqual({ ok: true, note: "Synced 3 changes across 13 objects." });
-    expect(runSm8Sync).toHaveBeenCalledWith("org-1", "manual");
+    expect(runSm8Sync).toHaveBeenCalledWith("org-1", "manual", expect.any(Number), { deadline: expect.any(Number) });
     expect(scheduled).toHaveLength(1);
     await scheduled[0]();
     expect(runSm8Writes).toHaveBeenCalledWith("org-1", "send", { budgetMs: 90_000 });
@@ -186,6 +186,19 @@ describe("syncServiceM8NowAction", () => {
     role = "admin";
     expect(await syncServiceM8NowAction()).toEqual({ ok: false, error: "Only an owner can change connected apps." });
     expect(scheduled).toHaveLength(0);
+  });
+
+  it("lets the sync run until its page's function ends: the platform's 300 s, less the 20 s margin", async () => {
+    const pressed = Date.parse("2026-09-28T03:00:00Z");
+    const now = jest.spyOn(Date, "now").mockReturnValue(pressed);
+    try {
+      runSm8Sync.mockClear();
+      runSm8Sync.mockResolvedValueOnce({ ran: true, note: "Synced.", pagesUsed: 1, rowsPulled: 0, complete: true });
+      await syncServiceM8NowAction();
+      expect(runSm8Sync).toHaveBeenCalledWith("org-1", "manual", pressed, { deadline: pressed + 280_000 });
+    } finally {
+      now.mockRestore();
+    }
   });
 
   /* Two-way phase 4, PR B: a press that meets the lease held (a live update

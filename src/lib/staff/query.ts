@@ -631,3 +631,18 @@ export async function listPendingInvites(
     };
   });
 }
+
+/* The org's cards that something on the records points at — a timesheet, a
+   task, a notice read, a document, a vehicle, anything with a foreign key onto
+   staff_profiles. Asked of the database catalogue by `staff_cards_in_use`
+   (docs/migrations/staff_card_delete.sql), so a table added later is counted
+   the day it exists.
+
+   NULL ON FAILURE, and the caller must read null as "every card is in use":
+   this decides which rows may offer Delete, and a read that failed must never
+   make a card with history look clean. */
+export async function staffCardsInUse(orgId: string): Promise<Set<string> | null> {
+  const { data, error } = await supabaseAdmin.rpc("staff_cards_in_use", { p_org: orgId });
+  if (error || !Array.isArray(data)) return null;
+  return new Set((data as unknown[]).map((v) => String(typeof v === "object" && v ? Object.values(v)[0] : v)));
+}

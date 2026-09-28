@@ -12,6 +12,8 @@ let card: Row | null = null;
 let caps = new Set<string>(["team"]);
 let actor = { role: "owner" as string | null, userId: "auth0|owner", primaryOwnerUserId: "auth0|owner" };
 const deletes: { table: string; eq: [string, unknown][] }[] = [];
+let rpcAnswer: { data: unknown; error: unknown } = { data: "deleted", error: null };
+const rpcCalls: [string, unknown][] = [];
 const ensureStaffCard = jest.fn(async () => {
   card = { id: "card-new" };
 });
@@ -27,6 +29,10 @@ jest.mock("@/lib/permissions-server", () => ({
 }));
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
+    rpc: async (name: string, args: unknown) => {
+      rpcCalls.push([name, args]);
+      return rpcAnswer;
+    },
     from: (table: string) => {
       const eq: [string, unknown][] = [];
       let op = "read";
@@ -57,7 +63,7 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-import { createCardForMember, removeMemberWithoutCard } from "../members";
+import { createCardForMember, deleteStaffCard, removeMemberWithoutCard } from "../members";
 
 const ORPHAN = "auth0|orphan";
 
@@ -67,6 +73,8 @@ beforeEach(() => {
   caps = new Set(["team"]);
   actor = { role: "owner", userId: "auth0|owner", primaryOwnerUserId: "auth0|owner" };
   deletes.length = 0;
+  rpcCalls.length = 0;
+  rpcAnswer = { data: "deleted", error: null };
   ensureStaffCard.mockClear();
 });
 
@@ -127,5 +135,44 @@ describe("Remove", () => {
     card = { id: "card-1" };
     expect(await removeMemberWithoutCard(ORPHAN)).toMatchObject({ ok: false });
     expect(deletes).toEqual([]);
+  });
+});
+
+/* Delete: the database decides and does it (delete_staff_card, one
+   transaction). What this action owns is who may ask, and saying the answer. */
+describe("Delete a card with no records", () => {
+  beforeEach(() => {
+    card = { user_id: "auth0|test" };
+  });
+
+  it("asks the database to delete that card in this org", async () => {
+    expect(await deleteStaffCard("card-test")).toEqual({ ok: true });
+    expect(rpcCalls).toEqual([["delete_staff_card", { p_org: "org-1", p_staff: "card-test" }]]);
+  });
+
+  it("is an owner's act", async () => {
+    actor = { ...actor, role: "admin", userId: "auth0|admin" };
+    expect(await deleteStaffCard("card-test")).toMatchObject({ ok: false });
+    expect(rpcCalls).toEqual([]);
+  });
+
+  it("never deletes your own card", async () => {
+    card = { user_id: "auth0|owner" };
+    expect(await deleteStaffCard("card-mine")).toEqual({ ok: false, error: "You can't delete your own card." });
+    expect(rpcCalls).toEqual([]);
+  });
+
+  it.each([
+    ["in_use", "They have records here now. Deactivate them instead."],
+    ["owner", "Owners can't be deleted."],
+    ["not_found", "That staff member is already gone."],
+  ])("says what the database said: %s", async (answer, error) => {
+    rpcAnswer = { data: answer, error: null };
+    expect(await deleteStaffCard("card-test")).toEqual({ ok: false, error });
+  });
+
+  it("reports a failed call rather than a deletion", async () => {
+    rpcAnswer = { data: null, error: { message: "boom" } };
+    expect(await deleteStaffCard("card-test")).toEqual({ ok: false, error: "Couldn't delete them." });
   });
 });

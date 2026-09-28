@@ -118,3 +118,52 @@ export async function removeMemberWithoutCard(userId: string): Promise<MemberRes
   revalidatePath("/dashboard/team");
   return { ok: true };
 }
+
+/* Delete a staff card that has nothing on the records — a test account, or
+   someone added by mistake who never worked (Isaac, 2026-09-02 and 09-28).
+
+   THE DATABASE DECIDES, IN ONE TRANSACTION. `delete_staff_card` locks the card,
+   checks every table with a foreign key onto it (found from the catalogue, not
+   a list kept here), and only then deletes the card, its login's seat in this
+   org, and any unaccepted invitation that names it. A card with history is
+   refused whatever the screen showed — the screen's list of deletable cards is
+   read at page load and a timesheet can land after it.
+
+   Owners only (offboarding is owner-intrinsic), never your own card, and never
+   an owner's — the function refuses that too. The person's LOGIN is not
+   touched: it is Auth0's, and it may belong to another workspace. */
+export async function deleteStaffCard(staffId: string): Promise<MemberResult> {
+  const session = await auth0.getSession();
+  const orgId = session?.orgId as string | undefined;
+  if (!orgId) return { ok: false, error: NO_PERMISSION };
+
+  const actor = await getOwnership();
+  if (!hasMinRole(actor.role, "owner")) return { ok: false, error: NO_PERMISSION };
+
+  const { data: card } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("user_id")
+    .eq("org_id", orgId)
+    .eq("id", staffId)
+    .maybeSingle();
+  if (!card) return { ok: false, error: "That staff member is already gone." };
+  if (card.user_id && card.user_id === actor.userId) {
+    return { ok: false, error: "You can't delete your own card." };
+  }
+
+  const { data, error } = await supabaseAdmin.rpc("delete_staff_card", { p_org: orgId, p_staff: staffId });
+  if (error) return { ok: false, error: "Couldn't delete them." };
+  switch (data as string) {
+    case "deleted":
+      revalidatePath("/dashboard/team");
+      return { ok: true };
+    case "in_use":
+      return { ok: false, error: "They have records here now. Deactivate them instead." };
+    case "owner":
+      return { ok: false, error: "Owners can't be deleted." };
+    case "not_found":
+      return { ok: false, error: "That staff member is already gone." };
+    default:
+      return { ok: false, error: "Couldn't delete them." };
+  }
+}

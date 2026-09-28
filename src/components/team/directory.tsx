@@ -9,10 +9,10 @@ import { CopyLink } from "@/components/shell/copy-link";
 import { InviteModal } from "@/components/team/invite-modal";
 import { renewInvite, revokeInvite, type InviteResult } from "@/app/actions/invite";
 import { saveStaffSection } from "@/app/actions/staff";
-import { createCardForMember, removeMemberWithoutCard } from "@/app/actions/members";
+import { createCardForMember, deleteStaffCard, removeMemberWithoutCard } from "@/app/actions/members";
 import type { MemberWithoutCardRow, PendingInviteRow, StaffRow } from "@/lib/staff/types";
 
-type View = "active" | "warn" | "pending";
+type View = "active" | "warn" | "pending" | "archived";
 type Sort = "name" | "role" | "exp";
 
 
@@ -43,6 +43,8 @@ export function TeamDirectory({
   inviteRoles = [],
   /** an owner may take back the seat of a member who never got a card */
   canRemoveMembers = false,
+  /** cards with nothing on the records, which an owner may delete outright */
+  deletable = [],
 }: {
   staff: StaffRow[];
   pending: PendingInviteRow[];
@@ -52,6 +54,7 @@ export function TeamDirectory({
   appUrl?: string;
   inviteRoles?: string[];
   canRemoveMembers?: boolean;
+  deletable?: string[];
 }) {
   const [view, setView] = useState<View>("active");
   const [query, setQuery] = useState("");
@@ -74,6 +77,8 @@ export function TeamDirectory({
      Separate from `armed` so the invite button's blur handler can't disarm it
      (the menu closing blurs the button). */
   const [armedOff, setArmedOff] = useState<string | null>(null);
+  // Delete arms before it fires too; its own slot, for the same blur reason
+  const [armedDel, setArmedDel] = useState<string | null>(null);
   // inviting an unclaimed card from its row — the invite carries the card id,
   // so accepting claims THIS card instead of minting a duplicate
   const [invitee, setInvitee] = useState<StaffRow | null>(null);
@@ -131,6 +136,7 @@ export function TeamDirectory({
   const showMenu = (id: string | null) => {
     setOpenMenu(id);
     setArmedOff(null);
+    setArmedDel(null);
   };
 
   useEffect(() => {
@@ -147,11 +153,18 @@ export function TeamDirectory({
      array on every render, so the dependency list underneath never matched and
      the memo did no work at all — it re-sorted the whole directory on every
      keystroke, menu toggle and hover. */
-  const warnStaff = useMemo(() => staff.filter((s) => s.compliance.state !== "ok"), [staff]);
-  const activeCount = staff.filter((s) => s.status === "Active").length;
+  /* ARCHIVED IS WHERE A DEACTIVATED PERSON GOES (Isaac, 2026-09-28). They sat
+     in Active staff greyed out, counted by nobody and in everybody's way. Now
+     Active staff is the people working, Compliance gaps is only theirs (an
+     archived licence expiring is nobody's problem), and the rest are one tab
+     over — still there, still restorable, their records untouched. */
+  const current = useMemo(() => staff.filter((s) => s.status === "Active"), [staff]);
+  const archived = useMemo(() => staff.filter((s) => s.status !== "Active"), [staff]);
+  const warnStaff = useMemo(() => current.filter((s) => s.compliance.state !== "ok"), [current]);
+  const canDelete = useMemo(() => new Set(deletable), [deletable]);
 
   const rows = useMemo(() => {
-    const base = view === "warn" ? warnStaff : staff;
+    const base = view === "warn" ? warnStaff : view === "archived" ? archived : current;
     const q = query.trim().toLowerCase();
     const filtered = q
       ? base.filter((s) => s.name.toLowerCase().includes(q) || s.role.toLowerCase().includes(q))
@@ -163,7 +176,7 @@ export function TeamDirectory({
           ? a.role.localeCompare(b.role)
           : a.compliance.expiresDays - b.compliance.expiresDays,
     );
-  }, [staff, warnStaff, view, query, sort]);
+  }, [current, archived, warnStaff, view, query, sort]);
 
   /* The strip is the board's — `shell/view-tabs` carries the tablist
      contract (roving tabindex, the arrow walk) that used to be hand-rolled
@@ -192,7 +205,7 @@ export function TeamDirectory({
           {
             key: "active",
             label: "Active staff",
-            count: activeCount,
+            count: current.length,
             countLabel: (n) => `${n} currently working`,
           },
           {
@@ -208,6 +221,17 @@ export function TeamDirectory({
             count: pending.length,
             countLabel: (n) => `${n} awaiting acceptance`,
           },
+          // only once there is someone in it — an empty tab is furniture
+          ...(archived.length > 0 || view === "archived"
+            ? [
+                {
+                  key: "archived",
+                  label: "Archived",
+                  count: archived.length,
+                  countLabel: (n: number) => `${n} deactivated`,
+                },
+              ]
+            : []),
         ]}
       >
         {invite}
@@ -453,7 +477,7 @@ export function TeamDirectory({
                       </b>
                       <em>{s.email}</em>
                     </span>
-                    {inactive && <span className="dofftag">Inactive</span>}
+                    {inactive && view !== "archived" && <span className="dofftag">Inactive</span>}
                     {unclaimed && (
                       <span className="dofftag">
                         {s.importedFrom ? `From ${s.importedFrom}` : "Hasn't joined yet"}
@@ -529,6 +553,24 @@ export function TeamDirectory({
                             {armedOff === s.id ? "Confirm deactivate" : "Deactivate"}
                           </button>
                         )}
+                        {/* Only on a card nothing on the records points at —
+                            a test account, someone added by mistake. Anyone
+                            who has worked keeps Deactivate alone. */}
+                        {canDelete.has(s.id) && (
+                          <button
+                            className={`danger${armedDel === s.id ? " arm" : ""}`}
+                            disabled={busy}
+                            onClick={() => {
+                              if (armedDel !== s.id) return setArmedDel(s.id);
+                              setArmedDel(null);
+                              showMenu(null);
+                              runInvite(() => deleteStaffCard(s.id));
+                            }}
+                          >
+                            <Icon name="x" size={15} />
+                            {armedDel === s.id ? "Confirm delete" : "Delete"}
+                          </button>
+                        )}
                       </div>
                     )}
                   </span>
@@ -543,7 +585,11 @@ export function TeamDirectory({
               filters they never set sends them looking for a control. */}
           {rows.length === 0 && (
             <div className="direm on">
-              {staff.length === 0 ? "No staff cards yet." : "No staff match your filters."}
+              {view === "archived" && archived.length === 0
+                ? "Nobody is archived."
+                : staff.length === 0
+                  ? "No staff cards yet."
+                  : "No staff match your filters."}
             </div>
           )}
         </div>

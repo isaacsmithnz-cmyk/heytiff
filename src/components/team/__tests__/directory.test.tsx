@@ -33,12 +33,16 @@ jest.mock("@/app/actions/staff", () => ({
 /* The no-card row's two buttons. */
 const createCardForMember = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
 const removeMemberWithoutCard = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
+const deleteStaffCard = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
 jest.mock("@/app/actions/members", () => ({
   createCardForMember: (...a: unknown[]) => createCardForMember(...(a as [])),
   removeMemberWithoutCard: (...a: unknown[]) => removeMemberWithoutCard(...(a as [])),
+  deleteStaffCard: (...a: unknown[]) => deleteStaffCard(...(a as [])),
 }));
 
 beforeEach(() => {
+  deleteStaffCard.mockClear();
+  deleteStaffCard.mockResolvedValue({ ok: true });
   createCardForMember.mockClear();
   removeMemberWithoutCard.mockClear();
   createCardForMember.mockResolvedValue({ ok: true });
@@ -126,9 +130,9 @@ function setup(opts: { canInvite?: boolean } = {}) {
 }
 
 describe("TeamDirectory", () => {
-  it("renders every staff member in the default view", () => {
+  it("renders every working staff member in the default view", () => {
     setup();
-    for (const s of STAFF) {
+    for (const s of STAFF.filter((r) => r.status === "Active")) {
       expect(screen.getByText(s.name)).toBeInTheDocument();
     }
   });
@@ -137,12 +141,46 @@ describe("TeamDirectory", () => {
     setup();
     expect(screen.getByText("ARC licence expires in 2 weeks")).toBeInTheDocument();
     expect(screen.getByText("White Card expired")).toBeInTheDocument();
-    expect(screen.getAllByText("Compliant")).toHaveLength(4);
+    expect(screen.getAllByText("Compliant")).toHaveLength(
+      STAFF.filter((r) => r.status === "Active" && r.compliance.label === "Compliant").length,
+    );
   });
 
-  it("marks inactive staff", () => {
+  /* Isaac, 2026-09-28: deactivated staff move off the team into an archived
+     part. They are one tab over, not gone. */
+  it("moves deactivated staff to Archived", async () => {
     setup();
-    expect(screen.getByText("Inactive")).toBeInTheDocument();
+    expect(screen.queryByText("Dylan Reyes")).toBeNull();
+
+    await userEvent.click(screen.getByRole("tab", { name: /Archived/ }));
+
+    expect(screen.getByText("Dylan Reyes")).toBeInTheDocument();
+    expect(screen.queryByText("Jordan Mills")).toBeNull();
+    // the tab already says so; the row doesn't repeat it
+    expect(screen.queryByText("Inactive")).toBeNull();
+  });
+
+  it("shows no Archived tab while nobody is archived", () => {
+    render(<TeamDirectory staff={STAFF.filter((r) => r.status === "Active")} pending={[]} />);
+    expect(screen.queryByRole("tab", { name: /Archived/ })).toBeNull();
+  });
+
+  it("counts only working staff in compliance gaps", async () => {
+    render(
+      <TeamDirectory
+        staff={[
+          staffRow({
+            id: "gone",
+            name: "Old Hand",
+            status: "Inactive",
+            compliance: { label: "White Card expired", state: "bad", expiresDays: -5 },
+          }),
+        ]}
+        pending={[]}
+      />,
+    );
+    await userEvent.click(screen.getByRole("tab", { name: /Compliance gaps/ }));
+    expect(screen.queryByText("Old Hand")).toBeNull();
   });
 
   /* "Compliance gaps", not "Need attention": Home's card has a tab called
@@ -399,6 +437,7 @@ describe("deactivating someone", () => {
         pending={[]}
       />,
     );
+    await userEvent.click(screen.getByRole("tab", { name: /Archived/ }));
     await userEvent.click(menuButtonOf("Nina Park"));
     await userEvent.click(screen.getByRole("button", { name: /Reactivate/ }));
     expect(saveStaffSection).toHaveBeenCalledWith("z9", "personal", { status: "Active" });
@@ -534,5 +573,51 @@ describe("members with no staff card", () => {
   it("adds nothing to a workspace where every member has a card", () => {
     const { container } = render(<TeamDirectory staff={[]} pending={[]} />);
     expect(container.querySelector(".dirnocards")).toBeNull();
+  });
+});
+
+/* Delete, for a card nothing on the records points at: a test account, or
+   someone added by mistake. The page decides which cards those are (owners
+   only); the row only offers what it was handed. */
+describe("deleting a card with no records", () => {
+  it("is offered only on the cards the page named", async () => {
+    render(<TeamDirectory staff={STAFF} pending={[]} deletable={["a1"]} />);
+    await userEvent.click(menuButtonOf("Sophie Tran"));
+    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+  });
+
+  it("arms before it deletes, and deletes the card it was on", async () => {
+    render(<TeamDirectory staff={STAFF} pending={[]} deletable={["a1"]} />);
+    const name = STAFF.find((r) => r.id === "a1")!.name;
+    await userEvent.click(menuButtonOf(name));
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(deleteStaffCard).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Confirm delete" }));
+    expect(deleteStaffCard).toHaveBeenCalledWith("a1");
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("is offered on an archived card too — the usual place for a test account", async () => {
+    render(
+      <TeamDirectory
+        staff={[staffRow({ id: "t1", name: "Test Account", status: "Inactive" })]}
+        pending={[]}
+        deletable={["t1"]}
+      />,
+    );
+    await userEvent.click(screen.getByRole("tab", { name: /Archived/ }));
+    await userEvent.click(menuButtonOf("Test Account"));
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+  });
+
+  it("says why when the server refuses", async () => {
+    deleteStaffCard.mockResolvedValue({ ok: false, error: "They have records here now. Deactivate them instead." });
+    render(<TeamDirectory staff={STAFF} pending={[]} deletable={["a1"]} />);
+    await userEvent.click(menuButtonOf(STAFF.find((r) => r.id === "a1")!.name));
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm delete" }));
+    expect(await screen.findByText("They have records here now. Deactivate them instead.")).toBeInTheDocument();
   });
 });

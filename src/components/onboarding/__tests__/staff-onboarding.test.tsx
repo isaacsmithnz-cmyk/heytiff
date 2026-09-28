@@ -45,7 +45,8 @@ it("says nothing under the title for a workspace with no name yet", () => {
 
 it("offers back what the card already holds, to be confirmed", () => {
   setup({ first_name: "lyle", emergency_relationship: "Partner" });
-  expect(screen.getByLabelText(/^First name/)).toHaveValue("lyle");
+  // capitalised on the way in: "lyle" is an address prefix, not a spelling
+  expect(screen.getByLabelText(/^First name/)).toHaveValue("Lyle");
   expect(screen.getByLabelText("Relationship")).toHaveValue("Partner");
 });
 
@@ -89,7 +90,7 @@ it("saves the two groups it collects, and goes Home", async () => {
 });
 
 it("puts a rejected save beside the field it names", async () => {
-  const { actions, user } = setup({ first_name: "Lyle", last_name: "Brennan", birthday: "31/31/1994" });
+  const { actions, user } = setup({ first_name: "Lyle", last_name: "Brennan", birthday: "11/02/1994" });
   actions.onComplete.mockResolvedValue({
     ok: false,
     error: "Check the date format — use dd/mm/yyyy.",
@@ -109,4 +110,58 @@ it("skips without a name, and goes Home", async () => {
   expect(actions.onSkip).toHaveBeenCalled();
   expect(actions.onComplete).not.toHaveBeenCalled();
   expect(replace).toHaveBeenCalledWith("/dashboard");
+});
+
+/* Isaac, walking the screen: the birthday should give you the format, the
+   address should fill itself in, and names should come out with capitals. */
+describe("the date of birth is shaped as it is typed", () => {
+  it("puts the slashes in for you", async () => {
+    const { user } = setup();
+    await user.type(screen.getByLabelText("Date of birth"), "11021994");
+    expect(screen.getByLabelText("Date of birth")).toHaveValue("11/02/1994");
+  });
+
+  it("says what format it wants before you type", () => {
+    setup();
+    expect(screen.getByLabelText("Date of birth")).toHaveAttribute("placeholder", "DD/MM/YYYY");
+  });
+
+  it.each([
+    ["a date that does not exist", "31021994"],
+    ["a two-digit year", "110294"],
+    ["a day still to come", "01013000"],
+  ])("stops %s before saving, on the field", async (_, digits) => {
+    const { actions, user } = setup({ first_name: "Lyle", last_name: "Brennan" });
+    await user.type(screen.getByLabelText("Date of birth"), digits);
+    await user.click(screen.getByRole("button", { name: "Save details" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Check your date of birth");
+    expect(screen.getByLabelText("Date of birth")).toHaveAttribute("aria-invalid", "true");
+    expect(actions.onComplete).not.toHaveBeenCalled();
+  });
+});
+
+describe("names come out with capitals", () => {
+  it("capitalises a name typed in lower case when you leave the box", async () => {
+    const { user } = setup();
+    await user.type(screen.getByLabelText(/^Last name/), "o'brien");
+    await user.tab();
+    expect(screen.getByLabelText(/^Last name/)).toHaveValue("O'Brien");
+  });
+
+  it("leaves a name that already has its own capitals alone", async () => {
+    const { user } = setup();
+    await user.type(screen.getByLabelText(/^Last name/), "McDonald");
+    await user.tab();
+    expect(screen.getByLabelText(/^Last name/)).toHaveValue("McDonald");
+  });
+
+  it("capitalises at save too, when Enter submits from inside the box", async () => {
+    const { actions, user } = setup();
+    await user.type(screen.getByLabelText(/^First name/), "ben");
+    await user.type(screen.getByLabelText(/^Last name/), "fletcher{Enter}");
+    expect(actions.onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ first_name: "Ben", last_name: "Fletcher" }),
+      expect.anything()
+    );
+  });
 });

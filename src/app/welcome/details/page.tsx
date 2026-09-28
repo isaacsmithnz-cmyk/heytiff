@@ -8,6 +8,10 @@ import { formatAuDate } from "@/lib/au-dates";
 import { loadMyProfile } from "@/app/actions/profile";
 import { completeMyOnboarding, skipMyOnboarding } from "@/app/actions/onboarding";
 import { StaffOnboarding, type OnboardingDraft } from "@/components/onboarding/staff-onboarding";
+/* For the address box alone: AddressField's input and its suggestion list are
+   `.fg`-scoped rules in the frame's sheet, and this page is outside the frame.
+   Every rule in it is scoped to a class this page does not otherwise use. */
+import "@/app/dashboard/shell.css";
 
 /* A new staff member's first run — where Home sends somebody who has joined a
    workspace and never been asked their name (lib/staff/onboarding-gate.ts).
@@ -52,6 +56,7 @@ export default async function StaffDetailsPage() {
       initial={initial}
       orgName={orgName}
       actions={{ onComplete: completeMyOnboarding, onSkip: skipMyOnboarding }}
+      addressLookup={Boolean(process.env.GOOGLE_MAPS_API_KEY)}
     />
   );
 }

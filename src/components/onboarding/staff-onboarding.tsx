@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Chevron, Wordmark } from "@/components/logo";
+import { AddressField } from "@/components/address/address-field";
 import { EMERGENCY_RELATIONSHIPS } from "@/lib/staff/profile";
+import { capitaliseName } from "@/lib/staff/name";
+import { maskAuDate, parseAuDate, todayInAu } from "@/lib/au-dates";
 import type { SaveResult } from "@/app/actions/profile";
 
 /* A new staff member's first run — their details, once, on arrival.
@@ -45,6 +48,17 @@ export type OnboardingActions = {
 };
 
 const NETWORK_ERROR = "Couldn’t save — check your connection and try again.";
+
+/** The name fields, capitalised on the way out of each box and again at save. */
+const NAME_FIELDS = ["first_name", "last_name", "preferred_name", "emergency_name"] as const;
+
+/* A birthday that could be one: a real calendar date, not in the future, and
+   not before 1900 — the last catches a two-digit year typed into the four. */
+function birthdayProblem(v: string): boolean {
+  if (!v.trim()) return false;
+  const iso = parseAuDate(v);
+  return !iso || iso > todayInAu() || iso < "1900-01-01";
+}
 
 /* The columns a rejected save named, or none. Out here rather than inline at
    the call site, which sits inside a try/catch: React Compiler 1.0 cannot lower
@@ -103,14 +117,21 @@ export function StaffOnboarding({
   initial,
   orgName,
   actions,
+  addressLookup = false,
 }: {
   initial: OnboardingDraft;
   /** the workspace they joined, when the owner has named it */
   orgName: string | null;
   actions: OnboardingActions;
+  /** server-computed Boolean(GOOGLE_MAPS_API_KEY); false leaves Address a plain box */
+  addressLookup?: boolean;
 }) {
   const router = useRouter();
-  const [draft, setDraft] = useState<OnboardingDraft>(initial);
+  const [draft, setDraft] = useState<OnboardingDraft>(() => {
+    const d = { ...initial };
+    for (const k of NAME_FIELDS) d[k] = capitaliseName(d[k]);
+    return d;
+  });
   const [busy, setBusy] = useState<"save" | "skip" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [badFields, setBadFields] = useState<string[]>([]);
@@ -135,6 +156,9 @@ export function StaffOnboarding({
     />
   );
 
+  const capitalise = (field: (typeof NAME_FIELDS)[number]) => () =>
+    setDraft((d) => ({ ...d, [field]: capitaliseName(d[field]) }));
+
   const save = async () => {
     const missing = (["first_name", "last_name"] as const).filter((k) => !draft[k].trim());
     if (missing.length) {
@@ -142,22 +166,31 @@ export function StaffOnboarding({
       setBadFields([...missing]);
       return;
     }
+    if (birthdayProblem(draft.birthday)) {
+      setError("Check your date of birth: day, month, then the full year.");
+      setBadFields(["birthday"]);
+      return;
+    }
+    // Enter submits from inside a name box, so its blur never ran
+    const named = { ...draft };
+    for (const k of NAME_FIELDS) named[k] = capitaliseName(named[k]);
+    setDraft(named);
     setBusy("save");
     setError(null);
     try {
       const res = await actions.onComplete(
         {
-          first_name: draft.first_name,
-          last_name: draft.last_name,
-          preferred_name: draft.preferred_name,
-          birthday: draft.birthday,
-          phone: draft.phone,
-          address: draft.address,
+          first_name: named.first_name,
+          last_name: named.last_name,
+          preferred_name: named.preferred_name,
+          birthday: named.birthday,
+          phone: named.phone,
+          address: named.address,
         },
         {
-          emergency_name: draft.emergency_name,
-          emergency_relationship: draft.emergency_relationship,
-          emergency_phone: draft.emergency_phone,
+          emergency_name: named.emergency_name,
+          emergency_relationship: named.emergency_relationship,
+          emergency_phone: named.emergency_phone,
         }
       );
       if (res.ok) {
@@ -212,28 +245,53 @@ export function StaffOnboarding({
 
         <Group id="ob-you" title="About you">
           <Field id="first_name" label="First name" req>
-            {input("first_name", { autoComplete: "given-name" })}
+            {input("first_name", { autoComplete: "given-name", onBlur: capitalise("first_name") })}
           </Field>
           <Field id="last_name" label="Last name" req>
-            {input("last_name", { autoComplete: "family-name" })}
+            {input("last_name", { autoComplete: "family-name", onBlur: capitalise("last_name") })}
           </Field>
           <Field id="preferred_name" label="Preferred name" className="sm:col-span-2">
-            {input("preferred_name", { autoComplete: "nickname" })}
+            {input("preferred_name", { autoComplete: "nickname", onBlur: capitalise("preferred_name") })}
           </Field>
           <Field id="birthday" label="Date of birth">
-            {input("birthday", { inputMode: "numeric", placeholder: "dd/mm/yyyy", autoComplete: "bday" })}
+            {/* Typed, and shaped as it is typed: see maskAuDate for why a
+                birthday is the one date in the app that is not picked. */}
+            <input
+              id="birthday"
+              name="birthday"
+              className={bad("birthday") ? INP_BAD : INP_OK}
+              value={draft.birthday}
+              aria-invalid={bad("birthday") || undefined}
+              inputMode="numeric"
+              autoComplete="bday"
+              placeholder="DD/MM/YYYY"
+              maxLength={10}
+              onChange={(e) => set("birthday")(maskAuDate(e.target.value))}
+            />
           </Field>
           <Field id="phone" label="Mobile">
             {input("phone", { type: "tel", autoComplete: "tel" })}
           </Field>
           <Field id="address" label="Home address" className="sm:col-span-2">
-            {input("address", { autoComplete: "street-address" })}
+            {/* The staff card's own address box, Google suggestions and all. Its
+                look and its dropdown are shell.css rules scoped under `.fg`,
+                which this page loads (app/welcome/details/page.tsx); the
+                display:contents wrapper carries the scope without a box —
+                the same trick the field's own portal uses. */}
+            <div className="fg" style={{ display: "contents" }}>
+              <AddressField
+                name="address"
+                value={draft.address}
+                onChange={set("address")}
+                enabled={addressLookup}
+              />
+            </div>
           </Field>
         </Group>
 
         <Group id="ob-emergency" title="Emergency contact">
           <Field id="emergency_name" label="Name" className="sm:col-span-2">
-            {input("emergency_name")}
+            {input("emergency_name", { onBlur: capitalise("emergency_name") })}
           </Field>
           <Field id="emergency_relationship" label="Relationship">
             <select

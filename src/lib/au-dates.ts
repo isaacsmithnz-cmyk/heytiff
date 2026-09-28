@@ -226,3 +226,21 @@ export function formatAuDate(iso: string | null | undefined): string {
   if (!m) return "";
   return `${m[3]}/${m[2]}/${m[1]}`;
 }
+
+/* A date of birth, typed — shaped into dd/mm/yyyy as the digits arrive.
+
+   Every other date in the app is PICKED (components/ui/date-field.tsx), and a
+   birthday is the one that cannot be: the calendar opens on this month and
+   has no year control, so reaching 1992 is three hundred presses of "back".
+   So a birthday is typed, and this supplies the format instead of asking for
+   it — "12081992" reads 12/08/1992 as it is typed. It is rebuilt from the
+   digits every time, so deleting through a slash just works. A pasted ISO
+   date (1992-08-12) is turned round rather than read as day 19, month 92. */
+export function maskAuDate(raw: string): string {
+  const iso = raw.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  const d = raw.replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+}

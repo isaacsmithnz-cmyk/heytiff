@@ -3,6 +3,7 @@
    someone's name. */
 
 import {
+  capitaliseName,
   composeFullName,
   displayNameOf,
   firstNameOf,
@@ -167,5 +168,26 @@ describe("looksLikeAName", () => {
     for (const n of ["isaacsmithnz+test", "lyle@diamondairsolutions.com", "ben_91", "user123", "", "  "]) {
       expect(looksLikeAName(n)).toBe(false);
     }
+  });
+});
+
+describe("capitaliseName — capitals for a name typed without them", () => {
+  it.each([
+    ["ben", "Ben"],
+    ["ben fletcher", "Ben Fletcher"],
+    ["o'brien", "O'Brien"],
+    ["mary-jane", "Mary-Jane"],
+    ["SMITH", "Smith"],
+    ["  lyle ", "  Lyle "],
+  ])("%s → %s", (typed, out) => expect(capitaliseName(typed)).toBe(out));
+
+  it.each(["McDonald", "DeLuca", "van der Berg", "le Roux", "Ben"])(
+    "leaves %s, which already has its own capitals, alone",
+    (typed) => expect(capitaliseName(typed)).toBe(typed)
+  );
+
+  it("leaves a box with no letters in it alone", () => {
+    expect(capitaliseName("")).toBe("");
+    expect(capitaliseName(" ")).toBe(" ");
   });
 });

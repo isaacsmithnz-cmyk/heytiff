@@ -123,3 +123,26 @@ export function looksLikeAName(v: unknown): boolean {
   return s.length > 0 && /^\p{L}[\p{L}\p{M}' .-]*$/u.test(s);
 }
 
+
+/* CAPITALS FOR A NAME TYPED WITHOUT THEM — and only then.
+
+   People on a phone type "ben fletcher", and the card then reads that way on
+   every roster, timesheet and job sheet. But a name that already has capitals
+   in it is the person's own spelling, and no rule knows it better: McDonald,
+   DeLuca, van der Berg, le Roux. So this touches a name only when it has NO
+   mixed case at all — all lower, or all upper (caps lock) — and then capitalises
+   each part, after a space, a hyphen or an apostrophe: "o'brien" → "O'Brien",
+   "mary-jane" → "Mary-Jane".
+
+   It will turn "van der berg" into "Van Der Berg". That is the price of the
+   rule, and it is cheap: correcting it leaves mixed case, which this then
+   never touches again. */
+export function capitaliseName(v: string): string {
+  const letters = v.replace(/[^\p{L}]/gu, "");
+  if (!letters) return v;
+  const mixed = letters !== letters.toLowerCase() && letters !== letters.toUpperCase();
+  if (mixed) return v;
+  return v
+    .toLowerCase()
+    .replace(/(^|[\s\-'’])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase());
+}

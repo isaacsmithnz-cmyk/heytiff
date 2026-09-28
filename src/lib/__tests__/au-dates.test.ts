@@ -1,4 +1,4 @@
-import { auDayOf, auHourNow, auMinutesNow, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth, fmtAuWeekdayDate, fmtAuWeekdayDateLong, todayInAu, parseAuDate, formatAuDate } from "../au-dates";
+import { auDayOf, auHourNow, auMinutesNow, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth, fmtAuWeekdayDate, fmtAuWeekdayDateLong, todayInAu, parseAuDate, formatAuDate, maskAuDate } from "../au-dates";
 
 /* The date helpers everything else anchors on. `todayInAu` answers "what day is
    it now" and `auDayOf` answers "what day was that" — they have to agree, or a
@@ -158,5 +158,25 @@ describe("auMinutesNow — the clock a timesheet's send moment is read against",
     const late = new Date("2026-09-06T13:59:00Z"); // 11:59 PM Sunday in Sydney
     expect(todayInAu(late)).toBe("2026-09-06");
     expect(auMinutesNow(late)).toBe(23 * 60 + 59);
+  });
+});
+
+describe("maskAuDate — a date of birth shaped as it is typed", () => {
+  it.each([
+    ["1", "1"],
+    ["11", "11"],
+    ["110", "11/0"],
+    ["1102", "11/02"],
+    ["11021", "11/02/1"],
+    ["11021994", "11/02/1994"],
+    ["110219941", "11/02/1994"],
+    ["11/02/1994", "11/02/1994"],
+    ["11-02-1994", "11/02/1994"],
+    ["11/", "11"],
+    ["1992-08-12", "12/08/1992"],
+  ])("%s → %s", (typed, out) => expect(maskAuDate(typed)).toBe(out));
+
+  it("hands back what parseAuDate reads", () => {
+    expect(parseAuDate(maskAuDate("12081992"))).toBe("1992-08-12");
   });
 });

@@ -101,6 +101,26 @@ export type AdditionalChargeRule =
     }
   | { method: "threshold_then_rate"; free_up_to_m: number; g_per_m_beyond: number }
   | { method: "fixed_per_idu"; /** idu-size key → grams */ table: Record<string, number> }
+  | {
+      /** a VRF system's charge (Mitsubishi City Multi, e.g. MEES21K029 p.143):
+          metres of liquid pipe per size × a rate that depends on how far the
+          farthest indoor unit is, plus a fixed amount by the total connected
+          index, plus a fixed amount per outdoor, plus named indoor units' own
+          adders. The sum rounds UP to `round_up_g`. */
+      method: "per_meter_by_liquid_size_by_farthest";
+      /** ascending by farthest_m_max; the first band whose farthest_m_max ≥
+          the outdoor → farthest indoor length wins (inclusive: the book's
+          "30.5 m or shorter"); null = no upper bound. Rates: liquid mm (string
+          key) → g per metre. */
+      bands: { farthest_m_max: number | null; rates: Record<string, number> }[];
+      /** ascending by index_max (inclusive); null = no upper bound */
+      plus_by_connected_index?: { index_max: number | null; add_g: number }[];
+      /** outdoor model → grams (the book prints the column even where it is 0) */
+      plus_by_odu?: Record<string, number>;
+      /** each connected indoor unit named here adds its grams */
+      plus_per_idu?: { models: string[]; add_g: number }[];
+      round_up_g?: number;
+    }
   | { method: "none_required" };
 
 export const ADDITIONAL_CHARGE_METHODS = [
@@ -108,6 +128,7 @@ export const ADDITIONAL_CHARGE_METHODS = [
   "formula_coefficients",
   "threshold_then_rate",
   "fixed_per_idu",
+  "per_meter_by_liquid_size_by_farthest",
   "none_required",
 ] as const;
 
@@ -395,11 +416,21 @@ export interface MultiRule {
 export interface VrfLimits {
   max_total_m: number;
   max_farthest_actual_m: number;
+  /** judged on the EQUIVALENT length: actual + bend_equiv_m_by_odu × bends */
   max_farthest_equiv_m: number;
   max_after_first_joint_m: number;
   max_lift_odu_above_m: number;
   max_lift_odu_below_m: number;
   max_lift_idu_idu_m: number;
+  /** outdoor model → metres each bend adds to a run's equivalent length */
+  bend_equiv_m_by_odu?: Record<string, number>;
+  /** after-first-joint may reach this when the LIQUID pipe goes one size up
+      from the section where max_after_first_joint_m is exceeded, and all of
+      the piping after it */
+  extended_after_first_joint_m?: number;
+  /** indoor-to-indoor height may reach this when the liquid pipes to the
+      units past max_lift_idu_idu_m go one size up */
+  extended_lift_idu_idu_m?: number;
 }
 
 export interface VrfPipeTable {
@@ -417,6 +448,10 @@ export interface VrfPipeTable {
       own connection sizes, so the engine defaults to those when absent; only
       brands that publish a separate main-selection rule fill this. */
   odu_to_first_joint?: PipeSizingRule;
+  /** where the ODU → 1st joint LIQUID size steps up with the length to the
+      farthest indoor unit (Mitsubishi Table 1 notes): outdoor model → from
+      this many metres (inclusive), use liquid_mm instead of the connection */
+  odu_liquid_upsize?: Record<string, { farthest_m_min: number; liquid_mm: number }>;
   /** joint part by downstream index; optional first-joint-by-ODU override table */
   joint_selection: {
     steps: { index_max: number; part_ref: string }[];
@@ -424,7 +459,16 @@ export interface VrfPipeTable {
   };
   /** header part by branch count + downstream index (where the brand offers headers) */
   header_selection?: {
-    steps: { branches_max: number; index_max: number; part_ref: string }[];
+    steps: {
+      branches_max: number;
+      index_max: number;
+      part_ref: string;
+      /** the outdoor models this header may connect to DIRECTLY (no joint
+          before it); absent = the book sets no limit */
+      direct_odus?: string[];
+      /** indoor indexes this header cannot take on a branch */
+      excludes_idu_index?: number[];
+    }[];
   };
   limits: VrfLimits;
   additional_charge: AdditionalChargeRule;

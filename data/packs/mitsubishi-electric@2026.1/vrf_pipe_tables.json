@@ -41,9 +41,40 @@
     },
     "header_selection": {
       "steps": [
-        { "branches_max": 4, "index_max": 200, "part_ref": "CMY-Y104-G" },
-        { "branches_max": 8, "index_max": 400, "part_ref": "CMY-Y108-G" },
-        { "branches_max": 10, "index_max": 650, "part_ref": "CMY-Y1010-G" }
+        {
+          "branches_max": 4,
+          "index_max": 200,
+          "part_ref": "CMY-Y104-G",
+          "direct_odus": ["PUHY-P200YNW-A1"],
+          "excludes_idu_index": [200, 250]
+        },
+        {
+          "branches_max": 8,
+          "index_max": 400,
+          "part_ref": "CMY-Y108-G",
+          "direct_odus": [
+            "PUHY-P200YNW-A1",
+            "PUHY-P250YNW-A1",
+            "PUHY-P300YNW-A1",
+            "PUHY-P350YNW-A1",
+            "PUHY-P400YNW-A1",
+            "PUHY-P450YNW-A1"
+          ]
+        },
+        {
+          "branches_max": 10,
+          "index_max": 650,
+          "part_ref": "CMY-Y1010-G",
+          "direct_odus": [
+            "PUHY-P200YNW-A1",
+            "PUHY-P250YNW-A1",
+            "PUHY-P300YNW-A1",
+            "PUHY-P350YNW-A1",
+            "PUHY-P400YNW-A1",
+            "PUHY-P450YNW-A1",
+            "PUHY-P500YNW-A1"
+          ]
+        }
       ]
     },
     "limits": {
@@ -53,18 +84,102 @@
       "max_after_first_joint_m": 40,
       "max_lift_odu_above_m": 50,
       "max_lift_odu_below_m": 40,
-      "max_lift_idu_idu_m": 15
+      "max_lift_idu_idu_m": 15,
+      "bend_equiv_m_by_odu": {
+        "PUHY-P200YNW-A1": 0.42,
+        "PUHY-P250YNW-A1": 0.42,
+        "PUHY-P300YNW-A1": 0.47,
+        "PUHY-P350YNW-A1": 0.47,
+        "PUHY-P400YNW-A1": 0.5,
+        "PUHY-P450YNW-A1": 0.5,
+        "PUHY-P500YNW-A1": 0.5
+      },
+      "extended_after_first_joint_m": 90,
+      "extended_lift_idu_idu_m": 30
     },
     "additional_charge": {
-      "method": "per_meter_by_liquid_size",
-      "rates": { "6.35": 24, "9.52": 60, "12.7": 120, "15.88": 200, "19.05": 290 },
-      "precharged_allowance_m": 0
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": 30.5,
+          "rates": { "6.35": 24, "9.52": 60, "12.7": 120, "15.88": 200, "19.05": 290 }
+        },
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 21, "9.52": 54, "12.7": 110, "15.88": 180, "19.05": 260 }
+        }
+      ],
+      "plus_by_connected_index": [
+        { "index_max": 80, "add_g": 2000 },
+        { "index_max": 160, "add_g": 2500 },
+        { "index_max": 330, "add_g": 3000 },
+        { "index_max": 390, "add_g": 3500 },
+        { "index_max": 480, "add_g": 4500 },
+        { "index_max": 630, "add_g": 5000 },
+        { "index_max": 710, "add_g": 6000 },
+        { "index_max": 800, "add_g": 8000 },
+        { "index_max": 890, "add_g": 9000 },
+        { "index_max": 1070, "add_g": 10000 },
+        { "index_max": 1250, "add_g": 12000 },
+        { "index_max": null, "add_g": 14000 }
+      ],
+      "plus_by_odu": {
+        "PUHY-P200YNW-A1": 0,
+        "PUHY-P250YNW-A1": 0,
+        "PUHY-P300YNW-A1": 0,
+        "PUHY-P350YNW-A1": 0,
+        "PUHY-P400YNW-A1": 0,
+        "PUHY-P450YNW-A1": 0,
+        "PUHY-P500YNW-A1": 0
+      },
+      "plus_per_idu": [
+        { "models": ["PEFY-P20VMA3-E"], "add_g": 540 },
+        { "models": ["PEFY-P25VMA3-E", "PEFY-P32VMA3-E", "PEFY-P40VMA3-E"], "add_g": 740 },
+        {
+          "models": [
+            "PEFY-P50VMA3-E",
+            "PEFY-P63VMA3-E",
+            "PEFY-P71VMA3-E",
+            "PEFY-P80VMA3-E",
+            "PEFY-P100VMA3-E",
+            "PEFY-P125VMA3-E"
+          ],
+          "add_g": 1160
+        },
+        {
+          "models": [
+            "PEFY-P50VMHS2-E",
+            "PEFY-P63VMHS2-E",
+            "PEFY-P71VMHS2-E",
+            "PEFY-P80VMHS2-E",
+            "PEFY-P100VMHS2-E"
+          ],
+          "add_g": 2700
+        },
+        {
+          "models": [
+            "PEFY-M50VMA2-A",
+            "PEFY-M63VMA2-A",
+            "PEFY-M71VMA2-A",
+            "PEFY-M80VMA2-A",
+            "PEFY-M100VMA2-A",
+            "PEFY-M125VMA2-A"
+          ],
+          "add_g": 1450
+        },
+        { "models": ["PLFY-EP50VEM-E", "PLFY-EP63VEM-E", "PLFY-EP80VEM-E"], "add_g": 500 }
+      ],
+      "round_up_g": 100
     },
     "provenance": {
       "kind": "extracted",
       "source": "PUHY-P-Y(S)NW-A1 Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "139-143"
+      "page": "139-144"
+    },
+    "odu_liquid_upsize": {
+      "PUHY-P250YNW-A1": { "farthest_m_min": 90, "liquid_mm": 12.7 },
+      "PUHY-P300YNW-A1": { "farthest_m_min": 40, "liquid_mm": 12.7 }
     }
   }
 ]

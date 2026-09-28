@@ -54,7 +54,50 @@ export function evaluateAdditionalCharge(
     }
     case "fixed_per_idu":
       return null; // needs an idu-size key — no consumer yet
+    case "per_meter_by_liquid_size_by_farthest":
+      return null; // a whole network's lengths — evaluateVrfCharge
   }
+}
+
+type VrfChargeRule = Extract<AdditionalChargeRule, { method: "per_meter_by_liquid_size_by_farthest" }>;
+
+/** A VRF system's additional charge in grams, from the whole network: metres
+    of liquid pipe per size, the outdoor → farthest indoor length, the total
+    connected index and the units. Null when a size has no rate or no band
+    covers the length: a figure the book cannot give is not guessed. */
+export function evaluateVrfCharge(
+  rule: VrfChargeRule,
+  ctx: {
+    /** liquid mm → metres of that size across the network */
+    liquidM: Record<string, number>;
+    farthestM: number;
+    connectedIndex: number;
+    oduModel: string;
+    iduModels: string[];
+  }
+): number | null {
+  const band = rule.bands.find((b) => b.farthest_m_max == null || ctx.farthestM <= b.farthest_m_max);
+  if (!band) return null;
+  let g = 0;
+  for (const [size, m] of Object.entries(ctx.liquidM)) {
+    if (m <= 0) continue;
+    const rate = band.rates[String(Number(size))];
+    if (rate == null) return null;
+    g += m * rate;
+  }
+  if (rule.plus_by_connected_index) {
+    const step = rule.plus_by_connected_index.find(
+      (s) => s.index_max == null || ctx.connectedIndex <= s.index_max
+    );
+    if (!step) return null;
+    g += step.add_g;
+  }
+  g += rule.plus_by_odu?.[ctx.oduModel] ?? 0;
+  for (const model of ctx.iduModels)
+    g += rule.plus_per_idu?.find((a) => a.models.includes(model))?.add_g ?? 0;
+  const step = rule.round_up_g ?? 0;
+  // the float sum can sit a hair above a whole step (12450.000000002)
+  return step > 0 ? Math.ceil(Math.round(g * 1000) / 1000 / step) * step : g;
 }
 
 /** "cassette-4way indoor unit · 3.2/3.6 kW" — one wording for a unit, shared

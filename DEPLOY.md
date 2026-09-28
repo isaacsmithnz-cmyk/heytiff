@@ -524,6 +524,49 @@ in Vercel Production, redeploy, and after the next 20:00 UTC hour see a 200 for
 `/api/cron/sm8-sync` in the cron logs and *Last overnight sync* on the ServiceM8
 screen. Until then the overnight top-up does nothing at all.
 
+### Live updates from ServiceM8 (two-way phase 4)
+
+ServiceM8 pings HeyTiff when a job, booking, payment, note, client or
+attachment changes, and HeyTiff reads that record back through the one door
+into the same mirror, so changes show in minutes rather than at the next
+sync. A ping is a doorbell: HeyTiff reads only which record it names, then
+fetches the record itself. The syncs are unchanged, and pings never start
+one. The address ServiceM8 calls carries a secret; only its SHA-256 is
+stored, and a Reconnect rotates it (the old one keeps working 72 hours,
+ServiceM8's retry window).
+
+**The switch is `SM8_WEBHOOKS`, on Production only**
+(`src/lib/integrations/sm8-hooks-switch.ts`): `1` is on, `gone` answers 410
+to every hook address (which unsubscribes), and anything else, or any
+deployment that isn't Production, is off. Unset, nothing changes: no
+subscription, no route, no read, no write (`sm8-hooks-prod.test`).
+
+**The order, word for word:**
+
+1. Apply `docs/migrations/sm8_webhooks.sql` **before PR B deploys** (PR B
+   writes its new `sm8_sync_runs` columns; without them it keeps today's
+   lease, logged once). Run the header's read-only BEFORE check first
+   (`t, t, t, t, 0`).
+2. Run `docs/migrations/sm8_webhooks.test.sql` whole. It is one transaction
+   that ends in `ROLLBACK`, safe against production; each check raises on
+   failure. Then the header's AFTER checks.
+3. Merge A to F in order. Each changes nothing observable while the switch
+   is off.
+4. Before the walk: record this month's Vercel usage (provisioned memory,
+   active CPU, invocations), and confirm under Vercel → Firewall that no
+   challenge mode or bot rule covers `/api/integrations/servicem8/webhook/`.
+5. Set `SM8_WEBHOOKS=1` on **Production only** and redeploy, while Isaac
+   isn't designing (a redeploy reloads open tabs). Then the walk.
+
+**Rollback, word for word:**
+
+1. Set `SM8_WEBHOOKS=gone` and redeploy. Every ping is answered 410, so
+   ServiceM8 unsubscribes at once.
+2. After 3 days, unset it.
+3. The mirror needs nothing: live updates only ever wrote ServiceM8's own
+   values.
+4. Optionally, `delete from public.sm8_webhook_pings;`.
+
 ---
 
 ## 3d. Smart Notes voice (optional — the mic on the Workboard)

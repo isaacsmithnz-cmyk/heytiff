@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StaffProfile } from "@/lib/staff/profile";
 import { ProfileScreen } from "../profile-screen";
@@ -86,13 +86,27 @@ describe("the record line", () => {
 
   /* A card short of only WANTED details is cleared: the bar goes OK and the
      action goes, because there is nothing the business is obliged to chase. */
-  it("clears — the OK bar, no action — once every required detail is in", () => {
+  /* Nothing required is missing, but "10 of 11" with nothing else left
+     Isaac asking what the eleventh was. The last gap is named, quietly. */
+  it("clears — the OK bar, no primary action — and names the gap that is left", () => {
     setup({ ...jordan, work_rights_status: "Australian citizen" });
     expect(line()).toHaveTextContent("10 of 11 on file");
-    expect(action()).toBeNull();
+    expect(line().querySelector(".pbtn.primary")).toBeNull();
+    expect(action()).toHaveTextContent(/^Add /);
     expect(line().querySelector(".pprog i")).toHaveClass("ok");
     // not complete, so the count stays quiet — 10 of 11 is not a finished card
     expect(line().querySelector(".psum-count")).not.toHaveClass("ok");
+  });
+
+  /* The case Isaac hit: everything in but the photo. The button names it and
+     opens the camera badge's own file picker. */
+  it("names a missing photo and opens the photo picker", () => {
+    setup({ ...done, photo_url: null });
+    expect(line()).toHaveTextContent("10 of 11 on file");
+    const input = document.getElementById("pphoto-file") as HTMLInputElement;
+    const picked = jest.spyOn(input, "click").mockImplementation(() => {});
+    fireEvent.click(screen.getByRole("button", { name: "Add profile photo" }));
+    expect(picked).toHaveBeenCalled();
   });
 
   /* "Profile complete" went with the doubling: 11 of 11 in the OK colour is

@@ -1160,9 +1160,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    scaffolding and one of answers, ruled between rows. Personal and Emergency
    sit side by side: Emergency is three fields and never earned a band.
 
-   COLOUR IS STATE, AND SAID ONCE. The standing line's lead carries the rank;
-   the evidence beside it colours only when the evidence is what wants
-   attention. Absence is counted on the record line and nowhere else — the
+   COLOUR IS STATE, AND SAID ONCE. Absence is counted on the record line and nowhere else — the
    word Required beside each blank as well was the same fact three times, in
    the page's only strong colour, which is what made a card with four gaps
    read as a form nobody had filled in. The one filled object on the page is
@@ -1170,24 +1168,12 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    action. */
 .fg .psum .pident { padding-bottom:0; margin-bottom:0; border-bottom:0; }
 .fg .ptitle { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-/* the name is the one display size on this screen. At 24 it was the same size
-   as the standing line under it — the same collision as the label and its
-   value, one tier up. */
+/* the name is the one display size on this screen */
 .fg .psum .phid h1 { font-size:32px; }
 /* the camera badge stays up while there is no photo: the tile of initials is
    the one blank on Summary with no Add beside it, so the badge is its Add */
 .fg .pident .pphoto.nophoto .cam { opacity:1; }
 
-/* ── the standing line — the one thing the screen says out loud ──
-   The reading size, which the scale keeps for the one entry a screen is
-   about. It is a statement, not a door: the tab beside it manages the right
-   to work, and a sentence that is also a link has two jobs. */
-.fg .psum-stand { margin:24px 0 0; max-width:46ch; font-size:24px; font-weight:400; line-height:1.35; }
-.fg .psum-stand b { font-weight:400; }
-.fg .psum-stand .ok { color:var(--ok-t); }
-.fg .psum-stand .warn { color:var(--warn-t); }
-.fg .psum-stand .bad { color:var(--bad-t); }
-.fg .psum-stand .mute { color:var(--q); }
 
 /* ── the record line — the count, and the one action ── */
 .fg .psum-rec { display:flex; align-items:center; gap:16px; margin-top:16px; flex-wrap:wrap; }
@@ -3744,6 +3730,11 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .idc .idc-photo .inn, .fg .idc .idc-photo img { width:100%; height:100%; border-radius:var(--r-card); display:flex; align-items:center; justify-content:center; object-fit:cover; }
 .fg .idc.dark .idc-photo .inn { background:var(--ink); color:var(--paper); }
 .fg .idc.light .idc-photo .inn { background:var(--tint); color:var(--ink); }
+/* The tile behind the initials is ink for the dark card's ring. The light
+   card's initials sit on --tint, which is 4% ink — over an ink tile that is
+   black on black, and the emergency card showed a black square where the
+   contact's initials were. On paper the tile is paper. */
+.fg .idc.light .idc-photo { background:var(--paper); border:1px solid var(--line); }
 .fg .idc .idc-photo .inn { font-size:24px; font-weight:700; letter-spacing:-.02em; }
 .fg .idc .idc-who { min-width:0; }
 .fg .idc .idc-who b { display:block; font-size:20px; font-weight:700; line-height:1.15; overflow-wrap:anywhere; }

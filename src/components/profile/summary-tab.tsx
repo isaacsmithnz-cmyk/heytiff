@@ -3,11 +3,11 @@
 import type { ReactNode } from "react";
 import { formatAuDate } from "@/lib/au-dates";
 import { PROFILE_FIELDS, type Completeness } from "@/lib/staff/completeness";
+import { PHOTO_INPUT_ID } from "./photo-badge";
 import { licenceStatus } from "@/lib/staff/licence";
 import type { StaffProfile } from "@/lib/staff/profile";
 import type { StaffLicence } from "@/lib/staff/types";
 import { uniformSummary } from "@/lib/staff/uniform";
-import { workRightsLine, type StateTone } from "@/lib/staff/work-rights-summary";
 import { IdentityBlock } from "./identity-block";
 import type {
   AssignedVehicle,
@@ -31,9 +31,9 @@ import type {
    screen used three.
 
    SO THE PAGE IS TIERED NOW, and the tiers are far enough apart to scan:
-   the name at 32/700, the standing line at 24/400, a group's title at 20/600
+   the name at 32/700, a group's title at 20/600
    in ink, a field's label at 12/500 quiet and its value at 16/600 in ink.
-   Four steps of size, a weight step and a colour step between a label and its
+   Three steps of size, a weight step and a colour step between a label and its
    answer.
 
    AND THE PAIR TURNED SIDEWAYS. Label over value in a three-column grid makes
@@ -44,11 +44,9 @@ import type {
    through. Personal and Emergency sit side by side because Emergency is three
    fields and never earned a band of its own.
 
-   THE RIGHT TO WORK LEFT THE ROW OF TICKETS and became the standing line (see
-   lib/staff/work-rights-summary). It is not a ticket, nothing on it expires
-   the way a White card does, and it decides whether this person can be sent
-   to a job at all — drawn as a grey box beside a grey box, it was the one
-   thing you could not pick out.
+   THE RIGHT TO WORK IS NOT ON SUMMARY. It was a ticket tile, then a
+   "Cleared to work" line above everything; Isaac took that off on 2026-09-28
+   as unnecessary. The Work rights tab holds it.
 
    ABSENCE IS SAID ONCE. Every blank used to be announced twice: an amber
    "Required" beside the field AND in the count above it. On a card with four
@@ -92,7 +90,6 @@ export function SummaryTab({
 }) {
   const addPersonal = (field?: keyof StaffProfile) => onGo("personal", true, field);
   const addEmergency = (field?: keyof StaffProfile) => onGo("emergency", true, field);
-  const rights = workRightsLine(profile, today, warnDays);
 
   return (
     <div className="psum">
@@ -103,7 +100,6 @@ export function SummaryTab({
         onAddStart={() => addPersonal("start_date")}
       />
 
-      <Standing line={rights} />
       <Record c={completeness} onGo={onGo} />
 
       <div className="psum-pair">
@@ -193,26 +189,8 @@ export function SummaryTab({
   );
 }
 
-/* THE STANDING LINE — the one thing the screen says out loud, at the reading
-   size the scale keeps for exactly this (24/400, one per screen).
-
-   The lead carries the rank in its colour; the evidence follows it, quiet
-   unless the evidence itself is what wants attention. Nothing recorded, and
-   there is no clearance to state: the line says the gap, and the ink action
-   under it is the way to fill it. */
-function Standing({ line }: { line: ReturnType<typeof workRightsLine> }) {
-  return (
-    <p className="psum-stand">
-      <b className={line.leadTone}>{line.lead}</b>
-      {line.rest ? (
-        <>
-          {" — "}
-          <span className={line.restTone}>{line.rest}</span>
-        </>
-      ) : null}
-    </p>
-  );
-}
+/** a licence's foot, in the dashboard chip's colours */
+type StateTone = "ok" | "warn" | "bad" | "mute";
 
 /* THE RECORD LINE — how much of the card is on file, and the one action.
 
@@ -221,7 +199,14 @@ function Standing({ line }: { line: ReturnType<typeof workRightsLine> }) {
    PROFILE_FIELDS order, on its own tab, in its form, with the cursor in the
    field — so the button does what it says. The word "Required" no longer
    appears beside the blanks themselves; this line is where absence is
-   counted, and counting it twice is what made the screen shout. */
+   counted, and counting it twice is what made the screen shout.
+
+   A WANTED GAP IS NAMED TOO, quietly. With nothing required missing the line
+   used to say "10 of 11 on file" and nothing else — Isaac, on a new member's
+   card: "it says there's still something outstanding, but I don't know what
+   it is". It was the photo. So the last gaps get the same kind of button, in
+   the quiet style because nothing is blocked on them, and the photo's opens
+   the camera badge's own file picker. */
 function Record({
   c,
   onGo,
@@ -235,6 +220,7 @@ function Record({
      (the photo) and it is not required, so a required gap always names a tab
      with a form behind it. */
   const first = c.missing.find((f) => f.required);
+  const wanted = first ? undefined : c.missing[0];
   return (
     <div className="psum-rec">
       {first && (
@@ -246,6 +232,19 @@ function Record({
           {c.requiredMissing === 1
             ? `Add ${first.label.toLowerCase()}`
             : `Add the ${c.requiredMissing} missing details`}
+        </button>
+      )}
+      {wanted && (
+        <button
+          type="button"
+          className="pbtn"
+          onClick={() =>
+            wanted.key === "photo_url"
+              ? document.getElementById(PHOTO_INPUT_ID)?.click()
+              : onGo(wanted.section as SectionKey, true, wanted.key)
+          }
+        >
+          {c.missing.length === 1 ? `Add ${wanted.label.toLowerCase()}` : `Add the ${c.missing.length} missing details`}
         </button>
       )}
       <span className={cleared && c.complete ? "psum-count ok" : "psum-count"}>

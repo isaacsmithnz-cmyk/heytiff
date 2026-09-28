@@ -91,7 +91,6 @@ function setup(
 
 const group = (title: string) => screen.getByRole("region", { name: title });
 const rows = () => [...document.querySelectorAll(".psum-tix-r")] as HTMLButtonElement[];
-const standing = () => document.querySelector(".psum-stand") as HTMLElement;
 const isEditing = () => screen.queryByRole("button", { name: /^Save\b/ }) !== null;
 
 describe("what Summary does not repeat", () => {
@@ -282,36 +281,14 @@ describe("the holiday state", () => {
    ticket: nothing on it expires the way a ticket does, and you do not hold a
    copy of it in the ute. It is a sentence now, at the reading size, above
    everything. */
-describe("the standing line", () => {
-  it("says the gap, and offers no clearance, while nothing is recorded", () => {
-    setup();
-    expect(standing()).toHaveTextContent("Right to work not recorded");
-    expect(standing().querySelector("b")).toHaveClass("warn");
-    // it is a statement, not a door: the tab beside it manages the right to work
-    expect(within(standing()).queryByRole("button")).toBeNull();
-  });
-
-  it("reads the clearance and its evidence once the right to work is set", () => {
+/* "Cleared to work" sat above everything at the reading size. Isaac,
+   2026-09-28: "we can remove the cleared to work section up the top, it's a
+   bit unnecessary". The Work rights tab holds the status. */
+describe("the top of Summary", () => {
+  it("says nothing about clearance to work", () => {
     setup({ profile: cleared });
-    expect(standing().querySelector("b")).toHaveClass("ok");
-    expect(standing()).toHaveTextContent("Cleared to work");
-    expect(standing()).toHaveTextContent("Australian citizen, no visa required.");
-  });
-
-  /* A person on a valid visa IS cleared to work, so the warning goes on the
-     visa and not on the word "cleared" — colouring the clearance amber to
-     mean "but check the visa" is the sentence contradicting itself. */
-  it("puts a warning on the evidence, not on the clearance", () => {
-    setup({
-      profile: {
-        ...jordan,
-        work_rights_status: "Full working rights (visa)",
-        visa_type: "482 TSS",
-        visa_expiry: "2026-08-07",
-      },
-    });
-    expect(standing().querySelector("b")).toHaveClass("ok");
-    expect(standing().querySelector("span.warn")).toHaveTextContent("482 TSS expires in 2 weeks.");
+    expect(document.querySelector(".psum-stand")).toBeNull();
+    expect(screen.queryByText(/Cleared to work/)).toBeNull();
   });
 
   it("leaves no work-rights tile behind in the tickets", () => {

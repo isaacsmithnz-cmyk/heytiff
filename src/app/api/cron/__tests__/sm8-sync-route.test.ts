@@ -57,6 +57,14 @@ jest.mock("@/lib/dashboard/mention-settle", () => ({
   }),
 }));
 
+/* The file cache's 30-day cap (lib/integrations/sm8-file-cache, tested there). */
+jest.mock("@/lib/integrations/sm8-file-cache", () => ({
+  evictStaleSm8Files: jest.fn(async () => {
+    events.push("evict");
+    return { evicted: 3, bytes: 3 * 1_048_576, starred: 1, failed: 0, capped: false, skipped: false };
+  }),
+}));
+
 import { GET, maxDuration } from "../sm8-sync/route";
 import { WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
 
@@ -249,5 +257,21 @@ describe("the asks", () => {
     authorised = false;
     await GET(byScheduler());
     expect(settleMentionAsks).not.toHaveBeenCalled();
+  });
+});
+
+describe("the file cache's 30-day cap", () => {
+  it("runs once a night, after the writes and before any sync, and says what it took", async () => {
+    const body = await (await GET(byScheduler())).json();
+    expect(events.filter((e) => e === "evict")).toHaveLength(1);
+    expect(events.indexOf("evict")).toBeGreaterThan(events.map((e) => e.startsWith("writes:")).lastIndexOf(true));
+    expect(events.indexOf("evict")).toBeLessThan(events.findIndex((e) => e.startsWith("sync:")));
+    expect(body.files).toEqual({ evicted: 3, mb: 3, starred: 1, failed: 0, capped: false, skipped: false });
+  });
+
+  it("evicts nothing on a call that doesn't pass CRON_SECRET", async () => {
+    authorised = false;
+    await GET(byScheduler());
+    expect(events).not.toContain("evict");
   });
 });

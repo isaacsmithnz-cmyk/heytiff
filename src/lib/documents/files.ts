@@ -36,8 +36,9 @@ export type DocumentKind =
   /* A cached copy of a file that lives in ServiceM8. Its own kind because it
      is the only one nobody here uploaded: it is re-fetchable, it is deleted
      when the workspace moves to a different ServiceM8 account (a disconnect
-     alone keeps it, for a reconnect of the same one — switchSm8Account), and
-     it must never be adoptable by a claim or a notice the way a receipt is. */
+     alone keeps it, for a reconnect of the same one — switchSm8Account), it
+     is evicted after 30 days nobody was shown it (sm8-file-cache), and it
+     must never be adoptable by a claim or a notice the way a receipt is. */
   | "job_file"
   /* A file somebody HERE put on a ServiceM8 job, from the job card's
      Documents face — a certificate of compliance, the builder's plans, a

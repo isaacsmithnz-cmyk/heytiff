@@ -62,6 +62,13 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
+/* Opening a job marks its cached copies shown (the 30-day cap,
+   lib/integrations/sm8-file-cache — tested there). */
+const touched: { org: string; refs: string[] }[] = [];
+jest.mock("@/lib/integrations/sm8-file-cache", () => ({
+  touchSm8Files: jest.fn(async (org: string, refs: string[]) => void touched.push({ org, refs: [...refs] })),
+}));
+
 import { readJobMedia, readJobMediaGroups } from "@/lib/workboard/job-media-query";
 
 const attachment = (over: Record<string, unknown> & { uuid: string }) => ({
@@ -80,6 +87,7 @@ beforeEach(() => {
   staffRows = [];
   writeRows = [];
   signedFor = [];
+  touched.length = 0;
   for (const k of Object.keys(filtersBy)) delete filtersBy[k];
 });
 
@@ -147,6 +155,14 @@ describe("what the sheet gets back", () => {
     attachmentRows = [attachment({ uuid: "a-1" })];
     await readJobMedia("org-1", "job-1");
     expect(signedFor).toEqual([]);
+    expect(touched).toEqual([]);
+  });
+
+  it("marks the job's cached copies shown, so the 30-day cap keeps what is looked at", async () => {
+    attachmentRows = [attachment({ uuid: "cached" }), attachment({ uuid: "not-yet" })];
+    documentRows = [{ remote_ref: "cached", storage_ref: "org/org-1/job_file/cached.jpg" }];
+    await readJobMedia("org-1", "job-1");
+    expect(touched).toEqual([{ org: "org-1", refs: ["cached"] }]);
   });
 
   it("names an untitled file rather than rendering a blank row", async () => {

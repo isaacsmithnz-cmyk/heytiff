@@ -10,6 +10,7 @@ import {
 import { WRITE_LEASE_MARGIN_MS, WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { NOTE_TEXT_DAYS } from "@/lib/integrations/sm8-note-plan";
+import { evictStaleSm8Files } from "@/lib/integrations/sm8-file-cache";
 
 /* The nightly ServiceM8 top-up — the BACKSTOP, not the primary path.
 
@@ -160,6 +161,14 @@ export async function GET(request: Request) {
     }
   }
 
+  /* THE FILE CACHE'S 30-DAY CAP (lib/integrations/sm8-file-cache): copies
+     of ServiceM8's own files nobody has been shown in 30 days leave the
+     bucket, and the next open brings them back. Starred photos stay; no
+     other kind of document is ever read here. Bounded (EVICT_MAX objects,
+     EVICT_BUDGET_MS) so the syncs after it keep their window, and it never
+     throws. */
+  const files = await evictStaleSm8Files(Date.now());
+
   /* Connected orgs only, longest-waiting first — needs_reauth rows are
      skipped because the engine would refuse them anyway, and each refusal
      costs a lease dance. */
@@ -232,5 +241,13 @@ export async function GET(request: Request) {
     writes: { orgs: writers.length, sent: writesSent, failed: writesFailed, deferred: writesDeferred },
     ...(sm8NotesAllowed() ? { notesCleared } : {}),
     asks: { read: asksRead, tasks: asksMade, deferred: asksDeferred },
+    files: {
+      evicted: files.evicted,
+      mb: Math.round(files.bytes / 104857.6) / 10,
+      starred: files.starred,
+      failed: files.failed,
+      capped: files.capped,
+      skipped: files.skipped,
+    },
   });
 }

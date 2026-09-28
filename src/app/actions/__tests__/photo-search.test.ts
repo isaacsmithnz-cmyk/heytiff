@@ -6,6 +6,13 @@ const rpcCalls: { fn: string; args: Record<string, unknown> }[] = [];
 let rpcRows: Record<string, unknown>[] = [];
 /* HeyTiff's own writes to ServiceM8, as the echo read finds them. */
 let writeRows: Record<string, unknown>[] = [];
+/* The cached copies the hits' pictures are signed from. */
+let docRows: Record<string, unknown>[] = [];
+/* A hit shown marks its copy shown (the 30-day cap). */
+const touched: { org: string; refs: string[] }[] = [];
+jest.mock("@/lib/integrations/sm8-file-cache", () => ({
+  touchSm8Files: jest.fn(async (org: string, refs: string[]) => void touched.push({ org, refs: [...refs] })),
+}));
 
 jest.mock("@/lib/permissions-server", () => ({
   requireOrg: async () => ({ orgId: "org-1", userId: "auth0|me" }),
@@ -18,7 +25,7 @@ jest.mock("@/lib/supabase-server", () => ({
       for (const m of ["select", "eq", "in", "not"]) q[m] = () => q;
       q.or = async () => ({ data: table === "sm8_writes" ? writeRows : [], error: null });
       q.then = (res: (v: { data: unknown[]; count: number }) => unknown) =>
-        Promise.resolve({ data: [], count: 500 }).then(res);
+        Promise.resolve({ data: table === "documents" ? docRows : [], count: 500 }).then(res);
       return q;
     },
     rpc: async (fn: string, args: Record<string, unknown>) => {
@@ -55,6 +62,28 @@ beforeEach(() => {
   rpcCalls.length = 0;
   rpcRows = [];
   writeRows = [];
+  docRows = [];
+  touched.length = 0;
+});
+
+/* The 30-day cap evicts cached copies nobody opens. Search reads the
+   readings' text, never the bytes: a hit without a copy is still a hit. */
+describe("the file cache's cap", () => {
+  it("finds a photo whose cached copy has gone, and draws it as a plate", async () => {
+    rpcRows = [row(1), row(2)];
+    const found = await searchPhotos("plate", 6);
+    expect(rpcCalls[0].fn).toBe("search_job_photos");
+    expect(found.hits.map((h) => h.remoteId)).toEqual(["ph-1", "ph-2"]);
+    expect(found.hits.every((h) => h.url === null)).toBe(true);
+    expect(touched).toEqual([]);
+  });
+
+  it("marks the hits it signs as shown", async () => {
+    rpcRows = [row(1), row(2)];
+    docRows = [{ remote_ref: "ph-2", storage_ref: "org/org-1/job_file/ph-2.jpg" }];
+    await searchPhotos("plate", 6);
+    expect(touched).toEqual([{ org: "org-1", refs: ["ph-2"] }]);
+  });
 });
 
 describe("searchPhotos' limit", () => {

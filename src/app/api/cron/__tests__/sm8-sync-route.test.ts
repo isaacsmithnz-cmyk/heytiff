@@ -59,8 +59,13 @@ jest.mock("@/lib/dashboard/mention-settle", () => ({
 
 /* The file cache's 30-day cap (lib/integrations/sm8-file-cache, tested there). */
 const evictBudgets: (number | undefined)[] = [];
+/** The file cache's budget, as the route reads it (a getter, so a test can
+    move it). */
+let evictBudgetMs = 20_000;
 jest.mock("@/lib/integrations/sm8-file-cache", () => ({
-  EVICT_BUDGET_MS: 20_000,
+  get EVICT_BUDGET_MS() {
+    return evictBudgetMs;
+  },
   evictStaleSm8Files: jest.fn(async (_now: number, opts: { budgetMs?: number } = {}) => {
     events.push("evict");
     evictBudgets.push(opts.budgetMs);
@@ -465,16 +470,49 @@ describe("live updates' leftover drains (two-way phase 4, PR D)", () => {
     expect(runSm8Sync).toHaveBeenCalledTimes(2);
   });
 
-  it("start a workspace's only while its 20 s end before the asks' margin", async () => {
-    // 300 s less the 15 s margin less 20 s: the last start is 265 s in
-    syncTakes = [0, 265_000];
+  afterEach(() => {
+    evictBudgetMs = 20_000;
+  });
+
+  it("start a workspace's only while its 20 s leave the eviction, the asks and their margin their time", async () => {
+    // 300 s less the 15 s margin, the 20 s eviction and the asks' 20 s,
+    // less the drain's own 20 s: the last start is 225 s in
+    syncTakes = [0, 225_000];
     let body = await (await GET(byScheduler())).json();
     expect(drained.map((d) => d.org)).toEqual(["s1", "s2"]);
     drained.length = 0;
     clock = Date.parse("2026-09-25T20:00:00Z");
-    syncTakes = [0, 265_001];
+    syncTakes = [0, 225_001];
     body = await (await GET(byScheduler())).json();
     expect(drained).toEqual([]);
     expect(body.drains).toMatchObject({ drained: 0, deferred: 2 });
+  });
+
+  it("share one budget: a slow first drain puts the second off, and the eviction and the asks still have theirs", async () => {
+    // the first starts 210 s in, inside the step, and takes its whole 20 s
+    syncTakes = [0, 210_000];
+    drainTakes = [20_000];
+    const started = clock;
+    const body = await (await GET(byScheduler())).json();
+    expect(drained.map((d) => d.org)).toEqual(["s1"]);
+    expect(body.drains).toMatchObject({ drained: 1, deferred: 1 });
+    // 230 s in: the eviction gets its whole 20 s, and the asks start with 55 s
+    expect(clock - started).toBe(230_000);
+    expect(evictBudgets).toEqual([20_000]);
+    expect(settled[0]).toEqual({ org: "s1", budgetMs: 300_000 - 15_000 - 230_000 });
+  });
+
+  it("never start once a whole hook lease no longer fits before the function's deadline", async () => {
+    // with no eviction the step would allow 245 s; the lease allows 280 - 45 = 235 s
+    evictBudgetMs = 0;
+    syncTakes = [0, 235_000];
+    await GET(byScheduler());
+    expect(drained.map((d) => d.org)).toEqual(["s1", "s2"]);
+    drained.length = 0;
+    clock = Date.parse("2026-09-25T20:00:00Z");
+    syncTakes = [0, 235_001];
+    const body = await (await GET(byScheduler())).json();
+    expect(drained).toEqual([]);
+    expect(body.drains).toMatchObject({ deferred: 2 });
   });
 });

@@ -78,6 +78,22 @@ jest.mock("../sm8-hooks", () => {
   return { ensureSm8WebhooksIfOwed: (...a: unknown[]) => ensureSm8WebhooksIfOwed(...(a as [string, { budgetMs: number }])) };
 });
 
+/* Live updates' page-load backstop (two-way phase 4, PR D): the drain is
+   loaded only with SM8_WEBHOOKS on, the same way. */
+let drainLoaded = false;
+let drainTakes = 0;
+const drainSm8Hooks = jest.fn(async (_org: string, _opts: { deadline: number; maxMs: number; wait: boolean }) => {
+  order.push("drain");
+  clock += drainTakes;
+  return { ran: true, read: 0, written: 0, handed: 0, dropped: 0, stopped: null };
+});
+jest.mock("../sm8-hook-drain", () => {
+  drainLoaded = true;
+  return {
+    drainSm8Hooks: (...a: unknown[]) => drainSm8Hooks(...(a as [string, { deadline: number; maxMs: number; wait: boolean }])),
+  };
+});
+
 import { freshenSm8AfterResponse } from "../sm8-freshness";
 
 let clock = Date.parse("2026-09-25T00:00:00Z");
@@ -94,6 +110,8 @@ beforeEach(() => {
   syncRan = true;
   syncTakes = 0;
   writesTake = 0;
+  drainTakes = 0;
+  drainSm8Hooks.mockClear();
   ensureSm8WebhooksIfOwed.mockClear();
   runSm8Sync.mockClear();
   runSm8Writes.mockClear();
@@ -298,6 +316,8 @@ describe("live updates owed (two-way phase 4)", () => {
     }
     expect(hooksLoaded).toBe(false);
     expect(ensureSm8WebhooksIfOwed).not.toHaveBeenCalled();
+    expect(drainLoaded).toBe(false);
+    expect(drainSm8Hooks).not.toHaveBeenCalled();
   });
 
   it("with the switch on, an owed reconcile runs after the writes and before the sync, in 30 s less 2 for its last writes", async () => {
@@ -305,7 +325,7 @@ describe("live updates owed (two-way phase 4)", () => {
     process.env.SM8_WEBHOOKS = "1";
     freshenSm8AfterResponse("org-1");
     await behind();
-    expect(order).toEqual(["writes", "ensure", "sync", "asks"]);
+    expect(order).toEqual(["writes", "drain", "ensure", "sync", "asks"]);
     expect(ensureSm8WebhooksIfOwed).toHaveBeenCalledWith("org-1", { budgetMs: 28_000 });
   });
 
@@ -313,10 +333,52 @@ describe("live updates owed (two-way phase 4)", () => {
     process.env.VERCEL_ENV = "production";
     process.env.SM8_WEBHOOKS = "1";
     // the sync must start by 300 - 120 - 15 = 165 s; 140 s + 30 s is past it
+    // (the backstop's 20 s still fit)
     writesTake = 140_000;
     freshenSm8AfterResponse("org-1");
     await behind();
+    expect(order).toEqual(["writes", "drain", "sync", "asks"]);
+  });
+
+  /* PR D: the backstop drain, after the writes and before the reconcile
+     and the sync: 20 s, never sleeping, bound by the page's function */
+  it("with the switch on, the queue is drained for 20 s after the writes, without waiting for quiet", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(drainSm8Hooks).toHaveBeenCalledWith("org-1", {
+      deadline: Date.parse("2026-09-25T00:00:00Z") + 280_000,
+      maxMs: 20_000,
+      wait: false,
+    });
+    expect(order.indexOf("drain")).toBe(order.indexOf("writes") + 1);
+  });
+
+  it("never drains when 20 s and 3 s for its last writes would put the sync past its start", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    writesTake = 142_000; // 142 + 20 + 3 = 165: the last moment
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(order).toEqual(["writes", "drain", "sync", "asks"]);
+    order.length = 0;
+    scheduled.length = 0;
+    clock = Date.parse("2026-09-25T00:00:00Z");
+    writesTake = 142_001;
+    freshenSm8AfterResponse("org-1");
+    await behind();
     expect(order).toEqual(["writes", "sync", "asks"]);
+  });
+
+  it("a drain's time comes off the reconcile's, never the sync's", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    writesTake = 120_000;
+    drainTakes = 20_000; // 140 s in: 30 s more is past 165
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(order).toEqual(["writes", "drain", "sync", "asks"]);
   });
 
   it("nor for a workspace that isn't connected", async () => {
@@ -326,5 +388,6 @@ describe("live updates owed (two-way phase 4)", () => {
     freshenSm8AfterResponse("org-1");
     await behind();
     expect(ensureSm8WebhooksIfOwed).not.toHaveBeenCalled();
+    expect(drainSm8Hooks).not.toHaveBeenCalled();
   });
 });

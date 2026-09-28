@@ -9,7 +9,13 @@ import {
 } from "@/lib/integrations/sm8-writes";
 import { WRITE_LEASE_MARGIN_MS, WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
 import { SYNC_LEASE_MS, whenSm8LeaseFree } from "@/lib/integrations/sm8-lease";
-import { ENSURE_BUDGET_MS, ENSURE_FINISH_MARGIN_MS, functionDeadline } from "@/lib/integrations/sm8-hook-plan";
+import {
+  BACKSTOP_DRAIN_MS,
+  ENSURE_BUDGET_MS,
+  ENSURE_FINISH_MARGIN_MS,
+  HOOK_LEASE_MS,
+  functionDeadline,
+} from "@/lib/integrations/sm8-hook-plan";
 import { sm8WebhooksState } from "@/lib/integrations/sm8-hooks-switch";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { NOTE_TEXT_DAYS } from "@/lib/integrations/sm8-note-plan";
@@ -145,6 +151,52 @@ async function reconcileHooks(orgs: readonly string[], startedAt: number): Promi
   return night;
 }
 
+/** The asks' own time, kept back from the leftover drains: however many
+    workspaces have a queue, the settle after them still gets this much. */
+const CRON_ASKS_RESERVE_MS = 20_000;
+
+/** LIVE UPDATES' LEFTOVER DRAINS (two-way phase 4), after every sync:
+    whatever the route's own drains left in a swept workspace's queue is
+    read, BACKSTOP_DRAIN_MS each, never sleeping for a record to go quiet.
+    THE WHOLE STEP HAS ONE BUDGET, and it keeps back what comes after it:
+    the file cache's EVICT_BUDGET_MS, the asks' CRON_ASKS_RESERVE_MS and
+    their margin. A workspace's drain starts only while its 20 s still end
+    inside that, and never once a whole hook lease (HOOK_LEASE_MS) no longer
+    fits before the function's deadline. After the syncs, so a drain never
+    holds the lease a sync wants; a drain that finds a sync asking stands
+    aside anyway. Only with SM8_WEBHOOKS on: off, the machinery isn't loaded
+    and the answer is as it was. */
+type DrainNight = { drained: number; read: number; written: number; handed: number; deferred: number; failed: number };
+
+async function leftoverDrains(orgs: readonly string[], startedAt: number): Promise<DrainNight> {
+  const { drainSm8Hooks } = await import("@/lib/integrations/sm8-hook-drain");
+  const night: DrainNight = { drained: 0, read: 0, written: 0, handed: 0, deferred: 0, failed: 0 };
+  const deadline = functionDeadline(startedAt, maxDuration);
+  const stepEnd = startedAt + maxDuration * 1000 - CRON_SETTLE_MARGIN_MS - EVICT_BUDGET_MS - CRON_ASKS_RESERVE_MS;
+  const lastStart = Math.min(stepEnd - BACKSTOP_DRAIN_MS, deadline - HOOK_LEASE_MS);
+  for (const orgId of orgs) {
+    if (Date.now() > lastStart) {
+      night.deferred += 1;
+      continue;
+    }
+    try {
+      const out = await drainSm8Hooks(orgId, {
+        deadline,
+        maxMs: BACKSTOP_DRAIN_MS,
+        wait: false,
+      });
+      if (out.ran) night.drained += 1;
+      if (out.stopped === "threw" || out.stopped === "db") night.failed += 1;
+      night.read += out.read;
+      night.written += out.written;
+      night.handed += out.handed;
+    } catch {
+      night.failed += 1;
+    }
+  }
+  return night;
+}
+
 /** Whether Vercel's scheduler made this call, rather than a person. */
 function fromScheduler(request: Request): boolean {
   return request.headers.has("x-vercel-cron-schedule");
@@ -254,6 +306,9 @@ export async function GET(request: Request) {
     }
   }
 
+  /* The leftover drains, after every sync (leftoverDrains). */
+  const drains = sm8WebhooksState() === "on" ? await leftoverDrains(orgs, startedAt) : null;
+
   /* THE FILE CACHE'S 30-DAY CAP (lib/integrations/sm8-file-cache): copies
      of ServiceM8's own files nobody has been shown in 30 days leave the
      bucket, and the next open brings them back. Starred photos stay; no
@@ -305,6 +360,7 @@ export async function GET(request: Request) {
     writes: { orgs: writers.length, sent: writesSent, failed: writesFailed, deferred: writesDeferred },
     ...(sm8NotesAllowed() ? { notesCleared } : {}),
     ...(hooks ? { hooks } : {}),
+    ...(drains ? { drains } : {}),
     asks: { read: asksRead, tasks: asksMade, deferred: asksDeferred },
     files: {
       evicted: files.evicted,

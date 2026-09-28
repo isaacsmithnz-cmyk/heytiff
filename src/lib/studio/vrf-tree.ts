@@ -345,6 +345,17 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
         role = "between";
         size = sizeBy(table.pipe_sizing, down, downKw);
       }
+      /* a box head wired straight to a joint or header: it needs its branch box */
+      const u = to.kind === "idu" ? unitOf(to) : undefined;
+      if (role === "branch" && u && !isVrfHead(pack, u) && isBoxHead(pack, odu, u))
+        findings.push({
+          severity: "red",
+          code: "not-box-head",
+          message: `${u.model} goes on a branch box, not a joint`,
+          fix: "Run its pipe to a branch box",
+        });
+      /* a head a box can't take is reported once, by the box (below) */
+      if (!size && role === "box" && u && !isBoxHead(pack, odu, u)) continue;
       if (!size) {
         findings.push({
           severity: "red",

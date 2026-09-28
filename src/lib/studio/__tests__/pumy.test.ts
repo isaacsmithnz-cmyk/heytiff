@@ -221,3 +221,62 @@ describe("a branch box drawn on the plan", () => {
     expect(sized.findings).toEqual([]);
   });
 });
+
+describe("edge cases found on the overnight run (2026-09-29)", () => {
+  const n = (id: string, kind: "odu" | "joint" | "box" | "idu", model?: string) => ({ id, kind, model });
+
+  it("an M-series head wired straight to a joint is red: it needs its branch box", () => {
+    const tree: VrfTree = {
+      provisional: false,
+      nodes: [n("OU", "odu"), n("J", "joint"), n("a", "idu", CM[40]), n("b", "idu", "MSZ-AP25VGD2")],
+      sections: [
+        { id: "A", from: "OU", to: "J", lengthM: 5 },
+        { id: "a", from: "J", to: "a", lengthM: 3 },
+        { id: "b", from: "J", to: "b", lengthM: 3 },
+      ],
+    };
+    const f = sizeVrfTree(pack, odu("PUMY-SP112VKMD2-A"), tree).findings;
+    expect(f.map((x) => [x.code, x.message])).toEqual([["not-box-head", "MSZ-AP25VGD2 goes on a branch box, not a joint"]]);
+  });
+
+  it("a City Multi head on a box is said once", () => {
+    const tree: VrfTree = {
+      provisional: false,
+      nodes: [n("OU", "odu"), n("B", "box"), n("a", "idu", CM[40])],
+      sections: [
+        { id: "A", from: "OU", to: "B", lengthM: 5 },
+        { id: "a", from: "B", to: "a", lengthM: 3 },
+      ],
+    };
+    const f = sizeVrfTree(pack, odu("PUMY-SP112VKMD2-A"), tree).findings;
+    expect(f.map((x) => x.code)).toEqual(["not-box-head"]);
+  });
+
+  it("an M-series head then a City Multi head makes a VRF, the same as the other way round", () => {
+    const build = (models: string[]) => {
+      let doc = createDesign({ name: "order", mode: "blank" });
+      const floorId = doc.floors[0].id;
+      models.forEach((_, i) =>
+        doc.objects.push({
+          id: `z${i}`, type: "room", systemId: null, floorId, plane: "room",
+          geometry: { kind: "polygon", points: [{ x: i * 600, y: 0 }, { x: i * 600 + 500, y: 0 }, { x: i * 600 + 500, y: 500 }, { x: i * 600, y: 500 }] },
+          props: { name: `z${i}` },
+        } as RoomObj as DesignObject)
+      );
+      const made = newSystem(doc, pack.meta.version);
+      doc = made.doc;
+      models.forEach((m, i) => (doc = addHead(doc, pack, { systemId: made.systemId, zoneId: `z${i}`, iduModel: m })));
+      const sys = doc.systems.find((s) => s.id === made.systemId)!;
+      return { type: sys.type, odu: allocationsOf(sys).find((a) => a.role === "odu")?.model };
+    };
+    expect(build(["MSZ-AP25VGD2", CM[63]])).toEqual({ type: "vrf", odu: "PUMY-SP80VKMD2-A" });
+    expect(build([CM[63], "MSZ-AP25VGD2"])).toEqual({ type: "vrf", odu: "PUMY-SP80VKMD2-A" });
+  });
+
+  it("a PUHY over its head count says so in the same words as a PUMY", () => {
+    const heads = Array(21).fill(CM[20]);
+    expect(codes("PUHY-P200YNW-A1", heads)).toContain("over-max-count");
+    const msg = checkVrfSet(pack, odu("PUHY-P200YNW-A1"), heads.map(idu)).find((f) => f.code === "over-max-count")!.message;
+    expect(msg).toBe("21 heads, and PUHY-P200YNW-A1 takes up to 20");
+  });
+});

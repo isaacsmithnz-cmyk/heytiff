@@ -319,7 +319,7 @@ export function checkBlock(
         out.push({
           severity: "red",
           code: "over-max-count",
-          message: `${idus.length} indoor units — ${odu.model} accepts up to ${c.max_idus}`,
+          message: `${idus.length} heads, and ${odu.model} takes up to ${c.max_idus}`,
         });
       // the band's per-unit index bounds are a hard limit, same as the
       // whitelist arm's — `iduEligibleForRule` honours them, so the whole-set
@@ -334,7 +334,7 @@ export function checkBlock(
           out.push({
             severity: "red",
             code: "outside-index-band",
-            message: `${u.model} is index P${idx} — ${odu.model} takes P${c.index_min ?? 0}–P${c.index_max ?? "∞"}`,
+            message: `${u.model} is P${idx}, and ${odu.model} takes P${c.index_min ?? 0}–P${c.index_max ?? "∞"}`,
           });
       }
       const missing = idus.filter((u) => u.capacity_index == null);
@@ -362,7 +362,7 @@ export function checkBlock(
           out.push({
             severity: "red",
             code: "ratio-over",
-            message: `Connected index is ${Math.round(ratio)}% — max ${c.ratio_max_pct}% on ${odu.model}`,
+            message: `The heads come to ${Math.round(ratio)}% of ${odu.model}, over its ${c.ratio_max_pct}%`,
           });
         // under-minimum is amber: more rooms/units may still be coming
         else if (ratio < c.ratio_min_pct)

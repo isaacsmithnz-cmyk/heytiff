@@ -196,12 +196,17 @@ export function systemTypeFor(
   if (oduRow?.system_type === "vrf") return "vrf";
   if (odu && !pack && sys.type === "vrf") return "vrf";
   const heads = allocs.filter((a) => a.role === "idu" && a.model);
-  if (pack && !oduRow) {
+  if (pack) {
     const rows = heads
       .map((a) => pack.indoor_units.find((u) => u.model === a.model))
       .filter((u): u is IndoorUnit => u != null);
-    if (allVrfOnly(rows)) return "vrf";
-    if (familyOf(sys) === "vrf" && rows.every((u) => joinsVrf(pack, u))) return "vrf";
+    /* a City Multi head can only be on a VRF: with it, heads that all join
+       one (branch-box heads beside it) make a VRF, whichever came first and
+       whatever outdoor an earlier head was proposed — a split outdoor
+       proposed for a lone M-series head must not make the pair a multi that
+       no outdoor takes */
+    if (rows.some((u) => allVrfOnly([u])) && rows.every((u) => joinsVrf(pack, u))) return "vrf";
+    if (!oduRow && familyOf(sys) === "vrf" && rows.every((u) => joinsVrf(pack, u))) return "vrf";
   }
   if (heads.some((a) => a.serves === "system")) return "ducted";
   if (heads.length >= 2) return "multi-split";

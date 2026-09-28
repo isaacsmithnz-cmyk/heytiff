@@ -169,6 +169,22 @@ describe("a lease is given back and extended by token only", () => {
     expect(runRow().lease_until).toBe(theirs);
   });
 
+  it("a claim whose row moved on before its stamp stamps nothing, and is busy", async () => {
+    const theirs = iso(T0 + 3 * SYNC_LEASE_MS);
+    let moved = false;
+    fake.before.sm8_sync_runs = (s) => {
+      // between this claim's write and its stamp, the row takes another end
+      if (!moved && s.op === "update" && s.patch && "lease_token" in s.patch) {
+        moved = true;
+        runRow().lease_until = theirs;
+      }
+    };
+    expect(await claimSm8Lease(ORG, "sync", T0)).toBeNull();
+    expect(moved).toBe(true);
+    expect(runRow().lease_token).toBeUndefined();
+    expect(runRow().lease_until).toBe(theirs);
+  });
+
   it("a claim names its holder, and a claim while the lease is live is busy", async () => {
     const a = (await claimSm8Lease(ORG, "switch", T0))!;
     expect(runRow()).toMatchObject({ lease_by: "switch", lease_token: a.lease.token, lease_until: iso(T0 + SYNC_LEASE_MS) });

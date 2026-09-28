@@ -101,6 +101,7 @@ import {
 } from "./sm8-sync-plan";
 import {
   SM8_LEASE_LOST,
+  SM8_LEASE_UNSTAMPED,
   SM8_SYNC_BUSY,
   SYNC_LEASE_MS,
   sm8LeaseDefersKick,
@@ -153,22 +154,26 @@ function sayNoTokenColumns(): void {
     (ignoreDuplicates); the conditional update is the actual mutex — it
     matches only an unleased or expired-lease row, and matching nothing means
     somebody else holds it. Same conditional-write idiom as the refresh
-    rotation guard. Null: busy.
+    rotation guard. `busy`: somebody else holds it.
 
     THEN THE TOKEN, stamped only while the row still carries the end this
-    claim wrote. A sync's stamp also clears any want (wanted_at): the sync
-    that asked has it now. A database without the columns holds the lease
-    without a token (said once in the log). A stamp that matched nothing
-    means the lease is already somebody else's: busy. A stamp that failed
-    gives the lease straight back, and is busy too — a lease held without a
-    token on a database that has the column could be cleared by anyone. */
+    claim wrote, with `patch` (what the holder records of its start: a
+    sync's trigger and start time) — so a claim that never got its token
+    never shows a start. A sync's stamp also clears any want (wanted_at):
+    the sync that asked has it now. A database without the columns holds
+    the lease without a token (said once in the log) and writes `patch` on
+    its own. A stamp that matched nothing means the lease is already
+    somebody else's: `busy`. A stamp the database refused gives the lease
+    straight back and is `failed` — not busy: nobody else is running, and a
+    lease held without a token on a database that has the column could be
+    cleared by anyone. */
 export async function claimSm8Lease(
   orgId: string,
   by: Sm8LeaseBy,
   now: number,
   patch: Record<string, unknown> = {},
   ms: number = SYNC_LEASE_MS
-): Promise<{ lease: Sm8Lease; calls_today: number | null; calls_day: string | null } | null> {
+): Promise<Sm8Claim> {
   const iso = new Date(now).toISOString();
   await supabaseAdmin
     .from("sm8_sync_runs")
@@ -177,32 +182,49 @@ export async function claimSm8Lease(
   const until = new Date(now + ms).toISOString();
   const { data: claimed } = await supabaseAdmin
     .from("sm8_sync_runs")
-    .update({ lease_until: until, ...patch })
+    .update({ lease_until: until })
     .eq("org_id", orgId)
     .or(`lease_until.is.null,lease_until.lt.${iso}`)
     .select("calls_today, calls_day");
   const row = ((claimed ?? [])[0] as { calls_today: number | null; calls_day: string | null } | undefined) ?? null;
-  if (!row) return null;
+  if (!row) return { ok: false, why: "busy" };
 
   const token = randomUUID();
   const stamped = await supabaseAdmin
     .from("sm8_sync_runs")
-    .update({ lease_token: token, lease_by: by, ...(by === "sync" ? { wanted_at: null, wanted_by: null } : {}) })
+    .update({
+      lease_token: token,
+      lease_by: by,
+      ...(by === "sync" ? { wanted_at: null, wanted_by: null } : {}),
+      ...patch,
+    })
     .eq("org_id", orgId)
     .eq("lease_until", until)
     .select("lease_token");
   if (stamped.error) {
     if (missingColumn(stamped.error)) {
       sayNoTokenColumns();
-      return { lease: { orgId, until, token: null, by }, ...row };
+      if (Object.keys(patch).length > 0) {
+        await supabaseAdmin.from("sm8_sync_runs").update(patch).eq("org_id", orgId).eq("lease_until", until);
+      }
+      return { ok: true, lease: { orgId, until, token: null, by }, ...row };
     }
-    console.error(`[sm8] couldn't stamp the sync lease for org ${orgId}, so it goes straight back:`, stamped.error);
+    console.error(
+      `[sm8] the database refused the sync lease's token for org ${orgId}; the lease goes straight back:`,
+      stamped.error
+    );
     await supabaseAdmin.from("sm8_sync_runs").update({ lease_until: null }).eq("org_id", orgId).eq("lease_until", until);
-    return null;
+    return { ok: false, why: "failed" };
   }
-  if ((stamped.data ?? []).length === 0) return null;
-  return { lease: { orgId, until, token, by }, ...row };
+  if ((stamped.data ?? []).length === 0) return { ok: false, why: "busy" };
+  return { ok: true, lease: { orgId, until, token, by }, ...row };
 }
+
+/** What a claim came to: the lease, or why not — `busy` (somebody else
+    holds it) or `failed` (the database refused the token's stamp). */
+export type Sm8Claim =
+  | { ok: true; lease: Sm8Lease; calls_today: number | null; calls_day: string | null }
+  | { ok: false; why: "busy" | "failed" };
 
 /** Extend a held lease to `now + ms`, by token: it matches only while the
     row still carries this holder's token AND the end it last wrote. `lost`:
@@ -245,8 +267,9 @@ export async function releaseSm8Lease(lease: Sm8Lease, patch: Record<string, unk
 }
 
 /** Run `fn` under the lease, claimed as `by` for one SYNC_LEASE_MS and
-    given back by token however `fn` ends. `busy`: somebody else holds it,
-    and `fn` never ran. For a holder whose work fits well inside one lease;
+    given back by token however `fn` ends. Not ok: `fn` never ran, because
+    somebody else holds the lease (`busy`) or the database refused its
+    token (`failed`). For a holder whose work fits well inside one lease;
     one that may need longer claims, extends and releases for itself
     (runSm8Sync). */
 export async function withSm8Lease<T>(
@@ -254,9 +277,9 @@ export async function withSm8Lease<T>(
   by: Sm8LeaseBy,
   fn: (lease: Sm8Lease) => Promise<T>,
   now: number = Date.now()
-): Promise<{ ok: true; value: T } | { ok: false; reason: "busy" }> {
+): Promise<{ ok: true; value: T } | { ok: false; reason: "busy" | "failed" }> {
   const got = await claimSm8Lease(orgId, by, now);
-  if (!got) return { ok: false, reason: "busy" };
+  if (!got.ok) return { ok: false, reason: got.why };
   try {
     return { ok: true, value: await fn(got.lease) };
   } finally {
@@ -390,7 +413,12 @@ export async function runSm8Sync(
   const deadline = opts.deadline ?? now + SYNC_LEASE_MS;
 
   const claimed = await claimSm8Lease(orgId, "sync", now, { last_trigger: trigger, last_started_at: iso });
-  if (!claimed) {
+  if (!claimed.ok) {
+    /* the database refused the token: nobody else is running, so this is
+       never "already running" — logged by the claim as a database error */
+    if (claimed.why === "failed") {
+      return { ran: false, note: SM8_LEASE_UNSTAMPED, pagesUsed: 0, rowsPulled: 0, complete: false };
+    }
     await wantSm8Lease(orgId, trigger, now);
     return { ran: false, note: SM8_SYNC_BUSY, pagesUsed: 0, rowsPulled: 0, complete: false };
   }
@@ -845,7 +873,9 @@ export async function switchSm8AccountUnderLease(
 ): Promise<Sm8SwitchResult | { ok: false; reason: "busy" }> {
   const now = input.now ?? Date.now();
   const held = await withSm8Lease(orgId, "switch", () => switchSm8Account(orgId, { ...input, now }), now);
-  return held.ok ? held.value : held;
+  /* a refused token clears nothing either: to the callback that is busy —
+     the next sync finds the old copy and finishes the switch */
+  return held.ok ? held.value : { ok: false, reason: "busy" };
 }
 
 /** A sync that waits a moment for a run already walking to end — the

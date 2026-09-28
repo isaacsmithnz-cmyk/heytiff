@@ -43,6 +43,10 @@ export const SM8_SYNC_BUSY = "A sync is already running.";
     only the answer to whoever started the run. */
 export const SM8_LEASE_LOST = "Another run took over the sync; it carries on from there.";
 
+/** A sync that couldn't start because the database refused its lease's
+    token. Nobody else is running, so it is never "already running". */
+export const SM8_LEASE_UNSTAMPED = "The sync couldn't start: the database didn't answer. It tries again on the next sync.";
+
 /** How long the sync holds the lease at a time. */
 export const SYNC_LEASE_MS = 120_000;
 

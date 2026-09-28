@@ -67,6 +67,7 @@ import {
 } from "../sm8-sync";
 import {
   SM8_LEASE_LOST,
+  SM8_LEASE_UNSTAMPED,
   SM8_SYNC_BUSY,
   SYNC_LEASE_MS,
   SYNC_METER_WAIT_MS,
@@ -140,11 +141,17 @@ describe("the rules, cold", () => {
 });
 
 describe("a lease is given back and extended by token only", () => {
+  /** A claim the test expects to get. */
+  const held = async (...a: Parameters<typeof claimSm8Lease>) => {
+    const c = await claimSm8Lease(...a);
+    if (!c.ok) throw new Error(`expected the lease, got ${c.why}`);
+    return c;
+  };
+
   it("a holder that outlived its lease can't give back or extend the next holder's", async () => {
-    const a = (await claimSm8Lease(ORG, "sync", T0))!;
+    const a = await held(ORG, "sync", T0);
     // a's lease runs out; a drain claims the next one
-    const b = (await claimSm8Lease(ORG, "hook", T0 + SYNC_LEASE_MS + 1_000, {}, 45_000))!;
-    expect(b).not.toBeNull();
+    const b = await held(ORG, "hook", T0 + SYNC_LEASE_MS + 1_000, {}, 45_000);
 
     await releaseSm8Lease(a.lease, { last_note: "the late one" });
     expect(runRow()).toMatchObject({ lease_until: b.lease.until, lease_token: b.lease.token, lease_by: "hook" });
@@ -158,7 +165,7 @@ describe("a lease is given back and extended by token only", () => {
   });
 
   it("...not even between the next holder's claim and its stamp, while the row still carries the old token", async () => {
-    const a = (await claimSm8Lease(ORG, "sync", T0))!;
+    const a = await held(ORG, "sync", T0);
     // the next claim has written its end, and not yet its token
     const theirs = iso(T0 + 2 * SYNC_LEASE_MS);
     runRow().lease_until = theirs;
@@ -179,16 +186,33 @@ describe("a lease is given back and extended by token only", () => {
         runRow().lease_until = theirs;
       }
     };
-    expect(await claimSm8Lease(ORG, "sync", T0)).toBeNull();
+    expect(await claimSm8Lease(ORG, "sync", T0)).toEqual({ ok: false, why: "busy" });
     expect(moved).toBe(true);
     expect(runRow().lease_token).toBeUndefined();
     expect(runRow().lease_until).toBe(theirs);
   });
 
   it("a claim names its holder, and a claim while the lease is live is busy", async () => {
-    const a = (await claimSm8Lease(ORG, "switch", T0))!;
+    const a = await held(ORG, "switch", T0);
     expect(runRow()).toMatchObject({ lease_by: "switch", lease_token: a.lease.token, lease_until: iso(T0 + SYNC_LEASE_MS) });
-    expect(await claimSm8Lease(ORG, "sync", T0 + 1_000)).toBeNull();
+    expect(await claimSm8Lease(ORG, "sync", T0 + 1_000)).toEqual({ ok: false, why: "busy" });
+  });
+
+  it("a token the database refuses gives the lease straight back: a database error, never `already running`, and no start shown", async () => {
+    fake.before.sm8_sync_runs = (s) => (s.op === "update" && s.patch && "lease_token" in s.patch ? "fail" : undefined);
+    const out = await runSm8Sync(ORG, "manual", T0);
+    expect(out).toMatchObject({ ran: false, note: SM8_LEASE_UNSTAMPED });
+    expect(out.note).not.toBe(SM8_SYNC_BUSY);
+    expect(sm8AccessResult).not.toHaveBeenCalled();
+    expect(runRow().lease_until).toBeNull();
+    expect(runRow().last_started_at).toBeUndefined();
+    expect(runRow().last_trigger).toBeUndefined();
+    expect((console.error as jest.Mock).mock.calls.some((c) => String(c[0]).includes("database refused"))).toBe(true);
+  });
+
+  it("a sync's start is recorded with its token", async () => {
+    await runSm8Sync(ORG, "manual", T0);
+    expect(runRow()).toMatchObject({ last_trigger: "manual", last_started_at: iso(T0) });
   });
 
   it("the account switch holds the lease as `switch` and gives it back by token", async () => {
@@ -366,6 +390,8 @@ describe("a database without the new columns", () => {
     // a second run: still held the old way, and nothing more in the log
     await runSm8Sync(ORG, "kick", T0 + 200_000);
     expect(runRow().lease_until).toBeNull();
+    // its start is still recorded, without a token to ride on
+    expect(runRow()).toMatchObject({ last_trigger: "kick", last_started_at: iso(T0 + 200_000) });
     expect((console.warn as jest.Mock).mock.calls.filter((c) => String(c[0]).includes("lease_token"))).toHaveLength(1);
   });
 

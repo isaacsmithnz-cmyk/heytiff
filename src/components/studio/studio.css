@@ -10495,7 +10495,8 @@ html[data-ds-display] .dstudio.editing {
    way back in. Delete lives at the top right now, so nothing shares this row. */
 /* the ways back in, stacked so neither reads as the other's twin: Edit
    system on the system's own wash (the kind pill's recipe), Install details
-   on its state's tint with the count in the state's colour */
+   on its state's tint with the count beside it in the state's colour;
+   both centre their words (Isaac, 2026-09-28) */
 .dstudio .ds-zp-acts {
   display: flex;
   flex-direction: column;
@@ -10505,7 +10506,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-zp-act {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 8px;
   width: 100%;
   height: 36px;

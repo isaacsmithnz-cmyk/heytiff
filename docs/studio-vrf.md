@@ -77,8 +77,12 @@ What the pack holds (`vrf_pipe_tables.json`, p.139-144):
    - The charge on a drawn tree, checked against the outdoor's maximum
      (p.144, in `max_charge_kg`, the system total).
    - Red findings keep Done off.
-5. **Paper**: joints, headers and pipe by size go on the picklist, the
-   materials list and the sheet, with the charge on the sheet.
+5. **Paper**: done in the step-5 PR.
+   - The sheet and the Material picklist carry a VRF's pipe by size pair,
+     with metres once the pipework reaches every head.
+   - Its joints and headers are listed by part, on the sheet and in the
+     Install details equipment list.
+   - The charge on the sheet is the sized tree's, the book's p.143 figure.
 
 ## Readings the book leaves open
 

@@ -22,6 +22,8 @@ import { systemPairKw } from "./coverage";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 import { evaluateAdditionalCharge } from "./materials";
 import { moduleFor } from "./modules";
+import { allocationsOf, hasAllocations } from "./allocations";
+import { systemVrfTree } from "./vrf-tree";
 
 /* ─────────────────────────── row shapes ─────────────────────────── */
 
@@ -381,6 +383,36 @@ export function systemComponents(
   basis: SizingBasis
 ): ComponentRow[] {
   if (!pack) return [];
+
+  /* a VRF's charge is its sized tree's (vrf-tree.ts, MEES21K029 p.143): the
+     liquid metres per size, the farthest head and the connected index — no
+     one-run rule can stand in for it */
+  if (system.type === "vrf") {
+    const tree = systemVrfTree(pack, system, doc);
+    /* the builder's outdoor, else an older design's placed or chosen one */
+    const allocated = hasAllocations(system) ? allocationsOf(system).find((a) => a.role === "odu" && a.model)?.model : undefined;
+    const placed = doc.objects.find((o) => o.systemId === system.id && o.type === "unit" && o.props.role === "odu")?.props.model;
+    const oduModel = String(allocated ?? placed ?? system.settings.pairOdu ?? "");
+    const odu = pack.outdoor_units.find((o) => o.model === oduModel) ?? null;
+    if (!odu) return [];
+    const precharge = odu.precharged_kg ?? null;
+    const topupKg = tree?.drawn && tree.chargeG != null ? tree.chargeG / 1000 : null;
+    const charge: ComponentRow = {
+      id: "charge",
+      kind: "charge",
+      role: "Refrigerant charge",
+      name: odu.refrigerant,
+      sub: !tree?.drawn
+        ? "Pre-charged, pipe not drawn to every head"
+        : topupKg != null
+          ? `Pre-charged + ${topupKg.toFixed(2)} kg top-up`
+          : "Pre-charged, run length unknown",
+      value: precharge != null ? `${(precharge + (topupKg ?? 0)).toFixed(2)} kg` : "—",
+      icon: "droplet",
+      charge: { prechargeKg: precharge, topupKg },
+    };
+    return [oduRow(doc, pack, system, basis, odu), charge, ...choiceRows(doc, system, odu)];
+  }
 
   if (moduleFor(system.type).unitFlow === "per-room") {
     const mine = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");

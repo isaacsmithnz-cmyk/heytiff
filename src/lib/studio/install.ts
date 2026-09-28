@@ -54,6 +54,7 @@ import {
   type ComponentChoiceOption,
 } from "./components";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
+import { systemVrfTree } from "./vrf-tree";
 
 /* ─────────────────────────── shapes ─────────────────────────── */
 
@@ -904,6 +905,32 @@ function jointPipeRows(context: Context): EquipmentRow[] {
   });
 }
 
+/** A VRF's joints and headers, by part, from its sized tree (vrf-tree.ts).
+    Until the pipework reaches every head the tree is the zones in order, and
+    the row says so: the count can change once it is drawn. */
+export function vrfFittings(doc: DesignDocument, pack: DataPack, sys: DesignSystem): EquipmentRow[] {
+  return vrfFittingRows(contextOf(doc, pack, sys));
+}
+
+function vrfFittingRows(context: Context): EquipmentRow[] {
+  const tree = systemVrfTree(context.pack, context.sys, context.doc);
+  if (!tree) return [];
+  const byPart = new Map<string, { kind: "joint" | "header"; n: number }>();
+  for (const f of tree.fittings) {
+    if (!f.part) continue;
+    const cur = byPart.get(f.part);
+    if (cur) cur.n++;
+    else byPart.set(f.part, { kind: f.kind, n: 1 });
+  }
+  return [...byPart].map(([part, { kind, n }]) => ({
+    group: "Pipework" as const,
+    name: kind === "header" ? "Header" : "Joint",
+    model: part,
+    qty: n,
+    why: tree.drawn ? "By the index below it" : "From the zone order, until the pipework is drawn",
+  }));
+}
+
 /** Copper is never asked: the drawn runs say whether it is coil or hard
     drawn, and hard drawn brings its lagging. Nothing drawn yet says so. */
 function copperRows(context: Context): EquipmentRow[] {
@@ -1051,7 +1078,7 @@ export function equipmentList(doc: DesignDocument, pack: DataPack, sys: DesignSy
   const answers = installAnswers(doc, sys);
   const walk: Walk = { rows: unitRows(context), notes: [], answered: 0, total: 0 };
   for (const question of applicableSpecs(context)) walkQuestion(context, answers, question, false, walk);
-  walk.rows.push(...jointPipeRows(context), ...copperRows(context));
+  walk.rows.push(...jointPipeRows(context), ...vrfFittingRows(context), ...copperRows(context));
   const rows = mergeRows(walk.rows).sort(
     (a, b) => GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group)
   );

@@ -18,6 +18,7 @@ import { jointOnRun, nearestOnRuns } from "../joints";
 import { systemVrfTree } from "../vrf-tree";
 import { buildSystemGraph } from "../graph";
 import { combinationWord, systemFindings } from "../verdict";
+import { buildSummaryModel } from "../summary";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -223,5 +224,48 @@ describe("the verdict reads the drawing", () => {
     const codes = systemFindings(moved, pack, sys(moved)).map((f) => f.code);
     expect(codes).toContain("farthest-over");
     expect(combinationWord(moved, pack, sys(moved))).toBe("Fails");
+  });
+});
+
+describe("on paper: the sheet and the picklist", () => {
+  it("list the drawn p.144 pipe by size pair, the joints by part, and the book's 12.5 kg", () => {
+    const t = page144Drawn();
+    const model = buildSummaryModel(t.doc, pack);
+    const sys = model.systems.find((s) => s.systemId === t.systemId)!;
+    const pipe = sys.lines.filter((l) => l.name.endsWith("pair coil")).map((l) => [l.name, l.qty]);
+    expect(pipe).toEqual([
+      ["ø12.7 / ø28.58 pair coil", "40 m"],
+      ["ø12.7 / ø15.88 pair coil", "10 m"], // e, stepped up
+      ["ø9.52 / ø22.2 pair coil", "10 m"], // B carries P235
+      ["ø9.52 / ø15.88 pair coil", "40 m"], // C, D, a, b
+      ["ø9.52 / ø12.7 pair coil", "10 m"], // d, stepped up
+      ["ø6.35 / ø12.7 pair coil", "10 m"], // c
+    ]);
+    const fittings = sys.lines.filter((l) => l.name.startsWith("Joint")).map((l) => [l.name, l.qty]);
+    expect(fittings).toEqual([
+      ["Joint CMY-Y102LS-G2", "2"],
+      ["Joint CMY-Y102SS-G2", "2"],
+    ]);
+    expect(sys.lines.find((l) => l.name === "Additional refrigerant")?.qty).toBe("12500 g");
+
+    const pick = model.picklist.filter((r) => r.group === "pipe").map((r) => [r.name, r.qty]);
+    expect(pick).toContainEqual(["ø9.52 / ø15.88 pair coil", "40 m"]);
+    expect(pick).toContainEqual(["Joint CMY-Y102LS-G2", "2"]);
+    expect(model.picklist.find((r) => r.name === "Additional refrigerant")?.qty).toBe("12500 g");
+  });
+
+  it("before the drawing reaches every head: the sizes stand, with no metres to pick", () => {
+    const t = page144Drawn();
+    const cut = {
+      ...t.doc,
+      objects: t.doc.objects.filter(
+        (o) => !(o.type === "pipe-run" && (o.props.startAttach as { id?: string } | undefined)?.id === t.heads[40])
+      ),
+    };
+    const model = buildSummaryModel(cut, pack);
+    const sys = model.systems.find((s) => s.systemId === t.systemId)!;
+    expect(sys.lines.filter((l) => l.name.endsWith("pair coil")).every((l) => l.qty === "—")).toBe(true);
+    expect(sys.lines.some((l) => l.name === "Additional refrigerant")).toBe(false);
+    expect(model.picklist.some((r) => r.name.endsWith("pair coil"))).toBe(false);
   });
 });

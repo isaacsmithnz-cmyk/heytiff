@@ -17,7 +17,7 @@
    editing the prefix, and this is where that is seen. */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { BRAIN_TOOLS, toolDefs } from "@/lib/brain/tools";
+import { TIFF_TOOLS, toolDefs } from "@/lib/tiff/registry";
 import { DRAFT_TOOLS } from "./drafts";
 import type { Usage } from "./rows";
 
@@ -53,7 +53,7 @@ export type SearchPick = {
 type Block = { type: string; name?: string; id?: string; input?: Record<string, unknown> };
 
 function toolsFor(shape: Shape): unknown[] {
-  const all = [...toolDefs(BRAIN_TOOLS), ...DRAFT_TOOLS];
+  const all = [...toolDefs(TIFF_TOOLS), ...DRAFT_TOOLS];
   if (shape === "loaded") {
     return all.map((d, i) => (i === all.length - 1 ? { ...d, cache_control: EPHEMERAL } : d));
   }

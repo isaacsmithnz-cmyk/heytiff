@@ -79,6 +79,7 @@ import {
   isUnsupportedObject,
   ourSecretIn,
   planSubscriptions,
+  quietFrom,
   quietStampFrom,
   readHookList,
   readHookObjects,
@@ -838,7 +839,7 @@ export async function checkSm8HooksQuiet(orgId: string, opts: { budgetMs: number
     const stored = sm8HooksHealthOf({ ...row, quiet_since: null }, started);
     if (stored.state !== "ok") return { state: stored.state, counted: false, ensured: false };
 
-    const last = msOf(row.last_ping_at) ?? msOf(row.subscribed_at);
+    const last = quietFrom(msOf(row.last_ping_at), msOf(row.subscribed_at));
     let counted = false;
     let edits: number | null = null;
     if (last !== null && started - last > QUIET_AFTER_MS) {

@@ -486,6 +486,12 @@ describe("how healthy live updates are", () => {
     expect(health({ lastPingAt: null, subscribedAt: NOW - 23 * H, editedSince: 10 })).toEqual({ state: "ok" });
   });
 
+  it("gives a new subscription its own 24 hours: the later of the last ping and the subscribing", () => {
+    // a Reconnect an hour ago, after pings stopped 30 hours ago
+    expect(health({ lastPingAt: NOW - 30 * H, subscribedAt: NOW - H, editedSince: 50 })).toEqual({ state: "ok" });
+    expect(health({ lastPingAt: NOW - 30 * H, subscribedAt: NOW - 26 * H, editedSince: 50 })).toEqual({ state: "quiet", since: NOW - 26 * H });
+  });
+
   it("counts edits from ten minutes after the last ping, in the account's clock", () => {
     // 01:00 UTC is 11:00 in Sydney in September (AEST, +10)
     expect(quietStampFrom(Date.UTC(2026, 8, 28, 1, 0, 0), "Australia/Sydney")).toBe("2026-09-28 11:10:00");

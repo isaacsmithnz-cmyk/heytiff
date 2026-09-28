@@ -266,6 +266,17 @@ describe("the night: checkSm8HooksQuiet", () => {
     expect(db.sm8_webhooks[0].quiet_since).toBe(iso(NOW));
   });
 
+  it("gives a Reconnect its own 24 hours: no count, and last night's mark cleared", async () => {
+    db.sm8_webhooks = [row({ last_ping_at: iso(NOW - 30 * HOUR), subscribed_at: iso(NOW - HOUR), quiet_since: iso(NOW - 6 * HOUR) })];
+    counts = { [TABLES[0]]: 50 };
+    /* the screen: the old mark no longer says quiet */
+    expect(await readSm8HooksHealth(ORG, NOW)).toBeNull();
+    /* the night: nothing counted, and the mark goes */
+    expect(await check()).toEqual({ state: "ok", counted: false, ensured: false });
+    expect(reads.filter((t) => TABLES.includes(t))).toEqual([]);
+    expect(db.sm8_webhooks[0].quiet_since).toBeNull();
+  });
+
   it("never marks over a ping that came after it read the row", async () => {
     db.sm8_webhooks = [quietRow()];
     counts = { [TABLES[0]]: 10 };

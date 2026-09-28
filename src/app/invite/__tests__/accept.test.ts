@@ -408,26 +408,41 @@ describe("the guards still hold", () => {
     expect(to.searchParams.get("returnTo")).toBe("/invite/accept?token=tok-1");
   });
 
-  /* A convenience, not a gate: a token matching nothing lands on the same
-     screen it always did rather than an error, because this branch runs on
-     anonymous traffic. */
-  it("still sends them to sign up when the token matches nothing", async () => {
+  /* A dead link used to fall through to the sign-up screen, so a stranger
+     made an account and only then learned the link was dead. It says so
+     first now, and asks Auth0 nothing. */
+  it("tells an anonymous visitor a dead link is dead, before any sign-up", async () => {
     sessionValue = null;
     inviteRow = null;
 
     const to = new URL(res_location(await GET(req())));
 
-    expect(to.searchParams.get("login_hint")).toBeNull();
-    expect(to.searchParams.get("screen_hint")).toBe("signup");
-    expect(to.searchParams.get("returnTo")).toBe("/invite/accept?token=tok-1");
+    expect(to.pathname).toBe("/invite/error");
+    expect(to.searchParams.get("reason")).toBe("not_found");
+    expect(to.searchParams.get("token")).toBe("tok-1");
+    expect(mgmt.calls).toEqual([]);
   });
 
   it("refuses an invite addressed to somebody else — and seats nothing", async () => {
     sessionValue = { user: { sub: USER, email: "someone.else@example.com" } };
     const res = await GET(req());
-    expect(res.headers.get("location")).toContain("/invite/error");
+    const to = new URL(res_location(res));
+    expect(to.pathname).toBe("/invite/error");
+    expect(to.searchParams.get("reason")).toBe("wrong_account");
     expect(calls.filter((c) => c.table === "memberships")).toHaveLength(0);
     expect(staffInserts()).toHaveLength(0);
+  });
+
+  /* The screen reads the invited address off the row by token, and the
+     signed-in one off the session. Neither belongs in a URL that lands in
+     history, logs and referrers — and a page that prints words from its own
+     query string will print anyone's. */
+  it("puts neither address in the refusal's URL", async () => {
+    sessionValue = { user: { sub: USER, email: "someone.else@example.com" } };
+    const to = res_location(await GET(req()));
+    expect(to).not.toContain("someone.else");
+    expect(to).not.toContain("newhire");
+    expect(to).not.toContain("msg=");
   });
 
   it("accepts when only the letter-case differs — Auth0 relays the IdP's casing", async () => {
@@ -443,14 +458,14 @@ describe("the guards still hold", () => {
   it("refuses an already-accepted invite", async () => {
     inviteRow = validInvite({ accepted_at: new Date().toISOString() });
     const res = await GET(req());
-    expect(res.headers.get("location")).toContain("/invite/error");
+    expect(new URL(res_location(res)).searchParams.get("reason")).toBe("used");
     expect(staffInserts()).toHaveLength(0);
   });
 
   it("refuses an expired invite", async () => {
     inviteRow = validInvite({ expires_at: new Date(Date.now() - 1000).toISOString() });
     const res = await GET(req());
-    expect(res.headers.get("location")).toContain("/invite/error");
+    expect(new URL(res_location(res)).searchParams.get("reason")).toBe("expired");
     expect(staffInserts()).toHaveLength(0);
   });
 
@@ -597,6 +612,27 @@ describe("a new invitee sets a password instead of signing up", () => {
     expect(updateSessionSpy).not.toHaveBeenCalled();
   });
 
+  /* The password screen's Sign in button opens a bare /auth/login. The address
+     rides a cookie past it so that sign-in is filled in; scoped to /auth,
+     HttpOnly, and no longer-lived than the ticket. */
+  it("leaves the invited address for the sign-in after the password screen", async () => {
+    mgmt.find = [{ ok: true, value: [] }];
+    mgmt.create = { ok: true, value: { userId: NEW_USER } };
+    mgmt.ticket = { ok: true, value: TICKET };
+
+    const res = await GET(req());
+
+    const hint = res.cookies.get("ht_invitee");
+    expect(hint?.value).toBe(EMAIL);
+    expect(hint).toMatchObject({ httpOnly: true, path: "/auth", maxAge: 3600 });
+  });
+
+  it("leaves no address behind on any other door", async () => {
+    mgmt.find = [{ ok: true, value: [{ userId: "google-oauth2|123", loginsCount: 4 }] }];
+    const res = await GET(req());
+    expect(res.cookies.get("ht_invitee")).toBeUndefined();
+  });
+
   /* A ticket is a password reset. Handing one to whoever holds an invitation
      link, for a login somebody has actually used, would be an account takeover. */
   it("sends somebody who has signed in before to sign in, and mints nothing", async () => {
@@ -680,13 +716,34 @@ describe("a new invitee sets a password instead of signing up", () => {
     expect(memberships()).toHaveLength(0);
   });
 
-  it("makes nobody a login for an invitation that has expired", async () => {
+  /* It used to fall back to the sign-up screen, and a new person made an
+     account only to be told on the other side that the link had expired. */
+  it("makes nobody a login for an expired invitation, and says so first", async () => {
     inviteRow = validInvite({ expires_at: new Date(Date.now() - 1000).toISOString() });
 
     const to = new URL(res_location(await GET(req())));
 
     expect(mgmt.calls).toEqual([]);
-    expect(to.searchParams.get("screen_hint")).toBe("signup");
+    expect(to.pathname).toBe("/invite/error");
+    expect(to.searchParams.get("reason")).toBe("expired");
+    expect(to.searchParams.get("screen_hint")).toBeNull();
+  });
+
+  /* Accepted at the click, then the week ran out before they set a password:
+     the invitation is spent but the login it made is theirs, so the click
+     still opens their password screen. */
+  it("still opens the password screen for an accepted invitation past its date", async () => {
+    inviteRow = validInvite({
+      accepted_at: "2026-09-16T01:00:00Z",
+      expires_at: new Date(Date.now() - 1000).toISOString(),
+    });
+    mgmt.find = [{ ok: true, value: [{ userId: NEW_USER, loginsCount: 0 }] }];
+    mgmt.ticket = { ok: true, value: TICKET };
+
+    const res = await GET(req());
+
+    expect(res.headers.get("location")).toBe(TICKET);
+    expect(accepted()).toHaveLength(0);
   });
 
   /* The address is read off the invitation row the token found — a query

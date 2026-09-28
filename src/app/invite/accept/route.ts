@@ -7,6 +7,8 @@ import {
   createPasswordUser,
   findUsersByEmail,
 } from "@/lib/integrations/auth0-management";
+import { setInviteeHint } from "@/lib/invite-hint";
+import type { InviteProblemReason } from "@/components/start/invite-problem";
 
 /* A staff card can predate its login — imported from ServiceM8/Xero, or
    created ahead of onboarding — sitting with user_id null until its person
@@ -219,7 +221,19 @@ async function setPasswordRedirect(
     await acceptInvitation(invite, userId, { user: { email: invite.email } });
   }
 
-  return NextResponse.redirect(ticket.value);
+  /* Their address rides a cookie past Auth0's password screen, so the sign-in
+     its button opens is filled in (lib/invite-hint.ts). */
+  return setInviteeHint(NextResponse.redirect(ticket.value), invite.email);
+}
+
+/** The invitation screen that says why this link cannot be accepted. The
+    REASON travels, never the words or an address — the page reads those off
+    the invitation itself (app/invite/error/page.tsx). */
+function problemRedirect(request: NextRequest, reason: InviteProblemReason, token: string): NextResponse {
+  const to = new URL("/invite/error", request.url);
+  to.searchParams.set("reason", reason);
+  to.searchParams.set("token", token);
+  return NextResponse.redirect(to);
 }
 
 export async function GET(request: NextRequest) {
@@ -257,37 +271,39 @@ export async function GET(request: NextRequest) {
        `screen_hint` already rides). It is Auth0's own field, so the address
        leaves us only to the identity provider that is about to ask for it.
 
-       BEST EFFORT, AND SILENT WHEN IT MISSES. A token that matches nothing
-       falls through to exactly the old redirect rather than an error: the
-       hint is a convenience, and this branch runs on anonymous traffic where
-       a dead token should still land on the same screen it always did. The
-       row is read by token alone — no filter on expiry or acceptance —
-       because a spent invitation's address is still the right one to prefill,
-       and it is the guard further down, not this hint, that decides whether
-       the invitation works. */
+       The row is read by token alone — no filter on expiry or acceptance —
+       because an accepted invitation's address is still the right one to
+       prefill; what a dead or expired one gets is decided just below. */
     const { data: invited } = await supabaseAdmin
       .from("invitations")
       .select("*")
       .eq("token", token)
       .maybeSingle();
 
-    if (invited) {
-      const door = await setPasswordRedirect(request, invited as Invitation, token);
-      if (door) return door;
+    /* A LINK THAT CANNOT WORK SAYS SO BEFORE ANYBODY MAKES AN ACCOUNT.
+
+       A dead token, or an invitation that ran out before anyone accepted it,
+       used to fall through to the sign-up screen — so a new person chose a
+       password, made a login, and only then met "This invite has expired".
+       Neither answer depends on who is asking, so it is given here, first.
+       An ACCEPTED invitation still goes on: its unused login gets a fresh
+       ticket, and anyone else is sent to sign in. */
+    if (!invited) return problemRedirect(request, "not_found", token);
+    if (!invited.accepted_at && new Date(invited.expires_at as string) < new Date()) {
+      return problemRedirect(request, "expired", token);
     }
+
+    const door = await setPasswordRedirect(request, invited as Invitation, token);
+    if (door) return door;
 
     const to = new URL("/auth/login", request.url);
     to.searchParams.set("screen_hint", "signup");
-    const hint = invited?.email as string | undefined;
-    if (hint) to.searchParams.set("login_hint", hint);
+    to.searchParams.set("login_hint", invited.email as string);
     // set LAST and via searchParams, so its own `?token=` is encoded rather
     // than read as another parameter of this URL
     to.searchParams.set("returnTo", `/invite/accept?token=${token}`);
     return NextResponse.redirect(to);
   }
-
-  const errRedirect = (msg: string) =>
-    NextResponse.redirect(new URL(`/invite/error?msg=${encodeURIComponent(msg)}`, request.url));
 
   const { data: invite, error } = await supabaseAdmin
     .from("invitations")
@@ -295,16 +311,14 @@ export async function GET(request: NextRequest) {
     .eq("token", token)
     .single();
 
-  if (error || !invite) return errRedirect("Invite not found or already used.");
-  if (invite.accepted_at) return errRedirect("This invite has already been accepted.");
-  if (new Date(invite.expires_at) < new Date()) return errRedirect("This invite has expired.");
+  if (error || !invite) return problemRedirect(request, "not_found", token);
+  if (invite.accepted_at) return problemRedirect(request, "used", token);
+  if (new Date(invite.expires_at) < new Date()) return problemRedirect(request, "expired", token);
   // Case-insensitive: the row is stored lowercased, but Auth0 relays the
-  // identity provider's casing. Only the comparison normalises — the error
-  // message below shows each address as its own side spelt it.
+  // identity provider's casing. Only the comparison normalises — the screen
+  // shows each address as its own side spelt it.
   if (invite.email.toLowerCase() !== session.user.email?.toLowerCase()) {
-    return errRedirect(
-      `This invite was sent to ${invite.email}. You're signed in as ${session.user.email}.`
-    );
+    return problemRedirect(request, "wrong_account", token);
   }
 
   /* AN INVITATION MAY NOT REWRITE AN EXISTING MEMBERSHIP'S ROLE.

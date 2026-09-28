@@ -222,6 +222,12 @@ export type DictationState = {
   interim: string;
   /** Bind to the level-meter element; the meter writes to it every frame. */
   barsRef: React.RefObject<HTMLSpanElement | null>;
+  /** Hand it what shows the quiet running out (`quietEnd`), as a ref
+      callback: the meter writes `--quiet`, 0 to 1, to it every frame. */
+  bindQuiet: (el: HTMLElement | null) => void;
+  /** Start the quiet over, as if they had just spoken: a tap that says
+      "I'm still going". */
+  keepListening: () => void;
   start: () => void;
   stop: () => void;
   /** Stop, but keep the words for the box rather than routing them. */
@@ -235,6 +241,8 @@ export type DictationState = {
 export function useDictation({
   onTranscript,
   onError,
+  quietEnd,
+  onQuiet,
 }: {
   /* TWO WAYS A RECORDING CAN END, and the caller still has to tell them
      apart. The capture card this was written for put the words in its box
@@ -253,6 +261,16 @@ export function useDictation({
      ignore it entirely, and always could. */
   onTranscript: (text: string, info: { capped: boolean }) => void;
   onError?: (message: string) => void;
+  /* ENDING ON QUIET (the Tiff modal, 2026-09-28: "having to click done kind
+     of takes away from the conversation flow"). How long a quiet, in ms,
+     after the voice was last heard, ends this take, given the words heard so
+     far and whether the live transport is reading them; null keeps
+     listening. Read every frame, so it is a policy, not a timer. When the
+     quiet runs out `onQuiet` is called, once per quiet: speaking again
+     re-arms it. The hook never stops itself on quiet; the caller does what
+     its Done does. */
+  quietEnd?: (words: string, how: { live: boolean }) => number | null;
+  onQuiet?: () => void;
 }): DictationState {
   const [recording, setRecording] = useState(false);
   const [arming, setArming] = useState(false);
@@ -317,6 +335,15 @@ export function useDictation({
      frame — a clock touched during render tears hydration for the whole
      tree. */
   const lastLoud = useRef(0);
+  const quietRef = useRef<HTMLElement | null>(null);
+  /** The words heard so far, for `quietEnd`, which reads them every frame. */
+  const heardText = useRef("");
+  /** This quiet has already called `onQuiet`. Cleared by the voice. */
+  const quietFired = useRef(false);
+  const hear = (text: string) => {
+    heardText.current = text;
+    setInterim(text);
+  };
 
   /* The callbacks live in a ref so the recorder's own handlers always see the
      current ones without the effect below re-running and dropping the mic.
@@ -334,9 +361,9 @@ export function useDictation({
      on a later task, and this hook spends most of its life inside promises
      (getUserMedia, the token fetch, `handle.stop()`, the upload) that resolve
      on microtasks — exactly the window that would leave stale. */
-  const cbs = useRef({ onTranscript, onError });
+  const cbs = useRef({ onTranscript, onError, quietEnd, onQuiet });
   useInsertionEffect(() => {
-    cbs.current = { onTranscript, onError };
+    cbs.current = { onTranscript, onError, quietEnd, onQuiet };
   });
 
   useEffect(() => {
@@ -361,6 +388,7 @@ export function useDictation({
 
   const stopMeter = () => {
     barsRef.current?.style.setProperty("--lvl", "0");
+    quietRef.current?.style.setProperty("--quiet", "0");
     if (!meter.current) return;
     cancelAnimationFrame(meter.current.raf);
     void meter.current.ctx.close().catch(() => {});
@@ -394,6 +422,20 @@ export function useDictation({
         }
         // straight to the DOM, never through React — this runs every frame
         barsRef.current?.style.setProperty("--lvl", level.toFixed(3));
+        const policy = cbs.current.quietEnd;
+        if (policy) {
+          /* Only after a voice: a take that has heard nobody yet is waiting
+             for them to start, not for them to finish. */
+          const heard = loudFrames.current >= 3 && lastLoud.current > 0;
+          const limit = heard ? policy(heardText.current, { live: live.current !== null }) : null;
+          const quiet = level > LOUD_ENOUGH ? 0 : now - lastLoud.current;
+          if (quiet === 0) quietFired.current = false;
+          quietRef.current?.style.setProperty("--quiet", limit ? Math.min(1, quiet / limit).toFixed(3) : "0");
+          if (limit && quiet >= limit && !quietFired.current) {
+            quietFired.current = true;
+            cbs.current.onQuiet?.();
+          }
+        }
         /* NOTHING HERE REACHES REACT. A crossing of a quiet threshold used
            to flip a `hearing` flag for a label under the clock — a state
            update, and a re-render of the whole recording surface, every time
@@ -495,7 +537,7 @@ export function useDictation({
         tap,
         token,
         keyterms: keytermsOf(keyterms),
-        onText: setInterim,
+        onText: hear,
       });
       /* Stopped or discarded while the handshake was in flight — the socket
          is now nobody's, so close it rather than leak a paid stream. */
@@ -524,7 +566,7 @@ export function useDictation({
     if (arm.current) arm.current.off = true;
     const mineArm = { off: false };
     arm.current = mineArm;
-    setInterim("");
+    hear("");
     setArming(true);
     /* Cleared the moment the recorder starts, and by every way out below. If
        it fires, this attempt is over: the flag is what stops a microphone
@@ -577,7 +619,8 @@ export function useDictation({
         capped.current = false;
         loudFrames.current = 0;
         meterRan.current = false;
-        setInterim("");
+        quietFired.current = false;
+        hear("");
         startMeter(stream);
         const chunks: BlobPart[] = [];
         rec.ondataavailable = (e) => {
@@ -595,7 +638,7 @@ export function useDictation({
           if (mine.discard) {
             handle?.cancel();
             stream.getTracks().forEach((t) => t.stop());
-            setInterim("");
+            hear("");
             clearRun();
             /* AND ONLY NOW, if this was a restart. Everything above had to
                happen first: the meter, the tracks and `recording` are shared
@@ -656,7 +699,7 @@ export function useDictation({
                last sentence off a stream that is still open. */
             stream.getTracks().forEach((t) => t.stop());
             setTranscribing(false);
-            setInterim("");
+            hear("");
           });
         };
         recorder.current = rec;
@@ -794,6 +837,13 @@ export function useDictation({
     seconds,
     interim,
     barsRef,
+    bindQuiet: (el: HTMLElement | null) => {
+      quietRef.current = el;
+    },
+    keepListening: () => {
+      lastLoud.current = performance.now();
+      quietFired.current = false;
+    },
     start,
     stop,
     handOver,

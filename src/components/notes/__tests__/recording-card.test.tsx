@@ -21,6 +21,8 @@ const engine = (): DictationState => ({
   seconds: 3,
   interim: "",
   barsRef: createRef(),
+  bindQuiet: jest.fn(),
+  keepListening: jest.fn(),
   start: jest.fn(),
   stop: jest.fn(),
   handOver: jest.fn(),

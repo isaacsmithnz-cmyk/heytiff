@@ -1068,6 +1068,17 @@ does what the cross does, and the conversation stays ("done will um, finish
 the chat"). The list keeps to its newest turn when the face opens above it
 and takes its room, unless you have scrolled back through it yourself.
 
+**Your turn ends on quiet** (2026-09-28: "having to click done kind of takes
+away from the conversation flow"). After you have spoken, a quiet sends your
+words as Done would: 1.5 s after a finished sentence, 2 s after words with no
+full stop yet, 4 s when you stopped on "and", "the", "um" or a comma, and never
+while the live words are still empty. Done fills from its left, in ink at 12%,
+as the quiet runs out: it is the meter's own reading, written every frame, so
+it is feedback with no transition of its own. Speaking empties it; a tap in the
+box starts it over; a quiet while you are in the field sends nothing, because
+you clicked in to type. Done still works, and nothing needs it. The timings
+and their reasons are in `components/tiff/modal/quiet.ts`.
+
 It is ink, the frame's `--ink2`, for everyone ("dark, everywhere"), and about
 1.3 times the light modal it replaces ("make the modal bigger approximately
 thirty percent"): 780 wide, with every size the step above the old one on the

@@ -4525,6 +4525,14 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-conn > * { grid-column:1 / -1; margin:0; }
 .fg .int-conn > .int-connhead { grid-column:1; grid-row:1; margin:0; }
 .fg .int-conn > .int-act { grid-column:2; grid-row:1; justify-content:flex-end; }
+/* the account's name, and beside it its health: a word in the state's
+   colour led by a dot of the same colour — no box, state is a word */
+.fg .int-connname { display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; }
+.fg .int-health { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600; }
+.fg .int-health i { width:8px; height:8px; border-radius:var(--r-pill); background:currentColor; }
+.fg .int-health.ok { color:var(--ok-t); }
+.fg .int-health.warn { color:var(--warn-t); }
+.fg .int-health.bad { color:var(--bad-t); }
 .fg .int-connfacts { display:flex; flex-wrap:wrap; gap:4px 24px; margin:8px 0 0; }
 .fg .int-connfacts > div { display:flex; align-items:baseline; gap:8px; }
 .fg .int-connfacts dt { font-size:12px; font-weight:500; color:var(--gray400); }

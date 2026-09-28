@@ -646,11 +646,17 @@ describe("sending files to ServiceM8", () => {
     expect(screen.getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
   });
 
+  it("offers Off, Paused and On — Trial run is retired", () => {
+    render(<Servicem8Screen connection={toView(row())} {...ready} writes={writes()} />);
+    const group = screen.getByRole("radiogroup", { name: "Sending files to ServiceM8" });
+    expect(within(group).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Off", "Paused", "On"]);
+  });
+
   it("switches on the owner's press and reloads what the screen says", async () => {
     const user = userEvent.setup();
     render(<Servicem8Screen connection={toView(row())} {...ready} writes={writes()} />);
-    await user.click(screen.getByRole("radio", { name: "Trial run" }));
-    expect(setWriteMode).toHaveBeenCalledWith("trial");
+    await user.click(screen.getByRole("radio", { name: "On" }));
+    expect(setWriteMode).toHaveBeenCalledWith("live");
     await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
 
@@ -1053,5 +1059,60 @@ describe("sending files, notes and bookings", () => {
     render(<Servicem8Screen connection={live} waitingWrites={2} waitingBookings={0} {...ready} />);
     await openConfirm(user);
     expect(screen.getByText("2 files still waiting to go to ServiceM8 are cancelled.")).toBeInTheDocument();
+  });
+});
+
+/* ── the connection's health, beside the name ──
+   Isaac, 2026-09-28: "some sort of green signalling to show that it is
+   connected, and working". Green only when it is both; each way short of
+   that says which, in the colour that asks for a person. */
+describe("the connection's health", () => {
+  const healthy = syncView([JOBS_DONE]);
+  const word = () => document.querySelector(".int-health");
+
+  it("is green, and says so, when the grant is whole, the read works and the last sync finished", () => {
+    render(
+      <Servicem8Screen
+        connection={toView(row())}
+        reach={{ ok: true, account: { name: ACCOUNT, timezoneName: "Australia/Sydney" } }}
+        sync={healthy}
+        {...ready}
+      />
+    );
+    expect(screen.getByText("Connected and working")).toBeInTheDocument();
+    expect(word()!.className).toContain("ok");
+  });
+
+  it("says a sync is running, still green", () => {
+    render(
+      <Servicem8Screen connection={toView(row())} sync={{ ...healthy, lastRun: { ...healthy.lastRun!, running: true } }} {...ready} />
+    );
+    expect(screen.getByText("Connected, syncing now")).toBeInTheDocument();
+    expect(word()!.className).toContain("ok");
+  });
+
+  it("is not green when the last sync didn't finish", () => {
+    render(
+      <Servicem8Screen connection={toView(row())} sync={{ ...healthy, lastRun: { ...healthy.lastRun!, ok: false } }} {...ready} />
+    );
+    expect(screen.getByText("Connected, last sync didn't finish")).toBeInTheDocument();
+    expect(word()!.className).toContain("warn");
+  });
+
+  it("is not green when the live read failed", () => {
+    render(<Servicem8Screen connection={toView(row())} reach={{ ok: false, error: "401" }} sync={healthy} {...ready} />);
+    expect(screen.getByText("Connected, but can't be read")).toBeInTheDocument();
+    expect(word()!.className).toContain("warn");
+  });
+
+  it("asks for a reconnect in the bad colour", () => {
+    render(<Servicem8Screen connection={toView(row({ status: "needs_reauth" }))} {...ready} />);
+    expect(screen.getByText("Needs reconnecting")).toBeInTheDocument();
+    expect(word()!.className).toContain("bad");
+  });
+
+  it("says nothing before there is a connection", () => {
+    render(<Servicem8Screen connection={null} {...ready} />);
+    expect(word()).toBeNull();
   });
 });

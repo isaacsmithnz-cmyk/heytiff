@@ -191,6 +191,25 @@ export function Servicem8Screen({
   const [permsOpen, setPermsOpen] = useState(!connected || attention);
   const readCount = SM8_SCOPES.length;
   const writeCount = asks.length - readCount;
+  /* THE CONNECTION'S HEALTH, AS ONE WORD IN ITS STATE'S COLOUR (Isaac,
+     2026-09-28: "some sort of green signalling to show that it is connected,
+     and working"). Green is earned, not assumed: it needs the grant whole,
+     the live read to have worked, and the last sync to have finished. Each
+     way short of that says which, in the colour that asks for a person. */
+  const health: { tone: "ok" | "warn" | "bad"; word: string } | null = !connected
+    ? null
+    : connection.status === "needs_reauth"
+      ? { tone: "bad", word: "Needs reconnecting" }
+      : reach && !reach.ok
+        ? { tone: "warn", word: "Connected, but can't be read" }
+        : connection.missing.length > 0
+          ? { tone: "warn", word: "Connected, missing access" }
+          : sync?.lastRun?.running
+            ? { tone: "ok", word: "Connected, syncing now" }
+            : sync?.lastRun && sync.lastRun.ok === false
+              ? { tone: "warn", word: "Connected, last sync didn't finish" }
+              : { tone: "ok", word: "Connected and working" };
+
   const permsLine = [
     `${readCount} reads${writeCount > 0 ? ` and ${writeCount} write${writeCount === 1 ? "" : "s"}` : ""}${
       connected ? (missingCount > 0 ? `, ${missingCount} not granted yet.` : ", all granted.") : "."
@@ -287,7 +306,17 @@ export function Servicem8Screen({
           <div className="card2 int-conn">
             <div className="c2h int-connhead">
               <div style={{ minWidth: 0 }}>
-                <b>{connected ? connection.tenantName ?? "Connected" : "Not connected"}</b>
+                <div className="int-connname">
+                  <b>{connected ? connection.tenantName ?? "Connected" : "Not connected"}</b>
+                  {health && (
+                    <span className={`int-health ${health.tone}`}>
+                      {/* the dot is the same news as the word, for the eye
+                          that scans the page before it reads it */}
+                      <i aria-hidden="true" />
+                      {health.word}
+                    </span>
+                  )}
+                </div>
                 <em>
                   {connected
                     ? attention
@@ -469,7 +498,7 @@ function SyncLine({ sync }: { sync: Sm8SyncStatusView }) {
         } so far. Each sync picks up where the last one stopped.`
       : sync.lastRun?.finishedAt
         ? `Last synced${hydrated ? ` ${agoLabel(sync.lastRun.finishedAt)}` : ""}${
-            sync.lastRun.note ? `. ${sync.lastRun.note}` : ""
+            sync.lastRun.note ? `. ${sync.lastRun.note}` : "."
           }`
         : "Waiting for the first sync.";
 

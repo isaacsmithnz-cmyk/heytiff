@@ -115,13 +115,17 @@ export async function syncServiceM8NowAction(): Promise<IntegrationResult> {
   return { ok: true, note: outcome.note };
 }
 
-/** The owner's switch for writing to ServiceM8: off, a trial run, paused,
-    or on. The mode arrives from a browser, so it is read as a choice and
-    anything that isn't one of the four is refused rather than guessed at.
-    Turning it on doesn't grant anything by itself: the screen then asks for
-    the reconnect that gives HeyTiff the permission. Off says what it
-    cancelled. On and Trial run drain: what was waiting goes behind the
-    answer. */
+/** The owner's switch for writing to ServiceM8: off, paused, or on. The
+    mode arrives from a browser, so it is read as a choice and anything that
+    isn't one is refused rather than guessed at. Turning it on doesn't grant
+    anything by itself: the screen then asks for the reconnect that gives
+    HeyTiff the permission. Off says what it cancelled. On drains: what was
+    waiting goes behind the answer.
+
+    TRIAL RUN IS RETIRED (Isaac, 2026-09-28). It was the way to watch sending
+    work on a live account before it touched one; notes and bookings have
+    since gone for real, so it can no longer be chosen. The engine still
+    understands the mode, so a row sent as a trial still reads as one. */
 export async function setServiceM8WriteModeAction(mode: string): Promise<IntegrationResult> {
   const startedAt = Date.now();
   const ctx = await ownerOrgId();
@@ -130,9 +134,10 @@ export async function setServiceM8WriteModeAction(mode: string): Promise<Integra
 
   const want = readWriteMode(mode);
   if (want !== mode) return { ok: false, error: "That isn't a setting." };
+  if (want === "trial") return { ok: false, error: "Trial run has been retired. Choose Off, Paused or On." };
   const changed = await setSm8WriteMode(ctx.orgId, want);
   if (!changed.ok) return { ok: false, error: "Couldn't change it. Reload the page and try again." };
-  if (want === "live" || want === "trial") drainSm8WritesAfterResponse(ctx.orgId, { startedAt });
+  if (want === "live") drainSm8WritesAfterResponse(ctx.orgId, { startedAt });
   revalidate();
   /* files, notes and bookings apart: with no notes and no bookings, today's
      words exactly */

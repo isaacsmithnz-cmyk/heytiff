@@ -819,10 +819,11 @@ async function editedSince(orgId: string, stamp: string): Promise<number | null>
        `ok` and the last ping (or the subscribing) is more than a day old,
        the count: covered records edited since quietStampFrom, in the
        account's clock;
-    3. quiet: quiet_since marked, only where it isn't already and no ping
-       has come since the row was read (a ping clears the mark and moves
-       last_ping_at, and must win), then a reconcile in what is left of
-       `budgetMs`. `ok`: a mark from an earlier night cleared.
+    3. quiet: quiet_since marked (or an earlier mark kept) by a
+       compare-and-set on the row as read, so a ping that came meanwhile (it
+       clears the mark and moves last_ping_at) wins — the answer is then
+       `ok`, with no reconcile — and otherwise a reconcile in what is left
+       of `budgetMs`. `ok`: a mark from an earlier night cleared.
     Any other state is the reconcile's to put right, and the screen's to
     say. Nothing on any switch but `on`. Never throws. */
 export async function checkSm8HooksQuiet(orgId: string, opts: { budgetMs: number; clock?: () => number }): Promise<Sm8QuietCheck> {
@@ -866,11 +867,20 @@ export async function checkSm8HooksQuiet(orgId: string, opts: { budgetMs: number
       return { state: health.state, counted, ensured: false };
     }
 
-    if (row.quiet_since === null) {
-      const mark = supabaseAdmin.from(WEBHOOKS).update({ quiet_since: iso(started) }).eq("org_id", orgId).is("quiet_since", null);
-      const { error: marked } = await (row.last_ping_at === null ? mark.is("last_ping_at", null) : mark.eq("last_ping_at", row.last_ping_at));
-      if (marked) console.error(`[sm8] live updates for org ${orgId}: couldn't mark it quiet: ${marked.message}`);
+    /* THE MARK IS A COMPARE-AND-SET on the row as it was read: set (or kept)
+       only where no ping has come since — a ping moves last_ping_at and
+       clears quiet_since. Matching nothing, it lost to a ping: that is
+       `ok`, and there is nothing to reconcile. */
+    const since = row.quiet_since ?? iso(started);
+    let mark = supabaseAdmin.from(WEBHOOKS).update({ quiet_since: since }).eq("org_id", orgId);
+    mark = row.quiet_since === null ? mark.is("quiet_since", null) : mark.eq("quiet_since", row.quiet_since);
+    mark = row.last_ping_at === null ? mark.is("last_ping_at", null) : mark.eq("last_ping_at", row.last_ping_at);
+    const { data: markedRows, error: marked } = await mark.select("org_id");
+    if (marked) {
+      console.error(`[sm8] live updates for org ${orgId}: couldn't mark it quiet: ${marked.message}`);
+      return { state: "unread", counted, ensured: false };
     }
+    if ((markedRows ?? []).length === 0) return { state: "ok", counted, ensured: false };
     const left = started + opts.budgetMs - clock();
     const ensured = left > 0 ? (await ensureSm8Webhooks(orgId, { budgetMs: left, clock })).ran : false;
     return { state: "quiet", counted, ensured };

@@ -284,16 +284,30 @@ describe("the night: checkSm8HooksQuiet", () => {
       /* sm8_take_ping: last_ping_at moves on, quiet_since cleared */
       Object.assign(db.sm8_webhooks[0], { last_ping_at: iso(NOW - 1_000), quiet_since: null });
     };
-    await check();
+    /* the ping won: not quiet, and no reconcile for it */
+    expect(await check()).toEqual({ state: "ok", counted: true, ensured: false });
     expect(db.sm8_webhooks[0].quiet_since).toBeNull();
     expect(marks()).toHaveLength(1);
+    expect(sm8AccessResult).not.toHaveBeenCalled();
+  });
+
+  it("an old mark a ping cleared meanwhile loses too: ok, no reconcile", async () => {
+    db.sm8_webhooks = [quietRow({ quiet_since: iso(NOW - 24 * HOUR) })];
+    counts = { [TABLES[0]]: 10 };
+    betweenReadAndWrite = () => {
+      Object.assign(db.sm8_webhooks[0], { last_ping_at: iso(NOW - 1_000), quiet_since: null });
+    };
+    expect(await check()).toEqual({ state: "ok", counted: true, ensured: false });
+    expect(db.sm8_webhooks[0].quiet_since).toBeNull();
+    expect(sm8AccessResult).not.toHaveBeenCalled();
   });
 
   it("leaves a mark it already made, and clears an old one once it isn't quiet", async () => {
     db.sm8_webhooks = [quietRow({ quiet_since: iso(NOW - 24 * HOUR) })];
     counts = { [TABLES[0]]: 10 };
     expect((await check()).state).toBe("quiet");
-    expect(marks()).toEqual([]);
+    /* kept as it was: the compare-and-set writes the mark it read */
+    expect(marks().map((w) => w.patch)).toEqual([{ quiet_since: iso(NOW - 24 * HOUR) }]);
     expect(db.sm8_webhooks[0].quiet_since).toBe(iso(NOW - 24 * HOUR));
 
     db.sm8_webhooks = [row({ quiet_since: iso(NOW - 24 * HOUR), subscribed_at: iso(NOW - HOUR), last_ping_at: null })];

@@ -10495,8 +10495,10 @@ html[data-ds-display] .dstudio.editing {
    way back in. Delete lives at the top right now, so nothing shares this row. */
 /* the ways back in, stacked so neither reads as the other's twin: Edit
    system on the system's own wash (the kind pill's recipe), Install details
-   on its state's tint with the count beside it in the state's colour;
-   both centre their words (Isaac, 2026-09-28) */
+   on its state's tint with the count in the state's colour. The words
+   centre on the button and the count sits at its right edge (Isaac,
+   2026-09-28): three columns, the outer two equal, so the label stays
+   centred while the count has room and gives way only when it has not */
 .dstudio .ds-zp-acts {
   display: flex;
   flex-direction: column;
@@ -10504,9 +10506,9 @@ html[data-ds-display] .dstudio.editing {
   margin-top: 4px;
 }
 .dstudio .ds-zp-act {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: center;
   gap: 8px;
   width: 100%;
   height: 36px;
@@ -10523,7 +10525,10 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-zp-act[data-tone="warn"] { --tone: var(--warn); }
 .dstudio .ds-zp-act { background: color-mix(in srgb, var(--tone) 12%, #fff); }
 .dstudio .ds-zp-act:hover { background: color-mix(in srgb, var(--tone) 20%, #fff); }
+.dstudio .ds-zp-act-lbl { grid-column: 2; }
 .dstudio .ds-zp-act-fig {
+  grid-column: 3;
+  justify-self: end;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }

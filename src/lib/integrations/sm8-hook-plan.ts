@@ -97,15 +97,64 @@ export function isUnsupportedObject(status: number, body: string): boolean {
   return status === 400 && /does not support subscription/i.test(body);
 }
 
+/** What a ServiceM8 field name looks like: never empty, never a space or a
+    comma (the POST joins them with commas). */
+const HOOK_FIELD_RE = /^[a-z][a-z0-9_]{0,63}$/;
+
 /** The fields to watch: every column the mirror keeps for the object, as
     ServiceM8 names them (the shapes pick raw fields by their own names),
     without `uuid` and `edit_date` — which change with everything — and
-    with `active`, so a removal pings. */
+    with `active`, so a removal pings. Only well-formed names, each once:
+    never an empty one, and never an empty list. */
 export function hookFieldsFor(spec: Sm8ObjectSpec): string[] {
   const keys = Object.keys(spec.shape({ uuid: "00000000-0000-4000-8000-000000000000" }) ?? {});
-  const fields = keys.filter((k) => k !== "uuid" && k !== "edit_date");
+  const fields: string[] = [];
+  for (const k of keys) {
+    if (k === "uuid" || k === "edit_date" || !HOOK_FIELD_RE.test(k) || fields.includes(k)) continue;
+    fields.push(k);
+  }
   if (!fields.includes("active")) fields.push("active");
   return fields;
+}
+
+/** The two fields that tie a note or an attachment to its job. They are
+    the only fields sent for notes and attachments and for none of the
+    four objects ServiceM8 took at the W1 walk (2026-09-28), where it
+    refused both with `"" is not a valid field for subscription` — naming
+    no field. A record's parent is set when it is made, so not watching
+    them loses nothing a ping is for. */
+export const HOOK_RELATION_FIELDS = ["related_object", "related_object_uuid"] as const;
+
+/** The field lists to offer ServiceM8 for an object, richest first, each
+    tried when the one before is refused as "not a valid field": every
+    mirrored field; then without the relation pair; then `active` alone,
+    so at the least a removal pings. Never an empty list, never an empty
+    name, no list twice. */
+export function hookFieldLadder(spec: Sm8ObjectSpec): string[][] {
+  const full = hookFieldsFor(spec);
+  const rungs: string[][] = [full];
+  const unrelated = full.filter((f) => !(HOOK_RELATION_FIELDS as readonly string[]).includes(f));
+  if (unrelated.length < full.length && unrelated.length > 0) rungs.push(unrelated);
+  if (!(full.length === 1 && full[0] === "active")) rungs.push(["active"]);
+  return rungs;
+}
+
+/** The fields an object is held to: the rung ServiceM8 last took (stored
+    with the object), when it is still one of the ladder's; else the
+    richest. */
+export function hookFieldsHeld(spec: Sm8ObjectSpec, stored?: readonly string[] | null): string[] {
+  const ladder = hookFieldLadder(spec);
+  if (stored && stored.length > 0) {
+    const same = ladder.find((r) => r.length === stored.length && r.every((f) => stored.includes(f)));
+    if (same) return same;
+  }
+  return ladder[0];
+}
+
+/** ServiceM8's 400 for a field list it won't take (`"" is not a valid field
+    for subscription`, at the W1 walk): the next rung is tried. */
+export function isInvalidField(status: number, body: string): boolean {
+  return status === 400 && /is not a valid field for subscription/i.test(body);
 }
 
 /* ── the address ── */
@@ -151,12 +200,13 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /** Printable ASCII, no spaces, at most 256: what we will echo back. */
 const CHALLENGE_RE = /^[\x21-\x7e]{1,256}$/;
 
-/** How the body came: JSON, JSON sent as text, or a form field holding it.
-    Logged, so the walk settles which ServiceM8 uses (the docs say both). */
-export type PingBodyKind = "json" | "json_text" | "form";
+/** How the body came: JSON, JSON sent as text, or form fields —
+    urlencoded or multipart/form-data. Logged, so the walk settles which
+    ServiceM8 uses (the docs say both; W1 saw the challenge as multipart). */
+export type PingBodyKind = "json" | "json_text" | "form" | "multipart";
 
 export type Ping =
-  | { kind: "challenge"; challenge: string; via: "query" | "form" | "json" }
+  | { kind: "challenge"; challenge: string; via: ChallengeVia }
   /** No field for resource_url, time or changed_fields: see the header. */
   | { kind: "change"; object: HookObjectName; uuids: string[]; body: PingBodyKind }
   /** A well-formed change for an object we don't mirror. */
@@ -173,7 +223,9 @@ export type PingJunkWhy = "too_big" | "not_parsed" | "no_object" | "no_uuids" | 
 
 type Params = { get(name: string): string | null };
 
-function challengeOf(mode: unknown, challenge: unknown, via: "query" | "form" | "json"): Ping | null {
+type ChallengeVia = "query" | "form" | "multipart" | "json";
+
+function challengeOf(mode: unknown, challenge: unknown, via: ChallengeVia): Ping | null {
   if (mode !== "subscribe" || typeof challenge !== "string" || challenge === "") return null;
   if (!CHALLENGE_RE.test(challenge)) return { kind: "junk", why: "bad_challenge", challengeLength: challenge.length };
   return { kind: "challenge", challenge, via };
@@ -219,33 +271,74 @@ function changeOf(body: Record<string, unknown>, kind: PingBodyKind): Ping {
   return { kind: "change", object, uuids, body: kind };
 }
 
+/** A form's `entry`: a field holding the JSON array (or the one entry as
+    an object), or PHP-style `entry[0][uuid]` fields. */
+function entryOfForm(form: URLSearchParams): unknown {
+  const held = form.get("entry");
+  if (held !== null) {
+    const t = held.trim();
+    if (t.startsWith("[")) {
+      try {
+        return JSON.parse(t) as unknown;
+      } catch {
+        return null;
+      }
+    }
+    const one = jsonObjectOf(t);
+    return one ? [one] : null;
+  }
+  const out: { uuid: string }[] = [];
+  for (const [key, value] of form) {
+    if (/^entry\[\d{1,2}\]\[uuid\]$/.test(key)) out.push({ uuid: value });
+  }
+  return out;
+}
+
+/** A ping that came as form fields: urlencoded, or multipart/form-data
+    (which the route has already read, inside the byte cap, into `form` —
+    ServiceM8's challenge comes this way, the W1 walk found). A challenge
+    (`mode`=`subscribe`, `challenge`: docs/webhooks-overview's "POST
+    parameters"); a change as its own `object` and `entry` fields; or one
+    field holding the whole JSON. Null when none of those is there. */
+export function parsePingForm(form: URLSearchParams, kind: "form" | "multipart"): Ping | null {
+  const challenge = challengeOf(form.get("mode"), form.get("challenge"), kind);
+  if (challenge) return challenge;
+  if (form.has("object")) return changeOf({ object: form.get("object"), entry: entryOfForm(form) }, kind);
+  for (const [key, value] of form) {
+    const held = jsonObjectOf(value) ?? (value === "" ? jsonObjectOf(key) : null);
+    if (held) {
+      const ping = changeOf(held, kind);
+      return ping.kind === "challenge" ? { ...ping, via: kind } : ping;
+    }
+  }
+  return null;
+}
+
 /** What a request to the hook address is: a challenge to echo, a change to
     queue, one to ignore, or junk. `query` is the address's query string (a
-    challenge may come as a GET). Never throws. */
-export function parsePing(contentType: string | null, text: string, query: Params): Ping {
+    challenge may come as a GET). `form` is a multipart/form-data body the
+    caller has already read into fields; when it is given, `text` is only
+    measured. Never throws. */
+export function parsePing(contentType: string | null, text: string, query: Params, form?: URLSearchParams | null): Ping {
   if (Buffer.byteLength(text, "utf8") > PING_BODY_MAX) return { kind: "junk", why: "too_big" };
   const type = (contentType ?? "").toLowerCase();
 
-  const json = jsonObjectOf(text);
-  if (json) return changeOf(json, type.includes("json") ? "json" : "json_text");
+  if (form) {
+    const ping = parsePingForm(form, "multipart");
+    if (ping) return ping;
+  } else {
+    const json = jsonObjectOf(text);
+    if (json) return changeOf(json, type.includes("json") ? "json" : "json_text");
 
-  if (text.trim() !== "") {
-    let form: URLSearchParams | null = null;
-    try {
-      form = new URLSearchParams(text.trim());
-    } catch {
-      form = null;
-    }
-    if (form) {
-      const challenge = challengeOf(form.get("mode"), form.get("challenge"), "form");
-      if (challenge) return challenge;
-      for (const [key, value] of form) {
-        const held = jsonObjectOf(value) ?? (value === "" ? jsonObjectOf(key) : null);
-        if (held) {
-          const ping = changeOf(held, "form");
-          return ping.kind === "challenge" ? { ...ping, via: "form" } : ping;
-        }
+    if (text.trim() !== "") {
+      let fields: URLSearchParams | null = null;
+      try {
+        fields = new URLSearchParams(text.trim());
+      } catch {
+        fields = null;
       }
+      const ping = fields ? parsePingForm(fields, "form") : null;
+      if (ping) return ping;
     }
   }
 
@@ -368,7 +461,7 @@ export function planSubscriptions(input: {
   subs: readonly HookSub[];
   origin: string;
   hashes: OurHashes;
-  /** The fields each object must watch (hookFieldsFor), by object. */
+  /** The fields each object must watch (hookFieldsHeld), by object. */
   wanted: Readonly<Record<HookObjectName, readonly string[]>>;
 }): HookPlan {
   const ours = classifyOurs(input.subs, input.origin, input.hashes);
@@ -402,6 +495,8 @@ export function planSubscriptions(input: {
 export type HookObjectState = {
   /** The spelling ServiceM8 accepted. */
   name?: string;
+  /** The field list it accepted (a rung of hookFieldLadder). */
+  fields?: string[];
   /** Its subscription's uuid at the current address. */
   sub?: string | null;
   active?: boolean;
@@ -431,6 +526,10 @@ export function readHookObjects(json: unknown): HookObjectsState {
     if (!r) continue;
     const s: HookObjectState = {};
     if (str(r.name)) s.name = str(r.name)!;
+    if (Array.isArray(r.fields) && r.fields.length > 0 && r.fields.length <= 64) {
+      const names = r.fields.filter((f): f is string => typeof f === "string" && HOOK_FIELD_RE.test(f));
+      if (names.length === r.fields.length) s.fields = names;
+    }
     if ("sub" in r) s.sub = str(r.sub);
     if (typeof r.active === "boolean") s.active = r.active;
     if ("error" in r) s.error = str(r.error) === null ? null : redactHook(str(r.error)!);

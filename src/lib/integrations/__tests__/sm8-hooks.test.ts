@@ -196,6 +196,8 @@ let made = 0;
 const requests: { method: string; path: string; body?: URLSearchParams }[] = [];
 /** A spelling ServiceM8 answers something other than success. */
 let refuse: Record<string, { status: number; body: string }> = {};
+/** Fields ServiceM8 won't watch, by spelling. */
+let badFields: Record<string, string[]> = {};
 /** Something ServiceM8 does as a POST lands. */
 let onPost: (object: string) => void = () => {};
 let listStatus = 200;
@@ -228,6 +230,10 @@ const fakeFetch = jest.fn(async (url: string, init: RequestInit) => {
     onPost(object);
     if (refuse[object]) return new Response(refuse[object].body, { status: refuse[object].status });
     const fields = body!.get("fields")!.split(",");
+    /* as ServiceM8 answered at the W1 walk: the refused field unnamed */
+    if (fields.some((f) => f === "" || badFields[object]?.includes(f))) {
+      return json({ success: false, message: '"" is not a valid field for subscription' }, 400);
+    }
     const url2 = body!.get("callback_url")!;
     const same = subs.find((s) => s.object === object && s.callback_url === url2);
     if (same) Object.assign(same, { fields, active: true, last_failure_reason: null, last_failure_at: null });
@@ -320,6 +326,7 @@ beforeEach(() => {
   subs = [];
   made = 0;
   refuse = {};
+  badFields = {};
   onPost = () => {};
   listStatus = 200;
   fetchThrows = false;
@@ -624,6 +631,54 @@ describe("ensureSm8Webhooks: the POSTs", () => {
     expect(out).toMatchObject({ subscribed: false });
     expect(row().objects).toMatchObject({ jobs: { active: false, sub: narrow.uuid } });
     expect(row().subscribed_at).toBeNull();
+  });
+
+  /* the W1 walk, 2026-09-28: for notes and attachments ServiceM8 answered
+     400 {"success":false,"message":"\"\" is not a valid field for
+     subscription"}, naming no field */
+  it("a field list ServiceM8 won't watch steps down the ladder, and what it took is kept and held to", async () => {
+    badFields = { note: ["related_object"], attachment: ["related_object_uuid"] };
+    const out = await ensure();
+    expect(out).toMatchObject({ posted: 6, subscribed: true, stopped: null });
+    const noteFields = posts().filter((p) => p.body!.get("object") === "note").map((p) => p.body!.get("fields")!.split(","));
+    expect(noteFields).toEqual([wanted("job_notes"), wanted("job_notes").filter((f) => !f.startsWith("related_object"))]);
+    const took = noteFields[1];
+    expect(took.length).toBeGreaterThan(1);
+    expect(row().objects).toMatchObject({
+      job_notes: { name: "note", active: true, fields: took, error: null },
+      attachments: { name: "attachment", active: true, error: null },
+      jobs: { fields: wanted("jobs") },
+    });
+    /* the objects ServiceM8 took whole are never stepped down */
+    expect(posts().filter((p) => p.body!.get("object") === "job")).toHaveLength(1);
+
+    /* the next reconcile holds the listing to what was taken: nothing to POST */
+    requests.length = 0;
+    row().ensure_tried_at = null;
+    const again = await ensure();
+    expect(again).toMatchObject({ posted: 0, subscribed: true });
+    expect(posts()).toHaveLength(0);
+  });
+
+  it("down to `active` alone, and never an empty list; past the ladder the refusal is kept", async () => {
+    badFields = { note: ["related_object", "note"] };
+    await ensure();
+    expect(posts().filter((p) => p.body!.get("object") === "note").map((p) => p.body!.get("fields"))).toEqual([
+      wanted("job_notes").join(","),
+      wanted("job_notes").filter((f) => !f.startsWith("related_object")).join(","),
+      "active",
+    ]);
+    expect(row().objects).toMatchObject({ job_notes: { active: true, fields: ["active"] } });
+
+    for (const k of Object.keys(db)) delete db[k];
+    subs = [];
+    requests.length = 0;
+    badFields = { attachment: ["active"] };
+    await ensure();
+    const tried = posts().filter((p) => p.body!.get("object") === "attachment").map((p) => p.body!.get("fields")!);
+    expect(tried).toHaveLength(3);
+    for (const f of tried) expect(f.split(",").every((n) => n.length > 0)).toBe(true);
+    expect(row().objects).toMatchObject({ attachments: { active: false, error: expect.stringContaining("is not a valid field") } });
   });
 });
 

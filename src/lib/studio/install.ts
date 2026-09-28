@@ -55,6 +55,7 @@ import {
 } from "./components";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
 import { systemVrfTree } from "./vrf-tree";
+import { matchesModelGlob } from "./model-glob";
 
 /* ─────────────────────────── shapes ─────────────────────────── */
 
@@ -428,17 +429,7 @@ const descriptionHead = (accessory: Accessory): string => {
 
 /* ─────────────────────────── accessories ─────────────────────────── */
 
-/** Does a model match one of the pack's `compatible_with` patterns? A
-    pattern is an exact model, or a prefix glob ending in `*` ("MSZ-*",
-    "PUZ-ZM1*"). Case-sensitive. A `*` anywhere but the end is not a glob
-    the pack writes, and never matches. */
-export function matchesModelGlob(model: string, pattern: string): boolean {
-  if (pattern.endsWith("*")) {
-    const prefix = pattern.slice(0, -1);
-    return !prefix.includes("*") && model.startsWith(prefix);
-  }
-  return model === pattern;
-}
+export { matchesModelGlob } from "./model-glob";
 
 /** the pack's accessories compatible with a model, in pack order; narrowed
     to one category when given */
@@ -915,7 +906,7 @@ export function vrfFittings(doc: DesignDocument, pack: DataPack, sys: DesignSyst
 function vrfFittingRows(context: Context): EquipmentRow[] {
   const tree = systemVrfTree(context.pack, context.sys, context.doc);
   if (!tree) return [];
-  const byPart = new Map<string, { kind: "joint" | "header"; n: number }>();
+  const byPart = new Map<string, { kind: "joint" | "header" | "box"; n: number }>();
   for (const f of tree.fittings) {
     if (!f.part) continue;
     const cur = byPart.get(f.part);
@@ -924,7 +915,7 @@ function vrfFittingRows(context: Context): EquipmentRow[] {
   }
   return [...byPart].map(([part, { kind, n }]) => ({
     group: "Pipework" as const,
-    name: kind === "header" ? "Header" : "Joint",
+    name: kind === "header" ? "Header" : kind === "box" ? "Branch box" : "Joint",
     model: part,
     qty: n,
     why: tree.drawn ? "By the index below it" : "From the zone order, until the pipework is drawn",

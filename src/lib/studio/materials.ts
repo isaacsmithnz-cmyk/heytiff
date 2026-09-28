@@ -72,6 +72,8 @@ export function evaluateVrfCharge(
     liquidM: Record<string, number>;
     farthestM: number;
     connectedIndex: number;
+    /** the heads' rated cooling kW added up (PUMY's amount keys on it) */
+    connectedKw?: number;
     oduModel: string;
     iduModels: string[];
   }
@@ -89,6 +91,13 @@ export function evaluateVrfCharge(
     const step = rule.plus_by_connected_index.find(
       (s) => s.index_max == null || ctx.connectedIndex <= s.index_max
     );
+    if (!step) return null;
+    g += step.add_g;
+  }
+  if (rule.plus_by_connected_kw) {
+    if (ctx.connectedKw == null) return null;
+    const kw = ctx.connectedKw;
+    const step = rule.plus_by_connected_kw.find((s) => s.kw_max == null || kw <= s.kw_max + 1e-9);
     if (!step) return null;
     g += step.add_g;
   }

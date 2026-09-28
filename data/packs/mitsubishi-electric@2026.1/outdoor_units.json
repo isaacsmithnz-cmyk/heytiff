@@ -1748,7 +1748,7 @@
     "model": "PUMY-SP80VKMD2-A",
     "brand": "mitsubishi-electric",
     "series": "PUMY-SP-VKMD2-A",
-    "system_type": "multi",
+    "system_type": "vrf",
     "capacity_cool_kw": 9.0,
     "capacity_heat_kw": 10.0,
     "phase": "1",
@@ -1757,12 +1757,62 @@
     "conn_gas_mm": 15.88,
     "refrigerant": "R410A",
     "precharged_kg": 3.5,
-    "ports": 9,
+    "max_charge_kg": 12.0,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 9,
     "idu_index_min": 10,
     "idu_index_max": 100,
+    "ratio_basis": "kw",
+    "pipe_table_ref": "PUMY-SP-KMD2 joint",
+    "branch_box_table_ref": "PUMY-SP-KMD2 branch box",
+    "mixed_table_ref": "PUMY-SP-KMD2 mixed",
+    "branch_boxes": {
+      "max_boxes": 2,
+      "code_min": 15,
+      "code_max": 100,
+      "max_heads": 7,
+      "mixed": [
+        { "boxes": 1, "city_multi": 5, "box_heads": 3 },
+        { "boxes": 1, "city_multi": 4, "box_heads": 4 },
+        { "boxes": 1, "city_multi": 3, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 3, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 2, "box_heads": 6 },
+        { "boxes": 2, "city_multi": 1, "box_heads": 7 }
+      ],
+      "families": [
+        "PEAD-RP*",
+        "PEAD-M*",
+        "SEZ-KD*",
+        "PLA-RP*",
+        "PCA-RP*",
+        "PLA-M*",
+        "SLZ-KF*",
+        "SLZ-M*",
+        "MLZ-KP*",
+        "MFZ-KJ*",
+        "MSZ-AP*",
+        "MSZ-LN*",
+        "MFXZ-KW*",
+        "MSZ-GE*",
+        "MSZ-FH*",
+        "MSZ-EF*",
+        "SLZ-KA*"
+      ],
+      "staff_families": {
+        "patterns": [
+          "MFZ-KW*",
+          "PCA-M50KA2",
+          "PCA-M60KA2",
+          "PCA-M71KA2",
+          "PCA-M100KA2",
+          "PCA-M125KA2",
+          "PCA-M140KA2"
+        ],
+        "by": "Isaac Smith",
+        "at": "2026-09-28"
+      }
+    },
     "width_mm": 1050,
     "depth_mm": 330,
     "height_mm": 981,
@@ -1771,7 +1821,7 @@
       "kind": "extracted",
       "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
       "edition": "M-P0860 (Oct 2022)",
-      "page": "1-2"
+      "page": "1-2, 42-44, 72-87"
     },
     "sound_low_dba": 51,
     "sound_high_dba": 54
@@ -1780,7 +1830,7 @@
     "model": "PUMY-SP112VKMD2-A",
     "brand": "mitsubishi-electric",
     "series": "PUMY-SP-VKMD2-A",
-    "system_type": "multi",
+    "system_type": "vrf",
     "capacity_cool_kw": 12.5,
     "capacity_heat_kw": 14.0,
     "phase": "1",
@@ -1789,12 +1839,58 @@
     "conn_gas_mm": 15.88,
     "refrigerant": "R410A",
     "precharged_kg": 3.5,
-    "ports": 12,
+    "max_charge_kg": 12.5,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 12,
     "idu_index_min": 10,
     "idu_index_max": 140,
+    "ratio_basis": "kw",
+    "pipe_table_ref": "PUMY-SP-KMD2 joint",
+    "branch_box_table_ref": "PUMY-SP-KMD2 branch box",
+    "mixed_table_ref": "PUMY-SP-KMD2 mixed",
+    "branch_boxes": {
+      "max_boxes": 2,
+      "code_min": 15,
+      "code_max": 100,
+      "max_heads": 8,
+      "mixed": [
+        { "boxes": 1, "city_multi": 5, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 3, "box_heads": 8 }
+      ],
+      "families": [
+        "PEAD-RP*",
+        "PEAD-M*",
+        "SEZ-KD*",
+        "PLA-RP*",
+        "PCA-RP*",
+        "PLA-M*",
+        "SLZ-KF*",
+        "SLZ-M*",
+        "MLZ-KP*",
+        "MFZ-KJ*",
+        "MSZ-AP*",
+        "MSZ-LN*",
+        "MFXZ-KW*",
+        "MSZ-GE*",
+        "MSZ-FH*",
+        "MSZ-EF*",
+        "SLZ-KA*"
+      ],
+      "staff_families": {
+        "patterns": [
+          "MFZ-KW*",
+          "PCA-M50KA2",
+          "PCA-M60KA2",
+          "PCA-M71KA2",
+          "PCA-M100KA2",
+          "PCA-M125KA2",
+          "PCA-M140KA2"
+        ],
+        "by": "Isaac Smith",
+        "at": "2026-09-28"
+      }
+    },
     "width_mm": 1050,
     "depth_mm": 330,
     "height_mm": 981,
@@ -1803,7 +1899,7 @@
       "kind": "extracted",
       "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
       "edition": "M-P0860 (Oct 2022)",
-      "page": "1-2"
+      "page": "1-2, 42-44, 72-87"
     },
     "sound_low_dba": 52,
     "sound_high_dba": 54
@@ -1812,7 +1908,7 @@
     "model": "PUMY-SP125VKMD2-A",
     "brand": "mitsubishi-electric",
     "series": "PUMY-SP-VKMD2-A",
-    "system_type": "multi",
+    "system_type": "vrf",
     "capacity_cool_kw": 14.0,
     "capacity_heat_kw": 16.0,
     "phase": "1",
@@ -1821,12 +1917,58 @@
     "conn_gas_mm": 15.88,
     "refrigerant": "R410A",
     "precharged_kg": 3.5,
-    "ports": 12,
+    "max_charge_kg": 12.5,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 12,
     "idu_index_min": 10,
     "idu_index_max": 140,
+    "ratio_basis": "kw",
+    "pipe_table_ref": "PUMY-SP-KMD2 joint",
+    "branch_box_table_ref": "PUMY-SP-KMD2 branch box",
+    "mixed_table_ref": "PUMY-SP-KMD2 mixed",
+    "branch_boxes": {
+      "max_boxes": 2,
+      "code_min": 15,
+      "code_max": 100,
+      "max_heads": 8,
+      "mixed": [
+        { "boxes": 1, "city_multi": 5, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 3, "box_heads": 8 }
+      ],
+      "families": [
+        "PEAD-RP*",
+        "PEAD-M*",
+        "SEZ-KD*",
+        "PLA-RP*",
+        "PCA-RP*",
+        "PLA-M*",
+        "SLZ-KF*",
+        "SLZ-M*",
+        "MLZ-KP*",
+        "MFZ-KJ*",
+        "MSZ-AP*",
+        "MSZ-LN*",
+        "MFXZ-KW*",
+        "MSZ-GE*",
+        "MSZ-FH*",
+        "MSZ-EF*",
+        "SLZ-KA*"
+      ],
+      "staff_families": {
+        "patterns": [
+          "MFZ-KW*",
+          "PCA-M50KA2",
+          "PCA-M60KA2",
+          "PCA-M71KA2",
+          "PCA-M100KA2",
+          "PCA-M125KA2",
+          "PCA-M140KA2"
+        ],
+        "by": "Isaac Smith",
+        "at": "2026-09-28"
+      }
+    },
     "width_mm": 1050,
     "depth_mm": 330,
     "height_mm": 981,
@@ -1835,7 +1977,7 @@
       "kind": "extracted",
       "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
       "edition": "M-P0860 (Oct 2022)",
-      "page": "1-3"
+      "page": "1-3, 42-44, 72-87"
     },
     "sound_low_dba": 53,
     "sound_high_dba": 56
@@ -1844,7 +1986,7 @@
     "model": "PUMY-SP140VKMD2-A",
     "brand": "mitsubishi-electric",
     "series": "PUMY-SP-VKMD2-A",
-    "system_type": "multi",
+    "system_type": "vrf",
     "capacity_cool_kw": 15.5,
     "capacity_heat_kw": 16.5,
     "phase": "1",
@@ -1853,12 +1995,58 @@
     "conn_gas_mm": 15.88,
     "refrigerant": "R410A",
     "precharged_kg": 3.5,
-    "ports": 12,
+    "max_charge_kg": 12.5,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 12,
     "idu_index_min": 10,
     "idu_index_max": 140,
+    "ratio_basis": "kw",
+    "pipe_table_ref": "PUMY-SP-KMD2 joint",
+    "branch_box_table_ref": "PUMY-SP-KMD2 branch box",
+    "mixed_table_ref": "PUMY-SP-KMD2 mixed",
+    "branch_boxes": {
+      "max_boxes": 2,
+      "code_min": 15,
+      "code_max": 100,
+      "max_heads": 8,
+      "mixed": [
+        { "boxes": 1, "city_multi": 5, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 3, "box_heads": 8 }
+      ],
+      "families": [
+        "PEAD-RP*",
+        "PEAD-M*",
+        "SEZ-KD*",
+        "PLA-RP*",
+        "PCA-RP*",
+        "PLA-M*",
+        "SLZ-KF*",
+        "SLZ-M*",
+        "MLZ-KP*",
+        "MFZ-KJ*",
+        "MSZ-AP*",
+        "MSZ-LN*",
+        "MFXZ-KW*",
+        "MSZ-GE*",
+        "MSZ-FH*",
+        "MSZ-EF*",
+        "SLZ-KA*"
+      ],
+      "staff_families": {
+        "patterns": [
+          "MFZ-KW*",
+          "PCA-M50KA2",
+          "PCA-M60KA2",
+          "PCA-M71KA2",
+          "PCA-M100KA2",
+          "PCA-M125KA2",
+          "PCA-M140KA2"
+        ],
+        "by": "Isaac Smith",
+        "at": "2026-09-28"
+      }
+    },
     "width_mm": 1050,
     "depth_mm": 330,
     "height_mm": 981,
@@ -1867,7 +2055,7 @@
       "kind": "extracted",
       "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
       "edition": "M-P0860 (Oct 2022)",
-      "page": "1-3"
+      "page": "1-3, 42-44, 72-87"
     },
     "sound_low_dba": 54,
     "sound_high_dba": 56
@@ -1876,7 +2064,7 @@
     "model": "PUMY-SP80YKMD2-A",
     "brand": "mitsubishi-electric",
     "series": "PUMY-SP-YKMD2-A",
-    "system_type": "multi",
+    "system_type": "vrf",
     "capacity_cool_kw": 9.0,
     "capacity_heat_kw": 10.0,
     "phase": "3",
@@ -1885,12 +2073,62 @@
     "conn_gas_mm": 15.88,
     "refrigerant": "R410A",
     "precharged_kg": 3.5,
-    "ports": 9,
+    "max_charge_kg": 12.0,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 9,
     "idu_index_min": 10,
     "idu_index_max": 100,
+    "ratio_basis": "kw",
+    "pipe_table_ref": "PUMY-SP-KMD2 joint",
+    "branch_box_table_ref": "PUMY-SP-KMD2 branch box",
+    "mixed_table_ref": "PUMY-SP-KMD2 mixed",
+    "branch_boxes": {
+      "max_boxes": 2,
+      "code_min": 15,
+      "code_max": 100,
+      "max_heads": 7,
+      "mixed": [
+        { "boxes": 1, "city_multi": 5, "box_heads": 3 },
+        { "boxes": 1, "city_multi": 4, "box_heads": 4 },
+        { "boxes": 1, "city_multi": 3, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 3, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 2, "box_heads": 6 },
+        { "boxes": 2, "city_multi": 1, "box_heads": 7 }
+      ],
+      "families": [
+        "PEAD-RP*",
+        "PEAD-M*",
+        "SEZ-KD*",
+        "PLA-RP*",
+        "PCA-RP*",
+        "PLA-M*",
+        "SLZ-KF*",
+        "SLZ-M*",
+        "MLZ-KP*",
+        "MFZ-KJ*",
+        "MSZ-AP*",
+        "MSZ-LN*",
+        "MFXZ-KW*",
+        "MSZ-GE*",
+        "MSZ-FH*",
+        "MSZ-EF*",
+        "SLZ-KA*"
+      ],
+      "staff_families": {
+        "patterns": [
+          "MFZ-KW*",
+          "PCA-M50KA2",
+          "PCA-M60KA2",
+          "PCA-M71KA2",
+          "PCA-M100KA2",
+          "PCA-M125KA2",
+          "PCA-M140KA2"
+        ],
+        "by": "Isaac Smith",
+        "at": "2026-09-28"
+      }
+    },
     "width_mm": 1050,
     "depth_mm": 330,
     "height_mm": 981,
@@ -1899,7 +2137,7 @@
       "kind": "extracted",
       "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
       "edition": "M-P0860 (Oct 2022)",
-      "page": "1-4"
+      "page": "1-4, 42-44, 72-87"
     },
     "sound_low_dba": 51,
     "sound_high_dba": 54
@@ -1908,7 +2146,7 @@
     "model": "PUMY-SP112YKMD2-A",
     "brand": "mitsubishi-electric",
     "series": "PUMY-SP-YKMD2-A",
-    "system_type": "multi",
+    "system_type": "vrf",
     "capacity_cool_kw": 12.5,
     "capacity_heat_kw": 14.0,
     "phase": "3",
@@ -1917,12 +2155,58 @@
     "conn_gas_mm": 15.88,
     "refrigerant": "R410A",
     "precharged_kg": 3.5,
-    "ports": 12,
+    "max_charge_kg": 12.5,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 12,
     "idu_index_min": 10,
     "idu_index_max": 140,
+    "ratio_basis": "kw",
+    "pipe_table_ref": "PUMY-SP-KMD2 joint",
+    "branch_box_table_ref": "PUMY-SP-KMD2 branch box",
+    "mixed_table_ref": "PUMY-SP-KMD2 mixed",
+    "branch_boxes": {
+      "max_boxes": 2,
+      "code_min": 15,
+      "code_max": 100,
+      "max_heads": 8,
+      "mixed": [
+        { "boxes": 1, "city_multi": 5, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 3, "box_heads": 8 }
+      ],
+      "families": [
+        "PEAD-RP*",
+        "PEAD-M*",
+        "SEZ-KD*",
+        "PLA-RP*",
+        "PCA-RP*",
+        "PLA-M*",
+        "SLZ-KF*",
+        "SLZ-M*",
+        "MLZ-KP*",
+        "MFZ-KJ*",
+        "MSZ-AP*",
+        "MSZ-LN*",
+        "MFXZ-KW*",
+        "MSZ-GE*",
+        "MSZ-FH*",
+        "MSZ-EF*",
+        "SLZ-KA*"
+      ],
+      "staff_families": {
+        "patterns": [
+          "MFZ-KW*",
+          "PCA-M50KA2",
+          "PCA-M60KA2",
+          "PCA-M71KA2",
+          "PCA-M100KA2",
+          "PCA-M125KA2",
+          "PCA-M140KA2"
+        ],
+        "by": "Isaac Smith",
+        "at": "2026-09-28"
+      }
+    },
     "width_mm": 1050,
     "depth_mm": 330,
     "height_mm": 981,
@@ -1931,7 +2215,7 @@
       "kind": "extracted",
       "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
       "edition": "M-P0860 (Oct 2022)",
-      "page": "1-4"
+      "page": "1-4, 42-44, 72-87"
     },
     "sound_low_dba": 52,
     "sound_high_dba": 54
@@ -1940,7 +2224,7 @@
     "model": "PUMY-SP125YKMD2-A",
     "brand": "mitsubishi-electric",
     "series": "PUMY-SP-YKMD2-A",
-    "system_type": "multi",
+    "system_type": "vrf",
     "capacity_cool_kw": 14.0,
     "capacity_heat_kw": 16.0,
     "phase": "3",
@@ -1949,12 +2233,58 @@
     "conn_gas_mm": 15.88,
     "refrigerant": "R410A",
     "precharged_kg": 3.5,
-    "ports": 12,
+    "max_charge_kg": 12.5,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 12,
     "idu_index_min": 10,
     "idu_index_max": 140,
+    "ratio_basis": "kw",
+    "pipe_table_ref": "PUMY-SP-KMD2 joint",
+    "branch_box_table_ref": "PUMY-SP-KMD2 branch box",
+    "mixed_table_ref": "PUMY-SP-KMD2 mixed",
+    "branch_boxes": {
+      "max_boxes": 2,
+      "code_min": 15,
+      "code_max": 100,
+      "max_heads": 8,
+      "mixed": [
+        { "boxes": 1, "city_multi": 5, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 3, "box_heads": 8 }
+      ],
+      "families": [
+        "PEAD-RP*",
+        "PEAD-M*",
+        "SEZ-KD*",
+        "PLA-RP*",
+        "PCA-RP*",
+        "PLA-M*",
+        "SLZ-KF*",
+        "SLZ-M*",
+        "MLZ-KP*",
+        "MFZ-KJ*",
+        "MSZ-AP*",
+        "MSZ-LN*",
+        "MFXZ-KW*",
+        "MSZ-GE*",
+        "MSZ-FH*",
+        "MSZ-EF*",
+        "SLZ-KA*"
+      ],
+      "staff_families": {
+        "patterns": [
+          "MFZ-KW*",
+          "PCA-M50KA2",
+          "PCA-M60KA2",
+          "PCA-M71KA2",
+          "PCA-M100KA2",
+          "PCA-M125KA2",
+          "PCA-M140KA2"
+        ],
+        "by": "Isaac Smith",
+        "at": "2026-09-28"
+      }
+    },
     "width_mm": 1050,
     "depth_mm": 330,
     "height_mm": 981,
@@ -1963,7 +2293,7 @@
       "kind": "extracted",
       "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
       "edition": "M-P0860 (Oct 2022)",
-      "page": "1-5"
+      "page": "1-5, 42-44, 72-87"
     },
     "sound_low_dba": 53,
     "sound_high_dba": 56
@@ -1972,7 +2302,7 @@
     "model": "PUMY-SP140YKMD2-A",
     "brand": "mitsubishi-electric",
     "series": "PUMY-SP-YKMD2-A",
-    "system_type": "multi",
+    "system_type": "vrf",
     "capacity_cool_kw": 15.5,
     "capacity_heat_kw": 16.5,
     "phase": "3",
@@ -1981,12 +2311,58 @@
     "conn_gas_mm": 15.88,
     "refrigerant": "R410A",
     "precharged_kg": 3.5,
-    "ports": 12,
+    "max_charge_kg": 12.5,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 12,
     "idu_index_min": 10,
     "idu_index_max": 140,
+    "ratio_basis": "kw",
+    "pipe_table_ref": "PUMY-SP-KMD2 joint",
+    "branch_box_table_ref": "PUMY-SP-KMD2 branch box",
+    "mixed_table_ref": "PUMY-SP-KMD2 mixed",
+    "branch_boxes": {
+      "max_boxes": 2,
+      "code_min": 15,
+      "code_max": 100,
+      "max_heads": 8,
+      "mixed": [
+        { "boxes": 1, "city_multi": 5, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 3, "box_heads": 8 }
+      ],
+      "families": [
+        "PEAD-RP*",
+        "PEAD-M*",
+        "SEZ-KD*",
+        "PLA-RP*",
+        "PCA-RP*",
+        "PLA-M*",
+        "SLZ-KF*",
+        "SLZ-M*",
+        "MLZ-KP*",
+        "MFZ-KJ*",
+        "MSZ-AP*",
+        "MSZ-LN*",
+        "MFXZ-KW*",
+        "MSZ-GE*",
+        "MSZ-FH*",
+        "MSZ-EF*",
+        "SLZ-KA*"
+      ],
+      "staff_families": {
+        "patterns": [
+          "MFZ-KW*",
+          "PCA-M50KA2",
+          "PCA-M60KA2",
+          "PCA-M71KA2",
+          "PCA-M100KA2",
+          "PCA-M125KA2",
+          "PCA-M140KA2"
+        ],
+        "by": "Isaac Smith",
+        "at": "2026-09-28"
+      }
+    },
     "width_mm": 1050,
     "depth_mm": 330,
     "height_mm": 981,
@@ -1995,7 +2371,7 @@
       "kind": "extracted",
       "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
       "edition": "M-P0860 (Oct 2022)",
-      "page": "1-5"
+      "page": "1-5, 42-44, 72-87"
     },
     "sound_low_dba": 54,
     "sound_high_dba": 56
@@ -2004,7 +2380,7 @@
     "model": "PUMY-P200YKMD2-A",
     "brand": "mitsubishi-electric",
     "series": "PUMY-P-YKMD2-A",
-    "system_type": "multi",
+    "system_type": "vrf",
     "capacity_cool_kw": 22.4,
     "capacity_heat_kw": 25.0,
     "phase": "3",
@@ -2013,12 +2389,58 @@
     "conn_gas_mm": 19.05,
     "refrigerant": "R410A",
     "precharged_kg": 7.3,
-    "ports": 12,
+    "max_charge_kg": 20.4,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 12,
     "idu_index_min": 10,
     "idu_index_max": 200,
+    "ratio_basis": "kw",
+    "pipe_table_ref": "PUMY-P200 joint",
+    "branch_box_table_ref": "PUMY-P200 branch box",
+    "mixed_table_ref": "PUMY-P200 mixed",
+    "branch_boxes": {
+      "max_boxes": 2,
+      "code_min": 15,
+      "code_max": 100,
+      "max_heads": 8,
+      "mixed": [
+        { "boxes": 1, "city_multi": 5, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 3, "box_heads": 8 }
+      ],
+      "families": [
+        "PEAD-RP*",
+        "PEAD-M*",
+        "SEZ-KD*",
+        "SEZ-M*",
+        "SLZ-KF*",
+        "SLZ-M*",
+        "PLA-RP*",
+        "PLA-M*",
+        "PCA-RP*",
+        "MLZ-KP*",
+        "MFZ-KJ*",
+        "MFXZ-KW*",
+        "MSZ-AP*",
+        "MSZ-GE*",
+        "MSZ-EF*",
+        "MSZ-FH*",
+        "MSZ-LN*"
+      ],
+      "staff_families": {
+        "patterns": [
+          "MFZ-KW*",
+          "PCA-M50KA2",
+          "PCA-M60KA2",
+          "PCA-M71KA2",
+          "PCA-M100KA2",
+          "PCA-M125KA2",
+          "PCA-M140KA2"
+        ],
+        "by": "Isaac Smith",
+        "at": "2026-09-28"
+      }
+    },
     "width_mm": 1050,
     "depth_mm": 330,
     "height_mm": 1338,
@@ -2027,14 +2449,14 @@
       "kind": "extracted",
       "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
       "edition": "M-P0860 (Oct 2022)",
-      "page": "1-6"
+      "page": "1-6, 42-44, 72-87"
     }
   },
   {
     "model": "PUMY-P250YBMD-A",
     "brand": "mitsubishi-electric",
     "series": "PUMY-P-YBMD-A",
-    "system_type": "multi",
+    "system_type": "vrf",
     "capacity_cool_kw": 28.0,
     "capacity_heat_kw": 31.5,
     "phase": "3",
@@ -2043,12 +2465,52 @@
     "conn_gas_mm": 22.2,
     "refrigerant": "R410A",
     "precharged_kg": 9.3,
-    "ports": 21,
+    "max_charge_kg": 32.1,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 21,
     "idu_index_min": 15,
     "idu_index_max": 250,
+    "ratio_basis": "kw",
+    "pipe_table_ref": "PUMY-P250 joint",
+    "branch_box_table_ref": "PUMY-P250 branch box",
+    "mixed_table_ref": "PUMY-P250 mixed",
+    "branch_boxes": {
+      "max_boxes": 3,
+      "code_min": 25,
+      "code_max": 71,
+      "max_heads": 12,
+      "mixed": [
+        { "boxes": 1, "city_multi": 16, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 11, "box_heads": 10 },
+        { "boxes": 3, "city_multi": 9, "box_heads": 12 }
+      ],
+      "families": [
+        "PEAD-M*",
+        "SLZ-M*",
+        "PLA-M*",
+        "SEZ-M*",
+        "MLZ-KP*",
+        "MSZ-AP*",
+        "MFXZ-KW*",
+        "MSZ-EF*",
+        "MSZ-LN*",
+        "MSZ-FH*"
+      ],
+      "staff_families": {
+        "patterns": [
+          "MFZ-KW*",
+          "PCA-M50KA2",
+          "PCA-M60KA2",
+          "PCA-M71KA2",
+          "PCA-M100KA2",
+          "PCA-M125KA2",
+          "PCA-M140KA2"
+        ],
+        "by": "Isaac Smith",
+        "at": "2026-09-28"
+      }
+    },
     "width_mm": 1050,
     "depth_mm": 460,
     "height_mm": 1662,
@@ -2057,7 +2519,7 @@
       "kind": "extracted",
       "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
       "edition": "M-P0860 (Oct 2022)",
-      "page": "1-7"
+      "page": "1-7, 42-44, 72-87"
     },
     "sound_low_dba": 59,
     "sound_high_dba": 60
@@ -2066,7 +2528,7 @@
     "model": "PUMY-P300YBMD-A",
     "brand": "mitsubishi-electric",
     "series": "PUMY-P-YBMD-A",
-    "system_type": "multi",
+    "system_type": "vrf",
     "capacity_cool_kw": 33.5,
     "capacity_heat_kw": 37.5,
     "phase": "3",
@@ -2075,12 +2537,52 @@
     "conn_gas_mm": 25.4,
     "refrigerant": "R410A",
     "precharged_kg": 9.3,
-    "ports": 25,
+    "max_charge_kg": 32.1,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 25,
     "idu_index_min": 15,
     "idu_index_max": 250,
+    "ratio_basis": "kw",
+    "pipe_table_ref": "PUMY-P300 joint",
+    "branch_box_table_ref": "PUMY-P300 branch box",
+    "mixed_table_ref": "PUMY-P300 mixed",
+    "branch_boxes": {
+      "max_boxes": 3,
+      "code_min": 25,
+      "code_max": 71,
+      "max_heads": 12,
+      "mixed": [
+        { "boxes": 1, "city_multi": 20, "box_heads": 5 },
+        { "boxes": 2, "city_multi": 15, "box_heads": 10 },
+        { "boxes": 3, "city_multi": 13, "box_heads": 12 }
+      ],
+      "families": [
+        "PEAD-M*",
+        "SLZ-M*",
+        "PLA-M*",
+        "SEZ-M*",
+        "MLZ-KP*",
+        "MSZ-AP*",
+        "MFXZ-KW*",
+        "MSZ-EF*",
+        "MSZ-LN*",
+        "MSZ-FH*"
+      ],
+      "staff_families": {
+        "patterns": [
+          "MFZ-KW*",
+          "PCA-M50KA2",
+          "PCA-M60KA2",
+          "PCA-M71KA2",
+          "PCA-M100KA2",
+          "PCA-M125KA2",
+          "PCA-M140KA2"
+        ],
+        "by": "Isaac Smith",
+        "at": "2026-09-28"
+      }
+    },
     "width_mm": 1050,
     "depth_mm": 460,
     "height_mm": 1662,
@@ -2089,7 +2591,7 @@
       "kind": "extracted",
       "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
       "edition": "M-P0860 (Oct 2022)",
-      "page": "1-7"
+      "page": "1-7, 42-44, 72-87"
     },
     "sound_low_dba": 60,
     "sound_high_dba": 62

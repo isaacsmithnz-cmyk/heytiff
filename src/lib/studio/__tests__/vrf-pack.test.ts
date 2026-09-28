@@ -30,13 +30,13 @@ const charge = table.additional_charge as Extract<
 
 it("the pack validates and every PUHY outdoor is VRF-ready", () => {
   expect(validatePack(pack).errors).toEqual([]);
-  const puhy = pack.outdoor_units.filter((o) => o.system_type === "vrf");
+  const puhy = pack.outdoor_units.filter((o) => o.model.startsWith("PUHY-"));
   expect(puhy).toHaveLength(7);
   for (const o of puhy) expect(outdoorReadiness(pack, o).roles["vrf-odu"]).toBe(true);
 });
 
 it("every PUHY outdoor has a bend length, a direct header and a charge row", () => {
-  const puhy = pack.outdoor_units.filter((o) => o.system_type === "vrf").map((o) => o.model);
+  const puhy = pack.outdoor_units.filter((o) => o.model.startsWith("PUHY-")).map((o) => o.model);
   const bends = table.limits.bend_equiv_m_by_odu ?? {};
   const direct = new Set((table.header_selection?.steps ?? []).flatMap((s) => s.direct_odus ?? []));
   for (const m of puhy) {

@@ -133,14 +133,13 @@ describe("multiCapableIdus", () => {
   const capable = multiCapableIdus(pack);
   const models = capable.map((u) => u.model);
 
-  it("derives capability from both rule shapes (34 whitelisted + 103 index-band)", () => {
-    // MXZ rules whitelist families; the PUMY-SP/P rules use index_ratio_band,
-    // which admits any indoor carrying a capacity_index inside the band — i.e.
-    // the whole City Multi P*FY range, which is what those outdoors connect.
-    expect(capable).toHaveLength(137);
+  it("derives capability from the MXZ rules alone (34 whitelisted)", () => {
+    // PUMY is VRF (Isaac, 2026-09-28): its heads are City Multi and branch-box
+    // heads (vrf.ts), so no multi rule admits a City Multi head any more
+    expect(capable).toHaveLength(34);
     expect(models).toContain("MSZ-AP20VGD");
     expect(models).toContain("PEAD-M50JAA(D)"); // a ducted IDU among the hi-walls
-    expect(models).toContain("PEFY-P40VMHS-E"); // City Multi, via a PUMY index band
+    expect(models).not.toContain("PEFY-P40VMHS-E"); // City Multi: a VRF head
   });
 
   it("excludes family models over every rule's per-port limit", () => {
@@ -176,7 +175,7 @@ describe("proposeMultiIdus", () => {
   it("1.74 kW room: the whole capable catalogue, labelled, smallest fit best", () => {
     const props = proposeMultiIdus(pack, 1.74, basis);
     // a load never shortens the list — it only labels it
-    expect(props).toHaveLength(137);
+    expect(props).toHaveLength(34);
     for (const p of props) {
       if (p.fit === "fits") {
         expect(p.capacityKw).toBeGreaterThanOrEqual(1.74);
@@ -194,21 +193,21 @@ describe("proposeMultiIdus", () => {
   });
 
   it("oversized units are offered, not hidden", () => {
-    const props = proposeMultiIdus(pack, 1.74, basis);
+    const props = proposeMultiIdus(pack, 3.0, basis);
     expect(props.some((p) => p.fit === "oversized")).toBe(true);
     expect(props.some((p) => p.fit === "undersized")).toBe(true);
   });
 
   it("a load nothing can cover leaves every row undersized and no best fit", () => {
     const props = proposeMultiIdus(pack, 999, basis);
-    expect(props).toHaveLength(137);
+    expect(props).toHaveLength(34);
     expect(props.every((p) => p.fit === "undersized")).toBe(true);
     expect(props.some((p) => p.bestFit)).toBe(false);
   });
 
   it("null load = the full capable catalogue, nothing flagged", () => {
     const props = proposeMultiIdus(pack, null, basis);
-    expect(props).toHaveLength(137);
+    expect(props).toHaveLength(34);
     expect(props.some((p) => p.bestFit)).toBe(false);
     expect(props.every((p) => p.fit === "fits")).toBe(true);
   });
@@ -262,10 +261,9 @@ describe("proposeMultiOdus", () => {
   const twoSmall = [idu("MSZ-AP20VGD"), idu("MSZ-AP20VGD")];
 
   it("offers every multi-ready outdoor, fitting units first, smallest first", () => {
-    // 7 MXZ + 11 PUMY-SP/P — the PUMY rules carry a `ports` count, without
-    // which proposeMultiOdus drops an outdoor from the picker silently
+    // the 7 MXZ (PUMY is VRF now, vrf.ts)
     const props = proposeMultiOdus(pack, twoSmall, basis, { requiredKw: 3.48 });
-    expect(props).toHaveLength(18);
+    expect(props).toHaveLength(7);
     expect(props.every((p) => p.fits)).toBe(true);
     // smallest clean fit covering 3.48 kW → the 5.2 kW 2-port
     const rec = props.filter((p) => p.recommended);
@@ -527,12 +525,12 @@ describe("multiUnitOptions / multiFormFactorSummary", () => {
   });
 
   it("recommends the SMALLEST unit that suits, never a bigger one and never an undersized one", () => {
-    /* Deliberately the wall tab: at 1.74 kW it is the view with a real spread
-       — undersized rows BELOW the winner (1.2, 1.7) and several fitting
-       capacities above it (2.0, 2.2, 2.5). A tab whose fitting rows all share
-       one capacity cannot tell "smallest" from "largest" apart, and cannot
-       catch a recommendation that ignores fit at all. */
-    const rows = multiUnitOptions(pack, { loadKw: 1.74, basis, formFactor: "wall" });
+    /* Deliberately the wall tab at 3.0 kW: the view with a real spread —
+       undersized rows BELOW the winner (2.0, 2.5) and more than one fitting
+       capacity (3.5, 4.2). A tab whose fitting rows all share one capacity
+       cannot tell "smallest" from "largest" apart, and cannot catch a
+       recommendation that ignores fit at all. */
+    const rows = multiUnitOptions(pack, { loadKw: 3.0, basis, formFactor: "wall" });
     const fitting = rows.filter((r) => r.fit === "fits");
     const caps = new Set(fitting.map((r) => r.capacityKw));
     expect(caps.size).toBeGreaterThan(1); // the spread this test depends on

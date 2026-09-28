@@ -4537,6 +4537,14 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-joint.sel rect { stroke: currentColor; stroke-width: 3.5px; }
+/* a branch box: to scale, paper-filled, ringed in the system's colour */
+.dstudio .ds-bbox rect {
+  fill: var(--paper);
+  stroke: currentColor;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-bbox.sel rect { stroke-width: 3.5px; }
 .dstudio .ds-riser text {
   fill: currentColor;
   text-anchor: middle;

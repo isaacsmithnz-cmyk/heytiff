@@ -184,7 +184,7 @@ export function proposedOutdoorModel(doc: DesignDocument, pack: DataPack, system
   const current = allocs.find((a) => a.role === "odu");
   if (heads.length === 0) return "";
   /* a VRF takes the smallest outdoor whose index envelope takes its heads */
-  if (sys.type === "vrf") return vrfOutdoorsListing(pack, heads)[0]?.model ?? "";
+  if (sys.type === "vrf") return vrfOutdoorsListing(pack, heads, { proposing: true })[0]?.model ?? "";
   if (sys.type !== "ducted" && (heads.length >= 2 || familyOf(sys) === "multi")) {
     return outdoorsListing(pack, heads)[0]?.model ?? "";
   }

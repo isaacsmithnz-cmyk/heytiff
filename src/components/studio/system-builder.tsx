@@ -8,8 +8,8 @@ import type { DataPack, FormFactor, IndoorUnit, OutdoorUnit } from "@/lib/studio
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { systemCover, systemPairKw } from "@/lib/studio/coverage";
-import { multiCapableIdus, multiFormFactorSummary, vrfCapableIdus } from "@/lib/studio/multi";
-import { vrfIndexRatio, vrfOutdoorsListing } from "@/lib/studio/vrf";
+import { multiCapableIdus, multiFormFactorSummary, poolOf } from "@/lib/studio/multi";
+import { vrfOutdoorsListing, vrfRatio } from "@/lib/studio/vrf";
 import { headSection, systemVrfTree, type SizedTree } from "@/lib/studio/vrf-tree";
 import { formFactorSummary } from "@/lib/studio/select";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
@@ -164,7 +164,7 @@ interface SystemView {
   supplyText: string | null;
   pipeText: string | null;
   limitsText: string | null;
-  /** a VRF's joints and headers, by part: "CMY-Y102LS-G2 ×2" */
+  /** a VRF's joints, headers and branch boxes, by part: "CMY-Y102LS-G2 ×2" */
   jointsText: string | null;
   /** a VRF's tree, sized (provisional until the plan draws one) */
   vrfTree: SizedTree | null;
@@ -383,7 +383,7 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     ratio:
       o.system_type === "vrf"
         ? headRows.length
-          ? (vrfIndexRatio(o, headRows)?.pct ?? null)
+          ? (vrfRatio(o, headRows)?.pct ?? null)
           : null
         : headRows.length && o.capacity_cool_kw
           ? Math.round((headsKw / o.capacity_cool_kw) * 100)
@@ -393,20 +393,23 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   }));
 
   const ratio = connectionRatio(pack, sys);
-  const vrfRatio = oduRow?.system_type === "vrf" ? vrfIndexRatio(oduRow, headRows) : null;
+  const vrfShare = oduRow?.system_type === "vrf" ? vrfRatio(oduRow, headRows) : null;
   const oduKw = oduRow ? kwText(sizingCapacityKw(oduRow, basis)) : "";
   const outFacts = !oduRow
     ? ""
     : oduRow.system_type === "vrf"
-      ? `${oduKw}, ${heads.length} of ${oduRow.max_idus ?? "?"} heads${vrfRatio ? `, ${vrfRatio.pct}%` : ""}`
+      ? `${oduKw}, ${heads.length} of ${oduRow.max_idus ?? "?"} heads${vrfShare ? `, ${vrfShare.pct}%` : ""}`
       : oduRow.system_type === "multi"
       ? `${oduKw}, ${heads.length} of ${oduRow.ports ?? "?"} ports${ratio ? `, ${ratio.pct}%` : ""}`
       : kind === "split"
         ? `${oduKw}, split outdoor`
         : oduKw;
   const headWord = (n: number) => `${n} ${n === 1 ? "head" : "heads"}`;
-  const connectedText = vrfRatio
-    ? `P${vrfRatio.connected} of P${vrfRatio.outdoor}, ${headWord(headRows.length)}`
+  /* a VRF says it the way its book counts: P-numbers (PUHY) or kW (PUMY) */
+  const connectedText = vrfShare
+    ? vrfShare.basis === "kw"
+      ? `${vrfShare.connected.toFixed(1)} of ${vrfShare.outdoor.toFixed(1)} kW, ${headWord(headRows.length)}`
+      : `P${vrfShare.connected} of P${vrfShare.outdoor}, ${headWord(headRows.length)}`
     : ratio
     ? `${ratio.connectedKw.toFixed(1)} kW, ${headWord(ratio.heads)}`
     : oduRow && headRows.length
@@ -1194,7 +1197,8 @@ function OutdoorSide({ view, basis }: { view: SystemView; basis: SizingBasis }) 
         )}
         {view.jointsText && (
           <>
-            <dt>Joints</dt>
+            {/* joints, headers and branch boxes: the fittings the tree needs */}
+            <dt>Fittings</dt>
             <dd>{view.jointsText}</dd>
           </>
         )}
@@ -1832,7 +1836,7 @@ function UnitDetail({
     const pool = pairFlow
       ? pack.indoor_units.filter((u) => pack.pair_tables.some((p) => p.idu_model === u.model))
       : sys.type === "vrf"
-        ? vrfCapableIdus(pack)
+        ? poolOf(pack, "vrf")
         : multiCapableIdus(pack);
     return pool
       .filter((u) => u.series === current.series)

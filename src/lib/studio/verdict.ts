@@ -16,7 +16,7 @@ import type { DataPack, IndoorUnit, OutdoorUnit } from "./packs/schema";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { checkMultiCompatibility } from "./multi";
 import { outdoorsListing, pairFor } from "./builder";
-import { checkVrfSet, isVrfHead, vrfIndexRatio, vrfOutdoorsListing } from "./vrf";
+import { checkVrfSet, joinsVrf, vrfOutdoorsListing, vrfRatio } from "./vrf";
 import { systemVrfTree } from "./vrf-tree";
 
 export interface SystemFinding {
@@ -64,7 +64,7 @@ export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignS
   if (!odu) {
     if (heads.length === 0) return out;
     if (sys.type === "vrf") {
-      const strays = heads.filter((u) => !isVrfHead(pack, u));
+      const strays = heads.filter((u) => !joinsVrf(pack, u));
       for (const u of strays)
         out.push({
           severity: "red",
@@ -72,7 +72,7 @@ export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignS
           message: `${u.model} can't join a VRF system`,
           fix: "Swap it for a VRF head, or take it out",
         });
-      if (!strays.length && vrfOutdoorsListing(pack, heads).length === 0)
+      if (!strays.length && vrfOutdoorsListing(pack, heads, { proposing: true }).length === 0)
         out.push({
           severity: "red",
           code: "no-outdoor-lists-set",
@@ -137,7 +137,9 @@ export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignS
             ? "Swap it for a VRF head, or take it out"
             : f.code === "ratio-over" || f.code === "over-max-count"
               ? "Pick a bigger outdoor, or take a head out"
-              : undefined,
+              : f.code === "ratio-under"
+                ? "Add heads, or pick a smaller outdoor"
+                : undefined,
       });
     }
     /* the pipework, sized and checked against the book (vrf-tree.ts): a
@@ -214,7 +216,7 @@ export function connectionRatio(
     .filter((u): u is IndoorUnit => u != null);
   if (!heads.length || !oduSpec.capacity_cool_kw) return null;
   const connectedKw = heads.reduce((a, u) => a + (u.capacity_cool_kw ?? 0), 0);
-  const index = oduSpec.system_type === "vrf" ? vrfIndexRatio(oduSpec, heads) : null;
+  const index = oduSpec.system_type === "vrf" ? vrfRatio(oduSpec, heads) : null;
   return {
     connectedKw,
     outdoorKw: oduSpec.capacity_cool_kw,

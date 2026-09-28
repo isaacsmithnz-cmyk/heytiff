@@ -115,6 +115,8 @@ export type AdditionalChargeRule =
       bands: { farthest_m_max: number | null; rates: Record<string, number> }[];
       /** ascending by index_max (inclusive); null = no upper bound */
       plus_by_connected_index?: { index_max: number | null; add_g: number }[];
+      /** the same by the heads' rated cooling kW added up (PUMY p.86-87) */
+      plus_by_connected_kw?: { kw_max: number | null; add_g: number }[];
       /** outdoor model → grams (the book prints the column even where it is 0) */
       plus_by_odu?: Record<string, number>;
       /** each connected indoor unit named here adds its grams */
@@ -363,6 +365,29 @@ export interface OutdoorUnit {
   idu_index_max?: number;
   /** → vrf_pipe_tables.series | multi_rules.odu_model — the sizing engine follows this */
   pipe_table_ref?: string;
+  /** what the ratio band counts: capacity index (City Multi PUHY, the
+      default) or rated cooling kW (PUMY, M-P0860 p.2-7 "50 to 130% of outdoor
+      unit capacity", the install manual's SP112 "6.3 – 16.2 kW") */
+  ratio_basis?: "index" | "kw";
+  /** a VRF that also takes heads on branch boxes (PUMY): the tables for a
+      system on branch boxes only, and for a mixed one (vrf_pipe_tables.series) */
+  branch_box_table_ref?: string;
+  mixed_table_ref?: string;
+  /** heads on branch boxes: how many boxes, the size range and count of box
+      heads alone, and a mixed system's City Multi / box-head pairs per number
+      of boxes (each pair a pair of maxima; any one pair may hold) */
+  branch_boxes?: {
+    max_boxes: number;
+    code_min: number;
+    code_max: number;
+    max_heads: number;
+    mixed: { boxes: number; city_multi: number; box_heads: number }[];
+    /** the indoor families a box port takes, as model globs ("MSZ-AP*"):
+        the book's list for this outdoor */
+    families: string[];
+    /** families staff have confirmed beyond the book's list */
+    staff_families?: { patterns: string[]; by: string; at: string };
+  };
   /* ── combined multi-module banks (SEAM, not yet built) ──
      Twin/triple ODUs (Mitsubishi PUHY YSNW, future Daikin multi-module VRV) are
      N single-module units + a twinning kit. Absent/false = an atomic unit.
@@ -416,9 +441,11 @@ export interface MultiRule {
 export interface VrfLimits {
   max_total_m: number;
   max_farthest_actual_m: number;
-  /** judged on the EQUIVALENT length: actual + bend_equiv_m_by_odu × bends */
-  max_farthest_equiv_m: number;
-  max_after_first_joint_m: number;
+  /** judged on the EQUIVALENT length: actual + bend_equiv_m_by_odu × bends;
+      absent where the book limits bends by count instead (PUMY) */
+  max_farthest_equiv_m?: number;
+  /** absent where the book sets none (a branch-box system) */
+  max_after_first_joint_m?: number;
   max_lift_odu_above_m: number;
   max_lift_odu_below_m: number;
   max_lift_idu_idu_m: number;
@@ -431,6 +458,23 @@ export interface VrfLimits {
   /** indoor-to-indoor height may reach this when the liquid pipes to the
       units past max_lift_idu_idu_m go one size up */
   extended_lift_idu_idu_m?: number;
+  /* branch boxes (PUMY M-P0860 p.75-85) */
+  /** the outdoor to its farthest branch box, along the mains */
+  max_odu_to_box_m?: number;
+  /** the first joint to the farthest branch box */
+  max_first_joint_to_box_m?: number;
+  /** the outdoor to the farthest head reached through a branch box */
+  max_farthest_via_box_m?: number;
+  /** a branch box to its farthest head */
+  max_after_box_m?: number;
+  /** every branch box → head pipe added up */
+  max_box_to_heads_total_m?: number;
+  /** corners on any one path from the outdoor to a head */
+  max_bends_per_path?: number;
+  /** height between branch boxes (h2) */
+  max_box_box_lift_m?: number;
+  /** height between the heads on one branch box (h3) */
+  max_box_heads_lift_m?: number;
 }
 
 export interface VrfPipeTable {
@@ -444,6 +488,31 @@ export interface VrfPipeTable {
       Optional: brands that use a single table omit it and the engine reuses
       `pipe_sizing`. */
   branch_sizing?: PipeSizingRule;
+  /** which connection this table is for: joints and headers only (the
+      default), branch boxes only, or both at once (PUMY M-P0860 §11-2) */
+  method?: "joint" | "branch-box" | "mixed";
+  /** a section is never larger than the one before it (PUHY p.140 Note 5);
+      false where the book does not say so (PUMY) */
+  downstream_not_larger?: boolean;
+  /** the book's conditional liquid sizes (PUMY p.77-84): when the farthest
+      head from the outdoor is past `farthest_over_m`, or the farthest branch
+      box along the mains is past `to_box_over_m`, or a head of one of
+      `heads_index` is on the system, the named sections take `liquid_mm`
+      (any one condition is enough) */
+  liquid_step_ups?: {
+    farthest_over_m?: number;
+    to_box_over_m?: number;
+    heads_index?: number[];
+    liquid_mm: number;
+    roles: ("main" | "between")[];
+  }[];
+  /** a City Multi head's own pipe goes to `liquid_mm` when it is under
+      `below_index` and the farthest head is past `after_first_joint_over_m`
+      from the first joint (PUMY p.76 *) */
+  branch_step_ups?: { below_index: number; after_first_joint_over_m: number; liquid_mm: number }[];
+  /** a head on a branch box: its pipe by its series (the first letter of its
+      model, M, S or P: Isaac, 2026-09-28) and model number (kW type) */
+  box_head_sizing?: { series: "M" | "S" | "P"; code_min: number; code_max: number; liquid_mm: number; gas_mm: number }[];
   /** ODU → 1st joint ("A"). Optional: Mitsubishi's Table 1 equals the ODU's
       own connection sizes, so the engine defaults to those when absent; only
       brands that publish a separate main-selection rule fill this. */

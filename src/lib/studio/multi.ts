@@ -18,6 +18,7 @@ import type {
   OutdoorUnit,
 } from "./packs/schema";
 import { indoorReadiness, outdoorReadiness } from "./packs/ready";
+import { matchesModelGlob } from "./model-glob";
 import { capacityFit, type UnitFit } from "./fit";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 import {
@@ -117,10 +118,35 @@ export function vrfCapableIdus(pack: DataPack): IndoorUnit[] {
   return pack.indoor_units.filter((u) => indoorReadiness(pack, u).roles["vrf-idu"]);
 }
 
-/** the heads a per-zone family draws from */
+/** the model globs a VRF outdoor's branch boxes take: the book's list for it
+    and the families staff confirmed (OutdoorUnit.branch_boxes) */
+export const boxFamiliesOf = (odu: OutdoorUnit): string[] => [
+  ...(odu.branch_boxes?.families ?? []),
+  ...(odu.branch_boxes?.staff_families?.patterns ?? []),
+];
+
+/** a head that goes on a branch box of this outdoor (PUMY): a family its
+    boxes take, in its box-head size range. Without an outdoor, of any
+    outdoor that takes branch boxes. */
+export function isBoxHead(pack: DataPack, odu: OutdoorUnit | null, u: IndoorUnit): boolean {
+  const odus = odu ? [odu] : pack.outdoor_units.filter((o) => o.system_type === "vrf" && o.branch_boxes);
+  return odus.some((o) => {
+    const bb = o.branch_boxes;
+    if (!bb || u.capacity_code == null) return false;
+    if (u.capacity_code < bb.code_min || u.capacity_code > bb.code_max) return false;
+    return boxFamiliesOf(o).some((p) => matchesModelGlob(u.model, p));
+  });
+}
+
+/** the heads a per-zone family draws from; a VRF's are City Multi heads and
+    the heads a branch box takes */
 export type HeadPool = "multi" | "vrf";
-const poolOf = (pack: DataPack, pool: HeadPool): IndoorUnit[] =>
-  pool === "vrf" ? vrfCapableIdus(pack) : multiCapableIdus(pack);
+export const poolOf = (pack: DataPack, pool: HeadPool): IndoorUnit[] =>
+  pool === "vrf"
+    ? [...vrfCapableIdus(pack), ...pack.indoor_units.filter((u) => !isCityMulti(pack, u) && isBoxHead(pack, null, u))]
+    : multiCapableIdus(pack);
+
+const isCityMulti = (pack: DataPack, u: IndoorUnit): boolean => indoorReadiness(pack, u).roles["vrf-idu"];
 
 /* ─────────────────────── per-room IDU proposals ─────────────────────── */
 

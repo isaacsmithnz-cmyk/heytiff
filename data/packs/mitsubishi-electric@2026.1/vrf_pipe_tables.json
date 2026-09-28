@@ -181,5 +181,889 @@
       "PUHY-P250YNW-A1": { "farthest_m_min": 90, "liquid_mm": 12.7 },
       "PUHY-P300YNW-A1": { "farthest_m_min": 40, "liquid_mm": 12.7 }
     }
+  },
+  {
+    "series": "PUMY-SP-KMD2 joint",
+    "method": "joint",
+    "downstream_not_larger": false,
+    "pipe_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 182, "liquid_mm": 9.52, "gas_mm": 15.88 }
+      ]
+    },
+    "branch_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+        { "index_max": 140, "liquid_mm": 9.52, "gas_mm": 15.88 }
+      ]
+    },
+    "joint_selection": {
+      "steps": [
+        { "index_max": 99999, "part_ref": "CMY-Y62-G-E" }
+      ]
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 99999, "part_ref": "CMY-Y64-G-E" },
+        { "branches_max": 8, "index_max": 99999, "part_ref": "CMY-Y68-G-E" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 120,
+      "max_farthest_actual_m": 70,
+      "max_after_first_joint_m": 50,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 30,
+      "max_lift_idu_idu_m": 15
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 19, "9.52": 50 }
+        }
+      ],
+      "plus_by_connected_kw": [
+        { "kw_max": 8.0, "add_g": 1500 },
+        { "kw_max": 16.0, "add_g": 2500 },
+        { "kw_max": null, "add_g": 3000 }
+      ],
+      "round_up_g": 100
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
+      "edition": "M-P0860 (Oct 2022)",
+      "page": "74, 86-87"
+    }
+  },
+  {
+    "series": "PUMY-SP-KMD2 branch box",
+    "method": "branch-box",
+    "downstream_not_larger": false,
+    "pipe_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 99999, "liquid_mm": 9.52, "gas_mm": 15.88 }
+      ]
+    },
+    "box_head_sizing": [
+      { "series": "M", "code_min": 22, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "S", "code_min": 22, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "S", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "M", "code_min": 60, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 15.88 },
+      { "series": "S", "code_min": 60, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 15.88 },
+      { "series": "M", "code_min": 71, "code_max": 71, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "S", "code_min": 71, "code_max": 71, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "P", "code_min": 35, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "P", "code_min": 60, "code_max": 100, "liquid_mm": 9.52, "gas_mm": 15.88 }
+    ],
+    "joint_selection": {
+      "steps": [
+        { "index_max": 99999, "part_ref": "CMY-Y62-G-E" }
+      ]
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 99999, "part_ref": "CMY-Y64-G-E" },
+        { "branches_max": 8, "index_max": 99999, "part_ref": "CMY-Y68-G-E" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 120,
+      "max_farthest_actual_m": 80,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 30,
+      "max_lift_idu_idu_m": 15,
+      "max_odu_to_box_m": 55,
+      "max_farthest_via_box_m": 80,
+      "max_after_box_m": 25,
+      "max_box_to_heads_total_m": 95,
+      "max_bends_per_path": 15,
+      "max_box_box_lift_m": 15,
+      "max_box_heads_lift_m": 12
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 19, "9.52": 50 }
+        }
+      ],
+      "plus_by_connected_kw": [
+        { "kw_max": 8.0, "add_g": 1500 },
+        { "kw_max": 16.0, "add_g": 2500 },
+        { "kw_max": null, "add_g": 3000 }
+      ],
+      "round_up_g": 100
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
+      "edition": "M-P0860 (Oct 2022)",
+      "page": "44, 75, 86-87"
+    }
+  },
+  {
+    "series": "PUMY-SP-KMD2 mixed",
+    "method": "mixed",
+    "downstream_not_larger": false,
+    "pipe_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 182, "liquid_mm": 9.52, "gas_mm": 15.88 }
+      ]
+    },
+    "branch_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+        { "index_max": 140, "liquid_mm": 9.52, "gas_mm": 15.88 }
+      ]
+    },
+    "branch_step_ups": [
+      { "below_index": 50, "after_first_joint_over_m": 30, "liquid_mm": 9.52 }
+    ],
+    "box_head_sizing": [
+      { "series": "M", "code_min": 22, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "S", "code_min": 22, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "S", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "M", "code_min": 60, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 15.88 },
+      { "series": "S", "code_min": 60, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 15.88 },
+      { "series": "M", "code_min": 71, "code_max": 71, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "S", "code_min": 71, "code_max": 71, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "P", "code_min": 35, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "P", "code_min": 60, "code_max": 100, "liquid_mm": 9.52, "gas_mm": 15.88 }
+    ],
+    "joint_selection": {
+      "steps": [
+        { "index_max": 99999, "part_ref": "CMY-Y62-G-E" }
+      ]
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 99999, "part_ref": "CMY-Y64-G-E" },
+        { "branches_max": 8, "index_max": 99999, "part_ref": "CMY-Y68-G-E" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 120,
+      "max_farthest_actual_m": 70,
+      "max_after_first_joint_m": 50,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 30,
+      "max_lift_idu_idu_m": 15,
+      "max_odu_to_box_m": 55,
+      "max_farthest_via_box_m": 80,
+      "max_after_box_m": 25,
+      "max_box_to_heads_total_m": 95,
+      "max_bends_per_path": 15,
+      "max_box_box_lift_m": 15,
+      "max_box_heads_lift_m": 12
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 19, "9.52": 50 }
+        }
+      ],
+      "plus_by_connected_kw": [
+        { "kw_max": 8.0, "add_g": 1500 },
+        { "kw_max": 16.0, "add_g": 2500 },
+        { "kw_max": null, "add_g": 3000 }
+      ],
+      "round_up_g": 100
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
+      "edition": "M-P0860 (Oct 2022)",
+      "page": "74, 76, 86-87"
+    }
+  },
+  {
+    "series": "PUMY-P200 joint",
+    "method": "joint",
+    "downstream_not_larger": false,
+    "pipe_sizing": {
+      "method": "size_by_downstream_kw",
+      "steps": [
+        { "kw_max": 16.0, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "kw_max": 29.1, "liquid_mm": 9.52, "gas_mm": 19.05 }
+      ]
+    },
+    "branch_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+        { "index_max": 140, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "index_max": 200, "liquid_mm": 9.52, "gas_mm": 19.05 }
+      ]
+    },
+    "liquid_step_ups": [
+      { "farthest_over_m": 60, "liquid_mm": 12.7, "roles": ["main", "between"] }
+    ],
+    "joint_selection": {
+      "steps": [
+        { "index_max": 99999, "part_ref": "CMY-Y62-G-E" }
+      ]
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 99999, "part_ref": "CMY-Y64-G-E" },
+        { "branches_max": 8, "index_max": 99999, "part_ref": "CMY-Y68-G-E" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 150,
+      "max_farthest_actual_m": 80,
+      "max_after_first_joint_m": 30,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 40,
+      "max_lift_idu_idu_m": 15
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 19, "9.52": 50, "12.7": 92 }
+        }
+      ],
+      "plus_by_connected_kw": [
+        { "kw_max": 16.0, "add_g": 2500 },
+        { "kw_max": 25.0, "add_g": 3000 },
+        { "kw_max": null, "add_g": 3500 }
+      ],
+      "round_up_g": 100
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
+      "edition": "M-P0860 (Oct 2022)",
+      "page": "77, 86-87"
+    }
+  },
+  {
+    "series": "PUMY-P200 branch box",
+    "method": "branch-box",
+    "downstream_not_larger": false,
+    "pipe_sizing": {
+      "method": "size_by_downstream_kw",
+      "steps": [
+        { "kw_max": 99999, "liquid_mm": 9.52, "gas_mm": 19.05 }
+      ]
+    },
+    "liquid_step_ups": [
+      { "to_box_over_m": 20, "liquid_mm": 12.7, "roles": ["main", "between"] }
+    ],
+    "box_head_sizing": [
+      { "series": "M", "code_min": 15, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "S", "code_min": 15, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "S", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "M", "code_min": 60, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 15.88 },
+      { "series": "S", "code_min": 60, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 15.88 },
+      { "series": "M", "code_min": 71, "code_max": 80, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "S", "code_min": 71, "code_max": 80, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "P", "code_min": 35, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "P", "code_min": 60, "code_max": 100, "liquid_mm": 9.52, "gas_mm": 15.88 }
+    ],
+    "joint_selection": {
+      "steps": [
+        { "index_max": 99999, "part_ref": "CMY-Y62-G-E" }
+      ]
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 99999, "part_ref": "CMY-Y64-G-E" },
+        { "branches_max": 8, "index_max": 99999, "part_ref": "CMY-Y68-G-E" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 150,
+      "max_farthest_actual_m": 80,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 40,
+      "max_lift_idu_idu_m": 15,
+      "max_odu_to_box_m": 55,
+      "max_farthest_via_box_m": 80,
+      "max_after_box_m": 25,
+      "max_box_to_heads_total_m": 95,
+      "max_bends_per_path": 15,
+      "max_box_box_lift_m": 15,
+      "max_box_heads_lift_m": 12
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 19, "9.52": 50, "12.7": 92 }
+        }
+      ],
+      "plus_by_connected_kw": [
+        { "kw_max": 16.0, "add_g": 2500 },
+        { "kw_max": 25.0, "add_g": 3000 },
+        { "kw_max": null, "add_g": 3500 }
+      ],
+      "round_up_g": 100
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
+      "edition": "M-P0860 (Oct 2022)",
+      "page": "78, 86-87"
+    }
+  },
+  {
+    "series": "PUMY-P200 mixed",
+    "method": "mixed",
+    "downstream_not_larger": false,
+    "pipe_sizing": {
+      "method": "size_by_downstream_kw",
+      "steps": [
+        { "kw_max": 16.0, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "kw_max": 29.1, "liquid_mm": 9.52, "gas_mm": 19.05 }
+      ]
+    },
+    "branch_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+        { "index_max": 140, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "index_max": 200, "liquid_mm": 9.52, "gas_mm": 19.05 }
+      ]
+    },
+    "liquid_step_ups": [
+      {
+        "farthest_over_m": 60,
+        "to_box_over_m": 20,
+        "liquid_mm": 12.7,
+        "roles": ["main", "between"]
+      }
+    ],
+    "box_head_sizing": [
+      { "series": "M", "code_min": 15, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "S", "code_min": 15, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "S", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "M", "code_min": 60, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 15.88 },
+      { "series": "S", "code_min": 60, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 15.88 },
+      { "series": "M", "code_min": 71, "code_max": 80, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "S", "code_min": 71, "code_max": 80, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "P", "code_min": 35, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "P", "code_min": 60, "code_max": 100, "liquid_mm": 9.52, "gas_mm": 15.88 }
+    ],
+    "joint_selection": {
+      "steps": [
+        { "index_max": 99999, "part_ref": "CMY-Y62-G-E" }
+      ]
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 99999, "part_ref": "CMY-Y64-G-E" },
+        { "branches_max": 8, "index_max": 99999, "part_ref": "CMY-Y68-G-E" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 150,
+      "max_farthest_actual_m": 80,
+      "max_after_first_joint_m": 30,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 40,
+      "max_lift_idu_idu_m": 15,
+      "max_odu_to_box_m": 55,
+      "max_farthest_via_box_m": 80,
+      "max_after_box_m": 25,
+      "max_box_to_heads_total_m": 95,
+      "max_bends_per_path": 15,
+      "max_box_box_lift_m": 15,
+      "max_box_heads_lift_m": 12
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 19, "9.52": 50, "12.7": 92 }
+        }
+      ],
+      "plus_by_connected_kw": [
+        { "kw_max": 16.0, "add_g": 2500 },
+        { "kw_max": 25.0, "add_g": 3000 },
+        { "kw_max": null, "add_g": 3500 }
+      ],
+      "round_up_g": 100
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
+      "edition": "M-P0860 (Oct 2022)",
+      "page": "79, 86-87"
+    }
+  },
+  {
+    "series": "PUMY-P250 joint",
+    "method": "joint",
+    "downstream_not_larger": false,
+    "pipe_sizing": {
+      "method": "size_by_downstream_kw",
+      "steps": [
+        { "kw_max": 16.0, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "kw_max": 22.4, "liquid_mm": 9.52, "gas_mm": 19.05 },
+        { "kw_max": 36.4, "liquid_mm": 9.52, "gas_mm": 22.2 }
+      ]
+    },
+    "branch_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+        { "index_max": 140, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "index_max": 200, "liquid_mm": 9.52, "gas_mm": 19.05 },
+        { "index_max": 250, "liquid_mm": 9.52, "gas_mm": 22.2 }
+      ]
+    },
+    "liquid_step_ups": [
+      { "farthest_over_m": 90, "liquid_mm": 12.7, "roles": ["main", "between"] },
+      { "heads_index": [200, 250], "liquid_mm": 12.7, "roles": ["main", "between"] }
+    ],
+    "joint_selection": {
+      "steps": [
+        { "index_max": 99999, "part_ref": "CMY-Y62-G-E" }
+      ]
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 99999, "part_ref": "CMY-Y64-G-E" },
+        { "branches_max": 8, "index_max": 99999, "part_ref": "CMY-Y68-G-E" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 310,
+      "max_farthest_actual_m": 150,
+      "max_after_first_joint_m": 30,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 40,
+      "max_lift_idu_idu_m": 15
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 19, "9.52": 50, "12.7": 92 }
+        }
+      ],
+      "plus_by_connected_kw": [
+        { "kw_max": 16.0, "add_g": 2500 },
+        { "kw_max": 27.0, "add_g": 3000 },
+        { "kw_max": 31.0, "add_g": 3500 },
+        { "kw_max": 34.0, "add_g": 4000 },
+        { "kw_max": 36.5, "add_g": 4500 },
+        { "kw_max": 39.0, "add_g": 5000 },
+        { "kw_max": 41.0, "add_g": 5500 },
+        { "kw_max": null, "add_g": 6100 }
+      ],
+      "round_up_g": 100
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
+      "edition": "M-P0860 (Oct 2022)",
+      "page": "80-82, 87"
+    }
+  },
+  {
+    "series": "PUMY-P250 branch box",
+    "method": "branch-box",
+    "downstream_not_larger": false,
+    "pipe_sizing": {
+      "method": "size_by_downstream_kw",
+      "steps": [
+        { "kw_max": 16.0, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "kw_max": 22.4, "liquid_mm": 9.52, "gas_mm": 19.05 },
+        { "kw_max": 99999, "liquid_mm": 9.52, "gas_mm": 22.2 }
+      ]
+    },
+    "box_head_sizing": [
+      { "series": "M", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "M", "code_min": 60, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "S", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "S", "code_min": 50, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "S", "code_min": 71, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 }
+    ],
+    "liquid_step_ups": [
+      { "heads_index": [200, 250], "liquid_mm": 12.7, "roles": ["main", "between"] }
+    ],
+    "joint_selection": {
+      "steps": [
+        { "index_max": 99999, "part_ref": "CMY-Y62-G-E" }
+      ]
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 99999, "part_ref": "CMY-Y64-G-E" },
+        { "branches_max": 8, "index_max": 99999, "part_ref": "CMY-Y68-G-E" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 240,
+      "max_farthest_actual_m": 80,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 40,
+      "max_lift_idu_idu_m": 15,
+      "max_odu_to_box_m": 95,
+      "max_first_joint_to_box_m": 30,
+      "max_farthest_via_box_m": 80,
+      "max_after_box_m": 25,
+      "max_box_to_heads_total_m": 145,
+      "max_bends_per_path": 23,
+      "max_box_box_lift_m": 15,
+      "max_box_heads_lift_m": 12
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 19, "9.52": 50, "12.7": 92 }
+        }
+      ],
+      "plus_by_connected_kw": [
+        { "kw_max": 16.0, "add_g": 2500 },
+        { "kw_max": 27.0, "add_g": 3000 },
+        { "kw_max": 31.0, "add_g": 3500 },
+        { "kw_max": 34.0, "add_g": 4000 },
+        { "kw_max": 36.5, "add_g": 4500 },
+        { "kw_max": 39.0, "add_g": 5000 },
+        { "kw_max": 41.0, "add_g": 5500 },
+        { "kw_max": null, "add_g": 6100 }
+      ],
+      "round_up_g": 100
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
+      "edition": "M-P0860 (Oct 2022)",
+      "page": "83, 87"
+    }
+  },
+  {
+    "series": "PUMY-P250 mixed",
+    "method": "mixed",
+    "downstream_not_larger": false,
+    "pipe_sizing": {
+      "method": "size_by_downstream_kw",
+      "steps": [
+        { "kw_max": 16.0, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "kw_max": 22.4, "liquid_mm": 9.52, "gas_mm": 19.05 },
+        { "kw_max": 36.4, "liquid_mm": 9.52, "gas_mm": 22.2 }
+      ]
+    },
+    "branch_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+        { "index_max": 140, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "index_max": 200, "liquid_mm": 9.52, "gas_mm": 19.05 },
+        { "index_max": 250, "liquid_mm": 9.52, "gas_mm": 22.2 }
+      ]
+    },
+    "box_head_sizing": [
+      { "series": "M", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "M", "code_min": 60, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "S", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "S", "code_min": 50, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "S", "code_min": 71, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 }
+    ],
+    "liquid_step_ups": [
+      { "farthest_over_m": 90, "liquid_mm": 12.7, "roles": ["main", "between"] },
+      { "heads_index": [200, 250], "liquid_mm": 12.7, "roles": ["main", "between"] }
+    ],
+    "joint_selection": {
+      "steps": [
+        { "index_max": 99999, "part_ref": "CMY-Y62-G-E" }
+      ]
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 99999, "part_ref": "CMY-Y64-G-E" },
+        { "branches_max": 8, "index_max": 99999, "part_ref": "CMY-Y68-G-E" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 310,
+      "max_farthest_actual_m": 85,
+      "max_after_first_joint_m": 30,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 40,
+      "max_lift_idu_idu_m": 15,
+      "max_odu_to_box_m": 80,
+      "max_farthest_via_box_m": 80,
+      "max_after_box_m": 25,
+      "max_box_to_heads_total_m": 145,
+      "max_bends_per_path": 23,
+      "max_box_heads_lift_m": 12
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 19, "9.52": 50, "12.7": 92 }
+        }
+      ],
+      "plus_by_connected_kw": [
+        { "kw_max": 16.0, "add_g": 2500 },
+        { "kw_max": 27.0, "add_g": 3000 },
+        { "kw_max": 31.0, "add_g": 3500 },
+        { "kw_max": 34.0, "add_g": 4000 },
+        { "kw_max": 36.5, "add_g": 4500 },
+        { "kw_max": 39.0, "add_g": 5000 },
+        { "kw_max": 41.0, "add_g": 5500 },
+        { "kw_max": null, "add_g": 6100 }
+      ],
+      "round_up_g": 100
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
+      "edition": "M-P0860 (Oct 2022)",
+      "page": "84, 87"
+    }
+  },
+  {
+    "series": "PUMY-P300 joint",
+    "method": "joint",
+    "downstream_not_larger": false,
+    "pipe_sizing": {
+      "method": "size_by_downstream_kw",
+      "steps": [
+        { "kw_max": 16.0, "liquid_mm": 12.7, "gas_mm": 15.88 },
+        { "kw_max": 22.4, "liquid_mm": 12.7, "gas_mm": 19.05 },
+        { "kw_max": 36.4, "liquid_mm": 12.7, "gas_mm": 22.2 },
+        { "kw_max": 99999, "liquid_mm": 12.7, "gas_mm": 25.4 }
+      ]
+    },
+    "branch_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+        { "index_max": 140, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "index_max": 200, "liquid_mm": 9.52, "gas_mm": 19.05 },
+        { "index_max": 250, "liquid_mm": 9.52, "gas_mm": 22.2 }
+      ]
+    },
+    "joint_selection": {
+      "steps": [
+        { "index_max": 99999, "part_ref": "CMY-Y62-G-E" }
+      ]
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 99999, "part_ref": "CMY-Y64-G-E" },
+        { "branches_max": 8, "index_max": 99999, "part_ref": "CMY-Y68-G-E" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 310,
+      "max_farthest_actual_m": 150,
+      "max_after_first_joint_m": 30,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 40,
+      "max_lift_idu_idu_m": 15
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 19, "9.52": 50, "12.7": 92 }
+        }
+      ],
+      "plus_by_connected_kw": [
+        { "kw_max": 16.0, "add_g": 2500 },
+        { "kw_max": 27.0, "add_g": 3000 },
+        { "kw_max": 31.0, "add_g": 3500 },
+        { "kw_max": 34.0, "add_g": 4000 },
+        { "kw_max": 36.5, "add_g": 4500 },
+        { "kw_max": 39.0, "add_g": 5000 },
+        { "kw_max": 41.0, "add_g": 5500 },
+        { "kw_max": null, "add_g": 6100 }
+      ],
+      "round_up_g": 100
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
+      "edition": "M-P0860 (Oct 2022)",
+      "page": "80-82, 87"
+    }
+  },
+  {
+    "series": "PUMY-P300 branch box",
+    "method": "branch-box",
+    "downstream_not_larger": false,
+    "pipe_sizing": {
+      "method": "size_by_downstream_kw",
+      "steps": [
+        { "kw_max": 16.0, "liquid_mm": 12.7, "gas_mm": 15.88 },
+        { "kw_max": 22.4, "liquid_mm": 12.7, "gas_mm": 19.05 },
+        { "kw_max": 99999, "liquid_mm": 12.7, "gas_mm": 22.2 }
+      ]
+    },
+    "box_head_sizing": [
+      { "series": "M", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "M", "code_min": 60, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "S", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "S", "code_min": 50, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "S", "code_min": 71, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 }
+    ],
+    "joint_selection": {
+      "steps": [
+        { "index_max": 99999, "part_ref": "CMY-Y62-G-E" }
+      ]
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 99999, "part_ref": "CMY-Y64-G-E" },
+        { "branches_max": 8, "index_max": 99999, "part_ref": "CMY-Y68-G-E" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 240,
+      "max_farthest_actual_m": 80,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 40,
+      "max_lift_idu_idu_m": 15,
+      "max_odu_to_box_m": 95,
+      "max_first_joint_to_box_m": 30,
+      "max_farthest_via_box_m": 80,
+      "max_after_box_m": 25,
+      "max_box_to_heads_total_m": 145,
+      "max_bends_per_path": 23,
+      "max_box_box_lift_m": 15,
+      "max_box_heads_lift_m": 12
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 19, "9.52": 50, "12.7": 92 }
+        }
+      ],
+      "plus_by_connected_kw": [
+        { "kw_max": 16.0, "add_g": 2500 },
+        { "kw_max": 27.0, "add_g": 3000 },
+        { "kw_max": 31.0, "add_g": 3500 },
+        { "kw_max": 34.0, "add_g": 4000 },
+        { "kw_max": 36.5, "add_g": 4500 },
+        { "kw_max": 39.0, "add_g": 5000 },
+        { "kw_max": 41.0, "add_g": 5500 },
+        { "kw_max": null, "add_g": 6100 }
+      ],
+      "round_up_g": 100
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
+      "edition": "M-P0860 (Oct 2022)",
+      "page": "83, 87"
+    }
+  },
+  {
+    "series": "PUMY-P300 mixed",
+    "method": "mixed",
+    "downstream_not_larger": false,
+    "pipe_sizing": {
+      "method": "size_by_downstream_kw",
+      "steps": [
+        { "kw_max": 16.0, "liquid_mm": 12.7, "gas_mm": 15.88 },
+        { "kw_max": 22.4, "liquid_mm": 12.7, "gas_mm": 19.05 },
+        { "kw_max": 36.4, "liquid_mm": 12.7, "gas_mm": 22.2 },
+        { "kw_max": 99999, "liquid_mm": 12.7, "gas_mm": 25.4 }
+      ]
+    },
+    "branch_sizing": {
+      "method": "size_by_downstream_index",
+      "steps": [
+        { "index_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+        { "index_max": 140, "liquid_mm": 9.52, "gas_mm": 15.88 },
+        { "index_max": 200, "liquid_mm": 9.52, "gas_mm": 19.05 },
+        { "index_max": 250, "liquid_mm": 9.52, "gas_mm": 22.2 }
+      ]
+    },
+    "box_head_sizing": [
+      { "series": "M", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "M", "code_min": 60, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "S", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
+      { "series": "S", "code_min": 50, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 12.7 },
+      { "series": "S", "code_min": 71, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 }
+    ],
+    "joint_selection": {
+      "steps": [
+        { "index_max": 99999, "part_ref": "CMY-Y62-G-E" }
+      ]
+    },
+    "header_selection": {
+      "steps": [
+        { "branches_max": 4, "index_max": 99999, "part_ref": "CMY-Y64-G-E" },
+        { "branches_max": 8, "index_max": 99999, "part_ref": "CMY-Y68-G-E" }
+      ]
+    },
+    "limits": {
+      "max_total_m": 310,
+      "max_farthest_actual_m": 85,
+      "max_after_first_joint_m": 30,
+      "max_lift_odu_above_m": 50,
+      "max_lift_odu_below_m": 40,
+      "max_lift_idu_idu_m": 15,
+      "max_odu_to_box_m": 80,
+      "max_farthest_via_box_m": 80,
+      "max_after_box_m": 25,
+      "max_box_to_heads_total_m": 145,
+      "max_bends_per_path": 23,
+      "max_box_heads_lift_m": 12
+    },
+    "additional_charge": {
+      "method": "per_meter_by_liquid_size_by_farthest",
+      "bands": [
+        {
+          "farthest_m_max": null,
+          "rates": { "6.35": 19, "9.52": 50, "12.7": 92 }
+        }
+      ],
+      "plus_by_connected_kw": [
+        { "kw_max": 16.0, "add_g": 2500 },
+        { "kw_max": 27.0, "add_g": 3000 },
+        { "kw_max": 31.0, "add_g": 3500 },
+        { "kw_max": 34.0, "add_g": 4000 },
+        { "kw_max": 36.5, "add_g": 4500 },
+        { "kw_max": 39.0, "add_g": 5000 },
+        { "kw_max": 41.0, "add_g": 5500 },
+        { "kw_max": null, "add_g": 6100 }
+      ],
+      "round_up_g": 100
+    },
+    "provenance": {
+      "kind": "extracted",
+      "source": "PUMY-SP-VKMD2/YKMD2-A, PUMY-P-YKMD2/YBMD-A Data Book",
+      "edition": "M-P0860 (Oct 2022)",
+      "page": "84, 87"
+    }
   }
 ]

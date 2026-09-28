@@ -71,7 +71,11 @@ import { isAirCapable } from "@/lib/studio/modules";
 import { deleteZone } from "@/lib/studio/builder";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf } from "@/lib/studio/graph";
-import { jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
+import { branchBoxObject, jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
+
+/** a branch box on the plan: PAC-MK34BC / MK54BC are both 450 × 280 mm (M-P0860 p.44) */
+const BOX_W_MM = 450;
+const BOX_D_MM = 280;
 import { anchorFloating, dodgeSlot, type Size } from "@/lib/studio/anchor";
 import {
   moveEndpointTo,
@@ -201,6 +205,7 @@ export type CanvasTool =
   | "cable" // power/data cable — dots smoothed into a curve
   | "riser"
   | "joint" // a refrigerant joint: on a run it cuts it and branches there
+  | "branch-box" // a PUMY branch box: the heads' runs end on it
   | "component" // air component armed from the palette (Stage 7 — plenum first)
   | "note"; // markup: a revision cloud round something, with its say in the margin
 
@@ -225,7 +230,7 @@ export const isRunTool = (t: CanvasTool): t is "pipe" | "drain" | "cable" =>
 /** the object types those tools commit (hit/erase/drag-follow treat alike) */
 const RUN_TYPES = new Set(["pipe-run", "drain-run", "cable-run"]);
 /** what a run's end can attach to (graph.ts Attach) */
-type AnchorKind = "unit" | "riser" | "joint";
+type AnchorKind = "unit" | "riser" | "joint" | "branch-box";
 
 /** does this run render as a smoothed curve? cables always; pipe when soft */
 export const isCurvedRun = (o: {
@@ -968,6 +973,14 @@ export function StudioCanvas({
       ),
     [doc.objects, inScope]
   );
+  const boxes = useMemo(
+    () =>
+      doc.objects.filter(
+        (o): o is DesignObject & { geometry: { kind: "point"; at: Point } } =>
+          inScope(o) && o.type === "branch-box" && o.geometry.kind === "point"
+      ),
+    [doc.objects, inScope]
+  );
   const runs = useMemo(
     () =>
       doc.objects.filter(
@@ -992,9 +1005,9 @@ export function StudioCanvas({
   const [livePoint, setLivePoint] = useState<{ id: string; at: Point } | null>(null);
   const pointById = useMemo(() => {
     const m = new Map<string, { id: string; geometry: { at: Point } }>();
-    for (const o of [...units, ...risers, ...joints]) m.set(o.id, o);
+    for (const o of [...units, ...risers, ...joints, ...boxes]) m.set(o.id, o);
     return m;
-  }, [units, risers, joints]);
+  }, [units, risers, joints, boxes]);
   /** live anchor for an attach target: the point object being dragged, or a
       unit travelling with a mid-drag room move; null when the target is at
       rest (render from the document) */
@@ -1084,10 +1097,10 @@ export function StudioCanvas({
       the click (the show-the-snap-target-first rule). */
   const anchors = useMemo(
     () =>
-      [...units, ...risers, ...joints]
+      [...units, ...risers, ...joints, ...boxes]
         .filter((o) => o.systemId === activeSystemId)
         .map((o) => ({ kind: o.type as AnchorKind, id: o.id, at: pointAt(o) })),
-    [units, risers, joints, activeSystemId, pointAt]
+    [units, risers, joints, boxes, activeSystemId, pointAt]
   );
 
 
@@ -2111,7 +2124,7 @@ export function StudioCanvas({
   /** system objects hit first (they sit on top of rooms): plenum bodies,
       unit footprints, riser discs, then run segments */
   const hitSystemObject =
-    (w: Point): { id: string; kind: "unit" | "riser" | "joint" | "pipe-run" | "plenum" } | null => {
+    (w: Point): { id: string; kind: "unit" | "riser" | "joint" | "branch-box" | "pipe-run" | "plenum" } | null => {
       for (let i = plenums.length - 1; i >= 0; i--) {
         const s = plenumShapes.get(plenums[i].id);
         if (s && pointInPolygon(w, s.body)) return { id: plenums[i].id, kind: "plenum" };
@@ -2142,6 +2155,12 @@ export function StudioCanvas({
       for (let i = joints.length - 1; i >= 0; i--) {
         if (dist(pointAt(joints[i]), w) <= 8 / vp.zoom)
           return { id: joints[i].id, kind: "joint" };
+      }
+      const bfp = footprint(BOX_W_MM, BOX_D_MM);
+      for (let i = boxes.length - 1; i >= 0; i--) {
+        const at = pointAt(boxes[i]);
+        if (Math.abs(w.x - at.x) <= bfp.w / 2 && Math.abs(w.y - at.y) <= bfp.h / 2)
+          return { id: boxes[i].id, kind: "branch-box" };
       }
       const tol = HIT_EDGE_PX / vp.zoom;
       for (let i = runs.length - 1; i >= 0; i--) {
@@ -2272,8 +2291,9 @@ export function StudioCanvas({
           return;
         }
       }
-      for (const pt of [...risers, ...joints].reverse()) {
-        if (dist(pointAt(pt), w) <= (pt.type === "joint" ? 8 : 12) / vp.zoom + tol) {
+      for (const pt of [...risers, ...joints, ...boxes].reverse()) {
+        const reach = pt.type === "branch-box" ? footprint(BOX_W_MM, BOX_D_MM).w / 2 : (pt.type === "joint" ? 8 : 12) / vp.zoom;
+        if (dist(pointAt(pt), w) <= reach + tol) {
           const id = pt.id;
           onMutate((d) => ({
             ...d,
@@ -2706,8 +2726,8 @@ export function StudioCanvas({
           onSelect(sys.id);
           // plenums are anchored (their position derives from the AHU) and
           // runs are polylines — only units/risers/joints start a point drag
-          if (sys.kind === "unit" || sys.kind === "riser" || sys.kind === "joint") {
-            const o = [...units, ...risers, ...joints].find((x) => x.id === sys.id)!;
+          if (sys.kind === "unit" || sys.kind === "riser" || sys.kind === "joint" || sys.kind === "branch-box") {
+            const o = [...units, ...risers, ...joints, ...boxes].find((x) => x.id === sys.id)!;
             setDrag({ kind: "point", id: sys.id, startWorld: w, orig: pointAt(o) });
           }
           break;
@@ -2803,6 +2823,13 @@ export function StudioCanvas({
           const onRun = runLanding(w);
           if (onRun) onMutate((d) => jointOnRun(d, onRun.runId, onRun.seg, onRun.at)?.doc ?? d);
           else onMutate((d) => ({ ...d, objects: [...d.objects, jointObject(activeSystemId, floor.id, w)] }));
+        });
+        break;
+      }
+      case "branch-box": {
+        tap(() => {
+          if (!activeSystemId) return;
+          onMutate((d) => ({ ...d, objects: [...d.objects, branchBoxObject(activeSystemId, floor.id, w)] }));
         });
         break;
       }
@@ -3750,6 +3777,8 @@ export function StudioCanvas({
           }
       : tool === "joint"
         ? { icon: "pipe", text: "Click a run to branch it there, or anywhere to place a joint" }
+      : tool === "branch-box"
+        ? { icon: "pipe", text: "Click where the branch box goes, then run each head's pipe to it" }
       : tool === "note"
         ? {
             icon: "note",
@@ -4536,6 +4565,18 @@ export function StudioCanvas({
                 <text x={at.x} y={at.y + 3.5 / zoom} fontSize={10 / zoom}>
                   ⇅{String(r.props.group ?? "A")}
                 </text>
+              </g>
+            );
+          })}
+
+          {/* branch boxes — to scale (PAC-MK·BC, 450 × 280 mm), the heads' runs end on them */}
+          {layers.pipes && boxes.map((b) => {
+            const at = pointAt(b);
+            const colour = sysColour.get(b.systemId ?? "") ?? "#888";
+            const fp = footprint(BOX_W_MM, BOX_D_MM);
+            return (
+              <g key={b.id} className={`ds-bbox${b.id === selectedId ? " sel" : ""}`} style={{ color: colour }}>
+                <rect x={at.x - fp.w / 2} y={at.y - fp.h / 2} width={fp.w} height={fp.h} />
               </g>
             );
           })}

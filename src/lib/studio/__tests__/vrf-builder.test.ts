@@ -98,13 +98,18 @@ describe("what makes a system a VRF", () => {
     expect(oduOf(d, t.systemId)).toBe("PUHY-P250YNW-A1");
   });
 
-  it("the VRF family on an empty system types it VRF; a split's head does not follow it there", () => {
+  it("the VRF family on an empty system types it VRF; a head a branch box takes stays VRF, one none takes does not", () => {
     const t = office();
     let d = retypeSystem(withFamily(t.doc, t.systemId, "vrf"), pack, t.systemId);
     expect(sysOf(d, t.systemId).type).toBe("vrf");
     d = claimZone(d, t.systemId, t.zones[0]);
-    d = addHead(d, pack, { systemId: t.systemId, zoneId: t.zones[0], iduModel: "MSZ-AP25VGD2" });
-    expect(sysOf(d, t.systemId).type).not.toBe("vrf");
+    // MSZ-AP goes on a PUMY's branch box (M-P0860 p.47)
+    const onBox = addHead(d, pack, { systemId: t.systemId, zoneId: t.zones[0], iduModel: "MSZ-AP25VGD2" });
+    expect(sysOf(onBox, t.systemId).type).toBe("vrf");
+    expect(oduOf(onBox, t.systemId)).toMatch(/^PUMY-/);
+    // MSZ-GS is on no branch box's list
+    const noBox = addHead(d, pack, { systemId: t.systemId, zoneId: t.zones[0], iduModel: "MSZ-GS25VFD" });
+    expect(sysOf(noBox, t.systemId).type).not.toBe("vrf");
   });
 });
 
@@ -135,18 +140,40 @@ describe("the verdict on a VRF", () => {
 describe("the listings keep to their own family", () => {
   it("VRF outdoors are listed smallest index first, and multi outdoors never take City Multi heads", () => {
     const heads = [P100, P125].map((m) => pack.indoor_units.find((u) => u.model === m)!);
-    expect(vrfOutdoorsListing(pack, heads).map((o) => o.model)).toEqual([
+    expect(vrfOutdoorsListing(pack, heads).map((o) => o.model).filter((m) => m.startsWith("PUHY-"))).toEqual([
       "PUHY-P200YNW-A1",
       "PUHY-P250YNW-A1",
       "PUHY-P300YNW-A1",
       "PUHY-P350YNW-A1",
       "PUHY-P400YNW-A1",
-      // P225 on a P450 is 50% exactly, still in; on a P500 45%: under the
-      // minimum is amber (more zones may come), so it is still listed
+      // P225 on a P450 is 50% exactly, still in; on a P500 45% is under
+      // capacity and not compatible (Isaac, 2026-09-28)
       "PUHY-P450YNW-A1",
-      "PUHY-P500YNW-A1",
+    ]);
+    // PUMY counts kW: P100 + P125 is 25.2 kW, inside 50–130% of the P200, P250 and P300
+    expect(vrfOutdoorsListing(pack, heads).map((o) => o.model).filter((m) => m.startsWith("PUMY-"))).toEqual([
+      "PUMY-P200YKMD2-A",
+      "PUMY-P250YBMD-A",
+      "PUMY-P300YBMD-A",
     ]);
     expect(outdoorsListing(pack, heads).some((o) => o.system_type === "vrf")).toBe(false);
+  });
+});
+
+describe("under 50% blocks (Isaac, 2026-09-28)", () => {
+  it("one small head is proposed the smallest outdoor, and the system Fails as under capacity", () => {
+    const t = office();
+    const d = addHead(t.doc, pack, { systemId: t.systemId, zoneId: t.zones[0], iduModel: P100 });
+    // a P100 (11.2 kW) takes the smallest VRF that fits: a PUMY-SP80 (9.0 kW) at 124%
+    expect(oduOf(d, t.systemId)).toBe("PUMY-SP80VKMD2-A");
+    expect(combinationWord(d, pack, sysOf(d, t.systemId))).toBe("Valid");
+    // on a P250 it is 40%: under capacity, red, with the fix
+    const big = chooseOutdoor(d, pack, "worst-of-both", t.systemId, "PUHY-P250YNW-A1");
+    const red = systemFindings(big, pack, sysOf(big, t.systemId)).filter((f) => f.severity === "red");
+    expect(red.map((f) => f.code)).toEqual(["ratio-under"]);
+    expect(red[0].message).toBe("Not compatible: the indoor units are under capacity, 40% of PUHY-P250YNW-A1, which needs at least 50%");
+    expect(red[0].fix).toBe("Add heads, or pick a smaller outdoor");
+    expect(combinationWord(big, pack, sysOf(big, t.systemId))).toBe("Fails");
   });
 });
 

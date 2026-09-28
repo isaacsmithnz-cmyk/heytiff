@@ -60,6 +60,13 @@ export function jointObject(systemId: string, floorId: string, at: Point, id: st
   };
 }
 
+/** a new branch box of this system, on this floor (PUMY): the heads' runs end
+    on it; which box it is (3 or 5 ports) follows from how many do
+    (vrf-tree.ts) */
+export function branchBoxObject(systemId: string, floorId: string, at: Point): DesignObject {
+  return { id: newId("obj"), type: "branch-box", systemId, floorId, geometry: { kind: "point", at }, plane: "room", props: {} };
+}
+
 /** put a joint on a run at `at` (on segment `seg`): the run becomes two, the
     first ending on the joint, the second starting from it, each keeping its
     far end's attach and the run's other props. A point at a run's own end

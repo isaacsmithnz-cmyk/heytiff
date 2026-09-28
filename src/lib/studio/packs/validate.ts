@@ -117,6 +117,11 @@ function checkAdditionalCharge(
     });
     if (c.bands.slice(0, -1).some((b) => b.farthest_m_max === null))
       push("additional_charge.bands: only the last band may be open-ended");
+    (c.plus_by_connected_kw ?? []).forEach((s, i) => {
+      if (s.kw_max !== null && !num(s.kw_max))
+        push(`additional_charge.plus_by_connected_kw[${i}].kw_max not numeric`);
+      if (!num(s.add_g)) push(`additional_charge.plus_by_connected_kw[${i}].add_g not numeric`);
+    });
     (c.plus_by_connected_index ?? []).forEach((s, i) => {
       if (s.index_max !== null && !num(s.index_max))
         push(`additional_charge.plus_by_connected_index[${i}].index_max not numeric`);
@@ -327,6 +332,21 @@ export function validatePack(pack: DataPack): ValidationResult {
     const push = err("outdoor_units", o.model);
     if (o.system_type === "vrf" && o.pipe_table_ref && !seriesRefs.has(o.pipe_table_ref))
       push(`pipe_table_ref has no vrf_pipe_tables series: ${o.pipe_table_ref}`);
+    // a branch-box outdoor (PUMY): its two other tables resolve, and its box rules hold together
+    for (const [field, ref] of [
+      ["branch_box_table_ref", o.branch_box_table_ref],
+      ["mixed_table_ref", o.mixed_table_ref],
+    ] as const)
+      if (ref && !seriesRefs.has(ref)) push(`${field} has no vrf_pipe_tables series: ${ref}`);
+    const bb = o.branch_boxes;
+    if (bb) {
+      if (!o.branch_box_table_ref) push("branch_boxes without a branch_box_table_ref");
+      if (!num(bb.max_boxes) || !num(bb.max_heads)) push("branch_boxes.max_boxes / max_heads missing");
+      if (!(bb.code_min <= bb.code_max)) push("branch_boxes code range inverted");
+      if (!bb.families?.length) push("branch_boxes.families empty");
+      for (const m of bb.mixed ?? [])
+        if (m.boxes > bb.max_boxes) push(`branch_boxes.mixed names ${m.boxes} boxes, over max_boxes ${bb.max_boxes}`);
+    }
     // combined multi-module banks reference their constituent modules + twinning kit
     if (o.combined) {
       if (!o.modules || o.modules.length < 2)

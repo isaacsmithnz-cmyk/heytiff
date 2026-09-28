@@ -1753,6 +1753,7 @@ function Editor({
         p: "pipe",
         i: "riser",
         j: "joint",
+        b: "branch-box",
         k: "measure",
       };
       const next = toolKeys[e.key.toLowerCase()];
@@ -1769,7 +1770,7 @@ function Editor({
 
       // pipe and riser draw for a system — none without one. A zone belongs
       // to the plan and needs none.
-      if ((next === "pipe" || next === "riser" || next === "joint") && !effectiveSystemId) return;
+      if ((next === "pipe" || next === "riser" || next === "joint" || next === "branch-box") && !effectiveSystemId) return;
       changeTool(next);
     };
     // right-click disarms like Esc: let go of a unit riding the cursor (the
@@ -2563,7 +2564,7 @@ function DrawTool({
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
-  const on = isRunTool(tool) || tool === "riser" || tool === "joint";
+  const on = isRunTool(tool) || tool === "riser" || tool === "joint" || tool === "branch-box";
   const arm = (t: CanvasTool, patch?: Partial<DrawOptions>) => {
     if (patch) onDraw({ ...draw, ...patch });
     onTool(t);
@@ -2596,7 +2597,7 @@ function DrawTool({
         title={
           disabled
             ? "Draw — pick a system first"
-            : "Draw — pipe, drain, cable, duct, riser or joint"
+            : "Draw — pipe, drain, cable, duct, riser, joint or branch box"
         }
         onClick={() => setOpen((v) => !v)}
       >
@@ -2675,6 +2676,16 @@ function DrawTool({
             </span>
             <div className="ds-drawchips">
               {chip("Branches a run", true, "joint")}
+            </div>
+          </div>
+          {/* a PUMY's branch box: M, S and P-series heads run to it */}
+          <div className="ds-drawrow">
+            <span className="ds-drawk">
+              <Icon name="pipe" size={14} />
+              Branch box
+            </span>
+            <div className="ds-drawchips">
+              {chip("Feeds heads", true, "branch-box")}
             </div>
           </div>
         </div>

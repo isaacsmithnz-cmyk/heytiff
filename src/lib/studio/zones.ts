@@ -24,7 +24,7 @@ import { newId, type DesignDocument, type DesignObject, type DesignSystem } from
 import type { DataPack, IndoorUnit } from "./packs/schema";
 import { allocationsOf, hasAllocations, type Allocation } from "./allocations";
 import { nextSystemColour } from "./modules";
-import { allVrfOnly, isVrfHead } from "./vrf";
+import { allVrfOnly, joinsVrf } from "./vrf";
 import type { RoomObj } from "./loads-room";
 
 const isRoom = (o: DesignObject): o is RoomObj =>
@@ -201,7 +201,7 @@ export function systemTypeFor(
       .map((a) => pack.indoor_units.find((u) => u.model === a.model))
       .filter((u): u is IndoorUnit => u != null);
     if (allVrfOnly(rows)) return "vrf";
-    if (familyOf(sys) === "vrf" && rows.every((u) => isVrfHead(pack, u))) return "vrf";
+    if (familyOf(sys) === "vrf" && rows.every((u) => joinsVrf(pack, u))) return "vrf";
   }
   if (heads.some((a) => a.serves === "system")) return "ducted";
   if (heads.length >= 2) return "multi-split";

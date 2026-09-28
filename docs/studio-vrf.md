@@ -96,3 +96,54 @@ These are recorded so they can be changed in one place.
   *4. The base level is the head nearest the outdoor's level.
 - **Levels:** a level comes only from risers (their `heightM`). A unit's
   mounting height on its floor does not count.
+
+## PUMY is VRF (step 6)
+
+Isaac, 2026-09-28: "pumy is primarily vrf, it can be used as a multi only with
+branch box, which is still technically vrf". Every figure below comes from
+M-P0860 (Oct 2022), cited per row and per table in the pack.
+
+- **Three ways to connect**, each with its own table and limits:
+  - joints and headers (City Multi heads);
+  - branch boxes (M, S and P-series heads on a PAC-MK34BC or MK54BC);
+  - mixed.
+
+  The tree decides which: a box with City Multi heads beside it is mixed.
+- **The envelope is kW.** Heads must total 50–130% of the outdoor's rated
+  cooling kW (p.2-7; the install manual's SP112 "6.3–16.2 kW"). PUHY stays on
+  capacity index.
+- **Head counts by method.** Each method has its own limit: City Multi only,
+  boxes only, or a mixed system's pairs per number of boxes (e.g. SP80 with
+  one box takes 5+3, 4+4 or 3+5).
+- **Under 50% blocks** (Isaac, 2026-09-28), for PUHY and PUMY alike: "Not
+  compatible: the indoor units are under capacity". The smallest outdoor is
+  still proposed, so the finding can name it.
+- **Branch boxes.**
+  - Each outdoor group has its book list of connectable families (p.47/49/51).
+    Isaac confirmed PLA-M·EA2, PCA-M·KA2 and MFZ-KW as well; these are stored
+    as staff entries.
+  - A box head's pipe goes by its series (the model's first letter M, S or P,
+    per Isaac) and its model number.
+  - The box itself is the smallest whose ports take its heads.
+- **Sizing.**
+  - SP models size between joints by index; P200 and up size by kW.
+  - The book's conditional liquid sizes apply: past 60 m (P200), past 20 m to
+    a box (P200 box / mixed), past 90 m or with a PEFY-P200/P250 head (P250),
+    and the mixed SP's small City Multi heads past 30 m from the first joint.
+  - There is no "never larger than upstream" rule on PUMY (the book doesn't
+    state it).
+- **Limits.**
+  - Lengths by method: total, farthest, farthest via a box, outdoor to box,
+    first joint to box, after a box, and box-to-head total.
+  - At most 15 bends per path (23 for P250/300 boxes).
+  - Heights: between boxes, and between the heads on one box.
+- **Charge.** Liquid metres × 19/50/92 g/m, plus an amount by the heads' kW,
+  rounded up to 100 g, against the outdoor's maximum (p.86-87).
+  - Golden D3: SP125 with P63/P40/P25/P20 on a header is 6.1 kg.
+  - Golden D4: P250 with 4×P63 + P40 is 8.1 kg.
+- **On the plan:** Draw > Branch box (key B) places one to scale (450 × 280
+  mm), and the heads' runs end on it.
+
+Readings: "less than P50" (p.76 *) is taken literally, as index < 50. The
+P250/300 box table has no P-series row, so a P-series head on a P250/300 box
+is red "no pipe" until a newer book gives one.

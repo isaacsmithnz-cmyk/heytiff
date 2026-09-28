@@ -1,32 +1,33 @@
-/* A VRF's refrigerant tree, sized by the book (docs/studio-vrf.md, step 3).
+/* A VRF's refrigerant tree, sized by the book (docs/studio-vrf.md).
 
-   The tree is nodes (the outdoor, joints, heads) and sections between them,
-   rooted at the outdoor. It comes from what is drawn on the plan or, until
-   something is, from the zones in list order (provisionalVrfTree). Sizing
-   follows MEES21K029 p.139-140 step by step:
+   The tree is nodes (the outdoor, joints, branch boxes, heads) and sections
+   between them, rooted at the outdoor. It comes from what is drawn on the
+   plan or, until something is, from the zones in list order
+   (provisionalVrfTree). The outdoor's table depends on how the heads connect
+   (PUMY M-P0860 §11-2): joints and headers only, branch boxes only, or both
+   ("mixed"); PUHY has joints only. Sizing, step by step (PUHY MEES21K029
+   p.139-140, PUMY p.74-84):
 
-   (1) outdoor → 1st joint ("A"): the outdoor's own connection sizes (Table 1),
-       the liquid stepping up where the book says so for the farthest length;
-   (2) between joints ("B, C, D…"): by the total index downstream (Table 2);
-   (3) joint or header → head ("a, b, c…"): by that head's index (Table 3);
-   (4) a section never larger than the one before it;
-   (5a) past `max_after_first_joint_m` (40 m) from the first joint, the section
-       where it is passed and everything after it go one liquid size up, up to
-       `extended_after_first_joint_m` (90 m); further than that is red;
-   (5b) a head more than `max_lift_idu_idu_m` (15 m) above or below the heads
-       nearest the outdoor's level (the "base" units) takes its own liquid
-       pipe one size up (*4: the heads' own pipes), up to
-       `extended_lift_idu_idu_m` (30 m); a section 5a already stepped up is
-       not stepped twice.
-   Then the book's limits (p.140) on a drawn tree: total length, the farthest
-   head actual and equivalent (actual + M per bend, a bend being a drawn
-   corner), the outdoor above or below its heads; and the charge (p.143)
-   against the outdoor's maximum (p.144).
+   (1) outdoor → 1st joint, header or box ("A"): the outdoor's own connection
+       sizes, the liquid stepping up where the book says so;
+   (2) between joints, and on to a branch box: by the total downstream index
+       or kW, as the table keys it;
+   (3) joint or header → head: by that head's index; box → head: by the
+       head's series (M, S or P) and model number;
+   (4) a section never larger than the one before it, where the book says so
+       (PUHY);
+   (5) the book's conditional liquid sizes: PUHY's one size up past 40 m from
+       the first joint (5a) and past 15 m head to head (5b); PUMY's fixed
+       step-ups by the farthest length, the length to the farthest box, or a
+       P200/P250 head on the system, and its small City Multi heads' own pipe.
+   Then the book's limits on a drawn tree (lengths, lifts, box sections, bends
+   per path) and the charge against the outdoor's maximum.
 
-   Joints are chosen by downstream index (Table 4-1), the first by outdoor
-   (Table 4-2); a node with three or more sections out is a header (Table 5):
-   nothing branches after one, some outdoors cannot take one directly, and a
-   CMY-Y104-G cannot take a P200 or P250 head.
+   Joints are chosen by downstream index, the first by outdoor where the book
+   says; a node with three or more sections out is a header (nothing branches
+   after one; some outdoors cannot take one directly; a CMY-Y104-G cannot take
+   a P200 or P250 head). A branch box is the smallest box whose ports take its
+   heads, of a family its outdoor lists.
 
    Pure functions. No React, no canvas. */
 
@@ -36,10 +37,11 @@ import type { DataPack, IndoorUnit, OutdoorUnit, PipeSizingRule, VrfPipeTable } 
 import { allocationsOf, hasAllocations } from "./allocations";
 import { zoneIdsOf } from "./zones";
 import { evaluateVrfCharge } from "./materials";
+import { isBoxHead, isVrfHead } from "./vrf";
 
 export interface VrfTreeNode {
   id: string;
-  kind: "odu" | "joint" | "idu";
+  kind: "odu" | "joint" | "box" | "idu";
   /** a head's model (kind idu) */
   model?: string;
 }
@@ -65,13 +67,15 @@ export interface VrfTree {
   provisional: boolean;
 }
 
+export type VrfMethod = "joint" | "branch-box" | "mixed";
+
 export interface SizedSection {
   id: string;
   from: string;
   to: string;
-  /** "main" = outdoor → first joint or header; "between" = joint → joint;
-      "branch" = joint or header → head */
-  role: "main" | "between" | "branch";
+  /** "main" = outdoor → first joint, header or box; "between" = on to a
+      joint or a box; "branch" = joint or header → head; "box" = box → head */
+  role: "main" | "between" | "branch" | "box";
   downstreamIndex: number;
   liquidMm: number;
   gasMm: number;
@@ -83,7 +87,7 @@ export interface SizedSection {
 
 export interface SizedFitting {
   nodeId: string;
-  kind: "joint" | "header";
+  kind: "joint" | "header" | "box";
   /** null when no row of the book's table covers it */
   part: string | null;
   downstreamIndex: number;
@@ -96,15 +100,25 @@ export interface TreeFinding {
   severity: "red" | "amber";
   code:
     | "not-a-tree"
+    | "no-table"
     | "branch-after-header"
     | "header-not-direct"
     | "header-excludes-head"
     | "no-fitting-part"
     | "no-size"
+    | "not-box-head"
+    | "box-count-over"
     | "after-first-joint-over"
     | "total-over"
     | "farthest-over"
     | "farthest-equiv-over"
+    | "via-box-over"
+    | "odu-to-box-over"
+    | "first-joint-to-box-over"
+    | "after-box-over"
+    | "box-heads-total-over"
+    | "bends-over"
+    | "box-height-over"
     | "outdoor-above-over"
     | "outdoor-below-over"
     | "head-height-over"
@@ -117,6 +131,8 @@ export interface SizedTree {
   sections: SizedSection[];
   fittings: SizedFitting[];
   findings: TreeFinding[];
+  /** how the heads connect, and so which of the outdoor's tables sized it */
+  method: VrfMethod;
   /** metres of liquid pipe per size ("9.52" → m), drawn sections only */
   liquidM: Record<string, number>;
   /** outdoor → farthest head, when every section on that path is drawn */
@@ -125,8 +141,8 @@ export interface SizedTree {
   farthestEquivM: number | null;
   /** every section's length added up, drawn trees only */
   totalM: number | null;
-  /** grams to add on site (p.143), drawn trees only; null when the book's
-      rule can't be worked */
+  /** grams to add on site, drawn trees only; null when the book's rule can't
+      be worked */
   chargeG: number | null;
   /** the whole tree is drawn */
   drawn: boolean;
@@ -137,45 +153,99 @@ export interface SizedTree {
 const LIQUID_LADDER = [6.35, 9.52, 12.7, 15.88, 19.05, 22.2];
 const oneUp = (mm: number): number => LIQUID_LADDER.find((s) => s > mm + 1e-6) ?? mm;
 const key = (mm: number): string => String(mm);
+const fmtM = (m: number) => `${Math.round(m * 10) / 10} m`;
 
-function byIndex(rule: PipeSizingRule | undefined, index: number): { liquid: number; gas: number } | null {
-  if (!rule || rule.method !== "size_by_downstream_index") return null;
-  const step = rule.steps.find((s) => index <= s.index_max);
+/** a size from a table keyed by downstream index or by downstream kW */
+function sizeBy(rule: PipeSizingRule | undefined, index: number, kw: number): { liquid: number; gas: number } | null {
+  if (!rule) return null;
+  if (rule.method === "size_by_downstream_index") {
+    const step = rule.steps.find((s) => index <= s.index_max);
+    return step ? { liquid: step.liquid_mm, gas: step.gas_mm } : null;
+  }
+  const step = rule.steps.find((s) => kw <= s.kw_max + 1e-9);
   return step ? { liquid: step.liquid_mm, gas: step.gas_mm } : null;
 }
 
+/** a box head's series, for its pipe: the first letter of its model (M, S
+    or P: Isaac, 2026-09-28) */
+const seriesOf = (model: string): "M" | "S" | "P" | null => {
+  const c = model.charAt(0);
+  return c === "M" || c === "S" || c === "P" ? c : null;
+};
+
 /** the zones in list order, before anything is drawn: the outdoor, a joint
-    per head but the last, each joint feeding its head and the next joint,
-    the last joint feeding the last two heads (the book's Fig. 12-2-1A without
-    a header). One head hangs straight off the outdoor. */
-export function provisionalVrfTree(oduId: string, heads: { id: string; model: string }[]): VrfTree {
+    per stop but the last, each joint feeding its stop and the next joint,
+    the last joint feeding the last two (the book's Fig. 12-2-1A without a
+    header). A stop is a City Multi head, or a branch box carrying the heads
+    that go on one (`boxed`), as many to a box as the biggest box's ports.
+    One stop hangs straight off the outdoor. */
+export function provisionalVrfTree(
+  oduId: string,
+  heads: { id: string; model: string }[],
+  boxed: ReadonlySet<string> = new Set(),
+  portsPerBox = 5
+): VrfTree {
   const nodes: VrfTreeNode[] = [{ id: oduId, kind: "odu" }];
   const sections: VrfTreeSection[] = [];
   for (const h of heads) nodes.push({ id: h.id, kind: "idu", model: h.model });
-  if (heads.length === 1) {
-    sections.push({ id: `s:${heads[0].id}`, from: oduId, to: heads[0].id, lengthM: null });
-  } else if (heads.length > 1) {
+  const stops: string[] = [];
+  const onBoxes = heads.filter((h) => boxed.has(h.id));
+  for (const h of heads) if (!boxed.has(h.id)) stops.push(h.id);
+  for (let b = 0; b * portsPerBox < onBoxes.length; b++) {
+    const box = `b:${b + 1}`;
+    nodes.push({ id: box, kind: "box" });
+    for (const h of onBoxes.slice(b * portsPerBox, (b + 1) * portsPerBox))
+      sections.push({ id: `s:${h.id}`, from: box, to: h.id, lengthM: null });
+    stops.push(box);
+  }
+  if (stops.length === 1) {
+    sections.push({ id: `s:${stops[0]}`, from: oduId, to: stops[0], lengthM: null });
+  } else if (stops.length > 1) {
     let up = oduId;
-    for (let i = 0; i < heads.length - 1; i++) {
+    for (let i = 0; i < stops.length - 1; i++) {
       const j = `j:${i + 1}`;
       nodes.push({ id: j, kind: "joint" });
       sections.push({ id: `s:${j}`, from: up, to: j, lengthM: null });
-      sections.push({ id: `s:${heads[i].id}`, from: j, to: heads[i].id, lengthM: null });
+      sections.push({ id: `s:${stops[i]}`, from: j, to: stops[i], lengthM: null });
       up = j;
     }
-    const last = heads[heads.length - 1];
-    sections.push({ id: `s:${last.id}`, from: up, to: last.id, lengthM: null });
+    const last = stops[stops.length - 1];
+    sections.push({ id: `s:${last}`, from: up, to: last, lengthM: null });
   }
   return { nodes, sections, provisional: true };
+}
+
+/** the outdoor's table for this way of connecting */
+function tableFor(pack: DataPack, odu: OutdoorUnit, method: VrfMethod): VrfPipeTable | undefined {
+  const ref =
+    method === "joint" ? odu.pipe_table_ref : method === "branch-box" ? odu.branch_box_table_ref : odu.mixed_table_ref;
+  return ref ? pack.vrf_pipe_tables.find((t) => t.series === ref) : undefined;
 }
 
 /** size a VRF tree against its outdoor's table */
 export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): SizedTree {
   const findings: TreeFinding[] = [];
+  const nodeById = new Map(tree.nodes.map((n) => [n.id, n]));
+  const root = tree.nodes.find((n) => n.kind === "odu");
+  const children = new Map<string, VrfTreeSection[]>();
+  const incoming = new Map<string, VrfTreeSection>();
+  let broken = false;
+  for (const s of tree.sections) {
+    if (incoming.has(s.to) || !nodeById.has(s.from) || !nodeById.has(s.to)) {
+      broken = true;
+      continue;
+    }
+    incoming.set(s.to, s);
+    children.set(s.from, [...(children.get(s.from) ?? []), s]);
+  }
+  const hasBox = tree.nodes.some((n) => n.kind === "box");
+  const cmDirect = tree.nodes.some((n) => n.kind === "idu" && nodeById.get(incoming.get(n.id)?.from ?? "")?.kind !== "box");
+  const method: VrfMethod = hasBox ? (cmDirect ? "mixed" : "branch-box") : "joint";
   const empty: SizedTree = {
     sections: [],
     fittings: [],
     findings,
+    method,
     liquidM: {},
     farthestM: null,
     farthestEquivM: null,
@@ -184,73 +254,110 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
     drawn: false,
     provisional: tree.provisional,
   };
-  const table: VrfPipeTable | undefined = pack.vrf_pipe_tables.find((t) => t.series === odu.pipe_table_ref);
-  if (!table) {
-    findings.push({ severity: "red", code: "no-size", message: `${odu.model} has no piping table in the book` });
+  if (broken) {
+    findings.push({ severity: "red", code: "not-a-tree", message: "The pipework joins back on itself", fix: "Every head needs one way back to the outdoor" });
     return empty;
   }
-  const nodeById = new Map(tree.nodes.map((n) => [n.id, n]));
-  const root = tree.nodes.find((n) => n.kind === "odu");
-  const children = new Map<string, VrfTreeSection[]>();
-  const incoming = new Map<string, VrfTreeSection>();
-  for (const s of tree.sections) {
-    if (incoming.has(s.to) || !nodeById.has(s.from) || !nodeById.has(s.to)) {
-      findings.push({ severity: "red", code: "not-a-tree", message: "The pipework joins back on itself", fix: "Every head needs one way back to the outdoor" });
-      return empty;
-    }
-    incoming.set(s.to, s);
-    children.set(s.from, [...(children.get(s.from) ?? []), s]);
+  const table = tableFor(pack, odu, method);
+  if (!table) {
+    findings.push({
+      severity: "red",
+      code: "no-table",
+      message:
+        method === "joint"
+          ? `${odu.model} has no piping table in the book`
+          : `${odu.model} doesn't take branch boxes${method === "mixed" ? " with City Multi heads" : ""}`,
+    });
+    return empty;
   }
   if (!root) return empty;
 
+  const unitOf = (n: VrfTreeNode): IndoorUnit | undefined => pack.indoor_units.find((x) => x.model === n.model);
+  /* a head's size: its capacity index (City Multi), else the model size its
+     name prints (a box head: the book counts "the model size", p.74 Note 3) */
   const iduIndex = (n: VrfTreeNode): number => {
-    const u: IndoorUnit | undefined = pack.indoor_units.find((x) => x.model === n.model);
-    return u?.capacity_index ?? 0;
+    const u = unitOf(n);
+    return u?.capacity_index ?? u?.capacity_code ?? 0;
   };
-  /* downstream index per node, and every node reachable from the outdoor */
+  /* downstream index and kW per node, and every node reachable */
   const below = new Map<string, number>();
+  const belowKw = new Map<string, number>();
   const seen = new Set<string>();
-  const walk = (id: string): number => {
-    if (seen.has(id)) return below.get(id) ?? 0;
+  const walk = (id: string): void => {
+    if (seen.has(id)) return;
     seen.add(id);
     const n = nodeById.get(id)!;
-    const sum = n.kind === "idu" ? iduIndex(n) : (children.get(id) ?? []).reduce((t, s) => t + walk(s.to), 0);
-    below.set(id, sum);
-    return sum;
+    if (n.kind === "idu") {
+      below.set(id, iduIndex(n));
+      belowKw.set(id, unitOf(n)?.capacity_cool_kw ?? 0);
+      return;
+    }
+    let idx = 0;
+    let kw = 0;
+    for (const s of children.get(id) ?? []) {
+      walk(s.to);
+      idx += below.get(s.to) ?? 0;
+      kw += belowKw.get(s.to) ?? 0;
+    }
+    below.set(id, idx);
+    belowKw.set(id, kw);
   };
   walk(root.id);
   if (tree.nodes.some((n) => n.kind === "idu" && !seen.has(n.id))) {
     findings.push({ severity: "red", code: "not-a-tree", message: "A head is not joined to the outdoor", fix: "Draw its run to a joint" });
   }
+  const heads = tree.nodes.filter((n) => n.kind === "idu" && seen.has(n.id));
+  const boxes = tree.nodes.filter((n) => n.kind === "box" && seen.has(n.id));
+  const onBox = (h: VrfTreeNode) => nodeById.get(incoming.get(h.id)?.from ?? "")?.kind === "box";
 
-  /* the first fitting: where the main from the outdoor ends */
+  /* the first fitting: where the main from the outdoor ends, if a joint */
   const mainSection = (children.get(root.id) ?? [])[0];
   const firstFitting = mainSection && nodeById.get(mainSection.to)?.kind === "joint" ? mainSection.to : null;
 
-  /* (1)-(3), then (4) top-down */
+  /* (1)-(4), top-down */
+  const capDown = table.downstream_not_larger !== false;
   const sized = new Map<string, SizedSection>();
   const visit = (nodeId: string, parent: { liquid: number; gas: number } | null) => {
     for (const s of children.get(nodeId) ?? []) {
       const to = nodeById.get(s.to)!;
       const from = nodeById.get(s.from)!;
       const down = below.get(s.to) ?? 0;
+      const downKw = belowKw.get(s.to) ?? 0;
       let role: SizedSection["role"];
       let size: { liquid: number; gas: number } | null;
       if (from.kind === "odu") {
         role = "main";
         size = { liquid: odu.conn_liquid_mm, gas: odu.conn_gas_mm };
+      } else if (to.kind === "idu" && from.kind === "box") {
+        role = "box";
+        const u = unitOf(to);
+        const series = seriesOf(to.model ?? "");
+        const code = u?.capacity_code;
+        const row =
+          series && code != null
+            ? table.box_head_sizing?.find((r) => r.series === series && code >= r.code_min && code <= r.code_max)
+            : undefined;
+        size = row ? { liquid: row.liquid_mm, gas: row.gas_mm } : null;
       } else if (to.kind === "idu") {
         role = "branch";
-        size = byIndex(table.branch_sizing ?? table.pipe_sizing, down);
+        size = sizeBy(table.branch_sizing ?? table.pipe_sizing, down, downKw);
       } else {
         role = "between";
-        size = byIndex(table.pipe_sizing, down);
+        size = sizeBy(table.pipe_sizing, down, downKw);
       }
       if (!size) {
-        findings.push({ severity: "red", code: "no-size", message: `No pipe size in the book for P${down}` });
+        findings.push({
+          severity: "red",
+          code: "no-size",
+          message:
+            role === "box"
+              ? `The book gives no branch box pipe for ${to.model} on ${odu.model}`
+              : `No pipe size in the book for P${down}`,
+        });
         continue;
       }
-      if (parent) size = { liquid: Math.min(size.liquid, parent.liquid), gas: Math.min(size.gas, parent.gas) };
+      if (parent && capDown && role !== "box")
+        size = { liquid: Math.min(size.liquid, parent.liquid), gas: Math.min(size.gas, parent.gas) };
       sized.set(s.id, {
         id: s.id,
         from: s.from,
@@ -268,8 +375,7 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
   };
   visit(root.id, null);
 
-  /* lengths: outdoor → each head, and first fitting → each head */
-  const heads = tree.nodes.filter((n) => n.kind === "idu" && seen.has(n.id));
+  /* lengths along each path */
   const pathTo = (id: string): VrfTreeSection[] => {
     const out: VrfTreeSection[] = [];
     let cur = incoming.get(id);
@@ -279,37 +385,100 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
     }
     return out;
   };
+  const lengthOf = (path: VrfTreeSection[]) => path.reduce((t, s) => t + (s.lengthM ?? 0), 0);
+  const afterFirst = (path: VrfTreeSection[]) => {
+    const i = firstFitting ? path.findIndex((s) => s.from === firstFitting) : -1;
+    return i < 0 ? [] : path.slice(i);
+  };
   const drawn = tree.sections.length > 0 && tree.sections.every((s) => s.lengthM != null);
   const L = table.limits;
   const bendM = L.bend_equiv_m_by_odu?.[odu.model];
   let farthestM: number | null = null;
   let farthestEquivM: number | null = null;
   let totalM: number | null = null;
+  let toBoxM: number | null = null;
+  let afterFirstM: number | null = null;
   if (drawn) {
+    farthestM = 0;
     for (const h of heads) {
       const path = pathTo(h.id);
-      const m = path.reduce((t, s) => t + (s.lengthM ?? 0), 0);
-      farthestM = Math.max(farthestM ?? 0, m);
-      if (bendM != null)
-        farthestEquivM = Math.max(farthestEquivM ?? 0, m + bendM * path.reduce((t, s) => t + (s.bends ?? 0), 0));
+      const m = lengthOf(path);
+      farthestM = Math.max(farthestM, m);
+      const bends = path.reduce((t, s) => t + (s.bends ?? 0), 0);
+      if (bendM != null) farthestEquivM = Math.max(farthestEquivM ?? 0, m + bendM * bends);
+      if (L.max_bends_per_path != null && bends > L.max_bends_per_path)
+        findings.push({
+          severity: "red",
+          code: "bends-over",
+          message: `The run to ${h.model} has ${bends} bends, over the book's ${L.max_bends_per_path}`,
+          fix: "Take corners out of the run",
+        });
+      /* past the first joint: to a City Multi head, or to its branch box */
+      const toStop = onBox(h) ? path.slice(0, -1) : path;
+      afterFirstM = Math.max(afterFirstM ?? 0, lengthOf(afterFirst(toStop)));
     }
+    for (const b of boxes) toBoxM = Math.max(toBoxM ?? 0, lengthOf(pathTo(b.id)));
     totalM = tree.sections.reduce((t, s) => t + (s.lengthM ?? 0), 0);
-    const fmt = (m: number) => `${Math.round(m * 10) / 10} m`;
+
     if (totalM > L.max_total_m)
-      findings.push({ severity: "red", code: "total-over", message: `The pipework is ${fmt(totalM)} in all, over the book's ${L.max_total_m} m` });
-    if (farthestM != null && farthestM > L.max_farthest_actual_m)
+      findings.push({ severity: "red", code: "total-over", message: `The pipework is ${fmtM(totalM)} in all, over the book's ${L.max_total_m} m` });
+    /* the farthest head: a head on a box by the via-box figure where the book
+       gives one, the rest by the plain farthest */
+    const viaBox = L.max_farthest_via_box_m;
+    const plain = heads.filter((h) => viaBox == null || !onBox(h)).map((h) => lengthOf(pathTo(h.id)));
+    const boxed = viaBox == null ? [] : heads.filter(onBox).map((h) => lengthOf(pathTo(h.id)));
+    const plainMax = plain.length ? Math.max(...plain) : 0;
+    if (plainMax > L.max_farthest_actual_m)
       findings.push({
         severity: "red",
         code: "farthest-over",
-        message: `The farthest head is ${fmt(farthestM)} from the outdoor, over the book's ${L.max_farthest_actual_m} m`,
+        message: `The farthest head is ${fmtM(plainMax)} from the outdoor, over the book's ${L.max_farthest_actual_m} m`,
         fix: "Move the outdoor closer to the heads",
       });
-    else if (farthestEquivM != null && farthestEquivM > L.max_farthest_equiv_m)
+    else if (farthestEquivM != null && L.max_farthest_equiv_m != null && farthestEquivM > L.max_farthest_equiv_m)
       findings.push({
         severity: "red",
         code: "farthest-equiv-over",
-        message: `The farthest head is ${fmt(farthestEquivM)} from the outdoor counting its bends, over the book's ${L.max_farthest_equiv_m} m`,
+        message: `The farthest head is ${fmtM(farthestEquivM)} from the outdoor counting its bends, over the book's ${L.max_farthest_equiv_m} m`,
         fix: "Take bends out of the run, or move the outdoor closer",
+      });
+    const boxedMax = boxed.length ? Math.max(...boxed) : 0;
+    if (viaBox != null && boxedMax > viaBox)
+      findings.push({
+        severity: "red",
+        code: "via-box-over",
+        message: `A head on a branch box is ${fmtM(boxedMax)} from the outdoor, over the book's ${viaBox} m`,
+      });
+    if (L.max_odu_to_box_m != null && toBoxM != null && toBoxM > L.max_odu_to_box_m)
+      findings.push({
+        severity: "red",
+        code: "odu-to-box-over",
+        message: `A branch box is ${fmtM(toBoxM)} from the outdoor, over the book's ${L.max_odu_to_box_m} m`,
+        fix: "Move the branch box closer to the outdoor",
+      });
+    if (L.max_first_joint_to_box_m != null && firstFitting) {
+      const m = Math.max(0, ...boxes.map((b) => lengthOf(afterFirst(pathTo(b.id)))));
+      if (m > L.max_first_joint_to_box_m)
+        findings.push({
+          severity: "red",
+          code: "first-joint-to-box-over",
+          message: `A branch box is ${fmtM(m)} past the first joint, over the book's ${L.max_first_joint_to_box_m} m`,
+        });
+    }
+    const boxLegs = heads.filter(onBox).map((h) => incoming.get(h.id)!.lengthM ?? 0);
+    if (L.max_after_box_m != null && boxLegs.length && Math.max(...boxLegs) > L.max_after_box_m)
+      findings.push({
+        severity: "red",
+        code: "after-box-over",
+        message: `A head is ${fmtM(Math.max(...boxLegs))} from its branch box, over the book's ${L.max_after_box_m} m`,
+        fix: "Move the branch box closer to its heads",
+      });
+    const legsTotal = boxLegs.reduce((t, m) => t + m, 0);
+    if (L.max_box_to_heads_total_m != null && legsTotal > L.max_box_to_heads_total_m)
+      findings.push({
+        severity: "red",
+        code: "box-heads-total-over",
+        message: `The branch box pipes come to ${fmtM(legsTotal)}, over the book's ${L.max_box_to_heads_total_m} m`,
       });
   }
 
@@ -338,20 +507,56 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
         code: "outdoor-below-over",
         message: `The outdoor is ${Math.round(highest)} m below its highest head, over the book's ${L.max_lift_odu_below_m} m`,
       });
+    /* branch box heights: between boxes (h2), and between the heads on one box (h3) */
+    const spread = (ids: string[]) => (ids.length > 1 ? Math.max(...ids.map(levelOf)) - Math.min(...ids.map(levelOf)) : 0);
+    if (L.max_box_box_lift_m != null && spread(boxes.map((b) => b.id)) > L.max_box_box_lift_m)
+      findings.push({
+        severity: "red",
+        code: "box-height-over",
+        message: `The branch boxes are ${Math.round(spread(boxes.map((b) => b.id)))} m apart in height, over the book's ${L.max_box_box_lift_m} m`,
+      });
+    if (L.max_box_heads_lift_m != null)
+      for (const b of boxes) {
+        const ids = (children.get(b.id) ?? []).map((s) => s.to);
+        if (spread(ids) > L.max_box_heads_lift_m)
+          findings.push({
+            severity: "red",
+            code: "box-height-over",
+            message: `The heads on one branch box are ${Math.round(spread(ids))} m apart in height, over the book's ${L.max_box_heads_lift_m} m`,
+          });
+      }
   }
 
-  /* (1) the main's liquid steps up with the farthest length (Table 1 notes) */
+  /* (1) PUHY: the main's liquid steps up with the farthest length (Table 1) */
   const up = table.odu_liquid_upsize?.[odu.model];
   if (up && farthestM != null && farthestM >= up.farthest_m_min && mainSection) {
     const m = sized.get(mainSection.id);
     if (m) m.liquidMm = up.liquid_mm;
   }
 
-  /* (5a) past 40 m from the first joint: the section where it is passed and
-     everything after it, one liquid size up; past 90 m, red */
-  const limit = table.limits.max_after_first_joint_m;
-  const extended = table.limits.extended_after_first_joint_m ?? limit;
-  if (firstFitting && drawn) {
+  /* (5) PUMY: the book's conditional liquid sizes */
+  const headIndexes = new Set(heads.map(iduIndex));
+  for (const rule of table.liquid_step_ups ?? []) {
+    const on =
+      (rule.farthest_over_m != null && farthestM != null && farthestM > rule.farthest_over_m) ||
+      (rule.to_box_over_m != null && toBoxM != null && toBoxM > rule.to_box_over_m) ||
+      (rule.heads_index ?? []).some((i) => headIndexes.has(i));
+    if (!on) continue;
+    for (const s of sized.values())
+      if ((rule.roles as string[]).includes(s.role) && s.liquidMm < rule.liquid_mm) s.liquidMm = rule.liquid_mm;
+  }
+  for (const rule of table.branch_step_ups ?? []) {
+    if (afterFirstM == null || afterFirstM <= rule.after_first_joint_over_m) continue;
+    for (const s of sized.values())
+      if (s.role === "branch" && s.downstreamIndex < rule.below_index && s.liquidMm < rule.liquid_mm) s.liquidMm = rule.liquid_mm;
+  }
+
+  /* (5a) PUHY: past 40 m from the first joint, the section where it is
+     passed and everything after it one liquid size up, red past 90 m.
+     A book with no step-up (PUMY) is red past its figure. */
+  const limit = L.max_after_first_joint_m;
+  const extended = L.extended_after_first_joint_m;
+  if (firstFitting && drawn && limit != null && extended != null) {
     const bump = new Set<string>();
     let over = false;
     for (const h of heads) {
@@ -379,19 +584,28 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
         message: `A head is more than ${extended} m past the first joint`,
         fix: "Move the first joint closer to the heads, or the outdoor",
       });
+  } else if (firstFitting && drawn && limit != null && afterFirstM != null && afterFirstM > limit) {
+    findings.push({
+      severity: "red",
+      code: "after-first-joint-over",
+      message: `The pipework runs ${fmtM(afterFirstM)} past the first joint, over the book's ${limit} m`,
+      fix: "Move the first joint closer to the heads, or the outdoor",
+    });
   }
 
-  /* (5b) heads more than 15 m from the base level: their own liquid pipe one
-     size up (never twice), and red past the extended figure */
-  if (drawn && heads.length > 1) {
-    const base = heads.map((h) => levelOf(h.id)).reduce((b, v) => (Math.abs(v) < Math.abs(b) ? v : b));
+  /* (5b) PUHY: heads more than 15 m from the base level take their own liquid
+     one size up (never twice), red past the extended figure. Without a
+     step-up (PUMY), heads off joints more than the figure apart are red. */
+  const cmHeads = heads.filter((h) => !onBox(h));
+  if (drawn && cmHeads.length > 1) {
+    const base = cmHeads.map((h) => levelOf(h.id)).reduce((b, v) => (Math.abs(v) < Math.abs(b) ? v : b));
     const limitH = L.max_lift_idu_idu_m;
-    const extendedH = L.extended_lift_idu_idu_m ?? limitH;
+    const extendedH = L.extended_lift_idu_idu_m;
     let worst = 0;
-    for (const h of heads) {
+    for (const h of cmHeads) {
       const diff = Math.abs(levelOf(h.id) - base);
       worst = Math.max(worst, diff);
-      if (diff <= limitH) continue;
+      if (extendedH == null || diff <= limitH) continue;
       const own = incoming.get(h.id);
       const sec = own ? sized.get(own.id) : undefined;
       if (sec && !sec.upsized) {
@@ -399,21 +613,43 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
         sec.upsized = true;
       }
     }
-    if (worst > extendedH)
+    const cap = extendedH ?? limitH;
+    if (worst > cap)
       findings.push({
         severity: "red",
         code: "head-height-over",
-        message: `Two heads are ${Math.round(worst)} m apart in height, over the book's ${extendedH} m`,
+        message: `Two heads are ${Math.round(worst)} m apart in height, over the book's ${cap} m`,
       });
   }
 
   /* fittings */
   const fittings: SizedFitting[] = [];
+  const boxParts = pack.parts
+    .filter((p) => p.part_type === "branch-box" && p.ports != null)
+    .sort((a, b) => (a.ports ?? 0) - (b.ports ?? 0));
   for (const n of tree.nodes) {
-    if (n.kind !== "joint" || !seen.has(n.id)) continue;
+    if (!seen.has(n.id)) continue;
     const outs = children.get(n.id) ?? [];
     const down = below.get(n.id) ?? 0;
     const first = n.id === firstFitting;
+    if (n.kind === "box") {
+      const part = boxParts.find((p) => (p.ports ?? 0) >= outs.length)?.model ?? null;
+      fittings.push({ nodeId: n.id, kind: "box", part, downstreamIndex: down, branches: outs.length, first: false });
+      if (!part)
+        findings.push({ severity: "red", code: "no-fitting-part", message: `No branch box takes ${outs.length} heads`, fix: "Split them over two boxes" });
+      for (const s of outs) {
+        const h = nodeById.get(s.to);
+        const u = h ? unitOf(h) : undefined;
+        if (h?.kind === "idu" && u && !isBoxHead(pack, odu, u))
+          findings.push({
+            severity: "red",
+            code: "not-box-head",
+            message: isVrfHead(pack, u) ? `${u.model} goes on a joint, not a branch box` : `${odu.model}'s branch boxes can't take ${u.model}`,
+          });
+      }
+      continue;
+    }
+    if (n.kind !== "joint") continue;
     if (outs.length >= 3) {
       const step = (table.header_selection?.steps ?? []).find((h) => outs.length <= h.branches_max && down <= h.index_max);
       fittings.push({ nodeId: n.id, kind: "header", part: step?.part_ref ?? null, downstreamIndex: down, branches: outs.length, first });
@@ -436,12 +672,19 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
       if (!part) findings.push({ severity: "red", code: "no-fitting-part", message: `No joint in the book for P${down}` });
     }
   }
+  const bb = odu.branch_boxes;
+  if (boxes.length && bb && boxes.length > bb.max_boxes)
+    findings.push({
+      severity: "red",
+      code: "box-count-over",
+      message: `${boxes.length} branch boxes, and ${odu.model} takes up to ${bb.max_boxes}`,
+    });
 
   const liquidM: Record<string, number> = {};
   for (const s of sized.values())
     if (s.lengthM != null) liquidM[key(s.liquidMm)] = (liquidM[key(s.liquidMm)] ?? 0) + s.lengthM;
 
-  /* the charge to add (p.143), and the outdoor's maximum (p.144) */
+  /* the charge to add, and the outdoor's maximum */
   let chargeG: number | null = null;
   const rule = table.additional_charge;
   if (drawn && farthestM != null && rule.method === "per_meter_by_liquid_size_by_farthest") {
@@ -449,6 +692,7 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
       liquidM,
       farthestM,
       connectedIndex: below.get(root.id) ?? 0,
+      connectedKw: belowKw.get(root.id) ?? 0,
       oduModel: odu.model,
       iduModels: heads.map((h) => h.model ?? ""),
     });
@@ -468,6 +712,7 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
     sections: tree.sections.map((s) => sized.get(s.id)).filter((s): s is SizedSection => s != null),
     fittings,
     findings,
+    method,
     liquidM,
     farthestM,
     farthestEquivM,
@@ -479,8 +724,9 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
 }
 
 /** the tree as DRAWN on the plan: from the outdoor through the system's
-    refrigerant runs, joints and risers (graph.ts). A riser, or a joint with
-    one run on, is passed through — its lengths add into one section. A run
+    refrigerant runs, joints, branch boxes and risers (graph.ts). A riser, or
+    a joint with one run on, is passed through — its lengths add into one
+    section; a branch box is always a node. A run
     that loops back makes a second way into a node, which the sizer calls out.
     `joined` is the heads the drawing reaches. Null when the outdoor is not
     on the plan. */
@@ -525,7 +771,10 @@ export function drawnVrfTree(
   }
   /* keep the outdoor, the heads and the joints that branch; pass the rest */
   const keep = (id: string): boolean =>
-    id === oduId || headModel.has(id) || (graph.nodes.get(id)?.type === "joint" && (out.get(id)?.length ?? 0) >= 2);
+    id === oduId ||
+    headModel.has(id) ||
+    graph.nodes.get(id)?.type === "branch-box" ||
+    (graph.nodes.get(id)?.type === "joint" && (out.get(id)?.length ?? 0) >= 2);
   const nodes: VrfTreeNode[] = [{ id: oduId, kind: "odu" }];
   const sections: VrfTreeSection[] = [];
   const joined = new Set<string>();
@@ -538,7 +787,7 @@ export function drawnVrfTree(
         joined.add(to);
         nodes.push({ id: to, kind: "idu", model: headModel.get(to) });
       } else {
-        nodes.push({ id: to, kind: "joint" });
+        nodes.push({ id: to, kind: graph.nodes.get(to)?.type === "branch-box" ? "box" : "joint" });
       }
       for (const n of out.get(to) ?? []) add(to, n.to, n.lengthM, n.riseM, n.bends, guard);
       return;
@@ -584,8 +833,20 @@ export function systemVrfTree(
     .map(({ a }) => ({ id: a.id, model: a.model }));
   const drawn = doc ? drawnVrfTree(doc, sys, oduAlloc.id, heads) : null;
   const joined = drawn?.joined.size ?? 0;
+  /* before the drawing: the heads a branch box takes go on boxes */
+  const boxed = new Set(
+    heads
+      .filter((h) => {
+        const u = pack.indoor_units.find((x) => x.model === h.model);
+        return u != null && !isVrfHead(pack, u) && isBoxHead(pack, odu, u);
+      })
+      .map((h) => h.id)
+  );
+  const ports = Math.max(1, ...pack.parts.filter((p) => p.part_type === "branch-box").map((p) => p.ports ?? 0));
   const tree =
-    drawn && heads.length > 0 && joined === heads.length ? drawn.tree : provisionalVrfTree(oduAlloc.id, heads);
+    drawn && heads.length > 0 && joined === heads.length
+      ? drawn.tree
+      : provisionalVrfTree(oduAlloc.id, heads, boxed, ports);
   return { ...sizeVrfTree(pack, odu, tree), joined, heads: heads.length };
 }
 

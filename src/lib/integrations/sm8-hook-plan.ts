@@ -443,8 +443,8 @@ export function readHookObjects(json: unknown): HookObjectsState {
   return out;
 }
 
-/** Pings stopped when the last one (or the subscribing) is more than a day
-    old... */
+/** Pings stopped when the later of the last one and the subscribing
+    (quietFrom) is more than a day old... */
 export const QUIET_AFTER_MS = 24 * 3_600_000;
 /** ...and at least this many covered records were edited since. Edits to
     fields we don't watch move edit_date too, so one or two prove nothing. */
@@ -485,11 +485,20 @@ export function sm8HooksHealth(input: {
   if (missing.length === HOOK_OBJECT_NAMES.length) return { state: "none" };
   const errors = HOOK_OBJECT_NAMES.filter((o) => !!input.objects[o]?.error);
   if (missing.length > 0 || errors.length > 0) return { state: "partial", missing, errors };
-  const last = input.lastPingAt ?? input.subscribedAt;
+  const last = quietFrom(input.lastPingAt, input.subscribedAt);
   if (last !== null && input.now - last > QUIET_AFTER_MS && input.editedSince !== null && input.editedSince >= QUIET_EDITS) {
     return { state: "quiet", since: last };
   }
   return { state: "ok" };
+}
+
+/** When quiet is counted from: the later of the last ping and the
+    subscribing, so a Reconnect after pings stopped gives the new
+    subscription its own QUIET_AFTER_MS. Null when there is neither. */
+export function quietFrom(lastPingAt: number | null, subscribedAt: number | null): number | null {
+  if (lastPingAt === null) return subscribedAt;
+  if (subscribedAt === null) return lastPingAt;
+  return Math.max(lastPingAt, subscribedAt);
 }
 
 /** The stamp edits are counted from, for the quiet check: the last ping

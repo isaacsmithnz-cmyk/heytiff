@@ -197,6 +197,43 @@ async function leftoverDrains(orgs: readonly string[], startedAt: number): Promi
   return night;
 }
 
+/** LIVE UPDATES' HEALTH (two-way phase 4, PR F), after the syncs, so the
+    day's edits are in the mirror: for each swept workspace, whether pings
+    stopped while its records went on changing (sm8-hooks'
+    checkSm8HooksQuiet). A quiet one is marked for the owner's screen and
+    reconciled. The whole step has ENSURE_BUDGET_MS and, like the drains,
+    ends while the eviction, the asks' reserve and their margin still have
+    their time; a workspace it doesn't reach is checked the next night.
+    Only with SM8_WEBHOOKS on: off, the machinery isn't loaded, nothing is
+    read, and the answer is as it was. */
+type HookHealthNight = { checked: number; quiet: number; unwell: number; ensured: number; deferred: number };
+
+async function checkHooksHealth(orgs: readonly string[], startedAt: number): Promise<HookHealthNight> {
+  const { checkSm8HooksQuiet } = await import("@/lib/integrations/sm8-hooks");
+  const night: HookHealthNight = { checked: 0, quiet: 0, unwell: 0, ensured: 0, deferred: 0 };
+  /* it keeps back what comes after it, as the drains do: the eviction, the
+     asks' own reserve and their margin */
+  const stepEnd =
+    Math.min(
+      Date.now() + ENSURE_BUDGET_MS,
+      startedAt + maxDuration * 1000 - CRON_SETTLE_MARGIN_MS - EVICT_BUDGET_MS - CRON_ASKS_RESERVE_MS
+    ) - ENSURE_FINISH_MARGIN_MS;
+  for (const orgId of orgs) {
+    const now = Date.now();
+    if (now >= stepEnd) {
+      night.deferred += 1;
+      continue;
+    }
+    const out = await checkSm8HooksQuiet(orgId, { budgetMs: stepEnd - now });
+    if (out.state === "unread" || out.state === "settling") continue;
+    night.checked += 1;
+    if (out.state === "quiet") night.quiet += 1;
+    else if (out.state !== "ok") night.unwell += 1;
+    if (out.ensured) night.ensured += 1;
+  }
+  return night;
+}
+
 /** Whether Vercel's scheduler made this call, rather than a person. */
 function fromScheduler(request: Request): boolean {
   return request.headers.has("x-vercel-cron-schedule");
@@ -309,6 +346,14 @@ export async function GET(request: Request) {
   /* The leftover drains, after every sync (leftoverDrains). */
   const drains = sm8WebhooksState() === "on" ? await leftoverDrains(orgs, startedAt) : null;
 
+  /* Live updates' health, after the drains (HookHealthNight). */
+  const hookHealth =
+    sm8WebhooksState() === "on"
+      ? await checkHooksHealth(orgs, startedAt).catch(
+          (): HookHealthNight => ({ checked: 0, quiet: 0, unwell: 0, ensured: 0, deferred: orgs.length })
+        )
+      : null;
+
   /* THE FILE CACHE'S 30-DAY CAP (lib/integrations/sm8-file-cache): copies
      of ServiceM8's own files nobody has been shown in 30 days leave the
      bucket, and the next open brings them back. Starred photos stay; no
@@ -361,6 +406,7 @@ export async function GET(request: Request) {
     ...(sm8NotesAllowed() ? { notesCleared } : {}),
     ...(hooks ? { hooks } : {}),
     ...(drains ? { drains } : {}),
+    ...(hookHealth ? { hookHealth } : {}),
     asks: { read: asksRead, tasks: asksMade, deferred: asksDeferred },
     files: {
       evicted: files.evicted,

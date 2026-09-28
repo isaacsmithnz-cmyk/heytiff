@@ -472,7 +472,7 @@ function SystemCard({
                     2026-09-28, "put some colour on each button") */}
                 <div className="ds-zp-acts">
                   <button className="ds-zp-act" data-tone="system" onClick={onBuild}>
-                    Edit system
+                    <span className="ds-zp-act-lbl">Edit system</span>
                   </button>
                   {(rack.length > 0 || install === "complete") && (
                     <button
@@ -480,10 +480,11 @@ function SystemCard({
                       data-tone={install === "complete" ? "ok" : "warn"}
                       onClick={onInstall}
                     >
-                      Install details
-                      <span className="ds-zp-act-fig">
-                        {install === "not-asked" || !asked ? "Not started" : `${asked.answered} of ${asked.total}`}
-                      </span>
+                      <span className="ds-zp-act-lbl">Install details</span>
+                      {/* a figure, never a phrase: it sits at the right
+                          edge beside a centred label, and "0 of 7" fits
+                          where "Not started" would push the label over */}
+                      {asked && <span className="ds-zp-act-fig">{`${asked.answered} of ${asked.total}`}</span>}
                     </button>
                   )}
                 </div>

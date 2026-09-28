@@ -528,9 +528,11 @@ describe("SystemsPanel — the rack", () => {
     const el = card("System 1");
     expect(el.querySelector(".ds-zp-rack")).not.toBeNull();
     const details = within(el).getByRole("button", { name: /^Install details/ });
-    // nothing answered yet: amber, and it says so
+    // nothing answered yet: amber, and none of how many
     expect(details).toHaveAttribute("data-tone", "warn");
-    expect(details.querySelector(".ds-zp-act-fig")?.textContent).toBe("Not started");
+    const total = equipmentList(made.doc, mePack, sysOf(made.doc, made.systemId)).total;
+    expect(total).toBeGreaterThan(0);
+    expect(details.querySelector(".ds-zp-act-fig")?.textContent).toBe(`0 of ${total}`);
     fireEvent.click(details);
     expect(onInstall).toHaveBeenCalledWith(made.systemId);
   });

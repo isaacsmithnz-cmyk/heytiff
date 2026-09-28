@@ -194,9 +194,11 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
+/** The meter's answer to a turn: ok, or refused for the day. */
+let meterRefuses = false;
 jest.mock("../sm8-meter", () => ({
   ...jest.requireActual("../sm8-meter"),
-  takeSm8Call: async () => ({ ok: true }),
+  takeSm8Call: async () => (meterRefuses ? { ok: false, why: "day", waitMs: 60_000 } : { ok: true }),
   noteSm8Throttle: async () => {},
 }));
 
@@ -345,6 +347,7 @@ beforeEach(() => {
   onUpdate = () => {};
   onSelect = () => {};
   errorOn = null;
+  meterRefuses = false;
   during = () => {};
   serve = (endpoint, uuid) => new Response(JSON.stringify([record(endpoint, uuid)]), { status: 200 });
   accessResult = { ok: true, access: ACCESS };
@@ -569,6 +572,18 @@ describe("drainSm8Hooks", () => {
     expect(pings().map((r) => r.uuid)).toEqual([U(2)]);
   });
 
+  it("a turn the meter refused reached nobody, and is given back to the day", async () => {
+    db.sm8_webhook_pings = [queue("jobs", U(1), 30_000), queue("jobs", U(2), 29_000)];
+    hooks().calls_today = 7;
+    hooks().calls_day = iso(clock).slice(0, 10);
+    meterRefuses = true;
+    const out = await drain();
+    expect(out).toMatchObject({ read: 0, stopped: "throttled" });
+    expect(fakeFetch).not.toHaveBeenCalled();
+    expect(hooks().calls_today).toBe(7);
+    expect(pings()).toHaveLength(2);
+  });
+
   it("a renewal's second request is counted too", async () => {
     db.sm8_webhook_pings = [queue("jobs", U(1))];
     serve = (endpoint, uuid, token) =>
@@ -683,6 +698,22 @@ describe("drainSm8Hooks", () => {
       expect(await drain()).toMatchObject({ read: 2, stopped: "grant" });
       expect(markSm8NeedsReauth).toHaveBeenCalled();
       expect(pings()).toHaveLength(1);
+    });
+
+    it.each([400, 404, 410, 422])("a %i for one record drops that row, and the drain goes on", async (status) => {
+      db.sm8_webhook_pings = [queue("jobs", U(1), 30_000), queue("jobs", U(2), 29_000)];
+      serve = (endpoint, uuid) =>
+        uuid === U(1) ? new Response("no", { status }) : new Response(JSON.stringify([record(endpoint, uuid)]));
+      const out = await drain();
+      expect(out).toMatchObject({ read: 2, written: 1, stopped: null });
+      expect(pings()).toEqual([]);
+    });
+
+    it("a 408 is a timeout, not a refusal: an attempt, and a stop", async () => {
+      db.sm8_webhook_pings = [queue("jobs", U(1), 30_000), queue("jobs", U(2), 29_000)];
+      serve = () => new Response("slow", { status: 408 });
+      expect(await drain()).toMatchObject({ read: 1, stopped: "unavailable" });
+      expect(pings()).toEqual([expect.objectContaining({ uuid: U(1), attempts: 1 }), expect.objectContaining({ uuid: U(2) })]);
     });
 
     it("unavailable counts an attempt and stops; the fifth drops the row", async () => {

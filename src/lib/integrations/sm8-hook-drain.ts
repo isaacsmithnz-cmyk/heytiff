@@ -608,6 +608,25 @@ type Held = {
   skip: Set<HookObjectName>;
 };
 
+/** Give back one hook call counted for a request that was never made (the
+    meter refused its turn). A compare-and-set on the day's count, which
+    only a drain moves, and a drain runs one at a time: a count that moved
+    meanwhile, or a new day, is left as it is — the error is then one call
+    too many, never too few. */
+async function refundHookCall(ctx: Ctx): Promise<void> {
+  const { data, error } = await supabaseAdmin.from(WEBHOOKS).select("calls_today, calls_day").eq("org_id", ctx.orgId).maybeSingle();
+  if (error) return;
+  const row = data as { calls_today: number | null; calls_day: string | null } | null;
+  const n = row?.calls_today ?? 0;
+  if (!row || n <= 0 || row.calls_day === null) return;
+  await supabaseAdmin
+    .from(WEBHOOKS)
+    .update({ calls_today: n - 1 })
+    .eq("org_id", ctx.orgId)
+    .eq("calls_today", n)
+    .eq("calls_day", row.calls_day);
+}
+
 /** Wait out the gap since the last read started. */
 async function pace(ctx: Ctx): Promise<void> {
   if (ctx.lastReadAt === null) return;
@@ -650,12 +669,16 @@ async function readOne(ctx: Ctx, row: QueueRow, held: Held): Promise<string | nu
     if (took.error) return "uncounted";
     if (took.data !== true) return "spent";
     ctx.lastReadAt = clock();
-    ctx.out.read += 1;
-    return fetchSm8Page(sm8CallOf(a, "hook"), spec.endpoint, {
+    const page = await fetchSm8Page(sm8CallOf(a, "hook"), spec.endpoint, {
       cursor: "-1",
       filter: `uuid eq '${row.uuid}'`,
       timeoutMs: HOOK_READ_TIMEOUT_MS,
     });
+    /* a turn the meter refused reached nobody: it costs the day nothing,
+       as the sync counts it */
+    if (!page.ok && page.called === false) await refundHookCall(ctx);
+    else ctx.out.read += 1;
+    return page;
   };
   const got = await withSm8Renewal(
     orgId,
@@ -688,6 +711,15 @@ async function readOne(ctx: Ctx, row: QueueRow, held: Held): Promise<string | nu
         return null;
       }
       case "unavailable": {
+        /* a refusal of THIS record (a 4xx the cases above don't name, but
+           not 408, a timeout): asking again won't change it, and it mustn't
+           hold up the rest — the row goes, and the drain goes on. The syncs
+           still walk the object. */
+        if (page.status !== undefined && page.status >= 400 && page.status <= 499 && page.status !== 408) {
+          await supabaseAdmin.from(PINGS).delete().eq("org_id", orgId).eq("object", row.object).eq("uuid", row.uuid);
+          console.error(`[sm8] live updates for org ${orgId}: ServiceM8 answered ${page.status} for one ${row.object} record; it waits for the next sync`);
+          return null;
+        }
         const attempts = row.attempts + 1;
         const q = supabaseAdmin.from(PINGS);
         if (attempts >= HOOK_MAX_ATTEMPTS) {

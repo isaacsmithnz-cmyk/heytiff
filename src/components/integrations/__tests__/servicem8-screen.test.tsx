@@ -91,10 +91,36 @@ describe("before connecting", () => {
 });
 
 describe("connected — the warning names the account", () => {
-  it("says what this workspace is currently connected to, so a reconnect isn't blind", () => {
+  it("says what this workspace is currently connected to, so a reconnect isn't blind", async () => {
+    const user = userEvent.setup();
     render(<Servicem8Screen connection={toView(row())} {...ready} />);
+    await user.click(screen.getByText("Reconnect"));
     expect(screen.getByText(/currently connected to/i)).toBeInTheDocument();
     expect(screen.getAllByText(ACCOUNT).length).toBeGreaterThan(1);
+  });
+
+  /* 2026-09-28: the warning stood open under the controls all the time,
+     the tallest thing on a page asked to fit one screen. It now opens at the
+     moment it is for — after Reconnect, before anything leaves for
+     ServiceM8 — and the way on is a second, deliberate press. */
+  it("opens on Reconnect, with the way on to ServiceM8 and the way back", async () => {
+    const user = userEvent.setup();
+    render(<Servicem8Screen connection={toView(row())} {...ready} />);
+    expect(screen.queryByText(/whichever ServiceM8 account this browser/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /ServiceM8/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Reconnect"));
+    expect(screen.getByText(/whichever ServiceM8 account this browser/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Continue to ServiceM8" })).toHaveAttribute(
+      "href",
+      "/api/integrations/servicem8/connect"
+    );
+    // nothing else to press while deciding
+    expect(screen.queryByText("Disconnect")).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Cancel"));
+    expect(screen.queryByText(/whichever ServiceM8 account this browser/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Disconnect")).toBeInTheDocument();
   });
 });
 
@@ -761,7 +787,7 @@ describe("sending files to ServiceM8", () => {
     expect(screen.queryByRole("button", { name: "Retry failed files" })).not.toBeInTheDocument();
   });
 
-  it("draws the latest five writes, then offers the rest", async () => {
+  it("draws the latest four writes, then offers the rest", async () => {
     const user = userEvent.setup();
     render(
       <Servicem8Screen
@@ -770,7 +796,7 @@ describe("sending files to ServiceM8", () => {
         writes={writes({ mode: "live", granted: ["attachment"], recent: recent(25) })}
       />
     );
-    expect(screen.getAllByText(/^File \d+\.pdf$/)).toHaveLength(5);
+    expect(screen.getAllByText(/^File \d+\.pdf$/)).toHaveLength(4);
     await user.click(screen.getByRole("button", { name: "Show all 25" }));
     expect(screen.getAllByText(/^File \d+\.pdf$/)).toHaveLength(25);
     expect(screen.queryByRole("button", { name: /Show all/ })).not.toBeInTheDocument();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Icon } from "@/components/shell/icon";
 
 /* Connect / Reconnect / Disconnect — one component, both providers, because
@@ -49,6 +49,15 @@ export type ConnectActionsProps = {
   elsewhere?: number;
   busy: boolean;
   onDisconnect: () => void;
+  /** Controls of the screen's own that belong in the same row, ahead of
+      Reconnect (ServiceM8's Sync now). Hidden while confirming, like the
+      rest of the row. */
+  extraActions?: ReactNode;
+  /** Keep the which-account warning for the moment it matters on a
+      connection that exists: Reconnect opens it, with the way on to the
+      provider and a way back, instead of it standing open on the page. A
+      first connection always shows it. */
+  warnOnReconnect?: boolean;
 };
 
 export function ConnectActions({
@@ -63,8 +72,14 @@ export function ConnectActions({
   elsewhere = 0,
   busy,
   onDisconnect,
+  extraActions = null,
+  warnOnReconnect = false,
 }: ConnectActionsProps) {
   const [confirming, setConfirming] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+  /* The warning stands open until there is a connection to reconnect, and
+     then, where the screen asks, only once Reconnect is pressed. */
+  const warnNow = !(warnOnReconnect && connected) || reconnecting;
   const [typed, setTyped] = useState("");
 
   /* Case- and space-insensitive: this is a "did you read which account this
@@ -83,7 +98,7 @@ export function ConnectActions({
       {/* The warning that would have prevented the accident — before the
           button, not after, and shown for a first connection as well as a
           reconnect. */}
-      {ready && !confirming && (
+      {ready && !confirming && warnNow && (
         <div className="int-consent">
           <Icon name="alert" size={15} />
           <p>
@@ -119,7 +134,26 @@ export function ConnectActions({
       )}
 
       <div className="int-act">
-        {ready && !confirming && (
+        {!confirming && !reconnecting && extraActions}
+        {ready && !confirming && warnOnReconnect && connected && !reconnecting && (
+          <button className="pbtn ghost" onClick={() => setReconnecting(true)}>
+            <Icon name="plug" size={16} />
+            Reconnect
+          </button>
+        )}
+        {ready && !confirming && warnOnReconnect && connected && reconnecting && (
+          <>
+            <button className="pbtn ghost" onClick={() => setReconnecting(false)}>
+              Cancel
+            </button>
+            {/* the same plain <a> as below, for the same reason */}
+            <a className="pbtn primary" href={startHref}>
+              <Icon name="plug" size={16} />
+              Continue to {label}
+            </a>
+          </>
+        )}
+        {ready && !confirming && !(warnOnReconnect && connected) && (
           /* A plain <a>, not <Link>: this is an API route, and a prefetch on
              hover would mint an OAuth state per hover and overwrite the one a
              half-finished flow depends on. */
@@ -128,7 +162,7 @@ export function ConnectActions({
             {connected ? "Reconnect" : `Connect to ${label}`}
           </a>
         )}
-        {connected && !confirming && (
+        {connected && !confirming && !reconnecting && (
           <button className="pbtn ghost" onClick={() => setConfirming(true)}>
             Disconnect
           </button>

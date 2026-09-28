@@ -77,7 +77,7 @@ const MODES: { id: Sm8WriteMode; label: string }[] = [
 
 /** How many rows the list draws before it asks: the latest few, beside the
     mirror, and the rest one press away. */
-const SHOWN = 5;
+const SHOWN = 4;
 
 /** The owner's switch per kind, in this order, a row for each kind the
     deployment allows — drawn only where it allows more than one. */
@@ -267,15 +267,6 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
           </div>
         ))}
 
-      {view.failed > 0 && (
-        <div className="int-failed">
-          <b>{view.failed === 1 ? "1 didn't go." : `${view.failed} didn't go.`}</b>
-          <button type="button" className="pbtn ghost" disabled={busy} onClick={retry}>
-            Retry failed files
-          </button>
-        </div>
-      )}
-
       {shown.length > 0 && (
         <ul className="int-writes">
           {shown.map((w) => {
@@ -290,10 +281,24 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
           })}
         </ul>
       )}
-      {!all && view.recent.length > SHOWN && (
-        <button type="button" className="int-more" onClick={() => setAll(true)}>
-          Show all {view.recent.length}
-        </button>
+      {/* the list's foot: the rest of it, and what didn't go with the way to
+          send it again — one row, under the rows it is about */}
+      {((!all && view.recent.length > SHOWN) || view.failed > 0) && (
+        <div className="int-wfoot">
+          {!all && view.recent.length > SHOWN && (
+            <button type="button" className="int-more" onClick={() => setAll(true)}>
+              Show all {view.recent.length}
+            </button>
+          )}
+          {view.failed > 0 && (
+            <div className="int-failed">
+              <b>{view.failed === 1 ? "1 didn't go." : `${view.failed} didn't go.`}</b>
+              <button type="button" className="pbtn ghost" disabled={busy} onClick={retry}>
+                Retry failed files
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

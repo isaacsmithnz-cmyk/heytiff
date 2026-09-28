@@ -30,6 +30,7 @@ import {
 } from "./job-media";
 import { staffDisplayNames } from "./job-notes-query";
 import { sm8Ours, withoutOurs } from "@/lib/integrations/sm8-echo";
+import { touchSm8Files } from "@/lib/integrations/sm8-file-cache";
 import { naiveInZone } from "./job-story";
 import { getSm8Timezone } from "./query";
 
@@ -220,12 +221,20 @@ export async function readJobMedia(
   );
 
   /* One signing call for the whole job, not one per photo — the reason the
-     bytes live in this bucket at all. */
+     bytes live in this bucket at all.
+
+     AND THE COPIES ARE MARKED SHOWN, beside the signing rather than after
+     it: a copy nobody is shown for 30 days is evicted overnight
+     (lib/integrations/sm8-file-cache), and this read is what opening a job
+     is. At most one write per file per day. */
   const urls = new Map<string, string>();
   if (cached.size > 0) {
-    const { data: signed } = await supabaseAdmin.storage
-      .from(DOCUMENTS_BUCKET)
-      .createSignedUrls([...new Set(cached.values())], SIGNED_URL_SECONDS);
+    const [{ data: signed }] = await Promise.all([
+      supabaseAdmin.storage
+        .from(DOCUMENTS_BUCKET)
+        .createSignedUrls([...new Set(cached.values())], SIGNED_URL_SECONDS),
+      touchSm8Files(orgId, [...cached.keys()]),
+    ]);
     for (const row of signed ?? []) {
       if (row.path && row.signedUrl) urls.set(row.path, row.signedUrl);
     }

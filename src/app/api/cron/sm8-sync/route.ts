@@ -10,6 +10,7 @@ import {
 import { WRITE_LEASE_MARGIN_MS, WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { NOTE_TEXT_DAYS } from "@/lib/integrations/sm8-note-plan";
+import { EVICT_BUDGET_MS, evictStaleSm8Files, type EvictResult } from "@/lib/integrations/sm8-file-cache";
 
 /* The nightly ServiceM8 top-up — the BACKSTOP, not the primary path.
 
@@ -198,6 +199,23 @@ export async function GET(request: Request) {
     }
   }
 
+  /* THE FILE CACHE'S 30-DAY CAP (lib/integrations/sm8-file-cache): copies
+     of ServiceM8's own files nobody has been shown in 30 days leave the
+     bucket, and the next open brings them back. Starred photos stay; no
+     other kind of document is ever read here. AFTER THE SYNCS, because
+     eviction is housekeeping and a sync is what the board is true by; and
+     before the asks, on at most EVICT_BUDGET_MS of what is left of the
+     window (the clock looked at before every file), so the asks keep the
+     rest. Nothing left, and it waits for tomorrow. It never throws. */
+  const evictBudgetMs = Math.min(
+    EVICT_BUDGET_MS,
+    startedAt + maxDuration * 1000 - CRON_SETTLE_MARGIN_MS - Date.now()
+  );
+  const files: EvictResult =
+    evictBudgetMs > 0
+      ? await evictStaleSm8Files(Date.now(), { budgetMs: evictBudgetMs })
+      : { evicted: 0, bytes: 0, starred: 0, failed: 0, capped: false, skipped: true };
+
   /* The asks, after every sync (CRON_SETTLE_MARGIN_MS). */
   let asksRead = 0;
   let asksMade = 0;
@@ -232,5 +250,13 @@ export async function GET(request: Request) {
     writes: { orgs: writers.length, sent: writesSent, failed: writesFailed, deferred: writesDeferred },
     ...(sm8NotesAllowed() ? { notesCleared } : {}),
     asks: { read: asksRead, tasks: asksMade, deferred: asksDeferred },
+    files: {
+      evicted: files.evicted,
+      mb: Math.round(files.bytes / 104857.6) / 10,
+      starred: files.starred,
+      failed: files.failed,
+      capped: files.capped,
+      skipped: files.skipped,
+    },
   });
 }

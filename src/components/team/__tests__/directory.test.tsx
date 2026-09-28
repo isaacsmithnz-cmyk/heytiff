@@ -30,7 +30,19 @@ jest.mock("@/app/actions/staff", () => ({
   saveStaffSection: (...a: unknown[]) => saveStaffSection(...(a as [])),
 }));
 
+/* The no-card row's two buttons. */
+const createCardForMember = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
+const removeMemberWithoutCard = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
+jest.mock("@/app/actions/members", () => ({
+  createCardForMember: (...a: unknown[]) => createCardForMember(...(a as [])),
+  removeMemberWithoutCard: (...a: unknown[]) => removeMemberWithoutCard(...(a as [])),
+}));
+
 beforeEach(() => {
+  createCardForMember.mockClear();
+  removeMemberWithoutCard.mockClear();
+  createCardForMember.mockResolvedValue({ ok: true });
+  removeMemberWithoutCard.mockResolvedValue({ ok: true });
   push.mockClear();
   refresh.mockClear();
   renewInvite.mockClear();
@@ -435,6 +447,44 @@ describe("members with no staff card", () => {
     expect(screen.getByText("Sam Rivers")).toBeInTheDocument();
     expect(screen.getByText("sam@rivers.com")).toBeInTheDocument();
     expect(screen.getByText("No staff card")).toBeInTheDocument();
+  });
+
+  /* The row used to state the problem and offer nothing — "I can't even
+     action it". */
+  it("makes their card from the row", async () => {
+    const user = userEvent.setup();
+    render(<TeamDirectory staff={[]} pending={[]} orphans={[orphan]} />);
+
+    await user.click(screen.getByRole("button", { name: "Create card" }));
+
+    expect(createCardForMember).toHaveBeenCalledWith("auth0|orphan");
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("says so when the card could not be made", async () => {
+    createCardForMember.mockResolvedValue({ ok: false, error: "Couldn't create the card." });
+    const user = userEvent.setup();
+    render(<TeamDirectory staff={[]} pending={[]} orphans={[orphan]} />);
+
+    await user.click(screen.getByRole("button", { name: "Create card" }));
+
+    expect(await screen.findByText("Couldn't create the card.")).toBeInTheDocument();
+  });
+
+  it("offers Remove only to an owner", () => {
+    render(<TeamDirectory staff={[]} pending={[]} orphans={[orphan]} />);
+    expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
+  });
+
+  it("arms Remove before it takes the seat back", async () => {
+    const user = userEvent.setup();
+    render(<TeamDirectory staff={[]} pending={[]} orphans={[orphan]} canRemoveMembers />);
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    expect(removeMemberWithoutCard).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Confirm remove" }));
+    expect(removeMemberWithoutCard).toHaveBeenCalledWith("auth0|orphan");
   });
 
   it("sits above the search, which could never find them", () => {

@@ -5,6 +5,7 @@ import { Icon } from "@/components/shell/icon";
 import { TeamDirectory } from "@/components/team/directory";
 import { InviteButton } from "@/components/team/invite-modal";
 import { can, getCapabilities, getDbRole } from "@/lib/permissions-server";
+import { hasMinRole } from "@/lib/roles-shared";
 import { invitableRoles } from "@/lib/permissions";
 import { listMembersWithoutCard, listPendingInvites, listStaff } from "@/lib/staff/query";
 import { orgExpiryWindow } from "@/lib/org/query";
@@ -105,6 +106,7 @@ export default async function TeamPage() {
               invite={canInvite ? <InviteButton roles={invitableAt} /> : null}
               appUrl={appUrl}
               inviteRoles={invitableAt}
+              canRemoveMembers={hasMinRole(actorRole, "owner")}
             />
           )}
         </div>

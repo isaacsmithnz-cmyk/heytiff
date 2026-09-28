@@ -193,9 +193,43 @@ describe("where it goes, who it is for, what goes in", () => {
 });
 
 describe("the button says what pressing it will do", () => {
-  it("prints the ticked parts, and says so", () => {
+  it("downloads the ticked parts as a file, and can still print", () => {
     renderCard();
-    expect(within(foot()).getByRole("button", { name: /Print or save as PDF/ })).toBeEnabled();
+    expect(within(foot()).getByRole("button", { name: /Download PDF/ })).toBeEnabled();
+    expect(within(foot()).getByRole("button", { name: "Print" })).toBeEnabled();
+  });
+
+  it("asks the server for exactly the ticked parts — the customer's copy has no picklist", async () => {
+    const user = userEvent.setup();
+    /* jsdom has no Response; the dialog reads only these three */
+    const fetchMock = jest.fn(async () => ({ ok: true, status: 200, blob: async () => new Blob(["%PDF"]) }));
+    const realFetch = global.fetch;
+    global.fetch = fetchMock as unknown as typeof fetch;
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: jest.fn(() => "blob:x") });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: jest.fn() });
+    const click = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    renderCard();
+    await user.click(within(foot()).getByRole("button", { name: /Download PDF/ }));
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/studio/design-pdf");
+    const body = JSON.parse(String(init.body));
+    expect(body.options.sections).toEqual({ figures: true, systems: true, lines: false, picklist: false });
+    expect(body.options.floorIds).toEqual(["f0", "f1"]);
+    click.mockRestore();
+    global.fetch = realFetch;
+  });
+
+  it("says so when the file can't be made, and leaves Print to fall back on", async () => {
+    const user = userEvent.setup();
+    const realFetch = global.fetch;
+    global.fetch = jest.fn(async () => ({ ok: false, status: 500 })) as unknown as typeof fetch;
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    renderCard();
+    await user.click(within(foot()).getByRole("button", { name: /Download PDF/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Print still works/);
+    expect(within(foot()).getByRole("button", { name: /Download PDF/ })).toBeEnabled();
+    global.fetch = realFetch;
   });
 
   it("with nothing ticked it says what is missing, and can't be pressed", async () => {
@@ -211,7 +245,7 @@ describe("the button says what pressing it will do", () => {
     const { onExportJson } = renderCard({ empty: true });
     expect(box(/Systems and rooms/)).toBeDisabled();
     expect(screen.getAllByText("Nothing designed yet")).toHaveLength(2);
-    expect(within(foot()).getByRole("button", { name: /Print or save as PDF/ })).toBeEnabled();
+    expect(within(foot()).getByRole("button", { name: /Download PDF/ })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "Design file" }));
     expect(onExportJson).toHaveBeenCalled();
   });

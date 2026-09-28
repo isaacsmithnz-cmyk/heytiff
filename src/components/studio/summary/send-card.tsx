@@ -328,6 +328,8 @@ export function SendCard({
   } | null>(null);
   const [preparing, setPreparing] = useState(false);
   const [pnging, setPnging] = useState(false);
+  const [making, setMaking] = useState(false);
+  const [madeError, setMadeError] = useState(false);
   const cleanupArmed = useRef(false);
 
   /* afterprint = the print window closed (printed OR cancelled) — tear down */
@@ -390,6 +392,43 @@ export function SendCard({
       console.error(`[send] print preparation failed: ${String(err)}`);
     }
     setPreparing(false);
+  };
+
+  /* THE FILE, made on the server from the same print page (api/studio/
+     design-pdf, lib/studio/pdf-render.ts) — the ticks ride along as the
+     print options. No `finally` (React Compiler 1.0), so both paths clear. */
+  const downloadPdf = async () => {
+    if (making) return;
+    setMaking(true);
+    setMadeError(false);
+    try {
+      const res = await fetch("/api/studio/design-pdf", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          designId: doc.id,
+          name: doc.meta.name,
+          options: {
+            ...opts,
+            sections,
+            floorIds: floorsOn.map((f) => f.id),
+            variantIds: othersOn.map((v) => v.id),
+          },
+        }),
+      });
+      if (!res.ok) throw new Error(`design-pdf answered ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(doc.meta.name || "Design").replace(/[\\/:*?"<>|]+/g, " ").trim() || "Design"}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(`[send] PDF failed: ${String(err)}`);
+      setMadeError(true);
+    }
+    setMaking(false);
   };
 
   /* the images: one PNG per ticked floor, whatever the plans row says — they
@@ -467,19 +506,26 @@ export function SendCard({
   /* ── the footer: what the dialog exists to do spans the bar ── */
   const nothing =
     dest === "link" ? sheetParts.size === 0 : !hasSheet(sections) && floorsOn.length === 0;
-  const busy = preparing || pnging;
+  const busy = preparing || pnging || making;
 
   const foot = (() => {
     if (dest === "pdf")
       return (
-        <button
-          className="ds-tbbtn ds-act-go"
-          onClick={() => void startPrint()}
-          disabled={busy || nothing}
-        >
-          <Icon name="download" size={14} />
-          {nothing ? "Tick something to send" : preparing ? "Preparing…" : "Print or save as PDF"}
-        </button>
+        <>
+          {/* the print window stays, beside the file: some days a sheet of
+              paper is what is wanted */}
+          <button className="ds-tbbtn" onClick={() => void startPrint()} disabled={busy || nothing}>
+            {preparing ? "Preparing…" : "Print"}
+          </button>
+          <button
+            className="ds-tbbtn ds-act-go"
+            onClick={() => void downloadPdf()}
+            disabled={busy || nothing}
+          >
+            <Icon name="download" size={14} />
+            {nothing ? "Tick something to send" : making ? "Making the PDF…" : "Download PDF"}
+          </button>
+        </>
       );
     if (link.kind === "loading" || link.kind === "unavailable") return null;
     if (link.kind === "none" || link.kind === "busy")
@@ -671,6 +717,11 @@ export function SendCard({
               })}
             </div>
             {on("picklist") && <span className="ds-act-s">Includes the material picklist.</span>}
+            {madeError && dest === "pdf" && (
+              <span className="ds-act-s" role="alert">
+                Couldn&apos;t make the PDF file. Print still works.
+              </span>
+            )}
           </div>
         </div>
 

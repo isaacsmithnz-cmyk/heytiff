@@ -51,7 +51,14 @@ const nextConfig: NextConfig = {
      what it is actually running in. Listing it here makes the server `require`
      the real file, which is the path the fixture test proves in a child Node
      process (src/lib/tiff/__tests__/extract.test.ts). */
-  serverExternalPackages: ["pdfjs-dist"],
+  serverExternalPackages: [
+    "pdfjs-dist",
+    /* the design PDF's headless browser (lib/studio/pdf-render.ts): loaded
+       as the real packages, never bundled — Chromium arrives as brotli files
+       its code finds on disk beside itself */
+    "puppeteer-core",
+    "@sparticuz/chromium",
+  ],
   // NEXT_DIST_DIR lets a second dev server (e.g. an agent preview) run
   // alongside the main one — next dev holds an exclusive lock per dist dir.
   distDir: process.env.NEXT_DIST_DIR || ".next",
@@ -69,6 +76,11 @@ const nextConfig: NextConfig = {
        be imported. Naming the whole build directory covers the cmaps and
        standard-font lookups that follow the same dynamic pattern. */
     "/api/tiff/ingest": ["./node_modules/pdfjs-dist/legacy/build/**/*"],
+    /* Chromium's brotli archives are read off disk at run time, so the
+       tracer never sees them: name them, or the first PDF dies looking */
+    "/api/studio/design-pdf": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    // the print page builds the same sheet the live link does, off the packs
+    "/print/design": ["./data/packs/**/*"],
   },
 };
 

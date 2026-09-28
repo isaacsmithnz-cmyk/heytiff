@@ -312,7 +312,7 @@ describe("the live link", () => {
 describe("send comes to the reader", () => {
   it("is a modal dialog, portalled out of the summary's own tree", () => {
     const { container } = renderCard();
-    const dialog = screen.getByRole("dialog", { name: "Send" });
+    const dialog = screen.getByRole("dialog", { name: "Share" });
     expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(container).not.toContainElement(dialog);
     expect(document.body).toContainElement(dialog);

@@ -327,7 +327,7 @@ describe("Design Studio shell", () => {
     expect(await screen.findByText("Step 1 of 2")).toBeInTheDocument();
   });
 
-  it("Summary's Send downloads the design file (it left the menu)", async () => {
+  it("Summary's Share downloads the design file (it left the menu)", async () => {
     const user = userEvent.setup();
     render(localStudio());
     await newDesign(user, "Export me", "Blank canvas");
@@ -362,8 +362,8 @@ describe("Design Studio shell", () => {
       )
     );
     /* the design file is a format, not a part of what is sent: it sits
-       under Send's preview, one press */
-    await user.click(await screen.findByRole("button", { name: /^Send/ }));
+       under Share's preview, one press */
+    await user.click(await screen.findByRole("button", { name: /^Share/ }));
     await user.click(
       await screen.findByRole("button", { name: "Design file" })
     );

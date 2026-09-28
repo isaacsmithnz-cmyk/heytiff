@@ -127,15 +127,14 @@ describe("the document itself, whoever is holding it", () => {
 });
 
 describe("the owner's chrome", () => {
-  it("carries the checks verdict and ONE Send above the document", () => {
+  it("carries the checks verdict and ONE Share above the document", () => {
     /* a design with nothing wrong says so rather than showing an empty pill;
        the pill itself is covered where the checks are, in sim-gate.test.
-       Share and Export became Send (send-card.tsx) — two buttons with two
-       dialogs, and neither asked what the reader should get. */
+       Share and Export became one Share (send-card.tsx) — two buttons with
+       two dialogs, and neither asked what the reader should get. */
     renderOwner();
     expect(screen.getByText("Nothing flagged")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Send/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Share$/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Share/ })).toHaveLength(1);
     expect(screen.queryByRole("button", { name: /^Export$/ })).not.toBeInTheDocument();
   });
 

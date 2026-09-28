@@ -286,7 +286,7 @@ describe("the customer's chrome", () => {
     expect(text).not.toMatch(/to check before you send this/);
     expect(text).not.toMatch(/Nothing flagged/);
     // acting on a design this reader does not own
-    for (const name of ["Send", "Share", "Export", "Add to job", "Unlink", "Simulate"])
+    for (const name of ["Share", "Export", "Add to job", "Unlink", "Simulate"])
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     // a warehouse list and staff names, both internal
     expect(text).not.toMatch(/Material picklist/);

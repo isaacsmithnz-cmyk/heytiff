@@ -549,8 +549,8 @@ export function SendCard({
   return (
     <>
       <SummaryModal
-        title="Send"
-        icon="send"
+        title="Share"
+        icon="arrowUR"
         onClose={onClose}
         wide
         foot={foot}

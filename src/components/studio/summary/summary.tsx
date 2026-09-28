@@ -27,7 +27,7 @@ import { JobAttach } from "./job-attach";
    per system, the picklist — and this file is one of its three chromes. What
    is owner-only is passed IN rather than living in the shared component, and
    what is owner-only is therefore ABSENT from the other two rather than
-   hidden in them: the checks, Simulate and Send, the editable letterhead,
+   hidden in them: the checks, Simulate and Share, the editable letterhead,
    the ServiceM8 provenance, Add to job, and Contributors.
 
    The chrome bar never prints. ONE derivation: buildSummaryModel carries
@@ -199,7 +199,7 @@ export function SummaryView({
             screen carried the business; the document below now carries it in
             its own masthead, on every copy including the PDF, so a second one
             up here said the same thing twice a centimetre apart. The bar is
-            what you DO to the sheet — the checks and Send. */}
+            what you DO to the sheet — the checks and Share. */}
         {checks.length > 0 ? (
           <button
             className="ds-chrome-warn"
@@ -232,9 +232,10 @@ export function SummaryView({
               <span aria-hidden>▶</span> Simulate
             </button>
           )}
-          {/* ONE WAY OUT. Share and Export were two buttons with two dialogs,
-              and neither asked what the person on the other end should get;
-              Send asks where it goes, who it is for and what goes in. A
+          {/* ONE WAY OUT, called Share (Isaac, 9-28). Share and Export were two
+              buttons with two dialogs, and neither asked what the person on
+              the other end should get; this asks where it goes, who it is for
+              and what goes in. A
               dialog, not a card unfolding here: this bar sits above a long
               document. An outline button, because Simulate is the filled one
               in this bar. */}
@@ -244,8 +245,8 @@ export function SummaryView({
             aria-haspopup="dialog"
             aria-expanded={sending}
           >
-            <Icon name="send" size={13} />
-            Send
+            <Icon name="arrowUR" size={13} />
+            Share
           </button>
         </div>
       </div>

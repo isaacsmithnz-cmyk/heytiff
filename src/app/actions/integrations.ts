@@ -103,9 +103,9 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
 /** Run one sync slice now, in the foreground — the button's whole point is
     watching the counts move, so this awaits rather than after()s. The
     engine's lease makes a press during a running sync a polite "already
-    running" rather than a second walker — after a few tries two seconds
-    apart, each asking for the lease, so a press that meets a live update
-    being read (which stands aside when asked) still syncs. A press, so it
+    running" rather than a second walker, at once. Only a live update being
+    read (a drain, which stands aside when asked) is waited for, a few tries
+    two seconds apart, so that press still syncs. A press, so it
     drains: whatever is waiting to go to ServiceM8 goes behind the answer. */
 export async function syncServiceM8NowAction(): Promise<IntegrationResult> {
   const startedAt = Date.now();
@@ -120,6 +120,8 @@ export async function syncServiceM8NowAction(): Promise<IntegrationResult> {
   const outcome = await whenSm8LeaseFree(() => runSm8Sync(orgId, "manual", Date.now(), { deadline }), {
     tries: 10,
     waitMs: 2_000,
+    // only a drain is waited for; another sync is "already running" at once, as always
+    onlyWhileHook: true,
   });
   revalidate();
   if (!outcome.ran) return { ok: false, error: outcome.note };

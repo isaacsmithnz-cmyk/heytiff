@@ -138,6 +138,22 @@ describe("the rules, cold", () => {
     await whenSm8LeaseFree(run, { tries: 10, waitMs: 5, startBy: Date.now() });
     expect(run).toHaveBeenCalledTimes(1);
   });
+
+  it("waits only for a drain when told to, and stops once it is no longer wanted", async () => {
+    const bySync = jest.fn(async () => ({ ran: false, note: SM8_SYNC_BUSY, heldByHook: false }));
+    await whenSm8LeaseFree(bySync, { tries: 5, waitMs: 0, onlyWhileHook: true });
+    expect(bySync).toHaveBeenCalledTimes(1);
+
+    const byHook = jest.fn(async () => ({ ran: false, note: SM8_SYNC_BUSY, heldByHook: true }));
+    await whenSm8LeaseFree(byHook, { tries: 5, waitMs: 0, onlyWhileHook: true });
+    expect(byHook).toHaveBeenCalledTimes(5);
+
+    byHook.mockClear();
+    const stillWanted = jest.fn(async () => false);
+    await whenSm8LeaseFree(byHook, { tries: 5, waitMs: 0, onlyWhileHook: true, stillWanted });
+    expect(byHook).toHaveBeenCalledTimes(1);
+    expect(stillWanted).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("a lease is given back and extended by token only", () => {
@@ -326,6 +342,16 @@ describe("a sync that meets the lease held asks for it", () => {
     expect(asked).toMatchObject({ wanted_by: "manual" });
     expect(out.ran).toBe(true);
     expect(runRow()).toMatchObject({ wanted_at: null, wanted_by: null, lease_until: null });
+  });
+
+  it("asks nothing of another sync: no wanted_at, and the answer says it isn't a drain", async () => {
+    fake.db.sm8_sync_runs = [
+      { org_id: ORG, lease_until: iso(Date.now() + 40_000), lease_token: "5e5e5e5e-0000-4000-8000-000000000003", lease_by: "sync" },
+    ];
+    const out = await runSm8Sync(ORG, "kick");
+    expect(out).toMatchObject({ ran: false, note: SM8_SYNC_BUSY, heldByHook: false });
+    expect(runRow().wanted_at).toBeUndefined();
+    expect(runRow().wanted_by).toBeUndefined();
   });
 
   it("gives up after its tries with the busy answer, and the ask stands for the drain to see", async () => {

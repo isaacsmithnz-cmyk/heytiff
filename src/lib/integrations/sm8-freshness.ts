@@ -37,9 +37,10 @@ import { sm8NotesAllowed } from "./sm8-kinds";
 import { NOTE_TEXT_DAYS } from "./sm8-note-plan";
 import { clearSm8NoteText, sm8NoteTextDue } from "./sm8-write-cancel";
 
-/** A slice that finds the lease held asks for it and tries again, this many
-    times this far apart — never past the last moment its lease still fits
-    the function. */
+/** A slice that finds a DRAIN holding the lease asks for it and tries
+    again, this many times this far apart — never past the last moment its
+    lease still fits the function, and only while the mirror is still stale.
+    Any other holder: busy at once, as before. */
 const KICK_TRIES = 10;
 const KICK_WAIT_MS = 2_000;
 
@@ -83,6 +84,11 @@ export function freshenSm8AfterResponse(orgId: string): void {
         tries: KICK_TRIES,
         waitMs: KICK_WAIT_MS,
         startBy: syncStartBy,
+        /* only a drain is waited for (it stands aside when asked); another
+           sync's lease gives up at once, as the kick always has — and a
+           mirror another run freshened meanwhile needs no second sync */
+        onlyWhileHook: true,
+        stillWanted: () => sm8SyncIsStale(orgId, Date.now()),
       });
       if (!synced.ran) return;
 

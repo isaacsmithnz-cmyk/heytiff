@@ -23,9 +23,11 @@
      carries on from the page it didn't read. An extension that matches
      nothing means another holder has the lease: the sync writes nothing
      more, not even its own bookkeeping.
-   - A SYNC THAT MEETS THE LEASE HELD SAYS SO. It stamps wanted_at, so a
-     drain holding the lease stands aside within one read, and it tries
-     again a few times (whenSm8LeaseFree) rather than giving up at once. Its
+   - A SYNC THAT MEETS A DRAIN SAYS SO. When the holder is `hook` it stamps
+     wanted_at, so the drain stands aside within one read, and the kick and
+     Sync now try again a few times (whenSm8LeaseFree) rather than giving up
+     at once. Any other holder is answered busy at once, exactly as before;
+     only the nightly run (and a connect) waits for any holder. The sync's
      claim clears the want.
 
    A DATABASE WITHOUT THE COLUMNS (sm8_webhooks.sql not yet applied) holds
@@ -101,18 +103,34 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 /** Run `run` (a sync) until it isn't busy: at most `tries` times, `waitMs`
     apart, and never starting a try past `startBy` (an absolute time, the
     last moment a whole lease still fits the caller's function). The last
-    answer is the answer, busy or not. Each busy try has already asked for
-    the lease (wanted_at), so a drain holding it stands aside meanwhile. */
-export async function whenSm8LeaseFree<T extends { ran: boolean; note: string }>(
+    answer is the answer, busy or not. A busy try that met a drain has
+    already asked for the lease (wanted_at), so the drain stands aside
+    meanwhile.
+
+    `onlyWhileHook`: wait only while it is a DRAIN that holds the lease
+    (`heldByHook`). Another sync, the account switch, or a lease claimed the
+    old way is answered at once, busy, exactly as before live updates — the
+    kick and Sync now. `stillWanted`, asked before each retry: false ends the
+    wait with the busy answer (the kick's mirror went fresh meanwhile, so a
+    second sync would only repeat the first). */
+export async function whenSm8LeaseFree<T extends { ran: boolean; note: string; heldByHook?: boolean }>(
   run: () => Promise<T>,
-  opts: { tries?: number; waitMs?: number; startBy?: number } = {}
+  opts: {
+    tries?: number;
+    waitMs?: number;
+    startBy?: number;
+    onlyWhileHook?: boolean;
+    stillWanted?: () => Promise<boolean>;
+  } = {}
 ): Promise<T> {
   const tries = opts.tries ?? 6;
   const waitMs = opts.waitMs ?? 2_000;
   for (let i = 1; ; i++) {
     const out = await run();
     if (out.ran || out.note !== SM8_SYNC_BUSY || i >= tries) return out;
+    if (opts.onlyWhileHook && !out.heldByHook) return out;
     if (opts.startBy !== undefined && Date.now() + waitMs > opts.startBy) return out;
     await sleep(waitMs);
+    if (opts.stillWanted && !(await opts.stillWanted())) return out;
   }
 }

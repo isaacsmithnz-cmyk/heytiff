@@ -159,12 +159,14 @@ describe("freshenSm8AfterResponse", () => {
     expect(runSm8Sync).not.toHaveBeenCalled();
   });
 
-  /* Two-way phase 4, PR B: a kick that meets the lease held asks for it and
-     tries again, 2 s apart — never starting a try once a whole lease no
-     longer fits the page's function. */
+  /* Two-way phase 4, PR B: a kick that meets a DRAIN holding the lease asks
+     for it and tries again, 2 s apart — never starting a try once a whole
+     lease no longer fits the page's function, and only while the mirror is
+     still stale. Any other holder: busy at once, as before. */
   describe("when the lease is held", () => {
     const { SM8_SYNC_BUSY } = jest.requireActual("../sm8-lease") as { SM8_SYNC_BUSY: string };
-    const busy = { ran: false, note: SM8_SYNC_BUSY, pagesUsed: 0, rowsPulled: 0, complete: false };
+    const busy = { ran: false, note: SM8_SYNC_BUSY, pagesUsed: 0, rowsPulled: 0, complete: false, heldByHook: true };
+    const busySync = { ...busy, heldByHook: false };
     beforeEach(() => jest.useFakeTimers({ doNotFake: ["Date"] }));
     afterEach(() => jest.useRealTimers());
 
@@ -183,6 +185,29 @@ describe("freshenSm8AfterResponse", () => {
       freshenSm8AfterResponse("org-1");
       // 164 s in: this try fits, the next (2 s on) would not
       clock += 164_000;
+      const pending = scheduled[0]();
+      await jest.advanceTimersByTimeAsync(20_000);
+      await pending;
+      expect(runSm8Sync).toHaveBeenCalledTimes(1);
+      expect(settleMentionAsks).not.toHaveBeenCalled();
+    });
+
+    it("gives up at once when another sync holds it, as the kick always has", async () => {
+      runSm8Sync.mockResolvedValueOnce(busySync as never);
+      freshenSm8AfterResponse("org-1");
+      const pending = scheduled[0]();
+      await jest.advanceTimersByTimeAsync(20_000);
+      await pending;
+      expect(runSm8Sync).toHaveBeenCalledTimes(1);
+      expect(settleMentionAsks).not.toHaveBeenCalled();
+    });
+
+    it("stops waiting when the mirror went fresh meanwhile: no second sync", async () => {
+      runSm8Sync.mockImplementationOnce(async () => {
+        stale = false; // the drain stood aside and another run synced
+        return busy as never;
+      });
+      freshenSm8AfterResponse("org-1");
       const pending = scheduled[0]();
       await jest.advanceTimersByTimeAsync(20_000);
       await pending;

@@ -122,6 +122,9 @@ export type Sm8SyncOutcome = {
   rowsPulled: number;
   /** Every object finished its walk — nothing is waiting on the next kick. */
   complete: boolean;
+  /** On a busy answer only: the lease is a drain's (and it has been asked
+      to stand aside). The kick and Sync now wait only for a drain. */
+  heldByHook?: boolean;
 };
 
 const NOT_CONNECTED = "ServiceM8 isn't connected, or needs reconnecting.";
@@ -287,18 +290,23 @@ export async function withSm8Lease<T>(
   }
 }
 
-/** A sync met the lease held: ask for it, so a drain holding it stands aside
-    within one read. The sync's own claim clears it. Best effort — a
-    database without the column, or a failed write, only means nobody was
-    asked. */
-async function wantSm8Lease(orgId: string, trigger: Sm8SyncTrigger, now: number): Promise<void> {
+/** A sync met the lease held. If a DRAIN holds it, ask for it, so the drain
+    stands aside within one read; the sync's own claim clears the ask. One
+    conditional write, which also answers who holds it: true only when a
+    drain does. Any other holder is asked nothing — with live updates off
+    nothing is ever written here. Best effort: a database without the
+    columns, or a failed write, is "not a drain". */
+async function wantSm8Lease(orgId: string, trigger: Sm8SyncTrigger, now: number): Promise<boolean> {
   try {
-    await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("sm8_sync_runs")
       .update({ wanted_at: new Date(now).toISOString(), wanted_by: trigger })
-      .eq("org_id", orgId);
+      .eq("org_id", orgId)
+      .eq("lease_by", "hook")
+      .select("lease_by");
+    return !error && (data ?? []).length > 0;
   } catch {
-    // asking is a courtesy; the retry is what matters
+    return false;
   }
 }
 
@@ -419,8 +427,8 @@ export async function runSm8Sync(
     if (claimed.why === "failed") {
       return { ran: false, note: SM8_LEASE_UNSTAMPED, pagesUsed: 0, rowsPulled: 0, complete: false };
     }
-    await wantSm8Lease(orgId, trigger, now);
-    return { ran: false, note: SM8_SYNC_BUSY, pagesUsed: 0, rowsPulled: 0, complete: false };
+    const heldByHook = await wantSm8Lease(orgId, trigger, now);
+    return { ran: false, note: SM8_SYNC_BUSY, pagesUsed: 0, rowsPulled: 0, complete: false, heldByHook };
   }
   let lease = claimed.lease;
 

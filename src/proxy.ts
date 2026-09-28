@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth0 } from "./lib/auth0";
+import { INVITEE_HINT_COOKIE, clearInviteeHint, hintedLoginUrl } from "./lib/invite-hint";
 
 // Login gate only (optimistic, per Next 16 proxy guidance). Fine-grained HQ
 // staff authorization (the HQ_EMAILS allowlist → 404) lives in the /hq layout,
@@ -78,10 +79,19 @@ export async function proxy(request: NextRequest) {
   const moved = canonicalHostRedirect(request);
   if (moved) return moved;
 
+  /* The sign-in straight after a new invitee sets their password arrives
+     bare; fill their address in before the SDK starts it (lib/invite-hint.ts). */
+  const hinted = hintedLoginUrl(request);
+  if (hinted) return NextResponse.redirect(hinted);
+
   // Auth0 handles /auth/* routes and maintains rolling sessions on all routes
   const authResponse = await auth0.middleware(request);
 
   if (path.startsWith("/auth/")) {
+    // one sign-in has now completed; the hint was for that one only
+    if (path === "/auth/callback" && request.cookies.has(INVITEE_HINT_COOKIE)) {
+      clearInviteeHint(authResponse);
+    }
     return authResponse;
   }
 

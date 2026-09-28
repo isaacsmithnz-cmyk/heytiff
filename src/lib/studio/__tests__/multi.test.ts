@@ -25,7 +25,6 @@ import {
   proposeMultiIdus,
   proposeMultiOdus,
   checkMultiCompatibility,
-  multiConnection,
   multiUnitOptions,
   multiFormFactorSummary,
   MULTI_OVERSIZE_CAP,
@@ -101,39 +100,6 @@ const placedUnit = (
   plane: role === "odu" ? "external-ground" : "room",
   geometry: { kind: "point", at: { x: 10, y: 10 } },
   props: { role, model, ...(roomId ? { roomId } : {}) },
-});
-
-/* ── the dev flag ── */
-
-describe("multi-split dev flag", () => {
-  const OLD = process.env.NEXT_PUBLIC_STUDIO_MULTI;
-  afterEach(() => {
-    process.env.NEXT_PUBLIC_STUDIO_MULTI = OLD;
-  });
-
-  it("keeps multi-split unavailable without the flag", () => {
-    delete process.env.NEXT_PUBLIC_STUDIO_MULTI;
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mods = require("../modules");
-      expect(mods.SYSTEM_MODULES["multi-split"].available).toBe(false);
-      expect(
-        mods.availableModules().map((m: { type: string }) => m.type)
-      ).not.toContain("multi-split");
-    });
-  });
-
-  it("enables multi-split with NEXT_PUBLIC_STUDIO_MULTI=1", () => {
-    process.env.NEXT_PUBLIC_STUDIO_MULTI = "1";
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mods = require("../modules");
-      expect(mods.SYSTEM_MODULES["multi-split"].available).toBe(true);
-      expect(mods.availableModules().map((m: { type: string }) => m.type)).toContain(
-        "multi-split"
-      );
-    });
-  });
 });
 
 /* ── settings reader ── */
@@ -322,131 +288,6 @@ describe("proposeMultiOdus", () => {
   });
 });
 
-/* ── the connection derivation ── */
-
-describe("multiConnection", () => {
-  it("derives picks, connected capacity, ports and combination from settings", () => {
-    const { doc, system, rooms } = docWithRooms();
-    system.settings = {
-      pairOdu: "MXZ-2F52VGD",
-      multiIdus: { [rooms[0].id]: "MSZ-AP20VGD", [rooms[1].id]: "MSZ-AP20VGD" },
-    };
-    const conn = multiConnection(doc, pack, system, basis);
-    expect(conn.iduCount).toBe(2);
-    expect(conn.connectedKw).toBeCloseTo(4.0, 5);
-    expect(conn.requiredKw).toBeCloseTo(3.48, 2);
-    expect(conn.odu?.model).toBe("MXZ-2F52VGD");
-    expect(conn.oduKw).toBeCloseTo(5.2, 5);
-    expect(conn.ports).toBe(2);
-    expect(conn.portsUsed).toBe(2);
-    expect(Math.round(conn.comboPct!)).toBe(77);
-    expect(conn.findings).toHaveLength(0);
-  });
-
-  it("a placed unit wins over the stored selection", () => {
-    const { doc, system, rooms } = docWithRooms();
-    system.settings = { multiIdus: { [rooms[0].id]: "MSZ-AP20VGD" } };
-    doc.objects.push(
-      placedUnit("u1", system.id, doc.floors[0].id, "idu", "MSZ-AP25VGD2", rooms[0].id)
-    );
-    const conn = multiConnection(doc, pack, system, basis);
-    expect(conn.rooms[0].model).toBe("MSZ-AP25VGD2");
-    expect(conn.rooms[0].placed).toBe(true);
-    expect(conn.connectedKw).toBeCloseTo(2.5, 5);
-  });
-
-  it("over-connection surfaces the port finding", () => {
-    const { doc, system, rooms } = docWithRooms(3);
-    system.settings = {
-      pairOdu: "MXZ-2F52VGD",
-      multiIdus: Object.fromEntries(rooms.map((r) => [r.id, "MSZ-AP20VGD"])),
-    };
-    const conn = multiConnection(doc, pack, system, basis);
-    expect(conn.portsUsed).toBe(3);
-    expect(conn.findings.some((f) => f.code === "over-ports")).toBe(true);
-    expect(conn.findings.some((f) => f.code === "over-max-count")).toBe(true);
-  });
-
-  /* The set a multi is judged on is every indoor unit the SYSTEM has — not
-     one per room. Two bulkhead units side by side covering one living area
-     is a normal job, and the book judges both heads. */
-  it("counts every indoor unit in a room, not one per room", () => {
-    const { doc, system, rooms } = docWithRooms();
-    const floorId = doc.floors[0].id;
-    system.settings = {
-      pairOdu: "MXZ-6F120VGD",
-      multiIdus: { [rooms[1].id]: "MSZ-AP25VGD2" },
-    };
-    doc.objects.push(
-      placedUnit("b1", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id),
-      placedUnit("b2", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id)
-    );
-    const kw = (m: string) =>
-      sizingCapacityKw(pack.indoor_units.find((u) => u.model === m)!, basis);
-
-    const conn = multiConnection(doc, pack, system, basis);
-    expect(conn.iduCount).toBe(3);
-    expect(conn.portsUsed).toBe(3);
-    expect(conn.idus.map((u) => u.model).sort()).toEqual([
-      "MSZ-AP25VGD2",
-      "SEZ-M71DA(L)",
-      "SEZ-M71DA(L)",
-    ]);
-    expect(conn.connectedKw).toBeCloseTo(2 * kw("SEZ-M71DA(L)") + kw("MSZ-AP25VGD2"), 5);
-  });
-
-  it("judges the set on the plan: 71+71+25+25+25 is refused though 71+25+25+25 is listed", () => {
-    const { doc, system, rooms } = docWithRooms(4);
-    const floorId = doc.floors[0].id;
-    system.settings = {
-      pairOdu: "MXZ-6F120VGD",
-      multiIdus: Object.fromEntries(rooms.slice(1).map((r) => [r.id, "MSZ-AP25VGD2"])),
-    };
-    // two 7.1 kW bulkhead units in the living area, three 2.5 kW bedrooms
-    doc.objects.push(
-      placedUnit("b1", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id),
-      placedUnit("b2", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id)
-    );
-    const conn = multiConnection(doc, pack, system, basis);
-    expect(conn.iduCount).toBe(5);
-    expect(conn.findings).toEqual([
-      expect.objectContaining({ severity: "red", code: "not-in-combination-table" }),
-    ]);
-  });
-
-  it("a unit placed outside every room still connects to the outdoor", () => {
-    // the hallway bulkhead: the box is not inside the room it serves
-    const { doc, system } = docWithRooms();
-    doc.objects.push(placedUnit("b1", system.id, doc.floors[0].id, "idu", "SEZ-M71DA(L)"));
-    const conn = multiConnection(doc, pack, system, basis);
-    expect(conn.iduCount).toBe(1);
-    expect(conn.idus.map((u) => u.model)).toEqual(["SEZ-M71DA(L)"]);
-  });
-
-  it("a stored selection never doubles a room that already has a unit placed", () => {
-    const { doc, system, rooms } = docWithRooms();
-    system.settings = { multiIdus: { [rooms[0].id]: "MSZ-AP20VGD" } };
-    doc.objects.push(
-      placedUnit("u1", system.id, doc.floors[0].id, "idu", "MSZ-AP25VGD2", rooms[0].id)
-    );
-    const conn = multiConnection(doc, pack, system, basis);
-    expect(conn.idus.map((u) => u.model)).toEqual(["MSZ-AP25VGD2"]);
-    expect(conn.iduCount).toBe(1);
-  });
-
-  it("degrades honestly: no loads on an uncalibrated floor, no pack rows invented", () => {
-    const { doc, system, rooms } = docWithRooms();
-    doc.floors[0].scaleMmPerUnit = null;
-    system.settings = { multiIdus: { [rooms[0].id]: "NOT-IN-PACK" } };
-    const conn = multiConnection(doc, pack, system, basis);
-    expect(conn.requiredKw).toBeNull();
-    expect(conn.unknownRooms).toBe(2);
-    expect(conn.iduCount).toBe(1);
-    expect(conn.connectedKw).toBeNull(); // unknown model resolves no capacity
-    expect(conn.rooms[0].kw).toBeNull();
-  });
-});
-
 /* ── coverage integration (per-room worth + pending) ── */
 
 describe("multi coverage", () => {
@@ -604,32 +445,6 @@ describe("room cover is capped at its outdoor", () => {
     );
   });
 
-  it("the multi's cover is capped per room; its connected capacity is not", () => {
-    const living = docWithRooms(1);
-    const floorId = living.doc.floors[0].id;
-    living.system.settings = { pairOdu: "MXZ-4F80VGD" };
-    living.doc.objects.push(
-      placedUnit("b1", living.system.id, floorId, "idu", "SEZ-M71DA(L)", living.rooms[0].id),
-      placedUnit("b2", living.system.id, floorId, "idu", "SEZ-M71DA(L)", living.rooms[0].id)
-    );
-    const lc = multiConnection(living.doc, pack, living.system, basis);
-    expect(lc.connectedKw).toBeCloseTo(2 * kwOf("SEZ-M71DA(L)"), 5);
-    expect(lc.coverKw).toBeCloseTo(kwOf("MXZ-4F80VGD"), 5);
-
-    const beds = docWithRooms(3);
-    beds.system.settings = {
-      pairOdu: "MXZ-4F71VGD",
-      multiIdus: {
-        [beds.rooms[0].id]: "MSZ-AP25VGD2",
-        [beds.rooms[1].id]: "MSZ-AP35VGD2",
-        [beds.rooms[2].id]: "MSZ-AP50VGD2",
-      },
-    };
-    const bc = multiConnection(beds.doc, pack, beds.system, basis);
-    const eleven = kwOf("MSZ-AP25VGD2") + kwOf("MSZ-AP35VGD2") + kwOf("MSZ-AP50VGD2");
-    expect(bc.connectedKw).toBeCloseTo(eleven, 5);
-    expect(bc.coverKw).toBeCloseTo(eleven, 5); // no single room outruns the 4F71
-  });
 });
 
 /* ── components integration (shared outdoor, no pairing) ── */

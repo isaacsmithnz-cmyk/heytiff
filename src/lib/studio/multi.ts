@@ -6,10 +6,9 @@
 
    Selection reads ONLY the pack's multi sections for matching — which indoor
    units a multi outdoor accepts comes from `multi_rules.compatibility`
-   (universal-table-schema.md §5), never a guess. The badge the cockpit shows
-   ("3/4 ports, 112% combo") is derived here. */
+   (universal-table-schema.md §5), never a guess. */
 
-import type { DesignDocument, DesignSystem } from "./document";
+import type { DesignSystem } from "./document";
 import type {
   CompatibilityRule,
   DataPack,
@@ -19,10 +18,7 @@ import type {
   OutdoorUnit,
 } from "./packs/schema";
 import { outdoorReadiness } from "./packs/ready";
-import { allocationsOf, hasAllocations } from "./allocations";
 import { capacityFit, type UnitFit } from "./fit";
-import { roomLoadKw, type RoomObj } from "./loads-room";
-import { roomsServedBy } from "./coverage";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 import {
   FORM_FACTOR_LABELS,
@@ -413,197 +409,6 @@ export function proposeMultiOdus(
       : undefined) ?? out.find((p) => p.fits);
   if (pick) pick.recommended = true;
   return out;
-}
-
-/* ───────────────────── the connection derivation ─────────────────────
-   Everything the cockpit's capacity hero + shared-outdoor section render:
-   the per-room picks (placed unit wins, else the stored selection), the
-   connected capacity, the resolved outdoor, and the rule findings. */
-
-export interface MultiRoomPick {
-  room: RoomObj;
-  /** "" = no indoor unit chosen for this room yet */
-  model: string;
-  idu: IndoorUnit | null;
-  /** sizing capacity; null when the model isn't in the pack (or none chosen) */
-  kw: number | null;
-  placed: boolean;
-  placedId: string | null;
-}
-
-export interface MultiConnection {
-  /** one row per served room, for the room list — NOT the set the outdoor is
-      judged on: a room can hold several units */
-  rooms: MultiRoomPick[];
-  /** every indoor unit this system connects, resolved against the pack: each
-      one PLACED (whatever room it sits in, or none — the hallway bulkhead),
-      plus the stored selection for each served room with nothing placed yet.
-      This is the set the book judges. */
-  idus: IndoorUnit[];
-  /** indoor units in the set, including any whose model isn't in the pack */
-  iduCount: number;
-  /** Σ connected indoor sizing capacity — null until any unit resolves a kw.
-      A fact about the SET; exceeding the outdoor here is normal. */
-  connectedKw: number | null;
-  /** what the rooms get: per served room, this system's heads there capped at
-      its outdoor, plus heads in no served room at their rating. Equal to
-      connectedKw unless one room's own heads outrun the outdoor. */
-  coverKw: number | null;
-  /** Σ known served-room loads (the outdoor sizing hint) — null until any derive */
-  requiredKw: number | null;
-  /** served rooms whose load couldn't derive (uncalibrated floor etc.) */
-  unknownRooms: number;
-  /** placed outdoor model wins, else settings.pairOdu; "" = none */
-  oduModel: string;
-  odu: OutdoorUnit | null;
-  /** the outdoor's sizing capacity — the gauge denominator */
-  oduKw: number | null;
-  rule: MultiRule | null;
-  ports: number | null;
-  portsUsed: number;
-  /** connected / outdoor capacity ×100, uncapped (over-connection reads >100) */
-  comboPct: number | null;
-  oduPlaced: boolean;
-  placedOduId: string | null;
-  findings: MultiFinding[];
-}
-
-export function multiConnection(
-  doc: DesignDocument,
-  pack: DataPack | null,
-  system: DesignSystem,
-  basis: SizingBasis
-): MultiConnection {
-  const served = roomsServedBy(doc, system.id);
-  const selections = multiIduSelections(system);
-  const mine = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");
-  /* a builder system's allocations ARE its units, placed or not */
-  const allocated = hasAllocations(system) ? allocationsOf(system) : null;
-
-  let requiredKw: number | null = null;
-  let unknownRooms = 0;
-  const rooms: MultiRoomPick[] = served.map((room) => {
-    const load = roomLoadKw(doc, room);
-    if (load == null) unknownRooms++;
-    else requiredKw = (requiredKw ?? 0) + load;
-
-    const allocatedHere = allocated?.find(
-      (a) => a.role === "idu" && a.roomId === room.id && a.model
-    );
-    const placedIdu = allocated
-      ? (allocatedHere ? (mine.find((o) => o.id === allocatedHere.id) ?? null) : null)
-      : (mine.find((o) => o.props.role === "idu" && o.props.roomId === room.id) ?? null);
-    const model = allocated
-      ? (allocatedHere?.model ?? "")
-      : String(placedIdu?.props.model ?? selections[room.id] ?? "");
-    const idu = model ? (pack?.indoor_units.find((u) => u.model === model) ?? null) : null;
-    return {
-      room,
-      model,
-      idu,
-      kw: idu ? sizingCapacityKw(idu, basis) : null,
-      placed: Boolean(placedIdu),
-      placedId: placedIdu?.id ?? null,
-    };
-  });
-
-  /* THE SET. `rooms` above keeps one pick per room for the room list, and
-     that was the set the outdoor was judged on: a second unit in a room was
-     left out of the connected kW, the unit count and the book's check, so two
-     7.1 kW bulkhead units in a living area plus three 2.5 kW bedrooms was
-     checked as 71+25+25+25 (listed) instead of 71+71+25+25+25 (refused).
-     Every placed indoor unit counts, wherever it sits; a stored selection
-     stands in only for a served room with nothing placed. */
-  const members: { model: string; roomId: string | null }[] = allocated
-    ? allocated
-        .filter((a) => a.role === "idu" && a.model)
-        .map((a) => ({ model: a.model, roomId: a.roomId }))
-    : [
-    ...mine
-      .filter((o) => o.props.role === "idu")
-      .map((o) => ({
-        model: String(o.props.model ?? ""),
-        roomId: typeof o.props.roomId === "string" ? o.props.roomId : null,
-      })),
-    ...rooms
-      .filter((r) => !r.placed && r.model)
-      .map((r) => ({ model: r.model, roomId: r.room.id })),
-  ].filter((m) => m.model);
-  const setModels = members.map((m) => m.model);
-  const idus = setModels
-    .map((m) => pack?.indoor_units.find((u) => u.model === m) ?? null)
-    .filter((u): u is IndoorUnit => u != null);
-  const connectedKw = idus.length
-    ? idus.reduce((a, u) => a + sizingCapacityKw(u, basis), 0)
-    : null;
-
-  const allocatedOdu = allocated?.find((a) => a.role === "odu") ?? null;
-  const placedOdu = allocated
-    ? (allocatedOdu ? (mine.find((o) => o.id === allocatedOdu.id) ?? null) : null)
-    : (mine.find((o) => o.props.role === "odu") ?? null);
-  const oduModel = allocated
-    ? (allocatedOdu?.model ?? "")
-    : String(placedOdu?.props.model ?? system.settings.pairOdu ?? "");
-  const odu = oduModel
-    ? (pack?.outdoor_units.find((o) => o.model === oduModel) ?? null)
-    : null;
-  const rule = odu
-    ? (pack?.multi_rules.find((r) => r.odu_model_ref === odu.model) ?? null)
-    : null;
-
-  const oduKw = odu ? sizingCapacityKw(odu, basis) : null;
-
-  /* the rooms' cover: one cap per served room, never across rooms */
-  let coverKw: number | null = null;
-  if (idus.length) {
-    const servedIds = new Set(served.map((r) => r.id));
-    const perRoom = new Map<string, number>();
-    let loose = 0;
-    for (const m of members) {
-      const u = pack?.indoor_units.find((x) => x.model === m.model);
-      if (!u) continue;
-      const kw = sizingCapacityKw(u, basis);
-      if (m.roomId && servedIds.has(m.roomId)) perRoom.set(m.roomId, (perRoom.get(m.roomId) ?? 0) + kw);
-      else loose += kw;
-    }
-    coverKw = loose;
-    for (const kw of perRoom.values()) coverKw += oduKw != null ? Math.min(kw, oduKw) : kw;
-  }
-  const comboPct =
-    connectedKw != null && oduKw != null && oduKw > 0
-      ? (connectedKw / oduKw) * 100
-      : null;
-
-  const findings: MultiFinding[] = [];
-  if (odu) {
-    if (rule) findings.push(...checkMultiCompatibility(rule, odu, idus));
-    else
-      findings.push({
-        severity: "amber",
-        code: "no-rule",
-        message: `No multi rules for ${odu.model} in this pack`,
-      });
-  }
-
-  return {
-    rooms,
-    idus,
-    iduCount: setModels.length,
-    connectedKw,
-    coverKw,
-    requiredKw,
-    unknownRooms,
-    oduModel,
-    odu,
-    oduKw,
-    rule,
-    ports: odu?.ports ?? null,
-    portsUsed: setModels.length,
-    comboPct,
-    oduPlaced: Boolean(placedOdu),
-    placedOduId: placedOdu?.id ?? null,
-    findings,
-  };
 }
 
 /* ── the per-room selector: the big units modal, in multi's terms ─────────

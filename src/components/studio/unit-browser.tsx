@@ -42,11 +42,6 @@ type CompareEntry = { key: string; brand: string; option: UnitOption; pair: Pair
    breaks position:fixed for anything rendered inside it (see project modal
    rule). */
 
-/** Required-capacity band (ducted AHU flow): a pair reads "in range" from the
-    required figure up to ~135% of it — the same oversize spirit as the
-    browser's 150% gate, tighter so the badge stays meaningful. */
-export const REQUIRED_BAND_CAP = 1.35;
-
 /** What a row commits to.
 
     The two system flows choose different things, and the modal has to hand
@@ -74,28 +69,6 @@ type BrowserRow = {
   bestFit: boolean;
   pairs: PairProposal[];
   defaultPair: PairProposal | null;
-};
-
-/** One room in the browser's right-hand column — the workflow's spine: draw
-    every room first, then attribute a unit to each by dragging it onto the
-    card. The column is also the ranking lens, the fallback attribution for a
-    drop outside every room, and — via `served` — the placement progress. */
-export type BrowserRoom = {
-  id: string;
-  name: string;
-  /** floor area, null until the floor is calibrated */
-  areaM2: number | null;
-  loadKw: number | null;
-  /** an indoor unit is already placed and attributed to this room */
-  served: boolean;
-  /** the indoor model attributed to this room — placed, or assigned and
-      awaiting placement. Null when nothing has been attributed yet. */
-  assignedModel: string | null;
-  /** the outdoor it runs to. A split's is the room's own; a multi's is the
-      SYSTEM's, shared by every room — `oduShared` says which, so the card can
-      be honest rather than implying each room has its own. */
-  oduModel?: string | null;
-  oduShared?: boolean;
 };
 
 /** "ap35" finds MSZ-AP35VGD2: case, spaces and dashes never matter, and a
@@ -142,12 +115,6 @@ export function UnitBrowser({
   basis,
   onChoose,
   onClose,
-  initialFormFactor,
-  requiredKw,
-  rooms,
-  lensId,
-  onLens,
-  onAssign,
   mode = "pair",
   embedded = false,
   addLabel = "Add to plan",
@@ -165,22 +132,6 @@ export function UnitBrowser({
   onChoose: (choice: UnitChoice) => void;
   /** close the window — never called when embedded, where the host owns it */
   onClose?: () => void;
-  /** open on this form-factor tab while it has options (ducted AHU flow) */
-  initialFormFactor?: FormFactor | null;
-  /** highlight — never filter — pairs sized within REQUIRED_BAND_CAP of this */
-  requiredKw?: number | null;
-  /** the system's rooms, listed down the right-hand column: lens, fallback
-      attribution, progress and drop target in one card (absent on hosts
-      without rooms) */
-  rooms?: BrowserRoom[];
-  /** which card the ranking currently reads through */
-  lensId?: string | null;
-  /** re-aim the lens — the host re-ranks by handing back a new loadKw */
-  onLens?: (roomId: string) => void;
-  /** a unit was dragged onto a room card: attribute it to that room and STAY
-      OPEN — the point of the column is attributing every room in one visit,
-      with placement following afterwards. Absent = the column is read-only. */
-  onAssign?: (choice: UnitChoice, roomId: string) => void;
   /** which flow is driving — see BrowserMode. Defaults to the split's. */
   mode?: BrowserMode;
   /** set inside another window (the system builder): no overlay and no title
@@ -234,12 +185,6 @@ export function UnitBrowser({
       else next.add(key);
       return next;
     });
-  /** the model being dragged towards a room card, null at rest. Held so the
-      column can show ITSELF as the destination while a unit is in flight —
-      the affordance is the lit target, never a caption telling you to drag */
-  const [dragModel, setDragModel] = useState<string | null>(null);
-  /** the card the pointer is currently over, for the single lit target */
-  const [dropRoomId, setDropRoomId] = useState<string | null>(null);
   /** the installer's chosen spec columns (persisted per-device) */
   const [columnIds, setColumnIds] = useState<string[]>(() => loadColumnIds());
   const toggleColumn = (id: string) =>
@@ -311,10 +256,9 @@ export function UnitBrowser({
     }));
   }, [q, tabs, perRoom, pack, loadKw, basis, phase]);
 
-  /** default tab: the caller's requested form factor, else the first tab
-      (in prevalence order — wall-mounted leads) holding a clean fit, else
-      the best-fit option's tab, else the first tab */
-  const [tab, setTab] = useState<FormFactor | null>(initialFormFactor ?? null);
+  /** default tab: the first tab (in prevalence order — wall-mounted leads)
+      holding a clean fit, else the best-fit option's tab, else the first tab */
+  const [tab, setTab] = useState<FormFactor | null>(null);
   const activeTab = useMemo(() => {
     /* a controlled tab is the host's crumb: the list shows that style and
        only the host moves it (a search that finds nothing in it asks the
@@ -418,12 +362,6 @@ export function UnitBrowser({
       under the current filters, else the first surviving pairing */
   const pairFor = (o: BrowserRow): PairProposal | null =>
     o.pairs.find((p) => p.odu.model === oduPick[o.idu.model]) ?? o.defaultPair;
-
-  const inRequiredBand = (p: PairProposal | null): boolean =>
-    p != null &&
-    requiredKw != null &&
-    p.capacityKw >= requiredKw &&
-    p.capacityKw <= requiredKw * REQUIRED_BAND_CAP;
 
   /* group same-series rows adjacently, preserving the sorted order within each
      group and ordering groups by first appearance (keeps the best-fit unit's
@@ -600,11 +538,8 @@ export function UnitBrowser({
     if (to) onFormFactor(to.formFactor);
   };
 
-  /* attribution by drag is offered only when there is a column to drop onto
-     AND a host willing to record it */
-  const hasRooms = !!rooms && rooms.length > 0;
-  const canAssign = hasRooms && !!onAssign;
-  const canDrag = canAssign || !!onDragRow;
+  /* a row drags only for a host with somewhere to drop it (the builder) */
+  const canDrag = !!onDragRow;
 
   const numInput = (key: keyof SelectFilters, placeholder: string) => (
     <input
@@ -622,39 +557,24 @@ export function UnitBrowser({
     const pair = pairFor(o);
     const checked = inCompare(o.idu.model);
     const isSel = selectedOption?.idu.model === o.idu.model;
-    const band = inRequiredBand(pair);
     return (
       <tr
         key={o.idu.model}
-        className={`${o.bestFit ? "rec" : ""}${isSel ? " sel" : ""}${band ? " band" : ""}${
+        className={`${o.bestFit ? "rec" : ""}${isSel ? " sel" : ""}${
           o.fit !== "fits" ? ` ${o.fit}` : ""
         }${canDrag ? " drag" : ""}`}
         aria-selected={isSel}
         onClick={() => setSelected(o.idu.model)}
-        /* a row is the drag SOURCE for attribution; without a rooms column to
-           drop onto there is nothing to drag to, so it stays inert */
+        /* a row is the drag SOURCE for the host's drop targets; without a
+           host to drop onto there is nothing to drag to, so it stays inert */
         draggable={canDrag}
         onDragStart={(e) => {
-          if (!canDrag) return;
+          if (!onDragRow) return;
           /* the row is the subject of the drag — highlight it in the table
              the same way the detail panel would */
           setSelected(o.idu.model);
-          /* the row in flight is held before the host is told, so the
-             browser's own record of the drag never lags the host's drop */
-          setDragModel(o.idu.model);
-          if (onDragRow) {
-            const choice = choiceFor(o);
-            if (choice && e.dataTransfer) onDragRow(choice, e.dataTransfer);
-            return;
-          }
-          if (e.dataTransfer) {
-            e.dataTransfer.setData("text/plain", o.idu.model);
-            e.dataTransfer.effectAllowed = "copy";
-          }
-        }}
-        onDragEnd={() => {
-          setDragModel(null);
-          setDropRoomId(null);
+          const choice = choiceFor(o);
+          if (choice && e.dataTransfer) onDragRow(choice, e.dataTransfer);
         }}
       >
         {/* compare is universal: a pair row compares its pairing, a per-room
@@ -693,11 +613,6 @@ export function UnitBrowser({
           {o.idu.model}
           {o.bestFit && <em>Best fit</em>}
           <FitChip fit={o.fit} loadKw={loadKw} capacityKw={o.capacityKw} />
-          {band && !o.bestFit && (
-            <em className="ds-ub-inband" title="Within the required capacity band">
-              In range
-            </em>
-          )}
         </td>
         {/* the capacity a per-room row is judged on. In pair flow the same
             figure arrives as the "Cooling / heating" pairing column. */}
@@ -785,7 +700,7 @@ export function UnitBrowser({
             <b>Choose a unit</b>
             {loadKw != null ? (
               <span>
-                {requiredKw != null ? "Requires" : "Room load"} ≈ <b>{loadKw.toFixed(1)} kW</b>{" "}
+                Room load ≈ <b>{loadKw.toFixed(1)} kW</b>{" "}
                , {basis}
               </span>
             ) : (
@@ -1010,90 +925,6 @@ export function UnitBrowser({
           : detailHost
             ? createPortal(detail, detailHost)
             : null}
-
-        {/* ── the rooms column: every room on the system, with the size and
-            load you are shopping against. Clicking a card aims the ranking
-            lens at it; dragging a unit onto it attributes the unit to that
-            room WITHOUT closing — the flow is attribute-everything-then-
-            place, so the modal has to survive the whole round. ── */}
-        {hasRooms && (
-          <aside
-            className={`ds-ub-roomcol${dragModel ? " arming" : ""}`}
-            aria-label="Rooms on this system"
-          >
-            <header className="ds-ub-rchead">
-              Rooms
-              <span>{rooms!.length}</span>
-            </header>
-            <div className="ds-ub-rclist">
-              {rooms!.map((r) => {
-                const isLens = r.id === lensId;
-                const isTarget = canAssign && dragModel != null;
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    className={`ds-ub-rcard${isLens ? " on" : ""}${
-                      r.served ? " served" : ""
-                    }${r.assignedModel ? " has" : ""}${isTarget ? " target" : ""}${
-                      isTarget && r.id === dropRoomId ? " over" : ""
-                    }`}
-                    aria-pressed={isLens}
-                    onClick={() => onLens?.(r.id)}
-                    onDragOver={(e) => {
-                      if (!isTarget) return;
-                      /* preventDefault is what MAKES this a drop target —
-                         without it the browser refuses the drop silently */
-                      e.preventDefault();
-                      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-                      setDropRoomId(r.id);
-                    }}
-                    onDragLeave={() =>
-                      setDropRoomId((cur) => (cur === r.id ? null : cur))
-                    }
-                    onDrop={(e) => {
-                      if (!isTarget) return;
-                      e.preventDefault();
-                      const model = e.dataTransfer?.getData("text/plain") || dragModel;
-                      const opt = options.find((o) => o.idu.model === model);
-                      setDragModel(null);
-                      setDropRoomId(null);
-                      const choice = opt ? choiceFor(opt) : null;
-                      if (choice) onAssign!(choice, r.id);
-                    }}
-                    title={
-                      r.loadKw != null
-                        ? `${r.name} — needs ≈${r.loadKw.toFixed(1)} kW`
-                        : `${r.name} — calibrate the floor to size it`
-                    }
-                  >
-                    <span className="ds-ub-rcname">
-                      {r.name}
-                      {r.served && <Icon name="check" size={11} />}
-                    </span>
-                    <span className="ds-ub-rcfig">
-                      {r.areaM2 != null && <b>{r.areaM2.toFixed(1)} m²</b>}
-                      {r.loadKw != null && <i>{r.loadKw.toFixed(1)} kW</i>}
-                    </span>
-                    {/* the slot is the affordance: empty and dashed it reads
-                        as somewhere a unit goes, with no caption saying so */}
-                    <span className="ds-ub-rcslot">
-                      {r.assignedModel ?? ""}
-                    </span>
-                    {/* the outdoor it runs to — a room's pairing is only
-                        half-told by its indoor head */}
-                    {r.assignedModel && r.oduModel && (
-                      <span className="ds-ub-rcodu">
-                        <i>{r.oduShared ? "shared outdoor" : "outdoor"}</i>
-                        {r.oduModel}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </aside>
-        )}
       </div>
 
       {compare.length > 0 && (

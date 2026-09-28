@@ -27,11 +27,7 @@ import { NOTE_INKS } from "@/lib/studio/notes";
 import { CLIMATE_ZONES, sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { effectiveClimateZone, effectiveBuildingType } from "@/lib/studio/summary";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
-import {
-  pruneObjects,
-  releaseRoomFromSystem,
-  removedRoomIds,
-} from "@/lib/studio/attach";
+import { pruneObjects, removedRoomIds } from "@/lib/studio/attach";
 import {
   browserDesignStore,
   designFileName,
@@ -72,23 +68,12 @@ import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones"
 import { blockingFindings, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
 import { InstallQuestions } from "./install-questions";
-import { builderEnabled, isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
+import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { SystemBuilder, ZoneStanding } from "./system-builder";
 import { deleteZone, releaseSystem, releaseZones, moveZone, removeZone } from "@/lib/studio/builder";
 import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
-import {
-  itemsToPlace,
-  nextMove,
-  nextMoveZones,
-  panelRests,
-  unitsVerb,
-  type NextMove,
-  type PlaceItem,
-  type UnitsVerb,
-} from "@/lib/studio/next-move";
-import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
-import { multiIduSelections } from "@/lib/studio/multi";
-import { UnitBrowser, type UnitChoice } from "./unit-browser";
+import { nextMoveZones, type NextMove } from "@/lib/studio/next-move";
+import type { RoomObj } from "@/lib/studio/loads-room";
 import { PlansPanel } from "./plans-panel";
 import { StepPrompt } from "./step-prompt";
 import {
@@ -106,7 +91,6 @@ import {
   setFloorApproval,
   simApprovalState,
 } from "@/lib/studio/sim-approval";
-import { RoomInspectCard, SystemCockpit } from "./cockpit-panel";
 import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
 import { SimPresentMode } from "./sim-present";
@@ -1353,15 +1337,8 @@ function Editor({
   const [packVersion, setPackVersion] = useState<string>("2026.1");
   const [activeSystemId, setActiveSystemId] = useState<string | null>(null);
   const [placing, setPlacing] = useState<PlacingUnit | null>(null);
-  /* the Next chip's unit browser — a room id while it's up. The chip owns its
-     own browser instance rather than reaching into the cockpit's: choosing a
-     pair is a settings write either way, and this keeps the chip's plumbing
-     out of four component signatures. */
-  const [pairBrowse, setPairBrowse] = useState<string | null>(null);
   /* the system builder (spec: Studio System Builder) — open, and on which unit
-     when Swap opened it. With the builder flag on, every door that used to
-     open the units window opens this instead. */
-  const builder = builderEnabled();
+     when Swap opened it. Every door to a system's units opens this. */
   const [builderOpen, setBuilderOpen] = useState<{
     focus: { systemId: string; allocationId: string } | null;
     /** the zones flow: the system being built */
@@ -1371,36 +1348,18 @@ function Editor({
     /** open on this zone: Add puts the next unit in it */
     zoneId?: string;
   } | null>(null);
-  const openUnits = useCallback(
-    (roomId: string) => {
-      if (builder) setBuilderOpen({ focus: null, systemId: activeSystemId });
-      else setPairBrowse(roomId);
-    },
-    [builder, activeSystemId]
-  );
   /* room being configured in the heat-load modal (Slice 2) */
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   /* room whose external walls the canvas should re-mark (from the modal) */
   const [remarkRoomId, setRemarkRoomId] = useState<string | null>(null);
   /* room whose SHAPE the canvas should unpin for editing (from the modal) */
   const [reshapeRoomId, setReshapeRoomId] = useState<string | null>(null);
-  /* the drawing tool-rail stays hidden until the first system exists, then
-     latches on for the session — no point showing draw tools with nothing to
-     draw for. Plan-prep (calibrate/crop/move) lives in the top bar regardless. */
-  const [toolsRevealed, setToolsRevealed] = useState(false);
-
   /* the effective active system: the picked one, else the first system. The
-     canvas scopes rooms/objects to this; room tools require it (type-first). */
+     pipe and riser tools draw for it. */
   const effectiveSystemId =
     activeSystemId && doc.systems.some((s) => s.id === activeSystemId)
       ? activeSystemId
       : (doc.systems[0]?.id ?? null);
-
-  /* A one-way latch: once a system exists the tools stay out, even if the
-     system is later removed. Latched while rendering rather than in an effect,
-     so the tools are present in the same paint that first has a system —
-     an effect revealed them one render late. */
-  if ((effectiveSystemId || builder) && !toolsRevealed) setToolsRevealed(true);
 
   useEffect(() => {
     let on = true;
@@ -1516,7 +1475,7 @@ function Editor({
     if (!effectiveSystemId)
       return { ok: false, reason: "pick a system first", row: null };
     if (roomsServedBy(doc, effectiveSystemId).length === 0)
-      return { ok: false, reason: "add a room first", row: null };
+      return { ok: false, reason: "add a zone first", row: null };
     const sys = doc.systems.find((s) => s.id === effectiveSystemId);
     const placedIdu = doc.objects.find(
       (o) =>
@@ -1564,206 +1523,15 @@ function Editor({
   /* enter/exit simulation — entering disarms every tool (incl. the armed air
      component) and clears the selection; the canvas locks to pan/zoom while
      simming */
-  /* ── the Next chip: the split module's first unmet requirement, named.
-     Clicking ARMS the move — the chip is a control, not a caption. ── */
-  const next = useMemo((): NextMove | null => {
-    if (!builder) return nextMove(doc, pack, effectiveSystemId);
-    return nextMoveZones(doc, pack);
-  }, [builder, doc, pack, effectiveSystemId]);
-
-  /* the chip's pair choice — the same write UnitsSub's picker commits: the
-     pair models + the room it serves; a CHANGED pair takes the system's
-     placed units and plumbing with it */
-  /** does this run attach to that unit at either end? (the cockpit's recall
-      rule — a swapped head takes its own pipework with it, nobody else's) */
-  const runTouchesUnit = useCallback((o: DesignObject, unitId: string): boolean => {
-    const attachId = (v: unknown): string =>
-      v && typeof v === "object" ? String((v as { id?: unknown }).id ?? "") : "";
-    return attachId(o.props.startAttach) === unitId || attachId(o.props.endAttach) === unitId;
-  }, []);
-
-  /* A per-room system records ONE INDOOR HEAD PER ROOM on settings.multiIdus
-     — the map that already drives coverage's pending figure and the Items
-     tray. Swapping a room's model takes that room's placed unit (and only
-     that room's) back off the plan, the same rule the cockpit's per-room
-     picker applied before this modal replaced it. */
-  const assignIduToRoom = useCallback(
-    (idu: IndoorUnit, roomId: string) => {
-      mutate((d) => {
-        const sys = d.systems.find((s) => s.id === effectiveSystemId);
-        const changed = !sys || multiIduSelections(sys)[roomId] !== idu.model;
-        const placedId = d.objects.find(
-          (o) =>
-            o.systemId === effectiveSystemId &&
-            o.type === "unit" &&
-            o.props.role === "idu" &&
-            String(o.props.roomId ?? "") === roomId
-        )?.id;
-        return {
-          ...d,
-          systems: d.systems.map((s) =>
-            s.id === effectiveSystemId
-              ? {
-                  ...s,
-                  settings: {
-                    ...s.settings,
-                    multiIdus: { ...multiIduSelections(s), [roomId]: idu.model },
-                  },
-                }
-              : s
-          ),
-          objects:
-            changed && placedId
-              ? d.objects.filter(
-                  (o) =>
-                    o.id !== placedId &&
-                    !(
-                      o.systemId === effectiveSystemId &&
-                      o.type === "pipe-run" &&
-                      runTouchesUnit(o, placedId)
-                    )
-                )
-              : d.objects,
-        };
-      });
-    },
-    [mutate, effectiveSystemId, runTouchesUnit]
-  );
-
-  const choosePairFromChip = useCallback(
-    (choice: UnitChoice, roomId: string) => {
-      /* a per-room system assigns an indoor head to the room and arms it —
-         there is no pairing to record, its outdoor belongs to the system */
-      if (choice.kind === "idu") {
-        assignIduToRoom(choice.idu, roomId);
-        setPairBrowse(null);
-        armPlace({
-          role: "idu",
-          model: choice.idu.model,
-          widthMm: choice.idu.width_mm,
-          depthMm: choice.idu.depth_mm,
-        });
-        return;
-      }
-      const pair = choice.pair;
-      /* read the pre-write state for the arm decision below: a re-chosen
-         identical pair keeps its placed units, and arming then would offer a
-         second indoor unit */
-      const cur = doc.systems.find((s) => s.id === effectiveSystemId);
-      const changed =
-        !cur ||
-        pair.idu.model !== String(cur.settings.pairIdu ?? "") ||
-        pair.odu.model !== String(cur.settings.pairOdu ?? "");
-      const hadIdu = doc.objects.some(
-        (o) =>
-          o.systemId === effectiveSystemId && o.type === "unit" && o.props.role === "idu"
-      );
-      mutate((d) => {
-        const sys = d.systems.find((s) => s.id === effectiveSystemId);
-        const swap =
-          !sys ||
-          pair.idu.model !== String(sys.settings.pairIdu ?? "") ||
-          pair.odu.model !== String(sys.settings.pairOdu ?? "");
-        return {
-          ...d,
-          systems: d.systems.map((s) =>
-            s.id === effectiveSystemId
-              ? {
-                  ...s,
-                  settings: {
-                    ...s.settings,
-                    pairIdu: pair.idu.model,
-                    pairOdu: pair.odu.model,
-                    roomId,
-                  },
-                }
-              : s
-          ),
-          objects: swap
-            ? d.objects.filter(
-                (o) =>
-                  !(
-                    o.systemId === effectiveSystemId &&
-                    (o.type === "unit" || o.type === "pipe-run" || o.type === "riser")
-                  )
-              )
-            : d.objects,
-        };
-      });
-      setPairBrowse(null);
-      /* choosing ARMS the indoor unit on the cursor — the drop that follows
-         is the attribution */
-      if (changed || !hadIdu)
-        armPlace({
-          role: "idu",
-          model: pair.idu.model,
-          widthMm: pair.idu.width_mm,
-          depthMm: pair.idu.depth_mm,
-        });
-    },
-    [doc, mutate, effectiveSystemId, armPlace, assignIduToRoom]
-  );
-
-  /* Dragging a unit onto a room card ATTRIBUTES it and nothing more. Unlike
-     choosePairFromChip it neither closes the browser nor arms the cursor:
-     the workflow is attribute every room in one visit, then place the lot
-     afterwards, so an arm here would fight the next drag. The unit becomes a
-     pending item on the room — placement is a separate act. */
-  const assignPairToRoom = useCallback(
-    (choice: UnitChoice, roomId: string) => {
-      if (choice.kind === "idu") return assignIduToRoom(choice.idu, roomId);
-      const pair = choice.pair;
-      mutate((d) => {
-        const sys = d.systems.find((s) => s.id === effectiveSystemId);
-        const swap =
-          !sys ||
-          pair.idu.model !== String(sys.settings.pairIdu ?? "") ||
-          pair.odu.model !== String(sys.settings.pairOdu ?? "");
-        return {
-          ...d,
-          systems: d.systems.map((s) =>
-            s.id === effectiveSystemId
-              ? {
-                  ...s,
-                  settings: {
-                    ...s.settings,
-                    pairIdu: pair.idu.model,
-                    pairOdu: pair.odu.model,
-                    roomId,
-                  },
-                }
-              : s
-          ),
-          /* a different pair takes the old units (and their pipework) back off
-             the plan — the same rule choosePairFromChip applies, so the two
-             routes to a pair can never leave different wreckage behind */
-          objects: swap
-            ? d.objects.filter(
-                (o) =>
-                  !(
-                    o.systemId === effectiveSystemId &&
-                    (o.type === "unit" || o.type === "pipe-run" || o.type === "riser")
-                  )
-              )
-            : d.objects,
-        };
-      });
-      /* the lens deliberately does NOT follow the drop. It decides which
-         units the table recommends, so moving it would re-rank the list under
-         someone mid-way through attributing several rooms — the drop says
-         where this unit goes, not what to shop for next. */
-    },
-    [mutate, effectiveSystemId, assignIduToRoom]
-  );
+  /* ── the Next chip: the zones flow's first unmet step, named. Clicking
+     takes it — the chip is a control, not a caption. ── */
+  const next = useMemo((): NextMove | null => nextMoveZones(doc, pack), [doc, pack]);
 
   const onNext = useCallback(() => {
     if (!next) return;
     switch (next.key) {
       case "draw-room":
         changeTool("room-rect");
-        break;
-      case "choose-pair":
-        openUnits(next.roomId);
         break;
       case "add-system":
         onAddSystem();
@@ -1777,27 +1545,11 @@ function Editor({
       case "install":
         onInstallSystem(next.systemId);
         break;
-      case "place-idu":
-      case "place-odu":
-        armPlace(next.placing);
-        break;
-      case "connect":
-        changeTool("pipe");
-        break;
-      case "complete":
-        onStep(2);
-        break;
     }
-  }, [next, changeTool, armPlace, onStep, openUnits, onAddSystem, startClaim, onBuildSystem, onInstallSystem]);
+  }, [next, changeTool, onAddSystem, startClaim, onBuildSystem, onInstallSystem]);
 
-  /* ── the Units verb (bar, System group): browse → arm IDU → arm ODU →
-     browse again as a swap. Pressing it while a unit rides the cursor
-     cancels the arm instead. ── */
-  const unitsV = useMemo(
-    () => unitsVerb(doc, pack, effectiveSystemId),
-    [doc, pack, effectiveSystemId]
-  );
-
+  /* ── U: open the active system in the builder. Pressing it while a unit
+     rides the cursor cancels the arm instead. ── */
   const onUnits = useCallback(() => {
     /* a unit riding the cursor is let go first — the press cannot mean two
        things at once, and opening a modal over an armed cursor would strand
@@ -1806,13 +1558,8 @@ function Editor({
       armPlace(null);
       return;
     }
-    if (builder) {
-      setBuilderOpen({ focus: null, systemId: activeSystemId });
-      return;
-    }
-    if (!unitsV || unitsV.kind === "off") return;
-    setPairBrowse(unitsV.roomId);
-  }, [placing, unitsV, armPlace, builder, activeSystemId]);
+    setBuilderOpen({ focus: null, systemId: activeSystemId });
+  }, [placing, armPlace, activeSystemId]);
 
   /* the armed pairing's capacity, for the canvas's room tint: pair-flow
      systems rate the pair; per-room modules rate the armed unit itself */
@@ -1826,38 +1573,6 @@ function Editor({
     }
     return systemPairKw(doc, pack, effectiveSystemId, doc.settings.sizingBasis);
   }, [placing, pack, doc, effectiveSystemId]);
-
-  /* ── the cockpit's two sizes: the flow picks (slice 6). Rested = a 46px
-     status tab; open while the flow needs the panel (pair chosen, units
-     unplaced), while something is selected (the inspector lives there), or
-     while pinned. The pin is remembered PER SYSTEM TYPE — multi's tuning
-     stage will want it standing open. Read through useSyncExternalStore so
-     the server snapshot (nothing pinned) and the client settle without an
-     effect — the same pattern as the shell rail. ── */
-  const ckPins = useSyncExternalStore(subscribeCkPins, readCkPins, emptyCkPins);
-  const activeSysType = doc.systems.find((s) => s.id === effectiveSystemId)?.type ?? null;
-  const ckWouldRest = panelRests(doc, effectiveSystemId);
-  /* The flow PROPOSES the size; the pin, once set, disposes. It holds both
-     answers now, not just "held open": collapsing while the flow wants the
-     panel used to be impossible, and the panel would spring back open on the
-     next mutation. A selection still forces the panel out — the inspector
-     lives in it, and nothing else shows what you just clicked. */
-  const ckPin = activeSysType != null ? ckPins[activeSysType] : undefined;
-  const cockpitRested =
-    selectedId == null && (ckPin === "rest" || (ckPin !== "open" && ckWouldRest));
-  const cockpitRest = useMemo(
-    () => ({
-      rested: cockpitRested,
-      onExpand: () => {
-        if (activeSysType) writeCkPin(activeSysType, "open");
-      },
-      onRest: () => {
-        if (activeSysType) writeCkPin(activeSysType, "rest");
-        setSelectedId(null);
-      },
-    }),
-    [cockpitRested, activeSysType]
-  );
 
   /* rooms whose PLACED unit missed their load — the verdict that persists on
      the room label after the drop. A state, never a block. */
@@ -1912,7 +1627,7 @@ function Editor({
       ok: false,
       reason: first
         ? `${first.systemName}: ${first.reason}`
-        : "Draw a room and place a split system's units on the Design step first.",
+        : "Draw a zone and place a system's units on the Design step first.",
       floorName,
     };
   }, [doc, pack, activeFloor]);
@@ -2012,10 +1727,10 @@ function Editor({
         if (placing) armPlace(null);
         return;
       }
-      // U = the Units verb: browse → arm IDU → arm ODU → browse-as-swap.
-      // Inert while the browser is already up (typing there must not re-arm).
+      // U = open the active system in the builder. Inert while it is
+      // already up (typing there must not re-open it).
       if (e.key.toLowerCase() === "u") {
-        if (!pairBrowse && !builderOpen) onUnits();
+        if (!builderOpen) onUnits();
         return;
       }
       // C = Component (spec §3a — calibrate stays a top-toolbar pill): re-arm
@@ -2051,15 +1766,9 @@ function Editor({
       )
         return;
 
-      // room/pipe/riser draw all belong to a system — type-first: none without
-      // one. With the builder a room belongs to the plan and needs none.
-      if (
-        (((next === "room-rect" || next === "room-poly") && !builder) ||
-          next === "pipe" ||
-          next === "riser") &&
-        !effectiveSystemId
-      )
-        return;
+      // pipe and riser draw for a system — none without one. A zone belongs
+      // to the plan and needs none.
+      if ((next === "pipe" || next === "riser") && !effectiveSystemId) return;
       changeTool(next);
     };
     // right-click disarms like Esc: let go of a unit riding the cursor (the
@@ -2085,9 +1794,7 @@ function Editor({
     activeFloor?.plans.length,
     placing,
     armPlace,
-    pairBrowse,
     onUnits,
-    builder,
     builderOpen,
   ]);
 
@@ -2231,9 +1938,6 @@ function Editor({
             onGoPlans={() => onStep(0)}
             tool={tool}
             onTool={changeTool}
-            unitsV={unitsV}
-            onUnits={onUnits}
-            onArmPlace={armPlace}
             airGate={airGate}
             paletteOpen={paletteOpen}
             onPalette={setPaletteOpen}
@@ -2244,7 +1948,7 @@ function Editor({
             selectedId={selectedId}
             onSelect={(id) => {
               setSelectedId(id);
-              if (builder && id) {
+              if (id) {
                 const o = doc.objects.find((x) => x.id === id);
                 if (o?.systemId && o.type !== "room") setActiveSystemId(o.systemId);
                 /* picking a zone opens the card of the system that claimed it
@@ -2259,8 +1963,6 @@ function Editor({
             planImages={planImages}
             pack={pack}
             activeSystemId={effectiveSystemId}
-            revealTools={toolsRevealed}
-            builder={builder}
             placing={placing}
             placingKw={placingKw}
             roomFits={roomFits}
@@ -2304,67 +2006,38 @@ function Editor({
         )}
       </div>
 
-      {/* Cockpit lives at the editor level so it spans the full height beside
-          the header (see the .ds-editor grid). It stays MOUNTED off the Design
-          step — its column animates shut instead of the panel snapping wide —
-          and goes inert while collapsed so it's out of the tab order. */}
+      {/* The systems panel lives at the editor level so it spans the full
+          height beside the header (see the .ds-editor grid). It stays MOUNTED
+          off the Design step — its column animates shut instead of the panel
+          snapping wide — and goes inert while collapsed so it's out of the
+          tab order. It never rests: the column is always its full width. */}
       {activeFloor && (
         <aside
-          className={`ds-sidecol${cockpitRested ? " rest" : ""}`}
+          className="ds-sidecol"
           aria-hidden={step !== 1 ? true : undefined}
           inert={step !== 1 ? true : undefined}
         >
-          {builder ? (
-            <SystemsPanel
-              doc={doc}
-              pack={pack}
-              basis={doc.settings.sizingBasis}
-              activeSystemId={effectiveSystemId}
-              onActivate={setActiveSystemId}
-              onAddSystem={onAddSystem}
-              onAddZones={startClaim}
-              claiming={claiming}
-              onClaimDone={() => changeTool("select")}
-              onBuild={onBuildSystem}
-              onInstall={onInstallSystem}
-              onDeleteSystem={(id) => mutate((d) => releaseSystem(d, id))}
-              onArmPlace={armPlace}
-              onMoveZone={onMoveZone}
-              onClaimZone={onClaimZone}
-              onRemoveZone={onRemoveZone}
-              onAddVariant={onAddVariant}
-              onSwitchVariant={onSwitchVariant}
-              onRenameVariant={onRenameVariant}
-            />
-          ) : (
-          <SystemCockpit
+          <SystemsPanel
             doc={doc}
             pack={pack}
-            packVersion={packVersion}
+            basis={doc.settings.sizingBasis}
             activeSystemId={effectiveSystemId}
             onActivate={setActiveSystemId}
-            onMutate={mutate}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            onEditRoom={setEditingRoomId}
-            onFloor={setPickedFloorId}
-            floor={activeFloor}
-            rest={cockpitRest}
+            onAddSystem={onAddSystem}
+            onAddZones={startClaim}
+            claiming={claiming}
+            onClaimDone={() => changeTool("select")}
+            onBuild={onBuildSystem}
+            onInstall={onInstallSystem}
+            onDeleteSystem={(id) => mutate((d) => releaseSystem(d, id))}
+            onArmPlace={armPlace}
+            onMoveZone={onMoveZone}
+            onClaimZone={onClaimZone}
+            onRemoveZone={onRemoveZone}
             onAddVariant={onAddVariant}
             onSwitchVariant={onSwitchVariant}
             onRenameVariant={onRenameVariant}
-            builder={
-              builder
-                ? {
-                    onOpen: () => setBuilderOpen({ focus: null }),
-                    onSwap: (systemId, allocationId) =>
-                      setBuilderOpen({ focus: { systemId, allocationId } }),
-                    onDeleteSystem: (id) => mutate((d) => releaseSystem(d, id)),
-                  }
-                : undefined
-            }
           />
-          )}
         </aside>
       )}
 
@@ -2396,10 +2069,8 @@ function Editor({
         />
       )}
 
-      {/* THE unit browser — one instance, opened by the Units verb, the Next
-          chip and the cockpit alike. Ranked against the lens room (the chips
-          across its top switch the lens), committing the same settings write
-          everywhere; choosing arms the indoor unit on the cursor. */}
+      {/* THE system builder — one instance, opened by a system's card, the
+          Next chip, U and a zone's popup alike */}
       {builderOpen && pack && (
         <SystemBuilder
           doc={doc}
@@ -2429,24 +2100,11 @@ function Editor({
         />
       )}
 
-      {pairBrowse && pack && !builder && (
-        <LensedUnitBrowser
-          doc={doc}
-          pack={pack}
-          systemId={effectiveSystemId}
-          roomId={pairBrowse}
-          onLens={setPairBrowse}
-          onChoose={choosePairFromChip}
-          onAssign={assignPairToRoom}
-          onClose={() => setPairBrowse(null)}
-        />
-      )}
-
       {editingRoomId && doc.objects.some((o) => o.id === editingRoomId) && (
         <RoomModal
           doc={doc}
           roomId={editingRoomId}
-          word={builder ? "Zone" : "Room"}
+          word="Zone"
           onMutate={mutate}
           onDelete={() => {
             const id = editingRoomId;
@@ -2465,27 +2123,19 @@ function Editor({
           }}
           onOpenReference={hasReference ? () => setRefOpen(true) : undefined}
           unitsSection={
-            <RoomModalUnits
-              doc={doc}
-              pack={pack}
-              systemId={effectiveSystemId}
-              roomId={editingRoomId}
-              onMutate={mutate}
-              builder={builder}
-              onEditSystem={(systemId, zoneId) => {
-                /* the editor replaces the popup, open on this zone */
-                setEditingRoomId(null);
-                setActiveSystemId(systemId);
-                setBuilderOpen({ focus: null, systemId, zoneId });
-              }}
-              onBrowseUnits={(id) => {
-                /* the units modal replaces this one — two stacked dialogs
-                   would leave the room open behind a browser that can re-aim
-                   at a different room entirely */
-                setEditingRoomId(null);
-                openUnits(id);
-              }}
-            />
+            pack ? (
+              <ZoneStanding
+                doc={doc}
+                pack={pack}
+                zoneId={editingRoomId}
+                onEditSystem={(systemId, zoneId) => {
+                  /* the editor replaces the popup, open on this zone */
+                  setEditingRoomId(null);
+                  setActiveSystemId(systemId);
+                  setBuilderOpen({ focus: null, systemId, zoneId });
+                }}
+              />
+            ) : null
           }
         />
       )}
@@ -2553,7 +2203,7 @@ function Editor({
    too: they re-load every room in the engine, so they belong with the design
    chrome you use WHILE designing — the Summary only echoes them read-only.
    Changing a select keeps the menu open (only .ds-menu-item clicks close it),
-   so you can watch the cockpit numbers move as you try zones. */
+   so you can watch the systems panel's numbers move as you try zones. */
 function StudioMenu({
   onNew,
   onOpen,
@@ -2693,66 +2343,6 @@ function StudioMenu({
 
 /* ═════════════ Stage panels — Stage-0 empty states ═════════════ */
 
-/* ── the cockpit pin store (slice 6): which system TYPES hold their panel
-   open. localStorage-backed, read via useSyncExternalStore — the snapshot is
-   cached on the raw string so getSnapshot stays referentially stable. ── */
-const CK_PIN_KEY = "ht-ckpin";
-/** what a system type's pin says: nothing (the flow picks), or the reader's
-    own answer, which outranks it until they press the other one */
-type CkPin = "open" | "rest";
-const emptyCkPinsValue: Record<string, CkPin> = {};
-const emptyCkPins = () => emptyCkPinsValue;
-let ckPinsRaw: string | null = null;
-let ckPinsCache: Record<string, CkPin> = emptyCkPinsValue;
-const ckPinListeners = new Set<() => void>();
-function readCkPins(): Record<string, CkPin> {
-  let raw: string | null = null;
-  try {
-    raw = localStorage.getItem(CK_PIN_KEY);
-  } catch {
-    /* storage unavailable — nothing is pinned */
-  }
-  if (raw !== ckPinsRaw) {
-    ckPinsRaw = raw;
-    try {
-      ckPinsCache = raw ? readPinRecord(JSON.parse(raw)) : emptyCkPinsValue;
-    } catch {
-      ckPinsCache = emptyCkPinsValue;
-    }
-  }
-  return ckPinsCache;
-}
-/* the pin was a boolean before it could say "rest": a stored `true` is the
-   same held-open answer, a stored `false` only ever meant "unpinned" */
-function readPinRecord(v: unknown): Record<string, CkPin> {
-  if (!v || typeof v !== "object") return emptyCkPinsValue;
-  const out: Record<string, CkPin> = {};
-  for (const [k, raw] of Object.entries(v as Record<string, unknown>)) {
-    if (raw === "open" || raw === "rest") out[k] = raw;
-    else if (raw === true) out[k] = "open";
-  }
-  return out;
-}
-function writeCkPin(type: string, v: CkPin) {
-  const next = { ...readCkPins(), [type]: v };
-  try {
-    localStorage.setItem(CK_PIN_KEY, JSON.stringify(next));
-  } catch {
-    /* private mode — the pin won't survive a reload, but it works now */
-  }
-  ckPinsCache = next;
-  ckPinsRaw = JSON.stringify(next);
-  ckPinListeners.forEach((l) => l());
-}
-function subscribeCkPins(cb: () => void) {
-  ckPinListeners.add(cb);
-  window.addEventListener("storage", cb);
-  return () => {
-    ckPinListeners.delete(cb);
-    window.removeEventListener("storage", cb);
-  };
-}
-
 const CANVAS_TOOLS: {
   key: CanvasTool;
   icon: string;
@@ -2781,279 +2371,15 @@ const LAYER_LABELS: Record<keyof LayerFlags, string> = {
   labels: "Labels",
 };
 
-/* ── THE unit browser, aimed at a room. A component rather than an inline
-   block: the chips and the lens load are derived per render, and building
-   them inside the editor's own render meant handing the browser a callback
-   that reaches the history refs — which is a real hazard there (and what
-   react-hooks/refs was pointing at), not a lint technicality. Here the
-   derivation happens in this component's render and the handler is just a
-   prop. ── */
-/* The room modal's units section.
-
-   A real component, not an inline IIFE in the editor's render: an arrow
-   created during render that hands a callback downwards trips
-   `react-hooks/refs` and CI blocks on it — the exact shape that cost hours
-   when the unit browser was an IIFE (see LensedUnitBrowser below).
-
-   It lives here rather than inside RoomModal because it needs the SYSTEM's
-   shape: the module decides whether a room takes a pair, an indoor head of
-   its own, or spill air. The modal is about the ROOM. */
-function RoomModalUnits({
-  doc,
-  pack,
-  systemId,
-  roomId,
-  onMutate,
-  onBrowseUnits,
-  onEditSystem,
-  builder = false,
-}: {
-  doc: DesignDocument;
-  pack: DataPack | null;
-  systemId: string | null;
-  roomId: string;
-  onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
-  onBrowseUnits: (roomId: string) => void;
-  /** the zones flow: open this system's editor on this zone */
-  onEditSystem: (systemId: string, zoneId: string) => void;
-  /** with the builder, the zone says what serves it and opens its system */
-  builder?: boolean;
-}) {
-  const sys = doc.systems.find((s) => s.id === systemId);
-  const room = doc.objects.find((o) => o.id === roomId);
-  if (builder) return pack ? <ZoneStanding doc={doc} pack={pack} zoneId={roomId} onEditSystem={onEditSystem} /> : null;
-  if (!sys || !room || room.geometry.kind !== "polygon") return null;
-  const summary = SYSTEM_MODULES[sys.type].summary;
-  return (
-    <RoomInspectCard
-      doc={doc}
-      pack={pack}
-      system={sys}
-      room={room as RoomObj}
-      basis={doc.settings.sizingBasis}
-      ducted={summary === "ducted"}
-      perRoom={summary === "capacity"}
-      headless
-      onMutate={onMutate}
-      onBrowseUnits={onBrowseUnits}
-      onRelease={(id) =>
-        onMutate((d) => ({
-          ...d,
-          systems: releaseRoomFromSystem(d.systems, sys.id, id),
-        }))
-      }
-    />
-  );
-}
-
-function LensedUnitBrowser({
-  doc,
-  pack,
-  systemId,
-  roomId,
-  onLens,
-  onChoose,
-  onAssign,
-  onClose,
-}: {
-  doc: DesignDocument;
-  pack: DataPack;
-  systemId: string | null;
-  /** the lens: the room the ranking reads through, and the fallback the
-      drop attributes to */
-  roomId: string;
-  onLens: (roomId: string) => void;
-  onChoose: (choice: UnitChoice, roomId: string) => void;
-  /** a unit dragged onto a room card — records the attribution and leaves the
-      browser open, unlike onChoose which commits and arms the cursor */
-  onAssign: (choice: UnitChoice, roomId: string) => void;
-  onClose: () => void;
-}) {
-  const served = roomsServedBy(doc, systemId);
-  const room = served.find((r) => r.id === roomId);
-  if (!room) return null;
-  const sys = doc.systems.find((s) => s.id === systemId);
-  /* which flow the modal is driving: a multi assigns an indoor head per room,
-     a split one pair for the system */
-  const perRoom = !!sys && SYSTEM_MODULES[sys.type].unitFlow === "per-room";
-  const rooms = served.map((r) => {
-    const placed = doc.objects.find(
-      (o) =>
-        o.type === "unit" &&
-        o.props.role === "idu" &&
-        String(o.props.roomId ?? "") === r.id
-    );
-    /* What this room has been given: the unit standing in it, else the one
-       assigned to it and still waiting to be placed (the pending state the
-       toolbar tray reads). A per-room system holds one PER ROOM; a pair
-       system holds a single pair, against the one room it was sized for. */
-    const pending = !sys
-      ? ""
-      : perRoom
-        ? (multiIduSelections(sys)[r.id] ?? "")
-        : String(sys.settings.roomId ?? "") === r.id
-          ? String(sys.settings.pairIdu ?? "")
-          : "";
-    /* the outdoor half of the room's pairing: a split's own pair, a multi's
-       shared unit. Placed wins over chosen, same as the indoor above. */
-    const placedOdu = doc.objects.find(
-      (o) => o.systemId === systemId && o.type === "unit" && o.props.role === "odu"
-    );
-    const oduModel =
-      String(placedOdu?.props.model ?? "") ||
-      String((perRoom ? sys?.settings.multiOdu : sys?.settings.pairOdu) ?? "") ||
-      null;
-    return {
-      id: r.id,
-      name: String(r.props.name ?? "Room"),
-      areaM2: roomAreaM2(doc, r),
-      loadKw: roomLoadKw(doc, r),
-      served: !!placed,
-      assignedModel: String(placed?.props.model ?? "") || pending || null,
-      oduModel,
-      oduShared: perRoom,
-    };
-  });
-  return (
-    <UnitBrowser
-      pack={pack}
-      loadKw={roomLoadKw(doc, room)}
-      basis={doc.settings.sizingBasis}
-      rooms={rooms}
-      lensId={room.id}
-      onLens={onLens}
-      mode={perRoom ? "per-room" : "pair"}
-      onChoose={(choice) => onChoose(choice, room.id)}
-      onAssign={onAssign}
-      onClose={onClose}
-    />
-  );
-}
-
-/* ── "Items to place": the tray of units attributed to a room and still off
-   the plan (units↔rooms workflow, slice 2). Attribution now happens in the
-   modal, so by the time it closes a design can owe the plan several units
-   with nothing naming them — this is the list, and the place they're picked
-   up from.
-
-   It renders ONLY while something is owed. A permanent "Items to place (0)"
-   would be a dead control on an already-tight bench, and its mere PRESENCE
-   is the signal that work is outstanding — the same reasoning that gave the
-   cockpit no dead close chevron.
-
-   Both gestures land in the same place: dragging an item arms it and the
-   canvas's existing drop handler commits it; clicking arms it for a tap. ── */
-/* The builder's tray (spec: Placing). Every unit the builder allocated and
-   nobody has put on the plan yet, labelled with the room it serves. Nothing
-   here arms on a click: a unit is DRAGGED onto the plan, or Place in room puts
-   it in its room straight away. Where it lands never changes its room — a unit
-   dropped inside another room is listed at the top, flagged, not moved. */
-function ItemsTray({
-  items,
-  onArmPlace,
-}: {
-  items: PlaceItem[];
-  onArmPlace: (p: PlacingUnit | null) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  /* nothing owed, nothing shown — and the open tray closes with the last
-     item rather than sitting there empty */
-  if (items.length === 0) return null;
-
-  const arm = (item: PlaceItem) => {
-    onArmPlace(item.placing);
-    setOpen(false);
-  };
-
-  return (
-    <div className="ds-pal-wrap" ref={wrapRef}>
-      <button
-        className={`ds-tool ds-tray-btn${open ? " on" : ""}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`Items to place (${items.length})`}
-        title="Units attributed to a room and not yet on the plan"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <Icon name="unit" size={15} />
-        Items to place
-        <span className="ds-tray-n">{items.length}</span>
-      </button>
-      {open && (
-        <div className="ds-tray" role="menu" aria-label="Items to place">
-          {items.map((item) => (
-            <div
-              key={item.key}
-              role="menuitem"
-              tabIndex={0}
-              className={`ds-tray-item ${item.role}`}
-              draggable
-              onDragStart={(e) => {
-                if (e.dataTransfer) {
-                  e.dataTransfer.setData("text/plain", item.model);
-                  e.dataTransfer.effectAllowed = "copy";
-                }
-                /* the canvas places whatever is ARMED, so arming on dragstart
-                   is what makes the drop land the right unit — the payload is
-                   for other drop targets, not for the canvas */
-                onArmPlace(item.placing);
-              }}
-              /* the tray stays open through the drag on purpose: unmounting
-                 the source mid-drag ends it early in Chrome */
-              onDragEnd={() => onArmPlace(null)}
-              onClick={() => arm(item)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  arm(item);
-                }
-              }}
-            >
-              <span className="ds-tray-role">
-                {item.role === "idu" ? "Indoor" : "Outdoor"}
-              </span>
-              <span className="ds-tray-model">{item.model}</span>
-              {/* an outdoor unit serves the system, so it names no room */}
-              {item.roomName && <span className="ds-tray-room">{item.roomName}</span>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ── the Room tool: ONE bench button; the shape choice (square or drawn)
    appears where the click landed, and picking either arms its draw tool.
    R and G still arm each shape directly from the keyboard. ── */
 function RoomTool({
   tool,
   onTool,
-  disabled,
-  word = "Room",
 }: {
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
-  disabled: boolean;
-  /** what the tool draws: a room, or a zone in the zones flow */
-  word?: "Room" | "Zone";
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -3081,18 +2407,17 @@ function RoomTool({
     <div className="ds-pal-wrap" ref={wrapRef}>
       <button
         className={`ds-tool${on ? " on" : ""}`}
-        aria-label={word}
+        aria-label="Zone"
         aria-haspopup="menu"
         aria-expanded={open}
-        disabled={disabled}
-        title={disabled ? `${word} — pick a system first` : `${word} — square or drawn shape`}
+        title="Zone — square or drawn shape"
         onClick={() => setOpen((v) => !v)}
       >
         <Icon name="square" size={15} />
-        {word}
+        Zone
       </button>
-      {open && !disabled && (
-        <div className="ds-roomfly" role="menu" aria-label={`${word} shape`}>
+      {open && (
+        <div className="ds-roomfly" role="menu" aria-label="Zone shape">
           <button role="menuitem" onClick={() => arm("room-rect")}>
             <Icon name="square" size={14} />
             Square
@@ -3780,17 +3105,9 @@ function CanvasControls({
         </button>
       )}
       {next && (
-        <button
-          className={`ds-nextchip${next.key === "complete" ? " done" : ""}`}
-          onClick={onNext}
-          title={
-            next.key === "complete"
-              ? "Every requirement is met — open the Summary"
-              : "Arm the next move"
-          }
-        >
+        <button className="ds-nextchip" onClick={onNext} title="Arm the next move">
           <span className="ds-nextdot" aria-hidden="true" />
-          {next.key === "complete" ? next.label : `Next: ${next.label}`}
+          {`Next: ${next.label}`}
         </button>
       )}
     </div>
@@ -3804,9 +3121,6 @@ function DesignPanel({
   onGoPlans,
   tool,
   onTool,
-  unitsV,
-  onUnits,
-  onArmPlace,
   airGate,
   paletteOpen,
   onPalette,
@@ -3820,7 +3134,6 @@ function DesignPanel({
   planImages,
   pack,
   activeSystemId,
-  revealTools,
   placing,
   placingKw,
   roomFits,
@@ -3839,7 +3152,6 @@ function DesignPanel({
   legendOpen,
   onLegend,
   onCalibrated,
-  builder = false,
   onClaimToggle,
 }: {
   doc: DesignDocument;
@@ -3848,13 +3160,6 @@ function DesignPanel({
   onGoPlans: () => void;
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
-  /** the Units verb's current meaning (null: this system type still picks
-      its units in the panel) — the button wears the reason in place */
-  unitsV: UnitsVerb | null;
-  onUnits: () => void;
-  /** arm a unit on the cursor (or disarm with null) — the Items tray's
-      one lever; the canvas commits whatever is armed */
-  onArmPlace: (p: PlacingUnit | null) => void;
   /** spec-§2 air-tool gate (rooms + air-capable AHU) + the AHU's pack row */
   airGate: { ok: boolean; reason: string; row: IndoorUnit | null };
   paletteOpen: boolean;
@@ -3869,8 +3174,6 @@ function DesignPanel({
   planImages: PlanImages;
   pack: DataPack | null;
   activeSystemId: string | null;
-  /** reveal the drawing tool-rail — latched true once a system first exists */
-  revealTools: boolean;
   /** the room-shape pill is up (raised by "Draw a room" / "Add room") */
   placing: PlacingUnit | null;
   /** armed pairing's capacity — the canvas tints rooms against their loads */
@@ -3894,8 +3197,6 @@ function DesignPanel({
   legendOpen: boolean;
   onLegend: (v: boolean) => void;
   onCalibrated: () => void;
-  /** the system builder flag: rooms need no system, units come from its tray */
-  builder?: boolean;
   /** claim mode (the zones flow): a zone clicked while the claim tool is up */
   onClaimToggle?: (roomId: string) => void;
 }) {
@@ -3903,11 +3204,6 @@ function DesignPanel({
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
   const wheelMode = useWheelMode();
-  /* units attributed to a room and still off the plan — the tray's list */
-  const toPlace = useMemo(
-    () => itemsToPlace(doc, pack, activeSystemId),
-    [doc, pack, activeSystemId]
-  );
   /* the Draw flyout's armed options (pipe form, drain size, cable kind) —
      view state: what the NEXT line is, never what a drawn one was */
   const [draw, setDraw] = useState<DrawOptions>(DEFAULT_DRAW);
@@ -3996,110 +3292,72 @@ function DesignPanel({
   return (
     <div className="ds-design">
       <div className="ds-canvas-col">
-        {revealTools && (
-          <div className="ds-toolbar" role="toolbar" aria-label="Canvas tools">
-            {/* The bench reads in workflow order: the two POINTER verbs
-                (Select, Erase) together, then Room, then the system verbs,
-                ending on what the system verbs leave to do — with history at
-                the far end. Erase sits beside Select because both act on what
-                is already drawn rather than adding anything, and Items to
-                place closes the system group because it is that group's
-                outcome (Isaac, 2026-08-25). The separators alone carry the
-                grouping — the uppercase titles went 2026-08-24. */}
-            {toolButton(tb("select"))}
-            {toolButton(tb("erase"))}
-            <span className="ds-tb-sep" aria-hidden="true" />
-            <RoomTool
-              tool={tool}
-              onTool={onTool}
-              disabled={!builder && !activeSystemId}
-              word={builder ? "Zone" : "Room"}
-            />
-            <span className="ds-tb-sep" aria-hidden="true" />
-            {/* Units leads the System group — the workflow places before it
-                connects. One verb, three meanings: browse (nothing chosen),
-                arm the next unplaced unit, browse again as a swap. While a
-                unit rides the cursor the button is lit and a press disarms. */}
-            {builder ? null : (
+        <div className="ds-toolbar" role="toolbar" aria-label="Canvas tools">
+          {/* The bench reads in workflow order: the two POINTER verbs
+              (Select, Erase) together, then Zone, then the system verbs —
+              with history at the far end. Erase sits beside Select because
+              both act on what is already drawn rather than adding anything
+              (Isaac, 2026-08-25). The separators alone carry the grouping —
+              the uppercase titles went 2026-08-24. A system's units are
+              placed from its card in the systems panel. */}
+          {toolButton(tb("select"))}
+          {toolButton(tb("erase"))}
+          <span className="ds-tb-sep" aria-hidden="true" />
+          <RoomTool tool={tool} onTool={onTool} />
+          <span className="ds-tb-sep" aria-hidden="true" />
+          <DrawTool
+            tool={tool}
+            onTool={onTool}
+            draw={draw}
+            onDraw={setDraw}
+            disabled={!activeSystemId}
+          />
+          {/* Air group (Stage 7): gates on rooms + an air-capable AHU (spec
+              §2). Duct moved into the Draw flyout — it was a disabled button
+              holding a whole verb's width on the bench, and the bar had
+              started wrapping on a laptop. */}
+          <div className="ds-pal-wrap">
             <button
-              className={`ds-tool${tool === "place" ? " on" : ""}`}
-              aria-label="Units"
-              disabled={!unitsV || unitsV.kind === "off"}
-              title={
-                !activeSystemId
-                  ? "Units — pick a system first"
-                  : !unitsV
-                    ? "Units — this system type still picks its units in the panel"
-                    : unitsV.kind === "off"
-                      ? `Units — ${unitsV.reason}`
-                      : tool === "place"
-                        ? "Let go of the unit"
-                        : "Choose the units"
-              }
-              onClick={onUnits}
+              className={`ds-tool${tool === "component" ? " on" : ""}`}
+              aria-label="Component"
+              disabled={!airGate.ok}
+              title={airGate.ok ? "Component" : `Component — ${airGate.reason}`}
+              onClick={() => onPalette(!paletteOpen)}
             >
-              <Icon name="unit" size={15} />
-              Units
+              <Icon name="box" size={15} />
+              Component
             </button>
+            {paletteOpen && airGate.ok && (
+              <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
             )}
-            <DrawTool
-              tool={tool}
-              onTool={onTool}
-              draw={draw}
-              onDraw={setDraw}
-              disabled={!activeSystemId}
-            />
-            {/* Air group (Stage 7): gates on rooms + an air-capable AHU (spec
-                §2). Duct moved into the Draw flyout — it was a disabled button
-                holding a whole verb's width on the bench, and the bar had
-                started wrapping on a laptop. */}
-            <div className="ds-pal-wrap">
-              <button
-                className={`ds-tool${tool === "component" ? " on" : ""}`}
-                aria-label="Component"
-                disabled={!airGate.ok}
-                title={airGate.ok ? "Component" : `Component — ${airGate.reason}`}
-                onClick={() => onPalette(!paletteOpen)}
-              >
-                <Icon name="box" size={15} />
-                Component
-              </button>
-              {paletteOpen && airGate.ok && (
-                <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
-              )}
-            </div>
-            {/* last in the system group: it holds what choosing units left to
-                do, so it reads as the end of that run rather than a second
-                thing next to Units */}
-            {builder ? null : <ItemsTray items={toPlace} onArmPlace={onArmPlace} />}
-            {/* crop + move-plans live in the Calibrate dropdown now (plan-prep) */}
-            <span className="ds-tb-sep" aria-hidden="true" />
-            {/* Note gets a group of its own, at the end, because it is the one
-                verb that is not about the SYSTEM at all: it needs no system to
-                arm and it never belongs to one. Last is also workflow order —
-                you draw the design, then you write on it. */}
-            <NoteTool tool={tool} onTool={onTool} ink={noteInk} onInk={setArmedInk} />
-            <div className="ds-tb-spring" />
-            <button
-              className="ds-tool"
-              onClick={undo}
-              disabled={!hist.undo}
-              aria-label="Undo"
-              title="Undo (⌘Z)"
-            >
-              <Icon name="rotate" size={15} />
-            </button>
-            <button
-              className="ds-tool flip"
-              onClick={redo}
-              disabled={!hist.redo}
-              aria-label="Redo"
-              title="Redo (⇧⌘Z)"
-            >
-              <Icon name="rotate" size={15} />
-            </button>
           </div>
-        )}
+          {/* crop + move-plans live in the Calibrate dropdown now (plan-prep) */}
+          <span className="ds-tb-sep" aria-hidden="true" />
+          {/* Note gets a group of its own, at the end, because it is the one
+              verb that is not about the SYSTEM at all: it needs no system to
+              arm and it never belongs to one. Last is also workflow order —
+              you draw the design, then you write on it. */}
+          <NoteTool tool={tool} onTool={onTool} ink={noteInk} onInk={setArmedInk} />
+          <div className="ds-tb-spring" />
+          <button
+            className="ds-tool"
+            onClick={undo}
+            disabled={!hist.undo}
+            aria-label="Undo"
+            title="Undo (⌘Z)"
+          >
+            <Icon name="rotate" size={15} />
+          </button>
+          <button
+            className="ds-tool flip"
+            onClick={redo}
+            disabled={!hist.redo}
+            aria-label="Redo"
+            title="Redo (⇧⌘Z)"
+          >
+            <Icon name="rotate" size={15} />
+          </button>
+        </div>
         <div className="ds-canvas-body">
           <StudioCanvas
             key={floor.id}
@@ -4155,12 +3413,9 @@ function DesignPanel({
             Fit
           </button>
         </div>
-        {/* The room-shape pill used to live here, pinned to the top of the
-            canvas. It has moved ONTO the cockpit's Add room / Draw a room
-            button (RoomDrawControl): the choice now appears where the click
-            landed instead of on the far side of the screen, which is what
-            made pressing the button look like it did nothing. What the canvas
-            still says is the tool hint and the crosshair cursor. */}
+        {/* The zone-shape choice appears on the bench's Zone button, where
+            the click landed. What the canvas says is the tool hint and the
+            crosshair cursor. */}
         {/* options HUD — floating pill strip, top-centre over the canvas,
             while a tool with options is armed (Step 2: the plenum variant) */}
         {tool === "component" && airComp?.kind === "plenum" && (
@@ -4189,7 +3444,7 @@ function DesignPanel({
               <div className="ds-legend-empty">No systems yet</div>
             )}
             <div className="ds-legend-sym">
-              <div className="ds-legend-row"><span className="ds-legend-ic room" /> Room</div>
+              <div className="ds-legend-row"><span className="ds-legend-ic room" /> Zone</div>
               <div className="ds-legend-row"><span className="ds-legend-ic idu" /> Indoor unit</div>
               <div className="ds-legend-row"><span className="ds-legend-ic odu" /> Outdoor unit</div>
               <div className="ds-legend-row"><span className="ds-legend-ic riser" /> Riser</div>

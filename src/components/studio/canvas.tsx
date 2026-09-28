@@ -67,15 +67,14 @@ import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { capacityFit, type UnitFit } from "@/lib/studio/fit";
 import { OVERSIZE_CAP } from "@/lib/studio/select";
 import { zoneIdsOf } from "@/lib/studio/zones";
-import { builderEnabled, isAirCapable } from "@/lib/studio/modules";
+import { isAirCapable } from "@/lib/studio/modules";
+import { deleteZone } from "@/lib/studio/builder";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf } from "@/lib/studio/graph";
 import { anchorFloating, dodgeSlot, type Size } from "@/lib/studio/anchor";
 import {
-  deleteRoomWithContents,
   moveEndpointTo,
   reconcileAttachedRuns,
-  releaseRoomsFromSystems,
   roomMemberIds,
   stripAttachesTo,
   translateRoomWithContents,
@@ -785,7 +784,7 @@ export function StudioCanvas({
   onClaimToggle?: (roomId: string) => void;
   /** how a room is deleted when the host knows more than the canvas: in the
       zones flow the systems let the zone and its heads go (builder.ts
-      deleteZone). Absent, the room goes with its contents and its id. */
+      deleteZone, handed the pack). Absent, deleteZone runs without one. */
   deleteRoom?: (d: DesignDocument, roomId: string) => DesignDocument;
   /** double-click a room with Select → open that room's modal */
   onOpenRoom?: (id: string) => void;
@@ -901,30 +900,9 @@ export function StudioCanvas({
   }, []);
   const spaceDown = useRef(false);
 
-  /* the canvas is scoped to the ACTIVE system — switching systems re-scopes
-     the whole canvas ("System 2 resets the canvas"). Rooms, units, risers and
-     runs all belong to a system now.
-     With the system builder on, the plan is one house: every system's units
-     and runs show at once, and rooms belong to the plan, not a system. */
-  const builder = builderEnabled();
-  /* rooms are zones in the zones flow */
-  const roomWord = builder ? "zone" : "room";
-  const inScope = useCallback(
-    (o: DesignObject) =>
-      o.floorId === floor.id && (builder || o.systemId === activeSystemId),
-    [floor.id, activeSystemId, builder]
-  );
-
-  /* rooms render FLOOR-WIDE (all systems) so another system's spaces are
-     visible drop targets; the active system's own + adopted rooms are full-
-     strength, foreign ones ghosted. Geometry edits stay with the drawing
-     system only. */
-  const adoptedRoomIds = useMemo(() => {
-    const sys = doc.systems.find((s) => s.id === activeSystemId);
-    return new Set(
-      Array.isArray(sys?.settings.roomIds) ? (sys!.settings.roomIds as string[]) : []
-    );
-  }, [doc.systems, activeSystemId]);
+  /* the plan is one house: every system's units and runs show at once, and
+     rooms (zones) belong to the plan, not a system */
+  const inScope = useCallback((o: DesignObject) => o.floorId === floor.id, [floor.id]);
 
   const rooms = useMemo(
     () =>
@@ -933,19 +911,6 @@ export function StudioCanvas({
           o.floorId === floor.id && o.type === "room" && o.geometry.kind === "polygon"
       ),
     [doc.objects, floor.id]
-  );
-
-  /** served by the active system (drawn or adopted) — rendered full-strength */
-  const roomServed = useCallback(
-    (r: DesignObject) =>
-      builder || r.systemId === activeSystemId || adoptedRoomIds.has(r.id),
-    [activeSystemId, adoptedRoomIds, builder]
-  );
-  /** drawn by the active system — the only rooms it may move/reshape/erase
-      (with the builder, a room is the plan's and anyone may edit it) */
-  const roomEditable = useCallback(
-    (r: DesignObject) => builder || r.systemId === activeSystemId,
-    [activeSystemId, builder]
   );
 
   const roomPoints = useCallback(
@@ -965,7 +930,6 @@ export function StudioCanvas({
      the first system's when two share it, with a dot per system in its corner */
   const zoneOwners = useMemo(() => {
     const m = new Map<string, { id: string; colour: string }[]>();
-    if (!builder) return m;
     for (const sys of doc.systems) {
       for (const id of zoneIdsOf(sys)) {
         const list = m.get(id) ?? [];
@@ -974,7 +938,7 @@ export function StudioCanvas({
       }
     }
     return m;
-  }, [doc.systems, builder]);
+  }, [doc.systems]);
 
   const units = useMemo(
     () =>
@@ -1886,12 +1850,7 @@ export function StudioCanvas({
           // a room takes its units (and their plenums) with it, the same way
           // a room move carries them — and frees its id from every system
           if (d.objects.find((o) => o.id === selectedId)?.type === "room") {
-            if (deleteRoom) return deleteRoom(d, selectedId);
-            return {
-              ...d,
-              systems: releaseRoomsFromSystems(d.systems, new Set([selectedId])),
-              objects: deleteRoomWithContents(d.objects, selectedId),
-            };
+            return deleteRoom ? deleteRoom(d, selectedId) : deleteZone(d, null, selectedId);
           }
           // deleting an AHU carries its plenums (they're its plenums — spec
           // §10.3); runs that attached to it lose the ref and become open ends
@@ -1928,22 +1887,18 @@ export function StudioCanvas({
     (points: Point[], shape: "rect" | "poly") => {
       const id = newId("obj");
       onMutate((d) => {
-        // rooms belong to the active system (type-first flow); scoped per
-        // system. With the builder they belong to the plan: no system, and
-        // numbered across the whole design.
-        const n =
-          d.objects.filter(
-            (o) => o.type === "room" && (builder || o.systemId === activeSystemId)
-          ).length + 1;
+        // zones belong to the plan: no system, and numbered across the whole
+        // design
+        const n = d.objects.filter((o) => o.type === "room").length + 1;
         const room: DesignObject = {
           id,
           type: "room",
-          systemId: builder ? null : activeSystemId,
+          systemId: null,
           floorId: floor.id,
           geometry: { kind: "polygon", points },
           plane: "room",
           props: {
-            name: builder ? `Zone ${n}` : `Room ${n}`,
+            name: `Zone ${n}`,
             externalWalls: [],
             hasExternalWalls: false,
             // rectangle-tool rooms stay rectangular when their corners are edited
@@ -1956,7 +1911,7 @@ export function StudioCanvas({
       onSelect(id);
       onToolDone(); // back to select so the corners and body drag
     },
-    [onMutate, floor.id, activeSystemId, onSelect, onToolDone, builder]
+    [onMutate, floor.id, onSelect, onToolDone]
   );
 
   /** Save: pin the room to the plan. A fresh room goes on to wall-marking; a
@@ -2385,35 +2340,17 @@ export function StudioCanvas({
       }
       if (!placing || !activeSystemId) return;
       onMutate((d) => {
-        /* an IDU dropped inside a room is ATTRIBUTED to it (units → spaces);
-           dropping into another system's room also adopts that room into this
-           system's served list (the user's call: drop adopts). A split IDU
-           dropped OUTSIDE every room still serves the lens room — the plan's
-           own "Bulkhead AC in the hallway void" case; containment wins
-           whenever there is containment. */
+        /* an IDU dropped inside a room is ATTRIBUTED to it (units → spaces).
+           A split IDU dropped OUTSIDE every room still serves the lens room —
+           the plan's own "Bulkhead AC in the hallway void" case; containment
+           wins whenever there is containment. The drop never adopts a zone
+           into the system: its zones are its claim's to say. */
         const room =
           placing.role === "idu"
             ? (roomAtPoint(d.objects, floor.id, at) ?? lensRoom(d, activeSystemId))
             : null;
-        const adopt =
-          room && room.systemId !== activeSystemId
-            ? (() => {
-                const sys = d.systems.find((s) => s.id === activeSystemId);
-                const cur = Array.isArray(sys?.settings.roomIds)
-                  ? (sys!.settings.roomIds as string[])
-                  : [];
-                return cur.includes(room.id) ? null : [...cur, room.id];
-              })()
-            : null;
         return {
           ...d,
-          systems: adopt
-            ? d.systems.map((s) =>
-                s.id === activeSystemId
-                  ? { ...s, settings: { ...s.settings, roomIds: adopt } }
-                  : s
-              )
-            : d.systems,
           objects: [
             ...d.objects,
             {
@@ -2741,9 +2678,8 @@ export function StudioCanvas({
           const room = rooms.find((r) => r.id === hit)!;
           /* A saved room is PINNED: it selects on click but drags the plan, so
              panning across a drawing can't take a whole space with it. Only
-             the room being adjusted moves — and only for the system that drew
-             it (foreign rooms stay inspect-only). */
-          if (roomEditable(room) && adjust?.id === hit) {
+             the room being adjusted moves. */
+          if (adjust?.id === hit) {
             // units stamped to this room travel with the move
             setDrag({
               kind: "move",
@@ -3258,10 +3194,10 @@ export function StudioCanvas({
           const allocated =
             movedSys != null && hasAllocations(movedSys) && allocationsOf(movedSys).some((a) => a.id === id);
           /* moving an IDU re-derives its room attribution (unless the user
-             pinned it manually via roomLock) — and adopts a foreign room the
-             same way a fresh drop does. Outside every room, a split falls
-             back to its lens room, so nudging a bulkhead along the hallway
-             never silently un-serves the room it was placed for. */
+             pinned it manually via roomLock). Outside every room, a split
+             falls back to its lens room, so nudging a bulkhead along the
+             hallway never silently un-serves the room it was placed for. A
+             system's zones are its claim's to say, so a move never adopts one. */
           const restamp =
             !allocated &&
             moved?.type === "unit" &&
@@ -3271,25 +3207,8 @@ export function StudioCanvas({
             ? (roomAtPoint(d.objects, moved!.floorId, at) ??
               lensRoom(d, moved!.systemId ?? null))
             : null;
-          const adopt =
-            restamp && room && moved!.systemId && room.systemId !== moved!.systemId
-              ? (() => {
-                  const sys = d.systems.find((s) => s.id === moved!.systemId);
-                  const cur = Array.isArray(sys?.settings.roomIds)
-                    ? (sys!.settings.roomIds as string[])
-                    : [];
-                  return cur.includes(room.id) ? null : [...cur, room.id];
-                })()
-              : null;
           return {
             ...d,
-            systems: adopt
-              ? d.systems.map((s) =>
-                  s.id === moved!.systemId
-                    ? { ...s, settings: { ...s.settings, roomIds: adopt } }
-                    : s
-                )
-              : d.systems,
             // attached runs follow: their endpoints snap onto the new point
             // in the same mutate, so one undo restores unit and pipes together
             objects: reconcileAttachedRuns(
@@ -3741,18 +3660,17 @@ export function StudioCanvas({
         }
       : tool === "measure"
         ? { icon: "ruler", text: "Drag across anything to measure it — nothing is saved" }
-      /* the room tools say their piece HERE now that the shape pill has moved
-         into the cockpit — this and the crosshair are the canvas's whole half
-         of the conversation, so Esc has to be named */
+      /* the zone tools say their piece HERE — this and the crosshair are the
+         canvas's whole half of the conversation, so Esc has to be named */
       : tool === "room-rect"
-        ? { icon: "square", text: `Drag a rectangle over the ${roomWord} · Esc to cancel` }
+        ? { icon: "square", text: "Drag a rectangle over the zone · Esc to cancel" }
       : tool === "room-poly"
         ? {
             icon: "hexagon",
             text:
               draftPoly.length >= 3
-                ? `Click the first point to close the ${roomWord} · Esc to cancel`
-                : `Click each corner of the ${roomWord} · Esc to cancel`,
+                ? "Click the first point to close the zone · Esc to cancel"
+                : "Click each corner of the zone · Esc to cancel",
           }
       /* the drawn runs: the curved tools are new grammar (dots → curve), so
          the canvas says how a line ENDS — the one thing a first draw can't
@@ -3789,7 +3707,7 @@ export function StudioCanvas({
                   /* the gesture IS the attribution — say so while it's armed */
                   text:
                     placing.role === "idu"
-                      ? "Drop it in the room it serves · Esc to cancel"
+                      ? "Drop it in the zone it serves · Esc to cancel"
                       : "Click where the outdoor unit sits · Esc to cancel",
                 }
               /* picking a system's zones: the card's Add zones started it,
@@ -3955,7 +3873,6 @@ export function StudioCanvas({
             const c = polygonCentroid(pts);
             const areaU = polygonArea(pts);
             const selected = r.id === selectedId;
-            const ghost = !roomServed(r);
             // the room being sized reads as loose (dashed) until it's saved
             const loose = adjust?.id === r.id;
             /* while an IDU is armed the fit verdict IS the room's paint;
@@ -3978,7 +3895,7 @@ export function StudioCanvas({
             return (
               <g
                 key={r.id}
-                className={`ds-room${selected ? " sel" : ""}${ghost ? " ghost" : ""}${
+                className={`ds-room${selected ? " sel" : ""}${
                   loose ? " loose" : ""
                 }${armedIdu ? ` armfit-${armFit ?? "none"}` : ""}${
                   isTarget || ownZone ? " droptgt" : ""
@@ -4000,7 +3917,7 @@ export function StudioCanvas({
                 {layers.labels && (
                   <>
                     <text x={c.x} y={c.y} fontSize={13 / labelZoom} className="ds-room-name">
-                      {String(r.props.name ?? "Room")}
+                      {String(r.props.name ?? "Zone")}
                       {/* spill rooms wear the ⤢ chip (ducted spec §9c) */}
                       {isSpillRoom(r) ? " ⤢" : ""}
                     </text>
@@ -4043,7 +3960,6 @@ export function StudioCanvas({
                 )}
                 {loose &&
                   tool === "select" &&
-                  roomEditable(r) &&
                   pts.map((p, i) => (
                     <circle
                       key={i}
@@ -5018,13 +4934,13 @@ export function StudioCanvas({
               className={`ds-wallsel-panel${panelSlot(pts) === "top" ? " top" : ""}`}
               ref={measureRoomPanel}
               role="dialog"
-              aria-label="Size the room"
+              aria-label="Size the zone"
             >
               <div className="ds-wallsel-title">
-                {adjust.isNew ? "Size the room" : "Edit the room"}
+                {adjust.isNew ? "Size the zone" : "Edit the zone"}
               </div>
               <div className="ds-wallsel-hint">
-                Saving pins the room to the plan so panning can&apos;t drag it —
+                Saving pins the zone to the plan so panning can&apos;t drag it —
                 reopen it any time with Edit shape.
               </div>
               <div className="ds-wallsel-count on">

@@ -782,7 +782,7 @@ export function trayItems(doc: DesignDocument, pack: DataPack): TrayItem[] {
   const roomName = (id: string | null): string => {
     if (!id) return "";
     const r = doc.objects.find((o) => o.id === id);
-    return r ? String(r.props.name ?? "Room") : "";
+    return r ? String(r.props.name ?? "Zone") : "";
   };
   const placed = new Set(doc.objects.map((o) => o.id));
   const items: (TrayItem & { base: string })[] = [];

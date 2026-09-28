@@ -20,7 +20,6 @@ import { roomLoadKw, type RoomObj } from "../loads-room";
 import { sizingCapacityKw } from "../loads";
 import { roomAtPoint, roomCoverage, systemCover } from "../coverage";
 import { buildSummaryModel } from "../summary";
-import { multiConnection } from "../multi";
 import {
   addBandUnit,
   addHead,
@@ -217,9 +216,6 @@ describe("the outdoor is proposed, not picked (R12)", () => {
     const sys = r.doc.systems.find((s) => s.id === r.systemId)!;
     expect(allocationsOf(sys).find((a) => a.role === "odu")?.model).toBe("MXZ-4F71VGD");
     expect(roomCoverage(r.doc, pack, room.master, basis).coveredKw).toBeCloseTo(kw("MSZ-AP50VGD2"), 5);
-    const conn = multiConnection(r.doc, pack, sys, basis);
-    expect(conn.iduCount).toBe(3);
-    expect(conn.findings.filter((f) => f.severity === "red")).toEqual([]);
     expect(systemCheck(r.doc, pack, basis, sys)).toMatchObject({ kind: "multi", listed: true });
   });
 });

@@ -10,14 +10,13 @@ import { Studio } from "../studio";
 import { ComponentPalette, PlenumHud, PALETTE_ENTRIES } from "../air-tools";
 import { LocalDesignStore } from "@/lib/studio/store";
 
-/* Room tools live on the canvas toolbar now — one labeled button per shape,
-   armed with a single click. */
+/* The Zone tool lives on the canvas toolbar — one button, the shape choice
+   flies out on click. */
 async function armRoom(
   user: ReturnType<typeof userEvent.setup>,
   shape: "Rectangle" | "Polygon" = "Rectangle"
 ) {
-  // one Room button now — the shape choice flies out on click
-  await user.click(await screen.findByRole("button", { name: "Room" }));
+  await user.click(await screen.findByRole("button", { name: "Zone" }));
   await user.click(
     await screen.findByRole("menuitem", {
       name: shape === "Rectangle" ? /Square/ : /Shape/,
@@ -38,7 +37,6 @@ async function openBlankDesignOnCanvas() {
   await user.click(screen.getByRole("button", { name: /Continue/ }));
   await user.click(screen.getByText("Blank canvas"));
   await user.click(await screen.findByRole("button", { name: "Design" }));
-  await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
   const canvas = screen.getByTestId("studio-canvas");
   const svg = canvas.querySelector("svg")!;
   return { user, svg };
@@ -65,6 +63,8 @@ describe("air dock group (studio toolrail)", () => {
     // gone from the bench itself
     expect(screen.queryByRole("button", { name: "Duct" })).toBeNull();
 
+    // Draw draws for a system
+    await user.click(screen.getByRole("button", { name: "Add a system" }));
     await user.click(screen.getByRole("button", { name: "Draw" }));
     const fly = screen.getByRole("menu", { name: "Draw a line" });
     expect(within(fly).getByText("Duct")).toBeInTheDocument();
@@ -73,15 +73,19 @@ describe("air dock group (studio toolrail)", () => {
     expect(duct).toHaveAttribute("title", "Ductwork arrives at Step 4");
   });
 
-  it("Component gates on a served room first", async () => {
-    await openBlankDesignOnCanvas();
+  it("Component gates on a system, then on a zone it serves", async () => {
+    const { user } = await openBlankDesignOnCanvas();
 
     const component = screen.getByRole("button", { name: "Component" });
     expect(component).toBeDisabled();
-    expect(component).toHaveAttribute("title", "Component — add a room first");
+    expect(component).toHaveAttribute("title", "Component — pick a system first");
+
+    await user.click(screen.getByRole("button", { name: "Add a system" }));
+    expect(component).toBeDisabled();
+    expect(component).toHaveAttribute("title", "Component — add a zone first");
   });
 
-  it("with a room served, Component asks for a ducted indoor unit in plain words", async () => {
+  it("with a zone served, Component asks for a ducted indoor unit in plain words", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
@@ -90,6 +94,10 @@ describe("air dock group (studio toolrail)", () => {
     await user.click(screen.getByRole("button", { name: "Save & continue" }));
     await user.click(screen.getByRole("button", { name: "No external walls" }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
+    // a system, given the zone from the panel's Zones without a system
+    await user.click(screen.getByRole("button", { name: "Add a system" }));
+    await user.click(screen.getByRole("button", { name: "Add zones" }));
+    await user.click(screen.getByRole("button", { name: "Add Zone 1 to System 1" }));
 
     const component = screen.getByRole("button", { name: "Component" });
     expect(component).toBeDisabled();

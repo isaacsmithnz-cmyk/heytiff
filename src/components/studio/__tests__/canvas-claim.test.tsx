@@ -1,5 +1,5 @@
 /* Zones on the plan (docs/studio-zones-and-systems.md, "Zones" and "The
-   panel and the plan"), through the mounted canvas with the builder flag on.
+   panel and the plan"), through the mounted canvas.
 
    A zone wears the colour of the system that claimed it, has no colour of its
    own while nobody has, and carries both systems' dots in its corner when two
@@ -10,9 +10,7 @@
 
    jsdom has no layout: the canvas opens fitted to the house at its own zoom,
    so each test reads the viewport transform back off the svg and maps
-   world → client through it (canvas-place-attribute.test.tsx). The flag is
-   read at render (modules.ts builderEnabled), so it is set for the file and
-   put back after. */
+   world → client through it (canvas-place-attribute.test.tsx). */
 
 import { render, fireEvent } from "@testing-library/react";
 import { readFileSync, existsSync } from "fs";
@@ -22,19 +20,8 @@ import { createDesign, type DesignDocument, type DesignObject, type DesignSystem
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import { addHead, trayItems } from "@/lib/studio/builder";
-import { claimZone, newSystem } from "@/lib/studio/zones";
+import { claimZone, newSystem, zoneIdsOf } from "@/lib/studio/zones";
 import type { RoomObj } from "@/lib/studio/loads-room";
-
-const FLAG = "NEXT_PUBLIC_STUDIO_BUILDER";
-let flagBefore: string | undefined;
-beforeAll(() => {
-  flagBefore = process.env[FLAG];
-  process.env[FLAG] = "1";
-});
-afterAll(() => {
-  if (flagBefore === undefined) delete process.env[FLAG];
-  else process.env[FLAG] = flagBefore;
-});
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -324,24 +311,6 @@ describe("the Zone tool", () => {
     expect(drawn.systemId).toBeNull();
     expect(drawn.props.shape).toBe("rect");
   });
-
-  it("with the flag off the old flow still draws Room 1, scoped to its system", () => {
-    process.env[FLAG] = "0";
-    try {
-      const { doc } = house();
-      const made = claimed(doc, ["master"]);
-      const c = captureCommit(made.doc);
-      const { svg } = mount({ doc: made.doc, tool: "room-rect", activeSystemId: made.systemId, onMutate: c.onMutate });
-      const { sx, sy } = mapper(svg);
-      drawRect(svg, { x: sx(1100), y: sy(900) }, { x: sx(1500), y: sy(1200) });
-      const rooms = c.get().objects.filter((o) => o.type === "room");
-      expect(rooms).toHaveLength(6);
-      expect(rooms[5].props.name).toBe("Room 1");
-      expect(rooms[5].systemId).toBe(made.systemId);
-    } finally {
-      process.env[FLAG] = "1";
-    }
-  });
 });
 
 /* the Delete key on a selected zone deletes it the host's way: in the zones
@@ -357,5 +326,16 @@ describe("the Delete key on a zone", () => {
     expect(deleteRoom).toHaveBeenCalledTimes(1);
     expect(deleteRoom.mock.calls[0][1]).toBe("bed1");
     expect(commit.get().objects.some((o) => o.id === "bed1")).toBe(false);
+  });
+
+  it("with no host rule, the zone still leaves every system that claimed it", () => {
+    const { doc } = house();
+    const made = claimed(doc, ["bed1", "master"]);
+    const commit = captureCommit(made.doc);
+    mount({ doc: made.doc, selectedId: "bed1", onMutate: commit.onMutate });
+    fireEvent.keyDown(window, { key: "Delete" });
+    const next = commit.get();
+    expect(next.objects.some((o) => o.id === "bed1")).toBe(false);
+    expect(zoneIdsOf(next.systems[0])).toEqual(["master"]);
   });
 });

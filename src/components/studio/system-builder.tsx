@@ -8,7 +8,8 @@ import type { DataPack, FormFactor, IndoorUnit, OutdoorUnit } from "@/lib/studio
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { systemCover, systemPairKw } from "@/lib/studio/coverage";
-import { multiCapableIdus, multiFormFactorSummary } from "@/lib/studio/multi";
+import { multiCapableIdus, multiFormFactorSummary, vrfCapableIdus } from "@/lib/studio/multi";
+import { vrfIndexRatio, vrfOutdoorsListing } from "@/lib/studio/vrf";
 import { formFactorSummary } from "@/lib/studio/select";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
 import {
@@ -330,7 +331,9 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   const headRows = heads.map((a) => iduRowOf(pack, a.model)).filter((u): u is IndoorUnit => u != null);
   const listing = new Set(outdoorsListing(pack, headRows).map((o) => o.model));
   const listFamily: "pair" | "multi" | "vrf" =
-    kind === "multi"
+    kind === "vrf"
+      ? "vrf"
+      : kind === "multi"
       ? "multi"
       : kind === "split" || kind === "ducted"
         ? "pair"
@@ -347,8 +350,9 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     );
     validOf = (o) => listing.has(o.model);
   } else if (listFamily === "vrf") {
+    const vrfListing = new Set(vrfOutdoorsListing(pack, headRows).map((o) => o.model));
     candidates = pack.outdoor_units.filter((o) => o.system_type === "vrf");
-    validOf = () => null;
+    validOf = (o) => vrfListing.has(o.model);
   } else {
     const head = heads[0]?.model ?? null;
     const pairs = head ? pack.pair_tables.filter((p) => p.idu_model === head) : pack.pair_tables;
@@ -364,27 +368,41 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   const outRows: OutRow[] = candidates.map((o) => ({
     odu: o,
     valid: o.model === odu?.model ? combination === "Valid" : validOf(o),
-    ratio: headRows.length && o.capacity_cool_kw ? Math.round((headsKw / o.capacity_cool_kw) * 100) : null,
+    /* a VRF's ratio is the book's: P-numbers, not kW */
+    ratio:
+      o.system_type === "vrf"
+        ? headRows.length
+          ? (vrfIndexRatio(o, headRows)?.pct ?? null)
+          : null
+        : headRows.length && o.capacity_cool_kw
+          ? Math.round((headsKw / o.capacity_cool_kw) * 100)
+          : null,
     current: o.model === odu?.model,
     proposal: o.model === proposalModel,
   }));
 
   const ratio = connectionRatio(pack, sys);
+  const vrfRatio = oduRow?.system_type === "vrf" ? vrfIndexRatio(oduRow, headRows) : null;
   const oduKw = oduRow ? kwText(sizingCapacityKw(oduRow, basis)) : "";
   const outFacts = !oduRow
     ? ""
-    : oduRow.system_type === "multi"
+    : oduRow.system_type === "vrf"
+      ? `${oduKw}, ${heads.length} of ${oduRow.max_idus ?? "?"} heads${vrfRatio ? `, ${vrfRatio.pct}%` : ""}`
+      : oduRow.system_type === "multi"
       ? `${oduKw}, ${heads.length} of ${oduRow.ports ?? "?"} ports${ratio ? `, ${ratio.pct}%` : ""}`
       : kind === "split"
         ? `${oduKw}, split outdoor`
         : oduKw;
   const headWord = (n: number) => `${n} ${n === 1 ? "head" : "heads"}`;
-  const connectedText = ratio
+  const connectedText = vrfRatio
+    ? `P${vrfRatio.connected} of P${vrfRatio.outdoor}, ${headWord(headRows.length)}`
+    : ratio
     ? `${ratio.connectedKw.toFixed(1)} kW, ${headWord(ratio.heads)}`
     : oduRow && headRows.length
       ? `${headsKw.toFixed(1)} kW, ${headWord(headRows.length)}`
       : null;
-  const takesText = oduRow && oduRow.system_type !== "multi" && heads.length > 1 ? "1 head" : null;
+  const takesText =
+    oduRow && oduRow.system_type !== "multi" && oduRow.system_type !== "vrf" && heads.length > 1 ? "1 head" : null;
   const supplyText = oduRow
     ? `${oduRow.phase === "3" ? "Three phase" : "Single phase"}${oduRow.max_amps_a != null ? `, ${oduRow.max_amps_a} A` : ""}`
     : null;
@@ -392,7 +410,13 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   /* the pipework, from the pack: a multi's port sizes, a pair's own */
   let pipeText: string | null = null;
   let limitsText: string | null = null;
-  if (oduRow && oduRow.system_type === "multi") {
+  if (oduRow && oduRow.system_type === "vrf") {
+    /* the main from the outdoor; the rest is sized once the tree is drawn */
+    pipeText = `${oduRow.conn_liquid_mm} / ${oduRow.conn_gas_mm} mm`;
+    const table = pack.vrf_pipe_tables.find((t) => t.series === oduRow.pipe_table_ref);
+    if (table)
+      limitsText = `${table.limits.max_total_m} m total, ${table.limits.max_farthest_actual_m} m to the farthest head`;
+  } else if (oduRow && oduRow.system_type === "multi") {
     pipeText = `${oduRow.conn_liquid_mm} / ${oduRow.conn_gas_mm} mm`;
     const rule = pack.multi_rules.find((r) => r.odu_model_ref === oduRow.model);
     if (rule) limitsText = `${rule.max_total_pipe_m} m total, ${rule.max_per_branch_m} m a branch`;
@@ -548,13 +572,17 @@ export function SystemBuilder({
   /* the head types the picker offers: the pack's styles, for the flow the
      family drives (a multi's heads are the ones its rules accept) */
   const perRoom = view ? view.family !== "split" : false;
+  /* a VRF's heads are City Multi heads, a multi's are its rules' */
+  const headPool = view && (view.kind === "vrf" || view.family === "vrf") ? "vrf" : "multi";
   const headTypes = useMemo(
     () =>
-      (perRoom ? multiFormFactorSummary(pack, null, basis) : formFactorSummary(pack, null, basis)).map((t) => ({
-        value: t.formFactor,
-        label: t.label,
-      })),
-    [perRoom, pack, basis]
+      (perRoom ? multiFormFactorSummary(pack, null, basis, headPool) : formFactorSummary(pack, null, basis)).map(
+        (t) => ({
+          value: t.formFactor,
+          label: t.label,
+        })
+      ),
+    [perRoom, pack, basis, headPool]
   );
   const firstHeadType = view?.heads[0] ? (iduRowOf(pack, view.heads[0].model)?.form_factor ?? null) : null;
   const headType: FormFactor | null =
@@ -795,6 +823,7 @@ export function SystemBuilder({
                 loadKw={lensKw}
                 basis={basis}
                 mode={perRoom ? "per-room" : "pair"}
+                pool={headPool}
                 formFactor={headType}
                 onFormFactor={setFormFactor}
                 brandLocked={!view.empty}
@@ -984,6 +1013,7 @@ function OutdoorTable({
   onDrag: (model: string, transfer: DataTransfer) => void;
 }) {
   const n = view.outRows.length;
+  const vrfList = n > 0 && view.outRows.every((r) => r.odu.system_type === "vrf");
   return (
     <div className="ds-sb-outdoors-wrap">
       <div className="ds-sb-outdoors-bar">
@@ -1003,7 +1033,9 @@ function OutdoorTable({
             <tr>
               <th>Model</th>
               <th className="num">Capacity</th>
-              <th className="num">Ports</th>
+              {/* a VRF outdoor has one main and a joint per branch: what it
+                  bounds is how many heads, not ports */}
+              <th className="num">{vrfList ? "Heads" : "Ports"}</th>
               <th className="num">Ratio</th>
               <th className="num">Combination</th>
             </tr>
@@ -1040,7 +1072,13 @@ function OutdoorTable({
                     {note && <span className="ds-sb-outdoors-note">{note}</span>}
                   </td>
                   <td className="num">{kwText(sizingCapacityKw(r.odu, basis))}</td>
-                  <td className="num">{r.odu.system_type === "multi" ? (r.odu.ports ?? "—") : 1}</td>
+                  <td className="num">
+                    {r.odu.system_type === "multi"
+                      ? (r.odu.ports ?? "—")
+                      : r.odu.system_type === "vrf"
+                        ? (r.odu.max_idus ?? "—")
+                        : 1}
+                  </td>
                   <td className="num">{r.ratio == null ? "—" : `${r.ratio}%`}</td>
                   <td className={`num ${r.valid == null ? "quiet" : r.valid ? "ok" : "bad"}`}>
                     {r.valid == null ? "—" : r.valid ? "Valid" : "Fails"}
@@ -1738,11 +1776,13 @@ function UnitDetail({
     if (!current) return [];
     const pool = pairFlow
       ? pack.indoor_units.filter((u) => pack.pair_tables.some((p) => p.idu_model === u.model))
-      : multiCapableIdus(pack);
+      : sys.type === "vrf"
+        ? vrfCapableIdus(pack)
+        : multiCapableIdus(pack);
     return pool
       .filter((u) => u.series === current.series)
       .sort((a, b) => a.capacity_cool_kw - b.capacity_cool_kw || a.model.localeCompare(b.model));
-  }, [pack, pairFlow, current]);
+  }, [pack, pairFlow, current, sys.type]);
 
   const rows = useMemo(
     () =>

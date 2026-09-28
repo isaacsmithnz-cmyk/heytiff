@@ -10,14 +10,16 @@
    for a multi, `roomIds` for both — so components, materials, the summary and
    the simulation keep working on a design the builder has touched.
 
-   Scope is split and multi (the spec's scope). Other system types are left
-   exactly as they are. */
+   Scope is split, multi and VRF (a VRF keeps a multi's older settings: one
+   shared outdoor, a head per zone). Other system types are left exactly as
+   they are. */
 
 import { newId, type DesignDocument, type DesignObject, type DesignSystem, type Point } from "./document";
 import type { DataPack, IndoorUnit, OutdoorUnit, PairTable } from "./packs/schema";
 import { allocationsOf, hasAllocations, type Allocation } from "./allocations";
 import { roomAtPoint, roomCoverage, type CoverageCap } from "./coverage";
 import { checkMultiCompatibility, multiCapableIdus } from "./multi";
+import { vrfOutdoorsListing } from "./vrf";
 import { outdoorReadiness } from "./packs/ready";
 import { deleteRoomWithContents, releaseRoomsFromSystems, stripAttachesTo } from "./attach";
 import { OVERSIZE_CAP } from "./select";
@@ -125,6 +127,9 @@ function withPin(doc: DesignDocument, pack: DataPack): DesignDocument {
 
 /* ─────────────────────────── outdoors (R12) ─────────────────────────── */
 
+/** the system types the builder proposes outdoors for */
+const BUILT_TYPES: ReadonlySet<DesignSystem["type"]> = new Set(["split", "multi-split", "ducted", "vrf"]);
+
 /** a finding that means the book's check could not be made */
 const UNCHECKABLE = new Set(["index-unknown", "capacity-code-unknown", "no-rule"]);
 
@@ -170,7 +175,7 @@ export function outdoorsListing(pack: DataPack, heads: IndoorUnit[]): OutdoorUni
     nothing in it asks for an outdoor */
 export function proposedOutdoorModel(doc: DesignDocument, pack: DataPack, systemId: string): string {
   const sys = doc.systems.find((s) => s.id === systemId);
-  if (!sys || (sys.type !== "multi-split" && sys.type !== "split" && sys.type !== "ducted")) return "";
+  if (!sys || !BUILT_TYPES.has(sys.type)) return "";
   const allocs = allocationsOf(sys);
   const heads = allocs
     .filter((a) => a.role === "idu" && a.model)
@@ -178,6 +183,8 @@ export function proposedOutdoorModel(doc: DesignDocument, pack: DataPack, system
     .filter((u): u is IndoorUnit => u != null);
   const current = allocs.find((a) => a.role === "odu");
   if (heads.length === 0) return "";
+  /* a VRF takes the smallest outdoor whose index envelope takes its heads */
+  if (sys.type === "vrf") return vrfOutdoorsListing(pack, heads)[0]?.model ?? "";
   if (sys.type !== "ducted" && (heads.length >= 2 || familyOf(sys) === "multi")) {
     return outdoorsListing(pack, heads)[0]?.model ?? "";
   }
@@ -187,7 +194,7 @@ export function proposedOutdoorModel(doc: DesignDocument, pack: DataPack, system
 
 function proposeOutdoor(doc: DesignDocument, pack: DataPack, systemId: string): DesignDocument {
   const sys = doc.systems.find((s) => s.id === systemId);
-  if (!sys || (sys.type !== "multi-split" && sys.type !== "split" && sys.type !== "ducted")) return doc;
+  if (!sys || !BUILT_TYPES.has(sys.type)) return doc;
   const allocs = allocationsOf(sys);
   const current = allocs.find((a) => a.role === "odu");
   const byHand = sys.settings.oduChosen === true && Boolean(current?.model);

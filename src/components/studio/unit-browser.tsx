@@ -25,7 +25,7 @@ import {
 } from "@/lib/studio/unit-specs";
 import type { PairProposal } from "@/lib/studio/split";
 import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
-import { multiFormFactorSummary, multiUnitOptions } from "@/lib/studio/multi";
+import { multiFormFactorSummary, multiUnitOptions, type HeadPool } from "@/lib/studio/multi";
 
 /* one unit staged for comparison — self-contained (brand + option + chosen
    pair) so the comparison survives brand switches and never re-reads a pack */
@@ -124,6 +124,7 @@ export function UnitBrowser({
   brandLocked = false,
   detailHost,
   addNote,
+  pool = "multi",
 }: {
   pack: DataPack;
   loadKw: number | null;
@@ -134,6 +135,8 @@ export function UnitBrowser({
   onClose?: () => void;
   /** which flow is driving — see BrowserMode. Defaults to the split's. */
   mode?: BrowserMode;
+  /** per-room mode's heads: a multi's (the default) or a VRF's */
+  pool?: HeadPool;
   /** set inside another window (the system builder): no overlay and no title
       bar, and the keys are its own only while focus is inside it */
   embedded?: boolean;
@@ -227,9 +230,9 @@ export function UnitBrowser({
   const tabs = useMemo(
     () =>
       perRoom
-        ? multiFormFactorSummary(pack, loadKw, basis)
+        ? multiFormFactorSummary(pack, loadKw, basis, pool)
         : formFactorSummary(pack, loadKw, basis, phase),
-    [perRoom, pack, loadKw, basis, phase]
+    [perRoom, pack, loadKw, basis, phase, pool]
   );
 
   /* A search reaches every style, not just the open tab: each tab counts
@@ -239,7 +242,7 @@ export function UnitBrowser({
   const searchedTabs = useMemo(() => {
     if (!q) return tabs;
     const rows = perRoom
-      ? multiUnitOptions(pack, { loadKw, basis, formFactor: null })
+      ? multiUnitOptions(pack, { loadKw, basis, formFactor: null, pool })
       : unitOptions(pack, { loadKw, basis, formFactor: null, phase });
     const count = new Map<FormFactor, number>();
     const fitCount = new Map<FormFactor, number>();
@@ -254,7 +257,7 @@ export function UnitBrowser({
       count: count.get(t.formFactor) ?? 0,
       fitCount: fitCount.get(t.formFactor) ?? 0,
     }));
-  }, [q, tabs, perRoom, pack, loadKw, basis, phase]);
+  }, [q, tabs, perRoom, pack, loadKw, basis, phase, pool]);
 
   /** default tab: the first tab (in prevalence order — wall-mounted leads)
       holding a clean fit, else the best-fit option's tab, else the first tab */
@@ -280,13 +283,13 @@ export function UnitBrowser({
     if (fit) return fit.formFactor;
     if (loadKw != null) {
       const all = perRoom
-        ? multiUnitOptions(pack, { loadKw, basis })
+        ? multiUnitOptions(pack, { loadKw, basis, pool })
         : unitOptions(pack, { loadKw, basis, formFactor: null, phase });
       const rec = all.find((o) => o.bestFit);
       if (rec) return rec.idu.form_factor;
     }
     return tabs[0]?.formFactor ?? null;
-  }, [formFactor, tab, tabs, searchedTabs, q, pack, loadKw, basis, phase, perRoom]);
+  }, [formFactor, tab, tabs, searchedTabs, q, pack, loadKw, basis, phase, perRoom, pool]);
 
   /* One row shape, two sources. A pair row carries its outdoor pairings; a
      per-room row has none, because a multi's outdoor is chosen once for the
@@ -295,6 +298,7 @@ export function UnitBrowser({
     const rows: BrowserRow[] =
       perRoom
         ? multiUnitOptions(pack, {
+            pool,
             loadKw,
             basis,
             formFactor: activeTab,
@@ -332,7 +336,7 @@ export function UnitBrowser({
       for (const r of hits) if (r.fit === "fits" && (!best || r.capacityKw < best.capacityKw)) best = r;
     }
     return hits.map((r) => ({ ...r, bestFit: r === best }));
-  }, [perRoom, pack, loadKw, basis, activeTab, phase, filters, sort, q]);
+  }, [perRoom, pack, loadKw, basis, activeTab, phase, filters, sort, q, pool]);
 
   /* the airflow filter belongs to every ducted-airway form, not the "ducted"
      tab alone — bulkhead units are air-capable and carry the same figure */
@@ -528,7 +532,7 @@ export function UnitBrowser({
     const qq = squash(value);
     if (!qq) return;
     const rows = perRoom
-      ? multiUnitOptions(pack, { loadKw, basis, formFactor: null })
+      ? multiUnitOptions(pack, { loadKw, basis, formFactor: null, pool })
       : unitOptions(pack, { loadKw, basis, formFactor: null, phase });
     const hits = rows.filter((r) => unitMatchesQuery(r.idu, qq));
     if (hits.some((r) => r.idu.form_factor === activeTab)) return;

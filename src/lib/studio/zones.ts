@@ -21,9 +21,10 @@
    moveZone) live in builder.ts, beside the other allocation writes. */
 
 import { newId, type DesignDocument, type DesignObject, type DesignSystem } from "./document";
-import type { DataPack } from "./packs/schema";
+import type { DataPack, IndoorUnit } from "./packs/schema";
 import { allocationsOf, hasAllocations, type Allocation } from "./allocations";
 import { nextSystemColour } from "./modules";
+import { allVrfOnly, isVrfHead } from "./vrf";
 import type { RoomObj } from "./loads-room";
 
 const isRoom = (o: DesignObject): o is RoomObj =>
@@ -177,26 +178,35 @@ export function familyOf(sys: DesignSystem): SystemFamily {
 }
 
 /** the type a system's units say it is, written onto `type` by every builder
-    write. A unit serving the whole system makes it ducted; two heads, or a
-    multi outdoor, make it a multi; one head a split. With nothing in it the
-    family stands in, so the outdoor list and the proposal start right. Types
-    the builder does not build (VRF, ventilation, sheet metal) are kept. */
+    write. A VRF outdoor makes it a VRF whatever else is in it, and so do
+    heads that are VRF heads only (City Multi) or a VRF family its heads can
+    all join; a unit serving the whole system makes it ducted; two heads, or
+    a multi outdoor, make it a multi; one head a split. With nothing in it
+    the family stands in, so the outdoor list and the proposal start right.
+    Types the builder does not build (ventilation, sheet metal) are kept. */
 export function systemTypeFor(
   sys: DesignSystem,
   allocs: Allocation[],
   pack: DataPack | null
 ): DesignSystem["type"] {
-  if (sys.type !== "split" && sys.type !== "multi-split" && sys.type !== "ducted") return sys.type;
+  if (sys.type !== "split" && sys.type !== "multi-split" && sys.type !== "ducted" && sys.type !== "vrf")
+    return sys.type;
+  const odu = allocs.find((a) => a.role === "odu" && a.model);
+  const oduRow = odu && pack ? pack.outdoor_units.find((u) => u.model === odu.model) : undefined;
+  if (oduRow?.system_type === "vrf") return "vrf";
+  if (odu && !pack && sys.type === "vrf") return "vrf";
   const heads = allocs.filter((a) => a.role === "idu" && a.model);
+  if (pack && !oduRow) {
+    const rows = heads
+      .map((a) => pack.indoor_units.find((u) => u.model === a.model))
+      .filter((u): u is IndoorUnit => u != null);
+    if (allVrfOnly(rows)) return "vrf";
+    if (familyOf(sys) === "vrf" && rows.every((u) => isVrfHead(pack, u))) return "vrf";
+  }
   if (heads.some((a) => a.serves === "system")) return "ducted";
   if (heads.length >= 2) return "multi-split";
-  const odu = allocs.find((a) => a.role === "odu" && a.model);
-  if (odu && pack) {
-    const row = pack.outdoor_units.find((u) => u.model === odu.model);
-    if (row?.system_type === "multi") return "multi-split";
-    if (row?.system_type === "vrf") return "vrf";
-    if (row?.system_type === "split") return "split";
-  }
+  if (oduRow?.system_type === "multi") return "multi-split";
+  if (oduRow?.system_type === "split") return "split";
   if (odu && !pack) return sys.type === "multi-split" ? "multi-split" : "split";
   return familyOf(sys) === "multi" ? "multi-split" : "split";
 }

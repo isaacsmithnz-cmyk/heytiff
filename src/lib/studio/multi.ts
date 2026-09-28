@@ -17,7 +17,7 @@ import type {
   MultiRule,
   OutdoorUnit,
 } from "./packs/schema";
-import { outdoorReadiness } from "./packs/ready";
+import { indoorReadiness, outdoorReadiness } from "./packs/ready";
 import { capacityFit, type UnitFit } from "./fit";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 import {
@@ -110,6 +110,18 @@ export function multiCapableIdus(
   );
 }
 
+/** indoor units a VRF outdoor can take: the ones the book gives a capacity
+    index and the VRF role (ready.ts "vrf-idu" — City Multi heads). A multi's
+    heads are not VRF heads, and the other way round. */
+export function vrfCapableIdus(pack: DataPack): IndoorUnit[] {
+  return pack.indoor_units.filter((u) => indoorReadiness(pack, u).roles["vrf-idu"]);
+}
+
+/** the heads a per-zone family draws from */
+export type HeadPool = "multi" | "vrf";
+const poolOf = (pack: DataPack, pool: HeadPool): IndoorUnit[] =>
+  pool === "vrf" ? vrfCapableIdus(pack) : multiCapableIdus(pack);
+
 /* ─────────────────────── per-room IDU proposals ─────────────────────── */
 
 /** Oversize cap for the per-room ranking — mirrors select.ts (OVERSIZE_CAP). */
@@ -132,9 +144,10 @@ export interface MultiIduProposal {
 export function proposeMultiIdus(
   pack: DataPack,
   loadKw: number | null,
-  basis: SizingBasis
+  basis: SizingBasis,
+  pool: HeadPool = "multi"
 ): MultiIduProposal[] {
-  const all: MultiIduProposal[] = multiCapableIdus(pack).map((idu) => {
+  const all: MultiIduProposal[] = poolOf(pack, pool).map((idu) => {
     const capacityKw = sizingCapacityKw(idu, basis);
     return {
       idu,
@@ -166,6 +179,7 @@ export interface MultiFinding {
     | "outside-index-band"
     | "not-in-combination-table"
     | "ratio-under"
+    | "not-vrf-head"
     | "ratio-over"
     | "index-unknown"
     | "capacity-code-unknown"
@@ -174,7 +188,7 @@ export interface MultiFinding {
   message: string;
 }
 
-function checkBlock(
+export function checkBlock(
   c: CompatibilityRule,
   odu: OutdoorUnit,
   idus: IndoorUnit[]
@@ -432,6 +446,8 @@ export interface MultiSelectCriteria {
   formFactor?: FormFactor | null;
   filters?: SelectFilters;
   sort?: SelectSort;
+  /** whose heads: a multi's (the default) or a VRF's */
+  pool?: HeadPool;
 }
 
 /** Multi-capable indoor units for ONE room: filtered, ranked and flagged the
@@ -440,9 +456,9 @@ export function multiUnitOptions(
   pack: DataPack,
   criteria: MultiSelectCriteria
 ): MultiIduProposal[] {
-  const { loadKw, basis, formFactor = null, filters = {}, sort = "capacity" } = criteria;
+  const { loadKw, basis, formFactor = null, filters = {}, sort = "capacity", pool = "multi" } = criteria;
 
-  let rows = proposeMultiIdus(pack, loadKw, basis).filter(
+  let rows = proposeMultiIdus(pack, loadKw, basis, pool).filter(
     (p) => formFactor == null || p.idu.form_factor === formFactor
   );
 
@@ -501,9 +517,10 @@ export function multiUnitOptions(
 export function multiFormFactorSummary(
   pack: DataPack,
   loadKw: number | null,
-  basis: SizingBasis
+  basis: SizingBasis,
+  pool: HeadPool = "multi"
 ): FormFactorCount[] {
-  const rows = proposeMultiIdus(pack, loadKw, basis);
+  const rows = proposeMultiIdus(pack, loadKw, basis, pool);
   const counts = new Map<FormFactor, Set<string>>();
   const fits = new Map<FormFactor, Set<string>>();
   for (const p of rows) {

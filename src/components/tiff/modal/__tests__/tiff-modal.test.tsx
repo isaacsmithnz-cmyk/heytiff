@@ -313,6 +313,37 @@ describe("talking", () => {
     expect(within(d).getByRole("textbox", { name: "Reply to Tiff" })).toBeInTheDocument();
   });
 
+  it("a read with nothing to file is not filed: the note is set aside and Tiff answers the words", async () => {
+    /* "Open up Isaac Smith" missed the move test, and the router read it as
+       nothing to file; filing it said "Done." with an Undo over nothing. */
+    routeNote.mockResolvedValue(
+      routed({ say: "That looks like a request to open a profile rather than a site note, so there's nothing to file." })
+    );
+    askBrain.mockImplementationOnce((_input, h) => {
+      h.onDelta("Opening Isaac Smith.");
+      h.onDone();
+    });
+    const user = await openModal();
+    await say(user, "Open up Isaac Smith.");
+    await flush();
+
+    expect(fileNote).not.toHaveBeenCalled();
+    expect(dismissNote).toHaveBeenCalledWith("n1");
+    expect(askBrain.mock.calls[0][0]).toMatchObject({ question: "Open up Isaac Smith." });
+    expect(within(convo()).getByText("Opening Isaac Smith.")).toBeInTheDocument();
+    expect(within(dialog()).queryByRole("button", { name: "Undo" })).toBeNull();
+  });
+
+  it("a remark alone is still filed: nothing to file means no row, no remark and no question", async () => {
+    routeNote.mockResolvedValue(routed({ say: "Kept as a note.", plainNote: "Long day on the roof." }));
+    fileNote.mockResolvedValue({ ...filedOk, doors: [] });
+    const user = await openModal();
+    await say(user, "long day on the roof");
+    await flush();
+    expect(fileNote).toHaveBeenCalledWith("n1", { leaveOut: [] });
+    expect(askBrain).not.toHaveBeenCalled();
+  });
+
   it("asks when something is unclear: the rows, the one that needs an answer, and quick answers", async () => {
     routeNote.mockResolvedValue(
       routed({

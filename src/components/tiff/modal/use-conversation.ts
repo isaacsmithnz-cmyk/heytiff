@@ -28,6 +28,7 @@ import {
   type CalendarResult,
 } from "@/app/actions/calendar";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
+import { filesNothing } from "@/lib/workboard/note-draft";
 import type { NoteDoor, NoteDoorKind } from "@/lib/workboard/note-applied";
 import { KEPT_AS_SAID, WHICH_JOB, earlierTurns, type EarlierTurn, type TiffRoom } from "@/lib/workboard/note-turns";
 import { notedLine } from "@/lib/calendar/line";
@@ -472,6 +473,16 @@ export function useConversation({
       if (res.kept) changed.current = true;
       if (res.kept && res.noteId) filed.current = [...filed.current, { noteId: res.noteId, ids: [] }];
       return settle(() => tiffSays(res.error, res.kept ? "filed" : "failed"));
+    }
+    /* NOTHING TO FILE IS NOT A NOTE. A request the move test doesn't know
+       ("open up Isaac Smith") reads as nothing to file, and filing it said
+       "Done." with an Undo over nothing. The note is set aside and Tiff
+       answers the words instead, which covers every phrasing the test misses
+       until Phase 2's one conversation retires it. A reply to her question
+       never comes here: `reply` reads it. */
+    if (filesNothing(res.proposal)) {
+      walkAway(res.noteId);
+      return ask(words, before);
     }
     read(res);
   };

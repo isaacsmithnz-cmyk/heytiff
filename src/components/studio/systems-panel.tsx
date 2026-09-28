@@ -461,10 +461,18 @@ function SystemCard({
                     Next: Install questions
                   </button>
                 ) : null}
+                {/* the questions stay reachable when they are not the next
+                    step: answered already, or a changed system put units
+                    back on the rack (a split made a multi, 2026-09-28) */}
                 <div className="ds-zp-acts">
                   <button className="ds-zp-wide" onClick={onBuild}>
                     Edit system
                   </button>
+                  {(rack.length > 0 || install === "complete") && (
+                    <button className="ds-zp-wide" onClick={onInstall}>
+                      Install questions
+                    </button>
+                  )}
                 </div>
               </>
             )}

@@ -76,8 +76,7 @@ const PART_LABEL: Record<SendPart, string> = {
 
 const AUDIENCE_LABEL: Record<SendAudience, string> = {
   customer: "The customer",
-  crew: "The install crew",
-  office: "The office",
+  crew: "The install team",
 };
 
 type LinkState =
@@ -603,7 +602,7 @@ export function SendCard({
             <div className="ds-export-grp">
               <span className="ds-export-cap" id="ds-send-who">Who is it for?</span>
               <div className="ds-export-segs" role="group" aria-labelledby="ds-send-who">
-                {(["customer", "crew", "office"] as const).map((a) =>
+                {(["customer", "crew"] as const).map((a) =>
                   seg(AUDIENCE_LABEL[a], audience === a, () => choose(a))
                 )}
               </div>
@@ -676,7 +675,71 @@ export function SendCard({
         </div>
 
         <div className="ds-send-r">
-          <span className="ds-export-cap">{dest === "link" ? "The customer opens" : "Preview"}</span>
+          {/* PINNED: what this is a preview of, and the page it will print on.
+              The page setup used to sit under the preview and scroll away
+              with it; it is a setting of the whole document, so it stays put
+              above it (Isaac, 2026-09-28). */}
+          <div className="ds-send-rhead">
+            <span className="ds-export-cap">{dest === "link" ? "The customer opens" : "Preview"}</span>
+            {dest === "pdf" && (
+              <>
+                <b>{pageLine}</b>
+                <button
+                  className="ds-send-lnk"
+                  onClick={() => setSetupOpen((o) => !o)}
+                  aria-expanded={setupOpen}
+                >
+                  {setupOpen ? "Done" : "Change"}
+                </button>
+              </>
+            )}
+          </div>
+
+          {dest === "pdf" && setupOpen && (
+            <div className="ds-send-setupx">
+              <div className="ds-export-segs">
+                {seg("A4", opts.paper === "A4", () => patch({ paper: "A4" }))}
+                {seg("A3", opts.paper === "A3", () => patch({ paper: "A3" }))}
+              </div>
+              <div className="ds-export-segs">
+                {seg("Portrait", opts.orientation === "portrait", () => patch({ orientation: "portrait" }))}
+                {seg("Landscape", opts.orientation === "landscape", () =>
+                  patch({ orientation: "landscape" })
+                )}
+              </div>
+              <div className="ds-send-drawing">
+                {(
+                  [
+                    ["plan", "Floor plan"],
+                    ["units", "Units"],
+                    ["pipes", "Pipework"],
+                    ["labels", "Labels"],
+                  ] as [keyof ExportOptions["layers"], string][]
+                ).map(([k, label]) => (
+                  <label key={k} className="ds-export-row">
+                    <input
+                      type="checkbox"
+                      checked={opts.layers[k]}
+                      onChange={() => patch({ layers: { ...opts.layers, [k]: !opts.layers[k] } })}
+                    />
+                    {label}
+                  </label>
+                ))}
+                <label className="ds-export-row">
+                  <input
+                    type="checkbox"
+                    checked={opts.grayscale}
+                    onChange={() => patch({ grayscale: !opts.grayscale })}
+                  />
+                  Black and white
+                </label>
+                <label className="ds-export-row">
+                  <input type="checkbox" checked={opts.legend} onChange={() => patch({ legend: !opts.legend })} />
+                  Legend
+                </label>
+              </div>
+            </div>
+          )}
 
           {dest === "link" && (
             <div className="ds-send-link">
@@ -717,14 +780,17 @@ export function SendCard({
             </div>
           )}
 
-          {/* THE DOCUMENT ITSELF, shrunk: the same SheetDoc the customer and the
-              paper get, with the same ticks. Inert — it is a picture. */}
-          {nothing ? (
-            <p className="ds-send-empty">Nothing ticked yet.</p>
-          ) : (
-            <div className="ds-send-pv" inert aria-hidden="true">
-              {(hasSheet(sections) || dest === "link") && (
-                <Shrunk>
+          {/* THE DOCUMENT ITSELF, shrunk: the same SheetDoc and PlanFigure the
+              customer and the paper get, with the same ticks, laid out at a
+              desk width and scaled so every line keeps its printed weight.
+              Only this scrolls. Inert — it is a picture. */}
+          <div className="ds-send-rscroll">
+            {nothing ? (
+              <p className="ds-send-empty">Nothing ticked yet.</p>
+            ) : (
+              <div className="ds-send-pv" inert aria-hidden="true">
+                {(hasSheet(sections) || dest === "link") && (
+                  <Shrunk>
                     <SheetDoc
                       doc={doc}
                       model={model}
@@ -738,114 +804,51 @@ export function SendCard({
                       {sections.picklist && dest === "pdf" && <PicklistSection rows={model.picklist} />}
                       {dest === "link" && <SheetPlans doc={doc} floors={floorsOn} urls={previewUrls} />}
                     </SheetDoc>
-                </Shrunk>
-              )}
-              {dest === "pdf" &&
-                floorsOn.map((f) => (
-                  <div key={f.id} className="ds-send-page">
-                    <PlanFigure
-                      doc={doc}
-                      floor={f}
-                      layers={opts.layers}
-                      grayscale={opts.grayscale}
-                      legend={opts.legend}
-                      urls={previewUrls}
-                    />
-                    <span>{floorDisplayName(f)}</span>
-                  </div>
+                  </Shrunk>
+                )}
+                {dest === "pdf" &&
+                  floorsOn.map((f) => (
+                    <div key={f.id} className="ds-send-plan">
+                      <Shrunk>
+                        <div className="ds-send-plan-in">
+                          <PlanFigure
+                            doc={doc}
+                            floor={f}
+                            layers={opts.layers}
+                            grayscale={opts.grayscale}
+                            legend={opts.legend}
+                            urls={previewUrls}
+                          />
+                        </div>
+                      </Shrunk>
+                      <span>{floorDisplayName(f)}</span>
+                    </div>
+                  ))}
+                {othersOn.map((v) => (
+                  <span key={v.id} className="ds-act-s">
+                    Then {v.label}, with the same parts.
+                  </span>
                 ))}
-              {othersOn.map((v) => (
-                <span key={v.id} className="ds-act-s">
-                  Then {v.label}, with the same parts.
-                </span>
-              ))}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
           {dest === "pdf" && (
-            <>
-              <div className="ds-send-setup">
-                <span className="ds-export-cap">Page</span>
-                <b>{pageLine}</b>
-                <button
-                  className="ds-send-lnk"
-                  onClick={() => setSetupOpen((o) => !o)}
-                  aria-expanded={setupOpen}
-                >
-                  {setupOpen ? "Done" : "Change"}
-                </button>
-              </div>
-              {setupOpen && (
-                <div className="ds-export-opts">
-                  <div className="ds-export-grp">
-                    <span className="ds-export-cap">Paper</span>
-                    <div className="ds-export-segs">
-                      {seg("A4", opts.paper === "A4", () => patch({ paper: "A4" }))}
-                      {seg("A3", opts.paper === "A3", () => patch({ paper: "A3" }))}
-                    </div>
-                    <div className="ds-export-segs">
-                      {seg("Portrait", opts.orientation === "portrait", () =>
-                        patch({ orientation: "portrait" })
-                      )}
-                      {seg("Landscape", opts.orientation === "landscape", () =>
-                        patch({ orientation: "landscape" })
-                      )}
-                    </div>
-                  </div>
-                  <div className="ds-export-grp">
-                    <span className="ds-export-cap">Drawing</span>
-                    {(
-                      [
-                        ["plan", "Floor plan"],
-                        ["units", "Units"],
-                        ["pipes", "Pipework"],
-                        ["labels", "Labels"],
-                      ] as [keyof ExportOptions["layers"], string][]
-                    ).map(([k, label]) => (
-                      <label key={k} className="ds-export-row">
-                        <input
-                          type="checkbox"
-                          checked={opts.layers[k]}
-                          onChange={() => patch({ layers: { ...opts.layers, [k]: !opts.layers[k] } })}
-                        />
-                        {label}
-                      </label>
-                    ))}
-                    <label className="ds-export-row">
-                      <input
-                        type="checkbox"
-                        checked={opts.grayscale}
-                        onChange={() => patch({ grayscale: !opts.grayscale })}
-                      />
-                      Black and white
-                    </label>
-                    <label className="ds-export-row">
-                      <input
-                        type="checkbox"
-                        checked={opts.legend}
-                        onChange={() => patch({ legend: !opts.legend })}
-                      />
-                      Legend on the drawing
-                    </label>
-                  </div>
-                </div>
-              )}
-              <div className="ds-send-also">
-                <span className="ds-export-cap">Also</span>
-                <button
-                  className="ds-send-lnk"
-                  onClick={() => void exportPngs()}
-                  disabled={pnging || pngFloors.length === 0}
-                >
-                  {pnging
-                    ? "Drawing…"
-                    : `Plans as ${pngFloors.length === 1 ? "an image" : `${pngFloors.length} images`}`}
-                </button>
-                <button className="ds-send-lnk" onClick={onExportJson}>
-                  Design file
-                </button>
-              </div>
-            </>
+            <div className="ds-send-also">
+              <span className="ds-export-cap">Also</span>
+              <button
+                className="ds-send-lnk"
+                onClick={() => void exportPngs()}
+                disabled={pnging || pngFloors.length === 0}
+              >
+                {pnging
+                  ? "Drawing…"
+                  : `Plans as ${pngFloors.length === 1 ? "an image" : `${pngFloors.length} images`}`}
+              </button>
+              <button className="ds-send-lnk" onClick={onExportJson}>
+                Design file
+              </button>
+            </div>
           )}
         </div>
       </SummaryModal>

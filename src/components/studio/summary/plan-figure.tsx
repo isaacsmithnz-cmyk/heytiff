@@ -259,8 +259,6 @@ export function PlanFigure({
         .ds-pf .ds-unit rect { fill: #fff; stroke: currentColor; stroke-width: 1.6px; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-unit-detail { fill: none; stroke: currentColor; stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-unit-hub { fill: currentColor; stroke: none; }
-        .ds-pf .ds-unit-role { fill: currentColor; text-anchor: middle; font-weight: 800; }
-        .ds-pf .ds-unit-model { fill: #3c4356; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; font-weight: 700; }
         /* A CALLOUT PRINTS, so its words are text on white paper and the note
            palette's 4.5:1 floor applies — which four of the six system colours
            fail (amber 2.0, teal 3.1, orange 3.7, violet 4.1). The identity
@@ -413,44 +411,21 @@ export function PlanFigure({
               ? { w: widthMm / scale, h: depthMm / scale }
               : { w: 45 * u, h: 45 * u * (depthMm / Math.max(widthMm, 1)) };
             const role = String(o.props.role ?? "idu");
-            /* a turned unit prints turned — same rule as the canvas: the glyph
-               rotates, the labels under it stay upright and readable */
+            /* a turned unit prints turned — same rule as the canvas */
             const rot = (o.geometry as { rotation?: number }).rotation ?? 0;
+            /* THE UNIT IS ITS GLYPH, AS IT IS ON THE CANVAS. Paper used to stamp
+               "IDU"/"ODU" inside every footprint and the model under it,
+               because paper cannot be hovered. On a whole-site sheet the
+               footprints are small and the words piled onto each other, the
+               run lengths and the notes — Isaac, 2026-09-28: it "shows up
+               differently to what's on the actual design page". What names a
+               unit on paper is what names it on the canvas: its callout,
+               where somebody placed it, and the rooms table under the plan. */
             return (
               <g key={o.id} className="ds-unit" style={{ color: colourOf(o) }}>
                 <g transform={rot ? `rotate(${rot} ${at.x} ${at.y})` : undefined}>
                   {unitGlyph(at.x, at.y, fp.w, fp.h, role, 1 / u)}
                 </g>
-                {layers.labels && (
-                  <>
-                    <text
-                      x={at.x}
-                      y={at.y + 4 * u}
-                      fontSize={11 * u}
-                      className="ds-unit-role"
-                    >
-                      {role.toUpperCase()}
-                    </text>
-                    {/* A UNIT THAT CARRIES A CALLOUT STOPS SAYING ITS OWN
-                        MODEL. Paper keeps the labels the canvas dropped
-                        because paper cannot be hovered — but the moment
-                        somebody has placed a callout, that IS the label, and
-                        printing both puts the model on the sheet twice, once
-                        squeezed under a footprint and once where it was put on
-                        purpose. The ROLE stays: it is one word, it sits inside
-                        the glyph, and the callout does not repeat it. */}
-                    {!calloutOf(o) && (
-                      <text
-                        x={at.x}
-                        y={at.y + fp.h / 2 + 13 * u}
-                        fontSize={10 * u}
-                        className="ds-unit-model"
-                      >
-                        {String(o.props.model ?? "")}
-                      </text>
-                    )}
-                  </>
-                )}
               </g>
             );
           })}

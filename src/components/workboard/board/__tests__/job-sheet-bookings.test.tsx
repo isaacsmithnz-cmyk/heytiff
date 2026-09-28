@@ -42,6 +42,8 @@ jest.mock("@/app/actions/job-photo-favourites", () => ({
   setJobPhotoFavourite: jest.fn(async () => ({ ok: true, starred: false, note: null })),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
+const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
+jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: jest.fn(async () => ({ ok: false, error: "no" })),
   dismissNote: jest.fn(async () => ({ ok: true, summary: "" })),

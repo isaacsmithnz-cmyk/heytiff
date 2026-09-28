@@ -24,6 +24,8 @@ jest.mock("next/navigation", () => ({
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
 
 const routeNote = jest.fn();
+const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
+jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: (...a: unknown[]) => routeNote(...a),
   continueNote: jest.fn(),

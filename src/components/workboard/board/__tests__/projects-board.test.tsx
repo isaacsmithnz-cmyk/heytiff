@@ -74,6 +74,8 @@ jest.mock("@/app/actions/workboard", () => ({
 
 const clearFlag = jest.fn(async () => ({ ok: true }));
 const restoreFlag = jest.fn(async () => ({ ok: true }));
+const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
+jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   clearFlag: (...a: unknown[]) => clearFlag(...(a as [])),
   restoreFlag: (...a: unknown[]) => restoreFlag(...(a as [])),

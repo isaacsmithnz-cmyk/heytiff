@@ -36,6 +36,8 @@ const undoNote = jest.fn();
 const keepWords = jest.fn();
 const publishNoteKb = jest.fn();
 const dismissNote = jest.fn();
+const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
+jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: (...a: unknown[]) => routeNote(...a),
   continueNote: (...a: unknown[]) => continueNote(...a),

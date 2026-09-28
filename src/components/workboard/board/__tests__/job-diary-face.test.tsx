@@ -16,6 +16,8 @@ import type { NoteSender } from "@/lib/integrations/links";
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
+const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
+jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: jest.fn(),
   dismissNote: jest.fn(),

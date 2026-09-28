@@ -43,6 +43,7 @@ jest.mock("@/lib/workboard/all-jobs-query", () => ({
 
 import { ALL_SCREENS } from "@/components/shell/nav";
 import { TIFF_TOOLS, runTool, toolsFor, type Outcome, type Viewer } from "..";
+import { openByName } from "../screens";
 
 const viewer = (caps: string[], role: Viewer["role"] = "staff"): Viewer => ({
   orgId: "org-1",
@@ -182,5 +183,68 @@ describe("open_record", () => {
     const record = /^\/dashboard\/(team\/[^/?]+|workboard\?(job|q)=[^&]+|workboard\/projects\/[^/?]+)$/;
     for (const href of moves) expect(allowed.has(href) || record.test(href)).toBe(true);
     expect(moves.length).toBeGreaterThan(ALL_SCREENS.length - 2);
+  });
+});
+
+describe("openByName, the free open", () => {
+  /* "Open up Isaac Smith" cost two model calls to do what the search box
+     does for nothing. It opens only on exactly one exact match the viewer
+     may open; anything else is null, and the words go on as they would have. */
+  const both = viewer(["team", "workboard"]);
+  const staff = (id: string, name: string) => ({ id, name, known: null, initials: "", title: "", active: true });
+
+  it("opens a person by their whole name, at their card, with her line", async () => {
+    expect(await openByName(both, "dane porter")).toEqual({
+      kind: "screen",
+      href: expect.stringContaining("s-1"),
+      label: "Dane Porter's card",
+      line: "Opening Dane Porter's card.",
+    });
+  });
+
+  it("opens a person by a first name only one of them has", async () => {
+    expect(await openByName(both, "Dane")).toMatchObject({ label: "Dane Porter's card" });
+  });
+
+  it("opens nothing on a first name two people share", async () => {
+    searchStaff.mockResolvedValueOnce([staff("s-1", "Dane Porter"), staff("s-2", "Dane Irving")]);
+    expect(await openByName(both, "dane")).toBeNull();
+  });
+
+  it("opens nothing on a near match: only an exact name opens", async () => {
+    expect(await openByName(both, "dane p")).toBeNull();
+    expect(await openByName(both, "ceiling")).toBeNull();
+  });
+
+  it("opens a client or a project by its whole name", async () => {
+    searchClients.mockResolvedValueOnce([{ uuid: "c-1", name: "Meridian Data", address: null }]);
+    expect(await openByName(both, "meridian data")).toMatchObject({ label: "Meridian Data" });
+    searchProjects.mockResolvedValueOnce([{ id: "p-1", name: "Harbour Rd fit-out", clientName: null, siteLabel: null, stage: null }]);
+    expect(await openByName(both, "Harbour Rd fit-out")).toMatchObject({ label: "Harbour Rd fit-out" });
+  });
+
+  it("opens nothing when a person and a client share the name", async () => {
+    searchClients.mockResolvedValueOnce([{ uuid: "c-1", name: "Dane Porter", address: null }]);
+    expect(await openByName(both, "dane porter")).toBeNull();
+  });
+
+  it("opens a job by its number", async () => {
+    searchAllMirrorJobs.mockResolvedValueOnce([{ remoteId: "j-1", jobNumber: "1044", clientName: "Meridian Data", status: "Work Order" }]);
+    expect(await openByName(both, "job 1044")).toMatchObject({ label: "#1044 — Meridian Data" });
+  });
+
+  it("never opens what the viewer can't: a staff card needs Team", async () => {
+    expect(await openByName(viewer(["workboard"]), "dane porter")).toBeNull();
+    expect(searchStaff).not.toHaveBeenCalled();
+  });
+
+  it("a search that fails opens nothing", async () => {
+    searchStaff.mockRejectedValueOnce(new Error("db down"));
+    expect(await openByName(both, "dane porter")).toBeNull();
+  });
+
+  it("a match in another org is not there", async () => {
+    searchStaff.mockResolvedValueOnce([staff("s-9", "Other Org")]);
+    expect(await openByName(both, "other org")).toBeNull();
   });
 });

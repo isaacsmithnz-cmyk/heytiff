@@ -34,6 +34,8 @@ import { KEPT_AS_SAID, WHICH_JOB, earlierTurns, type EarlierTurn, type TiffRoom 
 import { notedLine } from "@/lib/calendar/line";
 import { askLine, calendarRows, lastTiff, planView, tiffSince, type PlanRowView } from "./plan-view";
 import { quietLimit } from "./quiet";
+import { openRecordByName, type OpenResult } from "@/app/actions/tiff-open";
+import { openName, parseMove } from "@/lib/tiff/moves";
 import type { TiffLanded } from "./tiff-context";
 
 /* ONE CONVERSATION WITH TIFF — the modal's state, once.
@@ -588,6 +590,28 @@ export function useConversation({
     );
   };
 
+  /** THE FREE OPEN: "open up Isaac Smith" opens the one record called
+      exactly that with no model call (actions/tiff-open), her line on
+      screen first as a move's always is. Nothing matched, or it could not
+      be checked, and the words go on as they would have (`onward`). */
+  const tryOpen = async (words: string, onward: () => void) => {
+    let r: OpenResult = null;
+    try {
+      r = await openRecordByName(words);
+    } catch {
+      r = null;
+    }
+    if (!alive.current) return;
+    if (!r) return onward();
+    const opened = r;
+    askedBack.current = false;
+    settle(() => {
+      if (!alive.current) return;
+      tiffSays(opened.line, "editing");
+      onLeave?.(opened.href);
+    });
+  };
+
   /* ── the calendar's room ── */
 
   /** Everything said for a line that is kept as said: the line and its answers. */
@@ -658,11 +682,16 @@ export function useConversation({
   const toCalendar = (words: string, source: "voice" | "text", before: readonly ModalTurn[]) => {
     const waiting = dayAsk.current;
     if (waiting) return void fileLine({ ...waiting, answers: [...waiting.answers, words] });
-    if (looksLikeMove(words)) return ask(words, before, true);
-    if (askedBack.current || looksLikeQuestion(words)) return ask(words, before);
-    const on = onCalendar.current;
-    if (on) return void noteOn(on, words);
-    void fileLine({ line: words, source, answers: [] });
+    if (parseMove(words)?.kind === "screen") return ask(words, before, true);
+    const onward = () => {
+      if (looksLikeMove(words)) return ask(words, before, true);
+      if (askedBack.current || looksLikeQuestion(words)) return ask(words, before);
+      const on = onCalendar.current;
+      if (on) return void noteOn(on, words);
+      void fileLine({ line: words, source, answers: [] });
+    };
+    if (openName(words)) return void tryOpen(words, onward);
+    onward();
   };
 
   /** Where a reply goes. `before` is the conversation ahead of these words. */
@@ -673,9 +702,15 @@ export function useConversation({
     /* A MOVE IS NEVER FILED (universal Tiff 1C): "take me to the workboard"
        goes to the ask route, which moves with no model call when it names a
        screen. After a waiting note, so an answer to her question still wins. */
-    if (looksLikeMove(words)) return ask(words, before, true);
-    if (askedBack.current || looksLikeQuestion(words)) return ask(words, before);
-    void route(words, source, before);
+    if (parseMove(words)?.kind === "screen") return ask(words, before, true);
+    const onward = () => {
+      if (looksLikeMove(words)) return ask(words, before, true);
+      if (askedBack.current || looksLikeQuestion(words)) return ask(words, before);
+      void route(words, source, before);
+    };
+    /* "Open up Isaac Smith" is free when the name is exact (`tryOpen`). */
+    if (openName(words)) return void tryOpen(words, onward);
+    onward();
   };
 
   /** Your words become a turn — the live one, if they arrived there. */

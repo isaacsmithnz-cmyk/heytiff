@@ -49,6 +49,8 @@ jest.mock("@/app/actions/diary", () => ({
   showConversation: (...a: unknown[]) => showConversation(...a),
 }));
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: jest.fn() }));
+const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
+jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: jest.fn(),
   routeNote: jest.fn(),

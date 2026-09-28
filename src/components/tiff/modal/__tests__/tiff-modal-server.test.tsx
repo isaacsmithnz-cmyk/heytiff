@@ -18,6 +18,8 @@ jest.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
 }));
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: () => {} }));
+const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
+jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: () => new Promise(() => {}),
   continueNote: () => new Promise(() => {}),

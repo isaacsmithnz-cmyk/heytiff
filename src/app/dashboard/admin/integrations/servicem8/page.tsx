@@ -215,7 +215,9 @@ export default async function Servicem8IntegrationPage({
       waitingWrites={queue.waitingKinds.attachment}
       waitingNotes={queue.waitingKinds.note}
       waitingBookings={queue.waitingKinds.booking}
-      waitingLeave={queue.waitingKinds.leave}
+      /* only where the deployment sends leave: anywhere else the screen's
+         props are exactly today's (sm8-hooks-prod.test) */
+      {...(kinds.includes("leave") ? { waitingLeave: queue.waitingKinds.leave } : {})}
       previousAccount={previousAccount ? { name: previousAccount.from, at: previousAccount.at } : null}
       /* only when there is something to say: otherwise the props are today's */
       {...(liveUpdates ? { liveUpdates } : {})}

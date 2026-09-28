@@ -75,8 +75,9 @@ const MODES: { id: Sm8WriteMode; label: string }[] = [
   { id: "live", label: "On" },
 ];
 
-/** How many rows the list draws before it asks. */
-const SHOWN = 20;
+/** How many rows the list draws before it asks: the latest few, beside the
+    mirror, and the rest one press away. */
+const SHOWN = 5;
 
 /** The owner's switch per kind, in this order, a row for each kind the
     deployment allows — drawn only where it allows more than one. */
@@ -183,64 +184,67 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
   const holdOf = (w: RecentSm8Write): SendHold => (more ? view.holds?.[w.kind] ?? view.hold : view.hold);
   const heading = more ? NOTE_WORDS.card.heading : "Sending files to ServiceM8";
 
+  /* One card beside the mirror (2026-09-28): the setting sits in the
+     heading's row, the kinds share one row, and the list is one line a
+     write — what, where and who, and its state. */
   return (
-    <div className="int-grp">
+    <div className="card2 int-wcard">
       <div className="c2h">
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <b>{heading}</b>
           <em>{modeLine(view, more)}</em>
         </div>
+        <div className="wb2-ckseg" role="radiogroup" aria-label={heading}>
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              role="radio"
+              aria-checked={view.mode === m.id}
+              className={view.mode === m.id ? "on" : undefined}
+              disabled={busy}
+              onClick={() => choose(m.id)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="wb2-ckseg int-wmode" role="radiogroup" aria-label={heading}>
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            role="radio"
-            aria-checked={view.mode === m.id}
-            className={view.mode === m.id ? "on" : undefined}
-            disabled={busy}
-            onClick={() => choose(m.id)}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
-
-      {more &&
-        KIND_ROWS.filter((r) => kinds.includes(r.kind)).map(({ kind: k, label, group }) => {
-          const on = ownerKinds.includes(k);
-          return (
-            <div className="c2h" key={k}>
-              <div style={{ minWidth: 0 }}>
+      {more && (
+        <div className="int-kinds">
+          {KIND_ROWS.filter((r) => kinds.includes(r.kind)).map(({ kind: k, label, group }) => {
+            const on = ownerKinds.includes(k);
+            return (
+              <div className="int-kind" key={k}>
                 <b>{label}</b>
+                <div className="wb2-ckseg" role="radiogroup" aria-label={group}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!on}
+                    className={!on ? "on" : undefined}
+                    disabled={busy}
+                    onClick={() => switchKind(k, false)}
+                  >
+                    {NOTE_WORDS.card.off}
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    className={on ? "on" : undefined}
+                    disabled={busy}
+                    onClick={() => switchKind(k, true)}
+                  >
+                    {NOTE_WORDS.card.on}
+                  </button>
+                </div>
               </div>
-              <div className="wb2-ckseg int-wmode" role="radiogroup" aria-label={group}>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={!on}
-                  className={!on ? "on" : undefined}
-                  disabled={busy}
-                  onClick={() => switchKind(k, false)}
-                >
-                  {NOTE_WORDS.card.off}
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  className={on ? "on" : undefined}
-                  disabled={busy}
-                  onClick={() => switchKind(k, true)}
-                >
-                  {NOTE_WORDS.card.on}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      )}
       {error && <div className="int-note bad">{error}</div>}
       {note && <div className="int-note ok">{note}</div>}
 
@@ -264,10 +268,8 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
         ))}
 
       {view.failed > 0 && (
-        <div className="c2h">
-          <div style={{ minWidth: 0 }}>
-            <b>{view.failed === 1 ? "1 didn't go." : `${view.failed} didn't go.`}</b>
-          </div>
+        <div className="int-failed">
+          <b>{view.failed === 1 ? "1 didn't go." : `${view.failed} didn't go.`}</b>
           <button type="button" className="pbtn ghost" disabled={busy} onClick={retry}>
             Retry failed files
           </button>
@@ -275,27 +277,23 @@ export function Sm8WritesCard({ view }: { view: Sm8WritesView }) {
       )}
 
       {shown.length > 0 && (
-        <ul className="int-scopes int-writes">
+        <ul className="int-writes">
           {shown.map((w) => {
             const word = logWord(w.status, w.attempts, holdOf(w));
             return (
               <li key={w.id}>
-                <div className="int-scopehead">
-                  <b className="int-wname">{w.name}</b>
-                  <span className={word.tone ? `int-tag ${word.tone}` : "int-tag"}>{word.word}</span>
-                </div>
+                <b className="int-wname">{w.name}</b>
                 <p>{saysWhy(w) ? `${facts(w)}. ${w.error}` : facts(w)}</p>
+                <span className={word.tone ? `int-tag ${word.tone}` : "int-tag"}>{word.word}</span>
               </li>
             );
           })}
         </ul>
       )}
       {!all && view.recent.length > SHOWN && (
-        <div className="int-act">
-          <button type="button" className="pbtn ghost" onClick={() => setAll(true)}>
-            Show all {view.recent.length}
-          </button>
-        </div>
+        <button type="button" className="int-more" onClick={() => setAll(true)}>
+          Show all {view.recent.length}
+        </button>
       )}
     </div>
   );

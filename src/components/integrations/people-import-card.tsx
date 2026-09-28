@@ -103,8 +103,15 @@ export function PeopleImportCard({
   rows,
   linkable,
   error,
-}: PeopleCardData & { provider: ImportProvider }) {
+  folded = false,
+}: PeopleCardData & {
+  provider: ImportProvider;
+  /** Drawn as its one summary line until Review opens it — the ServiceM8
+      screen, where it sits beside the mirror. */
+  folded?: boolean;
+}) {
   const meta = PROVIDERS[provider];
+  const [unfolded, setUnfolded] = useState(false);
   const router = useRouter();
   const [busy, start] = useTransition();
   const [note, setNote] = useState<{ kind: "ok" | "bad"; text: string } | null>(null);
@@ -181,6 +188,37 @@ export function PeopleImportCard({
   }
   if (rows.length === 0) return null;
 
+  const suggestedCount = pending.filter((r) => r.kind === "suggested").length;
+  const counts =
+    pending.length === 0
+      ? "Everyone in this account is matched to a card here."
+      : `${suggestedCount} possible ${suggestedCount === 1 ? "match" : "matches"}, ${
+          pending.filter((r) => r.kind === "new").length
+        } not here yet, ${linked.length} linked.`;
+
+  /* Folded: the counts and the one way in. Something to review makes Review
+     the filled button; an account with nothing left to settle only offers a
+     look. */
+  if (folded && !unfolded) {
+    return (
+      <div className="card2">
+        <div className="c2h sp-folded">
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <b>People in {meta.label}</b>
+            <em>{counts}</em>
+          </div>
+          <button
+            type="button"
+            className={"pbtn " + (pending.length > 0 ? "primary" : "ghost")}
+            onClick={() => setUnfolded(true)}
+          >
+            {pending.length > 0 ? "Review" : "Show"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const selectable = shown.filter((r) => r.kind === "new");
   const allPicked = selectable.length > 0 && selectable.every((r) => selected.has(r.person.id));
 
@@ -191,12 +229,15 @@ export function PeopleImportCard({
           <b>People in {meta.label}</b>
           <em>
             {pending.length === 0
-              ? "Everyone in this account is matched to a card here."
-              : `${pending.filter((r) => r.kind === "suggested").length} possible ${
-                  pending.filter((r) => r.kind === "suggested").length === 1 ? "match" : "matches"
-                }, ${pending.filter((r) => r.kind === "new").length} not here yet, ${linked.length} linked. Review each field before it lands — untick or edit anything stale.`}
+              ? counts
+              : `${counts} Review each field before it lands — untick or edit anything stale.`}
           </em>
         </div>
+        {folded && (
+          <button type="button" className="pbtn ghost" onClick={() => setUnfolded(false)}>
+            Hide
+          </button>
+        )}
       </div>
 
       {note && <div className={`int-note ${note.kind}`}>{note.text}</div>}

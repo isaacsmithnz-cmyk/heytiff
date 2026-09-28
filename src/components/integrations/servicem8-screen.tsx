@@ -182,10 +182,27 @@ export function Servicem8Screen({
     });
   };
 
+
+  /* The permissions fold to one line once connected and whole (2026-09-28,
+     "way too much information displayed"). Before connecting the list is the
+     preview of the consent screen, and a grant short of what is asked is the
+     thing to read, so both of those open it. */
+  const missingCount = asks.filter((s) => connection?.missing.includes(s.scope)).length;
+  const [permsOpen, setPermsOpen] = useState(!connected || attention);
+  const readCount = SM8_SCOPES.length;
+  const writeCount = asks.length - readCount;
+  const permsLine = [
+    `${readCount} reads${writeCount > 0 ? ` and ${writeCount} write${writeCount === 1 ? "" : "s"}` : ""}${
+      connected ? (missingCount > 0 ? `, ${missingCount} not granted yet.` : ", all granted.") : "."
+    }`,
+    `Powers the ${nameList(provider.uses.map((u) => u.area))}.`,
+  ].join(" ");
+
   return (
     /* Paper to the frame, the title in the band and the way back above it
-       (2026-09-20). The 760 column stays: this is a settings page, and a
-       form is no easier to read for being 1400px wide. */
+       (2026-09-20). Laid out to one screen at 1440 (2026-09-28): the
+       connection across the top, what goes out and what came in side by
+       side, the people and the permissions each folded to a line. */
     <div className="page in full">
       <div className="wrap">
         <div className="stg">
@@ -199,7 +216,7 @@ export function Servicem8Screen({
             title="ServiceM8"
           />
           <ScreenPanel>
-          <div style={{ maxWidth: 760 }}>
+          <div className="int-sm8">
 
           {notice && (
             <div className={"int-note " + (notice.kind === "ok" ? "ok" : "bad")}>{notice.text}</div>
@@ -278,6 +295,9 @@ export function Servicem8Screen({
               </dl>
             )}
 
+            {/* ── when the mirror last moved, and the button that moves it ── */}
+            {connected && sync && <SyncLine sync={sync} busy={busy} onSync={syncNow} />}
+
             {!ready && (
               <div className="int-blocked">
                 <b>ServiceM8 connections aren&apos;t switched on yet</b>
@@ -332,64 +352,70 @@ export function Servicem8Screen({
             />
           </div>
 
-          {/* ── the mirror, object by object ── */}
-          {connected && sync && <MirrorCard sync={sync} busy={busy} onSync={syncNow} />}
-
-          {/* ── the other direction: files sent from a job ── */}
-          {connected && writes && <Sm8WritesCard view={writes} />}
-
-          {/* ── the people reconcile — import is a review, never a copy ── */}
-          {connected && people && <PeopleImportCard provider="servicem8" {...people} />}
-
-          {/* ── what it powers ── */}
-          <div className="int-grp">
-            <div className="c2h">
-              <div>
-                {/* NO SUBTITLE. It read "Connecting is step one — each of
-                    these lands as it's built", which is a roadmap in a
-                    settings screen: it told an owner deciding whether to
-                    connect that some of the list below does not exist yet,
-                    without saying which. The heading names the card and the
-                    list is the answer. */}
-                <b>What ServiceM8 powers here</b>
+          {/* ── what goes out beside what came in ── */}
+          {connected && (writes || sync || people) && (
+            <div className={"int-sm8-grid" + (writes ? "" : " solo")}>
+              {/* the other direction: files, notes and bookings sent from a job */}
+              {writes && <Sm8WritesCard view={writes} />}
+              <div className="int-sm8-side">
+                {/* the mirror, object by object */}
+                {sync && <MirrorCard sync={sync} />}
+                {/* the people reconcile — import is a review, never a copy */}
+                {people && <PeopleImportCard provider="servicem8" folded {...people} />}
               </div>
             </div>
-            <div className="int-uses">
-              {provider.uses.map((u) => (
-                <div className="int-use" key={u.area}>
-                  <b>{u.area}</b>
-                  <p>{u.detail}</p>
+          )}
+
+          {/* ── the ask, in full, folded to one line ──
+
+              "What ServiceM8 powers here" was a section of its own, two
+              paragraphs an owner reads once; it is the line's second
+              sentence now. */}
+          <details
+            className="card2 int-perms"
+            open={permsOpen}
+            onToggle={(e) => setPermsOpen(e.currentTarget.open)}
+          >
+            <summary>
+              <b>Permissions</b>
+              <span>{permsLine}</span>
+              <i>
+                {permsOpen ? "Hide" : "Show each"}
+                <Icon name={permsOpen ? "chevU" : "chevD"} size={15} />
+              </i>
+            </summary>
+            <p className="int-perms-ask">
+              {asking ? asksLine(writeScopes) : "Read-only, every one of them. Nothing here writes to ServiceM8, and the list below is exactly what the consent screen will show."}
+            </p>
+            {[
+              { head: "Reads", list: SM8_SCOPES },
+              { head: "Writes, asked for while sending is On or Paused", list: asking ? writeScopes : [] },
+            ]
+              .filter((g) => g.list.length > 0)
+              .map((g) => (
+                <div key={g.head}>
+                  <h3 className="int-perms-head">{g.head}</h3>
+                  <ul className="int-perm-rows">
+                    {g.list.map((s) => {
+                      const missing = connection?.missing.includes(s.scope) ?? false;
+                      return (
+                        <li key={s.scope} className={missing ? "missing" : undefined}>
+                          <code>{s.scope}</code>
+                          <p>{s.why}</p>
+                          {missing ? (
+                            <span className="int-tag warn">Not granted yet</span>
+                          ) : connected ? (
+                            <span className="int-tag ok">Granted</span>
+                          ) : (
+                            <span />
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               ))}
-            </div>
-          </div>
-
-          {/* ── the ask, in full ── */}
-          <div className="int-grp">
-            <div className="c2h">
-              <div>
-                <b>What HeyTiff asks ServiceM8 for</b>
-                <em>
-                  {asking ? asksLine(writeScopes) : "Read-only, every one of them. Nothing here writes to ServiceM8, and the list below is exactly what the consent screen will show."}
-                </em>
-              </div>
-            </div>
-            <ul className="int-scopes">
-              {asks.map((s) => {
-                const missing = connection?.missing.includes(s.scope) ?? false;
-                return (
-                  <li key={s.scope} className={missing ? "missing" : undefined}>
-                    <div className="int-scopehead">
-                      <code>{s.scope}</code>
-                      {s.area && <span className="int-tag">{s.area}</span>}
-                      {missing && <span className="int-tag warn">Not granted yet</span>}
-                    </div>
-                    <p>{s.why}</p>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+          </details>
           </div>
           </ScreenPanel>
         </div>
@@ -398,22 +424,26 @@ export function Servicem8Screen({
   );
 }
 
-/* ── the mirror, object by object ──
+/* ── when the mirror last moved ──
 
-   THE STATE THIS CARD KEPT SECRET: a first sync of a real account is not one
-   event, it is a fortnight of runs. The engine's page budget caps a run at
-   25,000 rows, so ServiceM8's ~25,000 attachments arrive over several — and
-   between them the object's row carries `last_error: "Paused mid-walk"`, which
-   this card rendered in the WARNING colour while saying nothing about the rows
-   already read. The one object doing the most work looked like the one thing
-   that had failed.
+   THE ONLY BRANCH BELOW THAT READS A CLOCK WAITS FOR THE BROWSER. The
+   server rendered "Last synced 4 min ago" and the client, a moment later
+   across a minute boundary, rendered "5 min ago" — different text in the
+   same node, which is React #418, and #418 does not fail politely: it takes
+   the whole tree's hydration down, so THIS ENTIRE ADMIN SCREEN RENDERED
+   BLANK. Found on prod 2026-09-01, and it is why nobody could reach the
+   people card to link themselves to the crew.
 
-   So the row now says which of four things is true — nothing yet, reading,
-   read, or genuinely stuck — and a reading row shows its running total, which
-   is the only honest progress signal available: ServiceM8's pagination hands
-   back a cursor, never a count, so there is no denominator to show. A number
-   that climbs each sync is the proof; a percentage would be invented. */
-function MirrorCard({
+   Not `suppressHydrationWarning` — that hides the error and keeps the
+   SERVER's text until something else re-renders, so the line would sit
+   there lying about how fresh the mirror is. The server sends the half of
+   the sentence that cannot drift and the browser finishes it, which is the
+   board chip's rule verbatim.
+
+   It lives on the connection card (2026-09-28): whether the account is
+   still being read is a fact about the connection, and Sync now sits
+   beside the sentence it changes. */
+function SyncLine({
   sync,
   busy,
   onSync,
@@ -422,25 +452,12 @@ function MirrorCard({
   busy: boolean;
   onSync: () => void;
 }) {
-  /* THE ONLY BRANCH BELOW THAT READS A CLOCK WAITS FOR THE BROWSER. The
-     server rendered "Last synced 4 min ago" and the client, a moment later
-     across a minute boundary, rendered "5 min ago" — different text in the
-     same node, which is React #418, and #418 does not fail politely: it takes
-     the whole tree's hydration down, so THIS ENTIRE ADMIN SCREEN RENDERED
-     BLANK. Found on prod 2026-09-01, and it is why nobody could reach the
-     people card to link themselves to the crew.
-
-     Not `suppressHydrationWarning` — that hides the error and keeps the
-     SERVER's text until something else re-renders, so the card would sit
-     there lying about how fresh the mirror is. The server sends the half of
-     the sentence that cannot drift and the browser finishes it, which is the
-     board chip's rule verbatim. */
   const hydrated = useHydrated();
   const reading = sync.objects.filter((o) => o.phase === "reading");
   const readingRows = reading.reduce((n, o) => n + o.rowsPulled, 0);
 
   /* Precedence: a run happening RIGHT NOW beats everything, then an unfinished
-     backfill — which is the state that lasts for days and the one this card
+     backfill — which is the state that lasts for days and the one the card
      used to hide — then the ordinary "last synced" line. */
   const subtitle = sync.lastRun?.running
     ? "Syncing now…"
@@ -455,29 +472,56 @@ function MirrorCard({
         : "Waiting for the first sync.";
 
   return (
-    <div className="int-grp">
-      <div className="c2h">
-        <div style={{ minWidth: 0 }}>
-          <b>What&apos;s been read across</b>
-          <em>{subtitle}</em>
-          {sync.lastCron !== undefined && <em>{overnightLine(sync.lastCron)}</em>}
-        </div>
+    <div className="int-syncline">
+      <div>
+        <p>{subtitle}</p>
+        {sync.lastCron !== undefined && <p>{overnightLine(sync.lastCron)}</p>}
       </div>
-      <ul className="int-scopes">
+      <button className="pbtn ghost" onClick={onSync} disabled={busy}>
+        {busy ? "Syncing…" : "Sync now"}
+      </button>
+    </div>
+  );
+}
+
+/* ── the mirror, object by object ──
+
+   THE STATE THIS CARD KEPT SECRET: a first sync of a real account is not one
+   event, it is a fortnight of runs. The engine's page budget caps a run at
+   25,000 rows, so ServiceM8's ~25,000 attachments arrive over several — and
+   between them the object's row carries `last_error: "Paused mid-walk"`, which
+   this card rendered in the WARNING colour while saying nothing about the rows
+   already read. The one object doing the most work looked like the one thing
+   that had failed.
+
+   So the row says which of four things is true — nothing yet, reading, read,
+   or genuinely stuck — and a reading row shows its running total, which is
+   the only honest progress signal available: ServiceM8's pagination hands
+   back a cursor, never a count, so there is no denominator to show. A number
+   that climbs each sync is the proof; a percentage would be invented.
+
+   A ledger in two columns (2026-09-28): a read object is a name and a count.
+   Anything still moving or stuck takes the whole width, because its tag is a
+   sentence. */
+function MirrorCard({ sync }: { sync: Sm8SyncStatusView }) {
+  const read = sync.objects.filter((o) => o.phase === "done").length;
+  const all = sync.objects.length;
+  return (
+    <div className="card2">
+      <div className="c2h">
+        <b style={{ flex: 1 }}>What&apos;s been read across</b>
+        <span className={"int-tag" + (read === all ? " ok" : "")}>
+          {read === all ? `All ${all} read` : `${read} of ${all} read`}
+        </span>
+      </div>
+      <ul className="int-mirror">
         {sync.objects.map((o) => (
-          <li key={o.object}>
-            <div className="int-scopehead">
-              <code>{o.label}</code>
-              <ObjectTag o={o} />
-            </div>
+          <li key={o.object} className={o.phase === "done" ? undefined : "wide"}>
+            <span>{o.label}</span>
+            <ObjectTag o={o} />
           </li>
         ))}
       </ul>
-      <div className="int-act">
-        <button className="pbtn ghost" onClick={onSync} disabled={busy}>
-          {busy ? "Syncing…" : "Sync now"}
-        </button>
-      </div>
     </div>
   );
 }
@@ -507,12 +551,8 @@ function ObjectTag({ o }: { o: Sm8ObjectStatus }) {
       </span>
     );
 
-  if (o.phase === "done")
-    return (
-      <span className="int-tag">
-        {num(o.rowsPulled)} row{o.rowsPulled === 1 ? "" : "s"}
-      </span>
-    );
+  /* the ledger's count: the name beside it says what the rows are */
+  if (o.phase === "done") return <span className="int-tag">{num(o.rowsPulled)}</span>;
 
   return <span className="int-tag">First sync queued</span>;
 }

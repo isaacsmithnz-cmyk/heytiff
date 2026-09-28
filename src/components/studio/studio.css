@@ -10601,6 +10601,9 @@ html[data-ds-display] .dstudio.editing {
   transition: background-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-zp-btn:hover { background: var(--tint); }
+.dstudio .ds-zp-btn.on { background: var(--tint); }
+/* the variations list hangs from the head's right edge, inside the panel */
+.dstudio .ds-zp-varmenu { left: auto; right: 0; min-width: 216px; }
 /* Edit system stretches across the card under its hairline, below whatever
    the next step is, so the figures above it are undisturbed. It is the way
    BACK into a system that is already right, never the move the card is

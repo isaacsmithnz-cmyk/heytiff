@@ -2329,6 +2329,9 @@ function Editor({
               onMoveZone={onMoveZone}
               onClaimZone={onClaimZone}
               onRemoveZone={onRemoveZone}
+              onAddVariant={onAddVariant}
+              onSwitchVariant={onSwitchVariant}
+              onRenameVariant={onRenameVariant}
             />
           ) : (
           <SystemCockpit

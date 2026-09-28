@@ -176,6 +176,9 @@ function mount(
     onMoveZone: jest.fn(),
     onClaimZone: jest.fn(),
     onRemoveZone: jest.fn(),
+    onAddVariant: jest.fn(),
+    onSwitchVariant: jest.fn(),
+    onRenameVariant: jest.fn(),
   };
   const utils = render(
     <SystemsPanel doc={doc} pack={pack} basis={basis} activeSystemId={activeSystemId} claiming={claiming} {...on} />
@@ -883,5 +886,32 @@ describe("SystemCockpit — close a system", () => {
     /* no system is active, so every card is at rest */
     mount(made.doc, null);
     expect(screen.queryByRole("button", { name: "Delete System 1" })).toBeNull();
+  });
+});
+/* THE WAY TO BRANCH THE DESIGN. "Add variation" lived only in the old
+   cockpit's system switcher, so when this panel replaced it the button went
+   with it (Isaac, 2026-09-28). It is in this panel's head now. */
+describe("design variations", () => {
+  it("adds a variation from the panel's head", () => {
+    const { doc } = plan([]);
+    const m = mount(doc);
+    fireEvent.click(screen.getByRole("button", { name: /Design variations/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Add variation/ }));
+    expect(m.onAddVariant).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("names the variation you are in, and switches to another", () => {
+    const { doc } = plan([]);
+    doc.meta.variantLabel = "Option A";
+    doc.variants = [
+      { id: doc.id, label: "Option A" },
+      { id: "dsn_b", label: "Option B" },
+    ];
+    const m = mount(doc);
+    fireEvent.click(screen.getByRole("button", { name: /Design variations/ }));
+    expect(screen.getByRole("menuitemradio", { name: "Option A" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Option B" }));
+    expect(m.onSwitchVariant).toHaveBeenCalledWith("dsn_b");
   });
 });

@@ -21,7 +21,12 @@
    PR D: the backstops. The page-load freshen and the nightly cron, off,
    never load the drain, so no queue is read, no lease is taken as `hook`
    and nothing is asked of ServiceM8; and the drain itself, on the `hook`
-   lane, reads and writes nothing while the switch is anything but on. */
+   lane, reads and writes nothing while the switch is anything but on.
+
+   PR E: the route. Off, every request is 404 before a byte is read: no
+   lookup, no after(), the drain never loaded. `gone` is the one difference
+   the switch allows: a well-formed hook path answers 410, and still reads
+   nothing. */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -158,6 +163,7 @@ import { GET as callbackGET } from "@/app/api/integrations/servicem8/callback/ro
 import { GET as cronGET } from "@/app/api/cron/sm8-sync/route";
 import { disconnectServiceM8Action } from "@/app/actions/integrations";
 import { freshenSm8AfterResponse } from "../sm8-freshness";
+import { GET as hookGET, POST as hookPOST } from "@/app/api/integrations/servicem8/webhook/[hook]/route";
 
 const env = { ...process.env };
 const realFetch = global.fetch;
@@ -352,6 +358,41 @@ describe("the drain itself, with the switch anything but on (PR D)", () => {
       }
     });
     expectToday(seen, { calls: [], touched: [] });
+  });
+});
+
+describe("the webhook route, with the switch anything but on (PR E)", () => {
+  /* made up: the shape of a minted hook, and of a record */
+  const HOOK = "Vt3kPq8Lx0Zr5Wm2Yb7Nc4Hd9Jf1Gs6Aa-Ee_Uu0Oo3";
+  const at = (hook: string, query = "") =>
+    `https://app.test/api/integrations/servicem8/webhook/${hook}${query}`;
+  const params = (hook: string) => ({ params: Promise.resolve({ hook }) });
+  const ping = JSON.stringify({
+    object: "job",
+    entry: [{ uuid: "1f2e3d4c-5b6a-4978-8a6b-5c4d3e2f1a0b", changed_fields: ["status"], time: "2026-09-28 01:00:00" }],
+    resource_url: "https://api.servicem8.com/api_1.0/job/1f2e3d4c-5b6a-4978-8a6b-5c4d3e2f1a0b.json",
+  });
+
+  it("answers 404 (410 to a well-formed hook when gone) with no lookup, no after() and no drain", async () => {
+    const statuses: (string | number | undefined)[][] = [];
+    const seen = await underEach(async () => {
+      const state = [process.env.VERCEL_ENV, process.env.SM8_WEBHOOKS];
+      const post = await hookPOST(
+        new NextRequest(at(HOOK), { method: "POST", headers: { "content-type": "application/json" }, body: ping }),
+        params(HOOK)
+      );
+      const get = await hookGET(new NextRequest(at(HOOK, "?mode=subscribe&challenge=c-9")), params(HOOK));
+      const bad = await hookPOST(new NextRequest(at("nope"), { method: "POST", body: ping }), params("nope"));
+      statuses.push([...state, post.status, get.status, bad.status]);
+    });
+    expectToday(seen, { calls: [], touched: [] });
+    expect(statuses).toEqual([
+      ["production", undefined, 404, 404, 404],
+      ["production", "gone", 410, 410, 404],
+      ["production", "0", 404, 404, 404],
+      ["preview", "1", 404, 404, 404],
+      [undefined, "1", 404, 404, 404],
+    ]);
   });
 });
 

@@ -211,15 +211,12 @@ describe("the checks strip", () => {
     expect(edit()).toBeInTheDocument();
   });
 
-  /* "A check" is the compliance industry's noun for the row in the table.
-     What a person does is CHECK whether someone may work here — Isaac, on the
-     walk: "I don't know what record a check actually means". Every button is
-     the verb, and the line beside it is the date, not a count of rows. */
-  it("asks to check the right to work, and still edits, when none exist", () => {
+  /* Isaac, 2026-09-28: "get rid of the check the right to work… it's not
+     really our place". An empty card asks nobody to check anything. */
+  it("asks nobody to check the right to work while there is no record", () => {
     setup(onVisa, { checkCount: 0, onOpenChecks: jest.fn() });
-    expect(screen.getByText("Not checked yet")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Check the right to work/ })).toBeInTheDocument();
-    expect(screen.queryByText(/check on file|checks on file/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Not checked yet")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Check the right to work/ })).not.toBeInTheDocument();
     expect(edit()).toBeInTheDocument();
   });
 
@@ -230,30 +227,6 @@ describe("the checks strip", () => {
     // and the line that explained where the status came from is gone
     expect(screen.queryByText(/newest check/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Open the record/ })).toBeInTheDocument();
-  });
-
-  /* "VEVO" was the government's name for the visa check and nobody in the
-     office has heard of it: the words are the documents a person holds. */
-  it("asks for the visa check in plain words", () => {
-    setup(onVisa, { checkCount: 0, onOpenChecks: jest.fn() });
-    expect(
-      screen.getByText("Scan the visa check result or the grant letter to start the record")
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/VEVO/)).not.toBeInTheDocument();
-  });
-
-  /* A citizen or permanent resident has no visa to check, so the empty state
-     stops asking for one and says what can be kept instead. */
-  it("does not ask a citizen to scan a visa check", () => {
-    setup(
-      { ...blankProfile, work_rights_status: "Australian citizen" },
-      { checkCount: 0, onOpenChecks: jest.fn() }
-    );
-    expect(screen.getByText("Not checked yet")).toBeInTheDocument();
-    expect(
-      screen.getByText("Keep the passport or citizenship certificate here as evidence")
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/visa check result/)).not.toBeInTheDocument();
   });
 
   it("withdraws the edit cycle once a check exists", () => {

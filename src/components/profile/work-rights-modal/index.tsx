@@ -247,59 +247,6 @@ export function WorkRightsModal({
           )}
 
 
-          {/* WHERE THE CHECKING ACTUALLY HAPPENS, and it is not in here.
-              Isaac, on the walk: "You're not actually checking it. You're just
-              updating the visa. Checking it should maybe send you to the
-              website where you check it."
-
-              He is right: this window only ever FILED a result somebody got
-              somewhere else. An employer checks a visa on the Home Affairs
-              site (their name for it is VEVO, which is why that acronym is
-              said here once and nowhere else in the app — it is what the sign
-              on the door reads); a citizen or permanent resident has no visa
-              to look up, so the check is sighting the passport or the
-              citizenship certificate. So the panel opens on the check, and
-              the scan below it files what the check said. Both links were
-              read off immi.homeaffairs.gov.au, not from memory. */}
-          {panelOpen && (
-            <Card>
-              <div className="vm-cardhead">
-                <Eyebrow>{noVisaStatus ? "Sight the document" : "Look the visa up"}</Eyebrow>
-              </div>
-              {noVisaStatus ? (
-                <p className="vm-note">
-                  There is no visa to look up. The evidence is the passport or the citizenship
-                  certificate itself — file it below with the date you saw it.
-                </p>
-              ) : (
-                <>
-                  <p className="vm-note">
-                    Home Affairs checks visas online, on the site they call VEVO. An employer needs
-                    a free organisation account.
-                  </p>
-                  <div className="vm-doors">
-                    <a
-                      className="vm-btn outline"
-                      href="https://online.immi.gov.au/evo/thirdParty"
-                      target="_blank"
-                      rel="noreferrer noopener"
-                    >
-                      Open the Home Affairs check
-                    </a>
-                    <a
-                      className="vm-inline"
-                      href="https://online.immi.gov.au/lusc/register"
-                      target="_blank"
-                      rel="noreferrer noopener"
-                    >
-                      Register an organisation account
-                    </a>
-                  </div>
-                </>
-              )}
-            </Card>
-          )}
-
           {panelOpen && (
             <ScanCard<ReadWorkRightsResult>
               heading={scanCopy.heading}

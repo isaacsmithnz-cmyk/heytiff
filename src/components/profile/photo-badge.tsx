@@ -38,6 +38,10 @@ const uploadClient = () => import("@/lib/documents/upload-client");
 
    The remove is a second, quieter control and only exists once there IS a
    photo — a card showing initials has nothing to remove. */
+/** The badge's file input — Summary's "Add profile photo" opens it. One
+    badge per screen, so one id. */
+export const PHOTO_INPUT_ID = "pphoto-file";
+
 export function PhotoBadge({
   photoUrl,
   initials,
@@ -122,6 +126,7 @@ export function PhotoBadge({
 
         <input
           ref={fileRef}
+          id={PHOTO_INPUT_ID}
           type="file"
           accept="image/*"
           aria-label="Profile photo"

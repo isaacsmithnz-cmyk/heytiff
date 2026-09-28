@@ -115,31 +115,19 @@ export function WorkRightsCard({
 
     return (
       <>
-      {onOpenChecks && (
+      {/* ONLY ONCE THERE IS A RECORD. Isaac, 2026-09-28: "get rid of the
+          check the right to work… it's not really our place", and its door
+          led to a government site that wants an organisation account first.
+          So an empty card no longer asks anyone to check anything; a card
+          that already holds checks keeps the way into them. */}
+      {onOpenChecks && checkCount > 0 && (
         <div className="wr-checks">
           <span className="wr-checksl">
-            {/* THE DATE IS THE FACT, and the count was not one: "1 check on
-                file" counts rows in a table, and the line under it explained
-                where the status above had come from. What anyone needs to
-                know is when this was last looked at.
-
-                "VEVO" was the government's name for the visa check, and
-                nobody in the office has heard of it — the words are the
-                documents a person actually holds. A citizen or permanent
-                resident has no visa to check, so the empty state stops asking
-                for one and says what can be kept instead. */}
-            <b>{lastChecked ? `Last checked ${fmtDay(lastChecked)}` : "Not checked yet"}</b>
-            {checkCount === 0 && (
-              <em>
-                {isNoVisa(status)
-                  ? "Keep the passport or citizenship certificate here as evidence"
-                  : "Scan the visa check result or the grant letter to start the record"}
-              </em>
-            )}
+            <b>{lastChecked ? `Last checked ${fmtDay(lastChecked)}` : "Checked"}</b>
           </span>
           <button type="button" className="pbtn" onClick={onOpenChecks}>
             <Icon name="shield" size={15} />
-            {checkCount === 0 ? "Check the right to work" : "Open the record"}
+            Open the record
           </button>
         </div>
       )}

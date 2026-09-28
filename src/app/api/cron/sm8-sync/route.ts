@@ -201,8 +201,9 @@ async function leftoverDrains(orgs: readonly string[], startedAt: number): Promi
     day's edits are in the mirror: for each swept workspace, whether pings
     stopped while its records went on changing (sm8-hooks'
     checkSm8HooksQuiet). A quiet one is marked for the owner's screen and
-    reconciled. The whole step has ENSURE_BUDGET_MS and ends before the
-    asks' margin; a workspace it doesn't reach is checked the next night.
+    reconciled. The whole step has ENSURE_BUDGET_MS and, like the drains,
+    ends while the eviction, the asks' reserve and their margin still have
+    their time; a workspace it doesn't reach is checked the next night.
     Only with SM8_WEBHOOKS on: off, the machinery isn't loaded, nothing is
     read, and the answer is as it was. */
 type HookHealthNight = { checked: number; quiet: number; unwell: number; ensured: number; deferred: number };
@@ -210,8 +211,13 @@ type HookHealthNight = { checked: number; quiet: number; unwell: number; ensured
 async function checkHooksHealth(orgs: readonly string[], startedAt: number): Promise<HookHealthNight> {
   const { checkSm8HooksQuiet } = await import("@/lib/integrations/sm8-hooks");
   const night: HookHealthNight = { checked: 0, quiet: 0, unwell: 0, ensured: 0, deferred: 0 };
+  /* it keeps back what comes after it, as the drains do: the eviction, the
+     asks' own reserve and their margin */
   const stepEnd =
-    Math.min(Date.now() + ENSURE_BUDGET_MS, startedAt + maxDuration * 1000 - CRON_SETTLE_MARGIN_MS) - ENSURE_FINISH_MARGIN_MS;
+    Math.min(
+      Date.now() + ENSURE_BUDGET_MS,
+      startedAt + maxDuration * 1000 - CRON_SETTLE_MARGIN_MS - EVICT_BUDGET_MS - CRON_ASKS_RESERVE_MS
+    ) - ENSURE_FINISH_MARGIN_MS;
   for (const orgId of orgs) {
     const now = Date.now();
     if (now >= stepEnd) {

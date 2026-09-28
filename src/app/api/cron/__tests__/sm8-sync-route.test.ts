@@ -541,8 +541,9 @@ describe("live updates' nightly health check (two-way phase 4, PR F)", () => {
   afterEach(() => {
     process.env = { ...env };
   });
-  /** start + maxDuration less the asks' margin (15 s) */
-  const WINDOW = 285_000;
+  /** start + maxDuration less what comes after the step: the asks' margin
+      (15 s), the eviction (20 s) and the asks' own reserve (20 s) */
+  const WINDOW = 245_000;
 
   it("checks each swept workspace after every sync and the drains, before the eviction and the asks, and counts what it found", async () => {
     healthAnswers = [
@@ -574,15 +575,18 @@ describe("live updates' nightly health check (two-way phase 4, PR F)", () => {
     ]);
   });
 
-  it("ends before the asks' margin, and a workspace it doesn't reach waits for the next night", async () => {
-    // the first sync runs until 15 s before the window's end
+  it("leaves the eviction and the asks their time, as the drains do, and a workspace it doesn't reach waits for the next night", async () => {
+    const started = clock;
+    // the first sync runs until 15 s before the step's end
     syncTakes = [WINDOW - 15_000];
     healthTakes = [13_000];
     const body = await (await GET(byScheduler())).json();
     // 15 s left, less the 2 s a reconcile's last writes keep
     expect(checked).toEqual([{ org: "s1", budgetMs: 13_000 }]);
     expect(body.hookHealth).toMatchObject({ checked: 1, deferred: 1 });
-    // the asks still come after it
-    expect(events.filter((e) => e.startsWith("asks:")).length).toBeGreaterThan(0);
+    // the eviction still gets its whole 20 s, and the asks come after it
+    expect(evictBudgets).toEqual([20_000]);
+    expect(settled[0]).toEqual({ org: "s1", budgetMs: 300_000 - 15_000 - (WINDOW - 2_000) });
+    expect(clock - started).toBe(WINDOW - 2_000);
   });
 });

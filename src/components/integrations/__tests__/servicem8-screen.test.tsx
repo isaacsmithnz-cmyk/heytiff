@@ -464,7 +464,8 @@ describe("the mirror card, the other three states", () => {
 
   it("counts a finished object plainly, with no warning", () => {
     render(<Servicem8Screen connection={toView(row())} sync={syncView([JOBS_DONE])} {...ready} />);
-    expect(tagFor("Jobs").textContent).toContain("6,978 rows");
+    // a ledger's count: the name beside it says what the rows are
+    expect(tagFor("Jobs").textContent).toBe("6,978");
     expect(tagFor("Jobs").className).not.toContain("warn");
   });
 
@@ -760,7 +761,7 @@ describe("sending files to ServiceM8", () => {
     expect(screen.queryByRole("button", { name: "Retry failed files" })).not.toBeInTheDocument();
   });
 
-  it("draws twenty writes, then offers the rest", async () => {
+  it("draws the latest five writes, then offers the rest", async () => {
     const user = userEvent.setup();
     render(
       <Servicem8Screen
@@ -769,7 +770,7 @@ describe("sending files to ServiceM8", () => {
         writes={writes({ mode: "live", granted: ["attachment"], recent: recent(25) })}
       />
     );
-    expect(screen.getAllByText(/^File \d+\.pdf$/)).toHaveLength(20);
+    expect(screen.getAllByText(/^File \d+\.pdf$/)).toHaveLength(5);
     await user.click(screen.getByRole("button", { name: "Show all 25" }));
     expect(screen.getAllByText(/^File \d+\.pdf$/)).toHaveLength(25);
     expect(screen.queryByRole("button", { name: /Show all/ })).not.toBeInTheDocument();

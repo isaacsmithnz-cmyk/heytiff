@@ -4480,8 +4480,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-tag.bad { color:var(--bad-t); }
 /* SENDING FILES TO SERVICEM8 — the checklist's segmented choice for the
    setting, and each write's file name read as a name, not as code */
-.fg .int-wmode { margin:0 0 16px; }
-.fg .int-writes { margin-top:16px; }
 .fg .int-wname { min-width:0; font-size:14px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* A backfill in progress is NOT a warning. It wears the ok green, because the
@@ -4494,6 +4492,66 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* The dot carries no information the words don't; for anyone who has asked for
    less motion it simply sits still. */
 @media (prefers-reduced-motion:reduce) { .fg .int-pulse { animation:none; opacity:1; } }
+
+/* ---- The ServiceM8 screen on one page (2026-09-28) ----
+   "A bit messy, way too much information": the connection across the top,
+   what goes out beside what came in, the people and the permissions each
+   folded to a line. The 760 column went with it; this is a working screen
+   now, not a form. */
+.fg .int-sm8 { max-width:1200px; }
+.fg .int-sm8 .c2h { margin-bottom:16px; }
+.fg .int-sm8 .c2h > div:first-child { flex:1; }
+.fg .int-sm8-grid { display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); gap:16px; align-items:start; margin-bottom:16px; }
+.fg .int-sm8-grid.solo { grid-template-columns:minmax(0,1fr); }
+.fg .int-sm8-grid .card2 { margin-bottom:0; }
+.fg .int-sm8-side { display:flex; flex-direction:column; gap:16px; min-width:0; }
+@media (max-width:1100px) { .fg .int-sm8-grid { grid-template-columns:minmax(0,1fr); } }
+
+/* when the mirror last moved, on the connection card, with Sync now */
+.fg .int-syncline { display:flex; align-items:center; gap:16px; margin-bottom:16px; padding:12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.fg .int-syncline > div { flex:1; min-width:0; }
+.fg .int-syncline p { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
+.fg .int-syncline p:first-child { font-size:14px; font-weight:500; color:var(--ink); }
+
+/* the mirror as a ledger: a name and a count, two to a row; a row still
+   moving or stuck takes the width, because its tag is a sentence */
+.fg .int-mirror { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:24px; }
+.fg .int-mirror li { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:8px 0; border-top:1px solid var(--line); font-size:14px; font-weight:500; }
+.fg .int-mirror li.wide { grid-column:1 / -1; }
+.fg .int-mirror .int-tag { text-align:right; font-variant-numeric:tabular-nums; }
+
+/* sending: the kinds on one row, what failed, and one line a write */
+.fg .int-kinds { display:flex; gap:8px; margin-bottom:16px; }
+.fg .int-kind { flex:1; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 8px 8px 12px; border-radius:var(--r-button); background:var(--tint); }
+.fg .int-kind b { font-size:14px; font-weight:600; }
+.fg .int-failed { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.fg .int-failed b { flex:1; font-size:14px; font-weight:600; color:var(--bad-t); }
+/* one grid for the list, each row on its tracks (subgrid), so the state
+   column is as wide as its longest word and every row lines up with it */
+.fg .int-writes { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:minmax(0,2fr) minmax(0,3fr) auto; column-gap:12px; }
+.fg .int-writes li { grid-column:1 / -1; display:grid; grid-template-columns:subgrid; align-items:baseline; padding:8px 0; border-top:1px solid var(--line); }
+.fg .int-writes p { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
+.fg .int-writes .int-tag { text-align:right; white-space:nowrap; }
+.fg .int-more { width:100%; padding:8px 0 0; border:0; border-top:1px solid var(--line); background:none; text-align:left; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer; }
+.fg .int-more:hover { text-decoration:underline; }
+.fg .int-more:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+
+/* the permissions, one line until opened */
+.fg .int-perms { padding:0 24px; }
+.fg .int-perms[open] { padding-bottom:16px; }
+.fg .int-perms > summary { display:flex; align-items:center; gap:16px; padding:16px 0; list-style:none; cursor:pointer; }
+.fg .int-perms > summary::-webkit-details-marker { display:none; }
+.fg .int-perms > summary:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+.fg .int-perms > summary b { flex:none; width:200px; font-size:16px; font-weight:600; }
+.fg .int-perms > summary span { flex:1; min-width:0; font-size:14px; color:var(--gray500); }
+.fg .int-perms > summary i { display:inline-flex; align-items:center; gap:4px; font-style:normal; font-size:13px; font-weight:600; color:var(--ink); }
+.fg .int-perms-ask { margin:0 0 8px; font-size:13px; line-height:1.55; color:var(--gray500); }
+.fg .int-perms-head { margin:16px 0 8px; font-size:12px; font-weight:500; color:var(--gray400); }
+.fg .int-perm-rows { list-style:none; margin:0; padding:0; }
+.fg .int-perm-rows li { display:grid; grid-template-columns:220px minmax(0,1fr) 120px; gap:24px; align-items:baseline; padding:12px 0; border-top:1px solid var(--line); }
+.fg .int-perm-rows code { font-family:var(--mono); font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
+.fg .int-perm-rows p { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
+.fg .int-perm-rows .int-tag { text-align:right; font-size:13px; }
 
 /* ---- ServiceM8 people reconcile (components/integrations/sm8-people-card) ----
    Import is a review, not a copy: the row IS the preview of what would land,
@@ -4516,6 +4574,9 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .sp-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; }
 .fg .sp-main em { font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); overflow-wrap:anywhere; }
 .fg .sp-sug { margin-top:2px; font-size:13px; font-weight:700; color:#00806c; }
+/* the name inside "Looks like …" is a word in the sentence, not the row's
+   own flex title that `.sp-main b` makes it */
+.fg .sp-sug b { display:inline; }
 .fg .sp-act { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 .fg .sp-editor { display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; padding:4px 0 12px 24px; }
 .fg .sp-f { display:flex; flex-direction:column; gap:4px; }

@@ -100,3 +100,9 @@ next-env.d.ts
 /probes/cases/*
 !/probes/cases/README.md
 /probes/results/
+
+# Tiff's eval cases name real people and clients (src/lib/tiff/evals).
+/evals/tiff/cases/*
+!/evals/tiff/cases/README.md
+!/evals/tiff/cases/example.json
+/evals/tiff/results/

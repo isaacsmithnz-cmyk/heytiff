@@ -766,6 +766,27 @@
   color: var(--dsd-ink-3);
 }
 
+/* ── the plans, on the customer's live link ──
+   Paper gives each floor a page; a screen has no pages, so the floors follow
+   the systems down the one document, each under its own name. */
+.dsd-plans {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid var(--dsd-rule-2);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.dsd-plan { margin: 0; break-inside: avoid; }
+.dsd-plan figcaption {
+  margin-bottom: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--dsd-ink);
+}
+.dsd-plan svg { display: block; width: 100%; height: auto; }
+
 .dsd-close {
   margin-top: clamp(40px, 6vw, 80px);
   padding-top: clamp(24px, 3vw, 40px);

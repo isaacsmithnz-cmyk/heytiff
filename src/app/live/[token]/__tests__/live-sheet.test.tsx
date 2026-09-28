@@ -110,7 +110,13 @@ const BRAND: OrgBrand = {
 };
 
 function renderSheet(
-  over: { doc?: DesignDocument; brand?: OrgBrand; simOffered?: boolean } = {}
+  over: {
+    doc?: DesignDocument;
+    brand?: OrgBrand;
+    simOffered?: boolean;
+    sections?: { figures: boolean; systems: boolean; lines: boolean };
+    plans?: boolean;
+  } = {}
 ) {
   const doc = over.doc ?? designDoc();
   /* the TRIMMED pack, exactly as the route serves it — a sheet built against
@@ -128,6 +134,8 @@ function renderSheet(
       preparedOn="17 August 2026"
       expiresOn="16 September"
       simOffered={over.simOffered ?? false}
+      sections={over.sections}
+      planFloors={over.plans ? doc.floors : []}
     />
   );
 }
@@ -311,5 +319,25 @@ describe("the simulation is an option, not the destination", () => {
     // …and the way back is on it
     await user.click(screen.getByRole("button", { name: /Back to the design/ }));
     expect(screen.getByText("Prepared by")).toBeInTheDocument();
+  });
+});
+
+/* WHAT THE OWNER TICKED when they made the link (lib/studio/send.ts) is what
+   the customer gets — the page and the Send dialog's preview agree because
+   both are this component's SheetDoc. */
+describe("the link shows what was ticked", () => {
+  it("leaves out a part the owner unticked", () => {
+    renderSheet({ sections: { figures: false, systems: true, lines: true } });
+    expect(screen.queryByText("Calculated heat load")).not.toBeInTheDocument();
+    expect(screen.getByText("Living")).toBeInTheDocument();
+  });
+
+  it("carries the plans down the page when they are ticked, and not otherwise", () => {
+    const without = renderSheet();
+    expect(without.container.querySelector(".dsd-plan")).toBeNull();
+    without.unmount();
+
+    const { container } = renderSheet({ plans: true });
+    expect(container.querySelectorAll(".dsd-plan")).toHaveLength(1);
   });
 });

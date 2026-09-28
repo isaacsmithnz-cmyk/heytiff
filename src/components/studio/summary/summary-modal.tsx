@@ -25,6 +25,8 @@ export function SummaryModal({
   icon,
   onClose,
   foot,
+  note,
+  wide = false,
   children,
 }: {
   title: string;
@@ -33,6 +35,10 @@ export function SummaryModal({
   onClose: () => void;
   /** the actions, on the bar under the body. Omitted = no bar. */
   foot?: React.ReactNode;
+  /** a line between the body and the bar, across the dialog: Send's checks */
+  note?: React.ReactNode;
+  /** two columns, the choices and a preview: Send */
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   useEffect(() => {
@@ -56,7 +62,7 @@ export function SummaryModal({
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="ds-xm dstudio"
+        className={`ds-xm dstudio${wide ? " wide" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={id}
@@ -72,6 +78,8 @@ export function SummaryModal({
         </header>
 
         <div className="ds-xm-body">{children}</div>
+
+        {note}
 
         {foot && <footer className="ds-xm-foot">{foot}</footer>}
       </div>

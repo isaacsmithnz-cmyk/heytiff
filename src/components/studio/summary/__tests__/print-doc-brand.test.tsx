@@ -41,7 +41,7 @@ class StubImage {
 
 const EMPTY_MODEL: PrintModel = {
   options: {
-    content: "sheet",
+    sections: { figures: true, systems: true, lines: true, picklist: true },
     paper: "A4",
     orientation: "portrait",
     floorIds: [],

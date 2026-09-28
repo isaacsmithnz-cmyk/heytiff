@@ -6462,17 +6462,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray500);
 }
 
-.dstudio .ds-export-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  align-self: flex-start;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--gray700);
-  padding: 2px 0;
-}
-.dstudio .ds-export-toggle:hover { color: var(--ink); }
 .dstudio .ds-export-opts {
   display: flex;
   flex-direction: column;
@@ -6524,6 +6513,118 @@ html[data-ds-display] .dstudio.editing {
   color: var(--paper);
 }
 .dstudio .ds-export-seg:not(.on):hover { border-color: var(--gray400); }
+
+/* ═════════ Send (send-card.tsx) ═════════
+   Share and Export became one dialog in two columns: on the left where it
+   goes, who it is for and a tick per part; on the right the document itself,
+   shrunk, then the page setup folded to one line. Built from the export
+   rows, picks and segments above, so it adds no chip, tag or shadow. */
+.ds-xm.dstudio.wide {
+  width: min(900px, 100%);
+  height: min(740px, 88vh);
+}
+.ds-xm.wide .ds-xm-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+.dstudio .ds-send-l,
+.dstudio .ds-send-r {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  min-height: 0;
+  overflow: hidden auto;
+}
+.dstudio .ds-send-r {
+  gap: 12px;
+  background: var(--ground);
+  border-left: 1px solid var(--line);
+}
+.dstudio .ds-send-dests { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.dstudio .ds-send-caprow { display: flex; justify-content: space-between; }
+/* the parts, a tick each, in one ruled list; a floor or an option hangs
+   under its part */
+.dstudio .ds-send-inc {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+}
+.dstudio .ds-send-part + .ds-send-part { border-top: 1px solid var(--line); }
+.dstudio .ds-send-inc .ds-export-row { padding: 8px 12px; font-size: 13px; }
+.dstudio .ds-send-inc .ds-export-row.sub { padding: 0 12px 8px 32px; font-weight: 500; }
+/* the reason a part can't go, or that it is internal: a word, not a tag */
+.dstudio .ds-send-inc .ds-export-row em { margin-left: auto; font-weight: 600; color: var(--gray500); }
+.dstudio .ds-send-inc .ds-export-row:has(input:disabled) { color: var(--gray400); cursor: default; }
+.dstudio .ds-send-link,
+.dstudio .ds-send-setup {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+}
+.dstudio .ds-send-link { flex-direction: column; }
+.dstudio .ds-send-setup { align-items: center; padding: 8px 12px; font-size: 12px; }
+.dstudio .ds-send-setup b { font-weight: 700; }
+.dstudio .ds-send-setup .ds-send-lnk { margin-left: auto; }
+/* THE PREVIEW IS THE DOCUMENT. The sheet is laid out at a desk width, so its
+   container queries pick the desktop table, then scaled to the column
+   (send-card.tsx `Shrunk`). */
+.dstudio .ds-send-pv { display: flex; flex-direction: column; gap: 8px; }
+.dstudio .ds-send-mini,
+.dstudio .ds-send-page {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  overflow: hidden;
+}
+.dstudio .ds-send-mini-in { transform-origin: 0 0; }
+.dstudio .ds-send-page { display: flex; flex-direction: column; gap: 4px; padding: 8px; }
+.dstudio .ds-send-page svg { display: block; width: 100%; height: auto; }
+.dstudio .ds-send-page span { font-size: 12px; font-weight: 600; color: var(--gray500); }
+.dstudio .ds-send-empty {
+  margin: 0;
+  padding: 24px 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-button);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray500);
+}
+.dstudio .ds-send-also { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* one link token: ink, underlined */
+.dstudio .ds-send-lnk {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.dstudio .ds-send-lnk:disabled { color: var(--gray400); cursor: default; }
+.dstudio .ds-send-lnk:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--r-control); }
+/* what to look at first: a warning word with its dot, across the dialog */
+.dstudio .ds-send-chk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 16px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.dstudio .ds-send-chk b { font-weight: 700; color: var(--warn-t); }
+.dstudio .ds-send-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--warn); }
 
 /* snapshot strip — one tile per figure, auto-wrapping */
 

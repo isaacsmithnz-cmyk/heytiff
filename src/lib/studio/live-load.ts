@@ -21,15 +21,18 @@ import { migrateDesign } from "./migrations";
 import { isShareExpired } from "./share";
 import type { DesignDocument } from "./document";
 import type { LiveShare } from "./live-og";
+import { parseLinkScope, type LinkScope } from "./send";
 
-export type LoadedLiveShare = LiveShare & { orgId: string | null };
+/** `scope` is what the Send dialog ticked for this link — present on a live
+    share, and the legacy scope for a link made before there were ticks. */
+export type LoadedLiveShare = LiveShare & { orgId: string | null; scope?: LinkScope };
 
 export const loadLiveShare = cache(async (token: string): Promise<LoadedLiveShare> => {
   if (!token || token.length < 16) return { kind: "missing", orgId: null };
 
   const { data, error } = await supabaseAdmin
     .from("studio_designs")
-    .select("doc, share_created_at, org_id")
+    .select("doc, share_created_at, share_scope, org_id")
     .eq("share_token", token)
     .maybeSingle();
   if (error || !data?.doc) return { kind: "missing", orgId: null };
@@ -52,5 +55,12 @@ export const loadLiveShare = cache(async (token: string): Promise<LoadedLiveShar
   const brand = orgId ? await orgBrand(orgId, { seconds: 21600 }) : NO_BRAND;
 
   // shareCreatedAt is non-null here: a null one is expired above
-  return { kind: "live", doc, brand, shareCreatedAt: shareCreatedAt as string, orgId };
+  return {
+    kind: "live",
+    doc,
+    brand,
+    shareCreatedAt: shareCreatedAt as string,
+    orgId,
+    scope: parseLinkScope(data.share_scope),
+  };
 });

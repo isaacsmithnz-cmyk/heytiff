@@ -327,7 +327,7 @@ describe("Design Studio shell", () => {
     expect(await screen.findByText("Step 1 of 2")).toBeInTheDocument();
   });
 
-  it("Summary's Export downloads the design file (it left the menu)", async () => {
+  it("Summary's Share downloads the design file (it left the menu)", async () => {
     const user = userEvent.setup();
     render(localStudio());
     await newDesign(user, "Export me", "Blank canvas");
@@ -361,14 +361,11 @@ describe("Design Studio shell", () => {
         { name: "Summary" }
       )
     );
-    /* Export asks WHAT you are sending, then does it: pick the design file,
-       then press the button that says it will download one */
-    await user.click(await screen.findByRole("button", { name: /^Export/ }));
+    /* the design file is a format, not a part of what is sent: it sits
+       under Share's preview, one press */
+    await user.click(await screen.findByRole("button", { name: /^Share/ }));
     await user.click(
-      await screen.findByRole("radio", { name: "The design file" })
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Download the design file" })
+      await screen.findByRole("button", { name: "Design file" })
     );
     expect(createURL).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);

@@ -14,6 +14,7 @@ import { BrandLogo } from "@/components/org/letterhead";
 import { fmt, pct, SHEET_GROUPS, tone } from "./sheet-tables";
 import "./sheet-doc.css";
 import { themeVars } from "@/lib/org/theme";
+import type { SheetSections } from "@/lib/studio/export";
 
 /* THE DESIGN AS A DOCUMENT — one artifact, rendered wherever it is needed.
 
@@ -506,6 +507,7 @@ export function SheetDoc({
   preparedOn,
   fields,
   provenance,
+  sections,
   children,
 }: {
   doc: DesignDocument;
@@ -521,11 +523,15 @@ export function SheetDoc({
   fields?: LetterheadFields;
   /** the owner's "Added from ServiceM8 …" line, with its Unlink */
   provenance?: React.ReactNode;
+  /** which parts of the sheet this copy carries — everything when absent. The
+      picklist is not one of them: it is the caller's child, like the plans. */
+  sections?: Omit<SheetSections, "picklist">;
   /** anything the CALLER puts at the foot of the document, above the close:
       the owner's copy hangs the whole-job picklist and contributors here, and
       the customer's copy hangs nothing. Absent, not hidden. */
   children?: React.ReactNode;
 }) {
+  const show = sections ?? { figures: true, systems: true, lines: true };
   return (
     <article className="dsd" style={themeVars(brand.color)}>
       {/* THE BUSINESS'S FRAME, around the whole sheet.
@@ -599,9 +605,12 @@ export function SheetDoc({
         fields={fields}
         provenance={provenance}
       />
-      <Figures snapshot={snapshot} model={model} basis={basis} />
+      {show.figures && <Figures snapshot={snapshot} model={model} basis={basis} />}
 
-      {model.systems.map((s) => (
+      {/* a copy without the rooms can still carry each system's pipe and
+          electrical, under the band that says whose they are */}
+      {(show.systems || show.lines) &&
+        model.systems.map((s) => (
         <section key={s.systemId} className="dsd-sys">
           <SystemBand sys={s} />
           {/* A SYSTEM THAT SERVES NO ROOMS SAYS SO.
@@ -612,22 +621,23 @@ export function SheetDoc({
               chosen and its indoor is not yet placed, which is most of the
               time somebody is mid-design — and the customer's copy of the
               sheet drew the same hole. */}
-          {s.rooms.length > 0 ? (
-            <RoomsTable
-              rooms={s.rooms}
-              outdoorModel={s.outdoorModel}
-              sharedOutdoor={s.sharedOutdoor}
-            />
-          ) : (
-            <p className="dsd-none">
-              No rooms are on this system yet.
-            </p>
-          )}
-          <Consumables lines={s.lines} />
+          {show.systems &&
+            (s.rooms.length > 0 ? (
+              <RoomsTable
+                rooms={s.rooms}
+                outdoorModel={s.outdoorModel}
+                sharedOutdoor={s.sharedOutdoor}
+              />
+            ) : (
+              <p className="dsd-none">
+                No rooms are on this system yet.
+              </p>
+            ))}
+          {show.lines && <Consumables lines={s.lines} />}
         </section>
       ))}
 
-      {model.unserved.length > 0 && (
+      {show.systems && model.unserved.length > 0 && (
         <section className="dsd-sys">
           <header className="dsd-band solo none">
             <div className="dsd-band-id">
@@ -644,7 +654,7 @@ export function SheetDoc({
         </section>
       )}
 
-      {model.systems.length === 0 && model.unserved.length === 0 && (
+      {show.systems && model.systems.length === 0 && model.unserved.length === 0 && (
         <p className="dsd-empty">Nothing has been designed yet.</p>
       )}
 

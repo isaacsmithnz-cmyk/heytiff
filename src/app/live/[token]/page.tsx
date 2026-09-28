@@ -17,6 +17,7 @@ import {
 import { simApprovalState } from "@/lib/studio/sim-approval";
 import { LiveSheet } from "./live-sheet";
 import { SHARE_TTL_DAYS, shareExpiresAt } from "@/lib/studio/share";
+import { LEGACY_LINK_SCOPE, linkFloors } from "@/lib/studio/send";
 
 /** A link that has aged out. Wears the same dead-link dress as not-found and
     says nothing about the design — an expired token shouldn't confirm what it
@@ -91,6 +92,9 @@ export default async function LivePage({
   if (share.kind === "missing") notFound();
   if (share.kind === "expired") return <ExpiredLink />;
   const { doc, brand, shareCreatedAt } = share;
+  /* what the owner ticked when they made the link */
+  const scope = share.scope ?? LEGACY_LINK_SCOPE;
+  const shows = (p: (typeof scope.parts)[number]) => scope.parts.includes(p);
 
   /* pack: latest installed + HQ overrides, then trimmed to this design */
   let pack: DataPack | null = null;
@@ -161,7 +165,9 @@ export default async function LivePage({
       expiresOn={expiresOn}
       /* absent, not disabled: nothing on this sheet advertises a simulation
          the customer cannot open */
-      simOffered={simApprovalState(doc, pack).offered}
+      simOffered={shows("sim") && simApprovalState(doc, pack).offered}
+      sections={{ figures: shows("figures"), systems: shows("systems"), lines: shows("lines") }}
+      planFloors={linkFloors(scope, doc.floors)}
     />
   );
 }

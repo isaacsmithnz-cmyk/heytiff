@@ -360,6 +360,13 @@ export type HookSub = {
   lastFailureAt: string | null;
 };
 
+/** A listed field list, as an array or as the comma-separated text the POST
+    sends: each name trimmed, none empty. */
+function listedFields(v: unknown): string[] {
+  const raw = Array.isArray(v) ? v : typeof v === "string" ? v.split(",") : [];
+  return raw.filter((f): f is string => typeof f === "string").map((f) => f.trim()).filter((f) => f !== "");
+}
+
 /** The list's JSON, read defensively: an entry without a uuid, a type or a
     callback_url is left out. */
 export function readHookList(json: unknown): HookSub[] {
@@ -374,7 +381,7 @@ export function readHookList(json: unknown): HookSub[] {
       type: r.type,
       object: typeof r.object === "string" ? r.object : null,
       callbackUrl: r.callback_url,
-      fields: Array.isArray(r.fields) ? r.fields.filter((f): f is string => typeof f === "string") : [],
+      fields: listedFields(r.fields),
       active: r.active === true || r.active === 1 || r.active === "1",
       lastFailureReason: typeof r.last_failure_reason === "string" && r.last_failure_reason !== "" ? r.last_failure_reason : null,
       lastFailureAt: typeof r.last_failure_at === "string" && r.last_failure_at !== "" ? r.last_failure_at : null,
@@ -435,6 +442,42 @@ export function isDeactivated(s: OurSub): boolean {
   return s.age === "current" && !s.active && s.lastFailureReason !== null;
 }
 
+/** A field name made comparable: trimmed and lowercased, so a listing that
+    spells or orders the fields its own way is never read as narrower. */
+const fieldKey = (f: string) => f.trim().toLowerCase();
+
+/** Two field lists that name the same fields, in any order or case. */
+export function sameHookFields(a: readonly string[] | null | undefined, b: readonly string[]): boolean {
+  if (!a) return false;
+  const x = new Set(a.map(fieldKey));
+  const y = new Set(b.map(fieldKey));
+  return x.size === y.size && [...x].every((f) => y.has(f));
+}
+
+/** Per object, the ServiceM8 answer that already says it is subscribed to
+    what we want, whatever the listing's `fields` read as:
+    - `true`: a 2xx POST of the wanted fields to the current address, THIS
+      run — so any active entry for the object at that address is it
+      ("Create or Update" updates in place);
+    - a subscription uuid: the one a reconcile before recorded after such a
+      POST, active, with the fields held now.
+    The walk of 2026-09-28 showed why: ServiceM8 took the job's 26 fields
+    (and pinged on them) while its listing of that subscription never read
+    as covering them, so every reconcile re-POSTed it and stored it
+    inactive. The listing still decides whether the entry is THERE, at the
+    current address, and ACTIVE. */
+export type HookVouch = Partial<Record<HookObjectName, string | true>>;
+
+/** Whether a listed entry of ours is active at the address in use and
+    watching `wanted`: its listed fields name them all (in any order or
+    case), or a POST vouches for it (HookVouch). */
+export function hookSubCovers(s: OurSub, wanted: readonly string[], vouch?: string | true): boolean {
+  if (s.age !== "current" || !s.active) return false;
+  if (vouch === true || (typeof vouch === "string" && vouch === s.uuid)) return true;
+  const listed = new Set(s.fields.map(fieldKey));
+  return wanted.every((f) => listed.has(fieldKey(f)));
+}
+
 export type HookPlan = {
   /** Objects to POST at the current address: missing, too narrow, or
       deactivated. */
@@ -463,6 +506,8 @@ export function planSubscriptions(input: {
   hashes: OurHashes;
   /** The fields each object must watch (hookFieldsHeld), by object. */
   wanted: Readonly<Record<HookObjectName, readonly string[]>>;
+  /** What a POST already vouches for (HookVouch). */
+  vouch?: Readonly<HookVouch>;
 }): HookPlan {
   const ours = classifyOurs(input.subs, input.origin, input.hashes);
   const post: HookObjectName[] = [];
@@ -470,7 +515,7 @@ export function planSubscriptions(input: {
   for (const object of HOOK_OBJECT_NAMES) {
     const wanted = input.wanted[object];
     const here = ours.filter((s) => s.age === "current" && s.hookObject === object);
-    const covered = here.some((s) => s.active && wanted.every((f) => s.fields.includes(f)));
+    const covered = here.some((s) => hookSubCovers(s, wanted, input.vouch?.[object]));
     if (!covered) post.push(object);
     for (const s of here) {
       if (isDeactivated(s)) deactivated.push({ object, sub: s.uuid, reason: s.lastFailureReason!, at: s.lastFailureAt });

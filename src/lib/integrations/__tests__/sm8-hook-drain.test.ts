@@ -870,6 +870,76 @@ describe("drainSm8Hooks", () => {
       expect(out).toMatchObject({ read: 2, written: 2, stopped: null });
       expect(pings()).toEqual([]);
     });
+
+    it("the walk of 2026-09-28: a ping whose drain lost the flight is read by the holder, not left for a backstop", async () => {
+      const at = (hms: string) => Date.parse(`2026-09-28T${hms}Z`);
+      clock = at("11:55:16");
+      // the photo's removal pinged; its own route drain is the holder
+      db.sm8_webhook_pings = [queue("attachments", U(1), 0)];
+      const PHOTO = U(1);
+      const JOB = U(2);
+      let theirs: Awaited<ReturnType<typeof drainSm8Hooks>> | null = null;
+      const sleep = async (ms: number) => {
+        events.push(`sleep:${ms}`);
+        const to = clock + ms;
+        if (clock < at("11:55:19") && to >= at("11:55:19") && theirs === null) {
+          clock = at("11:55:19");
+          // the description revert pings: queued, and its after() drain finds the flight held
+          db.sm8_webhook_pings.push(queue("jobs", JOB, 0));
+          theirs = await drainSm8Hooks(ORG, { deadline: clock + 280_000, maxMs: 120_000, wait: true, clock: () => clock, sleep });
+        }
+        clock = to;
+      };
+      // the photo's read ends 11:55:26, when the holder releases: the job is 7 s old, not quiet
+      readTakes = [2_000];
+      const released: number[] = [];
+      onUpdate = (table, patch) => {
+        if (table === "sm8_webhooks" && patch.draining_until === null) released.push(clock);
+      };
+      const out = await drain({ wait: true, sleep });
+
+      expect(theirs).toMatchObject({ ran: false, stopped: "flying", read: 0 });
+      expect(released[0]).toBe(at("11:55:26"));
+      // the holder waited for the job to go quiet, and read it then
+      expect(requests.map((r) => [r.filter, iso(r.at)])).toEqual([
+        [`uuid eq '${PHOTO}'`, "2026-09-28T11:55:24.000Z"],
+        [`uuid eq '${JOB}'`, "2026-09-28T11:55:27.000Z"],
+      ]);
+      expect(out).toMatchObject({ ran: true, read: 2, stopped: null });
+      expect(pings()).toEqual([]);
+      expect(hooks().draining_until).toBeNull();
+    });
+
+    it("a backstop's look again never waits: a row not yet quiet is left for the route's drain", async () => {
+      db.sm8_webhook_pings = [queue("jobs", U(1), 30_000)];
+      let queued = false;
+      onUpdate = (table, patch) => {
+        if (table === "sm8_webhooks" && patch.draining_until === null && !queued) {
+          queued = true;
+          db.sm8_webhook_pings.push(queue("jobs", U(2), 1_000));
+        }
+      };
+      const out = await drain({ maxMs: 20_000, wait: false });
+      expect(out).toMatchObject({ read: 1, stopped: null });
+      expect(pings().map((r) => r.uuid)).toEqual([U(2)]);
+      expect(events.filter((e) => e.startsWith("sleep:") && e !== "sleep:1000")).toEqual([]);
+    });
+
+    it("the look again waits only while a read still fits the budget after it", async () => {
+      db.sm8_webhook_pings = [queue("jobs", U(1), 30_000)];
+      let queued = false;
+      onUpdate = (table, patch) => {
+        if (table === "sm8_webhooks" && patch.draining_until === null && !queued) {
+          queued = true;
+          db.sm8_webhook_pings.push(queue("jobs", U(2), 0));
+        }
+      };
+      // 20 s: the job would be quiet 8 s on, with 15 s needed for its read
+      const out = await drain({ maxMs: 20_000, wait: true });
+      expect(out).toMatchObject({ read: 1 });
+      expect(pings().map((r) => r.uuid)).toEqual([U(2)]);
+      expect(events.filter((e) => e.startsWith("sleep:") && e !== "sleep:1000")).toEqual([]);
+    });
   });
 
   describe("quiet", () => {

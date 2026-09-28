@@ -32,7 +32,11 @@
    5. What was found, per object (sm8_webhooks.objects: the spelling, the
       subscription's uuid, active, a refusal, a turn-off — NEVER an
       address), subscribed_at when all six are active at the address, and
-      ensure_tried_at. A rotation owed is cleared only here, at the end,
+      ensure_tried_at. A 2xx POST is ServiceM8's word that the object is
+      subscribed: the second list confirms it (an active entry at the
+      address, whatever its listed fields read as) or corrects it (one
+      listed inactive), and a list that doesn't show it leaves it standing
+      (HookVouch, noteFromList: the walk of 2026-09-28). A rotation owed is cleared only here, at the end,
       and only when this run minted.
    ONE AT A TIME per workspace: the reconcile claims ensure_tried_at for
    its budget before anything else (a conditional write), and a second
@@ -77,6 +81,7 @@ import {
   hookFieldsHeld,
   hookHashOf,
   hookSpecOf,
+  hookSubCovers,
   isInvalidField,
   isUnsupportedObject,
   ourSecretIn,
@@ -86,12 +91,14 @@ import {
   readHookList,
   readHookObjects,
   redactHook,
+  sameHookFields,
   sm8HooksHealth,
   spellingsFor,
   type HookObjectName,
   type HookObjectState,
   type HookObjectsState,
   type HookSub,
+  type HookVouch,
   type OurHashes,
   type Sm8HooksHealth,
 } from "./sm8-hook-plan";
@@ -344,11 +351,11 @@ export function deletableSubs(
   subs: readonly HookSub[],
   origin: string,
   held: OurHashes,
-  wanted: Readonly<Record<HookObjectName, readonly string[]>>
+  wanted: Readonly<Record<HookObjectName, readonly string[]>>,
+  vouch: Readonly<HookVouch> = {}
 ): string[] {
   const ours = classifyOurs(subs, origin, held);
-  const covered = (o: HookObjectName) =>
-    ours.some((s) => s.age === "current" && s.hookObject === o && s.active && wanted[o].every((f) => s.fields.includes(f)));
+  const covered = (o: HookObjectName) => ours.some((s) => s.hookObject === o && hookSubCovers(s, wanted[o], vouch[o]));
   const out: string[] = [];
   for (const s of ours) {
     if (!s.active || s.age === "current") continue;
@@ -428,6 +435,15 @@ export async function ensureSm8Webhooks(
     const run: Run = { orgId, access: accessed.access, end: started + opts.budgetMs, clock, secrets: [] };
     const known = readHookObjects(state?.objects);
     const wanted = wantedFields(known);
+    /* what an earlier reconcile's POST vouches for: the subscription it
+       recorded, active, on the fields held now (HookVouch) */
+    const vouch: HookVouch = {};
+    for (const o of HOOK_OBJECT_NAMES) {
+      const k = known[o];
+      if (k?.active === true && k.sub && sameHookFields(k.fields, wanted[o])) vouch[o] = k.sub;
+    }
+    /* the objects a 2xx POST subscribed this run */
+    const took = new Set<HookObjectName>();
     const found: HookObjectsState = {};
     const touch = (o: HookObjectName, patch: HookObjectState) => {
       found[o] = { ...found[o], ...patch };
@@ -523,8 +539,8 @@ export async function ensureSm8Webhooks(
     }
 
     /* 3. the POSTs, the turn-offs recorded first */
-    const plan = planSubscriptions({ subs, origin, hashes, wanted });
-    noteFromList(subs, origin, hashes, wanted, touch);
+    const plan = planSubscriptions({ subs, origin, hashes, wanted, vouch });
+    noteFromList(subs, origin, hashes, wanted, vouch, took, touch);
     if (plan.deactivated.length > 0) {
       for (const d of plan.deactivated) {
         touch(d.object, { active: false, failure_reason: safe(d.reason, run.secrets), failure_at: stampOrNull(d.at) });
@@ -547,9 +563,22 @@ export async function ensureSm8Webhooks(
       }
       if (outcome.kind === "ok") {
         posted += 1;
-        /* what ServiceM8 took is what the listing is held to from here on */
+        /* what ServiceM8 took is what the listing is held to from here on,
+           and the 2xx is ServiceM8's own word that it is subscribed: a
+           later list confirms it (and names its uuid) or corrects it, but
+           never reads it as narrower than what was just taken */
         wanted[object] = outcome.fields;
-        touch(object, { name: outcome.name, fields: outcome.fields, active: true, error: null, failure_reason: null, failure_at: null });
+        vouch[object] = true;
+        took.add(object);
+        touch(object, {
+          name: outcome.name,
+          fields: outcome.fields,
+          active: true,
+          error: null,
+          failure_reason: null,
+          failure_at: null,
+          ...(outcome.sub ? { sub: outcome.sub } : {}),
+        });
       } else {
         touch(object, { active: false, error: outcome.error });
         console.error(`[sm8] live updates for org ${orgId}: ServiceM8 refused ${object}: ${outcome.error}`);
@@ -568,8 +597,8 @@ export async function ensureSm8Webhooks(
       } else {
         subs = second.subs;
         latest = true;
-        delPlan = planSubscriptions({ subs, origin, hashes, wanted });
-        noteFromList(subs, origin, hashes, wanted, touch);
+        delPlan = planSubscriptions({ subs, origin, hashes, wanted, vouch });
+        noteFromList(subs, origin, hashes, wanted, vouch, took, touch);
       }
     }
     if (delPlan.leftAlone.length > 0) {
@@ -582,7 +611,7 @@ export async function ensureSm8Webhooks(
     if (!stopped && latest && delPlan.del.length > 0) {
       const held = await heldHashes(orgId, account, clock());
       if (held === null) stopped = "hooks unreadable";
-      const doomed = held === null ? [] : deletableSubs(subs, origin, held, wanted);
+      const doomed = held === null ? [] : deletableSubs(subs, origin, held, wanted, vouch);
       for (const uuid of doomed) {
         const d = await deleteSub(run, uuid);
         if (d === "deleted") deleted += 1;
@@ -603,18 +632,27 @@ export async function ensureSm8Webhooks(
 }
 
 /** Per object, what a listing says about the address in use: its
-    subscription, and whether it is active and watching what we want. */
+    subscription, and whether it is active and watching what we want
+    (hookSubCovers, with what a POST vouches for). An object a 2xx POST
+    subscribed this run (`took`) is CONFIRMED by an active entry at the
+    address, and CORRECTED by one listed inactive; a listing with no entry
+    for it at all leaves the POST's word standing — at the walk of
+    2026-09-28 ServiceM8 pinged for notes and attachments that its listing
+    right after their POSTs didn't show at the address. */
 function noteFromList(
   subs: readonly HookSub[],
   origin: string,
   hashes: OurHashes,
   wanted: Readonly<Record<HookObjectName, readonly string[]>>,
+  vouch: Readonly<HookVouch>,
+  took: ReadonlySet<HookObjectName>,
   touch: (o: HookObjectName, patch: HookObjectState) => void
 ): void {
   const current = classifyOurs(subs, origin, hashes).filter((s) => s.age === "current");
   for (const o of HOOK_OBJECT_NAMES) {
     const here = current.filter((s) => s.hookObject === o);
-    const covering = here.find((s) => s.active && wanted[o].every((f) => s.fields.includes(f)));
+    if (here.length === 0 && took.has(o)) continue;
+    const covering = here.find((s) => hookSubCovers(s, wanted[o], vouch[o]));
     const pick = covering ?? here[0];
     touch(o, {
       sub: pick?.uuid ?? null,
@@ -628,7 +666,8 @@ function noteFromList(
 }
 
 type Subscribed =
-  | { kind: "ok"; name: string; fields: string[] }
+  /** `sub`: the subscription's uuid, when the answer names one. */
+  | { kind: "ok"; name: string; fields: string[]; sub: string | null }
   | { kind: "refused"; error: string }
   | { kind: "stop"; why: string };
 
@@ -649,7 +688,7 @@ async function subscribe(run: Run, object: HookObjectName, address: string, held
       const hit = await hooksCall(run, "POST", "/webhook_subscriptions/object", { body });
       if (hit.kind === "failed") return { kind: "refused", error: safe(hit.message, run.secrets) };
       if (hit.kind !== "response") return { kind: "stop", why: hit.kind };
-      if (hit.status >= 200 && hit.status <= 299 && successOf(hit.body)) return { kind: "ok", name, fields };
+      if (hit.status >= 200 && hit.status <= 299 && successOf(hit.body)) return { kind: "ok", name, fields, sub: subUuidOf(hit.body) };
       if (isUnsupportedObject(hit.status, hit.body)) {
         last = hit.body;
         break;
@@ -662,6 +701,21 @@ async function subscribe(run: Run, object: HookObjectName, address: string, held
     }
   }
   return { kind: "refused", error: safe(`400: ${last}`, run.secrets) };
+}
+
+const SUB_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The subscription's uuid in a POST's answer, when it carries one. The
+    reference documents only `{"success": true}`
+    (reference/post_object_webhook_subscription), so this is usually null
+    and the list after the POSTs names it. */
+function subUuidOf(body: string): string | null {
+  try {
+    const j = JSON.parse(body) as { uuid?: unknown };
+    return j && typeof j === "object" && typeof j.uuid === "string" && SUB_UUID_RE.test(j.uuid) ? j.uuid : null;
+  } catch {
+    return null;
+  }
 }
 
 /** `{"success": true}`, or a 2xx body that doesn't say otherwise. */

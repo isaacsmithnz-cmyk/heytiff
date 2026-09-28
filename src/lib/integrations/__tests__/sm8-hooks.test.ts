@@ -209,6 +209,8 @@ let spend: Record<string, number> = {};
 let fakeNow = 1_000_000;
 /** A DELETE's answer, by subscription uuid, when it isn't plain success. */
 let deleteSays: Record<string, unknown> = {};
+/** How ServiceM8's LISTING shows what it holds, when not as it is. */
+let listAs: (held: Sub[]) => Sub[] = (held) => held;
 
 const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status });
 
@@ -223,7 +225,8 @@ const fakeFetch = jest.fn(async (url: string, init: RequestInit) => {
   if (method === "GET") {
     if (listStatus !== 200) return new Response("no", { status: listStatus });
     const status = u.searchParams.get("status");
-    return json(status === "active" ? subs.filter((s) => s.active) : subs);
+    const shown = listAs(subs.map((s) => ({ ...s, fields: [...s.fields] })));
+    return json(status === "active" ? shown.filter((s) => s.active) : shown);
   }
   if (method === "POST") {
     const object = body!.get("object")!;
@@ -335,6 +338,7 @@ beforeEach(() => {
   spend = {};
   fakeNow = 1_000_000;
   deleteSays = {};
+  listAs = (held) => held;
   accessResult = { ok: true, access: ACCESS };
   renewSm8Access.mockReset();
   markSm8NeedsReauth.mockClear();
@@ -1013,5 +1017,71 @@ describe("dropExpiredSm8Hooks", () => {
     holdRetired(STRANGE, -HOUR);
     expect(await dropExpiredSm8Hooks()).toBe(1);
     expect(db.sm8_webhook_hooks.map((h) => h.hook_hash).sort()).toEqual([hashOf(OLD), hashOf(NEWER)].sort());
+  });
+});
+
+/* ── the walk of 2026-09-28: BUG A ── */
+
+describe("what a POST took stays taken, whatever the listing reads as", () => {
+  /* as the walk found it: the job's 26 fields taken (and pinging), but its
+     listing never reading as covering them; notes and attachments taken
+     (and pinging) but not shown at the address */
+  const asTheWalkListed = (held: Sub[]) =>
+    held
+      .filter((s) => s.object !== "note" && s.object !== "attachment")
+      .map((s) => (s.object === "job" ? { ...s, fields: s.fields.slice(0, 10) } : s));
+
+  it("records all six active and subscribed_at, and the next reconcile doesn't re-POST the job", async () => {
+    listAs = asTheWalkListed;
+    const out = await ensure();
+    expect(out).toMatchObject({ ran: true, rotated: true, posted: 6, subscribed: true, stopped: null });
+    for (const o of HOOK_OBJECT_NAMES) expect(row().objects).toMatchObject({ [o]: { active: true, error: null } });
+    // the listing names the job's subscription, so its uuid is kept
+    const job = subs.find((s) => s.object === "job")!;
+    expect(row().objects).toMatchObject({ jobs: { sub: job.uuid, fields: wanted("jobs") } });
+    const at = row().subscribed_at;
+    expect(at).toEqual(expect.any(String));
+
+    requests.length = 0;
+    const again = await ensure();
+    expect(again).toMatchObject({ ran: true, rotated: false, subscribed: true, stopped: null });
+    // the job is vouched for by the subscription the last POST recorded
+    expect(posts().map((p) => p.body!.get("object"))).not.toContain("job");
+    for (const o of HOOK_OBJECT_NAMES) expect(row().objects).toMatchObject({ [o]: { active: true } });
+    expect(row().subscribed_at).toBe(at);
+  });
+
+  it("a listing whose fields read in another order or case, or as one text, still covers", async () => {
+    holdCurrent(OLD);
+    holdRow({ subscribed_at: "2026-09-20T00:00:00.000Z" });
+    subs = listSix(OLD);
+    listAs = (held) =>
+      held.map((s, i) =>
+        i % 2 === 0
+          ? { ...s, fields: [...s.fields].reverse().map((f) => f.toUpperCase()) }
+          : ({ ...s, fields: ` ${s.fields.join(" , ")} ` } as unknown as Sub)
+      );
+    const out = await ensure();
+    expect(out).toMatchObject({ posted: 0, subscribed: true });
+    expect(requests.map((r) => r.method)).toEqual(["GET"]);
+  });
+
+  it("a later list CORRECTS a POST it shows inactive at the address", async () => {
+    listAs = (held) => held.map((s) => (s.object === "company" ? { ...s, active: false } : s));
+    const out = await ensure();
+    expect(out).toMatchObject({ posted: 6, subscribed: false });
+    expect(row().objects).toMatchObject({ companies: { active: false }, jobs: { active: true } });
+    expect(row().subscribed_at).toBeNull();
+  });
+
+  it("a subscription recorded on fields no longer held is not vouched for", async () => {
+    holdCurrent(OLD);
+    subs = listSix(OLD);
+    const job = subs.find((s) => s.object === "job")!;
+    job.fields = ["active"];
+    holdRow({ objects: { jobs: { sub: job.uuid, active: true, fields: ["status", "active"] } } });
+    await ensure();
+    expect(posts().map((p) => p.body!.get("object"))).toEqual(["job"]);
+    expect(posts()[0].body!.get("fields")).toBe(wanted("jobs").join(","));
   });
 });

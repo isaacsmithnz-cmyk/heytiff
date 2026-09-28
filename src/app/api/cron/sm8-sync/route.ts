@@ -9,7 +9,7 @@ import {
 } from "@/lib/integrations/sm8-writes";
 import { WRITE_LEASE_MARGIN_MS, WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
 import { SYNC_LEASE_MS, whenSm8LeaseFree } from "@/lib/integrations/sm8-lease";
-import { ENSURE_BUDGET_MS, functionDeadline } from "@/lib/integrations/sm8-hook-plan";
+import { ENSURE_BUDGET_MS, ENSURE_FINISH_MARGIN_MS, functionDeadline } from "@/lib/integrations/sm8-hook-plan";
 import { sm8WebhooksState } from "@/lib/integrations/sm8-hooks-switch";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { NOTE_TEXT_DAYS } from "@/lib/integrations/sm8-note-plan";
@@ -125,7 +125,8 @@ type HookNight = { ensured: number; subscribed: number; deferred: number; failed
 async function reconcileHooks(orgs: readonly string[], startedAt: number): Promise<HookNight> {
   const { dropExpiredSm8Hooks, ensureSm8Webhooks } = await import("@/lib/integrations/sm8-hooks");
   const night: HookNight = { ensured: 0, subscribed: 0, deferred: 0, failed: 0, expired: 0 };
-  const stepEnd = Math.min(Date.now() + ENSURE_BUDGET_MS, startedAt + CRON_SYNC_START_BY_MS);
+  /* less the margin each reconcile's own last writes need */
+  const stepEnd = Math.min(Date.now() + ENSURE_BUDGET_MS, startedAt + CRON_SYNC_START_BY_MS) - ENSURE_FINISH_MARGIN_MS;
   for (const orgId of orgs) {
     const now = Date.now();
     if (now - startedAt + ENSURE_BUDGET_MS > CRON_SYNC_START_BY_MS || now >= stepEnd) {

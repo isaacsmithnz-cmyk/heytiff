@@ -309,7 +309,7 @@ describe("live updates (two-way phase 4)", () => {
     expect(hooksLoaded).toBe(false);
   });
 
-  it("on: a saved connect owes a rotation BEFORE the redirect; behind it, the slice, then the reconcile with a rotation", async () => {
+  it("on: a saved connect owes a rotation BEFORE the redirect; behind it, the slice, then the reconcile the mark makes rotate", async () => {
     on();
     const res = await GET(callback());
     expect(where(res)).toBe(`${SCREEN}?connected=1`);
@@ -319,8 +319,9 @@ describe("live updates (two-way phase 4)", () => {
     clock += 100_000; // the slice took 100 s
     await behind();
     expect(order).toEqual(["save", "owe", "after", "slice", "ensure"]);
-    // what is left of 300 s, less the 20 s margin
-    expect(ensureSm8Webhooks).toHaveBeenCalledWith("org-1", { rotate: true, budgetMs: 180_000 });
+    // what is left of 300 s, less the 20 s margin; not asked to rotate —
+    // the mark does that, so a mint another reconcile made after it counts
+    expect(ensureSm8Webhooks).toHaveBeenCalledWith("org-1", { budgetMs: 180_000 });
   });
 
   it("on: a change of account owes it for the new account, before the old copy is cleared", async () => {
@@ -338,7 +339,7 @@ describe("live updates (two-way phase 4)", () => {
     await GET(callback());
     expect(markSm8RotationOwed).toHaveBeenCalledWith("org-1", null);
     await behind();
-    expect(ensureSm8Webhooks).toHaveBeenCalledWith("org-1", expect.objectContaining({ rotate: true }));
+    expect(ensureSm8Webhooks).toHaveBeenCalledWith("org-1", { budgetMs: expect.any(Number) });
   });
 
   it("on: under a minute left after the slice, no reconcile — the mark waits for a page load or the night", async () => {
@@ -349,6 +350,16 @@ describe("live updates (two-way phase 4)", () => {
     await behind();
     expect(order).toEqual(["save", "owe", "after", "slice"]);
     expect(ensureSm8Webhooks).not.toHaveBeenCalled();
+    quiet.mockRestore();
+  });
+
+  it("on: a reconcile that throws, or can't be loaded, never escapes the after()", async () => {
+    on();
+    const quiet = jest.spyOn(console, "error").mockImplementation(() => {});
+    ensureSm8Webhooks.mockRejectedValueOnce(new Error("boom"));
+    await GET(callback());
+    await expect(behind()).resolves.toBeUndefined();
+    expect(quiet).toHaveBeenCalled();
     quiet.mockRestore();
   });
 

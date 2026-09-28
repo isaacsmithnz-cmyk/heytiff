@@ -300,13 +300,13 @@ describe("live updates owed (two-way phase 4)", () => {
     expect(ensureSm8WebhooksIfOwed).not.toHaveBeenCalled();
   });
 
-  it("with the switch on, an owed reconcile runs after the writes and before the sync, in 30 s", async () => {
+  it("with the switch on, an owed reconcile runs after the writes and before the sync, in 30 s less 2 for its last writes", async () => {
     process.env.VERCEL_ENV = "production";
     process.env.SM8_WEBHOOKS = "1";
     freshenSm8AfterResponse("org-1");
     await behind();
     expect(order).toEqual(["writes", "ensure", "sync", "asks"]);
-    expect(ensureSm8WebhooksIfOwed).toHaveBeenCalledWith("org-1", { budgetMs: 30_000 });
+    expect(ensureSm8WebhooksIfOwed).toHaveBeenCalledWith("org-1", { budgetMs: 28_000 });
   });
 
   it("never when it would put the sync past its start", async () => {

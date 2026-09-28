@@ -394,9 +394,10 @@ describe("live updates' nightly reconcile (two-way phase 4)", () => {
     on();
     ensureTakes = [12_000];
     await GET(byScheduler());
+    // 30 s less the 2 s each reconcile's last writes keep
     expect(ensured).toEqual([
-      { org: "s1", budgetMs: 30_000 },
-      { org: "s2", budgetMs: 18_000 },
+      { org: "s1", budgetMs: 28_000 },
+      { org: "s2", budgetMs: 16_000 },
     ]);
   });
 
@@ -407,7 +408,7 @@ describe("live updates' nightly reconcile (two-way phase 4)", () => {
     takes = [START_BY - 30_000];
     ensureTakes = [1];
     const body = await (await GET(byScheduler())).json();
-    expect(ensured).toEqual([{ org: "s1", budgetMs: 30_000 }]);
+    expect(ensured).toEqual([{ org: "s1", budgetMs: 28_000 }]);
     expect(body.hooks).toMatchObject({ ensured: 1, deferred: 1 });
     // and past it, none
     ensured.length = 0;

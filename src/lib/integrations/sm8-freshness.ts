@@ -30,7 +30,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { settleMentionAsks } from "@/lib/dashboard/mention-settle";
 import { runSm8Sync, sm8SyncIsStale } from "./sm8-sync";
 import { SYNC_LEASE_MS, whenSm8LeaseFree } from "./sm8-lease";
-import { ENSURE_BUDGET_MS, functionDeadline } from "./sm8-hook-plan";
+import { ENSURE_BUDGET_MS, ENSURE_FINISH_MARGIN_MS, functionDeadline } from "./sm8-hook-plan";
 import { sm8WebhooksState } from "./sm8-hooks-switch";
 import { runSm8Writes, sm8WritesDue, sm8WritesEnabled } from "./sm8-writes";
 import { backgroundBudgetMs, FUNCTION_MAX_MS, WRITE_LEASE_MARGIN_MS } from "./sm8-write-plan";
@@ -83,7 +83,7 @@ export function freshenSm8AfterResponse(orgId: string): void {
          isn't loaded and nothing is read. */
       if (sm8WebhooksState() === "on" && Date.now() + ENSURE_BUDGET_MS <= syncStartBy) {
         const { ensureSm8WebhooksIfOwed } = await import("./sm8-hooks");
-        await ensureSm8WebhooksIfOwed(orgId, { budgetMs: ENSURE_BUDGET_MS });
+        await ensureSm8WebhooksIfOwed(orgId, { budgetMs: ENSURE_BUDGET_MS - ENSURE_FINISH_MARGIN_MS });
       }
 
       if (Date.now() > syncStartBy) return;

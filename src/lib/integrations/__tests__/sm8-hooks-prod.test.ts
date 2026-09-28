@@ -33,9 +33,21 @@ const touched: string[] = [];
 function rec(name: string, value: unknown = undefined) {
   return async (...args: unknown[]) => {
     calls.push(`${name}${typeof args[1] === "string" ? `:${args[1]}` : ""}`);
-    return value;
+    return typeof value === "function" ? (value as () => unknown)() : value;
   };
 }
+
+/* the callback's branches: which account ServiceM8 names, and which this
+   workspace had (set per case; read when called) */
+const ACME = { uuid: "acct-1c4b", name: "Acme Air", email: null, timezoneName: "Australia/Sydney", currency: "AUD" };
+const BETA = { uuid: "acct-9e02", name: "Beta Cooling", email: null, timezoneName: "Australia/Sydney", currency: "AUD" };
+const HAD_ACME = {
+  ok: true,
+  connected: { tenantId: "acct-1c4b", tenantName: "Acme Air" },
+  mirrored: { uuid: "acct-1c4b", name: "Acme Air" },
+};
+let vendorAnswer: unknown = { ok: true, vendor: ACME };
+let accountsAnswer: unknown = HAD_ACME;
 
 jest.mock("@/lib/supabase-server", () => {
   const chain = (table: string): unknown =>
@@ -91,17 +103,10 @@ jest.mock("@/lib/permissions-server", () => ({ getDbRole: async () => "owner" })
 jest.mock("../sm8", () => ({
   sm8Config: () => ({ clientId: "id", clientSecret: "cs", redirectUri: "https://app.test/cb" }),
   exchangeSm8Code: rec("exchange", { ok: true, tokens: { accessToken: "at", refreshToken: "rt", scope: "vendor", expiresIn: 3600 } }),
-  fetchSm8Vendor: rec("vendor", {
-    ok: true,
-    vendor: { uuid: "acct-1c4b", name: "Acme Air", email: null, timezoneName: "Australia/Sydney", currency: "AUD" },
-  }),
+  fetchSm8Vendor: rec("vendor", () => vendorAnswer),
 }));
 jest.mock("../sm8-store", () => ({
-  readSm8Accounts: rec("accounts", {
-    ok: true,
-    connected: { tenantId: "acct-1c4b", tenantName: "Acme Air" },
-    mirrored: { uuid: "acct-1c4b", name: "Acme Air" },
-  }),
+  readSm8Accounts: rec("accounts", () => accountsAnswer),
   saveSm8Connection: rec("save", { ok: true }),
   disconnectSm8: rec("disconnectSm8", { cancelled: [], inFlight: 0 }),
   sm8AccessResult: rec("access", { ok: false, reason: "not_connected" }),
@@ -146,6 +151,8 @@ const env = { ...process.env };
 const realFetch = global.fetch;
 const fetchSpy = jest.fn(async () => new Response("[]"));
 beforeEach(() => {
+  vendorAnswer = { ok: true, vendor: ACME };
+  accountsAnswer = HAD_ACME;
   calls.length = 0;
   touched.length = 0;
   scheduled.length = 0;
@@ -237,6 +244,34 @@ describe("with the switch off, each entry point makes today's calls exactly", ()
     });
     expectToday(seen, {
       calls: ["exchange:c-1", "vendor", "accounts", "elsewhere:servicem8", "save", "after", "whenFree:connect"],
+      touched: [],
+    });
+  });
+
+  const connect = (expected: string) => async () => {
+    const res = await callbackGET(
+      new NextRequest("https://app.test/api/integrations/servicem8/callback?code=c-1&state=s-1", {
+        headers: { cookie: "servicem8_oauth_state=s-1:org-5d21" },
+      })
+    );
+    expect(res.headers.get("location")).toBe(`https://app.test/dashboard/admin/integrations/servicem8${expected}`);
+  };
+
+  it("the connect callback, a change of account: the old copy cleared under the lease, and the slice alone", async () => {
+    vendorAnswer = { ok: true, vendor: BETA };
+    const seen = await underEach(connect("?connected=1&switched=1"));
+    expectToday(seen, {
+      calls: ["exchange:c-1", "vendor", "accounts", "elsewhere:servicem8", "save", "switch", "after", "whenFree:connect"],
+      touched: [],
+    });
+  });
+
+  it("the connect callback, an account ServiceM8 wouldn't name: stored nameless, and the slice alone", async () => {
+    vendorAnswer = { ok: false, unauthorized: false };
+    accountsAnswer = { ok: true, connected: null, mirrored: null };
+    const seen = await underEach(connect("?connected=1"));
+    expectToday(seen, {
+      calls: ["exchange:c-1", "vendor", "vendor", "accounts", "save", "after", "whenFree:connect"],
       touched: [],
     });
   });

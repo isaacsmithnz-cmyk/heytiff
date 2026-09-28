@@ -69,7 +69,10 @@ async function oweRotation(orgId: string, account: string | null): Promise<void>
 }
 
 /** Behind the response: the connect's sync slice, as always; then, with
-    live updates on, the reconcile with a rotation, in what is left. */
+    live updates on, the reconcile, in what is left. It rotates because the
+    mark says so, not because it was asked to: a reconcile that already
+    minted after the mark has cleared it, and this one then reuses that
+    address rather than minting over it. Never throws. */
 async function afterConnect(orgId: string, calledAt: number): Promise<void> {
   await runSm8SyncWhenFree(orgId, "connect").catch(() => {});
   const left = functionDeadline(calledAt, maxDuration) - Date.now();
@@ -77,8 +80,12 @@ async function afterConnect(orgId: string, calledAt: number): Promise<void> {
     console.warn(`[sm8] live updates for org ${orgId}: no time left to subscribe after the connect; the next page load or night does it`);
     return;
   }
-  const { ensureSm8Webhooks } = await import("@/lib/integrations/sm8-hooks");
-  await ensureSm8Webhooks(orgId, { rotate: true, budgetMs: left });
+  try {
+    const { ensureSm8Webhooks } = await import("@/lib/integrations/sm8-hooks");
+    await ensureSm8Webhooks(orgId, { budgetMs: left });
+  } catch (err) {
+    console.error(`[sm8] live updates for org ${orgId}: the connect's reconcile didn't run: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 const SCREEN = "/dashboard/admin/integrations/servicem8";

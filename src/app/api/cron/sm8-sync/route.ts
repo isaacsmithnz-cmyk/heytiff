@@ -9,7 +9,8 @@ import {
 } from "@/lib/integrations/sm8-writes";
 import { WRITE_LEASE_MARGIN_MS, WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
 import { SYNC_LEASE_MS, whenSm8LeaseFree } from "@/lib/integrations/sm8-lease";
-import { functionDeadline } from "@/lib/integrations/sm8-hook-plan";
+import { ENSURE_BUDGET_MS, functionDeadline } from "@/lib/integrations/sm8-hook-plan";
+import { sm8WebhooksState } from "@/lib/integrations/sm8-hooks-switch";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { NOTE_TEXT_DAYS } from "@/lib/integrations/sm8-note-plan";
 import { EVICT_BUDGET_MS, evictStaleSm8Files, type EvictResult } from "@/lib/integrations/sm8-file-cache";
@@ -110,6 +111,39 @@ const CRON_WRITE_TOTAL_MS = CRON_SYNC_START_BY_MS - WRITE_LEASE_MS;
     sent to ServiceM8. */
 const CRON_SETTLE_MARGIN_MS = WRITE_LEASE_MARGIN_MS;
 
+/** LIVE UPDATES' NIGHTLY RECONCILE (two-way phase 4), between the note
+    clearing and the syncs: one list per swept workspace, plus whatever
+    repair it finds — a turned-off subscription re-POSTed, a missing one
+    made, a rotation a connect left owed. The whole step has
+    ENSURE_BUDGET_MS, and a workspace's starts only while that much still
+    ends before the first sync's start-by, so it can never put a sync off.
+    What doesn't fit goes on a page load or the next night. Then the hooks
+    past their 72 hours are tidied away. Only with SM8_WEBHOOKS on: off,
+    the machinery isn't loaded and the answer is as it was. */
+type HookNight = { ensured: number; subscribed: number; deferred: number; failed: number; expired: number };
+
+async function reconcileHooks(orgs: readonly string[], startedAt: number): Promise<HookNight> {
+  const { dropExpiredSm8Hooks, ensureSm8Webhooks } = await import("@/lib/integrations/sm8-hooks");
+  const night: HookNight = { ensured: 0, subscribed: 0, deferred: 0, failed: 0, expired: 0 };
+  const stepEnd = Math.min(Date.now() + ENSURE_BUDGET_MS, startedAt + CRON_SYNC_START_BY_MS);
+  for (const orgId of orgs) {
+    const now = Date.now();
+    if (now - startedAt + ENSURE_BUDGET_MS > CRON_SYNC_START_BY_MS || now >= stepEnd) {
+      night.deferred += 1;
+      continue;
+    }
+    const out = await ensureSm8Webhooks(orgId, { budgetMs: stepEnd - now });
+    if (!out.ran) {
+      if (out.why === "failed") night.failed += 1;
+      continue;
+    }
+    night.ensured += 1;
+    if (out.subscribed) night.subscribed += 1;
+  }
+  night.expired = await dropExpiredSm8Hooks(Date.now());
+  return night;
+}
+
 /** Whether Vercel's scheduler made this call, rather than a person. */
 function fromScheduler(request: Request): boolean {
   return request.headers.has("x-vercel-cron-schedule");
@@ -171,6 +205,13 @@ export async function GET(request: Request) {
      skipped because the engine would refuse them anyway, and each refusal
      costs a lease dance. */
   const orgs = await sweepableSm8Orgs(ORG_CAP);
+
+  const hooks =
+    sm8WebhooksState() === "on"
+      ? await reconcileHooks(orgs, startedAt).catch(
+          (): HookNight => ({ ensured: 0, subscribed: 0, deferred: 0, failed: orgs.length, expired: 0 })
+        )
+      : null;
 
   let ran = 0;
   let busy = 0;
@@ -262,6 +303,7 @@ export async function GET(request: Request) {
     capped: orgs.length === ORG_CAP,
     writes: { orgs: writers.length, sent: writesSent, failed: writesFailed, deferred: writesDeferred },
     ...(sm8NotesAllowed() ? { notesCleared } : {}),
+    ...(hooks ? { hooks } : {}),
     asks: { read: asksRead, tasks: asksMade, deferred: asksDeferred },
     files: {
       evicted: files.evicted,

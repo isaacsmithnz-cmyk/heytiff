@@ -31,7 +31,7 @@ jest.mock("../sm8-meter", () => {
   };
 });
 
-import { sm8BusyOf, sm8Request, sm8Url } from "../sm8-http";
+import { sm8BusyOf, sm8HooksUrl, sm8Request, sm8Url } from "../sm8-http";
 
 const fetchMock = jest.fn();
 const realFetch = global.fetch;
@@ -262,6 +262,121 @@ describe("acting as a person, JSON, and DELETE", () => {
 
   it("refuses a JSON body beside another body", async () => {
     await expect(sm8Request(CALL, "note.json", { method: "POST", json: {}, body: "x" })).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+/* THE SECOND BASE, PINNED (two-way phase 4, PR C). ServiceM8's webhook
+   subscriptions sit beside the API, at https://api.servicem8.com/
+   webhook_subscriptions (docs/webhooks-overview), and the door reaches
+   exactly three of their requests: the list, subscribing an object, and
+   deleting one subscription. */
+describe("the webhook subscriptions", () => {
+  const HOOK = { accessToken: "secret-token-xyz", meter: "v-1", lane: "hook" as const };
+  const SUB = "0f1e2d3c-4b5a-4968-8776-a5b4c3d2e1f0";
+
+  const verdict = (method: "GET" | "POST" | "DELETE", path: string, query?: Record<string, string>) => {
+    try {
+      sm8HooksUrl(method, path, query);
+      return "allowed";
+    } catch {
+      return "refused";
+    }
+  };
+
+  it("allows the three method and path pairs", () => {
+    expect(sm8HooksUrl("GET", "/webhook_subscriptions").toString()).toBe("https://api.servicem8.com/webhook_subscriptions");
+    expect(sm8HooksUrl("GET", "/webhook_subscriptions", { status: "all" }).toString()).toBe(
+      "https://api.servicem8.com/webhook_subscriptions?status=all"
+    );
+    expect(sm8HooksUrl("POST", "/webhook_subscriptions/object").toString()).toBe(
+      "https://api.servicem8.com/webhook_subscriptions/object"
+    );
+    expect(sm8HooksUrl("DELETE", `/webhook_subscriptions/${SUB}`).toString()).toBe(
+      `https://api.servicem8.com/webhook_subscriptions/${SUB}`
+    );
+  });
+
+  it("refuses /event, another segment, a bad uuid, another query, ../, other hosts and credentials", () => {
+    const refused: ["GET" | "POST" | "DELETE", string, Record<string, string>?][] = [
+      ["POST", "/webhook_subscriptions/event"],
+      ["GET", "/webhook_subscriptions/x"],
+      ["GET", "/webhook_subscriptions/object"],
+      ["GET", `/webhook_subscriptions/${SUB}`],
+      ["DELETE", "/webhook_subscriptions/not-a-uuid"],
+      ["DELETE", `/webhook_subscriptions/${SUB}/x`],
+      ["DELETE", `/webhook_subscriptions/${SUB}x`],
+      ["DELETE", `/webhook_subscriptions/x${SUB}`],
+      ["DELETE", "/webhook_subscriptions/"],
+      ["DELETE", "/webhook_subscriptions/object"],
+      ["POST", "/webhook_subscriptions"],
+      ["POST", `/webhook_subscriptions/${SUB}`],
+      ["GET", "/webhook_subscriptions", { status: "all", x: "1" }],
+      ["GET", "/webhook_subscriptions", { page: "2" }],
+      ["GET", "/webhook_subscriptions", { status: "deleted" }],
+      ["POST", "/webhook_subscriptions/object", { status: "all" }],
+      ["GET", "/webhook_subscriptions?status=all"],
+      ["GET", "/webhook_subscriptions/../api_1.0/job.json"],
+      ["POST", "/webhook_subscriptions/../webhook_subscriptions/object"],
+      ["GET", "webhook_subscriptions"],
+      ["GET", "https://evil.example/webhook_subscriptions"],
+      ["GET", "//evil.example/webhook_subscriptions"],
+      ["GET", "https://api.servicem8.com/webhook_subscriptions"],
+      ["GET", "https://user:pass@api.servicem8.com/webhook_subscriptions"],
+      ["GET", "/api_1.0/job.json"],
+      ["GET", "/webhook_subscriptions#x"],
+    ];
+    for (const [method, path, query] of refused) {
+      expect([method, path, query, verdict(method, path, query)]).toEqual([method, path, query, "refused"]);
+    }
+  });
+
+  it("the door refuses them before a turn is taken or anything is fetched", async () => {
+    await expect(sm8Request(HOOK, "/webhook_subscriptions/event", { api: "hooks", method: "POST" })).rejects.toThrow();
+    await expect(sm8Request(HOOK, "/webhook_subscriptions/not-a-uuid", { api: "hooks", method: "DELETE" })).rejects.toThrow();
+    // and the REST base never reaches them
+    await expect(sm8Request(HOOK, "/webhook_subscriptions")).rejects.toThrow();
+    await expect(sm8Request(HOOK, "../webhook_subscriptions")).rejects.toThrow();
+    expect(taken).toHaveLength(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("are asked for on the hook lane only, always counted", async () => {
+    await expect(sm8Request({ ...HOOK, lane: "read" }, "/webhook_subscriptions", { api: "hooks" })).rejects.toThrow();
+    await expect(sm8Request({ ...HOOK, meter: null }, "/webhook_subscriptions", { api: "hooks" })).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+    await sm8Request(HOOK, "/webhook_subscriptions", { api: "hooks", query: { status: "all" } }, { sleep });
+    expect(taken).toEqual([["v-1", "hook"]]);
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api.servicem8.com/webhook_subscriptions?status=all");
+  });
+
+  it("subscribes form-encoded, waiting 25 s; the list and a delete wait 10 s", async () => {
+    const timeout = jest.spyOn(AbortSignal, "timeout");
+    const body = new URLSearchParams({ object: "job", fields: "status,active", callback_url: "https://app.test/x" });
+    await sm8Request(HOOK, "/webhook_subscriptions/object", { api: "hooks", method: "POST", body }, { sleep });
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe("POST");
+    expect(init.body).toBe(body);
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/x-www-form-urlencoded");
+    expect(timeout).toHaveBeenLastCalledWith(25_000);
+    // a longer wait asked for is capped
+    await sm8Request(HOOK, "/webhook_subscriptions/object", { api: "hooks", method: "POST", body, timeoutMs: 90_000 }, { sleep });
+    expect(timeout).toHaveBeenLastCalledWith(25_000);
+    await sm8Request(HOOK, "/webhook_subscriptions", { api: "hooks" }, { sleep });
+    expect(timeout).toHaveBeenLastCalledWith(10_000);
+    await sm8Request(HOOK, `/webhook_subscriptions/${SUB}`, { api: "hooks", method: "DELETE" }, { sleep });
+    expect((fetchMock.mock.calls[3][1] as RequestInit).method).toBe("DELETE");
+    expect(timeout).toHaveBeenLastCalledWith(10_000);
+    timeout.mockRestore();
+  });
+
+  it("carries no JSON body and acts as nobody", async () => {
+    await expect(
+      sm8Request(HOOK, "/webhook_subscriptions/object", { api: "hooks", method: "POST", json: { object: "job" } })
+    ).rejects.toThrow();
+    await expect(
+      sm8Request(HOOK, "/webhook_subscriptions", { api: "hooks", impersonate: "5a1b2c3d-0000-4000-8000-00000000aaaa" })
+    ).rejects.toThrow();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

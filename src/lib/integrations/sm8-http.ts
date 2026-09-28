@@ -24,9 +24,24 @@
    `meter: null` skips the counter. It is for the callback's connect-time
    vendor read alone: the account isn't known until that read answers.
 
+   THE SECOND BASE, PINNED (two-way phase 4). ServiceM8's webhook
+   subscriptions live beside the API, not under it
+   (`https://api.servicem8.com/webhook_subscriptions`, docs/webhooks-overview).
+   `api: "hooks"` reaches exactly three method and path pairs — the list
+   (`GET /webhook_subscriptions`, with `status` and nothing else in the
+   query), subscribing (`POST /webhook_subscriptions/object`) and one
+   unsubscribe (`DELETE /webhook_subscriptions/<uuid>`), as
+   reference/get_webhook_subscriptions, post_object_webhook_subscription and
+   delete_webhook_subscriptions spell them — and nothing else: not `/event`,
+   not a second segment, not another method. Its calls take their turns on
+   the `hook` lane only, always counted, and wait at most 25 s for a POST
+   (ServiceM8 calls our address back with a challenge before it answers)
+   and 10 s for the rest.
+
    NOTHING HERE LOGS. The token is in the call and nowhere else. */
 
 import { noteSm8Throttle, sm8LimitOf, SM8_METER, takeSm8Call, type MeterRefusal, type Sm8Lane } from "./sm8-meter";
+import { HOOK_LIST_TIMEOUT_MS, HOOK_POST_TIMEOUT_MS } from "./sm8-hook-plan";
 
 export type { Sm8Lane };
 
@@ -82,6 +97,41 @@ export function sm8Url(path: string, query?: Record<string, string>): URL {
   return url;
 }
 
+/* ── the webhook subscriptions: three pairs, and only those ── */
+
+const HOOKS_ORIGIN = "https://api.servicem8.com";
+const HOOKS_LIST = "/webhook_subscriptions";
+const HOOKS_OBJECT = "/webhook_subscriptions/object";
+const HOOKS_ONE = /^\/webhook_subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const HOOKS_STATUS: readonly string[] = ["active", "inactive", "all"];
+
+export type Sm8HooksMethod = "GET" | "POST" | "DELETE";
+
+/** The address of one of the three webhook-subscription requests, or a
+    throw for anything else. The path must be given exactly as the pair
+    names it — nothing is resolved — and the query may only be the list's
+    `status`, one of ServiceM8's three values. */
+export function sm8HooksUrl(method: Sm8HooksMethod, path: string, query?: Record<string, string>): URL {
+  const refuse = (): never => {
+    throw new Error("[sm8] refused a request outside ServiceM8's webhook subscriptions");
+  };
+  const pair =
+    (method === "GET" && path === HOOKS_LIST) ||
+    (method === "POST" && path === HOOKS_OBJECT) ||
+    (method === "DELETE" && HOOKS_ONE.test(path));
+  if (!pair) refuse();
+  const keys = Object.keys(query ?? {});
+  if (keys.length > 0) {
+    if (method !== "GET" || keys.length !== 1 || keys[0] !== "status" || !HOOKS_STATUS.includes(query!.status)) refuse();
+  }
+  const url = new URL(path, HOOKS_ORIGIN);
+  if (url.origin !== HOOKS_ORIGIN || url.pathname !== path || url.username || url.password || url.search || url.hash) {
+    refuse();
+  }
+  for (const [k, v] of Object.entries(query ?? {})) url.searchParams.set(k, v);
+  return url;
+}
+
 const sleepFor = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /** A 429's body, read from a copy so the caller can still read the
@@ -108,6 +158,8 @@ export async function sm8Request(
   call: Sm8Call,
   path: string,
   init: {
+    /** `hooks`: the webhook subscriptions (sm8HooksUrl), on lane `hook`. */
+    api?: "rest" | "hooks";
     method?: "GET" | "POST" | "DELETE";
     body?: BodyInit;
     /** A JSON body: sent as JSON with its content type. Never with `body`. */
@@ -120,7 +172,17 @@ export async function sm8Request(
   } = {},
   deps: { sleep?: (ms: number) => Promise<void> } = {}
 ): Promise<Sm8Answer> {
-  const url = sm8Url(path, init.query);
+  const hooks = init.api === "hooks";
+  const method = init.method ?? "GET";
+  if (hooks) {
+    if (call.lane !== "hook" || call.meter === null) {
+      throw new Error("[sm8] webhook subscriptions are asked for on the hook lane, counted");
+    }
+    if (init.json !== undefined || init.impersonate !== undefined) {
+      throw new Error("[sm8] a webhook subscription request carries a form or nothing");
+    }
+  }
+  const url = hooks ? sm8HooksUrl(method, path, init.query) : sm8Url(path, init.query);
   if (init.json !== undefined && init.body !== undefined) {
     throw new Error("[sm8] a request carries a JSON body or a body, never both");
   }
@@ -141,13 +203,18 @@ export async function sm8Request(
   const headers: Record<string, string> = { Authorization: `Bearer ${call.accessToken}` };
   if (init.json !== undefined) headers["Content-Type"] = "application/json";
   if (init.impersonate !== undefined) headers[SM8_IMPERSONATE_HEADER] = init.impersonate;
+  /* ServiceM8 takes a subscription as application/x-www-form-urlencoded
+     (reference/post_object_webhook_subscription) */
+  if (hooks && init.body instanceof URLSearchParams) headers["Content-Type"] = "application/x-www-form-urlencoded";
   const body = init.json !== undefined ? JSON.stringify(init.json) : init.body;
+  const cap = !hooks ? Infinity : method === "POST" ? HOOK_POST_TIMEOUT_MS : HOOK_LIST_TIMEOUT_MS;
+  const timeoutMs = Math.min(init.timeoutMs ?? (hooks ? cap : DEFAULT_TIMEOUT_MS), cap);
 
   const res = await fetch(url.toString(), {
-    method: init.method ?? "GET",
+    method,
     headers,
     ...(body !== undefined ? { body } : {}),
-    signal: AbortSignal.timeout(init.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   if (res.status !== 429) return { kind: "response", res, limit: null };

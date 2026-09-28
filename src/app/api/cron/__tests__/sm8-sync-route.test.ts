@@ -68,6 +68,27 @@ jest.mock("@/lib/integrations/sm8-file-cache", () => ({
   }),
 }));
 
+/* Live updates' nightly reconcile (two-way phase 4): loaded only with
+   SM8_WEBHOOKS on, so its factory running is itself the proof. */
+let hooksLoaded = false;
+const ensured: { org: string; budgetMs: number }[] = [];
+let ensureTakes: number[] = [];
+jest.mock("@/lib/integrations/sm8-hooks", () => {
+  hooksLoaded = true;
+  return {
+    ensureSm8Webhooks: jest.fn(async (org: string, opts: { budgetMs: number }) => {
+      events.push(`ensure:${org}`);
+      ensured.push({ org, budgetMs: opts.budgetMs });
+      clock += ensureTakes.shift() ?? 0;
+      return { ran: true, rotated: false, posted: 0, deleted: 0, subscribed: true, stopped: null };
+    }),
+    dropExpiredSm8Hooks: jest.fn(async () => {
+      events.push("expire");
+      return 1;
+    }),
+  };
+});
+
 import { GET, maxDuration } from "../sm8-sync/route";
 import { WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
 
@@ -328,5 +349,74 @@ describe("a workspace whose lease is held", () => {
     expect(body).toMatchObject({ ran: 0, busy: 2 });
     // 300 s less the 20 s margin, from the request's start
     expect(runSm8Sync.mock.calls[0][3]).toEqual({ deadline: Date.parse("2026-09-25T20:00:00Z") + 280_000 });
+  });
+});
+
+describe("live updates' nightly reconcile (two-way phase 4)", () => {
+  const env = { ...process.env };
+  beforeEach(() => {
+    ensured.length = 0;
+    ensureTakes = [];
+  });
+  afterEach(() => {
+    process.env = { ...env };
+  });
+  const on = () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+  };
+  /** The first sync's start-by: 300 s less a sync lease (120 s) and the margin (15 s). */
+  const START_BY = 165_000;
+
+  /* first: the module registry keeps a module once any test loads it */
+  it("off or gone: the night is as it was, nothing loaded, nothing added to the answer", async () => {
+    for (const hooks of [undefined, "gone"]) {
+      process.env.VERCEL_ENV = "production";
+      if (hooks === undefined) delete process.env.SM8_WEBHOOKS;
+      else process.env.SM8_WEBHOOKS = hooks;
+      const body = await (await GET(byScheduler())).json();
+      expect(body).not.toHaveProperty("hooks");
+    }
+    expect(hooksLoaded).toBe(false);
+    expect(events.some((e) => e.startsWith("ensure"))).toBe(false);
+  });
+
+  it("on: one reconcile per swept workspace after the writes and before any sync, then the expired hooks go", async () => {
+    on();
+    const body = await (await GET(byScheduler())).json();
+    const firstSync = events.findIndex((e) => e.startsWith("sync:"));
+    const lastWrite = events.map((e) => e.startsWith("writes:")).lastIndexOf(true);
+    expect(events.slice(lastWrite + 1, firstSync)).toEqual(["ensure:s1", "ensure:s2", "expire", "visit:s1"]);
+    expect(body.hooks).toEqual({ ensured: 2, subscribed: 2, deferred: 0, failed: 0, expired: 1 });
+  });
+
+  it("on: the whole step has 30 s between its workspaces", async () => {
+    on();
+    ensureTakes = [12_000];
+    await GET(byScheduler());
+    expect(ensured).toEqual([
+      { org: "s1", budgetMs: 30_000 },
+      { org: "s2", budgetMs: 18_000 },
+    ]);
+  });
+
+  it("on: never starts a workspace past the first sync's start-by less 30 s", async () => {
+    on();
+    const started = clock;
+    // the writes run until exactly the last moment a reconcile may start
+    takes = [START_BY - 30_000];
+    ensureTakes = [1];
+    const body = await (await GET(byScheduler())).json();
+    expect(ensured).toEqual([{ org: "s1", budgetMs: 30_000 }]);
+    expect(body.hooks).toMatchObject({ ensured: 1, deferred: 1 });
+    // and past it, none
+    ensured.length = 0;
+    clock = started;
+    takes = [START_BY - 30_000 + 1];
+    const later = await (await GET(byScheduler())).json();
+    expect(ensured).toEqual([]);
+    expect(later.hooks).toMatchObject({ ensured: 0, deferred: 2 });
+    // the syncs themselves are untouched by it
+    expect(events.filter((e) => e.startsWith("sync:")).length).toBeGreaterThan(0);
   });
 });

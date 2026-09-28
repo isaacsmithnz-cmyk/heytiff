@@ -758,6 +758,19 @@ describe("disconnect", () => {
     expect(final.filters).toMatchObject({ org_id: "org-1", provider: "servicem8" });
   });
 
+  it("takes live updates' queue, hashes and record with it, and goes on where the database has none of them (two-way phase 4)", async () => {
+    const hooks = ["sm8_webhook_pings", "sm8_webhook_hooks", "sm8_webhooks"];
+    for (const t of hooks) deleteFails.add(t);
+    await disconnectSm8("org-1", NOW);
+    const wiped = deletes.map((d) => d.table);
+    for (const t of hooks) expect(wiped).not.toContain(t);
+    expect(wiped[wiped.length - 1]).toBe("integration_connections");
+    deleteFails.clear();
+    deletes.length = 0;
+    await disconnectSm8("org-1", NOW);
+    expect(deletes.map((d) => d.table)).toEqual(expect.arrayContaining(hooks));
+  });
+
   it("keeps the record of which account the copy came from, and the cached photos with it", async () => {
     /* The cached photos, their readings and stars outlive a disconnect; the
        sm8_vendor row is what makes a later connect of a different account a

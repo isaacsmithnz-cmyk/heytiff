@@ -1607,7 +1607,7 @@ describe("what the owner's bell reads", () => {
   it("says HeyTiff paused sending at the cap, with how many are waiting", async () => {
     await queue("d1", "d2");
     Object.assign(db.integration_connections[0], { write_mode: "paused", paused_reason: "cap" });
-    expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "cap", waiting: 2, kinds: { attachment: 2, note: 0, booking: 0 } });
+    expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "cap", waiting: 2, kinds: { attachment: 2, note: 0, booking: 0, leave: 0 } });
   });
 
   it("forgets the cap once sending isn't paused — a change of account switched it off", async () => {
@@ -1625,7 +1625,7 @@ describe("what the owner's bell reads", () => {
   it("asks for a reconnect when files wait on a grant that doesn't work, or a permission refused", async () => {
     await queue("d1");
     db.integration_connections[0].status = "needs_reauth";
-    const one = { attachment: 1, note: 0, booking: 0 };
+    const one = { attachment: 1, note: 0, booking: 0, leave: 0 };
     expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "reconnect", waiting: 1, kinds: one });
     db.integration_connections[0].status = "connected";
     db.integration_connections[0].write_scope_refused = { attachment: new Date(NOW).toISOString() };
@@ -1635,7 +1635,7 @@ describe("what the owner's bell reads", () => {
   it("says when ServiceM8 holds files for an account not in good standing", async () => {
     await queue("d1");
     writes()[0].last_error = WRITE_WORDS.billing;
-    expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "billing", waiting: 1, kinds: { attachment: 1, note: 0, booking: 0 } });
+    expect(await sm8QueueStuck(ORG, NOW)).toEqual({ reason: "billing", waiting: 1, kinds: { attachment: 1, note: 0, booking: 0, leave: 0 } });
   });
 
   it("reads nothing on a deployment that doesn't write", async () => {
@@ -1685,7 +1685,7 @@ describe("what the card and the screen read", () => {
     expect(await countSm8Queue(ORG, "vendor-1", NOW)).toEqual({
       waiting: 2,
       failed: 1,
-      waitingKinds: { attachment: 2, note: 0, booking: 0 },
+      waitingKinds: { attachment: 2, note: 0, booking: 0, leave: 0 },
     });
   });
 
@@ -1696,7 +1696,7 @@ describe("what the card and the screen read", () => {
     expect(await countSm8Queue(ORG, "vendor-1", NOW)).toEqual({
       waiting: 0,
       failed: 0,
-      waitingKinds: { attachment: 0, note: 0, booking: 0 },
+      waitingKinds: { attachment: 0, note: 0, booking: 0, leave: 0 },
     });
     // and Retry agrees there is nothing of this account's to go again
     expect(await retryFailedSm8Writes(press, await readSm8WriteState(ORG), NOW)).toMatchObject({ queued: 0, left: 0 });

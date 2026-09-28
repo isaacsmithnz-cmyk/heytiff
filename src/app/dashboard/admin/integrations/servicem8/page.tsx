@@ -68,7 +68,7 @@ export default async function Servicem8IntegrationPage({
      one Retry failed files can reach. */
   const [queue, previousAccount] = connection
     ? await Promise.all([countSm8Queue(orgId, connection.tenantId), readSm8AccountChange(orgId)])
-    : [{ waiting: 0, failed: 0, waitingKinds: { attachment: 0, note: 0, booking: 0 } }, null];
+    : [{ waiting: 0, failed: 0, waitingKinds: { attachment: 0, note: 0, booking: 0, leave: 0 } }, null];
 
   /* The writes card, WHENEVER THERE IS A CONNECTION and the deployment
      writes — needs_reauth included, which is exactly when the owner needs
@@ -161,7 +161,7 @@ export default async function Servicem8IntegrationPage({
           /* kind by kind only where the deployment sends more than files —
              files and notes, and bookings where it sends them; otherwise
              today's one count */
-          ...(kinds.includes("note") || kinds.includes("booking")
+          ...(kinds.includes("note") || kinds.includes("booking") || kinds.includes("leave")
             ? {
                 cancelled: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "attachment"),
                 notes: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "note"),
@@ -174,6 +174,9 @@ export default async function Servicem8IntegrationPage({
                         "booking"
                       ),
                     }
+                  : {}),
+                ...(kinds.includes("leave")
+                  ? { leave: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at, "leave") }
                   : {}),
               }
             : { cancelled: await countSm8WritesCancelledSince(orgId, WRITE_WORDS.otherAccount, previousAccount.at) }),
@@ -212,6 +215,9 @@ export default async function Servicem8IntegrationPage({
       waitingWrites={queue.waitingKinds.attachment}
       waitingNotes={queue.waitingKinds.note}
       waitingBookings={queue.waitingKinds.booking}
+      /* only where the deployment sends leave: anywhere else the screen's
+         props are exactly today's (sm8-hooks-prod.test) */
+      {...(kinds.includes("leave") ? { waitingLeave: queue.waitingKinds.leave } : {})}
       previousAccount={previousAccount ? { name: previousAccount.from, at: previousAccount.at } : null}
       /* only when there is something to say: otherwise the props are today's */
       {...(liveUpdates ? { liveUpdates } : {})}

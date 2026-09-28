@@ -99,8 +99,20 @@ jest.mock("@/lib/au-dates", () => ({
   auMinutesNow: () => auMins,
 }));
 
+/* the ServiceM8 board's door, stubbed */
+const queueLeaveOnBoard = jest.fn(async () => ({ queued: ["w1"], note: null }));
+const queueLeaveOffBoard = jest.fn(async () => ({ queued: ["w2"], note: null }));
+jest.mock("@/app/actions/sm8-leave-queue", () => ({
+  queueLeaveOnBoard: (...a: unknown[]) => (queueLeaveOnBoard as (...x: unknown[]) => unknown)(...a),
+  queueLeaveOffBoard: (...a: unknown[]) => (queueLeaveOffBoard as (...x: unknown[]) => unknown)(...a),
+}));
+const PRESS = { press: true };
+jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromSession: jest.fn(async () => PRESS) }));
+
 import {
   approveWeek,
+  clearUnavailable,
+  markUnavailable,
   saveDay,
   saveMyHours,
   savePaySettings,
@@ -526,5 +538,38 @@ describe("pay settings", () => {
     caps = new Set(["financials"]);
     expect((await savePaySettings(DEFAULT_SETTINGS)).ok).toBe(true);
     expect(upsert).toHaveBeenCalledWith("pay_settings", expect.objectContaining({ configured: true }));
+  });
+});
+
+describe("a day off and the ServiceM8 board", () => {
+  beforeEach(() => {
+    queueLeaveOnBoard.mockClear();
+    queueLeaveOffBoard.mockClear();
+  });
+  afterEach(() => {
+    delete process.env.SM8_WRITES;
+  });
+
+  it("asks nothing of the board where the deployment doesn't send leave", async () => {
+    process.env.SM8_WRITES = "attachment,note,booking";
+    expect((await markUnavailable("2026-07-08", "2026-07-08")).ok).toBe(true);
+    expect((await clearUnavailable("b1")).ok).toBe(true);
+    expect(queueLeaveOnBoard).not.toHaveBeenCalled();
+    expect(queueLeaveOffBoard).not.toHaveBeenCalled();
+  });
+
+  it("puts a day off on the board as the person's own press, and takes it off when it comes down", async () => {
+    process.env.SM8_WRITES = "leave";
+    expect((await markUnavailable("2026-07-08", "2026-07-09")).ok).toBe(true);
+    expect(queueLeaveOnBoard).toHaveBeenCalledWith(PRESS, {
+      source: "dayoff",
+      id: "target",
+      staffProfileId: "me",
+      kind: null,
+      from: "2026-07-08",
+      to: "2026-07-09",
+    });
+    expect((await clearUnavailable("b1")).ok).toBe(true);
+    expect(queueLeaveOffBoard).toHaveBeenCalledWith(PRESS, { source: "dayoff", id: "b1" });
   });
 });

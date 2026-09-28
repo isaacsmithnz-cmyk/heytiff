@@ -982,6 +982,34 @@ describe("sending files, notes and bookings", () => {
     expect(await screen.findByText("Bookings are off. 2 bookings that were waiting won't go.")).toBeInTheDocument();
   });
 
+  it("(F) with leave allowed: a Leave row after Bookings, off until the owner switches it on, and its own consent line", async () => {
+    const user = userEvent.setup();
+    setWriteKind.mockResolvedValue({ ok: true });
+    const kinds = ["attachment", "note", "booking", "leave"] as Sm8WritesView["kinds"];
+    const { unmount } = render(<Servicem8Screen connection={live} {...ready} writes={view({ kinds })} />);
+    expect(groups()).toEqual([
+      "Sending to ServiceM8",
+      "Sending files to ServiceM8",
+      "Sending notes to ServiceM8",
+      "Sending bookings to ServiceM8",
+      "Sending leave to ServiceM8",
+    ]);
+    const leave = screen.getByRole("radiogroup", { name: "Sending leave to ServiceM8" });
+    expect(within(leave).getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
+    await user.click(within(leave).getByRole("radio", { name: "On" }));
+    expect(setWriteKind).toHaveBeenCalledWith("leave", true);
+    unmount();
+    // On without manage_schedule: asked for in leave's words
+    render(
+      <Servicem8Screen
+        connection={live}
+        {...ready}
+        writes={view({ kinds, ownerKinds: ["attachment", "leave"], granted: ["attachment"] })}
+      />
+    );
+    expect(screen.getByText(/hasn't given HeyTiff permission to add leave yet, so no leave can go/)).toBeInTheDocument();
+  });
+
   it("(F) on attachment,booking: Files and Bookings — the rows need more than one kind, not notes", () => {
     render(<Servicem8Screen connection={live} {...ready} writes={view({ kinds: ["attachment", "booking"], ownerKinds: ["attachment"] })} />);
     expect(groups()).toEqual(["Sending to ServiceM8", "Sending files to ServiceM8", "Sending bookings to ServiceM8"]);
@@ -1033,7 +1061,7 @@ describe("sending files, notes and bookings", () => {
       const item = screen.getByText(scope).closest("li")!;
       expect(within(item as HTMLElement).getByText("Not granted yet")).toBeInTheDocument();
     }
-    expect(screen.getByText(/never touches allocations, booking windows or availability/)).toBeInTheDocument();
+    expect(screen.getByText(/never touches allocations or booking windows/)).toBeInTheDocument();
     expect(screen.getByText(/It never removes a job\./)).toBeInTheDocument();
   });
 

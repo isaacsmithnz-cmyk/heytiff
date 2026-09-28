@@ -94,10 +94,11 @@ describe("Bookings Off, and a missing permission", () => {
   });
 
   it("(F) a grant with only one of a booking's two permissions sends no booking", () => {
-    expect(grantedKinds("vendor manage_schedule")).toEqual([]);
+    /* manage_schedule alone is leave's whole permission, never a booking's */
+    expect(grantedKinds("vendor manage_schedule")).toEqual(["leave"]);
     expect(grantedKinds("vendor manage_jobs")).toEqual([]);
-    expect(grantedKinds("vendor manage_schedule manage_jobs")).toEqual(["booking"]);
-    expect(grantedKinds("manage_attachments publish_job_notes manage_schedule")).toEqual(["attachment", "note"]);
+    expect(grantedKinds("vendor manage_schedule manage_jobs")).toEqual(["booking", "leave"]);
+    expect(grantedKinds("manage_attachments publish_job_notes manage_schedule")).toEqual(["attachment", "note", "leave"]);
     const noJobs = state({ granted: grantedKinds("manage_attachments publish_job_notes manage_schedule") });
     expect(kindReady(noJobs, "booking")).toBe(false);
     expect(sendHold(noJobs, "booking")).toBe("reconnect");

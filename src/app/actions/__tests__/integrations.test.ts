@@ -388,6 +388,17 @@ describe("setServiceM8WriteKindAction, for bookings", () => {
     expect(setSm8WriteKind).not.toHaveBeenCalled();
   });
 
+  it("(F) switches Leave only where the deployment names leave, and Leave Off says it in leave's words", async () => {
+    allowed = ["attachment", "note", "booking"];
+    expect(await setServiceM8WriteKindAction("leave", true)).toEqual({ ok: false, error: "Leave can't be sent from this deployment yet." });
+    expect(setSm8WriteKind).not.toHaveBeenCalled();
+    allowed = ["attachment", "note", "booking", "leave"];
+    expect(await setServiceM8WriteKindAction("leave", true)).toEqual({ ok: true });
+    expect(setSm8WriteKind).toHaveBeenCalledWith("org-1", "leave", true);
+    setSm8WriteKind.mockResolvedValue({ ok: true, cancelled: [{ id: "w1", name: "Leave", kind: "leave" }, { id: "w2", name: "Sick leave", kind: "leave" }] });
+    expect(await setServiceM8WriteKindAction("leave", false)).toEqual({ ok: true, note: "Leave is off. 2 leave entries that were waiting won't go." });
+  });
+
   it("(F) Bookings Off says how many that were waiting won't go, in bookings' words, and drains nothing", async () => {
     setSm8WriteKind.mockResolvedValue({ ok: true, cancelled: [{ id: "w1", name: "Booking", kind: "booking" }] });
     expect(await setServiceM8WriteKindAction("booking", false)).toEqual({

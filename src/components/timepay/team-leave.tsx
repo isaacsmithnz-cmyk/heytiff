@@ -230,13 +230,17 @@ export function TeamLeave({
   const router = useRouter();
   const [busy, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
   const run = (action: () => Promise<LeaveResult>) => {
     setError(null);
+    setNote(null);
     start(async () => {
       const res = await action();
-      if (res.ok) router.refresh();
-      else setError(res.error);
+      if (res.ok) {
+        if (res.note) setNote(res.note);
+        router.refresh();
+      } else setError(res.error);
     });
   };
 
@@ -253,6 +257,7 @@ export function TeamLeave({
 
           <div className="wb2-card tp-card">
             {error && <div className="tp-err">{error}</div>}
+            {note && <div className="tp-err warn">{note}</div>}
 
             <div className="lv-cols">
             <div className="lv-col">

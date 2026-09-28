@@ -66,6 +66,8 @@ import { BOOKING_WORDS } from "./sm8-booking-words";
 import { BOOKING_DELETE_SETTLE_MS } from "./sm8-booking-plan";
 import { sendNoteRow } from "./sm8-note-send";
 import { sendBookingRow } from "./sm8-booking-send";
+import { sendLeaveRow } from "./sm8-leave-send";
+import { LEAVE_WORDS } from "./sm8-leave-words";
 import {
   capAllows,
   dedupeKey,
@@ -312,6 +314,7 @@ export type KindChange = { ok: true; cancelled: CancelledWrite[] } | { ok: false
 function kindSwitchedOffWords(kind: Sm8WriteKind): string {
   if (kind === "note") return NOTE_WORDS.row.notesSwitchedOff;
   if (kind === "booking") return BOOKING_WORDS.row.switchedOff;
+  if (kind === "leave") return LEAVE_WORDS.row.switchedOff;
   return NOTE_WORDS.row.filesSwitchedOff;
 }
 
@@ -407,6 +410,10 @@ export type Sm8WriteToQueue = {
   /** A status change: Quote to Work Order, and nothing else. */
   statusFrom?: "Quote";
   statusTo?: "Work Order";
+  /* LEAVE'S DETAILS (docs/migrations/sm8_leave_queue.sql) go in columns of
+     their own, leave_staff_uuid, leave_start and leave_end, from staffUuid,
+     start and end above: written only for kind "leave", so every other
+     row inserts exactly as it did. A delete carries only dependsOn. */
 };
 
 export type Enqueued = {
@@ -568,6 +575,50 @@ function bookingColumns(w: Sm8WriteToQueue): Record<string, unknown> {
   };
 }
 
+/** Leave's own: the person and the span, on a create. */
+function leaveColumns(w: Sm8WriteToQueue): Record<string, unknown> {
+  const create = (w.op ?? "create") === "create";
+  return {
+    leave_staff_uuid: create ? w.staffUuid ?? null : null,
+    leave_start: create ? w.start ?? null : null,
+    leave_end: create ? w.end ?? null : null,
+  };
+}
+
+/** The patch a leave row pressed again gets. A create that is waiting only
+    comes forward; one that failed, was cancelled or went on a trial run goes
+    again under a new uuid (againPatch) — and one whose leave was cancelled
+    (taken back) never goes again: the update misses on taken_back_at. A
+    DELETE NEVER COMES FORWARD, and one going again keeps the uuids its
+    DELETE reached, so it only reads them: a DELETE on leave already off the
+    board may put it back. */
+function leaveRepressPatch(row: ExistingRow, w: Sm8WriteToQueue, press: Sm8Press, tenantId: string, iso: string, queued: boolean): Record<string, unknown> {
+  const presser = { requested_by: press.staffId, requested_by_user: press.userId };
+  if ((w.op ?? "create") === "create") {
+    return queued ? { tenant_id: tenantId, next_attempt_at: iso, updated_at: iso, ...presser } : againPatch(row, press, tenantId, iso);
+  }
+  if (queued) return { tenant_id: tenantId, updated_at: iso, ...presser };
+  const finished = row.updated_at ? Date.parse(row.updated_at) : NaN;
+  const settled = Number.isNaN(finished) ? iso : new Date(Math.max(Date.parse(iso), finished + BOOKING_DELETE_SETTLE_MS)).toISOString();
+  return {
+    tenant_id: tenantId,
+    status: "queued",
+    next_attempt_at: settled,
+    lease_until: null,
+    claim_id: null,
+    attempts: 0,
+    last_error: null,
+    http_status: null,
+    remote_code: null,
+    remote_message: null,
+    free_retries: 0,
+    source: "press",
+    pressed_at: iso,
+    updated_at: iso,
+    ...presser,
+  };
+}
+
 /** The patch a booking row pressed again gets (the spec's 2.10), by op.
     - A STATUS ROW: joined while queued, it only comes forward and renews its
       press (pressed_at), so its two-minute wait covers this press's
@@ -684,10 +735,13 @@ export async function enqueueSm8Writes(
 
   const holdsNote = writes.some((w) => w.kind === "note");
   const holdsBooking = writes.some((w) => w.kind === "booking");
+  const holdsLeave = writes.some((w) => w.kind === "leave");
   /* a booking's columns are read only when the writes hold one, so a file
-     or a note press reads exactly what it always did */
+     or a note press reads exactly what it always did; leave's the same */
   const existingColumns =
-    holdsNote || holdsBooking ? `${EXISTING_COLUMNS}, op, taken_back_at${holdsBooking ? ", verb_id, updated_at" : ""}` : EXISTING_COLUMNS;
+    holdsNote || holdsBooking || holdsLeave
+      ? `${EXISTING_COLUMNS}, op, taken_back_at${holdsBooking ? ", verb_id" : ""}${holdsBooking || holdsLeave ? ", updated_at" : ""}`
+      : EXISTING_COLUMNS;
   const { data, error } = await supabaseAdmin
     .from(TABLE)
     .select(existingColumns)
@@ -730,6 +784,7 @@ export async function enqueueSm8Writes(
     const row = existing.get(key);
     const note = w.kind === "note";
     const booking = w.kind === "booking";
+    const leave = w.kind === "leave";
     if (!row) {
       fresh.push({
         key,
@@ -751,7 +806,13 @@ export async function enqueueSm8Writes(
           requested_by_user: press.userId,
           created_at: iso,
           updated_at: iso,
-          ...(note ? noteColumns(w) : booking ? { ...opColumns(w), ...bookingColumns(w) } : {}),
+          ...(note
+            ? noteColumns(w)
+            : booking
+              ? { ...opColumns(w), ...bookingColumns(w) }
+              : leave
+                ? { ...opColumns(w), ...leaveColumns(w) }
+                : {}),
         },
       });
       continue;
@@ -772,6 +833,8 @@ export async function enqueueSm8Writes(
        note create isn't: the patch misses, and the helper answers from the
        row (sm8-booking-queue) */
     const bookingTakeBackable = booking && ((w.op ?? "create") === "create" || w.op === "update");
+    /* leave cancelled is never put back by a press either */
+    const leaveCreate = leave && (w.op ?? "create") === "create";
     /* a create's words and note, again: the 30-day clear may have taken the
        words, and the press puts them back from HeyTiff's own row */
     const createCols = create ? { note_text: w.noteText ?? null, note_id: w.noteId ?? null } : {};
@@ -781,7 +844,9 @@ export async function enqueueSm8Writes(
         : { ...withoutPresser(againPatch(row, press, tenantId, iso)), ...createCols }
       : booking
         ? bookingRepressPatch(row, w, press, tenantId, iso, status === "queued")
-        : status === "queued"
+        : leave
+          ? leaveRepressPatch(row, w, press, tenantId, iso, status === "queued")
+          : status === "queued"
           ? {
               tenant_id: tenantId,
               payload: w.payload,
@@ -803,7 +868,7 @@ export async function enqueueSm8Writes(
       .eq("org_id", orgId)
       .eq("id", row.id)
       .eq("status", row.status);
-    if (create || bookingTakeBackable) again$ = again$.is("taken_back_at", null);
+    if (create || bookingTakeBackable || leaveCreate) again$ = again$.is("taken_back_at", null);
     const { data: again, error: againError } = await again$.select("id");
     if (againError) {
       console.error(`[sm8] couldn't queue write ${row.id} again for org ${orgId}:`, againError);
@@ -1129,6 +1194,10 @@ export type WriteRow = {
   job_status_from?: string | null;
   job_status_to?: string | null;
   landed_edit_date?: string | null;
+  /* leave's (read only where the run's kinds include leave) */
+  leave_staff_uuid?: string | null;
+  leave_start?: string | null;
+  leave_end?: string | null;
 };
 
 const PHASE0_COLUMNS =
@@ -1142,13 +1211,18 @@ const ROW_COLUMNS = `${PHASE0_COLUMNS}, op, note_id, depends_on, target_uuid, fl
     files-only fallback. */
 const BOOKING_ROW_COLUMNS = `${ROW_COLUMNS}, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, job_status_from, job_status_to, landed_edit_date`;
 
+/** leave's own, read only when the run's kinds include leave */
+const LEAVE_COLUMNS = "leave_staff_uuid, leave_start, leave_end";
+
 const isNoteCreate = (r: WriteRow) => r.kind === "note" && (r.op ?? "create") === "create";
 
 /** A row a person can take back before it goes: a note's create, or a
     booking's create or status row. One that is taken back is never
     claimed, and the run cancels it where it stands. */
 const takeBackable = (r: WriteRow) =>
-  isNoteCreate(r) || (r.kind === "booking" && ((r.op ?? "create") === "create" || r.op === "update"));
+  isNoteCreate(r) ||
+  (r.kind === "booking" && ((r.op ?? "create") === "create" || r.op === "update")) ||
+  (r.kind === "leave" && (r.op ?? "create") === "create");
 
 /** A booking's status row (a Quote made a Work Order). */
 const isBookingStatus = (r: WriteRow) => r.kind === "booking" && r.op === "update";
@@ -1194,7 +1268,14 @@ async function dueRows(
     return q.order("created_at", { ascending: true }).limit(WRITE_BATCH * 3);
   };
   const withBookings = kinds.includes("booking");
-  let { data, error } = await read(withBookings ? BOOKING_ROW_COLUMNS : ROW_COLUMNS, kinds);
+  const withLeave = kinds.includes("leave");
+  const base = withBookings ? BOOKING_ROW_COLUMNS : ROW_COLUMNS;
+  let { data, error } = await read(withLeave ? `${base}, ${LEAVE_COLUMNS}` : base, kinds);
+  /* a database without the leave migration: the other kinds, as today */
+  if (withLeave && missingColumn(error as DbError)) {
+    kinds = kinds.filter((k) => k !== "leave");
+    ({ data, error } = await read(base, kinds));
+  }
   /* a database without the bookings migration: the other kinds, as today */
   if (withBookings && missingColumn(error as DbError)) {
     ({ data, error } = await read(
@@ -1561,6 +1642,7 @@ async function sendOne(
      as before. */
   if (row.kind === "note") return sendNoteRow(orgId, state, row, attempts, access, t);
   if (row.kind === "booking") return sendBookingRow(orgId, state, row, attempts, access, t);
+  if (row.kind === "leave") return sendLeaveRow(orgId, state, row, attempts, access, t);
   const payload = row.kind === "attachment" ? readPayload(row) : null;
   if (!payload || !row.sm8_job_uuid) {
     return { finish: { status: "cancelled", error: WRITE_WORDS.fileGone, httpStatus: null }, access };
@@ -1754,6 +1836,7 @@ export async function runSm8Writes(
     walked.add(row.id);
     const note = row.kind === "note";
     const booking = row.kind === "booking";
+    const leave = row.kind === "leave";
     /* A NOTE TAKEN BACK IS CANCELLED, NEVER CLAIMED: its create closed by an
        Undo, or its note's tombstone set by a take-back that raced a Send
        (whose create is closed here first). No request goes. So is a
@@ -1762,7 +1845,7 @@ export async function runSm8Writes(
       await cancelTakenBack(orgId, row, clock());
       continue;
     }
-    if (booking && takeBackable(row) && row.taken_back_at) {
+    if ((booking || leave) && takeBackable(row) && row.taken_back_at) {
       await cancelTakenBack(orgId, row, clock());
       continue;
     }
@@ -1770,7 +1853,7 @@ export async function runSm8Writes(
        only after a send: Notes Off or Bookings Off, or a kind's permission
        refused, stops a run already going from claiming another of it, while
        files behind it still go. */
-    if (sentSinceRead || note || booking) {
+    if (sentSinceRead || note || booking || leave) {
       const moved = await switchMoved(orgId, state);
       if (typeof moved === "string") {
         run.stopped = moved;
@@ -1804,8 +1887,8 @@ export async function runSm8Writes(
          own words. */
       console.error(`[sm8] write ${row.id} (${trigger}) threw: ${err instanceof Error ? err.message : String(err)}`);
       f = {
-        ...fromVerdict(verdictForUnreadable(row.attempts + 1, note ? "note" : booking ? "booking" : "attachment")),
-        uploadLost: booking ? track.wrote : live,
+        ...fromVerdict(verdictForUnreadable(row.attempts + 1, note ? "note" : booking ? "booking" : leave ? "leave" : "attachment")),
+        uploadLost: booking || leave ? track.wrote : live,
       };
     }
     const landed = await finish(orgId, row, claimId, f, clock());
@@ -2089,9 +2172,15 @@ export async function listRecentSm8Writes(orgId: string, now: number = Date.now(
 
   return rows.map((r) => {
     const p = (r.payload && typeof r.payload === "object" ? r.payload : {}) as Record<string, unknown>;
-    const kind: Sm8WriteKind = r.kind === "note" ? "note" : r.kind === "booking" ? "booking" : "attachment";
+    const kind: Sm8WriteKind = r.kind === "note" ? "note" : r.kind === "booking" ? "booking" : r.kind === "leave" ? "leave" : "attachment";
     const fallback =
-      kind === "note" ? NOTE_WORDS.label.fallback : kind === "booking" ? BOOKING_WORDS.label.fallback : "A file";
+      kind === "note"
+        ? NOTE_WORDS.label.fallback
+        : kind === "booking"
+          ? BOOKING_WORDS.label.fallback
+          : kind === "leave"
+            ? LEAVE_WORDS.label.fallback
+            : "A file";
     return {
       id: r.id,
       kind,
@@ -2117,7 +2206,7 @@ export async function countSm8Queue(
   orgId: string,
   tenantId: string | null,
   now: number = Date.now()
-): Promise<{ waiting: number; failed: number; waitingKinds: { attachment: number; note: number; booking: number } }> {
+): Promise<{ waiting: number; failed: number; waitingKinds: { attachment: number; note: number; booking: number; leave: number } }> {
   const [waitingKinds, failed] = await Promise.all([
     /* per kind only where the deployment sends more than files; otherwise
        today's one count, every row of it a file */
@@ -2134,7 +2223,7 @@ export async function countSm8Queue(
       : Promise.resolve({ count: 0, error: null }),
   ]);
   return {
-    waiting: waitingKinds.attachment + waitingKinds.note + waitingKinds.booking,
+    waiting: waitingKinds.attachment + waitingKinds.note + waitingKinds.booking + waitingKinds.leave,
     failed: failed.error ? 0 : failed.count ?? 0,
     waitingKinds,
   };
@@ -2153,7 +2242,7 @@ export type Sm8QueueStuck = {
   reason: "cap" | "billing" | "reconnect";
   waiting: number;
   /** The same, kind by kind (all files where only files are sent). */
-  kinds: { attachment: number; note: number; booking: number };
+  kinds: { attachment: number; note: number; booking: number; leave: number };
 };
 
 export async function sm8QueueStuck(orgId: string, now: number = Date.now()): Promise<Sm8QueueStuck | null> {
@@ -2162,7 +2251,7 @@ export async function sm8QueueStuck(orgId: string, now: number = Date.now()): Pr
   if (!state.readable || !state.linked) return null;
   const counted = async () => {
     const kinds = await countWaitingSm8WritesByKind(orgId, now);
-    return { waiting: kinds.attachment + kinds.note + kinds.booking, kinds };
+    return { waiting: kinds.attachment + kinds.note + kinds.booking + kinds.leave, kinds };
   };
   if (state.mode === "paused" && state.pausedReason === "cap") return { reason: "cap", ...(await counted()) };
   if (state.mode !== "live") return null;

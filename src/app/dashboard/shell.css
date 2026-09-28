@@ -3445,6 +3445,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    down; the period nav and status chip still come from `.tpr`. No money rules,
    because there is no money on the screen. */
 .fg .tp-err { font-size:13px; font-weight:600; color:var(--red-d,var(--bad-t)); margin:-6px 0 12px; }
+/* what kept approved leave off the ServiceM8 board: somebody's to fix, not an error */
+.fg .tp-err.warn { color:var(--warn-t); }
 .fg .mts-back { display:flex; gap:8px; align-items:flex-start; padding:12px 16px; border-radius:var(--r-card); background:var(--bad-tint); border:1px solid var(--bad); color:var(--bad-t); margin-bottom:16px; }
 .fg .mts-back b { display:block; font-size:13px; font-weight:700; }
 .fg .mts-back em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray700); margin-top:4px; }

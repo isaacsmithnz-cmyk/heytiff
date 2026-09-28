@@ -480,6 +480,54 @@ screen, no read and no write.
 - a row the rollback cancelled reads "Not booked. Sending bookings to ServiceM8 was switched off before it went." with Try again;
 - one whose answer had been lost reads the unsure line.
 
+#### Leave to ServiceM8
+
+The fourth kind of write is **leave**. When a manager approves leave in
+HeyTiff it goes onto the person's day on ServiceM8's dispatch board as
+ServiceM8's own staff leave (`availability.json`, `staff-annual-leave`):
+**"Sick leave"** for personal leave, **"Leave"** for annual and unpaid leave
+and for a casual's day they can't work (Isaac, 2026-09-28). Whole days, first
+day 00:00:00 to last day 23:59:59, on the account's wall clock. Cancelling
+approved leave, or taking a day off down, takes it off the board. Leave goes
+as the app, for the person the owner linked on the ServiceM8 screen: someone
+not linked stays off the board, and the approver is told so beside the
+approval. The owner's card carries **Leave** beside Files, Notes and
+Bookings. **Leave starts Off**, and switching it on puts nothing on the board
+by itself: leave approved before then stays where the office keyed it.
+Leave needs `manage_schedule` only, which the Bookings grant already holds,
+so switching Leave on needs **no reconnect** where Bookings is on. The
+migration `docs/migrations/sm8_leave_queue.sql` adds the kind, three columns
+on `sm8_writes`, leave's branch of the shape check, and the owner's fourth
+switch. With `SM8_WRITES` not naming `leave` nothing about leave changes: no
+screen, no read and no write.
+
+**The order:**
+
+1. Apply `docs/migrations/sm8_leave_queue.sql` before the deploy. Run its read-only checks before and after. **Never re-run `sm8_bookings_queue.sql` after it.**
+2. Deploy. With `SM8_WRITES` not naming `leave`, nothing new shows.
+3. Set `SM8_WRITES=attachment,note,booking,leave` and redeploy, while Isaac isn't designing (a redeploy reloads open tabs).
+4. The owner turns **Leave On** on the ServiceM8 screen.
+5. The office stops keying leave into ServiceM8 by hand: from here HeyTiff puts it there.
+
+**Rollback:**
+
+1. The owner turns **Leave Off**. This cancels every waiting leave row.
+2. Set `SM8_WRITES` without `leave` and redeploy. Wait two minutes, the longest lease.
+3. Run in the Supabase SQL editor:
+
+   ```sql
+   begin;
+   update public.sm8_writes
+      set status = 'cancelled',
+          last_error = 'Sending leave to ServiceM8 was switched off before it went.',
+          lease_until = null, claim_id = null, updated_at = now()
+    where kind = 'leave' and status in ('queued', 'sending', 'failed', 'trial');
+   commit;
+   ```
+
+4. Revert the code. The migration stays: old code never reads the new columns.
+5. **Tell Isaac:** leave HeyTiff put on the board stays there; leave cancelled after the rollback has to come off the board by hand.
+
 ### Calls, echo and freshness
 
 Apply `docs/migrations/sm8_calls_echo_freshness.sql` **before the deploy that

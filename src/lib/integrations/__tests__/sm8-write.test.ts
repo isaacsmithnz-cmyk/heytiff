@@ -28,6 +28,9 @@ jest.mock("../sm8-meter", () => {
 });
 
 import {
+  deleteSm8Availability,
+  postSm8Availability,
+  readSm8Availability,
   deleteSm8Booking,
   deleteSm8Note,
   postSm8Attachment,
@@ -542,5 +545,87 @@ describe("a booking, as the app (two-way phase 3)", () => {
       },
     });
     expect(fetchSm8Page.mock.calls[0].slice(1, 3)).toEqual(["job.json", expect.objectContaining({ filter: `uuid eq '${JOB}'` })]);
+  });
+});
+
+describe("leave on the board, as the app (leave to ServiceM8)", () => {
+  const STAFF = "5a0e5a0e-0000-4000-8000-00000000a001";
+  const LEAVE = "7d3f2c1e-5b6a-4c8d-9e0f-00000000d00c";
+  const call = (i = 0) => fetchMock.mock.calls[i] as [string, RequestInit];
+  const a = { uuid: LEAVE, staffUuid: STAFF, name: "Sick leave", start: "2026-10-06 00:00:00", end: "2026-10-06 23:59:59" };
+
+  it("posts EXACTLY its seven fields to availability.json: ServiceM8's own staff leave, never active, never as a person", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 200, headers: { "x-record-uuid": LEAVE } }));
+    const r = await postSm8Availability(W("t"), a);
+    const [url, init] = call();
+    expect(url).toBe("https://api.servicem8.com/api_1.0/availability.json");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({
+      uuid: LEAVE,
+      regarding_object: "staff",
+      regarding_object_uuid: STAFF,
+      name: "Sick leave",
+      availability_type: "staff-annual-leave",
+      start_timestamp: "2026-10-06 00:00:00",
+      end_timestamp: "2026-10-06 23:59:59",
+    });
+    expect((init.headers as Record<string, string>)["x-impersonate-uuid"]).toBeUndefined();
+    expect(takeTurn).toHaveBeenCalledWith("vendor-1", "write");
+    expect(r).toEqual({ status: 200, outcome: { kind: "created", remoteUuid: LEAVE }, remote: null, recordUuid: LEAVE });
+  });
+
+  it("takes leave off with DELETE on availability/{uuid}.json, and never builds a request it can't vouch for", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
+    await deleteSm8Availability(W("t"), LEAVE);
+    const [url, init] = call();
+    expect(url).toBe(`https://api.servicem8.com/api_1.0/availability/${LEAVE}.json`);
+    expect(init.method).toBe("DELETE");
+    expect(init.body).toBeUndefined();
+    fetchMock.mockClear();
+    expect(await deleteSm8Availability(W("t"), "../job/x")).toMatchObject({ status: null, outcome: { kind: "rejected", status: 400 } });
+    expect(await postSm8Availability(W("t"), { ...a, staffUuid: "someone" })).toMatchObject({ outcome: { kind: "rejected" } });
+    expect(await postSm8Availability(W("t"), { ...a, start: "2026-10-06" })).toMatchObject({ outcome: { kind: "rejected" } });
+    expect(await postSm8Availability(W("t"), { ...a, end: a.start })).toMatchObject({ outcome: { kind: "rejected" } });
+    expect(await postSm8Availability(W("t"), { ...a, name: " " })).toMatchObject({ outcome: { kind: "rejected" } });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reads leave back by its uuid through the list endpoint, inactive included, whatever the case", async () => {
+    fetchSm8Page.mockResolvedValueOnce({
+      ok: true,
+      rows: [
+        {
+          uuid: LEAVE.toUpperCase(),
+          active: "0",
+          edit_date: "2026-09-28 10:00:00",
+          regarding_object: "staff",
+          regarding_object_uuid: STAFF,
+          name: "Sick leave",
+          availability_type: "staff-annual-leave",
+          start_timestamp: "2026-10-06 00:00:00",
+          end_timestamp: "2026-10-06 23:59:59",
+          source: null,
+        },
+      ],
+      nextCursor: null,
+    });
+    expect(await readSm8Availability(W("t"), LEAVE)).toEqual({
+      ok: true,
+      found: true,
+      availability: {
+        uuid: LEAVE.toUpperCase(),
+        regardingUuid: STAFF,
+        name: "Sick leave",
+        type: "staff-annual-leave",
+        start: "2026-10-06 00:00:00",
+        end: "2026-10-06 23:59:59",
+        active: 0,
+        editDate: "2026-09-28 10:00:00",
+      },
+    });
+    expect(fetchSm8Page.mock.calls[0][1]).toBe("availability.json");
+    expect(fetchSm8Page.mock.calls[0][2]).toMatchObject({ filter: `uuid eq '${LEAVE}'` });
+    fetchSm8Page.mockResolvedValueOnce({ ok: true, rows: [], nextCursor: null });
+    expect(await readSm8Availability(W("t"), LEAVE)).toEqual({ ok: true, found: false });
   });
 });

@@ -41,6 +41,7 @@ import { sm8BusyOf, sm8Request, type Sm8Call } from "./sm8-http";
 import { fetchSm8Page, type Sm8Page } from "./sm8-read";
 import { dateOrNull, intOrNull, textOrNull } from "./sm8-sync-plan";
 import { STATUS_KEPT_FIELDS } from "./sm8-booking-plan";
+import { availabilityBody, LEAVE_STAMP, type Sm8LiveAvailability } from "./sm8-leave-plan";
 import {
   classifyWrite,
   readRemoteError,
@@ -622,4 +623,83 @@ export async function readSm8Job(call: Sm8Call, jobUuid: string): Promise<Sm8Job
       },
     },
   };
+}
+
+/* ── leave: ServiceM8's own staff leave (availability.json) ──
+
+   The paths and the scope were read off ServiceM8's developer reference on
+   2026-09-28: "Create a new Availability" (POST availability.json,
+   manage_schedule, a client uuid accepted, x-record-uuid on a 200), "Delete
+   an Availability" (DELETE availability/{uuid}.json, which sets active to
+   0) and "List all Availabilities" (GET availability.json, read_schedule,
+   $filter). The fields are the ones the business's own leave came back
+   with on the live account that day (sm8-leave-plan).
+
+   A DELETE IS NEVER TRUSTED TO SAY LEAVE IS OFF THE BOARD, and never sent
+   to a record already inactive: ServiceM8's DELETE of a note already
+   removed put the note back (the notes walk, 2026-09-27), and leave is
+   taken to do the same. So the sender reads it live before every DELETE
+   and after one (sm8-leave-send). A read goes through the list endpoint
+   filtered to one uuid, as a booking's does, because the single-record
+   path answers 404 for a record that has been deleted. */
+
+/** One leave request's answer — a booking's shape. */
+export type Sm8LeaveResult = Sm8BookingResult;
+
+/** Put one person's leave on the board, under OUR uuid, with exactly the
+    seven fields availabilityBody makes. */
+export async function postSm8Availability(
+  call: Sm8Call,
+  a: { uuid: string; staffUuid: string; name: string; start: string; end: string }
+): Promise<Sm8LeaveResult> {
+  if (!UUID.test(a.uuid) || !UUID.test(a.staffUuid)) return NOT_SENT;
+  if (!LEAVE_STAMP.test(a.start) || !LEAVE_STAMP.test(a.end) || !(a.start < a.end)) return NOT_SENT;
+  if (!a.name.trim()) return NOT_SENT;
+  return bookingRequest(call, "POST availability.json", "availability.json", { method: "POST", json: availabilityBody(a) });
+}
+
+/** Take one leave off the board. Sent only after a live read found it
+    there and active; its answer proves nothing, and the sender reads it
+    back. */
+export async function deleteSm8Availability(call: Sm8Call, uuid: string): Promise<Sm8LeaveResult> {
+  if (!UUID.test(uuid)) return NOT_SENT;
+  return bookingRequest(call, "DELETE availability", `availability/${uuid}.json`, { method: "DELETE" });
+}
+
+/** A raw availability row, shaped as the mirror shapes text and dates.
+    Null without a uuid. */
+export function shapeLiveAvailability(r: Record<string, unknown>): Sm8LiveAvailability | null {
+  const uuid = textOrNull(r.uuid);
+  if (!uuid) return null;
+  return {
+    uuid,
+    regardingUuid: textOrNull(r.regarding_object_uuid),
+    name: textOrNull(r.name),
+    type: textOrNull(r.availability_type),
+    start: dateOrNull(r.start_timestamp),
+    end: dateOrNull(r.end_timestamp),
+    active: intOrNull(r.active),
+    editDate: dateOrNull(r.edit_date),
+  };
+}
+
+export type Sm8AvailabilityCheck =
+  | { ok: true; found: false }
+  | { ok: true; found: true; availability: Sm8LiveAvailability }
+  | Sm8ReadFailure;
+
+/** Read one leave back by its uuid, the account asking, through the list
+    endpoint filtered to the one uuid. Matched whatever the case. */
+export async function readSm8Availability(call: Sm8Call, uuid: string): Promise<Sm8AvailabilityCheck> {
+  if (!UUID.test(uuid)) return { ok: true, found: false };
+  const page = await fetchSm8Page(call, "availability.json", {
+    cursor: "-1",
+    filter: `uuid eq '${uuid}'`,
+    timeoutMs: WRITE_READ_TIMEOUT_MS,
+  });
+  if (!page.ok) return readFailure(page);
+  const want = uuid.toLowerCase();
+  const row = page.rows.find((r) => typeof r.uuid === "string" && r.uuid.toLowerCase() === want);
+  const availability = row ? shapeLiveAvailability(row) : null;
+  return availability ? { ok: true, found: true, availability } : { ok: true, found: false };
 }

@@ -795,14 +795,14 @@ export function sm8QueueChip(
     reason: "cap" | "billing" | "reconnect";
     waiting: number;
     /** Kind by kind, where the deployment sends more than files. */
-    kinds?: { attachment: number; note: number; booking?: number };
+    kinds?: { attachment: number; note: number; booking?: number; leave?: number };
   } | null
 ): ActionChip | null {
   if (!stuck) return null;
   /* "1 file"; once any kind but files is waiting, each kind apart ("1 file
      and 2 notes", "1 file, 2 notes and 1 booking"): word for word today's
      with none (kindCount) */
-  const others = !!stuck.kinds && (stuck.kinds.note > 0 || (stuck.kinds.booking ?? 0) > 0);
+  const others = !!stuck.kinds && (stuck.kinds.note > 0 || (stuck.kinds.booking ?? 0) > 0 || (stuck.kinds.leave ?? 0) > 0);
   const files = (n: number) => kindCount(others && stuck.kinds ? stuck.kinds : { attachment: n, note: 0 });
   const base = {
     key: "sm8-writes",

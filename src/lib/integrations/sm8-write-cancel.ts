@@ -27,7 +27,8 @@ const waitingAt = (iso: string) => `status.eq.queued,and(status.eq.sending,lease
     kind (a file; a note or a booking, whose name is only its label). */
 export type CancelledWrite = { id: string; name: string | null; kind: Sm8WriteKind };
 
-const kindOf = (v: unknown): Sm8WriteKind => (v === "note" ? "note" : v === "booking" ? "booking" : "attachment");
+const kindOf = (v: unknown): Sm8WriteKind =>
+  v === "note" ? "note" : v === "booking" ? "booking" : v === "leave" ? "leave" : "attachment";
 
 function payloadName(payload: unknown): string | null {
   const p = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
@@ -86,19 +87,21 @@ export async function countWaitingSm8Writes(orgId: string, now: number = Date.no
 
 /** The same count, kind by kind. ONLY WHEN THE DEPLOYMENT ALLOWS MORE THAN
     FILES does it count per kind (one head count each): files and notes
-    where it allows notes, and all three where it allows bookings, so the
-    kinds always add up to what a cancel would take. Otherwise it is today's
+    where it allows notes, bookings where it allows bookings, and leave
+    where it allows leave, so the kinds always add up to what a cancel
+    would take. Otherwise it is today's
     one query, and every row it counts is a file — so the owner's card, chip
     and bell gain no query on a deployment that sends files, and none for
     bookings on one that sends files and notes. */
 export async function countWaitingSm8WritesByKind(
   orgId: string,
   now: number = Date.now()
-): Promise<{ attachment: number; note: number; booking: number }> {
+): Promise<{ attachment: number; note: number; booking: number; leave: number }> {
   const kinds = sm8WriteKindsEnabled();
   const bookings = kinds.includes("booking");
-  if (!kinds.includes("note") && !bookings) {
-    return { attachment: await countWaitingSm8Writes(orgId, now), note: 0, booking: 0 };
+  const leaves = kinds.includes("leave");
+  if (!kinds.includes("note") && !bookings && !leaves) {
+    return { attachment: await countWaitingSm8Writes(orgId, now), note: 0, booking: 0, leave: 0 };
   }
   const iso = new Date(now).toISOString();
   const one = async (kind: Sm8WriteKind) => {
@@ -110,12 +113,13 @@ export async function countWaitingSm8WritesByKind(
       .or(waitingAt(iso));
     return error ? 0 : count ?? 0;
   };
-  const [attachment, note, booking] = await Promise.all([
+  const [attachment, note, booking, leave] = await Promise.all([
     one("attachment"),
     one("note"),
     bookings ? one("booking") : Promise.resolve(0),
+    leaves ? one("leave") : Promise.resolve(0),
   ]);
-  return { attachment, note, booking };
+  return { attachment, note, booking, leave };
 }
 
 /* ── a note's words leave the queue ──

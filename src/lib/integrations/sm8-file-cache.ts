@@ -25,6 +25,10 @@
    carries both filters, and the object path must sit in the org's own
    `job_file` folder too.
 
+   ONLY WHERE A COPY CAN COME BACK. A workspace whose ServiceM8 connection
+   isn't `connected` (disconnected, or waiting on a sign-in) can't fetch a
+   copy on the next open, so nothing of its is evicted until it is again.
+
    A STARRED PHOTO IS KEPT. The showcase signs the cached copy and draws a
    plate when there is none — it never fetches one back — so a star keeps
    its picture however long nobody opens the job (1 of 956 on 2026-09-28).
@@ -145,8 +149,9 @@ export const isCachedSm8Path = (ref: string, orgId: string) =>
   typeof ref === "string" && ref.startsWith(`org/${orgId}/${CACHED_SM8_FILE.kind}/`) && !ref.includes("..");
 
 /** Evict the cached ServiceM8 files nobody has been shown in
-    FILE_CACHE_DAYS, oldest first, across every workspace — at most `max`
-    of them and `budgetMs` of wall time. Never throws. */
+    FILE_CACHE_DAYS, oldest first, in every workspace whose ServiceM8
+    connection is working — at most `max` of them and `budgetMs` of wall
+    time, the clock looked at before every file. Never throws. */
 export async function evictStaleSm8Files(
   now: number = Date.now(),
   opts: { max?: number; budgetMs?: number } = {}
@@ -158,6 +163,14 @@ export async function evictStaleSm8Files(
   const cutoff = now - FILE_CACHE_DAYS * DAY_MS;
 
   try {
+    /* 0. Only workspaces that can fetch a copy back. A disconnected or
+       needs_reauth workspace's next open can't reach ServiceM8, so an
+       evicted copy there would be a plate until somebody reconnects; its
+       copies wait, and age out the first night after they do. */
+    const orgs = await connectedSm8Orgs();
+    if (orgs === null) return { ...NONE, skipped: true };
+    if (orgs.length === 0) return NONE;
+
     /* 1. The candidates, oldest first, less the starred. Read in pages so a
        run of starred photos at the head of the queue can't stall the night. */
     const picked: Candidate[] = [];
@@ -169,6 +182,7 @@ export async function evictStaleSm8Files(
         .select("id, org_id, remote_ref, storage_ref, size_bytes")
         .eq("kind", CACHED_SM8_FILE.kind)
         .eq("source", CACHED_SM8_FILE.source)
+        .in("org_id", orgs)
         .or(notOpenedSince(cutoff))
         .order("last_opened_at", { ascending: true, nullsFirst: true })
         .order("id", { ascending: true })
@@ -204,7 +218,10 @@ export async function evictStaleSm8Files(
     let failed = 0;
     let capped = more;
 
-    for (const part of parts(picked)) {
+    /* ONE FILE AT A TIME, the clock looked at before each: a batch started
+       a moment before the budget ran out would otherwise run on past it by
+       fifty objects' worth, into the asks' share of the night. */
+    for (const cand of picked) {
       if (outOfTime()) {
         capped = true;
         break;
@@ -217,61 +234,61 @@ export async function evictStaleSm8Files(
         .update({ uploaded_at: null })
         .eq("kind", CACHED_SM8_FILE.kind)
         .eq("source", CACHED_SM8_FILE.source)
-        .in(
-          "id",
-          part.map((r) => r.id)
-        )
+        .eq("id", cand.id)
         .or(notOpenedSince(cutoff))
         .select("id, org_id, storage_ref, size_bytes");
       if (takeErr) {
-        console.error(`[sm8-cache] couldn't take ${part.length} cached files off the list:`, takeErr);
-        failed += part.length;
+        console.error(`[sm8-cache] couldn't take cached file ${cand.id} off the list:`, takeErr);
+        failed += 1;
         continue;
       }
-      const rows = ((taken ?? []) as Candidate[]).filter((r) => isCachedSm8Path(r.storage_ref, r.org_id));
-      if (rows.length === 0) continue;
+      const row = ((taken ?? []) as Candidate[]).find((r) => isCachedSm8Path(r.storage_ref, r.org_id));
+      if (!row) continue;
 
-      /* 3. The objects. A refusal leaves the rows unconfirmed — invisible,
+      /* 3. The object. A refusal leaves the row unconfirmed — invisible,
          re-fetched on the next open, and retried here tomorrow. */
-      const { error: rmErr } = await supabaseAdmin.storage.from(DOCUMENTS_BUCKET).remove(rows.map((r) => r.storage_ref));
+      const { error: rmErr } = await supabaseAdmin.storage.from(DOCUMENTS_BUCKET).remove([row.storage_ref]);
       if (rmErr) {
-        console.error(`[sm8-cache] storage refused to remove ${rows.length} cached files:`, rmErr);
-        failed += rows.length;
+        console.error(`[sm8-cache] storage refused to remove cached file ${row.id}:`, rmErr);
+        failed += 1;
         continue;
       }
 
-      /* 4. The rows — only while still unconfirmed. One a job's open
+      /* 4. The row — only while still unconfirmed. One a job's open
          re-cached between steps 2 and 4 is confirmed again, and its object
          may be the one step 3 just removed: it goes back to unconfirmed, so
-         its next open fetches it rather than drawing a broken tile. */
-      const ids = rows.map((r) => r.id);
+         its next open fetches it rather than drawing a broken tile.
+
+         Left alone on purpose: an open whose upload lands after step 3 but
+         whose confirm comes after this delete leaves one object no row
+         names — one file's bytes, overwritten by that file's next cache. */
       const { data: gone, error: delErr } = await supabaseAdmin
         .from("documents")
         .delete()
         .eq("kind", CACHED_SM8_FILE.kind)
         .eq("source", CACHED_SM8_FILE.source)
-        .in("id", ids)
+        .eq("id", row.id)
         .is("uploaded_at", null)
         .select("id");
       if (delErr) {
-        console.error(`[sm8-cache] couldn't delete ${ids.length} evicted rows:`, delErr);
-        failed += ids.length;
+        console.error(`[sm8-cache] couldn't delete evicted row ${row.id}:`, delErr);
+        failed += 1;
         continue;
       }
-      const deleted = new Set(((gone ?? []) as { id: string }[]).map((r) => r.id));
-      const raced = ids.filter((id) => !deleted.has(id));
-      if (raced.length > 0) {
-        await supabaseAdmin
-          .from("documents")
-          .update({ uploaded_at: null })
-          .eq("kind", CACHED_SM8_FILE.kind)
-          .eq("source", CACHED_SM8_FILE.source)
-          .in("id", raced);
-      }
-      for (const r of rows) {
-        if (!deleted.has(r.id)) continue;
+      if (((gone ?? []) as { id: string }[]).some((r) => r.id === row.id)) {
         evicted += 1;
-        bytes += r.size_bytes ?? 0;
+        bytes += row.size_bytes ?? 0;
+        continue;
+      }
+      /* Raced. The reset is the one write here whose failure would leave a
+         confirmed row with no object behind it — a broken tile nothing
+         fetches again — so it is tried twice, and a second refusal is
+         logged by id and counted, for a person to put right. */
+      if (!(await unconfirm(row.id)) && !(await unconfirm(row.id))) {
+        console.error(
+          `[sm8-cache] cached file ${row.id} was re-cached mid-eviction and couldn't be unconfirmed: it may be confirmed with no object`
+        );
+        failed += 1;
       }
     }
 
@@ -280,6 +297,33 @@ export async function evictStaleSm8Files(
     console.error("[sm8-cache] eviction failed:", e);
     return { ...NONE, skipped: true };
   }
+}
+
+/** Take one row back off the readers' list. True when the database took it. */
+async function unconfirm(id: string): Promise<boolean> {
+  const { error } = await supabaseAdmin
+    .from("documents")
+    .update({ uploaded_at: null })
+    .eq("kind", CACHED_SM8_FILE.kind)
+    .eq("source", CACHED_SM8_FILE.source)
+    .eq("id", id);
+  return !error;
+}
+
+/** The workspaces whose ServiceM8 connection is working, the same test the
+    nightly sync makes (sm8-sync's sweepableSm8Orgs). Null when it can't be
+    told — the caller then evicts nothing. */
+async function connectedSm8Orgs(): Promise<string[] | null> {
+  const { data, error } = await supabaseAdmin
+    .from("integration_connections")
+    .select("org_id")
+    .eq("provider", "servicem8")
+    .eq("status", "connected");
+  if (error) {
+    console.error("[sm8-cache] couldn't read which workspaces are connected:", error);
+    return null;
+  }
+  return [...new Set(((data ?? []) as { org_id: string }[]).map((r) => r.org_id))];
 }
 
 /** Which of these rows are starred photos, as `org|attachment uuid`. Null

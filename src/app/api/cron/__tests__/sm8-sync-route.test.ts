@@ -58,9 +58,12 @@ jest.mock("@/lib/dashboard/mention-settle", () => ({
 }));
 
 /* The file cache's 30-day cap (lib/integrations/sm8-file-cache, tested there). */
+const evictBudgets: (number | undefined)[] = [];
 jest.mock("@/lib/integrations/sm8-file-cache", () => ({
-  evictStaleSm8Files: jest.fn(async () => {
+  EVICT_BUDGET_MS: 20_000,
+  evictStaleSm8Files: jest.fn(async (_now: number, opts: { budgetMs?: number } = {}) => {
     events.push("evict");
+    evictBudgets.push(opts.budgetMs);
     return { evicted: 3, bytes: 3 * 1_048_576, starred: 1, failed: 0, capped: false, skipped: false };
   }),
 }));
@@ -89,6 +92,7 @@ beforeEach(() => {
   settleMentionAsks.mockClear();
   settled.length = 0;
   settleTakes = [];
+  evictBudgets.length = 0;
   jest.spyOn(Date, "now").mockImplementation(() => clock);
   jest.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -261,12 +265,32 @@ describe("the asks", () => {
 });
 
 describe("the file cache's 30-day cap", () => {
-  it("runs once a night, after the writes and before any sync, and says what it took", async () => {
+  it("runs once a night, after every sync and before the asks, and says what it took", async () => {
     const body = await (await GET(byScheduler())).json();
     expect(events.filter((e) => e === "evict")).toHaveLength(1);
-    expect(events.indexOf("evict")).toBeGreaterThan(events.map((e) => e.startsWith("writes:")).lastIndexOf(true));
-    expect(events.indexOf("evict")).toBeLessThan(events.findIndex((e) => e.startsWith("sync:")));
+    expect(events.indexOf("evict")).toBeGreaterThan(events.map((e) => e.startsWith("sync:")).lastIndexOf(true));
+    expect(events.indexOf("evict")).toBeLessThan(events.findIndex((e) => e.startsWith("asks:")));
     expect(body.files).toEqual({ evicted: 3, mb: 3, starred: 1, failed: 0, capped: false, skipped: false });
+  });
+
+  it("takes at most its own budget, and never the asks' margin", async () => {
+    await GET(byScheduler());
+    expect(evictBudgets).toEqual([20_000]);
+
+    /* the syncs left 25 s: the eviction may have 10 of them, the asks' 15 s margin kept */
+    events.length = 0;
+    evictBudgets.length = 0;
+    clock = Date.parse("2026-09-25T20:00:00Z");
+    syncTakes = [275_000];
+    await GET(byScheduler());
+    expect(evictBudgets).toEqual([10_000]);
+  });
+
+  it("waits for tomorrow when the syncs spent the window", async () => {
+    syncTakes = [290_000];
+    const body = await (await GET(byScheduler())).json();
+    expect(events).not.toContain("evict");
+    expect(body.files).toMatchObject({ evicted: 0, skipped: true });
   });
 
   it("evicts nothing on a call that doesn't pass CRON_SECRET", async () => {

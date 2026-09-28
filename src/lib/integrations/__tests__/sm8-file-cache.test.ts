@@ -20,8 +20,20 @@ type DbError = { code?: string; message?: string };
 const tables: Record<string, Row[]> = {};
 const objects = new Set<string>();
 const log: string[] = [];
-/** Refusals, by `table.op` (or `storage.remove`). */
-const refuse = new Map<string, DbError>();
+/** Refusals, by `table.op` (or `storage.remove`): every call, or only the
+    calls a function picks (counted from 1, per key). */
+const refuse = new Map<string, DbError | ((call: number) => DbError | null)>();
+const calls = new Map<string, number>();
+function refused(key: string): DbError | null {
+  const n = (calls.get(key) ?? 0) + 1;
+  calls.set(key, n);
+  const r = refuse.get(key);
+  return typeof r === "function" ? r(n) : r ?? null;
+}
+/** The test's clock, when a test runs one: Date.now() reads it. */
+let clock = 0;
+/** Milliseconds each removed object costs, on that clock. */
+let msPerRemoved = 0;
 /** Runs just before a delete of documents — a job's open racing the night. */
 let beforeDelete: (() => void) | null = null;
 
@@ -64,8 +76,8 @@ function query(table: string) {
   let window: [number, number] | null = null;
 
   const run = (): { data: unknown; error: DbError | null } => {
-    const refused = refuse.get(`${table}.${op}`);
-    if (refused) return { data: null, error: refused };
+    const refusal = refused(`${table}.${op}`);
+    if (refusal) return { data: null, error: refusal };
     const hit = rows.filter((r) => where.every((w) => w(r)));
     if (op === "select") {
       const sorted = [...hit].sort((a, b) => {
@@ -128,8 +140,9 @@ jest.mock("@/lib/supabase-server", () => ({
     storage: {
       from: () => ({
         remove: async (refs: string[]) => {
-          const refused = refuse.get("storage.remove");
-          if (refused) return { data: null, error: refused };
+          const refusal = refused("storage.remove");
+          if (refusal) return { data: null, error: refusal };
+          clock += refs.length * msPerRemoved;
           log.push(`remove:${refs.join(",")}`);
           for (const r of refs) objects.delete(r);
           return { data: refs.map((name) => ({ name })), error: null };
@@ -177,7 +190,14 @@ const ids = () => tables.documents.map((r) => r.id);
 beforeEach(() => {
   tables.documents = [];
   tables.job_photo_favourites = [];
+  tables.integration_connections = [
+    { org_id: "org-kestrel", provider: "servicem8", status: "connected" },
+    { org_id: "org-heron", provider: "servicem8", status: "connected" },
+  ];
   objects.clear();
+  calls.clear();
+  clock = 0;
+  msPerRemoved = 0;
   log.length = 0;
   refuse.clear();
   beforeDelete = null;
@@ -223,6 +243,35 @@ describe("what it may never reach", () => {
     expect(ids()).toEqual([stray.id, foreign.id]);
     expect(objects.has("org/org-kestrel/licence/stray.pdf")).toBe(true);
     expect(objects.has("org/org-heron/job_file/foreign.jpg")).toBe(true);
+  });
+
+  it("evicts only where ServiceM8 is connected — a disconnected or needs_reauth workspace can't fetch a copy back", async () => {
+    tables.integration_connections = [
+      { org_id: "org-kestrel", provider: "servicem8", status: "connected" },
+      { org_id: "org-heron", provider: "servicem8", status: "needs_reauth" },
+      { org_id: "org-plover", provider: "xero", status: "connected" },
+    ];
+    const connected = doc();
+    const reauth = doc({ org_id: "org-heron" });
+    const disconnected = doc({ org_id: "org-wren" });
+    const xeroOnly = doc({ org_id: "org-plover" });
+    const result = await evictStaleSm8Files(NOW);
+    expect(result.evicted).toBe(1);
+    expect(ids()).toEqual([reauth.id, disconnected.id, xeroOnly.id]);
+    expect(objects.has(connected.storage_ref as string)).toBe(false);
+    for (const r of [reauth, disconnected, xeroOnly]) {
+      expect(r.uploaded_at).toBe(OLD);
+      expect(objects.has(r.storage_ref as string)).toBe(true);
+    }
+  });
+
+  it("evicts nothing when it can't tell which workspaces are connected", async () => {
+    doc();
+    refuse.set("integration_connections.select", { message: "down" });
+    const result = await evictStaleSm8Files(NOW);
+    expect(ids()).toHaveLength(1);
+    expect(objects.size).toBe(1);
+    expect(result).toMatchObject({ evicted: 0, skipped: true });
   });
 });
 
@@ -318,6 +367,33 @@ describe("the order", () => {
     expect(result.evicted).toBe(0);
   });
 
+  it("a refused reset is tried again, so the raced row still ends unconfirmed", async () => {
+    const a = doc();
+    beforeDelete = () => {
+      const row = tables.documents.find((r) => r.id === a.id);
+      if (row) row.uploaded_at = new Date(NOW).toISOString();
+      beforeDelete = null;
+    };
+    /* update 1 is the take; update 2, the reset, is refused once */
+    refuse.set("documents.update", (n) => (n === 2 ? { message: "busy" } : null));
+    const result = await evictStaleSm8Files(NOW);
+    expect(tables.documents[0].uploaded_at).toBeNull();
+    expect(result).toMatchObject({ evicted: 0, failed: 0 });
+  });
+
+  it("a reset refused twice is logged and counted — it may be a confirmed row with no object", async () => {
+    const a = doc();
+    beforeDelete = () => {
+      const row = tables.documents.find((r) => r.id === a.id);
+      if (row) row.uploaded_at = new Date(NOW).toISOString();
+      beforeDelete = null;
+    };
+    refuse.set("documents.update", (n) => (n >= 2 ? { message: "busy" } : null));
+    const result = await evictStaleSm8Files(NOW);
+    expect(result).toMatchObject({ evicted: 0, failed: 1 });
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining(a.id as string));
+  });
+
   it("a row opened after the candidates were read is left alone", async () => {
     const a = doc();
     /* the open lands between the read and the take: played by the star
@@ -347,15 +423,16 @@ describe("a night's bounds", () => {
     expect(ids()).toEqual([rows[0].id, rows[3].id]);
   });
 
-  it("stops taking more once its time is spent, and says it stopped short", async () => {
+  it("looks at the clock before every file, not every fifty, and says it stopped short", async () => {
     for (let i = 0; i < 60; i++) doc();
-    /* every look at the clock is ten seconds later: the page read and the
-       first fifty fit a 25 s budget, the second fifty don't */
-    let t = NOW;
-    jest.spyOn(Date, "now").mockImplementation(() => (t += 10_000) - 10_000);
-    const result = await evictStaleSm8Files(NOW, { budgetMs: 25_000 });
-    expect(result).toMatchObject({ evicted: 50, capped: true });
-    expect(ids()).toHaveLength(10);
+    /* each object removed costs a second: a 5.5 s budget is spent after the
+       sixth, where a batch of fifty would have run on 44 s past it */
+    msPerRemoved = 1_000;
+    jest.spyOn(Date, "now").mockImplementation(() => NOW + clock);
+    const result = await evictStaleSm8Files(NOW, { budgetMs: 5_500 });
+    expect(result).toMatchObject({ evicted: 6, capped: true });
+    expect(ids()).toHaveLength(54);
+    expect(objects.size).toBe(54);
   });
 
   it("stars at the head of the queue don't stall the night", async () => {

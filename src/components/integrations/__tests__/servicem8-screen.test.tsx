@@ -592,23 +592,26 @@ describe("the mirror card's overnight line", () => {
 });
 
 /* LIVE UPDATES FROM SERVICEM8 (two-way phase 4, PR F). Nothing while they
-   work; one line on the connection card, in the warning's colour, when they
-   don't — the page hands it over already written (sm8-hook-words). */
+   work; one line on the connection card, in the screen's own state word
+   (int-tag warn, no rule of its own), when they don't — the page hands it
+   over already written (sm8-hook-words). */
 describe("live updates from ServiceM8", () => {
   const READY = { configured: true, sealed: true, notice: null, connection: toView(row()) };
   const LINE = "ServiceM8 turned off live updates for Job notes on Sat 3 Oct: Webhook request failed for over 12 hours. Press Reconnect.";
+  const LINE_SEL = ".int-conn > p.int-tag.warn";
 
   it("says nothing while they work", () => {
     const { container } = render(<Servicem8Screen {...READY} sync={syncView([JOBS_DONE])} />);
-    expect(container.querySelector(".int-liveline")).toBeNull();
+    expect(container.querySelector(LINE_SEL)).toBeNull();
     expect(screen.queryByText(/live update/i)).toBeNull();
   });
 
-  it("says the one line on the connection card when they don't, beside Reconnect", () => {
+  it("says the one line on the connection card when they don't, beside Reconnect, in the screen's own warn word", () => {
     const { container } = render(<Servicem8Screen {...READY} sync={syncView([JOBS_DONE])} liveUpdates={LINE} />);
     const line = screen.getByText(LINE);
-    expect(line).toHaveClass("int-liveline");
-    expect(container.querySelectorAll(".int-liveline")).toHaveLength(1);
+    expect(line.tagName).toBe("P");
+    expect(line.className).toBe("int-tag warn");
+    expect(container.querySelectorAll(LINE_SEL)).toHaveLength(1);
     const card = container.querySelector(".int-conn") as HTMLElement;
     expect(card).toContainElement(line);
     expect(within(card).getByText("Reconnect")).toBeInTheDocument();
@@ -616,12 +619,13 @@ describe("live updates from ServiceM8", () => {
 
   it("writes the same line on the server as in the browser", () => {
     const html = renderToString(<Servicem8Screen {...READY} sync={syncView([JOBS_DONE])} liveUpdates={LINE} />);
-    expect(html).toContain(`<p class="int-liveline">${LINE}</p>`);
+    expect(html).toContain(`<p class="int-tag warn">${LINE}</p>`);
   });
 
   it("says nothing without a connection, whatever it is handed", () => {
     const { container } = render(<Servicem8Screen {...READY} connection={null} liveUpdates={LINE} />);
-    expect(container.querySelector(".int-liveline")).toBeNull();
+    expect(container.querySelector("p.int-tag.warn")).toBeNull();
+    expect(screen.queryByText(LINE)).toBeNull();
   });
 });
 

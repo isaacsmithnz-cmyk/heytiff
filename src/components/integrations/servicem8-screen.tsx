@@ -375,9 +375,9 @@ export function Servicem8Screen({
             {connected && sync && <SyncLine sync={sync} />}
 
             {/* live updates from ServiceM8, only when they aren't working:
-                one sentence in the warning's colour, because it asks for
-                Reconnect, beside it. Nothing at all while they work. */}
-            {connected && liveUpdates && <p className="int-liveline">{liveUpdates}</p>}
+                one sentence, the screen's own state word in the warning's
+                colour. Nothing at all while they work. */}
+            {connected && liveUpdates && <p className="int-tag warn">{liveUpdates}</p>}
 
             {!ready && (
               <div className="int-blocked">

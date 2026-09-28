@@ -29,15 +29,20 @@ import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { settleMentionAsks } from "@/lib/dashboard/mention-settle";
 import { runSm8Sync, sm8SyncIsStale } from "./sm8-sync";
+import { SYNC_LEASE_MS, whenSm8LeaseFree } from "./sm8-lease";
+import { functionDeadline } from "./sm8-hook-plan";
 import { runSm8Writes, sm8WritesDue, sm8WritesEnabled } from "./sm8-writes";
 import { backgroundBudgetMs, FUNCTION_MAX_MS, WRITE_LEASE_MARGIN_MS } from "./sm8-write-plan";
 import { sm8NotesAllowed } from "./sm8-kinds";
 import { NOTE_TEXT_DAYS } from "./sm8-note-plan";
 import { clearSm8NoteText, sm8NoteTextDue } from "./sm8-write-cancel";
 
-/** A sync slice holds its lease this long; it starts only while that still
-    fits in the function. */
-const SYNC_LEASE_MS = 120_000;
+/** A slice that finds a DRAIN holding the lease asks for it and tries
+    again, this many times this far apart — never past the last moment its
+    lease still fits the function, and only while the mirror is still stale.
+    Any other holder: busy at once, as before. */
+const KICK_TRIES = 10;
+const KICK_WAIT_MS = 2_000;
 
 /** Register one after() that sends what is due and then syncs a stale
     mirror, for a workspace the caller has already gated. Synchronous: the
@@ -68,9 +73,23 @@ export function freshenSm8AfterResponse(orgId: string): void {
         if (budgetMs > 0) await runSm8Writes(orgId, "kick", { budgetMs });
       }
 
-      if (Date.now() - calledAt > FUNCTION_MAX_MS - SYNC_LEASE_MS - WRITE_LEASE_MARGIN_MS) return;
+      const syncStartBy = calledAt + FUNCTION_MAX_MS - SYNC_LEASE_MS - WRITE_LEASE_MARGIN_MS;
+      if (Date.now() > syncStartBy) return;
       if (!(await sm8SyncIsStale(orgId, Date.now()))) return;
-      const synced = await runSm8Sync(orgId, "kick");
+      /* the page's function: no route sets a maxDuration, so the platform's
+         default (FUNCTION_MAX_MS); the sync extends its lease while a whole
+         one still ends inside it */
+      const deadline = functionDeadline(calledAt, FUNCTION_MAX_MS / 1000);
+      const synced = await whenSm8LeaseFree(() => runSm8Sync(orgId, "kick", Date.now(), { deadline }), {
+        tries: KICK_TRIES,
+        waitMs: KICK_WAIT_MS,
+        startBy: syncStartBy,
+        /* only a drain is waited for (it stands aside when asked); another
+           sync's lease gives up at once, as the kick always has — and a
+           mirror another run freshened meanwhile needs no second sync */
+        onlyWhileHook: true,
+        stillWanted: () => sm8SyncIsStale(orgId, Date.now()),
+      });
       if (!synced.ran) return;
 
       /* what is left of the function, less the margin its writes keep */

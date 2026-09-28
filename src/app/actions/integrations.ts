@@ -7,6 +7,7 @@ import { getDbRole } from "@/lib/permissions-server";
 import { disconnectXero, setXeroTenant } from "@/lib/integrations/store";
 import { disconnectSm8 } from "@/lib/integrations/sm8-store";
 import { runSm8Sync } from "@/lib/integrations/sm8-sync";
+import { whenSm8LeaseFree } from "@/lib/integrations/sm8-lease";
 import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
 import {
   readSm8WriteState,
@@ -17,7 +18,8 @@ import {
   sm8WritesEnabled,
 } from "@/lib/integrations/sm8-writes";
 import { drainSm8WritesAfterResponse } from "@/lib/integrations/sm8-drain";
-import { readWriteMode, sendRefusal, type Sm8WriteKind } from "@/lib/integrations/sm8-write-plan";
+import { FUNCTION_MAX_MS, readWriteMode, sendRefusal, type Sm8WriteKind } from "@/lib/integrations/sm8-write-plan";
+import { functionDeadline } from "@/lib/integrations/sm8-hook-plan";
 import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-words";
 import { sm8DisconnectNote, sm8KindOffNote, sm8OffNote, sm8RetryNote } from "@/lib/integrations/outcome";
@@ -101,15 +103,26 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
 /** Run one sync slice now, in the foreground — the button's whole point is
     watching the counts move, so this awaits rather than after()s. The
     engine's lease makes a press during a running sync a polite "already
-    running" rather than a second walker. A press, so it drains: whatever
-    is waiting to go to ServiceM8 goes behind the answer. */
+    running" rather than a second walker, at once. Only a live update being
+    read (a drain, which stands aside when asked) is waited for, a few tries
+    two seconds apart, so that press still syncs. A press, so it
+    drains: whatever is waiting to go to ServiceM8 goes behind the answer. */
 export async function syncServiceM8NowAction(): Promise<IntegrationResult> {
   const startedAt = Date.now();
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
   drainSm8WritesAfterResponse(ctx.orgId, { startedAt });
-  const outcome = await runSm8Sync(ctx.orgId, "manual");
+  const orgId = ctx.orgId;
+  /* the ServiceM8 page's function, which this action runs in: it sets no
+     maxDuration, so the platform's default (FUNCTION_MAX_MS) */
+  const deadline = functionDeadline(startedAt, FUNCTION_MAX_MS / 1000);
+  const outcome = await whenSm8LeaseFree(() => runSm8Sync(orgId, "manual", Date.now(), { deadline }), {
+    tries: 10,
+    waitMs: 2_000,
+    // only a drain is waited for; another sync is "already running" at once, as always
+    onlyWhileHook: true,
+  });
   revalidate();
   if (!outcome.ran) return { ok: false, error: outcome.note };
   return { ok: true, note: outcome.note };

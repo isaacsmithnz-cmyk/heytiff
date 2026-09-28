@@ -9,6 +9,11 @@
      a conditional write on sm8_sync_runs.lease_until — no row claimed means
      someone else is mid-run, and the answer is "already running", not a
      second walker double-spending the rate limit.
+   - THE LEASE IS HELD BY TOKEN, AND OUTLASTS EVERY PAGE (sm8-lease.ts).
+     Released and extended only where the row still carries this run's
+     token and end, so a run that outlived its lease can't clear the next
+     holder's; before each page the run checks a whole page still fits,
+     extends if only the lease is short, and pauses when the function is.
    - CURSORS ADVANCE ONLY ON COMPLETED WALKS. A run that stops mid-object —
      page budget, 429, upstream wobble — leaves that object's edit_date floor
      alone, because a half-read walk must not move the floor past rows it
@@ -53,6 +58,7 @@
    CRON_SECRET, or a page loader that already gated the org) and hands in a
    bare orgId. */
 
+import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { fetchSm8Vendor } from "./sm8";
 import { sm8CallOf } from "./sm8-http";
@@ -93,6 +99,17 @@ import {
   type MirrorRow,
   type Sm8ObjectPhase,
 } from "./sm8-sync-plan";
+import {
+  SM8_LEASE_LOST,
+  SM8_LEASE_UNSTAMPED,
+  SM8_SYNC_BUSY,
+  SYNC_LEASE_MS,
+  sm8LeaseDefersKick,
+  sm8LeaseIsSyncs,
+  syncPageStep,
+  whenSm8LeaseFree,
+  type Sm8LeaseBy,
+} from "./sm8-lease";
 
 export type Sm8SyncTrigger = "connect" | "manual" | "kick" | "cron";
 
@@ -105,37 +122,192 @@ export type Sm8SyncOutcome = {
   rowsPulled: number;
   /** Every object finished its walk — nothing is waiting on the next kick. */
   complete: boolean;
+  /** On a busy answer only: the lease is a drain's (and it has been asked
+      to stand aside). The kick and Sync now wait only for a drain. */
+  heldByHook?: boolean;
 };
-
-const LEASE_MS = 120_000;
 
 const NOT_CONNECTED = "ServiceM8 isn't connected, or needs reconnecting.";
 const DEAD = "The connection needs reconnecting.";
-/** The lease is held elsewhere: another run is walking. */
-export const SM8_SYNC_BUSY = "A sync is already running.";
+export { SM8_SYNC_BUSY };
 
-/** Claim the one lease over this workspace's mirror. The upsert guarantees a
-    row exists without touching a live one (ignoreDuplicates); the
-    conditional update is the actual mutex — it matches only an unleased or
-    expired-lease row, and matching nothing means somebody else holds it.
-    Same conditional-write idiom as the refresh rotation guard. Null: busy. */
-async function claimSm8Lease(
+/* ── the lease (its rules are sm8-lease.ts's) ── */
+
+/** A held lease: the workspace, the end it was claimed or last extended to,
+    the token stamped on it, and who holds it. `token` null: a database
+    without the token's columns, where the lease is held exactly as it was
+    before them. */
+export type Sm8Lease = { orgId: string; until: string; token: string | null; by: Sm8LeaseBy };
+
+type DbError = { code?: string; message?: string } | null;
+const missingColumn = (e: DbError) => e?.code === "PGRST204" || e?.code === "42703";
+
+let saidNoTokenColumns = false;
+/** Once per server instance: the lease is being held the old way. */
+function sayNoTokenColumns(): void {
+  if (saidNoTokenColumns) return;
+  saidNoTokenColumns = true;
+  console.warn(
+    "[sm8] sm8_sync_runs has no lease_token yet (docs/migrations/sm8_webhooks.sql): the sync lease is held the old way, without a token."
+  );
+}
+
+/** Claim the one lease over this workspace's mirror, for `ms`, as `by`.
+    The upsert guarantees a row exists without touching a live one
+    (ignoreDuplicates); the conditional update is the actual mutex — it
+    matches only an unleased or expired-lease row, and matching nothing means
+    somebody else holds it. Same conditional-write idiom as the refresh
+    rotation guard. `busy`: somebody else holds it.
+
+    THEN THE TOKEN, stamped only while the row still carries the end this
+    claim wrote, with `patch` (what the holder records of its start: a
+    sync's trigger and start time) — so a claim that never got its token
+    never shows a start. A sync's stamp also clears any want (wanted_at):
+    the sync that asked has it now. A database without the columns holds
+    the lease without a token (said once in the log) and writes `patch` on
+    its own. A stamp that matched nothing means the lease is already
+    somebody else's: `busy`. A stamp the database refused gives the lease
+    straight back and is `failed` — not busy: nobody else is running, and a
+    lease held without a token on a database that has the column could be
+    cleared by anyone. */
+export async function claimSm8Lease(
   orgId: string,
+  by: Sm8LeaseBy,
   now: number,
-  patch: Record<string, unknown> = {}
-): Promise<{ calls_today: number | null; calls_day: string | null } | null> {
+  patch: Record<string, unknown> = {},
+  ms: number = SYNC_LEASE_MS
+): Promise<Sm8Claim> {
   const iso = new Date(now).toISOString();
   await supabaseAdmin
     .from("sm8_sync_runs")
     .upsert({ org_id: orgId }, { onConflict: "org_id", ignoreDuplicates: true });
 
+  const until = new Date(now + ms).toISOString();
   const { data: claimed } = await supabaseAdmin
     .from("sm8_sync_runs")
-    .update({ lease_until: new Date(now + LEASE_MS).toISOString(), ...patch })
+    .update({ lease_until: until })
     .eq("org_id", orgId)
     .or(`lease_until.is.null,lease_until.lt.${iso}`)
     .select("calls_today, calls_day");
-  return ((claimed ?? [])[0] as { calls_today: number | null; calls_day: string | null } | undefined) ?? null;
+  const row = ((claimed ?? [])[0] as { calls_today: number | null; calls_day: string | null } | undefined) ?? null;
+  if (!row) return { ok: false, why: "busy" };
+
+  const token = randomUUID();
+  const stamped = await supabaseAdmin
+    .from("sm8_sync_runs")
+    .update({
+      lease_token: token,
+      lease_by: by,
+      ...(by === "sync" ? { wanted_at: null, wanted_by: null } : {}),
+      ...patch,
+    })
+    .eq("org_id", orgId)
+    .eq("lease_until", until)
+    .select("lease_token");
+  if (stamped.error) {
+    if (missingColumn(stamped.error)) {
+      sayNoTokenColumns();
+      if (Object.keys(patch).length > 0) {
+        await supabaseAdmin.from("sm8_sync_runs").update(patch).eq("org_id", orgId).eq("lease_until", until);
+      }
+      return { ok: true, lease: { orgId, until, token: null, by }, ...row };
+    }
+    console.error(
+      `[sm8] the database refused the sync lease's token for org ${orgId}; the lease goes straight back:`,
+      stamped.error
+    );
+    await supabaseAdmin.from("sm8_sync_runs").update({ lease_until: null }).eq("org_id", orgId).eq("lease_until", until);
+    return { ok: false, why: "failed" };
+  }
+  if ((stamped.data ?? []).length === 0) return { ok: false, why: "busy" };
+  return { ok: true, lease: { orgId, until, token, by }, ...row };
+}
+
+/** What a claim came to: the lease, or why not — `busy` (somebody else
+    holds it) or `failed` (the database refused the token's stamp). */
+export type Sm8Claim =
+  | { ok: true; lease: Sm8Lease; calls_today: number | null; calls_day: string | null }
+  | { ok: false; why: "busy" | "failed" };
+
+/** Extend a held lease to `now + ms`, by token: it matches only while the
+    row still carries this holder's token AND the end it last wrote. `lost`:
+    it matched nothing, so another holder has the lease. `failed`: the write
+    itself failed, which proves nothing either way. A lease held without a
+    token is never extended. */
+export async function extendSm8Lease(
+  lease: Sm8Lease,
+  now: number,
+  ms: number = SYNC_LEASE_MS
+): Promise<{ ok: true; lease: Sm8Lease } | { ok: false; why: "lost" | "failed" }> {
+  if (lease.token === null) return { ok: false, why: "failed" };
+  const until = new Date(now + ms).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("sm8_sync_runs")
+    .update({ lease_until: until })
+    .eq("org_id", lease.orgId)
+    .eq("lease_token", lease.token)
+    .eq("lease_until", lease.until)
+    .select("lease_token");
+  if (error) return { ok: false, why: "failed" };
+  if ((data ?? []).length === 0) return { ok: false, why: "lost" };
+  return { ok: true, lease: { ...lease, until } };
+}
+
+/** Give a lease back, with whatever else its holder records (`patch`). By
+    token: only while the row still carries this holder's token and end, so
+    a holder that outlived its lease can't clear the next one's. A lease
+    held without a token is given back as it always was, unconditionally. */
+export async function releaseSm8Lease(lease: Sm8Lease, patch: Record<string, unknown> = {}): Promise<void> {
+  const q = supabaseAdmin
+    .from("sm8_sync_runs")
+    .update({ lease_until: null, ...patch })
+    .eq("org_id", lease.orgId);
+  if (lease.token === null) {
+    await q;
+    return;
+  }
+  await q.eq("lease_token", lease.token).eq("lease_until", lease.until);
+}
+
+/** Run `fn` under the lease, claimed as `by` for one SYNC_LEASE_MS and
+    given back by token however `fn` ends. Not ok: `fn` never ran, because
+    somebody else holds the lease (`busy`) or the database refused its
+    token (`failed`). For a holder whose work fits well inside one lease;
+    one that may need longer claims, extends and releases for itself
+    (runSm8Sync). */
+export async function withSm8Lease<T>(
+  orgId: string,
+  by: Sm8LeaseBy,
+  fn: (lease: Sm8Lease) => Promise<T>,
+  now: number = Date.now()
+): Promise<{ ok: true; value: T } | { ok: false; reason: "busy" | "failed" }> {
+  const got = await claimSm8Lease(orgId, by, now);
+  if (!got.ok) return { ok: false, reason: got.why };
+  try {
+    return { ok: true, value: await fn(got.lease) };
+  } finally {
+    await releaseSm8Lease(got.lease);
+  }
+}
+
+/** A sync met the lease held. If a DRAIN holds it, ask for it, so the drain
+    stands aside within one read; the sync's own claim clears the ask. One
+    conditional write, which also answers who holds it: true only when a
+    drain does. Any other holder is asked nothing — with live updates off
+    nothing is ever written here. Best effort: a database without the
+    columns, or a failed write, is "not a drain". */
+async function wantSm8Lease(orgId: string, trigger: Sm8SyncTrigger, now: number): Promise<boolean> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("sm8_sync_runs")
+      .update({ wanted_at: new Date(now).toISOString(), wanted_by: trigger })
+      .eq("org_id", orgId)
+      .eq("lease_by", "hook")
+      .select("lease_by");
+    return !error && (data ?? []).length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /** Whether the connection still holds the account this run is reading.
@@ -183,9 +355,6 @@ type StateRow = {
   walk_started_at?: string | null;
 };
 
-type DbError = { code?: string; message?: string } | null;
-const missingColumn = (e: DbError) => e?.code === "PGRST204" || e?.code === "42703";
-
 const STATE_COLUMNS = "object, cursor, backfill_done, rows_pulled, walk_cursor, walk_filter";
 
 /** Every object's state for one workspace. A READ THAT FAILS IS NOT AN EMPTY
@@ -230,34 +399,75 @@ async function saveSyncState(orgId: string, row: Record<string, unknown>): Promi
   console.error(`[sm8] couldn't save the sync state of ${String(row.object)} for org ${orgId}:`, error);
 }
 
+/** Run one sync slice under the lease.
+
+    `deadline` is the last moment the caller's function can still be
+    writing (its start + maxDuration, less a margin): the sync extends its
+    lease only while a whole new one ends by then, and starts no page that
+    couldn't finish by then. Without one, the sync lives inside the one
+    lease it claimed — it never extends, and stops before that lease runs
+    out. `clock` is the run's own time; by default `now` plus however long
+    the run has taken. */
 export async function runSm8Sync(
   orgId: string,
   trigger: Sm8SyncTrigger,
-  now: number = Date.now()
+  now: number = Date.now(),
+  opts: { deadline?: number; clock?: () => number } = {}
 ): Promise<Sm8SyncOutcome> {
   const iso = new Date(now).toISOString();
   const today = iso.slice(0, 10);
+  const startedAt = Date.now();
+  const clock = opts.clock ?? (() => now + (Date.now() - startedAt));
+  const deadline = opts.deadline ?? now + SYNC_LEASE_MS;
 
-  const lease = await claimSm8Lease(orgId, now, { last_trigger: trigger, last_started_at: iso });
-  if (!lease) {
-    return { ran: false, note: SM8_SYNC_BUSY, pagesUsed: 0, rowsPulled: 0, complete: false };
+  const claimed = await claimSm8Lease(orgId, "sync", now, { last_trigger: trigger, last_started_at: iso });
+  if (!claimed.ok) {
+    /* the database refused the token: nobody else is running, so this is
+       never "already running" — logged by the claim as a database error */
+    if (claimed.why === "failed") {
+      return { ran: false, note: SM8_LEASE_UNSTAMPED, pagesUsed: 0, rowsPulled: 0, complete: false };
+    }
+    const heldByHook = await wantSm8Lease(orgId, trigger, now);
+    return { ran: false, note: SM8_SYNC_BUSY, pagesUsed: 0, rowsPulled: 0, complete: false, heldByHook };
   }
+  let lease = claimed.lease;
 
-  const callsBase = lease.calls_day === today ? lease.calls_today ?? 0 : 0;
+  const callsBase = claimed.calls_day === today ? claimed.calls_today ?? 0 : 0;
   let calls = 0;
+  /* set = another holder has the lease: nothing more of this run is
+     written, not its pages, its state rows or its release */
+  let leaseLost = false;
 
   const release = async (ok: boolean, note: string) => {
-    await supabaseAdmin
-      .from("sm8_sync_runs")
-      .update({
-        lease_until: null,
-        last_finished_at: new Date().toISOString(),
-        last_ok: ok,
-        last_note: note,
-        calls_today: callsBase + calls,
-        calls_day: today,
-      })
-      .eq("org_id", orgId);
+    if (leaseLost) return;
+    await releaseSm8Lease(lease, {
+      last_finished_at: new Date().toISOString(),
+      last_ok: ok,
+      last_note: note,
+      calls_today: callsBase + calls,
+      calls_day: today,
+    });
+  };
+
+  /* BEFORE EACH PAGE (and before the first write): does a whole page still
+     fit the lease and the function? When only the lease is short, extend it
+     by token. `lost`: the extension matched nothing. A lease held without a
+     token (a database without the columns) is held as it always was. */
+  const holdForPage = async (): Promise<"go" | "stop" | "lost"> => {
+    if (lease.token === null) return "go";
+    const t = clock();
+    const step = syncPageStep({ now: t, leaseUntil: Date.parse(lease.until), deadline });
+    if (step !== "extend") return step;
+    const ext = await extendSm8Lease(lease, t);
+    if (ext.ok) {
+      lease = ext.lease;
+      return "go";
+    }
+    return ext.why === "lost" ? "lost" : "stop";
+  };
+  const lost = (): Sm8SyncOutcome => {
+    leaseLost = true;
+    return { ran: true, note: SM8_LEASE_LOST, pagesUsed: 0, rowsPulled: 0, complete: false };
   };
 
   if (callsBase >= DAILY_CALL_BUDGET) {
@@ -376,6 +586,12 @@ export async function runSm8Sync(
     switched = true;
   }
 
+  /* A clear of another account's copy can take a while: the lease is
+     checked before anything more is written, as before every page. */
+  const beforeWrites = await holdForPage();
+  if (beforeWrites === "lost") return lost();
+  if (beforeWrites === "stop") return ended(SM8_PAUSE_MIDWALK);
+
   /* The mirror's row is written only while the connection still holds this
      account: a reconnect that landed since would otherwise find the old
      account named here, and clear a copy it had only just started. */
@@ -452,6 +668,23 @@ export async function runSm8Sync(
       if (callsBase + calls >= DAILY_CALL_BUDGET) {
         objectError = SM8_PAUSE_DAILY_BUDGET;
         stopNote = objectError;
+        resumeCursor = walkCursor; // this page was never asked for
+        break;
+      }
+
+      /* THE LEASE MUST OUTLAST THE PAGE. Short of a whole page's worst case,
+         the lease is extended by token, and only while the new one still
+         ends inside the function; otherwise the run pauses here and the
+         next one reads this page. An extension that matches nothing means
+         the lease is someone else's now: nothing more is written. */
+      const hold = await holdForPage();
+      if (hold === "lost") {
+        stopNote = SM8_LEASE_LOST;
+        leaseLost = true;
+        break;
+      }
+      if (hold === "stop") {
+        stopNote = SM8_PAUSE_MIDWALK;
         resumeCursor = walkCursor; // this page was never asked for
         break;
       }
@@ -566,6 +799,7 @@ export async function runSm8Sync(
 
     rowsPulled += pulled;
     if (completed) objectsCompleted += 1;
+    if (leaseLost) break;
 
     if (!accountLost) {
       const holding = await stillReading(orgId, v.uuid);
@@ -629,8 +863,6 @@ export async function runSm8Sync(
 
 /* ── the callback's half of a change of account ── */
 
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
 /** Clear the old account's copy under the sync lease, so no walker is
     writing into the mirror while it goes. `busy`: a run holds the lease.
     One under the old grant stops at its next check (the connection has
@@ -639,40 +871,35 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
     still names the old account, and the run that holds or follows the lease
     finishes the switch.
 
-    The lease is released unconditionally: the callback that calls this can
-    run for a minute at most (its maxDuration), well inside LEASE_MS, so the
-    lease can't have passed to anyone else while it held it. last_* are left
-    alone — this is not a sync, and the page-load kick reads them. */
+    Held as `switch`, and given back by token (withSm8Lease), so a clear
+    that somehow outlived its lease can't clear the lease of whoever came
+    next. last_* are left alone — this is not a sync, and the page-load kick
+    reads them. */
 export async function switchSm8AccountUnderLease(
   orgId: string,
   input: { to: Sm8Vendor; from: { uuid: string | null; name: string | null }; now?: number }
 ): Promise<Sm8SwitchResult | { ok: false; reason: "busy" }> {
   const now = input.now ?? Date.now();
-  if (!(await claimSm8Lease(orgId, now))) return { ok: false, reason: "busy" };
-  try {
-    return await switchSm8Account(orgId, { ...input, now });
-  } finally {
-    await supabaseAdmin.from("sm8_sync_runs").update({ lease_until: null }).eq("org_id", orgId);
-  }
+  const held = await withSm8Lease(orgId, "switch", () => switchSm8Account(orgId, { ...input, now }), now);
+  /* a refused token clears nothing either: to the callback that is busy —
+     the next sync finds the old copy and finishes the switch */
+  return held.ok ? held.value : { ok: false, reason: "busy" };
 }
 
 /** A sync that waits a moment for a run already walking to end — the
     callback's first sync. A run under the old grant stops at its next check
     once the connection has moved, typically within a page; giving up at
     once would leave the old account's copy on the board until the next kick,
-    ten minutes on. Bounded: past `tries`, the busy answer is the answer. */
+    ten minutes on. Bounded: past `tries`, the busy answer is the answer.
+    Each busy try asks for the lease (wanted_at), and the claim that
+    succeeds clears the ask (whenSm8LeaseFree, claimSm8Lease). */
 export async function runSm8SyncWhenFree(
   orgId: string,
   trigger: Sm8SyncTrigger,
-  opts: { tries?: number; waitMs?: number } = {}
+  opts: { tries?: number; waitMs?: number; startBy?: number; deadline?: number } = {}
 ): Promise<Sm8SyncOutcome> {
-  const tries = opts.tries ?? 6;
-  const waitMs = opts.waitMs ?? 2_000;
-  for (let i = 1; ; i++) {
-    const out = await runSm8Sync(orgId, trigger);
-    if (out.ran || out.note !== SM8_SYNC_BUSY || i >= tries) return out;
-    await sleep(waitMs);
-  }
+  const { deadline, ...wait } = opts;
+  return whenSm8LeaseFree(() => runSm8Sync(orgId, trigger, Date.now(), { deadline }), wait);
 }
 
 /* ── what the screen shows ── */
@@ -702,17 +929,26 @@ export type Sm8SyncStatusView = {
   lastCron?: string | null;
 };
 
+/** One read of the workspace's run row, with who holds the lease when the
+    database has lease_by. A database without it is asked again without it:
+    every lease there is a sync's, as it always was. */
+async function readRunRow(orgId: string, columns: string): Promise<{ data: unknown }> {
+  const withBy = await supabaseAdmin
+    .from("sm8_sync_runs")
+    .select(`${columns}, lease_by`)
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (!missingColumn(withBy.error)) return withBy;
+  return supabaseAdmin.from("sm8_sync_runs").select(columns).eq("org_id", orgId).maybeSingle();
+}
+
 export async function listSm8SyncStatus(orgId: string): Promise<Sm8SyncStatusView> {
   const [{ data: stateRows }, { data: runRows }, lastCron] = await Promise.all([
     supabaseAdmin
       .from("sm8_sync_state")
       .select("object, cursor, backfill_done, rows_pulled, last_synced_at, last_error")
       .eq("org_id", orgId),
-    supabaseAdmin
-      .from("sm8_sync_runs")
-      .select("lease_until, last_started_at, last_finished_at, last_ok, last_note")
-      .eq("org_id", orgId)
-      .maybeSingle(),
+    readRunRow(orgId, "lease_until, last_started_at, last_finished_at, last_ok, last_note"),
     readSm8LastCron(orgId),
   ]);
 
@@ -723,7 +959,14 @@ export async function listSm8SyncStatus(orgId: string): Promise<Sm8SyncStatusVie
   );
 
   const run = runRows as
-    | { lease_until: string | null; last_started_at: string | null; last_finished_at: string | null; last_ok: boolean | null; last_note: string | null }
+    | {
+        lease_until: string | null;
+        lease_by?: string | null;
+        last_started_at: string | null;
+        last_finished_at: string | null;
+        last_ok: boolean | null;
+        last_note: string | null;
+      }
     | null;
 
   return {
@@ -748,7 +991,8 @@ export async function listSm8SyncStatus(orgId: string): Promise<Sm8SyncStatusVie
           finishedAt: run.last_finished_at,
           ok: run.last_ok,
           note: run.last_note,
-          running: !!run.lease_until && Date.parse(run.lease_until) > Date.now(),
+          /* a sync's lease only: a drain reading one record isn't a run */
+          running: !!run.lease_until && Date.parse(run.lease_until) > Date.now() && sm8LeaseIsSyncs(run.lease_by),
         }
       : null,
     ...(lastCron === undefined ? {} : { lastCron }),
@@ -859,16 +1103,14 @@ export const STALE_AFTER_MS = 10 * 60_000;
 
 /** Whether the mirror is due a sync slice: nothing running, and nothing
     finished in the last ten minutes. The page-load path asks it after the
-    response (sm8-freshness), so no page waits on it. */
+    response (sm8-freshness), so no page waits on it. A drain holding the
+    lease isn't running in this sense: the kick asks for the lease and the
+    drain stands aside (sm8LeaseDefersKick). */
 export async function sm8SyncIsStale(orgId: string, now: number = Date.now()): Promise<boolean> {
-  const { data } = await supabaseAdmin
-    .from("sm8_sync_runs")
-    .select("lease_until, last_finished_at")
-    .eq("org_id", orgId)
-    .maybeSingle();
+  const { data } = await readRunRow(orgId, "lease_until, last_finished_at");
 
-  const run = data as { lease_until: string | null; last_finished_at: string | null } | null;
-  const running = !!run?.lease_until && Date.parse(run.lease_until) > now;
+  const run = data as { lease_until: string | null; lease_by?: string | null; last_finished_at: string | null } | null;
+  const running = !!run?.lease_until && Date.parse(run.lease_until) > now && sm8LeaseDefersKick(run.lease_by);
   const fresh =
     !!run?.last_finished_at && now - Date.parse(run.last_finished_at) < STALE_AFTER_MS;
   return !running && !fresh;

@@ -430,8 +430,12 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     for (const f of vrfTree?.fittings ?? []) if (f.part) parts.set(f.part, (parts.get(f.part) ?? 0) + 1);
     jointsText = parts.size ? [...parts].map(([part, k]) => (k > 1 ? `${part} ×${k}` : part)).join(", ") : null;
     const table = pack.vrf_pipe_tables.find((t) => t.series === oduRow.pipe_table_ref);
+    const m = (v: number) => Math.round(v);
     if (table)
-      limitsText = `${table.limits.max_total_m} m total, ${table.limits.max_farthest_actual_m} m to the farthest head`;
+      limitsText =
+        vrfTree?.drawn && vrfTree.totalM != null && vrfTree.farthestM != null
+          ? `${m(vrfTree.totalM)} of ${table.limits.max_total_m} m in all, ${m(vrfTree.farthestM)} of ${table.limits.max_farthest_actual_m} m to the farthest head`
+          : `${table.limits.max_total_m} m total, ${table.limits.max_farthest_actual_m} m to the farthest head`;
   } else if (oduRow && oduRow.system_type === "multi") {
     pipeText = `${oduRow.conn_liquid_mm} / ${oduRow.conn_gas_mm} mm`;
     const rule = pack.multi_rules.find((r) => r.odu_model_ref === oduRow.model);
@@ -453,8 +457,10 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
         ? `${runsText}, every head joined`
         : `${runsText}, ${vrfTree.joined} of ${vrfTree.heads} heads joined`
       : runsText;
+  /* a drawn VRF says what goes in on site (p.143) */
+  const addText = vrfTree?.chargeG != null ? `, add ${(vrfTree.chargeG / 1000).toFixed(1)} kg` : "";
   const refrigerantText = oduRow
-    ? `${oduRow.refrigerant}${oduRow.precharged_kg != null ? `, ${oduRow.precharged_kg.toFixed(2)} kg pre-charged` : ""}`
+    ? `${oduRow.refrigerant}${oduRow.precharged_kg != null ? `, ${oduRow.precharged_kg.toFixed(2)} kg pre-charged` : ""}${addText}`
     : null;
   const bandPipe = bandUnits[0] ? pipeSize(pack, sys, bandUnits[0], odu?.model ?? null) : null;
 

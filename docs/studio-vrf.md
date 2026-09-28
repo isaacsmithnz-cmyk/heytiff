@@ -59,22 +59,36 @@ What the pack holds (`vrf_pipe_tables.json`, p.139-144):
 
 ## Build order
 
-1. **Pack data**: done. It covers the extraction above, schema, validation,
-   the charge evaluator and the p.144 test.
-2. **Type, check, pick.**
-   - A VRF outdoor types the system `vrf` whatever the head count. Today the
-     2+ heads → multi rule runs first.
-   - The verdict judges the envelope by index, not by pair.
-   - The outdoor is proposed by Σ index inside the ratio band.
-   - The head list is `vrf-idu`-ready City Multi units.
-3. **Tree and sizing.**
-   - Graph v1: junction nodes where drawn runs branch, and downstream index
-     per segment.
-   - Pipe size per segment, joint and header parts, and the upsizing rules.
-   - The rail shows real sizes and part numbers.
-4. **Limits and charge.**
-   - Lengths per path from the drawn runs and risers, with bends counted for
-     equivalent length.
-   - Lift checks, and the charge from the sized network.
-5. **Paper.** Joints, headers and pipe by size go on the picklist, the
-   materials list and the sheet.
+1. **Pack data**: done in #896. The PUHY book's missing facts, a charge
+   evaluator, and the p.144 charge test.
+2. **Type, check, pick**: done in #897. A VRF outdoor makes the system a VRF
+   whatever its head count. The check uses the outdoor's own index envelope.
+   The proposal is the smallest PUHY that takes the heads, and the head list
+   is City Multi units only.
+3. **Tree and sizing**: done in #898.
+   - `vrf-tree.ts` sizes every section and picks every joint and header.
+   - `joints.ts` covers joints on the plan: a run landed on a run, and
+     Draw > Joint.
+   - The tree is read from the drawing once it reaches every head.
+   - Golden D2 is p.144, both as a tree and as drawn.
+4. **Limits and charge**: done in the step-4 PR.
+   - Checks: total length, farthest actual and equivalent, outdoor above and
+     below its heads, and the height step-up.
+   - The charge on a drawn tree, checked against the outdoor's maximum
+     (p.144, in `max_charge_kg`, the system total).
+   - Red findings keep Done off.
+5. **Paper**: joints, headers and pipe by size go on the picklist, the
+   materials list and the sheet, with the charge on the sheet.
+
+## Readings the book leaves open
+
+These are recorded so they can be changed in one place.
+
+- **Bends:** a bend is a corner drawn on a run: each vertex between a run's
+  two ends. A riser is not counted as a bend.
+- **Height step-up (5b):** the text says to step up "from the target units
+  to the joint prior to which 15 m height difference has exceeded". Note *4
+  steps up only the heads' own pipes (d, e, f, g), and the engine follows
+  *4. The base level is the head nearest the outdoor's level.
+- **Levels:** a level comes only from risers (their `heightM`). A unit's
+  mounting height on its floor does not count.

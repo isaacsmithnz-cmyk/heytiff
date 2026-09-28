@@ -12,8 +12,16 @@
    (4) a section never larger than the one before it;
    (5a) past `max_after_first_joint_m` (40 m) from the first joint, the section
        where it is passed and everything after it go one liquid size up, up to
-       `extended_after_first_joint_m` (90 m); further than that is red.
-   The height rule (5b) needs lifts and arrives with them (step 4).
+       `extended_after_first_joint_m` (90 m); further than that is red;
+   (5b) a head more than `max_lift_idu_idu_m` (15 m) above or below the heads
+       nearest the outdoor's level (the "base" units) takes its own liquid
+       pipe one size up (*4: the heads' own pipes), up to
+       `extended_lift_idu_idu_m` (30 m); a section 5a already stepped up is
+       not stepped twice.
+   Then the book's limits (p.140) on a drawn tree: total length, the farthest
+   head actual and equivalent (actual + M per bend, a bend being a drawn
+   corner), the outdoor above or below its heads; and the charge (p.143)
+   against the outdoor's maximum (p.144).
 
    Joints are chosen by downstream index (Table 4-1), the first by outdoor
    (Table 4-2); a node with three or more sections out is a header (Table 5):
@@ -27,6 +35,7 @@ import { buildSystemGraph } from "./graph";
 import type { DataPack, IndoorUnit, OutdoorUnit, PipeSizingRule, VrfPipeTable } from "./packs/schema";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { zoneIdsOf } from "./zones";
+import { evaluateVrfCharge } from "./materials";
 
 export interface VrfTreeNode {
   id: string;
@@ -43,6 +52,10 @@ export interface VrfTreeSection {
   to: string;
   /** metres as drawn; null while not drawn */
   lengthM: number | null;
+  /** metres up from `from` to `to` (risers); negative is down */
+  riseM?: number;
+  /** corners drawn on it */
+  bends?: number;
 }
 
 export interface VrfTree {
@@ -62,9 +75,10 @@ export interface SizedSection {
   downstreamIndex: number;
   liquidMm: number;
   gasMm: number;
-  /** liquid went one size up under the after-first-joint rule */
+  /** liquid went one size up (the after-first-joint or the height rule) */
   upsized: boolean;
   lengthM: number | null;
+  bends: number;
 }
 
 export interface SizedFitting {
@@ -87,7 +101,14 @@ export interface TreeFinding {
     | "header-excludes-head"
     | "no-fitting-part"
     | "no-size"
-    | "after-first-joint-over";
+    | "after-first-joint-over"
+    | "total-over"
+    | "farthest-over"
+    | "farthest-equiv-over"
+    | "outdoor-above-over"
+    | "outdoor-below-over"
+    | "head-height-over"
+    | "charge-over";
   message: string;
   fix?: string;
 }
@@ -100,6 +121,13 @@ export interface SizedTree {
   liquidM: Record<string, number>;
   /** outdoor → farthest head, when every section on that path is drawn */
   farthestM: number | null;
+  /** the same with M per bend added, where the book gives M */
+  farthestEquivM: number | null;
+  /** every section's length added up, drawn trees only */
+  totalM: number | null;
+  /** grams to add on site (p.143), drawn trees only; null when the book's
+      rule can't be worked */
+  chargeG: number | null;
   /** the whole tree is drawn */
   drawn: boolean;
   provisional: boolean;
@@ -150,6 +178,9 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
     findings,
     liquidM: {},
     farthestM: null,
+    farthestEquivM: null,
+    totalM: null,
+    chargeG: null,
     drawn: false,
     provisional: tree.provisional,
   };
@@ -230,6 +261,7 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
         gasMm: size.gas,
         upsized: false,
         lengthM: s.lengthM,
+        bends: s.bends ?? 0,
       });
       visit(s.to, size);
     }
@@ -248,12 +280,64 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
     return out;
   };
   const drawn = tree.sections.length > 0 && tree.sections.every((s) => s.lengthM != null);
+  const L = table.limits;
+  const bendM = L.bend_equiv_m_by_odu?.[odu.model];
   let farthestM: number | null = null;
+  let farthestEquivM: number | null = null;
+  let totalM: number | null = null;
   if (drawn) {
     for (const h of heads) {
-      const m = pathTo(h.id).reduce((t, s) => t + (s.lengthM ?? 0), 0);
+      const path = pathTo(h.id);
+      const m = path.reduce((t, s) => t + (s.lengthM ?? 0), 0);
       farthestM = Math.max(farthestM ?? 0, m);
+      if (bendM != null)
+        farthestEquivM = Math.max(farthestEquivM ?? 0, m + bendM * path.reduce((t, s) => t + (s.bends ?? 0), 0));
     }
+    totalM = tree.sections.reduce((t, s) => t + (s.lengthM ?? 0), 0);
+    const fmt = (m: number) => `${Math.round(m * 10) / 10} m`;
+    if (totalM > L.max_total_m)
+      findings.push({ severity: "red", code: "total-over", message: `The pipework is ${fmt(totalM)} in all, over the book's ${L.max_total_m} m` });
+    if (farthestM != null && farthestM > L.max_farthest_actual_m)
+      findings.push({
+        severity: "red",
+        code: "farthest-over",
+        message: `The farthest head is ${fmt(farthestM)} from the outdoor, over the book's ${L.max_farthest_actual_m} m`,
+        fix: "Move the outdoor closer to the heads",
+      });
+    else if (farthestEquivM != null && farthestEquivM > L.max_farthest_equiv_m)
+      findings.push({
+        severity: "red",
+        code: "farthest-equiv-over",
+        message: `The farthest head is ${fmt(farthestEquivM)} from the outdoor counting its bends, over the book's ${L.max_farthest_equiv_m} m`,
+        fix: "Take bends out of the run, or move the outdoor closer",
+      });
+  }
+
+  /* levels: every node's height above the outdoor, from the risers drawn */
+  const level = new Map<string, number>([[root.id, 0]]);
+  const levelOf = (id: string): number => {
+    if (level.has(id)) return level.get(id)!;
+    const s = incoming.get(id);
+    const v = s ? levelOf(s.from) + (s.riseM ?? 0) : 0;
+    level.set(id, v);
+    return v;
+  };
+  if (drawn && heads.length) {
+    const levels = heads.map((h) => levelOf(h.id));
+    const lowest = Math.min(...levels);
+    const highest = Math.max(...levels);
+    if (-lowest > L.max_lift_odu_above_m)
+      findings.push({
+        severity: "red",
+        code: "outdoor-above-over",
+        message: `The outdoor is ${Math.round(-lowest)} m above its lowest head, over the book's ${L.max_lift_odu_above_m} m`,
+      });
+    if (highest > L.max_lift_odu_below_m)
+      findings.push({
+        severity: "red",
+        code: "outdoor-below-over",
+        message: `The outdoor is ${Math.round(highest)} m below its highest head, over the book's ${L.max_lift_odu_below_m} m`,
+      });
   }
 
   /* (1) the main's liquid steps up with the farthest length (Table 1 notes) */
@@ -297,6 +381,32 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
       });
   }
 
+  /* (5b) heads more than 15 m from the base level: their own liquid pipe one
+     size up (never twice), and red past the extended figure */
+  if (drawn && heads.length > 1) {
+    const base = heads.map((h) => levelOf(h.id)).reduce((b, v) => (Math.abs(v) < Math.abs(b) ? v : b));
+    const limitH = L.max_lift_idu_idu_m;
+    const extendedH = L.extended_lift_idu_idu_m ?? limitH;
+    let worst = 0;
+    for (const h of heads) {
+      const diff = Math.abs(levelOf(h.id) - base);
+      worst = Math.max(worst, diff);
+      if (diff <= limitH) continue;
+      const own = incoming.get(h.id);
+      const sec = own ? sized.get(own.id) : undefined;
+      if (sec && !sec.upsized) {
+        sec.liquidMm = oneUp(sec.liquidMm);
+        sec.upsized = true;
+      }
+    }
+    if (worst > extendedH)
+      findings.push({
+        severity: "red",
+        code: "head-height-over",
+        message: `Two heads are ${Math.round(worst)} m apart in height, over the book's ${extendedH} m`,
+      });
+  }
+
   /* fittings */
   const fittings: SizedFitting[] = [];
   for (const n of tree.nodes) {
@@ -331,12 +441,38 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
   for (const s of sized.values())
     if (s.lengthM != null) liquidM[key(s.liquidMm)] = (liquidM[key(s.liquidMm)] ?? 0) + s.lengthM;
 
+  /* the charge to add (p.143), and the outdoor's maximum (p.144) */
+  let chargeG: number | null = null;
+  const rule = table.additional_charge;
+  if (drawn && farthestM != null && rule.method === "per_meter_by_liquid_size_by_farthest") {
+    chargeG = evaluateVrfCharge(rule, {
+      liquidM,
+      farthestM,
+      connectedIndex: below.get(root.id) ?? 0,
+      oduModel: odu.model,
+      iduModels: heads.map((h) => h.model ?? ""),
+    });
+    if (chargeG != null && odu.max_charge_kg != null && odu.precharged_kg != null) {
+      const total = odu.precharged_kg + chargeG / 1000;
+      if (total > odu.max_charge_kg + 1e-9)
+        findings.push({
+          severity: "red",
+          code: "charge-over",
+          message: `The system holds ${Math.round(total * 10) / 10} kg of refrigerant, over ${odu.model}'s ${odu.max_charge_kg} kg`,
+          fix: "Shorten the pipework",
+        });
+    }
+  }
+
   return {
     sections: tree.sections.map((s) => sized.get(s.id)).filter((s): s is SizedSection => s != null),
     fittings,
     findings,
     liquidM,
     farthestM,
+    farthestEquivM,
+    totalM,
+    chargeG,
     drawn,
     provisional: tree.provisional,
   };
@@ -357,15 +493,22 @@ export function drawnVrfTree(
   const graph = buildSystemGraph(doc.objects, doc.floors, sys.id);
   if (!graph.nodes.has(oduId)) return null;
   const headModel = new Map(heads.map((h) => [h.id, h.model]));
-  const adj = new Map<string, { to: string; lengthM: number | null; edge: string }[]>();
+  /* a corner drawn on a run is a bend (the book's M counts them) */
+  const bendsOf = new Map<string, number>();
+  for (const o of doc.objects)
+    if (o.type === "pipe-run" && o.geometry.kind === "polyline")
+      bendsOf.set(o.id, Math.max(0, o.geometry.points.length - 2));
+  type Step = { to: string; lengthM: number | null; riseM: number; bends: number; edge: string };
+  const adj = new Map<string, Step[]>();
   for (const e of graph.edges) {
-    adj.set(e.a, [...(adj.get(e.a) ?? []), { to: e.b, lengthM: e.lengthM, edge: e.id }]);
-    adj.set(e.b, [...(adj.get(e.b) ?? []), { to: e.a, lengthM: e.lengthM, edge: e.id }]);
+    const bends = bendsOf.get(e.id) ?? 0;
+    adj.set(e.a, [...(adj.get(e.a) ?? []), { to: e.b, lengthM: e.lengthM, riseM: e.riseM, bends, edge: e.id }]);
+    adj.set(e.b, [...(adj.get(e.b) ?? []), { to: e.a, lengthM: e.lengthM, riseM: -e.riseM, bends, edge: e.id }]);
   }
   /* walk out from the outdoor; every edge is used once, in the direction it
      is first met */
   const usedEdge = new Set<string>();
-  const out = new Map<string, { to: string; lengthM: number | null }[]>();
+  const out = new Map<string, Step[]>();
   const seen = new Set([oduId]);
   const queue = [oduId];
   while (queue.length) {
@@ -373,7 +516,7 @@ export function drawnVrfTree(
     for (const n of adj.get(cur) ?? []) {
       if (usedEdge.has(n.edge)) continue;
       usedEdge.add(n.edge);
-      out.set(cur, [...(out.get(cur) ?? []), { to: n.to, lengthM: n.lengthM }]);
+      out.set(cur, [...(out.get(cur) ?? []), n]);
       if (!seen.has(n.to)) {
         seen.add(n.to);
         queue.push(n.to);
@@ -386,9 +529,9 @@ export function drawnVrfTree(
   const nodes: VrfTreeNode[] = [{ id: oduId, kind: "odu" }];
   const sections: VrfTreeSection[] = [];
   const joined = new Set<string>();
-  const add = (from: string, to: string, lengthM: number | null, guard: Set<string>) => {
+  const add = (from: string, to: string, lengthM: number | null, riseM: number, bends: number, guard: Set<string>) => {
     if (keep(to)) {
-      sections.push({ id: `${from}>${to}`, from, to, lengthM });
+      sections.push({ id: `${from}>${to}`, from, to, lengthM, riseM, bends });
       if (guard.has(to)) return;
       guard.add(to);
       if (headModel.has(to)) {
@@ -397,15 +540,22 @@ export function drawnVrfTree(
       } else {
         nodes.push({ id: to, kind: "joint" });
       }
-      for (const n of out.get(to) ?? []) add(to, n.to, n.lengthM, guard);
+      for (const n of out.get(to) ?? []) add(to, n.to, n.lengthM, n.riseM, n.bends, guard);
       return;
     }
     /* pass through: a riser, a joint with one run on, a unit not of this tree */
     for (const n of out.get(to) ?? [])
-      add(from, n.to, lengthM == null || n.lengthM == null ? null : lengthM + n.lengthM, guard);
+      add(
+        from,
+        n.to,
+        lengthM == null || n.lengthM == null ? null : lengthM + n.lengthM,
+        riseM + n.riseM,
+        bends + n.bends,
+        guard
+      );
   };
   const guard = new Set<string>([oduId]);
-  for (const n of out.get(oduId) ?? []) add(oduId, n.to, n.lengthM, guard);
+  for (const n of out.get(oduId) ?? []) add(oduId, n.to, n.lengthM, n.riseM, n.bends, guard);
   return { tree: { nodes, sections, provisional: false }, joined };
 }
 

@@ -186,3 +186,72 @@ describe("the rules around fittings", () => {
     expect(sized.sections.find((s) => s.id === "A")!.liquidMm).toBe(12.7);
   });
 });
+
+describe("the book's limits on a drawn tree (p.140) and the charge (p.143-144)", () => {
+  const withSection = (tree: VrfTree, id: string, patch: Partial<VrfTree["sections"][number]>): VrfTree => ({
+    ...tree,
+    sections: tree.sections.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+  });
+  const codes = (tree: VrfTree, model = "PUHY-P350YNW-A1") =>
+    sizeVrfTree(pack, odu(model), tree).findings.map((f) => f.code);
+
+  it("p.144 as drawn: 120 m in all, 85 m to the farthest head, and the charge is the book's 12.5 kg", () => {
+    const sized = sizeVrfTree(pack, odu("PUHY-P350YNW-A1"), page144());
+    expect(sized.totalM).toBe(120);
+    expect(sized.farthestM).toBe(85);
+    expect(sized.chargeG).toBe(12500);
+    expect(sized.findings).toEqual([]);
+  });
+
+  it("the farthest head past 165 m actual is red", () => {
+    expect(codes(withSection(page144(), "A", { lengthM: 150 }))).toContain("farthest-over");
+  });
+
+  it("inside 165 m actual but past 190 m counting M per bend is red (P350: 0.47 m a bend)", () => {
+    // A 120 m: 165 m actual exactly; 60 bends add 28.2 m → 193.2 m
+    const t = withSection(page144(), "A", { lengthM: 120, bends: 60 });
+    const sized = sizeVrfTree(pack, odu("PUHY-P350YNW-A1"), t);
+    expect(sized.farthestM).toBe(165);
+    expect(sized.farthestEquivM).toBeCloseTo(193.2);
+    expect(sized.findings.map((f) => f.code)).toEqual(["farthest-equiv-over"]);
+  });
+
+  it("the outdoor more than 50 m above its heads, or 40 m below them, is red", () => {
+    expect(codes(withSection(page144(), "A", { riseM: -55 }))).toEqual(["outdoor-above-over"]);
+    expect(codes(withSection(page144(), "A", { riseM: 45 }))).toEqual(["outdoor-below-over"]);
+    expect(codes(withSection(page144(), "A", { riseM: -45 }))).toEqual([]);
+  });
+
+  it("heads more than 15 m above the base level take their own liquid one size up (5b); past 30 m is red", () => {
+    // B, C, D shortened so the 40 m rule (5a) does not step anything up first
+    let t = page144();
+    for (const id of ["B", "C", "D"]) t = withSection(t, id, { lengthM: 5 });
+    const flat = sizeVrfTree(pack, odu("PUHY-P350YNW-A1"), t);
+    expect(flat.sections.some((s) => s.upsized)).toBe(false);
+    const up20 = sizeVrfTree(pack, odu("PUHY-P350YNW-A1"), withSection(t, "D", { riseM: 20 }));
+    const liquid = Object.fromEntries(up20.sections.map((s) => [s.id, s.liquidMm]));
+    // d (P32) 6.35 → 9.52, e (P63) 9.52 → 12.7; D itself and the base heads stay
+    expect([liquid.d, liquid.e, liquid.D, liquid.c]).toEqual([9.52, 12.7, 9.52, 6.35]);
+    expect(up20.findings).toEqual([]);
+    expect(codes(withSection(t, "D", { riseM: 35 }))).toEqual(["head-height-over"]);
+  });
+
+  it("a charge past the outdoor's maximum is red (P200: 6.5 kg in it, 22.4 kg at most)", () => {
+    // a CMY-Y108-G header straight off a P200 with eight P25s 100 m out:
+    // 800 m of 6.35 alone is 16.8 kg on the 6.5 already in it
+    const n = (id: string, kind: "odu" | "joint" | "idu", model?: string) => ({ id, kind, model });
+    const p25 = pack.indoor_units.find((u) => u.capacity_index === 25 && u.system_roles?.includes("vrf"))!.model;
+    const heads = Array.from({ length: 8 }, (_, i) => `h${i}`);
+    const tree: VrfTree = {
+      provisional: false,
+      nodes: [n("OU", "odu"), n("H", "joint"), ...heads.map((h) => n(h, "idu", p25))],
+      sections: [
+        { id: "A", from: "OU", to: "H", lengthM: 10 },
+        ...heads.map((h) => ({ id: h, from: "H", to: h, lengthM: 100 })),
+      ],
+    };
+    const sized = sizeVrfTree(pack, odu("PUHY-P200YNW-A1"), tree);
+    expect(sized.fittings[0]).toEqual(expect.objectContaining({ kind: "header", part: "CMY-Y108-G" }));
+    expect(sized.findings.map((f) => f.code)).toContain("charge-over");
+  });
+});

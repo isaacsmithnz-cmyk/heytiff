@@ -17,6 +17,7 @@ import { allocationsOf, hasAllocations } from "./allocations";
 import { checkMultiCompatibility } from "./multi";
 import { outdoorsListing, pairFor } from "./builder";
 import { checkVrfSet, isVrfHead, vrfIndexRatio, vrfOutdoorsListing } from "./vrf";
+import { systemVrfTree } from "./vrf-tree";
 
 export interface SystemFinding {
   severity: "red" | "amber";
@@ -39,7 +40,6 @@ export function brandName(pack: DataPack, id: string): string {
 
 /** every finding on a system, red first */
 export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignSystem): SystemFinding[] {
-  void doc;
   if (!hasAllocations(sys)) return [];
   const allocs = allocationsOf(sys);
   const out: SystemFinding[] = [];
@@ -139,6 +139,12 @@ export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignS
               ? "Pick a bigger outdoor, or take a head out"
               : undefined,
       });
+    }
+    /* the pipework, sized and checked against the book (vrf-tree.ts): a
+       drawn tree's lengths, lifts and charge, and the fittings' rules */
+    for (const f of systemVrfTree(pack, sys, doc)?.findings ?? []) {
+      if (f.severity !== "red") continue;
+      out.push({ severity: "red", code: f.code, message: f.message, fix: f.fix });
     }
     return out;
   }

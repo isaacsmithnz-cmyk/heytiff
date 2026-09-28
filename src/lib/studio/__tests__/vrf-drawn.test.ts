@@ -17,6 +17,7 @@ import { newSystem } from "../zones";
 import { jointOnRun, nearestOnRuns } from "../joints";
 import { systemVrfTree } from "../vrf-tree";
 import { buildSystemGraph } from "../graph";
+import { combinationWord, systemFindings } from "../verdict";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -197,5 +198,30 @@ describe("golden D2, drawn: the plan's tree sizes as the book does", () => {
     const sized = systemVrfTree(pack, cut.systems.find((s) => s.id === t.systemId)!, cut)!;
     expect(sized.provisional).toBe(true);
     expect([sized.joined, sized.heads]).toEqual([4, 5]);
+  });
+});
+
+describe("the verdict reads the drawing", () => {
+  it("is Valid as the book draws it, and Fails once the outdoor is 120 m further off", () => {
+    const t = page144Drawn();
+    const sys = (d: DesignDocument) => d.systems.find((s) => s.id === t.systemId)!;
+    expect(combinationWord(t.doc, pack, sys(t.doc))).toBe("Valid");
+    const oduId = allocationsOf(sys(t.doc)).find((a) => a.role === "odu")!.id;
+    const far = -120 * M;
+    const moved: DesignDocument = {
+      ...t.doc,
+      objects: t.doc.objects.map((o) => {
+        if (o.id === oduId) return { ...o, geometry: { kind: "point", at: { x: far, y: 0 } } };
+        const start = o.props.startAttach as { id?: string } | undefined;
+        if (o.type === "pipe-run" && start?.id === oduId && o.geometry.kind === "polyline") {
+          const [, ...rest] = o.geometry.points;
+          return { ...o, geometry: { kind: "polyline", points: [{ x: far, y: 0 }, ...rest] } };
+        }
+        return o;
+      }),
+    };
+    const codes = systemFindings(moved, pack, sys(moved)).map((f) => f.code);
+    expect(codes).toContain("farthest-over");
+    expect(combinationWord(moved, pack, sys(moved))).toBe("Fails");
   });
 });

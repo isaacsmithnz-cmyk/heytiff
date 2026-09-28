@@ -13,6 +13,7 @@
     "conn_gas_mm": 22.2,
     "refrigerant": "R410A",
     "precharged_kg": 6.5,
+    "max_charge_kg": 22.4,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 20,
@@ -27,7 +28,7 @@
       "kind": "extracted",
       "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "2; City Multi book 1-115, 1-2 ff."
+      "page": "2, 144 (max charge); City Multi book 1-115, 1-2 ff."
     },
     "mca_a": 16.1,
     "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
@@ -47,6 +48,7 @@
     "conn_gas_mm": 22.2,
     "refrigerant": "R410A",
     "precharged_kg": 6.5,
+    "max_charge_kg": 29.4,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 25,
@@ -61,7 +63,7 @@
       "kind": "extracted",
       "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "3; City Multi book 1-115, 1-2 ff."
+      "page": "3, 144 (max charge); City Multi book 1-115, 1-2 ff."
     },
     "mca_a": 17.8,
     "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
@@ -81,6 +83,7 @@
     "conn_gas_mm": 22.2,
     "refrigerant": "R410A",
     "precharged_kg": 6.5,
+    "max_charge_kg": 29.9,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 30,
@@ -95,7 +98,7 @@
       "kind": "extracted",
       "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "4; City Multi book 1-115, 1-2 ff."
+      "page": "4, 144 (max charge); City Multi book 1-115, 1-2 ff."
     },
     "mca_a": 22.7,
     "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
@@ -115,6 +118,7 @@
     "conn_gas_mm": 28.58,
     "refrigerant": "R410A",
     "precharged_kg": 9.8,
+    "max_charge_kg": 33.8,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 35,
@@ -129,7 +133,7 @@
       "kind": "extracted",
       "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "5; City Multi book 1-115, 1-2 ff."
+      "page": "5, 144 (max charge); City Multi book 1-115, 1-2 ff."
     },
     "mca_a": 26.4,
     "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
@@ -149,6 +153,7 @@
     "conn_gas_mm": 28.58,
     "refrigerant": "R410A",
     "precharged_kg": 9.8,
+    "max_charge_kg": 34.2,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 40,
@@ -163,7 +168,7 @@
       "kind": "extracted",
       "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "6; City Multi book 1-115, 1-2 ff."
+      "page": "6, 144 (max charge); City Multi book 1-115, 1-2 ff."
     },
     "mca_a": 31.9,
     "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
@@ -183,6 +188,7 @@
     "conn_gas_mm": 28.58,
     "refrigerant": "R410A",
     "precharged_kg": 10.8,
+    "max_charge_kg": 43.0,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 45,
@@ -197,7 +203,7 @@
       "kind": "extracted",
       "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "7; City Multi book 1-115, 1-2 ff."
+      "page": "7, 144 (max charge); City Multi book 1-115, 1-2 ff."
     },
     "mca_a": 37.1,
     "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",
@@ -217,6 +223,7 @@
     "conn_gas_mm": 28.58,
     "refrigerant": "R410A",
     "precharged_kg": 10.8,
+    "max_charge_kg": 43.9,
     "ratio_min_pct": 50,
     "ratio_max_pct": 130,
     "max_idus": 50,
@@ -231,7 +238,7 @@
       "kind": "extracted",
       "source": "PUHY-P-Y(S)NW-A1 Data Book; City Multi Data Book",
       "edition": "MEES21K029 (MY21-1)",
-      "page": "8; City Multi book 1-115, 1-2 ff."
+      "page": "8, 144 (max charge); City Multi book 1-115, 1-2 ff."
     },
     "mca_a": 43.7,
     "power_supply": "380-400-415 V, Three-phase, 50/60 Hz",

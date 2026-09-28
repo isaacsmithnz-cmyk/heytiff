@@ -995,9 +995,11 @@ describe("a Clear's line", () => {
 });
 
 describe("the switches and the clocks", () => {
-  it("keeps both walk switches off until the walk says so", () => {
+  it("opens the read-back after the walk, and keeps bookings the owner's", () => {
+    /* L2 (2026-09-28): ServiceM8 kept our uuid; L4: the removed booking read
+       back inactive. Managers wait for Isaac's word (DECISIONS 7). */
+    expect(BOOKING_READBACK_SEES_INACTIVE).toBe(true);
     expect(BOOKINGS_OPEN_TO_MANAGERS).toBe(false);
-    expect(BOOKING_READBACK_SEES_INACTIVE).toBe(false);
   });
 
   it("holds the numbers the spec sets", () => {

@@ -4494,57 +4494,90 @@ button.fl-btn { font-size:14px; font-weight:700; }
 @media (prefers-reduced-motion:reduce) { .fg .int-pulse { animation:none; opacity:1; } }
 
 /* ---- The ServiceM8 screen on one page (2026-09-28) ----
-   "A bit messy, way too much information": the connection across the top,
-   what goes out beside what came in, the people and the permissions each
-   folded to a line. The 760 column went with it; this is a working screen
-   now, not a form. */
-.fg .int-sm8 { max-width:1200px; }
-.fg .int-sm8 .c2h { margin-bottom:16px; }
+   "A bit messy, way too much information", then "make use of as much of
+   the screen as possible without having to scroll": the connection across
+   the top in two columns, then sending, the mirror and the people as one
+   grid that takes the whole width — three columns where there is room, the
+   mirror over the people at a laptop's. */
+.fg .int-sm8 { container-type:inline-size; }
+.fg .int-sm8 .card2 { padding:16px 24px; }
+.fg .int-sm8 .c2h { margin-bottom:8px; }
 .fg .int-sm8 .c2h > div:first-child { flex:1; }
-.fg .int-sm8-grid { display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); gap:16px; align-items:start; margin-bottom:16px; }
-.fg .int-sm8-grid.solo { grid-template-columns:minmax(0,1fr); }
+.fg .int-sm8-grid { display:grid; grid-template-columns:minmax(0,7fr) minmax(0,5fr); grid-template-areas:"w m" "w p"; grid-template-rows:auto 1fr; gap:16px; align-items:start; }
+.fg .int-sm8-grid.solo { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-areas:"m p"; grid-template-rows:auto; }
 .fg .int-sm8-grid .card2 { margin-bottom:0; }
-.fg .int-sm8-side { display:flex; flex-direction:column; gap:16px; min-width:0; }
-@media (max-width:1100px) { .fg .int-sm8-grid { grid-template-columns:minmax(0,1fr); } }
+.fg .int-sm8-grid .int-wcard { grid-area:w; }
+.fg .int-sm8-grid .int-mirrorcard { grid-area:m; }
+.fg .int-sm8-people { grid-area:p; min-width:0; display:flex; flex-direction:column; gap:16px; }
+@container (min-width:1400px) {
+  .fg .int-sm8-grid { grid-template-columns:minmax(0,5fr) minmax(0,4fr) minmax(0,3fr); grid-template-areas:"w m p"; grid-template-rows:auto; }
+  .fg .int-sm8-grid.solo { grid-template-columns:minmax(0,4fr) minmax(0,3fr); }
+  .fg .int-sm8 .int-mirror-done.folded { display:grid; }
+  .fg .int-mirrorcard .int-foldbtn { display:none; }
+}
+@container (max-width:900px) {
+  .fg .int-sm8-grid, .fg .int-sm8-grid.solo { grid-template-columns:minmax(0,1fr); grid-template-areas:"w" "m" "p"; grid-template-rows:auto; }
+}
 
-/* when the mirror last moved, on the connection card, with Sync now */
-.fg .int-syncline { display:flex; align-items:center; gap:16px; margin-bottom:16px; padding:12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
-.fg .int-syncline > div { flex:1; min-width:0; }
-.fg .int-syncline p { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
-.fg .int-syncline p:first-child { font-size:14px; font-weight:500; color:var(--ink); }
+/* the connection: who and when on the left, the controls on the right;
+   the warnings, the confirm and anything blocking take the width under them */
+.fg .int-conn { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-auto-flow:row dense; column-gap:32px; row-gap:16px; align-items:start; }
+.fg .int-conn > * { grid-column:1 / -1; margin:0; }
+.fg .int-conn > .int-connhead { grid-column:1; grid-row:1; margin:0; }
+.fg .int-conn > .int-act { grid-column:2; grid-row:1; justify-content:flex-end; }
+.fg .int-connfacts { display:flex; flex-wrap:wrap; gap:4px 24px; margin:8px 0 0; }
+.fg .int-connfacts > div { display:flex; align-items:baseline; gap:8px; }
+.fg .int-connfacts dt { font-size:12px; font-weight:500; color:var(--gray400); }
+.fg .int-connfacts dd { margin:0; font-size:14px; font-weight:600; color:var(--ink); }
+.fg .int-connfacts dd.warn { color:var(--warn-t); }
+
+/* when the mirror last moved, under the facts */
+.fg .int-syncline { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
+.fg .int-syncline span:first-child { font-size:14px; font-weight:500; color:var(--ink); }
 
 /* the mirror as a ledger: a name and a count, two to a row; a row still
    moving or stuck takes the width, because its tag is a sentence */
-.fg .int-mirror { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:24px; }
+.fg .int-mirror { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); column-gap:24px; }
 .fg .int-mirror li { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:8px 0; border-top:1px solid var(--line); font-size:14px; font-weight:500; }
 .fg .int-mirror li.wide { grid-column:1 / -1; }
 .fg .int-mirror .int-tag { text-align:right; font-variant-numeric:tabular-nums; }
+/* the read objects, folded to their sum on a laptop, every row on a wide
+   screen (the grid's three-column query, below) */
+.fg .int-foldrow { display:flex; align-items:center; gap:12px; }
+.fg .int-foldrow > span { flex:1; min-width:0; font-size:14px; color:var(--gray500); }
+.fg .int-foldbtn { display:inline-flex; align-items:center; gap:4px; padding:0; border:0; background:none; font-size:13px; font-weight:600; color:var(--ink); white-space:nowrap; cursor:pointer; }
+.fg .int-foldbtn:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
+.fg .int-mirror + .int-foldrow, .fg .int-foldrow + .int-mirror { margin-top:12px; }
+.fg .int-mirror-done.folded { display:none; }
 
 /* sending: the kinds on one row, what failed, and one line a write */
-.fg .int-kinds { display:flex; gap:8px; margin-bottom:16px; }
-.fg .int-kind { flex:1; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 8px 8px 12px; border-radius:var(--r-button); background:var(--tint); }
+.fg .int-kinds { display:flex; flex-wrap:wrap; gap:8px 24px; margin-bottom:12px; }
+.fg .int-kind { display:flex; align-items:center; gap:8px; }
 .fg .int-kind b { font-size:14px; font-weight:600; }
-.fg .int-failed { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
-.fg .int-failed b { flex:1; font-size:14px; font-weight:600; color:var(--bad-t); }
+.fg .int-wfoot { display:flex; align-items:center; gap:12px; padding-top:8px; border-top:1px solid var(--line); }
+.fg .int-failed { display:flex; align-items:center; gap:12px; margin-left:auto; }
+.fg .int-failed b { font-size:14px; font-weight:600; color:var(--bad-t); }
 /* one grid for the list, each row on its tracks (subgrid), so the state
    column is as wide as its longest word and every row lines up with it */
 .fg .int-writes { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:minmax(0,2fr) minmax(0,3fr) auto; column-gap:12px; }
 .fg .int-writes li { grid-column:1 / -1; display:grid; grid-template-columns:subgrid; align-items:baseline; padding:8px 0; border-top:1px solid var(--line); }
 .fg .int-writes p { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
 .fg .int-writes .int-tag { text-align:right; white-space:nowrap; }
-.fg .int-more { width:100%; padding:8px 0 0; border:0; border-top:1px solid var(--line); background:none; text-align:left; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer; }
+.fg .int-more { padding:0; border:0; background:none; text-align:left; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer; }
 .fg .int-more:hover { text-decoration:underline; }
 .fg .int-more:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
 
 /* the permissions, one line until opened */
-.fg .int-perms { padding:0 24px; }
-.fg .int-perms[open] { padding-bottom:16px; }
-.fg .int-perms > summary { display:flex; align-items:center; gap:16px; padding:16px 0; list-style:none; cursor:pointer; }
+.fg .int-sm8 .int-perms { padding:0 24px; }
+.fg .int-sm8 .int-perms[open] { padding-bottom:16px; }
+.fg .int-perms > summary { display:flex; align-items:center; gap:4px 16px; padding:16px 0; list-style:none; cursor:pointer; }
 .fg .int-perms > summary::-webkit-details-marker { display:none; }
 .fg .int-perms > summary:focus-visible { outline:none; box-shadow:var(--ring); border-radius:var(--r-control); }
-.fg .int-perms > summary b { flex:none; width:200px; font-size:16px; font-weight:600; }
-.fg .int-perms > summary span { flex:1; min-width:0; font-size:14px; color:var(--gray500); }
-.fg .int-perms > summary i { display:inline-flex; align-items:center; gap:4px; font-style:normal; font-size:13px; font-weight:600; color:var(--ink); }
+.fg .int-perms { container-type:inline-size; }
+.fg .int-perms > summary { flex-wrap:wrap; }
+.fg .int-perms > summary b { flex:1 0 auto; font-size:16px; font-weight:600; }
+.fg .int-perms > summary span { order:3; flex:1 0 100%; min-width:0; font-size:14px; color:var(--gray500); }
+.fg .int-perms > summary i { display:inline-flex; align-items:center; gap:4px; font-style:normal; font-size:13px; font-weight:600; color:var(--ink); white-space:nowrap; }
 .fg .int-perms-ask { margin:0 0 8px; font-size:13px; line-height:1.55; color:var(--gray500); }
 .fg .int-perms-head { margin:16px 0 8px; font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .int-perm-rows { list-style:none; margin:0; padding:0; }
@@ -4552,6 +4585,11 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-perm-rows code { font-family:var(--mono); font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
 .fg .int-perm-rows p { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
 .fg .int-perm-rows .int-tag { text-align:right; font-size:13px; }
+/* in the people's column the permission, its state, then its sentence */
+@container (max-width:720px) {
+  .fg .int-perm-rows li { grid-template-columns:minmax(0,1fr) auto; row-gap:4px; }
+  .fg .int-perm-rows p { grid-column:1 / -1; grid-row:2; }
+}
 
 /* ---- ServiceM8 people reconcile (components/integrations/sm8-people-card) ----
    Import is a review, not a copy: the row IS the preview of what would land,

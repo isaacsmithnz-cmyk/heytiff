@@ -198,6 +198,59 @@ export function Servicem8Screen({
     `Powers the ${nameList(provider.uses.map((u) => u.area))}.`,
   ].join(" ");
 
+  /* ── the ask, in full, folded to one line ──
+
+     "What ServiceM8 powers here" was a section of its own, two paragraphs
+     an owner reads once; it is the line's second sentence now. Beside the
+     people once connected, under the connection before. */
+  const permsCard = (
+    <details
+      className="card2 int-perms"
+      open={permsOpen}
+      onToggle={(e) => setPermsOpen(e.currentTarget.open)}
+    >
+      <summary>
+        <b>Permissions</b>
+        <span>{permsLine}</span>
+        <i>
+          {permsOpen ? "Hide" : "Show each"}
+          <Icon name={permsOpen ? "chevU" : "chevD"} size={15} />
+        </i>
+      </summary>
+      <p className="int-perms-ask">
+        {asking ? asksLine(writeScopes) : "Read-only, every one of them. Nothing here writes to ServiceM8, and the list below is exactly what the consent screen will show."}
+      </p>
+      {[
+        { head: "Reads", list: SM8_SCOPES },
+        { head: "Writes, asked for while sending is On or Paused", list: asking ? writeScopes : [] },
+      ]
+        .filter((g) => g.list.length > 0)
+        .map((g) => (
+          <div key={g.head}>
+            <h3 className="int-perms-head">{g.head}</h3>
+            <ul className="int-perm-rows">
+              {g.list.map((s) => {
+                const missing = connection?.missing.includes(s.scope) ?? false;
+                return (
+                  <li key={s.scope} className={missing ? "missing" : undefined}>
+                    <code>{s.scope}</code>
+                    <p>{s.why}</p>
+                    {missing ? (
+                      <span className="int-tag warn">Not granted yet</span>
+                    ) : connected ? (
+                      <span className="int-tag ok">Granted</span>
+                    ) : (
+                      <span />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+    </details>
+  );
+
   return (
     /* Paper to the frame, the title in the band and the way back above it
        (2026-09-20). Laid out to one screen at 1440 (2026-09-28): the
@@ -224,9 +277,15 @@ export function Servicem8Screen({
           {error && <div className="int-note bad">{error}</div>}
           {note && <div className="int-note bad">{note}</div>}
 
-          {/* ── status ── */}
-          <div className="card2">
-            <div className="c2h">
+          {/* ── status ──
+
+              Two columns (2026-09-28, "make use of as much of the screen as
+              possible"): who and when on the left, the controls and the
+              warning that goes with them on the right. The facts are one
+              line: "Access granted" was the permissions line's count said
+              twice, and the account's name was said three times. */}
+          <div className="card2 int-conn">
+            <div className="c2h int-connhead">
               <div style={{ minWidth: 0 }}>
                 <b>{connected ? connection.tenantName ?? "Connected" : "Not connected"}</b>
                 <em>
@@ -240,63 +299,47 @@ export function Servicem8Screen({
                         : "HeyTiff can read this ServiceM8 account."
                     : provider.blurb}
                 </em>
+                {connected && (
+                  <dl className="int-connfacts">
+                    <div>
+                      <dt>Connected</dt>
+                      {/* a timestamptz, so it resolves to an AU day before it is
+                          formatted — see the note on fmtAuDayMonth */}
+                      <dd>
+                        {connection.connectedAt ? fmtAuWeekdayDate(auDayOf(connection.connectedAt)) : "—"}
+                        {connection.connectedByName ? `, by ${connection.connectedByName}` : ""}
+                      </dd>
+                    </div>
+                    {/* The account this one replaced. Its copy was cleared, so this
+                        line is the one trace of which business it was. */}
+                    {previousAccount && (
+                      <div>
+                        <dt>Previous account</dt>
+                        <dd>
+                          {previousAccount.name ?? "Another ServiceM8 account"}, until{" "}
+                          {fmtAuWeekdayDate(auDayOf(previousAccount.at))}
+                        </dd>
+                      </div>
+                    )}
+                    {/* Proof the grant READS, not just that it exists. A connection
+                        revoked from ServiceM8's own add-ons screen still has a row
+                        and unexpired-looking tokens — this is where that shows. The
+                        name it reads is the title's, so the fact is its clock. */}
+                    {reach && (reach.ok ? reach.account.timezoneName !== null : true) && (
+                      <div>
+                        <dt>{reach.ok ? "Timezone" : "Account"}</dt>
+                        <dd className={reach.ok ? undefined : "warn"}>
+                          {reach.ok ? reach.account.timezoneName : "Couldn't read"}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
               </div>
             </div>
 
-            {connected && (
-              <dl className="int-facts">
-                <div>
-                  <dt>Connected</dt>
-                  {/* a timestamptz, so it resolves to an AU day before it is
-                      formatted — see the note on fmtAuDayMonth */}
-                  <dd>
-                    {connection.connectedAt
-                      ? fmtAuWeekdayDate(auDayOf(connection.connectedAt))
-                      : "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Connected by</dt>
-                  <dd>{connection.connectedByName ?? "—"}</dd>
-                </div>
-                <div>
-                  <dt>Access granted</dt>
-                  <dd>
-                    {connection.scopes.length} permission
-                    {connection.scopes.length === 1 ? "" : "s"}
-                  </dd>
-                </div>
-                {/* The account this one replaced. Its copy was cleared, so this
-                    line is the one trace of which business it was. */}
-                {previousAccount && (
-                  <div>
-                    <dt>Previous account</dt>
-                    <dd>
-                      {previousAccount.name ?? "Another ServiceM8 account"}, until{" "}
-                      {fmtAuWeekdayDate(auDayOf(previousAccount.at))}
-                    </dd>
-                  </div>
-                )}
-                {/* Proof the grant READS, not just that it exists. A connection
-                    revoked from ServiceM8's own add-ons screen still has a row
-                    and unexpired-looking tokens — this is where that shows. */}
-                {reach && (
-                  <div>
-                    <dt>Account</dt>
-                    <dd>
-                      {reach.ok
-                        ? reach.account.timezoneName
-                          ? `${reach.account.name}, ${reach.account.timezoneName}`
-                          : reach.account.name
-                        : "Couldn't read"}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            )}
-
-            {/* ── when the mirror last moved, and the button that moves it ── */}
-            {connected && sync && <SyncLine sync={sync} busy={busy} onSync={syncNow} />}
+            {/* when the mirror last moved: the card's width, under both columns */}
+            {connected && sync && <SyncLine sync={sync} />}
 
             {!ready && (
               <div className="int-blocked">
@@ -334,6 +377,17 @@ export function Servicem8Screen({
               ready={ready}
               accountName={connection?.tenantName ?? null}
               elsewhere={elsewhere}
+              /* the which-account warning opens on Reconnect, not before */
+              warnOnReconnect
+              /* Sync now beside Reconnect and Disconnect: the mirror's one
+                 control, next to the sentence it changes */
+              extraActions={
+                connected && sync ? (
+                  <button className="pbtn ghost" onClick={syncNow} disabled={busy}>
+                    {busy ? "Syncing…" : "Sync now"}
+                  </button>
+                ) : null
+              }
               /* Everything the wipe takes, named — this is the only control in
                  the integrations area that deletes anything. */
               consequences={[
@@ -352,70 +406,26 @@ export function Servicem8Screen({
             />
           </div>
 
-          {/* ── what goes out beside what came in ── */}
-          {connected && (writes || sync || people) && (
+          {/* ── what goes out beside what came in ──
+              Each card is the grid's own item, so the columns follow the
+              width: sending, the mirror and the people in three at a wide
+              screen, the mirror over the people at a laptop's. */}
+          {connected ? (
             <div className={"int-sm8-grid" + (writes ? "" : " solo")}>
               {/* the other direction: files, notes and bookings sent from a job */}
               {writes && <Sm8WritesCard view={writes} />}
-              <div className="int-sm8-side">
-                {/* the mirror, object by object */}
-                {sync && <MirrorCard sync={sync} />}
+              {/* the mirror, object by object */}
+              {sync && <MirrorCard sync={sync} />}
+              <div className="int-sm8-people">
                 {/* the people reconcile — import is a review, never a copy */}
                 {people && <PeopleImportCard provider="servicem8" folded {...people} />}
+                {permsCard}
               </div>
             </div>
+          ) : (
+            permsCard
           )}
 
-          {/* ── the ask, in full, folded to one line ──
-
-              "What ServiceM8 powers here" was a section of its own, two
-              paragraphs an owner reads once; it is the line's second
-              sentence now. */}
-          <details
-            className="card2 int-perms"
-            open={permsOpen}
-            onToggle={(e) => setPermsOpen(e.currentTarget.open)}
-          >
-            <summary>
-              <b>Permissions</b>
-              <span>{permsLine}</span>
-              <i>
-                {permsOpen ? "Hide" : "Show each"}
-                <Icon name={permsOpen ? "chevU" : "chevD"} size={15} />
-              </i>
-            </summary>
-            <p className="int-perms-ask">
-              {asking ? asksLine(writeScopes) : "Read-only, every one of them. Nothing here writes to ServiceM8, and the list below is exactly what the consent screen will show."}
-            </p>
-            {[
-              { head: "Reads", list: SM8_SCOPES },
-              { head: "Writes, asked for while sending is On or Paused", list: asking ? writeScopes : [] },
-            ]
-              .filter((g) => g.list.length > 0)
-              .map((g) => (
-                <div key={g.head}>
-                  <h3 className="int-perms-head">{g.head}</h3>
-                  <ul className="int-perm-rows">
-                    {g.list.map((s) => {
-                      const missing = connection?.missing.includes(s.scope) ?? false;
-                      return (
-                        <li key={s.scope} className={missing ? "missing" : undefined}>
-                          <code>{s.scope}</code>
-                          <p>{s.why}</p>
-                          {missing ? (
-                            <span className="int-tag warn">Not granted yet</span>
-                          ) : connected ? (
-                            <span className="int-tag ok">Granted</span>
-                          ) : (
-                            <span />
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-          </details>
           </div>
           </ScreenPanel>
         </div>
@@ -441,17 +451,9 @@ export function Servicem8Screen({
    board chip's rule verbatim.
 
    It lives on the connection card (2026-09-28): whether the account is
-   still being read is a fact about the connection, and Sync now sits
-   beside the sentence it changes. */
-function SyncLine({
-  sync,
-  busy,
-  onSync,
-}: {
-  sync: Sm8SyncStatusView;
-  busy: boolean;
-  onSync: () => void;
-}) {
+   still being read is a fact about the connection. Sync now is in the
+   card's controls, beside Reconnect. */
+function SyncLine({ sync }: { sync: Sm8SyncStatusView }) {
   const hydrated = useHydrated();
   const reading = sync.objects.filter((o) => o.phase === "reading");
   const readingRows = reading.reduce((n, o) => n + o.rowsPulled, 0);
@@ -467,20 +469,15 @@ function SyncLine({
         } so far. Each sync picks up where the last one stopped.`
       : sync.lastRun?.finishedAt
         ? `Last synced${hydrated ? ` ${agoLabel(sync.lastRun.finishedAt)}` : ""}${
-            sync.lastRun.note ? ` — ${sync.lastRun.note}` : ""
+            sync.lastRun.note ? `. ${sync.lastRun.note}` : ""
           }`
         : "Waiting for the first sync.";
 
   return (
-    <div className="int-syncline">
-      <div>
-        <p>{subtitle}</p>
-        {sync.lastCron !== undefined && <p>{overnightLine(sync.lastCron)}</p>}
-      </div>
-      <button className="pbtn ghost" onClick={onSync} disabled={busy}>
-        {busy ? "Syncing…" : "Sync now"}
-      </button>
-    </div>
+    <p className="int-syncline">
+      <span>{subtitle}</span>
+      {sync.lastCron !== undefined && <>{" "}<span>{overnightLine(sync.lastCron)}</span></>}
+    </p>
   );
 }
 
@@ -504,24 +501,56 @@ function SyncLine({
    Anything still moving or stuck takes the whole width, because its tag is a
    sentence. */
 function MirrorCard({ sync }: { sync: Sm8SyncStatusView }) {
-  const read = sync.objects.filter((o) => o.phase === "done").length;
+  const done = sync.objects.filter((o) => o.phase === "done");
+  const moving = sync.objects.filter((o) => o.phase !== "done");
   const all = sync.objects.length;
+  const rows = done.reduce((n, o) => n + o.rowsPulled, 0);
+  /* Folded to its sum on a laptop (2026-09-28, "without having to
+     scroll"): what is still reading or stuck stays in view, because that is
+     the news; what has been read is a count behind Show each. A wide screen
+     has the room, and shows every row. */
+  const [open, setOpen] = useState(false);
   return (
-    <div className="card2">
+    <div className="card2 int-mirrorcard">
       <div className="c2h">
-        <b style={{ flex: 1 }}>What&apos;s been read across</b>
-        <span className={"int-tag" + (read === all ? " ok" : "")}>
-          {read === all ? `All ${all} read` : `${read} of ${all} read`}
+        <b style={{ flex: 1 }}>Read from ServiceM8</b>
+        <span className={"int-tag" + (done.length === all ? " ok" : "")}>
+          {done.length === all ? `All ${all} read` : `${done.length} of ${all} read`}
         </span>
       </div>
-      <ul className="int-mirror">
-        {sync.objects.map((o) => (
-          <li key={o.object} className={o.phase === "done" ? undefined : "wide"}>
-            <span>{o.label}</span>
-            <ObjectTag o={o} />
-          </li>
-        ))}
-      </ul>
+      {moving.length > 0 && (
+        <ul className="int-mirror">
+          {moving.map((o) => (
+            <li key={o.object} className="wide">
+              <span>{o.label}</span>
+              <ObjectTag o={o} />
+            </li>
+          ))}
+        </ul>
+      )}
+      {done.length > 0 && (
+        <>
+          <div className="int-foldrow">
+            <span>
+              {num(rows)} row{rows === 1 ? "" : "s"} across {done.length === 1 ? done[0].label : `${done.length} kinds of record`}
+            </span>
+            <button type="button" className="int-foldbtn" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+              {open ? "Hide" : "Show each"}
+              <Icon name={open ? "chevU" : "chevD"} size={15} />
+            </button>
+          </div>
+          {/* folded by a class, not left out: where the grid has three
+              columns there is room for every row, and the sheet opens it */}
+          <ul className={"int-mirror int-mirror-done" + (open ? "" : " folded")}>
+            {done.map((o) => (
+              <li key={o.object}>
+                <span>{o.label}</span>
+                <ObjectTag o={o} />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }

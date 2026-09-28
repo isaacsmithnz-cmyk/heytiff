@@ -7,8 +7,10 @@
    shows its zones (each a control: dragged to another card, or cleared with
    its cross), Add zones, the outdoor and the figures, and its last slot is
    always the next step: Build system, then the units to place, then Next:
-   Install questions — the same words the toolbar's next-step chip says, so
-   the two agree. Edit system sits under it, quiet, as the way back in.
+   Install details — the same words the toolbar's next-step chip says, so
+   the two agree. Under it, stacked, the ways back in: Edit system in the
+   system's own colour, and Install details (when it is not the next step)
+   in its state's, with how many are answered.
 
    Units go on the plan by dragging, nothing else: the rack under the card
    works like a Scrabble rack. A unit dragged onto the plan leaves it, the
@@ -40,7 +42,7 @@ import { brandName, combinationWord, connectionRatio } from "@/lib/studio/verdic
 import { systemCover } from "@/lib/studio/coverage";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { cardStatus } from "@/lib/studio/status";
-import { installState } from "@/lib/studio/install";
+import { equipmentList, installState } from "@/lib/studio/install";
 import { RACK_DRAG, type PlacingUnit } from "./canvas";
 
 /** a zone on the move between cards: the drag's own type and payload */
@@ -344,6 +346,7 @@ function SystemCard({
   const word = pack ? combinationWord(doc, pack, sys) : null;
   const odu = units.find((a) => a.role === "odu")?.model ?? null;
   const install = pack ? installState(doc, pack, sys) : "not-asked";
+  const asked = pack ? equipmentList(doc, pack, sys) : null;
 
   return (
     <section
@@ -458,19 +461,29 @@ function SystemCard({
                   <Rack pack={pack} items={rack} onArmPlace={onArmPlace} />
                 ) : install !== "complete" ? (
                   <button className="ds-zp-primary" onClick={onInstall}>
-                    Next: Install questions
+                    Next: Install details
                   </button>
                 ) : null}
-                {/* the questions stay reachable when they are not the next
+                {/* the details stay reachable when they are not the next
                     step: answered already, or a changed system put units
-                    back on the rack (a split made a multi, 2026-09-28) */}
+                    back on the rack (a split made a multi, 2026-09-28).
+                    Each way back in wears a colour that means something:
+                    the system's own, and the details' state (Isaac,
+                    2026-09-28, "put some colour on each button") */}
                 <div className="ds-zp-acts">
-                  <button className="ds-zp-wide" onClick={onBuild}>
+                  <button className="ds-zp-act" data-tone="system" onClick={onBuild}>
                     Edit system
                   </button>
                   {(rack.length > 0 || install === "complete") && (
-                    <button className="ds-zp-wide" onClick={onInstall}>
-                      Install questions
+                    <button
+                      className="ds-zp-act"
+                      data-tone={install === "complete" ? "ok" : "warn"}
+                      onClick={onInstall}
+                    >
+                      Install details
+                      <span className="ds-zp-act-fig">
+                        {install === "not-asked" || !asked ? "Not started" : `${asked.answered} of ${asked.total}`}
+                      </span>
                     </button>
                   )}
                 </div>

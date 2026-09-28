@@ -180,10 +180,10 @@ export function InstallQuestions({
 
   return createPortal(
     <div className="ds-sb-scrim" onMouseDown={(e) => e.target === e.currentTarget && !dirty && onClose()}>
-      <div className="ds-sb ds-iq" role="dialog" aria-modal="true" aria-label="Install questions">
+      <div className="ds-sb ds-iq" role="dialog" aria-modal="true" aria-label="Install details">
         <div className="ds-iq-head">
           <div className="ds-iq-titles">
-            <span className="ds-iq-title">Install questions</span>
+            <span className="ds-iq-title">Install details</span>
             <span className="ds-iq-count num">
               {list.answered} of {list.total} answered
             </span>
@@ -211,7 +211,7 @@ export function InstallQuestions({
               <span className="v num">{units.length}</span>
             </div>
           </div>
-          <button className="ds-sb-x" onClick={onClose} aria-label="Close install questions">
+          <button className="ds-sb-x" onClick={onClose} aria-label="Close install details">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
               <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" fill="none" />
             </svg>

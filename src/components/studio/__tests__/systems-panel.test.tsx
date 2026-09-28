@@ -31,7 +31,7 @@ import { emptyPack, PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/st
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import { addHead, allocationsOf, placeAllocation } from "@/lib/studio/builder";
 import { claimZone, newSystem } from "@/lib/studio/zones";
-import { answerInstall, installQuestions, installState, NOT_SURE } from "@/lib/studio/install";
+import { answerInstall, equipmentList, installQuestions, installState, NOT_SURE } from "@/lib/studio/install";
 import { systemCover } from "@/lib/studio/coverage";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 
@@ -266,10 +266,10 @@ describe("SystemsPanel — a card at rest", () => {
     expect(line).toHaveClass("quiet");
   });
 
-  it("once every unit is on the plan the line reads Install questions next", () => {
+  it("once every unit is on the plan the line reads Install details next", () => {
     const made = fiveHeadMulti(fittedHouse().doc);
     mount(placeAll(made.doc, made.systemId));
-    expect(statusOf(card("System 1")).textContent).toBe("Install questions next");
+    expect(statusOf(card("System 1")).textContent).toBe("Install details next");
   });
 
   it("a short zone takes the line, in red", () => {
@@ -491,15 +491,15 @@ describe("SystemsPanel — the rack", () => {
     const el = card("System 1");
     expect(el.querySelector(".ds-zp-rack")).toBeNull();
     expect(within(el).queryByText("Units to place")).toBeNull();
-    const next = within(el).getByRole("button", { name: "Next: Install questions" });
+    const next = within(el).getByRole("button", { name: "Next: Install details" });
     expect(next.closest(".ds-zp-next")).not.toBeNull();
     fireEvent.click(next);
     expect(onInstall).toHaveBeenCalledWith(made.systemId);
     // the next step already says it: no second door beside Edit system
-    expect(within(el).queryByRole("button", { name: "Install questions" })).toBeNull();
+    expect(within(el).queryByRole("button", { name: /^Install details/ })).toBeNull();
   });
 
-  it("answered questions can still be opened again from the card", () => {
+  it("answered install details can still be opened again from the card", () => {
     const made = fiveHeadMulti(fittedHouse().doc);
     let d = placeAll(made.doc, made.systemId);
     for (const q of installQuestions(d, mePack, sysOf(d, made.systemId))) {
@@ -508,19 +508,30 @@ describe("SystemsPanel — the rack", () => {
     expect(installState(d, mePack, sysOf(d, made.systemId))).toBe("complete");
     const { onInstall } = mount(d, made.systemId);
     const el = card("System 1");
-    expect(within(el).queryByRole("button", { name: "Next: Install questions" })).toBeNull();
-    const again = within(el).getByRole("button", { name: "Install questions" });
+    expect(within(el).queryByRole("button", { name: "Next: Install details" })).toBeNull();
+    const again = within(el).getByRole("button", { name: /^Install details/ });
     expect(again.closest(".ds-zp-acts")).not.toBeNull();
+    // answered: the state's green, and how many
+    expect(again).toHaveAttribute("data-tone", "ok");
+    const total = equipmentList(d, mePack, sysOf(d, made.systemId)).total;
+    expect(again.querySelector(".ds-zp-act-fig")?.textContent).toBe(`${total} of ${total}`);
+    // Edit system comes first, in the system's own colour
+    const acts = [...el.querySelectorAll(".ds-zp-acts button")];
+    expect(acts.map((b) => b.getAttribute("data-tone"))).toEqual(["system", "ok"]);
     fireEvent.click(again);
     expect(onInstall).toHaveBeenCalledWith(made.systemId);
   });
 
-  it("units back on the rack do not hide the install questions", () => {
+  it("units back on the rack do not hide the install details", () => {
     const made = fiveHeadMulti(fittedHouse().doc);
     const { onInstall } = mount(made.doc, made.systemId);
     const el = card("System 1");
     expect(el.querySelector(".ds-zp-rack")).not.toBeNull();
-    fireEvent.click(within(el).getByRole("button", { name: "Install questions" }));
+    const details = within(el).getByRole("button", { name: /^Install details/ });
+    // nothing answered yet: amber, and it says so
+    expect(details).toHaveAttribute("data-tone", "warn");
+    expect(details.querySelector(".ds-zp-act-fig")?.textContent).toBe("Not started");
+    fireEvent.click(details);
     expect(onInstall).toHaveBeenCalledWith(made.systemId);
   });
 });

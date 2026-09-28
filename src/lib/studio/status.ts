@@ -43,7 +43,7 @@ export function cardStatus(
     return { text: `${units} ${units === 1 ? "unit" : "units"}, ${toPlace} to place`, tone: "quiet" };
   }
   if (installState(doc, pack, sys) !== "complete") {
-    return { text: "Install questions next", tone: "quiet" };
+    return { text: "Install details next", tone: "quiet" };
   }
   return { text: "Ready for the design sheet", tone: "ok" };
 }

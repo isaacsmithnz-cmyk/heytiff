@@ -10493,25 +10493,41 @@ html[data-ds-display] .dstudio.editing {
    asking for, so it carries no edge and no fill until it is pointed at. */
 /* Edit system alone, across the card and centred, under the hairline: the
    way back in. Delete lives at the top right now, so nothing shares this row. */
+/* the ways back in, stacked so neither reads as the other's twin: Edit
+   system on the system's own wash (the kind pill's recipe), Install details
+   on its state's tint with the count in the state's colour */
 .dstudio .ds-zp-acts {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-top: 4px;
 }
-.dstudio .ds-zp-wide {
+.dstudio .ds-zp-act {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 8px;
   width: 100%;
   height: 36px;
+  padding: 0 12px;
   border: none;
   border-radius: var(--r-button);
-  background: none;
-  color: var(--q);
+  color: var(--ink);
   font: 500 14px var(--font);
   cursor: pointer;
   transition: background-color var(--t-fast) var(--ease);
 }
-.dstudio .ds-zp-wide:hover { background: var(--tint); }
+.dstudio .ds-zp-act[data-tone="system"] { --tone: var(--sc); }
+.dstudio .ds-zp-act[data-tone="ok"] { --tone: var(--ok-t); }
+.dstudio .ds-zp-act[data-tone="warn"] { --tone: var(--warn); }
+.dstudio .ds-zp-act { background: color-mix(in srgb, var(--tone) 12%, #fff); }
+.dstudio .ds-zp-act:hover { background: color-mix(in srgb, var(--tone) 20%, #fff); }
+.dstudio .ds-zp-act-fig {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.dstudio .ds-zp-act[data-tone="ok"] .ds-zp-act-fig { color: var(--ok-t); }
+.dstudio .ds-zp-act[data-tone="warn"] .ds-zp-act-fig { color: var(--warn-t); }
 /* Delete system, on the card that is open — the builder's own action without
    having to open the builder to reach it. It is LABELLED, not a cross: a
    chip's cross clears one zone, and this takes a whole system and its units

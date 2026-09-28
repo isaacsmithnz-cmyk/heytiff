@@ -153,10 +153,14 @@ describe("reading a ping", () => {
 
   it("refuses a challenge of 257 characters, or one with a control character, saying only its length", () => {
     expect(parsePing(null, "", q(`mode=subscribe&challenge=${"a".repeat(256)}`))).toMatchObject({ kind: "challenge" });
-    expect(parsePing(null, "", q(`mode=subscribe&challenge=${"a".repeat(257)}`))).toEqual({ kind: "junk", challengeLength: 257 });
-    expect(parsePing(null, "", q("mode=subscribe&challenge=a%0Ab"))).toEqual({ kind: "junk", challengeLength: 3 });
-    expect(parsePing(null, "", q("mode=subscribe&challenge=a%20b"))).toEqual({ kind: "junk", challengeLength: 3 });
-    expect(parsePing(null, "", q("mode=other&challenge=abc"))).toEqual({ kind: "junk" });
+    expect(parsePing(null, "", q(`mode=subscribe&challenge=${"a".repeat(257)}`))).toEqual({
+      kind: "junk",
+      why: "bad_challenge",
+      challengeLength: 257,
+    });
+    expect(parsePing(null, "", q("mode=subscribe&challenge=a%0Ab"))).toEqual({ kind: "junk", why: "bad_challenge", challengeLength: 3 });
+    expect(parsePing(null, "", q("mode=subscribe&challenge=a%20b"))).toEqual({ kind: "junk", why: "bad_challenge", challengeLength: 3 });
+    expect(parsePing(null, "", q("mode=other&challenge=abc"))).toEqual({ kind: "junk", why: "not_parsed" });
   });
 
   it("reads raw JSON, a JSON text body, and one form field holding it", () => {
@@ -183,14 +187,18 @@ describe("reading a ping", () => {
     expect(new Set(p.uuids).size).toBe(10);
   });
 
-  it("is junk with no usable uuid, no object, bad JSON or an oversized body", () => {
-    expect(parsePing("application/json", body({ entry: [{ uuid: "x" }] }), q())).toEqual({ kind: "junk" });
-    expect(parsePing("application/json", body({ entry: "nope" }), q())).toEqual({ kind: "junk" });
-    expect(parsePing("application/json", body({ object: null }), q())).toEqual({ kind: "junk" });
-    expect(parsePing("application/json", "{not json", q())).toEqual({ kind: "junk" });
-    expect(parsePing("application/json", "[1,2]", q())).toEqual({ kind: "junk" });
-    expect(parsePing(null, "", q())).toEqual({ kind: "junk" });
-    expect(parsePing("application/json", body({ pad: "x".repeat(17_000) }), q())).toEqual({ kind: "junk" });
+  it("is junk with no usable uuid, no object, bad JSON or an oversized body, saying which", () => {
+    expect(parsePing("application/json", body({ entry: [{ uuid: "x" }] }), q())).toEqual({ kind: "junk", why: "no_uuids" });
+    expect(parsePing("application/json", body({ entry: "nope" }), q())).toEqual({ kind: "junk", why: "no_uuids" });
+    expect(parsePing("application/json", body({ object: null }), q())).toEqual({ kind: "junk", why: "no_object" });
+    expect(parsePing("application/json", "{not json", q())).toEqual({ kind: "junk", why: "not_parsed" });
+    expect(parsePing("application/json", "[1,2]", q())).toEqual({ kind: "junk", why: "not_parsed" });
+    expect(parsePing(null, "", q())).toEqual({ kind: "junk", why: "not_parsed" });
+    expect(parsePing("application/json", body({ pad: "x".repeat(17_000) }), q())).toEqual({ kind: "junk", why: "too_big" });
+    /* the same reasons from a form field holding the JSON */
+    const form = (b: string) => new URLSearchParams({ data: b }).toString();
+    expect(parsePing("application/x-www-form-urlencoded", form(body({ object: null })), q())).toEqual({ kind: "junk", why: "no_object" });
+    expect(parsePing("application/x-www-form-urlencoded", form(body({ entry: [] })), q())).toEqual({ kind: "junk", why: "no_uuids" });
   });
 
   it("counts the body's size in bytes, not characters", () => {
@@ -198,7 +206,7 @@ describe("reading a ping", () => {
     const wide = body({ pad: "é".repeat(9_000) });
     expect(wide.length).toBeLessThan(PING_BODY_MAX);
     expect(Buffer.byteLength(wide, "utf8")).toBeGreaterThan(PING_BODY_MAX);
-    expect(parsePing("application/json", wide, q())).toEqual({ kind: "junk" });
+    expect(parsePing("application/json", wide, q())).toEqual({ kind: "junk", why: "too_big" });
     expect(parsePing("application/json", body({ pad: "e".repeat(9_000) }), q())).toMatchObject({ kind: "change" });
   });
 

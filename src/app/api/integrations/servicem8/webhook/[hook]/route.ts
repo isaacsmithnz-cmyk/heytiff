@@ -11,6 +11,7 @@ import {
   parsePing,
   redactHook,
   type Ping,
+  type PingJunkWhy,
 } from "@/lib/integrations/sm8-hook-plan";
 
 /* Where ServiceM8's pings land (two-way phase 4, PR E):
@@ -115,6 +116,28 @@ function saysOversized(request: Request): boolean {
   return Number(len.trim()) > PING_BODY_MAX;
 }
 
+const JUNK_WORDS: Record<PingJunkWhy, string> = {
+  too_big: "too big",
+  not_parsed: "not parsed",
+  no_object: "no object",
+  no_uuids: "no valid uuids",
+  bad_challenge: "a challenge refused",
+};
+
+/** The media type as a sender gave it, cut to what can't carry anything:
+    lowercased, parameters dropped, at most 40 of [a-z0-9.+/-]. */
+function mediaTypeOf(contentType: string | null): string {
+  return (contentType ?? "").trim().toLowerCase().match(/^[a-z0-9.+/-]{1,40}/)?.[0] ?? "none";
+}
+
+/** What a junk line says, to diagnose by: which check failed, the media
+    type and the body's size in bytes — and for a refused challenge, its
+    length. Never the body, the path or the hook. */
+function junkWords(ping: Extract<Ping, { kind: "junk" }>, contentType: string | null, text: string): string {
+  const why = ping.challengeLength !== undefined ? `a challenge of ${ping.challengeLength} refused` : JUNK_WORDS[ping.why];
+  return `: ${why}, type ${mediaTypeOf(contentType)}, ${Buffer.byteLength(text, "utf8")} bytes`;
+}
+
 function bodyKindOf(ping: Ping): BodyKind {
   if (ping.kind === "challenge") return ping.via;
   if (ping.kind === "change" || ping.kind === "ignored") return ping.body;
@@ -191,10 +214,11 @@ async function handle(request: NextRequest, params: Promise<{ hook: string }>, m
       text = read;
     }
 
-    const ping = parsePing(method === "POST" ? request.headers.get("content-type") : null, text, request.nextUrl.searchParams);
+    const contentType = method === "POST" ? request.headers.get("content-type") : null;
+    const ping = parsePing(contentType, text, request.nextUrl.searchParams);
     const kind = bodyKindOf(ping);
     if (ping.kind === "junk") {
-      logLine("junk", kind, 0, ping.challengeLength !== undefined ? `, a challenge of ${ping.challengeLength} refused` : "");
+      logLine("junk", kind, 0, junkWords(ping, contentType, text));
       return answer(200);
     }
     if (ping.kind === "ignored") {

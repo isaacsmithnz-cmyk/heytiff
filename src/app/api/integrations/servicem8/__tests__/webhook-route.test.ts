@@ -389,6 +389,26 @@ describe("reading a change", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it("logs junk by which check failed, the media type and the size: never the body, the path or the hook", async () => {
+    const noObject = JSON.stringify({ object: null, entry: [{ uuid: U1 }] });
+    const noUuids = JSON.stringify({ object: "job", entry: [{ uuid: "private-note-text" }] });
+    const cases: [Send, string][] = [
+      [{ body: "hello private words", type: "text/plain; charset=utf-8" }, "not parsed, type text/plain, 19 bytes"],
+      [json(noObject), `no object, type application/json, ${Buffer.byteLength(noObject)} bytes`],
+      [json(noUuids), `no valid uuids, type application/json, ${Buffer.byteLength(noUuids)} bytes`],
+      [{ body: "é", type: "Application/JSON<script>alert(1)</script>" }, "not parsed, type application/json, 2 bytes"],
+      [{ body: "x", type: `${"a".repeat(50)}/json` }, `not parsed, type ${"a".repeat(40)}, 1 bytes`],
+      [{ body: "x" }, "not parsed, type text/plain, 1 bytes"],
+      [{ method: "GET" }, "not parsed, type none, 0 bytes"],
+      [{ method: "GET", query: "?mode=subscribe&challenge=a%20b" }, "a challenge of 3 refused, type none, 0 bytes"],
+    ];
+    for (const [s] of cases) expect((await send(s)).status).toBe(200);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(logs.map((l) => l.join(" "))).toEqual(cases.map(([, words]) => `[sm8] webhook: junk (none, 0 uuids): ${words}`));
+    const text = logs.map((l) => l.join(" ")).join("\n");
+    for (const secret of ["private", "<script", HOOK, "/webhook/"]) expect(text).not.toContain(secret);
+  });
+
   it("junk, or an object we don't mirror: 200 with no lookup", async () => {
     for (const s of [
       { body: "" },

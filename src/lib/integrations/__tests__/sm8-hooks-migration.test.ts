@@ -171,6 +171,15 @@ describe("the rolled-back test script", () => {
     expect(script).toMatch(/public\.sm8_take_hook_call\(c\.org, 2\)/);
   });
 
+  it("checks a ping clears the nightly check's quiet mark (PR F)", () => {
+    const step = script.match(/-- 10\. [\s\S]*?end \$\$;/)?.[0] ?? "";
+    expect(step).toMatch(/set quiet_since = clock_timestamp\(\)/);
+    expect(step).toMatch(/public\.sm8_take_ping\('rollback-test:hook-a', 'jobs'/);
+    expect(step).toMatch(/select quiet_since from public\.sm8_webhooks where org_id = c\.org\) is not null then\s+raise exception/);
+    /* and the function it runs clears it: the migration's own ping */
+    expect(block(migration, "HOOK FUNCTIONS")).toMatch(/set last_ping_at = clock_timestamp\(\), quiet_since = null/);
+  });
+
   it("checks a rotation holds the workspace's lock until the transaction ends", () => {
     expect(script).toMatch(/l\.locktype = 'advisory' and l\.pid = pg_backend_pid\(\) and l\.granted/);
     expect(script).toContain("= hashtextextended(c.org::text, 0)");

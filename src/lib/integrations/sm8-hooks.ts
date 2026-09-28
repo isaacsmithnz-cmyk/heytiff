@@ -46,6 +46,10 @@
    redactHook first, with the secrets this run holds named, so a refusal
    that echoes the address keeps `[hook]` in its place.
 
+   HOW THEY ARE (PR F): readSm8HooksHealth for the owner's screen, one read
+   of one row, and checkSm8HooksQuiet for the night, which alone counts the
+   mirror to tell `quiet`. See the section's note.
+
    A 401 FROM THE SUBSCRIPTION API IS NOT TAKEN AS THE GRANT'S DEATH until a
    plain read under the renewed token agrees (withSm8Renewal's
    confirmDead): whether an OAuth app needs anything more for webhooks is
@@ -66,6 +70,8 @@ import {
   HOOK_OBJECT_NAMES,
   HOOK_PATH,
   HOOK_POST_TIMEOUT_MS,
+  QUIET_AFTER_MS,
+  QUIET_EDITS,
   classifyOurs,
   hookFieldsFor,
   hookHashOf,
@@ -73,15 +79,18 @@ import {
   isUnsupportedObject,
   ourSecretIn,
   planSubscriptions,
+  quietStampFrom,
   readHookList,
   readHookObjects,
   redactHook,
+  sm8HooksHealth,
   spellingsFor,
   type HookObjectName,
   type HookObjectState,
   type HookObjectsState,
   type HookSub,
   type OurHashes,
+  type Sm8HooksHealth,
 } from "./sm8-hook-plan";
 
 const WEBHOOKS = "sm8_webhooks";
@@ -706,6 +715,177 @@ export async function dropExpiredSm8Hooks(now: number = Date.now()): Promise<num
   } catch {
     return 0;
   }
+}
+
+/* ── how live updates are (PR F) ──
+
+   THE OWNER SEES NOTHING WHILE THEY WORK (the spec's decision D2). One line
+   on the ServiceM8 screen, naming the thing, only when sm8-hook-plan's
+   sm8HooksHealth says `none`, `partial`, `deactivated` or `quiet`; the
+   words are sm8-hook-words'. Nothing on Home, nothing in the bell.
+
+   `none`, `partial` and `deactivated` are read off what the reconcile
+   stored (sm8_webhooks.objects). `quiet` needs a count of the mirror, so it
+   is the NIGHTLY check's, after the syncs have brought the day's edits in:
+   it marks quiet_since, and the next ping clears it (sm8_take_ping). The
+   screen reads the mark and never counts. */
+
+type HealthRow = {
+  objects: unknown;
+  subscribed_at: string | null;
+  last_ping_at: string | null;
+  quiet_since: string | null;
+  rotate_wanted_at: string | null;
+  ensure_tried_at: string | null;
+};
+
+const HEALTH_COLUMNS = "objects, subscribed_at, last_ping_at, quiet_since, rotate_wanted_at, ensure_tried_at";
+
+/** Whether no reconcile has had its go at what is there yet: none has ever
+    tried, a connect has owed a rotation since the last one tried, or one is
+    running now (its ensure_tried_at holds the end of its budget). What the
+    row says then is being put right, so nothing is said of it. */
+export function sm8HooksSettling(row: Pick<HealthRow, "rotate_wanted_at" | "ensure_tried_at"> | null, now: number): boolean {
+  const tried = msOf(row?.ensure_tried_at ?? null);
+  if (tried === null || tried > now) return true;
+  const owed = msOf(row?.rotate_wanted_at ?? null);
+  return owed !== null && owed > tried;
+}
+
+/** How live updates are by the one row, with no count made: `quiet` is
+    what the nightly check last found (quiet_since), never counted again
+    here. */
+export function sm8HooksHealthOf(row: Pick<HealthRow, "objects" | "subscribed_at" | "last_ping_at" | "quiet_since"> | null, now: number): Sm8HooksHealth {
+  return sm8HooksHealth({
+    objects: readHookObjects(row?.objects),
+    subscribedAt: msOf(row?.subscribed_at ?? null),
+    lastPingAt: msOf(row?.last_ping_at ?? null),
+    editedSince: row?.quiet_since ? QUIET_EDITS : null,
+    now,
+  });
+}
+
+/** What the owner's ServiceM8 screen says of live updates: null — nothing —
+    while they work, while a reconcile is still to have its go, when the row
+    can't be read, and on any switch but `on`, where nothing is read at all.
+    One read of one row otherwise. Never throws. */
+export async function readSm8HooksHealth(orgId: string, now: number = Date.now()): Promise<Sm8HooksHealth | null> {
+  if (sm8WebhooksState() !== "on") return null;
+  try {
+    const { data, error } = await supabaseAdmin.from(WEBHOOKS).select(HEALTH_COLUMNS).eq("org_id", orgId).maybeSingle();
+    if (error) return null;
+    const row = (data as HealthRow | null) ?? null;
+    if (sm8HooksSettling(row, now)) return null;
+    const health = sm8HooksHealthOf(row, now);
+    return health.state === "ok" ? null : health;
+  } catch {
+    return null;
+  }
+}
+
+export type Sm8QuietCheck = {
+  /** `settling`: a reconcile is still to have its go (sm8HooksSettling).
+      `unread`: the row, the account's clock or a count couldn't be read. */
+  state: Sm8HooksHealth["state"] | "settling" | "unread";
+  /** The mirror was counted. */
+  counted: boolean;
+  /** Quiet, and a reconcile was run for it. */
+  ensured: boolean;
+};
+
+/** Covered records edited after `stamp` (the account's clock, as the mirror
+    keeps edit_date), counted table by table and no further than
+    QUIET_EDITS. Null when a count fails. */
+async function editedSince(orgId: string, stamp: string): Promise<number | null> {
+  let n = 0;
+  for (const o of HOOK_OBJECT_NAMES) {
+    const { count, error } = await supabaseAdmin
+      .from(hookSpecOf(o).table)
+      .select("uuid", { count: "exact", head: true })
+      .eq("org_id", orgId)
+      .gt("edit_date", stamp);
+    if (error || typeof count !== "number") return null;
+    n += count;
+    if (n >= QUIET_EDITS) break;
+  }
+  return n;
+}
+
+/** THE NIGHTLY CHECK, after the syncs have brought the day's edits in:
+    1. the row; a reconcile still to have its go is left alone (the
+       screen's rule too);
+    2. the state from what the reconcile stored — and only when that is
+       `ok` and the last ping (or the subscribing) is more than a day old,
+       the count: covered records edited since quietStampFrom, in the
+       account's clock;
+    3. quiet: quiet_since marked, only where it isn't already and no ping
+       has come since the row was read (a ping clears the mark and moves
+       last_ping_at, and must win), then a reconcile in what is left of
+       `budgetMs`. `ok`: a mark from an earlier night cleared.
+    Any other state is the reconcile's to put right, and the screen's to
+    say. Nothing on any switch but `on`. Never throws. */
+export async function checkSm8HooksQuiet(orgId: string, opts: { budgetMs: number; clock?: () => number }): Promise<Sm8QuietCheck> {
+  const unread: Sm8QuietCheck = { state: "unread", counted: false, ensured: false };
+  if (sm8WebhooksState() !== "on") return unread;
+  const clock = opts.clock ?? Date.now;
+  const started = clock();
+  try {
+    const { data, error } = await supabaseAdmin.from(WEBHOOKS).select(HEALTH_COLUMNS).eq("org_id", orgId).maybeSingle();
+    if (error) return unread;
+    const row = (data as HealthRow | null) ?? null;
+    if (row === null || sm8HooksSettling(row, started)) return { state: "settling", counted: false, ensured: false };
+
+    const stored = sm8HooksHealthOf({ ...row, quiet_since: null }, started);
+    if (stored.state !== "ok") return { state: stored.state, counted: false, ensured: false };
+
+    const last = msOf(row.last_ping_at) ?? msOf(row.subscribed_at);
+    let counted = false;
+    let edits: number | null = null;
+    if (last !== null && started - last > QUIET_AFTER_MS) {
+      const tz = await accountClock(orgId);
+      const stamp = tz === null ? null : quietStampFrom(last, tz);
+      if (stamp === null) return unread;
+      edits = await editedSince(orgId, stamp);
+      if (edits === null) return unread;
+      counted = true;
+    }
+    const health = sm8HooksHealth({
+      objects: readHookObjects(row.objects),
+      subscribedAt: msOf(row.subscribed_at),
+      lastPingAt: msOf(row.last_ping_at),
+      editedSince: edits,
+      now: started,
+    });
+
+    if (health.state !== "quiet") {
+      if (row.quiet_since !== null) {
+        const { error: cleared } = await supabaseAdmin.from(WEBHOOKS).update({ quiet_since: null }).eq("org_id", orgId);
+        if (cleared) console.error(`[sm8] live updates for org ${orgId}: couldn't clear the quiet mark: ${cleared.message}`);
+      }
+      return { state: health.state, counted, ensured: false };
+    }
+
+    if (row.quiet_since === null) {
+      const mark = supabaseAdmin.from(WEBHOOKS).update({ quiet_since: iso(started) }).eq("org_id", orgId).is("quiet_since", null);
+      const { error: marked } = await (row.last_ping_at === null ? mark.is("last_ping_at", null) : mark.eq("last_ping_at", row.last_ping_at));
+      if (marked) console.error(`[sm8] live updates for org ${orgId}: couldn't mark it quiet: ${marked.message}`);
+    }
+    const left = started + opts.budgetMs - clock();
+    const ensured = left > 0 ? (await ensureSm8Webhooks(orgId, { budgetMs: left, clock })).ran : false;
+    return { state: "quiet", counted, ensured };
+  } catch (err) {
+    console.error(`[sm8] live updates for org ${orgId}: the health check threw: ${safe(err instanceof Error ? err.message : String(err), [])}`);
+    return unread;
+  }
+}
+
+/** The account's clock, as the last vendor read named it: the zone the
+    mirror's edit_date is written in. Null when there is none. */
+async function accountClock(orgId: string): Promise<string | null> {
+  const { data, error } = await supabaseAdmin.from("sm8_vendor").select("timezone_name").eq("org_id", orgId).maybeSingle();
+  if (error) return null;
+  const tz = (data as { timezone_name: string | null } | null)?.timezone_name;
+  return typeof tz === "string" && tz.trim() ? tz.trim() : null;
 }
 
 /* ── a disconnect ── */

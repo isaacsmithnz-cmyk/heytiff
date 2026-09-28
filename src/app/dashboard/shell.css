@@ -4533,6 +4533,9 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* when the mirror last moved, under the facts */
 .fg .int-syncline { margin:0; font-size:13px; line-height:1.5; color:var(--gray500); }
 .fg .int-syncline span:first-child { font-size:14px; font-weight:500; color:var(--ink); }
+/* live updates that aren't working, under it: a sentence in the state's
+   colour, because it asks for Reconnect (never shown while they work) */
+.fg .int-liveline { margin:0; font-size:14px; font-weight:500; line-height:1.5; color:var(--warn-t); }
 
 /* the mirror as a ledger: a name and a count, two to a row; a row still
    moving or stuck takes the width, because its tag is a sentence */

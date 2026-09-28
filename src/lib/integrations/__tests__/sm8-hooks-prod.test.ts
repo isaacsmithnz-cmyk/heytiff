@@ -26,7 +26,11 @@
    PR E: the route. Off, every request is 404 before a byte is read: no
    lookup, no after(), the drain never loaded. `gone` is the one difference
    the switch allows: a well-formed hook path answers 410, and still reads
-   nothing. */
+   nothing.
+
+   PR F: the owner's ServiceM8 screen, its loader run for real, reads what
+   it read and hands the screen the props it handed it — no read of live
+   updates, and no line — and the nightly cron checks no health. */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -127,8 +131,30 @@ jest.mock("../sm8-store", () => ({
   saveSm8Connection: rec("save", { ok: true }),
   disconnectSm8: rec("disconnectSm8", { cancelled: [], inFlight: 0 }),
   sm8AccessResult: rec("access", { ok: false, reason: "not_connected" }),
+  readSm8AccountChange: rec("accountChange", null),
 }));
-jest.mock("../store", () => ({ countConnectionsElsewhere: rec("elsewhere", 0), disconnectXero: rec("xero") }));
+jest.mock("../store", () => ({
+  countConnectionsElsewhere: rec("elsewhere", 0),
+  disconnectXero: rec("xero"),
+  getConnectionView: rec("connection", {
+    provider: "servicem8",
+    status: "connected",
+    tenantId: "acct-1c4b",
+    tenantName: "Acme Air",
+    tenants: [],
+    scopes: ["vendor"],
+    missing: [],
+    connectedAt: "2026-09-01T00:00:00.000Z",
+    connectedByName: null,
+    lastError: null,
+    writeMode: "live",
+  }),
+}));
+/* the owner's ServiceM8 screen (PR F): its loader, for real; what it hands
+   the screen is read off the element */
+jest.mock("@/components/integrations/servicem8-screen", () => ({ Servicem8Screen: () => null }));
+jest.mock("../sm8-read", () => ({ readSm8Vendor: rec("readVendor", { ok: true, data: { name: "Acme Air", timezoneName: null } }) }));
+jest.mock("@/app/actions/staff-import", () => ({ getSm8PeopleData: rec("people", null) }));
 jest.mock("../sm8-sync", () => ({
   runSm8SyncWhenFree: rec("whenFree", { ran: true, note: "", pagesUsed: 1, rowsPulled: 0, complete: true }),
   switchSm8AccountUnderLease: rec("switch", { ok: true, cancelled: 0, cleared: true }),
@@ -136,6 +162,7 @@ jest.mock("../sm8-sync", () => ({
   sm8SyncIsStale: rec("stale", true),
   sweepableSm8Orgs: rec("sweepable", ["org-5d21"]),
   recordSm8CronVisit: rec("visit"),
+  listSm8SyncStatus: rec("syncStatus", { objects: [], lastRun: null }),
 }));
 jest.mock("../sm8-writes", () => ({
   runSm8Writes: rec("writes", { done: 0, sent: 0, trial: 0, failed: 0, again: 0, lost: 0, stopped: null }),
@@ -144,7 +171,10 @@ jest.mock("../sm8-writes", () => ({
   orgsWithDueSm8Writes: rec("dueOrgs", ["org-5d21"]),
   clearSm8NoteText: rec("clearNotes", 0),
   clearDisconnectedSm8NoteText: rec("clearGone", 0),
-  readSm8WriteState: rec("writeState"),
+  readSm8WriteState: rec("writeState", { readable: false }),
+  countSm8Queue: rec("queue", { waiting: 0, failed: 0, waitingKinds: { attachment: 0, note: 0, booking: 0 } }),
+  countSm8WritesSentLately: rec("sentLately", 0),
+  listRecentSm8Writes: rec("recent", []),
   retryFailedSm8Writes: rec("retry"),
   setSm8WriteKind: rec("kind"),
   setSm8WriteMode: rec("mode"),
@@ -164,6 +194,8 @@ import { GET as cronGET } from "@/app/api/cron/sm8-sync/route";
 import { disconnectServiceM8Action } from "@/app/actions/integrations";
 import { freshenSm8AfterResponse } from "../sm8-freshness";
 import { GET as hookGET, POST as hookPOST } from "@/app/api/integrations/servicem8/webhook/[hook]/route";
+import Servicem8IntegrationPage from "@/app/dashboard/admin/integrations/servicem8/page";
+import type { ReactElement } from "react";
 
 const env = { ...process.env };
 const realFetch = global.fetch;
@@ -322,7 +354,58 @@ describe("with the switch off, each entry point makes today's calls exactly", ()
       calls: ["dueOrgs", "writes:cron", "clearNotes", "clearGone", "sweepable", "sync:cron", "evict", "asks"],
       touched: [],
     });
-    for (const b of bodies) expect(b).not.toHaveProperty("hooks");
+    for (const b of bodies) {
+      expect(b).not.toHaveProperty("hooks");
+      expect(b).not.toHaveProperty("hookHealth");
+    }
+  });
+
+  it("the owner's ServiceM8 screen: today's reads, no read of live updates, and today's props", async () => {
+    const props: Record<string, unknown>[] = [];
+    const seen = await underEach(async () => {
+      const el = (await Servicem8IntegrationPage({ searchParams: Promise.resolve({}) })) as ReactElement<Record<string, unknown>>;
+      props.push(el.props);
+    });
+    expectToday(seen, {
+      calls: [
+        "connection:servicem8",
+        "queue:acct-1c4b",
+        "accountChange",
+        "writeState",
+        "recent",
+        "sentLately",
+        "readVendor",
+        "syncStatus",
+        "people",
+        "elsewhere:servicem8",
+        "after",
+        "notesDue",
+        "writesDue",
+        "writes:kick",
+        "stale",
+        "sync:kick",
+        "asks",
+      ],
+      touched: ["integration_connections"],
+    });
+    for (const p of props) {
+      expect(Object.keys(p).sort()).toEqual([
+        "configured",
+        "connection",
+        "elsewhere",
+        "notice",
+        "people",
+        "previousAccount",
+        "reach",
+        "sealed",
+        "sync",
+        "waitingBookings",
+        "waitingNotes",
+        "waitingWrites",
+        "writeScopes",
+        "writes",
+      ]);
+    }
   });
 });
 
@@ -337,6 +420,9 @@ describe("the subscriber itself, with the switch anything but on", () => {
       expect(await hooks.removeSm8Webhooks("org-5d21", { budgetMs: 8_000 })).toMatchObject({ ran: false });
       await hooks.markSm8RotationOwed("org-5d21", "acct-1c4b");
       expect(await hooks.dropExpiredSm8Hooks()).toBe(0);
+      /* PR F: the screen's read and the night's check */
+      expect(await hooks.readSm8HooksHealth("org-5d21")).toBeNull();
+      expect(await hooks.checkSm8HooksQuiet("org-5d21", { budgetMs: 30_000 })).toEqual({ state: "unread", counted: false, ensured: false });
     });
     expectToday(seen, { calls: [], touched: [] });
   });

@@ -22,6 +22,8 @@ import {
   sm8WriteKindsEnabled,
 } from "@/lib/integrations/sm8-writes";
 import { SM8_WRITE_KIND_SCOPES, SM8_WRITE_SCOPE_LIST, SM8_WRITE_SCOPES } from "@/lib/integrations/providers";
+import { sm8WebhooksState } from "@/lib/integrations/sm8-hooks-switch";
+import { sm8LiveUpdatesLine } from "@/lib/integrations/sm8-hook-words";
 import type { Sm8WritesView } from "@/components/integrations/sm8-writes-card";
 
 /* The ServiceM8 connection screen. Owner-only, matching the routes it links
@@ -116,16 +118,24 @@ export default async function Servicem8IntegrationPage({
   let sync: Sm8SyncStatusView | null = null;
   let people: Awaited<ReturnType<typeof getSm8PeopleData>> = null;
   let elsewhere = 0;
+  let liveUpdates: string | null = null;
   if (connection && connection.status === "connected") {
-    const [vendor, status, peopleData, alsoConnected] = await Promise.all([
+    const [vendor, status, peopleData, alsoConnected, hooksHealth] = await Promise.all([
       readSm8Vendor(orgId),
       listSm8SyncStatus(orgId),
       // the reconcile card: live staff.json against this workspace's cards
       getSm8PeopleData(),
       // whether this same account is mirrored into other workspaces too
       countConnectionsElsewhere(orgId, "servicem8", connection.tenantId),
+      /* live updates from ServiceM8 (two-way phase 4): one line, only when
+         they aren't working. With the switch anything but on, nothing is
+         read and the subscribing module is never loaded. */
+      sm8WebhooksState() === "on"
+        ? import("@/lib/integrations/sm8-hooks").then((m) => m.readSm8HooksHealth(orgId))
+        : null,
     ]);
     elsewhere = alsoConnected;
+    liveUpdates = sm8LiveUpdatesLine(hooksHealth);
     reach = vendor.ok
       ? { ok: true, account: { name: vendor.data.name, timezoneName: vendor.data.timezoneName } }
       : { ok: false, error: vendor.error };
@@ -199,6 +209,8 @@ export default async function Servicem8IntegrationPage({
       waitingNotes={queue.waitingKinds.note}
       waitingBookings={queue.waitingKinds.booking}
       previousAccount={previousAccount ? { name: previousAccount.from, at: previousAccount.at } : null}
+      /* only when there is something to say: otherwise the props are today's */
+      {...(liveUpdates ? { liveUpdates } : {})}
     />
   );
 }

@@ -91,8 +91,18 @@ jest.mock("@/lib/integrations/sm8-hooks", () => {
       events.push("expire");
       return 1;
     }),
+    checkSm8HooksQuiet: jest.fn(async (org: string, opts: { budgetMs: number }) => {
+      events.push(`health:${org}`);
+      checked.push({ org, budgetMs: opts.budgetMs });
+      clock += healthTakes.shift() ?? 0;
+      return healthAnswers.shift() ?? { state: "ok", counted: true, ensured: false };
+    }),
   };
 });
+/* the nightly health check (PR F) */
+const checked: { org: string; budgetMs: number }[] = [];
+let healthTakes: number[] = [];
+let healthAnswers: { state: string; counted: boolean; ensured: boolean }[] = [];
 
 /* Live updates' leftover drains (two-way phase 4, PR D): loaded only with
    SM8_WEBHOOKS on, the same way. */
@@ -398,11 +408,13 @@ describe("live updates' nightly reconcile (two-way phase 4)", () => {
       else process.env.SM8_WEBHOOKS = hooks;
       const body = await (await GET(byScheduler())).json();
       expect(body).not.toHaveProperty("hooks");
+      expect(body).not.toHaveProperty("hookHealth");
     }
     expect(hooksLoaded).toBe(false);
     expect(events.some((e) => e.startsWith("ensure"))).toBe(false);
     expect(drainLoaded).toBe(false);
     expect(events.some((e) => e.startsWith("drain"))).toBe(false);
+    expect(events.some((e) => e.startsWith("health"))).toBe(false);
   });
 
   it("on: one reconcile per swept workspace after the writes and before any sync, then the expired hooks go", async () => {
@@ -514,5 +526,63 @@ describe("live updates' leftover drains (two-way phase 4, PR D)", () => {
     const body = await (await GET(byScheduler())).json();
     expect(drained).toEqual([]);
     expect(body.drains).toMatchObject({ deferred: 2 });
+  });
+});
+
+describe("live updates' nightly health check (two-way phase 4, PR F)", () => {
+  const env = { ...process.env };
+  beforeEach(() => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    checked.length = 0;
+    healthTakes = [];
+    healthAnswers = [];
+  });
+  afterEach(() => {
+    process.env = { ...env };
+  });
+  /** start + maxDuration less the asks' margin (15 s) */
+  const WINDOW = 285_000;
+
+  it("checks each swept workspace after every sync and the drains, before the eviction and the asks, and counts what it found", async () => {
+    healthAnswers = [
+      { state: "quiet", counted: true, ensured: true },
+      { state: "partial", counted: false, ensured: false },
+    ];
+    const body = await (await GET(byScheduler())).json();
+    const lastSync = events.map((e) => e.startsWith("sync:")).lastIndexOf(true);
+    expect(events.slice(lastSync + 1, events.indexOf("evict"))).toEqual(["drain:s1", "drain:s2", "health:s1", "health:s2"]);
+    expect(events.indexOf("evict")).toBeLessThan(events.findIndex((e) => e.startsWith("asks:")));
+    expect(body.hookHealth).toEqual({ checked: 2, quiet: 1, unwell: 1, ensured: 1, deferred: 0 });
+  });
+
+  it("doesn't count a workspace still settling, or one it couldn't read, as checked", async () => {
+    healthAnswers = [
+      { state: "settling", counted: false, ensured: false },
+      { state: "unread", counted: false, ensured: false },
+    ];
+    const body = await (await GET(byScheduler())).json();
+    expect(body.hookHealth).toEqual({ checked: 0, quiet: 0, unwell: 0, ensured: 0, deferred: 0 });
+  });
+
+  it("gives the whole step 30 s, less the 2 s a reconcile's last writes keep", async () => {
+    healthTakes = [10_000];
+    await GET(byScheduler());
+    expect(checked).toEqual([
+      { org: "s1", budgetMs: 28_000 },
+      { org: "s2", budgetMs: 18_000 },
+    ]);
+  });
+
+  it("ends before the asks' margin, and a workspace it doesn't reach waits for the next night", async () => {
+    // the first sync runs until 15 s before the window's end
+    syncTakes = [WINDOW - 15_000];
+    healthTakes = [13_000];
+    const body = await (await GET(byScheduler())).json();
+    // 15 s left, less the 2 s a reconcile's last writes keep
+    expect(checked).toEqual([{ org: "s1", budgetMs: 13_000 }]);
+    expect(body.hookHealth).toMatchObject({ checked: 1, deferred: 1 });
+    // the asks still come after it
+    expect(events.filter((e) => e.startsWith("asks:")).length).toBeGreaterThan(0);
   });
 });

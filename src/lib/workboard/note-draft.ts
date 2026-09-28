@@ -187,6 +187,12 @@ export function planRows(p: NoteProposal): PlanRow[] {
   return rows;
 }
 
+/** A read that files nothing: no row, no remark, no question. "Open up Isaac
+    Smith" reads this way, and so does a clip of noise; filing it only ever
+    said "Done." over nothing. */
+export const filesNothing = (p: NoteProposal): boolean =>
+  planRows(p).length === 0 && !p.plainNote.trim() && !p.clarify;
+
 /** The draft with the named rows unticked. A key that names nothing is
     ignored: the browser can only take a row OFF, never put one on. */
 export function withoutRows(d: Draft, keys: readonly string[]): Draft {

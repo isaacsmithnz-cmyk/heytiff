@@ -284,7 +284,7 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   let myLoadKw = 0;
   let shareDiffers = false;
   /* a VRF's sizes come from its tree: each head's own section */
-  const vrfTree = systemVrfTree(pack, sys);
+  const vrfTree = systemVrfTree(pack, sys, draft);
   const sizeOf = (a: Allocation): string | null => {
     const sec = vrfTree ? headSection(vrfTree, a.id) : null;
     return sec ? `${sec.liquidMm} / ${sec.gasMm}` : pipeSize(pack, sys, a, odu?.model ?? null);
@@ -443,7 +443,16 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     if (pair) limitsText = `${pair.max_length_m} m, ${pair.max_lift_m} m lift`;
   }
   const runs = draft.objects.filter((o) => o.systemId === sys.id && (o.type as string) === "pipe-run").length;
-  const drawnText = runs ? `${runs} ${runs === 1 ? "run" : "runs"}` : "Not yet";
+  const runsText = `${runs} ${runs === 1 ? "run" : "runs"}`;
+  /* a VRF's sizes come from the drawing once it reaches every head, so the
+     fact says how far the drawing has got */
+  const drawnText = !runs
+    ? "Not yet"
+    : vrfTree && vrfTree.heads > 0
+      ? vrfTree.joined === vrfTree.heads
+        ? `${runsText}, every head joined`
+        : `${runsText}, ${vrfTree.joined} of ${vrfTree.heads} heads joined`
+      : runsText;
   const refrigerantText = oduRow
     ? `${oduRow.refrigerant}${oduRow.precharged_kg != null ? `, ${oduRow.precharged_kg.toFixed(2)} kg pre-charged` : ""}`
     : null;

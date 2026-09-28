@@ -1752,6 +1752,7 @@ function Editor({
         a: "note",
         p: "pipe",
         i: "riser",
+        j: "joint",
         k: "measure",
       };
       const next = toolKeys[e.key.toLowerCase()];
@@ -1768,7 +1769,7 @@ function Editor({
 
       // pipe and riser draw for a system — none without one. A zone belongs
       // to the plan and needs none.
-      if ((next === "pipe" || next === "riser") && !effectiveSystemId) return;
+      if ((next === "pipe" || next === "riser" || next === "joint") && !effectiveSystemId) return;
       changeTool(next);
     };
     // right-click disarms like Esc: let go of a unit riding the cursor (the
@@ -2562,7 +2563,7 @@ function DrawTool({
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
-  const on = isRunTool(tool) || tool === "riser";
+  const on = isRunTool(tool) || tool === "riser" || tool === "joint";
   const arm = (t: CanvasTool, patch?: Partial<DrawOptions>) => {
     if (patch) onDraw({ ...draw, ...patch });
     onTool(t);
@@ -2595,7 +2596,7 @@ function DrawTool({
         title={
           disabled
             ? "Draw — pick a system first"
-            : "Draw — pipe, drain, cable, duct or riser"
+            : "Draw — pipe, drain, cable, duct, riser or joint"
         }
         onClick={() => setOpen((v) => !v)}
       >
@@ -2663,6 +2664,17 @@ function DrawTool({
             </span>
             <div className="ds-drawchips">
               {chip("Joins floors", true, "riser")}
+            </div>
+          </div>
+          {/* where a refrigerant run branches; a run's end landed on
+              another run makes one too */}
+          <div className="ds-drawrow">
+            <span className="ds-drawk">
+              <Icon name="pipe" size={14} />
+              Joint
+            </span>
+            <div className="ds-drawchips">
+              {chip("Branches a run", true, "joint")}
             </div>
           </div>
         </div>

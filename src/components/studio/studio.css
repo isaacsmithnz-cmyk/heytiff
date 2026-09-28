@@ -4528,6 +4528,15 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-riser.sel circle { stroke-width: 3.5px; }
+/* a refrigerant joint (joints.ts): a solid square in the system's colour,
+   ringed in paper so it reads on top of the run it sits on */
+.dstudio .ds-joint rect {
+  fill: currentColor;
+  stroke: var(--paper);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-joint.sel rect { stroke: currentColor; stroke-width: 3.5px; }
 .dstudio .ds-riser text {
   fill: currentColor;
   text-anchor: middle;

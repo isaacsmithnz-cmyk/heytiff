@@ -71,6 +71,7 @@ import { isAirCapable } from "@/lib/studio/modules";
 import { deleteZone } from "@/lib/studio/builder";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf } from "@/lib/studio/graph";
+import { jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
 import { anchorFloating, dodgeSlot, type Size } from "@/lib/studio/anchor";
 import {
   moveEndpointTo,
@@ -199,6 +200,7 @@ export type CanvasTool =
   | "drain" // condensate drain — straight segments, size picked at draw
   | "cable" // power/data cable — dots smoothed into a curve
   | "riser"
+  | "joint" // a refrigerant joint: on a run it cuts it and branches there
   | "component" // air component armed from the palette (Stage 7 — plenum first)
   | "note"; // markup: a revision cloud round something, with its say in the margin
 
@@ -222,6 +224,8 @@ export const isRunTool = (t: CanvasTool): t is "pipe" | "drain" | "cable" =>
 
 /** the object types those tools commit (hit/erase/drag-follow treat alike) */
 const RUN_TYPES = new Set(["pipe-run", "drain-run", "cable-run"]);
+/** what a run's end can attach to (graph.ts Attach) */
+type AnchorKind = "unit" | "riser" | "joint";
 
 /** does this run render as a smoothed curve? cables always; pipe when soft */
 export const isCurvedRun = (o: {
@@ -956,6 +960,14 @@ export function StudioCanvas({
       ),
     [doc.objects, inScope]
   );
+  const joints = useMemo(
+    () =>
+      doc.objects.filter(
+        (o): o is DesignObject & { geometry: { kind: "point"; at: Point } } =>
+          inScope(o) && o.type === "joint" && o.geometry.kind === "point"
+      ),
+    [doc.objects, inScope]
+  );
   const runs = useMemo(
     () =>
       doc.objects.filter(
@@ -980,9 +992,9 @@ export function StudioCanvas({
   const [livePoint, setLivePoint] = useState<{ id: string; at: Point } | null>(null);
   const pointById = useMemo(() => {
     const m = new Map<string, { id: string; geometry: { at: Point } }>();
-    for (const o of [...units, ...risers]) m.set(o.id, o);
+    for (const o of [...units, ...risers, ...joints]) m.set(o.id, o);
     return m;
-  }, [units, risers]);
+  }, [units, risers, joints]);
   /** live anchor for an attach target: the point object being dragged, or a
       unit travelling with a mid-drag room move; null when the target is at
       rest (render from the document) */
@@ -1040,7 +1052,7 @@ export function StudioCanvas({
       }),
     [tool]
   );
-  const pipeStartAttach = useRef<{ kind: "unit" | "riser"; id: string } | null>(null);
+  const pipeStartAttach = useRef<{ kind: AnchorKind; id: string } | null>(null);
 
   /* IS SOMETHING HALF-DRAWN — the one answer both Esc and right-click ask,
      named once because they used to disagree. The calibration's first point
@@ -1072,10 +1084,10 @@ export function StudioCanvas({
       the click (the show-the-snap-target-first rule). */
   const anchors = useMemo(
     () =>
-      [...units, ...risers]
+      [...units, ...risers, ...joints]
         .filter((o) => o.systemId === activeSystemId)
-        .map((o) => ({ kind: (o.type === "unit" ? "unit" : "riser") as "unit" | "riser", id: o.id, at: pointAt(o) })),
-    [units, risers, activeSystemId, pointAt]
+        .map((o) => ({ kind: o.type as AnchorKind, id: o.id, at: pointAt(o) })),
+    [units, risers, joints, activeSystemId, pointAt]
   );
 
 
@@ -1388,7 +1400,7 @@ export function StudioCanvas({
   /** nearest connection anchor within snap range of a world point */
   const nearestAnchor = useCallback(
     (w: Point) => {
-      let best: { kind: "unit" | "riser"; id: string; at: Point } | null = null;
+      let best: { kind: AnchorKind; id: string; at: Point } | null = null;
       let bestD = ANCHOR_SNAP_PX / vp.zoom;
       for (const a of anchors) {
         const d = dist(a.at, w);
@@ -1400,6 +1412,18 @@ export function StudioCanvas({
       return best;
     },
     [anchors, vp.zoom]
+  );
+
+  /** where a click lands on one of the active system's refrigerant runs on
+      this floor, within the edge tolerance: the joint's spot */
+  const runLanding = useCallback(
+    (w: Point) =>
+      nearestOnRuns(
+        runs.filter((r) => r.systemId === activeSystemId),
+        w,
+        HIT_EDGE_PX / vp.zoom
+      ),
+    [runs, activeSystemId, vp.zoom]
   );
 
   /** unit footprint in world units (mm → units when calibrated; a sensible
@@ -2087,7 +2111,7 @@ export function StudioCanvas({
   /** system objects hit first (they sit on top of rooms): plenum bodies,
       unit footprints, riser discs, then run segments */
   const hitSystemObject =
-    (w: Point): { id: string; kind: "unit" | "riser" | "pipe-run" | "plenum" } | null => {
+    (w: Point): { id: string; kind: "unit" | "riser" | "joint" | "pipe-run" | "plenum" } | null => {
       for (let i = plenums.length - 1; i >= 0; i--) {
         const s = plenumShapes.get(plenums[i].id);
         if (s && pointInPolygon(w, s.body)) return { id: plenums[i].id, kind: "plenum" };
@@ -2114,6 +2138,10 @@ export function StudioCanvas({
       for (let i = risers.length - 1; i >= 0; i--) {
         if (dist(pointAt(risers[i]), w) <= 12 / vp.zoom)
           return { id: risers[i].id, kind: "riser" };
+      }
+      for (let i = joints.length - 1; i >= 0; i--) {
+        if (dist(pointAt(joints[i]), w) <= 8 / vp.zoom)
+          return { id: joints[i].id, kind: "joint" };
       }
       const tol = HIT_EDGE_PX / vp.zoom;
       for (let i = runs.length - 1; i >= 0; i--) {
@@ -2244,9 +2272,9 @@ export function StudioCanvas({
           return;
         }
       }
-      for (let i = risers.length - 1; i >= 0; i--) {
-        if (dist(pointAt(risers[i]), w) <= 12 / vp.zoom + tol) {
-          const id = risers[i].id;
+      for (const pt of [...risers, ...joints].reverse()) {
+        if (dist(pointAt(pt), w) <= (pt.type === "joint" ? 8 : 12) / vp.zoom + tol) {
+          const id = pt.id;
           onMutate((d) => ({
             ...d,
             objects: stripAttachesTo(
@@ -2424,9 +2452,16 @@ export function StudioCanvas({
   );
 
   const commitPipe = useCallback(
-    (points: Point[], endAttach: { kind: "unit" | "riser"; id: string } | null) => {
+    (
+      points: Point[],
+      endAttach: { kind: AnchorKind; id: string } | null,
+      /* the end landed on another refrigerant run: a joint goes there first,
+         cutting it (joints.ts), and the new run ends on the joint */
+      landOn?: { runId: string; seg: number; at: Point }
+    ) => {
       if (!activeSystemId || points.length < 2) return;
       const startAttach = pipeStartAttach.current;
+      const landId = landOn ? newId("obj") : null;
       // what the armed Draw tool commits: the type + its picked-at-draw props
       const runKind: { type: string; props: Record<string, unknown> } =
         tool === "drain"
@@ -2439,25 +2474,30 @@ export function StudioCanvas({
                 // only soft is worth a word on the document
                 props: draw.pipeForm === "soft" ? { form: "soft" } : {},
               };
-      onMutate((d) => ({
-        ...d,
-        objects: [
-          ...d.objects,
-          {
-            id: newId("obj"),
-            type: runKind.type,
-            systemId: activeSystemId,
-            floorId: floor.id,
-            geometry: { kind: "polyline", points },
-            plane: "room",
-            props: {
-              ...runKind.props,
-              ...(startAttach ? { startAttach } : {}),
-              ...(endAttach ? { endAttach } : {}),
-            },
-          } satisfies DesignObject,
-        ],
-      }));
+      onMutate((d0) => {
+        const landed = landOn && landId ? jointOnRun(d0, landOn.runId, landOn.seg, landOn.at, landId) : null;
+        const d = landed?.doc ?? d0;
+        const end = landed ? { kind: "joint" as const, id: landed.jointId } : endAttach;
+        return {
+          ...d,
+          objects: [
+            ...d.objects,
+            {
+              id: newId("obj"),
+              type: runKind.type,
+              systemId: activeSystemId,
+              floorId: floor.id,
+              geometry: { kind: "polyline", points },
+              plane: "room",
+              props: {
+                ...runKind.props,
+                ...(startAttach ? { startAttach } : {}),
+                ...(end ? { endAttach: end } : {}),
+              },
+            } satisfies DesignObject,
+          ],
+        };
+      });
       setDraftPipe([]);
       pipeStartAttach.current = null;
     },
@@ -2665,9 +2705,9 @@ export function StudioCanvas({
         if (sys) {
           onSelect(sys.id);
           // plenums are anchored (their position derives from the AHU) and
-          // runs are polylines — only units/risers start a point drag
-          if (sys.kind === "unit" || sys.kind === "riser") {
-            const o = [...units, ...risers].find((x) => x.id === sys.id)!;
+          // runs are polylines — only units/risers/joints start a point drag
+          if (sys.kind === "unit" || sys.kind === "riser" || sys.kind === "joint") {
+            const o = [...units, ...risers, ...joints].find((x) => x.id === sys.id)!;
             setDrag({ kind: "point", id: sys.id, startWorld: w, orig: pointAt(o) });
           }
           break;
@@ -2721,21 +2761,32 @@ export function StudioCanvas({
       case "cable": {
         tap(() => {
           const anchor = nearestAnchor(w);
+          /* a refrigerant run's end on another run of its system branches
+             there: a joint goes on it (anchors win when both are in reach) */
+          const onRun = !anchor && tool === "pipe" ? runLanding(w) : null;
           // free first vertex; later vertices ortho-snap to the previous point
           // so runs stay horizontal/vertical (anchors always win). The curved
           // draws — soft pipe, cable — place their dots free: the smoothing
           // is the point.
           const curved = tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft");
           const prev = draftPipe[draftPipe.length - 1];
-          const p = anchor ? anchor.at : prev && !curved ? orthoSnap(prev, w) : w;
+          const p = anchor ? anchor.at : onRun ? onRun.at : prev && !curved ? orthoSnap(prev, w) : w;
           if (draftPipe.length === 0) {
-            pipeStartAttach.current = anchor
-              ? { kind: anchor.kind, id: anchor.id }
-              : null;
+            if (onRun) {
+              const jointId = newId("obj");
+              onMutate((d) => jointOnRun(d, onRun.runId, onRun.seg, onRun.at, jointId)?.doc ?? d);
+              pipeStartAttach.current = { kind: "joint", id: jointId };
+            } else {
+              pipeStartAttach.current = anchor
+                ? { kind: anchor.kind, id: anchor.id }
+                : null;
+            }
             setDraftPipe([p]);
           } else if (anchor) {
             // landing on an anchor completes the run — the magnetic connection
             commitPipe([...draftPipe, p], { kind: anchor.kind, id: anchor.id });
+          } else if (onRun) {
+            commitPipe([...draftPipe, p], null, onRun);
           } else {
             setDraftPipe((pts) => [...pts, p]);
           }
@@ -2744,6 +2795,15 @@ export function StudioCanvas({
       }
       case "riser": {
         tap(() => addRiser(w));
+        break;
+      }
+      case "joint": {
+        tap(() => {
+          if (!activeSystemId) return;
+          const onRun = runLanding(w);
+          if (onRun) onMutate((d) => jointOnRun(d, onRun.runId, onRun.seg, onRun.at)?.doc ?? d);
+          else onMutate((d) => ({ ...d, objects: [...d.objects, jointObject(activeSystemId, floor.id, w)] }));
+        });
         break;
       }
       case "room-poly": {
@@ -3644,6 +3704,11 @@ export function StudioCanvas({
   const hintsOn = useHintsOn();
 
   /* in-progress guidance while a step tool is active */
+  /* a refrigerant run also ends on another run (a joint goes there) */
+  const runEnds =
+    tool === "pipe"
+      ? "Enter, double-click, an anchor or another run ends it"
+      : "Enter, double-click or an anchor ends it";
   const toolHint: { icon: string; text: string } | null =
     tool === "calibrate" && !(calib.a && calib.b)
       ? {
@@ -3680,9 +3745,11 @@ export function StudioCanvas({
             icon: tool === "cable" ? "zap" : tool === "drain" ? "droplet" : "pipe",
             text:
               tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft")
-                ? "Place dots — the line curves through them. Enter, double-click or an anchor ends it · Esc to cancel"
-                : "Click each corner. Enter, double-click or an anchor ends it · Esc to cancel",
+                ? `Place dots — the line curves through them. ${runEnds} · Esc to cancel`
+                : `Click each corner. ${runEnds} · Esc to cancel`,
           }
+      : tool === "joint"
+        ? { icon: "pipe", text: "Click a run to branch it there, or anywhere to place a joint" }
       : tool === "note"
         ? {
             icon: "note",
@@ -4473,20 +4540,52 @@ export function StudioCanvas({
             );
           })}
 
+          {/* joints — a small square where the refrigerant branches */}
+          {layers.pipes && joints.map((j) => {
+            const at = pointAt(j);
+            const colour = sysColour.get(j.systemId ?? "") ?? "#888";
+            const half = 5 / zoom;
+            return (
+              <g key={j.id} className={`ds-joint${j.id === selectedId ? " sel" : ""}`} style={{ color: colour }}>
+                <rect x={at.x - half} y={at.y - half} width={half * 2} height={half * 2} />
+              </g>
+            );
+          })}
+
           {/* connection anchors — visible while piping; nearest one glows
-              BEFORE the click (pre-click snap feedback) */}
-          {isRunTool(tool) &&
+              BEFORE the click (pre-click snap feedback). A refrigerant run's
+              end over another run shows the joint it will make there. */}
+          {(isRunTool(tool) || tool === "joint") &&
             (() => {
-              const near = cursor ? nearestAnchor(cursor) : null;
-              return anchors.map((a) => (
-                <circle
-                  key={`${a.kind}:${a.id}`}
-                  className={`ds-anchor${near?.id === a.id ? " ready" : ""}`}
-                  cx={a.at.x}
-                  cy={a.at.y}
-                  r={(near?.id === a.id ? 9 : 5) / zoom}
-                />
-              ));
+              const near = cursor && tool !== "joint" ? nearestAnchor(cursor) : null;
+              const landing =
+                cursor && !near && (tool === "pipe" || tool === "joint") ? runLanding(cursor) : null;
+              const half = 6 / zoom;
+              return [
+                ...(tool === "joint"
+                  ? []
+                  : anchors.map((a) => (
+                      <circle
+                        key={`${a.kind}:${a.id}`}
+                        className={`ds-anchor${near?.id === a.id ? " ready" : ""}`}
+                        cx={a.at.x}
+                        cy={a.at.y}
+                        r={(near?.id === a.id ? 9 : 5) / zoom}
+                      />
+                    ))),
+                ...(landing
+                  ? [
+                      <rect
+                        key="landing"
+                        className="ds-anchor ready"
+                        x={landing.at.x - half}
+                        y={landing.at.y - half}
+                        width={half * 2}
+                        height={half * 2}
+                      />,
+                    ]
+                  : []),
+              ];
             })()}
 
           {/* run draft — straight tools preview the ortho-snapped tail, the
@@ -4498,6 +4597,7 @@ export function StudioCanvas({
               const tail = cursor
                 ? [
                     nearestAnchor(cursor)?.at ??
+                      (tool === "pipe" ? runLanding(cursor)?.at : undefined) ??
                       (curved
                         ? cursor
                         : orthoSnap(draftPipe[draftPipe.length - 1], cursor)),

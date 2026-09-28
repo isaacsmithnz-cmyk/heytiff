@@ -22,7 +22,8 @@
 
    Pure functions. No React, no canvas. */
 
-import type { DesignSystem } from "./document";
+import type { DesignDocument, DesignSystem } from "./document";
+import { buildSystemGraph } from "./graph";
 import type { DataPack, IndoorUnit, OutdoorUnit, PipeSizingRule, VrfPipeTable } from "./packs/schema";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { zoneIdsOf } from "./zones";
@@ -341,10 +342,81 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
   };
 }
 
-/** a VRF system's tree, sized: its heads in zone order (the provisional tree)
-    until the plan draws one. Null for any other system, or without an
-    outdoor. */
-export function systemVrfTree(pack: DataPack, sys: DesignSystem): SizedTree | null {
+/** the tree as DRAWN on the plan: from the outdoor through the system's
+    refrigerant runs, joints and risers (graph.ts). A riser, or a joint with
+    one run on, is passed through — its lengths add into one section. A run
+    that loops back makes a second way into a node, which the sizer calls out.
+    `joined` is the heads the drawing reaches. Null when the outdoor is not
+    on the plan. */
+export function drawnVrfTree(
+  doc: DesignDocument,
+  sys: DesignSystem,
+  oduId: string,
+  heads: { id: string; model: string }[]
+): { tree: VrfTree; joined: Set<string> } | null {
+  const graph = buildSystemGraph(doc.objects, doc.floors, sys.id);
+  if (!graph.nodes.has(oduId)) return null;
+  const headModel = new Map(heads.map((h) => [h.id, h.model]));
+  const adj = new Map<string, { to: string; lengthM: number | null; edge: string }[]>();
+  for (const e of graph.edges) {
+    adj.set(e.a, [...(adj.get(e.a) ?? []), { to: e.b, lengthM: e.lengthM, edge: e.id }]);
+    adj.set(e.b, [...(adj.get(e.b) ?? []), { to: e.a, lengthM: e.lengthM, edge: e.id }]);
+  }
+  /* walk out from the outdoor; every edge is used once, in the direction it
+     is first met */
+  const usedEdge = new Set<string>();
+  const out = new Map<string, { to: string; lengthM: number | null }[]>();
+  const seen = new Set([oduId]);
+  const queue = [oduId];
+  while (queue.length) {
+    const cur = queue.shift()!;
+    for (const n of adj.get(cur) ?? []) {
+      if (usedEdge.has(n.edge)) continue;
+      usedEdge.add(n.edge);
+      out.set(cur, [...(out.get(cur) ?? []), { to: n.to, lengthM: n.lengthM }]);
+      if (!seen.has(n.to)) {
+        seen.add(n.to);
+        queue.push(n.to);
+      }
+    }
+  }
+  /* keep the outdoor, the heads and the joints that branch; pass the rest */
+  const keep = (id: string): boolean =>
+    id === oduId || headModel.has(id) || (graph.nodes.get(id)?.type === "joint" && (out.get(id)?.length ?? 0) >= 2);
+  const nodes: VrfTreeNode[] = [{ id: oduId, kind: "odu" }];
+  const sections: VrfTreeSection[] = [];
+  const joined = new Set<string>();
+  const add = (from: string, to: string, lengthM: number | null, guard: Set<string>) => {
+    if (keep(to)) {
+      sections.push({ id: `${from}>${to}`, from, to, lengthM });
+      if (guard.has(to)) return;
+      guard.add(to);
+      if (headModel.has(to)) {
+        joined.add(to);
+        nodes.push({ id: to, kind: "idu", model: headModel.get(to) });
+      } else {
+        nodes.push({ id: to, kind: "joint" });
+      }
+      for (const n of out.get(to) ?? []) add(to, n.to, n.lengthM, guard);
+      return;
+    }
+    /* pass through: a riser, a joint with one run on, a unit not of this tree */
+    for (const n of out.get(to) ?? [])
+      add(from, n.to, lengthM == null || n.lengthM == null ? null : lengthM + n.lengthM, guard);
+  };
+  const guard = new Set<string>([oduId]);
+  for (const n of out.get(oduId) ?? []) add(oduId, n.to, n.lengthM, guard);
+  return { tree: { nodes, sections, provisional: false }, joined };
+}
+
+/** a VRF system's tree, sized: the one drawn on the plan once it reaches
+    every head, else its heads in zone order (the provisional tree). Null for
+    any other system, or without an outdoor. */
+export function systemVrfTree(
+  pack: DataPack,
+  sys: DesignSystem,
+  doc?: DesignDocument
+): (SizedTree & { joined: number; heads: number }) | null {
   if (sys.type !== "vrf" || !hasAllocations(sys)) return null;
   const allocs = allocationsOf(sys);
   const oduAlloc = allocs.find((a) => a.role === "odu" && a.model);
@@ -360,9 +432,13 @@ export function systemVrfTree(pack: DataPack, sys: DesignSystem): SizedTree | nu
     .filter(({ a }) => a.role === "idu" && a.model)
     .sort((x, y) => rank(x.a.roomId) - rank(y.a.roomId) || x.i - y.i)
     .map(({ a }) => ({ id: a.id, model: a.model }));
-  return sizeVrfTree(pack, odu, provisionalVrfTree(oduAlloc.id, heads));
+  const drawn = doc ? drawnVrfTree(doc, sys, oduAlloc.id, heads) : null;
+  const joined = drawn?.joined.size ?? 0;
+  const tree =
+    drawn && heads.length > 0 && joined === heads.length ? drawn.tree : provisionalVrfTree(oduAlloc.id, heads);
+  return { ...sizeVrfTree(pack, odu, tree), joined, heads: heads.length };
 }
 
 /** the section that feeds a head, sized */
 export const headSection = (tree: SizedTree, headId: string): SizedSection | null =>
-  tree.sections.find((s) => s.id === `s:${headId}`) ?? null;
+  tree.sections.find((s) => s.to === headId) ?? null;

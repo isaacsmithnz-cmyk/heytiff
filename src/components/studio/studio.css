@@ -6562,7 +6562,10 @@ html[data-ds-display] .dstudio.editing {
   border-radius: var(--r-button);
 }
 .dstudio .ds-send-drawing { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
-.dstudio .ds-send-dests { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.dstudio .ds-send-dests { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+/* a way out this design can't take yet says why in its own second line */
+.dstudio .ds-send-dests .ds-export-pick:disabled { opacity: 0.55; cursor: default; }
+.dstudio .ds-send-dests .ds-export-pick:disabled:hover { background: var(--paper); border-color: var(--line); }
 .dstudio .ds-send-caprow { display: flex; justify-content: space-between; }
 /* the parts, a tick each, in one ruled list; a floor or an option hangs
    under its part */

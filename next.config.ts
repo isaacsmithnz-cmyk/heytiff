@@ -79,6 +79,7 @@ const nextConfig: NextConfig = {
     /* Chromium's brotli archives are read off disk at run time, so the
        tracer never sees them: name them, or the first PDF dies looking */
     "/api/studio/design-pdf": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/api/studio/design-to-job": ["./node_modules/@sparticuz/chromium/bin/**/*"],
     // the print page builds the same sheet the live link does, off the packs
     "/print/design": ["./data/packs/**/*"],
   },

@@ -19,7 +19,7 @@ const jobPicklistActions = () => import("@/app/actions/job-picklist");
    Both of these live out here rather than in `push`'s try/catch: React
    Compiler 1.0 cannot lower a value block — a ternary, a `||` — inside a try
    and gives up on the whole component when it meets one. */
-const pushOutcome = (r: {
+export const pushOutcome = (r: {
   added: number;
   updated: number;
   heldBack: number;

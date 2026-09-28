@@ -124,8 +124,12 @@ export const config = {
   /* `brand` joins the exclusions because Auth0 and every mail client fetch
      those files — the logo, the font — while nobody is signed in, from their
      own servers. Running the session middleware on a PNG request achieved
-     nothing except doing it on every one of them. */
+     nothing except doing it on every one of them.
+
+     ServiceM8's pings (HOOK_PATH above) are left out too, so the proxy never
+     runs on a machine's call at all; the check at the top of proxy() stays,
+     for a matcher that ever drifts. proxy.test holds both. */
   matcher: [
-    "/((?!_next/static|_next/image|brand/|favicon.ico|sitemap.xml|robots.txt).*)",
+    "/((?!_next/static|_next/image|brand/|favicon.ico|sitemap.xml|robots.txt|api/integrations/servicem8/webhook/).*)",
   ],
 };

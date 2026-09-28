@@ -21,7 +21,8 @@ jest.mock("@/lib/auth0", () => ({
   },
 }));
 
-import { proxy } from "@/proxy";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+import { config, proxy } from "@/proxy";
 import { HOOK_PATH } from "@/lib/integrations/sm8-hook-plan";
 
 const env = process.env;
@@ -110,6 +111,23 @@ describe("ServiceM8's pings", () => {
       }
     }
     expect(middlewareSpy).not.toHaveBeenCalled();
+  });
+
+  test("the proxy doesn't run on that path at all: the matcher leaves it out, and only it", () => {
+    const runs = (url: string) => unstable_doesMiddlewareMatch({ config, url });
+    expect(runs(`${HOOK_PATH}${hook}`)).toBe(false);
+    expect(runs(`${HOOK_PATH}${hook}?mode=subscribe&challenge=c-1`)).toBe(false);
+    for (const url of [
+      "/dashboard",
+      "/auth/login",
+      "/api/cron/sm8-sync",
+      "/api/integrations/servicem8/callback",
+      "/api/integrations/servicem8/webhooks-x",
+      "/api/integrations/servicem8/webhook",
+      `/x${HOOK_PATH}${hook}`,
+    ]) {
+      expect([url, runs(url)]).toEqual([url, true]);
+    }
   });
 
   test("only that path is let through: a neighbour on another host still moves", async () => {

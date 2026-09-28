@@ -20,11 +20,14 @@ import {
   HOOK_PATH,
   HOOK_READ_TIMEOUT_MS,
   HOOK_WRITE_MARGIN_MS,
+  hookFieldLadder,
   hookFieldsFor,
+  hookFieldsHeld,
   hookHashOf,
   hookObjectOf,
   hookSpecOf,
   isHookSecret,
+  isInvalidField,
   isUnsupportedObject,
   normaliseHookObject,
   ourSecretIn,
@@ -126,6 +129,56 @@ describe("which records can ping", () => {
     // and one mirror spec per hook object
     for (const o of HOOK_OBJECT_NAMES) expect(SM8_OBJECTS.some((s) => s.object === o)).toBe(true);
   });
+
+  it("every one of the six offers only non-empty lists of real field names, each from its own shape", () => {
+    for (const o of HOOK_OBJECT_NAMES) {
+      const spec = hookSpecOf(o);
+      const shaped = Object.keys(spec.shape({ uuid: U1 }) ?? {});
+      const ladder = hookFieldLadder(spec);
+      expect(ladder.length).toBeGreaterThan(0);
+      expect(ladder[0]).toEqual(hookFieldsFor(spec));
+      for (const rung of ladder) {
+        expect(rung.length).toBeGreaterThan(0);
+        for (const f of rung) {
+          expect(f).toMatch(/^[a-z][a-z0-9_]*$/);
+          expect(shaped).toContain(f);
+        }
+        expect(new Set(rung).size).toBe(rung.length);
+      }
+      expect(ladder[ladder.length - 1]).toEqual(["active"]);
+    }
+    /* the pair ServiceM8 wouldn't take at W1 goes on the second rung, for the two that send it */
+    for (const o of ["job_notes", "attachments"] as const) {
+      const [full, unrelated] = hookFieldLadder(hookSpecOf(o));
+      expect(full).toEqual(expect.arrayContaining(["related_object", "related_object_uuid"]));
+      expect(unrelated).toEqual(full.filter((f) => f !== "related_object" && f !== "related_object_uuid"));
+    }
+    expect(hookFieldLadder(hookSpecOf("jobs"))).toHaveLength(2);
+  });
+
+  it("never offers an empty name, or none at all, whatever a shape returns", () => {
+    const spec = (row: Record<string, unknown> | null) => ({ ...hookSpecOf("job_notes"), shape: () => row as never });
+    expect(hookFieldsFor(spec({ uuid: U1, "": null, " ": null, "a,b": null, Note: null, note: null, edit_date: null }))).toEqual(["note", "active"]);
+    expect(hookFieldsFor(spec(null))).toEqual(["active"]);
+    expect(hookFieldLadder(spec(null))).toEqual([["active"]]);
+    expect(hookFieldLadder(spec({ uuid: U1, "": null }))).toEqual([["active"]]);
+  });
+
+  it("holds an object to the rung ServiceM8 last took, and to the richest otherwise", () => {
+    const notes = hookSpecOf("job_notes");
+    const [full, unrelated] = hookFieldLadder(notes);
+    expect(hookFieldsHeld(notes)).toEqual(full);
+    expect(hookFieldsHeld(notes, [...unrelated].reverse())).toEqual(unrelated);
+    expect(hookFieldsHeld(notes, ["active"])).toEqual(["active"]);
+    expect(hookFieldsHeld(notes, ["note"])).toEqual(full);
+    expect(hookFieldsHeld(notes, [])).toEqual(full);
+    expect(isInvalidField(400, '{"success":false,"message":"\\"\\" is not a valid field for subscription"}')).toBe(true);
+    expect(isInvalidField(400, "Object Potato does not support subscription")).toBe(false);
+    expect(isInvalidField(403, "is not a valid field for subscription")).toBe(false);
+    expect(readHookObjects({ job_notes: { fields: unrelated } }).job_notes?.fields).toEqual(unrelated);
+    expect(readHookObjects({ job_notes: { fields: ["note", ""] } }).job_notes?.fields).toBeUndefined();
+    expect(readHookObjects({ job_notes: { fields: "note" } }).job_notes?.fields).toBeUndefined();
+  });
 });
 
 describe("reading a ping", () => {
@@ -148,6 +201,28 @@ describe("reading a ping", () => {
       kind: "challenge",
       challenge: "j-1",
       via: "json",
+    });
+  });
+
+  /* the W1 walk, 2026-09-28: the challenge came as multipart/form-data */
+  it("takes a challenge, and a change, from multipart fields the route has read", () => {
+    const fields = (o: Record<string, string>) => new URLSearchParams(o);
+    expect(parsePing("multipart/form-data; boundary=x", "…", q(), fields({ mode: "subscribe", challenge: "b83bb728673601d4" }))).toEqual({
+      kind: "challenge",
+      challenge: "b83bb728673601d4",
+      via: "multipart",
+    });
+    const want = { kind: "change", object: "jobs", uuids: [U1], body: "multipart" };
+    expect(parsePing("multipart/form-data", "…", q(), fields({ object: "job", entry: JSON.stringify([{ uuid: U1 }]) }))).toEqual(want);
+    expect(parsePing("multipart/form-data", "…", q(), fields({ object: "job", entry: JSON.stringify({ uuid: U1 }) }))).toEqual(want);
+    expect(parsePing("multipart/form-data", "…", q(), fields({ object: "Job", "entry[0][uuid]": U1.toUpperCase() }))).toEqual(want);
+    expect(parsePing("multipart/form-data", "…", q(), fields({ data: body() }))).toEqual(want);
+    expect(parsePing("multipart/form-data", "…", q(), fields({ object: "job", entry: "not json" }))).toEqual({ kind: "junk", why: "no_uuids" });
+    expect(parsePing("multipart/form-data", "…", q(), fields({}))).toEqual({ kind: "junk", why: "not_parsed" });
+    /* and the same fields urlencoded */
+    expect(parsePing("application/x-www-form-urlencoded", `object=job&entry=${encodeURIComponent(JSON.stringify([{ uuid: U1 }]))}`, q())).toEqual({
+      ...want,
+      body: "form",
     });
   });
 

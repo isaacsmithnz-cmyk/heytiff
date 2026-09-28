@@ -157,6 +157,13 @@ const pingOf = (object: string, uuids: string[], extra: Record<string, unknown> 
 
 const json = (body: string) => ({ body, type: "application/json" });
 
+/** A real multipart/form-data body and its content type (with the
+    boundary), as a Request builds them from a FormData. */
+async function multipart(fd: FormData): Promise<Send> {
+  const r = new Request("https://sender.example.test/", { method: "POST", body: fd });
+  return { body: await r.text(), type: r.headers.get("content-type")! };
+}
+
 async function runScheduled() {
   for (const fn of scheduled.splice(0)) await fn();
 }
@@ -389,6 +396,21 @@ describe("the challenge", () => {
     await expectEcho(await send(json(JSON.stringify({ mode: "subscribe", challenge: "js0n.c" }))), "js0n.c");
   });
 
+  /* the W1 walk, 2026-09-28: ServiceM8 POSTed each challenge as
+     multipart/form-data, about 280 bytes, and refused our empty answer:
+     "Invalid callback challenge key returned", "Expected 'b83bb728673601d4'" */
+  it("is echoed alone when it comes as multipart/form-data, as ServiceM8 sends it", async () => {
+    const fd = new FormData();
+    fd.append("mode", "subscribe");
+    fd.append("challenge", "b83bb728673601d4");
+    const sent = await multipart(fd);
+    await expectEcho(await send(sent), "b83bb728673601d4");
+    expect(rpc.mock.calls[0]).toEqual(["sm8_take_ping", { p_hash: HASH, p_object: null, p_uuids: null, p_cap: 2000 }]);
+    const text = logs.map((l) => l.join(" ")).join("\n");
+    expect(text).toContain("known for org org-7e1a (multipart, 0 uuids)");
+    expect(text).not.toContain("b83bb728673601d4");
+  });
+
   it("is echoed only when the hook is known", async () => {
     rpcAnswer = { data: [{ verdict: "unknown", hook_org: null }], error: null };
     const res = await send({ method: "GET", query: "?mode=subscribe&challenge=secret-ish" });
@@ -418,6 +440,44 @@ describe("reading a change", () => {
     expect(rpc.mock.calls.map((c) => c[1].p_object)).toEqual(["jobs", "jobs", "jobs"]);
     const text = logs.map((l) => l.join(" ")).join("\n");
     for (const kind of ["(json,", "(json_text,", "(form,"]) expect(text).toContain(kind);
+  });
+
+  it("takes multipart/form-data: object and entry as fields, entry as JSON or PHP-style, or one field holding it all", async () => {
+    const asFields = new FormData();
+    asFields.append("object", "job");
+    asFields.append("entry", JSON.stringify([{ uuid: U1, changed_fields: ["status"], time: "2026-09-28 01:02:03" }]));
+    asFields.append("resource_url", "https://evil.example/steal");
+    const phpStyle = new FormData();
+    phpStyle.append("object", "Note");
+    phpStyle.append("entry[0][uuid]", U2.toUpperCase());
+    phpStyle.append("entry[0][changed_fields][0]", "note");
+    const whole = new FormData();
+    whole.append("data", pingOf("jobactivity", [U2]));
+    const noUuid = new FormData();
+    noUuid.append("object", "job");
+    noUuid.append("entry", "[]");
+    for (const fd of [asFields, phpStyle, whole, noUuid]) expect((await send(await multipart(fd))).status).toBe(200);
+    expect(rpc.mock.calls.map((c) => [c[1].p_object, c[1].p_uuids])).toEqual([
+      ["jobs", [U1]],
+      ["job_notes", [U2]],
+      ["job_activities", [U2]],
+    ]);
+    const text = logs.map((l) => l.join(" ")).join("\n");
+    expect(text).toContain("(multipart, 1 uuid)");
+    expect(text).toContain("junk (none, 0 uuids): no valid uuids, type multipart/form-data");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("a multipart body over the cap is never parsed", async () => {
+    const fd = new FormData();
+    fd.append("mode", "subscribe");
+    fd.append("challenge", "b83bb728673601d4");
+    fd.append("pad", "a".repeat(16_400));
+    const res = await send(await multipart(fd));
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("");
+    expect(rpc).not.toHaveBeenCalled();
+    expect(logs.map((l) => l.join(" ")).join("\n")).toContain("oversized");
   });
 
   it("reads the object loosely and the uuids lowercased, at most ten of a many-entry ping", async () => {

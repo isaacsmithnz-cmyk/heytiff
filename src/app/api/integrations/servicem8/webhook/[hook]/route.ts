@@ -74,7 +74,7 @@ const NO_STORE = { "cache-control": "no-store" } as const;
    line in our log, rather than a silent timeout on theirs. */
 const LOOKUP_TIMEOUT_MS = 8_000;
 
-type BodyKind = "json" | "json_text" | "form" | "query" | "none";
+type BodyKind = "json" | "json_text" | "form" | "multipart" | "query" | "none";
 
 function answer(status: number): Response {
   return new Response(null, { status, headers: NO_STORE });
@@ -90,8 +90,8 @@ function logLine(verdict: string, body: BodyKind, uuids: number, extra = "", org
 }
 
 /** The body, read up to PING_BODY_MAX bytes; null when it runs past. */
-async function readCapped(request: Request): Promise<string | null> {
-  if (!request.body) return "";
+async function readCapped(request: Request): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (!request.body) return new Uint8Array(0);
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let bytes = 0;
@@ -111,7 +111,23 @@ async function readCapped(request: Request): Promise<string | null> {
     all.set(c, at);
     at += c.byteLength;
   }
-  return new TextDecoder("utf-8").decode(all);
+  return all;
+}
+
+/** A multipart/form-data body's text fields, parsed from the bytes already
+    read inside the cap — never from the request's own stream, so the cap
+    holds. ServiceM8 sends its subscription challenge this way (the W1
+    walk: "type multipart/form-data, 280 bytes"). A file part is skipped;
+    null when the body doesn't parse. */
+async function multipartFields(bytes: Uint8Array<ArrayBuffer>, contentType: string): Promise<URLSearchParams | null> {
+  try {
+    const data = await new Response(bytes, { headers: { "content-type": contentType } }).formData();
+    const out = new URLSearchParams();
+    for (const [key, value] of data) if (typeof value === "string") out.append(key, value);
+    return out;
+  } catch {
+    return null;
+  }
 }
 
 /** A Content-Length that says the body is too big to read. A missing or
@@ -218,6 +234,8 @@ async function handle(request: NextRequest, params: Promise<{ hook: string }>, m
 
   try {
     let text = "";
+    let form: URLSearchParams | null = null;
+    const contentType = method === "POST" ? request.headers.get("content-type") : null;
     if (method === "POST") {
       if (saysOversized(request)) {
         logLine("oversized", "none", 0);
@@ -228,11 +246,11 @@ async function handle(request: NextRequest, params: Promise<{ hook: string }>, m
         logLine("oversized", "none", 0);
         return answer(200);
       }
-      text = read;
+      text = new TextDecoder("utf-8").decode(read);
+      if (contentType !== null && mediaTypeOf(contentType) === "multipart/form-data") form = await multipartFields(read, contentType);
     }
 
-    const contentType = method === "POST" ? request.headers.get("content-type") : null;
-    const ping = parsePing(contentType, text, request.nextUrl.searchParams);
+    const ping = parsePing(contentType, text, request.nextUrl.searchParams, form);
     const kind = bodyKindOf(ping);
     if (ping.kind === "junk") {
       logLine("junk", kind, 0, junkWords(ping, contentType, text));

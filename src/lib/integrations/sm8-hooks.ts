@@ -73,9 +73,11 @@ import {
   QUIET_AFTER_MS,
   QUIET_EDITS,
   classifyOurs,
-  hookFieldsFor,
+  hookFieldLadder,
+  hookFieldsHeld,
   hookHashOf,
   hookSpecOf,
+  isInvalidField,
   isUnsupportedObject,
   ourSecretIn,
   planSubscriptions,
@@ -115,10 +117,11 @@ export function sm8HookOrigin(): string | null {
   }
 }
 
-/** The fields each object must watch. */
-function wantedFields(): Record<HookObjectName, string[]> {
+/** The fields each object must watch: the list ServiceM8 last took for it
+    (hookFieldsHeld), else every mirrored field. */
+function wantedFields(known: HookObjectsState): Record<HookObjectName, string[]> {
   const out = {} as Record<HookObjectName, string[]>;
-  for (const o of HOOK_OBJECT_NAMES) out[o] = hookFieldsFor(hookSpecOf(o));
+  for (const o of HOOK_OBJECT_NAMES) out[o] = hookFieldsHeld(hookSpecOf(o), known[o]?.fields);
   return out;
 }
 
@@ -423,8 +426,8 @@ export async function ensureSm8Webhooks(
     const owedAt = state?.rotate_wanted_at ?? null;
 
     const run: Run = { orgId, access: accessed.access, end: started + opts.budgetMs, clock, secrets: [] };
-    const wanted = wantedFields();
     const known = readHookObjects(state?.objects);
+    const wanted = wantedFields(known);
     const found: HookObjectsState = {};
     const touch = (o: HookObjectName, patch: HookObjectState) => {
       found[o] = { ...found[o], ...patch };
@@ -544,7 +547,9 @@ export async function ensureSm8Webhooks(
       }
       if (outcome.kind === "ok") {
         posted += 1;
-        touch(object, { name: outcome.name, active: true, error: null, failure_reason: null, failure_at: null });
+        /* what ServiceM8 took is what the listing is held to from here on */
+        wanted[object] = outcome.fields;
+        touch(object, { name: outcome.name, fields: outcome.fields, active: true, error: null, failure_reason: null, failure_at: null });
       } else {
         touch(object, { active: false, error: outcome.error });
         console.error(`[sm8] live updates for org ${orgId}: ServiceM8 refused ${object}: ${outcome.error}`);
@@ -623,24 +628,38 @@ function noteFromList(
 }
 
 type Subscribed =
-  | { kind: "ok"; name: string }
+  | { kind: "ok"; name: string; fields: string[] }
   | { kind: "refused"; error: string }
   | { kind: "stop"; why: string };
 
-/** One object's POST, in each spelling until ServiceM8 takes one. */
-async function subscribe(run: Run, object: HookObjectName, address: string, fields: readonly string[], worked: string | null): Promise<Subscribed> {
+/** One object's POST, in each spelling until ServiceM8 takes one; for a
+    spelling it takes but whose field list it refuses ("not a valid
+    field"), the ladder's next list (hookFieldLadder), from the one held
+    down. Never a POST with no fields. */
+async function subscribe(run: Run, object: HookObjectName, address: string, held: readonly string[], worked: string | null): Promise<Subscribed> {
+  const ladder = hookFieldLadder(hookSpecOf(object));
+  const from = ladder.findIndex((r) => r.length === held.length && r.every((f) => held.includes(f)));
+  const rungs = (from >= 0 ? ladder.slice(from) : [[...held], ...ladder]).map((r) => r.filter((f) => f !== "")).filter((r) => r.length > 0);
+  if (rungs.length === 0) return { kind: "refused", error: "no fields to watch" };
   let last = "";
   for (const name of spellingsFor(object, worked)) {
-    const body = new URLSearchParams({ object: name, fields: fields.join(","), callback_url: address });
-    const hit = await hooksCall(run, "POST", "/webhook_subscriptions/object", { body });
-    if (hit.kind === "failed") return { kind: "refused", error: safe(hit.message, run.secrets) };
-    if (hit.kind !== "response") return { kind: "stop", why: hit.kind };
-    if (hit.status >= 200 && hit.status <= 299 && successOf(hit.body)) return { kind: "ok", name };
-    if (isUnsupportedObject(hit.status, hit.body)) {
-      last = hit.body;
-      continue;
+    for (let i = 0; i < rungs.length; i += 1) {
+      const fields = rungs[i];
+      const body = new URLSearchParams({ object: name, fields: fields.join(","), callback_url: address });
+      const hit = await hooksCall(run, "POST", "/webhook_subscriptions/object", { body });
+      if (hit.kind === "failed") return { kind: "refused", error: safe(hit.message, run.secrets) };
+      if (hit.kind !== "response") return { kind: "stop", why: hit.kind };
+      if (hit.status >= 200 && hit.status <= 299 && successOf(hit.body)) return { kind: "ok", name, fields };
+      if (isUnsupportedObject(hit.status, hit.body)) {
+        last = hit.body;
+        break;
+      }
+      if (isInvalidField(hit.status, hit.body) && i + 1 < rungs.length) {
+        console.warn(`[sm8] live updates for org ${run.orgId}: ServiceM8 refused ${object}'s ${fields.length} field(s); offering ${rungs[i + 1].length}`);
+        continue;
+      }
+      return { kind: "refused", error: safe(`${hit.status}: ${hit.body}`, run.secrets) };
     }
-    return { kind: "refused", error: safe(`${hit.status}: ${hit.body}`, run.secrets) };
   }
   return { kind: "refused", error: safe(`400: ${last}`, run.secrets) };
 }

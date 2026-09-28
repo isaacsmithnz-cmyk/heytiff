@@ -33,6 +33,7 @@ import type { NoteDoor, NoteDoorKind } from "@/lib/workboard/note-applied";
 import { KEPT_AS_SAID, WHICH_JOB, earlierTurns, type EarlierTurn, type TiffRoom } from "@/lib/workboard/note-turns";
 import { notedLine } from "@/lib/calendar/line";
 import { askLine, calendarRows, lastTiff, planView, tiffSince, type PlanRowView } from "./plan-view";
+import { quietLimit } from "./quiet";
 import type { TiffLanded } from "./tiff-context";
 
 /* ONE CONVERSATION WITH TIFF — the modal's state, once.
@@ -729,6 +730,16 @@ export function useConversation({
       }
       setError(message);
     },
+    /* YOUR TURN ENDS ON QUIET (./quiet): what Done does, pressed for you.
+       Not while you are in the field, where you clicked to type or to fix
+       your words: a pause there is you thinking about what to type. */
+    quietEnd: quietLimit,
+    onQuiet: () => {
+      if (!alive.current) return;
+      const at = document.activeElement;
+      if (at instanceof HTMLInputElement && at.classList.contains("tm-in")) return;
+      done();
+    },
   });
 
   /* OPENING MEANS LISTENING. The microphone is asked for as the modal
@@ -1018,6 +1029,9 @@ export function useConversation({
     /** The words arriving while you talk. */
     interim: live && live.said === null && stage === "listening" ? dict.interim : "",
     seconds: dict.seconds,
+    /** Hand it Done: it fills as the quiet runs out. */
+    bindQuiet: dict.bindQuiet,
+    keepListening: dict.keepListening,
     voiceEnabled,
     aimed,
     targetLabel,

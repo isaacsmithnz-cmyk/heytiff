@@ -741,6 +741,12 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => vo
       {(held === "listen" || held === "reply") && (
         <form
           className="tm-box"
+          /* A tap in the box while she listens says "I'm still going": the
+             quiet that would end your turn starts over. Its buttons are
+             their own. */
+          onPointerDown={(e) => {
+            if (held === "listen" && !(e.target as Element).closest("button")) c.keepListening();
+          }}
           onSubmit={(e) => {
             e.preventDefault();
             if (held === "reply") c.send();
@@ -770,15 +776,16 @@ function Dock({ c, onEmpty }: { c: Conversation; onEmpty: (byKey: boolean) => vo
               </button>
               <button
                 type="button"
-                className="pbtn primary"
+                className="pbtn primary tm-done"
                 ref={(el) => {
                   first.current = el;
+                  c.bindQuiet(el);
                 }}
                 onClick={(e) => {
                   if (!c.done()) onEmpty(e.detail === 0);
                 }}
               >
-                Done
+                <span>Done</span>
               </button>
             </>
           ) : typed ? (

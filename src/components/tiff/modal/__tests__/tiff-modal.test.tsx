@@ -5,6 +5,7 @@ import { NoteScopeProvider, NoteScopeScreen } from "@/components/notes/note-cont
 import { TiffButton } from "@/components/notes/tiff-button";
 import { GATHER_MS } from "@/components/ui/dot-field";
 import { KEPT_AS_SAID, WHICH_JOB } from "@/lib/workboard/note-turns";
+import { quietLimit } from "../quiet";
 import { TiffModalProvider, useTiff } from "../tiff-host";
 import { CLOUD_MS, NOT_REACHED } from "../use-conversation";
 
@@ -58,6 +59,8 @@ jest.mock("@/app/actions/calendar", () => ({
 type DictOpts = {
   onTranscript: (text: string, info: { capped: boolean }) => void;
   onError?: (message: string) => void;
+  quietEnd?: (words: string, how: { live: boolean }) => number | null;
+  onQuiet?: () => void;
 };
 const engine: {
   opts: DictOpts | null;
@@ -67,7 +70,14 @@ const engine: {
   /** Words arriving while you talk, as the live transport sends them. */
   say: ((words: string) => void) | null;
 } = { opts: null, interim: "", opens: true, say: null };
-const mic = { start: jest.fn(), stop: jest.fn(), cancel: jest.fn(), restart: jest.fn(), handOver: jest.fn() };
+const mic = {
+  start: jest.fn(),
+  stop: jest.fn(),
+  cancel: jest.fn(),
+  restart: jest.fn(),
+  handOver: jest.fn(),
+  keepListening: jest.fn(),
+};
 jest.mock("@/components/notes/dictation", () => {
   const actual = jest.requireActual("@/components/notes/dictation");
   return {
@@ -85,6 +95,8 @@ jest.mock("@/components/notes/dictation", () => {
         seconds: 3,
         interim,
         barsRef: react.createRef(),
+        bindQuiet: () => {},
+        keepListening: mic.keepListening,
         start: () => {
           mic.start();
           if (engine.opens) setRecording(true);
@@ -286,6 +298,27 @@ describe("talking", () => {
       source: "voice",
       room: undefined,
     });
+  });
+
+  it("a quiet ends your turn as Done does: the words go, and Tiff is sorting it out", async () => {
+    /* "Having to click done kind of takes away from the conversation flow."
+       The policy is ./quiet's; the meter calls onQuiet when it runs out. */
+    routeNote.mockReturnValue(new Promise(() => {}));
+    await openModal();
+    expect(engine.opts!.quietEnd).toBe(quietLimit);
+    await act(async () => engine.opts!.onQuiet!());
+    expect(mic.stop).toHaveBeenCalledTimes(1);
+    await act(async () => engine.opts!.onTranscript("Lyle has the Bellevue Hill head on the ute.", { capped: false }));
+    expect(within(dialog()).getByRole("status")).toHaveTextContent("Tiff is sorting it out");
+    expect(routeNote).toHaveBeenCalledWith(expect.objectContaining({ transcript: "Lyle has the Bellevue Hill head on the ute." }));
+  });
+
+  it("a quiet while you are in the field sends nothing: you clicked in to type or fix", async () => {
+    const user = await openModal();
+    await user.click(within(dialog()).getByRole("textbox", { name: "Type instead" }));
+    await act(async () => engine.opts!.onQuiet!());
+    expect(mic.stop).not.toHaveBeenCalled();
+    expect(mic.keepListening).toHaveBeenCalled();
   });
 
   it("files a plan with nothing unclear at once, and says so with Undo", async () => {

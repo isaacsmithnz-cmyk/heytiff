@@ -62,6 +62,8 @@ jest.mock("@/components/notes/dictation", () => {
         seconds: 3,
         interim: "",
         barsRef: react.createRef(),
+        bindQuiet: () => {},
+        keepListening: () => {},
         start: () => {
           mic.start();
           setRecording(true);

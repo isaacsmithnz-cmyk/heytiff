@@ -8625,6 +8625,12 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .fg .tm .pbtn.ghost { background:none; border-color:var(--on-ink-line); color:var(--paper); }
 .fg .tm .pbtn.ghost:hover { background:var(--on-ink-tint); }
 .fg .tm .pbtn.primary, .fg .tm .pbtn.primary:hover { background:var(--paper); color:var(--ink); }
+/* Done fills from its left as the quiet that ends your turn runs out
+   (components/tiff/modal/quiet.ts). The meter writes --quiet every frame, so
+   the fill is feedback, not motion of its own, and has no transition. */
+.fg .tm .tm-done { position:relative; overflow:hidden; isolation:isolate; }
+.fg .tm .tm-done::before { content:""; position:absolute; inset:0; z-index:0; background:var(--ink); opacity:.12; transform:scaleX(var(--quiet, 0)); transform-origin:left; }
+.fg .tm .tm-done > span { position:relative; z-index:1; }
 .fg .tm .tm-quick { gap:12px; margin-top:16px; }
 .fg .tm .tm-doors { gap:16px; margin-top:16px; font-size:16px; color:var(--on-ink-q); }
 .fg .tm .tm-undo { font-size:16px; color:var(--paper); }

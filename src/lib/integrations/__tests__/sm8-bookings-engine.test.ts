@@ -306,15 +306,14 @@ describe("a lost answer is read back before anything goes again (B-1, B-2, B-22)
     expect(sm8.posts).toHaveLength(1);
   });
 
-  it("(F, B-2) our own uuid not found: can't tell, so nothing is posted — unsure, and not a guard", async () => {
+  it("(F, B-2) our own uuid not found: the walk showed a removed booking reads back inactive, so not found means it never landed — posted once, under our own uuid", async () => {
     await bookIn();
     const [c] = creates();
+    const own = c.remote_uuid as string;
     c.maybe_landed = true;
     await run();
-    expect(postSm8Booking).not.toHaveBeenCalled();
-    expect(c).toMatchObject({ status: "failed", last_error: BOOKING_WORDS.row.bookingUnsure, maybe_landed: true });
-    expect(await lineOf(c)).toMatchObject({ key: "line.unsure", acts: ["open_in_sm8", "book_again", "cancel"] });
-    /* only a 2xx two reads can't find trips the guard (call 15) */
+    expect(postSm8Booking.mock.calls.map((x) => x[1].uuid)).toEqual([own]);
+    expect(c).toMatchObject({ status: "sent", remote_uuid: own, maybe_landed: false });
     expect(fake.db.integration_connections[0].write_kinds).toContain("booking");
   });
 
@@ -710,7 +709,10 @@ describe("a booking's read-back, after its POST and before it (review: S4, R2-7,
     await run();
     expect(postSm8Booking).not.toHaveBeenCalled();
     expect(c).toMatchObject({ status: "sent", remote_uuid: OLD, verify_uuids: [] });
-    expect(c.replaced_uuids).toEqual([own]);
+    /* ours read back not found, which since the walk means it never landed:
+       nothing of it to keep */
+    expect(c.replaced_uuids).toEqual([]);
+    expect(own).not.toBe(OLD);
   });
 
   it("(F, N1) a send that throws before its POST is a plain retry; one that throws after it keeps its uuid marked as maybe landed", async () => {

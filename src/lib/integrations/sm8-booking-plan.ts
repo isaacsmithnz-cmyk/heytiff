@@ -93,10 +93,11 @@ export const BOOKING_DELETE_SETTLE_MS = 60_000;
 export const BOOKINGS_OPEN_TO_MANAGERS = false;
 
 /** Whether the uuid-filtered read returns a booking someone removed
-    (active = 0). PR F flips it only if L4 shows it AND L2 showed ServiceM8
-    keeps our uuid (U1): until then a uuid of ours read back as not found
-    after a lost answer fails unsure, and is never posted again. */
-export const BOOKING_READBACK_SEES_INACTIVE = false;
+    (active = 0). Flipped by PR F after the walk of 2026-09-28: L2 showed
+    ServiceM8 keeps our uuid (U1) and L4 showed a removed booking reads back
+    inactive, so a uuid of ours read back as NOT FOUND after a lost answer
+    never landed, and is posted again under the same uuid. */
+export const BOOKING_READBACK_SEES_INACTIVE = true;
 
 /** The job's fields a status change must leave as they were (the fields
     guard). P6 (2026-09-27) made a Quote a Work Order by hand and all six

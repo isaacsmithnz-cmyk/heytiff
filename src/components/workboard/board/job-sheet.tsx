@@ -94,6 +94,7 @@ import type { FlagState, NoteState } from "@/lib/integrations/sm8-note-plan";
 import type { NoteSender } from "@/lib/integrations/links";
 import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 import { mintPressId } from "@/lib/workboard/press-id";
+import { thrownWords } from "@/lib/stale-deploy";
 import { somethingWaiting, useNoteStatePoll } from "./use-note-poll";
 import {
   clearLeftoverBooking,
@@ -602,8 +603,8 @@ export function JobSheet({
       const fresh = await readJobFiles(cardId).catch(() => null);
       if (alive.current && fresh) setMedia(fresh);
       return null;
-    } catch {
-      return "That upload didn't finish.";
+    } catch (e) {
+      return thrownWords(e, "That upload didn't finish.");
     }
   };
 
@@ -619,8 +620,8 @@ export function JobSheet({
           m ? { ...m, documents: m.documents.filter((d) => d.remoteId !== item.remoteId) } : m
         );
       return null;
-    } catch {
-      return "Couldn't remove that file.";
+    } catch (e) {
+      return thrownWords(e, "Couldn't remove that file.");
     }
   };
 
@@ -690,9 +691,9 @@ export function JobSheet({
      the next press, not a hunt back down the list. */
   const addPapers = async (keys: string[]): Promise<string | null> => {
     if (!cardId) return "This card doesn't know its job yet.";
-    const res = await addJobPapers(cardId, keys).catch(() => ({
+    const res = await addJobPapers(cardId, keys).catch((e: unknown) => ({
       ok: false as const,
-      error: "Couldn't add them to the job.",
+      error: thrownWords(e, "Couldn't add them to the job."),
     }));
     if (!res.ok) return res.error;
     const fresh = await reloadPapers();
@@ -703,9 +704,9 @@ export function JobSheet({
 
   /* Off the face at once — the read would only confirm what the answer said. */
   const removePaper = async (paper: JobPaper): Promise<string | null> => {
-    const res = await removeJobPaper(paper.id).catch(() => ({
+    const res = await removeJobPaper(paper.id).catch((e: unknown) => ({
       ok: false as const,
-      error: "Couldn't take that off the job.",
+      error: thrownWords(e, "Couldn't take that off the job."),
     }));
     if (!res.ok) return res.error;
     if (alive.current) {
@@ -716,9 +717,9 @@ export function JobSheet({
   };
 
   const renewPaper = async (paper: JobPaper): Promise<string | null> => {
-    const res = await renewJobPaper(paper.id).catch(() => ({
+    const res = await renewJobPaper(paper.id).catch((e: unknown) => ({
       ok: false as const,
-      error: "Couldn't switch to the renewal.",
+      error: thrownWords(e, "Couldn't switch to the renewal."),
     }));
     if (!res.ok) return res.error;
     await reloadPapers();
@@ -747,7 +748,7 @@ export function JobSheet({
       jobUuid: cardId,
       keys: pickedList.map((p) => p.key),
       ...input,
-    }).catch(() => ({ ok: false as const, error: "The email didn't send. Try again in a minute." }));
+    }).catch((e: unknown) => ({ ok: false as const, error: thrownWords(e, "The email didn't send. Try again in a minute.") }));
     if (!res.ok) return res.error;
     if (alive.current) {
       setPicked(new Set());
@@ -771,7 +772,7 @@ export function JobSheet({
     const res = await sendJobDocumentsToServiceM8({
       jobUuid: cardId,
       keys: pickedList.map((p) => p.key),
-    }).catch(() => ({ ok: false as const, error: "Couldn't reach HeyTiff. Try again." }));
+    }).catch((e: unknown) => ({ ok: false as const, error: thrownWords(e, "Couldn't reach HeyTiff. Try again.") }));
     if (!alive.current) return;
     if (!res.ok) {
       setSm8Note(res.error);
@@ -1081,13 +1082,13 @@ export function JobSheet({
            and "who ticked it" is the stamp's whole point. */
         if (saved) setPicklist((cur) => (cur ?? []).map((p) => (p.id === id ? saved : p)));
       })
-      .catch(() => {
+      .catch((e: unknown) => {
         setPicklist((cur) =>
           (cur ?? []).map((p) =>
             p.id === id ? { ...p, picked: !next, pickedAt: null, pickedBy: null } : p
           )
         );
-        onToast("Could not save that tick");
+        onToast(thrownWords(e, "Could not save that tick"));
       });
   };
 
@@ -1114,9 +1115,9 @@ export function JobSheet({
     if (!cardId) return;
     const before = attention;
     dropAttention(`mention:${noteUuid}`);
-    void dismissJobNote(cardId, noteUuid).catch(() => {
+    void dismissJobNote(cardId, noteUuid).catch((e: unknown) => {
       setAttention(before);
-      onToast("Could not put that aside");
+      onToast(thrownWords(e, "Could not put that aside"));
     });
   };
 
@@ -1138,9 +1139,9 @@ export function JobSheet({
         setAttention(before);
         onToast(res.error);
       })
-      .catch(() => {
+      .catch((e: unknown) => {
         setAttention(before);
-        onToast("Could not save that task");
+        onToast(thrownWords(e, "Could not save that task"));
       });
   };
 
@@ -1173,10 +1174,10 @@ export function JobSheet({
         setOurNotes((cur) => (cur ?? []).map((n) => (n.id === temp.id ? saved : n)));
         if (alsoSm8) sendCopy(saved.id);
       })
-      .catch(() => {
+      .catch((e: unknown) => {
         if (composeId) penIds.current.delete(composeId);
         setOurNotes((cur) => (cur ?? []).filter((n) => n.id !== temp.id));
-        onToast("Could not save that note");
+        onToast(thrownWords(e, "Could not save that note"));
       });
   };
 
@@ -1198,9 +1199,9 @@ export function JobSheet({
         void refreshNoteStates();
         kickPoll();
       })
-      .catch(() => {
+      .catch((e: unknown) => {
         setOurNotes(before);
-        onToast("Could not remove that note");
+        onToast(thrownWords(e, "Could not remove that note"));
       });
   };
 
@@ -1263,8 +1264,8 @@ export function JobSheet({
       );
       kickPoll();
       return null;
-    } catch {
-      return NOTE_WORDS.press.saveFailed;
+    } catch (e) {
+      return thrownWords(e, NOTE_WORDS.press.saveFailed);
     }
   };
 
@@ -1279,7 +1280,7 @@ export function JobSheet({
         }
         kickPoll();
       })
-      .catch(() => onToast(NOTE_WORDS.press.unqueued));
+      .catch((e: unknown) => onToast(thrownWords(e, NOTE_WORDS.press.unqueued)));
   }
 
   const takeBack = (noteId: string) => {
@@ -1300,7 +1301,7 @@ export function JobSheet({
         }
         kickPoll();
       })
-      .catch(() => onToast(NOTE_WORDS.press.unqueued));
+      .catch((e: unknown) => onToast(thrownWords(e, NOTE_WORDS.press.unqueued)));
   };
 
   /* ONE PRESS PER MARK. A flag's Mark done (and its Undo) carries an id
@@ -1349,9 +1350,9 @@ export function JobSheet({
         /* changed in ServiceM8 since it was read: look again */
         if (res.error === NOTE_WORDS.press.changed) void reloadRecord();
       })
-      .catch(() => {
+      .catch((e: unknown) => {
         flagSettled(noteUuid, "done", false);
-        onToast(NOTE_WORDS.press.unqueued);
+        onToast(thrownWords(e, NOTE_WORDS.press.unqueued));
       });
   };
 
@@ -1366,9 +1367,9 @@ export function JobSheet({
         if (!res.ok) onToast(res.error);
         kickPoll();
       })
-      .catch(() => {
+      .catch((e: unknown) => {
         flagSettled(noteUuid, "clear", false);
-        onToast(NOTE_WORDS.press.unqueued);
+        onToast(thrownWords(e, NOTE_WORDS.press.unqueued));
       });
   };
 
@@ -1384,8 +1385,8 @@ export function JobSheet({
       setSender(res.sender);
       if (answer === "yes" && thenSend) sendCopy(thenSend);
       return null;
-    } catch {
-      return NOTE_WORDS.press.unknown;
+    } catch (e) {
+      return thrownWords(e, NOTE_WORDS.press.unknown);
     }
   };
 
@@ -1477,9 +1478,9 @@ export function JobSheet({
         void refreshBookings();
         setBkKick((k) => k + 1);
       },
-      () => {
+      (e: unknown) => {
         done();
-        onToast(BOOKING_WORDS.press.unqueued);
+        onToast(thrownWords(e, BOOKING_WORDS.press.unqueued));
       }
     );
   };
@@ -1627,16 +1628,16 @@ export function JobSheet({
             if (alive.current && m) setMedia(m);
           });
       })
-      .catch(() => {
+      .catch((e: unknown) => {
         if (!alive.current) return;
         paint(!on);
-        onToast("Could not save that star");
+        onToast(thrownWords(e, "Could not save that star"));
       });
   };
 
   const removeChecklistItem = (id: string) => {
     setPicklist((cur) => (cur ?? []).filter((p) => p.id !== id));
-    void removePicklistItem(id).catch(() => onToast("Could not remove that line"));
+    void removePicklistItem(id).catch((e: unknown) => onToast(thrownWords(e, "Could not remove that line")));
   };
 
   const addChecklistItem = (input: { kind: "material" | "todo"; name: string; qty: string }) => {
@@ -1659,9 +1660,9 @@ export function JobSheet({
       .then((item) => {
         setPicklist((cur) => (cur ?? []).map((p) => (p.id === temp.id ? item : p)));
       })
-      .catch(() => {
+      .catch((e: unknown) => {
         setPicklist((cur) => (cur ?? []).filter((p) => p.id !== temp.id));
-        onToast("Could not add that row");
+        onToast(thrownWords(e, "Could not add that row"));
       });
   };
 

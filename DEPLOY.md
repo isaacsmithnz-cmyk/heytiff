@@ -26,6 +26,21 @@ Scroll down and **Save Changes**.
 1. vercel.com → **Add New → Project** → import `isaacsmithnz-cmyk/heytiff`.
 2. Set the **Project Name** to `heytiff` (this decides the `.vercel.app` URL).
 3. Framework preset: **Next.js** (auto-detected). Leave build/output defaults.
+4. **Skew Protection** (Pro or Enterprise). Every deploy gives the server
+   actions new ids, so a tab left open across a deploy presses an action the
+   new deploy doesn't have ("Failed to find Server Action" in the log). Skew
+   Protection sends that tab's requests to the deploy it was served from.
+   Settings → Advanced → **Skew Protection** on, with **Enable access to
+   System Environment Variables** on too, then redeploy production; only
+   deploys built after that are protected. Set **Maximum Age** past how long a
+   tab stays open (the default is one day; the ceiling is the retention
+   policy). Nothing in `next.config.ts`: Next 14.1.4+ reads the deployment id
+   Vercel gives the build, and a `deploymentId` set there that differs from it
+   fails the build. With it off, a press from such a tab says "HeyTiff was
+   updated. Reload the page to carry on." (`src/lib/stale-deploy.ts`, which
+   knows Next's own rejection). Past the maximum age Vercel answers the old
+   tab with its own 404 instead, which that line does not recognise, so the
+   press says its usual failure: keep the maximum age long.
 
 ---
 

@@ -22,6 +22,7 @@ import {
 } from "@/lib/integrations/sm8-booking-plan";
 import { fillWords } from "@/lib/integrations/sm8-note-words";
 import { mintPressId } from "@/lib/workboard/press-id";
+import { thrownWords } from "@/lib/stale-deploy";
 import { StateLine } from "./state-line";
 
 /* BOOK IN, ON THE JOB CARD'S VISITS FACE (two-way phase 3, PR D).
@@ -258,11 +259,11 @@ export function BookInPanel({
         if (r.ok) onDone(r.verb, r.rowIds);
         else setErr({ text: r.error, lookAgain: r.lookAgain === true });
       },
-      () => {
+      (e: unknown) => {
         pressing.current = false;
         if (!alive.current) return;
         setBusy(false);
-        setErr({ text: BOOKING_WORDS.press.unqueued, lookAgain: false });
+        setErr({ text: thrownWords(e, BOOKING_WORDS.press.unqueued), lookAgain: false });
       }
     );
   };

@@ -38,6 +38,15 @@ jest.mock("next/server", () => ({ after: (fn: () => unknown) => scheduled.push(f
 const disconnectSm8 = jest.fn();
 jest.mock("@/lib/integrations/sm8-store", () => ({ disconnectSm8: (...a: unknown[]) => disconnectSm8(...a) }));
 
+/* Live updates (two-way phase 4): loaded only with SM8_WEBHOOKS on. */
+let hooksLoaded = false;
+const steps: string[] = [];
+const removeSm8Webhooks = jest.fn();
+jest.mock("@/lib/integrations/sm8-hooks", () => {
+  hooksLoaded = true;
+  return { removeSm8Webhooks: (...a: unknown[]) => removeSm8Webhooks(...a) };
+});
+
 import {
   disconnectServiceM8Action,
   retryFailedServiceM8WritesAction,
@@ -441,5 +450,65 @@ describe("what the owner is told, counting bookings", () => {
     });
     setSm8WriteMode.mockResolvedValue({ ok: true, cancelled: [{ id: "w1", name: "a.pdf", kind: "attachment" }] });
     expect(await setServiceM8WriteModeAction("off")).toEqual({ ok: true, note: "Sending is off. 1 file that was waiting won't go." });
+  });
+});
+
+describe("disconnect, with live updates (two-way phase 4)", () => {
+  const env = { ...process.env };
+  beforeEach(() => {
+    steps.length = 0;
+    disconnectSm8.mockImplementation(async () => {
+      steps.push("disconnect");
+      return { cancelled: [], inFlight: 0 };
+    });
+    removeSm8Webhooks.mockReset().mockImplementation(async () => {
+      steps.push("remove");
+      return { ran: true, deleted: 6, stopped: null };
+    });
+  });
+  afterEach(() => {
+    process.env = { ...env };
+    jest.useRealTimers();
+  });
+
+  /* first: the module registry keeps a module once any test loads it */
+  it("off or gone: nothing is sent, and the subscribing isn't loaded", async () => {
+    for (const hooks of [undefined, "gone"]) {
+      process.env.VERCEL_ENV = "production";
+      if (hooks === undefined) delete process.env.SM8_WEBHOOKS;
+      else process.env.SM8_WEBHOOKS = hooks;
+      expect((await disconnectServiceM8Action()).ok).toBe(true);
+    }
+    expect(steps).toEqual(["disconnect", "disconnect"]);
+    expect(hooksLoaded).toBe(false);
+  });
+
+  it("on: unsubscribes first, while the grant still works, then disconnects", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    expect((await disconnectServiceM8Action()).ok).toBe(true);
+    expect(steps).toEqual(["remove", "disconnect"]);
+    expect(removeSm8Webhooks).toHaveBeenCalledWith("org-1", { budgetMs: 8_000 });
+  });
+
+  it("on: waits for it 8 s at most, then disconnects anyway", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    jest.useFakeTimers();
+    removeSm8Webhooks.mockImplementation(() => new Promise(() => {}));
+    const done = disconnectServiceM8Action();
+    await jest.advanceTimersByTimeAsync(7_999);
+    expect(steps).toEqual([]);
+    await jest.advanceTimersByTimeAsync(1);
+    expect((await done).ok).toBe(true);
+    expect(steps).toEqual(["disconnect"]);
+  });
+
+  it("on: an unsubscribe that fails never stops the disconnect", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    removeSm8Webhooks.mockRejectedValue(new Error("boom"));
+    expect((await disconnectServiceM8Action()).ok).toBe(true);
+    expect(steps).toEqual(["disconnect"]);
   });
 });

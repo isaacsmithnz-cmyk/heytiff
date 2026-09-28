@@ -30,7 +30,8 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { settleMentionAsks } from "@/lib/dashboard/mention-settle";
 import { runSm8Sync, sm8SyncIsStale } from "./sm8-sync";
 import { SYNC_LEASE_MS, whenSm8LeaseFree } from "./sm8-lease";
-import { functionDeadline } from "./sm8-hook-plan";
+import { ENSURE_BUDGET_MS, ENSURE_FINISH_MARGIN_MS, functionDeadline } from "./sm8-hook-plan";
+import { sm8WebhooksState } from "./sm8-hooks-switch";
 import { runSm8Writes, sm8WritesDue, sm8WritesEnabled } from "./sm8-writes";
 import { backgroundBudgetMs, FUNCTION_MAX_MS, WRITE_LEASE_MARGIN_MS } from "./sm8-write-plan";
 import { sm8NotesAllowed } from "./sm8-kinds";
@@ -74,6 +75,17 @@ export function freshenSm8AfterResponse(orgId: string): void {
       }
 
       const syncStartBy = calledAt + FUNCTION_MAX_MS - SYNC_LEASE_MS - WRITE_LEASE_MARGIN_MS;
+
+      /* LIVE UPDATES OWED (two-way phase 4): with SM8_WEBHOOKS on, a
+         rotation a connect couldn't finish, or six that aren't all
+         subscribed, are reconciled here — at most hourly, in 30 s, and only
+         while that still leaves the sync its start. Off, the machinery
+         isn't loaded and nothing is read. */
+      if (sm8WebhooksState() === "on" && Date.now() + ENSURE_BUDGET_MS <= syncStartBy) {
+        const { ensureSm8WebhooksIfOwed } = await import("./sm8-hooks");
+        await ensureSm8WebhooksIfOwed(orgId, { budgetMs: ENSURE_BUDGET_MS - ENSURE_FINISH_MARGIN_MS });
+      }
+
       if (Date.now() > syncStartBy) return;
       if (!(await sm8SyncIsStale(orgId, Date.now()))) return;
       /* the page's function: no route sets a maxDuration, so the platform's

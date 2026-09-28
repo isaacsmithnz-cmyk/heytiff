@@ -52,6 +52,7 @@ jest.mock("@/lib/dashboard/mention-settle", () => ({
 }));
 const runSm8Writes = jest.fn(async () => {
   order.push("writes");
+  clock += writesTake;
   return { done: 0, sent: 0, trial: 0, failed: 0, again: 0, lost: 0, stopped: null };
 });
 jest.mock("../sm8-sync", () => ({
@@ -63,6 +64,19 @@ jest.mock("../sm8-writes", () => ({
   sm8WritesDue: async () => due,
   sm8WritesEnabled: () => writing,
 }));
+
+/* Live updates (two-way phase 4): the subscribing module is loaded only
+   with SM8_WEBHOOKS on, so its factory running is itself the proof. */
+let hooksLoaded = false;
+let writesTake = 0;
+const ensureSm8WebhooksIfOwed = jest.fn(async (_org: string, _opts: { budgetMs: number }) => {
+  order.push("ensure");
+  return null;
+});
+jest.mock("../sm8-hooks", () => {
+  hooksLoaded = true;
+  return { ensureSm8WebhooksIfOwed: (...a: unknown[]) => ensureSm8WebhooksIfOwed(...(a as [string, { budgetMs: number }])) };
+});
 
 import { freshenSm8AfterResponse } from "../sm8-freshness";
 
@@ -79,6 +93,8 @@ beforeEach(() => {
   writing = true;
   syncRan = true;
   syncTakes = 0;
+  writesTake = 0;
+  ensureSm8WebhooksIfOwed.mockClear();
   runSm8Sync.mockClear();
   runSm8Writes.mockClear();
   settleMentionAsks.mockClear();
@@ -261,5 +277,54 @@ describe("the asks after the sync", () => {
     freshenSm8AfterResponse("org-1");
     await expect(scheduled[0]()).resolves.toBeUndefined();
     expect(console.error).toHaveBeenCalled();
+  });
+});
+
+describe("live updates owed (two-way phase 4)", () => {
+  const env = { ...process.env };
+  afterEach(() => {
+    process.env = { ...env };
+  });
+
+  /* first: the module registry keeps a module once any test loads it */
+  it("off or gone, the subscribing isn't even loaded", async () => {
+    for (const hooks of [undefined, "gone", "0"]) {
+      process.env.VERCEL_ENV = "production";
+      if (hooks === undefined) delete process.env.SM8_WEBHOOKS;
+      else process.env.SM8_WEBHOOKS = hooks;
+      scheduled.length = 0;
+      freshenSm8AfterResponse("org-1");
+      await behind();
+    }
+    expect(hooksLoaded).toBe(false);
+    expect(ensureSm8WebhooksIfOwed).not.toHaveBeenCalled();
+  });
+
+  it("with the switch on, an owed reconcile runs after the writes and before the sync, in 30 s less 2 for its last writes", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(order).toEqual(["writes", "ensure", "sync", "asks"]);
+    expect(ensureSm8WebhooksIfOwed).toHaveBeenCalledWith("org-1", { budgetMs: 28_000 });
+  });
+
+  it("never when it would put the sync past its start", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    // the sync must start by 300 - 120 - 15 = 165 s; 140 s + 30 s is past it
+    writesTake = 140_000;
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(order).toEqual(["writes", "sync", "asks"]);
+  });
+
+  it("nor for a workspace that isn't connected", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    status = "needs_reauth";
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(ensureSm8WebhooksIfOwed).not.toHaveBeenCalled();
   });
 });

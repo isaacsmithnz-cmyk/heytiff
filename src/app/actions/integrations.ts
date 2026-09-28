@@ -17,9 +17,10 @@ import {
   sm8WriteKindsEnabled,
   sm8WritesEnabled,
 } from "@/lib/integrations/sm8-writes";
-import { drainSm8WritesAfterResponse } from "@/lib/integrations/sm8-drain";
+import { drainSm8WritesAfterResponse, settleWithin } from "@/lib/integrations/sm8-drain";
 import { FUNCTION_MAX_MS, readWriteMode, sendRefusal, type Sm8WriteKind } from "@/lib/integrations/sm8-write-plan";
-import { functionDeadline } from "@/lib/integrations/sm8-hook-plan";
+import { functionDeadline, REMOVE_BUDGET_MS } from "@/lib/integrations/sm8-hook-plan";
+import { sm8WebhooksState } from "@/lib/integrations/sm8-hooks-switch";
 import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-words";
 import { sm8DisconnectNote, sm8KindOffNote, sm8OffNote, sm8RetryNote } from "@/lib/integrations/outcome";
@@ -73,6 +74,16 @@ export async function disconnectXeroAction(): Promise<IntegrationResult> {
 export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
+
+  /* LIVE UPDATES FIRST (two-way phase 4): with SM8_WEBHOOKS on, our
+     subscriptions are taken down while the grant still works, for up to
+     8 s; then the wipe removes the hooks, so any ping still to come is
+     answered 410, which unsubscribes it anyway. Off, nothing is sent and
+     the machinery isn't loaded. */
+  if (sm8WebhooksState() === "on") {
+    const { removeSm8Webhooks } = await import("@/lib/integrations/sm8-hooks");
+    await settleWithin(removeSm8Webhooks(ctx.orgId, { budgetMs: REMOVE_BUDGET_MS }), REMOVE_BUDGET_MS);
+  }
 
   const { cancelled, inFlight } = await disconnectSm8(ctx.orgId);
   revalidate();

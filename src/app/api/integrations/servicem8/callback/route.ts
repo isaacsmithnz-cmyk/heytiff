@@ -7,6 +7,8 @@ import { readSm8Accounts, saveSm8Connection } from "@/lib/integrations/sm8-store
 import { countConnectionsElsewhere } from "@/lib/integrations/store";
 import { runSm8SyncWhenFree, switchSm8AccountUnderLease } from "@/lib/integrations/sm8-sync";
 import { decodeState, stateCookieFor, stateMatches } from "@/lib/integrations/oauth-state";
+import { sm8WebhooksState } from "@/lib/integrations/sm8-hooks-switch";
+import { ENSURE_MIN_LEFT_MS, functionDeadline } from "@/lib/integrations/sm8-hook-plan";
 
 /* Step two: ServiceM8 sends the browser back here with a code. Swap it for
    tokens, read which account the grant covers, store it sealed, done. The
@@ -46,9 +48,45 @@ import { decodeState, stateCookieFor, stateMatches } from "@/lib/integrations/oa
    refused and the working grant is kept. */
 
 /* Switching accounts clears the old copy — tens of thousands of mirror rows
-   and the cached photos — before the redirect, so the route gets longer than
-   the default. */
-export const maxDuration = 60;
+   and the cached photos — before the redirect; and behind it, the first
+   sync slice and then, with live updates on, the subscribing (a list, six
+   POSTs that each wait on ServiceM8's challenge to us, a list, DELETEs). So
+   the platform's whole 300 s, where 60 used to lower it. */
+export const maxDuration = 300;
+
+/* LIVE UPDATES OWE A ROTATION ON EVERY CONNECT (two-way phase 4). With
+   SM8_WEBHOOKS on, a saved connect marks it (rotate_wanted_at), one write
+   before the redirect — so it is owed even if nothing behind the response
+   runs — and behind the response, after the first sync slice as ever, the
+   reconcile mints a new secret and subscribes at it, when at least a
+   minute of the function is left. Otherwise the next page load or the
+   nightly run finds the mark and does it. The old address stays good for
+   72 h, so ServiceM8's retries to it are never answered 410. Off, none of
+   this happens and the subscribing machinery isn't even loaded. */
+async function oweRotation(orgId: string, account: string | null): Promise<void> {
+  const { markSm8RotationOwed } = await import("@/lib/integrations/sm8-hooks");
+  await markSm8RotationOwed(orgId, account);
+}
+
+/** Behind the response: the connect's sync slice, as always; then, with
+    live updates on, the reconcile, in what is left. It rotates because the
+    mark says so, not because it was asked to: a reconcile that already
+    minted after the mark has cleared it, and this one then reuses that
+    address rather than minting over it. Never throws. */
+async function afterConnect(orgId: string, calledAt: number): Promise<void> {
+  await runSm8SyncWhenFree(orgId, "connect").catch(() => {});
+  const left = functionDeadline(calledAt, maxDuration) - Date.now();
+  if (left < ENSURE_MIN_LEFT_MS) {
+    console.warn(`[sm8] live updates for org ${orgId}: no time left to subscribe after the connect; the next page load or night does it`);
+    return;
+  }
+  try {
+    const { ensureSm8Webhooks } = await import("@/lib/integrations/sm8-hooks");
+    await ensureSm8Webhooks(orgId, { budgetMs: left });
+  } catch (err) {
+    console.error(`[sm8] live updates for org ${orgId}: the connect's reconcile didn't run: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
 
 const SCREEN = "/dashboard/admin/integrations/servicem8";
 const COOKIE = stateCookieFor("servicem8");
@@ -65,6 +103,7 @@ function leave(request: NextRequest, query: string) {
 }
 
 export async function GET(request: NextRequest) {
+  const calledAt = Date.now();
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
   if (!session || !orgId) {
@@ -119,7 +158,12 @@ export async function GET(request: NextRequest) {
     if (connected?.tenantId) return leave(request, "?error=account");
     const saved = await saveSm8Connection({ orgId, userId, tokens: result.tokens, vendor: null });
     if (!saved.ok) return leave(request, saved.elsewhere ? "?error=elsewhere" : "?error=save");
-    after(() => runSm8SyncWhenFree(orgId, "connect").catch(() => {}));
+    if (sm8WebhooksState() === "on") {
+      await oweRotation(orgId, null);
+      after(() => afterConnect(orgId, calledAt));
+    } else {
+      after(() => runSm8SyncWhenFree(orgId, "connect").catch(() => {}));
+    }
     return leave(request, "?connected=1");
   }
 
@@ -150,6 +194,9 @@ export async function GET(request: NextRequest) {
     return leave(request, saved.elsewhere ? "?error=elsewhere" : "?error=save");
   }
 
+  const hooksOn = sm8WebhooksState() === "on";
+  if (hooksOn) await oweRotation(orgId, vendor.uuid);
+
   /* The old account's copy goes BEFORE the first sync of the new one is
      scheduled, so that sync starts from nothing — and under the sync lease,
      so a run still walking the old account can't land a page after its table
@@ -170,7 +217,8 @@ export async function GET(request: NextRequest) {
      after() rides the invocation's waitUntil instead. Bounded by the
      engine's page budget; the screen's per-object progress shows the rest
      arriving across subsequent kicks. */
-  after(() => runSm8SyncWhenFree(orgId, "connect").catch(() => {}));
+  if (hooksOn) after(() => afterConnect(orgId, calledAt));
+  else after(() => runSm8SyncWhenFree(orgId, "connect").catch(() => {}));
 
   return leave(request, switched ? "?connected=1&switched=1" : "?connected=1");
 }

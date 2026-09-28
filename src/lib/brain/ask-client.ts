@@ -13,7 +13,27 @@ export type BrainAskHandlers = {
   onTool: (label: string) => void;
   onError: (message: string) => void;
   onDone: () => void;
+  /** Tiff moved the screen: go to `href`. Only ever an address inside the
+      dashboard (see `movesTo`); the turn is over once it arrives. */
+  onScreen?: (href: string, label: string) => void;
 };
+
+/** The address a `screen` event may move to, or null. The server builds
+    these from the nav and the record links; this is the second lock, not the
+    first: the same origin, and the dashboard itself or a page inside it
+    (Home is `/dashboard`), so no `javascript:`, no other host, no
+    `/dashboardx`. */
+export function movesTo(href: string, origin: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(href, origin);
+  } catch {
+    return null;
+  }
+  if (url.origin !== origin) return null;
+  if (url.pathname !== "/dashboard" && !url.pathname.startsWith("/dashboard/")) return null;
+  return `${url.pathname}${url.search}`;
+}
 
 export async function askBrain(
   input: {
@@ -72,6 +92,14 @@ export async function askBrain(
     }
     if (event.t === "delta") handlers.onDelta(String(event.text ?? ""));
     else if (event.t === "tool") handlers.onTool(String(event.label ?? ""));
+    else if (event.t === "screen") {
+      /* A move is the end of the turn: nothing after it (a torn connection
+         included) is reported as a cut-off answer. */
+      finished = true;
+      const to = movesTo(String(event.href ?? ""), window.location.origin);
+      if (to) handlers.onScreen?.(to, String(event.label ?? ""));
+      else handlers.onError("That couldn't be opened.");
+    }
     else if (event.t === "err") {
       handlers.onError(String(event.message ?? "Something went wrong."));
       finished = true;

@@ -69,6 +69,7 @@ export async function POST(request: Request) {
           if (event.type === "delta") write({ t: "delta", text: event.text });
           else if (event.type === "tool") write({ t: "tool", name: event.name, label: event.label });
           else if (event.type === "error") write({ t: "err", message: event.message });
+          else if (event.type === "screen") write({ t: "screen", href: event.href, label: event.label });
           else if (event.type === "done") write({ t: "done" });
         }
       } catch {

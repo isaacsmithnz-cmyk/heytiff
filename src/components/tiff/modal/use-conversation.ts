@@ -175,11 +175,15 @@ export function useConversation({
   voiceEnabled,
   target: aimTarget,
   targetLabel: aimLabel,
+  onLeave,
 }: {
   opening: Opening;
   voiceEnabled: boolean;
   target: NoteTarget;
   targetLabel?: string;
+  /** Tiff moved the screen: the modal closes, and the page goes to `href`
+      once it has. Called after her line has been shown. */
+  onLeave?: (href: string) => void;
 }) {
   /* THE TAG IS A SUGGESTION: the screen you opened this from rides along and
      the note lands there, until you take it off for this conversation. */
@@ -245,6 +249,8 @@ export function useConversation({
   /** Your last words were said, not typed, so her next question is listened for. */
   const listenBack = useRef(false);
   const asking = useRef<AbortController | null>(null);
+  /** Her last answer asked something, so the next words answer it (1B). */
+  const askedBack = useRef(false);
   const sent = useRef(false);
   const dayAsk = useRef<DayAsk | null>(null);
   const onCalendar = useRef<OnCalendar | null>(null);
@@ -470,17 +476,33 @@ export function useConversation({
 
   const ask = (question: string, before: readonly ModalTurn[]) => {
     asking.current?.abort();
+    askedBack.current = false;
     const ctl = new AbortController();
     asking.current = ctl;
     const key = nextKey("tiff");
-    const run = { text: "", shown: false, pending: false, done: false };
+    const run: { text: string; shown: boolean; pending: boolean; done: boolean; moveTo: string | null } = {
+      text: "",
+      shown: false,
+      pending: false,
+      done: false,
+      moveTo: null,
+    };
     const on = () => alive.current && !ctl.signal.aborted;
+    /* A MOVE LEAVES ONLY ONCE HER LINE IS ON SCREEN, and only once the answer
+       has finished: whichever of the two comes last calls it. */
+    const leaveIfMoving = () => {
+      if (!run.done || !run.shown || !run.moveTo || !on()) return;
+      const to = run.moveTo;
+      run.moveTo = null;
+      onLeave?.(to);
+    };
     const show = () => {
       run.shown = true;
       tiffSays(run.text || (run.done ? NO_ANSWER : ""), run.done ? "editing" : "answering", {
         key,
         streaming: !run.done,
       });
+      leaveIfMoving();
     };
     void askBrain(
       {
@@ -501,6 +523,10 @@ export function useConversation({
           }
         },
         onTool: () => {},
+        onScreen: (href) => {
+          if (!on()) return;
+          run.moveTo = href;
+        },
         onError: (message) => {
           if (!on()) return;
           run.done = true;
@@ -512,9 +538,14 @@ export function useConversation({
         onDone: () => {
           if (!on()) return;
           run.done = true;
+          /* HER QUESTION BACK. An answer that ends asking something ("Which
+             Dane?") is waiting on the reply, so the next words go back to
+             the ask loop rather than being filed as a note. */
+          if (!run.moveTo && /[?？؟]\s*$/.test(run.text)) askedBack.current = true;
           if (run.shown) {
             patchTurn(key, () => ({ streaming: false, text: run.text || NO_ANSWER }));
             setStage("editing");
+            leaveIfMoving();
           } else if (!run.pending) {
             run.pending = true;
             settle(show);
@@ -594,7 +625,7 @@ export function useConversation({
   const toCalendar = (words: string, source: "voice" | "text", before: readonly ModalTurn[]) => {
     const waiting = dayAsk.current;
     if (waiting) return void fileLine({ ...waiting, answers: [...waiting.answers, words] });
-    if (looksLikeQuestion(words)) return ask(words, before);
+    if (askedBack.current || looksLikeQuestion(words)) return ask(words, before);
     const on = onCalendar.current;
     if (on) return void noteOn(on, words);
     void fileLine({ line: words, source, answers: [] });
@@ -605,7 +636,7 @@ export function useConversation({
     if (calendar) return toCalendar(words, source, before);
     const n = note.current;
     if (n?.waiting) return void reply(n, words);
-    if (looksLikeQuestion(words)) return ask(words, before);
+    if (askedBack.current || looksLikeQuestion(words)) return ask(words, before);
     void route(words, source, before);
   };
 

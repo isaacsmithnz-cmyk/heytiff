@@ -39,6 +39,7 @@ type AskBrainEvent =
   | { type: "delta"; text: string }
   | { type: "tool"; name: string; label: string }
   | { type: "error"; message: string }
+  | { type: "screen"; href: string; label: string }
   | { type: "done" };
 
 let events: AskBrainEvent[] = [];
@@ -112,11 +113,12 @@ describe("capability filtering — asking must not reach past the screens", () =
     expect(names).not.toContain("kb_search");
   });
 
-  it("tiff-only viewers get ONLY kb_search", async () => {
+  it("tiff-only viewers get kb_search and no workboard or staff tools", async () => {
     caps = new Set(["tiff"]);
     await POST(req({ question: "how do I clear an E6?" }));
     const names = (loopInput().tools as { name: string }[]).map((t) => t.name);
-    expect(names).toEqual(["kb_search"]);
+    // the library read, and a move to a screen; no job or staff tools
+    expect(names).toEqual(["kb_search", "open_screen"]);
   });
 });
 
@@ -126,6 +128,20 @@ describe("the wire", () => {
     expect(await eventsOf(res)).toEqual([
       { t: "tool", name: "job_history", label: "Reading the job's history" },
       { t: "delta", text: "Two open tasks." },
+      { t: "done" },
+    ]);
+  });
+
+  it("carries a move to the browser as a screen line", async () => {
+    events = [
+      { type: "delta", text: "Opening the Workboard." },
+      { type: "screen", href: "/dashboard/workboard", label: "Workboard" },
+      { type: "done" },
+    ];
+    const res = await POST(req({ question: "can you bring me to the workboard screen?" }));
+    expect(await eventsOf(res)).toEqual([
+      { t: "delta", text: "Opening the Workboard." },
+      { t: "screen", href: "/dashboard/workboard", label: "Workboard" },
       { t: "done" },
     ]);
   });

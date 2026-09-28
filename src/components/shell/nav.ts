@@ -189,6 +189,35 @@ export function navHref(key: string): string {
 }
 
 /** Who is looking: their capabilities, plus the role for role-intrinsic entries. */
+/** Every entry, rows and their faces, once each, for every viewer: the names
+    Tiff may be asked for. A row's first face is usually the row itself
+    (Home's faces start with Home), so a name is kept the first time it
+    appears. What a given viewer may open is still `navFor`. */
+export const ALL_SCREENS: NavItem[] = NAV.flatMap((n) => [n, ...(n.subItems ?? [])]).filter(
+  (n, i, all) => all.findIndex((m) => m.label === n.label) === i
+);
+
+/** Other words people use for a screen, squashed as `squash` squashes them.
+    Tiff's move test and `open_screen` read these; a label is always its own
+    alias. */
+export const SCREEN_ALIASES: Readonly<Record<string, string>> = {
+  dashboard: "Home",
+  home: "Home",
+  myhours: "Timesheet",
+  hours: "Timesheet",
+  noticeboard: "Noticeboard",
+  notices: "Noticeboard",
+  library: "Library",
+  manuals: "Library",
+  studio: "Design",
+};
+
+/** A screen name as people say it: lowercase, "&" read as "and", and
+    spaces, hyphens and punctuation gone, so "work board", "Workboard." and
+    "WORKBOARD" are one word, and "time and pay" is Time & Pay. */
+export const squash = (s: string) =>
+  s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]/g, "");
+
 export type NavViewer = { caps: ReadonlySet<Capability>; role: Role | null };
 
 function visible(n: NavItem, viewer: NavViewer): boolean {

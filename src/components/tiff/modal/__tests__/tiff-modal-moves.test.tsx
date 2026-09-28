@@ -20,16 +20,18 @@ import { TiffModalProvider } from "../tiff-host";
 
 let path = "/dashboard";
 const refresh = jest.fn();
+const push = jest.fn();
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh }),
+  useRouter: () => ({ refresh, push }),
   usePathname: () => path,
 }));
 
 const askBrain = jest.fn();
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: (...a: unknown[]) => askBrain(...a) }));
 
+const routeNote = jest.fn();
 jest.mock("@/app/actions/workboard-notes", () => ({
-  routeNote: jest.fn(),
+  routeNote: (...a: unknown[]) => routeNote(...a),
   continueNote: jest.fn(),
   fileNote: jest.fn(),
   undoNote: jest.fn(),
@@ -179,5 +181,69 @@ describe("the modal while the screen moves under it", () => {
     await user.click(within(dialog()).getByRole("button", { name: "Close" }));
     await flush();
     expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
+  });
+});
+
+/* ── Tiff moves the screen (universal Tiff 1B) ─────────────────────────── */
+
+describe("a move", () => {
+  it("shows her line, closes, and only then moves the page", async () => {
+    askBrain.mockImplementationOnce((_input, h) => {
+      h.onDelta("Opening the Workboard.");
+      h.onScreen("/dashboard/workboard", "Workboard");
+      h.onDone();
+    });
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "take me to the workboard?{Enter}");
+    await flush();
+    await flush();
+    expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
+    expect(push).toHaveBeenCalledWith("/dashboard/workboard");
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("moves nothing when the move arrives after the modal was closed", async () => {
+    let late: { onScreen: (href: string, label: string) => void; onDelta: (t: string) => void; onDone: () => void } | null = null;
+    askBrain.mockImplementationOnce((_input, h) => {
+      late = h;
+    });
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "take me to the workboard?{Enter}");
+    await user.click(within(dialog()).getByRole("button", { name: "Close" }));
+    await flush();
+    act(() => {
+      late?.onDelta("Opening the Workboard.");
+      late?.onScreen("/dashboard/workboard", "Workboard");
+      late?.onDone();
+    });
+    await flush();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("sends the answer to her question back to her, rather than filing it as a note", async () => {
+    askBrain.mockImplementationOnce((_input, h) => {
+      h.onDelta("Which Dane: Dane Porter or Dane Ito?");
+      h.onDone();
+    });
+    askBrain.mockImplementationOnce((_input, h) => {
+      h.onDelta("Opening Dane Porter's card.");
+      h.onScreen("/dashboard/team/s-1", "Dane Porter's card");
+      h.onDone();
+    });
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "open Dane's card?{Enter}");
+    await flush();
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Dane Porter{Enter}");
+    await flush();
+    await flush();
+    expect(routeNote).not.toHaveBeenCalled();
+    expect(askBrain).toHaveBeenCalledTimes(2);
+    expect(push).toHaveBeenCalledWith("/dashboard/team/s-1");
   });
 });

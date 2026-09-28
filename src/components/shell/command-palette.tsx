@@ -1,5 +1,6 @@
 "use client";
 
+import * as links from "@/lib/shell/links";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -65,22 +66,12 @@ const photoOrigin = (h: PhotoHit) =>
     .filter(Boolean)
     .join(", ");
 
-/** A person opens on their staff card. */
-const staffHref = (person: PaletteStaff) => `/dashboard/team/${encodeURIComponent(person.id)}`;
-
-/** A job opens where its card lives: the Workboard, on the jobs side, with
-    this job's sheet up — found in the board's window or past it. */
-const jobHref = (job: AllJobsMirrorJob) =>
-  `/dashboard/workboard?job=${encodeURIComponent(job.remoteId)}`;
-
-/** A client has no page of their own. The Workboard's search, run on their
-    name, is the nearest thing: every job, visit, project and photo that
-    names them, grouped by the side that owns it. */
-const clientHref = (client: PaletteClient) =>
-  `/dashboard/workboard?q=${encodeURIComponent(client.name)}`;
-
-const projectHref = (project: PaletteProject) =>
-  `/dashboard/workboard/projects/${encodeURIComponent(project.id)}`;
+/* Where each record opens: one set of links, shared with Tiff's open_record
+   (lib/shell/links), so the two doors never land in different places. */
+const staffHref = (person: PaletteStaff) => links.staffHref(person.id);
+const jobHref = (job: AllJobsMirrorJob) => links.jobHref(job.remoteId);
+const clientHref = (client: PaletteClient) => links.clientHref(client.name);
+const projectHref = (project: PaletteProject) => links.projectHref(project.id);
 
 /** A project's state in one word: its stage while it runs, the state itself
     once it has stopped — the Projects board's own vocabulary. */

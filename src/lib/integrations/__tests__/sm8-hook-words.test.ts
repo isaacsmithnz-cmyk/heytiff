@@ -69,6 +69,24 @@ describe("the line", () => {
     }
   });
 
+  it("deactivated with a reason that carries an address, a path or a redaction: the plain line, never the raw words", () => {
+    for (const reason of [
+      "POST to https://app.test/api/integrations/servicem8/webhook/[hook] timed out",
+      "Callback www.example.test unreachable",
+      "Failed calling /api/integrations/servicem8/webhook/[hook]",
+      "Failed calling api/integrations/servicem8",
+      "Failed: [hook]",
+      "Failed: [address]",
+      "Failed at https%3A%2F%2Fapp.test",
+      "  .  ",
+    ]) {
+      expect([reason, sm8LiveUpdatesLine({ state: "deactivated", object: "job_notes", reason, at: "2026-10-03 04:12:00" })]).toEqual([
+        reason,
+        "ServiceM8 turned off live updates for Job notes. Press Reconnect.",
+      ]);
+    }
+  });
+
   it("quiet: the day the pings stopped", () => {
     expect(sm8LiveUpdatesLine({ state: "quiet", since: Date.parse("2026-10-02T23:10:00Z") })).toBe(
       "ServiceM8 hasn't sent a live update since Sat 3 Oct, so changes wait for the next sync."
@@ -83,7 +101,7 @@ describe("the line", () => {
   });
 
   it("asks for Reconnect only where a Reconnect is the fix: nothing subscribed, or one turned off", () => {
-    for (const k of ["none", "deactivated", "deactivatedUndated"] as const) {
+    for (const k of ["none", "deactivated", "deactivatedUndated", "deactivatedPlain"] as const) {
       expect([k, HOOK_WORDS[k].endsWith(" Press Reconnect.")]).toEqual([k, true]);
     }
     for (const k of ["partial", "quiet"] as const) {

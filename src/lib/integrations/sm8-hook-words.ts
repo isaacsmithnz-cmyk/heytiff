@@ -25,6 +25,8 @@ export const HOOK_WORDS = {
   partial: "ServiceM8 isn't sending live updates for {list}, so those wait for the next sync.",
   deactivated: "ServiceM8 turned off live updates for {name} on {day}: {reason}. Press Reconnect.",
   deactivatedUndated: "ServiceM8 turned off live updates for {name}: {reason}. Press Reconnect.",
+  /* ServiceM8's reason isn't one to show (showableReason) */
+  deactivatedPlain: "ServiceM8 turned off live updates for {name}. Press Reconnect.",
   quiet: "ServiceM8 hasn't sent a live update since {day}, so changes wait for the next sync.",
 } as const;
 
@@ -40,6 +42,18 @@ function dayOfFailure(at: string | null): string {
   const naive = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(at);
   const ms = Date.parse(naive ? `${at.replace(" ", "T")}Z` : at);
   return Number.isFinite(ms) ? fmtAuWeekdayDayMonth(auDayOf(new Date(ms))) : "";
+}
+
+/** ServiceM8's reason as the line may say it: without a full stop of its
+    own, and null — the plain line instead — when it is empty, or carries a
+    redaction (`[hook]`, `[address]`), a web address or a path: a reason that
+    echoes where we are subscribed says nothing the owner can use, and the
+    address is never shown. */
+function showableReason(raw: string): string | null {
+  const reason = raw.trim().replace(/[\s.]+$/, "");
+  if (reason === "") return null;
+  if (/\[(hook|address)\]|[a-z][a-z0-9+.-]*:\/\/|\bwww\.|%2F|\S\/\S|(^|\s)\//i.test(reason)) return null;
+  return reason;
 }
 
 function fill(words: string, values: Record<string, string>): string {
@@ -62,8 +76,9 @@ export function sm8LiveUpdatesLine(health: Sm8HooksHealth | null): string | null
       return fill(HOOK_WORDS.partial, { list: nameList(ordered) });
     }
     case "deactivated": {
-      /* ServiceM8's own words, without a full stop of their own */
-      const reason = health.reason.trim().replace(/[\s.]+$/, "");
+      /* ServiceM8's own words, when they are fit to show */
+      const reason = showableReason(health.reason);
+      if (reason === null) return fill(HOOK_WORDS.deactivatedPlain, { name: labelOf(health.object) });
       const day = dayOfFailure(health.at);
       return fill(day ? HOOK_WORDS.deactivated : HOOK_WORDS.deactivatedUndated, { name: labelOf(health.object), day, reason });
     }

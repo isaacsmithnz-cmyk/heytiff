@@ -29,6 +29,7 @@ import {
   normaliseHookObject,
   ourSecretIn,
   parsePing,
+  PING_BODY_MAX,
   planSubscriptions,
   quietStampFrom,
   readFits,
@@ -192,6 +193,15 @@ describe("reading a ping", () => {
     expect(parsePing("application/json", body({ pad: "x".repeat(17_000) }), q())).toEqual({ kind: "junk" });
   });
 
+  it("counts the body's size in bytes, not characters", () => {
+    // 9,000 two-byte characters: under PING_BODY_MAX in characters, over it in bytes
+    const wide = body({ pad: "é".repeat(9_000) });
+    expect(wide.length).toBeLessThan(PING_BODY_MAX);
+    expect(Buffer.byteLength(wide, "utf8")).toBeGreaterThan(PING_BODY_MAX);
+    expect(parsePing("application/json", wide, q())).toEqual({ kind: "junk" });
+    expect(parsePing("application/json", body({ pad: "e".repeat(9_000) }), q())).toMatchObject({ kind: "change" });
+  });
+
   it("normalises the object, and ignores one we don't mirror", () => {
     expect(parsePing("application/json", body({ object: "Job" }), q())).toMatchObject({ kind: "change", object: "jobs" });
     expect(parsePing("application/json", body({ object: "job_activity" }), q())).toMatchObject({
@@ -293,11 +303,11 @@ describe("what a reconcile does", () => {
   const plan = (subs: HookSub[], h = hashes) => planSubscriptions({ subs, origin: ORIGIN, hashes: h, wanted: WANTED });
 
   it("POSTs every object with nothing listed, and deletes nothing", () => {
-    expect(plan([])).toEqual({ post: [...HOOK_OBJECT_NAMES], deactivated: [], del: [] });
+    expect(plan([])).toEqual({ post: [...HOOK_OBJECT_NAMES], deactivated: [], del: [], leftAlone: [] });
   });
 
   it("is empty when all six are active at the current address", () => {
-    expect(plan(allSix())).toEqual({ post: [], deactivated: [], del: [] });
+    expect(plan(allSix())).toEqual({ post: [], deactivated: [], del: [], leftAlone: [] });
   });
 
   it("never touches another origin's or another path's entry, active or not", () => {
@@ -307,7 +317,7 @@ describe("what a reconcile does", () => {
       sub({ callbackUrl: urlOf(STRANGER, "https://app.tiff-example.test.evil.example") }),
     ];
     const p = plan([...allSix(), ...foreign]);
-    expect(p).toEqual({ post: [], deactivated: [], del: [] });
+    expect(p).toEqual({ post: [], deactivated: [], del: [], leftAlone: [] });
   });
 
   it("deletes a dead hash at our path only while it is active", () => {
@@ -325,9 +335,22 @@ describe("what a reconcile does", () => {
     expect(p.post).toEqual([]);
   });
 
-  it("deletes an active entry of ours for an object we don't want", () => {
-    const material = { ...sub(), object: "material" };
-    expect(plan([...allSix(), material]).del).toEqual([material.uuid]);
+  it("leaves an active entry at the current address whose object it can't name, and reports it to be logged", () => {
+    // ServiceM8 may list one of ours under a spelling we don't know: deleting
+    // it would re-POST it on the next reconcile, and delete it again, forever
+    const odd = { ...sub(), object: "JobActivityV2" };
+    const p = plan([...allSix(), odd]);
+    expect(p.del).toEqual([]);
+    expect(p.leftAlone).toEqual([{ sub: odd.uuid, object: "JobActivityV2" }]);
+    expect(plan([...allSix(), { ...odd, active: false }]).leftAlone).toEqual([]);
+  });
+
+  it("deletes an active entry for an object it can't name at a retired or dead address", () => {
+    const retired = { ...sub({ callbackUrl: urlOf(RETIRED) }), object: "material" };
+    const dead = { ...sub({ callbackUrl: urlOf(STRANGER) }), object: "material" };
+    const p = plan([...allSix(), retired, dead]);
+    expect(p.del.sort()).toEqual([retired.uuid, dead.uuid].sort());
+    expect(p.leftAlone).toEqual([]);
   });
 
   it("re-POSTs a deactivated entry — inactive, current, with a reason — and records the reason first", () => {
@@ -369,7 +392,7 @@ describe("what a reconcile does", () => {
     const after = before.map((s) =>
       s === narrow ? { ...s, fields: [...WANTED.companies] } : p.del.includes(s.uuid) ? { ...s, active: false } : s
     );
-    expect(plan(after)).toEqual({ post: [], deactivated: [], del: [] });
+    expect(plan(after)).toEqual({ post: [], deactivated: [], del: [], leftAlone: [] });
   });
 });
 
@@ -386,17 +409,19 @@ describe("keeping an address out of what is stored", () => {
     expect(redactHook("Object Potato does not support subscription")).toBe("Object Potato does not support subscription");
   });
 
-  it("reads the stored per-object state defensively, redacting any error", () => {
+  it("reads the stored per-object state defensively, redacting any error or failure reason", () => {
     const got = readHookObjects({
       jobs: { name: "job", sub: "s-1", active: true, new: 2, changed: 5, url: urlOf(SECRET) },
       job_notes: { active: false, failure_reason: "Webhook request failed for over 12 hours", failure_at: "2026-09-20 03:25:00" },
       companies: { error: `refused ${urlOf(SECRET)}` },
+      attachments: { active: false, failure_reason: `no answer from ${urlOf(SECRET)}` },
       staff: { active: true },
     });
     expect(got).toEqual({
       jobs: { name: "job", sub: "s-1", active: true, new: 2, changed: 5 },
       job_notes: { active: false, failure_reason: "Webhook request failed for over 12 hours", failure_at: "2026-09-20 03:25:00" },
       companies: { error: `refused ${ORIGIN}${HOOK_PATH}[hook]` },
+      attachments: { active: false, failure_reason: `no answer from ${ORIGIN}${HOOK_PATH}[hook]` },
     });
     expect(JSON.stringify(got)).not.toContain(SECRET);
     expect(readHookObjects(null)).toEqual({});

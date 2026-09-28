@@ -71,11 +71,50 @@ function sources(dir: string): string[] {
   return out;
 }
 
+/** Whether a source takes a turn on the `hook` lane: the lane passed to
+    sm8CallOf or takeSm8Call (its arguments may hold a call of their own),
+    or "hook" given to anything named `lane` or typed Sm8Lane. */
+function takesHookLane(text: string): boolean {
+  const HOOK = `["'\`]hook["'\`]`;
+  return [
+    new RegExp(`(?:sm8CallOf|takeSm8Call)\\s*\\((?:[^()]|\\((?:[^()]|\\([^()]*\\))*\\))*?${HOOK}`),
+    new RegExp(`\\blane\\??\\s*(?::[^=;,)]*)?[:=]\\s*${HOOK}`),
+    new RegExp(`:\\s*Sm8Lane\\s*=\\s*${HOOK}`),
+    new RegExp(`${HOOK}\\s+(?:as|satisfies)\\s+Sm8Lane\\b`),
+  ].some((re) => re.test(text));
+}
+
 describe("the meter's hook lane", () => {
+  it("is spotted however a caller spells it", () => {
+    for (const text of [
+      `sm8CallOf(access, "hook")`,
+      `sm8CallOf(f(), "hook")`,
+      `sm8CallOf(await accessOf(g(org)), 'hook')`,
+      `takeSm8Call(meter, "hook", 2)`,
+      `const lane: Sm8Lane = "hook";`,
+      `let lane = "hook";`,
+      `{ accessToken, meter, lane: "hook" }`,
+      `const l: Sm8Lane = "hook";`,
+      `const l = "hook" as Sm8Lane;`,
+    ]) {
+      expect([text, takesHookLane(text)]).toEqual([text, true]);
+    }
+    for (const text of [
+      `sm8CallOf(access, "read")`,
+      `sm8CallOf(f(), "sync")`,
+      `takeSm8Call(meter, "write")`,
+      `const lane: Sm8Lane = "read";`,
+      `const hook = "hook";`,
+      `hook: HOOK_METER_WAIT_MS`,
+    ]) {
+      expect([text, takesHookLane(text)]).toEqual([text, false]);
+    }
+  });
+
   it("is taken by no file but those listed, each held behind the switch", () => {
     const SRC = join(__dirname, "..", "..", "..");
     const callers = sources(SRC)
-      .filter((f) => /(?:sm8CallOf|takeSm8Call)\([^)]*["']hook["']|lane:\s*["']hook["']/.test(readFileSync(f, "utf8")))
+      .filter((f) => takesHookLane(readFileSync(f, "utf8")))
       .map((f) => f.slice(SRC.length + 1))
       .sort();
     expect(callers).toEqual(HOOK_LANE_CALLERS);

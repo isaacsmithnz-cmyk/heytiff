@@ -76,6 +76,15 @@ describe("what the tables hold", () => {
     expect(block(migration, "HOOK FUNCTIONS")).toContain("clock_timestamp() + interval '72 hours'");
   });
 
+  it("lets two rotations at once take turns, so the second retires the first's hash", () => {
+    const fn = /create or replace function public\.sm8_rotate_hook\([\s\S]*?\$\$([\s\S]*?)\$\$;/.exec(block(migration, "HOOK FUNCTIONS"))![1];
+    const statements = code(fn)
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l !== "");
+    expect(statements.slice(0, 2)).toEqual(["begin", "perform pg_advisory_xact_lock(hashtextextended(p_org::text, 0));"]);
+  });
+
   it("holds each secret by hash only, with one current per workspace", () => {
     expect(migration).toMatch(/hook_hash\s+text primary key/);
     expect(code(migration)).not.toMatch(/callback_url|hook_secret|hook_enc/i);
@@ -94,6 +103,14 @@ describe("safe to apply before the deploy", () => {
     const sql = code(migration).trim();
     expect(sql.startsWith("begin;")).toBe(true);
     expect(sql.endsWith("commit;")).toBe(true);
+  });
+
+  it("waits at most 5 s for a lock, so the syncs never queue behind it", () => {
+    const statements = code(migration)
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l !== "");
+    expect(statements.slice(0, 2)).toEqual(["begin;", "set local lock_timeout = '5s';"]);
   });
 
   it("only adds, and adds nothing twice", () => {
@@ -152,5 +169,10 @@ describe("the rolled-back test script", () => {
     }
     expect(script).toMatch(/public\.sm8_rotate_hook\(c\.org, c\.account, 'rollback-test:/);
     expect(script).toMatch(/public\.sm8_take_hook_call\(c\.org, 2\)/);
+  });
+
+  it("checks a rotation holds the workspace's lock until the transaction ends", () => {
+    expect(script).toMatch(/l\.locktype = 'advisory' and l\.pid = pg_backend_pid\(\) and l\.granted/);
+    expect(script).toContain("= hashtextextended(c.org::text, 0)");
   });
 });

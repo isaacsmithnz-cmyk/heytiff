@@ -138,8 +138,8 @@ export function redactHook(text: string, secrets: readonly string[] = []): strin
 
 /* ── reading a ping ── */
 
-/** A body larger than this is never read: a real ping is a few hundred
-    bytes. */
+/** A body larger than this many BYTES (UTF-8) is never read: a real ping
+    is a few hundred. */
 export const PING_BODY_MAX = 16_384;
 
 /** A ping names one record ("The entry parameter is an array which contains
@@ -217,7 +217,7 @@ function changeOf(body: Record<string, unknown>, kind: PingBodyKind): Ping {
     queue, one to ignore, or junk. `query` is the address's query string (a
     challenge may come as a GET). Never throws. */
 export function parsePing(contentType: string | null, text: string, query: Params): Ping {
-  if (text.length > PING_BODY_MAX) return { kind: "junk" };
+  if (Buffer.byteLength(text, "utf8") > PING_BODY_MAX) return { kind: "junk" };
   const type = (contentType ?? "").toLowerCase();
 
   const json = jsonObjectOf(text);
@@ -344,9 +344,14 @@ export type HookPlan = {
       clears it ("When a subscription is successfully reactivated, its
       stored failure snapshot is cleared"). */
   deactivated: { object: HookObjectName; sub: string; reason: string; at: string | null }[];
-  /** Subscription uuids to DELETE: ours, ACTIVE in this list, and retired,
-      dead, or for an object we don't want. Each once. */
+  /** Subscription uuids to DELETE: ours, ACTIVE in this list, and at a
+      retired or dead address. Each once. */
   del: string[];
+  /** ACTIVE entries at the current address whose object isn't one of the
+      six in any spelling we know: never deleted — ServiceM8 may list one of
+      ours under another spelling (U2), and deleting it would re-POST it on
+      the next reconcile, and delete it again — and logged by the caller. */
+  leftAlone: { sub: string; object: string | null }[];
 };
 
 /** What a reconcile does about one listing (status=all). The POSTs come
@@ -373,11 +378,16 @@ export function planSubscriptions(input: {
     }
   }
   const del: string[] = [];
+  const leftAlone: HookPlan["leftAlone"] = [];
   for (const s of ours) {
-    if (!s.active || del.includes(s.uuid)) continue;
-    if (s.age !== "current" || s.hookObject === null) del.push(s.uuid);
+    if (!s.active) continue;
+    if (s.age !== "current") {
+      if (!del.includes(s.uuid)) del.push(s.uuid);
+    } else if (s.hookObject === null && !leftAlone.some((l) => l.sub === s.uuid)) {
+      leftAlone.push({ sub: s.uuid, object: s.object });
+    }
   }
-  return { post, deactivated, del };
+  return { post, deactivated, del, leftAlone };
 }
 
 /* ── what is kept per object (sm8_webhooks.objects), and how healthy ── */
@@ -391,6 +401,7 @@ export type HookObjectState = {
   active?: boolean;
   /** ServiceM8's refusal, redacted (redactHook). */
   error?: string | null;
+  /** ServiceM8's reason for turning it off, redacted the same way. */
   failure_reason?: string | null;
   failure_at?: string | null;
   /** Records the drain wrote that the mirror didn't have, and had. */
@@ -417,7 +428,7 @@ export function readHookObjects(json: unknown): HookObjectsState {
     if ("sub" in r) s.sub = str(r.sub);
     if (typeof r.active === "boolean") s.active = r.active;
     if ("error" in r) s.error = str(r.error) === null ? null : redactHook(str(r.error)!);
-    if ("failure_reason" in r) s.failure_reason = str(r.failure_reason);
+    if ("failure_reason" in r) s.failure_reason = str(r.failure_reason) === null ? null : redactHook(str(r.failure_reason)!);
     if ("failure_at" in r) s.failure_at = str(r.failure_at);
     if (count(r.new) !== undefined) s.new = count(r.new);
     if (count(r.changed) !== undefined) s.changed = count(r.changed);

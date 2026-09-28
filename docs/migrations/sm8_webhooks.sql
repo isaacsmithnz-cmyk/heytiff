@@ -66,6 +66,10 @@
 -- The tables stay; old code never reads them.
 
 begin;
+set local lock_timeout = '5s';
+-- Waits at most 5 s for a lock and fails rather than queue behind one: the
+-- ALTERs below hold ACCESS EXCLUSIVE on sm8_sync_runs until commit, and every
+-- sync waits on that table. A timeout rolls it all back; run it again.
 
 -- ── 1. the sync lease: a token, who holds it, and a sync asking for it ──
 alter table public.sm8_sync_runs add column if not exists lease_token uuid;
@@ -160,6 +164,7 @@ begin
       select count(*) into v_count from public.sm8_webhook_pings p where p.org_id = v_org;
       if v_count >= p_cap then
         update public.sm8_webhooks w set sync_wanted_at = clock_timestamp() where w.org_id = v_org;
+        -- Review nit, left for PR C: 'full' can follow uuids this call already queued (they get no after()).
         return query select 'full'::text, v_org; return;
       end if;
       insert into public.sm8_webhook_pings as p (org_id, object, uuid) values (v_org, p_object, v_u)
@@ -177,11 +182,16 @@ create or replace function public.sm8_rotate_hook(p_org uuid, p_account text, p_
 returns void language plpgsql volatile set search_path = public
 as $$
 begin
+  perform pg_advisory_xact_lock(hashtextextended(p_org::text, 0));
+  -- Two rotations at once take turns on the workspace's lock (held to commit): the
+  -- second then retires the first's hash, where it would have broken
+  -- sm8_webhook_hooks_one_current (spec 2.8, "Races").
   update public.sm8_webhook_hooks
      set retired_at = clock_timestamp(), valid_until = clock_timestamp() + interval '72 hours'
    where org_id = p_org and retired_at is null;
   insert into public.sm8_webhook_hooks (hook_hash, org_id, account_uuid) values (p_hash, p_org, p_account);
   insert into public.sm8_webhooks (org_id, account_uuid) values (p_org, p_account)
+    -- Review nit, left for PR C: this clears rotate_wanted_at at the mint; the spec clears it at the ensure's end.
     on conflict (org_id) do update set account_uuid = excluded.account_uuid, rotate_wanted_at = null;
 end
 $$;

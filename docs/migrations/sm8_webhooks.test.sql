@@ -57,6 +57,7 @@ begin
       select count(*) into v_count from public.sm8_webhook_pings p where p.org_id = v_org;
       if v_count >= p_cap then
         update public.sm8_webhooks w set sync_wanted_at = clock_timestamp() where w.org_id = v_org;
+        -- Review nit, left for PR C: 'full' can follow uuids this call already queued (they get no after()).
         return query select 'full'::text, v_org; return;
       end if;
       insert into public.sm8_webhook_pings as p (org_id, object, uuid) values (v_org, p_object, v_u)
@@ -74,11 +75,16 @@ create or replace function public.sm8_rotate_hook(p_org uuid, p_account text, p_
 returns void language plpgsql volatile set search_path = public
 as $$
 begin
+  perform pg_advisory_xact_lock(hashtextextended(p_org::text, 0));
+  -- Two rotations at once take turns on the workspace's lock (held to commit): the
+  -- second then retires the first's hash, where it would have broken
+  -- sm8_webhook_hooks_one_current (spec 2.8, "Races").
   update public.sm8_webhook_hooks
      set retired_at = clock_timestamp(), valid_until = clock_timestamp() + interval '72 hours'
    where org_id = p_org and retired_at is null;
   insert into public.sm8_webhook_hooks (hook_hash, org_id, account_uuid) values (p_hash, p_org, p_account);
   insert into public.sm8_webhooks (org_id, account_uuid) values (p_org, p_account)
+    -- Review nit, left for PR C: this clears rotate_wanted_at at the mint; the spec clears it at the ensure's end.
     on conflict (org_id) do update set account_uuid = excluded.account_uuid, rotate_wanted_at = null;
 end
 $$;
@@ -131,6 +137,15 @@ declare c rollback_test_ctx%rowtype; r record;
 begin
   select * into c from rollback_test_ctx;
   perform public.sm8_rotate_hook(c.org, c.account, 'rollback-test:hook-a');
+  -- the workspace's lock, held until the transaction ends, is what makes a
+  -- second rotation at once wait and retire this one (a bigint key shows as
+  -- classid = its high 32 bits, objid = its low 32, objsubid = 1)
+  if not exists (select 1 from pg_locks l
+                  where l.locktype = 'advisory' and l.pid = pg_backend_pid() and l.granted
+                    and l.objsubid = 1
+                    and ((l.classid::bigint << 32) | l.objid::bigint) = hashtextextended(c.org::text, 0)) then
+    raise exception '1: a rotation should hold the workspace''s advisory lock until the transaction ends';
+  end if;
   select * into r from public.sm8_take_ping('rollback-test:hook-a', null, null, 2000);
   if r.verdict is distinct from 'known' or r.hook_org is distinct from c.org then
     raise exception '1: a challenge on a fresh hash: expected known, got %', row_to_json(r);
@@ -142,7 +157,7 @@ begin
   if (select count(*) from public.sm8_webhooks where org_id = c.org) <> 1 then
     raise exception '1: the rotation should make the workspace''s sm8_webhooks row';
   end if;
-  raise notice 'ok 1: a rotated-in hash is known, and a never-known one unknown';
+  raise notice 'ok 1: a rotation holds the workspace''s lock, its hash is known, and a never-known one unknown';
 end $$;
 
 -- 2. a new record is queued; the same record again merges

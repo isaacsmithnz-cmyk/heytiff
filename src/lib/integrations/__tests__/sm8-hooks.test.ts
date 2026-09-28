@@ -21,6 +21,16 @@ function matches(row: Row, filters: [string, string, unknown][]): boolean {
   return filters.every(([c, op, v]) => {
     const x = row[c];
     if (op === "eq") return x === v;
+    if (op === "is") return (x ?? null) === v;
+    /* PostgREST's or=(a.is.null,a.lte.<value>): what the flight's claim sends */
+    if (op === "or") {
+      return String(v)
+        .split(",")
+        .some((term) => {
+          const [col, o, ...rest] = term.split(".");
+          return matches(row, [[col, o, o === "is" && rest.join(".") === "null" ? null : rest.join(".")]]);
+        });
+    }
     if (x === null || x === undefined) return false;
     if (op === "lte") return String(x) <= String(v);
     if (op === "lt") return String(x) < String(v);
@@ -33,6 +43,7 @@ class Query {
   private patch: Row = {};
   private filters: [string, string, unknown][] = [];
   private single = false;
+  private ignoreDuplicates = false;
   constructor(private table: string) {}
   select() {
     return this;
@@ -49,6 +60,14 @@ class Query {
     this.filters.push([c, "lt", v]);
     return this;
   }
+  is(c: string, v: unknown) {
+    this.filters.push([c, "is", v]);
+    return this;
+  }
+  or(v: string) {
+    this.filters.push(["", "or", v]);
+    return this;
+  }
   maybeSingle() {
     this.single = true;
     return this;
@@ -58,9 +77,10 @@ class Query {
     this.patch = p;
     return this;
   }
-  upsert(p: Row) {
+  upsert(p: Row, opts: { ignoreDuplicates?: boolean } = {}) {
     this.op = "upsert";
     this.patch = p;
+    this.ignoreDuplicates = !!opts.ignoreDuplicates;
     return this;
   }
   delete() {
@@ -89,9 +109,10 @@ class Query {
     }
     if (this.op === "upsert") {
       const found = rows.find((r) => r.org_id === this.patch.org_id);
+      if (found && this.ignoreDuplicates) return { data: [], error: null };
       if (found) Object.assign(found, this.patch);
       else rows.push({ objects: {}, subscribed_at: null, rotate_wanted_at: null, ensure_tried_at: null, ...this.patch });
-      return { data: null, error: null };
+      return { data: [this.patch], error: null };
     }
     const gone = rows.filter((r) => matches(r, this.filters));
     db[this.table] = rows.filter((r) => !gone.includes(r));
@@ -122,6 +143,7 @@ jest.mock("@/lib/supabase-server", () => ({
       const row = webhooks.find((r) => r.org_id === args.p_org);
       if (row) Object.assign(row, { account_uuid: args.p_account, rotate_wanted_at: null });
       else webhooks.push({ org_id: args.p_org, account_uuid: args.p_account, objects: {}, subscribed_at: null, rotate_wanted_at: null });
+      afterRpc();
       return { data: null, error: null };
     },
   },
@@ -178,6 +200,13 @@ let refuse: Record<string, { status: number; body: string }> = {};
 let onPost: (object: string) => void = () => {};
 let listStatus = 200;
 let fetchThrows = false;
+/** Something that happens just after sm8_rotate_hook commits. */
+let afterRpc: () => void = () => {};
+/** How long ServiceM8 takes to answer, by method: a clock that SPENDS. */
+let spend: Record<string, number> = {};
+let fakeNow = 1_000_000;
+/** A DELETE's answer, by subscription uuid, when it isn't plain success. */
+let deleteSays: Record<string, unknown> = {};
 
 const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status });
 
@@ -188,6 +217,7 @@ const fakeFetch = jest.fn(async (url: string, init: RequestInit) => {
   const body = init.body instanceof URLSearchParams ? init.body : undefined;
   requests.push({ method, path: `${u.pathname}${u.search}`, body });
   events.push(`${method} ${u.pathname}`);
+  fakeNow += spend[method] ?? 0;
   if (method === "GET") {
     if (listStatus !== 200) return new Response("no", { status: listStatus });
     const status = u.searchParams.get("status");
@@ -207,6 +237,7 @@ const fakeFetch = jest.fn(async (url: string, init: RequestInit) => {
   const id = u.pathname.split("/").pop();
   const s = subs.find((x) => x.uuid === id);
   if (!s) return json({ success: false, message: "No matching webhook found" }, 404);
+  if (id && deleteSays[id] !== undefined) return json(deleteSays[id]);
   s.active = false;
   return json({ success: true });
 });
@@ -275,6 +306,8 @@ const currentHash = () => (db.sm8_webhook_hooks ?? []).find((h) => h.retired_at 
 const posts = () => requests.filter((r) => r.method === "POST");
 const deletes = () => requests.filter((r) => r.method === "DELETE").map((r) => r.path.split("/").pop());
 
+type HookState = { failure_reason?: string | null; failure_at?: string | null; active?: boolean };
+
 const env = { ...process.env };
 const realFetch = global.fetch;
 let lines: string[] = [];
@@ -291,6 +324,10 @@ beforeEach(() => {
   listStatus = 200;
   fetchThrows = false;
   dbThrows = false;
+  afterRpc = () => {};
+  spend = {};
+  fakeNow = 1_000_000;
+  deleteSays = {};
   accessResult = { ok: true, access: ACCESS };
   renewSm8Access.mockReset();
   markSm8NeedsReauth.mockClear();
@@ -369,7 +406,8 @@ describe("ensureSm8Webhooks: the address", () => {
     const out = await ensure();
     expect(out).toMatchObject({ ran: true, rotated: false, posted: 0, deleted: 0, subscribed: true });
     expect(requests.map((r) => `${r.method} ${r.path}`)).toEqual(["GET /webhook_subscriptions?status=all"]);
-    expect(writes.map((w) => `${w.op}:${w.table}`)).toEqual(["upsert:sm8_webhooks"]);
+    // the flight claimed, then released with the record
+    expect(writes.map((w) => `${w.op}:${w.table}`)).toEqual(["update:sm8_webhooks", "upsert:sm8_webhooks"]);
     expect(row().subscribed_at).toBe("2026-09-20T00:00:00.000Z");
   });
 
@@ -531,9 +569,39 @@ describe("ensureSm8Webhooks: the POSTs", () => {
     expect(recorded).toBeGreaterThan(-1);
     expect(recordedAt).toBeGreaterThan(-1);
     expect(posts().map((p) => p.body!.get("callback_url"))).toEqual([addressOf(OLD)]);
-    expect(row().objects).toMatchObject({
-      companies: { active: true, failure_reason: "Webhook request failed for over 12 hours", failure_at: "2026-09-27 03:25:00" },
+    const before = writes[recorded].patch as { objects: Record<string, HookState> };
+    expect(before.objects.companies).toMatchObject({
+      failure_reason: "Webhook request failed for over 12 hours",
+      failure_at: "2026-09-27 03:25:00",
     });
+    // covered again: the turn-off is over
+    expect(row().objects).toMatchObject({ companies: { active: true, failure_reason: null, failure_at: null } });
+  });
+
+  it("a turn-off recorded before is cleared once the list shows the object covered again, with no POST", async () => {
+    holdCurrent(OLD);
+    holdRow({
+      subscribed_at: "2026-09-20T00:00:00.000Z",
+      objects: { companies: { active: false, failure_reason: "Webhook request failed for over 12 hours", failure_at: "2026-09-27 03:25:00" } },
+    });
+    subs = listSix(OLD);
+    await ensure();
+    expect(posts()).toEqual([]);
+    expect(row().objects).toMatchObject({ companies: { active: true, failure_reason: null, failure_at: null } });
+  });
+
+  it("a failure time that isn't one isn't kept", async () => {
+    holdCurrent(OLD);
+    holdRow();
+    subs = listSix(OLD);
+    Object.assign(subs.find((s) => s.object === "company")!, {
+      active: false,
+      last_failure_reason: "gone quiet",
+      last_failure_at: "<img src=x>",
+    });
+    refuse = { company: { status: 403, body: "no" }, Company: { status: 403, body: "no" } };
+    await ensure();
+    expect(row().objects).toMatchObject({ companies: { active: false, failure_reason: "gone quiet", failure_at: null } });
   });
 
   it("a subscription watching too little is POSTed again", async () => {
@@ -607,15 +675,39 @@ describe("ensureSm8Webhooks: the DELETEs", () => {
 });
 
 describe("ensureSm8Webhooks: bounds", () => {
-  it("a request starts only while its worst case still ends inside the budget", async () => {
+  it("a list starts only while its worst case (10 s and the meter's 3 s) still fits", async () => {
     const clock = () => 1_000_000;
-    // a list (10 s + the meter's 3 s) fits in 20 s; a POST (25 s + 3 s) doesn't
-    const out = await ensure({ budgetMs: 20_000, clock });
-    expect(requests.map((r) => r.method)).toEqual(["GET"]);
-    expect(out).toMatchObject({ ran: true, posted: 0, stopped: "late" });
-    requests.length = 0;
     await ensure({ budgetMs: 12_000, clock });
     expect(requests).toEqual([]);
+  });
+
+  it("with a clock that spends: each POST waits what is left, none below 12 s, and no list, no DELETE after", async () => {
+    holdCurrent(OLD);
+    holdRow({ rotate_wanted_at: "2026-09-28T01:00:00.000Z" });
+    subs = listSix(OLD);
+    spend = { GET: 2_000, POST: 5_000 };
+    const timeout = jest.spyOn(AbortSignal, "timeout");
+    const out = await ensure({ budgetMs: 30_000, clock: () => fakeNow });
+    // 30 s: the list ends at 2 s; POSTs start at 2, 7 and 12 s (25, 20, 15 s left
+    // after the meter's 3); at 17 s only 10 s would be left
+    expect(requests.map((r) => r.method)).toEqual(["GET", "POST", "POST", "POST"]);
+    expect(timeout.mock.calls.slice(1).map((c) => c[0])).toEqual([25_000, 20_000, 15_000]);
+    expect(out).toMatchObject({ rotated: true, posted: 3, deleted: 0, stopped: "late" });
+    // the old address still works for the three not yet moved
+    expect(subs.filter((s) => s.callback_url === addressOf(OLD)).every((s) => s.active)).toBe(true);
+  });
+
+  it("no secret is minted when its first POST couldn't be made, and the rotation stays owed", async () => {
+    holdCurrent(OLD);
+    holdRow({ rotate_wanted_at: "2026-09-28T01:00:00.000Z" });
+    subs = listSix(OLD);
+    spend = { GET: 6_000 };
+    // 20 s: the list ends at 6 s, leaving 11 s after the meter's 3 — under 12
+    const out = await ensure({ budgetMs: 20_000, clock: () => fakeNow });
+    expect(out).toMatchObject({ rotated: false, posted: 0, stopped: "late" });
+    expect(events).not.toContain("rpc:sm8_rotate_hook");
+    expect(currentHash()).toBe(hashOf(OLD));
+    expect(row().rotate_wanted_at).toBe("2026-09-28T01:00:00.000Z");
   });
 
   it("does nothing without a working connection that names its account", async () => {
@@ -660,6 +752,113 @@ describe("ensureSm8Webhooks: bounds", () => {
   });
 });
 
+describe("ensureSm8Webhooks: two at once", () => {
+  it("one flight per workspace: a second reconcile while one runs leaves at once", async () => {
+    holdCurrent(OLD);
+    holdRow();
+    subs = listSix(OLD, { except: ["jobs"] });
+    const [a, b] = await Promise.all([ensure(), ensure()]);
+    expect([a.ran, b.ran].sort()).toEqual([false, true]);
+    expect([a, b].find((x) => !x.ran)).toEqual({ ran: false, why: "busy" });
+    expect(requests.filter((r) => r.method === "GET")).toHaveLength(2); // one reconcile's two lists
+    expect(posts()).toHaveLength(1);
+  });
+
+  it("the flight is claimed by the insert that makes a workspace's first row", async () => {
+    const [a, b] = await Promise.all([ensure(), ensure()]);
+    expect([a.ran, b.ran].sort()).toEqual([false, true]);
+    expect(events.filter((e) => e === "rpc:sm8_rotate_hook")).toHaveLength(1);
+  });
+
+  it("while one runs, a page load owes nothing", async () => {
+    holdRow({ ensure_tried_at: new Date(Date.now() + 20_000).toISOString() });
+    expect(await ensureSm8WebhooksIfOwed(ORG, { budgetMs: 30_000 })).toBeNull();
+    expect(requests).toEqual([]);
+  });
+
+  it("a flight whose holder died is claimed again once its budget has passed", async () => {
+    holdRow({ ensure_tried_at: new Date(Date.now() - 1_000).toISOString() });
+    expect(await ensure()).toMatchObject({ ran: true });
+  });
+
+  it("never deletes the live entries of a reconcile that minted after it", async () => {
+    holdCurrent(OLD);
+    holdRow();
+    subs = listSix(OLD);
+    const old = subs.map((s) => s.uuid);
+    const theirs: string[] = [];
+    /* another reconcile, its flight claimed after this one's lapsed, mints
+       and subscribes all six while this one is still POSTing */
+    let once = false;
+    onPost = () => {
+      if (once) return;
+      once = true;
+      const rpc = (jest.requireMock("@/lib/supabase-server") as { supabaseAdmin: { rpc: (n: string, a: unknown) => Promise<unknown> } })
+        .supabaseAdmin.rpc;
+      void rpc("sm8_rotate_hook", { p_org: ORG, p_account: ACCESS.tenantId, p_hash: hashOf(NEWER) });
+      for (const s of listSix(NEWER)) {
+        subs.push(s);
+        theirs.push(s.uuid);
+      }
+    };
+    await ensure({ rotate: true });
+    expect(deletes().filter((d) => theirs.includes(d!))).toEqual([]);
+    // what it may take down: the address it rotated away from, and its own, now in grace — both covered by theirs
+    expect(deletes().filter((d) => old.includes(d!)).sort()).toEqual([...old].sort());
+  });
+});
+
+describe("ensureSm8Webhooks: a rotation that didn't land", () => {
+  it("keeps the old address working: nothing retired goes while the new one doesn't cover its object", async () => {
+    holdCurrent(OLD);
+    holdRow();
+    subs = listSix(OLD);
+    for (const name of Object.values(NAMES)) {
+      refuse[name] = { status: 403, body: "no" };
+      refuse[name[0].toUpperCase() + name.slice(1)] = { status: 403, body: "no" };
+    }
+    for (const name of ["JobActivity", "JobPayment", "job_activity", "job_payment"]) refuse[name] = { status: 403, body: "no" };
+    const out = await ensure({ rotate: true });
+    expect(out).toMatchObject({ rotated: true, posted: 0 });
+    expect(deletes()).toEqual([]);
+    expect(subs.filter((s) => s.callback_url === addressOf(OLD)).every((s) => s.active)).toBe(true);
+  });
+
+  it("but a dead address's entries still go", async () => {
+    holdCurrent(OLD);
+    holdRow();
+    subs = listSix(OLD);
+    const dead = { ...subs[0], uuid: madeUuid(), callback_url: addressOf(STRANGE) };
+    subs.push(dead);
+    refuse = { jobactivity: { status: 403, body: "no" } };
+    await ensure({ rotate: true });
+    expect(deletes()).toContain(dead.uuid);
+    // the retired job_activities entry stays: the new address doesn't cover it
+    const retiredActivity = subs.find((s) => s.object === "jobactivity" && s.callback_url === addressOf(OLD))!;
+    expect(deletes()).not.toContain(retiredActivity.uuid);
+  });
+
+  it("a mark a connect makes between the mint and the put-back isn't overwritten", async () => {
+    holdCurrent(OLD);
+    holdRow({ rotate_wanted_at: "2026-09-28T01:00:00.000Z" });
+    subs = listSix(OLD);
+    afterRpc = () => void (row().rotate_wanted_at = "2026-09-28T02:00:00.000Z");
+    await ensure();
+    expect(row().rotate_wanted_at).toBe("2026-09-28T02:00:00.000Z");
+  });
+
+  it("a DELETE ServiceM8 answers with success false didn't happen", async () => {
+    holdCurrent(OLD);
+    holdRetired(NEWER);
+    holdRow();
+    subs = listSix(OLD);
+    const retired = { ...subs[0], uuid: madeUuid(), callback_url: addressOf(NEWER) };
+    subs.push(retired);
+    deleteSays[retired.uuid] = { success: false, message: "Invalid webhook subscription UUID" };
+    expect(await ensure()).toMatchObject({ deleted: 0 });
+  });
+});
+
 describe("when a page load owes a reconcile", () => {
   const NOW = Date.parse("2026-09-28T10:00:00.000Z");
   const at = (msAgo: number) => new Date(NOW - msAgo).toISOString();
@@ -673,6 +872,14 @@ describe("when a page load owes a reconcile", () => {
     expect(sm8EnsureOwed({ ...settled, subscribed_at: null, ensure_tried_at: at(HOUR - 1) }, NOW)).toBe(false);
     expect(sm8EnsureOwed({ ...settled, rotate_wanted_at: at(1), ensure_tried_at: at(HOUR + 1) }, NOW)).toBe(true);
     expect(sm8EnsureOwed({ ...settled, subscribed_at: null, ensure_tried_at: null }, NOW)).toBe(true);
+  });
+
+  it("a rotation owed is tried again after five minutes, not an hour; nothing while a reconcile is in flight", () => {
+    const owed = { rotate_wanted_at: at(1), subscribed_at: at(HOUR * 5) };
+    expect(sm8EnsureOwed({ ...owed, ensure_tried_at: at(4 * 60_000) }, NOW)).toBe(false);
+    expect(sm8EnsureOwed({ ...owed, ensure_tried_at: at(5 * 60_000 + 1) }, NOW)).toBe(true);
+    expect(sm8EnsureOwed({ ...owed, ensure_tried_at: at(-20_000) }, NOW)).toBe(false);
+    expect(sm8EnsureOwed({ ...owed, subscribed_at: null, ensure_tried_at: at(-20_000) }, NOW)).toBe(false);
   });
 });
 
@@ -726,6 +933,7 @@ describe("removeSm8Webhooks", () => {
     const out = await removeSm8Webhooks(ORG, { budgetMs: 8_000 });
     expect(requests[0].path).toBe("/webhook_subscriptions?status=active");
     expect(out).toEqual({ ran: true, deleted: 7, stopped: null });
+    requests.length = 0;
     expect(deletes()).not.toContain(off.uuid);
     expect(deletes()).not.toContain(theirs.uuid);
     expect(writes).toEqual([]);

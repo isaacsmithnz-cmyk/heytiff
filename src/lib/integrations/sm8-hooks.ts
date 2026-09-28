@@ -25,14 +25,21 @@
       ServiceM8 doesn't subscribe is tried in its next spelling.
    4. After any POST, the list again ("Create or Update" may have moved an
       entry in place), and a DELETE for each entry of ours that list shows
-      ACTIVE at a retired or dead address — each once.
+      ACTIVE and no longer needed — each once, judged against the hashes as
+      the database holds them at that moment (deletableSubs): never one at
+      the current address; one in its 72 h of grace only once the current
+      address covers its object; a dead one as ever.
    5. What was found, per object (sm8_webhooks.objects: the spelling, the
       subscription's uuid, active, a refusal, a turn-off — NEVER an
       address), subscribed_at when all six are active at the address, and
       ensure_tried_at. A rotation owed is cleared only here, at the end,
       and only when this run minted.
-   Every call starts only while its worst case still ends inside the
-   caller's budget, and it never throws.
+   ONE AT A TIME per workspace: the reconcile claims ensure_tried_at for
+   its budget before anything else (a conditional write), and a second
+   finds it held and leaves. Every call starts only while its worst case
+   still ends inside the caller's budget — a POST's wait is cut to what is
+   left, never below what ServiceM8's challenge to us needs — no secret is
+   minted unless its first POST can be made, and it never throws.
 
    THE SECRET IS NEVER KEPT. Not in a column, not in a log line, not in
    JSON. Every text of ServiceM8's that is stored or logged goes through
@@ -73,7 +80,6 @@ import {
   type HookObjectName,
   type HookObjectState,
   type HookObjectsState,
-  type HookPlan,
   type HookSub,
   type OurHashes,
 } from "./sm8-hook-plan";
@@ -172,6 +178,13 @@ type Run = {
 /** The shortest wait a squeezed request is given; less, and it isn't made. */
 const SQUEEZE_MIN_MS = 2_000;
 
+/** The shortest wait a subscribing POST is given: ServiceM8 calls our
+    address with a challenge before it answers, and gives that call 10 s
+    ("must return a successful 2xx response within 10 seconds",
+    reference/post_object_webhook_subscription), plus a margin. Less left
+    than this, and no POST is made — nor a secret minted for one. */
+const POST_FLOOR_MS = 12_000;
+
 /** Whether a request with this timeout, and the meter's longest wait on the
     `hook` lane before it, still ends by the budget's end. */
 function fits(run: Run, timeoutMs: number): boolean {
@@ -180,9 +193,11 @@ function fits(run: Run, timeoutMs: number): boolean {
 
 async function hooksCall(run: Run, method: Sm8HooksMethod, path: string, init: { query?: Record<string, string>; body?: URLSearchParams } = {}): Promise<Hit> {
   let timeoutMs = method === "POST" ? HOOK_POST_TIMEOUT_MS : HOOK_LIST_TIMEOUT_MS;
-  if (run.squeeze) {
+  /* a POST, and a disconnect's every request, wait what is left, down to a floor */
+  const floor = method === "POST" ? POST_FLOOR_MS : run.squeeze ? SQUEEZE_MIN_MS : null;
+  if (floor !== null) {
     timeoutMs = Math.min(timeoutMs, run.end - run.clock() - HOOK_METER_WAIT_MS);
-    if (timeoutMs < SQUEEZE_MIN_MS) return { kind: "late" };
+    if (timeoutMs < floor) return { kind: "late" };
   }
   if (!fits(run, timeoutMs)) return { kind: "late" };
 
@@ -236,18 +251,21 @@ async function listSubs(run: Run, status: "all" | "active"): Promise<{ ok: true;
   }
 }
 
-/** Whether a DELETE landed: 2xx, or 404 ("No matching webhook found") —
-    gone either way. */
+/** Whether a DELETE landed: a 2xx that doesn't say `"success": false`, or
+    404 ("No matching webhook found") — gone either way. */
 async function deleteSub(run: Run, uuid: string): Promise<"deleted" | "stop" | "failed"> {
   const hit = await hooksCall(run, "DELETE", `/webhook_subscriptions/${uuid}`);
-  if (hit.kind === "response") return (hit.status >= 200 && hit.status <= 299) || hit.status === 404 ? "deleted" : "failed";
+  if (hit.kind === "response") {
+    return (hit.status >= 200 && hit.status <= 299 && successOf(hit.body)) || hit.status === 404 ? "deleted" : "failed";
+  }
   return hit.kind === "failed" ? "failed" : "stop";
 }
 
 /* ── the reconcile ── */
 
 export type Sm8EnsureResult =
-  | { ran: false; why: "off" | "not_connected" | "no_origin" | "failed" }
+  /** `busy`: another reconcile of this workspace holds the flight. */
+  | { ran: false; why: "off" | "not_connected" | "no_origin" | "failed" | "busy" }
   | {
       ran: true;
       rotated: boolean;
@@ -281,6 +299,80 @@ export function hashesFor(rows: readonly HookRow[], account: string, now: number
   return { current, retired };
 }
 
+/** The hashes the database holds for this workspace NOW: the account's
+    current one, and every other still good — retired inside its 72 hours,
+    or current for another account. Read again right before any DELETE is
+    decided, so an entry another reconcile has just subscribed is never
+    taken for dead. Null when it can't be read. */
+async function heldHashes(orgId: string, account: string, now: number): Promise<OurHashes | null> {
+  const { data, error } = await supabaseAdmin
+    .from(HOOKS)
+    .select("hook_hash, account_uuid, retired_at, valid_until")
+    .eq("org_id", orgId);
+  if (error) return null;
+  const rows = (data ?? []) as HookRow[];
+  const current = rows.find((r) => r.retired_at === null && r.account_uuid === account)?.hook_hash ?? null;
+  const retired = rows
+    .filter((r) => r.hook_hash !== current && (r.retired_at === null || (msOf(r.valid_until) ?? 0) > now))
+    .map((r) => r.hook_hash);
+  return { current, retired };
+}
+
+/** Which of our listed entries may be unsubscribed, against the hashes the
+    database holds now: an ACTIVE entry, never at the current address, and
+    - at an address nobody holds any more (dead), or for an object we
+      don't know: as ever;
+    - at an address still in its grace (another reconcile's, or the one a
+      rotation just left): only once the current address covers its
+      object — so a rotation whose POSTs all failed keeps the address that
+      still works, and no reconcile takes down another's.
+    Each once. */
+export function deletableSubs(
+  subs: readonly HookSub[],
+  origin: string,
+  held: OurHashes,
+  wanted: Readonly<Record<HookObjectName, readonly string[]>>
+): string[] {
+  const ours = classifyOurs(subs, origin, held);
+  const covered = (o: HookObjectName) =>
+    ours.some((s) => s.age === "current" && s.hookObject === o && s.active && wanted[o].every((f) => s.fields.includes(f)));
+  const out: string[] = [];
+  for (const s of ours) {
+    if (!s.active || s.age === "current") continue;
+    if (s.age === "retired" && s.hookObject !== null && !covered(s.hookObject)) continue;
+    if (!out.includes(s.uuid)) out.push(s.uuid);
+  }
+  return out;
+}
+
+/** The single flight: ensure_tried_at holds the END of a reconcile's budget
+    while it runs (and when it last ran, once it has). Claimed only where
+    it is empty or already past, by one conditional write; a workspace with
+    no row yet is claimed by the insert that makes it. False: another
+    reconcile holds it. */
+async function claimEnsure(orgId: string, account: string, now: number, budgetMs: number): Promise<boolean> {
+  const until = iso(now + Math.max(budgetMs, 0));
+  const claimed = await supabaseAdmin
+    .from(WEBHOOKS)
+    .update({ ensure_tried_at: until })
+    .eq("org_id", orgId)
+    .or(`ensure_tried_at.is.null,ensure_tried_at.lte.${iso(now)}`)
+    .select("org_id");
+  if (claimed.error) throw new Error(`the flight couldn't be claimed: ${claimed.error.message}`);
+  if ((claimed.data ?? []).length > 0) return true;
+  const made = await supabaseAdmin
+    .from(WEBHOOKS)
+    .upsert({ org_id: orgId, account_uuid: account, ensure_tried_at: until }, { onConflict: "org_id", ignoreDuplicates: true })
+    .select("org_id");
+  if (made.error) throw new Error(`the flight couldn't be claimed: ${made.error.message}`);
+  return (made.data ?? []).length > 0;
+}
+
+/** A listed failure time kept only when it reads as one. */
+function stampOrNull(v: string | null): string | null {
+  return v !== null && /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:?\d{2})?$/.test(v) ? v : null;
+}
+
 /** Bring this workspace's subscriptions to the six at one address. `rotate`
     mints a new secret whatever is listed (a connect). `budgetMs` bounds
     every request: none starts unless its worst case still ends inside it.
@@ -302,6 +394,7 @@ export async function ensureSm8Webhooks(
     const accessed = await sm8AccessResult(orgId, started);
     if (!accessed.ok || !accessed.access.tenantId) return { ran: false, why: "not_connected" };
     const account = accessed.access.tenantId;
+    if (!(await claimEnsure(orgId, account, started, opts.budgetMs))) return { ran: false, why: "busy" };
 
     const [hooksRes, stateRes] = await Promise.all([
       supabaseAdmin.from(HOOKS).select("hook_hash, account_uuid, retired_at, valid_until").eq("org_id", orgId),
@@ -379,6 +472,12 @@ export async function ensureSm8Webhooks(
     let address: string;
     let subs = first.subs;
     if (opts.rotate || owedAt !== null || !listedCurrent) {
+      /* no secret is minted that no POST could be made for */
+      if (run.end - clock() - HOOK_METER_WAIT_MS < POST_FLOOR_MS) {
+        stopped = "late";
+        await finish();
+        return { ran: true, rotated, posted, deleted, subscribed: false, stopped };
+      }
       const secret = randomBytes(32).toString("base64url");
       run.secrets.push(secret);
       const hash = hookHashOf(secret);
@@ -390,13 +489,17 @@ export async function ensureSm8Webhooks(
       }
       rotated = true;
       /* the RPC clears the mark at the mint; it is owed until the END, so
-         it goes back, and nothing is subscribed at the new address yet */
+         it goes back — only where no later connect has marked it since —
+         and nothing is subscribed at the new address yet */
       rotationStamp = owedAt ?? iso(started);
       const owe = await supabaseAdmin
         .from(WEBHOOKS)
-        .update({ rotate_wanted_at: rotationStamp, subscribed_at: null })
-        .eq("org_id", orgId);
+        .update({ rotate_wanted_at: rotationStamp })
+        .eq("org_id", orgId)
+        .is("rotate_wanted_at", null);
       if (owe.error) console.error(`[sm8] live updates for org ${orgId}: couldn't keep the rotation owed: ${owe.error.message}`);
+      const fresh = await supabaseAdmin.from(WEBHOOKS).update({ subscribed_at: null }).eq("org_id", orgId);
+      if (fresh.error) console.error(`[sm8] live updates for org ${orgId}: couldn't record the new address: ${fresh.error.message}`);
       hashes = {
         current: hash,
         retired: [...hashes.retired, ...(hashes.current ? [hashes.current] : [])],
@@ -411,7 +514,7 @@ export async function ensureSm8Webhooks(
     noteFromList(subs, origin, hashes, wanted, touch);
     if (plan.deactivated.length > 0) {
       for (const d of plan.deactivated) {
-        touch(d.object, { active: false, failure_reason: safe(d.reason, run.secrets), failure_at: d.at });
+        touch(d.object, { active: false, failure_reason: safe(d.reason, run.secrets), failure_at: stampOrNull(d.at) });
       }
       const { error } = await supabaseAdmin
         .from(WEBHOOKS)
@@ -431,15 +534,17 @@ export async function ensureSm8Webhooks(
       }
       if (outcome.kind === "ok") {
         posted += 1;
-        touch(object, { name: outcome.name, active: true, error: null });
+        touch(object, { name: outcome.name, active: true, error: null, failure_reason: null, failure_at: null });
       } else {
         touch(object, { active: false, error: outcome.error });
         console.error(`[sm8] live updates for org ${orgId}: ServiceM8 refused ${object}: ${outcome.error}`);
       }
     }
 
-    /* 4. after any POST, the list again; the DELETEs come from the latest */
-    let delPlan: HookPlan = plan;
+    /* 4. after any POST, the list again — no time for it, no DELETEs this
+       round; the DELETEs are judged on the latest list, against the hashes
+       as the database holds them right then */
+    let delPlan = plan;
     let latest = attempted === 0;
     if (attempted > 0 && !stopped) {
       const second = await listSubs(run, "all");
@@ -459,8 +564,11 @@ export async function ensureSm8Webhooks(
           .join(", ")}`
       );
     }
-    if (!stopped && latest) {
-      for (const uuid of delPlan.del) {
+    if (!stopped && latest && delPlan.del.length > 0) {
+      const held = await heldHashes(orgId, account, clock());
+      if (held === null) stopped = "hooks unreadable";
+      const doomed = held === null ? [] : deletableSubs(subs, origin, held, wanted);
+      for (const uuid of doomed) {
         const d = await deleteSub(run, uuid);
         if (d === "deleted") deleted += 1;
         else if (d === "stop") {
@@ -496,8 +604,10 @@ function noteFromList(
     touch(o, {
       sub: pick?.uuid ?? null,
       active: !!covering,
-      /* covered: whatever was refused before isn't any more */
-      ...(covering ? { error: null, ...(covering.object ? { name: covering.object } : {}) } : {}),
+      /* covered: whatever was refused or turned off before isn't any more */
+      ...(covering
+        ? { error: null, failure_reason: null, failure_at: null, ...(covering.object ? { name: covering.object } : {}) }
+        : {}),
     });
   }
 }
@@ -553,11 +663,17 @@ function mergeObjects(stored: unknown, found: HookObjectsState, secrets: readonl
 
 /* ── when the page load or the night runs it ── */
 
-/** Whether a reconcile is owed on a page load: a rotation is waiting, or
-    the six aren't all subscribed — and none was tried in the last hour. */
+/** A rotation a connect left owed is tried again this often at most. */
+const ROTATION_RETRY_MS = 5 * 60_000;
+
+/** Whether a reconcile is owed on a page load. A rotation waiting: when
+    none was tried in the last five minutes. The six not all subscribed:
+    when none was tried in the last hour. Never while one is in flight: its
+    ensure_tried_at is still ahead, which reads as tried just now. */
 export function sm8EnsureOwed(row: Pick<StateRow, "rotate_wanted_at" | "subscribed_at" | "ensure_tried_at"> | null, now: number): boolean {
-  const owed = row === null || row.rotate_wanted_at !== null || row.subscribed_at === null;
   const tried = msOf(row?.ensure_tried_at ?? null);
+  if (row?.rotate_wanted_at) return tried === null || now - tried > ROTATION_RETRY_MS;
+  const owed = row === null || row.subscribed_at === null;
   return owed && (tried === null || now - tried > ENSURE_EVERY_MS);
 }
 
@@ -613,7 +729,11 @@ export async function removeSm8Webhooks(orgId: string, opts: { budgetMs: number;
     const run: Run = { orgId, access: accessed.access, end: started + opts.budgetMs, clock, secrets: [], squeeze: true };
     const listed = await listSubs(run, "active");
     if (!listed.ok) return { ran: true, deleted: 0, stopped: listed.stop };
-    /* every hash at our path is ours to take down: none is `current` */
+    /* every entry at our path is ours to take down: none is `current`. That
+       includes one the reconcile leaves alone (an object it doesn't know,
+       at the current address): the reconcile keeps those because it would
+       only re-POST what it deleted; a disconnect wants nothing left
+       pinging an address about to be wiped. */
     const ours = classifyOurs(listed.subs, origin, { current: null, retired: [] }).filter((s) => s.active);
     let deleted = 0;
     for (const s of ours) {

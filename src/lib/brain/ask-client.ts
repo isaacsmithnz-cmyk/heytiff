@@ -45,6 +45,9 @@ export async function askBrain(
         question, so "and the one at Smith St?" means something. */
     history?: readonly { who: "you" | "tiff"; text: string }[];
     signal?: AbortSignal;
+    /** The words were a move request (lib/tiff/moves): the route runs the
+        loop at low effort for it, as decided on 27 September. */
+    intent?: "move";
   },
   handlers: BrainAskHandlers
 ): Promise<void> {
@@ -64,6 +67,7 @@ export async function askBrain(
         ...(input.history?.length
           ? { history: input.history.map((t) => ({ who: t.who, text: t.text })) }
           : {}),
+        ...(input.intent ? { intent: input.intent } : {}),
       }),
     });
   } catch {

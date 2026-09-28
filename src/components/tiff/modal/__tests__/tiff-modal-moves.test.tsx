@@ -247,3 +247,31 @@ describe("a move", () => {
     expect(push).toHaveBeenCalledWith("/dashboard/team/s-1");
   });
 });
+
+/* ── "take me to…" is never filed (universal Tiff 1C) ─────────────────── */
+
+describe("a move request without a question mark", () => {
+  it("goes to Tiff as a move, not to the note router", async () => {
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Take me to the workboard{Enter}");
+    await flush();
+    expect(routeNote).not.toHaveBeenCalled();
+    expect(askBrain.mock.calls.at(-1)?.[0]).toMatchObject({ question: "Take me to the workboard", intent: "move" });
+  });
+
+  it("leaves a site instruction that starts the same way to the note router", async () => {
+    routeNote.mockResolvedValue({ ok: false, error: "x" });
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    await user.type(
+      within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }),
+      "go to Smith St and pick up the grilles{Enter}"
+    );
+    await flush();
+    expect(routeNote).toHaveBeenCalled();
+    expect(askBrain).not.toHaveBeenCalled();
+  });
+});

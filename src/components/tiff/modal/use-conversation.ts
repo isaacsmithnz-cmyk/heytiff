@@ -4,7 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { GATHER_MS } from "@/components/ui/dot-field";
 import { askBrain } from "@/lib/brain/ask-client";
-import { looksLikeQuestion } from "@/lib/brain/intent";
+import { looksLikeMove, looksLikeQuestion } from "@/lib/brain/intent";
 import {
   continueNote,
   dismissNote,
@@ -474,7 +474,7 @@ export function useConversation({
     read(res);
   };
 
-  const ask = (question: string, before: readonly ModalTurn[]) => {
+  const ask = (question: string, before: readonly ModalTurn[], move = false) => {
     asking.current?.abort();
     askedBack.current = false;
     const ctl = new AbortController();
@@ -511,6 +511,7 @@ export function useConversation({
         targetLabel,
         history: spoken(before),
         signal: ctl.signal,
+        ...(move ? { intent: "move" as const } : {}),
       },
       {
         onDelta: (t) => {
@@ -625,6 +626,7 @@ export function useConversation({
   const toCalendar = (words: string, source: "voice" | "text", before: readonly ModalTurn[]) => {
     const waiting = dayAsk.current;
     if (waiting) return void fileLine({ ...waiting, answers: [...waiting.answers, words] });
+    if (looksLikeMove(words)) return ask(words, before, true);
     if (askedBack.current || looksLikeQuestion(words)) return ask(words, before);
     const on = onCalendar.current;
     if (on) return void noteOn(on, words);
@@ -636,6 +638,10 @@ export function useConversation({
     if (calendar) return toCalendar(words, source, before);
     const n = note.current;
     if (n?.waiting) return void reply(n, words);
+    /* A MOVE IS NEVER FILED (universal Tiff 1C): "take me to the workboard"
+       goes to the ask route, which moves with no model call when it names a
+       screen. After a waiting note, so an answer to her question still wins. */
+    if (looksLikeMove(words)) return ask(words, before, true);
     if (askedBack.current || looksLikeQuestion(words)) return ask(words, before);
     void route(words, source, before);
   };

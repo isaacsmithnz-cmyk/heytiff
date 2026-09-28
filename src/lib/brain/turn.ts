@@ -10,6 +10,9 @@
 import { streamBrainAnswer, type AskBrainEvent, type AskHistoryTurn } from "@/lib/brain/ask";
 import { TARGET_KINDS } from "@/lib/brain/tools";
 import { toolsFor, type TiffTool, type Viewer } from "@/lib/tiff/registry";
+import { screenLine } from "@/lib/tiff/registry/lines";
+import { parseMove } from "@/lib/tiff/moves";
+import { navFor } from "@/components/shell/nav";
 import type { TokenUsage } from "@/lib/tiff/usage";
 
 const QUESTION_MAX = 1_000;
@@ -23,6 +26,8 @@ const HISTORY_TURNS = 6;
 const HISTORY_TEXT_MAX = 4_000;
 
 export type AskBody = {
+  /** The modal's word that these were a move request; the only value taken. */
+  intent?: "move";
   question: string;
   target?: { kind: (typeof TARGET_KINDS)[number]; id: string };
   targetLabel?: string;
@@ -71,6 +76,7 @@ export function shapeAsk(raw: unknown): AskBody | null {
     target,
     targetLabel: targetLabel || undefined,
     history: shapeHistory(body.history),
+    ...(body.intent === "move" ? { intent: "move" as const } : {}),
   };
 }
 
@@ -86,6 +92,12 @@ export function answer(
     onUsage?: (model: string, usage: TokenUsage) => void;
   } = {}
 ): AsyncGenerator<AskBrainEvent> {
+  /* THE FREE MOVE (1C). Words that name a screen move there with no model
+     call: the viewer's own nav decides, and a screen they can't see is
+     refused in words, also without the model. Anything else, a record move
+     included, goes to the loop. */
+  const move = parseMove(body.question);
+  if (move?.kind === "screen") return fastMove(viewer, move.label);
   return streamBrainAnswer({
     viewer,
     question: body.question,
@@ -96,5 +108,18 @@ export function answer(
     signal: opts.signal,
     history: body.history,
     onUsage: opts.onUsage,
+    ...(body.intent === "move" ? { effort: "low" as const } : {}),
   });
+}
+
+async function* fastMove(viewer: Viewer, label: string): AsyncGenerator<AskBrainEvent> {
+  const mine = navFor({ caps: viewer.caps, role: viewer.role }).find((n) => n.label === label);
+  if (!mine) {
+    yield { type: "delta", text: `You can't open ${label}.` };
+    yield { type: "done" };
+    return;
+  }
+  yield { type: "delta", text: screenLine(mine.label) };
+  yield { type: "screen", href: mine.href, label: mine.label };
+  yield { type: "done" };
 }

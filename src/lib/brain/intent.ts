@@ -58,6 +58,7 @@
        a Discard; eating a note costs the note. */
 
 import { endsWithCue, hasWord, startsWithCue } from "@/lib/lang/text";
+import { parseMove } from "@/lib/tiff/moves";
 
 const OPENERS = [
   "what",
@@ -237,4 +238,12 @@ export function looksLikeQuestion(text: string): boolean {
   /* Openers match at the very start only. A question buried mid-note
      ("…and ask Dane what's left") is part of the note. */
   return CUES.some((c) => matches(bare, c));
+}
+
+/** Is this a request to move the screen ("take me to the workboard", "open
+    Dane's card")? Checked before `looksLikeQuestion`, so a move without a
+    question mark reaches the ask route instead of being filed as a note.
+    The rule and its reasons are in lib/tiff/moves. */
+export function looksLikeMove(text: string): boolean {
+  return parseMove(text) !== null;
 }

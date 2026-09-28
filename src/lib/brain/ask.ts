@@ -98,6 +98,10 @@ export type AskBrainInput = {
   /** Each round's usage, for a caller keeping count (the eval runner's cost
       cap). The route passes none; `logUsage` still prints every round. */
   onUsage?: (model: string, usage: TokenUsage) => void;
+  /** How hard she thinks. Medium unless said: a move request runs at low
+      (Isaac's split of 27 September — low for moving the screen and filing
+      notes, medium for answering questions). */
+  effort?: "low" | "medium";
 };
 
 /** One earlier turn, in the modal's own words for who said it. */
@@ -239,7 +243,7 @@ export async function* streamBrainAnswer(input: AskBrainInput): AsyncGenerator<A
            questions brush classifier strings often enough to care. */
         betas: ["server-side-fallback-2026-06-01"],
         fallbacks: [{ model: "claude-opus-4-8" }],
-        output_config: { effort: EFFORT },
+        output_config: { effort: input.effort ?? EFFORT },
         system,
         /* At the cap the tools are withdrawn, so the only thing left to do
            is answer — stated in the message rather than left as a mystery

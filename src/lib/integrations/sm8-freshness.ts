@@ -17,6 +17,11 @@
    can't sync or send, and asking it to only burns the attempt. On a
    deployment that doesn't write, only the sync runs.
 
+   LIVE UPDATES, WHEN ON (two-way phase 4). After the writes and before
+   the sync: the queue of records ServiceM8 pinged is drained for up to
+   20 s (sm8-hook-drain), then an owed reconcile of the subscriptions runs.
+   Neither ever starts a sync, and neither is loaded with the switch off.
+
    THEN THE ASKS. A sync that ran may have brought in a note that asks
    somebody something, and the new Home makes each ask one task
    (dashboard/mention-settle): settled in the same after(), right behind
@@ -30,7 +35,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { settleMentionAsks } from "@/lib/dashboard/mention-settle";
 import { runSm8Sync, sm8SyncIsStale } from "./sm8-sync";
 import { SYNC_LEASE_MS, whenSm8LeaseFree } from "./sm8-lease";
-import { ENSURE_BUDGET_MS, ENSURE_FINISH_MARGIN_MS, functionDeadline } from "./sm8-hook-plan";
+import { BACKSTOP_DRAIN_MS, ENSURE_BUDGET_MS, ENSURE_FINISH_MARGIN_MS, functionDeadline } from "./sm8-hook-plan";
 import { sm8WebhooksState } from "./sm8-hooks-switch";
 import { runSm8Writes, sm8WritesDue, sm8WritesEnabled } from "./sm8-writes";
 import { backgroundBudgetMs, FUNCTION_MAX_MS, WRITE_LEASE_MARGIN_MS } from "./sm8-write-plan";
@@ -75,6 +80,21 @@ export function freshenSm8AfterResponse(orgId: string): void {
       }
 
       const syncStartBy = calledAt + FUNCTION_MAX_MS - SYNC_LEASE_MS - WRITE_LEASE_MARGIN_MS;
+      /* the page's function: no route sets a maxDuration, so the platform's
+         default (FUNCTION_MAX_MS) */
+      const deadline = functionDeadline(calledAt, FUNCTION_MAX_MS / 1000);
+
+      /* LIVE UPDATES' BACKSTOP (two-way phase 4): with SM8_WEBHOOKS on,
+         whatever the route's own drain left in the queue is read here —
+         20 s at most, never sleeping for a record to go quiet (only rows
+         already quiet, or waiting over a minute), and only while that still
+         leaves the sync its start. It holds the sync lease by token and
+         gives it back before the sync below. Off, the machinery isn't
+         loaded and nothing is read. */
+      if (sm8WebhooksState() === "on" && Date.now() + BACKSTOP_DRAIN_MS <= syncStartBy) {
+        const { drainSm8Hooks } = await import("./sm8-hook-drain");
+        await drainSm8Hooks(orgId, { deadline, maxMs: BACKSTOP_DRAIN_MS, wait: false });
+      }
 
       /* LIVE UPDATES OWED (two-way phase 4): with SM8_WEBHOOKS on, a
          rotation a connect couldn't finish, or six that aren't all
@@ -88,10 +108,8 @@ export function freshenSm8AfterResponse(orgId: string): void {
 
       if (Date.now() > syncStartBy) return;
       if (!(await sm8SyncIsStale(orgId, Date.now()))) return;
-      /* the page's function: no route sets a maxDuration, so the platform's
-         default (FUNCTION_MAX_MS); the sync extends its lease while a whole
-         one still ends inside it */
-      const deadline = functionDeadline(calledAt, FUNCTION_MAX_MS / 1000);
+      /* the sync extends its lease while a whole one still ends inside the
+         page's function */
       const synced = await whenSm8LeaseFree(() => runSm8Sync(orgId, "kick", Date.now(), { deadline }), {
         tries: KICK_TRIES,
         waitMs: KICK_WAIT_MS,

@@ -89,6 +89,23 @@ jest.mock("@/lib/integrations/sm8-hooks", () => {
   };
 });
 
+/* Live updates' leftover drains (two-way phase 4, PR D): loaded only with
+   SM8_WEBHOOKS on, the same way. */
+let drainLoaded = false;
+const drained: { org: string; opts: { deadline: number; maxMs: number; wait: boolean } }[] = [];
+let drainTakes: number[] = [];
+jest.mock("@/lib/integrations/sm8-hook-drain", () => {
+  drainLoaded = true;
+  return {
+    drainSm8Hooks: jest.fn(async (org: string, opts: { deadline: number; maxMs: number; wait: boolean }) => {
+      events.push(`drain:${org}`);
+      drained.push({ org, opts });
+      clock += drainTakes.shift() ?? 0;
+      return { ran: true, read: 3, written: 2, handed: 1, dropped: 0, stopped: null };
+    }),
+  };
+});
+
 import { GET, maxDuration } from "../sm8-sync/route";
 import { WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
 
@@ -379,6 +396,8 @@ describe("live updates' nightly reconcile (two-way phase 4)", () => {
     }
     expect(hooksLoaded).toBe(false);
     expect(events.some((e) => e.startsWith("ensure"))).toBe(false);
+    expect(drainLoaded).toBe(false);
+    expect(events.some((e) => e.startsWith("drain"))).toBe(false);
   });
 
   it("on: one reconcile per swept workspace after the writes and before any sync, then the expired hooks go", async () => {
@@ -419,5 +438,43 @@ describe("live updates' nightly reconcile (two-way phase 4)", () => {
     expect(later.hooks).toMatchObject({ ensured: 0, deferred: 2 });
     // the syncs themselves are untouched by it
     expect(events.filter((e) => e.startsWith("sync:")).length).toBeGreaterThan(0);
+  });
+});
+
+describe("live updates' leftover drains (two-way phase 4, PR D)", () => {
+  const env = { ...process.env };
+  beforeEach(() => {
+    drained.length = 0;
+    drainTakes = [];
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+  });
+  afterEach(() => {
+    process.env = { ...env };
+  });
+
+  it("drain each swept workspace for 20 s after every sync, never sleeping, bound by the function", async () => {
+    const started = clock;
+    const body = await (await GET(byScheduler())).json();
+    const lastSync = events.map((e) => e.startsWith("sync:")).lastIndexOf(true);
+    expect(events.slice(lastSync + 1, lastSync + 3)).toEqual(["drain:s1", "drain:s2"]);
+    expect(events.indexOf("drain:s2")).toBeLessThan(events.indexOf("evict"));
+    for (const d of drained) expect(d.opts).toEqual({ deadline: started + 280_000, maxMs: 20_000, wait: false });
+    expect(body.drains).toEqual({ drained: 2, read: 6, written: 4, handed: 2, deferred: 0, failed: 0 });
+    // and a sync is never started from one
+    expect(runSm8Sync).toHaveBeenCalledTimes(2);
+  });
+
+  it("start a workspace's only while its 20 s end before the asks' margin", async () => {
+    // 300 s less the 15 s margin less 20 s: the last start is 265 s in
+    syncTakes = [0, 265_000];
+    let body = await (await GET(byScheduler())).json();
+    expect(drained.map((d) => d.org)).toEqual(["s1", "s2"]);
+    drained.length = 0;
+    clock = Date.parse("2026-09-25T20:00:00Z");
+    syncTakes = [0, 265_001];
+    body = await (await GET(byScheduler())).json();
+    expect(drained).toEqual([]);
+    expect(body.drains).toMatchObject({ drained: 0, deferred: 2 });
   });
 });

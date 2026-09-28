@@ -16,7 +16,12 @@
    exactly today's calls: the same collaborators in the same order, the
    same database reads, no request at all, and the subscribing module never
    so much as loaded. And the subscriber itself, on the `hook` lane, reads
-   and asks nothing while the switch is anything but on. */
+   and asks nothing while the switch is anything but on.
+
+   PR D: the backstops. The page-load freshen and the nightly cron, off,
+   never load the drain, so no queue is read, no lease is taken as `hook`
+   and nothing is asked of ServiceM8; and the drain itself, on the `hook`
+   lane, reads and writes nothing while the switch is anything but on. */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -85,6 +90,13 @@ let hooksLoaded = false;
 jest.mock("../sm8-hooks", () => {
   hooksLoaded = true;
   return jest.requireActual("../sm8-hooks");
+});
+
+/* the drain (PR D): the same — loading it at all, off, is a failure */
+let drainLoaded = false;
+jest.mock("../sm8-hook-drain", () => {
+  drainLoaded = true;
+  return jest.requireActual("../sm8-hook-drain");
 });
 
 const scheduled: (() => unknown)[] = [];
@@ -230,6 +242,7 @@ function expectToday(seen: { calls: string[]; touched: string[] }[], today: { ca
   for (const s of seen) expect(s).toEqual(today);
   expect(fetchSpy).not.toHaveBeenCalled();
   expect(hooksLoaded).toBe(false);
+  expect(drainLoaded).toBe(false);
 }
 
 describe("with the switch off, each entry point makes today's calls exactly", () => {
@@ -323,11 +336,30 @@ describe("the subscriber itself, with the switch anything but on", () => {
   });
 });
 
+describe("the drain itself, with the switch anything but on (PR D)", () => {
+  it("reads nothing, writes nothing, takes no lease and asks nothing", async () => {
+    const drain = jest.requireActual("../sm8-hook-drain") as typeof import("../sm8-hook-drain");
+    const seen = await underEach(async () => {
+      for (const wait of [true, false]) {
+        expect(await drain.drainSm8Hooks("org-5d21", { deadline: Date.now() + 280_000, maxMs: 120_000, wait })).toEqual({
+          ran: false,
+          read: 0,
+          written: 0,
+          handed: 0,
+          dropped: 0,
+          stopped: "off",
+        });
+      }
+    });
+    expectToday(seen, { calls: [], touched: [] });
+  });
+});
+
 /* Every file under src/ that takes a turn on the `hook` lane, each held
    behind the switch by its own case above: PR C's subscriber (its lists,
-   POSTs and DELETEs, and the plain read that confirms a refused grant).
-   The drain (PR D) adds itself here the same way. */
-const HOOK_LANE_CALLERS: string[] = ["lib/integrations/sm8-hooks.ts"];
+   POSTs and DELETEs, and the plain read that confirms a refused grant),
+   and PR D's drain (its one GET a record). */
+const HOOK_LANE_CALLERS: string[] = ["lib/integrations/sm8-hook-drain.ts", "lib/integrations/sm8-hooks.ts"];
 
 function sources(dir: string): string[] {
   const out: string[] = [];

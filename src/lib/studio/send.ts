@@ -31,7 +31,8 @@ export const SEND_PARTS: readonly SendPart[] = [
   "sim",
 ];
 
-export type SendDest = "pdf" | "link";
+/** paper, the customer's live link, or a ServiceM8 job (the PDF, filed) */
+export type SendDest = "pdf" | "link" | "job";
 
 export type SendAudience = "customer" | "crew";
 
@@ -55,6 +56,8 @@ export const AUDIENCE_PARTS: Record<SendAudience, readonly SendPart[]> = {
 const CARRIES: Record<SendDest, readonly SendPart[]> = {
   pdf: ["figures", "systems", "lines", "plans", "picklist", "options"],
   link: ["figures", "systems", "lines", "plans", "sim"],
+  /* the job gets the PDF, so it carries what paper carries */
+  job: ["figures", "systems", "lines", "plans", "picklist", "options"],
 };
 
 /** Why this way out can't carry the part, in the words the row shows beside

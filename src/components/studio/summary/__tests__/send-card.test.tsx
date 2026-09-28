@@ -29,6 +29,15 @@ jest.mock("@/app/actions/studio-share", () => ({
   revokeShareLink: (...a: unknown[]) => revokeShareLink(...a),
 }));
 
+const readDesignJob = jest.fn();
+jest.mock("@/app/actions/studio-job-send", () => ({
+  readDesignJob: (...a: unknown[]) => readDesignJob(...a),
+}));
+const pushPicklistToJob = jest.fn();
+jest.mock("@/app/actions/job-picklist", () => ({
+  pushPicklistToJob: (...a: unknown[]) => pushPicklistToJob(...a),
+}));
+
 const planImages = {
   url: jest.fn(async (r: string) => `blob:${r}`),
   upload: jest.fn(),
@@ -103,6 +112,7 @@ const toLink = (user: ReturnType<typeof userEvent.setup>) =>
 beforeEach(() => {
   jest.clearAllMocks();
   getShareLink.mockResolvedValue(null);
+  readDesignJob.mockResolvedValue({ canAttach: true, sm8: "live", lastAt: null });
 });
 
 describe("where it goes, who it is for, what goes in", () => {
@@ -382,5 +392,67 @@ describe("send comes to the reader", () => {
     expect(third.onClose).not.toHaveBeenCalled();
     await user.click(screen.getByRole("dialog").parentElement as HTMLElement);
     expect(third.onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* THE DESIGN ONTO A SERVICEM8 JOB: the PDF, filed on the job card, then sent
+   through the card's own queue (api/studio/design-to-job). */
+describe("ServiceM8", () => {
+  const linked = () => {
+    const d = docWithFloors(1);
+    d.jobLink = { provider: "servicem8", remoteId: "job-1", jobNumber: "3151", linkedAt: "2026-09-28T00:00:00.000Z" };
+    return d;
+  };
+  const toJob = (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(screen.getByRole("radio", { name: "ServiceM8" }));
+
+  it("can't be chosen until the design is on a job", () => {
+    renderCard();
+    expect(screen.getByRole("radio", { name: "ServiceM8" })).toBeDisabled();
+    expect(screen.getByText("Link a job on the sheet first")).toBeInTheDocument();
+  });
+
+  it("attaches the ticked parts to the linked job, and says where they went", async () => {
+    const user = userEvent.setup();
+    const realFetch = global.fetch;
+    const fetchMock = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        fileName: "85 West St.pdf",
+        sm8: { ok: true, trial: false, sent: ["d:x"], waiting: [], failed: [], already: [], sends: [] },
+      }),
+    }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    renderCard({ doc: linked() });
+    await waitFor(() => expect(readDesignJob).toHaveBeenCalledWith("job-1", "85 West St"));
+    await toJob(user);
+    expect(screen.getByText(/then to ServiceM8/)).toBeInTheDocument();
+    await user.click(within(foot()).getByRole("button", { name: "Attach to job 3151" }));
+    expect(await screen.findByText("On the job card and in ServiceM8.")).toBeInTheDocument();
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/studio/design-to-job");
+    expect(JSON.parse(String(init.body))).toMatchObject({ designId: expect.any(String), jobUuid: "job-1" });
+    /* a second press is a second file, and says so */
+    expect(within(foot()).getByRole("button", { name: "Send a new copy" })).toBeInTheDocument();
+    global.fetch = realFetch;
+  });
+
+  it("says when this design last went to the job", async () => {
+    const user = userEvent.setup();
+    readDesignJob.mockResolvedValue({ canAttach: true, sm8: "live", lastAt: "2026-09-21T02:00:00.000Z" });
+    renderCard({ doc: linked() });
+    await waitFor(() => expect(readDesignJob).toHaveBeenCalled());
+    await toJob(user);
+    expect(await screen.findByText(/Last sent 21 September/)).toBeInTheDocument();
+    expect(within(foot()).getByRole("button", { name: "Send a new copy" })).toBeInTheDocument();
+  });
+
+  it("is closed to someone who can't add files to jobs", async () => {
+    readDesignJob.mockResolvedValue({ canAttach: false, sm8: "not-yours", lastAt: null });
+    renderCard({ doc: linked() });
+    expect(await screen.findByText("You can't add files to jobs")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "ServiceM8" })).toBeDisabled();
   });
 });

@@ -31,6 +31,9 @@ import {
 } from "@/lib/studio/send";
 import { SHARE_TTL_DAYS } from "@/lib/studio/share";
 import type { ShareLink } from "@/app/actions/studio-share";
+import type { DesignJobRead } from "@/app/actions/studio-job-send";
+import type { DesignToJobResult } from "@/lib/studio/job-send";
+import { pushOutcome } from "./picklist-push";
 import { PlanFigure } from "./plan-figure";
 import { PrintDoc } from "./print-doc";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
@@ -61,6 +64,8 @@ import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
 
 const orgActions = () => import("@/app/actions/org");
 const shareActions = () => import("@/app/actions/studio-share");
+const jobSendActions = () => import("@/app/actions/studio-job-send");
+const jobPicklistActions = () => import("@/app/actions/job-picklist");
 
 const PNG_WIDTH_PX = 2600;
 
@@ -120,6 +125,18 @@ function Shrunk({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+/* What became of an attach, in the order a person cares about: it is on the
+   job card (always, if we got this far), and what ServiceM8 made of it. */
+function attachWords(r: Extract<DesignToJobResult, { ok: true }>): string {
+  const s = r.sm8;
+  if (!s) return "On the job card. Sending to ServiceM8 isn't yours to do.";
+  if (!s.ok) return `On the job card. ${s.error}`;
+  if (s.trial) return "On the job card. Trial run: nothing went to ServiceM8.";
+  if (s.failed.length > 0) return `On the job card. ServiceM8 said: ${s.failed[0].error}`;
+  if (s.waiting.length > 0) return "On the job card. ServiceM8 is busy; it goes by itself.";
+  return "On the job card and in ServiceM8.";
 }
 
 export interface SendCheck {
@@ -394,6 +411,71 @@ export function SendCard({
     setPreparing(false);
   };
 
+  /* ── a ServiceM8 job: the PDF, filed on the job card, then sent ── */
+  const paper = dest !== "link";
+  const pdfName = `${(doc.meta.name || "Design").replace(/[\\/:*?"<>|]+/g, " ").trim() || "Design"}.pdf`;
+  const [jobRead, setJobRead] = useState<DesignJobRead | null>(null);
+  const [attach, setAttach] = useState<
+    { kind: "idle" } | { kind: "busy" } | { kind: "done"; msg: string } | { kind: "err"; msg: string }
+  >({ kind: "idle" });
+  const jobUuid = doc.jobLink?.remoteId ?? null;
+  const jobBlock: string | null = !jobUuid
+    ? "Link a job on the sheet first"
+    : jobRead && !jobRead.canAttach
+      ? "You can't add files to jobs"
+      : null;
+  useEffect(() => {
+    if (!jobUuid) return;
+    let live = true;
+    jobSendActions()
+      .then((a) => a.readDesignJob(jobUuid, doc.meta.name))
+      .then((r) => {
+        if (live) setJobRead(r);
+      })
+      .catch(() => {
+        if (live) setJobRead({ canAttach: false, sm8: "not-yours", lastAt: null });
+      });
+    return () => {
+      live = false;
+    };
+  }, [jobUuid, doc.meta.name]);
+
+  const attachToJob = async () => {
+    if (!jobUuid || attach.kind === "busy") return;
+    setAttach({ kind: "busy" });
+    const res = await fetch("/api/studio/design-to-job", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        designId: doc.id,
+        name: doc.meta.name,
+        jobUuid,
+        options: {
+          ...opts,
+          sections,
+          floorIds: floorsOn.map((f) => f.id),
+          variantIds: othersOn.map((v) => v.id),
+        },
+      }),
+    }).catch(() => null);
+    const r = (res ? await res.json().catch(() => null) : null) as DesignToJobResult | null;
+    if (!r || !r.ok) {
+      setAttach({ kind: "err", msg: r && !r.ok ? r.error : "Couldn't reach the server. Try again." });
+      return;
+    }
+    let msg = attachWords(r);
+    /* the picklist goes on the card as the tick list, as Add to job does */
+    if (on("picklist") && model.picklist.length > 0) {
+      const pushed = await jobPicklistActions()
+        .then((a) => a.pushPicklistToJob(jobUuid, doc.id, model.picklist))
+        .then((p) => `Picklist: ${pushOutcome(p).msg.toLowerCase()}.`)
+        .catch(() => "The picklist didn't go on the card. Use Add to job on the sheet.");
+      msg = `${msg} ${pushed}`;
+    }
+    setAttach({ kind: "done", msg });
+    setJobRead((j) => (j ? { ...j, lastAt: new Date().toISOString() } : j));
+  };
+
   /* THE FILE, made on the server from the same print page (api/studio/
      design-pdf, lib/studio/pdf-render.ts) — the ticks ride along as the
      print options. No `finally` (React Compiler 1.0), so both paths clear. */
@@ -527,6 +609,23 @@ export function SendCard({
           </button>
         </>
       );
+    if (dest === "job")
+      return (
+        <button
+          className="ds-tbbtn ds-act-go"
+          onClick={() => void attachToJob()}
+          disabled={busy || nothing || attach.kind === "busy"}
+        >
+          <Icon name="servicem8" size={14} />
+          {nothing
+            ? "Tick something to send"
+            : attach.kind === "busy"
+              ? "Attaching…"
+              : jobRead?.lastAt || attach.kind === "done"
+                ? "Send a new copy"
+                : `Attach to job ${doc.jobLink?.jobNumber ?? ""}`.trim()}
+        </button>
+      );
     if (link.kind === "loading" || link.kind === "unavailable") return null;
     if (link.kind === "none" || link.kind === "busy")
       return (
@@ -618,10 +717,17 @@ export function SendCard({
             <div className="ds-send-dests" role="radiogroup" aria-labelledby="ds-send-where">
               {(
                 [
-                  ["pdf", "PDF", "Print it or save it as a file"],
-                  ["link", "Live link", "The customer's page, always the latest save"],
+                  ["pdf", "PDF", "Print it or save it as a file", null],
+                  ["link", "Live link", "The customer's page, always the latest save", null],
+                  [
+                    "job",
+                    "ServiceM8",
+                    jobBlock ??
+                      (doc.jobLink?.jobNumber ? `Onto job ${doc.jobLink.jobNumber}'s files` : "Onto the job's files"),
+                    jobBlock,
+                  ],
                 ] as const
-              ).map(([id, label, detail]) => (
+              ).map(([id, label, detail, blocked]) => (
                 <button
                   key={id}
                   role="radio"
@@ -629,6 +735,7 @@ export function SendCard({
                   aria-labelledby={`ds-send-d-${id}`}
                   aria-describedby={`ds-send-ds-${id}`}
                   className={`ds-export-pick${dest === id ? " on" : ""}`}
+                  disabled={blocked !== null}
                   onClick={() => goTo(id)}
                 >
                   <span className="ds-export-pick-t" id={`ds-send-d-${id}`}>
@@ -644,7 +751,7 @@ export function SendCard({
 
           {/* the live link is always the customer's page — there is no one
               else to choose */}
-          {dest === "pdf" && (
+          {paper && (
             <div className="ds-export-grp">
               <span className="ds-export-cap" id="ds-send-who">Who is it for?</span>
               <div className="ds-export-segs" role="group" aria-labelledby="ds-send-who">
@@ -731,8 +838,10 @@ export function SendCard({
               with it; it is a setting of the whole document, so it stays put
               above it (Isaac, 2026-09-28). */}
           <div className="ds-send-rhead">
-            <span className="ds-export-cap">{dest === "link" ? "The customer opens" : "Preview"}</span>
-            {dest === "pdf" && (
+            <span className="ds-export-cap">
+              {dest === "link" ? "The customer opens" : dest === "job" ? "What goes on the job" : "Preview"}
+            </span>
+            {paper && (
               <>
                 <b>{pageLine}</b>
                 <button
@@ -746,7 +855,7 @@ export function SendCard({
             )}
           </div>
 
-          {dest === "pdf" && setupOpen && (
+          {paper && setupOpen && (
             <div className="ds-send-setupx">
               <div className="ds-export-segs">
                 {seg("A4", opts.paper === "A4", () => patch({ paper: "A4" }))}
@@ -831,6 +940,37 @@ export function SendCard({
             </div>
           )}
 
+          {dest === "job" && doc.jobLink && (
+            <div className="ds-send-link">
+              <span className="ds-share-url">{pdfName}</span>
+              <span className="ds-share-meta">
+                {jobRead?.sm8 === "live"
+                  ? `Goes on job ${doc.jobLink.jobNumber ?? ""}'s card here, then to ServiceM8.`
+                  : jobRead?.sm8 === "trial"
+                    ? "Goes on the job card here. Trial run: nothing goes to ServiceM8."
+                    : jobRead?.sm8 === "off"
+                      ? "Goes on the job card here. Sending to ServiceM8 is off."
+                      : "Goes on the job card here."}
+                {on("picklist") ? " The picklist goes on the card as its tick list." : ""}
+              </span>
+              {jobRead?.lastAt && (
+                <span className="ds-share-meta">
+                  Last sent {new Date(jobRead.lastAt).toLocaleDateString("en-AU", { day: "numeric", month: "long" })}.
+                </span>
+              )}
+              {attach.kind === "done" && (
+                <span className="ds-share-meta" role="status">
+                  {attach.msg}
+                </span>
+              )}
+              {attach.kind === "err" && (
+                <span className="ds-share-meta dead" role="alert">
+                  {attach.msg}
+                </span>
+              )}
+            </div>
+          )}
+
           {/* THE DOCUMENT ITSELF, shrunk: the same SheetDoc and PlanFigure the
               customer and the paper get, with the same ticks, laid out at a
               desk width and scaled so every line keeps its printed weight.
@@ -852,12 +992,12 @@ export function SendCard({
                       preparedOn={preparedOn}
                       sections={sections}
                     >
-                      {sections.picklist && dest === "pdf" && <PicklistSection rows={model.picklist} />}
+                      {sections.picklist && paper && <PicklistSection rows={model.picklist} />}
                       {dest === "link" && <SheetPlans doc={doc} floors={floorsOn} urls={previewUrls} />}
                     </SheetDoc>
                   </Shrunk>
                 )}
-                {dest === "pdf" &&
+                {paper &&
                   floorsOn.map((f) => (
                     <div key={f.id} className="ds-send-plan">
                       <Shrunk>

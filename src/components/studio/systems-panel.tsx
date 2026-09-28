@@ -32,6 +32,7 @@
    light on dragenter/dragleave counters, never :hover, which does not fire
    during a native drag. */
 
+import { VariationButton } from "./variation-menu";
 import { useCallback, useRef, useState, type DragEvent } from "react";
 import type { DesignDocument, DesignSystem } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
@@ -112,6 +113,9 @@ export function SystemsPanel({
   onMoveZone,
   onClaimZone,
   onRemoveZone,
+  onAddVariant,
+  onSwitchVariant,
+  onRenameVariant,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -134,6 +138,10 @@ export function SystemsPanel({
   onMoveZone: (zoneId: string, from: string, to: string) => void;
   onClaimZone: (zoneId: string, to: string) => void;
   onRemoveZone: (zoneId: string, from: string) => void;
+  /** design variations — the whole design branched, every system with it */
+  onAddVariant: () => void;
+  onSwitchVariant: (id: string) => void;
+  onRenameVariant: (label: string) => void;
 }) {
   /* the open card the user rested by clicking its name */
   const [rested, setRested] = useState<string | null>(null);
@@ -193,6 +201,12 @@ export function SystemsPanel({
     <div className="ds-zp">
       <div className="ds-zp-h">
         <span className="ds-zp-title">Systems</span>
+        <VariationButton
+          doc={doc}
+          onAddVariant={onAddVariant}
+          onSwitchVariant={onSwitchVariant}
+          onRenameVariant={onRenameVariant}
+        />
         {doc.systems.length > 0 && (
           <button className="ds-zp-btn" onClick={onAddSystem}>
             <PlusGlyph />

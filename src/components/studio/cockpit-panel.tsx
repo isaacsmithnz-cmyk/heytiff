@@ -28,6 +28,7 @@ import {
   type CSSProperties,
 } from "react";
 import { Icon } from "@/components/shell/icon";
+import { VariationList, variationsOf } from "./variation-menu";
 import type {
   DesignDocument,
   DesignObject,
@@ -327,12 +328,7 @@ export function SystemCockpit({
   const showChooser = adding || changingType;
 
   /* an unbranched design has no roster yet — show the one it is, if named */
-  const variants: DesignVariantRef[] =
-    doc.variants.length > 0
-      ? doc.variants
-      : doc.meta.variantLabel
-        ? [{ id: doc.id, label: doc.meta.variantLabel }]
-        : [];
+  const variants: DesignVariantRef[] = variationsOf(doc);
 
   const systemSelector = (
     <SystemSelector
@@ -538,8 +534,6 @@ function SystemSelector({
 }) {
   const [open, setOpen] = useState(false);
   const [armedDel, setArmedDel] = useState<string | null>(null);
-  const [renaming, setRenaming] = useState(false);
-  const [draft, setDraft] = useState("");
   const active = systems.find((s) => s.id === activeId) ?? systems[0] ?? null;
   if (!active) return null;
   return (
@@ -603,77 +597,14 @@ function SystemSelector({
                 )}
               </div>
               {s.id === active.id && (
-                <div className="ds-var-sec">
-                  <div className="ds-var-cap">Design variations</div>
-                  {variants.map((v) =>
-                    renaming && v.id === currentVariantId ? (
-                      <form
-                        key={v.id}
-                        className="ds-var-rename"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          onRenameVariant(draft);
-                          setRenaming(false);
-                          setOpen(false);
-                        }}
-                      >
-                        <input
-                          autoFocus
-                          value={draft}
-                          aria-label="Rename this variation"
-                          onChange={(e) => setDraft(e.target.value)}
-                          onBlur={() => setRenaming(false)}
-                        />
-                      </form>
-                    ) : (
-                      <div
-                        key={v.id}
-                        className={`ds-var-row${v.id === currentVariantId ? " on" : ""}`}
-                      >
-                        <button
-                          className="ds-var-pick"
-                          role="menuitemradio"
-                          aria-checked={v.id === currentVariantId}
-                          onClick={() => {
-                            setOpen(false);
-                            if (v.id !== currentVariantId) onSwitchVariant(v.id);
-                          }}
-                        >
-                          {v.id === currentVariantId ? (
-                            <Glyph name="check" size={11} />
-                          ) : (
-                            <span className="ds-var-dot" />
-                          )}
-                          <span className="nm">{v.label}</span>
-                        </button>
-                        {v.id === currentVariantId && (
-                          <button
-                            className="ds-var-edit"
-                            onClick={() => {
-                              setDraft(v.label);
-                              setRenaming(true);
-                            }}
-                            title="Rename this variation"
-                            aria-label="Rename this variation"
-                          >
-                            <Glyph name="edit" size={11} />
-                          </button>
-                        )}
-                      </div>
-                    )
-                  )}
-                  <button
-                    className="ds-var-add"
-                    onClick={() => {
-                      onAddVariant();
-                      setOpen(false);
-                    }}
-                    title="Branch the whole design into another option — every system comes with it"
-                  >
-                    <Glyph name="plus" size={12} />
-                    Add variation
-                  </button>
-                </div>
+                <VariationList
+                  variants={variants}
+                  currentVariantId={currentVariantId}
+                  onAddVariant={onAddVariant}
+                  onSwitchVariant={onSwitchVariant}
+                  onRenameVariant={onRenameVariant}
+                  onDone={() => setOpen(false)}
+                />
               )}
             </Fragment>
           ))}

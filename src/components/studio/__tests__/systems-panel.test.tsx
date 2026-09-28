@@ -31,6 +31,7 @@ import { emptyPack, PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/st
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import { addHead, allocationsOf, placeAllocation } from "@/lib/studio/builder";
 import { claimZone, newSystem } from "@/lib/studio/zones";
+import { answerInstall, installQuestions, installState, NOT_SURE } from "@/lib/studio/install";
 import { systemCover } from "@/lib/studio/coverage";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 
@@ -493,6 +494,33 @@ describe("SystemsPanel — the rack", () => {
     const next = within(el).getByRole("button", { name: "Next: Install questions" });
     expect(next.closest(".ds-zp-next")).not.toBeNull();
     fireEvent.click(next);
+    expect(onInstall).toHaveBeenCalledWith(made.systemId);
+    // the next step already says it: no second door beside Edit system
+    expect(within(el).queryByRole("button", { name: "Install questions" })).toBeNull();
+  });
+
+  it("answered questions can still be opened again from the card", () => {
+    const made = fiveHeadMulti(fittedHouse().doc);
+    let d = placeAll(made.doc, made.systemId);
+    for (const q of installQuestions(d, mePack, sysOf(d, made.systemId))) {
+      d = answerInstall(d, made.systemId, q.id, [NOT_SURE]);
+    }
+    expect(installState(d, mePack, sysOf(d, made.systemId))).toBe("complete");
+    const { onInstall } = mount(d, made.systemId);
+    const el = card("System 1");
+    expect(within(el).queryByRole("button", { name: "Next: Install questions" })).toBeNull();
+    const again = within(el).getByRole("button", { name: "Install questions" });
+    expect(again.closest(".ds-zp-acts")).not.toBeNull();
+    fireEvent.click(again);
+    expect(onInstall).toHaveBeenCalledWith(made.systemId);
+  });
+
+  it("units back on the rack do not hide the install questions", () => {
+    const made = fiveHeadMulti(fittedHouse().doc);
+    const { onInstall } = mount(made.doc, made.systemId);
+    const el = card("System 1");
+    expect(el.querySelector(".ds-zp-rack")).not.toBeNull();
+    fireEvent.click(within(el).getByRole("button", { name: "Install questions" }));
     expect(onInstall).toHaveBeenCalledWith(made.systemId);
   });
 });

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import type { PrintModel, PrintVariant } from "@/lib/studio/export";
+import { hasSheet, type PrintModel, type PrintVariant, type SheetSections } from "@/lib/studio/export";
 import { floorDisplayName } from "@/lib/studio/plans";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { PlanFigure } from "./plan-figure";
@@ -39,10 +39,13 @@ function VariantCover({
   v,
   brand,
   preparedOn,
+  sections,
 }: {
   v: PrintVariant;
   brand: OrgBrand;
   preparedOn: string;
+  /** what the Send dialog ticked — the customer's copy has no picklist */
+  sections: SheetSections;
 }) {
   return (
     <section className="ds-print-cover">
@@ -61,8 +64,9 @@ function VariantCover({
           v.label ? `Design summary, ${v.label.toLowerCase()}` : "Design summary"
         }
         preparedOn={preparedOn}
+        sections={sections}
       >
-        <PicklistSection rows={v.sheet.picklist} />
+        {sections.picklist && <PicklistSection rows={v.sheet.picklist} />}
       </SheetDoc>
     </section>
   );
@@ -169,11 +173,12 @@ export function PrintDoc({
     >
       {model.variants.map((v) => (
         <div key={v.doc.id} className="ds-print-variant-block">
-          {options.content !== "plans" && (
+          {hasSheet(options.sections) && (
             <VariantCover
               v={v}
               brand={brand}
               preparedOn={formatDay(v.doc.meta.updatedAt)}
+              sections={options.sections}
             />
           )}
           {v.floors.map((floor) => (

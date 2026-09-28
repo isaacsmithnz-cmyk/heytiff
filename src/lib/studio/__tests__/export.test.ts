@@ -87,10 +87,10 @@ function fixtureDoc(): DesignDocument {
 }
 
 describe("defaultExportOptions", () => {
-  it("starts with everything: full content, all floors, own doc, colour", () => {
+  it("starts with everything: every section, all floors, own doc, colour", () => {
     const d = fixtureDoc();
     const o = defaultExportOptions(d);
-    expect(o.content).toBe("full");
+    expect(o.sections).toEqual({ figures: true, systems: true, lines: true, picklist: true });
     expect(o.floorIds).toEqual(["f1", "f2"]);
     expect(o.variantIds).toEqual([d.id]);
     expect(o.layers).toEqual({ plan: true, units: true, pipes: true, labels: true });
@@ -110,11 +110,11 @@ describe("buildPrintModel", () => {
     expect(m.variants[0].basis.zone).toBe(5);
   });
 
-  it("schedule-only: no floor pages", () => {
+  it("no floors ticked: no floor pages", () => {
     const d = fixtureDoc();
     const m = buildPrintModel([d], pack, {
       ...defaultExportOptions(d),
-      content: "schedule",
+      floorIds: [],
     });
     expect(m.variants[0].floors).toEqual([]);
     expect(m.variants[0].sheet.systems).toHaveLength(1);
@@ -124,7 +124,7 @@ describe("buildPrintModel", () => {
     const d = fixtureDoc();
     const m = buildPrintModel([d], pack, {
       ...defaultExportOptions(d),
-      content: "plans",
+      sections: { figures: false, systems: false, lines: false, picklist: false },
     });
     expect(m.variants[0].sheet.systems).toEqual([]);
     expect(m.variants[0].sheet.picklist).toEqual([]);
@@ -145,6 +145,19 @@ describe("buildPrintModel", () => {
     expect(m.variants[1].floors.map((f) => f.id)).toEqual(["f1", "f2"]);
     expect(m.variants[1].label).toBe("Option 2");
   });
+
+  it("with no plans ticked, siblings print no floors either", () => {
+    const d = fixtureDoc();
+    const sibling = fixtureDoc();
+    sibling.id = "dsn_sibling";
+    const m = buildPrintModel([d, sibling], pack, {
+      ...defaultExportOptions(d),
+      floorIds: [],
+      variantIds: [d.id, sibling.id],
+    });
+    expect(m.variants.map((v) => v.floors)).toEqual([[], []]);
+    expect(m.variants[1].sheet.systems).toHaveLength(1);
+  });
 });
 
 describe("collectSheetRefs", () => {
@@ -154,11 +167,11 @@ describe("collectSheetRefs", () => {
     expect(collectSheetRefs(m).sort()).toEqual(["ref-a", "ref-b"]);
   });
 
-  it("schedule-only collects nothing (no pages, no rasters)", () => {
+  it("no plans collects nothing (no pages, no rasters)", () => {
     const d = fixtureDoc();
     const m = buildPrintModel([d], pack, {
       ...defaultExportOptions(d),
-      content: "schedule",
+      floorIds: [],
     });
     expect(collectSheetRefs(m)).toEqual([]);
   });

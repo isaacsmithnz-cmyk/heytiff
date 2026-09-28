@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { DesignDocument } from "@/lib/studio/document";
+import type { DesignDocument, Floor } from "@/lib/studio/document";
+import type { SheetSections } from "@/lib/studio/export";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import type {
   DesignBasis,
@@ -10,6 +11,7 @@ import type {
 } from "@/lib/studio/summary";
 import type { OrgBrand } from "@/lib/org/brand";
 import { SheetDoc } from "@/components/studio/summary/sheet-doc";
+import { SheetPlans } from "@/components/studio/summary/sheet-plans";
 import { LiveViewer } from "./live-viewer";
 import "./live-sheet.css";
 
@@ -33,6 +35,10 @@ import "./live-sheet.css";
    - the Material picklist and the Contributors — a warehouse list and staff
      names, both internal.
 
+   WHICH PARTS the customer gets is what the owner ticked when they made the
+   link (lib/studio/send.ts): the sections, and the floors whose plans follow
+   the systems down the page.
+
    What it gains: a live chip that says this is a window rather than a
    snapshot, when the link stops working, and a way to print. */
 
@@ -50,10 +56,16 @@ export function LiveSheet({
       that can run one. False means the option is ABSENT — nothing here
       advertises a simulation this reader cannot open. See sim-approval.ts. */
   simOffered,
+  sections = { figures: true, systems: true, lines: true },
+  planFloors = [],
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
   planUrls: Record<string, string>;
+  /** the parts of the sheet this link carries */
+  sections?: Omit<SheetSections, "picklist">;
+  /** floors whose plans the link shows, in level order */
+  planFloors?: Floor[];
   brand: OrgBrand;
   model: SummaryModel;
   snapshot: DesignSnapshot;
@@ -135,7 +147,10 @@ export function LiveSheet({
               : "Design summary"
           }
           preparedOn={preparedOn}
-        />
+          sections={sections}
+        >
+          <SheetPlans doc={doc} floors={planFloors} urls={planUrls} />
+        </SheetDoc>
       </main>
     </div>
   );

@@ -24,15 +24,41 @@ export interface ExportLayers {
   labels: boolean;
 }
 
-export type ExportContent = "full" | "plans" | "schedule";
+/* WHICH PARTS OF THE SHEET GO IN. The Send dialog ticks these one by one, so a
+   customer's copy can leave out the picklist and the pipe runs while the
+   crew's keeps them. Plan pages are not a section: they are `floorIds`, and
+   an empty list is a document with no plans. */
+export interface SheetSections {
+  /** the row of six: heat load, capacity, climate zone and the rest */
+  figures: boolean;
+  /** a block per system with its rooms table */
+  systems: boolean;
+  /** each system's pipe, electrical and components */
+  lines: boolean;
+  /** the whole job's material picklist */
+  picklist: boolean;
+}
+
+export const ALL_SECTIONS: SheetSections = {
+  figures: true,
+  systems: true,
+  lines: true,
+  picklist: true,
+};
+
+/** whether any of the sheet itself goes in, or only plan pages */
+export const hasSheet = (s: SheetSections): boolean =>
+  s.figures || s.systems || s.lines || s.picklist;
+
 export type ExportPaper = "A4" | "A3";
 export type ExportOrientation = "portrait" | "landscape";
 
 export interface ExportOptions {
-  /** what the document contains: everything, plan pages only, tables only */
-  content: ExportContent;
-  /** floors of the PRIMARY document to print (sibling variants always print
-      all of theirs — their floor ids are their own) */
+  /** which parts of the sheet go in */
+  sections: SheetSections;
+  /** floors of the PRIMARY document to print. Empty means no plan pages at
+      all; otherwise sibling variants print every floor of their own, since
+      their floor ids are not this document's */
   floorIds: string[];
   /** document ids to include — the open design and any chosen siblings */
   variantIds: string[];
@@ -45,7 +71,7 @@ export interface ExportOptions {
 
 export function defaultExportOptions(doc: DesignDocument): ExportOptions {
   return {
-    content: "full",
+    sections: ALL_SECTIONS,
     floorIds: doc.floors.map((f) => f.id),
     variantIds: [doc.id],
     layers: { plan: true, units: true, pipes: true, labels: true },
@@ -84,12 +110,11 @@ export function buildPrintModel(
   options: ExportOptions
 ): PrintModel {
   const variants: PrintVariant[] = docs.map((doc, i) => {
-    const sheet =
-      options.content === "plans"
-        ? { systems: [], unserved: [], picklist: [] }
-        : buildSummaryModel(doc, pack);
+    const sheet = hasSheet(options.sections)
+      ? buildSummaryModel(doc, pack)
+      : { systems: [], unserved: [], picklist: [] };
     const floors =
-      options.content === "schedule"
+      options.floorIds.length === 0
         ? []
         : doc.floors
             .filter((f) => (i === 0 ? options.floorIds.includes(f.id) : true))

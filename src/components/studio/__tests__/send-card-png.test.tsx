@@ -1,4 +1,6 @@
-/* PNG-per-floor, and the button getting un-stuck afterwards.
+/* PNG-per-floor, and the button getting un-stuck afterwards. The images live
+   under Send's preview now ("Also: Plans as 3 images"), the same machine that
+   was Export's "The plans as images".
 
    Written because export-card.tsx had no test of any kind and was about to
    have three things rewritten in it to let React Compiler compile it: the
@@ -13,7 +15,9 @@
    short of a reload. */
 
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { ExportCard } from "../summary/export-card";
+import { SendCard } from "../summary/send-card";
+import { buildDesignSnapshot, buildSummaryModel, designBasis } from "@/lib/studio/summary";
+import { NO_BRAND } from "@/lib/org/brand";
 import { createDesign, type DesignDocument, type Floor } from "@/lib/studio/document";
 import type { PlanImages } from "@/lib/studio/plans";
 
@@ -23,6 +27,11 @@ jest.mock("@/lib/studio/export-png", () => ({
   svgToPngBlob: (...a: unknown[]) => svgToPngBlob(...(a as [])),
   inlineImageUrls: (...a: unknown[]) => inlineImageUrls(...(a as [never])),
   pngFileName: (_d: unknown, f: { id: string }) => `${f.id}.png`,
+}));
+
+/* the dialog asks for the live link as it opens */
+jest.mock("@/app/actions/studio-share", () => ({
+  getShareLink: jest.fn(async () => null),
 }));
 
 /* the figure only has to produce SOME markup — an empty one is skipped by
@@ -54,11 +63,18 @@ const planImages = { url: async (r: string) => `blob:${r}` } as unknown as PlanI
 
 function renderCard(doc: DesignDocument) {
   return render(
-    <ExportCard
+    <SendCard
       doc={doc}
       pack={null}
+      brand={NO_BRAND}
+      model={buildSummaryModel(doc, null)}
+      snapshot={buildDesignSnapshot(doc)}
+      basis={designBasis(doc)}
+      preparedOn="25 July 2026"
       planImages={planImages}
       empty={false}
+      simOffered={false}
+      checks={[]}
       onExportJson={() => {}}
       loadVariant={async () => null}
       onClose={() => {}}
@@ -66,13 +82,9 @@ function renderCard(doc: DesignDocument) {
   );
 }
 
-/* the card asks WHAT you are sending first — pick the images, then press the
-   one button, whose label says what it will do */
-const chooseImages = () =>
-  fireEvent.click(screen.getByRole("radio", { name: /The plans as images/ }));
-
+/* the images are a format, not a part: one press under the preview */
 const pngButton = () =>
-  screen.getByRole("button", { name: /Download \d+ images?|Drawing…/ });
+  screen.getByRole("button", { name: /Plans as (an image|\d+ images)|Drawing…/ });
 
 let createObjectURL: jest.Mock;
 let clicks: number;
@@ -97,23 +109,21 @@ afterEach(() => jest.restoreAllMocks());
 describe("PNG per floor", () => {
   it("draws one image per selected floor, not just the first", async () => {
     renderCard(mkDoc([mkFloor("f1", 0), mkFloor("f2", 1), mkFloor("f3", 2)]));
-    chooseImages();
 
     fireEvent.click(pngButton());
 
-    await waitFor(() => expect(pngButton()).toHaveTextContent("Download 3 images"));
+    await waitFor(() => expect(pngButton()).toHaveTextContent("Plans as 3 images"));
     expect(svgToPngBlob).toHaveBeenCalledTimes(3);
     expect(clicks).toBe(3);
   });
 
   it("says so while it works, then gives the button back", async () => {
     renderCard(mkDoc([mkFloor("f1", 0)]));
-    chooseImages();
 
     fireEvent.click(pngButton());
     expect(pngButton()).toHaveTextContent("Drawing…");
 
-    await waitFor(() => expect(pngButton()).toHaveTextContent("Download 1 image"));
+    await waitFor(() => expect(pngButton()).toHaveTextContent("Plans as an image"));
     expect(pngButton()).not.toBeDisabled();
   });
 
@@ -124,10 +134,9 @@ describe("PNG per floor", () => {
     const logged = jest.spyOn(console, "error").mockImplementation(() => {});
 
     renderCard(mkDoc([mkFloor("f1", 0)]));
-    chooseImages();
     fireEvent.click(pngButton());
 
-    await waitFor(() => expect(pngButton()).toHaveTextContent("Download 1 image"));
+    await waitFor(() => expect(pngButton()).toHaveTextContent("Plans as an image"));
     expect(pngButton()).not.toBeDisabled();
     expect(clicks).toBe(0);
     // the failure is reported, not swallowed
@@ -139,9 +148,8 @@ describe("PNG per floor", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
 
     renderCard(mkDoc([mkFloor("f1", 0)]));
-    chooseImages();
     fireEvent.click(pngButton());
-    await waitFor(() => expect(pngButton()).toHaveTextContent("Download 1 image"));
+    await waitFor(() => expect(pngButton()).toHaveTextContent("Plans as an image"));
 
     fireEvent.click(pngButton());
     await waitFor(() => expect(clicks).toBe(1));

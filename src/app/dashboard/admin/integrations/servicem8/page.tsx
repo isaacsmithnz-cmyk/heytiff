@@ -129,9 +129,13 @@ export default async function Servicem8IntegrationPage({
       countConnectionsElsewhere(orgId, "servicem8", connection.tenantId),
       /* live updates from ServiceM8 (two-way phase 4): one line, only when
          they aren't working. With the switch anything but on, nothing is
-         read and the subscribing module is never loaded. */
+         read and the subscribing module is never loaded. A module that
+         won't load, or a read that throws, says nothing rather than taking
+         the screen down. */
       sm8WebhooksState() === "on"
-        ? import("@/lib/integrations/sm8-hooks").then((m) => m.readSm8HooksHealth(orgId))
+        ? import("@/lib/integrations/sm8-hooks")
+            .then((m) => m.readSm8HooksHealth(orgId))
+            .catch(() => null)
         : null,
     ]);
     elsewhere = alsoConnected;

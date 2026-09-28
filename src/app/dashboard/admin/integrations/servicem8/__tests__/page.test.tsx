@@ -249,6 +249,14 @@ describe("the ServiceM8 screen's loader, with live updates", () => {
     );
   });
 
+  it("on, and the module or its read fails: the screen still draws, with nothing said", async () => {
+    on();
+    readSm8HooksHealth.mockRejectedValue(new Error("chunk failed to load"));
+    const p = await load();
+    expect(p).not.toHaveProperty("liveUpdates");
+    expect(p.reach).toEqual({ ok: true, account: { name: "Acme Air", timezoneName: null } });
+  });
+
   it("on, but the connection needs reconnecting: not read — the connection's own line says it", async () => {
     on();
     getConnectionView.mockResolvedValue(view({ status: "needs_reauth" }));

@@ -245,7 +245,7 @@ describe("the ServiceM8 screen's loader, with live updates", () => {
     on();
     readSm8HooksHealth.mockResolvedValue({ state: "partial", missing: ["job_notes"], errors: [] });
     expect(((await load()) as Props & { liveUpdates?: string }).liveUpdates).toBe(
-      "ServiceM8 isn't sending live updates for Job notes, so those wait for the next sync. Press Reconnect."
+      "ServiceM8 isn't sending live updates for Job notes, so those wait for the next sync."
     );
   });
 

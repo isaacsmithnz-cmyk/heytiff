@@ -38,14 +38,14 @@ describe("the line", () => {
 
   it("partial: names the records as the mirror's list does, in its order", () => {
     expect(sm8LiveUpdatesLine({ state: "partial", missing: ["job_notes"], errors: [] })).toBe(
-      "ServiceM8 isn't sending live updates for Job notes, so those wait for the next sync. Press Reconnect."
+      "ServiceM8 isn't sending live updates for Job notes, so those wait for the next sync."
     );
     expect(sm8LiveUpdatesLine({ state: "partial", missing: ["attachments"], errors: ["job_activities"] })).toBe(
-      "ServiceM8 isn't sending live updates for Schedule and Attachments, so those wait for the next sync. Press Reconnect."
+      "ServiceM8 isn't sending live updates for Schedule and Attachments, so those wait for the next sync."
     );
     expect(
       sm8LiveUpdatesLine({ state: "partial", missing: ["job_notes", "jobs", "companies", "job_payments"], errors: ["jobs"] })
-    ).toBe("ServiceM8 isn't sending live updates for Clients, Jobs and 2 more, so those wait for the next sync. Press Reconnect.");
+    ).toBe("ServiceM8 isn't sending live updates for Clients, Jobs and 2 more, so those wait for the next sync.");
   });
 
   it("deactivated: ServiceM8's reason and day, its UTC stamp read on the AU clock", () => {
@@ -71,15 +71,24 @@ describe("the line", () => {
 
   it("quiet: the day the pings stopped", () => {
     expect(sm8LiveUpdatesLine({ state: "quiet", since: Date.parse("2026-10-02T23:10:00Z") })).toBe(
-      "ServiceM8 hasn't sent a live update since Sat 3 Oct, so changes wait for the next sync. Press Reconnect."
+      "ServiceM8 hasn't sent a live update since Sat 3 Oct, so changes wait for the next sync."
     );
   });
 
-  it("every line says what happened and what to press, with no stock phrasing", () => {
+  it("every line says what happened, with no stock phrasing", () => {
     for (const words of Object.values(HOOK_WORDS)) {
       expect(words.startsWith("ServiceM8 ")).toBe(true);
-      expect(words.endsWith(" Press Reconnect.")).toBe(true);
       expect(words).not.toMatch(/attention|action required|needs you|\bAI\b|successfully|!|\.\.\.|webhook/i);
+    }
+  });
+
+  it("asks for Reconnect only where a Reconnect is the fix: nothing subscribed, or one turned off", () => {
+    for (const k of ["none", "deactivated", "deactivatedUndated"] as const) {
+      expect([k, HOOK_WORDS[k].endsWith(" Press Reconnect.")]).toEqual([k, true]);
+    }
+    for (const k of ["partial", "quiet"] as const) {
+      expect([k, HOOK_WORDS[k]]).toEqual([k, expect.not.stringMatching(/Reconnect|Press/)]);
+      expect(HOOK_WORDS[k]).toMatch(/wait for the next sync\.$/);
     }
   });
 });

@@ -4,9 +4,11 @@
    NOTHING WHILE THEY WORK (the spec's decision D2): sm8LiveUpdatesLine is
    null for `ok`, and for no health at all (the switch off, a reconcile
    still to have its go, a row that couldn't be read). Otherwise one
-   sentence: what ServiceM8 did, what that means for the owner's changes,
-   and the one control that asks for a fresh subscription — Reconnect,
-   beside it on the connection card. Records are named as the mirror's own
+   sentence: what ServiceM8 did and what that means for the owner's
+   changes. Only where a Reconnect is the fix — nothing subscribed, or one
+   ServiceM8 turned off — does it say to press it (beside it on the
+   connection card); a partial set or quiet pings are the nightly
+   reconcile's to put right first. Records are named as the mirror's own
    list names them ("Job notes", "Schedule"), and a day as the overnight
    line writes one ("Sat 3 Oct").
 
@@ -20,10 +22,10 @@ import type { HookObjectName, Sm8HooksHealth } from "./sm8-hook-plan";
 
 export const HOOK_WORDS = {
   none: "ServiceM8 isn't sending live updates, so changes wait for the next sync. Press Reconnect.",
-  partial: "ServiceM8 isn't sending live updates for {list}, so those wait for the next sync. Press Reconnect.",
+  partial: "ServiceM8 isn't sending live updates for {list}, so those wait for the next sync.",
   deactivated: "ServiceM8 turned off live updates for {name} on {day}: {reason}. Press Reconnect.",
   deactivatedUndated: "ServiceM8 turned off live updates for {name}: {reason}. Press Reconnect.",
-  quiet: "ServiceM8 hasn't sent a live update since {day}, so changes wait for the next sync. Press Reconnect.",
+  quiet: "ServiceM8 hasn't sent a live update since {day}, so changes wait for the next sync.",
 } as const;
 
 /** The mirror's own name for a record kind, as the screen's list shows it. */

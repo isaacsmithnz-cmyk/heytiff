@@ -68,6 +68,12 @@ export const runtime = "nodejs";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
+/* A lookup that hasn't answered in this long is a failed one: 503, inside
+   ServiceM8's 10 s ("must return a successful 2xx response within 10
+   seconds"): a hung database gets ServiceM8 an answer it retries, and a
+   line in our log, rather than a silent timeout on theirs. */
+const LOOKUP_TIMEOUT_MS = 8_000;
+
 type BodyKind = "json" | "json_text" | "form" | "query" | "none";
 
 function answer(status: number): Response {
@@ -152,13 +158,20 @@ async function takePing(
   hook: string,
   ping: Extract<Ping, { kind: "challenge" | "change" }>
 ): Promise<{ verdict: Verdict; org: string | null } | null> {
+  const signal = AbortSignal.timeout(LOOKUP_TIMEOUT_MS);
   try {
-    const { data, error } = await supabaseAdmin.rpc("sm8_take_ping", {
-      p_hash: hookHashOf(hook),
-      p_object: ping.kind === "change" ? ping.object : null,
-      p_uuids: ping.kind === "change" ? ping.uuids : null,
-      p_cap: PING_QUEUE_CAP,
-    });
+    const { data, error } = await supabaseAdmin
+      .rpc("sm8_take_ping", {
+        p_hash: hookHashOf(hook),
+        p_object: ping.kind === "change" ? ping.object : null,
+        p_uuids: ping.kind === "change" ? ping.uuids : null,
+        p_cap: PING_QUEUE_CAP,
+      })
+      .abortSignal(signal);
+    if (signal.aborted) {
+      console.error(`[sm8] webhook: the lookup didn't answer in ${LOOKUP_TIMEOUT_MS / 1000} s`);
+      return null;
+    }
     if (error) {
       console.error(`[sm8] webhook: the lookup failed: ${redactHook(String(error.message ?? ""), [hook])}`);
       return null;
@@ -171,6 +184,10 @@ async function takePing(
     }
     return { verdict: verdict as Verdict, org: typeof row?.hook_org === "string" ? row.hook_org : null };
   } catch (err) {
+    if (signal.aborted) {
+      console.error(`[sm8] webhook: the lookup didn't answer in ${LOOKUP_TIMEOUT_MS / 1000} s`);
+      return null;
+    }
     console.error(`[sm8] webhook: the lookup threw: ${redactHook(err instanceof Error ? err.message : String(err), [hook])}`);
     return null;
   }

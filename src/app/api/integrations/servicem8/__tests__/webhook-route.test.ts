@@ -16,12 +16,40 @@ import { NextRequest } from "next/server";
 
 /* ── the database: one RPC, recorded; any table touched is a failure ── */
 
-type RpcAnswer = { data: unknown; error: { message: string } | null } | Error;
+/* "hang": no answer until the call's abort signal fires, which then
+   answers as supabase-js does (an AbortError in `error`); "hang-throw":
+   the same, but the abort rejects */
+type RpcAnswer = { data: unknown; error: { message: string } | null } | Error | "hang" | "hang-throw";
 let rpcAnswer: RpcAnswer = { data: [{ verdict: "queued", hook_org: "org-7e1a" }], error: null };
-const rpc = jest.fn(async (_name: string, _args: Record<string, unknown>) => {
-  if (rpcAnswer instanceof Error) throw rpcAnswer;
-  return rpcAnswer;
-});
+/** Like supabase-js's builder: awaitable, with .abortSignal(). */
+function builder() {
+  let signal: AbortSignal | null = null;
+  const settle = async () => {
+    const a = rpcAnswer;
+    if (a === "hang" || a === "hang-throw") {
+      return new Promise((resolve, reject) => {
+        signal?.addEventListener("abort", () =>
+          a === "hang"
+            ? resolve({ data: null, error: { message: "AbortError: This operation was aborted" } })
+            : reject(new DOMException("This operation was aborted", "AbortError"))
+        );
+      });
+    }
+    if (a instanceof Error) throw a;
+    return a;
+  };
+  const b = {
+    abortSignal(s: AbortSignal) {
+      signal = s;
+      return b;
+    },
+    then(onDone: (v: unknown) => unknown, onFail?: (e: unknown) => unknown) {
+      return settle().then(onDone, onFail);
+    },
+  };
+  return b;
+}
+const rpc = jest.fn((_name: string, _args: Record<string, unknown>) => builder());
 const from = jest.fn();
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
@@ -246,6 +274,31 @@ describe("what each verdict answers", () => {
       const change = await send(json(pingOf("job", [U1])));
       const challenge = await send({ method: "GET", query: "?mode=subscribe&challenge=c-1" });
       expect([change.status, challenge.status]).toEqual([503, 503]);
+    }
+    expect(scheduled).toHaveLength(0);
+  });
+
+  it("a lookup that hangs is cut at 8 s: 503, and a line saying so", async () => {
+    for (const hang of ["hang", "hang-throw"] as const) {
+      const cut = new AbortController();
+      const timeout = jest.spyOn(AbortSignal, "timeout").mockReturnValue(cut.signal);
+      logs.length = 0;
+      try {
+        rpcAnswer = hang;
+        const pending = send(json(pingOf("job", [U1])));
+        const wait = (ms: number) => new Promise<"waiting">((r) => setTimeout(() => r("waiting"), ms));
+        expect(await Promise.race([pending.then(() => "answered"), wait(30)])).toBe("waiting");
+        cut.abort();
+        const res = await Promise.race([pending, wait(1_000)]);
+        expect([hang, res === "waiting" ? "still hung" : res.status]).toEqual([hang, 503]);
+        expect(timeout).toHaveBeenCalledWith(8_000);
+        expect(logs.map((l) => l.join(" "))).toEqual([
+          "[sm8] webhook: the lookup didn't answer in 8 s",
+          "[sm8] webhook: error (json, 1 uuid)",
+        ]);
+      } finally {
+        timeout.mockRestore();
+      }
     }
     expect(scheduled).toHaveLength(0);
   });

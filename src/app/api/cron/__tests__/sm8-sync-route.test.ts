@@ -299,3 +299,34 @@ describe("the file cache's 30-day cap", () => {
     expect(events).not.toContain("evict");
   });
 });
+
+/* Two-way phase 4, PR B: a workspace whose lease is held no longer misses
+   its night. Its sync asks for the lease and is tried again (12 × 2 s,
+   never past the start-by); only what is still busy after that is busy. */
+describe("a workspace whose lease is held", () => {
+  const { SM8_SYNC_BUSY } = jest.requireActual("@/lib/integrations/sm8-lease") as { SM8_SYNC_BUSY: string };
+  const busy = { ran: false, note: SM8_SYNC_BUSY, pagesUsed: 0, rowsPulled: 0, complete: false };
+
+  beforeEach(() => jest.useFakeTimers({ doNotFake: ["Date"] }));
+  afterEach(() => jest.useRealTimers());
+
+  it("is tried again, and syncs once the lease is given back", async () => {
+    runSm8Sync.mockResolvedValueOnce(busy);
+    const pending = GET(byScheduler());
+    await jest.advanceTimersByTimeAsync(2_000);
+    const body = await (await pending).json();
+    expect(runSm8Sync).toHaveBeenCalledTimes(3);
+    expect(body).toMatchObject({ ran: 2, busy: 0 });
+  });
+
+  it("is busy only after its last try, and each sync may run until the function's own deadline", async () => {
+    for (let i = 0; i < 24; i++) runSm8Sync.mockResolvedValueOnce(busy);
+    const pending = GET(byScheduler());
+    await jest.advanceTimersByTimeAsync(2 * 11 * 2_000);
+    const body = await (await pending).json();
+    expect(runSm8Sync).toHaveBeenCalledTimes(24);
+    expect(body).toMatchObject({ ran: 0, busy: 2 });
+    // 300 s less the 20 s margin, from the request's start
+    expect(runSm8Sync.mock.calls[0][3]).toEqual({ deadline: Date.parse("2026-09-25T20:00:00Z") + 280_000 });
+  });
+});

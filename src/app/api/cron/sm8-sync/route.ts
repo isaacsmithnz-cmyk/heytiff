@@ -8,6 +8,8 @@ import {
   runSm8Writes,
 } from "@/lib/integrations/sm8-writes";
 import { WRITE_LEASE_MARGIN_MS, WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
+import { SYNC_LEASE_MS, whenSm8LeaseFree } from "@/lib/integrations/sm8-lease";
+import { functionDeadline } from "@/lib/integrations/sm8-hook-plan";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { NOTE_TEXT_DAYS } from "@/lib/integrations/sm8-note-plan";
 import { EVICT_BUDGET_MS, evictStaleSm8Files, type EvictResult } from "@/lib/integrations/sm8-file-cache";
@@ -77,8 +79,12 @@ const CRON_WRITE_BUDGET_MS = 30_000;
 /** A workspace's sync starts only while one of its leases (120 s) and a
     margin still fit before maxDuration; one that doesn't waits for the next
     night, first in line (sweepableSm8Orgs is least-recently-swept first). */
-const SYNC_LEASE_MS = 120_000;
 const CRON_SYNC_START_BY_MS = maxDuration * 1000 - SYNC_LEASE_MS - WRITE_LEASE_MARGIN_MS;
+
+/** A workspace whose lease is held is tried this many times, this far
+    apart, before it counts as busy for the night. */
+const CRON_SYNC_TRIES = 12;
+const CRON_SYNC_WAIT_MS = 2_000;
 
 /** THE WRITES' ONE BUDGET, across every workspace, counted from the start
     of the request. Writes go FIRST, so a file waiting since yesterday isn't
@@ -185,7 +191,14 @@ export async function GET(request: Request) {
       /* the scheduler came: recorded BEFORE the sync, so a night where
          another sync held the lease still counts as the overnight run */
       if (scheduled) await recordSm8CronVisit(orgId, Date.now());
-      const outcome = await runSm8Sync(orgId, "cron");
+      /* A workspace whose lease is held gets a few more tries, each asking
+         for it (so a drain holding it stands aside), rather than missing
+         its night; never past the start-by. Its sync may extend its lease
+         while a whole one still ends inside this function. */
+      const outcome = await whenSm8LeaseFree(
+        () => runSm8Sync(orgId, "cron", Date.now(), { deadline: functionDeadline(startedAt, maxDuration) }),
+        { tries: CRON_SYNC_TRIES, waitMs: CRON_SYNC_WAIT_MS, startBy: startedAt + CRON_SYNC_START_BY_MS }
+      );
       if (outcome.ran) {
         ran += 1;
         pages += outcome.pagesUsed;

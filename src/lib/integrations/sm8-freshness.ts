@@ -29,15 +29,18 @@ import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { settleMentionAsks } from "@/lib/dashboard/mention-settle";
 import { runSm8Sync, sm8SyncIsStale } from "./sm8-sync";
+import { SYNC_LEASE_MS, whenSm8LeaseFree } from "./sm8-lease";
 import { runSm8Writes, sm8WritesDue, sm8WritesEnabled } from "./sm8-writes";
 import { backgroundBudgetMs, FUNCTION_MAX_MS, WRITE_LEASE_MARGIN_MS } from "./sm8-write-plan";
 import { sm8NotesAllowed } from "./sm8-kinds";
 import { NOTE_TEXT_DAYS } from "./sm8-note-plan";
 import { clearSm8NoteText, sm8NoteTextDue } from "./sm8-write-cancel";
 
-/** A sync slice holds its lease this long; it starts only while that still
-    fits in the function. */
-const SYNC_LEASE_MS = 120_000;
+/** A slice that finds the lease held asks for it and tries again, this many
+    times this far apart — never past the last moment its lease still fits
+    the function. */
+const KICK_TRIES = 10;
+const KICK_WAIT_MS = 2_000;
 
 /** Register one after() that sends what is due and then syncs a stale
     mirror, for a workspace the caller has already gated. Synchronous: the
@@ -68,9 +71,14 @@ export function freshenSm8AfterResponse(orgId: string): void {
         if (budgetMs > 0) await runSm8Writes(orgId, "kick", { budgetMs });
       }
 
-      if (Date.now() - calledAt > FUNCTION_MAX_MS - SYNC_LEASE_MS - WRITE_LEASE_MARGIN_MS) return;
+      const syncStartBy = calledAt + FUNCTION_MAX_MS - SYNC_LEASE_MS - WRITE_LEASE_MARGIN_MS;
+      if (Date.now() > syncStartBy) return;
       if (!(await sm8SyncIsStale(orgId, Date.now()))) return;
-      const synced = await runSm8Sync(orgId, "kick");
+      const synced = await whenSm8LeaseFree(() => runSm8Sync(orgId, "kick"), {
+        tries: KICK_TRIES,
+        waitMs: KICK_WAIT_MS,
+        startBy: syncStartBy,
+      });
       if (!synced.ran) return;
 
       /* what is left of the function, less the margin its writes keep */

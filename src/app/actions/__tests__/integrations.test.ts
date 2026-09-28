@@ -187,6 +187,25 @@ describe("syncServiceM8NowAction", () => {
     expect(await syncServiceM8NowAction()).toEqual({ ok: false, error: "Only an owner can change connected apps." });
     expect(scheduled).toHaveLength(0);
   });
+
+  /* Two-way phase 4, PR B: a press that meets the lease held (a live update
+     being read) asks for it and tries again, rather than answering busy. */
+  it("meets a lease held by a drain, and syncs once it is given back", async () => {
+    const { SM8_SYNC_BUSY } = jest.requireActual("@/lib/integrations/sm8-lease") as { SM8_SYNC_BUSY: string };
+    jest.useFakeTimers({ doNotFake: ["Date"] });
+    runSm8Sync.mockClear();
+    try {
+      runSm8Sync
+        .mockResolvedValueOnce({ ran: false, note: SM8_SYNC_BUSY, pagesUsed: 0, rowsPulled: 0, complete: false })
+        .mockResolvedValueOnce({ ran: true, note: "Synced 1 change across 13 objects.", pagesUsed: 1, rowsPulled: 1, complete: true });
+      const pending = syncServiceM8NowAction();
+      await jest.advanceTimersByTimeAsync(2_000);
+      expect(await pending).toEqual({ ok: true, note: "Synced 1 change across 13 objects." });
+      expect(runSm8Sync).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe("disconnectServiceM8Action", () => {

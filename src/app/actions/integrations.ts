@@ -7,6 +7,7 @@ import { getDbRole } from "@/lib/permissions-server";
 import { disconnectXero, setXeroTenant } from "@/lib/integrations/store";
 import { disconnectSm8 } from "@/lib/integrations/sm8-store";
 import { runSm8Sync } from "@/lib/integrations/sm8-sync";
+import { whenSm8LeaseFree } from "@/lib/integrations/sm8-lease";
 import { sm8PressFromSession } from "@/lib/integrations/sm8-press";
 import {
   readSm8WriteState,
@@ -101,15 +102,18 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
 /** Run one sync slice now, in the foreground — the button's whole point is
     watching the counts move, so this awaits rather than after()s. The
     engine's lease makes a press during a running sync a polite "already
-    running" rather than a second walker. A press, so it drains: whatever
-    is waiting to go to ServiceM8 goes behind the answer. */
+    running" rather than a second walker — after a few tries two seconds
+    apart, each asking for the lease, so a press that meets a live update
+    being read (which stands aside when asked) still syncs. A press, so it
+    drains: whatever is waiting to go to ServiceM8 goes behind the answer. */
 export async function syncServiceM8NowAction(): Promise<IntegrationResult> {
   const startedAt = Date.now();
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
   drainSm8WritesAfterResponse(ctx.orgId, { startedAt });
-  const outcome = await runSm8Sync(ctx.orgId, "manual");
+  const orgId = ctx.orgId;
+  const outcome = await whenSm8LeaseFree(() => runSm8Sync(orgId, "manual"), { tries: 10, waitMs: 2_000 });
   revalidate();
   if (!outcome.ran) return { ok: false, error: outcome.note };
   return { ok: true, note: outcome.note };

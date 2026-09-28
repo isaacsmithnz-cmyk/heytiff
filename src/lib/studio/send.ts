@@ -33,15 +33,19 @@ export const SEND_PARTS: readonly SendPart[] = [
 
 export type SendDest = "pdf" | "link";
 
-export type SendAudience = "customer" | "crew" | "office";
+export type SendAudience = "customer" | "crew";
 
 /* WHO IT IS FOR fills in the ticks. Isaac's calls, 2026-09-28: the customer
-   gets the design without the materials; the crew keeps the heat loads,
-   because they check them against the site on the day. */
+   gets the design without the materials; the install team keeps the heat
+   loads, because they check them against the site on the day.
+
+   TWO, NOT THREE. "The office" (everything) could not be chosen on most
+   designs: with no other options and no simulation on paper it ticked
+   exactly what the install team ticks, so the team's button lit instead.
+   Isaac, the same day: "I don't think we need that". */
 export const AUDIENCE_PARTS: Record<SendAudience, readonly SendPart[]> = {
   customer: ["figures", "systems", "plans", "sim"],
   crew: ["figures", "systems", "lines", "plans", "picklist"],
-  office: ["figures", "systems", "lines", "plans", "picklist", "options", "sim"],
 };
 
 /* WHAT EACH WAY OUT CAN CARRY. The live link is the customer's page: it serves
@@ -69,7 +73,7 @@ export function audienceOf(
   open: (p: SendPart) => boolean
 ): SendAudience | null {
   const on = SEND_PARTS.filter((p) => open(p) && parts.has(p));
-  for (const a of ["customer", "crew", "office"] as const) {
+  for (const a of ["customer", "crew"] as const) {
     const want = AUDIENCE_PARTS[a].filter(open);
     if (want.length === on.length && want.every((p) => on.includes(p))) return a;
   }

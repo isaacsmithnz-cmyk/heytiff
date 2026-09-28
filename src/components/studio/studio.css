@@ -6541,11 +6541,27 @@ html[data-ds-display] .dstudio.editing {
   min-height: 0;
   overflow: hidden auto;
 }
+/* the preview column pins its head, its page setup and its Also line; only
+   the document between them scrolls */
 .dstudio .ds-send-r {
   gap: 12px;
+  overflow: hidden;
   background: var(--ground);
   border-left: 1px solid var(--line);
 }
+.dstudio .ds-send-rhead { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.dstudio .ds-send-rhead b { margin-left: auto; font-weight: 700; }
+.dstudio .ds-send-rscroll { flex: 1; min-height: 0; overflow: hidden auto; }
+.dstudio .ds-send-setupx {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+}
+.dstudio .ds-send-drawing { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
 .dstudio .ds-send-dests { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .dstudio .ds-send-caprow { display: flex; justify-content: space-between; }
 /* the parts, a tick each, in one ruled list; a floor or an option hangs
@@ -6562,34 +6578,31 @@ html[data-ds-display] .dstudio.editing {
 /* the reason a part can't go, or that it is internal: a word, not a tag */
 .dstudio .ds-send-inc .ds-export-row em { margin-left: auto; font-weight: 600; color: var(--gray500); }
 .dstudio .ds-send-inc .ds-export-row:has(input:disabled) { color: var(--gray400); cursor: default; }
-.dstudio .ds-send-link,
-.dstudio .ds-send-setup {
+.dstudio .ds-send-link {
   display: flex;
+  flex-direction: column;
   gap: 8px;
   padding: 12px;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-button);
 }
-.dstudio .ds-send-link { flex-direction: column; }
-.dstudio .ds-send-setup { align-items: center; padding: 8px 12px; font-size: 12px; }
-.dstudio .ds-send-setup b { font-weight: 700; }
-.dstudio .ds-send-setup .ds-send-lnk { margin-left: auto; }
 /* THE PREVIEW IS THE DOCUMENT. The sheet is laid out at a desk width, so its
    container queries pick the desktop table, then scaled to the column
    (send-card.tsx `Shrunk`). */
 .dstudio .ds-send-pv { display: flex; flex-direction: column; gap: 8px; }
-.dstudio .ds-send-mini,
-.dstudio .ds-send-page {
+.dstudio .ds-send-mini {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-control);
   overflow: hidden;
 }
 .dstudio .ds-send-mini-in { transform-origin: 0 0; }
-.dstudio .ds-send-page { display: flex; flex-direction: column; gap: 4px; padding: 8px; }
-.dstudio .ds-send-page svg { display: block; width: 100%; height: auto; }
-.dstudio .ds-send-page span { font-size: 12px; font-weight: 600; color: var(--gray500); }
+/* a plan page: the figure at the paper's own proportions, its name under it */
+.dstudio .ds-send-plan { display: flex; flex-direction: column; gap: 4px; }
+.dstudio .ds-send-plan-in { padding: 48px; }
+.dstudio .ds-send-plan-in svg { display: block; width: 100%; height: auto; }
+.dstudio .ds-send-plan > span { font-size: 12px; font-weight: 600; color: var(--gray500); }
 .dstudio .ds-send-empty {
   margin: 0;
   padding: 24px 12px;

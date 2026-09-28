@@ -89,7 +89,7 @@ describe("PlanFigure", () => {
 
   /* Units can be turned on the canvas, so the printed sheet has to agree —
      an export that squares everything up is a different drawing. */
-  it("prints a turned unit turned, with its labels left upright", () => {
+  it("prints a turned unit turned", () => {
     const d = fixtureDoc();
     const idu = d.objects.find((o) => o.id === "i1")!;
     idu.geometry = { kind: "point", at: { x: 200, y: 200 }, rotation: 90 };
@@ -99,9 +99,6 @@ describe("PlanFigure", () => {
     const unit = container.querySelector(".ds-unit")!;
     const turned = unit.querySelector("g[transform]")!;
     expect(turned.getAttribute("transform")).toBe("rotate(90 200 200)");
-    // the model / role text is a sibling of the turned group, not inside it
-    expect(turned.querySelector(".ds-unit-model")).toBeNull();
-    expect(unit.querySelector(".ds-unit-model")).not.toBeNull();
   });
 
   it("leaves an unturned unit without a transform at all", () => {
@@ -322,23 +319,24 @@ describe("unit callouts", () => {
     );
   });
 
-  /* THE DOUBLING. Paper keeps the labels the canvas dropped because paper
-     cannot be hovered — but once somebody has placed a callout, printing the
-     model under the footprint too puts it on the sheet twice, once squeezed
-     into the drawing and once where it was put on purpose. */
-  it("stops stamping the model under a unit that carries one", () => {
+  /* PAPER DRAWS WHAT THE CANVAS DRAWS. It used to stamp "IDU"/"ODU" in
+     every footprint and the model under it; on a whole-site sheet the words
+     piled onto each other and the notes (Isaac, 2026-09-28). A unit is its
+     glyph; its callout names it, as on the canvas. */
+  it("stamps no role or model on a unit, callout or not", () => {
     const plain = render(
       <PlanFigure doc={fixtureDoc()} floor={fixtureDoc().floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
     );
-    expect(plain.container.querySelectorAll(".ds-unit-model")).toHaveLength(1);
+    expect(plain.container.querySelector(".ds-unit")).not.toBeNull();
+    expect(plain.container.querySelector(".ds-unit")!.textContent).toBe("");
+    plain.unmount();
 
     const d = withCallout({ x: 260, y: -180 });
     const { container } = render(
       <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
     );
-    expect(container.querySelectorAll(".ds-unit-model")).toHaveLength(0);
-    // the ROLE stays: one word, inside the glyph, and the callout never repeats it
-    expect(container.querySelectorAll(".ds-unit-role")).toHaveLength(1);
+    expect(container.querySelector(".ds-unit")!.textContent).toBe("");
+    expect(container.querySelector(".ds-callout-text")?.textContent).toContain("MSZ-AP25VGD");
   });
 
   it("says nothing at all when nobody has placed one", () => {

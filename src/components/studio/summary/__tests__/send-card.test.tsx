@@ -115,19 +115,30 @@ describe("where it goes, who it is for, what goes in", () => {
     expect(screen.getByRole("button", { name: "The customer" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("the crew keeps the heat loads and gets the pipework", async () => {
+  it("the install team keeps the heat loads and gets the pipework", async () => {
     const user = userEvent.setup();
     renderCard();
-    await user.click(screen.getByRole("button", { name: "The install crew" }));
+    await user.click(screen.getByRole("button", { name: "The install team" }));
     expect(box(/Heat loads/)).toBeChecked();
     expect(box(/Pipe, electrical/)).toBeChecked();
+  });
+
+  it("offers two presets, and each can be chosen", async () => {
+    const user = userEvent.setup();
+    renderCard();
+    const team = screen.getByRole("button", { name: "The install team" });
+    await user.click(team);
+    expect(team).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "The customer" }));
+    expect(screen.getByRole("button", { name: "The customer" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("button", { name: "The office" })).not.toBeInTheDocument();
   });
 
   it("a hand-ticked set is nobody's preset", async () => {
     const user = userEvent.setup();
     renderCard();
     await user.click(box(/Heat loads/));
-    for (const name of ["The customer", "The install crew", "The office"])
+    for (const name of ["The customer", "The install team"])
       expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
   });
 

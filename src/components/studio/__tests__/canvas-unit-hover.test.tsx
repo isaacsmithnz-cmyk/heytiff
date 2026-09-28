@@ -1,8 +1,9 @@
 /* The plan carries no text on its units any more: role and model used to sit
    stacked on every box, and alongside face labels, spigot diameters and pipe
    lengths the drawing stopped being readable. Identity moved to a corner card
-   that names whatever the pointer is over. Print is a DIFFERENT renderer
-   (summary/plan-figure.tsx) and keeps its labels — paper can't be hovered.
+   that names whatever the pointer is over. Print (summary/plan-figure.tsx)
+   followed on 2026-09-28: its stamped labels piled up on a whole-site sheet,
+   and a unit on paper is named by its callout, as it is here.
 
    jsdom has no layout: blank floor (10 mm/unit → grid 100) opens at zoom 0.56,
    world origin at screen centre (400,300). A unit at world (0,0) is therefore

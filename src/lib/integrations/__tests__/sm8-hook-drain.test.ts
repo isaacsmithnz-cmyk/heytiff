@@ -818,7 +818,34 @@ describe("drainSm8Hooks", () => {
     });
   });
 
+  it("an empty queue costs one read and no write: no flight, no lease", async () => {
+    const out = await drain();
+    expect(out).toEqual({ ran: false, read: 0, written: 0, handed: 0, dropped: 0, stopped: null });
+    expect(events).toEqual([]);
+    expect(hooks().draining_until).toBeNull();
+  });
+
+  it("a workspace with no live-updates row says so, rather than that a drain is running", async () => {
+    db.sm8_webhook_pings = [queue("jobs", U(1))];
+    db.sm8_webhooks = [];
+    expect(await drain()).toMatchObject({ ran: false, stopped: "unset" });
+    expect(fakeFetch).not.toHaveBeenCalled();
+  });
+
   describe("the single flight (S1)", () => {
+    it("a flight another drain took over mid-drain survives this one's release", async () => {
+      db.sm8_webhook_pings = [queue("jobs", U(1), 30_000), queue("jobs", U(2), 29_000)];
+      const theirs = iso(clock + 10 * 60_000);
+      during = (uuid) => {
+        // this drain's flight ran out while it read; another claimed it
+        if (uuid === U(1)) hooks().draining_until = theirs;
+      };
+      readTakes = [31_000];
+      const out = await drain();
+      expect(out).toMatchObject({ read: 1, stopped: "flying" });
+      expect(hooks().draining_until).toBe(theirs);
+    });
+
     it("a second invocation leaves at once", async () => {
       db.sm8_webhook_pings = [queue("jobs", U(1))];
       hooks().draining_until = iso(clock + 30_000);

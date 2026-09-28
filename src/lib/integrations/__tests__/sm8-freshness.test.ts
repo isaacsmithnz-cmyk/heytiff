@@ -355,17 +355,17 @@ describe("live updates owed (two-way phase 4)", () => {
     expect(order.indexOf("drain")).toBe(order.indexOf("writes") + 1);
   });
 
-  it("never drains when 20 s would put the sync past its start", async () => {
+  it("never drains when 20 s and 3 s for its last writes would put the sync past its start", async () => {
     process.env.VERCEL_ENV = "production";
     process.env.SM8_WEBHOOKS = "1";
-    writesTake = 145_000; // 145 + 20 = 165: the last moment
+    writesTake = 142_000; // 142 + 20 + 3 = 165: the last moment
     freshenSm8AfterResponse("org-1");
     await behind();
     expect(order).toEqual(["writes", "drain", "sync", "asks"]);
     order.length = 0;
     scheduled.length = 0;
     clock = Date.parse("2026-09-25T00:00:00Z");
-    writesTake = 145_001;
+    writesTake = 142_001;
     freshenSm8AfterResponse("org-1");
     await behind();
     expect(order).toEqual(["writes", "sync", "asks"]);

@@ -198,8 +198,9 @@ export type Sm8DrainResult = {
   /** Why it stopped short, when it did: `off`, `flying` (another drain
       has the flight), `budget`, `busy` (a sync holds the lease), `lease`,
       `wanted` (it stood aside), `day` (3,000 today), `throttled`, `grant`,
-      `billing`, `unavailable`, `account`, `db` or `threw`. Null: the queue
-      had nothing more ready. */
+      `billing`, `unavailable`, `account`, `db`, `unset` (no live-updates
+      row: never subscribed, or wiped) or `threw`. Null: the queue had
+      nothing more ready, or was empty. */
   stopped: string | null;
 };
 
@@ -251,6 +252,15 @@ export async function drainSm8Hooks(
     flightUntil: "",
   };
   try {
+    /* AN EMPTY QUEUE COSTS ONE READ AND NO WRITE: the flight isn't claimed
+       for nothing (a page load with nothing pinged is the common case) */
+    const any = await supabaseAdmin.from(PINGS).select("uuid").eq("org_id", orgId).limit(1);
+    if (any.error) {
+      out.stopped = "db";
+      return out;
+    }
+    if ((any.data ?? []).length === 0) return out;
+
     for (let pass = 0; ; pass++) {
       const flight = await claimFlight(ctx);
       if (flight === "error") {
@@ -258,7 +268,9 @@ export async function drainSm8Hooks(
         break;
       }
       if (flight === null) {
-        if (pass === 0) out.stopped = "flying";
+        /* held by another drain — or no live-updates row at all (never
+           subscribed, or wiped), which is not a flight to wait for */
+        if (pass === 0) out.stopped = (await hasHooksRow(orgId)) ? "flying" : "unset";
         break;
       }
       out.ran = true;
@@ -312,6 +324,13 @@ async function claimFlight(ctx: Ctx): Promise<Flight | null | "error"> {
   if (!row) return null;
   ctx.flightUntil = until;
   return { account: row.account_uuid ?? null, syncWantedAt: row.sync_wanted_at ?? null };
+}
+
+/** Whether the workspace has its live-updates row. A failed read says
+    yes: "flying" is the harmless answer. */
+async function hasHooksRow(orgId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin.from(WEBHOOKS).select("org_id").eq("org_id", orgId).maybeSingle();
+  return !!error || !!data;
 }
 
 /** Keep the flight while there is less than half of it left. False: it

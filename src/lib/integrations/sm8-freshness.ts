@@ -35,7 +35,13 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { settleMentionAsks } from "@/lib/dashboard/mention-settle";
 import { runSm8Sync, sm8SyncIsStale } from "./sm8-sync";
 import { SYNC_LEASE_MS, whenSm8LeaseFree } from "./sm8-lease";
-import { BACKSTOP_DRAIN_MS, ENSURE_BUDGET_MS, ENSURE_FINISH_MARGIN_MS, functionDeadline } from "./sm8-hook-plan";
+import {
+  BACKSTOP_DRAIN_MS,
+  BACKSTOP_FINISH_MARGIN_MS,
+  ENSURE_BUDGET_MS,
+  ENSURE_FINISH_MARGIN_MS,
+  functionDeadline,
+} from "./sm8-hook-plan";
 import { sm8WebhooksState } from "./sm8-hooks-switch";
 import { runSm8Writes, sm8WritesDue, sm8WritesEnabled } from "./sm8-writes";
 import { backgroundBudgetMs, FUNCTION_MAX_MS, WRITE_LEASE_MARGIN_MS } from "./sm8-write-plan";
@@ -87,11 +93,11 @@ export function freshenSm8AfterResponse(orgId: string): void {
       /* LIVE UPDATES' BACKSTOP (two-way phase 4): with SM8_WEBHOOKS on,
          whatever the route's own drain left in the queue is read here —
          20 s at most, never sleeping for a record to go quiet (only rows
-         already quiet, or waiting over a minute), and only while that still
-         leaves the sync its start. It holds the sync lease by token and
+         already quiet, or waiting over a minute), and only while that and
+         3 s for its last writes still leave the sync its start. It holds the sync lease by token and
          gives it back before the sync below. Off, the machinery isn't
          loaded and nothing is read. */
-      if (sm8WebhooksState() === "on" && Date.now() + BACKSTOP_DRAIN_MS <= syncStartBy) {
+      if (sm8WebhooksState() === "on" && Date.now() + BACKSTOP_DRAIN_MS + BACKSTOP_FINISH_MARGIN_MS <= syncStartBy) {
         const { drainSm8Hooks } = await import("./sm8-hook-drain");
         await drainSm8Hooks(orgId, { deadline, maxMs: BACKSTOP_DRAIN_MS, wait: false });
       }

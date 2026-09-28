@@ -1,4 +1,4 @@
-import { parseMove } from "../moves";
+import { openName, parseMove } from "../moves";
 import { ALL_SCREENS, SCREEN_ALIASES, squash } from "@/components/shell/nav";
 
 /* The spec's table (docs/universal-tiff-phase-1-spec.md, PR 1C), both ways.
@@ -58,5 +58,35 @@ describe("parseMove", () => {
       const clash = ALL_SCREENS.find((n) => squash(n.label) === alias && n.label !== label);
       expect(clash).toBeUndefined();
     }
+  });
+});
+
+describe("openName, the name in an open request", () => {
+  /* Looser than parseMove, because nothing acts on it alone: it opens only
+     on one exact match (registry/screens' openByName). */
+  it.each([
+    ["Open up Isaac Smith.", "isaac smith"],
+    ["open Lyle", "lyle"],
+    ["can you pull up Meridian Data please", "meridian data"],
+    ["show me Dane's card", "dane"],
+    ["open the Harbour Rd project", "harbour rd"],
+    ["bring up job 1044", "job 1044"],
+    ["take me to Lily Pilly", "lily pilly"],
+  ])("%s → %s", (said, name) => {
+    expect(openName(said)).toBe(name);
+  });
+
+  it.each([
+    "open up the ceiling at Smith St",
+    "bring up the ladder and the drill",
+    "Lyle needs to order grilles",
+    "open",
+    "open up the roof hatch on the north side of the building near the plant room",
+  ])("%s gives no name", (said) => {
+    expect(openName(said)).toBeNull();
+  });
+
+  it("a one-word site noun still gives a name, and names nothing unless a record is called exactly that", () => {
+    expect(openName("open up the ceiling")).toBe("ceiling");
   });
 });

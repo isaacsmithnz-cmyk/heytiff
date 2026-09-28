@@ -60,6 +60,8 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refre
 /* The job card's pen reaches `"use server"` modules through NoteToken, and a
    server-action import pulls `next/cache` — which needs a `Request` global
    jsdom hasn't got. Mocked here so the board's own suite still boots. */
+const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
+jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: jest.fn(async () => ({ ok: false, error: "no" })),
   dismissNote: jest.fn(async () => ({ ok: true, summary: "" })),

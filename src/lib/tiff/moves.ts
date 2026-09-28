@@ -85,3 +85,30 @@ export function parseMove(text: string): Move | null {
   }
   return null;
 }
+
+/* THE NAME IN AN OPEN REQUEST, for the free open (registry/screens'
+   `openByName`). Looser than `parseMove` on purpose, because nothing acts on
+   it alone: the name only opens something when exactly one record is called
+   exactly that, and otherwise the words go on as they would have. So "open
+   up" and "bring up" count here, and so does a bare name ("open up Isaac
+   Smith"); "open up the ceiling" gives "ceiling", which names nothing and
+   files as the note it is. A trailing "'s card", "profile", "page",
+   "project", "job" or "client" comes off, and so does a leading "the". One
+   to five words, none of them a joiner, or "job" and a number. */
+const OPEN_VERBS = "open up|open|pull up|bring up|show me|take me to|bring me to|go to|jump to";
+
+export function openName(text: string): string | null {
+  const t = bare(text);
+  if (!t || t.length > 80) return null;
+  const m = new RegExp(`^(?:${OPEN_VERBS})\\s+(.+)$`).exec(t);
+  if (!m) return null;
+  const name = m[1]
+    .replace(/^the\s+/, "")
+    .replace(/'s\s+(?:card|profile|page)$/, "")
+    .replace(/\s+(?:card|profile|page|project|job sheet|job|client)$/, "")
+    .trim();
+  if (/^job\s+#?\d+$/.test(name)) return name;
+  const words = name.split(/\s+/);
+  if (!name || words.length > 5 || words.some((w) => JOINERS.has(w) || w === "the" || w === "a")) return null;
+  return name;
+}

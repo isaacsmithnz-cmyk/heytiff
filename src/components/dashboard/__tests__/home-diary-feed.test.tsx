@@ -48,6 +48,8 @@ jest.mock("@/app/actions/calendar", () => ({
 }));
 const keepWords = jest.fn();
 const undoNote = jest.fn();
+const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
+jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   keepWords: (...a: unknown[]) => keepWords(...a),
   routeNote: jest.fn(),

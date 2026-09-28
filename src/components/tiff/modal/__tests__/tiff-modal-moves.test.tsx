@@ -31,6 +31,8 @@ const askBrain = jest.fn();
 jest.mock("@/lib/brain/ask-client", () => ({ askBrain: (...a: unknown[]) => askBrain(...a) }));
 
 const routeNote = jest.fn();
+const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
+jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: (...a: unknown[]) => routeNote(...a),
   continueNote: jest.fn(),
@@ -209,6 +211,52 @@ describe("a move", () => {
     expect(screen.queryByRole("dialog", { name: "Tiff" })).toBeNull();
     expect(push).toHaveBeenCalledWith("/dashboard/workboard");
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("opens a record named exactly, with no model call: her line, then the page", async () => {
+    /* "Open up Isaac Smith" was two model calls, about 4c US. */
+    openRecordByName.mockResolvedValueOnce({
+      href: "/dashboard/team/s-1",
+      label: "Dane Porter's card",
+      line: "Opening Dane Porter's card.",
+    });
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Open up Dane Porter{Enter}");
+    await flush();
+    await flush();
+    expect(openRecordByName).toHaveBeenCalledWith("Open up Dane Porter");
+    expect(askBrain).not.toHaveBeenCalled();
+    expect(routeNote).not.toHaveBeenCalled();
+    expect(within(convo()).getByText("Opening Dane Porter's card.")).toBeInTheDocument();
+    await wait(HOLD_MS + 100);
+    expect(push).toHaveBeenCalledWith("/dashboard/team/s-1");
+  });
+
+  it("a name that opens nothing goes on as it would have: a note is still filed", async () => {
+    openRecordByName.mockResolvedValueOnce(null);
+    routeNote.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "open up the ceiling{Enter}");
+    await flush();
+    await flush();
+    expect(openRecordByName).toHaveBeenCalledWith("open up the ceiling");
+    expect(routeNote).toHaveBeenCalledWith(expect.objectContaining({ transcript: "open up the ceiling" }));
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("a site note that isn't an open request never asks: no lookup at all", async () => {
+    routeNote.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    render(<Shell at={path} />);
+    await user.click(screen.getAllByLabelText(/^Ask or tell Tiff/)[0]!);
+    await user.type(within(dialog()).getByRole("textbox", { name: "Reply to Tiff" }), "Lyle needs to order the grilles{Enter}");
+    await flush();
+    expect(openRecordByName).not.toHaveBeenCalled();
+    expect(routeNote).toHaveBeenCalled();
   });
 
   it("moves nothing when the move arrives after the modal was closed", async () => {

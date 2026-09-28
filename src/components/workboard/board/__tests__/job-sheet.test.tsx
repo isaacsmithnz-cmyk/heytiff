@@ -130,6 +130,8 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }))
    reached it too, through the capture card's flow, until that went.) */
 const routeNote = jest.fn(async () => ({ ok: false, error: "no" }));
 const clearFlag = jest.fn(async () => ({ ok: true }));
+const openRecordByName = jest.fn(async (_words: string) => null as { href: string; label: string; line: string } | null);
+jest.mock("@/app/actions/tiff-open", () => ({ openRecordByName: (w: string) => openRecordByName(w) }));
 jest.mock("@/app/actions/workboard-notes", () => ({
   routeNote: (...a: unknown[]) => routeNote(...(a as [])),
   dismissNote: jest.fn(async () => ({ ok: true, summary: "" })),

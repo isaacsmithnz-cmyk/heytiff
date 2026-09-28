@@ -229,3 +229,52 @@ async function lookUp(orgId: string, kind: RecordKind, id: string): Promise<{ hr
 }
 
 export const SCREEN_TOOLS: readonly TiffTool[] = [openScreen, findRecord, openRecord];
+
+/* ── the free open ────────────────────────────────────────────────────── */
+
+const same = (s: string) => s.toLowerCase().replace(/[’]/g, "'").replace(/\s+/g, " ").trim();
+
+/* OPENING BY NAME WITH NO MODEL (Isaac, 2026-09-28: "these are all basic
+   tasks. That should not cost much to do"). "Open up Isaac Smith" cost two
+   model calls, about 4c US, to do what ⌘K does for nothing. This looks the
+   name up the way find_record does and opens it only when exactly ONE
+   record the viewer may open is called exactly that: a person's full name,
+   or a first name only one person has; a client's or a project's whole
+   name; a job's number. Anything else, none or two, is null, and the words
+   go on as they would have (a note, or Tiff), so a site note that starts
+   the same way ("open up the ceiling") is never eaten by a near match. A
+   search that fails is null too: not knowing never opens anything. */
+export async function openByName(
+  viewer: Viewer,
+  name: string
+): Promise<Extract<Outcome, { kind: "screen" }> | null> {
+  const want = same(name);
+  if (!want) return null;
+  const number = /^job\s+#?(\d+)$/.exec(want)?.[1];
+  const kinds: RecordKind[] = number ? ["job"] : ["staff", "client", "project"];
+  const hits: { kind: RecordKind; id: string }[] = [];
+  try {
+    for (const kind of kinds) {
+      if (!viewer.caps.has(KIND_GATE[kind])) continue;
+      const found = (await search(viewer, kind, number ?? name)).filter(
+        (f): f is Extract<FoundRecord, { id: string }> => "id" in f
+      );
+      if (kind === "job") {
+        hits.push(...found.filter((f) => f.label === `#${number}` || f.label.startsWith(`#${number} `)));
+      } else if (kind === "staff") {
+        const whole = found.filter((f) => same(f.label) === want);
+        const first = found.filter((f) => same(f.label).split(" ")[0] === want);
+        hits.push(...(whole.length ? whole : first.length === 1 ? first : []));
+      } else {
+        hits.push(...found.filter((f) => same(f.label) === want));
+      }
+    }
+  } catch {
+    return null;
+  }
+  if (hits.length !== 1) return null;
+  const [hit] = hits;
+  const found = await lookUp(viewer.orgId, hit.kind, hit.id).catch(() => null);
+  if (!found) return null;
+  return { kind: "screen", href: found.href, label: found.label, line: recordLine(found.label) };
+}

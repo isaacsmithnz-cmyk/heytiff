@@ -37,6 +37,7 @@ import {
   placeAllocation,
   placeInRoomSpot,
   releaseSystem,
+  releaseZones,
   removeAllocation,
   removeZone,
   roomVerdict,
@@ -885,5 +886,16 @@ describe("a zone deleted from the plan", () => {
     const after = deleteZone(t0.doc, null, t0.room.bed1.id);
     expect(zoneIdsOf(after.systems[0])).toEqual([t0.room.study.id]);
     expect(after.objects.some((o) => o.id === t0.room.bed1.id)).toBe(false);
+  });
+
+  it("a whole floor's zones let go at once, and the objects stay for the caller", () => {
+    const t0 = twoZones();
+    const after = releaseZones(t0.doc, pack, new Set([t0.room.bed1.id, t0.room.study.id]));
+    const sys = after.systems.find((s) => s.id === t0.systemId)!;
+    expect(zoneIdsOf(sys)).toEqual([]);
+    expect(sys.settings.roomIds ?? []).toEqual([]);
+    expect(allocationsOf(sys).some((a) => a.role === "idu")).toBe(false);
+    expect(after.objects.some((o) => o.id === t0.bedHead)).toBe(false);
+    expect(after.objects.some((o) => o.id === t0.room.bed1.id)).toBe(true);
   });
 });

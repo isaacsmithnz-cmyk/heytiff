@@ -97,8 +97,8 @@ describe("setServiceM8WriteModeAction", () => {
     });
   });
 
-  it("drains what was waiting when sending goes on, or to a trial run", async () => {
-    for (const mode of ["live", "trial"]) {
+  it("drains what was waiting when sending goes on", async () => {
+    for (const mode of ["live"]) {
       scheduled.length = 0;
       runSm8Writes.mockClear();
       expect(await setServiceM8WriteModeAction(mode)).toEqual({ ok: true });
@@ -111,6 +111,16 @@ describe("setServiceM8WriteModeAction", () => {
   it("drains nothing when sending goes off or is paused", async () => {
     await setServiceM8WriteModeAction("off");
     await setServiceM8WriteModeAction("paused");
+    expect(scheduled).toHaveLength(0);
+  });
+
+  it("refuses a trial run: it is retired, and nothing is changed", async () => {
+    setSm8WriteMode.mockClear();
+    expect(await setServiceM8WriteModeAction("trial")).toEqual({
+      ok: false,
+      error: "Trial run has been retired. Choose Off, Paused or On.",
+    });
+    expect(setSm8WriteMode).not.toHaveBeenCalled();
     expect(scheduled).toHaveLength(0);
   });
 

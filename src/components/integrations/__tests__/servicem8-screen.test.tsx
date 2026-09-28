@@ -646,11 +646,17 @@ describe("sending files to ServiceM8", () => {
     expect(screen.getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
   });
 
+  it("offers Off, Paused and On — Trial run is retired", () => {
+    render(<Servicem8Screen connection={toView(row())} {...ready} writes={writes()} />);
+    const group = screen.getByRole("radiogroup", { name: "Sending files to ServiceM8" });
+    expect(within(group).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Off", "Paused", "On"]);
+  });
+
   it("switches on the owner's press and reloads what the screen says", async () => {
     const user = userEvent.setup();
     render(<Servicem8Screen connection={toView(row())} {...ready} writes={writes()} />);
-    await user.click(screen.getByRole("radio", { name: "Trial run" }));
-    expect(setWriteMode).toHaveBeenCalledWith("trial");
+    await user.click(screen.getByRole("radio", { name: "On" }));
+    expect(setWriteMode).toHaveBeenCalledWith("live");
     await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
 

@@ -23,7 +23,10 @@ import {
 /* SENDING FILES TO SERVICEM8 — the owner's switch for the first thing
    HeyTiff writes back, on the connection it governs.
 
-   FOUR SETTINGS, AND OFF IS WHERE EVERY BUSINESS STARTS. Trial run lets
+   THREE SETTINGS, AND OFF IS WHERE EVERY BUSINESS STARTS. (There were
+   four: Trial run was retired 2026-09-28, once notes and bookings had gone
+   for real. A workspace still on it reads its line below and picks one of
+   the three.) Trial run let
    the office press Send to ServiceM8 on a job and see each send checked and
    listed here, with nothing reaching ServiceM8: the way to watch it work on
    a live account before it touches one. Paused stops everything going and
@@ -70,7 +73,6 @@ export type Sm8WritesView = {
 
 const MODES: { id: Sm8WriteMode; label: string }[] = [
   { id: "off", label: "Off" },
-  { id: "trial", label: "Trial run" },
   { id: "paused", label: "Paused" },
   { id: "live", label: "On" },
 ];

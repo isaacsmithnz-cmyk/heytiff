@@ -9,6 +9,7 @@ import { CopyLink } from "@/components/shell/copy-link";
 import { InviteModal } from "@/components/team/invite-modal";
 import { renewInvite, revokeInvite, type InviteResult } from "@/app/actions/invite";
 import { saveStaffSection } from "@/app/actions/staff";
+import { createCardForMember, removeMemberWithoutCard } from "@/app/actions/members";
 import type { MemberWithoutCardRow, PendingInviteRow, StaffRow } from "@/lib/staff/types";
 
 type View = "active" | "warn" | "pending";
@@ -40,6 +41,8 @@ export function TeamDirectory({
   appUrl = "",
   /** roles this viewer may invite at — the row-level Invite reuses the modal */
   inviteRoles = [],
+  /** an owner may take back the seat of a member who never got a card */
+  canRemoveMembers = false,
 }: {
   staff: StaffRow[];
   pending: PendingInviteRow[];
@@ -48,6 +51,7 @@ export function TeamDirectory({
   invite?: React.ReactNode;
   appUrl?: string;
   inviteRoles?: string[];
+  canRemoveMembers?: boolean;
 }) {
   const [view, setView] = useState<View>("active");
   const [query, setQuery] = useState("");
@@ -288,11 +292,14 @@ export function TeamDirectory({
               the toolbar would disappear the moment anybody typed. It sits
               above, outside both.
 
-              IT SAYS THE FACT, NOT THE REMEDY. "No staff card" is what is true
-              and it is what stops them being assigned work, commenting, or
-              uploading anything. The card appears by itself the next time they
-              sign in — a line saying so would be a caption apologising for a
-              row, and would go stale the day that stops being the only way. */}
+              IT SAYS THE FACT, AND ITS BUTTONS ARE THE REMEDY. "No staff card"
+              is what is true and it is what stops them being assigned work,
+              commenting, or uploading anything. The card used to appear only on
+              their next sign-in, and the row offered nothing — Isaac, looking
+              at the one in production: "I can't even action it". Create card
+              makes it now, by the same door sign-in uses; Remove (owners)
+              takes the seat back, safe only because with no card there is no
+              history to take with it. Remove arms first, like Revoke. */}
           {view === "active" && orphans.length > 0 && (
             <div className="dirnocards">
               {orphans.map((m) => (
@@ -319,6 +326,34 @@ export function TeamDirectory({
                     No staff card
                   </span>
                   <span />
+                  <div className="invtools">
+                    <div />
+                    <div className="invbtns">
+                      <button
+                        className="fl-btn tiny"
+                        disabled={busy}
+                        onClick={() => runInvite(() => createCardForMember(m.userId))}
+                      >
+                        <Icon name="plus" size={13} />
+                        Create card
+                      </button>
+                      {canRemoveMembers && (
+                        <button
+                          className={`fl-btn tiny danger${armed === m.userId ? " arm" : ""}`}
+                          disabled={busy}
+                          onBlur={() => setArmed((a) => (a === m.userId ? null : a))}
+                          onClick={() => {
+                            if (armed !== m.userId) return setArmed(m.userId);
+                            setArmed(null);
+                            runInvite(() => removeMemberWithoutCard(m.userId));
+                          }}
+                        >
+                          <Icon name="userx" size={13} />
+                          {armed === m.userId ? "Confirm remove" : "Remove"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

@@ -47,7 +47,21 @@
    for the NEXT ORDINARY sync (a page load or the night), sync_wanted_at is
    set, and no sync is run here. A handed row stays until a completed walk
    of its object — sm8_sync_state.last_synced_at, which only a finished
-   walk sets — is later than its handed_at.
+   walk sets — is later than both its handed_at and its last ping. A handed
+   row pinged AGAIN after it was handed goes back in the queue (handed_at
+   cleared) and is read on its own: the later edit may postdate the walk it
+   was handed to, and a ping must never be eaten by a hand-over.
+
+   WHAT A HAND-OVER CAN STILL MISS, AND WHY IT IS ACCEPTED (M2). The walk
+   that frees a handed row may have begun before the record's edit and read
+   that record's page before the edit landed; last_synced_at only says the
+   walk FINISHED after the hand-over. So the row can go with the mirror one
+   edit behind. The mirror is not left there: a finished walk's cursor is
+   floored a quarter of an hour before that walk began (sm8-sync-plan's
+   nextCursor), so the NEXT ordinary walk reads every record edited since —
+   this one included. The worst case is the syncs' own freshness, today's,
+   and never a lost edit. Tracking each record through a walk to close that
+   gap would cost a read per record, which is what handing over avoids.
 
    PACED AND COUNTED. At most one read a second (HOOK_READ_GAP_MS), and
    each is counted BEFORE it is made (sm8_take_hook_call, HOOK_DAILY_BUDGET
@@ -89,6 +103,8 @@ const PINGS = "sm8_webhook_pings";
 
 /** The most queued rows read at once: past it, the next round reads on. */
 const QUEUE_READ_MAX = 1_000;
+/** Handed rows put back in the queue this many to a request. */
+const UNHAND_CHUNK = 100;
 /** The asks a notes write brings in are settled in at most this long. */
 const NOTES_SETTLE_MS = 20_000;
 
@@ -369,26 +385,71 @@ async function readQueue(orgId: string): Promise<QueueRow[] | null> {
   return ((data ?? []) as QueueRow[]).filter((r) => isHookObject(r.object));
 }
 
-/** Handed rows a completed walk of their object has passed since. Only
-    when the queue asked for a sync (sync_wanted_at), so a quiet workspace
-    pays nothing; the ask is cleared once no handed row is left. */
-async function tidyHanded(ctx: Ctx, askedAt: string): Promise<void> {
-  const { data, error } = await supabaseAdmin
-    .from("sm8_sync_state")
-    .select("object, last_synced_at")
+/** The handed rows, looked after first in every flight:
+    - one pinged again since it was handed goes back in the queue, to be
+      read on its own (its handed_at cleared);
+    - one a completed walk of its object has passed — last_synced_at later
+      than its handed_at AND its last ping — is done with;
+    - and once none is left, the queue's ask for a sync (sync_wanted_at,
+      `askedAt` as read) is cleared.
+    One read when nothing is handed. */
+async function tidyHanded(ctx: Ctx, askedAt: string | null): Promise<boolean> {
+  const listed = await supabaseAdmin
+    .from(PINGS)
+    .select("object, uuid, handed_at, last_seen_at")
     .eq("org_id", ctx.orgId)
-    .in("object", [...HOOK_OBJECT_NAMES]);
-  if (error) return;
-  const walked = ((data ?? []) as { object: string; last_synced_at: string | null }[])
-    .filter((r) => isHookObject(r.object) && msOf(r.last_synced_at) !== null)
-    .map((r) => `and(object.eq.${r.object},handed_at.lt.${iso(msOf(r.last_synced_at)!)})`);
-  if (walked.length > 0) {
-    const gone = await supabaseAdmin.from(PINGS).delete().eq("org_id", ctx.orgId).or(walked.join(",")).select("uuid");
-    if (gone.error) return;
+    .not("handed_at", "is", null)
+    .limit(QUEUE_READ_MAX);
+  if (listed.error) return false;
+  const handed = ((listed.data ?? []) as { object: string; uuid: string; handed_at: string; last_seen_at: string }[]).filter(
+    (r) => isHookObject(r.object)
+  );
+
+  /* pinged again since the hand-over: back in the queue */
+  const again = new Map<HookObjectName, string[]>();
+  for (const r of handed) {
+    if ((msOf(r.last_seen_at) ?? 0) > (msOf(r.handed_at) ?? Infinity)) {
+      const o = r.object as HookObjectName;
+      again.set(o, [...(again.get(o) ?? []), r.uuid]);
+    }
   }
+  for (const [object, uuids] of again) {
+    for (let i = 0; i < uuids.length; i += UNHAND_CHUNK) {
+      const back = await supabaseAdmin
+        .from(PINGS)
+        .update({ handed_at: null })
+        .eq("org_id", ctx.orgId)
+        .eq("object", object)
+        .in("uuid", uuids.slice(i, i + UNHAND_CHUNK));
+      if (back.error) return false;
+    }
+  }
+
+  const still = handed.filter((r) => !again.get(r.object as HookObjectName)?.includes(r.uuid));
+  if (still.length > 0) {
+    const { data, error } = await supabaseAdmin
+      .from("sm8_sync_state")
+      .select("object, last_synced_at")
+      .eq("org_id", ctx.orgId)
+      .in("object", [...HOOK_OBJECT_NAMES]);
+    if (error) return false;
+    const walked = ((data ?? []) as { object: string; last_synced_at: string | null }[])
+      .filter((r) => isHookObject(r.object) && msOf(r.last_synced_at) !== null)
+      .map((r) => {
+        const t = iso(msOf(r.last_synced_at)!);
+        return `and(object.eq.${r.object},handed_at.lt.${t},last_seen_at.lt.${t})`;
+      });
+    if (walked.length > 0) {
+      const gone = await supabaseAdmin.from(PINGS).delete().eq("org_id", ctx.orgId).or(walked.join(",")).select("uuid");
+      if (gone.error) return false;
+    }
+  }
+
+  if (askedAt === null) return true;
   const left = await supabaseAdmin.from(PINGS).select("uuid").eq("org_id", ctx.orgId).not("handed_at", "is", null).limit(1);
-  if (left.error || (left.data ?? []).length > 0) return;
+  if (left.error || (left.data ?? []).length > 0) return true;
   await supabaseAdmin.from(WEBHOOKS).update({ sync_wanted_at: null }).eq("org_id", ctx.orgId).eq("sync_wanted_at", askedAt);
+  return true;
 }
 
 /** Every waiting row of `object` handed to the next ordinary sync, and the
@@ -404,8 +465,10 @@ async function handOver(ctx: Ctx, object: HookObjectName): Promise<boolean> {
     .select("uuid");
   if (error) return false;
   ctx.out.handed += (data ?? []).length;
-  await supabaseAdmin.from(WEBHOOKS).update({ sync_wanted_at: at }).eq("org_id", ctx.orgId);
-  return true;
+  /* the ask is what a later flight tidies by: a failed write is a stop,
+     and the rows it handed wait for the tidy all the same */
+  const asked = await supabaseAdmin.from(WEBHOOKS).update({ sync_wanted_at: at }).eq("org_id", ctx.orgId);
+  return !asked.error;
 }
 
 /** Deleted only while nobody has pinged it since it was read: a ping
@@ -455,7 +518,7 @@ type Read = Sm8Page | "spent" | "uncounted";
 
 async function underFlight(ctx: Ctx, flight: Flight, mayWait: boolean): Promise<string | null> {
   const { orgId, clock } = ctx;
-  if (flight.syncWantedAt !== null) await tidyHanded(ctx, flight.syncWantedAt);
+  if (!(await tidyHanded(ctx, flight.syncWantedAt))) return "db";
 
   let lease: Sm8Lease | null = null;
   let access: Sm8Access | null = null;

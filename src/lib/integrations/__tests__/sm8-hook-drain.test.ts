@@ -133,13 +133,17 @@ class Query {
     this.op = "delete";
     return this;
   }
-  then<T>(res: (v: { data: unknown; error: null }) => T, rej?: (e: unknown) => T) {
+  then<T>(res: (v: { data: unknown; error: { message: string } | null }) => T, rej?: (e: unknown) => T) {
     return Promise.resolve()
       .then(() => this.run())
       .then(res, rej);
   }
-  private run(): { data: unknown; error: null } {
+  private run(): { data: unknown; error: { message: string } | null } {
     if (throwOn === `${this.op}:${this.table}`) throw new Error(`${this.table} down`);
+    if (errorOn !== null && `${this.op}:${this.table}:${Object.keys(this.patch).sort().join(",")}` === errorOn) {
+      return { data: null, error: { message: `${this.table} refused` } };
+    }
+    if (this.op === "select") onSelect(this.table);
     const rows = (db[this.table] ??= []);
     const hit = () => rows.filter((r) => this.filters.every((f) => f(r)));
     if (this.op !== "select") events.push(`db:${this.op}:${this.table}`);
@@ -169,6 +173,10 @@ class Query {
 
 /** Something that happens as an update lands (a ping during a release). */
 let onUpdate: (table: string, patch: Row) => void = () => {};
+/** Something that happens as a table is read. */
+let onSelect: (table: string) => void = () => {};
+/** A write the database refuses, as `op:table:the patch's keys`. */
+let errorOn: string | null = null;
 let hookBudget = 3_000;
 
 jest.mock("@/lib/supabase-server", () => ({
@@ -335,6 +343,8 @@ beforeEach(() => {
   readTakes = [];
   hookBudget = 3_000;
   onUpdate = () => {};
+  onSelect = () => {};
+  errorOn = null;
   during = () => {};
   serve = (endpoint, uuid) => new Response(JSON.stringify([record(endpoint, uuid)]), { status: 200 });
   accessResult = { ok: true, access: ACCESS };
@@ -722,6 +732,58 @@ describe("drainSm8Hooks", () => {
       await drain();
       expect(pings()).toEqual([]);
       expect(hooks().sync_wanted_at).toBeNull();
+    });
+
+    it("a handed row pinged again since is read on its own, never eaten by the walk it was handed to", async () => {
+      const handedAt = iso(clock - 5 * 60_000);
+      db.sm8_webhook_pings = [
+        queue("jobs", U(1), 10 * 60_000, { handed_at: handedAt, last_seen_at: iso(clock - 30_000), pings: 2 }),
+      ];
+      hooks().sync_wanted_at = handedAt;
+      // the walk finished after the hand-over, but before the second ping
+      db.sm8_sync_state = [{ org_id: ORG, object: "jobs", last_synced_at: iso(clock - 60_000) }];
+      const out = await drain();
+      expect(out).toMatchObject({ read: 1, written: 1 });
+      expect(requests.map((r) => r.filter)).toEqual([`uuid eq '${U(1)}'`]);
+      expect(pings()).toEqual([]);
+    });
+
+    it("a ping that lands as the tidy runs keeps its row", async () => {
+      const handedAt = iso(clock - 5 * 60_000);
+      db.sm8_webhook_pings = [queue("jobs", U(1), 10 * 60_000, { handed_at: handedAt })];
+      db.sm8_sync_state = [{ org_id: ORG, object: "jobs", last_synced_at: iso(clock - 60_000) }];
+      onSelect = (table) => {
+        if (table === "sm8_sync_state") pings()[0].last_seen_at = iso(clock - 1);
+      };
+      await drain();
+      expect(pings()).toEqual([expect.objectContaining({ uuid: U(1), handed_at: handedAt })]);
+      // the next flight puts it back in the queue, and reads it
+      onSelect = () => {};
+      clock += 60_000;
+      expect(await drain()).toMatchObject({ read: 1, written: 1 });
+      expect(pings()).toEqual([]);
+    });
+
+    it("handed rows are tidied even when the ask for a sync never landed", async () => {
+      const handedAt = iso(clock - 5 * 60_000);
+      db.sm8_webhook_pings = [queue("jobs", U(1), 10 * 60_000, { handed_at: handedAt })];
+      hooks().sync_wanted_at = null;
+      db.sm8_sync_state = [{ org_id: ORG, object: "jobs", last_synced_at: iso(clock - 60_000) }];
+      await drain();
+      expect(pings()).toEqual([]);
+    });
+
+    it("a hand-over whose ask the database refused stops, and its rows are still tidied later", async () => {
+      db.sm8_webhook_pings = Array.from({ length: 61 }, (_, i) => queue("attachments", U(i), 30_000));
+      errorOn = "update:sm8_webhooks:sync_wanted_at";
+      const out = await drain();
+      expect(out).toMatchObject({ handed: 61, read: 0, stopped: "db" });
+      expect(runSm8Sync).not.toHaveBeenCalled();
+      errorOn = null;
+      db.sm8_sync_state = [{ org_id: ORG, object: "attachments", last_synced_at: iso(clock + 1_000) }];
+      clock += 2_000;
+      await drain();
+      expect(pings()).toEqual([]);
     });
   });
 

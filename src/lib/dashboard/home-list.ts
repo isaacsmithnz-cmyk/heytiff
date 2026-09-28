@@ -27,8 +27,14 @@
    DOORS ARE DATA. A row says where it goes — a URL, a job's card, a diary
    entry, a mention, a task — and the screen that draws the list decides how
    to open each (the list's UI, the frame's one job card). Nothing here reads
-   write state: a Book in that books in ServiceM8 is a later phase's, and it
-   will ask `offersSend` itself. */
+   write state: the reads hand in what it decided (`caps.bookIn`, each won
+   job's booking line, the leftovers).
+
+   Book in books in ServiceM8 when bookings are offered; see sm8-booking-plan.
+   It opens the one card on its Visits face with Book in's panel open, and a
+   leftover booking's Clear opens it with that booking's confirm (two-way
+   phase 3, PR E). Where the deployment books nothing, not one of these is
+   handed in, and the list is exactly what it was. */
 
 import { daysUntil, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { expiryDue } from "@/lib/expiry-due";
@@ -36,6 +42,9 @@ import { fmtKm } from "@/components/fleet/logic";
 import { agoLabel } from "@/lib/format/duration";
 import { fmtAud } from "@/lib/workboard/project-money";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
+import { fmtTime, type BookingState } from "@/lib/integrations/sm8-booking-plan";
+import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-words";
+import { fillWords } from "@/lib/integrations/sm8-note-words";
 import type { ActionChip, ChipKind } from "./chips";
 import { zonedParts } from "./day-rail";
 import type { HomeIssue } from "./issues";
@@ -109,12 +118,19 @@ export type Door =
   | { to: "mention"; id: string }
   | { to: "task"; id: string };
 
-export type VerbLabel = "Renew" | "Log service" | "Book in" | "Book" | "Create job";
+export type VerbLabel = "Renew" | "Log service" | "Book in" | "Book" | "Create job" | "Clear";
 
-/** The one small verb an alert carries. A visit's Book in is the only one
-    that acts in place — a day picker calling `placeVisit` — and it names the
-    visit rather than a door. */
-export type Verb = { label: VerbLabel; door: Door } | { label: "Book in"; placeVisit: string };
+/** The one small verb an alert carries. A visit's Book in acts in place — a
+    day picker calling `placeVisit` — and it names the visit rather than a
+    door. Where bookings are offered (two-way phase 3), a won job's Book in
+    names the job it books, and opens the one card on its Visits face with
+    Book in's panel open; a leftover booking's Clear names the booking, and
+    opens the card with its confirm. */
+export type Verb =
+  | { label: VerbLabel; door: Door }
+  | { label: "Book in"; placeVisit: string }
+  | { label: "Book in"; bookIn: string }
+  | { label: "Clear"; clear: { jobUuid: string; activityUuid: string } };
 
 export type Dot = "late" | "today" | "quiet";
 
@@ -215,6 +231,26 @@ export type ListCaps = {
   /** The workspace holds a ServiceM8 copy. Without one there are no won
       jobs, no money and no Create job: the list runs on HeyTiff's own data. */
   sm8: boolean;
+  /** Book in and Clear book and clear in ServiceM8 from here: bookings are
+      offered, and the viewer may press them (Workboard manage, and the
+      owner while bookings are the owner's). Absent where the deployment
+      books nothing, and then Book in is the Schedule's link it always was. */
+  bookIn?: boolean;
+};
+
+/** A future booking on a Completed or Unsuccessful job — a leftover, by the
+    one rule (sm8-booking-plan's isLeftover), decided by the reads on the
+    account's clock and zone. */
+export type LeftoverRow = {
+  activityUuid: string;
+  jobUuid: string;
+  jobNumber: string;
+  /** "Completed" or "Unsuccessful". */
+  jobStatus: string;
+  /** Who is booked, by first name; null when the mirror names nobody. */
+  staffName: string | null;
+  /** The account's wall clock, "YYYY-MM-DD HH:MM:SS". */
+  start: string;
 };
 
 export type ListInput = {
@@ -233,6 +269,14 @@ export type ListInput = {
   visits: readonly VisitToBook[];
   caps: ListCaps;
   mentions?: readonly MentionTask[];
+  /** Each won job's booking line, by its uuid in lower case: a booking of
+      ours that isn't standing in ServiceM8 — on its way, held, failed,
+      unsure, a trial — says so in place of "No day yet." Absent where the
+      deployment books nothing. */
+  bookingLines?: Readonly<Record<string, BookingState>>;
+  /** Future bookings on finished jobs, one row a booking. Absent where the
+      deployment books nothing. */
+  leftovers?: readonly LeftoverRow[];
 };
 
 /* ── words ── */
@@ -400,7 +444,7 @@ function chipVerb(chip: ActionChip, caps: ListCaps): Verb | null {
 
 /* Order inside a group: tasks, then alerts — expiries, visits, jobs — then
    issues, then roll-ups (in the same kind order among themselves). */
-const RANK = { task: 0, expiry: 1, visit: 2, job: 3, issue: 4, rollup: 5 } as const;
+const RANK = { task: 0, expiry: 1, visit: 2, job: 3, leftover: 3.5, issue: 4, rollup: 5 } as const;
 type Placed = { rank: number; row: ListRow };
 
 const byDueThenNewest = (a: DashTask, b: DashTask): number => {
@@ -560,21 +604,64 @@ export function placeList(input: ListInput): HomeList {
     .map((w) => ({ ...w, age: Math.max(0, -daysUntil(w.wonOn.slice(0, 10), day)) }))
     .filter((w) => w.age <= WON_WINDOW_DAYS)
     .sort((a, b) => b.age - a.age || (a.job.jobNumber ?? "").localeCompare(b.job.jobNumber ?? ""));
-  const jobRow = (w: (typeof wins)[number], fresh: boolean): ListAlertRow => ({
-    kind: "alert",
-    id: `job:${w.job.remoteId}`,
-    title: jobTitle(w.job),
-    sub: fresh ? `Won ${agoLabel(w.age)}. No day yet.` : `Won ${agoLabel(w.age)}.`,
-    tone: "",
-    dot: fresh ? "today" : "quiet",
-    figure: jobFigure(w.job, caps),
-    door: { to: "job", remoteId: w.job.remoteId },
-    verb: { label: "Book in", door: { to: "href", href: `/dashboard/workboard?job=${enc(w.job.remoteId)}` } },
-  });
+  /* A booking of ours on the job that isn't standing says where it is, in
+     its own words and tone, in place of the won line (two-way phase 3) */
+  const lineOf = (w: (typeof wins)[number]): BookingState | null => {
+    const line = input.bookingLines?.[w.job.remoteId.toLowerCase()] ?? null;
+    return line?.text ? line : null;
+  };
+  const jobRow = (w: (typeof wins)[number], fresh: boolean): ListAlertRow => {
+    const line = lineOf(w);
+    const bad = line?.tone === "bad";
+    return {
+      kind: "alert",
+      id: `job:${w.job.remoteId}`,
+      title: jobTitle(w.job),
+      sub: line?.text ?? (fresh ? `Won ${agoLabel(w.age)}. No day yet.` : `Won ${agoLabel(w.age)}.`),
+      tone: bad ? "late" : "",
+      dot: bad ? "late" : fresh ? "today" : "quiet",
+      figure: jobFigure(w.job, caps),
+      door: { to: "job", remoteId: w.job.remoteId },
+      verb: caps.bookIn
+        ? { label: "Book in", bookIn: w.job.remoteId }
+        : { label: "Book in", door: { to: "href", href: `/dashboard/workboard?job=${enc(w.job.remoteId)}` } },
+    };
+  };
   const freshWins = wins.filter((w) => w.age <= FRESH_WIN_DAYS);
   const olderWins = wins.filter((w) => w.age > FRESH_WIN_DAYS);
   // newest first under Today: the one won this morning is the one to book
   for (const w of [...freshWins].reverse()) put("today", RANK.job, jobRow(w, true));
+
+  /* ── leftover bookings: one alert a job, by its first leftover's day ── */
+  const leftJobs = new Map<string, LeftoverRow[]>();
+  for (const l of [...(input.leftovers ?? [])].sort((a, b) => a.start.localeCompare(b.start))) {
+    const key = l.jobUuid.toLowerCase();
+    leftJobs.set(key, [...(leftJobs.get(key) ?? []), l]);
+  }
+  for (const [, left] of leftJobs) {
+    const first = left[0]!;
+    const on = first.start.slice(0, 10);
+    const said = {
+      n: left.length,
+      name: first.staffName ?? BOOKING_WORDS.fill.person,
+      day: fmt(on),
+      start: fmtTime(first.start),
+    };
+    const today = on <= day;
+    put(today ? "today" : "later", RANK.leftover, {
+      kind: "alert",
+      id: `leftover:${first.jobUuid}`,
+      title: fillWords(BOOKING_WORDS.home.leftoverTitle, { number: first.jobNumber }),
+      sub: fillWords(left.length === 1 ? BOOKING_WORDS.home.leftoverSub : BOOKING_WORDS.home.leftoverSubMany, said),
+      tone: "",
+      dot: today ? "today" : "quiet",
+      figure: null,
+      door: { to: "job", remoteId: first.jobUuid },
+      verb: caps.bookIn
+        ? { label: BOOKING_WORDS.door.clear, clear: { jobUuid: first.jobUuid, activityUuid: first.activityUuid } }
+        : null,
+    });
+  }
 
   /* ── open issues ── */
   for (const issue of input.issues) {
@@ -685,6 +772,10 @@ export type HomeListReads = {
   names: Record<string, string>;
   wins: WonJob[];
   visits: VisitToBook[];
+  /** Where the deployment books (two-way phase 3), and only there: each
+      won job's booking line, and the leftover bookings. */
+  bookingLines?: Record<string, BookingState>;
+  leftovers?: LeftoverRow[];
 };
 
 /** What the page already loads for Home, which the list places too.
@@ -715,5 +806,7 @@ export function placeHomeList(reads: HomeListReads, base: HomeListBase): HomeLis
     issues: base.issues,
     journal: base.journal,
     mentions: base.mentions,
+    bookingLines: reads.bookingLines,
+    leftovers: reads.leftovers,
   });
 }

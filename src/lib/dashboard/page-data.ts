@@ -8,7 +8,7 @@ import type { Capability } from "@/lib/permissions";
 import { getPaySettings, ownSentBackPeriod } from "@/lib/timepay/query";
 import { addDays, periodLabel } from "@/lib/timepay/period";
 import { assembleChips, type DashboardChips } from "./assemble";
-import { CLAIM_NUDGE_DAYS } from "./chips";
+import { BOOKING_BELL_DAYS, CLAIM_NUDGE_DAYS, type BookingTroubleOp } from "./chips";
 import { listStaffCompliance, type StaffCompliance } from "./query";
 import { ownDetailsGap } from "@/lib/staff/onboarding";
 import { isLibraryApproved, pendingSignons, raisedIssues } from "@/lib/swms/query";
@@ -49,7 +49,7 @@ import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { sm8QueueStuck } from "@/lib/integrations/sm8-writes";
 import { freshenSm8AfterResponse } from "@/lib/integrations/sm8-freshness";
-import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
+import { sm8BookingsAllowed, sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import type { UnsentDone } from "./task-done-query";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
@@ -267,7 +267,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   const railNowMin = nowMinInZone(railTz);
 
   const [chips, tasks, assignable, journal, issues, schedule, sm8Links, desk] = await Promise.all([
-    loadChips(orgId, viewerStaffId, caps, today, isOwner, shared),
+    loadChips(orgId, viewerStaffId, caps, today, isOwner, shared, userId),
     loadTasks(orgId, viewerStaffId, canManage, names),
     // the give-it-to picker only needs names, and only when you can give
     canManage ? listFleetStaff(orgId).then((s) => s.map((x) => ({ id: x.id, name: x.name }))) : Promise.resolve([]),
@@ -428,7 +428,7 @@ export async function loadActionRequired(): Promise<DashboardChips> {
 
   const caps = await getCapabilities();
   const viewerStaffId = await staffProfileIdFor(orgId, userId);
-  return loadChips(orgId, viewerStaffId, caps, todayInAu(), hasMinRole(await getDbRole(), "owner"));
+  return loadChips(orgId, viewerStaffId, caps, todayInAu(), hasMinRole(await getDbRole(), "owner"), undefined, userId);
 }
 
 async function loadTasks(
@@ -453,6 +453,26 @@ async function loadUnsentDones(orgId: string, viewerStaffId: string | null, toda
   return myUnsentDones(orgId, viewerStaffId, addDays(today, -CLAIM_NUDGE_DAYS)).catch(() => []);
 }
 
+/** Your bookings to ServiceM8 whose line is bad, and — for the owner — the
+    guard that switched bookings off, in the last seven days, for the bell
+    (two-way phase 3, PR E). Read only where the deployment books: anywhere
+    else nothing is loaded and nothing is read. Never throws. */
+async function loadBookingBell(
+  orgId: string,
+  userId: string | undefined,
+  isOwner: boolean,
+  today: string,
+): Promise<{ trouble: { jobUuid: string; number: string; op: BookingTroubleOp }[]; guard: { number: string } | null } | null> {
+  if (!sm8BookingsAllowed()) return null;
+  const since = addDays(today, -BOOKING_BELL_DAYS);
+  const { myBookingTrouble, bookingGuardTripped } = await import("./booking-bell-query");
+  const [trouble, guard] = await Promise.all([
+    userId ? myBookingTrouble(orgId, userId, since).catch(() => []) : Promise.resolve([]),
+    isOwner ? bookingGuardTripped(orgId, since).catch(() => null) : Promise.resolve(null),
+  ]);
+  return { trouble, guard };
+}
+
 /* ---------------- chips ---------------- */
 
 async function loadChips(
@@ -465,10 +485,17 @@ async function loadChips(
   /** The expiry window and the org's credentials, when Home has already read
       them for the whole page; read here when not (the action-required page). */
   shared?: HomeShared,
+  /** Who is looking (Auth0) — whose presses a booking's bell item is. */
+  userId?: string,
 ): Promise<DashboardChips> {
   /* your ticks whose Done didn't go — a note on a job, so the Workboard's.
      Started beside the reads below, and it never throws. */
   const unsentDonesP = caps.has("workboard") ? loadUnsentDones(orgId, viewerStaffId, today) : Promise.resolve([]);
+  /* your bookings that went wrong, and the owner's guard — a job's, so the
+     Workboard's too; nothing at all where the deployment books nothing */
+  const bookingBellP = caps.has("workboard")
+    ? loadBookingBell(orgId, userId, isOwner, today).catch(() => null)
+    : Promise.resolve(null);
   const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv, detailsGap, swmsSignons, swmsIssues, swmsTemplatePending, sm8Stuck] = await Promise.all([
     viewerStaffId ? listStaffCompliance(orgId, viewerStaffId) : Promise.resolve([]),
     viewerStaffId ? getOwnVehicle(orgId, viewerStaffId) : Promise.resolve(null),
@@ -495,6 +522,7 @@ async function loadChips(
     isOwner ? sm8QueueStuck(orgId).catch(() => null) : Promise.resolve(null),
   ]);
   const unsentDones = await unsentDonesP;
+  const bookingBell = await bookingBellP;
 
   // Team data is only READ when the capability is held — it never reaches here
   // otherwise, so the scoping is enforced at the query, not just in assembly.
@@ -533,6 +561,9 @@ async function loadChips(
       swmsTemplatePending,
       sm8Stuck,
       ownUnsentDones: unsentDones,
+      /* only where the deployment books: anywhere else the chips' input is
+         exactly what it was */
+      ...(bookingBell ? { ownBookingTrouble: bookingBell.trouble, sm8BookingGuard: bookingBell.guard } : {}),
     },
     caps,
   );

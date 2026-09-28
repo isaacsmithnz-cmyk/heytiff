@@ -272,6 +272,7 @@ describe("chipGroup", () => {
       "swms-template": true,
       "sm8-writes": true,
       "sm8-done": true,
+      "sm8-booking": true,
     };
     for (const k of Object.keys(filed) as ChipKind[]) {
       const g = chipGroup(k);

@@ -28,7 +28,7 @@ import {
   type BookingOverlayRow,
   type SentNotMirrored,
 } from "@/lib/integrations/sm8-booking-overlay";
-import { bookingZone } from "@/lib/integrations/sm8-booking-zone";
+import { readBookingWriteState, readBookingZone } from "@/lib/integrations/sm8-booking-request";
 import { isLeftover } from "@/lib/integrations/sm8-booking-plan";
 import type { Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import {
@@ -157,10 +157,10 @@ export async function readBookingsOver(
   known?: Pick<Sm8WriteState, "linked" | "tenantId">
 ): Promise<BookingsOver | null> {
   if (!sm8BookingsAllowed()) return null;
-  /* loaded here, not at the top: the write engine brings the session with
-     it, which none of this file's other readers needs */
-  const read = known ? null : (await import("@/lib/integrations/sm8-writes")).readSm8WriteState(orgId);
-  const [state, zone] = await Promise.all([known ?? read!, bookingZone(orgId)]);
+  /* the state a caller already read, or the request's (sm8-booking-request):
+     Home asks for today's day and the next, and its list and bell ask the
+     same two rows, once per request */
+  const [state, zone] = await Promise.all([known ?? readBookingWriteState(orgId), readBookingZone(orgId)]);
   const over = await readBookingOverlay(orgId, state, ask, now);
   return {
     gone: over.gone,

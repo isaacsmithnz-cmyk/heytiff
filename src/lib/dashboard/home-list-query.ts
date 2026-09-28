@@ -21,7 +21,20 @@
    A READ THAT FAILS IS NOT AN ABSENT ROW. Each read that errors says nothing
    rather than something wrong: a failed bookings read must never call every
    won job unbooked, so it drops the jobs instead. The list is shorter, never
-   louder. */
+   louder.
+
+   OUR BOOKINGS OVER THE MIRROR (two-way phase 3, PR E), only where the
+   deployment books (SM8_WRITES names `booking`) — anywhere else not one read
+   more is made, and the reads hand back exactly what they did. HeyTiff never
+   writes its copy of ServiceM8, so until the next sync:
+     - a booking we sent that the mirror doesn't hold yet books its job, which
+       leaves the list at once; a booking we took out books nothing;
+     - a job whose booking of ours isn't standing — on its way, held, failed,
+       unsure, a trial — stays, and says so (its `bookingLines` entry);
+     - a future booking on a finished job is a leftover (`loadLeftovers`),
+       an alert of its own with Clear.
+   Whether Book in and Clear book here is `caps.bookIn`: bookings offered,
+   and a viewer who may press them — the job card's own rule. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import type { Capability } from "@/lib/permissions";
@@ -29,16 +42,36 @@ import { sm8CategoryColour, type AllJobsMirrorJob } from "@/lib/workboard/all-jo
 import { oneLine } from "@/lib/workboard/all-jobs-query";
 import { plusDays } from "@/lib/workboard/dates";
 import { jobMoneyOf, parseSm8AmountToCents, SM8_JOB_MONEY_COLUMNS } from "@/lib/workboard/job-money";
+import { sm8BookingsAllowed } from "@/lib/integrations/sm8-kinds";
+import { readBookingWriteState, readBookingZone } from "@/lib/integrations/sm8-booking-request";
+import {
+  readBookingOverlay,
+  readMirrorBookings,
+  type BookingOverlay,
+  type BookingOverlayRow,
+} from "@/lib/integrations/sm8-booking-overlay";
+import {
+  BOOKINGS_OPEN_TO_MANAGERS,
+  bookingLine,
+  isLeftover,
+  type BookingState,
+} from "@/lib/integrations/sm8-booking-plan";
+import { offersSend, sendHold, type SendHold, type Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import {
   VISIT_WINDOW_DAYS,
   WON_WINDOW_DAYS,
   firstNames,
   type HomeListReads,
+  type LeftoverRow,
   type ListCaps,
   type VisitToBook,
   type WonJob,
 } from "./home-list";
 import type { StaffNames } from "./tasks-query";
+
+/** When a booking row was last pressed: a re-press keeps the row and its
+    created_at. Its making, for a row that never says. */
+const pressedAt = (r: { pressed_at?: string | null; created_at: string }): string => r.pressed_at ?? r.created_at;
 
 /** What the list needs from the page loader — a part of the new Home's
     shared context (`DeskContext`, ./desk-data), which `loadDesk` hands in as
@@ -58,7 +91,48 @@ export type HomeListContext = {
       row can carry no zone, so a zone standing in would empty Jobs to book
       for a workspace that has them. */
   connected: boolean;
+  /** The viewer is the workspace's owner — who may book while bookings are
+      the owner's (BOOKINGS_OPEN_TO_MANAGERS). Doubt is no. */
+  isOwner?: boolean;
 };
+
+/** What the list knows about booking in ServiceM8, read once for the page:
+    the sending state, the account's zone, and whether Book in and Clear
+    book from here. Only where the deployment books. */
+export type ListBookings = {
+  state: Sm8WriteState;
+  /** The account's own zone; null when HeyTiff doesn't know it. */
+  zone: string | null;
+  hold: SendHold;
+  offered: boolean;
+  trial: boolean;
+  /** caps.bookIn: offered, Workboard manage, and the owner while bookings
+      are the owner's. */
+  bookIn: boolean;
+};
+
+/** The list's booking side, or null where the deployment books nothing (no
+    read of any kind is made), or it couldn't be read (logged: the list is
+    then the one it always was). The state and the zone are the request's
+    (sm8-booking-request): the day, the next day and the bell ask the same. */
+async function readListBookings(ctx: HomeListContext): Promise<ListBookings | null> {
+  if (!sm8BookingsAllowed()) return null;
+  try {
+    const [state, zone] = await Promise.all([readBookingWriteState(ctx.orgId), readBookingZone(ctx.orgId)]);
+    const offered = offersSend(state, "booking");
+    return {
+      state,
+      zone: zone.zone,
+      hold: state.readable ? sendHold(state, "booking") : null,
+      offered,
+      trial: state.mode === "trial",
+      bookIn: offered && ctx.caps.has("workboard_manage") && (BOOKINGS_OPEN_TO_MANAGERS || ctx.isOwner === true),
+    };
+  } catch (err) {
+    console.error(`[home-list] couldn't read the bookings state for org ${ctx.orgId}:`, err);
+    return null;
+  }
+}
 
 /** The list's own reads, placed later by `placeHomeList` beside the page's. */
 export async function loadHomeList(ctx: HomeListContext): Promise<HomeListReads> {
@@ -69,17 +143,38 @@ export async function loadHomeList(ctx: HomeListContext): Promise<HomeListReads>
     money: board && ctx.caps.has("workboard_money"),
     sm8: ctx.connected,
   };
-  const { wins, visits } = board
-    ? await loadJobsToBook(ctx.orgId, ctx.railDay, { money: caps.money, sm8: caps.sm8 })
-    : { wins: [], visits: [] };
+  /* bookings, only where the deployment books and the workspace has a
+     ServiceM8 copy to book in */
+  const bookings = board && caps.sm8 ? await readListBookings(ctx) : null;
+  if (!bookings) {
+    const { wins, visits } = board
+      ? await loadJobsToBook(ctx.orgId, ctx.railDay, { money: caps.money, sm8: caps.sm8 })
+      : { wins: [], visits: [] };
+    return {
+      day: ctx.railDay,
+      tz: ctx.tz,
+      warnDays: ctx.shared.expiry.warnDays,
+      caps,
+      names: firstNames(ctx.names),
+      wins,
+      visits,
+    };
+  }
+  const now = Date.now();
+  const [{ wins, visits, bookingLines }, leftovers] = await Promise.all([
+    loadJobsToBook(ctx.orgId, ctx.railDay, { money: caps.money, sm8: caps.sm8, bookings, now }),
+    loadLeftovers(ctx.orgId, ctx.railDay, bookings, now),
+  ]);
   return {
     day: ctx.railDay,
     tz: ctx.tz,
     warnDays: ctx.shared.expiry.warnDays,
-    caps,
+    caps: { ...caps, bookIn: bookings.bookIn },
     names: firstNames(ctx.names),
     wins,
     visits,
+    bookingLines: bookingLines ?? {},
+    leftovers,
   };
 }
 
@@ -88,14 +183,32 @@ export async function loadHomeList(ctx: HomeListContext): Promise<HomeListReads>
 export async function loadJobsToBook(
   orgId: string,
   day: string,
-  opts: { money: boolean; sm8: boolean },
-): Promise<{ wins: WonJob[]; visits: VisitToBook[] }> {
+  opts: { money: boolean; sm8: boolean; bookings?: ListBookings | null; now?: number },
+): Promise<{ wins: WonJob[]; visits: VisitToBook[]; bookingLines?: Record<string, BookingState> }> {
+  const bookings = opts.bookings ?? null;
+  if (!bookings) {
+    const [wins, visits] = await Promise.all([
+      opts.sm8 ? loadWins(orgId, day, opts.money) : Promise.resolve([] as WonJob[]),
+      loadVisits(orgId, day),
+    ]);
+    return { wins, visits };
+  }
+  const now = opts.now ?? Date.now();
+  /* the booking rows of the jobs with no booking standing, read once with
+     the question of whether they are booked (everBookedOver), and their
+     lines drawn from them */
+  const sink: RowSink = { rows: [] };
   const [wins, visits] = await Promise.all([
-    opts.sm8 ? loadWins(orgId, day, opts.money) : Promise.resolve([] as WonJob[]),
+    opts.sm8 ? loadWins(orgId, day, opts.money, bookings, now, sink) : Promise.resolve([] as WonJob[]),
     loadVisits(orgId, day),
   ]);
-  return { wins, visits };
+  const bookingLines =
+    wins.length > 0 ? await wonBookingLines(orgId, bookings, sink.rows, wins.map((w) => w.job.remoteId), now) : {};
+  return { wins, visits, bookingLines };
 }
+
+/** Where the booked question leaves the booking rows it read. */
+type RowSink = { rows: BookingOverlayRow[] };
 
 /* ── won and never booked ── */
 
@@ -148,7 +261,14 @@ export function wonSinceFilter(since: string): string {
   return `work_order_date.gte.${since},and(work_order_date.is.null,date.gte.${since})`;
 }
 
-async function loadWins(orgId: string, day: string, money: boolean): Promise<WonJob[]> {
+async function loadWins(
+  orgId: string,
+  day: string,
+  money: boolean,
+  bookings: ListBookings | null = null,
+  now: number = Date.now(),
+  sink: RowSink = { rows: [] },
+): Promise<WonJob[]> {
   const since = plusDays(day, -WON_WINDOW_DAYS);
   const { data, error } = await supabaseAdmin
     .from("sm8_jobs")
@@ -168,7 +288,9 @@ async function loadWins(orgId: string, day: string, money: boolean): Promise<Won
   if (rows.length >= WINS_CAP) console.warn(`[home-list] won work orders hit the ${WINS_CAP} cap for org ${orgId}`);
   if (rows.length === 0) return [];
 
-  const booked = await everBooked(orgId, rows.map((r) => r.uuid));
+  const booked = bookings
+    ? await everBookedOver(orgId, day, rows.map((r) => r.uuid), bookings, now, sink)
+    : await everBooked(orgId, rows.map((r) => r.uuid));
   if (booked === null) return [];
   const left = rows.filter((r) => !booked.has(r.uuid));
   if (left.length === 0) return [];
@@ -266,6 +388,255 @@ async function everBooked(orgId: string, ids: readonly string[]): Promise<Set<st
     }),
   );
   return results.every(Boolean) ? booked : null;
+}
+
+/** What the overlay says of these booking uuids alone: the ones we took
+    out. Its window of our sent bookings is empty ("from" the end of time),
+    so it reads none of them — one empty read of the queue, and the gone
+    uuids fifty to a request — where a reader needs no booking of ours drawn. */
+async function goneOf(orgId: string, bookings: ListBookings, uuids: readonly string[], now: number): Promise<ReadonlySet<string>> {
+  if (uuids.length === 0) return new Set();
+  const over = await readBookingOverlay(orgId, bookings.state, { uuids, rows: false, from: GONE_ONLY }, now);
+  return over.gone;
+}
+
+/** A day after any booking: the overlay's window of our sent bookings from
+    here on is empty. */
+const GONE_ONLY = "9999-12-31";
+
+/** Jobs asked of the overlay at a time: each rides in its filters in up to
+    three spellings. */
+const JOBS_CHUNK = 15;
+
+/** `everBooked`, over our bookings (two-way phase 3): the same question
+    with each block's uuid and start, so a booking we took out books
+    nothing, and a booking we sent that the mirror doesn't hold yet books
+    its job. Null when a read fails, as `everBooked` is.
+
+    IT ASKS ONLY WHAT CAN MOVE THE ANSWER (review S3):
+    - a block that started before yesterday is never one we took out — an
+      Undo or a Clear takes out only a booking that hasn't started, and
+      the sync has long since shown it — so its job is booked outright;
+    - of the rest, only the blocks from yesterday on are asked about as
+      gone;
+    - only the jobs left with no block standing are asked for our sent
+      bookings, fifteen to a request, side by side — and that same read
+      brings their booking rows, which `sink` keeps for their lines. */
+async function everBookedOver(
+  orgId: string,
+  day: string,
+  ids: readonly string[],
+  bookings: ListBookings,
+  now: number,
+  sink: RowSink,
+): Promise<Set<string> | null> {
+  const blocks: { uuid: string; job: string; start: string | null }[] = [];
+  const results = await Promise.all(
+    chunks(ids).map(async (chunk) => {
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabaseAdmin
+          .from("sm8_job_activities")
+          .select("uuid, job_uuid, start_date")
+          .eq("org_id", orgId)
+          .eq("active", 1)
+          .eq("activity_was_scheduled", 1)
+          .in("job_uuid", chunk)
+          .order("uuid", { ascending: true })
+          .range(from, from + PAGE - 1);
+        if (error) {
+          console.error(`[home-list] couldn't read the bookings for org ${orgId}:`, error);
+          return false;
+        }
+        const got = (data ?? []) as { uuid: string | null; job_uuid: string | null; start_date: string | null }[];
+        for (const a of got) if (a.uuid && a.job_uuid) blocks.push({ uuid: a.uuid, job: a.job_uuid, start: a.start_date });
+        if (got.length < PAGE) return true;
+      }
+    }),
+  );
+  if (!results.every(Boolean)) return null;
+
+  const floor = `${plusDays(day, -1)} 00:00:00`;
+  const booked = new Set<string>();
+  const recent = blocks.filter((b) => {
+    if (b.start && b.start >= floor) return true;
+    booked.add(b.job);
+    return false;
+  });
+  const gone = await goneOf(
+    orgId,
+    bookings,
+    recent.filter((b) => !booked.has(b.job)).map((b) => b.uuid),
+    now,
+  );
+  for (const b of recent) if (!gone.has(b.uuid.toLowerCase())) booked.add(b.job);
+
+  const open = ids.filter((id) => !booked.has(id));
+  const overs: BookingOverlay[] = await Promise.all(
+    Array.from({ length: Math.ceil(open.length / JOBS_CHUNK) }, (_, i) =>
+      readBookingOverlay(orgId, bookings.state, { jobUuids: open.slice(i * JOBS_CHUNK, (i + 1) * JOBS_CHUNK) }, now),
+    ),
+  );
+  const spelled = new Map(ids.map((id) => [id.toLowerCase(), id]));
+  for (const over of overs) {
+    sink.rows.push(...over.rows);
+    for (const s of over.sentNotMirrored) {
+      const id = spelled.get(s.jobUuid.toLowerCase());
+      if (id && !over.gone.has(s.uuid.toLowerCase())) booked.add(id);
+    }
+  }
+  return booked;
+}
+
+/** Each of these jobs' booking line, by the job's uuid in lower case: the
+    line of the newest booking of ours on it that has something to say —
+    the card's own line (sm8-booking-plan's bookingLine), so the two never
+    disagree — from the rows the booked question read. A job with none has
+    no entry. */
+async function wonBookingLines(
+  orgId: string,
+  bookings: ListBookings,
+  read: readonly BookingOverlayRow[],
+  jobUuids: readonly string[],
+  now: number,
+): Promise<Record<string, BookingState>> {
+  const wanted = new Set(jobUuids.map((j) => j.toLowerCase()));
+  const rows = read.filter((r) => wanted.has((r.sm8_job_uuid ?? "").toLowerCase()));
+  const creates = rows.filter((r) => r.op === "create");
+  if (creates.length === 0) return {};
+  const statusRows = new Map(rows.filter((r) => r.op === "update").map((r) => [r.id, r]));
+  const takeBacks = new Map(rows.filter((r) => r.op === "delete" && !!r.depends_on).map((r) => [r.depends_on as string, r]));
+  const mirror = (await readMirrorBookings(orgId, creates.map((c) => c.remote_uuid))) ?? new Map();
+
+  const lines: Record<string, BookingState> = {};
+  const newestFirst = [...creates].sort(
+    (a, b) => pressedAt(b).localeCompare(pressedAt(a)) || (a.booking_start ?? "").localeCompare(b.booking_start ?? ""),
+  );
+  for (const c of newestFirst) {
+    const job = (c.sm8_job_uuid ?? "").toLowerCase();
+    if (!job || lines[job]) continue;
+    const m = mirror.get(c.remote_uuid.toLowerCase());
+    const said = bookingLine({
+      create: c,
+      statusRow: c.depends_on ? (statusRows.get(c.depends_on) ?? null) : null,
+      takeBack: takeBacks.get(c.id) ?? null,
+      hold: bookings.hold,
+      offered: bookings.offered,
+      trial: bookings.trial,
+      // the list draws the words and the tone; the doors are the card's
+      viewerIsPresser: false,
+      mirror: m
+        ? { active: m.active, jobUuid: m.jobUuid, staffUuid: m.staffUuid, start: m.start, end: m.end, editDate: m.editDate }
+        : null,
+      now,
+      zone: bookings.zone,
+    });
+    if (said.key && said.text) lines[job] = said;
+  }
+  return lines;
+}
+
+/* ── leftover bookings ── */
+
+/** How many leftover bookings the list carries at most. */
+export const LEFTOVERS_CAP = 20;
+/** A wall on the future bookings read to find them. Logged when it binds. */
+const FUTURE_CAP = 1000;
+
+/** THE LEFTOVER BOOKINGS: future, scheduled, active bookings with a person
+    and an end, on active jobs that are Completed or Unsuccessful — the one
+    rule, isLeftover, on the account's own zone and the server's clock —
+    less the ones we cleared (the overlay's gone), soonest first, at most 20.
+    Nothing without the account's zone: there is no Sydney fallback. A read
+    that fails lists none (logged). */
+export async function loadLeftovers(
+  orgId: string,
+  day: string,
+  bookings: ListBookings,
+  now: number = Date.now(),
+): Promise<LeftoverRow[]> {
+  if (!sm8BookingsAllowed() || !bookings.zone) return [];
+  const zone = bookings.zone;
+  const { data, error } = await supabaseAdmin
+    .from("sm8_job_activities")
+    .select("uuid, job_uuid, staff_uuid, start_date, end_date, activity_was_scheduled, active")
+    .eq("org_id", orgId)
+    .eq("active", 1)
+    .eq("activity_was_scheduled", 1)
+    .gte("start_date", `${day} 00:00:00`)
+    .order("start_date", { ascending: true })
+    .limit(FUTURE_CAP);
+  if (error) {
+    console.error(`[home-list] couldn't read the future bookings for org ${orgId}:`, error);
+    return [];
+  }
+  type Act = {
+    uuid: string;
+    job_uuid: string | null;
+    staff_uuid: string | null;
+    start_date: string | null;
+    end_date: string | null;
+    activity_was_scheduled: number | null;
+    active: number | null;
+  };
+  const acts = ((data ?? []) as Act[]).filter((a) => a.uuid && a.job_uuid && a.start_date);
+  if (acts.length >= FUTURE_CAP) console.warn(`[home-list] future bookings hit the ${FUTURE_CAP} cap for org ${orgId}`);
+  if (acts.length === 0) return [];
+
+  const jobIds = [...new Set(acts.map((a) => a.job_uuid!))];
+  const jobs = new Map<string, { number: string; status: string }>();
+  for (const chunk of chunks(jobIds)) {
+    const { data: rows, error: jobError } = await supabaseAdmin
+      .from("sm8_jobs")
+      .select("uuid, generated_job_id, status")
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .in("status", ["Completed", "Unsuccessful"])
+      .in("uuid", chunk);
+    if (jobError) {
+      console.error(`[home-list] couldn't read the finished jobs for org ${orgId}:`, jobError);
+      return [];
+    }
+    for (const j of (rows ?? []) as { uuid: string; generated_job_id: string | null; status: string }[]) {
+      /* the alert is "Job {number} is finished but still booked": a job with
+         no number would say its placeholder, so it says nothing, as the bell
+         does (booking-bell-query's jobNumbers) */
+      if (j.generated_job_id?.trim()) jobs.set(j.uuid, { number: j.generated_job_id.trim(), status: j.status });
+    }
+  }
+  const left = acts.filter((a) => {
+    const job = jobs.get(a.job_uuid!);
+    return (
+      !!job &&
+      isLeftover(
+        { scheduled: a.activity_was_scheduled, active: a.active, start: a.start_date, end: a.end_date, staffUuid: a.staff_uuid },
+        job.status,
+        zone,
+        now,
+      )
+    );
+  });
+  if (left.length === 0) return [];
+
+  /* the ones we cleared stay hidden for as long as the Clear's row exists;
+     a leftover is the mirror's, so none of ours in flight is read */
+  const gone = await goneOf(orgId, bookings, left.map((a) => a.uuid), now);
+  const kept = left.filter((a) => !gone.has(a.uuid.toLowerCase())).slice(0, LEFTOVERS_CAP);
+  if (kept.length === 0) return [];
+
+  const staffIds = [...new Set(kept.map((a) => a.staff_uuid!))];
+  const staff = await readIn<{ uuid: string; first: string | null }>("sm8_staff", "uuid, first", orgId, "uuid", staffIds);
+  const firstOf = new Map(staff.map((p) => [p.uuid, p.first?.trim().split(/\s+/)[0] || null]));
+  return kept.map((a) => {
+    const job = jobs.get(a.job_uuid!)!;
+    return {
+      activityUuid: a.uuid,
+      jobUuid: a.job_uuid!,
+      jobNumber: job.number,
+      jobStatus: job.status,
+      staffName: firstOf.get(a.staff_uuid!) ?? null,
+      start: a.start_date!,
+    };
+  });
 }
 
 /** Rows of one table by an id list, chunked, for this org. A failed chunk

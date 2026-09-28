@@ -102,10 +102,12 @@ export type BookingOverlayRow = {
   requested_by_user: string | null;
   lease_until: string | null;
   created_at: string;
+  /** When it was last pressed: a re-press keeps the row, and its created_at. */
+  pressed_at?: string | null;
 };
 
 const ROW_COLUMNS =
-  "id, op, status, subject, sm8_job_uuid, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, taken_back_at, last_error, attempts, depends_on, target_uuid, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, landed_edit_date, seen_edit_date, requested_by, requested_by_user, lease_until, created_at";
+  "id, op, status, subject, sm8_job_uuid, remote_uuid, replaced_uuids, maybe_landed, verify_uuids, taken_back_at, last_error, attempts, depends_on, target_uuid, verb_id, booking_staff_uuid, booking_start, booking_end, booking_zone, landed_edit_date, seen_edit_date, requested_by, requested_by_user, lease_until, created_at, pressed_at";
 
 export type BookingOverlay = {
   /** Lower case: of the uuids asked, and the ones sentNotMirrored draws. */

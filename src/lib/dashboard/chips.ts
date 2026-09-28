@@ -30,6 +30,7 @@ import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
 import { isNoVisa, isNotCleared } from "@/lib/staff/work-rights";
 import { kindCount, WRITE_HOURLY_CAP } from "@/lib/integrations/sm8-write-plan";
 import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
+import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-words";
 
 export type ChipKind =
   | "licence"
@@ -50,7 +51,8 @@ export type ChipKind =
   | "swms-issue"
   | "swms-template"
   | "sm8-writes"
-  | "sm8-done";
+  | "sm8-done"
+  | "sm8-booking";
 
 /** Only actionable states surface as chips; a compliant thing produces none. */
 export type ActionState = Exclude<ChipState, "ok">; // "bad" | "warn"
@@ -151,6 +153,9 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   /* A task's Done is a note on a job, answering the job's own mention, so
      it files with the board, whatever screen the item opens. */
   "sm8-done": "Workboard",
+  /* A booking is a job's, so it files with the board too, and opens the
+     job's card where its line is. */
+  "sm8-booking": "Workboard",
 };
 
 export const GROUP_ICON: Record<ChipGroup, string> = {
@@ -854,6 +859,62 @@ export function sm8DoneChip(done: { taskId: string; title: string; op: "post" | 
     ref: null,
   };
 }
+
+/** Which of the bell's words a booking's bad line is (two-way phase 3):
+    a booking that didn't go, one not taken out, one that may not have
+    reached ServiceM8, one ServiceM8 kept at another time or on someone else
+    (case 13 — the presser holds its Undo, so it never reads "didn't go"),
+    and a leftover's Clear that didn't go. */
+export type BookingTroubleOp = "notSent" | "stillIn" | "unsure" | "keptOther" | "leftover";
+
+const BOOKING_BELL: Record<BookingTroubleOp, string> = {
+  notSent: BOOKING_WORDS.bell.bookingNotSent,
+  stillIn: BOOKING_WORDS.bell.bookingStillIn,
+  unsure: BOOKING_WORDS.bell.bookingUnsure,
+  keptOther: BOOKING_WORDS.bell.bookingKeptOther,
+  leftover: BOOKING_WORDS.bell.leftoverNotCleared,
+};
+
+/** A booking of yours whose line is bad (two-way phase 3, PR E) — for the
+    one person who pressed it, and nobody else (lib/dashboard/booking-bell-
+    query's myBookingTrouble reads only theirs). One per job. It opens the
+    job's card, where the line says why and offers its doors. */
+export function sm8BookingChip(trouble: { jobUuid: string; number: string; op: BookingTroubleOp }): ActionChip {
+  return {
+    key: `sm8-booking:${trouble.jobUuid.toLowerCase()}`,
+    kind: "sm8-booking",
+    state: "bad",
+    label: BOOKING_BELL[trouble.op],
+    subject: `Job ${trouble.number}`,
+    href: `/dashboard/workboard?job=${encodeURIComponent(trouble.jobUuid)}`,
+    urgency: urgency("bad", 0),
+    // a press that didn't go has no day to fall due on, and is no record's
+    due: null,
+    ref: null,
+  };
+}
+
+/** HeyTiff switched bookings off after ServiceM8 kept something different
+    (a read-back guard, or a booking that can't be found after its answer —
+    call 15) — the owner's, for seven days after, on the job it tripped on.
+    It opens the ServiceM8 screen, where bookings are switched on again. */
+export function sm8GuardChip(guard: { number: string } | null): ActionChip | null {
+  if (!guard) return null;
+  return {
+    key: "sm8-guard",
+    kind: "sm8-writes",
+    state: "bad",
+    label: BOOKING_WORDS.card.guardChip,
+    subject: `Job ${guard.number}`,
+    href: "/dashboard/admin/integrations/servicem8",
+    urgency: urgency("bad", 0),
+    due: null,
+    ref: null,
+  };
+}
+
+/** How long a booking's trouble stays on the bell. */
+export const BOOKING_BELL_DAYS = 7;
 
 /** Whole dollars where it divides evenly, cents where it doesn't — a chip is a
     glance, and "$340" reads faster than "$340.00" without ever being wrong. */

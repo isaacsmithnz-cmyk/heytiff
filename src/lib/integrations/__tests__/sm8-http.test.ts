@@ -370,6 +370,25 @@ describe("the webhook subscriptions", () => {
     timeout.mockRestore();
   });
 
+  it("a list or a delete carries no body; only the subscribing POST does", async () => {
+    const body = new URLSearchParams({ object: "job" });
+    await expect(sm8Request(HOOK, "/webhook_subscriptions", { api: "hooks", body })).rejects.toThrow();
+    await expect(sm8Request(HOOK, `/webhook_subscriptions/${SUB}`, { api: "hooks", method: "DELETE", body })).rejects.toThrow();
+    expect(taken).toHaveLength(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("the hook lane never writes to the API's records: a read only", async () => {
+    for (const method of ["POST", "DELETE"] as const) {
+      await expect(sm8Request(HOOK, "job.json", { method, body: "x" })).rejects.toThrow();
+      await expect(sm8Request(HOOK, `note/${SUB}.json`, { method })).rejects.toThrow();
+    }
+    expect(taken).toHaveLength(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await sm8Request(HOOK, "job.json", { query: { $filter: `uuid eq '${SUB}'` } }, { sleep });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("carries no JSON body and acts as nobody", async () => {
     await expect(
       sm8Request(HOOK, "/webhook_subscriptions/object", { api: "hooks", method: "POST", json: { object: "job" } })

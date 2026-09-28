@@ -181,6 +181,14 @@ export async function sm8Request(
     if (init.json !== undefined || init.impersonate !== undefined) {
       throw new Error("[sm8] a webhook subscription request carries a form or nothing");
     }
+    /* only the subscribing POST carries a body */
+    if (method !== "POST" && init.body !== undefined) {
+      throw new Error("[sm8] a webhook subscription list or delete carries no body");
+    }
+  } else if (call.lane === "hook" && method !== "GET") {
+    /* the hook lane READS the API (a drain's read-back of the record a
+       ping named): nothing it does can write to a record */
+    throw new Error("[sm8] the hook lane never writes to ServiceM8's records");
   }
   const url = hooks ? sm8HooksUrl(method, path, init.query) : sm8Url(path, init.query);
   if (init.json !== undefined && init.body !== undefined) {

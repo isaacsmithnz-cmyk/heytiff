@@ -71,10 +71,22 @@ function canonicalHostRedirect(request: NextRequest): NextResponse | null {
    the whole gate whichever host the call arrived on. */
 const CRON_PATH = "/api/cron/";
 
+/* SERVICEM8'S PINGS ARE LET STRAIGHT THROUGH TOO (two-way phase 4). The
+   address we subscribe at is APP_BASE_URL's, so a ping should already
+   arrive on the canonical host; but a 308 answering a machine's POST is a
+   ping lost (ServiceM8 wants a 2xx inside 10 s, and retries, then turns
+   the subscription off), and the session middleware has nothing to do on
+   a call no person makes. The route's own check of the secret in the path
+   (api/integrations/servicem8/webhook/[hook]) is the whole gate. The same
+   string as sm8-hook-plan's HOOK_PATH, which proxy.test holds; spelled out
+   here so the proxy loads nothing of ServiceM8's. */
+const HOOK_PATH = "/api/integrations/servicem8/webhook/";
+
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   if (path.startsWith(CRON_PATH)) return NextResponse.next();
+  if (path.startsWith(HOOK_PATH)) return NextResponse.next();
 
   const moved = canonicalHostRedirect(request);
   if (moved) return moved;
@@ -112,8 +124,12 @@ export const config = {
   /* `brand` joins the exclusions because Auth0 and every mail client fetch
      those files — the logo, the font — while nobody is signed in, from their
      own servers. Running the session middleware on a PNG request achieved
-     nothing except doing it on every one of them. */
+     nothing except doing it on every one of them.
+
+     ServiceM8's pings (HOOK_PATH above) are left out too, so the proxy never
+     runs on a machine's call at all; the check at the top of proxy() stays,
+     for a matcher that ever drifts. proxy.test holds both. */
   matcher: [
-    "/((?!_next/static|_next/image|brand/|favicon.ico|sitemap.xml|robots.txt).*)",
+    "/((?!_next/static|_next/image|brand/|favicon.ico|sitemap.xml|robots.txt|api/integrations/servicem8/webhook/).*)",
   ],
 };

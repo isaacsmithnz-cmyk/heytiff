@@ -161,15 +161,21 @@ export type Ping =
   | { kind: "change"; object: HookObjectName; uuids: string[]; body: PingBodyKind }
   /** A well-formed change for an object we don't mirror. */
   | { kind: "ignored"; body: PingBodyKind }
-  /** Anything else. `challengeLength` is set for a challenge refused — the
-      only thing about it that is logged. */
-  | { kind: "junk"; challengeLength?: number };
+  /** Anything else, with which check it failed, so the log can say why
+      without saying what. `challengeLength` is set for a challenge refused
+      — the only thing about it that is logged. */
+  | { kind: "junk"; why: PingJunkWhy; challengeLength?: number };
+
+/** Why a request was junk: over PING_BODY_MAX; nothing a ping or a
+    challenge could be read from; a ping with no object; a ping with no
+    uuid of the right pattern; a challenge we won't echo. */
+export type PingJunkWhy = "too_big" | "not_parsed" | "no_object" | "no_uuids" | "bad_challenge";
 
 type Params = { get(name: string): string | null };
 
 function challengeOf(mode: unknown, challenge: unknown, via: "query" | "form" | "json"): Ping | null {
   if (mode !== "subscribe" || typeof challenge !== "string" || challenge === "") return null;
-  if (!CHALLENGE_RE.test(challenge)) return { kind: "junk", challengeLength: challenge.length };
+  if (!CHALLENGE_RE.test(challenge)) return { kind: "junk", why: "bad_challenge", challengeLength: challenge.length };
   return { kind: "challenge", challenge, via };
 }
 
@@ -205,9 +211,9 @@ function uuidsOf(entry: unknown): string[] {
 function changeOf(body: Record<string, unknown>, kind: PingBodyKind): Ping {
   const challenge = challengeOf(body.mode, body.challenge, "json");
   if (challenge) return challenge;
-  if (normaliseHookObject(body.object) === null) return { kind: "junk" };
+  if (normaliseHookObject(body.object) === null) return { kind: "junk", why: "no_object" };
   const uuids = uuidsOf(body.entry);
-  if (uuids.length === 0) return { kind: "junk" };
+  if (uuids.length === 0) return { kind: "junk", why: "no_uuids" };
   const object = hookObjectOf(body.object);
   if (object === null) return { kind: "ignored", body: kind };
   return { kind: "change", object, uuids, body: kind };
@@ -217,7 +223,7 @@ function changeOf(body: Record<string, unknown>, kind: PingBodyKind): Ping {
     queue, one to ignore, or junk. `query` is the address's query string (a
     challenge may come as a GET). Never throws. */
 export function parsePing(contentType: string | null, text: string, query: Params): Ping {
-  if (Buffer.byteLength(text, "utf8") > PING_BODY_MAX) return { kind: "junk" };
+  if (Buffer.byteLength(text, "utf8") > PING_BODY_MAX) return { kind: "junk", why: "too_big" };
   const type = (contentType ?? "").toLowerCase();
 
   const json = jsonObjectOf(text);
@@ -243,7 +249,7 @@ export function parsePing(contentType: string | null, text: string, query: Param
     }
   }
 
-  return challengeOf(query.get("mode"), query.get("challenge"), "query") ?? { kind: "junk" };
+  return challengeOf(query.get("mode"), query.get("challenge"), "query") ?? { kind: "junk", why: "not_parsed" };
 }
 
 /* ── ServiceM8's list of subscriptions, and which are ours ── */

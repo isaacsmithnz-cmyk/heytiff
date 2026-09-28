@@ -57,7 +57,6 @@ begin
       select count(*) into v_count from public.sm8_webhook_pings p where p.org_id = v_org;
       if v_count >= p_cap then
         update public.sm8_webhooks w set sync_wanted_at = clock_timestamp() where w.org_id = v_org;
-        -- Review nit, left for PR C: 'full' can follow uuids this call already queued (they get no after()).
         return query select 'full'::text, v_org; return;
       end if;
       insert into public.sm8_webhook_pings as p (org_id, object, uuid) values (v_org, p_object, v_u)

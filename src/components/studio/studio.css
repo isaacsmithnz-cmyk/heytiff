@@ -8407,6 +8407,12 @@ html[data-ds-display] .dstudio.editing {
 .ds-sb-joint {
   fill: var(--ink);
 }
+/* a branch box on the rail: paper, ringed in ink (the plan draws it the same way) */
+.ds-sb-box {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.5px;
+}
 /* the band: a unit here serves the whole system; dashed with its word
    until one lands */
 .ds-sb-band {

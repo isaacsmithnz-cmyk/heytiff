@@ -1473,7 +1473,11 @@ function PipingRail({
   const note = band
     ? "Ducted to each zone"
     : vrf
-      ? "One shared line, a joint per branch"
+      ? view.vrfTree?.method === "branch-box"
+        ? "One line to the branch box, a pipe per head"
+        : view.vrfTree?.method === "mixed"
+          ? "Joints, and a branch box for its heads"
+          : "One shared line, a joint per branch"
       : multi
         ? "One line pair per port"
         : "One line pair";
@@ -1513,20 +1517,43 @@ function PipingRail({
     const parts = tree.fittings.filter((f) => feeds.has(f.nodeId) && f.part).map((f) => f.part!);
     return parts.length ? parts.join(", ") : null;
   };
+  /* the fitting a VRF zone's heads hang off: a joint, or a branch box */
+  const zoneFitting = (z: ZoneView) => {
+    const tree = view.vrfTree;
+    if (!tree) return null;
+    const from = new Set(view.heads.filter((a) => a.roomId === z.zone.id).map((a) => headSection(tree, a.id)?.from));
+    return tree.fittings.find((f) => from.has(f.nodeId)) ?? null;
+  };
   /* a zone's row: the lines of the zones below pass it, its own turns in */
   const zonePipes = (z: ZoneView, i: number): React.ReactNode[] => {
     if (trunk) {
       return [
         vline("trunk", GUT_OFF, i < n - 1 ? "full" : "top", trunkTone),
         hline("branch", GUT_OFF, zoneTone(z)),
-        /* the last zone's heads share the joint above it */
-        ...(vrf && !band && i < n - 1
-          ? [
-              <rect key="joint" className="ds-sb-joint" x={GUT_OFF - 4} y="50%" width={8} height={8} rx={2} transform="translate(0 -4)">
-                {jointParts(z) && <title>{jointParts(z)}</title>}
-              </rect>,
-            ]
-          : []),
+        ...(() => {
+          if (!vrf || band) return [];
+          const fit = zoneFitting(z);
+          /* heads on a branch box: the box sits on the trunk at its first zone,
+             the rest of its zones branch off the trunk under it */
+          if (fit?.kind === "box") {
+            const first = view.zones.findIndex((zz) => zoneFitting(zz)?.nodeId === fit.nodeId) === i;
+            return first
+              ? [
+                  <rect key="box" className="ds-sb-box" x={GUT_OFF - 7} y="50%" width={14} height={10} rx={2} transform="translate(0 -5)">
+                    {fit.part && <title>{fit.part}</title>}
+                  </rect>,
+                ]
+              : [];
+          }
+          /* the last zone's heads share the joint above it */
+          return i < n - 1
+            ? [
+                <rect key="joint" className="ds-sb-joint" x={GUT_OFF - 4} y="50%" width={8} height={8} rx={2} transform="translate(0 -4)">
+                  {jointParts(z) && <title>{jointParts(z)}</title>}
+                </rect>,
+              ]
+            : [];
+        })(),
       ];
     }
     return [

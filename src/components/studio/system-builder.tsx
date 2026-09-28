@@ -10,6 +10,7 @@ import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { systemCover, systemPairKw } from "@/lib/studio/coverage";
 import { multiCapableIdus, multiFormFactorSummary, vrfCapableIdus } from "@/lib/studio/multi";
 import { vrfIndexRatio, vrfOutdoorsListing } from "@/lib/studio/vrf";
+import { headSection, systemVrfTree, type SizedTree } from "@/lib/studio/vrf-tree";
 import { formFactorSummary } from "@/lib/studio/select";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
 import {
@@ -163,6 +164,10 @@ interface SystemView {
   supplyText: string | null;
   pipeText: string | null;
   limitsText: string | null;
+  /** a VRF's joints and headers, by part: "CMY-Y102LS-G2 ×2" */
+  jointsText: string | null;
+  /** a VRF's tree, sized (provisional until the plan draws one) */
+  vrfTree: SizedTree | null;
   drawnText: string;
   refrigerantText: string | null;
   bandPipe: string | null;
@@ -278,6 +283,12 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   /* the header's Load is this system's share of a shared zone: 7.0 of 14.0 */
   let myLoadKw = 0;
   let shareDiffers = false;
+  /* a VRF's sizes come from its tree: each head's own section */
+  const vrfTree = systemVrfTree(pack, sys);
+  const sizeOf = (a: Allocation): string | null => {
+    const sec = vrfTree ? headSection(vrfTree, a.id) : null;
+    return sec ? `${sec.liquidMm} / ${sec.gasMm}` : pipeSize(pack, sys, a, odu?.model ?? null);
+  };
   const zones: ZoneView[] = zoneList.map((zone, i) => {
     const loadKw = zoneLoads[i];
     const mine = zoneHeads.filter((a) => a.roomId === zone.id);
@@ -310,7 +321,7 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     });
     const slot = short && mine.length > 0 && !bandUnits.length ? (kind === "split" ? "split" : "multi") : null;
     const last = mine[mine.length - 1];
-    const pipe = last ? pipeSize(pack, sys, last, odu?.model ?? null) : null;
+    const pipe = last ? sizeOf(last) : null;
     return { zone, name: zoneName(zone), loadKw, shared, lines, word, short, cant: cantHere, slot, pipe, verdict };
   });
   const loadText =
@@ -410,9 +421,14 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   /* the pipework, from the pack: a multi's port sizes, a pair's own */
   let pipeText: string | null = null;
   let limitsText: string | null = null;
+  let jointsText: string | null = null;
   if (oduRow && oduRow.system_type === "vrf") {
-    /* the main from the outdoor; the rest is sized once the tree is drawn */
-    pipeText = `${oduRow.conn_liquid_mm} / ${oduRow.conn_gas_mm} mm`;
+    /* the main from the outdoor; each head's own size sits on its card */
+    const main = vrfTree?.sections.find((x) => x.role === "main");
+    pipeText = main ? `${main.liquidMm} / ${main.gasMm} mm` : `${oduRow.conn_liquid_mm} / ${oduRow.conn_gas_mm} mm`;
+    const parts = new Map<string, number>();
+    for (const f of vrfTree?.fittings ?? []) if (f.part) parts.set(f.part, (parts.get(f.part) ?? 0) + 1);
+    jointsText = parts.size ? [...parts].map(([part, k]) => (k > 1 ? `${part} ×${k}` : part)).join(", ") : null;
     const table = pack.vrf_pipe_tables.find((t) => t.series === oduRow.pipe_table_ref);
     if (table)
       limitsText = `${table.limits.max_total_m} m total, ${table.limits.max_farthest_actual_m} m to the farthest head`;
@@ -463,6 +479,8 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     supplyText,
     pipeText,
     limitsText,
+    jointsText,
+    vrfTree,
     drawnText,
     refrigerantText,
     bandPipe,
@@ -1159,6 +1177,12 @@ function OutdoorSide({ view, basis }: { view: SystemView; basis: SizingBasis }) 
             <dd>{view.pipeText}</dd>
           </>
         )}
+        {view.jointsText && (
+          <>
+            <dt>Joints</dt>
+            <dd>{view.jointsText}</dd>
+          </>
+        )}
         {view.limitsText && (
           <>
             <dt>Limits</dt>
@@ -1459,14 +1483,30 @@ function PipingRail({
      the drop between the outdoor and the first zone */
   const passing = (): React.ReactNode[] =>
     trunk ? [vline("trunk", GUT_OFF, "full", trunkTone)] : view.zones.map((z, k) => vline(z.zone.id, xOf(k), "full", zoneTone(z)));
+  /* a VRF joint's part, from the sized tree: the fittings that feed this
+     zone's heads */
+  const jointParts = (z: ZoneView): string | null => {
+    const tree = view.vrfTree;
+    if (!tree) return null;
+    const feeds = new Set(
+      view.heads.filter((a) => a.roomId === z.zone.id).map((a) => headSection(tree, a.id)?.from)
+    );
+    const parts = tree.fittings.filter((f) => feeds.has(f.nodeId) && f.part).map((f) => f.part!);
+    return parts.length ? parts.join(", ") : null;
+  };
   /* a zone's row: the lines of the zones below pass it, its own turns in */
   const zonePipes = (z: ZoneView, i: number): React.ReactNode[] => {
     if (trunk) {
       return [
         vline("trunk", GUT_OFF, i < n - 1 ? "full" : "top", trunkTone),
         hline("branch", GUT_OFF, zoneTone(z)),
-        ...(vrf && !band
-          ? [<rect key="joint" className="ds-sb-joint" x={GUT_OFF - 4} y="50%" width={8} height={8} rx={2} transform="translate(0 -4)" />]
+        /* the last zone's heads share the joint above it */
+        ...(vrf && !band && i < n - 1
+          ? [
+              <rect key="joint" className="ds-sb-joint" x={GUT_OFF - 4} y="50%" width={8} height={8} rx={2} transform="translate(0 -4)">
+                {jointParts(z) && <title>{jointParts(z)}</title>}
+              </rect>,
+            ]
           : []),
       ];
     }
@@ -1796,7 +1836,8 @@ function UnitDetail({
     [candidates, draft, pack, basis, sys.id, alloc.id, alloc.model]
   );
   const beforeOdu = view.odu?.model ?? "";
-  const pipe = pipeSize(pack, sys, alloc, view.odu?.model ?? null);
+  const sec = view.vrfTree ? headSection(view.vrfTree, alloc.id) : null;
+  const pipe = sec ? `${sec.liquidMm} / ${sec.gasMm}` : pipeSize(pack, sys, alloc, view.odu?.model ?? null);
   const kw = kwOf(pack, alloc.model, basis);
 
   return (

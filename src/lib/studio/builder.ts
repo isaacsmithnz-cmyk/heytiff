@@ -328,17 +328,30 @@ export function removeZone(
     rack (Isaac, 2026-09-23: "i cant delete a room now"). Without a pack
     nothing can be proposed again, so the claims alone are let go. */
 export function deleteZone(doc: DesignDocument, pack: DataPack | null, zoneId: string): DesignDocument {
+  const d = releaseZones(doc, pack, new Set([zoneId]));
+  return { ...d, objects: deleteRoomWithContents(d.objects, zoneId) };
+}
+
+/** ZONES ABOUT TO LEAVE THE PLAN, the system side of it: every system that
+    claims one, or holds a head in one, lets it go as the cross on its chip
+    does. The objects stay for the caller to delete, one zone (deleteZone) or
+    a whole floor. A floor deleted with only the old roomIds cleared left its
+    zones claimed, so a system went on counting zones that were gone. */
+export function releaseZones(
+  doc: DesignDocument,
+  pack: DataPack | null,
+  zoneIds: ReadonlySet<string>
+): DesignDocument {
+  if (zoneIds.size === 0) return doc;
   let d = doc;
-  for (const s of doc.systems) {
-    const holds = hasAllocations(s) && allocationsOf(s).some((a) => a.roomId === zoneId);
-    if (!holds && !zoneIdsOf(s).includes(zoneId)) continue;
-    d = pack ? removeZone(d, pack, s.id, zoneId) : unclaimZone(d, s.id, zoneId);
+  for (const zoneId of zoneIds) {
+    for (const s of d.systems) {
+      const holds = hasAllocations(s) && allocationsOf(s).some((a) => a.roomId === zoneId);
+      if (!holds && !zoneIdsOf(s).includes(zoneId)) continue;
+      d = pack ? removeZone(d, pack, s.id, zoneId) : unclaimZone(d, s.id, zoneId);
+    }
   }
-  return {
-    ...d,
-    systems: releaseRoomsFromSystems(d.systems, new Set([zoneId])),
-    objects: deleteRoomWithContents(d.objects, zoneId),
-  };
+  return { ...d, systems: releaseRoomsFromSystems(d.systems, zoneIds) };
 }
 
 /** a zone dragged from one system's card onto another's: it moves with its

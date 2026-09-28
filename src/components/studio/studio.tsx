@@ -30,7 +30,6 @@ import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
 import {
   pruneObjects,
   releaseRoomFromSystem,
-  releaseRoomsFromSystems,
   removedRoomIds,
 } from "@/lib/studio/attach";
 import {
@@ -75,7 +74,7 @@ import { SystemsPanel } from "./systems-panel";
 import { InstallQuestions } from "./install-questions";
 import { builderEnabled, isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
 import { SystemBuilder, ZoneStanding } from "./system-builder";
-import { deleteZone, releaseSystem, moveZone, removeZone } from "@/lib/studio/builder";
+import { deleteZone, releaseSystem, releaseZones, moveZone, removeZone } from "@/lib/studio/builder";
 import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import {
   itemsToPlace,
@@ -1971,24 +1970,27 @@ function Editor({
       const sheets = doc.floors.find((f) => f.id === id)?.plans ?? [];
       const removedRefs = new Set(sheets.map((s) => s.imageRef));
       const keep = (o: DesignObject) => o.floorId !== id;
-      mutate((d) => ({
-        ...d,
-        floors: d.floors.filter((f) => f.id !== id),
-        // cross-floor runs (risers) lose attaches to what went with the floor
-        systems: releaseRoomsFromSystems(d.systems, removedRoomIds(d.objects, keep)),
-        objects: pruneObjects(d.objects, keep),
-        planImport: d.planImport
-          ? {
-              ...d.planImport,
-              placed: Object.fromEntries(
-                Object.entries(d.planImport.placed).filter(([, ref]) => !removedRefs.has(ref))
-              ),
-            }
-          : d.planImport,
-      }));
+      mutate((doc0) => {
+        // the floor's zones leave every system that claims them first
+        const d = releaseZones(doc0, pack, removedRoomIds(doc0.objects, keep));
+        return {
+          ...d,
+          floors: d.floors.filter((f) => f.id !== id),
+          // cross-floor runs (risers) lose attaches to what went with the floor
+          objects: pruneObjects(d.objects, keep),
+          planImport: d.planImport
+            ? {
+                ...d.planImport,
+                placed: Object.fromEntries(
+                  Object.entries(d.planImport.placed).filter(([, ref]) => !removedRefs.has(ref))
+                ),
+              }
+            : d.planImport,
+        };
+      });
       for (const s of sheets) void planImages.remove(s.imageRef).catch(() => {});
     },
-    [doc.floors, mutate, planImages]
+    [doc.floors, mutate, pack, planImages]
   );
 
   /* ── keyboard: ⌘Z/⇧⌘Z + tool hotkeys on the design step ── */
@@ -2213,6 +2215,7 @@ function Editor({
             doc={doc}
             onMutate={mutate}
             onAddFloor={addFloor}
+            onDeleteFloor={deleteFloor}
             onOpenFloor={(id) => {
               setPickedFloorId(id);
               onStep(1);

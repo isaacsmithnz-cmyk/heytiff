@@ -3,7 +3,7 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { NAV, isActive } from "@/components/shell/nav";
+import { screenLabelFor } from "@/components/shell/nav";
 import { DictClock, LiveWords } from "@/components/notes/dictation";
 import { useNoteScope } from "@/components/notes/note-context";
 import { MARK_MASK, TiffGlyph, TiffMark } from "@/components/notes/tiff-mark";
@@ -51,6 +51,9 @@ import {
    folded away the dialog itself holds focus, so it never falls out of the
    modal onto the page underneath. */
 
+/** How long her line stays up after she moves you, before the modal closes. */
+export const HOLD_MS = 900;
+
 export type TiffSession = {
   n: number;
   from: HTMLElement;
@@ -69,6 +72,8 @@ export type TiffSession = {
   /** Opened from the keyboard: nothing flies from the button (law 8). */
   keyboard: boolean;
   at: number;
+  /** Carrying on the conversation she moved you from (./use-conversation). */
+  carryOn?: boolean;
 };
 
 export type TiffClosed = Closed & {
@@ -84,16 +89,6 @@ export type TiffClosed = Closed & {
 };
 
 const ROOM: Record<TiffRoom, string> = { home: "Home", diary: "Diary", tasks: "Tasks", calendar: "Calendar" };
-
-/** The screen's own name, off the nav, when the words have no room. */
-function screenWord(pathname: string): string {
-  let best: { label: string; href: string } | null = null;
-  for (const n of NAV) {
-    if (!isActive({ ...n, subItems: undefined }, pathname)) continue;
-    if (!best || n.href.length > best.href.length) best = n;
-  }
-  return best?.label ?? "";
-}
 
 export function TiffModal({
   session,
@@ -114,10 +109,12 @@ export function TiffModal({
       origin: null,
       still: session.still,
       at: session.at,
+      carryOn: session.carryOn,
     },
     voiceEnabled: scope.voiceEnabled,
     target: scope.target,
     targetLabel: scope.targetLabel,
+    screen: screenLabelFor(pathname),
     onLeave: (href) => leave.current(href),
   });
 
@@ -248,12 +245,38 @@ export function TiffModal({
     out.clock.finished.then(finish, finish);
   };
 
+  /* THE HOLD (universal Tiff 1F, interim until Isaac designs the panel or
+     bar): her line stays up for HOLD_MS, then the modal closes and the page
+     moves. Not motion, so it holds under reduced motion and from the keyboard
+     too. Any key or press in the modal during it cancels the move and keeps
+     the conversation open. */
+  const holding = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     leave.current = (href: string) => {
       moveTo.current = href;
-      close(false);
+      holding.current = setTimeout(() => {
+        holding.current = null;
+        close(false);
+      }, HOLD_MS);
     };
   });
+  useEffect(() => {
+    const m = dialog.current;
+    if (!m) return;
+    const stay = () => {
+      if (!holding.current) return;
+      clearTimeout(holding.current);
+      holding.current = null;
+      moveTo.current = null;
+    };
+    m.addEventListener("keydown", stay);
+    m.addEventListener("pointerdown", stay);
+    return () => {
+      m.removeEventListener("keydown", stay);
+      m.removeEventListener("pointerdown", stay);
+      if (holding.current) clearTimeout(holding.current);
+    };
+  }, []);
 
   /* ESCAPE CLOSES THIS AND ONLY THIS. Caught on the way down, before a sheet
      underneath hears it and closes itself too. Tab stays inside. */
@@ -280,7 +303,7 @@ export function TiffModal({
     return () => window.removeEventListener("keydown", listen, true);
   }, []);
 
-  const context = c.targetLabel ?? (session.room ? ROOM[session.room] : screenWord(pathname));
+  const context = c.targetLabel ?? (session.room ? ROOM[session.room] : screenLabelFor(pathname));
 
   /* WHILE THE DOCK IS FOLDED AWAY, THE DIALOG HOLDS FOCUS. Whatever sent the
      words — Done, Send, a quick answer, Enter in your words — is leaving,

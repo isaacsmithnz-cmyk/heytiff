@@ -1,5 +1,6 @@
 "use client";
 
+import type { EarlierTurn } from "@/lib/workboard/note-turns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -32,15 +33,29 @@ export type { TiffLanded, TiffOpen } from "./tiff-context";
 /** How long `landed` stays up after the modal closes. */
 export const LANDED_MS = 2000;
 
+/** How long a conversation Tiff moved you from waits for the next press. */
+export const CARRY_ON_MS = 10 * 60 * 1000;
+
 export function TiffModalProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [session, setSession] = useState<TiffSession | null>(null);
   const [landed, setLanded] = useState<TiffLanded | null>(null);
   const opened = useRef(0);
+  /* THE CONVERSATION SHE MOVED YOU FROM (universal Tiff 1F, interim). Kept,
+     words only, when a close says she moved the screen, for the next BARE
+     press within CARRY_ON_MS: a Tiff button with no words, no conversation
+     of its own, no room and no day. Any other way in (a diary entry's door,
+     "Sort it out", the calendar box) drops it and opens as it always has.
+     The room is never kept: a line for the calendar must not follow you to
+     another screen. */
+  const kept = useRef<{ turns: EarlierTurn[]; at: number } | null>(null);
 
   const open = useCallback(
     (o: TiffOpen) => {
       if (session) return false;
+      const bare = !o.words?.trim() && !o.conversation?.length && !o.room && !o.day;
+      const carry = bare && kept.current && Date.now() - kept.current.at < CARRY_ON_MS ? kept.current.turns : null;
+      kept.current = null;
       const r = o.from.getBoundingClientRect();
       const next: TiffSession = {
         n: ++opened.current,
@@ -48,7 +63,10 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
         back: o.back,
         origin: { x: r.left + r.width / 2, y: r.top + r.height / 2 },
         words: o.words?.trim() || undefined,
-        conversation: o.conversation?.filter((t) => (t.who === "you" || t.who === "tiff") && t.text.trim() !== ""),
+        conversation: (carry ?? o.conversation)?.filter(
+          (t) => (t.who === "you" || t.who === "tiff") && t.text.trim() !== ""
+        ),
+        ...(carry ? { carryOn: true } : {}),
         room: o.room,
         day: o.day,
         openerId: o.id ?? null,
@@ -79,8 +97,12 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
          it); the push fetches the page, so it needs no refresh besides. */
       if (c.moveTo) router.push(c.moveTo);
       else if (c.changed) router.refresh();
+      if (c.moveTo && c.turns.length) kept.current = { turns: c.turns, at: Date.now() };
+      /* Focus goes back to the button pressed; after a move it may have gone
+         with the page, so then to the frame's own Tiff button. */
       const to = c.back?.isConnected ? c.back : c.from;
       if (to.isConnected) to.focus({ preventScroll: true });
+      else document.querySelector<HTMLElement>(".tiffbtn-topbar")?.focus({ preventScroll: true });
     },
     [router]
   );
@@ -97,6 +119,9 @@ export function TiffModalProvider({ children }: { children: React.ReactNode }) {
       openedBy: session?.openerId ?? null,
       isOpen: !!session,
       landed,
+      forget: () => {
+        kept.current = null;
+      },
     }),
     [open, session, landed]
   );

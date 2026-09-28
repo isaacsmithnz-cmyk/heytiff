@@ -11,7 +11,7 @@
 // the tools registry reaches Supabase at import; nothing here calls a tool
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
 
-import { askMessages, streamBrainAnswer, type AskBrainEvent } from "../ask";
+import { askMessages, askSystemPrompt, pageBlock, streamBrainAnswer, type AskBrainEvent } from "../ask";
 import type { TiffTool, Viewer } from "@/lib/tiff/registry";
 
 const text = (m: { content: { text: string }[] }) => m.content.map((c) => c.text);
@@ -48,6 +48,35 @@ describe("askMessages", () => {
     ]);
     expect(m.map((x) => x.role)).toEqual(["user"]);
     expect(text(m[0])).toEqual(["thanks", "and the filters", "which one?"]);
+  });
+});
+
+describe("where they are (universal Tiff 1D)", () => {
+  const page = { screen: "Workboard", target: { kind: "job", id: "sm8-uuid-3323", label: "#3323 — Meridian Data" } };
+
+  it("is one delimited sentence, with the id whole", () => {
+    expect(pageBlock(page)).toBe(
+      "<where-they-are>On the Workboard, looking at #3323 — Meridian Data (job sm8-uuid-3323).</where-they-are>"
+    );
+    expect(pageBlock(undefined)).toBeNull();
+  });
+
+  it("rides in the question's own message, just before the question, with or without history", () => {
+    const alone = askMessages("what's wrong with this job?", [], page);
+    expect(alone).toHaveLength(1);
+    expect(text(alone[0])).toEqual([pageBlock(page), "what's wrong with this job?"]);
+
+    const after = askMessages("and this one?", [
+      { who: "you", text: "what's open?" },
+      { who: "tiff", text: "Two tasks." },
+    ], page);
+    expect(text(after[0])).toEqual(["what's open?"]);
+    expect(text(after[2])).toEqual([pageBlock(page), "and this one?"]);
+    expect(after[2].content[1]).toHaveProperty("cache_control");
+  });
+
+  it("never reaches the system prompt", () => {
+    expect(askSystemPrompt({ todayISO: "2026-09-27" })).not.toMatch(/Meridian|sm8-uuid/);
   });
 });
 
@@ -109,6 +138,21 @@ describe("streamBrainAnswer", () => {
     }
     return events;
   }
+
+  it("sends where they are in the message and never in the system prompt", async () => {
+    for await (const e of streamBrainAnswer({
+      viewer,
+      question: "what's wrong with this job?",
+      tools: [tool],
+      todayISO: "2026-09-25",
+      page: { screen: "Workboard", target: { kind: "job", id: "sm8-uuid-3323", label: "#3323 — Meridian Data" } },
+    })) {
+      void e;
+    }
+    const body = sent[0].body as { system: unknown; messages: { content: { text: string }[] }[] };
+    expect(JSON.stringify(body.system)).not.toMatch(/Meridian|sm8-uuid/);
+    expect(body.messages.at(-1)!.content[0].text).toContain("(job sm8-uuid-3323)");
+  });
 
   it("sends the history ahead of the question, which keeps the cache marker", async () => {
     const events = await ask([

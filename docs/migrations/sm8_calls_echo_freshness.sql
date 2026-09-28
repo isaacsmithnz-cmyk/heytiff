@@ -25,8 +25,12 @@
 -- whose edit_date is OLDER than the stored one is skipped: a later page of
 -- a slow walk, or a re-read, can't put an old copy over a newer one. Equal
 -- or null stamps go through. edit_date is ServiceM8's fixed-width naive
--- text, so collate "C" compares it as the time it is. The sync is the only
--- writer of these tables.
+-- text, so collate "C" compares it as the time it is. Two writers write
+-- these tables, and this guard is under both: the sync, and (two-way phase
+-- 4, with SM8_WEBHOOKS on) the webhook drain, src/lib/integrations/
+-- sm8-hook-drain.ts, which re-reads one record a ping named and upserts
+-- only what ServiceM8 returned, through the sync's own shape, under the
+-- same lease by token. Neither writes anything of HeyTiff's own here.
 --
 -- THE ONE EXCEPTION, APRIL'S REPEATED HOUR. A record edited in both passes
 -- of the hour the clock goes back (2 to 3 am) carries a second-pass stamp

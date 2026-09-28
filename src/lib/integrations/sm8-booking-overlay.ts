@@ -1,10 +1,14 @@
 /* HeyTiff's booking rows over the mirror — server only (two-way phase 3,
    PR B).
 
-   HEYTIFF NEVER WRITES ITS COPY OF SERVICEM8. The sync is the only writer
-   of sm8_job_activities and sm8_jobs (sm8_calls_echo_freshness.sql), and
-   phase 3 adds none. So between a booking going and the next sync, a
-   reader asks here instead:
+   HEYTIFF NEVER WRITES ITS COPY OF SERVICEM8. Only what ServiceM8 returns
+   lands in sm8_job_activities and sm8_jobs: the sync writes them, and so,
+   with live updates on (two-way phase 4), does the webhook drain
+   (sm8-hook-drain), which re-reads the record a ping named — both through
+   the same shape, under the keep-newer guard (sm8_calls_echo_freshness.sql)
+   — and phase 3 adds no writer. So between a booking going and the next
+   sync or drain (about a minute with live updates on), a reader asks here
+   instead:
    - `gone`: of the uuids a reader asks about (and the bookings it draws
      from sentNotMirrored), THE ONES WE TOOK OUT — each one a take-back or
      a Clear that went DELETEd, or read inactive (the row keeps them, in

@@ -544,6 +544,13 @@ export const HOOK_LIST_TIMEOUT_MS = 10_000;
     have left to try. */
 export const ENSURE_BUDGET_MS = 30_000;
 export const ENSURE_MIN_LEFT_MS = 60_000;
+/** Kept back from an ensure step's end for the reconcile's own last
+    writes, so recording what it found never runs past the step. */
+export const ENSURE_FINISH_MARGIN_MS = 2_000;
+/** Kept back between the page-load backstop drain's end and the sync's
+    start-by, for the drain's own last writes (its counters, the flight and
+    the lease given back). */
+export const BACKSTOP_FINISH_MARGIN_MS = 3_000;
 /** An owed ensure on a page load runs at most this often. */
 export const ENSURE_EVERY_MS = 3_600_000;
 /** A disconnect's unsubscribing. */

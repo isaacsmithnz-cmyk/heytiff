@@ -361,11 +361,19 @@ export const SM8_OBJECTS: Sm8ObjectSpec[] = [
     of account (switchSm8Account), which clears them; wiped, that connect
     would look like a first one, and the old business's photos would stay
     searchable under the new account. It holds the account's own name, zone
-    and currency — nothing of its client book. */
+    and currency — nothing of its client book.
+
+    AND LIVE UPDATES (two-way phase 4): the waiting pings, the secrets'
+    hashes and the subscription record, so a ping that still comes to an
+    address of this workspace is `unknown` and answered 410, which
+    unsubscribes it. Each tolerates a database without it. */
 export const SM8_WIPE_TABLES: string[] = [
   ...SM8_OBJECTS.map((s) => s.table),
   "sm8_sync_state",
   "sm8_sync_runs",
+  "sm8_webhook_pings",
+  "sm8_webhook_hooks",
+  "sm8_webhooks",
 ];
 
 /** What a change of ServiceM8 account clears before the new one is read: the
@@ -373,10 +381,16 @@ export const SM8_WIPE_TABLES: string[] = [
     LAST by itself — while it still names the old account, an interrupted
     clear is repeated by the next sync. And NOT sm8_sync_runs: a run under the
     old grant may be holding its lease, and deleting the row would let a
-    second walker start beside it. */
+    second walker start beside it.
+
+    The waiting pings go too: they name the old account's records. The
+    hooks stay — each carries the old account, so a ping to one is `stale`
+    and answered 410 — and so does the subscription record, which the next
+    reconcile rewrites for the new account. */
 export const SM8_ACCOUNT_RESET_TABLES: string[] = [
   ...SM8_OBJECTS.map((s) => s.table),
   "sm8_sync_state",
+  "sm8_webhook_pings",
 ];
 
 /* ── the order one run walks it ── */

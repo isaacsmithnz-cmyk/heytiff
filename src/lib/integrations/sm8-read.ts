@@ -178,8 +178,11 @@ export type Sm8Page =
   /** `called: false` — no request reached ServiceM8 (the counter refused the
       turn), so a caller counting its calls doesn't count this one. `busy`,
       on `throttled` and `rate_limited`: how long the account's limit asks
-      callers to hold off, and whether it is a daily limit. */
-  | { ok: false; failure: Sm8PageFailure; called?: false; busy?: Sm8Busy };
+      callers to hold off, and whether it is a daily limit. `status`, on
+      `unavailable` from a served error: ServiceM8's HTTP status, so a
+      caller reading one record can tell a refusal of that record (a 4xx)
+      from an outage. */
+  | { ok: false; failure: Sm8PageFailure; called?: false; busy?: Sm8Busy; status?: number };
 
 /** One page of one object: up to 1000 rows plus the x-next-cursor header
     that names the next page (absent = walk complete). The failure kinds are
@@ -219,7 +222,7 @@ export async function fetchSm8Page(
     if (res.status === 429) return { ok: false, failure: "rate_limited", busy: sm8BusyOf(answer) ?? undefined };
     if (!res.ok) {
       await logSm8Failure(`GET ${endpoint}`, res);
-      return { ok: false, failure: "unavailable" };
+      return { ok: false, failure: "unavailable", status: res.status };
     }
 
     const body: unknown = await res.json();

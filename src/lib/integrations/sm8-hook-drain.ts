@@ -28,6 +28,9 @@
      invocation that finds it held leaves at once. The holder RELEASES,
      THEN LOOKS AGAIN: a row queued while it was finishing is seen either by
      that second look or by its own invocation, which finds the flight free.
+     A row the look finds not yet quiet — its own invocation left while the
+     flight was held — the route's drain waits for, inside its budget, and
+     claims again to read it.
    - EVERY BUDGET FROM THE FUNCTION'S OWN DEADLINE. `deadline` is the
      caller's start + its maxDuration − FUNCTION_MARGIN_MS
      (functionDeadline); the drain also stops at its own `maxMs`. A read
@@ -288,7 +291,22 @@ export async function drainSm8Hooks(
          held, and left; this look is what reads it */
       if (!fitsLease(clock(), READ_NEED_MS, ctx.end)) break;
       const again = await readQueue(orgId);
-      if (again === null || planDrainRound(again, clock()).read.length === 0) break;
+      if (again === null) break;
+      if (planDrainRound(again, clock()).read.length === 0) {
+        /* ...AND WAITS FOR WHAT IT FINDS NOT YET QUIET (the route's drain
+           only). A ping that came while this drain held the flight had its
+           own drain leave at once; if this look ended there, its row would
+           wait for the next backstop — the walk of 2026-09-28 found a job
+           pinged at 11:55:19, the holder releasing at 11:55:26 (7 s < 8 s
+           quiet), and the row read only at 11:56:38 by a page load. The
+           wait is with the flight given back, so a drain that claims it
+           meanwhile reads the row instead, and only while a read still fits
+           the budget after it (M1: the lease is claimed afresh, by the same
+           rules, when this one claims again). */
+        const next = ctx.wait ? nextReadyAt(again, clock()) : null;
+        if (next === null || !fitsLease(next, READ_NEED_MS, ctx.end)) break;
+        await ctx.sleep(next - clock());
+      }
     }
     if (ctx.wroteNotes) {
       /* a note may ask somebody something: the asks it brings in are made

@@ -209,6 +209,16 @@ describe("the hook", () => {
     expect(JSON.stringify(rpc.mock.calls)).not.toContain(HOOK);
     expect(from).not.toHaveBeenCalled();
   });
+
+  it("names the workspace the lookup found in the one line logged, and none it didn't", async () => {
+    await send(json(pingOf("job", [U1])));
+    rpcAnswer = { data: [{ verdict: "unknown", hook_org: null }], error: null };
+    await send(json(pingOf("job", [U1])));
+    expect(logs.map((l) => l.join(" "))).toEqual([
+      "[sm8] webhook: queued for org org-7e1a (json, 1 uuid)",
+      "[sm8] webhook: unknown (json, 1 uuid)",
+    ]);
+  });
 });
 
 describe("what each verdict answers", () => {

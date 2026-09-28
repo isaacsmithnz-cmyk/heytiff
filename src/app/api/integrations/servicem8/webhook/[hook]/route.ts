@@ -73,9 +73,13 @@ function answer(status: number): Response {
   return new Response(null, { status, headers: NO_STORE });
 }
 
-/** The one line a request leaves. Never the hook, the path or the body. */
-function logLine(verdict: string, body: BodyKind, uuids: number, extra = ""): void {
-  console.info(`[sm8] webhook: ${verdict} (${body}, ${uuids} uuid${uuids === 1 ? "" : "s"})${extra}`);
+/** The one line a request leaves: the verdict, the body's kind, how many
+    records, and the workspace once the lookup has named one (not a secret,
+    and what the walk reads the log by). Never the hook, the path or the
+    body. */
+function logLine(verdict: string, body: BodyKind, uuids: number, extra = "", org: string | null = null): void {
+  const where = org ? ` for org ${org}` : "";
+  console.info(`[sm8] webhook: ${verdict}${where} (${body}, ${uuids} uuid${uuids === 1 ? "" : "s"})${extra}`);
 }
 
 /** The body, read up to PING_BODY_MAX bytes; null when it runs past. */
@@ -205,7 +209,7 @@ async function handle(request: NextRequest, params: Promise<{ hook: string }>, m
       return answer(503);
     }
     const { verdict, org } = took;
-    logLine(verdict, kind, uuids);
+    logLine(verdict, kind, uuids, "", org);
 
     if (verdict === "unknown" || verdict === "stale") return answer(410);
 

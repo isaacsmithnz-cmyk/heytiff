@@ -1,77 +1,63 @@
--- Bookings in the ServiceM8 queue (two-way phase 3, PR A).
+-- Leave in the ServiceM8 queue (leave to ServiceM8).
 --
--- WHEN TO APPLY: BEFORE THE DEPLOY OF PR A, and after phase 2's three files
--- (sm8_notes_queue.sql, sm8_notes_job_card.sql, task_done_sm8.sql), which
--- are applied. Additive and idempotent. Old code runs on it unchanged: every
--- new column is nullable, the kind checks only widen, and the shape check
--- is exactly phase 2's rule for file and note rows.
+-- Approved leave, and a casual's day off, go onto the person's day on
+-- ServiceM8's dispatch board as ServiceM8's own staff leave
+-- (availability.json), and come off again when the leave is cancelled or
+-- the day off taken down. A fourth kind, `leave`, beside files, notes and
+-- bookings: the same queue, the same claim, the same account check.
 --
--- AFTER THIS FILE, NEVER RE-RUN sm8_notes_queue.sql. It would narrow the
--- kind check back to files and notes, re-add the note-only shape check
--- (which refuses every booking create), and replace sm8_set_write_kind with
--- its two-kind form. That file's header says the same (PR A).
+-- WHEN TO APPLY: BEFORE THE DEPLOY, and after sm8_bookings_queue.sql, which
+-- is applied. Additive and idempotent. Old code runs on it unchanged: the
+-- three new columns are nullable, the kind checks only widen, and the shape
+-- check is exactly the bookings file's rule for file, note and booking rows
+-- with the new columns null (every existing row's are).
 --
--- AND AFTER sm8_leave_queue.sql, NEVER RE-RUN THIS ONE: it would narrow the
--- kind check back to three kinds, drop leave's branch from the shape check
--- (refusing every leave row), and replace sm8_set_write_kind with its
--- three-kind form.
+-- AFTER THIS FILE, NEVER RE-RUN sm8_bookings_queue.sql (or
+-- sm8_notes_queue.sql): it would narrow the kind check back and replace the
+-- shape check and sm8_set_write_kind with forms that refuse every leave row.
 --
--- NOTHING ABOUT BOOKINGS CHANGES IN PRODUCTION until SM8_WRITES names
--- `booking`. Until then no booking row is ever inserted.
+-- NOTHING ABOUT LEAVE CHANGES IN PRODUCTION until SM8_WRITES names `leave`
+-- and the owner switches Leave on. Until then no leave row is ever inserted.
 --
 -- READ-ONLY, BEFORE:
 --   select conname, pg_get_constraintdef(oid) from pg_constraint
---    where conname in ('sm8_writes_kind_check', 'sm8_writes_note_shape_check',
+--    where conname in ('sm8_writes_kind_check', 'sm8_writes_shape_check',
 --                      'integration_connections_write_kinds_check');
---     -- kind in ('attachment','note'); the note shape CASE; write_kinds <@ {attachment,note}
+--     -- kind in ('attachment','note','booking'); write_kinds <@ {attachment,note,booking}
 --   select kind, op, status, count(*) from public.sm8_writes group by 1, 2, 3;   -- note this
---   select write_kinds, write_mode from public.integration_connections where provider = 'servicem8';
---   select position('''booking''' in pg_get_functiondef(
+--   select position('''leave''' in pg_get_functiondef(
 --     'public.sm8_set_write_kind(uuid,text,boolean,timestamptz)'::regprocedure)) > 0;  -- false
 -- AFTER:
---   select conname, pg_get_constraintdef(oid) from pg_constraint
---    where conname in ('sm8_writes_kind_check', 'sm8_writes_note_shape_check',
---                      'sm8_writes_shape_check', 'integration_connections_write_kinds_check');
---     -- kind lists 'booking'; sm8_writes_note_shape_check is gone;
---     -- sm8_writes_shape_check is present; write_kinds allows 'booking'
+--   the same constraint query: kind lists 'leave'; write_kinds allows 'leave'
 --   select kind, op, status, count(*) from public.sm8_writes group by 1, 2, 3;   -- as BEFORE
---   select count(*) from public.sm8_writes where kind = 'booking';              -- 0
 --   select count(*) from information_schema.columns where table_schema = 'public'
---    and table_name = 'sm8_writes' and column_name in ('verb_id', 'booking_staff_uuid',
---    'booking_start', 'booking_end', 'booking_zone', 'job_status_from', 'job_status_to');  -- 7
---   select position('''booking''' in pg_get_functiondef(
+--    and table_name = 'sm8_writes' and column_name in ('leave_staff_uuid', 'leave_start', 'leave_end');  -- 3
+--   select position('''leave''' in pg_get_functiondef(
 --     'public.sm8_set_write_kind(uuid,text,boolean,timestamptz)'::regprocedure)) > 0;  -- true
 --
--- ROLLING BACK THE CODE: DEPLOY.md's "Bookings to ServiceM8" rollback.
--- Old code never sends a booking row: its kind list has no 'booking'.
+-- ROLLING BACK THE CODE: DEPLOY.md's "Leave to ServiceM8" rollback. Old code
+-- never sends a leave row: its kind list has no 'leave'.
 
 begin;
 
--- ── the queue: a third kind ──
+-- ── the queue: a fourth kind ──
 alter table public.sm8_writes drop constraint if exists sm8_writes_kind_check;
 alter table public.sm8_writes
-  add constraint sm8_writes_kind_check check (kind in ('attachment', 'note', 'booking'));
+  add constraint sm8_writes_kind_check check (kind in ('attachment', 'note', 'booking', 'leave'));
 
 alter table public.sm8_writes
-  -- the press a row belongs to; a status row keeps the first press's for good
-  add column if not exists verb_id            uuid,
-  add column if not exists booking_staff_uuid text,
-  -- the account's wall-clock time, 'YYYY-MM-DD HH:MM:00', never converted
-  add column if not exists booking_start      text,
-  add column if not exists booking_end        text,
-  -- the zone the times were chosen in; a different zone at send cancels
-  add column if not exists booking_zone       text,
-  add column if not exists job_status_from    text,
-  add column if not exists job_status_to      text;
+  -- the person's ServiceM8 staff uuid (a create)
+  add column if not exists leave_staff_uuid text,
+  -- the first day's start and the last day's end, the account's wall
+  -- clock, 'YYYY-MM-DD 00:00:00' and 'YYYY-MM-DD 23:59:59', never converted
+  add column if not exists leave_start      text,
+  add column if not exists leave_end        text;
 
 -- ── one shape rule for every kind ──
--- Phase 2's rule reads "when op = 'create' then note_id is not null", which
--- a booking create would fail. It is replaced by one CASE per kind. The
--- attachment and note branches are phase 2's, word for word, plus the new
--- columns being null. A CHECK passes when its expression is NULL, so every
--- column a branch needs is named "is not null", and the whole CASE sits in
--- coalesce(…, false).
-alter table public.sm8_writes drop constraint if exists sm8_writes_note_shape_check;
+-- The bookings file's rule, word for word, with the new columns null in
+-- every branch it had, and a branch for leave: a create carries the person
+-- and the whole-day span; a delete names only its create (depends_on). No
+-- leave row names a job, a note, a flag, a press's verb or a booking.
 alter table public.sm8_writes drop constraint if exists sm8_writes_shape_check;
 alter table public.sm8_writes add constraint sm8_writes_shape_check check (coalesce(
   case
@@ -81,10 +67,12 @@ alter table public.sm8_writes add constraint sm8_writes_shape_check check (coale
       and verb_id is null and booking_staff_uuid is null and booking_start is null
       and booking_end is null and booking_zone is null
       and job_status_from is null and job_status_to is null
+      and leave_staff_uuid is null and leave_start is null and leave_end is null
     when kind = 'note' then
       verb_id is null and booking_staff_uuid is null and booking_start is null
       and booking_end is null and booking_zone is null
       and job_status_from is null and job_status_to is null
+      and leave_staff_uuid is null and leave_start is null and leave_end is null
       and case
         when op = 'create' then
           note_id is not null and depends_on is null and target_uuid is null and flag_done is null
@@ -100,6 +88,7 @@ alter table public.sm8_writes add constraint sm8_writes_shape_check check (coale
     when kind = 'booking' then
       note_id is null and flag_done is null and note_text is null
       and sm8_job_uuid is not null and verb_id is not null
+      and leave_staff_uuid is null and leave_start is null and leave_end is null
       and case
         when op = 'create' then
           target_uuid is null and job_status_from is null and job_status_to is null
@@ -119,8 +108,6 @@ alter table public.sm8_writes add constraint sm8_writes_shape_check check (coale
         when op = 'delete' then
           taken_back_at is null and job_status_from is null and job_status_to is null
           and booking_zone is null
-          -- an Undo names its create (which holds the booking); a Clear names the
-          -- activity and keeps the booking as the person saw it
           and ((depends_on is not null
                 and booking_staff_uuid is null and booking_start is null and booking_end is null)
                or (depends_on is null and target_uuid is not null
@@ -128,21 +115,32 @@ alter table public.sm8_writes add constraint sm8_writes_shape_check check (coale
                 and booking_end is not null))
         else false
       end
+    when kind = 'leave' then
+      sm8_job_uuid is null and note_id is null and flag_done is null and note_text is null
+      and target_uuid is null and verb_id is null
+      and booking_staff_uuid is null and booking_start is null and booking_end is null
+      and booking_zone is null and job_status_from is null and job_status_to is null
+      and case
+        when op = 'create' then
+          depends_on is null
+          and leave_staff_uuid is not null and leave_start is not null and leave_end is not null
+          and leave_start ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} 00:00:00$'
+          and leave_end   ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2} 23:59:59$'
+          and leave_start collate "C" < leave_end collate "C"
+        when op = 'delete' then
+          depends_on is not null and taken_back_at is null
+          and leave_staff_uuid is null and leave_start is null and leave_end is null
+        else false
+      end
     else false
   end, false));
 
--- the overlay's day read (the Schedule) and a verb's rows (half done, Undo)
-create index if not exists sm8_writes_booking_start_idx
-  on public.sm8_writes (org_id, booking_start) where kind = 'booking';
-create index if not exists sm8_writes_verb_idx
-  on public.sm8_writes (org_id, verb_id) where verb_id is not null;
-
--- ── the owner's switch per kind: a third kind ──
+-- ── the owner's switch per kind: a fourth kind ──
 alter table public.integration_connections
   drop constraint if exists integration_connections_write_kinds_check;
 alter table public.integration_connections
   add constraint integration_connections_write_kinds_check
-  check (write_kinds <@ array['attachment', 'note', 'booking']::text[]);
+  check (write_kinds <@ array['attachment', 'note', 'booking', 'leave']::text[]);
 
 create or replace function public.sm8_set_write_kind(p_org uuid, p_kind text, p_on boolean, p_at timestamptz)
 returns text[] language sql volatile set search_path = public
@@ -152,7 +150,7 @@ as $$
            when p_on then (select array_agg(distinct k order by k) from unnest(write_kinds || array[p_kind]) as k)
            else array_remove(write_kinds, p_kind) end,
          updated_at = p_at
-   where org_id = p_org and provider = 'servicem8' and p_kind in ('attachment', 'note', 'booking')
+   where org_id = p_org and provider = 'servicem8' and p_kind in ('attachment', 'note', 'booking', 'leave')
   returning write_kinds;
 $$;
 revoke execute on function public.sm8_set_write_kind(uuid, text, boolean, timestamptz) from public, anon, authenticated;

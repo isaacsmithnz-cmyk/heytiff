@@ -29,7 +29,10 @@ const notesCode = notes.replace(/--.*$/gm, "");
 const flat = (s: string) => s.replace(/\s+/g, " ").trim();
 
 const NEW_COLUMNS = ["verb_id", "booking_staff_uuid", "booking_start", "booking_end", "booking_zone", "job_status_from", "job_status_to"];
-const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES);
+/* The kinds of its day: the code's own, less leave, which
+   sm8_leave_queue.sql added after it (sm8-leave-migration.test holds that
+   file to all four). */
+const KINDS = Object.keys(SM8_WRITE_KIND_SCOPES).filter((k) => k !== "leave");
 
 /** One branch of the shape check's outer CASE, `when kind = '<kind>' then …`. */
 function branch(kind: string): string {
@@ -82,7 +85,7 @@ describe("the bookings migration", () => {
     for (const m of code.matchAll(/create index (?!if not exists)/g)) throw new Error(`a bare create index at ${m.index}`);
   });
 
-  it("(F) lists exactly the kinds the code has, in the kind check, the owner's switch and its function", () => {
+  it("(F) lists exactly the kinds the code had then, in the kind check, the owner's switch and its function", () => {
     const listed = (re: RegExp) => [...(re.exec(code)?.[1] ?? "").matchAll(/'(\w+)'/g)].map((m) => m[1]);
     expect(listed(/sm8_writes_kind_check check \(kind in \(([^)]*)\)\)/)).toEqual(KINDS);
     expect(listed(/write_kinds <@ array\[([^\]]*)\]::text\[\]/)).toEqual(KINDS);

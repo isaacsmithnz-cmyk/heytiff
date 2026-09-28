@@ -60,6 +60,8 @@ export type Servicem8ScreenProps = {
   waitingNotes?: number;
   /** Bookings still waiting, where the deployment sends bookings. */
   waitingBookings?: number;
+  /** Leave still waiting, where the deployment sends leave. */
+  waitingLeave?: number;
   /** The write permissions the consent asks for beside the reads: the kinds
       the deployment allows that the owner has on (the page works them out,
       as the connect route does). Absent: the files permission alone. */
@@ -81,13 +83,15 @@ const WRITES = ["one write", "two writes", "three writes"];
 function asksLine(writeScopes: readonly ScopeEntry[]): string {
   const files = writeScopes.some((s) => s.scope === "manage_attachments");
   const notes = writeScopes.some((s) => s.scope === "publish_job_notes");
-  const bookings = writeScopes.some((s) => s.scope === "manage_schedule" || s.scope === "manage_jobs");
+  /* a booking needs manage_jobs as well; manage_schedule alone is leave */
+  const bookings = writeScopes.some((s) => s.scope === "manage_jobs");
+  const leaveOnly = !bookings && writeScopes.some((s) => s.scope === "manage_schedule");
   const tail = "The list below is exactly what the consent screen will show.";
-  if (bookings) {
+  if (bookings || leaveOnly) {
     const parts = [
       ...(files ? ["the files somebody sends from a job"] : []),
       ...(notes ? ["the notes people write here"] : []),
-      "the bookings people make here",
+      bookings ? "the bookings people make here" : "the leave approved here",
     ];
     const said = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
     return `Reads, and ${WRITES[parts.length - 1]}: adding ${said}. ${tail}`;
@@ -136,6 +140,7 @@ export function Servicem8Screen({
   waitingWrites = 0,
   waitingNotes = 0,
   waitingBookings = 0,
+  waitingLeave = 0,
   writeScopes = FILES_SCOPES,
   previousAccount = null,
 }: Servicem8ScreenProps) {
@@ -422,7 +427,7 @@ export function Servicem8Screen({
               consequences={[
                 "HeyTiff's stored credentials for this account are deleted.",
                 "Every mirrored row goes with them — clients, jobs, schedule, checklists and staff.",
-                ...[sm8WaitingConsequence(waitingWrites, waitingNotes, waitingBookings)].filter(
+                ...[sm8WaitingConsequence(waitingWrites, waitingNotes, waitingBookings, waitingLeave)].filter(
                   (c): c is string => c !== null
                 ),
                 "Workboard rows you created here stay, on the names they already captured.",

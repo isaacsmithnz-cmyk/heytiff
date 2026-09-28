@@ -20,6 +20,7 @@ import { drainSm8WritesAfterResponse } from "@/lib/integrations/sm8-drain";
 import { readWriteMode, sendRefusal, type Sm8WriteKind } from "@/lib/integrations/sm8-write-plan";
 import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
 import { BOOKING_WORDS } from "@/lib/integrations/sm8-booking-words";
+import { LEAVE_WORDS } from "@/lib/integrations/sm8-leave-words";
 import { sm8DisconnectNote, sm8KindOffNote, sm8OffNote, sm8RetryNote } from "@/lib/integrations/outcome";
 
 /* The two things you can do to an existing connection from the screen.
@@ -84,7 +85,8 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
      and bookings are counted */
   const notes = cancelled.filter((c) => c.kind === "note").length;
   const bookings = cancelled.filter((c) => c.kind === "booking").length;
-  const files = cancelled.filter((c) => c.kind !== "note" && c.kind !== "booking");
+  const leave = cancelled.filter((c) => c.kind === "leave").length;
+  const files = cancelled.filter((c) => c.kind !== "note" && c.kind !== "booking" && c.kind !== "leave");
   const names = files.map((c) => c.name).filter((n): n is string => n !== null);
   return {
     ok: true,
@@ -94,6 +96,7 @@ export async function disconnectServiceM8Action(): Promise<IntegrationResult> {
       inFlight,
       notes,
       bookings,
+      leave,
     }),
   };
 }
@@ -143,7 +146,8 @@ export async function setServiceM8WriteModeAction(mode: string): Promise<Integra
      words exactly */
   const notes = changed.cancelled.filter((c) => c.kind === "note").length;
   const bookings = changed.cancelled.filter((c) => c.kind === "booking").length;
-  const note = want === "off" ? sm8OffNote(changed.cancelled.length - notes - bookings, notes, bookings) : null;
+  const leave = changed.cancelled.filter((c) => c.kind === "leave").length;
+  const note = want === "off" ? sm8OffNote(changed.cancelled.length - notes - bookings - leave, notes, bookings, leave) : null;
   return note ? { ok: true, note } : { ok: true };
 }
 
@@ -160,7 +164,7 @@ export async function setServiceM8WriteKindAction(kind: string, on: boolean): Pr
   const startedAt = Date.now();
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
-  if (kind !== "attachment" && kind !== "note" && kind !== "booking") return { ok: false, error: NOTE_WORDS.card.notAKind };
+  if (kind !== "attachment" && kind !== "note" && kind !== "booking" && kind !== "leave") return { ok: false, error: NOTE_WORDS.card.notAKind };
   const allowed = sm8WriteKindsEnabled();
   if (!allowed.includes(kind)) {
     return {
@@ -170,7 +174,9 @@ export async function setServiceM8WriteKindAction(kind: string, on: boolean): Pr
           ? NOTE_WORDS.card.notesUnavailable
           : kind === "booking"
             ? BOOKING_WORDS.card.bookingsUnavailable
-            : "Sending to ServiceM8 isn't available yet.",
+            : kind === "leave"
+              ? LEAVE_WORDS.card.leaveUnavailable
+              : "Sending to ServiceM8 isn't available yet.",
     };
   }
   if (typeof on !== "boolean") return { ok: false, error: "That isn't a setting." };

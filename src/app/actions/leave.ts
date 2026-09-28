@@ -10,6 +10,7 @@ import { balancesFor, overlappingRequests } from "@/lib/timepay/leave-query";
 import { getPaySettings } from "@/lib/timepay/query";
 import { dateOfDay, periodConfig, periodLength, periodStartFor } from "@/lib/timepay/period";
 import { isBalanceKind, shortfall, type BalanceKind, type LeaveKind } from "@/lib/timepay/leave";
+import { sm8LeaveAllowed } from "@/lib/integrations/sm8-kinds";
 
 /* Leave mutations.
 
@@ -26,7 +27,23 @@ import { isBalanceKind, shortfall, type BalanceKind, type LeaveKind } from "@/li
              row with its own source and this path leaves those alone.
 */
 
-export type LeaveResult = { ok: true } | { ok: false; error: string };
+/* THE SERVICEM8 BOARD, loaded only where the deployment sends leave
+   (SM8_WRITES names `leave`): anywhere else not a module of it is read, and
+   nothing about a decision changes. A press is minted here, from the
+   signed-in session, so only a person's decision reaches the queue. */
+async function sm8Board() {
+  if (!sm8LeaveAllowed()) return null;
+  const [{ sm8PressFromSession }, queue] = await Promise.all([
+    import("@/lib/integrations/sm8-press"),
+    import("@/app/actions/sm8-leave-queue"),
+  ]);
+  const press = await sm8PressFromSession().catch(() => null);
+  return press ? { press, ...queue } : null;
+}
+
+/** `note`: a sentence to say beside a decision that landed — leave that
+    stays off the ServiceM8 board for a reason somebody can fix. */
+export type LeaveResult = { ok: true; note?: string } | { ok: false; error: string };
 
 type Ctx = { orgId: string; staffId: string | null };
 
@@ -260,6 +277,12 @@ export async function cancelLeave(requestId: string): Promise<LeaveResult> {
     .eq("staff_profile_id", ctx.staffId);
   if (error) return { ok: false, error: "Couldn't cancel that request." };
   refresh();
+  /* approved leave may be on the ServiceM8 board: it comes off. Never
+     fails the cancel, which has landed. */
+  if (data.status === "approved") {
+    const board = await sm8Board();
+    if (board) await board.queueLeaveOffBoard(board.press, { source: "leave", id: requestId });
+  }
   return { ok: true };
 }
 
@@ -276,7 +299,7 @@ async function decide(
 
   const { data } = await supabaseAdmin
     .from("leave_requests")
-    .select("staff_profile_id, status, start_date, end_date")
+    .select("staff_profile_id, status, kind, start_date, end_date")
     .eq("org_id", ctx.orgId)
     .eq("id", requestId)
     .maybeSingle();
@@ -328,6 +351,22 @@ async function decide(
     .eq("id", requestId);
   if (error) return { ok: false, error: "Couldn't record that decision." };
   refresh();
+  /* approved leave goes onto the person's day on the ServiceM8 board. The
+     decision has landed whatever happens there. */
+  if (status === "approved") {
+    const board = await sm8Board();
+    if (board) {
+      const queued = await board.queueLeaveOnBoard(board.press, {
+        source: "leave",
+        id: requestId,
+        staffProfileId: String(data.staff_profile_id),
+        kind: typeof data.kind === "string" ? data.kind : null,
+        from: String(data.start_date).slice(0, 10),
+        to: String(data.end_date).slice(0, 10),
+      });
+      if (queued.note) return { ok: true, note: queued.note };
+    }
+  }
   return { ok: true };
 }
 

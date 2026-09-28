@@ -133,7 +133,7 @@ describe("on a deployment that sends files only (production today)", () => {
   });
 
   it("(F) the owner's counts make today's one query, every row of it a file", async () => {
-    expect(await countWaitingSm8WritesByKind(ORG, Date.now())).toEqual({ attachment: 0, note: 0, booking: 0 });
+    expect(await countWaitingSm8WritesByKind(ORG, Date.now())).toEqual({ attachment: 0, note: 0, booking: 0, leave: 0 });
     expect(fake.on("sm8_writes")).toHaveLength(1);
     fake.log.length = 0;
     await countSm8Queue(ORG, "v", Date.now());
@@ -173,7 +173,7 @@ describe("where the deployment sends notes", () => {
       { id: "w2", org_id: ORG, kind: "note", status: "queued", next_attempt_at: LONG_AGO },
       { id: "w3", org_id: ORG, kind: "attachment", status: "queued", next_attempt_at: LONG_AGO }
     );
-    expect(await countWaitingSm8WritesByKind(ORG, Date.now())).toEqual({ attachment: 1, note: 1, booking: 0 });
+    expect(await countWaitingSm8WritesByKind(ORG, Date.now())).toEqual({ attachment: 1, note: 1, booking: 0, leave: 0 });
   });
 });
 

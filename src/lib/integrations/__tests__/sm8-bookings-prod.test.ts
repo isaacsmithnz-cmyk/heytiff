@@ -134,7 +134,7 @@ describe.each([
     expect(namesBooking()).toEqual([]);
     expect(kinds.booking).toBe(0);
     // files alone count every row as a file, as always; files and notes, each apart
-    expect(kinds).toEqual(setting === "1" ? { attachment: 2, note: 0, booking: 0 } : { attachment: 1, note: 1, booking: 0 });
+    expect(kinds).toEqual(setting === "1" ? { attachment: 2, note: 0, booking: 0, leave: 0 } : { attachment: 1, note: 1, booking: 0, leave: 0 });
   });
 
   it("(F) the screen's queue and the owner's bell make today's queries, with today's numbers", async () => {
@@ -192,7 +192,7 @@ describe("where the deployment names booking", () => {
 
   it("(F) counts the three kinds apart, one head count each, and adds them up", async () => {
     fake.db.sm8_writes.push(write("booking"), write("booking", { op: "update" }));
-    expect(await countWaitingSm8WritesByKind(ORG, Date.now())).toEqual({ attachment: 1, note: 1, booking: 2 });
+    expect(await countWaitingSm8WritesByKind(ORG, Date.now())).toEqual({ attachment: 1, note: 1, booking: 2, leave: 0 });
     expect(onWrites()).toHaveLength(3);
     expect((await countSm8Queue(ORG, "vendor-1", Date.now())).waiting).toBe(4);
   });
@@ -278,7 +278,7 @@ describe("where the deployment names booking", () => {
     expect(await sm8QueueStuck(ORG, Date.now())).toEqual({
       reason: "reconnect",
       waiting: 3,
-      kinds: { attachment: 1, note: 1, booking: 1 },
+      kinds: { attachment: 1, note: 1, booking: 1, leave: 0 },
     });
     // Bookings Off: a kind switched off never asks for a reconnect
     fake.db.integration_connections[0].write_kinds = ["attachment", "note"];

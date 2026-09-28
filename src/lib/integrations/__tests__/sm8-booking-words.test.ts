@@ -74,7 +74,9 @@ describe("the booking words", () => {
 
   it("say manage_schedule's whole reach: allocations, booking windows and availability", () => {
     expect(BOOKING_WORDS.scope.schedule).toMatch(/job allocations, booking windows and availability/);
-    expect(BOOKING_WORDS.scope.schedule).toMatch(/never touches allocations, booking windows or availability/);
+    expect(BOOKING_WORDS.scope.schedule).toMatch(/never touches allocations or booking windows/);
+    /* and what HeyTiff does with availability: leave approved here, and nothing else */
+    expect(BOOKING_WORDS.scope.schedule).toMatch(/adds staff leave only for leave approved here, and takes it off only when that leave is cancelled/);
     expect(BOOKING_WORDS.scope.jobs).toMatch(/It never removes a job\.$/);
   });
 });

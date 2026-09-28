@@ -10,7 +10,9 @@
    none of that: no source file sends a DELETE to a job, no booking request
    carries `active` (a booking is never restored by HeyTiff — putting one
    back is ServiceM8's deleted flag, which the plan bars), and nothing
-   touches an allocation, a window or an availability. */
+   touches an allocation or a window. An availability is touched in ONE
+   place, for ONE thing: leave approved in HeyTiff put on the person's day,
+   and taken off when it is cancelled (sm8-write's three leave requests). */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -44,7 +46,7 @@ function body(name: string): string {
 }
 
 describe("a booking's permissions reach further than HeyTiff goes (B-14)", () => {
-  it("no source file sends a DELETE to a job: the only DELETEs are a booking's and a note's", () => {
+  it("no source file sends a DELETE to a job: the only DELETEs are a booking's, a note's and leave's", () => {
     const deletes: string[] = [];
     for (const f of files) {
       for (const m of f.text.matchAll(/`([a-z_]+)\/\$\{[^}]+\}\.json`\s*,\s*\{\s*method:\s*"DELETE"/g)) deletes.push(`${f.rel}: ${m[1]}`);
@@ -53,7 +55,11 @@ describe("a booking's permissions reach further than HeyTiff goes (B-14)", () =>
         if (/["'`/]job\/\$\{/.test(stmt) && /"DELETE"/.test(stmt)) deletes.push(`${f.rel}: job DELETE`);
       }
     }
-    expect(deletes.sort()).toEqual([`${join("lib", "integrations", "sm8-write.ts")}: dbonote`, `${join("lib", "integrations", "sm8-write.ts")}: jobactivity`]);
+    expect(deletes.sort()).toEqual([
+      `${join("lib", "integrations", "sm8-write.ts")}: availability`,
+      `${join("lib", "integrations", "sm8-write.ts")}: dbonote`,
+      `${join("lib", "integrations", "sm8-write.ts")}: jobactivity`,
+    ]);
   });
 
   it("no booking request's body names `active`, and a status change's names the status alone", () => {
@@ -65,14 +71,24 @@ describe("a booking's permissions reach further than HeyTiff goes (B-14)", () =>
     expect(body("deleteSm8Booking")).not.toMatch(/json:/);
   });
 
-  it("nothing touches a job allocation, an allocation window or an availability — no ServiceM8 path names one", () => {
-    /* ServiceM8's endpoints are `<object>.json` and `<object>/<uuid>.json`
-       (HeyTiff's own leave "availability" is none of them) */
-    const endpoint = /(joballocation|allocationwindow|availabilit(?:y|ies))(\/[^"'`\s]*)?\.json/i;
+  it("nothing touches a job allocation or an allocation window — no ServiceM8 path names one", () => {
+    /* ServiceM8's endpoints are `<object>.json` and `<object>/<uuid>.json` */
+    const endpoint = /(joballocation|allocationwindow)(\/[^"'`\s]*)?\.json/i;
     const touched = files.filter((f) => endpoint.test(f.text)).map((f) => f.rel);
     expect(touched).toEqual([]);
     /* ...and the pattern would see one */
     expect(endpoint.test("`joballocation/${uuid}.json`")).toBe(true);
-    expect(endpoint.test('"availability.json"')).toBe(true);
+  });
+
+  it("an availability is named by leave's three requests alone, in sm8-write, and a leave body never names `active`", () => {
+    const endpoint = /availabilit(?:y|ies)(\/[^"'`\s]*)?\.json/i;
+    const touched = files.filter((f) => endpoint.test(f.text)).map((f) => f.rel);
+    expect(touched).toEqual([join("lib", "integrations", "sm8-write.ts")]);
+    const where = [...write.text.matchAll(/export async function (\w+)\(/g)]
+      .map((m) => m[1])
+      .filter((name) => endpoint.test(body(name)));
+    expect(where.sort()).toEqual(["deleteSm8Availability", "postSm8Availability", "readSm8Availability"]);
+    expect(body("postSm8Availability")).not.toMatch(/\bactive\b/);
+    expect(body("deleteSm8Availability")).not.toMatch(/json:/);
   });
 });

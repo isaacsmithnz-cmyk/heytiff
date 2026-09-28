@@ -11,7 +11,11 @@
 
    AND THE SAME FOR BOOKINGS (two-way phase 3). With SM8_WRITES=1, or
    attachment,note, nothing about bookings may change: every new booking
-   read and write asks sm8BookingsAllowed() first (sm8-bookings-prod.test). */
+   read and write asks sm8BookingsAllowed() first (sm8-bookings-prod.test).
+
+   AND THE SAME FOR LEAVE. With SM8_WRITES not naming `leave`, approving,
+   cancelling or marking a day off changes nothing about ServiceM8: every
+   leave read and write asks sm8LeaveAllowed() first (sm8-leave-prod.test). */
 
 import { sm8WriteKindsFrom, type Sm8WriteKind } from "./sm8-write-plan";
 
@@ -30,4 +34,9 @@ export function sm8NotesAllowed(): boolean {
 /** Whether this deployment writes bookings (SM8_WRITES names `booking`). */
 export function sm8BookingsAllowed(): boolean {
   return sm8WriteKindsEnabled().includes("booking");
+}
+
+/** Whether this deployment writes leave (SM8_WRITES names `leave`). */
+export function sm8LeaveAllowed(): boolean {
+  return sm8WriteKindsEnabled().includes("leave");
 }

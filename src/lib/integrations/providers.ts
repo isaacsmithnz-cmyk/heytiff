@@ -368,7 +368,13 @@ export const SM8_SCOPE_LIST: string[] = SM8_SCOPES.map((s) => s.scope);
    Each sentence says the scope's whole reach — manage_schedule also covers
    job allocations, booking windows and availability, and manage_jobs can
    remove jobs, though not create them — and HeyTiff touches none of that.
-   A booking goes as the app, never as a person. */
+   A booking goes as the app, never as a person.
+
+   LEAVE (2026-09-28) is manage_schedule again: availability.json (a new
+   staff leave) and availability/{uuid}.json (its delete), read off the
+   reference that day. Leave needs no permission bookings didn't already
+   ask for, and the scope's sentence says what HeyTiff does with its
+   availability reach. */
 
 export const SM8_WRITE_SCOPES: ScopeEntry[] = [
   {
@@ -396,6 +402,9 @@ export const SM8_WRITE_KIND_SCOPES = {
   attachment: ["manage_attachments"],
   note: ["publish_job_notes"],
   booking: ["manage_schedule", "manage_jobs"],
+  /* leave approved here goes onto the person's day as ServiceM8's own staff
+     leave (availability.json), which manage_schedule covers */
+  leave: ["manage_schedule"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type Sm8WriteKindName = keyof typeof SM8_WRITE_KIND_SCOPES;

@@ -14,6 +14,7 @@ jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: { rpc: (...a: unknown
 
 import { noteSm8Throttle, sm8LimitOf, SM8_METER, takeSm8Call } from "../sm8-meter";
 import { DAILY_CALL_BUDGET } from "../sm8-sync-plan";
+import { HOOK_DAILY_BUDGET, HOOK_METER_WAIT_MS } from "../sm8-hook-plan";
 import {
   WRITE_LEASE_MARGIN_MS,
   WRITE_LEASE_MS,
@@ -41,13 +42,27 @@ describe("the numbers", () => {
     for (const f of Object.values(floor)) expect(f).toBeLessThan(burst);
   });
 
-  it("stop the sync first each day, then reads, then writes, all under ServiceM8's 20,000", () => {
+  it("put live updates last: the highest floor, so a press, a screen and the sync all come first", () => {
+    const { floor, burst, maxWaitMs } = SM8_METER;
+    expect(floor.hook).toBe(12);
+    expect(floor.hook).toBeGreaterThan(floor.sync);
+    expect(floor.hook).toBeLessThan(burst);
+    expect(maxWaitMs.hook).toBe(3_000);
+    // one number: the drain's READ_NEED_MS counts this wait
+    expect(maxWaitMs.hook).toBe(HOOK_METER_WAIT_MS);
+  });
+
+  it("stop live updates first each day, then the sync, then reads, then writes, all under ServiceM8's 20,000", () => {
     const { dayCap } = SM8_METER;
+    expect(dayCap.hook).toBe(10_000);
+    expect(dayCap.hook).toBeLessThan(dayCap.sync);
     expect(dayCap.sync).toBeLessThan(dayCap.read);
     expect(dayCap.read).toBeLessThan(dayCap.write);
     expect(dayCap.write).toBeLessThanOrEqual(18_000);
     // the sync's own per-workspace budget still binds first
     expect(DAILY_CALL_BUDGET).toBeLessThanOrEqual(dayCap.sync);
+    // and live updates' own per-workspace budget binds before the lane's
+    expect(HOOK_DAILY_BUDGET).toBeLessThanOrEqual(dayCap.hook);
   });
 
   it("never sleep under a write's claim: an upload started at the last moment, and its read-back, still end inside the lease with the whole margin", () => {
@@ -81,6 +96,8 @@ describe("taking a turn", () => {
     expect(rpc).toHaveBeenLastCalledWith("sm8_take_call", expect.objectContaining({ p_floor: 0, p_day_cap: 18_000 }));
     await takeSm8Call("v-1", "read");
     expect(rpc).toHaveBeenLastCalledWith("sm8_take_call", expect.objectContaining({ p_floor: 4, p_day_cap: 16_000 }));
+    await takeSm8Call("v-1", "hook");
+    expect(rpc).toHaveBeenLastCalledWith("sm8_take_call", expect.objectContaining({ p_floor: 12, p_day_cap: 10_000 }));
   });
 
   it("hands a refusal back with its wait and its reason", async () => {

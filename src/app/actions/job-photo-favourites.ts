@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { requireOrg } from "@/lib/permissions-server";
 import { DOCUMENTS_BUCKET, SIGNED_URL_SECONDS } from "@/lib/documents/query";
 import { jobMediaKind } from "@/lib/workboard/job-media";
+import { touchSm8Files } from "@/lib/integrations/sm8-file-cache";
 import { cacheJobFiles } from "./workboard-media";
 import { readJobPhotos } from "./photo-readings";
 
@@ -318,11 +319,18 @@ export async function listShowcase(): Promise<ShowcasePhoto[]> {
       if (d.remote_ref) refs.set(d.remote_ref, d.storage_ref);
   }
 
+  /* Marked shown beside the signing, like the job card's read. A starred
+     copy is never evicted (lib/integrations/sm8-file-cache) — the showcase
+     draws a plate for a missing one and never fetches it back — so this is
+     the record, not the thing that keeps it. */
   const urls = new Map<string, string>();
   if (refs.size > 0) {
-    const { data: signed } = await supabaseAdmin.storage
-      .from(DOCUMENTS_BUCKET)
-      .createSignedUrls([...new Set(refs.values())], SIGNED_URL_SECONDS);
+    const [{ data: signed }] = await Promise.all([
+      supabaseAdmin.storage
+        .from(DOCUMENTS_BUCKET)
+        .createSignedUrls([...new Set(refs.values())], SIGNED_URL_SECONDS),
+      touchSm8Files(orgId, [...refs.keys()]),
+    ]);
     for (const row of signed ?? []) {
       if (row.path && row.signedUrl) urls.set(row.path, row.signedUrl);
     }

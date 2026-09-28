@@ -52,7 +52,24 @@ jest.mock("@/lib/integrations/sm8-sync", () => ({
   switchSm8AccountUnderLease: (...a: unknown[]) => switchSm8Account(...a),
 }));
 
-import { GET } from "../callback/route";
+/* Live updates (two-way phase 4): loaded only with SM8_WEBHOOKS on, so
+   its factory running is itself the proof that off leaves it alone. */
+let hooksLoaded = false;
+const markSm8RotationOwed = jest.fn(async (_org: string, _account: string | null) => void order.push("owe"));
+const ensureSm8Webhooks = jest.fn(async (_org: string, _opts: { rotate?: boolean; budgetMs: number }) => {
+  order.push("ensure");
+  return { ran: true };
+});
+jest.mock("@/lib/integrations/sm8-hooks", () => {
+  hooksLoaded = true;
+  return {
+    markSm8RotationOwed: (...a: unknown[]) => markSm8RotationOwed(...(a as [string, string | null])),
+    ensureSm8Webhooks: (...a: unknown[]) => ensureSm8Webhooks(...(a as [string, { budgetMs: number }])),
+  };
+});
+
+import { GET, maxDuration } from "../callback/route";
+import { runSm8SyncWhenFree } from "@/lib/integrations/sm8-sync";
 
 const TOKENS = { accessToken: "at", refreshToken: "rt", scope: "vendor", expiresIn: 3600 };
 const acme = { uuid: "v-1", name: "Acme Air", email: null, timezoneName: "Australia/Brisbane", currency: "AUD" };
@@ -243,5 +260,116 @@ describe("an account ServiceM8 wouldn't name", () => {
     expect(fetchSm8Vendor).toHaveBeenCalledTimes(1);
     expect(where(res)).toBe(`${SCREEN}?error=billing`);
     expect(saveSm8Connection).not.toHaveBeenCalled();
+  });
+});
+
+describe("live updates (two-way phase 4)", () => {
+  const env = { ...process.env };
+  const slice = runSm8SyncWhenFree as jest.Mock;
+  let clock = 0;
+  const behind = async () => {
+    expect(afterFn).toHaveBeenCalledTimes(1);
+    await (afterFn.mock.calls[0][0] as () => Promise<unknown>)();
+  };
+  beforeEach(() => {
+    clock = Date.parse("2026-09-28T00:00:00.000Z");
+    jest.spyOn(Date, "now").mockImplementation(() => clock);
+    markSm8RotationOwed.mockClear();
+    ensureSm8Webhooks.mockClear();
+    slice.mockReset().mockImplementation(async () => void order.push("slice"));
+  });
+  afterEach(() => {
+    process.env = { ...env };
+    jest.restoreAllMocks();
+  });
+  const on = () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+  };
+
+  it("has the platform's whole 300 s", () => {
+    expect(maxDuration).toBe(300);
+  });
+
+  /* first: the module registry keeps a module once any test loads it */
+  it("off or gone: nothing is marked or loaded, and behind the response is today's slice alone", async () => {
+    for (const hooks of [undefined, "gone"]) {
+      process.env.VERCEL_ENV = "production";
+      if (hooks === undefined) delete process.env.SM8_WEBHOOKS;
+      else process.env.SM8_WEBHOOKS = hooks;
+      afterFn.mockClear();
+      order.length = 0;
+      fetchSm8Vendor.mockResolvedValue({ ok: true, vendor: beta });
+      await GET(callback());
+      expect(order).toEqual(["save", "switch", "after"]);
+      await behind();
+      expect(order).toEqual(["save", "switch", "after", "slice"]);
+    }
+    expect(slice).toHaveBeenCalledWith("org-1", "connect");
+    expect(hooksLoaded).toBe(false);
+  });
+
+  it("on: a saved connect owes a rotation BEFORE the redirect; behind it, the slice, then the reconcile the mark makes rotate", async () => {
+    on();
+    const res = await GET(callback());
+    expect(where(res)).toBe(`${SCREEN}?connected=1`);
+    expect(order).toEqual(["save", "owe", "after"]);
+    expect(markSm8RotationOwed).toHaveBeenCalledWith("org-1", "v-1");
+    expect(ensureSm8Webhooks).not.toHaveBeenCalled();
+    clock += 100_000; // the slice took 100 s
+    await behind();
+    expect(order).toEqual(["save", "owe", "after", "slice", "ensure"]);
+    // what is left of 300 s, less the 20 s margin; not asked to rotate —
+    // the mark does that, so a mint another reconcile made after it counts
+    expect(ensureSm8Webhooks).toHaveBeenCalledWith("org-1", { budgetMs: 180_000 });
+  });
+
+  it("on: a change of account owes it for the new account, before the old copy is cleared", async () => {
+    on();
+    fetchSm8Vendor.mockResolvedValue({ ok: true, vendor: beta });
+    await GET(callback());
+    expect(order).toEqual(["save", "owe", "switch", "after"]);
+    expect(markSm8RotationOwed).toHaveBeenCalledWith("org-1", "v-2");
+  });
+
+  it("on: a nameless first connect marks what it can, and still reconciles behind the slice", async () => {
+    on();
+    readSm8Accounts.mockResolvedValue({ ok: true, connected: null, mirrored: null });
+    fetchSm8Vendor.mockResolvedValue({ ok: false, unauthorized: false });
+    await GET(callback());
+    expect(markSm8RotationOwed).toHaveBeenCalledWith("org-1", null);
+    await behind();
+    expect(ensureSm8Webhooks).toHaveBeenCalledWith("org-1", { budgetMs: expect.any(Number) });
+  });
+
+  it("on: under a minute left after the slice, no reconcile — the mark waits for a page load or the night", async () => {
+    on();
+    const quiet = jest.spyOn(console, "warn").mockImplementation(() => {});
+    await GET(callback());
+    clock += 221_000; // 280 - 221 = 59 s left
+    await behind();
+    expect(order).toEqual(["save", "owe", "after", "slice"]);
+    expect(ensureSm8Webhooks).not.toHaveBeenCalled();
+    quiet.mockRestore();
+  });
+
+  it("on: a reconcile that throws, or can't be loaded, never escapes the after()", async () => {
+    on();
+    const quiet = jest.spyOn(console, "error").mockImplementation(() => {});
+    ensureSm8Webhooks.mockRejectedValueOnce(new Error("boom"));
+    await GET(callback());
+    await expect(behind()).resolves.toBeUndefined();
+    expect(quiet).toHaveBeenCalled();
+    quiet.mockRestore();
+  });
+
+  it("on: a connect that saved nothing owes nothing", async () => {
+    on();
+    saveSm8Connection.mockResolvedValue({ ok: false, error: "x", elsewhere: true });
+    await GET(callback());
+    countConnectionsElsewhere.mockResolvedValue(1);
+    await GET(callback());
+    expect(markSm8RotationOwed).not.toHaveBeenCalled();
+    expect(afterFn).not.toHaveBeenCalled();
   });
 });

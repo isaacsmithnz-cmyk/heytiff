@@ -69,6 +69,9 @@ export type Servicem8ScreenProps = {
   /** The account this workspace was connected to before the current one,
       and when it was replaced; null when it never changed. */
   previousAccount?: { name: string | null; at: string } | null;
+  /** Live updates from ServiceM8, when they aren't working: the one line
+      that says so (sm8-hook-words). Absent while they work. */
+  liveUpdates?: string | null;
 };
 
 /** The files permission alone — what a deployment that sends files asks. */
@@ -143,6 +146,7 @@ export function Servicem8Screen({
   waitingLeave = 0,
   writeScopes = FILES_SCOPES,
   previousAccount = null,
+  liveUpdates = null,
 }: Servicem8ScreenProps) {
   const provider = providerById("servicem8")!;
   const router = useRouter();
@@ -374,6 +378,11 @@ export function Servicem8Screen({
 
             {/* when the mirror last moved: the card's width, under both columns */}
             {connected && sync && <SyncLine sync={sync} />}
+
+            {/* live updates from ServiceM8, only when they aren't working:
+                one sentence, the screen's own state word in the warning's
+                colour. Nothing at all while they work. */}
+            {connected && liveUpdates && <p className="int-tag warn">{liveUpdates}</p>}
 
             {!ready && (
               <div className="int-blocked">

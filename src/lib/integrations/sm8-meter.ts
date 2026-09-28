@@ -15,9 +15,15 @@
    - THE FLOORS ARE WHAT GIVE A SEND PRIORITY. The sync can never take the
      last 10 tokens and a read never the last 4, so a person's Send always
      finds room while a backfill walks beside it.
-   - THE DAILY CAPS STOP THE SYNC FIRST (12,000), then the reads (16,000),
-     then the writes (18,000), all under ServiceM8's 20,000. The sync's own
-     2,000 a day per workspace (DAILY_CALL_BUDGET) stays as it is.
+   - THE DAILY CAPS STOP LIVE UPDATES FIRST (10,000), then the sync
+     (12,000), then the reads (16,000), then the writes (18,000), all under
+     ServiceM8's 20,000. The sync's own 2,000 a day per workspace
+     (DAILY_CALL_BUDGET) stays as it is, and so does live updates' own
+     3,000 (sm8-hook-plan's HOOK_DAILY_BUDGET).
+   - LIVE UPDATES COME LAST (lane `hook`, two-way phase 4). Its floor is the
+     highest, so a press, a screen and the sync all find room before a
+     webhook's read-back does; the lane exists only while SM8_WEBHOOKS is on
+     (sm8-hooks-switch), and takes no turn otherwise.
    - A 429 IS SHARED. Whoever meets one records it (noteSm8Throttle), and
      every caller then waits out the cooldown instead of asking to be told
      again.
@@ -32,10 +38,11 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { SM8_PER_DAY } from "./sm8-write-plan";
+import { HOOK_METER_WAIT_MS } from "./sm8-hook-plan";
 
-/** Who is asking: a write a person pressed, a live read a screen needs, or
-    the sync's walk. */
-export type Sm8Lane = "write" | "read" | "sync";
+/** Who is asking: a write a person pressed, a live read a screen needs,
+    the sync's walk, or a webhook's read-back of the record it named. */
+export type Sm8Lane = "write" | "read" | "sync" | "hook";
 
 export const SM8_METER = {
   /** Tokens the bucket holds; refilled at `perSecond`. The worst 60 s is
@@ -43,9 +50,9 @@ export const SM8_METER = {
   burst: 20,
   perSecond: 2,
   /** Tokens each lane must leave behind. */
-  floor: { write: 0, read: 4, sync: 10 },
-  /** Calls each lane may make per UTC day, counted across all three. */
-  dayCap: { write: 18_000, read: 16_000, sync: 12_000 },
+  floor: { write: 0, read: 4, sync: 10, hook: 12 },
+  /** Calls each lane may make per UTC day, counted across all four. */
+  dayCap: { write: 18_000, read: 16_000, sync: 12_000, hook: 10_000 },
   /** The longest a caller sleeps for a turn before it is handed back.
       NONE FOR A WRITE: every call on that lane is made under a row's claim
       (the upload, the read-back after a 409, the check before a re-press),
@@ -54,7 +61,7 @@ export const SM8_METER = {
       an upload may start (sm8-write-plan's WRITE_SEND_BY_MS; the sum is
       pinned in sm8-meter.test). A refused write turn is handed back at
       once, and the queue waits out the counter's wait. */
-  maxWaitMs: { write: 0, read: 2_000, sync: 3_000 },
+  maxWaitMs: { write: 0, read: 2_000, sync: 3_000, hook: HOOK_METER_WAIT_MS },
   /** How long every caller holds off after a 429 of each kind. */
   cooldownMs: { minute: 60_000, day: 3_600_000 },
 } as const;

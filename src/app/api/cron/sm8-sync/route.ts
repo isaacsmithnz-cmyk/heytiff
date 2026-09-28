@@ -8,8 +8,18 @@ import {
   runSm8Writes,
 } from "@/lib/integrations/sm8-writes";
 import { WRITE_LEASE_MARGIN_MS, WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
+import { SYNC_LEASE_MS, whenSm8LeaseFree } from "@/lib/integrations/sm8-lease";
+import {
+  BACKSTOP_DRAIN_MS,
+  ENSURE_BUDGET_MS,
+  ENSURE_FINISH_MARGIN_MS,
+  HOOK_LEASE_MS,
+  functionDeadline,
+} from "@/lib/integrations/sm8-hook-plan";
+import { sm8WebhooksState } from "@/lib/integrations/sm8-hooks-switch";
 import { sm8NotesAllowed } from "@/lib/integrations/sm8-kinds";
 import { NOTE_TEXT_DAYS } from "@/lib/integrations/sm8-note-plan";
+import { EVICT_BUDGET_MS, evictStaleSm8Files, type EvictResult } from "@/lib/integrations/sm8-file-cache";
 
 /* The nightly ServiceM8 top-up — the BACKSTOP, not the primary path.
 
@@ -76,8 +86,12 @@ const CRON_WRITE_BUDGET_MS = 30_000;
 /** A workspace's sync starts only while one of its leases (120 s) and a
     margin still fit before maxDuration; one that doesn't waits for the next
     night, first in line (sweepableSm8Orgs is least-recently-swept first). */
-const SYNC_LEASE_MS = 120_000;
 const CRON_SYNC_START_BY_MS = maxDuration * 1000 - SYNC_LEASE_MS - WRITE_LEASE_MARGIN_MS;
+
+/** A workspace whose lease is held is tried this many times, this far
+    apart, before it counts as busy for the night. */
+const CRON_SYNC_TRIES = 12;
+const CRON_SYNC_WAIT_MS = 2_000;
 
 /** THE WRITES' ONE BUDGET, across every workspace, counted from the start
     of the request. Writes go FIRST, so a file waiting since yesterday isn't
@@ -102,6 +116,123 @@ const CRON_WRITE_TOTAL_MS = CRON_SYNC_START_BY_MS - WRITE_LEASE_MS;
     waits for the next page load or the next night. Nothing it does is
     sent to ServiceM8. */
 const CRON_SETTLE_MARGIN_MS = WRITE_LEASE_MARGIN_MS;
+
+/** LIVE UPDATES' NIGHTLY RECONCILE (two-way phase 4), between the note
+    clearing and the syncs: one list per swept workspace, plus whatever
+    repair it finds — a turned-off subscription re-POSTed, a missing one
+    made, a rotation a connect left owed. The whole step has
+    ENSURE_BUDGET_MS, and a workspace's starts only while that much still
+    ends before the first sync's start-by, so it can never put a sync off.
+    What doesn't fit goes on a page load or the next night. Then the hooks
+    past their 72 hours are tidied away. Only with SM8_WEBHOOKS on: off,
+    the machinery isn't loaded and the answer is as it was. */
+type HookNight = { ensured: number; subscribed: number; deferred: number; failed: number; expired: number };
+
+async function reconcileHooks(orgs: readonly string[], startedAt: number): Promise<HookNight> {
+  const { dropExpiredSm8Hooks, ensureSm8Webhooks } = await import("@/lib/integrations/sm8-hooks");
+  const night: HookNight = { ensured: 0, subscribed: 0, deferred: 0, failed: 0, expired: 0 };
+  /* less the margin each reconcile's own last writes need */
+  const stepEnd = Math.min(Date.now() + ENSURE_BUDGET_MS, startedAt + CRON_SYNC_START_BY_MS) - ENSURE_FINISH_MARGIN_MS;
+  for (const orgId of orgs) {
+    const now = Date.now();
+    if (now - startedAt + ENSURE_BUDGET_MS > CRON_SYNC_START_BY_MS || now >= stepEnd) {
+      night.deferred += 1;
+      continue;
+    }
+    const out = await ensureSm8Webhooks(orgId, { budgetMs: stepEnd - now });
+    if (!out.ran) {
+      if (out.why === "failed") night.failed += 1;
+      continue;
+    }
+    night.ensured += 1;
+    if (out.subscribed) night.subscribed += 1;
+  }
+  night.expired = await dropExpiredSm8Hooks(Date.now());
+  return night;
+}
+
+/** The asks' own time, kept back from the leftover drains: however many
+    workspaces have a queue, the settle after them still gets this much. */
+const CRON_ASKS_RESERVE_MS = 20_000;
+
+/** LIVE UPDATES' LEFTOVER DRAINS (two-way phase 4), after every sync:
+    whatever the route's own drains left in a swept workspace's queue is
+    read, BACKSTOP_DRAIN_MS each, never sleeping for a record to go quiet.
+    THE WHOLE STEP HAS ONE BUDGET, and it keeps back what comes after it:
+    the file cache's EVICT_BUDGET_MS, the asks' CRON_ASKS_RESERVE_MS and
+    their margin. A workspace's drain starts only while its 20 s still end
+    inside that, and never once a whole hook lease (HOOK_LEASE_MS) no longer
+    fits before the function's deadline. After the syncs, so a drain never
+    holds the lease a sync wants; a drain that finds a sync asking stands
+    aside anyway. Only with SM8_WEBHOOKS on: off, the machinery isn't loaded
+    and the answer is as it was. */
+type DrainNight = { drained: number; read: number; written: number; handed: number; deferred: number; failed: number };
+
+async function leftoverDrains(orgs: readonly string[], startedAt: number): Promise<DrainNight> {
+  const { drainSm8Hooks } = await import("@/lib/integrations/sm8-hook-drain");
+  const night: DrainNight = { drained: 0, read: 0, written: 0, handed: 0, deferred: 0, failed: 0 };
+  const deadline = functionDeadline(startedAt, maxDuration);
+  const stepEnd = startedAt + maxDuration * 1000 - CRON_SETTLE_MARGIN_MS - EVICT_BUDGET_MS - CRON_ASKS_RESERVE_MS;
+  const lastStart = Math.min(stepEnd - BACKSTOP_DRAIN_MS, deadline - HOOK_LEASE_MS);
+  for (const orgId of orgs) {
+    if (Date.now() > lastStart) {
+      night.deferred += 1;
+      continue;
+    }
+    try {
+      const out = await drainSm8Hooks(orgId, {
+        deadline,
+        maxMs: BACKSTOP_DRAIN_MS,
+        wait: false,
+      });
+      if (out.ran) night.drained += 1;
+      if (out.stopped === "threw" || out.stopped === "db") night.failed += 1;
+      night.read += out.read;
+      night.written += out.written;
+      night.handed += out.handed;
+    } catch {
+      night.failed += 1;
+    }
+  }
+  return night;
+}
+
+/** LIVE UPDATES' HEALTH (two-way phase 4, PR F), after the syncs, so the
+    day's edits are in the mirror: for each swept workspace, whether pings
+    stopped while its records went on changing (sm8-hooks'
+    checkSm8HooksQuiet). A quiet one is marked for the owner's screen and
+    reconciled. The whole step has ENSURE_BUDGET_MS and, like the drains,
+    ends while the eviction, the asks' reserve and their margin still have
+    their time; a workspace it doesn't reach is checked the next night.
+    Only with SM8_WEBHOOKS on: off, the machinery isn't loaded, nothing is
+    read, and the answer is as it was. */
+type HookHealthNight = { checked: number; quiet: number; unwell: number; ensured: number; deferred: number };
+
+async function checkHooksHealth(orgs: readonly string[], startedAt: number): Promise<HookHealthNight> {
+  const { checkSm8HooksQuiet } = await import("@/lib/integrations/sm8-hooks");
+  const night: HookHealthNight = { checked: 0, quiet: 0, unwell: 0, ensured: 0, deferred: 0 };
+  /* it keeps back what comes after it, as the drains do: the eviction, the
+     asks' own reserve and their margin */
+  const stepEnd =
+    Math.min(
+      Date.now() + ENSURE_BUDGET_MS,
+      startedAt + maxDuration * 1000 - CRON_SETTLE_MARGIN_MS - EVICT_BUDGET_MS - CRON_ASKS_RESERVE_MS
+    ) - ENSURE_FINISH_MARGIN_MS;
+  for (const orgId of orgs) {
+    const now = Date.now();
+    if (now >= stepEnd) {
+      night.deferred += 1;
+      continue;
+    }
+    const out = await checkSm8HooksQuiet(orgId, { budgetMs: stepEnd - now });
+    if (out.state === "unread" || out.state === "settling") continue;
+    night.checked += 1;
+    if (out.state === "quiet") night.quiet += 1;
+    else if (out.state !== "ok") night.unwell += 1;
+    if (out.ensured) night.ensured += 1;
+  }
+  return night;
+}
 
 /** Whether Vercel's scheduler made this call, rather than a person. */
 function fromScheduler(request: Request): boolean {
@@ -165,6 +296,13 @@ export async function GET(request: Request) {
      costs a lease dance. */
   const orgs = await sweepableSm8Orgs(ORG_CAP);
 
+  const hooks =
+    sm8WebhooksState() === "on"
+      ? await reconcileHooks(orgs, startedAt).catch(
+          (): HookNight => ({ ensured: 0, subscribed: 0, deferred: 0, failed: orgs.length, expired: 0 })
+        )
+      : null;
+
   let ran = 0;
   let busy = 0;
   let completed = 0;
@@ -184,7 +322,14 @@ export async function GET(request: Request) {
       /* the scheduler came: recorded BEFORE the sync, so a night where
          another sync held the lease still counts as the overnight run */
       if (scheduled) await recordSm8CronVisit(orgId, Date.now());
-      const outcome = await runSm8Sync(orgId, "cron");
+      /* A workspace whose lease is held gets a few more tries, each asking
+         for it (so a drain holding it stands aside), rather than missing
+         its night; never past the start-by. Its sync may extend its lease
+         while a whole one still ends inside this function. */
+      const outcome = await whenSm8LeaseFree(
+        () => runSm8Sync(orgId, "cron", Date.now(), { deadline: functionDeadline(startedAt, maxDuration) }),
+        { tries: CRON_SYNC_TRIES, waitMs: CRON_SYNC_WAIT_MS, startBy: startedAt + CRON_SYNC_START_BY_MS }
+      );
       if (outcome.ran) {
         ran += 1;
         pages += outcome.pagesUsed;
@@ -197,6 +342,34 @@ export async function GET(request: Request) {
       failed += 1;
     }
   }
+
+  /* The leftover drains, after every sync (leftoverDrains). */
+  const drains = sm8WebhooksState() === "on" ? await leftoverDrains(orgs, startedAt) : null;
+
+  /* Live updates' health, after the drains (HookHealthNight). */
+  const hookHealth =
+    sm8WebhooksState() === "on"
+      ? await checkHooksHealth(orgs, startedAt).catch(
+          (): HookHealthNight => ({ checked: 0, quiet: 0, unwell: 0, ensured: 0, deferred: orgs.length })
+        )
+      : null;
+
+  /* THE FILE CACHE'S 30-DAY CAP (lib/integrations/sm8-file-cache): copies
+     of ServiceM8's own files nobody has been shown in 30 days leave the
+     bucket, and the next open brings them back. Starred photos stay; no
+     other kind of document is ever read here. AFTER THE SYNCS, because
+     eviction is housekeeping and a sync is what the board is true by; and
+     before the asks, on at most EVICT_BUDGET_MS of what is left of the
+     window (the clock looked at before every file), so the asks keep the
+     rest. Nothing left, and it waits for tomorrow. It never throws. */
+  const evictBudgetMs = Math.min(
+    EVICT_BUDGET_MS,
+    startedAt + maxDuration * 1000 - CRON_SETTLE_MARGIN_MS - Date.now()
+  );
+  const files: EvictResult =
+    evictBudgetMs > 0
+      ? await evictStaleSm8Files(Date.now(), { budgetMs: evictBudgetMs })
+      : { evicted: 0, bytes: 0, starred: 0, failed: 0, capped: false, skipped: true };
 
   /* The asks, after every sync (CRON_SETTLE_MARGIN_MS). */
   let asksRead = 0;
@@ -231,6 +404,17 @@ export async function GET(request: Request) {
     capped: orgs.length === ORG_CAP,
     writes: { orgs: writers.length, sent: writesSent, failed: writesFailed, deferred: writesDeferred },
     ...(sm8NotesAllowed() ? { notesCleared } : {}),
+    ...(hooks ? { hooks } : {}),
+    ...(drains ? { drains } : {}),
+    ...(hookHealth ? { hookHealth } : {}),
     asks: { read: asksRead, tasks: asksMade, deferred: asksDeferred },
+    files: {
+      evicted: files.evicted,
+      mb: Math.round(files.bytes / 104857.6) / 10,
+      starred: files.starred,
+      failed: files.failed,
+      capped: files.capped,
+      skipped: files.skipped,
+    },
   });
 }

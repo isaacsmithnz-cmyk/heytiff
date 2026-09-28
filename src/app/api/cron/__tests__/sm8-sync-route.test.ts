@@ -57,6 +57,70 @@ jest.mock("@/lib/dashboard/mention-settle", () => ({
   }),
 }));
 
+/* The file cache's 30-day cap (lib/integrations/sm8-file-cache, tested there). */
+const evictBudgets: (number | undefined)[] = [];
+/** The file cache's budget, as the route reads it (a getter, so a test can
+    move it). */
+let evictBudgetMs = 20_000;
+jest.mock("@/lib/integrations/sm8-file-cache", () => ({
+  get EVICT_BUDGET_MS() {
+    return evictBudgetMs;
+  },
+  evictStaleSm8Files: jest.fn(async (_now: number, opts: { budgetMs?: number } = {}) => {
+    events.push("evict");
+    evictBudgets.push(opts.budgetMs);
+    return { evicted: 3, bytes: 3 * 1_048_576, starred: 1, failed: 0, capped: false, skipped: false };
+  }),
+}));
+
+/* Live updates' nightly reconcile (two-way phase 4): loaded only with
+   SM8_WEBHOOKS on, so its factory running is itself the proof. */
+let hooksLoaded = false;
+const ensured: { org: string; budgetMs: number }[] = [];
+let ensureTakes: number[] = [];
+jest.mock("@/lib/integrations/sm8-hooks", () => {
+  hooksLoaded = true;
+  return {
+    ensureSm8Webhooks: jest.fn(async (org: string, opts: { budgetMs: number }) => {
+      events.push(`ensure:${org}`);
+      ensured.push({ org, budgetMs: opts.budgetMs });
+      clock += ensureTakes.shift() ?? 0;
+      return { ran: true, rotated: false, posted: 0, deleted: 0, subscribed: true, stopped: null };
+    }),
+    dropExpiredSm8Hooks: jest.fn(async () => {
+      events.push("expire");
+      return 1;
+    }),
+    checkSm8HooksQuiet: jest.fn(async (org: string, opts: { budgetMs: number }) => {
+      events.push(`health:${org}`);
+      checked.push({ org, budgetMs: opts.budgetMs });
+      clock += healthTakes.shift() ?? 0;
+      return healthAnswers.shift() ?? { state: "ok", counted: true, ensured: false };
+    }),
+  };
+});
+/* the nightly health check (PR F) */
+const checked: { org: string; budgetMs: number }[] = [];
+let healthTakes: number[] = [];
+let healthAnswers: { state: string; counted: boolean; ensured: boolean }[] = [];
+
+/* Live updates' leftover drains (two-way phase 4, PR D): loaded only with
+   SM8_WEBHOOKS on, the same way. */
+let drainLoaded = false;
+const drained: { org: string; opts: { deadline: number; maxMs: number; wait: boolean } }[] = [];
+let drainTakes: number[] = [];
+jest.mock("@/lib/integrations/sm8-hook-drain", () => {
+  drainLoaded = true;
+  return {
+    drainSm8Hooks: jest.fn(async (org: string, opts: { deadline: number; maxMs: number; wait: boolean }) => {
+      events.push(`drain:${org}`);
+      drained.push({ org, opts });
+      clock += drainTakes.shift() ?? 0;
+      return { ran: true, read: 3, written: 2, handed: 1, dropped: 0, stopped: null };
+    }),
+  };
+});
+
 import { GET, maxDuration } from "../sm8-sync/route";
 import { WRITE_LEASE_MS } from "@/lib/integrations/sm8-write-plan";
 
@@ -81,6 +145,7 @@ beforeEach(() => {
   settleMentionAsks.mockClear();
   settled.length = 0;
   settleTakes = [];
+  evictBudgets.length = 0;
   jest.spyOn(Date, "now").mockImplementation(() => clock);
   jest.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -249,5 +314,279 @@ describe("the asks", () => {
     authorised = false;
     await GET(byScheduler());
     expect(settleMentionAsks).not.toHaveBeenCalled();
+  });
+});
+
+describe("the file cache's 30-day cap", () => {
+  it("runs once a night, after every sync and before the asks, and says what it took", async () => {
+    const body = await (await GET(byScheduler())).json();
+    expect(events.filter((e) => e === "evict")).toHaveLength(1);
+    expect(events.indexOf("evict")).toBeGreaterThan(events.map((e) => e.startsWith("sync:")).lastIndexOf(true));
+    expect(events.indexOf("evict")).toBeLessThan(events.findIndex((e) => e.startsWith("asks:")));
+    expect(body.files).toEqual({ evicted: 3, mb: 3, starred: 1, failed: 0, capped: false, skipped: false });
+  });
+
+  it("takes at most its own budget, and never the asks' margin", async () => {
+    await GET(byScheduler());
+    expect(evictBudgets).toEqual([20_000]);
+
+    /* the syncs left 25 s: the eviction may have 10 of them, the asks' 15 s margin kept */
+    events.length = 0;
+    evictBudgets.length = 0;
+    clock = Date.parse("2026-09-25T20:00:00Z");
+    syncTakes = [275_000];
+    await GET(byScheduler());
+    expect(evictBudgets).toEqual([10_000]);
+  });
+
+  it("waits for tomorrow when the syncs spent the window", async () => {
+    syncTakes = [290_000];
+    const body = await (await GET(byScheduler())).json();
+    expect(events).not.toContain("evict");
+    expect(body.files).toMatchObject({ evicted: 0, skipped: true });
+  });
+
+  it("evicts nothing on a call that doesn't pass CRON_SECRET", async () => {
+    authorised = false;
+    await GET(byScheduler());
+    expect(events).not.toContain("evict");
+  });
+});
+
+/* Two-way phase 4, PR B: a workspace whose lease is held no longer misses
+   its night. Its sync asks for the lease and is tried again (12 × 2 s,
+   never past the start-by); only what is still busy after that is busy. */
+describe("a workspace whose lease is held", () => {
+  const { SM8_SYNC_BUSY } = jest.requireActual("@/lib/integrations/sm8-lease") as { SM8_SYNC_BUSY: string };
+  const busy = { ran: false, note: SM8_SYNC_BUSY, pagesUsed: 0, rowsPulled: 0, complete: false };
+
+  beforeEach(() => jest.useFakeTimers({ doNotFake: ["Date"] }));
+  afterEach(() => jest.useRealTimers());
+
+  it("is tried again, and syncs once the lease is given back", async () => {
+    runSm8Sync.mockResolvedValueOnce(busy);
+    const pending = GET(byScheduler());
+    await jest.advanceTimersByTimeAsync(2_000);
+    const body = await (await pending).json();
+    expect(runSm8Sync).toHaveBeenCalledTimes(3);
+    expect(body).toMatchObject({ ran: 2, busy: 0 });
+  });
+
+  it("is busy only after its last try, and each sync may run until the function's own deadline", async () => {
+    for (let i = 0; i < 24; i++) runSm8Sync.mockResolvedValueOnce(busy);
+    const pending = GET(byScheduler());
+    await jest.advanceTimersByTimeAsync(2 * 11 * 2_000);
+    const body = await (await pending).json();
+    expect(runSm8Sync).toHaveBeenCalledTimes(24);
+    expect(body).toMatchObject({ ran: 0, busy: 2 });
+    // 300 s less the 20 s margin, from the request's start
+    expect(runSm8Sync.mock.calls[0][3]).toEqual({ deadline: Date.parse("2026-09-25T20:00:00Z") + 280_000 });
+  });
+});
+
+describe("live updates' nightly reconcile (two-way phase 4)", () => {
+  const env = { ...process.env };
+  beforeEach(() => {
+    ensured.length = 0;
+    ensureTakes = [];
+  });
+  afterEach(() => {
+    process.env = { ...env };
+  });
+  const on = () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+  };
+  /** The first sync's start-by: 300 s less a sync lease (120 s) and the margin (15 s). */
+  const START_BY = 165_000;
+
+  /* first: the module registry keeps a module once any test loads it */
+  it("off or gone: the night is as it was, nothing loaded, nothing added to the answer", async () => {
+    for (const hooks of [undefined, "gone"]) {
+      process.env.VERCEL_ENV = "production";
+      if (hooks === undefined) delete process.env.SM8_WEBHOOKS;
+      else process.env.SM8_WEBHOOKS = hooks;
+      const body = await (await GET(byScheduler())).json();
+      expect(body).not.toHaveProperty("hooks");
+      expect(body).not.toHaveProperty("hookHealth");
+    }
+    expect(hooksLoaded).toBe(false);
+    expect(events.some((e) => e.startsWith("ensure"))).toBe(false);
+    expect(drainLoaded).toBe(false);
+    expect(events.some((e) => e.startsWith("drain"))).toBe(false);
+    expect(events.some((e) => e.startsWith("health"))).toBe(false);
+  });
+
+  it("on: one reconcile per swept workspace after the writes and before any sync, then the expired hooks go", async () => {
+    on();
+    const body = await (await GET(byScheduler())).json();
+    const firstSync = events.findIndex((e) => e.startsWith("sync:"));
+    const lastWrite = events.map((e) => e.startsWith("writes:")).lastIndexOf(true);
+    expect(events.slice(lastWrite + 1, firstSync)).toEqual(["ensure:s1", "ensure:s2", "expire", "visit:s1"]);
+    expect(body.hooks).toEqual({ ensured: 2, subscribed: 2, deferred: 0, failed: 0, expired: 1 });
+  });
+
+  it("on: the whole step has 30 s between its workspaces", async () => {
+    on();
+    ensureTakes = [12_000];
+    await GET(byScheduler());
+    // 30 s less the 2 s each reconcile's last writes keep
+    expect(ensured).toEqual([
+      { org: "s1", budgetMs: 28_000 },
+      { org: "s2", budgetMs: 16_000 },
+    ]);
+  });
+
+  it("on: never starts a workspace past the first sync's start-by less 30 s", async () => {
+    on();
+    const started = clock;
+    // the writes run until exactly the last moment a reconcile may start
+    takes = [START_BY - 30_000];
+    ensureTakes = [1];
+    const body = await (await GET(byScheduler())).json();
+    expect(ensured).toEqual([{ org: "s1", budgetMs: 28_000 }]);
+    expect(body.hooks).toMatchObject({ ensured: 1, deferred: 1 });
+    // and past it, none
+    ensured.length = 0;
+    clock = started;
+    takes = [START_BY - 30_000 + 1];
+    const later = await (await GET(byScheduler())).json();
+    expect(ensured).toEqual([]);
+    expect(later.hooks).toMatchObject({ ensured: 0, deferred: 2 });
+    // the syncs themselves are untouched by it
+    expect(events.filter((e) => e.startsWith("sync:")).length).toBeGreaterThan(0);
+  });
+});
+
+describe("live updates' leftover drains (two-way phase 4, PR D)", () => {
+  const env = { ...process.env };
+  beforeEach(() => {
+    drained.length = 0;
+    drainTakes = [];
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+  });
+  afterEach(() => {
+    process.env = { ...env };
+  });
+
+  it("drain each swept workspace for 20 s after every sync, never sleeping, bound by the function", async () => {
+    const started = clock;
+    const body = await (await GET(byScheduler())).json();
+    const lastSync = events.map((e) => e.startsWith("sync:")).lastIndexOf(true);
+    expect(events.slice(lastSync + 1, lastSync + 3)).toEqual(["drain:s1", "drain:s2"]);
+    expect(events.indexOf("drain:s2")).toBeLessThan(events.indexOf("evict"));
+    for (const d of drained) expect(d.opts).toEqual({ deadline: started + 280_000, maxMs: 20_000, wait: false });
+    expect(body.drains).toEqual({ drained: 2, read: 6, written: 4, handed: 2, deferred: 0, failed: 0 });
+    // and a sync is never started from one
+    expect(runSm8Sync).toHaveBeenCalledTimes(2);
+  });
+
+  afterEach(() => {
+    evictBudgetMs = 20_000;
+  });
+
+  it("start a workspace's only while its 20 s leave the eviction, the asks and their margin their time", async () => {
+    // 300 s less the 15 s margin, the 20 s eviction and the asks' 20 s,
+    // less the drain's own 20 s: the last start is 225 s in
+    syncTakes = [0, 225_000];
+    let body = await (await GET(byScheduler())).json();
+    expect(drained.map((d) => d.org)).toEqual(["s1", "s2"]);
+    drained.length = 0;
+    clock = Date.parse("2026-09-25T20:00:00Z");
+    syncTakes = [0, 225_001];
+    body = await (await GET(byScheduler())).json();
+    expect(drained).toEqual([]);
+    expect(body.drains).toMatchObject({ drained: 0, deferred: 2 });
+  });
+
+  it("share one budget: a slow first drain puts the second off, and the eviction and the asks still have theirs", async () => {
+    // the first starts 210 s in, inside the step, and takes its whole 20 s
+    syncTakes = [0, 210_000];
+    drainTakes = [20_000];
+    const started = clock;
+    const body = await (await GET(byScheduler())).json();
+    expect(drained.map((d) => d.org)).toEqual(["s1"]);
+    expect(body.drains).toMatchObject({ drained: 1, deferred: 1 });
+    // 230 s in: the eviction gets its whole 20 s, and the asks start with 55 s
+    expect(clock - started).toBe(230_000);
+    expect(evictBudgets).toEqual([20_000]);
+    expect(settled[0]).toEqual({ org: "s1", budgetMs: 300_000 - 15_000 - 230_000 });
+  });
+
+  it("never start once a whole hook lease no longer fits before the function's deadline", async () => {
+    // with no eviction the step would allow 245 s; the lease allows 280 - 45 = 235 s
+    evictBudgetMs = 0;
+    syncTakes = [0, 235_000];
+    await GET(byScheduler());
+    expect(drained.map((d) => d.org)).toEqual(["s1", "s2"]);
+    drained.length = 0;
+    clock = Date.parse("2026-09-25T20:00:00Z");
+    syncTakes = [0, 235_001];
+    const body = await (await GET(byScheduler())).json();
+    expect(drained).toEqual([]);
+    expect(body.drains).toMatchObject({ deferred: 2 });
+  });
+});
+
+describe("live updates' nightly health check (two-way phase 4, PR F)", () => {
+  const env = { ...process.env };
+  beforeEach(() => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    checked.length = 0;
+    healthTakes = [];
+    healthAnswers = [];
+  });
+  afterEach(() => {
+    process.env = { ...env };
+  });
+  /** start + maxDuration less what comes after the step: the asks' margin
+      (15 s), the eviction (20 s) and the asks' own reserve (20 s) */
+  const WINDOW = 245_000;
+
+  it("checks each swept workspace after every sync and the drains, before the eviction and the asks, and counts what it found", async () => {
+    healthAnswers = [
+      { state: "quiet", counted: true, ensured: true },
+      { state: "partial", counted: false, ensured: false },
+    ];
+    const body = await (await GET(byScheduler())).json();
+    const lastSync = events.map((e) => e.startsWith("sync:")).lastIndexOf(true);
+    expect(events.slice(lastSync + 1, events.indexOf("evict"))).toEqual(["drain:s1", "drain:s2", "health:s1", "health:s2"]);
+    expect(events.indexOf("evict")).toBeLessThan(events.findIndex((e) => e.startsWith("asks:")));
+    expect(body.hookHealth).toEqual({ checked: 2, quiet: 1, unwell: 1, ensured: 1, deferred: 0 });
+  });
+
+  it("doesn't count a workspace still settling, or one it couldn't read, as checked", async () => {
+    healthAnswers = [
+      { state: "settling", counted: false, ensured: false },
+      { state: "unread", counted: false, ensured: false },
+    ];
+    const body = await (await GET(byScheduler())).json();
+    expect(body.hookHealth).toEqual({ checked: 0, quiet: 0, unwell: 0, ensured: 0, deferred: 0 });
+  });
+
+  it("gives the whole step 30 s, less the 2 s a reconcile's last writes keep", async () => {
+    healthTakes = [10_000];
+    await GET(byScheduler());
+    expect(checked).toEqual([
+      { org: "s1", budgetMs: 28_000 },
+      { org: "s2", budgetMs: 18_000 },
+    ]);
+  });
+
+  it("leaves the eviction and the asks their time, as the drains do, and a workspace it doesn't reach waits for the next night", async () => {
+    const started = clock;
+    // the first sync runs until 15 s before the step's end
+    syncTakes = [WINDOW - 15_000];
+    healthTakes = [13_000];
+    const body = await (await GET(byScheduler())).json();
+    // 15 s left, less the 2 s a reconcile's last writes keep
+    expect(checked).toEqual([{ org: "s1", budgetMs: 13_000 }]);
+    expect(body.hookHealth).toMatchObject({ checked: 1, deferred: 1 });
+    // the eviction still gets its whole 20 s, and the asks come after it
+    expect(evictBudgets).toEqual([20_000]);
+    expect(settled[0]).toEqual({ org: "s1", budgetMs: 300_000 - 15_000 - (WINDOW - 2_000) });
+    expect(clock - started).toBe(WINDOW - 2_000);
   });
 });

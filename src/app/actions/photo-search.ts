@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { requireOrg } from "@/lib/permissions-server";
 import { DOCUMENTS_BUCKET, SIGNED_URL_SECONDS } from "@/lib/documents/query";
 import { sm8Ours, withoutOurs } from "@/lib/integrations/sm8-echo";
+import { touchSm8Files } from "@/lib/integrations/sm8-file-cache";
 import {
   PHOTO_SEARCH_LIMIT,
   parsePhotoQuery,
@@ -238,9 +239,14 @@ async function attachUrls(orgId: string, hits: PhotoHit[]): Promise<void> {
   );
   if (refOf.size === 0) return;
 
-  const { data: signed } = await supabaseAdmin.storage
-    .from(DOCUMENTS_BUCKET)
-    .createSignedUrls([...new Set(refOf.values())], SIGNED_URL_SECONDS);
+  /* A hit shown is a copy shown: marked beside the signing, so a photo
+     somebody keeps finding isn't evicted (lib/integrations/sm8-file-cache). */
+  const [{ data: signed }] = await Promise.all([
+    supabaseAdmin.storage
+      .from(DOCUMENTS_BUCKET)
+      .createSignedUrls([...new Set(refOf.values())], SIGNED_URL_SECONDS),
+    touchSm8Files(orgId, [...refOf.keys()]),
+  ]);
   const urlOf = new Map<string, string>();
   for (const row of signed ?? []) {
     if (row.path && row.signedUrl) urlOf.set(row.path, row.signedUrl);

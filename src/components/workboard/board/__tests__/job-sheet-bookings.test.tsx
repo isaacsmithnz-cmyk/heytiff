@@ -15,6 +15,8 @@ import type { JobCardRead, JobBookings, JobRecordRead } from "@/app/actions/work
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 import type { BookingLineResult, BookingStates, VerbView } from "@/app/actions/booking-sm8";
 import { BOOKING_WORDS, type BookingState } from "@/lib/integrations/sm8-booking-plan";
+import { STALE_DEPLOY_WORDS } from "@/lib/stale-deploy";
+import { UnrecognizedActionError } from "next/dist/client/components/unrecognized-action-error";
 
 const readMirrorJob = jest.fn(async (): Promise<JobCardRead> => ({ detail: null, focusRemoteId: null }));
 const readJobRecord = jest.fn(async (): Promise<JobRecordRead | null> => null);
@@ -357,6 +359,37 @@ describe("a line's doors (D-5)", () => {
     await userEvent.click(visits().getByRole("button", { name: BOOKING_WORDS.door.lookAgain }));
     await visits().findByRole("group", { name: "Book in job 3342" });
     expect(bk.readBookInContext).toHaveBeenCalledWith({ jobUuid: JOB, days: ["2026-10-08"] });
+  });
+
+  /* The walk of 2026-09-28: a tab open across a deploy pressed Cancel, the
+     server had no such action any more, and the card said "couldn't queue
+     it. Try again", which no try could make true. */
+  it("(F) a Cancel from a tab older than the deploy says to reload, never to try again", async () => {
+    const failed: BookingState = { key: "line.notSent", text: "Not booked. ServiceM8 refused the booking.", tone: "bad", acts: ["try_again", "cancel"] };
+    const v = ourVerb(failed);
+    v.bookings[0] = { ...v.bookings[0], uuid: NOT_YET, standing: false };
+    readJobRecord.mockResolvedValue(record(bookings({ verbs: [v] })));
+    bk.takeBackBooking.mockRejectedValue(
+      new UnrecognizedActionError('Server Action "7f00" was not found on the server. \nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action')
+    );
+    const onToast = jest.fn();
+    await open({ onToast });
+    await userEvent.click(await visits().findByRole("button", { name: BOOKING_WORDS.door.cancel }));
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith(STALE_DEPLOY_WORDS));
+    expect(onToast).not.toHaveBeenCalledWith(BOOKING_WORDS.press.unqueued);
+  });
+
+  it("a Cancel that fails any other way still says it couldn't queue it", async () => {
+    const failed: BookingState = { key: "line.notSent", text: "Not booked. ServiceM8 refused the booking.", tone: "bad", acts: ["try_again", "cancel"] };
+    const v = ourVerb(failed);
+    v.bookings[0] = { ...v.bookings[0], uuid: NOT_YET, standing: false };
+    readJobRecord.mockResolvedValue(record(bookings({ verbs: [v] })));
+    bk.takeBackBooking.mockRejectedValue(new Error("fetch failed"));
+    const onToast = jest.fn();
+    await open({ onToast });
+    await userEvent.click(await visits().findByRole("button", { name: BOOKING_WORDS.door.cancel }));
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith(BOOKING_WORDS.press.unqueued));
+    expect(onToast).not.toHaveBeenCalledWith(STALE_DEPLOY_WORDS);
   });
 
   it("a refused press says why, and a Try again answered Look again opens the panel", async () => {

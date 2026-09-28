@@ -9,7 +9,6 @@ import type {
   PlanImport,
   PlanImportSource,
 } from "@/lib/studio/document";
-import { pruneObjects, releaseRoomsFromSystems, removedRoomIds } from "@/lib/studio/attach";
 import { createPortal } from "react-dom";
 import {
   applyBuilderRows,
@@ -69,12 +68,16 @@ export function PlansPanel({
   doc,
   onMutate,
   onAddFloor,
+  onDeleteFloor,
   onOpenFloor,
   planImages,
 }: {
   doc: DesignDocument;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onAddFloor: () => void;
+  /** the Studio's one floor delete: the floor, its zones' claims, its
+      contents and its plan images */
+  onDeleteFloor: (id: string) => void;
   onOpenFloor: (id: string) => void;
   planImages: PlanImages;
 }) {
@@ -364,19 +367,6 @@ export function PlansPanel({
     }
   };
 
-  const removeFloor = (floor: Floor) => {
-    const keep = (o: DesignObject) => o.floorId !== floor.id;
-    onMutate((d) => ({
-      ...d,
-      floors: d.floors.filter((f) => f.id !== floor.id),
-      // cross-floor runs (risers) lose attaches to what went with the floor
-      systems: releaseRoomsFromSystems(d.systems, removedRoomIds(d.objects, keep)),
-      objects: pruneObjects(d.objects, keep),
-    }));
-    for (const sheet of floor.plans) {
-      void planImages.remove(sheet.imageRef).catch(() => {});
-    }
-  };
 
   const tray = pages ? trayPageIdxs(rows, chosen) : [];
 
@@ -779,7 +769,7 @@ export function PlansPanel({
                 onClick={() => {
                   if (armedDelete === f.id) {
                     setArmedDelete(null);
-                    removeFloor(f);
+                    onDeleteFloor(f.id);
                   } else {
                     setArmedDelete(f.id);
                   }

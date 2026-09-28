@@ -52,6 +52,7 @@ jest.mock("@/lib/dashboard/mention-settle", () => ({
 }));
 const runSm8Writes = jest.fn(async () => {
   order.push("writes");
+  clock += writesTake;
   return { done: 0, sent: 0, trial: 0, failed: 0, again: 0, lost: 0, stopped: null };
 });
 jest.mock("../sm8-sync", () => ({
@@ -63,6 +64,35 @@ jest.mock("../sm8-writes", () => ({
   sm8WritesDue: async () => due,
   sm8WritesEnabled: () => writing,
 }));
+
+/* Live updates (two-way phase 4): the subscribing module is loaded only
+   with SM8_WEBHOOKS on, so its factory running is itself the proof. */
+let hooksLoaded = false;
+let writesTake = 0;
+const ensureSm8WebhooksIfOwed = jest.fn(async (_org: string, _opts: { budgetMs: number }) => {
+  order.push("ensure");
+  return null;
+});
+jest.mock("../sm8-hooks", () => {
+  hooksLoaded = true;
+  return { ensureSm8WebhooksIfOwed: (...a: unknown[]) => ensureSm8WebhooksIfOwed(...(a as [string, { budgetMs: number }])) };
+});
+
+/* Live updates' page-load backstop (two-way phase 4, PR D): the drain is
+   loaded only with SM8_WEBHOOKS on, the same way. */
+let drainLoaded = false;
+let drainTakes = 0;
+const drainSm8Hooks = jest.fn(async (_org: string, _opts: { deadline: number; maxMs: number; wait: boolean }) => {
+  order.push("drain");
+  clock += drainTakes;
+  return { ran: true, read: 0, written: 0, handed: 0, dropped: 0, stopped: null };
+});
+jest.mock("../sm8-hook-drain", () => {
+  drainLoaded = true;
+  return {
+    drainSm8Hooks: (...a: unknown[]) => drainSm8Hooks(...(a as [string, { deadline: number; maxMs: number; wait: boolean }])),
+  };
+});
 
 import { freshenSm8AfterResponse } from "../sm8-freshness";
 
@@ -79,6 +109,10 @@ beforeEach(() => {
   writing = true;
   syncRan = true;
   syncTakes = 0;
+  writesTake = 0;
+  drainTakes = 0;
+  drainSm8Hooks.mockClear();
+  ensureSm8WebhooksIfOwed.mockClear();
   runSm8Sync.mockClear();
   runSm8Writes.mockClear();
   settleMentionAsks.mockClear();
@@ -108,7 +142,10 @@ describe("freshenSm8AfterResponse", () => {
     await behind();
     expect(order).toEqual(["writes", "sync", "asks"]);
     expect(runSm8Writes).toHaveBeenCalledWith("org-1", "kick", { budgetMs: 90_000 });
-    expect(runSm8Sync).toHaveBeenCalledWith("org-1", "kick");
+    // the page's function: the platform's 300 s, less the 20 s margin
+    expect(runSm8Sync).toHaveBeenCalledWith("org-1", "kick", clock, {
+      deadline: Date.parse("2026-09-25T00:00:00Z") + 280_000,
+    });
   });
 
   it("does neither when the mirror is fresh and nothing is due", async () => {
@@ -156,6 +193,63 @@ describe("freshenSm8AfterResponse", () => {
     expect(runSm8Sync).not.toHaveBeenCalled();
   });
 
+  /* Two-way phase 4, PR B: a kick that meets a DRAIN holding the lease asks
+     for it and tries again, 2 s apart — never starting a try once a whole
+     lease no longer fits the page's function, and only while the mirror is
+     still stale. Any other holder: busy at once, as before. */
+  describe("when the lease is held", () => {
+    const { SM8_SYNC_BUSY } = jest.requireActual("../sm8-lease") as { SM8_SYNC_BUSY: string };
+    const busy = { ran: false, note: SM8_SYNC_BUSY, pagesUsed: 0, rowsPulled: 0, complete: false, heldByHook: true };
+    const busySync = { ...busy, heldByHook: false };
+    beforeEach(() => jest.useFakeTimers({ doNotFake: ["Date"] }));
+    afterEach(() => jest.useRealTimers());
+
+    it("tries again, and syncs once it is given back", async () => {
+      runSm8Sync.mockResolvedValueOnce(busy as never);
+      freshenSm8AfterResponse("org-1");
+      const pending = scheduled[0]();
+      await jest.advanceTimersByTimeAsync(2_000);
+      await pending;
+      expect(runSm8Sync).toHaveBeenCalledTimes(2);
+      expect(order).toEqual(["writes", "sync", "asks"]);
+    });
+
+    it("starts no try past the last moment a lease still fits the function", async () => {
+      runSm8Sync.mockResolvedValueOnce(busy as never);
+      freshenSm8AfterResponse("org-1");
+      // 164 s in: this try fits, the next (2 s on) would not
+      clock += 164_000;
+      const pending = scheduled[0]();
+      await jest.advanceTimersByTimeAsync(20_000);
+      await pending;
+      expect(runSm8Sync).toHaveBeenCalledTimes(1);
+      expect(settleMentionAsks).not.toHaveBeenCalled();
+    });
+
+    it("gives up at once when another sync holds it, as the kick always has", async () => {
+      runSm8Sync.mockResolvedValueOnce(busySync as never);
+      freshenSm8AfterResponse("org-1");
+      const pending = scheduled[0]();
+      await jest.advanceTimersByTimeAsync(20_000);
+      await pending;
+      expect(runSm8Sync).toHaveBeenCalledTimes(1);
+      expect(settleMentionAsks).not.toHaveBeenCalled();
+    });
+
+    it("stops waiting when the mirror went fresh meanwhile: no second sync", async () => {
+      runSm8Sync.mockImplementationOnce(async () => {
+        stale = false; // the drain stood aside and another run synced
+        return busy as never;
+      });
+      freshenSm8AfterResponse("org-1");
+      const pending = scheduled[0]();
+      await jest.advanceTimersByTimeAsync(20_000);
+      await pending;
+      expect(runSm8Sync).toHaveBeenCalledTimes(1);
+      expect(settleMentionAsks).not.toHaveBeenCalled();
+    });
+  });
+
   it("never lets a failure escape the after()", async () => {
     runSm8Writes.mockRejectedValueOnce(new Error("boom"));
     freshenSm8AfterResponse("org-1");
@@ -201,5 +295,99 @@ describe("the asks after the sync", () => {
     freshenSm8AfterResponse("org-1");
     await expect(scheduled[0]()).resolves.toBeUndefined();
     expect(console.error).toHaveBeenCalled();
+  });
+});
+
+describe("live updates owed (two-way phase 4)", () => {
+  const env = { ...process.env };
+  afterEach(() => {
+    process.env = { ...env };
+  });
+
+  /* first: the module registry keeps a module once any test loads it */
+  it("off or gone, the subscribing isn't even loaded", async () => {
+    for (const hooks of [undefined, "gone", "0"]) {
+      process.env.VERCEL_ENV = "production";
+      if (hooks === undefined) delete process.env.SM8_WEBHOOKS;
+      else process.env.SM8_WEBHOOKS = hooks;
+      scheduled.length = 0;
+      freshenSm8AfterResponse("org-1");
+      await behind();
+    }
+    expect(hooksLoaded).toBe(false);
+    expect(ensureSm8WebhooksIfOwed).not.toHaveBeenCalled();
+    expect(drainLoaded).toBe(false);
+    expect(drainSm8Hooks).not.toHaveBeenCalled();
+  });
+
+  it("with the switch on, an owed reconcile runs after the writes and before the sync, in 30 s less 2 for its last writes", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(order).toEqual(["writes", "drain", "ensure", "sync", "asks"]);
+    expect(ensureSm8WebhooksIfOwed).toHaveBeenCalledWith("org-1", { budgetMs: 28_000 });
+  });
+
+  it("never when it would put the sync past its start", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    // the sync must start by 300 - 120 - 15 = 165 s; 140 s + 30 s is past it
+    // (the backstop's 20 s still fit)
+    writesTake = 140_000;
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(order).toEqual(["writes", "drain", "sync", "asks"]);
+  });
+
+  /* PR D: the backstop drain, after the writes and before the reconcile
+     and the sync: 20 s, never sleeping, bound by the page's function */
+  it("with the switch on, the queue is drained for 20 s after the writes, without waiting for quiet", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(drainSm8Hooks).toHaveBeenCalledWith("org-1", {
+      deadline: Date.parse("2026-09-25T00:00:00Z") + 280_000,
+      maxMs: 20_000,
+      wait: false,
+    });
+    expect(order.indexOf("drain")).toBe(order.indexOf("writes") + 1);
+  });
+
+  it("never drains when 20 s and 3 s for its last writes would put the sync past its start", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    writesTake = 142_000; // 142 + 20 + 3 = 165: the last moment
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(order).toEqual(["writes", "drain", "sync", "asks"]);
+    order.length = 0;
+    scheduled.length = 0;
+    clock = Date.parse("2026-09-25T00:00:00Z");
+    writesTake = 142_001;
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(order).toEqual(["writes", "sync", "asks"]);
+  });
+
+  it("a drain's time comes off the reconcile's, never the sync's", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    writesTake = 120_000;
+    drainTakes = 20_000; // 140 s in: 30 s more is past 165
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(order).toEqual(["writes", "drain", "sync", "asks"]);
+  });
+
+  it("nor for a workspace that isn't connected", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+    status = "needs_reauth";
+    freshenSm8AfterResponse("org-1");
+    await behind();
+    expect(ensureSm8WebhooksIfOwed).not.toHaveBeenCalled();
+    expect(drainSm8Hooks).not.toHaveBeenCalled();
   });
 });

@@ -229,6 +229,10 @@ describe("the object list", () => {
     expect(SM8_WIPE_TABLES).toContain("sm8_sync_runs");
   });
 
+  it("wipes live updates' queue, hashes and record, so a ping still coming is unknown and answered 410", () => {
+    for (const t of ["sm8_webhook_pings", "sm8_webhook_hooks", "sm8_webhooks"]) expect(SM8_WIPE_TABLES).toContain(t);
+  });
+
   it("keeps the record of which account the copy came from, so a different one connected later is a change of account", () => {
     // the cached photos, their readings and stars outlive a disconnect
     expect(SM8_WIPE_TABLES).not.toContain("sm8_vendor");
@@ -439,6 +443,11 @@ describe("what a change of account clears", () => {
   it("every mirror and the cursors into them", () => {
     for (const spec of SM8_OBJECTS) expect(SM8_ACCOUNT_RESET_TABLES).toContain(spec.table);
     expect(SM8_ACCOUNT_RESET_TABLES).toContain("sm8_sync_state");
+  });
+
+  it("the waiting pings, which name the old account's records; not the hooks, whose old account makes each ping stale", () => {
+    expect(SM8_ACCOUNT_RESET_TABLES).toContain("sm8_webhook_pings");
+    expect(SM8_ACCOUNT_RESET_TABLES).not.toContain("sm8_webhook_hooks");
   });
 
   it("not sm8_vendor, which goes last on its own, and never the lease a run may hold", () => {

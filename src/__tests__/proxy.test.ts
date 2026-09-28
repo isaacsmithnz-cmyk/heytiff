@@ -9,6 +9,8 @@
    touches the request. A person who started on www.hey-tiff.com and got "The
    state parameter is invalid." is what this guards. */
 
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 
 const middlewareSpy = jest.fn(async () => NextResponse.next());
@@ -19,7 +21,9 @@ jest.mock("@/lib/auth0", () => ({
   },
 }));
 
-import { proxy } from "@/proxy";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+import { config, proxy } from "@/proxy";
+import { HOOK_PATH } from "@/lib/integrations/sm8-hook-plan";
 
 const env = process.env;
 beforeEach(() => {
@@ -79,6 +83,59 @@ test("a scheduled call on the deployment's own address reaches its route: no mov
 test("only the cron routes are let through: another API route on that address still moves", async () => {
   const res = await proxy(req("https://heytiff.vercel.app/api/cronjobs", "heytiff.vercel.app"));
   expect(res.status).toBe(308);
+});
+
+/* ServiceM8's pings (two-way phase 4) POST to the address we subscribed.
+   A 308 there is a ping lost, and the session middleware has nothing to do
+   on a machine's call: the route's own check of the secret is the gate. */
+describe("ServiceM8's pings", () => {
+  /* made up: 43 base64url characters, the shape of a real hook */
+  const hook = "Zk3pQ0v9Lm2xR7tY1uW4sE8aB6cD5fG0hJ-kN_oP3qS";
+  const other = "heytiff-bddd85eyg-isaacsmithnz-3848s-projects.vercel.app";
+
+  test("the path let through is where the route lives", () => {
+    expect(existsSync(join(__dirname, "..", "app", `${HOOK_PATH}[hook]`, "route.ts"))).toBe(true);
+  });
+
+  test("reach the route on another host, GET and POST: no move, no session work", async () => {
+    for (const host of [other, "www.hey-tiff.com", "go.hey-tiff.com"]) {
+      for (const method of ["GET", "POST"]) {
+        const res = await proxy(
+          new NextRequest(`https://${host}${HOOK_PATH}${hook}?mode=subscribe&challenge=c-1`, {
+            method,
+            headers: { host },
+            body: method === "POST" ? '{"object":"job","entry":[]}' : undefined,
+          })
+        );
+        expect([host, method, res.status, res.headers.get("location")]).toEqual([host, method, 200, null]);
+      }
+    }
+    expect(middlewareSpy).not.toHaveBeenCalled();
+  });
+
+  test("the proxy doesn't run on that path at all: the matcher leaves it out, and only it", () => {
+    const runs = (url: string) => unstable_doesMiddlewareMatch({ config, url });
+    expect(runs(`${HOOK_PATH}${hook}`)).toBe(false);
+    expect(runs(`${HOOK_PATH}${hook}?mode=subscribe&challenge=c-1`)).toBe(false);
+    for (const url of [
+      "/dashboard",
+      "/auth/login",
+      "/api/cron/sm8-sync",
+      "/api/integrations/servicem8/callback",
+      "/api/integrations/servicem8/webhooks-x",
+      "/api/integrations/servicem8/webhook",
+      `/x${HOOK_PATH}${hook}`,
+    ]) {
+      expect([url, runs(url)]).toEqual([url, true]);
+    }
+  });
+
+  test("only that path is let through: a neighbour on another host still moves", async () => {
+    for (const path of ["/api/integrations/servicem8/webhooks-x", "/api/integrations/servicem8/webhook", "/api/integrations/servicem8/callback"]) {
+      const res = await proxy(req(`https://heytiff.vercel.app${path}`, "heytiff.vercel.app"));
+      expect([path, res.status]).toEqual([path, 308]);
+    }
+  });
 });
 
 /* A new invitee sets a password on Auth0's screen, whose Sign in button opens

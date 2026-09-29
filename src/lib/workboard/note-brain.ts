@@ -40,6 +40,7 @@ import { englishProposal } from "./note-english";
 import { planRows, type PlanRow } from "./note-draft";
 import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
 import { looksLikeName } from "@/lib/staff/aliases";
+import { logUsage } from "@/lib/tiff/usage";
 
 /* Opus 5: the routing decision is the whole product. A cheaper model that
    mis-assigns "tell Lyle" to the wrong Lyle, or reads an urgent flag as a
@@ -551,41 +552,71 @@ export function roomLine(room: TiffRoom | undefined): string {
     should assist with that"), and its lane went out of the schema with it, so
     the model has nowhere to put words that no card shows. */
 export function systemPrompt(ctx: NoteContext): string {
+  return systemBlocks(ctx)
+    .map((b) => b.text)
+    .join("");
+}
+
+/** THE SAME PROMPT IN TWO BLOCKS, and the split is for the bill. The rules
+    ahead of the roster are the same bytes for every note from every person
+    (777 tokens, counted 2026-09-29), so the first block is marked for the
+    prompt cache and a second note inside five minutes reads it back at a
+    tenth of the price. Everything from `whoBlock` on names people, days and
+    jobs and changes per note, so it rides after the mark.
+
+    The two blocks join to `systemPrompt(ctx)` byte for byte: the first ends
+    on the newline the old join would have put there. Nothing in the static
+    head may ever interpolate `ctx`; a name or a date in it makes every note
+    write the cache and none read it. */
+export function systemBlocks(ctx: NoteContext): { type: "text"; text: string; cache_control?: typeof EPHEMERAL }[] {
+  return [
+    { type: "text", text: `${ROUTER_RULES}\n`, cache_control: EPHEMERAL },
+    { type: "text", text: noteFacts(ctx) },
+  ];
+}
+
+const EPHEMERAL = { type: "ephemeral" } as const;
+
+const ROUTER_RULES = [
+  "You route a tradesperson's site note into structured outcomes for an",
+  "Australian HVAC business. The note was spoken aloud or typed quickly, so",
+  "expect fragments, trade slang and transcription slips.",
+  "",
+  RECORD_IN_ENGLISH,
+  "",
+  "Route each part of the note into exactly one place:",
+  "- tasks: someone must DO something later. 'Tell Lyle to order the",
+  "  grilles' is a task for Lyle, not a note. Put the job's own details in",
+  "  `detail` so the task stands alone when read next week.",
+  "- bring_items: something to physically bring next visit.",
+  "- flags: a problem that should be visible on the board until handled.",
+  "  urgent = someone is blocked or it is unsafe; warn = needs attention;",
+  "  info = worth seeing.",
+  "- progress_bullets: what was done or found today. Statements of fact.",
+  "- commissioning_entries: readings and settings — pressures, superheat,",
+  "  airflow, charge. Anything a commissioning sheet would record.",
+  "- issue_entries: a fault, especially a repeat one. Say what happened.",
+  "- kb_entries: reusable know-how worth teaching the whole team — a fix",
+  "  or method that isn't in the manuals, a gotcha specific to a unit or",
+  "  site type, anything that would help a DIFFERENT person on a DIFFERENT",
+  "  day. Title it like a library card; write the body for someone who",
+  "  wasn't there. Propose these SPARINGLY — a technique is knowledge,",
+  "  'fixed the unit' is not, and most notes contain none. If they",
+  "  explicitly say to remember something or add it to the knowledge base,",
+  "  that is always a kb_entry.",
+  "- plain_note: anything that is genuinely just a remark. A note is",
+  "  allowed to be a note — do not manufacture tasks to seem useful.",
+  "",
+  "One note can produce several of these at once. Produce nothing for the",
+  "parts of the note that do not call for it: empty arrays are correct.",
+  "",
+].join("\n");
+
+/** Everything after the cache mark: who, when, where, and what came before. */
+function noteFacts(ctx: NoteContext): string {
   const room = roomLine(ctx.room);
   const earlier = earlierBlock(ctx.earlier);
   return [
-    "You route a tradesperson's site note into structured outcomes for an",
-    "Australian HVAC business. The note was spoken aloud or typed quickly, so",
-    "expect fragments, trade slang and transcription slips.",
-    "",
-    RECORD_IN_ENGLISH,
-    "",
-    "Route each part of the note into exactly one place:",
-    "- tasks: someone must DO something later. 'Tell Lyle to order the",
-    "  grilles' is a task for Lyle, not a note. Put the job's own details in",
-    "  `detail` so the task stands alone when read next week.",
-    "- bring_items: something to physically bring next visit.",
-    "- flags: a problem that should be visible on the board until handled.",
-    "  urgent = someone is blocked or it is unsafe; warn = needs attention;",
-    "  info = worth seeing.",
-    "- progress_bullets: what was done or found today. Statements of fact.",
-    "- commissioning_entries: readings and settings — pressures, superheat,",
-    "  airflow, charge. Anything a commissioning sheet would record.",
-    "- issue_entries: a fault, especially a repeat one. Say what happened.",
-    "- kb_entries: reusable know-how worth teaching the whole team — a fix",
-    "  or method that isn't in the manuals, a gotcha specific to a unit or",
-    "  site type, anything that would help a DIFFERENT person on a DIFFERENT",
-    "  day. Title it like a library card; write the body for someone who",
-    "  wasn't there. Propose these SPARINGLY — a technique is knowledge,",
-    "  'fixed the unit' is not, and most notes contain none. If they",
-    "  explicitly say to remember something or add it to the knowledge base,",
-    "  that is always a kb_entry.",
-    "- plain_note: anything that is genuinely just a remark. A note is",
-    "  allowed to be a note — do not manufacture tasks to seem useful.",
-    "",
-    "One note can produce several of these at once. Produce nothing for the",
-    "parts of the note that do not call for it: empty arrays are correct.",
-    "",
     whoBlock(ctx),
     "",
     "Set clarify_needed only when you genuinely cannot route the note without",
@@ -1146,9 +1177,11 @@ export async function readNote(
            the old review card's schema, as it always was. */
         format: { type: "json_schema", schema: ctx.speak ? TIFF_NOTE_SCHEMA : NOTE_SCHEMA },
       },
-      system: systemPrompt(ctx),
+      system: systemBlocks(ctx),
       messages: [{ role: "user", content }],
     });
+    /* `cache(r=...)` on this line is the proof the split above is paying. */
+    logUsage("note", MODEL, response.usage);
 
     /* A refusal is a content outcome, not an error: check it before reading
        content, which is empty or partial in that case. For this feature the

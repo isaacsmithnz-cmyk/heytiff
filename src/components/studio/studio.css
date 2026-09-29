@@ -1423,33 +1423,42 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-steps {
   position: relative;
   flex: 0 0 auto;
-  display: flex;
+  /* three EQUAL columns: the thumb is a third of the track, so the tabs must
+     be too — sized by their words they were 68, 92 and 84 px under an 82 px
+     thumb, and it never sat on Schematic or Summary (Isaac: "wonky") */
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   background: #e4e6ec;
   border: 1px solid var(--line);
   border-radius:var(--r-card);
   padding: 4px;
 }
-/* Sized off the track, so it stays exact at any switcher width: three equal
-   tabs share (100% − 2×4px padding − 2×3px gap). */
+/* a third of the track inside its 2 × 4px padding and 2 × 4px gaps, and one
+   column plus one gap per step */
 .dstudio .ds-steps-thumb {
   position: absolute;
   top: 4px;
   bottom: 4px;
   left: 4px;
-  width: calc((100% - 14px) / 3);
+  width: calc((100% - 16px) / 3);
   border-radius:var(--r-button);
   background: var(--paper);
-  transition: transform var(--t-move) var(--ease), opacity var(--t-fast) var(--ease);
+  transition: transform var(--t-move) var(--ease), opacity var(--t-fast) var(--ease),
+    background-color var(--t-move) var(--ease);
 }
+/* the thumb takes the current screen's colour, at a tint */
 .dstudio .ds-steps[data-active="0"] .ds-steps-thumb {
   transform: translateX(0);
+  background: color-mix(in srgb, var(--tab-design) 14%, var(--paper));
 }
 .dstudio .ds-steps[data-active="1"] .ds-steps-thumb {
-  transform: translateX(calc(100% + 3px));
+  transform: translateX(calc(100% + 4px));
+  background: color-mix(in srgb, var(--tab-schematic) 14%, var(--paper));
 }
 .dstudio .ds-steps[data-active="2"] .ds-steps-thumb {
-  transform: translateX(calc(200% + 6px));
+  transform: translateX(calc(200% + 8px));
+  background: color-mix(in srgb, var(--tab-summary) 14%, var(--paper));
 }
 /* Plans: neither tab is current, so the thumb parks and fades out */
 .dstudio .ds-steps[data-active="-1"] .ds-steps-thumb {
@@ -1460,21 +1469,32 @@ html[data-ds-display] .dstudio.editing {
   z-index: 1;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   border-radius:var(--r-button);
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 700;
   color: var(--gray500);
-                                                                                                                                                                                                            
   transition: none;
+}
+.dstudio .ds-step[data-tab="design"] { --tab: var(--tab-design); }
+.dstudio .ds-step[data-tab="schematic"] { --tab: var(--tab-schematic); }
+.dstudio .ds-step[data-tab="summary"] { --tab: var(--tab-summary); }
+/* each screen's colour as a dot, so the three read apart even at rest */
+.dstudio .ds-step-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tab);
+  flex: none;
 }
 .dstudio .ds-step:hover {
   color: var(--ink);
 }
 /* colour only — the thumb behind it paints the pill */
 .dstudio .ds-step.active {
-  color: var(--ink);
+  color: var(--tab);
 }
 
 /* equal-weight flanks: both take flex-basis 0 and share the leftover width, so

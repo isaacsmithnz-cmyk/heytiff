@@ -60,6 +60,8 @@ export type Servicem8ScreenProps = {
   waitingNotes?: number;
   /** Bookings still waiting, where the deployment sends bookings. */
   waitingBookings?: number;
+  /** Leave still waiting, where the deployment sends leave. */
+  waitingLeave?: number;
   /** The write permissions the consent asks for beside the reads: the kinds
       the deployment allows that the owner has on (the page works them out,
       as the connect route does). Absent: the files permission alone. */
@@ -67,6 +69,9 @@ export type Servicem8ScreenProps = {
   /** The account this workspace was connected to before the current one,
       and when it was replaced; null when it never changed. */
   previousAccount?: { name: string | null; at: string } | null;
+  /** Live updates from ServiceM8, when they aren't working: the one line
+      that says so (sm8-hook-words). Absent while they work. */
+  liveUpdates?: string | null;
 };
 
 /** The files permission alone — what a deployment that sends files asks. */
@@ -81,13 +86,15 @@ const WRITES = ["one write", "two writes", "three writes"];
 function asksLine(writeScopes: readonly ScopeEntry[]): string {
   const files = writeScopes.some((s) => s.scope === "manage_attachments");
   const notes = writeScopes.some((s) => s.scope === "publish_job_notes");
-  const bookings = writeScopes.some((s) => s.scope === "manage_schedule" || s.scope === "manage_jobs");
+  /* a booking needs manage_jobs as well; manage_schedule alone is leave */
+  const bookings = writeScopes.some((s) => s.scope === "manage_jobs");
+  const leaveOnly = !bookings && writeScopes.some((s) => s.scope === "manage_schedule");
   const tail = "The list below is exactly what the consent screen will show.";
-  if (bookings) {
+  if (bookings || leaveOnly) {
     const parts = [
       ...(files ? ["the files somebody sends from a job"] : []),
       ...(notes ? ["the notes people write here"] : []),
-      "the bookings people make here",
+      bookings ? "the bookings people make here" : "the leave approved here",
     ];
     const said = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
     return `Reads, and ${WRITES[parts.length - 1]}: adding ${said}. ${tail}`;
@@ -136,8 +143,10 @@ export function Servicem8Screen({
   waitingWrites = 0,
   waitingNotes = 0,
   waitingBookings = 0,
+  waitingLeave = 0,
   writeScopes = FILES_SCOPES,
   previousAccount = null,
+  liveUpdates = null,
 }: Servicem8ScreenProps) {
   const provider = providerById("servicem8")!;
   const router = useRouter();
@@ -370,6 +379,11 @@ export function Servicem8Screen({
             {/* when the mirror last moved: the card's width, under both columns */}
             {connected && sync && <SyncLine sync={sync} />}
 
+            {/* live updates from ServiceM8, only when they aren't working:
+                one sentence, the screen's own state word in the warning's
+                colour. Nothing at all while they work. */}
+            {connected && liveUpdates && <p className="int-tag warn">{liveUpdates}</p>}
+
             {!ready && (
               <div className="int-blocked">
                 <b>ServiceM8 connections aren&apos;t switched on yet</b>
@@ -422,7 +436,7 @@ export function Servicem8Screen({
               consequences={[
                 "HeyTiff's stored credentials for this account are deleted.",
                 "Every mirrored row goes with them — clients, jobs, schedule, checklists and staff.",
-                ...[sm8WaitingConsequence(waitingWrites, waitingNotes, waitingBookings)].filter(
+                ...[sm8WaitingConsequence(waitingWrites, waitingNotes, waitingBookings, waitingLeave)].filter(
                   (c): c is string => c !== null
                 ),
                 "Workboard rows you created here stay, on the names they already captured.",

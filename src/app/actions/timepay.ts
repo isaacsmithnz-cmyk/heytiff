@@ -18,6 +18,7 @@ import { getPaySettings } from "@/lib/timepay/query";
 import { hasPassed, submitMomentOf } from "@/lib/timepay/auto-submit";
 import { materialise, rowFor, writeSubmitted } from "@/lib/timepay/submit";
 import { validateBlock } from "@/lib/timepay/availability";
+import { sm8LeaveAllowed } from "@/lib/integrations/sm8-kinds";
 import {
   cycleNoun,
   parseClock,
@@ -293,6 +294,21 @@ export async function sendBackWeek(
 
 /* ---------------- unavailability (casuals) ---------------- */
 
+/* THE SERVICEM8 BOARD, loaded only where the deployment sends leave
+   (SM8_WRITES names `leave`): anywhere else not a module of it is read, and
+   nothing about a decision changes. A press is minted here, from the
+   signed-in session, so only a person's decision reaches the queue. */
+async function sm8Board() {
+  if (!sm8LeaveAllowed()) return null;
+  const [{ sm8PressFromSession }, queue] = await Promise.all([
+    import("@/lib/integrations/sm8-press"),
+    import("@/app/actions/sm8-leave-queue"),
+  ]);
+  const press = await sm8PressFromSession().catch(() => null);
+  return press ? { press, ...queue } : null;
+}
+
+
 /* OWN tier, like your own hours and for a stronger reason: this is a person
    telling the business when they can't work. There is no capability to hold
    and nothing to approve — see lib/timepay/availability.ts for why it isn't a
@@ -309,15 +325,27 @@ export async function markUnavailable(
   const check = validateBlock(from, to, todayInAu());
   if (!check.ok) return { ok: false, error: check.error };
 
-  const { error } = await supabaseAdmin.from("staff_unavailability").insert({
-    org_id: ctx.orgId,
-    staff_profile_id: ctx.staffId,
-    from_date: from,
-    to_date: to,
-    note: note?.trim().slice(0, 200) || null,
-  });
+  const { data: made, error } = await supabaseAdmin
+    .from("staff_unavailability")
+    .insert({
+      org_id: ctx.orgId,
+      staff_profile_id: ctx.staffId,
+      from_date: from,
+      to_date: to,
+      note: note?.trim().slice(0, 200) || null,
+    })
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, error: "Couldn't save that." };
   refresh();
+  /* the day off goes onto their day on the ServiceM8 board, as Leave. What
+     keeps it off (a link to make) is the owner's to fix, not theirs, so
+     nothing is said here */
+  const id = (made as { id?: unknown } | null)?.id;
+  if (typeof id === "string") {
+    const board = await sm8Board();
+    if (board) await board.queueLeaveOnBoard(board.press, { source: "dayoff", id, staffProfileId: ctx.staffId, kind: null, from, to });
+  }
   return { ok: true };
 }
 
@@ -335,6 +363,9 @@ export async function clearUnavailable(id: string): Promise<TimepayResult> {
     .eq("id", id);
   if (error) return { ok: false, error: "Couldn't remove that." };
   refresh();
+  /* and off the board, if it went there */
+  const board = await sm8Board();
+  if (board) await board.queueLeaveOffBoard(board.press, { source: "dayoff", id });
   return { ok: true };
 }
 

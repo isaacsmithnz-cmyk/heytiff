@@ -744,3 +744,75 @@ it("shows native day-bookings on the shelf and routes their clicks by kind", asy
   await userEvent.click(screen.getByRole("button", { name: /Project — Enmore install/ }));
   expect(onOpenTracked).toHaveBeenCalledWith({ kind: "project", id: "proj-9" });
 });
+
+/* TIME OFF (leave to ServiceM8, part two): who's off shows on the day, in
+   ServiceM8's own word, even for somebody with nothing booked. */
+describe("time off on the day", () => {
+  const away = (over: Partial<NonNullable<SchedulePayload["away"]>[number]> = {}) => ({
+    uuid: "av-1",
+    staffUuid: "s-ingold",
+    name: "SICK",
+    start: `${TODAY} 00:00:00`,
+    end: `${TODAY} 23:59:59`,
+    ...over,
+  });
+
+  it("(F) gives somebody off with nothing booked a lane, the word on the rail and when under the name", async () => {
+    scheduleDay.mockResolvedValue(
+      payload({
+        staff: [...payload().staff, { uuid: "s-ingold", name: "Luke Ingold" }, { uuid: "s-tafe", name: "Tom Apprentice" }],
+        away: [away(), away({ uuid: "av-2", staffUuid: "s-tafe", name: "TAFE", start: `${TODAY} 12:00:00`, end: `${TODAY} 15:30:00` })],
+      })
+    );
+    render(tab());
+    expect(await screen.findByText("Luke Ingold")).toBeInTheDocument();
+    expect(screen.getByText("Off all day")).toBeInTheDocument();
+    expect(screen.getByText("Off 12pm–3:30pm")).toBeInTheDocument();
+    expect(screen.getByText("SICK").closest(".wb2-schaway")).toHaveAttribute("title", "Luke Ingold: SICK, all day");
+    expect(screen.getByText("TAFE").closest(".wb2-schaway")).toHaveAttribute("title", "Tom Apprentice: TAFE, 12pm–3:30pm");
+    // time off is nobody's crew: two people are out working
+    expect(screen.getByText("2 crews")).toBeInTheDocument();
+  });
+
+  it("(F) lays it under a working person's bookings, and draws the board on a day with only time off", async () => {
+    scheduleDay.mockResolvedValue(
+      payload({ away: [away({ staffUuid: "s-lomond", name: "DENTIST", start: `${TODAY} 13:00:00`, end: `${TODAY} 14:00:00` })] })
+    );
+    render(tab());
+    const band = (await screen.findByText("DENTIST")).closest(".wb2-schaway") as HTMLElement;
+    // on Lomond's lane, which still says his load
+    expect(screen.getByText("2 bookings, 9h")).toBeInTheDocument();
+    expect(band.parentElement).toBe(screen.getAllByRole("button", { name: /Job #3171/ })[0].parentElement);
+  });
+
+  it("(F) draws the board for a day with nothing booked and somebody off", async () => {
+    scheduleDay.mockResolvedValue(
+      payload({ activities: [], jobs: [], onSite: [], staff: [{ uuid: "s-ingold", name: "Luke Ingold" }], away: [away({ name: "Holidays" })] })
+    );
+    render(tab());
+    expect(await screen.findByText("Holidays")).toBeInTheDocument();
+    expect(screen.queryByText("Nobody was dispatched")).toBeNull();
+    expect(screen.getByText("0 crews")).toBeInTheDocument();
+  });
+
+  it("(F) says a public holiday for the day, in ServiceM8's name for it", async () => {
+    scheduleDay.mockResolvedValue(
+      payload({
+        activities: [],
+        jobs: [],
+        onSite: [],
+        closed: [{ uuid: "v-1", kind: "holiday", name: "Labour Day", start: `${TODAY} 00:00:00`, end: `${TODAY} 23:59:59` }],
+      })
+    );
+    render(tab());
+    expect(await screen.findByText("Public holiday")).toBeInTheDocument();
+    expect(screen.getByText("Labour Day")).toBeInTheDocument();
+    expect(screen.getByText("Nobody was dispatched")).toBeInTheDocument();
+  });
+
+  it("changes nothing where the day carries no time off", async () => {
+    render(tab());
+    await screen.findByText("Alex Lomond");
+    expect(document.querySelector(".wb2-schaway, .wb2-schclosed")).toBeNull();
+  });
+});

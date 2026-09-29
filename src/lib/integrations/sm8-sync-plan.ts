@@ -29,7 +29,8 @@ export type Sm8ObjectName =
   | "job_payments"
   | "staff"
   | "categories"
-  | "queues";
+  | "queues"
+  | "availability";
 
 type Raw = Record<string, unknown>;
 export type MirrorRow = Record<string, string | number | null>;
@@ -329,6 +330,33 @@ const shapeAttachment = (r: Raw): MirrorRow | null => {
   };
 };
 
+/* TIME OFF, AS SERVICEM8 KEEPS IT (availability.json, read_schedule). Read
+   off the live account on 2026-09-28: a staff member's leave is
+   `staff-annual-leave` regarding `staff`, and a public holiday or a closed
+   day is `public-holiday` / `business-closed` regarding `vendor`. There is
+   no sick type — sick, TAFE, a car service and a round of golf differ only by
+   the free-text `name` — so this is a diary of blocked-out time, NEVER a
+   leave ledger: nothing reads it back into HeyTiff as leave. The stamps are
+   the account's wall clock as text like every other ServiceM8 stamp (a whole
+   day is 00:00:00 to 23:59:59). `source` is kept verbatim; the UI leaves it
+   null, and what the API puts there is not known. */
+const shapeAvailability = (r: Raw): MirrorRow | null => {
+  const uuid = uuidOf(r);
+  if (!uuid) return null;
+  return {
+    uuid,
+    regarding_object: textOrNull(r.regarding_object),
+    regarding_object_uuid: textOrNull(r.regarding_object_uuid),
+    name: textOrNull(r.name),
+    availability_type: textOrNull(r.availability_type),
+    start_timestamp: dateOrNull(r.start_timestamp),
+    end_timestamp: dateOrNull(r.end_timestamp),
+    source: textOrNull(r.source),
+    active: intOrNull(r.active),
+    edit_date: dateOrNull(r.edit_date),
+  };
+};
+
 /* ── the list itself, in sync order ── */
 
 export const SM8_OBJECTS: Sm8ObjectSpec[] = [
@@ -348,6 +376,9 @@ export const SM8_OBJECTS: Sm8ObjectSpec[] = [
   { object: "job_notes", endpoint: "note.json", table: "sm8_job_notes", scope: "read_job_notes", label: "Job notes", backfillMonths: 24, shape: shapeNote },
   { object: "job_materials", endpoint: "jobmaterial.json", table: "sm8_job_materials", scope: "read_job_materials", label: "Materials", backfillMonths: 24, shape: shapeMaterial },
   { object: "job_payments", endpoint: "jobpayment.json", table: "sm8_job_payments", scope: "read_job_payments", label: "Payments", backfillMonths: 24, shape: shapePayment },
+  // Everything, not a window: a holiday or a long leave keyed in years ago
+  // can still cover a day ahead, and the whole account is ~250 rows.
+  { object: "availability", endpoint: "availability.json", table: "sm8_availability", scope: "read_schedule", label: "Time off", backfillMonths: null, shape: shapeAvailability },
 ];
 
 /** Everything disconnect wipes — the mirrors AND the bookkeeping, because a

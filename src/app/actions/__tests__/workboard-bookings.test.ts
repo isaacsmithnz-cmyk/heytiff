@@ -143,7 +143,7 @@ describe("where the deployment doesn't book (D-14)", () => {
     expect(Object.keys(p)).toEqual(Object.keys(DAY_PAYLOAD));
     expect(readSm8WriteState).not.toHaveBeenCalled();
     /* the loader as it always was called */
-    expect(loadScheduleDay.mock.calls).toEqual([["org-1", "2026-10-07"]]);
+    expect(loadScheduleDay.mock.calls).toEqual([["org-1", "2026-10-07", { away: true }]]);
   });
 });
 
@@ -209,7 +209,7 @@ describe("Book in and Clear on the card (D-1)", () => {
   it("(F) the Schedule reads the write state once, for the day's overlay and the Clear alike", async () => {
     await scheduleDay("2026-10-07");
     expect(readSm8WriteState).toHaveBeenCalledTimes(1);
-    expect(loadScheduleDay).toHaveBeenCalledWith("org-1", "2026-10-07", { state: STATE });
+    expect(loadScheduleDay).toHaveBeenCalledWith("org-1", "2026-10-07", { state: STATE, away: true });
   });
 
   it("(F) the Schedule offers a leftover's Clear only to a viewer who may press, where bookings are offered", async () => {

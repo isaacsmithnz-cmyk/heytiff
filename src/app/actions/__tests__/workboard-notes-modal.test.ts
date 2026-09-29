@@ -97,6 +97,20 @@ function from(table: string) {
   b.then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
     Promise.resolve(run()).then(res, rej);
   b.update = (p: Row) => ((mode = "update"), (patch = p), b);
+  /* the one upsert the router makes — a learned nickname, which never takes
+     a name another person already goes by (org_id + alias_norm) */
+  b.upsert = (payload: Row | Row[]) => {
+    const made: Row[] = [];
+    for (const p of Array.isArray(payload) ? payload : [payload]) {
+      const clash = (db[table] ?? []).some((r) => r.org_id === p.org_id && r.alias_norm === p.alias_norm);
+      if (clash) continue;
+      const row = { id: `${table}-${++seq}`, created_at: "2026-09-29T00:00:00Z", ...structuredClone(p) };
+      (db[table] ??= []).push(row);
+      made.push(row);
+    }
+    writes.push({ op: "insert", table, payload, filters: [] });
+    return { select: () => Promise.resolve({ data: made.map((m) => ({ id: m.id })), error: null }) };
+  };
   b.delete = () => ((mode = "delete"), b);
   b.insert = (payload: Row | Row[]) => {
     const made = (Array.isArray(payload) ? payload : [payload]).map((p) => ({
@@ -443,6 +457,68 @@ describe("continueNote", () => {
     note({ author_id: "s-lyle" });
     expect((await continueNote("n-1", "Callum")).ok).toBe(false);
     expect(readNote).not.toHaveBeenCalled();
+  });
+
+  /* THE NAMES PEOPLE GO BY (Isaac, 2026-09-29): "Tell Bobo he needs to drop
+     his van off", and Bobo is Leonardo. Told once, Tiff keeps it. */
+  describe("learning who a name is", () => {
+    const LEO = { id: "s-leo", first_name: "Leonardo", last_name: "Martins", full_name: "Leonardo Martins", org_id: "org-1" };
+    const asked = () =>
+      note({
+        status: "clarifying",
+        transcript: "Tell Bobo he needs to drop his van off tomorrow morning",
+        proposal: {
+          ...EMPTY,
+          tasks: [task({ title: "Drop the van off", assigneeId: null, assigneeHint: "Bobo" })],
+          say: "Who's Bobo?",
+          clarify: { question: "Who's Bobo?", options: ["Me"] },
+        },
+        turns: [t("you", "Tell Bobo he needs to drop his van off tomorrow morning"), t("tiff", "Who's Bobo?")],
+      });
+    beforeEach(() => {
+      db.staff_profiles.push({ ...LEO });
+      readNote.mockResolvedValue({ ok: true, proposal: { ...EMPTY, tasks: [task({ title: "Drop the van off", assigneeId: "s-leo", assigneeHint: "Bobo" })] } });
+    });
+
+    it("(F) keeps Bobo against Leonardo, taught by the person who answered, before the note is read again", async () => {
+      asked();
+      expect((await continueNote("n-1", "Leonardo")).ok).toBe(true);
+      expect(rowsOf("staff_aliases")).toEqual([
+        expect.objectContaining({ org_id: "org-1", staff_profile_id: "s-leo", alias: "Bobo", alias_norm: "bobo", source: "tiff", added_by: "s-me" }),
+      ]);
+      // the read again already knows him by it
+      const staff = readNote.mock.calls[0][1].staff as { id: string; aliases?: string[] }[];
+      expect(staff.find((s) => s.id === "s-leo")?.aliases).toEqual(["Bobo"]);
+    });
+
+    it("(F) knows Bobo the next time, for anyone", async () => {
+      asked();
+      await continueNote("n-1", "Leonardo");
+      readNote.mockClear();
+      me = "s-lyle";
+      await routeNote({ transcript: "Tell Bobo the van's ready", target: { kind: "none" }, room: "tasks" });
+      const staff = readNote.mock.calls[0][1].staff as { id: string; aliases?: string[] }[];
+      expect(staff.find((s) => s.id === "s-leo")?.aliases).toEqual(["Bobo"]);
+    });
+
+    it("(F) learns nothing from Me, from two people, or where nothing was unknown", async () => {
+      asked();
+      await continueNote("n-1", "Me");
+      asked();
+      await continueNote("n-1", "Leonardo or Lyle");
+      note({ proposal: { ...EMPTY, tasks: [task()] } });
+      await continueNote("n-1", "Leonardo");
+      expect(rowsOf("staff_aliases")).toEqual([]);
+    });
+
+    it("counts the preferred name on a card as a name they go by", async () => {
+      db.staff_profiles.find((s) => s.id === "s-callum")!.preferred_name = "Cal";
+      asked();
+      await continueNote("n-1", "Leonardo");
+      const staff = readNote.mock.calls[0][1].staff as { id: string; aliases?: string[] }[];
+      expect(staff.find((s) => s.id === "s-callum")?.aliases).toEqual(["Cal"]);
+      expect(staff.find((s) => s.id === "s-lyle")?.aliases).toEqual([]);
+    });
   });
 
   it("refuses a seventh reply", async () => {

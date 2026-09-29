@@ -11,6 +11,8 @@
 
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { UnrecognizedActionError } from "next/dist/client/components/unrecognized-action-error";
+import { STALE_DEPLOY_WORDS } from "@/lib/stale-deploy";
 import type { JobDesign, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
@@ -3880,6 +3882,24 @@ describe("the job's own checklist", () => {
     await user.click(box);
     await waitFor(() => expect(box).not.toBeChecked());
     expect(onToast).toHaveBeenCalledWith("Could not save that tick");
+  });
+
+  it("(F) a tick from a tab older than the deploy puts the tick back and says to reload", async () => {
+    const user = userEvent.setup();
+    const onToast = jest.fn();
+    setPicklistItemPicked.mockRejectedValue(
+      new UnrecognizedActionError('Server Action "7f00" was not found on the server.')
+    );
+    listJobPicklist.mockResolvedValue([item()]);
+    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+    await detailLanded();
+    await openTab("Checklist");
+
+    const box = await screen.findByLabelText("Done: MSZ-AP25VGD");
+    await user.click(box);
+    await waitFor(() => expect(box).not.toBeChecked());
+    expect(onToast).toHaveBeenCalledWith(STALE_DEPLOY_WORDS);
+    expect(onToast).not.toHaveBeenCalledWith("Could not save that tick");
   });
 
   it("types a row onto the list and swaps in the saved one", async () => {

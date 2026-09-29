@@ -57,7 +57,6 @@ begin
       select count(*) into v_count from public.sm8_webhook_pings p where p.org_id = v_org;
       if v_count >= p_cap then
         update public.sm8_webhooks w set sync_wanted_at = clock_timestamp() where w.org_id = v_org;
-        -- Review nit, left for PR C: 'full' can follow uuids this call already queued (they get no after()).
         return query select 'full'::text, v_org; return;
       end if;
       insert into public.sm8_webhook_pings as p (org_id, object, uuid) values (v_org, p_object, v_u)
@@ -179,6 +178,28 @@ begin
     raise exception '2: a ping should stamp last_ping_at';
   end if;
   raise notice 'ok 2: queued, then merged with pings = 2';
+end $$;
+
+-- 10. the nightly check's quiet mark (PR F): a ping clears it, merged or
+--     not. The same record again, so the queue's count is as step 3 expects.
+do $$
+declare c rollback_test_ctx%rowtype; r record; v_before timestamptz;
+begin
+  select * into c from rollback_test_ctx;
+  update public.sm8_webhooks
+     set quiet_since = clock_timestamp(), last_ping_at = clock_timestamp() - interval '2 days'
+   where org_id = c.org;
+  select last_ping_at into v_before from public.sm8_webhooks where org_id = c.org;
+  select * into r from public.sm8_take_ping('rollback-test:hook-a', 'jobs',
+    array['0e0e0e0e-0000-4000-8000-000000000001'], 2000);
+  if r.verdict is distinct from 'merged' then raise exception '10: the same record: expected merged, got %', row_to_json(r); end if;
+  if (select quiet_since from public.sm8_webhooks where org_id = c.org) is not null then
+    raise exception '10: a ping should clear the quiet mark';
+  end if;
+  if (select last_ping_at from public.sm8_webhooks where org_id = c.org) <= v_before then
+    raise exception '10: a ping should move last_ping_at on';
+  end if;
+  raise notice 'ok 10: a ping clears quiet_since and moves last_ping_at on';
 end $$;
 
 -- 3. several uuids in one call

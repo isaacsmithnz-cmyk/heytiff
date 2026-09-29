@@ -11,6 +11,11 @@
 -- (which refuses every booking create), and replace sm8_set_write_kind with
 -- its two-kind form. That file's header says the same (PR A).
 --
+-- AND AFTER sm8_leave_queue.sql, NEVER RE-RUN THIS ONE: it would narrow the
+-- kind check back to three kinds, drop leave's branch from the shape check
+-- (refusing every leave row), and replace sm8_set_write_kind with its
+-- three-kind form.
+--
 -- NOTHING ABOUT BOOKINGS CHANGES IN PRODUCTION until SM8_WRITES names
 -- `booking`. Until then no booking row is ever inserted.
 --

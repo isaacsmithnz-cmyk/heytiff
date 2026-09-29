@@ -56,6 +56,15 @@ jest.mock("@/lib/integrations/sm8-writes", () => ({
   listRecentSm8Writes: jest.fn(async () => []),
 }));
 
+/* live updates' health (two-way phase 4, PR F): loaded only with the
+   switch on, so its factory running is itself the proof */
+let hooksLoaded = false;
+const readSm8HooksHealth = jest.fn(async (..._a: unknown[]): Promise<unknown> => null);
+jest.mock("@/lib/integrations/sm8-hooks", () => {
+  hooksLoaded = true;
+  return { readSm8HooksHealth: (...a: unknown[]) => readSm8HooksHealth(...a) };
+});
+
 import Servicem8IntegrationPage from "../page";
 
 type Props = {
@@ -195,6 +204,65 @@ describe("the ServiceM8 screen's loader", () => {
       kind: "error",
       text: "HeyTiff couldn't read this workspace's ServiceM8 settings, so nothing changed. Try again.",
     });
+  });
+});
+
+/* two-way phase 4, PR F: live updates from ServiceM8. The owner sees nothing
+   while they work, and one line when they don't; with the switch anything
+   but on, the page reads nothing more than it did. */
+describe("the ServiceM8 screen's loader, with live updates", () => {
+  const env = { ...process.env };
+  beforeEach(() => {
+    readSm8HooksHealth.mockReset().mockResolvedValue(null);
+  });
+  afterEach(() => {
+    process.env = { ...env };
+  });
+  const on = () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.SM8_WEBHOOKS = "1";
+  };
+
+  /* first: the module registry keeps a module once any test loads it */
+  it("off: reads nothing, loads nothing, and hands the screen today's props", async () => {
+    for (const [vercel, hooks] of [["production", undefined], ["production", "gone"], ["preview", "1"]] as const) {
+      process.env.VERCEL_ENV = vercel;
+      if (hooks === undefined) delete process.env.SM8_WEBHOOKS;
+      else process.env.SM8_WEBHOOKS = hooks;
+      expect(await load()).not.toHaveProperty("liveUpdates");
+    }
+    expect(hooksLoaded).toBe(false);
+    expect(readSm8HooksHealth).not.toHaveBeenCalled();
+  });
+
+  it("on and working: one read, and nothing said", async () => {
+    on();
+    expect(await load()).not.toHaveProperty("liveUpdates");
+    expect(readSm8HooksHealth).toHaveBeenCalledWith("org-1");
+  });
+
+  it("on and not working: the one line, in words", async () => {
+    on();
+    readSm8HooksHealth.mockResolvedValue({ state: "partial", missing: ["job_notes"], errors: [] });
+    expect(((await load()) as Props & { liveUpdates?: string }).liveUpdates).toBe(
+      "ServiceM8 isn't sending live updates for Job notes, so those wait for the next sync."
+    );
+  });
+
+  it("on, and the module or its read fails: the screen still draws, with nothing said", async () => {
+    on();
+    readSm8HooksHealth.mockRejectedValue(new Error("chunk failed to load"));
+    const p = await load();
+    expect(p).not.toHaveProperty("liveUpdates");
+    expect(p.reach).toEqual({ ok: true, account: { name: "Acme Air", timezoneName: null } });
+  });
+
+  it("on, but the connection needs reconnecting: not read — the connection's own line says it", async () => {
+    on();
+    getConnectionView.mockResolvedValue(view({ status: "needs_reauth" }));
+    readSm8WriteState.mockResolvedValue(state({ connected: false }));
+    expect(await load()).not.toHaveProperty("liveUpdates");
+    expect(readSm8HooksHealth).not.toHaveBeenCalled();
   });
 });
 

@@ -10,10 +10,10 @@
    - the note_id key, ON DELETE NO ACTION: a workboard_notes row any queue
      row names can't be deleted (23503);
    - the two functions (sm8_mark_kind_refused, sm8_set_write_kind), the
-     second switching the three kinds sm8_bookings_queue.sql allows;
-   - sm8_bookings_queue.sql's kind check and its ONE SHAPE RULE FOR EVERY
-     KIND (sm8_writes_shape_check), on every insert and every update, a row
-     that breaks either refused with 23514 as the database would;
+     second switching the four kinds sm8_leave_queue.sql allows;
+   - sm8_leave_queue.sql's kind check and its ONE SHAPE RULE FOR EVERY KIND
+     (sm8_writes_shape_check), on every insert and every update, a row that
+     breaks either refused with 23514 as the database would;
    - dedupe_key GENERATED, so a subject that changes (a booking slot given
      back, ":was:<id>") moves its key, and meets the unique index again.
    Every statement is logged, so a test can hold a path to the queries it
@@ -78,8 +78,10 @@ const BOOKING_STAMP = /^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:00$/;
 
 const BOOKING_COLUMNS = ["verb_id", "booking_staff_uuid", "booking_start", "booking_end", "booking_zone", "job_status_from", "job_status_to"];
 
+const LEAVE_COLUMNS = ["leave_staff_uuid", "leave_start", "leave_end"];
+
 /** sm8_writes_kind_check and sm8_writes_shape_check, exactly as
-    sm8_bookings_queue.sql writes them: one CASE per kind, every column a
+    sm8_leave_queue.sql writes them: one CASE per kind, every column a
     branch needs named "is not null", and the whole in coalesce(…, false),
     so nothing passes by being null. `op` is the column's default,
     'create', when a row doesn't name it. */
@@ -88,7 +90,25 @@ export function sm8WriteShapeOk(r: Row): boolean {
   const some = (c: string) => r[c] != null;
   const op = r.op ?? "create";
   const bookingNone = BOOKING_COLUMNS.every(none);
+  const leaveNone = LEAVE_COLUMNS.every(none);
+  if (r.kind !== "leave" && !leaveNone) return false;
   switch (r.kind) {
+    case "leave": {
+      if (!(none("sm8_job_uuid") && none("note_id") && none("flag_done") && none("note_text") && none("target_uuid") && bookingNone)) return false;
+      if (op === "create") {
+        const start = String(r.leave_start ?? "");
+        const end = String(r.leave_end ?? "");
+        return (
+          none("depends_on") &&
+          LEAVE_COLUMNS.every(some) &&
+          /^[0-9]{4}-[0-9]{2}-[0-9]{2} 00:00:00$/.test(start) &&
+          /^[0-9]{4}-[0-9]{2}-[0-9]{2} 23:59:59$/.test(end) &&
+          start < end
+        );
+      }
+      if (op === "delete") return some("depends_on") && none("taken_back_at") && leaveNone;
+      return false;
+    }
     case "attachment":
       return (
         op === "create" &&
@@ -441,6 +461,7 @@ export function makeFakeDb() {
       lte: (c: string, v: string) => (described.push(`${c}<=`), filters.push((r) => r[c] != null && String(r[c]) <= v), q),
       lt: (c: string, v: string) => (described.push(`${c}<`), filters.push((r) => r[c] != null && String(r[c]) < v), q),
       gte: (c: string, v: string) => (described.push(`${c}>=`), filters.push((r) => r[c] != null && String(r[c]) >= v), q),
+      gt: (c: string, v: string) => (described.push(`${c}>`), filters.push((r) => r[c] != null && String(r[c]) > v), q),
       or: (expr: string) => (described.push(`or(${expr})`), filters.push(parseOr(expr)), q),
       order: (col: string, o: { ascending: boolean }) => ((order = { col, asc: o.ascending }), q),
       limit: (n: number) => ((limit = n), q),
@@ -469,7 +490,7 @@ export function makeFakeDb() {
       return Promise.resolve({ data: !!conn, error: null });
     }
     if (name === "sm8_set_write_kind") {
-      if (!conn || !["attachment", "note", "booking"].includes(String(args.p_kind))) return Promise.resolve({ data: null, error: null });
+      if (!conn || !["attachment", "note", "booking", "leave"].includes(String(args.p_kind))) return Promise.resolve({ data: null, error: null });
       const was = Array.isArray(conn.write_kinds) ? (conn.write_kinds as string[]) : ["attachment"];
       const kind = String(args.p_kind);
       conn.write_kinds = args.p_on ? [...new Set([...was, kind])].sort() : was.filter((k) => k !== kind);

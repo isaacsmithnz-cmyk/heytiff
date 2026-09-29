@@ -79,6 +79,16 @@ jest.mock("@/lib/timepay/leave-query", () => ({
 }));
 
 import { revalidatePath } from "next/cache";
+/* the ServiceM8 board's door, stubbed: what reaches it, and what it says */
+const queueLeaveOnBoard = jest.fn();
+const queueLeaveOffBoard = jest.fn();
+jest.mock("@/app/actions/sm8-leave-queue", () => ({
+  queueLeaveOnBoard: (...a: unknown[]) => queueLeaveOnBoard(...a),
+  queueLeaveOffBoard: (...a: unknown[]) => queueLeaveOffBoard(...a),
+}));
+const PRESS = { press: true };
+jest.mock("@/lib/integrations/sm8-press", () => ({ sm8PressFromSession: jest.fn(async () => PRESS) }));
+
 import { approveLeave, cancelLeave, declineLeave, requestLeave, setLeaveBalance } from "../leave";
 
 beforeEach(() => {
@@ -253,6 +263,63 @@ describe("review", () => {
       "leave_requests",
       expect.objectContaining({ status: "declined", review_note: "Clashes with the Dandenong job" }),
     );
+  });
+});
+
+describe("the ServiceM8 board", () => {
+  const pending = { staff_profile_id: "other", status: "pending", kind: "personal", start_date: "2026-08-03", end_date: "2026-08-05" };
+  beforeEach(() => {
+    queueLeaveOnBoard.mockReset().mockResolvedValue({ queued: ["w1"], note: null });
+    queueLeaveOffBoard.mockReset().mockResolvedValue({ queued: ["w2"], note: null });
+  });
+  afterEach(() => {
+    delete process.env.SM8_WRITES;
+  });
+
+  it("is never asked where the deployment doesn't send leave (production today)", async () => {
+    process.env.SM8_WRITES = "attachment,note,booking";
+    requestRow = { ...pending };
+    expect(await approveLeave("r1")).toEqual({ ok: true });
+    requestRow = { status: "approved", start_date: "2026-08-03", end_date: "2026-08-05" };
+    expect(await cancelLeave("r1")).toEqual({ ok: true });
+    expect(queueLeaveOnBoard).not.toHaveBeenCalled();
+    expect(queueLeaveOffBoard).not.toHaveBeenCalled();
+  });
+
+  it("gets approved leave, as the approver's press, with its kind and days", async () => {
+    process.env.SM8_WRITES = "attachment,note,booking,leave";
+    requestRow = { ...pending };
+    expect(await approveLeave("r1")).toEqual({ ok: true });
+    expect(queueLeaveOnBoard).toHaveBeenCalledWith(PRESS, {
+      source: "leave",
+      id: "r1",
+      staffProfileId: "other",
+      kind: "personal",
+      from: "2026-08-03",
+      to: "2026-08-05",
+    });
+  });
+
+  it("says beside the approval why leave stays off the board — and the approval stands", async () => {
+    process.env.SM8_WRITES = "leave";
+    queueLeaveOnBoard.mockResolvedValue({ queued: [], note: "Sam isn't linked to anyone in ServiceM8." });
+    requestRow = { ...pending };
+    expect(await approveLeave("r1")).toEqual({ ok: true, note: "Sam isn't linked to anyone in ServiceM8." });
+    expect(update).toHaveBeenCalledWith("leave_requests", expect.objectContaining({ status: "approved" }));
+  });
+
+  it("takes approved leave off when it is cancelled, and asks nothing of a pending one or a decline", async () => {
+    process.env.SM8_WRITES = "leave";
+    requestRow = { status: "approved", start_date: "2026-08-03", end_date: "2026-08-05" };
+    expect(await cancelLeave("r1")).toEqual({ ok: true });
+    expect(queueLeaveOffBoard).toHaveBeenCalledWith(PRESS, { source: "leave", id: "r1" });
+    queueLeaveOffBoard.mockClear();
+    requestRow = { status: "pending", start_date: "2026-08-03", end_date: "2026-08-05" };
+    expect(await cancelLeave("r1")).toEqual({ ok: true });
+    requestRow = { ...pending };
+    expect((await declineLeave("r1", "Covered")).ok).toBe(true);
+    expect(queueLeaveOffBoard).not.toHaveBeenCalled();
+    expect(queueLeaveOnBoard).not.toHaveBeenCalled();
   });
 });
 

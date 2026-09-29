@@ -159,12 +159,13 @@ describe("missing scopes are judged per provider", () => {
    exactly which writes exist, and that none is asked for unless the owner
    has switched sending on. */
 describe("the write ask", () => {
-  it("is four scopes, each with its feature: files on a job, notes (two-way phase 2), and bookings, which need two (phase 3)", () => {
+  it("is four scopes, each with its feature: files on a job, notes (two-way phase 2), bookings, which need two (phase 3), and leave, which needs one of theirs", () => {
     expect(SM8_WRITE_SCOPE_LIST).toEqual(["manage_attachments", "publish_job_notes", "manage_schedule", "manage_jobs"]);
     expect(SM8_WRITE_KIND_SCOPES).toEqual({
       attachment: ["manage_attachments"],
       note: ["publish_job_notes"],
       booking: ["manage_schedule", "manage_jobs"],
+      leave: ["manage_schedule"],
     });
   });
 

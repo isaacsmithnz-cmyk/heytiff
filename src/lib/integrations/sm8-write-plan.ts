@@ -24,6 +24,7 @@
 import { SM8_WRITE_KIND_SCOPES } from "./providers";
 import { fillWords, NOTE_WORDS } from "./sm8-note-words";
 import { BOOKING_WORDS } from "./sm8-booking-words";
+import { LEAVE_WORDS } from "./sm8-leave-words";
 
 /* ── the owner's switch ── */
 
@@ -183,6 +184,7 @@ export function sendRefusal(s: Sm8WriteState, kind: Sm8WriteKind = "attachment")
   if (!s.ownerKinds.includes(kind)) {
     if (kind === "note") return NOTE_WORDS.press.kindOff;
     if (kind === "booking") return BOOKING_WORDS.press.kindOff;
+    if (kind === "leave") return LEAVE_WORDS.press.kindOff;
     return `Sending files to ServiceM8 is switched off. ${WHERE}`;
   }
   if (s.mode === "paused") return WRITE_WORDS.paused;
@@ -190,6 +192,7 @@ export function sendRefusal(s: Sm8WriteState, kind: Sm8WriteKind = "attachment")
   if (s.mode === "live" && !kindReady(s, kind)) {
     if (kind === "note") return NOTE_WORDS.press.notesScope;
     if (kind === "booking") return BOOKING_WORDS.press.scope;
+    if (kind === "leave") return LEAVE_WORDS.press.scope;
     return `ServiceM8 hasn't given HeyTiff permission to add files yet. ${WHERE}`;
   }
   return null;
@@ -221,12 +224,15 @@ export function sendHold(s: Sm8WriteState, kind: Sm8WriteKind = "attachment"): S
 }
 
 /** "1 file", "3 notes", "1 file and 2 notes", "1 file, 2 notes and 1
-    booking". With no notes it is exactly the files' words the screens have
-    always said, and with no bookings exactly the files' and notes'. */
-export function kindCount(n: { attachment: number; note: number; booking?: number }): string {
+    booking", "1 booking and 2 leave entries". With no notes it is exactly
+    the files' words the screens have always said, with no bookings exactly
+    the files' and notes', and with no leave exactly those three's. */
+export function kindCount(n: { attachment: number; note: number; booking?: number; leave?: number }): string {
   const files =
     n.attachment === 1 ? NOTE_WORDS.kindWords.fileOne : fillWords(NOTE_WORDS.kindWords.fileMany, { n: n.attachment });
   const booking = n.booking ?? 0;
+  const leave = n.leave ?? 0;
+  if (leave > 0) return withLeave(n.attachment > 0 ? files : null, n.note, booking, leave);
   if (booking > 0) return withBookings(n.attachment > 0 ? files : null, n.note, booking);
   if (n.note <= 0) return files;
   const notes = n.note === 1 ? NOTE_WORDS.kindWords.noteOne : fillWords(NOTE_WORDS.kindWords.noteMany, { n: n.note });
@@ -246,6 +252,25 @@ function withBookings(files: string | null, note: number, booking: number): stri
   if (parts.length === 1) return parts[0];
   if (parts.length === 2) return fillWords(NOTE_WORDS.kindWords.both, { files: parts[0], notes: parts[1] });
   return fillWords(BOOKING_WORDS.kindWords.three, { a: parts[0], b: parts[1], c: parts[2] });
+}
+
+/** kindCount once there is leave: each kind there is, in the order files,
+    notes, bookings, leave — one alone, two joined with "and", more as a
+    list ending in "and". */
+function withLeave(files: string | null, note: number, booking: number, leave: number): string {
+  const notes =
+    note <= 0 ? null : note === 1 ? NOTE_WORDS.kindWords.noteOne : fillWords(NOTE_WORDS.kindWords.noteMany, { n: note });
+  const bookings =
+    booking <= 0
+      ? null
+      : booking === 1
+        ? BOOKING_WORDS.kindWords.bookingOne
+        : fillWords(BOOKING_WORDS.kindWords.bookingMany, { n: booking });
+  const leaves = leave === 1 ? LEAVE_WORDS.kindWords.leaveOne : fillWords(LEAVE_WORDS.kindWords.leaveMany, { n: leave });
+  const parts = [files, notes, bookings, leaves].filter((p): p is string => p !== null);
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return fillWords(NOTE_WORDS.kindWords.both, { files: parts[0], notes: parts[1] });
+  return fillWords(NOTE_WORDS.kindWords.both, { files: parts.slice(0, -1).join(", "), notes: parts[parts.length - 1] });
 }
 
 /* ── the row ── */
@@ -652,7 +677,9 @@ export function verdictForUnreadable(attempts: number, kind: Sm8WriteKind = "att
       ? [NOTE_WORDS.row.noteThrew, NOTE_WORDS.row.noteThrewGaveUp]
       : kind === "booking"
         ? [BOOKING_WORDS.row.threw, BOOKING_WORDS.row.threwGaveUp]
-        : [WRITE_WORDS.unreadable, WRITE_WORDS.unreadableGaveUp];
+        : kind === "leave"
+          ? [LEAVE_WORDS.row.threw, LEAVE_WORDS.row.threwGaveUp]
+          : [WRITE_WORDS.unreadable, WRITE_WORDS.unreadableGaveUp];
   if (attempts >= WRITE_MAX_ATTEMPTS) return verdict({ status: "failed", error: gaveUp });
   return verdict({ status: "queued", error: again, retryAfterMs: retryAfter(attempts) });
 }
@@ -693,7 +720,7 @@ export function verdictForLinkUnknown(error: string): WriteVerdict {
 export function verdictForCheckFailed(kind?: Sm8WriteKind): WriteVerdict {
   return verdict({
     status: "queued",
-    error: kind === "booking" ? BOOKING_WORDS.row.threw : NOTE_WORDS.row.noteThrew,
+    error: kind === "booking" ? BOOKING_WORDS.row.threw : kind === "leave" ? LEAVE_WORDS.row.threw : NOTE_WORDS.row.noteThrew,
     retryAfterMs: 60_000,
     refund: true,
   });
@@ -749,7 +776,13 @@ export function verdictForRenewLate(): WriteVerdict {
 export function verdictForLetGo(freeRetries: number, kind: Sm8WriteKind = "attachment"): WriteVerdict {
   if (freeRetries >= WRITE_FREE_RETRIES) {
     const error =
-      kind === "note" ? NOTE_WORDS.row.noteTooSlow : kind === "booking" ? BOOKING_WORDS.row.tooSlow : WRITE_WORDS.tooSlowGaveUp;
+      kind === "note"
+        ? NOTE_WORDS.row.noteTooSlow
+        : kind === "booking"
+          ? BOOKING_WORDS.row.tooSlow
+          : kind === "leave"
+            ? LEAVE_WORDS.row.tooSlow
+            : WRITE_WORDS.tooSlowGaveUp;
     return verdict({ status: "failed", error });
   }
   return verdict({ status: "queued", retryAfterMs: 0, refund: true, freeRetry: true });
@@ -772,6 +805,11 @@ export function verdictForGuard(status: "sent" | "failed", error: string): Write
 const bookingRefused = (op: Sm8WriteOp | undefined): string =>
   op === "update" ? BOOKING_WORDS.row.statusRefused : op === "delete" ? BOOKING_WORDS.row.removeRefused : BOOKING_WORDS.row.refused;
 
+/** Leave refused, in its op's words: putting it on the board, or taking it
+    off. */
+const leaveRefused = (op: Sm8WriteOp | undefined): string =>
+  op === "delete" ? LEAVE_WORDS.row.removeRefused : LEAVE_WORDS.row.refused;
+
 /** What a row becomes after one attempt. `attempts` counts this one. */
 export function verdictFor(
   outcome: Sm8WriteOutcome,
@@ -788,6 +826,9 @@ export function verdictFor(
          in its op's words, and a booking's own read-back after a 409 is its
          sender's (sm8-booking-send, PR B). */
       if (ctx.kind === "booking") return verdict({ status: "failed", error: bookingRefused(ctx.op) });
+      /* LEAVE'S 409 IS NEVER SENT UNREAD either: its sender reads ours back
+         after a 400 or a 409 before it gets here (sm8-leave-send) */
+      if (ctx.kind === "leave") return verdict({ status: "failed", error: leaveRefused(ctx.op) });
       return verdict({ status: "sent" });
     case "unauthorized":
       /* waits for a reconnect, then goes: nothing about the file was wrong */
@@ -874,6 +915,15 @@ export function verdictFor(
         }
         return verdict({ status: "failed", error: BOOKING_WORDS.row.forbidden });
       }
+      /* LEAVE GOES AS THE APP, as a booking does: a 403 naming the scope
+         holds leave only and the run goes on; any other fails its row and
+         counts towards the two-in-a-row stop. */
+      if (ctx.kind === "leave") {
+        if (outcome.scope) {
+          return verdict({ status: "queued", error: LEAVE_WORDS.row.scopeHeld, refund: true, blockKind: true });
+        }
+        return verdict({ status: "failed", error: LEAVE_WORDS.row.forbidden });
+      }
       if (outcome.scope) {
         return verdict({ status: "queued", error: WRITE_WORDS.scopeHeld, refund: true, stop: true, blockKind: true });
       }
@@ -914,6 +964,13 @@ export function verdictFor(
           return verdict({ status: "failed", error: WRITE_WORDS.noJob });
         }
         return verdict({ status: "failed", error: bookingRefused(op) });
+      }
+      if (ctx.kind === "leave") {
+        /* A 404 on a delete: already off the board (the sender read it
+           first, so it only gets here from a DELETE that answered 404). On
+           a create it is the person or the account ServiceM8 can't find. */
+        if (outcome.status === 404 && ctx.op === "delete") return verdict({ status: "sent" });
+        return verdict({ status: "failed", error: leaveRefused(ctx.op) });
       }
       return verdict({
         status: "failed",

@@ -469,3 +469,89 @@ describe("lanePresence and a job ServiceM8 has already closed", () => {
     expect(lanePresence([open, { ...open, closure: "stale" as const }], 12 * 60)).toBe("late");
   });
 });
+
+/* TIME OFF ON THE DAY (leave to ServiceM8, part two). A person off with
+   nothing booked still gets a lane — who's off is half of who's on — and
+   time off never becomes a booking, a load or a crew. */
+describe("layoutScheduleDay with time off", () => {
+  const DAY = "2026-08-10";
+  const off = (over: { uuid: string; staffUuid: string; name?: string | null; start?: string; end?: string }) => ({
+    name: "SICK",
+    start: `${DAY} 00:00:00`,
+    end: `${DAY} 23:59:59`,
+    ...over,
+  });
+  const jobs = [job({ remoteId: "j-1" })];
+
+  it("(F) gives somebody off with nothing booked a lane of their own, after everyone working", () => {
+    const day = layoutScheduleDay({
+      activities: [act({ uuid: "a-1", staffUuid: "s-2" })],
+      staff: STAFF,
+      jobs,
+      away: { dayISO: DAY, rows: [off({ uuid: "o-1", staffUuid: "s-3", name: "Holidays" }), off({ uuid: "o-2", staffUuid: "s-1" })] },
+    });
+    expect(day.lanes.map((l) => [l.name, l.blocks.length, l.away.map((a) => a.word)])).toEqual([
+      ["Lyle Irving", 1, []],
+      // A to Z among the people off
+      ["Alex Lomond", 0, ["SICK"]],
+      ["Callum Vallis", 0, ["Holidays"]],
+    ]);
+    // time off is not work: nothing booked, no minutes, no bookings counted
+    expect(day.totalBookings).toBe(1);
+    expect(day.lanes[1].minutes).toBe(0);
+    expect(day.lanes[1].rows).toEqual([]);
+  });
+
+  it("(F) lays time off on a working person's own lane, whole day or part", () => {
+    const day = layoutScheduleDay({
+      activities: [act({ uuid: "a-1" })],
+      staff: STAFF,
+      jobs,
+      away: { dayISO: DAY, rows: [off({ uuid: "o-1", staffUuid: "s-1", name: "TAFE", start: `${DAY} 12:00:00`, end: `${DAY} 15:30:00` })] },
+    });
+    expect(day.lanes).toHaveLength(1);
+    expect(day.lanes[0].away).toEqual([{ key: "o-1", word: "TAFE", startMin: 720, endMin: 930, whole: false }]);
+  });
+
+  it("matches the person whatever case the uuid was keyed in, and leaves off anyone the mirror can't name", () => {
+    const day = layoutScheduleDay({
+      activities: [],
+      staff: [{ uuid: "5a0e-s1", name: "Sam Tester" }],
+      jobs: [],
+      away: { dayISO: DAY, rows: [off({ uuid: "o-1", staffUuid: "5A0E-S1" }), off({ uuid: "o-2", staffUuid: "s-unknown" })] },
+    });
+    expect(day.lanes.map((l) => [l.staffUuid, l.name])).toEqual([["5a0e-s1", "Sam Tester"]]);
+  });
+
+  it("(F) widens the rail for part-day time off, never for a whole day", () => {
+    const early = layoutScheduleDay({
+      activities: [act({ uuid: "a-1" })],
+      staff: STAFF,
+      jobs,
+      away: { dayISO: DAY, rows: [off({ uuid: "o-1", staffUuid: "s-2", name: "CAR SERVICE", start: `${DAY} 05:30:00`, end: `${DAY} 06:30:00` })] },
+    });
+    expect([early.railStart, early.railEnd]).toEqual([5 * 60, 16 * 60]);
+    const whole = layoutScheduleDay({
+      activities: [act({ uuid: "a-1" })],
+      staff: STAFF,
+      jobs,
+      away: { dayISO: DAY, rows: [off({ uuid: "o-1", staffUuid: "s-2" })] },
+    });
+    expect([whole.railStart, whole.railEnd]).toEqual([7 * 60, 16 * 60]);
+  });
+
+  it("says 'Time off' for time off the business gave no name", () => {
+    const day = layoutScheduleDay({
+      activities: [],
+      staff: STAFF,
+      jobs: [],
+      away: { dayISO: DAY, rows: [off({ uuid: "o-1", staffUuid: "s-1", name: null })] },
+    });
+    expect(day.lanes[0].away[0].word).toBe("Time off");
+  });
+
+  it("without time off, every lane says none — Home's day is laid out exactly as before", () => {
+    const day = layoutScheduleDay({ activities: [act({ uuid: "a-1" })], staff: STAFF, jobs });
+    expect(day.lanes.map((l) => l.away)).toEqual([[]]);
+  });
+});

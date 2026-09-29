@@ -26,6 +26,21 @@ Scroll down and **Save Changes**.
 1. vercel.com → **Add New → Project** → import `isaacsmithnz-cmyk/heytiff`.
 2. Set the **Project Name** to `heytiff` (this decides the `.vercel.app` URL).
 3. Framework preset: **Next.js** (auto-detected). Leave build/output defaults.
+4. **Skew Protection** (Pro or Enterprise). Every deploy gives the server
+   actions new ids, so a tab left open across a deploy presses an action the
+   new deploy doesn't have ("Failed to find Server Action" in the log). Skew
+   Protection sends that tab's requests to the deploy it was served from.
+   Settings → Advanced → **Skew Protection** on, with **Enable access to
+   System Environment Variables** on too, then redeploy production; only
+   deploys built after that are protected. Set **Maximum Age** past how long a
+   tab stays open (the default is one day; the ceiling is the retention
+   policy). Nothing in `next.config.ts`: Next 14.1.4+ reads the deployment id
+   Vercel gives the build, and a `deploymentId` set there that differs from it
+   fails the build. With it off, a press from such a tab says "HeyTiff was
+   updated. Reload the page to carry on." (`src/lib/stale-deploy.ts`, which
+   knows Next's own rejection). Past the maximum age Vercel answers the old
+   tab with its own 404 instead, which that line does not recognise, so the
+   press says its usual failure: keep the maximum age long.
 
 ---
 
@@ -464,6 +479,75 @@ screen, no read and no write.
 **Returning to new code** needs nothing undone:
 - a row the rollback cancelled reads "Not booked. Sending bookings to ServiceM8 was switched off before it went." with Try again;
 - one whose answer had been lost reads the unsure line.
+
+#### Leave to ServiceM8
+
+The fourth kind of write is **leave**. When a manager approves leave in
+HeyTiff it goes onto the person's day on ServiceM8's dispatch board as
+ServiceM8's own staff leave (`availability.json`, `staff-annual-leave`):
+**"Sick leave"** for personal leave, **"Leave"** for annual and unpaid leave
+and for a casual's day they can't work (Isaac, 2026-09-28). Whole days, first
+day 00:00:00 to last day 23:59:59, on the account's wall clock. Cancelling
+approved leave, or taking a day off down, takes it off the board. Leave goes
+as the app, for the person the owner linked on the ServiceM8 screen: someone
+not linked stays off the board, and the approver is told so beside the
+approval. The owner's card carries **Leave** beside Files, Notes and
+Bookings. **Leave starts Off**, and switching it on puts nothing on the board
+by itself: leave approved before then stays where the office keyed it.
+Leave needs `manage_schedule` only, which the Bookings grant already holds,
+so switching Leave on needs **no reconnect** where Bookings is on. The
+migration `docs/migrations/sm8_leave_queue.sql` adds the kind, three columns
+on `sm8_writes`, leave's branch of the shape check, and the owner's fourth
+switch. With `SM8_WRITES` not naming `leave` nothing about leave changes: no
+screen, no read and no write.
+
+**The order:**
+
+1. Apply `docs/migrations/sm8_leave_queue.sql` before the deploy. Run its read-only checks before and after. **Never re-run `sm8_bookings_queue.sql` after it.**
+2. Deploy. With `SM8_WRITES` not naming `leave`, nothing new shows.
+3. Set `SM8_WRITES=attachment,note,booking,leave` and redeploy, while Isaac isn't designing (a redeploy reloads open tabs).
+4. The owner turns **Leave On** on the ServiceM8 screen.
+5. The office stops keying leave into ServiceM8 by hand: from here HeyTiff puts it there.
+
+**Rollback:**
+
+1. The owner turns **Leave Off**. This cancels every waiting leave row.
+2. Set `SM8_WRITES` without `leave` and redeploy. Wait two minutes, the longest lease.
+3. Run in the Supabase SQL editor:
+
+   ```sql
+   begin;
+   update public.sm8_writes
+      set status = 'cancelled',
+          last_error = 'Sending leave to ServiceM8 was switched off before it went.',
+          lease_until = null, claim_id = null, updated_at = now()
+    where kind = 'leave' and status in ('queued', 'sending', 'failed', 'trial');
+   commit;
+   ```
+
+4. Revert the code. The migration stays: old code never reads the new columns.
+5. **Tell Isaac:** leave HeyTiff put on the board stays there; leave cancelled after the rollback has to come off the board by hand.
+
+#### Time off on the Schedule (leave to ServiceM8, part two)
+
+The sync reads ServiceM8's Availability (`availability.json`) into
+`sm8_availability`: every person's time off and every public holiday or
+closed day, under the `read_schedule` grant every connection already holds,
+so **no reconnect**. It is blocked-out time in the business's own words
+("SICK", "TAFE"), never read back into HeyTiff as leave. The Workboard's
+Schedule tab lays it on the day — a lane for somebody off with nothing
+booked, a strip under a working person's bookings, the holiday named over
+the board — and the Book in panel warns, never refuses, when a booking lands
+on it. Both say nothing until the mirror's first read of it has finished.
+No switch and no `SM8_WRITES` change: this is a read.
+
+**The order:**
+
+1. Apply `docs/migrations/sm8_availability.sql` before the deploy (its read-only checks before and after). Without the table, a sync that reaches the new object can't store it and says so on the ServiceM8 screen.
+2. Deploy. The next sync reads the whole of it (~250 rows, one page).
+
+**Rollback:** revert the code. Old code never names the table; drop it and its
+`sm8_sync_state` row by hand if wanted (the SQL is in the migration's header).
 
 ### Calls, echo and freshness
 

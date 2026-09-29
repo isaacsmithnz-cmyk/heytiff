@@ -12,7 +12,7 @@ import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 import { DateField, ScaledInput, Seg, SelectInput, TextInput } from "./fields";
-import type { ProfileMode, SaveSection } from "./types";
+import type { ProfileMode, SaveResult, SaveSection } from "./types";
 import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
 import {
   BOOT_SCALES,
@@ -22,6 +22,7 @@ import {
   uniformValues,
 } from "@/lib/staff/uniform";
 import { AU_STATES } from "@/lib/org/settings";
+import { ALIAS_WORDS, aliasListText, parseAliasList } from "@/lib/staff/aliases";
 
 /* the one list, shared with the Rate Calculator and Time & Pay — a label
    added here has to classify there too */
@@ -62,6 +63,8 @@ export function PersonalCard({
   orgState = null,
   startEditing,
   focusField,
+  aliases = [],
+  onSaveAliases,
   onSave,
 }: {
   profile: StaffProfile | null;
@@ -85,9 +88,31 @@ export function PersonalCard({
   startEditing?: boolean;
   /** the column Summary's Add pointed at — the form opens on it */
   focusField?: string;
+  /** The nicknames the person goes by — learned by Tiff or typed here. */
+  aliases?: string[];
+  /** Saves the "Also called" list. Handed in, like the sign-in move above;
+      without it the row isn't drawn. */
+  onSaveAliases?: (names: string[]) => Promise<SaveResult>;
   onSave: SaveSection;
 }) {
-  const values = personalValues(profile, mode);
+  /* "ALSO CALLED" RIDES THE CARD'S OWN DRAFT as one comma list, so it is
+     edited, saved and cancelled with the rest of the card — but it is not a
+     column: it is taken off before the section save and goes to its own
+     action (staff_aliases). */
+  const values: Record<string, string> = {
+    ...personalValues(profile, mode),
+    ...(onSaveAliases ? { aliases: aliasListText(aliases) } : {}),
+  };
+  const saveCard = async (fields: Record<string, string>): Promise<SaveResult> => {
+    const { aliases: typed, ...rest } = fields;
+    if (onSaveAliases && typed !== undefined && typed !== values.aliases) {
+      const { names, refused } = parseAliasList(typed);
+      if (refused.length) return { ok: false, error: ALIAS_WORDS.notAName(refused[0]), fields: ["aliases"] };
+      const r = await onSaveAliases(names);
+      if (!r.ok) return r;
+    }
+    return onSave("personal", rest);
+  };
   // what the uniform rows READ as, which is not what they submit: a boot size
   // reads with its scale attached and saves as the two columns it is
   const display = uniformDisplay(profile);
@@ -168,6 +193,24 @@ export function PersonalCard({
             />
           }
         />
+        {onSaveAliases && (
+          <Detail
+            label={ALIAS_WORDS.label}
+            editing={editing}
+            value={values.aliases}
+            onAdd={edit}
+            error={errorFor("aliases", "Check these")}
+            control={
+              <TextInput
+                name="aliases"
+                placeholder={ALIAS_WORDS.placeholder}
+                value={draft.aliases}
+                invalid={invalid("aliases")}
+                onChange={(v) => set("aliases", v)}
+              />
+            }
+          />
+        )}
         <Detail
           label="Date of birth"
           req={requiredField("birthday")}
@@ -401,7 +444,7 @@ export function PersonalCard({
         values={values}
         startEditing={startEditing}
         focusField={focusField}
-        onSave={(fields) => onSave("personal", fields)}
+        onSave={saveCard}
         validate={(fields) => preValidate(mode, "personal", fields)}
         body={body}
       />

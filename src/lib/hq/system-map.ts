@@ -482,6 +482,23 @@ export const NODES: MapNode[] = [
     ],
   },
   {
+    id: "eng-sm8-hooks",
+    name: "ServiceM8 live updates",
+    kind: "engine",
+    group: "Shared engines",
+    status: "building",
+    blurb: "ServiceM8 pings a secret address when a record changes; HeyTiff reads that record back.",
+    detail:
+      "A ping is a doorbell, never data: it names an object and a uuid, and nothing else in it is used — its link is never fetched. The address carries a 256-bit secret the database holds only as a hash; one SQL call checks it and queues the record, and a drain behind the answer reads each queued record once through the one door, a read a second, under the sync lease by token, standing aside when a sync asks. Pings never start a sync: a bulk edit is handed to the next ordinary one. A Reconnect rotates the secret with 72 h of grace; a disconnect unsubscribes, and an unknown address is answered 410, which ServiceM8 takes as unsubscribing. Off unless SM8_WEBHOOKS=1 on Production; `gone` is the rollback.",
+    paths: [
+      "src/app/api/integrations/servicem8/webhook/[hook]/route.ts",
+      "src/lib/integrations/sm8-hook-drain.ts",
+      "src/lib/integrations/sm8-hooks.ts",
+      "src/lib/integrations/sm8-hook-plan.ts",
+      "src/lib/integrations/sm8-hooks-switch.ts",
+    ],
+  },
+  {
     id: "eng-voice-notes",
     name: "Smart Notes engine",
     kind: "engine",
@@ -763,6 +780,9 @@ export const EDGES: MapEdge[] = [
   { from: "eng-sm8-sync", to: "servicem8", label: "paged object reads, under both call budgets" },
   { from: "eng-sm8-sync", to: "db-sm8", label: "upserts mirrors; cursors move on completed walks only" },
   { from: "eng-sm8-sync", to: "db-integrations", label: "spends the sealed grant via sm8Access()" },
+  { from: "eng-sm8-hooks", to: "servicem8", label: "subscribes at a secret address; reads each pinged record back" },
+  { from: "eng-sm8-hooks", to: "db-sm8", label: "upserts what ServiceM8 returned, under the keep-newer guard" },
+  { from: "eng-sm8-hooks", to: "eng-sm8-sync", label: "shares the sync lease by token; stands aside when a sync asks" },
   { from: "expenses", to: "db-timepay", label: "claims, decisions & reimbursements" },
   { from: "expenses", to: "db-docs", label: "receipts in the documents bucket, signed per render" },
   { from: "expenses", to: "db-staff", label: "who claimed it — names only, never wages" },

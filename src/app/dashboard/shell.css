@@ -3445,6 +3445,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    down; the period nav and status chip still come from `.tpr`. No money rules,
    because there is no money on the screen. */
 .fg .tp-err { font-size:13px; font-weight:600; color:var(--red-d,var(--bad-t)); margin:-6px 0 12px; }
+/* what kept approved leave off the ServiceM8 board: somebody's to fix, not an error */
+.fg .tp-err.warn { color:var(--warn-t); }
 .fg .mts-back { display:flex; gap:8px; align-items:flex-start; padding:12px 16px; border-radius:var(--r-card); background:var(--bad-tint); border:1px solid var(--bad); color:var(--bad-t); margin-bottom:16px; }
 .fg .mts-back b { display:block; font-size:13px; font-weight:700; }
 .fg .mts-back em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray700); margin-top:4px; }
@@ -6106,6 +6108,27 @@ button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint
 /* the hour grid, drawn once per lane as a background rather than 12 elements */
 .wb2-schlane::before { content:""; position:absolute; inset:0; pointer-events:none;
   background-image:repeating-linear-gradient(to right, var(--wb2-line2) 0 1px, transparent 1px var(--hr)); }
+
+/* ── time off on a lane (leave to ServiceM8, part two) ──
+   ServiceM8's own word for it at the start of its span, on a plain band:
+   no cap, no wash, no number, because it is not work — it is time nobody can
+   be sent. It fills the lane of somebody with nothing booked; under a
+   working person's bookings it is a strip of its own on the same hours, so
+   a booking over it can never hide it. The word is ink at a label's size: it is
+   the whole message ("SICK", "TAFE"), and #5f6a79 on this ground is 4.6:1,
+   too near the floor for the one word a dispatcher must not miss. */
+.wb2-schaway { position:absolute; display:flex; align-items:flex-start; padding:4px 8px;
+  border-radius:var(--r-control); background:var(--tint-2); overflow:hidden; }
+.wb2-schaway > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:13px; font-weight:500; line-height:1.2; color:var(--ink); }
+/* under a working person's bookings: one line, on the strip's middle */
+.wb2-schaway.strip { align-items:center; padding:0 8px; }
+.wb2-schaway.strip > span:first-child { font-size:12px; }
+
+/* the business shut for the day: the label, then ServiceM8's name for it */
+.wb2-schclosed > span { display:inline-flex; align-items:baseline; gap:8px; }
+.wb2-schclosed b { font-size:13px; font-weight:600; color:var(--ink); }
+.wb2-schclosed em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
 
 /* ── a block ──
    NO TIME TEXT: its place on the rail already says when — writing it on the

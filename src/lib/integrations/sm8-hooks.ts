@@ -32,7 +32,11 @@
    5. What was found, per object (sm8_webhooks.objects: the spelling, the
       subscription's uuid, active, a refusal, a turn-off — NEVER an
       address), subscribed_at when all six are active at the address, and
-      ensure_tried_at. A rotation owed is cleared only here, at the end,
+      ensure_tried_at. A 2xx POST is ServiceM8's word that the object is
+      subscribed: the second list confirms it (an active entry at the
+      address, whatever its listed fields read as) or corrects it (one
+      listed inactive), and a list that doesn't show it leaves it standing
+      (HookVouch, noteFromList: the walk of 2026-09-28). A rotation owed is cleared only here, at the end,
       and only when this run minted.
    ONE AT A TIME per workspace: the reconcile claims ensure_tried_at for
    its budget before anything else (a conditional write), and a second
@@ -45,6 +49,10 @@
    JSON. Every text of ServiceM8's that is stored or logged goes through
    redactHook first, with the secrets this run holds named, so a refusal
    that echoes the address keeps `[hook]` in its place.
+
+   HOW THEY ARE (PR F): readSm8HooksHealth for the owner's screen, one read
+   of one row, and checkSm8HooksQuiet for the night, which alone counts the
+   mirror to tell `quiet`. See the section's note.
 
    A 401 FROM THE SUBSCRIPTION API IS NOT TAKEN AS THE GRANT'S DEATH until a
    plain read under the renewed token agrees (withSm8Renewal's
@@ -66,22 +74,33 @@ import {
   HOOK_OBJECT_NAMES,
   HOOK_PATH,
   HOOK_POST_TIMEOUT_MS,
+  QUIET_AFTER_MS,
+  QUIET_EDITS,
   classifyOurs,
-  hookFieldsFor,
+  hookFieldLadder,
+  hookFieldsHeld,
   hookHashOf,
   hookSpecOf,
+  hookSubCovers,
+  isInvalidField,
   isUnsupportedObject,
   ourSecretIn,
   planSubscriptions,
+  quietFrom,
+  quietStampFrom,
   readHookList,
   readHookObjects,
   redactHook,
+  sameHookFields,
+  sm8HooksHealth,
   spellingsFor,
   type HookObjectName,
   type HookObjectState,
   type HookObjectsState,
   type HookSub,
+  type HookVouch,
   type OurHashes,
+  type Sm8HooksHealth,
 } from "./sm8-hook-plan";
 
 const WEBHOOKS = "sm8_webhooks";
@@ -105,10 +124,11 @@ export function sm8HookOrigin(): string | null {
   }
 }
 
-/** The fields each object must watch. */
-function wantedFields(): Record<HookObjectName, string[]> {
+/** The fields each object must watch: the list ServiceM8 last took for it
+    (hookFieldsHeld), else every mirrored field. */
+function wantedFields(known: HookObjectsState): Record<HookObjectName, string[]> {
   const out = {} as Record<HookObjectName, string[]>;
-  for (const o of HOOK_OBJECT_NAMES) out[o] = hookFieldsFor(hookSpecOf(o));
+  for (const o of HOOK_OBJECT_NAMES) out[o] = hookFieldsHeld(hookSpecOf(o), known[o]?.fields);
   return out;
 }
 
@@ -331,11 +351,11 @@ export function deletableSubs(
   subs: readonly HookSub[],
   origin: string,
   held: OurHashes,
-  wanted: Readonly<Record<HookObjectName, readonly string[]>>
+  wanted: Readonly<Record<HookObjectName, readonly string[]>>,
+  vouch: Readonly<HookVouch> = {}
 ): string[] {
   const ours = classifyOurs(subs, origin, held);
-  const covered = (o: HookObjectName) =>
-    ours.some((s) => s.age === "current" && s.hookObject === o && s.active && wanted[o].every((f) => s.fields.includes(f)));
+  const covered = (o: HookObjectName) => ours.some((s) => s.hookObject === o && hookSubCovers(s, wanted[o], vouch[o]));
   const out: string[] = [];
   for (const s of ours) {
     if (!s.active || s.age === "current") continue;
@@ -413,8 +433,17 @@ export async function ensureSm8Webhooks(
     const owedAt = state?.rotate_wanted_at ?? null;
 
     const run: Run = { orgId, access: accessed.access, end: started + opts.budgetMs, clock, secrets: [] };
-    const wanted = wantedFields();
     const known = readHookObjects(state?.objects);
+    const wanted = wantedFields(known);
+    /* what an earlier reconcile's POST vouches for: the subscription it
+       recorded, active, on the fields held now (HookVouch) */
+    const vouch: HookVouch = {};
+    for (const o of HOOK_OBJECT_NAMES) {
+      const k = known[o];
+      if (k?.active === true && k.sub && sameHookFields(k.fields, wanted[o])) vouch[o] = k.sub;
+    }
+    /* the objects a 2xx POST subscribed this run */
+    const took = new Set<HookObjectName>();
     const found: HookObjectsState = {};
     const touch = (o: HookObjectName, patch: HookObjectState) => {
       found[o] = { ...found[o], ...patch };
@@ -510,8 +539,8 @@ export async function ensureSm8Webhooks(
     }
 
     /* 3. the POSTs, the turn-offs recorded first */
-    const plan = planSubscriptions({ subs, origin, hashes, wanted });
-    noteFromList(subs, origin, hashes, wanted, touch);
+    const plan = planSubscriptions({ subs, origin, hashes, wanted, vouch });
+    noteFromList(subs, origin, hashes, wanted, vouch, took, touch);
     if (plan.deactivated.length > 0) {
       for (const d of plan.deactivated) {
         touch(d.object, { active: false, failure_reason: safe(d.reason, run.secrets), failure_at: stampOrNull(d.at) });
@@ -534,7 +563,22 @@ export async function ensureSm8Webhooks(
       }
       if (outcome.kind === "ok") {
         posted += 1;
-        touch(object, { name: outcome.name, active: true, error: null, failure_reason: null, failure_at: null });
+        /* what ServiceM8 took is what the listing is held to from here on,
+           and the 2xx is ServiceM8's own word that it is subscribed: a
+           later list confirms it (and names its uuid) or corrects it, but
+           never reads it as narrower than what was just taken */
+        wanted[object] = outcome.fields;
+        vouch[object] = true;
+        took.add(object);
+        touch(object, {
+          name: outcome.name,
+          fields: outcome.fields,
+          active: true,
+          error: null,
+          failure_reason: null,
+          failure_at: null,
+          ...(outcome.sub ? { sub: outcome.sub } : {}),
+        });
       } else {
         touch(object, { active: false, error: outcome.error });
         console.error(`[sm8] live updates for org ${orgId}: ServiceM8 refused ${object}: ${outcome.error}`);
@@ -553,8 +597,8 @@ export async function ensureSm8Webhooks(
       } else {
         subs = second.subs;
         latest = true;
-        delPlan = planSubscriptions({ subs, origin, hashes, wanted });
-        noteFromList(subs, origin, hashes, wanted, touch);
+        delPlan = planSubscriptions({ subs, origin, hashes, wanted, vouch });
+        noteFromList(subs, origin, hashes, wanted, vouch, took, touch);
       }
     }
     if (delPlan.leftAlone.length > 0) {
@@ -567,7 +611,7 @@ export async function ensureSm8Webhooks(
     if (!stopped && latest && delPlan.del.length > 0) {
       const held = await heldHashes(orgId, account, clock());
       if (held === null) stopped = "hooks unreadable";
-      const doomed = held === null ? [] : deletableSubs(subs, origin, held, wanted);
+      const doomed = held === null ? [] : deletableSubs(subs, origin, held, wanted, vouch);
       for (const uuid of doomed) {
         const d = await deleteSub(run, uuid);
         if (d === "deleted") deleted += 1;
@@ -588,18 +632,27 @@ export async function ensureSm8Webhooks(
 }
 
 /** Per object, what a listing says about the address in use: its
-    subscription, and whether it is active and watching what we want. */
+    subscription, and whether it is active and watching what we want
+    (hookSubCovers, with what a POST vouches for). An object a 2xx POST
+    subscribed this run (`took`) is CONFIRMED by an active entry at the
+    address, and CORRECTED by one listed inactive; a listing with no entry
+    for it at all leaves the POST's word standing — at the walk of
+    2026-09-28 ServiceM8 pinged for notes and attachments that its listing
+    right after their POSTs didn't show at the address. */
 function noteFromList(
   subs: readonly HookSub[],
   origin: string,
   hashes: OurHashes,
   wanted: Readonly<Record<HookObjectName, readonly string[]>>,
+  vouch: Readonly<HookVouch>,
+  took: ReadonlySet<HookObjectName>,
   touch: (o: HookObjectName, patch: HookObjectState) => void
 ): void {
   const current = classifyOurs(subs, origin, hashes).filter((s) => s.age === "current");
   for (const o of HOOK_OBJECT_NAMES) {
     const here = current.filter((s) => s.hookObject === o);
-    const covering = here.find((s) => s.active && wanted[o].every((f) => s.fields.includes(f)));
+    if (here.length === 0 && took.has(o)) continue;
+    const covering = here.find((s) => hookSubCovers(s, wanted[o], vouch[o]));
     const pick = covering ?? here[0];
     touch(o, {
       sub: pick?.uuid ?? null,
@@ -613,26 +666,56 @@ function noteFromList(
 }
 
 type Subscribed =
-  | { kind: "ok"; name: string }
+  /** `sub`: the subscription's uuid, when the answer names one. */
+  | { kind: "ok"; name: string; fields: string[]; sub: string | null }
   | { kind: "refused"; error: string }
   | { kind: "stop"; why: string };
 
-/** One object's POST, in each spelling until ServiceM8 takes one. */
-async function subscribe(run: Run, object: HookObjectName, address: string, fields: readonly string[], worked: string | null): Promise<Subscribed> {
+/** One object's POST, in each spelling until ServiceM8 takes one; for a
+    spelling it takes but whose field list it refuses ("not a valid
+    field"), the ladder's next list (hookFieldLadder), from the one held
+    down. Never a POST with no fields. */
+async function subscribe(run: Run, object: HookObjectName, address: string, held: readonly string[], worked: string | null): Promise<Subscribed> {
+  const ladder = hookFieldLadder(hookSpecOf(object));
+  const from = ladder.findIndex((r) => r.length === held.length && r.every((f) => held.includes(f)));
+  const rungs = (from >= 0 ? ladder.slice(from) : [[...held], ...ladder]).map((r) => r.filter((f) => f !== "")).filter((r) => r.length > 0);
+  if (rungs.length === 0) return { kind: "refused", error: "no fields to watch" };
   let last = "";
   for (const name of spellingsFor(object, worked)) {
-    const body = new URLSearchParams({ object: name, fields: fields.join(","), callback_url: address });
-    const hit = await hooksCall(run, "POST", "/webhook_subscriptions/object", { body });
-    if (hit.kind === "failed") return { kind: "refused", error: safe(hit.message, run.secrets) };
-    if (hit.kind !== "response") return { kind: "stop", why: hit.kind };
-    if (hit.status >= 200 && hit.status <= 299 && successOf(hit.body)) return { kind: "ok", name };
-    if (isUnsupportedObject(hit.status, hit.body)) {
-      last = hit.body;
-      continue;
+    for (let i = 0; i < rungs.length; i += 1) {
+      const fields = rungs[i];
+      const body = new URLSearchParams({ object: name, fields: fields.join(","), callback_url: address });
+      const hit = await hooksCall(run, "POST", "/webhook_subscriptions/object", { body });
+      if (hit.kind === "failed") return { kind: "refused", error: safe(hit.message, run.secrets) };
+      if (hit.kind !== "response") return { kind: "stop", why: hit.kind };
+      if (hit.status >= 200 && hit.status <= 299 && successOf(hit.body)) return { kind: "ok", name, fields, sub: subUuidOf(hit.body) };
+      if (isUnsupportedObject(hit.status, hit.body)) {
+        last = hit.body;
+        break;
+      }
+      if (isInvalidField(hit.status, hit.body) && i + 1 < rungs.length) {
+        console.warn(`[sm8] live updates for org ${run.orgId}: ServiceM8 refused ${object}'s ${fields.length} field(s); offering ${rungs[i + 1].length}`);
+        continue;
+      }
+      return { kind: "refused", error: safe(`${hit.status}: ${hit.body}`, run.secrets) };
     }
-    return { kind: "refused", error: safe(`${hit.status}: ${hit.body}`, run.secrets) };
   }
   return { kind: "refused", error: safe(`400: ${last}`, run.secrets) };
+}
+
+const SUB_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The subscription's uuid in a POST's answer, when it carries one. The
+    reference documents only `{"success": true}`
+    (reference/post_object_webhook_subscription), so this is usually null
+    and the list after the POSTs names it. */
+function subUuidOf(body: string): string | null {
+  try {
+    const j = JSON.parse(body) as { uuid?: unknown };
+    return j && typeof j === "object" && typeof j.uuid === "string" && SUB_UUID_RE.test(j.uuid) ? j.uuid : null;
+  } catch {
+    return null;
+  }
 }
 
 /** `{"success": true}`, or a 2xx body that doesn't say otherwise. */
@@ -706,6 +789,187 @@ export async function dropExpiredSm8Hooks(now: number = Date.now()): Promise<num
   } catch {
     return 0;
   }
+}
+
+/* ── how live updates are (PR F) ──
+
+   THE OWNER SEES NOTHING WHILE THEY WORK (the spec's decision D2). One line
+   on the ServiceM8 screen, naming the thing, only when sm8-hook-plan's
+   sm8HooksHealth says `none`, `partial`, `deactivated` or `quiet`; the
+   words are sm8-hook-words'. Nothing on Home, nothing in the bell.
+
+   `none`, `partial` and `deactivated` are read off what the reconcile
+   stored (sm8_webhooks.objects). `quiet` needs a count of the mirror, so it
+   is the NIGHTLY check's, after the syncs have brought the day's edits in:
+   it marks quiet_since, and the next ping clears it (sm8_take_ping). The
+   screen reads the mark and never counts. */
+
+type HealthRow = {
+  objects: unknown;
+  subscribed_at: string | null;
+  last_ping_at: string | null;
+  quiet_since: string | null;
+  rotate_wanted_at: string | null;
+  ensure_tried_at: string | null;
+};
+
+const HEALTH_COLUMNS = "objects, subscribed_at, last_ping_at, quiet_since, rotate_wanted_at, ensure_tried_at";
+
+/** Whether no reconcile has had its go at what is there yet: none has ever
+    tried, a connect has owed a rotation since the last one tried, or one is
+    running now (its ensure_tried_at holds the end of its budget). What the
+    row says then is being put right, so nothing is said of it. */
+export function sm8HooksSettling(row: Pick<HealthRow, "rotate_wanted_at" | "ensure_tried_at"> | null, now: number): boolean {
+  const tried = msOf(row?.ensure_tried_at ?? null);
+  if (tried === null || tried > now) return true;
+  const owed = msOf(row?.rotate_wanted_at ?? null);
+  return owed !== null && owed > tried;
+}
+
+/** How live updates are by the one row, with no count made: `quiet` is
+    what the nightly check last found (quiet_since), never counted again
+    here. */
+export function sm8HooksHealthOf(row: Pick<HealthRow, "objects" | "subscribed_at" | "last_ping_at" | "quiet_since"> | null, now: number): Sm8HooksHealth {
+  return sm8HooksHealth({
+    objects: readHookObjects(row?.objects),
+    subscribedAt: msOf(row?.subscribed_at ?? null),
+    lastPingAt: msOf(row?.last_ping_at ?? null),
+    editedSince: row?.quiet_since ? QUIET_EDITS : null,
+    now,
+  });
+}
+
+/** What the owner's ServiceM8 screen says of live updates: null — nothing —
+    while they work, while a reconcile is still to have its go, when the row
+    can't be read, and on any switch but `on`, where nothing is read at all.
+    One read of one row otherwise. Never throws. */
+export async function readSm8HooksHealth(orgId: string, now: number = Date.now()): Promise<Sm8HooksHealth | null> {
+  if (sm8WebhooksState() !== "on") return null;
+  try {
+    const { data, error } = await supabaseAdmin.from(WEBHOOKS).select(HEALTH_COLUMNS).eq("org_id", orgId).maybeSingle();
+    if (error) return null;
+    const row = (data as HealthRow | null) ?? null;
+    if (sm8HooksSettling(row, now)) return null;
+    const health = sm8HooksHealthOf(row, now);
+    return health.state === "ok" ? null : health;
+  } catch {
+    return null;
+  }
+}
+
+export type Sm8QuietCheck = {
+  /** `settling`: a reconcile is still to have its go (sm8HooksSettling).
+      `unread`: the row, the account's clock or a count couldn't be read. */
+  state: Sm8HooksHealth["state"] | "settling" | "unread";
+  /** The mirror was counted. */
+  counted: boolean;
+  /** Quiet, and a reconcile was run for it. */
+  ensured: boolean;
+};
+
+/** Covered records edited after `stamp` (the account's clock, as the mirror
+    keeps edit_date), counted table by table and no further than
+    QUIET_EDITS. Null when a count fails. */
+async function editedSince(orgId: string, stamp: string): Promise<number | null> {
+  let n = 0;
+  for (const o of HOOK_OBJECT_NAMES) {
+    const { count, error } = await supabaseAdmin
+      .from(hookSpecOf(o).table)
+      .select("uuid", { count: "exact", head: true })
+      .eq("org_id", orgId)
+      .gt("edit_date", stamp);
+    if (error || typeof count !== "number") return null;
+    n += count;
+    if (n >= QUIET_EDITS) break;
+  }
+  return n;
+}
+
+/** THE NIGHTLY CHECK, after the syncs have brought the day's edits in:
+    1. the row; a reconcile still to have its go is left alone (the
+       screen's rule too);
+    2. the state from what the reconcile stored — and only when that is
+       `ok` and the last ping (or the subscribing) is more than a day old,
+       the count: covered records edited since quietStampFrom, in the
+       account's clock;
+    3. quiet: quiet_since marked (or an earlier mark kept) by a
+       compare-and-set on the row as read, so a ping that came meanwhile (it
+       clears the mark and moves last_ping_at) wins — the answer is then
+       `ok`, with no reconcile — and otherwise a reconcile in what is left
+       of `budgetMs`. `ok`: a mark from an earlier night cleared.
+    Any other state is the reconcile's to put right, and the screen's to
+    say. Nothing on any switch but `on`. Never throws. */
+export async function checkSm8HooksQuiet(orgId: string, opts: { budgetMs: number; clock?: () => number }): Promise<Sm8QuietCheck> {
+  const unread: Sm8QuietCheck = { state: "unread", counted: false, ensured: false };
+  if (sm8WebhooksState() !== "on") return unread;
+  const clock = opts.clock ?? Date.now;
+  const started = clock();
+  try {
+    const { data, error } = await supabaseAdmin.from(WEBHOOKS).select(HEALTH_COLUMNS).eq("org_id", orgId).maybeSingle();
+    if (error) return unread;
+    const row = (data as HealthRow | null) ?? null;
+    if (row === null || sm8HooksSettling(row, started)) return { state: "settling", counted: false, ensured: false };
+
+    const stored = sm8HooksHealthOf({ ...row, quiet_since: null }, started);
+    if (stored.state !== "ok") return { state: stored.state, counted: false, ensured: false };
+
+    const last = quietFrom(msOf(row.last_ping_at), msOf(row.subscribed_at));
+    let counted = false;
+    let edits: number | null = null;
+    if (last !== null && started - last > QUIET_AFTER_MS) {
+      const tz = await accountClock(orgId);
+      const stamp = tz === null ? null : quietStampFrom(last, tz);
+      if (stamp === null) return unread;
+      edits = await editedSince(orgId, stamp);
+      if (edits === null) return unread;
+      counted = true;
+    }
+    const health = sm8HooksHealth({
+      objects: readHookObjects(row.objects),
+      subscribedAt: msOf(row.subscribed_at),
+      lastPingAt: msOf(row.last_ping_at),
+      editedSince: edits,
+      now: started,
+    });
+
+    if (health.state !== "quiet") {
+      if (row.quiet_since !== null) {
+        const { error: cleared } = await supabaseAdmin.from(WEBHOOKS).update({ quiet_since: null }).eq("org_id", orgId);
+        if (cleared) console.error(`[sm8] live updates for org ${orgId}: couldn't clear the quiet mark: ${cleared.message}`);
+      }
+      return { state: health.state, counted, ensured: false };
+    }
+
+    /* THE MARK IS A COMPARE-AND-SET on the row as it was read: set (or kept)
+       only where no ping has come since — a ping moves last_ping_at and
+       clears quiet_since. Matching nothing, it lost to a ping: that is
+       `ok`, and there is nothing to reconcile. */
+    const since = row.quiet_since ?? iso(started);
+    let mark = supabaseAdmin.from(WEBHOOKS).update({ quiet_since: since }).eq("org_id", orgId);
+    mark = row.quiet_since === null ? mark.is("quiet_since", null) : mark.eq("quiet_since", row.quiet_since);
+    mark = row.last_ping_at === null ? mark.is("last_ping_at", null) : mark.eq("last_ping_at", row.last_ping_at);
+    const { data: markedRows, error: marked } = await mark.select("org_id");
+    if (marked) {
+      console.error(`[sm8] live updates for org ${orgId}: couldn't mark it quiet: ${marked.message}`);
+      return { state: "unread", counted, ensured: false };
+    }
+    if ((markedRows ?? []).length === 0) return { state: "ok", counted, ensured: false };
+    const left = started + opts.budgetMs - clock();
+    const ensured = left > 0 ? (await ensureSm8Webhooks(orgId, { budgetMs: left, clock })).ran : false;
+    return { state: "quiet", counted, ensured };
+  } catch (err) {
+    console.error(`[sm8] live updates for org ${orgId}: the health check threw: ${safe(err instanceof Error ? err.message : String(err), [])}`);
+    return unread;
+  }
+}
+
+/** The account's clock, as the last vendor read named it: the zone the
+    mirror's edit_date is written in. Null when there is none. */
+async function accountClock(orgId: string): Promise<string | null> {
+  const { data, error } = await supabaseAdmin.from("sm8_vendor").select("timezone_name").eq("org_id", orgId).maybeSingle();
+  if (error) return null;
+  const tz = (data as { timezone_name: string | null } | null)?.timezone_name;
+  return typeof tz === "string" && tz.trim() ? tz.trim() : null;
 }
 
 /* ── a disconnect ── */

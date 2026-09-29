@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { aliasesOf } from "@/lib/staff/aliases-query";
 import { auth0 } from "@/lib/auth0";
 import { ProfileScreen } from "@/components/profile/profile-screen";
 import type { ProfileHeader } from "@/components/profile/types";
@@ -14,6 +15,7 @@ import {
   removeMyLicenceTerm,
   removeMyWorkRightsCheck,
   saveMyProfileSection,
+  saveMyAliases,
   setMyPhoto,
   updateMyLicence,
 } from "@/app/actions/profile";
@@ -73,12 +75,13 @@ export default async function MyProfilePage({
      more reads for the whole wall rather than two per card, and both skipped
      entirely for someone with no licences on file. */
   const licenceIds = licences.map((l) => l.id);
-  const [licenceTerms, licenceDocuments, workRightsChecks, workRightsDocuments] =
+  const [licenceTerms, licenceDocuments, workRightsChecks, workRightsDocuments, aliases] =
     await Promise.all([
       orgId ? listLicenceTerms(orgId, profile.id) : Promise.resolve({}),
       orgId ? documentsForStaffLicences(orgId, licenceIds) : Promise.resolve(new Map()),
       orgId ? listWorkRightsChecks(orgId, profile.id) : Promise.resolve([]),
       orgId ? documentsForWorkRights(orgId, profile.id) : Promise.resolve([]),
+      orgId ? aliasesOf(orgId, profile.id) : Promise.resolve([]),
     ]);
 
   const email = session.user.email ?? "";
@@ -135,12 +138,14 @@ export default async function MyProfilePage({
       org={orgName}
       orgState={orgState}
       myPay={myPay}
+      aliases={aliases}
       initialSec={typeof sec === "string" ? sec : undefined}
       // Whether address lookup is CONFIGURED, never the key: this is a server
       // component, so the boolean is all that crosses into the client tree.
       addressLookup={Boolean(process.env.GOOGLE_MAPS_API_KEY)}
       actions={{
         onSave: saveMyProfileSection,
+        onSaveAliases: saveMyAliases,
         onAddLicence: addMyLicence,
         onUpdateLicence: updateMyLicence,
         onRecordLicenceTerm: recordMyLicenceTerm,

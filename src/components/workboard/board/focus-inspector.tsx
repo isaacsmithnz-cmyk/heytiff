@@ -9,6 +9,7 @@ import { BOOKING_WORDS, bookingActWord, type BookingState } from "@/lib/integrat
 import { mintPressId } from "@/lib/workboard/press-id";
 import { ClearConfirm } from "./book-in-panel";
 import { StateLine } from "./state-line";
+import { thrownWords } from "@/lib/stale-deploy";
 import { Fact, Inspector, Ledger, Reading } from "./inspector";
 
 /* ONE JOB OFF THE DAY, in the inspector — what the focus stack was, without
@@ -101,10 +102,13 @@ export function FocusInspector({
            took out leaves it */
         if (res.ok) onCleared?.();
       },
-      () => {
+      (err: unknown) => {
         out.current = null;
         setBusy(null);
-        setSaid((cur) => ({ ...cur, [e.key]: { key: null, text: BOOKING_WORDS.press.unqueued, tone: "bad", acts: [] } }));
+        setSaid((cur) => ({
+          ...cur,
+          [e.key]: { key: null, text: thrownWords(err, BOOKING_WORDS.press.unqueued), tone: "bad", acts: [] },
+        }));
       }
     );
   };

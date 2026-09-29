@@ -591,6 +591,44 @@ describe("the mirror card's overnight line", () => {
   });
 });
 
+/* LIVE UPDATES FROM SERVICEM8 (two-way phase 4, PR F). Nothing while they
+   work; one line on the connection card, in the screen's own state word
+   (int-tag warn, no rule of its own), when they don't — the page hands it
+   over already written (sm8-hook-words). */
+describe("live updates from ServiceM8", () => {
+  const READY = { configured: true, sealed: true, notice: null, connection: toView(row()) };
+  const LINE = "ServiceM8 turned off live updates for Job notes on Sat 3 Oct: Webhook request failed for over 12 hours. Press Reconnect.";
+  const LINE_SEL = ".int-conn > p.int-tag.warn";
+
+  it("says nothing while they work", () => {
+    const { container } = render(<Servicem8Screen {...READY} sync={syncView([JOBS_DONE])} />);
+    expect(container.querySelector(LINE_SEL)).toBeNull();
+    expect(screen.queryByText(/live update/i)).toBeNull();
+  });
+
+  it("says the one line on the connection card when they don't, beside Reconnect, in the screen's own warn word", () => {
+    const { container } = render(<Servicem8Screen {...READY} sync={syncView([JOBS_DONE])} liveUpdates={LINE} />);
+    const line = screen.getByText(LINE);
+    expect(line.tagName).toBe("P");
+    expect(line.className).toBe("int-tag warn");
+    expect(container.querySelectorAll(LINE_SEL)).toHaveLength(1);
+    const card = container.querySelector(".int-conn") as HTMLElement;
+    expect(card).toContainElement(line);
+    expect(within(card).getByText("Reconnect")).toBeInTheDocument();
+  });
+
+  it("writes the same line on the server as in the browser", () => {
+    const html = renderToString(<Servicem8Screen {...READY} sync={syncView([JOBS_DONE])} liveUpdates={LINE} />);
+    expect(html).toContain(`<p class="int-tag warn">${LINE}</p>`);
+  });
+
+  it("says nothing without a connection, whatever it is handed", () => {
+    const { container } = render(<Servicem8Screen {...READY} connection={null} liveUpdates={LINE} />);
+    expect(container.querySelector("p.int-tag.warn")).toBeNull();
+    expect(screen.queryByText(LINE)).toBeNull();
+  });
+});
+
 /* ── sending files to ServiceM8 ──────────────────────────────────────────
    The owner's switch for the first thing HeyTiff writes back. It isn't drawn
    where it can't be set; it names each setting as a sentence; On asks for
@@ -944,6 +982,34 @@ describe("sending files, notes and bookings", () => {
     expect(await screen.findByText("Bookings are off. 2 bookings that were waiting won't go.")).toBeInTheDocument();
   });
 
+  it("(F) with leave allowed: a Leave row after Bookings, off until the owner switches it on, and its own consent line", async () => {
+    const user = userEvent.setup();
+    setWriteKind.mockResolvedValue({ ok: true });
+    const kinds = ["attachment", "note", "booking", "leave"] as Sm8WritesView["kinds"];
+    const { unmount } = render(<Servicem8Screen connection={live} {...ready} writes={view({ kinds })} />);
+    expect(groups()).toEqual([
+      "Sending to ServiceM8",
+      "Sending files to ServiceM8",
+      "Sending notes to ServiceM8",
+      "Sending bookings to ServiceM8",
+      "Sending leave to ServiceM8",
+    ]);
+    const leave = screen.getByRole("radiogroup", { name: "Sending leave to ServiceM8" });
+    expect(within(leave).getByRole("radio", { name: "Off" })).toHaveAttribute("aria-checked", "true");
+    await user.click(within(leave).getByRole("radio", { name: "On" }));
+    expect(setWriteKind).toHaveBeenCalledWith("leave", true);
+    unmount();
+    // On without manage_schedule: asked for in leave's words
+    render(
+      <Servicem8Screen
+        connection={live}
+        {...ready}
+        writes={view({ kinds, ownerKinds: ["attachment", "leave"], granted: ["attachment"] })}
+      />
+    );
+    expect(screen.getByText(/hasn't given HeyTiff permission to add leave yet, so no leave can go/)).toBeInTheDocument();
+  });
+
   it("(F) on attachment,booking: Files and Bookings — the rows need more than one kind, not notes", () => {
     render(<Servicem8Screen connection={live} {...ready} writes={view({ kinds: ["attachment", "booking"], ownerKinds: ["attachment"] })} />);
     expect(groups()).toEqual(["Sending to ServiceM8", "Sending files to ServiceM8", "Sending bookings to ServiceM8"]);
@@ -995,7 +1061,7 @@ describe("sending files, notes and bookings", () => {
       const item = screen.getByText(scope).closest("li")!;
       expect(within(item as HTMLElement).getByText("Not granted yet")).toBeInTheDocument();
     }
-    expect(screen.getByText(/never touches allocations, booking windows or availability/)).toBeInTheDocument();
+    expect(screen.getByText(/never touches allocations or booking windows/)).toBeInTheDocument();
     expect(screen.getByText(/It never removes a job\./)).toBeInTheDocument();
   });
 

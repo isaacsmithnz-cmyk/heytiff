@@ -31,7 +31,7 @@ export const BOOKING_WORDS = {
      reach, as providers.ts's rule asks (F9, F10). */
   scope: {
     schedule:
-      "Lets HeyTiff add, change and remove bookings, job allocations, booking windows and availability in ServiceM8. HeyTiff only adds the bookings people make here with Book in, and removes one only when whoever made it takes it back, or when someone clears a finished job's leftover booking. It never moves a booking, and never touches allocations, booking windows or availability.",
+      "Lets HeyTiff add, change and remove bookings, job allocations, booking windows and availability in ServiceM8. HeyTiff only adds the bookings people make here with Book in, and removes one only when whoever made it takes it back, or when someone clears a finished job's leftover booking. It adds staff leave only for leave approved here, and takes it off only when that leave is cancelled. It never moves a booking, and never touches allocations or booking windows.",
     jobs: "Lets HeyTiff change and remove jobs. HeyTiff changes one thing only: a Quote someone books in here becomes a Work Order, when they say so. It never removes a job.",
   },
   /* The Book in panel on the job card's Visits face (PR D). */
@@ -66,6 +66,14 @@ export const BOOKING_WORDS = {
     clash: "That overlaps job {number}, {start} to {end}.",
     /** The same, for a job the mirror can't number yet (PR D). */
     clashUnnumbered: "That overlaps another job, {start} to {end}.",
+    /** Time off in ServiceM8 under a chosen booking (leave to ServiceM8,
+        part two), from the mirror: a warning, never a refusal. {word} is the
+        business's own ("SICK", "TAFE", "Labour Day"); where it typed none,
+        the ": {word}" goes. */
+    awayDay: "{name} is off that day in ServiceM8: {word}.",
+    awayPart: "That overlaps {name}'s time off in ServiceM8: {word}, {start} to {end}.",
+    holiday: "{day} is a public holiday in ServiceM8: {word}.",
+    closed: "ServiceM8 has the business closed then: {word}.",
     trial: "Trial run. Nothing goes to ServiceM8. It's checked and listed on the ServiceM8 screen.",
     heldPaused: "Sending is paused, so this waits until it's back on.",
     heldReconnect: "ServiceM8 needs reconnecting, so this waits until it is.",

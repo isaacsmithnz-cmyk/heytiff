@@ -4,9 +4,7 @@
    docs/design-studio-ducted-build-plan.md; the full contract lives in
    docs/design-studio-ducted-spec.md (§6, §13). Pure data — no React. */
 
-import type { DesignDocument, DesignSystem } from "./document";
-import { roomLoadKw } from "./loads-room";
-import { roomsServedBy } from "./coverage";
+import type { DesignSystem } from "./document";
 import {
   hasFactorySpigots,
   isSpigotOpening,
@@ -26,14 +24,6 @@ export type DuctedObjectType = (typeof DUCTED_OBJECT_TYPES)[number];
 
 export function isDuctedObjectType(t: string): t is DuctedObjectType {
   return (DUCTED_OBJECT_TYPES as readonly string[]).includes(t);
-}
-
-/** Airstreams are open data (spec §11.2): supply/return now, fresh/exhaust
-    when ventilation lands. The reader accepts any non-empty string;
-    consumers branch on the ones they know. */
-export function streamOf(props: Record<string, unknown>): string | null {
-  const s = props.stream;
-  return typeof s === "string" && s.length > 0 ? s : null;
 }
 
 /** Inline fitting subtype (spec §1g). */
@@ -58,75 +48,12 @@ export function diversityFactor(system: DesignSystem): number {
   return Array.isArray(zones) && zones.length > 0 ? 0.7 : 1.0;
 }
 
-export interface DuctedRequirement {
-  /** max(D × Σ sized-room loads, largest single room) — null until any
-      sized room has a derivable load */
-  requiredKw: number | null;
-  totalKw: number | null;
-  largestKw: number | null;
-  diversity: number;
-  /** SIZED rooms (spill rooms excluded) */
-  roomCount: number;
-  /** sized rooms whose load couldn't derive (uncalibrated floor etc.) —
-      shown as a grey reason, never guessed (Principle 5) */
-  unknownRooms: number;
-  /** rooms marked spill (§9c): excluded from the sums entirely — they just
-      need to be somewhere air can go */
-  spillRooms: number;
-}
-
 /** a room the user marked as a spill destination — no sizing expectations */
 export function isSpillRoom(room: { props: Record<string, unknown> }): boolean {
   return room.props.spill === true;
 }
 
-export function ductedRequirement(
-  doc: DesignDocument,
-  system: DesignSystem
-): DuctedRequirement {
-  const rooms = roomsServedBy(doc, system.id);
-  const diversity = diversityFactor(system);
-  let total = 0;
-  let largest = 0;
-  let known = 0;
-  let spill = 0;
-  for (const room of rooms) {
-    if (isSpillRoom(room)) {
-      spill++;
-      continue;
-    }
-    const kw = roomLoadKw(doc, room);
-    if (kw == null) continue;
-    known++;
-    total += kw;
-    if (kw > largest) largest = kw;
-  }
-  const sized = rooms.length - spill;
-  if (known === 0) {
-    return {
-      requiredKw: null,
-      totalKw: null,
-      largestKw: null,
-      diversity,
-      roomCount: sized,
-      unknownRooms: sized,
-      spillRooms: spill,
-    };
-  }
-  return {
-    requiredKw: Math.max(diversity * total, largest),
-    totalKw: total,
-    largestKw: largest,
-    diversity,
-    roomCount: sized,
-    unknownRooms: sized - known,
-    spillRooms: spill,
-  };
-}
-
 /* ── Size series + units-aware formatting (spec §3d) ── */
-
-export const SIZE_SERIES_MM = [150, 200, 250, 300, 350, 400, 450, 500] as const;
 
 const INCH_LABEL: Record<number, string> = {
   150: '6"',

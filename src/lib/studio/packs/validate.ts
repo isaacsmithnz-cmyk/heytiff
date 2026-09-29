@@ -106,6 +106,28 @@ function checkAdditionalCharge(
       for (const [k, v] of Object.entries(c.rates))
         if (!num(v)) push(`additional_charge.rates[${k}] not numeric`);
   }
+  if (c.method === "per_meter_by_liquid_size_by_farthest") {
+    if (!c.bands?.length) return push("additional_charge.bands empty");
+    c.bands.forEach((b, i) => {
+      if (b.farthest_m_max !== null && !num(b.farthest_m_max))
+        push(`additional_charge.bands[${i}].farthest_m_max not numeric`);
+      if (!b.rates || Object.keys(b.rates).length === 0) push(`additional_charge.bands[${i}].rates empty`);
+      for (const [k, v] of Object.entries(b.rates ?? {}))
+        if (!num(v)) push(`additional_charge.bands[${i}].rates[${k}] not numeric`);
+    });
+    if (c.bands.slice(0, -1).some((b) => b.farthest_m_max === null))
+      push("additional_charge.bands: only the last band may be open-ended");
+    (c.plus_by_connected_kw ?? []).forEach((s, i) => {
+      if (s.kw_max !== null && !num(s.kw_max))
+        push(`additional_charge.plus_by_connected_kw[${i}].kw_max not numeric`);
+      if (!num(s.add_g)) push(`additional_charge.plus_by_connected_kw[${i}].add_g not numeric`);
+    });
+    (c.plus_by_connected_index ?? []).forEach((s, i) => {
+      if (s.index_max !== null && !num(s.index_max))
+        push(`additional_charge.plus_by_connected_index[${i}].index_max not numeric`);
+      if (!num(s.add_g)) push(`additional_charge.plus_by_connected_index[${i}].add_g not numeric`);
+    });
+  }
 }
 
 function checkCompatibility(
@@ -291,7 +313,15 @@ export function validatePack(pack: DataPack): ValidationResult {
     (t.header_selection?.steps ?? []).forEach((s, j) => {
       if (!partModels.has(s.part_ref)) push(`header_selection part_ref not in parts[]: ${s.part_ref}`);
       if (!num(s.branches_max) || !num(s.index_max)) push(`header_selection.steps[${j}] incomplete`);
+      for (const odu of s.direct_odus ?? [])
+        if (!oduModels.has(odu)) push(`header_selection.steps[${j}].direct_odus not an ODU: ${odu}`);
     });
+    for (const odu of Object.keys(t.odu_liquid_upsize ?? {}))
+      if (!oduModels.has(odu)) push(`odu_liquid_upsize key not an ODU: ${odu}`);
+    for (const [odu, m] of Object.entries(t.limits?.bend_equiv_m_by_odu ?? {})) {
+      if (!oduModels.has(odu)) push(`limits.bend_equiv_m_by_odu key not an ODU: ${odu}`);
+      if (!num(m)) push(`limits.bend_equiv_m_by_odu[${odu}] not numeric`);
+    }
     if (!t.limits) push("limits missing");
     checkAdditionalCharge(push, t.additional_charge);
     checkProvenance(push, t.provenance);
@@ -302,6 +332,21 @@ export function validatePack(pack: DataPack): ValidationResult {
     const push = err("outdoor_units", o.model);
     if (o.system_type === "vrf" && o.pipe_table_ref && !seriesRefs.has(o.pipe_table_ref))
       push(`pipe_table_ref has no vrf_pipe_tables series: ${o.pipe_table_ref}`);
+    // a branch-box outdoor (PUMY): its two other tables resolve, and its box rules hold together
+    for (const [field, ref] of [
+      ["branch_box_table_ref", o.branch_box_table_ref],
+      ["mixed_table_ref", o.mixed_table_ref],
+    ] as const)
+      if (ref && !seriesRefs.has(ref)) push(`${field} has no vrf_pipe_tables series: ${ref}`);
+    const bb = o.branch_boxes;
+    if (bb) {
+      if (!o.branch_box_table_ref) push("branch_boxes without a branch_box_table_ref");
+      if (!num(bb.max_boxes) || !num(bb.max_heads)) push("branch_boxes.max_boxes / max_heads missing");
+      if (!(bb.code_min <= bb.code_max)) push("branch_boxes code range inverted");
+      if (!bb.families?.length) push("branch_boxes.families empty");
+      for (const m of bb.mixed ?? [])
+        if (m.boxes > bb.max_boxes) push(`branch_boxes.mixed names ${m.boxes} boxes, over max_boxes ${bb.max_boxes}`);
+    }
     // combined multi-module banks reference their constituent modules + twinning kit
     if (o.combined) {
       if (!o.modules || o.modules.length < 2)

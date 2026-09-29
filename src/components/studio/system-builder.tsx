@@ -2,13 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { VrfSchematic } from "./vrf-schematic";
+import { usePipeUnits } from "./pipe-units";
 import { Icon } from "@/components/shell/icon";
 import type { DesignDocument, DesignSystem } from "@/lib/studio/document";
 import type { DataPack, FormFactor, IndoorUnit, OutdoorUnit } from "@/lib/studio/packs/schema";
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { systemCover, systemPairKw } from "@/lib/studio/coverage";
-import { multiCapableIdus, multiFormFactorSummary } from "@/lib/studio/multi";
+import { multiCapableIdus, multiFormFactorSummary, poolOf } from "@/lib/studio/multi";
+import { vrfOutdoorsListing, vrfRatio } from "@/lib/studio/vrf";
+import { headSection, systemVrfTree, type SizedTree } from "@/lib/studio/vrf-tree";
 import { formFactorSummary } from "@/lib/studio/select";
 import { UnitBrowser, type UnitChoice } from "./unit-browser";
 import {
@@ -162,6 +166,10 @@ interface SystemView {
   supplyText: string | null;
   pipeText: string | null;
   limitsText: string | null;
+  /** a VRF's joints, headers and branch boxes, by part: "CMY-Y102LS-G2 ×2" */
+  jointsText: string | null;
+  /** a VRF's tree, sized (provisional until the plan draws one) */
+  vrfTree: SizedTree | null;
   drawnText: string;
   refrigerantText: string | null;
   bandPipe: string | null;
@@ -277,6 +285,12 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   /* the header's Load is this system's share of a shared zone: 7.0 of 14.0 */
   let myLoadKw = 0;
   let shareDiffers = false;
+  /* a VRF's sizes come from its tree: each head's own section */
+  const vrfTree = systemVrfTree(pack, sys, draft);
+  const sizeOf = (a: Allocation): string | null => {
+    const sec = vrfTree ? headSection(vrfTree, a.id) : null;
+    return sec ? `${sec.liquidMm} / ${sec.gasMm}` : pipeSize(pack, sys, a, odu?.model ?? null);
+  };
   const zones: ZoneView[] = zoneList.map((zone, i) => {
     const loadKw = zoneLoads[i];
     const mine = zoneHeads.filter((a) => a.roomId === zone.id);
@@ -309,7 +323,7 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     });
     const slot = short && mine.length > 0 && !bandUnits.length ? (kind === "split" ? "split" : "multi") : null;
     const last = mine[mine.length - 1];
-    const pipe = last ? pipeSize(pack, sys, last, odu?.model ?? null) : null;
+    const pipe = last ? sizeOf(last) : null;
     return { zone, name: zoneName(zone), loadKw, shared, lines, word, short, cant: cantHere, slot, pipe, verdict };
   });
   const loadText =
@@ -330,7 +344,9 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   const headRows = heads.map((a) => iduRowOf(pack, a.model)).filter((u): u is IndoorUnit => u != null);
   const listing = new Set(outdoorsListing(pack, headRows).map((o) => o.model));
   const listFamily: "pair" | "multi" | "vrf" =
-    kind === "multi"
+    kind === "vrf"
+      ? "vrf"
+      : kind === "multi"
       ? "multi"
       : kind === "split" || kind === "ducted"
         ? "pair"
@@ -347,8 +363,13 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     );
     validOf = (o) => listing.has(o.model);
   } else if (listFamily === "vrf") {
+    /* an outdoor whose ceiling is under the zones' load is not offered as
+       fitting, whatever its heads' ratio (vrf.ts vrfTakesLoad) */
+    const vrfListing = new Set(
+      vrfOutdoorsListing(pack, headRows, { load: { kw: cover.loadKw, basis } }).map((o) => o.model)
+    );
     candidates = pack.outdoor_units.filter((o) => o.system_type === "vrf");
-    validOf = () => null;
+    validOf = (o) => vrfListing.has(o.model);
   } else {
     const head = heads[0]?.model ?? null;
     const pairs = head ? pack.pair_tables.filter((p) => p.idu_model === head) : pack.pair_tables;
@@ -364,27 +385,44 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   const outRows: OutRow[] = candidates.map((o) => ({
     odu: o,
     valid: o.model === odu?.model ? combination === "Valid" : validOf(o),
-    ratio: headRows.length && o.capacity_cool_kw ? Math.round((headsKw / o.capacity_cool_kw) * 100) : null,
+    /* a VRF's ratio is the book's: P-numbers, not kW */
+    ratio:
+      o.system_type === "vrf"
+        ? headRows.length
+          ? (vrfRatio(o, headRows)?.pct ?? null)
+          : null
+        : headRows.length && o.capacity_cool_kw
+          ? Math.round((headsKw / o.capacity_cool_kw) * 100)
+          : null,
     current: o.model === odu?.model,
     proposal: o.model === proposalModel,
   }));
 
   const ratio = connectionRatio(pack, sys);
+  const vrfShare = oduRow?.system_type === "vrf" ? vrfRatio(oduRow, headRows) : null;
   const oduKw = oduRow ? kwText(sizingCapacityKw(oduRow, basis)) : "";
   const outFacts = !oduRow
     ? ""
-    : oduRow.system_type === "multi"
+    : oduRow.system_type === "vrf"
+      ? `${oduKw}, ${heads.length} of ${oduRow.max_idus ?? "?"} heads${vrfShare ? `, ${vrfShare.pct}%` : ""}`
+      : oduRow.system_type === "multi"
       ? `${oduKw}, ${heads.length} of ${oduRow.ports ?? "?"} ports${ratio ? `, ${ratio.pct}%` : ""}`
       : kind === "split"
         ? `${oduKw}, split outdoor`
         : oduKw;
   const headWord = (n: number) => `${n} ${n === 1 ? "head" : "heads"}`;
-  const connectedText = ratio
+  /* a VRF says it the way its book counts: P-numbers (PUHY) or kW (PUMY) */
+  const connectedText = vrfShare
+    ? vrfShare.basis === "kw"
+      ? `${vrfShare.connected.toFixed(1)} of ${vrfShare.outdoor.toFixed(1)} kW, ${headWord(headRows.length)}`
+      : `P${vrfShare.connected} of P${vrfShare.outdoor}, ${headWord(headRows.length)}`
+    : ratio
     ? `${ratio.connectedKw.toFixed(1)} kW, ${headWord(ratio.heads)}`
     : oduRow && headRows.length
       ? `${headsKw.toFixed(1)} kW, ${headWord(headRows.length)}`
       : null;
-  const takesText = oduRow && oduRow.system_type !== "multi" && heads.length > 1 ? "1 head" : null;
+  const takesText =
+    oduRow && oduRow.system_type !== "multi" && oduRow.system_type !== "vrf" && heads.length > 1 ? "1 head" : null;
   const supplyText = oduRow
     ? `${oduRow.phase === "3" ? "Three phase" : "Single phase"}${oduRow.max_amps_a != null ? `, ${oduRow.max_amps_a} A` : ""}`
     : null;
@@ -392,7 +430,22 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   /* the pipework, from the pack: a multi's port sizes, a pair's own */
   let pipeText: string | null = null;
   let limitsText: string | null = null;
-  if (oduRow && oduRow.system_type === "multi") {
+  let jointsText: string | null = null;
+  if (oduRow && oduRow.system_type === "vrf") {
+    /* the main from the outdoor; each head's own size sits on its card */
+    const main = vrfTree?.sections.find((x) => x.role === "main");
+    pipeText = main ? `${main.liquidMm} / ${main.gasMm} mm` : `${oduRow.conn_liquid_mm} / ${oduRow.conn_gas_mm} mm`;
+    const parts = new Map<string, number>();
+    for (const f of vrfTree?.fittings ?? []) if (f.part) parts.set(f.part, (parts.get(f.part) ?? 0) + 1);
+    jointsText = parts.size ? [...parts].map(([part, k]) => (k > 1 ? `${part} ×${k}` : part)).join(", ") : null;
+    const table = pack.vrf_pipe_tables.find((t) => t.series === oduRow.pipe_table_ref);
+    const m = (v: number) => Math.round(v);
+    if (table)
+      limitsText =
+        vrfTree?.drawn && vrfTree.totalM != null && vrfTree.farthestM != null
+          ? `${m(vrfTree.totalM)} of ${table.limits.max_total_m} m in all, ${m(vrfTree.farthestM)} of ${table.limits.max_farthest_actual_m} m to the farthest head`
+          : `${table.limits.max_total_m} m total, ${table.limits.max_farthest_actual_m} m to the farthest head`;
+  } else if (oduRow && oduRow.system_type === "multi") {
     pipeText = `${oduRow.conn_liquid_mm} / ${oduRow.conn_gas_mm} mm`;
     const rule = pack.multi_rules.find((r) => r.odu_model_ref === oduRow.model);
     if (rule) limitsText = `${rule.max_total_pipe_m} m total, ${rule.max_per_branch_m} m a branch`;
@@ -403,9 +456,20 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     if (pair) limitsText = `${pair.max_length_m} m, ${pair.max_lift_m} m lift`;
   }
   const runs = draft.objects.filter((o) => o.systemId === sys.id && (o.type as string) === "pipe-run").length;
-  const drawnText = runs ? `${runs} ${runs === 1 ? "run" : "runs"}` : "Not yet";
+  const runsText = `${runs} ${runs === 1 ? "run" : "runs"}`;
+  /* a VRF's sizes come from the drawing once it reaches every head, so the
+     fact says how far the drawing has got */
+  const drawnText = !runs
+    ? "Not yet"
+    : vrfTree && vrfTree.heads > 0
+      ? vrfTree.joined === vrfTree.heads
+        ? `${runsText}, every head joined`
+        : `${runsText}, ${vrfTree.joined} of ${vrfTree.heads} heads joined`
+      : runsText;
+  /* a drawn VRF says what goes in on site (p.143) */
+  const addText = vrfTree?.chargeG != null ? `, add ${(vrfTree.chargeG / 1000).toFixed(1)} kg` : "";
   const refrigerantText = oduRow
-    ? `${oduRow.refrigerant}${oduRow.precharged_kg != null ? `, ${oduRow.precharged_kg.toFixed(2)} kg pre-charged` : ""}`
+    ? `${oduRow.refrigerant}${oduRow.precharged_kg != null ? `, ${oduRow.precharged_kg.toFixed(2)} kg pre-charged` : ""}${addText}`
     : null;
   const bandPipe = bandUnits[0] ? pipeSize(pack, sys, bandUnits[0], odu?.model ?? null) : null;
 
@@ -439,6 +503,8 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     supplyText,
     pipeText,
     limitsText,
+    jointsText,
+    vrfTree,
     drawnText,
     refrigerantText,
     bandPipe,
@@ -496,6 +562,11 @@ export function SystemBuilder({
   );
   /* a move that could not be installed opens on the Outdoor tab, where the
      fix is: so does a Swap from an outdoor on the plan */
+  /* a VRF's builder can show its real schematic, drawn from the plan, in
+     place of the unit list (Isaac, 2026-09-29): the rail beside it stays,
+     it is how zones and heads are edited */
+  const [schemOn, setSchemOn] = useState(false);
+  const pipeUnits = usePipeUnits();
   const [side, setSide] = useState<Side>(() => {
     const s = start.systems.find((x) => x.id === sysId);
     if (!s) return "indoor";
@@ -548,13 +619,17 @@ export function SystemBuilder({
   /* the head types the picker offers: the pack's styles, for the flow the
      family drives (a multi's heads are the ones its rules accept) */
   const perRoom = view ? view.family !== "split" : false;
+  /* a VRF's heads are City Multi heads, a multi's are its rules' */
+  const headPool = view && (view.kind === "vrf" || view.family === "vrf") ? "vrf" : "multi";
   const headTypes = useMemo(
     () =>
-      (perRoom ? multiFormFactorSummary(pack, null, basis) : formFactorSummary(pack, null, basis)).map((t) => ({
-        value: t.formFactor,
-        label: t.label,
-      })),
-    [perRoom, pack, basis]
+      (perRoom ? multiFormFactorSummary(pack, null, basis, headPool) : formFactorSummary(pack, null, basis)).map(
+        (t) => ({
+          value: t.formFactor,
+          label: t.label,
+        })
+      ),
+    [perRoom, pack, basis, headPool]
   );
   const firstHeadType = view?.heads[0] ? (iduRowOf(pack, view.heads[0].model)?.form_factor ?? null) : null;
   const headType: FormFactor | null =
@@ -691,6 +766,26 @@ export function SystemBuilder({
             </>
           )}
           <span className="ds-sb-spring" />
+          {view?.sys.type === "vrf" && (
+            <div className="ds-sb-switch" role="group" aria-label="Units or schematic">
+              <button
+                type="button"
+                className="ds-sb-switch-opt"
+                aria-pressed={!schemOn}
+                onClick={() => setSchemOn(false)}
+              >
+                Units
+              </button>
+              <button
+                type="button"
+                className="ds-sb-switch-opt"
+                aria-pressed={schemOn}
+                onClick={() => setSchemOn(true)}
+              >
+                Schematic
+              </button>
+            </div>
+          )}
           <button className="ds-sb-x" onClick={onClose} aria-label="Close builder">
             <Icon name="x" size={16} />
           </button>
@@ -737,6 +832,17 @@ export function SystemBuilder({
             <div className="ds-sb-rail" />
           )}
 
+          {schemOn && view?.sys.type === "vrf" ? (
+            <div className="ds-sb-schem">
+              <VrfSchematic
+                doc={draft}
+                pack={pack}
+                sys={draft.systems.find((x) => x.id === view.sys.id) ?? view.sys}
+                units={pipeUnits}
+              />
+            </div>
+          ) : (
+            <>
           <section className="ds-sb-picker" aria-label="Units">
             {view && (
               <div className="ds-sb-crumbs">
@@ -795,6 +901,7 @@ export function SystemBuilder({
                 loadKw={lensKw}
                 basis={basis}
                 mode={perRoom ? "per-room" : "pair"}
+                pool={headPool}
                 formFactor={headType}
                 onFormFactor={setFormFactor}
                 brandLocked={!view.empty}
@@ -856,6 +963,8 @@ export function SystemBuilder({
               <div className="ds-sb-side-host" ref={setSideHost} />
             )}
           </aside>
+            </>
+          )}
         </div>
 
         <footer className="ds-sb-foot">
@@ -984,6 +1093,7 @@ function OutdoorTable({
   onDrag: (model: string, transfer: DataTransfer) => void;
 }) {
   const n = view.outRows.length;
+  const vrfList = n > 0 && view.outRows.every((r) => r.odu.system_type === "vrf");
   return (
     <div className="ds-sb-outdoors-wrap">
       <div className="ds-sb-outdoors-bar">
@@ -1003,7 +1113,9 @@ function OutdoorTable({
             <tr>
               <th>Model</th>
               <th className="num">Capacity</th>
-              <th className="num">Ports</th>
+              {/* a VRF outdoor has one main and a joint per branch: what it
+                  bounds is how many heads, not ports */}
+              <th className="num">{vrfList ? "Heads" : "Ports"}</th>
               <th className="num">Ratio</th>
               <th className="num">Combination</th>
             </tr>
@@ -1040,7 +1152,13 @@ function OutdoorTable({
                     {note && <span className="ds-sb-outdoors-note">{note}</span>}
                   </td>
                   <td className="num">{kwText(sizingCapacityKw(r.odu, basis))}</td>
-                  <td className="num">{r.odu.system_type === "multi" ? (r.odu.ports ?? "—") : 1}</td>
+                  <td className="num">
+                    {r.odu.system_type === "multi"
+                      ? (r.odu.ports ?? "—")
+                      : r.odu.system_type === "vrf"
+                        ? (r.odu.max_idus ?? "—")
+                        : 1}
+                  </td>
                   <td className="num">{r.ratio == null ? "—" : `${r.ratio}%`}</td>
                   <td className={`num ${r.valid == null ? "quiet" : r.valid ? "ok" : "bad"}`}>
                     {r.valid == null ? "—" : r.valid ? "Valid" : "Fails"}
@@ -1119,6 +1237,13 @@ function OutdoorSide({ view, basis }: { view: SystemView; basis: SizingBasis }) 
           <>
             <dt>Pipe</dt>
             <dd>{view.pipeText}</dd>
+          </>
+        )}
+        {view.jointsText && (
+          <>
+            {/* joints, headers and branch boxes: the fittings the tree needs */}
+            <dt>Fittings</dt>
+            <dd>{view.jointsText}</dd>
           </>
         )}
         {view.limitsText && (
@@ -1392,7 +1517,13 @@ function PipingRail({
   const note = band
     ? "Ducted to each zone"
     : vrf
-      ? "One shared line, a joint per branch"
+      ? view.vrfTree?.method === "branch-box"
+        ? view.vrfTree.fittings.filter((f) => f.kind === "box").length > 1
+          ? "A joint to each branch box, a pipe per head"
+          : "One line to the branch box, a pipe per head"
+        : view.vrfTree?.method === "mixed"
+          ? "Joints, and a branch box for its heads"
+          : "One shared line, a joint per branch"
       : multi
         ? "One line pair per port"
         : "One line pair";
@@ -1421,15 +1552,98 @@ function PipingRail({
      the drop between the outdoor and the first zone */
   const passing = (): React.ReactNode[] =>
     trunk ? [vline("trunk", GUT_OFF, "full", trunkTone)] : view.zones.map((z, k) => vline(z.zone.id, xOf(k), "full", zoneTone(z)));
+  /* THE RAIL FOLLOWS THE DRAWING (Isaac, 2026-09-29). A VRF's marks come
+     from its sized tree — the plan's once the pipework reaches every head,
+     else the zones in order — never from the list. Drawn, the rows run in
+     the pipework's own order (depth first from the outdoor), so the heads on
+     one box or one joint sit together; each fitting is marked on the first
+     row whose head hangs off it, and a joint that only feeds other fittings
+     (the one before two boxes) on the first row beneath it. */
+  const tree = vrf && !band ? view.vrfTree : null;
+  const parentOf = new Map((tree?.sections ?? []).map((s) => [s.to, s.from]));
+  const fittingOf = new Map((tree?.fittings ?? []).map((f) => [f.nodeId, f]));
+  const zoneHeads = (z: ZoneView) => view.heads.filter((a) => a.roomId === z.zone.id);
+  const rows: ZoneView[] = (() => {
+    if (!tree?.drawn) return view.zones;
+    const kids = new Map<string, string[]>();
+    for (const s of tree.sections) kids.set(s.from, [...(kids.get(s.from) ?? []), s.to]);
+    const tos = new Set(tree.sections.map((s) => s.to));
+    const root = tree.sections.find((s) => !tos.has(s.from))?.from;
+    const rank = new Map<string, number>();
+    const seen = new Set<string>();
+    const walk = (id: string) => {
+      if (seen.has(id)) return;
+      seen.add(id);
+      rank.set(id, rank.size);
+      for (const k of kids.get(id) ?? []) walk(k);
+    };
+    if (root) walk(root);
+    const first = (z: ZoneView) => Math.min(...zoneHeads(z).map((a) => rank.get(a.id) ?? Infinity), Infinity);
+    return [...view.zones].sort((a, b) => first(a) - first(b));
+  })();
+  /* the fitting a VRF zone's heads hang off: a joint, header or branch box */
+  const zoneFitting = (z: ZoneView) => {
+    if (!tree) return null;
+    for (const a of zoneHeads(z)) {
+      const f = fittingOf.get(headSection(tree, a.id)?.from ?? "");
+      if (f) return f;
+    }
+    return null;
+  };
+  /* the fittings above a zone's own, nearest first: the joint before a box */
+  const upstreamOf = (z: ZoneView) => {
+    const out: NonNullable<ReturnType<typeof zoneFitting>>[] = [];
+    let at = parentOf.get(zoneFitting(z)?.nodeId ?? "");
+    while (at) {
+      const f = fittingOf.get(at);
+      if (f) out.push(f);
+      at = parentOf.get(at);
+    }
+    return out;
+  };
+  const markedAt = new Map<string, number>();
+  rows.forEach((z, i) => {
+    for (const f of [zoneFitting(z), ...upstreamOf(z)])
+      if (f && !markedAt.has(f.nodeId)) markedAt.set(f.nodeId, i);
+  });
   /* a zone's row: the lines of the zones below pass it, its own turns in */
   const zonePipes = (z: ZoneView, i: number): React.ReactNode[] => {
     if (trunk) {
       return [
         vline("trunk", GUT_OFF, i < n - 1 ? "full" : "top", trunkTone),
         hline("branch", GUT_OFF, zoneTone(z)),
-        ...(vrf && !band
-          ? [<rect key="joint" className="ds-sb-joint" x={GUT_OFF - 4} y="50%" width={8} height={8} rx={2} transform="translate(0 -4)" />]
-          : []),
+        ...(() => {
+          if (!tree) return [];
+          const own = zoneFitting(z);
+          /* the fittings first reached at this row: its heads' own on the
+             branch, any above it higher up the trunk */
+          const here = [own, ...upstreamOf(z)].filter(
+            (f): f is NonNullable<typeof own> => f != null && markedAt.get(f.nodeId) === i
+          );
+          /* its own fitting on the branch line; those above it stack up the trunk */
+          let above = 0;
+          return here.map((f) => {
+            const y = f === own ? "50%" : `${Math.max(8, 50 - 22 * ++above)}%`;
+            return f.kind === "box" ? (
+              <rect key={f.nodeId} className="ds-sb-box" x={GUT_OFF - 7} y={y} width={14} height={10} rx={2} transform="translate(0 -5)">
+                {f.part && <title>{f.part}</title>}
+              </rect>
+            ) : (
+              <rect
+                key={f.nodeId}
+                className="ds-sb-joint"
+                x={GUT_OFF - (f.kind === "header" ? 7 : 4)}
+                y={y}
+                width={f.kind === "header" ? 14 : 8}
+                height={8}
+                rx={2}
+                transform="translate(0 -4)"
+              >
+                {f.part && <title>{f.part}</title>}
+              </rect>
+            );
+          });
+        })(),
       ];
     }
     return [
@@ -1557,7 +1771,7 @@ function PipingRail({
           <div className="ds-sb-feed">{pipes(passing())}</div>
         )}
 
-        {view.zones.map((z, i) => {
+        {rows.map((z, i) => {
           const key = `zone:${z.zone.id}`;
           const aimed = z.zone.id === aimedZoneId;
           return (
@@ -1738,11 +1952,13 @@ function UnitDetail({
     if (!current) return [];
     const pool = pairFlow
       ? pack.indoor_units.filter((u) => pack.pair_tables.some((p) => p.idu_model === u.model))
-      : multiCapableIdus(pack);
+      : sys.type === "vrf"
+        ? poolOf(pack, "vrf")
+        : multiCapableIdus(pack);
     return pool
       .filter((u) => u.series === current.series)
       .sort((a, b) => a.capacity_cool_kw - b.capacity_cool_kw || a.model.localeCompare(b.model));
-  }, [pack, pairFlow, current]);
+  }, [pack, pairFlow, current, sys.type]);
 
   const rows = useMemo(
     () =>
@@ -1756,7 +1972,8 @@ function UnitDetail({
     [candidates, draft, pack, basis, sys.id, alloc.id, alloc.model]
   );
   const beforeOdu = view.odu?.model ?? "";
-  const pipe = pipeSize(pack, sys, alloc, view.odu?.model ?? null);
+  const sec = view.vrfTree ? headSection(view.vrfTree, alloc.id) : null;
+  const pipe = sec ? `${sec.liquidMm} / ${sec.gasMm}` : pipeSize(pack, sys, alloc, view.odu?.model ?? null);
   const kw = kwOf(pack, alloc.model, basis);
 
   return (

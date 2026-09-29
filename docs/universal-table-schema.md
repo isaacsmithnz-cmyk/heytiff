@@ -21,6 +21,7 @@ Data books agree on *what* must be answered (how much extra refrigerant? which I
 - `{ method: "formula_coefficients", terms: [{liquid_mm, coeff_g_per_m}...], deduction_g, min_charge }` — Daikin-style computed charge
 - `{ method: "threshold_then_rate", free_up_to_m, g_per_m_beyond }` — common on 1:1 pairs
 - `{ method: "fixed_per_idu", table: {...} }` — some multi ranges
+- `{ method: "per_meter_by_liquid_size_by_farthest", bands: [{ farthest_m_max, rates }], plus_by_connected_index, plus_by_odu, plus_per_idu, round_up_g }` — a Mitsubishi VRF network (PUHY, MEES21K029 p.143): the g/m rates depend on the outdoor → farthest indoor length (≤ 30.5 m or longer), then a fixed amount by total connected index, per outdoor and per named indoor unit, rounded up to 100 g. Needs the whole network's lengths per liquid size, so it is evaluated by `evaluateVrfCharge`, not the one-run evaluator
 - `{ method: "none_required" }` — explicit, distinct from "not entered"
 
 **`compatibility` rule block** (which IDUs a given ODU accepts — §5 multi rules, §3 VRF ODUs):
@@ -99,10 +100,11 @@ Per multi ODU (or per series): `odu_model_ref` · `port_pipe_sizes` (per port or
 Per series (e.g. PUMY-SP vs PUHY-P differ). The topology engine's lookup target.
 
 - `pipe_sizing` rule block (**R**) — Mitsubishi method: `size_by_downstream_index`, an ordered list of `{ index_max, liquid_mm, gas_mm }`; other brands may size by downstream kW or other bases (see Typed rule blocks — never force the index shape onto a book that doesn't use it)
-- `odu_to_first_joint`: sizing rule for the main from the ODU (**R**)
+- `odu_to_first_joint`: sizing rule for the main from the ODU (O — Mitsubishi's Table 1 equals the ODU's own connection sizes, so the engine defaults to those)
+- `odu_liquid_upsize` (O): per ODU, the farthest-indoor length from which the ODU → 1st joint liquid steps up (PUHY P250 at 90 m, P300 at 40 m → 12.7)
 - `joint_selection`: `{ index_max → part_ref }` list (**R**) — refs into §7
-- `header_selection`: same, by index + branch count (**R** where the brand offers headers)
-- Limits (**R**): `max_total_m`, `max_farthest_m`, `max_after_first_joint_m`, `max_lift_odu_above_m`, `max_lift_odu_below_m`, `max_lift_idu_idu_m`
+- `header_selection`: same, by index + branch count (**R** where the brand offers headers); per step `direct_odus` (the outdoors it may join with no joint before it) and `excludes_idu_index` (indoor sizes it cannot take — CMY-Y104-G can't take P200/P250)
+- Limits (**R**): `max_total_m`, `max_farthest_actual_m`, `max_farthest_equiv_m`, `max_after_first_joint_m`, `max_lift_odu_above_m`, `max_lift_odu_below_m`, `max_lift_idu_idu_m`; O: `bend_equiv_m_by_odu` (equivalent length = actual + M × bends), `extended_after_first_joint_m` and `extended_lift_idu_idu_m` (the longer figures the book allows when the liquid pipe goes one size up)
 - Charge (**R**): `additional_charge` rule block (per-metre-by-liquid-size for Mitsubishi; other brands per their book's method)
 - `provenance`
 
@@ -152,9 +154,9 @@ The pack browser shows completeness per range: *"PEFY-P VMA: 12/12 VRF-ready, 0/
 **Filled by the DUCTR harvest (verify provenance against books):** indoor/outdoor identity, cool/heat kW, connection sizes, footprints, BC box table, pipe size list + inch map, climate zones, orientation multipliers.
 
 **Missing — the first extraction pass per Mitsubishi book:**
-1. `capacity_index` (P-numbers) for all VRF units — currently only kW
+1. `capacity_index` (P-numbers) for all VRF units — **done for PUHY + City Multi (2026.1); still missing on the 11 PUMY outdoors**
 2. `airflow_ls` + numeric `static_pressure_pa` for every ducted/cassette model (`esp` is a text note today), plus `supply_opening`/`return_opening` airway sizes for every ducted model and `max_amps_a` from the electrical tables
-3. **CMY joint & header selection tables by downstream index** — the heart of VRF auto-sizing; absent entirely
+3. **CMY joint & header selection tables by downstream index** — done for PUHY-P200–500YNW-A1 (MEES21K029 p.139-144); PUMY has none
 4. `size_by_downstream_index` pipe tables per series (the legacy kW-bucket rule is an approximation to replace)
 5. Length/lift limits per series and per pair
 6. Additional-charge rules (g/m by liquid size, pre-charge allowances)

@@ -64,7 +64,7 @@ describe("tool hint", () => {
 
   it("talks the armed tool through by default", () => {
     const { container } = renderCanvas();
-    expect(hint(container)?.textContent).toContain("Drag a rectangle over the room");
+    expect(hint(container)?.textContent).toContain("Drag a rectangle over the zone");
   });
 
   it("the × turns hints off, and they stay off across a remount", () => {

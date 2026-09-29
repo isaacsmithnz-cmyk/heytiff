@@ -22,8 +22,6 @@ async function openBlankDesignOnCanvas() {
   await user.click(screen.getByRole("button", { name: /Continue/ }));
   await user.click(screen.getByText("Blank canvas"));
   await user.click(await screen.findByRole("button", { name: "Design" }));
-  // type-first flow: pick a system type before the room tools unlock
-  await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
   const canvas = screen.getByTestId("studio-canvas");
   const svg = canvas.querySelector("svg")!;
   expect(svg).toBeTruthy();
@@ -37,14 +35,13 @@ const pt = (x: number, y: number) => ({
   pointerId: 1,
 });
 
-/* Room tools live on the canvas toolbar now — one labeled button per shape,
-   armed with a single click. */
+/* The Zone tool lives on the canvas toolbar — one button, the shape choice
+   flies out on click. */
 async function armRoom(
   user: ReturnType<typeof userEvent.setup>,
   shape: "Rectangle" | "Polygon" = "Rectangle"
 ) {
-  // one Room button now — the shape choice flies out on click
-  await user.click(await screen.findByRole("button", { name: "Room" }));
+  await user.click(await screen.findByRole("button", { name: "Zone" }));
   await user.click(
     await screen.findByRole("menuitem", {
       name: shape === "Rectangle" ? /Square/ : /Shape/,
@@ -75,7 +72,7 @@ describe("Design canvas", () => {
     // drawing opens wall-marking, then the load modal — commit and dismiss
     await finishRoom(user);
 
-    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Zone 1");
     expect(screen.getByText("0.8 m²")).toBeInTheDocument();
 
     // calibrate: 168 screen px = 300 units declared as 5 m → 16.67 mm/unit
@@ -112,7 +109,7 @@ describe("Design canvas", () => {
 
     // redo restores the room
     await user.click(screen.getByRole("button", { name: "Redo" }));
-    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Zone 1");
   });
 
   it("dragging a rectangle-room corner resizes it but keeps it rectangular", async () => {
@@ -163,10 +160,10 @@ describe("Design canvas", () => {
     fireEvent.pointerDown(svg, pt(402, 302));
     fireEvent.pointerUp(svg, pt(402, 302));
     await finishRoom(user);
-    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Zone 1");
   });
 
-  it("a room row opens the modal; renaming there follows onto the plan; Delete removes it", async () => {
+  it("a double-click opens the zone's modal; renaming there follows onto the plan; Delete removes it", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
@@ -178,17 +175,12 @@ describe("Design canvas", () => {
     fireEvent.pointerDown(svg, pt(430, 330));
     fireEvent.pointerUp(svg, pt(430, 330));
 
-    /* the room's row in the panel IS the way in now (Isaac, 2026-08-25) — the
-       panel no longer unfolds an Inspect card, and the Configure pill that
-       used to sit beside the row went with it */
-    const row = screen
-      .getAllByRole("button", { name: /Room 1/ })
-      .find((b) => b.classList.contains("ds-ck-rrow"))!;
-    await user.click(row);
+    /* double-click the zone on the plan to open it (Isaac, 2026-08-25) */
+    fireEvent.doubleClick(svg, pt(430, 330));
     const nameInput = screen.getByPlaceholderText("e.g. Living / Dining");
     await user.clear(nameInput);
     await user.type(nameInput, "Lounge");
-    await user.click(screen.getByRole("button", { name: "Save room" }));
+    await user.click(screen.getByRole("button", { name: "Save zone" }));
     // the canvas label follows the rename
     expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Lounge");
 
@@ -205,20 +197,20 @@ describe("Design canvas", () => {
     fireEvent.pointerUp(svg, pt(456, 342));
 
     // sizing panel first — neither wall-marking nor the load modal yet
-    expect(screen.getByText("Size the room")).toBeInTheDocument();
+    expect(screen.getByText("Size the zone")).toBeInTheDocument();
     expect(screen.queryByText("Mark external walls")).not.toBeInTheDocument();
-    expect(screen.queryByText("Configure room")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Configure zone" })).not.toBeInTheDocument();
 
     // Save pins it and moves on to the walls; Cancel there falls BACK to sizing
     await user.click(screen.getByRole("button", { name: "Save & continue" }));
     expect(screen.getByText("Mark external walls")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.getByText("Size the room")).toBeInTheDocument();
+    expect(screen.getByText("Size the zone")).toBeInTheDocument();
 
     // Discard on a fresh room throws it away (the old wall-Cancel behaviour)
     await user.click(screen.getByRole("button", { name: "Discard" }));
-    expect(screen.queryByText("Room 1")).not.toBeInTheDocument();
-    expect(screen.queryByText("Size the room")).not.toBeInTheDocument();
+    expect(screen.queryByText("Zone 1")).not.toBeInTheDocument();
+    expect(screen.queryByText("Size the zone")).not.toBeInTheDocument();
   });
 
   it("marking a wall commits the room and derives orientation from it", async () => {
@@ -238,11 +230,11 @@ describe("Design canvas", () => {
     // Done commits and opens the load modal, orientation now sourced from walls
     await user.click(screen.getByRole("button", { name: "Done" }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("New room")).toBeInTheDocument(); // mode pill
+    expect(within(dialog).getByText("New zone")).toBeInTheDocument(); // mode pill
     expect(screen.getByText("Auto – walls")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Zone 1");
   });
 
   it("places rooms free (pixel-precise) — no grid snapping", async () => {
@@ -299,23 +291,23 @@ describe("Design canvas", () => {
     expect(svg.querySelector(".ds-room-name")).toBeNull();
   });
 
-  it("the eraser does not delete rooms (rooms delete via the inspector ✕)", async () => {
+  it("the eraser does not delete zones (they delete from their modal or the Delete key)", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
     fireEvent.pointerMove(svg, pt(500, 380));
     fireEvent.pointerUp(svg, pt(500, 380));
     await finishRoom(user);
-    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Zone 1");
 
     await user.click(screen.getByRole("button", { name: "Eraser" }));
     fireEvent.pointerDown(svg, pt(440, 330));
     fireEvent.pointerUp(svg, pt(440, 330));
     // still there — the eraser is objects-only
-    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
+    expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Zone 1");
   });
 
-  it("declutters the header and spans the cockpit full-height on the Design step", async () => {
+  it("declutters the header and spans the systems panel full-height on the Design step", async () => {
     await openBlankDesignOnCanvas();
     // Export lives in the (closed) studio menu, not the chrome
     expect(screen.queryByRole("button", { name: "Export" })).toBeNull();
@@ -325,15 +317,15 @@ describe("Design canvas", () => {
     expect(within(rail).getByRole("button", { name: "Undo" })).toBeInTheDocument();
     expect(within(rail).getByRole("button", { name: "Redo" })).toBeInTheDocument();
     // the topbar carries the canvas controls on one line; design variations
-    // moved off it into the cockpit's system dropdown
+    // moved off it into the systems panel's head
     const bar = document.querySelector(".ds-topbar") as HTMLElement;
     expect(within(bar).queryByRole("button", { name: /variation/i })).toBeNull();
     expect(within(bar).getByTitle("View — layers, black & white and legend")).toBeInTheDocument();
-    // cockpit hoisted to the editor level → two-column grid layout
+    // the systems panel hoisted to the editor level → two-column grid layout
     expect(document.querySelector(".ds-editor.two-col")).not.toBeNull();
   });
 
-  it("hides the drawing rail until the first system, then keeps it after delete", async () => {
+  it("shows the drawing rail from the start — a zone needs no system", async () => {
     const user = userEvent.setup();
     render(localStudio());
     await user.click(await screen.findByText("New design"));
@@ -342,20 +334,10 @@ describe("Design canvas", () => {
     await user.click(screen.getByText("Blank canvas"));
     await user.click(await screen.findByRole("button", { name: "Design" }));
 
-    // no system yet → the drawing rail is hidden (plan-prep stays in the top bar)
-    expect(screen.queryByRole("toolbar", { name: "Canvas tools" })).toBeNull();
-
-    // pick a system type → a system is born and the rail appears
-    await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
-    expect(
-      await screen.findByRole("toolbar", { name: "Canvas tools" })
-    ).toBeInTheDocument();
-
-    // delete that system → the rail stays revealed (latched "first time only")
-    await user.click(screen.getByTitle("System 1 — switch system"));
-    await user.click(screen.getByRole("button", { name: "Delete System 1" }));
-    await user.click(screen.getByRole("button", { name: "Delete?" }));
-    expect(screen.getByRole("toolbar", { name: "Canvas tools" })).toBeInTheDocument();
+    const rail = screen.getByRole("toolbar", { name: "Canvas tools" });
+    expect(within(rail).getByRole("button", { name: "Zone" })).toBeEnabled();
+    // pipe and riser still draw for a system: the Draw verb waits for one
+    expect(within(rail).getByRole("button", { name: "Draw" })).toBeDisabled();
   });
 });
 

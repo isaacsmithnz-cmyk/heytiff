@@ -229,6 +229,47 @@ export function orthoSnap(prev: Point, p: Point): Point {
     : { x: prev.x, y: p.y };
 }
 
+/** Shift on a straight run's last click (Isaac, 2026-09-29): the corner that
+    takes the run square into `target` — on along the leg being drawn, then
+    one right angle straight in, so the drop lines up with the unit without
+    guessing its line. The leg is the last segment's axis; on the first leg,
+    the longer way to go. Null when the target already lines up. */
+export function elbowCorner(pts: Point[], target: Point, eps = 1e-6): Point | null {
+  const prev = pts[pts.length - 1];
+  if (!prev) return null;
+  const dx = target.x - prev.x;
+  const dy = target.y - prev.y;
+  if (Math.abs(dx) < eps || Math.abs(dy) < eps) return null;
+  const before = pts[pts.length - 2];
+  const alongX = before
+    ? Math.abs(prev.x - before.x) >= Math.abs(prev.y - before.y)
+    : Math.abs(dx) >= Math.abs(dy);
+  return alongX ? { x: target.x, y: prev.y } : { x: prev.x, y: target.y };
+}
+
+/** The draft's points with Shift's square turn into `target` (target not
+    included). When the turn lands back on the leg just drawn — the last click
+    overshot the bend — the leg is cut at the turn and the overshoot goes
+    (Isaac, 2026-09-29: "it should trim off the part that doesn't need to be
+    there"). */
+export function squareInto(pts: Point[], target: Point, eps = 1e-6): Point[] {
+  const corner = elbowCorner(pts, target, eps);
+  if (!corner) return pts;
+  const prev = pts[pts.length - 1];
+  const before = pts[pts.length - 2];
+  const within = (v: number, a: number, b: number) => v >= Math.min(a, b) - eps && v <= Math.max(a, b) + eps;
+  const onLeg =
+    before &&
+    ((Math.abs(before.y - prev.y) < eps && Math.abs(corner.y - prev.y) < eps && within(corner.x, before.x, prev.x)) ||
+      (Math.abs(before.x - prev.x) < eps && Math.abs(corner.x - prev.x) < eps && within(corner.y, before.y, prev.y)));
+  if (!onLeg) return [...pts, corner];
+  const kept = pts.slice(0, -1);
+  // the turn at the leg's very start: the leg is gone, not a zero-length stub
+  return samePoint(kept[kept.length - 1], corner, eps) ? kept : [...kept, corner];
+}
+
+const samePoint = (a: Point, b: Point, eps: number) => Math.abs(a.x - b.x) < eps && Math.abs(a.y - b.y) < eps;
+
 /** Index of the vertex within maxDist of p, or -1. */
 export function nearestVertexIndex(
   p: Point,

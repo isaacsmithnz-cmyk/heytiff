@@ -22,6 +22,8 @@ import { systemPairKw } from "./coverage";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 import { evaluateAdditionalCharge } from "./materials";
 import { moduleFor } from "./modules";
+import { allocationsOf, hasAllocations } from "./allocations";
+import { systemVrfTree } from "./vrf-tree";
 
 /* ─────────────────────────── row shapes ─────────────────────────── */
 
@@ -97,26 +99,37 @@ const ISOLATORS: IsolatorOption[] = [
   { id: "isolator-32a-3ph", name: "Isolator, 3Ø 32 A", sub: "Weatherproof IP66", value: "1", isolator: { amps: 32, phase: "3" } },
 ];
 
+/* NOTHING IS ASSUMED (Isaac, 2026-09-29: "install our system shouldn't
+   assume how it's going to be mounted — that's what the install questions
+   are for. Everything needs to stay empty until selected."). Every choice
+   starts NOT CHOSEN, for every system type, and a choice not chosen is no
+   line on the sheet. The isolator's size is still read off the pack when
+   the install questions put one on the job (install.ts isolatorOption). */
+export const NOT_CHOSEN = "not-chosen";
+const notChosen = { id: NOT_CHOSEN, name: "Not chosen", sub: "Asked in Install details", value: "—" };
+
 export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
   {
     key: "electrical",
     role: "Electrical",
     icon: "bolt",
-    defaultId: defaultIsolatorId,
+    defaultId: NOT_CHOSEN,
     options: [
       ...ISOLATORS,
       { id: "none", name: "Supplied by others", sub: "Not in this takeoff", value: "—" },
+      notChosen,
     ],
   },
   {
     key: "mounting",
     role: "Mounting",
     icon: "mount",
-    defaultId: "wall-bracket",
+    defaultId: NOT_CHOSEN,
     options: [
       { id: "wall-bracket", name: "Wall bracket", sub: "Galv. steel, anti-vib feet", value: "1 set" },
       { id: "ground-pad", name: "Ground pad", sub: "Composite, anti-vib feet", value: "1" },
       { id: "roof-mount", name: "Roof frame", sub: "Galv. steel, spring feet", value: "1 set" },
+      notChosen,
     ],
   },
   /* Hard-drawn pipe arrives as raw copper — soft coil comes pre-insulated —
@@ -127,12 +140,13 @@ export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
     key: "insulation",
     role: "Pipe insulation",
     icon: "insulation",
-    defaultId: "wall-13",
+    defaultId: NOT_CHOSEN,
     options: [
       { id: "wall-9", name: "Lagging, 9 mm wall", sub: "Closed-cell, hard drawn runs", value: "—" },
       { id: "wall-13", name: "Lagging, 13 mm wall", sub: "Closed-cell, hard drawn runs", value: "—" },
       { id: "wall-19", name: "Lagging, 19 mm wall", sub: "Closed-cell, hard drawn runs", value: "—" },
       { id: "none", name: "Supplied by others", sub: "Not in this takeoff", value: "—" },
+      notChosen,
     ],
   },
 ];
@@ -352,7 +366,7 @@ function choiceRows(doc: DesignDocument, system: DesignSystem, odu: OutdoorUnit)
     const opt = g.options.find((o) => o.id === selectedId)!;
     // insulation's takeoff value is derived: metres of hard-drawn copper
     let value = opt.value;
-    if (g.key === "insulation" && selectedId !== "none") {
+    if (g.key === "insulation" && selectedId !== "none" && selectedId !== NOT_CHOSEN) {
       const m = hardDrawnLengthM(doc, system);
       value = m != null && m > 0 ? `${m} m` : "—";
     }
@@ -381,6 +395,36 @@ export function systemComponents(
   basis: SizingBasis
 ): ComponentRow[] {
   if (!pack) return [];
+
+  /* a VRF's charge is its sized tree's (vrf-tree.ts, MEES21K029 p.143): the
+     liquid metres per size, the farthest head and the connected index — no
+     one-run rule can stand in for it */
+  if (system.type === "vrf") {
+    const tree = systemVrfTree(pack, system, doc);
+    /* the builder's outdoor, else an older design's placed or chosen one */
+    const allocated = hasAllocations(system) ? allocationsOf(system).find((a) => a.role === "odu" && a.model)?.model : undefined;
+    const placed = doc.objects.find((o) => o.systemId === system.id && o.type === "unit" && o.props.role === "odu")?.props.model;
+    const oduModel = String(allocated ?? placed ?? system.settings.pairOdu ?? "");
+    const odu = pack.outdoor_units.find((o) => o.model === oduModel) ?? null;
+    if (!odu) return [];
+    const precharge = odu.precharged_kg ?? null;
+    const topupKg = tree?.drawn && tree.chargeG != null ? tree.chargeG / 1000 : null;
+    const charge: ComponentRow = {
+      id: "charge",
+      kind: "charge",
+      role: "Refrigerant charge",
+      name: odu.refrigerant,
+      sub: !tree?.drawn
+        ? "Pre-charged, pipe not drawn to every head"
+        : topupKg != null
+          ? `Pre-charged + ${topupKg.toFixed(2)} kg top-up`
+          : "Pre-charged, run length unknown",
+      value: precharge != null ? `${(precharge + (topupKg ?? 0)).toFixed(2)} kg` : "—",
+      icon: "droplet",
+      charge: { prechargeKg: precharge, topupKg },
+    };
+    return [oduRow(doc, pack, system, basis, odu), charge, ...choiceRows(doc, system, odu)];
+  }
 
   if (moduleFor(system.type).unitFlow === "per-room") {
     const mine = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");

@@ -9,14 +9,13 @@ import { createDesign } from "@/lib/studio/document";
 import { LocalDesignStore } from "@/lib/studio/store";
 import type { PlanImages } from "@/lib/studio/plans";
 
-/* Room tools live on the canvas toolbar now — one labeled button per shape,
-   armed with a single click. */
+/* The Zone tool lives on the canvas toolbar — one button, the shape choice
+   flies out on click. */
 async function armRoom(
   user: ReturnType<typeof userEvent.setup>,
   shape: "Rectangle" | "Polygon" = "Rectangle"
 ) {
-  // one Room button now — the shape choice flies out on click
-  await user.click(await screen.findByRole("button", { name: "Room" }));
+  await user.click(await screen.findByRole("button", { name: "Zone" }));
   await user.click(
     await screen.findByRole("menuitem", {
       name: shape === "Rectangle" ? /Square/ : /Shape/,

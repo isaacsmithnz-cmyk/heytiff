@@ -18,6 +18,7 @@ import {
   componentChoices,
   defaultIsolatorId,
   COMPONENT_CHOICES,
+  NOT_CHOSEN,
   type IsolatorOption,
 } from "../components";
 
@@ -166,17 +167,17 @@ describe("systemComponents — charge with pre-charge + run length", () => {
 });
 
 describe("component choice rows", () => {
-  it("defaults electrical + mounting when nothing is stored", () => {
-    // SUZ-M25VAD-A: 1Ø, 6.8 A max running current
+  it("assumes nothing: every choice stays Not chosen until it is picked", () => {
+    // the install questions decide how it is mounted and wired, not a default
     const { doc, system } = docWith({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
     const rows = systemComponents(doc, pack, system, "cooling");
-    const elec = rows.find((r) => r.id === "electrical")!;
-    const mount = rows.find((r) => r.id === "mounting")!;
-    expect(elec.kind).toBe("choice");
-    expect(elec.choice!.selectedId).toBe("isolator-20a-1ph");
-    expect(elec.name).toBe("Isolator, 1Ø 20 A");
-    expect(mount.choice!.selectedId).toBe("wall-bracket");
-    expect(mount.name).toBe("Wall bracket");
+    for (const key of ["electrical", "mounting", "insulation"]) {
+      const row = rows.find((r) => r.id === key)!;
+      expect(row.kind).toBe("choice");
+      expect(row.choice!.selectedId).toBe(NOT_CHOSEN);
+      expect(row.name).toBe("Not chosen");
+      expect(row.value).toBe("—");
+    }
   });
 
   it("honours a persisted override on settings.components", () => {
@@ -203,13 +204,14 @@ describe("component choice rows", () => {
     };
     const odu = pack.outdoor_units.find((o) => o.model === "SUZ-M25VAD-A")!;
     const choices = componentChoices(bad, odu);
-    expect(choices.electrical).toBe("isolator-20a-1ph"); // invalid → default
-    expect(choices.mounting).toBe("wall-bracket"); // missing → default
+    expect(choices.electrical).toBe(NOT_CHOSEN); // invalid → not chosen
+    expect(choices.mounting).toBe(NOT_CHOSEN); // missing → not chosen
   });
 });
 
 /* ── the isolator is sized to the outdoor it breaks ──
-   The default is the smallest rating at or above the outdoor's max running
+   Nothing is put on the job until it is picked; what the install questions
+   PROPOSE (defaultIsolatorId) is the smallest rating at or above the outdoor's max running
    current (`max_amps_a`), on the outdoor's own supply. Every case reads the
    REAL pack, and states the pack's figure first, so a data change that moves
    the premise fails here rather than passing on a stale one. */
@@ -227,29 +229,28 @@ describe("the isolator follows the outdoor's draw and supply", () => {
     const { doc, system } = docWith(settings, type);
     return systemComponents(doc, pack, system, "cooling").find((r) => r.id === "electrical")!;
   };
+  // what the install questions offer for this outdoor: the sized isolator
+  const proposed = (model: string) => isolators.find((o) => o.id === defaultIsolatorId(odu(model)))!;
 
   it("a 28 A single-phase outdoor gets a 1Ø 32 A isolator, not a 20 A", () => {
     expect(odu("PUZ-ZM125VKA2-A")).toMatchObject({ phase: "1", max_amps_a: 28 });
+    expect(proposed("PUZ-ZM125VKA2-A").id).toBe("isolator-32a-1ph");
+    expect(proposed("PUZ-ZM125VKA2-A").name).toBe("Isolator, 1Ø 32 A");
+    // proposed, never put on the job until it is picked
     const row = electrical({ pairIdu: "PEAD-M125JAA(D)", pairOdu: "PUZ-ZM125VKA2-A" }, "ducted");
-    expect(row.choice!.selectedId).toBe("isolator-32a-1ph");
-    expect(row.name).toBe("Isolator, 1Ø 32 A");
-    expect(row.value).toBe("1");
+    expect(row.choice!.selectedId).toBe(NOT_CHOSEN);
   });
 
   it("an 18.4 A multi outdoor gets a 1Ø 20 A", () => {
     expect(odu("MXZ-5F100VGD")).toMatchObject({ phase: "1", max_amps_a: 18.4 });
-    const row = electrical({ pairOdu: "MXZ-5F100VGD" }, "multi-split");
-    expect(row.choice!.selectedId).toBe("isolator-20a-1ph");
-    expect(row.name).toBe("Isolator, 1Ø 20 A");
+    expect(proposed("MXZ-5F100VGD").name).toBe("Isolator, 1Ø 20 A");
   });
 
   it("the other single-phase outdoors past 20 A get the 1Ø 32 A too", () => {
     expect(odu("PUZ-M125VKA-A")).toMatchObject({ phase: "1", max_amps_a: 26.5 });
-    expect(
-      electrical({ pairIdu: "PEAD-M125JAA(D)", pairOdu: "PUZ-M125VKA-A" }, "ducted").name
-    ).toBe("Isolator, 1Ø 32 A");
+    expect(proposed("PUZ-M125VKA-A").name).toBe("Isolator, 1Ø 32 A");
     expect(odu("MXZ-6F120VGD")).toMatchObject({ phase: "1", max_amps_a: 26.8 });
-    expect(electrical({ pairOdu: "MXZ-6F120VGD" }, "multi-split").name).toBe("Isolator, 1Ø 32 A");
+    expect(proposed("MXZ-6F120VGD").name).toBe("Isolator, 1Ø 32 A");
   });
 
   it("a draw exactly on a rating takes that rating", () => {
@@ -261,19 +262,15 @@ describe("the isolator follows the outdoor's draw and supply", () => {
 
   it("a three-phase outdoor gets a 3Ø isolator", () => {
     expect(odu("PUZ-ZM100YKA3-A")).toMatchObject({ phase: "3", max_amps_a: 11.5 });
-    const row = electrical({ pairIdu: "PLA-M100EA2-A", pairOdu: "PUZ-ZM100YKA3-A" });
-    expect(row.choice!.selectedId).toBe("isolator-20a-3ph");
-    expect(row.name).toBe("Isolator, 3Ø 20 A");
+    expect(proposed("PUZ-ZM100YKA3-A").name).toBe("Isolator, 3Ø 20 A");
   });
 
   it("with no max_amps_a in the pack it keeps the 20 A, on the outdoor's supply", () => {
     expect(odu("PUZ-ZM100VKA2-A").max_amps_a).toBeUndefined();
-    expect(
-      electrical({ pairIdu: "PLA-M100EA2-A", pairOdu: "PUZ-ZM100VKA2-A" }).choice!.selectedId
-    ).toBe("isolator-20a-1ph");
+    expect(proposed("PUZ-ZM100VKA2-A").id).toBe("isolator-20a-1ph");
     expect(odu("PUMY-SP112YKMD2-A")).toMatchObject({ phase: "3" });
     expect(odu("PUMY-SP112YKMD2-A").max_amps_a).toBeUndefined();
-    expect(electrical({ pairOdu: "PUMY-SP112YKMD2-A" }, "multi-split").name).toBe("Isolator, 3Ø 20 A");
+    expect(proposed("PUMY-SP112YKMD2-A").name).toBe("Isolator, 3Ø 20 A");
   });
 
   it("never sizes from a circuit figure standing in for the draw", () => {
@@ -281,7 +278,7 @@ describe("the isolator follows the outdoor's draw and supply", () => {
     // it is not the draw, so the default is the unsized 20 A
     expect(odu("PUHY-P500YNW-A1")).toMatchObject({ phase: "3", mca_a: 43.7 });
     expect(odu("PUHY-P500YNW-A1").max_amps_a).toBeUndefined();
-    expect(electrical({ pairOdu: "PUHY-P500YNW-A1" }, "vrf").name).toBe("Isolator, 3Ø 20 A");
+    expect(proposed("PUHY-P500YNW-A1").name).toBe("Isolator, 3Ø 20 A");
   });
 
   it("a draw it cannot read, or past every rating, keeps the 20 A rather than guess", () => {
@@ -336,12 +333,14 @@ describe("the isolator follows the outdoor's draw and supply", () => {
       "isolator-20a-1ph",
       "isolator-32a-1ph",
       "none",
+      NOT_CHOSEN,
     ]);
     const three = electrical({ pairIdu: "PLA-M100EA2-A", pairOdu: "PUZ-ZM100YKA3-A" });
     expect(three.choice!.options.map((o) => o.id)).toEqual([
       "isolator-20a-3ph",
       "isolator-32a-3ph",
       "none",
+      NOT_CHOSEN,
     ]);
   });
 
@@ -361,6 +360,7 @@ describe("the isolator follows the outdoor's draw and supply", () => {
       "isolator-32a-1ph",
       "isolator-32a-3ph",
       "none",
+      NOT_CHOSEN,
     ]);
   });
 
@@ -444,8 +444,20 @@ describe("insulation choice row", () => {
     },
   });
 
-  it("defaults to 13 mm wall and derives its metres from hard-drawn runs", () => {
+  it("stays Not chosen until picked", () => {
     const { doc, system } = docWith({ pairIdu: IDU, pairOdu: ODU });
+    doc.objects = [
+      unit("u_idu", "idu", IDU),
+      unit("u_odu", "odu", ODU),
+      run("r1", [{ x: 0, y: 0 }, { x: 500, y: 0 }]),
+    ];
+    const row = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "insulation")!;
+    expect(row.name).toBe("Not chosen");
+    expect(row.value).toBe("—");
+  });
+
+  it("once 13 mm wall is picked, derives its metres from hard-drawn runs", () => {
+    const { doc, system } = docWith({ pairIdu: IDU, pairOdu: ODU, components: { insulation: "wall-13" } });
     // 10 mm/unit → a 500-unit run = 5 m of raw copper
     doc.objects = [
       unit("u_idu", "idu", IDU),

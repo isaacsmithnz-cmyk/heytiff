@@ -155,7 +155,8 @@ export function outdoorReadiness(pack: DataPack, odu: OutdoorUnit): Readiness {
   // for its series (sizing + joints + limits + charge).
   if (odu.system_type === "vrf") {
     const m = [...placeM, ...capMsg()];
-    if (!has(odu.capacity_index)) m.push("capacity_index");
+    // a kW-band outdoor (PUMY) counts rated kW, not index
+    if (odu.ratio_basis !== "kw" && !has(odu.capacity_index)) m.push("capacity_index");
     if (!has(odu.ratio_min_pct) || !has(odu.ratio_max_pct)) m.push("ratio limits");
     if (!has(odu.max_idus)) m.push("max_idus");
     if (!odu.pipe_table_ref) m.push("pipe_table_ref");

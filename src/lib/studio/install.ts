@@ -54,6 +54,8 @@ import {
   type ComponentChoiceOption,
 } from "./components";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
+import { systemVrfTree } from "./vrf-tree";
+import { matchesModelGlob } from "./model-glob";
 
 /* ─────────────────────────── shapes ─────────────────────────── */
 
@@ -427,17 +429,7 @@ const descriptionHead = (accessory: Accessory): string => {
 
 /* ─────────────────────────── accessories ─────────────────────────── */
 
-/** Does a model match one of the pack's `compatible_with` patterns? A
-    pattern is an exact model, or a prefix glob ending in `*` ("MSZ-*",
-    "PUZ-ZM1*"). Case-sensitive. A `*` anywhere but the end is not a glob
-    the pack writes, and never matches. */
-export function matchesModelGlob(model: string, pattern: string): boolean {
-  if (pattern.endsWith("*")) {
-    const prefix = pattern.slice(0, -1);
-    return !prefix.includes("*") && model.startsWith(prefix);
-  }
-  return model === pattern;
-}
+export { matchesModelGlob } from "./model-glob";
 
 /** the pack's accessories compatible with a model, in pack order; narrowed
     to one category when given */
@@ -904,6 +896,39 @@ function jointPipeRows(context: Context): EquipmentRow[] {
   });
 }
 
+/** A VRF's joints and headers, by part, from its sized tree (vrf-tree.ts).
+    Until the pipework reaches every head the tree is the zones in order, and
+    the row says so: the count can change once it is drawn. */
+export function vrfFittings(doc: DesignDocument, pack: DataPack, sys: DesignSystem): EquipmentRow[] {
+  return vrfFittingRows(contextOf(doc, pack, sys));
+}
+
+function vrfFittingRows(context: Context): EquipmentRow[] {
+  const tree = systemVrfTree(context.pack, context.sys, context.doc);
+  if (!tree) return [];
+  const byPart = new Map<string, { kind: "joint" | "header" | "box"; n: number }>();
+  for (const f of tree.fittings) {
+    if (!f.part) continue;
+    const cur = byPart.get(f.part);
+    if (cur) cur.n++;
+    else byPart.set(f.part, { kind: f.kind, n: 1 });
+  }
+  /* the reason in words a fitter reads (Isaac, 2026-09-29: "by the index
+     below it — no idea what that's supposed to mean") */
+  const ports = (part: string) => context.pack.parts.find((p) => p.model === part)?.ports;
+  return [...byPart].map(([part, { kind, n }]) => ({
+    group: "Pipework" as const,
+    name: kind === "header" ? "Header" : kind === "box" ? "Branch box" : "Joint",
+    model: part,
+    qty: n,
+    why: !tree.drawn
+      ? "Counted from the zones until the pipework is drawn"
+      : kind === "box" && ports(part)
+        ? `Takes up to ${ports(part)} heads`
+        : "Sized to the heads it feeds",
+  }));
+}
+
 /** Copper is never asked: the drawn runs say whether it is coil or hard
     drawn, and hard drawn brings its lagging. Nothing drawn yet says so. */
 function copperRows(context: Context): EquipmentRow[] {
@@ -1051,7 +1076,7 @@ export function equipmentList(doc: DesignDocument, pack: DataPack, sys: DesignSy
   const answers = installAnswers(doc, sys);
   const walk: Walk = { rows: unitRows(context), notes: [], answered: 0, total: 0 };
   for (const question of applicableSpecs(context)) walkQuestion(context, answers, question, false, walk);
-  walk.rows.push(...jointPipeRows(context), ...copperRows(context));
+  walk.rows.push(...jointPipeRows(context), ...vrfFittingRows(context), ...copperRows(context));
   const rows = mergeRows(walk.rows).sort(
     (a, b) => GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group)
   );

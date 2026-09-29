@@ -455,14 +455,14 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "`transition: all` — a transition names what moves", now: () => count(/transition\s*:\s*all\b/g), baseline: 0 },
   { law: "`text-transform: uppercase` — the eyebrow is retired; a registration plate is the one thing set in caps", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 2 },
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
-  { law: "gradients — one accent, flat surfaces; his are named below", now: () => gradients(outside("gradients")), baseline: 45 },
+  { law: "gradients — one accent, flat surfaces; his are named below", now: () => gradients(outside("gradients")), baseline: 39 },
   /* 52 → 57 on 2026-09-21, the one baseline in this file that has ever gone
      up. Nothing was added: the counter learned `filter: drop-shadow()`, and
      five shadows that had been in the sheets since July became visible to it.
      Isaac agreed to the re-base; docs/design.md names the two that stay (the
      photo thumbnail's star, the Studio's close-ready vertex) and records that
      the donut's three go with the Studio's new design. */
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 55 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: () => shadows(outside("shadows")), baseline: 49 },
   { law: "bars at the left edge — selection is a fill, state is a word; the one left is the cap on the schedule's blocks", now: () => leftBars(outside("bars at the left edge")), baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens; his are named below", now: () => tailwindHexes(outside("Tailwind palette hexes")), baseline: 0 },
@@ -470,7 +470,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 0 },
   { law: "distinct z-index values — six layers", now: distinctZ, baseline: 20 },
   { law: "arrows on buttons — the word is the button; an arrow between two values is a fact", now: () => countTsx(onScreen("→")), baseline: 6 },
-  { law: "middot chains — a sentence, or a label and a value; the nine left are keyboard hints", now: () => countTsx(onScreen("·")), baseline: 9 },
+  { law: "middot chains — a sentence, or a label and a value; the seven left are keyboard hints", now: () => countTsx(onScreen("·")), baseline: 7 },
   { law: "inner-highlight glass edges — no glass", now: () => count(/inset 0 1px 0 rgba\(255/g), baseline: 0 },
   { law: "white-alpha hairlines on the dark chrome — one hairline token", now: () => count(/border(?:-[a-z]+)?\s*:\s*1px solid rgba\(255,\s*255,\s*255,\s*0?\.[0-2]\d*\)/g), baseline: 0 },
   { law: "stacked hovers — a hover is one change", now: () => hoverBlocks((b) => /transform\s*:\s*(?!none\b)/.test(b) && /box-shadow\s*:\s*(?!none\b)/.test(b)), baseline: 1 },
@@ -479,8 +479,8 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      a rule that lists a `:focus-within` twin beside its `:hover` gives the
      keyboard the same control back (law 24). */
   { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/:hover/.test(sel) && !/focus-within|focus-visible/.test(sel) && /\bopacity\s*:\s*1\b/.test(body)) n++; return n; }, baseline: 0 },
-  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => pills(outside("pills")), baseline: 39 },
-  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 31 },
+  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => pills(outside("pills")), baseline: 34 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 30 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of
      every use (88), then the accent migration named accent-on-state as state
@@ -509,7 +509,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
         n += (body.match(/var\(--(?:teal|teal-d|blue|violet|violet-d|hm-teal|tool-accent)\b|#00e5c0|#00a389|#2e68ff|#8a2be2|#007fa8|#0089b8|rgba\(0,\s*229,\s*192,|rgba\(0,\s*163,\s*137,|rgba\(46,\s*104,\s*255,|rgba\(138,\s*43,\s*226,/gi) ?? []).length;
       }
       return n;
-    }, baseline: 198 },
+    }, baseline: 162 },
 ];
 
 describe("the design ratchets only go down", () => {

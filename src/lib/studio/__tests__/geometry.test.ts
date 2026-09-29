@@ -9,6 +9,8 @@ import {
   distToSegment,
   snapToGrid,
   orthoSnap,
+  elbowCorner,
+  squareInto,
   nearestVertexIndex,
   boundsOfPoints,
   worldToScreen,
@@ -476,5 +478,51 @@ describe("smoothed runs", () => {
     expect(distToSmoothed({ x: 0, y: 500 }, dots)).toBeGreaterThan(300);
     // one dot degenerates to point distance
     expect(distToSmoothed({ x: 3, y: 4 }, [{ x: 0, y: 0 }])).toBeCloseTo(5, 6);
+  });
+});
+
+/* Shift on a straight run's last click: on along the leg, one right angle in */
+describe("elbowCorner", () => {
+  it("drawing across, a unit above: carries on across, then turns straight up into it", () => {
+    const pts = [{ x: 0, y: 500 }, { x: 400, y: 500 }];
+    expect(elbowCorner(pts, { x: 900, y: 100 })).toEqual({ x: 900, y: 500 });
+  });
+
+  it("drawing down, a unit to the side: carries on down, then turns across into it", () => {
+    const pts = [{ x: 0, y: 0 }, { x: 0, y: 300 }];
+    expect(elbowCorner(pts, { x: 600, y: 800 })).toEqual({ x: 0, y: 800 });
+  });
+
+  it("on the first leg, the longer way to go leads", () => {
+    expect(elbowCorner([{ x: 0, y: 0 }], { x: 900, y: 200 })).toEqual({ x: 900, y: 0 });
+    expect(elbowCorner([{ x: 0, y: 0 }], { x: 200, y: 900 })).toEqual({ x: 0, y: 900 });
+  });
+
+  it("no corner when the unit already lines up, or nothing is drawn yet", () => {
+    expect(elbowCorner([{ x: 0, y: 500 }, { x: 400, y: 500 }], { x: 900, y: 500 })).toBeNull();
+    expect(elbowCorner([], { x: 1, y: 1 })).toBeNull();
+  });
+});
+
+describe("squareInto", () => {
+  it("overshot the bend: the leg is cut at the turn and the stub goes", () => {
+    // across to x=1000, the unit is up at x=700
+    const pts = [{ x: 0, y: 500 }, { x: 1000, y: 500 }];
+    expect(squareInto(pts, { x: 700, y: 100 })).toEqual([{ x: 0, y: 500 }, { x: 700, y: 500 }]);
+  });
+
+  it("short of the bend: carries on to it", () => {
+    const pts = [{ x: 0, y: 500 }, { x: 400, y: 500 }];
+    expect(squareInto(pts, { x: 700, y: 100 })).toEqual([...pts, { x: 700, y: 500 }]);
+  });
+
+  it("a turn at the leg's very start drops the leg rather than leave a stub", () => {
+    const pts = [{ x: 0, y: 0 }, { x: 0, y: 500 }, { x: 800, y: 500 }];
+    expect(squareInto(pts, { x: 0, y: 100 })).toEqual([{ x: 0, y: 0 }, { x: 0, y: 500 }]);
+  });
+
+  it("nothing to square: the draft comes back as it was", () => {
+    const pts = [{ x: 0, y: 500 }, { x: 400, y: 500 }];
+    expect(squareInto(pts, { x: 900, y: 500 })).toBe(pts);
   });
 });

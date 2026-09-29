@@ -194,8 +194,7 @@ export function systemOutdoorKw(
 }
 
 /** `settings.multiIdus` (roomId → indoor model) — same key multi.ts owns;
-    read inline here so coverage never imports the multi engine (multi.ts
-    imports roomsServedBy from this module) */
+    read inline here so coverage never imports the multi engine */
 function multiIduFor(sys: DesignSystem, roomId: string): string {
   const v = sys.settings.multiIdus;
   if (!v || typeof v !== "object" || Array.isArray(v)) return "";

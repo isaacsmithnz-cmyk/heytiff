@@ -1,5 +1,7 @@
 # Design Studio — Right Panel Spec (per system type)
 
+> **Superseded** by the zones → systems flow (docs/studio-zones-and-systems.md). The type-first cockpit, the type chooser and the split panel this page describes were removed on 2026-09-28; it stays as history.
+
 > Handoff brief for redesigning the Design-step right panel.
 > Grounded in the current implementation: `studio.tsx` (`ds-sidecol`),
 > `split-panel.tsx`, `modules.ts`, `coverage.ts`, `system-type-chooser.tsx`.

@@ -459,7 +459,7 @@ function SystemCard({
               )}
             </dl>
           )}
-          {status.tone === "bad" && <div className="ds-zp-status bad">{status.text}</div>}
+          {status.tone === "bad" && <div className="ds-zp-status bad">{status.why ?? status.text}</div>}
           {/* a system with no zone yet has nothing to build for: its next
               step is Add zones, above, and Build system waits for a zone
               (Isaac, 2026-09-23) */}

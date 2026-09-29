@@ -1,6 +1,6 @@
 # Zones and systems
 
-The Studio's design flow, settled with Isaac on 2026-09-18 to 2026-09-20 in the "Zones and systems" mock (claude.ai artifact CGns7PUHtEer6Jo9h7sjY5, v20). The mock is the picture; this page is the rules the code follows and the order it was built in. It stays behind `NEXT_PUBLIC_STUDIO_BUILDER` until walked at 1440.
+The Studio's design flow, settled with Isaac on 2026-09-18 to 2026-09-20 in the "Zones and systems" mock (claude.ai artifact CGns7PUHtEer6Jo9h7sjY5, v20). The mock is the picture; this page is the rules the code follows and the order it was built in. It is the Studio's only design flow: the `NEXT_PUBLIC_STUDIO_BUILDER` flag that kept it apart went on 2026-09-28, with the old type-first cockpit, its type chooser and the flag-off code behind them.
 
 A **zone** is what a room was: it is drawn on the plan and belongs to the plan. A **system** claims zones before it has a unit, is built in the builder one system at a time with its zones given, has its units dragged onto the plan from a rack under its card, and then answers its install questions.
 

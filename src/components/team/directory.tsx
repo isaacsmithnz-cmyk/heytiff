@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { nameHue } from "@/lib/staff/avatar";
 import { ViewTabs } from "@/components/shell/view-tabs";
 import { CopyLink } from "@/components/shell/copy-link";
 import { InviteModal } from "@/components/team/invite-modal";
@@ -16,15 +17,6 @@ type View = "active" | "warn" | "pending" | "archived";
 type Sort = "name" | "role" | "exp";
 
 
-/* A stable hue per person, for the avatar's ring. It is decoration and
-   identity, never state — nothing is read from the colour, so it carries no
-   contrast requirement of its own. It must NOT be used to fill the avatar: see
-   `.fg .dav`. */
-function hue(name: string) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
-  return h;
-}
 
 export function TeamDirectory({
   staff,
@@ -460,7 +452,11 @@ export function TeamDirectory({
                     <span
                       className="dav"
                       aria-hidden="true"
-                      style={{ "--av": `hsl(${hue(s.name)} 72% 56%)` } as React.CSSProperties}
+                      /* a stable hue per person, for the ring: decoration and
+                         identity, never state. At 56% it is NOT a ground for
+                         the initials — the staff card darkens the same hue
+                         for that (lib/staff/avatar). */
+                      style={{ "--av": `hsl(${nameHue(s.name)} 72% 56%)` } as React.CSSProperties}
                     >
                       {s.initials}
                     </span>

@@ -7,14 +7,13 @@ import type { StaffProfile } from "@/lib/staff/profile";
 import type { StaffLicence } from "@/lib/staff/types";
 import type { MyPay } from "@/lib/staff/my-pay";
 import { profileCompleteness } from "@/lib/staff/completeness";
-import { ProfileTabs, type NavItem } from "./profile-tabs";
-import { SummaryTab } from "./summary-tab";
+import { Overview } from "./overview";
+import { SectionDone } from "./section-card";
 import { PersonalCard } from "./personal-card";
 import { EmergencyCard } from "./emergency-card";
 import { ComplianceCard } from "./compliance-card";
 import { QualificationsCard } from "./qualifications-card";
 import { WorkRightsCard } from "./workrights-card";
-import { TrainingCard } from "./training-card";
 import { PayrollCard } from "./payroll-card";
 import { PermissionsCard } from "./permissions-card";
 import { NotesCard } from "./notes-card";
@@ -33,56 +32,49 @@ import {
   type SectionKey,
 } from "./types";
 
-/* The staff card — the maintenance board's surface, holding a person.
+/* The staff card: one page for the person, and a form behind each card.
 
-   WHAT THIS SCREEN IS NOW. A breadcrumb, one row of tabs, and ONE persistent
-   white card. Summary leads and reads — and, since the 2026-09-15 handoff,
-   is the checklist: its blanks are Adds into the sections' forms, and the
-   completion line sits in its identity row (see summary-tab). Every tab
-   after it is a section you fill in. It borrows `.wb2-vtabs` /
-   `.wb2-card` from the board rather than growing a second copy — including the
-   view transition below, so switching tabs swaps the information while the
-   surface stays put.
+   NO TABS SINCE 2026-09-29. The card opens on the Overview (overview.tsx):
+   the whole person on one screen, with a section shown only once it has
+   something in it and everything still empty gathered into Still to add.
+   Each card's Edit opens its SECTION — the same forms the tabs used to hold —
+   straight into edit mode, and saving or cancelling comes back (SectionDone).
+   The breadcrumb grows a step while a section is open, and the person's name
+   in it is the way back.
 
-   WHAT MOVED, AND WHY IT MATTERS
+   THE ACTIVE VIEW IS STATE ABOVE THE DATA, and that is still the reason this
+   screen survives a save: every save revalidates, so the server re-renders
+   the whole thing, and anything kept in the DOM would snap back. `?sec=` is
+   written with history.replaceState (not a router push) so a refresh or a
+   shared link lands on the same view without a navigation.
 
-   The active section used to live only in DOM classes, written by a click
-   handler. The server markup always marked Personal active and every card
-   locked, so the moment a save revalidated the page — which every save does —
-   React swapped in a fresh subtree and the screen jumped back to Personal with
-   every card re-locked. Here the active section is state ABOVE the data, so
-   new props change values and nothing else. `?sec=` is written back with
-   history.replaceState (not a router push) so a refresh or a shared link lands
-   on the same card without a navigation, and the server reads it from its own
-   searchParams — no useSearchParams, so no Suspense boundary around the page.
+   Admin-only sections are OMITTED, never rendered-then-hidden: adminExtras
+   keys the page didn't pass produce no card and no section, mirroring the
+   server allowlists exactly. */
 
-   The section list is data, and admin-only sections are OMITTED, never
-   rendered-then-hidden: adminExtras keys that the page didn't pass produce no
-   nav entry and no section. That mirrors the server allowlists exactly.
+/** What each section is called in the breadcrumb while it is open. */
+const SECTION_NAMES: Record<Exclude<SectionKey, "summary">, string> = {
+  personal: "Personal details",
+  emergency: "Emergency contact",
+  licences: "Licences and tickets",
+  workrights: "Work rights",
+  mypay: "My pay",
+  payroll: "Payroll",
+  permissions: "Permissions",
+  notes: "Notes",
+};
 
-   THE IDENTITY IS INSIDE THE CARD, on Summary, not above the tabs — it was a
-   page header carrying a person next to a card that opened with its own
-   headline, which read as two headers stacked. See identity-block.
-
-   `editing` is unchanged: it rides in the panel's key, so answering "fill in
-   missing details" remounts the section and the card starts in edit mode from
-   state rather than an effect. */
-
-const NAV_ITEMS: NavItem[] = [
-  { key: "summary", label: "Summary" },
-  // "Personal" and "Emergency", not "Personal details" and "Emergency
-  // contact": nine tabs at full length overflow one row on a 1440 laptop, and
-  // each section's own head spells its name out. See shell.css.
-  { key: "personal", label: "Personal" },
-  { key: "emergency", label: "Emergency" },
-  { key: "licences", label: "Compliance" },
-  { key: "workrights", label: "Work rights" },
-  { key: "training", label: "Training" },
-  { key: "mypay", label: "My pay" },
-  { key: "payroll", label: "Payroll", admin: true },
-  { key: "permissions", label: "Permissions", admin: true },
-  { key: "notes", label: "Notes", admin: true },
-];
+/* A section with ONE form closes back to the Overview when it is saved or
+   cancelled. Licences are a wall you manage several things on, so they stay
+   open until you leave. */
+const CLOSES_ON_DONE: ReadonlySet<SectionKey> = new Set([
+  "personal",
+  "emergency",
+  "workrights",
+  "payroll",
+  "permissions",
+  "notes",
+]);
 
 export function ProfileScreen({
   mode,
@@ -149,20 +141,20 @@ export function ProfileScreen({
   const showNotes = mode === "admin" && extras.notes !== undefined;
   const showMyPay = mode === "self" && !!myPay;
 
-  const available = NAV_ITEMS.filter((n) => {
-    if (n.key === "payroll") return showPayroll;
-    if (n.key === "permissions") return showPermissions;
-    if (n.key === "notes") return showNotes;
-    if (n.key === "mypay") return showMyPay;
+  const allowed = (key: SectionKey) => {
+    if (key === "payroll") return showPayroll;
+    if (key === "permissions") return showPermissions;
+    if (key === "notes") return showNotes;
+    if (key === "mypay") return showMyPay;
     return true;
-  });
+  };
 
   const [active, setActive] = useState<SectionKey>(() => {
     const wanted = sectionFromParam(initialSec);
-    return wanted && available.some((n) => n.key === wanted) ? wanted : "summary";
+    return wanted && allowed(wanted) ? wanted : "summary";
   });
 
-  /* Bumped whenever the strip asks a section to open its form. It rides in the
+  /* Bumped whenever a card asks a section to open its form. It rides in the
      panel's key, so the section remounts and SectionCard can seed its draft
      from state — no effect, and asking twice for the SAME section still works
      because the nonce moved. 0 means "nobody asked". */
@@ -177,7 +169,7 @@ export function ProfileScreen({
      work stays ONE tab — the checks are what is behind it, not a sibling. */
   const [checksOpen, setChecksOpen] = useState(false);
 
-  /* `field` is the column an Add on Summary pointed at; the section opens
+  /* `field` is the column an Add on the Overview pointed at; the section opens
      its form on that control. It rides in the same state as the ask, so it
      is cleared with it. */
   const go = (key: SectionKey, withEdit = false, field?: string) => {
@@ -200,6 +192,7 @@ export function ProfileScreen({
       // replaceState, not router.push: this is which section you're looking
       // at, not a navigation — a push would re-run the server render and
       // re-mount the very cards this screen exists to keep still.
+      if (key === "summary") url.searchParams.delete("sec");
       window.history.replaceState(null, "", url.toString());
     }
     document.querySelector(".outlet")?.scrollTo({ top: 0 });
@@ -219,28 +212,29 @@ export function ProfileScreen({
         <div className="stg pcard2">
           <div className="wb2-crumbline">
           <div className="crumb">
-            {mode === "self" ? (
-              <b>My profile</b>
-            ) : (
-              /* Two crumbs, one destination: this read `Team / Staff / name`
-                 and BOTH links went to /dashboard/team. A breadcrumb is a claim
-                 about depth, so a step that doesn't step is a lie about where
-                 you are — and the second one was the same click as the first. */
+            {/* The trail grows a step while a section is open, and the step
+                before it is the way back to the Overview. Team is a link;
+                the person is a button, because going back to them is a change
+                of view on this page, not a navigation. */}
+            {mode === "admin" && (
               <>
                 <Link href="/dashboard/team">Team</Link>
                 <span className="sep">/</span>
-                <b>{header.name}</b>
+              </>
+            )}
+            {active === "summary" ? (
+              <b>{mode === "self" ? "My profile" : header.name}</b>
+            ) : (
+              <>
+                <button type="button" className="crumb-back" onClick={() => go("summary")}>
+                  {mode === "self" ? "My profile" : header.name}
+                </button>
+                <span className="sep">/</span>
+                <b>{SECTION_NAMES[active]}</b>
               </>
             )}
           </div>
           </div>
-
-          <ProfileTabs
-            items={available}
-            active={active}
-            attention={completeness.sectionCounts}
-            onGo={go}
-          />
 
           <div className="wb2-card">
             <div className="wb2-panel">
@@ -251,27 +245,35 @@ export function ProfileScreen({
                   used to fade the panel in on every switch and no longer
                   does — this card matches Team's, which just changes its
                   children. The remount is invisible without it. */}
+              <SectionDone.Provider value={CLOSES_ON_DONE.has(active) ? () => go("summary") : null}>
               <section
                 key={`${active}#${startEditing}#${fallbackSwap}`}
                 id={`psec-${active}`}
-                role="tabpanel"
-                aria-labelledby={`pftab-${active}`}
+                aria-label={active === "summary" ? header.name : SECTION_NAMES[active]}
                 tabIndex={-1}
                 className="psec2"
                 data-sec={active}
               >
                 {active === "summary" && (
-                  <SummaryTab
+                  <Overview
                     header={header}
                     profile={profile}
                     licences={licences}
                     vehicle={vehicle}
                     today={today}
-            warnDays={warnDays}
+                    warnDays={warnDays}
                     orgState={orgState}
                     mode={mode}
                     actions={actions}
                     completeness={completeness}
+                    extras={{
+                      payroll: extras.payroll,
+                      showPayroll,
+                      permissions: extras.permissions,
+                      notes: extras.notes?.notes ?? null,
+                      showNotes,
+                    }}
+                    myPay={showMyPay ? myPay : null}
                     onGo={go}
                   />
                 )}
@@ -342,7 +344,6 @@ export function ProfileScreen({
                     onSave={actions.onSave}
                   />
                 )}
-                {active === "training" && <TrainingCard />}
                 {active === "mypay" && myPay && <MyPayCard pay={myPay} />}
 
                 {active === "payroll" && showPayroll && (
@@ -350,15 +351,17 @@ export function ProfileScreen({
                     pay={extras.payroll ?? null}
                     rosteredWeek={extras.rosteredWeek ?? null}
                     onSave={actions.onSave}
+                    startEditing={startEditing > 0}
                   />
                 )}
                 {active === "permissions" && extras.permissions && (
-                  <PermissionsCard ctx={extras.permissions} onSave={actions.onSave} />
+                  <PermissionsCard ctx={extras.permissions} onSave={actions.onSave} startEditing={startEditing > 0} />
                 )}
                 {active === "notes" && showNotes && (
-                  <NotesCard notes={extras.notes ?? null} onSave={actions.onSave} />
+                  <NotesCard notes={extras.notes ?? null} onSave={actions.onSave} startEditing={startEditing > 0} />
                 )}
               </section>
+              </SectionDone.Provider>
 
                 {checksOpen && actions.onRecordWorkRightsCheck && (
                   <WorkRightsModal

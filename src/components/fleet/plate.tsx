@@ -21,7 +21,10 @@
    plenty of records simply don't have it recorded — an empty tag would be worse
    than none, so it is dropped entirely rather than rendered blank. */
 
-export type PlateSize = "sm" | "md";
+/* "lg" is the staff card's: the van is the one thing in its header you read
+   from across the room, so the plate is set at the name's weight rather than
+   as a tag beside a sentence. */
+export type PlateSize = "sm" | "md" | "lg";
 
 /* Uppercased here rather than left to `text-transform`, because a plate IS
    uppercase — someone typing "mkt482" into the add-vehicle form has entered
@@ -41,7 +44,7 @@ export function Plate({
 }) {
   const tag = norm(state);
   return (
-    <span className={`au-plate${size === "sm" ? " sm" : ""}`}>
+    <span className={`au-plate${size === "md" ? "" : ` ${size}`}`}>
       {norm(plate)}
       {tag && <span className="st">{tag}</span>}
     </span>

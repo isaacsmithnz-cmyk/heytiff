@@ -196,6 +196,7 @@ describe("the object list", () => {
       job_notes: "note.json",
       job_materials: "jobmaterial.json",
       job_payments: "jobpayment.json",
+      materials: "material.json",
       availability: "availability.json",
     });
   });
@@ -316,6 +317,7 @@ describe("walkOrderFor — the rotation that stops budget starvation", () => {
       "job_notes",
       "job_materials",
       "job_payments",
+      "materials",
       "availability",
       "staff",
       "categories",
@@ -492,5 +494,36 @@ describe("what a change of account clears", () => {
   it("not sm8_vendor, which goes last on its own, and never the lease a run may hold", () => {
     expect(SM8_ACCOUNT_RESET_TABLES).not.toContain("sm8_vendor");
     expect(SM8_ACCOUNT_RESET_TABLES).not.toContain("sm8_sync_runs");
+  });
+});
+
+describe("the price book", () => {
+  const spec = SM8_OBJECTS.find((s) => s.object === "materials")!;
+
+  it("reads the whole of material.json under read_inventory, into sm8_materials", () => {
+    expect(spec).toMatchObject({ endpoint: "material.json", scope: "read_inventory", table: "sm8_materials", backfillMonths: null });
+    expect(SM8_WIPE_TABLES).toContain("sm8_materials");
+  });
+
+  it("keeps a unit's model code, the amounts as sent, and no barcode", () => {
+    const row = spec.shape({
+      uuid: "m-1",
+      name: "Mitsubishi Electric 7.1 kW split",
+      item_number: "MSZ-AP71VGD2",
+      price: "1850.0000",
+      cost: "1320.5000",
+      quantity_in_stock: 3,
+      price_includes_taxes: "0",
+      barcode: "9300000000000",
+      active: 1,
+      edit_date: "2026-09-01 10:00:00",
+    })!;
+    expect(row).toMatchObject({ item_number: "MSZ-AP71VGD2", price: "1850.0000", cost: "1320.5000", quantity_in_stock: "3", active: 1 });
+    expect(row).not.toHaveProperty("barcode");
+  });
+
+  it("links a job's line to the price-book item it was picked from", () => {
+    const line = SM8_OBJECTS.find((s) => s.object === "job_materials")!.shape({ uuid: "jm-1", job_uuid: "j-1", material_uuid: "m-1" })!;
+    expect(line.material_uuid).toBe("m-1");
   });
 });

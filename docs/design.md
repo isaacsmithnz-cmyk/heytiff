@@ -69,6 +69,32 @@ Every decision below is made once, here, and a guard test holds each number.
   opens the job card the Schedule tab opens, over Home, on the same row and
   wearing the same day-state; the card's agreement door lands on the board
   with the job open (`/dashboard/workboard?job=`), where the modal lives.
+- **The staff card is one page, and a blank is said once** (decided
+  2026-09-29; it supersedes the Summary entry below where they differ). Isaac,
+  on the tabbed card: *"it takes up so much of the screen… it's just all over
+  the place"*, and a new starter's card, a grid of dashes and Adds, *"looked
+  pretty poor"*. The options were drawn side by side at 1440×900 (artifact
+  No2p6rkyi2DeSvTevtPrdV) and he chose ONLY WHAT'S ON FILE:
+  - **No tabs.** The card is the Overview; each section is a form behind a
+    card's Edit, and saving or cancelling comes back. The breadcrumb grows a
+    step while a section is open, and the person's name in it is the way back.
+  - **A section appears once it has something in it.** A card never shows a
+    blank row. Every blank is on **Still to add**, once, as Required (what
+    payroll or the law needs, plus a wage for whoever runs pay) and Optional.
+  - **The record line goes at 11 of 11** — his words: "that can disappear".
+  - **Money is hidden until asked for**: the wage's slot holds a quiet "Show
+    wage" button the height of the figure. Blur and a row of dots were both
+    tried and both "looked weird".
+  - **Colour where he asked for it, and nowhere else**: the emergency card's
+    red head (`--bad`, 4.6:1 under white type), a hue of the person's own
+    behind their initials (the directory's hue at 34% lightness, so white
+    initials hold 3:1 at 24px bold), and the cost split's three colours from
+    the payroll card. A colour and icon per section was tried and he turned
+    it down: *"we'll break the design rules, go back"*.
+  - **The van is a plate you can read across the room** (`.au-plate.lg`), in
+    the head, where the record line's space falls free.
+  - **The licences are the Compliance wall's plastic cards**, three across,
+    not a ruled list: *"a proper license shape"*.
 - **The staff card's Summary is the checklist that fills itself in** (decided
   2026-09-15 from the worker-profile handoff; **redrawn 2026-09-16 and the
   second draw is the one to build to**). The first draw kept every law on this

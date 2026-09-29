@@ -14,7 +14,8 @@ import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
 const EMPLOYMENT = EMPLOYMENT_TYPES;
 
 const SPLIT_KEYS = ["cost_install", "cost_service", "cost_admin"] as const;
-const SPLIT_META = [
+/** the three shares and their colours — the Overview's split bar reads these too */
+export const SPLIT_META = [
   { label: "Install", color: "var(--teal)" },
   { label: "Service", color: "var(--blue)" },
   { label: "Admin", color: "#8A2BE2" },
@@ -52,12 +53,15 @@ export function PayrollCard({
   pay,
   rosteredWeek = null,
   onSave,
+  startEditing = false,
 }: {
   pay: PayFields | null;
   /** What Time & Pay actually presumes onto this person's week, or null when
       there is no rostered week to state. */
   rosteredWeek?: number | null;
   onSave: SaveSection;
+  /** opened from the Overview's Edit — the form, not the read view */
+  startEditing?: boolean;
 }) {
   const values = payrollValues(pay);
   const readSplit = SPLIT_KEYS.map((k) => Number(values[k]) || 0);
@@ -92,6 +96,7 @@ export function PayrollCard({
       values={values}
       onSave={(fields) => onSave("payroll", fields)}
       validate={(fields) => preValidate("admin", "payroll", fields)}
+      startEditing={startEditing}
       body={({ editing, draft, set, setMany, invalid, edit, errorFor }) => {
         const vals = SPLIT_KEYS.map((k) => Number(draft[k]) || 0);
         const split = editing ? vals : readSplit;

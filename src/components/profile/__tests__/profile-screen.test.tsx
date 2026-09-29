@@ -7,7 +7,10 @@ import type { AdminExtras, PermissionsCtx, ProfileMode } from "../types";
 import { TODAY, header, jordan, okActions } from "./fixtures/staff";
 
 /* The staff card as a whole: what each mode may render, and — the point of
-   the rewrite — that a save doesn't move you. */
+   the rewrite — that a save lands you somewhere on purpose. Since
+   2026-09-29 there are no tabs: the card is the Overview, and each section
+   is a form opened from it. Which sections EXIST is asked the only way that
+   is left, by deep link: a section the viewer may not see cannot be opened. */
 
 const ownerCtx: PermissionsCtx = {
   role: "staff",
@@ -61,80 +64,47 @@ function setup(
   return { ...view, actions };
 }
 
-/* The sections are a tablist, so they answer to the `tab` role rather than to
-   a class — but the check is the same one: an omitted section has no tab at
-   all, it is not a disabled one.
-
-   A tab owning missing fields carries a count badge, and both the number and
-   its screen-reader clause ride along in textContent. Strip them here; the
-   count is asserted on its own further down.
-
-   The padlock's " — admin only" is stripped the same way and for the same
-   reason. It is screen-reader text added because the lock was a bare <svg>
-   that announced as nothing, so what this helper wants — WHICH sections have a
-   tab — is still the label in front of it. Asserted on its own below. */
-const navLabels = () =>
-  screen
-    .queryAllByRole("tab")
-    .map((b) =>
-      (b.textContent ?? "")
-        .replace(/\d+ — \d+ details? missing$/, "")
-        .replace(/ — admin only$/, "")
-        .trim()
-    );
+/** the view a `?sec=` lands on — the section, or the Overview ("summary") */
+const landsOn = (sec: string, over: Parameters<typeof setup>[0] = {}) => {
+  const { unmount } = setup({ ...over, initialSec: sec });
+  const got = document.querySelector(".psec2")?.getAttribute("data-sec");
+  unmount();
+  return got;
+};
+const region = (name: string) => screen.queryByRole("region", { name });
 
 describe("self mode — My profile", () => {
-  it("omits the admin-only sections entirely, nav included", () => {
+  it("omits the admin-only sections entirely", () => {
+    for (const sec of ["payroll", "permissions", "notes"]) expect(landsOn(sec)).toBe("summary");
     setup();
-    for (const label of ["Payroll", "Permissions", "Notes"]) {
-      expect(navLabels()).not.toContain(label);
-    }
+    for (const name of ["Payroll", "Permissions", "Notes"]) expect(region(name)).toBeNull();
   });
 
   it("ignores adminExtras even if a caller passes them", () => {
     // mode is the gate, not the props — the self allowlist has no such columns
-    setup({ adminExtras: { payroll: {}, permissions: ownerCtx, notes: {} } });
-    expect(navLabels()).not.toContain("Payroll");
-    expect(navLabels()).not.toContain("Permissions");
+    const extras = { adminExtras: { payroll: { hourly_wage: 40 }, permissions: ownerCtx, notes: { notes: "x" } } };
+    expect(landsOn("payroll", extras)).toBe("summary");
+    expect(landsOn("permissions", extras)).toBe("summary");
   });
 
-  /* Summary leads and every tab after it is a section you fill in. "Assigned
-     vehicle" is deliberately absent: Fleet owns the assignment, there was
-     nothing on that tab to edit, and it reads on Summary instead. */
-  it("leads with Summary, then the sections you fill in, and adds My pay", () => {
+  it("carries My pay, and drops it when there is no pay payload", () => {
+    expect(landsOn("mypay", { myPay: MY_PAY })).toBe("mypay");
+    expect(landsOn("mypay", { myPay: null })).toBe("summary");
     setup({ myPay: MY_PAY });
-    expect(navLabels()).toEqual([
-      "Summary",
-      "Personal",
-      "Emergency",
-      "Compliance",
-      "Work rights",
-      "Training",
-      "My pay",
-    ]);
+    expect(region("My pay")).toBeInTheDocument();
   });
 
   it("puts Change on the Email row it already had", async () => {
     /* The address lives with your details, which is where it always was —
        what changed is that the row now says how to move it. */
-    setup();
-    await userEvent.click(screen.getByRole("tab", { name: /Personal/ }));
+    setup({ initialSec: "personal" });
     expect(screen.getByRole("button", { name: /^Change$/ })).toBeInTheDocument();
   });
 
-  it("has NO tab for the sign-in address", () => {
-    /* It had one, briefly, and it was a section holding a single read-only
-       row — while Personal already showed the same address, because
-       `header.email` IS the account address. One fact, two homes, one of them
-       existing only to hold a form. The row it duplicated opens a dialog
-       instead (Isaac, 2026-09-01). */
-    setup();
-    expect(navLabels()).not.toContain("Sign-in");
-  });
-
-  it("drops My pay from the nav when there is no pay payload", () => {
-    setup({ myPay: null });
-    expect(navLabels()).not.toContain("My pay");
+  it("has no section for the sign-in address", () => {
+    /* It had one, briefly, holding a single read-only row that Personal
+       already showed. The row opens a dialog instead (Isaac, 2026-09-01). */
+    expect(landsOn("signin")).toBe("summary");
   });
 
   it("shows a My profile breadcrumb, not the Team trail", () => {
@@ -146,50 +116,47 @@ describe("self mode — My profile", () => {
 
 describe("admin mode — Team", () => {
   it("NEVER offers to change the sign-in address on somebody else’s card", async () => {
-    /* THE GUARD THAT REPLACED THE TAB FILTER. `changeMySignInEmail` moves
-       whoever the SESSION is, so this control on an admin's view of a
-       colleague would change the admin's own address while showing the
-       colleague's name — the most confusing possible way to be wrong, and one
-       nobody would notice until it had happened. The screen withholds the
-       action; Personal renders the button only when handed one. */
-    setup({ mode: "admin", adminExtras: { payroll: {}, permissions: ownerCtx, notes: {} } });
-    /* ON THE PERSONAL TAB, which is the whole point — the first version of
-       this test asserted against the Summary tab, where the row does not
-       render at all, and passed just as happily with the guard removed. */
-    await userEvent.click(screen.getByRole("tab", { name: /Personal/ }));
+    /* `changeMySignInEmail` moves whoever the SESSION is, so this control on
+       an admin's view of a colleague would change the admin's own address
+       while showing the colleague's name. The screen withholds the action;
+       Personal renders the button only when handed one. Asserted IN the
+       Personal section, where the Email row renders. */
+    setup({ mode: "admin", adminExtras: { payroll: {}, permissions: ownerCtx, notes: {} }, initialSec: "personal" });
     expect(screen.getByText("Email")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Change$/ })).toBeNull();
   });
 
-  it("renders an admin section only when the page passed it", () => {
-    setup({ mode: "admin", adminExtras: { payroll: {}, permissions: ownerCtx, notes: {} } });
-    expect(navLabels()).toContain("Payroll");
-    expect(navLabels()).toContain("Permissions");
-    expect(navLabels()).toContain("Notes");
+  it("opens an admin section only when the page passed it", () => {
+    const all = { mode: "admin" as const, adminExtras: { payroll: {}, permissions: ownerCtx, notes: {} } };
+    expect(landsOn("payroll", all)).toBe("payroll");
+    expect(landsOn("permissions", all)).toBe("permissions");
+    expect(landsOn("notes", all)).toBe("notes");
   });
 
   it("omits Payroll entirely without `financials` — not rendered then hidden", () => {
-    setup({ mode: "admin", adminExtras: { permissions: ownerCtx, notes: {} } });
-    expect(navLabels()).not.toContain("Payroll");
-    expect(navLabels()).toContain("Permissions");
+    const some = { mode: "admin" as const, adminExtras: { permissions: ownerCtx, notes: {} } };
+    expect(landsOn("payroll", some)).toBe("summary");
+    expect(landsOn("permissions", some)).toBe("permissions");
+    setup(some);
+    expect(region("Payroll")).toBeNull();
+    // and nobody is asked for a wage they may not see
+    expect(screen.queryByRole("button", { name: "Add pay" })).not.toBeInTheDocument();
   });
 
   it("omits Notes when looking at your own card", () => {
-    setup({ mode: "admin", adminExtras: { permissions: ownerCtx } });
-    expect(navLabels()).not.toContain("Notes");
+    expect(landsOn("notes", { mode: "admin", adminExtras: { permissions: ownerCtx } })).toBe("summary");
   });
 
   it("renders no admin sections at all when none are passed", () => {
     setup({ mode: "admin" });
-    for (const label of ["Payroll", "Permissions", "Notes"]) {
-      expect(navLabels()).not.toContain(label);
-    }
+    for (const name of ["Payroll", "Permissions", "Notes"]) expect(region(name)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Write a note" })).not.toBeInTheDocument();
   });
 
   it("never shows My pay — someone else's rates are the Payroll card's job", () => {
+    expect(landsOn("mypay", { mode: "admin", adminExtras: { payroll: {}, permissions: ownerCtx }, myPay: MY_PAY })).toBe("summary");
     setup({ mode: "admin", adminExtras: { payroll: {}, permissions: ownerCtx }, myPay: MY_PAY });
-    expect(navLabels()).not.toContain("My pay");
-    expect(screen.queryByText("Base rate")).not.toBeInTheDocument();
+    expect(region("My pay")).toBeNull();
   });
 
   it("shows the Team breadcrumb", () => {
@@ -207,80 +174,65 @@ describe("admin mode — Team", () => {
       a.getAttribute("href"),
     );
     expect(hrefs).toEqual(["/dashboard/team"]);
-    expect(new Set(hrefs).size).toBe(hrefs.length);
   });
 
-  /* The padlock was a bare <svg>: no title, no aria-hidden, no label on the
-     tab, so "Payroll 🔒" announced as "Payroll" and the gate existed only as a
-     glyph. */
-  it("says the admin-only tabs are restricted, rather than only drawing a lock", () => {
-    setup({ mode: "admin", adminExtras: { permissions: ownerCtx, notes: {} } });
-    for (const label of ["Permissions", "Notes"]) {
-      const tab = screen.getByRole("tab", { name: new RegExp(`^${label} — admin only$`) });
-      expect(tab.querySelector(".lock")).toHaveAttribute("aria-hidden", "true");
-    }
-    // and an ungated tab says nothing extra — the clause is not decoration
-    expect(navLabels()).toContain("Summary");
-    for (const tab of screen.getAllByRole("tab")) {
-      const gated = !!tab.querySelector(".lock");
-      expect(/— admin only/.test(tab.textContent ?? "")).toBe(gated);
+  /* The admin-only cards say so in words, not with a glyph. */
+  it("says the admin-only cards are restricted", () => {
+    setup({ mode: "admin", adminExtras: { permissions: ownerCtx, notes: { notes: "x" } } });
+    for (const name of ["Permissions", "Notes"]) {
+      expect(region(name)!.querySelector(".pov-adm")).toHaveTextContent("Admin only");
     }
   });
 });
 
 describe("opening section", () => {
-  it("opens Summary by default", () => {
+  it("opens the Overview by default", () => {
     setup();
-    expect(screen.getByRole("tab", { name: /Summary/ })).toHaveClass("on");
-    expect(screen.getByRole("tab", { name: /Personal/ })).not.toHaveClass("on");
+    expect(document.querySelector(".psec2")).toHaveAttribute("data-sec", "summary");
+    expect(screen.queryAllByRole("tab")).toHaveLength(0);
   });
 
   it("opens the section named by ?sec=", () => {
-    setup({ initialSec: "workrights" });
-    expect(screen.getByRole("tab", { name: /Work rights/ })).toHaveClass("on");
+    expect(landsOn("workrights")).toBe("workrights");
   });
 
   it("ignores a ?sec= the viewer isn't allowed", () => {
     // a staff member can't be deep-linked into someone's payroll
-    setup({ initialSec: "payroll" });
-    expect(screen.getByRole("tab", { name: /Summary/ })).toHaveClass("on");
+    expect(landsOn("payroll")).toBe("summary");
   });
 
   it("ignores a ?sec= that isn't a section at all", () => {
-    setup({ initialSec: "../etc/passwd" });
-    expect(screen.getByRole("tab", { name: /Summary/ })).toHaveClass("on");
+    expect(landsOn("../etc/passwd")).toBe("summary");
   });
 
-  /* Assigned vehicle stopped being a tab in the redesign. A bookmark still
-     carrying its key lands on Summary — where that card's facts went — rather
-     than falling through to the default as an unknown value would. The two
-     look the same today only because Summary IS the default; the mapping is
-     what keeps them the same if it ever isn't. */
-  it("lands a retired ?sec=vehicle link on Summary", () => {
-    setup({ initialSec: "vehicle" });
-    expect(screen.getByRole("tab", { name: /Summary/ })).toHaveClass("on");
-    expect(screen.queryByRole("tab", { name: /vehicle/i })).not.toBeInTheDocument();
+  /* Retired keys land on the Overview, where their facts went, rather than
+     falling through as unknown values would: the vehicle tab (its plate is in
+     the head) and Training (a placeholder that went with the tabs). */
+  it("lands retired ?sec= links on the Overview", () => {
+    expect(landsOn("vehicle")).toBe("summary");
+    expect(landsOn("training")).toBe("summary");
   });
 });
 
 describe("dates", () => {
-  it("renders stored ISO dates back as dd/mm/yyyy", async () => {
-    const user = userEvent.setup();
-    setup();
-    await user.click(screen.getByRole("tab", { name: /Personal/ }));
-    expect(screen.getByText("01/06/2020")).toBeInTheDocument(); // start date
-    expect(screen.getByText("25/12/1990")).toBeInTheDocument(); // birthday
+  it("renders stored ISO dates back as dd/mm/yyyy", () => {
+    setup({ mode: "admin" });
+    expect(screen.getByText("01/06/2020")).toBeInTheDocument(); // start date, in the strip
+    expect(screen.getByText("25/12/1990")).toBeInTheDocument(); // birthday, on Personal
   });
 });
 
-describe("a save does not move you — the bug this rewrite exists to kill", () => {
-  it("stays on the section you saved from, with every card back in read mode", async () => {
+describe("a save lands you on purpose — the bug this rewrite exists to kill", () => {
+  /* The old screen snapped back to Personal with every card re-locked when a
+     save revalidated. Now the view is state above the data: a save that the
+     server re-renders changes VALUES, and the only move is the one the form
+     asks for — back to the Overview, showing what was saved. */
+  it("comes back to the Overview after a save, and a revalidation doesn't move it", async () => {
     const user = userEvent.setup();
     const actions = okActions();
     const { rerender } = setup({ actions });
 
-    await user.click(screen.getByRole("tab", { name: /Emergency/ }));
-    await user.click(screen.getByRole("button", { name: /^Edit$/ }));
+    await user.click(screen.getByRole("button", { name: "Edit emergency contact" }));
     const name = screen.getByDisplayValue("Sarah Mills");
     await user.clear(name);
     await user.type(name, "Sam Mills");
@@ -291,8 +243,7 @@ describe("a save does not move you — the bug this rewrite exists to kill", () 
       expect.objectContaining({ emergency_name: "Sam Mills" })
     );
 
-    // the action revalidated, so the server re-rendered with the new values —
-    // exactly what used to slam the screen back to Personal
+    // the action revalidated, so the server re-rendered with the new values
     rerender(
       <ProfileScreen
         mode="self"
@@ -306,11 +257,18 @@ describe("a save does not move you — the bug this rewrite exists to kill", () 
       />
     );
 
-    expect(screen.getByRole("tab", { name: /Emergency/ })).toHaveClass("on");
-    expect(screen.getByRole("tab", { name: /Personal/ })).not.toHaveClass("on");
-    // and the card it saved is locked again, showing the new value
-    expect(screen.getByText("Sam Mills")).toBeInTheDocument();
+    expect(document.querySelector(".psec2")).toHaveAttribute("data-sec", "summary");
+    expect(screen.getByRole("region", { name: "Emergency contact" })).toHaveTextContent("Sam Mills");
     expect(screen.queryByDisplayValue("Sam Mills")).not.toBeInTheDocument();
+  });
+
+  it("keeps you on a section opened by link until you leave it", async () => {
+    const user = userEvent.setup();
+    setup({ initialSec: "licences" });
+    // the licence wall is several things to manage, not one form: it has no Done
+    expect(document.querySelector(".psec2")).toHaveAttribute("data-sec", "licences");
+    await user.click(screen.getByRole("button", { name: "My profile" }));
+    expect(document.querySelector(".psec2")).toHaveAttribute("data-sec", "summary");
   });
 
   it("submits only the keys that section's allowlist accepts", async () => {
@@ -318,8 +276,7 @@ describe("a save does not move you — the bug this rewrite exists to kill", () 
     const actions = okActions();
     setup({ actions });
 
-    await user.click(screen.getByRole("tab", { name: /Personal/ }));
-    await user.click(screen.getByRole("button", { name: /^Edit$/ }));
+    await user.click(screen.getByRole("button", { name: "Edit Personal" }));
     await user.click(screen.getByRole("button", { name: /^Save\b/ }));
 
     const [section, fields] = actions.onSave.mock.calls[0];
@@ -350,8 +307,7 @@ describe("a save does not move you — the bug this rewrite exists to kill", () 
     const actions = okActions();
     setup({ mode: "admin", actions });
 
-    await user.click(screen.getByRole("tab", { name: /Personal/ }));
-    await user.click(screen.getByRole("button", { name: /^Edit$/ }));
+    await user.click(screen.getByRole("button", { name: "Edit Personal" }));
     await user.click(screen.getByRole("button", { name: /^Save\b/ }));
 
     const [, fields] = actions.onSave.mock.calls[0];

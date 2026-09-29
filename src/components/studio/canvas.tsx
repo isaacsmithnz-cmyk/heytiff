@@ -3719,7 +3719,20 @@ export function StudioCanvas({
       title: fit.fitting.part ?? "No part in the book",
       rows: [
         ...(fit.feed ? [{ k: "In", v: both(fit.feed) }] : []),
-        ...fit.outs.map((o) => ({ k: `Out to ${nameOf(o.to)}`, v: both(o) })),
+        ...fit.outs.map((o) => {
+          /* a box's port, and the different-diameter joint its head needs */
+          const port = fit.fitting.ports?.find((p) => p.to === o.to);
+          const fits = port?.reducer
+            ? [port.reducer.liquid, port.reducer.gas]
+                .filter((r): r is NonNullable<typeof r> => r != null)
+                .map((r) => r.part ?? `${r.fromMm} to ${r.toMm} mm joint`)
+                .join(" + ")
+            : "";
+          return {
+            k: `Out to ${nameOf(o.to)}${port ? ` (port ${port.port})` : ""}`,
+            v: `${both(o)}${fits ? `, needs ${fits} at the box` : ""}`,
+          };
+        }),
       ],
     };
   }, [selectedId, pipeView, pipeUnits, doc.objects]);

@@ -420,12 +420,21 @@ export function VrfSchematic({
                 ))}
               {tree.sections
                 .filter((s) => s.from === pickedFitting.nodeId)
-                .map((s) => (
-                  <div key={s.id}>
-                    <dt>{`Out to ${nameOf(s.to)}`}</dt>
-                    <dd>{both(s)}</dd>
-                  </div>
-                ))}
+                .map((s) => {
+                  const port = pickedFitting.ports?.find((p) => p.to === s.to);
+                  const fits = port?.reducer
+                    ? [port.reducer.liquid, port.reducer.gas]
+                        .filter((r): r is NonNullable<typeof r> => r != null)
+                        .map((r) => r.part ?? `${r.fromMm} to ${r.toMm} mm joint`)
+                        .join(" + ")
+                    : "";
+                  return (
+                    <div key={s.id}>
+                      <dt>{`Out to ${nameOf(s.to)}${port ? ` (port ${port.port})` : ""}`}</dt>
+                      <dd>{`${both(s)}${fits ? `, needs ${fits} at the box` : ""}`}</dd>
+                    </div>
+                  );
+                })}
             </>
           )}
         </dl>

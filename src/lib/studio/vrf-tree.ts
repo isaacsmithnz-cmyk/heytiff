@@ -100,6 +100,29 @@ export interface SizedFitting {
   branches: number;
   /** the first fitting after the outdoor */
   first: boolean;
+  /** a branch box's heads on its ports, A first: each head's port, and the
+      different-diameter joint its pipe needs there when the sizes differ
+      (M-P0860 p.44). Only on a box whose part the book gives port sizes. */
+  ports?: BoxPort[];
+}
+
+export interface BoxPort {
+  /** the head's node id */
+  to: string;
+  /** A, B, C… */
+  port: string;
+  portLiquidMm: number;
+  portGasMm: number;
+  /** the different-diameter joint on each side that differs, port mm to
+      pipe mm, and its part when the box manual lists one; null when it fits */
+  reducer: { liquid?: PortReducer; gas?: PortReducer } | null;
+}
+
+export interface PortReducer {
+  fromMm: number;
+  toMm: number;
+  /** PAC-MK34/54BC manual WG79B748H02's part, or null when it lists none */
+  part: string | null;
 }
 
 export interface TreeFinding {
@@ -678,8 +701,23 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
           message: "A branch box feeds heads only",
           fix: "Run each head to its own port, and take the next box off the main with a joint",
         });
-      const part = boxParts.find((p) => (p.ports ?? 0) >= outs.length)?.model ?? null;
-      fittings.push({ nodeId: n.id, kind: "box", part, downstreamIndex: down, branches: outs.length, first: false });
+      const partRow = boxParts.find((p) => (p.ports ?? 0) >= outs.length);
+      const part = partRow?.model ?? null;
+      fittings.push({
+        nodeId: n.id,
+        kind: "box",
+        part,
+        downstreamIndex: down,
+        branches: outs.length,
+        first: false,
+        ports: partRow
+          ? boxPorts(
+              partRow,
+              outs.map((s) => sized.get(s.id)).filter((x): x is SizedSection => x != null),
+              pack.parts.filter((p) => p.part_type === "reducer")
+            )
+          : undefined,
+      });
       if (!part)
         findings.push({ severity: "red", code: "no-fitting-part", message: `No branch box takes ${outs.length} heads`, fix: "Split them over two boxes" });
       for (const s of outs) {
@@ -907,3 +945,53 @@ export function systemVrfTree(
 /** the section that feeds a head, sized */
 export const headSection = (tree: SizedTree, headId: string): SizedSection | null =>
   tree.sections.find((s) => s.to === headId) ?? null;
+
+/* THE HEADS ON A BRANCH BOX'S PORTS (Isaac, 2026-09-29: follow the book,
+   flag the reducers). The biggest pipes take the biggest ports first — an
+   MK54BC's 1/2" port E goes to the head that needs it most — and every head
+   whose pipe is not its port's size is fitted with the book's
+   different-diameter joint at the box (M-P0860 p.44). */
+export function boxPorts(
+  part: { port_liquid_mm?: number[]; port_gas_mm?: number[] },
+  heads: SizedSection[],
+  reducers: { model: string; from_mm?: number; to_mm?: number }[] = []
+): BoxPort[] | undefined {
+  const near = (a: number | undefined, b: number) => a != null && Math.abs(a - b) < 0.01;
+  const reducer = (fromMm: number, toMm: number): PortReducer => ({
+    fromMm,
+    toMm,
+    part: reducers.find((r) => near(r.from_mm, fromMm) && near(r.to_mm, toMm))?.model ?? null,
+  });
+  const liq = part.port_liquid_mm;
+  const gas = part.port_gas_mm;
+  if (!liq || !gas || liq.length !== gas.length) return undefined;
+  const ports = gas
+    .map((g, i) => ({ i, letter: String.fromCharCode(65 + i), liquid: liq[i], gas: g }))
+    .sort((a, b) => b.gas - a.gas || b.liquid - a.liquid || a.i - b.i);
+  const byNeed = [...heads].sort((a, b) => b.gasMm - a.gasMm || b.liquidMm - a.liquidMm);
+  /* a head that fits a free port exactly takes it first (an AP50 on an
+     MK54BC's 1/2" port E needs nothing); the rest, biggest first, take the
+     biggest ports left, and a reducer where they differ */
+  const free = [...ports];
+  const pairs: { h: SizedSection; p: (typeof ports)[number] }[] = [];
+  const rest: SizedSection[] = [];
+  for (const h of byNeed) {
+    const k = free.findIndex((p) => near(p.liquid, h.liquidMm) && near(p.gas, h.gasMm));
+    if (k >= 0) pairs.push({ h, p: free.splice(k, 1)[0] });
+    else rest.push(h);
+  }
+  for (const h of rest) if (free.length) pairs.push({ h, p: free.shift()! });
+  const out: BoxPort[] = pairs.map(({ h, p }) => {
+    const fit: NonNullable<BoxPort["reducer"]> = {};
+    if (!near(p.liquid, h.liquidMm)) fit.liquid = reducer(p.liquid, h.liquidMm);
+    if (!near(p.gas, h.gasMm)) fit.gas = reducer(p.gas, h.gasMm);
+    return {
+      to: h.to,
+      port: p.letter,
+      portLiquidMm: p.liquid,
+      portGasMm: p.gas,
+      reducer: fit.liquid || fit.gas ? fit : null,
+    };
+  });
+  return out.sort((a, b) => a.port.localeCompare(b.port));
+}

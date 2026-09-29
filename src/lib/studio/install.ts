@@ -916,7 +916,7 @@ function vrfFittingRows(context: Context): EquipmentRow[] {
   /* the reason in words a fitter reads (Isaac, 2026-09-29: "by the index
      below it — no idea what that's supposed to mean") */
   const ports = (part: string) => context.pack.parts.find((p) => p.model === part)?.ports;
-  return [...byPart].map(([part, { kind, n }]) => ({
+  const rows = [...byPart].map(([part, { kind, n }]) => ({
     group: "Pipework" as const,
     name: kind === "header" ? "Header" : kind === "box" ? "Branch box" : "Joint",
     model: part,
@@ -927,6 +927,30 @@ function vrfFittingRows(context: Context): EquipmentRow[] {
         ? `Takes up to ${ports(part)} heads`
         : "Sized to the heads it feeds",
   }));
+  /* a head whose pipe is not its branch box port's size takes the box
+     manual's different-diameter joint there (WG79B748H02), one per side that
+     differs: counted by part, or by the sizes when the manual lists none */
+  const reducers = new Map<string, { model: string; n: number }>();
+  if (tree.drawn)
+    for (const f of tree.fittings)
+      for (const p of f.ports ?? [])
+        for (const r of [p.reducer?.liquid, p.reducer?.gas]) {
+          if (!r) continue;
+          const model = r.part ?? `${r.fromMm} → ${r.toMm} mm`;
+          const cur = reducers.get(model);
+          if (cur) cur.n++;
+          else reducers.set(model, { model, n: 1 });
+        }
+  return [
+    ...rows,
+    ...[...reducers.values()].map(({ model, n }) => ({
+      group: "Pipework" as const,
+      name: "Different-diameter joint",
+      model,
+      qty: n,
+      why: "At a branch box port, for a head whose pipe is another size",
+    })),
+  ];
 }
 
 /** Copper is never asked: the drawn runs say whether it is coil or hard

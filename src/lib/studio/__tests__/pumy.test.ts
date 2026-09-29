@@ -14,7 +14,7 @@ import { assemblePack, type PackSource } from "../packs/loader";
 import { validatePack } from "../packs/validate";
 import { outdoorReadiness } from "../packs/ready";
 import { checkVrfSet, vrfOutdoorsListing, vrfRatio } from "../vrf";
-import { provisionalVrfTree, sizeVrfTree, systemVrfTree, type VrfTree } from "../vrf-tree";
+import { boxPorts, provisionalVrfTree, sizeVrfTree, systemVrfTree, type SizedSection, type VrfTree } from "../vrf-tree";
 import { createDesign, type DesignObject } from "../document";
 import type { RoomObj } from "../loads-room";
 import { allocationsOf } from "../allocations";
@@ -435,5 +435,46 @@ describe("zones past the most the outdoor can take on", () => {
   it("is not raised on an outdoor whose 130% covers the zones", () => {
     // PUMY-P250: 28.0 kW, 130% is 36.4 kW
     expect(offices("PUMY-P250YBMD-A").map((x) => x.code)).not.toContain("load-over-outdoor");
+  });
+});
+
+/* Heads over a 50 on a branch box (Isaac, 2026-09-29): the book allows them,
+   through a different-diameter joint at the port, whose part the box's own
+   manual names (PAC-MK34/54BC, WG79B748H02 p.3) */
+describe("a branch box's ports and reducers", () => {
+  const sec = (to: string, liquidMm: number, gasMm: number) => ({ to, liquidMm, gasMm }) as SizedSection;
+  const mk54 = pack.parts.find((p) => p.model === "PAC-MK54BC")!;
+  const reducers = pack.parts.filter((p) => p.part_type === "reducer");
+
+  it("the pack has the box manual's ports and reducer parts", () => {
+    expect(mk54.port_gas_mm).toEqual([9.52, 9.52, 9.52, 9.52, 12.7]);
+    expect(pack.parts.find((p) => p.model === "PAC-MK34BC")!.port_gas_mm).toEqual([9.52, 9.52, 9.52]);
+    expect(reducers.map((r) => r.model).sort()).toEqual(
+      ["MAC-A454JP-E", "MAC-A455JP-E", "MAC-A456JP-E", "PAC-493PI", "PAC-SG71RJ-E", "PAC-SG75RJ-E", "PAC-SG76RJ-E"]
+    );
+  });
+
+  it("an AP50 takes port E as is; a 60 and a 71 take 3/8\" ports with the manual's joints", () => {
+    const ports = boxPorts(mk54, [
+      sec("ap71", 9.52, 15.88),
+      sec("ap60", 6.35, 15.88),
+      sec("ap50", 6.35, 12.7),
+      sec("ap25a", 6.35, 9.52),
+      sec("ap25b", 6.35, 9.52),
+    ], reducers)!;
+    const on = (id: string) => ports.find((p) => p.to === id)!;
+    expect(on("ap50")).toMatchObject({ port: "E", reducer: null });
+    expect(on("ap25a").reducer).toBeNull();
+    expect(on("ap60").reducer).toEqual({ gas: { fromMm: 9.52, toMm: 15.88, part: "PAC-SG76RJ-E" } });
+    expect(on("ap71").reducer).toEqual({
+      liquid: { fromMm: 6.35, toMm: 9.52, part: "PAC-493PI" },
+      gas: { fromMm: 9.52, toMm: 15.88, part: "PAC-SG76RJ-E" },
+    });
+    expect(new Set(ports.map((p) => p.port)).size).toBe(5);
+  });
+
+  it("a size the manual has no joint for says its sizes, with no part", () => {
+    const [p] = boxPorts({ port_liquid_mm: [6.35], port_gas_mm: [9.52] }, [sec("h", 6.35, 25.4)], reducers)!;
+    expect(p.reducer).toEqual({ gas: { fromMm: 9.52, toMm: 25.4, part: null } });
   });
 });

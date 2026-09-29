@@ -20,11 +20,6 @@ import { UnrecognizedActionError } from "next/dist/client/components/unrecognize
 
 const readMirrorJob = jest.fn(async (): Promise<JobCardRead> => ({ detail: null, focusRemoteId: null }));
 const readJobRecord = jest.fn(async (): Promise<JobRecordRead | null> => null);
-/* the Quote face's reads and edits; the face itself is tested on its own */
-jest.mock("@/app/actions/quote-draft", () => ({
-  readQuoteDraft: async () => null,
-  saveQuoteDraft: async () => ({ ok: false, error: "not in this test" }),
-}));
 jest.mock("@/app/actions/workboard", () => ({
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
   readJobRecord: (...a: unknown[]) => readJobRecord(...(a as [])),

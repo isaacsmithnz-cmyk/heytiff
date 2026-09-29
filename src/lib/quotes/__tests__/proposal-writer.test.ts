@@ -1,9 +1,12 @@
 /* The proposal writer: what it is handed, what it keeps, what it refuses.
 
    The laws worth their tests: the prompt carries the job and the words said
-   and never a price field; a change carries the draft as it stands AND the
-   brief it was written from; a change with nothing to change costs no model
-   call; and whatever comes back passes the draft gate before it is stored. */
+   and never a price field; the instructions carry the whole checklist
+   catalogue and ban "TBC" and "a suitable point"; a change carries the draft
+   as it stands, the brief it was written from, and the answers given on the
+   card since; a change with nothing to change costs no model call; the
+   writer names a payment preset but the stages are HeyTiff's, and stages a
+   person set by hand survive a change that keeps the preset. */
 
 import type Anthropic from "@anthropic-ai/sdk";
 
@@ -28,8 +31,17 @@ jest.mock("@/lib/workboard/all-jobs-query", () => ({
 }));
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: async () => "Australia/Sydney" }));
 
-import { changePrompt, draftPrompt, runProposalWrite, writeProposal, type ProposalJob } from "../proposal-writer";
-import type { ProposalDraft } from "../proposal";
+import {
+  SYSTEM_PROMPT,
+  changePrompt,
+  draftPrompt,
+  runProposalWrite,
+  writeProposal,
+  type ProposalJob,
+} from "../proposal-writer";
+import { normaliseDraft, type ProposalDraft } from "../proposal";
+import { CHECKLIST_KEYS } from "../checklist";
+import { PAYMENT_PRESETS } from "../payment";
 
 const job: ProposalJob = {
   cardId: "j-1",
@@ -42,20 +54,39 @@ const job: ProposalJob = {
   notes: ["Parapet wall, tiled roof"],
 };
 
-const draft: ProposalDraft = {
+const draft: ProposalDraft = normaliseDraft({
   intro: "Hi Jane,\nHere is the scope.",
-  options: [{ name: "Install client-supplied 6 kW split", lines: ["Installation of a client-supplied 6 kW split system."], pros: [], cons: [] }],
-  pricingMode: "multiple_choice",
+  options: [{ name: "Install client-supplied 6 kW split", lines: ["Installation of a client-supplied 6 kW split system."] }],
   notes: ["client_supplied"],
-  questions: ["Which model is it?"],
-};
+  payment: { preset: "domestic_small", stages: [{ when: "Deposit, on accepting", percent: 5 }, { when: "Balance", percent: 95 }] },
+  checklist: [
+    { key: "model", state: "ask", answer: "" },
+    { key: "pipe_colour", state: "known", answer: "Paperbark", fresh: true },
+  ],
+})!;
 
 const answer = {
   intro: "Hi Jane,\nHere is the scope.",
-  options: [{ name: "Option 1: Install client-supplied 6 kW split", lines: ["- Outdoor unit mounted on the parapet wall on brackets."], pros: [], cons: [] }],
+  why: "",
+  options: [
+    {
+      name: "Option 1: Install client-supplied 6 kW split",
+      lines: ["- Outdoor unit mounted on the parapet wall on brackets."],
+      units: [],
+      pros: [],
+      cons: [],
+    },
+  ],
   pricing_mode: "multiple_choice",
+  items: [],
+  extras: [],
+  allowances: [],
   notes: ["client_supplied", "roof_access"],
-  questions: [],
+  payment_preset: "domestic_small",
+  checklist: [
+    { key: "drain_to", state: "known", answer: "Downpipe" },
+    { key: "pipe_covering", state: "ask", answer: "" },
+  ],
 };
 
 function clientSaying(body: unknown, stop = "end_turn") {
@@ -65,6 +96,10 @@ function clientSaying(body: unknown, stop = "end_turn") {
   }));
   return { client: { beta: { messages: { create } } } as unknown as Anthropic, create };
 }
+
+const lastRow = () => (upsert.mock.calls.at(-1) as unknown[] | undefined)?.[0] as
+  | { sm8_job_uuid: string; brief: string; changes: string[]; draft: ProposalDraft }
+  | undefined;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -79,7 +114,7 @@ beforeEach(() => {
     contacts: [{ name: "Jane Citizen", type: null, phone: null, altPhone: null, email: null }],
   });
   single.mockImplementation(async () => ({
-    data: { sm8_job_uuid: "j-1", draft: ((upsert.mock.calls.at(-1) as unknown[] | undefined)?.[0] as { draft?: unknown } | undefined)?.draft, brief: "b", changes: [], updated_at: "2026-09-29T08:00:00Z" },
+    data: { sm8_job_uuid: "j-1", draft: lastRow()?.draft, brief: "b", changes: [], updated_at: "2026-09-29T08:00:00Z" },
     error: null,
   }));
 });
@@ -95,31 +130,35 @@ describe("the prompts", () => {
     expect(p).not.toMatch(/\$|price/i);
   });
 
-  it("a change carries the draft as it stands and the brief it came from", () => {
+  it("the instructions carry every checklist topic and ban the vague words", () => {
+    for (const k of CHECKLIST_KEYS) expect(SYSTEM_PROMPT).toContain(`- ${k} (`);
+    expect(SYSTEM_PROMPT).toContain('Never write "TBC", "to be confirmed", "as discussed" or "a suitable point"');
+  });
+
+  it("a change carries the draft, the brief, and the answers given since", () => {
     const p = changePrompt(job, "the original brief", draft, "Add an option with the unit on the ground");
     expect(p).toContain("the original brief");
-    expect(p).toContain('"pricing_mode":"multiple_choice"');
+    expect(p).toContain('"payment_preset":"domestic_small"');
     expect(p).toContain("Install client-supplied 6 kW split");
+    expect(p).toContain("- Covering colour: Paperbark");
     expect(p).toContain("Add an option with the unit on the ground");
   });
 });
 
 describe("runProposalWrite", () => {
-  it("passes the answer through the draft gate", async () => {
+  it("passes the answer through the draft gate, stages from the preset", async () => {
     const { client, create } = clientSaying(answer);
     const res = await runProposalWrite("turn", client);
-    expect(res).toEqual({
-      ok: true,
-      draft: {
-        intro: "Hi Jane,\nHere is the scope.",
-        options: [
-          { name: "Install client-supplied 6 kW split", lines: ["Outdoor unit mounted on the parapet wall on brackets."], pros: [], cons: [] },
-        ],
-        pricingMode: "multiple_choice",
-        notes: ["client_supplied", "roof_access"],
-        questions: [],
-      },
+    if (!res.ok) throw new Error(res.reason);
+    expect(res.draft.options[0]).toEqual({
+      name: "Install client-supplied 6 kW split",
+      lines: ["Outdoor unit mounted on the parapet wall on brackets."],
+      units: [],
+      pros: [],
+      cons: [],
     });
+    expect(res.draft.payment).toEqual({ preset: "domestic_small", stages: PAYMENT_PRESETS.domestic_small.stages });
+    expect(res.draft.checklist.map((i) => i.key)).toEqual(["pipe_covering", "drain_to"]);
     const params = (create.mock.calls[0] as unknown[])[0] as { model: string; fallbacks: unknown; output_config: { format: { type: string } } };
     expect(params.model).toBe("claude-opus-5-5");
     expect(params.fallbacks).toEqual([{ model: "claude-opus-4-8" }]);
@@ -141,10 +180,9 @@ describe("writeProposal", () => {
     const { client } = clientSaying(answer);
     const res = await writeProposal("org", "user", "j-1", { kind: "draft", brief: "  the brief  " }, client);
     expect(res.ok).toBe(true);
-    const row = (upsert.mock.calls[0] as unknown[])[0] as { sm8_job_uuid: string; brief: string; changes: string[] };
-    expect(row.sm8_job_uuid).toBe("j-1");
-    expect(row.brief).toBe("the brief");
-    expect(row.changes).toEqual([]);
+    expect(lastRow()?.sm8_job_uuid).toBe("j-1");
+    expect(lastRow()?.brief).toBe("the brief");
+    expect(lastRow()?.changes).toEqual([]);
   });
 
   it("a change with no draft to change costs no model call", async () => {
@@ -155,14 +193,23 @@ describe("writeProposal", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("a change keeps the brief and adds itself to the changes", async () => {
+  it("a change keeps the brief, logs itself, and keeps hand-set stages on the same preset", async () => {
     maybeSingle.mockResolvedValue({
       data: { sm8_job_uuid: "j-1", draft, brief: "the brief", changes: ["earlier"], updated_at: "2026-09-29T07:00:00Z" },
     });
     const { client } = clientSaying(answer);
-    await writeProposal("org", "user", "j-1", { kind: "change", change: " add roof access " }, client);
-    const row = (upsert.mock.calls[0] as unknown[])[0] as { brief: string; changes: string[] };
-    expect(row.brief).toBe("the brief");
-    expect(row.changes).toEqual(["earlier", "add roof access"]);
+    await writeProposal("org", "user", "j-1", { kind: "change", change: "" }, client);
+    expect(lastRow()?.brief).toBe("the brief");
+    expect(lastRow()?.changes).toEqual(["earlier", "Put the checklist answers in"]);
+    expect(lastRow()?.draft.payment.stages[0]).toEqual({ when: "Deposit, on accepting", percent: 5 });
+  });
+
+  it("a change to another preset takes that preset's stages", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { sm8_job_uuid: "j-1", draft, brief: "the brief", changes: [], updated_at: "2026-09-29T07:00:00Z" },
+    });
+    const { client } = clientSaying({ ...answer, payment_preset: "commercial" });
+    await writeProposal("org", "user", "j-1", { kind: "change", change: "It's a bakery" }, client);
+    expect(lastRow()?.draft.payment).toEqual({ preset: "commercial", stages: PAYMENT_PRESETS.commercial.stages });
   });
 });

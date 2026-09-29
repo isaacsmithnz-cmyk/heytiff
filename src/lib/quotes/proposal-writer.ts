@@ -15,6 +15,8 @@ import {
   normaliseDraft,
   type ProposalDraft,
 } from "./proposal";
+import { CHECKLIST, CHECKLIST_KEYS } from "./checklist";
+import { PAYMENT_PRESET_KEYS } from "./payment";
 
 /* THE PROPOSAL WRITER — what a person says about a job, into the house
    layout's fields.
@@ -86,10 +88,18 @@ export async function readProposalJob(orgId: string, remoteId: string): Promise<
 
 /* ── the call ── */
 
+const named = {
+  type: "object",
+  properties: { name: { type: "string" }, detail: { type: "string" } },
+  required: ["name", "detail"],
+  additionalProperties: false,
+};
+
 const DRAFT_SCHEMA = {
   type: "object",
   properties: {
     intro: { type: "string" },
+    why: { type: "string" },
     options: {
       type: "array",
       items: {
@@ -97,18 +107,62 @@ const DRAFT_SCHEMA = {
         properties: {
           name: { type: "string" },
           lines: { type: "array", items: { type: "string" } },
+          units: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { room: { type: "string" }, capacity: { type: "string" }, type: { type: "string" } },
+              required: ["room", "capacity", "type"],
+              additionalProperties: false,
+            },
+          },
           pros: { type: "array", items: { type: "string" } },
           cons: { type: "array", items: { type: "string" } },
         },
-        required: ["name", "lines", "pros", "cons"],
+        required: ["name", "lines", "units", "pros", "cons"],
         additionalProperties: false,
       },
     },
-    pricing_mode: { type: "string", enum: ["multiple_choice", "optional"] },
+    pricing_mode: { type: "string", enum: ["multiple_choice", "optional", "itemised"] },
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { name: { type: "string" }, qty: { type: "string" } },
+        required: ["name", "qty"],
+        additionalProperties: false,
+      },
+    },
+    extras: { type: "array", items: named },
+    allowances: { type: "array", items: named },
     notes: { type: "array", items: { type: "string", enum: EXTRA_NOTE_KEYS } },
-    questions: { type: "array", items: { type: "string" } },
+    payment_preset: { type: "string", enum: PAYMENT_PRESET_KEYS },
+    checklist: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          key: { type: "string", enum: CHECKLIST_KEYS },
+          state: { type: "string", enum: ["known", "ask", "na"] },
+          answer: { type: "string" },
+        },
+        required: ["key", "state", "answer"],
+        additionalProperties: false,
+      },
+    },
   },
-  required: ["intro", "options", "pricing_mode", "notes", "questions"],
+  required: [
+    "intro",
+    "why",
+    "options",
+    "pricing_mode",
+    "items",
+    "extras",
+    "allowances",
+    "notes",
+    "payment_preset",
+    "checklist",
+  ],
   additionalProperties: false,
 };
 
@@ -116,33 +170,51 @@ const NOTE_LIBRARY = EXTRA_NOTE_KEYS.map(
   (k) => `- ${k}: "${EXTRA_NOTES[k].heading}" — ${EXTRA_NOTES[k].lines.join(" ")}`
 ).join("\n");
 
-export const SYSTEM_PROMPT = `You fill in a quote proposal for Diamond Air Solutions, an air-conditioning installer in Sydney. The office sends these through ServiceM8 Proposals. The layout is fixed and drawn by the software; you only fill its fields. Write plain Australian trade English, the way the owner writes to a client: short, direct, specific. No sales talk, no filler, no exclamation marks.
+const CHECKLIST_LIBRARY = CHECKLIST_KEYS.map(
+  (k) =>
+    `- ${k} (${CHECKLIST[k].group}, ${CHECKLIST[k].label}): ${CHECKLIST[k].question}` +
+    (CHECKLIST[k].choices.length ? ` Usual answers: ${CHECKLIST[k].choices.join("; ")}.` : "")
+).join("\n");
+
+export const SYSTEM_PROMPT = `You fill in a quote proposal for Diamond Air Solutions, an air-conditioning installer in Sydney, and you check it the way a supervisor would before it goes to the client. The layout is fixed and drawn by the software; you only fill its fields. Write plain Australian trade English, the way the owner writes to a client: short, direct, specific. No sales talk, no filler, no exclamation marks.
 
 The fields:
 
-intro — Starts with "Hi <first name>," on its own line when the first name is known, otherwise "Hi," alone. Then one to three short sentences: why the client is getting this proposal and, when there is more than one option, that there are options to choose from. Nothing the options themselves already say.
+intro — Starts with "Hi <first name>," on its own line when the first name is known, otherwise "Hi," alone. Then one to three short sentences: why the client is getting this proposal and, when there is more than one option, that there are options to choose from. When asked which option is better, end with one sentence saying which you recommend and why.
 
-options — One per real choice the client has. When the scope has only one way of doing the job, there is one option. Each has:
-- name: a few words naming the option, e.g. "Install client-supplied 6 kW split", "Repair", "Replace with a 7 kW Daikin ducted system". Never "Option 1".
-- lines: the scope, one fact per line, in the order the work happens. No leading dash. Follow the office's own phrasing:
+why — Empty unless the choice of system needs explaining to the client: a VRF system, a brand other than the one they expected, a heritage building, one big unit against two small ones. Then two to four plain sentences. Never repeat the intro.
+
+options — One per real choice the client has. When there is only one way of doing the job, there is one option. Each has:
+- name: a few words, e.g. "Install client-supplied 6 kW split", "Repair", "Downstairs". Never "Option 1".
+- lines: the scope, one fact per line, in the order the work happens. No leading dash. The office's own phrasing:
   "Installation of a 7 kW Mitsubishi Electric split system. (MSZ-AP71VGD)"
   "Removal of the existing AC unit."
   "Outdoor unit mounted on the wall on brackets."
-  "Indoor unit installed on the living room wall."
   "Pipes run through the ceiling space and down the wall cavity."
+  "Pipes run along the outside wall in Colorbond trunking, Paperbark."
   "Power supplied from a new circuit at the switchboard."
-  "Drain will be run to a suitable point."
-  Write capacities as "3.5 kW". Put a model number in brackets only when it was given. Mention access work (roof tiles, ceiling space, EWP, wall cavity) as its own line when it is part of the job.
-- pros, cons: only when the options are genuinely different ways of doing the job (repair or replace, one brand or another, one unit location or another), two or three short points each. With a single option, leave both empty. When asked which option is better, fill them and say the recommendation in one sentence at the end of the intro.
+  "Drain run to the downpipe beside the laundry."
+  Write capacities as "3.5 kW". Put a model number in brackets only when it was given. Access work (roof tiles, ceiling space, EWP, wall cavity) is its own line.
+- units: for a multi-split, VRF or ducted system, one entry per indoor unit: room, capacity, type (for example "Master bedroom", "3.6 kW", "High wall"). Empty for a single split.
+- pros, cons: only when the options are genuinely different ways of doing the job, two or three short points each, with the figures that make the difference. Empty with a single option.
 
-pricing_mode — "multiple_choice" when the client picks one option. "optional" when each block is a separate area or add-on they can take any of (for example "Downstairs" and "Upstairs"); then name each block by its area.
+pricing_mode — "multiple_choice" when the client picks one option. "optional" when each block is a separate area or add-on they can take any of (name each by its area). "itemised" for work priced line by line, such as building works; then list the lines in items with a quantity.
 
-notes — Keys for the extra notes this job needs, beyond the office's standard notes (pipe coverings, grilles, general exclusions, compliance and warranty, which are always included and you never repeat). Pick only what applies:
+items — Only for itemised pricing: name and quantity per line. Empty otherwise.
+
+extras — Add-ons the client can take or leave, each priced separately later: name and a few words of detail (for example "Wi-Fi adaptor", "Control it from your phone"). Only ones that were mentioned or that the job plainly offers.
+
+allowances — A choice not made yet that the price covers with a stated allowance, when the words say so (for example "Ceiling grilles", "$100 + GST per grille"). Never invent a figure.
+
+notes — Keys for the extra notes this job needs, beyond the standard notes that always go in (pipe coverings, grilles, general exclusions, compliance and warranty), which you never repeat:
 ${NOTE_LIBRARY}
 
-questions — What the office still needs to find out before this can go to the client, as short direct questions: an unknown model, a pipe or cable run length that decides materials, how the drain falls, roof or height safety, strata, access, how many people and how long. Only what is really missing from what you were told; none when nothing is.
+payment_preset — "domestic_small" for a home job of a day or two; "domestic_construction" for a home job that runs in stages over weeks or months (a whole house, a renovation, a new build); "commercial" for a business.
 
-Never invent a model number, a measurement, a price or a fact you were not told. Never mention prices at all: pricing is added separately. Never mention this software or that anything was generated.`;
+checklist — You are the supervisor. For every topic below that applies to this job, say what is known in a few words ("known"), or that it has to be asked ("ask"), or that it doesn't apply here but someone might wonder ("na", with the reason in a few words). Leave out topics that plainly don't belong to this kind of job (grilles for a wall split, a model for building works). The topics:
+${CHECKLIST_LIBRARY}
+
+Where a fact the scope needs is missing, put the topic on the checklist as "ask" and leave the fact out of the scope line. Never write "TBC", "to be confirmed", "as discussed" or "a suitable point" in the scope. Never invent a model number, a measurement, a price or a fact you were not told. Never mention prices at all, except an allowance you were given. Never mention this software or that anything was generated.`;
 
 export function jobBlock(job: ProposalJob): string {
   const parts = [
@@ -159,30 +231,46 @@ export function jobBlock(job: ProposalJob): string {
 
 /** The user turn for a first draft. */
 export function draftPrompt(job: ProposalJob, brief: string): string {
-  return `${jobBlock(job)}\n\nWhat was said about the job after the site visit:\n${brief.trim()}\n\nFill in the proposal.`;
+  return `${jobBlock(job)}\n\nWhat was said about the job after the site visit:\n${brief.trim()}\n\nFill in the proposal and the checklist.`;
+}
+
+/** The draft as the writer's own field names, for a change. */
+function asFields(draft: ProposalDraft) {
+  return {
+    intro: draft.intro,
+    why: draft.why,
+    options: draft.options,
+    pricing_mode: draft.pricingMode,
+    items: draft.items,
+    extras: draft.extras,
+    allowances: draft.allowances,
+    notes: draft.notes,
+    payment_preset: draft.payment.preset,
+    checklist: draft.checklist.map(({ key, state, answer }) => ({ key, state, answer })),
+  };
 }
 
 /** The user turn for a change to a draft. The brief rides along so a change
-    can't lose what the draft was written from. */
+    can't lose what the draft was written from, and answers given on the
+    card since the last change are named so they reach the scope. */
 export function changePrompt(
   job: ProposalJob,
   brief: string,
   draft: ProposalDraft,
   change: string
 ): string {
-  const current = JSON.stringify({
-    intro: draft.intro,
-    options: draft.options,
-    pricing_mode: draft.pricingMode,
-    notes: draft.notes,
-    questions: draft.questions,
-  });
+  const fresh = draft.checklist.filter((i) => i.fresh);
+  const answered = fresh.length
+    ? `\n\nAnswers given on the checklist since the last change, to put into the scope:\n${fresh
+        .map((i) => `- ${CHECKLIST[i.key].label}: ${i.answer}`)
+        .join("\n")}`
+    : "";
   return (
     `${jobBlock(job)}\n\nWhat was said about the job after the site visit:\n${brief.trim()}\n\n` +
-    `The proposal as it stands:\n${current}\n\n` +
+    `The proposal as it stands:\n${JSON.stringify(asFields(draft))}${answered}\n\n` +
     `Change it as asked, and keep everything not asked about exactly as it is. ` +
-    `Answers to the questions go into the scope, and answered questions come off the list. ` +
-    `At most ${MAX_OPTIONS} options.\n\nThe change:\n${change.trim()}`
+    `Answers go into the scope, and answered topics become "known". ` +
+    `At most ${MAX_OPTIONS} options.\n\nThe change:\n${change.trim() || "Put the answers into the proposal."}`
   );
 }
 
@@ -221,7 +309,9 @@ export async function runProposalWrite(
 
     const block = response.content.find((b) => b.type === "text");
     if (!block || block.type !== "text") return { ok: false, reason: "Tiff returned nothing. Try again." };
-    const draft = normaliseDraft(JSON.parse(block.text));
+    /* the writer names a payment preset; the stages are HeyTiff's */
+    const raw = JSON.parse(block.text) as Record<string, unknown>;
+    const draft = normaliseDraft({ ...raw, payment: { preset: raw.payment_preset } });
     if (!draft) return { ok: false, reason: "Tiff returned no scope. Say a little more about the job." };
     return { ok: true, draft };
   } catch (err) {
@@ -326,9 +416,11 @@ export async function writeProposal(
   if (!current) return { ok: false, reason: "There's no proposal on this job to change. Draft one first." };
   const written = await runProposalWrite(changePrompt(job, current.brief, current.draft, req.change), client);
   if (!written.ok) return written;
+  /* stages a person set by hand survive a change that kept the same preset */
+  if (written.draft.payment.preset === current.draft.payment.preset) written.draft.payment = current.draft.payment;
   const stored = await storeProposal(orgId, userId, job.cardId, written.draft, current.brief, [
     ...current.changes,
-    req.change.trim(),
+    req.change.trim() || "Put the checklist answers in",
   ]);
   return stored ? { ok: true, proposal: stored } : { ok: false, reason: "The proposal couldn't be saved. Try again." };
 }

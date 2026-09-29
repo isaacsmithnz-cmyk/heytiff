@@ -22,11 +22,6 @@ const scheduleDay = jest.fn(async (dayISO: string) => ({
   staff: [],
   jobs: [],
 }));
-/* the Quote face's reads and edits; the face itself is tested on its own */
-jest.mock("@/app/actions/quote-draft", () => ({
-  readQuoteDraft: async () => null,
-  saveQuoteDraft: async () => ({ ok: false, error: "not in this test" }),
-}));
 jest.mock("@/app/actions/workboard", () => ({
   searchAllJobs: (...a: unknown[]) => searchAllJobs(...(a as [])),
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),

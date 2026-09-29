@@ -6999,15 +6999,44 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .wb2-jqnote { margin-top:8px; }
 .wb2-jqnote > b { font-size:13px; font-weight:600; }
 .wb2-jqmode { margin:4px 0 0; font-size:13px; font-weight:500; color:var(--q); }
-/* the pricing lines and the open questions are ruled lists: one row each,
-   a hairline between, the first row under the block's own head */
-.wb2-jqlines, .wb2-jqqs { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; }
+/* the pricing lines, the units and the payment stages are ruled lists: one
+   row each, a hairline between */
+.wb2-jqlines { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; }
 .wb2-jqlines li { display:grid; grid-template-columns:120px minmax(0, 1fr); gap:12px; padding:8px 0;
   border-top:1px solid var(--line); font-size:14px; }
 .wb2-jqlines li span { font-size:13px; font-weight:500; color:var(--q); }
 .wb2-jqlines li b { font-weight:600; }
-.wb2-jqqs li { display:flex; align-items:center; gap:12px; padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
-.wb2-jqqs li span { flex:1; min-width:0; }
+.wb2-jqlines li b em { display:block; font-style:normal; font-weight:400; font-size:13px; color:var(--q); }
+.wb2-jqtitle { margin:4px 0 0; font-size:16px; font-weight:600; }
+/* THE SITE CHECKLIST. Tiff's one question at a time sits on the tint over the
+   list; the list is a ledger by group, its state a word in the state's
+   colour (law 26), the row being asked filled with the selection tint. */
+.wb2-jqnow { margin-top:8px; padding:12px 16px; border-radius:var(--r-card); background:var(--tint);
+  display:flex; flex-direction:column; gap:4px; }
+.wb2-jqnow .wb2-jqacts .pbtn.ghost { background:var(--paper); }
+.wb2-jqask { margin:0; font-size:16px; font-weight:600; line-height:1.45; max-width:62ch; }
+.wb2-jqlead-r { margin-left:auto; }
+.wb2-jqown { display:flex; gap:8px; align-items:center; margin-top:8px; }
+.wb2-jqown .wb2-fi { flex:1; min-width:0; }
+.wb2-jqfresh { display:flex; align-items:center; gap:12px; margin-top:8px; font-size:14px; font-weight:500; color:var(--warn-t); }
+.wb2-jqcheck-list { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; }
+.wb2-jqcg > b { display:block; padding:12px 0 4px; font-size:13px; font-weight:600; }
+.wb2-jqcg > ul { list-style:none; margin:0; padding:0; }
+.wb2-jqcg > ul > li { display:grid; grid-template-columns:150px minmax(0, 1fr) 88px 72px; gap:12px; align-items:center;
+  padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
+.wb2-jqcg > ul > li.on { background:var(--tint); }
+.wb2-jqct { font-size:13px; font-weight:500; color:var(--q); }
+.wb2-jqcs { font-size:14px; font-weight:500; }
+.wb2-jqcs.ok { color:var(--ok-t); }
+.wb2-jqcs.warn { color:var(--warn-t); }
+.wb2-jqcs.q { color:var(--q); }
+/* the payment terms: a segmented choice on a fill tray (law 1) */
+.wb2-jqseg { display:inline-flex; gap:2px; padding:2px; margin-top:8px; border-radius:var(--r-button); background:var(--tint-2); align-self:flex-start; }
+.wb2-jqseg button { padding:4px 12px; border-radius:calc(10px - 2px); font-size:13px; font-weight:500; color:var(--q); }
+.wb2-jqseg button.on { background:var(--paper); color:var(--ink); font-weight:600; }
+.wb2-jqstage { display:grid; grid-template-columns:minmax(0, 1fr) 72px 16px auto; gap:8px; align-items:center; }
+.wb2-jqpct { text-align:right; }
+.wb2-jqpcts { font-size:14px; color:var(--q); }
 .wb2-jqform { display:flex; flex-direction:column; gap:12px; margin-top:8px; }
 .wb2-jqfield { display:flex; flex-direction:column; gap:4px; }
 .wb2-jqfield > span { font-size:12px; font-weight:500; color:var(--q); }

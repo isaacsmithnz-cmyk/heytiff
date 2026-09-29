@@ -17,7 +17,7 @@
 import { newId, type DesignDocument, type DesignObject, type DesignSystem, type Point } from "./document";
 import type { DataPack, IndoorUnit, OutdoorUnit, PairTable } from "./packs/schema";
 import { allocationsOf, hasAllocations, type Allocation } from "./allocations";
-import { roomAtPoint, roomCoverage, type CoverageCap } from "./coverage";
+import { roomAtPoint, roomCoverage, systemCover, type CoverageCap } from "./coverage";
 import { checkMultiCompatibility, multiCapableIdus } from "./multi";
 import { vrfOutdoorsListing } from "./vrf";
 import { outdoorReadiness } from "./packs/ready";
@@ -183,8 +183,12 @@ export function proposedOutdoorModel(doc: DesignDocument, pack: DataPack, system
     .filter((u): u is IndoorUnit => u != null);
   const current = allocs.find((a) => a.role === "odu");
   if (heads.length === 0) return "";
-  /* a VRF takes the smallest outdoor whose index envelope takes its heads */
-  if (sys.type === "vrf") return vrfOutdoorsListing(pack, heads, { proposing: true })[0]?.model ?? "";
+  /* a VRF takes the smallest outdoor whose index envelope takes its heads
+     and whose ceiling takes the zones' load */
+  if (sys.type === "vrf") {
+    const load = { kw: systemCover(doc, pack, sys, doc.settings.sizingBasis).loadKw, basis: doc.settings.sizingBasis };
+    return vrfOutdoorsListing(pack, heads, { proposing: true, load })[0]?.model ?? "";
+  }
   if (sys.type !== "ducted" && (heads.length >= 2 || familyOf(sys) === "multi")) {
     return outdoorsListing(pack, heads)[0]?.model ?? "";
   }

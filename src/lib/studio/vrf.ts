@@ -15,6 +15,7 @@
 import type { CompatibilityRule, DataPack, IndoorUnit, OutdoorUnit } from "./packs/schema";
 import { indoorReadiness, outdoorReadiness } from "./packs/ready";
 import { checkBlock, isBoxHead, type MultiFinding } from "./multi";
+import { sizingCapacityKw, type SizingBasis } from "./loads";
 
 export { isBoxHead } from "./multi";
 
@@ -170,20 +171,44 @@ export function vrfIndexRatio(
 
 const UNCHECKABLE = new Set(["index-unknown", "no-rule"]);
 
+/** the most load a VRF outdoor can take on: its rating on the design's basis
+    times its top connection ratio — past it, no set of heads it takes can
+    cover the zones (Isaac, 2026-09-29: 26.1 kW on a PUMY-SP140, whose 130%
+    is 20.15 kW). Null when the book gives no band. */
+export function vrfLoadCeilingKw(odu: OutdoorUnit, basis: SizingBasis): number | null {
+  const band = vrfBand(odu);
+  if (!band || !odu.capacity_cool_kw || !odu.capacity_heat_kw) return null;
+  return (sizingCapacityKw(odu, basis) * band.ratio_max_pct) / 100;
+}
+
+/** does this outdoor's ceiling cover the zones' load (unknown load: yes) */
+export function vrfTakesLoad(odu: OutdoorUnit, loadKw: number | null | undefined, basis: SizingBasis): boolean {
+  if (loadKw == null) return true;
+  const ceiling = vrfLoadCeilingKw(odu, basis);
+  return ceiling == null || loadKw <= ceiling + 0.05;
+}
+
 /** VRF outdoors that take this set of heads, smallest first: nothing red
     and nothing the book could not check. `proposing` also keeps an outdoor
     the heads are only UNDER — so a system being built is still proposed its
     smallest outdoor, and the verdict can say it is under capacity of that
-    one, rather than propose nothing. */
+    one, rather than propose nothing. With the zones' `load`, an outdoor
+    whose ceiling is under it is left out too — unless none takes it, when a
+    proposal still gets the smallest the heads fit, and the verdict says why
+    it fails. */
 export function vrfOutdoorsListing(
   pack: DataPack,
   heads: IndoorUnit[],
-  opts: { proposing?: boolean } = {}
+  opts: { proposing?: boolean; load?: { kw: number | null; basis: SizingBasis } } = {}
 ): OutdoorUnit[] {
   const blocks = (f: MultiFinding) =>
     (f.severity === "red" && !(opts.proposing && f.code === "ratio-under")) || UNCHECKABLE.has(f.code);
-  return pack.outdoor_units
+  const fits = pack.outdoor_units
     .filter((o) => o.system_type === "vrf" && outdoorReadiness(pack, o).roles["vrf-odu"])
     .filter((o) => !checkVrfSet(pack, o, heads).some(blocks))
     .sort((a, b) => a.capacity_cool_kw - b.capacity_cool_kw || a.model.localeCompare(b.model));
+  const load = opts.load;
+  if (!load) return fits;
+  const taking = fits.filter((o) => vrfTakesLoad(o, load.kw, load.basis));
+  return taking.length || !opts.proposing ? taking : fits;
 }

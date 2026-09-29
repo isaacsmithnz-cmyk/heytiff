@@ -16,9 +16,8 @@ import type { DataPack, IndoorUnit, OutdoorUnit } from "./packs/schema";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { checkMultiCompatibility } from "./multi";
 import { outdoorsListing, pairFor } from "./builder";
-import { checkVrfSet, joinsVrf, vrfBand, vrfOutdoorsListing, vrfRatio } from "./vrf";
+import { checkVrfSet, joinsVrf, vrfBand, vrfLoadCeilingKw, vrfOutdoorsListing, vrfRatio, vrfTakesLoad } from "./vrf";
 import { systemCover } from "./coverage";
-import { sizingCapacityKw } from "./loads";
 import { systemVrfTree } from "./vrf-tree";
 
 export interface SystemFinding {
@@ -150,9 +149,9 @@ export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignS
        a load past the most heads it can carry is not a design. */
     const band = vrfBand(oduSpec);
     const load = systemCover(doc, pack, sys, doc.settings.sizingBasis).loadKw;
-    if (band && load != null && oduSpec.capacity_cool_kw && oduSpec.capacity_heat_kw) {
-      const ceiling = (sizingCapacityKw(oduSpec, doc.settings.sizingBasis) * band.ratio_max_pct) / 100;
-      if (load > ceiling + 0.05)
+    const ceiling = vrfLoadCeilingKw(oduSpec, doc.settings.sizingBasis);
+    if (band && load != null && ceiling != null) {
+      if (!vrfTakesLoad(oduSpec, load, doc.settings.sizingBasis))
         out.push({
           severity: "red",
           code: "load-over-outdoor",

@@ -9848,6 +9848,17 @@ html[data-ds-display] .dstudio.editing {
   font-size: 13px;
   color: var(--q);
 }
+:is(.dstudio, .ds-sb) .ds-schem-why {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--bad-t);
+}
 :is(.dstudio, .ds-sb) .ds-schem-empty {
   margin: 0;
   font-size: 14px;

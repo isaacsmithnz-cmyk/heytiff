@@ -14,7 +14,7 @@ import { useMemo, useState } from "react";
 import type { DesignDocument, DesignSystem } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { allocationsOf } from "@/lib/studio/allocations";
-import { combinationWord } from "@/lib/studio/verdict";
+import { blockingFindings, combinationWord, systemFindings } from "@/lib/studio/verdict";
 import { systemVrfTree, type SizedFitting, type SizedSection } from "@/lib/studio/vrf-tree";
 import { pairSize, sizeTone, type PipeUnits } from "@/lib/studio/pipe-sizes";
 
@@ -90,6 +90,8 @@ export function VrfSchematic({
   };
   const headModel = (id: string) => allocs.find((a) => a.id === id)?.model ?? "";
   const word = combinationWord(doc, pack, sys);
+  /* a failing system says why under its name, in the rail's words */
+  const reds = word === "Fails" ? blockingFindings(systemFindings(doc, pack, sys)) : [];
 
   if (!tree || !layout) {
     return (
@@ -124,6 +126,13 @@ export function VrfSchematic({
           {tree.drawn ? "As drawn on the plan" : "From the zones, until the pipework reaches every head"}
         </span>
       </header>
+      {reds.length > 0 && (
+        <ul className="ds-schem-why">
+          {reds.map((f, i) => (
+            <li key={i}>{f.fix ? `${f.message}. ${f.fix}.` : `${f.message}.`}</li>
+          ))}
+        </ul>
+      )}
       <div className="ds-schem-scroll">
         <svg
           width={layout.w}

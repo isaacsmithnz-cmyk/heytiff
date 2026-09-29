@@ -363,7 +363,11 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     );
     validOf = (o) => listing.has(o.model);
   } else if (listFamily === "vrf") {
-    const vrfListing = new Set(vrfOutdoorsListing(pack, headRows).map((o) => o.model));
+    /* an outdoor whose ceiling is under the zones' load is not offered as
+       fitting, whatever its heads' ratio (vrf.ts vrfTakesLoad) */
+    const vrfListing = new Set(
+      vrfOutdoorsListing(pack, headRows, { load: { kw: cover.loadKw, basis } }).map((o) => o.model)
+    );
     candidates = pack.outdoor_units.filter((o) => o.system_type === "vrf");
     validOf = (o) => vrfListing.has(o.model);
   } else {

@@ -9,12 +9,15 @@ import type { SizingBasis } from "./loads";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { roomVerdict, trayItems } from "./builder";
 import { systemKind, systemZones } from "./zones";
-import { blockingFindings, systemFindings } from "./verdict";
+import { blockingFindings, doneReason, systemFindings } from "./verdict";
 import { installState } from "./install";
 
 export interface CardStatus {
   text: string;
   tone: "quiet" | "ok" | "bad";
+  /** a failing combination's reason and fix, in full — the open card says
+      it, so "Fails" never stands without a why (Isaac, 2026-09-29) */
+  why?: string;
 }
 
 export function cardStatus(
@@ -26,8 +29,9 @@ export function cardStatus(
   const zones = systemZones(doc, sys.id);
   const empty = { text: zones.length ? "No units yet" : "No zones", tone: "quiet" as const };
   if (!pack) return empty;
-  if (blockingFindings(systemFindings(doc, pack, sys)).length) {
-    return { text: "Combination fails", tone: "bad" };
+  const findings = systemFindings(doc, pack, sys);
+  if (blockingFindings(findings).length) {
+    return { text: "Combination fails", tone: "bad", why: doneReason(findings) ?? undefined };
   }
   if (systemKind(doc, sys) === "empty") return empty;
   for (const zone of zones) {

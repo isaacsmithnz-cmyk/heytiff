@@ -23,6 +23,9 @@ import { newSystem } from "../zones";
 import { branchBoxObject } from "../joints";
 import { buildSummaryModel } from "../summary";
 import { systemFindings } from "../verdict";
+import { proposedOutdoorModel } from "../builder";
+import { vrfLoadCeilingKw } from "../vrf";
+import { cardStatus } from "../status";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -360,7 +363,7 @@ describe("Isaac's calls of 2026-09-29", () => {
 /* Walk B (2026-09-29): six 30 m² offices, 26.1 kW of zones, on a PUMY-SP140
    whose 130% is 20.15 kW — Isaac: "an immediate red flag" */
 describe("zones past the most the outdoor can take on", () => {
-  function offices(oduModel: string) {
+  function officesDoc(oduModel: string) {
     let doc = createDesign({ name: "x", mode: "blank" });
     const floorId = doc.floors[0].id;
     const models = ["MSZ-AP20VGD", "MSZ-AP20VGD", "MSZ-AP50VGD2", "SLZ-M35FA-A", "MSZ-AP25VGD2", "MSZ-AP25VGD2"];
@@ -377,13 +380,37 @@ describe("zones past the most the outdoor can take on", () => {
     doc = made.doc;
     models.forEach((m, i) => (doc = addHead(doc, pack, { systemId: made.systemId, zoneId: `z${i}`, iduModel: m })));
     doc = chooseOutdoor(doc, pack, "worst-of-both", made.systemId, oduModel);
-    return systemFindings(doc, pack, doc.systems.find((s) => s.id === made.systemId)!);
+    return { doc, sid: made.systemId };
   }
+  const offices = (oduModel: string) => {
+    const { doc, sid } = officesDoc(oduModel);
+    return systemFindings(doc, pack, doc.systems.find((s) => s.id === sid)!);
+  };
 
   it("is red on the SP140, naming the load and the ceiling", () => {
     const f = offices("PUMY-SP140VKMD2-A").find((x) => x.code === "load-over-outdoor");
     expect(f).toMatchObject({ severity: "red", fix: "Pick a bigger outdoor, or move a zone to another system" });
     expect(f?.message).toMatch(/^The zones need 26\.1 kW, and PUMY-SP140VKMD2-A takes heads up to 20\.15 kW \(130%\)$/);
+  });
+
+  it("the outdoor list leaves out an outdoor too small for the zones, and the proposal skips it", () => {
+    const heads = ["MSZ-AP20VGD", "MSZ-AP20VGD", "MSZ-AP50VGD2", "SLZ-M35FA-A", "MSZ-AP25VGD2", "MSZ-AP25VGD2"].map(idu);
+    const all = vrfOutdoorsListing(pack, heads).map((o) => o.model);
+    expect(all).toContain("PUMY-SP140VKMD2-A"); // the heads alone fit it
+    const load = { kw: 26.1, basis: "worst-of-both" as const };
+    const fit = vrfOutdoorsListing(pack, heads, { load });
+    expect(fit.map((o) => o.model)).not.toContain("PUMY-SP140VKMD2-A");
+    for (const o of fit) expect(vrfLoadCeilingKw(o, "worst-of-both")!).toBeGreaterThanOrEqual(26.1);
+  });
+
+  it("a card that fails says why, not just that it fails", () => {
+    const { doc, sid } = officesDoc("PUMY-SP140VKMD2-A");
+    const status = cardStatus(doc, pack, "worst-of-both", doc.systems.find((s) => s.id === sid)!);
+    expect(status.text).toBe("Combination fails");
+    expect(status.why).toMatch(/^The zones need 26\.1 kW, and PUMY-SP140VKMD2-A takes heads up to 20\.15 kW \(130%\)\. Pick a bigger outdoor/);
+    // and the Studio proposes one whose ceiling takes them
+    const proposed = pack.outdoor_units.find((o) => o.model === proposedOutdoorModel(doc, pack, sid))!;
+    expect(vrfLoadCeilingKw(proposed, "worst-of-both")!).toBeGreaterThanOrEqual(26.1);
   });
 
   it("is not raised on an outdoor whose 130% covers the zones", () => {

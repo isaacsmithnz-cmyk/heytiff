@@ -446,6 +446,43 @@ export async function settleMentionAsks(
     if (await recordUnread(r, c, m, row, made ? "do" : "none", made ? act.task_id : null)) out.adopted += 1;
   };
 
+  /* ONE NOTE TO TWO PEOPLE IS ONE JOB. Each tagged person's note is read on
+     their own, so "@Luke @Isaac order the pump" made two tasks that never
+     knew of each other: Isaac's tick left Luke's open. A task whose words
+     match another made from the same note joins its group (making one if the
+     first has none), so a tick on either closes both — see completeTask. */
+  const shareWithSiblings = async (note: string, taskId: string, title: string) => {
+    try {
+      const { data: asks } = await supabaseAdmin
+        .from("mention_asks")
+        .select("task_id")
+        .eq("org_id", orgId)
+        .eq("sm8_note_uuid", note)
+        .not("task_id", "is", null)
+        .neq("task_id", taskId);
+      const ids = ((asks ?? []) as { task_id: string }[]).map((a) => a.task_id);
+      if (ids.length === 0) return;
+      const { data: found } = await supabaseAdmin
+        .from("tasks")
+        .select("id, title, group_id")
+        .eq("org_id", orgId)
+        .in("id", ids);
+      const said = title.trim().toLowerCase();
+      const twins = ((found ?? []) as { id: string; title: string; group_id: string | null }[]).filter(
+        (t) => t.title.trim().toLowerCase() === said,
+      );
+      if (twins.length === 0) return;
+      const group = twins.find((t) => t.group_id)?.group_id ?? crypto.randomUUID();
+      await supabaseAdmin
+        .from("tasks")
+        .update({ group_id: group })
+        .eq("org_id", orgId)
+        .in("id", [taskId, ...twins.map((t) => t.id)]);
+    } catch (err) {
+      console.error(`[asks] couldn't link task ${taskId} to its twin:`, err);
+    }
+  };
+
   const settleAsk = async (r: Reader, c: DiaryConversation, m: DiaryMessage): Promise<"outage" | void> => {
     const key = keyOf(r.staffId, m.id);
     const held = await claim(r, c, m, rows.get(key));
@@ -548,6 +585,7 @@ export async function settleMentionAsks(
     }
     out.tasks += 1;
     await logTaskEvent(orgId, taskId, null, { kind: "created", to: r.staffId });
+    await shareWithSiblings(m.id, taskId, res.read.title);
     rows.set(key, {
       ...(rows.get(key) ?? blank(held.id, r.staffId, m.id)),
       status: "read",

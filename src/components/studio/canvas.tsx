@@ -73,6 +73,9 @@ import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf } from "@/lib/studio/graph";
 import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
 import { pipeRefusal } from "@/lib/studio/pipe-rules";
+import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
+import type { SizedSection } from "@/lib/studio/vrf-tree";
+import { usePipeUnits } from "./pipe-units";
 
 /** a branch box on the plan: PAC-MK34BC / MK54BC are both 450 × 280 mm (M-P0860 p.44) */
 const BOX_W_MM = 450;
@@ -955,6 +958,25 @@ export function StudioCanvas({
     for (const s of doc.systems) m.set(s.id, s.colour);
     return m;
   }, [doc.systems]);
+
+  /* a VRF drawn to every head, sized (pipe-sizes.ts): each run wears its
+     section's size as colour and label, a click lights the whole section,
+     and a joint or box says what goes in and out of it */
+  const pipeUnits = usePipeUnits();
+  const pipeView = useMemo(() => {
+    const byRun = new Map<string, SizedSection>();
+    const fittings = new Map<string, FittingView>();
+    for (const v of vrfPipeViews(doc, pack ?? null)) {
+      v.byRun.forEach((sec, id) => byRun.set(id, sec));
+      v.fittings.forEach((f, id) => fittings.set(id, f));
+    }
+    return { byRun, fittings };
+  }, [doc, pack]);
+  /* the runs lit with the selection: every run of the picked run's section */
+  const litRuns = useMemo(() => {
+    const sec = selectedId ? pipeView.byRun.get(selectedId) : undefined;
+    return new Set(sec ? sec.edges : selectedId ? [selectedId] : []);
+  }, [selectedId, pipeView]);
 
   /* the zones flow: a zone wears the colour of the system that claimed it,
      the first system's when two share it, with a dot per system in its corner */
@@ -3657,6 +3679,51 @@ export function StudioCanvas({
     };
   }, [hoverUnitId, units, iduSpec, oduSpec, doc.objects, doc.systems, rooms, sysColour, pointAt]);
 
+  /* WHAT A PICKED PIPE, JOINT OR BOX IS (Isaac, 2026-09-29: "when you click
+     it, it highlights it, but it doesn't actually do anything"). A pipe says
+     where its section runs, its sizes and length; a joint or a box says the
+     size going in and each size coming out. Both units shown, the chosen
+     one first, so the other is never a menu away. */
+  const pipeCard = useMemo(() => {
+    if (!selectedId) return null;
+    const other = pipeUnits === "in" ? "mm" : "in";
+    const both = (sec: SizedSection) =>
+      `${pairSize(sec.liquidMm, sec.gasMm, pipeUnits)} (${pairSize(sec.liquidMm, sec.gasMm, other)})`;
+    const byId = new Map(doc.objects.map((o) => [o.id, o]));
+    const nameOf = (id: string) => {
+      const o = byId.get(id);
+      if (!o) return "?";
+      if (o.type === "unit")
+        return String(o.props.role) === "odu" ? "Outdoor unit" : String(o.props.model ?? "Indoor unit");
+      return o.type === "branch-box" ? "Branch box" : "Joint";
+    };
+    const sec = pipeView.byRun.get(selectedId);
+    if (sec) {
+      return {
+        role: "Pipe",
+        tone: sizeTone(sec.gasMm),
+        title: `${nameOf(sec.from)} to ${nameOf(sec.to)}`,
+        rows: [
+          { k: "Liquid / gas", v: both(sec) },
+          ...(sec.lengthM != null ? [{ k: "Length", v: `${sec.lengthM.toFixed(1)} m` }] : []),
+          ...(sec.upsized ? [{ k: "Liquid", v: "One size up, by the book's length rule" }] : []),
+        ],
+      };
+    }
+    const fit = pipeView.fittings.get(selectedId);
+    if (!fit) return null;
+    const kind = fit.fitting.kind === "box" ? "Branch box" : fit.fitting.kind === "header" ? "Header" : "Joint";
+    return {
+      role: kind,
+      tone: fit.feed ? sizeTone(fit.feed.gasMm) : null,
+      title: fit.fitting.part ?? "No part in the book",
+      rows: [
+        ...(fit.feed ? [{ k: "In", v: both(fit.feed) }] : []),
+        ...fit.outs.map((o) => ({ k: `Out to ${nameOf(o.to)}`, v: both(o) })),
+      ],
+    };
+  }, [selectedId, pipeView, pipeUnits, doc.objects]);
+
   /* ── unit callouts ────────────────────────────────────────────────────
      A unit's own name, said on the drawing at the end of a leader — the same
      mechanic as a note's, because it is the same job. Geometry lives in
@@ -4153,7 +4220,10 @@ export function StudioCanvas({
               dots. */}
           {layers.pipes && runs.map((r) => {
             const pts = liveRunPoints(r);
-            const colour = sysColour.get(r.systemId ?? "") ?? "#888";
+            const sized = r.type === "pipe-run" ? pipeView.byRun.get(r.id) : undefined;
+            const colour = sized
+              ? `var(--pipe-${sizeTone(sized.gasMm)})`
+              : (sysColour.get(r.systemId ?? "") ?? "#888");
             const midI = Math.floor((pts.length - 1) / 2);
             const mid = {
               x: (pts[midI].x + pts[Math.min(midI + 1, pts.length - 1)].x) / 2,
@@ -4168,7 +4238,9 @@ export function StudioCanvas({
                 )
               : null;
             let tag: string | null = null;
-            if (r.type === "pipe-run") {
+            if (sized) {
+              tag = pairSize(sized.liquidMm, sized.gasMm, pipeUnits);
+            } else if (r.type === "pipe-run") {
               const auto = runSizes?.get(r.systemId ?? "") ?? null;
               const liq = Number(r.props.liquidMm) || auto?.liquidMm || null;
               const gas = Number(r.props.gasMm) || auto?.gasMm || null;
@@ -4182,7 +4254,7 @@ export function StudioCanvas({
             return (
               <g
                 key={r.id}
-                className={`${cls}${r.id === selectedId ? " sel" : ""}`}
+                className={`${cls}${litRuns.has(r.id) ? " sel" : ""}`}
                 style={{ color: colour }}
               >
                 {curved ? (
@@ -4648,11 +4720,18 @@ export function StudioCanvas({
           {/* branch boxes — to scale (PAC-MK·BC, 450 × 280 mm), the heads' runs end on them */}
           {layers.pipes && boxes.map((b) => {
             const at = pointAt(b);
-            const colour = sysColour.get(b.systemId ?? "") ?? "#888";
+            /* fittings are drawn in ink, not the system's colour: the pipes
+               carry colour (their size), and a fitting has to stand apart */
             const fp = footprint(BOX_W_MM, BOX_D_MM);
+            const part = pipeView.fittings.get(b.id)?.fitting.part;
             return (
-              <g key={b.id} className={`ds-bbox${b.id === selectedId ? " sel" : ""}`} style={{ color: colour }}>
+              <g key={b.id} className={`ds-bbox${b.id === selectedId ? " sel" : ""}`} style={{ color: "var(--ink)" }}>
                 <rect x={at.x - fp.w / 2} y={at.y - fp.h / 2} width={fp.w} height={fp.h} />
+                {part && layers.labels && (
+                  <text x={at.x} y={at.y + fp.h / 2 + 12 / labelZoom} fontSize={10 / labelZoom} className="ds-bbox-part">
+                    {part}
+                  </text>
+                )}
               </g>
             );
           })}
@@ -4660,10 +4739,9 @@ export function StudioCanvas({
           {/* joints — a small square where the refrigerant branches */}
           {layers.pipes && joints.map((j) => {
             const at = pointAt(j);
-            const colour = sysColour.get(j.systemId ?? "") ?? "#888";
             const half = 5 / zoom;
             return (
-              <g key={j.id} className={`ds-joint${j.id === selectedId ? " sel" : ""}`} style={{ color: colour }}>
+              <g key={j.id} className={`ds-joint${j.id === selectedId ? " sel" : ""}`} style={{ color: "var(--ink)" }}>
                 <rect x={at.x - half} y={at.y - half} width={half * 2} height={half * 2} />
               </g>
             );
@@ -5346,6 +5424,27 @@ export function StudioCanvas({
               <dt>{hoverCard.sizeAxes}</dt>
               <dd>{hoverCard.size}</dd>
             </div>
+          </dl>
+        </div>
+      )}
+
+      {/* the picked pipe, joint or box — shown while nothing is hovered */}
+      {!hoverCard && pipeCard && (
+        <div className="ds-unitcard pipe" role="status" aria-live="polite">
+          <div className="ds-unitcard-h">
+            {pipeCard.tone != null && (
+              <span className="ds-unitcard-sw" style={{ background: `var(--pipe-${pipeCard.tone})` }} />
+            )}
+            <span className="ds-unitcard-role">{pipeCard.role}</span>
+          </div>
+          <div className="ds-unitcard-model">{pipeCard.title}</div>
+          <dl className="ds-unitcard-rows">
+            {pipeCard.rows.map((r, i) => (
+              <div key={i}>
+                <dt>{r.k}</dt>
+                <dd>{r.v}</dd>
+              </div>
+            ))}
           </dl>
         </div>
       )}

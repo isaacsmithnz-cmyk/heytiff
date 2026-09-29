@@ -58,6 +58,9 @@ export interface VrfTreeSection {
   riseM?: number;
   /** corners drawn on it */
   bends?: number;
+  /** the drawn runs it is made of (graph edge ids: pipe-run object ids, or
+      a riser gap); empty on the provisional tree */
+  edges?: string[];
 }
 
 export interface VrfTree {
@@ -83,6 +86,8 @@ export interface SizedSection {
   upsized: boolean;
   lengthM: number | null;
   bends: number;
+  /** the drawn runs it is made of — the plan lights them together */
+  edges: string[];
 }
 
 export interface SizedFitting {
@@ -388,6 +393,7 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
         upsized: false,
         lengthM: s.lengthM,
         bends: s.bends ?? 0,
+        edges: s.edges ?? [],
       });
       visit(s.to, size);
     }
@@ -810,9 +816,17 @@ export function drawnVrfTree(
   const nodes: VrfTreeNode[] = [{ id: oduId, kind: "odu" }];
   const sections: VrfTreeSection[] = [];
   const joined = new Set<string>();
-  const add = (from: string, to: string, lengthM: number | null, riseM: number, bends: number, guard: Set<string>) => {
+  const add = (
+    from: string,
+    to: string,
+    lengthM: number | null,
+    riseM: number,
+    bends: number,
+    guard: Set<string>,
+    edges: string[]
+  ) => {
     if (keep(to)) {
-      sections.push({ id: `${from}>${to}`, from, to, lengthM, riseM, bends });
+      sections.push({ id: `${from}>${to}`, from, to, lengthM, riseM, bends, edges });
       if (guard.has(to)) return;
       guard.add(to);
       if (headModel.has(to)) {
@@ -821,7 +835,7 @@ export function drawnVrfTree(
       } else {
         nodes.push({ id: to, kind: graph.nodes.get(to)?.type === "branch-box" ? "box" : "joint" });
       }
-      for (const n of out.get(to) ?? []) add(to, n.to, n.lengthM, n.riseM, n.bends, guard);
+      for (const n of out.get(to) ?? []) add(to, n.to, n.lengthM, n.riseM, n.bends, guard, [n.edge]);
       return;
     }
     /* pass through: a riser, a joint with one run on, a unit not of this tree */
@@ -832,11 +846,12 @@ export function drawnVrfTree(
         lengthM == null || n.lengthM == null ? null : lengthM + n.lengthM,
         riseM + n.riseM,
         bends + n.bends,
-        guard
+        guard,
+        [...edges, n.edge]
       );
   };
   const guard = new Set<string>([oduId]);
-  for (const n of out.get(oduId) ?? []) add(oduId, n.to, n.lengthM, n.riseM, n.bends, guard);
+  for (const n of out.get(oduId) ?? []) add(oduId, n.to, n.lengthM, n.riseM, n.bends, guard, [n.edge]);
   return { tree: { nodes, sections, provisional: false }, joined };
 }
 

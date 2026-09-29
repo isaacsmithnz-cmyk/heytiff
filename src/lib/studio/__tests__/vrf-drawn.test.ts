@@ -19,6 +19,7 @@ import { systemVrfTree } from "../vrf-tree";
 import { buildSystemGraph } from "../graph";
 import { combinationWord, systemFindings } from "../verdict";
 import { buildSummaryModel } from "../summary";
+import { pairSize, pipeViewOf, sizeTone, tubeSize } from "../pipe-sizes";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -288,5 +289,56 @@ describe("deleting a joint (Isaac, 2026-09-29)", () => {
     const free = { id: "free", type: "joint", systemId: t.systemId, floorId: t.doc.floors[0].id, geometry: { kind: "point" as const, at: { x: 0, y: 9000 } }, plane: "room" as const, props: {} };
     const d = { ...t.doc, objects: [...t.doc.objects, free] };
     expect(deleteJoint(d, "free").objects.some((o) => o.id === "free")).toBe(false);
+  });
+});
+
+/* what the plan shows on a drawn VRF (Isaac, 2026-09-29): each run's size,
+   a picked run's whole section, and what goes in and out of each joint */
+describe("the plan's pipe sizes, from the drawn tree", () => {
+  it("every drawn run belongs to one sized section, and a section lists its runs", () => {
+    const t = page144Drawn();
+    const view = pipeViewOf(t.doc, pack, t.doc.systems.find((s) => s.id === t.systemId)!)!;
+    const runs = runsOf(t.doc, t.systemId);
+    expect(runs.every((r) => view.byRun.has(r.id))).toBe(true);
+    for (const sec of view.sections) for (const e of sec.edges) expect(view.byRun.get(e)).toBe(sec);
+    // the head's own run is its section on its own
+    const toP40 = view.sections.find((s) => s.to === t.heads[40])!;
+    expect(toP40.edges).toHaveLength(1);
+  });
+
+  it("a joint says the size in and each size out", () => {
+    const t = page144Drawn();
+    const view = pipeViewOf(t.doc, pack, t.doc.systems.find((s) => s.id === t.systemId)!)!;
+    const joints = [...view.fittings.values()].filter((f) => f.fitting.kind === "joint");
+    expect(joints).toHaveLength(4);
+    for (const j of joints) {
+      expect(j.feed?.to).toBe(j.fitting.nodeId);
+      expect(j.outs).toHaveLength(2);
+      for (const o of j.outs) expect(o.from).toBe(j.fitting.nodeId);
+    }
+  });
+
+  it("is not shown until every head is piped", () => {
+    const t = page144Drawn();
+    const last = runsOf(t.doc, t.systemId).find((r) => (r.props.startAttach as { id: string }).id === t.heads[32])!;
+    const cut = { ...t.doc, objects: t.doc.objects.filter((o) => o.id !== last.id) };
+    expect(pipeViewOf(cut, pack, cut.systems.find((s) => s.id === t.systemId)!)).toBeNull();
+  });
+});
+
+describe("pipe sizes in words", () => {
+  it("reads inches by default, the fraction the copper is sold by", () => {
+    expect(tubeSize(9.52, "in")).toBe('3/8"');
+    expect(tubeSize(28.58, "in")).toBe('1 1/8"');
+    expect(pairSize(6.35, 12.7, "in")).toBe('1/4" / 1/2"');
+    expect(pairSize(6.35, 12.7, "mm")).toBe("6.35 / 12.7 mm");
+  });
+
+  it("a size it has no fraction for says its mm", () => {
+    expect(tubeSize(10, "in")).toBe("10 mm");
+  });
+
+  it("colours step up with the gas size, one step each", () => {
+    expect([9.52, 12.7, 15.88, 19.05, 22.2, 25.4, 28.58, 31.75, 41.28].map(sizeTone)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 8]);
   });
 });

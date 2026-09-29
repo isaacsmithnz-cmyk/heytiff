@@ -61,6 +61,8 @@ import {
 import { useWheelMode, setWheelMode } from "./wheel-mode";
 import type { WheelMode } from "@/lib/studio/wheel";
 import { useHintsOn, setHintsOn } from "./hints";
+import { setPipeUnits, usePipeUnits } from "./pipe-units";
+import { SchematicView } from "./vrf-schematic";
 import { useArmedInk, setArmedInk } from "./note-ink";
 import { pairPipeSizes } from "@/lib/studio/components";
 import { ComponentPalette, PlenumHud } from "./air-tools";
@@ -131,11 +133,13 @@ const studioActions = () => import("@/app/actions/studio");
    stepper, autosaving document, per-stage empty states. The canvas engine,
    plans pipeline and system modules land in Stages 1+ on top of this frame. */
 
-/* Three screens, two tabs: Plans (step 0) lives behind the menu's "Edit
-   plans"; Design (1) and Summary (2) are the tab switcher. On Plans neither
-   tab lights up. */
+/* Four screens, three tabs: Plans (step 0) lives behind the menu's "Edit
+   plans"; Design (1), Schematic (3) and Summary (2) are the tab switcher.
+   On Plans no tab lights up. The Schematic is the VRF pipework as a diagram
+   (vrf-schematic.tsx), between the drawing it is read off and the sheet. */
 const TABS = [
   { step: 1, label: "Design" },
+  { step: 3, label: "Schematic" },
   { step: 2, label: "Summary" },
 ] as const;
 
@@ -1190,6 +1194,8 @@ function Editor({
   /** sibling variant docs for multi-option export (store-scoped) */
   loadVariant: (id: string) => Promise<DesignDocument | null>;
 }) {
+  /* inches or mm, the one choice the plan, the joints and the schematic read */
+  const pipeUnits = usePipeUnits();
   /* ── undo/redo: record the outgoing document before every mutation ── */
   const historyRef = useRef(new History<DesignDocument>(50));
   const docRef = useRef(doc);
@@ -1991,6 +1997,7 @@ function Editor({
             }}
           />
         )}
+        {step === 3 && <SchematicView doc={doc} pack={pack} units={pipeUnits} />}
         {step === 2 && (
           <SummaryView
             doc={doc}
@@ -2792,6 +2799,7 @@ function CanvasControls({
      stores rather than threaded down: nothing above this owns them. */
   const wheelMode = useWheelMode();
   const hintsOn = useHintsOn();
+  const pipeUnits = usePipeUnits();
   const sorted = [...floors].sort((a, b) => a.level - b.level);
   // two-step delete of a floor — armed per floor id so switching floors
   // mid-arm can't delete the wrong one
@@ -3083,6 +3091,26 @@ function CanvasControls({
               />
               <span>Show tool hints</span>
             </label>
+            <div className="ds-view-sep" />
+            {/* how a VRF's sizes read on the plan, the joints and the
+                schematic: inches by default, copper is sold in inches */}
+            <div className="ds-view-grp">Pipe sizes</div>
+            {(
+              [
+                ["in", "Inches"],
+                ["mm", "Millimetres"],
+              ] as const
+            ).map(([u, label]) => (
+              <label key={u} className="ds-layer-row">
+                <input
+                  type="radio"
+                  name="ds-pipe-units"
+                  checked={pipeUnits === u}
+                  onChange={() => setPipeUnits(u)}
+                />
+                <span>{label}</span>
+              </label>
+            ))}
             <div className="ds-view-sep" />
             {/* WHAT A BARE SCROLL DOES, IN WORDS. Reading the device off the
                 wheel event was tried twice and wrong twice on Isaac's own

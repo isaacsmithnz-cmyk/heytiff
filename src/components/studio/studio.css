@@ -1430,14 +1430,14 @@ html[data-ds-display] .dstudio.editing {
   border-radius:var(--r-card);
   padding: 4px;
 }
-/* Sized off the track, so it stays exact at any switcher width: two equal
-   tabs share (100% − 2×4px padding − 3px gap). */
+/* Sized off the track, so it stays exact at any switcher width: three equal
+   tabs share (100% − 2×4px padding − 2×3px gap). */
 .dstudio .ds-steps-thumb {
   position: absolute;
   top: 4px;
   bottom: 4px;
   left: 4px;
-  width: calc((100% - 11px) / 2);
+  width: calc((100% - 14px) / 3);
   border-radius:var(--r-button);
   background: var(--paper);
   transition: transform var(--t-move) var(--ease), opacity var(--t-fast) var(--ease);
@@ -1447,6 +1447,9 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-steps[data-active="1"] .ds-steps-thumb {
   transform: translateX(calc(100% + 3px));
+}
+.dstudio .ds-steps[data-active="2"] .ds-steps-thumb {
+  transform: translateX(calc(200% + 6px));
 }
 /* Plans: neither tab is current, so the thumb parks and fades out */
 .dstudio .ds-steps[data-active="-1"] .ds-steps-thumb {
@@ -3122,6 +3125,14 @@ html[data-ds-display] .dstudio.editing {
   align-items: baseline;
   gap: 8px;
 }
+/* a picked pipe, joint or box: its rows name where each pipe goes, so the
+   card is wider and so is its label column */
+.dstudio .ds-unitcard.pipe {
+  width: 344px;
+}
+.dstudio .ds-unitcard.pipe .ds-unitcard-rows dt {
+  width: 136px;
+}
 .dstudio .ds-unitcard-rows dt {
   flex: none;
   width: 56px;
@@ -4400,7 +4411,8 @@ html[data-ds-display] .dstudio.editing {
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
 }
-.dstudio .ds-pipe.sel polyline { stroke-width: 4px; }
+/* a picked pipe lights its whole section (every run of it) at double weight */
+.dstudio .ds-pipe.sel polyline { stroke-width: 5px; }
 /* soft-drawn pipe renders the smoothed spline as a path */
 .dstudio .ds-pipe path {
   fill: none;
@@ -4410,7 +4422,7 @@ html[data-ds-display] .dstudio.editing {
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
 }
-.dstudio .ds-pipe.sel path { stroke-width: 4px; }
+.dstudio .ds-pipe.sel path { stroke-width: 5px; }
 /* drains: the system's colour, dashed — condensate, not refrigerant */
 .dstudio .ds-drain polyline {
   fill: none;
@@ -4532,8 +4544,9 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-riser.sel circle { stroke-width: 3.5px; }
-/* a refrigerant joint (joints.ts): a solid square in the system's colour,
-   ringed in paper so it reads on top of the run it sits on */
+/* a refrigerant joint (joints.ts): a solid square in ink — the pipes carry
+   colour by size, so a fitting stands apart from them — ringed in paper so it
+   reads on top of the run it sits on */
 .dstudio .ds-joint rect {
   fill: currentColor;
   stroke: var(--paper);
@@ -4541,7 +4554,7 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-joint.sel rect { stroke: currentColor; stroke-width: 3.5px; }
-/* a branch box: to scale, paper-filled, ringed in the system's colour */
+/* a branch box: to scale, paper-filled, ringed in ink, its part under it */
 .dstudio .ds-bbox rect {
   fill: var(--paper);
   stroke: currentColor;
@@ -4549,6 +4562,11 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-bbox.sel rect { stroke-width: 3.5px; }
+.dstudio .ds-bbox-part {
+  fill: var(--ink);
+  text-anchor: middle;
+  font-weight: 600;
+}
 .dstudio .ds-riser text {
   fill: currentColor;
   text-anchor: middle;
@@ -6667,6 +6685,7 @@ html[data-ds-display] .dstudio.editing {
    text the halo exists to reveal. Round joins are mandatory here, and every
    halo'd label on the plan shares this one rule so none can drift back. */
 .dstudio .ds-pipe-len,
+.dstudio .ds-bbox-part,
 .dstudio .ds-unit-model,
 .dstudio .ds-plenum-label,
 .dstudio .ds-spigot-dia,
@@ -9782,3 +9801,140 @@ html[data-ds-display] .dstudio.editing {
   margin-bottom: 4px;
 }
 .ds-iq-note p { margin: 0; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THE SCHEMATIC TAB (vrf-schematic.tsx) — a VRF's pipework as a diagram,
+   drawn from the sized tree: each section in its size's colour (--pipe-n,
+   the plan's key), fittings in ink, the heads as named boxes. A picked
+   section or fitting says what it is under the drawing.
+   ═══════════════════════════════════════════════════════════════════════ */
+.dstudio .ds-schem-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+}
+.dstudio .ds-schem {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dstudio .ds-schem-h {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.dstudio .ds-schem-h h3 {
+  margin: 0;
+  font: 600 16px var(--font);
+  color: var(--ink);
+}
+.dstudio .ds-schem-odu {
+  font: 600 14px var(--font);
+  color: var(--ink);
+}
+/* Valid in ink; only a failing system takes the state colour */
+.dstudio .ds-schem-word {
+  font: 600 14px var(--font);
+  color: var(--ink);
+}
+.dstudio .ds-schem-word.bad {
+  color: var(--bad-t);
+}
+.dstudio .ds-schem-src {
+  font-size: 13px;
+  color: var(--q);
+}
+.dstudio .ds-schem-empty {
+  margin: 0;
+  font-size: 14px;
+  color: var(--q);
+}
+.dstudio .ds-schem-scroll {
+  overflow-x: auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+}
+.dstudio .ds-schem-scroll svg {
+  display: block;
+}
+.dstudio .ds-schem-sec {
+  cursor: pointer;
+}
+.dstudio .ds-schem-sec path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.dstudio .ds-schem-sec path.hit {
+  stroke: transparent;
+  stroke-width: 14px;
+}
+.dstudio .ds-schem-sec.on path:not(.hit) {
+  stroke-width: 6px;
+}
+.dstudio .ds-schem-sec text {
+  fill: currentColor;
+  font: 700 12px var(--font);
+}
+.dstudio .ds-schem-sec text.len {
+  fill: var(--q);
+  font-weight: 500;
+}
+.dstudio .ds-schem-odu-n rect,
+.dstudio .ds-schem-head rect,
+.dstudio .ds-schem-box rect {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.5px;
+}
+.dstudio .ds-schem-odu-n text,
+.dstudio .ds-schem-head text,
+.dstudio .ds-schem-box text {
+  fill: var(--ink);
+  text-anchor: middle;
+  font: 600 12px var(--font);
+}
+.dstudio .ds-schem-head text.zone {
+  fill: var(--q);
+  font-weight: 500;
+}
+.dstudio .ds-schem-box,
+.dstudio .ds-schem-joint {
+  cursor: pointer;
+}
+.dstudio .ds-schem-box.on rect {
+  stroke-width: 3px;
+}
+.dstudio .ds-schem-joint rect {
+  fill: var(--ink);
+}
+.dstudio .ds-schem-joint.on rect {
+  stroke: var(--ink);
+  stroke-width: 4px;
+}
+.dstudio .ds-schem-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  max-width: 480px;
+}
+.dstudio .ds-schem-card > div {
+  display: flex;
+  gap: 12px;
+}
+.dstudio .ds-schem-card dt {
+  flex: none;
+  width: 160px;
+  font-size: 13px;
+  color: var(--q);
+}
+.dstudio .ds-schem-card dd {
+  margin: 0;
+  font: 600 13px var(--font);
+  color: var(--ink);
+}

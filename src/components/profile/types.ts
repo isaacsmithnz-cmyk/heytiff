@@ -59,6 +59,9 @@ export type ProfileActions = {
   onRemoveWorkRightsCheck?: (recordId: string) => Promise<SaveResult>;
   /** points the card at an already-uploaded staff_photo document */
   onSetPhoto: (documentId: string) => Promise<SaveResult>;
+  /** The card's "Also called": every name the person goes by, as the list
+      now stands. Optional: a caller that hasn't wired it shows no row. */
+  onSaveAliases?: (names: string[]) => Promise<SaveResult>;
   onClearPhoto: () => Promise<SaveResult>;
   /** Moves your SIGN-IN address, in self mode only. Optional because the
       admin view of a colleague has no such thing to offer — see the nav

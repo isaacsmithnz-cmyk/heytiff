@@ -32,6 +32,7 @@ import {
   removeCheck,
 } from "@/lib/staff/work-rights-writes";
 import { staffProfileIdFor } from "@/lib/fleet/query";
+import { saveCardAliases } from "@/lib/staff/aliases-query";
 import { resolvePhotoDocument } from "@/lib/staff/photo";
 import type { Role } from "@/lib/roles-shared";
 
@@ -595,3 +596,20 @@ export async function removeStaffWorkRightsCheck(
   return res;
 }
 
+
+/** The names someone else goes by — the card's "Also called". The same gate
+    as the rest of their card (`team`, and a person in this workspace); the
+    names themselves are re-decided in saveCardAliases. */
+export async function saveStaffAliases(staffId: string, names: string[]): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) {
+    return { ok: false, error: "You don't have access to staff records." };
+  }
+  const target = await targetIn(ctx, staffId);
+  if (!target) return { ok: false, error: "That staff member doesn't exist." };
+
+  const r = await saveCardAliases(ctx.orgId, staffId, names, await actorStaffId(ctx));
+  if (r.ok) revalidatePath(`/dashboard/team/${staffId}`);
+  return r;
+}

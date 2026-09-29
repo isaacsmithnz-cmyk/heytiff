@@ -40,12 +40,14 @@ import {
   removeStaffLicenceTerm,
   removeStaffWorkRightsCheck,
   saveStaffSection,
+  saveStaffAliases,
   updateStaffLicence,
   setStaffPhoto,
 } from "@/app/actions/staff";
 import type { StaffProfile } from "@/lib/staff/profile";
 import { todayInAu } from "@/lib/au-dates";
 import { orgExpiryWindow } from "@/lib/org/query";
+import { aliasesOf } from "@/lib/staff/aliases-query";
 
 /* One staff member's card, as an admin sees it.
 
@@ -114,11 +116,13 @@ export default async function StaffProfilePage({
     licenceDocuments,
     workRightsChecks,
     workRightsDocuments,
+    aliases,
   ] = await Promise.all([
     listLicenceTerms(orgId, staffId),
     documentsForStaffLicences(orgId, licenceIds),
     listWorkRightsChecks(orgId, staffId),
     documentsForWorkRights(orgId, staffId),
+    aliasesOf(orgId, staffId),
   ]);
 
   /* Only for a viewer who can see the Payroll card, since that is the only
@@ -183,6 +187,7 @@ export default async function StaffProfilePage({
       warnDays={expiry.warnDays}
       org={orgName}
       orgState={orgState}
+      aliases={aliases}
       initialSec={typeof sec === "string" ? sec : undefined}
       // The configured/not-configured bit only — the key stays on the server.
       addressLookup={Boolean(process.env.GOOGLE_MAPS_API_KEY)}
@@ -195,6 +200,7 @@ export default async function StaffProfilePage({
       }}
       actions={{
         onSave: saveStaffSection.bind(null, staffId),
+        onSaveAliases: saveStaffAliases.bind(null, staffId),
         onAddLicence: addStaffLicence.bind(null, staffId),
         onUpdateLicence: updateStaffLicence.bind(null, staffId),
         onRemoveLicence: removeStaffLicence.bind(null, staffId),

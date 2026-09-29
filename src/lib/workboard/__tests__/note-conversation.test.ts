@@ -192,7 +192,8 @@ describe("a task with nobody on it", () => {
       }),
       modal,
     );
-    expect(p.say).toBe("Who should do this: Order the grilles?");
+    // a name nobody here goes by is asked about by name (the nicknames change)
+    expect(p.say).toBe("Who's Leo?");
     expect(p.say.length).toBeLessThanOrEqual(SAY_MAX);
   });
 
@@ -210,9 +211,9 @@ describe("namesMentioned", () => {
     ]);
   });
 
-  it("offers a shared first name whole, so picking it can't ask again", () => {
+  it("offers a shared first name with its surname's initial, so picking it can't ask again", () => {
     const twoLyles = [...STAFF, { id: "s-lyle-t", fullName: "Lyle Tran" }];
-    expect(namesMentioned("tell lyle", twoLyles, "s-me")).toEqual(["Lyle Nguyen", "Lyle Tran"]);
+    expect(namesMentioned("tell lyle", twoLyles, "s-me")).toEqual(["Lyle N", "Lyle T"]);
   });
 
   it("matches whole words only", () => {

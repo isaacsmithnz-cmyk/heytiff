@@ -1,5 +1,5 @@
 import { auth0 } from "@/lib/auth0";
-import { supabaseAdmin } from "@/lib/supabase-server";
+import { spokenStaffNames } from "@/lib/staff/aliases-query";
 import { canDictate } from "@/lib/voice/can-dictate";
 import { mintRealtimeToken, prepareKeyterms, TRADE_KEYTERMS } from "@/lib/voice/transcribe";
 import { REALTIME_KEYTERM_LIMIT, REALTIME_KEYTERM_MAX_CHARS } from "@/lib/voice/realtime";
@@ -37,17 +37,10 @@ export async function POST() {
   const result = await mintRealtimeToken();
   if (!result.ok) return Response.json({ error: result.error }, { status: 502 });
 
-  const { data } = await supabaseAdmin
-    .from("staff_profiles")
-    .select("full_name")
-    .eq("org_id", orgId)
-    .limit(200);
-
-  /* Names first: with only fifty slots, "Lyle" earns its place ahead of
-     "scissor lift" — a misheard name routes a task to nobody. */
-  const names = ((data ?? []) as { full_name: string | null }[])
-    .flatMap((s) => (s.full_name ?? "").trim().split(/\s+/))
-    .filter(Boolean);
+  /* Names first, the names people go by with them: with only fifty slots,
+     "Lyle" and "Bobo" earn their place ahead of "scissor lift" — a misheard
+     name routes a task to nobody. */
+  const names = await spokenStaffNames(orgId);
 
   const keyterms = prepareKeyterms([...names, ...TRADE_KEYTERMS], {
     maxChars: REALTIME_KEYTERM_MAX_CHARS,

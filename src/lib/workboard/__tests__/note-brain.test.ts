@@ -127,7 +127,8 @@ describe("shapeProposal — tasks", () => {
     expect(p.tasks[0].assigneeId).toBeNull();
     expect(p.tasks[0].assigneeHint).toBe("Lyle");
     expect(p.clarify?.question).toContain("Lyle");
-    expect(p.clarify?.options.sort()).toEqual(["Lyle Nguyen", "Lyle Tran"]);
+    // each by the least that tells them apart, which resolves back to them
+    expect(p.clarify?.options.sort()).toEqual(["Lyle N", "Lyle T"]);
   });
 
   it("an unknown name leaves the task unassigned rather than dropping it", () => {

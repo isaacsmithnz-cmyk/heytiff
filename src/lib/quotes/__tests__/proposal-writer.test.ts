@@ -12,7 +12,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 
 const maybeSingle = jest.fn();
 const single = jest.fn();
-const upsert = jest.fn(() => ({ select: () => ({ single }) }));
+const upsert = jest.fn((_row: Written) => ({ select: () => ({ single }) }));
 /* a guarded write: update … where updated_at = base; `landed` says whether
    the row was still on that base */
 const base = jest.fn();
@@ -22,7 +22,7 @@ const updated = jest.fn(async () =>
     ? { data: { sm8_job_uuid: "j-1", draft: lastRow()?.draft, brief: lastRow()?.brief, changes: lastRow()?.changes, updated_at: "2026-09-29T09:00:00Z" }, error: null }
     : { data: null, error: null }
 );
-const update = jest.fn(() => ({
+const update = jest.fn((_row: Written) => ({
   eq: () => ({ eq: () => ({ eq: (_c: string, v: string) => (base(v), { select: () => ({ maybeSingle: updated }) }) }) }),
 }));
 jest.mock("@/lib/supabase-server", () => ({

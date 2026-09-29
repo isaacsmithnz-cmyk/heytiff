@@ -413,6 +413,25 @@ describe("zones past the most the outdoor can take on", () => {
     expect(vrfLoadCeilingKw(proposed, "worst-of-both")!).toBeGreaterThanOrEqual(26.1);
   });
 
+  it("under 50% only offers a smaller outdoor when one would take the heads (walk D)", () => {
+    const one = ["PLFY-P20VFM-E1"].map(idu);
+    const lone = checkVrfSet(pack, odu("PUHY-P200YNW-A1"), one);
+    expect(lone.map((f) => f.code)).toContain("ratio-under");
+    // the smallest VRF outdoor needs 4.5 kW of heads to reach 50%: none takes a lone 2.2
+    expect(vrfOutdoorsListing(pack, one)).toEqual([]);
+    let doc = createDesign({ name: "d", mode: "blank" });
+    doc.objects.push({
+      id: "z0", type: "room", systemId: null, floorId: doc.floors[0].id, plane: "room",
+      geometry: { kind: "polygon", points: [{ x: 0, y: 0 }, { x: 600, y: 0 }, { x: 600, y: 500 }, { x: 0, y: 500 }] },
+      props: { name: "Office 1" },
+    } as RoomObj as DesignObject);
+    const made = newSystem(doc, pack.meta.version);
+    doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "z0", iduModel: "PLFY-P20VFM-E1" });
+    doc = chooseOutdoor(doc, pack, "worst-of-both", made.systemId, "PUHY-P200YNW-A1");
+    const under = systemFindings(doc, pack, doc.systems.find((s) => s.id === made.systemId)!).find((f) => f.code === "ratio-under");
+    expect(under?.fix).toBe("No VRF outdoor is that small. Add heads, or make this zone a split");
+  });
+
   it("is not raised on an outdoor whose 130% covers the zones", () => {
     // PUMY-P250: 28.0 kW, 130% is 36.4 kW
     expect(offices("PUMY-P250YBMD-A").map((x) => x.code)).not.toContain("load-over-outdoor");

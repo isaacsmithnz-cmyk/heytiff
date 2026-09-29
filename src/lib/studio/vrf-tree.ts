@@ -77,7 +77,8 @@ export interface SizedSection {
   from: string;
   to: string;
   /** "main" = outdoor → first joint, header or box; "between" = on to a
-      joint or a box; "branch" = joint or header → head; "box" = box → head */
+      joint or a box; "branch" = joint or header → head, or the outdoor → its
+      only head; "box" = box → head */
   role: "main" | "between" | "branch" | "box";
   downstreamIndex: number;
   liquidMm: number;
@@ -338,7 +339,13 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
       const downKw = belowKw.get(s.to) ?? 0;
       let role: SizedSection["role"];
       let size: { liquid: number; gas: number } | null;
-      if (from.kind === "odu") {
+      if (from.kind === "odu" && to.kind === "idu") {
+        /* A LONE HEAD, no joint: piped at its own size, reduced at the
+           outdoor — the outdoor's main size to a P20 was a 7/8" gas line on
+           a 1/2" head (Isaac, 2026-09-29: "head's own size") */
+        role = "branch";
+        size = sizeBy(table.branch_sizing ?? table.pipe_sizing, down, downKw);
+      } else if (from.kind === "odu") {
         role = "main";
         size = { liquid: odu.conn_liquid_mm, gas: odu.conn_gas_mm };
       } else if (to.kind === "idu" && from.kind === "box") {

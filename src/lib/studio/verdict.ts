@@ -139,7 +139,10 @@ export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignS
             : f.code === "ratio-over" || f.code === "over-max-count"
               ? "Pick a bigger outdoor, or take a head out"
               : f.code === "ratio-under"
-                ? "Add heads, or pick a smaller outdoor"
+                ? /* only offer a smaller outdoor when one would take them */
+                  vrfOutdoorsListing(pack, heads).length
+                  ? "Add heads, or pick a smaller outdoor"
+                  : `No VRF outdoor is that small. Add heads, or make ${heads.length === 1 ? "this zone a split" : "these zones a multi"}`
                 : undefined,
       });
     }

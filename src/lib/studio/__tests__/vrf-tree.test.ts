@@ -32,6 +32,7 @@ const HEAD: Record<number, string> = {
   32: pack.indoor_units.find((u) => u.capacity_index === 32 && u.system_roles?.includes("vrf"))!.model,
   63: "PLFY-P63VEM-A",
   140: "PEFY-P140VMA-E4",
+  20: "PLFY-P20VFM-E1",
 };
 
 /** p.144: A → J1 (a → P125) → B → J2 (b → P100) → C → J3 (c → P40) → D → J4
@@ -123,11 +124,16 @@ describe("the provisional tree (the zones in list order, nothing drawn)", () => 
     expect(sized.fittings.map((f) => f.part)).toEqual(["CMY-Y102LS-G2", "CMY-Y102LS-G2"]);
   });
 
-  it("one head hangs straight off the outdoor, with no joint", () => {
+  it("one head hangs straight off the outdoor, with no joint, piped at its own size", () => {
+    /* Isaac, 2026-09-29: "head's own size" — reduced at the outdoor, not the
+       outdoor's 9.52/22.2 main all the way to the head */
     const tree = provisionalVrfTree("OU", [{ id: "h", model: HEAD[125] }]);
     const sized = sizeVrfTree(pack, odu("PUHY-P200YNW-A1"), tree);
     expect(sized.fittings).toEqual([]);
-    expect(sized.sections.map((s) => s.role)).toEqual(["main"]);
+    expect(sized.sections.map((s) => [s.role, s.liquidMm, s.gasMm])).toEqual([["branch", 9.52, 15.88]]);
+    // walk D: a P20 on a PUHY-P200 is 1/4" / 1/2", its own row, not 3/8" / 7/8"
+    const small = sizeVrfTree(pack, odu("PUHY-P200YNW-A1"), provisionalVrfTree("OU", [{ id: "h", model: HEAD[20] }]));
+    expect(small.sections.map((s) => [s.liquidMm, s.gasMm])).toEqual([[6.35, 12.7]]);
   });
 });
 

@@ -114,11 +114,15 @@ export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
     key: "mounting",
     role: "Mounting",
     icon: "mount",
-    defaultId: "wall-bracket",
+    /* a VRF outdoor (a 93–337 kg PUMY or PUHY) takes no mounting line until
+       the install questions choose one (Isaac, 2026-09-29); a split or multi
+       keeps the bracket */
+    defaultId: (odu) => (odu.system_type === "vrf" ? "none" : "wall-bracket"),
     options: [
       { id: "wall-bracket", name: "Wall bracket", sub: "Galv. steel, anti-vib feet", value: "1 set" },
       { id: "ground-pad", name: "Ground pad", sub: "Composite, anti-vib feet", value: "1" },
       { id: "roof-mount", name: "Roof frame", sub: "Galv. steel, spring feet", value: "1 set" },
+      { id: "none", name: "Mounting not chosen", sub: "Asked in Install details", value: "—" },
     ],
   },
   /* Hard-drawn pipe arrives as raw copper — soft coil comes pre-insulated —

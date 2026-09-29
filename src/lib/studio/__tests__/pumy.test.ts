@@ -21,6 +21,7 @@ import { allocationsOf } from "../allocations";
 import { addHead, chooseOutdoor } from "../builder";
 import { newSystem } from "../zones";
 import { branchBoxObject } from "../joints";
+import { buildSummaryModel } from "../summary";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -278,5 +279,31 @@ describe("edge cases found on the overnight run (2026-09-29)", () => {
     expect(codes("PUHY-P200YNW-A1", heads)).toContain("over-max-count");
     const msg = checkVrfSet(pack, odu("PUHY-P200YNW-A1"), heads.map(idu)).find((f) => f.code === "over-max-count")!.message;
     expect(msg).toBe("21 heads, and PUHY-P200YNW-A1 takes up to 20");
+  });
+});
+
+describe("Isaac's calls of 2026-09-29", () => {
+  it("six box heads share two small boxes 3 + 3", () => {
+    const six = Array.from({ length: 6 }, (_, i) => ({ id: `h${i}`, model: "MSZ-AP25VGD2" }));
+    const tree = provisionalVrfTree("OU", six, new Set(six.map((h) => h.id)), 5);
+    const sized = sizeVrfTree(pack, odu("PUMY-SP140VKMD2-A"), tree);
+    expect(sized.fittings.filter((f) => f.kind === "box").map((f) => [f.part, f.branches])).toEqual([
+      ["PAC-MK34BC", 3],
+      ["PAC-MK34BC", 3],
+    ]);
+  });
+
+  it("a VRF outdoor has no mounting line until one is chosen", () => {
+    const d0 = createDesign({ name: "m", mode: "blank" });
+    const floorId = d0.floors[0].id;
+    d0.objects.push({
+      id: "z0", type: "room", systemId: null, floorId, plane: "room",
+      geometry: { kind: "polygon", points: [{ x: 0, y: 0 }, { x: 500, y: 0 }, { x: 500, y: 500 }, { x: 0, y: 500 }] },
+      props: { name: "z0" },
+    } as RoomObj as DesignObject);
+    const made = newSystem(d0, pack.meta.version);
+    const doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "z0", iduModel: CM[63] });
+    const lines = buildSummaryModel(doc, pack).systems[0].lines.map((l) => l.name);
+    expect(lines.some((n) => /bracket|pad|frame|Mounting/i.test(n))).toBe(false);
   });
 });

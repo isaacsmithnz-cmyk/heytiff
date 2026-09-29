@@ -86,7 +86,9 @@ export function jointOnRun(
   if (seg < 0 || seg >= pts.length - 1) return null;
   const joint = jointObject(run.systemId, run.floorId, at, jointId);
   const same = (p: Point) => Math.hypot(p.x - at.x, p.y - at.y) < 1e-6;
-  const { startAttach, endAttach, ...rest } = run.props;
+  /* a piece remembers which of its ends a cut made (cutStart / cutEnd), so
+     a later cut along the same run keeps the earlier one's mark */
+  const { startAttach, endAttach, cutStart, cutEnd, ...rest } = run.props;
   const start = attachOf(startAttach);
   const end = attachOf(endAttach);
   const toJoint = { kind: "joint" as const, id: joint.id };
@@ -106,14 +108,63 @@ export function jointOnRun(
   const first: DesignObject = {
     ...run,
     geometry: { kind: "polyline", points: [...pts.slice(0, seg + 1), at] },
-    props: { ...rest, ...(start ? { startAttach: start } : {}), endAttach: toJoint },
+    props: { ...rest, ...(start ? { startAttach: start } : {}), endAttach: toJoint, ...(cutStart ? { cutStart } : {}), cutEnd: joint.id },
   };
   const second: DesignObject = {
     ...run,
     id: newId("obj"),
     geometry: { kind: "polyline", points: [at, ...pts.slice(seg + 1)] },
-    props: { ...rest, startAttach: toJoint, ...(end ? { endAttach: end } : {}) },
+    props: { ...rest, startAttach: toJoint, ...(end ? { endAttach: end } : {}), cutStart: joint.id, ...(cutEnd ? { cutEnd } : {}) },
   };
   const objects = doc.objects.flatMap((o) => (o.id === runId ? [first, second] : [o]));
   return { doc: { ...doc, objects: [...objects, joint] }, jointId: joint.id };
+}
+
+/** delete a joint. A joint that cut a run (jointOnRun marks which end of each
+    half the cut made)
+    with one branch on it puts the run back together: the halves become one
+    run again, keeping its two far ends, and the branch run goes with the
+    joint (Isaac, 2026-09-29). Any other joint just goes, and the runs on it
+    are left with loose ends to redraw. */
+export function deleteJoint(doc: DesignDocument, jointId: string): DesignDocument {
+  const onIt = doc.objects.filter(
+    (o) =>
+      o.type === "pipe-run" &&
+      (attachOf(o.props.startAttach)?.id === jointId || attachOf(o.props.endAttach)?.id === jointId)
+  );
+  const first = onIt.find((o) => o.props.cutEnd === jointId && attachOf(o.props.endAttach)?.id === jointId);
+  const second = onIt.find((o) => o.props.cutStart === jointId && attachOf(o.props.startAttach)?.id === jointId);
+  const branches = onIt.filter((o) => o !== first && o !== second);
+  if (first && second && branches.length <= 1 && first.geometry.kind === "polyline" && second.geometry.kind === "polyline") {
+    const { cutEnd: _a, endAttach: _b, ...firstProps } = first.props;
+    void _a;
+    void _b;
+    const end = attachOf(second.props.endAttach);
+    const secondCutEnd = second.props.cutEnd;
+    const whole: DesignObject = {
+      ...first,
+      geometry: { kind: "polyline", points: [...first.geometry.points, ...second.geometry.points.slice(1)] },
+      props: { ...firstProps, ...(end ? { endAttach: end } : {}), ...(secondCutEnd ? { cutEnd: secondCutEnd } : {}) },
+    };
+    const gone = new Set([jointId, second.id, ...branches.map((b) => b.id)]);
+    return {
+      ...doc,
+      objects: doc.objects.flatMap((o) => (o.id === first.id ? [whole] : gone.has(o.id) ? [] : [o])),
+    };
+  }
+  /* no cut to undo: the joint goes and its runs keep loose ends */
+  return {
+    ...doc,
+    objects: doc.objects
+      .filter((o) => o.id !== jointId)
+      .map((o) => {
+        if (o.type !== "pipe-run") return o;
+        const props = { ...o.props };
+        if (attachOf(props.startAttach)?.id === jointId) delete props.startAttach;
+        if (attachOf(props.endAttach)?.id === jointId) delete props.endAttach;
+        if (props.cutStart === jointId) delete props.cutStart;
+        if (props.cutEnd === jointId) delete props.cutEnd;
+        return props === o.props ? o : { ...o, props };
+      }),
+  };
 }

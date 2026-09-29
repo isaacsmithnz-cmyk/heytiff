@@ -177,7 +177,8 @@ const seriesOf = (model: string): "M" | "S" | "P" | null => {
     per stop but the last, each joint feeding its stop and the next joint,
     the last joint feeding the last two (the book's Fig. 12-2-1A without a
     header). A stop is a City Multi head, or a branch box carrying the heads
-    that go on one (`boxed`), as many to a box as the biggest box's ports.
+    that go on one (`boxed`): as few boxes as the biggest box's ports need,
+    the heads shared evenly between them.
     One stop hangs straight off the outdoor. */
 export function provisionalVrfTree(
   oduId: string,
@@ -191,11 +192,16 @@ export function provisionalVrfTree(
   const stops: string[] = [];
   const onBoxes = heads.filter((h) => boxed.has(h.id));
   for (const h of heads) if (!boxed.has(h.id)) stops.push(h.id);
-  for (let b = 0; b * portsPerBox < onBoxes.length; b++) {
+  /* as few boxes as the ports need, the heads shared evenly between them:
+     six heads are 3 + 3 on two small boxes, not 5 + 1 (Isaac, 2026-09-29) */
+  const boxCount = Math.ceil(onBoxes.length / Math.max(1, portsPerBox));
+  let next = 0;
+  for (let b = 0; b < boxCount; b++) {
     const box = `b:${b + 1}`;
+    const take = Math.floor(onBoxes.length / boxCount) + (b < onBoxes.length % boxCount ? 1 : 0);
     nodes.push({ id: box, kind: "box" });
-    for (const h of onBoxes.slice(b * portsPerBox, (b + 1) * portsPerBox))
-      sections.push({ id: `s:${h.id}`, from: box, to: h.id, lengthM: null });
+    for (const h of onBoxes.slice(next, next + take)) sections.push({ id: `s:${h.id}`, from: box, to: h.id, lengthM: null });
+    next += take;
     stops.push(box);
   }
   if (stops.length === 1) {

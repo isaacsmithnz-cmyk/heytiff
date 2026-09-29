@@ -71,7 +71,7 @@ import { isAirCapable } from "@/lib/studio/modules";
 import { deleteZone } from "@/lib/studio/builder";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf } from "@/lib/studio/graph";
-import { branchBoxObject, jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
+import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
 
 /** a branch box on the plan: PAC-MK34BC / MK54BC are both 450 × 280 mm (M-P0860 p.44) */
 const BOX_W_MM = 450;
@@ -1228,6 +1228,22 @@ export function StudioCanvas({
   /* viewport starts from an assumed size and re-fits once on first real
      measure (mount-time content captured in a ref — no setState in effects).
      Plan-sheet corners count as content so plan-backed floors open fitted. */
+  /** the system objects on this floor: units, risers, joints and boxes by
+      their point, runs by their dots (the Fit button's extra frame) */
+  const pipeworkPoints = useCallback((): Point[] => {
+    const pts: Point[] = [];
+    for (const o of doc.objects) {
+      if (o.floorId !== floor.id) continue;
+      if (o.geometry.kind === "point" && (o.type === "unit" || o.type === "riser" || o.type === "joint" || o.type === "branch-box"))
+        pts.push(o.geometry.at);
+      else if (o.geometry.kind === "polyline" && RUN_TYPES.has(o.type)) pts.push(...o.geometry.points);
+    }
+    return pts;
+  }, [doc.objects, floor.id]);
+  const pipeworkPointsRef = useRef(pipeworkPoints);
+  useEffect(() => {
+    pipeworkPointsRef.current = pipeworkPoints;
+  }, [pipeworkPoints]);
   const contentPoints = useCallback((): Point[] => {
     const pts = rooms.flatMap((r) => roomPoints(r));
     /* Notes count as content, and they are the one object type that has to:
@@ -1390,7 +1406,12 @@ export function StudioCanvas({
   const zoomInApi = useCallback(() => zoomBy(1.3), [zoomBy]);
   const zoomOutApi = useCallback(() => zoomBy(1 / 1.3), [zoomBy]);
   const fitApi = useCallback(() => {
-    const pts = contentPointsRef.current();
+    /* THE FIT BUTTON ALSO FRAMES THE PIPEWORK AND ITS UNITS: an outdoor is
+       often placed outside every zone (a yard, a roof), and on a design
+       without a plan sheet a Fit that framed only the zones left it, its runs
+       and its branch box off screen (seen 2026-09-29). Only here: the opening
+       frame and the pan limits keep reading the drawing itself. */
+    const pts = [...contentPointsRef.current(), ...pipeworkPointsRef.current()];
     if (boundsOfPoints(pts))
       commitVp(
         defaultViewport(
@@ -1889,6 +1910,8 @@ export function StudioCanvas({
           if (d.objects.find((o) => o.id === selectedId)?.type === "room") {
             return deleteRoom ? deleteRoom(d, selectedId) : deleteZone(d, null, selectedId);
           }
+          // a joint that cut a run puts the run back together (joints.ts)
+          if (d.objects.find((o) => o.id === selectedId)?.type === "joint") return deleteJoint(d, selectedId);
           // deleting an AHU carries its plenums (they're its plenums — spec
           // §10.3); runs that attached to it lose the ref and become open ends
           return {
@@ -2295,13 +2318,17 @@ export function StudioCanvas({
         const reach = pt.type === "branch-box" ? footprint(BOX_W_MM, BOX_D_MM).w / 2 : (pt.type === "joint" ? 8 : 12) / vp.zoom;
         if (dist(pointAt(pt), w) <= reach + tol) {
           const id = pt.id;
-          onMutate((d) => ({
-            ...d,
-            objects: stripAttachesTo(
-              d.objects.filter((o) => o.id !== id),
-              new Set([id])
-            ),
-          }));
+          onMutate((d) =>
+            pt.type === "joint"
+              ? deleteJoint(d, id)
+              : {
+                  ...d,
+                  objects: stripAttachesTo(
+                    d.objects.filter((o) => o.id !== id),
+                    new Set([id])
+                  ),
+                }
+          );
           if (selectedId === id) onSelect(null);
           return;
         }

@@ -14,7 +14,7 @@ import type { RoomObj } from "../loads-room";
 import { allocationsOf } from "../allocations";
 import { addHead, chooseOutdoor } from "../builder";
 import { newSystem } from "../zones";
-import { jointOnRun, nearestOnRuns } from "../joints";
+import { deleteJoint, jointOnRun, nearestOnRuns } from "../joints";
 import { systemVrfTree } from "../vrf-tree";
 import { buildSystemGraph } from "../graph";
 import { combinationWord, systemFindings } from "../verdict";
@@ -267,5 +267,26 @@ describe("on paper: the sheet and the picklist", () => {
     expect(sys.lines.filter((l) => l.name.endsWith("pair coil")).every((l) => l.qty === "—")).toBe(true);
     expect(sys.lines.some((l) => l.name === "Additional refrigerant")).toBe(false);
     expect(model.picklist.some((r) => r.name.endsWith("pair coil"))).toBe(false);
+  });
+});
+
+describe("deleting a joint (Isaac, 2026-09-29)", () => {
+  it("puts the run it cut back together and takes its branch with it", () => {
+    const t = page144Drawn();
+    const joints = t.doc.objects.filter((o) => o.type === "joint");
+    const runsBefore = t.doc.objects.filter((o) => o.type === "pipe-run").length;
+    const after = deleteJoint(t.doc, joints[0].id);
+    expect(after.objects.filter((o) => o.type === "joint")).toHaveLength(joints.length - 1);
+    // two halves became one, and the branch went: two fewer runs
+    expect(after.objects.filter((o) => o.type === "pipe-run")).toHaveLength(runsBefore - 2);
+    const graph = buildSystemGraph(after.objects, after.floors, t.systemId);
+    expect(graph.orphanRuns).toEqual([]);
+  });
+
+  it("a joint placed on its own just goes, leaving its runs loose", () => {
+    const t = page144Drawn();
+    const free = { id: "free", type: "joint", systemId: t.systemId, floorId: t.doc.floors[0].id, geometry: { kind: "point" as const, at: { x: 0, y: 9000 } }, plane: "room" as const, props: {} };
+    const d = { ...t.doc, objects: [...t.doc.objects, free] };
+    expect(deleteJoint(d, "free").objects.some((o) => o.id === "free")).toBe(false);
   });
 });

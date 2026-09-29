@@ -538,7 +538,8 @@ export function buildSummaryModel(
             .rows.filter((r) => r.group !== "Units" && !r.waiting && r.value !== "Not drawn")
             .map(toSheetLine)
         : compRows
-            .filter((c) => c.kind === "choice")
+            /* a mounting not chosen yet is no line at all */
+            .filter((c) => c.kind === "choice" && !(c.choice?.key === "mounting" && c.choice.selectedId === "none"))
             .map((c) => ({
               /* the choice catalogue's own key decides the shelf — an isolator is
                  electrical, a bracket is not, and neither this file nor the sheet

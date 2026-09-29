@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
+import { NoteWords } from "@/components/notes/note-words";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { DateField } from "@/components/ui/date-field";
 import {
@@ -174,17 +175,7 @@ function AttentionRow({
       </span>
       <span className="wb2-jcatttext">
         <b>
-          {face.words
-            ? face.words.map((w, i) =>
-                "pill" in w ? (
-                  <span key={i} className="wb2-jcattpill">
-                    {w.pill}
-                  </span>
-                ) : (
-                  w.text.replace(/\s+/g, " ")
-                ),
-              )
-            : face.title}
+          {face.words ? <NoteWords words={face.words.map((w) => ("text" in w ? { text: w.text.replace(/\s+/g, " ") } : w))} /> : face.title}
         </b>
         {face.meta && <em>{face.meta}</em>}
       </span>

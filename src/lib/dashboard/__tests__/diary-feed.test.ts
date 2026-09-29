@@ -68,6 +68,7 @@ describe("buildConversations", () => {
         from: "them",
         addressed: true,
         text: "Please call Mary to discuss",
+        words: [{ pill: "Isaac Smith", tone: 0 }, { text: " Please call Mary to discuss" }],
         named: "Isaac Please call Mary to discuss",
         at: "2026-09-21 13:42:10",
       },

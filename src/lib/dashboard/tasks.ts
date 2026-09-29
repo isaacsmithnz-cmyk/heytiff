@@ -36,7 +36,24 @@ export type DashTask = {
       moment for this to qualify, and reads as `at` because that costs nothing
       and every reminder written before the column existed was one. */
   remindKind: RemindKind;
+  /** Rows sharing this are ONE task given to several people
+      (docs/migrations/task_shared_group.sql). Absent or null: an ordinary
+      one-person task. */
+  groupId?: string | null;
 };
+
+/** One row per job: the copies of a task given to several people are one
+    task, so a list shows it once. The first of each group wins, so put the
+    viewer's own copy first. */
+export function onePerJob<T extends Pick<DashTask, "id" | "groupId">>(tasks: readonly T[]): T[] {
+  const seen = new Set<string>();
+  return tasks.filter((t) => {
+    const k = t.groupId ?? t.id;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
 
 /* A task you wrote for yourself is a private to-do; a task someone gave you is
    delegated work. Only delegated work is management's business — it's what

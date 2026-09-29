@@ -5,7 +5,7 @@ import { sm8Roster } from "@/lib/workboard/job-notes-query";
 import { quotedNote } from "@/lib/workboard/sm8-mentions";
 import { handleWords } from "./diary-feed";
 import { issueWhere } from "./issues";
-import { isDelegated, sortTasks } from "./tasks";
+import { isDelegated, onePerJob, sortTasks } from "./tasks";
 import { TASK_COLUMNS, toTask, type StaffNames } from "./tasks-query";
 import { asTargetKind, targetWords } from "./target-words";
 import { TASK_EVENT_KINDS, missingTable, type TaskEventKind } from "./task-events";
@@ -168,7 +168,12 @@ export async function openTaskRecord(
   if (!canManage) q = q.eq("assigned_to", viewer!);
   const { data } = await q;
   const rows = ((data ?? []) as Rec[]).map((r) => toRecordTask(r, names));
-  return sortTasks(rows.filter((t) => (!!viewer && t.assigneeId === viewer) || (canManage && isDelegated(t))));
+  const shown = sortTasks(rows.filter((t) => (!!viewer && t.assigneeId === viewer) || (canManage && isDelegated(t))));
+  /* one row for a job given to several people, and the viewer's own copy is
+     the one kept */
+  return onePerJob([...shown.filter((t) => t.assigneeId === viewer), ...shown.filter((t) => t.assigneeId !== viewer)]).sort(
+    (a, b) => shown.indexOf(a) - shown.indexOf(b),
+  );
 }
 
 /** Done in the last 90 days that the viewer had a hand in: assigned it,
@@ -191,7 +196,13 @@ export async function doneTaskRecord(
     .order("done_at", { ascending: false })
     .limit(DONE_LIMIT);
   const rows = (data ?? []) as Rec[];
-  return { done: rows.map((r) => toRecordTask(r, names)), capped: rows.length >= DONE_LIMIT };
+  const mine = rows.map((r) => toRecordTask(r, names));
+  return {
+    done: onePerJob([...mine.filter((t) => t.assigneeId === viewer), ...mine.filter((t) => t.assigneeId !== viewer)]).sort(
+      (a, b) => mine.indexOf(a) - mine.indexOf(b),
+    ),
+    capped: rows.length >= DONE_LIMIT,
+  };
 }
 
 /* ── where each came from ── */

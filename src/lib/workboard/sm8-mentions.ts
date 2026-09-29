@@ -233,3 +233,41 @@ export function taskTitleFromNote(text: string, limit = 90): string {
   const clipped = first.length > limit ? `${first.slice(0, limit - 1).trimEnd()}…` : first;
   return clipped.charAt(0).toUpperCase() + clipped.slice(1);
 }
+
+/** A run of a note's words: plain text, or a person named in it. Each person
+    has their own colour, `tone`: the first person a note names is 0, the
+    next 1, so two people named together never share one, and the note wears
+    the same colours on every screen it is quoted on. */
+export type NoteWord = { text: string } | { pill: string; tone: number };
+
+/** How many colours a pill has (shell.css, `.wb2-jcattpill[data-tone]`). */
+export const PILL_TONES = 4;
+
+const PILL_HANDLE = /@([a-z0-9.'-]+)/gi;
+
+/** A note with each person it names — one we know — as a pill where their
+    @handle stood, and everything else exactly as written: an address, an
+    @word nobody owns, a possessive. */
+export function noteWithPills(
+  text: string,
+  people: ReadonlyMap<string, { name: string }>,
+): NoteWord[] {
+  const out: NoteWord[] = [];
+  const tones = new Map<string, number>();
+  let at = 0;
+  for (const m of text.matchAll(PILL_HANDLE)) {
+    const start = m.index ?? 0;
+    /* an "@" inside a word is an address, never a mention */
+    if (start > 0 && IN_ADDRESS.test(text[start - 1])) continue;
+    const raw = m[1].toLowerCase();
+    const hit = [raw, raw.replace(/[.'-]+$/, "")].find((c) => c && people.has(c));
+    if (!hit) continue;
+    const name = people.get(hit)!.name;
+    if (start > at) out.push({ text: text.slice(at, start) });
+    if (!tones.has(hit)) tones.set(hit, tones.size % PILL_TONES);
+    out.push({ pill: name, tone: tones.get(hit)! });
+    at = start + 1 + hit.length;
+  }
+  if (at < text.length) out.push({ text: text.slice(at) });
+  return out;
+}

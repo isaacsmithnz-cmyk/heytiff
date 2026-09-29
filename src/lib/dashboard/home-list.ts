@@ -499,7 +499,7 @@ export function placeList(input: ListInput): HomeList {
 
   /* ── tasks: yours and the team's, once each ── */
   const mentionOf = new Map((input.mentions ?? []).map((m) => [m.taskId, m]));
-  const tasks = onceEach(input.tasks, (t) => t.id)
+  const tasks = onceEach(input.tasks, (t) => t.groupId ?? t.id)
     .filter((t) => t.status === "open")
     .sort(byDueThenNewest);
   for (const t of tasks) {

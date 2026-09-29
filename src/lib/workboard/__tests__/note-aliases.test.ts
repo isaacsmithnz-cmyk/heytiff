@@ -5,6 +5,7 @@
 
 import {
   namesMentioned,
+  shortWhoLabels,
   peopleNamed,
   resolveAssignee,
   shapeProposal,
@@ -92,5 +93,54 @@ describe("the question and the answer", () => {
   it("tells the model the names people go by", () => {
     expect(whoBlock(modal(KNOWN))).toContain("Leonardo Martins (also called Bobo, Big Leo)");
     expect(whoBlock(modal(STAFF))).toContain("People who can be assigned work: Isaac Smith, Leonardo Martins, Bobby Tran.");
+  });
+});
+
+/* TWO ALEXES (Isaac, 2026-09-29): "Alex L or Alex B?" — the question offers
+   each by the least that tells them apart, and "Alex L" said or tapped is
+   Alex Lomond straight away. */
+describe("two people with one first name", () => {
+  const ALEX_L: NoteStaff = { id: "s-al", fullName: "Alex Lomond" };
+  const ALEX_B: NoteStaff = { id: "s-ab", fullName: "Alex Brown" };
+  const ALEX_LE: NoteStaff = { id: "s-ale", fullName: "Alex Lee" };
+  const CREW = [ISAAC, ALEX_L, ALEX_B];
+
+  it("(F) asks 'Which Alex did you mean?' offering Alex L and Alex B", () => {
+    const p = shapeProposal(task("Alex"), modal(CREW));
+    expect(p.clarify).toEqual({ question: "Which Alex did you mean?", options: ["Alex L", "Alex B"] });
+  });
+
+  it("(F) takes as much of the surname as it needs, and the whole name where nothing less will do", () => {
+    expect(shortWhoLabels(["Alex Lomond", "Alex Brown"])).toEqual(["Alex L", "Alex B"]);
+    expect(shortWhoLabels(["Alex Lomond", "Alex Lee"])).toEqual(["Alex Lo", "Alex Le"]);
+    expect(shortWhoLabels(["Alex Lomond", "Alex Lomondi"])).toEqual(["Alex Lomond", "Alex Lomondi"]);
+    expect(shortWhoLabels(["Alex", "Alex Brown"])).toEqual(["Alex", "Alex B"]);
+  });
+
+  it("(F) resolves 'Alex L' — said or tapped — to Alex Lomond, with no question", () => {
+    for (const said of ["Alex L", "alex l.", "Alex Lom", "Alex Lomond"]) {
+      expect([said, resolveAssignee(said, CREW, ISAAC.id)]).toEqual([said, { kind: "one", id: "s-al" }]);
+    }
+    const p = shapeProposal(task("Alex B"), modal(CREW));
+    expect(p.clarify).toBeNull();
+    expect(p.tasks[0].assigneeId).toBe("s-ab");
+  });
+
+  it("asks again only where the start still fits two", () => {
+    expect(resolveAssignee("Alex L", [...CREW, ALEX_LE], ISAAC.id)).toEqual({ kind: "ambiguous", names: ["Alex Lomond", "Alex Lee"] });
+    expect(resolveAssignee("Alex Lo", [...CREW, ALEX_LE], ISAAC.id)).toEqual({ kind: "one", id: "s-al" });
+  });
+
+  it("(F) reads 'Alex L' in an answer as Alex Lomond alone, so Bobo can be learned from it", () => {
+    expect(peopleNamed("Alex L", CREW, ISAAC.id)).toEqual(["s-al"]);
+    expect(peopleNamed("it's alex b", CREW, ISAAC.id)).toEqual(["s-ab"]);
+    expect(peopleNamed("alex", CREW, ISAAC.id)).toEqual(["s-al", "s-ab"]);
+    // running words aren't initials: "and" isn't Alex Anderson
+    const withAnderson = [...CREW, { id: "s-aa", fullName: "Alex Anderson" }];
+    expect(peopleNamed("tell alex and bobby", withAnderson, ISAAC.id).sort()).toEqual(["s-aa", "s-ab", "s-al"]);
+  });
+
+  it("offers Alex L among the names a note mentions", () => {
+    expect(namesMentioned("tell alex about it", CREW, ISAAC.id)).toEqual(["Alex L", "Alex B"]);
   });
 });

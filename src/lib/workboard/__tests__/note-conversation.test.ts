@@ -211,9 +211,9 @@ describe("namesMentioned", () => {
     ]);
   });
 
-  it("offers a shared first name whole, so picking it can't ask again", () => {
+  it("offers a shared first name with its surname's initial, so picking it can't ask again", () => {
     const twoLyles = [...STAFF, { id: "s-lyle-t", fullName: "Lyle Tran" }];
-    expect(namesMentioned("tell lyle", twoLyles, "s-me")).toEqual(["Lyle Nguyen", "Lyle Tran"]);
+    expect(namesMentioned("tell lyle", twoLyles, "s-me")).toEqual(["Lyle N", "Lyle T"]);
   });
 
   it("matches whole words only", () => {

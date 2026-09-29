@@ -145,6 +145,17 @@ export const SECTIONS: AdminGroup[] = [
         show: (v) => v.canFinancials,
       },
       {
+        /* `financials`, like the calculator: markup and buy prices are the
+           business's money. Its own place, not the calculator's — that one
+           works out the labour rate and nothing else. */
+        title: "Quoting",
+        sub: "Markup and preferred items",
+        icon: "tag",
+        accent: "#2E68FF",
+        href: "/dashboard/admin/quoting",
+        show: (v) => v.canFinancials,
+      },
+      {
         /* `financials`, alongside the calculator: this is the business's
            money, and the same grant is what lets an owner hand a bookkeeper
            the export without handing over the workspace. */

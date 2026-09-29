@@ -11927,3 +11927,39 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .wr-checksl { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .fg .wr-checksl b { font-size:14px; font-weight:700; color:var(--ink); }
 .fg .wr-checksl em { font-style:normal; font-size:12px; font-weight:600; color:var(--q); }
+
+/* ── ADMIN · QUOTING (components/admin/quoting-screen) ──
+   Two groups, a hairline top each (law 9: read, not acted on as a box). The
+   markup fields sit in a row with their profit share under each; the
+   preferred items are a ruled table, the open row filled with the
+   selection tint and its shortlist below it. */
+.qs-group { padding:16px 0 24px; border-top:1px solid var(--line); }
+.qs-group:first-of-type { border-top:0; padding-top:0; }
+.qs-h { margin:0; font-size:16px; font-weight:600; }
+.qs-sub { margin:4px 0 0; font-size:13px; font-weight:500; color:var(--q); }
+.qs-fields { display:flex; flex-wrap:wrap; gap:24px; margin-top:12px; }
+.qs-field { display:flex; flex-direction:column; gap:4px; }
+.qs-field > span:first-child { font-size:13px; font-weight:500; color:var(--q); }
+.qs-in { display:flex; align-items:center; gap:8px; }
+.qs-in .wb2-fi { width:96px; font-variant-numeric:tabular-nums; }
+.qs-in em { font-style:normal; font-size:14px; color:var(--q); }
+.qs-share { font-style:normal; font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
+.qs-table { margin-top:12px; display:flex; flex-direction:column; }
+.qs-row { display:grid; grid-template-columns:200px minmax(0, 1fr) 96px 160px 160px 132px; gap:12px; align-items:center;
+  padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
+.qs-row.on { background:var(--tint); }
+.qs-headrow { border-top:0; font-size:13px; font-weight:500; color:var(--q); }
+.qs-row b { font-weight:600; }
+.qs-row .num, .qs-list .num { text-align:right; font-variant-numeric:tabular-nums; }
+.qs-item { min-width:0; }
+.qs-item em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--q); }
+.qs-none { color:var(--q); }
+.qs-act { display:flex; justify-content:flex-end; }
+.qs-pick { padding:8px 0 16px 212px; }
+.qs-roll { display:flex; align-items:flex-end; gap:12px; margin-bottom:8px; }
+.qs-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+.qs-list li { display:grid; grid-template-columns:minmax(0, 1fr) 96px 160px 132px; gap:12px; align-items:center;
+  padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
+.qs-list li.on { background:var(--tint); }
+.qs-chosen { font-style:normal; font-size:14px; font-weight:500; }
+.qs-chosen.ok { color:var(--ok-t); }

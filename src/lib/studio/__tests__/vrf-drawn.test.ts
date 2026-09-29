@@ -19,7 +19,7 @@ import { systemVrfTree } from "../vrf-tree";
 import { buildSystemGraph } from "../graph";
 import { combinationWord, doneBlockers, systemFindings } from "../verdict";
 import { buildSummaryModel } from "../summary";
-import { pairSize, pipeViewOf, sizeTone, tubeSize } from "../pipe-sizes";
+import { pairSize, pipeViewOf, setRunSizes, sizeTone, tubeSize } from "../pipe-sizes";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -391,5 +391,33 @@ describe("deleting from the schematic", () => {
     const rejoined = deleteFromSchematic(cut, { kind: "joint", id: joint.id });
     expect(rejoined.objects.some((o) => o.id === joint.id)).toBe(false);
     expect(runsOf(rejoined, t.systemId)).toHaveLength(runsOf(cut, t.systemId).length - 1);
+  });
+});
+
+/* a size set by hand from the schematic (Isaac, 2026-09-29): it wins over the
+   book, the book's size is kept beside it, the charge follows, and clearing
+   it gives the book's back */
+describe("overriding a section's size", () => {
+  it("takes the hand-set size, keeps the book's, and clears back", () => {
+    const t = page144Drawn();
+    const sys = () => t.doc.systems.find((s) => s.id === t.systemId)!;
+    const before = pipeViewOf(t.doc, pack, sys())!;
+    const toP40 = before.sections.find((s) => s.to === t.heads[40])!;
+    const book = { liquidMm: toP40.liquidMm, gasMm: toP40.gasMm };
+    const chargeBefore = systemVrfTree(pack, sys(), t.doc)!.chargeG;
+
+    const set = setRunSizes(t.doc, toP40.edges, { liquidMm: 9.52, gasMm: 15.88 });
+    const after = pipeViewOf(set, pack, set.systems.find((s) => s.id === t.systemId)!)!;
+    const sec = after.sections.find((s) => s.to === t.heads[40])!;
+    expect([sec.liquidMm, sec.gasMm]).toEqual([9.52, 15.88]);
+    expect(sec.override).toEqual({ bookLiquidMm: book.liquidMm, bookGasMm: book.gasMm });
+    // a bigger liquid line holds more refrigerant
+    expect(systemVrfTree(pack, set.systems.find((s) => s.id === t.systemId)!, set)!.chargeG!).toBeGreaterThan(chargeBefore!);
+
+    const cleared = setRunSizes(set, toP40.edges, null);
+    const back = pipeViewOf(cleared, pack, cleared.systems.find((s) => s.id === t.systemId)!)!;
+    const again = back.sections.find((s) => s.to === t.heads[40])!;
+    expect([again.liquidMm, again.gasMm]).toEqual([book.liquidMm, book.gasMm]);
+    expect(again.override).toBeUndefined();
   });
 });

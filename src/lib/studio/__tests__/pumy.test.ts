@@ -454,7 +454,7 @@ describe("a branch box's ports and reducers", () => {
     );
   });
 
-  it("an AP50 takes port E as is; a 60 and a 71 take 3/8\" ports with the manual's joints", () => {
+  it("a head that fits port E takes it as is; bigger pipes take 3/8\" ports with the manual's joints", () => {
     const ports = boxPorts(mk54, [
       sec("ap71", 9.52, 15.88),
       sec("ap60", 6.35, 15.88),
@@ -476,5 +476,26 @@ describe("a branch box's ports and reducers", () => {
   it("a size the manual has no joint for says its sizes, with no part", () => {
     const [p] = boxPorts({ port_liquid_mm: [6.35], port_gas_mm: [9.52] }, [sec("h", 6.35, 25.4)], reducers)!;
     expect(p.reducer).toEqual({ gas: { fromMm: 9.52, toMm: 25.4, part: null } });
+  });
+});
+
+/* Isaac, 2026-09-29: "The MSZ AP 71 pipe size is quarter half" — a head on a
+   box is piped at its own flares; the book's table (3/8" / 5/8" for an M or
+   S 71) is the stand-in only when the pack has no connection sizes */
+describe("a head's pipe off a branch box", () => {
+  it("is the head's own connection size: an MSZ-AP71 is 1/4 in / 1/2 in", () => {
+    expect(idu("MSZ-AP71VGD2")).toMatchObject({ conn_liquid_mm: 6.35, conn_gas_mm: 12.7 });
+    const heads = [
+      { id: "a", model: "MSZ-AP71VGD2" },
+      { id: "b", model: "MSZ-AP25VGD2" },
+    ];
+    const tree = provisionalVrfTree("OU", heads, new Set(["a", "b"]), 5);
+    const sized = sizeVrfTree(pack, odu("PUMY-SP125VKMD2-A"), tree);
+    const toA = sized.sections.find((s) => s.to === "a")!;
+    expect([toA.liquidMm, toA.gasMm]).toEqual([6.35, 12.7]);
+    // on a 3/8" port it needs the 3/8" to 1/2" joint, and nothing on the liquid
+    const box = sized.fittings.find((f) => f.kind === "box")!;
+    const port = box.ports!.find((p) => p.to === "a")!;
+    expect(port.reducer).toEqual(port.portGasMm === 12.7 ? null : { gas: { fromMm: 9.52, toMm: 12.7, part: "MAC-A454JP-E" } });
   });
 });

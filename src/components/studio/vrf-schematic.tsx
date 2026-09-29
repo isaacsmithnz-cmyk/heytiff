@@ -16,7 +16,7 @@ import type { DataPack } from "@/lib/studio/packs/schema";
 import { allocationsOf } from "@/lib/studio/allocations";
 import { blockingFindings, combinationWord, systemFindings } from "@/lib/studio/verdict";
 import { systemVrfTree, type SizedFitting, type SizedSection } from "@/lib/studio/vrf-tree";
-import { pairSize, sizeTone, type PipeUnits } from "@/lib/studio/pipe-sizes";
+import { TUBE_SIZES_MM, pairSize, setRunSizes, sizeTone, tubeSize, type PipeUnits } from "@/lib/studio/pipe-sizes";
 import { attachOf } from "@/lib/studio/graph";
 import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
 import { deleteFromSchematic, type SchematicTarget } from "@/lib/studio/joints";
@@ -49,6 +49,8 @@ export function VrfSchematic({
 }) {
   const tree = useMemo(() => systemVrfTree(pack, sys, doc), [pack, sys, doc]);
   const [picked, setPicked] = useState<string | null>(null);
+  /* the size being set by hand on the picked section, while its form is open */
+  const [sizing, setSizing] = useState<{ id: string; liquidMm: number; gasMm: number } | null>(null);
 
   const layout = useMemo(() => {
     if (!tree || !tree.sections.length) return null;
@@ -360,84 +362,151 @@ export function VrfSchematic({
             ))}
         </div>
       )}
-      {pickedLoose && (
-        <dl className="ds-schem-card">
-          <div>
-            <dt>Pipe</dt>
-            <dd>{pickedLoose.from ? `From ${pickedLoose.from}, reaching nothing` : "Reaching nothing at either end"}</dd>
-          </div>
-          {pickedLoose.lengthM != null && (
-            <div>
-              <dt>Length</dt>
-              <dd>{`${pickedLoose.lengthM.toFixed(1)} m`}</dd>
+      {(pickedLoose || pickedSection || pickedFitting) && (
+        /* THE PICKED THING, pinned under the drawing with what can be done to
+           it (Isaac, 2026-09-29): Delete for anything, Override for a pipe's
+           size — the same place a duct will take its size by hand */
+        <div className="ds-schem-inspect" role="region" aria-label="Selected on the schematic">
+          <dl className="ds-schem-card">
+            {pickedLoose && (
+              <>
+                <div>
+                  <dt>Pipe</dt>
+                  <dd>{pickedLoose.from ? `From ${pickedLoose.from}, reaching nothing` : "Reaching nothing at either end"}</dd>
+                </div>
+                {pickedLoose.lengthM != null && (
+                  <div>
+                    <dt>Length</dt>
+                    <dd>{`${pickedLoose.lengthM.toFixed(1)} m`}</dd>
+                  </div>
+                )}
+              </>
+            )}
+            {pickedSection && (
+              <>
+                <div>
+                  <dt>Pipe</dt>
+                  <dd>{`${nameOf(pickedSection.from)} to ${nameOf(pickedSection.to)}`}</dd>
+                </div>
+                <div>
+                  <dt>{pickedSection.override ? "Liquid / gas, set by hand" : "Liquid / gas"}</dt>
+                  <dd>{both(pickedSection)}</dd>
+                </div>
+                {pickedSection.override && (
+                  <div>
+                    <dt>{"The book's size"}</dt>
+                    <dd>{pairSize(pickedSection.override.bookLiquidMm, pickedSection.override.bookGasMm, units)}</dd>
+                  </div>
+                )}
+                {pickedSection.lengthM != null && (
+                  <div>
+                    <dt>Length</dt>
+                    <dd>{`${pickedSection.lengthM.toFixed(1)} m`}</dd>
+                  </div>
+                )}
+              </>
+            )}
+            {pickedFitting && (
+              <>
+                <div>
+                  <dt>{pickedFitting.kind === "box" ? "Branch box" : pickedFitting.kind === "header" ? "Header" : "Joint"}</dt>
+                  <dd>{pickedFitting.part ?? "No part in the book"}</dd>
+                </div>
+                {tree.sections
+                  .filter((s) => s.to === pickedFitting.nodeId)
+                  .map((s) => (
+                    <div key={s.id}>
+                      <dt>In</dt>
+                      <dd>{both(s)}</dd>
+                    </div>
+                  ))}
+                {tree.sections
+                  .filter((s) => s.from === pickedFitting.nodeId)
+                  .map((s) => {
+                    const port = pickedFitting.ports?.find((p) => p.to === s.to);
+                    const fits = port?.reducer
+                      ? [port.reducer.liquid, port.reducer.gas]
+                          .filter((r): r is NonNullable<typeof r> => r != null)
+                          .map((r) => r.part ?? `${r.fromMm} to ${r.toMm} mm joint`)
+                          .join(" + ")
+                      : "";
+                    return (
+                      <div key={s.id}>
+                        <dt>{`Out to ${nameOf(s.to)}${port ? ` (port ${port.port})` : ""}`}</dt>
+                        <dd>{`${both(s)}${fits ? `, needs ${fits} at the box` : ""}`}</dd>
+                      </div>
+                    );
+                  })}
+              </>
+            )}
+          </dl>
+          {onEdit && pickedSection && sizing?.id === pickedSection.id && (
+            <div className="ds-schem-size">
+              {(["liquidMm", "gasMm"] as const).map((k) => (
+                <label key={k}>
+                  <span>{k === "liquidMm" ? "Liquid" : "Gas"}</span>
+                  <select
+                    value={sizing[k]}
+                    onChange={(e) => setSizing({ ...sizing, [k]: Number(e.target.value) })}
+                  >
+                    {TUBE_SIZES_MM.map((mm) => (
+                      <option key={mm} value={mm}>
+                        {tubeSize(mm, units)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+              <button
+                type="button"
+                className="ds-schem-act primary"
+                onClick={() => {
+                  const edges = pickedSection.edges;
+                  const size = { liquidMm: sizing.liquidMm, gasMm: sizing.gasMm };
+                  onEdit((d) => setRunSizes(d, edges, size));
+                  setSizing(null);
+                }}
+              >
+                Save size
+              </button>
+              <button type="button" className="ds-schem-act" onClick={() => setSizing(null)}>
+                Cancel
+              </button>
             </div>
           )}
           {onEdit && (
-            <div>
-              <dt />
-              <dd>
-                <button type="button" className="ds-schem-erase" onClick={erase}>
-                  Erase this pipe
+            <div className="ds-schem-actions">
+              {pickedSection && pickedSection.edges.length > 0 && sizing?.id !== pickedSection.id && (
+                <button
+                  type="button"
+                  className="ds-schem-act"
+                  onClick={() =>
+                    setSizing({ id: pickedSection.id, liquidMm: pickedSection.liquidMm, gasMm: pickedSection.gasMm })
+                  }
+                >
+                  Override size
                 </button>
-              </dd>
+              )}
+              {pickedSection?.override && (
+                <button
+                  type="button"
+                  className="ds-schem-act"
+                  onClick={() => {
+                    const edges = pickedSection.edges;
+                    onEdit((d) => setRunSizes(d, edges, null));
+                  }}
+                >
+                  {"Use the book's size"}
+                </button>
+              )}
+              {target && (
+                <button type="button" className="ds-schem-act bad" onClick={erase}>
+                  Delete
+                </button>
+              )}
             </div>
           )}
-        </dl>
-      )}
-      {(pickedSection || pickedFitting) && (
-        <dl className="ds-schem-card">
-          {pickedSection && (
-            <>
-              <div>
-                <dt>Pipe</dt>
-                <dd>{`${nameOf(pickedSection.from)} to ${nameOf(pickedSection.to)}`}</dd>
-              </div>
-              <div>
-                <dt>Liquid / gas</dt>
-                <dd>{both(pickedSection)}</dd>
-              </div>
-              {pickedSection.lengthM != null && (
-                <div>
-                  <dt>Length</dt>
-                  <dd>{`${pickedSection.lengthM.toFixed(1)} m`}</dd>
-                </div>
-              )}
-            </>
-          )}
-          {pickedFitting && (
-            <>
-              <div>
-                <dt>{pickedFitting.kind === "box" ? "Branch box" : pickedFitting.kind === "header" ? "Header" : "Joint"}</dt>
-                <dd>{pickedFitting.part ?? "No part in the book"}</dd>
-              </div>
-              {tree.sections
-                .filter((s) => s.to === pickedFitting.nodeId)
-                .map((s) => (
-                  <div key={s.id}>
-                    <dt>In</dt>
-                    <dd>{both(s)}</dd>
-                  </div>
-                ))}
-              {tree.sections
-                .filter((s) => s.from === pickedFitting.nodeId)
-                .map((s) => {
-                  const port = pickedFitting.ports?.find((p) => p.to === s.to);
-                  const fits = port?.reducer
-                    ? [port.reducer.liquid, port.reducer.gas]
-                        .filter((r): r is NonNullable<typeof r> => r != null)
-                        .map((r) => r.part ?? `${r.fromMm} to ${r.toMm} mm joint`)
-                        .join(" + ")
-                    : "";
-                  return (
-                    <div key={s.id}>
-                      <dt>{`Out to ${nameOf(s.to)}${port ? ` (port ${port.port})` : ""}`}</dt>
-                      <dd>{`${both(s)}${fits ? `, needs ${fits} at the box` : ""}`}</dd>
-                    </div>
-                  );
-                })}
-            </>
-          )}
-        </dl>
+        </div>
       )}
     </section>
   );

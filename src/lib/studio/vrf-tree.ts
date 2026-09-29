@@ -61,6 +61,9 @@ export interface VrfTreeSection {
   /** the drawn runs it is made of (graph edge ids: pipe-run object ids, or
       a riser gap); empty on the provisional tree */
   edges?: string[];
+  /** a size set by hand on its runs (the schematic's Override), which the
+      sizer takes over the book's */
+  override?: { liquidMm: number; gasMm: number };
 }
 
 export interface VrfTree {
@@ -89,6 +92,10 @@ export interface SizedSection {
   bends: number;
   /** the drawn runs it is made of — the plan lights them together */
   edges: string[];
+  /** set by hand over the book's size: the book's size, kept to show beside
+      it (Isaac, 2026-09-29: "for a pipe size we may override that just
+      based on something that might affect it on site") */
+  override?: { bookLiquidMm: number; bookGasMm: number };
 }
 
 export interface SizedFitting {
@@ -380,7 +387,18 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
           series && code != null
             ? table.box_head_sizing?.find((r) => r.series === series && code >= r.code_min && code <= r.code_max)
             : undefined;
-        size = row ? { liquid: row.liquid_mm, gas: row.gas_mm } : null;
+        /* THE HEAD'S OWN FLARES FIRST: the box manual says "match the piping
+           connection size for indoor unit and branch box" (WG79B748H02), and
+           the book's table lumps M with S — its 3/8" / 5/8" for a 71 is the
+           ducted SEZ's, while an MSZ-AP71 flares 1/4" / 1/2" (Isaac,
+           2026-09-29; M-P Series data book C-10). The table stands in where
+           the pack has no connection sizes for the head. */
+        size =
+          u?.conn_liquid_mm && u?.conn_gas_mm
+            ? { liquid: u.conn_liquid_mm, gas: u.conn_gas_mm }
+            : row
+              ? { liquid: row.liquid_mm, gas: row.gas_mm }
+              : null;
       } else if (to.kind === "idu") {
         role = "branch";
         size = sizeBy(table.branch_sizing ?? table.pipe_sizing, down, downKw);
@@ -677,6 +695,19 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
       });
   }
 
+  /* A SIZE SET BY HAND wins over every rule above, and the fittings, the
+     ports' joints and the charge below all follow it; the book's size stays
+     on the section so the schematic can say what it overrode */
+  for (const t of tree.sections) {
+    const sec = t.override ? sized.get(t.id) : undefined;
+    if (!sec || !t.override) continue;
+    if (Math.abs(sec.liquidMm - t.override.liquidMm) < 0.01 && Math.abs(sec.gasMm - t.override.gasMm) < 0.01) continue;
+    sec.override = { bookLiquidMm: sec.liquidMm, bookGasMm: sec.gasMm };
+    sec.liquidMm = t.override.liquidMm;
+    sec.gasMm = t.override.gasMm;
+    sec.upsized = false;
+  }
+
   /* fittings */
   const fittings: SizedFitting[] = [];
   const boxParts = pack.parts
@@ -897,6 +928,15 @@ export function drawnVrfTree(
   };
   const guard = new Set<string>([oduId]);
   for (const n of out.get(oduId) ?? []) add(oduId, n.to, n.lengthM, n.riseM, n.bends, guard, [n.edge]);
+  /* a size set by hand on a section's runs (props liquidMm/gasMm, the same
+     per-run override a split's pipe wears) */
+  const runById = new Map(doc.objects.map((o) => [o.id, o]));
+  for (const sec of sections) {
+    const r = (sec.edges ?? [])
+      .map((e) => runById.get(e))
+      .find((o) => Number(o?.props.liquidMm) > 0 && Number(o?.props.gasMm) > 0);
+    if (r) sec.override = { liquidMm: Number(r.props.liquidMm), gasMm: Number(r.props.gasMm) };
+  }
   return { tree: { nodes, sections, provisional: false }, joined };
 }
 

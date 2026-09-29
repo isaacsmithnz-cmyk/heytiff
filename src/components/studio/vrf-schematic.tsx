@@ -14,7 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { DesignDocument, DesignSystem } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { allocationsOf } from "@/lib/studio/allocations";
-import { blockingFindings, combinationWord, systemFindings } from "@/lib/studio/verdict";
+import { blockingFindings, combinationWord, strayFittingIds, systemFindings } from "@/lib/studio/verdict";
 import { systemVrfTree, type SizedFitting, type SizedSection } from "@/lib/studio/vrf-tree";
 import { TUBE_SIZES_MM, pairSize, setRunSizes, sizeTone, tubeSize, type PipeUnits } from "@/lib/studio/pipe-sizes";
 import { attachOf } from "@/lib/studio/graph";
@@ -108,6 +108,10 @@ export function VrfSchematic({
   const targetOf = (id: string | null): SchematicTarget | null => {
     if (!id) return null;
     if (id.startsWith("loose:")) return { kind: "runs", ids: [id.slice(6)] };
+    if (id.startsWith("stray:")) {
+      const o = doc.objects.find((x) => x.id === id.slice(6));
+      return o ? (o.type === "branch-box" ? { kind: "box", id: o.id } : { kind: "joint", id: o.id }) : null;
+    }
     if (!tree || !layout) return null;
     const f = layout.fit.get(id);
     if (f) return f.kind === "box" ? { kind: "box", id } : { kind: "joint", id };
@@ -233,6 +237,16 @@ export function VrfSchematic({
       };
     });
   const pickedLoose = loose.find((l) => `loose:${l.id}` === picked);
+  /* joints that branch nothing and boxes with no pipe: no part of the tree,
+     so listed under the drawing like a loose pipe, to be deleted */
+  const stray = (() => {
+    const { joints, boxes } = strayFittingIds(doc, sys);
+    return [
+      ...joints.map((id) => ({ id, what: "A joint that branches nothing" })),
+      ...boxes.map((id) => ({ id, what: "A branch box with no pipes" })),
+    ];
+  })();
+  const pickedStray = stray.find((x) => `stray:${x.id}` === picked);
 
 
 
@@ -351,6 +365,15 @@ export function VrfSchematic({
           })}
         </svg>
       </div>
+      {stray.length > 0 && (
+        <div className="ds-schem-loose-list">
+          {stray.map((x) => (
+            <button key={x.id} type="button" className="ds-schem-loose-btn" onClick={() => setPicked(`stray:${x.id}`)}>
+              {x.what}
+            </button>
+          ))}
+        </div>
+      )}
       {loose.some((l) => !l.anchorId) && (
         <div className="ds-schem-loose-list">
           {loose
@@ -362,12 +385,18 @@ export function VrfSchematic({
             ))}
         </div>
       )}
-      {(pickedLoose || pickedSection || pickedFitting) && (
+      {(pickedLoose || pickedStray || pickedSection || pickedFitting) && (
         /* THE PICKED THING, pinned under the drawing with what can be done to
            it (Isaac, 2026-09-29): Delete for anything, Override for a pipe's
            size — the same place a duct will take its size by hand */
         <div className="ds-schem-inspect" role="region" aria-label="Selected on the schematic">
           <dl className="ds-schem-card">
+            {pickedStray && (
+              <div>
+                <dt>On the plan</dt>
+                <dd>{pickedStray.what}</dd>
+              </div>
+            )}
             {pickedLoose && (
               <>
                 <div>

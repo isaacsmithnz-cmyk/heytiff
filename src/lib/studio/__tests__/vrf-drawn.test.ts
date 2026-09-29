@@ -421,3 +421,25 @@ describe("overriding a section's size", () => {
     expect(again.override).toBeUndefined();
   });
 });
+
+/* Isaac, 2026-09-29: "if I put a join on somewhere and just leave it, it just
+   gets placed, but it's not actually connected to anything" */
+describe("a joint that branches nothing", () => {
+  it("is red with its fix, a box with no pipes too, and Delete takes them", () => {
+    const t = page144Drawn();
+    const sys = () => t.doc.systems.find((s) => s.id === t.systemId)!;
+    const codes = () => systemFindings(t.doc, pack, sys()).map((f) => f.code);
+    expect(codes()).not.toContain("stray-joint"); // four joints, three pipes on each
+    const floorId = t.doc.floors[0].id;
+    const lone = { id: "lone", type: "joint", systemId: t.systemId, floorId, plane: "room", geometry: { kind: "point", at: { x: 5, y: 5 } }, props: {} } as DesignObject;
+    const box = { id: "box", type: "branch-box", systemId: t.systemId, floorId, plane: "room", geometry: { kind: "point", at: { x: 9, y: 9 } }, props: {} } as DesignObject;
+    t.doc = { ...t.doc, objects: [...t.doc.objects, lone, box] };
+    const f = systemFindings(t.doc, pack, sys());
+    expect(f.find((x) => x.code === "stray-joint")).toMatchObject({ severity: "red", drawing: true, message: "A joint branches nothing" });
+    expect(f.find((x) => x.code === "stray-box")?.message).toBe("A branch box has no pipes on it");
+    expect(doneBlockers(f).map((x) => x.code)).not.toContain("stray-joint");
+    t.doc = deleteFromSchematic(deleteFromSchematic(t.doc, { kind: "joint", id: "lone" }), { kind: "box", id: "box" });
+    expect(codes()).not.toContain("stray-joint");
+    expect(codes()).not.toContain("stray-box");
+  });
+});

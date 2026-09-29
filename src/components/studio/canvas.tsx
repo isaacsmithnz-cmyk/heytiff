@@ -73,6 +73,7 @@ import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf } from "@/lib/studio/graph";
 import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
 import { pipeRefusal } from "@/lib/studio/pipe-rules";
+import { strayFittingIds } from "@/lib/studio/verdict";
 import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
 import type { SizedSection } from "@/lib/studio/vrf-tree";
 import { usePipeUnits } from "./pipe-units";
@@ -972,6 +973,16 @@ export function StudioCanvas({
     }
     return { byRun, fittings };
   }, [doc, pack]);
+  /* joints that branch nothing and boxes with no pipe on, drawn in the bad
+     colour so they are found (verdict.ts strayFittingIds) */
+  const strayFits = useMemo(() => {
+    const ids = new Set<string>();
+    for (const sys of doc.systems) {
+      const { joints, boxes } = strayFittingIds(doc, sys);
+      for (const id of [...joints, ...boxes]) ids.add(id);
+    }
+    return ids;
+  }, [doc]);
   /* the runs lit with the selection: every run of the picked run's section */
   const litRuns = useMemo(() => {
     const sec = selectedId ? pipeView.byRun.get(selectedId) : undefined;
@@ -4757,7 +4768,7 @@ export function StudioCanvas({
             const fp = footprint(BOX_W_MM, BOX_D_MM);
             const part = pipeView.fittings.get(b.id)?.fitting.part;
             return (
-              <g key={b.id} className={`ds-bbox${b.id === selectedId ? " sel" : ""}`} style={{ color: "var(--ink)" }}>
+              <g key={b.id} className={`ds-bbox${b.id === selectedId ? " sel" : ""}`} style={{ color: strayFits.has(b.id) ? "var(--bad-t)" : "var(--ink)" }}>
                 <rect x={at.x - fp.w / 2} y={at.y - fp.h / 2} width={fp.w} height={fp.h} />
                 {part && layers.labels && (
                   <text x={at.x} y={at.y + fp.h / 2 + 12 / labelZoom} fontSize={10 / labelZoom} className="ds-bbox-part">
@@ -4773,7 +4784,7 @@ export function StudioCanvas({
             const at = pointAt(j);
             const half = 5 / zoom;
             return (
-              <g key={j.id} className={`ds-joint${j.id === selectedId ? " sel" : ""}`} style={{ color: "var(--ink)" }}>
+              <g key={j.id} className={`ds-joint${j.id === selectedId ? " sel" : ""}`} style={{ color: strayFits.has(j.id) ? "var(--bad-t)" : "var(--ink)" }}>
                 <rect x={at.x - half} y={at.y - half} width={half * 2} height={half * 2} />
               </g>
             );

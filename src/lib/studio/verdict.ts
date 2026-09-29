@@ -48,8 +48,49 @@ export function brandName(pack: DataPack, id: string): string {
 /** every finding on a system, red first */
 export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignSystem): SystemFinding[] {
   const out = combinationFindings(doc, pack, sys);
-  const loose = loosePipes(doc, sys);
-  return loose ? [...out, loose] : out;
+  const drawing = [loosePipes(doc, sys), ...strayFittings(doc, sys)].filter((f): f is SystemFinding => f != null);
+  return [...out, ...drawing];
+}
+
+/* A JOINT WITH NO T (Isaac, 2026-09-29: "if I put a join on somewhere and
+   just leave it, it just gets placed, but it's not actually connected to
+   anything"). A joint is one pipe in and two out: with fewer than three on it
+   it branches nothing — a part on the picklist doing no job. A branch box
+   with no pipe on at all is the same. */
+export function strayFittingIds(doc: DesignDocument, sys: DesignSystem): { joints: string[]; boxes: string[] } {
+  const on = new Map<string, number>();
+  for (const o of doc.objects) {
+    if (o.type !== "pipe-run" || o.systemId !== sys.id) continue;
+    for (const a of [attachOf(o.props.startAttach), attachOf(o.props.endAttach)])
+      if (a) on.set(a.id, (on.get(a.id) ?? 0) + 1);
+  }
+  const mine = doc.objects.filter((o) => o.systemId === sys.id);
+  return {
+    joints: mine.filter((o) => o.type === "joint" && (on.get(o.id) ?? 0) < 3).map((o) => o.id),
+    boxes: mine.filter((o) => o.type === "branch-box" && (on.get(o.id) ?? 0) === 0).map((o) => o.id),
+  };
+}
+
+function strayFittings(doc: DesignDocument, sys: DesignSystem): SystemFinding[] {
+  const { joints, boxes } = strayFittingIds(doc, sys);
+  const out: SystemFinding[] = [];
+  if (joints.length)
+    out.push({
+      severity: "red",
+      code: "stray-joint",
+      drawing: true,
+      message: joints.length === 1 ? "A joint branches nothing" : `${joints.length} joints branch nothing`,
+      fix: "A joint takes one pipe in and two out: branch a pipe off it, or delete it",
+    });
+  if (boxes.length)
+    out.push({
+      severity: "red",
+      code: "stray-box",
+      drawing: true,
+      message: boxes.length === 1 ? "A branch box has no pipes on it" : `${boxes.length} branch boxes have no pipes on them`,
+      fix: "Run the outdoor's pipe and its heads' to it, or delete it",
+    });
+  return out;
 }
 
 /* A REFRIGERANT PIPE THAT GOES NOWHERE (Isaac, 2026-09-29, walk C: "a pipe

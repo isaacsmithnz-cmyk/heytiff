@@ -3780,11 +3780,13 @@ export function StudioCanvas({
   const hintsOn = useHintsOn();
 
   /* in-progress guidance while a step tool is active */
-  /* a refrigerant run also ends on another run (a joint goes there) */
+  /* where a run can finish, in plain words (Isaac, 2026-09-29: "I can't
+     understand what it's trying to tell me"): a refrigerant pipe also
+     finishes on another pipe, which puts a joint there */
   const runEnds =
     tool === "pipe"
-      ? "Enter, double-click, an anchor or another run ends it"
-      : "Enter, double-click or an anchor ends it";
+      ? "Click a unit, a box or another pipe to finish, or press Enter to stop where you are. Esc cancels."
+      : "Click a unit to finish, or press Enter to stop where you are. Esc cancels.";
   const toolHint: { icon: string; text: string } | null =
     tool === "calibrate" && !(calib.a && calib.b)
       ? {
@@ -3821,8 +3823,8 @@ export function StudioCanvas({
             icon: tool === "cable" ? "zap" : tool === "drain" ? "droplet" : "pipe",
             text:
               tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft")
-                ? `Place dots — the line curves through them. ${runEnds} · Esc to cancel`
-                : `Click each corner. ${runEnds} · Esc to cancel`,
+                ? `Click to start, then click the points the line should curve through. ${runEnds}`
+                : `Click to start, then click at each bend. ${runEnds}`,
           }
       : tool === "joint"
         ? { icon: "pipe", text: "Click a run to branch it there, or anywhere to place a joint" }

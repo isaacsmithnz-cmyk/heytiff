@@ -60,7 +60,7 @@ export const loadStaffNames = staffNames;
    is `due_date` by construction (docs/migrations/task_reminders.sql), so it
    never disagrees with the due date it was composed from. */
 export const TASK_COLUMNS =
-  "id, title, detail, assigned_to, created_by, due_date, status, created_at, done_at, done_by, remind_at, remind_kind";
+  "id, title, detail, assigned_to, created_by, due_date, status, created_at, done_at, done_by, remind_at, remind_kind, group_id";
 
 /** A tasks row as the dashboard reads it. Exported for the new Home's Tasks
     face (./task-record-query), which reads a few columns more and builds on
@@ -85,6 +85,7 @@ export function toTask(r: Record<string, unknown>, name: (id: string) => string)
        `remindKindOf`. Doing that coalesce here as well would be a second
        opinion about the same absent value. */
     remindKind: remindKindOf(r.remind_kind as string | null),
+    groupId: typeof r.group_id === "string" && r.group_id ? r.group_id : null,
   };
 }
 

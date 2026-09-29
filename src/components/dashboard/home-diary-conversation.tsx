@@ -1,5 +1,6 @@
 "use client";
 
+import { NoteWords } from "@/components/notes/note-words";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { deleteDiaryEntry, hideConversation, showConversation, type DiaryResult } from "@/app/actions/diary";
 import {
@@ -349,7 +350,11 @@ function ThreadMessage({
         ) : (
           head
         )}
-        {m.text ? <p className="hd-dy-p">{m.text}</p> : null}
+        {m.text ? (
+          <p className="hd-dy-p">
+            {m.words.some((w) => "pill" in w) ? <NoteWords words={m.words} /> : m.text}
+          </p>
+        ) : null}
         {asking && (
           <Confirm
             question="Delete this reply for good?"

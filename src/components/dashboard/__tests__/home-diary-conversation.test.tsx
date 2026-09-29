@@ -218,8 +218,8 @@ describe("a conversation", () => {
     ]);
     expect(rows.map((r) => r.querySelector(".hd-dy-p")!.textContent)).toEqual([
       "her number is on the card",
-      "calling her this afternoon",
-      "thanks, she's expecting you",
+      "Lyle calling her this afternoon",
+      "Isaac thanks, she's expecting you",
     ]);
     // his discs grey with his initials, yours ink with yours
     expect(rows.map((r) => [r.querySelector(".hd-dy-av")!.textContent, r.querySelector(".hd-dy-av")!.getAttribute("data-who")])).toEqual([
@@ -287,7 +287,7 @@ describe("a reply of yours from HeyTiff", () => {
     draw({ diary: withReply(SENDING, "n-ask", asked) });
     const [row] = thread(talk());
     expect(row.querySelector(".hd-dy-m")!.textContent).toBe("You to Lyle, 9:10 am");
-    expect(row.querySelector(".hd-dy-p")!.textContent).toBe("calling her now");
+    expect(row.querySelector(".hd-dy-p")!.textContent).toBe("Lyle calling her now");
     expect(within(row).getByText("Sending to ServiceM8…")).toHaveClass("hd-dy-note");
     expect(within(lineOf()).queryByRole("button")).toBeNull();
     expect(document.querySelector('[data-entry="wn-reply"]')).toBeNull();

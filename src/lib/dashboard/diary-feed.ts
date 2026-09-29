@@ -59,7 +59,7 @@
    limit. */
 
 import { plusDays } from "@/lib/workboard/dates";
-import { mentionedHandles, namedNote, quotedNote } from "@/lib/workboard/sm8-mentions";
+import { mentionedHandles, namedNote, noteWithPills, quotedNote, type NoteWord } from "@/lib/workboard/sm8-mentions";
 import type { Sm8Person } from "@/lib/workboard/job-notes-query";
 import type { ReplyLine } from "./diary-reply";
 import type { DiaryEntry } from "./journal";
@@ -127,6 +127,9 @@ export type DiaryMessage = {
   /** Their words less the addressing; anybody else named, by name
       (quotedNote). */
   text: string;
+  /** Their words as written, in place: each person it names a coloured pill
+      where their @handle stood, the addressing included. */
+  words: NoteWord[];
   /** Their words with nothing taken out, everybody named by name and you
       by your first (namedNote): what Tiff reads, so she sees who each part
       of a note written to several people is to. */
@@ -265,6 +268,7 @@ export function buildConversations(input: {
   const names = handleWords(input.people);
   /* What Tiff reads: the same words, and you always by your first name,
      the one her prompt says the note's ask of you is made to. */
+  const pillPeople = new Map([...names].map(([h, name]) => [h.toLowerCase(), { name }] as const));
   const readNames = new Map(names);
   const myFirst = byUuid.get(me.uuid)?.first;
   if (myFirst) readNames.set(me.handle, myFirst);
@@ -326,6 +330,7 @@ export function buildConversations(input: {
       from,
       addressed,
       text: quotedNote(n.text, { names, addressing }),
+      words: noteWithPills(n.text, pillPeople),
       named: namedNote(n.text, readNames),
       at: n.at,
       ...(ours ? { ours } : {}),

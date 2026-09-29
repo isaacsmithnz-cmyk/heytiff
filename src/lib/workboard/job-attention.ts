@@ -36,6 +36,7 @@
    tables; the deciding is here where a test can see it. */
 
 import type { Severity } from "./note-brain";
+import { noteWithPills, type NoteWord } from "./sm8-mentions";
 
 /** How many rows the strip shows before it stops. Three is the whole design:
     a strip that lists nine things is a face, and a face is a tab. */
@@ -119,35 +120,7 @@ export type AttentionTask = {
   noteText?: string | null;
 };
 
-/** A run of a note's words: plain text, or a person named in it. */
-export type NoteWord = { text: string } | { pill: string };
-
-const HANDLE = /@([a-z0-9.'-]+)/gi;
-
-/** A note with each person it names — one we know — as a pill where their
-    @handle stood, and everything else exactly as written: an address, an
-    @word nobody owns, a possessive. */
-export function noteWithPills(
-  text: string,
-  people: ReadonlyMap<string, { name: string }>,
-): NoteWord[] {
-  const out: NoteWord[] = [];
-  let at = 0;
-  for (const m of text.matchAll(HANDLE)) {
-    const start = m.index ?? 0;
-    /* an "@" inside a word is an address, never a mention */
-    if (start > 0 && /[a-z0-9._%+-]/i.test(text[start - 1])) continue;
-    const raw = m[1].toLowerCase();
-    const hit = [raw, raw.replace(/[.'-]+$/, "")].find((c) => c && people.has(c));
-    if (!hit) continue;
-    const end = start + 1 + hit.length;
-    if (start > at) out.push({ text: text.slice(at, start) });
-    out.push({ pill: people.get(hit)!.name });
-    at = end;
-  }
-  if (at < text.length) out.push({ text: text.slice(at) });
-  return out;
-}
+export type { NoteWord } from "./sm8-mentions";
 
 /** One of ServiceM8's own notes, as the two mirror-fed sources read it. */
 export type AttentionNote = {

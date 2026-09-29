@@ -49,6 +49,11 @@ const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-ne
 const readJobFiles = jest.fn(async (): Promise<JobMediaGroupsRead | null> => null);
 /* Notes always; ledger null for a reader without money — the SERVER decides. */
 const readJobRecord = jest.fn(async (): Promise<JobRecordRead | null> => null);
+/* the Quote face's reads and edits; the face itself is tested on its own */
+jest.mock("@/app/actions/quote-draft", () => ({
+  readQuoteDraft: async () => null,
+  saveQuoteDraft: async () => ({ ok: false, error: "not in this test" }),
+}));
 jest.mock("@/app/actions/workboard", () => ({
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
   readClaim: (...a: unknown[]) => readClaim(...(a as [])),
@@ -420,6 +425,7 @@ describe("the card is tabs", () => {
     ).toEqual([
       "Summary",
       "Diary",
+      "Quote",
       "Money",
       "Visits",
       "Checklist",
@@ -440,6 +446,15 @@ describe("the card is tabs", () => {
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     expect(screen.queryByRole("tab", { name: "Money" })).toBeNull();
+  });
+
+  /* THE QUOTE TAB IS OFFICE WORK and spends API credit on every draft: it
+     is there for whoever runs the board, absent for everyone else. */
+  it("has no Quote tab without Workboard manage", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    await detailLanded();
+    expect(screen.queryByRole("tab", { name: "Quote" })).toBeNull();
   });
 
   /* A DOOR THAT KNOWS WHAT IT CAME FOR opens the card on that face — the

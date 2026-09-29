@@ -6985,6 +6985,33 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
 .wb2-jcsec > .wb2-sect { margin-bottom:4px; }
 .wb2-jcsec > .wb2-jcdhead { margin-bottom:4px; }
 .wb2-jcread { max-width:68ch; }
+/* ── THE QUOTE FACE (.wb2-jq) — a proposal draft, block by block ──────────
+   Each block is a GROUP, a hairline over it and its title, because what you
+   act on is the block's two words at the right (Edit, Copy), not a card
+   around it. The blocks follow the ServiceM8 Proposal's own order. */
+.wb2-jqblock { border-top:1px solid var(--line); padding-top:12px; }
+.wb2-jqbtns { margin-left:auto; display:flex; gap:8px; align-self:center; }
+.wb2-jqacts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
+.wb2-jqlead { margin-right:auto; }
+.wb2-jq .wb2-sherr { margin-top:8px; }
+.wb2-jqbul { margin:4px 0 0; padding-left:16px; list-style:disc; display:flex; flex-direction:column; gap:4px;
+  font-size:14px; line-height:1.5; color:var(--ink); max-width:68ch; }
+.wb2-jqnote { margin-top:8px; }
+.wb2-jqnote > b { font-size:13px; font-weight:600; }
+.wb2-jqmode { margin:4px 0 0; font-size:13px; font-weight:500; color:var(--q); }
+/* the pricing lines and the open questions are ruled lists: one row each,
+   a hairline between, the first row under the block's own head */
+.wb2-jqlines, .wb2-jqqs { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; }
+.wb2-jqlines li { display:grid; grid-template-columns:120px minmax(0, 1fr); gap:12px; padding:8px 0;
+  border-top:1px solid var(--line); font-size:14px; }
+.wb2-jqlines li span { font-size:13px; font-weight:500; color:var(--q); }
+.wb2-jqlines li b { font-weight:600; }
+.wb2-jqqs li { display:flex; align-items:center; gap:12px; padding:8px 0; border-top:1px solid var(--line); font-size:14px; }
+.wb2-jqqs li span { flex:1; min-width:0; }
+.wb2-jqform { display:flex; flex-direction:column; gap:12px; margin-top:8px; }
+.wb2-jqfield { display:flex; flex-direction:column; gap:4px; }
+.wb2-jqfield > span { font-size:12px; font-weight:500; color:var(--q); }
+.wb2-jqcheck { display:flex; align-items:center; gap:8px; font-size:14px; }
 /* "Where it's up to" — title + right-aligned stamp on one line, a
    reading-size paragraph, on a whisper of the job's own colour */
 .wb2-jcsec.ups { border-radius:var(--r-card); padding:12px 16px 12px;

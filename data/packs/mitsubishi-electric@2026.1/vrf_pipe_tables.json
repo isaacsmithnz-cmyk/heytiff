@@ -702,6 +702,9 @@
       { "series": "M", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
       { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
       { "series": "M", "code_min": 60, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "M", "code_min": 36, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52, "provenance": { "kind": "user-entered", "source": "M-P0860 p.83-84 print no row for it (they jump from M 35 to 50 and give no P series); taken from the same book's SP table, p.75. Both pages size the pipe by the indoor unit's own piping diameter, which the Studio uses first", "by": "Isaac Smith", "at": "2026-09-29" } },
+      { "series": "P", "code_min": 35, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7, "provenance": { "kind": "user-entered", "source": "M-P0860 p.83-84 print no row for it (they jump from M 35 to 50 and give no P series); taken from the same book's SP table, p.75. Both pages size the pipe by the indoor unit's own piping diameter, which the Studio uses first", "by": "Isaac Smith", "at": "2026-09-29" } },
+      { "series": "P", "code_min": 60, "code_max": 100, "liquid_mm": 9.52, "gas_mm": 15.88, "provenance": { "kind": "user-entered", "source": "M-P0860 p.83-84 print no row for it (they jump from M 35 to 50 and give no P series); taken from the same book's SP table, p.75. Both pages size the pipe by the indoor unit's own piping diameter, which the Studio uses first", "by": "Isaac Smith", "at": "2026-09-29" } },
       { "series": "S", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
       { "series": "S", "code_min": 50, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 12.7 },
       { "series": "S", "code_min": 71, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 }
@@ -787,6 +790,9 @@
       { "series": "M", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
       { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
       { "series": "M", "code_min": 60, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "M", "code_min": 36, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52, "provenance": { "kind": "user-entered", "source": "M-P0860 p.83-84 print no row for it (they jump from M 35 to 50 and give no P series); taken from the same book's SP table, p.75. Both pages size the pipe by the indoor unit's own piping diameter, which the Studio uses first", "by": "Isaac Smith", "at": "2026-09-29" } },
+      { "series": "P", "code_min": 35, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7, "provenance": { "kind": "user-entered", "source": "M-P0860 p.83-84 print no row for it (they jump from M 35 to 50 and give no P series); taken from the same book's SP table, p.75. Both pages size the pipe by the indoor unit's own piping diameter, which the Studio uses first", "by": "Isaac Smith", "at": "2026-09-29" } },
+      { "series": "P", "code_min": 60, "code_max": 100, "liquid_mm": 9.52, "gas_mm": 15.88, "provenance": { "kind": "user-entered", "source": "M-P0860 p.83-84 print no row for it (they jump from M 35 to 50 and give no P series); taken from the same book's SP table, p.75. Both pages size the pipe by the indoor unit's own piping diameter, which the Studio uses first", "by": "Isaac Smith", "at": "2026-09-29" } },
       { "series": "S", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
       { "series": "S", "code_min": 50, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 12.7 },
       { "series": "S", "code_min": 71, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 }
@@ -931,6 +937,9 @@
       { "series": "M", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
       { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
       { "series": "M", "code_min": 60, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "M", "code_min": 36, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52, "provenance": { "kind": "user-entered", "source": "M-P0860 p.83-84 print no row for it (they jump from M 35 to 50 and give no P series); taken from the same book's SP table, p.75. Both pages size the pipe by the indoor unit's own piping diameter, which the Studio uses first", "by": "Isaac Smith", "at": "2026-09-29" } },
+      { "series": "P", "code_min": 35, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7, "provenance": { "kind": "user-entered", "source": "M-P0860 p.83-84 print no row for it (they jump from M 35 to 50 and give no P series); taken from the same book's SP table, p.75. Both pages size the pipe by the indoor unit's own piping diameter, which the Studio uses first", "by": "Isaac Smith", "at": "2026-09-29" } },
+      { "series": "P", "code_min": 60, "code_max": 100, "liquid_mm": 9.52, "gas_mm": 15.88, "provenance": { "kind": "user-entered", "source": "M-P0860 p.83-84 print no row for it (they jump from M 35 to 50 and give no P series); taken from the same book's SP table, p.75. Both pages size the pipe by the indoor unit's own piping diameter, which the Studio uses first", "by": "Isaac Smith", "at": "2026-09-29" } },
       { "series": "S", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
       { "series": "S", "code_min": 50, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 12.7 },
       { "series": "S", "code_min": 71, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 }
@@ -1014,6 +1023,9 @@
       { "series": "M", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
       { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
       { "series": "M", "code_min": 60, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 },
+      { "series": "M", "code_min": 36, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52, "provenance": { "kind": "user-entered", "source": "M-P0860 p.83-84 print no row for it (they jump from M 35 to 50 and give no P series); taken from the same book's SP table, p.75. Both pages size the pipe by the indoor unit's own piping diameter, which the Studio uses first", "by": "Isaac Smith", "at": "2026-09-29" } },
+      { "series": "P", "code_min": 35, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7, "provenance": { "kind": "user-entered", "source": "M-P0860 p.83-84 print no row for it (they jump from M 35 to 50 and give no P series); taken from the same book's SP table, p.75. Both pages size the pipe by the indoor unit's own piping diameter, which the Studio uses first", "by": "Isaac Smith", "at": "2026-09-29" } },
+      { "series": "P", "code_min": 60, "code_max": 100, "liquid_mm": 9.52, "gas_mm": 15.88, "provenance": { "kind": "user-entered", "source": "M-P0860 p.83-84 print no row for it (they jump from M 35 to 50 and give no P series); taken from the same book's SP table, p.75. Both pages size the pipe by the indoor unit's own piping diameter, which the Studio uses first", "by": "Isaac Smith", "at": "2026-09-29" } },
       { "series": "S", "code_min": 1, "code_max": 35, "liquid_mm": 6.35, "gas_mm": 9.52 },
       { "series": "S", "code_min": 50, "code_max": 60, "liquid_mm": 6.35, "gas_mm": 12.7 },
       { "series": "S", "code_min": 71, "code_max": 999, "liquid_mm": 9.52, "gas_mm": 15.88 }

@@ -26,6 +26,7 @@ import { systemFindings } from "../verdict";
 import { proposedOutdoorModel } from "../builder";
 import { vrfLoadCeilingKw } from "../vrf";
 import { cardStatus } from "../status";
+import { isBoxHead } from "../multi";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -497,5 +498,29 @@ describe("a head's pipe off a branch box", () => {
     const box = sized.fittings.find((f) => f.kind === "box")!;
     const port = box.ports!.find((p) => p.to === "a")!;
     expect(port.reducer).toEqual(port.portGasMm === 12.7 ? null : { gas: { fromMm: 9.52, toMm: 12.7, part: "MAC-A454JP-E" } });
+  });
+});
+
+/* the P250/P300 box tables print no M 42 and no P series (M-P0860 p.83-84):
+   filled from the SP table (p.75) as Isaac's entry, so every box head has a
+   row to fall back on when its own flares are unknown */
+describe("the P250/P300 box tables have a row for every box head", () => {
+  it("leaves none out", () => {
+    const gaps: string[] = [];
+    for (const t of pack.vrf_pipe_tables.filter((x) => /^PUMY-P(250|300) (branch box|mixed)$/.test(x.series))) {
+      for (const u of pack.indoor_units) {
+        const series = u.model[0];
+        if (!["M", "S", "P"].includes(series) || u.capacity_code == null) continue;
+        if (!isBoxHead(pack, odu(t.series.startsWith("PUMY-P250") ? "PUMY-P250YBMD-A" : "PUMY-P300YBMD-A"), u)) continue;
+        if (!t.box_head_sizing!.some((r) => r.series === series && u.capacity_code! >= r.code_min && u.capacity_code! <= r.code_max))
+          gaps.push(`${t.series} ${u.model}`);
+      }
+    }
+    expect(gaps).toEqual([]);
+    const entered = pack.vrf_pipe_tables
+      .filter((x) => /^PUMY-P(250|300)/.test(x.series))
+      .flatMap((x) => x.box_head_sizing ?? [])
+      .filter((r) => r.provenance?.kind === "user-entered");
+    expect(entered).toHaveLength(12); // M 36-42, P 35-50, P 60-100 on four tables
   });
 });

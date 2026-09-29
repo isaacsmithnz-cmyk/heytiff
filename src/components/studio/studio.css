@@ -9806,135 +9806,145 @@ html[data-ds-display] .dstudio.editing {
    THE SCHEMATIC TAB (vrf-schematic.tsx) — a VRF's pipework as a diagram,
    drawn from the sized tree: each section in its size's colour (--pipe-n,
    the plan's key), fittings in ink, the heads as named boxes. A picked
-   section or fitting says what it is under the drawing.
+   section or fitting says what it is under the drawing. Scoped to the
+   Studio and to the builder, which is portalled out of it (it shows the
+   same schematic in place of its unit list).
    ═══════════════════════════════════════════════════════════════════════ */
-.dstudio .ds-schem-page {
+:is(.dstudio, .ds-sb) .ds-schem-page {
   display: flex;
   flex-direction: column;
   gap: 24px;
   padding: 24px;
 }
-.dstudio .ds-schem {
+:is(.dstudio, .ds-sb) .ds-schem {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.dstudio .ds-schem-h {
+:is(.dstudio, .ds-sb) .ds-schem-h {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 8px 12px;
 }
-.dstudio .ds-schem-h h3 {
+:is(.dstudio, .ds-sb) .ds-schem-h h3 {
   margin: 0;
   font: 600 16px var(--font);
   color: var(--ink);
 }
-.dstudio .ds-schem-odu {
+:is(.dstudio, .ds-sb) .ds-schem-odu {
   font: 600 14px var(--font);
   color: var(--ink);
 }
 /* Valid in ink; only a failing system takes the state colour */
-.dstudio .ds-schem-word {
+:is(.dstudio, .ds-sb) .ds-schem-word {
   font: 600 14px var(--font);
   color: var(--ink);
 }
-.dstudio .ds-schem-word.bad {
+:is(.dstudio, .ds-sb) .ds-schem-word.bad {
   color: var(--bad-t);
 }
-.dstudio .ds-schem-src {
+:is(.dstudio, .ds-sb) .ds-schem-src {
   font-size: 13px;
   color: var(--q);
 }
-.dstudio .ds-schem-empty {
+:is(.dstudio, .ds-sb) .ds-schem-empty {
   margin: 0;
   font-size: 14px;
   color: var(--q);
 }
-.dstudio .ds-schem-scroll {
+:is(.dstudio, .ds-sb) .ds-schem-scroll {
   overflow-x: auto;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
 }
-.dstudio .ds-schem-scroll svg {
+:is(.dstudio, .ds-sb) .ds-schem-scroll svg {
   display: block;
 }
-.dstudio .ds-schem-sec {
+:is(.dstudio, .ds-sb) .ds-schem-sec {
   cursor: pointer;
 }
-.dstudio .ds-schem-sec path {
+:is(.dstudio, .ds-sb) .ds-schem-sec path {
   fill: none;
   stroke: currentColor;
   stroke-width: 3px;
   stroke-linejoin: round;
 }
-.dstudio .ds-schem-sec path.hit {
+:is(.dstudio, .ds-sb) .ds-schem-sec path.hit {
   stroke: transparent;
   stroke-width: 14px;
 }
-.dstudio .ds-schem-sec.on path:not(.hit) {
+:is(.dstudio, .ds-sb) .ds-schem-sec.on path:not(.hit) {
   stroke-width: 6px;
 }
-.dstudio .ds-schem-sec text {
+:is(.dstudio, .ds-sb) .ds-schem-sec text {
   fill: currentColor;
   font: 700 12px var(--font);
 }
-.dstudio .ds-schem-sec text.len {
+:is(.dstudio, .ds-sb) .ds-schem-sec text.len {
   fill: var(--q);
   font-weight: 500;
 }
-.dstudio .ds-schem-odu-n rect,
-.dstudio .ds-schem-head rect,
-.dstudio .ds-schem-box rect {
+:is(.dstudio, .ds-sb) .ds-schem-odu-n rect,
+:is(.dstudio, .ds-sb) .ds-schem-head rect,
+:is(.dstudio, .ds-sb) .ds-schem-box rect {
   fill: var(--paper);
   stroke: var(--ink);
   stroke-width: 1.5px;
 }
-.dstudio .ds-schem-odu-n text,
-.dstudio .ds-schem-head text,
-.dstudio .ds-schem-box text {
+:is(.dstudio, .ds-sb) .ds-schem-odu-n text,
+:is(.dstudio, .ds-sb) .ds-schem-head text,
+:is(.dstudio, .ds-sb) .ds-schem-box text {
   fill: var(--ink);
   text-anchor: middle;
   font: 600 12px var(--font);
 }
-.dstudio .ds-schem-head text.zone {
+:is(.dstudio, .ds-sb) .ds-schem-head text.zone {
   fill: var(--q);
   font-weight: 500;
 }
-.dstudio .ds-schem-box,
-.dstudio .ds-schem-joint {
+:is(.dstudio, .ds-sb) .ds-schem-box,
+:is(.dstudio, .ds-sb) .ds-schem-joint {
   cursor: pointer;
 }
-.dstudio .ds-schem-box.on rect {
+:is(.dstudio, .ds-sb) .ds-schem-box.on rect {
   stroke-width: 3px;
 }
-.dstudio .ds-schem-joint rect {
+:is(.dstudio, .ds-sb) .ds-schem-joint rect {
   fill: var(--ink);
 }
-.dstudio .ds-schem-joint.on rect {
+:is(.dstudio, .ds-sb) .ds-schem-joint.on rect {
   stroke: var(--ink);
   stroke-width: 4px;
 }
-.dstudio .ds-schem-card {
+:is(.dstudio, .ds-sb) .ds-schem-card {
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin: 0;
   max-width: 480px;
 }
-.dstudio .ds-schem-card > div {
+:is(.dstudio, .ds-sb) .ds-schem-card > div {
   display: flex;
   gap: 12px;
 }
-.dstudio .ds-schem-card dt {
+:is(.dstudio, .ds-sb) .ds-schem-card dt {
   flex: none;
   width: 160px;
   font-size: 13px;
   color: var(--q);
 }
-.dstudio .ds-schem-card dd {
+:is(.dstudio, .ds-sb) .ds-schem-card dd {
   margin: 0;
   font: 600 13px var(--font);
   color: var(--ink);
+}
+
+.ds-sb-schem {
+  grid-column: 2 / 4;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--s-6);
 }

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { VrfSchematic } from "./vrf-schematic";
+import { usePipeUnits } from "./pipe-units";
 import { Icon } from "@/components/shell/icon";
 import type { DesignDocument, DesignSystem } from "@/lib/studio/document";
 import type { DataPack, FormFactor, IndoorUnit, OutdoorUnit } from "@/lib/studio/packs/schema";
@@ -556,6 +558,11 @@ export function SystemBuilder({
   );
   /* a move that could not be installed opens on the Outdoor tab, where the
      fix is: so does a Swap from an outdoor on the plan */
+  /* a VRF's builder can show its real schematic, drawn from the plan, in
+     place of the unit list (Isaac, 2026-09-29): the rail beside it stays,
+     it is how zones and heads are edited */
+  const [schemOn, setSchemOn] = useState(false);
+  const pipeUnits = usePipeUnits();
   const [side, setSide] = useState<Side>(() => {
     const s = start.systems.find((x) => x.id === sysId);
     if (!s) return "indoor";
@@ -755,6 +762,26 @@ export function SystemBuilder({
             </>
           )}
           <span className="ds-sb-spring" />
+          {view?.sys.type === "vrf" && (
+            <div className="ds-sb-switch" role="group" aria-label="Units or schematic">
+              <button
+                type="button"
+                className="ds-sb-switch-opt"
+                aria-pressed={!schemOn}
+                onClick={() => setSchemOn(false)}
+              >
+                Units
+              </button>
+              <button
+                type="button"
+                className="ds-sb-switch-opt"
+                aria-pressed={schemOn}
+                onClick={() => setSchemOn(true)}
+              >
+                Schematic
+              </button>
+            </div>
+          )}
           <button className="ds-sb-x" onClick={onClose} aria-label="Close builder">
             <Icon name="x" size={16} />
           </button>
@@ -801,6 +828,17 @@ export function SystemBuilder({
             <div className="ds-sb-rail" />
           )}
 
+          {schemOn && view?.sys.type === "vrf" ? (
+            <div className="ds-sb-schem">
+              <VrfSchematic
+                doc={draft}
+                pack={pack}
+                sys={draft.systems.find((x) => x.id === view.sys.id) ?? view.sys}
+                units={pipeUnits}
+              />
+            </div>
+          ) : (
+            <>
           <section className="ds-sb-picker" aria-label="Units">
             {view && (
               <div className="ds-sb-crumbs">
@@ -921,6 +959,8 @@ export function SystemBuilder({
               <div className="ds-sb-side-host" ref={setSideHost} />
             )}
           </aside>
+            </>
+          )}
         </div>
 
         <footer className="ds-sb-foot">

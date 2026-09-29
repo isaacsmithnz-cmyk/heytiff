@@ -1514,7 +1514,9 @@ function PipingRail({
     ? "Ducted to each zone"
     : vrf
       ? view.vrfTree?.method === "branch-box"
-        ? "One line to the branch box, a pipe per head"
+        ? view.vrfTree.fittings.filter((f) => f.kind === "box").length > 1
+          ? "A joint to each branch box, a pipe per head"
+          : "One line to the branch box, a pipe per head"
         : view.vrfTree?.method === "mixed"
           ? "Joints, and a branch box for its heads"
           : "One shared line, a joint per branch"
@@ -1546,24 +1548,60 @@ function PipingRail({
      the drop between the outdoor and the first zone */
   const passing = (): React.ReactNode[] =>
     trunk ? [vline("trunk", GUT_OFF, "full", trunkTone)] : view.zones.map((z, k) => vline(z.zone.id, xOf(k), "full", zoneTone(z)));
-  /* a VRF joint's part, from the sized tree: the fittings that feed this
-     zone's heads */
-  const jointParts = (z: ZoneView): string | null => {
-    const tree = view.vrfTree;
-    if (!tree) return null;
-    const feeds = new Set(
-      view.heads.filter((a) => a.roomId === z.zone.id).map((a) => headSection(tree, a.id)?.from)
-    );
-    const parts = tree.fittings.filter((f) => feeds.has(f.nodeId) && f.part).map((f) => f.part!);
-    return parts.length ? parts.join(", ") : null;
-  };
-  /* the fitting a VRF zone's heads hang off: a joint, or a branch box */
+  /* THE RAIL FOLLOWS THE DRAWING (Isaac, 2026-09-29). A VRF's marks come
+     from its sized tree — the plan's once the pipework reaches every head,
+     else the zones in order — never from the list. Drawn, the rows run in
+     the pipework's own order (depth first from the outdoor), so the heads on
+     one box or one joint sit together; each fitting is marked on the first
+     row whose head hangs off it, and a joint that only feeds other fittings
+     (the one before two boxes) on the first row beneath it. */
+  const tree = vrf && !band ? view.vrfTree : null;
+  const parentOf = new Map((tree?.sections ?? []).map((s) => [s.to, s.from]));
+  const fittingOf = new Map((tree?.fittings ?? []).map((f) => [f.nodeId, f]));
+  const zoneHeads = (z: ZoneView) => view.heads.filter((a) => a.roomId === z.zone.id);
+  const rows: ZoneView[] = (() => {
+    if (!tree?.drawn) return view.zones;
+    const kids = new Map<string, string[]>();
+    for (const s of tree.sections) kids.set(s.from, [...(kids.get(s.from) ?? []), s.to]);
+    const tos = new Set(tree.sections.map((s) => s.to));
+    const root = tree.sections.find((s) => !tos.has(s.from))?.from;
+    const rank = new Map<string, number>();
+    const seen = new Set<string>();
+    const walk = (id: string) => {
+      if (seen.has(id)) return;
+      seen.add(id);
+      rank.set(id, rank.size);
+      for (const k of kids.get(id) ?? []) walk(k);
+    };
+    if (root) walk(root);
+    const first = (z: ZoneView) => Math.min(...zoneHeads(z).map((a) => rank.get(a.id) ?? Infinity), Infinity);
+    return [...view.zones].sort((a, b) => first(a) - first(b));
+  })();
+  /* the fitting a VRF zone's heads hang off: a joint, header or branch box */
   const zoneFitting = (z: ZoneView) => {
-    const tree = view.vrfTree;
     if (!tree) return null;
-    const from = new Set(view.heads.filter((a) => a.roomId === z.zone.id).map((a) => headSection(tree, a.id)?.from));
-    return tree.fittings.find((f) => from.has(f.nodeId)) ?? null;
+    for (const a of zoneHeads(z)) {
+      const f = fittingOf.get(headSection(tree, a.id)?.from ?? "");
+      if (f) return f;
+    }
+    return null;
   };
+  /* the fittings above a zone's own, nearest first: the joint before a box */
+  const upstreamOf = (z: ZoneView) => {
+    const out: NonNullable<ReturnType<typeof zoneFitting>>[] = [];
+    let at = parentOf.get(zoneFitting(z)?.nodeId ?? "");
+    while (at) {
+      const f = fittingOf.get(at);
+      if (f) out.push(f);
+      at = parentOf.get(at);
+    }
+    return out;
+  };
+  const markedAt = new Map<string, number>();
+  rows.forEach((z, i) => {
+    for (const f of [zoneFitting(z), ...upstreamOf(z)])
+      if (f && !markedAt.has(f.nodeId)) markedAt.set(f.nodeId, i);
+  });
   /* a zone's row: the lines of the zones below pass it, its own turns in */
   const zonePipes = (z: ZoneView, i: number): React.ReactNode[] => {
     if (trunk) {
@@ -1571,28 +1609,36 @@ function PipingRail({
         vline("trunk", GUT_OFF, i < n - 1 ? "full" : "top", trunkTone),
         hline("branch", GUT_OFF, zoneTone(z)),
         ...(() => {
-          if (!vrf || band) return [];
-          const fit = zoneFitting(z);
-          /* heads on a branch box: the box sits on the trunk at its first zone,
-             the rest of its zones branch off the trunk under it */
-          if (fit?.kind === "box") {
-            const first = view.zones.findIndex((zz) => zoneFitting(zz)?.nodeId === fit.nodeId) === i;
-            return first
-              ? [
-                  <rect key="box" className="ds-sb-box" x={GUT_OFF - 7} y="50%" width={14} height={10} rx={2} transform="translate(0 -5)">
-                    {fit.part && <title>{fit.part}</title>}
-                  </rect>,
-                ]
-              : [];
-          }
-          /* the last zone's heads share the joint above it */
-          return i < n - 1
-            ? [
-                <rect key="joint" className="ds-sb-joint" x={GUT_OFF - 4} y="50%" width={8} height={8} rx={2} transform="translate(0 -4)">
-                  {jointParts(z) && <title>{jointParts(z)}</title>}
-                </rect>,
-              ]
-            : [];
+          if (!tree) return [];
+          const own = zoneFitting(z);
+          /* the fittings first reached at this row: its heads' own on the
+             branch, any above it higher up the trunk */
+          const here = [own, ...upstreamOf(z)].filter(
+            (f): f is NonNullable<typeof own> => f != null && markedAt.get(f.nodeId) === i
+          );
+          /* its own fitting on the branch line; those above it stack up the trunk */
+          let above = 0;
+          return here.map((f) => {
+            const y = f === own ? "50%" : `${Math.max(8, 50 - 22 * ++above)}%`;
+            return f.kind === "box" ? (
+              <rect key={f.nodeId} className="ds-sb-box" x={GUT_OFF - 7} y={y} width={14} height={10} rx={2} transform="translate(0 -5)">
+                {f.part && <title>{f.part}</title>}
+              </rect>
+            ) : (
+              <rect
+                key={f.nodeId}
+                className="ds-sb-joint"
+                x={GUT_OFF - (f.kind === "header" ? 7 : 4)}
+                y={y}
+                width={f.kind === "header" ? 14 : 8}
+                height={8}
+                rx={2}
+                transform="translate(0 -4)"
+              >
+                {f.part && <title>{f.part}</title>}
+              </rect>
+            );
+          });
         })(),
       ];
     }
@@ -1721,7 +1767,7 @@ function PipingRail({
           <div className="ds-sb-feed">{pipes(passing())}</div>
         )}
 
-        {view.zones.map((z, i) => {
+        {rows.map((z, i) => {
           const key = `zone:${z.zone.id}`;
           const aimed = z.zone.id === aimedZoneId;
           return (

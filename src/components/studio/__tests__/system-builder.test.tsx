@@ -11,7 +11,7 @@ import { SystemBuilder, ZoneStanding } from "../system-builder";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "@/lib/studio/document";
-import { addHead, allocationsOf, chooseOutdoor, moveZone } from "@/lib/studio/builder";
+import { addHead, allocationsOf, chooseOutdoor, moveZone, placeAllocation } from "@/lib/studio/builder";
 import { claimZone, newSystem } from "@/lib/studio/zones";
 import { sizingCapacityKw } from "@/lib/studio/loads";
 
@@ -446,5 +446,72 @@ describe("ZoneStanding, in the zone's popup", () => {
     );
     expect(screen.getByRole("button", { name: "Put the next unit in Study" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Put the next unit in Bed 1" })).toHaveAttribute("aria-pressed", "false");
+  });
+});
+
+/* THE RAIL FOLLOWS THE DRAWING (Isaac, 2026-09-29): drawn, a VRF's rows run
+   in the pipework's order and its marks are the drawing's fittings */
+describe("a drawn VRF on the rail", () => {
+  it("puts the heads on one box together and marks the joint before the boxes", () => {
+    const made = claimed(house(), ["living", "bed1", "bed2", "study"]);
+    let doc = made.doc;
+    const sid = made.systemId;
+    for (const [zone, model] of [
+      ["living", "MSZ-AP50VGD2"],
+      ["bed1", "MSZ-AP25VGD2"],
+      ["bed2", "MSZ-AP25VGD2"],
+      ["study", "MSZ-AP25VGD2"],
+    ])
+      doc = addHead(doc, pack, { systemId: sid, zoneId: zone, iduModel: model });
+    doc = chooseOutdoor(doc, pack, "worst-of-both", sid, "PUMY-SP112VKMD2-A");
+    const floorId = doc.floors[0].id;
+    const allocs = allocationsOf(doc.systems.find((s) => s.id === sid)!);
+    const headIn = (zone: string) => allocs.find((a) => a.role === "idu" && a.roomId === zone)!.id;
+    const oduId = allocs.find((a) => a.role === "odu")!.id;
+    for (const a of allocs) doc = placeAllocation(doc, pack, sid, a.id, floorId, { x: 50, y: 50 });
+    const run = (id: string, from: [string, string], to: [string, string]): DesignObject => ({
+      id,
+      type: "pipe-run",
+      systemId: sid,
+      floorId,
+      geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 300, y: 0 }] },
+      plane: "room",
+      props: { startAttach: { kind: from[0], id: from[1] }, endAttach: { kind: to[0], id: to[1] } },
+    });
+    const point = (id: string, type: string): DesignObject => ({
+      id,
+      type,
+      systemId: sid,
+      floorId,
+      geometry: { kind: "point", at: { x: 10, y: 10 } },
+      plane: "room",
+      props: {},
+    });
+    // outdoor → joint → box 1 (Living, Bed 2) and box 2 (Bed 1, Study)
+    doc = {
+      ...doc,
+      objects: [
+        ...doc.objects,
+        point("j", "joint"),
+        point("b1", "branch-box"),
+        point("b2", "branch-box"),
+        run("r0", ["unit", oduId], ["joint", "j"]),
+        run("r1", ["joint", "j"], ["branch-box", "b1"]),
+        run("r2", ["joint", "j"], ["branch-box", "b2"]),
+        run("r3", ["branch-box", "b1"], ["unit", headIn("living")]),
+        run("r4", ["branch-box", "b1"], ["unit", headIn("bed2")]),
+        run("r5", ["branch-box", "b2"], ["unit", headIn("bed1")]),
+        run("r6", ["branch-box", "b2"], ["unit", headIn("study")]),
+      ],
+    };
+    const { container } = render(
+      <SystemBuilder doc={doc} pack={pack} systemId={sid} onCommit={() => {}} onClose={() => {}} />
+    );
+    const rows = within(schematic())
+      .getAllByRole("button", { name: /^Put the next unit in / })
+      .map((b) => b.getAttribute("aria-label")!.replace("Put the next unit in ", ""));
+    expect(rows).toEqual(["Living", "Bed 2", "Bed 1", "Study"]);
+    expect(container.ownerDocument.querySelectorAll(".ds-sb-box")).toHaveLength(2);
+    expect(container.ownerDocument.querySelectorAll(".ds-sb-joint")).toHaveLength(1);
   });
 });

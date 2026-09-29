@@ -13,9 +13,12 @@ import type { SaveSection } from "./types";
 export function NotesCard({
   notes,
   onSave,
+  startEditing = false,
 }: {
   notes: { notes?: string | null } | null;
   onSave: SaveSection;
+  /** opened from the Overview's Edit — the form, not the read view */
+  startEditing?: boolean;
 }) {
   const values = { notes: notes?.notes ?? "" };
   return (
@@ -27,6 +30,7 @@ export function NotesCard({
         values={values}
         onSave={(fields) => onSave("notes", fields)}
         validate={(fields) => preValidate("admin", "notes", fields)}
+        startEditing={startEditing}
         /* Prose, so a plain panel body rather than the label/value <dl> — and
            the textarea takes the paragraph's own place, at its own width. The
            note you were reading and the box you type it into are the same

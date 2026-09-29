@@ -1021,22 +1021,11 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pcard2 .pbtn.primary:hover:not(:disabled), .fg .pbar .pbtn.primary:hover:not(:disabled) {
   background:var(--wb2-cy2); border-color:var(--wb2-cy2); color:var(--paper); }
 
-/* ── the tabs ──
-   21px a side is the board's number, and the board has FIVE tabs. This card
-   has nine, and at 21px the row measures 1201px against the 1120px a 1440
-   laptop actually gives it — the admin sections would sit behind a scroll on
-   the most common screen in the business. 18px, plus "Personal" and
-   "Emergency" rather than the full labels (each section's own head spells its
-   name out), brings it to 1049 and fits one row from 1440 up. */
-.fg .pcard2 .wb2-vt { padding:0 16px; }
-/* the lock is the only thing saying an admin section is not the person's own
-   to see. The "Admin only" group label went with the wrapping: one row has no
-   group to label, and the divider `.wb2-vt` already draws does the separating */
+/* the lock on a tab is the only thing saying a section is not the person's
+   own to see (the staff card's tabs went on 2026-09-29; view-tabs still draws
+   it for the screens that have them) */
 .fg .wb2-vt .lock { display:flex; color:var(--q); }
 .fg .wb2-vt.on .lock { color:var(--wb2-cy); }
-/* the completeness model's half of the tab: a COUNT, in the board's warn
-   colour — never the page accent, which means "selected" here */
-.fg .pcard2 .wb2-vtn.warn { background:var(--warn-tint); color:var(--warn-t); }
 
 /* ── the panel ── */
 .fg .ppanel2 { min-width:0; padding:24px 24px 24px; }
@@ -1140,98 +1129,143 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .vehjump { display:inline-flex; border-radius:var(--r-control); }
 .fg .vehjump:focus-visible { outline:none; box-shadow:var(--ring); }
 
-/* ── SUMMARY, THE CHECKLIST THAT FILLS ITSELF IN ──
-   Redrawn 2026-09-15 from the worker-profile handoff, and REDRAWN AGAIN
-   2026-09-16 because the first draw was correct to the laws and unreadable
-   anyway. Isaac, on it: "it's actually quite hard to scan because everything
-   looks the same — it says name, and then the name underneath it is almost
-   the same." Nine roles were set at 13/500 or 14/400, one pixel apart, with
-   the weight running BACKWARDS: a label heavier than the value under it. Two
-   greys were carrying hierarchy that size should have carried.
+/* ── THE OVERVIEW — the whole person on one screen (overview.tsx) ──
+   No tabs since 2026-09-29. Isaac, on the tabbed Summary: "it takes up so
+   much of the screen… it's just all over the place", and a new starter's
+   card, a grid of dashes and Adds, "looked pretty poor". So a section shows
+   only once it has something in it, and every blank is said once, in Still
+   to add.
 
-   THE TIERS, far enough apart to scan: 32/700 the name, 24/400 the standing
-   line, 20/600 ink a group's title, 12/500 quiet a field's label, 16/600 ink
-   its answer. Four steps of size between the top and the bottom of the page,
-   and a size, weight and colour step between a label and what it introduces.
+   THE TIERS carry on from the ledger: 32/700 the name, 24/700 the figures
+   you act on (the emergency number, the wage), 16/700 a card's title, 16/600
+   a fact in the strip, 14/600 a fact in a card, 12/500 quiet its label.
 
-   THE LEDGER. Label over value in a three-column grid makes the eye zigzag —
-   read down, jump right, read down — the slowest way to look one fact up. A
-   132px label column with the answer beside it gives one column of
-   scaffolding and one of answers, ruled between rows. Personal and Emergency
-   sit side by side: Emergency is three fields and never earned a band.
-
-   COLOUR IS STATE, AND SAID ONCE. Absence is counted on the record line and nowhere else — the
-   word Required beside each blank as well was the same fact three times, in
-   the page's only strong colour, which is what made a card with four gaps
-   read as a form nobody had filled in. The one filled object on the page is
-   the record line's action, and it is ink, because ink does the primary
-   action. */
-.fg .psum .pident { padding-bottom:0; margin-bottom:0; border-bottom:0; }
+   COLOUR only where he asked for it: the emergency card's red head with
+   white type, the person's own hue behind their initials, and the cost
+   split's three colours, which are the payroll card's. State keeps its
+   words and their colours; nothing else is tinted. */
 .fg .ptitle { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 /* the name is the one display size on this screen */
-.fg .psum .phid h1 { font-size:32px; }
-/* the camera badge stays up while there is no photo: the tile of initials is
-   the one blank on Summary with no Add beside it, so the badge is its Add */
+.fg .pov .phid h1 { font-size:32px; }
+
+/* the head: photo, who, the van, and the record line */
+.fg .pov-head { padding-bottom:0; margin-bottom:0; border-bottom:0; flex-wrap:nowrap; }
+.fg .pov-head .pphoto { width:64px; height:64px; }
+/* the person's own hue behind white initials, ring and all — the tile is
+   theirs until there is a photo. The camera badge stays up while there is
+   none: the tile is the blank, and the badge is its Add. */
+.fg .pov-head .pphoto.nophoto { background:var(--av, var(--ink)); }
+.fg .pov-head .pphoto.nophoto .inn { background:var(--av, var(--ink)); color:var(--paper); }
 .fg .pident .pphoto.nophoto .cam { opacity:1; }
-
-
-/* ── the record line — the count, and the one action ── */
-.fg .psum-rec { display:flex; align-items:center; gap:16px; margin-top:16px; flex-wrap:wrap; }
-.fg .psum-count { font-size:13px; font-weight:500; color:var(--q); }
-.fg .psum-count.ok { color:var(--ok-t); }
-/* the proportion has a shape, like the utilisation slider: a 120×4 bar, in
-   the state's colour — warn until the required details are in, OK from then */
+.fg .pov-van { margin-left:auto; display:flex; flex-direction:column; gap:4px; flex:0 0 auto; }
+.fg .pov-k { display:block; font-size:12px; font-weight:500; color:var(--q); }
+/* THE RECORD LINE goes when the record is complete — see Record */
+.fg .pov-rec { margin-left:auto; display:flex; align-items:center; gap:12px; flex:0 0 auto; }
+.fg .pov-van + .pov-rec { margin-left:32px; }
+.fg .pov-count { font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; }
+/* the proportion has a shape: a 120×4 bar, warn until the required details
+   are in, OK from then */
 .fg .pprog { display:block; width:120px; height:4px; border-radius:var(--r-pill); background:var(--tint-2); overflow:hidden; }
 .fg .pprog i { display:block; height:100%; border-radius:var(--r-pill); background:var(--ink); transition:width var(--t-move) var(--ease); }
 .fg .pprog i.warn { background:var(--warn); }
 .fg .pprog i.ok { background:var(--ok-t); }
 
-/* ── the groups ── */
-.fg .psum-pair { display:grid; grid-template-columns:1.55fr 1fr; gap:48px; align-items:start; }
-.fg .psum-g { margin-top:32px; padding-top:16px; border-top:1px solid var(--line); }
-.fg .psum-gh { display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:8px; }
-.fg .psum-h { margin:0; font-size:20px; font-weight:600; color:var(--ink); }
-.fg .psum-lnk { font-size:13px; font-weight:500; color:var(--link); text-decoration:underline; text-underline-offset:3px; cursor:pointer; border-radius:var(--r-control); }
-.fg .psum-lnk:focus-visible { outline:none; box-shadow:var(--ring); }
+/* the strip: the facts you look up most, only the ones held */
+.fg .pov-strip { display:flex; flex-wrap:wrap; gap:12px 48px; margin:16px 0 0; padding:12px 24px; background:var(--tint); border-radius:var(--r-card); }
+.fg .pov-strip dt { font-size:12px; font-weight:500; color:var(--q); }
+.fg .pov-strip dd { margin:2px 0 0; font-size:16px; font-weight:600; color:var(--ink); white-space:nowrap; }
 
-/* ── the ledger: a label column, an answer column, a rule between rows ── */
-.fg .psum-rows { margin:0; }
-.fg .psum-row { display:grid; grid-template-columns:132px minmax(0,1fr); gap:16px; align-items:baseline; padding:12px 0; border-top:1px solid var(--line); }
-.fg .psum-row:first-child { border-top:0; }
-.fg .psum-row dt { font-size:12px; font-weight:500; color:var(--q); }
-.fg .psum-row dd { margin:0; min-width:0; }
-.fg .psum-v { font-size:16px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
-.fg .psum-none { font-size:16px; font-weight:500; color:var(--q); }
-.fg .psum-sub { display:block; margin-top:4px; font-size:12px; font-weight:500; color:var(--q); }
-.fg .psum-addl { font-size:16px; font-weight:600; color:var(--link); text-decoration:underline; text-underline-offset:3px; cursor:pointer; border-radius:var(--r-control); }
-.fg .psum-addl:focus-visible { outline:none; box-shadow:var(--ring); }
+/* the person on the left two-thirds, the admin column on the right, and
+   the bottoms of the two columns meeting: each column's last card takes
+   the slack, so the page ends on one line */
+.fg .pov-zones { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:16px; margin-top:16px; align-items:stretch; }
+.fg .pov-zones.solo { grid-template-columns:minmax(0,1fr); }
+.fg .pov-l, .fg .pov-r, .fg .pov-col { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.fg .pov-r > :last-child, .fg .pov-col > :last-child { flex:1 1 auto; }
+.fg .pov-r > .pov-quiet:last-child { flex:0 0 auto; align-self:flex-start; }
+/* one card alone in the column keeps its own height: stretched, a two-row
+   card is a tall empty box */
+.fg .pov-r > :only-child { flex:0 0 auto; }
+.fg .pov-pair { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
 
-/* ── the tickets: a list, not a row of tiles ──
-   Two tiles in a 1000px row look unfinished at any quality, because there are
-   two. A ruled list reads as a record at one row and still reads at twelve,
-   which is what a ticket wall actually holds. Each row is a door to
-   Compliance, and the expiry is the state — quiet while the ticket is in
-   date, and the dashboard chip's own clause in its own colour once it is not. */
-.fg .psum-tix { display:grid; }
-.fg .psum-tix-r { display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:24px; align-items:baseline; padding:12px 16px; margin:0 -16px; border-top:1px solid var(--line); border-radius:var(--r-control); text-align:left; color:var(--ink); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg .psum-tix-r:first-child { border-top:0; }
-.fg .psum-tix-r:hover { background:var(--tint); }
-.fg .psum-tix-r:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .psum-tix-r .t { font-size:16px; font-weight:600; overflow-wrap:anywhere; }
-.fg .psum-tix-r .s { font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
-.fg .psum-tix-r .e { font-size:13px; font-weight:500; color:var(--q); }
-.fg .psum-tix-r .e.ok { color:var(--ok-t); }
-.fg .psum-tix-r .e.warn { color:var(--warn-t); }
-.fg .psum-tix-r .e.bad { color:var(--bad-t); }
-.fg .psum-more { margin-top:16px; }
-/* below the pair's width the two groups stack; the ledger keeps its columns
-   until the label column stops earning its place */
+/* a card is a section you can open — law 9's card: you act on it */
+.fg .pov-card { border:1px solid var(--line); border-radius:var(--r-card); padding:16px; min-width:0; }
+.fg .pov-ch { display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:8px; }
+.fg .pov-ch h2 { margin:0; font-size:16px; font-weight:700; color:var(--ink); }
+.fg .pov-adm { margin-left:8px; font-size:12px; font-weight:500; color:var(--q); }
+.fg .pov-lnk { font-size:13px; font-weight:500; color:var(--link); text-decoration:underline; text-underline-offset:3px; cursor:pointer; border-radius:var(--r-control); flex:0 0 auto; }
+.fg .pov-lnk:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .pov-rows { margin:0; }
+.fg .pov-row { display:grid; grid-template-columns:96px minmax(0,1fr); gap:12px; align-items:baseline; padding:8px 0; border-top:1px solid var(--line); }
+.fg .pov-row:first-child { border-top:0; }
+.fg .pov-row dt { font-size:12px; font-weight:500; color:var(--q); }
+.fg .pov-row dd { margin:0; font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
+.fg .pov-line { margin:0; font-size:14px; font-weight:600; color:var(--ink); }
+.fg .pov-line.ok { color:var(--ok-t); }
+.fg .pov-line.warn { color:var(--warn-t); }
+.fg .pov-line.bad { color:var(--bad-t); }
+.fg .pov-sub { display:block; margin:2px 0 0; font-size:12px; font-weight:500; color:var(--q); }
+.fg .pov-note { margin:0; font-size:14px; font-weight:500; color:var(--q); overflow-wrap:anywhere;
+  display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+
+/* the emergency contact: a red head, white type, the number at the size you
+   dial from. --bad measures 4.6:1 under white. */
+.fg .pov-sos { padding:0; overflow:hidden; border-color:var(--bad); }
+.fg .pov-sosh { display:flex; align-items:baseline; justify-content:space-between; gap:16px; padding:12px 16px; background:var(--bad); color:var(--paper); }
+.fg .pov-sosh h2 { margin:0; font-size:16px; font-weight:700; color:var(--paper); }
+.fg .pov-sosh .pov-lnk { color:var(--paper); }
+.fg .pov-sosh .pov-lnk:focus-visible { box-shadow:0 0 0 2px var(--paper); }
+.fg .pov-sosb { padding:12px 16px 16px; }
+.fg .pov-who { margin:0; font-size:20px; font-weight:700; color:var(--ink); overflow-wrap:anywhere; }
+.fg .pov-tel { margin:8px 0 0; font-size:24px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+
+/* the licences, as the plastic cards the Compliance wall draws */
+.fg .pov-band .pov-ch { margin-bottom:12px; }
+.fg .pov-lics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.fg .pov-lics .idc { max-width:none; padding:16px; }
+
+/* money: a quiet button in the figure's slot until it is asked for */
+.fg .pov-fig { display:flex; align-items:center; gap:8px; min-height:40px; margin-bottom:4px; }
+.fg .pov-amt { font-size:24px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .pov-amt small { margin-left:4px; font-size:14px; font-weight:500; color:var(--q); }
+.fg .pov-hide { margin-left:auto; }
+/* the card's small control: the list's Add and the wage's Show, a row's
+   height rather than the page's 42 */
+.fg .pov .pbtn.pov-sm { height:32px; padding:0 12px; font-size:13px; font-weight:600; }
+.fg .pov-split { margin-top:8px; padding-top:8px; border-top:1px solid var(--line); }
+.fg .pov-split .pov-k { margin-bottom:8px; }
+.fg .pov-sbar { display:flex; gap:2px; height:8px; border-radius:var(--r-pill); overflow:hidden; }
+.fg .pov-sbar i { display:block; height:100%; }
+.fg .pov-slg { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:8px; font-size:13px; font-weight:500; color:var(--q); }
+.fg .pov-slg > span { display:inline-flex; align-items:center; gap:4px; }
+.fg .pov-slg i { width:8px; height:8px; border-radius:50%; }
+.fg .pov-slg b { font-weight:600; color:var(--ink); }
+.fg .pov-quiet { align-self:flex-start; }
+
+/* Still to add — every blank, once, in two groups */
+.fg .pov-todo { padding-bottom:8px; }
+.fg .pov-tg h3 { margin:12px 0 0; font-size:12px; font-weight:600; color:var(--q); }
+.fg .pov-tg h3.req { color:var(--warn-t); }
+.fg .pov-ti { display:grid; grid-template-columns:16px minmax(0,1fr) auto; gap:12px; align-items:center; padding:12px 0; border-top:1px solid var(--line); }
+.fg .pov-tg h3 + .pov-ti { border-top:0; }
+.fg .pov-ti b { display:block; font-size:14px; font-weight:600; color:var(--ink); }
+.fg .pov-ti span { display:block; font-size:12px; font-weight:500; color:var(--q); }
+.fg .pov-ring { width:16px; height:16px; border-radius:50%; border:2px solid var(--line); }
+.fg .pov-ring.req { border-color:var(--warn); }
+
+/* the breadcrumb's way back to the person */
+.fg .crumb .crumb-back { color:var(--link); cursor:pointer; border-radius:var(--r-control); }
+.fg .crumb .crumb-back:hover { text-decoration:underline; text-underline-offset:3px; }
+.fg .crumb .crumb-back:focus-visible { outline:none; box-shadow:var(--ring); }
+
 @media (max-width:1100px){
-  .fg .psum-pair { grid-template-columns:minmax(0,1fr); gap:0; }
+  .fg .pov-zones, .fg .pov-pair { grid-template-columns:minmax(0,1fr); }
+  .fg .pov-lics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .fg .pov-head { flex-wrap:wrap; }
 }
 @media (max-width:560px){
-  .fg .psum-row { grid-template-columns:minmax(0,1fr); gap:2px; }
-  .fg .psum-tix-r { grid-template-columns:minmax(0,1fr); gap:2px; }
+  .fg .pov-lics { grid-template-columns:minmax(0,1fr); }
+  .fg .pov-row { grid-template-columns:minmax(0,1fr); gap:2px; }
 }
 
 /* ── a section, with the card chrome taken off ──
@@ -1477,7 +1511,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   .fg .pident { gap:12px; }
   .fg .phid h1 { font-size:24px; }
   /* the display size needs the room; below it the name is a screen title again */
-  .fg .psum .phid h1 { font-size:24px; }
+  .fg .pov .phid h1 { font-size:24px; }
   .fg .ppanel2 { padding:16px 12px 16px; }
   .fg .pcard2 .card2 { padding:16px 16px; }
 }
@@ -3657,6 +3691,9 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .au-plate .st { padding-left:8px; border-left:1px solid #d7dae0; font-size:12px; font-weight:700; color:var(--q); }
 .au-plate.sm { padding:4px 8px; font-size:12px; }
 .au-plate.sm .st { font-size:12px; }
+/* the staff card's van: read from across the room — see plate.tsx */
+.au-plate.lg { gap:12px; padding:8px 16px; font-size:24px; border-width:2px; border-radius:var(--r-button); background:var(--paper); }
+.au-plate.lg .st { padding-left:12px; font-size:13px; }
 
 /* log-modal vehicle picker: the select, and the chosen plate beside it.
    Unscoped for the same reason .au-plate is — the modal lives on document.body. */

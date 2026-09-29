@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { SaveResult } from "./types";
 import { withCleanup } from "@/lib/ui/with-cleanup";
@@ -46,6 +46,7 @@ export function PhotoBadge({
   photoUrl,
   initials,
   name,
+  ground,
   onSet,
   onClear,
 }: {
@@ -54,6 +55,9 @@ export function PhotoBadge({
   initials: string;
   /** whose photo — for the controls' labels, which are the only text here */
   name: string;
+  /** the colour behind the initials while there is no photo — the person's
+      own hue, darkened for white type (lib/staff/avatar) */
+  ground?: string;
   onSet: (documentId: string) => Promise<SaveResult>;
   onClear: () => Promise<SaveResult>;
 }) {
@@ -92,7 +96,12 @@ export function PhotoBadge({
 
   return (
     <>
-      <div className={"pphoto" + (photoUrl ? "" : " nophoto") + (busy ? " busy" : "")}>
+      <div
+        className={"pphoto" + (photoUrl ? "" : " nophoto") + (busy ? " busy" : "")}
+        /* a custom property, never `background` — see `.fg .dav` for what the
+           shorthand does to a tile's layers */
+        style={ground ? ({ "--av": ground } as CSSProperties) : undefined}
+      >
         {photoUrl ? (
           /* a signed storage URL, not a build-time asset — next/image would
              want the host allowlisted, as on the ID cards */

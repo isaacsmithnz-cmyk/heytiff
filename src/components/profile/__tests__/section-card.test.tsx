@@ -18,7 +18,7 @@ const rejects = (res: SaveResult) => ({
   onSave: jest.fn().mockResolvedValue(res),
 });
 
-function setup(actions: ReturnType<typeof okActions>) {
+function setup(actions: ReturnType<typeof okActions>, sec?: string) {
   const props = {
     mode: "self" as const,
     header,
@@ -28,6 +28,7 @@ function setup(actions: ReturnType<typeof okActions>) {
     today: TODAY,
     warnDays: 30,
     org: "Smith Air",
+    initialSec: sec,
     actions,
   };
   const view = render(<ProfileScreen {...props} />);
@@ -36,11 +37,11 @@ function setup(actions: ReturnType<typeof okActions>) {
 
 const editButtons = () => screen.getAllByRole("button", { name: /^Edit$/ });
 
-/* Summary is the landing tab now, and it has nothing to edit — so a test about
-   the edit cycle has to open a section first. Personal is the one every one of
-   these used to land on. */
+/* The Overview is the landing view, and a card's Edit opens its section
+   straight into the form — so a test about the edit cycle starts there.
+   Personal is the one every one of these used to land on. */
 const openPersonal = (user: ReturnType<typeof userEvent.setup>) =>
-  user.click(screen.getByRole("tab", { name: /Personal/ }));
+  user.click(screen.getByRole("button", { name: "Edit Personal" }));
 
 /* Dates are picked, not typed — and since #142 the picker is OURS: a button
    that opens a calendar, with no input of any kind in it. So a test can't set
@@ -66,7 +67,6 @@ describe("a rejected save", () => {
     setup(actions);
 
     await openPersonal(user);
-    await user.click(editButtons()[0]);
     // a real date the server happens to refuse — pre-validation passes it
     await pick(user, "Date of birth", "Monday 3 December 1990");
     await user.click(screen.getByRole("button", { name: /^Save\b/ }));
@@ -86,7 +86,6 @@ describe("a rejected save", () => {
     const { rerender, props } = setup(actions);
 
     await openPersonal(user);
-    await user.click(editButtons()[0]);
     const phone = screen.getByDisplayValue("0400 000 000");
     await user.clear(phone);
     await user.type(phone, "0499 999 999");
@@ -106,9 +105,8 @@ describe("the edit cycle", () => {
      already spoken for. Opening one must not unlock the other. */
   it("unlocks only the section that was clicked", async () => {
     const user = userEvent.setup();
-    const { container } = setup(okActions());
+    const { container } = setup(okActions(), "licences");
 
-    await user.click(screen.getByRole("tab", { name: /Compliance/ }));
     expect(container.querySelectorAll(".card2")).toHaveLength(1);
     expect(container.querySelectorAll("[data-live]")).toHaveLength(1);
     // only the framed one has an edit cycle. Its mode is the `readonly` class,
@@ -126,14 +124,6 @@ describe("the edit cycle", () => {
     expect(container.querySelectorAll("[data-live]")).toHaveLength(1);
   });
 
-  it("gives a static card no edit affordance at all", async () => {
-    const user = userEvent.setup();
-    setup(okActions());
-
-    await user.click(screen.getByRole("tab", { name: /Training/ }));
-    expect(screen.queryByRole("button", { name: /^Edit$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Save\b/ })).not.toBeInTheDocument();
-  });
 
   it("Cancel restores the values from props and drops the error", async () => {
     const user = userEvent.setup();
@@ -141,7 +131,6 @@ describe("the edit cycle", () => {
     setup(actions);
 
     await openPersonal(user);
-    await user.click(editButtons()[0]);
     const phone = screen.getByDisplayValue("0400 000 000");
     await user.clear(phone);
     await user.type(phone, "0000");
@@ -152,11 +141,11 @@ describe("the edit cycle", () => {
 
     expect(screen.queryByText("Nope.")).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("0000")).not.toBeInTheDocument();
-    // back to read mode, showing the stored value
+    // back on the Overview, showing the stored value
     expect(screen.getByText("0400 000 000")).toBeInTheDocument();
 
     // and re-opening starts from props again, not from the abandoned draft
-    await user.click(editButtons()[0]);
+    await openPersonal(user);
     expect(screen.getByDisplayValue("0400 000 000")).toBeInTheDocument();
   });
 
@@ -165,8 +154,7 @@ describe("the edit cycle", () => {
     const actions = okActions();
     setup(actions);
 
-    await user.click(screen.getByRole("tab", { name: /Emergency/ }));
-    await user.click(editButtons()[0]);
+    await user.click(screen.getByRole("button", { name: "Edit emergency contact" }));
     await user.click(screen.getByRole("button", { name: /^Save\b/ }));
 
     const [section, fields] = actions.onSave.mock.calls[0];
@@ -221,8 +209,7 @@ describe("pre-validation", () => {
     const actions = okActions();
     adminSetup(actions);
 
-    await user.click(screen.getByRole("tab", { name: /Payroll/ }));
-    await user.click(screen.getByRole("button", { name: /^Edit$/ }));
+    await user.click(screen.getByRole("button", { name: "Edit Payroll" }));
     const wage = screen.getByLabelText(/Hourly wage/);
     await user.clear(wage);
     await user.type(wage, "45o"); // a typo'd letter, not a number
@@ -243,8 +230,7 @@ describe("pre-validation", () => {
     const actions = okActions();
     adminSetup(actions);
 
-    await user.click(screen.getByRole("tab", { name: /Payroll/ }));
-    await user.click(screen.getByRole("button", { name: /^Edit$/ }));
+    await user.click(screen.getByRole("button", { name: "Edit Payroll" }));
     const wage = screen.getByLabelText(/Hourly wage/);
     await user.clear(wage);
     await user.type(wage, "45o");
@@ -268,15 +254,14 @@ describe("dates are picked, never typed", () => {
     const { container } = setup(okActions());
 
     await openPersonal(user);
-    await user.click(editButtons()[0]);
     for (const label of ["Date of birth", "Start date"]) {
       const field = byLabel(label);
       expect(field.tagName).toBe("BUTTON");
       expect(field).toHaveAttribute("aria-haspopup", "dialog");
     }
 
-    await user.click(screen.getByRole("tab", { name: /Work rights/ }));
-    await user.click(editButtons()[0]);
+    await user.click(screen.getByRole("button", { name: /^Cancel$/ }));
+    await user.click(screen.getAllByRole("button", { name: "Add work rights" })[0]);
     for (const label of ["Expiry", /Right to work checked/]) {
       expect(screen.getByLabelText(label)).toHaveAttribute("aria-haspopup", "dialog");
     }
@@ -290,7 +275,6 @@ describe("dates are picked, never typed", () => {
     const { rerender, props } = setup(actions);
 
     await openPersonal(user);
-    await user.click(editButtons()[0]);
     // the field opens on the month it already holds — June 2020
     await pick(user, "Start date", "Tuesday 30 June 2020");
     await user.click(screen.getByRole("button", { name: /^Save\b/ }));
@@ -309,7 +293,6 @@ describe("dates are picked, never typed", () => {
     const user = userEvent.setup();
     setup(okActions());
     await openPersonal(user);
-    await user.click(editButtons()[0]);
     expect(byLabel("Date of birth")).toHaveTextContent("25/12/1990");
 
     // and it opens ON that date's month rather than on today

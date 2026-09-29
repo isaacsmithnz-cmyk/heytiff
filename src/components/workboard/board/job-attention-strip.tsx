@@ -8,6 +8,7 @@ import {
   attentionCountLabel,
   type AttentionItem,
   type JobAttention,
+  type NoteWord,
 } from "@/lib/workboard/job-attention";
 import { taskTitleFromNote, withoutHandles } from "@/lib/workboard/sm8-mentions";
 import { NOTE_WORDS } from "@/lib/integrations/sm8-note-words";
@@ -172,7 +173,19 @@ function AttentionRow({
         <Icon name={face.icon} size={13} />
       </span>
       <span className="wb2-jcatttext">
-        <b>{face.title}</b>
+        <b>
+          {face.words
+            ? face.words.map((w, i) =>
+                "pill" in w ? (
+                  <span key={i} className="wb2-jcattpill">
+                    {w.pill}
+                  </span>
+                ) : (
+                  w.text.replace(/\s+/g, " ")
+                ),
+              )
+            : face.title}
+        </b>
         {face.meta && <em>{face.meta}</em>}
       </span>
       <span className="wb2-jcattacts">
@@ -348,6 +361,8 @@ type Face = {
   icon: "alert" | "servicem8" | "listCheck" | "user";
   tone: "dan" | "warn" | "cy" | "plain";
   title: string;
+  /** The note as written, its people as pills — where the row has one. */
+  words?: NoteWord[];
   meta: string | null;
 };
 
@@ -383,14 +398,17 @@ function faceOf(item: AttentionItem): Face {
         title: quoted(item.text),
         meta: [item.author, dayOf(item.at), "Flagged in ServiceM8"].filter(Boolean).join(", "),
       };
-    case "task":
+    case "task": {
+      /* a note that names people already says who it is on, in pills */
+      const named = item.note?.some((w) => "pill" in w) ?? false;
       return {
         icon: "listCheck",
         tone: item.overdue ? "dan" : "plain",
         title: item.title,
+        ...(item.note && named ? { words: item.note } : {}),
         meta: [
           "Task",
-          item.assignee,
+          named ? null : item.assignee,
           item.dueDate
             ? `${item.overdue ? "was due" : "due"} ${fmtAuWeekdayDayMonth(item.dueDate)}`
             : null,
@@ -398,6 +416,7 @@ function faceOf(item: AttentionItem): Face {
           .filter(Boolean)
           .join(", "),
       };
+    }
     case "mention":
       return {
         icon: "user",

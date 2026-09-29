@@ -830,6 +830,7 @@ day he said them.
 | `.hd-cal` | gradients | 2 | "design exempt for now, but keep a note": the Calendar's school holidays wear his grey hatch, a striped gradient declared once as the calendar's token, and its swatch the same hatch drawn finer | 2026-09-24 |
 | `.hd-cal-tag` | pills | 1 | "go with your recommendations", which kept his span tags: a week in the Calendar's 4 weeks carries a tinted capsule for what runs through it, "School holidays all week", where law 26 says a plain word | 2026-09-25 |
 | `.hd-cal-chip` | pills | 1 | "go with your recommendations", which kept his status chip: the Calendar's panel says where the chosen thing stands, "Due in 8 days", in a capsule in the tint of what it says | 2026-09-25 |
+| `.wb2-jcattpill` | pills | 1 | "Our mention can just show our name inside a pill. in place of where it was in the note": a task made from a ServiceM8 note carries the note as ServiceM8 shows it, each person it names a pill where their handle stood, where law 26 says a plain word | 2026-09-29 |
 | `.hd-cal-vb` | shadows | 1 | "design exempt for now, but keep a note": the chosen seat in the Calendar's 4 weeks, Month and Year switch is paper lifted off its tray by his small shadow, `0 1px 2px`, its colour the calendar's token | 2026-09-24 |
 
 What the guard cannot count is noted here on the same word:

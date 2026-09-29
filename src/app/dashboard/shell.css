@@ -6902,6 +6902,10 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-r
    has become the diary entry it is meant to point at. */
 .wb2-jcatttext b { font-size:13px; font-weight:700; color:var(--ink);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* A person the note names, where their @handle stood: the note as
+   ServiceM8 shows it. Isaac, 2026-09-29. */
+.wb2-jcattpill { display:inline-block; padding:0 8px; border-radius:999px; background:var(--info-tint);
+  color:var(--ink); font-weight:700; }
 .wb2-jcatttext em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-jcattacts { display:flex; align-items:center; gap:4px; flex:none; }

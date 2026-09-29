@@ -79,16 +79,16 @@ function strayFittings(doc: DesignDocument, sys: DesignSystem): SystemFinding[] 
       severity: "red",
       code: "stray-joint",
       drawing: true,
-      message: joints.length === 1 ? "A joint branches nothing" : `${joints.length} joints branch nothing`,
-      fix: "A joint takes one pipe in and two out: branch a pipe off it, or delete it",
+      message: joints.length === 1 ? "A joint isn't connected" : `${joints.length} joints aren't connected`,
+      fix: "Connect it, or delete it",
     });
   if (boxes.length)
     out.push({
       severity: "red",
       code: "stray-box",
       drawing: true,
-      message: boxes.length === 1 ? "A branch box has no pipes on it" : `${boxes.length} branch boxes have no pipes on them`,
-      fix: "Run the outdoor's pipe and its heads' to it, or delete it",
+      message: boxes.length === 1 ? "A branch box isn't connected" : `${boxes.length} branch boxes aren't connected`,
+      fix: "Connect it, or delete it",
     });
   return out;
 }
@@ -109,8 +109,8 @@ export function loosePipes(doc: DesignDocument, sys: DesignSystem): SystemFindin
     severity: "red",
     code: "loose-pipe",
     drawing: true,
-    message: n === 1 ? "A pipe ends without reaching anything" : `${n} pipes end without reaching anything`,
-    fix: "Finish each on a unit, a joint or a box, or erase it",
+    message: n === 1 ? "A pipe isn't connected at one end" : `${n} pipes aren't connected at one end`,
+    fix: "Connect it, or delete it",
   };
 }
 

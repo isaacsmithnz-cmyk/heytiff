@@ -9309,6 +9309,25 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-zp-status.ok { color: var(--ok-t); }
 .dstudio .ds-zp-status.bad { color: var(--bad-t); }
+/* the open card's reason a system fails: a pale bad ground, outlined, the
+   warning mark on the first line and the words wrapping flush beside it */
+.dstudio .ds-zp-why {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bad-tint);
+  border: 1px solid var(--bad-t);
+  border-radius: var(--r-control);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--bad-t);
+}
+.dstudio .ds-zp-why > :first-child {
+  margin-top: 1px;
+}
 .dstudio .ds-zp-lbl {
   font-size: 12px;
   font-weight: 500;

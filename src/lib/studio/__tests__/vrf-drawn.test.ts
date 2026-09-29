@@ -364,12 +364,12 @@ describe("a pipe that goes nowhere", () => {
       severity: "red",
       code: "loose-pipe",
       drawing: true,
-      message: "A pipe ends without reaching anything",
-      fix: "Finish each on a unit, a joint or a box, or erase it",
+      message: "A pipe isn't connected at one end",
+      fix: "Connect it, or delete it",
     });
     t.doc = { ...t.doc, objects: [...t.doc.objects, open("stub2")] };
     expect(systemFindings(t.doc, pack, sys()).find((f) => f.code === "loose-pipe")?.message).toBe(
-      "2 pipes end without reaching anything"
+      "2 pipes aren't connected at one end"
     );
     expect(combinationWord(t.doc, pack, sys())).toBe("Fails");
     // a drawing finding fails the combination but never keeps the builder's Done off
@@ -435,8 +435,8 @@ describe("a joint that branches nothing", () => {
     const box = { id: "box", type: "branch-box", systemId: t.systemId, floorId, plane: "room", geometry: { kind: "point", at: { x: 9, y: 9 } }, props: {} } as DesignObject;
     t.doc = { ...t.doc, objects: [...t.doc.objects, lone, box] };
     const f = systemFindings(t.doc, pack, sys());
-    expect(f.find((x) => x.code === "stray-joint")).toMatchObject({ severity: "red", drawing: true, message: "A joint branches nothing" });
-    expect(f.find((x) => x.code === "stray-box")?.message).toBe("A branch box has no pipes on it");
+    expect(f.find((x) => x.code === "stray-joint")).toMatchObject({ severity: "red", drawing: true, message: "A joint isn't connected" });
+    expect(f.find((x) => x.code === "stray-box")?.message).toBe("A branch box isn't connected");
     expect(doneBlockers(f).map((x) => x.code)).not.toContain("stray-joint");
     t.doc = deleteFromSchematic(deleteFromSchematic(t.doc, { kind: "joint", id: "lone" }), { kind: "box", id: "box" });
     expect(codes()).not.toContain("stray-joint");

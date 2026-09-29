@@ -242,8 +242,8 @@ export function VrfSchematic({
   const stray = (() => {
     const { joints, boxes } = strayFittingIds(doc, sys);
     return [
-      ...joints.map((id) => ({ id, what: "A joint that branches nothing" })),
-      ...boxes.map((id) => ({ id, what: "A branch box with no pipes" })),
+      ...joints.map((id) => ({ id, what: "Joint not connected" })),
+      ...boxes.map((id) => ({ id, what: "Branch box not connected" })),
     ];
   })();
   const pickedStray = stray.find((x) => `stray:${x.id}` === picked);
@@ -315,7 +315,7 @@ export function VrfSchematic({
                 <path className="hit" d={`M${p.x} ${p.y} H${x2} V${y2}`} />
                 <circle cx={x2} cy={y2} r={4} />
                 <text x={x2 + 7} y={y2 + 4}>
-                  Goes nowhere
+                  Not connected
                 </text>
               </g>
             );
@@ -380,7 +380,7 @@ export function VrfSchematic({
             .filter((l) => !l.anchorId)
             .map((l) => (
               <button key={l.id} type="button" className="ds-schem-loose-btn" onClick={() => setPicked(`loose:${l.id}`)}>
-                {`A pipe on nothing${l.lengthM != null ? `, ${l.lengthM.toFixed(1)} m` : ""}`}
+                {`Pipe not connected${l.lengthM != null ? `, ${l.lengthM.toFixed(1)} m` : ""}`}
               </button>
             ))}
         </div>
@@ -401,7 +401,7 @@ export function VrfSchematic({
               <>
                 <div>
                   <dt>Pipe</dt>
-                  <dd>{pickedLoose.from ? `From ${pickedLoose.from}, reaching nothing` : "Reaching nothing at either end"}</dd>
+                  <dd>{pickedLoose.from ? `From ${pickedLoose.from}, not connected at the other end` : "Not connected at either end"}</dd>
                 </div>
                 {pickedLoose.lengthM != null && (
                   <div>

@@ -604,7 +604,14 @@ export async function readJobAttention(
         ])
       : Promise.resolve(new Set<string>()),
   ]);
-  const tasks = await openTasks(orgId, taskIds);
+  /* the note each task was made from, by the ask that made it */
+  const noteOf = new Map<string, string>();
+  const said = new Map(input.notes.map((n) => [n.remoteId, n.text] as const));
+  for (const a of await asks) {
+    const text = said.get(a.noteUuid);
+    if (a.taskId && text) noteOf.set(a.taskId, text);
+  }
+  const tasks = await openTasks(orgId, taskIds, noteOf);
 
   const handles = [...people.keys()];
   const held = input.heldFlags ?? new Set<string>();
@@ -766,11 +773,15 @@ async function askedOnJob(orgId: string, jobUuid: string): Promise<JobAsk[]> {
 }
 
 /** The ones still open, with who they're on. */
-async function openTasks(orgId: string, ids: readonly string[]): Promise<AttentionTask[]> {
+async function openTasks(
+  orgId: string,
+  ids: readonly string[],
+  noteOf: ReadonlyMap<string, string> = new Map(),
+): Promise<AttentionTask[]> {
   if (ids.length === 0) return [];
   const { data } = await supabaseAdmin
     .from("tasks")
-    .select("id, title, due_date, assigned_to")
+    .select("id, title, due_date, assigned_to, group_id")
     .eq("org_id", orgId)
     .eq("status", "open")
     .in("id", ids.slice(0, 100))
@@ -782,14 +793,33 @@ async function openTasks(orgId: string, ids: readonly string[]): Promise<Attenti
     title: string;
     due_date: string | null;
     assigned_to: string | null;
+    group_id: string | null;
   }[];
   const names = await staffDisplayNames(orgId, rows.map((r) => r.assigned_to));
-  return rows.map((r) => ({
-    id: r.id,
-    title: r.title,
-    dueDate: r.due_date,
-    assignee: r.assigned_to ? names.get(r.assigned_to) ?? null : null,
-  }));
+  /* ONE JOB GIVEN TO SEVERAL PEOPLE IS ONE ROW: its copies share a group,
+     and the row names everyone it is on (see completeTask). */
+  const seen = new Map<string, AttentionTask>();
+  const out: AttentionTask[] = [];
+  for (const r of rows) {
+    const who = r.assigned_to ? names.get(r.assigned_to) ?? null : null;
+    const head = r.group_id ? seen.get(r.group_id) : undefined;
+    if (head) {
+      if (who && !(head.assignee ?? "").split(", ").includes(who)) {
+        head.assignee = head.assignee ? `${head.assignee}, ${who}` : who;
+      }
+      continue;
+    }
+    const task: AttentionTask = {
+      id: r.id,
+      title: r.title,
+      dueDate: r.due_date,
+      assignee: who,
+      noteText: noteOf.get(r.id) ?? null,
+    };
+    if (r.group_id) seen.set(r.group_id, task);
+    out.push(task);
+  }
+  return out;
 }
 
 /** ServiceM8 notes on this job that somebody has already dealt with — on

@@ -120,6 +120,7 @@ import {
   MIN_ZOOM,
   mmPerUnitFromCalibration,
   orthoSnap,
+  elbowCorner,
   distToSmoothed,
   pointInPolygon,
   polygonArea,
@@ -821,6 +822,21 @@ export function StudioCanvas({
   const svgRef = useRef<SVGSVGElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [cursor, setCursor] = useState<Point | null>(null);
+  /* Shift held: a straight run's last leg goes into a unit square (the
+     preview has to know before the click, so it is tracked, not read off it) */
+  const [shiftDown, setShiftDown] = useState(false);
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => e.key === "Shift" && setShiftDown(e.type === "keydown");
+    const off = () => setShiftDown(false);
+    window.addEventListener("keydown", on);
+    window.addEventListener("keyup", on);
+    window.addEventListener("blur", off);
+    return () => {
+      window.removeEventListener("keydown", on);
+      window.removeEventListener("keyup", on);
+      window.removeEventListener("blur", off);
+    };
+  }, []);
   const [drag, setDrag] = useState<Drag | null>(null);
   /* the unit under the pointer — named in the corner card instead of on the
      plan itself. Hit-tested from the same footprint the click uses, so what
@@ -2851,11 +2867,13 @@ export function StudioCanvas({
                 : null;
             }
             setDraftPipe([p]);
-          } else if (anchor) {
-            // landing on an anchor completes the run — the magnetic connection
-            commitPipe([...draftPipe, p], { kind: anchor.kind, id: anchor.id });
-          } else if (onRun) {
-            commitPipe([...draftPipe, p], null, onRun);
+          } else if (anchor || onRun) {
+            // landing on an anchor completes the run — the magnetic connection;
+            // with Shift a straight run turns square into it
+            const corner = e.shiftKey && !curved ? elbowCorner(draftPipe, p) : null;
+            const pts = [...draftPipe, ...(corner ? [corner] : []), p];
+            if (anchor) commitPipe(pts, { kind: anchor.kind, id: anchor.id });
+            else commitPipe(pts, null, onRun!);
           } else {
             setDraftPipe((pts) => [...pts, p]);
           }
@@ -3824,7 +3842,7 @@ export function StudioCanvas({
             text:
               tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft")
                 ? `Click to start, then click the points the line should curve through. ${runEnds}`
-                : `Click to start, then click at each bend. ${runEnds}`,
+                : `Click to start, then click at each bend. Hold Shift over a unit to go in at a right angle. ${runEnds}`,
           }
       : tool === "joint"
         ? { icon: "pipe", text: "Click a run to branch it there, or anywhere to place a joint" }
@@ -4686,10 +4704,14 @@ export function StudioCanvas({
             (() => {
               const curved =
                 tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft");
+              const target = cursor
+                ? nearestAnchor(cursor)?.at ?? (tool === "pipe" ? runLanding(cursor)?.at : undefined)
+                : undefined;
+              const corner = target && shiftDown && !curved ? elbowCorner(draftPipe, target) : null;
               const tail = cursor
                 ? [
-                    nearestAnchor(cursor)?.at ??
-                      (tool === "pipe" ? runLanding(cursor)?.at : undefined) ??
+                    ...(corner ? [corner] : []),
+                    target ??
                       (curved
                         ? cursor
                         : orthoSnap(draftPipe[draftPipe.length - 1], cursor)),

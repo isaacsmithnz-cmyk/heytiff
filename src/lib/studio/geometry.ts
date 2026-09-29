@@ -229,6 +229,24 @@ export function orthoSnap(prev: Point, p: Point): Point {
     : { x: prev.x, y: p.y };
 }
 
+/** Shift on a straight run's last click (Isaac, 2026-09-29): the corner that
+    takes the run square into `target` — on along the leg being drawn, then
+    one right angle straight in, so the drop lines up with the unit without
+    guessing its line. The leg is the last segment's axis; on the first leg,
+    the longer way to go. Null when the target already lines up. */
+export function elbowCorner(pts: Point[], target: Point, eps = 1e-6): Point | null {
+  const prev = pts[pts.length - 1];
+  if (!prev) return null;
+  const dx = target.x - prev.x;
+  const dy = target.y - prev.y;
+  if (Math.abs(dx) < eps || Math.abs(dy) < eps) return null;
+  const before = pts[pts.length - 2];
+  const alongX = before
+    ? Math.abs(prev.x - before.x) >= Math.abs(prev.y - before.y)
+    : Math.abs(dx) >= Math.abs(dy);
+  return alongX ? { x: target.x, y: prev.y } : { x: prev.x, y: target.y };
+}
+
 /** Index of the vertex within maxDist of p, or -1. */
 export function nearestVertexIndex(
   p: Point,

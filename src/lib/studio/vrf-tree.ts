@@ -108,6 +108,7 @@ export interface TreeFinding {
     | "no-size"
     | "not-box-head"
     | "box-count-over"
+    | "box-empty"
     | "after-first-joint-over"
     | "total-over"
     | "farthest-over"
@@ -650,6 +651,10 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
     const down = below.get(n.id) ?? 0;
     const first = n.id === firstFitting;
     if (n.kind === "box") {
+      if (!outs.length) {
+        findings.push({ severity: "red", code: "box-empty", message: "A branch box feeds no heads", fix: "Run its heads to it, or delete it" });
+        continue;
+      }
       const part = boxParts.find((p) => (p.ports ?? 0) >= outs.length)?.model ?? null;
       fittings.push({ nodeId: n.id, kind: "box", part, downstreamIndex: down, branches: outs.length, first: false });
       if (!part)

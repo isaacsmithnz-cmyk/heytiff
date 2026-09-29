@@ -72,6 +72,7 @@ import { deleteZone } from "@/lib/studio/builder";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf } from "@/lib/studio/graph";
 import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
+import { pipeRefusal } from "@/lib/studio/pipe-rules";
 
 /** a branch box on the plan: PAC-MK34BC / MK54BC are both 450 × 280 mm (M-P0860 p.44) */
 const BOX_W_MM = 450;
@@ -1066,6 +1067,14 @@ export function StudioCanvas({
     [tool]
   );
   const pipeStartAttach = useRef<{ kind: AnchorKind; id: string } | null>(null);
+  /* a refrigerant pipe that can't exist is refused where it would attach
+     (pipe-rules.ts); the reason stands in the hint window for a moment */
+  const [refusal, setRefusal] = useState<string | null>(null);
+  useEffect(() => {
+    if (!refusal) return;
+    const t = window.setTimeout(() => setRefusal(null), 3500);
+    return () => window.clearTimeout(t);
+  }, [refusal]);
 
   /* IS SOMETHING HALF-DRAWN — the one answer both Esc and right-click ask,
      named once because they used to disagree. The calibration's first point
@@ -2818,6 +2827,19 @@ export function StudioCanvas({
           const curved = tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft");
           const prev = draftPipe[draftPipe.length - 1];
           const p = anchor ? anchor.at : onRun ? onRun.at : prev && !curved ? orthoSnap(prev, w) : w;
+          const why =
+            tool === "pipe" && anchor && activeSystemId
+              ? pipeRefusal(
+                  doc,
+                  activeSystemId,
+                  draftPipe.length === 0 ? anchor : pipeStartAttach.current,
+                  draftPipe.length === 0 ? null : anchor
+                )
+              : null;
+          if (why) {
+            setRefusal(why);
+            return;
+          }
           if (draftPipe.length === 0) {
             if (onRun) {
               const jointId = newId("obj");
@@ -5245,7 +5267,12 @@ export function StudioCanvas({
           not the dark chrome: it sits over the plan for as long as the tool is
           armed, and the dark pill kept pulling the eye off the shape being
           drawn. Anyone who knows the gestures turns it off on the × . */}
-      {toolHint && hintsOn && (
+      {refusal ? (
+        <div className="ds-tool-hint" role="alert">
+          <Icon name="x" size={14} />
+          <span className="ds-tool-hint-t">{refusal}</span>
+        </div>
+      ) : toolHint && hintsOn && (
         <div className="ds-tool-hint" role="status">
           <Icon name={toolHint.icon} size={14} />
           <span className="ds-tool-hint-t">{toolHint.text}</span>

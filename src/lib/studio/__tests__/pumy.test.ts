@@ -164,6 +164,18 @@ describe("branch boxes (p.44, 75)", () => {
     for (const r of entered) expect(r.provenance).toMatchObject({ kind: "user-entered", by: "Isaac Smith" });
   });
 
+  it("a box that feeds no heads is red, and never goes on the sheet as a part", () => {
+    // Walk B (2026-09-29): a box drawn off the outdoor with nothing after it
+    const tree = provisionalVrfTree("OU", heads, new Set(heads.map((h) => h.id)), 5);
+    tree.nodes.push({ id: "empty", kind: "box" });
+    tree.sections.push({ id: "to-empty", from: "OU", to: "empty", lengthM: 4 });
+    const sized = sizeVrfTree(pack, odu("PUMY-SP112VKMD2-A"), tree);
+    expect(sized.findings).toContainEqual(
+      expect.objectContaining({ severity: "red", code: "box-empty", message: "A branch box feeds no heads" })
+    );
+    expect(sized.fittings.filter((f) => f.kind === "box")).toHaveLength(1);
+  });
+
   it("three box heads take the three-port PAC-MK34BC", () => {
     const three = heads.slice(0, 3);
     const tree = provisionalVrfTree("OU", three, new Set(three.map((h) => h.id)), 5);

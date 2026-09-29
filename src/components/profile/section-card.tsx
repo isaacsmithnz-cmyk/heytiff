@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { PreValidation } from "@/lib/staff/pre-validate";
 import { useSectionSave } from "./use-section-save";
@@ -63,6 +63,14 @@ export type SectionBodyContext = CardEditContext & {
 };
 
 export type SectionVariant = "section" | "card";
+
+/* WHERE A FORM GOES WHEN IT IS FINISHED WITH. The staff card has no tabs any
+   more (2026-09-29): its sections open from the Overview's cards, straight
+   into their forms, and a saved or cancelled form goes back to the Overview
+   rather than leaving you on a page of its own. The screen provides this
+   around a section it opened that way; nothing else does, so the Organisation
+   screen's cards, and a second card sharing a view, stay where they are. */
+export const SectionDone = createContext<(() => void) | null>(null);
 
 export function SectionCard({
   title,
@@ -153,16 +161,20 @@ export function SectionCard({
     clear();
     setDraft({ ...values });
   };
+  const done = useContext(SectionDone);
   const cancel = () => {
     clear();
     setDraft(null);
+    done?.();
   };
   const save = async () => {
     if (!draft) return;
     const ok = await submit(transform ? transform(draft) : draft);
     // props already carry the saved values (the action revalidated) — dropping
     // the draft is the whole of "go back to read mode"
-    if (ok) setDraft(null);
+    if (!ok) return;
+    setDraft(null);
+    done?.();
   };
 
   const ctx: CardEditContext = {

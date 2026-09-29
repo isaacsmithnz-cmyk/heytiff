@@ -27,7 +27,7 @@ const ROLES: [Role, string, string, string][] = ROLE_ORDER.map((r) => [
 /* Labels say "everyone's" where the capability gates the team-wide view only —
    revoking it never touches the person's own timesheet or own vehicle, which
    are intrinsic. */
-const ACCESS: [Capability, string, string][] = [
+export const ACCESS: [Capability, string, string][] = [
   ["toolbox", "Toolbox", "Calculators & references"],
   ["studio", "Design Studio", "Create & edit VRF designs"],
   ["tiff", "Library", "Ask the company's manuals, specs & SOPs"],
@@ -57,7 +57,16 @@ export function permissionsValues(ctx: PermissionsCtx): Record<string, string> {
    path with its own ownership guards, and re-decides everything decided here.
    The role selector stays VISIBLE when it's locked: hiding it would leave an
    admin unable to see why someone has the access they have. */
-export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: SaveSection }) {
+export function PermissionsCard({
+  ctx,
+  onSave,
+  startEditing = false,
+}: {
+  ctx: PermissionsCtx;
+  onSave: SaveSection;
+  /** opened from the Overview's Edit — the form, not the read view */
+  startEditing?: boolean;
+}) {
   const values = permissionsValues(ctx);
   const pill = (
     <span className="pill2 adminpill">
@@ -221,6 +230,7 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
       values={values}
       onSave={(fields) => onSave("permissions", fields)}
       body={sectionBody}
+      startEditing={startEditing}
     />
   );
 }

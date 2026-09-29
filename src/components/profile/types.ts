@@ -155,7 +155,6 @@ export const SECTION_KEYS = [
   "emergency",
   "licences",
   "workrights",
-  "training",
   "mypay",
   "payroll",
   "permissions",
@@ -170,6 +169,8 @@ export type SectionKey = (typeof SECTION_KEYS)[number];
     value would. */
 const LEGACY_SECTIONS: Readonly<Record<string, SectionKey>> = {
   vehicle: "summary",
+  // Training was a placeholder with nothing behind it; it went with the tabs
+  training: "summary",
 };
 
 export function isSectionKey(v: unknown): v is SectionKey {

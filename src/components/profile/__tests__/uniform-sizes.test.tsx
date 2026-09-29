@@ -1,19 +1,18 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PersonalCard } from "../personal-card";
-import { SummaryTab } from "../summary-tab";
+import { ProfileScreen } from "../profile-screen";
 import type { StaffProfile } from "@/lib/staff/profile";
-import { profileCompleteness } from "@/lib/staff/completeness";
 import { TODAY, header, jordan, okActions } from "./fixtures/staff";
 
-/* Uniform sizes, on the card and on Summary.
+/* Uniform sizes, on the card and on the Overview.
 
    The sizes are a PANEL on Personal, not a tab of their own: four optional
    fields do not earn a tenth tab, and they ride the personal save that is
    already there. What that buys is pinned here — one Edit, one Save, four
    more keys in the same submission — along with the two things that would
    otherwise drift: the boxes stay free text over a suggested ladder, and
-   Summary answers with ONE labelled line rather than four rows of sizes. */
+   the Overview answers with ONE labelled line rather than four rows of sizes. */
 
 const sized: StaffProfile = {
   ...jordan,
@@ -192,32 +191,36 @@ describe("the boot scale", () => {
   });
 });
 
-describe("on Summary", () => {
-  const summary = (profile: StaffProfile = sized) =>
+describe("on the Overview", () => {
+  const overview = (profile: StaffProfile = sized) =>
     render(
-      <SummaryTab
+      <ProfileScreen
+        mode="admin"
         header={header}
         profile={profile}
         licences={[]}
         vehicle={null}
-        today={TODAY} warnDays={30}
+        today={TODAY}
+        warnDays={30}
+        org="Smith Air"
         orgState="NSW"
-        mode="admin"
         actions={okActions()}
-        completeness={profileCompleteness(profile)}
-        onGo={jest.fn()}
       />
     );
 
   it("answers in one labelled line, under Personal", () => {
-    summary();
-    const row = screen.getByText("Uniform").closest(".psum-row") as HTMLElement;
+    overview();
+    const row = screen.getByText("Uniform").closest(".pov-row") as HTMLElement;
     expect(row.textContent).toBe("UniformShirt L, Jacket XL, Trousers 92, Boots 10.5 AU/UK");
   });
 
-  it("shows the dash when we hold no sizes — nothing to order from", () => {
-    summary(jordan);
-    const row = screen.getByText("Uniform").closest(".psum-row") as HTMLElement;
-    expect(within(row).getByLabelText("not recorded")).toBeInTheDocument();
+  /* With no sizes held there is no row to draw a dash in: the blank is on
+     Still to add, once, and its Add opens the form on the first size. */
+  it("asks for the sizes on Still to add when we hold none", async () => {
+    const user = userEvent.setup();
+    overview(jordan);
+    expect(within(screen.getByRole("region", { name: "Personal" })).queryByText("Uniform")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add uniform sizes" }));
+    expect(document.getElementById("shirt_size")).toHaveFocus();
   });
 });

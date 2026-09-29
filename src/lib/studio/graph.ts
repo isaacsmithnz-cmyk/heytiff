@@ -24,13 +24,15 @@ import { polylineLength, smoothedLength, unitsToMeters } from "./geometry";
    are the Stage-7 duct anchors (ducted spec §13) — accepted now so duct-run
    endpoints can record them, resolved to nodes by graph v1 (Step 4). */
 export interface Attach {
-  kind: "unit" | "riser" | "fitting" | "spigot" | "grille";
+  kind: "unit" | "riser" | "joint" | "branch-box" | "fitting" | "spigot" | "grille";
   id: string;
 }
 
 const ATTACH_KINDS: ReadonlySet<string> = new Set([
   "unit",
   "riser",
+  "joint",
+  "branch-box",
   "fitting",
   "spigot",
   "grille",
@@ -56,7 +58,7 @@ export interface GraphEdge {
 }
 
 export interface SystemGraph {
-  /** node id → the object (units and risers) */
+  /** node id → the object (units, risers and joints) */
   nodes: Map<string, DesignObject>;
   edges: GraphEdge[];
   /** runs whose endpoints never attached to anything on either end */
@@ -74,7 +76,8 @@ export function buildSystemGraph(
 
   const nodes = new Map<string, DesignObject>();
   for (const o of mine) {
-    if (o.type === "unit" || o.type === "riser") nodes.set(o.id, o);
+    // a joint is where runs branch (joints.ts): a node like a riser
+    if (o.type === "unit" || o.type === "riser" || o.type === "joint" || o.type === "branch-box") nodes.set(o.id, o);
   }
 
   const edges: GraphEdge[] = [];

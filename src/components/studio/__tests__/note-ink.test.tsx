@@ -93,7 +93,6 @@ describe("the bench", () => {
     await user.click(screen.getByRole("button", { name: /Continue/ }));
     await user.click(screen.getByText("Blank canvas"));
     await user.click(await screen.findByRole("button", { name: "Design" }));
-    await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
 
     await user.click(screen.getByRole("button", { name: "Note" })); // arms
     await user.click(screen.getByRole("button", { name: "Note" })); // ink row

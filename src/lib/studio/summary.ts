@@ -20,8 +20,9 @@ import { roomAreaM2, roomLoadKw, type RoomObj } from "./loads-room";
 import { roomCoverage, systemCover, type CoverageStatus } from "./coverage";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
-import { systemComponents } from "./components";
-import { equipmentList, installState, NOT_SURE_VALUE } from "./install";
+import { NOT_CHOSEN, systemComponents } from "./components";
+import { equipmentList, installState, NOT_SURE_VALUE, vrfFittings, type EquipmentRow } from "./install";
+import { systemVrfTree } from "./vrf-tree";
 import { describeUnit } from "./materials";
 import { formFactorLabel } from "./form-factors";
 
@@ -288,6 +289,10 @@ export interface SummarySystem {
   refrigerant: string | null;
   prechargedKg: number | null;
   totalPipeM: number | null;
+  /** a VRF's pipe by size pair, from its sized tree (vrf-tree.ts); metres
+      null until the pipework reaches every head. Null for other systems,
+      which are one size pair (pipeLiquidMm / pipeGasMm). */
+  pipeBySize: { liquidMm: number; gasMm: number; m: number | null }[] | null;
   rooms: SummaryRoomRow[];
   /** summed load of the rooms it serves */
   loadKw: number | null;
@@ -469,12 +474,37 @@ export function buildSummaryModel(
     const hasRuns = doc.objects.some(
       (o) => o.systemId === sys.id && o.type === "pipe-run"
     );
+    /* a VRF is many sizes, one per section of its tree: summed by pair */
+    const vrfTree = pack ? systemVrfTree(pack, sys, doc) : null;
+    let pipeBySize: SummarySystem["pipeBySize"] = null;
+    if (vrfTree) {
+      const pairs = new Map<string, { liquidMm: number; gasMm: number; m: number | null }>();
+      for (const sec of vrfTree.sections) {
+        const k = `${sec.liquidMm}/${sec.gasMm}`;
+        const cur = pairs.get(k) ?? { liquidMm: sec.liquidMm, gasMm: sec.gasMm, m: 0 };
+        cur.m = vrfTree.drawn && cur.m != null && sec.lengthM != null ? cur.m + sec.lengthM : null;
+        pairs.set(k, cur);
+      }
+      pipeBySize = [...pairs.values()]
+        .map((p) => ({ ...p, m: p.m == null ? null : Math.round(p.m * 10) / 10 }))
+        .sort((a, b) => b.liquidMm - a.liquidMm || b.gasMm - a.gasMm);
+    }
+    const installAsked = pack != null && installState(doc, pack, sys) !== "not-asked";
 
     /* the takeoff: pipe, then the component choices, then any top-up. Units
        are NOT lines — indoors live in the rooms table, the outdoor in its
        block; a unit repeated here would double-handle the sheet. */
     const lines: SheetLine[] = [
-      ...(totalPipeM != null && totalPipeM > 0 && pipeLiquidMm != null && pipeGasMm != null
+      ...(pipeBySize
+        ? /* a VRF: a line per size pair; before the pipework reaches every
+             head the sizes stand, with no metres to pick */
+          pipeBySize.map((p) => ({
+            group: "pipe" as const,
+            name: `ø${p.liquidMm} / ø${p.gasMm} pair coil`,
+            sub: p.m == null ? "sized from the zones, draw to every head to quantify" : "liquid / gas mm",
+            qty: p.m == null ? "—" : `${p.m} m`,
+          }))
+        : totalPipeM != null && totalPipeM > 0 && pipeLiquidMm != null && pipeGasMm != null
         ? [
             {
               group: "pipe" as const,
@@ -495,7 +525,10 @@ export function buildSummaryModel(
               },
             ]
           : []),
-      ...(pack && installState(doc, pack, sys) !== "not-asked"
+      /* a VRF's joints and headers are always on the sheet; answered install
+         questions bring them in with the rest of the equipment list */
+      ...(pack && !installAsked ? vrfFittings(doc, pack, sys).map(toSheetLine) : []),
+      ...(pack && installAsked
         ? /* a system that has answered its install questions takes its
              equipment list — the parts its answers put there, the pack's
              accessories and the joint pipes its ports need — in place of the
@@ -503,18 +536,10 @@ export function buildSummaryModel(
              units are never lines, and an unanswered question has no part yet. */
           equipmentList(doc, pack, sys)
             .rows.filter((r) => r.group !== "Units" && !r.waiting && r.value !== "Not drawn")
-            .map((r) => ({
-              group: (r.group === "Electrical"
-                ? "electrical"
-                : r.group === "Pipework"
-                  ? "pipe"
-                  : "components") as SheetGroup,
-              name: r.model && r.model !== r.name ? `${r.name} ${r.model}` : r.name,
-              sub: r.onTheDay ? "Confirm on the day" : (r.why ?? ""),
-              qty: r.value ?? (r.qty != null ? String(r.qty) : "—"),
-            }))
+            .map(toSheetLine)
         : compRows
-            .filter((c) => c.kind === "choice")
+            /* a choice not made yet is no line at all: nothing is assumed */
+            .filter((c) => c.kind === "choice" && c.choice?.selectedId !== NOT_CHOSEN)
             .map((c) => ({
               /* the choice catalogue's own key decides the shelf — an isolator is
                  electrical, a bracket is not, and neither this file nor the sheet
@@ -558,6 +583,7 @@ export function buildSummaryModel(
       refrigerant: oduRow?.refrigerant ?? null,
       prechargedKg: oduRow?.precharged_kg ?? null,
       totalPipeM,
+      pipeBySize,
       rooms: mine,
       loadKw: load == null ? null : Math.round(load * 10) / 10,
       capacityKw: cap == null ? null : Math.round(cap * 10) / 10,
@@ -575,6 +601,15 @@ export function buildSummaryModel(
     picklist: buildPicklist(doc, pack, systems),
   };
 }
+
+/** an equipment-list row as a sheet line: its shelf by group, a part's model
+    after its name, the day's provision said on the line */
+const toSheetLine = (r: EquipmentRow): SheetLine => ({
+  group: (r.group === "Electrical" ? "electrical" : r.group === "Pipework" ? "pipe" : "components") as SheetGroup,
+  name: r.model && r.model !== r.name ? `${r.name} ${r.model}` : r.name,
+  sub: r.onTheDay ? "Confirm on the day" : (r.why ?? ""),
+  qty: r.value ?? (r.qty != null ? String(r.qty) : "—"),
+});
 
 /* ── the Material picklist — the whole job's combined pick ──
       Units are counted from what is PLACED, for every system type: the
@@ -608,23 +643,26 @@ function buildPicklist(
     .map(([model, qty]) => ({
       group: "units",
       name: model,
-      sub: pack ? describeUnit(pack, model) : "unit",
+      sub: pack ? describeUnit(pack, model) : "Unit",
       qty: String(qty),
     }));
 
   // pipe, summed by size pair
   const pipe = new Map<string, { name: string; m: number }>();
+  const addPipe = (liquidMm: number, gasMm: number, m: number) => {
+    const key = `${liquidMm}/${gasMm}`;
+    const cur = pipe.get(key);
+    if (cur) cur.m += m;
+    else pipe.set(key, { name: `ø${liquidMm} / ø${gasMm} pair coil`, m });
+  };
   for (const s of systems) {
+    if (s.pipeBySize) {
+      for (const p of s.pipeBySize) if (p.m != null && p.m > 0) addPipe(p.liquidMm, p.gasMm, p.m);
+      continue;
+    }
     if (s.totalPipeM == null || s.totalPipeM <= 0) continue;
     if (s.pipeLiquidMm == null || s.pipeGasMm == null) continue;
-    const key = `${s.pipeLiquidMm}/${s.pipeGasMm}`;
-    const cur = pipe.get(key);
-    if (cur) cur.m += s.totalPipeM;
-    else
-      pipe.set(key, {
-        name: `ø${s.pipeLiquidMm} / ø${s.pipeGasMm} pair coil`,
-        m: s.totalPipeM,
-      });
+    addPipe(s.pipeLiquidMm, s.pipeGasMm, s.totalPipeM);
   }
   const pipes: PicklistRow[] = [...pipe.values()].map((p) => ({
     group: "pipe",

@@ -12,13 +12,18 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { fullNameOf } from "@/lib/staff/name";
 import { initialsFrom } from "@/lib/staff/derive";
+import { normAlias } from "@/lib/staff/aliases";
 
 export type PaletteStaff = {
   /** staff_profiles.id — what the staff card's route resolves. */
   id: string;
   name: string;
-  /** What they go by, when that is not the name — Bob, beside Robert. */
+  /** What they go by, when that is not the name — Bob, beside Robert; or
+      the nickname that found them — Bobo, beside Leonardo. */
   known: string | null;
+  /** The nicknames of theirs the search matched (staff_aliases), as kept —
+      what Tiff's open-by-name reads "open Bobo" against. */
+  nicknames: string[];
   initials: string;
   title: string | null;
   active: boolean;
@@ -99,6 +104,36 @@ export async function searchClients(
     .map(({ c }) => c);
 }
 
+type Card = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null;
+  preferred_name: string | null;
+  job_title: string | null;
+  contact_email: string | null;
+  status: string | null;
+};
+
+/** Staff card id → their nicknames that start with what was typed. Empty
+    where the table isn't there, or the read fails. */
+async function nicknamesStarting(orgId: string, safe: string): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  const typed = normAlias(safe);
+  if (typed.length < 2) return out;
+  const { data, error } = await supabaseAdmin
+    .from("staff_aliases")
+    .select("staff_profile_id, alias")
+    .eq("org_id", orgId)
+    .ilike("alias_norm", `${typed}%`)
+    .limit(STAFF_POOL);
+  if (error) return out;
+  for (const r of (data ?? []) as { staff_profile_id: string; alias: string }[]) {
+    out.set(r.staff_profile_id, [...(out.get(r.staff_profile_id) ?? []), r.alias]);
+  }
+  return out;
+}
+
 /** How many cards are read to choose the few shown — active first. */
 const STAFF_POOL = 40;
 
@@ -130,28 +165,37 @@ export async function searchStaff(
       ].join(",")
     );
   }
-  const { data } = await asked.limit(STAFF_POOL);
+  /* THE NAMES PEOPLE GO BY find them too (Isaac, 2026-09-29): "Bobo"
+     is Leonardo, learned by Tiff or typed on his card. A nickname is matched
+     from its start as a whole ("big le" finds Big Leo), and its cards are
+     read beside the name search's. A workspace without the table finds by
+     names alone. */
+  const [{ data }, called] = await Promise.all([asked.limit(STAFF_POOL), nicknamesStarting(orgId, safe)]);
+  const byName = (data ?? []) as Card[];
+  const missing = [...called.keys()].filter((id) => !byName.some((c) => c.id === id));
+  const { data: extra } = missing.length
+    ? await supabaseAdmin
+        .from("staff_profiles")
+        .select("id, first_name, last_name, full_name, preferred_name, job_title, contact_email, status")
+        .eq("org_id", orgId)
+        .in("id", missing)
+    : { data: [] };
 
-  type Card = {
-    id: string;
-    first_name: string | null;
-    last_name: string | null;
-    full_name: string | null;
-    preferred_name: string | null;
-    job_title: string | null;
-    contact_email: string | null;
-    status: string | null;
-  };
-  return ((data ?? []) as Card[])
+  return [...byName, ...((extra ?? []) as Card[])]
     .map((c) => {
       const stored = fullNameOf(c);
       const email = (c.contact_email ?? "").trim();
-      const known = (c.preferred_name ?? "").trim();
+      const preferred = (c.preferred_name ?? "").trim();
+      const nicknames = called.get(c.id) ?? [];
+      /* the nickname that found them is what the row says beside the name;
+         otherwise the preferred name, as before */
+      const known = nicknames[0] ?? preferred;
       return {
         id: c.id,
         // the directory's own fallback: an imported card may carry only an address
         name: stored || email.split("@")[0] || "Unnamed",
         known: known && known.toLowerCase() !== (c.first_name ?? "").trim().toLowerCase() ? known : null,
+        nicknames,
         initials: initialsFrom(stored, email),
         title: (c.job_title ?? "").trim() || null,
         active: c.status !== "Inactive",

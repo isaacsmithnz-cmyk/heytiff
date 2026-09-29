@@ -202,39 +202,26 @@ describe("Design Studio shell", () => {
     expect(pill.className).toMatch(/\bon\b/);
   });
 
-  /* The cockpit's two sizes: the flow picks the OPENING one. The type chooser
-     needs the full panel; the moment a split exists the room phase belongs to
-     the canvas, so the panel rests as the 46px status tab. Either verb pins
-     per system type, and the pin outranks the flow from then on. */
-  it("the cockpit rests once a split exists, and the pin overrides both ways", async () => {
+  /* The side column is the systems panel, at its full width, always. The old
+     cockpit rested to a 46px tab whenever a split had no units chosen and
+     nothing was selected — and that rule still ran over the systems panel,
+     whose only way back out lived in the cockpit, so a new system's card
+     could be cut off with no way to open it. A pin left in storage by the
+     old panel changes nothing either. */
+  it("the side column never rests: a new system's card stays in full view", async () => {
+    window.localStorage.setItem("ht-ckpin", JSON.stringify({ split: "rest" }));
     const user = userEvent.setup();
     render(localStudio());
     await newDesign(user, "Resting job", "Blank canvas");
     await screen.findByTestId("studio-canvas");
 
     const aside = () => document.querySelector(".ds-sidecol")!;
-    // type-first: the chooser IS the panel — never rested
-    expect(aside().className).not.toContain("rest");
-    expect(screen.queryByRole("button", { name: /Open the System 1 panel/ })).toBeNull();
+    expect(aside().className).toBe("ds-sidecol");
 
-    await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
-    // room phase: the work is on the canvas, the panel rests to the tab
-    expect(aside().className).toContain("rest");
-    const tab = screen.getByRole("button", { name: "Open the System 1 panel" });
-
-    // opening is a pin, and it is remembered per system type
-    await user.click(tab);
-    expect(aside().className).not.toContain("rest");
-    expect(JSON.parse(window.localStorage.getItem("ht-ckpin") ?? "{}")).toMatchObject({
-      split: "open",
-    });
-
-    // and the chevron rests it again — the other half of the same pin
-    await user.click(screen.getByRole("button", { name: /Collapse/ }));
-    expect(aside().className).toContain("rest");
-    expect(JSON.parse(window.localStorage.getItem("ht-ckpin") ?? "{}")).toMatchObject({
-      split: "rest",
-    });
+    await user.click(screen.getByRole("button", { name: "Add a system" }));
+    expect(aside().className).toBe("ds-sidecol");
+    const card = screen.getByRole("region", { name: "System 1" });
+    expect(within(card).getByRole("button", { name: "Add zones" })).toBeVisible();
   });
 
   /* The Note button opened its ink row and armed NOTHING — the tool only came
@@ -246,7 +233,6 @@ describe("Design Studio shell", () => {
     render(localStudio());
     await newDesign(user, "Marking up", "Blank canvas");
     await screen.findByTestId("studio-canvas");
-    await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
 
     const note = screen.getByRole("button", { name: "Note" });
     expect(note.className).not.toMatch(/\bon\b/);

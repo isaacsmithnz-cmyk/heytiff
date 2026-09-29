@@ -7,20 +7,19 @@ import type { DesignDocument, DesignVariantRef } from "@/lib/studio/document";
 /* DESIGN VARIATIONS — the whole design branched into another option, every
    system with it. Switch between them, rename this one, add another.
 
-   ONE LIST, TWO DOORS. It lived only inside the old cockpit's system switcher,
-   so when the systems flow replaced that cockpit (SystemsPanel) the way to add
-   a variation went with it and nobody noticed until Isaac went looking for it
-   (2026-09-28). The list is its own component now; the old switcher and the
-   systems panel's head both render it. */
+   It lived only inside the old cockpit's system switcher, so when the systems
+   flow replaced that cockpit (SystemsPanel) the way to add a variation went
+   with it and nobody noticed until Isaac went looking for it (2026-09-28).
+   The systems panel's head carries it now. */
 
 /** The design's variations, including this one — empty until the first
     branch. A design saved before the list existed carries only its label. */
-export function variationsOf(doc: DesignDocument): DesignVariantRef[] {
+function variationsOf(doc: DesignDocument): DesignVariantRef[] {
   if (doc.variants.length > 0) return doc.variants;
   return doc.meta.variantLabel ? [{ id: doc.id, label: doc.meta.variantLabel }] : [];
 }
 
-export function VariationList({
+function VariationList({
   variants,
   currentVariantId,
   onAddVariant,

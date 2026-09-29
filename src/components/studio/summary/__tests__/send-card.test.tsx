@@ -263,12 +263,12 @@ describe("the button says what pressing it will do", () => {
   it("says what to check before it goes", () => {
     renderCard({
       checks: [
-        { title: "Bed 2 is under-covered", detail: "2.5 kW against 2.9 kW." },
+        { title: "Bed 2 is undersized", detail: "2.5 kW against 2.9 kW." },
         { title: "1 room has no unit", detail: "Listed under Not served yet." },
       ],
     });
     expect(screen.getByText("2 to check")).toBeInTheDocument();
-    expect(screen.getByText(/Bed 2 is under-covered, and 1 more/)).toBeInTheDocument();
+    expect(screen.getByText(/Bed 2 is undersized, and 1 more/)).toBeInTheDocument();
   });
 });
 

@@ -614,10 +614,9 @@ export function RoomModal({
               room's first run or a later edit, and units are not part of
               sizing the space (Isaac, 2026-08-25). */}
           {/* `dstudio` is load-bearing here, not decoration: this modal
-              portals to BODY, and every `.ds-ck-*` rule the units card is
-              built from is scoped `.dstudio …` and reads tokens declared on
-              that class. Without it the card renders as unstyled stacked
-              text. It goes on THIS wrapper rather than the dialog because
+              portals to BODY, and the units card reads tokens declared on
+              that class. Without it the card loses them. It goes on THIS
+              wrapper rather than the dialog because
               `.dstudio` also sets `display:flex` — which the dialog must not
               inherit. */}
           {unitsSection && !editingLoad && (

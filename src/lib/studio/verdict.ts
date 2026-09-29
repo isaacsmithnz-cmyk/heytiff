@@ -16,6 +16,9 @@ import type { DataPack, IndoorUnit, OutdoorUnit } from "./packs/schema";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { checkMultiCompatibility } from "./multi";
 import { outdoorsListing, pairFor } from "./builder";
+import { checkVrfSet, joinsVrf, vrfBand, vrfLoadCeilingKw, vrfOutdoorsListing, vrfRatio, vrfTakesLoad } from "./vrf";
+import { systemCover } from "./coverage";
+import { systemVrfTree } from "./vrf-tree";
 
 export interface SystemFinding {
   severity: "red" | "amber";
@@ -38,7 +41,6 @@ export function brandName(pack: DataPack, id: string): string {
 
 /** every finding on a system, red first */
 export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignSystem): SystemFinding[] {
-  void doc;
   if (!hasAllocations(sys)) return [];
   const allocs = allocationsOf(sys);
   const out: SystemFinding[] = [];
@@ -62,7 +64,23 @@ export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignS
 
   if (!odu) {
     if (heads.length === 0) return out;
-    if (sys.type === "multi-split") {
+    if (sys.type === "vrf") {
+      const strays = heads.filter((u) => !joinsVrf(pack, u));
+      for (const u of strays)
+        out.push({
+          severity: "red",
+          code: "not-vrf-head",
+          message: `${u.model} can't join a VRF system`,
+          fix: "Swap it for a VRF head, or take it out",
+        });
+      if (!strays.length && vrfOutdoorsListing(pack, heads, { proposing: true }).length === 0)
+        out.push({
+          severity: "red",
+          code: "no-outdoor-lists-set",
+          message: "No VRF outdoor takes this set of heads",
+          fix: "Take a head out, or make one smaller",
+        });
+    } else if (sys.type === "multi-split") {
       if (outdoorsListing(pack, heads).length === 0) {
         out.push({
           severity: "red",
@@ -104,6 +122,51 @@ export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignS
               : undefined,
         });
       }
+    }
+    return out;
+  }
+
+  if (oduSpec.system_type === "vrf") {
+    for (const f of checkVrfSet(pack, oduSpec, heads)) {
+      if (f.severity !== "red") continue;
+      out.push({
+        severity: "red",
+        code: f.code,
+        message: f.message.replace(/\.$/, ""),
+        fix:
+          f.code === "not-vrf-head"
+            ? "Swap it for a VRF head, or take it out"
+            : f.code === "ratio-over" || f.code === "over-max-count"
+              ? "Pick a bigger outdoor, or take a head out"
+              : f.code === "ratio-under"
+                ? /* only offer a smaller outdoor when one would take them */
+                  vrfOutdoorsListing(pack, heads).length
+                  ? "Add heads, or pick a smaller outdoor"
+                  : `No VRF outdoor is that small. Add heads, or make ${heads.length === 1 ? "this zone a split" : "these zones a multi"}`
+                : undefined,
+      });
+    }
+    /* THE ZONES NEED MORE THAN THE OUTDOOR CAN EVER TAKE ON (Isaac,
+       2026-09-29: 26.1 kW of zones on a PUMY-SP140, whose 130% is 20.15 kW,
+       "an immediate red flag"). Heads past the outdoor are normal diversity;
+       a load past the most heads it can carry is not a design. */
+    const band = vrfBand(oduSpec);
+    const load = systemCover(doc, pack, sys, doc.settings.sizingBasis).loadKw;
+    const ceiling = vrfLoadCeilingKw(oduSpec, doc.settings.sizingBasis);
+    if (band && load != null && ceiling != null) {
+      if (!vrfTakesLoad(oduSpec, load, doc.settings.sizingBasis))
+        out.push({
+          severity: "red",
+          code: "load-over-outdoor",
+          message: `The zones need ${load.toFixed(1)} kW, and ${odu.model} takes heads up to ${+ceiling.toFixed(2)} kW (${band.ratio_max_pct}%)`,
+          fix: "Pick a bigger outdoor, or move a zone to another system",
+        });
+    }
+    /* the pipework, sized and checked against the book (vrf-tree.ts): a
+       drawn tree's lengths, lifts and charge, and the fittings' rules */
+    for (const f of systemVrfTree(pack, sys, doc)?.findings ?? []) {
+      if (f.severity !== "red") continue;
+      out.push({ severity: "red", code: f.code, message: f.message, fix: f.fix });
     }
     return out;
   }
@@ -155,7 +218,9 @@ export function doneReason(findings: SystemFinding[]): string | null {
 /** a multi's connection ratio: the heads' cooling ratings added up against
     the outdoor's, as a percentage. Plain arithmetic on every brand; where the
     brand's rule is a ratio it carries the verdict, where it is a table (ME)
-    it is just the figure. Null without an outdoor, or for a split. */
+    it is just the figure. A VRF's percentage is the book's own, P-numbers
+    over the outdoor's (vrfIndexRatio), so the card, the editor and the
+    outdoor list say one figure. Null without an outdoor, or for a split. */
 export function connectionRatio(
   pack: DataPack,
   sys: DesignSystem
@@ -171,10 +236,11 @@ export function connectionRatio(
     .filter((u): u is IndoorUnit => u != null);
   if (!heads.length || !oduSpec.capacity_cool_kw) return null;
   const connectedKw = heads.reduce((a, u) => a + (u.capacity_cool_kw ?? 0), 0);
+  const index = oduSpec.system_type === "vrf" ? vrfRatio(oduSpec, heads) : null;
   return {
     connectedKw,
     outdoorKw: oduSpec.capacity_cool_kw,
-    pct: Math.round((connectedKw / oduSpec.capacity_cool_kw) * 100),
+    pct: index ? index.pct : Math.round((connectedKw / oduSpec.capacity_cool_kw) * 100),
     heads: heads.length,
   };
 }

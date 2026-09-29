@@ -5,6 +5,7 @@ import { Icon } from "@/components/shell/icon";
 import type { DesignDocument } from "@/lib/studio/document";
 import type { OrgBrand } from "@/lib/org/brand";
 import type { DataPack } from "@/lib/studio/packs/schema";
+import { systemFindings } from "@/lib/studio/verdict";
 import type { PlanImages } from "@/lib/studio/plans";
 import {
   buildDesignSnapshot,
@@ -95,11 +96,21 @@ export function SummaryView({
      cards render, so the count can never disagree with them. */
   const checks = useMemo(() => {
     const out: { title: string; detail: string }[] = [];
+    /* a system that fails says why here first, in the words the Design rail
+       uses: the sheet below still lists what is drawn */
+    if (pack)
+      for (const sys of doc.systems)
+        for (const f of systemFindings(doc, pack, sys))
+          if (f.severity === "red")
+            out.push({
+              title: doc.systems.length > 1 ? `${sys.name}: ${f.message}` : f.message,
+              detail: f.fix ? `${f.fix}.` : "The combination fails until this is fixed.",
+            });
     for (const s of model.systems) {
       const short = s.rooms.filter((r) => r.status === "under" && r.pct != null);
       for (const r of short)
         out.push({
-          title: `${r.name} is under-covered`,
+          title: `${r.name} is undersized`,
           detail: `${fmt(r.capacityKw, "kW")} placed against a ${fmt(
             r.loadKw,
             "kW"
@@ -145,7 +156,7 @@ export function SummaryView({
           "The share link offers the simulation only once every floor that can run one is ticked as ready to share.",
       });
     return out;
-  }, [model, snapshot, simApproval]);
+  }, [doc, pack, model, snapshot, simApproval]);
 
   const setMeta = (k: "jobNumber" | "client" | "site", v: string) =>
     onMutate((d) => ({ ...d, meta: { ...d.meta, [k]: v } }));

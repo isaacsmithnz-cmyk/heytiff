@@ -302,7 +302,9 @@ describe("buildSummaryModel — the merged sheet", () => {
   });
 
   it("picklist sums countable components across systems", () => {
-    const rows = buildSummaryModel(multiDoc(), pack).picklist;
+    const d = multiDoc();
+    d.systems[0].settings.components = { electrical: "isolator-20a-1ph" };
+    const rows = buildSummaryModel(d, pack).picklist;
     const isolator = rows.find((r) => r.name.startsWith("Isolator"));
     expect(isolator).toBeDefined();
     expect(isolator?.qty).toBe("1");
@@ -319,8 +321,13 @@ describe("buildSummaryModel — the merged sheet", () => {
       brand: "mitsubishi-electric",
       colour: "#E4572E",
       name: "System 3",
-      settings: { pairIdu: "PLA-M100EA2-A", pairOdu: "PUZ-ZM100YKA3-A" },
+      settings: {
+        pairIdu: "PLA-M100EA2-A",
+        pairOdu: "PUZ-ZM100YKA3-A",
+        components: { electrical: "isolator-20a-3ph" },
+      },
     });
+    d.systems[0].settings.components = { electrical: "isolator-20a-1ph" };
     d.objects.push(
       unit("i3", "sys3", "f1", "idu", "PLA-M100EA2-A", "r2"),
       unit("o3", "sys3", "f1", "odu", "PUZ-ZM100YKA3-A")
@@ -332,6 +339,11 @@ describe("buildSummaryModel — the merged sheet", () => {
       ["Isolator, 1Ø 20 A", "1"], // SUZ-M35VAD-A: 1Ø, 8.5 A
       ["Isolator, 3Ø 20 A", "1"], // PUZ-ZM100YKA3-A: 3Ø, 11.5 A
     ]);
+  });
+
+  it("puts nothing on the picklist that was never picked", () => {
+    const rows = buildSummaryModel(splitDoc(), pack).picklist;
+    expect(rows.filter((r) => /Isolator|bracket|Lagging|Not chosen/.test(r.name))).toEqual([]);
   });
 });
 

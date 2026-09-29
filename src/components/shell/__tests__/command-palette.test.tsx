@@ -99,6 +99,7 @@ const project = (over: Partial<PaletteProject> = {}): PaletteProject => ({
 const person = (over: Partial<PaletteStaff> = {}): PaletteStaff => ({
   id: "s-1",
   name: "Robert Smith",
+  nicknames: [],
   known: null,
   initials: "RS",
   title: "Senior Tech",

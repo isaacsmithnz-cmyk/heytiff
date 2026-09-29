@@ -67,15 +67,23 @@ import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { capacityFit, type UnitFit } from "@/lib/studio/fit";
 import { OVERSIZE_CAP } from "@/lib/studio/select";
 import { zoneIdsOf } from "@/lib/studio/zones";
-import { builderEnabled, isAirCapable } from "@/lib/studio/modules";
+import { isAirCapable } from "@/lib/studio/modules";
+import { deleteZone } from "@/lib/studio/builder";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf } from "@/lib/studio/graph";
+import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
+import { pipeRefusal } from "@/lib/studio/pipe-rules";
+import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
+import type { SizedSection } from "@/lib/studio/vrf-tree";
+import { usePipeUnits } from "./pipe-units";
+
+/** a branch box on the plan: PAC-MK34BC / MK54BC are both 450 × 280 mm (M-P0860 p.44) */
+const BOX_W_MM = 450;
+const BOX_D_MM = 280;
 import { anchorFloating, dodgeSlot, type Size } from "@/lib/studio/anchor";
 import {
-  deleteRoomWithContents,
   moveEndpointTo,
   reconcileAttachedRuns,
-  releaseRoomsFromSystems,
   roomMemberIds,
   stripAttachesTo,
   translateRoomWithContents,
@@ -94,6 +102,7 @@ import {
   hasFactorySpigots,
   spigotDiametersMm,
   spigotLabel,
+  type DataPack,
   type IndoorUnit,
   type OpeningSpec,
   type OutdoorUnit,
@@ -115,6 +124,7 @@ import {
   MIN_ZOOM,
   mmPerUnitFromCalibration,
   orthoSnap,
+  squareInto,
   distToSmoothed,
   pointInPolygon,
   polygonArea,
@@ -200,6 +210,8 @@ export type CanvasTool =
   | "drain" // condensate drain — straight segments, size picked at draw
   | "cable" // power/data cable — dots smoothed into a curve
   | "riser"
+  | "joint" // a refrigerant joint: on a run it cuts it and branches there
+  | "branch-box" // a PUMY branch box: the heads' runs end on it
   | "component" // air component armed from the palette (Stage 7 — plenum first)
   | "note"; // markup: a revision cloud round something, with its say in the margin
 
@@ -223,6 +235,8 @@ export const isRunTool = (t: CanvasTool): t is "pipe" | "drain" | "cable" =>
 
 /** the object types those tools commit (hit/erase/drag-follow treat alike) */
 const RUN_TYPES = new Set(["pipe-run", "drain-run", "cable-run"]);
+/** what a run's end can attach to (graph.ts Attach) */
+type AnchorKind = "unit" | "riser" | "joint" | "branch-box";
 
 /** does this run render as a smoothed curve? cables always; pipe when soft */
 export const isCurvedRun = (o: {
@@ -717,6 +731,7 @@ export function StudioCanvas({
   component = null,
   onComponentPlaced,
   iduSpec,
+  pack,
   oduSpec,
   onRoomCreated,
   onClaimToggle,
@@ -776,6 +791,8 @@ export function StudioCanvas({
   /** pack-row resolver for placed indoor units — plenum specs + air
       capability come from unit DATA, never system type (ducted spec §11.1) */
   iduSpec?: (model: string) => IndoorUnit | null;
+  /** the pack, for what a drawn VRF pipe may join (pipe-rules.ts) */
+  pack?: DataPack | null;
   /** the same resolver for outdoor units — the hover card names both sides */
   oduSpec?: (model: string) => OutdoorUnit | null;
   /** a room finished wall-marking — open its configuration modal (Slice 2) */
@@ -785,7 +802,7 @@ export function StudioCanvas({
   onClaimToggle?: (roomId: string) => void;
   /** how a room is deleted when the host knows more than the canvas: in the
       zones flow the systems let the zone and its heads go (builder.ts
-      deleteZone). Absent, the room goes with its contents and its id. */
+      deleteZone, handed the pack). Absent, deleteZone runs without one. */
   deleteRoom?: (d: DesignDocument, roomId: string) => DesignDocument;
   /** double-click a room with Select → open that room's modal */
   onOpenRoom?: (id: string) => void;
@@ -812,6 +829,21 @@ export function StudioCanvas({
   const svgRef = useRef<SVGSVGElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [cursor, setCursor] = useState<Point | null>(null);
+  /* Shift held: a straight run's last leg goes into a unit square (the
+     preview has to know before the click, so it is tracked, not read off it) */
+  const [shiftDown, setShiftDown] = useState(false);
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => e.key === "Shift" && setShiftDown(e.type === "keydown");
+    const off = () => setShiftDown(false);
+    window.addEventListener("keydown", on);
+    window.addEventListener("keyup", on);
+    window.addEventListener("blur", off);
+    return () => {
+      window.removeEventListener("keydown", on);
+      window.removeEventListener("keyup", on);
+      window.removeEventListener("blur", off);
+    };
+  }, []);
   const [drag, setDrag] = useState<Drag | null>(null);
   /* the unit under the pointer — named in the corner card instead of on the
      plan itself. Hit-tested from the same footprint the click uses, so what
@@ -901,30 +933,9 @@ export function StudioCanvas({
   }, []);
   const spaceDown = useRef(false);
 
-  /* the canvas is scoped to the ACTIVE system — switching systems re-scopes
-     the whole canvas ("System 2 resets the canvas"). Rooms, units, risers and
-     runs all belong to a system now.
-     With the system builder on, the plan is one house: every system's units
-     and runs show at once, and rooms belong to the plan, not a system. */
-  const builder = builderEnabled();
-  /* rooms are zones in the zones flow */
-  const roomWord = builder ? "zone" : "room";
-  const inScope = useCallback(
-    (o: DesignObject) =>
-      o.floorId === floor.id && (builder || o.systemId === activeSystemId),
-    [floor.id, activeSystemId, builder]
-  );
-
-  /* rooms render FLOOR-WIDE (all systems) so another system's spaces are
-     visible drop targets; the active system's own + adopted rooms are full-
-     strength, foreign ones ghosted. Geometry edits stay with the drawing
-     system only. */
-  const adoptedRoomIds = useMemo(() => {
-    const sys = doc.systems.find((s) => s.id === activeSystemId);
-    return new Set(
-      Array.isArray(sys?.settings.roomIds) ? (sys!.settings.roomIds as string[]) : []
-    );
-  }, [doc.systems, activeSystemId]);
+  /* the plan is one house: every system's units and runs show at once, and
+     rooms (zones) belong to the plan, not a system */
+  const inScope = useCallback((o: DesignObject) => o.floorId === floor.id, [floor.id]);
 
   const rooms = useMemo(
     () =>
@@ -933,19 +944,6 @@ export function StudioCanvas({
           o.floorId === floor.id && o.type === "room" && o.geometry.kind === "polygon"
       ),
     [doc.objects, floor.id]
-  );
-
-  /** served by the active system (drawn or adopted) — rendered full-strength */
-  const roomServed = useCallback(
-    (r: DesignObject) =>
-      builder || r.systemId === activeSystemId || adoptedRoomIds.has(r.id),
-    [activeSystemId, adoptedRoomIds, builder]
-  );
-  /** drawn by the active system — the only rooms it may move/reshape/erase
-      (with the builder, a room is the plan's and anyone may edit it) */
-  const roomEditable = useCallback(
-    (r: DesignObject) => builder || r.systemId === activeSystemId,
-    [activeSystemId, builder]
   );
 
   const roomPoints = useCallback(
@@ -961,11 +959,29 @@ export function StudioCanvas({
     return m;
   }, [doc.systems]);
 
+  /* a VRF drawn to every head, sized (pipe-sizes.ts): each run wears its
+     section's size as colour and label, a click lights the whole section,
+     and a joint or box says what goes in and out of it */
+  const pipeUnits = usePipeUnits();
+  const pipeView = useMemo(() => {
+    const byRun = new Map<string, SizedSection>();
+    const fittings = new Map<string, FittingView>();
+    for (const v of vrfPipeViews(doc, pack ?? null)) {
+      v.byRun.forEach((sec, id) => byRun.set(id, sec));
+      v.fittings.forEach((f, id) => fittings.set(id, f));
+    }
+    return { byRun, fittings };
+  }, [doc, pack]);
+  /* the runs lit with the selection: every run of the picked run's section */
+  const litRuns = useMemo(() => {
+    const sec = selectedId ? pipeView.byRun.get(selectedId) : undefined;
+    return new Set(sec ? sec.edges : selectedId ? [selectedId] : []);
+  }, [selectedId, pipeView]);
+
   /* the zones flow: a zone wears the colour of the system that claimed it,
      the first system's when two share it, with a dot per system in its corner */
   const zoneOwners = useMemo(() => {
     const m = new Map<string, { id: string; colour: string }[]>();
-    if (!builder) return m;
     for (const sys of doc.systems) {
       for (const id of zoneIdsOf(sys)) {
         const list = m.get(id) ?? [];
@@ -974,7 +990,7 @@ export function StudioCanvas({
       }
     }
     return m;
-  }, [doc.systems, builder]);
+  }, [doc.systems]);
 
   const units = useMemo(
     () =>
@@ -989,6 +1005,22 @@ export function StudioCanvas({
       doc.objects.filter(
         (o): o is DesignObject & { geometry: { kind: "point"; at: Point } } =>
           inScope(o) && o.type === "riser" && o.geometry.kind === "point"
+      ),
+    [doc.objects, inScope]
+  );
+  const joints = useMemo(
+    () =>
+      doc.objects.filter(
+        (o): o is DesignObject & { geometry: { kind: "point"; at: Point } } =>
+          inScope(o) && o.type === "joint" && o.geometry.kind === "point"
+      ),
+    [doc.objects, inScope]
+  );
+  const boxes = useMemo(
+    () =>
+      doc.objects.filter(
+        (o): o is DesignObject & { geometry: { kind: "point"; at: Point } } =>
+          inScope(o) && o.type === "branch-box" && o.geometry.kind === "point"
       ),
     [doc.objects, inScope]
   );
@@ -1016,9 +1048,9 @@ export function StudioCanvas({
   const [livePoint, setLivePoint] = useState<{ id: string; at: Point } | null>(null);
   const pointById = useMemo(() => {
     const m = new Map<string, { id: string; geometry: { at: Point } }>();
-    for (const o of [...units, ...risers]) m.set(o.id, o);
+    for (const o of [...units, ...risers, ...joints, ...boxes]) m.set(o.id, o);
     return m;
-  }, [units, risers]);
+  }, [units, risers, joints, boxes]);
   /** live anchor for an attach target: the point object being dragged, or a
       unit travelling with a mid-drag room move; null when the target is at
       rest (render from the document) */
@@ -1076,7 +1108,15 @@ export function StudioCanvas({
       }),
     [tool]
   );
-  const pipeStartAttach = useRef<{ kind: "unit" | "riser"; id: string } | null>(null);
+  const pipeStartAttach = useRef<{ kind: AnchorKind; id: string } | null>(null);
+  /* a refrigerant pipe that can't exist is refused where it would attach
+     (pipe-rules.ts); the reason stands in the hint window for a moment */
+  const [refusal, setRefusal] = useState<string | null>(null);
+  useEffect(() => {
+    if (!refusal) return;
+    const t = window.setTimeout(() => setRefusal(null), 3500);
+    return () => window.clearTimeout(t);
+  }, [refusal]);
 
   /* IS SOMETHING HALF-DRAWN — the one answer both Esc and right-click ask,
      named once because they used to disagree. The calibration's first point
@@ -1108,10 +1148,10 @@ export function StudioCanvas({
       the click (the show-the-snap-target-first rule). */
   const anchors = useMemo(
     () =>
-      [...units, ...risers]
+      [...units, ...risers, ...joints, ...boxes]
         .filter((o) => o.systemId === activeSystemId)
-        .map((o) => ({ kind: (o.type === "unit" ? "unit" : "riser") as "unit" | "riser", id: o.id, at: pointAt(o) })),
-    [units, risers, activeSystemId, pointAt]
+        .map((o) => ({ kind: o.type as AnchorKind, id: o.id, at: pointAt(o) })),
+    [units, risers, joints, boxes, activeSystemId, pointAt]
   );
 
 
@@ -1239,6 +1279,22 @@ export function StudioCanvas({
   /* viewport starts from an assumed size and re-fits once on first real
      measure (mount-time content captured in a ref — no setState in effects).
      Plan-sheet corners count as content so plan-backed floors open fitted. */
+  /** the system objects on this floor: units, risers, joints and boxes by
+      their point, runs by their dots (the Fit button's extra frame) */
+  const pipeworkPoints = useCallback((): Point[] => {
+    const pts: Point[] = [];
+    for (const o of doc.objects) {
+      if (o.floorId !== floor.id) continue;
+      if (o.geometry.kind === "point" && (o.type === "unit" || o.type === "riser" || o.type === "joint" || o.type === "branch-box"))
+        pts.push(o.geometry.at);
+      else if (o.geometry.kind === "polyline" && RUN_TYPES.has(o.type)) pts.push(...o.geometry.points);
+    }
+    return pts;
+  }, [doc.objects, floor.id]);
+  const pipeworkPointsRef = useRef(pipeworkPoints);
+  useEffect(() => {
+    pipeworkPointsRef.current = pipeworkPoints;
+  }, [pipeworkPoints]);
   const contentPoints = useCallback((): Point[] => {
     const pts = rooms.flatMap((r) => roomPoints(r));
     /* Notes count as content, and they are the one object type that has to:
@@ -1401,7 +1457,12 @@ export function StudioCanvas({
   const zoomInApi = useCallback(() => zoomBy(1.3), [zoomBy]);
   const zoomOutApi = useCallback(() => zoomBy(1 / 1.3), [zoomBy]);
   const fitApi = useCallback(() => {
-    const pts = contentPointsRef.current();
+    /* THE FIT BUTTON ALSO FRAMES THE PIPEWORK AND ITS UNITS: an outdoor is
+       often placed outside every zone (a yard, a roof), and on a design
+       without a plan sheet a Fit that framed only the zones left it, its runs
+       and its branch box off screen (seen 2026-09-29). Only here: the opening
+       frame and the pan limits keep reading the drawing itself. */
+    const pts = [...contentPointsRef.current(), ...pipeworkPointsRef.current()];
     if (boundsOfPoints(pts))
       commitVp(
         defaultViewport(
@@ -1424,7 +1485,7 @@ export function StudioCanvas({
   /** nearest connection anchor within snap range of a world point */
   const nearestAnchor = useCallback(
     (w: Point) => {
-      let best: { kind: "unit" | "riser"; id: string; at: Point } | null = null;
+      let best: { kind: AnchorKind; id: string; at: Point } | null = null;
       let bestD = ANCHOR_SNAP_PX / vp.zoom;
       for (const a of anchors) {
         const d = dist(a.at, w);
@@ -1436,6 +1497,18 @@ export function StudioCanvas({
       return best;
     },
     [anchors, vp.zoom]
+  );
+
+  /** where a click lands on one of the active system's refrigerant runs on
+      this floor, within the edge tolerance: the joint's spot */
+  const runLanding = useCallback(
+    (w: Point) =>
+      nearestOnRuns(
+        runs.filter((r) => r.systemId === activeSystemId),
+        w,
+        HIT_EDGE_PX / vp.zoom
+      ),
+    [runs, activeSystemId, vp.zoom]
   );
 
   /** unit footprint in world units (mm → units when calibrated; a sensible
@@ -1886,13 +1959,10 @@ export function StudioCanvas({
           // a room takes its units (and their plenums) with it, the same way
           // a room move carries them — and frees its id from every system
           if (d.objects.find((o) => o.id === selectedId)?.type === "room") {
-            if (deleteRoom) return deleteRoom(d, selectedId);
-            return {
-              ...d,
-              systems: releaseRoomsFromSystems(d.systems, new Set([selectedId])),
-              objects: deleteRoomWithContents(d.objects, selectedId),
-            };
+            return deleteRoom ? deleteRoom(d, selectedId) : deleteZone(d, null, selectedId);
           }
+          // a joint that cut a run puts the run back together (joints.ts)
+          if (d.objects.find((o) => o.id === selectedId)?.type === "joint") return deleteJoint(d, selectedId);
           // deleting an AHU carries its plenums (they're its plenums — spec
           // §10.3); runs that attached to it lose the ref and become open ends
           return {
@@ -1928,22 +1998,18 @@ export function StudioCanvas({
     (points: Point[], shape: "rect" | "poly") => {
       const id = newId("obj");
       onMutate((d) => {
-        // rooms belong to the active system (type-first flow); scoped per
-        // system. With the builder they belong to the plan: no system, and
-        // numbered across the whole design.
-        const n =
-          d.objects.filter(
-            (o) => o.type === "room" && (builder || o.systemId === activeSystemId)
-          ).length + 1;
+        // zones belong to the plan: no system, and numbered across the whole
+        // design
+        const n = d.objects.filter((o) => o.type === "room").length + 1;
         const room: DesignObject = {
           id,
           type: "room",
-          systemId: builder ? null : activeSystemId,
+          systemId: null,
           floorId: floor.id,
           geometry: { kind: "polygon", points },
           plane: "room",
           props: {
-            name: builder ? `Zone ${n}` : `Room ${n}`,
+            name: `Zone ${n}`,
             externalWalls: [],
             hasExternalWalls: false,
             // rectangle-tool rooms stay rectangular when their corners are edited
@@ -1956,7 +2022,7 @@ export function StudioCanvas({
       onSelect(id);
       onToolDone(); // back to select so the corners and body drag
     },
-    [onMutate, floor.id, activeSystemId, onSelect, onToolDone, builder]
+    [onMutate, floor.id, onSelect, onToolDone]
   );
 
   /** Save: pin the room to the plan. A fresh room goes on to wall-marking; a
@@ -2132,7 +2198,7 @@ export function StudioCanvas({
   /** system objects hit first (they sit on top of rooms): plenum bodies,
       unit footprints, riser discs, then run segments */
   const hitSystemObject =
-    (w: Point): { id: string; kind: "unit" | "riser" | "pipe-run" | "plenum" } | null => {
+    (w: Point): { id: string; kind: "unit" | "riser" | "joint" | "branch-box" | "pipe-run" | "plenum" } | null => {
       for (let i = plenums.length - 1; i >= 0; i--) {
         const s = plenumShapes.get(plenums[i].id);
         if (s && pointInPolygon(w, s.body)) return { id: plenums[i].id, kind: "plenum" };
@@ -2159,6 +2225,16 @@ export function StudioCanvas({
       for (let i = risers.length - 1; i >= 0; i--) {
         if (dist(pointAt(risers[i]), w) <= 12 / vp.zoom)
           return { id: risers[i].id, kind: "riser" };
+      }
+      for (let i = joints.length - 1; i >= 0; i--) {
+        if (dist(pointAt(joints[i]), w) <= 8 / vp.zoom)
+          return { id: joints[i].id, kind: "joint" };
+      }
+      const bfp = footprint(BOX_W_MM, BOX_D_MM);
+      for (let i = boxes.length - 1; i >= 0; i--) {
+        const at = pointAt(boxes[i]);
+        if (Math.abs(w.x - at.x) <= bfp.w / 2 && Math.abs(w.y - at.y) <= bfp.h / 2)
+          return { id: boxes[i].id, kind: "branch-box" };
       }
       const tol = HIT_EDGE_PX / vp.zoom;
       for (let i = runs.length - 1; i >= 0; i--) {
@@ -2289,16 +2365,21 @@ export function StudioCanvas({
           return;
         }
       }
-      for (let i = risers.length - 1; i >= 0; i--) {
-        if (dist(pointAt(risers[i]), w) <= 12 / vp.zoom + tol) {
-          const id = risers[i].id;
-          onMutate((d) => ({
-            ...d,
-            objects: stripAttachesTo(
-              d.objects.filter((o) => o.id !== id),
-              new Set([id])
-            ),
-          }));
+      for (const pt of [...risers, ...joints, ...boxes].reverse()) {
+        const reach = pt.type === "branch-box" ? footprint(BOX_W_MM, BOX_D_MM).w / 2 : (pt.type === "joint" ? 8 : 12) / vp.zoom;
+        if (dist(pointAt(pt), w) <= reach + tol) {
+          const id = pt.id;
+          onMutate((d) =>
+            pt.type === "joint"
+              ? deleteJoint(d, id)
+              : {
+                  ...d,
+                  objects: stripAttachesTo(
+                    d.objects.filter((o) => o.id !== id),
+                    new Set([id])
+                  ),
+                }
+          );
           if (selectedId === id) onSelect(null);
           return;
         }
@@ -2385,35 +2466,17 @@ export function StudioCanvas({
       }
       if (!placing || !activeSystemId) return;
       onMutate((d) => {
-        /* an IDU dropped inside a room is ATTRIBUTED to it (units → spaces);
-           dropping into another system's room also adopts that room into this
-           system's served list (the user's call: drop adopts). A split IDU
-           dropped OUTSIDE every room still serves the lens room — the plan's
-           own "Bulkhead AC in the hallway void" case; containment wins
-           whenever there is containment. */
+        /* an IDU dropped inside a room is ATTRIBUTED to it (units → spaces).
+           A split IDU dropped OUTSIDE every room still serves the lens room —
+           the plan's own "Bulkhead AC in the hallway void" case; containment
+           wins whenever there is containment. The drop never adopts a zone
+           into the system: its zones are its claim's to say. */
         const room =
           placing.role === "idu"
             ? (roomAtPoint(d.objects, floor.id, at) ?? lensRoom(d, activeSystemId))
             : null;
-        const adopt =
-          room && room.systemId !== activeSystemId
-            ? (() => {
-                const sys = d.systems.find((s) => s.id === activeSystemId);
-                const cur = Array.isArray(sys?.settings.roomIds)
-                  ? (sys!.settings.roomIds as string[])
-                  : [];
-                return cur.includes(room.id) ? null : [...cur, room.id];
-              })()
-            : null;
         return {
           ...d,
-          systems: adopt
-            ? d.systems.map((s) =>
-                s.id === activeSystemId
-                  ? { ...s, settings: { ...s.settings, roomIds: adopt } }
-                  : s
-              )
-            : d.systems,
           objects: [
             ...d.objects,
             {
@@ -2487,9 +2550,16 @@ export function StudioCanvas({
   );
 
   const commitPipe = useCallback(
-    (points: Point[], endAttach: { kind: "unit" | "riser"; id: string } | null) => {
+    (
+      points: Point[],
+      endAttach: { kind: AnchorKind; id: string } | null,
+      /* the end landed on another refrigerant run: a joint goes there first,
+         cutting it (joints.ts), and the new run ends on the joint */
+      landOn?: { runId: string; seg: number; at: Point }
+    ) => {
       if (!activeSystemId || points.length < 2) return;
       const startAttach = pipeStartAttach.current;
+      const landId = landOn ? newId("obj") : null;
       // what the armed Draw tool commits: the type + its picked-at-draw props
       const runKind: { type: string; props: Record<string, unknown> } =
         tool === "drain"
@@ -2502,25 +2572,30 @@ export function StudioCanvas({
                 // only soft is worth a word on the document
                 props: draw.pipeForm === "soft" ? { form: "soft" } : {},
               };
-      onMutate((d) => ({
-        ...d,
-        objects: [
-          ...d.objects,
-          {
-            id: newId("obj"),
-            type: runKind.type,
-            systemId: activeSystemId,
-            floorId: floor.id,
-            geometry: { kind: "polyline", points },
-            plane: "room",
-            props: {
-              ...runKind.props,
-              ...(startAttach ? { startAttach } : {}),
-              ...(endAttach ? { endAttach } : {}),
-            },
-          } satisfies DesignObject,
-        ],
-      }));
+      onMutate((d0) => {
+        const landed = landOn && landId ? jointOnRun(d0, landOn.runId, landOn.seg, landOn.at, landId) : null;
+        const d = landed?.doc ?? d0;
+        const end = landed ? { kind: "joint" as const, id: landed.jointId } : endAttach;
+        return {
+          ...d,
+          objects: [
+            ...d.objects,
+            {
+              id: newId("obj"),
+              type: runKind.type,
+              systemId: activeSystemId,
+              floorId: floor.id,
+              geometry: { kind: "polyline", points },
+              plane: "room",
+              props: {
+                ...runKind.props,
+                ...(startAttach ? { startAttach } : {}),
+                ...(end ? { endAttach: end } : {}),
+              },
+            } satisfies DesignObject,
+          ],
+        };
+      });
       setDraftPipe([]);
       pipeStartAttach.current = null;
     },
@@ -2728,9 +2803,9 @@ export function StudioCanvas({
         if (sys) {
           onSelect(sys.id);
           // plenums are anchored (their position derives from the AHU) and
-          // runs are polylines — only units/risers start a point drag
-          if (sys.kind === "unit" || sys.kind === "riser") {
-            const o = [...units, ...risers].find((x) => x.id === sys.id)!;
+          // runs are polylines — only units/risers/joints start a point drag
+          if (sys.kind === "unit" || sys.kind === "riser" || sys.kind === "joint" || sys.kind === "branch-box") {
+            const o = [...units, ...risers, ...joints, ...boxes].find((x) => x.id === sys.id)!;
             setDrag({ kind: "point", id: sys.id, startWorld: w, orig: pointAt(o) });
           }
           break;
@@ -2741,9 +2816,8 @@ export function StudioCanvas({
           const room = rooms.find((r) => r.id === hit)!;
           /* A saved room is PINNED: it selects on click but drags the plan, so
              panning across a drawing can't take a whole space with it. Only
-             the room being adjusted moves — and only for the system that drew
-             it (foreign rooms stay inspect-only). */
-          if (roomEditable(room) && adjust?.id === hit) {
+             the room being adjusted moves. */
+          if (adjust?.id === hit) {
             // units stamped to this room travel with the move
             setDrag({
               kind: "move",
@@ -2785,21 +2859,50 @@ export function StudioCanvas({
       case "cable": {
         tap(() => {
           const anchor = nearestAnchor(w);
+          /* a refrigerant run's end on another run of its system branches
+             there: a joint goes on it (anchors win when both are in reach) */
+          const onRun = !anchor && tool === "pipe" ? runLanding(w) : null;
           // free first vertex; later vertices ortho-snap to the previous point
           // so runs stay horizontal/vertical (anchors always win). The curved
           // draws — soft pipe, cable — place their dots free: the smoothing
           // is the point.
           const curved = tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft");
           const prev = draftPipe[draftPipe.length - 1];
-          const p = anchor ? anchor.at : prev && !curved ? orthoSnap(prev, w) : w;
-          if (draftPipe.length === 0) {
-            pipeStartAttach.current = anchor
-              ? { kind: anchor.kind, id: anchor.id }
+          const p = anchor ? anchor.at : onRun ? onRun.at : prev && !curved ? orthoSnap(prev, w) : w;
+          /* a joint about to go on a run stands in as that end until it exists */
+          const here = anchor ?? (onRun ? { kind: "joint" as const, id: "" } : null);
+          const why =
+            tool === "pipe" && here && activeSystemId
+              ? pipeRefusal(
+                  doc,
+                  activeSystemId,
+                  draftPipe.length === 0 ? here : pipeStartAttach.current,
+                  draftPipe.length === 0 ? null : here,
+                  pack,
+                  anchor ? undefined : onRun?.runId
+                )
               : null;
+          if (why) {
+            setRefusal(why);
+            return;
+          }
+          if (draftPipe.length === 0) {
+            if (onRun) {
+              const jointId = newId("obj");
+              onMutate((d) => jointOnRun(d, onRun.runId, onRun.seg, onRun.at, jointId)?.doc ?? d);
+              pipeStartAttach.current = { kind: "joint", id: jointId };
+            } else {
+              pipeStartAttach.current = anchor
+                ? { kind: anchor.kind, id: anchor.id }
+                : null;
+            }
             setDraftPipe([p]);
-          } else if (anchor) {
-            // landing on an anchor completes the run — the magnetic connection
-            commitPipe([...draftPipe, p], { kind: anchor.kind, id: anchor.id });
+          } else if (anchor || onRun) {
+            // landing on an anchor completes the run — the magnetic connection;
+            // with Shift a straight run turns square into it
+            const pts = [...(e.shiftKey && !curved ? squareInto(draftPipe, p) : draftPipe), p];
+            if (anchor) commitPipe(pts, { kind: anchor.kind, id: anchor.id });
+            else commitPipe(pts, null, onRun!);
           } else {
             setDraftPipe((pts) => [...pts, p]);
           }
@@ -2808,6 +2911,22 @@ export function StudioCanvas({
       }
       case "riser": {
         tap(() => addRiser(w));
+        break;
+      }
+      case "joint": {
+        tap(() => {
+          if (!activeSystemId) return;
+          const onRun = runLanding(w);
+          if (onRun) onMutate((d) => jointOnRun(d, onRun.runId, onRun.seg, onRun.at)?.doc ?? d);
+          else onMutate((d) => ({ ...d, objects: [...d.objects, jointObject(activeSystemId, floor.id, w)] }));
+        });
+        break;
+      }
+      case "branch-box": {
+        tap(() => {
+          if (!activeSystemId) return;
+          onMutate((d) => ({ ...d, objects: [...d.objects, branchBoxObject(activeSystemId, floor.id, w)] }));
+        });
         break;
       }
       case "room-poly": {
@@ -3258,10 +3377,10 @@ export function StudioCanvas({
           const allocated =
             movedSys != null && hasAllocations(movedSys) && allocationsOf(movedSys).some((a) => a.id === id);
           /* moving an IDU re-derives its room attribution (unless the user
-             pinned it manually via roomLock) — and adopts a foreign room the
-             same way a fresh drop does. Outside every room, a split falls
-             back to its lens room, so nudging a bulkhead along the hallway
-             never silently un-serves the room it was placed for. */
+             pinned it manually via roomLock). Outside every room, a split
+             falls back to its lens room, so nudging a bulkhead along the
+             hallway never silently un-serves the room it was placed for. A
+             system's zones are its claim's to say, so a move never adopts one. */
           const restamp =
             !allocated &&
             moved?.type === "unit" &&
@@ -3271,25 +3390,8 @@ export function StudioCanvas({
             ? (roomAtPoint(d.objects, moved!.floorId, at) ??
               lensRoom(d, moved!.systemId ?? null))
             : null;
-          const adopt =
-            restamp && room && moved!.systemId && room.systemId !== moved!.systemId
-              ? (() => {
-                  const sys = d.systems.find((s) => s.id === moved!.systemId);
-                  const cur = Array.isArray(sys?.settings.roomIds)
-                    ? (sys!.settings.roomIds as string[])
-                    : [];
-                  return cur.includes(room.id) ? null : [...cur, room.id];
-                })()
-              : null;
           return {
             ...d,
-            systems: adopt
-              ? d.systems.map((s) =>
-                  s.id === moved!.systemId
-                    ? { ...s, settings: { ...s.settings, roomIds: adopt } }
-                    : s
-                )
-              : d.systems,
             // attached runs follow: their endpoints snap onto the new point
             // in the same mutate, so one undo restores unit and pipes together
             objects: reconcileAttachedRuns(
@@ -3577,6 +3679,51 @@ export function StudioCanvas({
     };
   }, [hoverUnitId, units, iduSpec, oduSpec, doc.objects, doc.systems, rooms, sysColour, pointAt]);
 
+  /* WHAT A PICKED PIPE, JOINT OR BOX IS (Isaac, 2026-09-29: "when you click
+     it, it highlights it, but it doesn't actually do anything"). A pipe says
+     where its section runs, its sizes and length; a joint or a box says the
+     size going in and each size coming out. Both units shown, the chosen
+     one first, so the other is never a menu away. */
+  const pipeCard = useMemo(() => {
+    if (!selectedId) return null;
+    const other = pipeUnits === "in" ? "mm" : "in";
+    const both = (sec: SizedSection) =>
+      `${pairSize(sec.liquidMm, sec.gasMm, pipeUnits)} (${pairSize(sec.liquidMm, sec.gasMm, other)})`;
+    const byId = new Map(doc.objects.map((o) => [o.id, o]));
+    const nameOf = (id: string) => {
+      const o = byId.get(id);
+      if (!o) return "?";
+      if (o.type === "unit")
+        return String(o.props.role) === "odu" ? "Outdoor unit" : String(o.props.model ?? "Indoor unit");
+      return o.type === "branch-box" ? "Branch box" : "Joint";
+    };
+    const sec = pipeView.byRun.get(selectedId);
+    if (sec) {
+      return {
+        role: "Pipe",
+        tone: sizeTone(sec.gasMm),
+        title: `${nameOf(sec.from)} to ${nameOf(sec.to)}`,
+        rows: [
+          { k: "Liquid / gas", v: both(sec) },
+          ...(sec.lengthM != null ? [{ k: "Length", v: `${sec.lengthM.toFixed(1)} m` }] : []),
+          ...(sec.upsized ? [{ k: "Liquid", v: "One size up, by the book's length rule" }] : []),
+        ],
+      };
+    }
+    const fit = pipeView.fittings.get(selectedId);
+    if (!fit) return null;
+    const kind = fit.fitting.kind === "box" ? "Branch box" : fit.fitting.kind === "header" ? "Header" : "Joint";
+    return {
+      role: kind,
+      tone: fit.feed ? sizeTone(fit.feed.gasMm) : null,
+      title: fit.fitting.part ?? "No part in the book",
+      rows: [
+        ...(fit.feed ? [{ k: "In", v: both(fit.feed) }] : []),
+        ...fit.outs.map((o) => ({ k: `Out to ${nameOf(o.to)}`, v: both(o) })),
+      ],
+    };
+  }, [selectedId, pipeView, pipeUnits, doc.objects]);
+
   /* ── unit callouts ────────────────────────────────────────────────────
      A unit's own name, said on the drawing at the end of a leader — the same
      mechanic as a note's, because it is the same job. Geometry lives in
@@ -3725,6 +3872,13 @@ export function StudioCanvas({
   const hintsOn = useHintsOn();
 
   /* in-progress guidance while a step tool is active */
+  /* where a run can finish, in plain words (Isaac, 2026-09-29: "I can't
+     understand what it's trying to tell me"): a refrigerant pipe also
+     finishes on another pipe, which puts a joint there */
+  const runEnds =
+    tool === "pipe"
+      ? "Click a unit, a box or another pipe to finish, or press Enter to stop where you are. Esc cancels."
+      : "Click a unit to finish, or press Enter to stop where you are. Esc cancels.";
   const toolHint: { icon: string; text: string } | null =
     tool === "calibrate" && !(calib.a && calib.b)
       ? {
@@ -3741,18 +3895,17 @@ export function StudioCanvas({
         }
       : tool === "measure"
         ? { icon: "ruler", text: "Drag across anything to measure it — nothing is saved" }
-      /* the room tools say their piece HERE now that the shape pill has moved
-         into the cockpit — this and the crosshair are the canvas's whole half
-         of the conversation, so Esc has to be named */
+      /* the zone tools say their piece HERE — this and the crosshair are the
+         canvas's whole half of the conversation, so Esc has to be named */
       : tool === "room-rect"
-        ? { icon: "square", text: `Drag a rectangle over the ${roomWord} · Esc to cancel` }
+        ? { icon: "square", text: "Drag a rectangle over the zone · Esc to cancel" }
       : tool === "room-poly"
         ? {
             icon: "hexagon",
             text:
               draftPoly.length >= 3
-                ? `Click the first point to close the ${roomWord} · Esc to cancel`
-                : `Click each corner of the ${roomWord} · Esc to cancel`,
+                ? "Click the first point to close the zone · Esc to cancel"
+                : "Click each corner of the zone · Esc to cancel",
           }
       /* the drawn runs: the curved tools are new grammar (dots → curve), so
          the canvas says how a line ENDS — the one thing a first draw can't
@@ -3762,9 +3915,13 @@ export function StudioCanvas({
             icon: tool === "cable" ? "zap" : tool === "drain" ? "droplet" : "pipe",
             text:
               tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft")
-                ? "Place dots — the line curves through them. Enter, double-click or an anchor ends it · Esc to cancel"
-                : "Click each corner. Enter, double-click or an anchor ends it · Esc to cancel",
+                ? `Click to start, then click the points the line should curve through. ${runEnds}`
+                : `Click to start, then click at each bend. Hold Shift over a unit to go in at a right angle. ${runEnds}`,
           }
+      : tool === "joint"
+        ? { icon: "pipe", text: "Click a run to branch it there, or anywhere to place a joint" }
+      : tool === "branch-box"
+        ? { icon: "pipe", text: "Click where the branch box goes, then run each head's pipe to it" }
       : tool === "note"
         ? {
             icon: "note",
@@ -3789,7 +3946,7 @@ export function StudioCanvas({
                   /* the gesture IS the attribution — say so while it's armed */
                   text:
                     placing.role === "idu"
-                      ? "Drop it in the room it serves · Esc to cancel"
+                      ? "Drop it in the zone it serves · Esc to cancel"
                       : "Click where the outdoor unit sits · Esc to cancel",
                 }
               /* picking a system's zones: the card's Add zones started it,
@@ -3955,7 +4112,6 @@ export function StudioCanvas({
             const c = polygonCentroid(pts);
             const areaU = polygonArea(pts);
             const selected = r.id === selectedId;
-            const ghost = !roomServed(r);
             // the room being sized reads as loose (dashed) until it's saved
             const loose = adjust?.id === r.id;
             /* while an IDU is armed the fit verdict IS the room's paint;
@@ -3978,7 +4134,7 @@ export function StudioCanvas({
             return (
               <g
                 key={r.id}
-                className={`ds-room${selected ? " sel" : ""}${ghost ? " ghost" : ""}${
+                className={`ds-room${selected ? " sel" : ""}${
                   loose ? " loose" : ""
                 }${armedIdu ? ` armfit-${armFit ?? "none"}` : ""}${
                   isTarget || ownZone ? " droptgt" : ""
@@ -4000,7 +4156,7 @@ export function StudioCanvas({
                 {layers.labels && (
                   <>
                     <text x={c.x} y={c.y} fontSize={13 / labelZoom} className="ds-room-name">
-                      {String(r.props.name ?? "Room")}
+                      {String(r.props.name ?? "Zone")}
                       {/* spill rooms wear the ⤢ chip (ducted spec §9c) */}
                       {isSpillRoom(r) ? " ⤢" : ""}
                     </text>
@@ -4043,7 +4199,6 @@ export function StudioCanvas({
                 )}
                 {loose &&
                   tool === "select" &&
-                  roomEditable(r) &&
                   pts.map((p, i) => (
                     <circle
                       key={i}
@@ -4065,7 +4220,10 @@ export function StudioCanvas({
               dots. */}
           {layers.pipes && runs.map((r) => {
             const pts = liveRunPoints(r);
-            const colour = sysColour.get(r.systemId ?? "") ?? "#888";
+            const sized = r.type === "pipe-run" ? pipeView.byRun.get(r.id) : undefined;
+            const colour = sized
+              ? `var(--pipe-${sizeTone(sized.gasMm)})`
+              : (sysColour.get(r.systemId ?? "") ?? "#888");
             const midI = Math.floor((pts.length - 1) / 2);
             const mid = {
               x: (pts[midI].x + pts[Math.min(midI + 1, pts.length - 1)].x) / 2,
@@ -4080,7 +4238,9 @@ export function StudioCanvas({
                 )
               : null;
             let tag: string | null = null;
-            if (r.type === "pipe-run") {
+            if (sized) {
+              tag = pairSize(sized.liquidMm, sized.gasMm, pipeUnits);
+            } else if (r.type === "pipe-run") {
               const auto = runSizes?.get(r.systemId ?? "") ?? null;
               const liq = Number(r.props.liquidMm) || auto?.liquidMm || null;
               const gas = Number(r.props.gasMm) || auto?.gasMm || null;
@@ -4094,7 +4254,7 @@ export function StudioCanvas({
             return (
               <g
                 key={r.id}
-                className={`${cls}${r.id === selectedId ? " sel" : ""}`}
+                className={`${cls}${litRuns.has(r.id) ? " sel" : ""}`}
                 style={{ color: colour }}
               >
                 {curved ? (
@@ -4557,20 +4717,70 @@ export function StudioCanvas({
             );
           })}
 
+          {/* branch boxes — to scale (PAC-MK·BC, 450 × 280 mm), the heads' runs end on them */}
+          {layers.pipes && boxes.map((b) => {
+            const at = pointAt(b);
+            /* fittings are drawn in ink, not the system's colour: the pipes
+               carry colour (their size), and a fitting has to stand apart */
+            const fp = footprint(BOX_W_MM, BOX_D_MM);
+            const part = pipeView.fittings.get(b.id)?.fitting.part;
+            return (
+              <g key={b.id} className={`ds-bbox${b.id === selectedId ? " sel" : ""}`} style={{ color: "var(--ink)" }}>
+                <rect x={at.x - fp.w / 2} y={at.y - fp.h / 2} width={fp.w} height={fp.h} />
+                {part && layers.labels && (
+                  <text x={at.x} y={at.y + fp.h / 2 + 12 / labelZoom} fontSize={10 / labelZoom} className="ds-bbox-part">
+                    {part}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* joints — a small square where the refrigerant branches */}
+          {layers.pipes && joints.map((j) => {
+            const at = pointAt(j);
+            const half = 5 / zoom;
+            return (
+              <g key={j.id} className={`ds-joint${j.id === selectedId ? " sel" : ""}`} style={{ color: "var(--ink)" }}>
+                <rect x={at.x - half} y={at.y - half} width={half * 2} height={half * 2} />
+              </g>
+            );
+          })}
+
           {/* connection anchors — visible while piping; nearest one glows
-              BEFORE the click (pre-click snap feedback) */}
-          {isRunTool(tool) &&
+              BEFORE the click (pre-click snap feedback). A refrigerant run's
+              end over another run shows the joint it will make there. */}
+          {(isRunTool(tool) || tool === "joint") &&
             (() => {
-              const near = cursor ? nearestAnchor(cursor) : null;
-              return anchors.map((a) => (
-                <circle
-                  key={`${a.kind}:${a.id}`}
-                  className={`ds-anchor${near?.id === a.id ? " ready" : ""}`}
-                  cx={a.at.x}
-                  cy={a.at.y}
-                  r={(near?.id === a.id ? 9 : 5) / zoom}
-                />
-              ));
+              const near = cursor && tool !== "joint" ? nearestAnchor(cursor) : null;
+              const landing =
+                cursor && !near && (tool === "pipe" || tool === "joint") ? runLanding(cursor) : null;
+              const half = 6 / zoom;
+              return [
+                ...(tool === "joint"
+                  ? []
+                  : anchors.map((a) => (
+                      <circle
+                        key={`${a.kind}:${a.id}`}
+                        className={`ds-anchor${near?.id === a.id ? " ready" : ""}`}
+                        cx={a.at.x}
+                        cy={a.at.y}
+                        r={(near?.id === a.id ? 9 : 5) / zoom}
+                      />
+                    ))),
+                ...(landing
+                  ? [
+                      <rect
+                        key="landing"
+                        className="ds-anchor ready"
+                        x={landing.at.x - half}
+                        y={landing.at.y - half}
+                        width={half * 2}
+                        height={half * 2}
+                      />,
+                    ]
+                  : []),
+              ];
             })()}
 
           {/* run draft — straight tools preview the ortho-snapped tail, the
@@ -4579,15 +4789,19 @@ export function StudioCanvas({
             (() => {
               const curved =
                 tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft");
+              const target = cursor
+                ? nearestAnchor(cursor)?.at ?? (tool === "pipe" ? runLanding(cursor)?.at : undefined)
+                : undefined;
+              const head = target && shiftDown && !curved ? squareInto(draftPipe, target) : draftPipe;
               const tail = cursor
                 ? [
-                    nearestAnchor(cursor)?.at ??
+                    target ??
                       (curved
                         ? cursor
                         : orthoSnap(draftPipe[draftPipe.length - 1], cursor)),
                   ]
                 : [];
-              const pts = [...draftPipe, ...tail];
+              const pts = [...head, ...tail];
               return (
                 <g className="ds-pipe-draft">
                   {curved ? (
@@ -5018,13 +5232,13 @@ export function StudioCanvas({
               className={`ds-wallsel-panel${panelSlot(pts) === "top" ? " top" : ""}`}
               ref={measureRoomPanel}
               role="dialog"
-              aria-label="Size the room"
+              aria-label="Size the zone"
             >
               <div className="ds-wallsel-title">
-                {adjust.isNew ? "Size the room" : "Edit the room"}
+                {adjust.isNew ? "Size the zone" : "Edit the zone"}
               </div>
               <div className="ds-wallsel-hint">
-                Saving pins the room to the plan so panning can&apos;t drag it —
+                Saving pins the zone to the plan so panning can&apos;t drag it —
                 reopen it any time with Edit shape.
               </div>
               <div className="ds-wallsel-count on">
@@ -5161,7 +5375,12 @@ export function StudioCanvas({
           not the dark chrome: it sits over the plan for as long as the tool is
           armed, and the dark pill kept pulling the eye off the shape being
           drawn. Anyone who knows the gestures turns it off on the × . */}
-      {toolHint && hintsOn && (
+      {refusal ? (
+        <div className="ds-tool-hint" role="alert">
+          <Icon name="x" size={14} />
+          <span className="ds-tool-hint-t">{refusal}</span>
+        </div>
+      ) : toolHint && hintsOn && (
         <div className="ds-tool-hint" role="status">
           <Icon name={toolHint.icon} size={14} />
           <span className="ds-tool-hint-t">{toolHint.text}</span>
@@ -5205,6 +5424,27 @@ export function StudioCanvas({
               <dt>{hoverCard.sizeAxes}</dt>
               <dd>{hoverCard.size}</dd>
             </div>
+          </dl>
+        </div>
+      )}
+
+      {/* the picked pipe, joint or box — shown while nothing is hovered */}
+      {!hoverCard && pipeCard && (
+        <div className="ds-unitcard pipe" role="status" aria-live="polite">
+          <div className="ds-unitcard-h">
+            {pipeCard.tone != null && (
+              <span className="ds-unitcard-sw" style={{ background: `var(--pipe-${pipeCard.tone})` }} />
+            )}
+            <span className="ds-unitcard-role">{pipeCard.role}</span>
+          </div>
+          <div className="ds-unitcard-model">{pipeCard.title}</div>
+          <dl className="ds-unitcard-rows">
+            {pipeCard.rows.map((r, i) => (
+              <div key={i}>
+                <dt>{r.k}</dt>
+                <dd>{r.v}</dd>
+              </div>
+            ))}
           </dl>
         </div>
       )}

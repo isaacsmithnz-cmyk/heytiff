@@ -14,7 +14,7 @@ import type { RoomObj } from "../loads-room";
 import { allocationsOf } from "../allocations";
 import { addHead, chooseOutdoor } from "../builder";
 import { newSystem } from "../zones";
-import { deleteJoint, jointOnRun, nearestOnRuns } from "../joints";
+import { deleteFromSchematic, deleteJoint, jointOnRun, nearestOnRuns } from "../joints";
 import { systemVrfTree } from "../vrf-tree";
 import { buildSystemGraph } from "../graph";
 import { combinationWord, doneBlockers, systemFindings } from "../verdict";
@@ -374,5 +374,22 @@ describe("a pipe that goes nowhere", () => {
     expect(combinationWord(t.doc, pack, sys())).toBe("Fails");
     // a drawing finding fails the combination but never keeps the builder's Done off
     expect(doneBlockers(systemFindings(t.doc, pack, sys()))).toEqual([]);
+  });
+});
+
+/* Delete on the schematic (Isaac, 2026-09-29) */
+describe("deleting from the schematic", () => {
+  it("a section's runs go, a joint puts its cut run back together", () => {
+    const t = page144Drawn();
+    const sys = t.doc.systems.find((s) => s.id === t.systemId)!;
+    const view = pipeViewOf(t.doc, pack, sys)!;
+    const toP40 = view.sections.find((s) => s.to === t.heads[40])!;
+    const cut = deleteFromSchematic(t.doc, { kind: "runs", ids: toP40.edges });
+    expect(runsOf(cut, t.systemId)).toHaveLength(runsOf(t.doc, t.systemId).length - toP40.edges.length);
+    // the P40's joint now has one run in and one out: deleting it rejoins the trunk
+    const joint = t.doc.objects.find((o) => o.type === "joint" && runsOf(t.doc, t.systemId).some((r) => toP40.edges.includes(r.id) && (r.props.endAttach as { id: string }).id === o.id))!;
+    const rejoined = deleteFromSchematic(cut, { kind: "joint", id: joint.id });
+    expect(rejoined.objects.some((o) => o.id === joint.id)).toBe(false);
+    expect(runsOf(rejoined, t.systemId)).toHaveLength(runsOf(cut, t.systemId).length - 1);
   });
 });

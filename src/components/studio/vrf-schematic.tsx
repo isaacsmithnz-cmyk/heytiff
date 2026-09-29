@@ -10,7 +10,7 @@
    pipework reaches every head, else the heads in zone order. A picked section
    or fitting says what it is under the drawing. */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DesignDocument, DesignSystem } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { allocationsOf } from "@/lib/studio/allocations";
@@ -19,6 +19,7 @@ import { systemVrfTree, type SizedFitting, type SizedSection } from "@/lib/studi
 import { pairSize, sizeTone, type PipeUnits } from "@/lib/studio/pipe-sizes";
 import { attachOf } from "@/lib/studio/graph";
 import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
+import { deleteFromSchematic, type SchematicTarget } from "@/lib/studio/joints";
 
 const COL = 132;
 const ROW = 92;
@@ -36,14 +37,15 @@ export function VrfSchematic({
   pack,
   sys,
   units,
-  onErase,
+  onEdit,
 }: {
   doc: DesignDocument;
   pack: DataPack;
   sys: DesignSystem;
   units: PipeUnits;
-  /** erase a drawn run (a pipe that goes nowhere); absent, no button */
-  onErase?: (runId: string) => void;
+  /** change the document from the schematic (Delete, Erase): the host's own
+      mutate, so its undo takes it back. Absent, the schematic only reads. */
+  onEdit?: (fn: (d: DesignDocument) => DesignDocument) => void;
 }) {
   const tree = useMemo(() => systemVrfTree(pack, sys, doc), [pack, sys, doc]);
   const [picked, setPicked] = useState<string | null>(null);
@@ -97,6 +99,40 @@ export function VrfSchematic({
   const word = combinationWord(doc, pack, sys);
   /* a failing system says why under its name, in the rail's words */
   const reds = word === "Fails" ? blockingFindings(systemFindings(doc, pack, sys)) : [];
+
+  /* DELETE on the schematic (Isaac, 2026-09-29): what is picked goes — a
+     section's drawn runs, a joint (its run put back together), a box, or a
+     loose pipe — through the host, so ⌘Z brings it back */
+  const targetOf = (id: string | null): SchematicTarget | null => {
+    if (!id) return null;
+    if (id.startsWith("loose:")) return { kind: "runs", ids: [id.slice(6)] };
+    if (!tree || !layout) return null;
+    const f = layout.fit.get(id);
+    if (f) return f.kind === "box" ? { kind: "box", id } : { kind: "joint", id };
+    const sec = tree.sections.find((x) => x.id === id);
+    const runs = new Set(doc.objects.filter((o) => o.type === "pipe-run").map((o) => o.id));
+    const ids = sec ? sec.edges.filter((e) => runs.has(e)) : [];
+    return ids.length ? { kind: "runs", ids } : null;
+  };
+  const target = targetOf(picked);
+  const erase = () => {
+    if (!onEdit || !target) return;
+    onEdit((d) => deleteFromSchematic(d, target));
+    setPicked(null);
+  };
+  useEffect(() => {
+    if (!onEdit || !target) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      e.preventDefault();
+      onEdit((d) => deleteFromSchematic(d, target));
+      setPicked(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onEdit, target]);
 
   if (!tree || !layout) {
     return (
@@ -195,6 +231,8 @@ export function VrfSchematic({
       };
     });
   const pickedLoose = loose.find((l) => `loose:${l.id}` === picked);
+
+
 
   const pickedSection = tree.sections.find((s) => s.id === picked);
   const pickedFitting = picked ? fit.get(picked) : undefined;
@@ -334,18 +372,11 @@ export function VrfSchematic({
               <dd>{`${pickedLoose.lengthM.toFixed(1)} m`}</dd>
             </div>
           )}
-          {onErase && (
+          {onEdit && (
             <div>
               <dt />
               <dd>
-                <button
-                  type="button"
-                  className="ds-schem-erase"
-                  onClick={() => {
-                    onErase(pickedLoose.id);
-                    setPicked(null);
-                  }}
-                >
+                <button type="button" className="ds-schem-erase" onClick={erase}>
                   Erase this pipe
                 </button>
               </dd>
@@ -408,12 +439,12 @@ export function SchematicView({
   doc,
   pack,
   units,
-  onErase,
+  onEdit,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
   units: PipeUnits;
-  onErase?: (runId: string) => void;
+  onEdit?: (fn: (d: DesignDocument) => DesignDocument) => void;
 }) {
   const vrfs = doc.systems.filter((s) => s.type === "vrf");
   return (
@@ -421,7 +452,7 @@ export function SchematicView({
       {!pack ? null : vrfs.length === 0 ? (
         <p className="ds-schem-empty">No VRF system in this design yet.</p>
       ) : (
-        vrfs.map((s) => <VrfSchematic key={s.id} doc={doc} pack={pack} sys={s} units={units} onErase={onErase} />)
+        vrfs.map((s) => <VrfSchematic key={s.id} doc={doc} pack={pack} sys={s} units={units} onEdit={onEdit} />)
       )}
     </div>
   );

@@ -9,6 +9,7 @@
 
    Pure functions over the document. No React. */
 
+import { pruneObjects } from "./attach";
 import { newId, type DesignDocument, type DesignObject, type Point } from "./document";
 import { attachOf } from "./graph";
 
@@ -167,4 +168,20 @@ export function deleteJoint(doc: DesignDocument, jointId: string): DesignDocumen
         return props === o.props ? o : { ...o, props };
       }),
   };
+}
+
+/** what the schematic deletes (vrf-schematic.tsx): a section's drawn runs, a
+    joint (its cut run put back together, as the plan's Delete does), a
+    branch box (its pipes left loose, so they show red to be finished or
+    erased), or one loose run. Nothing else is touched. */
+export type SchematicTarget =
+  | { kind: "runs"; ids: string[] }
+  | { kind: "joint"; id: string }
+  | { kind: "box"; id: string };
+
+export function deleteFromSchematic(doc: DesignDocument, target: SchematicTarget): DesignDocument {
+  if (target.kind === "joint") return deleteJoint(doc, target.id);
+  const gone = new Set(target.kind === "runs" ? target.ids : [target.id]);
+  if (!doc.objects.some((o) => gone.has(o.id))) return doc;
+  return { ...doc, objects: pruneObjects(doc.objects, (o) => !gone.has(o.id)) };
 }

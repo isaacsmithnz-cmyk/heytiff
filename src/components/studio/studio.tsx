@@ -1721,6 +1721,8 @@ function Editor({
       if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)
         return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        // the system editor keeps its own history (system-builder.tsx)
+        if (builderOpen) return;
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
@@ -2002,9 +2004,7 @@ function Editor({
             doc={doc}
             pack={pack}
             units={pipeUnits}
-            onErase={(runId) =>
-              mutate((d) => ({ ...d, objects: pruneObjects(d.objects, (o) => o.id !== runId) }))
-            }
+            onEdit={mutate}
           />
         )}
         {step === 2 && (

@@ -226,7 +226,7 @@ export async function completeTask(taskId: string, opts: { postDone?: boolean } 
 
   const { data } = await supabaseAdmin
     .from("tasks")
-    .select("assigned_to, status")
+    .select("assigned_to, status, group_id")
     .eq("org_id", ctx.orgId)
     .eq("id", taskId)
     .maybeSingle();
@@ -252,6 +252,24 @@ export async function completeTask(taskId: string, opts: { postDone?: boolean } 
   if (error) return { ok: false, error: "Couldn't complete that task." };
   if ((won ?? []).length === 0) return { ok: false, error: "That task is already done." };
   await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "done" });
+  /* A task given to several people is one job: the others' copies close with it. */
+  if (data.group_id) {
+    const { data: rest } = await supabaseAdmin
+      .from("tasks")
+      .update({
+        status: "done",
+        done_at: new Date().toISOString(),
+        done_by: ctx.staffId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("org_id", ctx.orgId)
+      .eq("group_id", data.group_id)
+      .eq("status", "open")
+      .select("id");
+    for (const r of (rest ?? []) as { id: string }[]) {
+      await logTaskEvent(ctx.orgId, r.id, ctx.staffId, { kind: "done" });
+    }
+  }
   if (opts?.postDone === true && sm8NotesAllowed()) {
     await sendTaskDone({ taskId }).catch((err: unknown) => {
       console.error(`[sm8] the Done for task ${taskId} threw: ${err instanceof Error ? err.message : String(err)}`);
@@ -277,7 +295,7 @@ export async function reopenTask(taskId: string, opts: { takeBackDone?: boolean 
 
   const { data } = await supabaseAdmin
     .from("tasks")
-    .select("assigned_to, status")
+    .select("assigned_to, status, group_id")
     .eq("org_id", ctx.orgId)
     .eq("id", taskId)
     .maybeSingle();
@@ -297,6 +315,18 @@ export async function reopenTask(taskId: string, opts: { takeBackDone?: boolean 
   if (error) return { ok: false, error: "Couldn't reopen that task." };
   if ((won ?? []).length === 0) return { ok: false, error: "That task is already open." };
   await logTaskEvent(ctx.orgId, taskId, ctx.staffId, { kind: "reopened" });
+  if (data.group_id) {
+    const { data: rest } = await supabaseAdmin
+      .from("tasks")
+      .update({ status: "open", done_at: null, done_by: null, updated_at: new Date().toISOString() })
+      .eq("org_id", ctx.orgId)
+      .eq("group_id", data.group_id)
+      .eq("status", "done")
+      .select("id");
+    for (const r of (rest ?? []) as { id: string }[]) {
+      await logTaskEvent(ctx.orgId, r.id, ctx.staffId, { kind: "reopened" });
+    }
+  }
   let note: string | undefined;
   if (opts?.takeBackDone === true && sm8NotesAllowed()) {
     const back = await takeBackTaskDone({ taskId }).catch((err: unknown) => {

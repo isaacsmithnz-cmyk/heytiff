@@ -807,7 +807,23 @@ async function applyConfirmed(
        whole batch, and only when there are tasks to write. */
     const tz = await getSm8Timezone(ctx.orgId);
 
+    /* ONE TASK FOR TWO PEOPLE. The plan lists a task once per person, so
+       "Luke and Isaac, order the pump" arrives as two rows with the same
+       words. Rows that agree on title, detail, day and time share a group, and
+       completing any of them completes all (see completeTask). */
+    const sameJob = (t: (typeof wanted)[number]) =>
+      JSON.stringify([trim(t.title, 200), trim(t.detail, 1000), t.dueDate ?? null, t.remindTime ?? null, t.remindKind ?? null]);
+    const heads = new Map<string, number>();
+    for (const t of wanted) heads.set(sameJob(t), (heads.get(sameJob(t)) ?? 0) + 1);
+    const groups = new Map<string, string>();
+
     const rows = wanted.map((t) => {
+      const key = sameJob(t);
+      let groupId: string | null = null;
+      if ((heads.get(key) ?? 0) > 1) {
+        groupId = groups.get(key) ?? crypto.randomUUID();
+        groups.set(key, groupId);
+      }
       /* The nudge, composed here and nowhere else. Null unless the task
          carries BOTH a day and a time — `remindAtFrom` returns null for
          either half missing, which is exactly "this is an ordinary task". */
@@ -829,6 +845,7 @@ async function applyConfirmed(
         remind_kind:
           remindAt !== null && isRemindKind(t.remindKind) && t.remindKind === "by" ? "by" : null,
         status: "open",
+        group_id: groupId,
       };
     });
 

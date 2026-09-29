@@ -3403,6 +3403,7 @@ function DesignPanel({
             component={airComp}
             onComponentPlaced={onComponentPlaced}
             iduSpec={iduSpec}
+            pack={pack}
             oduSpec={oduSpec}
             onRoomCreated={onRoomCreated}
             onClaimToggle={onClaimToggle}

@@ -99,6 +99,7 @@ import {
   hasFactorySpigots,
   spigotDiametersMm,
   spigotLabel,
+  type DataPack,
   type IndoorUnit,
   type OpeningSpec,
   type OutdoorUnit,
@@ -727,6 +728,7 @@ export function StudioCanvas({
   component = null,
   onComponentPlaced,
   iduSpec,
+  pack,
   oduSpec,
   onRoomCreated,
   onClaimToggle,
@@ -786,6 +788,8 @@ export function StudioCanvas({
   /** pack-row resolver for placed indoor units — plenum specs + air
       capability come from unit DATA, never system type (ducted spec §11.1) */
   iduSpec?: (model: string) => IndoorUnit | null;
+  /** the pack, for what a drawn VRF pipe may join (pipe-rules.ts) */
+  pack?: DataPack | null;
   /** the same resolver for outdoor units — the hover card names both sides */
   oduSpec?: (model: string) => OutdoorUnit | null;
   /** a room finished wall-marking — open its configuration modal (Slice 2) */
@@ -2843,13 +2847,17 @@ export function StudioCanvas({
           const curved = tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft");
           const prev = draftPipe[draftPipe.length - 1];
           const p = anchor ? anchor.at : onRun ? onRun.at : prev && !curved ? orthoSnap(prev, w) : w;
+          /* a joint about to go on a run stands in as that end until it exists */
+          const here = anchor ?? (onRun ? { kind: "joint" as const, id: "" } : null);
           const why =
-            tool === "pipe" && anchor && activeSystemId
+            tool === "pipe" && here && activeSystemId
               ? pipeRefusal(
                   doc,
                   activeSystemId,
-                  draftPipe.length === 0 ? anchor : pipeStartAttach.current,
-                  draftPipe.length === 0 ? null : anchor
+                  draftPipe.length === 0 ? here : pipeStartAttach.current,
+                  draftPipe.length === 0 ? null : here,
+                  pack,
+                  anchor ? undefined : onRun?.runId
                 )
               : null;
           if (why) {

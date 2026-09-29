@@ -22,6 +22,7 @@ import { addHead, chooseOutdoor } from "../builder";
 import { newSystem } from "../zones";
 import { branchBoxObject } from "../joints";
 import { buildSummaryModel } from "../summary";
+import { systemFindings } from "../verdict";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -174,6 +175,18 @@ describe("branch boxes (p.44, 75)", () => {
       expect.objectContaining({ severity: "red", code: "box-empty", message: "A branch box feeds no heads" })
     );
     expect(sized.fittings.filter((f) => f.kind === "box")).toHaveLength(1);
+  });
+
+  it("a box feeds heads only: a joint or a box after it is red", () => {
+    // Walk B's second drawing (2026-09-29): heads on a joint hung off a box
+    const tree = provisionalVrfTree("OU", heads, new Set(heads.map((h) => h.id)), 5);
+    const box = tree.nodes.find((n) => n.kind === "box")!;
+    tree.nodes.push({ id: "after", kind: "joint" });
+    tree.sections.push({ id: "to-after", from: box.id, to: "after", lengthM: 2 });
+    const sized = sizeVrfTree(pack, odu("PUMY-SP112VKMD2-A"), tree);
+    expect(sized.findings).toContainEqual(
+      expect.objectContaining({ severity: "red", code: "branch-after-box", message: "A branch box feeds heads only" })
+    );
   });
 
   it("three box heads take the three-port PAC-MK34BC", () => {
@@ -341,5 +354,40 @@ describe("Isaac's calls of 2026-09-29", () => {
     const doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "z0", iduModel: CM[63] });
     const lines = buildSummaryModel(doc, pack).systems[0].lines.map((l) => l.name);
     expect(lines.some((n) => /bracket|pad|frame|Mounting/i.test(n))).toBe(false);
+  });
+});
+
+/* Walk B (2026-09-29): six 30 m² offices, 26.1 kW of zones, on a PUMY-SP140
+   whose 130% is 20.15 kW — Isaac: "an immediate red flag" */
+describe("zones past the most the outdoor can take on", () => {
+  function offices(oduModel: string) {
+    let doc = createDesign({ name: "x", mode: "blank" });
+    const floorId = doc.floors[0].id;
+    const models = ["MSZ-AP20VGD", "MSZ-AP20VGD", "MSZ-AP50VGD2", "SLZ-M35FA-A", "MSZ-AP25VGD2", "MSZ-AP25VGD2"];
+    models.forEach((_, i) => {
+      const x = (i % 3) * 700;
+      const y = Math.floor(i / 3) * 600;
+      doc.objects.push({
+        id: `z${i}`, type: "room", systemId: null, floorId, plane: "room",
+        geometry: { kind: "polygon", points: [{ x, y }, { x: x + 600, y }, { x: x + 600, y: y + 500 }, { x, y: y + 500 }] },
+        props: { name: `Office ${i + 1}` },
+      } as RoomObj as DesignObject);
+    });
+    const made = newSystem(doc, pack.meta.version);
+    doc = made.doc;
+    models.forEach((m, i) => (doc = addHead(doc, pack, { systemId: made.systemId, zoneId: `z${i}`, iduModel: m })));
+    doc = chooseOutdoor(doc, pack, "worst-of-both", made.systemId, oduModel);
+    return systemFindings(doc, pack, doc.systems.find((s) => s.id === made.systemId)!);
+  }
+
+  it("is red on the SP140, naming the load and the ceiling", () => {
+    const f = offices("PUMY-SP140VKMD2-A").find((x) => x.code === "load-over-outdoor");
+    expect(f).toMatchObject({ severity: "red", fix: "Pick a bigger outdoor, or move a zone to another system" });
+    expect(f?.message).toMatch(/^The zones need 26\.1 kW, and PUMY-SP140VKMD2-A takes heads up to 20\.15 kW \(130%\)$/);
+  });
+
+  it("is not raised on an outdoor whose 130% covers the zones", () => {
+    // PUMY-P250: 28.0 kW, 130% is 36.4 kW
+    expect(offices("PUMY-P250YBMD-A").map((x) => x.code)).not.toContain("load-over-outdoor");
   });
 });

@@ -109,6 +109,7 @@ export interface TreeFinding {
     | "not-box-head"
     | "box-count-over"
     | "box-empty"
+    | "branch-after-box"
     | "after-first-joint-over"
     | "total-over"
     | "farthest-over"
@@ -655,6 +656,15 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
         findings.push({ severity: "red", code: "box-empty", message: "A branch box feeds no heads", fix: "Run its heads to it, or delete it" });
         continue;
       }
+      /* a box feeds heads, one per port: a joint or another box after it is
+         a drawing the book has no answer for (Isaac's walk B, 2026-09-29) */
+      if (outs.some((s) => nodeById.get(s.to)?.kind !== "idu"))
+        findings.push({
+          severity: "red",
+          code: "branch-after-box",
+          message: "A branch box feeds heads only",
+          fix: "Run each head to its own port, and take the next box off the main with a joint",
+        });
       const part = boxParts.find((p) => (p.ports ?? 0) >= outs.length)?.model ?? null;
       fittings.push({ nodeId: n.id, kind: "box", part, downstreamIndex: down, branches: outs.length, first: false });
       if (!part)

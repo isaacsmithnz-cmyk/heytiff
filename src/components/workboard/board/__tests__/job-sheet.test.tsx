@@ -420,6 +420,7 @@ describe("the card is tabs", () => {
     ).toEqual([
       "Summary",
       "Diary",
+      "Quote",
       "Money",
       "Visits",
       "Checklist",
@@ -440,6 +441,15 @@ describe("the card is tabs", () => {
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     expect(screen.queryByRole("tab", { name: "Money" })).toBeNull();
+  });
+
+  /* THE QUOTE TAB IS OFFICE WORK and spends API credit on every draft: it
+     is there for whoever runs the board, absent for everyone else. */
+  it("has no Quote tab without Workboard manage", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    await detailLanded();
+    expect(screen.queryByRole("tab", { name: "Quote" })).toBeNull();
   });
 
   /* A DOOR THAT KNOWS WHAT IT CAME FOR opens the card on that face — the

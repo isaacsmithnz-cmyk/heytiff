@@ -40,6 +40,7 @@ import {
 import { JobChecklistFace } from "./job-checklist-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
+import { JobQuoteFace } from "./job-quote-face";
 import { SwmsWizard } from "@/components/swms/swms-wizard";
 import { listSwmsForJob } from "@/app/actions/swms";
 import { uploadFile } from "@/lib/documents/upload-client";
@@ -193,6 +194,7 @@ const VISITS_SHOWN = 6;
 export type JobSheetTab =
   | "summary"
   | "diary"
+  | "quote"
   | "money"
   | "visits"
   | "checklist"
@@ -372,7 +374,7 @@ export function JobSheet({
   const [tab, setTab] = useState<TabKey>(() =>
     openBookIn || openClear
       ? "visits"
-      : initialTab && (initialTab !== "money" || moneyVisible)
+      : initialTab && (initialTab !== "money" || moneyVisible) && (initialTab !== "quote" || manage)
         ? initialTab
         : "summary"
   );
@@ -1673,6 +1675,9 @@ export function JobSheet({
   const tabs: ViewTab[] = [
     { key: "summary", label: "Summary" },
     { key: "diary", label: "Diary" },
+    /* the proposal draft is office work, and every draft spends API credit:
+       it is there for whoever runs the board, and absent otherwise */
+    ...(manage ? [{ key: "quote", label: "Quote" }] : []),
     ...(moneyVisible ? [{ key: "money", label: "Money" }] : []),
     { key: "visits", label: "Visits" },
     { key: "checklist", label: "Checklist" },
@@ -2343,6 +2348,17 @@ export function JobSheet({
               onStar={toggleFavourite}
             />
           )}
+
+          {manage &&
+            panel(
+              "quote",
+              <JobQuoteFace
+                job={cardId ?? row.id}
+                address={detail ? detail.address ?? detail.geoLine : null}
+                visible={tab === "quote"}
+                onToast={onToast}
+              />
+            )}
 
           {panel(
             "documents",

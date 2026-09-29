@@ -643,7 +643,7 @@ function buildPicklist(
     .map(([model, qty]) => ({
       group: "units",
       name: model,
-      sub: pack ? describeUnit(pack, model) : "unit",
+      sub: pack ? describeUnit(pack, model) : "Unit",
       qty: String(qty),
     }));
 

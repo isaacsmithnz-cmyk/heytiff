@@ -10,6 +10,7 @@ import {
   snapToGrid,
   orthoSnap,
   elbowCorner,
+  squareInto,
   nearestVertexIndex,
   boundsOfPoints,
   worldToScreen,
@@ -500,5 +501,28 @@ describe("elbowCorner", () => {
   it("no corner when the unit already lines up, or nothing is drawn yet", () => {
     expect(elbowCorner([{ x: 0, y: 500 }, { x: 400, y: 500 }], { x: 900, y: 500 })).toBeNull();
     expect(elbowCorner([], { x: 1, y: 1 })).toBeNull();
+  });
+});
+
+describe("squareInto", () => {
+  it("overshot the bend: the leg is cut at the turn and the stub goes", () => {
+    // across to x=1000, the unit is up at x=700
+    const pts = [{ x: 0, y: 500 }, { x: 1000, y: 500 }];
+    expect(squareInto(pts, { x: 700, y: 100 })).toEqual([{ x: 0, y: 500 }, { x: 700, y: 500 }]);
+  });
+
+  it("short of the bend: carries on to it", () => {
+    const pts = [{ x: 0, y: 500 }, { x: 400, y: 500 }];
+    expect(squareInto(pts, { x: 700, y: 100 })).toEqual([...pts, { x: 700, y: 500 }]);
+  });
+
+  it("a turn at the leg's very start drops the leg rather than leave a stub", () => {
+    const pts = [{ x: 0, y: 0 }, { x: 0, y: 500 }, { x: 800, y: 500 }];
+    expect(squareInto(pts, { x: 0, y: 100 })).toEqual([{ x: 0, y: 0 }, { x: 0, y: 500 }]);
+  });
+
+  it("nothing to square: the draft comes back as it was", () => {
+    const pts = [{ x: 0, y: 500 }, { x: 400, y: 500 }];
+    expect(squareInto(pts, { x: 900, y: 500 })).toBe(pts);
   });
 });

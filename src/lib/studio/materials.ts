@@ -20,6 +20,7 @@
    buildSummaryModel in split.test.ts and summary.test.ts, where it lives. */
 
 import type { AdditionalChargeRule, DataPack } from "./packs/schema";
+import { formFactorLabel } from "./form-factors";
 
 /* ───────────────── additional-charge rule evaluator ─────────────────
    One evaluator per method (universal-table-schema.md — typed rule blocks).
@@ -109,15 +110,15 @@ export function evaluateVrfCharge(
   return step > 0 ? Math.ceil(Math.round(g * 1000) / 1000 / step) * step : g;
 }
 
-/** "cassette-4way indoor unit · 3.2/3.6 kW" — one wording for a unit, shared
+/** "4-way cassette indoor unit, 3.2/3.6 kW" — one wording for a unit, shared
     with the summary sheet's Material picklist, which counts units for every
     system type. */
 export const describeUnit = (pack: DataPack, model: string): string => {
   const idu = pack.indoor_units.find((u) => u.model === model);
   if (idu)
-    return `${idu.form_factor} indoor unit, ${idu.capacity_cool_kw}/${idu.capacity_heat_kw} kW`;
+    return `${formFactorLabel(idu.form_factor) ?? "Indoor"} indoor unit, ${idu.capacity_cool_kw}/${idu.capacity_heat_kw} kW`;
   const odu = pack.outdoor_units.find((o) => o.model === model);
   if (odu)
-    return `outdoor unit, ${odu.capacity_cool_kw}/${odu.capacity_heat_kw} kW`;
-  return "unit";
+    return `Outdoor unit, ${odu.capacity_cool_kw}/${odu.capacity_heat_kw} kW`;
+  return "Unit";
 };

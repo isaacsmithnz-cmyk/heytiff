@@ -121,7 +121,7 @@ import {
   MIN_ZOOM,
   mmPerUnitFromCalibration,
   orthoSnap,
-  elbowCorner,
+  squareInto,
   distToSmoothed,
   pointInPolygon,
   polygonArea,
@@ -2878,8 +2878,7 @@ export function StudioCanvas({
           } else if (anchor || onRun) {
             // landing on an anchor completes the run — the magnetic connection;
             // with Shift a straight run turns square into it
-            const corner = e.shiftKey && !curved ? elbowCorner(draftPipe, p) : null;
-            const pts = [...draftPipe, ...(corner ? [corner] : []), p];
+            const pts = [...(e.shiftKey && !curved ? squareInto(draftPipe, p) : draftPipe), p];
             if (anchor) commitPipe(pts, { kind: anchor.kind, id: anchor.id });
             else commitPipe(pts, null, onRun!);
           } else {
@@ -4715,17 +4714,16 @@ export function StudioCanvas({
               const target = cursor
                 ? nearestAnchor(cursor)?.at ?? (tool === "pipe" ? runLanding(cursor)?.at : undefined)
                 : undefined;
-              const corner = target && shiftDown && !curved ? elbowCorner(draftPipe, target) : null;
+              const head = target && shiftDown && !curved ? squareInto(draftPipe, target) : draftPipe;
               const tail = cursor
                 ? [
-                    ...(corner ? [corner] : []),
                     target ??
                       (curved
                         ? cursor
                         : orthoSnap(draftPipe[draftPipe.length - 1], cursor)),
                   ]
                 : [];
-              const pts = [...draftPipe, ...tail];
+              const pts = [...head, ...tail];
               return (
                 <g className="ds-pipe-draft">
                   {curved ? (

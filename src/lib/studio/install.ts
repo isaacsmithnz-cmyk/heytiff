@@ -913,12 +913,19 @@ function vrfFittingRows(context: Context): EquipmentRow[] {
     if (cur) cur.n++;
     else byPart.set(f.part, { kind: f.kind, n: 1 });
   }
+  /* the reason in words a fitter reads (Isaac, 2026-09-29: "by the index
+     below it — no idea what that's supposed to mean") */
+  const ports = (part: string) => context.pack.parts.find((p) => p.model === part)?.ports;
   return [...byPart].map(([part, { kind, n }]) => ({
     group: "Pipework" as const,
     name: kind === "header" ? "Header" : kind === "box" ? "Branch box" : "Joint",
     model: part,
     qty: n,
-    why: tree.drawn ? "By the index below it" : "From the zone order, until the pipework is drawn",
+    why: !tree.drawn
+      ? "Counted from the zones until the pipework is drawn"
+      : kind === "box" && ports(part)
+        ? `Takes up to ${ports(part)} heads`
+        : "Sized to the heads it feeds",
   }));
 }
 

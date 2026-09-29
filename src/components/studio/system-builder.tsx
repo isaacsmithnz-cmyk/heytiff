@@ -51,7 +51,7 @@ import {
   type SystemKind,
 } from "@/lib/studio/zones";
 import {
-  blockingFindings,
+  doneBlockers,
   brandName,
   combinationWord,
   connectionRatio,
@@ -250,7 +250,7 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   const kind = systemKind(draft, sys);
   const empty = kind === "empty";
   const findings = systemFindings(draft, pack, sys);
-  const blocking = blockingFindings(findings);
+  const blocking = doneBlockers(findings);
   const combination = combinationWord(draft, pack, sys);
 
   /* the heads a red finding names, when it can: an outdoor that takes one
@@ -486,7 +486,7 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     oduByHand,
     findings,
     blocking,
-    reason: doneReason(findings),
+    reason: doneReason(findings.filter((f) => !f.drawing)),
     combination,
     zones,
     zonesLoadKw,
@@ -570,7 +570,7 @@ export function SystemBuilder({
   const [side, setSide] = useState<Side>(() => {
     const s = start.systems.find((x) => x.id === sysId);
     if (!s) return "indoor";
-    if (startFrom && blockingFindings(systemFindings(start, pack, s)).length) return "outdoor";
+    if (startFrom && doneBlockers(systemFindings(start, pack, s)).length) return "outdoor";
     const opened = focus && hasAllocations(s) ? allocationsOf(s).find((a) => a.id === focus.allocationId) : null;
     return opened?.role === "odu" ? "outdoor" : "indoor";
   });
@@ -1571,11 +1571,17 @@ function PipingRail({
     const root = tree.sections.find((s) => !tos.has(s.from))?.from;
     const rank = new Map<string, number>();
     const seen = new Set<string>();
+    /* a joint's own heads first, then what carries on down the trunk: the
+       head off the joint before a box sits at the joint, not under the box
+       (Isaac, 2026-09-29, walk C) */
+    const headIds = new Set(view.heads.map((a) => a.id));
+    const isHead = (id: string) => headIds.has(id);
     const walk = (id: string) => {
       if (seen.has(id)) return;
       seen.add(id);
       rank.set(id, rank.size);
-      for (const k of kids.get(id) ?? []) walk(k);
+      const ks = [...(kids.get(id) ?? [])].sort((a, b) => Number(isHead(b)) - Number(isHead(a)));
+      for (const k of ks) walk(k);
     };
     if (root) walk(root);
     const first = (z: ZoneView) => Math.min(...zoneHeads(z).map((a) => rank.get(a.id) ?? Infinity), Infinity);

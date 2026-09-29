@@ -17,6 +17,8 @@ import { allocationsOf } from "@/lib/studio/allocations";
 import { blockingFindings, combinationWord, systemFindings } from "@/lib/studio/verdict";
 import { systemVrfTree, type SizedFitting, type SizedSection } from "@/lib/studio/vrf-tree";
 import { pairSize, sizeTone, type PipeUnits } from "@/lib/studio/pipe-sizes";
+import { attachOf } from "@/lib/studio/graph";
+import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
 
 const COL = 132;
 const ROW = 92;
@@ -34,11 +36,14 @@ export function VrfSchematic({
   pack,
   sys,
   units,
+  onErase,
 }: {
   doc: DesignDocument;
   pack: DataPack;
   sys: DesignSystem;
   units: PipeUnits;
+  /** erase a drawn run (a pipe that goes nowhere); absent, no button */
+  onErase?: (runId: string) => void;
 }) {
   const tree = useMemo(() => systemVrfTree(pack, sys, doc), [pack, sys, doc]);
   const [picked, setPicked] = useState<string | null>(null);
@@ -152,6 +157,45 @@ export function VrfSchematic({
     return { d: `M${a.x} ${a.y} V${mid} H${b.x} V${b.y}`, label: { x: b.x + 6, y: mid + 16 } };
   };
 
+  /* PIPES THAT GO NOWHERE (verdict.ts loosePipes) are no part of the tree,
+     so they'd be invisible here: each is drawn as a red dashed stub off the
+     fitting or unit it leaves, or listed under the drawing when it leaves
+     nothing on it, and a click offers to erase it (Isaac, 2026-09-29). */
+  const loose = doc.objects
+    .filter(
+      (o) =>
+        o.type === "pipe-run" &&
+        o.systemId === sys.id &&
+        (!attachOf(o.props.startAttach) || !attachOf(o.props.endAttach))
+    )
+    .map((o) => {
+      const at = attachOf(o.props.startAttach) ?? attachOf(o.props.endAttach);
+      /* a joint the tree passes through is not drawn: stub off the node its
+         section starts from */
+      const touching = at
+        ? new Set(
+            doc.objects
+              .filter(
+                (r) =>
+                  r.type === "pipe-run" &&
+                  (attachOf(r.props.startAttach)?.id === at.id || attachOf(r.props.endAttach)?.id === at.id)
+              )
+              .map((r) => r.id)
+          )
+        : new Set<string>();
+      const via = at && !pos.has(at.id) ? tree.sections.find((x) => x.edges.some((e) => touching.has(e))) : undefined;
+      const anchorId = at ? (pos.has(at.id) ? at.id : (via?.to ?? null)) : null;
+      const scale = doc.floors.find((f) => f.id === o.floorId)?.scaleMmPerUnit ?? null;
+      const pts = o.geometry.kind === "polyline" ? o.geometry.points : [];
+      return {
+        id: o.id,
+        anchorId,
+        from: at ? (anchorId ? nameOf(anchorId) : "a joint") : null,
+        lengthM: scale != null && pts.length > 1 ? unitsToMeters(polylineLength(pts), scale) : null,
+      };
+    });
+  const pickedLoose = loose.find((l) => `loose:${l.id}` === picked);
+
   const pickedSection = tree.sections.find((s) => s.id === picked);
   const pickedFitting = picked ? fit.get(picked) : undefined;
 
@@ -205,6 +249,23 @@ export function VrfSchematic({
               </g>
             );
           })}
+          {loose.map((l, k) => {
+            const p = l.anchorId ? pos.get(l.anchorId) : undefined;
+            if (!p) return null;
+            const on = picked === `loose:${l.id}`;
+            const x2 = p.x + 44 + k * 10;
+            const y2 = p.y + 28;
+            return (
+              <g key={l.id} className={`ds-schem-loose${on ? " on" : ""}`} onClick={() => setPicked(on ? null : `loose:${l.id}`)}>
+                <path d={`M${p.x} ${p.y} H${x2} V${y2}`} />
+                <path className="hit" d={`M${p.x} ${p.y} H${x2} V${y2}`} />
+                <circle cx={x2} cy={y2} r={4} />
+                <text x={x2 + 7} y={y2 + 4}>
+                  Goes nowhere
+                </text>
+              </g>
+            );
+          })}
           {[...pos].map(([id, p]) => {
             if (id === layout.root)
               return (
@@ -250,6 +311,48 @@ export function VrfSchematic({
           })}
         </svg>
       </div>
+      {loose.some((l) => !l.anchorId) && (
+        <div className="ds-schem-loose-list">
+          {loose
+            .filter((l) => !l.anchorId)
+            .map((l) => (
+              <button key={l.id} type="button" className="ds-schem-loose-btn" onClick={() => setPicked(`loose:${l.id}`)}>
+                {`A pipe on nothing${l.lengthM != null ? `, ${l.lengthM.toFixed(1)} m` : ""}`}
+              </button>
+            ))}
+        </div>
+      )}
+      {pickedLoose && (
+        <dl className="ds-schem-card">
+          <div>
+            <dt>Pipe</dt>
+            <dd>{pickedLoose.from ? `From ${pickedLoose.from}, reaching nothing` : "Reaching nothing at either end"}</dd>
+          </div>
+          {pickedLoose.lengthM != null && (
+            <div>
+              <dt>Length</dt>
+              <dd>{`${pickedLoose.lengthM.toFixed(1)} m`}</dd>
+            </div>
+          )}
+          {onErase && (
+            <div>
+              <dt />
+              <dd>
+                <button
+                  type="button"
+                  className="ds-schem-erase"
+                  onClick={() => {
+                    onErase(pickedLoose.id);
+                    setPicked(null);
+                  }}
+                >
+                  Erase this pipe
+                </button>
+              </dd>
+            </div>
+          )}
+        </dl>
+      )}
       {(pickedSection || pickedFitting) && (
         <dl className="ds-schem-card">
           {pickedSection && (
@@ -305,10 +408,12 @@ export function SchematicView({
   doc,
   pack,
   units,
+  onErase,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
   units: PipeUnits;
+  onErase?: (runId: string) => void;
 }) {
   const vrfs = doc.systems.filter((s) => s.type === "vrf");
   return (
@@ -316,7 +421,7 @@ export function SchematicView({
       {!pack ? null : vrfs.length === 0 ? (
         <p className="ds-schem-empty">No VRF system in this design yet.</p>
       ) : (
-        vrfs.map((s) => <VrfSchematic key={s.id} doc={doc} pack={pack} sys={s} units={units} />)
+        vrfs.map((s) => <VrfSchematic key={s.id} doc={doc} pack={pack} sys={s} units={units} onErase={onErase} />)
       )}
     </div>
   );

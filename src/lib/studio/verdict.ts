@@ -28,6 +28,11 @@ export interface SystemFinding {
   message: string;
   /** what would fix it, when the finding knows */
   fix?: string;
+  /** about the pipework drawn on the plan, not the units: it fails the
+      combination, but never keeps the builder's Done off — a head swapped in
+      the builder cuts its old pipe loose, and that must not lock the change
+      out (Isaac, 2026-09-29: "I seem to be locked out of saving") */
+  drawing?: boolean;
 }
 
 const iduRow = (pack: DataPack, model: string): IndoorUnit | null =>
@@ -62,6 +67,7 @@ export function loosePipes(doc: DesignDocument, sys: DesignSystem): SystemFindin
   return {
     severity: "red",
     code: "loose-pipe",
+    drawing: true,
     message: n === 1 ? "A pipe ends without reaching anything" : `${n} pipes end without reaching anything`,
     fix: "Finish each on a unit, a joint or a box, or erase it",
   };
@@ -193,7 +199,7 @@ function combinationFindings(doc: DesignDocument, pack: DataPack, sys: DesignSys
        drawn tree's lengths, lifts and charge, and the fittings' rules */
     for (const f of systemVrfTree(pack, sys, doc)?.findings ?? []) {
       if (f.severity !== "red") continue;
-      out.push({ severity: "red", code: f.code, message: f.message, fix: f.fix });
+      out.push({ severity: "red", code: f.code, message: f.message, fix: f.fix, drawing: true });
     }
     return out;
   }
@@ -219,9 +225,14 @@ function combinationFindings(doc: DesignDocument, pack: DataPack, sys: DesignSys
   return out;
 }
 
-/** the findings that keep Done off */
+/** the findings that fail the combination: every red one */
 export const blockingFindings = (findings: SystemFinding[]): SystemFinding[] =>
   findings.filter((f) => f.severity === "red");
+
+/** the findings that keep the builder's Done off: the red ones about the
+    units, never the drawing's (see SystemFinding.drawing) */
+export const doneBlockers = (findings: SystemFinding[]): SystemFinding[] =>
+  blockingFindings(findings).filter((f) => !f.drawing);
 
 /** the one word every system says about its combination; null while there
     is nothing in it to check */

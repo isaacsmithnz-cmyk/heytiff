@@ -17,7 +17,7 @@ import { newSystem } from "../zones";
 import { deleteJoint, jointOnRun, nearestOnRuns } from "../joints";
 import { systemVrfTree } from "../vrf-tree";
 import { buildSystemGraph } from "../graph";
-import { combinationWord, systemFindings } from "../verdict";
+import { combinationWord, doneBlockers, systemFindings } from "../verdict";
 import { buildSummaryModel } from "../summary";
 import { pairSize, pipeViewOf, sizeTone, tubeSize } from "../pipe-sizes";
 
@@ -363,6 +363,7 @@ describe("a pipe that goes nowhere", () => {
     expect(systemFindings(t.doc, pack, sys()).find((f) => f.code === "loose-pipe")).toEqual({
       severity: "red",
       code: "loose-pipe",
+      drawing: true,
       message: "A pipe ends without reaching anything",
       fix: "Finish each on a unit, a joint or a box, or erase it",
     });
@@ -371,5 +372,7 @@ describe("a pipe that goes nowhere", () => {
       "2 pipes end without reaching anything"
     );
     expect(combinationWord(t.doc, pack, sys())).toBe("Fails");
+    // a drawing finding fails the combination but never keeps the builder's Done off
+    expect(doneBlockers(systemFindings(t.doc, pack, sys()))).toEqual([]);
   });
 });

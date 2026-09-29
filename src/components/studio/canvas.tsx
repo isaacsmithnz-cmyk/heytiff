@@ -4221,9 +4221,15 @@ export function StudioCanvas({
           {layers.pipes && runs.map((r) => {
             const pts = liveRunPoints(r);
             const sized = r.type === "pipe-run" ? pipeView.byRun.get(r.id) : undefined;
-            const colour = sized
-              ? `var(--pipe-${sizeTone(sized.gasMm)})`
-              : (sysColour.get(r.systemId ?? "") ?? "#888");
+            /* a refrigerant pipe that reaches nothing is drawn whole in the
+               bad colour, dashed, so it is found to be finished or erased */
+            const loose =
+              r.type === "pipe-run" && (!attachOf(r.props.startAttach) || !attachOf(r.props.endAttach));
+            const colour = loose
+              ? "var(--bad-t)"
+              : sized
+                ? `var(--pipe-${sizeTone(sized.gasMm)})`
+                : (sysColour.get(r.systemId ?? "") ?? "#888");
             const midI = Math.floor((pts.length - 1) / 2);
             const mid = {
               x: (pts[midI].x + pts[Math.min(midI + 1, pts.length - 1)].x) / 2,
@@ -4254,7 +4260,7 @@ export function StudioCanvas({
             return (
               <g
                 key={r.id}
-                className={`${cls}${litRuns.has(r.id) ? " sel" : ""}`}
+                className={`${cls}${litRuns.has(r.id) ? " sel" : ""}${loose ? " loose" : ""}`}
                 style={{ color: colour }}
               >
                 {curved ? (

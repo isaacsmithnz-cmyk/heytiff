@@ -19,6 +19,7 @@ import { outdoorsListing, pairFor } from "./builder";
 import { checkVrfSet, joinsVrf, vrfBand, vrfLoadCeilingKw, vrfOutdoorsListing, vrfRatio, vrfTakesLoad } from "./vrf";
 import { systemCover } from "./coverage";
 import { systemVrfTree } from "./vrf-tree";
+import { attachOf } from "./graph";
 
 export interface SystemFinding {
   severity: "red" | "amber";
@@ -27,6 +28,11 @@ export interface SystemFinding {
   message: string;
   /** what would fix it, when the finding knows */
   fix?: string;
+  /** about the pipework drawn on the plan, not the units: it fails the
+      combination, but never keeps the builder's Done off — a head swapped in
+      the builder cuts its old pipe loose, and that must not lock the change
+      out (Isaac, 2026-09-29: "I seem to be locked out of saving") */
+  drawing?: boolean;
 }
 
 const iduRow = (pack: DataPack, model: string): IndoorUnit | null =>
@@ -41,6 +47,74 @@ export function brandName(pack: DataPack, id: string): string {
 
 /** every finding on a system, red first */
 export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignSystem): SystemFinding[] {
+  const out = combinationFindings(doc, pack, sys);
+  const drawing = [loosePipes(doc, sys), ...strayFittings(doc, sys)].filter((f): f is SystemFinding => f != null);
+  return [...out, ...drawing];
+}
+
+/* A JOINT WITH NO T (Isaac, 2026-09-29: "if I put a join on somewhere and
+   just leave it, it just gets placed, but it's not actually connected to
+   anything"). A joint is one pipe in and two out: with fewer than three on it
+   it branches nothing — a part on the picklist doing no job. A branch box
+   with no pipe on at all is the same. */
+export function strayFittingIds(doc: DesignDocument, sys: DesignSystem): { joints: string[]; boxes: string[] } {
+  const on = new Map<string, number>();
+  for (const o of doc.objects) {
+    if (o.type !== "pipe-run" || o.systemId !== sys.id) continue;
+    for (const a of [attachOf(o.props.startAttach), attachOf(o.props.endAttach)])
+      if (a) on.set(a.id, (on.get(a.id) ?? 0) + 1);
+  }
+  const mine = doc.objects.filter((o) => o.systemId === sys.id);
+  return {
+    joints: mine.filter((o) => o.type === "joint" && (on.get(o.id) ?? 0) < 3).map((o) => o.id),
+    boxes: mine.filter((o) => o.type === "branch-box" && (on.get(o.id) ?? 0) === 0).map((o) => o.id),
+  };
+}
+
+function strayFittings(doc: DesignDocument, sys: DesignSystem): SystemFinding[] {
+  const { joints, boxes } = strayFittingIds(doc, sys);
+  const out: SystemFinding[] = [];
+  if (joints.length)
+    out.push({
+      severity: "red",
+      code: "stray-joint",
+      drawing: true,
+      message: joints.length === 1 ? "A joint isn't connected" : `${joints.length} joints aren't connected`,
+      fix: "Connect it, or delete it",
+    });
+  if (boxes.length)
+    out.push({
+      severity: "red",
+      code: "stray-box",
+      drawing: true,
+      message: boxes.length === 1 ? "A branch box isn't connected" : `${boxes.length} branch boxes aren't connected`,
+      fix: "Connect it, or delete it",
+    });
+  return out;
+}
+
+/* A REFRIGERANT PIPE THAT GOES NOWHERE (Isaac, 2026-09-29, walk C: "a pipe
+   run that doesn't go anywhere, and I don't think there's any warning"). An
+   end with nothing on it is copper and gas on the job that no unit, joint or
+   box takes, and its metres would still be counted. */
+export function loosePipes(doc: DesignDocument, sys: DesignSystem): SystemFinding | null {
+  const n = doc.objects.filter(
+    (o) =>
+      o.type === "pipe-run" &&
+      o.systemId === sys.id &&
+      (!attachOf(o.props.startAttach) || !attachOf(o.props.endAttach))
+  ).length;
+  if (!n) return null;
+  return {
+    severity: "red",
+    code: "loose-pipe",
+    drawing: true,
+    message: n === 1 ? "A pipe isn't connected at one end" : `${n} pipes aren't connected at one end`,
+    fix: "Connect it, or delete it",
+  };
+}
+
+function combinationFindings(doc: DesignDocument, pack: DataPack, sys: DesignSystem): SystemFinding[] {
   if (!hasAllocations(sys)) return [];
   const allocs = allocationsOf(sys);
   const out: SystemFinding[] = [];
@@ -166,7 +240,7 @@ export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignS
        drawn tree's lengths, lifts and charge, and the fittings' rules */
     for (const f of systemVrfTree(pack, sys, doc)?.findings ?? []) {
       if (f.severity !== "red") continue;
-      out.push({ severity: "red", code: f.code, message: f.message, fix: f.fix });
+      out.push({ severity: "red", code: f.code, message: f.message, fix: f.fix, drawing: true });
     }
     return out;
   }
@@ -192,9 +266,14 @@ export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignS
   return out;
 }
 
-/** the findings that keep Done off */
+/** the findings that fail the combination: every red one */
 export const blockingFindings = (findings: SystemFinding[]): SystemFinding[] =>
   findings.filter((f) => f.severity === "red");
+
+/** the findings that keep the builder's Done off: the red ones about the
+    units, never the drawing's (see SystemFinding.drawing) */
+export const doneBlockers = (findings: SystemFinding[]): SystemFinding[] =>
+  blockingFindings(findings).filter((f) => !f.drawing);
 
 /** the one word every system says about its combination; null while there
     is nothing in it to check */

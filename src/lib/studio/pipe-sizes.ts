@@ -30,6 +30,9 @@ const INCHES: [number, string][] = [
   [41.28, "1 5/8"],
 ];
 
+/** the copper sizes a size can be set to by hand, smallest first (mm) */
+export const TUBE_SIZES_MM: number[] = INCHES.map(([mm]) => mm);
+
 /** one tube: 3/8" or 9.52 */
 export function tubeSize(mm: number, units: PipeUnits): string {
   if (units === "mm") return String(mm);
@@ -95,4 +98,30 @@ export function pipeViewOf(doc: DesignDocument, pack: DataPack, sys: DesignSyste
       outs: tree.sections.filter((s) => s.from === f.nodeId),
     });
   return { systemId: sys.id, byRun, fittings, sections: tree.sections };
+}
+
+/** a section's size set by hand on every run it is made of (props liquidMm /
+    gasMm, the per-run override the sizer takes over the book's), or cleared
+    back to the book's with null. Other objects are untouched. */
+export function setRunSizes(
+  doc: DesignDocument,
+  runIds: string[],
+  size: { liquidMm: number; gasMm: number } | null
+): DesignDocument {
+  const ids = new Set(runIds);
+  return {
+    ...doc,
+    objects: doc.objects.map((o) => {
+      if (!ids.has(o.id) || o.type !== "pipe-run") return o;
+      const props = { ...o.props };
+      if (size) {
+        props.liquidMm = size.liquidMm;
+        props.gasMm = size.gasMm;
+      } else {
+        delete props.liquidMm;
+        delete props.gasMm;
+      }
+      return { ...o, props };
+    }),
+  };
 }

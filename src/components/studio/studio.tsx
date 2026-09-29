@@ -67,7 +67,7 @@ import { useArmedInk, setArmedInk } from "./note-ink";
 import { pairPipeSizes } from "@/lib/studio/components";
 import { ComponentPalette, PlenumHud } from "./air-tools";
 import { claimZone, newSystem, toggleZone, zoneIdsOf } from "@/lib/studio/zones";
-import { blockingFindings, systemFindings } from "@/lib/studio/verdict";
+import { doneBlockers, systemFindings } from "@/lib/studio/verdict";
 import { SystemsPanel } from "./systems-panel";
 import { InstallQuestions } from "./install-questions";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
@@ -1439,7 +1439,7 @@ function Editor({
       if (!pack) return;
       const next = moveZone(docRef.current, pack, zoneId, from, to);
       const target = next.systems.find((s) => s.id === to);
-      if (target && blockingFindings(systemFindings(next, pack, target)).length) {
+      if (target && doneBlockers(systemFindings(next, pack, target)).length) {
         setActiveSystemId(to);
         setBuilderOpen({ focus: null, systemId: to, start: next });
         return;
@@ -1721,6 +1721,8 @@ function Editor({
       if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)
         return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        // the system editor keeps its own history (system-builder.tsx)
+        if (builderOpen) return;
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
@@ -1997,7 +1999,14 @@ function Editor({
             }}
           />
         )}
-        {step === 3 && <SchematicView doc={doc} pack={pack} units={pipeUnits} />}
+        {step === 3 && (
+          <SchematicView
+            doc={doc}
+            pack={pack}
+            units={pipeUnits}
+            onEdit={mutate}
+          />
+        )}
         {step === 2 && (
           <SummaryView
             doc={doc}

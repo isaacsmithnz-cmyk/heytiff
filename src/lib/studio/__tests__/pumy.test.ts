@@ -14,7 +14,7 @@ import { assemblePack, type PackSource } from "../packs/loader";
 import { validatePack } from "../packs/validate";
 import { outdoorReadiness } from "../packs/ready";
 import { checkVrfSet, vrfOutdoorsListing, vrfRatio } from "../vrf";
-import { provisionalVrfTree, sizeVrfTree, systemVrfTree, type VrfTree } from "../vrf-tree";
+import { boxPorts, provisionalVrfTree, sizeVrfTree, systemVrfTree, type SizedSection, type VrfTree } from "../vrf-tree";
 import { createDesign, type DesignObject } from "../document";
 import type { RoomObj } from "../loads-room";
 import { allocationsOf } from "../allocations";
@@ -26,6 +26,7 @@ import { systemFindings } from "../verdict";
 import { proposedOutdoorModel } from "../builder";
 import { vrfLoadCeilingKw } from "../vrf";
 import { cardStatus } from "../status";
+import { isBoxHead } from "../multi";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -435,5 +436,91 @@ describe("zones past the most the outdoor can take on", () => {
   it("is not raised on an outdoor whose 130% covers the zones", () => {
     // PUMY-P250: 28.0 kW, 130% is 36.4 kW
     expect(offices("PUMY-P250YBMD-A").map((x) => x.code)).not.toContain("load-over-outdoor");
+  });
+});
+
+/* Heads over a 50 on a branch box (Isaac, 2026-09-29): the book allows them,
+   through a different-diameter joint at the port, whose part the box's own
+   manual names (PAC-MK34/54BC, WG79B748H02 p.3) */
+describe("a branch box's ports and reducers", () => {
+  const sec = (to: string, liquidMm: number, gasMm: number) => ({ to, liquidMm, gasMm }) as SizedSection;
+  const mk54 = pack.parts.find((p) => p.model === "PAC-MK54BC")!;
+  const reducers = pack.parts.filter((p) => p.part_type === "reducer");
+
+  it("the pack has the box manual's ports and reducer parts", () => {
+    expect(mk54.port_gas_mm).toEqual([9.52, 9.52, 9.52, 9.52, 12.7]);
+    expect(pack.parts.find((p) => p.model === "PAC-MK34BC")!.port_gas_mm).toEqual([9.52, 9.52, 9.52]);
+    expect(reducers.map((r) => r.model).sort()).toEqual(
+      ["MAC-A454JP-E", "MAC-A455JP-E", "MAC-A456JP-E", "PAC-493PI", "PAC-SG71RJ-E", "PAC-SG75RJ-E", "PAC-SG76RJ-E"]
+    );
+  });
+
+  it("a head that fits port E takes it as is; bigger pipes take 3/8\" ports with the manual's joints", () => {
+    const ports = boxPorts(mk54, [
+      sec("ap71", 9.52, 15.88),
+      sec("ap60", 6.35, 15.88),
+      sec("ap50", 6.35, 12.7),
+      sec("ap25a", 6.35, 9.52),
+      sec("ap25b", 6.35, 9.52),
+    ], reducers)!;
+    const on = (id: string) => ports.find((p) => p.to === id)!;
+    expect(on("ap50")).toMatchObject({ port: "E", reducer: null });
+    expect(on("ap25a").reducer).toBeNull();
+    expect(on("ap60").reducer).toEqual({ gas: { fromMm: 9.52, toMm: 15.88, part: "PAC-SG76RJ-E" } });
+    expect(on("ap71").reducer).toEqual({
+      liquid: { fromMm: 6.35, toMm: 9.52, part: "PAC-493PI" },
+      gas: { fromMm: 9.52, toMm: 15.88, part: "PAC-SG76RJ-E" },
+    });
+    expect(new Set(ports.map((p) => p.port)).size).toBe(5);
+  });
+
+  it("a size the manual has no joint for says its sizes, with no part", () => {
+    const [p] = boxPorts({ port_liquid_mm: [6.35], port_gas_mm: [9.52] }, [sec("h", 6.35, 25.4)], reducers)!;
+    expect(p.reducer).toEqual({ gas: { fromMm: 9.52, toMm: 25.4, part: null } });
+  });
+});
+
+/* Isaac, 2026-09-29: "The MSZ AP 71 pipe size is quarter half" — a head on a
+   box is piped at its own flares; the book's table (3/8" / 5/8" for an M or
+   S 71) is the stand-in only when the pack has no connection sizes */
+describe("a head's pipe off a branch box", () => {
+  it("is the head's own connection size: an MSZ-AP71 is 1/4 in / 1/2 in", () => {
+    expect(idu("MSZ-AP71VGD2")).toMatchObject({ conn_liquid_mm: 6.35, conn_gas_mm: 12.7 });
+    const heads = [
+      { id: "a", model: "MSZ-AP71VGD2" },
+      { id: "b", model: "MSZ-AP25VGD2" },
+    ];
+    const tree = provisionalVrfTree("OU", heads, new Set(["a", "b"]), 5);
+    const sized = sizeVrfTree(pack, odu("PUMY-SP125VKMD2-A"), tree);
+    const toA = sized.sections.find((s) => s.to === "a")!;
+    expect([toA.liquidMm, toA.gasMm]).toEqual([6.35, 12.7]);
+    // on a 3/8" port it needs the 3/8" to 1/2" joint, and nothing on the liquid
+    const box = sized.fittings.find((f) => f.kind === "box")!;
+    const port = box.ports!.find((p) => p.to === "a")!;
+    expect(port.reducer).toEqual(port.portGasMm === 12.7 ? null : { gas: { fromMm: 9.52, toMm: 12.7, part: "MAC-A454JP-E" } });
+  });
+});
+
+/* the P250/P300 box tables print no M 42 and no P series (M-P0860 p.83-84):
+   filled from the SP table (p.75) as Isaac's entry, so every box head has a
+   row to fall back on when its own flares are unknown */
+describe("the P250/P300 box tables have a row for every box head", () => {
+  it("leaves none out", () => {
+    const gaps: string[] = [];
+    for (const t of pack.vrf_pipe_tables.filter((x) => /^PUMY-P(250|300) (branch box|mixed)$/.test(x.series))) {
+      for (const u of pack.indoor_units) {
+        const series = u.model[0];
+        if (!["M", "S", "P"].includes(series) || u.capacity_code == null) continue;
+        if (!isBoxHead(pack, odu(t.series.startsWith("PUMY-P250") ? "PUMY-P250YBMD-A" : "PUMY-P300YBMD-A"), u)) continue;
+        if (!t.box_head_sizing!.some((r) => r.series === series && u.capacity_code! >= r.code_min && u.capacity_code! <= r.code_max))
+          gaps.push(`${t.series} ${u.model}`);
+      }
+    }
+    expect(gaps).toEqual([]);
+    const entered = pack.vrf_pipe_tables
+      .filter((x) => /^PUMY-P(250|300)/.test(x.series))
+      .flatMap((x) => x.box_head_sizing ?? [])
+      .filter((r) => r.provenance?.kind === "user-entered");
+    expect(entered).toHaveLength(12); // M 36-42, P 35-50, P 60-100 on four tables
   });
 });

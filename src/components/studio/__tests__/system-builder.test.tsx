@@ -515,3 +515,70 @@ describe("a drawn VRF on the rail", () => {
     expect(container.ownerDocument.querySelectorAll(".ds-sb-joint")).toHaveLength(1);
   });
 });
+
+describe("a drawn mixed VRF on the rail", () => {
+  it("puts the head off the joint at the joint, before the box and its heads", () => {
+    const made = claimed(house(), ["living", "bed1", "bed2", "study"]);
+    let doc = made.doc;
+    const sid = made.systemId;
+    for (const [zone, model] of [
+      ["living", "PLFY-P40VEM-A"],
+      ["bed1", "MSZ-AP25VGD2"],
+      ["bed2", "MSZ-AP25VGD2"],
+      ["study", "MSZ-AP25VGD2"],
+    ])
+      doc = addHead(doc, pack, { systemId: sid, zoneId: zone, iduModel: model });
+    doc = chooseOutdoor(doc, pack, "worst-of-both", sid, "PUMY-SP125VKMD2-A");
+    const floorId = doc.floors[0].id;
+    const allocs = allocationsOf(doc.systems.find((s) => s.id === sid)!);
+    const headIn = (zone: string) => allocs.find((a) => a.role === "idu" && a.roomId === zone)!.id;
+    const oduId = allocs.find((a) => a.role === "odu")!.id;
+    for (const a of allocs) doc = placeAllocation(doc, pack, sid, a.id, floorId, { x: 50, y: 50 });
+    const run = (id: string, from: [string, string], to: [string, string]): DesignObject => ({
+      id, type: "pipe-run", systemId: sid, floorId,
+      geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 300, y: 0 }] },
+      plane: "room",
+      props: { startAttach: { kind: from[0], id: from[1] }, endAttach: { kind: to[0], id: to[1] } },
+    });
+    const point = (id: string, type: string): DesignObject => ({
+      id, type, systemId: sid, floorId, geometry: { kind: "point", at: { x: 10, y: 10 } }, plane: "room", props: {},
+    });
+    // outdoor → joint → box first in the drawing (Bed 1, Bed 2, Study), then the P40 in Living
+    doc = {
+      ...doc,
+      objects: [
+        ...doc.objects,
+        point("j", "joint"),
+        point("b", "branch-box"),
+        run("r0", ["unit", oduId], ["joint", "j"]),
+        run("r1", ["joint", "j"], ["branch-box", "b"]),
+        run("r2", ["joint", "j"], ["unit", headIn("living")]),
+        run("r3", ["branch-box", "b"], ["unit", headIn("bed1")]),
+        run("r4", ["branch-box", "b"], ["unit", headIn("bed2")]),
+        run("r5", ["branch-box", "b"], ["unit", headIn("study")]),
+      ],
+    };
+    render(<SystemBuilder doc={doc} pack={pack} systemId={sid} onCommit={() => {}} onClose={() => {}} />);
+    const rows = within(schematic())
+      .getAllByRole("button", { name: /^Put the next unit in / })
+      .map((b) => b.getAttribute("aria-label")!.replace("Put the next unit in ", ""));
+    expect(rows).toEqual(["Living", "Bed 1", "Bed 2", "Study"]);
+  });
+});
+
+/* ⌘Z in the editor (Isaac, 2026-09-29): its own history of the draft */
+describe("undo in the system editor", () => {
+  it("⌘Z takes back the last change and ⇧⌘Z puts it again", () => {
+    const made = claimed(house(), ["bed1", "study"]);
+    const doc = addHead(made.doc, pack, { systemId: made.systemId, zoneId: "bed1", iduModel: "MSZ-AP25VGD2" });
+    render(<SystemBuilder doc={doc} pack={pack} systemId={made.systemId} onCommit={() => {}} onClose={() => {}} />);
+    expect(zoneNames()).toEqual(["Bed 1", "Study"]);
+    fireEvent.click(screen.getByRole("button", { name: "Clear Bed 1 from System 1" }));
+    expect(zoneNames()).toEqual(["Study"]);
+    fireEvent.keyDown(window, { key: "z", metaKey: true });
+    expect(zoneNames()).toEqual(["Bed 1", "Study"]);
+    expect(headModels()).toEqual(["MSZ-AP25VGD2"]);
+    fireEvent.keyDown(window, { key: "z", metaKey: true, shiftKey: true });
+    expect(zoneNames()).toEqual(["Study"]);
+  });
+});

@@ -570,6 +570,15 @@ export interface Part {
   index_max?: number;
   branches?: number;
   ports?: number;
+  /** a branch box's indoor-side flare ports, A first: liquid and gas mm
+      (M-P0860 p.44). A head whose pipe differs takes the book's
+      different-diameter joint at the box. */
+  port_liquid_mm?: number[];
+  port_gas_mm?: number[];
+  /** a reducer (different-diameter joint): the tube it takes, and the tube it
+      gives, mm (PAC-MK34/54BC manual WG79B748H02: branch box side → head) */
+  from_mm?: number;
+  to_mm?: number;
   max_kw?: number;
   width_mm?: number;
   depth_mm?: number;

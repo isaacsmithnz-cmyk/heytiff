@@ -33,6 +33,7 @@
    during a native drag. */
 
 import { VariationButton } from "./variation-menu";
+import { Icon } from "@/components/shell/icon";
 import { useCallback, useRef, useState, type DragEvent } from "react";
 import type { DesignDocument, DesignSystem } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
@@ -459,7 +460,14 @@ function SystemCard({
               )}
             </dl>
           )}
-          {status.tone === "bad" && <div className="ds-zp-status bad">{status.why ?? status.text}</div>}
+          {/* why it fails, set apart on the bad colour's pale ground with the
+              warning mark, the words aligned beside it (Isaac, 2026-09-29) */}
+          {status.tone === "bad" && (
+            <div className="ds-zp-why" role="status">
+              <Icon name="alert" size={15} />
+              <span>{status.why ?? status.text}</span>
+            </div>
+          )}
           {/* a system with no zone yet has nothing to build for: its next
               step is Add zones, above, and Build system waits for a zone
               (Isaac, 2026-09-23) */}

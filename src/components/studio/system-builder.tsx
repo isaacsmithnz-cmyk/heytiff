@@ -51,7 +51,7 @@ import {
   type SystemKind,
 } from "@/lib/studio/zones";
 import {
-  blockingFindings,
+  doneBlockers,
   brandName,
   combinationWord,
   connectionRatio,
@@ -250,7 +250,7 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
   const kind = systemKind(draft, sys);
   const empty = kind === "empty";
   const findings = systemFindings(draft, pack, sys);
-  const blocking = blockingFindings(findings);
+  const blocking = doneBlockers(findings);
   const combination = combinationWord(draft, pack, sys);
 
   /* the heads a red finding names, when it can: an outdoor that takes one
@@ -486,7 +486,7 @@ function readSystem(draft: DesignDocument, pack: DataPack, basis: SizingBasis, s
     oduByHand,
     findings,
     blocking,
-    reason: doneReason(findings),
+    reason: doneReason(findings.filter((f) => !f.drawing)),
     combination,
     zones,
     zonesLoadKw,
@@ -548,7 +548,41 @@ export function SystemBuilder({
   const [start] = useState<DesignDocument>(() =>
     (startFrom ?? doc).systems.reduce((d, s) => adoptLegacySystem(d, pack, s.id), startFrom ?? doc)
   );
-  const [draft, setDraft] = useState<DesignDocument>(start);
+  const [draft, setDraftNow] = useState<DesignDocument>(start);
+  /* ⌘Z / ⇧⌘Z IN THE EDITOR (Isaac, 2026-09-29): its own history of the
+     draft, so undo takes back the last change here — not the plan behind it,
+     which the Studio's own ⌘Z leaves alone while this is open */
+  const [past, setPast] = useState<DesignDocument[]>([]);
+  const [future, setFuture] = useState<DesignDocument[]>([]);
+  const setDraft = (next: DesignDocument) => {
+    if (next === draft) return;
+    setPast((p) => [...p, draft].slice(-50));
+    setFuture([]);
+    setDraftNow(next);
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return;
+      const t = e.target as HTMLElement;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+      e.preventDefault();
+      if (e.shiftKey) {
+        const next = future[future.length - 1];
+        if (!next) return;
+        setFuture(future.slice(0, -1));
+        setPast([...past, draft]);
+        setDraftNow(next);
+      } else {
+        const prev = past[past.length - 1];
+        if (!prev) return;
+        setPast(past.slice(0, -1));
+        setFuture([...future, draft]);
+        setDraftNow(prev);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [past, future, draft]);
   const dirty = draft !== start;
 
   const sysId = systemId ?? focus?.systemId ?? draft.systems[0]?.id ?? null;
@@ -570,7 +604,7 @@ export function SystemBuilder({
   const [side, setSide] = useState<Side>(() => {
     const s = start.systems.find((x) => x.id === sysId);
     if (!s) return "indoor";
-    if (startFrom && blockingFindings(systemFindings(start, pack, s)).length) return "outdoor";
+    if (startFrom && doneBlockers(systemFindings(start, pack, s)).length) return "outdoor";
     const opened = focus && hasAllocations(s) ? allocationsOf(s).find((a) => a.id === focus.allocationId) : null;
     return opened?.role === "odu" ? "outdoor" : "indoor";
   });
@@ -839,6 +873,7 @@ export function SystemBuilder({
                 pack={pack}
                 sys={draft.systems.find((x) => x.id === view.sys.id) ?? view.sys}
                 units={pipeUnits}
+                onEdit={(fn) => write(fn(draft))}
               />
             </div>
           ) : (
@@ -1571,11 +1606,17 @@ function PipingRail({
     const root = tree.sections.find((s) => !tos.has(s.from))?.from;
     const rank = new Map<string, number>();
     const seen = new Set<string>();
+    /* a joint's own heads first, then what carries on down the trunk: the
+       head off the joint before a box sits at the joint, not under the box
+       (Isaac, 2026-09-29, walk C) */
+    const headIds = new Set(view.heads.map((a) => a.id));
+    const isHead = (id: string) => headIds.has(id);
     const walk = (id: string) => {
       if (seen.has(id)) return;
       seen.add(id);
       rank.set(id, rank.size);
-      for (const k of kids.get(id) ?? []) walk(k);
+      const ks = [...(kids.get(id) ?? [])].sort((a, b) => Number(isHead(b)) - Number(isHead(a)));
+      for (const k of ks) walk(k);
     };
     if (root) walk(root);
     const first = (z: ZoneView) => Math.min(...zoneHeads(z).map((a) => rank.get(a.id) ?? Infinity), Infinity);

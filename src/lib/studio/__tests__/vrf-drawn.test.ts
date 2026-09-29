@@ -14,12 +14,12 @@ import type { RoomObj } from "../loads-room";
 import { allocationsOf } from "../allocations";
 import { addHead, chooseOutdoor } from "../builder";
 import { newSystem } from "../zones";
-import { deleteJoint, jointOnRun, nearestOnRuns } from "../joints";
+import { deleteFromSchematic, deleteJoint, jointOnRun, nearestOnRuns } from "../joints";
 import { systemVrfTree } from "../vrf-tree";
 import { buildSystemGraph } from "../graph";
-import { combinationWord, systemFindings } from "../verdict";
+import { combinationWord, doneBlockers, systemFindings } from "../verdict";
 import { buildSummaryModel } from "../summary";
-import { pairSize, pipeViewOf, sizeTone, tubeSize } from "../pipe-sizes";
+import { pairSize, pipeViewOf, setRunSizes, sizeTone, tubeSize } from "../pipe-sizes";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -340,5 +340,106 @@ describe("pipe sizes in words", () => {
 
   it("colours step up with the gas size, one step each", () => {
     expect([9.52, 12.7, 15.88, 19.05, 22.2, 25.4, 28.58, 31.75, 41.28].map(sizeTone)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 8]);
+  });
+});
+
+/* walk C (2026-09-29): a pipe drawn out to nowhere was allowed, and nothing said so */
+describe("a pipe that goes nowhere", () => {
+  it("is red on the system, counted, with the fix", () => {
+    const t = page144Drawn();
+    const sys = () => t.doc.systems.find((s) => s.id === t.systemId)!;
+    expect(systemFindings(t.doc, pack, sys()).map((f) => f.code)).not.toContain("loose-pipe");
+    const trunkEnd = runsOf(t.doc, t.systemId)[0].props.startAttach;
+    const open = (id: string): DesignObject => ({
+      id,
+      type: "pipe-run",
+      systemId: t.systemId,
+      floorId: t.doc.floors[0].id,
+      geometry: { kind: "polyline", points: [{ x: 0, y: 3000 }, { x: 900, y: 3000 }] },
+      plane: "room",
+      props: { startAttach: trunkEnd },
+    });
+    t.doc = { ...t.doc, objects: [...t.doc.objects, open("stub1")] };
+    expect(systemFindings(t.doc, pack, sys()).find((f) => f.code === "loose-pipe")).toEqual({
+      severity: "red",
+      code: "loose-pipe",
+      drawing: true,
+      message: "A pipe isn't connected at one end",
+      fix: "Connect it, or delete it",
+    });
+    t.doc = { ...t.doc, objects: [...t.doc.objects, open("stub2")] };
+    expect(systemFindings(t.doc, pack, sys()).find((f) => f.code === "loose-pipe")?.message).toBe(
+      "2 pipes aren't connected at one end"
+    );
+    expect(combinationWord(t.doc, pack, sys())).toBe("Fails");
+    // a drawing finding fails the combination but never keeps the builder's Done off
+    expect(doneBlockers(systemFindings(t.doc, pack, sys()))).toEqual([]);
+  });
+});
+
+/* Delete on the schematic (Isaac, 2026-09-29) */
+describe("deleting from the schematic", () => {
+  it("a section's runs go, a joint puts its cut run back together", () => {
+    const t = page144Drawn();
+    const sys = t.doc.systems.find((s) => s.id === t.systemId)!;
+    const view = pipeViewOf(t.doc, pack, sys)!;
+    const toP40 = view.sections.find((s) => s.to === t.heads[40])!;
+    const cut = deleteFromSchematic(t.doc, { kind: "runs", ids: toP40.edges });
+    expect(runsOf(cut, t.systemId)).toHaveLength(runsOf(t.doc, t.systemId).length - toP40.edges.length);
+    // the P40's joint now has one run in and one out: deleting it rejoins the trunk
+    const joint = t.doc.objects.find((o) => o.type === "joint" && runsOf(t.doc, t.systemId).some((r) => toP40.edges.includes(r.id) && (r.props.endAttach as { id: string }).id === o.id))!;
+    const rejoined = deleteFromSchematic(cut, { kind: "joint", id: joint.id });
+    expect(rejoined.objects.some((o) => o.id === joint.id)).toBe(false);
+    expect(runsOf(rejoined, t.systemId)).toHaveLength(runsOf(cut, t.systemId).length - 1);
+  });
+});
+
+/* a size set by hand from the schematic (Isaac, 2026-09-29): it wins over the
+   book, the book's size is kept beside it, the charge follows, and clearing
+   it gives the book's back */
+describe("overriding a section's size", () => {
+  it("takes the hand-set size, keeps the book's, and clears back", () => {
+    const t = page144Drawn();
+    const sys = () => t.doc.systems.find((s) => s.id === t.systemId)!;
+    const before = pipeViewOf(t.doc, pack, sys())!;
+    const toP40 = before.sections.find((s) => s.to === t.heads[40])!;
+    const book = { liquidMm: toP40.liquidMm, gasMm: toP40.gasMm };
+    const chargeBefore = systemVrfTree(pack, sys(), t.doc)!.chargeG;
+
+    const set = setRunSizes(t.doc, toP40.edges, { liquidMm: 9.52, gasMm: 15.88 });
+    const after = pipeViewOf(set, pack, set.systems.find((s) => s.id === t.systemId)!)!;
+    const sec = after.sections.find((s) => s.to === t.heads[40])!;
+    expect([sec.liquidMm, sec.gasMm]).toEqual([9.52, 15.88]);
+    expect(sec.override).toEqual({ bookLiquidMm: book.liquidMm, bookGasMm: book.gasMm });
+    // a bigger liquid line holds more refrigerant
+    expect(systemVrfTree(pack, set.systems.find((s) => s.id === t.systemId)!, set)!.chargeG!).toBeGreaterThan(chargeBefore!);
+
+    const cleared = setRunSizes(set, toP40.edges, null);
+    const back = pipeViewOf(cleared, pack, cleared.systems.find((s) => s.id === t.systemId)!)!;
+    const again = back.sections.find((s) => s.to === t.heads[40])!;
+    expect([again.liquidMm, again.gasMm]).toEqual([book.liquidMm, book.gasMm]);
+    expect(again.override).toBeUndefined();
+  });
+});
+
+/* Isaac, 2026-09-29: "if I put a join on somewhere and just leave it, it just
+   gets placed, but it's not actually connected to anything" */
+describe("a joint that branches nothing", () => {
+  it("is red with its fix, a box with no pipes too, and Delete takes them", () => {
+    const t = page144Drawn();
+    const sys = () => t.doc.systems.find((s) => s.id === t.systemId)!;
+    const codes = () => systemFindings(t.doc, pack, sys()).map((f) => f.code);
+    expect(codes()).not.toContain("stray-joint"); // four joints, three pipes on each
+    const floorId = t.doc.floors[0].id;
+    const lone = { id: "lone", type: "joint", systemId: t.systemId, floorId, plane: "room", geometry: { kind: "point", at: { x: 5, y: 5 } }, props: {} } as DesignObject;
+    const box = { id: "box", type: "branch-box", systemId: t.systemId, floorId, plane: "room", geometry: { kind: "point", at: { x: 9, y: 9 } }, props: {} } as DesignObject;
+    t.doc = { ...t.doc, objects: [...t.doc.objects, lone, box] };
+    const f = systemFindings(t.doc, pack, sys());
+    expect(f.find((x) => x.code === "stray-joint")).toMatchObject({ severity: "red", drawing: true, message: "A joint isn't connected" });
+    expect(f.find((x) => x.code === "stray-box")?.message).toBe("A branch box isn't connected");
+    expect(doneBlockers(f).map((x) => x.code)).not.toContain("stray-joint");
+    t.doc = deleteFromSchematic(deleteFromSchematic(t.doc, { kind: "joint", id: "lone" }), { kind: "box", id: "box" });
+    expect(codes()).not.toContain("stray-joint");
+    expect(codes()).not.toContain("stray-box");
   });
 });

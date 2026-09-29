@@ -4413,6 +4413,18 @@ html[data-ds-display] .dstudio.editing {
 }
 /* a picked pipe lights its whole section (every run of it) at double weight */
 .dstudio .ds-pipe.sel polyline { stroke-width: 5px; }
+/* a pipe that reaches nothing: dashed, in the bad colour (set as its colour) */
+.dstudio .ds-pipe.loose polyline,
+.dstudio .ds-pipe.loose path {
+  stroke-dasharray: 7 5;
+}
+/* a pipe end that reaches nothing: an open ring in the bad colour where it stops */
+.dstudio .ds-pipe .ds-pipe-open {
+  fill: var(--paper);
+  stroke: var(--bad-t);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
 /* soft-drawn pipe renders the smoothed spline as a path */
 .dstudio .ds-pipe path {
   fill: none;
@@ -9297,6 +9309,25 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-zp-status.ok { color: var(--ok-t); }
 .dstudio .ds-zp-status.bad { color: var(--bad-t); }
+/* the open card's reason a system fails: a pale bad ground, outlined, the
+   warning mark on the first line and the words wrapping flush beside it */
+.dstudio .ds-zp-why {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bad-tint);
+  border: 1px solid var(--bad-t);
+  border-radius: var(--r-control);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--bad-t);
+}
+.dstudio .ds-zp-why > :first-child {
+  margin-top: 1px;
+}
 .dstudio .ds-zp-lbl {
   font-size: 12px;
   font-weight: 500;
@@ -9958,4 +9989,98 @@ html[data-ds-display] .dstudio.editing {
   min-height: 0;
   overflow: auto;
   padding: var(--s-6);
+}
+
+/* a pipe that goes nowhere, on the schematic: a red dashed stub off what it
+   leaves, and the card's Erase */
+:is(.dstudio, .ds-sb) .ds-schem-loose {
+  cursor: pointer;
+}
+:is(.dstudio, .ds-sb) .ds-schem-loose path {
+  fill: none;
+  stroke: var(--bad-t);
+  stroke-width: 2.5px;
+  stroke-dasharray: 6 4;
+}
+:is(.dstudio, .ds-sb) .ds-schem-loose path.hit {
+  stroke: transparent;
+  stroke-width: 14px;
+  stroke-dasharray: none;
+}
+:is(.dstudio, .ds-sb) .ds-schem-loose.on path:not(.hit) {
+  stroke-width: 5px;
+}
+:is(.dstudio, .ds-sb) .ds-schem-loose circle {
+  fill: var(--paper);
+  stroke: var(--bad-t);
+  stroke-width: 2px;
+}
+:is(.dstudio, .ds-sb) .ds-schem-loose text {
+  fill: var(--bad-t);
+  font: 600 12px var(--font);
+}
+:is(.dstudio, .ds-sb) .ds-schem-loose-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+:is(.dstudio, .ds-sb) .ds-schem-loose-btn,
+:is(.dstudio, .ds-sb) .ds-schem-act {
+  appearance: none;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--paper);
+  font: 600 13px var(--font);
+  color: var(--bad-t);
+  cursor: pointer;
+}
+
+/* the picked thing, pinned under the drawing with its actions */
+:is(.dstudio, .ds-sb) .ds-schem-inspect {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+}
+:is(.dstudio, .ds-sb) .ds-schem-actions,
+:is(.dstudio, .ds-sb) .ds-schem-size {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+:is(.dstudio, .ds-sb) .ds-schem-act {
+  color: var(--ink);
+}
+:is(.dstudio, .ds-sb) .ds-schem-act.bad {
+  color: var(--bad-t);
+}
+:is(.dstudio, .ds-sb) .ds-schem-act.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+:is(.dstudio, .ds-sb) .ds-schem-size label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 13px var(--font);
+  color: var(--q);
+}
+:is(.dstudio, .ds-sb) .ds-schem-size select {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--paper);
+  font: 600 13px var(--font);
+  color: var(--ink);
 }

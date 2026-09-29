@@ -73,6 +73,7 @@ import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf } from "@/lib/studio/graph";
 import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
 import { pipeRefusal } from "@/lib/studio/pipe-rules";
+import { strayFittingIds } from "@/lib/studio/verdict";
 import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
 import type { SizedSection } from "@/lib/studio/vrf-tree";
 import { usePipeUnits } from "./pipe-units";
@@ -972,6 +973,16 @@ export function StudioCanvas({
     }
     return { byRun, fittings };
   }, [doc, pack]);
+  /* joints that branch nothing and boxes with no pipe on, drawn in the bad
+     colour so they are found (verdict.ts strayFittingIds) */
+  const strayFits = useMemo(() => {
+    const ids = new Set<string>();
+    for (const sys of doc.systems) {
+      const { joints, boxes } = strayFittingIds(doc, sys);
+      for (const id of [...joints, ...boxes]) ids.add(id);
+    }
+    return ids;
+  }, [doc]);
   /* the runs lit with the selection: every run of the picked run's section */
   const litRuns = useMemo(() => {
     const sec = selectedId ? pipeView.byRun.get(selectedId) : undefined;
@@ -3719,7 +3730,20 @@ export function StudioCanvas({
       title: fit.fitting.part ?? "No part in the book",
       rows: [
         ...(fit.feed ? [{ k: "In", v: both(fit.feed) }] : []),
-        ...fit.outs.map((o) => ({ k: `Out to ${nameOf(o.to)}`, v: both(o) })),
+        ...fit.outs.map((o) => {
+          /* a box's port, and the different-diameter joint its head needs */
+          const port = fit.fitting.ports?.find((p) => p.to === o.to);
+          const fits = port?.reducer
+            ? [port.reducer.liquid, port.reducer.gas]
+                .filter((r): r is NonNullable<typeof r> => r != null)
+                .map((r) => r.part ?? `${r.fromMm} to ${r.toMm} mm joint`)
+                .join(" + ")
+            : "";
+          return {
+            k: `Out to ${nameOf(o.to)}${port ? ` (port ${port.port})` : ""}`,
+            v: `${both(o)}${fits ? `, needs ${fits} at the box` : ""}`,
+          };
+        }),
       ],
     };
   }, [selectedId, pipeView, pipeUnits, doc.objects]);
@@ -4221,9 +4245,15 @@ export function StudioCanvas({
           {layers.pipes && runs.map((r) => {
             const pts = liveRunPoints(r);
             const sized = r.type === "pipe-run" ? pipeView.byRun.get(r.id) : undefined;
-            const colour = sized
-              ? `var(--pipe-${sizeTone(sized.gasMm)})`
-              : (sysColour.get(r.systemId ?? "") ?? "#888");
+            /* a refrigerant pipe that reaches nothing is drawn whole in the
+               bad colour, dashed, so it is found to be finished or erased */
+            const loose =
+              r.type === "pipe-run" && (!attachOf(r.props.startAttach) || !attachOf(r.props.endAttach));
+            const colour = loose
+              ? "var(--bad-t)"
+              : sized
+                ? `var(--pipe-${sizeTone(sized.gasMm)})`
+                : (sysColour.get(r.systemId ?? "") ?? "#888");
             const midI = Math.floor((pts.length - 1) / 2);
             const mid = {
               x: (pts[midI].x + pts[Math.min(midI + 1, pts.length - 1)].x) / 2,
@@ -4254,7 +4284,7 @@ export function StudioCanvas({
             return (
               <g
                 key={r.id}
-                className={`${cls}${litRuns.has(r.id) ? " sel" : ""}`}
+                className={`${cls}${litRuns.has(r.id) ? " sel" : ""}${loose ? " loose" : ""}`}
                 style={{ color: colour }}
               >
                 {curved ? (
@@ -4262,6 +4292,19 @@ export function StudioCanvas({
                 ) : (
                   <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
                 )}
+                {/* a refrigerant end that reaches nothing is marked where it
+                    stops (verdict.ts loosePipes says it on the card) */}
+                {r.type === "pipe-run" &&
+                  (
+                    [
+                      [r.props.startAttach, pts[0]],
+                      [r.props.endAttach, pts[pts.length - 1]],
+                    ] as const
+                  ).map(([att, at], i) =>
+                    attachOf(att) ? null : (
+                      <circle key={i} className="ds-pipe-open" cx={at.x} cy={at.y} r={5 / zoom} />
+                    )
+                  )}
                 {label && layers.labels && (
                   <text x={mid.x} y={mid.y - 7 / labelZoom} fontSize={11 / labelZoom} className="ds-pipe-len">
                     {label}
@@ -4725,7 +4768,7 @@ export function StudioCanvas({
             const fp = footprint(BOX_W_MM, BOX_D_MM);
             const part = pipeView.fittings.get(b.id)?.fitting.part;
             return (
-              <g key={b.id} className={`ds-bbox${b.id === selectedId ? " sel" : ""}`} style={{ color: "var(--ink)" }}>
+              <g key={b.id} className={`ds-bbox${b.id === selectedId ? " sel" : ""}`} style={{ color: strayFits.has(b.id) ? "var(--bad-t)" : "var(--ink)" }}>
                 <rect x={at.x - fp.w / 2} y={at.y - fp.h / 2} width={fp.w} height={fp.h} />
                 {part && layers.labels && (
                   <text x={at.x} y={at.y + fp.h / 2 + 12 / labelZoom} fontSize={10 / labelZoom} className="ds-bbox-part">
@@ -4741,7 +4784,7 @@ export function StudioCanvas({
             const at = pointAt(j);
             const half = 5 / zoom;
             return (
-              <g key={j.id} className={`ds-joint${j.id === selectedId ? " sel" : ""}`} style={{ color: "var(--ink)" }}>
+              <g key={j.id} className={`ds-joint${j.id === selectedId ? " sel" : ""}`} style={{ color: strayFits.has(j.id) ? "var(--bad-t)" : "var(--ink)" }}>
                 <rect x={at.x - half} y={at.y - half} width={half * 2} height={half * 2} />
               </g>
             );

@@ -10,13 +10,16 @@
    pipework reaches every head, else the heads in zone order. A picked section
    or fitting says what it is under the drawing. */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DesignDocument, DesignSystem } from "@/lib/studio/document";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { allocationsOf } from "@/lib/studio/allocations";
-import { blockingFindings, combinationWord, systemFindings } from "@/lib/studio/verdict";
+import { blockingFindings, combinationWord, strayFittingIds, systemFindings } from "@/lib/studio/verdict";
 import { systemVrfTree, type SizedFitting, type SizedSection } from "@/lib/studio/vrf-tree";
-import { pairSize, sizeTone, type PipeUnits } from "@/lib/studio/pipe-sizes";
+import { TUBE_SIZES_MM, pairSize, setRunSizes, sizeTone, tubeSize, type PipeUnits } from "@/lib/studio/pipe-sizes";
+import { attachOf } from "@/lib/studio/graph";
+import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
+import { deleteFromSchematic, type SchematicTarget } from "@/lib/studio/joints";
 
 const COL = 132;
 const ROW = 92;
@@ -34,14 +37,20 @@ export function VrfSchematic({
   pack,
   sys,
   units,
+  onEdit,
 }: {
   doc: DesignDocument;
   pack: DataPack;
   sys: DesignSystem;
   units: PipeUnits;
+  /** change the document from the schematic (Delete, Erase): the host's own
+      mutate, so its undo takes it back. Absent, the schematic only reads. */
+  onEdit?: (fn: (d: DesignDocument) => DesignDocument) => void;
 }) {
   const tree = useMemo(() => systemVrfTree(pack, sys, doc), [pack, sys, doc]);
   const [picked, setPicked] = useState<string | null>(null);
+  /* the size being set by hand on the picked section, while its form is open */
+  const [sizing, setSizing] = useState<{ id: string; liquidMm: number; gasMm: number } | null>(null);
 
   const layout = useMemo(() => {
     if (!tree || !tree.sections.length) return null;
@@ -93,6 +102,44 @@ export function VrfSchematic({
   /* a failing system says why under its name, in the rail's words */
   const reds = word === "Fails" ? blockingFindings(systemFindings(doc, pack, sys)) : [];
 
+  /* DELETE on the schematic (Isaac, 2026-09-29): what is picked goes — a
+     section's drawn runs, a joint (its run put back together), a box, or a
+     loose pipe — through the host, so ⌘Z brings it back */
+  const targetOf = (id: string | null): SchematicTarget | null => {
+    if (!id) return null;
+    if (id.startsWith("loose:")) return { kind: "runs", ids: [id.slice(6)] };
+    if (id.startsWith("stray:")) {
+      const o = doc.objects.find((x) => x.id === id.slice(6));
+      return o ? (o.type === "branch-box" ? { kind: "box", id: o.id } : { kind: "joint", id: o.id }) : null;
+    }
+    if (!tree || !layout) return null;
+    const f = layout.fit.get(id);
+    if (f) return f.kind === "box" ? { kind: "box", id } : { kind: "joint", id };
+    const sec = tree.sections.find((x) => x.id === id);
+    const runs = new Set(doc.objects.filter((o) => o.type === "pipe-run").map((o) => o.id));
+    const ids = sec ? sec.edges.filter((e) => runs.has(e)) : [];
+    return ids.length ? { kind: "runs", ids } : null;
+  };
+  const target = targetOf(picked);
+  const erase = () => {
+    if (!onEdit || !target) return;
+    onEdit((d) => deleteFromSchematic(d, target));
+    setPicked(null);
+  };
+  useEffect(() => {
+    if (!onEdit || !target) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      e.preventDefault();
+      onEdit((d) => deleteFromSchematic(d, target));
+      setPicked(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onEdit, target]);
+
   if (!tree || !layout) {
     return (
       <section className="ds-schem">
@@ -112,6 +159,96 @@ export function VrfSchematic({
         (fit.get(id)?.kind === "box" ? "Branch box" : fit.get(id)?.kind === "header" ? "Header" : "Joint");
   const both = (s: SizedSection) =>
     `${pairSize(s.liquidMm, s.gasMm, units)} (${pairSize(s.liquidMm, s.gasMm, units === "in" ? "mm" : "in")})`;
+
+  /* HOW EACH SECTION IS DRAWN (Isaac, 2026-09-29, on walk C). Off a joint
+     or header the branches leave the T sideways, so the pipe into it runs
+     straight down to the T and the split is AT the fitting. Off a branch box
+     each head has its own port and its own pipe — a box is not a joint, and
+     a shared header line made it read like an outdoor. Ports run along the
+     box's foot in the order of the heads under it; a pipe going out sideways
+     drops to a lane of its own first, the farthest out on the highest lane,
+     so no two cross. Anything else (off the outdoor) drops, turns, drops. */
+  const boxW = (id: string) => Math.max(76, (tree.sections.filter((s) => s.from === id).length || 1) * 28 + 12);
+  const route = (s: SizedSection): { d: string; label: { x: number; y: number } } | null => {
+    const a = pos.get(s.from);
+    const b = pos.get(s.to);
+    if (!a || !b) return null;
+    const f = fit.get(s.from);
+    if (f && f.kind !== "box") return { d: `M${a.x} ${a.y} H${b.x} V${b.y}`, label: { x: b.x + 6, y: a.y + 16 } };
+    if (f?.kind === "box") {
+      const outs = tree.sections
+        .filter((x) => x.from === s.from)
+        .sort((x, y) => (pos.get(x.to)?.x ?? 0) - (pos.get(y.to)?.x ?? 0));
+      const w = boxW(s.from);
+      const i = outs.findIndex((x) => x.id === s.id);
+      const px = a.x - w / 2 + ((i + 0.5) * w) / outs.length;
+      const foot = a.y + 11;
+      if (Math.abs(b.x - px) < 1) return { d: `M${px} ${foot} V${b.y}`, label: { x: b.x + 6, y: b.y - 24 } };
+      const left = b.x < px;
+      const side = outs.filter((x) => {
+        const bx = pos.get(x.to)?.x ?? 0;
+        const xi = outs.indexOf(x);
+        const xp = a.x - w / 2 + ((xi + 0.5) * w) / outs.length;
+        return left ? bx < xp - 1 : bx > xp + 1;
+      });
+      const rank = left ? side.indexOf(s) : side.length - 1 - side.indexOf(s);
+      const lane = foot + 10 + rank * 10;
+      return { d: `M${px} ${foot} V${lane} H${b.x} V${b.y}`, label: { x: b.x + 6, y: b.y - 24 } };
+    }
+    const mid = a.y + ROW * 0.45;
+    return { d: `M${a.x} ${a.y} V${mid} H${b.x} V${b.y}`, label: { x: b.x + 6, y: mid + 16 } };
+  };
+
+  /* PIPES THAT GO NOWHERE (verdict.ts loosePipes) are no part of the tree,
+     so they'd be invisible here: each is drawn as a red dashed stub off the
+     fitting or unit it leaves, or listed under the drawing when it leaves
+     nothing on it, and a click offers to erase it (Isaac, 2026-09-29). */
+  const loose = doc.objects
+    .filter(
+      (o) =>
+        o.type === "pipe-run" &&
+        o.systemId === sys.id &&
+        (!attachOf(o.props.startAttach) || !attachOf(o.props.endAttach))
+    )
+    .map((o) => {
+      const at = attachOf(o.props.startAttach) ?? attachOf(o.props.endAttach);
+      /* a joint the tree passes through is not drawn: stub off the node its
+         section starts from */
+      const touching = at
+        ? new Set(
+            doc.objects
+              .filter(
+                (r) =>
+                  r.type === "pipe-run" &&
+                  (attachOf(r.props.startAttach)?.id === at.id || attachOf(r.props.endAttach)?.id === at.id)
+              )
+              .map((r) => r.id)
+          )
+        : new Set<string>();
+      const via = at && !pos.has(at.id) ? tree.sections.find((x) => x.edges.some((e) => touching.has(e))) : undefined;
+      const anchorId = at ? (pos.has(at.id) ? at.id : (via?.to ?? null)) : null;
+      const scale = doc.floors.find((f) => f.id === o.floorId)?.scaleMmPerUnit ?? null;
+      const pts = o.geometry.kind === "polyline" ? o.geometry.points : [];
+      return {
+        id: o.id,
+        anchorId,
+        from: at ? (anchorId ? nameOf(anchorId) : "a joint") : null,
+        lengthM: scale != null && pts.length > 1 ? unitsToMeters(polylineLength(pts), scale) : null,
+      };
+    });
+  const pickedLoose = loose.find((l) => `loose:${l.id}` === picked);
+  /* joints that branch nothing and boxes with no pipe: no part of the tree,
+     so listed under the drawing like a loose pipe, to be deleted */
+  const stray = (() => {
+    const { joints, boxes } = strayFittingIds(doc, sys);
+    return [
+      ...joints.map((id) => ({ id, what: "Joint not connected" })),
+      ...boxes.map((id) => ({ id, what: "Branch box not connected" })),
+    ];
+  })();
+  const pickedStray = stray.find((x) => `stray:${x.id}` === picked);
+
+
 
   const pickedSection = tree.sections.find((s) => s.id === picked);
   const pickedFitting = picked ? fit.get(picked) : undefined;
@@ -142,10 +279,8 @@ export function VrfSchematic({
           aria-label={`Pipework schematic for ${sys.name}`}
         >
           {tree.sections.map((s) => {
-            const a = pos.get(s.from);
-            const b = pos.get(s.to);
-            if (!a || !b) return null;
-            const mid = a.y + ROW * 0.45;
+            const r = route(s);
+            if (!r) return null;
             const on = picked === s.id;
             return (
               <g
@@ -154,17 +289,34 @@ export function VrfSchematic({
                 style={{ color: `var(--pipe-${sizeTone(s.gasMm)})` }}
                 onClick={() => setPicked(on ? null : s.id)}
               >
-                <path d={`M${a.x} ${a.y} V${mid} H${b.x} V${b.y}`} />
+                <path d={r.d} />
                 {/* a wide invisible twin so a thin line is easy to click */}
-                <path className="hit" d={`M${a.x} ${a.y} V${mid} H${b.x} V${b.y}`} />
-                <text x={b.x + 6} y={mid + 16}>
+                <path className="hit" d={r.d} />
+                <text x={r.label.x} y={r.label.y}>
                   {pairSize(s.liquidMm, s.gasMm, units)}
                 </text>
                 {s.lengthM != null && (
-                  <text className="len" x={b.x + 6} y={mid + 30}>
+                  <text className="len" x={r.label.x} y={r.label.y + 14}>
                     {`${s.lengthM.toFixed(1)} m`}
                   </text>
                 )}
+              </g>
+            );
+          })}
+          {loose.map((l, k) => {
+            const p = l.anchorId ? pos.get(l.anchorId) : undefined;
+            if (!p) return null;
+            const on = picked === `loose:${l.id}`;
+            const x2 = p.x + 44 + k * 10;
+            const y2 = p.y + 28;
+            return (
+              <g key={l.id} className={`ds-schem-loose${on ? " on" : ""}`} onClick={() => setPicked(on ? null : `loose:${l.id}`)}>
+                <path d={`M${p.x} ${p.y} H${x2} V${y2}`} />
+                <path className="hit" d={`M${p.x} ${p.y} H${x2} V${y2}`} />
+                <circle cx={x2} cy={y2} r={4} />
+                <text x={x2 + 7} y={y2 + 4}>
+                  Not connected
+                </text>
               </g>
             );
           })}
@@ -183,7 +335,7 @@ export function VrfSchematic({
             if (f?.kind === "box")
               return (
                 <g key={id} className={`ds-schem-box${on ? " on" : ""}`} onClick={() => setPicked(on ? null : id)}>
-                  <rect x={p.x - 38} y={p.y - 11} width={76} height={22} rx={3} />
+                  <rect x={p.x - boxW(id) / 2} y={p.y - 11} width={boxW(id)} height={22} rx={3} />
                   <text x={p.x} y={p.y + 4}>
                     {(f.part ?? "Box").replace(/^PAC-/, "")}
                   </text>
@@ -213,51 +365,177 @@ export function VrfSchematic({
           })}
         </svg>
       </div>
-      {(pickedSection || pickedFitting) && (
-        <dl className="ds-schem-card">
-          {pickedSection && (
-            <>
+      {stray.length > 0 && (
+        <div className="ds-schem-loose-list">
+          {stray.map((x) => (
+            <button key={x.id} type="button" className="ds-schem-loose-btn" onClick={() => setPicked(`stray:${x.id}`)}>
+              {x.what}
+            </button>
+          ))}
+        </div>
+      )}
+      {loose.some((l) => !l.anchorId) && (
+        <div className="ds-schem-loose-list">
+          {loose
+            .filter((l) => !l.anchorId)
+            .map((l) => (
+              <button key={l.id} type="button" className="ds-schem-loose-btn" onClick={() => setPicked(`loose:${l.id}`)}>
+                {`Pipe not connected${l.lengthM != null ? `, ${l.lengthM.toFixed(1)} m` : ""}`}
+              </button>
+            ))}
+        </div>
+      )}
+      {(pickedLoose || pickedStray || pickedSection || pickedFitting) && (
+        /* THE PICKED THING, pinned under the drawing with what can be done to
+           it (Isaac, 2026-09-29): Delete for anything, Override for a pipe's
+           size — the same place a duct will take its size by hand */
+        <div className="ds-schem-inspect" role="region" aria-label="Selected on the schematic">
+          <dl className="ds-schem-card">
+            {pickedStray && (
               <div>
-                <dt>Pipe</dt>
-                <dd>{`${nameOf(pickedSection.from)} to ${nameOf(pickedSection.to)}`}</dd>
+                <dt>On the plan</dt>
+                <dd>{pickedStray.what}</dd>
               </div>
-              <div>
-                <dt>Liquid / gas</dt>
-                <dd>{both(pickedSection)}</dd>
-              </div>
-              {pickedSection.lengthM != null && (
+            )}
+            {pickedLoose && (
+              <>
                 <div>
-                  <dt>Length</dt>
-                  <dd>{`${pickedSection.lengthM.toFixed(1)} m`}</dd>
+                  <dt>Pipe</dt>
+                  <dd>{pickedLoose.from ? `From ${pickedLoose.from}, not connected at the other end` : "Not connected at either end"}</dd>
                 </div>
+                {pickedLoose.lengthM != null && (
+                  <div>
+                    <dt>Length</dt>
+                    <dd>{`${pickedLoose.lengthM.toFixed(1)} m`}</dd>
+                  </div>
+                )}
+              </>
+            )}
+            {pickedSection && (
+              <>
+                <div>
+                  <dt>Pipe</dt>
+                  <dd>{`${nameOf(pickedSection.from)} to ${nameOf(pickedSection.to)}`}</dd>
+                </div>
+                <div>
+                  <dt>{pickedSection.override ? "Liquid / gas, set by hand" : "Liquid / gas"}</dt>
+                  <dd>{both(pickedSection)}</dd>
+                </div>
+                {pickedSection.override && (
+                  <div>
+                    <dt>{"The book's size"}</dt>
+                    <dd>{pairSize(pickedSection.override.bookLiquidMm, pickedSection.override.bookGasMm, units)}</dd>
+                  </div>
+                )}
+                {pickedSection.lengthM != null && (
+                  <div>
+                    <dt>Length</dt>
+                    <dd>{`${pickedSection.lengthM.toFixed(1)} m`}</dd>
+                  </div>
+                )}
+              </>
+            )}
+            {pickedFitting && (
+              <>
+                <div>
+                  <dt>{pickedFitting.kind === "box" ? "Branch box" : pickedFitting.kind === "header" ? "Header" : "Joint"}</dt>
+                  <dd>{pickedFitting.part ?? "No part in the book"}</dd>
+                </div>
+                {tree.sections
+                  .filter((s) => s.to === pickedFitting.nodeId)
+                  .map((s) => (
+                    <div key={s.id}>
+                      <dt>In</dt>
+                      <dd>{both(s)}</dd>
+                    </div>
+                  ))}
+                {tree.sections
+                  .filter((s) => s.from === pickedFitting.nodeId)
+                  .map((s) => {
+                    const port = pickedFitting.ports?.find((p) => p.to === s.to);
+                    const fits = port?.reducer
+                      ? [port.reducer.liquid, port.reducer.gas]
+                          .filter((r): r is NonNullable<typeof r> => r != null)
+                          .map((r) => r.part ?? `${r.fromMm} to ${r.toMm} mm joint`)
+                          .join(" + ")
+                      : "";
+                    return (
+                      <div key={s.id}>
+                        <dt>{`Out to ${nameOf(s.to)}${port ? ` (port ${port.port})` : ""}`}</dt>
+                        <dd>{`${both(s)}${fits ? `, needs ${fits} at the box` : ""}`}</dd>
+                      </div>
+                    );
+                  })}
+              </>
+            )}
+          </dl>
+          {onEdit && pickedSection && sizing?.id === pickedSection.id && (
+            <div className="ds-schem-size">
+              {(["liquidMm", "gasMm"] as const).map((k) => (
+                <label key={k}>
+                  <span>{k === "liquidMm" ? "Liquid" : "Gas"}</span>
+                  <select
+                    value={sizing[k]}
+                    onChange={(e) => setSizing({ ...sizing, [k]: Number(e.target.value) })}
+                  >
+                    {TUBE_SIZES_MM.map((mm) => (
+                      <option key={mm} value={mm}>
+                        {tubeSize(mm, units)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+              <button
+                type="button"
+                className="ds-schem-act primary"
+                onClick={() => {
+                  const edges = pickedSection.edges;
+                  const size = { liquidMm: sizing.liquidMm, gasMm: sizing.gasMm };
+                  onEdit((d) => setRunSizes(d, edges, size));
+                  setSizing(null);
+                }}
+              >
+                Save size
+              </button>
+              <button type="button" className="ds-schem-act" onClick={() => setSizing(null)}>
+                Cancel
+              </button>
+            </div>
+          )}
+          {onEdit && (
+            <div className="ds-schem-actions">
+              {pickedSection && pickedSection.edges.length > 0 && sizing?.id !== pickedSection.id && (
+                <button
+                  type="button"
+                  className="ds-schem-act"
+                  onClick={() =>
+                    setSizing({ id: pickedSection.id, liquidMm: pickedSection.liquidMm, gasMm: pickedSection.gasMm })
+                  }
+                >
+                  Override size
+                </button>
               )}
-            </>
+              {pickedSection?.override && (
+                <button
+                  type="button"
+                  className="ds-schem-act"
+                  onClick={() => {
+                    const edges = pickedSection.edges;
+                    onEdit((d) => setRunSizes(d, edges, null));
+                  }}
+                >
+                  {"Use the book's size"}
+                </button>
+              )}
+              {target && (
+                <button type="button" className="ds-schem-act bad" onClick={erase}>
+                  Delete
+                </button>
+              )}
+            </div>
           )}
-          {pickedFitting && (
-            <>
-              <div>
-                <dt>{pickedFitting.kind === "box" ? "Branch box" : pickedFitting.kind === "header" ? "Header" : "Joint"}</dt>
-                <dd>{pickedFitting.part ?? "No part in the book"}</dd>
-              </div>
-              {tree.sections
-                .filter((s) => s.to === pickedFitting.nodeId)
-                .map((s) => (
-                  <div key={s.id}>
-                    <dt>In</dt>
-                    <dd>{both(s)}</dd>
-                  </div>
-                ))}
-              {tree.sections
-                .filter((s) => s.from === pickedFitting.nodeId)
-                .map((s) => (
-                  <div key={s.id}>
-                    <dt>{`Out to ${nameOf(s.to)}`}</dt>
-                    <dd>{both(s)}</dd>
-                  </div>
-                ))}
-            </>
-          )}
-        </dl>
+        </div>
       )}
     </section>
   );
@@ -268,10 +546,12 @@ export function SchematicView({
   doc,
   pack,
   units,
+  onEdit,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
   units: PipeUnits;
+  onEdit?: (fn: (d: DesignDocument) => DesignDocument) => void;
 }) {
   const vrfs = doc.systems.filter((s) => s.type === "vrf");
   return (
@@ -279,7 +559,7 @@ export function SchematicView({
       {!pack ? null : vrfs.length === 0 ? (
         <p className="ds-schem-empty">No VRF system in this design yet.</p>
       ) : (
-        vrfs.map((s) => <VrfSchematic key={s.id} doc={doc} pack={pack} sys={s} units={units} />)
+        vrfs.map((s) => <VrfSchematic key={s.id} doc={doc} pack={pack} sys={s} units={units} onEdit={onEdit} />)
       )}
     </div>
   );

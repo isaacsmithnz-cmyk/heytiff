@@ -233,7 +233,12 @@ export function missingScopes(granted: string | null | undefined): string[] {
 
    Verified against developer.servicem8.com/docs/authentication on 2026-07-28
    and again 2026-08-13 — check the doc before adding a scope rather than
-   going from memory. */
+   going from memory.
+
+   THE PRICE BOOK (2026-09-29): read_inventory, "Read-only access to Materials
+   and MaterialBundles Endpoint" in the scope table, and the same name on
+   material.json's reference page — the two agree this time. Asked for with
+   its reader, the price-book mirror, for itemised quotes. */
 
 /** One scope with its public justification — the same shape for every
     provider. `XeroScope` above predates this alias and stays for its callers. */
@@ -319,6 +324,11 @@ export const SM8_SCOPES: ScopeEntry[] = [
     scope: "read_job_payments",
     area: "Workboard",
     why: "Reads payments recorded against jobs, so paid and owing can be exact here. Like job values, shown only to people you've given money access.",
+  },
+  {
+    scope: "read_inventory",
+    area: "Quotes",
+    why: "Reads your price book (materials and bundles) so quotes can be itemised from it: units found by their model code, materials priced as you list them. Read only — HeyTiff never changes your price book. Costs are shown only to people you've given money access.",
   },
 ];
 

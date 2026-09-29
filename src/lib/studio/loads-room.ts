@@ -39,5 +39,6 @@ export function roomLoadKw(doc: DesignDocument, room: RoomObj): number | null {
     orientation: room.props.orientation as Orientation | undefined,
     partyWall: Boolean(room.props.partyWall),
     hasExternalWalls: room.props.hasExternalWalls === false ? false : true,
+    roomAbove: room.props.roomAbove === true,
   });
 }

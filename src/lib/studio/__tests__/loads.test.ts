@@ -201,3 +201,17 @@ describe("ventilation airflow presets", () => {
     expect(requiredAirflowLs("nope")).toBe(0);
   });
 });
+
+describe("a room with another floor above", () => {
+  it("comes down 15%: the 7 × 4 m ground-floor room with west sun, 5.278 kW → 4.486 kW", () => {
+    const base = { areaM2: 28, climateZone: 5, buildingType: "residential" as const, ceilingHeightM: 2.7, orientation: "W" as const };
+    expect(roomHeatLoadKw(base)).toBe(5.278);
+    expect(roomHeatLoadKw({ ...base, roomAbove: true })).toBe(4.486);
+  });
+
+  it("changes nothing unless it's set", () => {
+    const base = { areaM2: 20, climateZone: 5, buildingType: "residential" as const };
+    expect(roomHeatLoadKw({ ...base, roomAbove: false })).toBe(roomHeatLoadKw(base));
+  });
+});
+

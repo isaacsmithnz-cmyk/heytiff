@@ -8,12 +8,15 @@ type Call = {
   eq: Record<string, unknown>;
   gte?: [string, string];
   lt?: [string, string];
+  gt?: [string, string];
   in?: [string, string[]];
   /** The columns the read named — a row comes back with those and no more. */
   select?: string[];
 };
 
 let rows: Record<string, Record<string, unknown>[]> = {};
+/** Tables whose reads fail, as a table missing from the database would. */
+const failing = new Set<string>();
 const calls: Call[] = [];
 
 const table = (name: string) => {
@@ -36,6 +39,11 @@ const table = (name: string) => {
     call.lt = [col, val];
     return chain;
   };
+  chain.gt = (col: string, val: string) => {
+    call.gt = [col, val];
+    return chain;
+  };
+  chain.maybeSingle = () => ({ then: (res: (v: { data: unknown; error: unknown }) => unknown) => (chain.then as (r: (v: { data: unknown[] }) => unknown) => Promise<unknown>)((v) => res({ data: v.data[0] ?? null, error: failing.has(name) ? { message: "down" } : null })) });
   chain.in = (col: string, vals: string[]) => {
     call.in = [col, vals];
     return chain;
@@ -50,11 +58,13 @@ const table = (name: string) => {
     }
     if (call.gte) data = data.filter((r) => String(r[call.gte![0]]) >= call.gte![1]);
     if (call.lt) data = data.filter((r) => String(r[call.lt![0]]) < call.lt![1]);
+    if (call.gt) data = data.filter((r) => String(r[call.gt![0]]) > call.gt![1]);
     if (call.in) data = data.filter((r) => call.in![1].includes(String(r[call.in![0]])));
     if (call.select) {
       const cols = call.select;
       data = data.map((r) => Object.fromEntries(cols.filter((c) => c in r).map((c) => [c, r[c]])));
     }
+    if (failing.has(name)) return Promise.resolve({ data: null, error: { message: "down" } }).then(res as never);
     return Promise.resolve({ data }).then(res);
   };
   return chain;
@@ -90,6 +100,7 @@ beforeEach(() => {
     ],
   };
   calls.length = 0;
+  failing.clear();
 });
 
 it("dates every job by its earliest booking on the day — what the row builder calls Booked", async () => {
@@ -126,4 +137,77 @@ describe("addresses — the street line under Home's Where", () => {
 it("still carries no money on the diary's jobs", async () => {
   const day = await loadScheduleDay("org-1", DAY);
   expect(day.jobs.every((j) => j.money === null && j.paidCents === 0)).toBe(true);
+});
+
+/* TIME OFF (leave to ServiceM8, part two): asked for by the Schedule tab
+   alone, and said only where the mirror holds all of it. */
+describe("time off on the day", () => {
+  const off = (over: Record<string, unknown>) => ({
+    uuid: "av-1",
+    active: 1,
+    regarding_object: "staff",
+    regarding_object_uuid: "s-2",
+    name: "SICK",
+    availability_type: "staff-annual-leave",
+    start_timestamp: `${DAY} 00:00:00`,
+    end_timestamp: `${DAY} 23:59:59`,
+    ...over,
+  });
+  beforeEach(() => {
+    rows.sm8_staff.push({ uuid: "s-2", first: "Luke", last: "Ingold" });
+    rows.sm8_sync_state = [{ object: "availability", backfill_done: true }];
+    rows.sm8_availability = [
+      off({}),
+      off({ uuid: "av-long", regarding_object_uuid: "s-1", name: "Holidays", start_timestamp: "2026-09-07 00:00:00", end_timestamp: "2026-09-18 23:59:59" }),
+      off({ uuid: "av-holiday", regarding_object: "vendor", regarding_object_uuid: "v-1", name: "Labour Day", availability_type: "public-holiday" }),
+      off({ uuid: "av-gone", active: 0 }),
+      off({ uuid: "av-before", start_timestamp: "2026-09-14 00:00:00", end_timestamp: `${DAY} 00:00:00` }),
+    ];
+  });
+
+  it("(F) carries who's off and whether the business is shut, and names the people off", async () => {
+    const day = await loadScheduleDay("org-1", DAY, { away: true });
+    expect(day.away?.map((a) => [a.uuid, a.staffUuid, a.name])).toEqual([
+      ["av-long", "s-1", "Holidays"],
+      ["av-1", "s-2", "SICK"],
+    ]);
+    expect(day.closed?.map((c) => [c.uuid, c.kind, c.name])).toEqual([["av-holiday", "holiday", "Labour Day"]]);
+    expect(day.staff.map((s) => s.name).sort()).toEqual(["Alex Lomond", "Luke Ingold"]);
+    // one bounded read: what starts before the day ends and ends after it begins
+    const read = calls.find((c) => c.table === "sm8_availability")!;
+    expect(read).toMatchObject({ eq: { org_id: "org-1", active: 1 }, lt: ["start_timestamp", "2026-09-16 00:00:00"], gt: ["end_timestamp", `${DAY} 00:00:00`] });
+  });
+
+  it("(F) says it on a day with nothing booked — a public holiday is exactly that day", async () => {
+    rows.sm8_job_activities = [];
+    const day = await loadScheduleDay("org-1", DAY, { away: true });
+    expect(day.activities).toEqual([]);
+    expect(day.away?.map((a) => a.uuid)).toEqual(["av-long", "av-1"]);
+    expect(day.staff.map((s) => s.name).sort()).toEqual(["Alex Lomond", "Luke Ingold"]);
+    rows.sm8_availability = rows.sm8_availability.filter((r) => r.regarding_object === "vendor");
+    const shut = await loadScheduleDay("org-1", DAY, { away: true });
+    expect(shut).toMatchObject({ activities: [], away: [], closed: [{ name: "Labour Day" }] });
+  });
+
+  it("(F) says nothing until the mirror's first read of it has finished — half a diary reads as people being in", async () => {
+    rows.sm8_sync_state = [{ object: "availability", backfill_done: false }];
+    const day = await loadScheduleDay("org-1", DAY, { away: true });
+    expect(day).not.toHaveProperty("away");
+    expect(day).not.toHaveProperty("closed");
+    rows.sm8_sync_state = [];
+    expect(await loadScheduleDay("org-1", DAY, { away: true })).not.toHaveProperty("away");
+  });
+
+  it("(F) says nothing where the table isn't there yet, and the day still reads", async () => {
+    failing.add("sm8_availability");
+    const day = await loadScheduleDay("org-1", DAY, { away: true });
+    expect(day).not.toHaveProperty("away");
+    expect(day.activities).toHaveLength(3);
+  });
+
+  it("(F) isn't read at all unless asked — Home's day costs what it did", async () => {
+    const day = await loadScheduleDay("org-1", DAY);
+    expect(day).not.toHaveProperty("away");
+    expect(calls.some((c) => c.table === "sm8_availability" || c.table === "sm8_sync_state")).toBe(false);
+  });
 });

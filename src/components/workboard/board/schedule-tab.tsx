@@ -14,6 +14,7 @@ import {
   fmtHoursShort,
   lanePresence,
   layoutScheduleDay,
+  type LaneAway,
   type ScheduleBlock,
   type ScheduleTracked,
 } from "@/lib/workboard/schedule";
@@ -30,6 +31,8 @@ import {
   focusJobOf,
   type DayClock,
 } from "@/lib/workboard/focus";
+import { AWAY_WORDS, closedLabel } from "@/lib/workboard/away";
+import { fillWords } from "@/lib/integrations/sm8-note-words";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
 import { ToolbarSync } from "./sm8-chip";
 import { useNowMin } from "./use-now-min";
@@ -82,7 +85,16 @@ const MIN_PX_PER_HOUR = 96;
 const BLOCK_PX = 52;
 const LANE_ROW_PX = BLOCK_PX + 4;
 const LANE_PAD_PX = 6;
-const laneHeight = (rows: number) => rows * LANE_ROW_PX - (LANE_ROW_PX - BLOCK_PX) + LANE_PAD_PX * 2;
+const laneHeight = (rows: number) => Math.max(rows, 1) * LANE_ROW_PX - (LANE_ROW_PX - BLOCK_PX) + LANE_PAD_PX * 2;
+/* TIME OFF ON A LANE WITH BOOKINGS is a strip of its own under them, on
+   the same hours. Drawn behind the blocks it vanished under any booking
+   made over it — the harness's first look had a dentist's hour wholly
+   covered by the job booked across it, which is the one clash the board
+   exists to show. A lane with nothing but time off is one row high, and the
+   time off fills it. */
+const AWAY_STRIP_PX = 20;
+const laneHeightOf = (l: { rows: unknown[]; blocks: unknown[]; away: unknown[] }) =>
+  laneHeight(l.rows.length) + (l.blocks.length > 0 && l.away.length > 0 ? AWAY_STRIP_PX + 4 : 0);
 /** EVERY CARD CARRIES ITS NUMBER. The number rode beside the customer's name
     and fought it for the one line's width, so a narrow block dropped one of
     them; it leads the second line now, before the category, and the name has
@@ -130,6 +142,20 @@ type Props = {
   onOpenJob: (job: AllJobsMirrorJob, state?: ScheduleJobState | null) => void;
   onOpenTracked: (target: { kind: "visit" | "project"; id: string }) => void;
 };
+
+/** Time off's span in words: "all day", or "7am–10:30am". */
+function awaySpan(a: LaneAway): string {
+  return a.whole ? "all day" : `${clockLabel(a.startMin)}–${clockLabel(a.endMin % (24 * 60))}`;
+}
+
+/** What the name column says under a person who is off with nothing booked:
+    the fact with its times. */
+function offLine(away: LaneAway[]): string {
+  if (away.some((a) => a.whole)) return AWAY_WORDS.allDay;
+  const first = away[0];
+  const last = away[away.length - 1];
+  return fillWords(AWAY_WORDS.partDay, { start: clockLabel(first.startMin), end: clockLabel(last.endMin % (24 * 60)) });
+}
 
 function blockTitle(b: ScheduleBlock): string {
   return [
@@ -218,6 +244,7 @@ export function ScheduleTab({
             jobs: current.jobs,
             tracked,
             onSite: new Set(current.onSite),
+            away: current.away ? { dayISO: current.dayISO, rows: current.away } : undefined,
           })
         : null,
     [current, tracked]
@@ -227,8 +254,8 @@ export function ScheduleTab({
     [current]
   );
   /* People, not lanes: the unassigned lane is a row on the board and not a
-     crew. */
-  const crewCount = day ? day.lanes.filter((l) => l.staffUuid !== "").length : 0;
+     crew, and nor is somebody off with nothing booked. */
+  const crewCount = day ? day.lanes.filter((l) => l.staffUuid !== "" && l.blocks.length > 0).length : 0;
 
   const week = useMemo(
     () => Array.from({ length: 7 }, (_, i) => plusDays(stripStart, i)),
@@ -289,7 +316,8 @@ export function ScheduleTab({
     const r = railRef.current;
     if (r) setAtEnd(r.scrollLeft + r.clientWidth >= r.scrollWidth - 2);
   };
-  const hasRail = !!day && day.totalBookings > 0;
+  /* The board draws for a day with anyone on it: booked, or off. */
+  const hasRail = !!day && day.lanes.length > 0;
   useLayoutEffect(() => {
     const r = railRef.current;
     if (!r) return;
@@ -309,9 +337,12 @@ export function ScheduleTab({
 
   const landRail = useEffectEvent(() => {
     const r = railRef.current;
-    if (!r || !day || day.totalBookings === 0) return;
-    const first = day.lanes.reduce((m, l) => Math.min(m, l.blocks[0].startMin), Infinity);
-    let target = ((first - day.railStart) / 60) * pxPerHour - 24;
+    if (!r || !day || day.lanes.length === 0) return;
+    const first = day.lanes.reduce(
+      (m, l) => Math.min(m, l.blocks[0]?.startMin ?? l.away.find((a) => !a.whole)?.startMin ?? Infinity),
+      Infinity
+    );
+    let target = first === Infinity ? 0 : ((first - day.railStart) / 60) * pxPerHour - 24;
     if (openDay === today && nowMin !== null && nowMin >= day.railStart && nowMin <= day.railEnd) {
       target = ((nowMin - day.railStart) / 60) * pxPerHour - r.clientWidth / 2;
     }
@@ -559,9 +590,23 @@ export function ScheduleTab({
           </div>
         )}
 
+        {/* THE BUSINESS SHUT: a public holiday or a closed day, in ServiceM8's
+            own name for it. A fact about the whole day, so it stands over the
+            board rather than on anyone's lane. */}
+        {(current?.closed ?? []).length > 0 && (
+          <div className="wb2-schshelf wb2-schclosed">
+            {current!.closed!.map((c) => (
+              <span key={c.uuid}>
+                <b>{closedLabel(c)}</b>
+                {c.name && <em>{c.name}</em>}
+              </span>
+            ))}
+          </div>
+        )}
+
         {loading && !current && <p className="wb2-hint wb2-schload">Reading the day…</p>}
 
-        {day && day.totalBookings === 0 && (
+        {day && day.lanes.length === 0 && (
           <div className="wb2-empty">
             <Icon name="calendar" size={20} />
             <b>Nobody was dispatched</b>
@@ -569,7 +614,7 @@ export function ScheduleTab({
           </div>
         )}
 
-        {day && day.totalBookings > 0 && (
+        {day && day.lanes.length > 0 && (
           <div className="wb2-schboard">
             <div className="wb2-schnames">
               {/* how many people are out, over the column that lists them */}
@@ -586,7 +631,7 @@ export function ScheduleTab({
                 <div
                   key={l.staffUuid || "unassigned"}
                   className={"wb2-schn" + (l.staffUuid === "" ? " none" : "")}
-                  style={{ height: laneHeight(l.rows.length) }}
+                  style={{ height: laneHeightOf(l) }}
                 >
                   <b>
                     {/* WHO IS ACTUALLY OUT THERE, before you look at the rail.
@@ -613,10 +658,18 @@ export function ScheduleTab({
                     )}
                   </b>
                   {/* The load is the line under the name. The 3px meter under it
-                      said the same hours a second time, as a bar. */}
+                      said the same hours a second time, as a bar. Somebody
+                      off with nothing booked has no load: the line says when
+                      they're off instead, and the rail says what it is. */}
                   <em>
-                    {l.blocks.length} {l.blocks.length === 1 ? "booking" : "bookings"},{" "}
-                    {fmtHoursShort(l.minutes)}
+                    {l.blocks.length === 0 ? (
+                      offLine(l.away)
+                    ) : (
+                      <>
+                        {l.blocks.length} {l.blocks.length === 1 ? "booking" : "bookings"},{" "}
+                        {fmtHoursShort(l.minutes)}
+                      </>
+                    )}
                   </em>
                 </div>
                 );
@@ -644,8 +697,36 @@ export function ScheduleTab({
                     <div
                       key={l.staffUuid || "unassigned"}
                       className="wb2-schlane"
-                      style={{ height: laneHeight(l.rows.length) }}
+                      style={{ height: laneHeightOf(l) }}
                     >
+                      {/* TIME OFF. ServiceM8's word for it ("SICK", "TAFE") at
+                          the start of its span, on a plain band with no cap: it
+                          is time nobody can be sent, not work. Under a working
+                          person's bookings it is a strip on the same hours, so
+                          a booking made over it is seen beside it — the clash
+                          is the news — and never hides it. */}
+                      {l.away.map((a) => {
+                        const from = Math.max(a.startMin, day.railStart);
+                        const to = Math.min(a.endMin, day.railEnd);
+                        if (to <= from) return null;
+                        const strip = l.blocks.length > 0;
+                        return (
+                          <div
+                            key={a.key}
+                            className={"wb2-schaway" + (strip ? " strip" : "")}
+                            style={{
+                              left: ((from - day.railStart) / 60) * pxPerHour,
+                              width: ((to - from) / 60) * pxPerHour - 4,
+                              top: strip ? LANE_PAD_PX + l.rows.length * LANE_ROW_PX : LANE_PAD_PX,
+                              height: strip ? AWAY_STRIP_PX : BLOCK_PX,
+                            }}
+                            title={`${l.name}: ${a.word}, ${awaySpan(a)}`}
+                          >
+                            <span>{a.word}</span>
+                            <span className="wb2-sr">{`, ${awaySpan(a)}`}</span>
+                          </div>
+                        );
+                      })}
                       {l.rows.flatMap((row, ri) =>
                         row.map((b) => {
                           const left = ((b.startMin - day.railStart) / 60) * pxPerHour;

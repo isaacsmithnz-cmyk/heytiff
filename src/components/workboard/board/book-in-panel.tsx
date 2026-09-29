@@ -24,6 +24,7 @@ import { fillWords } from "@/lib/integrations/sm8-note-words";
 import { mintPressId } from "@/lib/workboard/press-id";
 import { thrownWords } from "@/lib/stale-deploy";
 import { StateLine } from "./state-line";
+import { awayInSlot, closedInSlot } from "@/lib/workboard/away";
 
 /* BOOK IN, ON THE JOB CARD'S VISITS FACE (two-way phase 3, PR D).
 
@@ -84,6 +85,12 @@ const clockMin = (stamp: string) => {
 };
 
 const low = (u: string | null | undefined) => (u ?? "").trim().toLowerCase();
+
+/** A time-off sentence with the business's own word, or without its
+    ": {word}" where it typed none. */
+function withWord(text: string, word: string | null, fill: Record<string, string>): string {
+  return fillWords(word ? text : text.replace(/: \{word\}/, ""), { ...fill, word: word ?? "" });
+}
 
 /** A row from a booking a line names: its person, day, start and length, or
     the defaults where it has none that the panel offers. */
@@ -471,6 +478,37 @@ function Facts({
       const text = number
         ? fillWords(BOOKING_WORDS.panel.clash, { number, start: parts.start, end: parts.end })
         : fillWords(BOOKING_WORDS.panel.clashUnnumbered, { start: parts.start, end: parts.end });
+      if (!clashes.includes(text)) clashes.push(text);
+    }
+  }
+
+  /* TIME OFF UNDER A ROW, from the mirror (leave to ServiceM8, part two):
+     the person's own, and the business shut. A warning in the clash's
+     colour and never a refusal — the office may know the golf is off. A day
+     the mirror couldn't answer for says nothing. */
+  for (const r of rows) {
+    const slot = r.staffUuid && DAY.test(r.day) ? slotOf(r.day, r.start, r.minutes) : null;
+    const off = slot ? ctx.off?.[r.day] : undefined;
+    if (!slot || !off) continue;
+    for (const c of closedInSlot(off.closed, slot)) {
+      const text =
+        c.kind === "holiday"
+          ? withWord(BOOKING_WORDS.panel.holiday, c.name, { day: fmtAuWeekdayDayMonth(r.day) })
+          : withWord(BOOKING_WORDS.panel.closed, c.name, {});
+      if (!clashes.includes(text)) clashes.push(text);
+    }
+    const name = staffName(r.staffUuid) ?? BOOKING_WORDS.fill.person;
+    for (const a of awayInSlot(off.away, r.staffUuid, slot)) {
+      const whole = a.start <= `${r.day} 00:00:00` && a.end >= `${r.day} 23:59:00`;
+      /* said on this day's clock: time off from yesterday starts at
+         midnight, and time off into tomorrow ends at the day's end */
+      const parts = rangeParts(
+        a.start < `${r.day} 00:00:00` ? `${r.day} 00:00:00` : a.start,
+        a.end > `${r.day} 23:59:59` ? `${r.day} 23:59:00` : a.end
+      );
+      const text = whole
+        ? withWord(BOOKING_WORDS.panel.awayDay, a.name, { name })
+        : withWord(BOOKING_WORDS.panel.awayPart, a.name, { name, start: parts.start, end: parts.end });
       if (!clashes.includes(text)) clashes.push(text);
     }
   }

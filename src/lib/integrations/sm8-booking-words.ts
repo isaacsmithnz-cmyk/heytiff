@@ -66,6 +66,14 @@ export const BOOKING_WORDS = {
     clash: "That overlaps job {number}, {start} to {end}.",
     /** The same, for a job the mirror can't number yet (PR D). */
     clashUnnumbered: "That overlaps another job, {start} to {end}.",
+    /** Time off in ServiceM8 under a chosen booking (leave to ServiceM8,
+        part two), from the mirror: a warning, never a refusal. {word} is the
+        business's own ("SICK", "TAFE", "Labour Day"); where it typed none,
+        the ": {word}" goes. */
+    awayDay: "{name} is off that day in ServiceM8: {word}.",
+    awayPart: "That overlaps {name}'s time off in ServiceM8: {word}, {start} to {end}.",
+    holiday: "{day} is a public holiday in ServiceM8: {word}.",
+    closed: "ServiceM8 has the business closed then: {word}.",
     trial: "Trial run. Nothing goes to ServiceM8. It's checked and listed on the ServiceM8 screen.",
     heldPaused: "Sending is paused, so this waits until it's back on.",
     heldReconnect: "ServiceM8 needs reconnecting, so this waits until it is.",

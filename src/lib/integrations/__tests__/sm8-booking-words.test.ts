@@ -38,7 +38,7 @@ describe("the booking words", () => {
   });
 
   it("use only the placeholders their callers fill", () => {
-    const allowed = new Set(["name", "day", "start", "end", "number", "status", "n", "list", "place", "why", "reason", "a", "b", "c"]);
+    const allowed = new Set(["name", "day", "start", "end", "number", "status", "n", "list", "place", "why", "reason", "word", "a", "b", "c"]);
     for (const { path, text } of all) {
       for (const m of text.matchAll(/\{(\w+)\}/g)) expect([path, allowed.has(m[1])]).toEqual([path, true]);
     }

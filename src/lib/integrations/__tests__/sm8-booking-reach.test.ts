@@ -80,10 +80,15 @@ describe("a booking's permissions reach further than HeyTiff goes (B-14)", () =>
     expect(endpoint.test("`joballocation/${uuid}.json`")).toBe(true);
   });
 
-  it("an availability is named by leave's three requests alone, in sm8-write, and a leave body never names `active`", () => {
+  it("an availability is written by leave's three requests alone, in sm8-write, and a leave body never names `active`", () => {
     const endpoint = /availabilit(?:y|ies)(\/[^"'`\s]*)?\.json/i;
     const touched = files.filter((f) => endpoint.test(f.text)).map((f) => f.rel);
-    expect(touched).toEqual([join("lib", "integrations", "sm8-write.ts")]);
+    /* the one other place is the sync's object list (leave to ServiceM8,
+       part two), which the read-only walk GETs into sm8_availability */
+    expect(touched.sort()).toEqual([join("lib", "integrations", "sm8-sync-plan.ts"), join("lib", "integrations", "sm8-write.ts")].sort());
+    const plan = files.find((f) => f.rel === join("lib", "integrations", "sm8-sync-plan.ts"))!;
+    expect(plan.text.match(/availability\.json/g)).toEqual(["availability.json"]);
+    expect(plan.text).toMatch(/endpoint: "availability\.json", table: "sm8_availability", scope: "read_schedule"/);
     const where = [...write.text.matchAll(/export async function (\w+)\(/g)]
       .map((m) => m[1])
       .filter((name) => endpoint.test(body(name)));

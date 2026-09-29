@@ -26,6 +26,7 @@ import { lowUuid, readBookingsOver } from "./all-jobs-query";
 import { isLeftover } from "@/lib/integrations/sm8-booking-plan";
 import type { Sm8WriteState } from "@/lib/integrations/sm8-write-plan";
 import { streetLine } from "@/lib/studio/job-link";
+import { availabilityOnDay, type AvailabilityRow, type ScheduleAway, type ScheduleClosed } from "./away";
 
 export type SchedulePayload = {
   dayISO: string;
@@ -45,6 +46,14 @@ export type SchedulePayload = {
       they may press (two-way phase 3). Set by `scheduleDay` for its viewer,
       and only when true; absent everywhere else. */
   canClear?: true;
+  /** People's time off touching the day, from ServiceM8's Availability
+      (leave to ServiceM8, part two). Present only where it was asked for
+      AND the mirror holds all of it; absent, the day says nothing about
+      time off, which is what it said before. */
+  away?: ScheduleAway[];
+  /** The business shut: a public holiday, or a closed day. Beside `away`,
+      under the same rule. */
+  closed?: ScheduleClosed[];
 };
 
 export const EMPTY_SCHEDULE: SchedulePayload = {
@@ -65,14 +74,69 @@ function oneLine(text: string | null, max = 160): string | null {
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }
 
+/** Time off touching the day, from the mirror — or null, which says
+    nothing, where the mirror can't answer for ALL of it: the table isn't
+    there yet, its first read hasn't finished (a diary with some people's
+    leave and not others' reads as the others being in), or a read failed.
+
+    One query for the day: everything active that starts before the day
+    ends, and ends after it begins. Leave can run for weeks, so the start
+    alone can't bound it from below. */
+export async function readDayAvailability(
+  orgId: string,
+  dayISO: string
+): Promise<{ away: ScheduleAway[]; closed: ScheduleClosed[] } | null> {
+  const dayFloor = `${dayISO} 00:00:00`;
+  const dayCeil = `${plusDays(dayISO, 1)} 00:00:00`;
+  const [{ data: state, error: stateError }, { data, error }] = await Promise.all([
+    supabaseAdmin
+      .from("sm8_sync_state")
+      .select("backfill_done")
+      .eq("org_id", orgId)
+      .eq("object", "availability")
+      .maybeSingle(),
+    supabaseAdmin
+      .from("sm8_availability")
+      .select("uuid, regarding_object, regarding_object_uuid, name, availability_type, start_timestamp, end_timestamp")
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .lt("start_timestamp", dayCeil)
+      .gt("end_timestamp", dayFloor),
+  ]);
+  if (stateError || error || (state as { backfill_done: boolean | null } | null)?.backfill_done !== true) return null;
+  const rows: AvailabilityRow[] = ((data ?? []) as {
+    uuid: string;
+    regarding_object: string | null;
+    regarding_object_uuid: string | null;
+    name: string | null;
+    availability_type: string | null;
+    start_timestamp: string | null;
+    end_timestamp: string | null;
+  }[]).map((r) => ({
+    uuid: r.uuid,
+    regardingObject: r.regarding_object,
+    regardingUuid: r.regarding_object_uuid,
+    name: r.name,
+    type: r.availability_type,
+    start: r.start_timestamp,
+    end: r.end_timestamp,
+  }));
+  return availabilityOnDay(rows, dayISO);
+}
+
 export async function loadScheduleDay(
   orgId: string,
   dayISO: string,
-  /** The write state, where the caller has read it already. */
-  opts: { state?: Pick<Sm8WriteState, "linked" | "tenantId"> } = {}
+  opts: {
+    /** The write state, where the caller has read it already. */
+    state?: Pick<Sm8WriteState, "linked" | "tenantId">;
+    /** Read the day's time off as well: the Schedule tab asks, Home doesn't. */
+    away?: boolean;
+  } = {}
 ): Promise<SchedulePayload> {
   const dayFloor = `${dayISO} 00:00:00`;
   const dayCeil = `${plusDays(dayISO, 1)} 00:00:00`;
+  const offRead = opts.away ? readDayAvailability(orgId, dayISO) : Promise.resolve(null);
 
   /* The week's per-day booking count was a third read here, for the numbers
      on the strip's day chips; the chips are the day's name alone now. */
@@ -154,11 +218,21 @@ export async function loadScheduleDay(
     activities.sort((x, y) => x.start.localeCompare(y.start));
   }
 
-  if (activities.length === 0) {
-    return { ...EMPTY_SCHEDULE, dayISO };
+  const off = await offRead;
+  /* where the mirror answered, it answers even on a day with nothing booked:
+     a public holiday is exactly that day */
+  const offFields = off ? { away: off.away, closed: off.closed } : {};
+
+  if (activities.length === 0 && !off?.away.length) {
+    return { ...EMPTY_SCHEDULE, dayISO, ...offFields };
   }
 
-  const staffIds = [...new Set(activities.map((a) => a.staffUuid).filter(Boolean) as string[])];
+  /* the people off are named from the same mirror as the people booked */
+  const staffIds = [
+    ...new Set(
+      [...activities.map((a) => a.staffUuid), ...(off?.away ?? []).map((a) => a.staffUuid)].filter(Boolean) as string[]
+    ),
+  ];
   const jobIds = [...new Set(activities.map((a) => a.jobUuid).filter(Boolean) as string[])];
 
   const [{ data: staffRows }, { data: jobRows }] = await Promise.all([
@@ -167,7 +241,9 @@ export async function loadScheduleDay(
           .from("sm8_staff")
           .select("uuid, first, last")
           .eq("org_id", orgId)
-          .in("uuid", staffIds)
+          /* time off names its person as it was keyed, which may not be
+             the staff mirror's spelling: every spelling is asked for */
+          .in("uuid", off?.away.length ? [...new Set(staffIds.flatMap((u) => [u, u.toLowerCase(), u.toUpperCase()]))] : staffIds)
       : Promise.resolve({ data: [] }),
     jobIds.length
       ? supabaseAdmin
@@ -294,6 +370,7 @@ export async function loadScheduleDay(
     staff,
     onSite,
     addresses,
+    ...offFields,
     jobs: jobs.map((j) => ({
       remoteId: j.uuid,
       jobNumber: j.generated_job_id,

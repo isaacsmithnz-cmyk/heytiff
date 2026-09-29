@@ -475,6 +475,54 @@ describe("the panel's read", () => {
     expect(writes()).toEqual([]);
   });
 
+  /* TIME OFF (leave to ServiceM8, part two): from the mirror, beside the
+     live read, and only where the mirror holds all of it. */
+  it("(F) carries each asked day's time off from the mirror, once its first read has finished", async () => {
+    const off = (over: Row) => ({
+      org_id: ORG,
+      uuid: randomUUID(),
+      regarding_object: "staff",
+      regarding_object_uuid: CASEY,
+      name: "SICK",
+      availability_type: "staff-annual-leave",
+      start_timestamp: `${TOMORROW} 00:00:00`,
+      end_timestamp: `${TOMORROW} 23:59:59`,
+      active: 1,
+      ...over,
+    });
+    fake.db.sm8_availability = [
+      off({ uuid: "av-sick" }),
+      off({ uuid: "av-holiday", regarding_object: "vendor", regarding_object_uuid: TENANT, name: "Labour Day", availability_type: "public-holiday" }),
+      off({ uuid: "av-gone", active: 0 }),
+      off({ uuid: "av-other-day", start_timestamp: `${dayFrom(3)} 00:00:00`, end_timestamp: `${dayFrom(3)} 23:59:59` }),
+      off({ uuid: "av-other-org", org_id: "org-2" }),
+    ];
+    fake.db.sm8_sync_state = [{ org_id: ORG, object: "availability", backfill_done: false }];
+    const before = await readBookInContext({ jobUuid: JOB, days: [TOMORROW] });
+    if (!before.ok) throw new Error(before.error);
+    // half a walk says nothing: somebody's leave may not be in it yet
+    expect(before.off).toEqual({});
+
+    fake.db.sm8_sync_state = [{ org_id: ORG, object: "availability", backfill_done: true }];
+    const r = await readBookInContext({ jobUuid: JOB, days: [TOMORROW] });
+    if (!r.ok) throw new Error(r.error);
+    expect(r.off).toEqual({
+      [TOMORROW]: {
+        away: [{ uuid: "av-sick", staffUuid: CASEY, name: "SICK", start: `${TOMORROW} 00:00:00`, end: `${TOMORROW} 23:59:59` }],
+        closed: [{ uuid: "av-holiday", kind: "holiday", name: "Labour Day", start: `${TOMORROW} 00:00:00`, end: `${TOMORROW} 23:59:59` }],
+      },
+    });
+    expect(writes()).toEqual([]);
+  });
+
+  it("reads on without time off where the mirror can't be read", async () => {
+    fake.db.sm8_sync_state = [{ org_id: ORG, object: "availability", backfill_done: true }];
+    fake.failing.add("sm8_availability");
+    const r = await readBookInContext({ jobUuid: JOB, days: [TOMORROW] });
+    if (!r.ok) throw new Error(r.error);
+    expect(r.off).toEqual({});
+  });
+
   it("(F) says why a job can't be booked: its live status, or gone", async () => {
     sm8.jobs.get(JOB)!.status = "Completed";
     expect(await readBookInContext({ jobUuid: JOB, days: [TOMORROW] })).toEqual({

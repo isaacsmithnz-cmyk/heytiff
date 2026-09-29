@@ -196,6 +196,7 @@ describe("the object list", () => {
       job_notes: "note.json",
       job_materials: "jobmaterial.json",
       job_payments: "jobpayment.json",
+      availability: "availability.json",
     });
   });
 
@@ -221,6 +222,43 @@ describe("the object list", () => {
     // ask for the name that actually unlocks the endpoint.
     const attachments = SM8_OBJECTS.find((s) => s.object === "attachments")!;
     expect(attachments.scope).toBe("read_attachments");
+  });
+
+  /* Time off is the diary's other half: the same read_schedule grant the
+     bookings ride on, every row ever (a holiday keyed years ago still covers
+     a day ahead), and the free-text name kept exactly as typed, because it
+     is the only thing that says SICK from TAFE. */
+  it("mirrors time off whole, under the schedule's own grant, with its name as typed", () => {
+    const spec = SM8_OBJECTS.find((s) => s.object === "availability")!;
+    expect(spec).toMatchObject({ table: "sm8_availability", scope: "read_schedule", backfillMonths: null });
+    expect(
+      spec.shape({
+        uuid: "av-1",
+        regarding_object: "staff",
+        regarding_object_uuid: "s-1",
+        name: "SICK",
+        availability_type: "staff-annual-leave",
+        start_timestamp: "2026-09-29 00:00:00",
+        end_timestamp: "2026-09-29 23:59:59",
+        source: "",
+        active: "1",
+        edit_date: "2026-09-28 16:02:11",
+        lat: -33.9,
+      })
+    ).toEqual({
+      uuid: "av-1",
+      regarding_object: "staff",
+      regarding_object_uuid: "s-1",
+      name: "SICK",
+      availability_type: "staff-annual-leave",
+      start_timestamp: "2026-09-29 00:00:00",
+      end_timestamp: "2026-09-29 23:59:59",
+      source: null,
+      active: 1,
+      edit_date: "2026-09-28 16:02:11",
+    });
+    expect(spec.shape({ uuid: "av-2", start_timestamp: "0000-00-00 00:00:00" })!.start_timestamp).toBeNull();
+    expect(spec.shape({ name: "no uuid" })).toBeNull();
   });
 
   it("wipes every mirror plus the bookkeeping on disconnect", () => {
@@ -278,6 +316,7 @@ describe("walkOrderFor — the rotation that stops budget starvation", () => {
       "job_notes",
       "job_materials",
       "job_payments",
+      "availability",
       "staff",
       "categories",
       "queues",

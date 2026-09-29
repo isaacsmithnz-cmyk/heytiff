@@ -20,6 +20,7 @@ import {
   TIFF_NOTE_SCHEMA,
   readNote,
   sayBlock,
+  systemBlocks,
   systemPrompt,
   type NoteContext,
 } from "../note-brain";
@@ -41,7 +42,7 @@ const card: NoteContext = {
 const modal: NoteContext = { ...card, askWho: true, speak: true, room: "tasks" };
 
 type Body = {
-  system: string;
+  system: { type: "text"; text: string; cache_control?: { type: "ephemeral" } }[];
   messages: { role: string; content: string }[];
   output_config: { format: { type: string; schema: unknown } };
 };
@@ -108,9 +109,11 @@ describe("a read without `speak`", () => {
     await readNote("  tell Lyle to order the grilles  ", card);
     expect(sent).toHaveLength(1);
     const body = sent[0];
-    expect(body.system).toBe(systemPrompt(card));
-    expect(body.system).not.toContain(sayBlock());
-    expect(body.system).not.toMatch(/`say`/);
+    expect(body.system).toEqual(systemBlocks(card));
+    const system = body.system.map((b) => b.text).join("");
+    expect(system).toBe(systemPrompt(card));
+    expect(system).not.toContain(sayBlock());
+    expect(system).not.toMatch(/`say`/);
     expect(body.output_config.format).toEqual({ type: "json_schema", schema: NOTE_SCHEMA });
     expect(JSON.stringify(body.output_config.format.schema)).not.toContain('"say"');
     expect(body.messages).toEqual([{ role: "user", content: "Note:\ntell Lyle to order the grilles" }]);
@@ -130,8 +133,8 @@ describe("the Tiff modal's read", () => {
   it("asks for `say`: the block in the prompt and the schema with it", async () => {
     await readNote("tell Lyle to order the grilles", modal);
     const body = sent[0];
-    expect(body.system).toBe(systemPrompt(modal));
-    expect(body.system).toContain(sayBlock());
+    expect(body.system).toEqual(systemBlocks(modal));
+    expect(body.system.map((b) => b.text).join("")).toContain(sayBlock());
     expect(body.output_config.format).toEqual({ type: "json_schema", schema: TIFF_NOTE_SCHEMA });
   });
 
@@ -139,5 +142,28 @@ describe("the Tiff modal's read", () => {
     reply = { ...lanes, say: "A task to order the grilles." };
     const read = await readNote("tell Lyle to order the grilles", modal);
     expect(read.ok && read.proposal.say).toBe("Which Lyle did you mean?");
+  });
+});
+
+/* The prompt cache is a byte-exact prefix. A name or a day slipping into the
+   marked block would make every note write the cache and none read it, and
+   nothing would say so but the bill. */
+describe("the cached head of the router's prompt", () => {
+  it("is the same bytes for every person, day and room, and carries the only mark", () => {
+    const other: NoteContext = {
+      ...modal,
+      staff: [{ id: "x", fullName: "Someone Else" }],
+      author: { id: "x", fullName: "Someone Else" },
+      todayISO: "2031-01-01",
+      room: "diary",
+      targetLabel: "Smith St",
+    };
+    const [head, tail] = systemBlocks(modal);
+    expect(head.cache_control).toEqual({ type: "ephemeral" });
+    expect(tail.cache_control).toBeUndefined();
+    expect(systemBlocks(card)[0]).toEqual(head);
+    expect(systemBlocks(other)[0]).toEqual(head);
+    for (const name of ["Isaac Smith", "Lyle Nguyen", "Someone Else"]) expect(head.text).not.toContain(name);
+    expect(head.text).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 });

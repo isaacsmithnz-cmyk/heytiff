@@ -113,6 +113,45 @@ export function VrfSchematic({
   const both = (s: SizedSection) =>
     `${pairSize(s.liquidMm, s.gasMm, units)} (${pairSize(s.liquidMm, s.gasMm, units === "in" ? "mm" : "in")})`;
 
+  /* HOW EACH SECTION IS DRAWN (Isaac, 2026-09-29, on walk C). Off a joint
+     or header the branches leave the T sideways, so the pipe into it runs
+     straight down to the T and the split is AT the fitting. Off a branch box
+     each head has its own port and its own pipe — a box is not a joint, and
+     a shared header line made it read like an outdoor. Ports run along the
+     box's foot in the order of the heads under it; a pipe going out sideways
+     drops to a lane of its own first, the farthest out on the highest lane,
+     so no two cross. Anything else (off the outdoor) drops, turns, drops. */
+  const boxW = (id: string) => Math.max(76, (tree.sections.filter((s) => s.from === id).length || 1) * 28 + 12);
+  const route = (s: SizedSection): { d: string; label: { x: number; y: number } } | null => {
+    const a = pos.get(s.from);
+    const b = pos.get(s.to);
+    if (!a || !b) return null;
+    const f = fit.get(s.from);
+    if (f && f.kind !== "box") return { d: `M${a.x} ${a.y} H${b.x} V${b.y}`, label: { x: b.x + 6, y: a.y + 16 } };
+    if (f?.kind === "box") {
+      const outs = tree.sections
+        .filter((x) => x.from === s.from)
+        .sort((x, y) => (pos.get(x.to)?.x ?? 0) - (pos.get(y.to)?.x ?? 0));
+      const w = boxW(s.from);
+      const i = outs.findIndex((x) => x.id === s.id);
+      const px = a.x - w / 2 + ((i + 0.5) * w) / outs.length;
+      const foot = a.y + 11;
+      if (Math.abs(b.x - px) < 1) return { d: `M${px} ${foot} V${b.y}`, label: { x: b.x + 6, y: b.y - 24 } };
+      const left = b.x < px;
+      const side = outs.filter((x) => {
+        const bx = pos.get(x.to)?.x ?? 0;
+        const xi = outs.indexOf(x);
+        const xp = a.x - w / 2 + ((xi + 0.5) * w) / outs.length;
+        return left ? bx < xp - 1 : bx > xp + 1;
+      });
+      const rank = left ? side.indexOf(s) : side.length - 1 - side.indexOf(s);
+      const lane = foot + 10 + rank * 10;
+      return { d: `M${px} ${foot} V${lane} H${b.x} V${b.y}`, label: { x: b.x + 6, y: b.y - 24 } };
+    }
+    const mid = a.y + ROW * 0.45;
+    return { d: `M${a.x} ${a.y} V${mid} H${b.x} V${b.y}`, label: { x: b.x + 6, y: mid + 16 } };
+  };
+
   const pickedSection = tree.sections.find((s) => s.id === picked);
   const pickedFitting = picked ? fit.get(picked) : undefined;
 
@@ -142,10 +181,8 @@ export function VrfSchematic({
           aria-label={`Pipework schematic for ${sys.name}`}
         >
           {tree.sections.map((s) => {
-            const a = pos.get(s.from);
-            const b = pos.get(s.to);
-            if (!a || !b) return null;
-            const mid = a.y + ROW * 0.45;
+            const r = route(s);
+            if (!r) return null;
             const on = picked === s.id;
             return (
               <g
@@ -154,14 +191,14 @@ export function VrfSchematic({
                 style={{ color: `var(--pipe-${sizeTone(s.gasMm)})` }}
                 onClick={() => setPicked(on ? null : s.id)}
               >
-                <path d={`M${a.x} ${a.y} V${mid} H${b.x} V${b.y}`} />
+                <path d={r.d} />
                 {/* a wide invisible twin so a thin line is easy to click */}
-                <path className="hit" d={`M${a.x} ${a.y} V${mid} H${b.x} V${b.y}`} />
-                <text x={b.x + 6} y={mid + 16}>
+                <path className="hit" d={r.d} />
+                <text x={r.label.x} y={r.label.y}>
                   {pairSize(s.liquidMm, s.gasMm, units)}
                 </text>
                 {s.lengthM != null && (
-                  <text className="len" x={b.x + 6} y={mid + 30}>
+                  <text className="len" x={r.label.x} y={r.label.y + 14}>
                     {`${s.lengthM.toFixed(1)} m`}
                   </text>
                 )}
@@ -183,7 +220,7 @@ export function VrfSchematic({
             if (f?.kind === "box")
               return (
                 <g key={id} className={`ds-schem-box${on ? " on" : ""}`} onClick={() => setPicked(on ? null : id)}>
-                  <rect x={p.x - 38} y={p.y - 11} width={76} height={22} rx={3} />
+                  <rect x={p.x - boxW(id) / 2} y={p.y - 11} width={boxW(id)} height={22} rx={3} />
                   <text x={p.x} y={p.y + 4}>
                     {(f.part ?? "Box").replace(/^PAC-/, "")}
                   </text>

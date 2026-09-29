@@ -4413,6 +4413,13 @@ html[data-ds-display] .dstudio.editing {
 }
 /* a picked pipe lights its whole section (every run of it) at double weight */
 .dstudio .ds-pipe.sel polyline { stroke-width: 5px; }
+/* a pipe end that reaches nothing: an open ring in the bad colour where it stops */
+.dstudio .ds-pipe .ds-pipe-open {
+  fill: var(--paper);
+  stroke: var(--bad-t);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
 /* soft-drawn pipe renders the smoothed spline as a path */
 .dstudio .ds-pipe path {
   fill: none;

@@ -342,3 +342,34 @@ describe("pipe sizes in words", () => {
     expect([9.52, 12.7, 15.88, 19.05, 22.2, 25.4, 28.58, 31.75, 41.28].map(sizeTone)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 8]);
   });
 });
+
+/* walk C (2026-09-29): a pipe drawn out to nowhere was allowed, and nothing said so */
+describe("a pipe that goes nowhere", () => {
+  it("is red on the system, counted, with the fix", () => {
+    const t = page144Drawn();
+    const sys = () => t.doc.systems.find((s) => s.id === t.systemId)!;
+    expect(systemFindings(t.doc, pack, sys()).map((f) => f.code)).not.toContain("loose-pipe");
+    const trunkEnd = runsOf(t.doc, t.systemId)[0].props.startAttach;
+    const open = (id: string): DesignObject => ({
+      id,
+      type: "pipe-run",
+      systemId: t.systemId,
+      floorId: t.doc.floors[0].id,
+      geometry: { kind: "polyline", points: [{ x: 0, y: 3000 }, { x: 900, y: 3000 }] },
+      plane: "room",
+      props: { startAttach: trunkEnd },
+    });
+    t.doc = { ...t.doc, objects: [...t.doc.objects, open("stub1")] };
+    expect(systemFindings(t.doc, pack, sys()).find((f) => f.code === "loose-pipe")).toEqual({
+      severity: "red",
+      code: "loose-pipe",
+      message: "A pipe ends without reaching anything",
+      fix: "Finish each on a unit, a joint or a box, or erase it",
+    });
+    t.doc = { ...t.doc, objects: [...t.doc.objects, open("stub2")] };
+    expect(systemFindings(t.doc, pack, sys()).find((f) => f.code === "loose-pipe")?.message).toBe(
+      "2 pipes end without reaching anything"
+    );
+    expect(combinationWord(t.doc, pack, sys())).toBe("Fails");
+  });
+});

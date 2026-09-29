@@ -19,6 +19,7 @@ import { outdoorsListing, pairFor } from "./builder";
 import { checkVrfSet, joinsVrf, vrfBand, vrfLoadCeilingKw, vrfOutdoorsListing, vrfRatio, vrfTakesLoad } from "./vrf";
 import { systemCover } from "./coverage";
 import { systemVrfTree } from "./vrf-tree";
+import { attachOf } from "./graph";
 
 export interface SystemFinding {
   severity: "red" | "amber";
@@ -41,6 +42,32 @@ export function brandName(pack: DataPack, id: string): string {
 
 /** every finding on a system, red first */
 export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignSystem): SystemFinding[] {
+  const out = combinationFindings(doc, pack, sys);
+  const loose = loosePipes(doc, sys);
+  return loose ? [...out, loose] : out;
+}
+
+/* A REFRIGERANT PIPE THAT GOES NOWHERE (Isaac, 2026-09-29, walk C: "a pipe
+   run that doesn't go anywhere, and I don't think there's any warning"). An
+   end with nothing on it is copper and gas on the job that no unit, joint or
+   box takes, and its metres would still be counted. */
+export function loosePipes(doc: DesignDocument, sys: DesignSystem): SystemFinding | null {
+  const n = doc.objects.filter(
+    (o) =>
+      o.type === "pipe-run" &&
+      o.systemId === sys.id &&
+      (!attachOf(o.props.startAttach) || !attachOf(o.props.endAttach))
+  ).length;
+  if (!n) return null;
+  return {
+    severity: "red",
+    code: "loose-pipe",
+    message: n === 1 ? "A pipe ends without reaching anything" : `${n} pipes end without reaching anything`,
+    fix: "Finish each on a unit, a joint or a box, or erase it",
+  };
+}
+
+function combinationFindings(doc: DesignDocument, pack: DataPack, sys: DesignSystem): SystemFinding[] {
   if (!hasAllocations(sys)) return [];
   const allocs = allocationsOf(sys);
   const out: SystemFinding[] = [];

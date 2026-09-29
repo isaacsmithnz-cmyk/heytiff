@@ -4262,6 +4262,19 @@ export function StudioCanvas({
                 ) : (
                   <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
                 )}
+                {/* a refrigerant end that reaches nothing is marked where it
+                    stops (verdict.ts loosePipes says it on the card) */}
+                {r.type === "pipe-run" &&
+                  (
+                    [
+                      [r.props.startAttach, pts[0]],
+                      [r.props.endAttach, pts[pts.length - 1]],
+                    ] as const
+                  ).map(([att, at], i) =>
+                    attachOf(att) ? null : (
+                      <circle key={i} className="ds-pipe-open" cx={at.x} cy={at.y} r={5 / zoom} />
+                    )
+                  )}
                 {label && layers.labels && (
                   <text x={mid.x} y={mid.y - 7 / labelZoom} fontSize={11 / labelZoom} className="ds-pipe-len">
                     {label}

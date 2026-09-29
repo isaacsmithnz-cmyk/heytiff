@@ -4,6 +4,7 @@
 
 const rowsBy: Record<string, Record<string, unknown>[]> = {};
 const calls: { table: string; method: string; args: unknown[] }[] = [];
+const failing = new Set<string>();
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
@@ -16,8 +17,18 @@ jest.mock("@/lib/supabase-server", () => ({
           return sub;
         };
       for (const m of ["select", "eq", "neq", "ilike", "or", "order", "limit"]) sub[m] = note(m);
-      sub.then = (res: (v: { data: unknown[] }) => unknown) =>
-        Promise.resolve({ data: rowsBy[table] ?? [] }).then(res);
+      /* a read by ids answers from `<table>:in`, where a test set one */
+      let byIds = false;
+      sub.in = (...args: unknown[]) => {
+        calls.push({ table, method: "in", args });
+        byIds = true;
+        return sub;
+      };
+      sub.then = (res: (v: { data: unknown[]; error: unknown }) => unknown) =>
+        Promise.resolve({
+          data: (byIds ? rowsBy[`${table}:in`] : undefined) ?? rowsBy[table] ?? [],
+          error: failing.has(table) ? { message: "relation does not exist" } : null,
+        }).then(res);
       return sub;
     },
   },
@@ -30,6 +41,7 @@ const asked = (table: string, method: string) =>
 
 beforeEach(() => {
   calls.length = 0;
+  failing.clear();
   for (const k of Object.keys(rowsBy)) delete rowsBy[k];
 });
 
@@ -203,6 +215,34 @@ describe("searchStaff", () => {
     expect(await searchStaff("org-1", "senior")).toEqual([
       expect.objectContaining({ name: "tony", initials: "TO", title: "Senior Tech" }),
     ]);
+  });
+
+  /* THE NAMES PEOPLE GO BY (Isaac, 2026-09-29): "Bobo" finds Leonardo, and
+     the row says so beside his name. */
+  it("(F) finds a person by a nickname they go by, and says it beside their name", async () => {
+    rowsBy["staff_profiles"] = [];
+    rowsBy["staff_aliases"] = [{ staff_profile_id: "s-leo", alias: "Bobo" }];
+    rowsBy["staff_profiles:in"] = [card({ id: "s-leo", first_name: "Leonardo", last_name: "Martins", full_name: "Leonardo Martins" })];
+    const found = await searchStaff("org-1", "Bobo");
+    expect(found).toEqual([expect.objectContaining({ id: "s-leo", name: "Leonardo Martins", known: "Bobo", nicknames: ["Bobo"] })]);
+    // the nickname is matched from its start, as a whole, in this org
+    expect(asked("staff_aliases", "eq")).toEqual([["org_id", "org-1"]]);
+    expect(asked("staff_aliases", "ilike")).toEqual([["alias_norm", "bobo%"]]);
+    expect(asked("staff_profiles", "in")).toEqual([["id", ["s-leo"]]]);
+  });
+
+  it("reads a card found both ways once", async () => {
+    rowsBy["staff_profiles"] = [card({ id: "s-leo", first_name: "Leonardo", last_name: "Martins", full_name: "Leonardo Martins" })];
+    rowsBy["staff_aliases"] = [{ staff_profile_id: "s-leo", alias: "Leo" }];
+    expect((await searchStaff("org-1", "leo")).map((p) => [p.id, p.known])).toEqual([["s-leo", "Leo"]]);
+    expect(asked("staff_profiles", "in")).toEqual([]);
+  });
+
+  it("finds by names alone where the nicknames can't be read", async () => {
+    rowsBy["staff_profiles"] = [card({})];
+    rowsBy["staff_aliases"] = [{ staff_profile_id: "s-x", alias: "Robbo" }];
+    failing.add("staff_aliases");
+    expect((await searchStaff("org-1", "rob")).map((p) => [p.id, p.nicknames])).toEqual([["s-1", []]]);
   });
 
   it("asks nothing for too little", async () => {

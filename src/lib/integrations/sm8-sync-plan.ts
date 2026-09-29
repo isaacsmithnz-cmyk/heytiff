@@ -27,6 +27,7 @@ export type Sm8ObjectName =
   | "job_notes"
   | "job_materials"
   | "job_payments"
+  | "materials"
   | "staff"
   | "categories"
   | "queues"
@@ -262,15 +263,17 @@ const shapeNote = (r: Raw): MirrorRow | null => {
 };
 
 /* Amounts stay TEXT exactly as sent, like every other ServiceM8 money field —
-   parseSm8AmountToCents reads them. `material_uuid` (the catalogue item) and
-   `job_material_bundle_uuid` are dropped: no reader, and the catalogue is an
-   object we have not adopted. */
+   parseSm8AmountToCents reads them. `material_uuid` is the price-book item
+   the line was picked from (sm8_materials), which is how the items a
+   business actually uses are counted. `job_material_bundle_uuid` is still
+   dropped: bundles have no reader yet. */
 const shapeMaterial = (r: Raw): MirrorRow | null => {
   const uuid = uuidOf(r);
   if (!uuid) return null;
   return {
     uuid,
     job_uuid: textOrNull(r.job_uuid),
+    material_uuid: textOrNull(r.material_uuid),
     name: textOrNull(r.name),
     quantity: textOrNull(r.quantity),
     price: textOrNull(r.price),
@@ -279,6 +282,30 @@ const shapeMaterial = (r: Raw): MirrorRow | null => {
     displayed_amount_is_tax_inclusive: intOrNull(r.displayed_amount_is_tax_inclusive),
     tax_rate_uuid: textOrNull(r.tax_rate_uuid),
     sort_order: intOrNull(r.sort_order),
+    active: intOrNull(r.active),
+    edit_date: dateOrNull(r.edit_date),
+  };
+};
+
+/* THE PRICE BOOK (material.json, read_inventory) — fields read off
+   developer.servicem8.com/reference/listmaterials on 2026-09-29. A unit's
+   model code is its item_number. quantity_in_stock is documented as a
+   number and kept as text like every other amount; barcode has no reader. */
+const shapeCatalogueMaterial = (r: Raw): MirrorRow | null => {
+  const uuid = uuidOf(r);
+  if (!uuid) return null;
+  return {
+    uuid,
+    name: textOrNull(r.name),
+    item_number: textOrNull(r.item_number),
+    item_description: textOrNull(r.item_description),
+    price: textOrNull(r.price),
+    cost: textOrNull(r.cost),
+    price_includes_taxes: intOrNull(r.price_includes_taxes),
+    tax_rate_uuid: textOrNull(r.tax_rate_uuid),
+    item_is_inventoried: intOrNull(r.item_is_inventoried),
+    quantity_in_stock: typeof r.quantity_in_stock === "number" ? String(r.quantity_in_stock) : textOrNull(r.quantity_in_stock),
+    use_description_for_invoicing: textOrNull(r.use_description_for_invoicing),
     active: intOrNull(r.active),
     edit_date: dateOrNull(r.edit_date),
   };
@@ -376,6 +403,9 @@ export const SM8_OBJECTS: Sm8ObjectSpec[] = [
   { object: "job_notes", endpoint: "note.json", table: "sm8_job_notes", scope: "read_job_notes", label: "Job notes", backfillMonths: 24, shape: shapeNote },
   { object: "job_materials", endpoint: "jobmaterial.json", table: "sm8_job_materials", scope: "read_job_materials", label: "Materials", backfillMonths: 24, shape: shapeMaterial },
   { object: "job_payments", endpoint: "jobpayment.json", table: "sm8_job_payments", scope: "read_job_payments", label: "Payments", backfillMonths: 24, shape: shapePayment },
+  // The whole price book, not a window: an item listed years ago is still
+  // what a quote picks today (about 4,300 items on the live account).
+  { object: "materials", endpoint: "material.json", table: "sm8_materials", scope: "read_inventory", label: "Price book", backfillMonths: null, shape: shapeCatalogueMaterial },
   // Everything, not a window: a holiday or a long leave keyed in years ago
   // can still cover a day ahead, and the whole account is ~250 rows.
   { object: "availability", endpoint: "availability.json", table: "sm8_availability", scope: "read_schedule", label: "Time off", backfillMonths: null, shape: shapeAvailability },

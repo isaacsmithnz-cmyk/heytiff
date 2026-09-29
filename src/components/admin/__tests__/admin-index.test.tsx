@@ -40,7 +40,7 @@ describe("AdminIndex", () => {
       expect(text).toContain(title);
     }
     // named, but not as something you can click or mistake for a row
-    expect(document.querySelectorAll(".adm-row")).toHaveLength(6);
+    expect(document.querySelectorAll(".adm-row")).toHaveLength(7);
   });
 
   it("keeps the owner's doors out of an admin's sight", () => {
@@ -72,7 +72,7 @@ describe("AdminIndex", () => {
     }
   });
 
-  it("gives an owner six rows, all of them openable", () => {
+  it("gives an owner seven rows, all of them openable", () => {
     render(<AdminIndex isOwner canFinancials kbQueueCount={0} />);
 
     expect(linkHrefs()).toEqual([
@@ -83,10 +83,13 @@ describe("AdminIndex", () => {
       "/dashboard/swms/template",
       "/dashboard/admin/knowledge",
       "/dashboard/admin/rate-calculator",
+      /* quoting's own settings, not the calculator's: markup and the
+         preferred price-book items (financials, like the calculator) */
+      "/dashboard/admin/quoting",
       "/dashboard/admin/tax",
     ]);
     // the seven that are coming are named in two lines, not seven rows
-    expect(document.querySelectorAll(".adm-row")).toHaveLength(6);
+    expect(document.querySelectorAll(".adm-row")).toHaveLength(7);
     expect(document.querySelectorAll(".adm-coming")).toHaveLength(2);
     expect(screen.queryByText("Planned")).not.toBeInTheDocument();
   });

@@ -34,6 +34,7 @@
    there is something to compare against. */
 
 import type { AllJobsMirrorJob } from "./all-jobs";
+import { awaySpanOnDay, awayWord, type ScheduleAway } from "./away";
 
 export type ScheduleActivity = {
   uuid: string;
@@ -105,11 +106,26 @@ export type ScheduleBlock = {
   end: string | null;
 };
 
+/** A person's time off, laid on their lane (leave to ServiceM8, part two):
+    ServiceM8's own word for it, and where it sits on the day. */
+export type LaneAway = {
+  key: string;
+  /** What the business typed ("SICK", "TAFE"), as typed. */
+  word: string;
+  startMin: number;
+  endMin: number;
+  /** The whole day, 00:00 to 23:59: the lane is off, not a span of it. */
+  whole: boolean;
+};
+
 export type ScheduleLane = {
   /** "" for the unassigned lane. */
   staffUuid: string;
   name: string;
   blocks: ScheduleBlock[];
+  /** Their time off on the day, in start order. Empty where they have none,
+      or the day was laid out without it (every caller but the Schedule tab). */
+  away: LaneAway[];
   /** Blocks stacked into sub-rows: overlaps go DOWN, never on top of each
       other. Row count is the lane's height. */
   rows: ScheduleBlock[][];
@@ -290,6 +306,9 @@ export function layoutScheduleDay(input: {
   tracked?: Map<string, ScheduleTracked>;
   /** `onSiteKey` values for every job+person pair with recorded time today. */
   onSite?: ReadonlySet<string>;
+  /** People's time off touching the day, and the day it is. A person off
+      with nothing booked still gets a lane: who's off is half of who's on. */
+  away?: { dayISO: string; rows: readonly ScheduleAway[] };
 }): ScheduleDay {
   type Placed = ScheduleBlock & { staffUuid: string | null };
   const jobById = new Map(input.jobs.map((j) => [j.remoteId, j]));
@@ -353,10 +372,25 @@ export function layoutScheduleDay(input: {
     }
   }
 
+  /* TIME OFF GOES ON ITS PERSON'S LANE, by the staff mirror's own spelling
+     of the uuid. Someone the mirror can't name has no lane to put it on, and
+     time off is never an unassigned booking: it is left off. */
+  const awayByStaff = new Map<string, LaneAway[]>();
+  const nameKey = new Map(input.staff.map((s) => [s.uuid.toLowerCase(), s.uuid]));
+  for (const a of input.away?.rows ?? []) {
+    const uuid = nameKey.get(a.staffUuid.toLowerCase());
+    if (!uuid) continue;
+    const span = awaySpanOnDay(a, input.away!.dayISO);
+    const list = awayByStaff.get(uuid) ?? [];
+    list.push({ key: a.uuid, word: awayWord(a), ...span });
+    awayByStaff.set(uuid, list);
+  }
+
   const lanes: ScheduleLane[] = [...byStaff.entries()].map(([uuid, bs]) => ({
     staffUuid: uuid,
     name: staffById.get(uuid) ?? "",
     blocks: bs,
+    away: awayByStaff.get(uuid) ?? [],
     rows: stackLane(bs),
     minutes: bs.reduce((s, b) => s + (b.endMin - b.startMin), 0),
   }));
@@ -365,17 +399,31 @@ export function layoutScheduleDay(input: {
   lanes.sort(
     (a, b) => a.blocks[0].startMin - b.blocks[0].startMin || a.name.localeCompare(b.name)
   );
+  /* THE PEOPLE OFF WITH NOTHING BOOKED come after everyone working, A to Z:
+     the board reads who is out on the road first, and who isn't under them. */
+  const offOnly: ScheduleLane[] = [...awayByStaff.entries()]
+    .filter(([uuid]) => !byStaff.has(uuid))
+    .map(([uuid, away]) => ({ staffUuid: uuid, name: staffById.get(uuid) ?? "", blocks: [], away, rows: [], minutes: 0 }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  lanes.push(...offOnly);
   if (unassigned.length > 0) {
     lanes.push({
       staffUuid: "",
       name: "Nobody named",
       blocks: unassigned,
+      away: [],
       rows: stackLane(unassigned),
       minutes: unassigned.reduce((s, b) => s + (b.endMin - b.startMin), 0),
     });
   }
 
-  const rail = railBoundsOf(blocks);
+  /* Part-day time off widens the rail like a booking does, so TAFE at 6am
+     is on the board; a whole day would widen it to midnight and says itself
+     across whatever width there is. */
+  const rail = railBoundsOf([
+    ...blocks,
+    ...[...awayByStaff.values()].flat().filter((a) => !a.whole),
+  ]);
   return {
     lanes,
     railStart: rail.start,

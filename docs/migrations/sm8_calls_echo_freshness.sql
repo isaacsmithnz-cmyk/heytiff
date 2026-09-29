@@ -200,7 +200,8 @@ begin
   foreach t in array array[
     'sm8_staff','sm8_categories','sm8_queues','sm8_companies','sm8_company_contacts',
     'sm8_jobs','sm8_job_contacts','sm8_job_activities','sm8_job_checklists',
-    'sm8_attachments','sm8_job_notes','sm8_job_materials','sm8_job_payments'
+    'sm8_attachments','sm8_job_notes','sm8_job_materials','sm8_job_payments',
+    'sm8_availability'
   ] loop
     if to_regclass('public.' || t) is not null then
       execute format('drop trigger if exists sm8_keep_newer on public.%I', t);

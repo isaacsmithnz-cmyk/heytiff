@@ -67,6 +67,7 @@ function context(over: Partial<Extract<BookInContext, { ok: true }>> = {}): Book
       { uuid: ALEX, name: "Alex Sample", you: false, linked: false },
     ],
     readAt: "2026-10-05T22:00:00.000Z",
+    off: {},
     ...over,
   };
 }
@@ -135,6 +136,76 @@ describe("opening (D-2)", () => {
     await userEvent.selectOptions(who(), SAM);
     expect(screen.getByText("Sam Tester has nothing else that day.")).toBeInTheDocument();
     expect(screen.queryByText(/That overlaps/)).toBeNull();
+  });
+
+  /* TIME OFF (leave to ServiceM8, part two): the row is 7:00 to 9:00 am on
+     Wed 7 Oct. ServiceM8's own word for the time off is said, in the
+     clash's colour, and Book in stays on. */
+  it("(F) warns — never blocks — when the person is off in ServiceM8 then, in the business's own word", async () => {
+    const away = (over: Partial<{ uuid: string; staffUuid: string; name: string | null; start: string; end: string }>) => ({
+      uuid: "av-1",
+      staffUuid: ALEX,
+      name: "SICK" as string | null,
+      start: `${DAY} 00:00:00`,
+      end: `${DAY} 23:59:59`,
+      ...over,
+    });
+    readBookInContext.mockImplementation(async () =>
+      context({
+        off: {
+          [DAY]: {
+            away: [
+              away({}),
+              // Sam's TAFE is after the row: nothing to say
+              away({ uuid: "av-2", staffUuid: SAM, name: "TAFE", start: `${DAY} 10:00:00`, end: `${DAY} 12:30:00` }),
+            ],
+            closed: [],
+          },
+        },
+      })
+    );
+    panel();
+    await waitFor(() => expect(who().options.length).toBe(3));
+    await userEvent.selectOptions(who(), ALEX);
+    expect(screen.getByText("Alex Sample is off that day in ServiceM8: SICK.")).toHaveClass("sw-state", "warn");
+    expect(bookButton()).toBeEnabled();
+    await userEvent.selectOptions(who(), SAM);
+    expect(screen.queryByText(/off that day|time off/)).toBeNull();
+    // moved onto the TAFE: the part of the day, on the day's clock
+    await userEvent.selectOptions(screen.getAllByLabelText(P.start)[0], "11:00");
+    expect(screen.getByText("That overlaps Sam Tester's time off in ServiceM8: TAFE, 10:00 am to 12:30 pm.")).toHaveClass("sw-state", "warn");
+    expect(bookButton()).toBeEnabled();
+  });
+
+  it("(F) says a public holiday and a closed day, and time off the business gave no name", async () => {
+    readBookInContext.mockImplementation(async () =>
+      context({
+        off: {
+          [DAY]: {
+            away: [{ uuid: "av-1", staffUuid: SAM, name: null, start: `${DAY} 06:00:00`, end: `${DAY} 08:00:00` }],
+            closed: [
+              { uuid: "v-1", kind: "holiday", name: "Labour Day", start: `${DAY} 00:00:00`, end: `${DAY} 23:59:59` },
+              { uuid: "v-2", kind: "closed", name: null, start: `${DAY} 00:00:00`, end: `${DAY} 23:59:59` },
+            ],
+          },
+        },
+      })
+    );
+    panel();
+    await waitFor(() => expect(who().options.length).toBe(3));
+    await userEvent.selectOptions(who(), SAM);
+    expect(screen.getByText("Wed 7 Oct is a public holiday in ServiceM8: Labour Day.")).toHaveClass("sw-state", "warn");
+    expect(screen.getByText("ServiceM8 has the business closed then.")).toBeInTheDocument();
+    expect(screen.getByText("That overlaps Sam Tester's time off in ServiceM8, 6:00 to 8:00 am.")).toBeInTheDocument();
+    expect(bookButton()).toBeEnabled();
+  });
+
+  it("says nothing about time off on a day the mirror couldn't answer for", async () => {
+    readBookInContext.mockImplementation(async () => context({ off: {} }));
+    panel();
+    await waitFor(() => expect(who().options.length).toBe(3));
+    await userEvent.selectOptions(who(), ALEX);
+    expect(screen.queryByText(/ServiceM8: |time off|closed then/)).toBeNull();
   });
 
   it("(F) warns of an overlap with a job the mirror can't number yet, as another job", async () => {

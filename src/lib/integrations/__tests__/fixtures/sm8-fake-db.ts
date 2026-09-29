@@ -461,6 +461,7 @@ export function makeFakeDb() {
       lte: (c: string, v: string) => (described.push(`${c}<=`), filters.push((r) => r[c] != null && String(r[c]) <= v), q),
       lt: (c: string, v: string) => (described.push(`${c}<`), filters.push((r) => r[c] != null && String(r[c]) < v), q),
       gte: (c: string, v: string) => (described.push(`${c}>=`), filters.push((r) => r[c] != null && String(r[c]) >= v), q),
+      gt: (c: string, v: string) => (described.push(`${c}>`), filters.push((r) => r[c] != null && String(r[c]) > v), q),
       or: (expr: string) => (described.push(`or(${expr})`), filters.push(parseOr(expr)), q),
       order: (col: string, o: { ascending: boolean }) => ((order = { col, asc: o.ascending }), q),
       limit: (n: number) => ((limit = n), q),

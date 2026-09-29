@@ -528,6 +528,27 @@ screen, no read and no write.
 4. Revert the code. The migration stays: old code never reads the new columns.
 5. **Tell Isaac:** leave HeyTiff put on the board stays there; leave cancelled after the rollback has to come off the board by hand.
 
+#### Time off on the Schedule (leave to ServiceM8, part two)
+
+The sync reads ServiceM8's Availability (`availability.json`) into
+`sm8_availability`: every person's time off and every public holiday or
+closed day, under the `read_schedule` grant every connection already holds,
+so **no reconnect**. It is blocked-out time in the business's own words
+("SICK", "TAFE"), never read back into HeyTiff as leave. The Workboard's
+Schedule tab lays it on the day — a lane for somebody off with nothing
+booked, a strip under a working person's bookings, the holiday named over
+the board — and the Book in panel warns, never refuses, when a booking lands
+on it. Both say nothing until the mirror's first read of it has finished.
+No switch and no `SM8_WRITES` change: this is a read.
+
+**The order:**
+
+1. Apply `docs/migrations/sm8_availability.sql` before the deploy (its read-only checks before and after). Without the table, a sync that reaches the new object can't store it and says so on the ServiceM8 screen.
+2. Deploy. The next sync reads the whole of it (~250 rows, one page).
+
+**Rollback:** revert the code. Old code never names the table; drop it and its
+`sm8_sync_state` row by hand if wanted (the SQL is in the migration's header).
+
 ### Calls, echo and freshness
 
 Apply `docs/migrations/sm8_calls_echo_freshness.sql` **before the deploy that

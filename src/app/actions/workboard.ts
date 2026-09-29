@@ -745,12 +745,14 @@ export async function scheduleDay(dayISO: string): Promise<SchedulePayload> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dayISO)) return EMPTY_SCHEDULE;
   const ctx = await context();
   if (!ctx || !(await can("workboard"))) return EMPTY_SCHEDULE;
-  if (!sm8BookingsAllowed()) return loadScheduleDay(ctx.orgId, dayISO);
+  /* the tab lays out who's off as well as who's on (leave to ServiceM8,
+     part two); Home's own reads of a day don't ask */
+  if (!sm8BookingsAllowed()) return loadScheduleDay(ctx.orgId, dayISO, { away: true });
   /* a leftover booking's Clear, for a viewer who may press it where
      bookings are offered — asked only where the deployment books, with the
      write state read once for the day's overlay and the Clear alike */
   const [state, mayPress] = await Promise.all([readSm8WriteState(ctx.orgId), mayPressBookings()]);
-  const payload = await loadScheduleDay(ctx.orgId, dayISO, { state });
+  const payload = await loadScheduleDay(ctx.orgId, dayISO, { state, away: true });
   return offersSend(state, "booking") && mayPress ? { ...payload, canClear: true } : payload;
 }
 

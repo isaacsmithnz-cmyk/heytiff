@@ -89,6 +89,8 @@ import {
   type BookInSlot,
   type BookingRefusal,
 } from "./sm8-booking-queue";
+import { readDayAvailability } from "@/lib/workboard/schedule-query";
+import type { ScheduleAway, ScheduleClosed } from "@/lib/workboard/away";
 
 export type { VerbLine, VerbView } from "@/lib/integrations/sm8-booking-read";
 
@@ -119,6 +121,11 @@ export type BookInContext =
       staff: { uuid: string; name: string; you: boolean; linked: boolean }[];
       /** When ServiceM8 was read (ISO); Book in hands it back. */
       readAt: string;
+      /** Each day's time off, from the mirror (leave to ServiceM8, part
+          two): who is off, and whether the business is shut. A day is
+          absent where the mirror can't answer for all of it, and the panel
+          then says nothing about time off — a warning, never a refusal. */
+      off: Record<string, { away: ScheduleAway[]; closed: ScheduleClosed[] }>;
     }
   | { ok: false; error: string };
 
@@ -375,9 +382,19 @@ export async function readBookInContext(input: { jobUuid: string; days: string[]
   if (!today) return { ok: false, error: BOOKING_WORDS.press.zoneUnknown };
 
   const onDays = Object.values(days).flatMap((d) => d ?? []);
-  const [staff, jobNumbers] = await Promise.all([
+  const [staff, jobNumbers, offDays] = await Promise.all([
     staffChoices(orgId, state.tenantId, press.staffId),
     jobNumbersOf(orgId, [jobUuid, ...bookings.map((a) => a.jobUuid), ...onDays.map((a) => a.jobUuid)]),
+    /* the days ServiceM8 was asked about, read again from the mirror for
+       time off; a read that fails only leaves a day unsaid */
+    Promise.all(
+      Object.keys(days).map((d) =>
+        readDayAvailability(orgId, d).then(
+          (o) => [d, o] as const,
+          () => [d, null] as const
+        )
+      )
+    ),
   ]);
   if (!staff) return { ok: false, error: BOOKING_WORDS.panel.readFailed };
   if (job.kept.generated_job_id) jobNumbers[low(jobUuid)] = job.kept.generated_job_id;
@@ -395,6 +412,7 @@ export async function readBookInContext(input: { jobUuid: string; days: string[]
     jobNumbers,
     staff,
     readAt,
+    off: Object.fromEntries(offDays.filter((e): e is readonly [string, NonNullable<(typeof e)[1]>] => e[1] !== null)),
   };
 }
 

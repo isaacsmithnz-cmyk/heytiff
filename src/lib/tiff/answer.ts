@@ -232,7 +232,11 @@ export async function* streamAnswer(input: AnswerInput): AsyncGenerator<AnswerEv
       // stated rather than inherited: a trade answer over a dozen excerpts is
       // not a research task, and `high` spends minutes the person is watching
       output_config: { effort: "medium" },
-      system: systemPromptFor(input.mode),
+      /* Marked for the prompt cache: the mode's instruction is the same bytes
+         for everyone (880 to 980 tokens), so a follow-up inside five minutes
+         reads it back at a tenth of the price. On the Opus 4.8 fallback it is
+         under that model's 1,024-token floor and the mark does nothing. */
+      system: [{ type: "text", text: systemPromptFor(input.mode), cache_control: { type: "ephemeral" } }],
       messages: [
         ...historyMessages(input.history),
         {

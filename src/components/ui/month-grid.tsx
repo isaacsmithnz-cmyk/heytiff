@@ -103,6 +103,34 @@ export function monthCells(month: string): MonthCell[] {
   return cells;
 }
 
+/* THE JUMP. Paging was the only way to move, one month a click — so a date
+   of birth in 1990 was over four hundred clicks from today, and a start date
+   years back not much better. Isaac: the DOB and start date selectors "take
+   forever to click through". The header's month and year are dropdowns now:
+   any month in range is two picks away, and a focused year list takes typed
+   digits ("1990") the way any select does. The arrows stay for the next
+   month over, which is still the common move.
+
+   The years run from `min` to `max` when the caller bounds them, else a
+   hundred years back and ten forward of today — a birthday, a start date and
+   an expiry all fit, and the month on screen is always among them. */
+function yearsFor(month: string, today: string, min?: string, max?: string): number[] {
+  const now = Number(today.slice(0, 4));
+  const shown = Number(month.slice(0, 4));
+  const from = Math.min(min ? Number(min.slice(0, 4)) : now - 100, shown);
+  const to = Math.max(max ? Number(max.slice(0, 4)) : now + 10, shown);
+  const out: number[] = [];
+  for (let y = to; y >= from; y--) out.push(y);
+  return out;
+}
+
+/** yyyy-mm, pulled inside the bounds' months */
+function clampMonth(m: string, min?: string, max?: string): string {
+  if (min && m < monthOf(min)) return monthOf(min);
+  if (max && m > monthOf(max)) return monthOf(max);
+  return m;
+}
+
 export function MonthGrid({
   month,
   today,
@@ -129,6 +157,10 @@ export function MonthGrid({
 }) {
   const prev = shiftMonth(month, -1);
   const next = shiftMonth(month, 1);
+  const year = Number(month.slice(0, 4));
+  const mon = Number(month.slice(5, 7));
+  const go = (y: number, m: number) =>
+    onMonthChange(clampMonth(`${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}`, min, max));
 
   return (
     <div className="cal">
@@ -142,6 +174,34 @@ export function MonthGrid({
         >
           <Icon name="chevL" size={15} />
         </button>
+        <div className="cal-pick">
+          <select
+            className="cal-sel"
+            aria-label="Month"
+            value={mon}
+            onChange={(e) => go(year, Number(e.target.value))}
+          >
+            {MONTH_LONG.map((name, i) => (
+              <option key={name} value={i + 1}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="cal-sel"
+            aria-label="Year"
+            value={year}
+            onChange={(e) => go(Number(e.target.value), mon)}
+          >
+            {yearsFor(month, today, min, max).map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+        {/* the month in words, for a screen reader as it changes — the
+            dropdowns say it to the eye */}
         <div className="cal-mo" aria-live="polite">
           {monthTitle(month)}
         </div>

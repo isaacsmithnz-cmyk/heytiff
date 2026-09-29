@@ -4359,7 +4359,13 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .cal-pop { position:fixed; z-index:var(--z-modal); width:300px; padding:12px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); animation:calPop .16s ease; }
 @keyframes calPop { from { opacity:0; transform:translateY(-4px); } }
 .fg .cal-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-.fg .cal-mo { flex:1; text-align:center; font-size:14px; font-weight:700; color:var(--ink); }
+/* the month in words is for a screen reader now; the dropdowns beside it
+   are what the eye reads and what the hand jumps with (month-grid.tsx) */
+.fg .cal-mo { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+.fg .cal-pick { flex:1; display:flex; justify-content:center; gap:4px; min-width:0; }
+.fg .cal-sel { height:30px; padding:0 8px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--paper); font:inherit; font-size:14px; font-weight:700; color:var(--ink); cursor:pointer; }
+.fg .cal-sel:hover { background:var(--tint); }
+.fg .cal-sel:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .cal-arw { width:30px; height:30px; flex:0 0 auto; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; color:var(--gray500); background:var(--paper); border:1px solid var(--line); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .cal-arw:hover:not(:disabled) { color:var(--ink); border-color:var(--line); }
 .fg .cal-arw:disabled { opacity:.35; cursor:not-allowed; }

@@ -303,3 +303,33 @@ describe("the rule the whole app follows", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/* A date of birth in 1990 was over four hundred Next/Previous clicks from
+   today. Isaac: the DOB and start date selectors "take forever to click
+   through". The header's month and year are dropdowns: two picks, then the
+   day. Still nothing to type a date into — a select chooses from a list. */
+describe("jumping to a far month", () => {
+  it("reaches December 1990 in two picks and returns its ISO", async () => {
+    const { user, field, onChange } = setup();
+    await user.click(field());
+    await user.selectOptions(screen.getByRole("combobox", { name: "Year" }), "1990");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Month" }), "12");
+    expect(screen.getByText("December 1990")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Monday 3 December 1990" }));
+    expect(onChange).toHaveBeenCalledWith("1990-12-03");
+  });
+
+  it("offers only the years inside the bounds, and keeps a jump inside them", async () => {
+    const { user, field } = setup({ min: "2026-03-10", max: "2027-02-01" });
+    await user.click(field());
+    const years = [...screen.getByRole("combobox", { name: "Year" }).querySelectorAll("option")].map(
+      (o) => o.textContent,
+    );
+    expect(years).toEqual(["2027", "2026"]);
+
+    // March 2027 is past the max, so the jump lands on the last month allowed
+    await user.selectOptions(screen.getByRole("combobox", { name: "Year" }), "2027");
+    expect(screen.getByText("February 2027")).toBeInTheDocument();
+  });
+});

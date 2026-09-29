@@ -28,7 +28,8 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-const searchStaff = jest.fn(async () => [{ id: "s-1", name: "Dane Porter", known: null, initials: "DP", title: "Tech", active: true }]);
+const searchStaff = jest.fn(async (): Promise<PaletteStaff[]> => [{ id: "s-1", name: "Dane Porter", known: null, nicknames: [], initials: "DP", title: "Tech", active: true }]);
+import type { PaletteStaff } from "@/lib/workboard/palette-query";
 const searchClients = jest.fn(async () => [] as unknown[]);
 const searchProjects = jest.fn(async () => [] as unknown[]);
 jest.mock("@/lib/workboard/palette-query", () => ({
@@ -191,7 +192,7 @@ describe("openByName, the free open", () => {
      does for nothing. It opens only on exactly one exact match the viewer
      may open; anything else is null, and the words go on as they would have. */
   const both = viewer(["team", "workboard"]);
-  const staff = (id: string, name: string) => ({ id, name, known: null, initials: "", title: "", active: true });
+  const staff = (id: string, name: string) => ({ id, name, known: null as string | null, nicknames: [] as string[], initials: "", title: "", active: true });
 
   it("opens a person by their whole name, at their card, with her line", async () => {
     expect(await openByName(both, "dane porter")).toEqual({
@@ -241,6 +242,42 @@ describe("openByName, the free open", () => {
   it("a search that fails opens nothing", async () => {
     searchStaff.mockRejectedValueOnce(new Error("db down"));
     expect(await openByName(both, "dane porter")).toBeNull();
+  });
+
+  /* THE NAMES PEOPLE GO BY (Isaac, 2026-09-29): "open Bobo" is Leonardo's
+     card, once Tiff knows him by it — after every real name. */
+  const called = (id: string, name: string, nicknames: string[]) => ({ ...staff(id, name), known: nicknames[0] ?? null, nicknames });
+
+  it("(F) opens a person by a nickname only they go by", async () => {
+    searchStaff.mockResolvedValueOnce([called("s-1", "Dane Porter", ["Bobo"])]);
+    expect(await openByName(both, "Bobo")).toMatchObject({ label: "Dane Porter's card" });
+  });
+
+  it("(F) opens nothing on a nickname two people go by, or one that only starts the same", async () => {
+    searchStaff.mockResolvedValueOnce([called("s-1", "Dane Porter", ["Bobo"]), called("s-2", "Dane Irving", ["Bobo"])]);
+    expect(await openByName(both, "bobo")).toBeNull();
+    searchStaff.mockResolvedValueOnce([called("s-1", "Dane Porter", ["Bobolink"])]);
+    expect(await openByName(both, "bobo")).toBeNull();
+  });
+
+  it("(F) opens by a real first name before anyone's nickname", async () => {
+    tables.staff_profiles.push({ org_id: "org-1", id: "s-2", first_name: "Bobo", last_name: "Diallo", full_name: "Bobo Diallo", preferred_name: null });
+    searchStaff.mockResolvedValueOnce([called("s-1", "Dane Porter", ["Bobo"]), staff("s-2", "Bobo Diallo")]);
+    expect(await openByName(both, "bobo")).toMatchObject({ label: "Bobo Diallo's card" });
+  });
+
+  it("(F) opens nothing on a first name two people share, even where a third goes by it", async () => {
+    tables.staff_profiles.push({ org_id: "org-1", id: "s-3", first_name: "Leo", last_name: "Martins", full_name: "Leo Martins", preferred_name: null });
+    searchStaff.mockResolvedValueOnce([staff("s-1", "Dane Porter"), staff("s-2", "Dane Irving"), called("s-3", "Leo Martins", ["Dane"])]);
+    expect(await openByName(both, "dane")).toBeNull();
+  });
+
+  it("tells find_record the name that found them", async () => {
+    searchStaff.mockResolvedValueOnce([called("s-1", "Dane Porter", ["Bobo"])]);
+    expect(await outcome(both, "find_record", { query: "bobo", kinds: ["staff"] })).toEqual({
+      kind: "result",
+      value: [{ kind: "staff", id: "s-1", label: "Dane Porter", detail: "also called Bobo", calledBy: ["Bobo"] }],
+    });
   });
 
   it("a match in another org is not there", async () => {

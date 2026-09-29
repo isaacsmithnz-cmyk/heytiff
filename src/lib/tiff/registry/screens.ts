@@ -70,7 +70,15 @@ const KIND_GATE: Record<RecordKind, Capability> = {
 };
 
 export type FoundRecord =
-  | { kind: RecordKind; id: string; label: string; detail: string }
+  | {
+      kind: RecordKind;
+      id: string;
+      label: string;
+      detail: string;
+      /** A person's: the other names they go by that the search matched —
+          what "open Bobo" is read against. */
+      calledBy?: string[];
+    }
   | { kind: RecordKind; reason: "not allowed" | "couldn't check" };
 
 const findRecord: TiffTool = {
@@ -114,12 +122,16 @@ const findRecord: TiffTool = {
 
 async function search(viewer: Viewer, kind: RecordKind, query: string): Promise<FoundRecord[]> {
   if (kind === "staff") {
-    return (await searchStaff(viewer.orgId, query)).map((p) => ({
-      kind,
-      id: p.id,
-      label: p.name,
-      detail: [p.title, p.active ? null : "no longer active"].filter(Boolean).join(", "),
-    }));
+    return (await searchStaff(viewer.orgId, query)).map((p) => {
+      const calledBy = [...new Set([...p.nicknames, ...(p.known ? [p.known] : [])])];
+      return {
+        kind,
+        id: p.id,
+        label: p.name,
+        detail: [p.known ? `also called ${p.known}` : null, p.title, p.active ? null : "no longer active"].filter(Boolean).join(", "),
+        ...(calledBy.length ? { calledBy } : {}),
+      };
+    });
   }
   if (kind === "client") {
     return (await searchClients(viewer.orgId, query)).map((c) => ({
@@ -264,7 +276,10 @@ export async function openByName(
       } else if (kind === "staff") {
         const whole = found.filter((f) => same(f.label) === want);
         const first = found.filter((f) => same(f.label).split(" ")[0] === want);
-        hits.push(...(whole.length ? whole : first.length === 1 ? first : []));
+        /* A NAME THEY GO BY opens them too — "open Bobo" is Leonardo's card —
+           after every real name, and only where one person goes by it */
+        const called = found.filter((f) => (f.calledBy ?? []).some((c) => same(c) === want));
+        hits.push(...(whole.length ? whole : first.length === 1 ? first : first.length === 0 && called.length === 1 ? called : []));
       } else {
         hits.push(...found.filter((f) => same(f.label) === want));
       }

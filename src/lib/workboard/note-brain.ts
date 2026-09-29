@@ -39,6 +39,7 @@ import { RECORD_IN_ENGLISH, RECORD_LANGUAGE } from "@/lib/lang/policy";
 import { englishProposal } from "./note-english";
 import { planRows, type PlanRow } from "./note-draft";
 import type { EarlierTurn, TiffRoom, Turn } from "./note-turns";
+import { looksLikeName } from "@/lib/staff/aliases";
 
 /* Opus 5: the routing decision is the whole product. A cheaper model that
    mis-assigns "tell Lyle" to the wrong Lyle, or reads an urgent flag as a
@@ -155,7 +156,9 @@ export type NoteProposal = {
   clarify: { question: string; options: string[] } | null;
 };
 
-export type NoteStaff = { id: string; fullName: string };
+/** `aliases`: the other names they go by — the preferred name on their card
+    and the nicknames Tiff has learned (lib/staff/aliases.ts). */
+export type NoteStaff = { id: string; fullName: string; aliases?: string[] };
 
 export type NoteContext = {
   /** People this note could name. First names are how they'll be referred to. */
@@ -437,7 +440,10 @@ export function whenBlock(ctx: NoteContext): string {
     produced a perfectly good task with nobody on it, because the router had
     never been told that a "me" was in the room. */
 export function whoBlock(ctx: NoteContext): string {
-  const names = ctx.staff.map((s) => s.fullName).join(", ") || "nobody on record";
+  const names =
+    ctx.staff
+      .map((s) => (s.aliases?.length ? `${s.fullName} (also called ${s.aliases.join(", ")})` : s.fullName))
+      .join(", ") || "nobody on record";
   return [
     `People who can be assigned work: ${names}.`,
     "Put the name exactly as the note said it in `assignee_hint` — do not",
@@ -679,6 +685,13 @@ export function resolveAssignee(
   if (first.length === 1) return { kind: "one", id: first[0].id };
   if (first.length > 1) return { kind: "ambiguous", names: first.map((s) => s.fullName) };
 
+  /* A NAME THEY GO BY, after every real name: "Bobo" is Leonardo because
+     somebody told Tiff so once, and a person actually called Bobo would
+     still be read first. */
+  const called = staff.filter((s) => (s.aliases ?? []).some((a) => norm(a) === h));
+  if (called.length === 1) return { kind: "one", id: called[0].id };
+  if (called.length > 1) return { kind: "ambiguous", names: called.map((s) => s.fullName) };
+
   if (authorId && SELF.includes(h)) return { kind: "one", id: authorId };
 
   return { kind: "none" };
@@ -716,17 +729,46 @@ export function namesMentioned(
   staff: readonly NoteStaff[],
   authorId?: string | null,
 ): string[] {
-  const words = said.toLowerCase().split(/[^\p{L}\p{N}'’-]+/u).filter(Boolean);
   const firstOf = (s: NoteStaff) => norm(s.fullName).split(" ")[0];
-  const found: { at: number; label: string }[] = [];
+  return mentionsIn(said, staff, authorId)
+    .map(({ person }) => {
+      const shared = staff.filter((o) => firstOf(o) === firstOf(person)).length > 1;
+      return shared ? person.fullName : person.fullName.split(" ")[0];
+    })
+    .filter((label, i, all) => all.indexOf(label) === i)
+    .slice(0, WHO_NAMES);
+}
+
+/** The people a reply names, by id, the speaker left out: what an answer to
+    "Who's Bobo?" says Bobo is (lib/staff/aliases.ts's aliasFromAnswer). */
+export function peopleNamed(said: string, staff: readonly NoteStaff[], authorId?: string | null): string[] {
+  return [...new Set(mentionsIn(said, staff, authorId).map(({ person }) => person.id))];
+}
+
+/** Everyone the words name — by first name, or by a name they go by — in
+    the order said, the speaker left out. A name of several words ("Big
+    Mick") is found as those words in a row. */
+function mentionsIn(
+  said: string,
+  staff: readonly NoteStaff[],
+  authorId?: string | null,
+): { at: number; person: NoteStaff }[] {
+  const words = said.toLowerCase().split(/[^\p{L}\p{N}'’-]+/u).filter(Boolean);
+  const at = (name: string) => {
+    const parts = norm(name).split(" ").filter(Boolean);
+    if (parts.length === 0) return -1;
+    for (let i = 0; i + parts.length <= words.length; i++) {
+      if (parts.every((p, j) => words[i + j] === p)) return i;
+    }
+    return -1;
+  };
+  const found: { at: number; person: NoteStaff }[] = [];
   for (const s of staff) {
     if (s.id === authorId) continue;
-    const at = words.indexOf(firstOf(s));
-    if (at < 0) continue;
-    const shared = staff.filter((o) => firstOf(o) === firstOf(s)).length > 1;
-    found.push({ at, label: shared ? s.fullName : s.fullName.split(" ")[0] });
+    const hits = [norm(s.fullName).split(" ")[0], ...(s.aliases ?? [])].map(at).filter((i) => i >= 0);
+    if (hits.length) found.push({ at: Math.min(...hits), person: s });
   }
-  return [...new Set(found.sort((a, b) => a.at - b.at).map((f) => f.label))].slice(0, WHO_NAMES);
+  return found.sort((a, b) => a.at - b.at);
 }
 
 /** Model output → a proposal the app will act on.
@@ -777,7 +819,10 @@ export function shapeProposal(raw: unknown, ctx: NoteContext, said = ""): NotePr
        often the speaker's own, and it resolves only when there IS a speaker. */
     if (match.kind === "none" && ctx.askWho && !clarify) {
       clarify = {
-        question: `Who should do this: ${title}?`,
+        /* A name nobody here has is asked about BY NAME: the answer to
+           "Who's Bobo?" is what Tiff keeps, so next time she knows
+           (continueNote, lib/staff/aliases.ts). */
+        question: assigneeHint && looksLikeName(assigneeHint) ? `Who's ${assigneeHint}?` : `Who should do this: ${title}?`,
         options: [
           ...(ctx.author ? ["Me"] : []),
           ...namesMentioned(said, ctx.staff, ctx.author?.id),

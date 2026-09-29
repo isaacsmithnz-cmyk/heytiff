@@ -1,5 +1,5 @@
 import { auth0 } from "@/lib/auth0";
-import { supabaseAdmin } from "@/lib/supabase-server";
+import { spokenStaffNames } from "@/lib/staff/aliases-query";
 import { canDictate } from "@/lib/voice/can-dictate";
 import { transcribeAudio, TRADE_KEYTERMS } from "@/lib/voice/transcribe";
 
@@ -60,18 +60,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "That recording couldn't be read." }, { status: 400 });
   }
 
-  /* Staff first names are the keyterms that matter most — "tell Lyle" only
-     routes if the transcriber heard "Lyle". They are boosted alongside the
-     trade vocabulary a general model mishears on an Australian site. */
-  const { data } = await supabaseAdmin
-    .from("staff_profiles")
-    .select("full_name")
-    .eq("org_id", orgId)
-    .limit(200);
-
-  const names = ((data ?? []) as { full_name: string | null }[])
-    .flatMap((s) => (s.full_name ?? "").trim().split(/\s+/))
-    .filter(Boolean);
+  /* Staff names — and the names they go by — are the keyterms that matter
+     most: "tell Lyle" only routes if the transcriber heard "Lyle". They are
+     boosted alongside the trade vocabulary a general model mishears on an
+     Australian site. */
+  const names = await spokenStaffNames(orgId);
 
   const result = await transcribeAudio(audio, { keyterms: [...names, ...TRADE_KEYTERMS] });
   if (!result.ok) return Response.json({ error: result.error }, { status: 502 });

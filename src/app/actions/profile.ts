@@ -25,6 +25,7 @@ import {
   removeCheck,
 } from "@/lib/staff/work-rights-writes";
 import { resolvePhotoDocument } from "@/lib/staff/photo";
+import { saveCardAliases } from "@/lib/staff/aliases-query";
 
 /* My profile persistence — your own staff card.
 
@@ -394,4 +395,17 @@ async function workRightsLocked(orgId: string, staffId: string): Promise<boolean
     .eq("org_id", orgId)
     .eq("staff_profile_id", staffId);
   return (count ?? 0) > 0;
+}
+
+/** The names you go by — your own card's "Also called". Yours to keep
+    right: a nickname Tiff learned about you can come off here. */
+export async function saveMyAliases(names: string[]): Promise<SaveResult> {
+  const { orgId } = await requireOrg();
+  const me = await loadMyProfile();
+  const r = await saveCardAliases(orgId, me.id, names, me.id);
+  if (r.ok) {
+    revalidatePath("/dashboard/profile");
+    revalidatePath("/dashboard/team");
+  }
+  return r;
 }

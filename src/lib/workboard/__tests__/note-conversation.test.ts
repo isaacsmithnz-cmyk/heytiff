@@ -192,7 +192,8 @@ describe("a task with nobody on it", () => {
       }),
       modal,
     );
-    expect(p.say).toBe("Who should do this: Order the grilles?");
+    // a name nobody here goes by is asked about by name (the nicknames change)
+    expect(p.say).toBe("Who's Leo?");
     expect(p.say.length).toBeLessThanOrEqual(SAY_MAX);
   });
 

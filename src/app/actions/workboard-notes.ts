@@ -9,6 +9,7 @@ import {
   clean,
   isSeverity,
   namesMentioned,
+  peopleNamed,
   readNote,
   type NoteContext,
   type NoteFollow,
@@ -19,6 +20,8 @@ import {
 import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { fullNameOf } from "@/lib/staff/name";
+import { aliasFromAnswer, normAlias } from "@/lib/staff/aliases";
+import { aliasesByStaff, learnAlias } from "@/lib/staff/aliases-query";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
 import { ACTED_KINDS } from "@/lib/dashboard/task-events";
 import { remindAtFrom, isRemindKind } from "@/lib/dashboard/reminders";
@@ -207,14 +210,27 @@ const trim = clean;
     a row whose derived copy is blank or stale would otherwise be dropped here
     and that person could never be given work by voice. */
 async function assignableStaff(orgId: string): Promise<NoteStaff[]> {
-  const { data } = await supabaseAdmin
-    .from("staff_profiles")
-    .select(NAME_COLUMNS)
-    .eq("org_id", orgId)
-    .limit(200);
+  const [{ data }, learned] = await Promise.all([
+    supabaseAdmin
+      .from("staff_profiles")
+      .select(NAME_COLUMNS)
+      .eq("org_id", orgId)
+      .limit(200),
+    aliasesByStaff(orgId),
+  ]);
   return ((data ?? []) as Record<string, unknown>[])
-    .map((s) => ({ id: String(s.id), fullName: fullNameOf(s) }))
+    .map((s) => ({ id: String(s.id), fullName: fullNameOf(s), aliases: namesGoneBy(s, learned.get(String(s.id)) ?? []) }))
     .filter((s) => s.fullName);
+}
+
+/** THE NAMES A PERSON GOES BY, for the router: the preferred name on their
+    card, where it isn't just their first name, then every nickname Tiff has
+    learned or the card lists — each once. */
+function namesGoneBy(row: Record<string, unknown>, learned: readonly string[]): string[] {
+  const first = normAlias(fullNameOf(row).split(" ")[0] ?? "");
+  const preferred = typeof row.preferred_name === "string" ? row.preferred_name.trim() : "";
+  const all = [...(preferred && normAlias(preferred) !== first ? [preferred] : []), ...learned];
+  return all.filter((n, i) => all.findIndex((m) => normAlias(m) === normAlias(n)) === i);
 }
 
 /** The author of a note, as the router needs to see them, plus the working day
@@ -562,8 +578,29 @@ export async function continueNote(
     (k): k is string => typeof k === "string" && keys.has(k),
   );
 
+  /* WHO A NAME IS, KEPT. When her plan had a name nobody here goes by
+     ("Bobo") and the reply names one person ("Leonardo"), that is who Bobo
+     is — for everyone, from now on — so it is kept against him BEFORE the
+     note is read again, and this very read resolves it too. One unknown
+     name and one person named, or nothing is learned (aliasFromAnswer). A
+     failed write only means Tiff asks again next time. */
+  await learnFromAnswer(ctx, plan, words);
+
   const said = turn("you", words);
   return reread(ctx, note, { plan, turns: [...turns, said], leftOut: gone }, { turns, reply: said });
+}
+
+async function learnFromAnswer(ctx: Ctx, plan: NoteProposal, reply: string): Promise<void> {
+  const unknown = plan.tasks.filter((t) => !t.assigneeId && t.assigneeHint).map((t) => t.assigneeHint);
+  if (unknown.length === 0) return;
+  const staff = await assignableStaff(ctx.orgId);
+  const taught = aliasFromAnswer(unknown, peopleNamed(reply, staff, ctx.staffId), staff);
+  if (!taught) return;
+  try {
+    await learnAlias(ctx.orgId, taught.staffId, taught.alias, ctx.staffId);
+  } catch {
+    /* the note goes on; the name is asked again next time */
+  }
 }
 
 type NoteRow = {

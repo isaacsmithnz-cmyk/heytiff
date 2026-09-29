@@ -102,6 +102,7 @@ export function ProfileScreen({
   myPay,
   initialSec,
   addressLookup = false,
+  aliases = [],
   actions,
 }: {
   mode: ProfileMode;
@@ -138,6 +139,8 @@ export function ProfileScreen({
       than read here because the KEY ITSELF must never reach a client bundle —
       only the yes/no does. */
   addressLookup?: boolean;
+  /** The nicknames the person goes by (staff_aliases), oldest first. */
+  aliases?: string[];
   actions: ProfileActions;
 }) {
   const extras = mode === "admin" ? (adminExtras ?? {}) : {};
@@ -280,6 +283,8 @@ export function ProfileScreen({
                     today={today}
                     orgState={orgState}
                     email={header.email}
+                    aliases={aliases}
+                    onSaveAliases={actions.onSaveAliases}
                     /* SELF ONLY, and passing it is the gate. The action moves
                        whoever the SESSION is, so on an admin's view of a
                        colleague it would change the admin's own address while

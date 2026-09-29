@@ -3242,8 +3242,12 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   line-height: 1.45;
   color: var(--ink);
-  background: var(--ds-card2);
-                                                                            
+  /* frosted, not tinted: at the 4% tint the grid and the pipes read straight
+     through the words (Isaac, 2026-09-29, "you can't read the text"). Paper
+     at 88% with a whisper of ink keeps the grey, and the blur takes the dots
+     out from under the letters. */
+  background: color-mix(in srgb, var(--paper) 84%, var(--ink) 4%);
+  backdrop-filter: blur(12px);
   border-left: 1px solid var(--ds-border-s);
   border-bottom: 1px solid var(--ds-border-s);
   border-radius:0 var(--r-card) 0 var(--r-card);

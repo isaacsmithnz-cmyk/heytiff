@@ -80,6 +80,12 @@ export function heightMult(ceilingHeightM: number): number {
   return Math.min(1.5, Math.max(1.1, 1 + 0.5 * (ceilingHeightM / 2.4 - 1)));
 }
 
+/** A room with another floor above it takes no heat through a roof: the
+    zone's W/m² assumes a roof or ceiling space over the room, so a
+    ground-floor room of a two-storey house comes down 15% (Isaac,
+    2026-09-30). */
+export const ROOM_ABOVE_MULT = 0.85;
+
 export const ORIENTATIONS: readonly Orientation[] = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
 /** The base W/m² for a job's climate zone + building type, honouring a manual
@@ -111,6 +117,8 @@ export interface RoomLoadInputs {
   partyWall?: boolean;
   /** false = internal room, no external walls — no solar gain (NO_SOLAR_MULT) */
   hasExternalWalls?: boolean; // default true
+  /** another floor above the room, not a roof (ROOM_ABOVE_MULT) */
+  roomAbove?: boolean; // default false
 }
 
 /** The room's design load in kW — the harvested `calc­HeatLoad` model:
@@ -129,7 +137,8 @@ export function roomHeatLoadKw(input: RoomLoadInputs): number {
   const height = heightMult(input.ceilingHeightM ?? 2.4);
   const noSolar = input.partyWall || input.hasExternalWalls === false;
   const orient = noSolar ? NO_SOLAR_MULT : ORIENT_MULT[input.orientation ?? "N"];
-  const watts = Math.round(input.areaM2 * base * glass * cond * height * orient);
+  const above = input.roomAbove ? ROOM_ABOVE_MULT : 1;
+  const watts = Math.round(input.areaM2 * base * glass * cond * height * orient * above);
   return watts / 1000;
 }
 

@@ -19,6 +19,7 @@ import {
   ORIENT_LABELS,
   ORIENT_MULT,
   ORIENTATIONS,
+  ROOM_ABOVE_MULT,
   type BuildingType,
   type GlazingLevel,
   type Orientation,
@@ -67,6 +68,7 @@ interface Draft {
   glazing: GlazingLevel;
   condition: RoomCondition;
   ceilingHeightM: number;
+  roomAbove: boolean;
   orientation: Orientation;
 }
 
@@ -191,6 +193,7 @@ export function RoomModal({
       glazing: (p.glazing as GlazingLevel) ?? "moderate",
       condition: (p.condition as RoomCondition) ?? "standard",
       ceilingHeightM: typeof p.ceilingHeightM === "number" ? p.ceilingHeightM : 2.4,
+      roomAbove: p.roomAbove === true,
       orientation: (p.orientation as Orientation) ?? "N",
     };
   });
@@ -226,6 +229,7 @@ export function RoomModal({
       ceilingHeightM: draft.ceilingHeightM,
       orientation,
       hasExternalWalls,
+      roomAbove: draft.roomAbove,
     });
   }, [areaM2, activeZone, buildingType, draft, orientation, hasExternalWalls]);
 
@@ -270,6 +274,7 @@ export function RoomModal({
                 glazing: draft.glazing,
                 condition: draft.condition,
                 ceilingHeightM: draft.ceilingHeightM,
+                roomAbove: draft.roomAbove,
                 orientation,
                 orientationLocked: overridden,
                 // external-wall state stays tied to the marked walls (canvas)
@@ -539,6 +544,21 @@ export function RoomModal({
                 )}
               </div>
             </div>
+          </div>
+
+          {/* what's over it: a roof, or another floor (×0.85) */}
+          <div className="ds-rm-grid3">
+            <label className="ds-rm-field">
+              <span>{`Above the ${thing}`}</span>
+              <select
+                aria-label={`Above the ${thing}`}
+                value={draft.roomAbove ? "floor" : "roof"}
+                onChange={(e) => set("roomAbove", e.target.value === "floor")}
+              >
+                <option value="roof">Roof or ceiling space ×1.00</option>
+                <option value="floor">Another floor ×{ROOM_ABOVE_MULT.toFixed(2)}</option>
+              </select>
+            </label>
           </div>
 
           {/* marked external walls */}

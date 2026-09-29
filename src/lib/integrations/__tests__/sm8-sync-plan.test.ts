@@ -522,6 +522,14 @@ describe("the price book", () => {
     expect(row).not.toHaveProperty("barcode");
   });
 
+  it("keeps a price that arrives as a number — the live API's way, whatever its reference says", () => {
+    /* the first live pull: 4,579 items, every price null, because numbers
+       were dropped as not-text */
+    const row = spec.shape({ uuid: "m-2", name: "1.5mm2 cable 100m", price: 53.73, cost: 41.2, quantity_in_stock: 0 })!;
+    expect(row).toMatchObject({ price: "53.73", cost: "41.2", quantity_in_stock: "0" });
+    expect(spec.shape({ uuid: "m-3", price: Number.NaN })!.price).toBeNull();
+  });
+
   it("links a job's line to the price-book item it was picked from", () => {
     const line = SM8_OBJECTS.find((s) => s.object === "job_materials")!.shape({ uuid: "jm-1", job_uuid: "j-1", material_uuid: "m-1" })!;
     expect(line.material_uuid).toBe("m-1");

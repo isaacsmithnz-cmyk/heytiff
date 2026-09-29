@@ -289,8 +289,16 @@ const shapeMaterial = (r: Raw): MirrorRow | null => {
 
 /* THE PRICE BOOK (material.json, read_inventory) — fields read off
    developer.servicem8.com/reference/listmaterials on 2026-09-29. A unit's
-   model code is its item_number. quantity_in_stock is documented as a
-   number and kept as text like every other amount; barcode has no reader. */
+   model code is its item_number; barcode has no reader.
+
+   AMOUNTS ARRIVE AS NUMBERS HERE, whatever the reference says. The first
+   live pull (2026-09-29) mirrored 4,579 items with every price and cost
+   null while ServiceM8's own list showed them priced: the reference calls
+   them strings, and textOrNull dropped whatever wasn't one. So an amount
+   is kept as the text of the number when a number comes, and as sent when
+   text comes — never both dropped. */
+const amountText = (v: unknown): string | null =>
+  typeof v === "number" && Number.isFinite(v) ? String(v) : textOrNull(v);
 const shapeCatalogueMaterial = (r: Raw): MirrorRow | null => {
   const uuid = uuidOf(r);
   if (!uuid) return null;
@@ -299,12 +307,12 @@ const shapeCatalogueMaterial = (r: Raw): MirrorRow | null => {
     name: textOrNull(r.name),
     item_number: textOrNull(r.item_number),
     item_description: textOrNull(r.item_description),
-    price: textOrNull(r.price),
-    cost: textOrNull(r.cost),
+    price: amountText(r.price),
+    cost: amountText(r.cost),
     price_includes_taxes: intOrNull(r.price_includes_taxes),
     tax_rate_uuid: textOrNull(r.tax_rate_uuid),
     item_is_inventoried: intOrNull(r.item_is_inventoried),
-    quantity_in_stock: typeof r.quantity_in_stock === "number" ? String(r.quantity_in_stock) : textOrNull(r.quantity_in_stock),
+    quantity_in_stock: amountText(r.quantity_in_stock),
     use_description_for_invoicing: textOrNull(r.use_description_for_invoicing),
     active: intOrNull(r.active),
     edit_date: dateOrNull(r.edit_date),

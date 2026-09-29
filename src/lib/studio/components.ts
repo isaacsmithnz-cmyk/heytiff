@@ -99,30 +99,37 @@ const ISOLATORS: IsolatorOption[] = [
   { id: "isolator-32a-3ph", name: "Isolator, 3Ø 32 A", sub: "Weatherproof IP66", value: "1", isolator: { amps: 32, phase: "3" } },
 ];
 
+/* NOTHING IS ASSUMED (Isaac, 2026-09-29: "install our system shouldn't
+   assume how it's going to be mounted — that's what the install questions
+   are for. Everything needs to stay empty until selected."). Every choice
+   starts NOT CHOSEN, for every system type, and a choice not chosen is no
+   line on the sheet. The isolator's size is still read off the pack when
+   the install questions put one on the job (install.ts isolatorOption). */
+export const NOT_CHOSEN = "not-chosen";
+const notChosen = { id: NOT_CHOSEN, name: "Not chosen", sub: "Asked in Install details", value: "—" };
+
 export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
   {
     key: "electrical",
     role: "Electrical",
     icon: "bolt",
-    defaultId: defaultIsolatorId,
+    defaultId: NOT_CHOSEN,
     options: [
       ...ISOLATORS,
       { id: "none", name: "Supplied by others", sub: "Not in this takeoff", value: "—" },
+      notChosen,
     ],
   },
   {
     key: "mounting",
     role: "Mounting",
     icon: "mount",
-    /* a VRF outdoor (a 93–337 kg PUMY or PUHY) takes no mounting line until
-       the install questions choose one (Isaac, 2026-09-29); a split or multi
-       keeps the bracket */
-    defaultId: (odu) => (odu.system_type === "vrf" ? "none" : "wall-bracket"),
+    defaultId: NOT_CHOSEN,
     options: [
       { id: "wall-bracket", name: "Wall bracket", sub: "Galv. steel, anti-vib feet", value: "1 set" },
       { id: "ground-pad", name: "Ground pad", sub: "Composite, anti-vib feet", value: "1" },
       { id: "roof-mount", name: "Roof frame", sub: "Galv. steel, spring feet", value: "1 set" },
-      { id: "none", name: "Mounting not chosen", sub: "Asked in Install details", value: "—" },
+      notChosen,
     ],
   },
   /* Hard-drawn pipe arrives as raw copper — soft coil comes pre-insulated —
@@ -133,12 +140,13 @@ export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
     key: "insulation",
     role: "Pipe insulation",
     icon: "insulation",
-    defaultId: "wall-13",
+    defaultId: NOT_CHOSEN,
     options: [
       { id: "wall-9", name: "Lagging, 9 mm wall", sub: "Closed-cell, hard drawn runs", value: "—" },
       { id: "wall-13", name: "Lagging, 13 mm wall", sub: "Closed-cell, hard drawn runs", value: "—" },
       { id: "wall-19", name: "Lagging, 19 mm wall", sub: "Closed-cell, hard drawn runs", value: "—" },
       { id: "none", name: "Supplied by others", sub: "Not in this takeoff", value: "—" },
+      notChosen,
     ],
   },
 ];
@@ -358,7 +366,7 @@ function choiceRows(doc: DesignDocument, system: DesignSystem, odu: OutdoorUnit)
     const opt = g.options.find((o) => o.id === selectedId)!;
     // insulation's takeoff value is derived: metres of hard-drawn copper
     let value = opt.value;
-    if (g.key === "insulation" && selectedId !== "none") {
+    if (g.key === "insulation" && selectedId !== "none" && selectedId !== NOT_CHOSEN) {
       const m = hardDrawnLengthM(doc, system);
       value = m != null && m > 0 ? `${m} m` : "—";
     }

@@ -20,7 +20,7 @@ import { roomAreaM2, roomLoadKw, type RoomObj } from "./loads-room";
 import { roomCoverage, systemCover, type CoverageStatus } from "./coverage";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
-import { systemComponents } from "./components";
+import { NOT_CHOSEN, systemComponents } from "./components";
 import { equipmentList, installState, NOT_SURE_VALUE, vrfFittings, type EquipmentRow } from "./install";
 import { systemVrfTree } from "./vrf-tree";
 import { describeUnit } from "./materials";
@@ -538,8 +538,8 @@ export function buildSummaryModel(
             .rows.filter((r) => r.group !== "Units" && !r.waiting && r.value !== "Not drawn")
             .map(toSheetLine)
         : compRows
-            /* a mounting not chosen yet is no line at all */
-            .filter((c) => c.kind === "choice" && !(c.choice?.key === "mounting" && c.choice.selectedId === "none"))
+            /* a choice not made yet is no line at all: nothing is assumed */
+            .filter((c) => c.kind === "choice" && c.choice?.selectedId !== NOT_CHOSEN)
             .map((c) => ({
               /* the choice catalogue's own key decides the shelf — an isolator is
                  electrical, a bracket is not, and neither this file nor the sheet

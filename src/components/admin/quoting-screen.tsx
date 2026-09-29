@@ -8,6 +8,8 @@ import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { saveQuoteSettings } from "@/app/actions/quote-settings";
 import { profitSharePct, sellCents, type ComponentKey } from "@/lib/quotes/components";
 import type { ComponentItem, ComponentShortlist } from "@/lib/quotes/settings-query";
+import type { SupplierView } from "@/lib/quotes/price-book-server";
+import { PriceBook } from "./price-book-panel";
 import { MAX_DAY_HOURS, MAX_MARKUP_PCT, type QuoteSettings } from "@/lib/quotes/settings";
 
 /* QUOTING — what a quote is priced by.
@@ -27,7 +29,15 @@ import { MAX_DAY_HOURS, MAX_MARKUP_PCT, type QuoteSettings } from "@/lib/quotes/
 const money = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2 });
 const $ = (cents: number | null) => (cents == null ? "–" : money.format(cents / 100));
 
-export function QuotingScreen({ initial, components }: { initial: QuoteSettings; components: ComponentShortlist[] }) {
+export function QuotingScreen({
+  initial,
+  components,
+  suppliers,
+}: {
+  initial: QuoteSettings;
+  components: ComponentShortlist[];
+  suppliers: SupplierView[];
+}) {
   const router = useRouter();
   const [saved, setSaved] = useState(initial);
   const [unit, setUnit] = useState(String(initial.unitMarkupPct));
@@ -66,7 +76,7 @@ export function QuotingScreen({ initial, components }: { initial: QuoteSettings;
 
   const choose = (key: ComponentKey, item: ComponentItem, rollM: number | null) =>
     save(
-      { ...saved, preferred: { ...saved.preferred, [key]: { materialUuid: item.uuid, rollM } } },
+      { ...saved, preferred: { ...saved.preferred, [key]: { supplierKey: item.supplierKey, code: item.code, rollM } } },
       "Preferred item saved"
     ).then((ok) => {
       if (ok) setOpen(null);
@@ -124,6 +134,8 @@ export function QuotingScreen({ initial, components }: { initial: QuoteSettings;
                 </button>
               </div>
             </section>
+
+            <PriceBook suppliers={suppliers} onImported={() => router.refresh()} />
 
             <section className="qs-group">
               <h2 className="qs-h">Preferred items</h2>
@@ -217,13 +229,13 @@ function ComponentRow({
           {p ? (
             <>
               {p.name}
-              {p.itemNumber && <em>{p.itemNumber}</em>}
+              <em>{`${p.code}, ${p.supplierName}`}</em>
             </>
           ) : (
             <em className="qs-none">None chosen</em>
           )}
         </span>
-        <span role="cell" className="num">{p ? $(p.priceCents) : ""}</span>
+        <span role="cell" className="num">{p ? $(p.buyCents) : ""}</span>
         <span role="cell" className="num">
           {p ? (p.perUnitCents == null ? "Needs roll length" : `${$(p.perUnitCents)} ${perUnitWord(c.unit)}`) : ""}
         </span>
@@ -242,7 +254,7 @@ function ComponentRow({
             {c.unit === "m" && p && (
               <div className="qs-roll">
                 <label className="qs-field">
-                  <span>{`Roll length of ${p.itemNumber ?? "the preferred item"}`}</span>
+                  <span>{`Roll length of ${p.code}`}</span>
                   <span className="qs-in">
                     <input
                       className="wb2-fi"
@@ -270,16 +282,16 @@ function ComponentRow({
             ) : (
               <ul className="qs-list">
                 {c.items.map((it) => (
-                  <li key={it.uuid} className={p?.uuid === it.uuid ? "on" : undefined}>
+                  <li key={it.id} className={p?.id === it.id ? "on" : undefined}>
                     <span className="qs-item">
                       {it.name}
                       <em>
-                        {[it.itemNumber, it.uses ? `On ${it.uses} job line${it.uses === 1 ? "" : "s"}` : null]
+                        {[it.code, it.supplierName, it.uses ? `On ${it.uses} job line${it.uses === 1 ? "" : "s"}` : null]
                           .filter(Boolean)
                           .join(", ")}
                       </em>
                     </span>
-                    <span className="num">{$(it.priceCents)}</span>
+                    <span className="num">{$(it.buyCents)}</span>
                     <span className="num">
                       {it.perUnitCents == null
                         ? c.unit === "m"
@@ -288,7 +300,7 @@ function ComponentRow({
                         : `${$(it.perUnitCents)} ${perUnitWord(c.unit)}`}
                     </span>
                     <span className="qs-act">
-                      {p?.uuid === it.uuid ? (
+                      {p?.id === it.id ? (
                         <em className="qs-chosen ok">Preferred</em>
                       ) : (
                         <button

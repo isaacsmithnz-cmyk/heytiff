@@ -64,10 +64,10 @@ describe("the sums", () => {
   });
 
   it("ranks the most used first, then the cheapest a metre", () => {
-    const it = (uuid: string, uses: number, perUnitCents: number | null): ComponentItem =>
-      ({ uuid, name: uuid, itemNumber: null, priceCents: null, rollM: null, perUnitCents, uses });
+    const it = (id: string, uses: number, perUnitCents: number | null): ComponentItem =>
+      ({ id, supplierKey: "aad", supplierName: "AAD", code: id, name: id, buyCents: 0, rollM: null, perUnitCents, uses });
     expect(
-      rankItems([it("a", 0, 900), it("b", 3, 1200), it("c", 0, null), it("d", 0, 800), it("z", 0, 0)]).map((x) => x.uuid)
+      rankItems([it("a", 0, 900), it("b", 3, 1200), it("c", 0, null), it("d", 0, 800), it("z", 0, 0)]).map((x) => x.id)
     ).toEqual(["b", "d", "a", "c", "z"]);
   });
 });
@@ -82,14 +82,18 @@ describe("the settings", () => {
       unit_markup_pct: "25",
       material_markup_pct: 900,
       day_hours: 7.5,
-      preferred: { pair_coil_14_12: { material_uuid: "m-1", roll_m: 20 }, not_a_part: { material_uuid: "x" } },
+      preferred: {
+        pair_coil_14_12: { supplier_key: "aad", code: "PC1412", roll_m: 20 },
+        drain_hose: { material_uuid: "an old-style pick" },
+        not_a_part: { supplier_key: "aad", code: "x" },
+      },
     });
     expect(s).toEqual({
       unitMarkupPct: 25,
       materialMarkupPct: 300,
       dayHours: 7.5,
-      preferred: { pair_coil_14_12: { materialUuid: "m-1", rollM: 20 } },
+      preferred: { pair_coil_14_12: { supplierKey: "aad", code: "PC1412", rollM: 20 } },
     });
-    expect(quoteSettingsRow(s).preferred).toEqual({ pair_coil_14_12: { material_uuid: "m-1", roll_m: 20 } });
+    expect(quoteSettingsRow(s).preferred).toEqual({ pair_coil_14_12: { supplier_key: "aad", code: "PC1412", roll_m: 20 } });
   });
 });

@@ -6,7 +6,9 @@ import { COMPONENT_KEYS, type ComponentKey } from "./components";
    the quote's price build-up reads it. The labour RATE is not here: it
    stays the Rate Calculator's, and the build-up reads it from there. */
 
-export type Preferred = { materialUuid: string; rollM: number | null };
+/** The price-book item a component is priced from: a supplier's code in
+    HeyTiff's own price book (quote_price_items). */
+export type Preferred = { supplierKey: string; code: string; rollM: number | null };
 
 export type QuoteSettings = {
   unitMarkupPct: number;
@@ -44,10 +46,11 @@ function preferredOf(raw: unknown): QuoteSettings["preferred"] {
     const p = (raw as Record<string, unknown>)[key];
     if (!p || typeof p !== "object") continue;
     const o = p as Record<string, unknown>;
-    const uuid = typeof o.material_uuid === "string" ? o.material_uuid : typeof o.materialUuid === "string" ? o.materialUuid : null;
-    if (!uuid) continue;
+    const supplier = o.supplier_key ?? o.supplierKey;
+    const code = o.code;
+    if (typeof supplier !== "string" || !supplier || typeof code !== "string" || !code) continue;
     const roll = num(o.roll_m ?? o.rollM);
-    out[key] = { materialUuid: uuid.slice(0, 80), rollM: roll && roll > 0 && roll <= 1000 ? roll : null };
+    out[key] = { supplierKey: supplier.slice(0, 40), code: code.slice(0, 80), rollM: roll && roll > 0 && roll <= 1000 ? roll : null };
   }
   return out;
 }
@@ -66,9 +69,9 @@ export function normaliseQuoteSettings(raw: unknown): QuoteSettings {
 
 /** The row as the table stores it. */
 export function quoteSettingsRow(s: QuoteSettings) {
-  const preferred: Record<string, { material_uuid: string; roll_m: number | null }> = {};
+  const preferred: Record<string, { supplier_key: string; code: string; roll_m: number | null }> = {};
   for (const [k, p] of Object.entries(s.preferred)) {
-    if (p) preferred[k] = { material_uuid: p.materialUuid, roll_m: p.rollM };
+    if (p) preferred[k] = { supplier_key: p.supplierKey, code: p.code, roll_m: p.rollM };
   }
   return {
     unit_markup_pct: s.unitMarkupPct,

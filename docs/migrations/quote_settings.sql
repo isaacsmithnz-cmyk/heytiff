@@ -10,7 +10,9 @@
 -- sell price is profit). The page shows both so the difference stays seen.
 --
 -- `preferred` maps a component key (lib/quotes/components.ts) to the chosen
--- price-book item: {"pair_coil_14_12": {"material_uuid": "…", "roll_m": 20}}.
+-- price-book item: {"pair_coil_14_12": {"supplier_key": "aad", "code":
+-- "PC1412", "roll_m": 20}} — a supplier's code in HeyTiff's own price book
+-- (quote_price_book.sql), since 2026-09-30.
 -- roll_m is set only when the person corrected the length read off the
 -- item's name.
 

@@ -235,7 +235,7 @@ function checklist(raw: unknown): CheckItem[] {
 }
 
 /** The one gate between a model (or a person's edit) and the table. Null
-    when nothing usable is left — a draft with no option is not a draft. */
+    when nothing usable is left: no option, and no itemised lines either. */
 export function normaliseDraft(raw: unknown): ProposalDraft | null {
   const r = obj(raw);
   if (!r) return null;
@@ -252,9 +252,14 @@ export function normaliseDraft(raw: unknown): ProposalDraft | null {
       cons: lineList(x.cons, MAX_PROS),
     };
   });
-  if (options.length === 0) return null;
-
   const mode = r.pricingMode ?? r.pricing_mode;
+  const items = pairs(r.items, MAX_ITEMS, (o) => {
+    const name = short(o.name);
+    return name ? { name, qty: short(o.qty) || "1" } : null;
+  });
+  /* building works priced line by line can have no option at all */
+  if (options.length === 0 && !(mode === "itemised" && items.length > 0)) return null;
+
   const notes = (Array.isArray(r.notes) ? r.notes : []).filter(
     (k, i, all): k is ExtraNoteKey =>
       typeof k === "string" && (EXTRA_NOTE_KEYS as string[]).includes(k) && all.indexOf(k) === i
@@ -269,10 +274,7 @@ export function normaliseDraft(raw: unknown): ProposalDraft | null {
     why: clean(r.why, MAX_WHY_CHARS),
     options,
     pricingMode: mode === "optional" || mode === "itemised" ? mode : "multiple_choice",
-    items: pairs(r.items, MAX_ITEMS, (o) => {
-      const name = short(o.name);
-      return name ? { name, qty: short(o.qty) || "1" } : null;
-    }),
+    items,
     extras: pairs(r.extras, MAX_EXTRAS, named),
     allowances: pairs(r.allowances, MAX_EXTRAS, named),
     notes,

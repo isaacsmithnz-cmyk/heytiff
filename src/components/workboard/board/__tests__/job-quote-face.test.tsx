@@ -122,5 +122,53 @@ it("opens on the box that drafts one when the job has none, and drafts from it",
   });
   await waitFor(() => expect(screen.getByText("Site checklist")).toBeInTheDocument());
   const post = (fetchMock.mock.calls as Call[]).find(([, init]) => init?.method === "POST");
-  expect(JSON.parse(post![1]!.body!)).toEqual({ job: "j-1", brief: "Own 6 kW split, parapet wall" });
+  expect(JSON.parse(post![1]!.body!)).toEqual({ job: "j-1", brief: "Own 6 kW split, parapet wall", replace: false });
+});
+
+it("a read that fails offers Try again, never the box that would draft over it", async () => {
+  fetchMock.mockImplementationOnce(() => Promise.reject(new Error("offline")));
+  face();
+  await screen.findByText("The saved proposal couldn’t be read.");
+  expect(screen.queryByRole("button", { name: "Draft proposal" })).toBeNull();
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  });
+  await screen.findByText("Site checklist");
+});
+
+it("saves on the copy it was made from, and an answer leaves an open editor open", async () => {
+  face();
+  await screen.findByText("Site checklist");
+  fireEvent.click(screen.getByRole("button", { name: "Edit Intro" }));
+  fireEvent.change(screen.getByDisplayValue(/Here is the scope/), { target: { value: "Hi Jane, half typed" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Colorbond trunking" }));
+  });
+  const put = (fetchMock.mock.calls as Call[]).find(([, init]) => init?.method === "PUT");
+  expect(JSON.parse(put![1]!.body!).base).toBe("2026-09-29T08:00:00Z");
+  expect(screen.getByDisplayValue("Hi Jane, half typed")).toBeInTheDocument();
+});
+
+it("shows the proposal as it stands when someone else saved first", async () => {
+  const onToast = jest.fn();
+  face(onToast);
+  await screen.findByText("Site checklist");
+  const newer = { ...stored(), updatedAt: "2026-09-29T09:00:00Z", draft: normaliseDraft({ ...stored().draft, intro: "Hi Jane,\nNewer words." })! };
+  fetchMock.mockImplementationOnce(() => respond({ ok: false, reason: "Someone else changed this proposal", proposal: newer }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Colorbond trunking" }));
+  });
+  expect(onToast).toHaveBeenCalledWith("Someone else changed this proposal");
+  expect(screen.getByText(/Newer words/)).toBeInTheDocument();
+});
+
+it("the payment editor opens on the stages the draft holds now", async () => {
+  face();
+  await screen.findByText("Site checklist");
+  const terms = screen.getByRole("radiogroup", { name: "Payment terms" });
+  await act(async () => {
+    fireEvent.click(within(terms).getByRole("radio", { name: "Home, construction" }));
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Edit Payment" }));
+  expect(screen.getAllByRole("textbox", { name: /^Stage \d+$/ })).toHaveLength(PAYMENT_PRESETS.domestic_construction.stages.length);
 });

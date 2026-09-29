@@ -188,3 +188,16 @@ export function checklistCounts(items: readonly CheckItem[]) {
     ask: items.filter((i) => i.state === "ask").length,
   };
 }
+
+/** The checklist after Tiff rewrites a draft: Tiff's topics, but nothing a
+    person settled is lost. A topic that was known (or marked not needed)
+    stays that way when Tiff drops it or turns it back into an ask; its
+    answer is in the scope now, so it is no longer fresh. */
+export function keepSettled(before: readonly CheckItem[], after: readonly CheckItem[]): CheckItem[] {
+  const settled = new Map(
+    before.filter((i) => i.state !== "ask").map((i) => [i.key, { key: i.key, state: i.state, answer: i.answer }] as const)
+  );
+  const kept = after.map((i) => (i.state === "ask" && settled.has(i.key) ? settled.get(i.key)! : i));
+  const dropped = [...settled.values()].filter((s) => !after.some((i) => i.key === s.key));
+  return orderChecklist([...kept, ...dropped]);
+}

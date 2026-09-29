@@ -8,6 +8,7 @@ import {
   readMirrorJobDetail,
   resolveJobCard,
 } from "@/lib/workboard/all-jobs-query";
+import { readOurJobNotes } from "@/lib/workboard/job-notes-query";
 import {
   EXTRA_NOTES,
   EXTRA_NOTE_KEYS,
@@ -15,7 +16,7 @@ import {
   normaliseDraft,
   type ProposalDraft,
 } from "./proposal";
-import { CHECKLIST, CHECKLIST_KEYS } from "./checklist";
+import { CHECKLIST, CHECKLIST_KEYS, keepSettled } from "./checklist";
 import { PAYMENT_PRESET_KEYS } from "./payment";
 
 /* THE PROPOSAL WRITER — what a person says about a job, into the house
@@ -39,7 +40,10 @@ export const MODEL = "claude-opus-5-5";
 /* If the model declines on policy grounds, the API re-runs the same request
    on this one inside the same call rather than returning nothing. */
 const FALLBACK_MODEL = "claude-opus-4-8";
-const MAX_TOKENS = 8000;
+/* Thinking can't be turned off on this model and counts against the cap, so
+   the cap leaves room for it on top of a long draft (about 1,100 tokens of
+   JSON): a call that stops at the cap is paid for and returns nothing. */
+const MAX_TOKENS = 16000;
 
 /** What a draft is written from, read where the writer runs. */
 export type ProposalJob = {
@@ -63,12 +67,18 @@ export async function readProposalJob(orgId: string, remoteId: string): Promise<
   const target = await resolveJobCard(orgId, remoteId);
   const cardId = target.parentRemoteId;
   const timezone = await getSm8Timezone(orgId);
-  const detail = await readMirrorJobDetail(orgId, cardId, todayInZone(timezone), {
-    includeMoney: false,
-    timezone,
-  });
+  const [detail, theirs, ours] = await Promise.all([
+    readMirrorJobDetail(orgId, cardId, todayInZone(timezone), { includeMoney: false, timezone }),
+    familyMediaSources(orgId, cardId).then((claims) => readJobNotes(orgId, cardId, claims)),
+    /* HeyTiff's own diary notes too: a site note typed on the card is often
+       the one that says where the drain goes */
+    readOurJobNotes(orgId, cardId, MAX_NOTES),
+  ]);
   if (!detail) return null;
-  const notes = await readJobNotes(orgId, cardId, await familyMediaSources(orgId, cardId));
+  const notes = [
+    ...theirs.map((n) => ({ text: n.text, at: n.writtenAt ?? "" })),
+    ...ours.map((n) => ({ text: n.text, at: n.at })),
+  ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
   const contact = detail.contacts.find((c) => c.name.trim());
   return {
     cardId,
@@ -307,7 +317,9 @@ export async function runProposalWrite(
     if (response.stop_reason === "refusal") return { ok: false, reason: "Tiff declined to write this one." };
     if (response.stop_reason === "max_tokens") return { ok: false, reason: "The proposal ran too long. Try a shorter brief." };
 
-    const block = response.content.find((b) => b.type === "text");
+    /* THE LAST text block: when the fallback model takes over, the first
+       model's partial answer can stand ahead of the full one */
+    const block = [...response.content].reverse().find((b) => b.type === "text");
     if (!block || block.type !== "text") return { ok: false, reason: "Tiff returned nothing. Try again." };
     /* the writer names a payment preset; the stages are HeyTiff's */
     const raw = JSON.parse(block.text) as Record<string, unknown>;
@@ -358,42 +370,66 @@ export async function readStoredProposal(orgId: string, cardId: string): Promise
   return storedOf(data as Row | null);
 }
 
+export type Stored = { ok: true; proposal: StoredProposal } | { ok: false; conflict: boolean };
+
+/** Writes the draft. With `base` (the updatedAt the change was made on) it
+    writes only if nobody saved in between: two saves made on the same draft
+    would otherwise keep whichever landed last, and the first would be lost
+    without a word. Without `base` it is a first draft, or a deliberate
+    start-again, and replaces whatever is there. */
 export async function storeProposal(
   orgId: string,
   userId: string,
   cardId: string,
   draft: ProposalDraft,
   brief: string,
-  changes: string[]
-): Promise<StoredProposal | null> {
-  const now = new Date().toISOString();
-  const { data, error } = await supabaseAdmin
-    .from("quote_drafts")
-    .upsert(
-      {
-        org_id: orgId,
-        sm8_job_uuid: cardId,
-        draft,
-        brief,
-        changes: changes.slice(-MAX_CHANGES_KEPT),
-        updated_by: userId,
-        updated_at: now,
-      },
-      { onConflict: "org_id,sm8_job_uuid" }
-    )
-    .select("sm8_job_uuid, draft, brief, changes, updated_at")
-    .single();
-  if (error) return null;
-  return storedOf(data as Row);
+  changes: string[],
+  base?: string
+): Promise<Stored> {
+  const row = {
+    draft,
+    brief,
+    changes: changes.slice(-MAX_CHANGES_KEPT),
+    updated_by: userId,
+    updated_at: new Date().toISOString(),
+  };
+  const columns = "sm8_job_uuid, draft, brief, changes, updated_at";
+  const { data, error } =
+    base === undefined
+      ? await supabaseAdmin
+          .from("quote_drafts")
+          .upsert({ org_id: orgId, sm8_job_uuid: cardId, ...row }, { onConflict: "org_id,sm8_job_uuid" })
+          .select(columns)
+          .single()
+      : await supabaseAdmin
+          .from("quote_drafts")
+          .update(row)
+          .eq("org_id", orgId)
+          .eq("sm8_job_uuid", cardId)
+          .eq("updated_at", base)
+          .select(columns)
+          .maybeSingle();
+  if (error) return { ok: false, conflict: false };
+  const proposal = storedOf(data as Row | null);
+  return proposal ? { ok: true, proposal } : { ok: false, conflict: base !== undefined };
 }
+
+export const SAVE_FAILED = "The proposal couldn't be saved. Try again.";
+export const CHANGED_MEANWHILE = "Someone else changed this proposal while you were working. Here it is as it stands now.";
 
 /* ── the whole write, for the route ── */
 
 export type ProposalRequest =
-  | { kind: "draft"; brief: string }
+  /** `replace` says the person pressed Start again; without it a draft never
+      writes over one that is already there. */
+  | { kind: "draft"; brief: string; replace?: boolean }
   | { kind: "change"; change: string };
 
-export type ProposalResult = { ok: true; proposal: StoredProposal } | { ok: false; reason: string };
+export type ProposalResult =
+  | { ok: true; proposal: StoredProposal }
+  /** `proposal` rides along when the draft moved on underneath, so the card
+      can show what is there now. */
+  | { ok: false; reason: string; proposal?: StoredProposal | null };
 
 export async function writeProposal(
   orgId: string,
@@ -405,22 +441,41 @@ export async function writeProposal(
   const job = await readProposalJob(orgId, remoteId);
   if (!job) return { ok: false, reason: "That job isn't in HeyTiff's copy of ServiceM8." };
 
+  const current = await readStoredProposal(orgId, job.cardId);
+
   if (req.kind === "draft") {
+    /* checked before the call, so a card that failed to read the draft
+       can't pay for a new one that silently replaces it */
+    if (current && !req.replace) {
+      return { ok: false, reason: "This job already has a proposal.", proposal: current };
+    }
     const written = await runProposalWrite(draftPrompt(job, req.brief), client);
     if (!written.ok) return written;
     const stored = await storeProposal(orgId, userId, job.cardId, written.draft, req.brief.trim(), []);
-    return stored ? { ok: true, proposal: stored } : { ok: false, reason: "The proposal couldn't be saved. Try again." };
+    return stored.ok ? stored : { ok: false, reason: SAVE_FAILED };
   }
 
-  const current = await readStoredProposal(orgId, job.cardId);
   if (!current) return { ok: false, reason: "There's no proposal on this job to change. Draft one first." };
   const written = await runProposalWrite(changePrompt(job, current.brief, current.draft, req.change), client);
   if (!written.ok) return written;
   /* stages a person set by hand survive a change that kept the same preset */
   if (written.draft.payment.preset === current.draft.payment.preset) written.draft.payment = current.draft.payment;
-  const stored = await storeProposal(orgId, userId, job.cardId, written.draft, current.brief, [
-    ...current.changes,
-    req.change.trim() || "Put the checklist answers in",
-  ]);
-  return stored ? { ok: true, proposal: stored } : { ok: false, reason: "The proposal couldn't be saved. Try again." };
+  /* and so does every answer a person gave, whatever Tiff sent back */
+  written.draft.checklist = keepSettled(current.draft.checklist, written.draft.checklist);
+  const stored = await storeProposal(
+    orgId,
+    userId,
+    job.cardId,
+    written.draft,
+    current.brief,
+    [...current.changes, req.change.trim() || "Put the checklist answers in"],
+    current.updatedAt
+  );
+  if (stored.ok) return stored;
+  if (!stored.conflict) return { ok: false, reason: SAVE_FAILED };
+  return {
+    ok: false,
+    reason: "The proposal was edited while Tiff was writing, so the change wasn't put in. Try it again.",
+    proposal: await readStoredProposal(orgId, job.cardId),
+  };
 }

@@ -13,11 +13,24 @@ import type Anthropic from "@anthropic-ai/sdk";
 const maybeSingle = jest.fn();
 const single = jest.fn();
 const upsert = jest.fn(() => ({ select: () => ({ single }) }));
+/* a guarded write: update … where updated_at = base; `landed` says whether
+   the row was still on that base */
+const base = jest.fn();
+let landed = true;
+const updated = jest.fn(async () =>
+  landed
+    ? { data: { sm8_job_uuid: "j-1", draft: lastRow()?.draft, brief: lastRow()?.brief, changes: lastRow()?.changes, updated_at: "2026-09-29T09:00:00Z" }, error: null }
+    : { data: null, error: null }
+);
+const update = jest.fn(() => ({
+  eq: () => ({ eq: () => ({ eq: (_c: string, v: string) => (base(v), { select: () => ({ maybeSingle: updated }) }) }) }),
+}));
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
     from: () => ({
       select: () => ({ eq: () => ({ eq: () => ({ maybeSingle }) }) }),
       upsert,
+      update,
     }),
   },
 }));
@@ -26,8 +39,11 @@ const readMirrorJobDetail = jest.fn();
 jest.mock("@/lib/workboard/all-jobs-query", () => ({
   resolveJobCard: async () => ({ parentRemoteId: "j-1", focusRemoteId: null }),
   readMirrorJobDetail: (...a: unknown[]) => readMirrorJobDetail(...(a as [])),
-  readJobNotes: async () => [{ text: "Living room grille 1780 x 145" }],
+  readJobNotes: async () => [{ text: "Living room grille 1780 x 145", writtenAt: "2026-09-20 09:00:00" }],
   familyMediaSources: async () => [],
+}));
+jest.mock("@/lib/workboard/job-notes-query", () => ({
+  readOurJobNotes: async () => [{ id: "n1", text: "Drain to the downpipe by the laundry", at: "2026-09-21 10:00:00", author: null }],
 }));
 jest.mock("@/lib/workboard/query", () => ({ getSm8Timezone: async () => "Australia/Sydney" }));
 
@@ -35,6 +51,7 @@ import {
   SYSTEM_PROMPT,
   changePrompt,
   draftPrompt,
+  readProposalJob,
   runProposalWrite,
   writeProposal,
   type ProposalJob,
@@ -97,12 +114,22 @@ function clientSaying(body: unknown, stop = "end_turn") {
   return { client: { beta: { messages: { create } } } as unknown as Anthropic, create };
 }
 
-const lastRow = () => (upsert.mock.calls.at(-1) as unknown[] | undefined)?.[0] as
-  | { sm8_job_uuid: string; brief: string; changes: string[]; draft: ProposalDraft }
-  | undefined;
+type Written = { sm8_job_uuid?: string; brief: string; changes: string[]; draft: ProposalDraft };
+const writes: Written[] = [];
+const lastRow = () => writes.at(-1);
 
 beforeEach(() => {
   jest.clearAllMocks();
+  writes.length = 0;
+  landed = true;
+  maybeSingle.mockResolvedValue({ data: null });
+  upsert.mockImplementation((row: Written) => (writes.push(row), { select: () => ({ single }) }));
+  update.mockImplementation((row: Written) => {
+    writes.push(row);
+    return {
+      eq: () => ({ eq: () => ({ eq: (_c: string, v: string) => (base(v), { select: () => ({ maybeSingle: updated }) }) }) }),
+    };
+  });
   readMirrorJobDetail.mockResolvedValue({
     remoteId: "j-1",
     jobNumber: "3400",
@@ -213,3 +240,85 @@ describe("writeProposal", () => {
     expect(lastRow()?.draft.payment).toEqual({ preset: "commercial", stages: PAYMENT_PRESETS.commercial.stages });
   });
 });
+
+describe("the review's fixes", () => {
+  const stored = (over: Partial<ProposalDraft> = {}) => ({
+    data: { sm8_job_uuid: "j-1", draft: { ...draft, ...over }, brief: "the brief", changes: [], updated_at: "2026-09-29T07:00:00Z" },
+  });
+
+  it("reads HeyTiff's own diary notes with ServiceM8's, newest first", async () => {
+    const job = await readProposalJob("org", "j-1");
+    expect(job?.notes).toEqual(["Drain to the downpipe by the laundry", "Living room grille 1780 x 145"]);
+  });
+
+  it("reads the LAST text block, not a partial one ahead of the fallback's answer", async () => {
+    const create = jest.fn(async () => ({
+      stop_reason: "end_turn",
+      content: [
+        { type: "text", text: '{"intro":"half' },
+        { type: "text", text: JSON.stringify(answer) },
+      ],
+    }));
+    const res = await runProposalWrite("t", { beta: { messages: { create } } } as unknown as Anthropic);
+    expect(res.ok).toBe(true);
+  });
+
+  it("leaves room for thinking on top of the draft", async () => {
+    const { client, create } = clientSaying(answer);
+    await runProposalWrite("t", client);
+    expect(((create.mock.calls[0] as unknown[])[0] as { max_tokens: number }).max_tokens).toBeGreaterThanOrEqual(16000);
+  });
+
+  it("keeps building works priced line by line with no option", async () => {
+    const res = await runProposalWrite(
+      "t",
+      clientSaying({ ...answer, options: [], pricing_mode: "itemised", items: [{ name: "Gyprock bulkhead", qty: "1" }] }).client
+    );
+    if (!res.ok) throw new Error(res.reason);
+    expect(res.draft.options).toEqual([]);
+    expect(res.draft.items).toEqual([{ name: "Gyprock bulkhead", qty: "1" }]);
+  });
+
+  it("won't draft over a proposal that's there unless told to start again, and costs no call", async () => {
+    maybeSingle.mockResolvedValue(stored());
+    const { client, create } = clientSaying(answer);
+    const res = await writeProposal("org", "user", "j-1", { kind: "draft", brief: "new words" }, client);
+    expect(res.ok).toBe(false);
+    expect(create).not.toHaveBeenCalled();
+    const again = await writeProposal("org", "user", "j-1", { kind: "draft", brief: "new words", replace: true }, client);
+    expect(again.ok).toBe(true);
+    expect(lastRow()?.brief).toBe("new words");
+  });
+
+  it("a change keeps every answer a person gave, even one Tiff dropped or asked again", async () => {
+    maybeSingle.mockResolvedValue(
+      stored({
+        checklist: [
+          { key: "pipe_colour", state: "known", answer: "Paperbark", fresh: true },
+          { key: "drain_to", state: "known", answer: "Downpipe" },
+          { key: "height", state: "na", answer: "Single storey" },
+        ],
+      })
+    );
+    /* Tiff's answer asks the drain again and leaves the colour and height out */
+    const { client } = clientSaying({ ...answer, checklist: [{ key: "drain_to", state: "ask", answer: "" }] });
+    await writeProposal("org", "user", "j-1", { kind: "change", change: "" }, client);
+    expect(lastRow()?.draft.checklist).toEqual([
+      { key: "pipe_colour", state: "known", answer: "Paperbark" },
+      { key: "drain_to", state: "known", answer: "Downpipe" },
+      { key: "height", state: "na", answer: "Single storey" },
+    ]);
+  });
+
+  it("a change writes only on the copy it was made from, and says so when the card moved on", async () => {
+    maybeSingle.mockResolvedValue(stored());
+    const { client } = clientSaying(answer);
+    const ok = await writeProposal("org", "user", "j-1", { kind: "change", change: "shorter" }, client);
+    expect(ok.ok).toBe(true);
+    expect(base).toHaveBeenLastCalledWith("2026-09-29T07:00:00Z");
+    landed = false;
+    const lost = await writeProposal("org", "user", "j-1", { kind: "change", change: "shorter" }, client);
+    expect(lost).toMatchObject({ ok: false, reason: expect.stringMatching(/edited while Tiff was writing/) });
+  });
+});
+

@@ -3,6 +3,8 @@ import { can } from "@/lib/permissions-server";
 import { resolveJobCard } from "@/lib/workboard/all-jobs-query";
 import { normaliseDraft } from "@/lib/quotes/proposal";
 import {
+  CHANGED_MEANWHILE,
+  SAVE_FAILED,
   readStoredProposal,
   storeProposal,
   writeProposal,
@@ -23,7 +25,9 @@ import {
    spends API credit on every press, so every method asks for
    workboard_manage, the grant that books jobs. */
 
-export const maxDuration = 120;
+/* Room for the model to think and write a long draft, and for the backup
+   model to take over inside the same call. */
+export const maxDuration = 300;
 
 /** Long enough for a site visit said out loud; short enough that a paste of
     a whole email thread is cut rather than paid for. */
@@ -58,7 +62,7 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, reason: "Tiff is offline: no API key is configured." });
   }
 
-  let body: { job?: unknown; brief?: unknown; change?: unknown; apply?: unknown } = {};
+  let body: { job?: unknown; brief?: unknown; change?: unknown; apply?: unknown; replace?: unknown } = {};
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -72,18 +76,20 @@ export async function POST(req: Request) {
 
   let request: ProposalRequest;
   if (change || body.apply === true) request = { kind: "change", change };
-  else if (brief) request = { kind: "draft", brief };
+  else if (brief) request = { kind: "draft", brief, replace: body.replace === true };
   else return Response.json({ ok: false, reason: "Say what the job is first." }, { status: 400 });
 
   return Response.json(await writeProposal(who.orgId, who.userId, job, request));
 }
 
 /** A person's own edit, or an answer on the checklist: the whole draft back,
-    through the same gate a model's answer goes through. */
+    through the same gate a model's answer goes through, with the updatedAt
+    it was made on (`base`) so a save made on an old copy can't undo a newer
+    one. */
 export async function PUT(req: Request) {
   const who = await gate();
   if (who instanceof Response) return who;
-  let body: { job?: unknown; draft?: unknown } = {};
+  let body: { job?: unknown; draft?: unknown; base?: unknown } = {};
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -96,6 +102,14 @@ export async function PUT(req: Request) {
   const target = await resolveJobCard(who.orgId, job);
   const current = await readStoredProposal(who.orgId, target.parentRemoteId);
   if (!current) return Response.json({ ok: false, reason: "There's no proposal on this job to edit." });
-  const stored = await storeProposal(who.orgId, who.userId, current.cardId, draft, current.brief, current.changes);
-  return Response.json(stored ? { ok: true, proposal: stored } : { ok: false, reason: "The edit couldn't be saved. Try again." });
+  const base = typeof body.base === "string" ? body.base : current.updatedAt;
+  if (base !== current.updatedAt) return Response.json({ ok: false, reason: CHANGED_MEANWHILE, proposal: current });
+  const stored = await storeProposal(who.orgId, who.userId, current.cardId, draft, current.brief, current.changes, base);
+  if (stored.ok) return Response.json(stored);
+  if (!stored.conflict) return Response.json({ ok: false, reason: SAVE_FAILED });
+  return Response.json({
+    ok: false,
+    reason: CHANGED_MEANWHILE,
+    proposal: await readStoredProposal(who.orgId, current.cardId),
+  });
 }

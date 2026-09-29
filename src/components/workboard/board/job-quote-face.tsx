@@ -51,7 +51,12 @@ import type { StoredProposal } from "@/lib/quotes/proposal-writer";
    replaces it. */
 
 type Block = "intro" | "why" | "pricing" | "payment" | "notes" | `option-${number}`;
-type Answer = { ok: true; proposal: StoredProposal | null } | { ok: false; reason: string };
+type Answer =
+  | { ok: true; proposal: StoredProposal | null }
+  /** `proposal` comes back when the draft moved on underneath the change */
+  | { ok: false; reason: string; proposal?: StoredProposal | null };
+/** A person's edit, applied to the draft as it stands when its turn comes. */
+type Edit = (draft: ProposalDraft) => ProposalDraft;
 
 const ROUTE = "/api/workboard/quote-draft";
 
@@ -99,23 +104,35 @@ export function JobQuoteFace({
   const [working, setWorking] = useState<"draft" | "change" | "apply" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Block | null>(null);
-  const asked = useRef(false);
+  const [reads, setReads] = useState(0);
+  const asked = useRef(-1);
+  /* The draft as the server last said it is, and the saves in flight, one
+     behind the other: two answers pressed in a second each build on the one
+     before, rather than both on the same old copy. */
+  const latest = useRef<StoredProposal | null>(null);
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+
+  const land = (p: StoredProposal | null) => {
+    latest.current = p;
+    setLoaded(p);
+  };
 
   useEffect(() => {
-    if (!visible || asked.current) return;
-    asked.current = true;
+    if (!visible || asked.current === reads) return;
+    asked.current = reads;
     fetch(`${ROUTE}?job=${encodeURIComponent(job)}`)
       .then((r) => r.json() as Promise<Answer>)
       .then((a) => {
         if (!a.ok) throw new Error(a.reason);
+        setReadFailed(false);
+        latest.current = a.proposal;
         setLoaded(a.proposal);
         if (a.proposal) setBrief(a.proposal.brief);
       })
-      .catch(() => {
-        setReadFailed(true);
-        setLoaded(null);
-      });
-  }, [visible, job]);
+      /* NOT the draft box: drafting on a read that failed would pay for a
+         new proposal over the one that couldn't be read */
+      .catch(() => setReadFailed(true));
+  }, [visible, job, reads]);
 
   const write = async (kind: "draft" | "change" | "apply") => {
     const words = kind === "draft" ? brief : change;
@@ -127,15 +144,23 @@ export function JobQuoteFace({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(
-          kind === "draft" ? { job, brief: words } : kind === "change" ? { job, change: words } : { job, apply: true }
+          kind === "draft"
+            ? { job, brief: words, replace: redraft }
+            : kind === "change"
+              ? { job, change: words }
+              : { job, apply: true }
         ),
       });
       const a = (await res.json()) as Answer;
       if (!a.ok) {
         setError(a.reason);
+        if (a.proposal) {
+          land(a.proposal);
+          setRedraft(false);
+        }
         return;
       }
-      setLoaded(a.proposal);
+      land(a.proposal);
       setRedraft(false);
       setEditing(null);
       if (kind === "change") setChange("");
@@ -146,27 +171,54 @@ export function JobQuoteFace({
     }
   };
 
-  const save = async (draft: ProposalDraft): Promise<boolean> => {
-    try {
-      const res = await fetch(ROUTE, {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ job, draft }),
-      });
-      const a = (await res.json()) as Answer;
-      if (!a.ok) {
-        onToast(a.reason);
+  const save = (edit: Edit): Promise<boolean> => {
+    const run = async () => {
+      const base = latest.current;
+      if (!base) return false;
+      try {
+        const res = await fetch(ROUTE, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ job, draft: edit(base.draft), base: base.updatedAt }),
+        });
+        const a = (await res.json()) as Answer;
+        if (!a.ok) {
+          if (a.proposal) land(a.proposal);
+          onToast(a.reason);
+          return false;
+        }
+        land(a.proposal);
+        return true;
+      } catch {
+        onToast("The edit couldn't be saved. Try again.");
         return false;
       }
-      setLoaded(a.proposal);
-      setEditing(null);
-      return true;
-    } catch {
-      onToast("The edit couldn't be saved. Try again.");
-      return false;
-    }
+    };
+    const next = queue.current.then(run, run);
+    queue.current = next;
+    return next;
   };
 
+  /** A block's own Save: closes that block's editor when it lands, and
+      leaves any other editor open with its words in it. */
+  const saveBlock = (block: Block, edit: Edit) =>
+    save(edit).then((ok) => {
+      if (ok) setEditing((open) => (open === block ? null : open));
+      return ok;
+    });
+
+  if (readFailed && loaded === undefined) {
+    return (
+      <div className="wb2-jcsec wb2-jq">
+        <p className="wb2-sherr">The saved proposal couldn&rsquo;t be read.</p>
+        <div className="wb2-jqacts">
+          <button type="button" className="pbtn ghost" onClick={() => setReads((n) => n + 1)}>
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (loaded === undefined) return <Waiting note="Reading the proposal" />;
 
   const proposal = loaded;
@@ -176,7 +228,6 @@ export function JobQuoteFace({
         <div className="wb2-jcdhead">
           <b>{proposal ? "Start the proposal again" : "Draft the proposal"}</b>
         </div>
-        {readFailed && <p className="wb2-sherr">The saved proposal couldn&rsquo;t be read.</p>}
         <NoteToken
           as="field"
           label="what the job is"
@@ -219,10 +270,10 @@ export function JobQuoteFace({
         busy={busy}
         applying={working === "apply"}
         onAnswer={(key, answer) =>
-          save({
-            ...draft,
-            checklist: draft.checklist.map((i) => (i.key === key ? { key, state: "known", answer, fresh: true } : i)),
-          })
+          save((d) => ({
+            ...d,
+            checklist: d.checklist.map((i) => (i.key === key ? { key, state: "known", answer, fresh: true } : i)),
+          }))
         }
         onApply={() => void write("apply")}
       />
@@ -249,7 +300,7 @@ export function JobQuoteFace({
             value={draft.intro}
             word="Save intro"
             onCancel={() => setEditing(null)}
-            onSave={(intro) => save({ ...draft, intro })}
+            onSave={(intro) => saveBlock("intro", (d) => ({ ...d, intro }))}
           />
         ) : (
           <p className="wb2-shtext wb2-jcread">{draft.intro}</p>
@@ -264,7 +315,7 @@ export function JobQuoteFace({
               value={draft.why}
               word="Save"
               onCancel={() => setEditing(null)}
-              onSave={(why) => save({ ...draft, why })}
+              onSave={(why) => saveBlock("why", (d) => ({ ...d, why }))}
             />
           ) : (
             <p className="wb2-shtext wb2-jcread">{draft.why}</p>
@@ -280,10 +331,10 @@ export function JobQuoteFace({
               <OptionEdit
                 option={o}
                 onCancel={() => setEditing(null)}
-                onSave={(next) => save({ ...draft, options: draft.options.map((x, j) => (j === i ? next : x)) })}
+                onSave={(next) => saveBlock(key, (d) => ({ ...d, options: d.options.map((x, j) => (j === i ? next : x)) }))}
                 onRemove={
                   draft.options.length > 1
-                    ? () => save({ ...draft, options: draft.options.filter((_, j) => j !== i) })
+                    ? () => saveBlock(key, (d) => ({ ...d, options: d.options.filter((_, j) => j !== i) }))
                     : undefined
                 }
               />
@@ -296,7 +347,11 @@ export function JobQuoteFace({
 
       <QuoteBlock title="Pricing" onEdit={() => setEditing("pricing")} editing={editing === "pricing"}>
         {editing === "pricing" ? (
-          <PricingEdit draft={draft} onCancel={() => setEditing(null)} onSave={(next) => save(next)} />
+          <PricingEdit
+            draft={draft}
+            onCancel={() => setEditing(null)}
+            onSave={(pricing) => saveBlock("pricing", (d) => ({ ...d, ...pricing }))}
+          />
         ) : (
           <PricingBody draft={draft} />
         )}
@@ -307,13 +362,18 @@ export function JobQuoteFace({
           payment={draft.payment}
           editing={editing === "payment"}
           onCancel={() => setEditing(null)}
-          onSave={(payment) => save({ ...draft, payment })}
+          onPick={(payment) => save((d) => ({ ...d, payment }))}
+          onSave={(payment) => saveBlock("payment", (d) => ({ ...d, payment }))}
         />
       </QuoteBlock>
 
       <QuoteBlock title="Notes for this job" onEdit={() => setEditing("notes")} editing={editing === "notes"}>
         {editing === "notes" ? (
-          <NotesEdit picked={draft.notes} onCancel={() => setEditing(null)} onSave={(notes) => save({ ...draft, notes })} />
+          <NotesEdit
+            picked={draft.notes}
+            onCancel={() => setEditing(null)}
+            onSave={(notes) => saveBlock("notes", (d) => ({ ...d, notes }))}
+          />
         ) : draft.notes.length === 0 ? (
           <p className="wb2-jqmode">Only the standard notes.</p>
         ) : (
@@ -371,7 +431,19 @@ function SiteChecklist({
   onApply: () => void;
 }) {
   const asks = items.filter((i) => i.state === "ask");
-  const [asking, setAsking] = useState<ChecklistKey | null>(asks[0]?.key ?? null);
+  /* What the card is on. `chosen` is a topic the person opened themselves,
+     which stays open even when it's known; a topic the card moved on to by
+     itself gives way to the first open question once it's settled, so a
+     rewrite of the draft never leaves the card on an answered topic. */
+  const [on, setOn] = useState<{ key: ChecklistKey | null; chosen: boolean } | null>(null);
+  const first = asks[0]?.key ?? null;
+  const asking =
+    on === null
+      ? first
+      : on.chosen || on.key === null || asks.some((i) => i.key === on.key)
+        ? on.key
+        : first;
+  const setAsking = (key: ChecklistKey | null, chosen = false) => setOn({ key, chosen });
   const [own, setOwn] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   if (items.length === 0) return null;
@@ -478,7 +550,7 @@ function SiteChecklist({
                       disabled={busy}
                       onClick={() => {
                         setOwn(null);
-                        setAsking(i.key);
+                        setAsking(i.key, true);
                       }}
                     >
                       {i.state === "ask" ? "Answer" : "Change"}
@@ -619,26 +691,24 @@ function PaymentBlock({
   payment,
   editing,
   onCancel,
+  onPick,
   onSave,
 }: {
   payment: ProposalDraft["payment"];
   editing: boolean;
   onCancel: () => void;
+  /** A preset pressed: saved on its own, closing nothing. */
+  onPick: (p: ProposalDraft["payment"]) => Promise<boolean>;
   onSave: (p: ProposalDraft["payment"]) => Promise<boolean>;
 }) {
-  const [stages, setStages] = useState<PaymentStage[]>(payment.stages);
   const [switching, setSwitching] = useState(false);
-  const { busy, run } = useSaving(() => onSave({ preset: payment.preset, stages }));
-  const shown = editing ? stages : payment.stages;
-  const problems = paymentProblems(payment.preset, shown);
+  const problems = paymentProblems(payment.preset, payment.stages);
 
   const pick = async (preset: PaymentPreset) => {
     if (preset === payment.preset || switching) return;
-    const next = PAYMENT_PRESETS[preset].stages.map((s) => ({ ...s }));
     setSwitching(true);
-    const ok = await onSave({ preset, stages: next });
+    await onPick({ preset, stages: PAYMENT_PRESETS[preset].stages.map((s) => ({ ...s })) });
     setSwitching(false);
-    if (ok) setStages(next);
   };
 
   return (
@@ -651,7 +721,7 @@ function PaymentBlock({
             role="radio"
             aria-checked={payment.preset === k}
             className={payment.preset === k ? "on" : undefined}
-            disabled={busy || switching || editing}
+            disabled={switching || editing}
             onClick={() => void pick(k)}
           >
             {PAYMENT_PRESETS[k].label}
@@ -659,67 +729,9 @@ function PaymentBlock({
         ))}
       </div>
       {editing ? (
-        <div className="wb2-jqform">
-          {stages.map((s, i) => (
-            <div className="wb2-jqstage" key={i}>
-              <input
-                className="wb2-fi"
-                aria-label={`Stage ${i + 1}`}
-                value={s.when}
-                disabled={busy}
-                onChange={(e) => setStages((cur) => cur.map((x, j) => (j === i ? { ...x, when: e.target.value } : x)))}
-              />
-              <input
-                className="wb2-fi wb2-jqpct"
-                aria-label={`Stage ${i + 1} percent`}
-                inputMode="numeric"
-                value={s.percent ?? ""}
-                disabled={busy}
-                onChange={(e) =>
-                  setStages((cur) =>
-                    cur.map((x, j) =>
-                      j === i ? { ...x, percent: e.target.value.trim() === "" ? null : Number(e.target.value) || 0 } : x
-                    )
-                  )
-                }
-              />
-              <span className="wb2-jqpcts">%</span>
-              <button
-                type="button"
-                className="pbtn ghost sm"
-                aria-label={`Remove stage ${i + 1}`}
-                disabled={busy || stages.length < 2}
-                onClick={() => setStages((cur) => cur.filter((_, j) => j !== i))}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-          {problems.map((p) => (
-            <p key={p} className="wb2-sherr">
-              {p}
-            </p>
-          ))}
-          <EditFoot
-            busy={busy}
-            onCancel={() => {
-              setStages(payment.stages);
-              onCancel();
-            }}
-            onSave={() => void run()}
-            saveWord="Save payment"
-            extra={
-              <button
-                type="button"
-                className="pbtn ghost wb2-jqlead"
-                disabled={busy}
-                onClick={() => setStages((cur) => [...cur, { when: "", percent: 0 }])}
-              >
-                Add a stage
-              </button>
-            }
-          />
-        </div>
+        /* mounted fresh each time Edit opens, so it starts from the stages
+           the draft holds now, whoever last changed them */
+        <StagesEdit payment={payment} onCancel={onCancel} onSave={onSave} />
       ) : (
         <>
           <ul className="wb2-jqlines">
@@ -738,6 +750,80 @@ function PaymentBlock({
         </>
       )}
     </>
+  );
+}
+
+function StagesEdit({
+  payment,
+  onCancel,
+  onSave,
+}: {
+  payment: ProposalDraft["payment"];
+  onCancel: () => void;
+  onSave: (p: ProposalDraft["payment"]) => Promise<boolean>;
+}) {
+  const [stages, setStages] = useState<PaymentStage[]>(payment.stages);
+  const { busy, run } = useSaving(() => onSave({ preset: payment.preset, stages }));
+  const problems = paymentProblems(payment.preset, stages);
+  return (
+    <div className="wb2-jqform">
+      {stages.map((s, i) => (
+        <div className="wb2-jqstage" key={i}>
+          <input
+            className="wb2-fi"
+            aria-label={`Stage ${i + 1}`}
+            value={s.when}
+            disabled={busy}
+            onChange={(e) => setStages((cur) => cur.map((x, j) => (j === i ? { ...x, when: e.target.value } : x)))}
+          />
+          <input
+            className="wb2-fi wb2-jqpct"
+            aria-label={`Stage ${i + 1} percent`}
+            inputMode="numeric"
+            value={s.percent ?? ""}
+            disabled={busy}
+            onChange={(e) =>
+              setStages((cur) =>
+                cur.map((x, j) =>
+                  j === i ? { ...x, percent: e.target.value.trim() === "" ? null : Number(e.target.value) || 0 } : x
+                )
+              )
+            }
+          />
+          <span className="wb2-jqpcts">%</span>
+          <button
+            type="button"
+            className="pbtn ghost sm"
+            aria-label={`Remove stage ${i + 1}`}
+            disabled={busy || stages.length < 2}
+            onClick={() => setStages((cur) => cur.filter((_, j) => j !== i))}
+          >
+            Remove
+          </button>
+        </div>
+      ))}
+      {problems.map((p) => (
+        <p key={p} className="wb2-sherr">
+          {p}
+        </p>
+      ))}
+      <EditFoot
+        busy={busy}
+        onCancel={onCancel}
+        onSave={() => void run()}
+        saveWord="Save payment"
+        extra={
+          <button
+            type="button"
+            className="pbtn ghost wb2-jqlead"
+            disabled={busy}
+            onClick={() => setStages((cur) => [...cur, { when: "", percent: 0 }])}
+          >
+            Add a stage
+          </button>
+        }
+      />
+    </div>
   );
 }
 
@@ -878,7 +964,7 @@ function PricingEdit({
 }: {
   draft: ProposalDraft;
   onCancel: () => void;
-  onSave: (next: ProposalDraft) => Promise<boolean>;
+  onSave: (pricing: Pick<ProposalDraft, "pricingMode" | "items" | "extras" | "allowances">) => Promise<boolean>;
 }) {
   const [mode, setMode] = useState(draft.pricingMode);
   const [items, setItems] = useState(draft.items.map((it) => `${it.qty} × ${it.name}`).join("\n"));
@@ -886,7 +972,6 @@ function PricingEdit({
   const [allowances, setAllowances] = useState(namedText(draft.allowances));
   const { busy, run } = useSaving(() =>
     onSave({
-      ...draft,
       pricingMode: mode,
       items: linesOf(items).map((l) => {
         const m = /^(\d+(?:\.\d+)?)\s*[×x*]\s*(.+)$/i.exec(l);

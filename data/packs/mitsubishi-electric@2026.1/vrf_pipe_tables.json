@@ -251,6 +251,8 @@
       ]
     },
     "box_head_sizing": [
+      { "series": "M", "code_min": 15, "code_max": 20, "liquid_mm": 6.35, "gas_mm": 9.52, "provenance": { "kind": "user-entered", "source": "M-P0860 p.44: a box takes heads from P15; its SP pipe table starts at 22, so 15-20 take the 22-42 row", "by": "Isaac Smith", "at": "2026-09-29" } },
+      { "series": "S", "code_min": 15, "code_max": 20, "liquid_mm": 6.35, "gas_mm": 9.52, "provenance": { "kind": "user-entered", "source": "M-P0860 p.44: a box takes heads from P15; its SP pipe table starts at 22, so 15-20 take the 22-42 row", "by": "Isaac Smith", "at": "2026-09-29" } },
       { "series": "M", "code_min": 22, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52 },
       { "series": "S", "code_min": 22, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52 },
       { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },
@@ -330,6 +332,8 @@
       { "below_index": 50, "after_first_joint_over_m": 30, "liquid_mm": 9.52 }
     ],
     "box_head_sizing": [
+      { "series": "M", "code_min": 15, "code_max": 20, "liquid_mm": 6.35, "gas_mm": 9.52, "provenance": { "kind": "user-entered", "source": "M-P0860 p.44: a box takes heads from P15; its SP pipe table starts at 22, so 15-20 take the 22-42 row", "by": "Isaac Smith", "at": "2026-09-29" } },
+      { "series": "S", "code_min": 15, "code_max": 20, "liquid_mm": 6.35, "gas_mm": 9.52, "provenance": { "kind": "user-entered", "source": "M-P0860 p.44: a box takes heads from P15; its SP pipe table starts at 22, so 15-20 take the 22-42 row", "by": "Isaac Smith", "at": "2026-09-29" } },
       { "series": "M", "code_min": 22, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52 },
       { "series": "S", "code_min": 22, "code_max": 42, "liquid_mm": 6.35, "gas_mm": 9.52 },
       { "series": "M", "code_min": 50, "code_max": 50, "liquid_mm": 6.35, "gas_mm": 12.7 },

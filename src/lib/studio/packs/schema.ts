@@ -511,8 +511,16 @@ export interface VrfPipeTable {
       from the first joint (PUMY p.76 *) */
   branch_step_ups?: { below_index: number; after_first_joint_over_m: number; liquid_mm: number }[];
   /** a head on a branch box: its pipe by its series (the first letter of its
-      model, M, S or P: Isaac, 2026-09-28) and model number (kW type) */
-  box_head_sizing?: { series: "M" | "S" | "P"; code_min: number; code_max: number; liquid_mm: number; gas_mm: number }[];
+      model, M, S or P: Isaac, 2026-09-28) and model number (kW type). A row
+      the book doesn't print carries its own provenance. */
+  box_head_sizing?: {
+    series: "M" | "S" | "P";
+    code_min: number;
+    code_max: number;
+    liquid_mm: number;
+    gas_mm: number;
+    provenance?: Provenance;
+  }[];
   /** ODU → 1st joint ("A"). Optional: Mitsubishi's Table 1 equals the ODU's
       own connection sizes, so the engine defaults to those when absent; only
       brands that publish a separate main-selection rule fill this. */

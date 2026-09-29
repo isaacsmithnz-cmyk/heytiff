@@ -140,6 +140,30 @@ describe("branch boxes (p.44, 75)", () => {
     expect(pipe).toEqual({ h1: [6.35, 9.52], h2: [6.35, 9.52], h3: [6.35, 12.7], h4: [6.35, 9.52] });
   });
 
+  it("a size 20 box head on an SP takes the 22–42 row: Isaac's entry, not the book's", () => {
+    // p.44 takes box heads from P15, the SP pipe table starts at 22 (Isaac, 2026-09-29)
+    const small = [
+      { id: "s1", model: "MSZ-AP20VGD" },
+      { id: "s2", model: "MSZ-AP20VGD" },
+      { id: "s3", model: "MSZ-AP50VGD2" },
+    ];
+    for (const method of ["branch-box", "mixed"] as const) {
+      const heads = method === "mixed" ? [...small, { id: "c1", model: CM[40] }] : small;
+      const tree = provisionalVrfTree("OU", heads, new Set(small.map((h) => h.id)), 5);
+      const sized = sizeVrfTree(pack, odu("PUMY-SP112VKMD2-A"), tree);
+      expect(sized.method).toBe(method);
+      expect(sized.findings).toEqual([]);
+      const pipe = Object.fromEntries(sized.sections.filter((s) => s.role === "box").map((s) => [s.to, [s.liquidMm, s.gasMm]]));
+      expect(pipe).toEqual({ s1: [6.35, 9.52], s2: [6.35, 9.52], s3: [6.35, 12.7] });
+    }
+    const entered = pack.vrf_pipe_tables
+      .filter((t) => t.series.startsWith("PUMY-SP"))
+      .flatMap((t) => t.box_head_sizing ?? [])
+      .filter((r) => r.code_min === 15);
+    expect(entered).toHaveLength(4); // M and S, on the box table and the mixed table
+    for (const r of entered) expect(r.provenance).toMatchObject({ kind: "user-entered", by: "Isaac Smith" });
+  });
+
   it("three box heads take the three-port PAC-MK34BC", () => {
     const three = heads.slice(0, 3);
     const tree = provisionalVrfTree("OU", three, new Set(three.map((h) => h.id)), 5);

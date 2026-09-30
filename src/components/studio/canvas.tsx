@@ -3197,6 +3197,10 @@ export function StudioCanvas({
             }
           setLiveSlide(pts);
           setLivePoint({ id: drag.id, at: slid.at });
+        } else if (liveSlide && doc.objects.find((o) => o.id === drag.id)?.type === "riser") {
+          /* a riser never drags its pipes (Isaac, 2026-09-30: crossing the
+             refrigerant line "started dragging the pipes with me"): off every
+             pipe it waits where it last sat on one */
         } else {
           if (!drag.free && liveSlide) setDrag({ ...drag, free: true });
           setLiveSlide(null);

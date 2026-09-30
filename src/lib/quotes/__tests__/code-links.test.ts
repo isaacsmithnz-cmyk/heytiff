@@ -52,7 +52,7 @@ describe("the invoice workbook", () => {
     const r = parseInvoicedRows(
       [
         row({ A: "What Diamond Air actually pays Mitsubishi Electric" }),
-        row({ A: "Model / part no.", B: "Description", C: "Latest unit price" }),
+        row({ A: "Model / part no.", B: "Description", C: "Latest unit price", D: "Latest invoice date", G: "Times invoiced", H: "Total qty bought" }),
         row({ A: "PEFY-P50VMX-E1", B: "5.6kW C/M Compact Ceiling Concealed 450mmD", C: 949, D: 46286, G: 9, H: 14 }),
         row({ A: "PAC-XX", B: "no price", C: null }),
       ],
@@ -66,8 +66,27 @@ describe("the invoice workbook", () => {
         pricedOn: "2026-09-21",
         timesBought: 9,
         qtyBought: 14,
+        uom: null,
       },
     ]);
     expect(r.skipped).toBe(1);
   });
 });
+
+describe("a workbook read by its headings", () => {
+  it("finds Ideal Air's columns where they are, a source column between them", () => {
+    const row = (o: Record<string, string | number | null>) => new Map(Object.entries(o));
+    const r = parseInvoicedRows(
+      [
+        row({ A: "Ideal Air Group - what Diamond Air pays" }),
+        row({ A: "Item code", B: "Description", C: "Latest price", D: "Latest date", E: "Latest source", F: "Lowest", G: "Highest", H: "Times bought / quoted", I: "Total qty" }),
+        row({ A: "SJMF150", B: "Jetflow In-Line Mixed Flow EC Fan 150mm", C: 220, D: 46251, E: "Invoice", F: 185, G: 327.68, H: 13, I: 42 }),
+      ],
+      () => "2026-08-17"
+    );
+    expect(r.rows).toEqual([
+      { code: "SJMF150", name: "Jetflow In-Line Mixed Flow EC Fan 150mm", cents: 22000, pricedOn: "2026-08-17", timesBought: 13, qtyBought: 42, uom: null },
+    ]);
+  });
+});
+

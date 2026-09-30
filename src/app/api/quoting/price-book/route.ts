@@ -2,7 +2,7 @@ import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { openPdf } from "@/lib/tiff/extract";
 import { parseAadCsv, parseInvoicedRows, parseMitsubishiLines, parseReeceCsv, type ParseResult } from "@/lib/quotes/price-book";
-import { excelDate, readSheet } from "@/lib/quotes/xlsx";
+import { excelDate, readSheet, sheetNames } from "@/lib/quotes/xlsx";
 import { findOffers, importPriceRows, readSuppliers } from "@/lib/quotes/price-book-server";
 
 /* The price book in Admin → Quoting: look a model up at every supplier
@@ -53,7 +53,13 @@ export async function POST(req: Request) {
     } else if (supplier.format === "reece_csv") {
       parsed = parseReeceCsv(await file.text());
     } else if (supplier.format === "me_invoice_xlsx") {
-      parsed = parseInvoicedRows(readSheet(Buffer.from(await file.arrayBuffer()), "Current Net Prices"), excelDate);
+      /* the first sheet whose headings name a code and a price */
+      const bytes = Buffer.from(await file.arrayBuffer());
+      parsed = { rows: [], conflicts: [], skipped: 0 };
+      for (const name of sheetNames(bytes)) {
+        parsed = parseInvoicedRows(readSheet(bytes, name), excelDate);
+        if (parsed.rows.length > 0) break;
+      }
     } else {
       const pdf = await openPdf(new Uint8Array(await file.arrayBuffer()));
       try {

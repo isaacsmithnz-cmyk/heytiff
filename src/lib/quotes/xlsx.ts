@@ -101,3 +101,10 @@ export function excelDate(serial: number): string {
   const ms = Date.UTC(1899, 11, 30) + Math.round(serial) * 86400000;
   return new Date(ms).toISOString().slice(0, 10);
 }
+
+/** Every sheet's name, in the workbook's order. */
+export function sheetNames(bytes: Buffer): string[] {
+  const wb = unzip(bytes).get("xl/workbook.xml")?.toString("utf8") ?? "";
+  return [...wb.matchAll(/<sheet\b[^>]*name="([^"]*)"/g)].map((m) => decode(m[1]!));
+}
+

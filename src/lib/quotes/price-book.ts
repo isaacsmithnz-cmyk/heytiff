@@ -24,6 +24,7 @@ export type DiscountRule = { prefix: string; discountPct: number };
 
 /** The file a supplier's prices come in, and how it's laid out. */
 export type FileKind = "csv" | "pdf" | "xlsx";
+/** me_invoice_xlsx: any workbook of headed price rows, read by heading */
 export type FileFormat = "aad_csv" | "reece_csv" | "me_pdf" | "me_invoice_xlsx";
 
 export type Supplier = {
@@ -59,6 +60,9 @@ export const DEFAULT_SUPPLIERS: Supplier[] = [
      units and older builds the trade book doesn't list, dated, with how
      often each was bought. */
   { key: "mitsubishi_invoiced", name: "Mitsubishi Electric, invoiced", pricing: "net", file: "xlsx", format: "me_invoice_xlsx", discountPct: 0, rules: [] },
+  /* Ideal Air Group — ventilation: diffusers, EC fans, duct fittings —
+     from the office's workbook of its invoices, orders and quotes */
+  { key: "idealair", name: "Ideal Air Group", pricing: "net", file: "xlsx", format: "me_invoice_xlsx", discountPct: 0, rules: [] },
 ];
 
 export type PriceRow = {
@@ -192,43 +196,68 @@ export function parseMitsubishiLines(lines: string[]): ParseResult {
   return dedupe(rows, skipped);
 }
 
-/** The invoice workbook's "Current Net Prices" sheet, as rows of cells by
-    column: model, description, latest unit price, latest invoice date (an
-    Excel date), lowest, highest, times invoiced, quantity bought. Rows
-    above the header ("Model / part no.") are the sheet's own notes. */
-export function parseInvoicedRows(
-  rows: Map<string, string | number | null>[],
-  excelDate: (serial: number) => string
-): ParseResult {
+/* WHICH COLUMN IS WHICH, by its heading — so an invoice workbook or a
+   price list reads whatever order its columns come in (the Mitsubishi and
+   Ideal Air workbooks share headings in different places, 2026-09-30). The
+   first row naming a code column and a price column is the header. */
+const HEADINGS: { field: "code" | "name" | "price" | "date" | "times" | "qty" | "uom"; test: RegExp }[] = [
+  { field: "code", test: /^(item\s*code|model|model\s*\/\s*part\s*no\.?|part\s*(no\.?|number)|code|product\s*code|sku)$/i },
+  { field: "name", test: /^(description|item|name|product)$/i },
+  { field: "price", test: /^(latest\s*(unit\s*)?price|net\s*price|unit\s*price(\s*ex\s*gst)?|price(\s*ex\s*gst)?|cost)$/i },
+  { field: "date", test: /^(latest\s*(invoice\s*)?date|date)$/i },
+  { field: "times", test: /^times\s*(invoiced|bought)/i },
+  { field: "qty", test: /^total\s*qty|^qty\s*bought/i },
+  { field: "uom", test: /^(unit|uom|unit\s*of\s*measure)$/i },
+];
+
+type Row = Map<string, string | number | null>;
+
+/** A sheet's price rows, found by their headings: code, description,
+    price, and — when there — the date it was charged, how often and how
+    many were bought, and the unit it's sold by. */
+export function parseHeadedRows(rows: Row[], excelDate: (serial: number) => string): ParseResult {
+  let cols: Partial<Record<(typeof HEADINGS)[number]["field"], string>> | null = null;
   const out: PriceRow[] = [];
   let skipped = 0;
-  let started = false;
   for (const r of rows) {
-    const a = r.get("A");
-    if (!started) {
-      if (typeof a === "string" && /^model/i.test(a.trim())) started = true;
+    if (!cols) {
+      const found: typeof cols = {};
+      for (const [col, v] of r) {
+        if (typeof v !== "string") continue;
+        const h = HEADINGS.find((x) => x.test.test(v.trim()) && !found[x.field]);
+        if (h) found[h.field] = col;
+      }
+      if (found.code && found.price) cols = found;
       continue;
     }
-    const price = r.get("C");
-    if (typeof a !== "string" || !a.trim()) continue;
-    if (typeof price !== "number" || !Number.isFinite(price)) {
+    const code = cols.code ? r.get(cols.code) : null;
+    const price = cols.price ? r.get(cols.price) : null;
+    const codeText = typeof code === "number" ? String(code) : typeof code === "string" ? code.trim() : "";
+    if (!codeText) continue;
+    const n = typeof price === "number" ? price : typeof price === "string" ? Number(price.replace(/[$,\s]/g, "")) : NaN;
+    if (!Number.isFinite(n)) {
       skipped++;
       continue;
     }
-    const d = r.get("D");
-    const times = r.get("G");
-    const qty = r.get("H");
+    const d = cols.date ? r.get(cols.date) : null;
+    const times = cols.times ? r.get(cols.times) : null;
+    const qty = cols.qty ? r.get(cols.qty) : null;
+    const uom = cols.uom ? r.get(cols.uom) : null;
     out.push({
-      code: a.trim(),
-      name: String(r.get("B") ?? a).replace(/\s+/g, " ").trim(),
-      cents: Math.round(price * 100),
-      pricedOn: typeof d === "number" ? excelDate(d) : null,
+      code: codeText,
+      name: String((cols.name ? r.get(cols.name) : null) ?? codeText).replace(/\s+/g, " ").trim(),
+      cents: Math.round(n * 100),
+      pricedOn: typeof d === "number" ? excelDate(d) : typeof d === "string" && /^\d{4}-\d{2}-\d{2}/.test(d) ? d.slice(0, 10) : null,
       timesBought: typeof times === "number" ? Math.round(times) : null,
       qtyBought: typeof qty === "number" ? qty : null,
+      uom: typeof uom === "string" && uom.trim() ? uom.trim() : null,
     });
   }
   return dedupe(out, skipped);
 }
+
+/** The invoice workbooks are headed sheets. */
+export const parseInvoicedRows = parseHeadedRows;
 
 /** What the business pays for an item: the net price as sent, or the list
     price less the discount that applies to its range. */

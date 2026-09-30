@@ -84,13 +84,15 @@ describe("the Schematic with a riser", () => {
     const { doc, systemId } = twoFloors();
     const sys = doc.systems.find((s) => s.id === systemId)!;
     const { rerender } = render(<VrfSchematic doc={doc} pack={pack} sys={sys} units="in" />);
-    expect(screen.getByText("Riser A, 3 m")).toBeTruthy();
+    // what it is, what it does, and the pipe either side
+    expect(screen.getByText("Riser A")).toBeTruthy();
+    expect(screen.getByText("3 m up to Level 1")).toBeTruthy();
     expect(screen.getByText("Level 1, +3 m")).toBeTruthy();
     // the pipe on each floor, apart from the riser
     expect(screen.getByText("5 m on Ground floor, 5 m on Level 1")).toBeTruthy();
     const tall = setRiserHeight(doc, "r0", 6);
     rerender(<VrfSchematic doc={tall} pack={pack} sys={sys} units="in" />);
-    expect(screen.getByText("Riser A, 6 m")).toBeTruthy();
+    expect(screen.getByText("6 m up to Level 1")).toBeTruthy();
   });
 });
 
@@ -170,6 +172,6 @@ describe("a riser dropped on the trunk (Isaac, 2026-09-30: it sat on the pipe wi
     expect(tree.drawn).toBe(true);
     expect(tree.fittings.map((f) => f.nodeId)).toEqual(["r0"]);
     render(<VrfSchematic doc={doc} pack={pack} sys={sys} units="in" />);
-    expect(screen.getByText("Riser A, 3 m")).toBeTruthy();
+    expect(screen.getByText("3 m up to Level 1")).toBeTruthy();
   });
 });

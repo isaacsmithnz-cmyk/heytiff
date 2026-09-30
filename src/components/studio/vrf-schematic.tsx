@@ -23,6 +23,7 @@ import { deleteFromSchematic, type SchematicTarget } from "@/lib/studio/joints";
 
 const COL = 132;
 const ROW = 92;
+const RISER_ROW = 156;
 const PAD = 24;
 const HEAD_W = 116;
 const ODU_W = 150;
@@ -52,6 +53,10 @@ export function VrfSchematic({
   /* the size being set by hand on the picked section, while its form is open */
   const [sizing, setSizing] = useState<{ id: string; liquidMm: number; gasMm: number } | null>(null);
 
+  /* a system with a riser gets taller rows, so the riser's three lines sit
+     clear of the pipe's own sizes (Isaac, 2026-09-30: "all of that's just a
+     little bit too close together") */
+  const row = tree?.sections.some((x) => x.edges.some((e) => e.startsWith("riser-gap:"))) ? RISER_ROW : ROW;
   const layout = useMemo(() => {
     if (!tree || !tree.sections.length) return null;
     const kids = new Map<string, SizedSection[]>();
@@ -71,13 +76,13 @@ export function VrfSchematic({
       depth = Math.max(depth, d);
       const ch = (kids.get(id) ?? []).filter((s) => !seen.has(s.to));
       if (!ch.length) {
-        pos.set(id, { x: PAD + leaf * COL + COL / 2, y: PAD + 18 + d * ROW });
+        pos.set(id, { x: PAD + leaf * COL + COL / 2, y: PAD + 18 + d * row });
         leaf++;
         return;
       }
       for (const c of ch) place(c.to, d + 1);
       const xs = ch.map((c) => pos.get(c.to)?.x).filter((x): x is number => x != null);
-      pos.set(id, { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: PAD + 18 + d * ROW });
+      pos.set(id, { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: PAD + 18 + d * row });
     };
     place(root, 0);
     const fit = new Map<string, SizedFitting>(tree.fittings.map((f) => [f.nodeId, f]));
@@ -87,9 +92,9 @@ export function VrfSchematic({
       fit,
       w: Math.max(PAD * 2 + leaf * COL, ODU_W + PAD * 2),
       /* room under the lowest heads for their floor and height */
-      h: PAD * 2 + 36 + depth * ROW + 42,
+      h: PAD * 2 + 36 + depth * row + 42,
     };
-  }, [tree]);
+  }, [tree, row]);
 
   const allocs = allocationsOf(sys);
   const oduModel = allocs.find((a) => a.role === "odu")?.model ?? "Outdoor";
@@ -180,7 +185,7 @@ export function VrfSchematic({
       return {
         d: `M${a.x} ${a.y} H${b.x} V${b.y}`,
         label: { x: b.x + 6, y: a.y + 16 },
-        riser: { x: b.x, y: a.y + (b.y - a.y) * 0.62 },
+        riser: { x: b.x, y: a.y + 52 },
       };
     if (f?.kind === "box") {
       const outs = tree.sections
@@ -207,11 +212,12 @@ export function VrfSchematic({
         riser: { x: b.x, y: lane + (b.y - lane) * 0.25 },
       };
     }
-    const mid = a.y + ROW * 0.45;
+    const mid = a.y + row * 0.45;
     return {
       d: `M${a.x} ${a.y} V${mid} H${b.x} V${b.y}`,
       label: { x: b.x + 6, y: mid + 16 },
-      riser: { x: b.x, y: mid + (b.y - mid) * 0.72 },
+      /* under the pipe's sizes, clear of them */
+      riser: { x: b.x, y: mid + 44 },
     };
   };
 
@@ -289,7 +295,7 @@ export function VrfSchematic({
     const floorName = (id: string | undefined) => doc.floors.find((f) => f.id === id)?.name ?? "a floor";
     const out = new Map<
       string,
-      { group: string; lengthM: number; manual: boolean; from: string; to: string; pieces: string }[]
+      { group: string; lengthM: number; manual: boolean; up: boolean; from: string; to: string; pieces: string }[]
     >();
     for (const sec of tree.sections) {
       /* the section's pipe on each floor, apart from the riser itself, so
@@ -320,6 +326,7 @@ export function VrfSchematic({
             group: String(lower.props.group ?? "A"),
             lengthM: g.lengthM ?? 0,
             manual: manualRiserM(lower) != null,
+            up,
             from: floorName((up ? lower : upper).floorId),
             to: floorName((up ? upper : lower).floorId),
             pieces,
@@ -409,16 +416,21 @@ export function VrfSchematic({
                   </text>
                 )}
                 {(risersOf.get(s.id) ?? []).map((rz, k) => (
-                  <g key={k} className="ds-schem-riser" transform={`translate(${r.riser.x} ${r.riser.y + k * 22})`}>
+                  <g key={k} className="ds-schem-riser" transform={`translate(${r.riser.x} ${r.riser.y + k * 52})`}>
                     <circle r={9} />
                     <text className="id" y={4}>
                       {rz.group}
                     </text>
-                    <text className="len" x={14} y={4}>
-                      {`Riser ${rz.group}, ${Math.round(rz.lengthM * 10) / 10} m`}
+                    {/* three tiers: what it is, what it does, and the pipe
+                        either side of it */}
+                    <text className="name" x={16} y={4}>
+                      {`Riser ${rz.group}`}
+                    </text>
+                    <text className="rise" x={16} y={21}>
+                      {`${Math.round(rz.lengthM * 10) / 10} m ${rz.up ? "up" : "down"} to ${rz.to}`}
                     </text>
                     {k === 0 && rz.pieces && (
-                      <text className="pieces" x={14} y={18}>
+                      <text className="pieces" x={16} y={37}>
                         {rz.pieces}
                       </text>
                     )}

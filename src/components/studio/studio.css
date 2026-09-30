@@ -10119,9 +10119,13 @@ html[data-ds-display] .dstudio.editing {
   text-anchor: middle;
   font: 700 12px var(--font);
 }
-:is(.dstudio, .ds-sb) .ds-schem-riser text.len {
+:is(.dstudio, .ds-sb) .ds-schem-riser text.name {
   fill: var(--ink);
-  font: 600 12px var(--font);
+  font: 700 13px var(--font);
+}
+:is(.dstudio, .ds-sb) .ds-schem-riser text.rise {
+  fill: var(--ink);
+  font: 500 12px var(--font);
 }
 :is(.dstudio, .ds-sb) .ds-schem-riser text.pieces {
   fill: var(--q);

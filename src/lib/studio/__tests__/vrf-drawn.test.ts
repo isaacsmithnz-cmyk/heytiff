@@ -586,6 +586,25 @@ describe("sliding a joint along its pipe (Isaac, 2026-09-30)", () => {
     expect(tree.sections.find((s) => s.to === t.heads[63])!.lengthM).toBeCloseTo(10);
   });
 
+  it("carries on through a T onto the next run (Isaac: \"even through T's\")", () => {
+    const t = page144Drawn();
+    const j1 = jointAt(t.doc, 40 * M);
+    const j2 = jointAt(t.doc, 50 * M);
+    // past the P100's joint at 50 m, to 55 m
+    const slid = slideOnRun(t.doc.objects, j1.id, { x: 55 * M, y: 0 }, 1 * M)!;
+    expect(slid.at).toEqual({ x: 55 * M, y: 0 });
+    const doc = { ...t.doc, objects: reconcileAttachedRuns(slid.objects, new Set([j1.id])) };
+    const sys = doc.systems.find((s) => s.id === t.systemId)!;
+    const tree = systemVrfTree(pack, sys, doc)!;
+    // still one drawn tree reaching every head; the P125 now branches after the P100
+    expect(tree.drawn).toBe(true);
+    expect(tree.sections.find((s) => s.to === j1.id)!.from).toBe(j2.id);
+    expect(tree.sections.find((s) => s.to === t.heads[125])!.from).toBe(j1.id);
+    // no run left loose, no id lost
+    expect(systemFindings(doc, pack, sys).map((f) => f.code)).not.toContain("loose-pipe");
+    expect(runsOf(doc, t.systemId)).toHaveLength(runsOf(t.doc, t.systemId).length);
+  });
+
   it("dragged well off the line, there is no slide (it comes free)", () => {
     const t = page144Drawn();
     const j = jointAt(t.doc, 40 * M);

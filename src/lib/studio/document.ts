@@ -104,6 +104,9 @@ export interface DesignSettings {
   /** the house's install answers, asked once and kept for every system:
       question id → the option ids ticked (install.ts) */
   install?: Record<string, string[]>;
+  /** the plan's words on a white backing, to read over a busy uploaded
+      drawing (View › Label backing); prints the same */
+  labelBacks?: boolean;
 }
 
 export interface DesignMeta {

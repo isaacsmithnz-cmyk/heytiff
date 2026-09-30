@@ -2191,7 +2191,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-floor-trigger:hover { border-color: var(--line); }
 .dstudio .ds-floor-trigger.on { border-color: var(--teal-d); color: var(--teal-d); }
-.dstudio .ds-floor-menu { min-width: 200px; }
+.dstudio .ds-floor-menu { min-width: 260px; }
 .dstudio .ds-floor-row { display: flex; align-items: center; border-radius:var(--r-control); }
 .dstudio .ds-floor-row.on { background: var(--tint); }
 .dstudio .ds-floor-pick {
@@ -2226,6 +2226,34 @@ html[data-ds-display] .dstudio.editing {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* a floor's height in its menu row: a riser up from it is this tall */
+.dstudio .ds-floor-hgt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  margin-right: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray400);
+}
+.dstudio .ds-floor-hgt input {
+  width: 48px;
+  height: 24px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--paper);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.dstudio .ds-floor-hgt input:focus {
+  outline: none;
+  border-color: var(--ink);
 }
 .dstudio .ds-floor-x {
   display: inline-flex;
@@ -3054,28 +3082,32 @@ html[data-ds-display] .dstudio.editing {
 }
 
 /* Hovered-unit card — the plan's units carry no text, so what you're pointing
-   at names itself here instead. Same dark glass and same top-left anchor as
-   the sim readout (the two never show at once: hover is suppressed while
-   simulating). pointer-events:none — it's a read, never a target. */
+   at names itself here instead. pointer-events:none — it's a read, never a
+   target. It tucks flush into the canvas's top-LEFT corner, the tool hint's
+   mirror on the right: frosted grey, no gap on the two outer edges, only
+   the inner corner rounded (Isaac, 2026-09-30: the black card was "a bit
+   overbearing"). */
 .dstudio .ds-unitcard {
   position: absolute;
-  top: 16px;
-  left: 20px;
+  top: 0;
+  left: 0;
   z-index: 12;
   width: 232px;
-  padding: 12px 12px 12px;
-  border-radius:var(--r-card);
-  background: var(--ink2);
-  border: 1px solid var(--on-ink-line);
-  color: var(--paper);
+  padding: 12px 16px 12px 12px;
+  border-radius:var(--r-card) 0 var(--r-card) 0;
+  background: color-mix(in srgb, var(--paper) 84%, var(--ink) 4%);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid var(--ds-border-s);
+  border-bottom: 1px solid var(--ds-border-s);
+  color: var(--ink);
   font: 500 12px var(--font);
   pointer-events: none;
-  animation: ds-unitcard-in 0.13s ease-out;
+  animation: ds-unitcard-in 0.14s ease-out;
 }
 @keyframes ds-unitcard-in {
   from {
     opacity: 0;
-    transform: translateY(-3px);
+    transform: translateY(-4px);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -3096,12 +3128,12 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-unitcard-role {
   font: 700 12px var(--font);
-  color: var(--paper);
+  color: var(--ink);
 }
 .dstudio .ds-unitcard-sys {
   margin-left: auto;
   font-size: 12px;
-  color: var(--on-ink-q);
+  color: var(--gray500);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3109,18 +3141,18 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-unitcard-model {
   margin-top: 4px;
   font: 700 16px var(--font);
-  color: var(--paper);
+  color: var(--ink);
   word-break: break-word;
 }
 .dstudio .ds-unitcard-kind {
   margin-top: 1px;
   font-size: 12px;
-  color: var(--teal);
+  color: var(--gray500);
 }
 .dstudio .ds-unitcard-rows {
   margin: 8px 0 0;
   padding-top: 8px;
-  border-top: 1px solid var(--on-ink-line);
+  border-top: 1px solid var(--ds-border-s);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -3129,6 +3161,58 @@ html[data-ds-display] .dstudio.editing {
   display: flex;
   align-items: baseline;
   gap: 8px;
+}
+/* a picked riser's card takes clicks: its height is set on it */
+.dstudio .ds-unitcard.riser {
+  pointer-events: auto;
+}
+.dstudio .ds-riser-set {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.dstudio .ds-riser-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-button);
+  background: var(--tint-2);
+}
+.dstudio .ds-riser-seg button {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: var(--r-control);
+  font: 600 12px var(--font);
+  color: var(--gray500);
+  cursor: pointer;
+}
+.dstudio .ds-riser-seg button.on {
+  background: var(--paper);
+  color: var(--ink);
+}
+.dstudio .ds-riser-m {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--gray500);
+}
+.dstudio .ds-riser-m input {
+  width: 56px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--paper);
+  font: 700 12px var(--font);
+  color: var(--ink);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.dstudio .ds-riser-m input:focus {
+  outline: none;
+  border-color: var(--ink);
 }
 /* a picked pipe, joint or box: its rows name where each pipe goes, so the
    card is wider and so is its label column */
@@ -3142,13 +3226,13 @@ html[data-ds-display] .dstudio.editing {
   flex: none;
   width: 56px;
   font-size: 12px;
-  color: var(--on-ink-q);
+  color: var(--gray500);
 }
 .dstudio .ds-unitcard-rows dd {
   margin: 0;
   font-size: 12px;
   font-weight: 600;
-  color: var(--paper);
+  color: var(--ink);
 }
 
 /* HUD + zoom controls */
@@ -3165,15 +3249,22 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-zoomctl {
   position: absolute;
-  right: 14px;
-  bottom: 12px;
+  right: 0;
+  bottom: 0;
                                                                                                                                                                                                                                                                                                                                                                                  
   z-index: 12;
   display: flex;
   align-items: center;
   gap: 2px;
-  border-radius:var(--r-button);
-  padding: 4px;
+  /* flush into the canvas's bottom-right corner, frosted like the tool hint
+     above it: only the inner corner rounded (Isaac, 2026-09-30: the black
+     strip was "overbearing") */
+  border-radius:var(--r-card) 0 var(--r-card) 0;
+  padding: 4px 8px 4px 4px;
+  background: color-mix(in srgb, var(--paper) 84%, var(--ink) 4%);
+  backdrop-filter: blur(12px);
+  border-left: 1px solid var(--ds-border-s);
+  border-top: 1px solid var(--ds-border-s);
 }
 .dstudio .ds-zoomctl button {
   min-width: 30px;
@@ -3211,7 +3302,6 @@ html[data-ds-display] .dstudio.editing {
    One treatment in one place — surface, edge, shadow, and the inverted
    ink ramp every child reads through. Anything new that floats over the
    canvas joins this list rather than restating it. */
-.dstudio .ds-zoomctl,
 .dstudio .ds-legend,
 .dstudio .ds-hud {
   background: var(--ds-dark);
@@ -3225,7 +3315,10 @@ html[data-ds-display] .dstudio.editing {
   --gray400: var(--on-ink-q);
 }
 /* hover/inset fills read off the surface, not off a light palette */
-.dstudio .ds-zoomctl button:hover,
+.dstudio .ds-zoomctl button:hover {
+  background: var(--tint-2);
+  color: var(--ink);
+}
 .dstudio .ds-legend-h button:hover {
   background: var(--on-ink-tint-2);
   color: var(--ink);
@@ -4368,6 +4461,33 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray400);
   background: var(--tint);
 }
+/* a floor's storey height: the floors stack by it for the VRF lift limits */
+.dstudio .ds-floor-h {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gray400);
+  white-space: nowrap;
+}
+.dstudio .ds-floor-h input {
+  width: 56px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.dstudio .ds-floor-h input:focus {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: var(--ring);
+}
 
 /* ═════════════ Stage 4 — systems, split flow, materials ═════════════ */
 
@@ -4561,6 +4681,10 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-riser.sel circle { stroke-width: 3.5px; }
+/* a riser that is a T: the T's ink square inside the ring */
+.dstudio .ds-riser.tee rect {
+  fill: var(--ink);
+}
 /* a refrigerant joint (joints.ts): a solid square in ink — the pipes carry
    colour by size, so a fitting stands apart from them — ringed in paper so it
    reads on top of the run it sits on */
@@ -4571,6 +4695,23 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-joint.sel rect { stroke: currentColor; stroke-width: 3.5px; }
+/* the T: a thick square-ended arm down each pipe, over a paper halo so it
+   reads on top of the runs */
+.dstudio .ds-joint line {
+  stroke-linecap: square;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-joint line.halo {
+  stroke: var(--paper);
+  stroke-width: 9px;
+}
+.dstudio .ds-joint line.arm {
+  stroke: currentColor;
+  stroke-width: 6px;
+}
+.dstudio .ds-joint.sel line.arm {
+  stroke-width: 8px;
+}
 /* a branch box: to scale, paper-filled, ringed in ink, its part under it */
 .dstudio .ds-bbox rect {
   fill: var(--paper);
@@ -9895,6 +10036,12 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 500;
   color: var(--bad-t);
 }
+:is(.dstudio, .ds-sb) .ds-schem-unpiped {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
 :is(.dstudio, .ds-sb) .ds-schem-empty {
   margin: 0;
   font-size: 14px;
@@ -9921,6 +10068,10 @@ html[data-ds-display] .dstudio.editing {
 :is(.dstudio, .ds-sb) .ds-schem-sec path.hit {
   stroke: transparent;
   stroke-width: 14px;
+}
+/* not drawn yet: the zones' order, dashed, so it never passes for pipework */
+:is(.dstudio, .ds-sb) .ds-schem-sec.guess path:not(.hit) {
+  stroke-dasharray: 6 5;
 }
 :is(.dstudio, .ds-sb) .ds-schem-sec.on path:not(.hit) {
   stroke-width: 6px;
@@ -9952,16 +10103,60 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 500;
 }
 :is(.dstudio, .ds-sb) .ds-schem-box,
-:is(.dstudio, .ds-sb) .ds-schem-joint {
+:is(.dstudio, .ds-sb) .ds-schem-joint,
+:is(.dstudio, .ds-sb) .ds-schem-odu-n,
+:is(.dstudio, .ds-sb) .ds-schem-head {
   cursor: pointer;
 }
-:is(.dstudio, .ds-sb) .ds-schem-box.on rect {
+:is(.dstudio, .ds-sb) .ds-schem-box.on rect,
+:is(.dstudio, .ds-sb) .ds-schem-odu-n.on rect,
+:is(.dstudio, .ds-sb) .ds-schem-head.on rect {
   stroke-width: 3px;
 }
-:is(.dstudio, .ds-sb) .ds-schem-joint rect {
+/* a riser on its pipe: a disc with its letter, and its height beside it,
+   the way the plan marks one */
+:is(.dstudio, .ds-sb) .ds-schem-riser circle {
+  fill: var(--paper);
+  stroke: currentColor;
+  stroke-width: 2px;
+}
+/* round a T: a ring, the T's square showing through it */
+:is(.dstudio, .ds-sb) .ds-schem-riser.tee circle {
+  fill: none;
+}
+:is(.dstudio, .ds-sb) .ds-schem-riser text.id {
+  fill: currentColor;
+  text-anchor: middle;
+  font: 700 12px var(--font);
+}
+:is(.dstudio, .ds-sb) .ds-schem-riser text.name {
+  fill: var(--ink);
+  font: 700 13px var(--font);
+}
+:is(.dstudio, .ds-sb) .ds-schem-riser text.rise {
+  fill: var(--ink);
+  font: 500 12px var(--font);
+}
+:is(.dstudio, .ds-sb) .ds-schem-riser text.pieces {
+  fill: var(--q);
+  font: 500 12px var(--font);
+}
+/* a unit's or box's height against the outdoor (the lift limits) */
+:is(.dstudio, .ds-sb) .ds-schem-head text.lvl,
+:is(.dstudio, .ds-sb) .ds-schem-box text.lvl {
+  fill: var(--q);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+:is(.dstudio, .ds-sb) .ds-schem-box text.lvl {
+  text-anchor: start;
+}
+:is(.dstudio, .ds-sb) .ds-schem-joint rect,
+:is(.dstudio, .ds-sb) .ds-schem-joint > path {
   fill: var(--ink);
 }
-:is(.dstudio, .ds-sb) .ds-schem-joint.on rect {
+:is(.dstudio, .ds-sb) .ds-schem-joint.on rect,
+:is(.dstudio, .ds-sb) .ds-schem-joint.on > path {
   stroke: var(--ink);
   stroke-width: 4px;
 }
@@ -9970,7 +10165,7 @@ html[data-ds-display] .dstudio.editing {
   flex-direction: column;
   gap: 4px;
   margin: 0;
-  max-width: 480px;
+  max-width: 560px;
 }
 :is(.dstudio, .ds-sb) .ds-schem-card > div {
   display: flex;
@@ -10072,6 +10267,24 @@ html[data-ds-display] .dstudio.editing {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--paper);
+}
+:is(.dstudio, .ds-sb) .ds-schem-mount {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 13px var(--font);
+  color: var(--q);
+}
+:is(.dstudio, .ds-sb) .ds-schem-mount input {
+  width: 72px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--paper);
+  font: 600 13px var(--font);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 :is(.dstudio, .ds-sb) .ds-schem-size label {
   display: flex;

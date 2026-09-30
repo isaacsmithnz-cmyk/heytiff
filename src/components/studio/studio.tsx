@@ -23,6 +23,7 @@ import {
   type DesignSettings,
   type DesignVariantRef,
 } from "@/lib/studio/document";
+import { DEFAULT_FLOOR_HEIGHT_M, setFloorHeight } from "@/lib/studio/graph";
 import { NOTE_INKS } from "@/lib/studio/notes";
 import { CLIMATE_ZONES, sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { effectiveClimateZone, effectiveBuildingType } from "@/lib/studio/summary";
@@ -1872,6 +1873,7 @@ function Editor({
             onFloor={setPickedFloorId}
             onAddFloor={addFloor}
             onDeleteFloor={deleteFloor}
+            onFloorHeight={(id, m) => mutate((d) => setFloorHeight(d, id, m))}
             tool={tool}
             onTool={changeTool}
             next={next}
@@ -2768,6 +2770,7 @@ function CanvasControls({
   onFloor,
   onAddFloor,
   onDeleteFloor,
+  onFloorHeight,
   tool,
   onTool,
   next,
@@ -2787,6 +2790,8 @@ function CanvasControls({
   onFloor: (id: string) => void;
   onAddFloor: () => void;
   onDeleteFloor: (id: string) => void;
+  /** a floor's storey height, metres (null = the default) */
+  onFloorHeight: (id: string, m: number | null) => void;
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
   /** the flow's first unmet requirement — the chip rides this row now, in
@@ -2853,6 +2858,24 @@ function CanvasControls({
                   <span className="lvl">{formatLevel(f.level)}</span>
                   <span className="nm">{floorDisplayName(f)}</span>
                 </button>
+                {/* its height, floor to the floor above: a riser up from it
+                    is this tall, and the VRF lift limits stack the floors by
+                    it (graph.ts) */}
+                {sorted.length > 1 && (
+                  <label className="ds-floor-hgt">
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      step={0.1}
+                      value={f.heightM ?? ""}
+                      placeholder={String(DEFAULT_FLOOR_HEIGHT_M)}
+                      aria-label={`${floorDisplayName(f)} height, floor to the floor above, metres`}
+                      onChange={(e) => onFloorHeight(f.id, e.target.value === "" ? null : Number(e.target.value))}
+                    />
+                    <span>m</span>
+                  </label>
+                )}
                 {armedDelFloor === f.id ? (
                   <span className="ds-floor-confirm">
                     <button

@@ -55,13 +55,14 @@ import {
 } from "./components";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
 import { systemVrfTree } from "./vrf-tree";
+import { tubeSize } from "./pipe-sizes";
 import { matchesModelGlob } from "./model-glob";
 
 /* ─────────────────────────── shapes ─────────────────────────── */
 
 export type InstallScope = "house" | "system";
 
-export type InstallGroup = "Outdoor" | "Indoor units" | "Electrical";
+export type InstallGroup = "Outdoor" | "Indoor units" | "Pipework" | "Electrical";
 
 export interface InstallOption {
   id: string;
@@ -376,7 +377,28 @@ function askable(specs: QuestionSpec[]): QuestionSpec[] {
   }));
 }
 
+/* BRANCH KITS OR TEES (Isaac, 2026-09-30: "the branch kit that Mitsubishi
+   sells can be replaced by a simple T-piece also, obviously refrigeration
+   suited"). Asked of a VRF whose pipework branches at joints; a header and a
+   branch box stay the maker's parts either way. */
+const PIPEWORK_SPECS: QuestionSpec[] = [
+  {
+    id: "branch-joints",
+    scope: "system",
+    group: "Pipework",
+    text: "What do the pipes branch with?",
+    exclusive: true,
+    confirm: "what the pipes branch with",
+    decides: { group: "Pipework", name: "Branch joints" },
+    options: [
+      { id: "kits", label: "Branch kits", sub: "The maker's joints, by part", fragment: "the maker's branch kits" },
+      { id: "tees", label: "Refrigeration tees", sub: "A tee on each pipe, sized to it", fragment: "refrigeration tees" },
+    ],
+  },
+];
+
 const OUTDOOR = askable(OUTDOOR_SPECS);
+const PIPEWORK = askable(PIPEWORK_SPECS);
 const INDOOR = askable(INDOOR_SPECS);
 const ELECTRICAL = askable(ELECTRICAL_SPECS);
 
@@ -388,7 +410,7 @@ function index(specs: QuestionSpec[]): void {
     for (const option of spec.options) if (option.followUps) index(option.followUps);
   }
 }
-index([...OUTDOOR, ...INDOOR, ...ELECTRICAL]);
+index([...OUTDOOR, ...INDOOR, ...PIPEWORK, ...ELECTRICAL]);
 
 /** the ids of the questions an option asks, all the way down */
 function descendantIds(option: OptionSpec): string[] {
@@ -483,8 +505,15 @@ function applicableSpecs(context: Context): QuestionSpec[] {
   return [
     ...(context.oduAllocation ? OUTDOOR : []),
     ...(context.heads.length ? INDOOR : []),
+    ...(branchesAtJoints(context) ? PIPEWORK : []),
     ...(context.oduAllocation ? ELECTRICAL : []),
   ];
+}
+
+/** a VRF whose pipework branches at a joint (not only headers and boxes) */
+function branchesAtJoints(context: Context): boolean {
+  if (context.sys.type !== "vrf") return false;
+  return systemVrfTree(context.pack, context.sys, context.doc)?.fittings.some((f) => f.kind === "joint") ?? false;
 }
 
 /* ─────────────────────────── rows ─────────────────────────── */
@@ -906,9 +935,34 @@ export function vrfFittings(doc: DesignDocument, pack: DataPack, sys: DesignSyst
 function vrfFittingRows(context: Context): EquipmentRow[] {
   const tree = systemVrfTree(context.pack, context.sys, context.doc);
   if (!tree) return [];
+  /* tees answered alone: every joint is a tee on each pipe, sized to the
+     pipe in and the two out; asked both ways, the kits stay listed and the
+     question's note says to confirm */
+  const branch = installAnswers(context.doc, context.sys)["branch-joints"] ?? [];
+  const tees = branch.length === 1 && branch[0] === "tees";
+  const teeRows: EquipmentRow[] = [];
+  if (tees)
+    for (const f of tree.fittings) {
+      if (f.kind !== "joint") continue;
+      const into = tree.sections.find((x) => x.to === f.nodeId);
+      const outs = tree.sections.filter((x) => x.from === f.nodeId);
+      if (!into || outs.length !== 2) continue;
+      for (const side of ["liquid", "gas"] as const) {
+        const mm = (x: { liquidMm: number; gasMm: number }) => (side === "liquid" ? x.liquidMm : x.gasMm);
+        const sizes = [mm(into), ...outs.map(mm).sort((a, b) => b - a)].map((v) => tubeSize(v, "in"));
+        teeRows.push({
+          group: "Pipework",
+          name: side === "liquid" ? "Refrigeration tee, liquid" : "Refrigeration tee, gas",
+          model: sizes.join(" \u00d7 "),
+          qty: 1,
+          why: tree.drawn ? "In place of the branch kit: in, and the two out" : "Counted from the zones until the pipework is drawn",
+        });
+      }
+    }
   const byPart = new Map<string, { kind: "joint" | "header" | "box"; n: number }>();
   for (const f of tree.fittings) {
     if (!f.part) continue;
+    if (tees && f.kind === "joint") continue;
     const cur = byPart.get(f.part);
     if (cur) cur.n++;
     else byPart.set(f.part, { kind: f.kind, n: 1 });
@@ -943,6 +997,7 @@ function vrfFittingRows(context: Context): EquipmentRow[] {
         }
   return [
     ...rows,
+    ...teeRows,
     ...[...reducers.values()].map(({ model, n }) => ({
       group: "Pipework" as const,
       name: "Different-diameter joint",

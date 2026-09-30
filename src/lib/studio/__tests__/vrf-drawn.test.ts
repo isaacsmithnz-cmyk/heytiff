@@ -14,9 +14,11 @@ import type { RoomObj } from "../loads-room";
 import { allocationsOf } from "../allocations";
 import { addHead, chooseOutdoor } from "../builder";
 import { newSystem } from "../zones";
-import { deleteFromSchematic, deleteJoint, jointOnRun, nearestOnRuns } from "../joints";
+import { deleteFromSchematic, deleteJoint, jointOnRun, nearestOnRuns, riserOnRun, slideOnRun } from "../joints";
+import { reconcileAttachedRuns } from "../attach";
 import { systemVrfTree } from "../vrf-tree";
-import { buildSystemGraph } from "../graph";
+import { answerInstall, equipmentList, installQuestions } from "../install";
+import { attachOf, buildSystemGraph, riserGapOf, setRiserHeight } from "../graph";
 import { combinationWord, doneBlockers, systemFindings } from "../verdict";
 import { buildSummaryModel } from "../summary";
 import { pairSize, pipeViewOf, setRunSizes, sizeTone, tubeSize } from "../pipe-sizes";
@@ -441,5 +443,265 @@ describe("a joint that branches nothing", () => {
     t.doc = deleteFromSchematic(deleteFromSchematic(t.doc, { kind: "joint", id: "lone" }), { kind: "box", id: "box" });
     expect(codes()).not.toContain("stray-joint");
     expect(codes()).not.toContain("stray-box");
+  });
+});
+
+describe("heights: floors stack, units sit above their floor (Isaac, 2026-09-30)", () => {
+  const setMount = (doc: DesignDocument, id: string, mountM: number): DesignDocument => ({
+    ...doc,
+    objects: doc.objects.map((o) => (o.id === id ? { ...o, props: { ...o.props, mountM } } : o)),
+  });
+  const sized = (doc: DesignDocument, systemId: string) =>
+    systemVrfTree(pack, doc.systems.find((s) => s.id === systemId)!, doc)!;
+  const codes = (doc: DesignDocument, systemId: string) => sized(doc, systemId).findings.map((f) => f.code);
+
+  it("everything on one floor at 0 m is level, as before", () => {
+    const t = page144Drawn();
+    const tree = sized(t.doc, t.systemId);
+    expect(Object.values(tree.levels).every((v) => v === 0)).toBe(true);
+    expect(tree.findings).toEqual([]);
+  });
+
+  it("a head 20 m up takes its liquid one size up; 35 m up is red", () => {
+    const t = page144Drawn();
+    const up = sized(setMount(t.doc, t.heads[63], 20), t.systemId);
+    expect(up.levels[t.heads[63]]).toBe(20);
+    expect(up.sections.find((s) => s.to === t.heads[63])!.upsized).toBe(true);
+    expect(up.findings).toEqual([]);
+    expect(codes(setMount(t.doc, t.heads[63], 35), t.systemId)).toContain("head-height-over");
+  });
+
+  it("an outdoor on a roof 55 m over its heads is red, before a pipe is drawn", () => {
+    const t = page144Drawn();
+    const oduId = allocationsOf(t.doc.systems.find((s) => s.id === t.systemId)!).find((a) => a.role === "odu")!.id;
+    const undrawn = { ...t.doc, objects: t.doc.objects.filter((o) => o.type !== "pipe-run" && o.type !== "joint") };
+    const tree = sized(setMount(undrawn, oduId, 55), t.systemId);
+    expect(tree.drawn).toBe(false);
+    expect(tree.findings.map((f) => f.code)).toContain("outdoor-above-over");
+    expect(codes(setMount(undrawn, oduId, 45), t.systemId)).not.toContain("outdoor-above-over");
+  });
+
+  it("a head not on the plan yet is left out of the lift limits", () => {
+    const t = page144Drawn();
+    const undrawn = {
+      ...t.doc,
+      objects: t.doc.objects.filter((o) => o.type !== "pipe-run" && o.type !== "joint" && o.id !== t.heads[32]),
+    };
+    const tree = sized(setMount(undrawn, t.heads[63], 35), t.systemId);
+    expect(tree.levels[t.heads[32]]).toBeUndefined();
+    // P63 at 35 m against the others at 0: red, and the missing P32 changes nothing
+    expect(tree.findings.map((f) => f.code)).toContain("head-height-over");
+  });
+});
+
+describe("a riser between floors", () => {
+  it("is as tall as the floor it leaves, rises by it, and turns at each end a run leaves it", () => {
+    let doc = createDesign({ name: "two floors", mode: "blank" });
+    const g = doc.floors[0];
+    const up = { ...g, id: "flr_up", name: "Level 1", level: 1 };
+    doc = { ...doc, floors: [{ ...g, heightM: 4.2 }, up, { ...g, id: "flr_roof", name: "Roof", level: 2 }] };
+    const obj = (id: string, type: string, floorId: string, props: Record<string, unknown> = {}): DesignObject => ({
+      id,
+      type,
+      systemId: "sys",
+      floorId,
+      geometry: { kind: "point", at: { x: 0, y: 0 } },
+      plane: "room",
+      props,
+    }) as DesignObject;
+    const run = (id: string, floorId: string, a: string, b: string, akind: string, bkind: string): DesignObject =>
+      ({
+        id,
+        type: "pipe-run",
+        systemId: "sys",
+        floorId,
+        geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] },
+        plane: "room",
+        props: { startAttach: { kind: akind, id: a }, endAttach: { kind: bkind, id: b } },
+      }) as DesignObject;
+    doc = {
+      ...doc,
+      objects: [
+        obj("odu", "unit", g.id, { role: "odu" }),
+        obj("r0", "riser", g.id, { group: "A" }),
+        obj("r1", "riser", "flr_up", { group: "A" }),
+        obj("r2", "riser", "flr_roof", { group: "A" }),
+        obj("idu", "unit", "flr_roof", { role: "idu", mountM: 2.4 }),
+        run("p0", g.id, "odu", "r0", "unit", "riser"),
+        run("p2", "flr_roof", "r2", "idu", "riser", "unit"),
+      ],
+    };
+    const graph = buildSystemGraph(doc.objects, doc.floors, "sys");
+    const gaps = graph.edges.filter((e) => e.id.startsWith("riser-gap:"));
+    // ground is 4.2 m tall, Level 1 the default 3 m
+    expect(gaps.map((e) => [e.lengthM, e.riseM, e.bends])).toEqual([
+      [4.2, 4.2, 1],
+      [3, 3, 1],
+    ]);
+    // the head sits 2.4 m above the roof floor, its riser at the floor
+    expect(graph.edges.find((e) => e.id === "p2")!.riseM).toBeCloseTo(2.4);
+  });
+
+  it("set by hand, it is that tall, and the lift still comes from the floors (Isaac: floor console to the ceiling above, 6 m)", () => {
+    let doc = createDesign({ name: "manual riser", mode: "blank" });
+    const g = doc.floors[0];
+    doc = { ...doc, floors: [g, { ...g, id: "flr_up", name: "Level 1", level: 1 }] };
+    const riser = (id: string, floorId: string): DesignObject =>
+      ({ id, type: "riser", systemId: "sys", floorId, geometry: { kind: "point", at: { x: 0, y: 0 } }, plane: "room", props: { group: "A", heightM: 3 } }) as DesignObject;
+    doc = { ...doc, objects: [riser("r0", g.id), riser("r1", "flr_up")] };
+    const gap = () => buildSystemGraph(doc.objects, doc.floors, "sys").edges.find((e) => e.id.startsWith("riser-gap:"))!;
+    // the legacy heightM every riser carries is not a hand-set height
+    expect(riserGapOf(doc.objects, doc.floors, "r1")).toMatchObject({ lowerId: "r0", planM: 3, manualM: null });
+    doc = setRiserHeight(doc, "r0", 6);
+    expect([gap().lengthM, gap().riseM]).toEqual([6, 3]);
+    expect(riserGapOf(doc.objects, doc.floors, "r0")!.manualM).toBe(6);
+    doc = setRiserHeight(doc, "r0", null);
+    expect(gap().lengthM).toBe(3);
+  });
+});
+
+describe("sliding a joint along its pipe (Isaac, 2026-09-30)", () => {
+  const jointAt = (doc: DesignDocument, x: number) =>
+    doc.objects.find((o) => o.type === "joint" && o.geometry.kind === "point" && Math.abs(o.geometry.at.x - x) < 1)!;
+  const pts = (doc: DesignDocument | { objects: DesignObject[] }, id: string) =>
+    (doc.objects.find((o) => o.id === id)!.geometry as { points: Point[] }).points;
+
+  it("moves along the trunk: the half behind shortens, the half ahead lengthens, the branch follows", () => {
+    const t = page144Drawn();
+    const j = jointAt(t.doc, 40 * M);
+    const slid = slideOnRun(t.doc.objects, j.id, { x: 38 * M, y: 0.2 * M }, 1 * M)!;
+    expect(slid.at).toEqual({ x: 38 * M, y: 0 });
+    const into = runsOf({ ...t.doc, objects: slid.objects }, t.systemId).find(
+      (r) => attachOf(r.props.endAttach)?.id === j.id && r.props.cutEnd === j.id
+    )!;
+    const on = runsOf({ ...t.doc, objects: slid.objects }, t.systemId).find(
+      (r) => attachOf(r.props.startAttach)?.id === j.id && r.props.cutStart === j.id
+    )!;
+    expect(into.geometry.points.at(-1)).toEqual({ x: 38 * M, y: 0 });
+    expect(on.geometry.points[0]).toEqual({ x: 38 * M, y: 0 });
+    expect(on.geometry.points.at(-1)).toEqual(pts(t.doc, on.id).at(-1));
+    // the trunk as a whole is unchanged in length: 85 m still reaches P63
+    const doc = { ...t.doc, objects: reconcileAttachedRuns(slid.objects, new Set([j.id])) };
+    const tree = systemVrfTree(pack, doc.systems.find((s) => s.id === t.systemId)!, doc)!;
+    expect(tree.drawn).toBe(true);
+    expect(tree.sections.find((s) => s.to === t.heads[63])!.lengthM).toBeCloseTo(10);
+  });
+
+  it("carries on through a T onto the next run (Isaac: \"even through T's\")", () => {
+    const t = page144Drawn();
+    const j1 = jointAt(t.doc, 40 * M);
+    const j2 = jointAt(t.doc, 50 * M);
+    // past the P100's joint at 50 m, to 55 m
+    const slid = slideOnRun(t.doc.objects, j1.id, { x: 55 * M, y: 0 }, 1 * M)!;
+    expect(slid.at).toEqual({ x: 55 * M, y: 0 });
+    const doc = { ...t.doc, objects: reconcileAttachedRuns(slid.objects, new Set([j1.id])) };
+    const sys = doc.systems.find((s) => s.id === t.systemId)!;
+    const tree = systemVrfTree(pack, sys, doc)!;
+    // still one drawn tree reaching every head; the P125 now branches after the P100
+    expect(tree.drawn).toBe(true);
+    expect(tree.sections.find((s) => s.to === j1.id)!.from).toBe(j2.id);
+    expect(tree.sections.find((s) => s.to === t.heads[125])!.from).toBe(j1.id);
+    // no run left loose, no id lost
+    expect(systemFindings(doc, pack, sys).map((f) => f.code)).not.toContain("loose-pipe");
+    expect(runsOf(doc, t.systemId)).toHaveLength(runsOf(t.doc, t.systemId).length);
+  });
+
+  it("dragged well off the line, there is no slide (it comes free)", () => {
+    const t = page144Drawn();
+    const j = jointAt(t.doc, 40 * M);
+    expect(slideOnRun(t.doc.objects, j.id, { x: 38 * M, y: 3 * M }, 1 * M)).toBeNull();
+  });
+
+  it("passes a corner over from one half to the other", () => {
+    // a run with a corner: (0,0) → (10,0) → (10,10), a joint at (5,0)
+    let doc = createDesign({ name: "corner", mode: "blank" });
+    const floorId = doc.floors[0].id;
+    doc = {
+      ...doc,
+      objects: [
+        { id: "run", type: "pipe-run", systemId: "s", floorId, plane: "room", geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }] }, props: {} } as DesignObject,
+      ],
+    };
+    const cut = jointOnRun(doc, "run", 0, { x: 5, y: 0 }, "J")!;
+    const slid = slideOnRun(cut.doc.objects, "J", { x: 10.2, y: 4 }, 1)!;
+    expect(slid.at).toEqual({ x: 10, y: 4 });
+    const runs = slid.objects.filter((o) => o.type === "pipe-run").map((o) => (o.geometry as { points: Point[] }).points);
+    expect(runs).toContainEqual([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 4 }]);
+    expect(runs).toContainEqual([{ x: 10, y: 4 }, { x: 10, y: 10 }]);
+  });
+});
+
+describe("deleting a riser dropped in a pipe (Isaac, 2026-09-30: it left the trunk in two)", () => {
+  it("puts the pipe back together, as deleting a joint does", () => {
+    let doc = createDesign({ name: "riser delete", mode: "blank" });
+    const floorId = doc.floors[0].id;
+    doc = {
+      ...doc,
+      objects: [
+        { id: "run", type: "pipe-run", systemId: "s", floorId, plane: "room", geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] }, props: { startAttach: { kind: "unit", id: "odu" } } } as DesignObject,
+      ],
+    };
+    const riser = { id: "R", type: "riser", systemId: "s", floorId, plane: "room", geometry: { kind: "point", at: { x: 4, y: 0 } }, props: { group: "A" } } as DesignObject;
+    const cut = riserOnRun(doc, "run", 0, riser, 0.1)!;
+    expect(cut.objects.filter((o) => o.type === "pipe-run")).toHaveLength(2);
+    const back = deleteJoint(cut, "R");
+    const runs = back.objects.filter((o) => o.type === "pipe-run");
+    expect(runs).toHaveLength(1);
+    expect((runs[0].geometry as { points: Point[] }).points).toEqual([{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 10, y: 0 }]);
+    expect(attachOf(runs[0].props.startAttach)?.id).toBe("odu");
+    expect(back.objects.some((o) => o.id === "R")).toBe(false);
+  });
+});
+
+describe("branch kits or refrigeration tees (Isaac, 2026-09-30)", () => {
+  it("is asked of a VRF that branches at joints; tees take each joint's place, a tee per pipe", () => {
+    const t = page144Drawn();
+    const sys = () => t.doc.systems.find((s) => s.id === t.systemId)!;
+    expect(installQuestions(t.doc, pack, sys()).map((q) => q.id)).toContain("branch-joints");
+    const joints = (doc: DesignDocument) =>
+      equipmentList(doc, pack, doc.systems.find((s) => s.id === t.systemId)!).rows.filter(
+        (r) => r.name === "Joint" || r.name.startsWith("Refrigeration tee")
+      );
+    // unanswered, the book's kits are listed
+    expect(joints(t.doc).every((r) => r.name === "Joint")).toBe(true);
+    const teed = answerInstall(t.doc, t.systemId, "branch-joints", ["tees"]);
+    const rows = joints(teed);
+    expect(rows.some((r) => r.name === "Joint")).toBe(false);
+    // four joints, a liquid and a gas tee each
+    expect(rows.reduce((n, r) => n + (r.qty ?? 0), 0)).toBe(8);
+    // copper as it is sold: in, then the two out, e.g. 1 1/8" × 7/8" × 5/8"
+    expect(rows.every((r) => /^[\d/ ]+" × [\d/ ]+" × [\d/ ]+"$/.test(r.model ?? ""))).toBe(true);
+    expect(rows.map((r) => r.model)).toContain('1 1/8" × 7/8" × 5/8"');
+  });
+});
+
+describe("a riser on a pipe's end (Isaac, 2026-09-30)", () => {
+  const setup = () => {
+    let doc = createDesign({ name: "end riser", mode: "blank" });
+    const floorId = doc.floors[0].id;
+    doc = {
+      ...doc,
+      objects: [
+        { id: "run", type: "pipe-run", systemId: "s", floorId, plane: "room", geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }] }, props: { startAttach: { kind: "unit", id: "odu" } } } as DesignObject,
+      ],
+    };
+    const riser = { id: "R", type: "riser", systemId: "s", floorId, plane: "room", geometry: { kind: "point", at: { x: 10.3, y: 9.6 } }, props: { group: "A" } } as DesignObject;
+    return { doc, riser };
+  };
+  it("dropped near a free end, takes that pipe up there: no T, the riser on the end", () => {
+    const { doc, riser } = setup();
+    const joined = riserOnRun(doc, "run", 1, riser, 1)!;
+    const runs = joined.objects.filter((o) => o.type === "pipe-run");
+    expect(runs).toHaveLength(1);
+    expect(attachOf(runs[0].props.endAttach)?.id).toBe("R");
+    expect((joined.objects.find((o) => o.id === "R")!.geometry as { at: Point }).at).toEqual({ x: 10, y: 10 });
+  });
+  it("slides back along its own pipe, round the corner, shortening it", () => {
+    const { doc, riser } = setup();
+    const joined = riserOnRun(doc, "run", 1, riser, 1)!;
+    const slid = slideOnRun(joined.objects, "R", { x: 6, y: 0.3 }, 1)!;
+    expect(slid.at).toEqual({ x: 6, y: 0 });
+    const run = slid.objects.find((o) => o.id === "run")!;
+    expect((run.geometry as { points: Point[] }).points).toEqual([{ x: 0, y: 0 }, { x: 6, y: 0 }]);
   });
 });

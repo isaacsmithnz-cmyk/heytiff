@@ -509,7 +509,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
         n += (body.match(/var\(--(?:teal|teal-d|blue|violet|violet-d|hm-teal|tool-accent)\b|#00e5c0|#00a389|#2e68ff|#8a2be2|#007fa8|#0089b8|rgba\(0,\s*229,\s*192,|rgba\(0,\s*163,\s*137,|rgba\(46,\s*104,\s*255,|rgba\(138,\s*43,\s*226,/gi) ?? []).length;
       }
       return n;
-    }, baseline: 162 },
+    }, baseline: 161 },
 ];
 
 describe("the design ratchets only go down", () => {

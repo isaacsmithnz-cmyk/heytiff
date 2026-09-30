@@ -57,7 +57,10 @@ export function systemFindings(doc: DesignDocument, pack: DataPack, sys: DesignS
    anything"). A joint is one pipe in and two out: with fewer than three on it
    it branches nothing — a part on the picklist doing no job. A branch box
    with no pipe on at all is the same. */
-export function strayFittingIds(doc: DesignDocument, sys: DesignSystem): { joints: string[]; boxes: string[] } {
+export function strayFittingIds(
+  doc: DesignDocument,
+  sys: DesignSystem
+): { joints: string[]; boxes: string[]; risers: string[] } {
   const on = new Map<string, number>();
   for (const o of doc.objects) {
     if (o.type !== "pipe-run" || o.systemId !== sys.id) continue;
@@ -68,12 +71,23 @@ export function strayFittingIds(doc: DesignDocument, sys: DesignSystem): { joint
   return {
     joints: mine.filter((o) => o.type === "joint" && (on.get(o.id) ?? 0) < 3).map((o) => o.id),
     boxes: mine.filter((o) => o.type === "branch-box" && (on.get(o.id) ?? 0) === 0).map((o) => o.id),
+    /* a riser no pipe reaches on its own floor (Isaac, 2026-09-30: it sat on
+       the trunk without joining it, and the floor above was cut off) */
+    risers: mine.filter((o) => o.type === "riser" && (on.get(o.id) ?? 0) === 0).map((o) => o.id),
   };
 }
 
 function strayFittings(doc: DesignDocument, sys: DesignSystem): SystemFinding[] {
-  const { joints, boxes } = strayFittingIds(doc, sys);
+  const { joints, boxes, risers } = strayFittingIds(doc, sys);
   const out: SystemFinding[] = [];
+  if (risers.length)
+    out.push({
+      severity: "red",
+      code: "stray-riser",
+      drawing: true,
+      message: risers.length === 1 ? "A riser has no pipe on its floor" : `${risers.length} risers have no pipe on their floor`,
+      fix: "Connect a pipe to it, or delete it",
+    });
   if (joints.length)
     out.push({
       severity: "red",

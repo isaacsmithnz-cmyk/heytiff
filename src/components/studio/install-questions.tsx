@@ -25,6 +25,7 @@ import type { DataPack } from "@/lib/studio/packs/schema";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { KIND_WORD, systemKind } from "@/lib/studio/zones";
 import { brandName } from "@/lib/studio/verdict";
+import { systemVrfTree } from "@/lib/studio/vrf-tree";
 import {
   answerInstall,
   askedQuestions,
@@ -38,7 +39,7 @@ import {
   type InstallQuestion,
 } from "@/lib/studio/install";
 
-const GROUPS: InstallGroup[] = ["Outdoor", "Indoor units", "Electrical"];
+const GROUPS: InstallGroup[] = ["Outdoor", "Indoor units", "Pipework", "Electrical"];
 const EQUIPMENT_GROUPS: EquipmentGroup[] = ["Units", "Mounting", "Controls", "Electrical", "Pipework"];
 
 function BoxGlyph({ on }: { on: boolean }) {
@@ -98,6 +99,7 @@ export function InstallQuestions({
   const outdoor = units.find((a) => a.role === "odu");
   const outdoorRow = outdoor ? pack.outdoor_units.find((u) => u.model === outdoor.model) : null;
   const headCount = units.filter((a) => a.role === "idu").length;
+  const vrfJoints = systemVrfTree(pack, sys, draft)?.fittings.filter((f) => f.kind === "joint").length ?? 0;
 
   const toggle = (question: InstallQuestion, optionId: string) => {
     const ticks = answers[question.id] ?? [];
@@ -115,6 +117,10 @@ export function InstallQuestions({
       const { width_mm: w, depth_mm: d, height_mm: h, weight_kg: kg } = outdoorRow;
       const size = w && d && h ? `${w} W × ${d} D × ${h} H mm` : "";
       return [outdoorRow.model, size, kg ? `${kg} kg` : ""].filter(Boolean).join(", ");
+    }
+    if (group === "Pipework") {
+      const joints = vrfJoints;
+      return joints ? (joints === 1 ? "1 branch joint" : `${joints} branch joints`) : "";
     }
     return headCount === 1 ? "1 indoor unit" : `${headCount} indoor units`;
   };

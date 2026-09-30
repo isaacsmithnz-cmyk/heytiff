@@ -294,11 +294,22 @@ describe("SystemsPanel — the open card", () => {
 
   it("Add zones ends the chips and puts the plan in claim mode for this system", () => {
     const made = fiveHeadMulti(fittedHouse().doc);
-    const { onAddZones } = mount(made.doc, made.systemId);
+    // a zone the system hasn't got, so there is something to add
+    const spare = { ...made.doc.objects.find((o) => o.type === "room")!, id: "spare-zone" };
+    const { onAddZones } = mount({ ...made.doc, objects: [...made.doc.objects, spare] }, made.systemId);
     const add = within(card("System 1")).getByRole("button", { name: "Add zones" });
     expect(add.closest(".ds-zp-zones")).not.toBeNull();
     fireEvent.click(add);
     expect(onAddZones).toHaveBeenCalledWith(made.systemId);
+  });
+
+  /* "clicking add zones … doesn't seem to do anything. You just click it and
+     then it says done" (Isaac, 2026-09-30): with every zone on the plan in
+     this system there is nothing to add, and no button */
+  it("with every zone on the plan already in the system, there is no Add zones", () => {
+    const made = fiveHeadMulti(fittedHouse().doc);
+    mount(made.doc, made.systemId);
+    expect(within(card("System 1")).queryByRole("button", { name: "Add zones" })).toBeNull();
   });
 
   /* the plan has no bar over it in claim mode (Isaac, 2026-09-23: "right

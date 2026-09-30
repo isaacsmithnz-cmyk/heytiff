@@ -17,12 +17,13 @@ import { allocationsOf } from "@/lib/studio/allocations";
 import { blockingFindings, combinationWord, strayFittingIds, systemFindings } from "@/lib/studio/verdict";
 import { systemVrfTree, type SizedFitting, type SizedSection } from "@/lib/studio/vrf-tree";
 import { TUBE_SIZES_MM, pairSize, setRunSizes, sizeTone, tubeSize, type PipeUnits } from "@/lib/studio/pipe-sizes";
-import { attachOf } from "@/lib/studio/graph";
+import { attachOf, buildSystemGraph, manualRiserM, mountOf, setMount } from "@/lib/studio/graph";
 import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
 import { deleteFromSchematic, type SchematicTarget } from "@/lib/studio/joints";
 
 const COL = 132;
 const ROW = 92;
+const RISER_ROW = 156;
 const PAD = 24;
 const HEAD_W = 116;
 const ODU_W = 150;
@@ -52,6 +53,10 @@ export function VrfSchematic({
   /* the size being set by hand on the picked section, while its form is open */
   const [sizing, setSizing] = useState<{ id: string; liquidMm: number; gasMm: number } | null>(null);
 
+  /* a system with a riser gets taller rows, so the riser's three lines sit
+     clear of the pipe's own sizes (Isaac, 2026-09-30: "all of that's just a
+     little bit too close together") */
+  const row = tree?.sections.some((x) => x.edges.some((e) => e.startsWith("riser-gap:"))) ? RISER_ROW : ROW;
   const layout = useMemo(() => {
     if (!tree || !tree.sections.length) return null;
     const kids = new Map<string, SizedSection[]>();
@@ -71,13 +76,13 @@ export function VrfSchematic({
       depth = Math.max(depth, d);
       const ch = (kids.get(id) ?? []).filter((s) => !seen.has(s.to));
       if (!ch.length) {
-        pos.set(id, { x: PAD + leaf * COL + COL / 2, y: PAD + 18 + d * ROW });
+        pos.set(id, { x: PAD + leaf * COL + COL / 2, y: PAD + 18 + d * row });
         leaf++;
         return;
       }
       for (const c of ch) place(c.to, d + 1);
       const xs = ch.map((c) => pos.get(c.to)?.x).filter((x): x is number => x != null);
-      pos.set(id, { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: PAD + 18 + d * ROW });
+      pos.set(id, { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: PAD + 18 + d * row });
     };
     place(root, 0);
     const fit = new Map<string, SizedFitting>(tree.fittings.map((f) => [f.nodeId, f]));
@@ -86,9 +91,10 @@ export function VrfSchematic({
       pos,
       fit,
       w: Math.max(PAD * 2 + leaf * COL, ODU_W + PAD * 2),
-      h: PAD * 2 + 36 + depth * ROW + 26,
+      /* room under the lowest heads for their floor and height */
+      h: PAD * 2 + 36 + depth * row + 42,
     };
-  }, [tree]);
+  }, [tree, row]);
 
   const allocs = allocationsOf(sys);
   const oduModel = allocs.find((a) => a.role === "odu")?.model ?? "Outdoor";
@@ -110,7 +116,8 @@ export function VrfSchematic({
     if (id.startsWith("loose:")) return { kind: "runs", ids: [id.slice(6)] };
     if (id.startsWith("stray:")) {
       const o = doc.objects.find((x) => x.id === id.slice(6));
-      return o ? (o.type === "branch-box" ? { kind: "box", id: o.id } : { kind: "joint", id: o.id }) : null;
+      if (!o) return null;
+      return o.type === "branch-box" ? { kind: "box", id: o.id } : o.type === "riser" ? { kind: "riser", id: o.id } : { kind: "joint", id: o.id };
     }
     if (!tree || !layout) return null;
     const f = layout.fit.get(id);
@@ -169,12 +176,17 @@ export function VrfSchematic({
      drops to a lane of its own first, the farthest out on the highest lane,
      so no two cross. Anything else (off the outdoor) drops, turns, drops. */
   const boxW = (id: string) => Math.max(76, (tree.sections.filter((s) => s.from === id).length || 1) * 28 + 12);
-  const route = (s: SizedSection): { d: string; label: { x: number; y: number } } | null => {
+  const route = (s: SizedSection): { d: string; label: { x: number; y: number }; riser: { x: number; y: number } } | null => {
     const a = pos.get(s.from);
     const b = pos.get(s.to);
     if (!a || !b) return null;
     const f = fit.get(s.from);
-    if (f && f.kind !== "box") return { d: `M${a.x} ${a.y} H${b.x} V${b.y}`, label: { x: b.x + 6, y: a.y + 16 } };
+    if (f && f.kind !== "box")
+      return {
+        d: `M${a.x} ${a.y} H${b.x} V${b.y}`,
+        label: { x: b.x + 6, y: a.y + 16 },
+        riser: { x: b.x, y: a.y + 52 },
+      };
     if (f?.kind === "box") {
       const outs = tree.sections
         .filter((x) => x.from === s.from)
@@ -183,7 +195,8 @@ export function VrfSchematic({
       const i = outs.findIndex((x) => x.id === s.id);
       const px = a.x - w / 2 + ((i + 0.5) * w) / outs.length;
       const foot = a.y + 11;
-      if (Math.abs(b.x - px) < 1) return { d: `M${px} ${foot} V${b.y}`, label: { x: b.x + 6, y: b.y - 24 } };
+      if (Math.abs(b.x - px) < 1)
+        return { d: `M${px} ${foot} V${b.y}`, label: { x: b.x + 6, y: b.y - 24 }, riser: { x: px, y: foot + (b.y - foot) * 0.3 } };
       const left = b.x < px;
       const side = outs.filter((x) => {
         const bx = pos.get(x.to)?.x ?? 0;
@@ -193,10 +206,19 @@ export function VrfSchematic({
       });
       const rank = left ? side.indexOf(s) : side.length - 1 - side.indexOf(s);
       const lane = foot + 10 + rank * 10;
-      return { d: `M${px} ${foot} V${lane} H${b.x} V${b.y}`, label: { x: b.x + 6, y: b.y - 24 } };
+      return {
+        d: `M${px} ${foot} V${lane} H${b.x} V${b.y}`,
+        label: { x: b.x + 6, y: b.y - 24 },
+        riser: { x: b.x, y: lane + (b.y - lane) * 0.25 },
+      };
     }
-    const mid = a.y + ROW * 0.45;
-    return { d: `M${a.x} ${a.y} V${mid} H${b.x} V${b.y}`, label: { x: b.x + 6, y: mid + 16 } };
+    const mid = a.y + row * 0.45;
+    return {
+      d: `M${a.x} ${a.y} V${mid} H${b.x} V${b.y}`,
+      label: { x: b.x + 6, y: mid + 16 },
+      /* under the pipe's sizes, clear of them */
+      riser: { x: b.x, y: mid + 44 },
+    };
   };
 
   /* PIPES THAT GO NOWHERE (verdict.ts loosePipes) are no part of the tree,
@@ -240,8 +262,14 @@ export function VrfSchematic({
   /* joints that branch nothing and boxes with no pipe: no part of the tree,
      so listed under the drawing like a loose pipe, to be deleted */
   const stray = (() => {
-    const { joints, boxes } = strayFittingIds(doc, sys);
+    const { joints, boxes, risers } = strayFittingIds(doc, sys);
+    const riserWhat = (id: string) => {
+      const o = doc.objects.find((x) => x.id === id);
+      const floor = doc.floors.find((f) => f.id === o?.floorId)?.name ?? "its floor";
+      return `Riser ${String(o?.props.group ?? "A")} has no pipe on ${floor}`;
+    };
     return [
+      ...risers.map((id) => ({ id, what: riserWhat(id) })),
       ...joints.map((id) => ({ id, what: "Joint not connected" })),
       ...boxes.map((id) => ({ id, what: "Branch box not connected" })),
     ];
@@ -253,6 +281,108 @@ export function VrfSchematic({
   const pickedSection = tree.sections.find((s) => s.id === picked);
   const pickedFitting = picked ? fit.get(picked) : undefined;
 
+  /* HEIGHTS (Isaac, 2026-09-30): each unit and box on the plan stands at its
+     floor's height in the stack plus its own height on the floor; the book's
+     lift limits read how far each is above or below the outdoor. Shown on
+     the drawing once anything differs, and set on the picked one. */
+  const showLevels = Object.values(tree.levels).some((v) => v !== 0);
+  /* RISERS (Isaac, 2026-09-30: "I can't see the riser on the schematic"):
+     a section that goes up or down a riser wears it — a marker on its pipe
+     with the riser's letter and height — and once the system is on more than
+     one floor every head says which floor it is on */
+  const risersOf = (() => {
+    const graph = buildSystemGraph(doc.objects, doc.floors, sys.id);
+    const floorName = (id: string | undefined) => doc.floors.find((f) => f.id === id)?.name ?? "a floor";
+    const out = new Map<
+      string,
+      {
+        group: string;
+        lengthM: number;
+        manual: boolean;
+        up: boolean;
+        from: string;
+        to: string;
+        pieces: string;
+        /** the section's pipe before its first riser and after its last */
+        beforeM: number;
+        afterM: number;
+        /** the riser is where the section starts: it stands at the fitting
+            the section leaves, with no pipe between */
+        atStart: boolean;
+      }[]
+    >();
+    for (const sec of tree.sections) {
+      /* the section's pipe on each floor, apart from the riser itself, so
+         the run from the riser to the next junction reads on its own
+         (Isaac, 2026-09-30: "I can't see the distance between riser A and
+         the next junction") */
+      const perFloor = new Map<string, number>();
+      for (const e of sec.edges) {
+        const run = doc.objects.find((o) => o.id === e && o.type === "pipe-run");
+        const m = graph.edges.find((x) => x.id === e)?.lengthM;
+        if (run && m != null) perFloor.set(run.floorId, (perFloor.get(run.floorId) ?? 0) + m);
+      }
+      const pieces = [...perFloor]
+        .filter(([, m]) => m > 0.05)
+        .map(([f, m]) => `${Math.round(m * 10) / 10} m on ${floorName(f)}`)
+        .join(", ");
+      /* the pipe before the riser and after it, each labelled on its own
+         stretch of the drawing (Isaac, 2026-09-30: "the five point five
+         metres should move next to that section of pipe") */
+      const gaps = sec.edges.map((e, i) => (e.startsWith("riser-gap:") ? i : -1)).filter((i) => i >= 0);
+      const runM = (ids: string[]) => ids.reduce((t, e) => t + (graph.edges.find((x) => x.id === e)?.lengthM ?? 0), 0);
+      const beforeM = gaps.length ? runM(sec.edges.slice(0, gaps[0])) : 0;
+      const afterM = gaps.length ? runM(sec.edges.slice(gaps[gaps.length - 1] + 1)) : 0;
+      for (const e of sec.edges) {
+        if (!e.startsWith("riser-gap:")) continue;
+        const g = graph.edges.find((x) => x.id === e);
+        const lower = g ? graph.nodes.get(g.a) : undefined;
+        const upper = g ? graph.nodes.get(g.b) : undefined;
+        if (!g || !lower || !upper) continue;
+        /* which way this section takes it: toward its downstream end */
+        const up = (tree.levels[sec.to] ?? 0) >= (tree.levels[sec.from] ?? 0);
+        out.set(sec.id, [
+          ...(out.get(sec.id) ?? []),
+          {
+            group: String(lower.props.group ?? "A"),
+            lengthM: g.lengthM ?? 0,
+            manual: manualRiserM(lower) != null,
+            up,
+            from: floorName((up ? lower : upper).floorId),
+            to: floorName((up ? upper : lower).floorId),
+            pieces,
+            beforeM,
+            afterM,
+            atStart: sec.edges[0] === e,
+          },
+        ]);
+      }
+    }
+    return out;
+  })();
+  const floorOf = (id: string) => {
+    const o = doc.objects.find((x) => x.id === id);
+    return o ? doc.floors.find((f) => f.id === o.floorId) : undefined;
+  };
+  const manyFloors =
+    new Set(tree.sections.flatMap((x) => [x.from, x.to]).map((id) => floorOf(id)?.id).filter(Boolean)).size > 1;
+  const metres = (v: number) => `${Math.round(Math.abs(v) * 10) / 10} m`;
+  const levelTag = (id: string) => {
+    const v = tree.levels[id];
+    return v == null ? null : v === 0 ? "0 m" : `${v > 0 ? "+" : "\u2212"}${metres(v)}`;
+  };
+  const levelWords = (id: string) => {
+    const v = tree.levels[id];
+    if (v == null) return null;
+    if (v === 0) return "level with the outdoor";
+    return `${metres(v)} ${v > 0 ? "above" : "below"} the outdoor`;
+  };
+  const pickedUnit =
+    picked && (picked === layout.root || (pos.has(picked) && !fit.has(picked))) ? picked : null;
+  const heightTarget = pickedUnit ?? (pickedFitting?.kind === "box" ? pickedFitting.nodeId : null);
+  const heightObj = heightTarget ? doc.objects.find((o) => o.id === heightTarget) : undefined;
+  const heightFloor = heightObj ? doc.floors.find((f) => f.id === heightObj.floorId) : undefined;
+
   return (
     <section className="ds-schem">
       <header className="ds-schem-h">
@@ -263,6 +393,15 @@ export function VrfSchematic({
           {tree.drawn ? "As drawn on the plan" : "From the zones, until the pipework reaches every head"}
         </span>
       </header>
+      {/* NOT PIPED YET (Isaac, 2026-09-30: "there's no pipe work connecting to
+          zone five and zone six. But it's showing up on the schematic as
+          though they are"): until the drawing reaches every head the pipes
+          here are the zones' order, dashed, and the heads it misses are named */}
+      {!tree.drawn && tree.joined > 0 && tree.unjoined.length > 0 && (
+        <p className="ds-schem-unpiped">
+          {`Not piped to the outdoor yet: ${tree.unjoined.map((id) => zoneName(id) || headModel(id)).join(", ")}`}
+        </p>
+      )}
       {reds.length > 0 && (
         <ul className="ds-schem-why">
           {reds.map((f, i) => (
@@ -285,7 +424,7 @@ export function VrfSchematic({
             return (
               <g
                 key={s.id}
-                className={`ds-schem-sec${on ? " on" : ""}`}
+                className={`ds-schem-sec${on ? " on" : ""}${tree.drawn ? "" : " guess"}`}
                 style={{ color: `var(--pipe-${sizeTone(s.gasMm)})` }}
                 onClick={() => setPicked(on ? null : s.id)}
               >
@@ -295,11 +434,68 @@ export function VrfSchematic({
                 <text x={r.label.x} y={r.label.y}>
                   {pairSize(s.liquidMm, s.gasMm, units)}
                 </text>
-                {s.lengthM != null && (
-                  <text className="len" x={r.label.x} y={r.label.y + 14}>
-                    {`${s.lengthM.toFixed(1)} m`}
-                  </text>
-                )}
+                {(() => {
+                  /* with a riser in it, the length here is the pipe before
+                     the riser; the pipe after it is labelled on its own
+                     stretch below */
+                  const rz = risersOf.get(s.id)?.[0];
+                  const m = rz ? rz.beforeM : s.lengthM;
+                  return m != null && m > 0.05 ? (
+                    <text className="len" x={r.label.x} y={r.label.y + 14}>
+                      {`${m.toFixed(1)} m`}
+                    </text>
+                  ) : null;
+                })()}
+                {(risersOf.get(s.id) ?? []).map((rz, k) => {
+                  /* A RISER AT THE FITTING (Isaac, 2026-09-30: "you don't
+                     have any measurement between riser A and that
+                     junction"): there is no pipe between them, so it is
+                     drawn touching the fitting, on the pipe leaving it, its
+                     words above that pipe */
+                  const a = pos.get(s.from);
+                  const b = pos.get(s.to);
+                  const touch = rz.atStart && a && b && fit.has(s.from) && fit.get(s.from)!.kind !== "box";
+                  const dir = touch && b!.x < a!.x ? -1 : 1;
+                  /* a riser that is a T: the T's square with the riser's
+                     ring round it (Isaac, 2026-09-30: "a T junction with the
+                     riser symbol around it") */
+                  const at = touch ? { x: a!.x, y: a!.y } : { x: r.riser.x, y: r.riser.y + k * 52 };
+                  const tx = touch ? dir * 20 : 16;
+                  const anchor = touch && dir < 0 ? "end" : "start";
+                  return (
+                    <g key={k} className={`ds-schem-riser${touch ? " tee" : ""}`} transform={`translate(${at.x} ${at.y})`}>
+                      <circle r={touch ? 13 : 9} />
+                      {!touch && (
+                        <text className="id" y={4}>
+                          {rz.group}
+                        </text>
+                      )}
+                      {/* what it is, then what it does */}
+                      <text className="name" x={tx} y={touch ? -30 : 4} textAnchor={anchor}>
+                        {`Riser ${rz.group}`}
+                      </text>
+                      <text className="rise" x={tx} y={touch ? -14 : 21} textAnchor={anchor}>
+                        {`${Math.round(rz.lengthM * 10) / 10} m ${rz.up ? "up" : "down"} to ${rz.to}`}
+                      </text>
+                    </g>
+                  );
+                })}
+                {(() => {
+                  const rs = risersOf.get(s.id) ?? [];
+                  const last = rs[rs.length - 1];
+                  if (!last || last.afterM <= 0.05) return null;
+                  const b = pos.get(s.to);
+                  if (!b) return null;
+                  /* halfway down the stretch between the riser's words and
+                     the next fitting or head */
+                  const onPipe = rs.filter((x) => !x.atStart).length;
+                  const top = onPipe ? r.riser.y + (onPipe - 1) * 52 + 30 : r.label.y + 20;
+                  return (
+                    <text className="len" x={r.riser.x + 6} y={(top + b.y) / 2 + 4}>
+                      {`${last.afterM.toFixed(1)} m`}
+                    </text>
+                  );
+                })()}
               </g>
             );
           })}
@@ -321,9 +517,10 @@ export function VrfSchematic({
             );
           })}
           {[...pos].map(([id, p]) => {
+            const on = picked === id;
             if (id === layout.root)
               return (
-                <g key={id} className="ds-schem-odu-n">
+                <g key={id} className={`ds-schem-odu-n${on ? " on" : ""}`} onClick={() => setPicked(on ? null : id)}>
                   <rect x={p.x - ODU_W / 2} y={p.y - 18} width={ODU_W} height={28} rx={4} />
                   <text x={p.x} y={p.y + 1}>
                     {oduModel}
@@ -331,7 +528,6 @@ export function VrfSchematic({
                 </g>
               );
             const f = fit.get(id);
-            const on = picked === id;
             if (f?.kind === "box")
               return (
                 <g key={id} className={`ds-schem-box${on ? " on" : ""}`} onClick={() => setPicked(on ? null : id)}>
@@ -339,6 +535,11 @@ export function VrfSchematic({
                   <text x={p.x} y={p.y + 4}>
                     {(f.part ?? "Box").replace(/^PAC-/, "")}
                   </text>
+                  {showLevels && levelTag(id) && (
+                    <text className="lvl" x={p.x + boxW(id) / 2 + 6} y={p.y + 4}>
+                      {levelTag(id)}
+                    </text>
+                  )}
                 </g>
               );
             if (f)
@@ -347,12 +548,14 @@ export function VrfSchematic({
                   {f.kind === "header" ? (
                     <rect x={p.x - 16} y={p.y - 5} width={32} height={10} />
                   ) : (
-                    <rect x={p.x - 6} y={p.y - 6} width={12} height={12} />
+                    /* a solid T (Isaac, 2026-09-30): the bar along the two
+                       branches leaving sideways, the stem up the pipe in */
+                    <path d={`M${p.x - 12} ${p.y - 3.5} H${p.x - 3.5} V${p.y - 12} H${p.x + 3.5} V${p.y - 3.5} H${p.x + 12} V${p.y + 3.5} H${p.x - 12} Z`} />
                   )}
                 </g>
               );
             return (
-              <g key={id} className="ds-schem-head">
+              <g key={id} className={`ds-schem-head${on ? " on" : ""}`} onClick={() => setPicked(on ? null : id)}>
                 <rect x={p.x - HEAD_W / 2} y={p.y} width={HEAD_W} height={36} rx={4} />
                 <text x={p.x} y={p.y + 15}>
                   {headModel(id)}
@@ -360,6 +563,11 @@ export function VrfSchematic({
                 <text className="zone" x={p.x} y={p.y + 29}>
                   {zoneName(id)}
                 </text>
+                {(showLevels || manyFloors) && (levelTag(id) || floorOf(id)) && (
+                  <text className="lvl" x={p.x} y={p.y + 52}>
+                    {[manyFloors ? floorOf(id)?.name : null, showLevels ? levelTag(id) : null].filter(Boolean).join(", ")}
+                  </text>
+                )}
               </g>
             );
           })}
@@ -385,12 +593,39 @@ export function VrfSchematic({
             ))}
         </div>
       )}
-      {(pickedLoose || pickedStray || pickedSection || pickedFitting) && (
+      {(pickedLoose || pickedStray || pickedSection || pickedFitting || pickedUnit) && (
         /* THE PICKED THING, pinned under the drawing with what can be done to
            it (Isaac, 2026-09-29): Delete for anything, Override for a pipe's
            size — the same place a duct will take its size by hand */
         <div className="ds-schem-inspect" role="region" aria-label="Selected on the schematic">
           <dl className="ds-schem-card">
+            {pickedUnit && (
+              <div>
+                <dt>{pickedUnit === layout.root ? "Outdoor unit" : "Indoor unit"}</dt>
+                <dd>
+                  {pickedUnit === layout.root
+                    ? oduModel
+                    : [headModel(pickedUnit), zoneName(pickedUnit)].filter(Boolean).join(", ")}
+                </dd>
+              </div>
+            )}
+            {heightTarget && (
+              <div>
+                <dt>Height</dt>
+                <dd>
+                  {heightObj
+                    ? [
+                        mountOf(heightObj) === 0
+                          ? `On ${heightFloor?.name ?? "its floor"}`
+                          : `${metres(mountOf(heightObj))} ${mountOf(heightObj) > 0 ? "above" : "below"} ${heightFloor?.name ?? "its floor"}`,
+                        heightTarget === layout.root ? null : levelWords(heightTarget),
+                      ]
+                        .filter(Boolean)
+                        .join(", ")
+                    : "Not on the plan yet"}
+                </dd>
+              </div>
+            )}
             {pickedStray && (
               <div>
                 <dt>On the plan</dt>
@@ -431,6 +666,20 @@ export function VrfSchematic({
                   <div>
                     <dt>Length</dt>
                     <dd>{`${pickedSection.lengthM.toFixed(1)} m`}</dd>
+                  </div>
+                )}
+                {(risersOf.get(pickedSection.id) ?? []).map((rz, k) => (
+                  <div key={`riser${k}`}>
+                    <dt>{`Riser ${rz.group}`}</dt>
+                    <dd>
+                      {`${Math.round(rz.lengthM * 10) / 10} m, ${rz.from} to ${rz.to}${rz.manual ? ", set by hand" : ""}`}
+                    </dd>
+                  </div>
+                ))}
+                {(risersOf.get(pickedSection.id)?.[0]?.pieces ?? "") && (
+                  <div>
+                    <dt>Pipe on the floors</dt>
+                    <dd>{risersOf.get(pickedSection.id)![0].pieces}</dd>
                   </div>
                 )}
               </>
@@ -502,6 +751,31 @@ export function VrfSchematic({
                 Cancel
               </button>
             </div>
+          )}
+          {onEdit && heightObj && (
+            <label className="ds-schem-mount">
+              <span>Height above the floor</span>
+              <input
+                key={heightObj.id}
+                type="number"
+                step={0.1}
+                min={-20}
+                max={200}
+                defaultValue={mountOf(heightObj) || ""}
+                placeholder="0"
+                onBlur={(e) => {
+                  const v = e.currentTarget.value.trim();
+                  const m = v === "" ? 0 : Number(v);
+                  if (!Number.isFinite(m) || m === mountOf(heightObj)) return;
+                  const id = heightObj.id;
+                  onEdit((d) => setMount(d, id, m));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
+              />
+              <span>m</span>
+            </label>
           )}
           {onEdit && (
             <div className="ds-schem-actions">

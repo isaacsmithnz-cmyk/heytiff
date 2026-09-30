@@ -70,8 +70,17 @@ import { zoneIdsOf } from "@/lib/studio/zones";
 import { isAirCapable } from "@/lib/studio/modules";
 import { deleteZone } from "@/lib/studio/builder";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
-import { attachOf } from "@/lib/studio/graph";
-import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
+import { attachOf, riserGapOf, setRiserHeight } from "@/lib/studio/graph";
+import {
+  branchBoxObject,
+  deleteJoint,
+  freeRunEnd,
+  jointObject,
+  jointOnRun,
+  nearestOnRuns,
+  riserOnRun,
+  slideOnRun,
+} from "@/lib/studio/joints";
 import { pipeRefusal } from "@/lib/studio/pipe-rules";
 import { strayFittingIds } from "@/lib/studio/verdict";
 import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
@@ -320,6 +329,10 @@ const GRIP_HIT_PX = 10;
 /** a cloud smaller than this (screen px, either side) was a stray click */
 const NOTE_MIN_PX = 14;
 const HIT_EDGE_PX = 6;
+/* a joint or riser dragged further than this off its pipe comes free of it */
+const SLIDE_OFF_PX = 28;
+/* how near a pipe's free end a riser must land to join it */
+const RISER_END_PX = 16;
 const ERASE_HIT_PX = 14; // eraser is more forgiving than select (DUCTR parity)
 
 /* A room drawn with the rectangle tool stays a rectangle when edited: is its
@@ -658,7 +671,9 @@ type Drag =
   | { kind: "vertex"; id: string; index: number; orig: Point[] }
   | { kind: "rect"; start: Point }
   | { kind: "sheet"; id: string; startWorld: Point; orig: Point }
-  | { kind: "point"; id: string; startWorld: Point; orig: Point }
+  /* `free`: a joint or riser dragged off its pipe's line stops sliding along
+     it for the rest of the drag (joints.ts slideOnRun) */
+  | { kind: "point"; id: string; startWorld: Point; orig: Point; free?: boolean }
   | { kind: "crop"; sheetId: string; start: Point }
   | { kind: "north-move"; startWorld: Point; orig: { x: number; y: number } }
   | { kind: "north-rotate"; center: { x: number; y: number } }
@@ -978,8 +993,8 @@ export function StudioCanvas({
   const strayFits = useMemo(() => {
     const ids = new Set<string>();
     for (const sys of doc.systems) {
-      const { joints, boxes } = strayFittingIds(doc, sys);
-      for (const id of [...joints, ...boxes]) ids.add(id);
+      const { joints, boxes, risers } = strayFittingIds(doc, sys);
+      for (const id of [...joints, ...boxes, ...risers]) ids.add(id);
     }
     return ids;
   }, [doc]);
@@ -1057,6 +1072,9 @@ export function StudioCanvas({
 
   /** live position for point objects (units/risers) while dragging */
   const [livePoint, setLivePoint] = useState<{ id: string; at: Point } | null>(null);
+  /** a joint or riser sliding along its pipe: the two runs it sits in, as
+      they will be (joints.ts slideOnRun) */
+  const [liveSlide, setLiveSlide] = useState<Map<string, Point[]> | null>(null);
   const pointById = useMemo(() => {
     const m = new Map<string, { id: string; geometry: { at: Point } }>();
     for (const o of [...units, ...risers, ...joints, ...boxes]) m.set(o.id, o);
@@ -1086,7 +1104,9 @@ export function StudioCanvas({
       unit riding a room move) — the same moveEndpointTo the commit uses, so
       the preview is pixel-equal to the committed geometry */
   const liveRunPoints = useCallback(
-    (r: { props: Record<string, unknown>; geometry: { points: Point[] } }): Point[] => {
+    (r: { id?: string; props: Record<string, unknown>; geometry: { points: Point[] } }): Point[] => {
+      const slid = r.id ? liveSlide?.get(r.id) : undefined;
+      if (slid) return slid;
       let pts = r.geometry.points;
       const s = attachOf(r.props.startAttach);
       const sAt = s ? liveAnchorAt(s.id) : null;
@@ -1096,7 +1116,7 @@ export function StudioCanvas({
       if (eAt) pts = moveEndpointTo(pts, "end", eAt);
       return pts;
     },
-    [liveAnchorAt]
+    [liveAnchorAt, liveSlide]
   );
 
   /* run drafting (pipe/drain/cable share it): clicked vertices + what the
@@ -1973,7 +1993,10 @@ export function StudioCanvas({
             return deleteRoom ? deleteRoom(d, selectedId) : deleteZone(d, null, selectedId);
           }
           // a joint that cut a run puts the run back together (joints.ts)
-          if (d.objects.find((o) => o.id === selectedId)?.type === "joint") return deleteJoint(d, selectedId);
+          /* a joint or riser that cut a run puts it back together as it goes
+             (Isaac, 2026-09-30: deleting riser A left the trunk in two) */
+          const kind = d.objects.find((o) => o.id === selectedId)?.type;
+          if (kind === "joint" || kind === "riser") return deleteJoint(d, selectedId);
           // deleting an AHU carries its plenums (they're its plenums — spec
           // §10.3); runs that attached to it lose the ref and become open ends
           return {
@@ -2514,8 +2537,12 @@ export function StudioCanvas({
   );
 
   const addRiser = useCallback(
-    (at: Point) => {
+    (w: Point) => {
       if (!activeSystemId) return;
+      /* dropped on one of the system's pipes: at a free end it takes that
+         pipe up; mid-pipe it is a T with the riser round it (riserOnRun) */
+      const onRun = runLanding(w);
+      const at = onRun?.at ?? w;
       onMutate((d) => {
         // next free group letter for this system, A…Z
         const used = new Set(
@@ -2540,24 +2567,24 @@ export function StudioCanvas({
           while (used.has(String.fromCharCode(c))) c++;
           group = String.fromCharCode(c);
         }
-        return {
-          ...d,
-          objects: [
-            ...d.objects,
-            {
-              id: newId("obj"),
-              type: "riser",
-              systemId: activeSystemId,
-              floorId: floor.id,
-              geometry: { kind: "point", at },
-              plane: "room",
-              props: { group, heightM: 3 },
-            } satisfies DesignObject,
-          ],
-        };
+        const riser = {
+          id: newId("obj"),
+          type: "riser",
+          systemId: activeSystemId,
+          floorId: floor.id,
+          geometry: { kind: "point", at },
+          plane: "room",
+          props: { group },
+        } satisfies DesignObject;
+        return (
+          (onRun && riserOnRun(d, onRun.runId, onRun.seg, riser, RISER_END_PX / vp.zoom)) || {
+            ...d,
+            objects: [...d.objects, riser],
+          }
+        );
       });
     },
-    [activeSystemId, onMutate, floor.id]
+    [activeSystemId, onMutate, floor.id, runLanding, vp.zoom]
   );
 
   const commitPipe = useCallback(
@@ -3170,15 +3197,34 @@ export function StudioCanvas({
           y: drag.orig.y + (w.y - drag.startWorld.y),
         });
         break;
-      case "point":
-        setLivePoint({
-          id: drag.id,
-          at: {
-            x: drag.orig.x + (w.x - drag.startWorld.x),
-            y: drag.orig.y + (w.y - drag.startWorld.y),
-          },
-        });
+      case "point": {
+        const want = {
+          x: drag.orig.x + (w.x - drag.startWorld.x),
+          y: drag.orig.y + (w.y - drag.startWorld.y),
+        };
+        /* a joint or riser in a pipe slides along it; pulled well off the
+           line it comes free, and stays free for the rest of the drag */
+        const slid = drag.free ? null : slideOnRun(doc.objects, drag.id, want, SLIDE_OFF_PX / vp.zoom);
+        if (slid) {
+          const pts = new Map<string, Point[]>();
+          for (const o of slid.objects)
+            if (o.type === "pipe-run" && o.geometry.kind === "polyline") {
+              const was = doc.objects.find((x) => x.id === o.id);
+              if (was !== o) pts.set(o.id, o.geometry.points);
+            }
+          setLiveSlide(pts);
+          setLivePoint({ id: drag.id, at: slid.at });
+        } else if (liveSlide && doc.objects.find((o) => o.id === drag.id)?.type === "riser") {
+          /* a riser never drags its pipes (Isaac, 2026-09-30: crossing the
+             refrigerant line "started dragging the pipes with me"): off every
+             pipe it waits where it last sat on one */
+        } else {
+          if (!drag.free && liveSlide) setDrag({ ...drag, free: true });
+          setLiveSlide(null);
+          setLivePoint({ id: drag.id, at: want });
+        }
         break;
+      }
       case "crop":
         setLiveCrop({ sheetId: drag.sheetId, a: drag.start, b: w });
         break;
@@ -3376,7 +3422,17 @@ export function StudioCanvas({
       }
       setLiveCallout(null);
     }
-    if (drag.kind === "point" && livePoint) {
+    if (drag.kind === "point" && livePoint && liveSlide) {
+      /* slid along its pipe: the same slide on the document, then its
+         branches follow their end */
+      const { id, at } = livePoint;
+      onMutate((d) => {
+        const slid = slideOnRun(d.objects, id, at, 1e-3);
+        return slid ? { ...d, objects: reconcileAttachedRuns(slid.objects, new Set([id])) } : d;
+      });
+      setLiveSlide(null);
+      setLivePoint(null);
+    } else if (drag.kind === "point" && livePoint) {
       const { id, at } = livePoint;
       if (at.x !== drag.orig.x || at.y !== drag.orig.y) {
         onMutate((d) => {
@@ -3748,6 +3804,17 @@ export function StudioCanvas({
     };
   }, [selectedId, pipeView, pipeUnits, doc.objects]);
 
+  /* THE PICKED RISER'S HEIGHT (Isaac, 2026-09-30): from the plans (the
+     floors' heights) by default, or set by hand — a floor console's pipe
+     starts at the floor and may rise to the ceiling of the floor above, 6 m
+     where the floors make it 3 */
+  const riserPick = useMemo(() => {
+    const r = selectedId ? doc.objects.find((o) => o.id === selectedId && o.type === "riser") : undefined;
+    if (!r) return null;
+    const floorName = (id: string) => doc.floors.find((f) => f.id === id)?.name ?? "a floor";
+    return { group: String(r.props.group ?? "A"), gap: riserGapOf(doc.objects, doc.floors, r.id), floorName };
+  }, [selectedId, doc.objects, doc.floors]);
+
   /* ── unit callouts ────────────────────────────────────────────────────
      A unit's own name, said on the drawing at the end of a leader — the same
      mechanic as a note's, because it is the same job. Geometry lives in
@@ -3944,6 +4011,8 @@ export function StudioCanvas({
           }
       : tool === "joint"
         ? { icon: "pipe", text: "Click a run to branch it there, or anywhere to place a joint" }
+      : tool === "riser"
+        ? { icon: "pipe", text: "Click a pipe's end to take it up there, the middle of one for a T up, or anywhere to place one. Risers with the same letter join the floors" }
       : tool === "branch-box"
         ? { icon: "pipe", text: "Click where the branch box goes, then run each head's pipe to it" }
       : tool === "note"
@@ -4745,17 +4814,36 @@ export function StudioCanvas({
           {/* risers (Stage 4) — disc + group letter, one per floor per group */}
           {layers.pipes && risers.map((r) => {
             const at = pointAt(r);
-            const colour = sysColour.get(r.systemId ?? "") ?? "#888";
+            const colour = strayFits.has(r.id) ? "var(--bad-t)" : (sysColour.get(r.systemId ?? "") ?? "#888");
+            const tee =
+              doc.objects.filter(
+                (o) =>
+                  o.type === "pipe-run" &&
+                  o.floorId === r.floorId &&
+                  (attachOf(o.props.startAttach)?.id === r.id || attachOf(o.props.endAttach)?.id === r.id)
+              ).length >= 2;
             return (
               <g
                 key={r.id}
-                className={`ds-riser${r.id === selectedId ? " sel" : ""}`}
+                className={`ds-riser${r.id === selectedId ? " sel" : ""}${tee ? " tee" : ""}`}
                 style={{ color: colour }}
               >
-                <circle cx={at.x} cy={at.y} r={10 / zoom} />
-                <text x={at.x} y={at.y + 3.5 / zoom} fontSize={10 / zoom}>
-                  ⇅{String(r.props.group ?? "A")}
-                </text>
+                <circle cx={at.x} cy={at.y} r={(tee ? 12 : 10) / zoom} />
+                {tee ? (
+                  /* dropped mid-pipe it is a T with the riser round it
+                     (Isaac, 2026-09-30): the T's square inside the ring, its
+                     letter beside */
+                  <>
+                    <rect x={at.x - 4 / zoom} y={at.y - 4 / zoom} width={8 / zoom} height={8 / zoom} />
+                    <text x={at.x + 22 / zoom} y={at.y + 3.5 / zoom} fontSize={10 / zoom}>
+                      ⇅{String(r.props.group ?? "A")}
+                    </text>
+                  </>
+                ) : (
+                  <text x={at.x} y={at.y + 3.5 / zoom} fontSize={10 / zoom}>
+                    ⇅{String(r.props.group ?? "A")}
+                  </text>
+                )}
               </g>
             );
           })}
@@ -4779,13 +4867,42 @@ export function StudioCanvas({
             );
           })}
 
-          {/* joints — a small square where the refrigerant branches */}
+          {/* joints — a solid T where the refrigerant branches (Isaac,
+              2026-09-30: "more of a block, T-shape"): a short thick arm down
+              each pipe on it, so the T points the way the pipes go; a joint
+              with no pipe on keeps the square */}
           {layers.pipes && joints.map((j) => {
             const at = pointAt(j);
             const half = 5 / zoom;
+            const arm = 9 / zoom;
+            const legs = runs.flatMap((r) => {
+              const atStart = attachOf(r.props.startAttach)?.id === j.id;
+              if (!atStart && attachOf(r.props.endAttach)?.id !== j.id) return [];
+              const raw = liveRunPoints(r);
+              if (raw.length < 2) return [];
+              const pts = atStart ? raw : [...raw].reverse();
+              const p0 = pts[0];
+              /* aim at the first point further off than the arm: a tiny jog
+                 where the pipe leaves (a few cm before it turns) would
+                 otherwise lay the arm flat along the bar */
+              const p1 = pts.slice(1).find((q) => Math.hypot(q.x - p0.x, q.y - p0.y) > arm * 1.5) ?? pts[pts.length - 1];
+              const len = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+              return len > 0 ? [{ x: (p1.x - p0.x) / len, y: (p1.y - p0.y) / len }] : [];
+            });
             return (
               <g key={j.id} className={`ds-joint${j.id === selectedId ? " sel" : ""}`} style={{ color: strayFits.has(j.id) ? "var(--bad-t)" : "var(--ink)" }}>
-                <rect x={at.x - half} y={at.y - half} width={half * 2} height={half * 2} />
+                {legs.length ? (
+                  <>
+                    {legs.map((u, i) => (
+                      <line key={`h${i}`} className="halo" x1={at.x} y1={at.y} x2={at.x + u.x * arm} y2={at.y + u.y * arm} />
+                    ))}
+                    {legs.map((u, i) => (
+                      <line key={`a${i}`} className="arm" x1={at.x} y1={at.y} x2={at.x + u.x * arm} y2={at.y + u.y * arm} />
+                    ))}
+                  </>
+                ) : (
+                  <rect x={at.x - half} y={at.y - half} width={half * 2} height={half * 2} />
+                )}
               </g>
             );
           })}
@@ -4793,14 +4910,16 @@ export function StudioCanvas({
           {/* connection anchors — visible while piping; nearest one glows
               BEFORE the click (pre-click snap feedback). A refrigerant run's
               end over another run shows the joint it will make there. */}
-          {(isRunTool(tool) || tool === "joint") &&
+          {/* the Riser tool shows the same: where on a pipe it will go in
+              (Isaac, 2026-09-30: "it doesn't show you where you can connect") */}
+          {(isRunTool(tool) || tool === "joint" || tool === "riser") &&
             (() => {
-              const near = cursor && tool !== "joint" ? nearestAnchor(cursor) : null;
+              const near = cursor && tool !== "joint" && tool !== "riser" ? nearestAnchor(cursor) : null;
               const landing =
-                cursor && !near && (tool === "pipe" || tool === "joint") ? runLanding(cursor) : null;
+                cursor && !near && (tool === "pipe" || tool === "joint" || tool === "riser") ? runLanding(cursor) : null;
               const half = 6 / zoom;
               return [
-                ...(tool === "joint"
+                ...(tool === "joint" || tool === "riser"
                   ? []
                   : anchors.map((a) => (
                       <circle
@@ -4813,14 +4932,24 @@ export function StudioCanvas({
                     ))),
                 ...(landing
                   ? [
-                      <rect
-                        key="landing"
-                        className="ds-anchor ready"
-                        x={landing.at.x - half}
-                        y={landing.at.y - half}
-                        width={half * 2}
-                        height={half * 2}
-                      />,
+                      tool === "riser" ? (
+                        /* rung where it will go: onto a free end near one,
+                           else in the pipe there */
+                        (() => {
+                          const end = cursor ? freeRunEnd(doc.objects, landing.runId, cursor, RISER_END_PX / zoom) : null;
+                          const at = end?.at ?? landing.at;
+                          return <circle key="landing" className="ds-anchor ready" cx={at.x} cy={at.y} r={10 / zoom} />;
+                        })()
+                      ) : (
+                        <rect
+                          key="landing"
+                          className="ds-anchor ready"
+                          x={landing.at.x - half}
+                          y={landing.at.y - half}
+                          width={half * 2}
+                          height={half * 2}
+                        />
+                      ),
                     ]
                   : []),
               ];
@@ -5489,6 +5618,90 @@ export function StudioCanvas({
               </div>
             ))}
           </dl>
+        </div>
+      )}
+
+      {/* the picked riser: where it runs, and its height */}
+      {!hoverCard && riserPick && (
+        <div className="ds-unitcard pipe riser" role="group" aria-label={`Riser ${riserPick.group}`}>
+          <div className="ds-unitcard-h">
+            <span className="ds-unitcard-role">Riser</span>
+          </div>
+          <div className="ds-unitcard-model">{`Riser ${riserPick.group}`}</div>
+          <dl className="ds-unitcard-rows">
+            <div>
+              <dt>Runs</dt>
+              <dd>
+                {riserPick.gap
+                  ? `${riserPick.floorName(riserPick.gap.fromFloorId)} to ${riserPick.floorName(riserPick.gap.toFloorId)}`
+                  : "Not joined to another floor"}
+              </dd>
+            </div>
+            {riserPick.gap && (
+              <div>
+                <dt>Height</dt>
+                <dd>
+                  {riserPick.gap.manualM != null
+                    ? `${riserPick.gap.manualM} m, set by hand`
+                    : `${Math.round(riserPick.gap.planM * 10) / 10} m, from the floor heights`}
+                </dd>
+              </div>
+            )}
+          </dl>
+          {riserPick.gap &&
+            (() => {
+              const gap = riserPick.gap;
+              const manual = gap.manualM != null;
+              return (
+                <div className="ds-riser-set">
+                  <div className="ds-riser-seg" role="radiogroup" aria-label="Riser height">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={!manual}
+                      className={manual ? "" : "on"}
+                      onClick={() => manual && onMutate((d) => setRiserHeight(d, gap.lowerId, null))}
+                    >
+                      From plans
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={manual}
+                      className={manual ? "on" : ""}
+                      onClick={() =>
+                        !manual &&
+                        onMutate((d) => setRiserHeight(d, gap.lowerId, Math.round(gap.planM * 10) / 10 || 3))
+                      }
+                    >
+                      Manual
+                    </button>
+                  </div>
+                  {manual && (
+                    <label className="ds-riser-m">
+                      <input
+                        key={`${gap.lowerId}:${gap.manualM}`}
+                        type="number"
+                        min={0.1}
+                        max={100}
+                        step={0.1}
+                        defaultValue={gap.manualM ?? ""}
+                        aria-label="Riser height, metres"
+                        onBlur={(e) => {
+                          const v = Number(e.currentTarget.value);
+                          if (!Number.isFinite(v) || v <= 0 || v === gap.manualM) return;
+                          onMutate((d) => setRiserHeight(d, gap.lowerId, v));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.currentTarget.blur();
+                        }}
+                      />
+                      <span>m</span>
+                    </label>
+                  )}
+                </div>
+              );
+            })()}
         </div>
       )}
 

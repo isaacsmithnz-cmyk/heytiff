@@ -353,6 +353,10 @@ function SystemCard({
 }) {
   const kind = systemKind(doc, sys);
   const zones = systemZones(doc, sys.id);
+  /* a zone on the plan this system hasn't got: without one, Add zones has
+     nothing to add (Isaac, 2026-09-30: it "doesn't seem to do anything. You
+     just click it and then it says done") and is not offered */
+  const canAdd = doc.objects.some((o) => o.type === "room" && !zones.some((z) => z.id === o.id));
   const status = cardStatus(doc, pack, basis, sys);
   const units = hasAllocations(sys) ? allocationsOf(sys).filter((a) => a.model) : [];
   const rack = pack ? trayItems(doc, pack).filter((t) => t.systemId === sys.id) : [];
@@ -422,12 +426,12 @@ function SystemCard({
               <button className="ds-zp-addzones on" onClick={onClaimDone}>
                 Done
               </button>
-            ) : (
+            ) : canAdd || zones.length === 0 ? (
               <button className="ds-zp-addzones" onClick={onAddZones}>
                 <PlusGlyph />
                 Add zones
               </button>
-            )}
+            ) : null}
           </div>
           {kind !== "empty" && (
             <dl className="ds-zp-facts">

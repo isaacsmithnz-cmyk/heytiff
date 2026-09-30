@@ -64,6 +64,9 @@ export interface Floor {
   id: string;
   name: string;
   level: number; // stacking order, 0 = ground
+  /** storey height, floor to the floor above, metres; unset = 3 (graph.ts
+      stacks the floors by it for the lift limits) */
+  heightM?: number;
   scaleMmPerUnit: number | null;
   /** true-north bearing: degrees CW from plan-up to true north. null = unset
       (consumers fall back to 0 = plan-up is north). */

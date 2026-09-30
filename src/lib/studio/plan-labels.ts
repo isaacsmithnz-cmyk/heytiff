@@ -39,6 +39,9 @@ export interface LabelSpot {
 export interface RoomLabelIn {
   id: string;
   polygon: Point[];
+  /** where somebody put it by hand (the name's baseline, centred): it stays
+      there, and everything else works round it */
+  fixed?: Point;
   /** the name, then the area line, each with its font size in px */
   lines: { text: string; size: number }[];
   /** px between the first line's baseline and the second's */
@@ -61,9 +64,15 @@ export interface PlanLabelsIn {
   px: number;
 }
 
+/** a placed label: its spot, and the box it covers (for a backing, a grab
+    and a hit test) */
+export interface PlacedLabel extends LabelSpot {
+  box: Box;
+}
+
 export interface PlanLabels {
-  rooms: Map<string, LabelSpot>;
-  runs: Map<string, LabelSpot>;
+  rooms: Map<string, PlacedLabel>;
+  runs: Map<string, PlacedLabel>;
 }
 
 /* a bold sans character, as a share of its size: wide enough for digits and
@@ -136,7 +145,7 @@ function inPolygon(p: Point, poly: readonly Point[]): boolean {
   return inside;
 }
 
-function centroidOf(poly: readonly Point[]): Point {
+export function centroidOf(poly: readonly Point[]): Point {
   let a = 0;
   let cx = 0;
   let cy = 0;
@@ -180,10 +189,28 @@ export function layoutPlanLabels(input: PlanLabelsIn): PlanLabels {
     return best;
   };
 
-  /* ── rooms: the centre, else the nearest clear spot inside ── */
-  const rooms = new Map<string, LabelSpot>();
+  const rooms = new Map<string, PlacedLabel>();
+  const roomBlock = (r: RoomLabelIn, spot: LabelSpot): Box =>
+    textBox(
+      spot,
+      Math.max(...r.lines.map((l) => textWidthPx(l.text, l.size))),
+      r.lines[0].size,
+      px,
+      r.lines.length,
+      r.lineGap
+    );
+  /* ── rooms placed by hand: where they were put, and the rest go round ── */
   for (const r of input.rooms) {
-    if (r.polygon.length < 3 || !r.lines.length) continue;
+    if (!r.fixed || !r.lines.length) continue;
+    const spot: LabelSpot = { x: r.fixed.x, y: r.fixed.y, anchor: "middle" };
+    const box = roomBlock(r, spot);
+    rooms.set(r.id, { ...spot, box });
+    placed.push(box);
+  }
+
+  /* ── rooms: the centre, else the nearest clear spot inside ── */
+  for (const r of input.rooms) {
+    if (r.fixed || r.polygon.length < 3 || !r.lines.length) continue;
     const c = centroidOf(r.polygon);
     const size = r.lines[0].size;
     const w = Math.max(...r.lines.map((l) => textWidthPx(l.text, l.size)));
@@ -208,12 +235,12 @@ export function layoutPlanLabels(input: PlanLabelsIn): PlanLabels {
       }
     candidates.sort((a, b) => a.d - b.d);
     const got = pick(candidates)!;
-    rooms.set(r.id, got.spot);
+    rooms.set(r.id, { ...got.spot, box: got.box });
     placed.push(got.box);
   }
 
   /* ── pipes: beside the copper, sliding along it to a clear spot ── */
-  const runs = new Map<string, LabelSpot>();
+  const runs = new Map<string, PlacedLabel>();
   for (const r of input.runs) {
     const pts = r.points;
     if (pts.length < 2 || !r.text) continue;
@@ -244,7 +271,7 @@ export function layoutPlanLabels(input: PlanLabelsIn): PlanLabels {
     }
     const got = pick(candidates);
     if (!got) continue;
-    runs.set(r.id, got.spot);
+    runs.set(r.id, { ...got.spot, box: got.box });
     placed.push(got.box);
   }
   return { rooms, runs };
@@ -256,4 +283,20 @@ export function footprintBox(at: Point, w: number, h: number, rotDeg = 0): Box {
   const hw = (Math.abs(Math.cos(rad)) * w + Math.abs(Math.sin(rad)) * h) / 2;
   const hh = (Math.abs(Math.sin(rad)) * w + Math.abs(Math.cos(rad)) * h) / 2;
   return { x0: at.x - hw, y0: at.y - hh, x1: at.x + hw, y1: at.y + hh };
+}
+
+/* A ROOM'S LABEL PLACED BY HAND is kept on the room as an offset from its
+   centre (props.labelAt), so moving or reshaping the room carries the label
+   with it, and the screen and the paper read it the same way. */
+export function roomLabelFixed(props: Record<string, unknown>, polygon: readonly Point[]): Point | undefined {
+  const v = props.labelAt as { dx?: unknown; dy?: unknown } | undefined;
+  if (!v || typeof v.dx !== "number" || typeof v.dy !== "number" || polygon.length < 3) return undefined;
+  const c = centroidOf(polygon);
+  return { x: c.x + v.dx, y: c.y + v.dy };
+}
+
+/** the offset to store for a label put at `at` */
+export function roomLabelOffset(at: Point, polygon: readonly Point[]): { dx: number; dy: number } {
+  const c = centroidOf(polygon);
+  return { dx: at.x - c.x, dy: at.y - c.y };
 }

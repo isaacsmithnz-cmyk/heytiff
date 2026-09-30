@@ -1882,6 +1882,10 @@ function Editor({
             onLayers={setLayers}
             grayscale={grayscale}
             onGrayscale={setGrayscale}
+            labelBacks={doc.settings.labelBacks === true}
+            onLabelBacks={(on) =>
+              mutate((d) => ({ ...d, settings: { ...d.settings, labelBacks: on || undefined } }))
+            }
             legendOpen={legendOpen}
             onLegend={setLegendOpen}
             simFlag={simFlag}
@@ -2779,6 +2783,8 @@ function CanvasControls({
   onLayers,
   grayscale,
   onGrayscale,
+  labelBacks,
+  onLabelBacks,
   legendOpen,
   onLegend,
   simFlag,
@@ -2802,6 +2808,8 @@ function CanvasControls({
   onLayers: (l: LayerFlags) => void;
   grayscale: boolean;
   onGrayscale: (v: boolean) => void;
+  labelBacks: boolean;
+  onLabelBacks: (v: boolean) => void;
   legendOpen: boolean;
   onLegend: (v: boolean) => void;
   /** dev flag — the Simulate pill only renders when it's on */
@@ -3100,6 +3108,16 @@ function CanvasControls({
                 onChange={(e) => onGrayscale(e.target.checked)}
               />
               <span>Black &amp; white</span>
+            </label>
+            {/* the plan's words on a white card, to read over a busy
+                uploaded drawing; kept with the design, so the PDF has it too */}
+            <label className="ds-layer-row">
+              <input
+                type="checkbox"
+                checked={labelBacks}
+                onChange={(e) => onLabelBacks(e.target.checked)}
+              />
+              <span>Label backing</span>
             </label>
             <label className="ds-layer-row">
               <input

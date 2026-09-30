@@ -2,7 +2,7 @@
    titles … is it smart enough to know where it's been placed and if
    something's on top of it?"). */
 
-import { footprintBox, layoutPlanLabels, textWidthPx, type LabelSpot, type RoomLabelIn } from "../plan-labels";
+import { footprintBox, layoutPlanLabels, roomLabelFixed, roomLabelOffset, textWidthPx, type LabelSpot, type RoomLabelIn } from "../plan-labels";
 import type { Point } from "../document";
 
 const square = (x0: number, y0: number, s: number): Point[] => [
@@ -32,7 +32,7 @@ const crosses = (b: { x0: number; x1: number; y0: number; y1: number }, x: numbe
 describe("the plan's words", () => {
   it("a room with nothing in it keeps its name on its centre", () => {
     const out = layoutPlanLabels({ rooms: [room("r", square(0, 0, 600))], runs: [], solids: [], px: 1 });
-    expect(out.rooms.get("r")).toEqual({ x: 300, y: 300, anchor: "middle" });
+    expect(out.rooms.get("r")).toMatchObject({ x: 300, y: 300, anchor: "middle" });
   });
 
   it("a pipe down through the room's centre moves the name off it, and the pipe's words go beside the copper, clear of the name", () => {
@@ -89,5 +89,29 @@ describe("the plan's words", () => {
     const at1 = layoutPlanLabels({ rooms: [], runs: [pipe], solids: [], px: 1 }).runs.get("p")!;
     const at2 = layoutPlanLabels({ rooms: [], runs: [pipe], solids: [], px: 2 }).runs.get("p")!;
     expect(Math.abs(at2.x - 300)).toBeCloseTo(Math.abs(at1.x - 300) * 2);
+  });
+
+  it("a name put by hand stays where it was put, and the other words go round it (Isaac: a kitchen island under it)", () => {
+    const polygon = square(0, 0, 600);
+    const put = { x: 150, y: 480 };
+    const pipe = { id: "p", points: [{ x: 60, y: 486 }, { x: 560, y: 486 }], text: "5.00 m", size: 11 };
+    const out = layoutPlanLabels({ rooms: [{ ...room("r", polygon), fixed: put }], runs: [pipe], solids: [], px: 1 });
+    expect(out.rooms.get("r")).toMatchObject({ x: 150, y: 480, anchor: "middle" });
+    // the pipe's words, which would sit at its middle, stay off the hand-placed name
+    const name = out.rooms.get("r")!.box;
+    const words = out.runs.get("p")!.box;
+    expect(words.x1 <= name.x0 || name.x1 <= words.x0 || words.y1 <= name.y0 || name.y1 <= words.y0).toBe(true);
+  });
+
+  it("is kept on the room as an offset from its centre, so it travels with the room", () => {
+    const polygon = square(0, 0, 600);
+    const labelAt = roomLabelOffset({ x: 150, y: 480 }, polygon);
+    expect(labelAt).toEqual({ dx: -150, dy: 180 });
+    expect(roomLabelFixed({ labelAt }, polygon)).toEqual({ x: 150, y: 480 });
+    // the room moved 1000 across: the name comes with it
+    expect(roomLabelFixed({ labelAt }, square(1000, 0, 600))).toEqual({ x: 1150, y: 480 });
+    // nothing stored, or something that is not an offset: placed automatically
+    expect(roomLabelFixed({}, polygon)).toBeUndefined();
+    expect(roomLabelFixed({ labelAt: { dx: "1" } }, polygon)).toBeUndefined();
   });
 });

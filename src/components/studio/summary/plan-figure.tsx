@@ -29,7 +29,7 @@ import {
   calloutOf,
 } from "@/lib/studio/callouts";
 import { unitGlyph, type LayerFlags } from "../canvas";
-import { footprintBox, layoutPlanLabels } from "@/lib/studio/plan-labels";
+import { footprintBox, layoutPlanLabels, roomLabelFixed } from "@/lib/studio/plan-labels";
 
 /* A STATIC plan rendering for print and image export — the same drawing the
    canvas shows, minus every interactive affordance (grid, handles, ghosts,
@@ -257,6 +257,7 @@ export function PlanFigure({
         rooms: rooms.map((r) => ({
           id: r.id,
           polygon: r.geometry.points,
+          fixed: roomLabelFixed(r.props, r.geometry.points),
           lineGap: 16,
           lines: [
             { text: String(r.props.name ?? "Room"), size: 13 },
@@ -278,6 +279,11 @@ export function PlanFigure({
         ],
       })
     : null;
+
+  const labelBacks = doc.settings.labelBacks === true;
+  const backOf = (b: { x0: number; y0: number; x1: number; y1: number }) => (
+    <rect className="ds-label-back" x={b.x0} y={b.y0} width={b.x1 - b.x0} height={b.y1 - b.y0} rx={2 * u} />
+  );
 
   /* markup prints unconditionally: a note is a written instruction, and the
      layer switches turn off DERIVED annotation (room names, run lengths), not
@@ -309,6 +315,7 @@ export function PlanFigure({
         .ds-pf .ds-pipe polyline, .ds-pf .ds-pipe path { fill: none; stroke: currentColor; stroke-width: 2.5px; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-pfdrain polyline { fill: none; stroke: currentColor; stroke-width: 2px; stroke-dasharray: 8 5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-pfcable path { fill: none; stroke: currentColor; stroke-width: 1.8px; stroke-dasharray: 2 5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+        .ds-pf .ds-label-back { fill: #fff; stroke: #d5d9e2; stroke-width: 1px; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-pipe-len { fill: currentColor; text-anchor: middle; font-weight: 700; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
         .ds-pf .ds-unit rect { fill: #fff; stroke: currentColor; stroke-width: 1.6px; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-unit-detail { fill: none; stroke: currentColor; stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
@@ -383,6 +390,7 @@ export function PlanFigure({
           return (
             <g key={r.id} className="ds-room">
               <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
+              {spot && labelBacks && backOf(spot.box)}
               {spot && (
                 <>
                   <text x={spot.x} y={spot.y} fontSize={13 * u} className="ds-room-name">
@@ -424,6 +432,7 @@ export function PlanFigure({
                 ) : (
                   <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
                 )}
+                {label && spot && labelBacks && backOf(spot.box)}
                 {label && spot && (
                   <text
                     x={spot.x}

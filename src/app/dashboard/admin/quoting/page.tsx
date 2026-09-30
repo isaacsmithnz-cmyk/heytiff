@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { componentShortlists, readQuoteSettings } from "@/lib/quotes/settings-query";
+import { readSuppliers } from "@/lib/quotes/price-book-server";
 import { QuotingScreen } from "@/components/admin/quoting-screen";
 
 /* Quoting — the settings a quote is priced by: markup on units and on
@@ -16,7 +17,7 @@ export default async function QuotingPage() {
   const orgId = session.orgId as string | undefined;
   if (!orgId) redirect("/dashboard");
 
-  const settings = await readQuoteSettings(orgId);
-  const components = await componentShortlists(orgId, settings);
-  return <QuotingScreen initial={settings} components={components} />;
+  const [settings, suppliers] = await Promise.all([readQuoteSettings(orgId), readSuppliers(orgId)]);
+  const components = await componentShortlists(orgId, settings, suppliers);
+  return <QuotingScreen initial={settings} components={components} suppliers={suppliers} />;
 }

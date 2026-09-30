@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { BuyPrices, moneyText, pairFromCents, useUnitPrices } from "./unit-prices";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import type { DataPack, FormFactor, IndoorUnit, Phase } from "@/lib/studio/packs/schema";
@@ -161,6 +162,9 @@ export function UnitBrowser({
   /** a line over the Add button: what the unit does for where it goes */
   addNote?: (capacityKw: number) => string | null;
 }) {
+  /* buy prices from the price book, for people with money access; null
+     for everyone else, and the table and panel then show none */
+  const [prices, chooseSupplier] = useUnitPrices();
   const [filters, setFilters] = useState<SelectFilters>({});
   /** the search box — reaches every style, see `searched` */
   const [query, setQuery] = useState("");
@@ -559,6 +563,7 @@ export function UnitBrowser({
 
   const renderRow = (o: BrowserRow) => {
     const pair = pairFor(o);
+    const fromCents = prices ? pairFromCents(prices, pair && !perRoom ? [o.idu.model, pair.odu.model] : [o.idu.model]) : null;
     const checked = inCompare(o.idu.model);
     const isSel = selectedOption?.idu.model === o.idu.model;
     return (
@@ -638,6 +643,7 @@ export function UnitBrowser({
             )}
           </td>
         )}
+        {prices && <td className="ds-ub-fromcell">{fromCents != null ? moneyText(fromCents) : "–"}</td>}
       </tr>
     );
   };
@@ -684,7 +690,18 @@ export function UnitBrowser({
           addLabel={addLabel}
           addNote={addNote?.(selectedOption.capacityKw) ?? null}
         />
-      ) : (
+      ) : null}
+      {selectedOption && prices ? (
+        <BuyPrices
+          prices={prices}
+          onChoose={(model, supplierKey) => void chooseSupplier(model, supplierKey)}
+          models={[
+            { model: selectedOption.idu.model, role: "Indoor" },
+            ...(!perRoom && pairFor(selectedOption) ? [{ model: pairFor(selectedOption)!.odu.model, role: "Outdoor" }] : []),
+          ]}
+        />
+      ) : null}
+      {selectedOption ? null : (
         <div className="ds-ub-dempty">Select a unit to see its full spec sheet.</div>
       )}
     </aside>
@@ -838,6 +855,7 @@ export function UnitBrowser({
                     )
                   )}
                   {!perRoom && <th>Outdoor</th>}
+                  {prices && <th className="ds-ub-fromcell">Buy from</th>}
                 </tr>
               </thead>
               <tbody>

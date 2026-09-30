@@ -30,6 +30,10 @@ export type PdfDoc = {
   numPages: number;
   /** 1-based, like every page number a person says out loud. */
   pageText(n: number): Promise<string>;
+  /** The page's text as rows, top to bottom, each row's pieces left to
+      right with a wide gap marked by two spaces — for tables, where one
+      line of text per row is the whole point (the price books). */
+  pageLines(n: number): Promise<string[]>;
   destroy(): Promise<void>;
 };
 
@@ -122,6 +126,35 @@ export async function openPdf(bytes: Uint8Array): Promise<PdfDoc> {
         .join(" ")
         .replace(/[ \t]+/g, " ")
         .trim();
+    },
+    async pageLines(n: number) {
+      const page = await doc.getPage(n);
+      const content = await page.getTextContent();
+      type Piece = { str: string; x: number; y: number; w: number };
+      const pieces: Piece[] = [];
+      for (const item of content.items) {
+        if (!("str" in item) || !item.str.trim()) continue;
+        pieces.push({ str: item.str, x: item.transform[4], y: item.transform[5], w: item.width });
+      }
+      /* a row is the pieces within 2 points of each other's baseline */
+      pieces.sort((a, b) => b.y - a.y || a.x - b.x);
+      const rows: Piece[][] = [];
+      for (const p of pieces) {
+        const row = rows.at(-1);
+        if (row && Math.abs(row[0]!.y - p.y) <= 2) row.push(p);
+        else rows.push([p]);
+      }
+      return rows.map((row) => {
+        row.sort((a, b) => a.x - b.x);
+        let line = "";
+        let end = -Infinity;
+        for (const p of row) {
+          line += line ? (p.x - end > 6 ? "  " : " ") : "";
+          line += p.str.trim();
+          end = p.x + p.w;
+        }
+        return line;
+      });
     },
     /* destroy() lives on the LOADING TASK, not on the document proxy the
        promise resolves to — calling it on the doc is a TypeError at runtime,

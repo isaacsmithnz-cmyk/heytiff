@@ -2,6 +2,8 @@
    the live price book's own (2026-09-30). */
 import {
   amountCents,
+  colourOf,
+  withoutColour,
   buyPerUnitCents,
   matchesComponent,
   profitSharePct,
@@ -9,7 +11,7 @@ import {
   sellCents,
 } from "../components";
 import { normaliseQuoteSettings, quoteSettingsRow, DEFAULT_QUOTE_SETTINGS } from "../settings";
-import { rankItems, type ComponentItem } from "../settings-query";
+import { rankGroups, type ComponentGroup } from "../settings-query";
 
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
 
@@ -20,6 +22,9 @@ describe("which price-book items a component matches", () => {
     expect(matchesComponent("pair_coil_14_38", name)).toBe(false);
     expect(matchesComponent("pair_coil_14_12", "Pair Coil - 1/4 + 1/2")).toBe(true);
     expect(matchesComponent("pair_coil_38_58", "PAIRED COIL 3/8 + 5/8 X 10M 9mm(R.55/.49)")).toBe(true);
+    /* Reece's own words, and its fire-rated coil kept apart */
+    expect(matchesComponent("pair_coil_14_12", 'ARDENT PR CU 1/4" X 1/2"       R410A 20M (COIL)')).toBe(true);
+    expect(matchesComponent("pair_coil_14_12", 'ARDENT PR CU FR 13MM 1/4"-1/2" R410A 20M (COIL)')).toBe(false);
   });
 
   it("takes the cable, not the slotted angle of the same gauge", () => {
@@ -27,8 +32,15 @@ describe("which price-book items a component matches", () => {
     expect(matchesComponent("power_cable", "SLOTTED ANGLE 40X40-2.5mm 3M")).toBe(false);
   });
 
-  it("takes a length of cover, not a joint", () => {
+  it("takes a length of cover, not a joint or a fitting", () => {
     expect(matchesComponent("pipe_cover", "SMARTDUCT DRAIN Y JOINT 0021GY (EA)")).toBe(false);
+    expect(matchesComponent("pipe_cover", "SMARTDUCT FAST BLOCK 110MM 1203ST (EA)")).toBe(false);
+    expect(matchesComponent("pipe_cover", "WOODLAND GREY METAL TRUNKING 2.4M (EA)")).toBe(true);
+  });
+
+  it("takes the isolator switch, not an anti-vibration mount", () => {
+    expect(matchesComponent("isolator", "VIB ISOLATION MOUNT 15-30KG SILVER (EA)")).toBe(false);
+    expect(matchesComponent("isolator", "240V 20A IP66 W/PROOF ISOLATOR LOCKABLE (EA)")).toBe(true);
   });
 
   it("takes a pump, not its adaptor kit", () => {
@@ -43,6 +55,7 @@ describe("a roll's length, read off the name", () => {
     ["PAIRED COIL 1/4 + 1/2 X 5M 9mm(R.61/.52)", 5],
     ["2.5MMSQ 7/.67 T&E TPS 450/750V 90C WHITE 100M", 100],
     ["FLEX DRAIN HOSE 50M 16-18mm", 50],
+    ["DURA FLEX COND DRAIN HOSE(16/18MM) 50MT (COIL)", 50],
     ["2.5mm Twin and Earth Flat Cable (Per Meter)", 1],
     ["Pair Coil - 1/4 + 1/2", null],
   ])("%s → %s", (name, m) => expect(rollMetresOf(name)).toBe(m));
@@ -63,12 +76,17 @@ describe("the sums", () => {
     expect(profitSharePct(0)).toBe(0);
   });
 
-  it("ranks the most used first, then the cheapest a metre", () => {
-    const it = (uuid: string, uses: number, perUnitCents: number | null): ComponentItem =>
-      ({ uuid, name: uuid, itemNumber: null, priceCents: null, rollM: null, perUnitCents, uses });
+  it("ranks the lowest a metre first, unpriced and $0.00 last, the most used breaking a tie", () => {
+    const g = (code: string, uses: number, perUnitCents: number | null): ComponentGroup => ({
+      code,
+      name: code,
+      rollM: null,
+      uses,
+      offers: [{ supplierKey: "aad", supplierName: "AAD", code, pack: null, buyCents: 0, perUnitCents }],
+    });
     expect(
-      rankItems([it("a", 0, 900), it("b", 3, 1200), it("c", 0, null), it("d", 0, 800), it("z", 0, 0)]).map((x) => x.uuid)
-    ).toEqual(["b", "d", "a", "c", "z"]);
+      rankGroups([g("a", 0, 900), g("b", 3, 1200), g("c", 0, null), g("d", 0, 800), g("z", 0, 0), g("e", 5, 900)]).map((x) => x.code)
+    ).toEqual(["d", "e", "a", "b", "c", "z"]);
   });
 });
 
@@ -82,14 +100,29 @@ describe("the settings", () => {
       unit_markup_pct: "25",
       material_markup_pct: 900,
       day_hours: 7.5,
-      preferred: { pair_coil_14_12: { material_uuid: "m-1", roll_m: 20 }, not_a_part: { material_uuid: "x" } },
+      preferred: {
+        pair_coil_14_12: { supplier_key: "aad", code: "PC1412", roll_m: 20 },
+        drain_hose: { material_uuid: "an old-style pick" },
+        not_a_part: { supplier_key: "aad", code: "x" },
+      },
     });
     expect(s).toEqual({
       unitMarkupPct: 25,
       materialMarkupPct: 300,
       dayHours: 7.5,
-      preferred: { pair_coil_14_12: { materialUuid: "m-1", rollM: 20 } },
+      preferred: { pair_coil_14_12: { supplierKey: "aad", code: "PC1412", rollM: 20 } },
     });
-    expect(quoteSettingsRow(s).preferred).toEqual({ pair_coil_14_12: { material_uuid: "m-1", roll_m: 20 } });
+    expect(quoteSettingsRow(s).preferred).toEqual({ pair_coil_14_12: { supplier_key: "aad", code: "PC1412", roll_m: 20 } });
   });
 });
+
+describe("a part's colours", () => {
+  it("reads the colour off the name, and groups the colours as one part", () => {
+    expect(colourOf("WOODLAND GREY METAL TRUNKING 2.4M (EA)")).toBe("Woodland Grey");
+    expect(colourOf("PAIRED COIL 1/4+1/2X20M")).toBeNull();
+    expect(withoutColour("SURF MIST METAL TRUNKING 2.4M (EA)")).toBe("METAL TRUNKING 2.4M (EA)");
+    expect(withoutColour("WOODLAND GREY METAL TRUNKING 2.4M (EA)")).toBe("METAL TRUNKING 2.4M (EA)");
+    expect(withoutColour("BASALT METAL TRUNKING 2.4M (EA)")).toBe("METAL TRUNKING 2.4M (EA)");
+  });
+});
+

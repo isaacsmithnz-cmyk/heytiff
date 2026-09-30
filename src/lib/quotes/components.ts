@@ -24,15 +24,18 @@ export type QuoteComponent = {
   not?: readonly RegExp[];
 };
 
-const COIL = /pair(ed)?\s*-?\s*coil|paircoil/i;
+/* "pair coil" at AAD, "PR CU" (paired copper) at Reece */
+const COIL = /pair(ed)?\s*-?\s*coil|paircoil|\bPR\s+CU\b/i;
+/* fire-rated pair coil is its own part, never the standard one */
+const NOT_COIL = [/\bFR\b|fire/i];
 const coil = (a: string, b: string) => new RegExp(`${a}\\s*(?:"|in)?\\s*[+&x]?\\s*${b}(?!\\d)`, "i");
 
 export const QUOTE_COMPONENTS = {
-  pair_coil_14_38: { label: "Pair coil 1/4 + 3/8", unit: "m", match: [COIL, coil("1/4", "3/8")] },
-  pair_coil_14_12: { label: "Pair coil 1/4 + 1/2", unit: "m", match: [COIL, coil("1/4", "1/2")] },
-  pair_coil_14_58: { label: "Pair coil 1/4 + 5/8", unit: "m", match: [COIL, coil("1/4", "5/8")] },
-  pair_coil_38_58: { label: "Pair coil 3/8 + 5/8", unit: "m", match: [COIL, coil("3/8", "5/8")] },
-  pair_coil_38_34: { label: "Pair coil 3/8 + 3/4", unit: "m", match: [COIL, coil("3/8", "3/4")] },
+  pair_coil_14_38: { label: "Pair coil 1/4 + 3/8", unit: "m", match: [COIL, coil("1/4", "3/8")], not: NOT_COIL },
+  pair_coil_14_12: { label: "Pair coil 1/4 + 1/2", unit: "m", match: [COIL, coil("1/4", "1/2")], not: NOT_COIL },
+  pair_coil_14_58: { label: "Pair coil 1/4 + 5/8", unit: "m", match: [COIL, coil("1/4", "5/8")], not: NOT_COIL },
+  pair_coil_38_58: { label: "Pair coil 3/8 + 5/8", unit: "m", match: [COIL, coil("3/8", "5/8")], not: NOT_COIL },
+  pair_coil_38_34: { label: "Pair coil 3/8 + 3/4", unit: "m", match: [COIL, coil("3/8", "3/4")], not: NOT_COIL },
   power_cable: {
     label: "Power cable, 2.5 mm² TPS",
     unit: "m",
@@ -43,10 +46,13 @@ export const QUOTE_COMPONENTS = {
   pipe_cover: {
     label: "Pipe covering, one length",
     unit: "each",
-    match: [/trunk|pipe\s*cover|slim\s*duct|smart\s*duct|line\s*hide|duct\s*cover/i],
-    not: [/tape|glue|clip|joint|bend|elbow|coupl|corner|reducer|\bcap\b|\btee\b|socket|flexi/i],
+    /* a LENGTH of it ("2.4M"), never a fitting: Smartduct's fast block,
+       wall passage and reduction are on the same shelf */
+    match: [/trunk|pipe\s*cover|slim\s*duct|smart\s*duct|line\s*hide|duct\s*cover/i, /\d(\.\d+)?\s*M\b/i],
+    not: [/tape|glue|clip|joint|bend|elbow|coupl|corner|reduc|\bcap\b|\btee\b|socket|flexi|block|passage|wall\s*pass/i],
   },
-  isolator: { label: "Isolator", unit: "each", match: [/isolat/i], not: [/bracket|lock\s*off/i] },
+  /* the switch, not an anti-vibration "isolation" mount */
+  isolator: { label: "Isolator", unit: "each", match: [/isolator/i], not: [/bracket|lock\s*off|mount|vib|pad|box|plate/i] },
   wall_bracket: { label: "Outdoor unit wall bracket", unit: "each", match: [/wall\s*bracket/i] },
   condensate_pump: {
     label: "Condensate pump",
@@ -71,7 +77,7 @@ export function matchesComponent(key: ComponentKey, name: string | null | undefi
 export function rollMetresOf(name: string | null | undefined): number | null {
   if (!name) return null;
   if (/per\s*met(er|re)|\/\s*m\b|per\s*m\b/i.test(name)) return 1;
-  const found = [...name.matchAll(/(?<![\d.])(\d+(?:\.\d+)?)\s*(?:m(?![m²a-z0-9])|mtrs?\b|metres?\b|meters?\b)/gi)];
+  const found = [...name.matchAll(/(?<![\d.])(\d+(?:\.\d+)?)\s*(?:m(?![m²a-z0-9])|mt\b|mtrs?\b|metres?\b|meters?\b)/gi)];
   const last = found.at(-1);
   if (!last) return null;
   const n = Number(last[1]);
@@ -110,3 +116,26 @@ export function profitSharePct(markupPct: number): number {
   if (!(markupPct > -100)) return 0;
   return Math.round((markupPct / (100 + markupPct)) * 1000) / 10;
 }
+
+/* COLOURS a part comes in — the Colorbond names trunking is sold by, and
+   the plain ones. The same part in twelve colours is one item on a quote,
+   its colour a choice beside it (the checklist's covering colour). */
+const COLOURS = [
+  "surfmist", "surf mist", "paperbark", "monument", "woodland grey", "manor red", "classic cream", "cream", "cottage green",
+  "blue ocean", "deep ocean", "dune", "galvanised", "jasper", "pale eucalyptus", "night sky", "basalt",
+  "evening haze", "shale grey", "windspray", "ironstone", "wallaby", "gully", "mangrove", "bushland",
+  "terrain", "white", "black", "beige", "grey",
+];
+const COLOUR_RE = new RegExp(`\\b(${COLOURS.map((c) => c.replace(/ /g, "\\s+")).join("|")})\\b`, "i");
+
+/** The colour a part's name gives, in title case, or null. */
+export function colourOf(name: string): string | null {
+  const m = COLOUR_RE.exec(name);
+  return m ? m[1]!.toLowerCase().replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : null;
+}
+
+/** The name with its colour taken out, for grouping one part's colours. */
+export function withoutColour(name: string): string {
+  return name.replace(COLOUR_RE, " ").replace(/\s+/g, " ").trim();
+}
+

@@ -76,6 +76,12 @@ const nextConfig: NextConfig = {
        be imported. Naming the whole build directory covers the cmaps and
        standard-font lookups that follow the same dynamic pattern. */
     "/api/tiff/ingest": ["./node_modules/pdfjs-dist/legacy/build/**/*"],
+    /* the price book reads Mitsubishi's trade book, a PDF, the same way */
+    "/api/quoting/price-book": ["./node_modules/pdfjs-dist/legacy/build/**/*"],
+    /* the order-code links read the equipment pack off disk */
+    "/api/quoting/links": ["./data/packs/**/*"],
+    "/api/quoting/unit-prices": ["./data/packs/**/*"],
+    "/dashboard/admin/quoting": ["./data/packs/**/*"],
     /* Chromium's brotli archives are read off disk at run time, so the
        tracer never sees them: name them, or the first PDF dies looking */
     "/api/studio/design-pdf": ["./node_modules/@sparticuz/chromium/bin/**/*"],

@@ -306,6 +306,9 @@ export function VrfSchematic({
         /** the section's pipe before its first riser and after its last */
         beforeM: number;
         afterM: number;
+        /** the riser is where the section starts: it stands at the fitting
+            the section leaves, with no pipe between */
+        atStart: boolean;
       }[]
     >();
     for (const sec of tree.sections) {
@@ -350,6 +353,7 @@ export function VrfSchematic({
             pieces,
             beforeM,
             afterM,
+            atStart: sec.edges[0] === e,
           },
         ]);
       }
@@ -442,21 +446,35 @@ export function VrfSchematic({
                     </text>
                   ) : null;
                 })()}
-                {(risersOf.get(s.id) ?? []).map((rz, k) => (
-                  <g key={k} className="ds-schem-riser" transform={`translate(${r.riser.x} ${r.riser.y + k * 52})`}>
-                    <circle r={9} />
-                    <text className="id" y={4}>
-                      {rz.group}
-                    </text>
-                    {/* what it is, then what it does */}
-                    <text className="name" x={16} y={4}>
-                      {`Riser ${rz.group}`}
-                    </text>
-                    <text className="rise" x={16} y={21}>
-                      {`${Math.round(rz.lengthM * 10) / 10} m ${rz.up ? "up" : "down"} to ${rz.to}`}
-                    </text>
-                  </g>
-                ))}
+                {(risersOf.get(s.id) ?? []).map((rz, k) => {
+                  /* A RISER AT THE FITTING (Isaac, 2026-09-30: "you don't
+                     have any measurement between riser A and that
+                     junction"): there is no pipe between them, so it is
+                     drawn touching the fitting, on the pipe leaving it, its
+                     words above that pipe */
+                  const a = pos.get(s.from);
+                  const b = pos.get(s.to);
+                  const touch = rz.atStart && a && b && fit.has(s.from) && fit.get(s.from)!.kind !== "box";
+                  const dir = touch && b!.x < a!.x ? -1 : 1;
+                  const at = touch ? { x: a!.x + dir * 17, y: a!.y } : { x: r.riser.x, y: r.riser.y + k * 52 };
+                  const tx = touch ? dir * 14 : 16;
+                  const anchor = touch && dir < 0 ? "end" : "start";
+                  return (
+                    <g key={k} className="ds-schem-riser" transform={`translate(${at.x} ${at.y})`}>
+                      <circle r={9} />
+                      <text className="id" y={4}>
+                        {rz.group}
+                      </text>
+                      {/* what it is, then what it does */}
+                      <text className="name" x={tx} y={touch ? -30 : 4} textAnchor={anchor}>
+                        {`Riser ${rz.group}`}
+                      </text>
+                      <text className="rise" x={tx} y={touch ? -14 : 21} textAnchor={anchor}>
+                        {`${Math.round(rz.lengthM * 10) / 10} m ${rz.up ? "up" : "down"} to ${rz.to}`}
+                      </text>
+                    </g>
+                  );
+                })}
                 {(() => {
                   const rs = risersOf.get(s.id) ?? [];
                   const last = rs[rs.length - 1];
@@ -465,7 +483,8 @@ export function VrfSchematic({
                   if (!b) return null;
                   /* halfway down the stretch between the riser's words and
                      the next fitting or head */
-                  const top = r.riser.y + (rs.length - 1) * 52 + 30;
+                  const onPipe = rs.filter((x) => !x.atStart).length;
+                  const top = onPipe ? r.riser.y + (onPipe - 1) * 52 + 30 : r.label.y + 20;
                   return (
                     <text className="len" x={r.riser.x + 6} y={(top + b.y) / 2 + 4}>
                       {`${last.afterM.toFixed(1)} m`}

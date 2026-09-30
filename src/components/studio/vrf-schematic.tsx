@@ -295,7 +295,18 @@ export function VrfSchematic({
     const floorName = (id: string | undefined) => doc.floors.find((f) => f.id === id)?.name ?? "a floor";
     const out = new Map<
       string,
-      { group: string; lengthM: number; manual: boolean; up: boolean; from: string; to: string; pieces: string }[]
+      {
+        group: string;
+        lengthM: number;
+        manual: boolean;
+        up: boolean;
+        from: string;
+        to: string;
+        pieces: string;
+        /** the section's pipe before its first riser and after its last */
+        beforeM: number;
+        afterM: number;
+      }[]
     >();
     for (const sec of tree.sections) {
       /* the section's pipe on each floor, apart from the riser itself, so
@@ -312,6 +323,13 @@ export function VrfSchematic({
         .filter(([, m]) => m > 0.05)
         .map(([f, m]) => `${Math.round(m * 10) / 10} m on ${floorName(f)}`)
         .join(", ");
+      /* the pipe before the riser and after it, each labelled on its own
+         stretch of the drawing (Isaac, 2026-09-30: "the five point five
+         metres should move next to that section of pipe") */
+      const gaps = sec.edges.map((e, i) => (e.startsWith("riser-gap:") ? i : -1)).filter((i) => i >= 0);
+      const runM = (ids: string[]) => ids.reduce((t, e) => t + (graph.edges.find((x) => x.id === e)?.lengthM ?? 0), 0);
+      const beforeM = gaps.length ? runM(sec.edges.slice(0, gaps[0])) : 0;
+      const afterM = gaps.length ? runM(sec.edges.slice(gaps[gaps.length - 1] + 1)) : 0;
       for (const e of sec.edges) {
         if (!e.startsWith("riser-gap:")) continue;
         const g = graph.edges.find((x) => x.id === e);
@@ -330,6 +348,8 @@ export function VrfSchematic({
             from: floorName((up ? lower : upper).floorId),
             to: floorName((up ? upper : lower).floorId),
             pieces,
+            beforeM,
+            afterM,
           },
         ]);
       }
@@ -410,32 +430,48 @@ export function VrfSchematic({
                 <text x={r.label.x} y={r.label.y}>
                   {pairSize(s.liquidMm, s.gasMm, units)}
                 </text>
-                {s.lengthM != null && (
-                  <text className="len" x={r.label.x} y={r.label.y + 14}>
-                    {`${s.lengthM.toFixed(1)} m`}
-                  </text>
-                )}
+                {(() => {
+                  /* with a riser in it, the length here is the pipe before
+                     the riser; the pipe after it is labelled on its own
+                     stretch below */
+                  const rz = risersOf.get(s.id)?.[0];
+                  const m = rz ? rz.beforeM : s.lengthM;
+                  return m != null && m > 0.05 ? (
+                    <text className="len" x={r.label.x} y={r.label.y + 14}>
+                      {`${m.toFixed(1)} m`}
+                    </text>
+                  ) : null;
+                })()}
                 {(risersOf.get(s.id) ?? []).map((rz, k) => (
                   <g key={k} className="ds-schem-riser" transform={`translate(${r.riser.x} ${r.riser.y + k * 52})`}>
                     <circle r={9} />
                     <text className="id" y={4}>
                       {rz.group}
                     </text>
-                    {/* three tiers: what it is, what it does, and the pipe
-                        either side of it */}
+                    {/* what it is, then what it does */}
                     <text className="name" x={16} y={4}>
                       {`Riser ${rz.group}`}
                     </text>
                     <text className="rise" x={16} y={21}>
                       {`${Math.round(rz.lengthM * 10) / 10} m ${rz.up ? "up" : "down"} to ${rz.to}`}
                     </text>
-                    {k === 0 && rz.pieces && (
-                      <text className="pieces" x={16} y={37}>
-                        {rz.pieces}
-                      </text>
-                    )}
                   </g>
                 ))}
+                {(() => {
+                  const rs = risersOf.get(s.id) ?? [];
+                  const last = rs[rs.length - 1];
+                  if (!last || last.afterM <= 0.05) return null;
+                  const b = pos.get(s.to);
+                  if (!b) return null;
+                  /* halfway down the stretch between the riser's words and
+                     the next fitting or head */
+                  const top = r.riser.y + (rs.length - 1) * 52 + 30;
+                  return (
+                    <text className="len" x={r.riser.x + 6} y={(top + b.y) / 2 + 4}>
+                      {`${last.afterM.toFixed(1)} m`}
+                    </text>
+                  );
+                })()}
               </g>
             );
           })}

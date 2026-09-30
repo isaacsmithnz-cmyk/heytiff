@@ -88,8 +88,9 @@ describe("the Schematic with a riser", () => {
     expect(screen.getByText("Riser A")).toBeTruthy();
     expect(screen.getByText("3 m up to Level 1")).toBeTruthy();
     expect(screen.getByText("Level 1, +3 m")).toBeTruthy();
-    // the pipe on each floor, apart from the riser
-    expect(screen.getByText("5 m on Ground floor, 5 m on Level 1")).toBeTruthy();
+    // the pipe before the riser and after it, each on its own stretch, not in the riser's words
+    expect(screen.getAllByText("5.0 m")).toHaveLength(2);
+    expect(screen.queryByText(/on Level 1/)).toBeNull();
     const tall = setRiserHeight(doc, "r0", 6);
     rerender(<VrfSchematic doc={tall} pack={pack} sys={sys} units="in" />);
     expect(screen.getByText("6 m up to Level 1")).toBeTruthy();

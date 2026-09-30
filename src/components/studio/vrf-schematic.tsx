@@ -17,7 +17,7 @@ import { allocationsOf } from "@/lib/studio/allocations";
 import { blockingFindings, combinationWord, strayFittingIds, systemFindings } from "@/lib/studio/verdict";
 import { systemVrfTree, type SizedFitting, type SizedSection } from "@/lib/studio/vrf-tree";
 import { TUBE_SIZES_MM, pairSize, setRunSizes, sizeTone, tubeSize, type PipeUnits } from "@/lib/studio/pipe-sizes";
-import { attachOf, mountOf, setMount } from "@/lib/studio/graph";
+import { attachOf, buildSystemGraph, manualRiserM, mountOf, setMount } from "@/lib/studio/graph";
 import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
 import { deleteFromSchematic, type SchematicTarget } from "@/lib/studio/joints";
 
@@ -86,8 +86,8 @@ export function VrfSchematic({
       pos,
       fit,
       w: Math.max(PAD * 2 + leaf * COL, ODU_W + PAD * 2),
-      /* room under the lowest heads for their heights, when any differ */
-      h: PAD * 2 + 36 + depth * ROW + 26 + (Object.values(tree.levels).some((v) => v !== 0) ? 16 : 0),
+      /* room under the lowest heads for their floor and height */
+      h: PAD * 2 + 36 + depth * ROW + 42,
     };
   }, [tree]);
 
@@ -170,12 +170,17 @@ export function VrfSchematic({
      drops to a lane of its own first, the farthest out on the highest lane,
      so no two cross. Anything else (off the outdoor) drops, turns, drops. */
   const boxW = (id: string) => Math.max(76, (tree.sections.filter((s) => s.from === id).length || 1) * 28 + 12);
-  const route = (s: SizedSection): { d: string; label: { x: number; y: number } } | null => {
+  const route = (s: SizedSection): { d: string; label: { x: number; y: number }; riser: { x: number; y: number } } | null => {
     const a = pos.get(s.from);
     const b = pos.get(s.to);
     if (!a || !b) return null;
     const f = fit.get(s.from);
-    if (f && f.kind !== "box") return { d: `M${a.x} ${a.y} H${b.x} V${b.y}`, label: { x: b.x + 6, y: a.y + 16 } };
+    if (f && f.kind !== "box")
+      return {
+        d: `M${a.x} ${a.y} H${b.x} V${b.y}`,
+        label: { x: b.x + 6, y: a.y + 16 },
+        riser: { x: b.x, y: a.y + (b.y - a.y) * 0.62 },
+      };
     if (f?.kind === "box") {
       const outs = tree.sections
         .filter((x) => x.from === s.from)
@@ -184,7 +189,8 @@ export function VrfSchematic({
       const i = outs.findIndex((x) => x.id === s.id);
       const px = a.x - w / 2 + ((i + 0.5) * w) / outs.length;
       const foot = a.y + 11;
-      if (Math.abs(b.x - px) < 1) return { d: `M${px} ${foot} V${b.y}`, label: { x: b.x + 6, y: b.y - 24 } };
+      if (Math.abs(b.x - px) < 1)
+        return { d: `M${px} ${foot} V${b.y}`, label: { x: b.x + 6, y: b.y - 24 }, riser: { x: px, y: foot + (b.y - foot) * 0.3 } };
       const left = b.x < px;
       const side = outs.filter((x) => {
         const bx = pos.get(x.to)?.x ?? 0;
@@ -194,10 +200,18 @@ export function VrfSchematic({
       });
       const rank = left ? side.indexOf(s) : side.length - 1 - side.indexOf(s);
       const lane = foot + 10 + rank * 10;
-      return { d: `M${px} ${foot} V${lane} H${b.x} V${b.y}`, label: { x: b.x + 6, y: b.y - 24 } };
+      return {
+        d: `M${px} ${foot} V${lane} H${b.x} V${b.y}`,
+        label: { x: b.x + 6, y: b.y - 24 },
+        riser: { x: b.x, y: lane + (b.y - lane) * 0.25 },
+      };
     }
     const mid = a.y + ROW * 0.45;
-    return { d: `M${a.x} ${a.y} V${mid} H${b.x} V${b.y}`, label: { x: b.x + 6, y: mid + 16 } };
+    return {
+      d: `M${a.x} ${a.y} V${mid} H${b.x} V${b.y}`,
+      label: { x: b.x + 6, y: mid + 16 },
+      riser: { x: b.x, y: mid + (b.y - mid) * 0.72 },
+    };
   };
 
   /* PIPES THAT GO NOWHERE (verdict.ts loosePipes) are no part of the tree,
@@ -259,6 +273,42 @@ export function VrfSchematic({
      lift limits read how far each is above or below the outdoor. Shown on
      the drawing once anything differs, and set on the picked one. */
   const showLevels = Object.values(tree.levels).some((v) => v !== 0);
+  /* RISERS (Isaac, 2026-09-30: "I can't see the riser on the schematic"):
+     a section that goes up or down a riser wears it — a marker on its pipe
+     with the riser's letter and height — and once the system is on more than
+     one floor every head says which floor it is on */
+  const risersOf = (() => {
+    const graph = buildSystemGraph(doc.objects, doc.floors, sys.id);
+    const floorName = (id: string | undefined) => doc.floors.find((f) => f.id === id)?.name ?? "a floor";
+    const out = new Map<string, { group: string; lengthM: number; manual: boolean; from: string; to: string }[]>();
+    for (const sec of tree.sections)
+      for (const e of sec.edges) {
+        if (!e.startsWith("riser-gap:")) continue;
+        const g = graph.edges.find((x) => x.id === e);
+        const lower = g ? graph.nodes.get(g.a) : undefined;
+        const upper = g ? graph.nodes.get(g.b) : undefined;
+        if (!g || !lower || !upper) continue;
+        /* which way this section takes it: toward its downstream end */
+        const up = (tree.levels[sec.to] ?? 0) >= (tree.levels[sec.from] ?? 0);
+        out.set(sec.id, [
+          ...(out.get(sec.id) ?? []),
+          {
+            group: String(lower.props.group ?? "A"),
+            lengthM: g.lengthM ?? 0,
+            manual: manualRiserM(lower) != null,
+            from: floorName((up ? lower : upper).floorId),
+            to: floorName((up ? upper : lower).floorId),
+          },
+        ]);
+      }
+    return out;
+  })();
+  const floorOf = (id: string) => {
+    const o = doc.objects.find((x) => x.id === id);
+    return o ? doc.floors.find((f) => f.id === o.floorId) : undefined;
+  };
+  const manyFloors =
+    new Set(tree.sections.flatMap((x) => [x.from, x.to]).map((id) => floorOf(id)?.id).filter(Boolean)).size > 1;
   const metres = (v: number) => `${Math.round(Math.abs(v) * 10) / 10} m`;
   const levelTag = (id: string) => {
     const v = tree.levels[id];
@@ -323,6 +373,17 @@ export function VrfSchematic({
                     {`${s.lengthM.toFixed(1)} m`}
                   </text>
                 )}
+                {(risersOf.get(s.id) ?? []).map((rz, k) => (
+                  <g key={k} className="ds-schem-riser" transform={`translate(${r.riser.x} ${r.riser.y + k * 22})`}>
+                    <circle r={9} />
+                    <text className="id" y={4}>
+                      {rz.group}
+                    </text>
+                    <text className="len" x={14} y={4}>
+                      {`Riser ${rz.group}, ${Math.round(rz.lengthM * 10) / 10} m`}
+                    </text>
+                  </g>
+                ))}
               </g>
             );
           })}
@@ -388,9 +449,9 @@ export function VrfSchematic({
                 <text className="zone" x={p.x} y={p.y + 29}>
                   {zoneName(id)}
                 </text>
-                {showLevels && levelTag(id) && (
+                {(showLevels || manyFloors) && (levelTag(id) || floorOf(id)) && (
                   <text className="lvl" x={p.x} y={p.y + 52}>
-                    {levelTag(id)}
+                    {[manyFloors ? floorOf(id)?.name : null, showLevels ? levelTag(id) : null].filter(Boolean).join(", ")}
                   </text>
                 )}
               </g>
@@ -493,6 +554,14 @@ export function VrfSchematic({
                     <dd>{`${pickedSection.lengthM.toFixed(1)} m`}</dd>
                   </div>
                 )}
+                {(risersOf.get(pickedSection.id) ?? []).map((rz, k) => (
+                  <div key={`riser${k}`}>
+                    <dt>{`Riser ${rz.group}`}</dt>
+                    <dd>
+                      {`${Math.round(rz.lengthM * 10) / 10} m, ${rz.from} to ${rz.to}${rz.manual ? ", set by hand" : ""}`}
+                    </dd>
+                  </div>
+                ))}
               </>
             )}
             {pickedFitting && (

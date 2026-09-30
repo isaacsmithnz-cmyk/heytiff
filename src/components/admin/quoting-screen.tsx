@@ -77,7 +77,7 @@ export function QuotingScreen({
 
   const choose = (key: ComponentKey, group: ComponentGroup, offer: ComponentOffer, rollM: number | null) =>
     save(
-      { ...saved, preferred: { ...saved.preferred, [key]: { supplierKey: offer.supplierKey, code: group.code, rollM } } },
+      { ...saved, preferred: { ...saved.preferred, [key]: { supplierKey: offer.supplierKey, code: offer.code, rollM } } },
       "Item chosen"
     ).then((ok) => {
       if (ok) setOpen(null);
@@ -244,7 +244,7 @@ function ComponentRow({
             <>
               {pick.group.name}
               <em>
-                {`${pick.group.code}, ${pick.offer.supplierName}, `}
+                {`${pick.offer.code}, ${pick.offer.supplierName}${pick.offer.pack ? `, ${pick.offer.pack}` : ""}, `}
                 <span className={pick.overridden ? "qs-state warn" : "qs-state"}>{pick.overridden ? "Override" : "Lowest price"}</span>
               </em>
             </>
@@ -278,7 +278,7 @@ function ComponentRow({
             {c.unit === "m" && pick && (
               <div className="qs-roll">
                 <label className="qs-field">
-                  <span>{`Roll length of ${pick.group.code}`}</span>
+                  <span>{`Roll length of ${pick.offer.code}`}</span>
                   <span className="qs-in">
                     <input
                       className="wb2-fi"
@@ -307,25 +307,25 @@ function ComponentRow({
                   <span className="qs-item">
                     {g.name}
                     <em>
-                      {[g.code, g.rollM && c.unit === "m" ? `${g.rollM} m` : null, g.uses ? `On ${g.uses} job line${g.uses === 1 ? "" : "s"}` : null]
+                      {[g.code, g.uses ? `On ${g.uses} job line${g.uses === 1 ? "" : "s"}` : null]
                         .filter(Boolean)
                         .join(", ")}
                     </em>
                   </span>
                   <span className="qs-groupoffers">
                     {g.offers.map((o, i) => {
-                      const on = pick?.group.code === g.code && pick.offer.supplierKey === o.supplierKey;
+                      const on = pick?.offer.code === o.code && pick.offer.supplierKey === o.supplierKey;
                       return (
                         <button
-                          key={o.supplierKey}
+                          key={`${o.supplierKey}:${o.code}`}
                           type="button"
                           className={`qs-offerbtn${i === 0 && g.offers.length > 1 ? " ok" : ""}${on ? " on" : ""}`}
                           disabled={busy || on}
                           aria-pressed={on}
-                          aria-label={`Use ${g.code} from ${o.supplierName}`}
+                          aria-label={`Use ${o.code} from ${o.supplierName}`}
                           onClick={() => onChoose(g, o, null)}
                         >
-                          <em>{o.supplierName}</em>
+                          <em>{o.pack ? `${o.supplierName}, ${o.pack}` : o.supplierName}</em>
                           {o.perUnitCents == null
                             ? c.unit === "m"
                               ? `${$(o.buyCents)}, length not in the name`

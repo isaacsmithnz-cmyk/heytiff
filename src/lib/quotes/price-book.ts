@@ -22,14 +22,16 @@ export type PricingKind = "net" | "list_less";
 /** A discount that applies to a range instead of the supplier's own. */
 export type DiscountRule = { prefix: string; discountPct: number };
 
-/** The file a supplier's prices come in. */
+/** The file a supplier's prices come in, and how it's laid out. */
 export type FileKind = "csv" | "pdf" | "xlsx";
+export type FileFormat = "aad_csv" | "reece_csv" | "me_pdf" | "me_invoice_xlsx";
 
 export type Supplier = {
   key: string;
   name: string;
   pricing: PricingKind;
   file: FileKind;
+  format: FileFormat;
   /** list_less: taken off every list price */
   discountPct: number;
   /** list_less: a range with a different discount (PUMY at 48) */
@@ -38,12 +40,17 @@ export type Supplier = {
 
 /** The two the business buys from, as agreed 2026-09-30. */
 export const DEFAULT_SUPPLIERS: Supplier[] = [
-  { key: "aad", name: "AAD", pricing: "net", file: "csv", discountPct: 0, rules: [] },
+  { key: "aad", name: "AAD", pricing: "net", file: "csv", format: "aad_csv", discountPct: 0, rules: [] },
+  /* Reece's monthly account price file: section and sub-section rows, then
+     code, description, unit, list and net prices ex and incl GST
+     (2026-09-30, 1055793_September_2026.csv) — the net ex GST is used. */
+  { key: "reece", name: "Reece", pricing: "net", file: "csv", format: "reece_csv", discountPct: 0, rules: [] },
   {
     key: "mitsubishi",
     name: "Mitsubishi Electric",
     pricing: "list_less",
     file: "pdf",
+    format: "me_pdf",
     discountPct: 30,
     rules: [{ prefix: "PUMY", discountPct: 48 }],
   },
@@ -51,7 +58,7 @@ export const DEFAULT_SUPPLIERS: Supplier[] = [
      workbook, "Current Net Prices"): the price for the City Multi indoor
      units and older builds the trade book doesn't list, dated, with how
      often each was bought. */
-  { key: "mitsubishi_invoiced", name: "Mitsubishi Electric, invoiced", pricing: "net", file: "xlsx", discountPct: 0, rules: [] },
+  { key: "mitsubishi_invoiced", name: "Mitsubishi Electric, invoiced", pricing: "net", file: "xlsx", format: "me_invoice_xlsx", discountPct: 0, rules: [] },
 ];
 
 export type PriceRow = {
@@ -63,6 +70,8 @@ export type PriceRow = {
   /** how many times it was bought, and how many in all */
   timesBought?: number | null;
   qtyBought?: number | null;
+  /** the unit it's sold by, as the file says it: EA, MTR, COIL, LEN… */
+  uom?: string | null;
 };
 
 export type ParseResult = {
@@ -125,6 +134,28 @@ export function parseAadCsv(text: string): ParseResult {
       continue;
     }
     rows.push({ code, name: name.replace(/\s+/g, " "), cents });
+  }
+  return dedupe(rows, skipped);
+}
+
+/** Reece's account price file. Rows with no code are the file's section
+    and sub-section headings; an item row is: section, sub-section, code,
+    description, unit, list ex GST, list incl GST, net ex GST, net incl GST,
+    GST %. The net ex GST is what the business pays. */
+export function parseReeceCsv(text: string): ParseResult {
+  const rows: PriceRow[] = [];
+  let skipped = 0;
+  for (const raw of text.replace(/^\uFEFF/, "").split(/\r?\n/)) {
+    if (!raw.trim()) continue;
+    const f = csvFields(raw);
+    const code = f[2];
+    if (!code) continue;
+    const cents = centsOf(f[7] ?? "");
+    if (!f[3] || cents == null) {
+      skipped++;
+      continue;
+    }
+    rows.push({ code, name: f[3].replace(/\s+/g, " "), cents, uom: f[4] || null });
   }
   return dedupe(rows, skipped);
 }

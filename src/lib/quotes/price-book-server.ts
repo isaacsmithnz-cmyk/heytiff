@@ -49,6 +49,7 @@ export async function readSuppliers(orgId: string): Promise<SupplierView[]> {
       name: r.name || d.name,
       pricing: (r.pricing === "list_less" ? "list_less" : "net") as PricingKind,
       file: d.file,
+      format: d.format,
       discountPct: Number(r.discount_pct) || 0,
       rules: rulesOf(r.rules),
       fileName: r.file_name,
@@ -113,6 +114,7 @@ export async function importPriceRows(
       priced_on: r.pricedOn ?? null,
       times_bought: r.timesBought ?? null,
       qty_bought: r.qtyBought ?? null,
+      uom: r.uom ?? null,
     };
   });
   for (let i = 0; i < upserts.length; i += CHUNK) {
@@ -159,6 +161,8 @@ export type BookItem = {
   cents: number;
   pricedOn: string | null;
   timesBought: number | null;
+  /** the unit it's sold by, when the file says (Reece: EA, MTR, COIL…) */
+  uom: string | null;
 };
 
 /** Every current item in the book, a page at a time. */
@@ -167,14 +171,14 @@ export async function currentItems(orgId: string): Promise<BookItem[]> {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabaseAdmin
       .from("quote_price_items")
-      .select("supplier_key, code, name, cents, priced_on, times_bought")
+      .select("supplier_key, code, name, cents, priced_on, times_bought, uom")
       .eq("org_id", orgId)
       .eq("current", true)
       .order("supplier_key")
       .order("code")
       .range(from, from + 999);
     if (error || !data) break;
-    for (const r of data as { supplier_key: string; code: string; name: string; cents: number; priced_on: string | null; times_bought: number | null }[]) {
+    for (const r of data as { supplier_key: string; code: string; name: string; cents: number; priced_on: string | null; times_bought: number | null; uom: string | null }[]) {
       out.push({
         supplierKey: r.supplier_key,
         code: r.code,
@@ -182,6 +186,7 @@ export async function currentItems(orgId: string): Promise<BookItem[]> {
         cents: r.cents,
         pricedOn: r.priced_on,
         timesBought: r.times_bought,
+        uom: r.uom,
       });
     }
     if (data.length < 1000) break;

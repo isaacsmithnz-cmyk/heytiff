@@ -85,3 +85,7 @@ create table if not exists public.quote_unit_choices (
   primary key (org_id, model)
 );
 alter table public.quote_unit_choices enable row level security;
+
+-- ── the unit an item is sold by (2026-09-30, Reece) ───────────────────────
+-- EA, MTR, COIL, LEN as the file says it: a price "per MTR" is a metre's.
+alter table public.quote_price_items add column if not exists uom text;

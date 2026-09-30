@@ -6,10 +6,12 @@ import {
   netCents,
   parseAadCsv,
   parseMitsubishiLines,
+  parseReeceCsv,
   pricingWords,
 } from "../price-book";
 
-const [aad, me] = DEFAULT_SUPPLIERS as [(typeof DEFAULT_SUPPLIERS)[0], (typeof DEFAULT_SUPPLIERS)[0]];
+const aad = DEFAULT_SUPPLIERS.find((s) => s.key === "aad")!;
+const me = DEFAULT_SUPPLIERS.find((s) => s.key === "mitsubishi")!;
 
 describe("AAD's CSV", () => {
   it("reads code, name and net price, quotes and all", () => {
@@ -72,3 +74,19 @@ describe("what the business pays", () => {
     expect(c.savesCents).toBe(4403);
   });
 });
+
+describe("Reece's account price file", () => {
+  it("skips the section headings and keeps the net price ex GST, with the unit it's sold by", () => {
+    const r = parseReeceCsv(
+      "01,,,STOPS/FLEX HOSES/COVER PLATES\r\n" +
+        "32,01,,DRAIN HOSE\r\n" +
+        "32,01,3211201-1,FLEX DRAIN HOSE SMOOTH WALL 16MM X 25MTR (COIL),COIL,84.80,93.28,63.60,69.96,10.00,,,,,\r\n" +
+        "32,01,3211201-2,FLEX DRAIN HOSE SMOOTH WALL 16MM X 25MTR (MTR),MTR,4.07,4.48,3.05,3.36,10.00,,,,,\r\n"
+    );
+    expect(r.rows).toEqual([
+      { code: "3211201-1", name: "FLEX DRAIN HOSE SMOOTH WALL 16MM X 25MTR (COIL)", cents: 6360, uom: "COIL" },
+      { code: "3211201-2", name: "FLEX DRAIN HOSE SMOOTH WALL 16MM X 25MTR (MTR)", cents: 305, uom: "MTR" },
+    ]);
+  });
+});
+

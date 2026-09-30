@@ -164,7 +164,7 @@ export function UnitBrowser({
 }) {
   /* buy prices from the price book, for people with money access; null
      for everyone else, and the table and panel then show none */
-  const prices = useUnitPrices();
+  const [prices, chooseSupplier] = useUnitPrices();
   const [filters, setFilters] = useState<SelectFilters>({});
   /** the search box — reaches every style, see `searched` */
   const [query, setQuery] = useState("");
@@ -694,6 +694,7 @@ export function UnitBrowser({
       {selectedOption && prices ? (
         <BuyPrices
           prices={prices}
+          onChoose={(model, supplierKey) => void chooseSupplier(model, supplierKey)}
           models={[
             { model: selectedOption.idu.model, role: "Indoor" },
             ...(!perRoom && pairFor(selectedOption) ? [{ model: pairFor(selectedOption)!.odu.model, role: "Outdoor" }] : []),

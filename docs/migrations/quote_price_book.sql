@@ -72,3 +72,16 @@ create table if not exists public.quote_code_links (
   primary key (org_id, model, code)
 );
 alter table public.quote_code_links enable row level security;
+
+-- ── a unit bought from a supplier other than the lowest (2026-09-30) ──────
+-- A unit is priced from its lowest supplier unless a person overrides it;
+-- the override is kept here, per pack model, until they go back to lowest.
+create table if not exists public.quote_unit_choices (
+  org_id        uuid not null references public.organizations(id) on delete cascade,
+  model         text not null,
+  supplier_key  text not null,
+  decided_by    text,
+  decided_at    timestamptz not null default now(),
+  primary key (org_id, model)
+);
+alter table public.quote_unit_choices enable row level security;

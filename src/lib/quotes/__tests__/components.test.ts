@@ -9,7 +9,7 @@ import {
   sellCents,
 } from "../components";
 import { normaliseQuoteSettings, quoteSettingsRow, DEFAULT_QUOTE_SETTINGS } from "../settings";
-import { rankItems, type ComponentItem } from "../settings-query";
+import { rankGroups, type ComponentGroup } from "../settings-query";
 
 jest.mock("@/lib/supabase-server", () => ({ supabaseAdmin: {} }));
 
@@ -63,12 +63,17 @@ describe("the sums", () => {
     expect(profitSharePct(0)).toBe(0);
   });
 
-  it("ranks the most used first, then the cheapest a metre", () => {
-    const it = (id: string, uses: number, perUnitCents: number | null): ComponentItem =>
-      ({ id, supplierKey: "aad", supplierName: "AAD", code: id, name: id, buyCents: 0, rollM: null, perUnitCents, uses });
+  it("ranks the lowest a metre first, unpriced and $0.00 last, the most used breaking a tie", () => {
+    const g = (code: string, uses: number, perUnitCents: number | null): ComponentGroup => ({
+      code,
+      name: code,
+      rollM: null,
+      uses,
+      offers: [{ supplierKey: "aad", supplierName: "AAD", buyCents: 0, perUnitCents }],
+    });
     expect(
-      rankItems([it("a", 0, 900), it("b", 3, 1200), it("c", 0, null), it("d", 0, 800), it("z", 0, 0)]).map((x) => x.id)
-    ).toEqual(["b", "d", "a", "c", "z"]);
+      rankGroups([g("a", 0, 900), g("b", 3, 1200), g("c", 0, null), g("d", 0, 800), g("z", 0, 0), g("e", 5, 900)]).map((x) => x.code)
+    ).toEqual(["d", "e", "a", "b", "c", "z"]);
   });
 });
 

@@ -25,36 +25,43 @@ export async function readQuoteSettings(orgId: string): Promise<QuoteSettings> {
   return normaliseQuoteSettings(data ?? {});
 }
 
-/** A price-book item on a component's shortlist. */
-export type ComponentItem = {
-  /** supplier and code: one item in the book */
-  id: string;
+/** One supplier's price for a grouped item. */
+export type ComponentOffer = {
   supplierKey: string;
   supplierName: string;
-  code: string;
-  name: string;
   /** what the business pays for the item as sold (a roll, a box, one) */
   buyCents: number;
-  /** read off the name, or the person's correction on the preferred one */
-  rollM: number | null;
   /** buy price per metre, or each */
   perUnitCents: number | null;
+};
+
+/** One item on a component's shortlist: a code, with every supplier that
+    sells it grouped under it, lowest first. */
+export type ComponentGroup = {
+  code: string;
+  name: string;
+  /** read off the name, or the person's correction on the chosen one */
+  rollM: number | null;
   /** how many lines on the business's jobs were this item */
   uses: number;
+  offers: ComponentOffer[];
 };
+
+/** The item that prices a component: the lowest by default, or the one a
+    person chose over it. */
+export type ComponentChoice = { group: ComponentGroup; offer: ComponentOffer; overridden: boolean };
 
 export type ComponentShortlist = {
   key: ComponentKey;
   label: string;
   unit: "m" | "each";
-  /** the preferred item, when one is set and still in the price book */
-  preferred: ComponentItem | null;
-  /** best first: most used, then cheapest per metre or each */
-  items: ComponentItem[];
+  /** null when nothing in the price book prices it yet */
+  chosen: ComponentChoice | null;
+  /** lowest price per metre or each first; similar items one row each */
+  groups: ComponentGroup[];
 };
 
 const SHORTLIST = 8;
-export const itemId = (supplierKey: string, code: string) => `${supplierKey}:${code}`;
 
 /** How many job lines used each of these codes, through the job-line
     mirror's link to ServiceM8's catalogue item and that item's code. */
@@ -82,17 +89,15 @@ async function usesByCode(orgId: string, codes: string[]): Promise<Map<string, n
   return uses;
 }
 
-/** Most used first, then cheapest per metre or each. An item with no price
-    per unit — or a price of $0.00, which is an item nobody priced, not a
-    free one — comes last. */
+/* $0.00 is an item nobody priced, not a free one, and a metre can't be
+   priced from a roll of unknown length: both rank last and are never the
+   default. */
 const rankPrice = (c: number | null) => (c != null && c > 0 ? c : Infinity);
-export function rankItems(items: ComponentItem[]): ComponentItem[] {
-  return [...items].sort(
-    (a, b) =>
-      b.uses - a.uses ||
-      rankPrice(a.perUnitCents) - rankPrice(b.perUnitCents) ||
-      a.name.localeCompare(b.name)
-  );
+const lowestOf = (g: ComponentGroup) => rankPrice(g.offers[0]?.perUnitCents ?? null);
+
+/** Lowest price per metre or each first, then the most used. */
+export function rankGroups(groups: ComponentGroup[]): ComponentGroup[] {
+  return [...groups].sort((a, b) => lowestOf(a) - lowestOf(b) || b.uses - a.uses || a.name.localeCompare(b.name));
 }
 
 export async function componentShortlists(
@@ -110,32 +115,37 @@ export async function componentShortlists(
   return COMPONENT_KEYS.map((key) => {
     const c = QUOTE_COMPONENTS[key];
     const chosen = settings.preferred[key];
-    const itemOf = (m: BookItem): ComponentItem | null => {
-      const s = supplierOf.get(m.supplierKey);
-      if (!s) return null;
-      const buyCents = netCents(s, m.code, m.cents);
-      const isChosen = chosen?.supplierKey === m.supplierKey && chosen.code === m.code;
-      const rollM = c.unit === "each" ? null : isChosen && chosen.rollM ? chosen.rollM : rollMetresOf(m.name);
-      return {
-        id: itemId(m.supplierKey, m.code),
-        supplierKey: m.supplierKey,
-        supplierName: s.name,
-        code: m.code,
-        name: m.name,
-        buyCents,
-        rollM,
-        perUnitCents: buyPerUnitCents(c.unit, buyCents, rollM),
-        uses: uses.get(m.code) ?? 0,
-      };
-    };
-    const items = rankItems((matched.get(key) ?? []).map(itemOf).filter((x): x is ComponentItem => x !== null));
-    const preferredRow = chosen ? book.find((m) => m.supplierKey === chosen.supplierKey && m.code === chosen.code) : undefined;
-    return {
-      key,
-      label: c.label,
-      unit: c.unit,
-      preferred: preferredRow ? itemOf(preferredRow) : null,
-      items: items.slice(0, SHORTLIST),
-    };
+    /* the same code at every supplier is one item */
+    const byCode = new Map<string, BookItem[]>();
+    for (const m of matched.get(key) ?? []) byCode.set(m.code, [...(byCode.get(m.code) ?? []), m]);
+    const groups = rankGroups(
+      [...byCode.entries()].map(([code, rows]) => {
+        const rollM =
+          c.unit === "each" ? null : chosen?.code === code && chosen.rollM ? chosen.rollM : rollMetresOf(rows[0]!.name);
+        const offers = rows
+          .map((m): ComponentOffer | null => {
+            const s = supplierOf.get(m.supplierKey);
+            if (!s) return null;
+            const buyCents = netCents(s, m.code, m.cents);
+            return { supplierKey: s.key, supplierName: s.name, buyCents, perUnitCents: buyPerUnitCents(c.unit, buyCents, rollM) };
+          })
+          .filter((o): o is ComponentOffer => o !== null)
+          .sort((a, b) => rankPrice(a.perUnitCents) - rankPrice(b.perUnitCents));
+        return { code, name: rows[0]!.name, rollM, uses: uses.get(code) ?? 0, offers };
+      })
+    );
+    /* a person's choice, while that item is still in the book; otherwise
+       the lowest priced item that can be priced */
+    let pick: ComponentChoice | null = null;
+    if (chosen) {
+      const group = groups.find((g) => g.code === chosen.code);
+      const offer = group?.offers.find((o) => o.supplierKey === chosen.supplierKey);
+      if (group && offer) pick = { group, offer, overridden: true };
+    }
+    if (!pick) {
+      const group = groups.find((g) => rankPrice(g.offers[0]?.perUnitCents ?? null) < Infinity);
+      if (group) pick = { group, offer: group.offers[0]!, overridden: false };
+    }
+    return { key, label: c.label, unit: c.unit, chosen: pick, groups: groups.slice(0, SHORTLIST) };
   });
 }

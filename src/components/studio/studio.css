@@ -10100,3 +10100,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-offer.ok { color:var(--ok-t); font-weight:600; }
 .ds-ub-saves { font-size:12px; font-weight:500; color:var(--q); }
 .ds-ub-buynone { font-size:13px; color:var(--q); }
+.ds-ub-buystate { margin-left:8px; font-size:12px; font-weight:500; color:var(--q); }
+.ds-ub-buystate.warn { color:var(--warn-t); }
+button.ds-ub-offer { align-items:flex-start; padding:4px 8px; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); }
+button.ds-ub-offer.on { background:var(--tint); border-color:var(--ink); }

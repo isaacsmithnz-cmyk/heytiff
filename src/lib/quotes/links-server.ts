@@ -96,3 +96,23 @@ export async function pricedLinks(orgId: string): Promise<PricedLink[]> {
     };
   });
 }
+
+/** Units a person chose to buy from a supplier other than the lowest. */
+export async function readUnitChoices(orgId: string): Promise<Map<string, string>> {
+  const { data } = await supabaseAdmin.from("quote_unit_choices").select("model, supplier_key").eq("org_id", orgId);
+  return new Map(((data ?? []) as { model: string; supplier_key: string }[]).map((r) => [r.model, r.supplier_key]));
+}
+
+/** Override a unit's supplier, or (null) go back to the lowest. */
+export async function chooseUnitSupplier(orgId: string, userId: string, model: string, supplierKey: string | null) {
+  const q = supabaseAdmin.from("quote_unit_choices");
+  const { error } =
+    supplierKey === null
+      ? await q.delete().eq("org_id", orgId).eq("model", model)
+      : await q.upsert(
+          { org_id: orgId, model, supplier_key: supplierKey, decided_by: userId, decided_at: new Date().toISOString() },
+          { onConflict: "org_id,model" }
+        );
+  return !error;
+}
+

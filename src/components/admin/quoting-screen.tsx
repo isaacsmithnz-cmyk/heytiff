@@ -7,7 +7,7 @@ import { Icon } from "@/components/shell/icon";
 import { ScreenBand, ScreenPanel } from "@/components/shell/screen-band";
 import { saveQuoteSettings } from "@/app/actions/quote-settings";
 import { profitSharePct, sellCents, type ComponentKey } from "@/lib/quotes/components";
-import type { ComponentItem, ComponentShortlist } from "@/lib/quotes/settings-query";
+import type { ComponentGroup, ComponentOffer, ComponentShortlist } from "@/lib/quotes/settings-query";
 import type { SupplierView } from "@/lib/quotes/price-book-server";
 import { PriceBook } from "./price-book-panel";
 import { LinksPanel } from "./links-panel";
@@ -19,11 +19,11 @@ import { MAX_DAY_HOURS, MAX_MARKUP_PCT, type QuoteSettings } from "@/lib/quotes/
    the sell price and the two get confused on every quote otherwise.
 
    PREFERRED ITEMS: each common component (pair coil by size, cable, drain
-   hose, isolator…) is priced from ONE price-book item. The row shows the
-   chosen one with its buy price, what a metre (or one) costs, and what it
-   sells at with the materials markup. Change opens the shortlist: the
-   price-book items whose names match, most used on the business's jobs
-   first, then cheapest per metre. A roll's length is read off the item's
+   hose, isolator…) is priced from ONE price-book item — the LOWEST priced
+   per metre or each, by default (Isaac, 2026-09-30). Override opens the
+   shortlist and a person picks another; Use lowest goes back. The same item
+   at several suppliers is one row with every supplier's price beside it,
+   the lowest in the state's green. A roll's length is read off the item's
    name; where it can't be, it can be typed, and a metre can't be priced
    until it is. */
 
@@ -75,13 +75,21 @@ export function QuotingScreen({
     pct(hours) >= 1 &&
     pct(hours) <= MAX_DAY_HOURS;
 
-  const choose = (key: ComponentKey, item: ComponentItem, rollM: number | null) =>
+  const choose = (key: ComponentKey, group: ComponentGroup, offer: ComponentOffer, rollM: number | null) =>
     save(
-      { ...saved, preferred: { ...saved.preferred, [key]: { supplierKey: item.supplierKey, code: item.code, rollM } } },
-      "Preferred item saved"
+      { ...saved, preferred: { ...saved.preferred, [key]: { supplierKey: offer.supplierKey, code: group.code, rollM } } },
+      "Item chosen"
     ).then((ok) => {
       if (ok) setOpen(null);
     });
+
+  const backToLowest = (key: ComponentKey) => {
+    const preferred = { ...saved.preferred };
+    delete preferred[key];
+    return save({ ...saved, preferred }, "Back to the lowest price").then((ok) => {
+      if (ok) setOpen(null);
+    });
+  };
 
   return (
     <div className="page in full">
@@ -146,7 +154,7 @@ export function QuotingScreen({
               <div className="qs-table" role="table" aria-label="Preferred items">
                 <div className="qs-row qs-headrow" role="row">
                   <span role="columnheader">Component</span>
-                  <span role="columnheader">Preferred item</span>
+                  <span role="columnheader">Priced from</span>
                   <span role="columnheader" className="num">Buy</span>
                   <span role="columnheader" className="num">Per metre or each</span>
                   <span role="columnheader" className="num">Sells at</span>
@@ -160,7 +168,8 @@ export function QuotingScreen({
                     open={open === c.key}
                     busy={busy}
                     onToggle={() => setOpen((o) => (o === c.key ? null : c.key))}
-                    onChoose={(item, rollM) => void choose(c.key, item, rollM)}
+                    onChoose={(group, offer, rollM) => void choose(c.key, group, offer, rollM)}
+                    onLowest={() => void backToLowest(c.key)}
                   />
                 ))}
               </div>
@@ -214,50 +223,62 @@ function ComponentRow({
   busy,
   onToggle,
   onChoose,
+  onLowest,
 }: {
   c: ComponentShortlist;
   markupPct: number;
   open: boolean;
   busy: boolean;
   onToggle: () => void;
-  onChoose: (item: ComponentItem, rollM: number | null) => void;
+  onChoose: (group: ComponentGroup, offer: ComponentOffer, rollM: number | null) => void;
+  onLowest: () => void;
 }) {
-  const p = c.preferred;
-  const [roll, setRoll] = useState(p?.rollM ? String(p.rollM) : "");
+  const pick = c.chosen;
+  const [roll, setRoll] = useState(pick?.group.rollM ? String(pick.group.rollM) : "");
   return (
     <>
       <div className={`qs-row${open ? " on" : ""}`} role="row">
         <b role="cell">{c.label}</b>
         <span role="cell" className="qs-item">
-          {p ? (
+          {pick ? (
             <>
-              {p.name}
-              <em>{`${p.code}, ${p.supplierName}`}</em>
+              {pick.group.name}
+              <em>
+                {`${pick.group.code}, ${pick.offer.supplierName}, `}
+                <span className={pick.overridden ? "qs-state warn" : "qs-state"}>{pick.overridden ? "Override" : "Lowest price"}</span>
+              </em>
             </>
           ) : (
-            <em className="qs-none">None chosen</em>
+            <em className="qs-none">Nothing in the price book prices this yet</em>
           )}
         </span>
-        <span role="cell" className="num">{p ? $(p.buyCents) : ""}</span>
+        <span role="cell" className="num">{pick ? $(pick.offer.buyCents) : ""}</span>
         <span role="cell" className="num">
-          {p ? (p.perUnitCents == null ? "Needs roll length" : `${$(p.perUnitCents)} ${perUnitWord(c.unit)}`) : ""}
+          {pick ? (pick.offer.perUnitCents == null ? "Needs roll length" : `${$(pick.offer.perUnitCents)} ${perUnitWord(c.unit)}`) : ""}
         </span>
         <span role="cell" className="num">
-          {p && p.perUnitCents != null ? `${$(sellCents(p.perUnitCents, markupPct))} ${perUnitWord(c.unit)}` : ""}
+          {pick && pick.offer.perUnitCents != null ? `${$(sellCents(pick.offer.perUnitCents, markupPct))} ${perUnitWord(c.unit)}` : ""}
         </span>
-        <span role="cell" className="qs-act">
-          <button type="button" className="pbtn ghost sm" disabled={busy} onClick={onToggle} aria-expanded={open}>
-            {open ? "Close" : p ? "Change item" : "Choose item"}
-          </button>
+        <span role="cell" className="qs-act qs-acts2">
+          {pick?.overridden && (
+            <button type="button" className="pbtn ghost sm" disabled={busy} onClick={onLowest}>
+              Use lowest
+            </button>
+          )}
+          {c.groups.length > 0 && (
+            <button type="button" className="pbtn ghost sm" disabled={busy} onClick={onToggle} aria-expanded={open}>
+              {open ? "Close" : "Override"}
+            </button>
+          )}
         </span>
       </div>
       {open && (
         <div className="qs-pick" role="row">
           <div role="cell">
-            {c.unit === "m" && p && (
+            {c.unit === "m" && pick && (
               <div className="qs-roll">
                 <label className="qs-field">
-                  <span>{`Roll length of ${p.code}`}</span>
+                  <span>{`Roll length of ${pick.group.code}`}</span>
                   <span className="qs-in">
                     <input
                       className="wb2-fi"
@@ -274,53 +295,49 @@ function ComponentRow({
                   type="button"
                   className="pbtn ghost"
                   disabled={busy || !(Number(roll) > 0)}
-                  onClick={() => onChoose(p, Number(roll))}
+                  onClick={() => onChoose(pick.group, pick.offer, Number(roll))}
                 >
                   Save length
                 </button>
               </div>
             )}
-            {c.items.length === 0 ? (
-              <p className="qs-sub">No price-book item matches this yet.</p>
-            ) : (
-              <ul className="qs-list">
-                {c.items.map((it) => (
-                  <li key={it.id} className={p?.id === it.id ? "on" : undefined}>
-                    <span className="qs-item">
-                      {it.name}
-                      <em>
-                        {[it.code, it.supplierName, it.uses ? `On ${it.uses} job line${it.uses === 1 ? "" : "s"}` : null]
-                          .filter(Boolean)
-                          .join(", ")}
-                      </em>
-                    </span>
-                    <span className="num">{$(it.buyCents)}</span>
-                    <span className="num">
-                      {it.perUnitCents == null
-                        ? c.unit === "m"
-                          ? "Length not in the name"
-                          : "–"
-                        : `${$(it.perUnitCents)} ${perUnitWord(c.unit)}`}
-                    </span>
-                    <span className="qs-act">
-                      {p?.id === it.id ? (
-                        <em className="qs-chosen ok">Preferred</em>
-                      ) : (
+            <ul className="qs-list">
+              {c.groups.map((g) => (
+                <li key={g.code} className={pick?.group.code === g.code ? "on" : undefined}>
+                  <span className="qs-item">
+                    {g.name}
+                    <em>
+                      {[g.code, g.rollM && c.unit === "m" ? `${g.rollM} m` : null, g.uses ? `On ${g.uses} job line${g.uses === 1 ? "" : "s"}` : null]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </em>
+                  </span>
+                  <span className="qs-groupoffers">
+                    {g.offers.map((o, i) => {
+                      const on = pick?.group.code === g.code && pick.offer.supplierKey === o.supplierKey;
+                      return (
                         <button
+                          key={o.supplierKey}
                           type="button"
-                          className="pbtn ghost sm"
-                          disabled={busy}
-                          onClick={() => onChoose(it, null)}
-                          aria-label={`Use ${it.name}`}
+                          className={`qs-offerbtn${i === 0 && g.offers.length > 1 ? " ok" : ""}${on ? " on" : ""}`}
+                          disabled={busy || on}
+                          aria-pressed={on}
+                          aria-label={`Use ${g.code} from ${o.supplierName}`}
+                          onClick={() => onChoose(g, o, null)}
                         >
-                          Use this
+                          <em>{o.supplierName}</em>
+                          {o.perUnitCents == null
+                            ? c.unit === "m"
+                              ? `${$(o.buyCents)}, length not in the name`
+                              : $(o.buyCents)
+                            : `${$(o.perUnitCents)} ${perUnitWord(c.unit)}`}
                         </button>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+                      );
+                    })}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}

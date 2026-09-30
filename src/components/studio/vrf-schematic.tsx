@@ -139,13 +139,17 @@ export function VrfSchematic({
     };
     place(root, 0);
     const fit = new Map<string, SizedFitting>(tree.fittings.map((f) => [f.nodeId, f]));
+    /* the climb between floors runs up a lane of its own, right of
+       everything on the plan */
+    const lane = x0 + leaf * COL + 12;
     return {
       root,
       pos,
       fit,
       bands,
       nodeFloor,
-      w: Math.max(x0 + PAD + leaf * COL, ODU_W + PAD * 2),
+      lane,
+      w: Math.max(x0 + PAD + leaf * COL + (banded ? COL : 0), ODU_W + PAD * 2),
       /* room under the lowest heads for their floor and height */
       h: banded ? bands.reduce((t, b) => t + b.h, PAD * 2) : PAD * 2 + 36 + depth * row + 42,
     };
@@ -240,8 +244,21 @@ export function VrfSchematic({
     const fb = layout.nodeFloor.get(s.to);
     const ba = layout.bands.find((x) => x.floorId === fa);
     const bb = layout.bands.find((x) => x.floorId === fb);
+    const a = pos.get(s.from);
     const b = pos.get(s.to);
-    if (ba && bb && fa !== fb && b) return { ...r, riser: { x: b.x, y: Math.max(ba.y, bb.y) } };
+    if (ba && bb && fa !== fb && a && b) {
+      /* its own lane up the right, then over the top and down into the
+         fitting or head it feeds, so it never reads as a branch of it
+         (Isaac, 2026-09-30: "it looks wrong") */
+      const lane = layout.lane;
+      const over = b.y - 30;
+      const boundary = Math.max(ba.y, bb.y);
+      return {
+        d: `M${a.x} ${a.y} H${lane} V${over} H${b.x} V${b.y}`,
+        label: { x: lane + 6, y: a.y - 24 },
+        riser: { x: lane, y: boundary },
+      };
+    }
     return r;
   };
   const routeOf = (s: SizedSection): { d: string; label: { x: number; y: number }; riser: { x: number; y: number } } | null => {

@@ -10113,23 +10113,6 @@ html[data-ds-display] .dstudio.editing {
 :is(.dstudio, .ds-sb) .ds-schem-head.on rect {
   stroke-width: 3px;
 }
-/* floor bands: a strip per floor, the top floor first, named down the
-   left; the line between two strips is where a riser crosses */
-:is(.dstudio, .ds-sb) .ds-schem-band rect {
-  fill: var(--paper);
-}
-:is(.dstudio, .ds-sb) .ds-schem-band.alt rect {
-  fill: var(--tint);
-}
-:is(.dstudio, .ds-sb) .ds-schem-band line {
-  stroke: var(--line);
-  stroke-width: 1px;
-  stroke-dasharray: 4 4;
-}
-:is(.dstudio, .ds-sb) .ds-schem-band text {
-  fill: var(--q);
-  font: 600 12px var(--font);
-}
 /* a riser on its pipe: a disc with its letter, and its height beside it,
    the way the plan marks one */
 :is(.dstudio, .ds-sb) .ds-schem-riser circle {

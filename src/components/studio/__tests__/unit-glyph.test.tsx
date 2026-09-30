@@ -154,3 +154,37 @@ describe("the throw arrow", () => {
     expect(document.querySelectorAll(".ds-place-ghost .ds-throw").length).toBe(1);
   });
 });
+
+describe("each kind of head its own mark (Isaac, 2026-09-30)", () => {
+  const { unitGlyph } = jest.requireActual("../canvas") as typeof import("../canvas");
+  const draw = (ff: string | null, duct?: Parameters<typeof unitGlyph>[7]) =>
+    render(
+      <svg>
+        {unitGlyph(0, 0, 100, 40, "idu", 1, ff, duct)}
+      </svg>
+    ).container;
+  it("a wall head hangs on a dashed wall with one outlet slot", () => {
+    const c = draw("wall");
+    expect(c.querySelectorAll(".ds-unit-wall")).toHaveLength(1);
+    expect(c.querySelectorAll(".ds-unit-slot")).toHaveLength(1);
+  });
+  it("a 4-way cassette has a slot on every face, a 2-way two, a 1-way one", () => {
+    expect(draw("cassette-4way").querySelectorAll(".ds-unit-slot")).toHaveLength(4);
+    expect(draw("cassette-2way").querySelectorAll(".ds-unit-slot")).toHaveLength(2);
+    expect(draw("cassette-1way").querySelectorAll(".ds-unit-slot")).toHaveLength(1);
+  });
+  it("a ducted unit has a flange each side and its airflow arrow; factory spigots stand in for a flange", () => {
+    const plain = draw("ducted");
+    expect(plain.querySelectorAll(".ds-unit-flange")).toHaveLength(2);
+    expect(plain.querySelectorAll(".ds-unit-arrow")).toHaveLength(1);
+    // two Ø400 return spigots, as the book publishes for the PEA HAA
+    const spig = draw("ducted", { ret: { spigots: [{ count: 2, dia_mm: 400 }] }, perMm: 0.1 });
+    expect(spig.querySelectorAll(".ds-unit-flange")).toHaveLength(3);
+    // with its air side drawn, the mark steps back to the body
+    expect(draw("ducted", { perMm: 0.1, bare: true }).querySelectorAll(".ds-unit-flange, .ds-unit-arrow")).toHaveLength(0);
+  });
+  it("an under-ceiling head and an unknown one keep the louvred box", () => {
+    expect(draw("under-ceiling").querySelectorAll(".ds-unit-detail")).toHaveLength(3);
+    expect(draw(null).querySelectorAll(".ds-unit-detail")).toHaveLength(3);
+  });
+});

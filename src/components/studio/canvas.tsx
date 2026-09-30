@@ -372,9 +372,23 @@ function rectResize(orig: Point[], i: number, p: Point): Point[] {
    the ghost previews exactly what lands. Styling (colour/dash) comes from the
    enclosing .ds-unit / .ds-place-ghost group. Exported for the print/export
    PlanFigure so paper units match the canvas exactly. */
-export function unitGlyph(cx: number, cy: number, w: number, h: number, role: string, zoom: number) {
+export function unitGlyph(
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+  role: string,
+  zoom: number,
+  formFactor?: string | null,
+  /** a ducted head's faces from the pack (supply and return openings), mm to
+      world, which long face supplies (+1 = the front), and `bare` when its
+      air side already draws the faces and the arrow */
+  duct?: { supply?: OpeningSpec; ret?: OpeningSpec; perMm: number; supplyDir?: 1 | -1; bare?: boolean }
+) {
   const left = cx - w / 2;
   const top = cy - h / 2;
+  const right = left + w;
+  const bottom = top + h;
   const rx = 2 / zoom;
   if (role === "odu") {
     const r = Math.min(w, h) * 0.34;
@@ -399,22 +413,136 @@ export function unitGlyph(cx: number, cy: number, w: number, h: number, role: st
       </>
     );
   }
-  // indoor unit — discharge louvres along the lower edge
-  return (
-    <>
-      <rect x={left} y={top} width={w} height={h} rx={rx} />
-      {[0.6, 0.72, 0.84].map((f) => (
-        <line
-          key={f}
-          x1={left + w * 0.12}
-          y1={top + h * f}
-          x2={left + w * 0.88}
-          y2={top + h * f}
-          className="ds-unit-detail"
-        />
-      ))}
-    </>
+  /* EACH KIND OF HEAD ITS OWN MARK (Isaac, 2026-09-30, from the maker's
+     outline drawings; only what is true of every unit of the kind, so the
+     mark never claims what a model doesn't have). Drawn in the unit's own
+     frame — the discharge face is +y (the bottom edge), and the whole mark
+     turns with the unit. */
+  const inset = Math.min(w, h) * 0.12;
+  const slot = (x1: number, y1: number, x2: number, y2: number, key: string) => (
+    <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} className="ds-unit-slot" />
   );
+  switch (formFactor) {
+    case "wall":
+    case "floor-console":
+      /* against a wall: the wall behind it, dashed; a wall head's outlet slot
+         along its front, a console's grille down its front and slot at the top */
+      return (
+        <>
+          <line x1={left - w * 0.08} y1={top - 3 / zoom} x2={right + w * 0.08} y2={top - 3 / zoom} className="ds-unit-wall" />
+          <rect x={left} y={top} width={w} height={h} rx={Math.min(h * 0.25, 6 / zoom)} />
+          {formFactor === "wall"
+            ? slot(left + inset, bottom - h * 0.25, right - inset, bottom - h * 0.25, "s")
+            : [
+                slot(left + inset, top + h * 0.28, right - inset, top + h * 0.28, "s"),
+                ...Array.from({ length: 7 }, (_, i) => {
+                  const x = left + inset + ((w - inset * 2) * (i + 0.5)) / 7;
+                  return <line key={`g${i}`} x1={x} y1={top + h * 0.5} x2={x} y2={bottom - h * 0.18} className="ds-unit-detail" />;
+                }),
+              ]}
+        </>
+      );
+    case "cassette-4way":
+    case "cassette-compact":
+    case "cassette-2way":
+    case "cassette-1way": {
+      /* the panel: its grille in the middle, an outlet slot along each
+         face that blows — four, two opposite, or the front one */
+      const gw = w * 0.4;
+      const gh = h * (formFactor === "cassette-1way" ? 0.34 : 0.4);
+      const gy = formFactor === "cassette-1way" ? top + h * 0.18 : cy - gh / 2;
+      const i = inset;
+      const slots =
+        formFactor === "cassette-1way"
+          ? [slot(left + i, bottom - i, right - i, bottom - i, "b")]
+          : formFactor === "cassette-2way"
+            ? [slot(left + i, top + i, right - i, top + i, "t"), slot(left + i, bottom - i, right - i, bottom - i, "b")]
+            : [
+                slot(left + i * 1.6, top + i, right - i * 1.6, top + i, "t"),
+                slot(left + i * 1.6, bottom - i, right - i * 1.6, bottom - i, "b"),
+                slot(left + i, top + i * 1.6, left + i, bottom - i * 1.6, "l"),
+                slot(right - i, top + i * 1.6, right - i, bottom - i * 1.6, "r"),
+              ];
+      return (
+        <>
+          <rect x={left} y={top} width={w} height={h} rx={rx} />
+          <rect x={cx - gw / 2} y={gy} width={gw} height={gh} className="ds-unit-detail" />
+          {slots}
+        </>
+      );
+    }
+    case "ducted":
+    case "bulkhead":
+    case "floor-concealed": {
+      /* a flange on the supply side and one on the return (Isaac,
+         2026-09-30: "the most simple way"), or the factory spigots where
+         the pack says a face has them (the HAA's two on the back), and the
+         air across the depth. No piping or wiring side: the pack doesn't
+         say, so the mark doesn't claim one. Once the unit's air side is
+         drawn (a ducted system's plenums, sockets and flow arrow) the mark
+         steps back to the body. */
+      const sd = duct?.supplyDir ?? 1;
+      const flange = Math.max(h * 0.08, 3 / zoom);
+      const face = (dir: 1 | -1, opening: OpeningSpec | undefined, key: string) => {
+        const y0 = dir === 1 ? bottom : top - flange;
+        if (opening && hasFactorySpigots(opening)) {
+          const dias = spigotDiametersMm(opening);
+          const n = dias.length || 2;
+          const per = duct?.perMm ?? 0;
+          const stub = Math.max(flange * 1.6, 5 / zoom);
+          return (
+            <g key={key}>
+              {Array.from({ length: n }, (_, i) => {
+                const r = dias[i] && per ? (dias[i] * per) / 2 : Math.min(w / (n * 2.6), h * 0.35);
+                const x = left + ((i + 1) / (n + 1)) * w;
+                return (
+                  <rect key={i} x={x - r} y={dir === 1 ? bottom : top - stub} width={r * 2} height={stub} className="ds-unit-flange" />
+                );
+              })}
+            </g>
+          );
+        }
+        return <rect key={key} x={left + w * 0.06} y={y0} width={w * 0.88} height={flange} className="ds-unit-flange" />;
+      };
+      /* big enough to read on a near-square body: over half its depth */
+      const s = Math.min(h * 0.56, w * 0.4);
+      const hw = s * 0.34;
+      const ay = cy - (sd * s) / 2;
+      return (
+        <>
+          <rect x={left} y={top} width={w} height={h} rx={rx} />
+          {!duct?.bare && (
+            <>
+              {face(sd, duct?.supply, "supply")}
+              {face(sd === 1 ? -1 : 1, duct?.ret, "return")}
+              <path
+                className="ds-unit-arrow"
+                d={`M${cx - hw * 0.5} ${ay}V${ay + sd * s * 0.5}H${cx - hw}L${cx} ${ay + sd * s * 1.05}L${cx + hw} ${ay + sd * s * 0.5}H${cx + hw * 0.5}V${ay}Z`}
+              />
+            </>
+          )}
+        </>
+      );
+    }
+    default:
+      /* a head of a kind not drawn yet, or unknown: discharge louvres along
+         the lower edge */
+      return (
+        <>
+          <rect x={left} y={top} width={w} height={h} rx={rx} />
+          {[0.6, 0.72, 0.84].map((f) => (
+            <line
+              key={f}
+              x1={left + w * 0.12}
+              y1={top + h * f}
+              x2={left + w * 0.88}
+              y2={top + h * f}
+              className="ds-unit-detail"
+            />
+          ))}
+        </>
+      );
+  }
 }
 /* WHICH WAY A HEAD BLOWS — a solid arrow laid on the body, pointing out of
    the discharge face. One per throw: a wall head, floor unit, under-ceiling,
@@ -4572,7 +4700,18 @@ export function StudioCanvas({
               >
                 {/* the glyph and, on AHUs, its whole air side turn together */}
                 <g transform={rot ? `rotate(${rot} ${at.x} ${at.y})` : undefined}>
-                {unitGlyph(at.x, at.y, fp.w, fp.h, String(u.props.role ?? "idu"), zoom)}
+                {(() => {
+                  const spec = iduSpec?.(String(u.props.model ?? ""));
+                  return unitGlyph(at.x, at.y, fp.w, fp.h, String(u.props.role ?? "idu"), zoom, spec?.form_factor, {
+                    supply: spec?.supply_opening,
+                    ret: spec?.return_opening,
+                    perMm,
+                    supplyDir: air ? (endFaceLocal(u, "supply").dir as 1 | -1) : 1,
+                    /* its air side draws the faces and the arrow once a plenum,
+                       a built-in return or factory spigots have oriented it */
+                    bare: ends.some((e) => e.determined),
+                  });
+                })()}
                 {(() => {
                   /* THE THROW SHOWS WHILE THE UNIT IS BEING MOVED OR TURNED,
                      and not at rest: orientation is the question while you
@@ -5020,8 +5159,20 @@ export function StudioCanvas({
                carry colour (their size), and a fitting has to stand apart */
             const fp = footprint(BOX_W_MM, BOX_D_MM);
             const part = pipeView.fittings.get(b.id)?.fitting.part;
+            /* its pipe in on one end and a port for each head on the other
+               (Isaac, 2026-09-30): as many ports as the box it sizes to has,
+               three until then */
+            const ports = (part && pack?.parts.find((x) => x.model === part)?.ports) || 3;
+            const stub = 7 / zoom;
+            const bl = at.x - fp.w / 2;
+            const br = at.x + fp.w / 2;
             return (
               <g key={b.id} className={`ds-bbox${b.id === selectedId ? " sel" : ""}`} style={{ color: strayFits.has(b.id) ? "var(--bad-t)" : "var(--ink)" }}>
+                <line className="ds-bbox-port" x1={bl - stub} y1={at.y} x2={bl} y2={at.y} />
+                {Array.from({ length: ports }, (_, i) => {
+                  const y = at.y - fp.h / 2 + ((i + 1) / (ports + 1)) * fp.h;
+                  return <line key={i} className="ds-bbox-port" x1={br} y1={y} x2={br + stub} y2={y} />;
+                })}
                 <rect x={at.x - fp.w / 2} y={at.y - fp.h / 2} width={fp.w} height={fp.h} />
                 {part && layers.labels && (
                   <text x={at.x} y={at.y + fp.h / 2 + 12 / labelZoom} fontSize={10 / labelZoom} className="ds-bbox-part">
@@ -5167,7 +5318,7 @@ export function StudioCanvas({
                   placing.role === "idu" ? iduSpec?.(placing.model)?.form_factor : undefined;
                 return (
                   <>
-                    {unitGlyph(at.x, at.y, fp.w, fp.h, placing.role, zoom)}
+                    {unitGlyph(at.x, at.y, fp.w, fp.h, placing.role, zoom, ghostFf)}
                     {ghostFf && throwArrows(at.x, at.y, fp.w, fp.h, ghostFf, zoom)}
                     <text x={at.x} y={at.y + 4 / zoom} fontSize={11 / zoom}>
                       {placing.role.toUpperCase()}

@@ -5,7 +5,7 @@
    schedule-only export includes, which floors make pages, ref dedupe). */
 
 import type { DesignDocument, Floor } from "./document";
-import type { DataPack } from "./packs/schema";
+import type { DataPack, IndoorUnit } from "./packs/schema";
 import {
   buildSummaryModel,
   buildDesignSnapshot,
@@ -100,6 +100,32 @@ export interface PrintVariant {
 export interface PrintModel {
   options: ExportOptions;
   variants: PrintVariant[];
+  /** each placed head's kind and ducted faces, by model, so paper draws the
+      canvas's own marks (canvas.tsx unitGlyph) without the whole pack */
+  marks?: Record<string, UnitMark>;
+}
+
+/** what a head's plan mark needs from its pack row */
+export type UnitMark = Pick<IndoorUnit, "form_factor" | "supply_opening" | "return_opening">;
+
+/** the marks of every head placed in these designs, by model */
+export function unitMarks(docs: DesignDocument[], pack: DataPack | null): Record<string, UnitMark> {
+  const out: Record<string, UnitMark> = {};
+  if (!pack) return out;
+  for (const doc of docs)
+    for (const o of doc.objects) {
+      if (o.type !== "unit" || String(o.props.role ?? "") !== "idu") continue;
+      const model = String(o.props.model ?? "");
+      if (!model || out[model]) continue;
+      const row = pack.indoor_units.find((u) => u.model === model);
+      if (row)
+        out[model] = {
+          form_factor: row.form_factor,
+          ...(row.supply_opening ? { supply_opening: row.supply_opening } : {}),
+          ...(row.return_opening ? { return_opening: row.return_opening } : {}),
+        };
+    }
+  return out;
 }
 
 /** docs[0] is the open design (floor selection applies to it); the rest are
@@ -128,7 +154,7 @@ export function buildPrintModel(
       basis: designBasis(doc),
     };
   });
-  return { options, variants };
+  return { options, variants, marks: unitMarks(docs, pack) };
 }
 
 /** every plan-sheet image the print document will draw, deduped — the caller

@@ -4689,7 +4689,35 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-unit-hub { fill: var(--ink, #0a0b10); stroke: none; }
-.dstudio .ds-place-ghost .ds-unit-detail { stroke: var(--teal-d); }
+/* a head's outlet slot: a heavy line where the air leaves */
+.dstudio .ds-unit-slot {
+  fill: none;
+  stroke: var(--ink, #0a0b10);
+  stroke-width: 3px;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+/* the wall a wall head or console hangs on, dashed behind it */
+.dstudio .ds-unit-wall {
+  fill: none;
+  stroke: var(--ink, #0a0b10);
+  stroke-width: 1px;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+/* a ducted unit's supply flange, and its hollow air arrows */
+.dstudio .ds-unit-flange,
+.dstudio .ds-unit-arrow {
+  fill: var(--paper, #fff);
+  stroke: var(--ink, #0a0b10);
+  stroke-width: 1.3px;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-place-ghost .ds-unit-detail,
+.dstudio .ds-place-ghost .ds-unit-slot,
+.dstudio .ds-place-ghost .ds-unit-wall,
+.dstudio .ds-place-ghost .ds-unit-flange,
+.dstudio .ds-place-ghost .ds-unit-arrow { stroke: var(--teal-d); }
 .dstudio .ds-place-ghost .ds-unit-hub { fill: var(--teal-d); }
 .dstudio .ds-unit-role {
   fill: currentColor;
@@ -4751,6 +4779,12 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-bbox.sel rect { stroke-width: 3.5px; }
+/* a branch box's pipe in, and a port for each head */
+.dstudio .ds-bbox-port {
+  stroke: currentColor;
+  stroke-width: 3px;
+  vector-effect: non-scaling-stroke;
+}
 .dstudio .ds-bbox-part {
   fill: var(--ink);
   text-anchor: middle;

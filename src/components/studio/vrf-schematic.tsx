@@ -24,6 +24,9 @@ import { deleteFromSchematic, type SchematicTarget } from "@/lib/studio/joints";
 const COL = 132;
 const ROW = 92;
 const RISER_ROW = 156;
+/* floor bands: the strip's label column, and the room inside its edge */
+const BAND_LABEL_W = 96;
+const BAND_PAD = 16;
 const PAD = 24;
 const HEAD_W = 116;
 const ODU_W = 150;
@@ -66,6 +69,54 @@ export function VrfSchematic({
       tos.add(s.to);
     }
     const root = tree.sections.find((s) => !tos.has(s.from))?.from ?? tree.sections[0].from;
+
+    /* FLOOR BANDS (Isaac, 2026-09-30): a drawn system on more than one floor
+       is laid out a strip per floor, the top floor at the top, each node in
+       its own floor's strip. Down each strip a node sits as deep as the
+       pipe has come on that floor: the first on a floor (the outdoor, or
+       where a riser arrives) at the strip's top. */
+    const objFloor = new Map(doc.objects.map((o) => [o.id, o.floorId]));
+    const nodeFloor = new Map<string, string>();
+    const local = new Map<string, number>();
+    const walk = (id: string, parentFloor: string | null, parentLocal: number) => {
+      if (nodeFloor.has(id)) return;
+      const f = objFloor.get(id) ?? parentFloor ?? "";
+      nodeFloor.set(id, f);
+      local.set(id, parentFloor != null && f === parentFloor ? parentLocal + 1 : 0);
+      for (const c of kids.get(id) ?? []) walk(c.to, f, local.get(id)!);
+    };
+    walk(root, null, 0);
+    const bandFloors = doc.floors
+      .filter((f) => [...nodeFloor.values()].includes(f.id))
+      .sort((x, y) => y.level - x.level);
+    const banded = tree.drawn && bandFloors.length > 1;
+    const bands: { floorId: string; name: string; y: number; h: number }[] = [];
+    if (banded) {
+      let y = PAD;
+      for (const f of bandFloors) {
+        const deepest = Math.max(0, ...[...local].filter(([id]) => nodeFloor.get(id) === f.id).map(([, d]) => d));
+        const h = BAND_PAD + 18 + deepest * row + 36 + 42;
+        bands.push({ floorId: f.id, name: f.name, y, h });
+        y += h;
+      }
+    }
+    const bandOf = new Map(bands.map((b) => [b.floorId, b]));
+    const yOf = (id: string, d: number) => {
+      const band = banded ? bandOf.get(nodeFloor.get(id) ?? "") : undefined;
+      return band ? band.y + BAND_PAD + 18 + (local.get(id) ?? 0) * row : PAD + 18 + d * row;
+    };
+    const x0 = banded ? PAD + BAND_LABEL_W : PAD;
+    /* a branch that goes on to another floor is laid out last, so its climb
+       runs up the far edge and crosses no pipe on the floor it leaves */
+    const rootFloor = nodeFloor.get(root);
+    const changesFloor = new Map<string, boolean>();
+    const climbs = (id: string): boolean => {
+      if (changesFloor.has(id)) return changesFloor.get(id)!;
+      const v = nodeFloor.get(id) !== rootFloor || (kids.get(id) ?? []).some((c) => climbs(c.to));
+      changesFloor.set(id, v);
+      return v;
+    };
+
     const pos = new Map<string, Placed>();
     let leaf = 0;
     let depth = 0;
@@ -74,15 +125,17 @@ export function VrfSchematic({
       if (seen.has(id)) return;
       seen.add(id);
       depth = Math.max(depth, d);
-      const ch = (kids.get(id) ?? []).filter((s) => !seen.has(s.to));
+      const ch = (kids.get(id) ?? [])
+        .filter((s) => !seen.has(s.to))
+        .sort((x, y) => (banded ? Number(climbs(x.to)) - Number(climbs(y.to)) : 0));
       if (!ch.length) {
-        pos.set(id, { x: PAD + leaf * COL + COL / 2, y: PAD + 18 + d * row });
+        pos.set(id, { x: x0 + leaf * COL + COL / 2, y: yOf(id, d) });
         leaf++;
         return;
       }
       for (const c of ch) place(c.to, d + 1);
       const xs = ch.map((c) => pos.get(c.to)?.x).filter((x): x is number => x != null);
-      pos.set(id, { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: PAD + 18 + d * row });
+      pos.set(id, { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: yOf(id, d) });
     };
     place(root, 0);
     const fit = new Map<string, SizedFitting>(tree.fittings.map((f) => [f.nodeId, f]));
@@ -90,11 +143,13 @@ export function VrfSchematic({
       root,
       pos,
       fit,
-      w: Math.max(PAD * 2 + leaf * COL, ODU_W + PAD * 2),
+      bands,
+      nodeFloor,
+      w: Math.max(x0 + PAD + leaf * COL, ODU_W + PAD * 2),
       /* room under the lowest heads for their floor and height */
-      h: PAD * 2 + 36 + depth * row + 42,
+      h: banded ? bands.reduce((t, b) => t + b.h, PAD * 2) : PAD * 2 + 36 + depth * row + 42,
     };
-  }, [tree, row]);
+  }, [tree, row, doc.objects, doc.floors]);
 
   const allocs = allocationsOf(sys);
   const oduModel = allocs.find((a) => a.role === "odu")?.model ?? "Outdoor";
@@ -177,10 +232,33 @@ export function VrfSchematic({
      so no two cross. Anything else (off the outdoor) drops, turns, drops. */
   const boxW = (id: string) => Math.max(76, (tree.sections.filter((s) => s.from === id).length || 1) * 28 + 12);
   const route = (s: SizedSection): { d: string; label: { x: number; y: number }; riser: { x: number; y: number } } | null => {
-    const a = pos.get(s.from);
+    const r = routeOf(s);
+    if (!r) return null;
+    /* in floor bands a pipe that changes floor has its riser where it
+       crosses from one strip into the other */
+    const fa = layout.nodeFloor.get(s.from);
+    const fb = layout.nodeFloor.get(s.to);
+    const ba = layout.bands.find((x) => x.floorId === fa);
+    const bb = layout.bands.find((x) => x.floorId === fb);
     const b = pos.get(s.to);
-    if (!a || !b) return null;
+    if (ba && bb && fa !== fb && b) return { ...r, riser: { x: b.x, y: Math.max(ba.y, bb.y) } };
+    return r;
+  };
+  const routeOf = (s: SizedSection): { d: string; label: { x: number; y: number }; riser: { x: number; y: number } } | null => {
+    const a = pos.get(s.from);
+    const b0 = pos.get(s.to);
+    if (!a || !b0) return null;
+    /* a pipe climbing into a head from the strip below meets the head's
+       foot, not its top */
+    const up = b0.y < a.y;
+    const b = up && !fit.has(s.to) && s.to !== layout.root ? { x: b0.x, y: b0.y + 36 } : b0;
     const f = fit.get(s.from);
+    if (up && (!f || f.kind !== "box"))
+      return {
+        d: `M${a.x} ${a.y} H${b.x} V${b.y}`,
+        label: { x: b.x + 6, y: a.y - 24 },
+        riser: { x: b.x, y: a.y - 52 },
+      };
     if (f && f.kind !== "box")
       return {
         d: `M${a.x} ${a.y} H${b.x} V${b.y}`,
@@ -417,6 +495,16 @@ export function VrfSchematic({
           role="img"
           aria-label={`Pipework schematic for ${sys.name}`}
         >
+          {/* the floors, a strip each, top floor first */}
+          {layout.bands.map((band, i) => (
+            <g key={band.floorId} className={`ds-schem-band${i % 2 ? " alt" : ""}`}>
+              <rect x={0} y={band.y} width={layout.w} height={band.h} />
+              {i > 0 && <line x1={0} x2={layout.w} y1={band.y} y2={band.y} />}
+              <text x={PAD} y={band.y + 22}>
+                {band.name}
+              </text>
+            </g>
+          ))}
           {tree.sections.map((s) => {
             const r = route(s);
             if (!r) return null;

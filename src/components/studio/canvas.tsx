@@ -2551,7 +2551,7 @@ export function StudioCanvas({
               floorId: floor.id,
               geometry: { kind: "point", at },
               plane: "room",
-              props: { group, heightM: 3 },
+              props: { group },
             } satisfies DesignObject,
           ],
         };

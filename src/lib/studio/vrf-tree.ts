@@ -32,7 +32,7 @@
    Pure functions. No React, no canvas. */
 
 import type { DesignDocument, DesignSystem } from "./document";
-import { buildSystemGraph } from "./graph";
+import { buildSystemGraph, floorBasesM, mountOf } from "./graph";
 import type { DataPack, IndoorUnit, OutdoorUnit, PipeSizingRule, VrfPipeTable } from "./packs/schema";
 import { allocationsOf, hasAllocations } from "./allocations";
 import { zoneIdsOf } from "./zones";
@@ -69,6 +69,10 @@ export interface VrfTreeSection {
 export interface VrfTree {
   nodes: VrfTreeNode[];
   sections: VrfTreeSection[];
+  /** each placed node's height above the outdoor, metres, from the floors
+      and heights it sits at (graph.ts) — known before any pipe is drawn.
+      Absent, a drawn tree adds its sections' rises instead. */
+  levels?: Record<string, number>;
   /** from the zone order, not from the plan */
   provisional: boolean;
 }
@@ -182,6 +186,8 @@ export interface SizedTree {
   /** grams to add on site, drawn trees only; null when the book's rule can't
       be worked */
   chargeG: number | null;
+  /** each node's height above the outdoor, metres, where it is known */
+  levels: Record<string, number>;
   /** the whole tree is drawn */
   drawn: boolean;
   provisional: boolean;
@@ -295,6 +301,7 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
     farthestEquivM: null,
     totalM: null,
     chargeG: null,
+    levels: {},
     drawn: false,
     provisional: tree.provisional,
   };
@@ -555,17 +562,24 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
       });
   }
 
-  /* levels: every node's height above the outdoor, from the risers drawn */
+  /* levels: every node's height above the outdoor — from where each is
+     placed (tree.levels), else from the rises of a drawn tree. A head not on
+     the plan yet has none and is left out of the lift limits. */
   const level = new Map<string, number>([[root.id, 0]]);
-  const levelOf = (id: string): number => {
+  const risen = (id: string): number => {
     if (level.has(id)) return level.get(id)!;
     const s = incoming.get(id);
-    const v = s ? levelOf(s.from) + (s.riseM ?? 0) : 0;
+    const v = s ? risen(s.from) + (s.riseM ?? 0) : 0;
     level.set(id, v);
     return v;
   };
-  if (drawn && heads.length) {
-    const levels = heads.map((h) => levelOf(h.id));
+  const levelAt = (id: string): number | null =>
+    tree.levels ? (tree.levels[id] ?? null) : drawn ? risen(id) : null;
+  const known = (ids: string[]) => ids.filter((id) => levelAt(id) != null);
+  const levelOf = (id: string): number => levelAt(id) ?? 0;
+  const placedHeads = known(heads.map((h) => h.id));
+  if (placedHeads.length) {
+    const levels = placedHeads.map(levelOf);
     const lowest = Math.min(...levels);
     const highest = Math.max(...levels);
     if (-lowest > L.max_lift_odu_above_m)
@@ -581,7 +595,10 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
         message: `The outdoor is ${Math.round(highest)} m below its highest head, over the book's ${L.max_lift_odu_below_m} m`,
       });
     /* branch box heights: between boxes (h2), and between the heads on one box (h3) */
-    const spread = (ids: string[]) => (ids.length > 1 ? Math.max(...ids.map(levelOf)) - Math.min(...ids.map(levelOf)) : 0);
+    const spread = (all: string[]) => {
+      const ids = known(all);
+      return ids.length > 1 ? Math.max(...ids.map(levelOf)) - Math.min(...ids.map(levelOf)) : 0;
+    };
     if (L.max_box_box_lift_m != null && spread(boxes.map((b) => b.id)) > L.max_box_box_lift_m)
       findings.push({
         severity: "red",
@@ -669,8 +686,8 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
   /* (5b) PUHY: heads more than 15 m from the base level take their own liquid
      one size up (never twice), red past the extended figure. Without a
      step-up (PUMY), heads off joints more than the figure apart are red. */
-  const cmHeads = heads.filter((h) => !onBox(h));
-  if (drawn && cmHeads.length > 1) {
+  const cmHeads = heads.filter((h) => !onBox(h) && levelAt(h.id) != null);
+  if (cmHeads.length > 1) {
     const base = cmHeads.map((h) => levelOf(h.id)).reduce((b, v) => (Math.abs(v) < Math.abs(b) ? v : b));
     const limitH = L.max_lift_idu_idu_m;
     const extendedH = L.extended_lift_idu_idu_m;
@@ -832,6 +849,12 @@ export function sizeVrfTree(pack: DataPack, odu: OutdoorUnit, tree: VrfTree): Si
     farthestEquivM,
     totalM,
     chargeG,
+    levels: Object.fromEntries(
+      tree.nodes.flatMap((n) => {
+        const v = levelAt(n.id);
+        return v == null ? [] : [[n.id, v]];
+      })
+    ),
     drawn,
     provisional: tree.provisional,
   };
@@ -861,7 +884,7 @@ export function drawnVrfTree(
   type Step = { to: string; lengthM: number | null; riseM: number; bends: number; edge: string };
   const adj = new Map<string, Step[]>();
   for (const e of graph.edges) {
-    const bends = bendsOf.get(e.id) ?? 0;
+    const bends = bendsOf.get(e.id) ?? e.bends ?? 0;
     adj.set(e.a, [...(adj.get(e.a) ?? []), { to: e.b, lengthM: e.lengthM, riseM: e.riseM, bends, edge: e.id }]);
     adj.set(e.b, [...(adj.get(e.b) ?? []), { to: e.a, lengthM: e.lengthM, riseM: -e.riseM, bends, edge: e.id }]);
   }
@@ -979,7 +1002,27 @@ export function systemVrfTree(
     drawn && heads.length > 0 && joined === heads.length
       ? drawn.tree
       : provisionalVrfTree(oduAlloc.id, heads, boxed, ports);
-  return { ...sizeVrfTree(pack, odu, tree), joined, heads: heads.length };
+  return { ...sizeVrfTree(pack, odu, doc ? { ...tree, levels: placedLevels(doc, oduAlloc.id, tree) } : tree), joined, heads: heads.length };
+}
+
+/** each of the tree's nodes that is on the plan, its height above the
+    outdoor: its floor's height in the stack plus its own height on the floor
+    (graph.ts). None when the outdoor isn't placed. */
+function placedLevels(doc: DesignDocument, oduId: string, tree: VrfTree): Record<string, number> | undefined {
+  const byId = new Map(doc.objects.map((o) => [o.id, o]));
+  const base = floorBasesM(doc.floors);
+  const at = (id: string): number | null => {
+    const o = byId.get(id);
+    return o ? (base.get(o.floorId) ?? 0) + mountOf(o) : null;
+  };
+  const odu = at(oduId);
+  if (odu == null) return undefined;
+  return Object.fromEntries(
+    tree.nodes.flatMap((n) => {
+      const v = at(n.id);
+      return v == null ? [] : [[n.id, Math.round((v - odu) * 100) / 100]];
+    })
+  );
 }
 
 /** the section that feeds a head, sized */

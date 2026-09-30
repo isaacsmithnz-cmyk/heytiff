@@ -10,6 +10,7 @@ import type {
   PlanImportSource,
 } from "@/lib/studio/document";
 import { createPortal } from "react-dom";
+import { DEFAULT_FLOOR_HEIGHT_M } from "@/lib/studio/graph";
 import {
   applyBuilderRows,
   builderRowsFromFloors,
@@ -741,6 +742,35 @@ export function PlansPanel({
                   }))
                 }
               />
+              {/* storey height: floors stack by it for the VRF lift limits
+                  (graph.ts); one floor has nothing to stack */}
+              {floors.length > 1 && (
+                <label className="ds-floor-h">
+                  <span>Height</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    step={0.1}
+                    value={f.heightM ?? ""}
+                    placeholder={String(DEFAULT_FLOOR_HEIGHT_M)}
+                    aria-label={`${f.name} height, floor to the floor above, metres`}
+                    onChange={(e) => {
+                      const m = e.target.value === "" ? null : Number(e.target.value);
+                      onMutate((d) => ({
+                        ...d,
+                        floors: d.floors.map((fl) => {
+                          if (fl.id !== f.id) return fl;
+                          const { heightM: _old, ...rest } = fl;
+                          void _old;
+                          return m != null && Number.isFinite(m) && m > 0 ? { ...rest, heightM: m } : rest;
+                        }),
+                      }));
+                    }}
+                  />
+                  <span>m</span>
+                </label>
+              )}
               <span className={`ds-floor-scale${f.scaleMmPerUnit == null ? " none" : ""}`}>
                 {f.scaleMmPerUnit == null
                   ? "Not calibrated"

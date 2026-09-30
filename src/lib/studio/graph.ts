@@ -10,14 +10,20 @@
    - pipe run: type "pipe-run", polyline geometry, props { startAttach?,
                endAttach? } where an attach is { kind: "unit"|"riser", id }
                — recorded by the canvas when an endpoint snaps to an anchor.
-   - riser:    type "riser",    point geometry, props { group: "A", heightM }
+   - riser:    type "riser",    point geometry, props { group: "A" }
                — risers sharing a group (within one system) are the same
-               vertical pipe; consecutive levels link with a vertical edge of
-               the lower riser's heightM.
+               vertical pipe; consecutive levels link with a vertical edge as
+               tall as the floors between them.
+
+   HEIGHTS (Isaac, 2026-09-30, for the book's lift limits): a floor stands
+   on the one below it, each floor as tall as its `heightM` (3 m unset); a
+   unit, box or riser sits `props.mountM` above its own floor (0 unset). An
+   edge's rise is the height between its two ends. A run's length stays the
+   one drawn on the plan; a riser's is its height.
 
    Pure functions: (objects, floors) in → nodes/edges/paths out. No React. */
 
-import type { DesignObject, Floor } from "./document";
+import type { DesignDocument, DesignObject, Floor } from "./document";
 import { polylineLength, smoothedLength, unitsToMeters } from "./geometry";
 
 /* Attach kinds: unit/riser are live today (graph v0); fitting/spigot/grille
@@ -53,8 +59,11 @@ export interface GraphEdge {
   b: string;
   /** metres; null when the run's floor is uncalibrated */
   lengthM: number | null;
-  /** vertical rise a→b in metres (0 for horizontal runs) */
+  /** vertical rise a→b in metres (0 when both ends are at one height) */
   riseM: number;
+  /** elbows the edge itself puts in the pipe: a riser turns at each end a
+      run leaves it (a run's own corners are counted from its drawing) */
+  bends?: number;
 }
 
 export interface SystemGraph {
@@ -65,6 +74,44 @@ export interface SystemGraph {
   orphanRuns: string[];
 }
 
+/** a floor's storey height, metres (unset = 3) */
+export const DEFAULT_FLOOR_HEIGHT_M = 3;
+export const floorHeightM = (f: Floor): number =>
+  typeof f.heightM === "number" && f.heightM > 0 ? f.heightM : DEFAULT_FLOOR_HEIGHT_M;
+
+/** each floor's height above the lowest floor, metres: floors stack in level
+    order, each on the one below; floors sharing a level share it (the
+    taller one sets how high the next level starts) */
+export function floorBasesM(floors: readonly Floor[]): Map<string, number> {
+  const levels = [...new Set(floors.map((f) => f.level))].sort((a, b) => a - b);
+  const baseOfLevel = new Map<number, number>();
+  let at = 0;
+  for (const l of levels) {
+    baseOfLevel.set(l, at);
+    at += Math.max(...floors.filter((f) => f.level === l).map(floorHeightM));
+  }
+  return new Map(floors.map((f) => [f.id, baseOfLevel.get(f.level) ?? 0]));
+}
+
+/** a placed object's height above its own floor, metres (props.mountM) */
+export const mountOf = (o: DesignObject): number => {
+  const v = Number(o.props.mountM);
+  return Number.isFinite(v) ? v : 0;
+};
+
+/** set a placed object's height above its floor (null clears it to 0) */
+export function setMount(doc: DesignDocument, id: string, m: number | null): DesignDocument {
+  return {
+    ...doc,
+    objects: doc.objects.map((o) => {
+      if (o.id !== id) return o;
+      const { mountM: _old, ...props } = o.props;
+      void _old;
+      return { ...o, props: m == null || m === 0 ? props : { ...props, mountM: m } };
+    }),
+  };
+}
+
 /** Build the endpoint-connectivity graph for ONE system's objects. */
 export function buildSystemGraph(
   objects: DesignObject[],
@@ -73,6 +120,9 @@ export function buildSystemGraph(
 ): SystemGraph {
   const mine = objects.filter((o) => o.systemId === systemId);
   const floorById = new Map(floors.map((f) => [f.id, f]));
+
+  const base = floorBasesM(floors);
+  const elevationOf = (o: DesignObject) => (base.get(o.floorId) ?? 0) + mountOf(o);
 
   const nodes = new Map<string, DesignObject>();
   for (const o of mine) {
@@ -97,7 +147,8 @@ export function buildSystemGraph(
         : polylineLength(o.geometry.points);
     const lengthM = scale != null ? unitsToMeters(drawnUnits, scale) : null;
     if (start && end && nodes.has(start.id) && nodes.has(end.id)) {
-      edges.push({ id: o.id, a: start.id, b: end.id, lengthM, riseM: 0 });
+      const riseM = elevationOf(nodes.get(end.id)!) - elevationOf(nodes.get(start.id)!);
+      edges.push({ id: o.id, a: start.id, b: end.id, lengthM, riseM });
     } else {
       orphanRuns.push(o.id);
     }
@@ -118,16 +169,23 @@ export function buildSystemGraph(
         (floorById.get(x.floorId)?.level ?? 0) -
         (floorById.get(y.floorId)?.level ?? 0)
     );
+    const runOn = (id: string) =>
+      mine.some(
+        (r) =>
+          r.type === "pipe-run" &&
+          (attachOf(r.props.startAttach)?.id === id || attachOf(r.props.endAttach)?.id === id)
+      );
     for (let i = 0; i < sorted.length - 1; i++) {
       const lower = sorted[i];
       const upper = sorted[i + 1];
-      const h = Number(lower.props.heightM ?? 3);
+      const h = elevationOf(upper) - elevationOf(lower);
       edges.push({
         id: `riser-gap:${group}:${i}`,
         a: lower.id,
         b: upper.id,
-        lengthM: h,
+        lengthM: Math.abs(h),
         riseM: h,
+        bends: (runOn(lower.id) ? 1 : 0) + (runOn(upper.id) ? 1 : 0),
       });
     }
   }

@@ -4383,6 +4383,33 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray400);
   background: var(--tint);
 }
+/* a floor's storey height: the floors stack by it for the VRF lift limits */
+.dstudio .ds-floor-h {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gray400);
+  white-space: nowrap;
+}
+.dstudio .ds-floor-h input {
+  width: 56px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.dstudio .ds-floor-h input:focus {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: var(--ring);
+}
 
 /* ═════════════ Stage 4 — systems, split flow, materials ═════════════ */
 
@@ -9967,11 +9994,25 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 500;
 }
 :is(.dstudio, .ds-sb) .ds-schem-box,
-:is(.dstudio, .ds-sb) .ds-schem-joint {
+:is(.dstudio, .ds-sb) .ds-schem-joint,
+:is(.dstudio, .ds-sb) .ds-schem-odu-n,
+:is(.dstudio, .ds-sb) .ds-schem-head {
   cursor: pointer;
 }
-:is(.dstudio, .ds-sb) .ds-schem-box.on rect {
+:is(.dstudio, .ds-sb) .ds-schem-box.on rect,
+:is(.dstudio, .ds-sb) .ds-schem-odu-n.on rect,
+:is(.dstudio, .ds-sb) .ds-schem-head.on rect {
   stroke-width: 3px;
+}
+/* a unit's or box's height against the outdoor (the lift limits) */
+:is(.dstudio, .ds-sb) .ds-schem-head text.lvl,
+:is(.dstudio, .ds-sb) .ds-schem-box text.lvl {
+  fill: var(--q);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+:is(.dstudio, .ds-sb) .ds-schem-box text.lvl {
+  text-anchor: start;
 }
 :is(.dstudio, .ds-sb) .ds-schem-joint rect {
   fill: var(--ink);
@@ -9985,7 +10026,7 @@ html[data-ds-display] .dstudio.editing {
   flex-direction: column;
   gap: 4px;
   margin: 0;
-  max-width: 480px;
+  max-width: 560px;
 }
 :is(.dstudio, .ds-sb) .ds-schem-card > div {
   display: flex;
@@ -10087,6 +10128,24 @@ html[data-ds-display] .dstudio.editing {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--paper);
+}
+:is(.dstudio, .ds-sb) .ds-schem-mount {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 13px var(--font);
+  color: var(--q);
+}
+:is(.dstudio, .ds-sb) .ds-schem-mount input {
+  width: 72px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--paper);
+  font: 600 13px var(--font);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 :is(.dstudio, .ds-sb) .ds-schem-size label {
   display: flex;

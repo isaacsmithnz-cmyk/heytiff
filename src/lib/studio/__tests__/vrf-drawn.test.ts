@@ -443,3 +443,100 @@ describe("a joint that branches nothing", () => {
     expect(codes()).not.toContain("stray-box");
   });
 });
+
+describe("heights: floors stack, units sit above their floor (Isaac, 2026-09-30)", () => {
+  const setMount = (doc: DesignDocument, id: string, mountM: number): DesignDocument => ({
+    ...doc,
+    objects: doc.objects.map((o) => (o.id === id ? { ...o, props: { ...o.props, mountM } } : o)),
+  });
+  const sized = (doc: DesignDocument, systemId: string) =>
+    systemVrfTree(pack, doc.systems.find((s) => s.id === systemId)!, doc)!;
+  const codes = (doc: DesignDocument, systemId: string) => sized(doc, systemId).findings.map((f) => f.code);
+
+  it("everything on one floor at 0 m is level, as before", () => {
+    const t = page144Drawn();
+    const tree = sized(t.doc, t.systemId);
+    expect(Object.values(tree.levels).every((v) => v === 0)).toBe(true);
+    expect(tree.findings).toEqual([]);
+  });
+
+  it("a head 20 m up takes its liquid one size up; 35 m up is red", () => {
+    const t = page144Drawn();
+    const up = sized(setMount(t.doc, t.heads[63], 20), t.systemId);
+    expect(up.levels[t.heads[63]]).toBe(20);
+    expect(up.sections.find((s) => s.to === t.heads[63])!.upsized).toBe(true);
+    expect(up.findings).toEqual([]);
+    expect(codes(setMount(t.doc, t.heads[63], 35), t.systemId)).toContain("head-height-over");
+  });
+
+  it("an outdoor on a roof 55 m over its heads is red, before a pipe is drawn", () => {
+    const t = page144Drawn();
+    const oduId = allocationsOf(t.doc.systems.find((s) => s.id === t.systemId)!).find((a) => a.role === "odu")!.id;
+    const undrawn = { ...t.doc, objects: t.doc.objects.filter((o) => o.type !== "pipe-run" && o.type !== "joint") };
+    const tree = sized(setMount(undrawn, oduId, 55), t.systemId);
+    expect(tree.drawn).toBe(false);
+    expect(tree.findings.map((f) => f.code)).toContain("outdoor-above-over");
+    expect(codes(setMount(undrawn, oduId, 45), t.systemId)).not.toContain("outdoor-above-over");
+  });
+
+  it("a head not on the plan yet is left out of the lift limits", () => {
+    const t = page144Drawn();
+    const undrawn = {
+      ...t.doc,
+      objects: t.doc.objects.filter((o) => o.type !== "pipe-run" && o.type !== "joint" && o.id !== t.heads[32]),
+    };
+    const tree = sized(setMount(undrawn, t.heads[63], 35), t.systemId);
+    expect(tree.levels[t.heads[32]]).toBeUndefined();
+    // P63 at 35 m against the others at 0: red, and the missing P32 changes nothing
+    expect(tree.findings.map((f) => f.code)).toContain("head-height-over");
+  });
+});
+
+describe("a riser between floors", () => {
+  it("is as tall as the floor it leaves, rises by it, and turns at each end a run leaves it", () => {
+    let doc = createDesign({ name: "two floors", mode: "blank" });
+    const g = doc.floors[0];
+    const up = { ...g, id: "flr_up", name: "Level 1", level: 1 };
+    doc = { ...doc, floors: [{ ...g, heightM: 4.2 }, up, { ...g, id: "flr_roof", name: "Roof", level: 2 }] };
+    const obj = (id: string, type: string, floorId: string, props: Record<string, unknown> = {}): DesignObject => ({
+      id,
+      type,
+      systemId: "sys",
+      floorId,
+      geometry: { kind: "point", at: { x: 0, y: 0 } },
+      plane: "room",
+      props,
+    }) as DesignObject;
+    const run = (id: string, floorId: string, a: string, b: string, akind: string, bkind: string): DesignObject =>
+      ({
+        id,
+        type: "pipe-run",
+        systemId: "sys",
+        floorId,
+        geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] },
+        plane: "room",
+        props: { startAttach: { kind: akind, id: a }, endAttach: { kind: bkind, id: b } },
+      }) as DesignObject;
+    doc = {
+      ...doc,
+      objects: [
+        obj("odu", "unit", g.id, { role: "odu" }),
+        obj("r0", "riser", g.id, { group: "A" }),
+        obj("r1", "riser", "flr_up", { group: "A" }),
+        obj("r2", "riser", "flr_roof", { group: "A" }),
+        obj("idu", "unit", "flr_roof", { role: "idu", mountM: 2.4 }),
+        run("p0", g.id, "odu", "r0", "unit", "riser"),
+        run("p2", "flr_roof", "r2", "idu", "riser", "unit"),
+      ],
+    };
+    const graph = buildSystemGraph(doc.objects, doc.floors, "sys");
+    const gaps = graph.edges.filter((e) => e.id.startsWith("riser-gap:"));
+    // ground is 4.2 m tall, Level 1 the default 3 m
+    expect(gaps.map((e) => [e.lengthM, e.riseM, e.bends])).toEqual([
+      [4.2, 4.2, 1],
+      [3, 3, 1],
+    ]);
+    // the head sits 2.4 m above the roof floor, its riser at the floor
+    expect(graph.edges.find((e) => e.id === "p2")!.riseM).toBeCloseTo(2.4);
+  });
+});

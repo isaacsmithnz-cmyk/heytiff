@@ -17,7 +17,7 @@ import { allocationsOf } from "@/lib/studio/allocations";
 import { blockingFindings, combinationWord, strayFittingIds, systemFindings } from "@/lib/studio/verdict";
 import { systemVrfTree, type SizedFitting, type SizedSection } from "@/lib/studio/vrf-tree";
 import { TUBE_SIZES_MM, pairSize, setRunSizes, sizeTone, tubeSize, type PipeUnits } from "@/lib/studio/pipe-sizes";
-import { attachOf } from "@/lib/studio/graph";
+import { attachOf, mountOf, setMount } from "@/lib/studio/graph";
 import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
 import { deleteFromSchematic, type SchematicTarget } from "@/lib/studio/joints";
 
@@ -86,7 +86,8 @@ export function VrfSchematic({
       pos,
       fit,
       w: Math.max(PAD * 2 + leaf * COL, ODU_W + PAD * 2),
-      h: PAD * 2 + 36 + depth * ROW + 26,
+      /* room under the lowest heads for their heights, when any differ */
+      h: PAD * 2 + 36 + depth * ROW + 26 + (Object.values(tree.levels).some((v) => v !== 0) ? 16 : 0),
     };
   }, [tree]);
 
@@ -253,6 +254,28 @@ export function VrfSchematic({
   const pickedSection = tree.sections.find((s) => s.id === picked);
   const pickedFitting = picked ? fit.get(picked) : undefined;
 
+  /* HEIGHTS (Isaac, 2026-09-30): each unit and box on the plan stands at its
+     floor's height in the stack plus its own height on the floor; the book's
+     lift limits read how far each is above or below the outdoor. Shown on
+     the drawing once anything differs, and set on the picked one. */
+  const showLevels = Object.values(tree.levels).some((v) => v !== 0);
+  const metres = (v: number) => `${Math.round(Math.abs(v) * 10) / 10} m`;
+  const levelTag = (id: string) => {
+    const v = tree.levels[id];
+    return v == null ? null : v === 0 ? "0 m" : `${v > 0 ? "+" : "\u2212"}${metres(v)}`;
+  };
+  const levelWords = (id: string) => {
+    const v = tree.levels[id];
+    if (v == null) return null;
+    if (v === 0) return "level with the outdoor";
+    return `${metres(v)} ${v > 0 ? "above" : "below"} the outdoor`;
+  };
+  const pickedUnit =
+    picked && (picked === layout.root || (pos.has(picked) && !fit.has(picked))) ? picked : null;
+  const heightTarget = pickedUnit ?? (pickedFitting?.kind === "box" ? pickedFitting.nodeId : null);
+  const heightObj = heightTarget ? doc.objects.find((o) => o.id === heightTarget) : undefined;
+  const heightFloor = heightObj ? doc.floors.find((f) => f.id === heightObj.floorId) : undefined;
+
   return (
     <section className="ds-schem">
       <header className="ds-schem-h">
@@ -321,9 +344,10 @@ export function VrfSchematic({
             );
           })}
           {[...pos].map(([id, p]) => {
+            const on = picked === id;
             if (id === layout.root)
               return (
-                <g key={id} className="ds-schem-odu-n">
+                <g key={id} className={`ds-schem-odu-n${on ? " on" : ""}`} onClick={() => setPicked(on ? null : id)}>
                   <rect x={p.x - ODU_W / 2} y={p.y - 18} width={ODU_W} height={28} rx={4} />
                   <text x={p.x} y={p.y + 1}>
                     {oduModel}
@@ -331,7 +355,6 @@ export function VrfSchematic({
                 </g>
               );
             const f = fit.get(id);
-            const on = picked === id;
             if (f?.kind === "box")
               return (
                 <g key={id} className={`ds-schem-box${on ? " on" : ""}`} onClick={() => setPicked(on ? null : id)}>
@@ -339,6 +362,11 @@ export function VrfSchematic({
                   <text x={p.x} y={p.y + 4}>
                     {(f.part ?? "Box").replace(/^PAC-/, "")}
                   </text>
+                  {showLevels && levelTag(id) && (
+                    <text className="lvl" x={p.x + boxW(id) / 2 + 6} y={p.y + 4}>
+                      {levelTag(id)}
+                    </text>
+                  )}
                 </g>
               );
             if (f)
@@ -352,7 +380,7 @@ export function VrfSchematic({
                 </g>
               );
             return (
-              <g key={id} className="ds-schem-head">
+              <g key={id} className={`ds-schem-head${on ? " on" : ""}`} onClick={() => setPicked(on ? null : id)}>
                 <rect x={p.x - HEAD_W / 2} y={p.y} width={HEAD_W} height={36} rx={4} />
                 <text x={p.x} y={p.y + 15}>
                   {headModel(id)}
@@ -360,6 +388,11 @@ export function VrfSchematic({
                 <text className="zone" x={p.x} y={p.y + 29}>
                   {zoneName(id)}
                 </text>
+                {showLevels && levelTag(id) && (
+                  <text className="lvl" x={p.x} y={p.y + 52}>
+                    {levelTag(id)}
+                  </text>
+                )}
               </g>
             );
           })}
@@ -385,12 +418,39 @@ export function VrfSchematic({
             ))}
         </div>
       )}
-      {(pickedLoose || pickedStray || pickedSection || pickedFitting) && (
+      {(pickedLoose || pickedStray || pickedSection || pickedFitting || pickedUnit) && (
         /* THE PICKED THING, pinned under the drawing with what can be done to
            it (Isaac, 2026-09-29): Delete for anything, Override for a pipe's
            size — the same place a duct will take its size by hand */
         <div className="ds-schem-inspect" role="region" aria-label="Selected on the schematic">
           <dl className="ds-schem-card">
+            {pickedUnit && (
+              <div>
+                <dt>{pickedUnit === layout.root ? "Outdoor unit" : "Indoor unit"}</dt>
+                <dd>
+                  {pickedUnit === layout.root
+                    ? oduModel
+                    : [headModel(pickedUnit), zoneName(pickedUnit)].filter(Boolean).join(", ")}
+                </dd>
+              </div>
+            )}
+            {heightTarget && (
+              <div>
+                <dt>Height</dt>
+                <dd>
+                  {heightObj
+                    ? [
+                        mountOf(heightObj) === 0
+                          ? `On ${heightFloor?.name ?? "its floor"}`
+                          : `${metres(mountOf(heightObj))} ${mountOf(heightObj) > 0 ? "above" : "below"} ${heightFloor?.name ?? "its floor"}`,
+                        heightTarget === layout.root ? null : levelWords(heightTarget),
+                      ]
+                        .filter(Boolean)
+                        .join(", ")
+                    : "Not on the plan yet"}
+                </dd>
+              </div>
+            )}
             {pickedStray && (
               <div>
                 <dt>On the plan</dt>
@@ -502,6 +562,31 @@ export function VrfSchematic({
                 Cancel
               </button>
             </div>
+          )}
+          {onEdit && heightObj && (
+            <label className="ds-schem-mount">
+              <span>Height above the floor</span>
+              <input
+                key={heightObj.id}
+                type="number"
+                step={0.1}
+                min={-20}
+                max={200}
+                defaultValue={mountOf(heightObj) || ""}
+                placeholder="0"
+                onBlur={(e) => {
+                  const v = e.currentTarget.value.trim();
+                  const m = v === "" ? 0 : Number(v);
+                  if (!Number.isFinite(m) || m === mountOf(heightObj)) return;
+                  const id = heightObj.id;
+                  onEdit((d) => setMount(d, id, m));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
+              />
+              <span>m</span>
+            </label>
           )}
           {onEdit && (
             <div className="ds-schem-actions">

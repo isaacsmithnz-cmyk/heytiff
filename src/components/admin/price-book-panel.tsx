@@ -154,8 +154,9 @@ export function PriceBook({ suppliers, onImported }: { suppliers: SupplierView[]
                 <span role="cell" className="qs-offers">
                   {m.offers.map((o, i) => (
                     /* offers come cheapest first */
-                    <span key={o.supplierKey} className={m.offers.length > 1 && i === 0 ? "qs-offer ok" : "qs-offer"}>
-                      <em>{o.pricedOn ? `${o.supplierName} on ${dateOf(o.pricedOn)}` : o.supplierName}</em>
+                    <span key={`${o.supplierKey}:${o.code}`} className={m.offers.length > 1 && i === 0 ? "qs-offer ok" : "qs-offer"}>
+                      {/* a part confirmed under two codes names each */}
+                      <em>{`${o.supplierName}${o.code !== m.code ? `, ${o.code}` : ""}${o.pricedOn ? ` on ${dateOf(o.pricedOn)}` : ""}`}</em>
                       {$(o.netCents)}
                     </span>
                   ))}

@@ -89,3 +89,20 @@ alter table public.quote_unit_choices enable row level security;
 -- ── the unit an item is sold by (2026-09-30, Reece) ───────────────────────
 -- EA, MTR, COIL, LEN as the file says it: a price "per MTR" is a metre's.
 alter table public.quote_price_items add column if not exists uom text;
+
+-- ── one part at two suppliers (2026-09-30) ────────────────────────────────
+-- The same part under each supplier's own code (AAD's PC1412 is Reece's
+-- 9800006-1). Tiff proposes the pairs (lib/quotes/same-items.ts); a
+-- person's answer is kept here, a "not the same" as much as a "same item",
+-- so nothing is proposed twice. Refs are "supplier|code", the smaller first.
+create table if not exists public.quote_same_items (
+  org_id      uuid not null references public.organizations(id) on delete cascade,
+  a_ref       text not null,
+  b_ref       text not null,
+  decision    text not null check (decision in ('confirmed', 'rejected')),
+  decided_by  text,
+  decided_at  timestamptz not null default now(),
+  primary key (org_id, a_ref, b_ref),
+  check (a_ref < b_ref)
+);
+alter table public.quote_same_items enable row level security;

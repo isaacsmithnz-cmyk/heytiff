@@ -11983,10 +11983,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .qs-linkrow { grid-template-columns:240px 220px minmax(0, 1fr) 240px; }
 .qs-acts2 { gap:8px; }
 .qs-unpriced li { grid-template-columns:minmax(0, 1fr); }
+/* one part at two suppliers: each side with its price, what they share,
+   and the answer */
+.qs-samerow { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr) 160px 240px; }
 /* a grouped item: one row, every supplier's price a button to choose it by,
    the lowest in the state's green; the priced-from state is a word */
 .qs-state { font-weight:500; }
 .qs-state.warn { color:var(--warn-t); }
+.qs-state.ok { color:var(--ok-t); }
 .qs-list li:has(.qs-groupoffers) { grid-template-columns:minmax(0, 1fr) minmax(0, 1.4fr); }
 .qs-groupoffers { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; }
 .qs-offerbtn { display:flex; flex-direction:column; align-items:flex-start; padding:4px 12px; border:1px solid var(--line);

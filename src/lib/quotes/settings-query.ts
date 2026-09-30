@@ -10,7 +10,8 @@ import {
   type ComponentKey,
 } from "./components";
 import { netCents } from "./price-book";
-import { currentItems, readSuppliers, type BookItem, type SupplierView } from "./price-book-server";
+import { currentItems, readSameDecisions, readSuppliers, type BookItem, type SupplierView } from "./price-book-server";
+import { productsOf, refOf } from "./same-items";
 import { normaliseQuoteSettings, type QuoteSettings } from "./settings";
 
 /* The Quoting page's reads: the business's settings, and for each component
@@ -120,7 +121,15 @@ export async function componentShortlists(
   settings: QuoteSettings,
   suppliers?: SupplierView[]
 ): Promise<ComponentShortlist[]> {
-  const [book, sups] = await Promise.all([currentItems(orgId), suppliers ? Promise.resolve(suppliers) : readSuppliers(orgId)]);
+  const [book, sups, same] = await Promise.all([
+    currentItems(orgId),
+    suppliers ? Promise.resolve(suppliers) : readSuppliers(orgId),
+    readSameDecisions(orgId),
+  ]);
+  /* a part a person confirmed is one item at two suppliers under their own
+     codes (AAD's PC1412 and Reece's 9800006-1) */
+  const products = productsOf(book, same.confirmed);
+  const confirmedProducts = new Set(same.confirmed.flat().map((r) => products.get(r)).filter((p): p is string => !!p));
   const supplierOf = new Map(sups.map((s) => [s.key, s]));
   const matched = new Map<ComponentKey, BookItem[]>(
     COMPONENT_KEYS.map((k) => [k, book.filter((m) => matchesComponent(k, m.name))])
@@ -133,8 +142,11 @@ export async function componentShortlists(
     /* one item: a code at every supplier, a supplier's pack sizes of it
        (Reece's 3211201-1 coil, 3211201-2 by the metre), and one part's
        colours (Reece's metal trunking in twelve) */
-    const groupKey = (m: BookItem) =>
-      colourOf(m.name) ? `${m.supplierKey}|${withoutColour(m.name).toUpperCase()}` : m.code.replace(/-\d+$/, "");
+    const groupKey = (m: BookItem) => {
+      const product = products.get(refOf(m));
+      if (product && confirmedProducts.has(product)) return `p:${product}`;
+      return colourOf(m.name) ? `${m.supplierKey}|${withoutColour(m.name).toUpperCase()}` : m.code.replace(/-\d+$/, "");
+    };
     const byCode = new Map<string, BookItem[]>();
     for (const m of matched.get(key) ?? []) byCode.set(groupKey(m), [...(byCode.get(groupKey(m)) ?? []), m]);
     const rollOf = (m: BookItem) =>
@@ -170,7 +182,7 @@ export async function componentShortlists(
         const first = rows.find((r) => r.code === offers[0]?.code) ?? rows[0]!;
         const colours = rows.some((r) => colourOf(r.name));
         return {
-          code: colours ? first.code.replace(/-\d+$/, "") : code,
+          code: code.startsWith("p:") ? first.code : colours ? first.code.replace(/-\d+$/, "") : code,
           name: colours ? withoutColour(first.name) : first.name,
           rollM: rollOf(first),
           uses: rows.reduce((n, r) => n + (uses.get(r.code) ?? 0), 0),

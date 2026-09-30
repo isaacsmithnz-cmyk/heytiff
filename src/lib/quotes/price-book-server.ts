@@ -9,6 +9,7 @@ import {
   type PricingKind,
   type Supplier,
 } from "./price-book";
+import { decidedKey, productsOf } from "./same-items";
 
 /* The price book's database side: the suppliers as stored (over the two
    defaults), a supplier's new file taken in, and a model looked up at every
@@ -202,8 +203,29 @@ export type ModelOffers = {
   savesCents: number | null;
 };
 
+export type SameDecisions = {
+  /** confirmed pairs, "supplier|code" each */
+  confirmed: [string, string][];
+  /** every decided pair, confirmed or not, by decidedKey */
+  decided: Set<string>;
+};
+
+/* one part at two suppliers: see same-items.ts */
+export async function readSameDecisions(orgId: string): Promise<SameDecisions> {
+  const { data } = await supabaseAdmin.from("quote_same_items").select("a_ref, b_ref, decision").eq("org_id", orgId);
+  const rows = (data ?? []) as { a_ref: string; b_ref: string; decision: string }[];
+  return {
+    confirmed: rows.filter((r) => r.decision === "confirmed").map((r) => [r.a_ref, r.b_ref]),
+    decided: new Set(rows.map((r) => decidedKey(r.a_ref, r.b_ref))),
+  };
+}
+
+type FoundRow = { supplier_key: string; code: string; name: string; cents: number; priced_on: string | null };
+
 /** A model (or a few words of its name) at every supplier that has it,
-    cheapest first. The same code at two suppliers is one model. */
+    cheapest first. The same code at two suppliers is one model, and so is
+    a pair a person confirmed as one part under two codes: finding AAD's
+    PC1412 finds Reece's 9800006-1 beside it. */
 export async function findOffers(orgId: string, query: string, suppliers: Supplier[]): Promise<ModelOffers[]> {
   const q = query.trim().replace(/[%_,()]/g, " ").trim();
   if (q.length < 2) return [];
@@ -218,15 +240,38 @@ export async function findOffers(orgId: string, query: string, suppliers: Suppli
     .or(`code.ilike.%${words[0]}%,name.ilike.%${words[0]}%`)
     .order("code")
     .limit(400);
-  const data = ((found ?? []) as { supplier_key: string; code: string; name: string; cents: number; priced_on: string | null }[]).filter((r) =>
-    words.every((w) => `${r.code} ${r.name}`.toLowerCase().includes(w))
+  const data = ((found ?? []) as FoundRow[]).filter((r) => words.every((w) => `${r.code} ${r.name}`.toLowerCase().includes(w)));
+
+  /* the confirmed partners of what was found, though their names differ */
+  const { confirmed } = await readSameDecisions(orgId);
+  const foundRefs = new Set(data.map((r) => `${r.supplier_key}|${r.code}`));
+  const partners = new Set<string>();
+  for (const [a, b] of confirmed) {
+    if (foundRefs.has(a) && !foundRefs.has(b)) partners.add(b);
+    if (foundRefs.has(b) && !foundRefs.has(a)) partners.add(a);
+  }
+  if (partners.size > 0) {
+    const codes = [...partners].map((r) => r.slice(r.indexOf("|") + 1));
+    const { data: more } = await supabaseAdmin
+      .from("quote_price_items")
+      .select("supplier_key, code, name, cents, priced_on")
+      .eq("org_id", orgId)
+      .eq("current", true)
+      .in("code", codes.slice(0, 200));
+    for (const r of (more ?? []) as FoundRow[]) if (partners.has(`${r.supplier_key}|${r.code}`)) data.push(r);
+  }
+  const products = productsOf(
+    data.map((r) => ({ supplierKey: r.supplier_key, code: r.code })),
+    confirmed
   );
+
   const byCode = new Map<string, { name: string; offers: Offer[] }>();
   const nameOf = new Map(suppliers.map((s) => [s.key, s]));
   for (const r of data) {
     const s = nameOf.get(r.supplier_key);
     if (!s) continue;
-    const entry = byCode.get(r.code) ?? { name: r.name, offers: [] };
+    const key = products.get(`${r.supplier_key}|${r.code}`) ?? r.code;
+    const entry = byCode.get(key) ?? { name: r.name, offers: [] };
     entry.offers.push({
       supplierKey: s.key,
       supplierName: s.name,
@@ -235,9 +280,12 @@ export async function findOffers(orgId: string, query: string, suppliers: Suppli
       netCents: netCents(s, r.code, r.cents),
       pricedOn: r.priced_on,
     });
-    byCode.set(r.code, entry);
+    byCode.set(key, entry);
   }
-  return [...byCode.entries()]
+  return [...byCode.values()]
     .slice(0, 40)
-    .map(([code, e]) => ({ code, name: e.name, ...compareOffers(e.offers) }));
+    .map((e) => {
+      const cmp = compareOffers(e.offers);
+      return { code: cmp.cheapest?.code ?? "", name: e.name, ...cmp };
+    });
 }

@@ -11,6 +11,7 @@ import type { ComponentGroup, ComponentOffer, ComponentShortlist } from "@/lib/q
 import type { SupplierView } from "@/lib/quotes/price-book-server";
 import { PriceBook } from "./price-book-panel";
 import { LinksPanel } from "./links-panel";
+import { SameItemsPanel } from "./same-items-panel";
 import { MAX_DAY_HOURS, MAX_MARKUP_PCT, type QuoteSettings } from "@/lib/quotes/settings";
 
 /* QUOTING — what a quote is priced by.
@@ -147,6 +148,8 @@ export function QuotingScreen({
             <PriceBook suppliers={suppliers} onImported={() => router.refresh()} />
 
             <LinksPanel />
+
+            <SameItemsPanel />
 
             <section className="qs-group">
               <h2 className="qs-h">Preferred items</h2>

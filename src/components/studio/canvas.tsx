@@ -84,6 +84,7 @@ import {
 import { pipeRefusal } from "@/lib/studio/pipe-rules";
 import { strayFittingIds } from "@/lib/studio/verdict";
 import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
+import { footprintBox, layoutPlanLabels } from "@/lib/studio/plan-labels";
 import type { SizedSection } from "@/lib/studio/vrf-tree";
 import { usePipeUnits } from "./pipe-units";
 
@@ -3680,6 +3681,73 @@ export function StudioCanvas({
   const labelZoom = Math.max(zoom, 1);
   const mm = floor.scaleMmPerUnit;
 
+  /** a run's words: its length, then its size (or a drain's, or a cable's kind) */
+  const runLabelText = (r: DesignObject, pts: Point[]): string => {
+    const sized = r.type === "pipe-run" ? pipeView.byRun.get(r.id) : undefined;
+    const len = mm
+      ? formatMeters(unitsToMeters(isCurvedRun(r) ? smoothedLength(pts) : polylineLength(pts), mm))
+      : null;
+    let tag: string | null = null;
+    if (sized) {
+      tag = pairSize(sized.liquidMm, sized.gasMm, pipeUnits);
+    } else if (r.type === "pipe-run") {
+      const auto = runSizes?.get(r.systemId ?? "") ?? null;
+      const liq = Number(r.props.liquidMm) || auto?.liquidMm || null;
+      const gas = Number(r.props.gasMm) || auto?.gasMm || null;
+      tag = liq && gas ? `Ø${liq}/${gas}` : null;
+    } else if (r.type === "drain-run") {
+      tag = `Ø${Number(r.props.sizeMm) || 25} drain`;
+    } else if (r.type === "cable-run") {
+      tag = r.props.kind === "data" ? "Data" : "Power";
+    }
+    return [len, tag].filter(Boolean).join(", ");
+  };
+  /* every word on the plan placed knowing what is under it (plan-labels.ts):
+     a room's name moves off a pipe or a unit, and a pipe's words go beside
+     the copper where nothing else is */
+  const planLabels = layers.labels
+    ? layoutPlanLabels({
+        px: 1 / labelZoom,
+        rooms: rooms.map((r) => {
+          const pts = roomPoints(r);
+          const covFit = roomFits?.[r.id];
+          return {
+            id: r.id,
+            polygon: pts,
+            lineGap: 16,
+            lines: [
+              { text: `${String(r.props.name ?? "Zone")}${isSpillRoom(r) ? " ⤢" : ""}`, size: 13 },
+              {
+                text: `${mm ? formatArea(areaUnitsToM2(polygonArea(pts), mm)) : "not calibrated"}${
+                  covFit ? `, ${covFit}` : ""
+                }`,
+                size: 11,
+              },
+            ],
+          };
+        }),
+        runs: layers.pipes
+          ? runs.map((r) => {
+              const pts = liveRunPoints(r);
+              return { id: r.id, points: pts, text: runLabelText(r, pts), size: 11 };
+            })
+          : [],
+        solids: [
+          ...(layers.units
+            ? units.map((u) => {
+                const fp = footprint(Number(u.props.widthMm ?? 800), Number(u.props.depthMm ?? 300));
+                return footprintBox(pointAt(u), fp.w, fp.h, unitRotDeg(u));
+              })
+            : []),
+          ...[...risers, ...joints].map((o) => footprintBox(pointAt(o), 24 / zoom, 24 / zoom)),
+          ...boxes.map((o) => {
+            const fp = footprint(BOX_W_MM, BOX_D_MM);
+            return footprintBox(pointAt(o), fp.w, fp.h);
+          }),
+        ],
+      })
+    : null;
+
   /* ── drop-to-attribute readout: while an indoor unit rides the cursor,
      every room reads how the armed capacity sits against its OWN load —
      the browser's ranking made spatial — and the room that would take the
@@ -4219,6 +4287,7 @@ export function StudioCanvas({
             const ownZone =
               tool === "place" && placing?.allocationId != null && placing.roomId === r.id;
             const covFit = roomFits?.[r.id];
+            const roomSpot = planLabels?.rooms.get(r.id);
             const owners = zoneOwners.get(r.id) ?? [];
             const zoneStyle = owners.length
               ? ({ "--zc": owners[0].colour, "--zc-fill": zoneFill(owners[0].colour) } as CSSProperties)
@@ -4246,16 +4315,16 @@ export function StudioCanvas({
                       style={{ fill: o.colour }}
                     />
                   ))}
-                {layers.labels && (
+                {roomSpot && (
                   <>
-                    <text x={c.x} y={c.y} fontSize={13 / labelZoom} className="ds-room-name">
+                    <text x={roomSpot.x} y={roomSpot.y} fontSize={13 / labelZoom} className="ds-room-name">
                       {String(r.props.name ?? "Zone")}
                       {/* spill rooms wear the ⤢ chip (ducted spec §9c) */}
                       {isSpillRoom(r) ? " ⤢" : ""}
                     </text>
                     <text
-                      x={c.x}
-                      y={c.y + 16 / labelZoom}
+                      x={roomSpot.x}
+                      y={roomSpot.y + 16 / labelZoom}
                       fontSize={11 / labelZoom}
                       className="ds-room-area"
                     >
@@ -4323,33 +4392,11 @@ export function StudioCanvas({
               : sized
                 ? `var(--pipe-${sizeTone(sized.gasMm)})`
                 : (sysColour.get(r.systemId ?? "") ?? "#888");
-            const midI = Math.floor((pts.length - 1) / 2);
-            const mid = {
-              x: (pts[midI].x + pts[Math.min(midI + 1, pts.length - 1)].x) / 2,
-              y: (pts[midI].y + pts[Math.min(midI + 1, pts.length - 1)].y) / 2,
-            };
             const curved = isCurvedRun(r);
             const cls =
               r.type === "drain-run" ? "ds-drain" : r.type === "cable-run" ? "ds-cable" : "ds-pipe";
-            const len = mm
-              ? formatMeters(
-                  unitsToMeters(curved ? smoothedLength(pts) : polylineLength(pts), mm)
-                )
-              : null;
-            let tag: string | null = null;
-            if (sized) {
-              tag = pairSize(sized.liquidMm, sized.gasMm, pipeUnits);
-            } else if (r.type === "pipe-run") {
-              const auto = runSizes?.get(r.systemId ?? "") ?? null;
-              const liq = Number(r.props.liquidMm) || auto?.liquidMm || null;
-              const gas = Number(r.props.gasMm) || auto?.gasMm || null;
-              tag = liq && gas ? `Ø${liq}/${gas}` : null;
-            } else if (r.type === "drain-run") {
-              tag = `Ø${Number(r.props.sizeMm) || 25} drain`;
-            } else if (r.type === "cable-run") {
-              tag = r.props.kind === "data" ? "Data" : "Power";
-            }
-            const label = [len, tag].filter(Boolean).join(", ");
+            const label = runLabelText(r, pts);
+            const spot = planLabels?.runs.get(r.id);
             return (
               <g
                 key={r.id}
@@ -4374,8 +4421,8 @@ export function StudioCanvas({
                       <circle key={i} className="ds-pipe-open" cx={at.x} cy={at.y} r={5 / zoom} />
                     )
                   )}
-                {label && layers.labels && (
-                  <text x={mid.x} y={mid.y - 7 / labelZoom} fontSize={11 / labelZoom} className="ds-pipe-len">
+                {label && spot && (
+                  <text x={spot.x} y={spot.y} fontSize={11 / labelZoom} className="ds-pipe-len" style={{ textAnchor: spot.anchor }}>
                     {label}
                   </text>
                 )}

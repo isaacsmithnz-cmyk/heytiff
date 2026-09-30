@@ -1428,9 +1428,15 @@ html[data-ds-display] .dstudio.editing {
      screens — sized by their words the tabs were 68, 92 and 84 px under an
      82 px thumb, and a narrower Design-step padding made the whole switcher
      24 px wider on Schematic and Summary, so it jumped sideways on every
-     switch (Isaac, 2026-09-30: "it moves around a lot") */
+     switch (Isaac, 2026-09-30: "it moves around a lot").
+     Exactly the cockpit's width, so its edges stand on the panel's edges
+     below it and the fullscreen button beside it ends where the canvas
+     does; --ds-cockpit-w never changes between steps, so neither does
+     this (Isaac, 2026-09-30: "isn't really aligning with anything") */
+  box-sizing: border-box;
+  width: var(--ds-cockpit-w);
   display: grid;
-  grid-template-columns: repeat(3, 96px);
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   background: #e4e6ec;
   border: 1px solid var(--line);
@@ -1470,7 +1476,7 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   gap: 8px;
   border-radius:var(--r-button);
-  padding: 8px;
+  padding: 8px 4px;
   font-size: 13px;
   font-weight: 700;
   color: var(--gray500);

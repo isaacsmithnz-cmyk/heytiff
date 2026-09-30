@@ -6,7 +6,6 @@ import {
   formatArea,
   formatMeters,
   polygonArea,
-  polygonCentroid,
   polylineLength,
   smoothedLength,
   smoothPathD,
@@ -30,6 +29,7 @@ import {
   calloutOf,
 } from "@/lib/studio/callouts";
 import { unitGlyph, type LayerFlags } from "../canvas";
+import { footprintBox, layoutPlanLabels } from "@/lib/studio/plan-labels";
 
 /* A STATIC plan rendering for print and image export — the same drawing the
    canvas shows, minus every interactive affordance (grid, handles, ghosts,
@@ -225,6 +225,60 @@ export function PlanFigure({
     (o): o is DesignObject & { geometry: { kind: "point"; at: Point } } =>
       o.type === "riser" && o.geometry.kind === "point"
   );
+  /** a run's words on paper: its length, and a drain's size or a cable's kind */
+  const runText = (r: (typeof runs)[number]): string => {
+    const pts = r.geometry.points;
+    const curved = r.type === "cable-run" || (r.type === "pipe-run" && r.props.form === "soft");
+    const len = scale
+      ? formatMeters(unitsToMeters(curved ? smoothedLength(pts) : polylineLength(pts), scale))
+      : null;
+    const tag =
+      r.type === "drain-run"
+        ? `Ø${Number(r.props.sizeMm) || 25} drain`
+        : r.type === "cable-run"
+          ? r.props.kind === "data"
+            ? "Data"
+            : "Power"
+          : null;
+    return [len, tag].filter(Boolean).join(", ");
+  };
+  const unitFp = (o: (typeof units)[number]) => {
+    const widthMm = Number(o.props.widthMm ?? 800);
+    const depthMm = Number(o.props.depthMm ?? 300);
+    return scale
+      ? { w: widthMm / scale, h: depthMm / scale }
+      : { w: 45 * u, h: 45 * u * (depthMm / Math.max(widthMm, 1)) };
+  };
+  /* the words placed as the canvas places them (plan-labels.ts): off the
+     pipes, the units and each other */
+  const planLabels = layers.labels
+    ? layoutPlanLabels({
+        px: u,
+        rooms: rooms.map((r) => ({
+          id: r.id,
+          polygon: r.geometry.points,
+          lineGap: 16,
+          lines: [
+            { text: String(r.props.name ?? "Room"), size: 13 },
+            {
+              text: scale ? formatArea(areaUnitsToM2(polygonArea(r.geometry.points), scale)) : "not calibrated",
+              size: 11,
+            },
+          ],
+        })),
+        runs: layers.pipes ? runs.map((r) => ({ id: r.id, points: r.geometry.points, text: runText(r), size: 11 })) : [],
+        solids: [
+          ...(layers.units
+            ? units.map((o) => {
+                const fp = unitFp(o);
+                return footprintBox(o.geometry.at, fp.w, fp.h, (o.geometry as { rotation?: number }).rotation ?? 0);
+              })
+            : []),
+          ...risers.map((o) => footprintBox(o.geometry.at, 24 * u, 24 * u)),
+        ],
+      })
+    : null;
+
   /* markup prints unconditionally: a note is a written instruction, and the
      layer switches turn off DERIVED annotation (room names, run lengths), not
      what somebody chose to write on the drawing */
@@ -325,18 +379,18 @@ export function PlanFigure({
         {/* rooms — every room full-strength (paper has no active system) */}
         {rooms.map((r) => {
           const pts = r.geometry.points;
-          const c = polygonCentroid(pts);
+          const spot = planLabels?.rooms.get(r.id);
           return (
             <g key={r.id} className="ds-room">
               <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
-              {layers.labels && (
+              {spot && (
                 <>
-                  <text x={c.x} y={c.y} fontSize={13 * u} className="ds-room-name">
+                  <text x={spot.x} y={spot.y} fontSize={13 * u} className="ds-room-name">
                     {String(r.props.name ?? "Room")}
                   </text>
                   <text
-                    x={c.x}
-                    y={c.y + 16 * u}
+                    x={spot.x}
+                    y={spot.y + 16 * u}
                     fontSize={11 * u}
                     className="ds-room-area"
                   >
@@ -357,29 +411,12 @@ export function PlanFigure({
         {layers.pipes &&
           runs.map((r) => {
             const pts = r.geometry.points;
-            const midI = Math.floor((pts.length - 1) / 2);
-            const mid = {
-              x: (pts[midI].x + pts[Math.min(midI + 1, pts.length - 1)].x) / 2,
-              y: (pts[midI].y + pts[Math.min(midI + 1, pts.length - 1)].y) / 2,
-            };
             const curved =
               r.type === "cable-run" || (r.type === "pipe-run" && r.props.form === "soft");
             const cls =
               r.type === "drain-run" ? "ds-pfdrain" : r.type === "cable-run" ? "ds-pfcable" : "ds-pipe";
-            const len = scale
-              ? formatMeters(
-                  unitsToMeters(curved ? smoothedLength(pts) : polylineLength(pts), scale)
-                )
-              : null;
-            const tag =
-              r.type === "drain-run"
-                ? `Ø${Number(r.props.sizeMm) || 25} drain`
-                : r.type === "cable-run"
-                  ? r.props.kind === "data"
-                    ? "Data"
-                    : "Power"
-                  : null;
-            const label = [len, tag].filter(Boolean).join(", ");
+            const label = runText(r);
+            const spot = planLabels?.runs.get(r.id);
             return (
               <g key={r.id} className={cls} style={{ color: colourOf(r) }}>
                 {curved ? (
@@ -387,12 +424,13 @@ export function PlanFigure({
                 ) : (
                   <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
                 )}
-                {label && layers.labels && (
+                {label && spot && (
                   <text
-                    x={mid.x}
-                    y={mid.y - 7 * u}
+                    x={spot.x}
+                    y={spot.y}
                     fontSize={11 * u}
                     className="ds-pipe-len"
+                    style={{ textAnchor: spot.anchor }}
                   >
                     {label}
                   </text>
@@ -405,11 +443,7 @@ export function PlanFigure({
         {layers.units &&
           units.map((o) => {
             const at = o.geometry.at;
-            const widthMm = Number(o.props.widthMm ?? 800);
-            const depthMm = Number(o.props.depthMm ?? 300);
-            const fp = scale
-              ? { w: widthMm / scale, h: depthMm / scale }
-              : { w: 45 * u, h: 45 * u * (depthMm / Math.max(widthMm, 1)) };
+            const fp = unitFp(o);
             const role = String(o.props.role ?? "idu");
             /* a turned unit prints turned — same rule as the canvas */
             const rot = (o.geometry as { rotation?: number }).rotation ?? 0;
@@ -485,11 +519,7 @@ export function PlanFigure({
             const off = calloutOf(o);
             if (!off) return null;
             const at = o.geometry.at;
-            const widthMm = Number(o.props.widthMm ?? 800);
-            const depthMm = Number(o.props.depthMm ?? 300);
-            const fp = scale
-              ? { w: widthMm / scale, h: depthMm / scale }
-              : { w: 45 * u, h: 45 * u * (depthMm / Math.max(widthMm, 1)) };
+            const fp = unitFp(o);
             const room = o.props.roomId
               ? ((rooms.find((r) => r.id === String(o.props.roomId))?.props.name as
                   | string

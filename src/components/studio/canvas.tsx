@@ -71,7 +71,7 @@ import { isAirCapable } from "@/lib/studio/modules";
 import { deleteZone } from "@/lib/studio/builder";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf, riserGapOf, setRiserHeight } from "@/lib/studio/graph";
-import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns } from "@/lib/studio/joints";
+import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns, riserOnRun } from "@/lib/studio/joints";
 import { pipeRefusal } from "@/lib/studio/pipe-rules";
 import { strayFittingIds } from "@/lib/studio/verdict";
 import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
@@ -978,8 +978,8 @@ export function StudioCanvas({
   const strayFits = useMemo(() => {
     const ids = new Set<string>();
     for (const sys of doc.systems) {
-      const { joints, boxes } = strayFittingIds(doc, sys);
-      for (const id of [...joints, ...boxes]) ids.add(id);
+      const { joints, boxes, risers } = strayFittingIds(doc, sys);
+      for (const id of [...joints, ...boxes, ...risers]) ids.add(id);
     }
     return ids;
   }, [doc]);
@@ -2514,8 +2514,11 @@ export function StudioCanvas({
   );
 
   const addRiser = useCallback(
-    (at: Point) => {
+    (w: Point) => {
       if (!activeSystemId) return;
+      /* dropped on one of the system's pipes, it goes IN that pipe there */
+      const onRun = runLanding(w);
+      const at = onRun?.at ?? w;
       onMutate((d) => {
         // next free group letter for this system, A…Z
         const used = new Set(
@@ -2540,24 +2543,19 @@ export function StudioCanvas({
           while (used.has(String.fromCharCode(c))) c++;
           group = String.fromCharCode(c);
         }
-        return {
-          ...d,
-          objects: [
-            ...d.objects,
-            {
-              id: newId("obj"),
-              type: "riser",
-              systemId: activeSystemId,
-              floorId: floor.id,
-              geometry: { kind: "point", at },
-              plane: "room",
-              props: { group },
-            } satisfies DesignObject,
-          ],
-        };
+        const riser = {
+          id: newId("obj"),
+          type: "riser",
+          systemId: activeSystemId,
+          floorId: floor.id,
+          geometry: { kind: "point", at },
+          plane: "room",
+          props: { group },
+        } satisfies DesignObject;
+        return (onRun && riserOnRun(d, onRun.runId, onRun.seg, riser)) || { ...d, objects: [...d.objects, riser] };
       });
     },
-    [activeSystemId, onMutate, floor.id]
+    [activeSystemId, onMutate, floor.id, runLanding]
   );
 
   const commitPipe = useCallback(
@@ -4756,7 +4754,7 @@ export function StudioCanvas({
           {/* risers (Stage 4) — disc + group letter, one per floor per group */}
           {layers.pipes && risers.map((r) => {
             const at = pointAt(r);
-            const colour = sysColour.get(r.systemId ?? "") ?? "#888";
+            const colour = strayFits.has(r.id) ? "var(--bad-t)" : (sysColour.get(r.systemId ?? "") ?? "#888");
             return (
               <g
                 key={r.id}

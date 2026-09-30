@@ -111,7 +111,8 @@ export function VrfSchematic({
     if (id.startsWith("loose:")) return { kind: "runs", ids: [id.slice(6)] };
     if (id.startsWith("stray:")) {
       const o = doc.objects.find((x) => x.id === id.slice(6));
-      return o ? (o.type === "branch-box" ? { kind: "box", id: o.id } : { kind: "joint", id: o.id }) : null;
+      if (!o) return null;
+      return o.type === "branch-box" ? { kind: "box", id: o.id } : o.type === "riser" ? { kind: "riser", id: o.id } : { kind: "joint", id: o.id };
     }
     if (!tree || !layout) return null;
     const f = layout.fit.get(id);
@@ -255,8 +256,14 @@ export function VrfSchematic({
   /* joints that branch nothing and boxes with no pipe: no part of the tree,
      so listed under the drawing like a loose pipe, to be deleted */
   const stray = (() => {
-    const { joints, boxes } = strayFittingIds(doc, sys);
+    const { joints, boxes, risers } = strayFittingIds(doc, sys);
+    const riserWhat = (id: string) => {
+      const o = doc.objects.find((x) => x.id === id);
+      const floor = doc.floors.find((f) => f.id === o?.floorId)?.name ?? "its floor";
+      return `Riser ${String(o?.props.group ?? "A")} has no pipe on ${floor}`;
+    };
     return [
+      ...risers.map((id) => ({ id, what: riserWhat(id) })),
       ...joints.map((id) => ({ id, what: "Joint not connected" })),
       ...boxes.map((id) => ({ id, what: "Branch box not connected" })),
     ];
@@ -336,6 +343,15 @@ export function VrfSchematic({
           {tree.drawn ? "As drawn on the plan" : "From the zones, until the pipework reaches every head"}
         </span>
       </header>
+      {/* NOT PIPED YET (Isaac, 2026-09-30: "there's no pipe work connecting to
+          zone five and zone six. But it's showing up on the schematic as
+          though they are"): until the drawing reaches every head the pipes
+          here are the zones' order, dashed, and the heads it misses are named */}
+      {!tree.drawn && tree.joined > 0 && tree.unjoined.length > 0 && (
+        <p className="ds-schem-unpiped">
+          {`Not piped to the outdoor yet: ${tree.unjoined.map((id) => zoneName(id) || headModel(id)).join(", ")}`}
+        </p>
+      )}
       {reds.length > 0 && (
         <ul className="ds-schem-why">
           {reds.map((f, i) => (
@@ -358,7 +374,7 @@ export function VrfSchematic({
             return (
               <g
                 key={s.id}
-                className={`ds-schem-sec${on ? " on" : ""}`}
+                className={`ds-schem-sec${on ? " on" : ""}${tree.drawn ? "" : " guess"}`}
                 style={{ color: `var(--pipe-${sizeTone(s.gasMm)})` }}
                 onClick={() => setPicked(on ? null : s.id)}
               >

@@ -13,6 +13,9 @@ import { allocationsOf } from "@/lib/studio/allocations";
 import { addHead, chooseOutdoor } from "@/lib/studio/builder";
 import { newSystem } from "@/lib/studio/zones";
 import { setRiserHeight } from "@/lib/studio/graph";
+import { riserOnRun } from "@/lib/studio/joints";
+import { systemFindings } from "@/lib/studio/verdict";
+import { systemVrfTree } from "@/lib/studio/vrf-tree";
 import { VrfSchematic } from "../vrf-schematic";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
@@ -86,5 +89,85 @@ describe("the Schematic with a riser", () => {
     const tall = setRiserHeight(doc, "r0", 6);
     rerender(<VrfSchematic doc={tall} pack={pack} sys={sys} units="in" />);
     expect(screen.getByText("Riser A, 6 m")).toBeTruthy();
+  });
+});
+
+describe("a riser dropped on the trunk (Isaac, 2026-09-30: it sat on the pipe without joining it)", () => {
+  /* the outdoor → a ground-floor head along one run; the riser dropped half
+     way along it; upstairs, the riser → the Level 1 head */
+  function onTrunk(): { doc: DesignDocument; systemId: string; riser: DesignObject } {
+    let doc = createDesign({ name: "trunk riser", mode: "blank" });
+    const g = doc.floors[0];
+    doc = { ...doc, floors: [{ ...g, name: "Ground floor" }, { ...g, id: "flr_up", name: "Level 1", level: 1 }] };
+    const room = (id: string, floorId: string) =>
+      doc.objects.push({
+        id,
+        type: "room",
+        systemId: null,
+        floorId,
+        plane: "room",
+        geometry: { kind: "polygon", points: [{ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 400, y: 400 }, { x: 0, y: 400 }] },
+        props: { name: id },
+      } as RoomObj as DesignObject);
+    room("Down", g.id);
+    room("Up", "flr_up");
+    const made = newSystem(doc, pack.meta.version);
+    const systemId = made.systemId;
+    doc = made.doc;
+    const p40 = pack.indoor_units.find((u) => u.capacity_index === 40 && u.system_roles?.includes("vrf"))!.model;
+    doc = addHead(doc, pack, { systemId, zoneId: "Down", iduModel: p40 });
+    doc = addHead(doc, pack, { systemId, zoneId: "Up", iduModel: p40 });
+    doc = chooseOutdoor(doc, pack, "worst-of-both", systemId, "PUHY-P200YNW-A1");
+    const allocs = allocationsOf(doc.systems.find((s) => s.id === systemId)!);
+    const odu = allocs.find((a) => a.role === "odu")!;
+    const [down, up] = allocs.filter((a) => a.role === "idu");
+    const pt = (id: string, type: string, floorId: string, x: number, props: Record<string, unknown>): DesignObject =>
+      ({ id, type, systemId, floorId, geometry: { kind: "point", at: { x, y: 0 } }, plane: "room", props }) as DesignObject;
+    const run = (id: string, floorId: string, x0: number, x1: number, a: [string, string], b: [string, string]): DesignObject =>
+      ({
+        id,
+        type: "pipe-run",
+        systemId,
+        floorId,
+        geometry: { kind: "polyline", points: [{ x: x0, y: 0 }, { x: x1, y: 0 }] },
+        plane: "room",
+        props: { startAttach: { kind: a[0], id: a[1] }, endAttach: { kind: b[0], id: b[1] } },
+      }) as DesignObject;
+    const riser = pt("r0", "riser", g.id, 500, { group: "A" });
+    doc = {
+      ...doc,
+      objects: [
+        ...doc.objects,
+        pt(odu.id, "unit", g.id, 0, { role: "odu", model: odu.model }),
+        pt(down.id, "unit", g.id, 1000, { role: "idu", model: down.model }),
+        pt(up.id, "unit", "flr_up", 1000, { role: "idu", model: up.model }),
+        pt("r1", "riser", "flr_up", 500, { group: "A" }),
+        run("trunk", g.id, 0, 1000, ["unit", odu.id], ["unit", down.id]),
+        run("up", "flr_up", 500, 1000, ["riser", "r1"], ["unit", up.id]),
+      ],
+    };
+    return { doc, systemId, riser };
+  }
+
+  it("sitting on the pipe unjoined, it is red and the floor above is not piped", () => {
+    const t = onTrunk();
+    const doc = { ...t.doc, objects: [...t.doc.objects, t.riser] };
+    const sys = doc.systems.find((s) => s.id === t.systemId)!;
+    expect(systemFindings(doc, pack, sys).map((f) => f.code)).toContain("stray-riser");
+    render(<VrfSchematic doc={doc} pack={pack} sys={sys} units="in" />);
+    expect(screen.getByText("Riser A has no pipe on Ground floor")).toBeTruthy();
+    expect(screen.getByText("Not piped to the outdoor yet: Up")).toBeTruthy();
+  });
+
+  it("dropped in the pipe, it joins it: a joint at its foot, and the floor above is drawn", () => {
+    const t = onTrunk();
+    const doc = riserOnRun(t.doc, "trunk", 0, t.riser)!;
+    const sys = doc.systems.find((s) => s.id === t.systemId)!;
+    expect(systemFindings(doc, pack, sys).map((f) => f.code)).not.toContain("stray-riser");
+    const tree = systemVrfTree(pack, sys, doc)!;
+    expect(tree.drawn).toBe(true);
+    expect(tree.fittings.map((f) => f.nodeId)).toEqual(["r0"]);
+    render(<VrfSchematic doc={doc} pack={pack} sys={sys} units="in" />);
+    expect(screen.getByText("Riser A, 3 m")).toBeTruthy();
   });
 });

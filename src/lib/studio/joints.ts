@@ -82,17 +82,33 @@ export function jointOnRun(
   jointId: string = newId("obj")
 ): { doc: DesignDocument; jointId: string } | null {
   const run = doc.objects.find((o) => o.id === runId);
+  if (!run || run.type !== "pipe-run" || !run.systemId) return null;
+  const cut = nodeOnRun(doc, runId, seg, at, jointObject(run.systemId, run.floorId, at, jointId));
+  return cut ? { doc: cut, jointId } : null;
+}
+
+/** a riser dropped on a run (Isaac, 2026-09-30: "the riser isn't even
+    snapping to the pipes"): it goes in the run at that point the way a joint
+    does — the run in two, each half on the riser — so the pipe on this floor
+    reaches it and the vertical carries on from there */
+export function riserOnRun(doc: DesignDocument, runId: string, seg: number, riser: DesignObject): DesignDocument | null {
+  if (riser.geometry.kind !== "point") return null;
+  return nodeOnRun(doc, runId, seg, riser.geometry.at, riser);
+}
+
+/* put a point node (a joint, or a riser) on a run at `at`: the cut, shared */
+function nodeOnRun(doc: DesignDocument, runId: string, seg: number, at: Point, joint: DesignObject): DesignDocument | null {
+  const run = doc.objects.find((o) => o.id === runId);
   if (!run || run.type !== "pipe-run" || run.geometry.kind !== "polyline" || !run.systemId) return null;
   const pts = run.geometry.points;
   if (seg < 0 || seg >= pts.length - 1) return null;
-  const joint = jointObject(run.systemId, run.floorId, at, jointId);
   const same = (p: Point) => Math.hypot(p.x - at.x, p.y - at.y) < 1e-6;
   /* a piece remembers which of its ends a cut made (cutStart / cutEnd), so
      a later cut along the same run keeps the earlier one's mark */
   const { startAttach, endAttach, cutStart, cutEnd, ...rest } = run.props;
   const start = attachOf(startAttach);
   const end = attachOf(endAttach);
-  const toJoint = { kind: "joint" as const, id: joint.id };
+  const toJoint = { kind: joint.type === "riser" ? ("riser" as const) : ("joint" as const), id: joint.id };
 
   /* at an end: attach that end to the joint, no cut (an end already joined
      to something else keeps it — a joint does not steal a unit's pipe) */
@@ -100,10 +116,7 @@ export function jointOnRun(
     const atStart = same(pts[0]);
     if ((atStart && start) || (!atStart && end)) return null;
     const props = { ...run.props, [atStart ? "startAttach" : "endAttach"]: toJoint };
-    return {
-      doc: { ...doc, objects: [...doc.objects.map((o) => (o.id === runId ? { ...o, props } : o)), joint] },
-      jointId: joint.id,
-    };
+    return { ...doc, objects: [...doc.objects.map((o) => (o.id === runId ? { ...o, props } : o)), joint] };
   }
 
   const first: DesignObject = {
@@ -118,7 +131,7 @@ export function jointOnRun(
     props: { ...rest, startAttach: toJoint, ...(end ? { endAttach: end } : {}), cutStart: joint.id, ...(cutEnd ? { cutEnd } : {}) },
   };
   const objects = doc.objects.flatMap((o) => (o.id === runId ? [first, second] : [o]));
-  return { doc: { ...doc, objects: [...objects, joint] }, jointId: joint.id };
+  return { ...doc, objects: [...objects, joint] };
 }
 
 /** delete a joint. A joint that cut a run (jointOnRun marks which end of each
@@ -177,7 +190,8 @@ export function deleteJoint(doc: DesignDocument, jointId: string): DesignDocumen
 export type SchematicTarget =
   | { kind: "runs"; ids: string[] }
   | { kind: "joint"; id: string }
-  | { kind: "box"; id: string };
+  | { kind: "box"; id: string }
+  | { kind: "riser"; id: string };
 
 export function deleteFromSchematic(doc: DesignDocument, target: SchematicTarget): DesignDocument {
   if (target.kind === "joint") return deleteJoint(doc, target.id);

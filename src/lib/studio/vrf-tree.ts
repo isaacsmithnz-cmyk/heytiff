@@ -906,12 +906,15 @@ export function drawnVrfTree(
       }
     }
   }
-  /* keep the outdoor, the heads and the joints that branch; pass the rest */
+  /* keep the outdoor, the heads and the joints that branch; pass the rest.
+     A riser dropped in a run (joints.ts riserOnRun) that also carries on
+     along the floor branches there: it is a joint at the riser's foot. */
   const keep = (id: string): boolean =>
     id === oduId ||
     headModel.has(id) ||
     graph.nodes.get(id)?.type === "branch-box" ||
-    (graph.nodes.get(id)?.type === "joint" && (out.get(id)?.length ?? 0) >= 2);
+    ((graph.nodes.get(id)?.type === "joint" || graph.nodes.get(id)?.type === "riser") &&
+      (out.get(id)?.length ?? 0) >= 2);
   const nodes: VrfTreeNode[] = [{ id: oduId, kind: "odu" }];
   const sections: VrfTreeSection[] = [];
   const joined = new Set<string>();
@@ -970,7 +973,7 @@ export function systemVrfTree(
   pack: DataPack,
   sys: DesignSystem,
   doc?: DesignDocument
-): (SizedTree & { joined: number; heads: number }) | null {
+): (SizedTree & { joined: number; heads: number; unjoined: string[] }) | null {
   if (sys.type !== "vrf" || !hasAllocations(sys)) return null;
   const allocs = allocationsOf(sys);
   const oduAlloc = allocs.find((a) => a.role === "odu" && a.model);
@@ -1002,7 +1005,13 @@ export function systemVrfTree(
     drawn && heads.length > 0 && joined === heads.length
       ? drawn.tree
       : provisionalVrfTree(oduAlloc.id, heads, boxed, ports);
-  return { ...sizeVrfTree(pack, odu, doc ? { ...tree, levels: placedLevels(doc, oduAlloc.id, tree) } : tree), joined, heads: heads.length };
+  return {
+    ...sizeVrfTree(pack, odu, doc ? { ...tree, levels: placedLevels(doc, oduAlloc.id, tree) } : tree),
+    joined,
+    heads: heads.length,
+    /* the heads the drawing doesn't reach from the outdoor yet */
+    unjoined: heads.filter((h) => !drawn?.joined.has(h.id)).map((h) => h.id),
+  };
 }
 
 /** each of the tree's nodes that is on the plan, its height above the

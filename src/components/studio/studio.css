@@ -10030,6 +10030,12 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 500;
   color: var(--bad-t);
 }
+:is(.dstudio, .ds-sb) .ds-schem-unpiped {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
 :is(.dstudio, .ds-sb) .ds-schem-empty {
   margin: 0;
   font-size: 14px;
@@ -10056,6 +10062,10 @@ html[data-ds-display] .dstudio.editing {
 :is(.dstudio, .ds-sb) .ds-schem-sec path.hit {
   stroke: transparent;
   stroke-width: 14px;
+}
+/* not drawn yet: the zones' order, dashed, so it never passes for pipework */
+:is(.dstudio, .ds-sb) .ds-schem-sec.guess path:not(.hit) {
+  stroke-dasharray: 6 5;
 }
 :is(.dstudio, .ds-sb) .ds-schem-sec.on path:not(.hit) {
   stroke-width: 6px;

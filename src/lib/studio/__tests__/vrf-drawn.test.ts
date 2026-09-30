@@ -17,6 +17,7 @@ import { newSystem } from "../zones";
 import { deleteFromSchematic, deleteJoint, jointOnRun, nearestOnRuns, riserOnRun, slideOnRun } from "../joints";
 import { reconcileAttachedRuns } from "../attach";
 import { systemVrfTree } from "../vrf-tree";
+import { answerInstall, equipmentList, installQuestions } from "../install";
 import { attachOf, buildSystemGraph, riserGapOf, setRiserHeight } from "../graph";
 import { combinationWord, doneBlockers, systemFindings } from "../verdict";
 import { buildSummaryModel } from "../summary";
@@ -649,5 +650,27 @@ describe("deleting a riser dropped in a pipe (Isaac, 2026-09-30: it left the tru
     expect((runs[0].geometry as { points: Point[] }).points).toEqual([{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 10, y: 0 }]);
     expect(attachOf(runs[0].props.startAttach)?.id).toBe("odu");
     expect(back.objects.some((o) => o.id === "R")).toBe(false);
+  });
+});
+
+describe("branch kits or refrigeration tees (Isaac, 2026-09-30)", () => {
+  it("is asked of a VRF that branches at joints; tees take each joint's place, a tee per pipe", () => {
+    const t = page144Drawn();
+    const sys = () => t.doc.systems.find((s) => s.id === t.systemId)!;
+    expect(installQuestions(t.doc, pack, sys()).map((q) => q.id)).toContain("branch-joints");
+    const joints = (doc: DesignDocument) =>
+      equipmentList(doc, pack, doc.systems.find((s) => s.id === t.systemId)!).rows.filter(
+        (r) => r.name === "Joint" || r.name.startsWith("Refrigeration tee")
+      );
+    // unanswered, the book's kits are listed
+    expect(joints(t.doc).every((r) => r.name === "Joint")).toBe(true);
+    const teed = answerInstall(t.doc, t.systemId, "branch-joints", ["tees"]);
+    const rows = joints(teed);
+    expect(rows.some((r) => r.name === "Joint")).toBe(false);
+    // four joints, a liquid and a gas tee each
+    expect(rows.reduce((n, r) => n + (r.qty ?? 0), 0)).toBe(8);
+    // copper as it is sold: in, then the two out, e.g. 1 1/8" × 7/8" × 5/8"
+    expect(rows.every((r) => /^[\d/ ]+" × [\d/ ]+" × [\d/ ]+"$/.test(r.model ?? ""))).toBe(true);
+    expect(rows.map((r) => r.model)).toContain('1 1/8" × 7/8" × 5/8"');
   });
 });

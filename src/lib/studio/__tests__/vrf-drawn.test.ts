@@ -642,7 +642,7 @@ describe("deleting a riser dropped in a pipe (Isaac, 2026-09-30: it left the tru
       ],
     };
     const riser = { id: "R", type: "riser", systemId: "s", floorId, plane: "room", geometry: { kind: "point", at: { x: 4, y: 0 } }, props: { group: "A" } } as DesignObject;
-    const cut = riserOnRun(doc, "run", 0, riser)!;
+    const cut = riserOnRun(doc, "run", 0, riser, 0.1)!;
     expect(cut.objects.filter((o) => o.type === "pipe-run")).toHaveLength(2);
     const back = deleteJoint(cut, "R");
     const runs = back.objects.filter((o) => o.type === "pipe-run");
@@ -672,5 +672,36 @@ describe("branch kits or refrigeration tees (Isaac, 2026-09-30)", () => {
     // copper as it is sold: in, then the two out, e.g. 1 1/8" × 7/8" × 5/8"
     expect(rows.every((r) => /^[\d/ ]+" × [\d/ ]+" × [\d/ ]+"$/.test(r.model ?? ""))).toBe(true);
     expect(rows.map((r) => r.model)).toContain('1 1/8" × 7/8" × 5/8"');
+  });
+});
+
+describe("a riser on a pipe's end (Isaac, 2026-09-30)", () => {
+  const setup = () => {
+    let doc = createDesign({ name: "end riser", mode: "blank" });
+    const floorId = doc.floors[0].id;
+    doc = {
+      ...doc,
+      objects: [
+        { id: "run", type: "pipe-run", systemId: "s", floorId, plane: "room", geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }] }, props: { startAttach: { kind: "unit", id: "odu" } } } as DesignObject,
+      ],
+    };
+    const riser = { id: "R", type: "riser", systemId: "s", floorId, plane: "room", geometry: { kind: "point", at: { x: 10.3, y: 9.6 } }, props: { group: "A" } } as DesignObject;
+    return { doc, riser };
+  };
+  it("dropped near a free end, takes that pipe up there: no T, the riser on the end", () => {
+    const { doc, riser } = setup();
+    const joined = riserOnRun(doc, "run", 1, riser, 1)!;
+    const runs = joined.objects.filter((o) => o.type === "pipe-run");
+    expect(runs).toHaveLength(1);
+    expect(attachOf(runs[0].props.endAttach)?.id).toBe("R");
+    expect((joined.objects.find((o) => o.id === "R")!.geometry as { at: Point }).at).toEqual({ x: 10, y: 10 });
+  });
+  it("slides back along its own pipe, round the corner, shortening it", () => {
+    const { doc, riser } = setup();
+    const joined = riserOnRun(doc, "run", 1, riser, 1)!;
+    const slid = slideOnRun(joined.objects, "R", { x: 6, y: 0.3 }, 1)!;
+    expect(slid.at).toEqual({ x: 6, y: 0 });
+    const run = slid.objects.find((o) => o.id === "run")!;
+    expect((run.geometry as { points: Point[] }).points).toEqual([{ x: 0, y: 0 }, { x: 6, y: 0 }]);
   });
 });

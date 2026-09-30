@@ -166,7 +166,7 @@ describe("a riser dropped on the trunk (Isaac, 2026-09-30: it sat on the pipe wi
 
   it("dropped in the pipe, it joins it: a joint at its foot, and the floor above is drawn", () => {
     const t = onTrunk();
-    const doc = riserOnRun(t.doc, "trunk", 0, t.riser)!;
+    const doc = riserOnRun(t.doc, "trunk", 0, t.riser, 1)!;
     const sys = doc.systems.find((s) => s.id === t.systemId)!;
     expect(systemFindings(doc, pack, sys).map((f) => f.code)).not.toContain("stray-riser");
     const tree = systemVrfTree(pack, sys, doc)!;

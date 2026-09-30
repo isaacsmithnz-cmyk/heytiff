@@ -4696,6 +4696,10 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-riser.sel circle { stroke-width: 3.5px; }
+/* a riser that is a T: the T's ink square inside the ring */
+.dstudio .ds-riser.tee rect {
+  fill: var(--ink);
+}
 /* a refrigerant joint (joints.ts): a solid square in ink — the pipes carry
    colour by size, so a fitting stands apart from them — ringed in paper so it
    reads on top of the run it sits on */
@@ -4706,6 +4710,23 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-joint.sel rect { stroke: currentColor; stroke-width: 3.5px; }
+/* the T: a thick square-ended arm down each pipe, over a paper halo so it
+   reads on top of the runs */
+.dstudio .ds-joint line {
+  stroke-linecap: square;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-joint line.halo {
+  stroke: var(--paper);
+  stroke-width: 9px;
+}
+.dstudio .ds-joint line.arm {
+  stroke: currentColor;
+  stroke-width: 6px;
+}
+.dstudio .ds-joint.sel line.arm {
+  stroke-width: 8px;
+}
 /* a branch box: to scale, paper-filled, ringed in ink, its part under it */
 .dstudio .ds-bbox rect {
   fill: var(--paper);
@@ -10114,6 +10135,10 @@ html[data-ds-display] .dstudio.editing {
   stroke: currentColor;
   stroke-width: 2px;
 }
+/* round a T: a ring, the T's square showing through it */
+:is(.dstudio, .ds-sb) .ds-schem-riser.tee circle {
+  fill: none;
+}
 :is(.dstudio, .ds-sb) .ds-schem-riser text.id {
   fill: currentColor;
   text-anchor: middle;
@@ -10141,10 +10166,12 @@ html[data-ds-display] .dstudio.editing {
 :is(.dstudio, .ds-sb) .ds-schem-box text.lvl {
   text-anchor: start;
 }
-:is(.dstudio, .ds-sb) .ds-schem-joint rect {
+:is(.dstudio, .ds-sb) .ds-schem-joint rect,
+:is(.dstudio, .ds-sb) .ds-schem-joint > path {
   fill: var(--ink);
 }
-:is(.dstudio, .ds-sb) .ds-schem-joint.on rect {
+:is(.dstudio, .ds-sb) .ds-schem-joint.on rect,
+:is(.dstudio, .ds-sb) .ds-schem-joint.on > path {
   stroke: var(--ink);
   stroke-width: 4px;
 }

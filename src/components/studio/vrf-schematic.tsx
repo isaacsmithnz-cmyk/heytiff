@@ -456,15 +456,20 @@ export function VrfSchematic({
                   const b = pos.get(s.to);
                   const touch = rz.atStart && a && b && fit.has(s.from) && fit.get(s.from)!.kind !== "box";
                   const dir = touch && b!.x < a!.x ? -1 : 1;
-                  const at = touch ? { x: a!.x + dir * 17, y: a!.y } : { x: r.riser.x, y: r.riser.y + k * 52 };
-                  const tx = touch ? dir * 14 : 16;
+                  /* a riser that is a T: the T's square with the riser's
+                     ring round it (Isaac, 2026-09-30: "a T junction with the
+                     riser symbol around it") */
+                  const at = touch ? { x: a!.x, y: a!.y } : { x: r.riser.x, y: r.riser.y + k * 52 };
+                  const tx = touch ? dir * 20 : 16;
                   const anchor = touch && dir < 0 ? "end" : "start";
                   return (
-                    <g key={k} className="ds-schem-riser" transform={`translate(${at.x} ${at.y})`}>
-                      <circle r={9} />
-                      <text className="id" y={4}>
-                        {rz.group}
-                      </text>
+                    <g key={k} className={`ds-schem-riser${touch ? " tee" : ""}`} transform={`translate(${at.x} ${at.y})`}>
+                      <circle r={touch ? 13 : 9} />
+                      {!touch && (
+                        <text className="id" y={4}>
+                          {rz.group}
+                        </text>
+                      )}
                       {/* what it is, then what it does */}
                       <text className="name" x={tx} y={touch ? -30 : 4} textAnchor={anchor}>
                         {`Riser ${rz.group}`}
@@ -543,7 +548,9 @@ export function VrfSchematic({
                   {f.kind === "header" ? (
                     <rect x={p.x - 16} y={p.y - 5} width={32} height={10} />
                   ) : (
-                    <rect x={p.x - 6} y={p.y - 6} width={12} height={12} />
+                    /* a solid T (Isaac, 2026-09-30): the bar along the two
+                       branches leaving sideways, the stem up the pipe in */
+                    <path d={`M${p.x - 12} ${p.y - 3.5} H${p.x - 3.5} V${p.y - 12} H${p.x + 3.5} V${p.y - 3.5} H${p.x + 12} V${p.y + 3.5} H${p.x - 12} Z`} />
                   )}
                 </g>
               );

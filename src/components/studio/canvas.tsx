@@ -71,7 +71,16 @@ import { isAirCapable } from "@/lib/studio/modules";
 import { deleteZone } from "@/lib/studio/builder";
 import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf, riserGapOf, setRiserHeight } from "@/lib/studio/graph";
-import { branchBoxObject, deleteJoint, jointObject, jointOnRun, nearestOnRuns, riserOnRun, slideOnRun } from "@/lib/studio/joints";
+import {
+  branchBoxObject,
+  deleteJoint,
+  freeRunEnd,
+  jointObject,
+  jointOnRun,
+  nearestOnRuns,
+  riserOnRun,
+  slideOnRun,
+} from "@/lib/studio/joints";
 import { pipeRefusal } from "@/lib/studio/pipe-rules";
 import { strayFittingIds } from "@/lib/studio/verdict";
 import { pairSize, sizeTone, vrfPipeViews, type FittingView } from "@/lib/studio/pipe-sizes";
@@ -322,6 +331,8 @@ const NOTE_MIN_PX = 14;
 const HIT_EDGE_PX = 6;
 /* a joint or riser dragged further than this off its pipe comes free of it */
 const SLIDE_OFF_PX = 28;
+/* how near a pipe's free end a riser must land to join it */
+const RISER_END_PX = 16;
 const ERASE_HIT_PX = 14; // eraser is more forgiving than select (DUCTR parity)
 
 /* A room drawn with the rectangle tool stays a rectangle when edited: is its
@@ -2528,7 +2539,8 @@ export function StudioCanvas({
   const addRiser = useCallback(
     (w: Point) => {
       if (!activeSystemId) return;
-      /* dropped on one of the system's pipes, it goes IN that pipe there */
+      /* dropped on one of the system's pipes: at a free end it takes that
+         pipe up; mid-pipe it is a T with the riser round it (riserOnRun) */
       const onRun = runLanding(w);
       const at = onRun?.at ?? w;
       onMutate((d) => {
@@ -2564,10 +2576,15 @@ export function StudioCanvas({
           plane: "room",
           props: { group },
         } satisfies DesignObject;
-        return (onRun && riserOnRun(d, onRun.runId, onRun.seg, riser)) || { ...d, objects: [...d.objects, riser] };
+        return (
+          (onRun && riserOnRun(d, onRun.runId, onRun.seg, riser, RISER_END_PX / vp.zoom)) || {
+            ...d,
+            objects: [...d.objects, riser],
+          }
+        );
       });
     },
-    [activeSystemId, onMutate, floor.id, runLanding]
+    [activeSystemId, onMutate, floor.id, runLanding, vp.zoom]
   );
 
   const commitPipe = useCallback(
@@ -3995,7 +4012,7 @@ export function StudioCanvas({
       : tool === "joint"
         ? { icon: "pipe", text: "Click a run to branch it there, or anywhere to place a joint" }
       : tool === "riser"
-        ? { icon: "pipe", text: "Click a pipe to put the riser in it, or anywhere to place one. Risers with the same letter join the floors" }
+        ? { icon: "pipe", text: "Click a pipe's end to take it up there, the middle of one for a T up, or anywhere to place one. Risers with the same letter join the floors" }
       : tool === "branch-box"
         ? { icon: "pipe", text: "Click where the branch box goes, then run each head's pipe to it" }
       : tool === "note"
@@ -4798,16 +4815,35 @@ export function StudioCanvas({
           {layers.pipes && risers.map((r) => {
             const at = pointAt(r);
             const colour = strayFits.has(r.id) ? "var(--bad-t)" : (sysColour.get(r.systemId ?? "") ?? "#888");
+            const tee =
+              doc.objects.filter(
+                (o) =>
+                  o.type === "pipe-run" &&
+                  o.floorId === r.floorId &&
+                  (attachOf(o.props.startAttach)?.id === r.id || attachOf(o.props.endAttach)?.id === r.id)
+              ).length >= 2;
             return (
               <g
                 key={r.id}
-                className={`ds-riser${r.id === selectedId ? " sel" : ""}`}
+                className={`ds-riser${r.id === selectedId ? " sel" : ""}${tee ? " tee" : ""}`}
                 style={{ color: colour }}
               >
-                <circle cx={at.x} cy={at.y} r={10 / zoom} />
-                <text x={at.x} y={at.y + 3.5 / zoom} fontSize={10 / zoom}>
-                  ⇅{String(r.props.group ?? "A")}
-                </text>
+                <circle cx={at.x} cy={at.y} r={(tee ? 12 : 10) / zoom} />
+                {tee ? (
+                  /* dropped mid-pipe it is a T with the riser round it
+                     (Isaac, 2026-09-30): the T's square inside the ring, its
+                     letter beside */
+                  <>
+                    <rect x={at.x - 4 / zoom} y={at.y - 4 / zoom} width={8 / zoom} height={8 / zoom} />
+                    <text x={at.x + 22 / zoom} y={at.y + 3.5 / zoom} fontSize={10 / zoom}>
+                      ⇅{String(r.props.group ?? "A")}
+                    </text>
+                  </>
+                ) : (
+                  <text x={at.x} y={at.y + 3.5 / zoom} fontSize={10 / zoom}>
+                    ⇅{String(r.props.group ?? "A")}
+                  </text>
+                )}
               </g>
             );
           })}
@@ -4831,13 +4867,42 @@ export function StudioCanvas({
             );
           })}
 
-          {/* joints — a small square where the refrigerant branches */}
+          {/* joints — a solid T where the refrigerant branches (Isaac,
+              2026-09-30: "more of a block, T-shape"): a short thick arm down
+              each pipe on it, so the T points the way the pipes go; a joint
+              with no pipe on keeps the square */}
           {layers.pipes && joints.map((j) => {
             const at = pointAt(j);
             const half = 5 / zoom;
+            const arm = 9 / zoom;
+            const legs = runs.flatMap((r) => {
+              const atStart = attachOf(r.props.startAttach)?.id === j.id;
+              if (!atStart && attachOf(r.props.endAttach)?.id !== j.id) return [];
+              const raw = liveRunPoints(r);
+              if (raw.length < 2) return [];
+              const pts = atStart ? raw : [...raw].reverse();
+              const p0 = pts[0];
+              /* aim at the first point further off than the arm: a tiny jog
+                 where the pipe leaves (a few cm before it turns) would
+                 otherwise lay the arm flat along the bar */
+              const p1 = pts.slice(1).find((q) => Math.hypot(q.x - p0.x, q.y - p0.y) > arm * 1.5) ?? pts[pts.length - 1];
+              const len = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+              return len > 0 ? [{ x: (p1.x - p0.x) / len, y: (p1.y - p0.y) / len }] : [];
+            });
             return (
               <g key={j.id} className={`ds-joint${j.id === selectedId ? " sel" : ""}`} style={{ color: strayFits.has(j.id) ? "var(--bad-t)" : "var(--ink)" }}>
-                <rect x={at.x - half} y={at.y - half} width={half * 2} height={half * 2} />
+                {legs.length ? (
+                  <>
+                    {legs.map((u, i) => (
+                      <line key={`h${i}`} className="halo" x1={at.x} y1={at.y} x2={at.x + u.x * arm} y2={at.y + u.y * arm} />
+                    ))}
+                    {legs.map((u, i) => (
+                      <line key={`a${i}`} className="arm" x1={at.x} y1={at.y} x2={at.x + u.x * arm} y2={at.y + u.y * arm} />
+                    ))}
+                  </>
+                ) : (
+                  <rect x={at.x - half} y={at.y - half} width={half * 2} height={half * 2} />
+                )}
               </g>
             );
           })}
@@ -4868,7 +4933,13 @@ export function StudioCanvas({
                 ...(landing
                   ? [
                       tool === "riser" ? (
-                        <circle key="landing" className="ds-anchor ready" cx={landing.at.x} cy={landing.at.y} r={10 / zoom} />
+                        /* rung where it will go: onto a free end near one,
+                           else in the pipe there */
+                        (() => {
+                          const end = cursor ? freeRunEnd(doc.objects, landing.runId, cursor, RISER_END_PX / zoom) : null;
+                          const at = end?.at ?? landing.at;
+                          return <circle key="landing" className="ds-anchor ready" cx={at.x} cy={at.y} r={10 / zoom} />;
+                        })()
                       ) : (
                         <rect
                           key="landing"

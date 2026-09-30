@@ -88,12 +88,43 @@ export function jointOnRun(
 }
 
 /** a riser dropped on a run (Isaac, 2026-09-30: "the riser isn't even
-    snapping to the pipes"): it goes in the run at that point the way a joint
-    does — the run in two, each half on the riser — so the pipe on this floor
-    reaches it and the vertical carries on from there */
-export function riserOnRun(doc: DesignDocument, runId: string, seg: number, riser: DesignObject): DesignDocument | null {
+    snapping to the pipes"). Near a free end, that end joins it: the pipe
+    leaves the floor there. Mid-pipe it goes in the pipe the way a joint
+    does — "it would turn into a T junction with the riser symbol around
+    it": the pipe carries on along the floor and the riser takes a branch
+    up. `tol` is how near an end counts; the riser moves onto it exactly. */
+export function riserOnRun(
+  doc: DesignDocument,
+  runId: string,
+  seg: number,
+  riser: DesignObject,
+  tol: number
+): DesignDocument | null {
   if (riser.geometry.kind !== "point") return null;
+  const end = freeRunEnd(doc.objects, runId, riser.geometry.at, tol);
+  if (end) {
+    const run = doc.objects.find((o) => o.id === runId) as Polyline;
+    const placed = { ...riser, geometry: { ...riser.geometry, at: end.at } } as DesignObject;
+    return nodeOnRun(doc, runId, end.atStart ? 0 : run.geometry.points.length - 2, end.at, placed);
+  }
   return nodeOnRun(doc, runId, seg, riser.geometry.at, riser);
+}
+
+/** the end of a run within `tol` of `w` that nothing is on yet */
+export function freeRunEnd(
+  objects: readonly DesignObject[],
+  runId: string,
+  w: Point,
+  tol: number
+): { at: Point; atStart: boolean } | null {
+  const run = objects.find((o) => o.id === runId);
+  if (!run || run.type !== "pipe-run" || run.geometry.kind !== "polyline") return null;
+  const pts = run.geometry.points;
+  const near = (p: Point) => Math.hypot(p.x - w.x, p.y - w.y) <= tol;
+  if (near(pts[0]) && !attachOf(run.props.startAttach)) return { at: pts[0], atStart: true };
+  const last = pts[pts.length - 1];
+  if (near(last) && !attachOf(run.props.endAttach)) return { at: last, atStart: false };
+  return null;
 }
 
 /* put a point node (a joint, or a riser) on a run at `at`: the cut, shared */
@@ -282,6 +313,9 @@ export function slideOnRun(
 ): { at: Point; objects: DesignObject[] } | null {
   const node = objects.find((o) => o.id === nodeId);
   if (!node || node.geometry.kind !== "point" || (node.type !== "joint" && node.type !== "riser")) return null;
+  /* a riser at a pipe's end slides back along that pipe; a riser that is a
+     T slides as a joint does */
+  if (node.type === "riser" && !throughLine(objects, nodeId)) return slideRiserEnd(objects, node, w, tol);
   const line = throughLine(objects, nodeId);
   if (!line) return null;
   const gap = (p: Point, q: Point) => Math.hypot(p.x - q.x, p.y - q.y);
@@ -371,4 +405,64 @@ export function slideOnRun(
   /* nodeOnRun appends the node: it is already there, so take the old copy out */
   const out = cut.objects.filter((o, i, all) => o.id !== nodeId || i === all.length - 1);
   return { at, objects: out };
+}
+
+/* A RISER AT A PIPE'S END SLIDES BACK ALONG THAT PIPE: it is where the pipe
+   leaves the floor, so moving it shortens the pipe (or lengthens it back
+   out along the line it was drawn on). A riser with no pipe on its floor
+   does not slide. */
+function slideRiserEnd(
+  objects: readonly DesignObject[],
+  riser: DesignObject,
+  w: Point,
+  tol: number
+): { at: Point; objects: DesignObject[] } | null {
+  const on = objects.filter(
+    (o): o is Polyline =>
+      o.type === "pipe-run" &&
+      o.geometry.kind === "polyline" &&
+      o.floorId === riser.floorId &&
+      (attachOf(o.props.startAttach)?.id === riser.id || attachOf(o.props.endAttach)?.id === riser.id)
+  );
+  if (on.length !== 1) return null;
+  const run = on[0];
+  const atStart = attachOf(run.props.startAttach)?.id === riser.id;
+  const path = atStart ? [...run.geometry.points].reverse() : [...run.geometry.points];
+  if (path.length < 2) return null;
+  /* the line it can travel: the pipe as drawn, its last leg carried on a
+     little so it can come back out as far as it was pulled in */
+  let best: { seg: number; at: Point; d: number } | null = null;
+  for (let j = 0; j < path.length - 1; j++) {
+    const hit = onSegment(w, path[j], path[j + 1]);
+    if (!best || hit.d < best.d) best = { seg: j, at: hit.at, d: hit.d };
+  }
+  const a = path[path.length - 2];
+  const b = path[path.length - 1];
+  const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  const ux = (b.x - a.x) / len;
+  const uy = (b.y - a.y) / len;
+  const along = (w.x - b.x) * ux + (w.y - b.y) * uy;
+  if (along > 0) {
+    const out = { x: b.x + ux * along, y: b.y + uy * along };
+    const d = Math.hypot(w.x - out.x, w.y - out.y);
+    if (!best || d < best.d) best = { seg: path.length - 1, at: out, d };
+  }
+  if (!best || best.d > tol) return null;
+  /* never back onto the pipe's other end */
+  const first = path[0];
+  if (best.seg === 0 && Math.hypot(best.at.x - first.x, best.at.y - first.y) < tol / 2) return null;
+  const kept = [...path.slice(0, best.seg + 1), best.at].filter(
+    (p, i, all) => i === 0 || Math.hypot(p.x - all[i - 1].x, p.y - all[i - 1].y) > 1e-6
+  );
+  const points = atStart ? [...kept].reverse() : kept;
+  return {
+    at: best.at,
+    objects: objects.map((o) =>
+      o.id === riser.id && o.geometry.kind === "point"
+        ? { ...o, geometry: { ...o.geometry, at: best!.at } }
+        : o.id === run.id
+          ? { ...o, geometry: { kind: "polyline" as const, points } }
+          : o
+    ),
+  };
 }
